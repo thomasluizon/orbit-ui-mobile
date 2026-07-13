@@ -22,7 +22,7 @@ describe('TypingIndicator', () => {
   it('renders three animated dots', () => {
     const { container } = render(<TypingIndicator />)
     const dots = container.querySelectorAll('.animate-gentle-pulse')
-    expect(dots.length).toBe(3)
+    expect(dots).toHaveLength(3)
   })
 
   it('dots have staggered animation delays', () => {

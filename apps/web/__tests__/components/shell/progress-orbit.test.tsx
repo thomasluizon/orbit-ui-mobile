@@ -57,9 +57,9 @@ describe('ProgressOrbit', () => {
     const baseCircles = aboveCap.querySelectorAll('circle').length
 
     const { container: atCap } = render(<ProgressOrbit {...baseProps} done={0} total={12} />)
-    expect(atCap.querySelectorAll('circle').length).toBe(baseCircles + 12 * 2)
+    expect(atCap.querySelectorAll('circle')).toHaveLength(baseCircles + 12 * 2)
 
     const { container: belowCap } = render(<ProgressOrbit {...baseProps} done={0} total={5} />)
-    expect(belowCap.querySelectorAll('circle').length).toBe(baseCircles + 5 * 2)
+    expect(belowCap.querySelectorAll('circle')).toHaveLength(baseCircles + 5 * 2)
   })
 })

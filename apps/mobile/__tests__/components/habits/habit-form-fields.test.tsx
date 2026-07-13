@@ -655,7 +655,7 @@ describe('HabitFormFields (mobile)', () => {
         node.type === 'Text' &&
         node.props.children === 'habits.form.noTagSuggestions',
     )
-    expect(emptyState.length).toBe(1)
+    expect(emptyState).toHaveLength(1)
   })
 
   it('sets isBadHabit from the habit type segmented toggle', async () => {

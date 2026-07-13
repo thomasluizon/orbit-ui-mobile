@@ -205,7 +205,7 @@ describe('PreferencesPage', () => {
     const colorRadios = screen.getAllByRole('radio').filter(
       (radio) => radio.textContent.startsWith('preferences.color'),
     )
-    expect(colorRadios.length).toBe(3)
+    expect(colorRadios).toHaveLength(3)
   })
 
   it('redirects to upgrade when non-Pro user picks non-purple scheme', () => {

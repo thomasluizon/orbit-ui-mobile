@@ -31,7 +31,7 @@ describe('HighlightText', () => {
   it('highlights multiple occurrences', () => {
     render(<HighlightText text="abc abc abc" query="abc" />)
     const marks = document.querySelectorAll('mark')
-    expect(marks.length).toBe(3)
+    expect(marks).toHaveLength(3)
   })
 
   it('renders empty text when text is empty', () => {

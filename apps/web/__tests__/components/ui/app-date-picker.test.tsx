@@ -72,7 +72,7 @@ describe('AppDatePicker', () => {
     render(<AppDatePicker value="2025-06-15" onChange={vi.fn()} />)
     fireEvent.click(screen.getByRole('button'))
     const headers = document.querySelectorAll('th')
-    expect(headers.length).toBe(7)
+    expect(headers).toHaveLength(7)
   })
 
   it('marks selected date with aria-pressed', () => {

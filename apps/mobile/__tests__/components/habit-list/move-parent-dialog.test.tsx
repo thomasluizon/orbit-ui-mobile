@@ -221,7 +221,7 @@ describe('MoveParentDialog', () => {
 
   it('reveals the search field only when destinations exceed eight', () => {
     const { tree: few } = renderDialog()
-    expect(findSearchInputs(few).length).toBe(0)
+    expect(findSearchInputs(few)).toHaveLength(0)
 
     const manyOptions: MoveParentOption[] = [
       makeOption({ id: null, label: 'Top level' }),

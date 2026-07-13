@@ -101,7 +101,7 @@ describe('ActionChips (mobile)', () => {
         />,
       )
     })
-    expect(findPressableByType(tree.root).length).toBe(expected)
+    expect(findPressableByType(tree.root)).toHaveLength(expected)
   })
 
   it('calls onChipClick with entityId and actionType on press', () => {
@@ -151,7 +151,7 @@ describe('ActionChips (mobile)', () => {
           />,
         )
       })
-      expect(findPressableByType(tree.root).length).toBe(0)
+      expect(findPressableByType(tree.root)).toHaveLength(0)
     }
   })
 

@@ -11,7 +11,7 @@ describe('SuggestionChips', () => {
   it('renders three suggestion chips', () => {
     render(<SuggestionChips onSelect={vi.fn()} />)
     const buttons = screen.getAllByRole('button')
-    expect(buttons.length).toBe(3)
+    expect(buttons).toHaveLength(3)
   })
 
   it('renders suggestion text from i18n', () => {
