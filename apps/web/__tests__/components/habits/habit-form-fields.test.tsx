@@ -1377,6 +1377,7 @@ describe('HabitFormFields', () => {
     expect(screen.getByText('habits.form.reminder')).toBeDefined()
     expect(screen.getByText('habits.form.scheduledReminder')).toBeDefined()
     expect(screen.getByText(/scheduledReminderSameDayAt/)).toBeDefined()
+    expect(screen.getAllByRole('switch')).toHaveLength(1)
   })
 
   it('hides the scheduled reminder section for a plain due-timed habit', () => {

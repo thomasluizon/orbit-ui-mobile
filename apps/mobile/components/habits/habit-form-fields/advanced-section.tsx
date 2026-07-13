@@ -211,6 +211,7 @@ export function AdvancedSection({
             setValue("scheduledReminders", reminders, { shouldDirty: true })
           }
           onValidationError={onValidationError}
+          nested={!!dueTime}
         />
       )}
 

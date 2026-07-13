@@ -678,6 +678,7 @@ export function HabitFormFields({
               onToggleReminder={() => handleReminderEnabledChange(!watchedReminderEnabled)}
               onSetScheduledReminders={(reminders) => setValue('scheduledReminders', reminders, { shouldDirty: true })}
               onValidationError={showError}
+              nested={!!watchedDueTime}
               t={t}
             />
           )}

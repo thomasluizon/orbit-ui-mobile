@@ -125,7 +125,7 @@ function applyUpdateScheduleFields(
  * Writes only the reminder store the edit form is actually editing, so a Save never wipes the store
  * it left untouched. Reminders live in two mutually-exclusive stores: `reminderTimes` (minute offsets,
  * used with a due time) and `scheduledReminders` (absolute times, used without one). The update
- * contract is preserve-on-omit — a field absent from the request keeps its stored value; an explicit
+ * contract is preserve-on-omit: a field absent from the request keeps its stored value; an explicit
  * `[]` clears it. A due-timed habit can still hold `scheduledReminders` from a legacy Astra write, so
  * when the form surfaced that editor (`hasScheduledReminders`) the store is written from form state;
  * otherwise it is omitted and preserved. See

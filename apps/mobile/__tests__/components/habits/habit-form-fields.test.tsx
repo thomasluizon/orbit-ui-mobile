@@ -485,6 +485,11 @@ describe('HabitFormFields (mobile)', () => {
 
     expect(hasText('habits.form.reminder')).toBe(true)
     expect(hasText('habits.form.scheduledReminder')).toBe(true)
+    expect(
+      tree.root.findAllByProps({
+        accessibilityLabel: 'habits.form.scheduledReminder',
+      }),
+    ).toHaveLength(0)
   })
 
   it('hides the scheduled reminder section for a plain due-timed habit', async () => {
