@@ -68,59 +68,72 @@ export function TodayRail() {
   const showGamification = canViewGamification && !!gamification
   const showStats = habitsQuery.isSuccess && progress.total > 0
 
+  const renderOrbit = () => {
+    if (habitsQuery.isPending) {
+      return (
+        <div
+          aria-hidden="true"
+          className="skeleton-pulse rounded-full"
+          style={{ width: 200, height: 200, boxShadow: 'inset 0 0 0 4px var(--hairline-strong)' }}
+        />
+      )
+    }
+    if (habitsQuery.isError) {
+      return (
+        <div className="flex flex-col items-center" style={{ gap: 12, paddingBlock: 24 }}>
+          <span className="t-meta">{t('rail.loadFailed')}</span>
+          <button
+            type="button"
+            onClick={() => void habitsQuery.refetch()}
+            className="inline-flex min-h-[44px] items-center justify-center rounded-full px-5 text-[14px] font-medium text-[var(--fg-1)] shadow-[inset_0_0_0_1.5px_var(--hairline-strong)] transition-[transform,background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.96]"
+          >
+            {t('common.retry')}
+          </button>
+        </div>
+      )
+    }
+    if (progress.total === 0) {
+      return (
+        <div
+          className="relative inline-flex items-center justify-center"
+          style={{ width: 200, height: 200 }}
+        >
+          <svg width={200} height={200} viewBox="0 0 200 200" aria-hidden="true">
+            <circle
+              cx={100}
+              cy={100}
+              r={88}
+              fill="none"
+              stroke="var(--hairline-strong)"
+              strokeWidth={4}
+              strokeLinecap="round"
+              strokeDasharray="2 14"
+            />
+          </svg>
+          <span
+            className="t-secondary absolute text-center"
+            style={{ maxWidth: 150, color: 'var(--fg-3)' }}
+          >
+            {t('rail.empty')}
+          </span>
+        </div>
+      )
+    }
+    return (
+      <ProgressOrbit
+        done={progress.done}
+        total={progress.total}
+        label={t('rail.todayProgress')}
+        completeLabel={t('rail.allDone')}
+        ariaLabel={t('rail.progressLabel', { done: progress.done, total: progress.total })}
+      />
+    )
+  }
+
   return (
     <div className="flex flex-col" style={{ gap: 20, paddingBlock: 8 }}>
       <div className="flex flex-col items-center" style={{ gap: 16 }}>
-        {habitsQuery.isPending ? (
-          <div
-            aria-hidden="true"
-            className="skeleton-pulse rounded-full"
-            style={{ width: 200, height: 200, boxShadow: 'inset 0 0 0 4px var(--hairline-strong)' }}
-          />
-        ) : habitsQuery.isError ? (
-          <div className="flex flex-col items-center" style={{ gap: 12, paddingBlock: 24 }}>
-            <span className="t-meta">{t('rail.loadFailed')}</span>
-            <button
-              type="button"
-              onClick={() => void habitsQuery.refetch()}
-              className="inline-flex min-h-[44px] items-center justify-center rounded-full px-5 text-[14px] font-medium text-[var(--fg-1)] shadow-[inset_0_0_0_1.5px_var(--hairline-strong)] transition-[transform,background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.96]"
-            >
-              {t('common.retry')}
-            </button>
-          </div>
-        ) : progress.total === 0 ? (
-          <div
-            className="relative inline-flex items-center justify-center"
-            style={{ width: 200, height: 200 }}
-          >
-            <svg width={200} height={200} viewBox="0 0 200 200" aria-hidden="true">
-              <circle
-                cx={100}
-                cy={100}
-                r={88}
-                fill="none"
-                stroke="var(--hairline-strong)"
-                strokeWidth={4}
-                strokeLinecap="round"
-                strokeDasharray="2 14"
-              />
-            </svg>
-            <span
-              className="t-secondary absolute text-center"
-              style={{ maxWidth: 150, color: 'var(--fg-3)' }}
-            >
-              {t('rail.empty')}
-            </span>
-          </div>
-        ) : (
-          <ProgressOrbit
-            done={progress.done}
-            total={progress.total}
-            label={t('rail.todayProgress')}
-            completeLabel={t('rail.allDone')}
-            ariaLabel={t('rail.progressLabel', { done: progress.done, total: progress.total })}
-          />
-        )}
+        {renderOrbit()}
       </div>
 
       {showStats && (

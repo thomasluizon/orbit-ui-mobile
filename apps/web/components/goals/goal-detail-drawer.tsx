@@ -143,8 +143,9 @@ export function GoalDetailDrawer({
     markCompleted,
   })
 
-  const progressText = goal
-    ? isStreak
+  let progressText = ''
+  if (goal) {
+    progressText = isStreak
       ? t('goals.streak.ofTarget', {
           current: goal.currentValue,
           target: goal.targetValue,
@@ -154,7 +155,9 @@ export function GoalDetailDrawer({
           target: goal.targetValue,
           unit: goal.unit,
         })
-    : ''
+  }
+
+  const unitSuffix = goal?.unit ? `  ·  ${goal.unit}` : ''
 
   return (
     <>
@@ -185,7 +188,7 @@ export function GoalDetailDrawer({
             >
               {isStreak
                 ? t('goals.form.typeStreak')
-                : `${t('goals.form.typeStandard')}${goal.unit ? `  ·  ${goal.unit}` : ''}`}
+                : `${t('goals.form.typeStandard')}${unitSuffix}`}
             </div>
 
             <GoalProgressBlock

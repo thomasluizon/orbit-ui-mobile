@@ -53,6 +53,34 @@ export default function SocialPage() {
     { id: 'buddies', label: t('social.tabs.buddies') },
   ]
 
+  const renderTabContent = () => {
+    if (tab === 'feed') {
+      return <SocialFeed onCheer={setCheerTarget} onAddFriends={() => setTab('friends')} />
+    }
+    if (tab === 'friends') {
+      return <SocialFriends onCheer={setCheerTarget} />
+    }
+    return <AccountabilitySection initialHabitId={newPairHabitId} />
+  }
+
+  const renderBody = () => {
+    if (isLoading) return null
+    if (!socialEnabled) return <SocialOptInGate />
+    return (
+      <div>
+        <SocialIdentityBar />
+        <ChallengesEntryCard />
+        <SectionHeadTabs<SocialTab>
+          tabs={tabs}
+          active={tab}
+          onChange={setTab}
+          ariaLabel={t('social.title')}
+        />
+        {renderTabContent()}
+      </div>
+    )
+  }
+
   return (
     <div className="relative">
       <div className="md:hidden">
@@ -60,27 +88,7 @@ export default function SocialPage() {
       </div>
       <div className="relative z-[1]">
         <AppBar back onBack={() => goBackOrFallback('/profile')} title={t('social.title')} />
-        {isLoading ? null : !socialEnabled ? (
-          <SocialOptInGate />
-        ) : (
-          <div>
-            <SocialIdentityBar />
-            <ChallengesEntryCard />
-            <SectionHeadTabs<SocialTab>
-              tabs={tabs}
-              active={tab}
-              onChange={setTab}
-              ariaLabel={t('social.title')}
-            />
-            {tab === 'feed' ? (
-              <SocialFeed onCheer={setCheerTarget} onAddFriends={() => setTab('friends')} />
-            ) : tab === 'friends' ? (
-              <SocialFriends onCheer={setCheerTarget} />
-            ) : (
-              <AccountabilitySection initialHabitId={newPairHabitId} />
-            )}
-          </div>
-        )}
+        {renderBody()}
       </div>
 
       <CheerComposer target={cheerTarget} onClose={() => setCheerTarget(null)} />

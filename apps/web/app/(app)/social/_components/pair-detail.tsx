@@ -103,6 +103,38 @@ export function PairDetail({ pairId, onClose }: Readonly<PairDetailProps>) {
     }
   }
 
+  const renderCheckInHistory = () => {
+    if (checkInsQuery.isPending) return null
+    if ((checkInsQuery.data?.items.length ?? 0) === 0) {
+      return (
+        <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-3)' }}>
+          {t('social.buddies.detail.historyEmpty')}
+        </p>
+      )
+    }
+    return (
+      <div className="flex flex-col" style={{ gap: 10, paddingBottom: 8 }}>
+        {checkInsQuery.data?.items.map((item) => (
+          <div key={item.id} className="flex flex-col" style={{ gap: 2 }}>
+            <div className="flex items-center justify-between" style={{ gap: 10 }}>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 500, color: 'var(--fg-1)' }}>
+                {item.displayName}
+              </span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-3)', fontVariantNumeric: 'tabular-nums' }}>
+                {formatLocaleDate(item.date, locale, { month: 'short', day: 'numeric' })}
+              </span>
+            </div>
+            {item.note ? (
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-2)' }}>
+                {item.note}
+              </span>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    )
+  }
+
   return (
     <>
       <AppOverlay
@@ -224,31 +256,7 @@ export function PairDetail({ pairId, onClose }: Readonly<PairDetailProps>) {
             )}
 
             <SectionLabel inset={false}>{t('social.buddies.detail.history')}</SectionLabel>
-            {checkInsQuery.isPending ? null : (checkInsQuery.data?.items.length ?? 0) === 0 ? (
-              <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-3)' }}>
-                {t('social.buddies.detail.historyEmpty')}
-              </p>
-            ) : (
-              <div className="flex flex-col" style={{ gap: 10, paddingBottom: 8 }}>
-                {checkInsQuery.data?.items.map((item) => (
-                  <div key={item.id} className="flex flex-col" style={{ gap: 2 }}>
-                    <div className="flex items-center justify-between" style={{ gap: 10 }}>
-                      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 500, color: 'var(--fg-1)' }}>
-                        {item.displayName}
-                      </span>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-3)', fontVariantNumeric: 'tabular-nums' }}>
-                        {formatLocaleDate(item.date, locale, { month: 'short', day: 'numeric' })}
-                      </span>
-                    </div>
-                    {item.note ? (
-                      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-2)' }}>
-                        {item.note}
-                      </span>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-            )}
+            {renderCheckInHistory()}
 
             <button
               type="button"

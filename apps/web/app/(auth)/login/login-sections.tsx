@@ -21,11 +21,14 @@ export function LoginHeader({
   pendingHabitCount?: number
 }>) {
   const showPlanSummary = fromOnboarding && step === 'email'
-  const title = showPlanSummary
-    ? t('onboarding.flow.saveYourPlan.title')
-    : step === 'email'
-      ? t('auth.signIn')
-      : t('auth.enterCode')
+  let title: string
+  if (showPlanSummary) {
+    title = t('onboarding.flow.saveYourPlan.title')
+  } else if (step === 'email') {
+    title = t('auth.signIn')
+  } else {
+    title = t('auth.enterCode')
+  }
   const subtitleStyle = {
     fontFamily: 'var(--font-sans)',
     fontSize: 15,

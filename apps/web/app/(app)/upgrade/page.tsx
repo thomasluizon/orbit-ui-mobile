@@ -89,6 +89,53 @@ export default function UpgradePage() {
     }
   }, [t])
 
+  const renderBillingView = () => {
+    if (!isManageView) {
+      return (
+        <PricingSection
+          profile={profile ?? null}
+          plans={plans}
+          isLoadingPlans={isLoadingPlans}
+          isPlansError={isPlansError}
+          trialDaysLeft={trialDaysLeft}
+          checkoutLoading={checkoutLoading}
+          checkoutError={checkoutError}
+          discountedAmount={discountedAmount}
+          onCheckout={(interval) => void handleCheckout(interval)}
+          onStayFree={() => goBackOrFallback('/profile')}
+          onRetryPlans={() => void refetchPlans()}
+          t={t}
+        />
+      )
+    }
+    if (isPlaySource) {
+      return (
+        <PlayBillingDashboard
+          profile={profile}
+          locale={locale}
+          usagePercent={usagePercent}
+          usageUrgent={usageUrgent}
+          t={t}
+        />
+      )
+    }
+    return (
+      <BillingDashboard
+        billing={billing}
+        isBillingLoading={isBillingLoading}
+        isBillingError={isBillingError}
+        profile={profile ?? null}
+        locale={locale}
+        usagePercent={usagePercent}
+        usageUrgent={usageUrgent}
+        portalError={portalError}
+        onOpenPortal={() => void handleOpenPortal()}
+        onRetryBilling={() => void refetchBilling()}
+        t={t}
+      />
+    )
+  }
+
   return (
     <div className="relative flex min-h-[100dvh] flex-col">
       {showGradient && (
@@ -105,46 +152,7 @@ export default function UpgradePage() {
         />
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5">
 
-        {isManageView ? (
-          isPlaySource ? (
-            <PlayBillingDashboard
-              profile={profile}
-              locale={locale}
-              usagePercent={usagePercent}
-              usageUrgent={usageUrgent}
-              t={t}
-            />
-          ) : (
-            <BillingDashboard
-              billing={billing}
-              isBillingLoading={isBillingLoading}
-              isBillingError={isBillingError}
-              profile={profile ?? null}
-              locale={locale}
-              usagePercent={usagePercent}
-              usageUrgent={usageUrgent}
-              portalError={portalError}
-              onOpenPortal={() => void handleOpenPortal()}
-              onRetryBilling={() => void refetchBilling()}
-              t={t}
-            />
-          )
-        ) : (
-          <PricingSection
-            profile={profile ?? null}
-            plans={plans}
-            isLoadingPlans={isLoadingPlans}
-            isPlansError={isPlansError}
-            trialDaysLeft={trialDaysLeft}
-            checkoutLoading={checkoutLoading}
-            checkoutError={checkoutError}
-            discountedAmount={discountedAmount}
-            onCheckout={(interval) => void handleCheckout(interval)}
-            onStayFree={() => goBackOrFallback('/profile')}
-            onRetryPlans={() => void refetchPlans()}
-            t={t}
-          />
-        )}
+        {renderBillingView()}
         </div>
       </div>
     </div>

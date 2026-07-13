@@ -23,6 +23,27 @@ export function EmptyState({
   action,
   className,
 }: Readonly<EmptyStateProps>) {
+  const renderAction = () => {
+    if (!action) return null
+    if (action.variant === 'secondary') {
+      return (
+        <button
+          type="button"
+          onClick={action.onClick}
+          className="mt-2 inline-flex cursor-pointer items-center border-0 bg-transparent px-4 py-[14px] text-[13px] font-medium text-[var(--primary)] hover:text-[var(--primary-pressed)] active:opacity-70"
+          style={{ fontFamily: 'var(--font-sans)' }}
+        >
+          {action.label}
+        </button>
+      )
+    }
+    return (
+      <PillButton onClick={action.onClick} className="mt-[22px]">
+        {action.label}
+      </PillButton>
+    )
+  }
+
   return (
     <div
       className={[
@@ -61,22 +82,7 @@ export function EmptyState({
         {description}
       </p>
 
-      {action ? (
-        action.variant === 'secondary' ? (
-          <button
-            type="button"
-            onClick={action.onClick}
-            className="mt-2 inline-flex cursor-pointer items-center border-0 bg-transparent px-4 py-[14px] text-[13px] font-medium text-[var(--primary)] hover:text-[var(--primary-pressed)] active:opacity-70"
-            style={{ fontFamily: 'var(--font-sans)' }}
-          >
-            {action.label}
-          </button>
-        ) : (
-          <PillButton onClick={action.onClick} className="mt-[22px]">
-            {action.label}
-          </PillButton>
-        )
-      ) : null}
+      {renderAction()}
     </div>
   )
 }

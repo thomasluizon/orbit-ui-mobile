@@ -190,6 +190,60 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     )
   }
 
+  function renderBody() {
+    if (!hasProAccess) {
+      return (
+        <p
+          data-testid="reschedule-free-prompt"
+          style={{ fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.5, color: 'var(--fg-2)' }}
+        >
+          {t('habits.reschedule.freePrompt')}
+        </p>
+      )
+    }
+    if (isLoading) {
+      return (
+        <div className="flex flex-col" style={{ gap: 14 }}>
+          <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-2)' }}>
+            {t('habits.reschedule.loading')}
+          </p>
+          <div
+            data-testid="reschedule-loading-skeleton"
+            aria-hidden="true"
+            className="animate-pulse"
+            style={{
+              height: 76,
+              borderRadius: 18,
+              background: 'var(--bg-field)',
+              boxShadow: 'inset 0 0 0 1px var(--hairline)',
+            }}
+          />
+        </div>
+      )
+    }
+    if (error) {
+      return (
+        <p
+          data-testid="reschedule-error"
+          style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-2)' }}
+        >
+          {t('habits.reschedule.error')}
+        </p>
+      )
+    }
+    if (suggestion) {
+      return (
+        <RescheduleSuggestionCard
+          dateLabel={dateLabel}
+          timeLabel={timeLabel}
+          scheduleLabel={scheduleLabel}
+          rationale={suggestion.rationale}
+        />
+      )
+    }
+    return null
+  }
+
   return (
     <AppOverlay
       open={open}
@@ -229,45 +283,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
           </span>
         </div>
 
-        {!hasProAccess ? (
-          <p
-            data-testid="reschedule-free-prompt"
-            style={{ fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.5, color: 'var(--fg-2)' }}
-          >
-            {t('habits.reschedule.freePrompt')}
-          </p>
-        ) : isLoading ? (
-          <div className="flex flex-col" style={{ gap: 14 }}>
-            <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-2)' }}>
-              {t('habits.reschedule.loading')}
-            </p>
-            <div
-              data-testid="reschedule-loading-skeleton"
-              aria-hidden="true"
-              className="animate-pulse"
-              style={{
-                height: 76,
-                borderRadius: 18,
-                background: 'var(--bg-field)',
-                boxShadow: 'inset 0 0 0 1px var(--hairline)',
-              }}
-            />
-          </div>
-        ) : error ? (
-          <p
-            data-testid="reschedule-error"
-            style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-2)' }}
-          >
-            {t('habits.reschedule.error')}
-          </p>
-        ) : suggestion ? (
-          <RescheduleSuggestionCard
-            dateLabel={dateLabel}
-            timeLabel={timeLabel}
-            scheduleLabel={scheduleLabel}
-            rationale={suggestion.rationale}
-          />
-        ) : null}
+        {renderBody()}
       </div>
     </AppOverlay>
   )
