@@ -18,29 +18,16 @@ function makeWarning(overrides: Partial<ConflictWarningType> = {}): ConflictWarn
 }
 
 describe('ConflictWarning', () => {
-  it('renders with HIGH severity styling', () => {
-    const { container } = render(
-      <ConflictWarning warning={makeWarning({ severity: 'HIGH' })} />,
-    )
-    const wrapper = container.firstElementChild
-    expect(wrapper?.getAttribute('data-severity')).toBe('HIGH')
-  })
-
-  it('renders with MEDIUM severity styling', () => {
-    const { container } = render(
-      <ConflictWarning warning={makeWarning({ severity: 'MEDIUM' })} />,
-    )
-    const wrapper = container.firstElementChild
-    expect(wrapper?.getAttribute('data-severity')).toBe('MEDIUM')
-  })
-
-  it('renders with LOW severity styling', () => {
-    const { container } = render(
-      <ConflictWarning warning={makeWarning({ severity: 'LOW' })} />,
-    )
-    const wrapper = container.firstElementChild
-    expect(wrapper?.getAttribute('data-severity')).toBe('LOW')
-  })
+  it.each(['HIGH', 'MEDIUM', 'LOW'] as const)(
+    'renders with %s severity styling',
+    (severity) => {
+      const { container } = render(
+        <ConflictWarning warning={makeWarning({ severity })} />,
+      )
+      const wrapper = container.firstElementChild
+      expect(wrapper?.getAttribute('data-severity')).toBe(severity)
+    },
+  )
 
   it('renders conflicting habits', () => {
     const warning = makeWarning({

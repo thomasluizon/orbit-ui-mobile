@@ -54,15 +54,21 @@ describe('setApiFetchTranslate', () => {
     )
   })
 
-  it('translates 404 errors', async () => {
+  it.each([
+    { name: 'translates 404 errors', status: 404, key: 't:toast.errors.notFound' },
+    { name: 'translates 409 errors', status: 409, key: 't:toast.errors.conflict' },
+    { name: 'translates 429 errors', status: 429, key: 't:toast.errors.tooManyRequests' },
+    { name: 'translates 500+ errors', status: 503, key: 't:toast.errors.server' },
+    { name: 'translates unknown status errors', status: 418, key: 't:toast.errors.unknown' },
+  ])('$name', async ({ status, key }) => {
     const { setApiFetchTranslate, apiFetch } = await import('@/lib/api-fetch')
 
-    const translate = (key: string) => `t:${key}`
+    const translate = (translationKey: string) => `t:${translationKey}`
     setApiFetchTranslate(translate)
 
     mockFetch.mockResolvedValue({
       ok: false,
-      status: 404,
+      status,
       json: () => Promise.resolve({}),
     })
 
@@ -72,99 +78,7 @@ describe('setApiFetchTranslate', () => {
     }
 
     expect(mockToastError).toHaveBeenCalledWith(
-      't:toast.errors.notFound',
-      expect.any(Object),
-    )
-  })
-
-  it('translates 409 errors', async () => {
-    const { setApiFetchTranslate, apiFetch } = await import('@/lib/api-fetch')
-
-    const translate = (key: string) => `t:${key}`
-    setApiFetchTranslate(translate)
-
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 409,
-      json: () => Promise.resolve({}),
-    })
-
-    try {
-      await apiFetch('/api/test')
-    } catch {
-    }
-
-    expect(mockToastError).toHaveBeenCalledWith(
-      't:toast.errors.conflict',
-      expect.any(Object),
-    )
-  })
-
-  it('translates 429 errors', async () => {
-    const { setApiFetchTranslate, apiFetch } = await import('@/lib/api-fetch')
-
-    const translate = (key: string) => `t:${key}`
-    setApiFetchTranslate(translate)
-
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 429,
-      json: () => Promise.resolve({}),
-    })
-
-    try {
-      await apiFetch('/api/test')
-    } catch {
-    }
-
-    expect(mockToastError).toHaveBeenCalledWith(
-      't:toast.errors.tooManyRequests',
-      expect.any(Object),
-    )
-  })
-
-  it('translates 500+ errors', async () => {
-    const { setApiFetchTranslate, apiFetch } = await import('@/lib/api-fetch')
-
-    const translate = (key: string) => `t:${key}`
-    setApiFetchTranslate(translate)
-
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 503,
-      json: () => Promise.resolve({}),
-    })
-
-    try {
-      await apiFetch('/api/test')
-    } catch {
-    }
-
-    expect(mockToastError).toHaveBeenCalledWith(
-      't:toast.errors.server',
-      expect.any(Object),
-    )
-  })
-
-  it('translates unknown status errors', async () => {
-    const { setApiFetchTranslate, apiFetch } = await import('@/lib/api-fetch')
-
-    const translate = (key: string) => `t:${key}`
-    setApiFetchTranslate(translate)
-
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 418,
-      json: () => Promise.resolve({}),
-    })
-
-    try {
-      await apiFetch('/api/test')
-    } catch {
-    }
-
-    expect(mockToastError).toHaveBeenCalledWith(
-      't:toast.errors.unknown',
+      key,
       expect.any(Object),
     )
   })

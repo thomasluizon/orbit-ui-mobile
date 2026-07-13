@@ -169,9 +169,13 @@ describe('AdvancedPage', () => {
     expect(screen.getByTestId('pro-badge')).toBeInTheDocument()
   })
 
-  it('renders MCP description', () => {
+  it.each([
+    'orbitMcp.description',
+    'orbitMcp.noKeys',
+    'orbitMcp.connectionInstructions',
+  ])('renders %s', (text) => {
     render(<AdvancedPage />)
-    expect(screen.getByText('orbitMcp.description')).toBeInTheDocument()
+    expect(screen.getByText(text)).toBeInTheDocument()
   })
 
   it('shows upgrade link for non-Pro users', () => {
@@ -206,11 +210,6 @@ describe('AdvancedPage', () => {
     render(<AdvancedPage />)
 
     expect(screen.getByRole('button', { name: 'orbitMcp.createKey' })).toBeEnabled()
-  })
-
-  it('shows empty state when no API keys', () => {
-    render(<AdvancedPage />)
-    expect(screen.getByText('orbitMcp.noKeys')).toBeInTheDocument()
   })
 
   it('shows API keys loading state', () => {
@@ -287,11 +286,6 @@ describe('AdvancedPage', () => {
     expect(screen.getByText('orbitMcp.maxKeysReached')).toBeInTheDocument()
   })
 
-
-  it('renders connection instructions toggle', () => {
-    render(<AdvancedPage />)
-    expect(screen.getByText('orbitMcp.connectionInstructions')).toBeInTheDocument()
-  })
 
   it('expands connection instructions on click', () => {
     render(<AdvancedPage />)

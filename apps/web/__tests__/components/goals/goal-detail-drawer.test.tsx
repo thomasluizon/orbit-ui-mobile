@@ -96,53 +96,19 @@ describe('GoalDetailDrawer', () => {
     expect(screen.getByText('Read 12 books')).toBeInTheDocument()
   })
 
-  it('renders progress section', () => {
+  it.each([
+    { name: 'renders progress section', text: 'goals.progress' },
+    { name: 'renders progress info text', text: 'goals.progressOf' },
+    { name: 'renders update progress button for active goals', text: 'goals.updateProgress' },
+    { name: 'renders edit action', text: 'goals.detail.edit' },
+    { name: 'renders mark completed action for active goals', text: 'goals.detail.markCompleted' },
+    { name: 'renders mark abandoned action for active goals', text: 'goals.detail.markAbandoned' },
+    { name: 'renders delete action', text: 'goals.detail.delete' },
+  ])('$name', ({ text }) => {
     render(
       <GoalDetailDrawer open={true} onOpenChange={vi.fn()} goalId="1" />,
     )
-    expect(document.body.textContent).toContain('goals.progress')
-  })
-
-  it('renders progress info text', () => {
-    render(
-      <GoalDetailDrawer open={true} onOpenChange={vi.fn()} goalId="1" />,
-    )
-    expect(document.body.textContent).toContain('goals.progressOf')
-  })
-
-  it('renders update progress button for active goals', () => {
-    render(
-      <GoalDetailDrawer open={true} onOpenChange={vi.fn()} goalId="1" />,
-    )
-    expect(document.body.textContent).toContain('goals.updateProgress')
-  })
-
-  it('renders edit action', () => {
-    render(
-      <GoalDetailDrawer open={true} onOpenChange={vi.fn()} goalId="1" />,
-    )
-    expect(document.body.textContent).toContain('goals.detail.edit')
-  })
-
-  it('renders mark completed action for active goals', () => {
-    render(
-      <GoalDetailDrawer open={true} onOpenChange={vi.fn()} goalId="1" />,
-    )
-    expect(document.body.textContent).toContain('goals.detail.markCompleted')
-  })
-
-  it('renders mark abandoned action for active goals', () => {
-    render(
-      <GoalDetailDrawer open={true} onOpenChange={vi.fn()} goalId="1" />,
-    )
-    expect(document.body.textContent).toContain('goals.detail.markAbandoned')
-  })
-
-  it('renders delete action', () => {
-    render(
-      <GoalDetailDrawer open={true} onOpenChange={vi.fn()} goalId="1" />,
-    )
-    expect(document.body.textContent).toContain('goals.detail.delete')
+    expect(document.body.textContent).toContain(text)
   })
 
   it('renders metrics panel for active goals', () => {

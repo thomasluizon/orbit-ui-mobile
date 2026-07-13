@@ -366,37 +366,19 @@ describe('TodayPage bulk parent prompts', () => {
     })
   })
 
-  it('navigates to the previous day with a date query param', () => {
-    dateParamState.value = '2026-04-07'
+  it.each([
+    { name: 'navigates to the previous day with a date query param', date: '2026-04-07', label: 'dates.previousDay', target: '/?date=2026-04-06' },
+    { name: 'navigates to the next day with a date query param', date: '2026-04-07', label: 'dates.nextDay', target: '/?date=2026-04-08' },
+    { name: 'returns to today via the bare route when pressing the date label', date: '2026-04-06', label: 'dates.goToToday', target: '/' },
+  ])('$name', ({ date, label, target }) => {
+    dateParamState.value = date
     uiState.isSelectMode = false
 
     renderPage()
 
-    fireEvent.click(screen.getByLabelText('dates.previousDay'))
+    fireEvent.click(screen.getByLabelText(label))
 
-    expect(mockRouterPush).toHaveBeenCalledWith('/?date=2026-04-06')
-  })
-
-  it('navigates to the next day with a date query param', () => {
-    dateParamState.value = '2026-04-07'
-    uiState.isSelectMode = false
-
-    renderPage()
-
-    fireEvent.click(screen.getByLabelText('dates.nextDay'))
-
-    expect(mockRouterPush).toHaveBeenCalledWith('/?date=2026-04-08')
-  })
-
-  it('returns to today via the bare route when pressing the date label', () => {
-    dateParamState.value = '2026-04-06'
-    uiState.isSelectMode = false
-
-    renderPage()
-
-    fireEvent.click(screen.getByLabelText('dates.goToToday'))
-
-    expect(mockRouterPush).toHaveBeenCalledWith('/')
+    expect(mockRouterPush).toHaveBeenCalledWith(target)
   })
 
   it('renders today on the bare route and the pinned day on a date deep link', () => {

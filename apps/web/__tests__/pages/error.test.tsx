@@ -34,8 +34,11 @@ describe('AppError', () => {
     vi.clearAllMocks()
   })
 
-  it('renders generic error message in non-development env', () => {
-    const error = new Error('Something went wrong') as Error & { digest?: string }
+  it.each([
+    { name: 'renders generic error message in non-development env', error: new Error('Something went wrong') as Error & { digest?: string } },
+    { name: 'falls back to generic error key when message is empty', error: new Error('') as Error & { digest?: string } },
+    { name: 'handles error with digest property', error: Object.assign(new Error('Server error'), { digest: 'abc123' }) },
+  ])('$name', ({ error }) => {
     render(<AppError error={error} reset={mockReset} />)
     expect(screen.getByText('common.somethingWentWrong')).toBeInTheDocument()
   })
@@ -44,12 +47,6 @@ describe('AppError', () => {
     const error = new Error('fail') as Error & { digest?: string }
     render(<AppError error={error} reset={mockReset} />)
     expect(screen.getByTestId('triangle-alert')).toBeInTheDocument()
-  })
-
-  it('falls back to generic error key when message is empty', () => {
-    const error = new Error('') as Error & { digest?: string }
-    render(<AppError error={error} reset={mockReset} />)
-    expect(screen.getByText('common.somethingWentWrong')).toBeInTheDocument()
   })
 
   it('renders the retry button with correct label', () => {
@@ -64,12 +61,6 @@ describe('AppError', () => {
     fireEvent.click(screen.getByText('common.retry'))
     expect(mockReset).toHaveBeenCalledTimes(1)
   })
-
-  it('handles error with digest property', () => {
-    const error = Object.assign(new Error('Server error'), { digest: 'abc123' })
-    render(<AppError error={error} reset={mockReset} />)
-    expect(screen.getByText('common.somethingWentWrong')).toBeInTheDocument()
-  })
 })
 
 
@@ -80,14 +71,11 @@ describe('AuthError', () => {
     vi.clearAllMocks()
   })
 
-  it('renders generic error message in non-development env', () => {
-    const error = new Error('Auth failed') as Error & { digest?: string }
-    render(<AuthError error={error} reset={mockReset} />)
-    expect(screen.getByText('auth.genericError')).toBeInTheDocument()
-  })
-
-  it('falls back to generic error key when message is empty', () => {
-    const error = new Error('') as Error & { digest?: string }
+  it.each([
+    { name: 'renders generic error message in non-development env', error: new Error('Auth failed') as Error & { digest?: string } },
+    { name: 'falls back to generic error key when message is empty', error: new Error('') as Error & { digest?: string } },
+    { name: 'handles error with digest property', error: Object.assign(new Error('Session expired'), { digest: 'xyz789' }) },
+  ])('$name', ({ error }) => {
     render(<AuthError error={error} reset={mockReset} />)
     expect(screen.getByText('auth.genericError')).toBeInTheDocument()
   })
@@ -110,12 +98,6 @@ describe('AuthError', () => {
     const { container } = render(<AuthError error={error} reset={mockReset} />)
     const svg = container.querySelector('svg')
     expect(svg).toBeTruthy()
-  })
-
-  it('handles error with digest property', () => {
-    const error = Object.assign(new Error('Session expired'), { digest: 'xyz789' })
-    render(<AuthError error={error} reset={mockReset} />)
-    expect(screen.getByText('auth.genericError')).toBeInTheDocument()
   })
 })
 

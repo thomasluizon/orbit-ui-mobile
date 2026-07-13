@@ -52,68 +52,21 @@ describe('FeatureGuideDrawer', () => {
     expect(document.body.textContent).toContain('onboarding.featureGuide.astraSection.canDoTitle')
   })
 
-  it('switches to connect section when connect tab clicked', () => {
+  it.each([
+    { tab: 'connect', title: 'onboarding.featureGuide.connectSection.mcpTitle' },
+    { tab: 'social', title: 'onboarding.featureGuide.socialSection.optInTitle' },
+    { tab: 'habits', title: 'onboarding.featureGuide.habitsSection.creatingTitle' },
+    { tab: 'goals', title: 'onboarding.featureGuide.goalsSection.creatingTitle' },
+    { tab: 'calendar', title: 'onboarding.featureGuide.calendarSection.colorsTitle' },
+    { tab: 'rewards', title: 'onboarding.featureGuide.rewardsSection.xpLevelsTitle' },
+    { tab: 'settings', title: 'onboarding.featureGuide.settingsSection.colorSchemeTitle' },
+    { tab: 'notifications', title: 'onboarding.featureGuide.notificationsSection.bellTitle' },
+  ])('switches to the $tab section when its tab is clicked', ({ tab, title }) => {
     render(
       <FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />,
     )
-    fireEvent.click(screen.getByText('onboarding.featureGuide.connect'))
-    expect(document.body.textContent).toContain('onboarding.featureGuide.connectSection.mcpTitle')
-  })
-
-  it('switches to social section when social tab clicked', () => {
-    render(
-      <FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />,
-    )
-    fireEvent.click(screen.getByText('onboarding.featureGuide.social'))
-    expect(document.body.textContent).toContain('onboarding.featureGuide.socialSection.optInTitle')
-  })
-
-  it('switches to habits section when habits tab clicked', () => {
-    render(
-      <FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />,
-    )
-    fireEvent.click(screen.getByText('onboarding.featureGuide.habits'))
-    expect(document.body.textContent).toContain('onboarding.featureGuide.habitsSection.creatingTitle')
-  })
-
-  it('switches to goals section when goals tab clicked', () => {
-    render(
-      <FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />,
-    )
-    fireEvent.click(screen.getByText('onboarding.featureGuide.goals'))
-    expect(document.body.textContent).toContain('onboarding.featureGuide.goalsSection.creatingTitle')
-  })
-
-  it('switches to calendar section', () => {
-    render(
-      <FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />,
-    )
-    fireEvent.click(screen.getByText('onboarding.featureGuide.calendar'))
-    expect(document.body.textContent).toContain('onboarding.featureGuide.calendarSection.colorsTitle')
-  })
-
-  it('switches to rewards section', () => {
-    render(
-      <FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />,
-    )
-    fireEvent.click(screen.getByText('onboarding.featureGuide.rewards'))
-    expect(document.body.textContent).toContain('onboarding.featureGuide.rewardsSection.xpLevelsTitle')
-  })
-
-  it('switches to settings section', () => {
-    render(
-      <FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />,
-    )
-    fireEvent.click(screen.getByText('onboarding.featureGuide.settings'))
-    expect(document.body.textContent).toContain('onboarding.featureGuide.settingsSection.colorSchemeTitle')
-  })
-
-  it('switches to notifications section', () => {
-    render(
-      <FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />,
-    )
-    fireEvent.click(screen.getByText('onboarding.featureGuide.notifications'))
-    expect(document.body.textContent).toContain('onboarding.featureGuide.notificationsSection.bellTitle')
+    fireEvent.click(screen.getByText(`onboarding.featureGuide.${tab}`))
+    expect(document.body.textContent).toContain(title)
   })
 
   it('highlights active tab with aria-selected', () => {

@@ -21,18 +21,15 @@ vi.mock('@/hooks/use-referral', () => ({
 import { ReferralCard } from '@/components/referral/referral-card'
 
 describe('ReferralCard', () => {
-  it('renders the card', () => {
-    mockIsLoading = false
+  it.each([
+    { name: 'renders the card', isLoading: false, text: 'referral.card.title' },
+    { name: 'shows hint text when loading', isLoading: true, text: 'referral.card.hint' },
+    { name: 'shows hint when not loading and no stats', isLoading: false, text: 'referral.card.hint' },
+  ])('$name', ({ isLoading, text }) => {
+    mockIsLoading = isLoading
     mockStats = null
     render(<ReferralCard onOpen={vi.fn()} />)
-    expect(screen.getByText('referral.card.title')).toBeInTheDocument()
-  })
-
-  it('shows hint text when loading', () => {
-    mockIsLoading = true
-    mockStats = null
-    render(<ReferralCard onOpen={vi.fn()} />)
-    expect(screen.getByText('referral.card.hint')).toBeInTheDocument()
+    expect(screen.getByText(text)).toBeInTheDocument()
   })
 
   it('shows progress when stats are loaded', () => {
@@ -40,13 +37,6 @@ describe('ReferralCard', () => {
     mockStats = { successfulReferrals: 3, maxReferrals: 10 }
     render(<ReferralCard onOpen={vi.fn()} />)
     expect(document.body.textContent).toContain('referral.card.progress')
-  })
-
-  it('shows hint when not loading and no stats', () => {
-    mockIsLoading = false
-    mockStats = null
-    render(<ReferralCard onOpen={vi.fn()} />)
-    expect(screen.getByText('referral.card.hint')).toBeInTheDocument()
   })
 
   it('calls onOpen when clicked', () => {
