@@ -61,6 +61,7 @@ export function BuddyRow({ pair, onOpen }: Readonly<BuddyRowProps>) {
             <span
               style={{
                 fontFamily: 'var(--font-sans)',
+                // react-doctor-disable-next-line no-tiny-text -- intentional inline cadence pill tag (badge pattern), not body text https://github.com/thomasluizon/orbit-ui-mobile/issues/243
                 fontSize: 11,
                 fontWeight: 500,
                 color: 'var(--fg-3)',

@@ -15,6 +15,7 @@ export function InviteFriendsPicker({ selectedIds, onToggle }: Readonly<InviteFr
   const t = useTranslations()
   const { data } = useFriends()
   const friends = data?.friends ?? []
+  const selectedIdSet = new Set(selectedIds)
 
   if (friends.length === 0) {
     return (
@@ -27,7 +28,7 @@ export function InviteFriendsPicker({ selectedIds, onToggle }: Readonly<InviteFr
   return (
     <div className="flex flex-col" style={{ gap: 2 }}>
       {friends.map((friend) => {
-        const active = selectedIds.includes(friend.userId)
+        const active = selectedIdSet.has(friend.userId)
         return (
           <button
             key={friend.userId}

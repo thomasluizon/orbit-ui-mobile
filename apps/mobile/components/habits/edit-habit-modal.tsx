@@ -173,6 +173,7 @@ export function EditHabitModal({
       originalEndDate,
       reminderTimes,
       selectedGoalIds,
+      habit.scheduledReminders.length > 0,
     )
 
     try {
@@ -284,6 +285,7 @@ export function EditHabitModal({
               onToggleGoal={toggleGoal}
               reminderTimes={reminderTimes}
               onReminderTimesChange={setReminderTimes}
+              hasScheduledReminders={(habit?.scheduledReminders.length ?? 0) > 0}
               onFlushBufferedInputsReady={handleBufferedInputsReady}
               onSuggestSetup={() => void handleSuggest()}
               isSuggesting={suggestion.isPending}

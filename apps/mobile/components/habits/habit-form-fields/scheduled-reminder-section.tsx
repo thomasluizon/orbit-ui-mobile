@@ -23,6 +23,12 @@ interface ScheduledReminderSectionProps {
     reminders: { when: ScheduledReminderWhen; time: string }[],
   ) => void;
   onValidationError: (message: string) => void;
+  /**
+   * When rendered as the secondary surface beside the offset-reminder card (a due-timed habit that
+   * also holds scheduled reminders, #447 Bug 3), the master on/off is already owned by that card, so
+   * this one drops its own switch to avoid a duplicate toggle.
+   */
+  nested?: boolean;
 }
 
 export function ScheduledReminderSection({
@@ -32,6 +38,7 @@ export function ScheduledReminderSection({
   onToggleReminder,
   onSetScheduledReminders,
   onValidationError,
+  nested = false,
 }: Readonly<ScheduledReminderSectionProps>) {
   const { t, i18n } = useTranslation();
   const deviceLocale = i18n.language;
@@ -88,11 +95,13 @@ export function ScheduledReminderSection({
             {t("habits.form.scheduledReminder")}
           </Text>
         </View>
-        <Switch
-          on={reminderEnabled}
-          onToggle={onToggleReminder}
-          accessibilityLabel={t("habits.form.scheduledReminder")}
-        />
+        {!nested && (
+          <Switch
+            on={reminderEnabled}
+            onToggle={onToggleReminder}
+            accessibilityLabel={t("habits.form.scheduledReminder")}
+          />
+        )}
       </View>
       {reminderEnabled && (
         <View style={sectionStyles.body}>

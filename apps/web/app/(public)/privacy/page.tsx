@@ -82,6 +82,7 @@ export default function PrivacyPage() {
             {Array.isArray(body) ? (
               <div className="flex flex-col px-5 pb-[18px]" style={{ gap: 6 }}>
                 {body.map((line, index) => (
+                  // react-doctor-disable-next-line no-array-index-as-key -- static legal-text lines; the list never reorders or filters https://github.com/thomasluizon/orbit-ui-mobile/issues/243
                   <div
                     key={`${label}-${index}`}
                     className="t-secondary"

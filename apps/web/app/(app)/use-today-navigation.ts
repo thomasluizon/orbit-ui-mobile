@@ -56,6 +56,7 @@ export function useTodayNavigation(): TodayNavigation {
   const selectedDateStr = pinnedDateStr ?? today
   const selectedDate = useMemo(
     () => new Date(selectedDateStr + 'T00:00:00'),
+    // react-doctor-disable-next-line exhaustive-deps -- selectedDateStr is derived from pinnedDateStr/today every render and already listed; no staleness possible https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     [selectedDateStr],
   )
 

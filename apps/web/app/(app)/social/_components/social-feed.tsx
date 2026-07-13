@@ -13,6 +13,13 @@ import { FriendProfileView } from './friend-profile-view'
 import { SocialSectionLoadError, SocialSectionSpinner } from './social-section-states'
 import type { CheerTarget } from './cheer-composer'
 
+const textStyle = {
+  margin: 0,
+  fontFamily: 'var(--font-sans)',
+  fontSize: 14,
+  color: 'var(--fg-2)',
+} as const
+
 interface SocialFeedProps {
   onCheer: (target: CheerTarget) => void
   onAddFriends: () => void
@@ -27,12 +34,6 @@ function CheerRow({ cheer }: Readonly<{ cheer: Cheer }>) {
   const text = cheer.note
     ? t('social.feed.cheeredYouWithNote', { name, note: cheer.note })
     : t('social.feed.cheeredYou', { name })
-  const textStyle = {
-    margin: 0,
-    fontFamily: 'var(--font-sans)',
-    fontSize: 14,
-    color: 'var(--fg-2)',
-  } as const
 
   if (!cheer.senderId) {
     return (

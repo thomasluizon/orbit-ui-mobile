@@ -21,22 +21,6 @@ export type TodayTabItem = {
   label: string
 }
 
-export function getTodayTabLabel(
-  view: TodayTabView,
-  t: ReturnType<typeof useTranslations>,
-): string {
-  switch (view) {
-    case 'today':
-      return t('habits.viewToday')
-    case 'all':
-      return t('habits.viewAll')
-    case 'general':
-      return t('habits.viewGeneral')
-    case 'goals':
-      return t('goals.tab')
-  }
-}
-
 interface TodayHeaderProps {
   streak: number
 }
@@ -287,6 +271,7 @@ export function TodayUtilityRow({
             autoFocus
             className="appearance-none border-0 bg-transparent flex-1 min-w-0"
             style={{
+              // react-doctor-disable-next-line no-outline-none -- focus ring is shown on the wrapper via focus-within:shadow-[inset_0_0_0_2px_var(--primary)] https://github.com/thomasluizon/orbit-ui-mobile/issues/243
               outline: 'none',
               fontFamily: 'var(--font-sans)',
               fontSize: 15,
@@ -353,6 +338,7 @@ function TodayUtilityFilters({
   controls,
 }: Readonly<TodayUtilityFiltersProps>) {
   const t = useTranslations()
+  const selectedTagIdSet = new Set(selectedTagIds)
 
   return (
     <>
@@ -373,7 +359,7 @@ function TodayUtilityFilters({
           <TagChip
             key={tag.id}
             tag={tag}
-            active={selectedTagIds.includes(tag.id)}
+            active={selectedTagIdSet.has(tag.id)}
             onClick={() => onTagToggle(tag.id)}
           />
         ))}

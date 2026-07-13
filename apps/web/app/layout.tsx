@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { Suspense } from 'react'
 import { Rubik, Inter, Roboto } from 'next/font/google'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages, getTranslations } from 'next-intl/server'
@@ -106,7 +107,9 @@ export default async function RootLayout({
       </head>
       <body className="bg-[var(--bg)] text-[var(--fg-1)] font-sans antialiased">
         <NextIntlClientProvider locale={locale} messages={messages}>
-          <NavigationHistoryTracker />
+          <Suspense fallback={null}>
+            <NavigationHistoryTracker />
+          </Suspense>
           {children}
           <Toaster
             theme="dark"

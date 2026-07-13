@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Loader2,
@@ -58,6 +58,15 @@ const EVENTS_PAGE_SIZE = 20
 type CalendarEvent = CalendarSyncEvent
 
 export default function CalendarSyncPage() {
+  return (
+    <Suspense fallback={null}>
+      <CalendarSyncPageContent />
+    </Suspense>
+  )
+}
+
+// react-doctor-disable-next-line no-giant-component -- step-based import wizard with six mutually-exclusive render branches; extraction deferred to avoid regression in the import flow without visual QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+function CalendarSyncPageContent() {
   const t = useTranslations()
   const goBackOrFallback = useGoBackOrFallback()
   const router = useRouter()
@@ -139,6 +148,7 @@ export default function CalendarSyncPage() {
 
   useEffect(() => {
     if (profile && !hasProAccess) {
+      // react-doctor-disable-next-line nextjs-no-client-side-redirect -- access gate depends on client-fetched profile (hasProAccess); no server-side signal exists https://github.com/thomasluizon/orbit-ui-mobile/issues/243
       router.replace('/upgrade')
     }
   }, [profile, hasProAccess, router])
@@ -216,12 +226,12 @@ export default function CalendarSyncPage() {
             }
             setImportResult({
               imported: successCount,
-              habits: result.results
-                .filter((item) => item.status === 'Success' && item.habitId && item.title)
-                .map((item) => ({
-                  id: item.habitId as string,
-                  title: item.title as string,
-                })),
+              habits: result.results.reduce<{ id: string; title: string }[]>((accumulator, item) => {
+                if (item.status === 'Success' && item.habitId && item.title) {
+                  accumulator.push({ id: item.habitId, title: item.title })
+                }
+                return accumulator
+              }, []),
             })
             setWizardStage('done')
             if (isReviewMode) {

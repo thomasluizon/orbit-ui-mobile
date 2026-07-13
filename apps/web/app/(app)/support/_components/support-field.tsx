@@ -1,5 +1,7 @@
 'use client'
 
+import { useId } from 'react'
+
 interface SupportFieldProps {
   label?: string
   value: string
@@ -26,8 +28,9 @@ export function SupportField({
   rows = 4,
 }: Readonly<SupportFieldProps>) {
   const Tag = multiline ? 'textarea' : 'input'
+  const fieldId = useId()
   return (
-    <label className="flex min-w-0 flex-1 flex-col" style={{ gap: 8 }}>
+    <label htmlFor={fieldId} className="flex min-w-0 flex-1 flex-col" style={{ gap: 8 }}>
       {label && (
         <span
           style={{
@@ -41,6 +44,7 @@ export function SupportField({
         </span>
       )}
       <Tag
+        id={fieldId}
         type={multiline ? undefined : type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
