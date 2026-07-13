@@ -60,8 +60,7 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
     <AppOverlay open={open} onOpenChange={onOpenChange} title={t('referral.drawer.title')}>
       <div className="overlay-bleed">
         {isLoading && (
-          <div
-            role="status"
+          <output
             aria-label={t('common.loading')}
             className="flex justify-center"
             style={{ padding: '40px 0' }}
@@ -71,7 +70,7 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
               style={{ color: 'var(--fg-3)' }}
               aria-hidden="true"
             />
-          </div>
+          </output>
         )}
 
         {isError && (

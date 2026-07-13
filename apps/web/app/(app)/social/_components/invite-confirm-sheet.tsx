@@ -15,9 +15,9 @@ interface InviteConfirmSheetProps {
 
 function InviteMessage({ text }: Readonly<{ text: string }>) {
   return (
-    <p
-      role="status"
+    <output
       style={{
+        display: 'block',
         margin: 0,
         fontFamily: 'var(--font-sans)',
         fontSize: 15,
@@ -26,7 +26,7 @@ function InviteMessage({ text }: Readonly<{ text: string }>) {
       }}
     >
       {text}
-    </p>
+    </output>
   )
 }
 
