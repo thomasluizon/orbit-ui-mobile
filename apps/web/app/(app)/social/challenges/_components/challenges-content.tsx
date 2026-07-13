@@ -33,14 +33,13 @@ export function ChallengesContent({
 
   if (isLoading) {
     return (
-      <div
-        role="status"
+      <output
         aria-label={t('common.loading')}
         className="flex justify-center"
         style={{ padding: 48, color: 'var(--fg-3)' }}
       >
         <Loader2 className="animate-spin" size={22} aria-hidden="true" />
-      </div>
+      </output>
     )
   }
 

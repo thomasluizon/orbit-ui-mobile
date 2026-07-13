@@ -8,14 +8,13 @@ import { EmptyState } from '@/components/ui/empty-state'
 export function SocialSectionSpinner() {
   const t = useTranslations()
   return (
-    <div
-      role="status"
+    <output
       aria-label={t('common.loading')}
       className="flex justify-center"
       style={{ padding: '48px 0' }}
     >
       <Loader2 className="size-[22px] animate-spin" style={{ color: 'var(--primary)' }} />
-    </div>
+    </output>
   )
 }
 

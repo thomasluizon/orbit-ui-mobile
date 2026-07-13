@@ -318,7 +318,7 @@ export function HabitFormFields({
       )}
 
       {showDayPicker && !isGeneral && (
-        <div className="space-y-2" role="group" aria-labelledby="habit-form-active-days-label">
+        <fieldset className="m-0 min-w-0 space-y-2 border-0 p-0" aria-labelledby="habit-form-active-days-label">
           <span id="habit-form-active-days-label" className="form-label">
             {t('habits.form.activeDays')}
           </span>
@@ -334,7 +334,7 @@ export function HabitFormFields({
               onClick: () => toggleDay(day.value),
             }))}
           />
-        </div>
+        </fieldset>
       )}
 
       {!isGeneral && (
@@ -369,7 +369,7 @@ export function HabitFormFields({
       </div>
 
       <div className="stagger-enter space-y-7">
-      <div className="space-y-2" role="group" aria-labelledby="habit-form-tags-label">
+      <fieldset className="m-0 min-w-0 space-y-2 border-0 p-0" aria-labelledby="habit-form-tags-label">
         <span id="habit-form-tags-label" className="form-label">
           {t('habits.form.tags')}
         </span>
@@ -529,7 +529,7 @@ export function HabitFormFields({
             />
           </div>
         )}
-      </div>
+      </fieldset>
       </div>
       </div>
 
@@ -564,7 +564,7 @@ export function HabitFormFields({
             />
           </div>
 
-          <div className="space-y-2" role="group" aria-labelledby="habit-form-checklist-label">
+          <fieldset className="m-0 min-w-0 space-y-2 border-0 p-0" aria-labelledby="habit-form-checklist-label">
             <span id="habit-form-checklist-label" className="form-label">
               {t('habits.form.checklist')}
             </span>
@@ -579,7 +579,7 @@ export function HabitFormFields({
                 onLoad={(items) => setValue('checklistItems', items, { shouldDirty: true })}
               />
             </div>
-          </div>
+          </fieldset>
 
           {!!watchedDueTime && !isGeneral && (
             <div className="space-y-2">
