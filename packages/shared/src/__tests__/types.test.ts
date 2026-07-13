@@ -41,6 +41,7 @@ import {
 
 import {
   mutationTypeSchema,
+  mutationEntityTypeSchema,
   queuedMutationSchema,
   syncBatchRequestSchema,
   syncMutationResultSchema,
@@ -82,6 +83,7 @@ import {
   createMockAchievement,
   createMockGamificationProfile,
   createMockConfig,
+  createMockSyncChangesV2Response,
 } from './factories'
 
 
@@ -664,13 +666,19 @@ describe('chat schemas', () => {
   })
 
   describe('actionStatusSchema', () => {
-    it('parses valid statuses', () => {
-      for (const s of ['Success', 'Failed', 'Suggestion']) {
-        expect(actionStatusSchema.safeParse(s).success).toBe(true)
+    const expectedStatuses = ['Success', 'Failed', 'Suggestion', 'NeedsClarification']
+
+    it('parses every declared status, including NeedsClarification', () => {
+      for (const status of expectedStatuses) {
+        expect(actionStatusSchema.safeParse(status).success).toBe(true)
       }
     })
 
-    it('rejects invalid status', () => {
+    it('exposes exactly the expected options so a new status cannot be added without a handler branch', () => {
+      expect([...actionStatusSchema.options].sort()).toEqual([...expectedStatuses].sort())
+    })
+
+    it('rejects a status outside the enum', () => {
       expect(actionStatusSchema.safeParse('Pending').success).toBe(false)
     })
   })
@@ -831,6 +839,51 @@ describe('chat schemas', () => {
         conflictWarning: null,
       })
       expect(result.success).toBe(true)
+    })
+
+    it('parses a NeedsClarification result and preserves its clarification request', () => {
+      const result = actionResultSchema.safeParse({
+        type: 'CreateHabit',
+        status: 'NeedsClarification',
+        entityId: null,
+        entityName: null,
+        error: null,
+        field: null,
+        suggestedSubHabits: null,
+        conflictWarning: null,
+        clarificationRequest: {
+          question: 'Which goal should this habit support?',
+          operationId: '3f2504e0-4f89-41d3-9a0c-0305e82c3301',
+          missingArgumentKey: 'goalId',
+          quickActions: [
+            { label: 'Fitness', value: 'goal-fitness' },
+            { label: 'Reading', value: 'goal-reading', description: 'Read 12 books' },
+          ],
+        },
+      })
+      expect(result.success).toBe(true)
+      if (!result.success) return
+      expect(result.data.status).toBe('NeedsClarification')
+      expect(result.data.clarificationRequest?.missingArgumentKey).toBe('goalId')
+      expect(result.data.clarificationRequest?.quickActions).toHaveLength(2)
+    })
+
+    it('rejects a NeedsClarification result that omits its clarification request', () => {
+      const result = actionResultSchema.safeParse({
+        type: 'CreateHabit',
+        status: 'NeedsClarification',
+        entityId: null,
+        entityName: null,
+        error: null,
+        field: null,
+        suggestedSubHabits: null,
+        conflictWarning: null,
+        clarificationRequest: null,
+      })
+      expect(result.success).toBe(false)
+      if (result.success) return
+      const [firstIssue] = result.error.issues
+      expect(firstIssue?.path).toEqual(['clarificationRequest'])
     })
   })
 
@@ -1254,21 +1307,118 @@ describe('sync schemas', () => {
     })
   })
 
+  describe('mutationEntityTypeSchema', () => {
+    it('lists exactly the supported sync entity types', () => {
+      expect([...mutationEntityTypeSchema.options].sort()).toEqual(
+        ['apiKey', 'goal', 'habit', 'notification', 'profile', 'tag', 'userFact'].sort(),
+      )
+    })
+  })
+
   describe('syncChangesV2ResponseSchema', () => {
-    it('parses valid redacted sync v2 response', () => {
-      const result = syncChangesV2ResponseSchema.safeParse({
-        habits: { updated: [], deleted: [] },
-        habitLogs: { updated: [], deleted: [] },
-        goals: { updated: [], deleted: [] },
-        goalProgressLogs: { updated: [], deleted: [] },
-        tags: { updated: [], deleted: [] },
-        notifications: { updated: [], deleted: [] },
-        checklistTemplates: { updated: [], deleted: [] },
-        serverTimestamp: '2025-01-15T10:00:00Z',
-        version: 2,
-      })
+    it('covers every entity collection so a new one cannot be added without a handler branch', () => {
+      expect(Object.keys(syncChangesV2ResponseSchema.shape).sort()).toEqual(
+        [
+          'habits',
+          'habitLogs',
+          'goals',
+          'goalProgressLogs',
+          'tags',
+          'notifications',
+          'checklistTemplates',
+          'serverTimestamp',
+          'version',
+        ].sort(),
+      )
+    })
+
+    it('parses a populated response and preserves nested entity values', () => {
+      const result = syncChangesV2ResponseSchema.safeParse(createMockSyncChangesV2Response())
 
       expect(result.success).toBe(true)
+      if (!result.success) return
+
+      expect(result.data).toMatchObject({
+        version: 2,
+        serverTimestamp: '2026-01-15T10:00:00Z',
+        habits: {
+          updated: [
+            {
+              id: '11111111-1111-4111-8111-111111111111',
+              title: 'Morning run',
+              frequencyUnit: 'Week',
+              reminderTimes: [390, 420],
+              checklistItems: [
+                { text: 'Stretch', isChecked: false },
+                { text: 'Fill water bottle', isChecked: true },
+              ],
+              scheduledReminders: [{ when: 'same_day', time: '06:30:00' }],
+            },
+          ],
+          deleted: [{ id: '1d1d1d1d-1d1d-4d1d-8d1d-1d1d1d1d1d1d', deletedAtUtc: '2026-01-13T10:00:00Z' }],
+        },
+        habitLogs: {
+          updated: [{ habitId: '11111111-1111-4111-8111-111111111111', value: 1 }],
+        },
+        goals: { updated: [{ status: 'Active', type: 'Standard' }] },
+        goalProgressLogs: { updated: [{ previousValue: 2 }] },
+        tags: { updated: [{ color: '#22c55e' }] },
+        notifications: { updated: [{ isRead: false }] },
+        checklistTemplates: { updated: [{ items: ['Shoes', 'Towel', 'Water'] }] },
+      })
+    })
+
+    it('rejects a response whose nested habit drops a required field', () => {
+      const response = createMockSyncChangesV2Response()
+      const [firstHabit] = response.habits.updated
+      expect(firstHabit).toBeDefined()
+      if (!firstHabit) return
+      const { title: _title, ...habitWithoutTitle } = firstHabit
+      const malformed = {
+        ...response,
+        habits: { ...response.habits, updated: [habitWithoutTitle] },
+      }
+      const result = syncChangesV2ResponseSchema.safeParse(malformed)
+      expect(result.success).toBe(false)
+    })
+
+    it('rejects a non-numeric version', () => {
+      const malformed = { ...createMockSyncChangesV2Response(), version: 'two' }
+      const result = syncChangesV2ResponseSchema.safeParse(malformed)
+      expect(result.success).toBe(false)
+    })
+
+    it('rejects a deleted ref missing its deletion timestamp', () => {
+      const response = createMockSyncChangesV2Response()
+      const malformed = {
+        ...response,
+        tags: { updated: response.tags.updated, deleted: [{ id: 'tag-9' }] },
+      }
+      const result = syncChangesV2ResponseSchema.safeParse(malformed)
+      expect(result.success).toBe(false)
+    })
+
+    it('strips unknown top-level and nested keys instead of leaking them', () => {
+      const response = createMockSyncChangesV2Response()
+      const [firstHabit] = response.habits.updated
+      expect(firstHabit).toBeDefined()
+      if (!firstHabit) return
+      const withExtras = {
+        ...response,
+        unexpectedTopLevel: 'leak',
+        habits: {
+          ...response.habits,
+          updated: [{ ...firstHabit, serverOnlySecret: 'redact-me' }],
+        },
+      }
+      const result = syncChangesV2ResponseSchema.safeParse(withExtras)
+      expect(result.success).toBe(true)
+      if (!result.success) return
+      expect('unexpectedTopLevel' in result.data).toBe(false)
+      const [parsedHabit] = result.data.habits.updated
+      expect(parsedHabit).toBeDefined()
+      if (!parsedHabit) return
+      expect('serverOnlySecret' in parsedHabit).toBe(false)
     })
   })
 })
