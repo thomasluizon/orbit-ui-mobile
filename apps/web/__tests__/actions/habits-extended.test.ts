@@ -50,7 +50,7 @@ describe('habit server actions (extended)', () => {
     it('sends POST to /api/habits/bulk/log with items', async () => {
       mockApiResponse({
         results: [
-          { habitId: 'h-1', status: 'Success', logId: 'log-1', error: null },
+          { index: 0, habitId: 'h-1', status: 'Success', logId: 'log-1', error: null },
         ],
       })
 
@@ -66,8 +66,8 @@ describe('habit server actions (extended)', () => {
     it('sends multiple items', async () => {
       mockApiResponse({
         results: [
-          { habitId: 'h-1', status: 'Success', logId: 'log-1', error: null },
-          { habitId: 'h-2', status: 'Success', logId: 'log-2', error: null },
+          { index: 0, habitId: 'h-1', status: 'Success', logId: 'log-1', error: null },
+          { index: 1, habitId: 'h-2', status: 'Success', logId: 'log-2', error: null },
         ],
       })
 
@@ -95,7 +95,7 @@ describe('habit server actions (extended)', () => {
   describe('bulkSkipHabits', () => {
     it('sends POST to /api/habits/bulk/skip with items', async () => {
       mockApiResponse({
-        results: [{ habitId: 'h-1', status: 'Success', error: null }],
+        results: [{ index: 0, habitId: 'h-1', status: 'Success', error: null }],
       })
 
       const result = await bulkSkipHabits([{ habitId: 'h-1' }])
@@ -109,7 +109,7 @@ describe('habit server actions (extended)', () => {
 
     it('sends date per item when provided', async () => {
       mockApiResponse({
-        results: [{ habitId: 'h-1', status: 'Success', error: null }],
+        results: [{ index: 0, habitId: 'h-1', status: 'Success', error: null }],
       })
 
       await bulkSkipHabits([{ habitId: 'h-1', date: '2025-01-15' }])

@@ -19,6 +19,13 @@ import type {
   MoveHabitParentRequest,
   ChecklistItem,
 } from '@orbit/shared'
+import {
+  habitSetupSuggestionSchema,
+  bulkCreateResponseSchema,
+  bulkDeleteResponseSchema,
+  bulkLogResultSchema,
+  bulkSkipResultSchema,
+} from '@orbit/shared'
 import { API } from '@orbit/shared/api'
 import { serverAuthFetch } from '@/lib/server-fetch'
 
@@ -32,10 +39,14 @@ export async function createHabit(data: CreateHabitRequest): Promise<{ id: strin
 export async function suggestHabitSetup(
   data: HabitSetupSuggestionRequest,
 ): Promise<HabitSetupSuggestion> {
-  return serverAuthFetch(API.habits.suggestSetup, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  })
+  return serverAuthFetch(
+    API.habits.suggestSetup,
+    {
+      method: 'POST',
+      body: JSON.stringify(data),
+    },
+    habitSetupSuggestionSchema,
+  )
 }
 
 export async function updateHabit(habitId: string, data: UpdateHabitRequest): Promise<void> {
@@ -78,31 +89,47 @@ export async function skipHabit(
 }
 
 export async function bulkCreateHabits(data: BulkCreateRequest): Promise<BulkCreateResponse> {
-  return serverAuthFetch(API.habits.bulk, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  })
+  return serverAuthFetch(
+    API.habits.bulk,
+    {
+      method: 'POST',
+      body: JSON.stringify(data),
+    },
+    bulkCreateResponseSchema,
+  )
 }
 
 export async function bulkDeleteHabits(habitIds: string[]): Promise<BulkDeleteResponse> {
-  return serverAuthFetch(API.habits.bulk, {
-    method: 'DELETE',
-    body: JSON.stringify({ habitIds }),
-  })
+  return serverAuthFetch(
+    API.habits.bulk,
+    {
+      method: 'DELETE',
+      body: JSON.stringify({ habitIds }),
+    },
+    bulkDeleteResponseSchema,
+  )
 }
 
 export async function bulkLogHabits(items: BulkLogItemRequest[]): Promise<BulkLogResult> {
-  return serverAuthFetch(API.habits.bulkLog, {
-    method: 'POST',
-    body: JSON.stringify({ items }),
-  })
+  return serverAuthFetch(
+    API.habits.bulkLog,
+    {
+      method: 'POST',
+      body: JSON.stringify({ items }),
+    },
+    bulkLogResultSchema,
+  )
 }
 
 export async function bulkSkipHabits(items: BulkSkipItemRequest[]): Promise<BulkSkipResult> {
-  return serverAuthFetch(API.habits.bulkSkip, {
-    method: 'POST',
-    body: JSON.stringify({ items }),
-  })
+  return serverAuthFetch(
+    API.habits.bulkSkip,
+    {
+      method: 'POST',
+      body: JSON.stringify({ items }),
+    },
+    bulkSkipResultSchema,
+  )
 }
 
 export async function reorderHabits(data: ReorderHabitsRequest): Promise<void> {

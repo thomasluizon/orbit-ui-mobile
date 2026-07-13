@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { z } from 'zod'
 
 const resolveServerSessionMock = vi.fn()
 
@@ -13,6 +14,18 @@ vi.mock('@orbit/shared', () => ({
     ;(err as Error & { name: string }).name = 'ApiClientError'
     return err
   }),
+  ApiClientError: class ApiClientError extends Error {
+    status: number
+    code?: string
+    data?: unknown
+    constructor(status: number, message: string, options?: { code?: string; data?: unknown }) {
+      super(message)
+      this.name = 'ApiClientError'
+      this.status = status
+      this.code = options?.code
+      this.data = options?.data
+    }
+  },
 }))
 
 const mockFetch = vi.fn()
@@ -171,5 +184,116 @@ describe('serverAuthFetch', () => {
     const [, options] = mockFetch.mock.calls[0] as [string, RequestInit]
     expect((options.headers as Record<string, string>)['X-App-Version']).toBeUndefined()
     process.env.APP_VERSION = previous
+  })
+
+  it('validates and returns the parsed body when a schema is supplied', async () => {
+    resolveServerSessionMock.mockResolvedValue({
+      token: 'test-token',
+      expiresAt: Date.now() + 3600000,
+      refreshed: false,
+    })
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: () => Promise.resolve(JSON.stringify({ id: 'h-1', extra: 'stripped' })),
+    })
+
+    const { serverAuthFetch } = await import('@/lib/server-fetch')
+    const schema = z.object({ id: z.string() })
+    const result = await serverAuthFetch('/api/habits/h-1', {}, schema)
+
+    expect(result).toEqual({ id: 'h-1' })
+  })
+
+  it('rejects a malformed body with a typed 502 ApiClientError', async () => {
+    resolveServerSessionMock.mockResolvedValue({
+      token: 'test-token',
+      expiresAt: Date.now() + 3600000,
+      refreshed: false,
+    })
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: () => Promise.resolve(JSON.stringify({ id: 123 })),
+    })
+
+    const { serverAuthFetch } = await import('@/lib/server-fetch')
+    const schema = z.object({ id: z.string() })
+
+    await expect(serverAuthFetch('/api/habits/h-1', {}, schema)).rejects.toMatchObject({
+      name: 'ApiClientError',
+      status: 502,
+      code: 'INVALID_RESPONSE_SCHEMA',
+    })
+  })
+
+  it('skips schema validation for empty (204) responses', async () => {
+    resolveServerSessionMock.mockResolvedValue({
+      token: 'test-token',
+      expiresAt: Date.now() + 3600000,
+      refreshed: false,
+    })
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 204,
+      text: () => Promise.resolve(''),
+    })
+
+    const { serverAuthFetch } = await import('@/lib/server-fetch')
+    const schema = z.object({ id: z.string() })
+    const result = await serverAuthFetch('/api/habits/h-1', { method: 'DELETE' }, schema)
+
+    expect(result).toBeNull()
+  })
+})
+
+describe('serverPublicFetch', () => {
+  beforeEach(() => {
+    mockFetch.mockReset()
+  })
+
+  it('validates and returns the parsed body when a schema is supplied', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: () => Promise.resolve(JSON.stringify({ slug: 'ada', extra: 'stripped' })),
+    })
+
+    const { serverPublicFetch } = await import('@/lib/server-fetch')
+    const schema = z.object({ slug: z.string() })
+    const result = await serverPublicFetch('/api/u/ada', {}, schema)
+
+    expect(result).toEqual({ slug: 'ada' })
+  })
+
+  it('rejects a malformed body with a typed 502 ApiClientError', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: () => Promise.resolve(JSON.stringify({ slug: null })),
+    })
+
+    const { serverPublicFetch } = await import('@/lib/server-fetch')
+    const schema = z.object({ slug: z.string() })
+
+    await expect(serverPublicFetch('/api/u/ada', {}, schema)).rejects.toMatchObject({
+      name: 'ApiClientError',
+      status: 502,
+      code: 'INVALID_RESPONSE_SCHEMA',
+    })
+  })
+
+  it('returns null for a 404 without invoking the schema', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: () => Promise.resolve(null),
+    })
+
+    const { serverPublicFetch } = await import('@/lib/server-fetch')
+    const schema = z.object({ slug: z.string() })
+    const result = await serverPublicFetch('/api/u/missing', {}, schema)
+
+    expect(result).toBeNull()
   })
 })
