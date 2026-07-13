@@ -67,7 +67,7 @@ export function CalendarDayDetail({
     const isLast = index === filteredEntries.length - 1;
     return (
       <Animated.View
-        key={`${item.habitId}-${index}`}
+        key={item.habitId}
         style={[
           styles.entryRowFrame,
           {

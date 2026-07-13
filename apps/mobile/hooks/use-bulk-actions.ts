@@ -37,6 +37,22 @@ export function useBulkActions({
     }
   }, [habitsById, habitListRef])
 
+  const applyBulkMutationSuccesses = useCallback(
+    (results: readonly { status: string; habitId: string }[]) => {
+      const successIds: string[] = []
+      for (const item of results) {
+        if (item.status === 'Success') successIds.push(item.habitId)
+      }
+
+      for (const id of successIds) {
+        habitListRef.current?.markRecentlyCompleted(id)
+      }
+
+      promptParentLogsForBulkSuccesses(successIds)
+    },
+    [habitListRef, promptParentLogsForBulkSuccesses],
+  )
+
   const confirmBulkDelete = useCallback(async () => {
     const ids = Array.from(selectedHabitIds)
     if (ids.length === 0) return
@@ -53,40 +69,24 @@ export function useBulkActions({
     if (ids.length === 0) return
     try {
       const result = await bulkLog.mutateAsync(ids.map((habitId) => ({ habitId })))
-      const successIds = result.results
-        .filter((item) => item.status === 'Success')
-        .map((item) => item.habitId)
-
-      for (const id of successIds) {
-        habitListRef.current?.markRecentlyCompleted(id)
-      }
-
-      promptParentLogsForBulkSuccesses(successIds)
+      applyBulkMutationSuccesses(result.results)
     } finally {
       onSuccess()
       setShowBulkLogConfirm(false)
     }
-  }, [bulkLog, habitListRef, onSuccess, promptParentLogsForBulkSuccesses, selectedHabitIds])
+  }, [bulkLog, applyBulkMutationSuccesses, onSuccess, selectedHabitIds])
 
   const confirmBulkSkip = useCallback(async () => {
     const ids = Array.from(selectedHabitIds)
     if (ids.length === 0) return
     try {
       const result = await bulkSkip.mutateAsync(ids.map((habitId) => ({ habitId })))
-      const successIds = result.results
-        .filter((item) => item.status === 'Success')
-        .map((item) => item.habitId)
-
-      for (const id of successIds) {
-        habitListRef.current?.markRecentlyCompleted(id)
-      }
-
-      promptParentLogsForBulkSuccesses(successIds)
+      applyBulkMutationSuccesses(result.results)
     } finally {
       onSuccess()
       setShowBulkSkipConfirm(false)
     }
-  }, [bulkSkip, habitListRef, onSuccess, promptParentLogsForBulkSuccesses, selectedHabitIds])
+  }, [bulkSkip, applyBulkMutationSuccesses, onSuccess, selectedHabitIds])
 
   return {
     showBulkDeleteConfirm,

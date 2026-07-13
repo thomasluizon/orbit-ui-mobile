@@ -16,7 +16,10 @@ export function useReferral() {
   const code = query.data?.code ?? null
   const stats = query.data?.stats ?? null
 
-  const referralUrl = useMemo(() => buildReferralUrl(code), [code])
+  const referralUrl = useMemo(
+    () => buildReferralUrl(query.data?.code ?? null),
+    [query.data?.code],
+  )
 
   return {
     ...query,

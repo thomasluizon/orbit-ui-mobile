@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+// react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { Animated, AppState } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { addDays, subDays, isToday, isYesterday, isTomorrow } from "date-fns";
@@ -41,7 +42,6 @@ export interface TodayDate {
  */
 export function useTodayDate(): TodayDate {
   const { t, i18n } = useTranslation();
-  const locale = i18n.language;
   const router = useRouter();
   const setActiveView = useUIStore((s) => s.setActiveView);
   const { date } = useLocalSearchParams<{ date?: string | string[] }>();
@@ -63,8 +63,8 @@ export function useTodayDate(): TodayDate {
 
   const selectedDateStr = pinnedDateStr ?? today;
   const selectedDate = useMemo(
-    () => new Date(selectedDateStr + "T00:00:00"),
-    [selectedDateStr],
+    () => new Date((pinnedDateStr ?? today) + "T00:00:00"),
+    [pinnedDateStr, today],
   );
   const dateStr = formatAPIDate(selectedDate);
 
@@ -123,12 +123,12 @@ export function useTodayDate(): TodayDate {
     if (isToday(selectedDate)) return t("dates.today");
     if (isYesterday(selectedDate)) return t("dates.yesterday");
     if (isTomorrow(selectedDate)) return t("dates.tomorrow");
-    return formatLocaleDate(selectedDate, locale, {
+    return formatLocaleDate(selectedDate, i18n.language, {
       month: "short",
       day: "numeric",
       year: "numeric",
     });
-  }, [selectedDate, t, locale]);
+  }, [selectedDate, t, i18n.language]);
 
   useEffect(() => {
     if (!hasAnimatedDateLabelRef.current) {

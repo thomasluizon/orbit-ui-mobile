@@ -27,6 +27,7 @@ interface CalendarAutoSyncSectionProps {
   onReconnect: () => void
 }
 
+// react-doctor-disable-next-line no-many-boolean-props -- Deliberate presentational section: independent loading/connection/online UI-state flags owned by the calendar-sync screen; an options-object rewrite would churn the caller and the web parity mirror for no runtime benefit. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function CalendarAutoSyncSection({
   styles,
   tokens,

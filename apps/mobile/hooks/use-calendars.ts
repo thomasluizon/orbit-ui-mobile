@@ -57,12 +57,11 @@ export function useSetSelectedCalendars() {
     mutationFn: async ({ id, isSynced }) => {
       const current =
         queryClient.getQueryData<UserCalendar[]>(calendarKeys.calendars()) ?? []
-      const calendarIds = current
-        .map((calendar) =>
-          calendar.id === id ? { ...calendar, isSynced } : calendar,
-        )
-        .filter((calendar) => calendar.isSynced)
-        .map((calendar) => calendar.id)
+      const calendarIds: string[] = []
+      for (const calendar of current) {
+        const nextIsSynced = calendar.id === id ? isSynced : calendar.isSynced
+        if (nextIsSynced) calendarIds.push(calendar.id)
+      }
       await apiClient<unknown>(API.calendar.selectedCalendars, {
         method: 'PUT',
         body: JSON.stringify({ calendarIds }),

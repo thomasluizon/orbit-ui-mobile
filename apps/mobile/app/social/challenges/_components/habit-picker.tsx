@@ -19,6 +19,7 @@ export function HabitPicker({ selectedIds, onToggle }: Readonly<HabitPickerProps
   const habits = (data?.topLevelHabits ?? []).filter(
     (habit) => !isCompletedOneTimeHabit(habit),
   )
+  const selectedIdSet = new Set(selectedIds)
 
   if (habits.length === 0) {
     return (
@@ -31,7 +32,7 @@ export function HabitPicker({ selectedIds, onToggle }: Readonly<HabitPickerProps
   return (
     <View style={styles.wrap}>
       {habits.map((habit) => {
-        const active = selectedIds.includes(habit.id)
+        const active = selectedIdSet.has(habit.id)
         return (
           <Pressable
             key={habit.id}

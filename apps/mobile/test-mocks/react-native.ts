@@ -49,6 +49,7 @@ function createHostComponent(name: string) {
 
     if (!hostRefsNull) {
       if (typeof ref === 'function') {
+        // react-doctor-disable-next-line no-prop-callback-in-render -- Test-only mock of a React Native host component; it synchronously assigns the ref callback to emulate native measure()/setNativeProps() behavior for Vitest. Not a production render path. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
         ref(hostRef)
       } else if (ref && typeof ref === 'object') {
         ;(ref as { current: unknown }).current = hostRef

@@ -7,6 +7,7 @@ export default function OrbitWidgetView(props: Readonly<OrbitWidgetViewProps>) {
     <div>
       <iframe
         title="Orbit widget preview"
+        sandbox="allow-scripts"
         style={{ flex: 1 }}
         src={props.url}
         onLoad={() => props.onLoad({ nativeEvent: { url: props.url } })}

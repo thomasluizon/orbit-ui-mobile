@@ -301,23 +301,20 @@ function GlobalOverlays({
   )
   const armReviewPrompt = useReferralPromptStore((s) => s.armReviewPrompt)
   const armConsentPrompt = useReferralPromptStore((s) => s.armConsentPrompt)
-  const hasCompletedOnboarding = profile?.hasCompletedOnboarding ?? false
-  const marketingEmailConsent = profile?.marketingEmailConsent
-
   useEffect(() => {
     if (
-      hasCompletedOnboarding &&
-      profile?.hasCompletedTour &&
+      profile?.hasCompletedOnboarding &&
+      profile.hasCompletedTour &&
       profile.hasSeenImportPrompt &&
-      marketingEmailConsent === null
+      profile.marketingEmailConsent === null
     ) {
       armConsentPrompt(MARKETING_CONSENT_MILESTONE_KEY)
     }
   }, [
-    hasCompletedOnboarding,
+    profile?.hasCompletedOnboarding,
     profile?.hasCompletedTour,
     profile?.hasSeenImportPrompt,
-    marketingEmailConsent,
+    profile?.marketingEmailConsent,
     armConsentPrompt,
   ])
 
@@ -336,7 +333,7 @@ function GlobalOverlays({
       if (
         isReviewMomentEligible(
           useReviewReminderStore.getState(),
-          hasCompletedOnboarding,
+          profile?.hasCompletedOnboarding ?? false,
           formatAPIDate(new Date()),
         )
       ) {
@@ -348,7 +345,7 @@ function GlobalOverlays({
     gamification.newLevel,
     armReferralPrompt,
     armReviewPrompt,
-    hasCompletedOnboarding,
+    profile?.hasCompletedOnboarding,
   ])
 
   useEffect(() => {
