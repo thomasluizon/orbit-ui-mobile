@@ -1085,7 +1085,12 @@ const isPostponeAction = useMemo(() => {
   }
 
   return (
-    <div data-tour="tour-habit-list" ref={listContainerRef} onKeyDown={handleListKeyDown}>
+    <div
+      data-tour="tour-habit-list"
+      ref={listContainerRef}
+      role="presentation"
+      onKeyDown={handleListKeyDown}
+    >
       {renderMainContent()}
 
       <HabitDetailDrawer

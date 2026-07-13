@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useId,
+  useMemo,
   useState,
   type ReactNode,
 } from 'react'
@@ -40,11 +41,12 @@ export function TopbarSlotProvider({ children }: Readonly<{ children: ReactNode 
     setState((previous) => (previous.ownerId === ownerId ? { node: null, ownerId: null } : previous))
   }, [])
 
-  return (
-    <TopbarSlotContext.Provider value={{ node: state.node, setSlot, clearSlot }}>
-      {children}
-    </TopbarSlotContext.Provider>
+  const value = useMemo(
+    () => ({ node: state.node, setSlot, clearSlot }),
+    [state.node, setSlot, clearSlot],
   )
+
+  return <TopbarSlotContext.Provider value={value}>{children}</TopbarSlotContext.Provider>
 }
 
 /** Reads the current topbar-left node. Used by the shell to render it. */

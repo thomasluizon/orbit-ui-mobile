@@ -15,7 +15,7 @@ export function nowDate(): Date {
 export function parseAPIDate(dateStr: string): Date {
   const parsed = parse(dateStr, 'yyyy-MM-dd', new Date())
   if (Number.isNaN(parsed.getTime())) {
-    throw new Error(`parseAPIDate: invalid YYYY-MM-DD date string "${dateStr}"`)
+    throw new TypeError(`parseAPIDate: invalid YYYY-MM-DD date string "${dateStr}"`)
   }
   return parsed
 }
