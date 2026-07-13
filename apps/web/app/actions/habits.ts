@@ -21,6 +21,7 @@ import type {
 } from '@orbit/shared'
 import {
   habitSetupSuggestionSchema,
+  logHabitResponseSchema,
   bulkCreateResponseSchema,
   bulkDeleteResponseSchema,
   bulkLogResultSchema,
@@ -72,10 +73,14 @@ export async function logHabit(
   habitId: string,
   data?: LogHabitRequest,
 ): Promise<LogHabitResponse> {
-  return serverAuthFetch(API.habits.log(habitId), {
-    method: 'POST',
-    body: data ? JSON.stringify(data) : undefined,
-  })
+  return serverAuthFetch(
+    API.habits.log(habitId),
+    {
+      method: 'POST',
+      body: data ? JSON.stringify(data) : undefined,
+    },
+    logHabitResponseSchema,
+  )
 }
 
 export async function skipHabit(

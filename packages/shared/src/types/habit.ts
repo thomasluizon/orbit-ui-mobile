@@ -340,9 +340,9 @@ export const logHabitResponseSchema = z.object({
   logId: z.string(),
   isFirstCompletionToday: z.boolean(),
   currentStreak: z.number(),
-  linkedGoalUpdates: z.array(linkedGoalUpdateSchema).optional(),
-  xpEarned: z.number().optional(),
-  newAchievementIds: z.array(z.string()).optional(),
+  linkedGoalUpdates: z.array(linkedGoalUpdateSchema).nullish(),
+  xpEarned: z.number().nullish(),
+  newAchievementIds: z.array(z.string()).nullish(),
 })
 
 export type LogHabitResponse = z.infer<typeof logHabitResponseSchema>
