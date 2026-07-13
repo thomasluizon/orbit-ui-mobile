@@ -2,10 +2,13 @@ import { useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { useTranslation } from 'react-i18next'
-import { challengeTypeSchema, type ChallengeType } from '@orbit/shared/types/challenge'
 import { formatAPIDate } from '@orbit/shared/utils'
+import {
+  CHALLENGE_TYPE_OPTIONS,
+  createChallengeFormSchema,
+  type CreateChallengeFormValues,
+} from '@orbit/shared/validation'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { FieldInput } from '@/components/ui/field-input'
 import { PillButton } from '@/components/ui/pill-button'
@@ -16,28 +19,6 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { getChallengeErrorKey } from './challenge-errors'
 import { HabitPicker } from './habit-picker'
 import { InviteFriendsPicker } from './invite-friends-picker'
-
-const createChallengeFormSchema = z
-  .object({
-    type: challengeTypeSchema,
-    title: z.string().trim().min(1).max(80),
-    targetCount: z.string().optional(),
-    periodEndUtc: z.string().optional(),
-  })
-  .superRefine((value, ctx) => {
-    if (value.type !== 'CoopGoal') return
-    const target = Number(value.targetCount)
-    if (!value.targetCount || !Number.isInteger(target) || target <= 0) {
-      ctx.addIssue({ code: 'custom', path: ['targetCount'], message: 'required' })
-    }
-    if (!value.periodEndUtc) {
-      ctx.addIssue({ code: 'custom', path: ['periodEndUtc'], message: 'required' })
-    }
-  })
-
-type CreateChallengeFormValues = z.infer<typeof createChallengeFormSchema>
-
-const TYPE_OPTIONS: readonly ChallengeType[] = ['CoopGoal', 'StreakTogether']
 
 interface CreateChallengeFormProps {
   onCreated: (id: string) => void
@@ -93,7 +74,7 @@ export function CreateChallengeForm({ onCreated }: Readonly<CreateChallengeFormP
           <View style={styles.field}>
             <Text style={[styles.label, { color: tokens.fg2 }]}>{t('challenges.create.typeLabel')}</Text>
             <View style={styles.typeRow}>
-              {TYPE_OPTIONS.map((option) => {
+              {CHALLENGE_TYPE_OPTIONS.map((option) => {
                 const selected = field.value === option
                 return (
                   <Pressable

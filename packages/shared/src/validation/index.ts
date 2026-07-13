@@ -42,6 +42,12 @@ export {
   validateGoalProgressValue,
 } from './goal-form'
 
+export {
+  createChallengeFormSchema,
+  type CreateChallengeFormValues,
+  CHALLENGE_TYPE_OPTIONS,
+} from './challenge-form'
+
 export { validateTagForm } from './tag-form'
 
 export { parseApiKeyExpiryUtc } from './api-key-form'
