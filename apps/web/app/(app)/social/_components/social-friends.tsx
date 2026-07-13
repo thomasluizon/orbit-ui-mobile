@@ -1,9 +1,9 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import { Loader2 } from 'lucide-react'
 import { EmptyState } from '@/components/ui/empty-state'
 import { SectionLabel } from '@/components/ui/section-label'
+import { SocialSectionLoadError, SocialSectionSpinner } from './social-section-states'
 import { useFriends } from '@/hooks/use-friends'
 import { AddFriendForm } from './add-friend-form'
 import { FriendRequestRow } from './friend-request-row'
@@ -23,30 +23,8 @@ export function SocialFriends({ onCheer }: Readonly<SocialFriendsProps>) {
   const outgoing = data?.outgoingRequests ?? []
 
   const renderFriends = () => {
-    if (isLoading) {
-      return (
-        <div
-          role="status"
-          aria-label={t('common.loading')}
-          className="flex justify-center"
-          style={{ padding: '48px 0' }}
-        >
-          <Loader2 className="size-[22px] animate-spin" style={{ color: 'var(--primary)' }} />
-        </div>
-      )
-    }
-    if (isError) {
-      return (
-        <EmptyState
-          description={t('social.errors.loadFailed')}
-          action={{
-            label: t('common.retry'),
-            onClick: () => void refetch(),
-            variant: 'secondary',
-          }}
-        />
-      )
-    }
+    if (isLoading) return <SocialSectionSpinner />
+    if (isError) return <SocialSectionLoadError onRetry={() => void refetch()} />
     if (friends.length === 0) {
       return (
         <EmptyState
