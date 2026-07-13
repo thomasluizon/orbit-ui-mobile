@@ -121,7 +121,7 @@ Exact dimensions in `design/handoff/orbit/project/orbit-kit.jsx`. Web in `apps/w
 | NavHeader | 56px, centered UPPERCASE Rubik 13/500 +0.09em title, back chevron 26/2.0, right slot help (40px circled, inset 1.5px hairline-strong ring) / close / share | `ui/app-bar.tsx` | `ui/app-bar.tsx` |
 | GradientTop | absolute 260–300px `--gradient-header` backdrop, zIndex 0 | `ui/gradient-top.tsx` | `ui/gradient-top.tsx` |
 | SectionTitle | Rubik 20/500 −0.01em, 24/14 padding | `ui/section-label.tsx` | `ui/section-label.tsx` |
-| ListRow | 16/20 padding, icon 22/1.8 in 26px slot, title Rubik 18/400, desc 14 fg-3, trailing + chevron 22 fg-4, optional divider, danger=status-bad | `ui/settings-row.tsx` | `ui/settings-row.tsx` |
+| ListRow | 16/20 padding, icon 22/1.8 in 26px slot, title Rubik 18/400, desc 14 fg-3, trailing + chevron 22 fg-4, optional divider (default on; drop it on the last row before a section break or against a bordered element — never stack two hairlines), danger=status-bad | `ui/settings-row.tsx` | `ui/settings-row.tsx` |
 | Switch | 48×28 pill, 22px white thumb, on=primary / off=rgba(fg,0.16) | inside settings-row | inside settings-row |
 | Radio/RadioRow | 24px, selected=primary fill + 9px white dot, else inset 2px fg-4 ring | `ui/select-check.tsx` | `ui/select-check.tsx` |
 | Badge | pill 3/9px, 10.5/600 +0.06em UPPERCASE; tones violet/soft/outline/amber | `ui/badge.tsx` (+ pro-badge) | same |
@@ -153,6 +153,7 @@ Exact dimensions in `design/handoff/orbit/project/orbit-kit.jsx`. Web in `apps/w
 - Translucency ladder on dark: 0.04 card / 0.05 field / 0.06 well / 0.10 elev-2 (white-alpha over canvas).
 - Opaque white cards on light — never translucent.
 - Inset 1px hairline rings instead of borders (web `box-shadow: inset 0 0 0 1px var(--hairline)`; RN border with the same color reads equivalently).
+- Minimal dividers — separate with whitespace or an inset ring first; a hairline rule is earned only between two adjacent flat rows. Drop a row's divider when it is the last before a section break or sits against a bordered element (card, inset ring, or a CTA with its own border), and never stack two hairlines. In-drawer Ask-Astra CTAs carry no top border of their own (the goal drawer is the reference); the row above keeps its single divider or none.
 - No opaque card-on-card on dark; surfaces stack by alpha, not by lighter hexes.
 - Gradient-header usage: profile, paywall, auth, onboarding, celebrations, Início, calendar, chat, social.
 
@@ -191,6 +192,7 @@ SVG `stroke-dashoffset` ring/progress sweeps are sanctioned (paint-only property
 - No hardcoded violet rgba — tints come from `--primary-rgb` / `tintFromPrimary`.
 - No opaque card-on-card on dark.
 - No borders-as-borders where the kit uses inset rings.
+- No stacked hairlines — a row's divider never sits directly against another border; suppress one and let whitespace or the inset ring carry the separation.
 - No `transition-all`. Animate `transform` and `opacity` only, named explicitly.
 - No `h-screen`. Use `min-h-dvh`.
 - No new font families, radii, or colors outside this spec. The old Vercel sans/mono families are gone — Rubik/Inter/Roboto only.
