@@ -22,7 +22,6 @@ export function HabitAskAstraButton({
       style={{
         padding: '16px 20px 24px',
         marginTop: 8,
-        borderTop: '1px solid var(--hairline)',
       }}
     >
       <div className="flex items-center gap-3">

@@ -473,6 +473,22 @@ describe('HabitDetailDrawer', () => {
     expect(mockRouterPush).not.toHaveBeenCalled()
   })
 
+  it('renders the Ask-Astra CTA without a top-border divider below the pair row (#447 Bug 4)', () => {
+    render(
+      <HabitDetailDrawer
+        open={true}
+        onOpenChange={vi.fn()}
+        habit={defaultHabit}
+      />,
+    )
+    const askAstra = screen.getByRole('button', {
+      name: /habits\.detail\.askAstraEyebrow/,
+    })
+    expect(askAstra.style.borderTop).toBe('')
+    const pairRow = screen.getByText('social.buddies.pairThisHabit').closest('button')
+    expect(pairRow?.style.borderBottomWidth).toBe('1px')
+  })
+
   it('renders nothing visible when habit is null', () => {
     render(
       <HabitDetailDrawer

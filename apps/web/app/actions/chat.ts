@@ -37,6 +37,7 @@ async function wrapServerAction<T>(fn: () => Promise<T>): Promise<PendingOperati
   }
 }
 
+// react-doctor-disable-next-line server-auth-actions -- FP: serverAuthFetch enforces auth (resolveServerSession throws 401 before any request); RD can't trace the call nested in the wrapServerAction closure. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export async function confirmPendingOperation(
   id: string,
 ): Promise<PendingOperationActionResult<PendingAgentOperationConfirmation>> {
@@ -47,6 +48,7 @@ export async function confirmPendingOperation(
   )
 }
 
+// react-doctor-disable-next-line server-auth-actions -- FP: serverAuthFetch enforces auth (resolveServerSession throws 401 before any request); RD can't trace the call nested in the wrapServerAction closure. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export async function issuePendingOperationStepUp(
   id: string,
   language: string,
@@ -59,6 +61,7 @@ export async function issuePendingOperationStepUp(
   )
 }
 
+// react-doctor-disable-next-line server-auth-actions -- FP: serverAuthFetch enforces auth (resolveServerSession throws 401 before any request); RD can't trace the call nested in the wrapServerAction closure. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export async function verifyPendingOperationStepUp(
   id: string,
   challengeId: string,
@@ -72,6 +75,7 @@ export async function verifyPendingOperationStepUp(
   )
 }
 
+// react-doctor-disable-next-line server-auth-actions -- FP: serverAuthFetch enforces auth (resolveServerSession throws 401 before any request); RD can't trace the call nested in the wrapServerAction closure. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export async function executePendingOperation(
   id: string,
   confirmationToken: string,
@@ -86,6 +90,7 @@ export async function executePendingOperation(
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+// react-doctor-disable-next-line server-auth-actions -- FP: serverAuthFetch enforces auth (resolveServerSession throws 401 before any request); RD can't trace the call nested in the wrapServerAction closure. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export async function resolveClarification(
   operationId: string,
   value: string,
