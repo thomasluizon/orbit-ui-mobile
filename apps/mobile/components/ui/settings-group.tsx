@@ -17,12 +17,12 @@ interface SettingsGroupProps {
 export function SettingsGroup({ children }: Readonly<SettingsGroupProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const items = React.Children.toArray(children).filter(Boolean)
+  const items = React.Children.toArray(children).filter(React.isValidElement)
 
   return (
     <View>
       {items.map((child, index) => (
-        <View key={index} collapsable={false}>
+        <View key={child.key} collapsable={false}>
           {index > 0 ? (
             <View style={[styles.divider, { backgroundColor: tokens.hairline }]} />
           ) : null}

@@ -192,7 +192,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
     setShowImportPrompt(false)
     dismissImportPrompt().catch(() => {})
     patchProfile({ hasSeenImportPrompt: true })
-    if (typeof globalThis !== 'undefined' && typeof globalThis.localStorage !== 'undefined') {
+    if ('localStorage' in globalThis) {
       globalThis.localStorage.setItem(
         CHAT_DRAFT_STORAGE_KEY,
         t('onboarding.flow.meetAstra.importPrompt'),

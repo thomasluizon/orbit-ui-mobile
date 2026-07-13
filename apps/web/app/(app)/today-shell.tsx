@@ -151,6 +151,10 @@ export function TodayDateNavigation({
 }: Readonly<TodayDateNavigationProps>) {
   if (!visible) return null
 
+  const slideAnimationClass = animateDateChange
+    ? ` animate-slide-date-${slideDirection}`
+    : ''
+
   return (
     <div
       className="shrink-0"
@@ -179,7 +183,7 @@ export function TodayDateNavigation({
           type="button"
           key={dateLabel}
           aria-label={isTodaySelected ? dateLabel : todayLabel}
-          className={`appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.98]${animateDateChange ? ` animate-slide-date-${slideDirection}` : ''}`}
+          className={`appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.98]${slideAnimationClass}`}
           style={{
             height: 36,
             padding: '0 16px',

@@ -138,7 +138,7 @@ export function HabitDetailDrawer({
       habit.checklistItems.length > 0
         ? t('habits.detail.askAstraSeedSubHabits', { title: habit.title })
         : t('habits.detail.askAstraSeedDefault', { title: habit.title })
-    if (typeof globalThis !== 'undefined' && typeof globalThis.localStorage !== 'undefined') {
+    if ('localStorage' in globalThis) {
       globalThis.localStorage.setItem('orbit-chat-draft', seed)
     }
     onOpenChange(false)

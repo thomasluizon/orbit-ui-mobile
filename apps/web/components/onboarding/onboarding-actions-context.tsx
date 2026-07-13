@@ -186,10 +186,7 @@ export function useLiveOnboardingActions(): OnboardingActions {
         router.push('/')
       },
       onImport: () => {
-        if (
-          typeof globalThis !== 'undefined' &&
-          typeof globalThis.localStorage !== 'undefined'
-        ) {
+        if ('localStorage' in globalThis) {
           globalThis.localStorage.setItem(
             CHAT_DRAFT_STORAGE_KEY,
             t('onboarding.flow.meetAstra.importPrompt'),

@@ -112,8 +112,10 @@ export default function UpgradeScreen() {
     yearlyDisplayPrice: playBilling.yearlyOffer?.displayPrice,
     monthlyDisplayPrice: playBilling.monthlyOffer?.displayPrice,
   })
+  const planNameKey = `upgrade.plans.${selectedInterval}.name`
+  const planPeriodKey = `upgrade.plans.${selectedInterval}.period`
   const priceEcho = plans
-    ? `${t(`upgrade.plans.${selectedInterval}.name`)} · ${selectedCharge}${t(`upgrade.plans.${selectedInterval}.period`)}`
+    ? `${t(planNameKey)} · ${selectedCharge}${t(planPeriodKey)}`
     : ''
 
   function handleCheckout(interval: SubscriptionInterval) {
