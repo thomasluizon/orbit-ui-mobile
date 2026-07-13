@@ -300,4 +300,50 @@ describe('AppOverlay', () => {
       expect(document.activeElement).toBe(input)
     })
   })
+
+  it('locks scroll without reflowing the document scroll container the sidebar depends on', () => {
+    const { unmount } = render(
+      <AppOverlay open={true} onOpenChange={vi.fn()} title="T">
+        <p>Body</p>
+      </AppOverlay>,
+    )
+
+    expect(document.body.style.overflow).toBe('hidden')
+    expect(document.body.style.position).not.toBe('fixed')
+    expect(document.body.style.top).toBe('')
+    expect(document.documentElement.style.overflow).toBe('')
+
+    unmount()
+
+    expect(document.body.style.overflow).toBe('')
+    expect(document.body.style.paddingRight).toBe('')
+  })
+
+  it('keeps the scroll lock while any overlay in the stack stays open', () => {
+    const { rerender } = render(
+      <>
+        <AppOverlay open={true} onOpenChange={vi.fn()} title="First">
+          <button>First</button>
+        </AppOverlay>
+        <AppOverlay open={true} onOpenChange={vi.fn()} title="Second">
+          <button>Second</button>
+        </AppOverlay>
+      </>,
+    )
+
+    expect(document.body.style.overflow).toBe('hidden')
+
+    rerender(
+      <>
+        <AppOverlay open={true} onOpenChange={vi.fn()} title="First">
+          <button>First</button>
+        </AppOverlay>
+        <AppOverlay open={false} onOpenChange={vi.fn()} title="Second">
+          <button>Second</button>
+        </AppOverlay>
+      </>,
+    )
+
+    expect(document.body.style.overflow).toBe('hidden')
+  })
 })
