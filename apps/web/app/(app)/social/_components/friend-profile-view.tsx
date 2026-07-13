@@ -69,9 +69,9 @@ export function FriendProfileView({
   const profileUnavailable =
     !isError || (error instanceof ApiClientError && (error.status === 403 || error.status === 404))
 
-  return (
-    <AppOverlay open={open} onOpenChange={onOpenChange} title={displayName}>
-      {isLoading ? (
+  const renderProfileContent = () => {
+    if (isLoading) {
+      return (
         <div
           role="status"
           aria-label={t('common.loading')}
@@ -80,7 +80,10 @@ export function FriendProfileView({
         >
           <Loader2 className="size-[22px] animate-spin" style={{ color: 'var(--primary)' }} />
         </div>
-      ) : isError || !view ? (
+      )
+    }
+    if (isError || !view) {
+      return (
         <div
           className="flex flex-col items-center text-center"
           style={{ minHeight: 220, justifyContent: 'center', gap: 14, padding: '16px 12px' }}
@@ -99,9 +102,14 @@ export function FriendProfileView({
             </PillButton>
           )}
         </div>
-      ) : (
-        <ProfileBody view={view} reducedMotion={Boolean(prefersReducedMotion)} />
-      )}
+      )
+    }
+    return <ProfileBody view={view} reducedMotion={Boolean(prefersReducedMotion)} />
+  }
+
+  return (
+    <AppOverlay open={open} onOpenChange={onOpenChange} title={displayName}>
+      {renderProfileContent()}
     </AppOverlay>
   )
 }

@@ -100,16 +100,19 @@ export function parseReviewMomentKey(milestoneKey: string): ReviewMomentKey | nu
   const streakPrefix = 'review-streak-'
   const levelPrefix = 'review-level-'
 
-  const kind = milestoneKey.startsWith(streakPrefix)
-    ? 'streak'
-    : milestoneKey.startsWith(levelPrefix)
-      ? 'level'
-      : null
-  if (!kind) return null
+  let kind: 'streak' | 'level'
+  let prefixLength: number
+  if (milestoneKey.startsWith(streakPrefix)) {
+    kind = 'streak'
+    prefixLength = streakPrefix.length
+  } else if (milestoneKey.startsWith(levelPrefix)) {
+    kind = 'level'
+    prefixLength = levelPrefix.length
+  } else {
+    return null
+  }
 
-  const raw = milestoneKey.slice(
-    kind === 'streak' ? streakPrefix.length : levelPrefix.length,
-  )
+  const raw = milestoneKey.slice(prefixLength)
   const value = Number(raw)
   if (raw === '' || !Number.isFinite(value)) return null
   return { kind, value }

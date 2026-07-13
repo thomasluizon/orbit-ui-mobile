@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Loader2 } from 'lucide-react'
 import type { Cheer } from '@orbit/shared/types/social'
 import { EmptyState } from '@/components/ui/empty-state'
 import { SectionLabel } from '@/components/ui/section-label'
@@ -11,6 +10,7 @@ import { UserAvatar } from '@/components/ui/user-avatar'
 import { useCheers, useFriendFeed } from '@/hooks/use-friends'
 import { FeedEventCard } from './feed-event-card'
 import { FriendProfileView } from './friend-profile-view'
+import { SocialSectionLoadError, SocialSectionSpinner } from './social-section-states'
 import type { CheerTarget } from './cheer-composer'
 
 interface SocialFeedProps {
@@ -80,6 +80,31 @@ export function SocialFeed({ onCheer, onAddFriends }: Readonly<SocialFeedProps>)
   const receivedCheers = cheers.data?.items ?? []
   const isEmpty = !feed.isLoading && items.length === 0 && receivedCheers.length === 0
 
+  const renderFeed = () => {
+    if (feed.isLoading) return <SocialSectionSpinner />
+    if (feed.isError) return <SocialSectionLoadError onRetry={() => void feed.refetch()} />
+    if (isEmpty) {
+      return (
+        <EmptyState
+          title={t('social.feed.emptyTitle')}
+          description={t('social.feed.emptyBody')}
+          action={{
+            label: t('social.feed.emptyCta'),
+            onClick: onAddFriends,
+            variant: 'secondary',
+          }}
+        />
+      )
+    }
+    return (
+      <div className="stagger-enter">
+        {items.map((item) => (
+          <FeedEventCard key={item.id} item={item} onCheer={onCheer} />
+        ))}
+      </div>
+    )
+  }
+
   return (
     <div
       className="flex flex-col"
@@ -96,41 +121,7 @@ export function SocialFeed({ onCheer, onAddFriends }: Readonly<SocialFeedProps>)
         </div>
       )}
 
-      {feed.isLoading ? (
-        <div
-          role="status"
-          aria-label={t('common.loading')}
-          className="flex justify-center"
-          style={{ padding: '48px 0' }}
-        >
-          <Loader2 className="size-[22px] animate-spin" style={{ color: 'var(--primary)' }} />
-        </div>
-      ) : feed.isError ? (
-        <EmptyState
-          description={t('social.errors.loadFailed')}
-          action={{
-            label: t('common.retry'),
-            onClick: () => void feed.refetch(),
-            variant: 'secondary',
-          }}
-        />
-      ) : isEmpty ? (
-        <EmptyState
-          title={t('social.feed.emptyTitle')}
-          description={t('social.feed.emptyBody')}
-          action={{
-            label: t('social.feed.emptyCta'),
-            onClick: onAddFriends,
-            variant: 'secondary',
-          }}
-        />
-      ) : (
-        <div className="stagger-enter">
-          {items.map((item) => (
-            <FeedEventCard key={item.id} item={item} onCheer={onCheer} />
-          ))}
-        </div>
-      )}
+      {renderFeed()}
 
       {feed.hasNextPage && (
         <div className="flex justify-center" style={{ padding: '12px 20px' }}>

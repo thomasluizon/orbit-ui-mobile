@@ -49,12 +49,12 @@ export function CalendarWeekView({
   showRecurring,
   onShowRecurringChange,
 }: Readonly<CalendarWeekViewProps>) {
-  const slideClass =
-    slideDirection === 'right'
-      ? 'animate-slide-date-right'
-      : slideDirection === 'left'
-        ? 'animate-slide-date-left'
-        : ''
+  let slideClass = ''
+  if (slideDirection === 'right') {
+    slideClass = 'animate-slide-date-right'
+  } else if (slideDirection === 'left') {
+    slideClass = 'animate-slide-date-left'
+  }
 
   return (
     <>

@@ -128,6 +128,16 @@ export function GoalCard({ goal, onOpenDetail }: Readonly<GoalCardProps>) {
 
   const { onContextMenu, contextMenu } = useContextMenu(contextMenuItems)
 
+  const renderStatusIndicator = () => {
+    if (statusBadge) {
+      return <GoalStatusBadge text={statusBadge.text} color={statusBadge.color} />
+    }
+    if (trackingDot) {
+      return <StatusDot state={trackingDot.state} ariaLabel={trackingDot.label} />
+    }
+    return null
+  }
+
   return (
     <>
       <button
@@ -170,11 +180,7 @@ export function GoalCard({ goal, onOpenDetail }: Readonly<GoalCardProps>) {
               >
                 {goal.title}
               </h3>
-              {statusBadge ? (
-                <GoalStatusBadge text={statusBadge.text} color={statusBadge.color} />
-              ) : trackingDot ? (
-                <StatusDot state={trackingDot.state} ariaLabel={trackingDot.label} />
-              ) : null}
+              {renderStatusIndicator()}
             </div>
             <div
               className="flex items-center"

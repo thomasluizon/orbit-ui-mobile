@@ -35,6 +35,18 @@ export function CheckCircle({ state, tone = 'default', onToggle, disabled, ariaL
     setJustCompleted(filled)
   }
 
+  let boxShadow: string
+  if (!filled) {
+    boxShadow = `inset 0 0 0 2px ${color}`
+  } else if (state === 'done') {
+    boxShadow =
+      tone === 'bad'
+        ? '0 4px 14px color-mix(in srgb, var(--status-bad) 35%, transparent)'
+        : '0 4px 14px rgba(var(--primary-rgb), 0.35)'
+  } else {
+    boxShadow = 'none'
+  }
+
   return (
     <button
       type="button"
@@ -56,13 +68,7 @@ export function CheckCircle({ state, tone = 'default', onToggle, disabled, ariaL
           width: 30,
           height: 30,
           background: filled ? color : 'transparent',
-          boxShadow: filled
-            ? state === 'done'
-              ? tone === 'bad'
-                ? '0 4px 14px color-mix(in srgb, var(--status-bad) 35%, transparent)'
-                : '0 4px 14px rgba(var(--primary-rgb), 0.35)'
-              : 'none'
-            : `inset 0 0 0 2px ${color}`,
+          boxShadow,
         }}
       >
         {filled && <Check size={17} strokeWidth={3} color="var(--fg-on-primary)" aria-hidden="true" />}

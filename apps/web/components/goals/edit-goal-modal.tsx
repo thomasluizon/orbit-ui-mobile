@@ -143,6 +143,8 @@ export function EditGoalModal({
     [deadline, description, goal.id, onOpenChange, showError, targetValue, translate, unit, updateGoal],
   )
 
+  const unitSuffix = goal.unit ? `  ·  ${goal.unit}` : ''
+
   return (
     <>
       <AppOverlay
@@ -157,7 +159,7 @@ export function EditGoalModal({
           <div className="t-eyebrow" style={{ padding: '10px 0' }}>
             {isStreak
               ? t('goals.form.typeStreak')
-              : `${t('goals.form.typeStandard')}${goal.unit ? `  ·  ${goal.unit}` : ''}`}
+              : `${t('goals.form.typeStandard')}${unitSuffix}`}
           </div>
 
           <div style={{ padding: '6px 0 0' }}>

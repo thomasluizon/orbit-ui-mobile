@@ -48,13 +48,18 @@ export function RouteTransitionShell({
     [activeIntent, prefersReducedMotion],
   )
   const direction = getRouteDirectionForIntent(activeIntent)
-  const enterX = direction === 0 ? 0 : direction > 0 ? motionPreset.shift : -motionPreset.shift
-  const exitX =
-    direction === 0
-      ? 0
-      : direction > 0
-        ? -Math.round(motionPreset.shift * 0.55)
-        : Math.round(motionPreset.shift * 0.55)
+  let enterX = 0
+  if (direction > 0) {
+    enterX = motionPreset.shift
+  } else if (direction < 0) {
+    enterX = -motionPreset.shift
+  }
+  let exitX = 0
+  if (direction > 0) {
+    exitX = -Math.round(motionPreset.shift * 0.55)
+  } else if (direction < 0) {
+    exitX = Math.round(motionPreset.shift * 0.55)
+  }
 
   return (
     <AnimatePresence mode="popLayout" initial={false}>

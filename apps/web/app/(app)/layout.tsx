@@ -353,12 +353,12 @@ function GlobalOverlays({
   useEffect(() => {
     const crossedStreak = gamification.crossedStreakMilestones.at(-1) ?? null
     const shareableAchievement = gamification.newAchievements.find(isShareableAchievement)
-    const candidateKey =
-      crossedStreak !== null
-        ? getMilestoneShareStreakKey(crossedStreak)
-        : shareableAchievement
-          ? getMilestoneShareAchievementKey(shareableAchievement.id)
-          : null
+    let candidateKey: string | null = null
+    if (crossedStreak !== null) {
+      candidateKey = getMilestoneShareStreakKey(crossedStreak)
+    } else if (shareableAchievement) {
+      candidateKey = getMilestoneShareAchievementKey(shareableAchievement.id)
+    }
     if (candidateKey) {
       armMilestoneSharePrompt(candidateKey)
     }

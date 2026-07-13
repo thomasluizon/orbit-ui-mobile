@@ -59,17 +59,19 @@ function MoveTargetRow({
 }>) {
   const isRoot = option.id === null
 
-  const ringClass = selected
-    ? 'bg-[rgba(var(--primary-rgb),0.10)] shadow-[inset_0_0_0_1.5px_var(--primary)]'
-    : isRoot
-      ? 'bg-transparent'
-      : 'bg-[var(--bg-field)] shadow-[inset_0_0_0_1px_var(--hairline)]'
+  let ringClass: string
+  if (selected) {
+    ringClass = 'bg-[rgba(var(--primary-rgb),0.10)] shadow-[inset_0_0_0_1.5px_var(--primary)]'
+  } else if (isRoot) {
+    ringClass = 'bg-transparent'
+  } else {
+    ringClass = 'bg-[var(--bg-field)] shadow-[inset_0_0_0_1px_var(--hairline)]'
+  }
 
+  const hoverClass = selected ? '' : ' hover:bg-[color-mix(in_srgb,var(--fg-1)_8%,transparent)]'
   const stateClass = option.disabled
     ? 'opacity-50 cursor-not-allowed'
-    : `cursor-pointer active:scale-[0.98]${
-        selected ? '' : ' hover:bg-[color-mix(in_srgb,var(--fg-1)_8%,transparent)]'
-      }`
+    : `cursor-pointer active:scale-[0.98]${hoverClass}`
 
   return (
     <button

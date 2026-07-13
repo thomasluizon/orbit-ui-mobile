@@ -38,11 +38,14 @@ export function PricingSection({
   t,
 }: Readonly<PricingSectionProps>) {
   const trialActive = !!profile?.isTrialActive
-  const eyebrow = trialActive
-    ? trialDaysLeft === 0
-      ? t('upgrade.convert.trialLastDay')
-      : plural(t('upgrade.convert.trialDaysLeft', { days: trialDaysLeft ?? 0 }), trialDaysLeft ?? 0)
-    : t('upgrade.convert.freeEyebrow')
+  let eyebrow: string
+  if (!trialActive) {
+    eyebrow = t('upgrade.convert.freeEyebrow')
+  } else if (trialDaysLeft === 0) {
+    eyebrow = t('upgrade.convert.trialLastDay')
+  } else {
+    eyebrow = plural(t('upgrade.convert.trialDaysLeft', { days: trialDaysLeft ?? 0 }), trialDaysLeft ?? 0)
+  }
   const heading = trialActive ? t('upgrade.convert.trialHeading') : t('upgrade.convert.freeHeading')
 
   return (

@@ -210,6 +210,15 @@ function AgendaEventBlock({ block, displayTime }: Readonly<AgendaEventBlockProps
 
   const accentRing = `inset 0 0 0 1px color-mix(in srgb, ${accent} 42%, transparent)`
 
+  let boxShadow: string
+  if (isDragging) {
+    boxShadow = `${accentRing}, var(--shadow-2)`
+  } else if (isHovered) {
+    boxShadow = `${accentRing}, var(--shadow-1)`
+  } else {
+    boxShadow = accentRing
+  }
+
   const style: React.CSSProperties = {
     position: 'absolute',
     top: block.top,
@@ -225,11 +234,7 @@ function AgendaEventBlock({ block, displayTime }: Readonly<AgendaEventBlockProps
     borderRadius: 8,
     overflow: 'hidden',
     background: `color-mix(in srgb, ${accent} 16%, transparent)`,
-    boxShadow: isDragging
-      ? `${accentRing}, var(--shadow-2)`
-      : isHovered
-        ? `${accentRing}, var(--shadow-1)`
-        : accentRing,
+    boxShadow,
     transition: isDragging
       ? undefined
       : 'box-shadow var(--dur-fast) var(--ease-standard)',

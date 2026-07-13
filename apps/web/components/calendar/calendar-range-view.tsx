@@ -60,7 +60,14 @@ export function CalendarRangeView({
   showRecurring,
   onShowRecurringChange,
 }: Readonly<CalendarRangeViewProps>) {
-  const hintText = isAwaitingEnd ? endHint : isClamped ? clampedNotice : hint
+  let hintText: string
+  if (isAwaitingEnd) {
+    hintText = endHint
+  } else if (isClamped) {
+    hintText = clampedNotice
+  } else {
+    hintText = hint
+  }
 
   return (
     <>
