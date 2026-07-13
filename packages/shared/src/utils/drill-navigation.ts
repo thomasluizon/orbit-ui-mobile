@@ -4,6 +4,7 @@ import type {
   NormalizedHabit,
 } from '../types/habit'
 import { formatAPIDate } from './dates'
+import { fallbackChildOverdue } from './habit-normalization'
 
 export interface NormalizedDrillDetail {
   parent: NormalizedHabit
@@ -35,16 +36,6 @@ export function mergeDrillChildrenMap(
     next.set(parentId, children)
   }
   return next
-}
-
-function fallbackChildOverdue(
-  child: Pick<HabitDetailChild, 'isCompleted' | 'frequencyUnit' | 'dueDate'>,
-  today: string,
-): boolean {
-  return !child.isCompleted &&
-    !child.frequencyUnit &&
-    !!child.dueDate &&
-    child.dueDate < today
 }
 
 export function normalizeDrillDetailChild(
