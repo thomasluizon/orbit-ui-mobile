@@ -24,7 +24,7 @@ export function createQueryClient(): QueryClient {
 let browserQueryClient: QueryClient | undefined
 
 export function getQueryClient(): QueryClient {
-  if (typeof globalThis === 'undefined' || typeof globalThis.document === 'undefined') {
+  if (!('document' in globalThis)) {
     return createQueryClient()
   }
   browserQueryClient ??= createQueryClient()

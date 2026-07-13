@@ -230,14 +230,14 @@ function LegendItem({
 }
 
 function CardGroup({ children }: Readonly<{ children: ReactNode }>) {
-  const rows = React.Children.toArray(children).filter(Boolean)
+  const rows = React.Children.toArray(children).filter(React.isValidElement)
   return (
     <div
       className="overflow-hidden rounded-[18px] bg-[var(--bg-card)]"
       style={{ boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
     >
       {rows.map((row, index) => (
-        <div key={index}>
+        <div key={row.key}>
           {index > 0 ? (
             <div aria-hidden="true" style={{ height: 1, background: 'var(--hairline)' }} />
           ) : null}
@@ -573,11 +573,11 @@ function ChargeGauge({
 }: Readonly<{ banked: number; max: number }>) {
   return (
     <span className="inline-flex items-center" style={{ gap: 5 }}>
-      {Array.from({ length: max }, (_, index) => {
+      {Array.from({ length: max }, (_, index) => `charge-pip-${index}`).map((pipKey, index) => {
         const filled = index < banked
         return (
           <span
-            key={index}
+            key={pipKey}
             aria-hidden="true"
             className="streak-pip block rounded-full"
             style={{

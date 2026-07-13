@@ -288,6 +288,7 @@ export function HabitChecklist({
   const styles = useMemo(() => createStyles(tokens), [tokens])
 
   const checkedCount = items.filter((i) => i.isChecked).length
+  const editableItemKeys = items.map((_, index) => `checklist-${index}`)
 
   const addItem = useCallback(() => {
     const text = newItemText.trim()
@@ -392,7 +393,7 @@ export function HabitChecklist({
         <View style={styles.itemsList}>
           {items.map((item, index) => (
             <EditableChecklistItem
-              key={`edit-${index}`}
+              key={editableItemKeys[index]}
               text={item.text}
               index={index}
               onUpdateText={updateItemText}

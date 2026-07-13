@@ -131,7 +131,7 @@ export function useChatComposer() {
   const pendingVoiceCommit = useRef(false)
 
   const [input, setInput] = useState<string>(() => {
-    if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') return ''
+    if (!('localStorage' in globalThis)) return ''
     return globalThis.localStorage.getItem(CHAT_DRAFT_STORAGE_KEY) ?? ''
   })
   const [sendError, setSendError] = useState<string | null>(null)

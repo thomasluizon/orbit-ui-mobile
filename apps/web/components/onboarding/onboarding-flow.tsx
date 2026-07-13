@@ -48,7 +48,7 @@ export function OnboardingFlow() {
   const [stepDirection, setStepDirection] = useState<'forward' | 'back'>('forward')
   const [mounted, setMounted] = useState(false)
 
-  if (typeof globalThis !== 'undefined' && typeof globalThis.document !== 'undefined' && !mounted) {
+  if ('document' in globalThis && !mounted) {
     setMounted(true)
   }
 
@@ -325,9 +325,9 @@ interface ProgressDotsProps {
 function ProgressDots({ active, total }: Readonly<ProgressDotsProps>) {
   return (
     <div aria-hidden="true" className="flex items-center" style={{ gap: 8 }}>
-      {Array.from({ length: total }).map((_, i) => (
+      {Array.from({ length: total }, (_, i) => `progress-dot-${i}`).map((dotKey, i) => (
         <span
-          key={`progress-dot-${i}`}
+          key={dotKey}
           className="transition-[transform,background-color] duration-[var(--dur-base)] ease-[var(--ease-standard)]"
           style={{
             width: 24,

@@ -39,7 +39,7 @@ export function RingMotif({
     const opacity = i === 0 ? 0.85 : (1 - i / ringCount) * 0.6
     return (
       <View
-        key={i}
+        key={size}
         pointerEvents="none"
         style={{
           position: 'absolute',

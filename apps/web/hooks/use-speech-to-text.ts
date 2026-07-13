@@ -25,7 +25,7 @@ export function useSpeechToText() {
   const [isSupported] = useState(() => {
     if (typeof navigator === 'undefined') return false
     return (
-      typeof navigator.mediaDevices !== 'undefined' &&
+      'mediaDevices' in navigator &&
       typeof navigator.mediaDevices.getUserMedia === 'function' &&
       typeof MediaRecorder !== 'undefined'
     )

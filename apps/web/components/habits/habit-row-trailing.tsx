@@ -85,6 +85,7 @@ export function HabitRowTrailing({
     onEnterSelectMode,
     onDrillInto,
   } = actions
+  const statusDotLabelKey = `habits.statusDot.${state}`
 
   return (
     <div className="flex items-center shrink-0" style={{ gap: 10 }}>
@@ -145,7 +146,7 @@ export function HabitRowTrailing({
             tone={habit.isBadHabit ? 'bad' : 'default'}
             onToggle={onToggleStatus}
             disabled={!canLog && !isDone}
-            ariaLabel={`${t(`habits.statusDot.${state}`)}, ${
+            ariaLabel={`${t(statusDotLabelKey)}, ${
               isDone ? t('habits.actions.unlog') : t('habits.logHabit')
             }`}
           />

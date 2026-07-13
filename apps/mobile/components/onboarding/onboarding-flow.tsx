@@ -198,15 +198,17 @@ function OnboardingFooter({
   return (
     <View style={styles.footer}>
       <View style={styles.dotsRow}>
-        {Array.from({ length: displayTotal }).map((_, i) => (
-          <ProgressDot
-            key={`progress-dot-${i}`}
-            active={i === displayStep - 1}
-            activeColor={tokens.primary}
-            inactiveColor={`${tokens.fg1}2E`}
-            reducedMotion={prefersReducedMotion}
-          />
-        ))}
+        {Array.from({ length: displayTotal }, (_, i) => `progress-dot-${i}`).map(
+          (dotKey, i) => (
+            <ProgressDot
+              key={dotKey}
+              active={i === displayStep - 1}
+              activeColor={tokens.primary}
+              inactiveColor={`${tokens.fg1}2E`}
+              reducedMotion={prefersReducedMotion}
+            />
+          ),
+        )}
       </View>
 
       <View style={styles.footerActions}>

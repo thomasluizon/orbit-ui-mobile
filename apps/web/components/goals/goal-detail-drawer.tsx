@@ -114,7 +114,7 @@ export function GoalDetailDrawer({
   function handleAskAstra() {
     if (!goal) return
     const seed = t('goals.detail.askAstraSeedDefault', { title: goal.title })
-    if (typeof globalThis !== 'undefined' && typeof globalThis.localStorage !== 'undefined') {
+    if ('localStorage' in globalThis) {
       globalThis.localStorage.setItem('orbit-chat-draft', seed)
     }
     onOpenChange(false)

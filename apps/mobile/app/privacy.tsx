@@ -9,6 +9,26 @@ import { useAuthStore } from '@/stores/auth-store'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 
+function PrivacyBulletList({
+  keys,
+  prefix,
+  color,
+}: Readonly<{ keys: readonly string[]; prefix: string; color: string }>) {
+  const { t } = useTranslation()
+  return (
+    <>
+      {keys.map((key) => {
+        const translationKey = `${prefix}.${key}`
+        return (
+          <Text key={key} style={[styles.bodyText, { color }]}>
+            {`• ${t(translationKey)}`}
+          </Text>
+        )
+      })}
+    </>
+  )
+}
+
 export default function PrivacyScreen() {
   const goBackOrFallback = useGoBackOrFallback()
   const { t } = useTranslation()
@@ -72,26 +92,20 @@ export default function PrivacyScreen() {
 
         <SectionLabel>{t('privacy.dataCollected.title')}</SectionLabel>
         <View style={styles.bodyBlock}>
-          {dataCollectedKeys.map((key) => (
-            <Text
-              key={key}
-              style={[styles.bodyText, { color: tokens.fg2 }]}
-            >
-              {`• ${t(`privacy.dataCollected.${key}`)}`}
-            </Text>
-          ))}
+          <PrivacyBulletList
+            keys={dataCollectedKeys}
+            prefix="privacy.dataCollected"
+            color={tokens.fg2}
+          />
         </View>
 
         <SectionLabel>{t('privacy.howWeUse.title')}</SectionLabel>
         <View style={styles.bodyBlock}>
-          {howWeUseKeys.map((key) => (
-            <Text
-              key={key}
-              style={[styles.bodyText, { color: tokens.fg2 }]}
-            >
-              {`• ${t(`privacy.howWeUse.${key}`)}`}
-            </Text>
-          ))}
+          <PrivacyBulletList
+            keys={howWeUseKeys}
+            prefix="privacy.howWeUse"
+            color={tokens.fg2}
+          />
         </View>
 
         <SectionLabel>{t('privacy.thirdParty.title')}</SectionLabel>
@@ -99,14 +113,11 @@ export default function PrivacyScreen() {
           <Text style={[styles.bodyText, { color: tokens.fg2 }]}>
             {t('privacy.thirdParty.intro')}
           </Text>
-          {thirdPartyKeys.map((key) => (
-            <Text
-              key={key}
-              style={[styles.bodyText, { color: tokens.fg2 }]}
-            >
-              {`• ${t(`privacy.thirdParty.${key}`)}`}
-            </Text>
-          ))}
+          <PrivacyBulletList
+            keys={thirdPartyKeys}
+            prefix="privacy.thirdParty"
+            color={tokens.fg2}
+          />
         </View>
 
         <SectionLabel>{t('privacy.retention.title')}</SectionLabel>
@@ -114,11 +125,11 @@ export default function PrivacyScreen() {
           <Text style={[styles.bodyText, { color: tokens.fg2 }]}>
             {t('privacy.retention.intro')}
           </Text>
-          {retentionKeys.map((key) => (
-            <Text key={key} style={[styles.bodyText, { color: tokens.fg2 }]}>
-              {`• ${t(`privacy.retention.${key}`)}`}
-            </Text>
-          ))}
+          <PrivacyBulletList
+            keys={retentionKeys}
+            prefix="privacy.retention"
+            color={tokens.fg2}
+          />
         </View>
 
         <SectionLabel>{t('privacy.googleScopes.title')}</SectionLabel>
@@ -126,11 +137,11 @@ export default function PrivacyScreen() {
           <Text style={[styles.bodyText, { color: tokens.fg2 }]}>
             {t('privacy.googleScopes.intro')}
           </Text>
-          {googleScopesKeys.map((key) => (
-            <Text key={key} style={[styles.bodyText, { color: tokens.fg2 }]}>
-              {`• ${t(`privacy.googleScopes.${key}`)}`}
-            </Text>
-          ))}
+          <PrivacyBulletList
+            keys={googleScopesKeys}
+            prefix="privacy.googleScopes"
+            color={tokens.fg2}
+          />
         </View>
 
         <SectionLabel>{t('privacy.dataResidency.title')}</SectionLabel>

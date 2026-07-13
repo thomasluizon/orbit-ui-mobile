@@ -57,7 +57,7 @@ export function useTodayHabitsData({
   const setSelectedTagIds = useUIStore((s) => s.setSelectedTagIds)
 
   const showGeneralOnToday = useMemo(() => {
-    if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') return false
+    if (!('localStorage' in globalThis)) return false
     return parseShowGeneralOnTodayPreference(localStorage.getItem('orbit_show_general_on_today'))
   }, [])
 

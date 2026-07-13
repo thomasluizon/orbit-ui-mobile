@@ -13,11 +13,11 @@ interface SettingsGroupProps {
  * separated by full-width hairline dividers drawn by the group.
  */
 export function SettingsGroup({ children }: Readonly<SettingsGroupProps>) {
-  const items = React.Children.toArray(children).filter(Boolean)
+  const items = React.Children.toArray(children).filter(React.isValidElement)
   return (
     <div>
       {items.map((child, index) => (
-        <div key={index}>
+        <div key={child.key}>
           {index > 0 ? (
             <div
               aria-hidden="true"
