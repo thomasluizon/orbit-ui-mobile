@@ -3,11 +3,29 @@ import { renderHook, waitFor, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { useProfile, useHasProAccess, useTrialDaysLeft, useCurrentPlan, useTrialExpired, useTrialUrgent, useIsYearlyPro } from '@/hooks/use-profile'
+import { ApiError } from '@/lib/api-fetch'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { Profile } from '@orbit/shared/types/profile'
 
+const boundaryMocks = vi.hoisted(() => ({
+  toastError: vi.fn(),
+  logout: vi.fn(),
+}))
+
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
+
+vi.mock('sonner', () => ({
+  toast: Object.assign(vi.fn(), {
+    error: boundaryMocks.toastError,
+    success: vi.fn(),
+    dismiss: vi.fn(),
+  }),
+}))
+
+vi.mock('@/stores/auth-store', () => ({
+  useAuthStore: { getState: () => ({ logout: boundaryMocks.logout }) },
+}))
 
 vi.mock('next-intl', () => ({
   useLocale: () => 'en',
@@ -54,9 +72,26 @@ function mockProfileResponse(profile: Profile) {
   })
 }
 
+function mockErrorResponse(status: number, body: unknown = {}) {
+  mockFetch.mockResolvedValue({
+    ok: false,
+    status,
+    json: () => Promise.resolve(body),
+  })
+}
+
+function apiErrorFrom(error: unknown): ApiError {
+  if (!(error instanceof ApiError)) {
+    throw new Error(`expected an ApiError, received ${String(error)}`)
+  }
+  return error
+}
+
 describe('useProfile', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+    boundaryMocks.toastError.mockClear()
+    boundaryMocks.logout.mockClear()
   })
 
   it('fetches and returns profile data', async () => {
@@ -85,18 +120,70 @@ describe('useProfile', () => {
     expect(result.current.isLoading).toBe(true)
   })
 
-  it('handles fetch error', async () => {
-    mockFetch.mockResolvedValue({
-      ok: false,
-      status: 401,
-      json: () => Promise.resolve({ error: 'Unauthorized' }),
-    })
+  it('surfaces a 401 as an ApiError and triggers auto-logout instead of a silent success', async () => {
+    mockErrorResponse(401, { error: 'Unauthorized' })
 
     const { result } = renderHook(() => useProfile(), {
       wrapper: createWrapper(),
     })
 
     await waitFor(() => expect(result.current.isError).toBe(true))
+
+    expect(result.current.isSuccess).toBe(false)
+    expect(result.current.profile).toBeUndefined()
+    expect(apiErrorFrom(result.current.error).status).toBe(401)
+    expect(boundaryMocks.logout).toHaveBeenCalledTimes(1)
+    expect(boundaryMocks.toastError).not.toHaveBeenCalled()
+  })
+
+  it('surfaces a 404 as an ApiError and raises a categorized error toast', async () => {
+    mockErrorResponse(404, { error: 'Profile not found' })
+
+    const { result } = renderHook(() => useProfile(), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+
+    expect(result.current.isSuccess).toBe(false)
+    expect(result.current.profile).toBeUndefined()
+    expect(apiErrorFrom(result.current.error).status).toBe(404)
+    expect(boundaryMocks.toastError).toHaveBeenCalledWith(
+      'Not found',
+      expect.objectContaining({ description: 'Profile not found' }),
+    )
+    expect(boundaryMocks.logout).not.toHaveBeenCalled()
+  })
+
+  it('surfaces a 500 as an ApiError with a server-error toast, not a silent success', async () => {
+    mockErrorResponse(500, { error: 'Internal error' })
+
+    const { result } = renderHook(() => useProfile(), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+
+    expect(result.current.isSuccess).toBe(false)
+    expect(result.current.profile).toBeUndefined()
+    expect(apiErrorFrom(result.current.error).status).toBe(500)
+    expect(boundaryMocks.toastError).toHaveBeenCalledWith(
+      'Server error',
+      expect.anything(),
+    )
+  })
+
+  it('surfaces a 503 gateway failure as a server error', async () => {
+    mockErrorResponse(503)
+
+    const { result } = renderHook(() => useProfile(), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+
+    expect(apiErrorFrom(result.current.error).status).toBe(503)
+    expect(boundaryMocks.toastError).toHaveBeenCalledWith('Server error', expect.anything())
   })
 
   it('exposes invalidate helper', async () => {
