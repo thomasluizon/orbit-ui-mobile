@@ -32,6 +32,7 @@ async function runChallengeAction<T>(
   }
 }
 
+// react-doctor-disable-next-line server-auth-actions -- FP: serverAuthFetch enforces auth (resolveServerSession throws 401 before any request); RD can't trace the call nested in the runChallengeAction closure. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export async function createChallenge(
   input: CreateChallengeRequest,
 ): Promise<ChallengeActionResult<{ id: string }>> {
@@ -40,6 +41,7 @@ export async function createChallenge(
   )
 }
 
+// react-doctor-disable-next-line server-auth-actions -- FP: serverAuthFetch enforces auth (resolveServerSession throws 401 before any request); RD can't trace the call nested in the runChallengeAction closure. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export async function joinChallenge(
   input: JoinChallengeRequest,
 ): Promise<ChallengeActionResult<null>> {
@@ -48,12 +50,14 @@ export async function joinChallenge(
   )
 }
 
+// react-doctor-disable-next-line server-auth-actions -- FP: serverAuthFetch enforces auth (resolveServerSession throws 401 before any request); RD can't trace the call nested in the runChallengeAction closure. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export async function leaveChallenge(challengeId: string): Promise<ChallengeActionResult<null>> {
   return runChallengeAction(() =>
     serverAuthFetch(API.challenges.leave(challengeId), { method: 'DELETE' }),
   )
 }
 
+// react-doctor-disable-next-line server-auth-actions -- FP: serverAuthFetch enforces auth (resolveServerSession throws 401 before any request); RD can't trace the call nested in the runChallengeAction closure. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export async function setChallengeHabits(
   challengeId: string,
   input: SetChallengeHabitsRequest,
