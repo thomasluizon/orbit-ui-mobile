@@ -9,9 +9,13 @@ import { useTranslations, useLocale } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import {
   buildHabitDateBuckets,
+  canLogHabitOnDate,
+  collectVisibleHabitTreeIds,
+  computeHabitCardStatus,
+  computeHabitFrequencyLabel,
+  computeHabitFutureHint,
   computeHabitReorderPositions,
   computeParentPromptProgress,
-  collectVisibleHabitTreeIds,
   formatAPIDate,
   getHabitEmptyStateKey,
   hasHabitScheduleOnDate,
@@ -42,12 +46,6 @@ import {
   type DragItem,
 } from './habit-list/tree-helpers'
 import type { StatusDotState } from '@/components/ui/status-dot'
-import {
-  canLogHabitOnDate,
-  computeHabitCardStatus,
-  computeHabitFrequencyLabel,
-  computeHabitFutureHint,
-} from '@orbit/shared/utils'
 import {
   EMPTY_CHILDREN_BY_PARENT,
   EMPTY_HABITS_BY_ID,
@@ -865,9 +863,8 @@ const isPostponeAction = useMemo(() => {
           onDuplicate: () => promptDuplicate(habit.id),
           onEdit: () => {
             setHabitToEdit(habit)
-            setEditModalOnSaved(() => (
-              options?.isDrillCard ? () => drill.refreshCurrent() : null
-            ))
+            const onSaved = options?.isDrillCard ? () => drill.refreshCurrent() : null
+            setEditModalOnSaved(() => onSaved)
             setShowEditModal(true)
           },
           onMoveParent: () => openMoveParentPicker(habit.id),

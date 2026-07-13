@@ -220,9 +220,7 @@ export function useAdMob() {
       const unsubscribeLoaded = interstitial.addAdEventListener(
         AdEventType.LOADED,
         () => {
-          interstitial.show().catch(() => {
-            settle()
-          })
+          interstitial.show().catch(settle)
         },
       )
       const unsubscribeClosed = interstitial.addAdEventListener(
@@ -280,12 +278,12 @@ export function useAdMob() {
         resolve(result)
       }
 
+      const resolveWithoutReward = () => settle(false)
+
       const unsubscribeLoaded = rewardedAd.addAdEventListener(
         AdEventType.LOADED,
         () => {
-          rewardedAd.show().catch(() => {
-            settle(false)
-          })
+          rewardedAd.show().catch(resolveWithoutReward)
         },
       )
       const unsubscribeClosed = rewardedAd.addAdEventListener(

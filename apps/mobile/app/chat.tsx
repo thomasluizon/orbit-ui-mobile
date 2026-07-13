@@ -5,6 +5,7 @@ import {
   KeyboardAvoidingView,
   Keyboard,
   Platform,
+  type ListRenderItem,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { FadeOut, ReduceMotion } from "react-native-reanimated";
@@ -155,8 +156,8 @@ export default function ChatScreen() {
     setSelectedGoalId(null);
   }, []);
 
-  const renderMessage = useCallback(
-    ({ item }: { item: ChatMessage }) => (
+  const renderMessage = useCallback<ListRenderItem<ChatMessage>>(
+    ({ item }) => (
       <MessageBubble
         message={item}
         animateEntry={!initialMessageIds.has(item.id)}

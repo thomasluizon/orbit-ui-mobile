@@ -12,6 +12,7 @@ import {
   View,
   FlatList,
   RefreshControl,
+  type ListRenderItem,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native'
@@ -1327,8 +1328,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       ],
     )
 
-    const renderDrillItem = useCallback(
-      ({ item: child, index }: { item: NormalizedHabit; index: number }) => (
+    const renderDrillItem = useCallback<ListRenderItem<NormalizedHabit>>(
+      ({ item: child, index }) => (
         <Animated.View
           entering={
             prefersReducedMotion
