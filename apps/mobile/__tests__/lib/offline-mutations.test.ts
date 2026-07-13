@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { QueuedMutation } from '@orbit/shared/types/sync'
+import { logHabitResponseSchema } from '@orbit/shared/types/habit'
 
 import {
   buildQueuedMutation,
@@ -224,6 +225,29 @@ describe('offline mutations', () => {
     expect(mocks.apiClient).toHaveBeenCalledWith(
       '/api/habits',
       expect.objectContaining({ idempotencyKey: mutation.id }),
+      undefined,
+    )
+  })
+
+  it('forwards the registered response schema when flushing a schema-backed mutation', async () => {
+    mocks.setOnline(true)
+    const mutation = buildQueuedMutation({
+      type: 'logHabit',
+      scope: 'habits',
+      endpoint: '/api/habits/habit-1/log',
+      method: 'POST',
+      payload: undefined,
+      entityType: 'habit',
+      targetEntityId: 'habit-1',
+    })
+    mocks.queued.push(mutation)
+
+    await flushQueuedMutations()
+
+    expect(mocks.apiClient).toHaveBeenCalledWith(
+      '/api/habits/habit-1/log',
+      expect.objectContaining({ method: 'POST', idempotencyKey: mutation.id }),
+      logHabitResponseSchema,
     )
   })
 
@@ -434,12 +458,12 @@ describe('offline mutations', () => {
       method: 'POST',
       body: JSON.stringify({ title: 'Read' }),
       idempotencyKey: expect.any(String),
-    })
+    }, undefined)
     expect(mocks.apiClient).toHaveBeenNthCalledWith(2, '/api/habits/habit-1', {
       method: 'PUT',
       body: JSON.stringify({ title: 'Read later', relatedHabitId: 'habit-1' }),
       idempotencyKey: expect.any(String),
-    })
+    }, undefined)
 
     expect(mocks.resolveOfflineEntity).toHaveBeenCalledWith('habit', 'offline-habit-1', 'habit-1')
     expect(mocks.replaceEntityReferences).toHaveBeenCalledWith('offline-habit-1', 'habit-1')
@@ -490,12 +514,12 @@ describe('offline mutations', () => {
       method: 'POST',
       body: JSON.stringify({ name: 'Focus', color: '#00ff00' }),
       idempotencyKey: expect.any(String),
-    })
+    }, undefined)
     expect(mocks.apiClient).toHaveBeenNthCalledWith(2, '/api/habits/habit-1/tags', {
       method: 'PUT',
       body: JSON.stringify({ tagIds: ['tag-1'] }),
       idempotencyKey: expect.any(String),
-    })
+    }, undefined)
   })
 
   it('stops flushing on unauthorized errors and leaves the remaining queue intact', async () => {
@@ -602,11 +626,13 @@ describe('offline mutations', () => {
       1,
       '/api/habits/habit-bad',
       expect.objectContaining({ method: 'PUT' }),
+      undefined,
     )
     expect(mocks.apiClient).toHaveBeenNthCalledWith(
       2,
       '/api/habits/habit-good',
       expect.objectContaining({ method: 'PUT' }),
+      undefined,
     )
 
     expect(mocks.remove).toHaveBeenCalledWith('update-bad')
@@ -930,7 +956,7 @@ describe('offline mutations', () => {
         method: 'PUT',
         body: JSON.stringify({ tagIds: ['tag-1'] }),
         idempotencyKey: 'assign-1',
-      })
+      }, undefined)
       expect(mocks.queued).toHaveLength(0)
     })
   })

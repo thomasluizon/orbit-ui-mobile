@@ -1,5 +1,5 @@
 import { getToken, clearAllTokens } from './secure-store'
-import { ApiClientError, buildClientTimeZoneHeaders, createApiClientError } from '@orbit/shared'
+import { buildClientTimeZoneHeaders, createApiClientError, validateApiResponse } from '@orbit/shared'
 import { API } from '@orbit/shared/api'
 import { buildAppVersionHeaders } from './app-version'
 import { consumePendingIdempotencyKey } from './idempotency-key'
@@ -130,20 +130,6 @@ async function handleUpgradeRequired<T>(
   )
 }
 
-function validateResponseSchema<T>(body: T, schema: ZodType<T> | undefined, path: string): T {
-  if (!schema) return body
-
-  const parsed = schema.safeParse(body)
-  if (!parsed.success) {
-    throw new ApiClientError(502, `Unexpected API response shape for ${path}`, {
-      code: 'INVALID_RESPONSE_SCHEMA',
-      data: parsed.error.issues,
-    })
-  }
-
-  return parsed.data
-}
-
 async function parseApiResponse<T>(
   response: Response,
   requestId: string | null,
@@ -169,7 +155,7 @@ async function parseApiResponse<T>(
     return undefined as T
   }
 
-  return validateResponseSchema(JSON.parse(text) as T, schema, path)
+  return validateApiResponse(JSON.parse(text), schema, path)
 }
 
 async function redirectToLogin(): Promise<void> {

@@ -25,6 +25,7 @@ async function runAccountabilityAction<T>(
   }
 }
 
+// react-doctor-disable-next-line server-auth-actions -- FP: serverAuthFetch enforces auth (resolveServerSession throws 401 before any request); RD can't trace the call nested in the runAccountabilityAction closure. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export async function inviteAccountabilityBuddy(
   input: InviteAccountabilityBuddyRequest,
 ): Promise<SocialActionResult<{ id: string }>> {
@@ -33,6 +34,7 @@ export async function inviteAccountabilityBuddy(
   )
 }
 
+// react-doctor-disable-next-line server-auth-actions -- FP: serverAuthFetch enforces auth (resolveServerSession throws 401 before any request); RD can't trace the call nested in the runAccountabilityAction closure. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export async function acceptAccountabilityPair(
   pairId: string,
   input: AcceptAccountabilityPairRequest,
@@ -45,12 +47,14 @@ export async function acceptAccountabilityPair(
   )
 }
 
+// react-doctor-disable-next-line server-auth-actions -- FP: serverAuthFetch enforces auth (resolveServerSession throws 401 before any request); RD can't trace the call nested in the runAccountabilityAction closure. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export async function endAccountabilityPair(pairId: string): Promise<SocialActionResult<null>> {
   return runAccountabilityAction(() =>
     serverAuthFetch(API.accountability.end(pairId), { method: 'DELETE' }),
   )
 }
 
+// react-doctor-disable-next-line server-auth-actions -- FP: serverAuthFetch enforces auth (resolveServerSession throws 401 before any request); RD can't trace the call nested in the runAccountabilityAction closure. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export async function setAccountabilityHabits(
   pairId: string,
   input: SetAccountabilityHabitsRequest,
@@ -63,6 +67,7 @@ export async function setAccountabilityHabits(
   )
 }
 
+// react-doctor-disable-next-line server-auth-actions -- FP: serverAuthFetch enforces auth (resolveServerSession throws 401 before any request); RD can't trace the call nested in the runAccountabilityAction closure. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export async function checkInAccountability(
   pairId: string,
   input: CheckInAccountabilityRequest,

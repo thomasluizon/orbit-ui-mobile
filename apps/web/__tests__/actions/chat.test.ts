@@ -83,6 +83,22 @@ describe('chat server actions', () => {
       })
     })
 
+    it('rejects an unauthenticated call with 401 (serverAuthFetch throws before any request)', async () => {
+      mockServerAuthFetch.mockRejectedValue(
+        Object.assign(new Error('Unauthorized'), { status: 401, code: 'UNAUTHORIZED' }),
+      )
+
+      await expect(confirmPendingOperation('pending-1')).resolves.toMatchObject({
+        ok: false,
+        status: 401,
+        code: 'UNAUTHORIZED',
+      })
+      await expect(executePendingOperation('pending-1', 'confirm-token')).resolves.toMatchObject({
+        ok: false,
+        status: 401,
+      })
+    })
+
     it('executes a confirmed pending operation', async () => {
       mockServerAuthFetch.mockResolvedValue({
         operation: {

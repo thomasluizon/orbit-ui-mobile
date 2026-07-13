@@ -27,6 +27,7 @@ async function runSocialAction<T>(operation: () => Promise<T>): Promise<SocialAc
   }
 }
 
+// react-doctor-disable-next-line server-auth-actions -- FP: serverAuthFetch enforces auth (resolveServerSession throws 401 before any request); RD can't trace the call nested in the runSocialAction closure. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export async function sendFriendRequest(input: {
   handle?: string
   referralCode?: string
@@ -36,6 +37,7 @@ export async function sendFriendRequest(input: {
   )
 }
 
+// react-doctor-disable-next-line server-auth-actions -- FP: serverAuthFetch enforces auth (resolveServerSession throws 401 before any request); RD can't trace the call nested in the runSocialAction closure. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export async function acceptFriendRequest(
   friendshipId: string,
 ): Promise<SocialActionResult<null>> {
@@ -44,12 +46,14 @@ export async function acceptFriendRequest(
   )
 }
 
+// react-doctor-disable-next-line server-auth-actions -- FP: serverAuthFetch enforces auth (resolveServerSession throws 401 before any request); RD can't trace the call nested in the runSocialAction closure. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export async function removeFriend(friendUserId: string): Promise<SocialActionResult<null>> {
   return runSocialAction(() =>
     serverAuthFetch(API.friends.remove(friendUserId), { method: 'DELETE' }),
   )
 }
 
+// react-doctor-disable-next-line server-auth-actions -- FP: serverAuthFetch enforces auth (resolveServerSession throws 401 before any request); RD can't trace the call nested in the runSocialAction closure. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export async function sendCheer(input: {
   recipientId: string
   note?: string
@@ -59,6 +63,7 @@ export async function sendCheer(input: {
   )
 }
 
+// react-doctor-disable-next-line server-auth-actions -- FP: serverAuthFetch enforces auth (resolveServerSession throws 401 before any request); RD can't trace the call nested in the runSocialAction closure. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export async function blockUser(blockedUserId: string): Promise<SocialActionResult<null>> {
   return runSocialAction(() =>
     serverAuthFetch(API.friends.block, {
@@ -68,6 +73,7 @@ export async function blockUser(blockedUserId: string): Promise<SocialActionResu
   )
 }
 
+// react-doctor-disable-next-line server-auth-actions -- FP: serverAuthFetch enforces auth (resolveServerSession throws 401 before any request); RD can't trace the call nested in the runSocialAction closure. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export async function reportUser(input: {
   reportedUserId: string
   reason: ReportReason
@@ -79,12 +85,14 @@ export async function reportUser(input: {
   )
 }
 
+// react-doctor-disable-next-line server-auth-actions -- FP: serverAuthFetch enforces auth (resolveServerSession throws 401 before any request); RD can't trace the call nested in the runSocialAction closure. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export async function setHandle(handle: string): Promise<SocialActionResult<null>> {
   return runSocialAction(() =>
     serverAuthFetch(API.profile.handle, { method: 'PUT', body: JSON.stringify({ handle }) }),
   )
 }
 
+// react-doctor-disable-next-line server-auth-actions -- FP: serverAuthFetch enforces auth (resolveServerSession throws 401 before any request); RD can't trace the call nested in the runSocialAction closure. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export async function setSocialOptIn(enabled: boolean): Promise<SocialActionResult<null>> {
   return runSocialAction(() =>
     serverAuthFetch(API.profile.socialOptIn, { method: 'PUT', body: JSON.stringify({ enabled }) }),

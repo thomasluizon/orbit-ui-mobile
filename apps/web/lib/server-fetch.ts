@@ -1,22 +1,12 @@
 import { resolveServerSession } from '@/lib/auth-api'
-import { ApiClientError, createApiClientError } from '@orbit/shared'
-import { APP_VERSION_HEADER } from '@orbit/shared/utils'
+import { createApiClientError } from '@orbit/shared'
+import { APP_VERSION_HEADER, validateApiResponse } from '@orbit/shared/utils'
 import type { ZodType } from 'zod'
 
 const API_BASE = process.env.API_BASE ?? 'http://localhost:5000'
 
 function parseResponseBody<T>(text: string, schema: ZodType<T> | undefined, path: string): T {
-  const body: unknown = JSON.parse(text)
-  if (!schema) return body as T
-
-  const parsed = schema.safeParse(body)
-  if (!parsed.success) {
-    throw new ApiClientError(502, `Unexpected API response shape for ${path}`, {
-      code: 'INVALID_RESPONSE_SCHEMA',
-      data: parsed.error.issues,
-    })
-  }
-  return parsed.data
+  return validateApiResponse(JSON.parse(text), schema, path)
 }
 
 /**
