@@ -24,7 +24,7 @@ const HABITS_TOUR_SCROLL_Y = 220
  * mock data, and cleanup.
  * Mirrors the web TourProvider: global registry, scroll into view, continuous re-measurement.
  */
-export function TourProvider({ children }: { children: React.ReactNode }) {
+export function TourProvider({ children }: Readonly<{ children: React.ReactNode }>) {
   const router = useRouter()
   const pathname = usePathname()
   const insets = useSafeAreaInsets()

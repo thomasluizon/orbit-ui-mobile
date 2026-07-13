@@ -18,7 +18,7 @@ interface GoalCardProps {
   tourTargetId?: string
 }
 
-export function GoalCard({ goal, onPress, onLongPress, tourTargetId }: GoalCardProps) {
+export function GoalCard({ goal, onPress, onLongPress, tourTargetId }: Readonly<GoalCardProps>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(

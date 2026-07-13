@@ -58,7 +58,7 @@ export function CalendarDayDetail({
   displayTime,
   t,
   tokens,
-}: CalendarDayDetailProps) {
+}: Readonly<CalendarDayDetailProps>) {
   const styles = useMemo(() => createStyles(tokens), [tokens]);
 
   const renderEntry = (item: CalendarDayEntry, index: number) => {

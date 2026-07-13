@@ -59,7 +59,7 @@ export function HabitListConfirmDialogs({
   autoLogParentName,
   onConfirmAutoLogParent,
   onCancelAutoLogParent,
-}: HabitListConfirmDialogsProps) {
+}: Readonly<HabitListConfirmDialogsProps>) {
   const isSkipParent = autoLogParentMode === 'skip'
   return (
     <>

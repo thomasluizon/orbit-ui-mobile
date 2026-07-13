@@ -38,7 +38,7 @@ export function HabitListEmptyState({
   askAstraLabel,
   onAskAstra,
   variant = 'primary',
-}: HabitListEmptyStateProps) {
+}: Readonly<HabitListEmptyStateProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const isAstraPrompt = variant === 'primary'
@@ -109,7 +109,7 @@ interface SkeletonCardStyles {
   skeletonCheck: StyleProp<ViewStyle>
 }
 
-export function SkeletonCard({ styles: cardStyles }: { styles: SkeletonCardStyles }) {
+export function SkeletonCard({ styles: cardStyles }: Readonly<{ styles: SkeletonCardStyles }>) {
   const prefersReducedMotion = usePrefersReducedMotion()
   const pulse = useSharedValue(1)
 

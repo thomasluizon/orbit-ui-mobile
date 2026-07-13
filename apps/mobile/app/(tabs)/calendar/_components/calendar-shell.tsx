@@ -193,7 +193,7 @@ export function CalendarHeader({
   onCurrentMonth,
   onSelectYear,
   tokens,
-}: CalendarHeaderProps) {
+}: Readonly<CalendarHeaderProps>) {
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const monthNavRef = useRef<View>(null);
   useTourTarget("tour-calendar-month-nav", monthNavRef);
@@ -292,7 +292,7 @@ export function CalendarWeekNav({
   onNextWeek,
   onCurrentWeek,
   tokens,
-}: CalendarWeekNavProps) {
+}: Readonly<CalendarWeekNavProps>) {
   const styles = useMemo(() => createStyles(tokens), [tokens]);
 
   return (
@@ -345,7 +345,7 @@ export function CalendarLegend({
   partialLabel,
   missedLabel,
   tokens,
-}: CalendarLegendProps) {
+}: Readonly<CalendarLegendProps>) {
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const legendRef = useRef<View>(null);
   useTourTarget("tour-calendar-legend", legendRef);

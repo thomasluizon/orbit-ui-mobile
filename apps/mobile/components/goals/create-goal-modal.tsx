@@ -43,7 +43,7 @@ interface CreateGoalRequest {
   type?: 'Standard' | 'Streak'
 }
 
-export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
+export function CreateGoalModal({ open, onClose }: Readonly<CreateGoalModalProps>) {
   const { t } = useTranslation()
   const translate = useCallback(
     (key: string, values?: Record<string, unknown>) => t(key, values),

@@ -16,10 +16,10 @@ import type { ProfileNavIconKey } from '@orbit/shared/utils/profile-navigation'
 export function ProfileNavIcon({
   iconKey,
   color,
-}: {
+}: Readonly<{
   iconKey: ProfileNavIconKey
   color: string
-}) {
+}>) {
   switch (iconKey) {
     case 'settings':
       return <Settings size={22} color={color} strokeWidth={1.8} />

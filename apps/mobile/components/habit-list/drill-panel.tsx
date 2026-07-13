@@ -38,7 +38,7 @@ export function DrillHabitItem({
   styles,
   getDrillChildren,
   renderHabitCard,
-}: DrillHabitItemProps) {
+}: Readonly<DrillHabitItemProps>) {
   const grandChildren = getDrillChildren(child.id)
   return (
     <View style={styles.sectionInset}>
@@ -60,7 +60,7 @@ interface DrillFooterProps {
 }
 
 /** Add-sub-habit affordance shown below the drill list. */
-export function DrillFooter({ styles, label, onAddSubHabit }: DrillFooterProps) {
+export function DrillFooter({ styles, label, onAddSubHabit }: Readonly<DrillFooterProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
 

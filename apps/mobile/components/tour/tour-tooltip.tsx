@@ -63,7 +63,7 @@ export function TourTooltip({
   onNext,
   onPrev,
   onSkip,
-}: TourTooltipProps) {
+}: Readonly<TourTooltipProps>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -228,11 +228,11 @@ function ProgressDot({
   state,
   color,
   reduceMotion,
-}: {
+}: Readonly<{
   state: ProgressDotState
   color: string
   reduceMotion: boolean
-}) {
+}>) {
   const [scaleX] = useState(() => new Animated.Value(state === 'active' ? 1 : 0.5))
 
   useEffect(() => {
