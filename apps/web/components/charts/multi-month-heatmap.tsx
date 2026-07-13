@@ -28,7 +28,10 @@ const MIN_LABEL_GAP_COLUMNS = 3
 const LEGEND_ALPHAS = [0.2, 0.4, 0.65, 0.9]
 
 function alphaFor(ratio: number): number {
-  return ratio <= 0.25 ? 0.2 : ratio <= 0.5 ? 0.4 : ratio <= 0.75 ? 0.65 : 0.9
+  if (ratio <= 0.25) return 0.2
+  if (ratio <= 0.5) return 0.4
+  if (ratio <= 0.75) return 0.65
+  return 0.9
 }
 
 function monthLabelColumns(
@@ -113,7 +116,14 @@ export function MultiMonthHeatmap({
 
   const columns = cells.reduce((peak, cell) => Math.max(peak, cell.column), 0) + 1
   const resolvedMax = maxValue ?? cells.reduce((peak, cell) => Math.max(peak, cell.value), 0)
-  const cellSize = columns <= 6 ? 20 : columns <= 14 ? 16 : CELL
+  let cellSize: number
+  if (columns <= 6) {
+    cellSize = 20
+  } else if (columns <= 14) {
+    cellSize = 16
+  } else {
+    cellSize = CELL
+  }
   const cellGap = columns <= 14 ? 4 : GAP
   const width = columns * (cellSize + cellGap) - cellGap
   const height = MONTH_LABEL_HEIGHT + ROWS * (cellSize + cellGap) - cellGap

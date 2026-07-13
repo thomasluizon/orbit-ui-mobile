@@ -81,12 +81,14 @@ interface MenuItemProps {
 }
 
 function MenuItem({ icon: Icon, label, onClick, tone = 'default' }: Readonly<MenuItemProps>) {
-  const color =
-    tone === 'danger'
-      ? 'var(--status-bad-text)'
-      : tone === 'warning'
-        ? 'var(--status-overdue-text)'
-        : 'var(--fg-1)'
+  let color: string
+  if (tone === 'danger') {
+    color = 'var(--status-bad-text)'
+  } else if (tone === 'warning') {
+    color = 'var(--status-overdue-text)'
+  } else {
+    color = 'var(--fg-1)'
+  }
   return (
     <button
       type="button"

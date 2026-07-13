@@ -146,7 +146,16 @@ function HabitStatList({
     <div style={cardStyle}>
       <div style={sectionTitleStyle}>{title}</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
-        {habits.map((habit) => (
+        {habits.map((habit) => {
+          let statusLabel: string
+          if (!habit.isOneTime) {
+            statusLabel = `${habit.completionRate}%`
+          } else if (habit.completedCount > 0) {
+            statusLabel = t('retrospective.completed')
+          } else {
+            statusLabel = t('retrospective.notCompleted')
+          }
+          return (
           <div
             key={habit.name}
             className="flex items-center"
@@ -170,14 +179,11 @@ function HabitStatList({
                 color: tone === 'attention' ? 'var(--status-overdue-text)' : 'var(--fg-2)',
               }}
             >
-              {habit.isOneTime
-                ? habit.completedCount > 0
-                  ? t('retrospective.completed')
-                  : t('retrospective.notCompleted')
-                : `${habit.completionRate}%`}
+              {statusLabel}
             </span>
           </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

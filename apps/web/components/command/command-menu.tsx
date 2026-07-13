@@ -108,8 +108,43 @@ export function CommandMenu({ navItems, onCreateHabit, onCreateGoal, onClose, in
     }
   }
 
-  const activePageLabel =
-    activePage === null ? null : t(activePage === 'log' ? 'command.logHabit' : 'command.skipHabit')
+  let activePageLabel: string | null = null
+  if (activePage !== null) {
+    activePageLabel = t(activePage === 'log' ? 'command.logHabit' : 'command.skipHabit')
+  }
+
+  const renderSearchResults = () => {
+    if (isPending) {
+      return <CommandHabitSkeleton heading={t('command.groups.search')} />
+    }
+    if (habitEntries.length > 0) {
+      return (
+        <CommandGroup heading={t('command.groups.search')} className={GROUP_CLASS}>
+          <CommandHabitItems entries={habitEntries} onSelectHabit={() => run(jumpToToday)} />
+        </CommandGroup>
+      )
+    }
+    return null
+  }
+
+  const renderHabitActionGroup = () => {
+    if (isPending) {
+      return <CommandHabitSkeleton heading={activePageLabel ?? ''} />
+    }
+    return (
+      <CommandGroup heading={activePageLabel} className={GROUP_CLASS}>
+        <CommandHabitItems
+          entries={habitEntries}
+          onSelectHabit={(habit) =>
+            run(() => {
+              if (activePage === 'log') logHabit.mutate({ habitId: habit.id })
+              else skipHabit.mutate({ habitId: habit.id })
+            })
+          }
+        />
+      </CommandGroup>
+    )
+  }
 
   return (
     <Command label={t('command.title')} className="flex flex-col overflow-hidden">
@@ -198,28 +233,10 @@ export function CommandMenu({ navItems, onCreateHabit, onCreateGoal, onClose, in
               ))}
             </CommandGroup>
 
-            {isPending ? (
-              <CommandHabitSkeleton heading={t('command.groups.search')} />
-            ) : habitEntries.length > 0 ? (
-              <CommandGroup heading={t('command.groups.search')} className={GROUP_CLASS}>
-                <CommandHabitItems entries={habitEntries} onSelectHabit={() => run(jumpToToday)} />
-              </CommandGroup>
-            ) : null}
+            {renderSearchResults()}
           </>
-        ) : isPending ? (
-          <CommandHabitSkeleton heading={activePageLabel ?? ''} />
         ) : (
-          <CommandGroup heading={activePageLabel} className={GROUP_CLASS}>
-            <CommandHabitItems
-              entries={habitEntries}
-              onSelectHabit={(habit) =>
-                run(() => {
-                  if (activePage === 'log') logHabit.mutate({ habitId: habit.id })
-                  else skipHabit.mutate({ habitId: habit.id })
-                })
-              }
-            />
-          </CommandGroup>
+          renderHabitActionGroup()
         )}
       </CommandList>
 
