@@ -1231,42 +1231,23 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
 
     const renderItem = useCallback(
-      ({ item, drag, getIndex }: RenderItemParams<DragItem>) => (
-        <Animated.View
-          style={styles.sectionInset}
-          entering={
-            prefersReducedMotion
-              ? undefined
-              : FadeInDown.duration(280).delay(
-                  Math.min(getIndex() ?? 0, 8) * 40,
-                )
-          }
-        >
-          {renderHabitCard(
-            item.habit,
-            item.depth,
-            item.hasChildren,
-            item.hasSubHabits,
-            {
-              onLongPressCard: isDndEnabled
-                ? () => prepareDrag(item, drag)
+      ({ item, drag }: RenderItemParams<DragItem>) =>
+        renderHabitCard(
+          item.habit,
+          item.depth,
+          item.hasChildren,
+          item.hasSubHabits,
+          {
+            onLongPressCard: isDndEnabled
+              ? () => prepareDrag(item, drag)
+              : undefined,
+            tourTargetId:
+              item.habit.id === tourCardHabitId
+                ? 'tour-habit-card'
                 : undefined,
-              tourTargetId:
-                item.habit.id === tourCardHabitId
-                  ? 'tour-habit-card'
-                  : undefined,
-            },
-          )}
-        </Animated.View>
-      ),
-      [
-        isDndEnabled,
-        prefersReducedMotion,
-        prepareDrag,
-        renderHabitCard,
-        styles.sectionInset,
-        tourCardHabitId,
-      ],
+          },
+        ),
+      [isDndEnabled, prepareDrag, renderHabitCard, tourCardHabitId],
     )
 
     const keyExtractor = useCallback((item: DragItem) => item.id, [])
