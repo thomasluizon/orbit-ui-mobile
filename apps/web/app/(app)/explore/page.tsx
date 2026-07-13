@@ -4,8 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
-  PROFILE_NAV_ITEMS,
-  resolveProfileNavHint,
+  buildProfileNavSections,
   shouldRedirectProfileNavItem,
   type ProfileNavItem,
 } from '@orbit/shared/utils/profile-navigation'
@@ -14,16 +13,14 @@ import { useGamificationProfile } from '@/hooks/use-gamification'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
 import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
+import { ProfileNavGroup } from '@/components/profile/profile-nav-group'
 import { TourReplayModal } from '@/components/tour/tour-replay-modal'
 
-const EXPLORE_SECTIONS = [
+const EXPLORE_SECTIONS = buildProfileNavSections([
   { labelKey: 'explore.sections.progress', ids: ['retrospective', 'wrapped', 'achievements'] },
   { labelKey: 'explore.sections.integrations', ids: ['calendar-sync'] },
   { labelKey: 'explore.sections.more', ids: ['about', 'advanced'] },
-].map((section) => ({
-  labelKey: section.labelKey,
-  items: PROFILE_NAV_ITEMS.filter((item) => section.ids.includes(item.id)),
-}))
+])
 
 const featureTourTargets: Record<string, string> = {
   retrospective: 'tour-profile-retrospective',
@@ -65,29 +62,15 @@ export default function ExplorePage() {
           </SettingsGroup>
         </nav>
         {EXPLORE_SECTIONS.map((section) => (
-          <div key={section.labelKey}>
-            <SectionLabel>{t(section.labelKey)}</SectionLabel>
-            <nav aria-label={t(section.labelKey)} className="px-5">
-              <SettingsGroup>
-                {section.items.map((item) => (
-                  <SettingsGroupRow
-                    key={item.id}
-                    icon={<ProfileNavIcon iconKey={item.iconKey} />}
-                    label={t(item.titleKey)}
-                    hint={resolveProfileNavHint(
-                      item,
-                      { hasProAccess: profile?.hasProAccess, gamificationProfile },
-                      t,
-                    )}
-                    proBadge={item.proBadge}
-                    proBadgeLabel={t('common.proBadge')}
-                    dataTour={featureTourTargets[item.id]}
-                    onClick={() => handleItemSelect(item)}
-                  />
-                ))}
-              </SettingsGroup>
-            </nav>
-          </div>
+          <ProfileNavGroup
+            key={section.labelKey}
+            labelKey={section.labelKey}
+            items={section.items}
+            hasProAccess={profile?.hasProAccess}
+            gamificationProfile={gamificationProfile}
+            navTourMap={featureTourTargets}
+            onNavClick={handleItemSelect}
+          />
         ))}
       </div>
       <TourReplayModal open={showTourReplay} onOpenChange={setShowTourReplay} />

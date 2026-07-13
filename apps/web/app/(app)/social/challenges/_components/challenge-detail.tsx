@@ -16,6 +16,7 @@ import {
   useLeaveChallenge,
   useSetChallengeHabits,
 } from '@/hooks/use-challenges'
+import { ChallengeErrorState } from './challenge-error-state'
 import { getChallengeErrorKey } from './challenge-errors'
 import { HabitPicker } from './habit-picker'
 import { ShareJoinCode } from './share-join-code'
@@ -298,24 +299,7 @@ export function ChallengeDetail({ challengeId, onLeft }: Readonly<ChallengeDetai
   }
 
   if (isError) {
-    return (
-      <div className="flex flex-col items-center px-8 py-12 text-center" style={{ gap: 12 }}>
-        <p
-          style={{
-            margin: 0,
-            fontFamily: 'var(--font-sans)',
-            fontSize: 14,
-            lineHeight: 1.5,
-            color: 'var(--fg-3)',
-          }}
-        >
-          {t('challenges.errors.loadFailed')}
-        </p>
-        <PillButton variant="ghost" onClick={() => void refetch()}>
-          {t('common.retry')}
-        </PillButton>
-      </div>
-    )
+    return <ChallengeErrorState onRetry={() => void refetch()} />
   }
 
   if (!challenge) {

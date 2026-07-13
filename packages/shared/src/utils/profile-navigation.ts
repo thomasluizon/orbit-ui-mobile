@@ -171,6 +171,29 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
   },
 ]
 
+export interface ProfileNavSectionDefinition {
+  labelKey: string
+  ids: readonly string[]
+}
+
+export interface ProfileNavSectionGroup {
+  labelKey: string
+  items: ProfileNavItem[]
+}
+
+/**
+ * Expands section definitions (label + member ids) into rendered groups by
+ * selecting the matching {@link PROFILE_NAV_ITEMS} for each section.
+ */
+export function buildProfileNavSections(
+  definitions: readonly ProfileNavSectionDefinition[],
+): ProfileNavSectionGroup[] {
+  return definitions.map((section) => ({
+    labelKey: section.labelKey,
+    items: PROFILE_NAV_ITEMS.filter((item) => section.ids.includes(item.id)),
+  }))
+}
+
 export type ProfileNavTranslationAdapter = (
   key: string,
   values?: Record<string, string | number>,
