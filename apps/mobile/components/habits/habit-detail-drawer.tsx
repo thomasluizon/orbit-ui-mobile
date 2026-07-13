@@ -177,6 +177,7 @@ function HabitDetailContent({
           })}
           mono
           accessory="none"
+          divider={false}
         />
       ) : null}
 

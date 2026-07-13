@@ -105,8 +105,6 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
       paddingRight: 20,
       paddingTop: 16,
       paddingBottom: 24,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: tokens.hairline,
       marginTop: 8,
     },
     askAstraPressed: {

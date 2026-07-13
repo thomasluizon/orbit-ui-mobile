@@ -88,8 +88,6 @@ export function createDrawerStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingRight: 20,
       paddingTop: 16,
       paddingBottom: 24,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: tokens.hairline,
       marginTop: 8,
     },
     askAstraPressed: {
