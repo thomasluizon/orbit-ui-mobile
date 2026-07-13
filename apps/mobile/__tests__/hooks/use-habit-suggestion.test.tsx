@@ -2,6 +2,7 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { profileKeys, subscriptionKeys } from '@orbit/shared/query'
+import { habitSetupSuggestionSchema } from '@orbit/shared/types/habit'
 import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
 
 const TestRenderer = require('react-test-renderer')
@@ -66,7 +67,7 @@ describe('mobile useHabitSuggestion', () => {
     mocks.queryClient.invalidateQueries.mockClear()
   })
 
-  it('mutationFn POSTs to the suggest-setup endpoint and returns the parsed suggestion', async () => {
+  it('mutationFn POSTs to the suggest-setup endpoint and forwards the response schema for boundary validation', async () => {
     await renderHook(() => useHabitSuggestion())
     const mutationFn = mocks.captured.mutationArgs?.mutationFn as (
       data: { title: string; language?: string },
@@ -75,10 +76,14 @@ describe('mobile useHabitSuggestion', () => {
     mocks.apiClient.mockResolvedValue(validSuggestion)
     const result = await mutationFn({ title: 'Run', language: 'en' })
 
-    expect(mocks.apiClient).toHaveBeenCalledWith(API.habits.suggestSetup, {
-      method: 'POST',
-      body: JSON.stringify({ title: 'Run', language: 'en' }),
-    })
+    expect(mocks.apiClient).toHaveBeenCalledWith(
+      API.habits.suggestSetup,
+      {
+        method: 'POST',
+        body: JSON.stringify({ title: 'Run', language: 'en' }),
+      },
+      habitSetupSuggestionSchema,
+    )
     expect(result.emoji).toBe('🏃')
     expect(result.frequencyUnit).toBe('Day')
   })
@@ -95,17 +100,6 @@ describe('mobile useHabitSuggestion', () => {
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: profileKeys.detail(),
     })
-  })
-
-  it('mutationFn rejects when the response fails schema validation', async () => {
-    await renderHook(() => useHabitSuggestion())
-    const mutationFn = mocks.captured.mutationArgs?.mutationFn as (
-      data: { title: string },
-    ) => Promise<unknown>
-
-    mocks.apiClient.mockResolvedValue({ emoji: 123 })
-
-    await expect(mutationFn({ title: 'Run' })).rejects.toBeTruthy()
   })
 
   it('mutationFn propagates an apiClient error (e.g. a pay-gate rejection)', async () => {
