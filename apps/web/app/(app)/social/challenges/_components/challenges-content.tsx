@@ -3,8 +3,9 @@
 import { Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { ChallengeListItem } from '@orbit/shared/types/challenge'
-import { PillButton } from '@/components/ui/pill-button'
 import { SocialOptInGate } from '../../_components/social-opt-in-gate'
+import { ChallengeActionButtons } from './challenge-action-buttons'
+import { ChallengeErrorState } from './challenge-error-state'
 import { ChallengeList } from './challenge-list'
 
 interface ChallengesContentProps {
@@ -48,33 +49,13 @@ export function ChallengesContent({
   }
 
   if (isError) {
-    return (
-      <div className="flex flex-col items-center px-8 py-12 text-center" style={{ gap: 12 }}>
-        <p
-          style={{
-            margin: 0,
-            fontFamily: 'var(--font-sans)',
-            fontSize: 14,
-            lineHeight: 1.5,
-            color: 'var(--fg-3)',
-          }}
-        >
-          {t('challenges.errors.loadFailed')}
-        </p>
-        <PillButton variant="ghost" onClick={onRetry}>
-          {t('common.retry')}
-        </PillButton>
-      </div>
-    )
+    return <ChallengeErrorState onRetry={onRetry} />
   }
 
   return (
     <>
       <div className="flex md:hidden" style={{ gap: 8, padding: '8px 20px 4px' }}>
-        <PillButton onClick={onCreate}>{t('challenges.actions.create')}</PillButton>
-        <PillButton variant="ghost" onClick={onJoin}>
-          {t('challenges.actions.join')}
-        </PillButton>
+        <ChallengeActionButtons onCreate={onCreate} onJoin={onJoin} />
       </div>
       <ChallengeList
         challenges={challenges}

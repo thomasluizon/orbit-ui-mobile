@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   PROFILE_NAV_ITEMS,
+  buildProfileNavSections,
   isProfileNavItemLocked,
   resolveProfileNavHint,
   shouldRedirectProfileNavItem,
@@ -85,6 +86,23 @@ describe('profile-navigation', () => {
     expect(calendar?.entitlementRequirement).toBe('pro')
     expect(retrospective?.entitlementRequirement).toBe('yearlyPro')
     expect(preferences?.entitlementMode).toBe('mixed')
+  })
+
+  it('expands section definitions into groups selecting matching nav items in id order', () => {
+    const sections = buildProfileNavSections([
+      { labelKey: 'explore.sections.progress', ids: ['retrospective', 'wrapped'] },
+      { labelKey: 'explore.sections.more', ids: ['about', 'advanced'] },
+    ])
+
+    expect(sections).toHaveLength(2)
+    expect(sections[0].labelKey).toBe('explore.sections.progress')
+    expect(sections[0].items.map((item) => item.id)).toEqual(['retrospective', 'wrapped'])
+    expect(sections[1].items.map((item) => item.id)).toEqual(['about', 'advanced'])
+  })
+
+  it('yields an empty item list for a section whose ids match nothing', () => {
+    const [section] = buildProfileNavSections([{ labelKey: 'nav.social', ids: ['missing'] }])
+    expect(section.items).toEqual([])
   })
 
   it('builds the gamification hint for pro users with a loaded profile', () => {
