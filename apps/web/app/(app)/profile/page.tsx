@@ -1,256 +1,102 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { useQueryClient } from '@tanstack/react-query'
-import { profileKeys } from '@orbit/shared/query'
-import {
-  PROFILE_NAV_ITEMS,
-  resolveProfileNavHint,
-  shouldRedirectProfileNavItem,
-  type ProfileNavItem,
-} from '@orbit/shared/utils/profile-navigation'
-import { useTranslations } from 'next-intl'
-import {
-  useProfile,
-  useTrialDaysLeft,
-  useTrialExpired,
-} from '@/hooks/use-profile'
-import { useAuthStore } from '@/stores/auth-store'
-import { deriveNextRewardCarrot } from '@orbit/shared/utils'
-import { useGamificationProfile } from '@/hooks/use-gamification'
-import { SectionLabel } from '@/components/ui/section-label'
-import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
-import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
 import { ReferralCard } from '@/components/referral/referral-card'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
-import { SubscriptionCard } from './_components/subscription-card'
 import { ProfileIdentityHeader } from './_components/profile-identity-header'
 import { ProfileStatTiles } from './_components/profile-stat-tiles'
 import { NextRewardCarrot } from './_components/next-reward-carrot'
 import { ProfileNavSections } from './_components/profile-nav-sections'
+import { ProfileFeatureSections } from './_components/profile-feature-sections'
+import { ProfileSubscriptionSection } from './_components/profile-subscription-section'
 import { ProfileAccountActions } from './_components/profile-account-actions'
 import { ProfileHeaderBar } from './_components/profile-header-bar'
 import { ProfileModals } from './_components/profile-modals'
-import { useDataExport } from './_components/use-data-export'
-import { useIsDesktop } from '@/hooks/use-is-desktop'
-
-const PROFILE_FEATURE_SECTIONS = [
-  { labelKey: 'nav.social', ids: ['social'] },
-  { labelKey: 'explore.sections.progress', ids: ['retrospective', 'wrapped'] },
-  { labelKey: 'explore.sections.integrations', ids: ['calendar-sync'] },
-  { labelKey: 'explore.sections.more', ids: ['about', 'advanced'] },
-].map((section) => ({
-  labelKey: section.labelKey,
-  items: PROFILE_NAV_ITEMS.filter((item) => section.ids.includes(item.id)),
-}))
+import { useProfileScreen } from './_components/use-profile-screen'
 
 export default function ProfilePage() {
-  const t = useTranslations()
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const queryClient = useQueryClient()
-  const { profile, isLoading, error } = useProfile()
-  const trialDaysLeft = useTrialDaysLeft()
-  const trialExpired = useTrialExpired()
-  const logout = useAuthStore((s) => s.logout)
-  const { isExporting, exportError, exportData } = useDataExport()
-  const isDesktop = useIsDesktop()
-  const canViewGamification = profile?.canViewGamification ?? false
-  const { profile: gamificationProfile } = useGamificationProfile(canViewGamification)
-  const nextRewardCarrot = deriveNextRewardCarrot(gamificationProfile, canViewGamification)
-  const achievementsLocked = gamificationProfile?.achievementsLocked ?? false
-  const achievementsTileValue = achievementsLocked
-    ? gamificationProfile?.achievementsTotal ?? 0
-    : gamificationProfile?.achievementsEarned ?? 0
-  const streak = profile?.currentStreak ?? 0
-  const statsLoading = isLoading || (canViewGamification && !gamificationProfile)
-  const accountNavItems = PROFILE_NAV_ITEMS.filter(
-    (item) => item.section === 'account',
-  )
-  const achievementsNavItem = PROFILE_NAV_ITEMS.find(
-    (item) => item.id === 'achievements',
-  )
-
-  const navTourMap: Record<string, string> = {
-    preferences: 'tour-profile-preferences',
-    retrospective: 'tour-profile-retrospective',
-    achievements: 'tour-profile-achievements',
-  }
-
-  useEffect(() => {
-    if (searchParams.get('subscription') === 'success') {
-      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
-    }
-  }, [searchParams, queryClient])
-
-  const [showResetModal, setShowResetModal] = useState(false)
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [showTourReplay, setShowTourReplay] = useState(false)
-  const [showEditName, setShowEditName] = useState(false)
-  const [showReferral, setShowReferral] = useState(false)
-
-  function handleNavClick(item: ProfileNavItem) {
-    if (shouldRedirectProfileNavItem(item, profile)) {
-      router.push('/upgrade')
-      return
-    }
-
-    router.push(item.route)
-  }
-
-  const showPlanBadge = profile?.isTrialActive || profile?.hasProAccess
-  const planBadgeTone = profile?.isTrialActive ? 'soft' : 'violet'
-  const planBadgeLabel = profile?.isTrialActive
-    ? t('trial.proBadge')
-    : t('common.proBadge')
-
-  const identityLine =
-    canViewGamification && gamificationProfile
-      ? t('gamification.profileCard.level', { level: gamificationProfile.level })
-      : profile?.email
-
-  const identityHeader = (
-    <ProfileIdentityHeader
-      isLoading={isLoading}
-      showPlanBadge={!!showPlanBadge}
-      planBadgeTone={planBadgeTone}
-      planBadgeLabel={planBadgeLabel}
-      name={profile?.name}
-      identityLine={identityLine}
-      onEditName={() => setShowEditName(true)}
-    />
-  )
-
-  const statTiles = (
-    <ProfileStatTiles
-      streak={streak}
-      achievementsValue={achievementsTileValue}
-      achievementsLocked={achievementsLocked}
-      showAchievements={!!achievementsNavItem}
-      achievementsDataTour={
-        achievementsNavItem ? navTourMap[achievementsNavItem.id] : undefined
-      }
-      isLoading={statsLoading}
-      onStreakClick={() => router.push('/streak')}
-      onAchievementsClick={() => {
-        if (achievementsNavItem) handleNavClick(achievementsNavItem)
-      }}
-    />
-  )
-
-  const referral = <ReferralCard onOpen={() => setShowReferral(true)} />
-
-  const nextReward = <NextRewardCarrot carrot={nextRewardCarrot} />
-
-  const navSections = (
-    <ProfileNavSections
-      accountNavItems={accountNavItems}
-      navTourMap={navTourMap}
-      hasProAccess={profile?.hasProAccess}
-      gamificationProfile={gamificationProfile}
-      onNavClick={handleNavClick}
-    />
-  )
-
-  const featuresSection = (
-    <div>
-      <SectionLabel>{t('explore.sections.discover')}</SectionLabel>
-      <nav aria-label={t('explore.sections.discover')} className="px-5">
-        <SettingsGroup>
-          <SettingsGroupRow
-            icon={<ProfileNavIcon iconKey="compass" />}
-            label={t('tour.replay.title')}
-            hint={t('explore.tourHint')}
-            onClick={() => setShowTourReplay(true)}
-          />
-        </SettingsGroup>
-      </nav>
-      {PROFILE_FEATURE_SECTIONS.map((section) => (
-        <div key={section.labelKey}>
-          <SectionLabel>{t(section.labelKey)}</SectionLabel>
-          <nav aria-label={t(section.labelKey)} className="px-5">
-            <SettingsGroup>
-              {section.items.map((item) => (
-                <SettingsGroupRow
-                  key={item.id}
-                  icon={<ProfileNavIcon iconKey={item.iconKey} />}
-                  label={t(item.titleKey)}
-                  hint={resolveProfileNavHint(
-                    item,
-                    { hasProAccess: profile?.hasProAccess, gamificationProfile },
-                    t,
-                  )}
-                  proBadge={item.proBadge}
-                  proBadgeLabel={t('common.proBadge')}
-                  dataTour={navTourMap[item.id]}
-                  onClick={() => handleNavClick(item)}
-                />
-              ))}
-            </SettingsGroup>
-          </nav>
-        </div>
-      ))}
-    </div>
-  )
-
-  const subscription = (
-    <div>
-      <SectionLabel>{t('profile.sections.subscription')}</SectionLabel>
-      <div data-tour="tour-profile-subscription" className="px-5">
-        <SubscriptionCard
-          profile={profile}
-          trialDaysLeft={trialDaysLeft}
-          trialExpired={trialExpired}
-        />
-      </div>
-    </div>
-  )
-
-  const accountActions = (
-    <ProfileAccountActions
-      isExporting={isExporting}
-      exportError={exportError}
-      displayName={profile?.name}
-      onExport={() => {
-        void exportData()
-      }}
-      onFreshStart={() => setShowResetModal(true)}
-      onDeleteAccount={() => setShowDeleteModal(true)}
-      onLogout={() => void logout()}
-    />
-  )
+  const screen = useProfileScreen()
 
   return (
     <div className="relative">
-      {!isDesktop && <ProfileHeaderBar streak={streak} error={error} />}
+      {!screen.isDesktop && (
+        <ProfileHeaderBar streak={screen.streak} error={screen.error} />
+      )}
 
       <div className="stagger-enter">
-        {identityHeader}
-        {statTiles}
-        {referral}
-        {nextReward}
-        {navSections}
-        {!isDesktop && featuresSection}
-        {subscription}
-        {accountActions}
+        <ProfileIdentityHeader
+          isLoading={screen.isLoading}
+          showPlanBadge={!!screen.showPlanBadge}
+          planBadgeTone={screen.planBadgeTone}
+          planBadgeLabel={screen.planBadgeLabel}
+          name={screen.profile?.name}
+          identityLine={screen.identityLine}
+          onEditName={() => screen.setShowEditName(true)}
+        />
+        <ProfileStatTiles
+          streak={screen.streak}
+          achievementsValue={screen.achievementsTileValue}
+          achievementsLocked={screen.achievementsLocked}
+          showAchievements={!!screen.achievementsNavItem}
+          achievementsDataTour={
+            screen.achievementsNavItem
+              ? screen.navTourMap[screen.achievementsNavItem.id]
+              : undefined
+          }
+          isLoading={screen.statsLoading}
+          onStreakClick={screen.handleStreakClick}
+          onAchievementsClick={screen.handleAchievementsClick}
+        />
+        <ReferralCard onOpen={() => screen.setShowReferral(true)} />
+        <NextRewardCarrot carrot={screen.nextRewardCarrot} />
+        <ProfileNavSections
+          accountNavItems={screen.accountNavItems}
+          navTourMap={screen.navTourMap}
+          hasProAccess={screen.profile?.hasProAccess}
+          gamificationProfile={screen.gamificationProfile}
+          onNavClick={screen.handleNavClick}
+        />
+        {!screen.isDesktop && (
+          <ProfileFeatureSections
+            hasProAccess={screen.profile?.hasProAccess}
+            gamificationProfile={screen.gamificationProfile}
+            navTourMap={screen.navTourMap}
+            onNavClick={screen.handleNavClick}
+            onTourReplay={() => screen.setShowTourReplay(true)}
+          />
+        )}
+        <ProfileSubscriptionSection
+          profile={screen.profile}
+          trialDaysLeft={screen.trialDaysLeft}
+          trialExpired={screen.trialExpired}
+        />
+        <ProfileAccountActions
+          isExporting={screen.isExporting}
+          exportError={screen.exportError}
+          displayName={screen.profile?.name}
+          onExport={() => {
+            void screen.exportData()
+          }}
+          onFreshStart={() => screen.setShowResetModal(true)}
+          onDeleteAccount={() => screen.setShowDeleteModal(true)}
+          onLogout={() => void screen.logout()}
+        />
       </div>
 
       <div style={{ height: 24 }} />
 
       <ProfileModals
-        profile={profile}
-        showEditName={showEditName}
-        showResetModal={showResetModal}
-        showDeleteModal={showDeleteModal}
-        showTourReplay={showTourReplay}
-        onEditNameChange={setShowEditName}
-        onResetChange={setShowResetModal}
-        onDeleteChange={setShowDeleteModal}
-        onTourReplayChange={setShowTourReplay}
+        profile={screen.profile}
+        showEditName={screen.showEditName}
+        showResetModal={screen.showResetModal}
+        showDeleteModal={screen.showDeleteModal}
+        showTourReplay={screen.showTourReplay}
+        onEditNameChange={screen.setShowEditName}
+        onResetChange={screen.setShowResetModal}
+        onDeleteChange={screen.setShowDeleteModal}
+        onTourReplayChange={screen.setShowTourReplay}
       />
 
-      <ReferralDrawer open={showReferral} onOpenChange={setShowReferral} />
+      <ReferralDrawer open={screen.showReferral} onOpenChange={screen.setShowReferral} />
     </div>
   )
 }
