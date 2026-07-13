@@ -224,6 +224,7 @@ describe('offline mutations', () => {
     expect(mocks.apiClient).toHaveBeenCalledWith(
       '/api/habits',
       expect.objectContaining({ idempotencyKey: mutation.id }),
+      undefined,
     )
   })
 
@@ -434,12 +435,12 @@ describe('offline mutations', () => {
       method: 'POST',
       body: JSON.stringify({ title: 'Read' }),
       idempotencyKey: expect.any(String),
-    })
+    }, undefined)
     expect(mocks.apiClient).toHaveBeenNthCalledWith(2, '/api/habits/habit-1', {
       method: 'PUT',
       body: JSON.stringify({ title: 'Read later', relatedHabitId: 'habit-1' }),
       idempotencyKey: expect.any(String),
-    })
+    }, undefined)
 
     expect(mocks.resolveOfflineEntity).toHaveBeenCalledWith('habit', 'offline-habit-1', 'habit-1')
     expect(mocks.replaceEntityReferences).toHaveBeenCalledWith('offline-habit-1', 'habit-1')
@@ -490,12 +491,12 @@ describe('offline mutations', () => {
       method: 'POST',
       body: JSON.stringify({ name: 'Focus', color: '#00ff00' }),
       idempotencyKey: expect.any(String),
-    })
+    }, undefined)
     expect(mocks.apiClient).toHaveBeenNthCalledWith(2, '/api/habits/habit-1/tags', {
       method: 'PUT',
       body: JSON.stringify({ tagIds: ['tag-1'] }),
       idempotencyKey: expect.any(String),
-    })
+    }, undefined)
   })
 
   it('stops flushing on unauthorized errors and leaves the remaining queue intact', async () => {
@@ -602,11 +603,13 @@ describe('offline mutations', () => {
       1,
       '/api/habits/habit-bad',
       expect.objectContaining({ method: 'PUT' }),
+      undefined,
     )
     expect(mocks.apiClient).toHaveBeenNthCalledWith(
       2,
       '/api/habits/habit-good',
       expect.objectContaining({ method: 'PUT' }),
+      undefined,
     )
 
     expect(mocks.remove).toHaveBeenCalledWith('update-bad')
@@ -930,7 +933,7 @@ describe('offline mutations', () => {
         method: 'PUT',
         body: JSON.stringify({ tagIds: ['tag-1'] }),
         idempotencyKey: 'assign-1',
-      })
+      }, undefined)
       expect(mocks.queued).toHaveLength(0)
     })
   })

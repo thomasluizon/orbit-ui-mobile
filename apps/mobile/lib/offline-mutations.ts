@@ -15,6 +15,7 @@ import type {
   QueuedMutation,
 } from '@orbit/shared/types/sync'
 import { apiClient } from './api-client'
+import { getMutationResponseSchema } from './mutation-response-schemas'
 import {
   count,
   enqueue,
@@ -612,11 +613,15 @@ async function processQueuedMutationFlush(
   await markMutationSyncing(mutation)
 
   try {
-    const response = await apiClient<unknown>(mutation.endpoint, {
-      method: mutation.method,
-      body: serializeMutationPayload(mutation.payload),
-      idempotencyKey: mutation.id,
-    })
+    const response = await apiClient<unknown>(
+      mutation.endpoint,
+      {
+        method: mutation.method,
+        body: serializeMutationPayload(mutation.payload),
+        idempotencyKey: mutation.id,
+      },
+      getMutationResponseSchema(mutation.type),
+    )
 
     await finalizeSuccessfulFlush(mutation, response, touchedScopes)
     return { failedDelta: 0, stopReason: null, succeededDelta: 1, dropped: null }

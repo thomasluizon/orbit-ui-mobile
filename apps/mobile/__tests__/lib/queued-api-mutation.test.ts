@@ -70,7 +70,7 @@ describe('performQueuedApiMutation', () => {
     expect(mocks.apiClient).toHaveBeenCalledWith('/api/profile/timezone', {
       method: 'PUT',
       body: JSON.stringify({ timeZone: 'America/Sao_Paulo' }),
-    })
+    }, undefined)
   })
 
   it('respects a custom executor override', async () => {
