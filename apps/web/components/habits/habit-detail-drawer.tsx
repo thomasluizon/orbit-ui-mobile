@@ -215,6 +215,7 @@ export function HabitDetailDrawer({
                 })}
                 mono
                 accessory="none"
+                divider={false}
               />
             )}
 

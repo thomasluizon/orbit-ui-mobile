@@ -174,9 +174,8 @@ export function FeatureGuideDrawer({ open, onOpenChange }: Readonly<FeatureGuide
             key={item.titleKey}
             className="flex flex-col"
             style={{
-              padding: '14px 20px',
+              padding: '12px 20px',
               gap: 4,
-              borderBottom: '1px solid var(--hairline)',
             }}
           >
             <h3
