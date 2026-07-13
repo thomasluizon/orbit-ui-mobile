@@ -49,7 +49,7 @@ export const goalSchema = z.object({
   completedAtUtc: z.string().nullable(),
   progressPercentage: z.number(),
   trackingStatus: z.string().nullable().optional(),
-  linkedHabits: z.array(linkedHabitInfoSchema).optional(),
+  linkedHabits: z.array(linkedHabitInfoSchema),
 })
 
 export type Goal = z.infer<typeof goalSchema>

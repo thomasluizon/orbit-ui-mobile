@@ -192,6 +192,30 @@ describe('habit schemas', () => {
       expect(result.success).toBe(false)
     })
   })
+
+  describe('habitScheduleItemSchema linkedGoals', () => {
+    it('parses a schedule item with populated linkedGoals', () => {
+      const item = {
+        ...createMockHabit(),
+        children: [],
+        linkedGoals: [{ id: 'goal-1', title: 'Read 12 books' }],
+      }
+      const result = habitScheduleItemSchema.safeParse(item)
+      expect(result.success).toBe(true)
+    })
+
+    it('parses a schedule item with an empty linkedGoals array', () => {
+      const item = { ...createMockHabit(), children: [], linkedGoals: [] }
+      const result = habitScheduleItemSchema.safeParse(item)
+      expect(result.success).toBe(true)
+    })
+
+    it('rejects a schedule item without linkedGoals', () => {
+      const item = { ...createMockHabit(), children: [] }
+      const result = habitScheduleItemSchema.safeParse(item)
+      expect(result.success).toBe(false)
+    })
+  })
 })
 
 
@@ -226,12 +250,19 @@ describe('goal schemas', () => {
       expect(result.success).toBe(true)
     })
 
-    it('accepts optional linkedHabits', () => {
+    it('parses populated linkedHabits', () => {
       const goal = createMockGoal({
         linkedHabits: [{ id: 'h-1', title: 'Exercise' }],
       })
       const result = goalSchema.safeParse(goal)
       expect(result.success).toBe(true)
+    })
+
+    it('rejects a goal without linkedHabits', () => {
+      const goal = createMockGoal()
+      const { linkedHabits: _, ...rest } = goal
+      const result = goalSchema.safeParse(rest)
+      expect(result.success).toBe(false)
     })
   })
 

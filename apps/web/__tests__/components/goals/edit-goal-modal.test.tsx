@@ -54,6 +54,7 @@ const mockGoal: Goal = {
   createdAtUtc: '2025-01-01T00:00:00Z',
   completedAtUtc: null,
   position: 0,
+  linkedHabits: [],
 }
 
 describe('EditGoalModal', () => {

@@ -3,7 +3,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useCallback, useMemo } from 'react'
 import { useLocale } from 'next-intl'
-import { profileKeys } from '@orbit/shared/query'
+import { profileKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import type { Profile } from '@orbit/shared/types/profile'
 import {
@@ -35,7 +35,7 @@ export function useProfile(options?: { enabled?: boolean }) {
   const query = useQuery({
     queryKey: profileKeys.detail(),
     queryFn: () => fetchJson<Profile>(API.profile.get),
-    staleTime: 5 * 60 * 1000,
+    staleTime: QUERY_STALE_TIMES.profile,
     gcTime: 24 * 60 * 60 * 1000,
     refetchOnWindowFocus: true,
     enabled: options?.enabled ?? true,

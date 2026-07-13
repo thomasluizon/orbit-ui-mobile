@@ -126,7 +126,7 @@ function cloneTopLevelHabit(node: HabitTreeNode): HabitScheduleItem {
     flexibleTarget: ('flexibleTarget' in node ? node.flexibleTarget : null) ?? null,
     flexibleCompleted: ('flexibleCompleted' in node ? node.flexibleCompleted : null) ?? null,
     isLoggedInRange: ('isLoggedInRange' in node ? node.isLoggedInRange : false) ?? false,
-    linkedGoals: 'linkedGoals' in node ? node.linkedGoals : undefined,
+    linkedGoals: 'linkedGoals' in node ? node.linkedGoals : [],
     instances: 'instances' in node ? node.instances : [],
     searchMatches: node.searchMatches ?? null,
   }

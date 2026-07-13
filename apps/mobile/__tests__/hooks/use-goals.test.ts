@@ -367,8 +367,8 @@ describe('mobile goal hooks', () => {
 
     mutation.onError?.(new Error('Link failed'), variables, context)
 
-    expect(mocks.state.lists[0]?.value[0]?.linkedHabits).toBeUndefined()
-    expect(mocks.state.details.get(JSON.stringify(goalKeys.detail('goal-1')))?.goal.linkedHabits).toBeUndefined()
+    expect(mocks.state.lists[0]?.value[0]?.linkedHabits).toEqual([])
+    expect(mocks.state.details.get(JSON.stringify(goalKeys.detail('goal-1')))?.goal.linkedHabits).toEqual([])
   })
 
   it('shows the undo snackbar when a goal delete succeeds', () => {

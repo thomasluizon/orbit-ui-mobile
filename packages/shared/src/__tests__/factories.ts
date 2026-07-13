@@ -83,6 +83,7 @@ export function createMockGoal(overrides: Partial<Goal> = {}): Goal {
     createdAtUtc: '2025-01-01T00:00:00Z',
     completedAtUtc: null,
     progressPercentage: 25,
+    linkedHabits: [],
     ...overrides,
   }
 }
