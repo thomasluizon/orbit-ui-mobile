@@ -20,7 +20,7 @@ export function MultiHabitComparisonSection({ divider }: Readonly<{ divider?: bo
     .map((habit) => ({ label: habit.title, value: habit.currentStreak ?? 0 }))
     .sort((a, b) => b.value - a.value)
     .slice(0, MAX_BARS)
-  const isEmpty = bars.length === 0 || bars.every((bar) => bar.value === 0)
+  const isEmpty = bars.every((bar) => bar.value === 0)
   const title = t('insights.sections.multiHabitComparison')
 
   return (

@@ -29,14 +29,12 @@ export async function getPrefersReducedMotion(): Promise<boolean> {
     return cachedReducedMotionPreference
   }
 
-  if (!reducedMotionRequest) {
-    reducedMotionRequest = readReducedMotionPreference().then((nextValue) => {
-      cachedReducedMotionPreference = nextValue
-      hasLoadedReducedMotionPreference = true
-      reducedMotionRequest = null
-      return nextValue
-    })
-  }
+  reducedMotionRequest ??= readReducedMotionPreference().then((nextValue) => {
+    cachedReducedMotionPreference = nextValue
+    hasLoadedReducedMotionPreference = true
+    reducedMotionRequest = null
+    return nextValue
+  })
 
   return reducedMotionRequest
 }

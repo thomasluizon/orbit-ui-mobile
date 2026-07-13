@@ -21,7 +21,7 @@ const rubik = Rubik({
 const SCHEME_NAMES = new Set(['purple', 'blue', 'green', 'rose', 'orange', 'cyan'])
 
 function readCookie(name: string): string | null {
-  const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]+)'))
+  const match = new RegExp('(?:^|; )' + name + '=([^;]+)').exec(document.cookie)
   const value = match?.[1]
   return value !== undefined ? decodeURIComponent(value) : null
 }

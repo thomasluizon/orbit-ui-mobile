@@ -10,14 +10,12 @@ import { isRecord } from '../utils/is-record'
 
 export const ONBOARDING_DRAFT_STORAGE_VERSION = 1
 
-type OnboardingDraftSet = {
-  (
-    partial:
-      | Partial<OnboardingDraftState>
-      | ((state: OnboardingDraftState) => Partial<OnboardingDraftState>),
-    replace?: false,
-  ): void
-}
+type OnboardingDraftSet = (
+  partial:
+    | Partial<OnboardingDraftState>
+    | ((state: OnboardingDraftState) => Partial<OnboardingDraftState>),
+  replace?: false,
+) => void
 
 type OnboardingDraftGet = () => OnboardingDraftState
 

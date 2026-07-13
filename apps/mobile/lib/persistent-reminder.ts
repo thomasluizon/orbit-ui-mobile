@@ -219,7 +219,7 @@ export async function cancelPersistentReminder(): Promise<void> {
  * toggle is off; cancels when the feed is unavailable (signed out); otherwise
  * re-posts the notification in place with the current streak and progress.
  */
-export async function refreshPersistentReminder(data: unknown | null): Promise<void> {
+export async function refreshPersistentReminder(data: unknown): Promise<void> {
   if (!usePersistentReminderStore.getState().enabled) return
 
   const activeModule = notificationsModule

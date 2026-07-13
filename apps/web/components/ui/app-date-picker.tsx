@@ -205,6 +205,7 @@ export function AppDatePicker({
         ) : (
           <table
             ref={gridRef}
+            role="grid"
             className="w-full border-separate border-spacing-0"
             onKeyDown={handleGridKeyDown}
           >

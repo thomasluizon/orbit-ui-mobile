@@ -57,7 +57,7 @@ function decodeBase64Url(segment: string): string {
   }
 
   const binary = atob(padded)
-  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0))
+  const bytes = Uint8Array.from(binary, (char) => char.codePointAt(0) ?? 0)
   return new TextDecoder().decode(bytes)
 }
 

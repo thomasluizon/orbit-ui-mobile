@@ -446,7 +446,7 @@ export default function CalendarSyncPage() {
                 <PillButton
                   fullWidth
                   disabled={selectedIds.size === 0 || !isOnline}
-                  onClick={() => void importSelected()}
+                  onClick={() => importSelected()}
                 >
                   {plural(t('calendar.importButton', { count: selectedIds.size }), selectedIds.size)}
                 </PillButton>

@@ -63,7 +63,7 @@ function buildRequestHeaders(
   const headers: Record<string, string> = {
     ...buildClientTimeZoneHeaders(),
     ...buildAppVersionHeaders(),
-    ...(options.headers ?? {}),
+    ...options.headers,
   }
 
   if (token) {

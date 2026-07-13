@@ -143,7 +143,7 @@ export async function subscribeToPushNotifications(
     await subscribePushAction(subscription.toJSON())
   } catch {
     await subscription.unsubscribe().catch(() => undefined)
-    throw new Error()
+    throw new Error('Failed to persist push subscription')
   }
 
   return createSnapshot(permission, true)

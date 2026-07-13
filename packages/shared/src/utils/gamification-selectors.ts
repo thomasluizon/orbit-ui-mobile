@@ -241,7 +241,7 @@ export const SHAREABLE_ACHIEVEMENT_RARITIES = ['Rare', 'Epic', 'Legendary'] as c
  * Legendary). Common/Uncommon unlocks are excluded so the share prompt stays meaningful.
  */
 export function isShareableAchievement(achievement: { rarity: string }): boolean {
-  return SHAREABLE_ACHIEVEMENT_RARITIES.some((rarity) => rarity === achievement.rarity)
+  return (SHAREABLE_ACHIEVEMENT_RARITIES as readonly string[]).includes(achievement.rarity)
 }
 
 /**
