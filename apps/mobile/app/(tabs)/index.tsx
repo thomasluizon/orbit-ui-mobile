@@ -234,17 +234,14 @@ export default function TodayScreen() {
 
   const tabItems = useMemo<TodayTabItem[]>(
     () =>
-      TAB_VIEWS.map((view) => ({
-        view,
-        label:
-          view === "today"
-            ? t("habits.viewToday")
-            : view === "all"
-              ? t("habits.viewAll")
-              : view === "general"
-                ? t("habits.viewGeneral")
-                : t("goals.tab"),
-      })),
+      TAB_VIEWS.map((view) => {
+        let label: string;
+        if (view === "today") label = t("habits.viewToday");
+        else if (view === "all") label = t("habits.viewAll");
+        else if (view === "general") label = t("habits.viewGeneral");
+        else label = t("goals.tab");
+        return { view, label };
+      }),
     [t],
   );
 

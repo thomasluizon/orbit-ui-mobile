@@ -79,7 +79,10 @@ export function FrequencyTypeCards({
   const hasPositionedRef = useRef(false);
   const [pageWidth, setPageWidth] = useState(0);
 
-  const activeIndex = isOneTime ? 0 : isGeneral ? 3 : isFlexible ? 2 : 1;
+  let activeIndex = 1;
+  if (isOneTime) activeIndex = 0;
+  else if (isGeneral) activeIndex = 3;
+  else if (isFlexible) activeIndex = 2;
 
   const frequencyHandlers = useMemo<(() => void)[]>(
     () => [onSetOneTime, onSetRecurring, onSetFlexible, onSetGeneral],

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { ScrollView, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
@@ -48,6 +48,35 @@ export default function SocialScreen() {
     { id: 'buddies' as const, label: t('social.tabs.buddies') },
   ]
 
+  let tabContent: ReactNode
+  if (tab === 'feed') {
+    tabContent = <SocialFeed onCheer={setCheerTarget} onAddFriends={() => setTab('friends')} />
+  } else if (tab === 'friends') {
+    tabContent = <SocialFriends onCheer={setCheerTarget} />
+  } else {
+    tabContent = <AccountabilitySection initialHabitId={newPairHabitId ?? null} />
+  }
+
+  let socialBody: ReactNode = null
+  if (!isLoading && !socialEnabled) {
+    socialBody = <SocialOptInGate />
+  } else if (!isLoading) {
+    socialBody = (
+      <>
+        <SectionHeadTabs tabs={tabs} active={tab} onChange={setTab} ariaLabel={t('social.title')} />
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <SocialIdentityBar />
+          <ChallengesEntryCard />
+          {tabContent}
+        </ScrollView>
+      </>
+    )
+  }
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <GradientTop height={200} />
@@ -57,28 +86,7 @@ export default function SocialScreen() {
         title={t('social.title')}
         backLabel={t('common.goBack')}
       />
-      {isLoading ? null : !socialEnabled ? (
-        <SocialOptInGate />
-      ) : (
-        <>
-          <SectionHeadTabs tabs={tabs} active={tab} onChange={setTab} ariaLabel={t('social.title')} />
-          <ScrollView
-            contentContainerStyle={styles.scroll}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            <SocialIdentityBar />
-            <ChallengesEntryCard />
-            {tab === 'feed' ? (
-              <SocialFeed onCheer={setCheerTarget} onAddFriends={() => setTab('friends')} />
-            ) : tab === 'friends' ? (
-              <SocialFriends onCheer={setCheerTarget} />
-            ) : (
-              <AccountabilitySection initialHabitId={newPairHabitId ?? null} />
-            )}
-          </ScrollView>
-        </>
-      )}
+      {socialBody}
       <CheerComposer target={cheerTarget} onClose={() => setCheerTarget(null)} />
       <InviteConfirmSheet
         code={inviteCode}

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
@@ -35,6 +35,44 @@ export function AccountabilitySection({ initialHabitId }: Readonly<Accountabilit
   const incoming = data?.incomingInvites ?? []
   const outgoing = data?.outgoingInvites ?? []
 
+  let pairsContent: ReactNode
+  if (isLoading) {
+    pairsContent = (
+      <View style={styles.loading}>
+        <ActivityIndicator color={tokens.primary} accessibilityLabel={t('common.loading')} />
+      </View>
+    )
+  } else if (isError) {
+    pairsContent = (
+      <EmptyState
+        description={t('social.errors.loadFailed')}
+        action={{
+          label: t('common.retry'),
+          onPress: () => void refetch(),
+          variant: 'secondary',
+        }}
+      />
+    )
+  } else if (activePairs.length === 0) {
+    pairsContent = (
+      <EmptyState
+        title={t('social.buddies.emptyTitle')}
+        description={t('social.buddies.emptyBody')}
+        action={{
+          label: t('social.buddies.newPairCta'),
+          onPress: () => setNewPairOpen(true),
+          variant: 'secondary',
+        }}
+      />
+    )
+  } else {
+    pairsContent = activePairs.map((pair, index) => (
+      <Animated.View key={pair.id} entering={rowEntrance(index)}>
+        <BuddyRow pair={pair} />
+      </Animated.View>
+    ))
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.ctaBlock}>
@@ -65,36 +103,7 @@ export function AccountabilitySection({ initialHabitId }: Readonly<Accountabilit
       ) : null}
 
       <SectionLabel>{t('social.buddies.activeTitle')}</SectionLabel>
-      {isLoading ? (
-        <View style={styles.loading}>
-          <ActivityIndicator color={tokens.primary} accessibilityLabel={t('common.loading')} />
-        </View>
-      ) : isError ? (
-        <EmptyState
-          description={t('social.errors.loadFailed')}
-          action={{
-            label: t('common.retry'),
-            onPress: () => void refetch(),
-            variant: 'secondary',
-          }}
-        />
-      ) : activePairs.length === 0 ? (
-        <EmptyState
-          title={t('social.buddies.emptyTitle')}
-          description={t('social.buddies.emptyBody')}
-          action={{
-            label: t('social.buddies.newPairCta'),
-            onPress: () => setNewPairOpen(true),
-            variant: 'secondary',
-          }}
-        />
-      ) : (
-        activePairs.map((pair, index) => (
-          <Animated.View key={pair.id} entering={rowEntrance(index)}>
-            <BuddyRow pair={pair} />
-          </Animated.View>
-        ))
-      )}
+      {pairsContent}
 
       <NewPairFlow
         open={newPairOpen}

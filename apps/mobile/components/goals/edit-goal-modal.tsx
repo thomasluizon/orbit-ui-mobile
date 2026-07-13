@@ -164,6 +164,11 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
     updateGoal,
   ])
 
+  const eyebrowUnitSuffix = goal.unit ? `  ·  ${goal.unit}` : ''
+  const eyebrowLabel = isStreak
+    ? t('goals.form.typeStreak')
+    : `${t('goals.form.typeStandard')}${eyebrowUnitSuffix}`
+
   return (
     <>
       <BottomSheetModal
@@ -182,11 +187,7 @@ export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalPro
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="always"
         >
-          <Text style={styles.eyebrow}>
-            {isStreak
-              ? t('goals.form.typeStreak')
-              : `${t('goals.form.typeStandard')}${goal.unit ? `  ·  ${goal.unit}` : ''}`}
-          </Text>
+          <Text style={styles.eyebrow}>{eyebrowLabel}</Text>
 
           <View>
             <Text style={styles.fieldLabel}>{t('goals.form.description')}</Text>

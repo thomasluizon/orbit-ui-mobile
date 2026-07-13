@@ -186,9 +186,11 @@ export function GoalCard({ goal, onPress, onLongPress, tourTargetId }: Readonly<
                   {statusBadge.text}
                 </Text>
               </View>
-            ) : trackingDot ? (
-              <StatusDot state={trackingDot.state} accessibilityLabel={trackingDot.label} />
-            ) : null}
+            ) : (
+              trackingDot && (
+                <StatusDot state={trackingDot.state} accessibilityLabel={trackingDot.label} />
+              )
+            )}
           </View>
           <View style={styles.metaRow}>
             <Text style={styles.progressLabel} numberOfLines={1}>

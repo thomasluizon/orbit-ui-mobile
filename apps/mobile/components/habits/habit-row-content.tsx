@@ -1,4 +1,4 @@
-import { Fragment } from 'react'
+import { Fragment, type ReactNode } from 'react'
 import { Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { stripInlineMarkdown } from '@orbit/shared/utils'
@@ -64,16 +64,12 @@ export function HabitRowContent({
           numberOfLines={1}
           style={[styles.meta, { color: tokens.fg3 }]}
         >
-          {metaParts.map((part, i) => (
-            <Fragment key={i}>
-              {i > 0 ? (
-                <Text style={{ color: tokens.fg3 }}> · </Text>
-              ) : null}
-              {typeof part === 'string' ? (
-                part
-              ) : part.kind === 'future' ? (
-                part.label
-              ) : (
+          {metaParts.map((part, i) => {
+            let partContent: ReactNode
+            if (typeof part === 'string') partContent = part
+            else if (part.kind === 'future') partContent = part.label
+            else
+              partContent = (
                 <Text
                   style={{
                     fontFamily: 'Rubik_500Medium',
@@ -82,9 +78,16 @@ export function HabitRowContent({
                 >
                   {t('habits.overdue')}
                 </Text>
-              )}
-            </Fragment>
-          ))}
+              )
+            return (
+              <Fragment key={i}>
+                {i > 0 ? (
+                  <Text style={{ color: tokens.fg3 }}> · </Text>
+                ) : null}
+                {partContent}
+              </Fragment>
+            )
+          })}
           {showStreak ? (
             <Text style={{ color: tokens.statusOverdueText }}>
               {metaParts.length > 0 ? '  ' : ''}🔥 {streak}

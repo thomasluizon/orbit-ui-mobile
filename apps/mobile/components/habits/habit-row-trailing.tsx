@@ -90,8 +90,8 @@ export function HabitRowTrailing({
           ]}
         />
       ) : null}
-      {!isSelectMode ? (
-        hasChildren && childrenTotal > 0 ? (
+      {!isSelectMode &&
+        (hasChildren && childrenTotal > 0 ? (
           <>
             <Text style={[styles.childProgressText, { color: tokens.fg3 }]}>
               {childrenDone}/{childrenTotal}
@@ -128,8 +128,7 @@ export function HabitRowTrailing({
             }`}
             tokens={tokens}
           />
-        )
-      ) : null}
+        ))}
       {!isSelectMode && hasMenuActions ? (
         <MenuAnchorHost anchorRef={menuButtonRef}>
           <Pressable

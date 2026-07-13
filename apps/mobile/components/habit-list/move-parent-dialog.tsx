@@ -55,16 +55,13 @@ function MoveTargetRow({
   onSelect: (optionId: string | null) => void
 }>) {
   const isRoot = option.id === null
+  const unselectedOptionStyle = isRoot ? styles.moveOptionRoot : styles.moveOptionDefault
 
   return (
     <Pressable
       style={({ pressed }) => [
         styles.moveOption,
-        selected
-          ? styles.moveOptionSelected
-          : isRoot
-            ? styles.moveOptionRoot
-            : styles.moveOptionDefault,
+        selected ? styles.moveOptionSelected : unselectedOptionStyle,
         option.disabled && styles.moveOptionDisabled,
         pressed && !option.disabled && !selected ? styles.moveOptionPressed : null,
       ]}

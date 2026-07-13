@@ -182,11 +182,10 @@ export function ConfirmDialog({
               accessibilityRole="button"
               style={({ pressed }) => [
                 styles.actionPill,
-                destructive
-                  ? pressed
+                destructive &&
+                  (pressed
                     ? styles.confirmPillDestructivePressed
-                    : styles.confirmPillDestructive
-                  : null,
+                    : styles.confirmPillDestructive),
                 !destructive && (pressed ? styles.confirmPillPressed : styles.confirmPill),
                 pressed ? styles.pillPressedScale : null,
               ]}

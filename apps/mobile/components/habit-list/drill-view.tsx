@@ -110,13 +110,7 @@ export function HabitListDrillView({
     </>
   )
 
-  const drillEmptyState = drill.drillLoading ? (
-    <View style={styles.drillSkeletons}>
-      <SkeletonCard styles={styles} />
-      <SkeletonCard styles={styles} />
-      <SkeletonCard styles={styles} />
-    </View>
-  ) : drill.drillError ? (
+  const drillErrorState = drill.drillError ? (
     <View style={styles.drillErrorWrap}>
       <Text
         style={[styles.emptyText, { color: tokens.statusBadText }]}
@@ -137,6 +131,16 @@ export function HabitListDrillView({
     </View>
   ) : (
     <Text style={styles.emptyText}>{t('habits.noSubHabits')}</Text>
+  )
+
+  const drillEmptyState = drill.drillLoading ? (
+    <View style={styles.drillSkeletons}>
+      <SkeletonCard styles={styles} />
+      <SkeletonCard styles={styles} />
+      <SkeletonCard styles={styles} />
+    </View>
+  ) : (
+    drillErrorState
   )
 
   return (

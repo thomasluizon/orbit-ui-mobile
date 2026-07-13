@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
@@ -34,6 +34,39 @@ export function SocialFriends({ onCheer }: Readonly<SocialFriendsProps>) {
   const incoming = data?.incomingRequests ?? []
   const outgoing = data?.outgoingRequests ?? []
 
+  let friendsContent: ReactNode
+  if (isLoading) {
+    friendsContent = (
+      <View style={styles.loading}>
+        <ActivityIndicator color={tokens.primary} accessibilityLabel={t('common.loading')} />
+      </View>
+    )
+  } else if (isError) {
+    friendsContent = (
+      <EmptyState
+        description={t('social.errors.loadFailed')}
+        action={{
+          label: t('common.retry'),
+          onPress: () => void refetch(),
+          variant: 'secondary',
+        }}
+      />
+    )
+  } else if (friends.length === 0) {
+    friendsContent = (
+      <EmptyState
+        title={t('social.friends.emptyTitle')}
+        description={t('social.friends.emptyBody')}
+      />
+    )
+  } else {
+    friendsContent = friends.map((friend, index) => (
+      <Animated.View key={friend.userId} entering={rowEntrance(index)}>
+        <FriendRow friend={friend} onCheer={onCheer} onOpenProfile={setProfileTarget} />
+      </Animated.View>
+    ))
+  }
+
   return (
     <View style={styles.container}>
       <SectionLabel>{t('social.addFriend.title')}</SectionLabel>
@@ -58,31 +91,7 @@ export function SocialFriends({ onCheer }: Readonly<SocialFriendsProps>) {
       ) : null}
 
       <SectionLabel>{t('social.friends.sectionTitle')}</SectionLabel>
-      {isLoading ? (
-        <View style={styles.loading}>
-          <ActivityIndicator color={tokens.primary} accessibilityLabel={t('common.loading')} />
-        </View>
-      ) : isError ? (
-        <EmptyState
-          description={t('social.errors.loadFailed')}
-          action={{
-            label: t('common.retry'),
-            onPress: () => void refetch(),
-            variant: 'secondary',
-          }}
-        />
-      ) : friends.length === 0 ? (
-        <EmptyState
-          title={t('social.friends.emptyTitle')}
-          description={t('social.friends.emptyBody')}
-        />
-      ) : (
-        friends.map((friend, index) => (
-          <Animated.View key={friend.userId} entering={rowEntrance(index)}>
-            <FriendRow friend={friend} onCheer={onCheer} onOpenProfile={setProfileTarget} />
-          </Animated.View>
-        ))
-      )}
+      {friendsContent}
 
       <FriendProfileSheet
         userId={profileTarget?.userId ?? null}

@@ -594,9 +594,7 @@ export function TodayHabitsHeader({
                           borderWidth: 1,
                           borderColor: tintFromPrimary(tokens, 0.45),
                         }
-                      : pressed
-                        ? { backgroundColor: tokens.bgElev }
-                        : null,
+                      : pressed && { backgroundColor: tokens.bgElev },
                     pressed ? styles.iconBtnPressed : null,
                   ]}
                 >

@@ -1,4 +1,4 @@
-import { useRef, useState, type RefObject } from 'react'
+import { useRef, useState, type ReactNode, type RefObject } from 'react'
 import {
   View,
   Text,
@@ -394,6 +394,55 @@ export function DeleteAccountModal({
     }
   }
 
+  let deleteContent: ReactNode
+  if (!isOnline) {
+    deleteContent = (
+      <View style={styles.body}>
+        <OfflineUnavailableState
+          title={t('profile.deleteAccount.offlineTitle')}
+          description={t('profile.deleteAccount.offlineDescription')}
+          compact
+        />
+      </View>
+    )
+  } else if (deleteStep === 'confirm') {
+    deleteContent = (
+      <DeleteConfirmStep
+        profile={profile}
+        deleteError={deleteError}
+        deleteLoading={deleteLoading}
+        onRequestDeletion={() => {
+          void handleRequestDeletion()
+        }}
+        onClose={onClose}
+      />
+    )
+  } else if (deleteStep === 'code') {
+    deleteContent = (
+      <DeleteCodeStep
+        deleteCodeDigits={deleteCodeDigits}
+        deleteCodeRefs={deleteCodeRefs}
+        deleteError={deleteError}
+        deleteLoading={deleteLoading}
+        onChangeDigit={setDeleteCodeValue}
+        onKeyPressDigit={(index, event) =>
+          handleDeleteCodeKeyPress(index, event.nativeEvent.key)
+        }
+        onConfirm={() => {
+          void handleConfirmDeletion()
+        }}
+        onBack={backToDeleteConfirmStep}
+      />
+    )
+  } else {
+    deleteContent = (
+      <DeleteDeactivatedStep
+        scheduledDeletionDate={scheduledDeletionDate}
+        onLogout={() => void handleLogout()}
+      />
+    )
+  }
+
   return (
     <BottomSheetModal
       open={open}
@@ -401,45 +450,7 @@ export function DeleteAccountModal({
       title={t('profile.deleteAccount.title')}
       snapPoints={['70%']}
     >
-      {!isOnline ? (
-        <View style={styles.body}>
-          <OfflineUnavailableState
-            title={t('profile.deleteAccount.offlineTitle')}
-            description={t('profile.deleteAccount.offlineDescription')}
-            compact
-          />
-        </View>
-      ) : deleteStep === 'confirm' ? (
-        <DeleteConfirmStep
-          profile={profile}
-          deleteError={deleteError}
-          deleteLoading={deleteLoading}
-          onRequestDeletion={() => {
-            void handleRequestDeletion()
-          }}
-          onClose={onClose}
-        />
-      ) : deleteStep === 'code' ? (
-        <DeleteCodeStep
-          deleteCodeDigits={deleteCodeDigits}
-          deleteCodeRefs={deleteCodeRefs}
-          deleteError={deleteError}
-          deleteLoading={deleteLoading}
-          onChangeDigit={setDeleteCodeValue}
-          onKeyPressDigit={(index, event) =>
-            handleDeleteCodeKeyPress(index, event.nativeEvent.key)
-          }
-          onConfirm={() => {
-            void handleConfirmDeletion()
-          }}
-          onBack={backToDeleteConfirmStep}
-        />
-      ) : (
-        <DeleteDeactivatedStep
-          scheduledDeletionDate={scheduledDeletionDate}
-          onLogout={() => void handleLogout()}
-        />
-      )}
+      {deleteContent}
     </BottomSheetModal>
   )
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
@@ -77,6 +77,48 @@ export function SocialFeed({ onCheer, onAddFriends }: Readonly<SocialFeedProps>)
   const receivedCheers = cheers.data?.items ?? []
   const isEmpty = !feed.isLoading && items.length === 0 && receivedCheers.length === 0
 
+  let feedContent: ReactNode
+  if (feed.isLoading) {
+    feedContent = (
+      <View style={styles.loading}>
+        <ActivityIndicator color={tokens.primary} accessibilityLabel={t('common.loading')} />
+      </View>
+    )
+  } else if (feed.isError) {
+    feedContent = (
+      <EmptyState
+        description={t('social.errors.loadFailed')}
+        action={{
+          label: t('common.retry'),
+          onPress: () => void feed.refetch(),
+          variant: 'secondary',
+        }}
+      />
+    )
+  } else if (isEmpty) {
+    feedContent = (
+      <EmptyState
+        title={t('social.feed.emptyTitle')}
+        description={t('social.feed.emptyBody')}
+        action={{
+          label: t('social.feed.emptyCta'),
+          onPress: onAddFriends,
+          variant: 'secondary',
+        }}
+      />
+    )
+  } else {
+    feedContent = (
+      <View>
+        {items.map((item, index) => (
+          <Animated.View key={item.id} entering={rowEntrance(index)}>
+            <FeedEventCard item={item} onCheer={onCheer} onOpenProfile={setProfileTarget} />
+          </Animated.View>
+        ))}
+      </View>
+    )
+  }
+
   return (
     <View style={styles.container}>
       {receivedCheers.length > 0 ? (
@@ -90,38 +132,7 @@ export function SocialFeed({ onCheer, onAddFriends }: Readonly<SocialFeedProps>)
         </View>
       ) : null}
 
-      {feed.isLoading ? (
-        <View style={styles.loading}>
-          <ActivityIndicator color={tokens.primary} accessibilityLabel={t('common.loading')} />
-        </View>
-      ) : feed.isError ? (
-        <EmptyState
-          description={t('social.errors.loadFailed')}
-          action={{
-            label: t('common.retry'),
-            onPress: () => void feed.refetch(),
-            variant: 'secondary',
-          }}
-        />
-      ) : isEmpty ? (
-        <EmptyState
-          title={t('social.feed.emptyTitle')}
-          description={t('social.feed.emptyBody')}
-          action={{
-            label: t('social.feed.emptyCta'),
-            onPress: onAddFriends,
-            variant: 'secondary',
-          }}
-        />
-      ) : (
-        <View>
-          {items.map((item, index) => (
-            <Animated.View key={item.id} entering={rowEntrance(index)}>
-              <FeedEventCard item={item} onCheer={onCheer} onOpenProfile={setProfileTarget} />
-            </Animated.View>
-          ))}
-        </View>
-      )}
+      {feedContent}
 
       {feed.hasNextPage ? (
         <View style={styles.loadMore}>
