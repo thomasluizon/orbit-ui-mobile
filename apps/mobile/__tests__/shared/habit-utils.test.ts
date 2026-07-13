@@ -33,6 +33,7 @@ const calendarMonth = {
       hasSubHabits: false,
       flexibleTarget: null,
       flexibleCompleted: null,
+      linkedGoals: [],
       instances: [],
     },
   ],

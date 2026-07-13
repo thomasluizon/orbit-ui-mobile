@@ -118,6 +118,14 @@ describe('drill navigation utils', () => {
     expect(normalized.isOverdue).toBe(true)
   })
 
+  it('is not overdue via the shared fallback when the due date is in the future', () => {
+    const child = makeDetailChild({ dueDate: '2025-01-10' })
+
+    const normalized = normalizeDrillDetailChild(child, 'parent-1', '2025-01-02')
+
+    expect(normalized.isOverdue).toBe(false)
+  })
+
   it('builds parent and child maps for drill navigation', () => {
     const detail = makeDetail({
       id: 'parent-1',

@@ -78,6 +78,7 @@ function makeItem(id: string, children: HabitScheduleChild[]): HabitScheduleItem
     flexibleTarget: null,
     flexibleCompleted: null,
     isLoggedInRange: false,
+    linkedGoals: [],
     instances: [],
   }
 }
