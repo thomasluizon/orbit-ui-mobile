@@ -56,7 +56,7 @@ export function VersionUpdateDrawer() {
     AsyncStorage.getItem(SNOOZE_STORAGE_KEY)
       .then((value) => {
         if (cancelled) return
-        const parsed = value ? Number.parseInt(value, 10) : NaN
+        const parsed = value ? Number.parseInt(value, 10) : Number.NaN
         setSnoozedUntil(Number.isFinite(parsed) ? parsed : null)
         setSnoozeLoaded(true)
       })

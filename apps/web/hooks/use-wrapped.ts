@@ -9,7 +9,6 @@ import {
   buildWrappedSlides,
   isRecapShareEmpty,
   type RecapSharePeriod,
-  type WrappedSlide,
 } from '@orbit/shared/utils'
 import { fetchJson } from '@/lib/api-fetch'
 import { useReportEvent } from '@/hooks/use-gamification'
@@ -82,4 +81,4 @@ export function useWrappedStory(slideCount: number): WrappedStory {
   }
 }
 
-export type { WrappedSlide }
+export type { WrappedSlide } from '@orbit/shared/utils'

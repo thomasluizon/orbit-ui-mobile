@@ -135,9 +135,10 @@ export function HabitRow({
 
   const { onContextMenu, contextMenu } = useContextMenu(contextMenuItems)
 
+  const rowPrimaryAction = selectMode ? onToggleSelection : onDetail
+
   function handleRowClick() {
-    if (selectMode) onToggleSelection?.()
-    else onDetail?.()
+    rowPrimaryAction?.()
   }
 
   function handleToggleStatus() {

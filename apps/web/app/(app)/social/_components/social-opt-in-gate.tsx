@@ -21,12 +21,12 @@ export function SocialOptInGate() {
   const { showError, showSuccess } = useAppToast()
   const setHandle = useSetHandle()
   const setSocialOptIn = useSetSocialOptIn()
-  const [handle, setHandle_] = useState(profile?.handle ?? '')
+  const [handleInput, setHandleInput] = useState(profile?.handle ?? '')
 
   const isSubmitting = setHandle.isPending || setSocialOptIn.isPending
 
   async function handleEnable() {
-    const trimmed = handle.trim()
+    const trimmed = handleInput.trim()
     if (!handleSchema.safeParse(trimmed).success) {
       showError(t('social.optInGate.handleHint'))
       return
@@ -73,8 +73,8 @@ export function SocialOptInGate() {
       <div className="flex w-full flex-col text-left" style={{ gap: 6, maxWidth: 420 }}>
         <FieldInput
           label={t('social.optInGate.handleLabel')}
-          value={handle}
-          onChange={setHandle_}
+          value={handleInput}
+          onChange={setHandleInput}
           placeholder={t('social.optInGate.handlePlaceholder')}
           maxLength={20}
           ariaLabel={t('social.optInGate.handleLabel')}

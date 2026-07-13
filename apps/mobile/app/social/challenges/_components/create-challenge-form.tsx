@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
-import { formatAPIDate } from '@orbit/shared/utils'
+import { formatAPIDate, toggleSelectedId } from '@orbit/shared/utils'
 import {
   CHALLENGE_TYPE_OPTIONS,
   createChallengeFormSchema,
@@ -42,10 +42,6 @@ export function CreateChallengeForm({ onCreated }: Readonly<CreateChallengeFormP
 
   const type = watch('type')
   const isCoop = type === 'CoopGoal'
-
-  function toggleId(id: string, list: string[], set: (next: string[]) => void) {
-    set(list.includes(id) ? list.filter((value) => value !== id) : [...list, id])
-  }
 
   async function onSubmit(values: CreateChallengeFormValues) {
     try {
@@ -169,14 +165,14 @@ export function CreateChallengeForm({ onCreated }: Readonly<CreateChallengeFormP
 
       <View style={styles.field}>
         <Text style={[styles.label, { color: tokens.fg2 }]}>{t('challenges.create.habitsLabel')}</Text>
-        <HabitPicker selectedIds={habitIds} onToggle={(id) => toggleId(id, habitIds, setHabitIds)} />
+        <HabitPicker selectedIds={habitIds} onToggle={(id) => setHabitIds(toggleSelectedId(habitIds, id))} />
       </View>
 
       <View style={styles.field}>
         <Text style={[styles.label, { color: tokens.fg2 }]}>{t('challenges.create.inviteLabel')}</Text>
         <InviteFriendsPicker
           selectedIds={friendIds}
-          onToggle={(id) => toggleId(id, friendIds, setFriendIds)}
+          onToggle={(id) => setFriendIds(toggleSelectedId(friendIds, id))}
         />
       </View>
 

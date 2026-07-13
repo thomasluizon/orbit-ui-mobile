@@ -24,7 +24,7 @@ export function isVersionBelow(current: string, minimum: string): boolean {
 
 function normalizeVersion(version: string): number[] | null {
   const numeric = version.split(/[^0-9.]/)[0] ?? ''
-  if (!/[0-9]/.test(numeric)) return null
+  if (!/\d/.test(numeric)) return null
   return numeric
     .split('.')
     .map((segment) => {

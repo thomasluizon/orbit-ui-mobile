@@ -54,7 +54,7 @@ export function BreakdownHabitRow({
               value={String(habit.frequencyQuantity ?? 1)}
               onChangeText={(text) =>
                 onUpdate({
-                  frequencyQuantity: Number(text.replace(/[^0-9]/g, '')) || 1,
+                  frequencyQuantity: Number(text.replace(/\D/g, '')) || 1,
                 })
               }
               keyboardType="number-pad"

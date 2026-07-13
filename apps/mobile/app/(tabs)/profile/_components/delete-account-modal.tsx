@@ -368,7 +368,7 @@ export function DeleteAccountModal({
     if (digits.length > 1) {
       const next = ['0', '1', '2', '3', '4', '5'].map((_, i) => digits[i] ?? '')
       setDeleteCodeDigits(next)
-      const nextIndex = next.findIndex((digit) => digit === '')
+      const nextIndex = next.indexOf('')
       if (nextIndex >= 0) {
         focusDeleteCode(nextIndex)
       } else {
