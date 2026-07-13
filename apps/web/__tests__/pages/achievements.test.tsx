@@ -278,6 +278,6 @@ describe('AchievementsPage', () => {
     mockGamificationProfile = null
     const { container } = render(<AchievementsPage />)
     expect(screen.getByText('gamification.title')).toBeInTheDocument()
-    expect(container.querySelectorAll('.skeleton-pulse').length).toBe(0)
+    expect(container.querySelectorAll('.skeleton-pulse')).toHaveLength(0)
   })
 })

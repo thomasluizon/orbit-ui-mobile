@@ -158,6 +158,6 @@ describe('CalendarGrid', () => {
       />,
     )
     const inRange = container.querySelectorAll('[data-in-range="true"]')
-    expect(inRange.length).toBe(3)
+    expect(inRange).toHaveLength(3)
   })
 })

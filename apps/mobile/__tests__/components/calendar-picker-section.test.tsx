@@ -94,7 +94,7 @@ describe('mobile CalendarPickerSection', () => {
     mocks.calendars = [buildCalendar()]
     const tree = render(false)
     const hostNodes = tree.root.findAll((node) => typeof node.type === 'string')
-    expect(hostNodes.length).toBe(0)
+    expect(hostNodes).toHaveLength(0)
   })
 
   it('renders a switch per calendar reflecting its synced state', () => {

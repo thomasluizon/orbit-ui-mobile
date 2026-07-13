@@ -200,9 +200,9 @@ describe('PendingOperationCard (mobile)', () => {
       await button.props.onPress()
     })
 
-    expect(findTexts(tree.root, 'missing_scope:delete_habits').length).toBe(0)
+    expect(findTexts(tree.root, 'missing_scope:delete_habits')).toHaveLength(0)
     expect(findTexts(tree.root, 'chat.sendError').length).toBeGreaterThan(0)
-    expect(findTexts(tree.root, 'chat.pendingOp.confirmed').length).toBe(0)
+    expect(findTexts(tree.root, 'chat.pendingOp.confirmed')).toHaveLength(0)
   })
 
   it('shows friendly copy for known policy reasons instead of the raw code', async () => {
@@ -239,7 +239,7 @@ describe('PendingOperationCard (mobile)', () => {
       await button.props.onPress()
     })
 
-    expect(findTexts(tree.root, 'confirmation_required').length).toBe(0)
+    expect(findTexts(tree.root, 'confirmation_required')).toHaveLength(0)
     expect(
       findTexts(tree.root, 'chat.pendingOp.errors.confirmation_required').length,
     ).toBeGreaterThan(0)
@@ -262,6 +262,6 @@ describe('PendingOperationCard (mobile)', () => {
     expect(
       findTexts(tree.root, 'chat.pendingOp.capability.habits-bulk-write').length,
     ).toBeGreaterThan(0)
-    expect(findTexts(tree.root, 'Delete habit').length).toBe(0)
+    expect(findTexts(tree.root, 'Delete habit')).toHaveLength(0)
   })
 })

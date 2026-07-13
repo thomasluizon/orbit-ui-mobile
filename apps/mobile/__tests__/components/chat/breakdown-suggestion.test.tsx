@@ -112,8 +112,8 @@ describe('BreakdownSuggestion (mobile)', () => {
   it('reveals the frequency-quantity editor only after a recurrence unit is chosen', () => {
     const tree = renderBreakdown()
     expect(
-      findInputByAccessibilityLabel(tree, 'habits.breakdown.frequencyQuantityLabel').length,
-    ).toBe(0)
+      findInputByAccessibilityLabel(tree, 'habits.breakdown.frequencyQuantityLabel'),
+    ).toHaveLength(0)
 
     const chipWithWeekly = pressableContainingText(tree, 'habits.filter.weekly')
     expect(chipWithWeekly).toBeDefined()
@@ -145,6 +145,6 @@ describe('BreakdownSuggestion (mobile)', () => {
     const rawNodes = tree.root.findAll((node) =>
       collectText(node.props?.children).includes('ECONNREFUSED'),
     )
-    expect(rawNodes.length).toBe(0)
+    expect(rawNodes).toHaveLength(0)
   })
 })
