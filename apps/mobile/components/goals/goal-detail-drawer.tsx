@@ -222,7 +222,7 @@ export function GoalDetailDrawer({
 
           <GoalDetailCollections
             isStreak={isStreak}
-            linkedHabits={goal.linkedHabits ?? []}
+            linkedHabits={goal.linkedHabits}
             entries={detail?.progressHistory ?? []}
             unit={goal.unit}
             formatDate={formatDate}
