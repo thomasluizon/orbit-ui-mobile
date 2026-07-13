@@ -201,7 +201,7 @@ export function TourTooltip({
   onNext,
   onPrev,
   onSkip,
-}: TourTooltipProps) {
+}: Readonly<TourTooltipProps>) {
   const t = useTranslations()
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
   const [mode, setMode] = useState<'float' | 'sheet-top' | 'sheet-bottom'>('sheet-bottom')

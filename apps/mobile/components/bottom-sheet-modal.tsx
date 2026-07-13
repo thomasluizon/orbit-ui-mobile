@@ -52,7 +52,7 @@ export function BottomSheetModal({
   onAttemptDismiss,
   contentManagesScroll = false,
   children,
-}: BottomSheetModalProps) {
+}: Readonly<BottomSheetModalProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const { t } = useTranslation()
   const tokens = useMemo(

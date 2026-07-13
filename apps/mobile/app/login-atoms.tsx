@@ -4,7 +4,7 @@ import Svg, { Circle, Path } from 'react-native-svg'
 
 const AnimatedSvg = Animated.createAnimatedComponent(Svg)
 
-export function Spinner({ size = 16, color }: { size?: number; color: string }) {
+export function Spinner({ size = 16, color }: Readonly<{ size?: number; color: string }>) {
   const rotation = useMemo(() => new Animated.Value(0), [])
 
   useEffect(() => {

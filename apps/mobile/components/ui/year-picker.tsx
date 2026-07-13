@@ -21,7 +21,7 @@ export function YearPicker({
   selectedYear,
   onSelectYear,
   tokens,
-}: YearPickerProps) {
+}: Readonly<YearPickerProps>) {
   const scrollRef = useRef<ScrollView>(null)
   const years = useMemo(() => buildYearRange(selectedYear), [selectedYear])
 

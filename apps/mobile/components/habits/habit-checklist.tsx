@@ -61,7 +61,7 @@ function EditableChecklistItem({
   isLast,
   styles,
   tokens,
-}: EditableChecklistItemProps) {
+}: Readonly<EditableChecklistItemProps>) {
   const { t } = useTranslation()
   const [localText, setLocalText] = useState(text)
 
