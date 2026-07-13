@@ -17,6 +17,12 @@ import { useAuthStore } from '@/stores/auth-store'
 import { useIsDesktop } from '@/hooks/use-is-desktop'
 import { useDataExport } from './use-data-export'
 
+const NAV_TOUR_MAP: Record<string, string> = {
+  preferences: 'tour-profile-preferences',
+  retrospective: 'tour-profile-retrospective',
+  achievements: 'tour-profile-achievements',
+}
+
 export function useProfileScreen() {
   const t = useTranslations()
   const router = useRouter()
@@ -39,12 +45,6 @@ export function useProfileScreen() {
   const statsLoading = isLoading || (canViewGamification && !gamificationProfile)
   const accountNavItems = PROFILE_NAV_ITEMS.filter((item) => item.section === 'account')
   const achievementsNavItem = PROFILE_NAV_ITEMS.find((item) => item.id === 'achievements')
-
-  const navTourMap: Record<string, string> = {
-    preferences: 'tour-profile-preferences',
-    retrospective: 'tour-profile-retrospective',
-    achievements: 'tour-profile-achievements',
-  }
 
   useEffect(() => {
     if (searchParams.get('subscription') === 'success') {
@@ -101,7 +101,7 @@ export function useProfileScreen() {
     achievementsNavItem,
     statsLoading,
     accountNavItems,
-    navTourMap,
+    navTourMap: NAV_TOUR_MAP,
     showPlanBadge,
     planBadgeTone,
     planBadgeLabel,

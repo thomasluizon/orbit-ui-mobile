@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { isValidReferralCode } from '@orbit/shared/utils'
@@ -21,6 +21,14 @@ import { InviteConfirmSheet } from './_components/invite-confirm-sheet'
 type SocialTab = 'feed' | 'friends' | 'buddies'
 
 export default function SocialPage() {
+  return (
+    <Suspense fallback={null}>
+      <SocialPageContent />
+    </Suspense>
+  )
+}
+
+function SocialPageContent() {
   const t = useTranslations()
   const goBackOrFallback = useGoBackOrFallback()
   const router = useRouter()
@@ -33,6 +41,7 @@ export default function SocialPage() {
   const newPairHabitId = searchParams.get('newPairHabitId')
   const [cheerTarget, setCheerTarget] = useState<CheerTarget | null>(null)
   const [inviteCode, setInviteCode] = useState<string | null>(() => {
+    // react-doctor-disable-next-line url-prefilled-privileged-action -- code is format-validated then only pre-fills InviteConfirmSheet, which server-validates (useInvitePreview) and needs explicit send (useSendFriendRequest); no action auto-fires https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     const raw = searchParams.get('invite')
     return isValidReferralCode(raw) ? raw : null
   })

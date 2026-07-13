@@ -24,6 +24,7 @@ export function FactsPagination({
       style={{
         gap: 2,
         fontFamily: 'var(--font-mono)',
+        // react-doctor-disable-next-line no-tiny-text -- intentional mono tabular pagination counter (DESIGN.md meta scale), not body text https://github.com/thomasluizon/orbit-ui-mobile/issues/243
         fontSize: 11,
         color: 'var(--fg-3)',
         fontVariantNumeric: 'tabular-nums',

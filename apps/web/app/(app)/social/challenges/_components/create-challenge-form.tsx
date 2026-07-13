@@ -19,6 +19,17 @@ import { getChallengeErrorKey } from './challenge-errors'
 import { HabitPicker } from './habit-picker'
 import { InviteFriendsPicker } from './invite-friends-picker'
 
+const typeOptionStyle = {
+  padding: '10px 12px',
+  minHeight: 44,
+  borderRadius: 14,
+  border: 0,
+  cursor: 'pointer',
+  fontFamily: 'var(--font-sans)',
+  fontSize: 14,
+  fontWeight: 500,
+}
+
 interface CreateChallengeFormProps {
   onCreated: (id: string) => void
 }
@@ -82,17 +93,7 @@ export function CreateChallengeForm({ onCreated }: Readonly<CreateChallengeFormP
                         ? 'bg-[rgba(var(--primary-rgb),0.12)] shadow-[inset_0_0_0_1px_var(--primary)]'
                         : 'bg-[var(--bg-elev)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-elev-2)]'
                     }`}
-                    style={{
-                      padding: '10px 12px',
-                      minHeight: 44,
-                      borderRadius: 14,
-                      border: 0,
-                      cursor: 'pointer',
-                      fontFamily: 'var(--font-sans)',
-                      fontSize: 14,
-                      fontWeight: 500,
-                      color: selected ? 'var(--primary)' : 'var(--fg-2)',
-                    }}
+                    style={{ ...typeOptionStyle, color: selected ? 'var(--primary)' : 'var(--fg-2)' }}
                   >
                     {option === 'CoopGoal'
                       ? t('challenges.type.coopGoal')

@@ -4,6 +4,19 @@ import Link from 'next/link'
 import { Lock } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
+const upgradeLinkStyle = {
+  marginTop: 8,
+  padding: '15px 26px',
+  borderRadius: 999,
+  background: 'var(--primary)',
+  color: 'var(--fg-on-primary)',
+  fontFamily: 'var(--font-sans)',
+  fontSize: 16,
+  fontWeight: 500,
+  textDecoration: 'none',
+  boxShadow: 'var(--primary-glow)',
+}
+
 export function AchievementsLockedState() {
   const t = useTranslations()
 
@@ -39,18 +52,7 @@ export function AchievementsLockedState() {
       <Link
         href="/upgrade"
         className="inline-flex items-center justify-center transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] active:translate-y-0 active:scale-[0.98]"
-        style={{
-          marginTop: 8,
-          padding: '15px 26px',
-          borderRadius: 999,
-          background: 'var(--primary)',
-          color: 'var(--fg-on-primary)',
-          fontFamily: 'var(--font-sans)',
-          fontSize: 16,
-          fontWeight: 500,
-          textDecoration: 'none',
-          boxShadow: 'var(--primary-glow)',
-        }}
+        style={upgradeLinkStyle}
       >
         {t('gamification.page.upgradeButton')}
       </Link>

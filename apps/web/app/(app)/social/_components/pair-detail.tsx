@@ -33,6 +33,17 @@ const rowLabelStyle = {
   color: 'var(--fg-3)',
 } as const
 
+const unpairButtonStyle = {
+  margin: '-12px -16px',
+  marginTop: 16,
+  padding: '12px 16px',
+  fontFamily: 'var(--font-sans)',
+  fontSize: 14,
+  fontWeight: 500,
+  lineHeight: '20px',
+  color: 'var(--status-bad)',
+} as const
+
 /** Overlay detail for one active pair: your habits, buddy count, history, check-in, edit habits, unpair. */
 export function PairDetail({ pairId, onClose }: Readonly<PairDetailProps>) {
   const t = useTranslations()
@@ -262,16 +273,7 @@ export function PairDetail({ pairId, onClose }: Readonly<PairDetailProps>) {
               type="button"
               onClick={() => setConfirmUnpair(true)}
               className="self-start cursor-pointer rounded-full border-0 bg-transparent transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[color-mix(in_srgb,var(--status-bad)_10%,transparent)] active:scale-[0.96]"
-              style={{
-                margin: '-12px -16px',
-                marginTop: 16,
-                padding: '12px 16px',
-                fontFamily: 'var(--font-sans)',
-                fontSize: 14,
-                fontWeight: 500,
-                lineHeight: '20px',
-                color: 'var(--status-bad)',
-              }}
+              style={unpairButtonStyle}
             >
               {t('social.buddies.detail.unpair')}
             </button>

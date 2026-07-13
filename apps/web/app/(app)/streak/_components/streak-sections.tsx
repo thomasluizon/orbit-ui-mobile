@@ -6,6 +6,17 @@ import { StatTile } from '@/components/ui/stat-tile'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { getStreakTierLabelKey } from '@orbit/shared/utils'
 
+const frozenBadgeStyle = {
+  top: 1,
+  zIndex: 2,
+  width: 17,
+  height: 17,
+  borderRadius: '50% 50% 50% 0',
+  transform: 'rotate(45deg)',
+  background: 'var(--status-frozen)',
+  boxShadow: 'var(--shadow-1)',
+}
+
 type StreakDayView = {
   dateStr: string
   dayLabel: string
@@ -89,6 +100,7 @@ export function StreakTimelineCard({
                 className="text-center uppercase"
                 style={{
                   fontFamily: 'var(--font-mono)',
+                  // react-doctor-disable-next-line no-tiny-text -- intentional uppercase mono weekday-header eyebrow (DESIGN.md meta/eyebrow scale), not body text https://github.com/thomasluizon/orbit-ui-mobile/issues/243
                   fontSize: 11,
                   fontWeight: 500,
                   letterSpacing: '0.04em',
@@ -185,16 +197,7 @@ function StreakDayCell({
         <span
           aria-hidden="true"
           className="absolute inline-flex items-center justify-center"
-          style={{
-            top: 1,
-            zIndex: 2,
-            width: 17,
-            height: 17,
-            borderRadius: '50% 50% 50% 0',
-            transform: 'rotate(45deg)',
-            background: 'var(--status-frozen)',
-            boxShadow: 'var(--shadow-1)',
-          }}
+          style={frozenBadgeStyle}
         >
           <Snowflake
             size={10}

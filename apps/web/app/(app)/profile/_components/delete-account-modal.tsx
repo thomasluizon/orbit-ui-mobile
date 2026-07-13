@@ -23,6 +23,7 @@ export function DeleteAccountModal({
   open,
   onOpenChange,
   profile,
+  // react-doctor-disable-next-line prefer-useReducer -- the state pieces are updated in varying independent combinations across handlers (setCode alone, setLoading+setError, full reset), not one coordinated transition https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 }: Readonly<DeleteAccountModalProps>) {
   const t = useTranslations()
   const { displayDate } = useDateFormat()
@@ -115,6 +116,7 @@ export function DeleteAccountModal({
       })
     }
     return t('profile.deleteAccount.warningFree')
+    // react-doctor-disable-next-line exhaustive-deps -- hasProAccess/planExpiresAt are derived from profile every render and already listed; no staleness possible https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [hasProAccess, planExpiresAt, displayDate, t])
 
   const formattedDeletionDate = useMemo(() => {

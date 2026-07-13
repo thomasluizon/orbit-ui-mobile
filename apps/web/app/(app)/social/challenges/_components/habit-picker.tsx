@@ -16,6 +16,7 @@ export function HabitPicker({ selectedIds, onToggle }: Readonly<HabitPickerProps
   const habits = (data?.topLevelHabits ?? []).filter(
     (habit) => !isCompletedOneTimeHabit(habit),
   )
+  const selectedIdSet = new Set(selectedIds)
 
   if (habits.length === 0) {
     return (
@@ -28,7 +29,7 @@ export function HabitPicker({ selectedIds, onToggle }: Readonly<HabitPickerProps
   return (
     <div className="flex flex-wrap" style={{ gap: 8 }}>
       {habits.map((habit) => {
-        const active = selectedIds.includes(habit.id)
+        const active = selectedIdSet.has(habit.id)
         return (
           <button
             key={habit.id}

@@ -366,6 +366,7 @@ function ChatTextInputRow({
           onPaste={handlePaste}
           className={`appearance-none border-0 bg-transparent flex-1 min-w-0 resize-none${singleLine ? ' whitespace-nowrap overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden' : ''}`}
           style={{
+            // react-doctor-disable-next-line no-outline-none -- focus ring is shown on the wrapper via focus-within:outline-2 outline-[var(--primary)] https://github.com/thomasluizon/orbit-ui-mobile/issues/243
             outline: 'none',
             fontFamily: 'var(--font-sans)',
             fontSize: 16,
@@ -442,6 +443,7 @@ function ChatTextInputRow({
 /** The chat input region: send-error banner, image preview, starter chips, the
  *  recording visualizer / textarea + send controls, and the message-limit gate.
  *  Presentational — all state lives in `useChatComposer`. */
+// react-doctor-disable-next-line no-many-boolean-props -- private single-use presentational composer; the flags are independent state inputs from useChatComposer, not a combinatorial API https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function ChatComposerBar({
   textareaRef,
   fileInputRef,
