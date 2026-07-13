@@ -275,4 +275,38 @@ describe('EditHabitModal (mobile)', () => {
 
     expect(mockShowError).toHaveBeenCalledWith('habits.form.aiSuggestLimitReached')
   })
+
+  it('applies a recurring cadence with weekdays from an AI suggestion in edit mode', async () => {
+    mockGetValues.mockImplementation((field?: unknown) => {
+      if (field === 'title') return 'Walk'
+      if (field === 'checklistItems') return []
+      return {}
+    })
+    mockSuggestMutateAsync.mockResolvedValue({
+      emoji: '🚶',
+      frequencyUnit: 'Day',
+      frequencyQuantity: 1,
+      days: ['Monday', 'Wednesday'],
+      isFlexible: false,
+      flexibleTarget: null,
+      dueTime: '08:00',
+      subHabits: [],
+      checklistItems: [],
+    })
+
+    const tree = await renderModal()
+    mockSetValue.mockClear()
+
+    await TestRenderer.act(async () => {
+      await findFormFields(tree).props.onSuggestSetup()
+    })
+
+    expect(mockSetValue).toHaveBeenCalledWith('days', ['Monday', 'Wednesday'], {
+      shouldDirty: true,
+    })
+    expect(mockSetValue).toHaveBeenCalledWith('dueTime', '08:00', {
+      shouldDirty: true,
+    })
+    expect(mockShowSuccess).toHaveBeenCalledWith('habits.form.aiSuggestApplied')
+  })
 })

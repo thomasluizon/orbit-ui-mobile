@@ -428,4 +428,41 @@ describe('EditHabitModal', () => {
       )
     })
   })
+
+  it('applies a recurring cadence with weekdays from an AI suggestion in edit mode', async () => {
+    mockFormGetValues.mockImplementation((field?: string) => {
+      if (field === 'title') return 'Walk'
+      if (field === 'checklistItems') return []
+      return { title: 'Walk', checklistItems: [] }
+    })
+    mockSuggestMutateAsync.mockResolvedValue({
+      emoji: '🚶',
+      frequencyUnit: 'Day',
+      frequencyQuantity: 1,
+      days: ['Monday', 'Wednesday'],
+      isFlexible: false,
+      flexibleTarget: null,
+      dueTime: '08:00',
+      subHabits: [],
+      checklistItems: [],
+    })
+
+    renderWithProviders(
+      <EditHabitModal open={true} onOpenChange={vi.fn()} habit={defaultHabit} />,
+    )
+    mockFormSetValue.mockClear()
+    fireEvent.click(screen.getByTestId('suggest-trigger'))
+
+    await waitFor(() => {
+      expect(mockFormSetValue).toHaveBeenCalledWith(
+        'days',
+        ['Monday', 'Wednesday'],
+        { shouldDirty: true },
+      )
+    })
+    expect(mockFormSetValue).toHaveBeenCalledWith('dueTime', '08:00', {
+      shouldDirty: true,
+    })
+    expect(mockShowSuccess).toHaveBeenCalledWith('habits.form.aiSuggestApplied')
+  })
 })
