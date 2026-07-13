@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useSyncExternalStore } from 'react'
 import { isToday } from 'date-fns'
 import { useTranslations } from 'next-intl'
 import { computeDayProgress, parseShowGeneralOnTodayPreference } from '@orbit/shared/utils'
@@ -13,6 +13,20 @@ import {
   useHabits,
 } from '@/hooks/use-habits'
 import { buildTodayFilters } from './today-model'
+
+const SHOW_GENERAL_STORAGE_KEY = 'orbit_show_general_on_today'
+
+function subscribeToShowGeneral() {
+  return () => {}
+}
+
+function getShowGeneralClientSnapshot() {
+  return parseShowGeneralOnTodayPreference(localStorage.getItem(SHOW_GENERAL_STORAGE_KEY))
+}
+
+function getShowGeneralServerSnapshot() {
+  return false
+}
 
 interface TodayHabitsDataParams {
   currentActiveView: string
@@ -56,10 +70,11 @@ export function useTodayHabitsData({
   const selectedTagIds = useUIStore((s) => s.selectedTagIds)
   const setSelectedTagIds = useUIStore((s) => s.setSelectedTagIds)
 
-  const showGeneralOnToday = useMemo(() => {
-    if (!('localStorage' in globalThis)) return false
-    return parseShowGeneralOnTodayPreference(localStorage.getItem('orbit_show_general_on_today'))
-  }, [])
+  const showGeneralOnToday = useSyncExternalStore(
+    subscribeToShowGeneral,
+    getShowGeneralClientSnapshot,
+    getShowGeneralServerSnapshot,
+  )
 
   const frequencyOptions = useMemo<Array<{ key: HabitFrequencyFilter; label: string }>>(
     () => [
@@ -96,6 +111,7 @@ export function useTodayHabitsData({
 
   const dayProgress = useMemo(
     () => computeDayProgress(habitsById, dateStr),
+    // react-doctor-disable-next-line exhaustive-deps -- habitsById is derived from habitsQuery.data every render and already listed; no staleness possible https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     [habitsById, dateStr],
   )
   const showDayProgress = currentActiveView === 'today' && dayProgress.total > 0

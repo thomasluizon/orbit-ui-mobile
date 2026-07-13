@@ -6,6 +6,17 @@ import { useTranslations } from 'next-intl'
 import { TriangleAlert } from 'lucide-react'
 import { PillButton } from '@/components/ui/pill-button'
 
+const errorTitleStyle = {
+  margin: '18px 0 0',
+  fontFamily: 'var(--font-sans)',
+  fontSize: 22,
+  fontWeight: 500,
+  lineHeight: 1.3,
+  color: 'var(--fg-1)',
+  animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
+  animationDelay: '160ms',
+}
+
 /**
  * Error boundary for auth pages (login, auth-callback).
  */
@@ -36,18 +47,7 @@ export default function AuthError({
       >
         <TriangleAlert size={34} strokeWidth={1.8} className="text-[var(--fg-3)]" />
       </div>
-      <p
-        style={{
-          margin: '18px 0 0',
-          fontFamily: 'var(--font-sans)',
-          fontSize: 22,
-          fontWeight: 500,
-          lineHeight: 1.3,
-          color: 'var(--fg-1)',
-          animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
-          animationDelay: '160ms',
-        }}
-      >
+      <p style={errorTitleStyle}>
         {process.env.NODE_ENV === 'development' && error.message
           ? error.message
           : t('auth.genericError')}

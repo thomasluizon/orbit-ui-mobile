@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { AppBar } from '@/components/ui/app-bar'
@@ -17,6 +17,14 @@ import { CreateChallengeForm } from './_components/create-challenge-form'
 import { JoinByCodeForm } from './_components/join-by-code-form'
 
 export default function ChallengesPage() {
+  return (
+    <Suspense fallback={null}>
+      <ChallengesPageContent />
+    </Suspense>
+  )
+}
+
+function ChallengesPageContent() {
   const t = useTranslations()
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()

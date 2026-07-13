@@ -47,6 +47,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (!isDesktop) return
+    // react-doctor-disable-next-line nextjs-no-client-side-redirect -- responsive redirect gated on useIsDesktop (client matchMedia); not resolvable server-side https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     router.replace('/')
     setAstraOpen(true)
     setAstraMaximized(true)

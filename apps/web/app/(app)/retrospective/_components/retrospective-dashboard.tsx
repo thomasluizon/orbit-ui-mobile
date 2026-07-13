@@ -48,6 +48,7 @@ function renderInlineMarkdown(text: string) {
       const strong = /^\*\*(.+?)\*\*$/.exec(part)
       if (strong) {
         return (
+          // react-doctor-disable-next-line no-array-index-as-key -- static markdown-segment split of a fixed string; segments never reorder or filter https://github.com/thomasluizon/orbit-ui-mobile/issues/243
           <strong key={`${part}-${index}`} style={{ color: 'var(--fg-1)', fontWeight: 500 }}>
             {strong[1]}
           </strong>
@@ -57,17 +58,18 @@ function renderInlineMarkdown(text: string) {
     })
 }
 
+const WEEKDAY_KEYS = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+] as const
+
 function WeeklyConsistency({ values }: Readonly<{ values: number[] }>) {
   const t = useTranslations()
-  const dayKeys = [
-    'monday',
-    'tuesday',
-    'wednesday',
-    'thursday',
-    'friday',
-    'saturday',
-    'sunday',
-  ] as const
 
   return (
     <div style={cardStyle}>
@@ -84,11 +86,11 @@ function WeeklyConsistency({ values }: Readonly<{ values: number[] }>) {
       >
         {values.map((value, index) => {
           const clamped = Math.max(0, Math.min(100, value))
-          const dayName = t(`dates.daysShort.${dayKeys[index]}`)
+          const dayName = t(`dates.daysShort.${WEEKDAY_KEYS[index]}`)
           const label = t('retrospective.weeklyBarLabel', { day: dayName, percent: clamped })
           return (
             <div
-              key={dayKeys[index]}
+              key={WEEKDAY_KEYS[index]}
               role="img"
               aria-label={label}
               title={label}
@@ -117,6 +119,7 @@ function WeeklyConsistency({ values }: Readonly<{ values: number[] }>) {
               <span
                 style={{
                   fontFamily: 'var(--font-mono)',
+                  // react-doctor-disable-next-line no-tiny-text -- intentional mono weekday-initial meta label (DESIGN.md meta scale), not body text https://github.com/thomasluizon/orbit-ui-mobile/issues/243
                   fontSize: 11,
                   color: 'var(--fg-3)',
                   fontVariantNumeric: 'tabular-nums',
@@ -246,6 +249,7 @@ export function RetrospectiveDashboard({
             className="inline-flex items-center uppercase"
             style={{
               fontFamily: 'var(--font-mono)',
+              // react-doctor-disable-next-line no-tiny-text -- intentional uppercase mono eyebrow at the DESIGN.md Badge size (10.5), not body text https://github.com/thomasluizon/orbit-ui-mobile/issues/243
               fontSize: 10.5,
               fontWeight: 500,
               color: 'var(--fg-3)',

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, Suspense, type CSSProperties } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
 import { TriangleAlert } from 'lucide-react'
@@ -14,6 +14,17 @@ import { useAuthStore } from '@/stores/auth-store'
 import { getSupabaseClient } from '@/lib/supabase'
 import { hydrateProfilePresentation } from '@/lib/profile-presentation'
 import type { LoginResponse } from '@orbit/shared/types/auth'
+
+const errorTitleStyle: CSSProperties = {
+  margin: 0,
+  fontFamily: 'var(--font-sans)',
+  fontSize: 22,
+  fontWeight: 500,
+  lineHeight: 1.3,
+  color: 'var(--fg-1)',
+  animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
+  animationDelay: '160ms',
+}
 
 function getCookieValue(name: string): string | undefined {
   if (typeof document === 'undefined') return undefined
@@ -93,6 +104,14 @@ function resolveAuthCallbackError(
 }
 
 export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={null}>
+      <AuthCallbackContent />
+    </Suspense>
+  )
+}
+
+function AuthCallbackContent() {
   const t = useTranslations()
   const locale = useLocale()
   const router = useRouter()
@@ -103,6 +122,7 @@ export default function AuthCallbackPage() {
   const isAuthenticatedRef = useRef(false)
   const errorMessageRef = useRef<string | null>(null)
 
+  // react-doctor-disable-next-line no-fetch-in-effect -- one-time OAuth token exchange fired by Supabase's client SIGNED_IN event (guarded by processedRef); cannot move to a Server Component or data layer https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   useEffect(() => {
     if (processedRef.current) return
     processedRef.current = true
@@ -215,19 +235,7 @@ export default function AuthCallbackPage() {
             >
               <TriangleAlert size={34} strokeWidth={1.8} className="text-[var(--fg-3)]" />
             </div>
-            <p
-              className="text-center"
-              style={{
-                margin: 0,
-                fontFamily: 'var(--font-sans)',
-                fontSize: 22,
-                fontWeight: 500,
-                lineHeight: 1.3,
-                color: 'var(--fg-1)',
-                animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
-                animationDelay: '160ms',
-              }}
-            >
+            <p className="text-center" style={errorTitleStyle}>
               {errorState.message}
             </p>
             <div

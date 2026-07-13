@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useEffectEvent } from 'react'
 import { ChevronLeft, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { Recap } from '@orbit/shared/types/gamification'
@@ -33,28 +33,33 @@ export function WrappedPlayer({
     closeRef.current?.focus()
   }, [])
 
+  const onNavigationKey = useEffectEvent((event: KeyboardEvent) => {
+    if (event.key === 'ArrowRight') next()
+    else if (event.key === 'ArrowLeft') prev()
+    else if (event.key === 'Escape') onClose()
+  })
+
   useEffect(() => {
     function handleKey(event: KeyboardEvent) {
-      if (event.key === 'ArrowRight') next()
-      else if (event.key === 'ArrowLeft') prev()
-      else if (event.key === 'Escape') onClose()
+      onNavigationKey(event)
     }
     globalThis.addEventListener('keydown', handleKey)
     return () => globalThis.removeEventListener('keydown', handleKey)
-  }, [next, prev, onClose])
+  }, [])
 
   if (!current) return null
 
   return (
+    // react-doctor-disable-next-line prefer-html-dialog -- full-screen immersive Wrapped story player (not a dialog box), with custom Esc/arrow-key and focus handling; native <dialog> top-layer/backdrop semantics do not fit a full-screen takeover https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={t('wrapped.title')}
       className="fixed inset-0 z-50 flex flex-col overflow-y-auto"
       style={{
         background:
           'radial-gradient(135% 100% at 50% 0%, rgba(var(--primary-rgb), 0.32) 0%, rgba(var(--primary-rgb), 0.1) 40%, transparent 72%), var(--bg)',
       }}
-      role="dialog"
-      aria-modal="true"
-      aria-label={t('wrapped.title')}
     >
       <div className="mx-auto flex w-full flex-1 flex-col md:max-w-[480px]">
         <div className="flex items-center" style={{ gap: 6, padding: '12px 16px 4px' }}>

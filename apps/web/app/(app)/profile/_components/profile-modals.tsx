@@ -18,6 +18,7 @@ interface ProfileModalsProps {
   onTourReplayChange: (open: boolean) => void
 }
 
+// react-doctor-disable-next-line no-many-boolean-props -- private single-use modal aggregator; each flag independently gates one modal's visibility, not a combinatorial API https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function ProfileModals({
   profile,
   showEditName,

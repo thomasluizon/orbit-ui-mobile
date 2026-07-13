@@ -3,6 +3,7 @@
 import { useMemo } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { Loader2, Users } from 'lucide-react'
+// react-doctor-disable-next-line use-lazy-motion -- LazyMotion migration is app-wide (needs a shared provider + converting every motion.* incl. components/**); a partial per-file swap yields no bundle benefit and risks unprovided m https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { motion, useReducedMotion } from 'motion/react'
 import type { FriendProfileView as FriendProfileViewData } from '@orbit/shared/types/social'
 import { motionLayerTiming, resolveMotionPreset } from '@orbit/shared/theme'
@@ -246,6 +247,7 @@ function ActivityStrip({ counts, locale }: Readonly<{ counts: readonly number[];
     return Array.from({ length: counts.length }, (_, index) => {
       const date = new Date(base)
       date.setDate(base.getDate() - (counts.length - 1 - index))
+      // react-doctor-disable-next-line no-locale-format-in-render -- ActivityStrip only renders inside the client-opened friend drawer (data-gated on useFriendProfile), so there is no SSR pass to diverge; weekday-narrow uses the user's locale+tz intentionally https://github.com/thomasluizon/orbit-ui-mobile/issues/243
       return { key: date.toISOString().slice(0, 10), label: formatter.format(date) }
     })
   }, [counts.length, locale])
@@ -263,6 +265,7 @@ function ActivityStrip({ counts, locale }: Readonly<{ counts: readonly number[];
               background: counts[index]! > 0 ? 'rgba(var(--primary-rgb), 0.9)' : 'var(--status-empty)',
             }}
           />
+          {/* react-doctor-disable-next-line no-tiny-text -- intentional mono-style weekday-initial meta label in the activity strip, not body text https://github.com/thomasluizon/orbit-ui-mobile/issues/243 */}
           <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11, color: 'var(--fg-4)' }}>{day.label}</span>
         </div>
       ))}

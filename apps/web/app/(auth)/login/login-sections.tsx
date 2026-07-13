@@ -2,12 +2,21 @@
 
 import type { ReactNode } from 'react'
 import type { useTranslations } from 'next-intl'
+// react-doctor-disable-next-line use-lazy-motion -- LazyMotion migration is app-wide (needs a shared provider + converting every motion.* incl. components/**); a partial per-file swap yields no bundle benefit and risks unprovided m https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { AnimatePresence, motion } from 'motion/react'
 import type { ResolvedMotionPreset } from '@orbit/shared/theme'
 import { AppLogo } from '@/components/ui/app-logo'
 
 type LoginStep = 'email' | 'code'
 type Translate = ReturnType<typeof useTranslations>
+
+const subtitleStyle = {
+  fontFamily: 'var(--font-sans)',
+  fontSize: 15,
+  lineHeight: 1.55,
+  color: 'var(--fg-2)',
+  margin: 0,
+} as const
 
 export function LoginHeader({
   step,
@@ -29,13 +38,6 @@ export function LoginHeader({
   } else {
     title = t('auth.enterCode')
   }
-  const subtitleStyle = {
-    fontFamily: 'var(--font-sans)',
-    fontSize: 15,
-    lineHeight: 1.55,
-    color: 'var(--fg-2)',
-    margin: 0,
-  } as const
 
   return (
     <>
@@ -117,6 +119,7 @@ export function ReferralBanner({
       <span
         style={{
           fontFamily: 'var(--font-mono)',
+          // react-doctor-disable-next-line no-tiny-text -- intentional uppercase mono eyebrow inside the referral status banner (DESIGN.md eyebrow scale), not body text https://github.com/thomasluizon/orbit-ui-mobile/issues/243
           fontSize: 11,
           fontWeight: 500,
           color: 'var(--fg-1)',

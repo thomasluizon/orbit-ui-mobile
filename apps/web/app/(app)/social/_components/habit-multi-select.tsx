@@ -14,6 +14,19 @@ import {
 const MAX_HABITS = 10
 const RESULT_LIMIT = 60
 
+const selectedPillStyle = {
+  gap: 6,
+  padding: '6px 10px 6px 12px',
+  borderRadius: 999,
+  border: 0,
+  maxWidth: '100%',
+  background: 'rgba(var(--primary-rgb), 0.12)',
+  color: 'var(--primary)',
+  fontFamily: 'var(--font-sans)',
+  fontSize: 13,
+  fontWeight: 500,
+}
+
 interface HabitMultiSelectProps {
   selectedIds: string[]
   onChange: (ids: string[]) => void
@@ -42,6 +55,7 @@ export function HabitMultiSelect({ selectedIds, onChange }: Readonly<HabitMultiS
   const shown = filtered.slice(0, RESULT_LIMIT)
   const hiddenCount = filtered.length - shown.length
   const atMax = selectedIds.length >= MAX_HABITS
+  const selectedIdSet = new Set(selectedIds)
 
   function toggle(id: string) {
     if (selectedIds.includes(id)) {
@@ -91,18 +105,7 @@ export function HabitMultiSelect({ selectedIds, onChange }: Readonly<HabitMultiS
                 onClick={() => toggle(id)}
                 aria-label={t('social.buddies.removeHabit', { title: option.title })}
                 className="touch-target-y flex items-center cursor-pointer transition-transform active:scale-[0.96]"
-                style={{
-                  gap: 6,
-                  padding: '6px 10px 6px 12px',
-                  borderRadius: 999,
-                  border: 0,
-                  maxWidth: '100%',
-                  background: 'rgba(var(--primary-rgb), 0.12)',
-                  color: 'var(--primary)',
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 13,
-                  fontWeight: 500,
-                }}
+                style={selectedPillStyle}
               >
                 <span className="truncate">{option.title}</span>
                 <X size={13} strokeWidth={2.2} />
@@ -152,7 +155,7 @@ export function HabitMultiSelect({ selectedIds, onChange }: Readonly<HabitMultiS
       ) : (
         <div className="flex flex-col" style={{ gap: 6, maxHeight: 320, overflowY: 'auto' }}>
           {shown.map((option) => {
-            const active = selectedIds.includes(option.id)
+            const active = selectedIdSet.has(option.id)
             const disabled = !active && atMax
             return (
               <button
