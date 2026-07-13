@@ -1342,6 +1342,79 @@ describe('HabitFormFields', () => {
   })
 
 
+  it('surfaces both reminder sections for a due-timed habit that also holds scheduled reminders (#447 Bug 3)', () => {
+    const formHelpers = createMockFormHelpers({ isGeneral: false })
+    formHelpers.form.watch = vi.fn((field: string) => {
+      const defaults: Record<string, unknown> = {
+        frequencyUnit: 'Day',
+        frequencyQuantity: 1,
+        days: [],
+        dueDate: '2025-01-01',
+        dueTime: '09:00',
+        dueEndTime: '',
+        endDate: '',
+        isBadHabit: false,
+        reminderEnabled: true,
+        slipAlertEnabled: false,
+        checklistItems: [],
+        scheduledReminders: [{ when: 'same_day', time: '08:00' }],
+      }
+      return defaults[field] ?? ''
+    }) as unknown as typeof formHelpers.form.watch
+    const tags = createMockTags()
+    renderWithProviders(
+      <HabitFormFields
+        formHelpers={formHelpers}
+        tags={tags}
+        selectedGoalIds={[]}
+        atGoalLimit={false}
+        onToggleGoal={vi.fn()}
+        reminderTimes={[15]}
+        onReminderTimesChange={vi.fn()}
+        hasScheduledReminders
+      />,
+    )
+    expect(screen.getByText('habits.form.reminder')).toBeDefined()
+    expect(screen.getByText('habits.form.scheduledReminder')).toBeDefined()
+    expect(screen.getByText(/scheduledReminderSameDayAt/)).toBeDefined()
+    expect(screen.getAllByRole('switch')).toHaveLength(1)
+  })
+
+  it('hides the scheduled reminder section for a plain due-timed habit', () => {
+    const formHelpers = createMockFormHelpers({ isGeneral: false })
+    formHelpers.form.watch = vi.fn((field: string) => {
+      const defaults: Record<string, unknown> = {
+        frequencyUnit: 'Day',
+        frequencyQuantity: 1,
+        days: [],
+        dueDate: '2025-01-01',
+        dueTime: '09:00',
+        dueEndTime: '',
+        endDate: '',
+        isBadHabit: false,
+        reminderEnabled: true,
+        slipAlertEnabled: false,
+        checklistItems: [],
+        scheduledReminders: [],
+      }
+      return defaults[field] ?? ''
+    }) as unknown as typeof formHelpers.form.watch
+    const tags = createMockTags()
+    renderWithProviders(
+      <HabitFormFields
+        formHelpers={formHelpers}
+        tags={tags}
+        selectedGoalIds={[]}
+        atGoalLimit={false}
+        onToggleGoal={vi.fn()}
+        reminderTimes={[15]}
+        onReminderTimesChange={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('habits.form.reminder')).toBeDefined()
+    expect(screen.queryByText('habits.form.scheduledReminder')).toBeNull()
+  })
+
   it('sets isBadHabit from the habit type segmented toggle', () => {
     const setValue = vi.fn()
     const formHelpers = createMockFormHelpers({ isGeneral: false })
