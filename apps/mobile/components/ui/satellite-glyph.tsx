@@ -27,8 +27,7 @@ export function SatelliteGlyph({ size = 96 }: Readonly<SatelliteGlyphProps>) {
         width={22}
         height={13}
         rx={2.5}
-        rotation={45}
-        origin="63, 58"
+        transform="rotate(45, 63, 58)"
         stroke={tokens.fg4}
         strokeWidth={2.5}
       />

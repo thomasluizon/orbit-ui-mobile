@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Dimensions } from 'react-native'
 import { Gesture } from 'react-native-gesture-handler'
-import { runOnJS } from 'react-native-reanimated'
+import { scheduleOnRN } from 'react-native-worklets'
 
 interface UseHorizontalSwipeOptions {
   onSwipeLeft: () => void
@@ -46,9 +46,9 @@ export function useHorizontalSwipe({
           if (Math.abs(vx) < minVelocity) return
 
           if (dx <= -minDistance) {
-            runOnJS(onSwipeLeft)()
+            scheduleOnRN(onSwipeLeft)
           } else if (dx >= minDistance) {
-            runOnJS(onSwipeRight)()
+            scheduleOnRN(onSwipeRight)
           }
         }),
     [edgeExclusion, minDistance, minVelocity, onSwipeLeft, onSwipeRight, screenWidth],

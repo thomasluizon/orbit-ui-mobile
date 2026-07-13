@@ -27,10 +27,10 @@ const createChallengeFormSchema = z
     if (value.type !== 'CoopGoal') return
     const target = Number(value.targetCount)
     if (!value.targetCount || !Number.isInteger(target) || target <= 0) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['targetCount'], message: 'required' })
+      ctx.addIssue({ code: 'custom', path: ['targetCount'], message: 'required' })
     }
     if (!value.periodEndUtc) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['periodEndUtc'], message: 'required' })
+      ctx.addIssue({ code: 'custom', path: ['periodEndUtc'], message: 'required' })
     }
   })
 

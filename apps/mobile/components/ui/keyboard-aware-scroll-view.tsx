@@ -20,7 +20,6 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  UIManager,
   findNodeHandle,
   type FlatListProps,
   type KeyboardAvoidingViewProps,
@@ -78,6 +77,12 @@ type KeyboardAwareScrollable = {
 
 type KeyboardAwareInputTarget = Parameters<typeof findNodeHandle>[0]
 
+type MeasurableInWindow = {
+  measureInWindow: (
+    callback: (x: number, y: number, width: number, height: number) => void,
+  ) => void
+}
+
 interface KeyboardAwareKeyboardFrame {
   top: number
 }
@@ -114,7 +119,16 @@ function scrollFocusedInputIntoView(
     return
   }
 
-  UIManager.measureInWindow(nodeHandle, (_x, y, _width, height) => {
+  const measurableInput =
+    typeof input !== 'number' && 'measureInWindow' in input
+      ? (input as MeasurableInWindow)
+      : null
+
+  if (!measurableInput) {
+    return
+  }
+
+  measurableInput.measureInWindow((_x, y, _width, height) => {
     const desiredBottom = keyboardFrame.top - additionalOffset
     const inputBottom = y + height
 

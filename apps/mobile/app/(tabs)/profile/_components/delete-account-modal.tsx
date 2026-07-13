@@ -1,12 +1,11 @@
-import { useRef, useState, type MutableRefObject } from 'react'
+import { useRef, useState, type RefObject } from 'react'
 import {
   View,
   Text,
   Pressable,
   StyleSheet,
   type TextInput,
-  type NativeSyntheticEvent,
-  type TextInputKeyPressEventData,
+  type TextInputKeyPressEvent,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { parseISO } from 'date-fns'
@@ -155,14 +154,11 @@ function DeleteConfirmStep({
 
 interface DeleteCodeStepProps {
   deleteCodeDigits: string[]
-  deleteCodeRefs: MutableRefObject<(TextInput | null)[]>
+  deleteCodeRefs: RefObject<(TextInput | null)[]>
   deleteError: string
   deleteLoading: boolean
   onChangeDigit: (index: number, value: string) => void
-  onKeyPressDigit: (
-    index: number,
-    event: NativeSyntheticEvent<TextInputKeyPressEventData>,
-  ) => void
+  onKeyPressDigit: (index: number, event: TextInputKeyPressEvent) => void
   onConfirm: () => void
   onBack: () => void
 }

@@ -56,7 +56,7 @@ export default function AuthCallbackScreen() {
     access_token?: string
     refresh_token?: string
   }>()
-  const rawUrl = Linking.useURL()
+  const rawUrl = Linking.useLinkingURL()
   const router = useRouter()
   const login = useAuthStore((s) => s.login)
   const {

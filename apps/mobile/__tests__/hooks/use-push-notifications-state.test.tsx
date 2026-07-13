@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   },
   constants: {
     appOwnership: 'standalone',
+    expoGoConfig: null,
     expoConfig: {},
     easConfig: {},
   },

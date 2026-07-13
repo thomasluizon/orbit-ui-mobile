@@ -21,7 +21,7 @@ const mocks = vi.hoisted(() => {
     rewardeds: [] as MockAd[],
   }
   const constants = {
-    appOwnership: 'standalone',
+    expoGoConfig: null as Record<string, unknown> | null,
     expoConfig: {
       extra: {},
     },
@@ -169,7 +169,7 @@ describe('mobile useAdMob', () => {
       isTrialActive: false,
       adRewardsClaimedToday: 0,
     })
-    mocks.constants.appOwnership = 'standalone'
+    mocks.constants.expoGoConfig = null
     mocks.constants.expoConfig.extra = {}
     mocks.state.interstitials = []
     mocks.state.rewardeds = []

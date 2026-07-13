@@ -41,7 +41,7 @@ const quickActionSchema = z.object({
 
 export const clarificationRequestSchema = z.object({
   question: z.string(),
-  operationId: z.string().uuid(),
+  operationId: z.uuid(),
   missingArgumentKey: z.string(),
   quickActions: z.array(quickActionSchema),
 })
@@ -107,7 +107,7 @@ export const actionResultSchema = z
   .superRefine((value, ctx) => {
     if (value.status === 'NeedsClarification' && !value.clarificationRequest) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         path: ['clarificationRequest'],
         message: 'clarificationRequest is required when status is NeedsClarification',
       })

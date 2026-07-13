@@ -52,7 +52,7 @@ export const ChatComposerInput = memo(function ChatComposerInput({
           maxLength={2000}
           editable={isOnline && !limitLocked}
           returnKeyType="default"
-          blurOnSubmit={false}
+          submitBehavior="newline"
           onSubmitEditing={onSubmit}
           onFocus={() => setFieldFocused(true)}
           onBlur={() => setFieldFocused(false)}
