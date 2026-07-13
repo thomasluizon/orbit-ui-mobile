@@ -114,6 +114,7 @@ describe('ChatComposerBar', () => {
   it('renders the image preview and removes it on click', () => {
     const props = { ...baseProps(), imagePreview: 'blob:preview' }
     render(<ChatComposerBar {...props} />)
+    expect(document.querySelector('img')).toHaveAttribute('loading', 'lazy')
     fireEvent.click(screen.getByLabelText('chat.removeImage'))
     expect(props.removeImage).toHaveBeenCalled()
   })

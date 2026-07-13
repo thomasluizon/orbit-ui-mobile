@@ -146,6 +146,7 @@ export function MessageBubble({
             <LocalImage
               src={message.imageUrl}
               alt={t('chat.attachmentPreview')}
+              loading="lazy"
               className="rounded-[12px] w-[200px] h-48 object-cover mb-2"
               style={{ border: '1px solid var(--hairline)' }}
             />

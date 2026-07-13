@@ -112,6 +112,7 @@ describe('MessageBubble', () => {
     const img = document.querySelector('img')
     expect(img).toBeInTheDocument()
     expect(img).toHaveAttribute('src', 'https://example.com/img.png')
+    expect(img).toHaveAttribute('loading', 'lazy')
   })
 
   it('does not render image when imageUrl is null', () => {

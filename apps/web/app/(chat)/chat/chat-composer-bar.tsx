@@ -137,6 +137,7 @@ function ChatComposerNotices({
             <LocalImage
               src={imagePreview}
               alt=""
+              loading="lazy"
               style={{
                 height: 64,
                 borderRadius: 12,
