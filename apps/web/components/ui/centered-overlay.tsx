@@ -3,6 +3,7 @@
 import { type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
+// react-doctor-disable-next-line use-lazy-motion -- LazyMotion migration is app-wide (needs a shared provider + converting every motion.* across components/**); a partial per-file swap yields no bundle benefit and risks unprovided m https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { resolveMotionPreset } from '@orbit/shared/theme'
 import { useIsClient } from '@/hooks/use-is-client'
@@ -104,6 +105,7 @@ export function CenteredOverlay({
         </div>
       ) : null}
     </AnimatePresence>,
+    // react-doctor-disable-next-line no-unguarded-browser-global-in-render-or-hook-init -- unreachable during SSR: the `if (!mounted) return null` above (useIsClient) returns before this createPortal on the server and first hydration render https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     document.body,
   )
 }

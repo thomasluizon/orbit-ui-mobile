@@ -11,6 +11,18 @@ import { FieldInput } from '@/components/ui/field-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { Switch } from '@/components/ui/settings-row'
 
+const CREATED_KEY_STYLE = {
+  padding: '14px 16px',
+  paddingRight: 76,
+  boxShadow: 'inset 0 0 0 1px var(--hairline)',
+  fontFamily: 'var(--font-mono)',
+  fontSize: 13,
+  color: 'var(--fg-1)',
+  lineHeight: 1.6,
+  wordBreak: 'break-all',
+  fontVariantNumeric: 'tabular-nums',
+} as const
+
 interface CreateApiKeyModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -209,6 +221,7 @@ function CreateStep(props: Readonly<CreateStepProps>) {
     onSubmit,
     onCancel,
   } = props
+  const selectedScopeSet = new Set(selectedScopes)
 
   return (
     <form className="flex flex-col" style={{ gap: 18, paddingBottom: 8 }} onSubmit={onSubmit}>
@@ -248,7 +261,7 @@ function CreateStep(props: Readonly<CreateStepProps>) {
           {availableScopes.map((scope) => (
             <Chip
               key={scope.scope}
-              active={selectedScopes.includes(scope.scope)}
+              active={selectedScopeSet.has(scope.scope)}
               onClick={() => onToggleScope(scope.scope)}
             >
               {scope.scope}
@@ -390,17 +403,7 @@ function RevealStep({ createdKey, copied, onCopy, onDone }: Readonly<RevealStepP
       </p>
       <div
         className="relative rounded-[14px] bg-[var(--bg-field)]"
-        style={{
-          padding: '14px 16px',
-          paddingRight: 76,
-          boxShadow: 'inset 0 0 0 1px var(--hairline)',
-          fontFamily: 'var(--font-mono)',
-          fontSize: 13,
-          color: 'var(--fg-1)',
-          lineHeight: 1.6,
-          wordBreak: 'break-all',
-          fontVariantNumeric: 'tabular-nums',
-        }}
+        style={CREATED_KEY_STYLE}
       >
         <button
           type="button"

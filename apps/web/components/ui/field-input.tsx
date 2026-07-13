@@ -2,6 +2,18 @@
 
 import { useId, type ChangeEvent, type InputHTMLAttributes, type ReactNode } from 'react'
 
+const INPUT_STYLE_BASE = {
+  flex: 1,
+  minWidth: 0,
+  appearance: 'none',
+  border: 0,
+  background: 'transparent',
+  // react-doctor-disable-next-line no-outline-none -- the field well renders the focus ring via `focus-within:shadow-[inset_0_0_0_2px_var(--primary)]` (wellRingClass), so keyboard focus stays clearly visible without the input's own outline https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+  outline: 'none',
+  fontSize: 16,
+  color: 'var(--fg-1)',
+} as const
+
 /** Kit Field: optional Rubik 14/500 label above a 54px filled well (radius 14,
  *  inset hairline ring, primary ring on focus, status-bad ring + caption when
  *  `error` is set, dimmed well when disabled) with an optional trailing node. */
@@ -91,15 +103,8 @@ export function FieldInput({
           autoFocus={autoFocus}
           className="placeholder:text-[var(--fg-3)]"
           style={{
-            flex: 1,
-            minWidth: 0,
-            appearance: 'none',
-            border: 0,
-            background: 'transparent',
-            outline: 'none',
+            ...INPUT_STYLE_BASE,
             fontFamily: mono ? 'var(--font-mono)' : 'var(--font-sans)',
-            fontSize: 16,
-            color: 'var(--fg-1)',
             fontVariantNumeric: mono ? 'tabular-nums' : 'normal',
           }}
         />

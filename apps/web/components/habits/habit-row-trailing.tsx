@@ -49,6 +49,7 @@ interface HabitRowTrailingProps {
 }
 
 /** Trailing cluster of a habit row: linked-goal dot, parent-ring or status dot, and the overflow menu. */
+// react-doctor-disable-next-line no-many-boolean-props -- these are derived per-row display flags computed once by HabitRow and passed straight through; they are not independent configuration axes and splitting the cluster adds indirection without benefit https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function HabitRowTrailing({
   habit,
   selectMode,

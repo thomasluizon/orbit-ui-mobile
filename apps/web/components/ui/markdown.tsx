@@ -48,6 +48,7 @@ export function Markdown({ content, className }: Readonly<MarkdownProps>) {
   return (
     <div
       className={className ? `prose-orbit ${className}` : 'prose-orbit'}
+      // react-doctor-disable-next-line dangerous-html-sink -- html is marked.parse() then DOMPurify.sanitize()'d with a fixed tag/attr allowlist (no scripts, no event handlers, links only); this is the app's single sanitized markdown sink https://github.com/thomasluizon/orbit-ui-mobile/issues/243
       dangerouslySetInnerHTML={{ __html: html }}
     />
   )

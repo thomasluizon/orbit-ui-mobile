@@ -51,7 +51,7 @@ function shouldShowScheduledReminders(
   return !isGeneral && (!dueTime || hasScheduledReminders)
 }
 
-export function resolveReminderLabel(
+function resolveReminderLabel(
   minutes: number,
   t: ReturnType<typeof useTranslations>,
 ): string {
@@ -93,6 +93,7 @@ interface HabitFormFieldsProps {
   children?: ReactNode
 }
 
+// react-doctor-disable-next-line no-giant-component -- the full habit form (title, emoji, color, frequency cards, days, dates, tags, goals, reminders, checklist, slip-alerts) rendered as one cohesive surface; extraction deferred to avoid regression without visual QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function HabitFormFields({
   formHelpers,
   titleInputRef,
@@ -220,6 +221,9 @@ export function HabitFormFields({
       showError(getFriendlyErrorMessage(error, translate, 'habits.form.suggestTagsError', 'generic'))
     }
   }
+
+  const watchedDaySet = new Set(watchedDays)
+  const selectedTagIdSet = new Set(tags.selectedTagIds)
 
   return (
     <div className="space-y-7">
@@ -351,7 +355,7 @@ export function HabitFormFields({
             options={daysList.map((day) => ({
               key: day.value,
               label: day.label,
-              active: watchedDays.includes(day.value),
+              active: watchedDaySet.has(day.value),
               onClick: () => toggleDay(day.value),
             }))}
           />
@@ -399,8 +403,8 @@ export function HabitFormFields({
             <HabitTagChip
               key={tag.id}
               tag={tag}
-              selected={tags.selectedTagIds.includes(tag.id)}
-              atLimit={!tags.selectedTagIds.includes(tag.id) && tags.atTagLimit}
+              selected={selectedTagIdSet.has(tag.id)}
+              atLimit={!selectedTagIdSet.has(tag.id) && tags.atTagLimit}
               animationClassName={justToggledTagId === tag.id ? 'animate-tag-pop' : ''}
               disabled={isTagMutationPending}
               onToggle={() => handleTagToggle(tag.id)}

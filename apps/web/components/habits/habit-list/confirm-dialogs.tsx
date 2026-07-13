@@ -34,6 +34,7 @@ interface HabitListConfirmDialogsProps {
 /** The cluster of habit-list confirmation dialogs (delete / duplicate / skip /
  *  force-log / auto-log-parent). Driven entirely by open-flag props and handlers
  *  owned by the parent HabitList. */
+// react-doctor-disable-next-line no-many-boolean-props -- confirmation-dialog cluster driven by independent open-flags owned by the parent HabitList; each boolean is a distinct dialog's visibility, not a configuration explosion of one component https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function HabitListConfirmDialogs({
   t,
   showDeleteConfirm,

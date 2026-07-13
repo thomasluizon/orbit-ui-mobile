@@ -48,11 +48,13 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
         key,
         label: t(`dates.daysShort.${key}`).charAt(0),
       })),
+    // react-doctor-disable-next-line exhaustive-deps -- weekStartsOn is derived from profile.weekStartDay every render and already listed; no staleness possible https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     [t, weekStartsOn],
   )
 
   const calendarDays = useMemo(
     () => buildHabitCalendarDayCells(currentMonth, weekStartsOn, logDates),
+    // react-doctor-disable-next-line exhaustive-deps -- weekStartsOn is derived from profile.weekStartDay every render and already listed; no staleness possible https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     [currentMonth, logDates, weekStartsOn],
   )
 
@@ -136,6 +138,7 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
             className="text-center uppercase py-1"
             style={{
               fontFamily: 'var(--font-mono)',
+              // react-doctor-disable-next-line no-tiny-text -- intentional single-letter weekday header caption (mono meta scale per DESIGN.md), not body text https://github.com/thomasluizon/orbit-ui-mobile/issues/243
               fontSize: 11,
               fontWeight: 500,
               letterSpacing: '0.04em',

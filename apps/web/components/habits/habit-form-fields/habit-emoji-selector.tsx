@@ -93,6 +93,7 @@ export function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEm
 
         <div className="space-y-3 p-4">
           <input
+            // react-doctor-disable-next-line no-autofocus -- emoji search field inside a user-invoked picker overlay; the user explicitly opened the picker to search, so focusing the search box on open is the intended interaction https://github.com/thomasluizon/orbit-ui-mobile/issues/243
             autoFocus
             value={query}
             onChange={(event) => setQuery(event.target.value)}

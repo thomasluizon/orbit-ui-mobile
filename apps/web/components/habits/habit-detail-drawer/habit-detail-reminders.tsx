@@ -30,6 +30,7 @@ export function HabitDetailReminders({
       )}
       {habit.scheduledReminders.map((sr, idx) => (
         <SettingsRow
+          // react-doctor-disable-next-line no-array-index-as-key -- read-only display of the habit's fixed-order scheduled reminders (no reorder/filter); ScheduledReminderTime has no id, so the index disambiguates the composite when/time key https://github.com/thomasluizon/orbit-ui-mobile/issues/243
           key={`${sr.when}-${sr.time}-${idx}`}
           label={
             sr.when === 'day_before'

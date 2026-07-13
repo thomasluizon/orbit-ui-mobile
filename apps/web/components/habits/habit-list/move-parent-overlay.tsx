@@ -148,6 +148,7 @@ function MoveTargetRow({
             className="shrink-0 uppercase"
             style={{
               fontFamily: 'var(--font-sans)',
+              // react-doctor-disable-next-line no-tiny-text -- intentional uppercase "current parent" tag pill (badge meta scale per DESIGN.md), not body text https://github.com/thomasluizon/orbit-ui-mobile/issues/243
               fontSize: 10.5,
               fontWeight: 600,
               letterSpacing: '0.06em',
@@ -165,6 +166,7 @@ function MoveTargetRow({
             margin: '5px 0 0',
             paddingLeft: option.depth * 20,
             fontFamily: 'var(--font-sans)',
+            // react-doctor-disable-next-line no-tiny-text -- intentional secondary suggestion-reason caption (meta scale per DESIGN.md), de-emphasized below the option label https://github.com/thomasluizon/orbit-ui-mobile/issues/243
             fontSize: 11,
             lineHeight: 1.4,
             color: 'var(--fg-3)',

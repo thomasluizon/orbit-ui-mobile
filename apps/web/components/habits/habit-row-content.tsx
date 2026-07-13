@@ -110,6 +110,17 @@ export function HabitRowContent({
   )
 }
 
+const TITLE_TEXT_STYLE_BASE = {
+  fontFamily: 'var(--font-sans)',
+  fontWeight: 500,
+  textDecorationStyle: 'solid',
+  textDecorationColor: 'var(--fg-4)',
+  textDecorationThickness: 1,
+  lineHeight: 1.25,
+  letterSpacing: '-0.005em',
+  overflowWrap: 'anywhere',
+} as const
+
 interface TitleTextProps {
   title: string
   size: number
@@ -122,17 +133,10 @@ export function TitleText({ title, size, color, strikethrough }: Readonly<TitleT
     <span
       className="flex-shrink min-w-0 overflow-hidden line-clamp-2"
       style={{
-        fontFamily: 'var(--font-sans)',
+        ...TITLE_TEXT_STYLE_BASE,
         fontSize: size,
-        fontWeight: 500,
         color,
         textDecorationLine: strikethrough ? 'line-through' : 'none',
-        textDecorationStyle: 'solid',
-        textDecorationColor: 'var(--fg-4)',
-        textDecorationThickness: 1,
-        lineHeight: 1.25,
-        letterSpacing: '-0.005em',
-        overflowWrap: 'anywhere',
       }}
     >
       {title}

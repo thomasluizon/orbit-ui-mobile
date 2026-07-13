@@ -32,6 +32,7 @@ export function TrialExpiredModal() {
     pathname !== '/upgrade' &&
     !dismissed &&
     trialExpired &&
+    // react-doctor-disable-next-line no-unguarded-browser-global-in-render-or-hook-init -- guarded by the `mounted` (useIsClient) short-circuit at the head of this expression; localStorage is only read on the client, never during SSR https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     !localStorage.getItem(STORAGE_KEY)
 
   function dismiss() {
