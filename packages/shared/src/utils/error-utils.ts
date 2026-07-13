@@ -1,3 +1,5 @@
+import type { ZodType } from 'zod'
+
 interface BackendErrorData {
   error?: string
   message?: string
@@ -50,6 +52,31 @@ export class ApiClientError extends Error {
     this.data = options?.data
     this.fieldErrors = options?.fieldErrors
   }
+}
+
+/**
+ * Validates an already-parsed API response `body` against a Zod `schema` at the client
+ * trust boundary. Returns the parsed data when it matches — unknown keys are stripped, so
+ * additive API fields never break older clients (append-only contract) — or throws a typed
+ * `ApiClientError` (502, `INVALID_RESPONSE_SCHEMA`) carrying the Zod issues when it does not.
+ * When no `schema` is supplied the body is returned unchanged, making validation opt-in.
+ */
+export function validateApiResponse<T>(
+  body: unknown,
+  schema: ZodType<T> | undefined,
+  path: string,
+): T {
+  if (!schema) return body as T
+
+  const parsed = schema.safeParse(body)
+  if (!parsed.success) {
+    throw new ApiClientError(502, `Unexpected API response shape for ${path}`, {
+      code: 'INVALID_RESPONSE_SCHEMA',
+      data: parsed.error.issues,
+    })
+  }
+
+  return parsed.data
 }
 
 function isErrorWithData(err: unknown): err is ErrorWithData {

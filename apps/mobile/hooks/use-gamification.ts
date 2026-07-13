@@ -13,7 +13,11 @@ import type {
   ReportEventResponse,
   StreakInfo,
 } from '@orbit/shared/types/gamification'
-import { reportEventResponseSchema } from '@orbit/shared/types/gamification'
+import {
+  gamificationProfileSchema,
+  reportEventResponseSchema,
+  streakInfoSchema,
+} from '@orbit/shared/types/gamification'
 import {
   deriveGamificationProfileState,
   detectCrossedStreakMilestones,
@@ -33,7 +37,7 @@ export function useGamificationProfile(enabled = true) {
 
   const query = useQuery({
     queryKey: gamificationKeys.profile(),
-    queryFn: () => apiClient<GamificationProfile>(API.gamification.profile),
+    queryFn: () => apiClient<GamificationProfile>(API.gamification.profile, undefined, gamificationProfileSchema),
     staleTime: QUERY_STALE_TIMES.gamification,
     enabled,
   })
@@ -98,7 +102,7 @@ export function useGamificationProfile(enabled = true) {
 export function useStreakInfo(enabled = true) {
   return useQuery({
     queryKey: gamificationKeys.streak(),
-    queryFn: () => apiClient<StreakInfo>(API.gamification.streak),
+    queryFn: () => apiClient<StreakInfo>(API.gamification.streak, undefined, streakInfoSchema),
     staleTime: QUERY_STALE_TIMES.gamification,
     enabled,
   })

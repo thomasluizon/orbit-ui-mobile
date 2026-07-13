@@ -5,7 +5,9 @@ import {
   buildClientTimeZoneHeaders,
   extractBackendError,
   extractBackendErrorCode,
+  validateApiResponse,
 } from '@orbit/shared/utils'
+import type { ZodType } from 'zod'
 
 /**
  * Centralized API fetch with error categorization.
@@ -98,7 +100,17 @@ function extractMinVersion(body: unknown): string | null {
   return typeof minVersion === 'string' ? minVersion : null
 }
 
-export async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
+/**
+ * Client-side API fetch with error categorization. When a Zod `schema` is supplied the
+ * successful response body is validated at the trust boundary and a typed `ApiClientError`
+ * (502, `INVALID_RESPONSE_SCHEMA`) is thrown on mismatch; without one the body is returned
+ * as-is (opt-in), so existing callers are unchanged.
+ */
+export async function apiFetch<T>(
+  url: string,
+  options?: RequestInit,
+  schema?: ZodType<T>,
+): Promise<T> {
   const headers = new Headers(options?.headers)
   for (const [key, value] of Object.entries(buildClientTimeZoneHeaders())) {
     headers.set(key, value)
@@ -130,12 +142,13 @@ export async function apiFetch<T>(url: string, options?: RequestInit): Promise<T
     throw new ApiError(status, backendMsg || title, body)
   }
 
-  return res.json() as Promise<T>
+  return validateApiResponse(await res.json(), schema, url)
 }
 
 /**
- * Convenience wrapper for GET requests matching the old fetchJson pattern.
+ * Convenience wrapper for GET requests matching the old fetchJson pattern. An optional Zod
+ * `schema` is forwarded to {@link apiFetch} to validate the response at the trust boundary.
  */
-export function fetchJson<T>(url: string): Promise<T> {
-  return apiFetch<T>(url)
+export function fetchJson<T>(url: string, schema?: ZodType<T>): Promise<T> {
+  return apiFetch<T>(url, undefined, schema)
 }

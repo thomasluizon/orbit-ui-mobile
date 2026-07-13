@@ -11,7 +11,10 @@ import {
   QUERY_STALE_TIMES,
 } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
-import type { NotificationsResponse } from '@orbit/shared/types/notification'
+import {
+  notificationsResponseSchema,
+  type NotificationsResponse,
+} from '@orbit/shared/types/notification'
 import { apiClient } from '@/lib/api-client'
 import {
   createEmptyNotificationsResponse,
@@ -34,7 +37,7 @@ export function useNotifications() {
 
   const query = useQuery({
     queryKey: notificationKeys.lists(),
-    queryFn: () => apiClient<NotificationsResponse>(API.notifications.list),
+    queryFn: () => apiClient<NotificationsResponse>(API.notifications.list, undefined, notificationsResponseSchema),
     staleTime: QUERY_STALE_TIMES.notifications,
   })
 

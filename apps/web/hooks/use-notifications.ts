@@ -11,8 +11,9 @@ import {
   QUERY_STALE_TIMES,
 } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
-import type {
-  NotificationsResponse,
+import {
+  notificationsResponseSchema,
+  type NotificationsResponse,
 } from '@orbit/shared/types/notification'
 import {
   createEmptyNotificationsResponse,
@@ -34,7 +35,7 @@ import { fetchJson } from '@/lib/api-fetch'
 export function useNotifications() {
   const query = useQuery({
     queryKey: notificationKeys.lists(),
-    queryFn: () => fetchJson<NotificationsResponse>(API.notifications.list),
+    queryFn: () => fetchJson<NotificationsResponse>(API.notifications.list, notificationsResponseSchema),
     staleTime: QUERY_STALE_TIMES.notifications,
     refetchOnWindowFocus: true,
     refetchInterval: NOTIFICATIONS_REFETCH_INTERVAL,

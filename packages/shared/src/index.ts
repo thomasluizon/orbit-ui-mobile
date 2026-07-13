@@ -21,6 +21,7 @@ export {
   getFriendlyErrorKey,
   getFriendlyErrorMessage,
   translateErrorKey,
+  validateApiResponse,
   isFeatureEnabled,
   buildRecentChatHistory,
   buildCalendarSyncImportRequest,
