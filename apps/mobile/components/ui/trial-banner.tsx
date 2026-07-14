@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+// react-doctor-disable-next-line rn-prefer-reanimated -- RN Animated with useNativeDriver drives the dismiss fade on the UI thread already; Reanimated 4.x migration deferred (worklets 0.10.0 ABI-pinned to the SDK 57 set, needs on-device QA) https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { Animated, Pressable, StyleSheet, Text } from 'react-native'
 import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -27,6 +28,7 @@ export function TrialBanner() {
   const trialDaysLeft = useTrialDaysLeft()
   const trialUrgent = useTrialUrgent()
   const router = useRouter()
+  // react-doctor-disable-next-line rerender-defer-reads-hook -- pathname feeds the upgrade return-path at press time (buildUpgradeHref); expo-router exposes the path only via this hook and the banner is lightweight, so re-rendering on navigation is negligible https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   const pathname = usePathname()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(

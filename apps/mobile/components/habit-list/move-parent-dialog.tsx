@@ -73,6 +73,7 @@ function MoveTargetRow({
     >
       <View style={styles.moveOptionHeader}>
         {Array.from({ length: option.depth }, (_, index) => (
+          // react-doctor-disable-next-line no-array-index-as-key -- decorative indent rails: identical stateless spacers keyed by position, with no data identity to preserve https://github.com/thomasluizon/orbit-ui-mobile/issues/243
           <View key={index} style={styles.rail}>
             <View style={styles.railLine} />
           </View>
@@ -199,6 +200,7 @@ export function MoveParentDialog({
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          {/* react-doctor-disable-next-line rn-no-scrollview-mapped-list -- bounded move-target picker inside a bottom sheet; search collapses long lists (threshold 8) and nesting a VirtualizedList in the sheet ScrollView is discouraged https://github.com/thomasluizon/orbit-ui-mobile/issues/243 */}
           {treeRows.map((option) => (
             <MoveTargetRow
               key={option.id}

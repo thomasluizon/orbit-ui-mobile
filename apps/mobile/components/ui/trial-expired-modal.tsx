@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, useCallback } from 'react'
+// react-doctor-disable-next-line rn-prefer-reanimated -- RN Animated with useNativeDriver drives the dialog transform/opacity on the UI thread already; Reanimated 4.x migration deferred (worklets 0.10.0 ABI-pinned to the SDK 57 set, needs on-device QA) https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { Animated, Modal, ScrollView, StyleSheet, Text, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { usePathname, useRouter } from 'expo-router'

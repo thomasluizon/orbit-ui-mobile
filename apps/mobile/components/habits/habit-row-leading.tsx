@@ -28,6 +28,7 @@ interface HabitRowLeadingProps {
 }
 
 /** Leading cluster of a habit row: select checkbox, expand chevron, and emoji well. */
+// react-doctor-disable-next-line no-many-boolean-props -- private row-internal cluster; the flags are independent render inputs from the parent row, not a combinatorial public API https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function HabitRowLeading({
   habitTitle,
   emoji,

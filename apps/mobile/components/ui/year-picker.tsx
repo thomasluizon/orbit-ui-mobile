@@ -42,6 +42,7 @@ export function YearPicker({
       contentContainerStyle={styles.grid}
       showsVerticalScrollIndicator={false}
     >
+      {/* react-doctor-disable-next-line rn-no-scrollview-mapped-list -- bounded year-range grid with programmatic scroll-to-selection via scrollTo(row); FlatList virtualization breaks the row-offset centering https://github.com/thomasluizon/orbit-ui-mobile/issues/243 */}
       {years.map((year) => {
         const isSelected = year === selectedYear
         return (

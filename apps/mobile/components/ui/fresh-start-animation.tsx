@@ -1,9 +1,10 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useEffect, useEffectEvent, useMemo, useState } from 'react'
 import {
   AccessibilityInfo,
   View,
   Text,
   Modal,
+  // react-doctor-disable-next-line rn-prefer-reanimated -- RN Animated with useNativeDriver drives the entrance/exit transforms & opacity on the UI thread already; Reanimated 4.x migration deferred (worklets 0.10.0 ABI-pinned to the SDK 57 set, needs on-device QA) https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   Animated,
   StyleSheet,
 } from 'react-native'
@@ -37,6 +38,11 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
   const textOpacity = useMemo(() => new Animated.Value(0), [])
   const textSlide = useMemo(() => new Animated.Value(20), [])
   const styles = useMemo(() => createStyles(tokens), [tokens])
+
+  const handleComplete = useEffectEvent(() => {
+    setVisible(false)
+    onComplete()
+  })
 
   useEffect(() => {
     const easeOut = toAnimatedEasing(easings.out)
@@ -134,8 +140,7 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
     }, 2000)
 
     const completeTimer = setTimeout(() => {
-      setVisible(false)
-      onComplete()
+      handleComplete()
     }, 2500)
 
     return () => {
@@ -143,7 +148,7 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
       clearTimeout(fadeTimer)
       clearTimeout(completeTimer)
     }
-  }, [onComplete, fadeAnim, scaleAnim, ringScale1, ringOpacity1, ringScale2, ringOpacity2, textOpacity, textSlide])
+  }, [fadeAnim, scaleAnim, ringScale1, ringOpacity1, ringScale2, ringOpacity2, textOpacity, textSlide])
 
   if (!visible) return null
 

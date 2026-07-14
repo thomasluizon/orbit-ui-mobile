@@ -57,6 +57,7 @@ interface CreateHabitModalProps {
   parentHabit?: NormalizedHabit | null
 }
 
+// react-doctor-disable-next-line no-giant-component -- form-modal shell already decomposed into create-habit-modal/* and HabitFormFields subcomponents; the remaining body is cohesive submit/suggest/reset orchestration, extraction deferred to avoid regression without device QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function CreateHabitModal({
   open,
   onClose,
@@ -146,6 +147,7 @@ export function CreateHabitModal({
 
   useEffect(() => {
     if (!open || !isSubHabitMode || !profile || profile.hasProAccess) return
+    // react-doctor-disable-next-line no-prop-callback-in-effect -- access gate: closes the sub-habit modal and redirects non-pro users to /upgrade; a side-effecting gate, not a state sync to the parent https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     onClose()
     router.push('/upgrade')
   }, [isSubHabitMode, onClose, open, profile, router])
@@ -298,6 +300,7 @@ export function CreateHabitModal({
         ),
       )
     }
+    // react-doctor-disable-next-line exhaustive-deps -- hasProAccess is derived from profile.hasProAccess every render and already listed; no staleness possible https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [
     formHelpers,
     isSubHabitMode,
@@ -360,6 +363,7 @@ export function CreateHabitModal({
           : t('habits.form.aiSuggestError'),
       )
     }
+    // react-doctor-disable-next-line exhaustive-deps -- hasProAccess is derived from profile.hasProAccess every render and already listed; no staleness possible https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [formHelpers, hasProAccess, i18n.language, showError, showInfo, showSuccess, suggestion, t])
 
   const isPending = createHabit.isPending || createSubHabit.isPending

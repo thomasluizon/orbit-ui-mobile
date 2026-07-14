@@ -36,13 +36,11 @@ export const BufferedSheetInput = memo(function BufferedSheetInput({
   const [draft, setDraft] = useState(value);
   const [prevValue, setPrevValue] = useState(value);
   const isFocusedRef = useRef(false);
-  const lastSyncedValueRef = useRef(value);
 
   if (value !== prevValue) {
     setPrevValue(value);
-    if (!isFocusedRef.current && value !== lastSyncedValueRef.current) {
+    if (!isFocusedRef.current) {
       setDraft(value);
-      lastSyncedValueRef.current = value;
     }
   }
 
@@ -50,16 +48,15 @@ export const BufferedSheetInput = memo(function BufferedSheetInput({
     if (draft !== value) {
       onCommit(draft);
     }
-    lastSyncedValueRef.current = draft;
   }, [draft, onCommit, value]);
 
+  // react-doctor-disable-next-line no-prop-callback-in-effect -- registers/unregisters the commit-flush handle with the parent (cleanup returns the unregister); an imperative registration handle, not a state sync https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   useEffect(() => registerFlush?.(commitDraft), [commitDraft, registerFlush]);
 
   const handleChangeText = useCallback(
     (nextValue: string) => {
       const nextDraft = transformDraft ? transformDraft(nextValue) : nextValue;
       setDraft(nextDraft);
-      lastSyncedValueRef.current = nextDraft;
       onDraftChange?.(nextDraft);
     },
     [onDraftChange, transformDraft],

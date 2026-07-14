@@ -150,6 +150,15 @@ export interface HabitListHandle {
 
 const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
 
+const SKELETON_KEYS = [
+  'skeleton-1',
+  'skeleton-2',
+  'skeleton-3',
+  'skeleton-4',
+  'skeleton-5',
+]
+
+// react-doctor-disable-next-line no-giant-component -- core list orchestrator already decomposed into ./habit-list/* submodules (empty-state, date-group-section, drill-view, move-parent-dialog, tree-helpers, styles); the remaining body is cohesive list state + handlers, extraction deferred to avoid regression without device QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
   function HabitList(
     {
@@ -410,6 +419,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       return topLevelHabits.filter(
         (habit) => !habit.isCompleted || recentlyCompletedIds.has(habit.id),
       )
+    // react-doctor-disable-next-line exhaustive-deps -- topLevelHabits is the extracted habitsQuery.data.topLevelHabits and already listed; the analyzer wants the qualified member path but the alias tracks it https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     }, [recentlyCompletedIds, showCompleted, topLevelHabits, view, visibility])
 
     const dateGroups = useMemo<HabitListDateGroup[]>(() => {
@@ -423,6 +433,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             ? t('habits.overdue')
             : formatDateGroupLabel(bucket.key, deviceLocale, t),
       }))
+    // react-doctor-disable-next-line exhaustive-deps -- deviceLocale is the extracted i18n.language and already listed; the analyzer wants the qualified member path but the alias tracks it https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     }, [deviceLocale, t, view, visibleHabits])
 
     const allLoadedIds = useMemo(() => {
@@ -468,10 +479,12 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
 
     useEffect(() => {
+      // react-doctor-disable-next-line no-pass-data-to-parent, no-pass-live-state-to-parent, no-prop-callback-in-effect -- documented parent-mirror callback: HabitList computes allCollapsed internally and notifies the parent so it can mirror it in render-time state (refs cannot be read during render — see the prop JSDoc) https://github.com/thomasluizon/orbit-ui-mobile/issues/243
       onAllCollapsedChange?.(allCollapsed)
     }, [allCollapsed, onAllCollapsedChange])
 
     useEffect(() => {
+      // react-doctor-disable-next-line no-pass-data-to-parent, no-pass-live-state-to-parent, no-prop-callback-in-effect -- documented parent-mirror callback: HabitList computes allLoadedIds internally and notifies the parent so it can mirror it in render-time state (refs cannot be read during render — see the prop JSDoc) https://github.com/thomasluizon/orbit-ui-mobile/issues/243
       onAllLoadedIdsChange?.(allLoadedIds)
     }, [allLoadedIds, onAllLoadedIdsChange])
 
@@ -525,6 +538,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const activeDragItemsRef = useRef(activeDragItems)
     useEffect(() => {
       activeDragItemsRef.current = activeDragItems
+    // react-doctor-disable-next-line exhaustive-deps -- activeDragItems already combines dragOverrideItems and flatItems (both the analyzer flags); listing the combined value is sufficient, no staleness https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     }, [activeDragItems])
     const isDndEnabled = view !== 'all' && !isSelectMode
 
@@ -538,6 +552,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         habitsById,
         selectedDateStr,
       }
+    // react-doctor-disable-next-line exhaustive-deps -- getChildren/habitsById are the extracted habitsQuery members and already listed; the analyzer wants the qualified paths but the aliases track them https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     }, [getChildren, isListView, visibility, habitsById, selectedDateStr])
 
     const childrenProgressMap = useMemo(() => {
@@ -613,6 +628,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       }
 
       return map
+    // react-doctor-disable-next-line exhaustive-deps -- getChildren/habitsById are the extracted habitsQuery members and already listed; the analyzer wants the qualified paths but the aliases track them https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     }, [getChildren, habitsById, isListView, visibility])
 
     const getChildrenProgress = useCallback(
@@ -813,6 +829,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           targetParentId,
           draggedId,
         ),
+      // react-doctor-disable-next-line exhaustive-deps -- getChildren/habitsById/maxHabitDepth are extracted habitsQuery/appConfig members already listed; the analyzer wants the qualified paths but the aliases track them https://github.com/thomasluizon/orbit-ui-mobile/issues/243
       [getChildren, habitsById, maxHabitDepth, t],
     )
 
@@ -822,6 +839,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         { topLevelHabits, getChildren, validateMoveTarget, t },
         movingHabitId,
       )
+    // react-doctor-disable-next-line exhaustive-deps -- topLevelHabits/getChildren are extracted habitsQuery members already listed; the analyzer wants the qualified paths but the aliases track them https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     }, [getChildren, movingHabitId, t, topLevelHabits, validateMoveTarget])
 
     const selectedMoveOption = useMemo(
@@ -1011,6 +1029,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           restoreCollapsedStateAfterDrag()
         }
       },
+      // react-doctor-disable-next-line exhaustive-deps -- getChildren/habitsById are extracted habitsQuery members already listed; the analyzer wants the qualified paths but the aliases track them https://github.com/thomasluizon/orbit-ui-mobile/issues/243
       [
         getChildren,
         habitsById,
@@ -1047,6 +1066,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           }
         },
       }),
+      // react-doctor-disable-next-line exhaustive-deps -- refetch is the extracted habitsQuery.refetch and already listed; the analyzer wants the qualified path but the alias tracks it https://github.com/thomasluizon/orbit-ui-mobile/issues/243
       [
         allCollapsed,
         allLoadedIds,
@@ -1222,6 +1242,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
         return walk(parentId, depth)
       },
+      // react-doctor-disable-next-line exhaustive-deps -- maxHabitDepth is the extracted appConfig.limits.maxHabitDepth and already listed; the analyzer wants the qualified path but the alias tracks it https://github.com/thomasluizon/orbit-ui-mobile/issues/243
       [
         collapsedIds,
         getVisibleChildren,
@@ -1256,6 +1277,15 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
     const keyExtractor = useCallback((item: DragItem) => item.id, [])
 
+    const renderSkeletonItem = useCallback(
+      () => (
+        <View style={styles.sectionInset}>
+          <SkeletonCard styles={styles} />
+        </View>
+      ),
+      [styles],
+    )
+
     const renderEmptyState = useCallback(
       (currentView: 'today' | 'all' | 'general') => (
         <HabitListEmptyState
@@ -1289,6 +1319,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           progressViewOffset={insets.top}
         />
       ),
+      // react-doctor-disable-next-line exhaustive-deps -- isFetching/isLoading/refetch are extracted habitsQuery members already listed; the analyzer wants the qualified paths but the aliases track them https://github.com/thomasluizon/orbit-ui-mobile/issues/243
       [tokens.primary, insets.top, isFetching, isLoading, refetch],
     )
 
@@ -1482,19 +1513,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       return (
         <>
           <FlatList
-            data={[
-              'skeleton-1',
-              'skeleton-2',
-              'skeleton-3',
-              'skeleton-4',
-              'skeleton-5',
-            ]}
+            data={SKELETON_KEYS}
             keyExtractor={(item) => item}
-            renderItem={() => (
-              <View style={styles.sectionInset}>
-                <SkeletonCard styles={styles} />
-              </View>
-            )}
+            renderItem={renderSkeletonItem}
             ListHeaderComponent={listHeaderComponent}
             contentContainerStyle={[
               styles.skeletonContainer,

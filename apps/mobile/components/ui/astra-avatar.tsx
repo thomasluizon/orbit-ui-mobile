@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react'
+// react-doctor-disable-next-line rn-prefer-reanimated -- RN Animated with useNativeDriver spins the avatar on the UI thread already; Reanimated 4.x migration deferred (worklets 0.10.0 ABI-pinned to the SDK 57 set, needs on-device QA) https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { Animated, Easing, View, type StyleProp, type ViewStyle } from 'react-native'
 import Svg, { Circle, Path } from 'react-native-svg'
 import type { LucideProps } from 'lucide-react-native'

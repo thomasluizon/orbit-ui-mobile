@@ -8,11 +8,12 @@ import {
   type RefObject,
 } from 'react'
 import {
+  // react-doctor-disable-next-line rn-prefer-reanimated -- RN Animated with useNativeDriver drives the menu transform/opacity on the UI thread already; Reanimated 4.x migration deferred (worklets 0.10.0 ABI-pinned to the SDK 57 set, needs on-device QA) https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   Animated,
   Dimensions,
   Modal,
+  Pressable,
   StyleSheet,
-  TouchableOpacity,
   View,
   type StyleProp,
   type ViewStyle,
@@ -139,9 +140,11 @@ export function AnchoredMenu({
     }
   }
 
+  // react-doctor-disable-next-line advanced-event-handler-refs -- onClose is a stable menu-close callback; the listener re-subscribes only if the trigger passes a new handler and must track `visible` to add/remove, so the re-subscribe is a cheap one-shot rotation dismiss https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   useEffect(() => {
     if (!visible) return
 
+    // react-doctor-disable-next-line rn-no-dimensions-get -- Dimensions.addEventListener returns a subscription with .remove() (the current RN API); used to dismiss the menu on rotation/resize https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     const subscription = Dimensions.addEventListener('change', onClose)
     return () => {
       subscription.remove()
@@ -172,6 +175,7 @@ export function AnchoredMenu({
   }, [menuMotion.enterDuration, menuMotion.exitDuration, progress, visible])
 
   const position = useMemo(() => {
+    // react-doctor-disable-next-line rn-no-dimensions-get -- the menu dismisses on any dimension change (see the close effect above), so this open-time window snapshot never goes stale https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     const window = Dimensions.get('window')
     return getAnchoredMenuPosition({
       anchorRect: anchorRect ?? getFallbackAnchorRect(window.width),
@@ -212,9 +216,8 @@ export function AnchoredMenu({
           pointerEvents="none"
           style={[styles.backdrop, { opacity: backdropOpacity }]}
         />
-        <TouchableOpacity
+        <Pressable
           style={styles.backdropPressTarget}
-          activeOpacity={1}
           onPress={onClose}
           importantForAccessibility="no"
           accessibilityElementsHidden

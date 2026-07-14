@@ -3,7 +3,6 @@ import {
   Pressable,
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
 } from 'react-native'
 import Animated, {
@@ -90,28 +89,32 @@ function EditableChecklistItem({
   return (
     <View style={styles.editableItem}>
       <View style={styles.moveButtons}>
-        <TouchableOpacity
+        <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('habits.form.moveChecklistItemUp')}
-          style={styles.moveButton}
+          style={({ pressed }) => [
+            styles.moveButton,
+            pressed && !isFirst ? { opacity: 0.7 } : null,
+          ]}
           onPress={onMoveUp}
           disabled={isFirst}
-          activeOpacity={0.7}
           hitSlop={{ top: 6, bottom: 6, left: 12, right: 12 }}
         >
           <ChevronUp size={14} color={tokens.fg3} style={{ opacity: isFirst ? 0.3 : 1 }} />
-        </TouchableOpacity>
-        <TouchableOpacity
+        </Pressable>
+        <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('habits.form.moveChecklistItemDown')}
-          style={styles.moveButton}
+          style={({ pressed }) => [
+            styles.moveButton,
+            pressed && !isLast ? { opacity: 0.7 } : null,
+          ]}
           onPress={onMoveDown}
           disabled={isLast}
-          activeOpacity={0.7}
           hitSlop={{ top: 6, bottom: 6, left: 12, right: 12 }}
         >
           <ChevronDown size={14} color={tokens.fg3} style={{ opacity: isLast ? 0.3 : 1 }} />
-        </TouchableOpacity>
+        </Pressable>
       </View>
       <View style={styles.uncheckedBox} />
       <BottomSheetAppTextInput
@@ -121,24 +124,28 @@ function EditableChecklistItem({
         onChangeText={setLocalText}
         onBlur={flushLocalText}
       />
-      <TouchableOpacity
+      <Pressable
         accessibilityRole="button"
         accessibilityLabel={t('habits.form.duplicateChecklistItem')}
-        style={styles.itemAction}
+        style={({ pressed }) => [
+          styles.itemAction,
+          pressed ? { opacity: 0.7 } : null,
+        ]}
         onPress={handleDuplicate}
-        activeOpacity={0.7}
       >
         <Copy size={16} color={tokens.fg3} strokeWidth={1.8} />
-      </TouchableOpacity>
-      <TouchableOpacity
+      </Pressable>
+      <Pressable
         accessibilityRole="button"
         accessibilityLabel={t('habits.form.removeChecklistItem')}
-        style={styles.itemAction}
+        style={({ pressed }) => [
+          styles.itemAction,
+          pressed ? { opacity: 0.7 } : null,
+        ]}
         onPress={handleRemove}
-        activeOpacity={0.7}
       >
         <X size={16} color={tokens.fg3} strokeWidth={1.8} />
-      </TouchableOpacity>
+      </Pressable>
     </View>
   )
 }
@@ -252,19 +259,19 @@ function ChecklistAddRow({
         onSubmitEditing={onAdd}
         returnKeyType="done"
       />
-      <TouchableOpacity
+      <Pressable
         accessibilityRole="button"
         accessibilityLabel={t('common.add')}
-        style={[
+        style={({ pressed }) => [
           styles.addItemButton,
           !value.trim() && styles.addItemButtonDisabled,
+          pressed && !!value.trim() ? { opacity: 0.7 } : null,
         ]}
         disabled={!value.trim()}
         onPress={onAdd}
-        activeOpacity={0.7}
       >
         <Plus size={18} color={tokens.fgOnPrimary} strokeWidth={1.8} />
-      </TouchableOpacity>
+      </Pressable>
     </View>
   )
 }
@@ -363,28 +370,32 @@ export function HabitChecklist({
             {checkedCount}/{items.length}
           </Text>
           {interactive && checkedCount > 0 && (
-            <TouchableOpacity
+            <Pressable
               accessibilityRole="button"
               accessibilityLabel={t('habits.form.resetChecklist')}
-              style={styles.actionButton}
+              style={({ pressed }) => [
+                styles.actionButton,
+                pressed ? { opacity: 0.7 } : null,
+              ]}
               onPress={onReset}
-              activeOpacity={0.7}
               hitSlop={9}
             >
               <RotateCcw size={16} color={tokens.primary} strokeWidth={1.8} />
-            </TouchableOpacity>
+            </Pressable>
           )}
           {interactive && (
-            <TouchableOpacity
+            <Pressable
               accessibilityRole="button"
               accessibilityLabel={t('habits.form.clearChecklist')}
-              style={styles.actionButton}
+              style={({ pressed }) => [
+                styles.actionButton,
+                pressed ? { opacity: 0.7 } : null,
+              ]}
               onPress={onClear}
-              activeOpacity={0.7}
               hitSlop={9}
             >
               <X size={16} color={tokens.statusBad} strokeWidth={1.8} />
-            </TouchableOpacity>
+            </Pressable>
           )}
         </View>
       )}
@@ -412,6 +423,7 @@ export function HabitChecklist({
         items.length > 0 && (
           <View style={styles.itemsCard}>
             {items.map((item, index) => (
+              // react-doctor-disable-next-line no-array-index-as-key -- ChecklistItem is a value object with no stable id; the interactive list is toggle-only and never reorders, so the positional key is stable https://github.com/thomasluizon/orbit-ui-mobile/issues/243
               <InteractiveChecklistItem
                 key={`${item.text}-${index}`}
                 item={item}
@@ -429,14 +441,14 @@ export function HabitChecklist({
 
       {editable && items.length > 0 && (
         <View style={styles.clearRow}>
-          <TouchableOpacity
+          <Pressable
             accessibilityRole="button"
             onPress={clearAll}
-            activeOpacity={0.7}
+            style={({ pressed }) => (pressed ? { opacity: 0.7 } : undefined)}
             hitSlop={14}
           >
             <Text style={styles.clearText}>{t('habits.form.clearChecklist')}</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       )}
 

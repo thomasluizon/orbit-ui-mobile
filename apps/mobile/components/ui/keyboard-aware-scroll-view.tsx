@@ -227,6 +227,7 @@ function useKeyboardAwareContextValue(
       },
     ) => {
       keyboardVisibleRef.current = true
+      // react-doctor-disable-next-line rn-no-dimensions-get -- one-shot window-height read inside the keyboard-show handler to compute the keyboard top as a fallback when the event omits screenY; not a persisted layout dimension https://github.com/thomasluizon/orbit-ui-mobile/issues/243
       const screenHeight = Dimensions.get('window').height
       const keyboardTop =
         event?.endCoordinates?.screenY ??

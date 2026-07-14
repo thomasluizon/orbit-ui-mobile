@@ -17,6 +17,7 @@ type AppBarRightVariant = 'help' | 'close' | 'share'
 
 type AppBarTokens = ReturnType<typeof createTokensV2>
 
+// react-doctor-disable-next-line only-export-components -- co-located label-resolver helper dedicated to this bar; Fast Refresh dev-only, no runtime effect https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function resolveAppBarRightActionLabel(
   right: AppBarRightVariant | undefined,
   rightLabel: string | undefined,

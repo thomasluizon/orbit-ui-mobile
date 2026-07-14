@@ -68,7 +68,7 @@ export function SlipAlertSection({
               {t("habits.form.slipAlertDescription")}
             </Text>
           </View>
-          <View style={[sectionStyles.disabledSwitch]}>
+          <View style={sectionStyles.disabledSwitch}>
             <View style={sectionStyles.disabledThumb} />
           </View>
         </Pressable>

@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  // react-doctor-disable-next-line rn-prefer-reanimated -- RN Animated with useNativeDriver drives the dialog transform/opacity on the UI thread already; Reanimated 4.x migration deferred (worklets 0.10.0 ABI-pinned to the SDK 57 set, needs on-device QA) https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   Animated,
   Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
   type StyleProp,
   type ViewStyle,
@@ -94,22 +94,26 @@ function TimeColumn({ values, selected, formatValue, onSelect, styles }: Readonl
       showsVerticalScrollIndicator
       onContentSizeChange={centerSelected}
     >
+      {/* react-doctor-disable-next-line rn-no-scrollview-mapped-list -- bounded scroll-wheel column (<=60 items) needing synchronous centering via onContentSizeChange + scrollTo; FlatList virtualization breaks the wheel https://github.com/thomasluizon/orbit-ui-mobile/issues/243 */}
       {values.map((value) => {
         const isSelected = value === selected
         return (
-          <TouchableOpacity
+          <Pressable
             key={String(value)}
             onPress={() => onSelect(value)}
-            activeOpacity={0.7}
             accessibilityRole="button"
             accessibilityState={{ selected: isSelected }}
             accessibilityLabel={formatValue(value)}
-            style={[styles.option, isSelected && styles.optionSelected]}
+            style={({ pressed }) => [
+              styles.option,
+              isSelected && styles.optionSelected,
+              pressed ? { opacity: 0.7 } : null,
+            ]}
           >
             <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
               {formatValue(value)}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         )
       })}
     </ScrollView>
@@ -148,6 +152,7 @@ export function AppTimePicker({
     if (isOpen) setVisible(true)
   }
 
+  // react-doctor-disable-next-line no-event-handler -- mount/exit-animation orchestration: `visible` keeps the Modal mounted through the exit timing driven by the isOpen transition; not a synthetic event handler https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   useEffect(() => {
     if (isOpen) {
       Animated.timing(progress, {
@@ -258,9 +263,8 @@ export function AppTimePicker({
           animationType="none"
           onRequestClose={closePicker}
         >
-        <TouchableOpacity
+        <Pressable
           style={styles.root}
-          activeOpacity={1}
           onPress={closePicker}
           accessibilityRole="button"
           accessibilityLabel={t('common.close')}
@@ -294,14 +298,15 @@ export function AppTimePicker({
           >
             <View style={styles.dialogHeader}>
               <Text style={styles.dialogTitle}>{t('common.selectTime')}</Text>
-              <TouchableOpacity
+              <Pressable
                 onPress={applyDraft}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 accessibilityRole="button"
                 accessibilityLabel={t('common.done')}
+                style={({ pressed }) => (pressed ? { opacity: 0.2 } : undefined)}
               >
                 <Text style={styles.dialogAction}>{t('common.done')}</Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
 
             <View style={styles.columnsRow}>
@@ -347,7 +352,7 @@ export function AppTimePicker({
               )}
             </View>
           </Animated.View>
-        </TouchableOpacity>
+        </Pressable>
         </Modal>
       ) : null}
     </>

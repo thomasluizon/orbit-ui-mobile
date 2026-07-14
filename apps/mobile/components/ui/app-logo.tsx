@@ -1,3 +1,4 @@
+// react-doctor-disable-next-line rn-prefer-expo-image -- static bundled asset via require(); no remote fetch or cache benefit from expo-image, so RN Image is the lighter primitive https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { Image, type ImageSourcePropType } from 'react-native'
 import type { LucideProps } from 'lucide-react-native'
 

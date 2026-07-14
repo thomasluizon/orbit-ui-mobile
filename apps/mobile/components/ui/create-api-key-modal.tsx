@@ -155,6 +155,7 @@ function ApiKeyCreateForm({
   onSubmit,
 }: Readonly<ApiKeyCreateFormProps>) {
   const { t } = useTranslation()
+  const selectedScopeSet = new Set(selectedScopes)
   return (
     <>
       <View>
@@ -174,7 +175,7 @@ function ApiKeyCreateForm({
           {availableScopes.map((scope) => (
             <Chip
               key={scope.scope}
-              active={selectedScopes.includes(scope.scope)}
+              active={selectedScopeSet.has(scope.scope)}
               onPress={() => onToggleScope(scope.scope)}
             >
               {scope.scope}

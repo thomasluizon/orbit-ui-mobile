@@ -46,6 +46,8 @@ export interface HabitRowActions {
   onLongPressCard?: () => void
 }
 
+const EMPTY_HABIT_ROW_ACTIONS: HabitRowActions = {}
+
 interface HabitRowProps {
   habit: NormalizedHabit
   selectedDate?: Date
@@ -64,6 +66,7 @@ interface HabitRowProps {
 /**
  * Habit row: emoji · title · inline meta · trailing status dot.
  */
+// react-doctor-disable-next-line no-many-boolean-props -- private row-internal component; the flags are independent render inputs from the parent list, not a combinatorial public API https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function HabitRow({
   habit,
   selectedDate,
@@ -74,7 +77,7 @@ export function HabitRow({
   isExpanded = false,
   childrenDone = 0,
   childrenTotal = 0,
-  actions = {},
+  actions = EMPTY_HABIT_ROW_ACTIONS,
   style,
 }: Readonly<HabitRowProps>) {
   const { t, i18n } = useTranslation()
@@ -176,6 +179,7 @@ export function HabitRow({
         streak,
         t,
       }),
+    // react-doctor-disable-next-line exhaustive-deps -- streak is the extracted habit.currentStreak and already listed; the analyzer wants the qualified member path but the alias tracks it https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     [habit.title, dotState, linkedGoal, showStreak, streak, t],
   )
 
