@@ -35,6 +35,14 @@ Just edit + `/validate`. No PRD, plan, or issue.
 
 `/prime <A> <B> <C>` → `/plan <A> <B> <C>` → `/implement <A> <B> <C>` — the harness makes paired worktrees (mobile + orbit-api) under `.claude/worktrees/<branch>` and runs the loop per issue, **3 concurrent max**; excess queues. Two issues touching the same files → conflicts surface at PR time.
 
+### Epic / multi-session slice-set (one big issue, or several) — `/drive`
+
+An **epic** — a multi-bundle issue (a phased tech epic, a feature that lands over several PRs) — is still a slice-set (you *can* name the finish line: a set of known diffs), but it is too big for one `/execute` pass: one giant plan, one giant implement, a context window that rots. It is also NOT a campaign — the finish line is known diffs, not a converging metric.
+
+`/drive <issue#> [issue# …]` is the tool. It breaks the epic into **bundles**, does a bounded chunk per session with the same three gates as `/execute` (spec approval → grill → plan approval), and writes progress to a **living spec** at `.claude/specs/issue-<N>.spec.md` (gitignored, like plans). Heavy plan/implement work runs in **worktree subagents** (multiple issues in parallel, 3 concurrent max, like `/execute`'s multi mode); the interactive gates stay in the main session. Two levers compose: subagents keep the main session thin (so you drive several bundles per session), and the spec makes any `/clear` free — re-run the **same** `/drive <N>` and it reconciles against `gh` and continues, until the issue is closed. It is the attended twin of `/night-run` (fresh context per unit, state in a file) with the gates kept.
+
+Reach for `/drive` when a single `/execute` would swallow an epic; reach for `/execute` when the whole thing lands in one focused session.
+
 ## Campaign pattern (looped, multi-session)
 
 For work that converges over many sessions. Three moves, repeated:
@@ -62,7 +70,7 @@ Even a single slice, if it is cross-repo or high-risk, is safer split across two
 2. `/clear`.
 3. **Session B:** fresh `/prime <issue>` → `/implement .claude/plans/<name>.plan.md`.
 
-The plan file is the durable handoff; Session B implements against clean context. `/execute` (plan→implement in one shot) stays right for bounded slices — reach for the split when the plan is large or the blast radius is high.
+The plan file is the durable handoff; Session B implements against clean context. `/execute` (plan→implement in one shot) stays right for bounded slices — reach for the split when the plan is large or the blast radius is high. When the work is a whole **epic** (many bundles, not one slice), `/drive` automates this split loop across every bundle — the living spec is the durable handoff and the same `/drive <N>` resumes it.
 
 ## Session hygiene (applies everywhere)
 
@@ -77,4 +85,4 @@ The plan file is the durable handoff; Session B implements against clean context
 
 ## Rule of thumb
 
-Single PR's worth of work → skip the PRD, go `/prime` → `/plan`. PRDs and stories pay off at **3+** connected pieces. A converging-metric finish line → it's a **campaign**: loop workflows across fresh sessions, don't force it into one `/execute`.
+Single PR's worth of work → skip the PRD, go `/prime` → `/plan`. PRDs and stories pay off at **3+** connected pieces. A known-diff **epic** that spans several PRs / sessions → `/drive` (resumable, spec-driven, subagent-fanned). A converging-metric finish line → it's a **campaign**: loop workflows across fresh sessions, don't force it into one `/execute`.

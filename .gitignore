@@ -19,6 +19,7 @@ dist/
 .idea/
 .claude/worktrees/
 .claude/plans/
+.claude/specs/
 .claude/reviews/
 .claude/reports/
 .claude/audits/

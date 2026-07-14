@@ -34,6 +34,12 @@ Parse `$ARGUMENTS` and count numeric tokens (split on whitespace OR commas, mirr
 
 `/execute` targets issues in `thomasluizon/orbit-ui-mobile`.
 
+> **Epic check.** `/execute` is single-pass — one prime → plan → implement in one session.
+> If the issue is an **epic** (a phased/multi-bundle body whose finish line spans several
+> independent PRs), it is too big for one pass: use **`/drive <issue#>`** instead — the
+> resumable, spec-driven conductor that breaks the epic into bundles across fresh sessions
+> (worktree subagents + a living spec). See WORKFLOW.md → "Epic / multi-session slice-set".
+
 ## Stage 1 — PRIME (context load only)
 
 Run `/prime <issue>` in single-issue mode. Wait for its context summary and stop
