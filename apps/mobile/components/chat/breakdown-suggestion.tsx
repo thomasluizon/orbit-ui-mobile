@@ -194,7 +194,7 @@ export function BreakdownSuggestion({
   const bulkCreate = useBulkCreateHabits()
   const styles = useMemo(() => createStyles(tokens), [tokens])
 
-  const [habits, setHabits] = useState<EditableHabit[]>(
+  const [habits, setHabits] = useState<EditableHabit[]>(() =>
     subHabits.map((h) => createEditableHabit(h)),
   )
 

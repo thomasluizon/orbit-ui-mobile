@@ -44,6 +44,7 @@ interface ChatInputBarProps {
  * draft and the voice-transcript commit here lets a finished transcript land in
  * the input once recording stops.
  */
+// react-doctor-disable-next-line no-many-boolean-props -- Deliberate presentational composer aggregator: each boolean is an independent chat-input UI-state flag (recording/transcribing/typing) owned by the chat screen; an options-object rewrite would churn the caller for no runtime benefit. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export const ChatInputBar = forwardRef<View, Readonly<ChatInputBarProps>>(
   function ChatInputBar(
     {

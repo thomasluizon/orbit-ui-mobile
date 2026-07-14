@@ -280,9 +280,11 @@ const CONTEXTUAL_RULES: readonly MessageRule[] = [
 function matchesIncludes(msg: string, includes: MessageRule['includes']): boolean {
   if (includes.length === 0) return false
   if (typeof includes[0] === 'string') {
+    // react-doctor-disable-next-line js-set-map-lookups -- FP: `msg` is a string; `msg.includes(s)` is String.prototype.includes (substring test), not Array membership, so a Set is inapplicable (and each rule's pattern list is 1-3 entries). https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     return (includes as readonly string[]).every((s) => msg.includes(s))
   }
   return (includes as readonly (readonly string[])[]).some((group) =>
+    // react-doctor-disable-next-line js-set-map-lookups -- FP: `msg` is a string; `msg.includes(s)` is String.prototype.includes (substring test), not Array membership, so a Set is inapplicable (and each group is 1-2 entries). https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     group.every((s) => msg.includes(s)),
   )
 }

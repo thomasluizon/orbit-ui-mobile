@@ -159,15 +159,16 @@ export function computeHabitMatchBadges(
   t: HabitCardTranslationAdapter,
 ): HabitCardMatchBadge[] {
   if (!searchQuery || !habit.searchMatches) return []
-  return habit.searchMatches
-    .filter((match) => match.field !== 'title')
-    .map((match) => {
-      if (match.field === 'tag') {
-        return { label: t('habits.search.matchTag', { value: truncate(match.value ?? '') }) }
-      }
-      if (match.field === 'child') {
-        return { label: t('habits.search.matchChild', { value: truncate(match.value ?? '') }) }
-      }
-      return { label: t('habits.search.matchDescription') }
-    })
+  return habit.searchMatches.flatMap((match) => {
+    if (match.field === 'title') {
+      return []
+    }
+    if (match.field === 'tag') {
+      return [{ label: t('habits.search.matchTag', { value: truncate(match.value ?? '') }) }]
+    }
+    if (match.field === 'child') {
+      return [{ label: t('habits.search.matchChild', { value: truncate(match.value ?? '') }) }]
+    }
+    return [{ label: t('habits.search.matchDescription') }]
+  })
 }

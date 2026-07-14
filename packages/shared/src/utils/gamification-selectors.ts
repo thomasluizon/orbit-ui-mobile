@@ -77,11 +77,10 @@ export function getEarnedAchievements(
   )
 
   return profile.achievements
-    .filter((achievement) => earnedMap.has(achievement.id))
-    .map((achievement) => ({
-      ...achievement,
-      earnedAtUtc: earnedMap.get(achievement.id) ?? '',
-    }))
+    .flatMap((achievement) => {
+      const earnedAtUtc = earnedMap.get(achievement.id)
+      return earnedAtUtc === undefined ? [] : [{ ...achievement, earnedAtUtc }]
+    })
     .sort((left, right) => right.earnedAtUtc.localeCompare(left.earnedAtUtc))
 }
 
@@ -98,12 +97,10 @@ export function getAchievementsByCategory(
 ): Array<{ key: AchievementCategory; items: Achievement[] }> {
   if (!profile) return []
 
-  return ACHIEVEMENT_CATEGORIES
-    .map((category) => ({
-      key: category,
-      items: profile.achievements.filter((achievement) => achievement.category === category),
-    }))
-    .filter((categoryGroup) => categoryGroup.items.length > 0)
+  return ACHIEVEMENT_CATEGORIES.flatMap((category) => {
+    const items = profile.achievements.filter((achievement) => achievement.category === category)
+    return items.length > 0 ? [{ key: category, items }] : []
+  })
 }
 
 export function deriveStreakFreezeState(

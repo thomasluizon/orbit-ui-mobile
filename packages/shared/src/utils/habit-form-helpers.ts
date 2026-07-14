@@ -1,12 +1,12 @@
 import type { ChecklistItem, FrequencyUnit, HabitSetupSuggestion } from '../types/habit'
-import type { HabitFormData } from '../validation'
+import type { HabitFormData } from '../validation/habit-form'
 import {
   validateGoalSelection,
   validateHabitForm,
   validateReminderSelection,
   validateSubHabits,
   validateTagSelection,
-} from '../validation'
+} from '../validation/habit-form'
 
 export interface HabitFormTranslationAdapter {
   monday: string

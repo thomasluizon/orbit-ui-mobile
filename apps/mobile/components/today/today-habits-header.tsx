@@ -3,9 +3,11 @@ import {
   useState,
   useMemo,
   useEffect,
+  useEffectEvent,
   type ReactNode,
 } from "react";
 import {
+  // react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   Animated,
   Easing,
   View,
@@ -86,13 +88,17 @@ const TodaySearchBar = memo(function TodaySearchBar({
     setDraft(initialValue);
   }
 
+  const emitChange = useEffectEvent((value: string) => {
+    onChange(value);
+  });
+
   useEffect(() => {
     const timer = setTimeout(() => {
-      onChange(draft);
+      emitChange(draft);
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [draft, onChange]);
+  }, [draft]);
 
   useEffect(() => {
     Animated.timing(focusAnim, {
@@ -175,6 +181,7 @@ interface TodayControlsMenuProps {
   styles: ReturnType<typeof createStyles>;
 }
 
+// react-doctor-disable-next-line prefer-explicit-variants -- The two booleans (isSelectMode, allCollapsed) are orthogonal, independent menu-item states that each toggle one icon/label; they are not mutually-exclusive variants of a single dimension, so an explicit `variant` enum cannot model two independent binary toggles and would obscure intent. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 function TodayControlsMenu({
   visible,
   anchorRect,
@@ -439,6 +446,7 @@ interface TodayHabitsHeaderProps {
 
 /** Habit-view header: AI summary, date nav, the section label with search/filter/controls
  *  triggers, day-progress bar, and the filters shell (search bar + tag chips + anchored menus). */
+// react-doctor-disable-next-line no-many-boolean-props -- Deliberate presentational header aggregator: each boolean is an independent Today-screen UI-state flag (summary/search/select/collapse/completed/fetching/day-progress visibility); an options-object rewrite would churn the caller and the web parity mirror for no runtime benefit. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function TodayHabitsHeader({
   header,
   showSummary,
@@ -495,6 +503,7 @@ export function TodayHabitsHeader({
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const prefersReducedMotion = usePrefersReducedMotion();
   const refreshSpinAnim = useMemo(() => new Animated.Value(0), []);
+  const selectedTagIdSet = useMemo(() => new Set(selectedTagIds), [selectedTagIds]);
 
   useEffect(() => {
     if (!isFetching || prefersReducedMotion) {
@@ -663,11 +672,12 @@ export function TodayHabitsHeader({
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.filtersContent}
         >
+          {/* react-doctor-disable-next-line rn-no-scrollview-mapped-list -- Horizontal tag-chip filter row over the user's hand-curated tag set (a small list); a horizontal ScrollView is the idiomatic chip row and a FlatList would be an anti-pattern here (mirrors the established retrospective/public-profile suppressions). https://github.com/thomasluizon/orbit-ui-mobile/issues/243 */}
           {tags.map((tag) => (
             <TagChip
               key={tag.id}
               tag={tag}
-              active={selectedTagIds.includes(tag.id)}
+              active={selectedTagIdSet.has(tag.id)}
               onPress={() => onTagToggle(tag.id)}
             />
           ))}

@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import {
+  // react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   Animated,
   Dimensions,
   Pressable,
@@ -42,6 +43,7 @@ export function WelcomeBackToast() {
   const [shouldRender, setShouldRender] = useState(false)
   const checkedRef = useRef(false)
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const visitToastTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   const translateY = useMemo(() => new Animated.Value(-20), [])
   const opacity = useMemo(() => new Animated.Value(0), [])
@@ -106,12 +108,20 @@ export function WelcomeBackToast() {
     [translateY, opacity, scale, dismiss],
   )
 
+  const notifyReferralApplied = useEffectEvent(() => {
+    showToast(t('referral.applied'), 'referral')
+  })
+  const notifyWelcomeBack = useEffectEvent((streak: number) => {
+    showToast(t('welcome.backMessage', { streak }), 'welcome')
+  })
+
   useEffect(() => {
     return () => {
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
     }
   }, [])
 
+  // react-doctor-disable-next-line effect-needs-cleanup -- FP: the two deferred toast timers assigned to visitToastTimerRef inside checkVisit ARE cleared by this effect's returned cleanup (clearTimeout(visitToastTimerRef.current)); RD cannot trace the clear because the setTimeout is created inside the nested async helper. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   useEffect(() => {
     if (!profile || checkedRef.current) return
     checkedRef.current = true
@@ -121,8 +131,8 @@ export function WelcomeBackToast() {
         const referralApplied = await AsyncStorage.getItem(STORAGE_REFERRAL_APPLIED)
         if (referralApplied) {
           await AsyncStorage.removeItem(STORAGE_REFERRAL_APPLIED)
-          setTimeout(() => {
-            showToast(t('referral.applied'), 'referral')
+          visitToastTimerRef.current = setTimeout(() => {
+            notifyReferralApplied()
           }, 800)
           return
         }
@@ -138,11 +148,8 @@ export function WelcomeBackToast() {
           now - lastVisit > twentyFourHours &&
           (profile?.currentStreak ?? 0) > 0
         ) {
-          setTimeout(() => {
-            showToast(
-              t('welcome.backMessage', { streak: profile?.currentStreak }),
-              'welcome',
-            )
+          visitToastTimerRef.current = setTimeout(() => {
+            notifyWelcomeBack(profile?.currentStreak ?? 0)
           }, 800)
         }
       } catch {
@@ -150,7 +157,11 @@ export function WelcomeBackToast() {
     }
 
     void checkVisit()
-  }, [profile, t, showToast])
+
+    return () => {
+      if (visitToastTimerRef.current) clearTimeout(visitToastTimerRef.current)
+    }
+  }, [profile])
 
   if (!shouldRender) return null
 

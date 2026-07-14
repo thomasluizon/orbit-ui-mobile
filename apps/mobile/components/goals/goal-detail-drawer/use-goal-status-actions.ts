@@ -28,7 +28,7 @@ export function useGoalStatusActions({
   const isUpdatingStatus = updateStatus.isPending
 
   const markCompleted = useCallback(async () => {
-    if (isUpdatingStatus) return
+    if (updateStatus.isPending) return
     try {
       await updateStatus.mutateAsync({
         goalId,
@@ -44,7 +44,6 @@ export function useGoalStatusActions({
   }, [
     goalId,
     goalName,
-    isUpdatingStatus,
     refetchDetail,
     showError,
     translate,
@@ -52,7 +51,7 @@ export function useGoalStatusActions({
   ])
 
   const markAbandoned = useCallback(async () => {
-    if (isUpdatingStatus) return
+    if (updateStatus.isPending) return
     try {
       await updateStatus.mutateAsync({
         goalId,
@@ -68,7 +67,6 @@ export function useGoalStatusActions({
   }, [
     goalId,
     goalName,
-    isUpdatingStatus,
     refetchDetail,
     showError,
     translate,
@@ -76,7 +74,7 @@ export function useGoalStatusActions({
   ])
 
   const reactivate = useCallback(async () => {
-    if (isUpdatingStatus) return
+    if (updateStatus.isPending) return
     try {
       await updateStatus.mutateAsync({
         goalId,
@@ -92,7 +90,6 @@ export function useGoalStatusActions({
   }, [
     goalId,
     goalName,
-    isUpdatingStatus,
     refetchDetail,
     showError,
     translate,

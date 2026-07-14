@@ -1,9 +1,11 @@
+import { getNumberFormat } from './intl-format-cache'
+
 export function formatPrice(unitAmount: number, currency: string): string {
   const amount = unitAmount / 100
   const locale = currency === 'brl' ? 'pt-BR' : 'en-US'
   const currencyCode = currency.toUpperCase()
 
-  return new Intl.NumberFormat(locale, {
+  return getNumberFormat(locale, {
     style: 'currency',
     currency: currencyCode,
     minimumFractionDigits: 2,

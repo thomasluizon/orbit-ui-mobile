@@ -188,6 +188,7 @@ export function FeatureGuideDrawer({
         showsVerticalScrollIndicator={false}
         contentContainerStyle={withDrawerContentInset(styles.sectionContent)}
       >
+        {/* react-doctor-disable-next-line rn-no-scrollview-mapped-list -- Fixed, small curated set of feature-guide entries (static content per tab, not user data or paginated); a ScrollView is the correct container inside the bottom-sheet drawer and a FlatList would risk gesture conflicts with the sheet. https://github.com/thomasluizon/orbit-ui-mobile/issues/243 */}
         {items.map((item) => (
           <View key={item.titleKey} style={styles.sectionItem}>
             <Text style={styles.sectionTitle}>{t(item.titleKey)}</Text>

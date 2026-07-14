@@ -1,4 +1,4 @@
-import { API } from '../api'
+import { API } from '../api/endpoints'
 import type { Recap } from '../types/gamification'
 import type { RetrospectiveMetrics } from './retrospective'
 
