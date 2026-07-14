@@ -125,6 +125,12 @@ describe('usePushNotifications', () => {
     })
   }
 
+  async function flush() {
+    await TestRenderer.act(async () => {
+      for (let i = 0; i < 10; i++) await Promise.resolve()
+    })
+  }
+
   beforeEach(async () => {
     vi.resetModules()
     latestResult = null
@@ -259,5 +265,188 @@ describe('usePushNotifications', () => {
 
     expect(mocks.apiClient).toHaveBeenCalledTimes(2)
     expect(latestResult?.registrationStatus).toBe('disabled')
+  })
+
+  it('leaves registration undetermined until the user is prompted', async () => {
+    await renderHarness()
+    await flush()
+
+    expect(latestResult?.permissionStatus).toBe('undetermined')
+    expect(latestResult?.registrationStatus).toBe('permission-undetermined')
+    expect(latestResult?.isEnabled).toBe(false)
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+  })
+
+  it('reports a permanently denied permission from the initial sync', async () => {
+    vi.mocked(notificationsModule.getPermissionsAsync).mockResolvedValue(
+      createPermissionResponse('denied', false),
+    )
+
+    await renderHarness()
+    await flush()
+
+    expect(latestResult?.permissionStatus).toBe('denied')
+    expect(latestResult?.registrationStatus).toBe('permission-denied')
+    expect(latestResult?.permissionCanAskAgain).toBe(false)
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+  })
+
+  it('prompts for permission and registers once the user grants it', async () => {
+    vi.mocked(notificationsModule.getPermissionsAsync).mockResolvedValue(
+      createPermissionResponse('undetermined'),
+    )
+    vi.mocked(notificationsModule.requestPermissionsAsync).mockResolvedValue(
+      createPermissionResponse('granted'),
+    )
+
+    await renderHarness()
+    await flush()
+
+    let outcome = false
+    await TestRenderer.act(async () => {
+      outcome = (await latestResult?.requestPermission()) ?? false
+    })
+
+    expect(outcome).toBe(true)
+    expect(notificationsModule.requestPermissionsAsync).toHaveBeenCalled()
+    expect(mocks.apiClient).toHaveBeenCalledWith(
+      API.notifications.subscribe,
+      expect.objectContaining({ method: 'POST' }),
+    )
+    expect(latestResult?.registrationStatus).toBe('registered')
+    expect(latestResult?.isEnabled).toBe(true)
+  })
+
+  it('does not re-prompt when permission is permanently denied', async () => {
+    vi.mocked(notificationsModule.getPermissionsAsync).mockResolvedValue(
+      createPermissionResponse('denied', false),
+    )
+
+    await renderHarness()
+    await flush()
+
+    let outcome = true
+    await TestRenderer.act(async () => {
+      outcome = (await latestResult?.requestPermission()) ?? true
+    })
+
+    expect(outcome).toBe(false)
+    expect(notificationsModule.requestPermissionsAsync).not.toHaveBeenCalled()
+    expect(latestResult?.registrationStatus).toBe('permission-denied')
+  })
+
+  it('refuses to disable push notifications while unauthenticated', async () => {
+    mocks.auth.isAuthenticated = false
+    vi.mocked(notificationsModule.getPermissionsAsync).mockResolvedValue(
+      createPermissionResponse('granted'),
+    )
+
+    await renderHarness()
+    await flush()
+
+    let outcome = true
+    await TestRenderer.act(async () => {
+      outcome = (await latestResult?.disablePushNotifications()) ?? true
+    })
+
+    expect(outcome).toBe(false)
+    expect(latestResult?.registrationStatus).toBe('sync-failed')
+    expect(mocks.apiClient).not.toHaveBeenCalledWith(
+      API.notifications.unsubscribe,
+      expect.anything(),
+    )
+  })
+
+  it('routes a tapped notification to a safe in-app path and ignores external URLs', async () => {
+    let responseListener: ((response: unknown) => void) | null = null
+    vi.mocked(notificationsModule.addNotificationResponseReceivedListener).mockImplementation(
+      (listener) => {
+        responseListener = listener as unknown as (response: unknown) => void
+        return { remove: vi.fn() }
+      },
+    )
+
+    await renderHarness()
+    await flush()
+
+    const notify = responseListener as unknown as (response: unknown) => void
+    expect(notify).toBeTypeOf('function')
+
+    const buildResponse = (url: unknown) => ({
+      notification: { request: { content: { data: { url } } } },
+    })
+
+    await TestRenderer.act(async () => {
+      notify(buildResponse('/social'))
+    })
+    expect(mocks.router.push).toHaveBeenCalledWith('/social')
+
+    mocks.router.push.mockClear()
+    await TestRenderer.act(async () => {
+      notify(buildResponse('https://evil.example'))
+      notify(buildResponse('//evil.example'))
+      notify({ notification: { request: { content: {} } } })
+    })
+    expect(mocks.router.push).not.toHaveBeenCalled()
+  })
+
+  it('reports unsupported and no-ops the actions when the module is unavailable', async () => {
+    pushNotificationsModule.__setNotificationsModuleForTests(null)
+
+    await renderHarness()
+    await flush()
+
+    expect(latestResult?.isSupported).toBe(false)
+    expect(latestResult?.registrationStatus).toBe('unsupported')
+
+    let requestOutcome = true
+    let disableOutcome = true
+    await TestRenderer.act(async () => {
+      requestOutcome = (await latestResult?.requestPermission()) ?? true
+      disableOutcome = (await latestResult?.disablePushNotifications()) ?? true
+    })
+
+    expect(requestOutcome).toBe(false)
+    expect(disableOutcome).toBe(false)
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+  })
+
+  it('best-effort unsubscribes the current device token during logout', async () => {
+    await pushNotificationsModule.unsubscribePushToken()
+
+    expect(mocks.apiClient).toHaveBeenCalledWith(
+      API.notifications.unsubscribe,
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ endpoint: 'native-token', p256dh: 'fcm', auth: 'fcm' }),
+      }),
+    )
+  })
+
+  it('retries a transient native-token failure before unsubscribing', async () => {
+    vi.mocked(notificationsModule.getDevicePushTokenAsync).mockReset()
+    vi.mocked(notificationsModule.getDevicePushTokenAsync)
+      .mockRejectedValueOnce(new Error('transient'))
+      .mockResolvedValue({ type: 'fcm', data: 'native-token' })
+
+    await pushNotificationsModule.unsubscribePushToken()
+
+    expect(notificationsModule.getDevicePushTokenAsync).toHaveBeenCalledTimes(2)
+    expect(mocks.apiClient).toHaveBeenCalledWith(
+      API.notifications.unsubscribe,
+      expect.anything(),
+    )
+  })
+
+  it('swallows a token lookup failure during logout without calling the backend', async () => {
+    vi.mocked(notificationsModule.getDevicePushTokenAsync).mockReset()
+    vi.mocked(notificationsModule.getDevicePushTokenAsync).mockRejectedValue(new Error('no token'))
+
+    await expect(pushNotificationsModule.unsubscribePushToken()).resolves.toBeUndefined()
+
+    expect(mocks.apiClient).not.toHaveBeenCalledWith(
+      API.notifications.unsubscribe,
+      expect.anything(),
+    )
   })
 })

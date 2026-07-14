@@ -235,4 +235,139 @@ describe('useLoginFlow (mobile)', () => {
     expect(offline.current.canSubmitEmail).toBe(false)
     expect(offline.current.canSubmitCode).toBe(false)
   })
+
+  it('resends the code and restarts the countdown when online', async () => {
+    const harness = await renderLoginFlow()
+
+    await act(() => harness.current.setEmail('user@test.com'))
+    await act(() => harness.current.resendCode())
+
+    const [endpoint, options] = firstApiCall()
+    expect(endpoint).toBe(API.auth.sendCode)
+    expect(bodyOf(options)).toMatchObject({ email: 'user@test.com', language: 'en' })
+    expect(harness.current.successMessage).toBe('auth.codeSent')
+    expect(mocks.startResendCountdown).toHaveBeenCalledTimes(1)
+  })
+
+  it('blocks resending while offline', async () => {
+    mocks.isOnline = false
+    const harness = await renderLoginFlow()
+
+    await act(() => harness.current.setEmail('user@test.com'))
+    await act(() => harness.current.resendCode())
+
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+    expect(mocks.showError).toHaveBeenCalledWith('auth.errors.offline')
+  })
+
+  it('returns to the email step and clears code entry', async () => {
+    const harness = await renderLoginFlow()
+
+    await act(() => harness.current.setEmail('user@test.com'))
+    await act(() => harness.current.sendCode())
+    expect(harness.current.step).toBe('code')
+
+    await act(() => harness.current.backToEmail())
+
+    expect(harness.current.step).toBe('email')
+    expect(harness.current.successMessage).toBeNull()
+    expect(mocks.resetCodeDigits).toHaveBeenCalled()
+  })
+
+  it('shows the reactivation notice when a deleted account logs back in', async () => {
+    mocks.codeDigits = ['1', '2', '3', '4', '5', '6']
+    mocks.apiClient.mockResolvedValue({
+      token: 'access-token',
+      refreshToken: 'refresh-token',
+      userId: 'user-1',
+      name: 'Ada',
+      email: 'user@test.com',
+      wasReactivated: true,
+    })
+    const harness = await renderLoginFlow()
+
+    await act(() => harness.current.setEmail('user@test.com'))
+    await act(() => harness.current.verifyCode())
+
+    expect(harness.current.successMessage).toBe('profile.deleteAccount.reactivated')
+  })
+
+  it('applies a stored referral code on verification and hides the banner', async () => {
+    mocks.codeDigits = ['1', '2', '3', '4', '5', '6']
+    mocks.getStoredReferralCode.mockResolvedValue('REF123')
+    mocks.apiClient.mockResolvedValue({
+      token: 'access-token',
+      refreshToken: 'refresh-token',
+      userId: 'user-1',
+      name: 'Ada',
+      email: 'user@test.com',
+      wasReactivated: false,
+    })
+    const harness = await renderLoginFlow()
+
+    await act(() => harness.current.setEmail('user@test.com'))
+    await act(() => harness.current.verifyCode())
+
+    const [, options] = firstApiCall()
+    expect(bodyOf(options)).toMatchObject({ referralCode: 'REF123' })
+    expect(mocks.markReferralApplied).toHaveBeenCalledTimes(1)
+    expect(mocks.clearStoredReferralCode).toHaveBeenCalledTimes(1)
+    expect(harness.current.showReferralBanner).toBe(false)
+  })
+
+  it('reflects a persisted referral code in the banner on mount', async () => {
+    mocks.getStoredReferralCode.mockResolvedValue('REF999')
+    const harness = await renderLoginFlow()
+
+    expect(harness.current.showReferralBanner).toBe(true)
+  })
+
+  it('redirects to the auth callback after a successful Google sign-in', async () => {
+    mocks.startMobileGoogleAuth.mockResolvedValue({ type: 'success', url: 'orbit://cb' })
+    const harness = await renderLoginFlow()
+
+    await act(() => harness.current.signInWithGoogle())
+
+    expect(mocks.replace).toHaveBeenCalledWith('/auth-callback')
+    expect(harness.current.isGoogleLoading).toBe(false)
+  })
+
+  it('stays put when the Google flow is dismissed', async () => {
+    mocks.startMobileGoogleAuth.mockResolvedValue({ type: 'cancel' })
+    const harness = await renderLoginFlow()
+
+    await act(() => harness.current.signInWithGoogle())
+
+    expect(mocks.replace).not.toHaveBeenCalled()
+  })
+
+  it('blocks Google sign-in while offline', async () => {
+    mocks.isOnline = false
+    const harness = await renderLoginFlow()
+
+    await act(() => harness.current.signInWithGoogle())
+
+    expect(mocks.startMobileGoogleAuth).not.toHaveBeenCalled()
+    expect(mocks.showError).toHaveBeenCalledWith('auth.errors.offline')
+  })
+
+  it('surfaces a Google sign-in failure', async () => {
+    mocks.startMobileGoogleAuth.mockRejectedValue(new Error('oauth boom'))
+    const harness = await renderLoginFlow()
+
+    await act(() => harness.current.signInWithGoogle())
+
+    expect(mocks.showError).toHaveBeenCalled()
+    expect(harness.current.isGoogleLoading).toBe(false)
+  })
+
+  it('routes to the legal pages', async () => {
+    const harness = await renderLoginFlow()
+
+    await act(() => harness.current.openPrivacyPolicy())
+    expect(mocks.push).toHaveBeenCalledWith('/privacy')
+
+    await act(() => harness.current.openTerms())
+    expect(mocks.push).toHaveBeenCalledWith('/terms')
+  })
 })

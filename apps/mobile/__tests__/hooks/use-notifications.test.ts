@@ -1,15 +1,26 @@
+import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { notificationKeys } from '@orbit/shared/query'
+import { NOTIFICATIONS_REFETCH_INTERVAL, notificationKeys } from '@orbit/shared/query'
 import type { NotificationsResponse } from '@orbit/shared/types/notification'
 
 import {
+  useDeleteAllNotifications,
   useDeleteNotification,
+  useMarkAllNotificationsRead,
   useMarkNotificationRead,
+  useNotifications,
 } from '@/hooks/use-notifications'
+
+const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => {
   const state = {
     notifications: undefined as NotificationsResponse | undefined,
+  }
+
+  const appState = {
+    listener: null as ((nextState: string) => void) | null,
+    removeCount: 0,
   }
 
   const queryClient = {
@@ -28,6 +39,7 @@ const mocks = vi.hoisted(() => {
 
   return {
     state,
+    appState,
     queryClient,
     useQuery: vi.fn(() => ({ data: state.notifications })),
     useQueryClient: vi.fn(() => queryClient),
@@ -72,9 +84,15 @@ vi.mock('react-native', async () => {
   return {
     ...actual,
     AppState: {
-      addEventListener: vi.fn(() => ({
-        remove: () => {},
-      })),
+      addEventListener: vi.fn((_eventName: string, listener: (nextState: string) => void) => {
+        mocks.appState.listener = listener
+        return {
+          remove: vi.fn(() => {
+            mocks.appState.removeCount += 1
+            mocks.appState.listener = null
+          }),
+        }
+      }),
     },
   }
 })
@@ -128,9 +146,23 @@ function createNotificationsResponse(): NotificationsResponse {
   }
 }
 
+function renderHook(hook: () => unknown): { unmount: () => void } {
+  let renderer: { unmount: () => void } | undefined
+  function Probe() {
+    hook()
+    return null
+  }
+  TestRenderer.act(() => {
+    renderer = TestRenderer.create(React.createElement(Probe))
+  })
+  return { unmount: () => TestRenderer.act(() => renderer?.unmount()) }
+}
+
 describe('mobile notification hooks', () => {
   beforeEach(() => {
     mocks.state.notifications = createNotificationsResponse()
+    mocks.appState.listener = null
+    mocks.appState.removeCount = 0
     mocks.queryClient.cancelQueries.mockClear()
     mocks.queryClient.invalidateQueries.mockClear()
     mocks.queryClient.getQueryData.mockClear()
@@ -189,5 +221,172 @@ describe('mobile notification hooks', () => {
       notificationKeys.lists(),
       initial,
     )
+  })
+
+  it('derives the unread badge and item list from the query cache', () => {
+    const results: ReturnType<typeof useNotifications>[] = []
+    const handle = renderHook(() => {
+      results.push(useNotifications())
+    })
+
+    const latest = results.at(-1)!
+    expect(latest.notifications.map((item) => item.id)).toEqual(['n-1', 'n-2'])
+    expect(latest.unreadCount).toBe(1)
+
+    handle.unmount()
+  })
+
+  it('falls back to an empty list and zero badge when the cache is cold', () => {
+    mocks.state.notifications = undefined
+    const results: ReturnType<typeof useNotifications>[] = []
+    const handle = renderHook(() => {
+      results.push(useNotifications())
+    })
+
+    const latest = results.at(-1)!
+    expect(latest.notifications).toEqual([])
+    expect(latest.unreadCount).toBe(0)
+
+    handle.unmount()
+  })
+
+  it('polls the notification list on an interval and stops on unmount', () => {
+    vi.useFakeTimers()
+    try {
+      const handle = renderHook(() => useNotifications())
+      expect(mocks.appState.listener).toBeTypeOf('function')
+
+      mocks.queryClient.invalidateQueries.mockClear()
+      vi.advanceTimersByTime(NOTIFICATIONS_REFETCH_INTERVAL)
+      expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+        queryKey: notificationKeys.lists(),
+      })
+
+      handle.unmount()
+      mocks.queryClient.invalidateQueries.mockClear()
+      vi.advanceTimersByTime(NOTIFICATIONS_REFETCH_INTERVAL * 3)
+      expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
+      expect(mocks.appState.removeCount).toBe(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('refetches immediately when the app returns to the foreground', () => {
+    const handle = renderHook(() => useNotifications())
+
+    mocks.queryClient.invalidateQueries.mockClear()
+    mocks.appState.listener?.('active')
+
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: notificationKeys.lists(),
+    })
+
+    mocks.queryClient.invalidateQueries.mockClear()
+    mocks.appState.listener?.('background')
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
+
+    handle.unmount()
+  })
+
+  it('invalidates the list after a mark-read confirms online', async () => {
+    const mutation = useMarkNotificationRead() as unknown as MutationConfig<
+      unknown,
+      string,
+      { previous: NotificationsResponse | undefined }
+    >
+    mocks.queueOrExecute.mockResolvedValue(undefined)
+
+    const context = await mutation.onMutate?.('n-1')
+    const result = await mutation.mutationFn('n-1')
+    mutation.onSettled?.(result, null, 'n-1', context)
+
+    expect(mocks.state.notifications?.unreadCount).toBe(0)
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: notificationKeys.lists(),
+    })
+  })
+
+  it('keeps the unread badge when a read notification is removed', async () => {
+    const mutation = useDeleteNotification() as unknown as MutationConfig<
+      { queued: true; queuedMutationId: string },
+      string,
+      { previous: NotificationsResponse | undefined }
+    >
+    mocks.queueOrExecute.mockResolvedValue({ queued: true, queuedMutationId: 'mutation-1' })
+
+    await mutation.onMutate?.('n-2')
+
+    expect(mocks.state.notifications?.items.map((item) => item.id)).toEqual(['n-1'])
+    expect(mocks.state.notifications?.unreadCount).toBe(1)
+  })
+
+  it('optimistically marks every notification read and skips invalidation when queued', async () => {
+    const mutation = useMarkAllNotificationsRead() as unknown as MutationConfig<
+      { queued: true; queuedMutationId: string },
+      void,
+      { previous: NotificationsResponse | undefined }
+    >
+    mocks.queueOrExecute.mockResolvedValue({ queued: true, queuedMutationId: 'mutation-1' })
+
+    const context = await mutation.onMutate?.()
+    const result = await mutation.mutationFn()
+    mutation.onSettled?.(result, null, undefined, context)
+
+    expect(mocks.state.notifications?.items.every((item) => item.isRead)).toBe(true)
+    expect(mocks.state.notifications?.unreadCount).toBe(0)
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
+    expect(mocks.buildQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'markAllNotificationsRead',
+      dedupeKey: 'notifications:mark-all-read',
+    }))
+  })
+
+  it('restores the list when mark-all-read fails', async () => {
+    const mutation = useMarkAllNotificationsRead() as unknown as MutationConfig<
+      unknown,
+      void,
+      { previous: NotificationsResponse | undefined }
+    >
+    const initial = mocks.state.notifications
+
+    const context = await mutation.onMutate?.()
+    expect(mocks.state.notifications?.unreadCount).toBe(0)
+
+    mutation.onError?.(new Error('boom'), undefined, context)
+    expect(mocks.state.notifications).toEqual(initial)
+  })
+
+  it('empties the list optimistically on delete-all and invalidates online', async () => {
+    const mutation = useDeleteAllNotifications() as unknown as MutationConfig<
+      unknown,
+      void,
+      { previous: NotificationsResponse | undefined }
+    >
+    mocks.queueOrExecute.mockResolvedValue(undefined)
+
+    const context = await mutation.onMutate?.()
+    expect(mocks.state.notifications).toEqual({ items: [], unreadCount: 0 })
+
+    const result = await mutation.mutationFn()
+    mutation.onSettled?.(result, null, undefined, context)
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: notificationKeys.lists(),
+    })
+  })
+
+  it('restores the list when delete-all fails', async () => {
+    const mutation = useDeleteAllNotifications() as unknown as MutationConfig<
+      unknown,
+      void,
+      { previous: NotificationsResponse | undefined }
+    >
+    const initial = mocks.state.notifications
+
+    const context = await mutation.onMutate?.()
+    expect(mocks.state.notifications?.items).toEqual([])
+
+    mutation.onError?.(new Error('boom'), undefined, context)
+    expect(mocks.state.notifications).toEqual(initial)
   })
 })

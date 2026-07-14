@@ -1,11 +1,36 @@
-import { describe, expect, it } from 'vitest'
+import React from 'react'
+import { beforeEach, describe, expect, it } from 'vitest'
 import {
   AUTH_CALLBACK_URL,
   buildGoogleAuthFallbackUrl,
+  clearPendingGoogleAuthSession,
   extractGoogleAuthParams,
   hasGoogleAuthCallbackPayload,
+  markPendingGoogleAuthSession,
   resolveGoogleAuthCallbackUrl,
+  setPendingGoogleAuthCallbackUrl,
+  usePendingGoogleAuthSession,
 } from '@/lib/google-auth-callback'
+
+const TestRenderer = require('react-test-renderer')
+
+type PendingSession = ReturnType<typeof usePendingGoogleAuthSession>
+
+function renderPendingSession(): { current: PendingSession } {
+  const ref: { current: PendingSession | null } = { current: null }
+
+  function Harness() {
+    ref.current = usePendingGoogleAuthSession()
+    return null
+  }
+
+  TestRenderer.act(() => {
+    TestRenderer.create(React.createElement(Harness))
+  })
+
+  if (!ref.current) throw new Error('usePendingGoogleAuthSession did not render')
+  return ref as { current: PendingSession }
+}
 
 describe('google auth callback helpers', () => {
   const nativeCallbackUrl = 'orbit://auth-callback'
@@ -115,5 +140,60 @@ describe('google auth callback helpers', () => {
         },
       }),
     ).toBe(sessionUrl)
+  })
+
+  it('returns null when the fallback params carry no payload', () => {
+    expect(
+      resolveGoogleAuthCallbackUrl({
+        rawUrl: `${AUTH_CALLBACK_URL}?state=abc`,
+        params: { state: 'abc' },
+      }),
+    ).toBeNull()
+  })
+
+  it('builds no fallback url from an empty param set', () => {
+    expect(buildGoogleAuthFallbackUrl({})).toBeNull()
+  })
+
+  it('drops array-valued params when building the fallback url', () => {
+    const fallbackUrl = buildGoogleAuthFallbackUrl({
+      error: 'access_denied',
+      scopes: ['a', 'b'],
+    })
+
+    expect(fallbackUrl).toBe(`${AUTH_CALLBACK_URL}?error=access_denied`)
+  })
+})
+
+describe('pending google auth session store', () => {
+  beforeEach(() => {
+    clearPendingGoogleAuthSession()
+  })
+
+  it('starts idle with no callback url', () => {
+    const session = renderPendingSession()
+    expect(session.current).toEqual({ callbackUrl: null, isPending: false })
+  })
+
+  it('marks the session pending then resolves it with the callback url', () => {
+    const session = renderPendingSession()
+
+    TestRenderer.act(() => markPendingGoogleAuthSession())
+    expect(session.current).toEqual({ callbackUrl: null, isPending: true })
+
+    TestRenderer.act(() => setPendingGoogleAuthCallbackUrl('orbit://cb#token=1'))
+    expect(session.current).toEqual({ callbackUrl: 'orbit://cb#token=1', isPending: false })
+  })
+
+  it('clears an active session and no-ops when already idle', () => {
+    const session = renderPendingSession()
+
+    TestRenderer.act(() => markPendingGoogleAuthSession())
+    TestRenderer.act(() => clearPendingGoogleAuthSession())
+    expect(session.current).toEqual({ callbackUrl: null, isPending: false })
+
+    const snapshotBefore = session.current
+    TestRenderer.act(() => clearPendingGoogleAuthSession())
+    expect(session.current).toBe(snapshotBefore)
   })
 })

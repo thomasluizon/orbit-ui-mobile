@@ -4,7 +4,15 @@ import { API } from '@orbit/shared/api'
 import { habitKeys, tagKeys } from '@orbit/shared/query'
 import type { HabitScheduleItem, SuggestTagsResponse } from '@orbit/shared/types/habit'
 
-import { useAssignTags, useDeleteTag, useSuggestTags } from '@/hooks/use-tags'
+import {
+  useAssignTags,
+  useCreateTag,
+  useDeleteTag,
+  useRestoreTag,
+  useSuggestTags,
+  useTags,
+  useUpdateTag,
+} from '@/hooks/use-tags'
 
 const mocks = vi.hoisted(() => {
   const state = {
@@ -64,6 +72,9 @@ const mocks = vi.hoisted(() => {
   return {
     state,
     queryClient,
+    showSuccess: vi.fn(),
+    showError: vi.fn(),
+    showUndoToast: vi.fn(),
     useQuery: vi.fn(),
     useQueryClient: vi.fn(() => queryClient),
     useMutation: vi.fn((config: unknown) => config),
@@ -122,8 +133,8 @@ vi.mock('@/lib/offline-mutations', () => ({
 
 vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({
-    showSuccess: vi.fn(),
-    showError: vi.fn(),
+    showSuccess: mocks.showSuccess,
+    showError: mocks.showError,
     showQueued: vi.fn(),
     showInfo: vi.fn(),
     showToast: vi.fn(),
@@ -131,12 +142,13 @@ vi.mock('@/hooks/use-app-toast', () => ({
 }))
 
 vi.mock('@/hooks/use-undo-toast', () => ({
-  useUndoToast: () => vi.fn(),
+  useUndoToast: () => mocks.showUndoToast,
 }))
 
 type MutationConfig<TResult, TVariables, TContext> = {
   mutationFn: (variables: TVariables) => Promise<TResult>
   onMutate?: (variables: TVariables) => Promise<TContext> | TContext
+  onSuccess?: (data: TResult, variables: TVariables, context: TContext) => void
   onError?: (error: Error, variables: TVariables, context: TContext | undefined) => void
   onSettled?: (
     data: TResult | undefined,
@@ -218,6 +230,9 @@ describe('mobile tag hooks', () => {
     mocks.isQueuedResult.mockClear()
     mocks.queueOrExecute.mockReset()
     mocks.withQueuedMarker.mockClear()
+    mocks.showSuccess.mockClear()
+    mocks.showError.mockClear()
+    mocks.showUndoToast.mockClear()
   })
 
   it('optimistically assigns tags to a habit and skips invalidation when queued', async () => {
@@ -291,5 +306,163 @@ describe('mobile tag hooks', () => {
 
     expect(mocks.state.tags[0]?.value).toEqual(initialTags)
     expect(mocks.state.habits[0]?.value).toEqual(initialHabits)
+  })
+
+  it('exposes the tag list query and fetches through the api client', async () => {
+    const { apiClient } = await import('@/lib/api-client')
+    mocks.useQuery.mockReturnValue({
+      data: [{ id: 'tag-1', name: 'Health', color: '#00ff00' }],
+      isLoading: false,
+      isFetching: true,
+    })
+
+    const result = useTags()
+
+    expect(result.tags).toEqual([{ id: 'tag-1', name: 'Health', color: '#00ff00' }])
+    expect(result.isFetching).toBe(true)
+
+    const options = mocks.useQuery.mock.calls[0]![0] as { queryFn: () => Promise<unknown> }
+    await options.queryFn()
+    expect(apiClient).toHaveBeenCalledWith(API.tags.list)
+  })
+
+  it('optimistically appends a created tag then swaps its temp id for the server id', async () => {
+    const mutation = useCreateTag() as unknown as MutationConfig<
+      { id: string },
+      { name: string; color: string },
+      { previousLists: unknown; tempId?: string; request: { name: string; color: string } }
+    >
+    mocks.queueOrExecute.mockResolvedValue({ id: 'server-tag-9' })
+
+    const variables = { name: 'Reading', color: '#7c3aed' }
+    const context = await mutation.onMutate!(variables)
+
+    expect(mocks.state.tags[0]?.value.map((tag) => tag.id)).toContain('offline-tag-1')
+    expect(context.tempId).toBe('offline-tag-1')
+
+    const result = await mutation.mutationFn(variables)
+    mutation.onSuccess!(result, variables, context)
+    mutation.onSettled?.(result, null, variables, context)
+
+    const ids = mocks.state.tags[0]?.value.map((tag) => tag.id)
+    expect(ids).toContain('server-tag-9')
+    expect(ids).not.toContain('offline-tag-1')
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalled()
+  })
+
+  it('keeps the optimistic temp id and skips invalidation when a create is queued offline', async () => {
+    const mutation = useCreateTag() as unknown as MutationConfig<
+      { id: string; queued: true; queuedMutationId: string },
+      { name: string; color: string },
+      { previousLists: unknown; tempId?: string; request: { name: string; color: string } }
+    >
+    mocks.queueOrExecute.mockResolvedValue({
+      id: 'offline-tag-1',
+      queued: true,
+      queuedMutationId: 'mutation-1',
+    })
+
+    const variables = { name: 'Reading', color: '#7c3aed' }
+    const context = await mutation.onMutate!(variables)
+    const result = await mutation.mutationFn(variables)
+    mutation.onSuccess!(result, variables, context)
+    mutation.onSettled?.(result, null, variables, context)
+
+    expect(mocks.state.tags[0]?.value.map((tag) => tag.id)).toContain('offline-tag-1')
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
+  })
+
+  it('optimistically renames a tag across the tag list and every habit reference', async () => {
+    const mutation = useUpdateTag() as unknown as MutationConfig<
+      { queued: true; queuedMutationId: string },
+      { tagId: string; name: string; color: string },
+      { previousLists: unknown; previousHabitLists: unknown }
+    >
+    mocks.queueOrExecute.mockResolvedValue({ queued: true, queuedMutationId: 'mutation-1' })
+
+    const variables = { tagId: 'tag-1', name: 'Wellbeing', color: '#123456' }
+    const context = await mutation.onMutate!(variables)
+    const result = await mutation.mutationFn(variables)
+    mutation.onSettled?.(result, null, variables, context)
+
+    const renamedTag = mocks.state.tags[0]?.value.find((tag) => tag.id === 'tag-1')
+    expect(renamedTag).toEqual({ id: 'tag-1', name: 'Wellbeing', color: '#123456' })
+    const habitTag = mocks.state.habits[0]?.value[0]?.tags?.find((tag) => tag.id === 'tag-1')
+    expect(habitTag).toMatchObject({ name: 'Wellbeing', color: '#123456' })
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
+  })
+
+  it('rolls back the optimistic rename when the update fails', async () => {
+    const mutation = useUpdateTag() as unknown as MutationConfig<
+      { queued: true; queuedMutationId: string },
+      { tagId: string; name: string; color: string },
+      {
+        previousLists: readonly (readonly [readonly unknown[], { id: string; name: string; color: string }[] | undefined])[]
+        previousHabitLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[]
+      }
+    >
+    const initialTags = mocks.state.tags[0]?.value
+    mocks.queueOrExecute.mockRejectedValue(new Error('Update failed'))
+
+    const variables = { tagId: 'tag-1', name: 'Wellbeing', color: '#123456' }
+    const context = await mutation.onMutate!(variables)
+    await expect(mutation.mutationFn(variables)).rejects.toThrow('Update failed')
+    mutation.onError?.(new Error('Update failed'), variables, context)
+
+    expect(mocks.state.tags[0]?.value).toEqual(initialTags)
+  })
+
+  it('confirms a restore with a success toast and reports failures', async () => {
+    const mutation = useRestoreTag() as unknown as MutationConfig<
+      { queued: true; queuedMutationId: string },
+      string,
+      undefined
+    >
+    mocks.queueOrExecute.mockResolvedValue({ queued: false })
+
+    const result = await mutation.mutationFn('tag-1')
+    mutation.onSuccess!(result, 'tag-1', undefined)
+    expect(mocks.showSuccess).toHaveBeenCalledWith('undo.restored')
+
+    mutation.onError?.(new Error('Restore failed'), 'tag-1', undefined)
+    expect(mocks.showError).toHaveBeenCalledWith('undo.restoreFailed')
+  })
+
+  it('shows an undo toast after a delete and invalidates once settled online', async () => {
+    const mutation = useDeleteTag() as unknown as MutationConfig<
+      { queued: false },
+      string,
+      { previousLists: unknown; previousHabitLists: unknown }
+    >
+    mocks.queueOrExecute.mockResolvedValue({ queued: false })
+
+    const context = await mutation.onMutate!('tag-1')
+    expect(mocks.state.tags[0]?.value.map((tag) => tag.id)).not.toContain('tag-1')
+
+    const result = await mutation.mutationFn('tag-1')
+    mutation.onSuccess!(result, 'tag-1', context)
+    mutation.onSettled?.(result, null, 'tag-1', context)
+
+    expect(mocks.showUndoToast).toHaveBeenCalledWith('undo.tagDeleted', expect.any(Function))
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalled()
+  })
+
+  it('invalidates habit lists after an online tag assignment settles', async () => {
+    const mutation = useAssignTags() as unknown as MutationConfig<
+      undefined,
+      { habitId: string; tagIds: string[] },
+      { previousHabitLists: unknown }
+    >
+    mocks.queueOrExecute.mockResolvedValue(undefined)
+
+    const variables = { habitId: 'habit-1', tagIds: ['tag-2'] }
+    const context = await mutation.onMutate!(variables)
+    const result = await mutation.mutationFn(variables)
+    mutation.onSettled?.(result, null, variables, context)
+
+    expect(mocks.state.habits[0]?.value[0]?.tags).toEqual([
+      { id: 'tag-2', name: 'Focus', color: '#0000ff' },
+    ])
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalled()
   })
 })

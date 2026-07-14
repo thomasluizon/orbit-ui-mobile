@@ -1,18 +1,26 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
-import { habitKeys, goalKeys, tagKeys } from '@orbit/shared/query'
-import type { ChecklistItem, CreateHabitRequest, HabitScheduleChild, HabitScheduleItem } from '@orbit/shared/types/habit'
+import { createMockGoal } from '@orbit/shared/__tests__/factories'
+import { gamificationKeys, habitKeys, goalKeys, profileKeys, tagKeys } from '@orbit/shared/query'
+import type { ChecklistItem, CreateHabitRequest, HabitScheduleChild, HabitScheduleItem, LogHabitResponse } from '@orbit/shared/types/habit'
+import type { Goal } from '@orbit/shared/types/goal'
 
 import {
+  useBulkCreateHabits,
+  useBulkDeleteHabits,
   useBulkLogHabits,
+  useBulkSkipHabits,
   useCreateHabit,
   useCreateSubHabit,
   useDeleteHabit,
+  useDuplicateHabit,
   useLogHabit,
   useMoveHabitParent,
+  useReorderHabits,
   useRestoreHabit,
   useSkipHabit,
   useUpdateChecklist,
+  useUpdateHabit,
 } from '@/hooks/use-habits'
 import { useReviewReminderStore } from '@/stores/review-reminder-store'
 
@@ -121,6 +129,8 @@ const mocks = vi.hoisted(() => {
     })),
     syncWidgetData: vi.fn(async () => {}),
     setLastCreatedHabitId: vi.fn(),
+    setStreakCelebration: vi.fn(),
+    checkAllDoneCelebration: vi.fn(),
     invalidateHabitMutationQueries: vi.fn(async () => {}),
     showSuccess: vi.fn(),
     showError: vi.fn(),
@@ -168,8 +178,8 @@ vi.mock('@/stores/ui-store', () => ({
   useUIStore: {
     getState: () => ({
       activeFilters: {},
-      checkAllDoneCelebration: vi.fn(),
-      setStreakCelebration: vi.fn(),
+      checkAllDoneCelebration: mocks.checkAllDoneCelebration,
+      setStreakCelebration: mocks.setStreakCelebration,
       setLastCreatedHabitId: mocks.setLastCreatedHabitId,
     }),
   },
@@ -211,6 +221,10 @@ type MutationConfig<TResult, TVariables, TContext> = {
     variables: TVariables,
     context: TContext | undefined,
   ) => void
+}
+
+type HabitSnapshotContext = {
+  previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[]
 }
 
 function makeHabit(overrides: Partial<HabitScheduleItem> = {}): HabitScheduleItem {
@@ -293,6 +307,12 @@ function getHabitList(): HabitScheduleItem[] {
   )
 }
 
+function getCount(): number {
+  return (
+    mocks.state.entries.find((entry) => JSON.stringify(entry.key) === JSON.stringify(habitKeys.count()))?.value as number
+  )
+}
+
 describe('mobile habit hooks', () => {
   beforeEach(() => {
     vi.useRealTimers()
@@ -317,6 +337,8 @@ describe('mobile habit hooks', () => {
     mocks.withQueuedMarker.mockClear()
     mocks.syncWidgetData.mockClear()
     mocks.setLastCreatedHabitId.mockClear()
+    mocks.setStreakCelebration.mockClear()
+    mocks.checkAllDoneCelebration.mockClear()
     mocks.invalidateHabitMutationQueries.mockClear()
     mocks.showSuccess.mockClear()
     mocks.showError.mockClear()
@@ -720,5 +742,333 @@ describe('mobile habit hooks', () => {
     mutation.onError?.(new Error('boom'), 'habit-1', undefined)
 
     expect(mocks.showError).toHaveBeenCalledWith('undo.restoreFailed')
+  })
+
+  it('applies streak, profile, gamification, and linked-goal updates on a fresh online completion', () => {
+    mocks.state.entries = [
+      { key: habitKeys.list({}), value: [makeHabit({ id: 'habit-1', isBadHabit: false })] },
+      { key: habitKeys.count(), value: 1 },
+      { key: tagKeys.lists(), value: [] },
+      {
+        key: goalKeys.lists(),
+        value: [createMockGoal({ id: 'goal-1', currentValue: 0, targetValue: 10, progressPercentage: 0 })],
+      },
+      { key: profileKeys.detail(), value: { currentStreak: 0, hasCompletedOnboarding: true } },
+      { key: gamificationKeys.profile(), value: { totalXp: 100 } },
+    ]
+
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      { habitId: string; date?: string },
+      unknown
+    >
+    const response: LogHabitResponse = {
+      logId: 'log-1',
+      isFirstCompletionToday: true,
+      currentStreak: 3,
+      xpEarned: 25,
+      linkedGoalUpdates: [{ goalId: 'goal-1', title: 'Read 12 Books', newProgress: 4, targetValue: 10 }],
+      newAchievementIds: [],
+    }
+
+    mutation.onSuccess?.(response, { habitId: 'habit-1' }, undefined)
+
+    expect(mocks.setStreakCelebration).toHaveBeenCalledWith({ streak: 3 })
+    const profile = mocks.queryClient.getQueryData(profileKeys.detail()) as { currentStreak: number }
+    expect(profile.currentStreak).toBe(3)
+    const goal = (mocks.queryClient.getQueryData(goalKeys.lists()) as Goal[])[0]
+    expect(goal?.currentValue).toBe(4)
+    expect(goal?.progressPercentage).toBe(40)
+    const gamification = mocks.queryClient.getQueryData(gamificationKeys.profile()) as { totalXp: number }
+    expect(gamification.totalXp).toBe(125)
+    expect(mocks.checkAllDoneCelebration).toHaveBeenCalled()
+  })
+
+  it('does not celebrate a completion logged for a bad habit', () => {
+    mocks.state.entries = [
+      { key: habitKeys.list({}), value: [makeHabit({ id: 'habit-1', isBadHabit: true })] },
+      { key: habitKeys.count(), value: 1 },
+      { key: tagKeys.lists(), value: [] },
+      { key: goalKeys.lists(), value: [] },
+      { key: gamificationKeys.profile(), value: { totalXp: 100 } },
+    ]
+
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      { habitId: string; date?: string },
+      unknown
+    >
+    const response: LogHabitResponse = {
+      logId: 'log-1',
+      isFirstCompletionToday: true,
+      currentStreak: 3,
+      xpEarned: 25,
+      linkedGoalUpdates: [],
+      newAchievementIds: [],
+    }
+
+    mutation.onSuccess?.(response, { habitId: 'habit-1' }, undefined)
+
+    expect(mocks.setStreakCelebration).not.toHaveBeenCalled()
+    const gamification = mocks.queryClient.getQueryData(gamificationKeys.profile()) as { totalXp: number }
+    expect(gamification.totalXp).toBe(100)
+  })
+
+  it('skips all celebrations when a completion is queued offline', () => {
+    seedHabitState([makeHabit({ id: 'habit-1' })], 1)
+
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      { habitId: string; date?: string },
+      unknown
+    >
+
+    mutation.onSuccess?.({ queued: true, queuedMutationId: 'm-1' }, { habitId: 'habit-1' }, undefined)
+
+    expect(mocks.setStreakCelebration).not.toHaveBeenCalled()
+    expect(mocks.checkAllDoneCelebration).not.toHaveBeenCalled()
+  })
+
+  it('rolls back the optimistic completion when logging fails', async () => {
+    seedHabitState([makeHabit({ id: 'habit-1', isCompleted: false })], 1)
+
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      { habitId: string; date?: string },
+      HabitSnapshotContext
+    >
+
+    const context = await mutation.onMutate?.({ habitId: 'habit-1' })
+    expect(getHabitList()[0]?.isCompleted).toBe(true)
+
+    mutation.onError?.(new Error('Log failed'), { habitId: 'habit-1' }, context)
+    expect(getHabitList()[0]?.isCompleted).toBe(false)
+  })
+
+  it('optimistically completes a recurring skip and rolls it back on failure', async () => {
+    seedHabitState([makeHabit({ id: 'habit-1', frequencyUnit: 'Day', isCompleted: false })], 1)
+
+    const mutation = useSkipHabit() as unknown as MutationConfig<
+      unknown,
+      { habitId: string; date?: string },
+      HabitSnapshotContext
+    >
+
+    const context = await mutation.onMutate?.({ habitId: 'habit-1' })
+    expect(getHabitList()[0]?.isCompleted).toBe(true)
+
+    mutation.onError?.(new Error('Skip failed'), { habitId: 'habit-1' }, context)
+    expect(getHabitList()[0]?.isCompleted).toBe(false)
+  })
+
+  it('patches a habit optimistically, invalidates its detail online, and restores it on failure', async () => {
+    seedHabitState([makeHabit({ id: 'habit-1', title: 'Exercise' })], 1)
+
+    const mutation = useUpdateHabit() as unknown as MutationConfig<
+      unknown,
+      { habitId: string; data: { title: string; isBadHabit: boolean } },
+      HabitSnapshotContext
+    >
+    const variables = { habitId: 'habit-1', data: { title: 'Run 5k', isBadHabit: false } }
+
+    const context = await mutation.onMutate?.(variables)
+    expect(getHabitList()[0]?.title).toBe('Run 5k')
+
+    mocks.runQueuedMutation.mockResolvedValueOnce({})
+    const result = await mutation.mutationFn(variables)
+    mutation.onSettled?.(result, null, variables, context)
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: habitKeys.detail('habit-1'),
+    })
+
+    mutation.onError?.(new Error('Update failed'), variables, context)
+    expect(getHabitList()[0]?.title).toBe('Exercise')
+  })
+
+  it('reorders habit positions optimistically and restores them on failure', async () => {
+    seedHabitState(
+      [
+        makeHabit({ id: 'habit-1', position: 0 }),
+        makeHabit({ id: 'habit-2', position: 1 }),
+      ],
+      2,
+    )
+
+    const mutation = useReorderHabits() as unknown as MutationConfig<
+      unknown,
+      { positions: { habitId: string; position: number }[] },
+      HabitSnapshotContext
+    >
+    const variables = {
+      positions: [
+        { habitId: 'habit-1', position: 1 },
+        { habitId: 'habit-2', position: 0 },
+      ],
+    }
+
+    const context = await mutation.onMutate?.(variables)
+    const byId = (id: string) => getHabitList().find((habit) => habit.id === id)
+    expect(byId('habit-1')?.position).toBe(1)
+    expect(byId('habit-2')?.position).toBe(0)
+
+    mutation.onError?.(new Error('Reorder failed'), variables, context)
+    expect(byId('habit-1')?.position).toBe(0)
+    expect(byId('habit-2')?.position).toBe(1)
+  })
+
+  it('optimistically deletes a habit, decrements the count, and restores both on failure', async () => {
+    seedHabitState([makeHabit({ id: 'habit-1' }), makeHabit({ id: 'habit-2' })], 2)
+
+    const mutation = useDeleteHabit() as unknown as MutationConfig<
+      unknown,
+      string,
+      HabitSnapshotContext
+    >
+
+    const context = await mutation.onMutate?.('habit-1')
+    expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-2'])
+    expect(getCount()).toBe(1)
+
+    mutation.onError?.(new Error('Delete failed'), 'habit-1', context)
+    expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1', 'habit-2'])
+    expect(getCount()).toBe(2)
+  })
+
+  it('inserts an optimistic duplicate with an incremented count and rolls back on failure', async () => {
+    seedHabitState([makeHabit({ id: 'habit-1', title: 'Exercise' })], 1)
+    mocks.state.tempIds = ['offline-dup-1']
+
+    const mutation = useDuplicateHabit() as unknown as MutationConfig<
+      unknown,
+      string,
+      { previousLists: HabitSnapshotContext['previousLists']; tempId: string | null }
+    >
+
+    const context = await mutation.onMutate?.('habit-1')
+    const duplicate = getHabitList().find((habit) => habit.id === 'offline-dup-1')
+    expect(duplicate?.title).toBe('Exercise')
+    expect(getCount()).toBe(2)
+    expect(context?.tempId).toBe('offline-dup-1')
+
+    mutation.onError?.(new Error('Duplicate failed'), 'habit-1', context)
+    expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1'])
+    expect(getCount()).toBe(1)
+  })
+
+  it('skips the optimistic duplicate when the source habit is missing from the cache', async () => {
+    seedHabitState([makeHabit({ id: 'habit-1' })], 1)
+
+    const mutation = useDuplicateHabit() as unknown as MutationConfig<
+      unknown,
+      string,
+      { previousLists: HabitSnapshotContext['previousLists']; tempId: string | null }
+    >
+
+    const context = await mutation.onMutate?.('missing-habit')
+    expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1'])
+    expect(getCount()).toBe(1)
+    expect(context?.tempId).toBeNull()
+  })
+
+  it('inserts a batch of optimistic habits and rolls the whole batch back on failure', async () => {
+    seedHabitState([makeHabit({ id: 'habit-1' })], 1)
+
+    const mutation = useBulkCreateHabits() as unknown as MutationConfig<
+      unknown,
+      { habits: { title: string }[]; __offlineTempIds?: string[] },
+      { previousLists: HabitSnapshotContext['previousLists']; createdCount: number }
+    >
+    mocks.state.tempIds = ['offline-bulk-1', 'offline-bulk-2']
+    const variables = { habits: [{ title: 'Read' }, { title: 'Meditate' }] }
+
+    const context = await mutation.onMutate?.(variables)
+    expect(getHabitList().map((habit) => habit.title)).toEqual(['Exercise', 'Read', 'Meditate'])
+    expect(getCount()).toBe(3)
+    expect(context?.createdCount).toBe(2)
+
+    mutation.onError?.(new Error('Bulk create failed'), variables, context)
+    expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1'])
+    expect(getCount()).toBe(1)
+  })
+
+  it('optimistically deletes many habits and invalidates goals plus the count online', async () => {
+    seedHabitState(
+      [
+        makeHabit({ id: 'habit-1' }),
+        makeHabit({ id: 'habit-2' }),
+        makeHabit({ id: 'habit-3' }),
+      ],
+      3,
+    )
+
+    const mutation = useBulkDeleteHabits() as unknown as MutationConfig<
+      unknown,
+      string[],
+      { previousLists: HabitSnapshotContext['previousLists']; deletedCount: number }
+    >
+
+    const context = await mutation.onMutate?.(['habit-1', 'habit-2'])
+    expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-3'])
+    expect(getCount()).toBe(1)
+
+    mocks.runQueuedMutation.mockResolvedValueOnce({ results: [] })
+    const result = await mutation.mutationFn(['habit-1', 'habit-2'])
+    mutation.onSettled?.(result, null, ['habit-1', 'habit-2'], context)
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.count() })
+
+    mutation.onError?.(new Error('Bulk delete failed'), ['habit-1', 'habit-2'], context)
+    expect(getHabitList().map((habit) => habit.id)).toEqual(['habit-1', 'habit-2', 'habit-3'])
+    expect(getCount()).toBe(3)
+  })
+
+  it('optimistically completes only same-day bulk skips and restores them on failure', async () => {
+    seedHabitState(
+      [
+        makeHabit({ id: 'habit-1', isCompleted: false }),
+        makeHabit({ id: 'habit-2', isCompleted: false }),
+      ],
+      2,
+    )
+
+    const mutation = useBulkSkipHabits() as unknown as MutationConfig<
+      unknown,
+      { habitId: string; date?: string }[],
+      HabitSnapshotContext
+    >
+    const variables = [
+      { habitId: 'habit-1' },
+      { habitId: 'habit-2', date: '2025-02-01' },
+    ]
+
+    const context = await mutation.onMutate?.(variables)
+    expect(getHabitList().find((habit) => habit.id === 'habit-1')?.isCompleted).toBe(true)
+    expect(getHabitList().find((habit) => habit.id === 'habit-2')?.isCompleted).toBe(false)
+
+    mutation.onError?.(new Error('Bulk skip failed'), variables, context)
+    expect(getHabitList().find((habit) => habit.id === 'habit-1')?.isCompleted).toBe(false)
+  })
+
+  it('restores the list when a bulk log fails', async () => {
+    seedHabitState(
+      [
+        makeHabit({ id: 'habit-1', isCompleted: false }),
+        makeHabit({ id: 'habit-2', isCompleted: false }),
+      ],
+      2,
+    )
+
+    const mutation = useBulkLogHabits() as unknown as MutationConfig<
+      unknown,
+      { habitId: string; date?: string }[],
+      HabitSnapshotContext
+    >
+    const variables = [{ habitId: 'habit-1' }, { habitId: 'habit-2' }]
+
+    const context = await mutation.onMutate?.(variables)
+    expect(getHabitList().every((habit) => habit.isCompleted)).toBe(true)
+
+    mutation.onError?.(new Error('Bulk log failed'), variables, context)
+    expect(getHabitList().every((habit) => habit.isCompleted)).toBe(false)
   })
 })
