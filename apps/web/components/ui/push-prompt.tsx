@@ -90,6 +90,7 @@ export function PushPrompt() {
         return
       }
 
+      // react-doctor-disable-next-line effect-needs-cleanup -- pushManager.subscribe registers a persistent Web Push subscription that is sent to the server (subscribePush) and must outlive this component; unsubscribing on unmount would delete the user's push registration https://github.com/thomasluizon/orbit-ui-mobile/issues/243
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidKey).buffer as ArrayBuffer,
@@ -106,6 +107,7 @@ export function PushPrompt() {
 
   return (
     <div
+      // react-doctor-disable-next-line prefer-html-dialog -- intentional non-modal bottom-anchored notification prompt with custom fixed positioning + slide transition; native <dialog> centering/backdrop semantics would break the layout and steal focus https://github.com/thomasluizon/orbit-ui-mobile/issues/243
       role="dialog"
       aria-label={t('pushPrompt.title')}
       className="fixed left-0 right-0 z-50 mx-auto transition-[opacity,transform] duration-[240ms] ease-out motion-reduce:transition-none"

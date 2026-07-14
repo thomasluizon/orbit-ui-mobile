@@ -8,6 +8,25 @@ import {
   type RefObject,
 } from 'react'
 
+const CODE_BOX_STYLE = {
+  width: 48,
+  height: 58,
+  flex: 'none',
+  appearance: 'none',
+  border: 0,
+  outline: 'none',
+  borderRadius: 14,
+  background: 'var(--bg-field)',
+  textAlign: 'center',
+  fontFamily: 'var(--font-mono)',
+  fontSize: 26,
+  fontWeight: 500,
+  color: 'var(--fg-1)',
+  padding: 0,
+  fontVariantNumeric: 'tabular-nums',
+  transition: 'box-shadow var(--dur-fast) var(--ease-standard)',
+} as const
+
 /** Kit OTP: six 48x58 filled boxes (radius 14, inset hairline ring), Roboto
  *  26/500 digits, primary ring on the focused box. */
 interface CodeInputProps {
@@ -67,26 +86,11 @@ export function CodeInput({
             setActiveIndex((current) => (current === index ? null : current))
           }
           style={{
-            width: 48,
-            height: 58,
-            flex: 'none',
-            appearance: 'none',
-            border: 0,
-            outline: 'none',
-            borderRadius: 14,
-            background: 'var(--bg-field)',
+            ...CODE_BOX_STYLE,
             boxShadow:
               activeIndex === index
                 ? 'inset 0 0 0 2px var(--primary)'
                 : 'inset 0 0 0 1px var(--hairline)',
-            textAlign: 'center',
-            fontFamily: 'var(--font-mono)',
-            fontSize: 26,
-            fontWeight: 500,
-            color: 'var(--fg-1)',
-            padding: 0,
-            fontVariantNumeric: 'tabular-nums',
-            transition: 'box-shadow var(--dur-fast) var(--ease-standard)',
           }}
         />
       ))}

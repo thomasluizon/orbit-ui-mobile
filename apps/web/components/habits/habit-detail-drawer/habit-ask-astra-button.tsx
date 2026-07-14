@@ -31,6 +31,7 @@ export function HabitAskAstraButton({
             <span
               style={{
                 fontFamily: 'var(--font-mono)',
+                // react-doctor-disable-next-line no-tiny-text -- intentional mono eyebrow label above the Ask-Astra prompt (meta scale per DESIGN.md), not body text https://github.com/thomasluizon/orbit-ui-mobile/issues/243
                 fontSize: 10.5,
                 fontWeight: 500,
                 letterSpacing: '0.06em',

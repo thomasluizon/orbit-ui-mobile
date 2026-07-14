@@ -94,6 +94,17 @@ export function ControlsMenu({
   )
 }
 
+const MENU_ROW_STYLE = {
+  padding: '10px 12px',
+  gap: 12,
+  fontFamily: 'var(--font-sans)',
+  fontSize: 14,
+  fontWeight: 500,
+  color: 'var(--fg-1)',
+  textAlign: 'left',
+  borderRadius: 8,
+} as const
+
 interface MenuRowProps {
   icon: React.ReactNode
   label: string
@@ -114,16 +125,7 @@ function MenuRow({
       disabled={disabled}
       onClick={onClick}
       className="w-full appearance-none border-0 bg-transparent cursor-pointer flex items-center transition-colors hover:bg-[var(--bg-sunk)] disabled:opacity-50 disabled:hover:bg-transparent disabled:cursor-not-allowed"
-      style={{
-        padding: '10px 12px',
-        gap: 12,
-        fontFamily: 'var(--font-sans)',
-        fontSize: 14,
-        fontWeight: 500,
-        color: 'var(--fg-1)',
-        textAlign: 'left',
-        borderRadius: 8,
-      }}
+      style={MENU_ROW_STYLE}
     >
       <span className="shrink-0 inline-flex" style={{ color: 'var(--fg-2)' }}>
         {icon}

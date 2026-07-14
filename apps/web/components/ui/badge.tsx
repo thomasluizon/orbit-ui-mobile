@@ -38,6 +38,7 @@ export function Badge({ tone = 'violet', children, className }: Readonly<BadgePr
         .join(' ')}
       style={{
         fontFamily: 'var(--font-sans)',
+        // react-doctor-disable-next-line no-tiny-text -- Kit Badge per DESIGN.md: intentional 10.5/600 uppercase pill, not body text https://github.com/thomasluizon/orbit-ui-mobile/issues/243
         fontSize: 10.5,
         fontWeight: 600,
         letterSpacing: '0.06em',

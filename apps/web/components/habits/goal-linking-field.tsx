@@ -35,6 +35,7 @@ export function GoalLinkingField({
   })
 
   const activeGoals = goals?.filter((g) => g.status === 'Active') ?? []
+  const selectedGoalIdSet = new Set(selectedGoalIds)
 
   return (
     <div className="space-y-2">
@@ -44,7 +45,7 @@ export function GoalLinkingField({
       {activeGoals.length > 0 ? (
         <div className="flex flex-wrap" style={{ gap: 8 }}>
           {activeGoals.map((goal) => {
-            const isSelected = selectedGoalIds.includes(goal.id)
+            const isSelected = selectedGoalIdSet.has(goal.id)
             const isDimmed = !isSelected && atGoalLimit
             return (
               <button

@@ -1,9 +1,20 @@
 'use client'
 
 import { Plus, Sparkles } from 'lucide-react'
-import { getHabitEmptyStateKey } from '@orbit/shared/utils'
 import { PillButton } from '@/components/ui/pill-button'
 import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
+
+const SECONDARY_ACTION_STYLE = {
+  fontFamily: 'var(--font-sans)',
+  fontSize: 13,
+  fontWeight: 500,
+  padding: '12px 16px',
+  margin: '-6px 0',
+  textDecoration: 'underline',
+  textUnderlineOffset: 4,
+  textDecorationThickness: 1,
+  textDecorationColor: 'var(--hairline-strong)',
+} as const
 
 interface HabitListEmptyStateProps {
   title: string
@@ -96,17 +107,7 @@ export function HabitListEmptyState({
             type="button"
             onClick={onAction}
             className="appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-1)] hover:text-[var(--primary)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
-            style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 13,
-              fontWeight: 500,
-              padding: '12px 16px',
-              margin: '-6px 0',
-              textDecoration: 'underline',
-              textUnderlineOffset: 4,
-              textDecorationThickness: 1,
-              textDecorationColor: 'var(--hairline-strong)',
-            }}
+            style={SECONDARY_ACTION_STYLE}
           >
             {actionLabel}
           </button>
@@ -161,9 +162,3 @@ export function HabitListSkeleton() {
   )
 }
 
-export function getEmptyHabitsMessage(
-  view: 'today' | 'all' | 'general',
-  t: (key: string) => string,
-): string {
-  return t(getHabitEmptyStateKey(view))
-}

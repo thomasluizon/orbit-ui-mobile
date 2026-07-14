@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { X, Expand } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import DOMPurify from 'dompurify'
+// react-doctor-disable-next-line use-lazy-motion -- LazyMotion migration is app-wide (needs a shared provider + converting every motion.* across components/**); a partial per-file swap yields no bundle benefit and risks unprovided m https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { resolveMotionPreset } from '@orbit/shared/theme'
 import { useIsClient } from '@/hooks/use-is-client'
@@ -58,6 +59,7 @@ interface AppOverlayProps {
 
 let bodyScrollLockCount = 0
 
+// react-doctor-disable-next-line no-giant-component -- modal scaffold owning backdrop, focus-trap, body-scroll-lock, overlay-stack, and animated dialog chrome as one cohesive unit; extraction deferred to avoid regression without visual QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function AppOverlay({
   open,
   onOpenChange,
@@ -293,6 +295,7 @@ export function AppOverlay({
 
             {dismissible && !hasTitle && (
               <button
+                type="button"
                 className="absolute top-2 right-2 z-10 size-11 rounded-full flex items-center justify-center text-[var(--fg-2)] hover:text-[var(--fg-1)] hover:bg-[var(--bg-elev)] active:scale-[0.96] transition-[background-color,color,transform] duration-150"
                 aria-label={t('common.close')}
                 onClick={() => requestClose('close-button')}
@@ -315,10 +318,12 @@ export function AppOverlay({
                       <p
                         id={descriptionId}
                         className="flex-1 text-sm text-[var(--fg-2)] whitespace-pre-wrap max-h-32 overflow-y-auto"
+                        // react-doctor-disable-next-line dangerous-html-sink -- linkedDescription is DOMPurify.sanitize()'d with a fixed <a>-only allowlist in linkifyText(); no scripts or event handlers survive https://github.com/thomasluizon/orbit-ui-mobile/issues/243
                         dangerouslySetInnerHTML={{ __html: linkedDescription }}
                       />
                       {expandable && (
                         <button
+                          type="button"
                           className="relative shrink-0 size-8 rounded-full icon-btn-ring bg-[var(--bg-sunk)] flex items-center justify-center text-[var(--fg-2)] hover:text-[var(--fg-1)] hover:bg-[var(--bg-elev)] active:scale-[0.96] transition-[background-color,color,transform] duration-150 mt-0.5 after:content-[''] after:absolute after:-inset-[6px] after:rounded-full"
                           aria-label={t('common.expandDescription')}
                           onClick={onExpandDescription}
@@ -331,6 +336,7 @@ export function AppOverlay({
                 </div>
                 {dismissible && (
                   <button
+                    type="button"
                     className="shrink-0 size-11 rounded-full flex items-center justify-center text-[var(--fg-2)] hover:text-[var(--fg-1)] hover:bg-[var(--bg-elev)] active:scale-[0.96] transition-[background-color,color,transform] duration-150 ml-2 -mr-2.5 -mt-2"
                     aria-label={t('common.close')}
                     onClick={() => requestClose('close-button')}
@@ -364,5 +370,6 @@ export function AppOverlay({
     </AnimatePresence>
   )
 
+  // react-doctor-disable-next-line no-unguarded-browser-global-in-render-or-hook-init -- unreachable during SSR: the `if (!mounted) return null` above (useIsClient) returns before this line on the server and first hydration render https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   return createPortal(overlay, document.body)
 }

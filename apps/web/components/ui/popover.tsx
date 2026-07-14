@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+// react-doctor-disable-next-line use-lazy-motion -- LazyMotion migration is app-wide (needs a shared provider + converting every motion.* across components/**); a partial per-file swap yields no bundle benefit and risks unprovided m https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { resolveMotionPreset } from '@orbit/shared/theme'
 import { useIsClient } from '@/hooks/use-is-client'
@@ -89,6 +90,7 @@ export function Popover({
     })
 
     return () => cancelAnimationFrame(rafId)
+    // react-doctor-disable-next-line exhaustive-deps -- isOpen is derived from isControlled/controlledOpen/hookIsOpen every render and already listed; the effect must key off the resolved open state, not its sources https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [panelRef, isOpen])
 
   useEffect(() => {
@@ -110,6 +112,7 @@ export function Popover({
 
     wasOpenRef.current = isOpen
     return () => cancelAnimationFrame(rafId)
+    // react-doctor-disable-next-line exhaustive-deps -- isOpen is derived from isControlled/controlledOpen/hookIsOpen every render and already listed; the effect must key off the resolved open state, not its sources https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [triggerRef, isOpen])
 
   const resolvedPanel =
@@ -153,6 +156,7 @@ export function Popover({
 
   return (
     <>
+      {/* react-doctor-disable-next-line click-events-have-key-events -- capture-phase wrapper for the real trigger button nested inside; keyboard activation of that button dispatches a click that this onClickCapture catches, so keyboard users are fully served https://github.com/thomasluizon/orbit-ui-mobile/issues/243 */}
       <div
         ref={triggerRef}
         onClickCapture={handleTriggerClickCapture}
@@ -214,6 +218,7 @@ export function Popover({
               </motion.div>
             ) : null}
           </AnimatePresence>,
+          // react-doctor-disable-next-line no-unguarded-browser-global-in-render-or-hook-init -- unreachable during SSR: this createPortal only evaluates inside `mounted && ...` (useIsClient false on the server and first hydration render) https://github.com/thomasluizon/orbit-ui-mobile/issues/243
           document.body,
         )}
     </>

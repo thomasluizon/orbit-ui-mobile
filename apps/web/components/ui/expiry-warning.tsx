@@ -6,6 +6,18 @@ import { useAuthStore } from '@/stores/auth-store'
 
 const WARN_AT_MINUTES = 5
 
+const EXPIRY_ACTION_STYLE = {
+  minHeight: 44,
+  margin: '-12px 0',
+  fontFamily: 'var(--font-sans)',
+  fontSize: 13,
+  fontWeight: 500,
+  color: 'var(--fg-1)',
+  padding: '0 4px',
+  textDecoration: 'underline',
+  textUnderlineOffset: 3,
+} as const
+
 export function ExpiryWarning() {
   const t = useTranslations()
   const { expiresAt, logout } = useAuthStore()
@@ -93,17 +105,7 @@ export function ExpiryWarning() {
           type="button"
           className="inline-flex appearance-none items-center justify-center border-0 bg-transparent cursor-pointer transition-opacity duration-150 ease-out hover:opacity-80"
           onClick={handleLogin}
-          style={{
-            minHeight: 44,
-            margin: '-12px 0',
-            fontFamily: 'var(--font-sans)',
-            fontSize: 13,
-            fontWeight: 500,
-            color: 'var(--fg-1)',
-            padding: '0 4px',
-            textDecoration: 'underline',
-            textUnderlineOffset: 3,
-          }}
+          style={EXPIRY_ACTION_STYLE}
         >
           {isExpired ? t('auth.login') : t('auth.refresh')}
         </button>

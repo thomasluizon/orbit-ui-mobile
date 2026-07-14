@@ -12,6 +12,9 @@ import { buildHabitRowContextMenuItems } from './habit-row-context-menu-items'
 
 export type { HabitRowMetaToken }
 
+const EMPTY_META: HabitRowMetaToken[] = []
+const EMPTY_ACTIONS: HabitRowActions = {}
+
 /** Action callbacks consumed by HabitRow. Mirrors the mobile shape so that
  *  cross-platform call sites can pass the same handler bag. */
 export interface HabitRowActions {
@@ -66,7 +69,7 @@ interface HabitRowProps {
 export function HabitRow({
   habit,
   state = 'empty',
-  meta = [],
+  meta = EMPTY_META,
   canLog = true,
   streak,
   child = false,
@@ -78,7 +81,7 @@ export function HabitRow({
   childProgress,
   showLinkedGoalDot = false,
   tourTargetId,
-  actions = {},
+  actions = EMPTY_ACTIONS,
 }: Readonly<HabitRowProps>) {
   const t = useTranslations()
   const {
@@ -161,6 +164,7 @@ export function HabitRow({
     <div
       onClick={handleRowClick}
       onContextMenu={onContextMenu}
+      // react-doctor-disable-next-line prefer-tag-over-role -- the row wraps nested interactive controls (status-dot button, overflow menu) that a native <button> cannot legally contain; div+role=button with full Enter/Space keyboard handling is the accessible pattern here https://github.com/thomasluizon/orbit-ui-mobile/issues/243
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {

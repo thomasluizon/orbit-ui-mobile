@@ -38,6 +38,7 @@ export function UpdatePrompt({
 
   return (
     <div
+      // react-doctor-disable-next-line prefer-html-dialog -- intentional non-modal bottom-anchored update prompt with custom fixed positioning + slide-up animation; native <dialog> centering/backdrop semantics would break the layout and steal focus https://github.com/thomasluizon/orbit-ui-mobile/issues/243
       role="dialog"
       aria-label={versionLabel}
       className="fixed left-0 right-0 z-50 mx-auto"

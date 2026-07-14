@@ -25,13 +25,13 @@ export function SkeletonLine({ width, height, className }: Readonly<SkeletonLine
   )
 }
 
-export function SkeletonCard({ lines = 3, className }: Readonly<SkeletonCardProps>) {
-  const lineWidths = (index: number, total: number): { width: string; height: string } => {
-    if (index === 0) return { width: 'w-1/3', height: 'h-4' }
-    if (index === total - 1) return { width: 'w-2/3', height: 'h-3' }
-    return { width: 'w-full', height: 'h-3' }
-  }
+function lineWidths(index: number, total: number): { width: string; height: string } {
+  if (index === 0) return { width: 'w-1/3', height: 'h-4' }
+  if (index === total - 1) return { width: 'w-2/3', height: 'h-3' }
+  return { width: 'w-full', height: 'h-3' }
+}
 
+export function SkeletonCard({ lines = 3, className }: Readonly<SkeletonCardProps>) {
   return (
     <div
       className={[

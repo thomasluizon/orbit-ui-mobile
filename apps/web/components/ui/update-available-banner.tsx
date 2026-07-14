@@ -5,6 +5,17 @@ import { RefreshCw, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useVersionGateStore } from '@/stores/version-gate-store'
 
+const REFRESH_ACTION_STYLE = {
+  gap: 4,
+  minHeight: 44,
+  margin: '-12px 0',
+  fontFamily: 'var(--font-sans)',
+  fontSize: 13,
+  fontWeight: 500,
+  color: 'var(--primary-soft)',
+  padding: '0 4px',
+} as const
+
 export function UpdateAvailableBanner() {
   const t = useTranslations()
   const upgradeRequired = useVersionGateStore((s) => s.upgradeRequired)
@@ -38,16 +49,7 @@ export function UpdateAvailableBanner() {
       <button
         type="button"
         className="inline-flex items-center transition-opacity duration-150 ease-out hover:opacity-80"
-        style={{
-          gap: 4,
-          minHeight: 44,
-          margin: '-12px 0',
-          fontFamily: 'var(--font-sans)',
-          fontSize: 13,
-          fontWeight: 500,
-          color: 'var(--primary-soft)',
-          padding: '0 4px',
-        }}
+        style={REFRESH_ACTION_STYLE}
         onClick={() => globalThis.location.reload()}
       >
         <RefreshCw size={14} strokeWidth={2.2} aria-hidden="true" />

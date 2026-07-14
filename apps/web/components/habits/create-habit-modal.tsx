@@ -51,6 +51,7 @@ interface CreateHabitModalProps {
   parentHabit?: NormalizedHabit | null
 }
 
+// react-doctor-disable-next-line no-giant-component -- create/sub-habit modal orchestrating the shared form, tag/goal/sub-habit/reminder state, AI-suggest, and dismiss-guard as one flow; extraction deferred to avoid regression without visual QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function CreateHabitModal({
   open,
   onOpenChange,
@@ -119,7 +120,9 @@ export function CreateHabitModal({
   useEffect(() => {
     if (!open || !isSubHabitMode || !profile || profile.hasProAccess) return
 
+    // react-doctor-disable-next-line no-prop-callback-in-effect -- pro-access gate, not a render-sync of local state: closes the modal only when a non-pro user opens sub-habit mode, then redirects to /upgrade https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     onOpenChange(false)
+    // react-doctor-disable-next-line nextjs-no-client-side-redirect -- gate depends on client-fetched profile.hasProAccess (useProfile); there is no server-side signal to redirect on https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     router.push('/upgrade')
   }, [isSubHabitMode, onOpenChange, open, profile, router])
 
@@ -239,6 +242,7 @@ export function CreateHabitModal({
         )
       }
     },
+    // react-doctor-disable-next-line exhaustive-deps -- hasProAccess is derived from profile.hasProAccess every render and already listed; the callback keys off the resolved boolean, not the raw profile member https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     [createHabit, createSubHabit, formHelpers, hasProAccess, isSubHabitMode, onOpenChange, parentHabit, reminderTimes, router, selectedGoalIds, showError, subHabits, tags, translate],
   )
 
@@ -287,6 +291,7 @@ export function CreateHabitModal({
         )
       }
     },
+    // react-doctor-disable-next-line exhaustive-deps -- hasProAccess is derived from profile.hasProAccess every render and already listed; the callback keys off the resolved boolean, not the raw profile member https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     [formHelpers, hasProAccess, locale, showError, showInfo, showSuccess, suggestion, t],
   )
 

@@ -5,20 +5,10 @@ import { ChevronLeft, HelpCircle, Share2, X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useIsDesktop } from '@/hooks/use-is-desktop'
 import { useInAppShell } from '@/components/shell/in-app-shell-context'
-
-type AppBarRightVariant = 'help' | 'close' | 'share'
-
-export function resolveAppBarRightActionLabel(
-  right: AppBarRightVariant | undefined,
-  rightLabel: string | undefined,
-  t: (key: string) => string,
-): string | undefined {
-  if (!right) return undefined
-  if (rightLabel) return rightLabel
-  if (right === 'help') return t('help')
-  if (right === 'close') return t('close')
-  return t('share')
-}
+import {
+  resolveAppBarRightActionLabel,
+  type AppBarRightVariant,
+} from '@/components/ui/app-bar-right-action'
 
 interface AppBarRightActionProps {
   right: AppBarRightVariant

@@ -14,6 +14,7 @@ export function useExpandAdvancedSignal(
   const [previousSignal, setPreviousSignal] = useState(expandAdvancedSignal)
   if (expandAdvancedSignal !== previousSignal) {
     setPreviousSignal(expandAdvancedSignal)
+    // react-doctor-disable-next-line no-prop-callback-in-render -- deliberate adjusting-state-during-render sync (React "storing information from previous renders" pattern): gated by the previousSignal comparison so onExpand fires exactly once per signal bump https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     if (expandAdvancedSignal > 0) onExpand()
   }
 }
