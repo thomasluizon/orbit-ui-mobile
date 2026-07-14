@@ -49,6 +49,7 @@ Auth: web cookie is httpOnly + sameSite strict + secure; mobile tokens live in S
 - Git: one feature/fix per PR (cross-repo work opens paired PRs, cross-linked); branches `feature/`|`fix/`|`chore/`; `main` is protected (no direct or force push — enforced by the `git-guardrails` hook); squash-merge only; never `--no-verify`/`--no-gpg-sign`; never reuse a squash-merged branch.
 - Testing: Vitest unit tests only; every feature needs behavior tests. The only sanctioned E2E is the post-deploy web smoke suite. Configs live in each workspace. `TESTING.md` (repo root) is the suite catalog + how to write a test here.
 - `/pr-review` is the canonical local diff review (orchestrates security-reviewer / contract-aligner / parity-checker / i18n-syncer + the backward-compat guard).
+- `/commit-sweep` is the report-only cross-commit, cross-repo regression sweep over a window of recent `main` commits in BOTH repos (default last 10, or `--since <when>`): the backstop for gotchas a per-diff `/pr-review` or a whole-repo `/audit-*` structurally miss because PRs merge in isolation. Runs nightly via `.github/workflows/commit-sweep.yml` and on demand as `/commit-sweep`.
 
 ## Docs registry
 
