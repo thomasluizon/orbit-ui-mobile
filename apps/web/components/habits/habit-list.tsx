@@ -775,22 +775,28 @@ const isPostponeAction = useMemo(() => {
 
   const listContainerRef = useReactRef<HTMLDivElement>(null)
 
-  function handleListKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
-    if (event.key !== 'Home' && event.key !== 'End') return
+  useEffect(() => {
     const container = listContainerRef.current
     if (!container) return
 
-    const rows = Array.from(
-      container.querySelectorAll<HTMLElement>(':scope [role="button"][tabindex="0"]'),
-    )
-    const activeElement = document.activeElement
-    if (!(activeElement instanceof HTMLElement) || !rows.includes(activeElement)) return
+    const handleHomeEndFocus = (event: KeyboardEvent) => {
+      if (event.key !== 'Home' && event.key !== 'End') return
 
-    const target = event.key === 'Home' ? rows[0] : rows.at(-1)
-    if (!target) return
-    event.preventDefault()
-    target.focus()
-  }
+      const rows = Array.from(
+        container.querySelectorAll<HTMLElement>(':scope [role="button"][tabindex="0"]'),
+      )
+      const activeElement = document.activeElement
+      if (!(activeElement instanceof HTMLElement) || !rows.includes(activeElement)) return
+
+      const target = event.key === 'Home' ? rows[0] : rows.at(-1)
+      if (!target) return
+      event.preventDefault()
+      target.focus()
+    }
+
+    container.addEventListener('keydown', handleHomeEndFocus)
+    return () => container.removeEventListener('keydown', handleHomeEndFocus)
+  }, [listContainerRef])
 
   function deriveRowState(
     habit: NormalizedHabit,
@@ -1094,12 +1100,7 @@ const isPostponeAction = useMemo(() => {
   }
 
   return (
-    <div
-      data-tour="tour-habit-list"
-      ref={listContainerRef}
-      role="presentation"
-      onKeyDown={handleListKeyDown}
-    >
+    <div data-tour="tour-habit-list" ref={listContainerRef}>
       {renderMainContent()}
 
       <HabitDetailDrawer

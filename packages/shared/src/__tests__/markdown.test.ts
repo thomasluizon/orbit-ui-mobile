@@ -20,6 +20,12 @@ describe('stripInlineMarkdown', () => {
     )
   })
 
+  it('strips list and blockquote prefixes that carry leading indentation', () => {
+    expect(stripInlineMarkdown('  - moisturizer\n\t2) toner\n   > floss nightly')).toBe(
+      'moisturizer toner floss nightly',
+    )
+  })
+
   it('keeps link and image labels without the urls', () => {
     expect(
       stripInlineMarkdown('see [the guide](https://example.com) and ![chart](https://example.com/c.png)'),

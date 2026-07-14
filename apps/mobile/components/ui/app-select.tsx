@@ -7,6 +7,7 @@ import {
   Pressable,
   FlatList,
   StyleSheet,
+  type ListRenderItem,
 } from 'react-native'
 import { ChevronDown, Check } from 'lucide-react-native'
 import { createTokensV2, radius, shadowsV2, tintFromPrimary } from '@/lib/theme'
@@ -127,8 +128,8 @@ export function AppSelect({
     [onChange],
   )
 
-  const renderOption = useCallback(
-    ({ item }: { item: AppSelectOption }) => (
+  const renderOption = useCallback<ListRenderItem<AppSelectOption>>(
+    ({ item }) => (
       <AppSelectOptionRow
         option={item}
         isSelected={item.value === value}

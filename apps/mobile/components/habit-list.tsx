@@ -1323,8 +1323,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       [tokens.primary, insets.top, isFetching, isLoading, refetch],
     )
 
-    const renderGroupSection = useCallback(
-      ({ item: group }: { item: HabitListDateGroup }) => (
+    const renderGroupSection = useCallback<ListRenderItem<HabitListDateGroup>>(
+      ({ item: group }) => (
         <HabitListDateGroupSection
           group={group}
           overdueLabel={t('habits.overdue')}
