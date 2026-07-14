@@ -45,7 +45,7 @@ export function GoalAskAstraRow({ onClick, className, style }: Readonly<GoalAskA
           <div
             style={{
               fontFamily: 'var(--font-mono)',
-              fontSize: 10.5,
+              fontSize: 12,
               fontWeight: 500,
               letterSpacing: '0.06em',
               color: 'var(--fg-3)',

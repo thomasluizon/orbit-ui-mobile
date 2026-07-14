@@ -9,6 +9,8 @@ import { useAuthStore } from '@/stores/auth-store'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 
+const subscriptionKeys = ['intro', 'autoRenew', 'cancel', 'refunds'] as const
+
 export default function TermsScreen() {
   const goBackOrFallback = useGoBackOrFallback()
   const { t } = useTranslation()
@@ -18,8 +20,6 @@ export default function TermsScreen() {
     [currentScheme, currentTheme],
   )
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
-
-  const subscriptionKeys = ['intro', 'autoRenew', 'cancel', 'refunds'] as const
 
   return (
     <SafeAreaView

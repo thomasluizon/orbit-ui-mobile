@@ -20,7 +20,7 @@ export function useOffline(): UseOfflineReturn {
   const [isFlushing, setIsFlushing] = useState(false)
   const flushLock = useRef(false)
 
-  // Subscribe to network state changes
+  // react-doctor-disable-next-line effect-needs-cleanup -- FP: the effect cleans up — `return () => unsubscribe()` invokes NetInfo's unsubscribe; RD only recognizes removeEventListener/subscription.remove(), not an unsubscribe callback. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   useEffect(() => {
     void getCurrentConnectivity().then((online) => {
       setCachedConnectivity(online)

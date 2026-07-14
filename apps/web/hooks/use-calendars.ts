@@ -57,12 +57,10 @@ export function useSetSelectedCalendars() {
     mutationFn: async ({ id, isSynced }) => {
       const current =
         queryClient.getQueryData<UserCalendar[]>(calendarKeys.calendars()) ?? []
-      const selectedIds = current
-        .map((calendar) =>
-          calendar.id === id ? { ...calendar, isSynced } : calendar,
-        )
-        .filter((calendar) => calendar.isSynced)
-        .map((calendar) => calendar.id)
+      const selectedIds = current.flatMap((calendar) => {
+        const next = calendar.id === id ? { ...calendar, isSynced } : calendar
+        return next.isSynced ? [next.id] : []
+      })
       await setSelectedCalendarsAction(selectedIds)
     },
 

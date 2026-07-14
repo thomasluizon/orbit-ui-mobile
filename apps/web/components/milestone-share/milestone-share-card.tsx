@@ -1,9 +1,22 @@
 'use client'
 
-import { forwardRef } from 'react'
+import { forwardRef, type CSSProperties } from 'react'
 import { useTranslations } from 'next-intl'
 import { achievementEmoji } from '@orbit/shared/utils'
 import { ShareCardQr } from '@/components/share/share-card-qr'
+
+const rarityBadgeStyle: CSSProperties = {
+  display: 'inline-block',
+  marginTop: 8,
+  padding: '3px 10px',
+  borderRadius: 999,
+  fontSize: 12,
+  fontWeight: 600,
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
+  color: 'var(--primary-soft)',
+  background: 'rgba(var(--primary-rgb), 0.16)',
+}
 
 export type MilestoneShareVariant =
   | { kind: 'streak'; streak: number }
@@ -81,20 +94,7 @@ export const MilestoneShareCard = forwardRef<HTMLDivElement, MilestoneShareCardP
                 <p style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, letterSpacing: '-0.01em' }}>
                   {t(`gamification.achievements.${variant.achievementId}.name`)}
                 </p>
-                <span
-                  style={{
-                    display: 'inline-block',
-                    marginTop: 8,
-                    padding: '3px 10px',
-                    borderRadius: 999,
-                    fontSize: 11.5,
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                    color: 'var(--primary-soft)',
-                    background: 'rgba(var(--primary-rgb), 0.16)',
-                  }}
-                >
+                <span style={rarityBadgeStyle}>
                   {t(`milestoneShare.rarity.${variant.rarity}`)}
                 </span>
               </div>

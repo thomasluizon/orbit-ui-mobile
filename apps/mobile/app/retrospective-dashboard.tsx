@@ -41,27 +41,30 @@ function resolveHabitStatLabel(
 }
 
 function renderNarrativeInline(text: string, tokens: Tokens) {
-  return text
-    .split(/(\*\*.+?\*\*)/g)
-    .filter(Boolean)
-    .map((part, index) => {
-      const strong = /^\*\*(.+?)\*\*$/.exec(part)
-      if (strong) {
-        return (
-          <Text
-            key={`${part}-${index}`}
-            style={[styles.narrativeStrong, { color: tokens.fg1 }]}
-          >
-            {strong[1]}
-          </Text>
-        )
-      }
+  const segments: { key: string; part: string }[] = []
+  let offset = 0
+  for (const part of text.split(/(\*\*.+?\*\*)/g)) {
+    if (part) segments.push({ key: `seg-${offset}`, part })
+    offset += part.length
+  }
+  return segments.map(({ key, part }) => {
+    const strong = /^\*\*(.+?)\*\*$/.exec(part)
+    if (strong) {
       return (
-        <Text key={`${part}-${index}`} style={{ color: tokens.fg2 }}>
-          {part}
+        <Text
+          key={key}
+          style={[styles.narrativeStrong, { color: tokens.fg1 }]}
+        >
+          {strong[1]}
         </Text>
       )
-    })
+    }
+    return (
+      <Text key={key} style={{ color: tokens.fg2 }}>
+        {part}
+      </Text>
+    )
+  })
 }
 
 interface DashboardCardProps {

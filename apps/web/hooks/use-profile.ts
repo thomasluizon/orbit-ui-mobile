@@ -50,6 +50,7 @@ export function useProfile(options?: { enabled?: boolean }) {
     syncThemeFromProfile(profile.themePreference)
     detectAndSaveSchemeIfNeeded(profile.colorScheme)
     detectAndSaveThemeIfNeeded(profile.themePreference)
+    // react-doctor-disable-next-line exhaustive-deps -- profile aliases query.data and is already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [
     profile,
     syncSchemeFromProfile,
@@ -62,6 +63,7 @@ export function useProfile(options?: { enabled?: boolean }) {
     if (!profileLanguage || profileLanguage === locale) return
     writeLocaleCookie(profileLanguage)
     globalThis.location.reload()
+    // react-doctor-disable-next-line exhaustive-deps -- profileLanguage aliases profile.language and is already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [profileLanguage, locale])
 
   const invalidate = useCallback(() => {

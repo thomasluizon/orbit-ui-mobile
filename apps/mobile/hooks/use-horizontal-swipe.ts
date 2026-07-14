@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Dimensions } from 'react-native'
+import { useWindowDimensions } from 'react-native'
 import { Gesture } from 'react-native-gesture-handler'
 import { scheduleOnRN } from 'react-native-worklets'
 
@@ -23,7 +23,7 @@ export function useHorizontalSwipe({
   edgeExclusion = 24,
   minVelocity = 0.2,
 }: Readonly<UseHorizontalSwipeOptions>) {
-  const screenWidth = Dimensions.get('window').width
+  const { width: screenWidth } = useWindowDimensions()
 
   return useMemo(
     () =>

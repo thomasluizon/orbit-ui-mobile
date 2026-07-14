@@ -174,6 +174,7 @@ export function useBlockUser() {
 }
 
 export function useReportUser() {
+  // react-doctor-disable-next-line query-mutation-missing-invalidation -- reporting a user files a backend report and mutates no client-cached data, so there is nothing to invalidate; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   return useMutation({
     mutationFn: async (input: {
       reportedUserId: string

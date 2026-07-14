@@ -24,10 +24,10 @@ export function BarChart({
 
   return (
     <ul aria-label={ariaLabel} className="flex flex-col" style={{ gap: 11 }}>
-      {bars.map((bar, index) => {
+      {bars.map((bar) => {
         const ratio = max > 0 ? bar.value / max : 0
         return (
-          <li key={`${bar.label}-${index}`} className="flex items-center" style={{ gap: 12 }}>
+          <li key={bar.label} className="flex items-center" style={{ gap: 12 }}>
             <span
               className="t-secondary shrink-0 truncate"
               style={{ width: 136, color: 'var(--fg-2)' }}

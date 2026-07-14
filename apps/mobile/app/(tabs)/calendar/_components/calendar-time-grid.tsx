@@ -209,6 +209,7 @@ function TimedBlock({
         numberOfLines={1}
         style={{
           fontFamily: "Rubik_500Medium",
+          // react-doctor-disable-next-line no-tiny-text -- Deliberate density: entry title inside a packed day/week time-grid cell (like standard calendar apps); 12px would overflow the fixed-height slots. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
           fontSize: 11,
           lineHeight: 13,
           color: completed ? tokens.fg3 : tokens.fg1,
@@ -222,6 +223,7 @@ function TimedBlock({
           numberOfLines={1}
           style={{
             fontFamily: "Roboto_400Regular",
+            // react-doctor-disable-next-line no-tiny-text -- Deliberate density: due-time caption inside a packed day/week time-grid cell (like standard calendar apps); 12px would overflow the fixed-height slots. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
             fontSize: 10,
             color: tokens.fg3,
             fontVariant: ["tabular-nums"],

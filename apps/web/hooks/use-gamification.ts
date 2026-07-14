@@ -47,6 +47,7 @@ export function useGamificationProfile(enabled = true) {
     earnedAchievements,
     lockedAchievements,
     achievementsByCategory,
+    // react-doctor-disable-next-line exhaustive-deps -- profile aliases query.data and is already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   } = useMemo(() => deriveGamificationProfileState(profile), [profile])
 
   const [milestones, setMilestones] = useState<{
@@ -77,6 +78,7 @@ export function useGamificationProfile(enabled = true) {
       newAchievements: result.newAchievements,
       crossedStreakMilestones,
     })
+    // react-doctor-disable-next-line exhaustive-deps -- profile aliases query.data and is already in deps; the refs are intentionally excluded; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [profile, acknowledgedLevel])
 
   const { leveledUp, newLevel, newAchievements, crossedStreakMilestones } = milestones
@@ -120,6 +122,7 @@ export function useStreakFreeze(profile?: { streakFreezesAvailable?: number; cur
 
   const state = useMemo(
     () => deriveStreakFreezeState(streakInfo, profile),
+    // react-doctor-disable-next-line exhaustive-deps -- streakInfo aliases streakQuery.data and is already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     [streakInfo, profile],
   )
 

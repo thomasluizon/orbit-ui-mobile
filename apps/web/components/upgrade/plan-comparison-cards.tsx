@@ -62,7 +62,7 @@ function IncludedCheck({ label }: Readonly<{ label: string }>) {
 
 function NotIncluded({ t }: Readonly<{ t: Translate }>) {
   return (
-    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, lineHeight: 1.3, color: 'var(--fg-4)' }}>
+    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, lineHeight: 1.3, color: 'var(--fg-4)' }}>
       {t('upgrade.matrix.notIncluded')}
     </span>
   )

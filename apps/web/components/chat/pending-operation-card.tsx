@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Loader2, ShieldAlert } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { AgentExecuteOperationResponse, PendingAgentOperation } from '@orbit/shared/types/ai'
@@ -68,7 +68,7 @@ export function PendingOperationCard({
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [verificationCode, setVerificationCode] = useState('')
   const [challengeId, setChallengeId] = useState<string | null>(null)
-  const [confirmationToken, setConfirmationToken] = useState<string | null>(null)
+  const confirmationTokenRef = useRef<string | null>(null)
   const [dismissed, setDismissed] = useState(false)
   const [isExiting, setIsExiting] = useState(false)
 
@@ -93,7 +93,7 @@ export function PendingOperationCard({
         }
 
         setChallengeId(result.challengeId)
-        setConfirmationToken(result.confirmationToken)
+        confirmationTokenRef.current = result.confirmationToken
         return
       }
 
@@ -115,6 +115,7 @@ export function PendingOperationCard({
   }
 
   async function handleVerify() {
+    const confirmationToken = confirmationTokenRef.current
     if (!challengeId || !confirmationToken || verificationCode.trim().length === 0) {
       setError(t('auth.genericError'))
       return

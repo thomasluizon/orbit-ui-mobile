@@ -1,12 +1,32 @@
 'use client'
 
-import { useState, useEffect, useImperativeHandle, forwardRef, useRef } from 'react'
+import {
+  useState,
+  useEffect,
+  useImperativeHandle,
+  forwardRef,
+  useRef,
+  type CSSProperties,
+} from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { useProfile } from '@/hooks/use-profile'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { RingMotif } from './ring-motif'
+
+const streakCountStyle: CSSProperties = {
+  marginTop: 12,
+  fontFamily: 'var(--font-display)',
+  fontSize: 56,
+  fontWeight: 700,
+  letterSpacing: '-0.02em',
+  lineHeight: 1,
+  fontVariantNumeric: 'tabular-nums',
+  color: 'var(--fg-1)',
+  animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
+  animationDelay: '220ms',
+}
 
 export interface StreakFreezeCelebrationHandle {
   show: () => void
@@ -107,22 +127,7 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
                 }
               />
             </div>
-            <div
-              style={{
-                marginTop: 12,
-                fontFamily: 'var(--font-display)',
-                fontSize: 56,
-                fontWeight: 700,
-                letterSpacing: '-0.02em',
-                lineHeight: 1,
-                fontVariantNumeric: 'tabular-nums',
-                color: 'var(--fg-1)',
-                animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
-                animationDelay: '220ms',
-              }}
-            >
-              {streak}
-            </div>
+            <div style={streakCountStyle}>{streak}</div>
             <p
               className="text-center"
               style={{

@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import { useLocale } from 'next-intl'
 
 export interface HeatmapDay {
@@ -85,6 +86,10 @@ export function MultiMonthHeatmap({
   legend,
 }: Readonly<MultiMonthHeatmapProps>) {
   const locale = useLocale()
+  const monthFormatter = useMemo(
+    () => new Intl.DateTimeFormat(locale, { month: 'short', timeZone: 'UTC' }),
+    [locale],
+  )
 
   const parsed = days
     .map((day) => {
@@ -128,7 +133,6 @@ export function MultiMonthHeatmap({
   const width = columns * (cellSize + cellGap) - cellGap
   const height = MONTH_LABEL_HEIGHT + ROWS * (cellSize + cellGap) - cellGap
 
-  const monthFormatter = new Intl.DateTimeFormat(locale, { month: 'short', timeZone: 'UTC' })
   const labels = monthLabelColumns(cells)
 
   const fillFor = (value: number) =>

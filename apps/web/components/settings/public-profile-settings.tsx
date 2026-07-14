@@ -1,10 +1,22 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { Copy, Check, Share2, RefreshCw } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import type { UpdatePublicProfileRequest } from '@orbit/shared/types/public-profile'
+
+const regenerateButtonStyle: CSSProperties = {
+  gap: 8,
+  appearance: 'none',
+  border: 0,
+  cursor: 'pointer',
+  fontFamily: 'var(--font-sans)',
+  fontSize: 14,
+  fontWeight: 500,
+  color: 'var(--primary-soft)',
+  minHeight: 44,
+}
 import { useProfile } from '@/hooks/use-profile'
 import { usePublicProfileSettings } from '@/hooks/use-public-profile-settings'
 import { SettingsRow, Switch } from '@/components/ui/settings-row'
@@ -168,17 +180,7 @@ export function PublicProfileSettings() {
                 onClick={() => setConfirmRegenerate(true)}
                 disabled={mutation.isPending}
                 className="inline-flex items-center rounded-full bg-transparent px-2 -ml-2 transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{
-                  gap: 8,
-                  appearance: 'none',
-                  border: 0,
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 14,
-                  fontWeight: 500,
-                  color: 'var(--primary-soft)',
-                  minHeight: 44,
-                }}
+                style={regenerateButtonStyle}
               >
                 <RefreshCw size={16} strokeWidth={1.8} aria-hidden="true" />
                 {t('profile.publicProfile.regenerate.button')}

@@ -36,7 +36,7 @@ export function MarketingConsentPrompt() {
     [currentScheme, currentTheme],
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
-  const { profile, patchProfile } = useProfile()
+  const { profile, patchProfile, invalidate } = useProfile()
   const armedPrompt = useReferralPromptStore((s) => s.armedPrompt)
   const markEngagementPrompted = useReferralPromptStore(
     (s) => s.markEngagementPrompted,
@@ -70,6 +70,9 @@ export function MarketingConsentPrompt() {
       context: { previous?: boolean | null } | undefined,
     ) => {
       patchProfile({ marketingEmailConsent: context?.previous ?? null })
+    },
+    onSettled: () => {
+      invalidate()
     },
   })
 

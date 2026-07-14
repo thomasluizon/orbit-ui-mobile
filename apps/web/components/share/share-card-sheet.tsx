@@ -3,7 +3,13 @@
 import { useState } from 'react'
 import { Download, Share2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import {
+  AnimatePresence,
+  domAnimation,
+  LazyMotion,
+  m,
+  useReducedMotion,
+} from 'motion/react'
 import {
   isRecapShareEmpty,
   RECAP_SHARE_PERIODS,
@@ -98,9 +104,10 @@ export function ShareCardSheet({ open, onOpenChange, displayName }: Readonly<Sha
           </div>
         )}
 
+        <LazyMotion features={domAnimation}>
         <AnimatePresence initial={false}>
           {showCard && (
-            <motion.div
+            <m.div
               className="flex flex-col"
               style={{ gap: 16 }}
               initial={{ opacity: 0, y: cardEnterMotion.shift }}
@@ -152,9 +159,10 @@ export function ShareCardSheet({ open, onOpenChange, displayName }: Readonly<Sha
                   {t('shareCard.download')}
                 </PillButton>
               </div>
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
+        </LazyMotion>
       </div>
     </AppOverlay>
   )

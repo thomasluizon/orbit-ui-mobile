@@ -59,6 +59,7 @@ export function TodayRail() {
   )
   const habitsQuery = useHabits(filters)
   const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID
+  // react-doctor-disable-next-line exhaustive-deps -- habitsById aliases habitsQuery.data.habitsById and is already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   const progress = useMemo(() => computeDayProgress(habitsById, today), [habitsById, today])
   const remaining = Math.max(progress.total - progress.done, 0)
 

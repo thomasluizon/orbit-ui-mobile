@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { useIsClient } from '@/hooks/use-is-client'
@@ -8,6 +8,17 @@ import { useUIStore } from '@/stores/ui-store'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { PillButton } from '@/components/ui/pill-button'
 import { RingMotif } from './ring-motif'
+
+const titleStyle: CSSProperties = {
+  margin: '12px 0 0',
+  fontFamily: 'var(--font-sans)',
+  fontSize: 28,
+  fontWeight: 500,
+  letterSpacing: '-0.01em',
+  color: 'var(--fg-1)',
+  animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
+  animationDelay: '220ms',
+}
 
 export function GoalCompletedCelebration() {
   const t = useTranslations()
@@ -30,20 +41,15 @@ export function GoalCompletedCelebration() {
   }
 
   useEffect(() => {
+    if (!goalCompletedCelebration) return
+    requestAnimationFrame(() => setIsVisible(true))
+    dismissTimerRef.current = setTimeout(() => {
+      setIsVisible(false)
+      setGoalCompletedCelebration(null)
+      dismissTimerRef.current = setTimeout(() => setShouldRender(false), 280)
+    }, 6000)
     return () => {
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (goalCompletedCelebration) {
-      requestAnimationFrame(() => setIsVisible(true))
-      if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
-      dismissTimerRef.current = setTimeout(() => {
-        setIsVisible(false)
-        setGoalCompletedCelebration(null)
-        setTimeout(() => setShouldRender(false), 280)
-      }, 6000)
     }
   }, [goalCompletedCelebration, setGoalCompletedCelebration])
 
@@ -102,19 +108,7 @@ export function GoalCompletedCelebration() {
               }
             />
           </div>
-          <h1
-            className="text-center"
-            style={{
-              margin: '12px 0 0',
-              fontFamily: 'var(--font-sans)',
-              fontSize: 28,
-              fontWeight: 500,
-              letterSpacing: '-0.01em',
-              color: 'var(--fg-1)',
-              animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
-              animationDelay: '220ms',
-            }}
-          >
+          <h1 className="text-center" style={titleStyle}>
             {t('goals.completedCelebrationTitle')}
           </h1>
           <p

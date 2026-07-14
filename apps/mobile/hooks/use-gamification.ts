@@ -48,7 +48,7 @@ export function useGamificationProfile(enabled = true) {
     earnedAchievements,
     lockedAchievements,
     achievementsByCategory,
-  } = useMemo(() => deriveGamificationProfileState(profile), [profile])
+  } = useMemo(() => deriveGamificationProfileState(query.data ?? null), [query.data])
 
   const [milestones, setMilestones] = useState(() => ({
     ...detectGamificationMilestones(profile, null, new Set<string>(), acknowledgedLevel),
@@ -56,22 +56,23 @@ export function useGamificationProfile(enabled = true) {
   }))
 
   useEffect(() => {
+    const currentProfile = query.data ?? null
     const next = detectGamificationMilestones(
-      profile,
+      currentProfile,
       previousLevelRef.current,
       previousAchievementIdsRef.current,
       acknowledgedLevel,
     )
     const crossedStreakMilestones = detectCrossedStreakMilestones(
       previousStreakRef.current,
-      profile?.currentStreak ?? null,
+      currentProfile?.currentStreak ?? null,
       STREAK_CROSSING_MILESTONES,
     )
-    previousLevelRef.current = profile?.level ?? null
-    previousStreakRef.current = profile?.currentStreak ?? null
+    previousLevelRef.current = currentProfile?.level ?? null
+    previousStreakRef.current = currentProfile?.currentStreak ?? null
     previousAchievementIdsRef.current = next.currentEarnedAchievementIds
     setMilestones({ ...next, crossedStreakMilestones })
-  }, [profile, acknowledgedLevel])
+  }, [query.data, acknowledgedLevel])
 
   const { leveledUp, newLevel, newAchievements, crossedStreakMilestones } = milestones
 
@@ -113,8 +114,8 @@ export function useStreakFreeze(profile?: { streakFreezesAvailable?: number; cur
   const streakInfo = streakQuery.data ?? null
 
   const state = useMemo(
-    () => deriveStreakFreezeState(streakInfo, profile),
-    [streakInfo, profile],
+    () => deriveStreakFreezeState(streakQuery.data ?? null, profile),
+    [streakQuery.data, profile],
   )
 
   return {

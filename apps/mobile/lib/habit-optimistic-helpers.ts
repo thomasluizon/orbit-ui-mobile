@@ -99,9 +99,12 @@ function removeChildHabits(
   children: HabitScheduleChild[],
   habitIds: Set<string>,
 ): HabitScheduleChild[] {
-  return children
-    .filter((child) => !habitIds.has(child.id))
-    .map((child) => withChildren(child, removeChildHabits(child.children, habitIds)))
+  const remaining: HabitScheduleChild[] = []
+  for (const child of children) {
+    if (habitIds.has(child.id)) continue
+    remaining.push(withChildren(child, removeChildHabits(child.children, habitIds)))
+  }
+  return remaining
 }
 
 /** Remove one or more parent/child habits from the cached list */
@@ -111,9 +114,12 @@ export function optimisticRemoveHabits(
 ): HabitScheduleItem[] {
   const ids = new Set(habitIds)
 
-  return items
-    .filter((item) => !ids.has(item.id))
-    .map((item) => withChildren(item, removeChildHabits(item.children, ids)))
+  const remaining: HabitScheduleItem[] = []
+  for (const item of items) {
+    if (ids.has(item.id)) continue
+    remaining.push(withChildren(item, removeChildHabits(item.children, ids)))
+  }
+  return remaining
 }
 
 /** Insert a new top-level habit into the cached list */

@@ -32,13 +32,13 @@ export function useProfile(options?: { enabled?: boolean }) {
   })
 
   const profile = query.data
-  const profileLanguage = profile?.language
 
   useEffect(() => {
-    if (!profileLanguage) return
-    if (i18n.language === profileLanguage) return
-    void i18n.changeLanguage(profileLanguage)
-  }, [profileLanguage, i18n])
+    const language = query.data?.language
+    if (!language) return
+    if (i18n.language === language) return
+    void i18n.changeLanguage(language)
+  }, [query.data?.language, i18n])
 
   const invalidate = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: profileKeys.all })

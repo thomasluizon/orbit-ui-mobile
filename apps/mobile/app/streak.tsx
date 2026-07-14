@@ -72,24 +72,25 @@ export default function StreakScreen() {
   }, [isFrozenToday])
 
   const encouragement = useMemo(() => {
-    if (streak >= 365) return t('streakDisplay.profile.encouragement365')
-    if (streak >= 100) return t('streakDisplay.profile.encouragement100')
-    if (streak >= 30) return t('streakDisplay.profile.encouragement30')
-    if (streak >= 14) return t('streakDisplay.profile.encouragement14')
-    if (streak >= 7) return t('streakDisplay.profile.encouragement7')
-    if (streak >= 1) return t('streakDisplay.profile.encouragement1')
+    const currentStreak = profile?.currentStreak ?? 0
+    if (currentStreak >= 365) return t('streakDisplay.profile.encouragement365')
+    if (currentStreak >= 100) return t('streakDisplay.profile.encouragement100')
+    if (currentStreak >= 30) return t('streakDisplay.profile.encouragement30')
+    if (currentStreak >= 14) return t('streakDisplay.profile.encouragement14')
+    if (currentStreak >= 7) return t('streakDisplay.profile.encouragement7')
+    if (currentStreak >= 1) return t('streakDisplay.profile.encouragement1')
     return ''
-  }, [streak, t])
+  }, [profile?.currentStreak, t])
 
   const weekDays = useMemo(
     () =>
-      buildStreakWeekDays(streakInfo, streak, isFrozenToday).map((day) => ({
+      buildStreakWeekDays(streakInfo, profile?.currentStreak ?? 0, isFrozenToday).map((day) => ({
         dateStr: day.dateStr,
         dayLabel: displayDate(day.date, { weekday: 'short' }).slice(0, 3),
         dayNum: day.dayNum,
         status: day.status,
       })),
-    [streakInfo, streak, isFrozenToday, displayDate],
+    [streakInfo, profile?.currentStreak, isFrozenToday, displayDate],
   )
 
   const heroEyebrow = isFrozenToday

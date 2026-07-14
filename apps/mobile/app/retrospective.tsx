@@ -193,6 +193,7 @@ export default function RetrospectiveScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.chipsScroll}
             >
+              {/* react-doctor-disable-next-line rn-no-scrollview-mapped-list -- Small fixed set of period chips (week/month/quarter/year); a horizontal ScrollView is the idiomatic chip row and a FlatList would be overkill here. https://github.com/thomasluizon/orbit-ui-mobile/issues/243 */}
               {periodChips.map((p) => (
                 <Chip
                   key={p.id}

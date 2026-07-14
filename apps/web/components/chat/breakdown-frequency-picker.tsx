@@ -30,6 +30,7 @@ export function BreakdownFrequencyPicker({
     <div className="flex items-center gap-2">
       <div className="relative">
         <select
+          aria-label={t('habits.form.frequency')}
           value={frequencyUnit ?? ''}
           onChange={(e) => {
             const rawVal = e.target.value

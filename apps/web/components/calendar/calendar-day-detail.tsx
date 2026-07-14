@@ -204,7 +204,7 @@ export function CalendarDayDetail({
                         style={{
                           padding: '3px 9px',
                           fontFamily: 'var(--font-sans)',
-                          fontSize: 10.5,
+                          fontSize: 12,
                           fontWeight: 600,
                           letterSpacing: '0.06em',
                           color: statusBadgeColor(entry),

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, type CSSProperties } from 'react'
 import { parseISO } from 'date-fns'
 import { Check } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -10,6 +10,29 @@ import { useDateFormat } from '@/hooks/use-date-format'
 import { InfoCard } from '@/components/ui/info-card'
 import { PillButton } from '@/components/ui/pill-button'
 import { VerifiedBadge } from '@/components/ui/verified-badge'
+
+const titleStyle: CSSProperties = {
+  fontFamily: 'var(--font-display)',
+  fontSize: 34,
+  fontWeight: 700,
+  letterSpacing: '-0.01em',
+  lineHeight: 1.15,
+  color: 'var(--fg-1)',
+  margin: '6px 0 0',
+  animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
+  animationDelay: '180ms',
+}
+
+const subtitleStyle: CSSProperties = {
+  fontFamily: 'var(--font-sans)',
+  fontSize: 16,
+  color: 'var(--fg-2)',
+  lineHeight: 1.5,
+  maxWidth: 280,
+  margin: 0,
+  animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
+  animationDelay: '240ms',
+}
 
 interface OnboardingCompleteProps {
   createdHabit: string
@@ -35,6 +58,7 @@ export function OnboardingComplete({
   const formattedTrialEnd = useMemo(() => {
     if (!trialEndsAt) return ''
     return displayDate(parseISO(trialEndsAt))
+    // react-doctor-disable-next-line exhaustive-deps -- trialEndsAt already aliases profile.trialEndsAt in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [trialEndsAt, displayDate])
 
   const recapItems = useMemo(() => {
@@ -74,37 +98,12 @@ export function OnboardingComplete({
             <VerifiedBadge size={96} />
           </div>
         </div>
-        <h1
-          className="text-center"
-          style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: 34,
-            fontWeight: 700,
-            letterSpacing: '-0.01em',
-            lineHeight: 1.15,
-            color: 'var(--fg-1)',
-            margin: '6px 0 0',
-            animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
-            animationDelay: '180ms',
-          }}
-        >
+        <h1 className="text-center" style={titleStyle}>
           {isLive
             ? t('onboarding.flow.complete.title')
             : t('onboarding.flow.saveYourPlan.title')}
         </h1>
-        <p
-          className="text-center"
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 16,
-            color: 'var(--fg-2)',
-            lineHeight: 1.5,
-            maxWidth: 280,
-            margin: 0,
-            animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
-            animationDelay: '240ms',
-          }}
-        >
+        <p className="text-center" style={subtitleStyle}>
           {isLive
             ? t('onboarding.flow.complete.subtitle')
             : t('onboarding.flow.saveYourPlan.subtitle')}

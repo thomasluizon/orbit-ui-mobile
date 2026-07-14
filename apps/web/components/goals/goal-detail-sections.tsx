@@ -64,7 +64,7 @@ export function GoalProgressHistorySection({
             <span
               style={{
                 fontFamily: 'var(--font-mono)',
-                fontSize: 11,
+                fontSize: 12,
                 color: 'var(--fg-3)',
                 fontVariantNumeric: 'tabular-nums',
               }}
