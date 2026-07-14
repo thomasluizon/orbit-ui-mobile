@@ -9,7 +9,7 @@ describe('TourSpotlight', () => {
     render(<TourSpotlight targetRect={null} />)
     expect(document.getElementById('tour-spotlight-mask')).not.toBeInTheDocument()
     const rects = document.body.querySelectorAll('svg rect')
-    expect(rects.length).toBe(1)
+    expect(rects).toHaveLength(1)
   })
 
   it('renders a masked cutout around the measured target rect', () => {
