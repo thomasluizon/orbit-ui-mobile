@@ -39,7 +39,9 @@ function AstraLauncher({ open, onOpen }: Readonly<{ open: boolean; onOpen: () =>
       style={{
         height: 52,
         background: 'var(--bg-elev-2)',
+        // react-doctor-disable-next-line no-large-animated-blur -- this FAB is desktop-only (hidden md:inline-flex) and never renders on phones, where the GPU-memory cost of an animated backdrop blur applies; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
         backdropFilter: 'blur(12px)',
+        // react-doctor-disable-next-line no-large-animated-blur -- this FAB is desktop-only (hidden md:inline-flex) and never renders on phones, where the GPU-memory cost of an animated backdrop blur applies; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
         WebkitBackdropFilter: 'blur(12px)',
         boxShadow: 'var(--shadow-2), inset 0 0 0 1px var(--hairline-strong)',
       }}
@@ -134,7 +136,7 @@ function AstraRailEmptyState({ onSelectSuggestion }: Readonly<{ onSelectSuggesti
       <p
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: 11,
+          fontSize: 12,
           color: 'var(--fg-3)',
           maxWidth: 300,
           lineHeight: 1.4,
@@ -274,6 +276,7 @@ function AstraRailPanel({ onClose }: Readonly<{ onClose: () => void }>) {
     const id = requestAnimationFrame(() => setEntered(true))
     focusComposer.current?.focus()
     return () => cancelAnimationFrame(id)
+    // react-doctor-disable-next-line exhaustive-deps -- focusComposer aliases the stable composer.textareaRef ref (in deps); the effect intentionally runs once on mount; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [focusComposer])
 
   const handleActionChipClick = useCallback(
@@ -327,6 +330,7 @@ function AstraRailPanel({ onClose }: Readonly<{ onClose: () => void }>) {
       }
 
   return (
+    // react-doctor-disable-next-line prefer-html-dialog -- this is a non-modal (aria-modal="false"), desktop-only (hidden md:flex) persistent copilot rail, not a modal; native <dialog>'s modal semantics and backdrop do not fit; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     <div
       role="dialog"
       aria-modal="false"

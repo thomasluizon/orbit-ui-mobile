@@ -1,11 +1,35 @@
 'use client'
 
-import { forwardRef } from 'react'
+import { forwardRef, type CSSProperties } from 'react'
 import { useTranslations } from 'next-intl'
 import type { Recap } from '@orbit/shared/types/gamification'
 import { buildShareCardStats, recapPeriodLabelKey } from '@orbit/shared/utils'
 import { StatTile } from '@/components/ui/stat-tile'
 import { ShareCardQr } from './share-card-qr'
+
+const weeklyBarsStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(7, 1fr)',
+  gap: 6,
+  alignItems: 'end',
+  height: 64,
+  padding: '10px 14px',
+  borderRadius: 18,
+  background: 'var(--bg-card)',
+  boxShadow: 'inset 0 0 0 1px var(--hairline)',
+}
+
+const topHabitChipStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 6,
+  padding: '6px 10px',
+  borderRadius: 999,
+  fontSize: 13,
+  color: 'var(--fg-2)',
+  background: 'var(--bg-field)',
+  boxShadow: 'inset 0 0 0 1px var(--hairline)',
+}
 
 const WEEKDAY_KEYS = [
   'monday',
@@ -85,19 +109,7 @@ export const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(function Sha
           ))}
         </div>
 
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(7, 1fr)',
-            gap: 6,
-            alignItems: 'end',
-            height: 64,
-            padding: '10px 14px',
-            borderRadius: 18,
-            background: 'var(--bg-card)',
-            boxShadow: 'inset 0 0 0 1px var(--hairline)',
-          }}
-        >
+        <div style={weeklyBarsStyle}>
           {metrics.weeklyConsistency.slice(0, 7).map((value, index) => {
             const clamped = Math.max(0, Math.min(100, value))
             const barLabel = t('retrospective.weeklyBarLabel', {
@@ -136,20 +148,7 @@ export const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(function Sha
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {topHabits.map((habit) => (
-                <span
-                  key={habit.name}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    padding: '6px 10px',
-                    borderRadius: 999,
-                    fontSize: 13,
-                    color: 'var(--fg-2)',
-                    background: 'var(--bg-field)',
-                    boxShadow: 'inset 0 0 0 1px var(--hairline)',
-                  }}
-                >
+                <span key={habit.name} style={topHabitChipStyle}>
                   <span aria-hidden="true">{habit.emoji ?? '•'}</span>
                   {habit.name}
                 </span>

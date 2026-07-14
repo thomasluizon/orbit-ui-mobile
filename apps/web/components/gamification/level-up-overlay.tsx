@@ -1,12 +1,30 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useEffectEvent,
+  type CSSProperties,
+} from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useOverlayEscape } from '@/hooks/use-overlay-escape'
 import { useUIStore } from '@/stores/ui-store'
 import { GradientTop } from '@/components/ui/gradient-top'
+
+const eyebrowStyle: CSSProperties = {
+  fontFamily: 'var(--font-sans)',
+  fontSize: 12,
+  fontWeight: 500,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  color: 'var(--fg-3)',
+  animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
+  animationDelay: '160ms',
+}
 
 interface LevelUpOverlayProps {
   leveledUp: boolean
@@ -45,7 +63,6 @@ export function LevelUpOverlay({
 
   useEffect(() => {
     return () => {
-      if (timerRef.current) clearTimeout(timerRef.current)
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
     }
   }, [])
@@ -73,14 +90,20 @@ export function LevelUpOverlay({
     [completeActiveCelebration, onClear],
   )
 
+  const onAutoDismiss = useEffectEvent((id: string) => dismiss(id))
+
   useEffect(() => {
     if (!activeLevelUp) return
 
     requestAnimationFrame(() => setIsVisible(true))
     timerRef.current = setTimeout(() => {
-      dismiss(activeLevelUp.id)
+      onAutoDismiss(activeLevelUp.id)
     }, 6000)
-  }, [activeLevelUp, dismiss])
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
+  }, [activeLevelUp])
 
   useOverlayEscape({
     open: shouldRender,
@@ -112,20 +135,7 @@ export function LevelUpOverlay({
         className="pointer-events-none relative z-[1] flex flex-1 flex-col items-center justify-center"
         style={{ gap: 12, padding: '0 32px' }}
       >
-        <div
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 12,
-            fontWeight: 500,
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            color: 'var(--fg-3)',
-            animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
-            animationDelay: '160ms',
-          }}
-        >
-          {t('gamification.levelUp.title')}
-        </div>
+        <div style={eyebrowStyle}>{t('gamification.levelUp.title')}</div>
 
         <span
           aria-hidden="true"

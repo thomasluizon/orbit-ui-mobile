@@ -4,8 +4,10 @@ import { useTranslations } from 'next-intl'
 import { TrendLine } from '@/components/charts/trend-line'
 import { plural } from '@/lib/plural'
 import { useStreakHistory } from '@/hooks/use-streak-history'
-import { InsightsSection, toSectionStatus } from './insights-section'
-import { InsightsHeadline, trendHeadline, useDateLabel } from './insights-headline'
+import { InsightsSection } from './insights-section'
+import { toSectionStatus } from './insights-section-status'
+import { InsightsHeadline, useDateLabel } from './insights-headline'
+import { trendHeadline } from './insights-headline-model'
 import type { DateRange } from './range'
 
 interface StreakHistorySectionProps {

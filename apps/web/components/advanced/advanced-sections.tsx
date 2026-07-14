@@ -32,7 +32,7 @@ interface QueryStatus {
 
 /** Writes to the clipboard and reports whether the write succeeded, so callers
  *  only show "Copied!" on success. */
-export async function copyToClipboard(text: string): Promise<boolean> {
+async function copyToClipboard(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text)
     return true
@@ -196,7 +196,7 @@ export function ApiKeyCard({
             style={{
               marginTop: 4,
               fontFamily: 'var(--font-mono)',
-              fontSize: 11,
+              fontSize: 12,
               letterSpacing: '0.02em',
               color: 'var(--fg-3)',
             }}
@@ -208,7 +208,7 @@ export function ApiKeyCard({
           className="shrink-0 text-right"
           style={{
             fontFamily: 'var(--font-mono)',
-            fontSize: 11,
+            fontSize: 12,
             lineHeight: 1.6,
             letterSpacing: '0.02em',
             color: 'var(--fg-3)',

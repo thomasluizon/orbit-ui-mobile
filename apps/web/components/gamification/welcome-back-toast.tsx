@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { Gift } from 'lucide-react'
@@ -8,6 +8,18 @@ import { useIsClient } from '@/hooks/use-is-client'
 import { useProfile } from '@/hooks/use-profile'
 
 type ToastVariant = 'welcome' | 'referral'
+
+const toastSurfaceStyle: CSSProperties = {
+  top: 56,
+  maxWidth: 380,
+  width: 'calc(100% - 32px)',
+  padding: '14px 16px',
+  background: 'var(--bg-sheet)',
+  borderRadius: 18,
+  boxShadow: '0 14px 36px rgba(0, 0, 0, 0.5), inset 0 0 0 1px var(--hairline)',
+  transition: 'opacity 280ms var(--ease-out), transform 280ms var(--ease-out)',
+  zIndex: 10000,
+}
 
 export function WelcomeBackToast() {
   const t = useTranslations()
@@ -18,11 +30,13 @@ export function WelcomeBackToast() {
   const [shouldRender, setShouldRender] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const settleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const checkedRef = useRef(false)
 
   useEffect(() => {
     return () => {
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
+      if (settleTimerRef.current) clearTimeout(settleTimerRef.current)
     }
   }, [])
 
@@ -50,25 +64,28 @@ export function WelcomeBackToast() {
     const referralApplied = localStorage.getItem('orbit_referral_applied')
     if (referralApplied) {
       localStorage.removeItem('orbit_referral_applied')
-      setTimeout(() => {
+      settleTimerRef.current = setTimeout(() => {
         showToast(t('referral.applied'), 'referral')
       }, 800)
-      return
+    } else {
+      const now = Date.now()
+      const lastVisit = Number(localStorage.getItem('orbit_last_visit') ?? '0')
+      localStorage.setItem('orbit_last_visit', String(now))
+
+      const twentyFourHours = 24 * 60 * 60 * 1000
+      if (
+        lastVisit > 0 &&
+        now - lastVisit > twentyFourHours &&
+        profile.currentStreak > 0
+      ) {
+        settleTimerRef.current = setTimeout(() => {
+          showToast(t('welcome.backMessage', { streak: profile.currentStreak }), 'welcome')
+        }, 800)
+      }
     }
 
-    const now = Date.now()
-    const lastVisit = Number(localStorage.getItem('orbit_last_visit') ?? '0')
-    localStorage.setItem('orbit_last_visit', String(now))
-
-    const twentyFourHours = 24 * 60 * 60 * 1000
-    if (
-      lastVisit > 0 &&
-      now - lastVisit > twentyFourHours &&
-      profile.currentStreak > 0
-    ) {
-      setTimeout(() => {
-        showToast(t('welcome.backMessage', { streak: profile.currentStreak }), 'welcome')
-      }, 800)
+    return () => {
+      if (settleTimerRef.current) clearTimeout(settleTimerRef.current)
     }
   }, [profile, t])
 
@@ -85,19 +102,11 @@ export function WelcomeBackToast() {
       aria-label={message}
       className="fixed left-1/2 appearance-none border-0 cursor-pointer text-left"
       style={{
-        top: 56,
-        maxWidth: 380,
-        width: 'calc(100% - 32px)',
-        padding: '14px 16px',
-        background: 'var(--bg-sheet)',
-        borderRadius: 18,
-        boxShadow: '0 14px 36px rgba(0, 0, 0, 0.5), inset 0 0 0 1px var(--hairline)',
-        transition: 'opacity 280ms var(--ease-out), transform 280ms var(--ease-out)',
+        ...toastSurfaceStyle,
         opacity: isVisible ? 1 : 0,
         transform: isVisible
           ? 'translate(-50%, 0) scale(1)'
           : 'translate(-50%, -20px) scale(0.95)',
-        zIndex: 10000,
       }}
       onClick={dismiss}
     >
@@ -122,7 +131,7 @@ export function WelcomeBackToast() {
           <span
             style={{
               fontFamily: 'var(--font-sans)',
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: 500,
               color: 'var(--fg-3)',
               letterSpacing: '0.08em',

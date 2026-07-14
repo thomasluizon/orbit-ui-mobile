@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { Check, Plus, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
@@ -23,6 +23,22 @@ interface BreakdownSuggestionProps {
   onCancelled: () => void
 }
 
+type IdentifiedHabit = EditableHabit & { id: string }
+
+function emptyHabit(id: string): IdentifiedHabit {
+  return {
+    id,
+    title: '',
+    description: '',
+    frequencyUnit: null,
+    frequencyQuantity: null,
+    days: null,
+    isBadHabit: false,
+    dueDate: null,
+    checklistItems: null,
+  }
+}
+
 function RichBoldPrimary(chunks: React.ReactNode): React.ReactNode {
   return <span className="text-[var(--primary)] font-semibold">{chunks}</span>
 }
@@ -36,8 +52,9 @@ export function BreakdownSuggestion({
   const t = useTranslations()
   const bulkCreate = useBulkCreateHabits()
 
-  const [habits, setHabits] = useState<EditableHabit[]>(
-    subHabits.map((h) => ({
+  const [habits, setHabits] = useState<IdentifiedHabit[]>(() =>
+    subHabits.map((h, index) => ({
+      id: `sub-${index}`,
       title: h.title,
       description: h.description ?? '',
       frequencyUnit: h.frequencyUnit ?? null,
@@ -48,6 +65,7 @@ export function BreakdownSuggestion({
       checklistItems: h.checklistItems ?? null,
     })),
   )
+  const nextHabitIdRef = useRef(subHabits.length)
 
   const [isCreated, setIsCreated] = useState(false)
   const [createdCount, setCreatedCount] = useState(0)
@@ -76,19 +94,8 @@ export function BreakdownSuggestion({
   }
 
   function addHabit() {
-    setHabits((prev) => [
-      ...prev,
-      {
-        title: '',
-        description: '',
-        frequencyUnit: null,
-        frequencyQuantity: null,
-        days: null,
-        isBadHabit: false,
-        dueDate: null,
-        checklistItems: null,
-      },
-    ])
+    const id = `new-${nextHabitIdRef.current++}`
+    setHabits((prev) => [...prev, emptyHabit(id)])
   }
 
   async function handleConfirm() {
@@ -148,7 +155,7 @@ export function BreakdownSuggestion({
       <div className="space-y-3">
         {habits.map((habit, index) => (
           <BreakdownHabitRow
-            key={`${habit.title}-${index}`}
+            key={habit.id}
             habit={habit}
             frequencyOptions={frequencyOptions}
             onUpdate={(patch) => updateHabit(index, patch)}
@@ -158,6 +165,7 @@ export function BreakdownSuggestion({
       </div>
 
       <button
+        type="button"
         className="flex min-h-[44px] items-center gap-1.5 text-xs font-semibold text-[var(--primary)] hover:text-[var(--primary-pressed)] active:scale-[0.96] transition-[color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
         onClick={addHabit}
       >

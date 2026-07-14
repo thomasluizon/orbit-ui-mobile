@@ -269,6 +269,7 @@ export function useDeleteTag() {
 }
 
 export function useSuggestTags() {
+  // react-doctor-disable-next-line query-mutation-missing-invalidation -- on-demand AI tag suggestions are a query-shaped mutation that mutates no server or cached state, so there is nothing to invalidate; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   return useMutation({
     mutationFn: ({
       title,

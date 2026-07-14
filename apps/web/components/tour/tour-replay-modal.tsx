@@ -38,7 +38,7 @@ interface TourReplayModalProps {
 
 function getSectionCompletion(): Record<TourSection, boolean> {
   try {
-    const stored = localStorage.getItem('orbit_tour_sections')
+    const stored = localStorage.getItem('orbit_tour_sections:v1')
     if (stored) return JSON.parse(stored) as Record<TourSection, boolean>
   } catch {
   }

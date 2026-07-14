@@ -101,6 +101,7 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
       setActiveView('goals')
       navigateTab('/')
     },
+    // react-doctor-disable-next-line exhaustive-deps -- hasProAccess aliases profile.hasProAccess and is already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     [router, navigateTab, setActiveView, hasProAccess],
   )
 

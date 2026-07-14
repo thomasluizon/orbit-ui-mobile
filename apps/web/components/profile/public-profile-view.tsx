@@ -22,6 +22,17 @@ const cardStyle = {
   boxShadow: 'inset 0 0 0 1px var(--hairline)',
 } as const
 
+const avatarStyle = {
+  width: 72,
+  height: 72,
+  background: 'rgba(var(--primary-rgb), 0.22)',
+  boxShadow: 'inset 0 0 0 1px var(--hairline)',
+  fontFamily: 'var(--font-display)',
+  fontSize: 30,
+  fontWeight: 600,
+  color: 'var(--fg-1)',
+} as const
+
 /** Server-rendered public profile card shown to logged-out visitors at /u/{slug}.
  *  Renders only the fields the API returned, localized in the owner's language. */
 export function PublicProfileView({ view, t }: Readonly<PublicProfileViewProps>) {
@@ -61,16 +72,7 @@ export function PublicProfileView({ view, t }: Readonly<PublicProfileViewProps>)
         <span
           aria-hidden="true"
           className="flex items-center justify-center rounded-full"
-          style={{
-            width: 72,
-            height: 72,
-            background: 'rgba(var(--primary-rgb), 0.22)',
-            boxShadow: 'inset 0 0 0 1px var(--hairline)',
-            fontFamily: 'var(--font-display)',
-            fontSize: 30,
-            fontWeight: 600,
-            color: 'var(--fg-1)',
-          }}
+          style={avatarStyle}
         >
           {initial}
         </span>

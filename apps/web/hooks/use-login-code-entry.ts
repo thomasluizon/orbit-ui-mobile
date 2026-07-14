@@ -26,6 +26,7 @@ export function useLoginCodeEntry(onCompleteCode?: (code: string) => void): UseL
   const [resendCountdown, setResendCountdown] = useState(0)
   const codeInputRefs = useRef<(HTMLInputElement | null)[]>([])
   const resendTimerRef = useRef<ReturnType<typeof globalThis.setInterval> | null>(null)
+  const resendCountdownRef = useRef(0)
   const submittedCodeRef = useRef<string | null>(null)
 
   const clearResendTimer = useCallback(() => {
@@ -44,22 +45,23 @@ export function useLoginCodeEntry(onCompleteCode?: (code: string) => void): UseL
     }
     if (submittedCodeRef.current === joinedCode) return
     submittedCodeRef.current = joinedCode
+    // react-doctor-disable-next-line no-pass-data-to-parent, no-pass-live-state-to-parent -- reusable controlled code-entry primitive: a single deduped effect is the one notification point for completion however the digits were filled (keystroke, paste, or the parent's own setCodeDigits); lifting codeDigits into every parent is a worse API; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     onCompleteCode?.(joinedCode)
   }, [codeDigits, joinedCode, onCompleteCode])
 
   const startResendCountdown = useCallback(() => {
     clearResendTimer()
     setCanResend(false)
+    resendCountdownRef.current = 60
     setResendCountdown(60)
     resendTimerRef.current = globalThis.setInterval(() => {
-      setResendCountdown((previous) => {
-        if (previous <= 1) {
-          setCanResend(true)
-          clearResendTimer()
-          return 0
-        }
-        return previous - 1
-      })
+      const next = Math.max(resendCountdownRef.current - 1, 0)
+      resendCountdownRef.current = next
+      setResendCountdown(next)
+      if (next === 0) {
+        clearResendTimer()
+        setCanResend(true)
+      }
     }, 1000)
   }, [clearResendTimer])
 

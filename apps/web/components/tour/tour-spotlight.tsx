@@ -98,6 +98,7 @@ export function TourSpotlight({ targetRect, padding = 8 }: Readonly<TourSpotligh
         )}
       </svg>
     </div>,
+    // react-doctor-disable-next-line no-unguarded-browser-global-in-render-or-hook-init -- reached only after viewport is measured in a post-mount effect; the `viewport.w === 0` gate returns null on the server and first client render; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     document.body,
   )
 }

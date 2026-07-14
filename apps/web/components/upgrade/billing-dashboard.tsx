@@ -220,7 +220,7 @@ export function BillingDashboard({
                     className="shrink-0 uppercase"
                     style={{
                       fontFamily: 'var(--font-mono)',
-                      fontSize: 11,
+                      fontSize: 12,
                       letterSpacing: '0.04em',
                       color: invoiceStatusColor(invoice.status),
                     }}

@@ -2,7 +2,13 @@
 
 import { useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import {
+  AnimatePresence,
+  domAnimation,
+  LazyMotion,
+  m,
+  useReducedMotion,
+} from 'motion/react'
 import { useTranslations } from 'next-intl'
 import { resolveMotionPreset } from '@orbit/shared/theme'
 import type { SidebarNavItem } from '@/components/navigation/app-sidebar'
@@ -40,57 +46,60 @@ export function CommandPalette({ navItems, onCreateHabit, onCreateGoal }: Readon
   if (!mounted) return null
 
   const overlay = (
-    <AnimatePresence>
-      {paletteOpen ? (
-        <div className="fixed inset-0 z-[9999] flex items-start justify-center px-4 pt-[12vh]">
-          <motion.button
-            type="button"
-            aria-label={t('common.close')}
-            tabIndex={-1}
-            className="absolute inset-0 cursor-default bg-black/55"
-            initial={{ opacity: 0 }}
-            animate={{
-              opacity: 1,
-              transition: { duration: motionPreset.enterDuration / 1000, ease: motionPreset.enterEasing },
-            }}
-            exit={{
-              opacity: 0,
-              transition: { duration: motionPreset.exitDuration / 1000, ease: motionPreset.exitEasing },
-            }}
-            onClick={close}
-          />
-          <motion.div
-            ref={panelRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label={t('command.title')}
-            className="relative w-full max-w-[600px] overflow-hidden rounded-[var(--radius-xl)] bg-[var(--bg-sheet)] shadow-[inset_0_0_0_1px_var(--hairline),var(--shadow-3)]"
-            initial={{ opacity: 0, y: motionPreset.shift, scale: motionPreset.scaleFrom }}
-            animate={{
-              opacity: 1,
-              y: 0,
-              scale: motionPreset.scaleTo,
-              transition: { duration: motionPreset.enterDuration / 1000, ease: motionPreset.enterEasing },
-            }}
-            exit={{
-              opacity: 0,
-              y: motionPreset.shift * 0.35,
-              scale: 0.985,
-              transition: { duration: motionPreset.exitDuration / 1000, ease: motionPreset.exitEasing },
-            }}
-          >
-            <CommandMenu
-              navItems={navItems}
-              onCreateHabit={onCreateHabit}
-              onCreateGoal={onCreateGoal}
-              onClose={close}
-              inputRef={inputRef}
+    <LazyMotion features={domAnimation}>
+      <AnimatePresence>
+        {paletteOpen ? (
+          <div className="fixed inset-0 z-[9999] flex items-start justify-center px-4 pt-[12vh]">
+            <m.button
+              type="button"
+              aria-label={t('common.close')}
+              tabIndex={-1}
+              className="absolute inset-0 cursor-default bg-black/55"
+              initial={{ opacity: 0 }}
+              animate={{
+                opacity: 1,
+                transition: { duration: motionPreset.enterDuration / 1000, ease: motionPreset.enterEasing },
+              }}
+              exit={{
+                opacity: 0,
+                transition: { duration: motionPreset.exitDuration / 1000, ease: motionPreset.exitEasing },
+              }}
+              onClick={close}
             />
-          </motion.div>
-        </div>
-      ) : null}
-    </AnimatePresence>
+            <m.div
+              ref={panelRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label={t('command.title')}
+              className="relative w-full max-w-[600px] overflow-hidden rounded-[var(--radius-xl)] bg-[var(--bg-sheet)] shadow-[inset_0_0_0_1px_var(--hairline),var(--shadow-3)]"
+              initial={{ opacity: 0, y: motionPreset.shift, scale: motionPreset.scaleFrom }}
+              animate={{
+                opacity: 1,
+                y: 0,
+                scale: motionPreset.scaleTo,
+                transition: { duration: motionPreset.enterDuration / 1000, ease: motionPreset.enterEasing },
+              }}
+              exit={{
+                opacity: 0,
+                y: motionPreset.shift * 0.35,
+                scale: 0.985,
+                transition: { duration: motionPreset.exitDuration / 1000, ease: motionPreset.exitEasing },
+              }}
+            >
+              <CommandMenu
+                navItems={navItems}
+                onCreateHabit={onCreateHabit}
+                onCreateGoal={onCreateGoal}
+                onClose={close}
+                inputRef={inputRef}
+              />
+            </m.div>
+          </div>
+        ) : null}
+      </AnimatePresence>
+    </LazyMotion>
   )
 
+  // react-doctor-disable-next-line no-unguarded-browser-global-in-render-or-hook-init -- reached only after the useIsClient mounted gate returns null on the server; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   return createPortal(overlay, document.body)
 }

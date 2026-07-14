@@ -3,7 +3,8 @@
 import { useTranslations } from 'next-intl'
 import { TrendLine } from '@/components/charts/trend-line'
 import { useHabitTrends } from '@/hooks/use-habit-trends'
-import { InsightsSection, toSectionStatus } from './insights-section'
+import { InsightsSection } from './insights-section'
+import { toSectionStatus } from './insights-section-status'
 import { InsightsHeadline, useDateLabel } from './insights-headline'
 import type { DateRange } from './range'
 

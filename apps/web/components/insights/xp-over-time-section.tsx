@@ -3,8 +3,10 @@
 import { useTranslations, useLocale } from 'next-intl'
 import { TrendLine } from '@/components/charts/trend-line'
 import { useXpHistory } from '@/hooks/use-xp-history'
-import { InsightsSection, toSectionStatus } from './insights-section'
-import { InsightsHeadline, trendHeadline, useDateLabel } from './insights-headline'
+import { InsightsSection } from './insights-section'
+import { toSectionStatus } from './insights-section-status'
+import { InsightsHeadline, useDateLabel } from './insights-headline'
+import { trendHeadline } from './insights-headline-model'
 import type { DateRange } from './range'
 
 interface XpOverTimeSectionProps {

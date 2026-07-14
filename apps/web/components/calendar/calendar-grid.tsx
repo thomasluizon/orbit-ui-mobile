@@ -62,6 +62,7 @@ export function CalendarGrid({
       ]
     }
     return mondayFirst
+    // react-doctor-disable-next-line exhaustive-deps -- weekStartsOn aliases profile.weekStartDay and is already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [weekStartsOn, t])
 
   const gridDays = useMemo<GridDay[]>(() => {
@@ -88,6 +89,7 @@ export function CalendarGrid({
         completionRatio: totalCount > 0 ? completedCount / totalCount : 0,
       }
     })
+    // react-doctor-disable-next-line exhaustive-deps -- weekStartsOn aliases profile.weekStartDay and is already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [currentMonth, dayMap, weekStartsOn])
 
   return (
@@ -116,7 +118,7 @@ export function CalendarGrid({
               className="text-center uppercase"
               style={{
                 fontFamily: 'var(--font-mono)',
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 500,
                 color: 'var(--fg-3)',
                 letterSpacing: '0.04em',
