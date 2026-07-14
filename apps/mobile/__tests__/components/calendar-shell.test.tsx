@@ -36,7 +36,11 @@ vi.mock("@/components/ui/year-picker", () => ({
 }));
 
 import { createTokensV2 } from "@/lib/theme";
-import { CalendarHeader } from "@/app/(tabs)/calendar/_components/calendar-shell";
+import {
+  CalendarHeader,
+  CalendarLegend,
+  CalendarWeekNav,
+} from "@/app/(tabs)/calendar/_components/calendar-shell";
 import {
   CalendarStats,
   type CalendarStat,
@@ -62,6 +66,16 @@ function pressByAccessibilityLabel(tree: Tree, label: string) {
   TestRenderer.act(() => {
     matches[0]!.props.onPress();
   });
+}
+
+function exercisePressCallbacks(tree: Tree) {
+  for (const node of tree.root.findAll(() => true)) {
+    const style = node.props.style;
+    if (typeof style === "function") {
+      style({ pressed: true });
+      style({ pressed: false });
+    }
+  }
 }
 
 describe("CalendarHeader year navigation (mobile)", () => {
@@ -142,6 +156,126 @@ describe("CalendarHeader year navigation (mobile)", () => {
       mock[0]!.props.onPress();
     });
     expect(onSelectYear).toHaveBeenCalledWith(2030);
+  });
+});
+
+describe("CalendarHeader year modal internals (mobile)", () => {
+  function renderHeader(onSelectYear = vi.fn()) {
+    const tokens = createTokensV2("purple", "dark");
+    let tree: Tree;
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <CalendarHeader
+          monthLabel="April"
+          year={2026}
+          previousMonthLabel="Previous month"
+          nextMonthLabel="Next month"
+          currentMonthLabel="Go to current month"
+          selectYearLabel="Select year"
+          onPreviousMonth={vi.fn()}
+          onNextMonth={vi.fn()}
+          onCurrentMonth={vi.fn()}
+          onSelectYear={onSelectYear}
+          tokens={tokens}
+        />,
+      ) as unknown as Tree;
+    });
+    return tree!;
+  }
+
+  it("guards the dialog responder and closes on backdrop press and request-close", () => {
+    const tree = renderHeader();
+    pressByAccessibilityLabel(tree, "Select year");
+
+    const modal = tree.root.findAll((node) => node.type === "Modal")[0]!;
+    expect(modal.props.visible).toBe(true);
+
+    const dialog = tree.root.findAll(
+      (node) => typeof node.props.onStartShouldSetResponder === "function",
+    )[0]!;
+    expect(dialog.props.onStartShouldSetResponder()).toBe(true);
+
+    const backdrop = tree.root.findAll(
+      (node) =>
+        node.type === "Pressable" &&
+        typeof node.props.onPress === "function" &&
+        !node.props.accessibilityRole,
+    )[0]!;
+    TestRenderer.act(() => {
+      backdrop.props.onPress();
+    });
+    expect(
+      tree.root.findAll((node) => node.type === "Modal")[0]!.props.visible,
+    ).toBe(false);
+
+    pressByAccessibilityLabel(tree, "Select year");
+    TestRenderer.act(() => {
+      tree.root
+        .findAll((node) => node.type === "Modal")[0]!
+        .props.onRequestClose();
+    });
+    expect(
+      tree.root.findAll((node) => node.type === "Modal")[0]!.props.visible,
+    ).toBe(false);
+
+    exercisePressCallbacks(tree);
+  });
+});
+
+describe("CalendarWeekNav (mobile)", () => {
+  it("renders the week label and fires the week navigation handlers", () => {
+    const onPreviousWeek = vi.fn();
+    const onNextWeek = vi.fn();
+    const onCurrentWeek = vi.fn();
+    const tokens = createTokensV2("purple", "dark");
+
+    let tree: Tree;
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <CalendarWeekNav
+          weekLabel="Apr 6 – 12"
+          previousWeekLabel="Previous week"
+          nextWeekLabel="Next week"
+          currentWeekLabel="Go to current week"
+          onPreviousWeek={onPreviousWeek}
+          onNextWeek={onNextWeek}
+          onCurrentWeek={onCurrentWeek}
+          tokens={tokens}
+        />,
+      ) as unknown as Tree;
+    });
+
+    expect(hostTextValues(tree!)).toContain("Apr 6 – 12");
+    pressByAccessibilityLabel(tree!, "Previous week");
+    pressByAccessibilityLabel(tree!, "Next week");
+    pressByAccessibilityLabel(tree!, "Go to current week");
+    expect(onPreviousWeek).toHaveBeenCalledTimes(1);
+    expect(onNextWeek).toHaveBeenCalledTimes(1);
+    expect(onCurrentWeek).toHaveBeenCalledTimes(1);
+    exercisePressCallbacks(tree!);
+  });
+});
+
+describe("CalendarLegend (mobile)", () => {
+  it("renders all four status labels", () => {
+    const tokens = createTokensV2("purple", "dark");
+    let tree: Tree;
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <CalendarLegend
+          todayLabel="Today"
+          doneLabel="Done"
+          partialLabel="Partial"
+          missedLabel="Missed"
+          tokens={tokens}
+        />,
+      ) as unknown as Tree;
+    });
+
+    const texts = hostTextValues(tree!);
+    expect(texts).toEqual(
+      expect.arrayContaining(["Today", "Done", "Partial", "Missed"]),
+    );
   });
 });
 

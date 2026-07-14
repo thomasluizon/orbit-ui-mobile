@@ -12,6 +12,13 @@ const mockSuggestMutateAsync = vi.fn()
 const mockSetValue = vi.fn()
 const mockGetValues = vi.fn((..._args: unknown[]): unknown => ({}))
 const mockSetFlexible = vi.fn()
+const mockCreateMutateAsync = vi.fn()
+const mockCreateSubMutateAsync = vi.fn()
+const mockShowError = vi.fn()
+const mockShowSuccess = vi.fn()
+const mockShowInfo = vi.fn()
+const mockValidateAll = vi.fn((): string | null => null)
+const mockPush = vi.fn()
 let mockHasProAccess = false
 
 vi.mock('react-hook-form', () => ({
@@ -21,16 +28,24 @@ vi.mock('react-hook-form', () => ({
 
 vi.mock('expo-router', () => ({
   useRouter: () => ({
-    push: vi.fn(),
+    push: mockPush,
     replace: vi.fn(),
     back: vi.fn(),
   }),
 }))
 
 vi.mock('@/hooks/use-habits', () => ({
-  useCreateHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useCreateHabit: () => ({ mutateAsync: mockCreateMutateAsync, isPending: false }),
+  useCreateSubHabit: () => ({ mutateAsync: mockCreateSubMutateAsync, isPending: false }),
 }))
+
+vi.mock('@orbit/shared/validation', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@orbit/shared/validation')>()
+  return {
+    ...actual,
+    habitFormSchema: { parse: (value: unknown) => value },
+  }
+})
 
 vi.mock('@/hooks/use-habit-suggestion', () => ({
   useHabitSuggestion: () => ({ mutateAsync: mockSuggestMutateAsync, isPending: false }),
@@ -41,7 +56,11 @@ vi.mock('@/hooks/use-profile', () => ({
 }))
 
 vi.mock('@/hooks/use-app-toast', () => ({
-  useAppToast: () => ({ showError: vi.fn(), showSuccess: vi.fn(), showInfo: vi.fn() }),
+  useAppToast: () => ({
+    showError: mockShowError,
+    showSuccess: mockShowSuccess,
+    showInfo: mockShowInfo,
+  }),
 }))
 
 vi.mock('@/stores/ui-store', () => ({
@@ -72,7 +91,7 @@ vi.mock('@/hooks/use-habit-form', () => ({
     toggleDay: vi.fn(),
     formatTimeInput: (value: string) => value,
     formatEndTimeInput: (value: string) => value,
-    validateAll: vi.fn(() => null),
+    validateAll: mockValidateAll,
   }),
 }))
 
@@ -160,6 +179,15 @@ describe('CreateHabitModal (mobile)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockHasProAccess = false
+    mockCreateMutateAsync.mockReset()
+    mockCreateMutateAsync.mockResolvedValue({})
+    mockCreateSubMutateAsync.mockReset()
+    mockCreateSubMutateAsync.mockResolvedValue({})
+    mockSuggestMutateAsync.mockReset()
+    mockValidateAll.mockReset()
+    mockValidateAll.mockReturnValue(null)
+    mockGetValues.mockReset()
+    mockGetValues.mockImplementation((..._args: unknown[]): unknown => ({}))
     useWatchMock.mockImplementation(({ name }: { name: string }) => {
       switch (name) {
         case 'title':
@@ -288,5 +316,124 @@ describe('CreateHabitModal (mobile)', () => {
       ],
       { shouldDirty: true },
     )
+  })
+
+  it('creates the habit and closes on a successful submit', async () => {
+    const onClose = vi.fn()
+    const tree = renderModal(<CreateHabitModal open onClose={onClose} />)
+
+    await TestRenderer.act(async () => {
+      findSubmit(tree.root).props.onPress()
+    })
+
+    expect(mockCreateMutateAsync).toHaveBeenCalledTimes(1)
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(mockShowError).not.toHaveBeenCalled()
+  })
+
+  it('surfaces the validation error and does not create when the form is invalid', async () => {
+    mockValidateAll.mockReturnValue('habits.form.errors.title')
+    const onClose = vi.fn()
+    const tree = renderModal(<CreateHabitModal open onClose={onClose} />)
+
+    await TestRenderer.act(async () => {
+      findSubmit(tree.root).props.onPress()
+    })
+
+    expect(mockShowError).toHaveBeenCalledWith('habits.form.errors.title')
+    expect(mockCreateMutateAsync).not.toHaveBeenCalled()
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('surfaces a friendly error and stays open when creation fails', async () => {
+    mockCreateMutateAsync.mockRejectedValue(new Error('offline'))
+    const onClose = vi.fn()
+    const tree = renderModal(<CreateHabitModal open onClose={onClose} />)
+
+    await TestRenderer.act(async () => {
+      findSubmit(tree.root).props.onPress()
+    })
+
+    expect(mockShowError).toHaveBeenCalledTimes(1)
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('redirects non-pro users out of sub-habit mode when opened', () => {
+    mockHasProAccess = false
+    const onClose = vi.fn()
+    const parentHabit = createMockHabit({ id: 'p-1', title: 'Parent' })
+
+    renderModal(
+      <CreateHabitModal open onClose={onClose} parentHabit={parentHabit} />,
+    )
+
+    expect(onClose).toHaveBeenCalled()
+    expect(mockPush).toHaveBeenCalledWith('/upgrade')
+  })
+
+  it('notifies when an AI suggestion applied nothing', async () => {
+    mockHasProAccess = true
+    mockGetValues.mockImplementation((field?: unknown) =>
+      field === 'title' ? 'Swim' : field === 'checklistItems' ? [] : {},
+    )
+    mockSuggestMutateAsync.mockResolvedValue({
+      emoji: null,
+      frequencyUnit: null,
+      frequencyQuantity: null,
+      days: [],
+      isFlexible: false,
+      flexibleTarget: null,
+      dueTime: null,
+      subHabits: [],
+      checklistItems: [],
+    })
+
+    const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
+    const formFields = tree.root.findAll(
+      (node: any) => node.type === 'HabitFormFields',
+    )[0]
+
+    await TestRenderer.act(async () => {
+      await formFields.props.onSuggestSetup()
+    })
+
+    expect(mockShowInfo).toHaveBeenCalledWith('habits.form.aiSuggestEmpty')
+    expect(mockShowSuccess).not.toHaveBeenCalled()
+  })
+
+  it('surfaces an error when the AI suggestion request fails', async () => {
+    mockHasProAccess = true
+    mockGetValues.mockImplementation((field?: unknown) =>
+      field === 'title' ? 'Swim' : {},
+    )
+    mockSuggestMutateAsync.mockRejectedValue(new Error('boom'))
+
+    const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
+    const formFields = tree.root.findAll(
+      (node: any) => node.type === 'HabitFormFields',
+    )[0]
+
+    await TestRenderer.act(async () => {
+      await formFields.props.onSuggestSetup()
+    })
+
+    expect(mockShowError).toHaveBeenCalledWith('habits.form.aiSuggestError')
+  })
+
+  it('skips the AI request when the title is empty', async () => {
+    mockGetValues.mockImplementation((field?: unknown) =>
+      field === 'title' ? '' : {},
+    )
+
+    const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
+    const formFields = tree.root.findAll(
+      (node: any) => node.type === 'HabitFormFields',
+    )[0]
+
+    await TestRenderer.act(async () => {
+      await formFields.props.onSuggestSetup()
+    })
+
+    expect(mockSuggestMutateAsync).not.toHaveBeenCalled()
   })
 })

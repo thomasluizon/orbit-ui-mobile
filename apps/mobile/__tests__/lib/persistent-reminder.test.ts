@@ -14,6 +14,7 @@ import {
   buildReminderContent,
   cancelPersistentReminder,
   extractReminderFeed,
+  isPersistentReminderSupported,
   refreshPersistentReminder,
   requestPersistentReminderPermission,
 } from '@/lib/persistent-reminder'
@@ -172,6 +173,24 @@ describe('persistent reminder', () => {
 
       await expect(requestPersistentReminderPermission()).resolves.toBe(false)
       expect(requestPermissionsAsync).not.toHaveBeenCalled()
+    })
+
+    it('resolves false when the notifications module throws while checking permission', async () => {
+      getPermissionsAsync.mockRejectedValueOnce(new Error('permissions unavailable'))
+
+      await expect(requestPersistentReminderPermission()).resolves.toBe(false)
+    })
+  })
+
+  describe('isPersistentReminderSupported', () => {
+    it('is supported while a notifications module is present', () => {
+      expect(isPersistentReminderSupported()).toBe(true)
+    })
+
+    it('is unsupported once the notifications module is unavailable', () => {
+      __setPersistentReminderModuleForTests(null)
+
+      expect(isPersistentReminderSupported()).toBe(false)
     })
   })
 })

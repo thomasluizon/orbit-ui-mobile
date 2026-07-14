@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { Profile } from '@orbit/shared/types/profile'
 
-import { useProfile } from '@/hooks/use-profile'
+import { useCanViewGamification, useProfile } from '@/hooks/use-profile'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -102,5 +102,63 @@ describe('mobile useProfile', () => {
     await renderHookHarness()
 
     expect(mocks.i18n.changeLanguage).toHaveBeenCalledWith('pt-BR')
+  })
+
+  it('invalidates and patches the cached profile', () => {
+    mocks.state.profile = createMockProfile({ name: 'Original' })
+    const holder: { current: ReturnType<typeof useProfile> | null } = { current: null }
+
+    function Harness() {
+      holder.current = useProfile()
+      return null
+    }
+
+    TestRenderer.act(() => {
+      TestRenderer.create(<Harness />)
+    })
+
+    TestRenderer.act(() => {
+      holder.current?.invalidate()
+      holder.current?.patchProfile({ name: 'Patched' })
+    })
+
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalled()
+    expect(mocks.state.profile.name).toBe('Patched')
+  })
+
+  it('leaves an empty cache untouched when patching before the profile loads', () => {
+    mocks.state.profile = null as unknown as Profile
+    const holder: { current: ReturnType<typeof useProfile> | null } = { current: null }
+
+    function Harness() {
+      holder.current = useProfile()
+      return null
+    }
+
+    TestRenderer.act(() => {
+      TestRenderer.create(<Harness />)
+    })
+
+    TestRenderer.act(() => {
+      holder.current?.patchProfile({ name: 'Ignored' })
+    })
+
+    expect(mocks.state.profile).toBeNull()
+  })
+
+  it('derives gamification visibility from the profile flag', () => {
+    mocks.state.profile = createMockProfile({ canViewGamification: true })
+    const holder: { current: boolean } = { current: false }
+
+    function Harness() {
+      holder.current = useCanViewGamification()
+      return null
+    }
+
+    TestRenderer.act(() => {
+      TestRenderer.create(<Harness />)
+    })
+
+    expect(holder.current).toBe(true)
   })
 })

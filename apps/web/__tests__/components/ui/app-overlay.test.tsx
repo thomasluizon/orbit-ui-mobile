@@ -346,4 +346,67 @@ describe('AppOverlay', () => {
 
     expect(document.body.style.overflow).toBe('hidden')
   })
+
+  it('linkifies URLs in the description into anchor tags', () => {
+    render(
+      <AppOverlay open onOpenChange={vi.fn()} title="T" description="see https://orbit.app now">
+        <p>Body</p>
+      </AppOverlay>,
+    )
+
+    const link = document.querySelector('a[href="https://orbit.app"]')
+    expect(link).not.toBeNull()
+    expect(link).toHaveAttribute('target', '_blank')
+  })
+
+  it('traps Tab focus within the panel and wraps at both ends', () => {
+    render(
+      <AppOverlay open onOpenChange={vi.fn()} dismissible={false} title="T">
+        <button>First action</button>
+        <button>Second action</button>
+      </AppOverlay>,
+    )
+
+    const first = screen.getByRole('button', { name: 'First action' })
+    const second = screen.getByRole('button', { name: 'Second action' })
+
+    second.focus()
+    fireEvent.keyDown(document, { key: 'Tab' })
+    expect(document.activeElement).toBe(first)
+
+    first.focus()
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(second)
+  })
+
+  it('closes when a backdrop pointer-down is released over the backdrop', () => {
+    const onOpenChange = vi.fn()
+    render(
+      <AppOverlay open onOpenChange={onOpenChange} title="T">
+        <p>Body</p>
+      </AppOverlay>,
+    )
+
+    const backdrop = document.querySelector('[aria-label="common.close"][tabindex="-1"]')!
+    fireEvent.pointerDown(backdrop)
+    fireEvent.click(backdrop)
+
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
+
+  it('does not close when the pointer-down started inside the panel', () => {
+    const onOpenChange = vi.fn()
+    render(
+      <AppOverlay open onOpenChange={onOpenChange} title="T">
+        <button>Inside</button>
+      </AppOverlay>,
+    )
+
+    const inside = screen.getByRole('button', { name: 'Inside' })
+    const backdrop = document.querySelector('[aria-label="common.close"][tabindex="-1"]')!
+    fireEvent.pointerDown(inside)
+    fireEvent.click(backdrop)
+
+    expect(onOpenChange).not.toHaveBeenCalled()
+  })
 })

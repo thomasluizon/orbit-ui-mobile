@@ -179,4 +179,62 @@ describe('mobile optimistic habit helpers', () => {
     expect(result[0]?.position).toBe(2)
     expect(result[0]?.children[0]?.position).toBe(4)
   })
+
+  it('resets a recurring child checklist when the child is completed', () => {
+    const child = makeChild({
+      id: 'child-1',
+      frequencyUnit: 'Day',
+      checklistItems: [
+        { text: 'A', isChecked: true },
+        { text: 'B', isChecked: true },
+      ],
+    })
+    const parent = makeHabit({
+      id: 'parent-1',
+      children: [child] as unknown as HabitScheduleChild[],
+      hasSubHabits: true,
+    })
+
+    const result = optimisticToggleCompletion([parent], 'child-1')
+
+    expect(result[0]?.children[0]?.isCompleted).toBe(true)
+    expect(result[0]?.children[0]?.checklistItems.map((entry) => entry.isChecked)).toEqual([
+      false,
+      false,
+    ])
+  })
+
+  it('toggles and updates a grandchild by recursing through the middle child', () => {
+    const grandchild = makeChild({ id: 'grand-1' })
+    const child = makeChild({ id: 'child-1', children: [grandchild], hasSubHabits: true })
+    const parent = makeHabit({
+      id: 'parent-1',
+      children: [child] as unknown as HabitScheduleChild[],
+      hasSubHabits: true,
+    })
+
+    const toggled = optimisticToggleCompletion([parent], 'grand-1')
+    expect(toggled[0]?.children[0]?.children[0]?.isCompleted).toBe(true)
+
+    const newItems: ChecklistItem[] = [{ text: 'Deep', isChecked: true }]
+    const checklisted = optimisticUpdateChecklist([parent], 'grand-1', newItems)
+    expect(checklisted[0]?.children[0]?.children[0]?.checklistItems).toEqual(newItems)
+  })
+
+  it('inserts and reorders a grandchild by recursing through the middle child', () => {
+    const grandParent = makeChild({ id: 'grand-parent', position: 0 })
+    const child = makeChild({ id: 'child-1', children: [grandParent], hasSubHabits: true })
+    const parent = makeHabit({
+      id: 'parent-1',
+      children: [child] as unknown as HabitScheduleChild[],
+      hasSubHabits: true,
+    })
+
+    const newGrandchild = makeChild({ id: 'new-grand' })
+    const inserted = optimisticInsertSubHabit([parent], 'grand-parent', newGrandchild)
+    expect(inserted[0]?.children[0]?.children[0]?.children[0]?.id).toBe('new-grand')
+
+    const reordered = optimisticReorderHabits([parent], [{ habitId: 'grand-parent', position: 9 }])
+    expect(reordered[0]?.children[0]?.children[0]?.position).toBe(9)
+  })
 })

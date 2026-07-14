@@ -5,11 +5,17 @@ import { logHabitResponseSchema } from '@orbit/shared/types/habit'
 import {
   buildQueuedMutation,
   cancelScheduledFlush,
+  createQueuedAck,
+  createTempEntityId,
   flushQueuedMutations,
+  getMutationScope,
+  isQueuedResult,
   queueOrExecute,
   runQueuedMutation,
   subscribeDroppedMutations,
+  withQueuedMarker,
 } from '@/lib/offline-mutations'
+import type { MutationType } from '@orbit/shared/types/sync'
 import { consumePendingIdempotencyKey } from '@/lib/idempotency-key'
 
 const mocks = vi.hoisted(() => {
@@ -176,7 +182,10 @@ describe('offline mutations', () => {
     mocks.getResolvedEntityId.mockClear()
     mocks.persistQueryCache.mockClear()
     mocks.invalidateQueries.mockClear()
-    mocks.apiClient.mockClear()
+    mocks.apiClient.mockReset()
+    mocks.apiClient.mockImplementation(async (endpoint: string) =>
+      endpoint === '/api/habits' ? { id: 'habit-1' } : null,
+    )
     mocks.getCurrentConnectivity.mockClear()
     cancelScheduledFlush()
   })
@@ -689,6 +698,183 @@ describe('offline mutations', () => {
     expect(dropped).toEqual([])
   })
 
+  it('rewrites nested array, object, and substring references when a temp id resolves online', async () => {
+    mocks.setOnline(true)
+    mocks.resolvedIds.set('offline-habit-1', 'habit-1')
+
+    const mutation = buildQueuedMutation({
+      type: 'updateHabit',
+      scope: 'habits',
+      endpoint: '/api/habits/offline-habit-1',
+      method: 'PUT',
+      payload: {
+        related: ['offline-habit-1', { nested: 'offline-habit-1' }],
+        note: 'see offline-habit-1 for details',
+        order: 3,
+        cleared: null,
+      },
+      entityType: 'habit',
+      targetEntityId: 'offline-habit-1',
+      clientEntityId: 'offline-habit-1',
+      dependsOn: ['offline-habit-1'],
+    })
+
+    let executedWith: QueuedMutation | null = null
+    await queueOrExecute({
+      mutation,
+      execute: async (resolved) => {
+        executedWith = resolved
+        return { ok: true }
+      },
+      queuedResult: { queued: true as const },
+    })
+
+    expect(executedWith).not.toBeNull()
+    const resolved = executedWith as unknown as QueuedMutation
+    expect(resolved.endpoint).toBe('/api/habits/habit-1')
+    expect(resolved.targetEntityId).toBe('habit-1')
+    expect(resolved.clientEntityId).toBe('habit-1')
+    expect(resolved.dependsOn).toEqual(['habit-1'])
+    expect(resolved.payload).toEqual({
+      related: ['habit-1', { nested: 'habit-1' }],
+      note: 'see habit-1 for details',
+      order: 3,
+      cleared: null,
+    })
+  })
+
+  it('queues an online mutation when the execute fails with a transient network error', async () => {
+    mocks.setOnline(true)
+    const queuedAck = { queued: true as const }
+
+    const result = await queueOrExecute({
+      mutation: buildQueuedMutation({
+        type: 'updateHabit',
+        scope: 'habits',
+        endpoint: '/api/habits/habit-1',
+        method: 'PUT',
+        payload: { title: 'Retry' },
+      }),
+      execute: async () => {
+        throw new TypeError('Network request failed')
+      },
+      queuedResult: queuedAck,
+    })
+
+    expect(result).toBe(queuedAck)
+    expect(mocks.enqueue).toHaveBeenCalledTimes(1)
+  })
+
+  it('marks a tombstone when a delete mutation is queued offline', async () => {
+    mocks.setOnline(false)
+
+    await queueOrExecute({
+      mutation: buildQueuedMutation({
+        type: 'deleteHabit',
+        scope: 'habits',
+        endpoint: '/api/habits/habit-7',
+        method: 'DELETE',
+        payload: undefined,
+        entityType: 'habit',
+        targetEntityId: 'habit-7',
+      }),
+      execute: async () => undefined,
+      queuedResult: { queued: true as const },
+    })
+
+    expect(mocks.markOfflineTombstone).toHaveBeenCalledWith('habit', 'habit-7', true)
+  })
+
+  it('clears the temp entity when a flushed create returns no server id', async () => {
+    mocks.setOnline(true)
+    mocks.apiClient.mockResolvedValue({ id: '' })
+
+    mocks.queued.push(
+      buildQueuedMutation({
+        type: 'createHabit',
+        scope: 'habits',
+        endpoint: '/api/habits',
+        method: 'POST',
+        payload: { title: 'Read' },
+        entityType: 'habit',
+        clientEntityId: 'offline-habit-x',
+      }),
+    )
+
+    await flushQueuedMutations()
+
+    expect(mocks.clearOfflineEntity).toHaveBeenCalledWith('habit', 'offline-habit-x')
+    expect(mocks.resolveOfflineEntity).not.toHaveBeenCalled()
+  })
+
+  it('clears the deleted entity when a delete flush succeeds', async () => {
+    mocks.setOnline(true)
+    mocks.apiClient.mockResolvedValue(null)
+
+    mocks.queued.push(
+      buildQueuedMutation({
+        type: 'deleteHabit',
+        scope: 'habits',
+        endpoint: '/api/habits/habit-9',
+        method: 'DELETE',
+        payload: undefined,
+        entityType: 'habit',
+        targetEntityId: 'habit-9',
+      }),
+    )
+
+    await flushQueuedMutations()
+
+    expect(mocks.clearOfflineEntity).toHaveBeenCalledWith('habit', 'habit-9')
+  })
+
+  it('marks a temp entity failed on a retryable non-transient error without dropping it', async () => {
+    mocks.setOnline(true)
+    mocks.apiClient.mockRejectedValue(new Error('500 internal server error'))
+
+    mocks.queued.push({
+      ...buildQueuedMutation({
+        type: 'createHabit',
+        scope: 'habits',
+        endpoint: '/api/habits',
+        method: 'POST',
+        payload: { title: 'Read' },
+        entityType: 'habit',
+        clientEntityId: 'offline-habit-y',
+      }),
+      id: 'create-retry',
+    })
+
+    const result = await flushQueuedMutations()
+
+    expect(result.failed).toBe(1)
+    expect(result.droppedMutations).toEqual([])
+    expect(mocks.setOfflineEntityStatus).toHaveBeenCalledWith(
+      'habit',
+      'offline-habit-y',
+      'failed',
+      '500 internal server error',
+    )
+    expect(mocks.remove).not.toHaveBeenCalled()
+  })
+
+  it('skips a mutation that vanished from the queue between snapshot and processing', async () => {
+    mocks.setOnline(true)
+    const phantom = { ...buildQueuedMutation({
+      type: 'updateHabit',
+      scope: 'habits',
+      endpoint: '/api/habits/gone',
+      method: 'PUT',
+      payload: { title: 'Gone' },
+    }), id: 'phantom-1' }
+    mocks.getAll.mockReturnValueOnce([phantom])
+
+    const result = await flushQueuedMutations()
+
+    expect(result).toEqual({ succeeded: 0, failed: 0, remaining: 0, droppedMutations: [] })
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+  })
+
   describe('transient-failure backoff', () => {
     beforeEach(() => {
       vi.useFakeTimers()
@@ -748,6 +934,33 @@ describe('offline mutations', () => {
 
       cancelScheduledFlush()
       await vi.advanceTimersByTimeAsync(60_000)
+
+      expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+    })
+
+    it('resets backoff without re-flushing when the queue empties before the retry fires', async () => {
+      mocks.setOnline(true)
+      mocks.apiClient.mockRejectedValueOnce(new Error('Network request failed'))
+
+      mocks.queued.push({
+        ...buildQueuedMutation({
+          type: 'updateHabit',
+          scope: 'habits',
+          endpoint: '/api/habits/habit-1',
+          method: 'PUT',
+          payload: { title: 'Retry me' },
+          entityType: 'habit',
+          targetEntityId: 'habit-1',
+        }),
+        id: 'update-1',
+      })
+
+      await flushQueuedMutations()
+      expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+
+      mocks.queued.length = 0
+
+      await vi.advanceTimersByTimeAsync(2_000)
 
       expect(mocks.apiClient).toHaveBeenCalledTimes(1)
     })
@@ -959,5 +1172,53 @@ describe('offline mutations', () => {
       }, undefined)
       expect(mocks.queued).toHaveLength(0)
     })
+  })
+})
+
+describe('offline mutation helpers', () => {
+  it('recognizes a queued marker and rejects other shapes', () => {
+    expect(isQueuedResult(createQueuedAck('mutation-1'))).toBe(true)
+    expect(isQueuedResult({ queued: false })).toBe(false)
+    expect(isQueuedResult({ id: 'habit-1' })).toBe(false)
+    expect(isQueuedResult(null)).toBe(false)
+    expect(isQueuedResult('queued')).toBe(false)
+  })
+
+  it('creates a namespaced temp entity id for the entity type', () => {
+    const first = createTempEntityId('habit')
+    const second = createTempEntityId('habit')
+
+    expect(first).toMatch(/^offline-habit-/)
+    expect(first).not.toBe(second)
+  })
+
+  it('merges a queued marker into an existing object without losing its fields', () => {
+    const marked = withQueuedMarker({ id: 'habit-1', title: 'Read' }, 'mutation-9')
+
+    expect(marked).toMatchObject({
+      id: 'habit-1',
+      title: 'Read',
+      queued: true,
+      queuedMutationId: 'mutation-9',
+    })
+  })
+
+  it('maps every mutation type group to its invalidation scope', () => {
+    const cases: Array<[MutationType, string]> = [
+      ['createGoal', 'goals'],
+      ['linkGoalHabits', 'goals'],
+      ['assignTags', 'tags'],
+      ['markNotificationRead', 'notifications'],
+      ['bulkDeleteUserFacts', 'userFacts'],
+      ['createApiKey', 'apiKeys'],
+      ['dismissCalendarPrompt', 'calendar'],
+      ['setLanguage', 'profile'],
+      ['resetProfile', 'profile'],
+      ['createHabit', 'habits'],
+    ]
+
+    for (const [type, scope] of cases) {
+      expect(getMutationScope(type)).toBe(scope)
+    }
   })
 })

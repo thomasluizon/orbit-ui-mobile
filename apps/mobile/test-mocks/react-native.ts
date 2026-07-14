@@ -27,9 +27,12 @@ export function __setHostRefsNull(value: boolean) {
   hostRefsNull = value
 }
 
+const keyboardListeners = new Map<string, Set<(payload: unknown) => void>>()
+
 export function __resetTestHostConfig() {
   measureInWindowImpl = DEFAULT_MEASURE_IN_WINDOW
   hostRefsNull = false
+  keyboardListeners.clear()
 }
 
 function createHostComponent(name: string) {
@@ -171,6 +174,33 @@ export const Vibration = {
   vibrate: (_duration: number) => {},
 }
 
+export const Keyboard = {
+  addListener: (event: string, listener: (payload: unknown) => void) => {
+    const listeners = keyboardListeners.get(event) ?? new Set<(payload: unknown) => void>()
+    listeners.add(listener)
+    keyboardListeners.set(event, listeners)
+    return {
+      remove: () => {
+        listeners.delete(listener)
+      },
+    }
+  },
+  dismiss: () => {},
+  scheduleLayoutAnimation: () => {},
+}
+
+export function __emitKeyboardEvent(event: string, payload?: unknown) {
+  for (const listener of keyboardListeners.get(event) ?? []) {
+    listener(payload)
+  }
+}
+
+export function findNodeHandle(input: unknown): number | null {
+  if (input === null || input === undefined) return null
+  if (typeof input === 'number') return input
+  return 1
+}
+
 export const Platform = {
   OS: 'android',
   select: <T,>(values: { android?: T; default?: T }) => values.android ?? values.default,
@@ -192,6 +222,7 @@ export {
   ActivityIndicator,
   FlatList,
   Image,
+  KeyboardAvoidingView,
   Modal,
   Pressable,
   RefreshControl,
@@ -209,9 +240,13 @@ export default {
   AppState,
   AccessibilityInfo,
   BackHandler,
+  Dimensions,
   Easing,
   FlatList,
+  findNodeHandle,
   Image,
+  Keyboard,
+  KeyboardAvoidingView,
   LayoutAnimation,
   Modal,
   Platform,

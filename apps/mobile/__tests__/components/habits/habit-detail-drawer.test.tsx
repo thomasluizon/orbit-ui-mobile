@@ -1,5 +1,6 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { HabitDetailDrawer } from '@/components/habits/habit-detail-drawer'
 
@@ -8,9 +9,10 @@ const TestRenderer = require('react-test-renderer')
 const mockUpdateChecklistMutate = vi.fn()
 const mockLogHabitMutateAsync = vi.fn()
 const mockShowError = vi.fn()
+const mocks = vi.hoisted(() => ({ push: vi.fn() }))
 
 vi.mock('expo-router', () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
+  useRouter: () => ({ push: mocks.push, replace: vi.fn(), back: vi.fn() }),
 }))
 vi.mock('@/hooks/use-time-format', () => ({
   useTimeFormat: () => ({ displayTime: (value: string) => value }),
@@ -29,19 +31,35 @@ vi.mock('@/components/habits/habit-calendar', () => ({
 vi.mock('@/components/habits/description-viewer', () => ({
   DescriptionViewer: () => null,
 }))
-vi.mock('@/app/social/_components/new-pair-flow', () => ({
-  NewPairFlow: () => null,
-}))
+vi.mock('@/app/social/_components/new-pair-flow', () => {
+  const ReactLib = require('react')
+  return {
+    NewPairFlow: ({ open }: { open: boolean }) =>
+      open ? ReactLib.createElement('Text', null, 'pair-flow-open') : null,
+  }
+})
+vi.mock('@/components/habits/habit-detail-drawer/habit-ask-astra-button', () => {
+  const ReactLib = require('react')
+  return {
+    HabitAskAstraButton: ({ onPress }: { onPress: () => void }) =>
+      ReactLib.createElement('Pressable', {
+        accessibilityLabel: 'ask-astra',
+        onPress,
+      }),
+  }
+})
 vi.mock('@/components/habits/habit-checklist', () => {
   const ReactLib = require('react')
   return {
     HabitChecklist: ({
       items,
       onToggle,
+      onReset,
       onClear,
     }: {
       items: { text: string; isChecked: boolean }[]
       onToggle?: (index: number) => void
+      onReset?: () => void
       onClear?: () => void
     }) =>
       ReactLib.createElement(
@@ -58,6 +76,10 @@ vi.mock('@/components/habits/habit-checklist', () => {
             ReactLib.createElement('Text', null, item.text),
           ),
         ),
+        ReactLib.createElement('Pressable', {
+          accessibilityLabel: 'checklist-reset',
+          onPress: () => onReset?.(),
+        }),
         ReactLib.createElement('Pressable', {
           accessibilityLabel: 'checklist-clear',
           onPress: () => onClear?.(),
@@ -131,6 +153,29 @@ describe('HabitDetailDrawer (mobile)', () => {
     })
   })
 
+  it('resets every checklist item to unchecked when reset is pressed', () => {
+    const habit = createMockHabit({
+      id: 'h-2',
+      checklistItems: [
+        { text: 'Warm up', isChecked: true },
+        { text: 'Main set', isChecked: true },
+      ],
+    })
+
+    const tree = render(<HabitDetailDrawer open onClose={vi.fn()} habit={habit} />)
+
+    TestRenderer.act(() => {
+      pressButton(tree.root, 'checklist-reset')
+    })
+    expect(mockUpdateChecklistMutate).toHaveBeenCalledWith({
+      habitId: 'h-2',
+      items: [
+        { text: 'Warm up', isChecked: false },
+        { text: 'Main set', isChecked: false },
+      ],
+    })
+  })
+
   it('surfaces an error toast when logging from the checklist-complete confirm fails', async () => {
     mockLogHabitMutateAsync.mockRejectedValue(new Error('offline'))
     const habit = createMockHabit({
@@ -152,5 +197,103 @@ describe('HabitDetailDrawer (mobile)', () => {
       pressButton(tree.root, 'habits.checklistCompleteConfirm')
     })
     expect(mockShowError).toHaveBeenCalledTimes(1)
+  })
+
+  it('logs the habit and notifies onLogged when the checklist-complete confirm succeeds', async () => {
+    const onLogged = vi.fn()
+    const habit = createMockHabit({
+      id: 'h-9',
+      isCompleted: false,
+      checklistItems: [{ text: 'Only item', isChecked: false }],
+    })
+
+    const tree = render(
+      <HabitDetailDrawer open onClose={vi.fn()} habit={habit} onLogged={onLogged} />,
+    )
+
+    TestRenderer.act(() => {
+      pressButton(tree.root, 'toggle-0')
+    })
+    await TestRenderer.act(async () => {
+      pressButton(tree.root, 'habits.checklistCompleteConfirm')
+    })
+
+    expect(mockLogHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'h-9' })
+    expect(onLogged).toHaveBeenCalledWith('h-9')
+    expect(mockShowError).not.toHaveBeenCalled()
+  })
+
+  it('renders the description and linked goals and opens the description viewer on press', () => {
+    const habit = createMockHabit({
+      id: 'h-3',
+      description: 'Two mile easy run',
+      checklistItems: [],
+      linkedGoals: [{ id: 'g-1', title: 'Marathon' }],
+    })
+
+    const tree = render(<HabitDetailDrawer open onClose={vi.fn()} habit={habit} />)
+
+    expect(hasText(tree.root, 'Two mile easy run')).toBe(true)
+    expect(hasText(tree.root, 'Marathon')).toBe(true)
+
+    TestRenderer.act(() => {
+      pressButton(tree.root, 'habits.detail.viewDescription')
+    })
+    expect(mockLogHabitMutateAsync).not.toHaveBeenCalled()
+  })
+
+  it('seeds a sub-habit chat draft and navigates when Ask Astra is pressed for a checklist habit', () => {
+    const setItem = vi.spyOn(AsyncStorage, 'setItem').mockResolvedValue(undefined)
+    const onClose = vi.fn()
+    const habit = createMockHabit({
+      id: 'h-4',
+      title: 'Strength',
+      checklistItems: [{ text: 'Squats', isChecked: false }],
+    })
+
+    const tree = render(<HabitDetailDrawer open onClose={onClose} habit={habit} />)
+
+    TestRenderer.act(() => {
+      pressButton(tree.root, 'ask-astra')
+    })
+
+    expect(setItem).toHaveBeenCalledWith(
+      'orbit-chat-draft',
+      'habits.detail.askAstraSeedSubHabits:{"title":"Strength"}',
+    )
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(mocks.push).toHaveBeenCalledWith('/chat')
+  })
+
+  it('seeds the default chat draft for a habit with no checklist', () => {
+    const setItem = vi.spyOn(AsyncStorage, 'setItem').mockResolvedValue(undefined)
+    const habit = createMockHabit({
+      id: 'h-5',
+      title: 'Read',
+      checklistItems: [],
+    })
+
+    const tree = render(<HabitDetailDrawer open onClose={vi.fn()} habit={habit} />)
+
+    TestRenderer.act(() => {
+      pressButton(tree.root, 'ask-astra')
+    })
+
+    expect(setItem).toHaveBeenCalledWith(
+      'orbit-chat-draft',
+      'habits.detail.askAstraSeedDefault:{"title":"Read"}',
+    )
+  })
+
+  it('opens the buddy pair flow when pair-this-habit is pressed', () => {
+    const habit = createMockHabit({ id: 'h-6', checklistItems: [] })
+
+    const tree = render(<HabitDetailDrawer open onClose={vi.fn()} habit={habit} />)
+
+    expect(hasText(tree.root, 'pair-flow-open')).toBe(false)
+    TestRenderer.act(() => {
+      pressButton(tree.root, 'social.buddies.pairThisHabit')
+    })
+    expect(hasText(tree.root, 'pair-flow-open')).toBe(true)
   })
 })

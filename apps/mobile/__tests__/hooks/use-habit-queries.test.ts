@@ -9,6 +9,7 @@ import {
   useHabitLogs,
   useHabitFullDetail,
   useTotalHabitCount,
+  useHabitCountLoaded,
 } from '@/hooks/use-habit-queries'
 
 const TestRenderer = require('react-test-renderer')
@@ -223,5 +224,45 @@ describe('useTotalHabitCount (mobile)', () => {
 
     renderHookCapture(() => useTotalHabitCount())
     expect(lastQuery().enabled).toBe(false)
+  })
+})
+
+describe('useHabits pagination + accessors', () => {
+  it('fetches and concatenates every page for an unbounded multi-page list', async () => {
+    mocks.apiClient
+      .mockResolvedValueOnce({ items: [{ id: 'a' }], page: 1, pageSize: 200, totalCount: 2, totalPages: 2 })
+      .mockResolvedValueOnce({ items: [{ id: 'b' }], page: 2, pageSize: 200, totalCount: 2, totalPages: 2 })
+
+    renderHookCapture(() => useHabits({}))
+    const items = (await lastQuery().queryFn()) as Array<{ id: string }>
+
+    expect(items.map((item) => item.id)).toEqual(['a', 'b'])
+    expect(mocks.apiClient).toHaveBeenCalledTimes(2)
+  })
+
+  it('returns an empty child list before habit data has loaded', () => {
+    let api: ReturnType<typeof useHabits> | null = null
+    function Probe() {
+      api = useHabits({})
+      return null
+    }
+    TestRenderer.act(() => {
+      TestRenderer.create(React.createElement(Probe))
+    })
+    expect(api!.getChildren('missing-parent')).toEqual([])
+  })
+})
+
+describe('useHabitCountLoaded (mobile)', () => {
+  it('reports zero and not-loaded until the count query settles', () => {
+    let loaded: ReturnType<typeof useHabitCountLoaded> | null = null
+    function Probe() {
+      loaded = useHabitCountLoaded()
+      return null
+    }
+    TestRenderer.act(() => {
+      TestRenderer.create(React.createElement(Probe))
+    })
+    expect(loaded).toEqual({ count: 0, isLoaded: false })
   })
 })

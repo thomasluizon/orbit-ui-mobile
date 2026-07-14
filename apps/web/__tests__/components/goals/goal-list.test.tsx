@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -31,17 +31,23 @@ vi.mock('@/components/goals/goal-detail-drawer', () => ({
     open,
     goalId,
     initialAction,
+    onOpenChange,
   }: {
     open: boolean
     goalId: string
     initialAction?: string | null
+    onOpenChange: (open: boolean) => void
   }) =>
     open ? (
       <div
         data-testid="goal-detail-drawer"
         data-goal-id={goalId}
         data-initial-action={initialAction ?? ''}
-      />
+      >
+        <button type="button" onClick={() => onOpenChange(false)}>
+          close drawer
+        </button>
+      </div>
     ) : null,
 }))
 
@@ -223,5 +229,45 @@ describe('GoalList', () => {
     expect(drawer).toHaveAttribute('data-goal-id', 'g2')
     expect(drawer).toHaveAttribute('data-initial-action', '')
     expect(screen.getAllByTestId('goal-detail-drawer')).toHaveLength(1)
+  })
+
+  it('closes the detail drawer when its onOpenChange requests it', () => {
+    render(<GoalList goals={mockGoals} />)
+    fireEvent.click(screen.getByText('Goal g1'))
+    expect(screen.getByTestId('goal-detail-drawer')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'close drawer' }))
+    expect(screen.queryByTestId('goal-detail-drawer')).not.toBeInTheDocument()
+  })
+
+  it('reorders via a held touch drag that crosses into another row', () => {
+    vi.useFakeTimers()
+    const { container } = render(<GoalList goals={fiveGoals} />)
+    const sections = Array.from(
+      container.querySelectorAll<HTMLElement>('[draggable="true"]'),
+    )
+    sections.forEach((section, index) => {
+      section.getBoundingClientRect = () =>
+        ({ top: index * 50, bottom: index * 50 + 50, left: 0, right: 100, width: 100, height: 50, x: 0, y: index * 50, toJSON: () => ({}) }) as DOMRect
+    })
+
+    fireEvent.touchStart(sections[0]!, { touches: [{ clientX: 10, clientY: 10 }] })
+    act(() => {
+      vi.advanceTimersByTime(300)
+    })
+    expect(sections[0]!.className).toContain('drag-chosen')
+
+    fireEvent.touchMove(sections[0]!, { touches: [{ clientX: 10, clientY: 170 }] })
+    expect(sections[3]!.className).toContain('drag-ghost')
+
+    fireEvent.touchEnd(sections[0]!)
+    expect(reorderMutate).toHaveBeenCalledWith([
+      { id: 'b', position: 0 },
+      { id: 'c', position: 1 },
+      { id: 'd', position: 2 },
+      { id: 'a', position: 3 },
+      { id: 'e', position: 4 },
+    ])
+    vi.useRealTimers()
   })
 })

@@ -90,4 +90,40 @@ describe('app toast store', () => {
     ])
     expect(triggerHaptic).toHaveBeenCalledWith('success')
   })
+
+  it('ignores a whitespace-only showToast message', () => {
+    useAppToastStore.getState().showToast({ message: '   ', variant: 'info' })
+
+    expect(useAppToastStore.getState().currentToast).toBeNull()
+    expect(useAppToastStore.getState().queue).toEqual([])
+  })
+
+  it('shows the first showToast immediately and queues the next one', () => {
+    const store = useAppToastStore.getState()
+
+    store.showToast({ message: '  First  ', variant: 'info' })
+    store.showToast({ message: 'Second', variant: 'error' })
+
+    expect(useAppToastStore.getState().currentToast).toMatchObject({
+      message: 'First',
+      variant: 'info',
+    })
+    expect(useAppToastStore.getState().queue).toMatchObject([
+      { message: 'Second', variant: 'error' },
+    ])
+  })
+
+  it('queues success and queued toasts behind an active toast', () => {
+    const store = useAppToastStore.getState()
+
+    store.showInfo('Active')
+    store.showSuccess('Saved later')
+    store.showQueued('Queued later', 'Undo', vi.fn())
+
+    expect(useAppToastStore.getState().currentToast?.message).toBe('Active')
+    expect(useAppToastStore.getState().queue.map((toast) => toast.message)).toEqual([
+      'Saved later',
+      'Queued later',
+    ])
+  })
 })

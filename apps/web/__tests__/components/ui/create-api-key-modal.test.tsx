@@ -155,4 +155,111 @@ describe('CreateApiKeyModal', () => {
     render(<CreateApiKeyModal {...defaultProps} apiError="Rate limited" />)
     expect(screen.getByText('Rate limited')).toBeInTheDocument()
   })
+
+  const scopes = [
+    { scope: 'habits:read', label: 'Read habits', description: 'read' },
+    { scope: 'habits:write', label: 'Write habits', description: 'write' },
+  ]
+
+  it('toggles individual scopes and submits the selected set', async () => {
+    defaultProps.onCreateKey.mockResolvedValue(null)
+    render(<CreateApiKeyModal {...defaultProps} availableScopes={scopes} />)
+    fireEvent.change(screen.getByLabelText('orbitMcp.keyName'), { target: { value: 'Key' } })
+
+    fireEvent.click(screen.getByText('habits:read'))
+    fireEvent.click(screen.getByText('habits:write'))
+    fireEvent.click(screen.getByText('habits:write'))
+
+    fireEvent.submit(screen.getByLabelText('orbitMcp.keyName').closest('form')!)
+    await waitFor(() => {
+      expect(defaultProps.onCreateKey).toHaveBeenCalledWith({
+        name: 'Key',
+        scopes: ['habits:read'],
+        isReadOnly: false,
+        expiresAtUtc: null,
+      })
+    })
+  })
+
+  it('selects all scopes then clears them', async () => {
+    defaultProps.onCreateKey.mockResolvedValue(null)
+    render(<CreateApiKeyModal {...defaultProps} availableScopes={scopes} />)
+    fireEvent.change(screen.getByLabelText('orbitMcp.keyName'), { target: { value: 'Key' } })
+
+    fireEvent.click(screen.getByText('common.selectAll'))
+    fireEvent.submit(screen.getByLabelText('orbitMcp.keyName').closest('form')!)
+    await waitFor(() => {
+      expect(defaultProps.onCreateKey).toHaveBeenLastCalledWith(
+        expect.objectContaining({ scopes: ['habits:read', 'habits:write'] }),
+      )
+    })
+
+    fireEvent.click(screen.getByText('common.clear'))
+    fireEvent.submit(screen.getByLabelText('orbitMcp.keyName').closest('form')!)
+    await waitFor(() => {
+      expect(defaultProps.onCreateKey).toHaveBeenLastCalledWith(
+        expect.objectContaining({ scopes: undefined }),
+      )
+    })
+  })
+
+  it('submits a read-only key when the switch is enabled', async () => {
+    defaultProps.onCreateKey.mockResolvedValue(null)
+    render(<CreateApiKeyModal {...defaultProps} />)
+    fireEvent.change(screen.getByLabelText('orbitMcp.keyName'), { target: { value: 'Key' } })
+    fireEvent.click(screen.getByRole('switch'))
+
+    fireEvent.submit(screen.getByLabelText('orbitMcp.keyName').closest('form')!)
+    await waitFor(() => {
+      expect(defaultProps.onCreateKey).toHaveBeenCalledWith(
+        expect.objectContaining({ isReadOnly: true }),
+      )
+    })
+  })
+
+  it('cancels the create form', () => {
+    render(<CreateApiKeyModal {...defaultProps} />)
+    fireEvent.click(screen.getByText('common.cancel'))
+    expect(defaultProps.onOpenChange).toHaveBeenCalledWith(false)
+  })
+
+  it('copies the created key and finishes from the reveal step', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+    defaultProps.onCreateKey.mockResolvedValue({
+      id: 'key-1',
+      key: 'sk-reveal-999',
+      name: 'Key',
+      keyPrefix: 'sk-reveal',
+      scopes: ['habits:read'],
+      isReadOnly: true,
+      expiresAtUtc: null,
+      createdAtUtc: '2025-01-01T00:00:00Z',
+      lastUsedAtUtc: null,
+      isRevoked: false,
+    })
+
+    render(<CreateApiKeyModal {...defaultProps} />)
+    fireEvent.change(screen.getByLabelText('orbitMcp.keyName'), { target: { value: 'Key' } })
+    fireEvent.submit(screen.getByLabelText('orbitMcp.keyName').closest('form')!)
+
+    const copyButton = await screen.findByText('orbitMcp.copy')
+    fireEvent.click(copyButton)
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('sk-reveal-999'))
+    expect(await screen.findByText('orbitMcp.copied')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('orbitMcp.done'))
+    expect(defaultProps.onOpenChange).toHaveBeenCalledWith(false)
+  })
+
+  it('resets the form when the modal is reopened', () => {
+    const { rerender } = render(<CreateApiKeyModal {...defaultProps} />)
+    fireEvent.change(screen.getByLabelText('orbitMcp.keyName'), { target: { value: 'Draft name' } })
+    expect(screen.getByLabelText('orbitMcp.keyName')).toHaveValue('Draft name')
+
+    rerender(<CreateApiKeyModal {...defaultProps} open={false} />)
+    rerender(<CreateApiKeyModal {...defaultProps} open={true} />)
+
+    expect(screen.getByLabelText('orbitMcp.keyName')).toHaveValue('')
+  })
 })
