@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -27,7 +27,7 @@ jobs:
       - run: npm ci
 
       - name: Restore Stryker incremental report
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: packages/shared/reports/stryker-incremental.json
           key: stryker-incremental-${{ github.run_id }}
@@ -39,7 +39,7 @@ jobs:
 
       - name: Upload mutation report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: mutation-report-pr
           path: packages/shared/reports/mutation/
