@@ -135,7 +135,7 @@ vi.mock('@/components/habits/habit-checklist', () => ({
   }) => (
     <div data-testid="habit-checklist">
       {items.map((item, i) => (
-        <div key={i}>
+        <div key={item.text}>
           <span>{item.text}</span>
           {interactive && (
             <button onClick={() => onToggle?.(i)}>
