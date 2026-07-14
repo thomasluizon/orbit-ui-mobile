@@ -1,5 +1,12 @@
 # Agentic Harness Research and Design
 
+> **At a glance** - 2026-07-09 deep-research on the best local agentic harness for a solo dev on the Orbit stack.
+> - Verdict: the harness is already top-few-percent; do not rebuild - fix config drift and route models by task.
+> - Through-line: maximum autonomy WITHIN a phase, a hard human gate BETWEEN phases (never a headless loop).
+> - Adds: an `/investigate` skill and a proactive `.claude/rules/` layer; split plan and implement into separate sessions.
+> - The actionable stage-by-stage checklist is the companion `.claude/research/harness-upgrade-plan.md`.
+> - Read the whole doc for the setup audit, the external evidence, and the sources.
+
 **Date:** 2026-07-09
 **Scope:** The best local agentic harness / multi-agent orchestration setup for a solo developer (you) using Claude Code (plus Codex / opencode) across the Orbit stack (`orbit-ui-mobile`, `orbit-api`, `orbit-landing-page`), given that every session starts from `orbit-ui-mobile`.
 

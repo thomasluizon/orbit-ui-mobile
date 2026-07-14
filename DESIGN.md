@@ -1,5 +1,12 @@
 # Orbit Design System
 
+> **At a glance** - the authoritative spec for every Orbit UI surface; it overrides generic and user-global design defaults.
+> - Anchor (locked): navy-violet orbital - slate-950 canvas, violet-500 accent, violet gradient headers, pill CTAs, deliberate emoji.
+> - Semantic tokens only (`--bg`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-rgb`, `--gradient-header`, ...); no raw hex in UI.
+> - Ships light AND dark, all 6 color schemes; mobile-first 412px shell.
+> - Source of truth is the vendored handoff at `design/handoff/`; tokens live in `apps/web/app/globals.css` + `apps/mobile/lib/theme.ts` + `packages/shared/src/theme/`.
+> - Read the whole doc before shaping, reviewing, or theming any surface.
+
 Source of truth: the vendored handoff at `design/handoff/` (see its README for the canon table). This document is the distilled, authoritative spec. The token values live in `design/handoff/orbit/project/orbit-fig.css`; the primitive dimensions in `orbit-kit.jsx`; the screen compositions in the artboards of `Orbit App - Figma.html`.
 
 **Authority note:** this DESIGN.md is authoritative over any generic or user-global design defaults — including the global anti-Inter and anti-violet rules. The handoff adopts Inter for display type and a violet accent deliberately; that deviation is documented here once and applies repo-wide. Deliberate emoji use (habit emojis, stat tiles, streak flame, celebrations) is part of the language and overrides the global anti-emoji rule for UI surfaces where the artboards show them.

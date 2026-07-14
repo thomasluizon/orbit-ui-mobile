@@ -1,5 +1,12 @@
 # AI Environment Overhaul: Plan, Runbook & Evidence
 
+> **At a glance** - the locked plan and runbook for the 2026-07-07 AI environment overhaul.
+> - Core principle: an instruction is a probabilistic bias that decays; reliability comes from architecture (where a rule lives), not phrasing.
+> - Minimize what is always loaded, push every machine-checkable rule to a deterministic gate, load everything else just in time.
+> - Two layers: a ~50-line global behavioral CLAUDE.md, and the Orbit-specific stack loaded on top (scoped CLAUDE.md + `.claude/rules/` + the enforcement stack).
+> - Phased: wiring, budget cut, prose-to-gates, memory rebuild, then design plus the gated graduating `/lesson` loop.
+> - Read the whole doc for the per-phase runbook and the cited evidence.
+
 Source: `/deep-research` (6 parallel research agents, all live-doc verified), 2026-07-07.
 Status: decisions locked; executing locally, phase by phase, no commits.
 

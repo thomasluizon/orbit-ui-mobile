@@ -45,9 +45,25 @@ Auth: web cookie is httpOnly + sameSite strict + secure; mobile tokens live in S
 - Never create an `AGENTS.md` — opencode reads this CLAUDE.md natively; an AGENTS.md would shadow it.
 - `.opencode/agents/*.md` are thin pointers to the `.claude/agents/*.md` bodies — when adding an agent, create BOTH. Hooks and memory are Claude-Code-only machinery (inert under opencode).
 - C# LSP for orbit-api is wired via `.mcp.json` — the Roslyn-backed CWM.RoslynNavigator MCP server (install once: `dotnet tool install -g CWM.RoslynNavigator`) pointed at orbit-api's `Orbit.slnx`; copy from `.claude/mcp.json.example`.
+- Reusable agent scripts live in `tools/` (`agent-review`, the merge-sweep scripts) under the `tools/CONVENTIONS.md` contract; build a new one with `/make-tool` once you have run the same incantation twice; a one-off stays in the scratchpad.
 - Git: one feature/fix per PR (cross-repo work opens paired PRs, cross-linked); branches `feature/`|`fix/`|`chore/`; `main` is protected (no direct or force push — enforced by the `git-guardrails` hook); squash-merge only; never `--no-verify`/`--no-gpg-sign`; never reuse a squash-merged branch.
-- Testing: Vitest unit tests only; every feature needs behavior tests. The only sanctioned E2E is the post-deploy web smoke suite. Configs live in each workspace.
+- Testing: Vitest unit tests only; every feature needs behavior tests. The only sanctioned E2E is the post-deploy web smoke suite. Configs live in each workspace. `TESTING.md` (repo root) is the suite catalog + how to write a test here.
 - `/pr-review` is the canonical local diff review (orchestrates security-reviewer / contract-aligner / parity-checker / i18n-syncer + the backward-compat guard).
+
+## Docs registry
+
+Grep a doc's `At a glance` header before loading the whole file.
+
+| Doc | Purpose |
+|---|---|
+| `DESIGN.md` | Authoritative UI spec: navy-violet anchor, semantic tokens, 412px shell. |
+| `FEATURES.md` | Code-derived, gating- and platform-aware map of every capability. |
+| `WORKFLOW.md` | Path-picking guide (tiny bug / real bug / medium feature / multi-issue). |
+| `TESTING.md` | How to write tests here + the catalog of every suite and what each proves. |
+| `research.md` | Agentic-harness research + the locked harness design decisions. |
+| `.claude/research/*` | Deep-research dossiers behind the harness (memory model, env overhaul, opencode/GLM, upgrade plan). |
+
+When you change a doc, update its `At a glance` header and this registry in the same edit.
 
 ## Path-picking & delegation
 

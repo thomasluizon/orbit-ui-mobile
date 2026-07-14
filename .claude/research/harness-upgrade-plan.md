@@ -1,5 +1,12 @@
 # Harness Upgrade — Execution Checklist
 
+> **At a glance** - the actionable, stage-by-stage execution checklist for the harness upgrade (companion to `research.md`).
+> - Run one stage per fresh session, keep each under ~100k tokens; this file IS the durable state a new session resumes from.
+> - Guiding principle: autonomy within a phase, a human gate between phases, never a headless self-improving loop.
+> - Locked (do not re-litigate): no Codex; opencode returns later; `opusplan` is out; keep `/execute` and `/feature`.
+> - Encode each rule at its authority tier: hook = enforcement, rule = proactive guidance, skill = procedure, CLAUDE.md = fact.
+> - Read the whole doc to pick up the next unchecked stage.
+
 **Companion to `research.md` (repo root)**, which holds the full rationale + sources. This file is the *actionable* plan. Date: 2026-07-09.
 
 ## How to use this file

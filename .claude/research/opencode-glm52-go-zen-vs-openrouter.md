@@ -1,5 +1,12 @@
 # OpenCode + GLM‑5.2: Go + Zen vs OpenRouter
 
+> **At a glance** - Go + Zen vs OpenRouter for running GLM-5.2 in the opencode agent, for a solo dev.
+> - Bottom line: OpenCode Go primary + Zen spillover wins; the flat $10/mo (up to ~$60/mo at-cost draw) beats OpenRouter's per-token edge at realistic volume.
+> - Go and Zen serve vetted full-precision weights; OpenRouter is a quantization lottery unless you pin the provider.
+> - Make-or-break: model-routing discipline - reserve GLM-5.2 for hard tasks or you hit the caps in hours.
+> - "Go" and "Zen" are OpenCode's own products (the opencode Zen gateway), not Z.ai's subscription.
+> - Re-verify pricing before betting on it, it moves. Read the whole doc for the crossover math and the config.
+
 **Question:** For running GLM‑5.2 and other open‑weight models in the OpenCode coding agent, which is the better setup for a solo dev — **(A)** OpenCode **Go** (flat sub) spilling over to **Zen** when capped, or **(B)** OpenCode + **OpenRouter** pay‑as‑you‑go?
 
 **Researched:** 2026‑07‑09 (all facts verified live that day; re‑verify pricing before betting on it — it moves).

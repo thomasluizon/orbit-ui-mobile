@@ -1,5 +1,12 @@
 # Operating model: why the "know-better-but-ship-worse + write-a-memory" loop happens, and the fix
 
+> **At a glance** - why the "knows the rule but ships the worse default, then writes a memory" loop happens, and the fix.
+> - The one change: stop writing "never do X" memory rules; encode every checkable rule as a deterministic guardrail (hook / lint / CI / type).
+> - Keep memory and CLAUDE.md a lean, pruned pointer-index of load-bearing FACTS, not behavioral commandments.
+> - For unmechanizable judgment, only external-signal verification helps (run the build / tests / an independent critic), never a remembered rule.
+> - More rules lower adherence monotonically; prohibitions decay worse than requirements (all cited).
+> - Read the whole doc for the mechanism, the citations, and what was applied to this repo.
+
 Deep-research session 2026-07-06 (7 parallel research subagents, primary sources verified live). Triggered by the recurring failure: agent picks the conventional/worse default (JWT-claim admin auth over a live DB check; emits banned em-dashes it "knows" are banned), gets corrected, writes a "never do X" memory rule, repeats.
 
 ## The one operating change

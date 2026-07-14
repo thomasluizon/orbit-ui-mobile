@@ -51,6 +51,8 @@ Parse `$ARGUMENTS` into a `{scope}` token: blank → `both`; `api`/`backend` →
 | `orbit-ui-mobile` | Vitest. `apps/web/**/*.{test,spec}.{ts,tsx}`, `apps/mobile/**`, `packages/shared/**/__tests__/`. Factories: `packages/shared/src/__tests__/factories.ts`. Configs: `*/vitest.config.ts`. |
 | `orbit-api` | xUnit + FluentAssertions in `tests/`. Test accounts via `TEST_ACCOUNTS` env. |
 
+`TESTING.md` (repo root) is the canonical suite catalog: where each suite lives, its exact command, and what it proves.
+
 Load `rubric.md` (the workflow's finders read it — it defines what "intelligent" means) and
 **`.claude/skills/_shared/verification-protocol.md`**. **Unit only** — if the return flags
 an integration/E2E/real-DB harness, treat it as out-of-policy (it was deliberately
