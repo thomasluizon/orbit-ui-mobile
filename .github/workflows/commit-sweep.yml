@@ -1,0 +1,119 @@
+name: Commit Sweep
+
+on:
+  schedule:
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+    inputs:
+      commits:
+        description: 'Number of recent commits to sweep (count mode, manual runs)'
+        required: false
+        default: '10'
+        type: string
+      scope:
+        description: 'Which repos to sweep'
+        required: false
+        default: 'both'
+        type: choice
+        options:
+          - both
+          - ui
+          - api
+
+permissions:
+  contents: read
+  issues: write
+  id-token: write
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    env:
+      ORBIT_UI_ROOT: ${{ github.workspace }}
+      ORBIT_API_ROOT: ${{ github.workspace }}/orbit-api
+    steps:
+      - name: Check out orbit-ui-mobile (workspace root, for skill discovery)
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Check out orbit-api (public sibling, for the cross-repo sweep)
+        uses: actions/checkout@v7
+        with:
+          repository: thomasluizon/orbit-api
+          path: orbit-api
+          fetch-depth: 0
+
+      - name: Run the commit sweep
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            You are running the repo's report-only `/commit-sweep` skill unattended.
+
+            The two repo roots come from the `ORBIT_UI_ROOT` and `ORBIT_API_ROOT` env vars (already set for this job); resolve each root from those, exactly as the skill's Phase 1 describes.
+
+            Run exactly this command: ${{ github.event_name == 'schedule' && '/commit-sweep --since "24 hours ago"' || format('/commit-sweep -n {0} {1}', inputs.commits, inputs.scope) }}
+
+            The skill writes `.claude/audits/commit-sweep.md` and the `.claude/audits/commit-sweep.status` sidecar. Do NOT post to GitHub, open or edit issues, or comment - this workflow's own steps surface the report. Do NOT remediate, refactor, or edit any code - the sweep is report-only.
+
+            ## Tool discipline (permissions are prefix-matched)
+
+            Every Bash call MUST be a single plain command exactly matching an allowed prefix - no `cd X && ...`, no pipes, no subshells, no heredocs. Drive git as `git -C "<root>" ...`. If a tool call is denied, simplify to a plain allowed command instead of retrying variants.
+          show_full_output: true
+          claude_args: '--allowedTools "Skill,Read,Grep,Glob,Write,TodoWrite,Bash(git:*),Bash(mkdir:*),Bash(ls:*)"'
+
+      - name: Read sweep status
+        id: status
+        if: always()
+        run: |
+          file=".claude/audits/commit-sweep.status"
+          if [ -f "$file" ]; then
+            status=$(tr -d '[:space:]' < "$file")
+          else
+            status="missing"
+          fi
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          echo "Sweep status: $status"
+
+      - name: Upsert the commit-sweep tracking issue
+        if: ${{ always() && steps.status.outputs.status == 'findings' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh label create commit-sweep --color BFD4F2 --description "Nightly cross-commit sweep findings" 2>/dev/null || true
+          report=".claude/audits/commit-sweep.md"
+          existing=$(gh issue list --label commit-sweep --state open --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue edit "$existing" --body-file "$report"
+            gh issue comment "$existing" --body "Refreshed by the nightly commit sweep on $(date -u +%Y-%m-%d). The findings above are the current window."
+          else
+            gh issue create --label commit-sweep --title "Nightly commit sweep - findings" --body-file "$report"
+          fi
+
+      - name: Upload the sweep report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: commit-sweep-report
+          path: |
+            .claude/audits/commit-sweep.md
+            .claude/audits/commit-sweep.status
+          if-no-files-found: warn
+
+      - name: Write the job summary
+        if: always()
+        run: |
+          status="${{ steps.status.outputs.status }}"
+          echo "### Commit sweep" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Status: \`$status\`" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$status" = "findings" ]; then
+            echo "- Findings surfaced to the \`commit-sweep\`-labeled tracking issue; full report in the uploaded artifact." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$status" = "clean" ]; then
+            echo "- Window reviewed, no findings." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$status" = "empty" ]; then
+            echo "- No new commits in the window." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- No status sidecar produced (\`$status\`); check the sweep step logs." >> "$GITHUB_STEP_SUMMARY"
+          fi
