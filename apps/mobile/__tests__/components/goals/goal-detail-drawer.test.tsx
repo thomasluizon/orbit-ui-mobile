@@ -1,5 +1,6 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 
 const TestRenderer = require('react-test-renderer')
@@ -33,6 +34,9 @@ let detailGoal: Record<string, unknown> = {
 }
 let detailLoadError = false
 const refetchDetail = vi.fn()
+const mockDeleteMutateAsync = vi.fn()
+const mockStatusMutateAsync = vi.fn()
+const mockPush = vi.fn()
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -44,7 +48,7 @@ vi.mock('react-i18next', () => ({
 
 vi.mock('expo-router', () => ({
   useRouter: () => ({
-    push: vi.fn(),
+    push: mockPush,
   }),
 }))
 
@@ -73,8 +77,18 @@ vi.mock('@/lib/use-app-theme', () => ({
 }))
 
 vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: ({ open, children, title }: any) =>
-    open ? React.createElement('BottomSheetModal', { title }, children) : null,
+  BottomSheetModal: ({ open, children, title, onAttemptDismiss }: any) =>
+    open
+      ? React.createElement(
+          'BottomSheetModal',
+          { title },
+          React.createElement('Pressable', {
+            accessibilityLabel: 'attempt-dismiss',
+            onPress: () => onAttemptDismiss?.(),
+          }),
+          children,
+        )
+      : null,
 }))
 
 vi.mock('@/components/ui/keyboard-aware-scroll-view', () => ({
@@ -88,7 +102,30 @@ vi.mock('@/components/ui/bottom-sheet-app-text-input', () => ({
 }))
 
 vi.mock('@/components/ui/confirm-dialog', () => ({
-  ConfirmDialog: () => null,
+  ConfirmDialog: ({ open, title, onConfirm, onCancel, onOpenChange }: any) =>
+    open
+      ? React.createElement(
+          'ConfirmDialog',
+          { title },
+          React.createElement('Pressable', {
+            accessibilityLabel: `confirm:${title}`,
+            onPress: () => onConfirm?.(),
+          }),
+          React.createElement('Pressable', {
+            accessibilityLabel: `cancel:${title}`,
+            onPress: () => onCancel?.(),
+          }),
+          React.createElement('Pressable', {
+            accessibilityLabel: `dismiss:${title}`,
+            onPress: () => onOpenChange?.(false),
+          }),
+        )
+      : null,
+}))
+
+vi.mock('@/components/goals/goal-detail-drawer/goal-ask-astra-button', () => ({
+  GoalAskAstraButton: ({ onPress }: any) =>
+    React.createElement('Pressable', { accessibilityLabel: 'ask-astra', onPress }),
 }))
 
 vi.mock('@/components/goals/edit-goal-modal', () => ({
@@ -129,8 +166,8 @@ vi.mock('@/hooks/use-goals', () => ({
     refetch: refetchDetail,
   }),
   useUpdateGoalProgress: () => ({ mutateAsync: vi.fn(), isPending: false, error: null }),
-  useUpdateGoalStatus: () => ({ mutateAsync: vi.fn(), isPending: false, error: null }),
-  useDeleteGoal: () => ({ mutateAsync: vi.fn(), isPending: false, error: null }),
+  useUpdateGoalStatus: () => ({ mutateAsync: mockStatusMutateAsync, isPending: false, error: null }),
+  useDeleteGoal: () => ({ mutateAsync: mockDeleteMutateAsync, isPending: false, error: null }),
 }))
 
 function collectText(node: any): string {
@@ -156,7 +193,36 @@ describe('GoalDetailDrawer', () => {
     detailGoal = { ...listGoal, progressHistory: [] }
     detailLoadError = false
     refetchDetail.mockClear()
+    mockDeleteMutateAsync.mockReset()
+    mockDeleteMutateAsync.mockResolvedValue(undefined)
+    mockStatusMutateAsync.mockReset()
+    mockStatusMutateAsync.mockResolvedValue(undefined)
+    mockPush.mockClear()
   })
+
+  function renderDrawer(onClose: () => void = vi.fn()) {
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <GoalDetailDrawer open={true} onClose={onClose} goalId="1" />,
+      )
+    })
+    return tree
+  }
+
+  function press(tree: any, label: string) {
+    const node = tree.root
+      .findAll(
+        (candidate: any) =>
+          candidate.props.accessibilityLabel === label &&
+          typeof candidate.props.onPress === 'function',
+      )
+      .at(0)
+    if (!node) throw new Error(`Button not found: ${label}`)
+    TestRenderer.act(() => {
+      node.props.onPress()
+    })
+  }
 
   it('prefers synced detail data over the stale list cache', () => {
     detailGoal = {
@@ -312,5 +378,83 @@ describe('GoalDetailDrawer', () => {
     })
 
     expect(refetchDetail).toHaveBeenCalledTimes(1)
+  })
+
+  it('deletes the goal and closes after confirming the delete dialog', async () => {
+    const onClose = vi.fn()
+    const tree = renderDrawer(onClose)
+
+    press(tree, 'goals.detail.delete')
+    const confirm = tree.root
+      .findAll(
+        (n: any) =>
+          n.props.accessibilityLabel === 'confirm:goals.detail.delete' &&
+          typeof n.props.onPress === 'function',
+      )
+      .at(0)
+    await TestRenderer.act(async () => {
+      await confirm.props.onPress()
+    })
+
+    expect(mockDeleteMutateAsync).toHaveBeenCalledWith('1')
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the drawer open when the delete request fails', async () => {
+    mockDeleteMutateAsync.mockRejectedValue(new Error('offline'))
+    const onClose = vi.fn()
+    const tree = renderDrawer(onClose)
+
+    press(tree, 'goals.detail.delete')
+    const confirm = tree.root
+      .findAll(
+        (n: any) =>
+          n.props.accessibilityLabel === 'confirm:goals.detail.delete' &&
+          typeof n.props.onPress === 'function',
+      )
+      .at(0)
+    await TestRenderer.act(async () => {
+      await confirm.props.onPress()
+    })
+
+    expect(mockDeleteMutateAsync).toHaveBeenCalledWith('1')
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('seeds a chat draft and navigates to Astra from the goal drawer', () => {
+    const setItem = vi.spyOn(AsyncStorage, 'setItem').mockResolvedValue(undefined)
+    const onClose = vi.fn()
+    const tree = renderDrawer(onClose)
+
+    press(tree, 'ask-astra')
+
+    expect(setItem).toHaveBeenCalledWith(
+      'orbit-chat-draft',
+      'goals.detail.askAstraSeedDefault:{"title":"Read 12 books"}',
+    )
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(mockPush).toHaveBeenCalledWith('/chat')
+  })
+
+  it('runs status mutations from the active action footer', () => {
+    const tree = renderDrawer()
+    press(tree, 'goals.detail.markCompleted')
+    expect(mockStatusMutateAsync).toHaveBeenCalledTimes(1)
+
+    press(tree, 'goals.detail.markAbandoned')
+    expect(mockStatusMutateAsync).toHaveBeenCalledTimes(2)
+  })
+
+  it('offers reactivate for a non-active goal', () => {
+    detailGoal = { ...listGoal, status: 'Abandoned', progressHistory: [] }
+    const tree = renderDrawer()
+    press(tree, 'goals.detail.reactivate')
+    expect(mockStatusMutateAsync).toHaveBeenCalledTimes(1)
+  })
+
+  it('opens the edit modal and requests dismiss without throwing', () => {
+    const tree = renderDrawer()
+    expect(() => press(tree, 'goals.detail.edit')).not.toThrow()
+    expect(() => press(tree, 'attempt-dismiss')).not.toThrow()
   })
 })

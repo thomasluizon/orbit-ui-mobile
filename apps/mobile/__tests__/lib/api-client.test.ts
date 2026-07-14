@@ -2,7 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 
 import { apiClient } from '@/lib/api-client'
+import { API } from '@orbit/shared/api'
 import { setPendingIdempotencyKey } from '@/lib/idempotency-key'
+
+function headersWithRequestId(requestId: string) {
+  return {
+    get: (name: string) => (name === 'x-orbit-request-id' ? requestId : null),
+  }
+}
 
 const {
   getTokenMock,
@@ -333,5 +340,56 @@ describe('mobile apiClient', () => {
     await expect(
       apiClient('/api/habits/h-1', { method: 'DELETE' }, schema),
     ).resolves.toBeUndefined()
+  })
+
+  it('attaches the response request id to an error payload body', async () => {
+    getTokenMock.mockResolvedValue('token-123')
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 400,
+      headers: headersWithRequestId('req-abc'),
+      json: () => Promise.resolve({ message: 'Validation failed' }),
+    })
+
+    await expect(apiClient('/broken')).rejects.toMatchObject({
+      status: 400,
+      data: { message: 'Validation failed', requestId: 'req-abc' },
+    })
+  })
+
+  it('synthesizes a request-id-only payload when the error body cannot be parsed', async () => {
+    getTokenMock.mockResolvedValue('token-123')
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 500,
+      headers: headersWithRequestId('req-500'),
+      json: () => Promise.reject(new Error('not json')),
+    })
+
+    await expect(apiClient('/broken')).rejects.toMatchObject({
+      status: 500,
+      data: { requestId: 'req-500' },
+    })
+  })
+
+  it('resolves undefined for a 200 response with an empty body', async () => {
+    getTokenMock.mockResolvedValue('token-123')
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: () => Promise.resolve('   '),
+    })
+
+    await expect(apiClient('/api/ping')).resolves.toBeUndefined()
+  })
+
+  it('clears tokens without retrying when the refresh endpoint itself returns 401', async () => {
+    getTokenMock.mockResolvedValue('token-123')
+    fetchMock.mockResolvedValue({ ok: false, status: 401 })
+
+    await expect(apiClient(API.auth.refresh)).rejects.toThrow('Unauthorized')
+
+    expect(clearAllTokensMock).toHaveBeenCalledTimes(1)
+    expect(refreshSessionMock).not.toHaveBeenCalled()
   })
 })

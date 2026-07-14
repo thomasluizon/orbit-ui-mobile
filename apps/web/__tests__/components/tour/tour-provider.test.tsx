@@ -100,3 +100,56 @@ describe('TourProvider step routing', () => {
     expect(mockRouterPush).toHaveBeenCalledWith('/profile')
   })
 })
+
+describe('TourProvider session lifecycle', () => {
+  beforeEach(() => {
+    useTourStore.getState().endTour()
+    useTourStore.getState().setHiddenSections([])
+    mockRouterPush.mockClear()
+    mockInject.mockClear()
+    mockRestore.mockClear()
+    mockPathname = '/'
+    mockProfile = createMockProfile({ hasProAccess: true })
+    stubMatchMedia(false)
+  })
+
+  it('injects tour mock data on activation and restores it when the tour ends', () => {
+    render(<TourProvider />)
+
+    act(() => {
+      useTourStore.getState().startSectionReplay('habits')
+    })
+    expect(mockInject).toHaveBeenCalledTimes(1)
+
+    act(() => {
+      useTourStore.getState().endTour()
+    })
+    expect(mockRestore).toHaveBeenCalledTimes(1)
+  })
+
+  it('remeasures the spotlight target on scroll while the tour is active', async () => {
+    render(<TourProvider />)
+
+    act(() => {
+      useTourStore.getState().startSectionReplay('habits')
+    })
+    const step = useTourStore.getState().getCurrentStep()
+    expect(step).toBeTruthy()
+
+    const target = document.createElement('div')
+    target.setAttribute('data-tour', step!.targetId)
+    document.body.appendChild(target)
+
+    act(() => {
+      useTourStore.getState().setTargetRect(null)
+    })
+
+    await act(async () => {
+      window.dispatchEvent(new Event('scroll'))
+      await new Promise((resolve) => requestAnimationFrame(() => resolve(null)))
+    })
+
+    expect(useTourStore.getState().targetRect).not.toBeNull()
+    target.remove()
+  })
+})

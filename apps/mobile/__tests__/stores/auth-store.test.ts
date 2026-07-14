@@ -22,6 +22,7 @@ const {
   apiClientMock,
   clearPersistedQueryCacheMock,
   queryClientClearMock,
+  setQueryDataMock,
   clearStoredAuthReturnUrlMock,
   clearMessagesMock,
   offlineQueueClearMock,
@@ -44,6 +45,7 @@ const {
   apiClientMock: vi.fn(),
   clearPersistedQueryCacheMock: vi.fn(),
   queryClientClearMock: vi.fn(),
+  setQueryDataMock: vi.fn(),
   clearStoredAuthReturnUrlMock: vi.fn(),
   clearMessagesMock: vi.fn(),
   offlineQueueClearMock: vi.fn(),
@@ -102,6 +104,7 @@ vi.mock('@/hooks/use-push-notifications', () => ({
 vi.mock('@/lib/query-client', () => ({
   queryClient: {
     clear: queryClientClearMock,
+    setQueryData: setQueryDataMock,
   },
   clearPersistedQueryCache: clearPersistedQueryCacheMock,
   setQueryCacheScope: setQueryCacheScopeMock,
@@ -124,6 +127,19 @@ vi.stubGlobal('fetch', fetchMock)
 function makeJwt(expirySeconds: number): string {
   const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' }), 'utf8').toString('base64')
   const payload = Buffer.from(JSON.stringify({ exp: expirySeconds }), 'utf8').toString('base64')
+  return `${header}.${payload}.`
+}
+
+function makeJwtWithClaims(expirySeconds: number, userId = 'jwt-user', email = 'jwt@example.com'): string {
+  const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' }), 'utf8').toString('base64')
+  const payload = Buffer.from(
+    JSON.stringify({
+      exp: expirySeconds,
+      'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier': userId,
+      'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress': email,
+    }),
+    'utf8',
+  ).toString('base64')
   return `${header}.${payload}.`
 }
 
@@ -455,5 +471,180 @@ describe('mobile auth store security paths', () => {
     expect(order).toContain('offlineQueue.clear')
     expect(order).toContain('clearOfflineState')
     expect(useAuthStore.getState().isAuthenticated).toBe(true)
+  })
+
+  it('rotates the token and derives the user from JWT claims on a successful refresh', async () => {
+    const rotatedToken = makeJwtWithClaims(Math.floor(Date.now() / 1000) + 3600, 'rotated-user', 'rotated@example.com')
+    getRefreshTokenMock.mockResolvedValue('refresh-token')
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ token: rotatedToken, refreshToken: 'next-refresh' }),
+    })
+
+    const outcome = await refreshSession()
+
+    expect(outcome).toEqual({ status: 'refreshed', token: rotatedToken })
+    expect(setTokenMock).toHaveBeenCalledWith(rotatedToken)
+    expect(setRefreshTokenMock).toHaveBeenCalledWith('next-refresh')
+    expect(saveWidgetTokenMock).toHaveBeenCalledWith(rotatedToken)
+    expect(useAuthStore.getState().user).toMatchObject({
+      userId: 'rotated-user',
+      email: 'rotated@example.com',
+    })
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+  })
+
+  it('clears the session when refreshSession finds no stored refresh token', async () => {
+    getRefreshTokenMock.mockResolvedValue(null)
+
+    const outcome = await refreshSession()
+
+    expect(outcome).toEqual({ status: 'unauthorized' })
+    expect(clearAllTokensMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('preserves tokens when refreshSession has no refresh token but clearOnFailure is false', async () => {
+    getRefreshTokenMock.mockResolvedValue(null)
+
+    const outcome = await refreshSession({ clearOnFailure: false })
+
+    expect(outcome).toEqual({ status: 'unauthorized' })
+    expect(clearAllTokensMock).not.toHaveBeenCalled()
+  })
+
+  it('treats a non-TypeError network message as transient and keeps the session', async () => {
+    getRefreshTokenMock.mockResolvedValue('refresh-token')
+    fetchMock.mockRejectedValue(new Error('Network error while fetching'))
+
+    const outcome = await refreshSession()
+
+    expect(outcome).toEqual({ status: 'network-error' })
+    expect(clearAllTokensMock).not.toHaveBeenCalled()
+  })
+
+  it('treats a thrown non-Error as unauthorized and clears the session', async () => {
+    getRefreshTokenMock.mockResolvedValue('refresh-token')
+    fetchMock.mockRejectedValue('socket exploded')
+
+    const outcome = await refreshSession()
+
+    expect(outcome).toEqual({ status: 'unauthorized' })
+    expect(clearAllTokensMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('returns false from checkAuth when an expired token cannot be refreshed', async () => {
+    getTokenMock.mockResolvedValue(makeJwt(Math.floor(Date.now() / 1000) - 10))
+    getRefreshTokenMock.mockResolvedValue(null)
+
+    const isValid = await useAuthStore.getState().checkAuth()
+
+    expect(isValid).toBe(false)
+  })
+
+  it('refreshes an expired token in checkAuth and authenticates with the rotated token', async () => {
+    const rotatedToken = makeJwtWithClaims(Math.floor(Date.now() / 1000) + 3600, 'refreshed-user', 'refreshed@example.com')
+    getTokenMock.mockResolvedValue(makeJwt(Math.floor(Date.now() / 1000) - 10))
+    getRefreshTokenMock.mockResolvedValue('refresh-token')
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ token: rotatedToken, refreshToken: 'next-refresh' }),
+    })
+
+    const isValid = await useAuthStore.getState().checkAuth()
+
+    expect(isValid).toBe(true)
+    expect(setQueryCacheScopeMock).toHaveBeenCalledWith('refreshed-user')
+    expect(useAuthStore.getState().user).toMatchObject({ userId: 'refreshed-user' })
+  })
+
+  it('treats a token with an unparseable payload as expired', async () => {
+    getTokenMock.mockResolvedValue('header.@@not-base64@@.sig')
+    getRefreshTokenMock.mockResolvedValue(null)
+
+    const isValid = await useAuthStore.getState().checkAuth()
+
+    expect(isValid).toBe(false)
+  })
+
+  it('marks the session unauthenticated when initialize finds no token', async () => {
+    getTokenMock.mockResolvedValue(null)
+
+    await useAuthStore.getState().initialize()
+
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: false,
+      user: null,
+      isLoading: false,
+    })
+  })
+
+  it('recovers to a signed-out state when initialize throws while reading the token', async () => {
+    getTokenMock.mockRejectedValue(new Error('secure store unavailable'))
+
+    await useAuthStore.getState().initialize()
+
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: false,
+      user: null,
+      isLoading: false,
+    })
+  })
+
+  it('hydrates the cached profile and merges its name and email after initialize', async () => {
+    getTokenMock.mockResolvedValue(makeJwtWithClaims(Math.floor(Date.now() / 1000) + 3600, 'user-1', 'stale@example.com'))
+    getRefreshTokenMock.mockResolvedValue('refresh-token')
+    apiClientMock.mockResolvedValue({
+      name: 'Fresh Name',
+      email: 'fresh@example.com',
+      language: 'pt-BR',
+      colorScheme: 'ocean',
+      themePreference: 'dark',
+    })
+
+    await useAuthStore.getState().initialize()
+    await whenProfileHydrated()
+
+    expect(useAuthStore.getState().user).toMatchObject({
+      name: 'Fresh Name',
+      email: 'fresh@example.com',
+    })
+  })
+
+  it('calls the logout endpoint when a refresh token is present', async () => {
+    getRefreshTokenMock.mockResolvedValue('refresh-token')
+    useAuthStore.setState({
+      isAuthenticated: true,
+      user: { userId: 'user-1', email: 'user@example.com', name: 'User' },
+      isLoading: false,
+      expiresAt: Date.now() + 3600_000,
+    })
+
+    await useAuthStore.getState().logout()
+
+    expect(apiClientMock).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ method: 'POST' }),
+    )
+  })
+
+  it('applies the profile language and theme during login hydration', async () => {
+    apiClientMock.mockResolvedValue({
+      name: 'Login Name',
+      email: 'login@example.com',
+      language: 'pt-BR',
+      colorScheme: 'ocean',
+      themePreference: 'light',
+    })
+
+    await useAuthStore.getState().login('access-token', 'refresh-token', {
+      userId: 'user-1',
+      email: 'user@example.com',
+      name: 'User',
+    })
+
+    expect(useAuthStore.getState().user).toMatchObject({
+      name: 'Login Name',
+      email: 'login@example.com',
+    })
   })
 })

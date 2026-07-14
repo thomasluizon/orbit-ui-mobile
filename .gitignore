@@ -33,6 +33,7 @@ Thumbs.db
 
 # Coverage
 coverage/
+coverage-*/
 
 # Mutation testing (StrykerJS)
 .stryker-tmp/

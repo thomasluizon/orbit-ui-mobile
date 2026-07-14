@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { renderHook, act, waitFor } from '@testing-library/react'
 
 const mockSubscribePush = vi.fn()
 const mockUnsubscribePush = vi.fn()
@@ -13,6 +14,7 @@ import {
   loadPushNotificationState,
   subscribeToPushNotifications,
   unsubscribeFromPushNotifications,
+  usePushNotificationPreferences,
 } from '@/hooks/use-push-notification-preferences'
 
 interface MockPushSubscription {
@@ -236,5 +238,79 @@ describe('use-push-notification-preferences helpers', () => {
       permission: 'granted',
       status: 'not-registered',
     })
+  })
+})
+
+describe('usePushNotificationPreferences hook', () => {
+  const originalVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+
+  beforeEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+    mockSubscribePush.mockReset()
+    mockUnsubscribePush.mockReset()
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY = 'dGVzdA'
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+    if (originalVapidKey === undefined) {
+      delete process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+      return
+    }
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY = originalVapidKey
+  })
+
+  it('loads the current subscription snapshot on mount', async () => {
+    setupPushEnvironment({ permission: 'granted', existingSubscription: createMockSubscription() })
+    const { result } = renderHook(() => usePushNotificationPreferences())
+    await waitFor(() => expect(result.current.status).toBe('registered'))
+    expect(result.current.subscribed).toBe(true)
+  })
+
+  it('subscribes when toggled while unsubscribed', async () => {
+    setupPushEnvironment({ permission: 'granted', existingSubscription: null })
+    mockSubscribePush.mockResolvedValue(undefined)
+    const { result } = renderHook(() => usePushNotificationPreferences())
+    await waitFor(() => expect(result.current.status).toBe('not-registered'))
+
+    await act(async () => {
+      await result.current.togglePush()
+    })
+
+    expect(mockSubscribePush).toHaveBeenCalledTimes(1)
+    expect(result.current.subscribed).toBe(true)
+    expect(result.current.loading).toBe(false)
+  })
+
+  it('unsubscribes when toggled while subscribed', async () => {
+    const subscription = createMockSubscription()
+    setupPushEnvironment({ permission: 'granted', existingSubscription: subscription })
+    mockUnsubscribePush.mockResolvedValue(undefined)
+    const { result } = renderHook(() => usePushNotificationPreferences())
+    await waitFor(() => expect(result.current.subscribed).toBe(true))
+
+    await act(async () => {
+      await result.current.togglePush()
+    })
+
+    expect(mockUnsubscribePush).toHaveBeenCalledTimes(1)
+    expect(result.current.subscribed).toBe(false)
+    expect(result.current.status).toBe('not-registered')
+  })
+
+  it('reports sync-failed when a toggle throws', async () => {
+    setupPushEnvironment({ permission: 'granted', existingSubscription: null })
+    mockSubscribePush.mockRejectedValue(new Error('backend down'))
+    const { result } = renderHook(() => usePushNotificationPreferences())
+    await waitFor(() => expect(result.current.status).toBe('not-registered'))
+
+    await act(async () => {
+      await result.current.togglePush()
+    })
+
+    expect(result.current.status).toBe('sync-failed')
+    expect(result.current.loading).toBe(false)
   })
 })

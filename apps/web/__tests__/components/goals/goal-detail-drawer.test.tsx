@@ -1,6 +1,6 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -10,9 +10,10 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'en',
 }))
 
+const routerPush = vi.fn()
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
-    push: vi.fn(),
+    push: routerPush,
   }),
 }))
 
@@ -40,6 +41,8 @@ let detailGoal = { ...listGoal, progressHistory: [] as Array<unknown> }
 let detailLoadError = false
 const refetchDetail = vi.fn()
 const updateStatusMutateAsync = vi.fn()
+const updateProgressMutateAsync = vi.fn()
+const deleteMutateAsync = vi.fn()
 
 vi.mock('@/hooks/use-goals', () => ({
   useGoals: () => ({
@@ -54,13 +57,13 @@ vi.mock('@/hooks/use-goals', () => ({
     isError: detailLoadError,
     refetch: refetchDetail,
   }),
-  useUpdateGoalProgress: () => ({ mutateAsync: vi.fn(), isPending: false, error: null }),
+  useUpdateGoalProgress: () => ({ mutateAsync: updateProgressMutateAsync, isPending: false, error: null }),
   useUpdateGoalStatus: () => ({
     mutateAsync: updateStatusMutateAsync,
     isPending: false,
     error: null,
   }),
-  useDeleteGoal: () => ({ mutateAsync: vi.fn(), isPending: false, error: null }),
+  useDeleteGoal: () => ({ mutateAsync: deleteMutateAsync, isPending: false, error: null }),
 }))
 
 vi.mock('@/components/goals/edit-goal-modal', () => ({
@@ -80,6 +83,10 @@ describe('GoalDetailDrawer', () => {
     detailLoadError = false
     refetchDetail.mockClear()
     updateStatusMutateAsync.mockClear()
+    updateProgressMutateAsync.mockClear()
+    deleteMutateAsync.mockClear()
+    routerPush.mockClear()
+    localStorage.clear()
   })
 
   it('renders nothing when closed', () => {
@@ -173,5 +180,62 @@ describe('GoalDetailDrawer', () => {
     expect(document.body.textContent).toContain('goals.detail.loadError')
     fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
     expect(refetchDetail).toHaveBeenCalledTimes(1)
+  })
+
+  it('abandons an active goal from the action footer', () => {
+    render(<GoalDetailDrawer open={true} onOpenChange={vi.fn()} goalId="1" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'goals.detail.markAbandoned' }))
+
+    expect(updateStatusMutateAsync).toHaveBeenCalledWith({
+      goalId: '1',
+      data: { status: 'Abandoned' },
+      goalName: 'Read 12 books',
+    })
+  })
+
+  it('deletes the goal after confirming and closes the drawer', async () => {
+    deleteMutateAsync.mockResolvedValue(undefined)
+    const onOpenChange = vi.fn()
+    render(<GoalDetailDrawer open={true} onOpenChange={onOpenChange} goalId="1" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'goals.detail.delete' }))
+    fireEvent.click(screen.getByRole('button', { name: 'common.delete' }))
+
+    await waitFor(() => expect(deleteMutateAsync).toHaveBeenCalledWith('1'))
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
+
+  it('submits a progress update from the inline form', async () => {
+    updateProgressMutateAsync.mockResolvedValue(undefined)
+    render(
+      <GoalDetailDrawer open={true} onOpenChange={vi.fn()} goalId="1" initialAction="progress" />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+
+    await waitFor(() => expect(updateProgressMutateAsync).toHaveBeenCalledTimes(1))
+  })
+
+  it('reactivates a completed goal instead of showing active-only actions', () => {
+    detailGoal = { ...listGoal, status: 'Completed', progressHistory: [] }
+    render(<GoalDetailDrawer open={true} onOpenChange={vi.fn()} goalId="1" />)
+
+    expect(screen.queryByRole('button', { name: 'goals.detail.markCompleted' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'goals.detail.reactivate' }))
+    expect(updateStatusMutateAsync).toHaveBeenCalledWith({
+      goalId: '1',
+      data: { status: 'Active' },
+      goalName: 'Read 12 books',
+    })
+  })
+
+  it('seeds an Astra chat draft and navigates when Ask Astra is used', () => {
+    render(<GoalDetailDrawer open={true} onOpenChange={vi.fn()} goalId="1" />)
+
+    fireEvent.click(screen.getByRole('button', { name: /goals\.detail\.askAstra/ }))
+
+    expect(routerPush).toHaveBeenCalledWith('/chat')
+    expect(localStorage.getItem('orbit-chat-draft')).toContain('goals.detail.askAstraSeedDefault')
   })
 })

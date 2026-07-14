@@ -114,4 +114,56 @@ describe('AppDatePicker', () => {
     expect(screen.getByText('June')).toBeInTheDocument()
     expect(screen.getByLabelText('common.previousMonth')).toBeInTheDocument()
   })
+
+  it('steps to the previous and next month', () => {
+    render(<AppDatePicker value="2025-06-15" onChange={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button'))
+    expect(screen.getByText('June')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByLabelText('common.previousMonth'))
+    expect(screen.getByText('May')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByLabelText('common.nextMonth'))
+    fireEvent.click(screen.getByLabelText('common.nextMonth'))
+    expect(screen.getByText('July')).toBeInTheDocument()
+  })
+
+  it('moves the roving focus target with arrow-key grid navigation', () => {
+    render(<AppDatePicker value="2025-06-15" onChange={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button'))
+    const grid = screen.getByRole('grid')
+
+    expect(document.querySelector('button[tabindex="0"]')?.getAttribute('data-day')).toBe('2025-06-15')
+
+    fireEvent.keyDown(grid, { key: 'ArrowRight' })
+    expect(document.querySelector('button[tabindex="0"]')?.getAttribute('data-day')).toBe('2025-06-16')
+
+    fireEvent.keyDown(grid, { key: 'ArrowDown' })
+    expect(document.querySelector('button[tabindex="0"]')?.getAttribute('data-day')).toBe('2025-06-23')
+
+    fireEvent.keyDown(grid, { key: 'ArrowUp' })
+    fireEvent.keyDown(grid, { key: 'ArrowLeft' })
+    expect(document.querySelector('button[tabindex="0"]')?.getAttribute('data-day')).toBe('2025-06-15')
+  })
+
+  it('crosses month boundaries with PageUp/PageDown navigation', () => {
+    render(<AppDatePicker value="2025-06-15" onChange={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button'))
+    const grid = screen.getByRole('grid')
+
+    fireEvent.keyDown(grid, { key: 'PageUp' })
+    expect(screen.getByText('May')).toBeInTheDocument()
+
+    fireEvent.keyDown(grid, { key: 'PageDown' })
+    fireEvent.keyDown(grid, { key: 'PageDown' })
+    expect(screen.getByText('July')).toBeInTheDocument()
+  })
+
+  it('resyncs the visible month when the value prop changes', () => {
+    const { rerender } = render(<AppDatePicker value="2025-06-15" onChange={vi.fn()} />)
+    rerender(<AppDatePicker value="2025-09-15" onChange={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button'))
+    expect(screen.getByText('September')).toBeInTheDocument()
+  })
 })

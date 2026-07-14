@@ -1,9 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { OnboardingActions } from '@/components/onboarding/onboarding-actions-context'
 import {
+  OnboardingActionsProvider,
   useBufferOnboardingActions,
   useLiveOnboardingActions,
+  useOnboardingActions,
+  useOnboardingHasProAccess,
+  useOnboardingIsLive,
 } from '@/components/onboarding/onboarding-actions-context'
+import type { Profile } from '@orbit/shared/types/profile'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -143,5 +148,132 @@ describe('onboarding action provider factories', () => {
     expect(mocks.applyScheme).toHaveBeenCalledWith('blue')
 
     expect(actions.onImport).toBeTypeOf('function')
+  })
+
+  it('buffers goals and color scheme in pre-auth mode', async () => {
+    const actions = captureActions(useBufferOnboardingActions)
+
+    await actions.createGoal({ title: 'Ship', targetValue: 1, unit: 'app' })
+    expect(mocks.draftState.bufferGoal).toHaveBeenCalledWith({
+      title: 'Ship',
+      targetValue: 1,
+      unit: 'app',
+    })
+
+    await actions.setColorScheme('amber')
+    expect(mocks.draftState.bufferColorScheme).toHaveBeenCalledWith('amber')
+  })
+
+  it('logs, creates goals, and queues the week-start day in live mode', async () => {
+    const actions = captureActions(useLiveOnboardingActions)
+
+    await actions.logHabit('server-id')
+    expect(mocks.logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'server-id' })
+
+    await actions.createGoal({ title: 'Ship', targetValue: 1, unit: 'app' })
+    expect(mocks.createGoalMutateAsync).toHaveBeenCalledWith({
+      title: 'Ship',
+      targetValue: 1,
+      unit: 'app',
+    })
+
+    await actions.setWeekStartDay(1)
+    expect(mocks.performQueuedApiMutation).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'setWeekStartDay', payload: { weekStartDay: 1 } }),
+    )
+    expect(mocks.patchProfile).toHaveBeenCalledWith({ weekStartDay: 1 })
+  })
+
+  it('completes onboarding and patches the cached profile in live mode', async () => {
+    const actions = captureActions(useLiveOnboardingActions)
+
+    await actions.finishOnboarding()
+
+    expect(mocks.performQueuedApiMutation).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'completeOnboarding' }),
+    )
+    expect(mocks.replace).toHaveBeenCalledWith('/')
+
+    const updater = mocks.setQueryData.mock.calls.at(-1)?.[1] as (
+      old: Profile | undefined,
+    ) => Profile | undefined
+    const existing = { hasCompletedOnboarding: false } as unknown as Profile
+    expect(updater(existing)?.hasCompletedOnboarding).toBe(true)
+    expect(updater(undefined)).toBeUndefined()
+  })
+
+  it('tolerates a failed completion mutation but still advances', async () => {
+    mocks.performQueuedApiMutation.mockRejectedValueOnce(new Error('offline'))
+    const actions = captureActions(useLiveOnboardingActions)
+
+    await actions.finishOnboarding()
+
+    expect(mocks.replace).toHaveBeenCalledWith('/')
+  })
+
+  it('imports the onboarding prompt into the chat draft in live mode', async () => {
+    const actions = captureActions(useLiveOnboardingActions)
+
+    actions.onImport?.()
+
+    await vi.waitFor(() => {
+      expect(mocks.setItem).toHaveBeenCalledWith(
+        expect.any(String),
+        'onboarding.flow.meetAstra.importPrompt',
+      )
+      expect(mocks.replace).toHaveBeenCalledWith('/chat')
+    })
+  })
+})
+
+const stubActions: OnboardingActions = {
+  createHabit: vi.fn(async () => ({ id: '1', title: 'x' })),
+  createHabitsBulk: vi.fn(async () => {}),
+  logHabit: vi.fn(async () => {}),
+  createGoal: vi.fn(async () => {}),
+  setWeekStartDay: vi.fn(async () => {}),
+  setColorScheme: vi.fn(async () => {}),
+  finishOnboarding: vi.fn(async () => {}),
+}
+
+describe('OnboardingActionsProvider', () => {
+  it('exposes the actions, pro access, and live flag to consumers', () => {
+    const captured = {
+      actions: null as OnboardingActions | null,
+      pro: false,
+      live: false,
+    }
+
+    function Child() {
+      captured.actions = useOnboardingActions()
+      captured.pro = useOnboardingHasProAccess()
+      captured.live = useOnboardingIsLive()
+      return null
+    }
+
+    TestRenderer.act(() => {
+      TestRenderer.create(
+        <OnboardingActionsProvider actions={stubActions} hasProAccess isLive>
+          <Child />
+        </OnboardingActionsProvider>,
+      )
+    })
+
+    expect(captured.actions).toBe(stubActions)
+    expect(captured.pro).toBe(true)
+    expect(captured.live).toBe(true)
+  })
+
+  it('throws when the action hooks are used outside the provider', () => {
+    function Orphan() {
+      useOnboardingActions()
+      return null
+    }
+
+    expect(() => {
+      TestRenderer.act(() => {
+        TestRenderer.create(<Orphan />)
+      })
+    }).toThrow('useOnboardingActions must be used within an OnboardingActionsProvider')
   })
 })

@@ -160,6 +160,46 @@ describe('offline-state', () => {
     expect(getStoredEntities(asyncStorage)).not.toHaveProperty('habit:offline-habit-3')
   })
 
+  it('hydrates entities from a previously persisted state snapshot', async () => {
+    const persisted = JSON.stringify({
+      entities: {
+        'habit:offline-habit-9': {
+          entityType: 'habit',
+          tempId: 'offline-habit-9',
+          serverId: 'habit-9',
+          status: 'synced',
+          tombstone: false,
+          updatedAt: 1,
+          lastError: null,
+        },
+      },
+    })
+    const { getResolvedEntityId } = await loadOfflineStateModule({
+      getItem: vi.fn(async () => persisted),
+    })
+
+    expect(await getResolvedEntityId('habit', 'offline-habit-9')).toBe('habit-9')
+  })
+
+  it('clears the whole offline state, tolerating a storage removal failure', async () => {
+    const { clearOfflineState, upsertOfflineEntity, getResolvedEntityId } =
+      await loadOfflineStateModule()
+
+    await upsertOfflineEntity({
+      entityType: 'habit',
+      tempId: 'offline-habit-10',
+      serverId: 'habit-10',
+      status: 'synced',
+      tombstone: false,
+      updatedAt: 1,
+      lastError: null,
+    })
+
+    await expect(clearOfflineState()).resolves.toBeUndefined()
+
+    expect(await getResolvedEntityId('habit', 'offline-habit-10')).toBe('offline-habit-10')
+  })
+
   it('falls back to in-memory state when storage reads or writes fail', async () => {
     const {
       getResolvedEntityId,

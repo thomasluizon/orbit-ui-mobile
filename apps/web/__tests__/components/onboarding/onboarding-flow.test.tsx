@@ -205,4 +205,31 @@ describe('OnboardingFlow', () => {
     expect(dialog.className).toMatch(/w-screen/)
     expect(dialog.className).toMatch(/h-dvh/)
   })
+
+  it('reaches the features step after creating a goal and finishes from complete', () => {
+    renderFlow()
+    fireEvent.click(screen.getByText('onboarding.flow.begin'))
+    fireEvent.click(screen.getByText('onboarding.flow.next'))
+    fireEvent.click(screen.getByText('Pack Created'))
+    expect(screen.getByTestId('step-create-goal')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('Create Goal'))
+    expect(screen.getByTestId('step-features')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('onboarding.flow.next'))
+    expect(screen.getByTestId('step-complete')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('Finish'))
+    expect(finishOnboarding).toHaveBeenCalledTimes(1)
+  })
+
+  it('advances to the features step when the goal step is skipped', () => {
+    renderFlow()
+    fireEvent.click(screen.getByText('onboarding.flow.begin'))
+    fireEvent.click(screen.getByText('onboarding.flow.next'))
+    fireEvent.click(screen.getByText('Pack Created'))
+
+    fireEvent.click(screen.getByText('Skip Goal'))
+    expect(screen.getByTestId('step-features')).toBeInTheDocument()
+  })
 })

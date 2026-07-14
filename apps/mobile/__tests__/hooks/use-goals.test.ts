@@ -5,6 +5,7 @@ import type { CreateGoalRequest, Goal, GoalDetailWithMetrics } from '@orbit/shar
 import type { HabitScheduleItem } from '@orbit/shared/types/habit'
 
 import { API } from '@orbit/shared/api'
+import { apiClient } from '@/lib/api-client'
 import {
   useCreateGoal,
   useDeleteGoal,
@@ -609,5 +610,66 @@ describe('mobile goal hooks', () => {
       goalId: 'goal-1',
       includeHabits: true,
     })
+  })
+})
+
+type Executable<Variables> = { mutationFn: (variables: Variables) => Promise<unknown> }
+
+describe('mobile goal hooks online execute closures', () => {
+  beforeEach(() => {
+    mocks.queueOrExecute.mockReset()
+    mocks.queueOrExecute.mockImplementation(
+      async ({ execute }: { execute: () => Promise<unknown> }) => execute(),
+    )
+    vi.mocked(apiClient).mockReset().mockResolvedValue(undefined)
+  })
+
+  it('POSTs to the create endpoint when executed online', async () => {
+    vi.mocked(apiClient).mockResolvedValue({ id: 'goal-9' })
+    const mutation = useCreateGoal() as unknown as Executable<CreateGoalRequest>
+    await mutation.mutationFn({ title: 'Read', targetValue: 4, unit: 'books' })
+    expect(apiClient).toHaveBeenCalledWith(API.goals.create, expect.objectContaining({ method: 'POST' }))
+  })
+
+  it('PUTs to the update endpoint when executed online', async () => {
+    const mutation = useUpdateGoal() as unknown as Executable<{ goalId: string; data: CreateGoalRequest }>
+    await mutation.mutationFn({ goalId: 'goal-1', data: { title: 'Read', targetValue: 6, unit: 'books' } })
+    expect(apiClient).toHaveBeenCalledWith(API.goals.update('goal-1'), expect.objectContaining({ method: 'PUT' }))
+  })
+
+  it('POSTs to the restore endpoint when executed online', async () => {
+    const mutation = useRestoreGoal() as unknown as Executable<string>
+    await mutation.mutationFn('goal-1')
+    expect(apiClient).toHaveBeenCalledWith(API.goals.restore('goal-1'), expect.objectContaining({ method: 'POST' }))
+  })
+
+  it('DELETEs the goal endpoint when executed online', async () => {
+    const mutation = useDeleteGoal() as unknown as Executable<string>
+    await mutation.mutationFn('goal-1')
+    expect(apiClient).toHaveBeenCalledWith(API.goals.delete('goal-1'), expect.objectContaining({ method: 'DELETE' }))
+  })
+
+  it('PUTs the progress endpoint when executed online', async () => {
+    const mutation = useUpdateGoalProgress() as unknown as Executable<{ goalId: string; data: { currentValue: number } }>
+    await mutation.mutationFn({ goalId: 'goal-1', data: { currentValue: 3 } })
+    expect(apiClient).toHaveBeenCalledWith(API.goals.progress('goal-1'), expect.objectContaining({ method: 'PUT' }))
+  })
+
+  it('PUTs the status endpoint when executed online', async () => {
+    const mutation = useUpdateGoalStatus() as unknown as Executable<{ goalId: string; data: { status: string }; goalName?: string }>
+    await mutation.mutationFn({ goalId: 'goal-1', data: { status: 'Completed' }, goalName: 'Read' })
+    expect(apiClient).toHaveBeenCalledWith(API.goals.status('goal-1'), expect.objectContaining({ method: 'PUT' }))
+  })
+
+  it('PUTs the reorder endpoint when executed online', async () => {
+    const mutation = useReorderGoals() as unknown as Executable<{ id: string; position: number }[]>
+    await mutation.mutationFn([{ id: 'goal-1', position: 0 }])
+    expect(apiClient).toHaveBeenCalledWith(API.goals.reorder, expect.objectContaining({ method: 'PUT' }))
+  })
+
+  it('PUTs the linked-habits endpoint when executed online', async () => {
+    const mutation = useLinkHabitsToGoal() as unknown as Executable<{ goalId: string; habitIds: string[] }>
+    await mutation.mutationFn({ goalId: 'goal-1', habitIds: ['habit-1'] })
+    expect(apiClient).toHaveBeenCalledWith(API.goals.habits('goal-1'), expect.objectContaining({ method: 'PUT' }))
   })
 })
