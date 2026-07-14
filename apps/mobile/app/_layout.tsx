@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { BackHandler, Platform, StyleSheet, View } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -15,7 +15,6 @@ import {
 } from 'expo-router'
 import { type Theme as NavigationTheme } from 'expo-router/react-navigation'
 import { StatusBar } from 'expo-status-bar'
-import Constants from 'expo-constants'
 import { Providers } from '@/lib/providers'
 import { useAuthStore } from '@/stores/auth-store'
 import { useGamificationProfile } from '@/hooks/use-gamification'
@@ -47,51 +46,19 @@ import {
   isReviewMomentEligible,
   useReviewReminderStore,
 } from '@/stores/review-reminder-store'
-import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
-import {
-  OnboardingActionsProvider,
-  useLiveOnboardingActions,
-} from '@/components/onboarding/onboarding-actions-context'
-import { CalendarImportPrompt } from '@/components/onboarding/calendar-import-prompt'
-import { AstraImportPrompt } from '@/components/onboarding/astra-import-prompt'
+import { useLiveOnboardingActions } from '@/components/onboarding/onboarding-actions-context'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { useOnboardingFlush } from '@/hooks/use-onboarding-flush'
 import { useRetainedOnboardingGuard } from '@/hooks/use-retained-onboarding-guard'
 import { BottomTabBar, type BottomTabId } from '@/components/navigation/bottom-tab-bar'
 import { useTourTarget } from '@/hooks/use-tour-target'
-import { AchievementToast } from '@/components/gamification/achievement-toast'
-import { AllDoneCelebration } from '@/components/gamification/all-done-celebration'
-import { GoalCompletedCelebration } from '@/components/gamification/goal-completed-celebration'
-import { LevelUpOverlay } from '@/components/gamification/level-up-overlay'
-import { ReferralPrompt } from '@/components/referral/referral-prompt'
-import { MilestoneSharePrompt } from '@/components/milestone-share/milestone-share-prompt'
-import { MarketingConsentPrompt } from '@/components/marketing-consent/marketing-consent-prompt'
-import { ReviewMomentSheet } from '@/components/review-moment/review-moment-sheet'
-import { StreakCelebration } from '@/components/gamification/streak-celebration'
-import {
-  StreakFreezeCelebration,
-  type StreakFreezeCelebrationHandle,
-} from '@/components/gamification/streak-freeze-celebration'
-import { WelcomeBackToast } from '@/components/gamification/welcome-back-toast'
+import { type StreakFreezeCelebrationHandle } from '@/components/gamification/streak-freeze-celebration'
+import { OverlayLayer } from '@/components/global-overlays'
 import * as Sentry from '@sentry/react-native'
 import { AppToast } from '@/components/ui/app-toast'
 import { AppErrorScreen } from '@/components/ui/app-error-boundary'
 import { captureError } from '@/lib/sentry'
-import { ExpiryWarning } from '@/components/ui/expiry-warning'
-import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
-import { VersionUpdateDrawer } from '@/components/version-update-drawer'
 import { UpgradeRequiredScreen } from '@/components/upgrade-required-screen'
-import { TourProvider } from '@/components/tour/tour-provider'
-import { TourOverlay } from '@/components/tour/tour-overlay'
-
-const isExpoGo = Constants.expoGoConfig !== null
-const PushPrompt = isExpoGo
-  ? () => null
-  : lazy(() =>
-      import('@/components/ui/push-prompt').then((m) => ({
-        default: m.PushPrompt,
-      })),
-    )
 
 const SLIDE_FROM_RIGHT_SCREENS = [
   'preferences',
@@ -368,49 +335,17 @@ function GlobalOverlays({
   ])
 
   return (
-    <>
-      <ExpiryWarning />
-      <TrialExpiredModal />
-      {showRetainedOnboarding ? (
-        <OnboardingActionsProvider
-          actions={liveOnboardingActions}
-          hasProAccess={hasProAccess}
-          isLive
-        >
-          <OnboardingFlow />
-        </OnboardingActionsProvider>
-      ) : null}
-      <Suspense fallback={null}>
-        {profile?.hasCompletedOnboarding ? <PushPrompt /> : null}
-      </Suspense>
-      {profile?.hasCompletedOnboarding ? (
-        <>
-          <StreakCelebration />
-          <AllDoneCelebration />
-          <GoalCompletedCelebration />
-          <WelcomeBackToast />
-          {hasProAccess ? <AchievementToast /> : null}
-          {canViewGamification ? (
-            <LevelUpOverlay
-              leveledUp={gamification.leveledUp}
-              newLevel={gamification.newLevel}
-              onClear={gamification.clearLevelUp}
-            />
-          ) : null}
-          <MarketingConsentPrompt />
-          <ReferralPrompt />
-          <MilestoneSharePrompt />
-          <ReviewMomentSheet />
-        </>
-      ) : null}
-      <StreakFreezeCelebration ref={streakFreezeRef} />
-      <CalendarImportPrompt />
-      <AstraImportPrompt />
-      <VersionUpdateDrawer />
-      <TourProvider>
-        <TourOverlay />
-      </TourProvider>
-    </>
+    <OverlayLayer
+      hasCompletedOnboarding={profile?.hasCompletedOnboarding ?? false}
+      hasProAccess={hasProAccess}
+      canViewGamification={canViewGamification}
+      showRetainedOnboarding={showRetainedOnboarding}
+      onboardingActions={liveOnboardingActions}
+      leveledUp={gamification.leveledUp}
+      newLevel={gamification.newLevel}
+      onClearLevelUp={gamification.clearLevelUp}
+      streakFreezeRef={streakFreezeRef}
+    />
   )
 }
 
