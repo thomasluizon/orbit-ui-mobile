@@ -204,6 +204,7 @@ export function HabitChecklist({
           >
             {items.map((item, index) => (
               <InteractiveChecklistItem
+                // react-doctor-disable-next-line no-array-index-as-key -- fixed-order display of the habit's checklist items in this non-editable interactive path (no reorder/filter); ChecklistItem has no id and text may repeat, so the index disambiguates the composite key https://github.com/thomasluizon/orbit-ui-mobile/issues/243
                 key={`${item.text}-${index}`}
                 item={item}
                 index={index}

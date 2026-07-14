@@ -8,6 +8,24 @@ import { useUIStore } from '@/stores/ui-store'
 
 const SHOW_THRESHOLD = 600
 
+const BACK_TO_TOP_STYLE = {
+  bottom: 'calc(var(--safe-bottom) + 88px)',
+  width: 48,
+  height: 48,
+  borderRadius: 999,
+  background: 'var(--bg-elev-2)',
+  // react-doctor-disable-next-line no-large-animated-blur -- intentional frosted-glass control per DESIGN.md; the blur is static (only opacity/transform transition) on a small 48px surface, so the GPU cost stays bounded https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+  backdropFilter: 'blur(12px)',
+  // react-doctor-disable-next-line no-large-animated-blur -- intentional frosted-glass control per DESIGN.md; the blur is static (only opacity/transform transition) on a small 48px surface, so the GPU cost stays bounded https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+  WebkitBackdropFilter: 'blur(12px)',
+  boxShadow: 'var(--shadow-2), inset 0 0 0 1px var(--hairline-strong)',
+} as const
+
+function scrollToTop() {
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' })
+}
+
 /**
  * Floating control that scrolls the window back to the top. Appears only after the
  * page is scrolled past {@link SHOW_THRESHOLD}, so it stays hidden on short lists and
@@ -31,11 +49,6 @@ export function BackToTop() {
 
   const visible = scrolled && !astraOpen && !isSelectMode
 
-  const scrollToTop = () => {
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' })
-  }
-
   return (
     <button
       type="button"
@@ -51,16 +64,7 @@ export function BackToTop() {
         'hover:scale-105 active:scale-[0.96]',
         visible ? 'opacity-100' : 'pointer-events-none translate-y-2 opacity-0',
       ].join(' ')}
-      style={{
-        bottom: 'calc(var(--safe-bottom) + 88px)',
-        width: 48,
-        height: 48,
-        borderRadius: 999,
-        background: 'var(--bg-elev-2)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-        boxShadow: 'var(--shadow-2), inset 0 0 0 1px var(--hairline-strong)',
-      }}
+      style={BACK_TO_TOP_STYLE}
     >
       <ArrowUp size={20} strokeWidth={2.2} color="var(--fg-1)" aria-hidden />
     </button>

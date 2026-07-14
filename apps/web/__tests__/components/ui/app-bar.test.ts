@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { resolveAppBarRightActionLabel } from '@/components/ui/app-bar'
+import { resolveAppBarRightActionLabel } from '@/components/ui/app-bar-right-action'
 
 describe('resolveAppBarRightActionLabel', () => {
   const t = (key: string) => key

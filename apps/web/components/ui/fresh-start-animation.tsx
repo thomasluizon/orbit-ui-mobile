@@ -81,5 +81,6 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
     </output>
   )
 
+  // react-doctor-disable-next-line no-unguarded-browser-global-in-render-or-hook-init -- unreachable during SSR: the `if (!mounted) return null` above (useIsClient) returns before this createPortal on the server and first hydration render https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   return createPortal(overlay, document.body)
 }

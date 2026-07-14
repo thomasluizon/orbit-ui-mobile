@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+// react-doctor-disable-next-line use-lazy-motion -- LazyMotion migration is app-wide (needs a shared provider + converting every motion.* across components/**); a partial per-file swap yields no bundle benefit and risks unprovided m https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { resolveMotionPreset } from '@orbit/shared/theme'
 import { useIsClient } from '@/hooks/use-is-client'
@@ -30,6 +31,17 @@ interface MenuOrigin {
 
 const VIEWPORT_MARGIN = 8
 const MENU_MIN_WIDTH = 200
+
+const CONTEXT_MENU_ROW_STYLE = {
+  gap: 10,
+  minHeight: 44,
+  padding: '0 14px',
+  borderRadius: 10,
+  fontFamily: 'var(--font-sans)',
+  fontSize: 14,
+  fontWeight: 500,
+  cursor: 'pointer',
+} as const
 
 /** Desktop right-click context menu. Spread `onContextMenu` onto the target element
  *  and render the returned `contextMenu` beside it. The menu opens at the cursor from
@@ -186,6 +198,7 @@ export function useContextMenu(items: ReadonlyArray<ContextMenuItem>): UseContex
           </motion.div>
         ) : null}
       </AnimatePresence>,
+      // react-doctor-disable-next-line no-unguarded-browser-global-in-render-or-hook-init -- unreachable during SSR: this createPortal only evaluates inside `mounted && ...` (useIsClient false on the server and first hydration render) https://github.com/thomasluizon/orbit-ui-mobile/issues/243
       document.body,
     )
 
@@ -208,15 +221,8 @@ function ContextMenuRow({ item, onRun }: Readonly<ContextMenuRowProps>) {
       }}
       className="appearance-none border-0 bg-transparent w-full flex items-center text-left transition-colors hover:bg-[var(--bg-sunk)] focus-visible:bg-[var(--bg-sunk)] focus:outline-none"
       style={{
-        gap: 10,
-        minHeight: 44,
-        padding: '0 14px',
-        borderRadius: 10,
-        fontFamily: 'var(--font-sans)',
-        fontSize: 14,
-        fontWeight: 500,
+        ...CONTEXT_MENU_ROW_STYLE,
         color: item.danger ? 'var(--status-bad-text)' : 'var(--fg-1)',
-        cursor: 'pointer',
       }}
     >
       {item.label}

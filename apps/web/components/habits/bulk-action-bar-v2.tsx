@@ -8,10 +8,24 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react'
+// react-doctor-disable-next-line use-lazy-motion -- LazyMotion migration is app-wide (needs a shared provider + converting every motion.* across components/**); a partial per-file swap yields no bundle benefit and risks unprovided m https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 import { resolveMotionPreset } from '@orbit/shared/theme'
+import { useIsClient } from '@/hooks/use-is-client'
 import { plural } from '@/lib/plural'
+
+const SELECT_ALL_BUTTON_STYLE = {
+  fontFamily: 'var(--font-sans)',
+  fontSize: 12,
+  fontWeight: 500,
+  padding: '14px 10px',
+  margin: '-10px -4px',
+  textDecoration: 'underline',
+  textUnderlineOffset: 3,
+  textDecorationColor: 'var(--hairline-strong)',
+  textDecorationThickness: 1,
+} as const
 
 /** Floating bulk action toolbar on an elevated solid sheet surface. */
 export interface BulkActionBarV2Props {
@@ -72,6 +86,9 @@ export function BulkActionBarV2({
   const prefersReducedMotion = useReducedMotion()
   const motionPreset = resolveMotionPreset('selection', Boolean(prefersReducedMotion))
   const nothingSelected = selectedCount === 0
+  const mounted = useIsClient()
+
+  if (!mounted) return null
 
   return createPortal(
     <motion.div
@@ -127,17 +144,7 @@ export function BulkActionBarV2({
           type="button"
           onClick={allSelected ? onDeselectAll : onSelectAll}
           className="appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-3)] hover:text-[var(--fg-1)] active:scale-[0.96] transition-[color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 12,
-            fontWeight: 500,
-            padding: '14px 10px',
-            margin: '-10px -4px',
-            textDecoration: 'underline',
-            textUnderlineOffset: 3,
-            textDecorationColor: 'var(--hairline-strong)',
-            textDecorationThickness: 1,
-          }}
+          style={SELECT_ALL_BUTTON_STYLE}
         >
           {allSelected ? t('common.deselectAll') : t('common.selectAll')}
         </button>
@@ -173,6 +180,7 @@ export function BulkActionBarV2({
         />
       </div>
     </motion.div>,
+    // react-doctor-disable-next-line no-unguarded-browser-global-in-render-or-hook-init -- unreachable during SSR: the `if (!mounted) return null` above (useIsClient) returns before this createPortal on the server and first hydration render https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     document.querySelector('main') ?? document.body,
   )
 }

@@ -27,15 +27,15 @@ import { CreateHabitModal } from './create-habit-modal'
 import { EditHabitModal } from './edit-habit-modal'
 import { RescheduleSheet } from './reschedule-sheet'
 import {
-  getEmptyHabitsMessage,
   HabitListEmptyState,
   HabitListSkeleton,
 } from './habit-list/empty-state'
+import { getEmptyHabitsMessage } from './habit-list/empty-state-message'
 import {
-  formatDateGroupLabel,
   HabitListDateGroupSection,
   type HabitListDateGroup,
 } from './habit-list/date-group-section'
+import { formatDateGroupLabel } from './habit-list/date-group-label'
 import { HabitListConfirmDialogs } from './habit-list/confirm-dialogs'
 import { HabitListDrillContent } from './habit-list/drill-content'
 import { MoveParentOverlay, type MoveParentOption } from './habit-list/move-parent-overlay'
@@ -110,6 +110,7 @@ export interface HabitListHandle {
 
 const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
 
+// react-doctor-disable-next-line no-giant-component -- top-level habit-list surface owning query data, visibility, drill navigation, collapse state, and the full confirm-dialog cluster as one imperative-handle unit; extraction deferred to avoid regression without visual QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function HabitList({
   view = 'today',
   selectedDate,
@@ -258,6 +259,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const allCollapsed = expandableIds.length > 0 && expandableIds.every((id) => collapsedIds.has(id))
 
   useEffect(() => {
+    // react-doctor-disable-next-line no-pass-data-to-parent, no-pass-live-state-to-parent, no-prop-callback-in-effect -- allCollapsed is derived from both collapsedIds (local) and expandableIds (data-driven); the parent toolbar must reflect it, and no single event handler covers the data-driven changes, so a notify-effect is the correct channel https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     onAllCollapsedChange?.(allCollapsed)
   }, [allCollapsed, onAllCollapsedChange])
 
@@ -283,6 +285,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     }
     if (showCompleted) return topLevelHabits
     return topLevelHabits.filter((h) => visibility.hasVisibleContent(h))
+    // react-doctor-disable-next-line exhaustive-deps -- topLevelHabits is destructured from the query data every render and already listed; the memo keys off the resolved array, not data.topLevelHabits https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [topLevelHabits, view, showCompleted, recentlyCompletedIds, visibility])
 
   const allLoadedIds = useMemo(() => {
@@ -290,13 +293,16 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   }, [getVisibleChildren, habits])
 
   const isListView = view === 'all' || view === 'general'
-  promptDataRef.current = {
-    getChildren,
-    isListView,
-    visibility,
-    habitsById,
-    selectedDateStr,
-  }
+  useEffect(() => {
+    promptDataRef.current = {
+      getChildren,
+      isListView,
+      visibility,
+      habitsById,
+      selectedDateStr,
+    }
+    // react-doctor-disable-next-line exhaustive-deps -- getChildren and habitsById are aliased from the query result every render and already listed; the effect only mirrors the current render values into a ref, so no staleness is possible https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+  }, [promptDataRef, getChildren, isListView, visibility, habitsById, selectedDateStr])
 
   const childrenProgressMap = useMemo(() => {
     const map = new Map<string, { done: number; total: number }>()
@@ -356,6 +362,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     }
 
     return map
+    // react-doctor-disable-next-line exhaustive-deps -- getChildren is aliased from habitsQuery.getChildren every render and already listed; the memo keys off the resolved function, not habitsQuery.getChildren https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [habitsById, getChildren, isListView, visibility])
 
   const getChildrenProgress = useCallback(
@@ -914,6 +921,7 @@ const isPostponeAction = useMemo(() => {
         <>
           <div className="flex items-center" style={{ padding: '4px 20px 10px', gap: 12 }}>
             <button
+              type="button"
               aria-label={t('common.goBack')}
               className="touch-target shrink-0 appearance-none border-0 bg-transparent cursor-pointer flex items-center justify-center text-[var(--fg-1)] transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)]"
               style={{
@@ -957,6 +965,7 @@ const isPostponeAction = useMemo(() => {
 
           {drill.drillStack.length > 1 && (
             <button
+              type="button"
               className="flex items-center appearance-none border-0 bg-transparent cursor-pointer text-[var(--primary)] hover:text-[var(--primary-pressed)] transition-colors"
               style={{
                 gap: 6,

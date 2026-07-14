@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { ChevronLeft, ChevronRight, CalendarCheck, Repeat, Shuffle, Infinity } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
@@ -39,12 +39,12 @@ export function FrequencyTypeCards({
     return 'recurring'
   })()
 
-  const frequencyHandlers: Record<string, () => void> = useMemo(() => ({
+  const frequencyHandlers: Record<string, () => void> = {
     'one-time': onSetOneTime,
     recurring: onSetRecurring,
     flexible: onSetFlexible,
     general: onSetGeneral,
-  }), [onSetOneTime, onSetRecurring, onSetFlexible, onSetGeneral])
+  }
 
   const frequencyTrackRef = useRef<HTMLDivElement>(null)
   const hasPositionedFrequencyRef = useRef(false)

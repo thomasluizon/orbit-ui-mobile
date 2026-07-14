@@ -4,6 +4,24 @@ import type { ReactNode, MouseEvent } from 'react'
 import React from 'react'
 import { ChevronRight } from 'lucide-react'
 
+const PRO_BADGE_STYLE: React.CSSProperties = {
+  fontFamily: 'var(--font-sans)',
+  fontSize: 10,
+  fontWeight: 600,
+  color: 'var(--fg-on-primary)',
+  background: 'var(--primary)',
+  padding: '2px 6px',
+  borderRadius: 4,
+  letterSpacing: '0.04em',
+  textTransform: 'uppercase',
+}
+
+const SETTINGS_ROW_STYLE: React.CSSProperties = {
+  padding: '16px 20px',
+  gap: 14,
+  minHeight: 48,
+}
+
 interface SettingsGroupProps {
   children: ReactNode
 }
@@ -95,19 +113,7 @@ export function SettingsGroupRow({
             {label}
           </span>
           {proBadge ? (
-            <span
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 10,
-                fontWeight: 600,
-                color: 'var(--fg-on-primary)',
-                background: 'var(--primary)',
-                padding: '2px 6px',
-                borderRadius: 4,
-                letterSpacing: '0.04em',
-                textTransform: 'uppercase',
-              }}
-            >
+            <span style={PRO_BADGE_STYLE}>
               {proBadgeLabel ?? 'Pro'}
             </span>
           ) : null}
@@ -135,12 +141,6 @@ export function SettingsGroupRow({
     </>
   )
 
-  const sharedStyle: React.CSSProperties = {
-    padding: '16px 20px',
-    gap: 14,
-    minHeight: 48,
-  }
-
   if (onClick) {
     return (
       <button
@@ -151,7 +151,7 @@ export function SettingsGroupRow({
         data-testid={dataTestId}
         className="w-full text-left flex items-center justify-between cursor-pointer bg-transparent transition-[background-color] duration-150 ease-out hover:bg-[var(--bg-elev)] active:bg-[var(--bg-elev-pressed)]"
         style={{
-          ...sharedStyle,
+          ...SETTINGS_ROW_STYLE,
           appearance: 'none',
           border: 0,
         }}
@@ -167,7 +167,7 @@ export function SettingsGroupRow({
       data-tour={dataTour}
       data-testid={dataTestId}
       className="w-full flex items-center justify-between"
-      style={sharedStyle}
+      style={SETTINGS_ROW_STYLE}
     >
       {content}
     </div>

@@ -19,6 +19,18 @@ import { useUpdateHabit } from '@/hooks/use-habits'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useRescheduleSuggestion } from '@/hooks/use-reschedule-suggestion'
 
+const AI_LABEL_STYLE = {
+  fontFamily: 'var(--font-mono)',
+  // react-doctor-disable-next-line no-tiny-text -- intentional "AI" indicator pill (mono badge per DESIGN.md), not body text https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+  fontSize: 10,
+  fontWeight: 500,
+  letterSpacing: '0.06em',
+  color: 'var(--fg-3)',
+  boxShadow: 'inset 0 0 0 1px var(--hairline)',
+  borderRadius: 999,
+  padding: '1px 7px',
+} as const
+
 interface RescheduleSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -82,6 +94,7 @@ function RescheduleSuggestionCard({
         {rationale}
       </p>
 
+      {/* react-doctor-disable-next-line no-tiny-text -- intentional AI-disclosure fine-print caption (meta scale per DESIGN.md), deliberately de-emphasized below the rationale copy https://github.com/thomasluizon/orbit-ui-mobile/issues/243 */}
       <p style={{ fontFamily: 'var(--font-sans)', fontSize: 11, lineHeight: 1.4, color: 'var(--fg-3)' }}>
         {t('aiDisclosure.notMedicalAdvice')}
       </p>
@@ -268,16 +281,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
           </span>
           <span
             title={t('aiDisclosure.isAiTooltip')}
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 10,
-              fontWeight: 500,
-              letterSpacing: '0.06em',
-              color: 'var(--fg-3)',
-              boxShadow: 'inset 0 0 0 1px var(--hairline)',
-              borderRadius: 999,
-              padding: '1px 7px',
-            }}
+            style={AI_LABEL_STYLE}
           >
             {t('aiDisclosure.isAiLabel')}
           </span>
