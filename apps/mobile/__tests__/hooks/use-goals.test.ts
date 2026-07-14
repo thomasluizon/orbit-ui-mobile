@@ -5,7 +5,16 @@ import type { CreateGoalRequest, Goal, GoalDetailWithMetrics } from '@orbit/shar
 import type { HabitScheduleItem } from '@orbit/shared/types/habit'
 
 import { API } from '@orbit/shared/api'
-import { useCreateGoal , useDeleteGoal, useLinkHabitsToGoal, useRestoreGoal, useUpdateGoalProgress } from '@/hooks/use-goals'
+import {
+  useCreateGoal,
+  useDeleteGoal,
+  useLinkHabitsToGoal,
+  useReorderGoals,
+  useRestoreGoal,
+  useUpdateGoal,
+  useUpdateGoalProgress,
+  useUpdateGoalStatus,
+} from '@/hooks/use-goals'
 
 
 const mocks = vi.hoisted(() => {
@@ -104,6 +113,7 @@ const mocks = vi.hoisted(() => {
       queuedMutationId: mutationId,
     })),
     invalidateGoalQueries: vi.fn(async () => {}),
+    setGoalCompletedCelebration: vi.fn(),
     showSuccess: vi.fn(),
     showError: vi.fn(),
     showUndoToast: vi.fn(),
@@ -132,7 +142,7 @@ vi.mock('@/lib/offline-mutations', () => ({
 vi.mock('@/stores/ui-store', () => ({
   useUIStore: {
     getState: () => ({
-      setGoalCompletedCelebration: vi.fn(),
+      setGoalCompletedCelebration: mocks.setGoalCompletedCelebration,
     }),
   },
 }))
@@ -257,6 +267,7 @@ describe('mobile goal hooks', () => {
     mocks.queueOrExecute.mockReset()
     mocks.withQueuedMarker.mockClear()
     mocks.invalidateGoalQueries.mockClear()
+    mocks.setGoalCompletedCelebration.mockClear()
     mocks.showSuccess.mockClear()
     mocks.showError.mockClear()
     mocks.showUndoToast.mockClear()
@@ -403,5 +414,200 @@ describe('mobile goal hooks', () => {
     mutation.onError?.(new Error('boom'), 'goal-1', undefined)
 
     expect(mocks.showError).toHaveBeenCalledWith('undo.restoreFailed')
+  })
+
+  it('optimistically edits a goal and its detail, then invalidates online', async () => {
+    const mutation = useUpdateGoal() as unknown as MutationConfig<
+      undefined,
+      { goalId: string; data: { title: string; targetValue: number; unit: string } },
+      {
+        previousLists: readonly (readonly [readonly unknown[], Goal[] | undefined])[]
+        previousDetail: GoalDetailWithMetrics | undefined
+      }
+    >
+    mocks.queueOrExecute.mockResolvedValue(undefined)
+
+    const variables = {
+      goalId: 'goal-1',
+      data: { title: 'Read 20 Books', targetValue: 20, unit: 'books' },
+    }
+
+    const context = await mutation.onMutate?.(variables)
+    const listGoal = mocks.state.lists[0]?.value[0]
+    const detail = mocks.state.details.get(JSON.stringify(goalKeys.detail('goal-1')))
+    expect(listGoal?.title).toBe('Read 20 Books')
+    expect(listGoal?.targetValue).toBe(20)
+    expect(listGoal?.progressPercentage).toBe(15)
+    expect(detail?.goal.targetValue).toBe(20)
+    expect(detail?.metrics.progressPercentage).toBe(15)
+
+    const result = await mutation.mutationFn(variables)
+    mutation.onSettled?.(result, null, variables, context)
+    expect(mocks.invalidateGoalQueries).toHaveBeenCalledWith(expect.anything(), { goalId: 'goal-1' })
+  })
+
+  it('restores the goal and detail snapshots when an edit fails', async () => {
+    const mutation = useUpdateGoal() as unknown as MutationConfig<
+      undefined,
+      { goalId: string; data: { title: string; targetValue: number; unit: string } },
+      {
+        previousLists: readonly (readonly [readonly unknown[], Goal[] | undefined])[]
+        previousDetail: GoalDetailWithMetrics | undefined
+      }
+    >
+
+    const variables = {
+      goalId: 'goal-1',
+      data: { title: 'Renamed', targetValue: 20, unit: 'books' },
+    }
+
+    const context = await mutation.onMutate?.(variables)
+    mutation.onError?.(new Error('Edit failed'), variables, context)
+
+    expect(mocks.state.lists[0]?.value[0]?.title).toBe('Read 12 Books')
+    expect(mocks.state.lists[0]?.value[0]?.targetValue).toBe(12)
+    expect(
+      mocks.state.details.get(JSON.stringify(goalKeys.detail('goal-1')))?.goal.targetValue,
+    ).toBe(12)
+  })
+
+  it('marks a goal completed optimistically and celebrates only a named online completion', async () => {
+    const mutation = useUpdateGoalStatus() as unknown as MutationConfig<
+      undefined | { queued: true; queuedMutationId: string },
+      { goalId: string; data: { status: string }; goalName?: string },
+      {
+        previousLists: readonly (readonly [readonly unknown[], Goal[] | undefined])[]
+        previousDetail: GoalDetailWithMetrics | undefined
+      }
+    >
+
+    const variables = { goalId: 'goal-1', data: { status: 'Completed' }, goalName: 'Read 12 Books' }
+    const context = await mutation.onMutate?.(variables)
+
+    expect(mocks.state.lists[0]?.value[0]?.status).toBe('Completed')
+    expect(mocks.state.lists[0]?.value[0]?.progressPercentage).toBe(100)
+    expect(mocks.state.details.get(JSON.stringify(goalKeys.detail('goal-1')))?.goal.status).toBe('Completed')
+
+    mutation.onSuccess?.(undefined, variables, context)
+    expect(mocks.setGoalCompletedCelebration).toHaveBeenCalledWith({ name: 'Read 12 Books' })
+
+    mutation.onSuccess?.(
+      { queued: true, queuedMutationId: 'mutation-1' },
+      variables,
+      context,
+    )
+    mutation.onSuccess?.(undefined, { goalId: 'goal-1', data: { status: 'Completed' } }, context)
+    expect(mocks.setGoalCompletedCelebration).toHaveBeenCalledTimes(1)
+  })
+
+  it('restores the goal status snapshot when the status change fails', async () => {
+    const mutation = useUpdateGoalStatus() as unknown as MutationConfig<
+      undefined,
+      { goalId: string; data: { status: string } },
+      {
+        previousLists: readonly (readonly [readonly unknown[], Goal[] | undefined])[]
+        previousDetail: GoalDetailWithMetrics | undefined
+      }
+    >
+
+    const variables = { goalId: 'goal-1', data: { status: 'Completed' } }
+    const context = await mutation.onMutate?.(variables)
+    mutation.onError?.(new Error('Status failed'), variables, context)
+
+    expect(mocks.state.lists[0]?.value[0]?.status).toBe('Active')
+    expect(mocks.state.lists[0]?.value[0]?.progressPercentage).toBe(25)
+    expect(mocks.state.details.get(JSON.stringify(goalKeys.detail('goal-1')))?.goal.status).toBe('Active')
+  })
+
+  it('reorders goals by the supplied position map and restores them on failure', async () => {
+    mocks.state.lists = [
+      {
+        key: goalKeys.lists(),
+        value: [
+          createMockGoal({ id: 'goal-1', position: 0 }),
+          createMockGoal({ id: 'goal-2', position: 1 }),
+        ],
+      },
+    ]
+
+    const mutation = useReorderGoals() as unknown as MutationConfig<
+      undefined,
+      { id: string; position: number }[],
+      { previousLists: readonly (readonly [readonly unknown[], Goal[] | undefined])[] }
+    >
+    mocks.queueOrExecute.mockResolvedValue(undefined)
+
+    const positions = [
+      { id: 'goal-1', position: 1 },
+      { id: 'goal-2', position: 0 },
+    ]
+    const context = await mutation.onMutate?.(positions)
+
+    const byId = (id: string) => mocks.state.lists[0]?.value.find((goal) => goal.id === id)
+    expect(byId('goal-1')?.position).toBe(1)
+    expect(byId('goal-2')?.position).toBe(0)
+
+    const result = await mutation.mutationFn(positions)
+    mutation.onSettled?.(result, null, positions, context)
+    expect(mocks.invalidateGoalQueries).toHaveBeenCalledTimes(1)
+
+    mutation.onError?.(new Error('Reorder failed'), positions, context)
+    expect(byId('goal-1')?.position).toBe(0)
+    expect(byId('goal-2')?.position).toBe(1)
+  })
+
+  it('optimistically removes a goal from the list and restores it on failure', async () => {
+    const mutation = useDeleteGoal() as unknown as MutationConfig<
+      undefined,
+      string,
+      { previousLists: readonly (readonly [readonly unknown[], Goal[] | undefined])[] }
+    >
+
+    const context = await mutation.onMutate?.('goal-1')
+    expect(mocks.state.lists[0]?.value).toEqual([])
+
+    mutation.onError?.(new Error('Delete failed'), 'goal-1', context)
+    expect(mocks.state.lists[0]?.value.map((goal) => goal.id)).toEqual(['goal-1'])
+  })
+
+  it('rolls back the optimistic temp goal when the create fails', async () => {
+    const mutation = useCreateGoal() as unknown as MutationConfig<
+      { id: string },
+      CreateGoalRequest,
+      {
+        previousLists: readonly (readonly [readonly unknown[], Goal[] | undefined])[]
+        tempId: string
+        request: CreateGoalRequest
+      }
+    >
+    const request: CreateGoalRequest = { title: 'New goal', targetValue: 5, unit: 'reps' }
+
+    const context = await mutation.onMutate?.(request)
+    expect(mocks.state.lists[0]?.value.map((goal) => goal.id)).toEqual(['goal-1', 'offline-goal-1'])
+
+    mutation.onError?.(new Error('Create failed'), request, context)
+    expect(mocks.state.lists[0]?.value.map((goal) => goal.id)).toEqual(['goal-1'])
+  })
+
+  it('invalidates habit lists after linking habits confirms online', async () => {
+    const mutation = useLinkHabitsToGoal() as unknown as MutationConfig<
+      undefined,
+      { goalId: string; habitIds: string[] },
+      {
+        previousLists: readonly (readonly [readonly unknown[], Goal[] | undefined])[]
+        previousDetail: GoalDetailWithMetrics | undefined
+      }
+    >
+    mocks.queueOrExecute.mockResolvedValue(undefined)
+
+    const variables = { goalId: 'goal-1', habitIds: ['habit-1'] }
+    const context = await mutation.onMutate?.(variables)
+    const result = await mutation.mutationFn(variables)
+    mutation.onSettled?.(result, null, variables, context)
+
+    expect(mocks.invalidateGoalQueries).toHaveBeenCalledWith(expect.anything(), {
+      goalId: 'goal-1',
+      includeHabits: true,
+    })
   })
 })

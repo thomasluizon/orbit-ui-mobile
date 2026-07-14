@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 
 const resolveServerSessionMock = vi.fn()
@@ -33,8 +33,13 @@ vi.stubGlobal('fetch', mockFetch)
 
 describe('serverAuthFetch', () => {
   beforeEach(() => {
+    vi.resetModules()
     resolveServerSessionMock.mockReset()
     mockFetch.mockReset()
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
   })
 
   it('calls fetch with the resolved auth token', async () => {
@@ -137,8 +142,7 @@ describe('serverAuthFetch', () => {
   })
 
   it('attaches the X-App-Version header when APP_VERSION is set', async () => {
-    const previous = process.env.APP_VERSION
-    process.env.APP_VERSION = '1.2.3'
+    vi.stubEnv('APP_VERSION', '1.2.3')
     resolveServerSessionMock.mockResolvedValue({
       token: 'test-token',
       expiresAt: Date.now() + 3600000,
@@ -150,7 +154,6 @@ describe('serverAuthFetch', () => {
       text: () => Promise.resolve(JSON.stringify({ ok: true })),
     })
 
-    vi.resetModules()
     const { serverAuthFetch } = await import('@/lib/server-fetch')
     await serverAuthFetch('/api/habits')
 
@@ -160,12 +163,10 @@ describe('serverAuthFetch', () => {
         headers: expect.objectContaining({ 'X-App-Version': '1.2.3' }),
       }),
     )
-    process.env.APP_VERSION = previous
   })
 
   it('omits the X-App-Version header when APP_VERSION is unset', async () => {
-    const previous = process.env.APP_VERSION
-    delete process.env.APP_VERSION
+    vi.stubEnv('APP_VERSION', undefined)
     resolveServerSessionMock.mockResolvedValue({
       token: 'test-token',
       expiresAt: Date.now() + 3600000,
@@ -177,13 +178,11 @@ describe('serverAuthFetch', () => {
       text: () => Promise.resolve(JSON.stringify({ ok: true })),
     })
 
-    vi.resetModules()
     const { serverAuthFetch } = await import('@/lib/server-fetch')
     await serverAuthFetch('/api/habits')
 
     const [, options] = mockFetch.mock.calls[0] as [string, RequestInit]
     expect((options.headers as Record<string, string>)['X-App-Version']).toBeUndefined()
-    process.env.APP_VERSION = previous
   })
 
   it('validates and returns the parsed body when a schema is supplied', async () => {
@@ -249,6 +248,7 @@ describe('serverAuthFetch', () => {
 
 describe('serverPublicFetch', () => {
   beforeEach(() => {
+    vi.resetModules()
     mockFetch.mockReset()
   })
 

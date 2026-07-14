@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
@@ -43,7 +43,17 @@ describe('PushPrompt', () => {
       writable: true,
       configurable: true,
     })
+    Reflect.deleteProperty(globalThis, 'PushManager')
     document.cookie = 'orbit_push_prompted=; max-age=0'
+  })
+
+  afterEach(() => {
+    Reflect.deleteProperty(globalThis, 'PushManager')
+    Object.defineProperty(navigator, 'serviceWorker', {
+      value: undefined,
+      writable: true,
+      configurable: true,
+    })
   })
 
   it('renders nothing initially (no SW support)', () => {

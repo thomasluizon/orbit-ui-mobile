@@ -3,6 +3,7 @@ import { useTourStore } from '@/stores/tour-store'
 
 describe('tour-store (web)', () => {
   beforeEach(() => {
+    useTourStore.getState().setHiddenSections([])
     useTourStore.getState().endTour()
   })
 

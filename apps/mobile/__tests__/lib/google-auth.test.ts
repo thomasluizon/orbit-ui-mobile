@@ -5,10 +5,14 @@ const {
   apiClientMock,
   setSessionMock,
   signOutMock,
+  signInWithOAuthMock,
+  openAuthSessionAsyncMock,
 } = vi.hoisted(() => ({
   apiClientMock: vi.fn(),
   setSessionMock: vi.fn(),
   signOutMock: vi.fn(),
+  signInWithOAuthMock: vi.fn(),
+  openAuthSessionAsyncMock: vi.fn(),
 }))
 
 vi.mock('@/lib/api-client', () => ({
@@ -20,16 +24,17 @@ vi.mock('@/lib/supabase', () => ({
     auth: {
       setSession: setSessionMock,
       signOut: signOutMock,
+      signInWithOAuth: signInWithOAuthMock,
     },
   }),
 }))
 
 vi.mock('expo-web-browser', () => ({
-  openAuthSessionAsync: vi.fn(),
+  openAuthSessionAsync: openAuthSessionAsyncMock,
   WebBrowserResultType: { DISMISS: 'dismiss', CANCEL: 'cancel' },
 }))
 
-const { completeGoogleAuthFromUrl } = await import('@/lib/google-auth')
+const { completeGoogleAuthFromUrl, startMobileGoogleAuth } = await import('@/lib/google-auth')
 
 const CALLBACK = 'https://app.useorbit.org/auth-callback'
 
@@ -125,5 +130,74 @@ describe('completeGoogleAuthFromUrl', () => {
 
     await expect(completeGoogleAuthFromUrl(url, 'en')).rejects.toThrow('session expired')
     expect(apiClientMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('startMobileGoogleAuth', () => {
+  beforeEach(() => {
+    signInWithOAuthMock.mockReset()
+    openAuthSessionAsyncMock.mockReset()
+  })
+
+  it('opens the OAuth browser session and returns the callback url on success', async () => {
+    signInWithOAuthMock.mockResolvedValue({ data: { url: 'https://accounts.google.com/o' }, error: null })
+    const callbackUrl = `${CALLBACK}#access_token=a&refresh_token=b`
+    openAuthSessionAsyncMock.mockResolvedValue({ type: 'success', url: callbackUrl })
+
+    const result = await startMobileGoogleAuth({})
+
+    expect(result).toEqual({ type: 'success', url: callbackUrl })
+    const oauthArgs = signInWithOAuthMock.mock.calls[0]?.[0] as {
+      provider: string
+      options: { redirectTo: string; skipBrowserRedirect: boolean }
+    }
+    expect(oauthArgs.provider).toBe('google')
+    expect(oauthArgs.options.redirectTo).toBe(CALLBACK)
+    expect(oauthArgs.options.skipBrowserRedirect).toBe(true)
+    expect(openAuthSessionAsyncMock).toHaveBeenCalledWith('https://accounts.google.com/o', CALLBACK)
+  })
+
+  it('returns the browser result type when the session is dismissed', async () => {
+    signInWithOAuthMock.mockResolvedValue({ data: { url: 'https://accounts.google.com/o' }, error: null })
+    openAuthSessionAsyncMock.mockResolvedValue({ type: 'dismiss' })
+
+    const result = await startMobileGoogleAuth({})
+
+    expect(result).toEqual({ type: 'dismiss' })
+  })
+
+  it('reports a dismiss when the browser succeeds without a callback url', async () => {
+    signInWithOAuthMock.mockResolvedValue({ data: { url: 'https://accounts.google.com/o' }, error: null })
+    openAuthSessionAsyncMock.mockResolvedValue({ type: 'success' })
+
+    const result = await startMobileGoogleAuth({})
+
+    expect(result).toEqual({ type: 'dismiss' })
+  })
+
+  it('maps an access_denied callback to a cancel result', async () => {
+    signInWithOAuthMock.mockResolvedValue({ data: { url: 'https://accounts.google.com/o' }, error: null })
+    openAuthSessionAsyncMock.mockResolvedValue({
+      type: 'success',
+      url: `${CALLBACK}?error=access_denied`,
+    })
+
+    const result = await startMobileGoogleAuth({})
+
+    expect(result).toEqual({ type: 'cancel' })
+  })
+
+  it('throws when supabase fails to produce an OAuth url', async () => {
+    signInWithOAuthMock.mockResolvedValue({ data: { url: null }, error: { message: 'provider down' } })
+
+    await expect(startMobileGoogleAuth({})).rejects.toThrow('provider down')
+    expect(openAuthSessionAsyncMock).not.toHaveBeenCalled()
+  })
+
+  it('rethrows and clears the pending session when the browser throws', async () => {
+    signInWithOAuthMock.mockResolvedValue({ data: { url: 'https://accounts.google.com/o' }, error: null })
+    openAuthSessionAsyncMock.mockRejectedValue(new Error('browser crashed'))
+
+    await expect(startMobileGoogleAuth({})).rejects.toThrow('browser crashed')
   })
 })

@@ -13,6 +13,8 @@ const TestRenderer = require('react-test-renderer')
 const mocks = vi.hoisted(() => {
   const state = {
     profile: undefined as Profile | undefined,
+    speechError: null as string | null,
+    recordingDuration: 0,
   }
 
   const queryClient = {
@@ -26,6 +28,8 @@ const mocks = vi.hoisted(() => {
     apiClient: vi.fn(),
     openChatStream: vi.fn(),
     getDocumentAsync: vi.fn(),
+    requestMediaLibraryPermissionsAsync: vi.fn(),
+    launchImageLibraryAsync: vi.fn(),
     routerPush: vi.fn(),
     useQueryClient: vi.fn(() => queryClient),
   }
@@ -48,8 +52,8 @@ vi.mock('expo-router', () => ({
 }))
 
 vi.mock('expo-image-picker', () => ({
-  requestMediaLibraryPermissionsAsync: vi.fn(),
-  launchImageLibraryAsync: vi.fn(),
+  requestMediaLibraryPermissionsAsync: mocks.requestMediaLibraryPermissionsAsync,
+  launchImageLibraryAsync: mocks.launchImageLibraryAsync,
 }))
 
 vi.mock('expo-document-picker', () => ({
@@ -66,11 +70,11 @@ vi.mock('@/hooks/use-speech-to-text', () => ({
     isTranscribing: false,
     isSupported: true,
     transcript: '',
-    error: null,
+    error: mocks.state.speechError,
     startRecording: vi.fn(),
     stopRecording: vi.fn(),
     toggleRecording: vi.fn(),
-    recordingDuration: 0,
+    recordingDuration: mocks.state.recordingDuration,
   }),
 }))
 
@@ -145,9 +149,13 @@ function httpErrorResponse(status: number, errorBody: { error?: string; errorCod
 describe('mobile useChatComposer', () => {
   beforeEach(() => {
     mocks.state.profile = undefined
+    mocks.state.speechError = null
+    mocks.state.recordingDuration = 0
     mocks.apiClient.mockReset()
     mocks.openChatStream.mockReset()
     mocks.getDocumentAsync.mockReset()
+    mocks.requestMediaLibraryPermissionsAsync.mockReset()
+    mocks.launchImageLibraryAsync.mockReset()
     mocks.routerPush.mockReset()
     mocks.queryClient.invalidateQueries.mockClear()
     mocks.queryClient.setQueryData.mockClear()
@@ -407,5 +415,149 @@ describe('mobile useChatComposer', () => {
       role: 'ai',
       content: 'chat.operationDone',
     })
+  })
+
+  it('selects a valid image from the library and lets it be removed', async () => {
+    mocks.requestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: true })
+    mocks.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        { uri: 'file:///pic.jpg', mimeType: 'image/jpeg', fileName: 'pic.jpg', fileSize: 2048 },
+      ],
+    })
+    const composer = await renderComposer()
+
+    await TestRenderer.act(async () => {
+      await composer.current.openFilePicker()
+    })
+
+    expect(composer.current.selectedImage?.uri).toBe('file:///pic.jpg')
+    expect(composer.current.imagePreview).toBe('file:///pic.jpg')
+    expect(composer.current.sendError).toBeNull()
+
+    await TestRenderer.act(async () => {
+      composer.current.removeImage()
+    })
+    expect(composer.current.selectedImage).toBeNull()
+    expect(composer.current.imagePreview).toBeNull()
+  })
+
+  it('blocks image selection when the media-library permission is denied', async () => {
+    mocks.requestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: false })
+    const composer = await renderComposer()
+
+    await TestRenderer.act(async () => {
+      await composer.current.openFilePicker()
+    })
+
+    expect(mocks.launchImageLibraryAsync).not.toHaveBeenCalled()
+    expect(composer.current.sendError).toBe('chat.imagePermissionError')
+    expect(composer.current.selectedImage).toBeNull()
+  })
+
+  it('rejects an unsupported image type with the type error copy', async () => {
+    mocks.requestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: true })
+    mocks.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        { uri: 'file:///doc.pdf', mimeType: 'application/pdf', fileName: 'doc.pdf', fileSize: 2048 },
+      ],
+    })
+    const composer = await renderComposer()
+
+    await TestRenderer.act(async () => {
+      await composer.current.openFilePicker()
+    })
+
+    expect(composer.current.sendError).toBe('chat.imageError')
+    expect(composer.current.selectedImage).toBeNull()
+  })
+
+  it('does nothing when the image picker is canceled', async () => {
+    mocks.requestMediaLibraryPermissionsAsync.mockResolvedValue({ granted: true })
+    mocks.launchImageLibraryAsync.mockResolvedValue({ canceled: true, assets: [] })
+    const composer = await renderComposer()
+
+    await TestRenderer.act(async () => {
+      await composer.current.openFilePicker()
+    })
+
+    expect(composer.current.selectedImage).toBeNull()
+    expect(composer.current.sendError).toBeNull()
+  })
+
+  it('rejects an oversized text attachment and clears it on remove', async () => {
+    mocks.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        { name: 'big.csv', uri: 'file:///tmp/big.csv', size: 2 * 1024 * 1024, mimeType: 'text/csv' },
+      ],
+    })
+    const composer = await renderComposer()
+
+    await TestRenderer.act(async () => {
+      await composer.current.openTextFilePicker()
+    })
+
+    expect(composer.current.sendError).toBe('chat.fileSizeError')
+    expect(composer.current.selectedTextFile).toBeNull()
+
+    await TestRenderer.act(async () => {
+      composer.current.removeTextFile()
+    })
+    expect(composer.current.selectedTextFile).toBeNull()
+  })
+
+  it('surfaces the speech-to-text error through the send error banner', async () => {
+    mocks.state.speechError = 'mic failed'
+    const composer = await renderComposer()
+
+    await TestRenderer.act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(composer.current.sendError).toBe('mic failed')
+  })
+
+  it('formats the recording duration as m:ss', async () => {
+    mocks.state.recordingDuration = 65
+    const composer = await renderComposer()
+
+    expect(composer.current.recordingTime).toBe('1:05')
+  })
+
+  it('flags the AI message limit for a capped non-pro user', async () => {
+    mocks.state.profile = {
+      hasProAccess: false,
+      aiMessagesUsed: 20,
+      aiMessagesLimit: 20,
+    } as Profile
+    const composer = await renderComposer()
+
+    expect(composer.current.atMessageLimit).toBe(true)
+    expect(composer.current.showSuggestions).toBe(true)
+    expect(composer.current.starterChips.length).toBeGreaterThan(0)
+  })
+
+  it('ignores an empty send with nothing typed or attached', async () => {
+    const composer = await renderComposer()
+
+    await TestRenderer.act(async () => {
+      await composer.current.sendMessage('   ')
+    })
+
+    expect(mocks.openChatStream).not.toHaveBeenCalled()
+    expect(useChatStore.getState().messages).toHaveLength(0)
+  })
+
+  it('ignores a send while the assistant is already typing', async () => {
+    useChatStore.setState({ isTyping: true })
+    const composer = await renderComposer()
+
+    await TestRenderer.act(async () => {
+      await composer.current.sendMessage('hello')
+    })
+
+    expect(mocks.openChatStream).not.toHaveBeenCalled()
   })
 })
