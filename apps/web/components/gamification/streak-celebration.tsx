@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
@@ -10,6 +10,19 @@ import { GradientTop } from '@/components/ui/gradient-top'
 import { RingMotif } from './ring-motif'
 
 const MILESTONE_VALUES = [7, 14, 30, 100, 365] as const
+
+const streakCountStyle: CSSProperties = {
+  marginTop: 12,
+  fontFamily: 'var(--font-display)',
+  fontSize: 60,
+  fontWeight: 700,
+  letterSpacing: '-0.02em',
+  lineHeight: 1,
+  fontVariantNumeric: 'tabular-nums',
+  color: 'var(--fg-1)',
+  animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
+  animationDelay: '220ms',
+}
 
 export function StreakCelebration() {
   const t = useTranslations()
@@ -33,20 +46,15 @@ export function StreakCelebration() {
   }
 
   useEffect(() => {
+    if (!streakCelebration) return
+    requestAnimationFrame(() => setIsVisible(true))
+    dismissTimerRef.current = setTimeout(() => {
+      setIsVisible(false)
+      setStreakCelebration(null)
+      dismissTimerRef.current = setTimeout(() => setShouldRender(false), 280)
+    }, 2500)
     return () => {
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (streakCelebration) {
-      requestAnimationFrame(() => setIsVisible(true))
-      if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
-      dismissTimerRef.current = setTimeout(() => {
-        setIsVisible(false)
-        setStreakCelebration(null)
-        setTimeout(() => setShouldRender(false), 280)
-      }, 2500)
     }
   }, [streakCelebration, setStreakCelebration])
 
@@ -118,22 +126,7 @@ export function StreakCelebration() {
               }
             />
           </div>
-          <div
-            style={{
-              marginTop: 12,
-              fontFamily: 'var(--font-display)',
-              fontSize: 60,
-              fontWeight: 700,
-              letterSpacing: '-0.02em',
-              lineHeight: 1,
-              fontVariantNumeric: 'tabular-nums',
-              color: 'var(--fg-1)',
-              animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
-              animationDelay: '220ms',
-            }}
-          >
-            {streakCount}
-          </div>
+          <div style={streakCountStyle}>{streakCount}</div>
           <p
             className="text-center"
             style={{

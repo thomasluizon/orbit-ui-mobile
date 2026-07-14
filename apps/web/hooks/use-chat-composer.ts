@@ -132,6 +132,7 @@ export function useChatComposer() {
 
   const [input, setInput] = useState<string>(() => {
     if (!('localStorage' in globalThis)) return ''
+    // react-doctor-disable-next-line no-unguarded-browser-global-in-render-or-hook-init -- guarded by the `'localStorage' in globalThis` SSR check above (the repo's canonical guard, #490); never reads on the server; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     return globalThis.localStorage.getItem(CHAT_DRAFT_STORAGE_KEY) ?? ''
   })
   const [sendError, setSendError] = useState<string | null>(null)
@@ -336,6 +337,7 @@ export function useChatComposer() {
     if (response.operations?.some((operation) => operation.status === 'Succeeded')) {
       await invalidateAgentQueries(queryClient)
     }
+    // react-doctor-disable-next-line exhaustive-deps -- hasProAccess aliases profile.hasProAccess and is already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [addMessage, hasProAccess, queryClient, router, scrollToBottom, setIsTyping, shouldRouteToUpgrade, updateMessage])
 
   useEffect(() => {

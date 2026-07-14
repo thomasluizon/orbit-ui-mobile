@@ -2,7 +2,13 @@
 
 import { useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import {
+  AnimatePresence,
+  domAnimation,
+  LazyMotion,
+  m,
+  useReducedMotion,
+} from 'motion/react'
 import { useTranslations } from 'next-intl'
 import { PanelRight } from 'lucide-react'
 import { resolveMotionPreset } from '@orbit/shared/theme'
@@ -48,46 +54,49 @@ export function RailDrawer({ open, onClose, children }: Readonly<RailDrawerProps
   }
 
   const overlay = (
-    <AnimatePresence>
-      {open ? (
-        <div className="fixed inset-0 z-[9990] flex justify-end xl:hidden">
-          <motion.button
-            type="button"
-            aria-label={t('common.close')}
-            tabIndex={-1}
-            onClick={onClose}
-            className="absolute inset-0 cursor-default"
-            style={{ background: 'rgba(0, 0, 0, 0.55)' }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1, transition: enterTransition }}
-            exit={{ opacity: 0, transition: exitTransition }}
-          />
-          <motion.div
-            ref={panelRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label={t('rail.todayProgress')}
-            tabIndex={-1}
-            className="thin-scrollbar relative h-dvh overflow-y-auto"
-            style={{
-              width: 'var(--rail-w)',
-              background: 'var(--bg-sheet)',
-              boxShadow: 'inset 1px 0 0 var(--hairline), var(--shadow-3)',
-              paddingTop: 'calc(var(--safe-top) + 22px)',
-              paddingBottom: 'calc(var(--safe-bottom) + 22px)',
-              paddingInline: 20,
-            }}
-            initial={{ x: closedX }}
-            animate={{ x: 0, transition: enterTransition }}
-            exit={{ x: closedX, transition: exitTransition }}
-          >
-            {children}
-          </motion.div>
-        </div>
-      ) : null}
-    </AnimatePresence>
+    <LazyMotion features={domAnimation}>
+      <AnimatePresence>
+        {open ? (
+          <div className="fixed inset-0 z-[9990] flex justify-end xl:hidden">
+            <m.button
+              type="button"
+              aria-label={t('common.close')}
+              tabIndex={-1}
+              onClick={onClose}
+              className="absolute inset-0 cursor-default"
+              style={{ background: 'rgba(0, 0, 0, 0.55)' }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1, transition: enterTransition }}
+              exit={{ opacity: 0, transition: exitTransition }}
+            />
+            <m.div
+              ref={panelRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label={t('rail.todayProgress')}
+              tabIndex={-1}
+              className="thin-scrollbar relative h-dvh overflow-y-auto"
+              style={{
+                width: 'var(--rail-w)',
+                background: 'var(--bg-sheet)',
+                boxShadow: 'inset 1px 0 0 var(--hairline), var(--shadow-3)',
+                paddingTop: 'calc(var(--safe-top) + 22px)',
+                paddingBottom: 'calc(var(--safe-bottom) + 22px)',
+                paddingInline: 20,
+              }}
+              initial={{ x: closedX }}
+              animate={{ x: 0, transition: enterTransition }}
+              exit={{ x: closedX, transition: exitTransition }}
+            >
+              {children}
+            </m.div>
+          </div>
+        ) : null}
+      </AnimatePresence>
+    </LazyMotion>
   )
 
+  // react-doctor-disable-next-line no-unguarded-browser-global-in-render-or-hook-init -- reached only after the useIsClient mounted gate returns null on the server; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   return createPortal(overlay, document.body)
 }
 

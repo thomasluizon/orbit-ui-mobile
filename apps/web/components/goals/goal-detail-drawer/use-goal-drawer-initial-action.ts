@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 
 export type GoalDrawerInitialAction = 'edit' | 'complete' | 'delete' | 'progress'
 
@@ -14,7 +14,7 @@ interface GoalDrawerInitialActionInput {
 }
 
 /** Applies the drawer's deep-link action once per open: edit, delete, and
- *  progress open their surface on the open transition; complete fires the
+ *  progress open their surface once the drawer commits; complete fires the
  *  status mutation exactly once. */
 export function useGoalDrawerInitialAction({
   open,
@@ -24,29 +24,29 @@ export function useGoalDrawerInitialAction({
   openProgressForm,
   markCompleted,
 }: GoalDrawerInitialActionInput) {
-  const [previousActionOpen, setPreviousActionOpen] = useState(false)
-  if (previousActionOpen !== open) {
-    setPreviousActionOpen(open)
-    if (open && initialAction) {
-      if (initialAction === 'edit') {
-        openEditModal()
-      } else if (initialAction === 'delete') {
-        openDeleteConfirm()
-      } else if (initialAction === 'progress') {
-        openProgressForm()
-      }
-    }
-  }
-
-  const completeActionFiredRef = useRef(false)
+  const actionFiredRef = useRef(false)
   useEffect(() => {
     if (!open) {
-      completeActionFiredRef.current = false
+      actionFiredRef.current = false
       return
     }
-    if (initialAction === 'complete' && !completeActionFiredRef.current) {
-      completeActionFiredRef.current = true
+    if (actionFiredRef.current || !initialAction) return
+    actionFiredRef.current = true
+    if (initialAction === 'edit') {
+      openEditModal()
+    } else if (initialAction === 'delete') {
+      openDeleteConfirm()
+    } else if (initialAction === 'progress') {
+      openProgressForm()
+    } else {
       void markCompleted()
     }
-  }, [open, initialAction, markCompleted])
+  }, [
+    open,
+    initialAction,
+    openEditModal,
+    openDeleteConfirm,
+    openProgressForm,
+    markCompleted,
+  ])
 }

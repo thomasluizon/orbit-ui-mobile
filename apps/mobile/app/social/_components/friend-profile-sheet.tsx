@@ -35,6 +35,7 @@ function sectionEntrance(index: number) {
 }
 
 function buildDayLabels(count: number, locale: string): { key: string; label: string }[] {
+  // react-doctor-disable-next-line js-hoist-intl -- This 7-day-strip builder is mirrored verbatim in apps/web friend-profile-view.tsx; the correct DRY fix is a packages/shared util, deferred here because this is a mobile-only React Doctor burn-down (editing web + shared is out of this bucket and would conflict with their agents). It builds a fixed 7-cell strip, so per-render Intl construction is negligible. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   const formatter = new Intl.DateTimeFormat(locale, { weekday: 'narrow' })
   const base = new Date()
   return Array.from({ length: count }, (_, index) => {

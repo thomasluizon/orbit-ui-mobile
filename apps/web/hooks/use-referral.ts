@@ -18,6 +18,7 @@ export function useReferral() {
   const code = query.data?.code ?? null
   const stats = query.data?.stats ?? null
 
+  // react-doctor-disable-next-line exhaustive-deps -- code aliases query.data.code and is already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   const referralUrl = useMemo(() => buildReferralUrl(code), [code])
 
   return {

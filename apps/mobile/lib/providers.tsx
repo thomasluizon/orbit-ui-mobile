@@ -147,8 +147,8 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
   const appReady = ready && fontsLoaded && onboardingDraftHydrated
 
   useEffect(() => {
-    if (appReady) void SplashScreen.hideAsync()
-  }, [appReady])
+    if (ready && fontsLoaded && onboardingDraftHydrated) void SplashScreen.hideAsync()
+  }, [ready, fontsLoaded, onboardingDraftHydrated])
 
   if (!appReady) {
     return (

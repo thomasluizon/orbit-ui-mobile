@@ -75,6 +75,7 @@ interface ImportResult {
   habits: { id: string; title: string }[]
 }
 
+// react-doctor-disable-next-line no-giant-component -- Screen orchestration is already decomposed into calendar-sync-* section components; the remaining wizard state + JSX tree is inherently long, and further splitting is a regression-prone refactor with cross-platform parity cost. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export default function CalendarSyncScreen() {
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
@@ -291,7 +292,7 @@ export default function CalendarSyncScreen() {
     if (!isOnline) {
       return
     }
-    if (selectedCount === 0) return
+    if (selectedIds.size === 0) return
 
     setWizardStage('importing')
     setErrorMessage('')
@@ -335,17 +336,13 @@ export default function CalendarSyncScreen() {
         )
       }
 
-      setImportResult({
-        imported: successCount,
-        habits: result.results
-          .filter(
-            (item) => item.status === 'Success' && item.habitId && item.title,
-          )
-          .map((item) => ({
-            id: item.habitId as string,
-            title: item.title as string,
-          })),
-      })
+      const habits: { id: string; title: string }[] = []
+      for (const item of result.results) {
+        if (item.status === 'Success' && item.habitId && item.title) {
+          habits.push({ id: item.habitId, title: item.title })
+        }
+      }
+      setImportResult({ imported: successCount, habits })
       setWizardStage('done')
 
       if (isReviewMode) {
@@ -362,7 +359,6 @@ export default function CalendarSyncScreen() {
     isOnline,
     isReviewMode,
     queryClient,
-    selectedCount,
     selectedEvents,
     selectedIds,
     showError,

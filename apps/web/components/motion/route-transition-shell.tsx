@@ -2,7 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import {
+  AnimatePresence,
+  domMax,
+  LazyMotion,
+  m,
+  useReducedMotion,
+} from 'motion/react'
 import { resolveMotionPreset } from '@orbit/shared/theme'
 import {
   getRouteDirectionForIntent,
@@ -62,37 +68,39 @@ export function RouteTransitionShell({
   }
 
   return (
-    <AnimatePresence mode="popLayout" initial={false}>
-      <motion.div
-        key={pathname}
-        className={className}
-        style={{ transformOrigin: 'center bottom' }}
-        initial={{
-          opacity: 0,
-          x: enterX,
-          scale: motionPreset.scaleFrom,
-        }}
-        animate={{
-          opacity: 1,
-          x: 0,
-          scale: motionPreset.scaleTo,
-          transition: {
-            duration: motionPreset.enterDuration / 1000,
-            ease: motionPreset.enterEasing,
-          },
-        }}
-        exit={{
-          opacity: 0,
-          x: exitX,
-          scale: direction === 0 ? 1 : 0.998,
-          transition: {
-            duration: motionPreset.exitDuration / 1000,
-            ease: motionPreset.exitEasing,
-          },
-        }}
-      >
-        {children}
-      </motion.div>
-    </AnimatePresence>
+    <LazyMotion features={domMax}>
+      <AnimatePresence mode="popLayout" initial={false}>
+        <m.div
+          key={pathname}
+          className={className}
+          style={{ transformOrigin: 'center bottom' }}
+          initial={{
+            opacity: 0,
+            x: enterX,
+            scale: motionPreset.scaleFrom,
+          }}
+          animate={{
+            opacity: 1,
+            x: 0,
+            scale: motionPreset.scaleTo,
+            transition: {
+              duration: motionPreset.enterDuration / 1000,
+              ease: motionPreset.enterEasing,
+            },
+          }}
+          exit={{
+            opacity: 0,
+            x: exitX,
+            scale: direction === 0 ? 1 : 0.998,
+            transition: {
+              duration: motionPreset.exitDuration / 1000,
+              ease: motionPreset.exitEasing,
+            },
+          }}
+        >
+          {children}
+        </m.div>
+      </AnimatePresence>
+    </LazyMotion>
   )
 }

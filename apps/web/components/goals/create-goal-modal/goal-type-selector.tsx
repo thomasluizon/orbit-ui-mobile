@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import type { GoalType } from '@orbit/shared/types/goal'
 import { GoalGroupLabel } from './goal-group-label'
 
-export const goalTypeOptions = [
+const goalTypeOptions = [
   {
     key: 'Standard',
     titleKey: 'goals.form.typeStandard',
@@ -89,7 +89,7 @@ export function GoalTypeSelector({
             style={{
               marginTop: 4,
               fontFamily: 'var(--font-sans)',
-              fontSize: 11,
+              fontSize: 12,
               color: 'var(--fg-3)',
               lineHeight: 1.4,
             }}

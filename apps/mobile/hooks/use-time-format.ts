@@ -4,15 +4,17 @@ import { formatLocaleTime } from '@orbit/shared/utils'
 
 export function useTimeFormat() {
   const { i18n } = useTranslation()
-  const locale = i18n.language
 
   const displayTime = useCallback(
     (time: string | null | undefined): string => {
       if (!time) return ''
-      return formatLocaleTime(time, locale)
+      return formatLocaleTime(time, i18n.language)
     },
-    [locale],
+    [i18n.language],
   )
 
-  return useMemo(() => ({ displayTime, locale }), [displayTime, locale])
+  return useMemo(
+    () => ({ displayTime, locale: i18n.language }),
+    [displayTime, i18n.language],
+  )
 }

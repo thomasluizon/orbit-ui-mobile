@@ -187,7 +187,7 @@ export function usePlayBilling(options?: { preferReferralOffer?: boolean }) {
 
   const purchase = useCallback(
     async (interval: SubscriptionInterval) => {
-      const offer = selectPlayOffer(offers, interval, preferReferralOffer)
+      const offer = selectPlayOffer(offers, interval, options?.preferReferralOffer ?? false)
       if (!offer) {
         setErrorKey('upgrade.playError.unavailable')
         return
@@ -218,7 +218,7 @@ export function usePlayBilling(options?: { preferReferralOffer?: boolean }) {
         )
       }
     },
-    [beginVerification, endVerification, offers, preferReferralOffer, requestPurchase, userId],
+    [beginVerification, endVerification, offers, options?.preferReferralOffer, requestPurchase, userId],
   )
 
   const restorePurchases = useCallback(async (): Promise<boolean> => {
@@ -233,6 +233,7 @@ export function usePlayBilling(options?: { preferReferralOffer?: boolean }) {
       let failed = false
       for (const owned of orbitPurchases) {
         try {
+          // react-doctor-disable-next-line async-await-in-loop -- Deliberately sequential: each verifyPlayPurchase() runs a native Play finishTransaction() (billing-client state mutation) plus a server entitlement grant; concurrent calls would race the native billing client, and the restore set is effectively <=1 Orbit subscription so sequential costs nothing. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
           if (await verifyPlayPurchase(owned)) restored = true
         } catch {
           failed = true

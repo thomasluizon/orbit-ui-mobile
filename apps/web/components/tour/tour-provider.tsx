@@ -58,6 +58,7 @@ export function TourProvider() {
 
   useEffect(() => {
     setHiddenSections(hasProAccess ? [] : ['goals'])
+    // react-doctor-disable-next-line exhaustive-deps -- hasProAccess aliases profile.hasProAccess and is already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [hasProAccess, setHiddenSections])
 
   const clearManagedTimeouts = useCallback(() => {
@@ -131,6 +132,7 @@ export function TourProvider() {
           break
       }
     },
+    // react-doctor-disable-next-line exhaustive-deps -- hasProAccess aliases profile.hasProAccess and is already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     [hasProAccess],
   )
 
@@ -171,6 +173,7 @@ export function TourProvider() {
         }
       })
 
+      // react-doctor-disable-next-line effect-needs-cleanup -- observer is stored in observerRef and disconnected by resetSessionState (run on unmount via the cleanup effect below) and on every re-entry, so its lifecycle is managed via the ref, not a per-call return; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
       observer.observe(document.body, {
         childList: true,
         subtree: true,
@@ -207,6 +210,7 @@ export function TourProvider() {
       scheduleTimeout(() => waitForTarget(currentStep.targetId), 100)
     } else {
       setNavigating(true)
+      // react-doctor-disable-next-line nextjs-no-client-side-redirect -- the tour orchestrator drives in-app navigation as steps advance; setNavigating(true) covers the screen so there is no wrong-page flash, and client-only tour state has no server/middleware redirect equivalent; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
       router.push(normalizedRoute)
     }
   }, [

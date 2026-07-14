@@ -70,5 +70,6 @@ export function useTopbarSlot(node: ReactNode): void {
     if (!setSlot || !clearSlot) return
     setSlot(ownerId, node)
     return () => clearSlot(ownerId)
+    // react-doctor-disable-next-line exhaustive-deps -- setSlot/clearSlot alias ctx.setSlot/ctx.clearSlot and are already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [setSlot, clearSlot, ownerId, node])
 }

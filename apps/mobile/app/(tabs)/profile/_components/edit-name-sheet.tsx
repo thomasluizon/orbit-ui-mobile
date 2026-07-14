@@ -35,6 +35,7 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
     }
   }
 
+  // react-doctor-disable-next-line query-mutation-missing-invalidation -- Deliberate optimistic update: patchProfile() in onMutate writes the exact submitted name to the profile cache and rolls back on error; the server stores it verbatim, so no post-success refetch is needed. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   const mutation = useMutation<unknown, Error, string, { previous: string | undefined }>({
     mutationFn: (nextName) =>
       performQueuedApiMutation({

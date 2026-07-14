@@ -1,12 +1,23 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useUIStore } from '@/stores/ui-store'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { RingMotif } from './ring-motif'
+
+const titleStyle: CSSProperties = {
+  margin: '12px 0 0',
+  fontFamily: 'var(--font-sans)',
+  fontSize: 28,
+  fontWeight: 500,
+  letterSpacing: '-0.01em',
+  color: 'var(--fg-1)',
+  animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
+  animationDelay: '220ms',
+}
 
 export function AllDoneCelebration() {
   const t = useTranslations()
@@ -28,20 +39,15 @@ export function AllDoneCelebration() {
   }
 
   useEffect(() => {
+    if (!allDoneCelebration) return
+    requestAnimationFrame(() => setIsVisible(true))
+    dismissTimerRef.current = setTimeout(() => {
+      setIsVisible(false)
+      setAllDoneCelebration(false)
+      dismissTimerRef.current = setTimeout(() => setShouldRender(false), 280)
+    }, 3500)
     return () => {
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (allDoneCelebration) {
-      requestAnimationFrame(() => setIsVisible(true))
-      if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
-      dismissTimerRef.current = setTimeout(() => {
-        setIsVisible(false)
-        setAllDoneCelebration(false)
-        setTimeout(() => setShouldRender(false), 280)
-      }, 3500)
     }
   }, [allDoneCelebration, setAllDoneCelebration])
 
@@ -100,19 +106,7 @@ export function AllDoneCelebration() {
               }
             />
           </div>
-          <h1
-            className="text-center"
-            style={{
-              margin: '12px 0 0',
-              fontFamily: 'var(--font-sans)',
-              fontSize: 28,
-              fontWeight: 500,
-              letterSpacing: '-0.01em',
-              color: 'var(--fg-1)',
-              animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
-              animationDelay: '220ms',
-            }}
-          >
+          <h1 className="text-center" style={titleStyle}>
             {t('habits.allDoneCelebrationTitle')}
           </h1>
           <p

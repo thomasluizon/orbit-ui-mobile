@@ -24,6 +24,10 @@ import {
 } from 'lucide-react'
 import { ProBadge } from '@/components/ui/pro-badge'
 
+const surfaceStyle: CSSProperties = {
+  boxShadow: 'var(--shadow-3), inset 0 0 0 1px var(--hairline)',
+}
+
 interface TourTooltipProps {
   step: TourStep
   targetRect: TourTargetRect
@@ -260,10 +264,6 @@ export function TourTooltip({
     if (mode === 'sheet-top') return 'fixed top-0 left-0 right-0 z-[9999] w-full rounded-b-[26px] bg-[var(--bg-sheet)] px-6 pt-3 pb-5'
     return 'fixed bottom-0 left-0 right-0 z-[9999] w-full rounded-t-[26px] bg-[var(--bg-sheet)] px-6 pt-3 pb-[calc(1.75rem+var(--safe-bottom))]'
   })()
-
-  const surfaceStyle = {
-    boxShadow: 'var(--shadow-3), inset 0 0 0 1px var(--hairline)',
-  }
 
   const floatStyle = (() => {
     if (mode !== 'float') return undefined

@@ -38,6 +38,7 @@ interface CalendarRangeViewProps {
 
 /** Custom-range view: a mini-calendar to pick a contiguous range, then the same
  *  time grid rendered with one column per day in that range. */
+// react-doctor-disable-next-line no-many-boolean-props -- the four flags model orthogonal, independent states (clamp notice, mid-pick hint, range loading, recurring-row toggle), not a combinatorial variant space; they are threaded from the calendar page (owned by a separate bucket), so collapsing the API is out of scope here; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function CalendarRangeView({
   currentMonth,
   monthDayMap,

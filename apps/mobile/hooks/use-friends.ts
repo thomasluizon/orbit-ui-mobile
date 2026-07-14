@@ -153,6 +153,7 @@ export function useBlockUser() {
 }
 
 export function useReportUser() {
+  // react-doctor-disable-next-line query-mutation-missing-invalidation -- Reporting a user is server-side moderation only; it changes no client-visible cached state (friends, cheers, profile), so there is nothing to invalidate. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   return useMutation({
     mutationFn: (input: {
       reportedUserId: string

@@ -7,8 +7,8 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
-vi.mock('motion/react', () => ({
-  motion: new Proxy(
+vi.mock('motion/react', () => {
+  const proxy = new Proxy(
     {},
     {
       get:
@@ -16,9 +16,16 @@ vi.mock('motion/react', () => ({
         ({ children, ...rest }: { children?: React.ReactNode }) =>
           React.createElement(tag, rest, children),
     },
-  ),
-  useReducedMotion: () => true,
-}))
+  )
+  return {
+    motion: proxy,
+    m: proxy,
+    LazyMotion: ({ children }: { children?: React.ReactNode }) => children,
+    domAnimation: {},
+    domMax: {},
+    useReducedMotion: () => true,
+  }
+})
 
 vi.mock('@/components/ui/app-overlay', () => ({
   AppOverlay: ({
@@ -40,11 +47,12 @@ vi.mock('@/components/ui/app-overlay', () => ({
 }))
 
 const patchProfile = vi.fn()
+const invalidate = vi.fn()
 let profileValue: { marketingEmailConsent: boolean | null } | undefined = {
   marketingEmailConsent: null,
 }
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: profileValue, patchProfile }),
+  useProfile: () => ({ profile: profileValue, patchProfile, invalidate }),
 }))
 
 const updateMarketingConsent = vi.fn().mockResolvedValue(undefined)

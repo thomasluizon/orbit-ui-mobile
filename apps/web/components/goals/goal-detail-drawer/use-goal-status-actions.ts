@@ -31,7 +31,7 @@ export function useGoalStatusActions({
   const isUpdatingStatus = updateStatus.isPending
 
   const markCompleted = useCallback(async () => {
-    if (isUpdatingStatus) return
+    if (updateStatus.isPending) return
     try {
       await updateStatus.mutateAsync({
         goalId,
@@ -42,10 +42,10 @@ export function useGoalStatusActions({
     } catch (error: unknown) {
       showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
     }
-  }, [goalId, goalName, isUpdatingStatus, refetchDetail, showError, translate, updateStatus])
+  }, [goalId, goalName, refetchDetail, showError, translate, updateStatus])
 
   const markAbandoned = useCallback(async () => {
-    if (isUpdatingStatus) return
+    if (updateStatus.isPending) return
     try {
       await updateStatus.mutateAsync({
         goalId,
@@ -56,10 +56,10 @@ export function useGoalStatusActions({
     } catch (error: unknown) {
       showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
     }
-  }, [goalId, goalName, isUpdatingStatus, refetchDetail, showError, translate, updateStatus])
+  }, [goalId, goalName, refetchDetail, showError, translate, updateStatus])
 
   const reactivate = useCallback(async () => {
-    if (isUpdatingStatus) return
+    if (updateStatus.isPending) return
     try {
       await updateStatus.mutateAsync({
         goalId,
@@ -70,7 +70,7 @@ export function useGoalStatusActions({
     } catch (error: unknown) {
       showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
     }
-  }, [goalId, goalName, isUpdatingStatus, refetchDetail, showError, translate, updateStatus])
+  }, [goalId, goalName, refetchDetail, showError, translate, updateStatus])
 
   return { markCompleted, markAbandoned, reactivate, isUpdatingStatus }
 }

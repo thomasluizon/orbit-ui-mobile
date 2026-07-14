@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useEffectEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { Trophy } from 'lucide-react'
@@ -72,20 +72,24 @@ export function AchievementToast() {
     [completeActiveCelebration],
   )
 
+  const onAutoDismiss = useEffectEvent((id: string) => dismiss(id))
+
   useEffect(() => {
     if (!activeAchievement) return
 
     requestAnimationFrame(() => setIsVisible(true))
 
-    if (showTimerRef.current) clearTimeout(showTimerRef.current)
     showTimerRef.current = setTimeout(() => {
-      dismiss(activeAchievement.id)
+      onAutoDismiss(activeAchievement.id)
     }, 4000)
-  }, [activeAchievement, dismiss])
+
+    return () => {
+      if (showTimerRef.current) clearTimeout(showTimerRef.current)
+    }
+  }, [activeAchievement])
 
   useEffect(() => {
     return () => {
-      if (showTimerRef.current) clearTimeout(showTimerRef.current)
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
     }
   }, [])
@@ -136,7 +140,7 @@ export function AchievementToast() {
           <span
             style={{
               fontFamily: 'var(--font-mono)',
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: 500,
               color: 'var(--primary-soft)',
               letterSpacing: '0.06em',

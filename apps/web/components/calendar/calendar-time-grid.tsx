@@ -168,7 +168,7 @@ function TimedBlock({
         className="truncate"
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: 500,
           lineHeight: 1.2,
           color: completed ? 'var(--fg-3)' : 'var(--fg-1)',
@@ -182,7 +182,7 @@ function TimedBlock({
           className="truncate"
           style={{
             fontFamily: 'var(--font-mono)',
-            fontSize: 10,
+            fontSize: 12,
             color: 'var(--fg-3)',
             fontVariantNumeric: 'tabular-nums',
           }}
@@ -217,7 +217,7 @@ function AllDayChip({ entry }: Readonly<{ entry: CalendarDayEntry }>) {
         className="truncate"
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: 500,
           color: completed ? 'var(--fg-3)' : 'var(--fg-1)',
           textDecoration: completed ? 'line-through' : 'none',
@@ -253,7 +253,7 @@ function AllDayMoreChip({
       <span
         style={{
           fontFamily: 'var(--font-mono)',
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: 500,
           color: 'var(--fg-3)',
           fontVariantNumeric: 'tabular-nums',
@@ -366,7 +366,7 @@ export function CalendarTimeGrid({
                   className="uppercase"
                   style={{
                     fontFamily: 'var(--font-mono)',
-                    fontSize: 10,
+                    fontSize: 12,
                     fontWeight: 500,
                     letterSpacing: '0.04em',
                     color: column.isToday ? 'var(--primary)' : 'var(--fg-3)',
@@ -415,7 +415,7 @@ export function CalendarTimeGrid({
                 className="uppercase"
                 style={{
                   fontFamily: 'var(--font-mono)',
-                  fontSize: 10,
+                  fontSize: 12,
                   fontWeight: 500,
                   letterSpacing: '0.04em',
                   color: 'var(--fg-4)',
@@ -468,7 +468,7 @@ export function CalendarTimeGrid({
                   style={{
                     top: hour * HOUR_HEIGHT + 2,
                     fontFamily: 'var(--font-mono)',
-                    fontSize: 10,
+                    fontSize: 12,
                     color: 'var(--fg-4)',
                     fontVariantNumeric: 'tabular-nums',
                   }}
