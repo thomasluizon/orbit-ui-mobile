@@ -534,10 +534,10 @@ export function filterHabitEmojiCategories(query: string): readonly HabitEmojiCa
   const normalizedQuery = normalizeEmojiSearch(query)
   if (!normalizedQuery) return HABIT_EMOJI_CATEGORIES
 
-  return HABIT_EMOJI_CATEGORIES
-    .map((category) => ({
-      ...category,
-      emojis: category.emojis.filter((emojiValue) => emojiMatchesSearch(emojiValue, category, normalizedQuery)),
-    }))
-    .filter((category) => category.emojis.length > 0)
+  return HABIT_EMOJI_CATEGORIES.flatMap((category) => {
+    const emojis = category.emojis.filter((emojiValue) =>
+      emojiMatchesSearch(emojiValue, category, normalizedQuery),
+    )
+    return emojis.length > 0 ? [{ ...category, emojis }] : []
+  })
 }

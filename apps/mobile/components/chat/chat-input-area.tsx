@@ -1,5 +1,6 @@
 import { forwardRef } from "react";
-import { View, Text, TouchableOpacity, Pressable, ScrollView, Image, Linking } from "react-native";
+// react-doctor-disable-next-line rn-prefer-expo-image -- expo-image is not a project dependency; adding a native image library is out of scope for a React Doctor burn-down and carries SDK 57 native-ABI/rebuild risk. The only <Image> here is a transient local-URI pick preview where expo-image's disk cache brings no benefit. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+import { View, Text, Pressable, ScrollView, Image, Linking } from "react-native";
 import { Crown, FileText, X, WifiOff } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import Animated, { FadeInLeft, ReduceMotion } from "react-native-reanimated";
@@ -127,19 +128,21 @@ function ChatInputNotices({
         </Text>
       )}
       {speechError === t("speech.micDenied") && (
-        <TouchableOpacity
-          style={styles.permissionAction}
+        <Pressable
+          style={({ pressed }) => [
+            styles.permissionAction,
+            pressed && { opacity: 0.75 },
+          ]}
           onPress={() => {
             void Linking.openSettings().catch(() => {});
           }}
-          activeOpacity={0.75}
           hitSlop={{ top: 5, bottom: 5 }}
           accessibilityRole="button"
         >
           <Text style={[styles.permissionActionText, { color: tokens.fg1 }]}>
             {t("common.openSettings")}
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       )}
 
       {imagePreview && (
@@ -214,6 +217,7 @@ function ChatStarterChips({ styles, starterChips, onSendChip }: Readonly<ChatSta
       contentContainerStyle={styles.quickChipsContent}
       style={styles.quickChipsScroll}
     >
+      {/* react-doctor-disable-next-line rn-no-scrollview-mapped-list -- Horizontal starter-chip row over a small fixed set of suggestion chips, each with a staggered entering animation; a horizontal ScrollView is the idiomatic chip row and a FlatList would be an anti-pattern here. https://github.com/thomasluizon/orbit-ui-mobile/issues/243 */}
       {starterChips.map((chip, index) => (
         <Animated.View
           key={chip}
@@ -259,14 +263,14 @@ function ChatLimitNotice({ tokens, styles, reward, onUpgrade }: Readonly<ChatLim
       </PillButton>
       {reward.adsEnabledForUser ? (
         <View style={styles.rewardCard}>
-          <TouchableOpacity
-            style={[
+          <Pressable
+            style={({ pressed }) => [
               styles.rewardButton,
               !reward.canWatchRewardAd && styles.rewardButtonDisabled,
+              pressed && { opacity: 0.7 },
             ]}
             onPress={reward.onWatchAd}
             disabled={!reward.canWatchRewardAd}
-            activeOpacity={0.7}
             hitSlop={{ top: 5, bottom: 5 }}
             accessibilityRole="button"
             accessibilityState={{ disabled: !reward.canWatchRewardAd }}
@@ -276,7 +280,7 @@ function ChatLimitNotice({ tokens, styles, reward, onUpgrade }: Readonly<ChatLim
                 ? t("common.loading")
                 : t("ads.watchForMessages")}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
           <Text style={[styles.rewardMeta, { color: tokens.fg3 }]}>
             {reward.rewardsClaimedToday}/{reward.dailyRewardCap}{" "}
             {t("ads.dailyLimitReached")}

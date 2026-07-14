@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -91,7 +91,7 @@ export function PendingOperationCard({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [verificationCode, setVerificationCode] = useState("");
   const [challengeId, setChallengeId] = useState<string | null>(null);
-  const [confirmationToken, setConfirmationToken] = useState<string | null>(null);
+  const confirmationTokenRef = useRef<string | null>(null);
   const [dismissed, setDismissed] = useState(false);
 
   const needsStepUp = pendingOperation.confirmationRequirement === "StepUp";
@@ -114,8 +114,8 @@ export function PendingOperationCard({
           return;
         }
 
+        confirmationTokenRef.current = result.confirmationToken;
         setChallengeId(result.challengeId);
-        setConfirmationToken(result.confirmationToken);
         return;
       }
 
@@ -137,6 +137,7 @@ export function PendingOperationCard({
   }
 
   async function handleVerify() {
+    const confirmationToken = confirmationTokenRef.current;
     if (!challengeId || !confirmationToken || verificationCode.trim().length < 6) {
       setError(t("auth.genericError"));
       return;

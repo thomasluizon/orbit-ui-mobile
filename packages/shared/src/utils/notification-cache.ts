@@ -1,4 +1,4 @@
-import { notificationKeys } from '../query'
+import { notificationKeys } from '../query/keys'
 import type { NotificationsResponse } from '../types/notification'
 
 type QueryKey = readonly unknown[]

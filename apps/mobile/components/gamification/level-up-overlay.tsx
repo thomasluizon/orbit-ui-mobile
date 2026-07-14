@@ -1,5 +1,6 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback, useEffectEvent } from 'react'
 import {
+  // react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   Animated,
   Easing,
   Pressable,
@@ -97,6 +98,10 @@ export function LevelUpOverlay({
     [completeActiveCelebration, onClear, overlayOpacity],
   )
 
+  const dismissAfterTimeout = useEffectEvent((id: string) => {
+    dismiss(id)
+  })
+
   const [prevActiveLevelUp, setPrevActiveLevelUp] = useState(activeLevelUp)
   if (activeLevelUp !== prevActiveLevelUp) {
     setPrevActiveLevelUp(activeLevelUp)
@@ -119,13 +124,13 @@ export function LevelUpOverlay({
     }).start()
 
     timerRef.current = setTimeout(() => {
-      dismiss(activeLevelUp.id)
+      dismissAfterTimeout(activeLevelUp.id)
     }, 6000)
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
     }
-  }, [activeLevelUp, dismiss, overlayOpacity])
+  }, [activeLevelUp, overlayOpacity])
 
   useOverlayBack(shouldRender, () => dismiss(activeLevelUp?.id))
 
@@ -160,7 +165,7 @@ export function LevelUpOverlay({
               styles.heroDisc,
               {
                 backgroundColor: tintFromPrimary(tokens, 0.16),
-                shadowColor: tokens.primary,
+                boxShadow: `0px 0px 60px ${tintFromPrimary(tokens, 0.4)}`,
               },
               orbStyle,
             ]}
@@ -233,10 +238,6 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 60,
-    elevation: 8,
   },
   heroEmoji: {
     fontSize: 60,

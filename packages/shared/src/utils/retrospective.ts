@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { API } from '../api'
+import { API } from '../api/endpoints'
 import {
   retrospectiveHabitStatSchema,
   retrospectiveMetricsSchema,

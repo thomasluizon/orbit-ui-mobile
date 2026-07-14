@@ -54,7 +54,6 @@ export function GoalDetailDrawer({
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const insets = useSafeAreaInsets()
-  const locale = i18n.language
   const styles = useMemo(
     () => createStyles(tokens, insets.bottom),
     [tokens, insets.bottom],
@@ -107,14 +106,14 @@ export function GoalDetailDrawer({
 
   const formatDate = useCallback(
     (dateStr: string) =>
-      formatLocaleDateTime(dateStr, locale, {
+      formatLocaleDateTime(dateStr, i18n.language, {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
         hour: 'numeric',
         minute: '2-digit',
       }),
-    [locale],
+    [i18n.language],
   )
 
   let progressText = ''

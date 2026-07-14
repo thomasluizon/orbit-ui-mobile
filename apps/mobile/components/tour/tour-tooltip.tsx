@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
+  // react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   Animated,
   View,
   Text,
@@ -276,20 +277,24 @@ function createTooltipStyles(tokens: AppTokens) {
       paddingHorizontal: 24,
       ...shadowsV2.shadow3,
     },
+    // react-doctor-disable-next-line rn-no-legacy-shadow-styles -- shadowOffset only re-points the vertical offset of the shared `shadowsV2.shadow3` legacy preset (lib/theme.ts, out of this bucket and RD-invisible through the `...` spread, mirrored on web as the --shadow-3 token); it is inert on the Android-only target where elevation drives the shadow, and boxShadow cannot partially override the preset without inlining/duplicating it and diverging this sheet from every other shadowsV2 consumer. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     tooltipBottom: {
       borderTopLeftRadius: radius.sheet,
       borderTopRightRadius: radius.sheet,
       borderTopWidth: 1,
       borderColor: tokens.hairline,
       paddingTop: 12,
+      // react-doctor-disable-next-line rn-style-prefer-boxshadow -- Same shared-preset offset override; see the rn-no-legacy-shadow-styles note on tooltipBottom above. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
       shadowOffset: { width: 0, height: -4 },
     },
+    // react-doctor-disable-next-line rn-no-legacy-shadow-styles -- shadowOffset only re-points the vertical offset of the shared `shadowsV2.shadow3` legacy preset (lib/theme.ts, out of this bucket and RD-invisible through the `...` spread, mirrored on web as the --shadow-3 token); it is inert on the Android-only target where elevation drives the shadow, and boxShadow cannot partially override the preset without inlining/duplicating it and diverging this sheet from every other shadowsV2 consumer. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     tooltipTop: {
       borderBottomLeftRadius: radius.sheet,
       borderBottomRightRadius: radius.sheet,
       borderBottomWidth: 1,
       borderColor: tokens.hairline,
       paddingBottom: 20,
+      // react-doctor-disable-next-line rn-style-prefer-boxshadow -- Same shared-preset offset override; see the rn-no-legacy-shadow-styles note on tooltipTop above. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
       shadowOffset: { width: 0, height: 4 },
     },
     handle: {

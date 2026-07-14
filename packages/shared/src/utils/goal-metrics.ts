@@ -1,3 +1,5 @@
+import { getDateTimeFormat } from './intl-format-cache'
+
 type GoalMetricsStatusTone = 'success' | 'warning' | 'danger' | 'muted'
 
 interface GoalMetricsStatusPresentation {
@@ -30,7 +32,7 @@ export function formatGoalMetricsDate(dateStr: string, locale: string): string {
     : new Date(dateStr)
   if (Number.isNaN(date.getTime())) return dateStr
 
-  return new Intl.DateTimeFormat(locale === 'pt-BR' ? 'pt-BR' : 'en-US', {
+  return getDateTimeFormat(locale === 'pt-BR' ? 'pt-BR' : 'en-US', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',

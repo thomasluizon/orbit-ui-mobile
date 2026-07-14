@@ -1,5 +1,6 @@
 import type { SupportedLocale } from '../types/profile'
 import { parseAPIDate } from './dates'
+import { getDateTimeFormat } from './intl-format-cache'
 
 type DateInput = Date | number | string
 type TimeInput = string | null | undefined
@@ -23,15 +24,23 @@ function getIntlLocale(locale?: string | null): string {
   return getSystemLocale()
 }
 
+let cachedSystemLocale: string | null = null
+
 export function getSystemLocale(): string {
+  if (cachedSystemLocale !== null) {
+    return cachedSystemLocale
+  }
   try {
+    // react-doctor-disable-next-line js-hoist-intl -- Runs at most once: the resolved system locale is memoized into `cachedSystemLocale`, so this no-arg formatter (the only way to detect the environment default, kept lazy inside try/catch to tolerate an Intl-less runtime) is never rebuilt per call. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     const resolved = new Intl.DateTimeFormat().resolvedOptions().locale
     if (resolved && isValidBcp47(resolved)) {
+      cachedSystemLocale = resolved
       return resolved
     }
   } catch {
   }
-  return 'en-US'
+  cachedSystemLocale = 'en-US'
+  return cachedSystemLocale
 }
 
 function parseDateInput(value: DateInput): Date | null {
@@ -110,7 +119,7 @@ function formatIntlDateValue(
     return fallback
   }
 
-  return new Intl.DateTimeFormat(
+  return getDateTimeFormat(
     getIntlLocale(locale),
     options ?? defaultOptions,
   ).format(value)
@@ -126,7 +135,7 @@ export function resolveSystemLocale(locale?: string | null): SupportedLocale {
 
 export function detectDefaultTimeFormat(locale?: string | null): '12h' | '24h' {
   try {
-    const resolved = new Intl.DateTimeFormat(getIntlLocale(locale), {
+    const resolved = getDateTimeFormat(getIntlLocale(locale), {
       hour: 'numeric',
     }).resolvedOptions() as { hour12?: boolean }
     return resolved.hour12 ? '12h' : '24h'
@@ -169,7 +178,7 @@ export function splitMonthYear(
   if (!date) {
     return { lead: typeof value === 'string' ? value : '', year: '' }
   }
-  const parts = new Intl.DateTimeFormat(getIntlLocale(locale), {
+  const parts = getDateTimeFormat(getIntlLocale(locale), {
     month: 'long',
     year: 'numeric',
   }).formatToParts(date)

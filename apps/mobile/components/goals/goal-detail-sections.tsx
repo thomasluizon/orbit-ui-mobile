@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { Repeat } from 'lucide-react-native'
 import type { Goal } from '@orbit/shared/types/goal'
 import { createTokensV2 } from '@/lib/theme'
@@ -60,11 +60,13 @@ export function GoalProgressHistorySection({
         </View>
       ))}
       {entries.length > HISTORY_PREVIEW_COUNT ? (
-        <TouchableOpacity
+        <Pressable
           onPress={() => setShowAllHistory((prev) => !prev)}
-          activeOpacity={0.7}
           hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}
-          style={styles.toggleAll}
+          style={({ pressed }) => [
+            styles.toggleAll,
+            pressed && { opacity: 0.7 },
+          ]}
           accessibilityRole="button"
           accessibilityLabel={showAllHistory ? showLessLabel : showAllLabel}
         >
@@ -73,7 +75,7 @@ export function GoalProgressHistorySection({
               ? showLessLabel
               : `${showAllLabel} (${entries.length})`}
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       ) : null}
     </View>
   )

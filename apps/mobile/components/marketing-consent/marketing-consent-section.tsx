@@ -10,7 +10,7 @@ import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 /** Self-contained "Product updates by email" preference row: reflects and optimistically toggles marketing-email consent through the offline queue, rolling back on error. Never Pro-gated. */
 export function MarketingConsentSection() {
   const { t } = useTranslation()
-  const { profile, patchProfile } = useProfile()
+  const { profile, patchProfile, invalidate } = useProfile()
   const enabled = profile?.marketingEmailConsent === true
 
   const mutation = useMutation({
@@ -34,6 +34,9 @@ export function MarketingConsentSection() {
       context: { previous?: boolean | null } | undefined,
     ) => {
       patchProfile({ marketingEmailConsent: context?.previous ?? null })
+    },
+    onSettled: () => {
+      invalidate()
     },
   })
 

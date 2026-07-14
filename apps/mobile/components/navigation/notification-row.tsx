@@ -12,7 +12,7 @@ import type { NotificationBellStyles } from './notification-bell.styles'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
-export const glyphIconMap = {
+const glyphIconMap = {
   streak: Flame,
   celebration: Trophy,
   astra: Sparkles,
@@ -22,13 +22,13 @@ export const glyphIconMap = {
   reminder: Bell,
 } as const
 
-export function glyphColor(glyph: NotificationGlyph, tokens: AppTokens): string {
+function glyphColor(glyph: NotificationGlyph, tokens: AppTokens): string {
   if (glyph === 'streak') return tokens.statusOverdue
   if (glyph === 'reminder') return tokens.fg3
   return tokens.primarySoft
 }
 
-export function rowEntrance(index: number) {
+function rowEntrance(index: number) {
   return FadeInDown.duration(280)
     .delay(Math.min(index, 8) * 40)
     .reduceMotion(ReduceMotion.System)

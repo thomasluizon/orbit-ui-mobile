@@ -24,6 +24,7 @@ const HABITS_TOUR_SCROLL_Y = 220
  * mock data, and cleanup.
  * Mirrors the web TourProvider: global registry, scroll into view, continuous re-measurement.
  */
+// react-doctor-disable-next-line no-giant-component -- Cohesive tour state machine (step sequencing, target measurement + scroll-into-view, session mock-data inject/restore) whose pieces share tightly-coupled refs and state; splitting the coordinated lifecycle across artificial boundaries is regression-prone and would break the web TourProvider parity mirror. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function TourProvider({ children }: Readonly<{ children: React.ReactNode }>) {
   const router = useRouter()
   const pathname = usePathname()
@@ -127,7 +128,7 @@ export function TourProvider({ children }: Readonly<{ children: React.ReactNode 
     (preAction: string) => {
       switch (preAction) {
         case 'switchToGoalsTab':
-          useUIStore.getState().setActiveView(hasProAccess ? 'goals' : 'today')
+          useUIStore.getState().setActiveView(profile?.hasProAccess ? 'goals' : 'today')
           break
         case 'switchToTodayTab':
           useUIStore.getState().setActiveView('today')
@@ -144,7 +145,7 @@ export function TourProvider({ children }: Readonly<{ children: React.ReactNode 
         }
       }
     },
-    [hasProAccess],
+    [profile?.hasProAccess],
   )
 
   /** Measure an element and apply Y correction */
@@ -174,6 +175,7 @@ export function TourProvider({ children }: Readonly<{ children: React.ReactNode 
       const ref = tourTargetRegistry.getRef(targetId)
       if (!ref?.current) return false
 
+      // react-doctor-disable-next-line rn-no-dimensions-get -- Read imperatively at scroll-into-view time (alongside the imperative measureInWindow below) to center the tour target against the live viewport at the interaction moment; useWindowDimensions would only supply a render-time snapshot and would ripple its value through this measurement callback and waitForTarget for no benefit on the fixed-orientation Android app. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
       const screenHeight = Dimensions.get('window').height
       const scrollEntry = tourScrollRegistry.get(route)
 

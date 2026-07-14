@@ -2,7 +2,7 @@ import { formatAPIDate } from './dates'
 import {
   validateGoalForm,
   validateGoalProgressValue,
-} from '../validation'
+} from '../validation/goal-form'
 
 export function parseGoalTargetValue(value: string): number | null {
   const trimmedValue = value.trim()

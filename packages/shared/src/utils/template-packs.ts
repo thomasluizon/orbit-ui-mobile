@@ -95,14 +95,19 @@ export function buildBulkItemsFromPack(
   disabledHabitKeys: ReadonlySet<string>,
   translate: (key: string) => string,
 ): BulkHabitItem[] {
-  return pack.habits
-    .filter((habit) => !disabledHabitKeys.has(habit.key))
-    .map((habit) => ({
-      title: translate(templatePackHabitTitleKey(pack.id, habit.key)),
-      emoji: habit.emoji,
-      frequencyUnit: habit.frequencyUnit,
-      frequencyQuantity: habit.frequencyQuantity,
-      isGeneral: false,
-      tags: habit.tags.map((slug) => translate(templatePackTagKey(slug))),
-    }))
+  return pack.habits.flatMap((habit) => {
+    if (disabledHabitKeys.has(habit.key)) {
+      return []
+    }
+    return [
+      {
+        title: translate(templatePackHabitTitleKey(pack.id, habit.key)),
+        emoji: habit.emoji,
+        frequencyUnit: habit.frequencyUnit,
+        frequencyQuantity: habit.frequencyQuantity,
+        isGeneral: false,
+        tags: habit.tags.map((slug) => translate(templatePackTagKey(slug))),
+      },
+    ]
+  })
 }

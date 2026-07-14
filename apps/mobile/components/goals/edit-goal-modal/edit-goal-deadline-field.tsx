@@ -1,4 +1,4 @@
-import { Text, TouchableOpacity, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 import { Plus, X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
@@ -34,15 +34,17 @@ export function EditGoalDeadlineField({
             <View style={styles.deadlinePicker}>
               <AppDatePicker value={deadline} onChange={onChangeDeadline} />
             </View>
-            <TouchableOpacity
-              style={styles.removeDeadlineButton}
+            <Pressable
+              style={({ pressed }) => [
+                styles.removeDeadlineButton,
+                pressed && { opacity: 0.7 },
+              ]}
               onPress={() => onChangeDeadline('')}
-              activeOpacity={0.7}
               accessibilityRole="button"
               accessibilityLabel={t('goals.form.removeDeadline')}
             >
               <X size={16} color={tokens.fg4} strokeWidth={1.8} />
-            </TouchableOpacity>
+            </Pressable>
           </View>
           {isGoalDeadlinePast(deadline) ? (
             <Text style={styles.warningText}>
@@ -51,10 +53,12 @@ export function EditGoalDeadlineField({
           ) : null}
         </View>
       ) : (
-        <TouchableOpacity
-          style={styles.addDeadlineButton}
+        <Pressable
+          style={({ pressed }) => [
+            styles.addDeadlineButton,
+            pressed && { opacity: 0.7 },
+          ]}
           onPress={() => onChangeDeadline(formatAPIDate(new Date()))}
-          activeOpacity={0.7}
           hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}
           accessibilityRole="button"
           accessibilityLabel={t('goals.form.addDeadline')}
@@ -63,7 +67,7 @@ export function EditGoalDeadlineField({
           <Text style={styles.addDeadlineText}>
             {t('goals.form.addDeadline')}
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       )}
     </View>
   )

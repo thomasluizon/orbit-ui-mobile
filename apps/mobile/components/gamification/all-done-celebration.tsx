@@ -1,5 +1,6 @@
 import { useMemo, useEffect, useRef, useCallback } from 'react'
 import {
+  // react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   Animated,
   Pressable,
   StyleSheet,
@@ -90,7 +91,7 @@ export function AllDoneCelebration() {
                   styles.heroDisc,
                   {
                     backgroundColor: tintFromPrimary(tokens, 0.16),
-                    shadowColor: tokens.primary,
+                    boxShadow: `0px 0px 60px ${tintFromPrimary(tokens, 0.4)}`,
                   },
                   orbStyle,
                 ]}
@@ -136,10 +137,6 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 60,
-    elevation: 8,
   },
   heroEmoji: {
     fontSize: 60,

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import type { GoalType } from '@orbit/shared/types/goal'
 import type { CreateGoalStyles, CreateGoalTokens } from './styles'
 
-export const goalTypeOptions = [
+const goalTypeOptions = [
   {
     key: 'Standard',
     titleKey: 'goals.form.typeStandard',

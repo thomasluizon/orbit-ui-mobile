@@ -102,11 +102,11 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
     try {
       await Share.share({
         title: t('referral.share.title'),
-        message: `${t('referral.share.text', { discount: discountPercent })} ${referralUrl}`,
+        message: `${t('referral.share.text', { discount: stats?.discountPercent ?? 10 })} ${referralUrl}`,
       })
     } catch {
     }
-  }, [referralUrl, discountPercent, t])
+  }, [referralUrl, stats, t])
 
   const copyLink = useCallback(() => {
     if (!referralUrl) return

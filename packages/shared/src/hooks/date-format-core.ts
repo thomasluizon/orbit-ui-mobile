@@ -1,4 +1,4 @@
-import { formatLocaleDate, formatLocaleDateTime } from '../utils'
+import { formatLocaleDate, formatLocaleDateTime } from '../utils/locale-format'
 
 const DATE_NUMERIC: Intl.DateTimeFormatOptions = {
   year: 'numeric',
