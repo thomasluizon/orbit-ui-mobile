@@ -1,9 +1,10 @@
 # Orbit Testing
 
 > **At a glance** - how to write a test in orbit-ui-mobile and the catalog of every suite.
-> - Unit-only policy (Vitest); the only sanctioned E2E is the post-deploy web smoke suite.
+> - Unit-only policy (Vitest); the only sanctioned E2E against prod is the post-deploy web smoke suite.
 > - Assert behavior and data-attributes, never class names or implementation details.
-> - Six suites: web / mobile / shared unit, web Playwright e2e (which IS the post-deploy smoke), Stryker mutation.
+> - Seven suites: web / mobile / shared unit, web Playwright e2e (which IS the post-deploy smoke), the hermetic web visual-regression PR gate, Stryker mutation.
+> - The visual gate is web-only by locked decision (mobile Android visual regression is out of scope) and hermetic: it renders the PR's own build against a local mock orbit-api with a fake-JWT session, so it needs no prod and no secrets. Baselines are Linux-seeded in CI, never from a dev machine.
 > - orbit-api has its own xUnit suite, documented in that repo.
 > - Read the whole doc before adding a suite, a CI test job, or an e2e spec.
 
@@ -31,9 +32,19 @@ Happy-path-only; rubber-stamp / assertion-free; "asserts a mock was called" taut
 | Shared unit | `packages/shared` | `npm test -w @orbit/shared` (`vitest run`, + `@fast-check/vitest` property tests) | the Zod contract, utils, validation, query keys, and theme data |
 | All unit | root | `npm test` (`turbo run test`) | the three unit suites above; CI adds coverage thresholds |
 | Web Playwright e2e / post-deploy smoke | `apps/web/e2e` | `npm --workspace @orbit/web run test:smoke` (`playwright test`, needs `SMOKE_BASE_URL`) | the real core flows (auth, create habit, log habit, Astra create-habit, paywall) against the live deployment |
+| Web visual regression (hermetic PR gate) | `apps/web/e2e/visual` | `VISUAL=1 SMOKE_BASE_URL=http://127.0.0.1:3000 npm run test:visual -w @orbit/web` | that four web surfaces (login, Today, habit-create, paywall) match their Linux pixel baselines — rendered from the PR build against a local mock orbit-api, no prod |
 | Stryker mutation | `packages/shared` | `npm run mutation -w @orbit/shared` (`stryker run`) | that the shared unit tests actually kill mutants (effectiveness, not coverage percent) |
 
-**The e2e suite and the post-deploy smoke suite are one and the same.** There is no second, PR-time Playwright suite. Playwright specs live in `apps/web/e2e/`, run under the `smoke` project, require `SMOKE_BASE_URL`, and execute against the live production deployment, never localhost. This is the only sanctioned E2E.
+**The prod-E2E suite and the post-deploy smoke suite are one and the same.** The `smoke` project's `*.spec.ts` require `SMOKE_BASE_URL` and execute against the live production deployment, never localhost — the only sanctioned E2E against prod. The **one** other Playwright suite is the `visual` project (`*.visual.ts`), which is deliberately NOT a prod E2E: it is fully hermetic (localhost `next start` + a local mock orbit-api, fake-JWT session, no secrets) and exists only to catch pixel-level UI regressions at PR time. The two projects share `playwright.config.ts` but never overlap — `smoke` matches `*.spec.ts`, `visual` matches `*.visual.ts`, and the mock-backed `webServer` array only boots when `VISUAL=1`.
+
+### How the hermetic visual gate works
+
+- **Mock-BFF lever.** Every server-side upstream fetch resolves `process.env.API_BASE`, so the `webServer` array repoints `API_BASE` at a tiny local fixtures server (`e2e/visual/mock-api/server.ts`, `127.0.0.1:5099`). It serves one hand-authored fixture per endpoint the four surfaces touch, each typed `satisfies` its `@orbit/shared` type and `.parse()`-validated at boot — so a shared-schema change reds the job (contract stays honest). An unmapped path logs and returns an empty body; promote it to a real fixture if a surface needs it.
+- **Fake-auth.** The BFF never verifies the JWT signature (only base64url-decodes `exp`), so `visual.setup.ts` mints an unsigned, far-future-`exp` JWT straight into a saved `storageState` — no OTP, no prod, no signing key, minted at runtime (no committed token). The login spec runs unauthenticated (empty `storageState`).
+- **Determinism.** Fixed 412×915 viewport, `reducedMotion`, `timezoneId: 'UTC'`, `locale: 'en-US'`, a `screenshot.css` neutralizer (animations/caret/scroll), and a frozen browser clock (`page.clock.setFixedTime`) so every computed date is stable. Free-tier profile fixture suppresses every overlay/trial banner.
+- **Baselines are Linux-only.** Never commit a baseline rendered on a dev machine — pixels differ across OSes. Baselines live under `apps/web/e2e/visual/__screenshots__/**` (git-lfs tracked) and are generated on the pinned `ubuntu-24.04` runner only.
+- **Re-baseline flow.** When a UI change is intentional, add the `visual:update` label to the PR (or run the Visual Regression workflow with `update=true`); `visual.yml` regenerates the Linux baselines with `--update-snapshots` and commits them back to the branch, then goes green.
+- **Automated design review.** On a red gate, a second `visual.yml` job runs the `design-reviewer` subagent over the uploaded `*-diff.png` and comments a per-surface verdict (intentional improvement → re-baseline, or regression → fix). Event-driven on failure only.
 
 ## CI mapping
 
@@ -41,6 +52,7 @@ Happy-path-only; rubber-stamp / assertion-free; "asserts a mock was called" taut
 - **`.github/workflows/mutation.yml`** - PR-incremental Stryker run on `packages/shared`, report-only.
 - **`.github/workflows/nightly.yml`** - full-scope Stryker mutation run.
 - **`.github/workflows/smoke-prod.yml`** - the Playwright smoke suite, post-deploy against the live production deployment.
+- **`.github/workflows/visual.yml`** - the hermetic web visual-regression gate, on PRs touching `apps/web/**` or `packages/shared/**` (pinned `ubuntu-24.04`, no secrets). Compares four surfaces against the Linux baselines; seeds/updates them on the `visual:update` label or `workflow_dispatch` (`update=true`); on failure runs the `design-reviewer` job.
 
 ## orbit-api
 
