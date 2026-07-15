@@ -1,0 +1,13 @@
+min_version: "2.1.10"
+pre-commit:
+  commands:
+    web-eslint:
+      root: "apps/web/"
+      glob: "*.{ts,tsx,js,jsx,mjs,cjs}"
+      run: npx eslint --fix {staged_files}
+      stage_fixed: true
+    shared-eslint:
+      root: "packages/shared/"
+      glob: "*.{ts,tsx,js,jsx,mjs,cjs}"
+      run: npx eslint --fix {staged_files}
+      stage_fixed: true
