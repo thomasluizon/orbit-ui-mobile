@@ -19,7 +19,7 @@ Profile one web surface against a real Chrome, read its Core Web Vitals insights
 ## Operating rules
 
 - **Wraps the chrome-devtools MCP** performance tools — no new dependency; the MCP drives a real Chrome. Verify the server is connected before starting.
-- **Profile a production-like build.** `next build` + `next start` (bring the stack up via `/dev-server`), never `next dev` — dev-mode traces are dominated by HMR and unminified bundles and do not reflect prod.
+- **Profile a production-like build.** Serve the web tier as a real production bundle: `npm run build -w @orbit/web` then `npm run start -w @orbit/web` (`next build` + `next start`), never `next dev` — dev-mode traces are dominated by HMR and unminified bundles and do not reflect prod. `/dev-server` runs Next in dev mode, so use it only to bring up the backing DB + API for data (or point the build at the hermetic visual mock), never as the web tier under test.
 - **Fix ONE form-factor + viewport** for the whole before/after comparison. Use `emulate` to pin viewport, CPU-throttle, and network conditions; changing any of them mid-comparison invalidates the delta.
 - **`performance_start_trace({reload:true})` reloads the *current* page** — so `navigate_page` to the target URL BEFORE starting the trace. An authed surface needs a logged-in session already established in the driven Chrome.
 
