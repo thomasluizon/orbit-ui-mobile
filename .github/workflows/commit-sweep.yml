@@ -53,7 +53,7 @@ jobs:
 
             The two repo roots come from the `ORBIT_UI_ROOT` and `ORBIT_API_ROOT` env vars (already set for this job); resolve each root from those, exactly as the skill's Phase 1 describes.
 
-            Run exactly this command: ${{ github.event_name == 'schedule' && '/commit-sweep --since "24 hours ago"' || format('/commit-sweep -n {0} {1}', inputs.commits, inputs.scope) }}
+            Run exactly this command: ${{ github.event_name == 'schedule' && '/commit-sweep --since "24 hours ago"' || format('/commit-sweep {0} {1}', inputs.commits, inputs.scope) }}
 
             The skill writes `.claude/audits/commit-sweep.md` and the `.claude/audits/commit-sweep.status` sidecar. Do NOT post to GitHub, open or edit issues, or comment - this workflow's own steps surface the report. Do NOT remediate, refactor, or edit any code - the sweep is report-only.
 
@@ -103,8 +103,10 @@ jobs:
 
       - name: Write the job summary
         if: always()
+        env:
+          SWEEP_STATUS: ${{ steps.status.outputs.status }}
         run: |
-          status="${{ steps.status.outputs.status }}"
+          status="$SWEEP_STATUS"
           echo "### Commit sweep" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "- Status: \`$status\`" >> "$GITHUB_STEP_SUMMARY"
