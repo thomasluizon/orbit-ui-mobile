@@ -1,0 +1,144 @@
+name: Visual Regression
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, labeled]
+    paths:
+      - 'apps/web/**'
+      - 'packages/shared/**'
+  workflow_dispatch:
+    inputs:
+      update:
+        description: Regenerate and commit the Linux baselines to this branch
+        type: boolean
+        default: false
+
+concurrency:
+  group: visual-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  visual:
+    name: Hermetic visual gate
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      VISUAL: '1'
+      SMOKE_BASE_URL: http://127.0.0.1:3000
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          lfs: true
+          ref: ${{ github.head_ref || github.ref_name }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install pinned Playwright chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Build web
+        run: npm run build -w @orbit/web
+
+      - name: Resolve run mode (seed vs compare)
+        id: mode
+        env:
+          IS_DISPATCH_UPDATE: ${{ github.event_name == 'workflow_dispatch' && inputs.update == true }}
+          HAS_UPDATE_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'visual:update') }}
+        run: |
+          set -euo pipefail
+          seed=false
+          if [ "$IS_DISPATCH_UPDATE" = "true" ]; then seed=true; fi
+          if [ "$HAS_UPDATE_LABEL" = "true" ]; then seed=true; fi
+          if [ -z "$(find apps/web/e2e/visual/__screenshots__ -name '*.png' 2>/dev/null)" ]; then
+            echo "No committed baselines found — seeding."
+            seed=true
+          fi
+          echo "seed=$seed" >> "$GITHUB_OUTPUT"
+
+      - name: Seed / update baselines
+        if: steps.mode.outputs.seed == 'true'
+        run: npm run test:visual -w @orbit/web -- --update-snapshots
+
+      - name: Commit generated baselines to the branch
+        if: steps.mode.outputs.seed == 'true'
+        run: |
+          set -euo pipefail
+          git lfs install --local
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/web/e2e/visual/__screenshots__
+          if git diff --cached --quiet; then
+            echo "Baselines already up to date — nothing to commit."
+          else
+            git commit -m "test(web): update hermetic visual baselines (#461 B1) [skip ci]"
+            git push origin "HEAD:${{ github.head_ref || github.ref_name }}"
+          fi
+
+      - name: Compare against baselines
+        if: steps.mode.outputs.seed != 'true'
+        run: npm run test:visual -w @orbit/web
+
+      - name: Explain a red gate
+        if: failure() && steps.mode.outputs.seed != 'true'
+        run: |
+          echo "::error::Visual regression detected. Download the 'visual-diff' artifact for the *-diff.png overlays. If the change is intentional, add the 'visual:update' label to this PR (or run the Visual Regression workflow with update=true) to re-seed the Linux baselines; otherwise fix the drift."
+
+      - name: Upload diff report
+        if: failure() && steps.mode.outputs.seed != 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: visual-diff
+          path: |
+            apps/web/e2e/.report
+            apps/web/e2e/.results
+          if-no-files-found: ignore
+          retention-days: 14
+
+  design-review:
+    name: Automated design review
+    needs: visual
+    if: failure() && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download visual diff
+        continue-on-error: true
+        uses: actions/download-artifact@v7
+        with:
+          name: visual-diff
+          path: visual-diff
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            The hermetic visual-regression gate (visual.yml) went RED on this PR: one or more of the four captured web surfaces (login, Today, habit-create, paywall) drifted from its committed baseline.
+
+            The Playwright diff artifact is downloaded under `visual-diff/`. The `-diff.png` files (magenta = changed pixels), `-actual.png` (this PR), and `-expected.png` (baseline) live under `visual-diff/.results/**` and the HTML report under `visual-diff/.report/`.
+
+            ## Your task
+            1. Invoke the `design-reviewer` subagent (Task tool) to `Read` the `*-diff.png` and `*-actual.png` images and judge each drifted surface against `DESIGN.md`.
+            2. For each drifted surface, classify the delta as EITHER:
+               - an intentional design improvement → recommend re-baselining (add the `visual:update` label to this PR, which re-seeds the Linux baselines in one run), OR
+               - a visual regression → recommend fixing, naming the specific surface and what looks wrong.
+            3. Post exactly ONE PR comment with the per-surface verdict and the recommended action. Keep it concise and evidence-based; do not approve or request changes (this is a comment-only advisory).
+
+            If the `visual-diff/` folder is empty, the gate failed before producing diffs (an infrastructure/build error, not a pixel regression) — post a short comment saying so and pointing at the gate job logs.
+
+            ## Tool discipline
+            Post the comment with a single plain command: gh pr comment ${{ github.event.pull_request.number }} --body-file /tmp/verdict.md (write the body with the Write tool first).
+          claude_args: '--allowedTools "Task,Read,Grep,Glob,Write,Bash(gh pr comment:*),Bash(gh pr view:*),Bash(ls:*)"'

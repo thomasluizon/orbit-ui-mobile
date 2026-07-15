@@ -79,7 +79,7 @@ export default [
     },
   },
   {
-    files: ["__tests__/**/*.{ts,tsx}", "**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"],
+    files: ["__tests__/**/*.{ts,tsx}", "**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}", "e2e/**/*.{ts,tsx}"],
     rules: {
       "local/no-fullbleed-button": "off",
       "@typescript-eslint/no-explicit-any": "off",
