@@ -1,0 +1,55 @@
+import type { Profile } from '@orbit/shared/types/profile'
+
+/**
+ * Deterministic free-tier profile for the hermetic visual capture. Every overlay
+ * gate is set to its "already seen / not applicable" value so the shell renders
+ * clean: free plan (no trial banner), onboarding+tour+import all completed,
+ * marketing consent resolved (non-null), gamification off. timeZone is UTC to
+ * match the visual project's `timezoneId: 'UTC'` so no timezone-sync PATCH fires.
+ */
+export const profileFixture = {
+  name: 'Orbit Preview',
+  email: 'preview@useorbit.org',
+  timeZone: 'UTC',
+  uses24HourClock: true,
+  aiMemoryEnabled: false,
+  aiSummaryEnabled: false,
+  hasCompletedOnboarding: true,
+  hasCompletedTour: true,
+  language: 'en',
+  plan: 'free',
+  hasProAccess: false,
+  isTrialActive: false,
+  trialEndsAt: null,
+  planExpiresAt: null,
+  aiMessagesUsed: 0,
+  aiMessagesLimit: 15,
+  hasImportedCalendar: true,
+  hasSeenImportPrompt: true,
+  hasGoogleConnection: false,
+  subscriptionInterval: null,
+  subscriptionSource: null,
+  isLifetimePro: false,
+  weekStartDay: 1,
+  totalXp: 0,
+  level: 1,
+  levelTitle: 'Newcomer',
+  adRewardsClaimedToday: 0,
+  currentStreak: 0,
+  longestStreak: 0,
+  streakFreezesAvailable: 0,
+  themePreference: 'dark',
+  colorScheme: 'purple',
+  googleCalendarAutoSyncEnabled: false,
+  googleCalendarAutoSyncStatus: 'Idle',
+  googleCalendarLastSyncedAt: null,
+  canViewGamification: false,
+  hasCreatedFirstHabit: true,
+  hasLoggedFirstHabit: true,
+  hasTriedAstra: true,
+  hasCompletedOnboardingChecklist: true,
+  handle: null,
+  socialOptIn: false,
+  proactiveAstraEnabled: false,
+  marketingEmailConsent: false,
+} satisfies Profile
