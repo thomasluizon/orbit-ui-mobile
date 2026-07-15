@@ -1,0 +1,66 @@
+name: Performance Budget
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/web/**'
+      - 'packages/shared/**'
+  workflow_dispatch:
+
+concurrency:
+  group: perf-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lighthouse:
+    name: Authed Today Lighthouse budget
+    runs-on: ubuntu-24.04
+    env:
+      API_BASE: http://127.0.0.1:5099
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build web
+        run: npm run build -w @orbit/web
+
+      - name: Start mock orbit-api and wait for health
+        run: |
+          set -euo pipefail
+          npx tsx apps/web/e2e/visual/mock-api/server.ts &
+          echo "MOCK_PID=$!" >> "$GITHUB_ENV"
+          for _ in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:5099/health >/dev/null 2>&1; then
+              echo "mock orbit-api healthy on :5099"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::mock orbit-api failed to become healthy on :5099"
+          exit 1
+
+      - name: Run authed Today Lighthouse budget gate
+        run: npx lhci autorun --config apps/web/lighthouserc.json
+
+      - name: Stop mock orbit-api
+        if: always()
+        run: kill "${MOCK_PID}" 2>/dev/null || true
+
+      - name: Upload Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: lighthouse-reports
+          path: .lighthouseci
+          if-no-files-found: ignore
+          retention-days: 14

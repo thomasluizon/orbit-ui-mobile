@@ -1,0 +1,27 @@
+{
+  "ci": {
+    "collect": {
+      "startServerCommand": "npm run start -w @orbit/web",
+      "startServerReadyPattern": "Ready in",
+      "startServerReadyTimeout": 120000,
+      "url": ["http://127.0.0.1:3000/"],
+      "numberOfRuns": 5,
+      "puppeteerScript": "apps/web/perf/lhci-hermetic-auth.cjs",
+      "settings": {
+        "onlyCategories": ["performance"]
+      }
+    },
+    "assert": {
+      "aggregationMethod": "median",
+      "assertions": {
+        "largest-contentful-paint": ["error", { "maxNumericValue": 7000 }],
+        "total-blocking-time": ["error", { "maxNumericValue": 800 }],
+        "resource-summary:script:size": ["error", { "maxNumericValue": 820000 }]
+      }
+    },
+    "upload": {
+      "target": "filesystem",
+      "outputDir": ".lighthouseci"
+    }
+  }
+}
