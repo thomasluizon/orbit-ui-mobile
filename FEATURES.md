@@ -1,5 +1,12 @@
 # Orbit — Feature Inventory
 
+> **At a glance** - the single code-derived, gating- and platform-aware map of every Orbit capability.
+> - Downstream copy (Play listing, landing page, QA matrix) derives its rows from here, so nothing is undersold.
+> - Gating: Free / Trial (7-day, full Pro except Retrospective) / Pro / Yearly-Pro, computed from `User` flags in `PayGateService.cs`.
+> - Free limits: 10 top-level habits and 20 AI messages/month; Both = web + mobile (Expo, Android-only), with no iOS app.
+> - Headline surfaces: Astra (61 AI tools), the MCP server (79 tools / 15 classes), the opt-in social layer, the core tracker.
+> - Read the whole doc before writing store, marketing, or QA copy.
+
 The single, code-derived, gating- and platform-aware map of everything Orbit does. Downstream copy — the Play listing, the landing page, the store description, and the pre-launch QA matrix — derives its rows from here, so no feature is undersold or invisible and nothing needs feature archaeology.
 
 **How to read this doc.** Every capability lives in a per-domain table with five columns: **Feature**, **Description** (one line), **Gating**, **Platform**, and **Locale notes**. Astra and MCP are listed at feature/category granularity with tool counts, not one row per tool.
