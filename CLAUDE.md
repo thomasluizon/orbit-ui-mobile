@@ -52,6 +52,7 @@ Auth: web cookie is httpOnly + sameSite strict + secure; mobile tokens live in S
 - `/pr-review` is the canonical local diff review (orchestrates security-reviewer / contract-aligner / parity-checker / i18n-syncer + the backward-compat guard).
 - `/commit-sweep` is the report-only cross-commit, cross-repo regression sweep over a window of recent `main` commits in BOTH repos (default last 10, or `--since <when>`): the backstop for gotchas a per-diff `/pr-review` or a whole-repo `/audit-*` structurally miss because PRs merge in isolation. Runs nightly via `.github/workflows/commit-sweep.yml` and on demand as `/commit-sweep`.
 - `/profile` is the on-demand, interactive web performance profiler: it wraps the chrome-devtools MCP perf tools (`performance_start_trace` → `performance_analyze_insight`) into a trace → analyze → change → re-trace → compare loop against a production-like `next build`, for diagnosing a slow surface or verifying a perf fix. Its automatic twin is the CI Lighthouse budget gate.
+- `perf.yml` is that automatic twin: an authed-Today Lighthouse budget gate (`apps/web/lighthouserc.json`) that reuses Bundle B1's hermetic mock-api + fake-JWT harness (LHCI's `puppeteerScript` injects the fake-JWT cookie via `browser.setCookie()`) to assert LCP / TBT / script-bundle-size budgets on the signed-in `/` (Today) surface at PR time. Web-only infra (the parity contract's platform-adapter exemption), no prod, no secrets; thresholds seeded from a measured baseline.
 
 ## Docs registry
 
