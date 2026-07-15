@@ -1,0 +1,47 @@
+name: Prod-readiness reminder
+
+on:
+  schedule:
+    - cron: "0 6 15 * *"
+  workflow_dispatch: {}
+
+permissions:
+  issues: write
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open the monthly prod-readiness reminder issue
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const now = new Date()
+            const month = now.toLocaleString('en-US', { month: 'long', year: 'numeric' })
+            const title = `Prod-readiness audit — ${month}`
+            const open = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'prod-readiness',
+            })
+            if (open.data.some((i) => i.title === title)) {
+              core.info('Reminder already open')
+              return
+            }
+            const body = [
+              'Monthly pre-release readiness checkpoint. Run **`/prod-readiness`** from `orbit-ui-mobile` — it orchestrates the four repo-wide audits (security, tests, performance, code-quality) plus an ops-layer audit and a full-repo React-correctness scan into ONE tier-tagged report with an honest GO/NO-GO verdict.',
+              '',
+              'This is an **attended, expensive** audit (~22.8M tokens): run it, triage the persisted report, file findings as their own issues, and never loop-re-run it. It is NOT auto-run on a schedule for that reason — this reminder is the trigger, you run it.',
+              '',
+              'Cadence: this monthly reminder is a floor. Also run `/prod-readiness` **before each mobile Play release** (the real "safe to ship" gate). Continuous health is already covered automatically by the CI + nightly gates and the `/rollup` verdict; this is the heavyweight LLM pre-release audit on top.',
+              '',
+              'Close this issue once the audit has been run and its findings triaged.',
+            ].join('\n')
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              labels: ['prod-readiness'],
+              body,
+            })
