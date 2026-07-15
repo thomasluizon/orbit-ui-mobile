@@ -9,7 +9,7 @@
     "type-check": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "test:smoke": "playwright test",
+    "test:smoke": "playwright test --project=smoke",
     "test:visual": "playwright test --project=visual",
     "perf": "lhci autorun",
     "clean": "rm -rf .next"
