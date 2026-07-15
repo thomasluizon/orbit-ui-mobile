@@ -1,0 +1,85 @@
+name: Roll-up
+
+on:
+  schedule:
+    # 08:00 UTC: after every producing nightly finishes (UI nightly 03:00, api
+    # benchmark + UI commit-sweep 05:00, api mutation + landing nightly 06:00,
+    # plus up to ~45min mutation duration), so their conclusions are settled.
+    - cron: '0 8 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  rollup:
+    name: Cross-repo CI health verdict
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out orbit-ui-mobile (for tools/rollup.sh)
+        uses: actions/checkout@v7
+
+      - name: Run the roll-up
+        id: rollup
+        env:
+          # The default GITHUB_TOKEN reads this repo and can read the two PUBLIC
+          # siblings' Actions runs. If a cross-repo read ever 403s, add a fine-grained
+          # PAT with actions:read on orbit-api + orbit-landing-page as the repo secret
+          # ROLLUP_CROSS_REPO_TOKEN and it is preferred automatically (no code change).
+          GH_TOKEN: ${{ secrets.ROLLUP_CROSS_REPO_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          bash tools/rollup.sh > rollup.md
+          rc=$?
+          set -e
+          echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
+          cat rollup.md
+
+      - name: Upsert the roll-up tracking issue (red verdict only)
+        if: ${{ always() && steps.rollup.outputs.exit_code == '1' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh label create rollup --color B60205 --description "Nightly cross-repo CI health roll-up: red verdict" 2>/dev/null || true
+          existing=$(gh issue list --label rollup --state open --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue edit "$existing" --body-file rollup.md
+            gh issue comment "$existing" --body "Refreshed by the nightly roll-up on $(date -u +%Y-%m-%d). The verdict above is the current state."
+          else
+            gh issue create --label rollup --title "Nightly roll-up - red verdict" --body-file rollup.md
+          fi
+
+      - name: Upload the roll-up report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: rollup-report
+          path: rollup.md
+          if-no-files-found: warn
+
+      - name: Write the job summary
+        if: always()
+        env:
+          EXIT_CODE: ${{ steps.rollup.outputs.exit_code }}
+        run: |
+          code="$EXIT_CODE"
+          echo "### Orbit CI health roll-up" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$code" = "0" ]; then
+            echo "- Verdict: \`GREEN\` - every hard-tier gate's latest main run is healthy. No issue opened." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$code" = "1" ]; then
+            echo "- Verdict: \`RED\` - a hard-tier gate failed on main; surfaced to the \`rollup\`-labeled tracking issue." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$code" = "2" ]; then
+            echo "- Verdict: \`TOOL ERROR\` - could not read a hard-tier gate (gh unreachable or a tracked workflow 404s). This run is failed on purpose; check the logs and the tracked table in \`tools/rollup.sh\`." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- Verdict: unknown exit code \`$code\`; check the run logs." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          cat rollup.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail the run on a roll-up tooling error
+        if: ${{ steps.rollup.outputs.exit_code == '2' }}
+        run: |
+          echo "Roll-up tooling error (exit 2): could not evaluate a hard-tier gate. See the job summary." >&2
+          exit 1
