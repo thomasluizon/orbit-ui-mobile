@@ -188,62 +188,21 @@ jobs:
         working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
         run: npm install --package-lock=false --prefer-offline --no-audit --fund=false --legacy-peer-deps
 
-      - name: Guard pinned native module versions resolved correctly
-        working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
+      # The isolated workspace installs without a lockfile, so every native module
+      # whose range is not exactly pinned floats to whatever is newest at build
+      # time and the AAB ships native code no local install or CI job ever built.
+      # That drift broke this release when @expo/ui floated to 57.0.6, which calls
+      # expo.modules.kotlin.types.ColorCompat (added in expo-modules-core 57.0.4)
+      # while expo-modules-core is pinned at 57.0.3, failing R8 11 minutes in:
+      # https://github.com/thomasluizon/orbit-ui-mobile/actions/runs/29514193887
+      # The root lockfile is the verified set, so assert the release tree matches
+      # it rather than hand-maintaining a list of modules to watch.
+      - name: Guard release native modules match the repo-root lockfile
         shell: bash
         run: |
           set -euo pipefail
-          node <<'NODE'
-          const pkg = require('./package.json')
-
-          // Keep the verified coherent set together: reanimated 4.5.0 is built
-          // against worklets 0.10.0 (ABI), and the Expo SDK 57.0.4 module set is
-          // the one verified to build the release AAB. A from-scratch resolve can
-          // drift these to newer patches and break reanimated or the build. Fail
-          // here instead of shipping a broken AAB to Google Play.
-          const checks = [
-            ['react-native-worklets', pkg.overrides['react-native-worklets']],
-            ['react-native-reanimated', pkg.dependencies['react-native-reanimated']],
-            ['expo', pkg.dependencies['expo']],
-            ['expo-modules-core', pkg.dependencies['expo-modules-core']],
-            ['expo-router', pkg.dependencies['expo-router']],
-          ]
-
-          // A pin read as undefined means the entry was deleted from package.json,
-          // not that the resolve drifted: the guard silently loses its teeth for
-          // that module, so name that failure separately from a real drift.
-          const unpinned = []
-          const mismatches = []
-          for (const [name, expected] of checks) {
-            const actual = require(`${name}/package.json`).version
-            if (expected === undefined) {
-              console.log(`UNPINNED ${name}: resolved=${actual} pinned=<missing>`)
-              unpinned.push(`${name} (resolved ${actual})`)
-              continue
-            }
-            const ok = actual === expected
-            console.log(`${ok ? 'ok      ' : 'MISMATCH'} ${name}: resolved=${actual} pinned=${expected}`)
-            if (!ok) mismatches.push(`${name} resolved ${actual} but is pinned to ${expected}`)
-          }
-
-          if (unpinned.length > 0) {
-            console.error(
-              `::error::Guarded native modules have no version pin in apps/mobile/package.json: ${unpinned.join('; ')}. ` +
-                'Every module listed in this guard must keep an exact pin in dependencies or overrides. ' +
-                'Restore the pin instead of dropping it from the guard.'
-            )
-          }
-
-          if (mismatches.length > 0) {
-            console.error(
-              `::error::Pinned native module versions drifted: ${mismatches.join('; ')}. ` +
-                'This is the verified coherent reanimated + Expo SDK 57.0.4 set; a newer ' +
-                'resolve can break reanimated or the release build. Fix the pins/overrides in apps/mobile/package.json.'
-            )
-          }
-
-          if (unpinned.length > 0 || mismatches.length > 0) process.exit(1)
-          NODE
+          node apps/mobile/scripts/verify-release-native-modules.js \
+            "${GITHUB_WORKSPACE}" "${RELEASE_WORKDIR}/apps/mobile"
 
       - name: Validate Expo dependency compatibility
         if: ${{ inputs.validate_expo_dependencies }}
