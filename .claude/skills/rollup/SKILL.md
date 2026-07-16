@@ -2,6 +2,7 @@
 name: rollup
 description: Thin cross-repo CI/nightly health roll-up. Runs `tools/rollup.sh`, which reads the LATEST `main`-branch run of each tracked quality gate across all three Orbit repos (orbit-ui-mobile + orbit-api + orbit-landing-page) and prints ONE consolidated GREEN/RED verdict. Reads run conclusions only - it executes no tests and audits nothing, so it does not overlap /validate (which runs lint/type/test) or /prod-readiness (the LLM pre-launch audit). Use for a fast "is main healthy across all three repos right now?" check. Its automatic twin is the nightly `.github/workflows/rollup.yml`.
 argument-hint: (none)
+effort: low
 ---
 
 # Roll-up

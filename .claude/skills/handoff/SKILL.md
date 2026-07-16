@@ -2,6 +2,7 @@
 name: handoff
 description: Compact the current session into a handoff document a fresh agent can resume from. Use when the context is getting long, you are switching tasks, or you want to end a session and continue clean without losing the thread.
 argument-hint: [note about what the next session is for]
+effort: medium
 ---
 
 # Handoff: compact the session for a fresh agent

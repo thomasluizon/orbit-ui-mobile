@@ -2,6 +2,7 @@
 name: implement
 description: Execute a plan across orbit-ui-mobile + orbit-api with validation loops
 argument-hint: <path/to/plan.md | issue-number> [issue-number ...]
+effort: xhigh
 ---
 
 # Implement Plan (Cross-Repo)

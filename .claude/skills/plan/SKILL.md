@@ -2,6 +2,7 @@
 name: plan
 description: Create implementation plan with cross-repo codebase analysis
 argument-hint: <issue-number | feature description | path/to/prd.md> [issue-number ...] [--research | --no-research]
+effort: xhigh
 ---
 
 # Implementation Plan Generator

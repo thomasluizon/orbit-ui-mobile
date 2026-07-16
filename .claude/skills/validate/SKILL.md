@@ -2,6 +2,7 @@
 name: validate
 description: Run lint, type-check, tests across both repos (auto-detects which to run)
 argument-hint: [frontend|backend|both]
+effort: low
 ---
 
 # Validate
