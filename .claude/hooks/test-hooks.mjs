@@ -7,13 +7,14 @@
 //      SAME rule, off the SAME _lib, must block/allow identically.
 // Run: node .claude/hooks/test-hooks.mjs   (exits non-zero on any failure)
 
-import { mkdirSync, writeFileSync, rmSync, cpSync } from "node:fs"
+import { mkdirSync, writeFileSync, rmSync, cpSync, readFileSync, readdirSync, existsSync } from "node:fs"
 import { spawnSync } from "node:child_process"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
 import { checkGitCommand, checkNpmExpoPin } from "./_lib/rules-git.mjs"
+import { checkShellAllowlist, PRIMER_SHELL_ALLOWLIST } from "./_lib/rules-shell-allowlist.mjs"
 import { checkEmDashes, checkBrandColors } from "./_lib/rules-content.mjs"
 import { checkTsAntipatterns, checkNewTodos, checkCsharpAuthz, checkCsharpTimezone, checkCsharpFluentConfig } from "./_lib/rules-source.mjs"
 import { classifyScope, parityMessages } from "./_lib/rules-parity.mjs"
@@ -109,6 +110,48 @@ T("csharp-fluent: unconfigured blocks", !!checkCsharpFluentConfig("/x/orbit-api/
 T("parity: classify web", classifyScope("/x/apps/web/a.ts"), "web")
 T("parity: nudge fires", parityMessages({ web: 3, mobile: 0 }).length > 0, true)
 
+// primer's agent-scoped shell allowlist. The deny cases are the point: a prefix
+// allowlist alone is not a fence, so the metacharacter rejection must run first.
+const PRIMER = { allowlist: PRIMER_SHELL_ALLOWLIST, agent: "primer" }
+T("shell: gh issue view allows", checkShellAllowlist("gh issue view 123 --json title,body", PRIMER), null)
+T("shell: git log allows", checkShellAllowlist("git log --oneline -10", PRIMER), null)
+T("shell: git branch --show-current allows", checkShellAllowlist("git branch --show-current", PRIMER), null)
+T("shell: git -C <dir> log allows (the form /prime actually runs)", checkShellAllowlist('git -C "C:\\Users\\x\\orbit-api" log --oneline -10', PRIMER), null)
+T("shell: git -C <dir with spaces> log allows", checkShellAllowlist('git -C "C:\\Program Files\\repo" log', PRIMER), null)
+T("shell: echo denied", !!checkShellAllowlist("echo hi", PRIMER)?.block, true)
+T("shell: chained bypass denied", !!checkShellAllowlist("git log && echo pwned", PRIMER)?.block, true)
+T("shell: chained write to a source file denied", !!checkShellAllowlist("git log && echo pwned > x.ts", PRIMER)?.block, true)
+T("shell: redirection denied", !!checkShellAllowlist("git log > /tmp/x", PRIMER)?.block, true)
+T("shell: command substitution denied", !!checkShellAllowlist("git log $(whoami)", PRIMER)?.block, true)
+T("shell: backtick substitution denied", !!checkShellAllowlist("git log `whoami`", PRIMER)?.block, true)
+T("shell: pipe denied", !!checkShellAllowlist("git log | sh", PRIMER)?.block, true)
+T("shell: semicolon denied", !!checkShellAllowlist("git log; rm -rf /", PRIMER)?.block, true)
+T("shell: newline denied", !!checkShellAllowlist("git log\necho pwned", PRIMER)?.block, true)
+T("shell: shell-escaped chaining denied", !!checkShellAllowlist("git log \\&\\& echo pwned", PRIMER)?.block, true)
+// `git -c` executes arbitrary code through config, so it must not survive the
+// -C stripping that the /prime form depends on.
+T("shell: git -c config escape denied", !!checkShellAllowlist("git -c core.pager=sh log", PRIMER)?.block, true)
+T("shell: git --exec-path escape denied", !!checkShellAllowlist("git --exec-path=/tmp log", PRIMER)?.block, true)
+// Rejecting `>` does NOT make "never writes" structural on its own: a
+// subcommand's own flags write files with no shell metacharacter at all. These
+// two are the real thing — `git log --format=format:x --output=<path>` was a
+// verified arbitrary-file-write through the first version of this allowlist
+// (PR #546 review), which is why arguments are allowlisted and not just the
+// command prefix.
+T("shell: git log --output= (arbitrary file write, no metacharacter) denied", !!checkShellAllowlist("git log --output=/tmp/x", PRIMER)?.block, true)
+T("shell: git log --format=format:x --output= (attacker-chosen content) denied", !!checkShellAllowlist("git log -1 --format=format:pwned --output=/tmp/x", PRIMER)?.block, true)
+T("shell: git log --ext-diff denied (unlisted flag)", !!checkShellAllowlist("git log --ext-diff", PRIMER)?.block, true)
+T("shell: gh issue view --template denied (unlisted flag)", !!checkShellAllowlist("gh issue view 1 --template x", PRIMER)?.block, true)
+// The exact entry takes no arguments: git rejects -D alongside --show-current
+// today, but that is git's conflict handling, not this fence's.
+T("shell: git branch --show-current with trailing tokens denied", !!checkShellAllowlist("git branch --show-current -D main", PRIMER)?.block, true)
+// Same binary, same subcommand prefix depth, mutating verb: prove the match is
+// per-token and not a loose "starts with git/gh" check.
+T("shell: git branch -D denied", !!checkShellAllowlist("git branch -D main", PRIMER)?.block, true)
+T("shell: git push denied", !!checkShellAllowlist("git push origin main", PRIMER)?.block, true)
+T("shell: gh pr create denied", !!checkShellAllowlist("gh pr create --title x", PRIMER)?.block, true)
+T("shell: gh issue edit denied", !!checkShellAllowlist("gh issue edit 1 --body x", PRIMER)?.block, true)
+
 // ---------------------------------------------------------------------------
 // 2. Claude Code hooks — run the real files, assert exit codes
 // ---------------------------------------------------------------------------
@@ -141,6 +184,25 @@ const ctrlBad = write("orbit-api/src/Orbit.Api/Controllers/FooController.cs", "p
 T("cc csharp-authz: missing -> 2", runHook("csharp-authz.mjs", { tool_name: "Write", tool_input: { file_path: ctrlBad } }), 2)
 const tzBad = write("orbit-api/src/Orbit.Application/Foo.cs", "var x = DateTime.UtcNow;\n")
 T("cc csharp-tz: UtcNow -> 2", runHook("csharp-tz.mjs", { tool_name: "Write", tool_input: { file_path: tzBad } }), 2)
+
+// primer's allowlist is wired in .claude/agents/primer.md's own frontmatter, not
+// settings.json, so this asserts the file the agent points at really behaves.
+const primerShell = (command) => runHook("primer-shell-allowlist.mjs", { tool_name: "Bash", tool_input: { command } })
+T("cc primer-allowlist: gh issue view -> 0", primerShell("gh issue view 1"), 0)
+T("cc primer-allowlist: git log -> 0", primerShell("git log --oneline -10"), 0)
+// The two absolute `-C` forms /prime's step 4 actually runs. A false positive
+// here breaks priming outright, so pin them against the real hook, not just _lib.
+T("cc primer-allowlist: -C log (the form /prime runs) -> 0", primerShell('git -C "C:\\Users\\x\\orbit-api" log --oneline -10'), 0)
+T("cc primer-allowlist: -C branch --show-current -> 0", primerShell('git -C "C:\\Users\\x\\orbit-api" branch --show-current'), 0)
+T("cc primer-allowlist: echo -> 2", primerShell("echo hi"), 2)
+T("cc primer-allowlist: chained bypass -> 2", primerShell("git log && echo pwned"), 2)
+T("cc primer-allowlist: redirection -> 2", primerShell("git log > /tmp/x"), 2)
+T("cc primer-allowlist: substitution -> 2", primerShell("git log $(whoami)"), 2)
+// Unlike every other adapter here (which exits 0 on error so a broken hook never
+// wedges Bash), this one is a security fence: an unvalidated command must not run.
+T("cc primer-allowlist: unreadable payload fails CLOSED -> 2", runHook("primer-shell-allowlist.mjs", { tool_name: "Bash", tool_input: {} }), 2)
+// The file-write primitive that has no shell metacharacter, through the real hook.
+T("cc primer-allowlist: git log --output= -> 2", primerShell("git log -1 --format=format:pwned --output=/tmp/orbit-poc.txt"), 2)
 
 // ---------------------------------------------------------------------------
 // 3. opencode plugin — same rules, opencode contract
@@ -178,6 +240,56 @@ T("oc after: console.log throws", await after("edit", { filePath: tsBad, newStri
 T("oc after: clean allows", await after("edit", { filePath: tsGood, newString: "x" }), false)
 T("oc after: csharp authz throws", await after("write", { filePath: ctrlBad, content: "x" }), true)
 T("oc exposes session.idle guard", typeof hooks["event"], "function")
+
+// ---------------------------------------------------------------------------
+// 4. Agent frontmatter — the fails-open `Bash(...)` trap
+// ---------------------------------------------------------------------------
+// `tools: Bash(gh:*)` does not restrict anything: the specifier is silently
+// stripped, the entry resolves to bare `Bash`, and the agent gets a full unscoped
+// shell behind frontmatter that reads like a restriction. It does not error, and
+// the "fails to launch if nothing resolves" net never fires, because it DOES
+// resolve. Prose cannot catch that; this can. See CLAUDE.md, "Agent tool scoping".
+console.log("\n# agent frontmatter (fails-open Bash(...) guard)")
+
+// The sibling repo is resolved off the MAIN checkout: this suite also runs from
+// .claude/worktrees/<name>, where `../orbit-api` points into the worktree tree
+// and would silently scan nothing.
+function mainCheckoutRoot() {
+  const res = spawnSync("git", ["-C", repoRoot, "rev-parse", "--path-format=absolute", "--git-common-dir"], { encoding: "utf8" })
+  return res.status === 0 && res.stdout.trim() ? dirname(res.stdout.trim()) : repoRoot
+}
+
+function frontmatterToolEntries(body) {
+  const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(body)
+  if (!frontmatter) return []
+  return frontmatter[1]
+    .split(/\r?\n/)
+    .flatMap((line) => {
+      const match = /^(?:tools|disallowedTools):\s*(.+)$/.exec(line)
+      return match ? match[1].split(",").map((entry) => entry.trim()) : []
+    })
+    .filter(Boolean)
+}
+
+// `Agent(type)` is the one parenthesized form the frontmatter genuinely supports.
+// Every other `Tool(...)` is the trap.
+const failsOpen = (entry) => /^[A-Za-z_]\w*\s*\(/.test(entry) && !/^Agent\s*\(/.test(entry)
+
+const agentDirs = [join(repoRoot, ".claude", "agents"), join(mainCheckoutRoot(), "..", "orbit-api", ".claude", "agents")]
+let agentsScanned = 0
+for (const dir of agentDirs) {
+  if (!existsSync(dir)) {
+    console.log(`SKIP ${dir} (not present)`)
+    continue
+  }
+  for (const file of readdirSync(dir).filter((name) => name.endsWith(".md"))) {
+    agentsScanned++
+    const offenders = frontmatterToolEntries(readFileSync(join(dir, file), "utf8")).filter(failsOpen)
+    T(`agents: ${file} declares no parenthesized tool specifier`, offenders, [])
+  }
+}
+// A guard that scanned nothing passes vacuously; make that a failure instead.
+T("agents: the guard actually scanned agent files", agentsScanned > 0, true)
 
 rmSync(root, { recursive: true, force: true })
 console.log(`\n${fails === 0 ? "ORBIT HOOK PARITY OK" : `ORBIT HOOK PARITY FAILED (${fails})`}`)

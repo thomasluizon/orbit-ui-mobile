@@ -155,6 +155,25 @@ jobs:
           fi
           echo "Design token guard passed."
 
+  harness-hooks:
+    name: Harness Hook Parity
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Prove the hook rules, the real hooks, and the opencode plugin agree
+        # Zero-dependency suite (node builtins + .claude/hooks/_lib only), so no npm ci.
+        # It also carries the agent-frontmatter guard: `tools: Bash(gh:*)` fails OPEN
+        # (the specifier is stripped and the agent gets a full shell), which no linter
+        # catches. orbit-api's agents are not checked out here, so this job covers the
+        # UI repo's agents only; the local run covers both.
+        run: node .claude/hooks/test-hooks.mjs
+
   contract-drift:
     name: Contract Drift
     runs-on: ubuntu-latest

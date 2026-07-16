@@ -107,7 +107,7 @@ Show me, and wait for an explicit "go" before launching anything that spends mon
 
 - the ordered task list (id + label + repo), and any excluded "needs grooming" tasks
 - **per-task budget cap** and **total budget cap** (the hard ceiling)
-- **permission posture**: `bypassPermissions` (child does not stall on prompts; `git-guardrails` + the `disallowedTools` denylist + branch-per-task are the guardrails). Flag this plainly so I can lower it.
+- **permission posture**: `bypassPermissions` (child does not stall on prompts; `git-guardrails` + branch-per-task + the budget caps are the real guardrails — the `disallowedTools` denylist catches three literal spellings and is an accident guard, not a boundary). Flag this plainly so I can lower it.
 - **push/PR**: draft PRs will be opened tonight (CI and review bots will run on them)
 - model + fallback
 
