@@ -138,16 +138,24 @@ export function checkGitWorktreeRemove(command) {
   // A heredoc/commit-message body that merely NAMES the flag is data, not a
   // command — strip bodies before matching, same as checkGitCommand.
   const scannable = stripHeredocBodies(command)
-  if (!/\bgit\b[\s\S]*\bworktree\s+remove\b/.test(scannable)) return null
-  if (!/(?<![\w-])(?:--force|-f)(?![\w-])/.test(scannable)) return null
-  return {
-    block: true,
-    message:
-      `BLOCKED git command (worktree junction footgun):\n  ${command}\n\n` +
-      "`git worktree remove --force` follows a Windows junction/reparse-point inside the worktree and deletes the\n" +
-      "TARGET's contents, not the link. `rmdir` every junction and verify it is gone FIRST, then remove the worktree.\n" +
-      "See the SAFE worktree-junction cleanup order in CLAUDE.md.\n",
+  // Judge each segment on its own target, mirroring checkGitCommand: the force
+  // flag must belong to the SAME segment as `worktree remove`, so a later
+  // `&& npm test -- --force` cannot false-block a plain `git worktree remove`.
+  for (const segment of scannable.split(/[&|;\n]/)) {
+    if (!/\bgit\b[\s\S]*\bworktree\s+remove\b/.test(segment)) continue
+    if (!/(?<![\w-])(?:--force|-f)(?![\w-])/.test(segment)) continue
+    return {
+      block: true,
+      message:
+        `BLOCKED git command (worktree junction footgun):\n  ${command}\n\n` +
+        "`git worktree remove --force` follows a Windows junction/reparse-point inside the worktree and deletes the\n" +
+        "TARGET's contents, not the link. SAFE cleanup order:\n" +
+        "  1. `rmdir` every junction inside the worktree (removes the link, not the target).\n" +
+        "  2. Verify each junction is gone (`git status` / `dir` shows it removed).\n" +
+        "  3. THEN `git worktree remove` (no --force needed once the tree carries no reparse points).\n",
+    }
   }
+  return null
 }
 
 export function checkNpmExpoPin(command) {

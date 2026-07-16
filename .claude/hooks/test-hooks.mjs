@@ -107,6 +107,18 @@ T(
   checkGitWorktreeRemove("git commit -F - <<'EOF'\nchore: block git worktree remove --force in the junction guard\nEOF"),
   null,
 )
+// The force flag must be in the SAME segment as `worktree remove` (segment-scoped
+// like checkGitCommand) — a later `--force` on an unrelated command must not block.
+T(
+  "git-worktree: force on a later chained command allows",
+  checkGitWorktreeRemove("git worktree remove .claude/worktrees/x && npm test -- --force"),
+  null,
+)
+T(
+  "git-worktree: force in the same segment still blocks",
+  !!checkGitWorktreeRemove("git worktree remove --force .claude/worktrees/x && npm test")?.block,
+  true,
+)
 
 T("npm: update blocks", !!checkNpmExpoPin("npm update")?.block, true)
 T("npm: expo install pin blocks", !!checkNpmExpoPin("npm install expo-router@1.2.3")?.block, true)
@@ -125,9 +137,19 @@ T("ts: test file skipped", checkTsAntipatterns("/x/apps/web/a.test.ts", "console
 // Mobile Supabase must stay lazy — a module-scope throw/init crashes to a grey screen (#172/#174).
 T("supabase: module-scope throw blocks", !!checkMobileSupabaseLazy("/x/apps/mobile/lib/supabase.ts", 'throw new Error("no env")')?.block, true)
 T("supabase: top-level createClient blocks", !!checkMobileSupabaseLazy("/x/apps/mobile/lib/supabase.ts", "export const supabase = createClient(url, key)")?.block, true)
+// The realistic forms the first cut missed (PR #556 review): an indented / guard-clause
+// throw, and a TYPED top-level const — the style the real file already uses.
+T("supabase: indented guard-clause throw blocks", !!checkMobileSupabaseLazy("/x/apps/mobile/lib/supabase.ts", "const url = process.env.URL\nif (!url) throw new Error('missing')")?.block, true)
+T("supabase: typed top-level createClient blocks", !!checkMobileSupabaseLazy("/x/apps/mobile/lib/supabase.ts", "export const supabase: SupabaseClient = createClient(url, key)")?.block, true)
 T(
-  "supabase: lazy accessor allows",
+  "supabase: lazy accessor allows (throw inside a function)",
   checkMobileSupabaseLazy("/x/apps/mobile/lib/supabase.ts", "export function getSupabaseClient() {\n  if (!client) throw new Error('x')\n  return createClient(url, key)\n}"),
+  null,
+)
+// The lazy arrow form has `() =>` between `=` and createClient — must NOT false-block.
+T(
+  "supabase: lazy arrow accessor allows",
+  checkMobileSupabaseLazy("/x/apps/mobile/lib/supabase.ts", "export const getSupabaseClient = () => createClient(url, key)"),
   null,
 )
 T("supabase: off-path skipped", checkMobileSupabaseLazy("/x/apps/web/lib/supabase.ts", 'throw new Error("no env")'), null)
@@ -154,6 +176,24 @@ T(
   null,
 )
 T("ef-index: off-path skipped", checkEfMigrationRawIndex("/x/orbit-api/src/Orbit.Application/Foo.cs", 'migrationBuilder.Sql("CREATE INDEX ix_foo ON foo (bar)");'), null)
+// Multi-statement Sql(): a sibling statement's IF NOT EXISTS must not mask another
+// statement in the same call that lacks it (PR #556 review, per-statement check).
+T(
+  "ef-index: batched Sql with one non-idempotent statement blocks",
+  !!checkEfMigrationRawIndex(
+    "/x/orbit-api/src/Orbit.Infrastructure/Migrations/20260101_Add.cs",
+    'migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS ix_b ON foo (b); CREATE INDEX ix_a ON foo (a);");',
+  )?.block,
+  true,
+)
+T(
+  "ef-index: batched Sql with all idempotent statements allows",
+  checkEfMigrationRawIndex(
+    "/x/orbit-api/src/Orbit.Infrastructure/Migrations/20260101_Add.cs",
+    'migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS ix_b ON foo (b); CREATE INDEX IF NOT EXISTS ix_a ON foo (a);");',
+  ),
+  null,
+)
 T("todos: marker blocks", !!checkNewTodos("/x/apps/web/a.ts", `// ${MARK}: fix`)?.block, true)
 T("todos: tracked ref allows", checkNewTodos("/x/apps/web/a.ts", `// ${MARK} #123: later`), null)
 T("csharp-authz: missing blocks", !!checkCsharpAuthz("/x/orbit-api/src/Orbit.Api/Controllers/FooController.cs", "public class FooController {}")?.block, true)

@@ -122,17 +122,82 @@ export function checkCsharpTimezone(filePath, contents) {
   }
 }
 
+// Line numbers of every `throw` keyword that sits at module scope (bracket
+// depth 0), skipping strings and comments. Depth-tracked rather than anchored to
+// column 0, so an indented or `if (!x) throw ...` guard-clause form still counts
+// — the module-eval crash does not care about indentation.
+function moduleScopeThrowLines(contents) {
+  const lines = []
+  let depth = 0
+  let line = 1
+  let inLineComment = false
+  let inBlockComment = false
+  let stringChar = null
+  for (let i = 0; i < contents.length; i++) {
+    const ch = contents[i]
+    const next = contents[i + 1]
+    if (ch === "\n") {
+      line++
+      inLineComment = false
+      continue
+    }
+    if (inLineComment) continue
+    if (inBlockComment) {
+      if (ch === "*" && next === "/") {
+        inBlockComment = false
+        i++
+      }
+      continue
+    }
+    if (stringChar) {
+      if (ch === "\\") i++
+      else if (ch === stringChar) stringChar = null
+      continue
+    }
+    if (ch === "/" && next === "/") {
+      inLineComment = true
+      i++
+      continue
+    }
+    if (ch === "/" && next === "*") {
+      inBlockComment = true
+      i++
+      continue
+    }
+    if (ch === '"' || ch === "'" || ch === "`") {
+      stringChar = ch
+      continue
+    }
+    if (ch === "{" || ch === "(" || ch === "[") {
+      depth++
+      continue
+    }
+    if (ch === "}" || ch === ")" || ch === "]") {
+      if (depth > 0) depth--
+      continue
+    }
+    if (depth === 0 && contents.startsWith("throw", i) && !/\w/.test(contents[i - 1] || "") && !/\w/.test(contents[i + 5] || "")) {
+      lines.push(line)
+      i += 4
+    }
+  }
+  return lines
+}
+
 export function checkMobileSupabaseLazy(filePath, contents) {
   const n = norm(filePath)
   if (!/\/apps\/mobile\/.*supabase\.ts$/.test(n)) return null
   if (typeof contents !== "string") return null
 
   const findings = []
-  for (const match of contents.matchAll(/^throw\b/gm)) {
-    const lineNumber = contents.slice(0, match.index).split("\n").length
+  for (const lineNumber of moduleScopeThrowLines(contents)) {
     findings.push(`${filePath}:${lineNumber} — module-scope throw`)
   }
-  for (const match of contents.matchAll(/^(?:export\s+)?const\s+\w+\s*=\s*createClient\s*\(/gm)) {
+  // A direct top-level assignment `const supabase[: Type] = createClient(` is
+  // eager init; the type annotation is optional (that is how the real file
+  // declares its state). The lazy `() => createClient(` arrow has `() =>`
+  // between the `=` and the call, so it does not match — and stays allowed.
+  for (const match of contents.matchAll(/^(?:export\s+)?const\s+\w+\s*(?::\s*[\w.<>[\]|& ]+?\s*)?=\s*createClient\s*\(/gm)) {
     const lineNumber = contents.slice(0, match.index).split("\n").length
     findings.push(`${filePath}:${lineNumber} — top-level createClient() init`)
   }
@@ -168,11 +233,16 @@ export function checkEfMigrationRawIndex(filePath, contents) {
     }
     const sql = contents.slice(start, index - 1)
     const lineNumber = contents.slice(0, call.index).split("\n").length
-    if (/\bCREATE\s+(?:UNIQUE\s+)?INDEX\b/i.test(sql) && !/\bIF\s+NOT\s+EXISTS\b/i.test(sql)) {
-      findings.push(`${filePath}:${lineNumber} — raw CREATE INDEX without IF NOT EXISTS`)
-    }
-    if (/\bDROP\s+INDEX\b/i.test(sql) && !/\bIF\s+EXISTS\b/i.test(sql)) {
-      findings.push(`${filePath}:${lineNumber} — raw DROP INDEX without IF EXISTS`)
+    // Check each `;`-separated statement on its own — one statement's IF [NOT]
+    // EXISTS clause must not mask a sibling statement in the same batched Sql()
+    // call that lacks its own.
+    for (const statement of sql.split(";")) {
+      if (/\bCREATE\s+(?:UNIQUE\s+)?INDEX\b/i.test(statement) && !/\bIF\s+NOT\s+EXISTS\b/i.test(statement)) {
+        findings.push(`${filePath}:${lineNumber} — raw CREATE INDEX without IF NOT EXISTS`)
+      }
+      if (/\bDROP\s+INDEX\b/i.test(statement) && !/\bIF\s+EXISTS\b/i.test(statement)) {
+        findings.push(`${filePath}:${lineNumber} — raw DROP INDEX without IF EXISTS`)
+      }
     }
   }
   if (findings.length === 0) return null
