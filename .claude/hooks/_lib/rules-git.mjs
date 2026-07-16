@@ -133,6 +133,23 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
   return null
 }
 
+export function checkGitWorktreeRemove(command) {
+  if (typeof command !== "string" || !/\bgit\b/.test(command)) return null
+  // A heredoc/commit-message body that merely NAMES the flag is data, not a
+  // command — strip bodies before matching, same as checkGitCommand.
+  const scannable = stripHeredocBodies(command)
+  if (!/\bgit\b[\s\S]*\bworktree\s+remove\b/.test(scannable)) return null
+  if (!/(?<![\w-])(?:--force|-f)(?![\w-])/.test(scannable)) return null
+  return {
+    block: true,
+    message:
+      `BLOCKED git command (worktree junction footgun):\n  ${command}\n\n` +
+      "`git worktree remove --force` follows a Windows junction/reparse-point inside the worktree and deletes the\n" +
+      "TARGET's contents, not the link. `rmdir` every junction and verify it is gone FIRST, then remove the worktree.\n" +
+      "See the SAFE worktree-junction cleanup order in CLAUDE.md.\n",
+  }
+}
+
 export function checkNpmExpoPin(command) {
   if (typeof command !== "string" || !/\bnpm\b/.test(command)) return null
 

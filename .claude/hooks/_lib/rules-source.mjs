@@ -122,6 +122,71 @@ export function checkCsharpTimezone(filePath, contents) {
   }
 }
 
+export function checkMobileSupabaseLazy(filePath, contents) {
+  const n = norm(filePath)
+  if (!/\/apps\/mobile\/.*supabase\.ts$/.test(n)) return null
+  if (typeof contents !== "string") return null
+
+  const findings = []
+  for (const match of contents.matchAll(/^throw\b/gm)) {
+    const lineNumber = contents.slice(0, match.index).split("\n").length
+    findings.push(`${filePath}:${lineNumber} — module-scope throw`)
+  }
+  for (const match of contents.matchAll(/^(?:export\s+)?const\s+\w+\s*=\s*createClient\s*\(/gm)) {
+    const lineNumber = contents.slice(0, match.index).split("\n").length
+    findings.push(`${filePath}:${lineNumber} — top-level createClient() init`)
+  }
+  if (findings.length === 0) return null
+  return {
+    block: true,
+    message:
+      `Mobile Supabase must stay lazy in ${filePath}:\n` +
+      findings.map((f) => `  - ${f}`).join("\n") +
+      `\n\nKeep the client lazy behind a getSupabaseClient() accessor — never init or throw at module scope.\n` +
+      `A module-eval throw or top-level createClient() runs during the app's first import and crashes to a grey\n` +
+      `screen at launch before any error boundary mounts (#172/#174).\n`,
+  }
+}
+
+export function checkEfMigrationRawIndex(filePath, contents) {
+  const n = norm(filePath)
+  if (!/\/orbit-api\/.*Migrations\/.*\.cs$/.test(n)) return null
+  if (typeof contents !== "string") return null
+
+  const findings = []
+  const marker = /migrationBuilder\.Sql\s*\(/g
+  let call
+  while ((call = marker.exec(contents))) {
+    let index = call.index + call[0].length
+    let depth = 1
+    const start = index
+    while (index < contents.length && depth > 0) {
+      const ch = contents[index]
+      if (ch === "(") depth++
+      else if (ch === ")") depth--
+      index++
+    }
+    const sql = contents.slice(start, index - 1)
+    const lineNumber = contents.slice(0, call.index).split("\n").length
+    if (/\bCREATE\s+(?:UNIQUE\s+)?INDEX\b/i.test(sql) && !/\bIF\s+NOT\s+EXISTS\b/i.test(sql)) {
+      findings.push(`${filePath}:${lineNumber} — raw CREATE INDEX without IF NOT EXISTS`)
+    }
+    if (/\bDROP\s+INDEX\b/i.test(sql) && !/\bIF\s+EXISTS\b/i.test(sql)) {
+      findings.push(`${filePath}:${lineNumber} — raw DROP INDEX without IF EXISTS`)
+    }
+  }
+  if (findings.length === 0) return null
+  return {
+    block: true,
+    message:
+      `Non-idempotent raw index SQL in ${filePath}:\n` +
+      findings.map((f) => `  - ${f}`).join("\n") +
+      `\n\nEF applies migrations at startup on Render; a raw CREATE INDEX for an index that already exists throws\n` +
+      `Postgres 42P07 and fails the deploy. Use CREATE INDEX IF NOT EXISTS / DROP INDEX IF EXISTS (mirrors the\n` +
+      `Guard-Migrations CI). migrationBuilder.CreateIndex(...) is already idempotent-safe — this only flags raw Sql().\n`,
+  }
+}
+
 export function checkCsharpFluentConfig(filePath, contents) {
   const n = norm(filePath)
   if (!/\/orbit-api\/src\/Orbit\.Infrastructure\/Persistence\/OrbitDbContext\.cs$/.test(n)) return null
