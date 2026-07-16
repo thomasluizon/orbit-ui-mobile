@@ -1,5 +1,10 @@
 name: Android Release
 
+# Carry the dispatch inputs in the run title so `gh run list` identifies every
+# release without opening it: the default title is the workflow name, which
+# makes a list of past runs indistinguishable from one another.
+run-name: Android Release ${{ inputs.app_version }} (${{ inputs.android_version_code }}) to ${{ inputs.track }} on ${{ github.ref_name }}
+
 on:
   workflow_dispatch:
     inputs:
@@ -53,6 +58,64 @@ jobs:
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
     steps:
+      # First step on purpose: every later step can fail, and when one does the
+      # log must still say what was being shipped and how to reproduce it. Run
+      # 29512207801 failed in an early guard and recorded nothing about the
+      # version, track, or branch it was building.
+      - name: Show release parameters
+        shell: bash
+        env:
+          APP_VERSION: ${{ inputs.app_version }}
+          ANDROID_VERSION_CODE: ${{ inputs.android_version_code }}
+          RELEASE_TRACK: ${{ inputs.track }}
+          CLEAR_CACHE: ${{ inputs.clear_cache }}
+          VALIDATE_EXPO_DEPENDENCIES: ${{ inputs.validate_expo_dependencies }}
+          BUILD_MESSAGE: ${{ inputs.message }}
+        run: |
+          set -euo pipefail
+
+          # Re-dispatching needs the branch, but reproducing a specific red run
+          # needs the commit: the branch will have moved on by then.
+          echo "app version:    ${APP_VERSION}"
+          echo "versionCode:    ${ANDROID_VERSION_CODE}"
+          echo "track:          ${RELEASE_TRACK}"
+          echo "branch:         ${GITHUB_REF_NAME}"
+          echo "commit:         ${GITHUB_SHA}"
+          echo "clear cache:    ${CLEAR_CACHE}"
+          echo "expo dep check: ${VALIDATE_EXPO_DEPENDENCIES}"
+          echo "message:        ${BUILD_MESSAGE:-<none>}"
+          echo "triggered by:   ${GITHUB_ACTOR}"
+
+          RERUN_COMMAND=$(printf 'gh workflow run android-release.yml --repo %s --ref %s -f app_version=%s -f android_version_code=%s -f track=%s -f clear_cache=%s -f validate_expo_dependencies=%s' \
+            "${GITHUB_REPOSITORY}" "${GITHUB_REF_NAME}" "${APP_VERSION}" "${ANDROID_VERSION_CODE}" \
+            "${RELEASE_TRACK}" "${CLEAR_CACHE}" "${VALIDATE_EXPO_DEPENDENCIES}")
+          if [ -n "${BUILD_MESSAGE}" ]; then
+            RERUN_COMMAND="${RERUN_COMMAND} -f message=$(printf '%q' "${BUILD_MESSAGE}")"
+          fi
+
+          echo "re-run:         ${RERUN_COMMAND}"
+
+          {
+            echo "### Release parameters"
+            echo
+            echo "| Parameter | Value |"
+            echo "| --- | --- |"
+            echo "| App version | \`${APP_VERSION}\` |"
+            echo "| versionCode | \`${ANDROID_VERSION_CODE}\` |"
+            echo "| Track | \`${RELEASE_TRACK}\` |"
+            echo "| Branch | \`${GITHUB_REF_NAME}\` |"
+            echo "| Commit | \`${GITHUB_SHA}\` |"
+            echo "| Clear cache | \`${CLEAR_CACHE}\` |"
+            echo "| Expo dep check | \`${VALIDATE_EXPO_DEPENDENCIES}\` |"
+            echo "| Triggered by | \`${GITHUB_ACTOR}\` |"
+            echo
+            echo "Re-run this release with the same values:"
+            echo
+            echo '```bash'
+            echo "${RERUN_COMMAND}"
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
       # The isolated node_modules copy + Expo prebuild + a full Gradle release
       # bundle (with Sentry sourcemaps) overrun the ~14 GB free on ubuntu-latest,
       # crashing the runner with "No space left on device" mid-build:
