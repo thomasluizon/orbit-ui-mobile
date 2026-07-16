@@ -76,3 +76,6 @@ yarn-debug.log*
 yarn-error.log*
 
 .claude/sweeps/
+
+# foglamp scan (edit token in scan.lock.json is a secret)
+.foglamp/
