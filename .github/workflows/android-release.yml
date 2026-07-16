@@ -144,27 +144,30 @@ jobs:
           java-version: "17"
           cache: gradle
 
+      # SENTRY_AUTH_TOKEN belongs here with the rest: the Sentry sourcemap upload
+      # runs inside the Gradle bundle task, so a missing token surfaced ~15 minutes
+      # into the build instead of in this one-second guard.
       - name: Validate release secrets
         shell: bash
         env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: |
           set -euo pipefail
 
           REQUIRED_SECRETS=(
-            "EXPO_TOKEN"
             "GOOGLE_PLAY_SERVICE_ACCOUNT_JSON"
             "GOOGLE_SERVICES_JSON"
             "ANDROID_KEYSTORE_BASE64"
             "ANDROID_KEYSTORE_PASSWORD"
             "ANDROID_KEY_ALIAS"
             "ANDROID_KEY_PASSWORD"
+            "SENTRY_AUTH_TOKEN"
           )
 
           for secret_name in "${REQUIRED_SECRETS[@]}"; do
@@ -173,6 +176,33 @@ jobs:
               exit 1
             fi
           done
+
+      # Google Play's API track names differ from this workflow's user-facing track
+      # input: "closed" testing is the alpha track and "open" testing is the beta
+      # track. eas.json's submit profiles held that mapping; keep it in one explicit
+      # place now that the upload talks to the Play Developer API directly. Resolved
+      # here rather than next to the upload so an unmappable track fails in seconds
+      # instead of after the ~15 minute Gradle build.
+      - name: Resolve Google Play track
+        shell: bash
+        env:
+          RELEASE_TRACK: ${{ inputs.track }}
+        run: |
+          set -euo pipefail
+
+          case "${RELEASE_TRACK}" in
+            internal) play_track="internal" ;;
+            closed) play_track="alpha" ;;
+            open) play_track="beta" ;;
+            production) play_track="production" ;;
+            *)
+              echo "::error::Unknown release track: ${RELEASE_TRACK}"
+              exit 1
+              ;;
+          esac
+
+          echo "PLAY_TRACK=${play_track}" >> "${GITHUB_ENV}"
+          echo "Release track ${RELEASE_TRACK} uploads to the Google Play ${play_track} track."
 
       - name: Prepare isolated mobile release workspace
         shell: bash
@@ -228,17 +258,6 @@ jobs:
           set -euo pipefail
           cat <<'EOF' > google-services.json
           ${{ secrets.GOOGLE_SERVICES_JSON }}
-          EOF
-
-      - name: Write Google Play service account key
-        working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
-        shell: bash
-        env:
-          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
-        run: |
-          set -euo pipefail
-          cat <<'EOF' > play-service-account.json
-          ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
           EOF
 
       - name: Resolve build target
@@ -400,22 +419,25 @@ jobs:
           if-no-files-found: error
           compression-level: 0
 
+      # Uploads straight to the Play Developer API. eas-cli submit routed the AAB
+      # through Expo's GCS bucket and sent the Play service account key to Expo's
+      # backend to make this same androidpublisher call, which put a third party and
+      # an Expo account (EXPO_TOKEN) on the release path for no capability gained.
+      # Pinned to the v1.1.5 commit: this step handles the Play signing credential,
+      # and a floating tag would let an upstream retag change what runs here.
       - name: Submit build to Google Play
-        working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
-        shell: bash
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          RELEASE_TRACK: ${{ inputs.track }}
-        run: |
-          set -euo pipefail
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: org.useorbit.app
+          releaseFiles: ${{ env.RELEASE_WORKDIR }}/apps/mobile/android/app/build/outputs/bundle/release/app-release.aab
+          tracks: ${{ env.PLAY_TRACK }}
+          status: completed
+          mappingFile: ${{ env.RELEASE_WORKDIR }}/apps/mobile/android/app/build/outputs/mapping/release/mapping.txt
 
-          npx eas-cli@latest submit \
-            --platform android \
-            --profile "${RELEASE_TRACK}" \
-            --path android/app/build/outputs/bundle/release/app-release.aab \
-            --non-interactive
-
-      - name: Remove temporary Play service account key
+      # The workspace holds google-services.json, the decoded upload keystore and the
+      # generated Android project, so it is removed whatever the outcome.
+      - name: Remove the isolated release workspace
         if: always()
         shell: bash
         run: rm -rf "${RELEASE_WORKDIR}"
