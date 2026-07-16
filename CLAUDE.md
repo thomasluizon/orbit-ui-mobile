@@ -63,7 +63,7 @@ Grep a doc's `At a glance` header before loading the whole file.
 |---|---|
 | `DESIGN.md` | Authoritative UI spec: navy-violet anchor, semantic tokens, 412px shell. |
 | `FEATURES.md` | Code-derived, gating- and platform-aware map of every capability. |
-| `WORKFLOW.md` | Path-picking guide (tiny bug / real bug / medium feature / multi-issue). |
+| `WORKFLOW.md` | Path-picking guide (`/execute` / `/drive` / `/night-run` / campaign) + the model & effort routing table. |
 | `TESTING.md` | How to write tests here + the catalog of every suite and what each proves. |
 | `research.md` | Agentic-harness research + the locked harness design decisions. |
 | `.claude/research/*` | Deep-research dossiers behind the harness (memory model, env overhaul, opencode/GLM, upgrade plan). |
