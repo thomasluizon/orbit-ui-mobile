@@ -48,7 +48,6 @@ jobs:
     name: Build and publish Android app
     runs-on: ubuntu-latest
     env:
-      RELEASE_WORKDIR: ${{ github.workspace }}/.release-mobile
       EAS_BUILD_PROFILE: production
       EXPO_PUBLIC_ADMOB_USE_TEST_IDS: "false"
       EXPO_PUBLIC_ADMOB_ANDROID_APP_ID: ca-app-pub-8521676951882691~5595921738
@@ -142,29 +141,42 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-          cache: gradle
 
+      # setup-java's `cache: gradle` only cached downloaded dependencies. This caches
+      # the Gradle build cache too, so unchanged tasks are restored instead of rerun
+      # on a runner that starts empty every release. The two must not both run --
+      # gradle/actions documents that its caching interferes with setup-java's, so
+      # `cache: gradle` above is deliberately gone rather than kept alongside:
+      # https://github.com/gradle/actions/blob/main/docs/setup-gradle.md
+      - name: Set up Gradle with dependency and build caching
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
+        with:
+          cache-read-only: false
+
+      # SENTRY_AUTH_TOKEN belongs here with the rest: the Sentry sourcemap upload
+      # runs inside the Gradle bundle task, so a missing token surfaced ~15 minutes
+      # into the build instead of in this one-second guard.
       - name: Validate release secrets
         shell: bash
         env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: |
           set -euo pipefail
 
           REQUIRED_SECRETS=(
-            "EXPO_TOKEN"
             "GOOGLE_PLAY_SERVICE_ACCOUNT_JSON"
             "GOOGLE_SERVICES_JSON"
             "ANDROID_KEYSTORE_BASE64"
             "ANDROID_KEYSTORE_PASSWORD"
             "ANDROID_KEY_ALIAS"
             "ANDROID_KEY_PASSWORD"
+            "SENTRY_AUTH_TOKEN"
           )
 
           for secret_name in "${REQUIRED_SECRETS[@]}"; do
@@ -174,43 +186,57 @@ jobs:
             fi
           done
 
-      - name: Prepare isolated mobile release workspace
+      # Google Play's API track names differ from this workflow's user-facing track
+      # input: "closed" testing is the alpha track and "open" testing is the beta
+      # track. eas.json's submit profiles held that mapping; keep it in one explicit
+      # place now that the upload talks to the Play Developer API directly. Resolved
+      # here rather than next to the upload so an unmappable track fails in seconds
+      # instead of after the ~15 minute Gradle build.
+      - name: Resolve Google Play track
         shell: bash
+        env:
+          RELEASE_TRACK: ${{ inputs.track }}
         run: |
           set -euo pipefail
-          node apps/mobile/scripts/prepare-release-workspace.js "${RELEASE_WORKDIR}"
 
-      # The isolated workspace is a copy of apps/mobile only, so the repo-root
-      # .npmrc (legacy-peer-deps=true) does not apply here. Pass the flag
-      # explicitly: worklets 0.10.0 is the ABI pair for reanimated 4.5.0 and must
-      # not be "fixed" to a newer patch to satisfy an advisory peer range.
-      - name: Install isolated mobile dependencies
-        working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
-        run: npm install --package-lock=false --prefer-offline --no-audit --fund=false --legacy-peer-deps
+          case "${RELEASE_TRACK}" in
+            internal) play_track="internal" ;;
+            closed) play_track="alpha" ;;
+            open) play_track="beta" ;;
+            production) play_track="production" ;;
+            *)
+              echo "::error::Unknown release track: ${RELEASE_TRACK}"
+              exit 1
+              ;;
+          esac
 
-      # The isolated workspace installs without a lockfile, so every native module
-      # whose range is not exactly pinned floats to whatever is newest at build
-      # time and the AAB ships native code no local install or CI job ever built.
-      # That drift broke this release when @expo/ui floated to 57.0.6, which calls
-      # expo.modules.kotlin.types.ColorCompat (added in expo-modules-core 57.0.4)
-      # while expo-modules-core is pinned at 57.0.3, failing R8 11 minutes in:
-      # https://github.com/thomasluizon/orbit-ui-mobile/actions/runs/29514193887
-      # The root lockfile is the verified set, so assert the release tree matches
-      # it rather than hand-maintaining a list of modules to watch.
-      - name: Guard release native modules match the repo-root lockfile
-        shell: bash
-        run: |
-          set -euo pipefail
-          node apps/mobile/scripts/verify-release-native-modules.js \
-            "${GITHUB_WORKSPACE}" "${RELEASE_WORKDIR}/apps/mobile"
+          echo "PLAY_TRACK=${play_track}" >> "${GITHUB_ENV}"
+          echo "Release track ${RELEASE_TRACK} uploads to the Google Play ${play_track} track."
+
+      # The release used to copy apps/mobile into an isolated workspace and install
+      # there with --package-lock=false, which resolved every dependency fresh from
+      # the registry at release time. That shipped an AAB built from a tree no local
+      # install or CI job ever had: 13 of 57 native modules and 87 JS packages
+      # resolved to versions the lockfile does not hold, and one of them (@expo/ui
+      # floating to 57.0.6 against expo-modules-core 57.0.3) failed R8 11 minutes
+      # into run 29514193887.
+      #
+      # npm ci installs exactly the committed lockfile, so the release tree is the
+      # tree the repo develops and tests against by construction -- no pins to
+      # maintain and no drift guard to run. The isolated workspace only ever existed
+      # to dodge npm hoisting; its stated blocker (@expo/cli crashing on the tsconfig
+      # extends chain) does not reproduce here -- prebuild runs clean in place, which
+      # is what scripts/android-release-apk.js has always done locally.
+      - name: Install dependencies from the lockfile
+        run: npm ci --prefer-offline --no-audit --fund=false
 
       - name: Validate Expo dependency compatibility
         if: ${{ inputs.validate_expo_dependencies }}
-        working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
+        working-directory: apps/mobile
         run: npx expo install --check
 
       - name: Set Expo app version
-        working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
+        working-directory: apps/mobile
         shell: bash
         env:
           APP_VERSION: ${{ inputs.app_version }}
@@ -220,7 +246,7 @@ jobs:
           node scripts/set-app-version.js "${APP_VERSION}" "${ANDROID_VERSION_CODE}"
 
       - name: Write Firebase Google services config
-        working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
+        working-directory: apps/mobile
         shell: bash
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
@@ -228,17 +254,6 @@ jobs:
           set -euo pipefail
           cat <<'EOF' > google-services.json
           ${{ secrets.GOOGLE_SERVICES_JSON }}
-          EOF
-
-      - name: Write Google Play service account key
-        working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
-        shell: bash
-        env:
-          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
-        run: |
-          set -euo pipefail
-          cat <<'EOF' > play-service-account.json
-          ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
           EOF
 
       - name: Resolve build target
@@ -253,12 +268,16 @@ jobs:
           echo "BUILD_EAS_PROFILE=production" >> "${GITHUB_ENV}"
           echo "Build target: PROD (api_base=${PROD_API_BASE}, real AdMob IDs)"
 
+      # EXPO_NO_METRO_WORKSPACE_ROOT pins Metro's root to apps/mobile instead of the
+      # monorepo root, matching what scripts/android-release-apk.js has always set for
+      # the local build off this same tree.
       - name: Validate Expo config resolves production AdMob IDs
-        working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
+        working-directory: apps/mobile
         shell: bash
         env:
           CI: "1"
           EXPO_NO_TELEMETRY: "1"
+          EXPO_NO_METRO_WORKSPACE_ROOT: "1"
         run: |
           set -euo pipefail
 
@@ -267,11 +286,12 @@ jobs:
           node scripts/assert-production-admob-config.js expo-public-config.json
 
       - name: Generate Android project with Expo prebuild
-        working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
+        working-directory: apps/mobile
         shell: bash
         env:
           CI: "1"
           EXPO_NO_TELEMETRY: "1"
+          EXPO_NO_METRO_WORKSPACE_ROOT: "1"
           EAS_BUILD_PROFILE: ${{ env.BUILD_EAS_PROFILE }}
           EXPO_PUBLIC_API_BASE: ${{ env.BUILD_API_BASE }}
           EXPO_PUBLIC_ADMOB_USE_TEST_IDS: ${{ env.BUILD_ADMOB_USE_TEST_IDS }}
@@ -284,7 +304,7 @@ jobs:
           npx expo prebuild --platform android --no-install
 
       - name: Validate generated Android project does not contain sample AdMob IDs
-        working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
+        working-directory: apps/mobile
         shell: bash
         run: |
           set -euo pipefail
@@ -317,7 +337,7 @@ jobs:
           echo "Generated Android project AdMob validation passed."
 
       - name: Configure Android release signing
-        working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
+        working-directory: apps/mobile
         shell: bash
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -328,27 +348,69 @@ jobs:
           set -euo pipefail
           node scripts/configure-android-release-signing.js
 
+      # The C++ in worklets and reanimated is recompiled from scratch every release:
+      # android/ is gitignored and regenerated by prebuild, so no native build output
+      # survives to be reused. ccache keys on preprocessed source content instead,
+      # which the pinned native module set (#545) makes stable across runs.
+      # compiler_check=content is required on CI because ccache's default timestamp
+      # check never hits on a runner that redownloads its toolchain every time:
+      # https://reactnative.dev/docs/build-speed
+      - name: Set up ccache for the native C++ builds
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ccache
+
+          ccache --set-config=max_size=2G
+          ccache --set-config=compiler_check=content
+          ccache --zero-stats
+          ccache --show-config | grep -E "max_size|compiler_check"
+
+      # Keyed on the lockfile: a dependency change moves the native sources, and a
+      # stale entry should be missed rather than reused. run_id keeps each run's cache
+      # unique to write, with restore-keys falling back to the newest compatible one.
+      - name: Restore the ccache directory
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-android-release-${{ hashFiles('package-lock.json') }}-${{ github.run_id }}
+          restore-keys: |
+            ccache-android-release-${{ hashFiles('package-lock.json') }}-
+            ccache-android-release-
+
+      # CMake initializes CMAKE_<LANG>_COMPILER_LAUNCHER from the environment variable
+      # of the same name, so routing the NDK compiles through ccache needs no change to
+      # the generated CMake files of every native module:
+      # https://cmake.org/cmake/help/latest/variable/CMAKE_LANG_COMPILER_LAUNCHER.html
       - name: Build signed AAB with Gradle
-        working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile/android
+        working-directory: apps/mobile/android
         shell: bash
         env:
           CLEAR_CACHE: ${{ inputs.clear_cache }}
           EAS_BUILD_PROFILE: ${{ env.BUILD_EAS_PROFILE }}
           EXPO_PUBLIC_API_BASE: ${{ env.BUILD_API_BASE }}
           EXPO_PUBLIC_ADMOB_USE_TEST_IDS: ${{ env.BUILD_ADMOB_USE_TEST_IDS }}
+          CMAKE_C_COMPILER_LAUNCHER: ccache
+          CMAKE_CXX_COMPILER_LAUNCHER: ccache
         run: |
           set -euo pipefail
 
           if [ "${CLEAR_CACHE}" = "true" ]; then
             rm -rf "${HOME}/.gradle/caches"
             rm -rf .gradle
+            ccache --clear
           fi
 
           chmod +x gradlew
-          ./gradlew --no-daemon bundleRelease
+          ./gradlew --no-daemon --build-cache bundleRelease
+
+          echo "ccache statistics for this build:"
+          ccache --show-stats
 
       - name: Verify Android widget is bundled in release manifest
-        working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile/android
+        working-directory: apps/mobile/android
         shell: bash
         run: |
           set -euo pipefail
@@ -373,7 +435,7 @@ jobs:
           exit 1
 
       - name: Verify AD_ID permission is in release manifest
-        working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile/android
+        working-directory: apps/mobile/android
         shell: bash
         run: |
           set -euo pipefail
@@ -396,26 +458,36 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: android-release-aab
-          path: ${{ env.RELEASE_WORKDIR }}/apps/mobile/android/app/build/outputs/bundle/release/app-release.aab
+          path: apps/mobile/android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
           compression-level: 0
 
+      # Uploads straight to the Play Developer API. eas-cli submit routed the AAB
+      # through Expo's GCS bucket and sent the Play service account key to Expo's
+      # backend to make this same androidpublisher call, which put a third party and
+      # an Expo account (EXPO_TOKEN) on the release path for no capability gained.
+      # Pinned to the v1.1.5 commit: this step handles the Play signing credential,
+      # and a floating tag would let an upstream retag change what runs here.
       - name: Submit build to Google Play
-        working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: org.useorbit.app
+          releaseFiles: apps/mobile/android/app/build/outputs/bundle/release/app-release.aab
+          tracks: ${{ env.PLAY_TRACK }}
+          status: completed
+          mappingFile: apps/mobile/android/app/build/outputs/mapping/release/mapping.txt
+
+      # The build materializes the Firebase config, the decoded upload keystore and
+      # the keystore passwords into the checkout, so they are removed whatever the
+      # outcome rather than left for a later step to pick up.
+      - name: Remove the release secrets from the checkout
+        if: always()
         shell: bash
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          RELEASE_TRACK: ${{ inputs.track }}
         run: |
           set -euo pipefail
 
-          npx eas-cli@latest submit \
-            --platform android \
-            --profile "${RELEASE_TRACK}" \
-            --path android/app/build/outputs/bundle/release/app-release.aab \
-            --non-interactive
-
-      - name: Remove temporary Play service account key
-        if: always()
-        shell: bash
-        run: rm -rf "${RELEASE_WORKDIR}"
+          rm -f apps/mobile/google-services.json
+          rm -f apps/mobile/expo-public-config.json
+          rm -f apps/mobile/android/keystore.properties
+          rm -f apps/mobile/android/app/upload-keystore.jks
