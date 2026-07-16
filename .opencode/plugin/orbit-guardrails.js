@@ -62,6 +62,11 @@ export default async ({ directory, worktree } = {}) => {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
     }).trim()
+  const resolveRemoteUrl = (d) =>
+    execFileSync("git", ["-C", d || dir, "remote", "get-url", "origin"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim()
 
   return {
     "tool.execute.before": async (input, output) => {
@@ -69,7 +74,7 @@ export default async ({ directory, worktree } = {}) => {
         const tool = input?.tool
         const args = output?.args || {}
         if (tool === "bash" && typeof args.command === "string") {
-          throwBlocks([git.checkGitCommand(args.command, { resolveHeadBranch, cwd: dir }), git.checkNpmExpoPin(args.command)], "command")
+          throwBlocks([git.checkGitCommand(args.command, { resolveHeadBranch, resolveRemoteUrl, cwd: dir }), git.checkNpmExpoPin(args.command)], "command")
         } else if (tool === "edit" || tool === "write") {
           const { filePath, addedText } = io.fromOpenCodeEdit(args)
           if (filePath && addedText) {
