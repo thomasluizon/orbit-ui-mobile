@@ -4,10 +4,70 @@
 // Both the Claude Code PreToolUse(Bash) hooks and the opencode
 // tool.execute.before plugin call these.
 
-export function checkGitCommand(command, { resolveHeadBranch, cwd } = {}) {
+// Branch protection is Orbit's, not a universal law. These three repos have it;
+// a session launched from orbit-ui-mobile routinely drives sibling repos (the
+// brain vault, thomas-brain) whose sanctioned workflow IS direct-to-main, and
+// blocking those was a false positive that forced a manual push workaround.
+const PROTECTED_REPOS = ["orbit-ui-mobile", "orbit-api", "orbit-landing-page"]
+
+const unquote = (token) => token.replace(/^["']|["']$/g, "")
+
+function repoNameFrom(remoteUrl) {
+  if (typeof remoteUrl !== "string") return null
+  const trimmed = remoteUrl.trim().replace(/\.git$/, "")
+  return trimmed ? (trimmed.split(/[/:]/).filter(Boolean).pop() ?? null) : null
+}
+
+// Fails SAFE: when the target repo cannot be resolved, assume it is protected.
+// Wrongly blocking a push is recoverable; wrongly allowing one onto main is not.
+function targetsProtectedRepo(dir, resolveRemoteUrl) {
+  if (typeof resolveRemoteUrl !== "function") return true
+  try {
+    const name = repoNameFrom(resolveRemoteUrl(dir))
+    return name ? PROTECTED_REPOS.includes(name) : true
+  } catch {
+    return true
+  }
+}
+
+// The push may target another repo: `git -C <dir> push`, or a `cd <dir> &&`
+// earlier in the same chain. Honor both before falling back to the session cwd.
+function pushTargetDir(segments, pushIndex, cwd) {
+  const cMatch = /-C\s+("[^"]+"|'[^']+'|[^\s"']+)/.exec(segments[pushIndex])
+  if (cMatch) return unquote(cMatch[1])
+  for (let index = pushIndex - 1; index >= 0; index--) {
+    const cdMatch = /(?:^|\s)cd\s+("[^"]+"|'[^']+'|[^\s"']+)/.exec(segments[index])
+    if (cdMatch) return unquote(cdMatch[1])
+  }
+  return cwd
+}
+
+// A heredoc body is data, not command flags: `git commit -F -` with a message
+// that mentions the no-verify flag is writing ABOUT it, not using it, and the
+// guard blocking that is a false positive. Strip heredoc bodies before matching.
+// Exception: when the heredoc feeds a shell, its body IS commands, so it stays
+// in scope.
+function stripHeredocBodies(command) {
+  if (/\b(?:ba|z)?sh\s+<</.test(command)) return command
+  return command.replace(/<<-?\s*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\1[\s\S]*?^\2[ \t]*$/gm, "")
+}
+
+const blocked = (command, why) => ({
+  block: true,
+  message:
+    `BLOCKED git command (Orbit git workflow):\n  ${command}\n\n${why}\n` +
+    `The user has prevented this. See the "Git workflow" section of CLAUDE.md.\n`,
+})
+
+export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, cwd } = {}) {
   if (typeof command !== "string" || !/\bgit\b/.test(command)) return null
 
-  const rules = [
+  // Match against the command only. The full string, heredoc bodies included,
+  // is still what gets shown back in the block message.
+  const scannable = stripHeredocBodies(command)
+
+  // Hygiene rules are universal: bypassing hooks or signing is wrong anywhere.
+  const hygieneRules = [
     {
       test: /(?<![\w-])--no-verify\b/,
       why: "--no-verify skips the pre-commit/pre-push hooks. Fix what the hook flags, then commit normally.",
@@ -17,37 +77,35 @@ export function checkGitCommand(command, { resolveHeadBranch, cwd } = {}) {
       why: "This bypasses commit signing. Let the commit sign as configured.",
     },
     {
-      test: /\bgit\s+(?:-C\s+\S+\s+|-c\s+\S+\s+|-\S+\s+)*push\b[^&|;\n]*[\s:/](?:main|master)(?=$|[\s:])/,
-      why: "Direct or force push to main is forbidden (branch protection, squash-merge only). Open a PR.",
-    },
-    {
       test: /\bgit\s+(?:-C\s+\S+\s+|-c\s+\S+\s+)*commit\s+(?:-[A-Za-z]\s+)*-n(?=\s|$)/,
       why: "`-n` is git's short alias for --no-verify on commit; it skips the pre-commit hooks. Commit normally.",
     },
   ]
+  const hit = hygieneRules.find((rule) => rule.test.test(scannable))
+  if (hit) return blocked(command, hit.why)
 
-  const hit = rules.find((rule) => rule.test.test(command))
-  if (hit) {
-    return {
-      block: true,
-      message:
-        `BLOCKED git command (Orbit git workflow):\n  ${command}\n\n${hit.why}\n` +
-        `The user has prevented this. See the "Git workflow" section of CLAUDE.md.\n`,
-    }
+  // Everything below is branch protection, so it applies only to the repos that
+  // actually have it.
+  const segments = scannable.split(/[&|;\n]/)
+  const pushIndex = segments.findIndex((segment) => /\bgit\b[\s\S]*\bpush\b/.test(segment))
+  if (pushIndex === -1) return null
+  const targetDir = pushTargetDir(segments, pushIndex, cwd)
+  if (!targetsProtectedRepo(targetDir, resolveRemoteUrl)) return null
+
+  if (/\bgit\s+(?:-C\s+\S+\s+|-c\s+\S+\s+|-\S+\s+)*push\b[^&|;\n]*[\s:/](?:main|master)(?=$|[\s:])/.test(scannable)) {
+    return blocked(command, "Direct or force push to main is forbidden (branch protection, squash-merge only). Open a PR.")
   }
 
   // A bare push (no explicit main/master ref) issued while HEAD is on the
   // protected branch still lands on main. Resolve HEAD via the injected resolver.
-  const segment = command.split(/[&|;\n]/).find((s) => /\bgit\b[\s\S]*\bpush\b/.test(s))
-  if (segment && typeof resolveHeadBranch === "function") {
+  if (typeof resolveHeadBranch === "function") {
+    const segment = segments[pushIndex]
     const afterPush = segment.slice(segment.search(/\bpush\b/) + 4)
     const positional = afterPush.split(/\s+/).filter((token) => token && !token.startsWith("-"))
     if (positional.length <= 1) {
-      const cMatch = /-C\s+("[^"]+"|'[^']+'|[^\s"']+)/.exec(segment)
-      const dir = cMatch ? cMatch[1].replace(/^["']|["']$/g, "") : cwd
       let branch = null
       try {
-        branch = resolveHeadBranch(dir)
+        branch = resolveHeadBranch(targetDir)
       } catch {
         branch = null
       }
