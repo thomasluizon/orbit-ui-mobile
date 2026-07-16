@@ -75,10 +75,10 @@ Grep a doc's `At a glance` header before loading the whole file.
 | `FEATURES.md` | Code-derived, gating- and platform-aware map of every capability. |
 | `WORKFLOW.md` | Path-picking guide (`/execute` / `/drive` / `/night-run` / campaign) + the model & effort routing table. |
 | `TESTING.md` | How to write tests here + the catalog of every suite and what each proves. |
-| `research.md` | Agentic-harness research + the locked harness design decisions. |
-| `.claude/research/*` | Deep-research dossiers behind the harness (memory model, env overhaul, opencode/GLM, upgrade plan). |
 
 When you change a doc, update its `At a glance` header and this registry in the same edit.
+
+**Research reports do not live in this repo.** `research.md` and `.claude/research/*` were deleted on 2026-07-16: dossiers in the repo go stale silently and then get cited as authority long after their prices and versions expire. The durable knowledge behind the harness now lives in the brain vault as ADRs (`brain/2 Areas/20-29 Orbit Engineering/Decisions/`) — guardrails-over-memory-rules, autonomy-within-a-phase, refutation-over-voting, and the OpenCode Go/Zen route. `/deep-research` writes its reports there, never here. The repo holds machines; the vault holds knowledge.
 
 ## Path-picking & delegation
 

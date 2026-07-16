@@ -103,8 +103,10 @@ Findings first, then the call — and **be opinionated** (don't hand back an un-
 Offer (don't do unsolicited):
 
 - **Memory** — save the decision + the durable facts to `C:\Users\thoma\.claude\projects\C--Users-thoma-Documents-Programming-Projects-orbit-ui-mobile\memory\` (check for an existing memory to update first), with a one-line pointer in `MEMORY.md`.
-- **Report** — write the full findings to `.claude/research/<kebab-name>.md` (`mkdir -p .claude/research`).
-- **Issue** — open a tracking issue if the result is actionable work.
+- **Report** — write the findings to the **brain vault**, never into the repo. A decision goes to `brain/2 Areas/20-29 Orbit Engineering/Decisions/<Title>.md` as an ADR (or the matching area for a non-engineering topic); researched-but-undecided findings go to the area root and get linked from its MOC. Use `/brain save` or write the file directly, matching the vault's frontmatter convention.
+- **Issue** — open a tracking issue if the result is actionable work. Prefer this over a report for anything with `file:line` refs, which rot in a vault but stay verifiable in an issue.
+
+> **Do not create `.claude/research/` or a root `research.md`.** That folder existed until 2026-07-16 and was deleted: research reports in the repo go stale silently, drift from the vault, and get cited as authority long after their prices/versions expire. The vault owns knowledge; the repo owns machines (see the [[The vault holds knowledge and thomas-brain holds machines]] ADR). A report that is worth keeping is worth putting where it will be maintained.
 
 ---
 
