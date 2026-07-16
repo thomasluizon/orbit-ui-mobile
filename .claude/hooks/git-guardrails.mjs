@@ -19,7 +19,13 @@ try {
       stdio: ["ignore", "pipe", "ignore"],
     }).trim()
 
-  const verdict = checkGitCommand(command, { resolveHeadBranch, cwd: input?.cwd || process.cwd() })
+  const resolveRemoteUrl = (dir) =>
+    execFileSync("git", ["-C", dir, "remote", "get-url", "origin"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim()
+
+  const verdict = checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, cwd: input?.cwd || process.cwd() })
   if (verdict?.block) {
     process.stderr.write(verdict.message)
     process.exit(2)
