@@ -161,7 +161,7 @@ phase('Ops')
 const opsRaw = (
   await parallel(
     OPS_CHECKS.map((c) => () =>
-      agent(opsPrompt(c), { label: `ops:${c.check}`, phase: 'Ops', model: 'haiku', effort: 'low', agentType: 'audit-readonly', schema: OPS_SCHEMA })
+      agent(opsPrompt(c), { label: `ops:${c.check}`, phase: 'Ops', model: 'haiku', agentType: 'audit-readonly', schema: OPS_SCHEMA })
     )
   )
 ).filter(Boolean).flatMap((r) => r.findings || [])
@@ -174,7 +174,8 @@ if (scope !== 'api') {
       label: 'react-doctor',
       phase: 'React',
       agentType: 'general-purpose',
-      effort: 'low',
+      model: 'sonnet',
+      effort: 'medium',
       schema: REACT_DOCTOR_SCHEMA,
     })) || { ran: false, findings: [], note: 'react-doctor agent returned null (died/skipped) — treat as a Deferred coverage gap' }
 }
@@ -194,7 +195,7 @@ const opsVerdicts = (
           `Finding: severity=${f.severity} · check=${f.check} · title=${f.title} · location=${f.location || ''} · risk=${f.risk}.`,
           `Return refuted (bool) + note. If real but over-rated, set adjustedSeverity.`,
         ].join('\n'),
-        { label: `verify:${f.check}`, phase: 'Verify', model: 'haiku', effort: 'low', agentType: 'audit-readonly', schema: OPS_VERDICT }
+        { label: `verify:${f.check}`, phase: 'Verify', model: 'haiku', agentType: 'audit-readonly', schema: OPS_VERDICT }
       ).then((v) => ({ f, v }))
     )
   )

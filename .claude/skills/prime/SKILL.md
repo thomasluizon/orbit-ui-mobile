@@ -103,11 +103,13 @@ git -C "C:\Users\thoma\Documents\Programming\Projects\orbit-api" worktree add ".
 
 ### Step 3: Spawn priming subagents
 
-Use the Agent tool to spawn ONE subagent per issue, **in parallel** (multiple Agent tool calls in a single message). Each subagent:
+Use the Agent tool with `subagent_type: primer` to spawn ONE subagent per issue, **in parallel** (multiple Agent tool calls in a single message). Each subagent:
 
 - Has `cwd` set to the orbit-ui-mobile worktree path.
 - Runs `/prime <N>` inside its worktree (single-issue mode).
-- Reports back: issue title, repos label, parity flag, 3-bullet summary of the acceptance criteria.
+- Reports back: issue title, repos label, parity flag, 3-bullet summary of the acceptance criteria, and the open questions / risks.
+
+`primer` owns the model routing (Sonnet, `effort: medium`) and withholds the edit tools — priming is reading and summarizing, so it does not need the session's Opus. Never pass a `model` override at the call site: that would take precedence over the agent's own frontmatter and defeat the routing.
 
 **Concurrency cap: 3 subagents at a time.** Queue the rest. (Pass excess as a follow-up batch when the first batch completes.)
 
