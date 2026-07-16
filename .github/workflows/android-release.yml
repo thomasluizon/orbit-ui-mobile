@@ -36,7 +36,7 @@ on:
         type: boolean
         default: false
       message:
-        description: Optional build message shown in Expo
+        description: Optional note recorded in this run's log and summary
         required: false
         type: string
 
@@ -461,6 +461,24 @@ jobs:
           path: apps/mobile/android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
           compression-level: 0
+
+      # upload-google-play's validateTracks falls back to ['production'] when it
+      # receives no track, so a PLAY_TRACK that failed to reach it -- a reordered or
+      # skipped resolve step, a GITHUB_ENV that did not carry -- would publish to real
+      # users instead of failing. Refuse to upload rather than let that default stand.
+      - name: Assert the Google Play track resolved
+        shell: bash
+        env:
+          RESOLVED_PLAY_TRACK: ${{ env.PLAY_TRACK }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${RESOLVED_PLAY_TRACK}" ]; then
+            echo "::error::PLAY_TRACK is empty. upload-google-play defaults to the production track when no track is supplied, so this would publish to production."
+            exit 1
+          fi
+
+          echo "Uploading to the Google Play ${RESOLVED_PLAY_TRACK} track."
 
       # Uploads straight to the Play Developer API. eas-cli submit routed the AAB
       # through Expo's GCS bucket and sent the Play service account key to Expo's
