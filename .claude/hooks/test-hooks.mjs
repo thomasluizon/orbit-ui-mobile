@@ -59,6 +59,13 @@ T("git: heredoc message mentioning the flag allows", checkGitCommand(`git commit
 T("git: heredoc message mentioning push main allows", checkGitCommand("git commit -F - <<'EOF'\ndocs: explain why git push origin main is blocked\nEOF"), null)
 T("git: flag outside the heredoc still blocks", !!checkGitCommand(`git commit ${NV} -F - <<'EOF'\nmessage body\nEOF`)?.block, true)
 T("git: shell heredoc keeps its body in scope", !!checkGitCommand("bash <<'EOF'\ngit push origin main\nEOF")?.block, true)
+// The shell exception must be anchored to each heredoc's own consumer: a body
+// that merely mentions `bash <<` must not switch its own stripping back off.
+T(
+  "git: body mentioning a shell heredoc still gets stripped",
+  checkGitCommand(`gh pr create --body "$(cat <<'PRBODY'\nthe bash <<EOF form keeps its body; the cron does git push on main\nPRBODY\n)"`),
+  null,
+)
 T("npm: update blocks", !!checkNpmExpoPin("npm update")?.block, true)
 T("npm: expo install pin blocks", !!checkNpmExpoPin("npm install expo-router@1.2.3")?.block, true)
 T("npm: normal install allows", checkNpmExpoPin("npm install lodash"), null)

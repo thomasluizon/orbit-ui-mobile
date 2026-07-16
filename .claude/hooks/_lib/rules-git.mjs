@@ -45,11 +45,18 @@ function pushTargetDir(segments, pushIndex, cwd) {
 // A heredoc body is data, not command flags: `git commit -F -` with a message
 // that mentions the no-verify flag is writing ABOUT it, not using it, and the
 // guard blocking that is a false positive. Strip heredoc bodies before matching.
-// Exception: when the heredoc feeds a shell, its body IS commands, so it stays
-// in scope.
+//
+// Exception: when the heredoc feeds a shell, its body IS commands and stays in
+// scope. That check is anchored to the consumer immediately before each `<<`,
+// never searched across the whole string: a body that merely MENTIONS `bash <<`
+// would otherwise switch its own stripping off, which is the same
+// text-is-not-command bug one level down.
+const heredoc = /^([^\n]*?)<<-?[ \t]*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\2([^\n]*)\n[\s\S]*?^\3[ \t]*$/gm
+
 function stripHeredocBodies(command) {
-  if (/\b(?:ba|z)?sh\s+<</.test(command)) return command
-  return command.replace(/<<-?\s*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\1[\s\S]*?^\2[ \t]*$/gm, "")
+  return command.replace(heredoc, (match, beforeOperator, _quote, _tag, restOfLine) =>
+    /\b(?:ba|z)?sh[ \t]+$/.test(beforeOperator) ? match : `${beforeOperator}${restOfLine}`,
+  )
 }
 
 const blocked = (command, why) => ({
