@@ -3,7 +3,6 @@ name: parity-checker
 description: Verifies that a changed file has its cross-platform mirror. Auto-invoke after any edit to apps/web/** or apps/mobile/** that is not paired with its mirror change in the same session. Reports the missing mirror file paths.
 tools: Glob, Grep, Read
 model: haiku
-effort: low
 ---
 
 # Parity checker

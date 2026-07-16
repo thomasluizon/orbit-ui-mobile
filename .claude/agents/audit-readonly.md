@@ -3,7 +3,6 @@ name: audit-readonly
 description: Read-only fan-out worker for the assessment workflows (audit.mjs finders/skeptics/critics, prod-readiness.mjs ops/verify). Has NO write, edit, or shell tools — it can only Read/Grep/Glob and return findings via structured output. Use as the agentType for any workflow agent whose contract is "assess, never edit".
 tools: Glob, Grep, Read
 model: haiku
-effort: low
 ---
 
 # Read-only audit worker

@@ -220,7 +220,7 @@ log(`audit:${kind} · scope ${scopeLabelFor(scope)} · ${surfaces.length} surfac
 const firstPass = (
   await parallel(
     surfaces.map((s) => () =>
-      agent(finderPrompt(kind, s, scope), { label: `find:${s.label}`, phase: 'Find', model: 'haiku', effort: 'low', agentType: 'audit-readonly', schema: FINDINGS_SCHEMA })
+      agent(finderPrompt(kind, s, scope), { label: `find:${s.label}`, phase: 'Find', model: 'haiku', agentType: 'audit-readonly', schema: FINDINGS_SCHEMA })
     )
   )
 ).filter(Boolean)
@@ -234,7 +234,7 @@ async function verifySerious(candidates, phaseName) {
   const verdicts = (
     await parallel(
       now.map((f, i) => () =>
-        agent(skepticPrompt(kind, f), { label: `verify:${(f.location || String(i)).slice(0, 40)}`, phase: phaseName, model: 'haiku', effort: 'low', agentType: 'audit-readonly', schema: VERDICT_SCHEMA }).then((v) => ({ f, v }))
+        agent(skepticPrompt(kind, f), { label: `verify:${(f.location || String(i)).slice(0, 40)}`, phase: phaseName, model: 'haiku', agentType: 'audit-readonly', schema: VERDICT_SCHEMA }).then((v) => ({ f, v }))
       )
     )
   ).filter(Boolean)
@@ -259,7 +259,7 @@ let dry = 0
 const maxDry = parsedArgs.loop?.maxDryRounds ?? 2
 while (dry < maxDry && round < HARD_ROUNDS) {
   round += 1
-  const critic = await agent(criticPrompt(kind, scope, sweptLabels, kept.length), { label: `critic:round-${round}`, phase: 'Complete', model: 'haiku', effort: 'low', agentType: 'audit-readonly', schema: CRITIC_SCHEMA })
+  const critic = await agent(criticPrompt(kind, scope, sweptLabels, kept.length), { label: `critic:round-${round}`, phase: 'Complete', model: 'haiku', agentType: 'audit-readonly', schema: CRITIC_SCHEMA })
   const gaps = (critic && critic.gaps) || []
   if (!gaps.length) {
     dry += 1
@@ -268,7 +268,7 @@ while (dry < maxDry && round < HARD_ROUNDS) {
   const roundRaw = (
     await parallel(
       gaps.map((g) => () =>
-        agent(g.prompt, { label: `find:${g.label}`, phase: 'Complete', model: 'haiku', effort: 'low', agentType: 'audit-readonly', schema: FINDINGS_SCHEMA })
+        agent(g.prompt, { label: `find:${g.label}`, phase: 'Complete', model: 'haiku', agentType: 'audit-readonly', schema: FINDINGS_SCHEMA })
       )
     )
   ).filter(Boolean).flatMap((r) => r.findings || [])
