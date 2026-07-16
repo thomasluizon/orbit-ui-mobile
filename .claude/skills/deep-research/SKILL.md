@@ -54,7 +54,7 @@ For each axis write a crisp **objective** + an **output contract** (the exact st
 
 ## Phase 2 — Fan out parallel research subagents
 
-Use the **Agent tool**: **`web-researcher`** for web-research slices, `Explore` for codebase slices. Both are **leaf agents with no `Agent`/`Task` tool** — a worker structurally *cannot* spawn its own sub-agents, which is the hard cap on the recursive fan-out that has blown a whole session's rate-limit window. Workers are `sonnet`; never bump a research worker to Opus. Launch them in one message (respecting the **3-concurrent** cap; queue extras). **Every research agent prompt embeds this contract** — it is the quality core of the skill:
+Use the **Agent tool**: **`web-researcher`** for web-research slices, `Explore` for codebase slices. Both are **leaf agents with no `Agent`/`Task` tool** — a worker structurally *cannot* spawn its own sub-agents, which is the hard cap on the recursive fan-out that has blown a whole session's rate-limit window. Each keeps its own model: `web-researcher` runs `sonnet` @ `medium`, `Explore` stays on its `haiku` definition — never bump either research worker to Opus. Launch them in one message (respecting the **3-concurrent** cap; queue extras). **Every research agent prompt embeds this contract** — it is the quality core of the skill:
 
 > **Objective:** <the slice's narrow goal>.
 > **Answer exactly these questions:** <numbered list>.

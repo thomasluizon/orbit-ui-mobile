@@ -114,9 +114,9 @@ The plan file is the durable handoff; Session B implements against clean context
 
 ## Model & effort routing (applies everywhere)
 
-You drive on Opus 4.8 @ `xhigh` and never switch. Nothing here changes that — routing is **per-subagent**, and it lives in config, not in how you invoke a skill.
+You drive on Opus 4.8 @ `xhigh` by default. **Model** routing is per-subagent and lives in agent config, never in how you invoke a skill. **Effort** has one extra, documented lever: a skill's own `effort:` frontmatter overrides the session effort while that skill runs, then reverts on the next turn ([Claude Code SKILL.md frontmatter reference](https://code.claude.com/docs/en/skills)). That is still config — declared in the skill file — not an argument passed at a call site.
 
-**The rule, in one line: a subagent runs a different model ONLY if a named agent definition declares one.** Model resolves as `CLAUDE_CODE_SUBAGENT_MODEL` (unset here) → a per-invocation `model` param → the agent's `model:` frontmatter → the main conversation's model. Effort resolves the same way with one critical difference: **there is no per-invocation effort parameter** — the Agent tool exposes `model` but not `effort`. Effort is settable *only* in frontmatter. That is why routing lives in `.claude/agents/*.md` and never at a call site.
+**The rule, in one line: a subagent runs a different model ONLY if a named agent definition declares one.** Model resolves as `CLAUDE_CODE_SUBAGENT_MODEL` (unset here) → a per-invocation `model` param → the agent's `model:` frontmatter → the main conversation's model. Effort resolves from frontmatter, never a call-site argument, but from **two** frontmatter homes: **the Agent tool exposes no per-invocation effort parameter**, so a *subagent's* effort comes only from its `.claude/agents/*.md` frontmatter; a *driver-session skill's* effort comes from its `SKILL.md` frontmatter and overrides the session level for that turn. Both are a `.md` frontmatter block, which is why the routing still lives in config and never at a call site.
 
 So an anonymous subagent (no `subagent_type`) inherits your session wholesale: Opus 4.8 @ `xhigh`. That is correct for hard work and waste for grunt work.
 
@@ -125,9 +125,11 @@ So an anonymous subagent (no `subagent_type`) inherits your session wholesale: O
 | Driver | main session | Opus 4.8 | `xhigh` |
 | Search / mechanical fan-out | `Explore`, `parity-checker`, `i18n-syncer`, `audit-readonly` | Haiku 4.5 | **none possible** |
 | Structured review | `security-reviewer`, `design-reviewer`, `contract-aligner` | Sonnet 5 | `medium` |
+| Web research fan-out | `web-researcher` | Sonnet 5 | `medium` |
 | Context load | `primer` | Sonnet 5 | `medium` |
-| Plan | *(inherits)* | Opus 4.8 | `xhigh` |
-| Implement | *(inherits)* | Opus 4.8 | `xhigh` |
+| Driver skill — heavy | `/plan`, `/implement` | Opus 4.8 | `xhigh` (SKILL.md frontmatter) |
+| Driver skill — cheap | `/validate`, `/rollup` | Opus 4.8 | `low` (SKILL.md frontmatter) |
+| Driver skill — medium | `/handoff` | Opus 4.8 | `medium` (SKILL.md frontmatter) |
 
 **Haiku 4.5 supports no effort levels at all.** An `effort:` line on a `model: haiku` agent is inert — it is not a cheap setting, it is a lie. Do not add one back. Haiku is also 200k context (the others are 1M), so it cannot hold a repo-wide read.
 
