@@ -94,35 +94,38 @@ export function checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, 
   // Everything below is branch protection, so it applies only to the repos that
   // actually have it.
   const segments = scannable.split(/[&|;\n]/)
-  const pushIndex = segments.findIndex((segment) => /\bgit\b[\s\S]*\bpush\b/.test(segment))
-  if (pushIndex === -1) return null
-  const targetDir = pushTargetDir(segments, pushIndex, cwd)
-  if (!targetsProtectedRepo(targetDir, resolveRemoteUrl)) return null
 
-  if (/\bgit\s+(?:-C\s+\S+\s+|-c\s+\S+\s+|-\S+\s+)*push\b[^&|;\n]*[\s:/](?:main|master)(?=$|[\s:])/.test(scannable)) {
-    return blocked(command, "Direct or force push to main is forbidden (branch protection, squash-merge only). Open a PR.")
-  }
+  // Each push in a chained command is judged on its own target. An early push to
+  // an unprotected sibling repo must never vouch for a later push to a protected
+  // main, and a protected push must not be blamed for a `main` ref belonging to a
+  // different segment.
+  for (const [index, segment] of segments.entries()) {
+    if (!/\bgit\b[\s\S]*\bpush\b/.test(segment)) continue
+    const targetDir = pushTargetDir(segments, index, cwd)
+    if (!targetsProtectedRepo(targetDir, resolveRemoteUrl)) continue
 
-  // A bare push (no explicit main/master ref) issued while HEAD is on the
-  // protected branch still lands on main. Resolve HEAD via the injected resolver.
-  if (typeof resolveHeadBranch === "function") {
-    const segment = segments[pushIndex]
+    if (/\bgit\s+(?:-C\s+\S+\s+|-c\s+\S+\s+|-\S+\s+)*push\b[^&|;\n]*[\s:/](?:main|master)(?=$|[\s:])/.test(segment)) {
+      return blocked(command, "Direct or force push to main is forbidden (branch protection, squash-merge only). Open a PR.")
+    }
+
+    // A bare push (no explicit main/master ref) issued while HEAD is on the
+    // protected branch still lands on main. Resolve HEAD via the injected resolver.
+    if (typeof resolveHeadBranch !== "function") continue
     const afterPush = segment.slice(segment.search(/\bpush\b/) + 4)
     const positional = afterPush.split(/\s+/).filter((token) => token && !token.startsWith("-"))
-    if (positional.length <= 1) {
-      let branch = null
-      try {
-        branch = resolveHeadBranch(targetDir)
-      } catch {
-        branch = null
-      }
-      if (branch && /^(?:main|master)$/.test(branch)) {
-        return {
-          block: true,
-          message:
-            `BLOCKED git command (Orbit git workflow):\n  ${command}\n\n` +
-            `HEAD is on '${branch}'. Pushing from the protected branch is forbidden — switch to a feature branch and open a PR.\n`,
-        }
+    if (positional.length > 1) continue
+    let branch = null
+    try {
+      branch = resolveHeadBranch(targetDir)
+    } catch {
+      branch = null
+    }
+    if (branch && /^(?:main|master)$/.test(branch)) {
+      return {
+        block: true,
+        message:
+          `BLOCKED git command (Orbit git workflow):\n  ${command}\n\n` +
+          `HEAD is on '${branch}'. Pushing from the protected branch is forbidden — switch to a feature branch and open a PR.\n`,
       }
     }
   }

@@ -53,6 +53,26 @@ T("git: throwing remote resolver still blocks (fails safe)", !!checkGitCommand("
 T("git: bare push on main in a non-Orbit repo allows", checkGitCommand("git push", { resolveHeadBranch: () => "main", resolveRemoteUrl: brainRemote, cwd: "." }), null)
 T("git: no-verify blocks even in a non-Orbit repo", !!checkGitCommand("git commit -m x " + NV, { resolveRemoteUrl: brainRemote })?.block, true)
 
+// Every push in a chain is judged on its own target. Bouncing between sibling
+// repos in one command is routine, so a chain must not be decided by whichever
+// push happens to come first.
+const perDirRemote = (dir) => (/brain/.test(String(dir)) ? brainRemote() : orbitRemote())
+T(
+  "git: chained unprotected push then Orbit push main blocks",
+  !!checkGitCommand("git -C /c/brain push origin main && git -C /c/orbit-api push origin main", { resolveRemoteUrl: perDirRemote, cwd: "." })?.block,
+  true,
+)
+T(
+  "git: chained Orbit feature push then unprotected push main allows",
+  checkGitCommand("git -C /c/orbit-api push origin feature/x && git -C /c/brain push origin main", { resolveRemoteUrl: perDirRemote, cwd: "." }),
+  null,
+)
+T(
+  "git: chained unprotected push then bare Orbit push on main blocks",
+  !!checkGitCommand("git -C /c/brain push origin main && git -C /c/orbit-api push", { resolveRemoteUrl: perDirRemote, resolveHeadBranch: () => "main", cwd: "." })?.block,
+  true,
+)
+
 // A heredoc body is data, not flags: writing ABOUT a banned flag in a commit
 // message is not using it. But a heredoc feeding a shell IS commands.
 T("git: heredoc message mentioning the flag allows", checkGitCommand(`git commit -F - <<'EOF'\nfix: stop passing ${NV} in CI\nEOF`), null)
