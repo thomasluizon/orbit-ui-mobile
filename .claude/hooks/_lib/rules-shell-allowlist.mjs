@@ -9,18 +9,28 @@
 // section of CLAUDE.md. A PreToolUse hook declared in the agent's own
 // frontmatter is the only mechanism that scopes a shell to one agent.
 //
-// ORDER IS LOAD-BEARING. Metacharacters are rejected BEFORE the prefix match,
-// because a prefix allowlist alone is not a fence: `git log && echo pwned > x.ts`
-// starts with an allowed prefix and then writes a file. Rejecting `>` is what
-// actually enforces "never writes" — withholding Edit/Write from `tools:` means
-// nothing while Bash can redirect.
+// The allowlist is TWO levels, and both are load-bearing:
+//
+// 1. METACHARACTERS, rejected first. A prefix allowlist alone is not a fence:
+//    `git log && echo pwned > x.ts` starts with an allowed prefix and then writes
+//    the file.
+//
+// 2. ARGUMENTS, allowlisted per entry. Rejecting `>` is NOT sufficient to enforce
+//    "never writes" — a subcommand's own flags can write files with no shell
+//    metacharacter at all. `git log --format=format:<literal> --output=<path>`
+//    creates an arbitrary file with attacker-chosen content and is pure `git log`.
+//    (Found in review of PR #546, after the first version of this module shipped a
+//    bare prefix match and claimed the `>` rejection made writes impossible.)
+//    So every token after the matched prefix must ALSO match that entry's
+//    `argument` pattern. Blocklisting `--output` would just restart the
+//    whack-a-mole this module exists to avoid: allowlist the arguments instead.
 
 // Checked against the RAW command, so a shell-escaped metacharacter (`\&\&`) is
 // caught too. `\` itself is NOT rejected: Windows paths need it, and /prime
 // passes absolute `git -C "C:\Users\..."` paths.
 const METACHARACTERS = [
   { test: /[&|;]/, why: "Command chaining (`&`, `|`, `;`) is not allowed — only one simple command per call." },
-  { test: /[<>]/, why: "Redirection (`<`, `>`) is not allowed. This is the rule that makes 'never writes' structural: a shell that can redirect can write any file, whatever the tool list says." },
+  { test: /[<>]/, why: "Redirection (`<`, `>`) is not allowed." },
   { test: /\$/, why: "`$` is not allowed — it opens command substitution (`$(...)`) and variable expansion, both of which smuggle a second command past a prefix check." },
   { test: /`/, why: "Backtick command substitution is not allowed." },
   { test: /[\n\r]/, why: "Newlines are not allowed — a second line is a second command." },
@@ -61,13 +71,15 @@ const blocked = (agent, command, why) => ({
     `declared in .claude/agents/${agent}.md. See the "Agent tool scoping" section of CLAUDE.md.\n`,
 })
 
-const describe = (allowlist) => allowlist.map((entry) => `  ${entry.join(" ")}`).join("\n")
+const describe = (allowlist) => allowlist.map((entry) => `  ${entry.tokens.join(" ")}`).join("\n")
 
 /**
  * Verdict for one Bash command against one agent's allowlist.
  * @param {string} command raw command from the PreToolUse payload
- * @param {{allowlist: string[][], agent: string}} options the agent's allowed
- *   command prefixes (token arrays) and its name, used in the block message
+ * @param {{allowlist: Array<{tokens: string[], argument: RegExp | null}>, agent: string}} options
+ *   `tokens` is the exact leading command prefix; `argument` is the pattern EVERY
+ *   token after that prefix must match, or `null` to forbid trailing tokens
+ *   entirely. `agent` names the agent in the block message.
  * @returns {{block: true, message: string} | null} null when allowed
  */
 export function checkShellAllowlist(command, { allowlist, agent } = {}) {
@@ -91,19 +103,49 @@ export function checkShellAllowlist(command, { allowlist, agent } = {}) {
     tokens = stripped
   }
 
-  const allowed = allowlist.some((entry) => entry.every((token, index) => tokens[index] === token))
-  if (allowed) return null
+  const entry = allowlist.find((candidate) => candidate.tokens.every((token, index) => tokens[index] === token))
+  if (!entry) return blocked(agent, command, `Not on the allowlist. This agent may run only:\n${describe(allowlist)}`)
 
-  return blocked(agent, command, `Not on the allowlist. This agent may run only:\n${describe(allowlist)}`)
+  const args = tokens.slice(entry.tokens.length)
+  const prefix = entry.tokens.join(" ")
+
+  if (entry.argument === null) {
+    if (args.length > 0) return blocked(agent, command, `\`${prefix}\` takes no arguments here, but got: ${args.join(" ")}`)
+    return null
+  }
+
+  const rejected = args.find((token) => !entry.argument.test(token))
+  if (rejected !== undefined) {
+    return blocked(
+      agent,
+      command,
+      `Argument \`${rejected}\` is not allowed after \`${prefix}\`.\n` +
+        `Arguments are allowlisted, not just the command: a subcommand's own flags can write files\n` +
+        `with no shell metacharacter at all (\`git log --format=format:x --output=<path>\` writes <path>).`,
+    )
+  }
+  return null
 }
 
 // primer runs `/prime <N>` in single-issue mode and nothing else. That skill's
 // only shell steps are the issue read and the recent-state read, so this list is
-// exactly those three commands. It is deliberately NOT a general git/gh list:
-// widening it is a reviewed change, not a convenience.
+// exactly those three commands, down to the arguments each one may carry.
+// Widening it is a reviewed change, not a convenience.
 // Source: .claude/skills/prime/SKILL.md steps 1 and 4.
 export const PRIMER_SHELL_ALLOWLIST = [
-  ["gh", "issue", "view"],
-  ["git", "log"],
-  ["git", "branch", "--show-current"],
+  {
+    tokens: ["gh", "issue", "view"],
+    argument: /^(?:\d+|--repo|[\w.-]+\/[\w.-]+|--json|[a-zA-Z]+(?:,[a-zA-Z]+)*)$/,
+  },
+  {
+    tokens: ["git", "log"],
+    argument: /^(?:--oneline|-n|-\d+|\d+|--max-count=\d+)$/,
+  },
+  // Exact: `git branch` is one typo away from `-D`/`-m`. git happens to reject
+  // those alongside --show-current today, but that is git's conflict handling,
+  // not this fence's, so do not lean on it.
+  {
+    tokens: ["git", "branch", "--show-current"],
+    argument: null,
+  },
 ]

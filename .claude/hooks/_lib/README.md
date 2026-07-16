@@ -46,6 +46,16 @@ globs, which are **weaker**: the matcher tests the raw command string, so
 documents that gap where a reader will hit it. Do not describe the Claude Code
 fence as a cross-engine guarantee.
 
+**The allowlist is two levels, and level 2 is the one people forget.** Metacharacters
+(`& | ; $ backtick > < newline`) are rejected before any matching, because a prefix
+check alone lets `git log && echo pwned > x.ts` through. But that is *not* enough to
+enforce "never writes": `git log --format=format:pwned --output=x.ts` writes an
+arbitrary file with chosen content, uses no metacharacter at all, and is pure
+`git log`. So every token after the matched prefix must also match that entry's
+`argument` pattern, and entries like `git branch --show-current` take no arguments
+at all. Blocklisting `--output` would just restart the whack-a-mole — allowlist the
+arguments instead.
+
 The adapter also **fails closed** (exit 2 on an unreadable payload), unlike every
 other adapter here, which exits 0 on error so a broken hook never wedges Bash. This
 one is a security fence: an unvalidated command must not run.

@@ -132,6 +132,19 @@ T("shell: shell-escaped chaining denied", !!checkShellAllowlist("git log \\&\\& 
 // -C stripping that the /prime form depends on.
 T("shell: git -c config escape denied", !!checkShellAllowlist("git -c core.pager=sh log", PRIMER)?.block, true)
 T("shell: git --exec-path escape denied", !!checkShellAllowlist("git --exec-path=/tmp log", PRIMER)?.block, true)
+// Rejecting `>` does NOT make "never writes" structural on its own: a
+// subcommand's own flags write files with no shell metacharacter at all. These
+// two are the real thing — `git log --format=format:x --output=<path>` was a
+// verified arbitrary-file-write through the first version of this allowlist
+// (PR #546 review), which is why arguments are allowlisted and not just the
+// command prefix.
+T("shell: git log --output= (arbitrary file write, no metacharacter) denied", !!checkShellAllowlist("git log --output=/tmp/x", PRIMER)?.block, true)
+T("shell: git log --format=format:x --output= (attacker-chosen content) denied", !!checkShellAllowlist("git log -1 --format=format:pwned --output=/tmp/x", PRIMER)?.block, true)
+T("shell: git log --ext-diff denied (unlisted flag)", !!checkShellAllowlist("git log --ext-diff", PRIMER)?.block, true)
+T("shell: gh issue view --template denied (unlisted flag)", !!checkShellAllowlist("gh issue view 1 --template x", PRIMER)?.block, true)
+// The exact entry takes no arguments: git rejects -D alongside --show-current
+// today, but that is git's conflict handling, not this fence's.
+T("shell: git branch --show-current with trailing tokens denied", !!checkShellAllowlist("git branch --show-current -D main", PRIMER)?.block, true)
 // Same binary, same subcommand prefix depth, mutating verb: prove the match is
 // per-token and not a loose "starts with git/gh" check.
 T("shell: git branch -D denied", !!checkShellAllowlist("git branch -D main", PRIMER)?.block, true)
@@ -188,6 +201,8 @@ T("cc primer-allowlist: substitution -> 2", primerShell("git log $(whoami)"), 2)
 // Unlike every other adapter here (which exits 0 on error so a broken hook never
 // wedges Bash), this one is a security fence: an unvalidated command must not run.
 T("cc primer-allowlist: unreadable payload fails CLOSED -> 2", runHook("primer-shell-allowlist.mjs", { tool_name: "Bash", tool_input: {} }), 2)
+// The file-write primitive that has no shell metacharacter, through the real hook.
+T("cc primer-allowlist: git log --output= -> 2", primerShell("git log -1 --format=format:pwned --output=/tmp/orbit-poc.txt"), 2)
 
 // ---------------------------------------------------------------------------
 // 3. opencode plugin — same rules, opencode contract

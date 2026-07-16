@@ -20,7 +20,10 @@ Load context for one issue and hand back a summary. Reading and summarizing is t
 
 `/prime` is load-only, but priming ran on the session's inherited model (Opus at `xhigh`) to read files and summarize them — the most expensive tier available doing the most mechanical work in the pipeline. This agent routes priming to Sonnet and narrows the tool list.
 
-**The shell is scoped, and the scope is the point.** `Edit` and `Write` are withheld, so the edit path is closed at the tool layer. `Bash` stays because `/prime` needs `gh` and `git` — but a shell can write files by redirection, which would leave "never edits" a promise rather than a property. So on Claude Code the shell is fenced by a `PreToolUse` allowlist declared in this file's own frontmatter (`.claude/hooks/primer-shell-allowlist.mjs`). It rejects `&` `|` `;` `$` backtick `>` `<` and newlines outright, then admits only `gh issue view`, `git log`, and `git branch --show-current`. `git log && echo pwned > x.ts` is refused at the metacharacter check, before any prefix match ever runs.
+**The shell is scoped, and the scope is the point.** `Edit` and `Write` are withheld, so the edit path is closed at the tool layer. `Bash` stays because `/prime` needs `gh` and `git` — but a shell writes files, which would leave "never edits" a promise rather than a property. So on Claude Code the shell is fenced by a `PreToolUse` allowlist declared in this file's own frontmatter (`.claude/hooks/primer-shell-allowlist.mjs`), at two levels:
+
+1. **Metacharacters are rejected first** — `&` `|` `;` `$` backtick `>` `<` newline. `git log && echo pwned > x.ts` dies here, before any match runs.
+2. **Arguments are allowlisted, not just the command.** Only `gh issue view`, `git log`, and `git branch --show-current` are admitted, and each may carry only the arguments `/prime` actually needs; `git branch --show-current` takes none at all. This level exists because level 1 is not sufficient: `git log --format=format:pwned --output=x.ts` writes an arbitrary file with chosen content using no metacharacter whatsoever, and is pure `git log`. It walked through the first version of this fence.
 
 **What this does not guarantee.** Two honest limits — read them before trusting the fence:
 
