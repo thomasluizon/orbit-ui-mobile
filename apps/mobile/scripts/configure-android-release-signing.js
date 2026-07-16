@@ -218,11 +218,10 @@ if (releaseBuildTypeBlock.content.includes("signingConfig signingConfigs.debug")
   buildGradle = `${buildGradle.slice(0, releaseBuildTypeBlock.start)}${updatedReleaseBuildTypeBlock}${buildGradle.slice(releaseBuildTypeBlock.end)}`;
 }
 
-gradleProperties = upsertGradleProperty(
-  gradleProperties,
-  "org.gradle.jvmargs",
-  "-Xmx4g -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8 -XX:+HeapDumpOnOutOfMemoryError -Dkotlin.daemon.jvm.options=-Xmx1536m,-XX:MaxMetaspaceSize=512m,-Dfile.encoding=UTF-8"
-);
+// org.gradle.jvmargs is owned by plugins/with-android-release-build-fixes.js. This
+// script runs after prebuild, so upserting the property here overwrote that plugin's
+// -Xmx6144m/2048m back down to -Xmx4g/1024m on every CI release — the heap R8 and the
+// KSP worker need. The Kotlin daemon is sized separately and stays here.
 gradleProperties = upsertGradleProperty(
   gradleProperties,
   "kotlin.daemon.jvmargs",
