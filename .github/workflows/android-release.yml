@@ -146,12 +146,29 @@ jobs:
             ['expo-router', pkg.dependencies['expo-router']],
           ]
 
+          // A pin read as undefined means the entry was deleted from package.json,
+          // not that the resolve drifted: the guard silently loses its teeth for
+          // that module, so name that failure separately from a real drift.
+          const unpinned = []
           const mismatches = []
           for (const [name, expected] of checks) {
             const actual = require(`${name}/package.json`).version
+            if (expected === undefined) {
+              console.log(`UNPINNED ${name}: resolved=${actual} pinned=<missing>`)
+              unpinned.push(`${name} (resolved ${actual})`)
+              continue
+            }
             const ok = actual === expected
             console.log(`${ok ? 'ok      ' : 'MISMATCH'} ${name}: resolved=${actual} pinned=${expected}`)
             if (!ok) mismatches.push(`${name} resolved ${actual} but is pinned to ${expected}`)
+          }
+
+          if (unpinned.length > 0) {
+            console.error(
+              `::error::Guarded native modules have no version pin in apps/mobile/package.json: ${unpinned.join('; ')}. ` +
+                'Every module listed in this guard must keep an exact pin in dependencies or overrides. ' +
+                'Restore the pin instead of dropping it from the guard.'
+            )
           }
 
           if (mismatches.length > 0) {
@@ -160,8 +177,9 @@ jobs:
                 'This is the verified coherent reanimated + Expo SDK 57.0.4 set; a newer ' +
                 'resolve can break reanimated or the release build. Fix the pins/overrides in apps/mobile/package.json.'
             )
-            process.exit(1)
           }
+
+          if (unpinned.length > 0 || mismatches.length > 0) process.exit(1)
           NODE
 
       - name: Validate Expo dependency compatibility
