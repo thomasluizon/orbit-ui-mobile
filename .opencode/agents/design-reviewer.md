@@ -1,5 +1,5 @@
 ---
-description: "Reviews a frontend diff against DESIGN.md — token adherence, the AI-slop and scene-sentence tests, responsive + a11y. Use when the user asks for a design review of an apps/web, apps/mobile, or orbit-landing-page UI change."
+description: "Reviews a frontend diff against DESIGN.md's Reviewer-judgment contract — token adherence and accent rationing, the AI-slop/squint/scene-sentence tests, restraint floor, motion, states, a11y judgement. Use when the user asks for a design review of an apps/web, apps/mobile, or orbit-landing-page UI change."
 mode: subagent
 permission:
   edit: deny

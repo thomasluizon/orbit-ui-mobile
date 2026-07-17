@@ -5,8 +5,11 @@
 //
 // Mapping (opencode has no PostToolUse; tool.execute.before sees the PENDING
 // edit, tool.execute.after sees the written file):
-//   tool.execute.before(bash)        -> git guard + Expo-pin guard (block = throw)
-//   tool.execute.before(edit|write)  -> em-dash + brand-color on the added text (block)
+//   tool.execute.before(bash)        -> git guard + Expo-pin guard + secret-in-argv
+//                                       (block = throw)
+//   tool.execute.before(edit|write)  -> em-dash + brand-color + the i18n copy-register
+//                                       rules (AI-cliché, placeholder, typed UPPERCASE)
+//                                       on the added text (block)
 //   tool.execute.after(edit|write)   -> whole-file rules (ts-antipatterns, workaround
 //                                       markers, csharp authz/tz/fluentconfig) + parity;
 //                                       a throw surfaces the violation to the model the
@@ -50,9 +53,11 @@ function throwBlocks(results, tag) {
 
 export default async ({ directory, worktree } = {}) => {
   const dir = directory || worktree || process.cwd()
-  const [git, content, source, parity, io] = await Promise.all([
+  const [git, content, copy, secrets, source, parity, io] = await Promise.all([
     lib("rules-git.mjs", dir),
     lib("rules-content.mjs", dir),
+    lib("rules-copy.mjs", dir),
+    lib("rules-secrets.mjs", dir),
     lib("rules-source.mjs", dir),
     lib("rules-parity.mjs", dir),
     lib("io.mjs", dir),
@@ -75,13 +80,27 @@ export default async ({ directory, worktree } = {}) => {
         const args = output?.args || {}
         if (tool === "bash" && typeof args.command === "string") {
           throwBlocks(
-            [git.checkGitCommand(args.command, { resolveHeadBranch, resolveRemoteUrl, cwd: dir }), git.checkGitWorktreeRemove(args.command), git.checkNpmExpoPin(args.command)],
+            [
+              git.checkGitCommand(args.command, { resolveHeadBranch, resolveRemoteUrl, cwd: dir }),
+              git.checkGitWorktreeRemove(args.command),
+              git.checkNpmExpoPin(args.command),
+              secrets.checkSecretInArgv(args.command),
+            ],
             "command",
           )
         } else if (tool === "edit" || tool === "write") {
           const { filePath, addedText } = io.fromOpenCodeEdit(args)
           if (filePath && addedText) {
-            throwBlocks([content.checkEmDashes(addedText, filePath), content.checkBrandColors(addedText, filePath)], "content")
+            throwBlocks(
+              [
+                content.checkEmDashes(addedText, filePath),
+                content.checkBrandColors(addedText, filePath),
+                copy.checkAiClicheCopy(addedText, filePath),
+                copy.checkPlaceholderContent(addedText, filePath),
+                copy.checkTypedUppercase(addedText, filePath),
+              ],
+              "content",
+            )
           }
         }
       } catch (err) {

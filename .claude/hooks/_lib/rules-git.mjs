@@ -53,7 +53,12 @@ function pushTargetDir(segments, pushIndex, cwd) {
 // text-is-not-command bug one level down.
 const heredoc = /^([^\n]*?)<<-?[ \t]*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\2([^\n]*)\n[\s\S]*?^\3[ \t]*$/gm
 
-function stripHeredocBodies(command) {
+/**
+ * Strip heredoc bodies so a message that NAMES a flag is not read as using it.
+ * Exported for rules-secrets.mjs, which needs the identical text-is-not-command
+ * distinction (a commit message about `--token` must not trip the secret guard).
+ */
+export function stripHeredocBodies(command) {
   return command.replace(heredoc, (match, beforeOperator, _quote, _tag, restOfLine) =>
     /\b(?:ba|z)?sh[ \t]+$/.test(beforeOperator) ? match : `${beforeOperator}${restOfLine}`,
   )

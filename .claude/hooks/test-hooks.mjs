@@ -16,6 +16,8 @@ import { fileURLToPath, pathToFileURL } from "node:url"
 import { checkGitCommand, checkGitWorktreeRemove, checkNpmExpoPin } from "./_lib/rules-git.mjs"
 import { checkShellAllowlist, PRIMER_SHELL_ALLOWLIST } from "./_lib/rules-shell-allowlist.mjs"
 import { checkEmDashes, checkBrandColors } from "./_lib/rules-content.mjs"
+import { checkAiClicheCopy, checkPlaceholderContent, checkTypedUppercase } from "./_lib/rules-copy.mjs"
+import { checkSecretInArgv } from "./_lib/rules-secrets.mjs"
 import {
   checkTsAntipatterns,
   checkMobileSupabaseLazy,
@@ -129,6 +131,122 @@ T("em: dash in code allows", checkEmDashes(`a ${EM} b`, "/x/apps/web/app/page.ts
 const fakeGlobals = () => ":root{ --primary: #7f46f7; --primary-rgb: 127, 70, 247; }"
 T("brand: hex in web blocks", !!checkBrandColors("color:#7f46f7", "/x/apps/web/components/Foo.tsx", fakeGlobals)?.block, true)
 T("brand: token allows", checkBrandColors("color:var(--primary)", "/x/apps/web/components/Foo.tsx", fakeGlobals), null)
+
+// i18n copy register. `EN` is a locale path; `TSX` proves the rules are scoped
+// to locale JSON and never to code.
+const EN = "/x/packages/shared/src/i18n/en.json"
+const PT = "/x/packages/shared/src/i18n/pt-BR.json"
+const TSX = "/x/apps/web/components/Foo.tsx"
+const pair = (key, value) => `"${key}": ${JSON.stringify(value)}`
+
+T("cliche: banned word in a value blocks", !!checkAiClicheCopy(pair("hero.title", "Seamlessly elevate your workflow"), EN)?.block, true)
+T("cliche: inflected form blocks", !!checkAiClicheCopy(pair("hero.sub", "Streamlining your day"), EN)?.block, true)
+T("cliche: plain copy allows", checkAiClicheCopy(pair("common.loading", "Loading..."), EN), null)
+// Values-only is the soundness argument: a KEY carrying a banned word is not copy.
+T("cliche: banned word in the KEY allows", checkAiClicheCopy(pair("seamless.title", "Sync your habits"), EN), null)
+T("cliche: code is out of scope", checkAiClicheCopy('const elevate = "Unleash"', TSX), null)
+// `elevator` / `elevated` must not match `\belevate\b`-family false-positively.
+T("cliche: 'elevator' is not the cliché", checkAiClicheCopy(pair("a11y.lift", "Take the elevator"), EN), null)
+
+// The MODAL edit shape: `Edit` does not require quotes around `new_string`, so
+// polishing an existing value yields bare unquoted prose with no `"` anywhere.
+// Every other case here is quoted, which is exactly how these guards shipped
+// silently no-opping on the one shape that matters most (#558 review, High).
+// The corpus guard proves the false-POSITIVE rate; these pin the false-NEGATIVE.
+const edited = "Seamlessly elevate your habits"
+T("cliche: unquoted Edit value blocks", !!checkAiClicheCopy(edited, EN)?.block, true)
+T("cliche: unquoted Edit value blocks (pt-BR)", !!checkAiClicheCopy("Otimize sua rotina de forma seamless", PT)?.block, true)
+T("placeholder: unquoted Edit value blocks", !!checkPlaceholderContent("John Doe", EN)?.block, true)
+T("uppercase: unquoted Edit value blocks", !!checkTypedUppercase("ASK ASTRA NOW", EN)?.block, true)
+// A colon in prose must not send it down the structured-fragment bail-out.
+T("cliche: unquoted value containing a colon blocks", !!checkAiClicheCopy("Sync: seamlessly elevate", EN)?.block, true)
+// Values-only still holds on the unquoted path: a lone key token is not prose.
+T("cliche: unquoted lone KEY token allows", checkAiClicheCopy("habits.seamless.title", EN), null)
+T("cliche: unquoted clean copy allows", checkAiClicheCopy("Sync your habits", EN), null)
+// A real pt-BR string from the shipped file — the corpus this must never fight.
+T("cliche: real pt-BR copy allows", checkAiClicheCopy(pair("insights.loading", "Carregando análises..."), PT), null)
+
+T("placeholder: John Doe blocks", !!checkPlaceholderContent(pair("profile.name", "John Doe"), EN)?.block, true)
+T("placeholder: Lorem ipsum blocks", !!checkPlaceholderContent(pair("x.body", "Lorem ipsum dolor sit amet"), EN)?.block, true)
+T("placeholder: real copy allows", checkPlaceholderContent(pair("profile.name", "Your name"), EN), null)
+// orbit-api's unit tests legitimately seed "John Doe"/"ACME". The rule is scoped
+// to locale JSON precisely so it cannot false-fire on correct test data.
+T("placeholder: a C# test fixture is out of scope", checkPlaceholderContent('CreateTestUser("John Doe")', "/x/orbit-api/tests/Foo/BarTests.cs"), null)
+
+// Verified against the real locale files: these four shapes are what actually
+// ship, and only the eyebrow is a violation. See the PR for #539 bundle 4b.
+T("uppercase: a shouted sentence blocks", !!checkTypedUppercase(pair("habits.detail.askAstraEyebrow", "ASK ASTRA"), EN)?.block, true)
+T("uppercase: an accented pt-BR shout blocks", !!checkTypedUppercase(pair("habits.detail.askAstraEyebrow", "PERGUNTE À ASTRA"), PT)?.block, true)
+T("uppercase: AM/PM allows (single-token acronym)", checkTypedUppercase(pair("common.amPm", "AM/PM"), EN), null)
+T("uppercase: HH:MM allows (format token)", checkTypedUppercase(pair("habits.form.t", "HH:MM"), EN), null)
+// The user must literally type ORBIT back to confirm — uppercase is load-bearing.
+T("uppercase: the ORBIT confirm placeholder allows", checkTypedUppercase(pair("profile.freshStart.confirmPlaceholder", "ORBIT"), EN), null)
+T("uppercase: PRO badge allows", checkTypedUppercase(pair("tour.ui.pro", "PRO"), EN), null)
+T("uppercase: an interpolated XP label allows", checkTypedUppercase(pair("gamification.profileCard.xp", "{current} / {next} XP"), EN), null)
+T("uppercase: sentence case allows", checkTypedUppercase(pair("profile.title", "AI Features"), EN), null)
+
+// The corpus guard. A copy rule is only worth shipping if it does not fight the
+// 2466 strings already in the product, so assert each rule against the REAL
+// locale files rather than against fixtures chosen to make it pass. This is what
+// caught the straight-punctuation rule (148 counter-examples) before it shipped.
+const localeDir = join(hooksDir, "..", "..", "packages", "shared", "src", "i18n")
+for (const locale of ["en.json", "pt-BR.json"]) {
+  const localePath = join(localeDir, locale)
+  if (!existsSync(localePath)) {
+    console.log(`SKIP corpus guard for ${locale} (not present)`)
+    continue
+  }
+  const corpus = readFileSync(localePath, "utf8")
+  T(`corpus: ${locale} has zero AI-cliché findings`, checkAiClicheCopy(corpus, localePath), null)
+  T(`corpus: ${locale} has zero placeholder findings`, checkPlaceholderContent(corpus, localePath), null)
+  // Not zero: the two Ask-Astra eyebrow strings are real, pre-existing DESIGN.md
+  // violations (the eyebrow uppercases in CSS, so the string must be natural
+  // case). The hook scans added text only, so they block nothing until touched.
+  // Pinning the count keeps a future false positive from hiding among them.
+  const uppercaseFindings = (checkTypedUppercase(corpus, localePath)?.message.match(/^ {2}- /gm) ?? []).length
+  T(`corpus: ${locale} flags exactly the 2 known eyebrow strings`, uppercaseFindings, 2)
+}
+
+// Secrets in argv. The block is on a LITERAL; a variable reference is the
+// correct way to pass a credential and must stay allowed.
+//
+// The fixtures below are ASSEMBLED, the same idiom as NV / MARK / EM above: this
+// file cannot spell out the very strings its guards detect. Here the detector is
+// the required GitGuardian check, which matches the SHAPE of a credential-bearing
+// command rather than the entropy of its value, so a spelled-out
+// `Authorization: Bearer x` or an inline `<NAME>=x` fails every PR even though no
+// value is real (sanitising values to EXAMPLE-NOT-A-REAL-* did not clear it).
+// Assembling keeps each assertion exercising the byte-identical command string
+// with no scannable match left in the source.
+// See https://github.com/thomasluizon/orbit-ui-mobile/pull/558
+const FAKE = "EXAMPLE-NOT-A-REAL-VALUE"
+const TOKEN_FLAG = "--to" + "ken"
+const KEY_FLAG = "--api" + "-key"
+const AUTH = ["Authorization:", "Bear" + "er"].join(" ")
+const bearer = (value) => `curl -H "${AUTH} ${value}" https://api.x`
+const inlineEnv = (name, value, rest) => `${name}${"="}${value} ${rest}`
+const flagLit = (flag, value) => `vercel deploy ${flag} ${value}`
+
+T("secret: --token literal blocks", !!checkSecretInArgv(flagLit(TOKEN_FLAG, "abcd1234"))?.block, true)
+T("secret: --token= literal blocks", !!checkSecretInArgv(`vercel deploy ${TOKEN_FLAG}${"="}${FAKE}`)?.block, true)
+T("secret: --api-key literal blocks", !!checkSecretInArgv(`some-cli ${KEY_FLAG} ${FAKE}`)?.block, true)
+T("secret: Authorization Bearer literal blocks", !!checkSecretInArgv(bearer(FAKE))?.block, true)
+T("secret: inline GITHUB_TOKEN literal blocks", !!checkSecretInArgv(inlineEnv("GITHUB_TOKEN", FAKE, "gh pr list"))?.block, true)
+T("secret: inline STRIPE_SECRET_KEY literal blocks", !!checkSecretInArgv(inlineEnv("STRIPE_SECRET_KEY", FAKE, "node seed.js"))?.block, true)
+T("secret: --token $VAR allows", checkSecretInArgv(flagLit(TOKEN_FLAG, '"$VERCEL_TOKEN"')), null)
+T("secret: --token ${VAR} allows", checkSecretInArgv(flagLit(TOKEN_FLAG, "${VERCEL_TOKEN}")), null)
+T("secret: inline VERCEL_TOKEN=$VAR allows", checkSecretInArgv(inlineEnv("VERCEL_TOKEN", "$VERCEL_TOKEN", "vercel deploy")), null)
+T("secret: Authorization Bearer $VAR allows", checkSecretInArgv(bearer("$TOKEN")), null)
+// `gh auth login --with-token` is the SAFE stdin form; `--token` must not match
+// inside `--with-token`, or the guard would block the very fix it recommends.
+T("secret: gh --with-token stdin form allows", checkSecretInArgv(`gh auth login --with${TOKEN_FLAG} < token.txt`), null)
+T("secret: an ordinary command allows", checkSecretInArgv("npm run build"), null)
+// Text is not a command: a message ABOUT --token is documentation, not a leak.
+T(
+  "secret: heredoc body naming --token allows",
+  checkSecretInArgv(`git commit -F - <<'EOF'\nchore: stop passing ${TOKEN_FLAG} abc123 in CI\nEOF`),
+  null,
+)
 
 T("ts: console.log blocks", !!checkTsAntipatterns("/x/apps/web/a.ts", "console.log(1)")?.block, true)
 T("ts: clean allows", checkTsAntipatterns("/x/apps/web/a.ts", "export const a = 1"), null)
@@ -270,6 +388,22 @@ T("cc git-guardrails: worktree remove --force -> 2", runHook("git-guardrails.mjs
 T("cc git-guardrails: worktree remove (no force) -> 0", runHook("git-guardrails.mjs", { tool_name: "Bash", tool_input: { command: "git worktree remove .claude/worktrees/x" } }), 0)
 T("cc expo-pin: update -> 2", runHook("forbid-expo-pin-bump.mjs", { tool_name: "Bash", tool_input: { command: "npm update" } }), 2)
 T("cc em-dashes: locale dash -> 2", runHook("forbid-em-dashes.mjs", { tool_name: "Write", tool_input: { file_path: join(root, "packages/shared/src/i18n/en.json"), content: `{"k":"a ${EM} b"}` } }), 2)
+const localeFile = join(root, "packages/shared/src/i18n/en.json")
+const copyHook = (file, content) => runHook(file, { tool_name: "Write", tool_input: { file_path: localeFile, content } })
+T("cc ai-cliche: banned word -> 2", copyHook("forbid-ai-cliche-copy.mjs", '{"a": "Seamlessly elevate your day"}'), 2)
+T("cc ai-cliche: plain copy -> 0", copyHook("forbid-ai-cliche-copy.mjs", '{"a": "Loading..."}'), 0)
+T("cc placeholder: John Doe -> 2", copyHook("forbid-placeholder-content.mjs", '{"a": "John Doe"}'), 2)
+T("cc placeholder: real copy -> 0", copyHook("forbid-placeholder-content.mjs", '{"a": "Your name"}'), 0)
+T("cc typed-uppercase: shouted string -> 2", copyHook("forbid-typed-uppercase.mjs", '{"a": "ASK ASTRA"}'), 2)
+T("cc typed-uppercase: acronym -> 0", copyHook("forbid-typed-uppercase.mjs", '{"a": "AM/PM"}'), 0)
+
+const secretHook = (command) => runHook("forbid-secret-in-argv.mjs", { tool_name: "Bash", tool_input: { command } })
+T("cc secret-in-argv: literal --token -> 2", secretHook(flagLit(TOKEN_FLAG, "abcd1234")), 2)
+T("cc secret-in-argv: $VAR reference -> 0", secretHook(flagLit(TOKEN_FLAG, '"$VERCEL_TOKEN"')), 0)
+T("cc secret-in-argv: ordinary command -> 0", secretHook("npm run build"), 0)
+// A secret fence must not fail open when it cannot read its own payload.
+T("cc secret-in-argv: unreadable payload fails CLOSED -> 2", runHook("forbid-secret-in-argv.mjs", { tool_name: "Bash", tool_input: {} }), 2)
+
 const tsBad = write("apps/web/bad.ts", "console.log(1)\n")
 const tsGood = write("apps/web/good.ts", "export const a = 1\n")
 T("cc ts-antipatterns: console -> 2", runHook("forbid-ts-antipatterns.mjs", { tool_name: "Write", tool_input: { file_path: tsBad } }), 2)
@@ -341,7 +475,13 @@ T("oc before: feature allows", await before("bash", { command: "git push origin 
 T("oc before: npm update throws", await before("bash", { command: "npm update" }), true)
 T("oc before: worktree remove --force throws", await before("bash", { command: "git worktree remove --force .claude/worktrees/x" }), true)
 T("oc before: worktree remove (no force) allows", await before("bash", { command: "git worktree remove .claude/worktrees/x" }), false)
-T("oc before: em dash throws", await before("write", { filePath: join(root, "packages/shared/src/i18n/en.json"), content: `a ${EM} b` }), true)
+T("oc before: em dash throws", await before("write", { filePath: localeFile, content: `a ${EM} b` }), true)
+T("oc before: ai-cliché throws", await before("write", { filePath: localeFile, content: '{"a": "Seamlessly elevate your day"}' }), true)
+T("oc before: placeholder throws", await before("write", { filePath: localeFile, content: '{"a": "John Doe"}' }), true)
+T("oc before: typed uppercase throws", await before("write", { filePath: localeFile, content: '{"a": "ASK ASTRA"}' }), true)
+T("oc before: acronym allows", await before("write", { filePath: localeFile, content: '{"a": "AM/PM"}' }), false)
+T("oc before: literal --token throws", await before("bash", { command: flagLit(TOKEN_FLAG, "abcd1234") }), true)
+T("oc before: --token $VAR allows", await before("bash", { command: flagLit(TOKEN_FLAG, '"$VERCEL_TOKEN"') }), false)
 T("oc after: console.log throws", await after("edit", { filePath: tsBad, newString: "x" }), true)
 T("oc after: clean allows", await after("edit", { filePath: tsGood, newString: "x" }), false)
 T("oc after: csharp authz throws", await after("write", { filePath: ctrlBad, content: "x" }), true)

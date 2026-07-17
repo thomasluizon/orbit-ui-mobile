@@ -14,11 +14,25 @@ in **both** tools off that one core, so a fix lands in both at once (no twin dri
 | `_lib` module | rules | Claude Code hook(s) | opencode hook |
 |---|---|---|---|
 | `rules-git.mjs` | git workflow, Expo-SDK pin | git-guardrails, forbid-expo-pin-bump | tool.execute.before(bash) |
+| `rules-secrets.mjs` | literal credential in argv | forbid-secret-in-argv (**fails closed**) | tool.execute.before(bash) |
 | `rules-content.mjs` | em dashes, brand colors | forbid-em-dashes, forbid-hardcoded-brand-color | tool.execute.before(edit/write) |
+| `rules-copy.mjs` | i18n copy register: AI-cliché, placeholder content, typed UPPERCASE | forbid-ai-cliche-copy, forbid-placeholder-content, forbid-typed-uppercase | tool.execute.before(edit/write) |
 | `rules-source.mjs` | TS anti-patterns, workaround markers, csharp authz/tz/fluentconfig | forbid-ts-antipatterns, flag-new-todos, csharp-authz, csharp-tz, csharp-fluentconfig | tool.execute.after(edit/write) |
 | `rules-parity.mjs` | cross-platform parity nudge | parity-nudge | tool.execute.after(edit/write) |
 | `rules-shell-allowlist.mjs` | agent-scoped shell allowlists | primer-shell-allowlist (**agent frontmatter**, not settings.json) | **none** — see "The one rule that is not dual-target" |
 | `io.mjs` | payload normalizers (both tools) | all | all |
+
+**The copy rules are values-only, and that is the whole soundness argument.**
+`rules-copy.mjs` extracts the i18n JSON **values** an edit introduced and scans
+only those — never the keys, never code. A key named `seamless.title` is not copy,
+and flagging it would be the false positive that makes a gate worse than no gate.
+Where a fragment is structured but no `"key": "value"` pair is extractable, the
+rules fail **open**: a missed edit is cheap, a false block is not. `test-hooks.mjs`
+carries a **corpus guard** that runs each copy rule over the real `en.json` and
+`pt-BR.json` (2466 strings each) and pins the false-positive count at zero — that
+guard is what disqualified the proposed straight-punctuation rule (148
+counter-examples in shipped copy) before it could land. A copy rule that fights
+the product's own strings is wrong about the rule, not about the strings.
 
 **Mapping note.** opencode has no PostToolUse: `tool.execute.before` sees the
 pending edit (so added-text rules block before the write), and `tool.execute.after`
