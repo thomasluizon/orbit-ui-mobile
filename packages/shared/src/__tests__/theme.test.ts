@@ -9,11 +9,32 @@ import {
 } from '../theme/neutral-ramp'
 import { zLayers } from '../theme/z-layers'
 import { typeRoles } from '../theme/type-roles'
-import type { ColorScheme } from '../theme/types'
+import type { ColorScheme, SchemeMode } from '../theme/types'
 
 const ALL_SCHEMES: ColorScheme[] = ['purple', 'blue', 'green', 'rose', 'orange', 'cyan']
 
 const HEX = /^#[0-9a-f]{6}$/
+
+const relativeLuminance = (hexColor: string) => {
+  const channel = (offset: number) =>
+    Number.parseInt(hexColor.slice(offset, offset + 2), 16) / 255
+  const linear = (value: number) =>
+    value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4)
+  return (
+    0.2126 * linear(channel(1)) +
+    0.7152 * linear(channel(3)) +
+    0.0722 * linear(channel(5))
+  )
+}
+const contrastRatio = (a: string, b: string) => {
+  const first = relativeLuminance(a)
+  const second = relativeLuminance(b)
+  return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05)
+}
+const canvasFor = (scheme: ColorScheme, mode: SchemeMode) =>
+  mode === 'dark'
+    ? resolveDarkNeutrals(scheme).bg
+    : resolveLightNeutrals(scheme).bg
 
 describe('color schemes', () => {
   it('has all 6 color schemes', () => {
@@ -286,5 +307,44 @@ describe('z-index stacking scale', () => {
 
   it('keeps the modal backdrop directly beneath the modal', () => {
     expect(zLayers.modalBackdrop).toBeLessThan(zLayers.modal)
+  })
+})
+
+describe('accent-AA three-floor gate (per scheme x mode)', () => {
+  it('floor 1: the resolved fg-on-primary label clears 4.5:1 on the accent fill', () => {
+    for (const name of ALL_SCHEMES) {
+      for (const mode of ['dark', 'light'] as const) {
+        const ratio = contrastRatio(
+          schemes[name].fgOnPrimary[mode],
+          schemes[name].accent[mode].primary,
+        )
+        expect(ratio).toBeGreaterThanOrEqual(4.5)
+      }
+    }
+  })
+
+  it('floor 1 (purple): white on the CTA fill clears 4.5:1', () => {
+    for (const mode of ['dark', 'light'] as const) {
+      expect(contrastRatio('#ffffff', schemes.purple.accent[mode].primary))
+        .toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
+  it('floor 2: primary as a graphic clears 3.0:1 on its canvas', () => {
+    for (const name of ALL_SCHEMES) {
+      for (const mode of ['dark', 'light'] as const) {
+        const ratio = contrastRatio(schemes[name].accent[mode].primary, canvasFor(name, mode))
+        expect(ratio).toBeGreaterThanOrEqual(3.0)
+      }
+    }
+  })
+
+  it('floor 3: primary-soft as accent text clears 4.5:1 on its canvas', () => {
+    for (const name of ALL_SCHEMES) {
+      for (const mode of ['dark', 'light'] as const) {
+        const ratio = contrastRatio(schemes[name].primarySoft[mode], canvasFor(name, mode))
+        expect(ratio).toBeGreaterThanOrEqual(4.5)
+      }
+    }
   })
 })
