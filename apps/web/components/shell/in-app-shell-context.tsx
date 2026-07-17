@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, type ReactNode } from 'react'
+import { createContext, use, type ReactNode } from 'react'
 
 const InAppShellContext = createContext(false)
 
@@ -16,5 +16,5 @@ export function InAppShellProvider({ children }: Readonly<{ children: ReactNode 
 
 /** True only for components rendered inside the `(app)` shell. Defaults to false. */
 export function useInAppShell(): boolean {
-  return useContext(InAppShellContext)
+  return use(InAppShellContext)
 }

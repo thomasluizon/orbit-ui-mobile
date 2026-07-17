@@ -31,13 +31,12 @@ vi.mock('motion/react', () => {
     {},
     {
       get: (_target, key: string) =>
-        React.forwardRef(function MockMotionComponent(
-          props: Record<string, unknown> & { children?: React.ReactNode },
-          ref: React.ForwardedRef<unknown>,
+        function MockMotionComponent(
+          props: Record<string, unknown> & { children?: React.ReactNode; ref?: React.Ref<unknown> },
         ) {
-          const { children, ...rest } = props
+          const { children, ref, ...rest } = props
           return React.createElement(key, { ...rest, ref }, children)
-        }),
+        },
     },
   )
 

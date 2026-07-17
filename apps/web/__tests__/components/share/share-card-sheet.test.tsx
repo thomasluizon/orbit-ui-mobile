@@ -32,9 +32,9 @@ vi.mock('@/components/ui/app-overlay', () => ({
 }))
 
 vi.mock('@/components/share/share-card', () => ({
-  ShareCard: React.forwardRef<HTMLDivElement>(function ShareCard(_props, ref) {
+  ShareCard: function ShareCard({ ref }: { ref?: React.Ref<HTMLDivElement> }) {
     return <div ref={ref} data-testid="share-card" />
-  }),
+  },
 }))
 
 import { ShareCardSheet } from '@/components/share/share-card-sheet'

@@ -1,6 +1,6 @@
 'use client'
 
-import { forwardRef, type CSSProperties } from 'react'
+import { type CSSProperties, type Ref } from 'react'
 import { useTranslations } from 'next-intl'
 import type { Recap } from '@orbit/shared/types/gamification'
 import { buildShareCardStats, recapPeriodLabelKey } from '@orbit/shared/utils'
@@ -47,10 +47,11 @@ interface ShareCardProps {
 }
 
 /** Branded navy-violet recap card and the html-to-image capture target. Reused by share + Wrapped (#198) surfaces. */
-export const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(function ShareCard(
-  { recap, displayName },
+export function ShareCard({
+  recap,
+  displayName,
   ref,
-) {
+}: ShareCardProps & { ref?: Ref<HTMLDivElement> }) {
   const t = useTranslations()
   const { metrics, shareDeepLink } = recap
   const stats = buildShareCardStats(metrics)
@@ -179,4 +180,4 @@ export const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(function Sha
       )}
     </div>
   )
-})
+}

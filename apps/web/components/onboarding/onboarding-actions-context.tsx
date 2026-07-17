@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useMemo, type ReactNode } from 'react'
+import { createContext, use, useMemo, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
@@ -64,7 +64,7 @@ export function OnboardingActionsProvider({
 }
 
 function useOnboardingActionsContext(): OnboardingActionsContextValue {
-  const value = useContext(OnboardingActionsContext)
+  const value = use(OnboardingActionsContext)
   if (!value) {
     throw new Error('useOnboardingActions must be used within an OnboardingActionsProvider')
   }

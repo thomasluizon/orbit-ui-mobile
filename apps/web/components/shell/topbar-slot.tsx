@@ -2,8 +2,8 @@
 
 import {
   createContext,
+  use,
   useCallback,
-  useContext,
   useEffect,
   useId,
   useMemo,
@@ -51,7 +51,7 @@ export function TopbarSlotProvider({ children }: Readonly<{ children: ReactNode 
 
 /** Reads the current topbar-left node. Used by the shell to render it. */
 export function useTopbarSlotNode(): ReactNode {
-  return useContext(TopbarSlotContext)?.node ?? null
+  return use(TopbarSlotContext)?.node ?? null
 }
 
 /**
@@ -61,7 +61,7 @@ export function useTopbarSlotNode(): ReactNode {
  * `null` to contribute nothing.
  */
 export function useTopbarSlot(node: ReactNode): void {
-  const ctx = useContext(TopbarSlotContext)
+  const ctx = use(TopbarSlotContext)
   const setSlot = ctx?.setSlot
   const clearSlot = ctx?.clearSlot
   const ownerId = useId()

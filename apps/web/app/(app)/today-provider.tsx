@@ -2,8 +2,8 @@
 
 import {
   createContext,
+  use,
   useCallback,
-  useContext,
   useRef,
   useState,
   type ReactNode,
@@ -47,7 +47,7 @@ export function TodayProvider({ children }: Readonly<{ children: ReactNode }>) {
 
 /** The current local day as a `YYYY-MM-DD` string, advancing on day rollover. */
 export function useToday(): string {
-  const today = useContext(TodayContext)
+  const today = use(TodayContext)
   if (today === null) {
     throw new Error('useToday must be used within a TodayProvider')
   }

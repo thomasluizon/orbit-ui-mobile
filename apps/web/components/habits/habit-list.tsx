@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback, useEffect, useRef as useReactRef, forwardRef, useImperativeHandle } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef as useReactRef, useImperativeHandle, type Ref } from 'react'
 import {
   ArrowLeft,
   Home,
@@ -113,7 +113,7 @@ export interface HabitListHandle {
 const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
 
 // react-doctor-disable-next-line no-giant-component -- top-level habit-list surface owning query data, visibility, drill navigation, collapse state, and the full confirm-dialog cluster as one imperative-handle unit; extraction deferred to avoid regression without visual QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function HabitList({
+export function HabitList({
   view = 'today',
   selectedDate,
   showCompleted = false,
@@ -126,7 +126,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   onCreate,
   onSeeUpcoming,
   onAllCollapsedChange,
-}, ref) {
+  ref,
+}: HabitListProps & { ref?: Ref<HabitListHandle> }) {
   const t = useTranslations()
   const router = useRouter()
   const { profile } = useProfile()
@@ -1223,4 +1224,4 @@ const isPostponeAction = useMemo(() => {
       />
     </div>
   )
-})
+}

@@ -22,9 +22,9 @@ vi.mock('@/components/ui/app-overlay', () => ({
 }))
 
 vi.mock('@/components/milestone-share/milestone-share-card', () => ({
-  MilestoneShareCard: React.forwardRef<HTMLDivElement>(function MilestoneShareCard(_props, ref) {
+  MilestoneShareCard: function MilestoneShareCard({ ref }: { ref?: React.Ref<HTMLDivElement> }) {
     return <div ref={ref} data-testid="milestone-share-card" />
-  }),
+  },
 }))
 
 vi.mock('@/hooks/use-share-card', () => ({

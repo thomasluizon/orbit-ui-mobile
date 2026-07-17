@@ -158,10 +158,10 @@ vi.mock('@/components/referral/referral-drawer', () => ({
 }))
 
 vi.mock('@/components/habits/habit-list', () => ({
-  HabitList: React.forwardRef(function MockHabitList(props: Record<string, unknown>, ref) {
-    React.useImperativeHandle(ref, () => habitListHandle)
+  HabitList: function MockHabitList(props: Record<string, unknown> & { ref?: React.Ref<unknown> }) {
+    React.useImperativeHandle(props.ref, () => habitListHandle)
     return <div data-testid="habit-list">{JSON.stringify(props.view)}</div>
-  }),
+  },
 }))
 
 vi.mock('@/components/habits/today-ai-summary', () => ({

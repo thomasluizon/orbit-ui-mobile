@@ -13,12 +13,13 @@ vi.mock('motion/react', async () => {
         if (!cache.has(tag)) {
           cache.set(
             tag,
-            React.forwardRef(function MotionMock(
-              { children, ...props }: { children?: React.ReactNode },
-              ref: React.Ref<HTMLElement>,
-            ) {
+            function MotionMock({
+              children,
+              ref,
+              ...props
+            }: { children?: React.ReactNode; ref?: React.Ref<HTMLElement> }) {
               return React.createElement(tag, { ...props, ref }, children)
-            }),
+            },
           )
         }
         return cache.get(tag)
