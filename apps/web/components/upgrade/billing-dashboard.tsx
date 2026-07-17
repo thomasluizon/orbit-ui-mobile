@@ -55,7 +55,7 @@ export function BillingDashboard({
   usagePercent, usageUrgent, portalError, onOpenPortal, onRetryBilling, t,
 }: Readonly<BillingDashboardProps>) {
   return (
-    <div className="space-y-3 stagger-enter">
+    <div className="flex flex-col gap-3 stagger-enter">
       {isBillingLoading && (
         <>
           <div className="rounded-[18px]" style={{ padding: '16px 18px', ...cardSurface }}>

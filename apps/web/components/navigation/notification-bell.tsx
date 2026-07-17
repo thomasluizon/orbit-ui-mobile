@@ -311,7 +311,7 @@ export function NotificationBell() {
           aria-label={t('notifications.title')}
         >
           {isLoading && visibleNotifications.length === 0 && (
-            <li className="p-4 space-y-3" aria-label={t('common.loading')}>
+            <li className="flex flex-col p-4 gap-3" aria-label={t('common.loading')}>
               <div
                 className="animate-pulse"
                 style={{ height: 48, borderRadius: 12, background: 'var(--bg-elev)' }}

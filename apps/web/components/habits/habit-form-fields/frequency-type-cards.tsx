@@ -107,7 +107,7 @@ export function FrequencyTypeCards({
   }
 
   return (
-    <div className="space-y-2" role="radiogroup" aria-labelledby="habit-form-frequency-label">
+    <div className="flex flex-col gap-2" role="radiogroup" aria-labelledby="habit-form-frequency-label">
       <span id="habit-form-frequency-label" className="form-label">
         {t('habits.form.frequency')}
       </span>

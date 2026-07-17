@@ -226,10 +226,10 @@ export function HabitFormFields({
   const selectedTagIdSet = new Set(tags.selectedTagIds)
 
   return (
-    <div className="space-y-7">
-      <div className="space-y-7">
-      <div className="stagger-enter space-y-7">
-      <div className="space-y-2">
+    <div className="flex flex-col gap-7">
+      <div className="flex flex-col gap-7">
+      <div className="flex flex-col stagger-enter gap-7">
+      <div className="flex flex-col gap-2">
         <label htmlFor="habit-form-title" className="form-label">
           {t('habits.form.title')}
         </label>
@@ -307,7 +307,7 @@ export function HabitFormFields({
 
       {!isOneTime && !isGeneral && (
         <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             <label htmlFor="habit-form-frequency-qty" className="form-label">
               {isFlexible
                 ? t('habits.form.timesPerUnit')
@@ -321,7 +321,7 @@ export function HabitFormFields({
               {...register('frequencyQuantity', { valueAsNumber: true })}
             />
           </div>
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             <span id="habit-form-unit-label" className="form-label">
               {t('habits.form.unit')}
             </span>
@@ -343,7 +343,7 @@ export function HabitFormFields({
       )}
 
       {showDayPicker && !isGeneral && (
-        <fieldset className="m-0 min-w-0 space-y-2 border-0 p-0" aria-labelledby="habit-form-active-days-label">
+        <fieldset className="flex flex-col m-0 min-w-0 gap-2 border-0 p-0" aria-labelledby="habit-form-active-days-label">
           <span id="habit-form-active-days-label" className="form-label">
             {t('habits.form.activeDays')}
           </span>
@@ -364,7 +364,7 @@ export function HabitFormFields({
 
       {!isGeneral && (
         <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             <span id="habit-form-due-date-label" className="form-label">
               {t('habits.form.dueDate')}
             </span>
@@ -373,7 +373,7 @@ export function HabitFormFields({
               onChange={(val) => setValue('dueDate', val, { shouldDirty: true })}
             />
           </div>
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             <label htmlFor="habit-form-due-time" className="form-label">
               {t('habits.form.dueTime')}
             </label>
@@ -393,8 +393,8 @@ export function HabitFormFields({
       )}
       </div>
 
-      <div className="stagger-enter space-y-7">
-      <fieldset className="m-0 min-w-0 space-y-2 border-0 p-0" aria-labelledby="habit-form-tags-label">
+      <div className="flex flex-col stagger-enter gap-7">
+      <fieldset className="flex flex-col m-0 min-w-0 gap-2 border-0 p-0" aria-labelledby="habit-form-tags-label">
         <span id="habit-form-tags-label" className="form-label">
           {t('habits.form.tags')}
         </span>
@@ -485,7 +485,7 @@ export function HabitFormFields({
           <p className="text-xs text-[var(--fg-3)]">{t('habits.form.noTagSuggestions')}</p>
         )}
         {tags.editingTagId && (
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             <ColorSwatches
               colors={tags.tagColors}
               activeColor={tags.editTagColor}
@@ -519,7 +519,7 @@ export function HabitFormFields({
           </div>
         )}
         {tags.showNewTag && (
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             <ColorSwatches
               colors={tags.tagColors}
               activeColor={tags.newTagColor}
@@ -574,8 +574,8 @@ export function HabitFormFields({
       </div>
 
       <div className={`collapsible ${showAdvanced ? 'is-open' : ''}`}>
-        <div className="space-y-6 pt-2">
-          <div className="space-y-2">
+        <div className="flex flex-col gap-6 pt-2">
+          <div className="flex flex-col gap-2">
             <label htmlFor="habit-form-description" className="form-label">
               {t('habits.form.description')}
             </label>
@@ -589,7 +589,7 @@ export function HabitFormFields({
             />
           </div>
 
-          <fieldset className="m-0 min-w-0 space-y-2 border-0 p-0" aria-labelledby="habit-form-checklist-label">
+          <fieldset className="flex flex-col m-0 min-w-0 gap-2 border-0 p-0" aria-labelledby="habit-form-checklist-label">
             <span id="habit-form-checklist-label" className="form-label">
               {t('habits.form.checklist')}
             </span>
@@ -607,7 +607,7 @@ export function HabitFormFields({
           </fieldset>
 
           {!!watchedDueTime && !isGeneral && (
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <label htmlFor="habit-form-due-end-time" className="form-label">
                 {t('habits.form.dueEndTime')}
               </label>
@@ -625,7 +625,7 @@ export function HabitFormFields({
           {showEndDate && (
             <div className="space-y-1.5">
               {watchedEndDate ? (
-                <div className="space-y-2">
+                <div className="flex flex-col gap-2">
                   <span id="habit-form-end-date-label" className="form-label">
                     {t('habits.form.endDate')}
                   </span>
@@ -696,7 +696,7 @@ export function HabitFormFields({
           )}
 
           {!isGeneral && (
-            <div className="space-y-2" role="radiogroup" aria-label={t('habits.form.habitType')}>
+            <div className="flex flex-col gap-2" role="radiogroup" aria-label={t('habits.form.habitType')}>
               <span className="form-label">{t('habits.form.habitType')}</span>
               <div className="grid grid-cols-2 gap-1 rounded-[14px] bg-[var(--bg-field)] p-1 shadow-[inset_0_0_0_1px_var(--hairline)]">
                 <button

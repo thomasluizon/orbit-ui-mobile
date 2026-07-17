@@ -60,7 +60,7 @@ export function ReminderSection({
   }
 
   return (
-    <div className="space-y-3 rounded-[14px] bg-[var(--bg-field)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]">
+    <div className="flex flex-col gap-3 rounded-[14px] bg-[var(--bg-field)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
           <Bell size={20} strokeWidth={1.8} className="text-[var(--fg-2)]" aria-hidden="true" />
@@ -78,7 +78,7 @@ export function ReminderSection({
         />
       </div>
       {reminderEnabled && (
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           <div className="flex flex-wrap gap-2">
             {reminderTimes.map((time) => (
               <span

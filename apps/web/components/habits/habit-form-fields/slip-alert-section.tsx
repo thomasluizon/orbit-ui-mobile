@@ -17,7 +17,7 @@ export function SlipAlertSection({
   const router = useRouter()
 
   return (
-    <div className="space-y-3 rounded-[14px] bg-[var(--bg-field)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]">
+    <div className="flex flex-col gap-3 rounded-[14px] bg-[var(--bg-field)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]">
       {hasProAccess ? (
         <div className="flex items-center justify-between gap-3">
           <div className="flex flex-col gap-1">

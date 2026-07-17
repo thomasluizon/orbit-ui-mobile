@@ -25,7 +25,7 @@ interface PlayBillingDashboardProps {
 
 export function PlayBillingDashboard({ profile, locale, usagePercent, usageUrgent, t }: Readonly<PlayBillingDashboardProps>) {
   return (
-    <div className="space-y-3 stagger-enter">
+    <div className="flex flex-col gap-3 stagger-enter">
       <div className="grid gap-3">
       <div className="overflow-hidden rounded-[18px]" style={cardSurface}>
         <div style={{ padding: '16px 18px' }}>

@@ -28,7 +28,7 @@ export function BreakdownHabitRow({
   const t = useTranslations()
   return (
     <div className="bg-[var(--bg-elev)] rounded-[12px] p-3 flex items-center justify-between gap-3 shadow-[inset_0_0_0_1px_var(--hairline)]">
-      <div className="flex-1 min-w-0 space-y-1">
+      <div className="flex flex-col flex-1 min-w-0 gap-1">
         <input
           type="text"
           value={habit.title}

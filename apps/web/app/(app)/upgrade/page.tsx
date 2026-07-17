@@ -142,9 +142,8 @@ export default function UpgradePage() {
           onBack={() => goBackOrFallback('/profile')}
           title={t('upgrade.title')}
         />
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5">
-
-        {renderBillingView()}
+        <div className="flex flex-col min-h-0 flex-1 gap-4 overflow-y-auto px-5 py-5">
+          {renderBillingView()}
         </div>
       </div>
     </div>

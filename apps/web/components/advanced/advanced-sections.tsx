@@ -162,7 +162,7 @@ export function ApiKeyCard({
 
   return (
     <div
-      className="rounded-[16px] bg-[var(--bg-card)] space-y-2"
+      className="flex flex-col rounded-[16px] bg-[var(--bg-card)] gap-2"
       style={{
         padding: '14px 16px',
         boxShadow: 'inset 0 0 0 1px var(--hairline)',
@@ -269,7 +269,7 @@ export function ApiKeysSection({
   t,
 }: Readonly<ApiKeysSectionProps>) {
   return (
-    <div className="px-5 space-y-3" style={{ paddingBottom: 8 }}>
+    <div className="flex flex-col px-5 gap-3" style={{ paddingBottom: 8 }}>
       <div className="flex items-center justify-between">
         <SubsectionTitle>{t('orbitMcp.apiKeys')}</SubsectionTitle>
         {canCreateKey && (
@@ -311,7 +311,7 @@ export function ApiKeysSection({
       )}
 
       {apiKeysQuery.isLoading && (
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           <div className="h-16 w-full bg-[var(--bg-card)] rounded-[16px] animate-pulse" />
           <div className="h-16 w-full bg-[var(--bg-card)] rounded-[16px] animate-pulse" />
         </div>
@@ -332,7 +332,7 @@ export function ApiKeysSection({
       )}
 
       {apiKeys.length > 0 && (
-        <div className="space-y-2 stagger-enter">
+        <div className="flex flex-col gap-2 stagger-enter">
           {apiKeys.map((key) => (
             <ApiKeyCard
               key={key.id}
@@ -373,7 +373,7 @@ function McpInstructionsPanel({
         {description}
       </p>
       {steps ? (
-        <ol className="t-secondary list-decimal list-inside space-y-2">
+        <ol className="flex flex-col t-secondary list-decimal list-inside gap-2">
           {steps.map((step) => (
             <li key={step}>{step}</li>
           ))}
@@ -420,7 +420,7 @@ export function McpConnectionInstructions({ t }: Readonly<{ t: TranslationFn }>)
   }
 
   return (
-    <div className="px-5 space-y-3 border-t border-[var(--hairline)] pt-4 md:border-t-0 md:pt-6">
+    <div className="flex flex-col px-5 gap-3 border-t border-[var(--hairline)] pt-4 md:border-t-0 md:pt-6">
       <button
         type="button"
         className="group flex w-full cursor-pointer items-center justify-between border-0 bg-transparent transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:bg-[var(--bg-elev-pressed)]"
@@ -441,7 +441,7 @@ export function McpConnectionInstructions({ t }: Readonly<{ t: TranslationFn }>)
       </button>
 
       <div className={`collapsible ${instructionsOpen ? 'is-open' : ''}`}>
-        <div id="mcp-instructions" className="space-y-3">
+        <div id="mcp-instructions" className="flex flex-col gap-3">
           <div className="flex gap-2">
             {MCP_CONFIG_TABS.map((tab) => (
               <Chip
@@ -502,7 +502,7 @@ export function WidgetInfoOverlay({
 }: Readonly<{ open: boolean; onOpenChange: (open: boolean) => void; t: TranslationFn }>) {
   return (
     <AppOverlay open={open} onOpenChange={onOpenChange} title={t('profile.widgetTitle')}>
-      <div className="space-y-5" style={{ paddingBottom: 8 }}>
+      <div className="flex flex-col gap-5" style={{ paddingBottom: 8 }}>
         <div>
           <h3
             style={{
@@ -515,7 +515,7 @@ export function WidgetInfoOverlay({
           >
             {t('profile.widgetHow.title')}
           </h3>
-          <ol className="space-y-2" style={{ fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.55, color: 'var(--fg-2)' }}>
+          <ol className="flex flex-col gap-2" style={{ fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.55, color: 'var(--fg-2)' }}>
             {WIDGET_STEP_KEYS.map((stepKey, index) => (
               <li key={stepKey} className="flex gap-2">
                 <span
@@ -546,7 +546,7 @@ export function WidgetInfoOverlay({
           >
             {t('profile.widgetHow.featuresTitle')}
           </h3>
-          <ul className="space-y-2" style={{ fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.55, color: 'var(--fg-2)' }}>
+          <ul className="flex flex-col gap-2" style={{ fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.55, color: 'var(--fg-2)' }}>
             {WIDGET_FEATURES.map((feature) => {
               const icon = {
                 checkCircle: <CheckCircle size={16} strokeWidth={1.8} className="mt-0.5 shrink-0 text-[var(--primary)]" />,

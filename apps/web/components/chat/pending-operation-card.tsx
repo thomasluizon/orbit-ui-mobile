@@ -207,7 +207,7 @@ export function PendingOperationCard({
       </div>
 
       {challengeId && !successMessage && (
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           <input
             type="text"
             inputMode="numeric"

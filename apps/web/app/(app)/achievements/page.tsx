@@ -64,7 +64,7 @@ export default function AchievementsPage() {
         ) : (
           <>
             {isLoading && !profile && (
-              <div className="px-5 py-6 space-y-4">
+              <div className="flex flex-col px-5 py-6 gap-4">
                 <div className="h-12 w-full rounded-lg skeleton-pulse" style={{ background: 'var(--bg-card)' }} />
                 <div className="h-6 w-32 rounded-lg skeleton-pulse" style={{ background: 'var(--bg-card)' }} />
                 <div className="h-24 w-full rounded-lg skeleton-pulse" style={{ background: 'var(--bg-card)' }} />

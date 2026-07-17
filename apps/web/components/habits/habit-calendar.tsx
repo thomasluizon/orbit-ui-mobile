@@ -231,7 +231,7 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
               <X size={16} strokeWidth={1.8} />
             </button>
           </div>
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             {selectedDayLogs.map((log) => (
               <div key={log.id} className="flex flex-col gap-0.5">
                 <span

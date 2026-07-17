@@ -126,7 +126,7 @@ export function HabitChecklist({
   )
 
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-3">
       {items.length > 0 && !editable && (
         <div className="flex items-center gap-2">
           <ProgressBar
@@ -177,7 +177,7 @@ export function HabitChecklist({
           onDragEnd={handleDragEnd}
         >
           <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
-            <div className="space-y-1">
+            <div className="flex flex-col gap-1">
               {items.map((item, index) => (
                 <SortableChecklistItem
                   key={sortableIds[index]}

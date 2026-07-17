@@ -156,7 +156,7 @@ export function GoalsView() {
 
       <div className="px-5">
         {!isFetched && (
-          <div className="space-y-3">
+          <div className="flex flex-col gap-3">
             {[1, 2, 3].map((i) => (
               <SkeletonCard key={`skeleton-${i}`} lines={3} className="rounded-[18px]" />
             ))}

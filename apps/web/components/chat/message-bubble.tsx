@@ -198,7 +198,7 @@ export function MessageBubble({
         )}
 
         {!isUser && suggestionActions.length > 0 && (
-          <div className="space-y-3 mt-3 w-full md:max-w-[65ch]">
+          <div className="flex flex-col gap-3 mt-3 w-full md:max-w-[65ch]">
             {suggestionActions.map((action) => {
               const actionKey = action.entityId ?? action.entityName ?? 'suggestion'
               return dismissedBreakdowns.has(actionKey) ? null : (
@@ -215,7 +215,7 @@ export function MessageBubble({
         )}
 
         {!isUser && clarificationActions.length > 0 && (
-          <div className="space-y-3 mt-3 w-full md:max-w-[65ch]">
+          <div className="flex flex-col gap-3 mt-3 w-full md:max-w-[65ch]">
             {clarificationActions.map((action) => (
               <ClarificationCard
                 key={action.clarificationRequest.operationId}
@@ -227,7 +227,7 @@ export function MessageBubble({
         )}
 
         {!isUser && message.pendingOperations && message.pendingOperations.length > 0 && onPendingOperationConfirmExecute && onPendingOperationPrepareStepUp && onPendingOperationVerifyStepUp && (
-          <div className="mt-3 w-full md:max-w-[65ch] space-y-3">
+          <div className="flex flex-col mt-3 w-full md:max-w-[65ch] gap-3">
             {message.pendingOperations.map((pendingOperation) => (
               <PendingOperationCard
                 key={pendingOperation.id}
@@ -241,7 +241,7 @@ export function MessageBubble({
         )}
 
         {!isUser && message.policyDenials && message.policyDenials.length > 0 && (
-          <div className="mt-3 w-full md:max-w-[65ch] space-y-2">
+          <div className="flex flex-col mt-3 w-full md:max-w-[65ch] gap-2">
             {message.policyDenials.map((denial) => {
               const upgradeResolution = resolveUpgradeEntitlementFromPolicyDenial(denial)
 

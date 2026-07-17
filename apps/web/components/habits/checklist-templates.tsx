@@ -64,7 +64,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
   )
 
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-3">
       <div className="flex items-center gap-3 flex-wrap">
         {items.length > 0 && !showSave && (
           <button

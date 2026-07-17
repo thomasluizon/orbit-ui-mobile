@@ -38,7 +38,7 @@ export function GoalLinkingField({
   const selectedGoalIdSet = new Set(selectedGoalIds)
 
   return (
-    <div className="space-y-2">
+    <div className="flex flex-col gap-2">
       <span className="form-label" aria-hidden="true">
         {t('habits.form.goals')}
       </span>

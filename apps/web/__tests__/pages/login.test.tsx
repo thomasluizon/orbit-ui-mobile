@@ -151,7 +151,7 @@ describe('LoginPage', () => {
     render(<LoginPage />)
 
     const stack = screen.getByTestId('login-email-step-stack')
-    expect(stack).toHaveClass('space-y-4')
+    expect(stack).toHaveClass('flex', 'flex-col', 'gap-4')
     expect(within(stack).getByRole('button', { name: 'auth.sendCode' })).toBeInTheDocument()
     expect(within(stack).getByText('auth.orContinueWith')).toBeInTheDocument()
     expect(within(stack).getByRole('button', { name: 'auth.signInWithGoogle' })).toBeInTheDocument()

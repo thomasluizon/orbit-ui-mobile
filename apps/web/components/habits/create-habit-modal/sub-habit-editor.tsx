@@ -33,7 +33,7 @@ export function SubHabitEditor({
     return (
       <div className="space-y-2.5 pt-1">
         <div className="flex items-center justify-between gap-3">
-          <div className="space-y-1">
+          <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
               <span className="form-label !mb-0">
                 {t('habits.form.subHabits')}
@@ -63,7 +63,7 @@ export function SubHabitEditor({
         {t('habits.form.subHabits')}
       </span>
       {subHabits.length > 0 && (
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           {subHabits.map((entry, index) => (
             <div
               key={entry.id}

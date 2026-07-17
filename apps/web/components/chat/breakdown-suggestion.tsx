@@ -138,7 +138,7 @@ export function BreakdownSuggestion({
   }
 
   return (
-    <div className="rounded-[16px] bg-[var(--bg-card)] p-4 space-y-3 shadow-[inset_0_0_0_1px_var(--hairline)]">
+    <div className="flex flex-col rounded-[16px] bg-[var(--bg-card)] p-4 gap-3 shadow-[inset_0_0_0_1px_var(--hairline)]">
       <p
         style={{
           fontFamily: 'var(--font-sans)',
@@ -152,7 +152,7 @@ export function BreakdownSuggestion({
         })}
       </p>
 
-      <div className="space-y-3">
+      <div className="flex flex-col gap-3">
         {habits.map((habit, index) => (
           <BreakdownHabitRow
             key={habit.id}

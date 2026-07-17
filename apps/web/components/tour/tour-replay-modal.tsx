@@ -109,7 +109,7 @@ export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModal
       onOpenChange={onOpenChange}
       title={t('tour.replay.modalTitle')}
     >
-      <div className="space-y-5 sm:mx-auto sm:w-full sm:max-w-[360px]">
+      <div className="flex flex-col gap-5 sm:mx-auto sm:w-full sm:max-w-[360px]">
         <div>
           <PillButton
             fullWidth

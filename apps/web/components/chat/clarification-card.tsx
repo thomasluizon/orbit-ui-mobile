@@ -72,7 +72,7 @@ export function ClarificationCard({
   }
 
   return (
-    <div className="rounded-[16px] bg-[var(--bg-card)] p-4 space-y-3 shadow-[inset_0_0_0_1px_var(--hairline)]">
+    <div className="flex flex-col rounded-[16px] bg-[var(--bg-card)] p-4 gap-3 shadow-[inset_0_0_0_1px_var(--hairline)]">
       <p
         style={{
           fontFamily: 'var(--font-sans)',

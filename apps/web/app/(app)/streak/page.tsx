@@ -78,7 +78,7 @@ export default function StreakPage() {
       />
 
       {isLoading ? (
-        <div className="flex-1 px-5 py-8 space-y-4">
+        <div className="flex flex-col flex-1 px-5 py-8 gap-4">
           <div className="h-48 bg-[var(--bg-card)] rounded-[18px] skeleton-pulse" />
           <div className="h-28 bg-[var(--bg-card)] rounded-[18px] skeleton-pulse" />
           <div className="h-40 bg-[var(--bg-card)] rounded-[18px] skeleton-pulse" />

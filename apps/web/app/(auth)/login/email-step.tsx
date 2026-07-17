@@ -30,7 +30,7 @@ export function EmailStep({
   return (
     <div
       data-testid="login-email-step-stack"
-      className="space-y-4 flex flex-col"
+      className="gap-4 flex flex-col"
       style={{ gap: 16 }}
     >
       <form
