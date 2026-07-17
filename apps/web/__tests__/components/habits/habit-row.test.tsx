@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 
 vi.mock('next-intl', () => ({
@@ -7,6 +7,65 @@ vi.mock('next-intl', () => ({
 }))
 
 import { HabitRow } from '@/components/habits/habit-row'
+
+describe('HabitRow drill-in and expand chevrons', () => {
+  it('opens a level-1 family in focus via the drill chevron instead of expanding', () => {
+    const onDrillInto = vi.fn()
+    const onToggleExpand = vi.fn()
+    render(
+      <HabitRow
+        habit={createMockHabit({ id: 'child', title: 'Morning' })}
+        depth={1}
+        child
+        hasChildren
+        actions={{ onDrillInto, onToggleExpand }}
+      />,
+    )
+
+    const drill = screen.getByLabelText('habits.actions.openSubHabits')
+    fireEvent.click(drill)
+
+    expect(onDrillInto).toHaveBeenCalledTimes(1)
+    expect(onToggleExpand).not.toHaveBeenCalled()
+    expect(screen.queryByLabelText('common.expand')).toBeNull()
+  })
+
+  it('expands a top-level family in place with the grey expand chevron', () => {
+    const onDrillInto = vi.fn()
+    const onToggleExpand = vi.fn()
+    render(
+      <HabitRow
+        habit={createMockHabit({ id: 'root', title: 'Water' })}
+        depth={0}
+        hasChildren
+        actions={{ onDrillInto, onToggleExpand }}
+      />,
+    )
+
+    const expand = screen.getByLabelText('common.expand')
+    fireEvent.click(expand)
+
+    expect(onToggleExpand).toHaveBeenCalledTimes(1)
+    expect(onDrillInto).not.toHaveBeenCalled()
+    expect(screen.queryByLabelText('habits.actions.openSubHabits')).toBeNull()
+  })
+
+  it('keeps the per-row overflow menu on a drilled sub-habit family', () => {
+    render(
+      <HabitRow
+        habit={createMockHabit({ id: 'child', title: 'Morning' })}
+        depth={1}
+        child
+        hasChildren
+        inPanel
+        actions={{ onDrillInto: vi.fn(), onEdit: vi.fn(), onDelete: vi.fn() }}
+      />,
+    )
+
+    expect(screen.getByLabelText('habits.actions.more')).toBeDefined()
+    expect(screen.getByLabelText('habits.actions.openSubHabits')).toBeDefined()
+  })
+})
 
 describe('HabitRow description preview', () => {
   it('renders a single-line description below the title when present', () => {

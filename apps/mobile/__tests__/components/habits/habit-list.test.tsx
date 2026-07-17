@@ -1629,4 +1629,98 @@ describe('HabitList', () => {
 
     expect(reopenedDialogs).toHaveLength(0)
   })
+
+  it('renders a two-level family as a parent panel plus its sub-habit rows', () => {
+    const parent = createMockHabit({ id: 'parent', title: 'Water', hasSubHabits: true })
+    const child = createMockHabit({ id: 'child', title: 'Morning water', parentId: 'parent' })
+    seedHabits([parent, child])
+
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />,
+      )
+    })
+
+    const rows = tree.root.findAllByType(HabitRow)
+    expect(rows.map((node: any) => node.props.habit.id)).toEqual(['parent', 'child'])
+
+    const parentCard = rows.find((node: any) => node.props.habit.id === 'parent')
+    const childCard = rows.find((node: any) => node.props.habit.id === 'child')
+    expect(parentCard.props.firstInPanel).toBe(true)
+    expect(parentCard.props.lastInPanel).toBe(false)
+    expect(childCard.props.depth).toBe(1)
+    expect(childCard.props.firstInPanel).toBe(false)
+    expect(childCard.props.lastInPanel).toBe(true)
+  })
+
+  it('keeps the kebab overflow menu on every rendered row', () => {
+    const parent = createMockHabit({ id: 'parent', title: 'Water', hasSubHabits: true })
+    const child = createMockHabit({ id: 'child', title: 'Morning water', parentId: 'parent' })
+    seedHabits([parent, child])
+
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />,
+      )
+    })
+
+    const moreButtons = tree.root.findAll(
+      (node: any) => node.props?.accessibilityLabel === 'habits.actions.more',
+    )
+    expect(moreButtons.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('drills past level 2 with a drill affordance instead of a third inline level', async () => {
+    const root = createMockHabit({ id: 'root', title: 'Water', hasSubHabits: true })
+    const mid = createMockHabit({ id: 'mid', title: 'Morning', parentId: 'root', hasSubHabits: true })
+    const leaf = createMockHabit({ id: 'leaf', title: 'First glass', parentId: 'mid' })
+    seedHabits([root, mid, leaf])
+
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />,
+      )
+    })
+
+    const ids = tree.root
+      .findAllByType(HabitRow)
+      .map((node: any) => node.props.habit.id)
+    expect(ids).toEqual(['root', 'mid'])
+    expect(ids).not.toContain('leaf')
+
+    const midCard = tree.root
+      .findAllByType(HabitRow)
+      .find((node: any) => node.props.habit.id === 'mid')
+    expect(midCard.props.depth).toBe(1)
+    expect(midCard.props.hasChildren).toBe(true)
+    expect(midCard.props.showDrillChevron).toBe(true)
+
+    await TestRenderer.act(async () => {
+      await midCard.props.actions.onDrillInto()
+    })
+    expect(mockDrillState.drillInto).toHaveBeenCalledWith('mid')
+  })
+
+  it('renders no tree-connector element between family rows', () => {
+    const parent = createMockHabit({ id: 'parent', title: 'Water', hasSubHabits: true })
+    const child = createMockHabit({ id: 'child', title: 'Morning water', parentId: 'parent' })
+    seedHabits([parent, child])
+
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />,
+      )
+    })
+
+    const connectors = tree.root.findAll(
+      (node: any) =>
+        typeof node.props?.testID === 'string' &&
+        /connector|tree-line/.test(node.props.testID),
+    )
+    expect(connectors).toHaveLength(0)
+  })
 })

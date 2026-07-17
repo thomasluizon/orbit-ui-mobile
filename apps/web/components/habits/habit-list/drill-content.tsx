@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { PillButton } from '@/components/ui/pill-button'
 import { HabitListSkeleton } from './empty-state'
+import { HabitPanel } from './habit-panel'
 
 interface HabitListDrillContentProps {
   t: (key: string) => string
@@ -17,7 +18,13 @@ interface HabitListDrillContentProps {
     depth: number,
     hasChildren: boolean,
     hasSubHabits: boolean,
-    options?: { isDrillCard?: boolean; isDraggingList?: boolean },
+    options?: {
+      isDrillCard?: boolean
+      isDraggingList?: boolean
+      inPanel?: boolean
+      firstInPanel?: boolean
+      lastInPanel?: boolean
+    },
   ) => React.ReactNode
   onAddSubHabit: (parentId: string) => void
   onRetry: () => void
@@ -65,15 +72,17 @@ export function HabitListDrillContent({
   if (drillChildren.length > 0) {
     return (
       <div className="stagger-enter">
-        {drillChildren.map((child) =>
-          renderHabitCard(
-            child,
-            0,
-            getDrillChildren(child.id).length > 0,
-            child.hasSubHabits || getDrillChildren(child.id).length > 0,
-            { isDrillCard: true },
-          ),
-        )}
+        {drillChildren.map((child) => (
+          <HabitPanel key={child.id}>
+            {renderHabitCard(
+              child,
+              0,
+              getDrillChildren(child.id).length > 0,
+              child.hasSubHabits || getDrillChildren(child.id).length > 0,
+              { isDrillCard: true, inPanel: true },
+            )}
+          </HabitPanel>
+        ))}
         <button
           type="button"
           className="w-full appearance-none border-0 bg-transparent cursor-pointer flex items-center justify-center text-[var(--fg-3)] hover:text-[var(--primary-pressed)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"

@@ -51,12 +51,22 @@ const EMPTY_HABIT_ROW_ACTIONS: HabitRowActions = {}
 interface HabitRowProps {
   habit: NormalizedHabit
   selectedDate?: Date
-  /** 0 = parent row, >0 = child row (renders tree line connector). */
+  /** 0 = top-level row, >0 = sub-habit row: indent + smaller well + dimmer text
+   *  carry the hierarchy. No connector lines (#539). */
   depth?: number
   isSelectMode?: boolean
   isSelected?: boolean
   hasChildren?: boolean
   isExpanded?: boolean
+  /** True when this row draws the top edge of its tonal panel (top border +
+   *  top corner radii). A single-row panel has both first and last true. */
+  firstInPanel?: boolean
+  /** True when this row draws the bottom edge of its tonal panel (bottom border,
+   *  bottom corner radii, and the gap to the next panel). */
+  lastInPanel?: boolean
+  /** True to show the violet drill chevron (open in focus) instead of the grey
+   *  expand chevron: used for sub-habits and drill cards past level 2 (#539). */
+  showDrillChevron?: boolean
   childrenDone?: number
   childrenTotal?: number
   actions?: HabitRowActions
@@ -75,6 +85,9 @@ export function HabitRow({
   isSelected = false,
   hasChildren = false,
   isExpanded = false,
+  firstInPanel = true,
+  lastInPanel = true,
+  showDrillChevron = false,
   childrenDone = 0,
   childrenTotal = 0,
   actions = EMPTY_HABIT_ROW_ACTIONS,
@@ -202,9 +215,18 @@ export function HabitRow({
             {
               backgroundColor: isSelected ? tokens.bgSunk : pressedBackground,
               borderColor: pressed ? tokens.hairlineStrong : tokens.hairline,
-              marginLeft: 20 + indentPx,
+              borderLeftWidth: 1,
+              borderRightWidth: 1,
+              borderTopWidth: firstInPanel ? 1 : 0,
+              borderBottomWidth: lastInPanel ? 1 : 0,
+              borderTopLeftRadius: firstInPanel ? 18 : 0,
+              borderTopRightRadius: firstInPanel ? 18 : 0,
+              borderBottomLeftRadius: lastInPanel ? 18 : 0,
+              borderBottomRightRadius: lastInPanel ? 18 : 0,
+              marginLeft: 20,
               marginRight: 20,
-              marginBottom: 10,
+              marginBottom: lastInPanel ? 10 : 0,
+              paddingLeft: 16 + indentPx,
             },
             pressed ? styles.rowPressed : null,
           ]
@@ -220,8 +242,10 @@ export function HabitRow({
           isSelected={isSelected}
           hasChildren={hasChildren}
           isExpanded={isExpanded}
+          showDrillChevron={showDrillChevron}
           onToggleSelection={actions.onToggleSelection}
           onToggleExpand={actions.onToggleExpand}
+          onDrillInto={actions.onDrillInto}
           tokens={tokens}
         />
 

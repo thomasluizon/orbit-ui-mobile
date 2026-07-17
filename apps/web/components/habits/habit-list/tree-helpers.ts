@@ -155,8 +155,15 @@ export function buildMoveParentOptions(
   return options
 }
 
+/** Deepest 0-indexed depth rendered inline before a node must be drilled into.
+ *  Levels 0 and 1 show inline; a level-1 node with children exposes a drill
+ *  affordance instead of expanding to level 2. Frozen habit-list treatment,
+ *  https://github.com/thomasluizon/orbit-ui-mobile/issues/539 */
+export const MAX_INLINE_DEPTH = 1
+
 /** Flattens the visible habit forest into draggable rows in render order,
- *  descending into a habit's children only when it is not collapsed. */
+ *  descending into a habit's children only when it is not collapsed and the
+ *  child would stay within the inline depth cap. */
 export function buildDragItemsFlat(
   habits: NormalizedHabit[],
   collapsedIds: Set<string>,
@@ -182,7 +189,7 @@ export function buildDragItemsFlat(
       hasChildren: visChildren.length > 0,
       hasSubHabits: habit.hasSubHabits,
     })
-    if (!collapsedIds.has(habit.id)) {
+    if (depth < MAX_INLINE_DEPTH && !collapsedIds.has(habit.id)) {
       for (const child of visChildren) {
         addHabitTree(child, depth + 1, habit.id)
       }
@@ -194,4 +201,27 @@ export function buildDragItemsFlat(
   }
 
   return items
+}
+
+/** A tonal panel: one top-level habit plus its inline descendants, grouped so
+ *  the list can wrap each family (or single habit) in one surface. */
+export interface HabitPanelGroup {
+  rootId: string
+  items: DragItem[]
+}
+
+/** Groups a depth-ordered flat item list into per-top-level-habit panels: a new
+ *  panel opens at every depth-0 item and absorbs the inline descendants after it. */
+export function groupHabitItemsIntoPanels(items: DragItem[]): HabitPanelGroup[] {
+  const panels: HabitPanelGroup[] = []
+  let current: HabitPanelGroup | null = null
+  for (const item of items) {
+    if (item.depth === 0 || !current) {
+      current = { rootId: item.id, items: [item] }
+      panels.push(current)
+    } else {
+      current.items.push(item)
+    }
+  }
+  return panels
 }

@@ -28,6 +28,13 @@ export function SortableHabitItem({
     opacity: isItemDragging ? 0.5 : 1,
     position: 'relative' as const,
     zIndex: isItemDragging ? 50 : 'auto',
+    ...(isItemDragging
+      ? {
+          background: 'var(--bg-card)',
+          boxShadow: 'inset 0 0 0 1px var(--hairline-strong)',
+          borderRadius: 18,
+        }
+      : {}),
   }
 
   return (

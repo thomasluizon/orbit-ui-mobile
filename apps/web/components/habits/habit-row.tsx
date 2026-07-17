@@ -9,11 +9,58 @@ import { HabitRowContent, type HabitRowMetaToken } from './habit-row-content'
 import { HabitRowLeading } from './habit-row-leading'
 import { HabitRowTrailing } from './habit-row-trailing'
 import { buildHabitRowContextMenuItems } from './habit-row-context-menu-items'
+import { MAX_INLINE_DEPTH } from './habit-list/tree-helpers'
 
 export type { HabitRowMetaToken }
 
 const EMPTY_META: HabitRowMetaToken[] = []
 const EMPTY_ACTIONS: HabitRowActions = {}
+
+const ROW_BASE_CLASS =
+  'relative flex items-center cursor-pointer transition-[background-color,transform,box-shadow] duration-[160ms] ease-[var(--ease-standard)] active:scale-[0.99]'
+
+/** Surface classes for a row. In a panel the row is transparent (the panel owns
+ *  the fill and ring); standalone it carries its own card fill and inset ring. */
+function rowSurfaceClassName(inPanel: boolean, selected: boolean): string {
+  if (inPanel) {
+    return `${ROW_BASE_CLASS} ${
+      selected ? 'bg-[var(--bg-sunk)]' : 'hover:bg-[var(--bg-elev-pressed)]'
+    }`
+  }
+  return `${ROW_BASE_CLASS} shadow-[inset_0_0_0_1px_var(--hairline)] ${
+    selected
+      ? 'bg-[var(--bg-sunk)]'
+      : 'bg-[var(--bg-card)] hover:bg-[var(--bg-elev-pressed)] hover:shadow-[inset_0_0_0_1px_var(--hairline-strong)]'
+  }`
+}
+
+/** Geometry for a row: in a panel it rounds only its outer panel corners and
+ *  indents interiorly; standalone it keeps its own radius and sibling margins. */
+function rowSurfaceStyle(
+  inPanel: boolean,
+  firstInPanel: boolean,
+  lastInPanel: boolean,
+  indentPx: number,
+): React.CSSProperties {
+  if (inPanel) {
+    return {
+      gap: 14,
+      padding: `14px 16px 14px ${16 + indentPx}px`,
+      borderTopLeftRadius: firstInPanel ? 18 : 0,
+      borderTopRightRadius: firstInPanel ? 18 : 0,
+      borderBottomLeftRadius: lastInPanel ? 18 : 0,
+      borderBottomRightRadius: lastInPanel ? 18 : 0,
+    }
+  }
+  return {
+    gap: 14,
+    padding: '14px 16px',
+    borderRadius: 18,
+    marginLeft: 20 + indentPx,
+    marginRight: 20,
+    marginBottom: 10,
+  }
+}
 
 /** Action callbacks consumed by HabitRow. Mirrors the mobile shape so that
  *  cross-platform call sites can pass the same handler bag. */
@@ -36,7 +83,7 @@ export interface HabitRowActions {
 }
 
 /** Linear-tight habit row: emoji / chevron / title (wraps to two lines) / inline meta / status dot / streak.
- *  Sub-habit rows ("child") render a tree-line connector to the parent column. */
+ *  Sub-habit rows ("child") show depth by indent, a smaller well, and dimmer text; there are no connector lines. */
 interface HabitRowProps {
   habit: NormalizedHabit
   /** Derived display state (computed by caller from instances/logs). */
@@ -63,6 +110,19 @@ interface HabitRowProps {
   showLinkedGoalDot?: boolean
   /** Optional data attribute (`data-tour`) used by the feature tour. */
   tourTargetId?: string
+  /** True when the row sits inside a grouped tonal panel: the row drops its own
+   *  card fill, ring, and margins and rounds only its outer panel corners. */
+  inPanel?: boolean
+  /** First row of its panel (rounds the top corners). */
+  firstInPanel?: boolean
+  /** Last row of its panel (rounds the bottom corners). */
+  lastInPanel?: boolean
+  /** Force the accent drill-in chevron regardless of depth. Set for the drilled
+   *  node's own children, which are the root of a focused sub-list. */
+  forceDrillChevron?: boolean
+  /** When false, a deeper family always uses the grey expand chevron and never
+   *  the drill chevron. Set on the all view, which renders the full tree inline. */
+  enableDrillChevron?: boolean
   actions?: HabitRowActions
 }
 
@@ -81,6 +141,11 @@ export function HabitRow({
   childProgress,
   showLinkedGoalDot = false,
   tourTargetId,
+  inPanel = false,
+  firstInPanel = false,
+  lastInPanel = false,
+  forceDrillChevron = false,
+  enableDrillChevron = true,
   actions = EMPTY_ACTIONS,
 }: Readonly<HabitRowProps>) {
   const t = useTranslations()
@@ -100,6 +165,8 @@ export function HabitRow({
   } = actions
   const canSelect = !selectMode && !!onEnterSelectMode
   const canDrillInto = hasChildren && !!onDrillInto
+  const drillMode =
+    canDrillInto && enableDrillChevron && (depth >= MAX_INLINE_DEPTH || forceDrillChevron)
   const hasMenuActions = !!(
     onEdit ||
     onDuplicate ||
@@ -154,6 +221,11 @@ export function HabitRow({
     onToggleExpand?.()
   }
 
+  function handleDrill(event: MouseEvent<HTMLButtonElement>) {
+    event.stopPropagation()
+    onDrillInto?.()
+  }
+
   function getTitleColor(): string {
     if (isDone) return 'var(--fg-3)'
     if (isSkip) return 'var(--fg-3)'
@@ -176,21 +248,8 @@ export function HabitRow({
       data-tour={tourTargetId}
       data-testid="habit-row"
       data-habit-title={habit.title}
-      className={
-        `relative flex items-center cursor-pointer shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color,transform,box-shadow] duration-[160ms] ease-[var(--ease-standard)] active:scale-[0.99] ${
-          selected
-            ? 'bg-[var(--bg-sunk)]'
-            : 'bg-[var(--bg-card)] hover:bg-[var(--bg-elev-pressed)] hover:shadow-[inset_0_0_0_1px_var(--hairline-strong)]'
-        }`
-      }
-      style={{
-        gap: 14,
-        padding: '14px 16px',
-        borderRadius: 18,
-        marginLeft: 20 + indentPx,
-        marginRight: 20,
-        marginBottom: 10,
-      }}
+      className={rowSurfaceClassName(inPanel, selected)}
+      style={rowSurfaceStyle(inPanel, firstInPanel, lastInPanel, indentPx)}
     >
       <HabitRowLeading
         title={habit.title}
@@ -202,8 +261,10 @@ export function HabitRow({
         selected={selected}
         hasChildren={hasChildren}
         expanded={expanded}
+        drillMode={drillMode}
         onToggleSelection={onToggleSelection}
         onExpand={handleExpand}
+        onDrill={handleDrill}
       />
 
       <HabitRowContent

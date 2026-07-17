@@ -6,7 +6,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
-import { ChevronDown } from 'lucide-react-native'
+import { ChevronDown, ChevronRight } from 'lucide-react-native'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { createTokensV2, easings } from '@/lib/theme'
 import { SelectCheck } from '@/components/ui/select-check'
@@ -22,8 +22,10 @@ interface HabitRowLeadingProps {
   isSelected: boolean
   hasChildren: boolean
   isExpanded: boolean
+  showDrillChevron: boolean
   onToggleSelection?: () => void
   onToggleExpand?: () => void
+  onDrillInto?: () => void
   tokens: ReturnType<typeof createTokensV2>
 }
 
@@ -39,8 +41,10 @@ export function HabitRowLeading({
   isSelected,
   hasChildren,
   isExpanded,
+  showDrillChevron,
   onToggleSelection,
   onToggleExpand,
+  onDrillInto,
   tokens,
 }: Readonly<HabitRowLeadingProps>) {
   const { t } = useTranslation()
@@ -68,16 +72,27 @@ export function HabitRowLeading({
       ) : null}
 
       {hasChildren && !isSelectMode ? (
-        <Pressable
-          onPress={onToggleExpand}
-          hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-          accessibilityRole="button"
-          accessibilityLabel={isExpanded ? t('common.collapse') : t('common.expand')}
-        >
-          <Animated.View style={expandChevronStyle}>
-            <ChevronDown size={14} color={tokens.fg3} strokeWidth={1.8} />
-          </Animated.View>
-        </Pressable>
+        showDrillChevron ? (
+          <Pressable
+            onPress={onDrillInto}
+            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+            accessibilityRole="button"
+            accessibilityLabel={t('habits.actions.openSubHabits')}
+          >
+            <ChevronRight size={14} color={tokens.primary} strokeWidth={1.8} />
+          </Pressable>
+        ) : (
+          <Pressable
+            onPress={onToggleExpand}
+            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+            accessibilityRole="button"
+            accessibilityLabel={isExpanded ? t('common.collapse') : t('common.expand')}
+          >
+            <Animated.View style={expandChevronStyle}>
+              <ChevronDown size={14} color={tokens.fg3} strokeWidth={1.8} />
+            </Animated.View>
+          </Pressable>
+        )
       ) : null}
 
       <View

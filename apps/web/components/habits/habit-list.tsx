@@ -42,9 +42,11 @@ import { MoveParentOverlay, type MoveParentOption } from './habit-list/move-pare
 import {
   buildDragItemsFlat,
   buildMoveParentOptions,
+  groupHabitItemsIntoPanels,
   validateMoveTarget as computeMoveTargetValidation,
   type DragItem,
 } from './habit-list/tree-helpers'
+import { HabitPanel } from './habit-list/habit-panel'
 import type { StatusDotState } from '@/components/ui/status-dot'
 import {
   EMPTY_CHILDREN_BY_PARENT,
@@ -836,6 +838,10 @@ const isPostponeAction = useMemo(() => {
     options?: {
       isDrillCard?: boolean
       isDraggingList?: boolean
+      inPanel?: boolean
+      firstInPanel?: boolean
+      lastInPanel?: boolean
+      enableDrillChevron?: boolean
     },
   ) {
     const progress = hasChildren ? getChildrenProgress(habit.id) : { done: 0, total: 0 }
@@ -865,6 +871,11 @@ const isPostponeAction = useMemo(() => {
         expanded={!collapsedIds.has(habit.id)}
         childProgress={hasChildren ? progress : undefined}
         showLinkedGoalDot={hasLinkedGoal}
+        inPanel={options?.inPanel ?? false}
+        firstInPanel={options?.firstInPanel ?? false}
+        lastInPanel={options?.lastInPanel ?? false}
+        forceDrillChevron={options?.isDrillCard ?? false}
+        enableDrillChevron={options?.enableDrillChevron ?? true}
         actions={{
           onLog: () => { void handleDirectLog(habit.id) },
           onUnlog: () => logHabit.mutate({ habitId: habit.id }),
@@ -915,6 +926,7 @@ const isPostponeAction = useMemo(() => {
           depth,
           getVisibleChildren(child.id).length > 0,
           habitsById.get(child.id)?.hasSubHabits ?? false,
+          { inPanel: true, enableDrillChevron: false },
         )}
         {renderAllViewChildren(child.id, depth + 1)}
       </div>
@@ -1036,15 +1048,16 @@ const isPostponeAction = useMemo(() => {
             <HabitListDateGroupSection key={group.key} group={group} overdueLabel={t('habits.overdue')}>
               <div className="stagger-enter">
                 {group.habits.map((habit) => (
-                  <div key={habit.id}>
+                  <HabitPanel key={habit.id}>
                     {renderHabitCard(
                       habit,
                       0,
                       getChildren(habit.id).length > 0,
                       habit.hasSubHabits,
+                      { inPanel: true, enableDrillChevron: false },
                     )}
                     {renderAllViewChildren(habit.id, 1)}
-                  </div>
+                  </HabitPanel>
                 ))}
               </div>
             </HabitListDateGroupSection>
@@ -1054,6 +1067,7 @@ const isPostponeAction = useMemo(() => {
     }
 
     if (isDndEnabled) {
+      const panels = groupHabitItemsIntoPanels(activeDragItems)
       return (
         <DndContext
           sensors={sensors}
@@ -1066,16 +1080,25 @@ const isPostponeAction = useMemo(() => {
             strategy={verticalListSortingStrategy}
           >
             <div className={isDragging ? 'is-dragging stagger-enter' : 'stagger-enter'}>
-              {activeDragItems.map((item) => (
-                <SortableHabitItem key={item.id} id={item.id}>
-                  {renderHabitCard(
-                    item.habit,
-                    item.depth,
-                    item.hasChildren,
-                    item.hasSubHabits,
-                    { isDraggingList: isDragging },
-                  )}
-                </SortableHabitItem>
+              {panels.map((panel) => (
+                <HabitPanel key={panel.rootId} clip={false}>
+                  {panel.items.map((item, index) => (
+                    <SortableHabitItem key={item.id} id={item.id}>
+                      {renderHabitCard(
+                        item.habit,
+                        item.depth,
+                        item.hasChildren,
+                        item.hasSubHabits,
+                        {
+                          isDraggingList: isDragging,
+                          inPanel: true,
+                          firstInPanel: index === 0,
+                          lastInPanel: index === panel.items.length - 1,
+                        },
+                      )}
+                    </SortableHabitItem>
+                  ))}
+                </HabitPanel>
               ))}
             </div>
           </SortableContext>
@@ -1083,17 +1106,21 @@ const isPostponeAction = useMemo(() => {
       )
     }
 
+    const panels = groupHabitItemsIntoPanels(dragItems)
     return (
       <div className="stagger-enter">
-        {dragItems.map((item) => (
-          <div key={item.id}>
-            {renderHabitCard(
-              item.habit,
-              item.depth,
-              item.hasChildren,
-              item.hasSubHabits,
-            )}
-          </div>
+        {panels.map((panel) => (
+          <HabitPanel key={panel.rootId}>
+            {panel.items.map((item) => (
+              renderHabitCard(
+                item.habit,
+                item.depth,
+                item.hasChildren,
+                item.hasSubHabits,
+                { inPanel: true },
+              )
+            ))}
+          </HabitPanel>
         ))}
       </div>
     )

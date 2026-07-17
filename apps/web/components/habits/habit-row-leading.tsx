@@ -1,7 +1,7 @@
 'use client'
 
 import { type MouseEvent } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { SelectCheck } from '@/components/ui/select-check'
@@ -16,11 +16,15 @@ interface HabitRowLeadingProps {
   selected: boolean
   hasChildren: boolean
   expanded: boolean
+  /** When true, the family is past the inline depth cap: the chevron opens it in
+   *  focus (drill-in) instead of expanding in place. Rendered in the accent. */
+  drillMode: boolean
   onToggleSelection?: () => void
   onExpand: (event: MouseEvent<HTMLButtonElement>) => void
+  onDrill: (event: MouseEvent<HTMLButtonElement>) => void
 }
 
-/** Leading cluster of a habit row: select checkbox, expand chevron, and emoji well. */
+/** Leading cluster of a habit row: select checkbox, expand/drill chevron, and emoji well. */
 export function HabitRowLeading({
   title,
   emoji,
@@ -31,8 +35,10 @@ export function HabitRowLeading({
   selected,
   hasChildren,
   expanded,
+  drillMode,
   onToggleSelection,
   onExpand,
+  onDrill,
 }: Readonly<HabitRowLeadingProps>) {
   const t = useTranslations()
   return (
@@ -41,7 +47,19 @@ export function HabitRowLeading({
         <SelectCheck selected={selected} onClick={onToggleSelection} ariaLabel={title} />
       )}
 
-      {hasChildren && !selectMode && (
+      {hasChildren && !selectMode && drillMode && (
+        <button
+          type="button"
+          onClick={onDrill}
+          aria-label={t('habits.actions.openSubHabits')}
+          className="appearance-none border-0 bg-transparent cursor-pointer flex shrink-0 items-center justify-center text-[var(--primary)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--primary-pressed)]"
+          style={{ width: 44, height: 44, margin: '-15px -14px' }}
+        >
+          <ChevronRight size={16} strokeWidth={2.2} aria-hidden="true" />
+        </button>
+      )}
+
+      {hasChildren && !selectMode && !drillMode && (
         <button
           type="button"
           onClick={onExpand}

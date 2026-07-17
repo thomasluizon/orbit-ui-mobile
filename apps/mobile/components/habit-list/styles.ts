@@ -93,9 +93,6 @@ export function createStyles(tokens: AppTokens) {
     groupedList: {
       paddingBottom: 100,
     },
-    allViewChild: {
-      gap: 6,
-    },
 
     drillHeader: {
       flexDirection: 'row',

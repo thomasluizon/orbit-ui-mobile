@@ -1088,6 +1088,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           isDrillCard?: boolean
           onLongPressCard?: () => void
           tourTargetId?: string
+          firstInPanel?: boolean
+          lastInPanel?: boolean
+          showDrillChevron?: boolean
         },
       ) => {
         const progress = hasChildren
@@ -1102,6 +1105,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             depth={depth}
             hasChildren={hasChildren}
             isExpanded={!collapsedIds.has(habit.id)}
+            firstInPanel={options?.firstInPanel ?? true}
+            lastInPanel={options?.lastInPanel ?? true}
+            showDrillChevron={
+              options?.showDrillChevron ?? Boolean(options?.isDrillCard)
+            }
             childrenDone={progress.done}
             childrenTotal={progress.total}
             isSelectMode={isSelectMode}
@@ -1209,55 +1217,48 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       ],
     )
 
-    const renderAllViewChildren = useCallback(
-      (parentId: string, depth: number) => {
-        function walk(
-          currentParentId: string,
-          currentDepth: number,
-        ): ReactElement[] | null {
-          if (
-            collapsedIds.has(currentParentId) ||
-            currentDepth >= maxHabitDepth
-          ) {
-            return null
-          }
-          const children = getVisibleChildren(currentParentId)
-          if (children.length === 0) return null
+    const buildAllViewRows = useCallback(
+      (rootHabit: NormalizedHabit) => {
+        const rows: {
+          habit: NormalizedHabit
+          depth: number
+          hasChildren: boolean
+        }[] = [
+          {
+            habit: rootHabit,
+            depth: 0,
+            hasChildren: getVisibleChildren(rootHabit.id).length > 0,
+          },
+        ]
 
-          return children.map((child) => {
-            const visibleChildren = getVisibleChildren(child.id)
-            return (
-              <View key={child.id} style={styles.allViewChild}>
-                {renderHabitCard(
-                  child,
-                  currentDepth,
-                  visibleChildren.length > 0,
-                  child.hasSubHabits,
-                )}
-                {walk(child.id, currentDepth + 1)}
-              </View>
-            )
-          })
+        function walk(parentId: string, depth: number) {
+          if (collapsedIds.has(parentId) || depth >= maxHabitDepth) return
+          for (const child of getVisibleChildren(parentId)) {
+            rows.push({
+              habit: child,
+              depth,
+              hasChildren: getVisibleChildren(child.id).length > 0,
+            })
+            walk(child.id, depth + 1)
+          }
         }
 
-        return walk(parentId, depth)
+        walk(rootHabit.id, 1)
+        return rows
       },
       // react-doctor-disable-next-line exhaustive-deps -- maxHabitDepth is the extracted appConfig.limits.maxHabitDepth and already listed; the analyzer wants the qualified path but the alias tracks it https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-      [
-        collapsedIds,
-        getVisibleChildren,
-        maxHabitDepth,
-        renderHabitCard,
-        styles.allViewChild,
-      ],
+      [collapsedIds, getVisibleChildren, maxHabitDepth],
     )
 
     /* No Reanimated entering animation here: a layout animation nested inside a
        react-native-draggable-flatlist cell fights the cell's own translateY transform
        and mis-positions rows. https://github.com/thomasluizon/orbit-ui-mobile/pull/486 */
     const renderItem = useCallback(
-      ({ item, drag }: RenderItemParams<DragItem>) =>
-        renderHabitCard(
+      ({ item, drag, getIndex }: RenderItemParams<DragItem>) => {
+        const index = getIndex()
+        const items = activeDragItemsRef.current
+        const nextItem = index == null ? undefined : items[index + 1]
+        return renderHabitCard(
           item.habit,
           item.depth,
           item.hasChildren,
@@ -1270,8 +1271,12 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
               item.habit.id === tourCardHabitId
                 ? 'tour-habit-card'
                 : undefined,
+            firstInPanel: item.depth === 0,
+            lastInPanel: nextItem === undefined || nextItem.depth === 0,
+            showDrillChevron: item.depth >= 1,
           },
-        ),
+        )
+      },
       [isDndEnabled, prepareDrag, renderHabitCard, tourCardHabitId],
     )
 
@@ -1329,7 +1334,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           group={group}
           overdueLabel={t('habits.overdue')}
           renderHabit={(habit, index) => {
-            const children = getVisibleChildren(habit.id)
+            const rows = buildAllViewRows(habit)
             return (
               <Animated.View
                 entering={
@@ -1338,25 +1343,24 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
                     : FadeInDown.duration(280).delay(Math.min(index, 8) * 40)
                 }
               >
-                {renderHabitCard(
-                  habit,
-                  0,
-                  children.length > 0,
-                  habit.hasSubHabits,
+                {rows.map((row, rowIndex) =>
+                  renderHabitCard(
+                    row.habit,
+                    row.depth,
+                    row.hasChildren,
+                    row.habit.hasSubHabits,
+                    {
+                      firstInPanel: rowIndex === 0,
+                      lastInPanel: rowIndex === rows.length - 1,
+                    },
+                  ),
                 )}
-                {renderAllViewChildren(habit.id, 1)}
               </Animated.View>
             )
           }}
         />
       ),
-      [
-        getVisibleChildren,
-        prefersReducedMotion,
-        renderAllViewChildren,
-        renderHabitCard,
-        t,
-      ],
+      [buildAllViewRows, prefersReducedMotion, renderHabitCard, t],
     )
 
     const renderDrillItem = useCallback<ListRenderItem<NormalizedHabit>>(
