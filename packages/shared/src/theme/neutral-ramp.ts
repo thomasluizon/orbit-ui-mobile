@@ -83,25 +83,26 @@ export interface NeutralRamp {
 
 /**
  * Locked OKLCH ramp shape shared by all schemes. Lightness and chroma are
- * fixed per token; each token carries the handoff ramp's hue drift as an
- * offset from the scheme's canvas hue. Purple resolves byte-exact to the
- * handoff slate palette (see DESIGN.md derivation rules).
+ * fixed per token; each token carries the ramp's hue drift as an offset from
+ * the scheme's canvas hue. Purple resolves byte-exact to the frozen (#539 b5)
+ * neutral palette: dark canvas #070910, fg-1..4 #f6f7f9/#c7cbd2/#888e99/#565c67
+ * (see DESIGN.md derivation rules).
  */
 export const neutralRamp: NeutralRamp = {
   dark: {
-    bg: { lightness: 0.1298, chroma: 0.0425, hueOffset: 0, group: 'bg' },
-    fg1: { lightness: 0.9842, chroma: 0.0034, hueOffset: -17.2746, group: 'fg' },
-    fg2: { lightness: 0.8686, chroma: 0.0216, hueOffset: -12.6185, group: 'fg' },
-    fg3: { lightness: 0.7038, chroma: 0.0402, hueOffset: -8.1393, group: 'fg' },
-    fg4: { lightness: 0.5542, chroma: 0.046, hueOffset: -7.6061, group: 'fg' },
+    bg: { lightness: 0.14104069155540352, chroma: 0.015939302762573243, hueOffset: 0, group: 'bg' },
+    fg1: { lightness: 0.975941527186872, chroma: 0.0028673413166476263, hueOffset: -5.807762834095854, group: 'fg' },
+    fg2: { lightness: 0.8410737668002215, chroma: 0.010665714854488782, hueOffset: -8.563258024857873, group: 'fg' },
+    fg3: { lightness: 0.6453693702335441, chroma: 0.017824864895508642, hueOffset: -7.628241447918015, group: 'fg' },
+    fg4: { lightness: 0.47346558472924744, chroma: 0.019304208173662258, hueOffset: -7.675995172411376, group: 'fg' },
   },
   light: {
-    bg: { lightness: 0.9842, chroma: 0.0034, hueOffset: -17.2746, group: 'bg' },
-    bgSunk: { lightness: 0.9683, chroma: 0.0069, hueOffset: -17.2366, group: 'bg' },
-    fg1: { lightness: 0.2084, chroma: 0.0417, hueOffset: 1.227, group: 'fg' },
-    fg2: { lightness: 0.3717, chroma: 0.0449, hueOffset: -7.7086, group: 'fg' },
-    fg3: { lightness: 0.5542, chroma: 0.046, hueOffset: -7.6061, group: 'fg' },
-    fg4: { lightness: 0.7038, chroma: 0.0402, hueOffset: -8.1393, group: 'fg' },
+    bg: { lightness: 0.9841518630825351, chroma: 0.003412665198490683, hueOffset: -22.492258453348995, group: 'bg' },
+    bgSunk: { lightness: 0.9682603461349981, chroma: 0.006853583273311416, hueOffset: -22.45423513044682, group: 'bg' },
+    fg1: { lightness: 0.208402856504579, chroma: 0.04166282575754041, hueOffset: -3.990596293373983, group: 'fg' },
+    fg2: { lightness: 0.3717277546786527, chroma: 0.044925940120119565, hueOffset: -12.926197336406062, group: 'fg' },
+    fg3: { lightness: 0.5541629781808084, chroma: 0.04598794851178141, hueOffset: -12.823749241986093, group: 'fg' },
+    fg4: { lightness: 0.7038202552146957, chroma: 0.04016718204045253, hueOffset: -13.356914246819201, group: 'fg' },
   },
 }
 
@@ -240,5 +241,4 @@ export const primaryTintAlphas = {
   iconWell: 0.15,
   soft: 0.18,
   ring: 0.28,
-  glow: 0.45,
 } as const

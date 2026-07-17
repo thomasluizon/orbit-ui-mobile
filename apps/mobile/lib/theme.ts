@@ -116,7 +116,7 @@ export interface AppTokensV2 {
   primaryPressed: string
   /** "r, g, b" channels of `primary` for alpha tints (never hardcode violet). */
   primaryRgb: string
-  /** Soft accent foreground (lightened primary on dark, primary on light). */
+  /** Accent-text token: the per-scheme `primarySoft` clearing the text floor on canvas. */
   primarySoft: string
   gradientHeaderFrom: string
   gradientHeaderTo: string
@@ -176,7 +176,6 @@ export function createTokensV2(
   const fgOnPrimary = schemes[colorScheme].fgOnPrimary[themeMode]
   const alpha = alphaSurfaces[themeMode]
   const status = statusConstants[themeMode]
-  const gradientFrom = schemes[colorScheme].gradientHeaderFrom[themeMode]
 
   if (themeMode === 'light') {
     const neutrals = resolveLightNeutrals(colorScheme)
@@ -201,8 +200,8 @@ export function createTokensV2(
       primary: accent.primary,
       primaryPressed: accent.primaryPressed,
       primaryRgb: accent.primaryRgb,
-      primarySoft: accent.primary,
-      gradientHeaderFrom: gradientFrom,
+      primarySoft: schemes[colorScheme].primarySoft[themeMode],
+      gradientHeaderFrom: neutrals.bg,
       gradientHeaderTo: `rgba(${r}, ${g}, ${b}, 0)`,
       statusDone: accent.primary,
       statusEmpty: alpha.statusEmpty,
@@ -240,8 +239,8 @@ export function createTokensV2(
     primary: accent.primary,
     primaryPressed: accent.primaryPressed,
     primaryRgb: accent.primaryRgb,
-    primarySoft: lightenHex(accent.primary, 0.45),
-    gradientHeaderFrom: gradientFrom,
+    primarySoft: schemes[colorScheme].primarySoft[themeMode],
+    gradientHeaderFrom: neutrals.bg,
     gradientHeaderTo: `rgba(${r}, ${g}, ${b}, 0)`,
     statusDone: accent.primary,
     statusEmpty: alpha.statusEmpty,

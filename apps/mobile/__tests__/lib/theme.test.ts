@@ -18,16 +18,15 @@ describe('mobile theme runtime', () => {
   it('purple dark resolves the handoff palette byte-exact', () => {
     const dark = createTokensV2('purple', 'dark')
 
-    expect(dark.bg).toBe('#020618')
-    expect(dark.fg1).toBe('#f8fafc')
-    expect(dark.fg2).toBe('#cad5e2')
-    expect(dark.fg3).toBe('#90a1b9')
-    expect(dark.fg4).toBe('#62748e')
+    expect(dark.bg).toBe('#070910')
+    expect(dark.fg1).toBe('#f6f7f9')
+    expect(dark.fg2).toBe('#c7cbd2')
+    expect(dark.fg3).toBe('#888e99')
+    expect(dark.fg4).toBe('#565c67')
     expect(dark.bgElev).toBe('rgba(248, 250, 252, 0.06)')
-    expect(dark.primary).toBe('#7f46f7')
+    expect(dark.primary).toBe('#8659ea')
+    expect(dark.primarySoft).toBe('#b69bf8')
     expect(dark.fgOnPrimary).toBe('#ffffff')
-    expect(dark.gradientHeaderFrom).toBe('#22094f')
-    expect(dark.gradientHeaderTo).toBe('rgba(2, 6, 24, 0)')
   })
 
   it('resolves fg-on-primary per scheme and mode (AA flips to canvas ink)', () => {

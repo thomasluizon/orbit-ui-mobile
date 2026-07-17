@@ -24,7 +24,7 @@ describe('color schemes', () => {
 
   it('has the handoff accent literals (dark)', () => {
     expect(schemes.purple.accent.dark).toEqual({
-      primary: '#7f46f7', primaryPressed: '#631df2', primaryRgb: '127, 70, 247',
+      primary: '#8659ea', primaryPressed: '#6e44d2', primaryRgb: '134, 89, 234',
     })
     expect(schemes.blue.accent.dark.primary).toBe('#2b7fff')
     expect(schemes.green.accent.dark.primary).toBe('#00c950')
@@ -55,12 +55,13 @@ describe('color schemes', () => {
         expect(`#${fromRgb}`).toBe(primary)
       }
     })
-
-    it(`${name}: gradient header stops are valid hexes`, () => {
-      expect(schemes[name].gradientHeaderFrom.dark).toMatch(HEX)
-      expect(schemes[name].gradientHeaderFrom.light).toMatch(HEX)
-    })
   }
+
+  it('has no gradient-header field (deleted in the #539 freeze)', () => {
+    for (const name of ALL_SCHEMES) {
+      expect('gradientHeaderFrom' in schemes[name]).toBe(false)
+    }
+  })
 })
 
 describe('fg-on-primary (scheme x mode AA resolution)', () => {
@@ -109,13 +110,13 @@ describe('fg-on-primary (scheme x mode AA resolution)', () => {
 })
 
 describe('neutral ramp resolution', () => {
-  it('purple dark resolves byte-exact to the handoff slate palette', () => {
+  it('purple dark resolves byte-exact to the frozen (#539 b5) neutral palette', () => {
     expect(resolveDarkNeutrals('purple')).toEqual({
-      bg: '#020618',
-      fg1: '#f8fafc',
-      fg2: '#cad5e2',
-      fg3: '#90a1b9',
-      fg4: '#62748e',
+      bg: '#070910',
+      fg1: '#f6f7f9',
+      fg2: '#c7cbd2',
+      fg3: '#888e99',
+      fg4: '#565c67',
     })
   })
 
@@ -128,11 +129,6 @@ describe('neutral ramp resolution', () => {
       fg3: '#62748e',
       fg4: '#90a1b9',
     })
-  })
-
-  it('purple gradient header stops equal the handoff literals', () => {
-    expect(schemes.purple.gradientHeaderFrom.dark).toBe('#22094f')
-    expect(schemes.purple.gradientHeaderFrom.light).toBe('#e9d4ff')
   })
 
   for (const name of ALL_SCHEMES) {
@@ -227,7 +223,7 @@ describe('type roles', () => {
 describe('colorSchemeOptions', () => {
   it('has 6 options in canonical order with the new dark primaries', () => {
     expect(colorSchemeOptions).toEqual([
-      { value: 'purple', color: '#7f46f7' },
+      { value: 'purple', color: '#8659ea' },
       { value: 'blue', color: '#2b7fff' },
       { value: 'green', color: '#00c950' },
       { value: 'rose', color: '#ff2056' },
@@ -239,6 +235,21 @@ describe('colorSchemeOptions', () => {
   it('option colors match scheme dark primaries', () => {
     for (const option of colorSchemeOptions) {
       expect(option.color).toBe(schemes[option.value].accent.dark.primary)
+    }
+  })
+})
+
+describe('primary-soft accent-text token', () => {
+  it('freezes purple to the measured bytes', () => {
+    expect(schemes.purple.primarySoft.dark).toBe('#b69bf8')
+    expect(schemes.purple.primarySoft.light).toBe('#631df2')
+  })
+
+  it('every scheme x mode primary-soft is a valid hex', () => {
+    for (const name of ALL_SCHEMES) {
+      for (const mode of ['dark', 'light'] as const) {
+        expect(schemes[name].primarySoft[mode]).toMatch(HEX)
+      }
     }
   })
 })
