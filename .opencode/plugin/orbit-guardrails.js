@@ -74,7 +74,10 @@ export default async ({ directory, worktree } = {}) => {
         const tool = input?.tool
         const args = output?.args || {}
         if (tool === "bash" && typeof args.command === "string") {
-          throwBlocks([git.checkGitCommand(args.command, { resolveHeadBranch, resolveRemoteUrl, cwd: dir }), git.checkNpmExpoPin(args.command)], "command")
+          throwBlocks(
+            [git.checkGitCommand(args.command, { resolveHeadBranch, resolveRemoteUrl, cwd: dir }), git.checkGitWorktreeRemove(args.command), git.checkNpmExpoPin(args.command)],
+            "command",
+          )
         } else if (tool === "edit" || tool === "write") {
           const { filePath, addedText } = io.fromOpenCodeEdit(args)
           if (filePath && addedText) {
@@ -98,6 +101,8 @@ export default async ({ directory, worktree } = {}) => {
         throwBlocks(
           [
             source.checkTsAntipatterns(filePath, contents),
+            source.checkMobileSupabaseLazy(filePath, contents),
+            source.checkEfMigrationRawIndex(filePath, contents),
             source.checkNewTodos(filePath, contents),
             source.checkCsharpAuthz(filePath, contents),
             source.checkCsharpTimezone(filePath, contents),

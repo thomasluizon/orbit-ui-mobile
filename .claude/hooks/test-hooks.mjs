@@ -13,10 +13,18 @@ import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
-import { checkGitCommand, checkNpmExpoPin } from "./_lib/rules-git.mjs"
+import { checkGitCommand, checkGitWorktreeRemove, checkNpmExpoPin } from "./_lib/rules-git.mjs"
 import { checkShellAllowlist, PRIMER_SHELL_ALLOWLIST } from "./_lib/rules-shell-allowlist.mjs"
 import { checkEmDashes, checkBrandColors } from "./_lib/rules-content.mjs"
-import { checkTsAntipatterns, checkNewTodos, checkCsharpAuthz, checkCsharpTimezone, checkCsharpFluentConfig } from "./_lib/rules-source.mjs"
+import {
+  checkTsAntipatterns,
+  checkMobileSupabaseLazy,
+  checkEfMigrationRawIndex,
+  checkNewTodos,
+  checkCsharpAuthz,
+  checkCsharpTimezone,
+  checkCsharpFluentConfig,
+} from "./_lib/rules-source.mjs"
 import { classifyScope, parityMessages } from "./_lib/rules-parity.mjs"
 
 const hooksDir = dirname(fileURLToPath(import.meta.url))
@@ -87,6 +95,31 @@ T(
   checkGitCommand(`gh pr create --body "$(cat <<'PRBODY'\nthe bash <<EOF form keeps its body; the cron does git push on main\nPRBODY\n)"`),
   null,
 )
+// git worktree remove --force follows a Windows junction and deletes the target.
+T("git-worktree: --force blocks", !!checkGitWorktreeRemove("git worktree remove --force .claude/worktrees/x")?.block, true)
+T("git-worktree: -f short form blocks", !!checkGitWorktreeRemove("git worktree remove -f .claude/worktrees/x")?.block, true)
+T("git-worktree: no force allows", checkGitWorktreeRemove("git worktree remove .claude/worktrees/x"), null)
+T("git-worktree: unrelated git allows", checkGitWorktreeRemove("git worktree list"), null)
+T("git-worktree: -f inside a path is not the flag", checkGitWorktreeRemove("git worktree remove .claude/worktrees/feat-foo"), null)
+// A commit message that NAMES the flag is data, not a command (heredoc body stripped).
+T(
+  "git-worktree: heredoc message naming the flag allows",
+  checkGitWorktreeRemove("git commit -F - <<'EOF'\nchore: block git worktree remove --force in the junction guard\nEOF"),
+  null,
+)
+// The force flag must be in the SAME segment as `worktree remove` (segment-scoped
+// like checkGitCommand) — a later `--force` on an unrelated command must not block.
+T(
+  "git-worktree: force on a later chained command allows",
+  checkGitWorktreeRemove("git worktree remove .claude/worktrees/x && npm test -- --force"),
+  null,
+)
+T(
+  "git-worktree: force in the same segment still blocks",
+  !!checkGitWorktreeRemove("git worktree remove --force .claude/worktrees/x && npm test")?.block,
+  true,
+)
+
 T("npm: update blocks", !!checkNpmExpoPin("npm update")?.block, true)
 T("npm: expo install pin blocks", !!checkNpmExpoPin("npm install expo-router@1.2.3")?.block, true)
 T("npm: normal install allows", checkNpmExpoPin("npm install lodash"), null)
@@ -100,6 +133,67 @@ T("brand: token allows", checkBrandColors("color:var(--primary)", "/x/apps/web/c
 T("ts: console.log blocks", !!checkTsAntipatterns("/x/apps/web/a.ts", "console.log(1)")?.block, true)
 T("ts: clean allows", checkTsAntipatterns("/x/apps/web/a.ts", "export const a = 1"), null)
 T("ts: test file skipped", checkTsAntipatterns("/x/apps/web/a.test.ts", "console.log(1)"), null)
+
+// Mobile Supabase must stay lazy — a module-scope throw/init crashes to a grey screen (#172/#174).
+T("supabase: module-scope throw blocks", !!checkMobileSupabaseLazy("/x/apps/mobile/lib/supabase.ts", 'throw new Error("no env")')?.block, true)
+T("supabase: top-level createClient blocks", !!checkMobileSupabaseLazy("/x/apps/mobile/lib/supabase.ts", "export const supabase = createClient(url, key)")?.block, true)
+// The realistic forms the first cut missed (PR #556 review): an indented / guard-clause
+// throw, and a TYPED top-level const — the style the real file already uses.
+T("supabase: indented guard-clause throw blocks", !!checkMobileSupabaseLazy("/x/apps/mobile/lib/supabase.ts", "const url = process.env.URL\nif (!url) throw new Error('missing')")?.block, true)
+T("supabase: typed top-level createClient blocks", !!checkMobileSupabaseLazy("/x/apps/mobile/lib/supabase.ts", "export const supabase: SupabaseClient = createClient(url, key)")?.block, true)
+T(
+  "supabase: lazy accessor allows (throw inside a function)",
+  checkMobileSupabaseLazy("/x/apps/mobile/lib/supabase.ts", "export function getSupabaseClient() {\n  if (!client) throw new Error('x')\n  return createClient(url, key)\n}"),
+  null,
+)
+// The lazy arrow form has `() =>` between `=` and createClient — must NOT false-block.
+T(
+  "supabase: lazy arrow accessor allows",
+  checkMobileSupabaseLazy("/x/apps/mobile/lib/supabase.ts", "export const getSupabaseClient = () => createClient(url, key)"),
+  null,
+)
+T("supabase: off-path skipped", checkMobileSupabaseLazy("/x/apps/web/lib/supabase.ts", 'throw new Error("no env")'), null)
+
+// EF raw index SQL must be idempotent — a bare CREATE INDEX throws 42P07 at startup deploy.
+T(
+  "ef-index: raw CREATE UNIQUE INDEX blocks",
+  !!checkEfMigrationRawIndex("/x/orbit-api/src/Orbit.Infrastructure/Migrations/20260101_Add.cs", 'migrationBuilder.Sql("CREATE UNIQUE INDEX ix_foo ON foo (bar)");')?.block,
+  true,
+)
+T(
+  "ef-index: raw DROP INDEX without IF EXISTS blocks",
+  !!checkEfMigrationRawIndex("/x/orbit-api/src/Orbit.Infrastructure/Migrations/20260101_Add.cs", 'migrationBuilder.Sql("DROP INDEX ix_foo");')?.block,
+  true,
+)
+T(
+  "ef-index: IF NOT EXISTS form allows",
+  checkEfMigrationRawIndex("/x/orbit-api/src/Orbit.Infrastructure/Migrations/20260101_Add.cs", 'migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS ix_foo ON foo (bar)");'),
+  null,
+)
+T(
+  "ef-index: CreateIndex API call allows",
+  checkEfMigrationRawIndex("/x/orbit-api/src/Orbit.Infrastructure/Migrations/20260101_Add.cs", 'migrationBuilder.CreateIndex(name: "ix_foo", table: "foo", column: "bar");'),
+  null,
+)
+T("ef-index: off-path skipped", checkEfMigrationRawIndex("/x/orbit-api/src/Orbit.Application/Foo.cs", 'migrationBuilder.Sql("CREATE INDEX ix_foo ON foo (bar)");'), null)
+// Multi-statement Sql(): a sibling statement's IF NOT EXISTS must not mask another
+// statement in the same call that lacks it (PR #556 review, per-statement check).
+T(
+  "ef-index: batched Sql with one non-idempotent statement blocks",
+  !!checkEfMigrationRawIndex(
+    "/x/orbit-api/src/Orbit.Infrastructure/Migrations/20260101_Add.cs",
+    'migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS ix_b ON foo (b); CREATE INDEX ix_a ON foo (a);");',
+  )?.block,
+  true,
+)
+T(
+  "ef-index: batched Sql with all idempotent statements allows",
+  checkEfMigrationRawIndex(
+    "/x/orbit-api/src/Orbit.Infrastructure/Migrations/20260101_Add.cs",
+    'migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS ix_b ON foo (b); CREATE INDEX IF NOT EXISTS ix_a ON foo (a);");',
+  ),
+  null,
+)
 T("todos: marker blocks", !!checkNewTodos("/x/apps/web/a.ts", `// ${MARK}: fix`)?.block, true)
 T("todos: tracked ref allows", checkNewTodos("/x/apps/web/a.ts", `// ${MARK} #123: later`), null)
 T("csharp-authz: missing blocks", !!checkCsharpAuthz("/x/orbit-api/src/Orbit.Api/Controllers/FooController.cs", "public class FooController {}")?.block, true)
@@ -172,6 +266,8 @@ function runHook(file, payload) {
 
 T("cc git-guardrails: push main -> 2", runHook("git-guardrails.mjs", { tool_name: "Bash", tool_input: { command: "git push origin main" } }), 2)
 T("cc git-guardrails: feature -> 0", runHook("git-guardrails.mjs", { tool_name: "Bash", tool_input: { command: "git push origin feature/x" } }), 0)
+T("cc git-guardrails: worktree remove --force -> 2", runHook("git-guardrails.mjs", { tool_name: "Bash", tool_input: { command: "git worktree remove --force .claude/worktrees/x" } }), 2)
+T("cc git-guardrails: worktree remove (no force) -> 0", runHook("git-guardrails.mjs", { tool_name: "Bash", tool_input: { command: "git worktree remove .claude/worktrees/x" } }), 0)
 T("cc expo-pin: update -> 2", runHook("forbid-expo-pin-bump.mjs", { tool_name: "Bash", tool_input: { command: "npm update" } }), 2)
 T("cc em-dashes: locale dash -> 2", runHook("forbid-em-dashes.mjs", { tool_name: "Write", tool_input: { file_path: join(root, "packages/shared/src/i18n/en.json"), content: `{"k":"a ${EM} b"}` } }), 2)
 const tsBad = write("apps/web/bad.ts", "console.log(1)\n")
@@ -184,6 +280,14 @@ const ctrlBad = write("orbit-api/src/Orbit.Api/Controllers/FooController.cs", "p
 T("cc csharp-authz: missing -> 2", runHook("csharp-authz.mjs", { tool_name: "Write", tool_input: { file_path: ctrlBad } }), 2)
 const tzBad = write("orbit-api/src/Orbit.Application/Foo.cs", "var x = DateTime.UtcNow;\n")
 T("cc csharp-tz: UtcNow -> 2", runHook("csharp-tz.mjs", { tool_name: "Write", tool_input: { file_path: tzBad } }), 2)
+const supabaseBad = write("apps/mobile/lib/supabase.ts", 'throw new Error("no env")\n')
+const supabaseGood = write("apps/mobile/lib/supabase.good.ts", "export function getSupabaseClient() {\n  return createClient(url, key)\n}\n")
+T("cc supabase-eager: module throw -> 2", runHook("forbid-mobile-supabase-eager.mjs", { tool_name: "Write", tool_input: { file_path: supabaseBad } }), 2)
+T("cc supabase-eager: lazy accessor -> 0", runHook("forbid-mobile-supabase-eager.mjs", { tool_name: "Write", tool_input: { file_path: supabaseGood } }), 0)
+const efBad = write("orbit-api/src/Orbit.Infrastructure/Migrations/20260101_Add.cs", 'migrationBuilder.Sql("CREATE UNIQUE INDEX ix_foo ON foo (bar)");\n')
+const efGood = write("orbit-api/src/Orbit.Infrastructure/Migrations/20260102_Add.cs", 'migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS ix_foo ON foo (bar)");\n')
+T("cc ef-index: raw CREATE INDEX -> 2", runHook("forbid-ef-migration-raw-index.mjs", { tool_name: "Write", tool_input: { file_path: efBad } }), 2)
+T("cc ef-index: IF NOT EXISTS -> 0", runHook("forbid-ef-migration-raw-index.mjs", { tool_name: "Write", tool_input: { file_path: efGood } }), 0)
 
 // primer's allowlist is wired in .claude/agents/primer.md's own frontmatter, not
 // settings.json, so this asserts the file the agent points at really behaves.
@@ -235,10 +339,15 @@ const after = async (tool, args) => {
 T("oc before: push main throws", await before("bash", { command: "git push origin main" }), true)
 T("oc before: feature allows", await before("bash", { command: "git push origin feature/x" }), false)
 T("oc before: npm update throws", await before("bash", { command: "npm update" }), true)
+T("oc before: worktree remove --force throws", await before("bash", { command: "git worktree remove --force .claude/worktrees/x" }), true)
+T("oc before: worktree remove (no force) allows", await before("bash", { command: "git worktree remove .claude/worktrees/x" }), false)
 T("oc before: em dash throws", await before("write", { filePath: join(root, "packages/shared/src/i18n/en.json"), content: `a ${EM} b` }), true)
 T("oc after: console.log throws", await after("edit", { filePath: tsBad, newString: "x" }), true)
 T("oc after: clean allows", await after("edit", { filePath: tsGood, newString: "x" }), false)
 T("oc after: csharp authz throws", await after("write", { filePath: ctrlBad, content: "x" }), true)
+T("oc after: supabase eager throws", await after("write", { filePath: supabaseBad, content: "x" }), true)
+T("oc after: supabase lazy allows", await after("write", { filePath: supabaseGood, content: "x" }), false)
+T("oc after: ef raw index throws", await after("write", { filePath: efBad, content: "x" }), true)
 T("oc exposes session.idle guard", typeof hooks["event"], "function")
 
 // ---------------------------------------------------------------------------

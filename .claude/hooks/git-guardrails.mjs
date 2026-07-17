@@ -6,7 +6,7 @@
 
 import { execFileSync } from "node:child_process"
 import { readStdinJson } from "./_lib/io.mjs"
-import { checkGitCommand } from "./_lib/rules-git.mjs"
+import { checkGitCommand, checkGitWorktreeRemove } from "./_lib/rules-git.mjs"
 
 try {
   const input = readStdinJson()
@@ -25,7 +25,8 @@ try {
       stdio: ["ignore", "pipe", "ignore"],
     }).trim()
 
-  const verdict = checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, cwd: input?.cwd || process.cwd() })
+  const verdict =
+    checkGitCommand(command, { resolveHeadBranch, resolveRemoteUrl, cwd: input?.cwd || process.cwd() }) ?? checkGitWorktreeRemove(command)
   if (verdict?.block) {
     process.stderr.write(verdict.message)
     process.exit(2)
