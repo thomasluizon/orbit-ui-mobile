@@ -24,7 +24,7 @@ import {
   validateGoalDraftInput,
 } from '@orbit/shared/utils'
 import { MAX_GOAL_TITLE_LENGTH, MAX_GOAL_UNIT_LENGTH } from '@orbit/shared/validation'
-import { createTokensV2, primaryGlow, type AppTokensV2 } from '@/lib/theme'
+import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -162,7 +162,6 @@ export function OnboardingCreateGoal({
           <Animated.View
             style={[
               styles.successIcon,
-              primaryGlow(tokens),
               {
                 opacity: successScale,
                 transform: [

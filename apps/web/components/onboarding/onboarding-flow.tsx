@@ -19,7 +19,6 @@ import {
   useOnboardingHasProAccess,
   useOnboardingIsLive,
 } from './onboarding-actions-context'
-import { GradientTop } from '@/components/ui/gradient-top'
 import { PillButton } from '@/components/ui/pill-button'
 import { QuietLink } from '@/components/ui/quiet-link'
 import { OnboardingWelcome } from './onboarding-welcome'
@@ -234,13 +233,12 @@ export function OnboardingFlow() {
     <div
       ref={overlayRef}
       role="dialog"
-      className="fixed inset-0 z-[60] m-0 h-dvh w-screen overflow-y-auto"
+      className="fixed inset-0 z-modal m-0 h-dvh w-screen overflow-y-auto"
       style={{ background: 'var(--bg)' }}
       aria-modal="true"
       aria-labelledby="onboarding-title"
     >
       <div className="flex flex-col min-h-dvh relative">
-        <GradientTop height={520} />
         <div
           className="relative z-[1] flex items-center justify-between"
           style={{ padding: '8px 20px', minHeight: 56 }}

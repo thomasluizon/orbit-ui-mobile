@@ -108,7 +108,6 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
             width: 56,
             height: 56,
             background: 'var(--primary)',
-            boxShadow: 'var(--primary-glow)',
             animation: 'fresh-start-orb 0.5s var(--ease-out) both',
           }}
         >
