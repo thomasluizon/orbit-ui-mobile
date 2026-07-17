@@ -17,6 +17,7 @@ This is the automation of your existing split-session campaign pattern (WORKFLOW
 - **Fresh `claude -p` per task**, driven by a Node script, because a live Claude session driving children taints them (`CLAUDECODE` inheritance hang, anthropics/claude-code#26190) and rots its own context. The driver strips those env vars and holds no task context itself.
 - **The child inherits the project hooks** (it runs without `--bare`), so `git-guardrails` already blocks any push to `main`, force-push, and `--no-verify` from inside each task. That is the primary guardrail, doing real work for free.
 - **Prepare, not merge.** Branch per task, draft PR, back to base. Recoverable by construction.
+- **An independent verifier grades each PR, not the maker.** After a task opens its draft PR, the driver spawns a *separate, cheaper, read-only* `claude -p` (Sonnet) with no view of the maker's reasoning; it checks the diff against the acceptance criteria (criteria met? parity? workaround shipped?) and posts an `AGREE`/`DISAGREE`/`UNSURE` verdict onto the PR. This is the replacement for the human gate the other paths keep — a maker cannot reliably grade its own work. It flags, never blocks. `verify: false` disables it.
 
 ## Mode detection
 
@@ -37,7 +38,7 @@ Turn `$ARGUMENTS` into a concrete task list. Do NOT ask if you can infer it.
 - **`--backlog <file>`** -> each non-empty, non-`#` line is one free-form task (greenfield/refactor work, no issue).
 - **Free description with no ids** -> propose a queue from open issues that match, and confirm the set once (single question, the matched issues pre-selected).
 
-For each task capture: a stable `id` (issue number, or `b1`, `b2` for backlog lines), a short `label`, the source `body`, and the target `repo`. Order by dependency (a task that unblocks others goes first); note the order.
+For each task capture: a stable `id` (issue number, or `b1`, `b2` for backlog lines), a short `label`, the source `body`, the target `repo`, and `ui: true` if it changes a rendered surface (so the verifier reviews the diff against `DESIGN.md`). Order by dependency (a task that unblocks others goes first); note the order.
 
 A single task is normal (a queue of one is the common case). Scale is not the question; *shape* is.
 
@@ -88,7 +89,7 @@ Keep each prompt tight and specific. The `status` JSON line is how the driver re
 Into `.claude/night-run/` (gitignored runtime dir; create it if missing):
 
 - **`config.json`** — copy `config.example.json` from this skill folder and adjust for this run: `perTaskBudgetUsd`, `totalBudgetUsd` (size it to the queue), `model`, `push`, `repos` (include orbit-api only if a task needs it), `addDirs`. Confirm the two absolute `repos`/`addDirs` paths match this machine.
-- **`queue.json`** — array of `{ "id", "label", "repo" }` in run order.
+- **`queue.json`** — array of `{ "id", "label", "repo", "ui"? }` in run order (`ui: true` on rendered-surface tasks).
 - **`prompts/task-<id>.md`** — one per task (Phase 1).
 
 ## Phase 3 — Preflight (dry run)
@@ -109,6 +110,7 @@ Show me, and wait for an explicit "go" before launching anything that spends mon
 - **per-task budget cap** and **total budget cap** (the hard ceiling)
 - **permission posture**: `bypassPermissions` (child does not stall on prompts; `git-guardrails` + branch-per-task + the budget caps are the real guardrails — the `disallowedTools` denylist catches three literal spellings and is an accident guard, not a boundary). Flag this plainly so I can lower it.
 - **push/PR**: draft PRs will be opened tonight (CI and review bots will run on them)
+- **verifier**: on by default — each PR gets an independent Sonnet read-only verdict posted as a comment (`verify`/`verifyModel`/`verifyBudgetUsd`); its cost counts toward the total cap. Flag if you want it off. Mark any UI task `"ui": true` in the queue so the verifier reviews the diff against `DESIGN.md`.
 - model + fallback
 
 Do not launch before I say go. (Autonomy within the run; a gate before it starts.)
@@ -130,9 +132,9 @@ Either way the driver logs to `.claude/night-run/runs/<timestamp>/run.log` + `ST
 
 ## Report mode (`/night-run status`)
 
-1. Find the newest `.claude/night-run/runs/*/` dir. Read `SUMMARY.md` if the run finished, else `STATUS.md` + the tail of `run.log`.
+1. Find the newest `.claude/night-run/runs/*/` dir. Read `SUMMARY.md` if the run finished, else `STATUS.md` + the tail of `run.log`. Read `LESSONS.md` if present.
 2. `gh pr list --draft --author @me --json number,title,headRefName,url` in each repo to list what was prepared (cross-check against the run's PRs).
-3. Summarize: tasks done / blocked / failed, total spent vs. cap, and a one-line next-step per PR (which to review first). Flag any task that halted the circuit breaker.
+3. Summarize: tasks done / blocked / failed, the **verifier verdict per PR** (surface every `DISAGREE` first — those are the PRs to scrutinize), total spent vs. cap, and a one-line next-step per PR. Flag any task that halted the circuit breaker. If `LESSONS.md` has candidates, name the count and suggest `/lesson` to promote them (they are NOT auto-promoted — the review gate is deliberate).
 
 ## Stop mode (`/night-run stop`)
 

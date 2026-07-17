@@ -23,6 +23,9 @@ Layered, so no single failure is catastrophic:
 4. **Circuit breaker.** After `maxConsecutiveFailures` hard failures the run halts instead of burning budget in a loop.
 5. **Denylist + permission posture (an accident guard, NOT a boundary).** `disallowedTools` catches three literal spellings — `rm -rf `, `git reset --hard`, `git push --force`. Scoped `Bash(...)` patterns genuinely work at this layer, unlike agent frontmatter (see CLAUDE.md, "Agent tool scoping"). But a denylist only ever matches the spellings it lists: `rm -fr`, `rm --recursive --force`, and `git push -f` are different strings and pass straight through. Do not read it as containment — layers 1-4 plus the clean-tree rule below are what actually contain the child. The default `permissionMode` is `bypassPermissions` so the child never stalls on a prompt at 3am. A curated `allowedTools` allowlist would be stricter, but this child is a full implementation agent (it needs npm, git, gh, dotnet), so an allowlist that still lets it work is either enormous or stall-prone — that trade is real, not theoretical.
 6. **Stop flag.** `touch .claude/night-run/STOP` halts gracefully before the next task.
+7. **Independent verifier (judgment guard).** After each task that opens a PR (`done`/`blocked`), a **fresh `claude -p` verifier** — a different, cheaper model (`sonnet`), read-only by allowlist, with **no exposure to the maker's reasoning** — reads the diff against the task's acceptance criteria and returns an `AGREE`/`DISAGREE`/`UNSURE` verdict (criteria met? parity ok? workaround shipped?). The verdict is posted as a PR comment and shown in the `verifier` column of `STATUS.md`/`SUMMARY.md`. This is the one path with no human in the loop, so it replaces the missing gate with a separate grader — a maker grading its own work prefers conclusions consistent with what it just wrote; a fresh grader sees only the artifact. It is judgment, not containment: a `DISAGREE` flags the PR for you, it does not block or edit. Disable with `verify: false`.
+
+The verifier is **not** a rendered/vision check — a headless overnight box has no dev server, so it reviews the JSX/CSS/token diff against `DESIGN.md` statically for `ui`-flagged tasks and is instructed never to claim a pixel check it did not run. Actual pixel-level vision-verify lives in the **attended** `/drive` UI gate, where a renderer exists.
 
 Residual risk: under `bypassPermissions` the child can run arbitrary bash within the repo. Start every run from a **clean, committed tree** so the worst case is recoverable via git, and sandbox in Docker if a run will touch anything outside the repo.
 
@@ -40,7 +43,7 @@ Runtime (gitignored, under `.claude/night-run/`):
 - `config.json` — the active config for a run.
 - `queue.json` — `[{ id, label, repo }]` in run order.
 - `prompts/task-<id>.md` — the self-contained prompt per task.
-- `runs/<timestamp>/` — `run.log`, `STATUS.md`, `SUMMARY.md`, `task-<id>.json` per run.
+- `runs/<timestamp>/` — `run.log`, `STATUS.md`, `SUMMARY.md`, `task-<id>.json`, and `LESSONS.md` (fail/blocked/DISAGREE candidates) per run.
 - `STOP` — presence halts the driver before its next task.
 
 ## Config knobs (`config.json`)
@@ -57,6 +60,11 @@ Runtime (gitignored, under `.claude/night-run/`):
 | `addDirs` | `[orbit-api]` | extra repos the child can read (`--add-dir`); read-only, not required clean |
 | `repos` | `[.]` | repos reset to base + required clean between tasks; add orbit-api only for cross-repo *write* tasks |
 | `push` | `true` | require `gh` auth and open PRs |
+| `verify` | `true` | run the independent verifier after each PR-producing task |
+| `verifyModel` | `sonnet` | verifier model (a different, cheaper grader than the maker) |
+| `verifyBudgetUsd` | `2` | hard `--max-budget-usd` per verifier pass (counts toward `totalBudgetUsd`) |
+| `verifyTimeoutMs` | `1200000` | verifier wall-clock cap (20 min) |
+| `verifyAllowedTools` | Read/Grep/Glob + `gh`/`git` reads | read-only allowlist that makes the verifier structurally unable to edit |
 
 ## Run it directly
 

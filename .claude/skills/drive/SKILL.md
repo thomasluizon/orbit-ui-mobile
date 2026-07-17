@@ -60,6 +60,9 @@ next-action: "/drive <N>"        # exact command to paste after /clear
 ## Decisions (from grilling — durable across every /clear)
 - <decision + why>
 
+## Lesson candidates (from blocked bundles / verifier DISAGREE — promote via /lesson)
+- <one line + the bundle it came from>
+
 ## Reconcile log
 - <what a resume corrected against gh, and when>
 ```
@@ -116,8 +119,24 @@ Parse `$ARGUMENTS`:
    state keeps the human at the merge). Parity is mandatory: a web change lands in mobile and
    vice versa; i18n keys in both `en.json` and `pt-BR.json`; backend support in `orbit-api`
    via the added worktree.
+3b. **Vision-verify (UI bundles only — the pixel check `/night-run` cannot do).** If the bundle
+   changed a rendered surface, verify the pixels before you spend review attention, since
+   `/drive` is attended and a renderer is available here:
+   - Bring the stack up with the `dev-server` skill if it is not already running, then drive
+     the `claude-in-chrome` MCP to navigate to the changed surface and screenshot it (light +
+     dark). The **main session is vision-capable** — read the screenshot against `DESIGN.md`:
+     semantic tokens only, no decorative glow / gradient wash, base-4 spacing, the AI-slop and
+     scene-sentence tests, and the `#539` de-decorated anchor. Also run `design-reviewer` for
+     the static token/parity pass on the diff (it is read-only and has no browser, so it never
+     replaces the render — the two are complementary).
+   - Report **pass** or the concrete deviations before the merge review. Never claim a visual
+     pass you did not actually render; if the stack will not come up, say so and fall back to
+     the static `design-reviewer` pass only.
 4. **Update + reconcile.** Write the bundle's `status`, `branch`, and `PR` into the spec.
    Verify the PR with `gh pr view` — the spec reflects `gh` truth, not the subagent's claim.
+   If the bundle came back `blocked`/`failed`, or vision-verify found a `DESIGN.md` deviation,
+   append one line to the spec's **Lesson candidates** section (what went wrong + the bundle)
+   and remind at handoff to run `/lesson`. Do not auto-edit the tracked `pending-lessons.md`.
 5. **Next.**
    - More `todo` bundles AND the main session is still thin → offer to continue to the next
      bundle now, in this session.

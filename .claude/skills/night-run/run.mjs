@@ -35,6 +35,11 @@ const DEFAULTS = {
   baseBranch: "main",
   push: true,
   repos: [{ path: ".", base: "main" }],
+  verify: true,
+  verifyModel: "sonnet",
+  verifyBudgetUsd: 2,
+  verifyTimeoutMs: 20 * 60 * 1000,
+  verifyAllowedTools: ["Read", "Grep", "Glob", "Bash(gh pr diff:*)", "Bash(gh pr view:*)", "Bash(git diff:*)", "Bash(git log:*)", "Bash(git show:*)"],
 }
 
 const TAINTED_ENV = [
@@ -116,13 +121,13 @@ function preflight(config, repos) {
   return problems
 }
 
-/** Pull the last balanced {...} JSON object out of the child's final message. */
-function parseStatusLine(resultText) {
+/** Pull the last balanced {...} JSON object carrying `requiredKey` out of a child's final message. */
+function parseJsonLine(resultText, requiredKey) {
   const candidates = [...String(resultText).matchAll(/\{[\s\S]*?\}/g)].map((m) => m[0]).reverse()
   for (const candidate of candidates) {
     try {
       const parsed = JSON.parse(candidate)
-      if (parsed && typeof parsed.status === "string") return parsed
+      if (parsed && typeof parsed[requiredKey] === "string") return parsed
     } catch {
       continue
     }
@@ -171,7 +176,7 @@ function runTask(task, config, promptText, log) {
     return { status: "failed", cost, pr: null, summary: "child reported an error", elapsedMs, raw: String(resultText).slice(-500) }
   }
 
-  const line = parseStatusLine(resultText)
+  const line = parseJsonLine(resultText, "status")
   if (!line) {
     return { status: "unknown", cost, pr: null, summary: "no status line in child output", elapsedMs, raw: String(resultText).slice(-500) }
   }
@@ -182,6 +187,105 @@ function runTask(task, config, promptText, log) {
     summary: String(line.summary || "").slice(0, 500),
     elapsedMs,
   }
+}
+
+/**
+ * Build the independent-verifier prompt. The verifier never sees the maker's reasoning trail
+ * (fresh context, only the diff + the acceptance criteria) — the structural reason a separate
+ * grader outperforms self-critique. Read-only by allowlist; posture reinforced in the prompt.
+ */
+function buildVerifyPrompt(task, promptText, prUrl) {
+  const uiClause = task.ui
+    ? `5. UI/DESIGN: this task changed UI. Review the JSX/CSS/token diff against DESIGN.md — semantic tokens only, NO decorative glow or gradient wash, base-4 spacing, and the AI-slop test. (You are headless: do NOT claim any pixel/rendered check you did not actually run; a static diff review against DESIGN.md is the expected depth here.)\n`
+    : ""
+  return `You are an INDEPENDENT VERIFIER for an unattended overnight engineering run. You did
+NOT write this code and must not defer to any claim the implementer made — judge ONLY the
+artifact against the acceptance criteria below.
+
+TASK — acceptance criteria (verbatim):
+${promptText}
+
+The implementer opened this draft PR: ${prUrl}
+Inspect the ACTUAL change, do not trust the summary:
+- \`gh pr diff ${prUrl}\` for the full diff (and the paired orbit-api PR if the task was cross-repo).
+- Read any file you need for surrounding context.
+
+Verify, specifically:
+1. Does the diff satisfy EVERY acceptance criterion above? Name any unmet one.
+2. Cross-platform parity: a web change mirrored in apps/mobile and vice versa; i18n keys in BOTH en.json and pt-BR.json. Flag any missing mirror.
+3. Did it ship a workaround, placeholder, or deferral instead of the real change? (Orbit standard: the complete implementation, always — a "would be an API change / follow-up" note is a defect, not an excuse.)
+4. Any obvious correctness, data-isolation, or security regression in the diff.
+${uiClause}
+You are STRICTLY READ-ONLY: do not edit, commit, push, or comment. Only Read/Grep/Glob and \`gh\`/\`git\` read commands are available to you.
+
+END your final message with EXACTLY one line of JSON (no fences):
+{"verdict":"AGREE"|"DISAGREE"|"UNSURE","criteria_met":true|false,"parity_ok":true|false,"reasons":"<one or two sentences, cite file:line for any defect>","lesson":"<one line to carry forward if you DISAGREE, else null>"}`
+}
+
+function buildVerifyArgs(config) {
+  const args = ["-p", "--output-format", "json", "--model", config.verifyModel, "--permission-mode", "bypassPermissions"]
+  args.push("--max-budget-usd", String(config.verifyBudgetUsd))
+  if (config.fallbackModel) args.push("--fallback-model", config.fallbackModel)
+  if (config.verifyAllowedTools?.length) args.push("--allowedTools", config.verifyAllowedTools.join(" "))
+  for (const dir of config.addDirs || []) args.push("--add-dir", resolve(dir))
+  return args
+}
+
+/** Run the independent verifier over a task's draft PR. Its cost is returned so the caller adds it to spend. */
+function verifyTask(task, config, promptText, prUrl) {
+  const started = Date.now()
+  const run = spawnSync("claude", buildVerifyArgs(config), {
+    input: buildVerifyPrompt(task, promptText, prUrl),
+    cwd: resolve(config.repos[0].path),
+    env: childEnv(),
+    encoding: "utf8",
+    timeout: config.verifyTimeoutMs,
+    maxBuffer: 64 * 1024 * 1024,
+    shell: false,
+  })
+  const elapsedMs = Date.now() - started
+  if (run.error) {
+    const reason = run.error.code === "ETIMEDOUT" ? "verifier timed out" : `verifier spawn failed (${run.error.code})`
+    return { verdict: "UNSURE", cost: 0, reasons: reason, lesson: null, elapsedMs }
+  }
+  const outer = (() => {
+    try {
+      return JSON.parse(run.stdout)
+    } catch {
+      return null
+    }
+  })()
+  const cost = Number(outer?.total_cost_usd ?? outer?.cost_usd ?? 0) || 0
+  const resultText = outer?.result ?? run.stdout ?? ""
+  const line = parseJsonLine(resultText, "verdict")
+  if (!line) {
+    return { verdict: "UNSURE", cost, reasons: "verifier returned no verdict line", lesson: null, elapsedMs }
+  }
+  return {
+    verdict: line.verdict,
+    criteriaMet: line.criteria_met === true,
+    parityOk: line.parity_ok === true,
+    reasons: String(line.reasons || "").slice(0, 600),
+    lesson: line.lesson && line.lesson !== "null" ? String(line.lesson).slice(0, 300) : null,
+    cost,
+    elapsedMs,
+  }
+}
+
+/** Post the verifier verdict onto the draft PR so it is visible at review time. Best-effort. */
+function postVerdictComment(prUrl, verdict, log) {
+  const body = [
+    `**Night-run independent verifier — ${verdict.verdict}**`,
+    ``,
+    `- criteria met: ${verdict.criteriaMet ? "yes" : "no"}`,
+    `- parity ok: ${verdict.parityOk ? "yes" : "no"}`,
+    ``,
+    verdict.reasons || "(no reasons given)",
+    ``,
+    `_Independent Sonnet verifier, fresh context, read-only. Not a substitute for your review._`,
+  ].join("\n")
+  const r = spawnSync("gh", ["pr", "comment", prUrl, "--body", body], { encoding: "utf8" })
+  if (r.status !== 0) log(`  could not post verifier comment (${String(r.stderr || "").trim().slice(-160)})`)
 }
 
 function main() {
@@ -221,13 +325,15 @@ function main() {
   }
 
   const results = []
+  const lessons = []
   let spent = 0
   let consecutiveFailures = 0
+  const row = (r) => `| ${r.id} | ${r.label} | ${r.status} | ${r.verdict || "-"} | $${r.cost.toFixed(2)} | ${r.pr || "-"} |`
   const writeStatus = () => {
-    const rows = results.map((r) => `| ${r.id} | ${r.label} | ${r.status} | $${r.cost.toFixed(2)} | ${r.pr || "-"} |`).join("\n")
+    const rows = results.map(row).join("\n")
     writeFileSync(
       statusPath,
-      `# night-run status\n\nSpent so far: $${spent.toFixed(2)} / $${config.totalBudgetUsd}\n\n| task | label | status | cost | PR |\n|---|---|---|---|---|\n${rows}\n`,
+      `# night-run status\n\nSpent so far: $${spent.toFixed(2)} / $${config.totalBudgetUsd}\n\n| task | label | status | verifier | cost | PR |\n|---|---|---|---|---|---|\n${rows}\n`,
     )
   }
 
@@ -263,9 +369,25 @@ function main() {
     spent += outcome.cost
     const record = { id: task.id, label: task.label, ...outcome }
     results.push(record)
-    writeFileSync(join(runDir, `task-${task.id}.json`), JSON.stringify(record, null, 2))
     log(`  status=${outcome.status} cost=$${outcome.cost.toFixed(2)} pr=${outcome.pr || "-"} (${Math.round(outcome.elapsedMs / 1000)}s)`)
     if (outcome.summary) log(`  summary: ${outcome.summary}`)
+
+    if (config.verify && outcome.pr && (outcome.status === "done" || outcome.status === "blocked")) {
+      log(`  verifying [${task.id}] against acceptance criteria (independent ${config.verifyModel})...`)
+      const verdict = verifyTask(task, config, promptText, outcome.pr)
+      spent += verdict.cost
+      record.verdict = verdict.verdict
+      record.verifyCost = verdict.cost
+      record.verifyReasons = verdict.reasons
+      if (config.push) postVerdictComment(outcome.pr, verdict, log)
+      log(`  verifier=${verdict.verdict} criteriaMet=${verdict.criteriaMet} parityOk=${verdict.parityOk} cost=$${verdict.cost.toFixed(2)}`)
+      if (verdict.lesson) lessons.push({ id: task.id, label: task.label, source: "verifier", text: verdict.lesson })
+    }
+    if (outcome.status === "blocked" || outcome.status === "failed") {
+      lessons.push({ id: task.id, label: task.label, source: outcome.status, text: outcome.summary || outcome.raw || "(no detail)" })
+    }
+
+    writeFileSync(join(runDir, `task-${task.id}.json`), JSON.stringify(record, null, 2))
     writeStatus()
 
     const hardFailure = outcome.status === "failed" || outcome.status === "unknown"
@@ -278,20 +400,37 @@ function main() {
 
   resetReposToBase(config.repos, log)
   const done = results.filter((r) => r.status === "done").length
+  const flagged = results.filter((r) => r.verdict === "DISAGREE").length
+
+  if (lessons.length) {
+    const lessonDoc = [
+      `# night-run lesson candidates — ${stamp()}`,
+      ``,
+      `Fail/blocked outcomes and verifier DISAGREEs from this run. NOT auto-promoted: review each`,
+      `and run \`/lesson\` to distill and graduate it (that human gate is deliberate).`,
+      ``,
+      ...lessons.map((l) => `- **[${l.id}] ${l.label}** (${l.source}): ${l.text}`),
+      ``,
+    ].join("\n")
+    writeFileSync(join(runDir, "LESSONS.md"), lessonDoc)
+  }
+
   const summary = [
     `# night-run summary`,
     ``,
     `- tasks attempted: ${results.length} / ${queue.length}`,
     `- completed (done): ${done}`,
+    `- verifier flagged (DISAGREE): ${flagged}`,
+    `- lesson candidates: ${lessons.length}${lessons.length ? ` (see LESSONS.md — run /lesson to promote)` : ""}`,
     `- total spent: $${spent.toFixed(2)} / $${config.totalBudgetUsd}`,
     ``,
-    `| task | label | status | cost | PR |`,
-    `|---|---|---|---|---|`,
-    ...results.map((r) => `| ${r.id} | ${r.label} | ${r.status} | $${r.cost.toFixed(2)} | ${r.pr || "-"} |`),
+    `| task | label | status | verifier | cost | PR |`,
+    `|---|---|---|---|---|---|`,
+    ...results.map(row),
     ``,
   ].join("\n")
   writeFileSync(join(runDir, "SUMMARY.md"), summary)
-  log(`DONE. ${done}/${queue.length} completed, $${spent.toFixed(2)} spent. Summary: ${join(runDir, "SUMMARY.md")}`)
+  log(`DONE. ${done}/${queue.length} completed, ${flagged} flagged, ${lessons.length} lesson candidate(s), $${spent.toFixed(2)} spent. Summary: ${join(runDir, "SUMMARY.md")}`)
 }
 
 main()
