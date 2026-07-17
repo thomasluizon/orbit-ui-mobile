@@ -24,6 +24,8 @@ export const achievementSchema = z.object({
   iconKey: z.string(),
   isEarned: z.boolean(),
   earnedAtUtc: z.string().nullable(),
+  progressCurrent: z.number().nullable().optional(),
+  progressTarget: z.number().nullable().optional(),
 })
 
 export type Achievement = z.infer<typeof achievementSchema>

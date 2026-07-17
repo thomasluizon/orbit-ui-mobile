@@ -86,39 +86,64 @@ describe('RailConsistency', () => {
 })
 
 describe('RailNextAchievement', () => {
-  const lockedAchievement = {
-    id: 'first_habit',
-    iconKey: 'first_habit',
-    name: 'First',
+  const withProgress = (
+    id: string,
+    progressCurrent: number,
+    progressTarget: number,
+  ) => ({ id, iconKey: id, name: id, isEarned: false, progressCurrent, progressTarget })
+
+  const oneShot = (id: string) => ({
+    id,
+    iconKey: id,
+    name: id,
     isEarned: false,
-  }
+    progressCurrent: null,
+    progressTarget: null,
+  })
 
   beforeEach(() => {
     vi.clearAllMocks()
     useProfileMock.mockReturnValue({ profile: { canViewGamification: true } })
   })
 
-  it('renders the next locked achievement name, overall progress, and the count', () => {
+  it('picks the locked achievement closest to unlocking and shows its own progress', () => {
     useGamificationProfileMock.mockReturnValue({
-      profile: { achievementsEarned: 3, achievementsTotal: 10 },
-      lockedAchievements: [lockedAchievement],
+      profile: {},
+      lockedAchievements: [
+        withProgress('squad_goals', 1, 5),
+        withProgress('week_warrior', 5, 7),
+        withProgress('cheerleader', 4, 25),
+      ],
     })
 
     render(<RailNextAchievement />)
 
     expect(screen.getByText('rail.nextAchievement')).toBeInTheDocument()
-    expect(screen.getByText('gamification.achievements.first_habit.name')).toBeInTheDocument()
-    expect(screen.getByText('3/10')).toBeInTheDocument()
+    expect(screen.getByText('gamification.achievements.week_warrior.name')).toBeInTheDocument()
+    expect(screen.getByText('5/7')).toBeInTheDocument()
     expect(
       screen.getByRole('progressbar', { name: 'rail.nextAchievement' }),
-    ).toHaveAttribute('aria-valuenow', '30')
+    ).toHaveAttribute('aria-valuenow', '71')
+  })
+
+  it('falls back to the first locked achievement with its description and no bar when none has progress', () => {
+    useGamificationProfileMock.mockReturnValue({
+      profile: {},
+      lockedAchievements: [oneShot('perfect_day'), oneShot('show_off')],
+    })
+
+    render(<RailNextAchievement />)
+
+    expect(screen.getByText('gamification.achievements.perfect_day.name')).toBeInTheDocument()
+    expect(screen.getByText('gamification.achievements.perfect_day.description')).toBeInTheDocument()
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
   })
 
   it('renders nothing when gamification is not viewable', () => {
     useProfileMock.mockReturnValue({ profile: { canViewGamification: false } })
     useGamificationProfileMock.mockReturnValue({
-      profile: { achievementsEarned: 3, achievementsTotal: 10 },
-      lockedAchievements: [lockedAchievement],
+      profile: {},
+      lockedAchievements: [withProgress('week_warrior', 5, 7)],
     })
 
     const { container } = render(<RailNextAchievement />)
@@ -128,7 +153,7 @@ describe('RailNextAchievement', () => {
 
   it('renders nothing when every achievement is already earned', () => {
     useGamificationProfileMock.mockReturnValue({
-      profile: { achievementsEarned: 10, achievementsTotal: 10 },
+      profile: {},
       lockedAchievements: [],
     })
 
