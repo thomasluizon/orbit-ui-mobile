@@ -396,7 +396,8 @@
 
   @media (min-width: 1024px) {
     :root {
-      --app-max-w: clamp(640px, 34vw + 190px, 920px);
+      /* Frozen Today freeze: the centered main column caps at ~740px https://github.com/thomasluizon/orbit-ui-mobile/issues/539 */
+      --app-max-w: clamp(640px, 34vw + 190px, 740px);
     }
   }
 

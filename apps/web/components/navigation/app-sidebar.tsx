@@ -150,7 +150,7 @@ export function AppSidebar({
         {collapsed ? (
           <PillButton
             variant="primary"
-            size="md"
+            size="xs"
             onClick={onCreate}
             ariaLabel={createLabel}
             title={createLabel}
@@ -159,7 +159,7 @@ export function AppSidebar({
         ) : (
           <PillButton
             variant="primary"
-            size="md"
+            size="xs"
             onClick={onCreate}
             leading={<Plus size={18} strokeWidth={2.2} />}
           >

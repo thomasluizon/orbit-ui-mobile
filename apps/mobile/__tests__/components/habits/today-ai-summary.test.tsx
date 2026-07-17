@@ -53,10 +53,13 @@ vi.mock("@/lib/theme", () => ({
 }));
 
 vi.mock("lucide-react-native", () => ({
-  Sparkles: (props: Record<string, unknown>) =>
-    React.createElement("Sparkles", props),
   ArrowUpRight: (props: Record<string, unknown>) =>
     React.createElement("ArrowUpRight", props),
+}));
+
+vi.mock("@/components/ui/astra-avatar", () => ({
+  AstraMark: (props: Record<string, unknown>) =>
+    React.createElement("AstraMark", props),
 }));
 
 import { TodayAISummary } from "@/components/habits/today-ai-summary";

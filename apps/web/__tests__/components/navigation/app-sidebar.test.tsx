@@ -160,7 +160,7 @@ describe('AppSidebar', () => {
     const props = renderSidebar({ collapsed: true })
 
     const create = screen.getByRole('button', { name: 'Create habit' })
-    expect(create).toHaveStyle({ width: '50px', height: '50px' })
+    expect(create).toHaveStyle({ width: '38px', height: '38px' })
     expect(create).not.toHaveTextContent('Create habit')
 
     fireEvent.click(create)

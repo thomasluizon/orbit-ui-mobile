@@ -62,7 +62,7 @@ Canonical CSS lives in `apps/web/app/globals.css`; the mobile equivalent is `cre
 
 Mechanics: use a flex or grid container with `gap-*`. **Never `space-x-*` / `space-y-*`, never a margin for sibling spacing.**
 
-**Exemption, and only this one:** `PillButton`'s internal geometry (heights 40/50/56, horizontal padding 18/26/30, icon gaps 7/9/10) is locked shared data in `packages/shared/src/theme/button.ts` and is off-scale by history. It is a primitive constant, not a layout decision, and is never hand-tuned per call. Nothing else is exempt.
+**Exemption, and only this one:** `PillButton`'s internal geometry (heights 38/40/50/56, horizontal padding 18/26/30, icon gaps 7/9/10) is locked shared data in `packages/shared/src/theme/button.ts` and is off-scale by history. It is a primitive constant, not a layout decision, and is never hand-tuned per call. Nothing else is exempt.
 
 **Space unevenly on purpose:** tight within a group, real air between groups. Uniform gaps everywhere is the tell of no decision, not a system.
 
@@ -233,7 +233,7 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | Switch | 48×28 pill, 22px white thumb, on=primary / off=rgba(fg,0.16) | inside settings-row | inside settings-row |
 | Radio/RadioRow | 24px, selected=primary fill + 9px white dot, else inset 2px fg-4 ring | `ui/select-check.tsx` | `ui/select-check.tsx` |
 | Badge | pill 3/9px, 10.5/600 +0.06em UPPERCASE; tones violet/soft/outline/amber | `ui/badge.tsx` (+ pro-badge) | same |
-| PillButton | pill CTA, 4 variants × 3 sizes off the shared `BUTTON_SIZES` geometry: primary (accent fill, **no glow**) / secondary (fg-1 bg + canvas text) / ghost (inset 1.5px hairline-strong) / destructive (status-bad fill + fg-on-bad); md = h50·26px pad·Rubik 16/500·18 icon·9 gap (default), sm = h40, lg = h56. Hugs content; caps ~360px at desktop. Full canon in **Buttons** | `ui/pill-button.tsx` | `ui/pill-button.tsx` |
+| PillButton | pill CTA, 4 variants × 4 sizes off the shared `BUTTON_SIZES` geometry: primary (accent fill, **no glow**) / secondary (fg-1 bg + canvas text) / ghost (inset 1.5px hairline-strong) / destructive (status-bad fill + fg-on-bad); md = h50·26px pad·Rubik 16/500·18 icon·9 gap (default), sm = h40, xs = h38 (grounded desktop-sidebar Criar), lg = h56. Hugs content; caps ~360px at desktop. Full canon in **Buttons** | `ui/pill-button.tsx` | `ui/pill-button.tsx` |
 | StatTile | radius 18, `--bg-elev` + inset hairline ring, emoji 28, value Inter 24/700, label 15 fg-2 | `ui/stat-tile.tsx` | same |
 | PlanCard | radius 18, selected = `--primary-dim` tint + inset 1.5px primary ring; price Inter 22/700 | `upgrade/plan-card.tsx` | same |
 | InfoCard | radius 18, `--primary-dim` tint bg + inset ring primary 0.28, icon 24/1.9 accent | `ui/info-card.tsx` | same |
@@ -254,7 +254,7 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 `PillButton` (`ui/pill-button.tsx`, mirrored web + mobile) is the one pill CTA. Its geometry is shared data in `packages/shared/src/theme/button.ts` (`BUTTON_SIZES`) so the two platform mirrors cannot drift. Over-wide and over-wordy buttons are the two AI-slop tells this rule kills.
 
 - **Variants:** `primary` (accent fill, no glow), `secondary` (fg-1 fill, canvas text), `ghost` (transparent, inset 1.5px hairline-strong ring), `destructive` (status-bad fill, fg-on-bad text). `ConfirmDialog` reuses the `primary` / `destructive` fills for its paired action row.
-- **Sizes:** `sm` (h40, 18px pad, 14px label, 16 icon, 7 gap), `md` (h50, 26px pad, 16px label, 18 icon, 9 gap; the default), `lg` (h56, 30px pad, 17px label, 20 icon, 10 gap). A size is a fixed height + horizontal padding + label / icon / gap set; never hand-tune per call.
+- **Sizes:** `xs` (h38, 18px pad, 14px label, 16 icon, 7 gap; the grounded desktop-sidebar Criar), `sm` (h40, 18px pad, 14px label, 16 icon, 7 gap), `md` (h50, 26px pad, 16px label, 18 icon, 9 gap; the default), `lg` (h56, 30px pad, 17px label, 20 icon, 10 gap). A size is a fixed height + horizontal padding + label / icon / gap set; never hand-tune per call.
 - **Width, hug by default.** A pill sizes to its content. A lone CTA in a wide container caps at ~360px and never spans a desktop content column. Full-width (`fullWidth`, or a phone-shell stretch) is sanctioned ONLY in: (1) the single primary action of a mobile bottom-sheet or dialog, (2) a form submit at or below the mobile breakpoint (auth, onboarding, support, create flows), (3) a full-screen empty-state primary CTA. `ConfirmDialog`'s paired action row is also allowed. Everywhere else the pill hugs.
 - **Labels, 1-2 words, action-first.** Strip words the surrounding dialog title or section header already carries ("Log all" becomes "Log", "Registrar todos" becomes "Registrar"). pt-BR runs longer than en, so the size scale must absorb the longer string without going full-bleed.
 - **One label per CTA intent per surface, and the name survives the whole flow.** The button that says "Publish" produces "Published", never "Submit" for "Save changes". Nav, hero, and footer pointing at one action use one string. This has real teeth here: every string exists twice (`en.json` + `pt-BR.json`) and the shortening rule above is exactly when a label and its toast drift apart.

@@ -4,7 +4,7 @@
  *  See DESIGN.md "Buttons" for the rule. */
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'destructive'
 
-export type ButtonSize = 'sm' | 'md' | 'lg'
+export type ButtonSize = 'xs' | 'sm' | 'md' | 'lg'
 
 export interface ButtonSizeSpec {
   /** Fixed pill height in px. */
@@ -20,9 +20,11 @@ export interface ButtonSizeSpec {
 }
 
 /** `md` reproduces the historical pill look (height ~50, paddingX 26, 16px
- *  label, 18px icon, 9px gap); `sm` is the compact rail/toolbar size and `lg`
- *  the hero CTA size. */
+ *  label, 18px icon, 9px gap); `sm` is the compact rail/toolbar size, `lg` the
+ *  hero CTA size, and `xs` (height 38) the grounded desktop-sidebar Criar
+ *  button. https://github.com/thomasluizon/orbit-ui-mobile/issues/539 */
 export const BUTTON_SIZES: Record<ButtonSize, ButtonSizeSpec> = {
+  xs: { height: 38, paddingX: 18, fontSize: 14, iconSize: 16, gap: 7 },
   sm: { height: 40, paddingX: 18, fontSize: 14, iconSize: 16, gap: 7 },
   md: { height: 50, paddingX: 26, fontSize: 16, iconSize: 18, gap: 9 },
   lg: { height: 56, paddingX: 30, fontSize: 17, iconSize: 20, gap: 10 },

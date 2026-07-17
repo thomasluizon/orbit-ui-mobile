@@ -1,11 +1,16 @@
 import { describe, it, expect } from 'vitest'
 import { BUTTON_SIZES, type ButtonSize } from '../theme'
 
-const SIZES: ButtonSize[] = ['sm', 'md', 'lg']
+const SIZES: ButtonSize[] = ['xs', 'sm', 'md', 'lg']
 
 describe('button geometry', () => {
-  it('exposes the sm/md/lg size scale', () => {
-    expect(Object.keys(BUTTON_SIZES).sort()).toEqual(['lg', 'md', 'sm'])
+  it('exposes the xs/sm/md/lg size scale', () => {
+    expect(Object.keys(BUTTON_SIZES).sort()).toEqual(['lg', 'md', 'sm', 'xs'])
+  })
+
+  it('keeps xs the grounded 38px sidebar height, just below sm', () => {
+    expect(BUTTON_SIZES.xs.height).toBe(38)
+    expect(BUTTON_SIZES.xs.height).toBeLessThan(BUTTON_SIZES.sm.height)
   })
 
   it('keeps md at the historical pill look', () => {

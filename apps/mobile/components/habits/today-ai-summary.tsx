@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { ArrowUpRight, Sparkles } from 'lucide-react-native'
+import { ArrowUpRight } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { AI_SUMMARY_CLAMP_CHARS } from '@orbit/shared/utils'
-import { Badge } from '@/components/ui/badge'
+import { AstraMark } from '@/components/ui/astra-avatar'
 import { useProfile } from '@/hooks/use-profile'
 import { useSummary } from '@/hooks/use-habits'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
@@ -16,7 +16,7 @@ interface TodayAISummaryProps {
 
 /**
  * Today screen "Astra" summary card on the kit InfoCard chrome: primary 0.10
- * tint, 0.28 ring, radius 18, sparkles + ASTRA eyebrow over the message.
+ * tint, 0.28 ring, radius 18, Astra orbital glyph + ASTRA eyebrow over the message.
  * Whole card is tappable; tap destination depends on state (pro → /chat,
  * free → /upgrade, error → refetch).
  *
@@ -107,9 +107,8 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
           ]}
         >
           <View style={styles.headerRow}>
-            <Sparkles size={16} color={tokens.primarySoft} strokeWidth={1.9} />
+            <AstraMark size={16} strokeWidth={1.9} />
             <Text style={styles.eyebrow}>Astra</Text>
-            <Badge tone="outline">{t('aiDisclosure.isAiLabel')}</Badge>
             <View
               style={styles.headerCue}
               accessibilityElementsHidden

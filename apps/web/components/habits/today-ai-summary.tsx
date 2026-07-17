@@ -2,10 +2,10 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowUpRight, Sparkles } from 'lucide-react'
+import { ArrowUpRight } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { AI_SUMMARY_CLAMP_CHARS } from '@orbit/shared/utils'
-import { Badge } from '@/components/ui/badge'
+import { AstraMark } from '@/components/ui/astra-avatar'
 import { useSummary } from '@/hooks/use-summary'
 import { useProfile } from '@/hooks/use-profile'
 import { useIsDesktop } from '@/hooks/use-is-desktop'
@@ -17,7 +17,7 @@ interface TodayAISummaryProps {
 
 /**
  * Today screen "Astra" summary card on the kit InfoCard chrome: primary 0.10
- * tint, 0.28 inset ring, radius 18, sparkles + ASTRA eyebrow over the message.
+ * tint, 0.28 inset ring, radius 18, Astra orbital glyph + ASTRA eyebrow over the message.
  * Whole card is tappable; tap destination depends on state (pro opens Astra —
  * the docked copilot on desktop, the /chat page on narrower widths — free →
  * /upgrade, error → refetch).
@@ -118,12 +118,7 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
           style={{ borderRadius: 18 }}
         />
         <div className="flex items-center" style={{ gap: 8, marginBottom: 6 }}>
-          <Sparkles
-            size={16}
-            strokeWidth={1.9}
-            color="var(--primary-soft)"
-            aria-hidden="true"
-          />
+          <AstraMark size={16} strokeWidth={1.9} />
           <span
             style={{
               fontFamily: 'var(--font-sans)',
@@ -135,9 +130,6 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
             }}
           >
             Astra
-          </span>
-          <span title={t('aiDisclosure.isAiTooltip')}>
-            <Badge tone="outline">{t('aiDisclosure.isAiLabel')}</Badge>
           </span>
           <ArrowUpRight
             size={16}
