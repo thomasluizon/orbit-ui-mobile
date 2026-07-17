@@ -232,7 +232,7 @@ export function AppOverlay({
     <AnimatePresence>
       {open ? (
         <div
-          className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center sm:p-4"
+          className="fixed inset-0 z-modal flex items-end sm:items-center justify-center sm:p-4"
         >
           <motion.button
             type="button"

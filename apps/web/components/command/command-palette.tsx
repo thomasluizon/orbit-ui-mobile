@@ -49,7 +49,7 @@ export function CommandPalette({ navItems, onCreateHabit, onCreateGoal }: Readon
     <LazyMotion features={domAnimation}>
       <AnimatePresence>
         {paletteOpen ? (
-          <div className="fixed inset-0 z-[9999] flex items-start justify-center px-4 pt-[12vh]">
+          <div className="fixed inset-0 z-modal flex items-start justify-center px-4 pt-[12vh]">
             <m.button
               type="button"
               aria-label={t('common.close')}

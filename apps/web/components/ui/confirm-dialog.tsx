@@ -144,7 +144,7 @@ export function ConfirmDialog({
   const dialog = (
     <AnimatePresence>
       {open ? (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center" style={{ padding: 24 }}>
+        <div className="fixed inset-0 z-modal flex items-center justify-center" style={{ padding: 24 }}>
           <motion.button
             type="button"
             tabIndex={-1}

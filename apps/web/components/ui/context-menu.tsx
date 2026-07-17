@@ -155,7 +155,7 @@ export function useContextMenu(items: ReadonlyArray<ContextMenuItem>): UseContex
           <motion.div
             ref={panelRef}
             role="menu"
-            className="fixed z-[70] p-1"
+            className="fixed z-dropdown p-1"
             style={{
               top: origin.top,
               left: origin.left,

@@ -28,6 +28,7 @@ vi.mock('@/lib/theme', () => ({
   createTokensV2: () => ({ bg: '#000', primary: '#7c5cff', fg1: '#fff', fg2: '#ccc', fg3: '#999' }),
   easings: { out: {} },
   tintFromPrimary: () => 'rgba(124, 92, 255, 0.16)',
+  zLayers: { celebration: 1500 },
 }))
 
 vi.mock('@/lib/motion', () => ({ toAnimatedEasing: () => undefined }))

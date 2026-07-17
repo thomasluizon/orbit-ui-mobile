@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/stores/auth-store'
 import { useLogout } from '@/hooks/use-logout'
-import { createTokensV2, shadowsV2, type AppTokensV2 } from '@/lib/theme'
+import { createTokensV2, shadowsV2, zLayers, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 const WARN_AT_MINUTES = 5
@@ -129,7 +129,7 @@ function createStyles(tokens: AppTokensV2) {
       top: 0,
       left: 0,
       right: 0,
-      zIndex: 9998,
+      zIndex: zLayers.toast,
       paddingTop: 50,
       paddingHorizontal: 10,
     },

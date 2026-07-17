@@ -47,7 +47,7 @@ import { ReferralCard } from "@/components/referral/referral-card";
 import { SocialEntryCard } from "@/components/social/social-entry-card";
 import { SetupChecklistCard } from "@/components/today/setup-checklist-card";
 import { useAnchoredMenu } from "@/components/ui/anchored-menu";
-import { createTokensV2 } from "@/lib/theme";
+import { createTokensV2, zLayers } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { useEngagementSlot } from "@/hooks/use-engagement-slot";
 import { useTourScrollContainer } from "@/hooks/use-tour-scroll-container";
@@ -744,7 +744,7 @@ export function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       position: "absolute",
       left: 20,
       right: 20,
-      zIndex: 20,
+      zIndex: zLayers.sticky,
     },
   });
 }

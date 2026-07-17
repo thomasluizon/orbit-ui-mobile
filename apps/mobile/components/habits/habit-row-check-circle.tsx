@@ -90,15 +90,6 @@ export function CheckCircle({
             borderWidth: filled ? 0 : 2,
             borderColor: filled ? 'transparent' : color,
           },
-          filled && state === 'done'
-            ? {
-                shadowColor: tone === 'bad' ? tokens.statusBad : tokens.primary,
-                shadowOpacity: 0.35,
-                shadowRadius: 7,
-                shadowOffset: { width: 0, height: 3 },
-                elevation: 3,
-              }
-            : null,
           popStyle,
         ]}
       >

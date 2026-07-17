@@ -55,6 +55,16 @@ vi.mock('@/lib/i18n', () => ({
 vi.mock('@/lib/theme', () => ({
   radius: { full: 9999 },
   primaryGlow: () => ({}),
+  zLayers: {
+    dropdown: 1000,
+    sticky: 1100,
+    modalBackdrop: 1200,
+    modal: 1300,
+    tourSpotlight: 1400,
+    celebration: 1500,
+    toast: 1600,
+    tooltip: 1700,
+  },
   createTokensV2: () =>
     new Proxy(
       {},

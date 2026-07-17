@@ -57,7 +57,7 @@ export function RailDrawer({ open, onClose, children }: Readonly<RailDrawerProps
     <LazyMotion features={domAnimation}>
       <AnimatePresence>
         {open ? (
-          <div className="fixed inset-0 z-[9990] flex justify-end xl:hidden">
+          <div className="fixed inset-0 z-modal flex justify-end xl:hidden">
             <m.button
               type="button"
               aria-label={t('common.close')}

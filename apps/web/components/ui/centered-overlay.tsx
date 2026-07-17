@@ -47,7 +47,7 @@ export function CenteredOverlay({
   return createPortal(
     <AnimatePresence>
       {open ? (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-modal flex items-center justify-center p-4">
           <motion.button
             type="button"
             tabIndex={-1}

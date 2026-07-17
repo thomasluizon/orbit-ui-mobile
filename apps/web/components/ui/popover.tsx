@@ -176,7 +176,7 @@ export function Popover({
                 className={[
                   'fixed',
                   'p-1',
-                  'z-[70]',
+                  'z-dropdown',
                   className,
                 ]
                   .filter(Boolean)

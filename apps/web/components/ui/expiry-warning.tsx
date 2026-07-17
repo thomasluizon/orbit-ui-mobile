@@ -60,7 +60,7 @@ export function ExpiryWarning() {
       role="alert"
       aria-live="assertive"
       aria-atomic="true"
-      className="fixed left-0 right-0 z-[9998] mx-auto"
+      className="fixed left-0 right-0 z-toast mx-auto"
       style={{ top: 0, maxWidth: 'var(--app-max-w)' }}
     >
       <div

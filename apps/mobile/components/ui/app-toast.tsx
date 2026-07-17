@@ -20,6 +20,7 @@ import {
   lightenHex,
   shadowsV2,
   tintFromPrimary,
+  zLayers,
   type AppTokensV2,
 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -228,7 +229,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: (SCREEN_WIDTH - TOAST_WIDTH) / 2,
     width: TOAST_WIDTH,
-    zIndex: 10000,
+    zIndex: zLayers.toast,
   },
   toast: {
     flexDirection: 'row',

@@ -3,7 +3,7 @@ import Constants from 'expo-constants'
 import { PillButton } from '@/components/ui/pill-button'
 import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
 import { i18n } from '@/lib/i18n'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, zLayers } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useVersionGateStore } from '@/stores/version-gate-store'
 
@@ -59,7 +59,7 @@ export function UpgradeRequiredScreen() {
 const styles = StyleSheet.create({
   root: {
     ...StyleSheet.absoluteFill,
-    zIndex: 9999,
+    zIndex: zLayers.modal,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 36,
