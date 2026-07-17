@@ -43,7 +43,7 @@ export function TourSpotlight({ targetRect, padding = 8 }: Readonly<TourSpotligh
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9998] pointer-events-auto"
+      className="fixed inset-0 z-tour-spotlight pointer-events-auto"
       aria-hidden="true"
     >
       <svg

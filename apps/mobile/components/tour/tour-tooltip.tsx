@@ -27,10 +27,10 @@ import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import {
   createTokensV2,
   easings,
-  primaryGlow,
   radius,
   shadowsV2,
   tintFromPrimary,
+  zLayers,
 } from '@/lib/theme'
 import { ProBadge } from '@/components/ui/pro-badge'
 
@@ -188,7 +188,6 @@ export function TourTooltip({
             accessibilityRole="button"
             style={({ pressed }) => [
               styles.nextButton,
-              primaryGlow(tokens),
               pressed ? styles.nextButtonPressed : null,
             ]}
             onPress={onNext}
@@ -263,14 +262,14 @@ function createTooltipStyles(tokens: AppTokens) {
       bottom: 0,
       left: 0,
       right: 0,
-      zIndex: 9999,
+      zIndex: zLayers.tooltip,
     },
     containerTop: {
       position: 'absolute',
       top: 0,
       left: 0,
       right: 0,
-      zIndex: 9999,
+      zIndex: zLayers.tooltip,
     },
     tooltip: {
       backgroundColor: tokens.bgSheet,

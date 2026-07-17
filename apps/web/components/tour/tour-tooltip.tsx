@@ -260,9 +260,9 @@ export function TourTooltip({
     : ''
 
   const modeClassName = (() => {
-    if (mode === 'float') return 'fixed z-[9999] w-[360px] rounded-[18px] bg-[var(--bg-sheet)] px-6 py-5'
-    if (mode === 'sheet-top') return 'fixed top-0 left-0 right-0 z-[9999] w-full rounded-b-[26px] bg-[var(--bg-sheet)] px-6 pt-3 pb-5'
-    return 'fixed bottom-0 left-0 right-0 z-[9999] w-full rounded-t-[26px] bg-[var(--bg-sheet)] px-6 pt-3 pb-[calc(1.75rem+var(--safe-bottom))]'
+    if (mode === 'float') return 'fixed z-tooltip w-[360px] rounded-[18px] bg-[var(--bg-sheet)] px-6 py-5'
+    if (mode === 'sheet-top') return 'fixed top-0 left-0 right-0 z-tooltip w-full rounded-b-[26px] bg-[var(--bg-sheet)] px-6 pt-3 pb-5'
+    return 'fixed bottom-0 left-0 right-0 z-tooltip w-full rounded-t-[26px] bg-[var(--bg-sheet)] px-6 pt-3 pb-[calc(1.75rem+var(--safe-bottom))]'
   })()
 
   const floatStyle = (() => {
@@ -358,7 +358,7 @@ export function TourTooltip({
           ref={nextButtonRef}
           type="button"
           onClick={onNext}
-          className="flex min-h-[44px] items-center gap-1 rounded-full bg-[var(--primary)] px-[18px] text-[15px] font-medium text-[var(--fg-on-primary)] shadow-[var(--primary-glow)] transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] hover:shadow-[var(--primary-glow-hover)] active:translate-y-0 active:scale-[0.96]"
+          className="flex min-h-[44px] items-center gap-1 rounded-full bg-[var(--primary)] px-[18px] text-[15px] font-medium text-[var(--fg-on-primary)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] active:translate-y-0 active:scale-[0.96]"
         >
           {isLastStep ? t('tour.ui.finish') : t('tour.ui.next')}
           {!isLastStep && <ChevronRight className="size-4" strokeWidth={1.8} />}

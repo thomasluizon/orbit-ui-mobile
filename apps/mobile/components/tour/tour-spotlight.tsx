@@ -3,7 +3,7 @@ import { StyleSheet, useWindowDimensions } from 'react-native'
 import Svg, { Rect, Defs, Mask } from 'react-native-svg'
 import Animated, { useAnimatedProps, withTiming, Easing } from 'react-native-reanimated'
 import type { TourTargetRect } from '@orbit/shared/stores'
-import { createTokensV2, easings, tintFromPrimary } from '@/lib/theme'
+import { createTokensV2, easings, tintFromPrimary, zLayers } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
 
@@ -72,7 +72,7 @@ export function TourSpotlight({ targetRect }: Readonly<TourSpotlightProps>) {
       StyleSheet.create({
         container: {
           ...StyleSheet.absoluteFill,
-          zIndex: 9998,
+          zIndex: zLayers.tourSpotlight,
         },
       }),
     [],
