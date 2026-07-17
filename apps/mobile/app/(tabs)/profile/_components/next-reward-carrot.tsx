@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { Lock, Sparkles } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import type { NextRewardCarrotState } from '@orbit/shared/utils'
-import { createTokensV2, primaryGlow, tintFromPrimary } from '@/lib/theme'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface NextRewardCarrotProps {
@@ -67,7 +67,6 @@ export function NextRewardCarrot({ carrot, onUpgrade }: Readonly<NextRewardCarro
               hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
               style={({ pressed }) => [
                 styles.pill,
-                primaryGlow(tokens),
                 {
                   backgroundColor: pressed ? tokens.primaryPressed : tokens.primary,
                   transform: [{ scale: pressed ? 0.96 : 1 }],

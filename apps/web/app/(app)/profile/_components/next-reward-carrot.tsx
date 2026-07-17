@@ -13,7 +13,6 @@ const upgradeLinkStyle = {
   fontSize: 13,
   fontWeight: 500,
   textDecoration: 'none',
-  boxShadow: 'var(--primary-glow)',
 }
 
 interface NextRewardCarrotProps {

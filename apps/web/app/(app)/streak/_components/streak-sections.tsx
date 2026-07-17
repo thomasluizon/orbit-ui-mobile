@@ -560,7 +560,6 @@ function FreezeProGate({ t }: Readonly<{ t: TranslationFn }>) {
             fontFamily: 'var(--font-sans)',
             fontSize: 13,
             fontWeight: 500,
-            boxShadow: 'var(--primary-glow)',
           }}
         >
           {t('common.upgrade')}

@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, type ReactNode } from 'react'
 // react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { Animated, Pressable, Text, View } from 'react-native'
 import { CalendarDays, Snowflake } from 'lucide-react-native'
-import { primaryGlow } from '@/lib/theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { SectionLabel } from '@/components/ui/section-label'
 import { ProgressBar } from '@/components/ui/progress-bar'
@@ -251,7 +250,6 @@ function FreezeProGate({
           hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
           style={({ pressed }) => [
             styles.proGatePill,
-            primaryGlow(tokens),
             {
               backgroundColor: pressed ? tokens.primaryPressed : tokens.primary,
               transform: [{ scale: pressed ? 0.96 : 1 }],

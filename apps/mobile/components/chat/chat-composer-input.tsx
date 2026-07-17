@@ -63,7 +63,7 @@ export const ChatComposerInput = memo(function ChatComposerInput({
       <Pressable
         style={({ pressed }) => [
           styles.sendButton,
-          canSend && isOnline ? styles.sendButtonGlow : styles.sendButtonDisabled,
+          canSend && isOnline ? null : styles.sendButtonDisabled,
           pressed && canSend && isOnline && styles.sendButtonPressed,
         ]}
         onPress={onSubmit}

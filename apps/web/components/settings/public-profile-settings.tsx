@@ -161,9 +161,7 @@ export function PublicProfileSettings() {
 
               {canShare && (
                 <div className="flex" style={{ padding: '10px 20px 6px' }}>
-                  <PillButton
-                    glow={false}
-                    leading={<Share2 size={18} strokeWidth={1.8} color="var(--fg-on-primary)" />}
+                  <PillButton                    leading={<Share2 size={18} strokeWidth={1.8} color="var(--fg-on-primary)" />}
                     onClick={() => void shareLink()}
                   >
                     {t('profile.publicProfile.link.share')}

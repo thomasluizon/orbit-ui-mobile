@@ -13,7 +13,6 @@ interface PillButtonProps {
   disabled?: boolean
   busy?: boolean
   fullWidth?: boolean
-  glow?: boolean
   leading?: ReactNode
   /** Omit (with a `leading` icon + `ariaLabel`) for an icon-only square control. */
   children?: ReactNode
@@ -36,7 +35,7 @@ const variantClasses: Record<ButtonVariant, string> = {
     'bg-[var(--status-bad)] text-[var(--fg-on-bad)] enabled:hover:bg-[color-mix(in_srgb,var(--status-bad)_85%,black)] enabled:hover:-translate-y-px enabled:active:translate-y-0 enabled:active:scale-[0.98]',
 }
 
-/** Kit pill CTA in the canonical taxonomy: glowing `primary`, inverted
+/** Kit pill CTA in the canonical taxonomy: solid `primary`, inverted
  *  `secondary`, hairline `ghost`, or status-bad `destructive`. `size` (`sm` /
  *  `md` / `lg`) drives a fixed height + horizontal padding + label/icon scale
  *  from the shared `BUTTON_SIZES` geometry so the mobile mirror cannot drift.
@@ -55,7 +54,6 @@ export function PillButton({
   disabled = false,
   busy = false,
   fullWidth = false,
-  glow = true,
   leading,
   children,
   className,
@@ -66,10 +64,6 @@ export function PillButton({
   const sizeSpec = BUTTON_SIZES[size]
   const hasLabel = children !== undefined && children !== null && children !== ''
   const iconOnly = !hasLabel && leading != null
-  const glowClasses =
-    variant === 'primary' && glow && !disabled
-      ? 'shadow-[var(--primary-glow)] enabled:hover:shadow-[var(--primary-glow-hover)]'
-      : ''
 
   return (
     <button
@@ -82,9 +76,8 @@ export function PillButton({
       title={title}
       data-testid={dataTestId}
       className={[
-        'inline-flex cursor-pointer items-center justify-center rounded-full border-0 font-medium transition-[background-color,opacity,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] disabled:cursor-not-allowed disabled:opacity-40',
+        'inline-flex cursor-pointer items-center justify-center rounded-full border-0 font-medium transition-[background-color,opacity,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] disabled:cursor-not-allowed disabled:opacity-40',
         variantClasses[variant],
-        glowClasses,
         fullWidth ? 'w-full sm:w-auto sm:min-w-[220px] sm:max-w-[360px] sm:mx-auto' : '',
         className,
       ]

@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { AlertTriangle } from 'lucide-react-native'
 import { i18n } from '@/lib/i18n'
-import { createTokensV2, primaryGlow, radius } from '@/lib/theme'
+import { createTokensV2, radius } from '@/lib/theme'
 
 interface AppErrorScreenProps {
   error: Error
@@ -38,7 +38,6 @@ export function AppErrorScreen({ error, retry }: Readonly<AppErrorScreenProps>) 
         onPress={retry}
         style={({ pressed }) => [
           styles.pill,
-          primaryGlow(tokens),
           {
             backgroundColor: tokens.primary,
             opacity: pressed ? 0.9 : 1,

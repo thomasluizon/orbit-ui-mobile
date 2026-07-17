@@ -284,17 +284,6 @@ export function solidTintFromPrimary(
   return `#${channel(mix(pr, br))}${channel(mix(pg, bgC))}${channel(mix(pb, bb))}`
 }
 
-/** RN shadow props for the handoff primary glow (0 8px 28px primary @ .45). */
-export function primaryGlow(appTokens: AppTokensV2): AppShadowV2 {
-  return {
-    shadowColor: appTokens.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.45,
-    shadowRadius: 28,
-    elevation: 8,
-  }
-}
-
 /**
  * Solid hex equal to the dark translucent surface alpha composited over the
  * canvas. RemoteViews and stacking-sensitive surfaces (sheets, overlays)

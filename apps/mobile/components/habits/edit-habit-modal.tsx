@@ -302,9 +302,7 @@ export function EditHabitModal({
           >
             {t('common.cancel')}
           </PillButton>
-          <PillButton
-            glow={false}
-            disabled={submitDisabled}
+          <PillButton            disabled={submitDisabled}
             onPress={() => void handleSubmit()}
             leading={
               updateHabit.isPending ? (

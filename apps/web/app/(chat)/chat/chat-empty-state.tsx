@@ -19,7 +19,7 @@ export function ChatEmptyState({ onSelectSuggestion }: Readonly<ChatEmptyStatePr
       style={{ gap: 16, padding: '32px' }}
     >
       <div className="relative z-10 flex flex-col items-center" style={{ gap: 16 }}>
-        <AstraAvatar size={84} animate style={{ boxShadow: 'var(--primary-glow)' }} />
+        <AstraAvatar size={84} animate />
         <div
           className="text-center text-balance"
           style={{

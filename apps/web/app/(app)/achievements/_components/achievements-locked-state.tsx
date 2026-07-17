@@ -14,7 +14,6 @@ const upgradeLinkStyle = {
   fontSize: 16,
   fontWeight: 500,
   textDecoration: 'none',
-  boxShadow: 'var(--primary-glow)',
 }
 
 export function AchievementsLockedState() {

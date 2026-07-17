@@ -46,11 +46,6 @@ function AstraLauncher({ open, onOpen }: Readonly<{ open: boolean; onOpen: () =>
         boxShadow: 'var(--shadow-2), inset 0 0 0 1px var(--hairline-strong)',
       }}
     >
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-0 rounded-full opacity-0 transition-opacity duration-[var(--dur-base)] ease-[var(--ease-standard)] group-hover:opacity-100"
-        style={{ boxShadow: '0 10px 30px rgba(var(--primary-rgb), 0.32)' }}
-      />
       <span className="relative inline-flex items-center gap-2.5">
         <AstraMark size={24} animate />
         <span style={{ fontFamily: 'var(--font-sans)', fontSize: 15, fontWeight: 500, color: 'var(--fg-1)' }}>
@@ -70,11 +65,6 @@ function AstraRailHeader({
 
   return (
     <header className="relative shrink-0 px-4 pb-3 pt-4">
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 z-0"
-        style={{ height: 96, background: 'var(--gradient-header)' }}
-      />
       <div className="relative z-10 mx-auto flex w-full max-w-[var(--content-max-w)] items-center gap-3">
         <span
           className="inline-flex shrink-0 items-center justify-center rounded-full"

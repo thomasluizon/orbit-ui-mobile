@@ -9,7 +9,7 @@ import {
 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { AstraMark } from '@/components/ui/astra-avatar'
-import { createTokensV2, primaryGlow } from '@/lib/theme'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 export type BottomTabId = 'today' | 'chat' | 'calendar' | 'profile'
@@ -76,7 +76,6 @@ export function BottomTabBar({
           style={({ pressed }) => [
             styles.fab,
             { backgroundColor: fabDisabled ? tokens.bgSheet : tokens.primary },
-            fabDisabled ? null : primaryGlow(tokens),
             pressed && !fabDisabled ? styles.fabPressed : null,
           ]}
         >

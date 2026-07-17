@@ -26,7 +26,7 @@ export function InsightsLockedState() {
 
       <Link
         href="/upgrade"
-        className="inline-flex items-center justify-center rounded-full shadow-[var(--primary-glow)] transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] hover:shadow-[var(--primary-glow-hover)] active:translate-y-0 active:scale-[0.98]"
+        className="inline-flex items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] active:translate-y-0 active:scale-[0.98]"
         style={{
           marginTop: 8,
           padding: '15px 26px',

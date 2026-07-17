@@ -1,5 +1,5 @@
 import { StyleSheet } from "react-native";
-import { createTokensV2, primaryGlow, solidTintFromPrimary } from "@/lib/theme";
+import { createTokensV2, solidTintFromPrimary } from "@/lib/theme";
 
 export type Tokens = ReturnType<typeof createTokensV2>;
 export type ChatStyles = ReturnType<typeof createStyles>;
@@ -31,9 +31,6 @@ export function createStyles(tokens: Tokens) {
       gap: 16,
       paddingHorizontal: 32,
       zIndex: 1,
-    },
-    emptyAvatarGlow: {
-      ...primaryGlow(tokens),
     },
     emptyTitle: {
       fontFamily: 'Rubik_500Medium',
@@ -285,9 +282,6 @@ export function createStyles(tokens: Tokens) {
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: tokens.primary,
-    },
-    sendButtonGlow: {
-      ...primaryGlow(tokens),
     },
     sendButtonDisabled: {
       backgroundColor: solidTintFromPrimary(tokens, 0.45),

@@ -425,12 +425,11 @@ function ChatTextInputRow({
         data-testid="chat-send"
         aria-label={t('chat.send')}
         onClick={() => sendMessage()}
-        className="appearance-none border-0 cursor-pointer inline-flex items-center justify-center shrink-0 rounded-full bg-[var(--primary)] enabled:hover:bg-[var(--primary-pressed)] enabled:hover:scale-105 enabled:hover:shadow-[var(--primary-glow-hover)] enabled:active:scale-[0.96] transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] disabled:cursor-not-allowed"
+        className="appearance-none border-0 cursor-pointer inline-flex items-center justify-center shrink-0 rounded-full bg-[var(--primary)] enabled:hover:bg-[var(--primary-pressed)] enabled:hover:scale-105 enabled:active:scale-[0.96] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] disabled:cursor-not-allowed"
         style={{
           width: 50,
           height: 50,
           color: 'var(--fg-on-primary)',
-          boxShadow: canSend ? 'var(--primary-glow)' : 'none',
           opacity: canSend ? 1 : 0.45,
         }}
       >

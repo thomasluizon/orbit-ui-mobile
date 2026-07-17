@@ -69,7 +69,7 @@ export function BottomTabBar({
             borderRadius: 999,
             boxShadow: fabDisabled
               ? '0 0 0 6px var(--bg), inset 0 0 0 1px var(--hairline)'
-              : '0 0 0 6px var(--bg), var(--primary-glow)',
+              : '0 0 0 6px var(--bg)',
             cursor: fabDisabled ? 'not-allowed' : 'pointer',
             zIndex: 2,
           }}

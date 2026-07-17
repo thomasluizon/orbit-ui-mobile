@@ -17,7 +17,7 @@ export const ChatEmptyState = forwardRef<View, Readonly<ChatEmptyStateProps>>(
     return (
       <View ref={ref} style={styles.emptyState}>
         <View style={styles.emptyContent}>
-          <AstraAvatar size={84} animate style={styles.emptyAvatarGlow} />
+          <AstraAvatar size={84} animate />
           <Text style={styles.emptyTitle}>{t("chat.empty.title")}</Text>
           <Text style={styles.emptyText}>{t("chat.suggestion.prompt")}</Text>
           <SuggestionChips onSelect={onSelectSuggestion} />

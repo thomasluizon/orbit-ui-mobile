@@ -4,7 +4,6 @@ import {
   createSurfaces,
   createTokensV2,
   getRuntimeTheme,
-  primaryGlow,
   setRuntimeTheme,
   tintFromPrimary,
   tokens,
@@ -74,12 +73,10 @@ describe('mobile theme runtime', () => {
     expect(tokens.primary).toBe(createTokensV2('blue', 'light').primary)
   })
 
-  it('derives primary tints and glow from primaryRgb, never hardcoded violet', () => {
+  it('derives primary tints from primaryRgb, never hardcoded violet', () => {
     const green = createTokensV2('green', 'dark')
 
     expect(tintFromPrimary(green, 0.18)).toBe('rgba(0, 201, 80, 0.18)')
-    expect(primaryGlow(green).shadowColor).toBe('#00c950')
-    expect(primaryGlow(green).shadowOpacity).toBe(0.45)
   })
 
   it('pre-blends sheet surfaces to solid hexes on dark', () => {

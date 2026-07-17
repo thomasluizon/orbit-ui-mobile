@@ -47,9 +47,9 @@ describe('groupHabitItemsIntoPanels', () => {
     const panels = groupHabitItemsIntoPanels(items)
 
     expect(panels).toHaveLength(2)
-    expect(panels[0].rootId).toBe('root')
-    expect(panels[0].items.map((item) => item.id)).toEqual(['root', 'child'])
-    expect(panels[1].rootId).toBe('solo')
-    expect(panels[1].items.map((item) => item.id)).toEqual(['solo'])
+    expect(panels[0]?.rootId).toBe('root')
+    expect(panels[0]?.items.map((item) => item.id)).toEqual(['root', 'child'])
+    expect(panels[1]?.rootId).toBe('solo')
+    expect(panels[1]?.items.map((item) => item.id)).toEqual(['solo'])
   })
 })

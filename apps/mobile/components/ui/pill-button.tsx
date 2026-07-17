@@ -8,7 +8,7 @@ import {
   type ViewStyle,
 } from 'react-native'
 import { BUTTON_SIZES, type ButtonSize, type ButtonVariant } from '@orbit/shared/theme'
-import { createTokensV2, darkenHex, primaryGlow, radius } from '@/lib/theme'
+import { createTokensV2, darkenHex, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface PillButtonProps {
@@ -18,7 +18,6 @@ interface PillButtonProps {
   disabled?: boolean
   busy?: boolean
   fullWidth?: boolean
-  glow?: boolean
   leading?: ReactNode
   accessibilityLabel?: string
   /** Omit (with a `leading` icon + `accessibilityLabel`) for an icon-only square control. */
@@ -26,7 +25,7 @@ interface PillButtonProps {
   style?: StyleProp<ViewStyle>
 }
 
-/** Kit pill CTA in the canonical taxonomy: glowing `primary`, inverted
+/** Kit pill CTA in the canonical taxonomy: solid `primary`, inverted
  *  `secondary`, hairline `ghost`, or status-bad `destructive`. `size` (`sm` /
  *  `md` / `lg`) drives a fixed height + horizontal padding + label/icon scale
  *  from the shared `BUTTON_SIZES` geometry so the web mirror cannot drift.
@@ -40,7 +39,6 @@ export function PillButton({
   disabled = false,
   busy = false,
   fullWidth = false,
-  glow = true,
   leading,
   accessibilityLabel,
   children,
@@ -95,7 +93,6 @@ export function PillButton({
           ? { height: sizeSpec.height, width: sizeSpec.height, paddingHorizontal: 0, gap: 0 }
           : { height: sizeSpec.height, paddingHorizontal: sizeSpec.paddingX, gap: sizeSpec.gap },
         variantStyle(pressed),
-        variant === 'primary' && glow && !disabled ? primaryGlow(tokens) : null,
         fullWidth ? styles.fullWidth : null,
         disabled ? styles.disabled : null,
         pressed && quietsOnPress ? styles.pressedQuiet : null,
