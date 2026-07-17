@@ -35,6 +35,7 @@ export function HabitAskAstraButton({
                 fontSize: 10.5,
                 fontWeight: 500,
                 letterSpacing: '0.06em',
+                textTransform: 'uppercase',
                 color: 'var(--fg-3)',
               }}
             >

@@ -48,6 +48,7 @@ export function GoalAskAstraRow({ onClick, className, style }: Readonly<GoalAskA
               fontSize: 12,
               fontWeight: 500,
               letterSpacing: '0.06em',
+              textTransform: 'uppercase',
               color: 'var(--fg-3)',
               marginBottom: 4,
             }}

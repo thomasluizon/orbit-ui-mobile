@@ -644,7 +644,7 @@
       "daysFree": "Dias livre",
       "reminders": "Lembretes",
       "linkedGoal": "Meta vinculada",
-      "askAstraEyebrow": "PERGUNTE À ASTRA",
+      "askAstraEyebrow": "Pergunte à Astra",
       "askAstraSubHabits": "Quer dividir isso em passos menores?",
       "askAstraDefault": "Quer um olhar sobre este hábito?",
       "askAstraSeedSubHabits": "Me ajuda a dividir o hábito \"{title}\" em sub-hábitos menores.",
@@ -2241,7 +2241,7 @@
       "showLessHistory": "Ver menos",
       "askAstraDefault": "Quer um plano de check-in semanal para isso?",
       "askAstraSeedDefault": "Me ajuda a montar um plano de check-in semanal para a meta \"{title}\".",
-      "askAstraEyebrow": "PERGUNTE À ASTRA",
+      "askAstraEyebrow": "Pergunte à Astra",
       "statusLabel": "Status"
     },
     "filters": {

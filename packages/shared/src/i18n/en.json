@@ -644,7 +644,7 @@
       "daysFree": "Days free",
       "reminders": "Reminders",
       "linkedGoal": "Linked goal",
-      "askAstraEyebrow": "ASK ASTRA",
+      "askAstraEyebrow": "Ask Astra",
       "askAstraSubHabits": "Want to break this into smaller steps?",
       "askAstraDefault": "Want a perspective on this habit?",
       "askAstraSeedSubHabits": "Help me break my habit \"{title}\" into smaller sub-habits.",
@@ -2241,7 +2241,7 @@
       "showLessHistory": "Show less",
       "askAstraDefault": "Want a weekly check-in plan for this?",
       "askAstraSeedDefault": "Help me set up a weekly check-in plan for my goal \"{title}\".",
-      "askAstraEyebrow": "ASK ASTRA",
+      "askAstraEyebrow": "Ask Astra",
       "statusLabel": "Status"
     },
     "filters": {
