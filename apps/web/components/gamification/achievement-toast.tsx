@@ -111,7 +111,7 @@ export function AchievementToast() {
         transform: isVisible
           ? 'translate(-50%, 0) scale(1)'
           : 'translate(-50%, -100%) scale(0.96)',
-        zIndex: 10000,
+        zIndex: 'var(--z-index-toast)',
       }}
     >
       <div

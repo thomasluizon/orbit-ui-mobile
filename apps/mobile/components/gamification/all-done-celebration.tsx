@@ -8,17 +8,16 @@ import {
   View,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { createTokensV2, easings, tintFromPrimary } from '@/lib/theme'
+import { createTokensV2, easings, tintFromPrimary, zLayers } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { toAnimatedEasing } from '@/lib/motion'
 import { useUIStore } from '@/stores/ui-store'
-import { GradientTop } from '@/components/ui/gradient-top'
 import { useCelebrationEntrance } from './celebration-motion'
 import { RingMotif } from './ring-motif'
 
 /**
- * All-done celebration: full-screen canvas takeover with gradient header and
- * emoji hero disc inside the Saturn-ring motif. Auto-closes; tap dismisses early.
+ * All-done celebration: full-screen canvas takeover with an emoji hero disc
+ * inside the Saturn-ring motif. Auto-closes; tap dismisses early.
  */
 export function AllDoneCelebration() {
   const { t } = useTranslation()
@@ -80,7 +79,6 @@ export function AllDoneCelebration() {
         <View
           style={[styles.backdrop, { backgroundColor: tokens.bg }]}
         />
-        <GradientTop height={520} />
         <View style={styles.content} pointerEvents="none">
           <RingMotif
             ringCount={3}
@@ -91,7 +89,6 @@ export function AllDoneCelebration() {
                   styles.heroDisc,
                   {
                     backgroundColor: tintFromPrimary(tokens, 0.16),
-                    boxShadow: `0px 0px 60px ${tintFromPrimary(tokens, 0.4)}`,
                   },
                   orbStyle,
                 ]}
@@ -115,7 +112,7 @@ export function AllDoneCelebration() {
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFill,
-    zIndex: 10003,
+    zIndex: zLayers.celebration,
   },
   pressable: {
     flex: 1,

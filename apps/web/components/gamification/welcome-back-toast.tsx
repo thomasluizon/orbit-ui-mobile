@@ -18,7 +18,7 @@ const toastSurfaceStyle: CSSProperties = {
   borderRadius: 18,
   boxShadow: '0 14px 36px rgba(0, 0, 0, 0.5), inset 0 0 0 1px var(--hairline)',
   transition: 'opacity 280ms var(--ease-out), transform 280ms var(--ease-out)',
-  zIndex: 10000,
+  zIndex: 'var(--z-index-toast)',
 }
 
 export function WelcomeBackToast() {

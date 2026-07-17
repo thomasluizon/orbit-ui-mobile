@@ -11,11 +11,10 @@ import {
 import Svg, { Ellipse } from 'react-native-svg'
 import { useTranslation } from 'react-i18next'
 import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
-import { createTokensV2, easings, tintFromPrimary } from '@/lib/theme'
+import { createTokensV2, easings, tintFromPrimary, zLayers } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
 import { useOverlayBack } from '@/hooks/use-overlay-back'
-import { GradientTop } from '@/components/ui/gradient-top'
 import { useCelebrationEntrance } from './celebration-motion'
 
 interface LevelUpOverlayProps {
@@ -154,7 +153,6 @@ export function LevelUpOverlay({
         accessibilityLabel={t('gamification.levelUp.title')}
       >
         <View style={[styles.backdrop, { backgroundColor: tokens.bg }]} />
-        <GradientTop height={520} />
         <View style={styles.content} pointerEvents="none">
           <Text style={[styles.eyebrow, { color: tokens.fg3 }]}>
             {t('gamification.levelUp.title')}
@@ -165,7 +163,6 @@ export function LevelUpOverlay({
               styles.heroDisc,
               {
                 backgroundColor: tintFromPrimary(tokens, 0.16),
-                boxShadow: `0px 0px 60px ${tintFromPrimary(tokens, 0.4)}`,
               },
               orbStyle,
             ]}
@@ -210,7 +207,7 @@ export function LevelUpOverlay({
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFill,
-    zIndex: 10001,
+    zIndex: zLayers.celebration,
   },
   pressable: {
     flex: 1,

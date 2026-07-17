@@ -5,7 +5,6 @@ import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useUIStore } from '@/stores/ui-store'
-import { GradientTop } from '@/components/ui/gradient-top'
 import { RingMotif } from './ring-motif'
 
 const titleStyle: CSSProperties = {
@@ -62,7 +61,7 @@ export function AllDoneCelebration() {
   return createPortal(
     <div role="status" aria-live="polite">
       <div
-        className="fixed inset-0 z-[10003] flex flex-col"
+        className="fixed inset-0 z-celebration flex flex-col"
         style={{
           transition: 'opacity 280ms var(--ease-out)',
           opacity: isVisible ? 1 : 0,
@@ -75,7 +74,6 @@ export function AllDoneCelebration() {
           style={{ background: 'var(--bg)', opacity: 0.96 }}
           onClick={dismiss}
         />
-        <GradientTop height={520} />
         <div
           className="pointer-events-none relative z-[1] flex flex-1 flex-col items-center justify-center"
           style={{ gap: 12, padding: '0 32px' }}
@@ -96,11 +94,6 @@ export function AllDoneCelebration() {
                     animation: 'fresh-start-orb 0.7s var(--ease-out) both',
                   }}
                 >
-                  <span
-                    aria-hidden="true"
-                    className="animate-orbit-pulse absolute inset-0 rounded-full"
-                    style={{ boxShadow: '0 0 60px rgba(var(--primary-rgb), 0.4)' }}
-                  />
                   {'🎉'}
                 </span>
               }

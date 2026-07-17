@@ -6,7 +6,6 @@ import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useUIStore } from '@/stores/ui-store'
-import { GradientTop } from '@/components/ui/gradient-top'
 import { RingMotif } from './ring-motif'
 
 const MILESTONE_VALUES = [7, 14, 30, 100, 365] as const
@@ -81,7 +80,7 @@ export function StreakCelebration() {
   return createPortal(
     <div role="status" aria-live="polite">
       <div
-        className="fixed inset-0 z-[10002] flex flex-col"
+        className="fixed inset-0 z-celebration flex flex-col"
         style={{
           transition: 'opacity 280ms var(--ease-out)',
           opacity: isVisible ? 1 : 0,
@@ -94,7 +93,6 @@ export function StreakCelebration() {
           style={{ background: 'var(--bg)', opacity: 0.96 }}
           onClick={dismiss}
         />
-        <GradientTop height={520} />
         <div
           className="pointer-events-none relative z-[1] flex flex-1 flex-col items-center justify-center"
           style={{ gap: 12, padding: '0 32px' }}
@@ -116,11 +114,6 @@ export function StreakCelebration() {
                     animation: 'fresh-start-orb 0.7s var(--ease-out) both',
                   }}
                 >
-                  <span
-                    aria-hidden="true"
-                    className="animate-orbit-pulse absolute inset-0 rounded-full"
-                    style={{ boxShadow: '0 0 60px rgba(var(--primary-rgb), 0.4)' }}
-                  />
                   {'🔥'}
                 </span>
               }

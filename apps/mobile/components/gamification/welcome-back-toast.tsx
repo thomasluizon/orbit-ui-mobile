@@ -14,7 +14,7 @@ import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useProfile } from '@/hooks/use-profile'
 import { toAnimatedEasing } from '@/lib/motion'
-import { createTokensV2, easings, shadowsV2, tintFromPrimary } from '@/lib/theme'
+import { createTokensV2, easings, shadowsV2, tintFromPrimary, zLayers } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: (SCREEN_WIDTH - TOAST_WIDTH) / 2,
     width: TOAST_WIDTH,
-    zIndex: 10000,
+    zIndex: zLayers.toast,
   },
   toast: {
     borderWidth: 1,

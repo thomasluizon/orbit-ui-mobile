@@ -16,13 +16,12 @@ import {
   View,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { createTokensV2, easings } from '@/lib/theme'
+import { createTokensV2, easings, zLayers } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { toAnimatedEasing } from '@/lib/motion'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useProfile } from '@/hooks/use-profile'
 import { rgbaFromHex } from '@/app/streak-sections-styles'
-import { GradientTop } from '@/components/ui/gradient-top'
 import { useCelebrationEntrance } from './celebration-motion'
 import { RingMotif } from './ring-motif'
 
@@ -108,7 +107,6 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
           accessibilityLabel={t('streakDisplay.freeze.celebrationTitle')}
         >
           <View style={[styles.backdrop, { backgroundColor: tokens.bg }]} />
-          <GradientTop height={520} />
           <View style={styles.content} pointerEvents="none">
             <RingMotif
               ringCount={3}
@@ -123,7 +121,6 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
                     styles.heroDisc,
                     {
                       backgroundColor: rgbaFromHex(tokens.statusFrozen, 0.16),
-                      boxShadow: `0px 0px 60px ${rgbaFromHex(tokens.statusFrozen, 0.4)}`,
                     },
                     orbStyle,
                   ]}
@@ -148,7 +145,7 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFill,
-    zIndex: 10003,
+    zIndex: zLayers.celebration,
   },
   pressable: {
     flex: 1,
