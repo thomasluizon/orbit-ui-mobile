@@ -54,12 +54,13 @@ For each axis write a crisp **objective** + an **output contract** (the exact st
 
 ## Phase 2 — Fan out parallel research subagents
 
-Use the **Agent tool**: `general-purpose` for web research, `Explore` for codebase slices. Launch them in one message (respecting the concurrency cap; queue extras). **Every research agent prompt embeds this contract** — it is the quality core of the skill:
+Use the **Agent tool**: **`web-researcher`** for web-research slices, `Explore` for codebase slices. Both are **leaf agents with no `Agent`/`Task` tool** — a worker structurally *cannot* spawn its own sub-agents, which is the hard cap on the recursive fan-out that has blown a whole session's rate-limit window. Each keeps its own model: `web-researcher` runs `sonnet` @ `medium`, `Explore` stays on its `haiku` definition — never bump either research worker to Opus. Launch them in one message (respecting the **3-concurrent** cap; queue extras). **Every research agent prompt embeds this contract** — it is the quality core of the skill:
 
 > **Objective:** <the slice's narrow goal>.
 > **Answer exactly these questions:** <numbered list>.
 > **How:** Do *deep* research — multiple searches, follow citations, go past the first page. **Fetch primary/official sources** (docs, pricing, changelog, spec, release notes) and **verify each load-bearing fact against the LIVE page** — do NOT answer from memory; prices/limits/features change. Get **current, dated** info ("as of <today's year>"); note when a source was last updated.
 > **Return:** a short recommendation up top, then a section per question with **concrete facts** (exact $ amounts, limits, version numbers) and a **source URL** for each. **Separate hard cited facts from your own inference — flag inferences and state confidence.** Resolve any contradiction you hit rather than reporting both. Decision-ready, no padding.
+> **You are a leaf.** Do the slice yourself — never spawn a sub-agent (you have no tool to). If it's too big, narrow it and say so in your return.
 
 For **Deep** mode, give parallel agents **distinct lenses** on the same target (e.g. one "official pricing", one "real-world gotchas/forums", one "head-to-head vs alternatives") instead of N identical searches — diversity surfaces what redundancy can't.
 
@@ -128,6 +129,7 @@ Offer (don't do unsolicited):
 - **Over-prescribe.** Don't recommend enterprise isolation/tooling to a solo dev; right-size cost and effort.
 - **Fabricate URLs or numbers.** A missing/unverifiable fact is reported as such, never invented.
 - **Exceed the 3-concurrent subagent cap** unless the user opted into more.
+- **Let a research worker spawn its own sub-agents** — workers are the leaf `web-researcher` / `Explore` types with no delegation tool. For fan-out wider than the cap, or a loop-until-dry over a big space, do not hand-roll recursive `Agent` calls — **propose a Workflow** (next section).
 - **Loop past diminishing returns**, or run forever chasing a marginally better source.
 - **Implement or refactor during research** — findings first; write code only if the user asks after seeing the recommendation.
 - **Translate the brand words** "Orbit" / "Astra" — literal everywhere.
@@ -136,4 +138,6 @@ Offer (don't do unsolicited):
 
 ## When to use the Workflow tool instead
 
-If the user has explicitly opted into multi-agent orchestration (e.g. "ultracode", "use a workflow") *and* the research is large (many options × dimensions, or loop-until-dry over a big space), the same Phase 1→5 method maps cleanly onto a Workflow script (`parallel`/`pipeline` for the fan-out, a loop for saturation, a synthesis stage). Otherwise — the default — run it here with the Agent tool, exactly as the phases describe.
+The Workflow tool is the **structural backstop against runaway fan-out**: it caps concurrency at `min(16, cores−2)`, carries a 1000-agent lifetime limit, and runs orchestration in a script *outside* this context — the guardrails raw recursive `Agent` calls lack. It fits when the research is **large**: many options × dimensions, several waves of fan-out, or a loop-until-dry over a big space (Deep mode heading past ~two waves).
+
+**Propose, then ask — never switch silently.** When Deep-mode research is heading past a couple of waves or a wide fan-out, pause and ask the user with one `AskUserQuestion` ("run this as a capped Workflow?") *before* authoring the script — the Workflow tool requires explicit opt-in, and the user wants to make that call. If they decline, stay here with Agent-tool fan-out at the 3-concurrent cap and the leaf `web-researcher` / `Explore` workers. Either way the same Phase 1→5 method maps cleanly onto the script (`parallel`/`pipeline` for the fan-out, a loop for saturation, a synthesis stage).
