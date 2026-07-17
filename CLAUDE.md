@@ -37,7 +37,7 @@ Auth: web cookie is httpOnly + sameSite strict + secure; mobile tokens live in S
 
 ## Brand & design
 
-"Orbit" and "Astra" are never translated. `DESIGN.md` (repo root) is authoritative for all UI: the **de-decorated** navy-violet orbital anchor (#539 freeze, 2026-07-17), semantic tokens only (`--bg`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-soft`, `--primary-rgb`, `--hairline`, ...), a base-4 spacing scale, mobile-first 412px shell. **No decorative glow and no gradient wash anywhere**: the `--gradient-header` and primary-glow tokens are deleted, identity is carried by the orbital logo, the Astra glyph, and ring indicators. `--primary` is fill/graphic only, `--primary-soft` is accent text (see the accent-split section, which the accent-AA gate asserts). Read it before any frontend work; apply the `impeccable` skill when shaping or reviewing a surface.
+"Orbit" and "Astra" are never translated. `DESIGN.md` (repo root) is authoritative for all UI: the **de-decorated** navy-violet orbital anchor (#539 freeze, 2026-07-17), semantic tokens only (`--bg`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-soft`, `--primary-rgb`, `--hairline`, ...), a base-4 spacing scale, mobile-first 412px shell. **No decorative glow and no gradient wash anywhere**: the `--gradient-header` and primary-glow tokens are deleted, identity is carried by the orbital logo, the Astra glyph, and ring indicators. `--primary` is fill/graphic only, `--primary-soft` is accent text (see the accent-split section, which the accent-AA gate is designed to assert; #539 bundle 4 builds it). Read it before any frontend work; apply the `impeccable` skill when shaping or reviewing a surface.
 
 ## Conventions & tooling
 

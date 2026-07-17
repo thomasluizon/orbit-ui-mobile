@@ -6,7 +6,7 @@
 > - Semantic tokens only (`--bg`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-soft`, `--primary-rgb`, `--hairline`, ...); no raw hex in UI.
 > - Scales: type, **spacing (base 4)**, radius, motion. Ships light AND dark, all 6 color schemes; mobile-first 412px shell.
 > - Tokens live in `apps/web/app/globals.css` + `apps/mobile/lib/theme.ts` + `packages/shared/src/theme/`.
-> - Sections: Identity · Tokens · Type · Layout & spacing · Primitives · Buttons · Surfaces · Habit list · States · Copy · Motion · Accessibility · Bans · Working model · Enforcement.
+> - Sections (exact `##` names, so this line is greppable): Identity & anchor · Tokens · Type roles · Layout & spacing · Primitives kit · Buttons · Surface rules · Habit list · States · Copy · Desktop density & orientation · Sub-screen navigation · Motion · Accessibility · Special surfaces (paywall, landing hero) · Bans · Working model · Enforcement.
 > - Read the whole doc before shaping, reviewing, or theming any surface. `## Enforcement` says which rules are gate-backed and which are reviewer judgment.
 
 **Authority note:** this DESIGN.md is authoritative over any generic or user-global design default, including the global anti-Inter and anti-violet rules. Orbit adopts Inter for display type and a violet accent deliberately; that deviation is documented here once and applies repo-wide. Deliberate emoji use (habit emoji wells, stat tiles, streak flame, celebration heroes) is part of the language and overrides the global anti-emoji rule on those surfaces only.
@@ -112,7 +112,7 @@ The freeze re-anchored dark only. Light keeps its slate-50 canvas and opaque whi
 
 ### The accent, and why `--primary` and `--primary-soft` are two tokens
 
-This split is the single most-load-bearing token decision in the spec, and the accent-AA gate asserts it directly. It exists because **no single violet can satisfy both floors at once, and the two floors contradict**:
+This split is the single most-load-bearing token decision in the spec, and the accent-AA gate is designed to assert it directly (bundle 4 builds it; see `## Enforcement`). It exists because **no single violet can satisfy both floors at once, and the two floors contradict**:
 
 - "white text ON the accent >= 4.5:1" needs a **dark** accent,
 - "the accent as small text ON the dark canvas >= 4.5:1" needs a **light** accent.
