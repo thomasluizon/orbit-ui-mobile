@@ -5,7 +5,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { AppBar } from '@/components/ui/app-bar'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
-import { GradientTop } from '@/components/ui/gradient-top'
 import { PillButton } from '@/components/ui/pill-button'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useProfile } from '@/hooks/use-profile'
@@ -82,7 +81,6 @@ export default function ChallengesScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <GradientTop height={200} />
       <AppBar
         back
         onBack={() => goBackOrFallback('/social')}

@@ -59,10 +59,6 @@ vi.mock('@/components/onboarding/onboarding-actions-context', () => ({
   useOnboardingIsLive: () => false,
 }))
 
-vi.mock('@/components/ui/gradient-top', () => ({
-  GradientTop: () => null,
-}))
-
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({
     children,

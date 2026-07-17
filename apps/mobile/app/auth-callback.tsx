@@ -28,7 +28,6 @@ import { completeGoogleAuthFromUrl } from '@/lib/google-auth'
 import { useAuthStore } from '@/stores/auth-store'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { GradientTop } from '@/components/ui/gradient-top'
 import { PillButton } from '@/components/ui/pill-button'
 
 type AppTokens = ReturnType<typeof createTokensV2>
@@ -171,7 +170,6 @@ export default function AuthCallbackScreen() {
 
   return (
     <View style={styles.container}>
-      <GradientTop height={320} />
       {errorState ? (
         <>
           <View style={styles.errorWell}>

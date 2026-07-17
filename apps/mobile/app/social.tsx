@@ -5,7 +5,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { isValidReferralCode } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
-import { GradientTop } from '@/components/ui/gradient-top'
 import { SectionHeadTabs } from '@/components/ui/section-head-tabs'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useProfile } from '@/hooks/use-profile'
@@ -79,7 +78,6 @@ export default function SocialScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <GradientTop height={200} />
       <AppBar
         back
         onBack={() => goBackOrFallback('/profile')}

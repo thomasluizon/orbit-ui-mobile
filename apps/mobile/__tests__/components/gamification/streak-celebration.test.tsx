@@ -33,7 +33,6 @@ vi.mock('@/lib/theme', () => ({
 
 vi.mock('@/lib/motion', () => ({ toAnimatedEasing: () => undefined }))
 
-vi.mock('@/components/ui/gradient-top', () => ({ GradientTop: () => null }))
 
 vi.mock('@/components/gamification/celebration-motion', () => ({
   useCelebrationEntrance: () => ({ orbStyle: {}, titleStyle: {}, subtitleStyle: {} }),

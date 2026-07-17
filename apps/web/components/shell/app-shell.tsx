@@ -251,11 +251,6 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
           />
 
           <main className="relative z-10 min-w-0 flex-1 md:[container-type:inline-size]">
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-x-0 top-0 -z-10 hidden md:block"
-              style={{ height: 260, background: 'var(--gradient-header)' }}
-            />
             <div className={`mx-auto max-w-[var(--app-max-w)] px-[var(--app-px)] md:relative md:z-[1] md:px-8 xl:px-10 md:pb-16 ${isWideRoute ? 'md:max-w-[var(--content-max-w)]' : ''}`}>
               <DesktopTopbar title={topbarTitle} showRailToggle={!!railContent} />
               {children}

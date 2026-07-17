@@ -210,10 +210,6 @@ export default defineConfig({
         replacement: path.resolve(__dirname, './test-mocks/react-native-worklets.ts'),
       },
       {
-        find: 'expo-linear-gradient',
-        replacement: path.resolve(__dirname, './test-mocks/expo-linear-gradient.ts'),
-      },
-      {
         find: 'expo-blur',
         replacement: path.resolve(__dirname, './test-mocks/expo-blur.ts'),
       },

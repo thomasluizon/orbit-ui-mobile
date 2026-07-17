@@ -38,7 +38,6 @@ import { useUIStore } from "@/stores/ui-store";
 import { useReferralPromptStore } from "@/stores/referral-prompt-store";
 import { type HabitListHandle } from "@/components/habit-list";
 import { BulkActionBarV2 } from "@/components/habits/bulk-action-bar-v2";
-import { GradientTop } from "@/components/ui/gradient-top";
 import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 import { TrialBanner } from "@/components/ui/trial-banner";
 import { DismissibleCard } from "@/components/today/dismissible-card";
@@ -459,8 +458,6 @@ export default function TodayScreen() {
   const sharedHeader = useMemo(
     () => (
       <>
-        <GradientTop height={260} />
-
         <TodayHeader
           currentStreak={profile?.currentStreak ?? 0}
           onGoToToday={goToToday}

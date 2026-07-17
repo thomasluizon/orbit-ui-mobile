@@ -48,7 +48,6 @@ const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
 
 const pinnedPaneBackground = {
   backgroundColor: 'var(--bg)',
-  backgroundImage: 'linear-gradient(var(--bg-card), var(--bg-card))',
 } as const
 
 function currentMinutes(): number {
@@ -584,12 +583,16 @@ export function CalendarAgendaView({
                   position: 'relative',
                   height: DAY_HEIGHT,
                   borderLeft: '1px solid var(--hairline)',
-                  backgroundImage:
-                    'repeating-linear-gradient(to bottom, var(--hairline) 0, var(--hairline) 1px, transparent 1px, transparent ' +
-                    HOUR_HEIGHT +
-                    'px)',
                 }}
               >
+                {HOURS.map((hour) => (
+                  <div
+                    key={hour}
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-x-0"
+                    style={{ top: hour * HOUR_HEIGHT, borderTop: '1px solid var(--hairline)' }}
+                  />
+                ))}
                 {timedBlocks.map((block) => (
                   <AgendaEventBlock
                     key={block.entry.habitId}

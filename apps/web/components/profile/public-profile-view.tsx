@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import type { PublicProfileView as PublicProfileViewData } from '@orbit/shared/types/public-profile'
 import { AppLogo } from '@/components/ui/app-logo'
-import { GradientTop } from '@/components/ui/gradient-top'
 import { StatTile } from '@/components/ui/stat-tile'
 
 /** A next-intl translator scoped to the full message tree, accepting runtime string keys
@@ -43,8 +42,6 @@ export function PublicProfileView({ view, t }: Readonly<PublicProfileViewProps>)
       className="stagger-enter relative mx-auto flex w-full max-w-[var(--app-max-w)] flex-col py-8"
       style={{ gap: 18 }}
     >
-      <GradientTop height={260} />
-
       <Link
         href="/login"
         aria-label={t('profile.publicProfile.view.backToOrbit')}

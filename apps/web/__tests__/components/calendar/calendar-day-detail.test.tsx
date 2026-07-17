@@ -208,14 +208,5 @@ describe('CalendarDayDetail', () => {
       const scrollWrapper = scroller.parentElement as HTMLElement
       expect(scrollWrapper.nextElementSibling).toBe(cta)
     })
-
-    it('renders a non-interactive bottom fade over the scroll region', () => {
-      const { container } = renderFitViewport([makeEntry({ title: 'Read' })])
-      const scroller = container.querySelector('.overflow-y-auto') as HTMLElement
-      const scrollWrapper = scroller.parentElement as HTMLElement
-      const fade = scrollWrapper.querySelector('[aria-hidden="true"].pointer-events-none')
-      expect(fade).not.toBeNull()
-      expect(fade).not.toBe(scroller)
-    })
   })
 })

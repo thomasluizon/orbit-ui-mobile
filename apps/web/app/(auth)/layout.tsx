@@ -1,6 +1,5 @@
 'use client'
 
-import { GradientTop } from '@/components/ui/gradient-top'
 import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
 
 /** Auth layout: centered v8 shell for login and auth-callback pages. */
@@ -19,7 +18,6 @@ export default function AuthLayout({
         paddingTop: 'calc(24px + var(--safe-top))',
       }}
     >
-      <GradientTop height={320} />
       <RouteTransitionShell className="relative z-[1] my-auto w-full flex justify-center">
         {children}
       </RouteTransitionShell>

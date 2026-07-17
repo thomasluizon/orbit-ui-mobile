@@ -28,12 +28,8 @@ import { useOffline } from '@/hooks/use-offline'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { getUpgradeFallbackRoute } from '@/lib/upgrade-route'
-import {
-  resolveUpgradeProPanelVisibility,
-  resolveUpgradeSelectedCharge,
-} from '@/app/upgrade-model'
+import { resolveUpgradeSelectedCharge } from '@/app/upgrade-model'
 import { AppBar } from '@/components/ui/app-bar'
-import { GradientTop } from '@/components/ui/gradient-top'
 import { BillingDashboard } from '@/components/upgrade/billing-dashboard'
 import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboard'
 import { PricingSection } from '@/components/upgrade/pricing-section'
@@ -97,14 +93,6 @@ export default function UpgradeScreen() {
         aiMessagesLimit: profile.aiMessagesLimit,
       }
     : null
-
-  const { showGradient } = resolveUpgradeProPanelVisibility({
-    showBilling,
-    isPlaySource,
-    hasBillingData: Boolean(billing),
-    isBillingLoading,
-    isBillingError,
-  })
 
   const selectedCharge = resolveUpgradeSelectedCharge({
     plans,
@@ -189,7 +177,6 @@ export default function UpgradeScreen() {
       style={[styles.safe, { backgroundColor: tokens.bg }]}
       edges={['top', 'bottom']}
     >
-      {showGradient ? <GradientTop height={260} /> : null}
       <AppBar
         back
         onBack={() => goBackOrFallback(fallbackRoute)}

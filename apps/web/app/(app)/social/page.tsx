@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { isValidReferralCode } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
-import { GradientTop } from '@/components/ui/gradient-top'
 import { SectionHeadTabs, type SectionHeadTabItem } from '@/components/ui/section-head-tabs'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useProfile } from '@/hooks/use-profile'
@@ -92,9 +91,6 @@ function SocialPageContent() {
 
   return (
     <div className="relative">
-      <div className="md:hidden">
-        <GradientTop height={200} />
-      </div>
       <div className="relative z-[1]">
         <AppBar back onBack={() => goBackOrFallback('/profile')} title={t('social.title')} />
         {renderBody()}

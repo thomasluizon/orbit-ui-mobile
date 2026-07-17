@@ -34,7 +34,6 @@ function splitAllDay(allDay: CalendarDayEntry[]): {
 const CARD_BG = 'var(--bg-card)'
 const pinnedPaneBackground = {
   backgroundColor: 'var(--bg)',
-  backgroundImage: 'linear-gradient(var(--bg-card), var(--bg-card))',
 } as const
 
 export interface TimeGridColumn {
@@ -484,12 +483,16 @@ export function CalendarTimeGrid({
                   position: 'relative',
                   height: DAY_HEIGHT,
                   borderLeft: '1px solid var(--hairline)',
-                  backgroundImage:
-                    'repeating-linear-gradient(to bottom, var(--hairline) 0, var(--hairline) 1px, transparent 1px, transparent ' +
-                    HOUR_HEIGHT +
-                    'px)',
                 }}
               >
+                {HOURS.map((hour) => (
+                  <div
+                    key={hour}
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-x-0"
+                    style={{ top: hour * HOUR_HEIGHT, borderTop: '1px solid var(--hairline)' }}
+                  />
+                ))}
                 {timed.map((block) => (
                   <TimedBlock
                     key={block.entry.habitId}

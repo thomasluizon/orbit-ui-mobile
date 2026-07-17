@@ -23,7 +23,6 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
-vi.mock('@/components/ui/gradient-top', () => ({ GradientTop: () => null }))
 
 vi.mock('@/components/ui/app-overlay', () => ({
   AppOverlay: ({ open, children }: { open: boolean; children?: React.ReactNode }) =>

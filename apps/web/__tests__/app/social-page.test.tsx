@@ -49,7 +49,6 @@ vi.mock('next/navigation', () => ({
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
-vi.mock('@/components/ui/gradient-top', () => ({ GradientTop: () => null }))
 vi.mock('@/app/(app)/social/_components/invite-hero', () => ({ InviteHero: () => null }))
 vi.mock('@/app/(app)/social/_components/new-pair-flow', () => ({ NewPairFlow: () => null }))
 vi.mock('@/app/(app)/social/_components/pair-detail', () => ({ PairDetail: () => null }))

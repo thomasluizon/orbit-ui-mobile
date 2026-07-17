@@ -11,7 +11,6 @@ vi.mock('next/link', () => ({
   ),
 }))
 vi.mock('@/components/ui/app-logo', () => ({ AppLogo: () => <span data-testid="logo" /> }))
-vi.mock('@/components/ui/gradient-top', () => ({ GradientTop: () => <div data-testid="gradient" /> }))
 vi.mock('@/components/ui/stat-tile', () => ({
   StatTile: ({ value, label }: { value: React.ReactNode; label: string }) => (
     <div data-testid="stat">{value}<span>{label}</span></div>

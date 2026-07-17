@@ -3,7 +3,6 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import { AppBar } from '@/components/ui/app-bar'
-import { GradientTop } from '@/components/ui/gradient-top'
 import { BillingDashboard } from '@/components/upgrade/billing-dashboard'
 import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboard'
 import { PricingSection } from '@/components/upgrade/pricing-section'
@@ -46,8 +45,6 @@ export default function UpgradePage() {
   const usageUrgent = usagePercent > 80
 
   const isManageView = hasProAccess && !profile?.isTrialActive
-  const showsProPanel = isManageView && !isPlaySource && !billing && !isBillingLoading && !isBillingError
-  const showGradient = !isManageView || showsProPanel
 
   const handleCheckout = useCallback(async (interval: SubscriptionInterval) => {
     setCheckoutLoading(interval)
@@ -138,11 +135,6 @@ export default function UpgradePage() {
 
   return (
     <div className="relative flex min-h-[100dvh] flex-col">
-      {showGradient && (
-        <div className="md:hidden">
-          <GradientTop height={260} />
-        </div>
-      )}
       <div className="relative z-[1] flex min-h-0 flex-1 flex-col">
         <AppBar
           back

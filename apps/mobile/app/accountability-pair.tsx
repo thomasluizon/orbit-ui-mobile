@@ -7,7 +7,6 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import type { AccountabilityPair } from '@orbit/shared/types/accountability'
 import { formatAPIDate, formatLocaleDate, getAccountabilityErrorKey } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
-import { GradientTop } from '@/components/ui/gradient-top'
 import { SectionLabel } from '@/components/ui/section-label'
 import { PillButton } from '@/components/ui/pill-button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -104,7 +103,6 @@ export default function AccountabilityPairScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]} edges={['top']}>
-      <GradientTop height={200} />
       <AppBar
         back
         onBack={() => goBackOrFallback('/social')}

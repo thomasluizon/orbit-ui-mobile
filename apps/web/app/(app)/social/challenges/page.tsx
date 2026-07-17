@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { AppBar } from '@/components/ui/app-bar'
 import { AppOverlay } from '@/components/ui/app-overlay'
-import { GradientTop } from '@/components/ui/gradient-top'
 import { useIsDesktop } from '@/hooks/use-is-desktop'
 import { useTopbarSlot } from '@/components/shell/topbar-slot'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
@@ -53,9 +52,6 @@ function ChallengesPageContent() {
 
   return (
     <div className="relative">
-      <div className="md:hidden">
-        <GradientTop height={200} />
-      </div>
       <div className="relative z-[1]">
         <AppBar back onBack={() => goBackOrFallback('/social')} title={t('challenges.title')} />
         <ChallengesContent

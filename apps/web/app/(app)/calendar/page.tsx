@@ -41,7 +41,6 @@ import { CalendarLoadError } from '@/components/calendar/calendar-load-error'
 import type { TimeGridColumn } from '@/components/calendar/calendar-time-grid'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { EmptyState } from '@/components/ui/empty-state'
-import { GradientTop } from '@/components/ui/gradient-top'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SectionHeadTabs, type SectionHeadTabItem } from '@/components/ui/section-head-tabs'
 import { useIsDesktop, useIsWideDesktop } from '@/hooks/use-is-desktop'
@@ -304,9 +303,6 @@ export default function CalendarPage() {
 
   return (
     <div className="relative">
-      <div className="md:hidden">
-        <GradientTop height={180} />
-      </div>
       <div className="relative z-[1]">
         <SectionHeadTabs<CalendarView>
           tabs={viewTabs}

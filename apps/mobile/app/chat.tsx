@@ -8,7 +8,6 @@ import {
   type ListRenderItem,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import Animated, { FadeOut, ReduceMotion } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import type { ChatMessage } from "@orbit/shared/types";
@@ -26,7 +25,6 @@ import { GoalDetailDrawer } from "@/components/goals/goal-detail-drawer";
 import { HabitDetailDrawer } from "@/components/habits/habit-detail-drawer";
 import { AppBar } from "@/components/ui/app-bar";
 import { AstraMark } from "@/components/ui/astra-avatar";
-import { GradientTop } from "@/components/ui/gradient-top";
 import { KeyboardAwareFlatList } from "@/components/ui/keyboard-aware-scroll-view";
 import { createStyles } from "@/app/chat.styles";
 import { createTokensV2 } from "@/lib/theme";
@@ -184,15 +182,6 @@ export default function ChatScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]} edges={["top"]}>
-      {showSuggestions ? (
-        <Animated.View
-          pointerEvents="none"
-          style={styles.gradientBackdrop}
-          exiting={FadeOut.duration(280).reduceMotion(ReduceMotion.System)}
-        >
-          <GradientTop height={300} />
-        </Animated.View>
-      ) : null}
       <KeyboardAvoidingView
         style={styles.keyboardAvoid}
         behavior={Platform.OS === "ios" ? "padding" : undefined}

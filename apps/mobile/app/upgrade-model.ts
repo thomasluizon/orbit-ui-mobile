@@ -43,35 +43,3 @@ export function resolveUpgradeSelectedCharge(
   )
 }
 
-export interface UpgradeProPanelInput {
-  showBilling: boolean
-  isPlaySource: boolean
-  hasBillingData: boolean
-  isBillingLoading: boolean
-  isBillingError: boolean
-}
-
-/**
- * Derives whether the "no active Stripe subscription" pro panel and the header
- * gradient should show, given the current billing state. Pure.
- */
-export function resolveUpgradeProPanelVisibility(input: UpgradeProPanelInput): {
-  showsProPanel: boolean
-  showGradient: boolean
-} {
-  const {
-    showBilling,
-    isPlaySource,
-    hasBillingData,
-    isBillingLoading,
-    isBillingError,
-  } = input
-  const showsProPanel =
-    showBilling &&
-    !isPlaySource &&
-    !hasBillingData &&
-    !isBillingLoading &&
-    !isBillingError
-  const showGradient = !showBilling || showsProPanel
-  return { showsProPanel, showGradient }
-}

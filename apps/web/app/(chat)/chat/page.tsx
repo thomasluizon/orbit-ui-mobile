@@ -7,7 +7,6 @@ import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
 import { habitDetailToNormalized } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
 import { AstraMark } from '@/components/ui/astra-avatar'
-import { GradientTop } from '@/components/ui/gradient-top'
 import { useIsDesktop } from '@/hooks/use-is-desktop'
 import { useChatComposer } from '@/hooks/use-chat-composer'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
@@ -112,17 +111,6 @@ export default function ChatPage() {
 
   return (
     <div className="relative flex flex-col h-full">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 z-0"
-        style={{
-          height: 300,
-          opacity: showSuggestions ? 1 : 0,
-          transition: 'opacity var(--dur-slow) var(--ease-standard)',
-        }}
-      >
-        <GradientTop height={300} />
-      </div>
       <div className="relative z-10 shrink-0">
         <AppBar
           back

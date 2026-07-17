@@ -55,7 +55,6 @@ vi.mock('@/hooks/use-app-toast', () => ({
 }))
 
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
-vi.mock('@/components/ui/gradient-top', () => ({ GradientTop: () => null }))
 vi.mock('@/components/bottom-sheet-modal', () => ({
   BottomSheetModal: ({ open, children }: { open: boolean; children?: unknown }) =>
     open ? React.createElement('View', null, children as never) : null,

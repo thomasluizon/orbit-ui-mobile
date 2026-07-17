@@ -257,11 +257,6 @@ export function CalendarDayDetail({
           >
             {body}
           </div>
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 bottom-0"
-            style={{ height: 24, background: 'linear-gradient(to top, var(--bg), transparent)' }}
-          />
         </div>
         {goToDay}
       </section>
