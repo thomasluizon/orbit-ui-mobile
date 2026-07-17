@@ -5,7 +5,8 @@
         "matcher": "Bash",
         "hooks": [
           { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/git-guardrails.mjs\"" },
-          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/forbid-expo-pin-bump.mjs\"" }
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/forbid-expo-pin-bump.mjs\"" },
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/forbid-secret-in-argv.mjs\"" }
         ]
       }
     ],
@@ -17,6 +18,9 @@
           { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/forbid-mobile-supabase-eager.mjs\"" },
           { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/forbid-ef-migration-raw-index.mjs\"" },
           { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/forbid-em-dashes.mjs\"" },
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/forbid-ai-cliche-copy.mjs\"" },
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/forbid-placeholder-content.mjs\"" },
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/forbid-typed-uppercase.mjs\"" },
           { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/forbid-hardcoded-brand-color.mjs\"" },
           { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/flag-new-todos.mjs\"" },
           { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/parity-nudge.mjs\"" },

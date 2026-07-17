@@ -2,6 +2,10 @@ import tseslint from "typescript-eslint"
 import sonarjs from "eslint-plugin-sonarjs"
 import noComments from "../../eslint-rules/no-comments.cjs"
 import noFullbleedButton from "../../eslint-rules/no-fullbleed-button.cjs"
+import noDecorativeGlow from "../../eslint-rules/no-decorative-glow.cjs"
+import noOvershootEasing from "../../eslint-rules/no-overshoot-easing.cjs"
+import noRawFontFeatureTag from "../../eslint-rules/no-raw-font-feature-tag.cjs"
+import noRawGradient from "../../eslint-rules/no-raw-gradient.cjs"
 
 export default [
   ...tseslint.configs.recommendedTypeChecked,
@@ -29,9 +33,39 @@ export default [
     files: ["src/**/*.{ts,tsx}"],
     ignores: ["**/*.d.ts"],
     plugins: {
-      local: { rules: { "no-comments": noComments, "no-fullbleed-button": noFullbleedButton } },
+      local: {
+        rules: {
+          "no-comments": noComments,
+          "no-fullbleed-button": noFullbleedButton,
+          "no-decorative-glow": noDecorativeGlow,
+          "no-overshoot-easing": noOvershootEasing,
+          "no-raw-font-feature-tag": noRawFontFeatureTag,
+          "no-raw-gradient": noRawGradient,
+        },
+      },
     },
-    rules: { "local/no-comments": "error", "local/no-fullbleed-button": "error" },
+    rules: {
+      "local/no-comments": "error",
+      "local/no-fullbleed-button": "error",
+
+      // The #539 gates with a surface in pure data. Unlike apps/web and apps/mobile, this
+      // package is already clean of all four, so they land at `error` directly. Note that
+      // `theme/color-schemes.ts` owns `gradientHeaderFrom` as an object KEY, which these
+      // rules deliberately do not match — bundle 5 deletes the token itself; a gate on the
+      // file that defines it would report only its own definition.
+      "local/no-decorative-glow": "error",
+      "local/no-overshoot-easing": "error",
+      "local/no-raw-font-feature-tag": "error",
+      "local/no-raw-gradient": "error",
+
+      // Staged at `warn`: 6 exported functions lack an explicit return type (query/keys.ts,
+      // tour/tour-mock-data.ts, types/habit.ts, utils/{google-calendar-auth,
+      // habit-form-helpers,notification-actions}.ts). This hardens the contract surface old
+      // mobile clients read, so the annotations are worth adding deliberately rather than
+      // inferring in bulk; flips to `error` once they land.
+      // https://github.com/thomasluizon/orbit-ui-mobile/issues/539
+      "@typescript-eslint/explicit-module-boundary-types": "warn",
+    },
   },
   {
     rules: {
