@@ -241,7 +241,11 @@
     "progressLabel": "{done} de {total} hábitos concluídos",
     "remaining": "Restantes hoje",
     "empty": "Sem hábitos hoje",
-    "loadFailed": "Erro ao carregar o progresso"
+    "loadFailed": "Erro ao carregar o progresso",
+    "consistency": "Consistência",
+    "consistencyAria": "Conclusão de hábitos nos últimos 7 dias",
+    "nextAchievement": "Próxima conquista",
+    "askAstra": "Pergunte à Astra"
   },
   "astraRail": {
     "open": "Abrir o Astra",

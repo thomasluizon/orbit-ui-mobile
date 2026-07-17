@@ -11,6 +11,9 @@ import { useProfile } from '@/hooks/use-profile'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { ProgressOrbit } from './progress-orbit'
+import { RailConsistency } from './rail-consistency'
+import { RailNextAchievement } from './rail-next-achievement'
+import { RailAstraPill } from './rail-astra-pill'
 
 function RailStatRow({
   icon: Icon,
@@ -132,20 +135,16 @@ export function TodayRail() {
   }
 
   return (
-    <div className="flex flex-col" style={{ gap: 20, paddingBlock: 8 }}>
+    <div
+      className="flex flex-1 flex-col"
+      style={{ gap: 20, paddingBlock: 8, minHeight: '100%', justifyContent: 'space-between' }}
+    >
       <div className="flex flex-col items-center" style={{ gap: 16 }}>
         {renderOrbit()}
       </div>
 
       {showStats && (
-        <div
-          className="flex flex-col"
-          style={{
-            gap: 8,
-            paddingTop: 16,
-            boxShadow: 'inset 0 1px 0 var(--hairline)',
-          }}
-        >
+        <div className="flex flex-col" style={{ gap: 8 }}>
           <RailStatRow
             icon={ListChecks}
             label={t('rail.remaining')}
@@ -176,6 +175,12 @@ export function TodayRail() {
           )}
         </div>
       )}
+
+      <RailConsistency />
+
+      <RailNextAchievement />
+
+      <RailAstraPill />
     </div>
   )
 }

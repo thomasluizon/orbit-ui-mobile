@@ -50,6 +50,18 @@ vi.mock('@/hooks/use-gamification', () => ({
   useGamificationProfile: useGamificationProfileMock,
 }))
 
+vi.mock('@/components/shell/rail-consistency', () => ({
+  RailConsistency: () => null,
+}))
+
+vi.mock('@/components/shell/rail-next-achievement', () => ({
+  RailNextAchievement: () => null,
+}))
+
+vi.mock('@/components/shell/rail-astra-pill', () => ({
+  RailAstraPill: () => null,
+}))
+
 import { TodayRail } from '@/components/shell/today-rail'
 import { TodayProvider } from '@/app/(app)/today-provider'
 

@@ -12,6 +12,7 @@ interface ProgressOrbitProps {
 }
 
 const SATELLITE_CAP = 12
+const INNER_RADIUS_RATIO = 0.94
 
 /**
  * The day's progress as a closing violet orbit: a ring that fills as habits are
@@ -32,8 +33,9 @@ export function ProgressOrbit({
   const pct = safeTotal > 0 ? safeDone / safeTotal : 0
   const isComplete = safeTotal > 0 && safeDone >= safeTotal
 
-  const strokeWidth = 4
-  const r = size / 2 - 12
+  const outerRadius = size / 2 - 6
+  const strokeWidth = outerRadius * (1 - INNER_RADIUS_RATIO)
+  const r = outerRadius - strokeWidth / 2
   const circumference = 2 * Math.PI * r
   const center = size / 2
 

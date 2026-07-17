@@ -241,7 +241,11 @@
     "progressLabel": "{done} of {total} habits completed",
     "remaining": "Remaining today",
     "empty": "No habits today",
-    "loadFailed": "Couldn't load progress"
+    "loadFailed": "Couldn't load progress",
+    "consistency": "Consistency",
+    "consistencyAria": "Habit completion over the last 7 days",
+    "nextAchievement": "Next achievement",
+    "askAstra": "Ask Astra"
   },
   "astraRail": {
     "open": "Open Astra",
