@@ -34,7 +34,7 @@ Hold `--milestone` and `--no-create` to forward to `/create-stories` in Stage 3.
 
 ## Stage 1 — Grill (clarifying questions) [warm path only]
 
-Apply the `grill-me` posture (`C:/Users/thoma/.claude/skills/grill-me/SKILL.md`): walk the load-bearing product branches, **one question at a time**, stating your recommended answer before asking. If a question is answerable from the codebase, explore it (`Glob`/`Grep`/targeted `Read`) instead of asking. Do not write any artifact during this stage.
+Invoke the `grill-me` skill (`C:/Users/thoma/.claude/skills/grill-me/SKILL.md`) — it owns all grilling mechanics (batching, recommended answers, and researching the codebase instead of asking); do not restate or override them. Grill the load-bearing PRODUCT branches, and do not write any artifact during this stage. (The resolved decisions are captured durably by Stage 2's `/create-prd`, which synthesizes them into the PRD file — so no separate paper trail is needed here.)
 
 Stop when these are pinned: **scope** (what's in / what's out), **platforms** (web / mobile / both), **API & data surface** (endpoints, shapes, migrations, or "none"), and **out-of-scope**. This warms the conversation so the PRD step has real material to synthesize from — it is not busywork.
 
