@@ -7,6 +7,7 @@ import {
   selectionAlpha,
   statusConstants,
 } from '../theme/neutral-ramp'
+import { zLayers } from '../theme/z-layers'
 import { typeRoles } from '../theme/type-roles'
 import type { ColorScheme } from '../theme/types'
 
@@ -251,5 +252,39 @@ describe('primary-soft accent-text token', () => {
         expect(schemes[name].primarySoft[mode]).toMatch(HEX)
       }
     }
+  })
+})
+
+describe('z-index stacking scale', () => {
+  const order = [
+    zLayers.dropdown,
+    zLayers.sticky,
+    zLayers.modalBackdrop,
+    zLayers.modal,
+    zLayers.tourSpotlight,
+    zLayers.celebration,
+    zLayers.toast,
+    zLayers.tooltip,
+  ]
+
+  it('ascends strictly monotonically through the canonical tiers', () => {
+    for (let index = 1; index < order.length; index += 1) {
+      expect(order[index]).toBeGreaterThan(order[index - 1])
+    }
+  })
+
+  it('places the tour-spotlight carve-out above the modal (it points at modals)', () => {
+    expect(zLayers.tourSpotlight).toBeGreaterThan(zLayers.modal)
+  })
+
+  it('places the celebration carve-out just below the toast, above the modal', () => {
+    expect(zLayers.celebration).toBeLessThan(zLayers.toast)
+    expect(zLayers.celebration).toBeGreaterThan(zLayers.modal)
+    const between = order.filter(value => value > zLayers.celebration && value < zLayers.toast)
+    expect(between).toHaveLength(0)
+  })
+
+  it('keeps the modal backdrop directly beneath the modal', () => {
+    expect(zLayers.modalBackdrop).toBeLessThan(zLayers.modal)
   })
 })

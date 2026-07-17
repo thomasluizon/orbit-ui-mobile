@@ -10,6 +10,8 @@ import {
 } from '@orbit/shared/theme'
 import type { ThemeMode } from '@orbit/shared/types/profile'
 
+export { zLayers, type ZLayer } from '@orbit/shared/theme'
+
 type ThemeRuntime = {
   scheme: ColorScheme
   themeMode: ThemeMode

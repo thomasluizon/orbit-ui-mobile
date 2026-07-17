@@ -45,6 +45,19 @@
   --shadow-2: 0 4px 16px rgba(0, 0, 0, 0.28);
   --shadow-3: 0 12px 40px rgba(0, 0, 0, 0.45);
 
+  /* Semantic z-index stacking scale (Tailwind v4 --z-index-* namespace -> z-* utilities).
+     Six tiers ascend dropdown < sticky < modal-backdrop < modal < toast < tooltip,
+     plus two Orbit carve-outs: tour-spotlight above modal (it points at modals),
+     celebration just below toast. Mirrors zLayers in packages/shared/src/theme/z-layers.ts. */
+  --z-index-dropdown: 1000;
+  --z-index-sticky: 1100;
+  --z-index-modal-backdrop: 1200;
+  --z-index-modal: 1300;
+  --z-index-tour-spotlight: 1400;
+  --z-index-celebration: 1500;
+  --z-index-toast: 1600;
+  --z-index-tooltip: 1700;
+
   /* Animations.
      `slide-up-fade` uses `backwards` fill-mode (start-state only, no post-animation
      hold) so it doesn't pin transform values that would override later inline
@@ -57,9 +70,6 @@
 :root {
   background-color: var(--bg);
   color: var(--fg-1);
-
-  --primary-glow: 0 8px 28px rgba(var(--primary-rgb), 0.45);
-  --primary-glow-hover: 0 10px 34px rgba(var(--primary-rgb), 0.58);
 
   --orbit-list-stagger: 40ms;
 
@@ -134,13 +144,13 @@
   --hit-comfortable: 56px;
 
   /* Default scheme (purple, dark) — overridden by .scheme-* classes below */
-  --primary: #7f46f7;
-  --primary-pressed: #631df2;
-  --primary-rgb: 127, 70, 247;
-  --hue: 265.1322;
+  --primary: #8659ea;
+  --primary-pressed: #6e44d2;
+  --primary-rgb: 134, 89, 234;
+  --primary-soft: #b69bf8;
+  --hue: 270.34980243406005;
   --chroma-scale-bg: 1;
   --chroma-scale-fg: 1;
-  --gradient-header-from: #22094f;
   --fg-on-primary: #ffffff;
 }
 
@@ -151,18 +161,18 @@
    (derivation rules 1-8 in DESIGN.md; purple-dark byte-exact)
    ═══════════════════════════════════════════════════════ */
 
-.scheme-purple.dark { --primary: #7f46f7; --primary-pressed: #631df2; --primary-rgb: 127, 70, 247; --hue: 265.1322; --chroma-scale-bg: 1;      --chroma-scale-fg: 1;     --gradient-header-from: #22094f; --fg-on-primary: #ffffff; }
-.scheme-purple.light, :root.scheme-purple.light { --primary: #631df2; --primary-pressed: #510fd3; --primary-rgb: 99, 29, 242; --hue: 265.1322; --chroma-scale-bg: 1; --chroma-scale-fg: 1; --gradient-header-from: #e9d4ff; --fg-on-primary: #ffffff; }
-.scheme-blue.dark   { --primary: #2b7fff; --primary-pressed: #155dfc; --primary-rgb: 43, 127, 255; --hue: 233.1502; --chroma-scale-bg: 0.6226; --chroma-scale-fg: 1;     --gradient-header-from: #001b48; --fg-on-primary: #020618; }
-.scheme-blue.light  { --primary: #155dfc; --primary-pressed: #1447e6; --primary-rgb: 21, 93, 252;  --hue: 233.1502; --chroma-scale-bg: 0.6226; --chroma-scale-fg: 1;     --gradient-header-from: #cedfff; --fg-on-primary: #ffffff; }
-.scheme-green.dark  { --primary: #00c950; --primary-pressed: #00a63e; --primary-rgb: 0, 201, 80;   --hue: 140;      --chroma-scale-bg: 0.6;    --chroma-scale-fg: 0.6;   --gradient-header-from: #012709; --fg-on-primary: #020618; }
-.scheme-green.light { --primary: #00a63e; --primary-pressed: #008236; --primary-rgb: 0, 166, 62;   --hue: 140;      --chroma-scale-bg: 0.6;    --chroma-scale-fg: 0.6;   --gradient-header-from: #c4eac7; --fg-on-primary: #020618; }
-.scheme-rose.dark   { --primary: #ff2056; --primary-pressed: #ec003f; --primary-rgb: 255, 32, 86;  --hue: 350.4196; --chroma-scale-bg: 1;      --chroma-scale-fg: 1;     --gradient-header-from: #40010e; --fg-on-primary: #020618; }
-.scheme-rose.light  { --primary: #ec003f; --primary-pressed: #c70036; --primary-rgb: 236, 0, 63;   --hue: 350.4196; --chroma-scale-bg: 1;      --chroma-scale-fg: 1;     --gradient-header-from: #ffd1d0; --fg-on-primary: #ffffff; }
-.scheme-orange.dark { --primary: #ff6900; --primary-pressed: #f54900; --primary-rgb: 255, 105, 0;  --hue: 32;       --chroma-scale-bg: 1;      --chroma-scale-fg: 1;     --gradient-header-from: #371100; --fg-on-primary: #020618; }
-.scheme-orange.light{ --primary: #f54900; --primary-pressed: #ca3500; --primary-rgb: 245, 73, 0;   --hue: 32;       --chroma-scale-bg: 1;      --chroma-scale-fg: 1;     --gradient-header-from: #ffd3c6; --fg-on-primary: #020618; }
-.scheme-cyan.dark   { --primary: #00b8db; --primary-pressed: #0092b8; --primary-rgb: 0, 184, 219;  --hue: 191.8735; --chroma-scale-bg: 0.5167; --chroma-scale-fg: 0.843; --gradient-header-from: #01232b; --fg-on-primary: #020618; }
-.scheme-cyan.light  { --primary: #0092b8; --primary-pressed: #007595; --primary-rgb: 0, 146, 184;  --hue: 191.8735; --chroma-scale-bg: 0.5167; --chroma-scale-fg: 0.843; --gradient-header-from: #b2e8fd; --fg-on-primary: #020618; }
+.scheme-purple.dark { --primary: #8659ea; --primary-pressed: #6e44d2; --primary-rgb: 134, 89, 234; --primary-soft: #b69bf8; --hue: 270.34980243406005; --chroma-scale-bg: 1;      --chroma-scale-fg: 1;     --fg-on-primary: #ffffff; }
+.scheme-purple.light, :root.scheme-purple.light { --primary: #631df2; --primary-pressed: #510fd3; --primary-rgb: 99, 29, 242; --primary-soft: #631df2; --hue: 270.34980243406005; --chroma-scale-bg: 1; --chroma-scale-fg: 1; --fg-on-primary: #ffffff; }
+.scheme-blue.dark   { --primary: #2b7fff; --primary-pressed: #155dfc; --primary-rgb: 43, 127, 255; --primary-soft: #2b7fff; --hue: 233.1502; --chroma-scale-bg: 0.6226; --chroma-scale-fg: 1;     --fg-on-primary: #020618; }
+.scheme-blue.light  { --primary: #155dfc; --primary-pressed: #1447e6; --primary-rgb: 21, 93, 252;  --primary-soft: #155dfc; --hue: 233.1502; --chroma-scale-bg: 0.6226; --chroma-scale-fg: 1;     --fg-on-primary: #ffffff; }
+.scheme-green.dark  { --primary: #00c950; --primary-pressed: #00a63e; --primary-rgb: 0, 201, 80;   --primary-soft: #00c950; --hue: 140;      --chroma-scale-bg: 0.6;    --chroma-scale-fg: 0.6;   --fg-on-primary: #020618; }
+.scheme-green.light { --primary: #00a63e; --primary-pressed: #008236; --primary-rgb: 0, 166, 62;   --primary-soft: #00861b; --hue: 140;      --chroma-scale-bg: 0.6;    --chroma-scale-fg: 0.6;   --fg-on-primary: #020618; }
+.scheme-rose.dark   { --primary: #ff2056; --primary-pressed: #ec003f; --primary-rgb: 255, 32, 86;  --primary-soft: #ff2056; --hue: 350.4196; --chroma-scale-bg: 1;      --chroma-scale-fg: 1;     --fg-on-primary: #020618; }
+.scheme-rose.light  { --primary: #ec003f; --primary-pressed: #c70036; --primary-rgb: 236, 0, 63;   --primary-soft: #e6003b; --hue: 350.4196; --chroma-scale-bg: 1;      --chroma-scale-fg: 1;     --fg-on-primary: #ffffff; }
+.scheme-orange.dark { --primary: #ff6900; --primary-pressed: #f54900; --primary-rgb: 255, 105, 0;  --primary-soft: #ff6900; --hue: 32;       --chroma-scale-bg: 1;      --chroma-scale-fg: 1;     --fg-on-primary: #020618; }
+.scheme-orange.light{ --primary: #f54900; --primary-pressed: #ca3500; --primary-rgb: 245, 73, 0;   --primary-soft: #dc2e00; --hue: 32;       --chroma-scale-bg: 1;      --chroma-scale-fg: 1;     --fg-on-primary: #020618; }
+.scheme-cyan.dark   { --primary: #00b8db; --primary-pressed: #0092b8; --primary-rgb: 0, 184, 219;  --primary-soft: #00b8db; --hue: 191.8735; --chroma-scale-bg: 0.5167; --chroma-scale-fg: 0.843; --fg-on-primary: #020618; }
+.scheme-cyan.light  { --primary: #0092b8; --primary-pressed: #007595; --primary-rgb: 0, 146, 184;  --primary-soft: #007da2; --hue: 191.8735; --chroma-scale-bg: 0.5167; --chroma-scale-fg: 0.843; --fg-on-primary: #020618; }
 
 /* ═══════════════════════════════════════════════════════
    DARK MODE — navy canvas (handoff slate ramp), translucent surfaces.
@@ -171,7 +181,7 @@
    Alpha surfaces are scheme-independent constants.
    ═══════════════════════════════════════════════════════ */
 :root.dark, .dark {
-  --bg:              oklch(0.1298 calc(0.0425 * var(--chroma-scale-bg)) var(--hue));
+  --bg:              oklch(0.14104069155540352 calc(0.015939302762573243 * var(--chroma-scale-bg)) var(--hue));
   --bg-card:         rgba(248, 250, 252, 0.04);
   --bg-field:        rgba(248, 250, 252, 0.05);
   --bg-well:         rgba(248, 250, 252, 0.06);
@@ -180,15 +190,14 @@
   --bg-elev-pressed: rgba(248, 250, 252, 0.10);
   --bg-sheet:        color-mix(in srgb, var(--bg) 95%, rgb(248, 250, 252));
   --bg-sunk:         rgba(0, 0, 0, 0.28);
-  --primary-soft:    color-mix(in srgb, var(--primary) 55%, white);
 
   --hairline:        rgba(248, 250, 252, 0.10);
   --hairline-strong: rgba(248, 250, 252, 0.18);
 
-  --fg-1: oklch(0.9842 calc(0.0034 * var(--chroma-scale-fg)) calc(var(--hue) - 17.2746));
-  --fg-2: oklch(0.8686 calc(0.0216 * var(--chroma-scale-fg)) calc(var(--hue) - 12.6185));
-  --fg-3: oklch(0.7038 calc(0.0402 * var(--chroma-scale-fg)) calc(var(--hue) - 8.1393));
-  --fg-4: oklch(0.5542 calc(0.046 * var(--chroma-scale-fg)) calc(var(--hue) - 7.6061));
+  --fg-1: oklch(0.975941527186872 calc(0.0028673413166476263 * var(--chroma-scale-fg)) calc(var(--hue) - 5.807762834095854));
+  --fg-2: oklch(0.8410737668002215 calc(0.010665714854488782 * var(--chroma-scale-fg)) calc(var(--hue) - 8.563258024857873));
+  --fg-3: oklch(0.6453693702335441 calc(0.017824864895508642 * var(--chroma-scale-fg)) calc(var(--hue) - 7.628241447918015));
+  --fg-4: oklch(0.47346558472924744 calc(0.019304208173662258 * var(--chroma-scale-fg)) calc(var(--hue) - 7.675995172411376));
 
   --status-done:    var(--primary);
   --status-empty:   rgba(248, 250, 252, 0.22);
@@ -202,7 +211,6 @@
   --fg-on-overdue:       #020618;
 
   --selection-bg: rgba(var(--primary-rgb), 0.32);
-  --gradient-header: linear-gradient(180deg, var(--gradient-header-from) 0%, transparent 100%);
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.20);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.28);
@@ -218,24 +226,23 @@
    ink-alpha hairlines. Ships with every phase.
    ═══════════════════════════════════════════════════════ */
 :root.light, .light {
-  --bg:              oklch(0.9842 calc(0.0034 * var(--chroma-scale-bg)) calc(var(--hue) - 17.2746));
+  --bg:              oklch(0.9841518630825351 calc(0.003412665198490683 * var(--chroma-scale-bg)) calc(var(--hue) - 22.492258453348995));
   --bg-card:         rgb(255, 255, 255);
   --bg-field:        var(--bg-sunk);
   --bg-well:         var(--bg-sunk);
   --bg-elev:         rgb(255, 255, 255);
   --bg-elev-2:       rgb(255, 255, 255);
-  --bg-elev-pressed: oklch(0.9683 calc(0.0069 * var(--chroma-scale-bg)) calc(var(--hue) - 17.2366));
+  --bg-elev-pressed: oklch(0.9682603461349981 calc(0.006853583273311416 * var(--chroma-scale-bg)) calc(var(--hue) - 22.45423513044682));
   --bg-sheet:        rgb(255, 255, 255);
-  --bg-sunk:         oklch(0.9683 calc(0.0069 * var(--chroma-scale-bg)) calc(var(--hue) - 17.2366));
-  --primary-soft:    var(--primary);
+  --bg-sunk:         oklch(0.9682603461349981 calc(0.006853583273311416 * var(--chroma-scale-bg)) calc(var(--hue) - 22.45423513044682));
 
   --hairline:        rgba(2, 6, 24, 0.08);
   --hairline-strong: rgba(2, 6, 24, 0.16);
 
-  --fg-1: oklch(0.2084 calc(0.0417 * var(--chroma-scale-fg)) calc(var(--hue) + 1.227));
-  --fg-2: oklch(0.3717 calc(0.0449 * var(--chroma-scale-fg)) calc(var(--hue) - 7.7086));
-  --fg-3: oklch(0.5542 calc(0.046 * var(--chroma-scale-fg)) calc(var(--hue) - 7.6061));
-  --fg-4: oklch(0.7038 calc(0.0402 * var(--chroma-scale-fg)) calc(var(--hue) - 8.1393));
+  --fg-1: oklch(0.208402856504579 calc(0.04166282575754041 * var(--chroma-scale-fg)) calc(var(--hue) - 3.990596293373983));
+  --fg-2: oklch(0.3717277546786527 calc(0.044925940120119565 * var(--chroma-scale-fg)) calc(var(--hue) - 12.926197336406062));
+  --fg-3: oklch(0.5541629781808084 calc(0.04598794851178141 * var(--chroma-scale-fg)) calc(var(--hue) - 12.823749241986093));
+  --fg-4: oklch(0.7038202552146957 calc(0.04016718204045253 * var(--chroma-scale-fg)) calc(var(--hue) - 13.356914246819201));
 
   --status-done:    var(--primary);
   --status-empty:   rgba(2, 6, 24, 0.18);
@@ -249,7 +256,6 @@
   --fg-on-overdue:       #020618;
 
   --selection-bg: rgba(var(--primary-rgb), 0.18);
-  --gradient-header: linear-gradient(180deg, var(--gradient-header-from) 0%, transparent 100%);
 
   --shadow-sm: 0 1px 2px rgba(2, 6, 24, 0.06);
   --shadow-md: 0 4px 16px rgba(2, 6, 24, 0.08);
@@ -884,22 +890,19 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   font-family: var(--font-sans);
   font-size: 16px;
   font-weight: 500;
-  box-shadow: var(--primary-glow);
   transition:
     background-color var(--dur-fast) var(--ease-standard),
-    box-shadow var(--dur-fast) var(--ease-standard),
     transform var(--dur-fast) var(--ease-standard);
 }
 .pill-link:hover {
   background: var(--primary-pressed);
-  box-shadow: var(--primary-glow-hover);
   transform: translateY(-1px);
 }
 .pill-link:active {
   transform: scale(0.98);
 }
 
-/* In-field AI affordance: a violet sparkle well that glows on hover */
+/* In-field AI affordance: an accent-tinted sparkle well */
 .ai-spark-btn {
   position: absolute;
   right: 8px;
@@ -929,9 +932,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 .ai-spark-btn:hover:not(:disabled) {
   background: rgba(var(--primary-rgb), 0.18);
-  box-shadow:
-    inset 0 0 0 1px rgba(var(--primary-rgb), 0.35),
-    0 0 16px rgba(var(--primary-rgb), 0.4);
+  box-shadow: inset 0 0 0 1px rgba(var(--primary-rgb), 0.35);
 }
 .ai-spark-btn:active:not(:disabled) {
   transform: translateY(-50%) scale(0.96);
