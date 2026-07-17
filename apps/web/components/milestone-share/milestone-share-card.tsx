@@ -52,7 +52,7 @@ export const MilestoneShareCard = forwardRef<HTMLDivElement, MilestoneShareCardP
           color: 'var(--fg-1)',
         }}
       >
-        <div style={{ position: 'relative', padding: '20px 22px 24px', background: 'var(--gradient-header)' }}>
+        <div style={{ position: 'relative', padding: '20px 22px 24px', background: 'var(--bg-elev)' }}>
           <div className="flex items-center" style={{ gap: 9 }}>
             <div
               aria-hidden="true"

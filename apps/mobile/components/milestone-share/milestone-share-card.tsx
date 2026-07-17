@@ -1,7 +1,6 @@
 import { forwardRef, useMemo } from 'react'
 // react-doctor-disable-next-line rn-prefer-expo-image -- expo-image is not a project dependency; the only <Image> is a static bundled logo rendered into a react-native-view-shot capture (expo-image does not reliably render in view-shot snapshots), so RN Image is the deliberate correct choice here. Adding a native image library is out of scope for a React Doctor burn-down (SDK 57 native-ABI/rebuild risk). https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { Image, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native'
-import { LinearGradient } from 'expo-linear-gradient'
 import QRCode from 'react-native-qrcode-svg'
 import { useTranslation } from 'react-i18next'
 import { achievementEmoji } from '@orbit/shared/utils'
@@ -35,10 +34,7 @@ export const MilestoneShareCard = forwardRef<View, MilestoneShareCardProps>(
 
     return (
       <View ref={ref} testID="milestone-share-card" style={styles.card}>
-        <LinearGradient
-          colors={[tokens.gradientHeaderFrom, tokens.gradientHeaderTo]}
-          style={styles.band}
-        >
+        <View style={styles.band}>
           <View style={styles.brandRow}>
             <Image source={logoSource} style={styles.logo} resizeMode="contain" />
             <Text style={styles.wordmark}>Orbit</Text>
@@ -70,7 +66,7 @@ export const MilestoneShareCard = forwardRef<View, MilestoneShareCardProps>(
               </View>
             </View>
           )}
-        </LinearGradient>
+        </View>
 
         {referralUrl ? (
           <View style={styles.footer}>
@@ -104,6 +100,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingTop: 20,
       paddingHorizontal: 22,
       paddingBottom: 24,
+      backgroundColor: tokens.bgElev,
     },
     brandRow: {
       flexDirection: 'row',
