@@ -91,9 +91,11 @@ Parse `$ARGUMENTS`:
 3. **Write the spec** with all bundles `todo`, decisions empty, `next-action: "/drive <N>"`.
 4. **GATE — SPEC.** Show the bundle table + sequencing. Wait for `approve` / `edit <note>` /
    `abort`. Default-deny: no or ambiguous response → restate and wait.
-5. **Grill** (main session, per issue in turn). Invoke `grill-me` on the open questions
-   `/prime` surfaced; record every resolved decision in the spec's Decisions section. Grill
-   is interactive — it NEVER runs as a subagent. The user's explicit exit is the gate.
+5. **Grill** (main session; interactive — it NEVER runs as a subagent). Single issue:
+   invoke `grill-me` on the open questions `/prime` surfaced. 2+ issues: invoke
+   `batch-grill <N…>` — one frontier over the whole set, shared questions asked once,
+   cross-issue conflicts surfaced before planning. Either way, record every resolved
+   decision in the issue's spec Decisions section. The user's explicit exit is the gate.
 6. Proceed to **Work** on the first `todo` bundle.
 
 ## Work (per bundle — heavy steps delegated to subagents)
@@ -143,7 +145,9 @@ own multi-issue modes (they own the worktree + parallel-subagent machinery; neve
 
 - **Prime** creates paired worktrees under `.claude/worktrees/<branch>` and primes each issue
   in a parallel subagent.
-- **Grill** stays in the main session, one issue at a time (interactive; never a subagent).
+- **Grill** stays in the main session (interactive; never a subagent). 2+ issues use
+  `batch-grill <N…>` — one frontier over the set, shared questions asked once, cross-issue
+  conflicts surfaced — recording each issue's decisions in that issue's spec.
 - **Plan** and **Implement** run as parallel worktree subagents, per issue, 3 concurrent max.
 - The three gates become **batch gates** over all issues, with per-issue scoping allowed
   (`approve <#…>`, `revise <#> <feedback>`, `drop <#…>`).
