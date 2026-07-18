@@ -9,13 +9,13 @@ vi.mock('next-intl', () => ({
 import { HabitRow } from '@/components/habits/habit-row'
 
 describe('HabitRow drill-in and expand chevrons', () => {
-  it('opens a level-1 family in focus via the drill chevron instead of expanding', () => {
+  it('opens a level-2 family in focus via the drill chevron instead of expanding', () => {
     const onDrillInto = vi.fn()
     const onToggleExpand = vi.fn()
     render(
       <HabitRow
-        habit={createMockHabit({ id: 'child', title: 'Morning' })}
-        depth={1}
+        habit={createMockHabit({ id: 'grandchild', title: 'Glass' })}
+        depth={2}
         child
         hasChildren
         actions={{ onDrillInto, onToggleExpand }}
@@ -53,8 +53,8 @@ describe('HabitRow drill-in and expand chevrons', () => {
   it('keeps the per-row overflow menu on a drilled sub-habit family', () => {
     render(
       <HabitRow
-        habit={createMockHabit({ id: 'child', title: 'Morning' })}
-        depth={1}
+        habit={createMockHabit({ id: 'grandchild', title: 'Glass' })}
+        depth={2}
         child
         hasChildren
         inPanel

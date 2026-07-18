@@ -365,7 +365,10 @@ function AstraRailPanel({ onClose }: Readonly<{ onClose: () => void }>) {
  * SSE pipeline so the conversation is continuous. Navigating away collapses a maximized panel
  * back to the dock. Hidden below 768px, where the phone shell keeps its bottom-nav Astra tab.
  */
-export function AstraCopilotRail() {
+/** `hideLauncher` suppresses the floating launcher where the right rail already
+ *  carries an Astra affordance (the Today rail's pill), so the two don't stack in
+ *  the same corner. The copilot panel itself stays available. */
+export function AstraCopilotRail({ hideLauncher = false }: Readonly<{ hideLauncher?: boolean }>) {
   const astraOpen = useShellStore((state) => state.astraOpen)
   const setAstraOpen = useShellStore((state) => state.setAstraOpen)
   const setAstraMaximized = useShellStore((state) => state.setAstraMaximized)
@@ -381,7 +384,7 @@ export function AstraCopilotRail() {
 
   return (
     <>
-      <AstraLauncher open={astraOpen} onOpen={() => setAstraOpen(true)} />
+      {!hideLauncher && <AstraLauncher open={astraOpen} onOpen={() => setAstraOpen(true)} />}
       {astraOpen && <AstraRailPanel onClose={() => setAstraOpen(false)} />}
     </>
   )

@@ -522,7 +522,7 @@ describe('HabitList', () => {
     expect(screen.getByTestId('habit-card-bad-child').getAttribute('data-state')).toBe('bad')
   })
 
-  it('caps all-view families at two inline levels and drills into deeper nodes', () => {
+  it('caps all-view families at three inline tiers (parent + two sub-levels) and drills into deeper nodes', () => {
     const root = createMockHabit({ id: 'root', title: 'Root', hasSubHabits: true })
     const child = createMockHabit({ id: 'child', title: 'Child', parentId: 'root', hasSubHabits: true })
     const grandchild = createMockHabit({ id: 'grandchild', title: 'Grandchild', parentId: 'child', hasSubHabits: true })
@@ -545,10 +545,10 @@ describe('HabitList', () => {
     )
 
     expect(screen.getByTestId('habit-card-root').getAttribute('data-depth')).toBe('0')
-    const childCard = screen.getByTestId('habit-card-child')
-    expect(childCard.getAttribute('data-depth')).toBe('1')
-    expect(childCard.getAttribute('data-has-children')).toBe('yes')
-    expect(screen.queryByTestId('habit-card-grandchild')).toBeNull()
+    expect(screen.getByTestId('habit-card-child').getAttribute('data-depth')).toBe('1')
+    const grandchildCard = screen.getByTestId('habit-card-grandchild')
+    expect(grandchildCard.getAttribute('data-depth')).toBe('2')
+    expect(grandchildCard.getAttribute('data-has-children')).toBe('yes')
     expect(screen.queryByTestId('habit-card-great-grandchild')).toBeNull()
   })
 

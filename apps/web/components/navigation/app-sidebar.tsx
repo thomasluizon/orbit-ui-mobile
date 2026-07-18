@@ -6,10 +6,12 @@ import {
   PanelLeft,
   PanelLeftClose,
   Plus,
+  Settings,
   type LucideProps,
 } from 'lucide-react'
 import { AppLogo } from '@/components/ui/app-logo'
 import { PillButton } from '@/components/ui/pill-button'
+import { UserAvatar } from '@/components/ui/user-avatar'
 import { resolveSidebarSectionRowPresentation } from '@/components/navigation/app-sidebar-presentation'
 
 export interface SidebarNavItem {
@@ -37,6 +39,15 @@ export interface SidebarSection {
   expanded?: boolean
 }
 
+/** The grounded account chip at the sidebar's foot: who is signed in + their plan,
+ *  and the entry point to the profile/settings surface. */
+export interface SidebarAccount {
+  name: string
+  planLabel: string
+  onOpen: () => void
+  ariaLabel: string
+}
+
 interface AppSidebarProps {
   sections: readonly SidebarSection[]
   collapsed: boolean
@@ -48,6 +59,8 @@ interface AppSidebarProps {
   brandLabel: string
   /** Accessible name for the <nav> landmark, distinct from the aside's brand label. */
   navLabel: string
+  /** Absent until the profile has loaded. */
+  account?: SidebarAccount
 }
 
 /**
@@ -69,6 +82,7 @@ export function AppSidebar({
   createLabel,
   brandLabel,
   navLabel,
+  account,
 }: Readonly<AppSidebarProps>) {
   return (
     <aside
@@ -139,33 +153,71 @@ export function AppSidebar({
       </nav>
 
       <div
-        className="flex"
+        className="flex flex-col"
         style={{
           paddingInline: collapsed ? 13 : 16,
           paddingTop: 12,
           paddingBottom: 4,
-          justifyContent: 'center',
+          gap: 10,
         }}
       >
-        {collapsed ? (
-          <PillButton
-            variant="primary"
-            size="xs"
-            onClick={onCreate}
-            ariaLabel={createLabel}
-            title={createLabel}
-            leading={<Plus size={20} strokeWidth={2.2} />}
-          />
-        ) : (
-          <PillButton
-            variant="primary"
-            size="xs"
-            onClick={onCreate}
-            leading={<Plus size={18} strokeWidth={2.2} />}
-          >
-            {createLabel}
-          </PillButton>
-        )}
+        {account &&
+          (collapsed ? (
+            <button
+              type="button"
+              onClick={account.onOpen}
+              aria-label={account.ariaLabel}
+              className="flex justify-center rounded-full transition-[transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.96]"
+            >
+              <UserAvatar name={account.name} size={34} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={account.onOpen}
+              aria-label={account.ariaLabel}
+              className="flex w-full items-center rounded-[14px] transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)]"
+              style={{ gap: 10, padding: 8, boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
+            >
+              <UserAvatar name={account.name} size={34} />
+              <span className="flex min-w-0 flex-1 flex-col items-start" style={{ gap: 1 }}>
+                <span
+                  className="w-full truncate text-left"
+                  style={{ fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 600, color: 'var(--fg-1)' }}
+                >
+                  {account.name}
+                </span>
+                <span
+                  className="w-full truncate text-left"
+                  style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--fg-3)' }}
+                >
+                  {account.planLabel}
+                </span>
+              </span>
+              <Settings size={18} strokeWidth={1.8} color="var(--fg-3)" aria-hidden="true" />
+            </button>
+          ))}
+        <div className="flex" style={{ justifyContent: 'center' }}>
+          {collapsed ? (
+            <PillButton
+              variant="primary"
+              size="xs"
+              onClick={onCreate}
+              ariaLabel={createLabel}
+              title={createLabel}
+              leading={<Plus size={20} strokeWidth={2.2} />}
+            />
+          ) : (
+            <PillButton
+              variant="primary"
+              size="xs"
+              onClick={onCreate}
+              leading={<Plus size={18} strokeWidth={2.2} />}
+            >
+              {createLabel}
+            </PillButton>
+          )}
+        </div>
       </div>
       </div>
     </aside>

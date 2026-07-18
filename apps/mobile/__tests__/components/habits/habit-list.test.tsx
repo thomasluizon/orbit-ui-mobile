@@ -625,7 +625,7 @@ describe('HabitList', () => {
     expect(habitIds).toEqual(['parent', 'active-child', 'completed-recurring-child'])
   })
 
-  it('caps all-view families at two inline levels and drills into deeper nodes', () => {
+  it('caps all-view families at three inline tiers (parent + two sub-levels) and drills into deeper nodes', () => {
     const root = createMockHabit({ id: 'root', title: 'Root', hasSubHabits: true })
     const child = createMockHabit({ id: 'child', title: 'Child', parentId: 'root', hasSubHabits: true })
     const grandchild = createMockHabit({ id: 'grandchild', title: 'Grandchild', parentId: 'child', hasSubHabits: true })
@@ -652,9 +652,9 @@ describe('HabitList', () => {
     })
 
     const rows = groupTree.root.findAllByType(HabitRow)
-    expect(rows.map((node: any) => node.props.habit.id)).toEqual(['root', 'child'])
-    const childRow = rows.find((node: any) => node.props.habit.id === 'child')
-    expect(childRow.props.showDrillChevron).toBe(true)
+    expect(rows.map((node: any) => node.props.habit.id)).toEqual(['root', 'child', 'grandchild'])
+    const grandchildRow = rows.find((node: any) => node.props.habit.id === 'grandchild')
+    expect(grandchildRow.props.showDrillChevron).toBe(true)
   })
 
   it('uses plain draggable list for today view outside select mode', () => {
@@ -1671,11 +1671,12 @@ describe('HabitList', () => {
     expect(moreButtons.length).toBeGreaterThanOrEqual(2)
   })
 
-  it('drills past level 2 with a drill affordance instead of a third inline level', async () => {
+  it('drills past the third tier with a drill affordance instead of a fourth inline level', async () => {
     const root = createMockHabit({ id: 'root', title: 'Water', hasSubHabits: true })
     const mid = createMockHabit({ id: 'mid', title: 'Morning', parentId: 'root', hasSubHabits: true })
-    const leaf = createMockHabit({ id: 'leaf', title: 'First glass', parentId: 'mid' })
-    seedHabits([root, mid, leaf])
+    const leaf = createMockHabit({ id: 'leaf', title: 'First glass', parentId: 'mid', hasSubHabits: true })
+    const deep = createMockHabit({ id: 'deep', title: 'First sip', parentId: 'leaf' })
+    seedHabits([root, mid, leaf, deep])
 
     let tree: any
     TestRenderer.act(() => {
@@ -1687,20 +1688,20 @@ describe('HabitList', () => {
     const ids = tree.root
       .findAllByType(HabitRow)
       .map((node: any) => node.props.habit.id)
-    expect(ids).toEqual(['root', 'mid'])
-    expect(ids).not.toContain('leaf')
+    expect(ids).toEqual(['root', 'mid', 'leaf'])
+    expect(ids).not.toContain('deep')
 
-    const midCard = tree.root
+    const leafCard = tree.root
       .findAllByType(HabitRow)
-      .find((node: any) => node.props.habit.id === 'mid')
-    expect(midCard.props.depth).toBe(1)
-    expect(midCard.props.hasChildren).toBe(true)
-    expect(midCard.props.showDrillChevron).toBe(true)
+      .find((node: any) => node.props.habit.id === 'leaf')
+    expect(leafCard.props.depth).toBe(2)
+    expect(leafCard.props.hasChildren).toBe(true)
+    expect(leafCard.props.showDrillChevron).toBe(true)
 
     await TestRenderer.act(async () => {
-      await midCard.props.actions.onDrillInto()
+      await leafCard.props.actions.onDrillInto()
     })
-    expect(mockDrillState.drillInto).toHaveBeenCalledWith('mid')
+    expect(mockDrillState.drillInto).toHaveBeenCalledWith('leaf')
   })
 
   it('renders no tree-connector element between family rows', () => {

@@ -156,10 +156,12 @@ export function buildMoveParentOptions(
 }
 
 /** Deepest 0-indexed depth rendered inline before a node must be drilled into.
- *  Levels 0 and 1 show inline; a level-1 node with children exposes a drill
- *  affordance instead of expanding to level 2. Frozen habit-list treatment,
+ *  Levels 0, 1 and 2 show inline (parent + two sub-habit levels); a level-2 node
+ *  with children exposes a drill affordance instead of expanding to level 3.
+ *  Frozen habit-list treatment — matches the Today (C) mockup's three inline
+ *  tiers (Water > Água da manhã > Copo grande, then drill).
  *  https://github.com/thomasluizon/orbit-ui-mobile/issues/539 */
-export const MAX_INLINE_DEPTH = 1
+export const MAX_INLINE_DEPTH = 2
 
 /** Flattens the visible habit forest into draggable rows in render order,
  *  descending into a habit's children only when it is not collapsed and the

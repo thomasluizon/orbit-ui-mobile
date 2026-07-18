@@ -190,9 +190,10 @@ export function buildMoveParentOptions(
 }
 
 /** Deepest inline depth rendered in the Today list before a node drills in
- *  instead of expanding: depth 0 (parent) and depth 1 (sub-habits) are inline,
- *  anything deeper is reached via the violet drill chevron (#539). */
-export const MAX_INLINE_DEPTH = 1
+ *  instead of expanding: depth 0 (parent) and depths 1-2 (two sub-habit levels)
+ *  are inline, anything deeper is reached via the violet drill chevron. Matches
+ *  the Today (C) mockup's three inline tiers (#539). */
+export const MAX_INLINE_DEPTH = 2
 
 /** Flattens the visible habit forest into draggable rows in render order,
  *  descending into a habit's children only when it is not collapsed and the

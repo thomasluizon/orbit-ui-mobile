@@ -248,6 +248,16 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
             createLabel={t('nav.create')}
             brandLabel="Orbit"
             navLabel={t('nav.mainNavigation')}
+            account={
+              profile
+                ? {
+                    name: profile.name,
+                    planLabel: hasProAccess ? t('profile.subscription.pro') : t('profile.subscription.free'),
+                    onOpen: () => navigateTab('/profile'),
+                    ariaLabel: t('nav.profile'),
+                  }
+                : undefined
+            }
           />
 
           <main className="relative z-10 min-w-0 flex-1 md:[container-type:inline-size]">
@@ -263,7 +273,7 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
             {railContent}
           </RailDrawer>
 
-          <AstraCopilotRail />
+          <AstraCopilotRail hideLauncher={!!railContent} />
 
           <CommandPalette
             navItems={commandItems}

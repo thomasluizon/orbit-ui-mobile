@@ -9,30 +9,32 @@ import {
 
 const root = createMockHabit({ id: 'root', title: 'Water', hasSubHabits: true })
 const child = createMockHabit({ id: 'child', title: 'Morning', parentId: 'root', hasSubHabits: true })
-const grandchild = createMockHabit({ id: 'grandchild', title: 'Glass', parentId: 'child' })
+const grandchild = createMockHabit({ id: 'grandchild', title: 'Glass', parentId: 'child', hasSubHabits: true })
+const greatGrandchild = createMockHabit({ id: 'greatGrandchild', title: 'Sip', parentId: 'grandchild' })
 const solo = createMockHabit({ id: 'solo', title: 'Run' })
 
 const childrenByParent: Record<string, NormalizedHabit[]> = {
   root: [child],
   child: [grandchild],
+  grandchild: [greatGrandchild],
 }
 const getVisibleChildren = (habitId: string) => childrenByParent[habitId] ?? []
 
 describe('buildDragItemsFlat inline depth cap', () => {
-  it('renders only two levels inline and stops before the third', () => {
+  it('renders three levels inline (parent + two sub-habit levels) and stops before the fourth', () => {
     const items = buildDragItemsFlat([root], new Set(), getVisibleChildren, 'today')
     const ids = items.map((item) => item.id)
 
-    expect(ids).toEqual(['root', 'child'])
-    expect(items.find((item) => item.id === 'grandchild')).toBeUndefined()
+    expect(ids).toEqual(['root', 'child', 'grandchild'])
+    expect(items.find((item) => item.id === 'greatGrandchild')).toBeUndefined()
   })
 
-  it('still flags a capped level-1 node as having children so it can drill in', () => {
+  it('flags a capped level-2 node as having children so it can drill in', () => {
     const items = buildDragItemsFlat([root], new Set(), getVisibleChildren, 'today')
-    const childItem = items.find((item) => item.id === 'child')
+    const grandchildItem = items.find((item) => item.id === 'grandchild')
 
-    expect(childItem?.depth).toBe(MAX_INLINE_DEPTH)
-    expect(childItem?.hasChildren).toBe(true)
+    expect(grandchildItem?.depth).toBe(MAX_INLINE_DEPTH)
+    expect(grandchildItem?.hasChildren).toBe(true)
   })
 
   it('does not descend into a collapsed family', () => {
@@ -48,7 +50,7 @@ describe('groupHabitItemsIntoPanels', () => {
 
     expect(panels).toHaveLength(2)
     expect(panels[0]?.rootId).toBe('root')
-    expect(panels[0]?.items.map((item) => item.id)).toEqual(['root', 'child'])
+    expect(panels[0]?.items.map((item) => item.id)).toEqual(['root', 'child', 'grandchild'])
     expect(panels[1]?.rootId).toBe('solo')
     expect(panels[1]?.items.map((item) => item.id)).toEqual(['solo'])
   })
