@@ -10,6 +10,7 @@ import {
 import { findNodeHandle, StyleSheet, TextInput } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { FIELD_WELL_PADDING, fieldRingStyle, fieldWellStyle } from './field-ring'
 import { useKeyboardAwareInputReveal } from './keyboard-aware-scroll-view'
 
 type AppTokens = ReturnType<typeof createTokensV2>
@@ -100,7 +101,15 @@ export const BottomSheetAppTextInput = forwardRef<
       ref={assignRef}
       placeholderTextColor={placeholderTextColor ?? tokens.fg3}
       {...props}
-      style={[styles.input, focused ? styles.inputFocused : null, style]}
+      style={[
+        styles.input,
+        fieldRingStyle(tokens, {
+          focused,
+          paddingHorizontal: FIELD_WELL_PADDING.horizontal,
+          paddingVertical: FIELD_WELL_PADDING.vertical,
+        }),
+        style,
+      ]}
       value={draftValue}
       onBlur={handleBlur}
       onChangeText={handleChangeText}
@@ -111,23 +120,6 @@ export const BottomSheetAppTextInput = forwardRef<
 
 function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
-    input: {
-      minHeight: 54,
-      borderRadius: 14,
-      backgroundColor: tokens.bgField,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 16,
-      color: tokens.fg1,
-    },
-    inputFocused: {
-      borderWidth: 2,
-      borderColor: tokens.primary,
-      paddingHorizontal: 15,
-      paddingVertical: 13,
-    },
+    input: fieldWellStyle(tokens),
   })
 }

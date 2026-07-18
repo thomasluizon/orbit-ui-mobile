@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import type { RecapSharePeriod } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+import { useTopbarHeading } from '@/components/shell/topbar-slot'
 import { useProfile } from '@/hooks/use-profile'
 import { useWrapped } from '@/hooks/use-wrapped'
 import { WrappedCover } from './_components/wrapped-cover'
@@ -12,6 +13,7 @@ import { WrappedPlayer } from './_components/wrapped-player'
 
 export default function WrappedPage() {
   const t = useTranslations()
+  useTopbarHeading({ ownedByPage: true })
   const goBackOrFallback = useGoBackOrFallback()
   const { profile } = useProfile()
   const [period, setPeriod] = useState<RecapSharePeriod>('week')

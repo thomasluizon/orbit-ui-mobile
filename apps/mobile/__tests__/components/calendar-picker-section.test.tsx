@@ -15,11 +15,16 @@ const mocks = vi.hoisted(() => ({
   showError: vi.fn(),
 }))
 
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: undefined }),
+}))
+
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
 }))
 
-vi.mock('@/lib/theme', () => ({
+vi.mock('@/lib/theme', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/theme')>()),
   createTokensV2: () => new Proxy({}, { get: () => '#111111' }),
   easings: { smooth: [0.2, 0, 0, 1] },
   tintFromPrimary: () => 'rgba(127,70,247,0.1)',

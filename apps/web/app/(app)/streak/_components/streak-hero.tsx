@@ -53,16 +53,8 @@ export function StreakHero({
       </span>
       <span className="flex items-baseline justify-center" style={{ gap: 10 }}>
         <span
-          className="streak-hero__count"
-          style={{
-            fontFamily: 'var(--font-display)',
-            fontSize: 64,
-            fontWeight: 700,
-            letterSpacing: '-0.02em',
-            lineHeight: 1,
-            color: 'var(--fg-1)',
-            fontVariantNumeric: 'tabular-nums',
-          }}
+          className="streak-hero__count t-num-xl"
+          style={{ fontSize: 64 }}
         >
           {streak}
         </span>

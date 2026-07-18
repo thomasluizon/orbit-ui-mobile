@@ -138,7 +138,6 @@ export default function AdvancedScreen() {
             icon={Smartphone}
             onPress={() => setShowWidgetInfo(true)}
             accessory="chevron"
-            divider={false}
           />
         </Animated.View>
 

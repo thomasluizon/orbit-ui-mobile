@@ -43,6 +43,7 @@ import {
 import { MAX_GOALS_PER_HABIT, habitFormSchema } from '@orbit/shared/validation'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { fieldWellShellStyle } from '@/components/ui/field-ring'
 
 let subHabitCounter = 0
 function createSubHabitEntry(value = ''): SubHabitEntry {
@@ -522,14 +523,10 @@ function createStyles(
       gap: 8,
     },
     subHabitRow: {
+      ...fieldWellShellStyle(tokens),
       flexDirection: 'row',
       alignItems: 'center',
       gap: 10,
-      minHeight: 54,
-      borderRadius: 14,
-      backgroundColor: tokens.bgField,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
       paddingLeft: 14,
       paddingRight: 6,
     },

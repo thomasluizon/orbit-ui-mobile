@@ -9,28 +9,57 @@ interface StatTileProps {
   className?: string
 }
 
+const singleLineValueStyle: CSSProperties = {
+  display: 'block',
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'nowrap',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  textAlign: 'center',
+  color: 'var(--fg-1)',
+}
+
 const numeralValueStyle: CSSProperties = {
+  ...singleLineValueStyle,
   fontFamily: 'var(--font-display)',
   fontSize: 24,
   fontWeight: 700,
-  color: 'var(--fg-1)',
+  lineHeight: '29px',
   letterSpacing: '-0.01em',
   fontVariantNumeric: 'tabular-nums',
 }
 
 const phraseValueStyle: CSSProperties = {
+  ...singleLineValueStyle,
   fontFamily: 'var(--font-sans)',
   fontSize: 15,
   fontWeight: 600,
-  lineHeight: '20px',
-  color: 'var(--fg-1)',
-  textAlign: 'center',
-  minHeight: 29,
-  display: 'inline-flex',
-  alignItems: 'center',
+  lineHeight: '29px',
 }
 
-/** Kit stat tile: emoji over an Inter numeral (or compact phrase) and a muted Rubik label. */
+const labelStyle: CSSProperties = {
+  fontFamily: 'var(--font-sans)',
+  fontSize: 15,
+  lineHeight: '20px',
+  color: 'var(--fg-2)',
+  textAlign: 'center',
+  textWrap: 'balance',
+  overflowWrap: 'anywhere',
+  width: '100%',
+  minWidth: 0,
+  minHeight: 40,
+  display: '-webkit-box',
+  WebkitBoxOrient: 'vertical',
+  WebkitLineClamp: 2,
+  overflow: 'hidden',
+}
+
+/**
+ * Kit stat tile: emoji over a single-line Inter numeral (or compact phrase) and a muted Rubik
+ * label clamped to two lines inside a fixed 40px reservation, so side-by-side tiles keep a
+ * shared baseline when a longer pt-BR label wraps.
+ */
 export function StatTile({
   emoji,
   value,
@@ -41,7 +70,7 @@ export function StatTile({
   return (
     <div
       className={[
-        'flex flex-1 flex-col items-center gap-2 rounded-[18px] bg-[var(--bg-card)]',
+        'flex min-w-0 flex-1 flex-col items-center gap-2 rounded-[18px] bg-[var(--bg-card)]',
         className,
       ]
         .filter(Boolean)
@@ -51,8 +80,10 @@ export function StatTile({
       <span style={{ fontSize: 28, lineHeight: 1 }} aria-hidden="true">
         {emoji}
       </span>
-      <span style={phraseValue ? phraseValueStyle : numeralValueStyle}>{value}</span>
-      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--fg-2)' }}>
+      <span style={phraseValue ? phraseValueStyle : numeralValueStyle} title={String(value)}>
+        {value}
+      </span>
+      <span style={labelStyle} title={label}>
         {label}
       </span>
     </div>

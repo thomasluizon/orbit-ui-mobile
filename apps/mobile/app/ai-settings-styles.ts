@@ -16,19 +16,6 @@ export function createStyles() {
       fontFamily: 'Rubik_400Regular',
       fontSize: 13,
     },
-    emptyBlock: {
-      alignItems: 'center',
-      paddingHorizontal: 36,
-      paddingVertical: 40,
-      gap: 18,
-    },
-    emptyBody: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 15,
-      lineHeight: 22.5,
-      textAlign: 'center',
-      maxWidth: 320,
-    },
     headerControls: {
       flexDirection: 'row',
       alignItems: 'center',

@@ -473,8 +473,8 @@ describe('HabitDetailDrawer', () => {
     expect(mockRouterPush).not.toHaveBeenCalled()
   })
 
-  it('renders the Ask-Astra CTA without a top-border divider below the pair row (#447 Bug 4)', () => {
-    render(
+  it('draws exactly one rule between the pair row and the Ask-Astra CTA, never two (#447 Bug 4)', () => {
+    const { container } = render(
       <HabitDetailDrawer
         open={true}
         onOpenChange={vi.fn()}
@@ -485,8 +485,10 @@ describe('HabitDetailDrawer', () => {
       name: /habits\.detail\.askAstraEyebrow/,
     })
     expect(askAstra.style.borderTop).toBe('')
+
     const pairRow = screen.getByText('social.buddies.pairThisHabit').closest('button')
-    expect(pairRow?.style.borderBottomWidth).toBe('1px')
+    expect(pairRow?.style.borderBottomWidth).toBe('0px')
+    expect(container.querySelectorAll('[data-separator]')).toHaveLength(1)
   })
 
   it('renders nothing visible when habit is null', () => {

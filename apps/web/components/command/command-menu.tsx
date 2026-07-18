@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { ArrowLeft, CheckCircle2, Plus, Search, SkipForward, Target } from '@/components/ui/icons'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandList } from 'cmdk'
 import type { SidebarNavItem } from '@/components/navigation/app-sidebar'
+import { SkeletonRow } from '@/components/ui/skeleton'
 import { useUIStore } from '@/stores/ui-store'
 import { useHabits, useLogHabit, useSkipHabit } from '@/hooks/use-habits'
 import { CommandRow } from './command-row'
@@ -19,7 +20,7 @@ const GROUP_CLASS =
 
 const ICON_CLASS = 'size-[22px]'
 
-const SKELETON_ROW_WIDTHS = ['62%', '48%', '71%'] as const
+const SKELETON_ROW_WIDTHS = ['w-[62%]', 'w-[48%]', 'w-[71%]'] as const
 
 function CommandHabitSkeleton({ heading }: Readonly<{ heading: string }>) {
   return (
@@ -28,10 +29,12 @@ function CommandHabitSkeleton({ heading }: Readonly<{ heading: string }>) {
         {heading}
       </div>
       {SKELETON_ROW_WIDTHS.map((width) => (
-        <div key={width} className="flex min-h-[44px] items-center gap-3 px-2.5">
-          <span className="skeleton-pulse size-[26px] shrink-0 rounded-[8px] bg-[var(--bg-elev)]" />
-          <span className="skeleton-pulse h-3.5 rounded-full bg-[var(--bg-elev)]" style={{ width }} />
-        </div>
+        <SkeletonRow
+          key={width}
+          media="square"
+          lineWidths={[width]}
+          className="min-h-[44px] px-2.5 py-0"
+        />
       ))}
     </div>
   )
@@ -170,7 +173,7 @@ export function CommandMenu({ navItems, onCreateHabit, onCreateGoal, onClose, in
         </div>
       )}
 
-      <div className="flex items-center gap-2.5 border-b border-[var(--hairline)] px-4">
+      <div className="field-ring-flush flex items-center gap-2.5 border-b border-[var(--hairline)] px-4">
         <Search className="size-[18px] shrink-0 text-[var(--fg-3)]" strokeWidth={1.8} aria-hidden />
         <CommandInput
           ref={inputRef}
@@ -178,7 +181,7 @@ export function CommandMenu({ navItems, onCreateHabit, onCreateGoal, onClose, in
           onValueChange={setSearch}
           onKeyDown={handleInputKeyDown}
           placeholder={t('command.placeholder')}
-          className="h-14 flex-1 bg-transparent text-[16px] text-[var(--fg-1)] outline-none placeholder:text-[var(--fg-4)] focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
+          className="h-14 min-w-0 flex-1 bg-transparent text-[16px] text-[var(--fg-1)] placeholder:text-[var(--fg-4)]"
         />
       </div>
 

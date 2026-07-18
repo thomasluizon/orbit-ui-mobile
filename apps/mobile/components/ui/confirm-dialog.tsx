@@ -9,8 +9,9 @@ import {
   View,
 } from 'react-native'
 import { Check, Trash2 } from '@/components/ui/icons'
+import { PillButton } from '@/components/ui/pill-button'
 import { useTranslation } from 'react-i18next'
-import { createTokensV2, darkenHex, shadowsV2 } from '@/lib/theme'
+import { createTokensV2, shadowsV2 } from '@/lib/theme'
 import { toAnimatedEasing, useResolvedMotionPreset } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -37,10 +38,10 @@ interface ConfirmDialogProps {
 
 function defaultConfirmIcon(variant: Variant, color: string): ReactNode {
   if (variant === 'danger') {
-    return <Trash2 size={16} strokeWidth={2} color={color} />
+    return <Trash2 size={18} strokeWidth={2} color={color} />
   }
   if (variant === 'success' || variant === 'warning') {
-    return <Check size={17} strokeWidth={2.4} color={color} />
+    return <Check size={18} strokeWidth={2.4} color={color} />
   }
   return null
 }
@@ -164,46 +165,22 @@ export function ConfirmDialog({
 
           <View style={styles.actions}>
             {!infoOnly ? (
-              <Pressable
-                accessibilityRole="button"
-                style={({ pressed }) => [
-                  styles.actionPill,
-                  pressed ? styles.cancelPillPressed : styles.cancelPill,
-                  pressed ? styles.pillPressedScale : null,
-                ]}
-                onPress={handleCancel}
-              >
-                <Text style={styles.cancelLabel} numberOfLines={1}>
-                  {cancelLabel ?? t('common.cancel')}
-                </Text>
-              </Pressable>
+              <PillButton variant="ghost" onPress={handleCancel} style={styles.actionPill}>
+                {cancelLabel ?? t('common.cancel')}
+              </PillButton>
             ) : null}
 
-            <Pressable
-              accessibilityRole="button"
-              style={({ pressed }) => [
-                styles.actionPill,
-                destructive &&
-                  (pressed
-                    ? styles.confirmPillDestructivePressed
-                    : styles.confirmPillDestructive),
-                !destructive && (pressed ? styles.confirmPillPressed : styles.confirmPill),
-                pressed ? styles.pillPressedScale : null,
-              ]}
+            <PillButton
+              variant={destructive ? 'destructive' : 'primary'}
               onPress={handleConfirm}
+              style={styles.actionPill}
+              leading={
+                leadingIcon ??
+                defaultConfirmIcon(variant, destructive ? tokens.fgOnBad : tokens.fgOnPrimary)
+              }
             >
-              {leadingIcon ??
-                defaultConfirmIcon(variant, destructive ? tokens.fgOnBad : tokens.fgOnPrimary)}
-              <Text
-                style={[
-                  styles.confirmLabel,
-                  destructive ? styles.confirmLabelDestructive : null,
-                ]}
-                numberOfLines={1}
-              >
-                {confirmLabel ?? (infoOnly ? t('common.close') : t('common.confirm'))}
-              </Text>
-            </Pressable>
+              {confirmLabel ?? (infoOnly ? t('common.close') : t('common.confirm'))}
+            </PillButton>
           </View>
         </Animated.View>
       </View>
@@ -258,47 +235,6 @@ function createStyles(tokens: AppTokens) {
     },
     actionPill: {
       flex: 1,
-      minHeight: 44,
-      borderRadius: 999,
-      paddingVertical: 13,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 6,
-    },
-    cancelPill: {
-      backgroundColor: tokens.bgField,
-    },
-    cancelPillPressed: {
-      backgroundColor: tokens.bgSunk,
-    },
-    confirmPill: {
-      backgroundColor: tokens.primary,
-    },
-    confirmPillPressed: {
-      backgroundColor: tokens.primaryPressed,
-    },
-    confirmPillDestructive: {
-      backgroundColor: tokens.statusBad,
-    },
-    confirmPillDestructivePressed: {
-      backgroundColor: darkenHex(tokens.statusBad, 0.15),
-    },
-    pillPressedScale: {
-      transform: [{ scale: 0.96 }],
-    },
-    cancelLabel: {
-      fontFamily: 'Rubik_500Medium',
-      color: tokens.fg1,
-      fontSize: 15,
-    },
-    confirmLabel: {
-      fontFamily: 'Rubik_500Medium',
-      color: tokens.fgOnPrimary,
-      fontSize: 15,
-    },
-    confirmLabelDestructive: {
-      color: tokens.fgOnBad,
     },
   })
 }

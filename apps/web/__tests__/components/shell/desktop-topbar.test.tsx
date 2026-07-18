@@ -53,6 +53,24 @@ vi.mock('@/stores/shell-store', () => ({
 }))
 
 import { DesktopTopbar } from '@/components/shell/desktop-topbar'
+import {
+  TopbarSlotProvider,
+  useTopbarHeading,
+  useTopbarSlot,
+  type TopbarHeadingClaim,
+} from '@/components/shell/topbar-slot'
+
+function HeadingClaimer(props: Readonly<TopbarHeadingClaim>) {
+  useTopbarHeading(props)
+  return null
+}
+
+const accessoryNode = <button type="button">range</button>
+
+function AccessoryContributor() {
+  useTopbarSlot(accessoryNode)
+  return null
+}
 
 beforeEach(() => {
   isDesktop = true
@@ -88,5 +106,58 @@ describe('DesktopTopbar', () => {
 
     fireEvent.click(screen.getByLabelText('shell.openRail'))
     expect(mockToggleRail).toHaveBeenCalledTimes(1)
+  })
+
+  it('is the single title owner: a page claim overrides the route title', () => {
+    render(
+      <TopbarSlotProvider>
+        <DesktopTopbar title="Calendar" />
+        <HeadingClaimer title="Review imported events" />
+      </TopbarSlotProvider>,
+    )
+
+    expect(screen.getAllByRole('heading')).toHaveLength(1)
+    expect(screen.getByRole('heading', { name: 'Review imported events' })).toBeInTheDocument()
+  })
+
+  it('renders no heading when the page declares it owns the title', () => {
+    render(
+      <TopbarSlotProvider>
+        <DesktopTopbar title="Upgrade" />
+        <HeadingClaimer ownedByPage />
+      </TopbarSlotProvider>,
+    )
+
+    expect(screen.queryByRole('heading')).not.toBeInTheDocument()
+  })
+
+  it('keeps the route title when a page contributes only accessory controls', () => {
+    render(
+      <TopbarSlotProvider>
+        <DesktopTopbar title="Insights" />
+        <AccessoryContributor />
+      </TopbarSlotProvider>,
+    )
+
+    expect(screen.getByRole('heading', { name: 'Insights' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'range' })).toBeInTheDocument()
+  })
+
+  it('releases a claim when the claiming page unmounts', () => {
+    const { rerender } = render(
+      <TopbarSlotProvider>
+        <DesktopTopbar title="Social" />
+        <HeadingClaimer ownedByPage />
+      </TopbarSlotProvider>,
+    )
+    expect(screen.queryByRole('heading')).not.toBeInTheDocument()
+
+    rerender(
+      <TopbarSlotProvider>
+        <DesktopTopbar title="Social" />
+      </TopbarSlotProvider>,
+    )
+
+    expect(screen.getByRole('heading', { name: 'Social' })).toBeInTheDocument()
   })
 })

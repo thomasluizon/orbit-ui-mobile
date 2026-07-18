@@ -15,6 +15,14 @@ describe('InfoCard', () => {
     expect(screen.getByText('Astra')).toBeInTheDocument()
   })
 
+  it('recedes to the quiet tone by default and exposes an accent opt-in', () => {
+    const { container, rerender } = render(<InfoCard title="Astra" />)
+    expect(container.querySelector('[data-info-card]')).toHaveAttribute('data-tone', 'quiet')
+
+    rerender(<InfoCard title="Astra" tone="accent" />)
+    expect(container.querySelector('[data-info-card]')).toHaveAttribute('data-tone', 'accent')
+  })
+
   it('renders a custom icon and trailing slot', () => {
     render(
       <InfoCard

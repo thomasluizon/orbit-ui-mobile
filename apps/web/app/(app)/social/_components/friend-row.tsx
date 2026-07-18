@@ -95,7 +95,7 @@ function ReportSheet({
             maxLength={500}
             placeholder={t('social.report.detailsPlaceholder')}
             rows={3}
-            className="w-full resize-none outline-none shadow-[inset_0_0_0_1px_var(--hairline)] focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
+            className="field-ring w-full resize-none"
             style={{
               borderRadius: 14,
               background: 'var(--bg-field)',

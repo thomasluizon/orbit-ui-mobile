@@ -3,6 +3,7 @@ import { X, Plus } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { HABIT_EMOJI_CATEGORIES, filterHabitEmojiCategories } from '@orbit/shared/utils'
 import { CenteredOverlay } from '@/components/ui/centered-overlay'
+import { FieldInput } from '@/components/ui/field-input'
 
 interface HabitEmojiSelectorProps {
   selectedEmoji: string
@@ -92,13 +93,13 @@ export function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEm
         </div>
 
         <div className="flex flex-col gap-3 p-4">
-          <input
+          <FieldInput
             // react-doctor-disable-next-line no-autofocus -- emoji search field inside a user-invoked picker overlay; the user explicitly opened the picker to search, so focusing the search box on open is the intended interaction https://github.com/thomasluizon/orbit-ui-mobile/issues/243
             autoFocus
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={setQuery}
             placeholder={t('habits.form.emojiSearchPlaceholder')}
-            className="form-input"
+            ariaLabel={t('habits.form.emojiSearchPlaceholder')}
           />
           {selectedEmoji && (
             <button

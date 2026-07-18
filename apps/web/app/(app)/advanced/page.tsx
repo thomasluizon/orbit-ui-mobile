@@ -75,7 +75,6 @@ export default function AdvancedPage() {
                 icon={Smartphone}
                 accessory="chevron"
                 onClick={() => setShowWidgetInfo(true)}
-                divider={false}
               />
 
               <SectionLabel trailing={<ProBadge />}>{t('orbitMcp.title')}</SectionLabel>

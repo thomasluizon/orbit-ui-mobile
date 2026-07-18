@@ -404,7 +404,7 @@ function GlobalOverlays({
             {t('onboarding.wizard.calendarDescription')}
           </p>
           <div className="flex flex-col gap-3 w-full">
-            <PillButton fullWidth onClick={onCalendarImport} className="md:self-center">
+            <PillButton fullWidth onClick={onCalendarImport}>
               {t('onboarding.wizard.calendarButton')}
             </PillButton>
             <button
@@ -427,7 +427,7 @@ function GlobalOverlays({
             {t('onboarding.wizard.importDescription')}
           </p>
           <div className="flex flex-col gap-3 w-full">
-            <PillButton fullWidth onClick={onImportWithAstra} className="md:self-center">
+            <PillButton fullWidth onClick={onImportWithAstra}>
               {t('onboarding.wizard.importButton')}
             </PillButton>
             <button

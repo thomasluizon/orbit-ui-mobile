@@ -4,7 +4,7 @@
 > - Anchor (locked, 2026-07-17 freeze): de-decorated navy-violet orbital. Neutral canvas, rationed violet accent, hierarchy from surface steps + hairlines. **No decorative glow, no gradient wash, anywhere.**
 > - Identity is carried by the orbital logo mark, the Astra orbital glyph, and ring-shaped indicators. Never by background decoration.
 > - Semantic tokens only (`--bg`, `--bg-card`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-soft`, `--primary-rgb`, `--hairline`, ...); no raw hex in UI.
-> - Scales: type, **spacing (base 4)**, radius, motion. Ships light AND dark, all 6 color schemes; mobile-first 412px shell.
+> - Scales: type, **spacing (enumerated: `0 4 8 12 16 20 24 28 32 40 48 56 64`, three named exemptions, gated by `local/spacing-scale`)**, radius, motion. Ships light AND dark, all 6 color schemes; mobile-first 412px shell.
 > - Tokens live in `apps/web/app/globals.css` + `apps/mobile/lib/theme.ts` + `packages/shared/src/theme/`.
 > - Sections (exact `##` names, so this line is greppable): Identity & anchor · Tokens · Type roles · Layout & spacing · Primitives kit · Buttons · Surface rules · Habit list · States · Copy · Desktop density & orientation · Sub-screen navigation · Motion · Accessibility · Special surfaces (paywall, landing hero) · Bans · Working model · Enforcement.
 > - Read the whole doc before shaping, reviewing, or theming any surface. `## Enforcement` says which rules are gate-backed and which are reviewer judgment.
@@ -45,7 +45,15 @@ Canonical CSS lives in `apps/web/app/globals.css`; the mobile equivalent is `cre
 
 ### Spacing (base 4)
 
-**The base unit is 4px. Every layout value is a multiple of 4, taken from this named scale.** An off-scale spacing value is a defect.
+**The scale is these thirteen values and nothing else:**
+
+```
+0  4  8  12  16  20  24  28  32  40  48  56  64
+```
+
+A spacing value outside that set is a defect. The set is enumerated rather than described as "a multiple of 4" because a machine has to be able to check it: `local/spacing-scale` reads exactly this list, and "base 4" as prose let 6, 10, 14, 18 and 22 accumulate across a third of the app before anyone counted.
+
+Negative values are legal only at the negation of a scale step (`-8`, not `-6`), and only where a negative offset is genuinely the layout — never to undo a parent's padding (see **Bans**).
 
 | token | px | typical use |
 |---|---|---|
@@ -55,14 +63,26 @@ Canonical CSS lives in `apps/web/app/globals.css`; the mobile equivalent is `cre
 | `space-4` | 16 | card padding, list-row horizontal padding |
 | `space-5` | 20 | row vertical padding, right-rail module gap |
 | `space-6` | 24 | section padding, between-group air |
+| `space-7` | 28 | dense section padding |
 | `space-8` | 32 | between sections |
 | `space-10` | 40 | screen top/bottom padding |
 | `space-12` | 48 | between major blocks |
+| `space-14` | 56 | large hero inset |
 | `space-16` | 64 | hero and empty-state breathing room |
+
+**What the scale governs:** `margin` and `padding` (every side, every logical and React Native `Horizontal`/`Vertical` variant), `gap` / `rowGap` / `columnGap`, and the positional insets (`top` / `right` / `bottom` / `left` / `start` / `end` / `inset*`). It governs them wherever they are written — a Tailwind utility, a Tailwind arbitrary value, a JSX inline `style={{ }}` object, or a React Native `StyleSheet.create` object. Inline style objects are where most of Orbit's spacing actually lives and are invisible to CSS tooling; they are not a loophole.
+
+**What the scale does not govern:** `width` and `height`. An avatar diameter, an icon box, a sheet height are component dimensions, not layout rhythm. They answer to the primitives kit, not to this scale. Folding them in would force an exemption list wide enough to make the gate meaningless.
 
 Mechanics: use a flex or grid container with `gap-*`. **Never `space-x-*` / `space-y-*`, never a margin for sibling spacing.**
 
-**Exemption, and only this one:** `PillButton`'s internal geometry (heights 38/40/50/56, horizontal padding 18/26/30, icon gaps 7/9/10) is locked shared data in `packages/shared/src/theme/button.ts` and is off-scale by history. It is a primitive constant, not a layout decision, and is never hand-tuned per call. Nothing else is exempt.
+**The named exemptions — these three, and nothing else.** An exemption is a category with a reason, never a value added to the scale because code already used it:
+
+| name | what it covers | why |
+|---|---|---|
+| `pill-button-geometry` | the locked size table in `packages/shared/src/theme/button.ts` (heights 38/40/50/56, `paddingX` 18/26/30, icon `gap` 7/9/10) | A primitive's internal geometry, off-scale by history and frozen as shared data. It is read through `PillButton`, never hand-tuned per call. **The exemption is scoped to that one file.** Re-typing 9 or 26 into a chip, badge, or toolbar is not covered — that is the leak this scoping exists to stop. |
+| `hairline-inset` | `±1` on a positional inset only (`top` / `right` / `bottom` / `left` / `start` / `end` / `inset*`) | Aligning an element to a 1px hairline is a rendering fact, not a spacing decision. It never applies to padding, margin, or gap. |
+| `explicit-allow` | values passed to the rule's `allow` option | The escape hatch, and it is deliberately loud: adding one is a diff to the lint config, reviewed like any other. Per **Standing rules / product-and-content #2**, expanding the system is a request, not a judgement call. |
 
 **Space unevenly on purpose:** tight within a group, real air between groups. Uniform gaps everywhere is the tell of no decision, not a system.
 
@@ -230,12 +250,13 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 |---|---|---|---|
 | NavHeader | 56px, centered UPPERCASE Rubik 13/500 +0.09em title, back chevron 26/2.0, right slot help (40px circled, inset 1.5px hairline-strong ring) / close / share | `ui/app-bar.tsx` | `ui/app-bar.tsx` |
 | SectionTitle | Rubik 20/500 -0.01em, 24/14 padding | `ui/section-label.tsx` | `ui/section-label.tsx` |
-| ListRow | 16/20 padding, icon 22/1.8 in 26px slot, title Rubik 18/400, desc 14 fg-3, trailing + chevron 22 fg-4, optional divider (default on; drop it on the last row before a section break or against a bordered element, never stack two hairlines), danger=status-bad | `ui/settings-row.tsx` | `ui/settings-row.tsx` |
+| ListRow | 16/20 padding, icon 22/1.8 in 26px slot, title Rubik 18/400, desc 14 fg-3, value + trailing + chevron 22 fg-4, **draws no rule of its own**, danger=status-bad | `ui/settings-row.tsx` | `ui/settings-row.tsx` |
+| SettingsGroup | the only owner of row separation: renders a hairline *between* adjacent rows and never after the last, so a rule can never trail into a section break or stack against a bordered element | `ui/settings-group.tsx` | `ui/settings-group.tsx` |
 | Switch | 48×28 pill, 22px white thumb, on=primary / off=rgba(fg,0.16) | inside settings-row | inside settings-row |
 | Radio/RadioRow | 24px, selected=primary fill + 9px white dot, else inset 2px fg-4 ring | `ui/select-check.tsx` | `ui/select-check.tsx` |
 | Badge | pill 3/9px, 10.5/600 +0.06em UPPERCASE; tones violet/soft/outline/amber | `ui/badge.tsx` (+ pro-badge) | same |
 | PillButton | pill CTA, 4 variants × 4 sizes off the shared `BUTTON_SIZES` geometry: primary (accent fill, **no glow**) / secondary (fg-1 bg + canvas text) / ghost (inset 1.5px hairline-strong) / destructive (status-bad fill + fg-on-bad); md = h50·26px pad·Rubik 16/500·18 icon·9 gap (default), sm = h40, xs = h38 (grounded desktop-sidebar Criar), lg = h56. Hugs content; caps ~360px at desktop. Full canon in **Buttons** | `ui/pill-button.tsx` | `ui/pill-button.tsx` |
-| StatTile | radius 18, `--bg-card` + inset hairline ring, emoji 28, value Inter 24/700, label 15 fg-2 | `ui/stat-tile.tsx` | same |
+| StatTile | radius 18, `--bg-card` + inset hairline ring, emoji 28, value Inter 24/700 held to one line in a 29px box (web truncates with an ellipsis, mobile shrinks the font to 0.7), label 15/20 fg-2 clamped to **2 lines inside a fixed 40px reservation** so side-by-side tiles keep one baseline when a longer pt-BR label wraps. Tile and both text boxes carry `min-width: 0` | `ui/stat-tile.tsx` | same |
 | PlanCard | radius 18, selected = `--primary-dim` tint + inset 1.5px primary ring; price Inter 22/700 | `upgrade/plan-card.tsx` | same |
 | InfoCard | radius 18, `--primary-dim` tint bg + inset ring primary 0.28, icon 24/1.9 accent | `ui/info-card.tsx` | same |
 | Field | min-height 54, radius 14, `--bg-field` + inset hairline, **visible persistent label** 14/500 fg-2 | `ui/field-input.tsx` | `ui/app-text-input.tsx` |
@@ -254,9 +275,9 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 
 `PillButton` (`ui/pill-button.tsx`, mirrored web + mobile) is the one pill CTA. Its geometry is shared data in `packages/shared/src/theme/button.ts` (`BUTTON_SIZES`) so the two platform mirrors cannot drift. Over-wide and over-wordy buttons are the two AI-slop tells this rule kills.
 
-- **Variants:** `primary` (accent fill, no glow), `secondary` (fg-1 fill, canvas text), `ghost` (transparent, inset 1.5px hairline-strong ring), `destructive` (status-bad fill, fg-on-bad text). `ConfirmDialog` reuses the `primary` / `destructive` fills for its paired action row.
+- **Variants:** `primary` (accent fill, no glow), `secondary` (fg-1 fill, canvas text), `ghost` (transparent, inset 1.5px hairline-strong ring), `destructive` (status-bad fill, fg-on-bad text). `ConfirmDialog` builds its paired action row from `PillButton` itself — `ghost` for cancel, `primary` / `destructive` for confirm — never a hand-rolled pill.
 - **Sizes:** `xs` (h38, 18px pad, 14px label, 16 icon, 7 gap; the grounded desktop-sidebar Criar), `sm` (h40, 18px pad, 14px label, 16 icon, 7 gap), `md` (h50, 26px pad, 16px label, 18 icon, 9 gap; the default), `lg` (h56, 30px pad, 17px label, 20 icon, 10 gap). A size is a fixed height + horizontal padding + label / icon / gap set; never hand-tune per call.
-- **Width, hug by default.** A pill sizes to its content. A lone CTA in a wide container caps at ~360px and never spans a desktop content column. Full-width (`fullWidth`, or a phone-shell stretch) is sanctioned ONLY in: (1) the single primary action of a mobile bottom-sheet or dialog, (2) a form submit at or below the mobile breakpoint (auth, onboarding, support, create flows), (3) a full-screen empty-state primary CTA. `ConfirmDialog`'s paired action row is also allowed. Everywhere else the pill hugs.
+- **Width, hug by default.** A pill sizes to its content. A lone CTA in a wide container caps at ~360px and never spans a desktop content column. Full-width (`fullWidth`, or a phone-shell stretch) is sanctioned ONLY in: (1) the single primary action of a mobile bottom-sheet or dialog, (2) a form submit at or below the mobile breakpoint (auth, onboarding, support, create flows), (3) a full-screen empty-state primary CTA. `ConfirmDialog`'s paired action row is also allowed. Everywhere else the pill hugs. `fullWidth` enforces this itself: it stretches below the `sm` breakpoint and **releases to intrinsic (hug) width at `sm` and up**, capped at ~360px and centred in both block and flex parents — so a callsite never needs a `self-center` or width patch, and passing `fullWidth` can never produce a desktop slab.
 - **Labels, 1-2 words, action-first.** Strip words the surrounding dialog title or section header already carries ("Log all" becomes "Log", "Registrar todos" becomes "Registrar"). pt-BR runs longer than en, so the size scale must absorb the longer string without going full-bleed.
 - **One label per CTA intent per surface, and the name survives the whole flow.** The button that says "Publish" produces "Published", never "Submit" for "Save changes". Nav, hero, and footer pointing at one action use one string. This has real teeth here: every string exists twice (`en.json` + `pt-BR.json`) and the shortening rule above is exactly when a label and its toast drift apart.
 - **Icons, a leading glyph where it aids recognition** (create → plus, confirm → check, destructive → trash), sized and gapped from the size token. Icon-only pills MUST carry a localized `aria-label` / `accessibilityLabel`. No decorative icons.
@@ -268,7 +289,7 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 - **Opaque white cards on light.** Never translucent.
 - **Inset 1px hairline rings instead of borders** (web `box-shadow: inset 0 0 0 1px var(--hairline)`; RN border with the same color reads equivalently).
 - **No opaque card-on-card on dark.**
-- **Minimal dividers.** Separate with whitespace or an inset ring first; a hairline rule is earned only between two adjacent flat rows. Drop a row's divider when it is the last before a section break or sits against a bordered element, and never stack two hairlines.
+- **Minimal dividers.** Separate with whitespace or an inset ring first; a hairline rule is earned only between two adjacent flat rows. **Separation is the container's job, never the row's** — a row cannot know whether it is last or what follows it, so a row that draws its own rule inevitably trails one into a section break. Rows render flat; wrap them in `SettingsGroup` when adjacent rows earn a rule between them. Never stack two hairlines.
 - **Blur and glass are never a default or a decoration.** A backdrop blur must be rare and purposeful or absent. An animated blur stays <= 8px, short, one-time, and never on a large surface. Orbit's ladder is an alpha ladder, not a blur ladder; with glow gone, backdrop-blur is the likeliest place decoration creeps back in.
 
 ## Habit list (frozen treatment)
@@ -442,7 +463,7 @@ Orbit has no a11y gate today. This section is where it starts, and bundle 4 turn
 - No raw `--slate-*` references in app code. Semantic tokens only.
 - No hardcoded violet rgba. Tints come from `--primary-rgb` / `tintFromPrimary`.
 - No opaque card-on-card on dark. No borders-as-borders where the kit uses inset rings. No stacked hairlines.
-- No off-scale spacing value. No `space-x-*` / `space-y-*`. No margins for sibling spacing.
+- No off-scale spacing value — the legal set is `0 4 8 12 16 20 24 28 32 40 48 56 64` and the three named exemptions in **Spacing**, nothing else. No `space-x-*` / `space-y-*`. No margins for sibling spacing.
 - No `transition-all`. Animate `transform` and `opacity` only, named explicitly.
 - No bounce or elastic easing (any `cubic-bezier` whose y control points fall outside `[0,1]`). No spring overshoot.
 - No `h-screen`. Use `min-h-dvh`.
@@ -506,6 +527,7 @@ Describe the rendered screen in one sentence as if narrating a film scene. If th
 | No coloured side-stripe (Bans) | `local/no-side-stripe-border` | Mobile via the style-object branch. |
 | No bounce or elastic easing (Motion) | `local/no-overshoot-easing`: any `cubic-bezier(a,b,c,d)` with `b` or `d` outside `[0,1]` | 4 skills independently proposed overshoot and were dropped each time; the ban is the settled position. |
 | No `space-x-*` / `space-y-*` (Spacing) | `local/no-space-x-y` | |
+| Off-scale spacing (Spacing) | `local/spacing-scale`: margin / padding / gap / inset values checked in Tailwind utilities, Tailwind arbitrary values, JSX inline `style={{ }}`, and `StyleSheet.create` | Reads the enumerated scale, carries the three named exemptions (`allow` option + the file-scoped PillButton exemption + the `±1` inset hairline). Autofixes only an unambiguous snap (within 1px of a unique non-zero step: 9 → 8, 13 → 12); leaves 6/10/14/18/22 unfixed because those are layout decisions. **Ships report-only** — see `.claude/specs/issue-539-spacing-audit.md` for the arming line and the 1157-violation baseline. |
 | No arbitrary z-index (Stacking) | `local/no-arbitrary-zindex`: arbitrary `z-[n]` / raw `zIndex: n` with `n >= 10` | Bans the arms-race literal only. Local sibling stacking (`z-[1..9]`, `zIndex: 1..9`), the `z-<tier>` utilities, `zLayers.<tier>`, and Android `elevation` are allowed — see **Stacking**. |
 | Focus outline never removed bare (A11y) | `local/require-focus-replacement`: `outline-none` with no `focus-visible:` sibling | WCAG 2.4.7. |
 | Never disable zoom (A11y) | `local/no-user-scalable-no` over the viewport meta / Next `viewport` export | Web only. |

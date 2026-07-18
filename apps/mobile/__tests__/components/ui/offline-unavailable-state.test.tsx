@@ -57,7 +57,7 @@ describe('OfflineUnavailableState', () => {
     const button = tree.root.findByType(Pressable)
     expect(button.props.accessibilityRole).toBe('button')
     expect(button.props.accessibilityLabel).toBe('Try again')
-    expect(button.props.accessibilityState).toEqual({ disabled: true })
+    expect(button.props.accessibilityState).toMatchObject({ disabled: true })
     expect(button.props.disabled).toBe(true)
   })
 

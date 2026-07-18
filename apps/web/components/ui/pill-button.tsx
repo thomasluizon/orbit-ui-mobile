@@ -70,8 +70,10 @@ function PillInner({
  *  `md` / `lg`) drives a fixed height + horizontal padding + label/icon scale
  *  from the shared `BUTTON_SIZES` geometry so the mobile mirror cannot drift.
  *  While `busy`, a spinner fills the leading slot, the label dims, and clicks
- *  no-op. `fullWidth` spans the phone column but caps at ~360px at the desktop
- *  breakpoint (full-bleed pills are a phone-shell affordance only). With a
+ *  no-op. `fullWidth` spans the phone column but releases to its intrinsic
+ *  (hug) width at the desktop breakpoint, capped at ~360px and centred in
+ *  either a block or a flex parent — full-bleed pills are a phone-shell
+ *  affordance only, so no callsite needs a self-center patch. With a
  *  `leading` icon and no label child it renders an icon-only square (width =
  *  the size's height), the canonical collapsed-sidebar-rail control — pass
  *  `ariaLabel` for its accessible name. */
@@ -99,9 +101,11 @@ export function PillButton({
   const handleClick = busy ? undefined : onClick
 
   const pillClassName = [
-    'inline-flex cursor-pointer items-center justify-center rounded-full border-0 font-medium no-underline transition-[background-color,opacity,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] disabled:cursor-not-allowed disabled:opacity-40',
+    'cursor-pointer items-center justify-center rounded-full border-0 font-medium no-underline transition-[background-color,opacity,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] disabled:cursor-not-allowed disabled:opacity-40',
+    fullWidth
+      ? 'flex w-full sm:w-fit sm:max-w-[360px] sm:mx-auto sm:self-center'
+      : 'inline-flex',
     variantClasses[variant],
-    fullWidth ? 'w-full sm:w-auto sm:min-w-[220px] sm:max-w-[360px] sm:mx-auto' : '',
     className,
   ]
     .filter(Boolean)
@@ -128,6 +132,7 @@ export function PillButton({
       <Link
         href={href}
         onClick={handleClick}
+        data-variant={variant}
         aria-label={ariaLabel}
         aria-disabled={disabled || undefined}
         title={title}
@@ -148,6 +153,7 @@ export function PillButton({
       form={form}
       onClick={handleClick}
       disabled={disabled}
+      data-variant={variant}
       aria-busy={busy || undefined}
       aria-label={ariaLabel}
       title={title}

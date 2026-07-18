@@ -18,9 +18,6 @@ export default function PublicProfilePage() {
           onBack={() => goBackOrFallback('/profile')}
           title={t('profile.publicProfile.title')}
         />
-        <h1 className="t-display hidden md:block" style={{ margin: 0, padding: '20px 20px 4px' }}>
-          {t('profile.publicProfile.title')}
-        </h1>
         <PublicProfileSettings />
       </div>
     </div>

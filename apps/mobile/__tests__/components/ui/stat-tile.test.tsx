@@ -4,22 +4,47 @@ import { StatTile } from '@/components/ui/stat-tile'
 
 const TestRenderer = require('react-test-renderer')
 
+function renderTile(props: { emoji: string; value: string | number; label: string }) {
+  let tree: any
+  TestRenderer.act(() => {
+    tree = TestRenderer.create(<StatTile {...props} />)
+  })
+  return tree.root.findAllByType('Text')
+}
+
 describe('StatTile (mobile)', () => {
   it('renders emoji, value, and label', () => {
-    let tree: any
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(<StatTile emoji="🔥" value="7 dias" label="Sequência" />)
-    })
-    const texts = tree.root.findAllByType('Text').map((node: any) => node.props.children)
-    expect(texts).toEqual(expect.arrayContaining(['🔥', '7 dias', 'Sequência']))
+    const texts = renderTile({ emoji: '🔥', value: '7 dias', label: 'Sequência' })
+    expect(texts.map((node: any) => node.props.children)).toEqual(
+      expect.arrayContaining(['🔥', '7 dias', 'Sequência']),
+    )
   })
 
   it('renders numeric values', () => {
-    let tree: any
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(<StatTile emoji="⭐" value={12} label="Total" />)
+    const texts = renderTile({ emoji: '⭐', value: 12, label: 'Total' })
+    expect(texts.map((node: any) => node.props.children)).toContain(12)
+  })
+
+  it('clamps the label to two lines and the value to one', () => {
+    const texts = renderTile({
+      emoji: '🥇',
+      value: 1284937,
+      label: 'Melhor sequência de hábitos concluídos',
     })
-    const texts = tree.root.findAllByType('Text').map((node: any) => node.props.children)
-    expect(texts).toContain(12)
+    const value = texts.find((node: any) => node.props.children === 1284937)
+    const label = texts.find(
+      (node: any) => node.props.children === 'Melhor sequência de hábitos concluídos',
+    )
+    expect(value.props.numberOfLines).toBe(1)
+    expect(value.props.adjustsFontSizeToFit).toBe(true)
+    expect(label.props.numberOfLines).toBe(2)
+  })
+
+  it('reserves a two-line label box so tiles in a row share a baseline', () => {
+    const texts = renderTile({ emoji: '🏆', value: 3, label: 'Maior' })
+    const label = texts.find((node: any) => node.props.children === 'Maior')
+    expect(label.props.style.flat(Infinity)).toEqual(
+      expect.arrayContaining([expect.objectContaining({ minHeight: 40, lineHeight: 20 })]),
+    )
   })
 })

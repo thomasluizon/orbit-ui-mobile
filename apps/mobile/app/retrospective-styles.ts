@@ -7,35 +7,6 @@ export const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: { flex: 1 },
   scrollContent: { paddingBottom: 40 },
-  lockedBlock: {
-    paddingHorizontal: 24,
-    paddingVertical: 40,
-    alignItems: 'center',
-    gap: 14,
-  },
-  lockedIconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  lockedTitle: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 20,
-    letterSpacing: -0.2,
-    textAlign: 'center',
-  },
-  lockedDescription: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 14,
-    lineHeight: 22,
-    textAlign: 'center',
-    maxWidth: 320,
-  },
-  lockedCta: {
-    marginTop: 8,
-  },
   tabsRow: {
     borderBottomWidth: StyleSheet.hairlineWidth,
   },

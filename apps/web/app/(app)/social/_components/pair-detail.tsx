@@ -233,7 +233,7 @@ export function PairDetail({ pairId, onClose }: Readonly<PairDetailProps>) {
                     placeholder={t('social.buddies.checkInNotePlaceholder')}
                     aria-label={t('social.buddies.checkInNotePlaceholder')}
                     rows={2}
-                    className="w-full resize-none outline-none shadow-[inset_0_0_0_1px_var(--hairline)] focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
+                    className="field-ring w-full resize-none"
                     style={{
                       borderRadius: 14,
                       background: 'var(--bg-field)',

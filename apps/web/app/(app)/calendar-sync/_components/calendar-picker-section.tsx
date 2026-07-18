@@ -4,6 +4,7 @@ import { Loader2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsDescription } from '@/components/ui/settings-description'
+import { SettingsGroup } from '@/components/ui/settings-group'
 import { SettingsRow, Switch } from '@/components/ui/settings-row'
 import { useCalendars, useSetSelectedCalendars } from '@/hooks/use-calendars'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
@@ -86,24 +87,25 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
         </p>
       )}
 
-      {!isLoading &&
-        !isError &&
-        calendars?.map((calendar, index) => (
-          <SettingsRow
-            key={calendar.id}
-            label={calendar.name}
-            desc={calendar.primary ? t('calendar.calendars.primaryLabel') : undefined}
-            leadingDot={calendar.backgroundColor ?? undefined}
-            accessory="none"
-            divider={index < calendars.length - 1}
-          >
-            <Switch
-              on={calendar.isSynced}
-              onToggle={() => void handleToggle(calendar.id, !calendar.isSynced)}
-              ariaLabel={t('calendar.calendars.toggleLabel', { name: calendar.name })}
-            />
-          </SettingsRow>
-        ))}
+      {!isLoading && !isError && (
+        <SettingsGroup>
+          {(calendars ?? []).map((calendar) => (
+            <SettingsRow
+              key={calendar.id}
+              label={calendar.name}
+              desc={calendar.primary ? t('calendar.calendars.primaryLabel') : undefined}
+              leadingDot={calendar.backgroundColor ?? undefined}
+              accessory="none"
+            >
+              <Switch
+                on={calendar.isSynced}
+                onToggle={() => void handleToggle(calendar.id, !calendar.isSynced)}
+                ariaLabel={t('calendar.calendars.toggleLabel', { name: calendar.name })}
+              />
+            </SettingsRow>
+          ))}
+        </SettingsGroup>
+      )}
 
       <SettingsDescription>{t('calendar.calendars.description')}</SettingsDescription>
     </>

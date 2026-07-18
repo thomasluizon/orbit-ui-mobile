@@ -14,6 +14,9 @@ const mocks = vi.hoisted(() => ({ push: vi.fn() }))
 vi.mock('expo-router', () => ({
   useRouter: () => ({ push: mocks.push, replace: vi.fn(), back: vi.fn() }),
 }))
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: undefined }),
+}))
 vi.mock('@/hooks/use-time-format', () => ({
   useTimeFormat: () => ({ displayTime: (value: string) => value }),
 }))

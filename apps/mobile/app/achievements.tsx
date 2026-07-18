@@ -23,6 +23,7 @@ import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { AppBar } from '@/components/ui/app-bar'
+import { EmptyState } from '@/components/ui/empty-state'
 import { PillButton } from '@/components/ui/pill-button'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { ProgressBar } from '@/components/ui/progress-bar'
@@ -87,29 +88,15 @@ export default function AchievementsScreen() {
         showsVerticalScrollIndicator={false}
       >
         {!profileLoading && !canViewGamification ? (
-          <View style={styles.lockedBlock}>
-            <View
-              style={[
-                styles.lockedIconCircle,
-                { backgroundColor: tokens.bgField },
-              ]}
-            >
-              <Lock size={28} color={tokens.fg3} strokeWidth={1.4} />
-            </View>
-            <Text style={[styles.lockedTitle, { color: tokens.fg1 }]}>
-              {t('gamification.page.lockedTitle')}
-            </Text>
-            <Text style={[styles.lockedDescription, { color: tokens.fg3 }]}>
-              {t('gamification.page.lockedDescription')}
-            </Text>
-            <PillButton
-              onPress={() => router.push(buildUpgradeHref('/achievements'))}
-              accessibilityLabel={t('gamification.page.upgradeButton')}
-              style={styles.upgradeButton}
-            >
-              {t('gamification.page.upgradeButton')}
-            </PillButton>
-          </View>
+          <EmptyState
+            icon={Lock}
+            title={t('gamification.page.lockedTitle')}
+            description={t('gamification.page.lockedDescription')}
+            action={{
+              label: t('gamification.page.upgradeButton'),
+              onPress: () => router.push(buildUpgradeHref('/achievements')),
+            }}
+          />
         ) : null}
 
         {!profileLoading && canViewGamification && isLoading && !profile ? (
@@ -238,25 +225,6 @@ function createStyles(_tokens: Tokens) {
       borderRadius: 999,
       width: '100%',
     },
-    lockedBlock: {
-      paddingHorizontal: 24,
-      paddingVertical: 40,
-      alignItems: 'center',
-      gap: 14,
-    },
-    lockedIconCircle: {
-      width: 56,
-      height: 56,
-      borderRadius: 999,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    lockedTitle: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 16,
-      letterSpacing: -0.16,
-      textAlign: 'center',
-    },
     errorBlock: {
       paddingHorizontal: 24,
       paddingVertical: 64,
@@ -268,15 +236,6 @@ function createStyles(_tokens: Tokens) {
       fontSize: 16,
       lineHeight: 24,
       textAlign: 'center',
-    },
-    lockedDescription: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 14,
-      lineHeight: 22,
-      textAlign: 'center',
-    },
-    upgradeButton: {
-      marginTop: 4,
     },
     levelBlockWrap: {
       paddingHorizontal: 20,

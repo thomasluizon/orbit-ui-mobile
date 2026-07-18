@@ -1,8 +1,8 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import { PillButton } from '@/components/ui/pill-button'
-import { LockedBlock } from './locked-block'
+import { EmptyState } from '@/components/ui/empty-state'
+import { Lock } from '@/components/ui/icons'
 
 interface RetrospectiveLockedStatesProps {
   hasProAccess: boolean
@@ -21,38 +21,25 @@ export function RetrospectiveLockedStates({
 }: Readonly<RetrospectiveLockedStatesProps>) {
   const t = useTranslations()
 
-  if (!hasProAccess) return null
+  if (!hasProAccess || isYearlyPro) return null
 
-  if (!isYearlyPro) {
-    return (
-      <LockedBlock
-        title={t('retrospective.lockedYearly')}
-        hint={t('retrospective.lockedYearlyHint')}
-      >
-        {isTrialActive ? (
-          <PillButton href="/upgrade" variant="primary" size="md">
-            {t('upgrade.subscribe')}
-          </PillButton>
-        ) : (
-          <PillButton onClick={onOpenPortal}>
-            {t('retrospective.changePlan')}
-          </PillButton>
-        )}
-        {portalError && (
-          <p
-            style={{
-              marginTop: 12,
-              fontFamily: 'var(--font-sans)',
-              fontSize: 13,
-              color: 'var(--status-bad)',
-            }}
-          >
+  const action = isTrialActive
+    ? { label: t('upgrade.subscribe'), href: '/upgrade' }
+    : { label: t('retrospective.changePlan'), onClick: onOpenPortal }
+
+  return (
+    <EmptyState
+      icon={Lock}
+      title={t('retrospective.lockedYearly')}
+      description={t('retrospective.lockedYearlyHint')}
+      action={action}
+      footer={
+        portalError ? (
+          <p className="t-secondary" style={{ color: 'var(--status-bad)', maxWidth: '46ch' }}>
             {portalError}
           </p>
-        )}
-      </LockedBlock>
-    )
-  }
-
-  return null
+        ) : null
+      }
+    />
+  )
 }

@@ -1,0 +1,2048 @@
+{
+  "generatedFrom": "cb8c231c36d20944fc6042b53b4b44724117652a",
+  "generatedAt": "2026-07-18T15:25:08.492Z",
+  "themes": [
+    "light",
+    "dark"
+  ],
+  "locales": [
+    "en",
+    "pt-BR"
+  ],
+  "surfaceCount": 56,
+  "cellCount": 224,
+  "cells": [
+    {
+      "surfaceId": "route-about",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/about/page.tsx",
+      "href": "/about",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-about",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/about/page.tsx",
+      "href": "/about",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-about",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/about/page.tsx",
+      "href": "/about",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-about",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/about/page.tsx",
+      "href": "/about",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-achievements",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/achievements/page.tsx",
+      "href": "/achievements",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-achievements",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/achievements/page.tsx",
+      "href": "/achievements",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-achievements",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/achievements/page.tsx",
+      "href": "/achievements",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-achievements",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/achievements/page.tsx",
+      "href": "/achievements",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-advanced",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/advanced/page.tsx",
+      "href": "/advanced",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-advanced",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/advanced/page.tsx",
+      "href": "/advanced",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-advanced",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/advanced/page.tsx",
+      "href": "/advanced",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-advanced",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/advanced/page.tsx",
+      "href": "/advanced",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-ai-settings",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/ai-settings/page.tsx",
+      "href": "/ai-settings",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-ai-settings",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/ai-settings/page.tsx",
+      "href": "/ai-settings",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-ai-settings",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/ai-settings/page.tsx",
+      "href": "/ai-settings",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-ai-settings",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/ai-settings/page.tsx",
+      "href": "/ai-settings",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-calendar-sync",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/calendar-sync/page.tsx",
+      "href": "/calendar-sync",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-calendar-sync",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/calendar-sync/page.tsx",
+      "href": "/calendar-sync",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-calendar-sync",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/calendar-sync/page.tsx",
+      "href": "/calendar-sync",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-calendar-sync",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/calendar-sync/page.tsx",
+      "href": "/calendar-sync",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-calendar",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/calendar/page.tsx",
+      "href": "/calendar",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-calendar",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/calendar/page.tsx",
+      "href": "/calendar",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-calendar",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/calendar/page.tsx",
+      "href": "/calendar",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-calendar",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/calendar/page.tsx",
+      "href": "/calendar",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-explore",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/explore/page.tsx",
+      "href": "/explore",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-explore",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/explore/page.tsx",
+      "href": "/explore",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-explore",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/explore/page.tsx",
+      "href": "/explore",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-explore",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/explore/page.tsx",
+      "href": "/explore",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-insights",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/insights/page.tsx",
+      "href": "/insights",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-insights",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/insights/page.tsx",
+      "href": "/insights",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-insights",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/insights/page.tsx",
+      "href": "/insights",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-insights",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/insights/page.tsx",
+      "href": "/insights",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "view-today",
+      "kind": "view",
+      "sourceFile": "apps/web/app/(app)/page.tsx",
+      "href": "/",
+      "needsOpener": false,
+      "viewState": "today",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "view-today",
+      "kind": "view",
+      "sourceFile": "apps/web/app/(app)/page.tsx",
+      "href": "/",
+      "needsOpener": false,
+      "viewState": "today",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "view-today",
+      "kind": "view",
+      "sourceFile": "apps/web/app/(app)/page.tsx",
+      "href": "/",
+      "needsOpener": false,
+      "viewState": "today",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "view-today",
+      "kind": "view",
+      "sourceFile": "apps/web/app/(app)/page.tsx",
+      "href": "/",
+      "needsOpener": false,
+      "viewState": "today",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "view-all",
+      "kind": "view",
+      "sourceFile": "apps/web/app/(app)/page.tsx",
+      "href": "/",
+      "needsOpener": false,
+      "viewState": "all",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "view-all",
+      "kind": "view",
+      "sourceFile": "apps/web/app/(app)/page.tsx",
+      "href": "/",
+      "needsOpener": false,
+      "viewState": "all",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "view-all",
+      "kind": "view",
+      "sourceFile": "apps/web/app/(app)/page.tsx",
+      "href": "/",
+      "needsOpener": false,
+      "viewState": "all",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "view-all",
+      "kind": "view",
+      "sourceFile": "apps/web/app/(app)/page.tsx",
+      "href": "/",
+      "needsOpener": false,
+      "viewState": "all",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "view-general",
+      "kind": "view",
+      "sourceFile": "apps/web/app/(app)/page.tsx",
+      "href": "/",
+      "needsOpener": false,
+      "viewState": "general",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "view-general",
+      "kind": "view",
+      "sourceFile": "apps/web/app/(app)/page.tsx",
+      "href": "/",
+      "needsOpener": false,
+      "viewState": "general",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "view-general",
+      "kind": "view",
+      "sourceFile": "apps/web/app/(app)/page.tsx",
+      "href": "/",
+      "needsOpener": false,
+      "viewState": "general",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "view-general",
+      "kind": "view",
+      "sourceFile": "apps/web/app/(app)/page.tsx",
+      "href": "/",
+      "needsOpener": false,
+      "viewState": "general",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "view-goals",
+      "kind": "view",
+      "sourceFile": "apps/web/app/(app)/page.tsx",
+      "href": "/",
+      "needsOpener": false,
+      "viewState": "goals",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "view-goals",
+      "kind": "view",
+      "sourceFile": "apps/web/app/(app)/page.tsx",
+      "href": "/",
+      "needsOpener": false,
+      "viewState": "goals",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "view-goals",
+      "kind": "view",
+      "sourceFile": "apps/web/app/(app)/page.tsx",
+      "href": "/",
+      "needsOpener": false,
+      "viewState": "goals",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "view-goals",
+      "kind": "view",
+      "sourceFile": "apps/web/app/(app)/page.tsx",
+      "href": "/",
+      "needsOpener": false,
+      "viewState": "goals",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-preferences",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/preferences/page.tsx",
+      "href": "/preferences",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-preferences",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/preferences/page.tsx",
+      "href": "/preferences",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-preferences",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/preferences/page.tsx",
+      "href": "/preferences",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-preferences",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/preferences/page.tsx",
+      "href": "/preferences",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-profile",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/profile/page.tsx",
+      "href": "/profile",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-profile",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/profile/page.tsx",
+      "href": "/profile",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-profile",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/profile/page.tsx",
+      "href": "/profile",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-profile",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/profile/page.tsx",
+      "href": "/profile",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-public-profile",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/public-profile/page.tsx",
+      "href": "/public-profile",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-public-profile",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/public-profile/page.tsx",
+      "href": "/public-profile",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-public-profile",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/public-profile/page.tsx",
+      "href": "/public-profile",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-public-profile",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/public-profile/page.tsx",
+      "href": "/public-profile",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-retrospective",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/retrospective/page.tsx",
+      "href": "/retrospective",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-retrospective",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/retrospective/page.tsx",
+      "href": "/retrospective",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-retrospective",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/retrospective/page.tsx",
+      "href": "/retrospective",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-retrospective",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/retrospective/page.tsx",
+      "href": "/retrospective",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-social-challenges-id",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/social/challenges/[id]/page.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-social-challenges-id",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/social/challenges/[id]/page.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-social-challenges-id",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/social/challenges/[id]/page.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-social-challenges-id",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/social/challenges/[id]/page.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-social-challenges",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/social/challenges/page.tsx",
+      "href": "/social/challenges",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-social-challenges",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/social/challenges/page.tsx",
+      "href": "/social/challenges",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-social-challenges",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/social/challenges/page.tsx",
+      "href": "/social/challenges",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-social-challenges",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/social/challenges/page.tsx",
+      "href": "/social/challenges",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-social",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/social/page.tsx",
+      "href": "/social",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-social",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/social/page.tsx",
+      "href": "/social",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-social",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/social/page.tsx",
+      "href": "/social",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-social",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/social/page.tsx",
+      "href": "/social",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-streak",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/streak/page.tsx",
+      "href": "/streak",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-streak",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/streak/page.tsx",
+      "href": "/streak",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-streak",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/streak/page.tsx",
+      "href": "/streak",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-streak",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/streak/page.tsx",
+      "href": "/streak",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-support",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/support/page.tsx",
+      "href": "/support",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-support",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/support/page.tsx",
+      "href": "/support",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-support",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/support/page.tsx",
+      "href": "/support",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-support",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/support/page.tsx",
+      "href": "/support",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-upgrade",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/upgrade/page.tsx",
+      "href": "/upgrade",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-upgrade",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/upgrade/page.tsx",
+      "href": "/upgrade",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-upgrade",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/upgrade/page.tsx",
+      "href": "/upgrade",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-upgrade",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/upgrade/page.tsx",
+      "href": "/upgrade",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-wrapped",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/wrapped/page.tsx",
+      "href": "/wrapped",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-wrapped",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/wrapped/page.tsx",
+      "href": "/wrapped",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-wrapped",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/wrapped/page.tsx",
+      "href": "/wrapped",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-wrapped",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/wrapped/page.tsx",
+      "href": "/wrapped",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-auth-callback",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(auth)/auth-callback/page.tsx",
+      "href": "/auth-callback",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-auth-callback",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(auth)/auth-callback/page.tsx",
+      "href": "/auth-callback",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-auth-callback",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(auth)/auth-callback/page.tsx",
+      "href": "/auth-callback",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-auth-callback",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(auth)/auth-callback/page.tsx",
+      "href": "/auth-callback",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-login",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(auth)/login/page.tsx",
+      "href": "/login",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-login",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(auth)/login/page.tsx",
+      "href": "/login",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-login",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(auth)/login/page.tsx",
+      "href": "/login",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-login",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(auth)/login/page.tsx",
+      "href": "/login",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-chat",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(chat)/chat/page.tsx",
+      "href": "/chat",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-chat",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(chat)/chat/page.tsx",
+      "href": "/chat",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-chat",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(chat)/chat/page.tsx",
+      "href": "/chat",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-chat",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(chat)/chat/page.tsx",
+      "href": "/chat",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-onboarding",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(onboarding)/onboarding/page.tsx",
+      "href": "/onboarding",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-onboarding",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(onboarding)/onboarding/page.tsx",
+      "href": "/onboarding",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-onboarding",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(onboarding)/onboarding/page.tsx",
+      "href": "/onboarding",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-onboarding",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(onboarding)/onboarding/page.tsx",
+      "href": "/onboarding",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-delete-account",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(public)/delete-account/page.tsx",
+      "href": "/delete-account",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-delete-account",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(public)/delete-account/page.tsx",
+      "href": "/delete-account",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-delete-account",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(public)/delete-account/page.tsx",
+      "href": "/delete-account",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-delete-account",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(public)/delete-account/page.tsx",
+      "href": "/delete-account",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-privacy",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(public)/privacy/page.tsx",
+      "href": "/privacy",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-privacy",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(public)/privacy/page.tsx",
+      "href": "/privacy",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-privacy",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(public)/privacy/page.tsx",
+      "href": "/privacy",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-privacy",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(public)/privacy/page.tsx",
+      "href": "/privacy",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-terms",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(public)/terms/page.tsx",
+      "href": "/terms",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-terms",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(public)/terms/page.tsx",
+      "href": "/terms",
+      "needsOpener": false,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-terms",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(public)/terms/page.tsx",
+      "href": "/terms",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-terms",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(public)/terms/page.tsx",
+      "href": "/terms",
+      "needsOpener": false,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-u-slug",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(public)/u/[slug]/page.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-u-slug",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(public)/u/[slug]/page.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-u-slug",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(public)/u/[slug]/page.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-u-slug",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(public)/u/[slug]/page.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-r-code",
+      "kind": "route",
+      "sourceFile": "apps/web/app/r/[code]/page.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-r-code",
+      "kind": "route",
+      "sourceFile": "apps/web/app/r/[code]/page.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-r-code",
+      "kind": "route",
+      "sourceFile": "apps/web/app/r/[code]/page.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-r-code",
+      "kind": "route",
+      "sourceFile": "apps/web/app/r/[code]/page.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-preference-picker-sheet",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-preference-picker-sheet",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-preference-picker-sheet",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-preference-picker-sheet",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-delete-account-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/profile/_components/delete-account-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-delete-account-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/profile/_components/delete-account-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-delete-account-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/profile/_components/delete-account-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-delete-account-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/profile/_components/delete-account-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-edit-name-sheet",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/profile/_components/edit-name-sheet.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-edit-name-sheet",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/profile/_components/edit-name-sheet.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-edit-name-sheet",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/profile/_components/edit-name-sheet.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-edit-name-sheet",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/profile/_components/edit-name-sheet.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-fresh-start-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/profile/_components/fresh-start-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-fresh-start-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/profile/_components/fresh-start-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-fresh-start-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/profile/_components/fresh-start-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-fresh-start-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/profile/_components/fresh-start-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-profile-modals",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/profile/_components/profile-modals.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-profile-modals",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/profile/_components/profile-modals.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-profile-modals",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/profile/_components/profile-modals.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-profile-modals",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/profile/_components/profile-modals.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-edit-handle-sheet",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/social/_components/edit-handle-sheet.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-edit-handle-sheet",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/social/_components/edit-handle-sheet.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-edit-handle-sheet",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/social/_components/edit-handle-sheet.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-edit-handle-sheet",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/social/_components/edit-handle-sheet.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-invite-confirm-sheet",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/social/_components/invite-confirm-sheet.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-invite-confirm-sheet",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/social/_components/invite-confirm-sheet.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-invite-confirm-sheet",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/social/_components/invite-confirm-sheet.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-invite-confirm-sheet",
+      "kind": "overlay",
+      "sourceFile": "apps/web/app/(app)/social/_components/invite-confirm-sheet.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-create-goal-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/create-goal-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-create-goal-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/create-goal-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-create-goal-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/create-goal-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-create-goal-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/create-goal-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-edit-goal-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/edit-goal-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-edit-goal-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/edit-goal-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-edit-goal-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/edit-goal-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-edit-goal-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/edit-goal-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-goal-detail-drawer",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/goal-detail-drawer.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-goal-detail-drawer",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/goal-detail-drawer.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-goal-detail-drawer",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/goal-detail-drawer.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-goal-detail-drawer",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/goals/goal-detail-drawer.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-create-habit-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/create-habit-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-create-habit-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/create-habit-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-create-habit-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/create-habit-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-create-habit-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/create-habit-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-edit-habit-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/edit-habit-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-edit-habit-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/edit-habit-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-edit-habit-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/edit-habit-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-edit-habit-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/edit-habit-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habit-detail-drawer",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-detail-drawer.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habit-detail-drawer",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-detail-drawer.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habit-detail-drawer",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-detail-drawer.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habit-detail-drawer",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-detail-drawer.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-confirm-dialogs",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-list/confirm-dialogs.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-confirm-dialogs",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-list/confirm-dialogs.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-confirm-dialogs",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-list/confirm-dialogs.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-confirm-dialogs",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-list/confirm-dialogs.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-reschedule-sheet",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/reschedule-sheet.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-reschedule-sheet",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/reschedule-sheet.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-reschedule-sheet",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/reschedule-sheet.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-reschedule-sheet",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/reschedule-sheet.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-notification-detail-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/navigation/notification-detail-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-notification-detail-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/navigation/notification-detail-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-notification-detail-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/navigation/notification-detail-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-notification-detail-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/navigation/notification-detail-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-feature-guide-drawer",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/onboarding/feature-guide-drawer.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-feature-guide-drawer",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/onboarding/feature-guide-drawer.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-feature-guide-drawer",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/onboarding/feature-guide-drawer.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-feature-guide-drawer",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/onboarding/feature-guide-drawer.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-referral-drawer",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/referral/referral-drawer.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-referral-drawer",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/referral/referral-drawer.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-referral-drawer",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/referral/referral-drawer.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-referral-drawer",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/referral/referral-drawer.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-share-card-sheet",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/share/share-card-sheet.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-share-card-sheet",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/share/share-card-sheet.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-share-card-sheet",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/share/share-card-sheet.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-share-card-sheet",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/share/share-card-sheet.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-rail-drawer",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/shell/rail-drawer.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-rail-drawer",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/shell/rail-drawer.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-rail-drawer",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/shell/rail-drawer.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-rail-drawer",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/shell/rail-drawer.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-tour-replay-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/tour/tour-replay-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-tour-replay-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/tour/tour-replay-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-tour-replay-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/tour/tour-replay-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-tour-replay-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/tour/tour-replay-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-confirm-dialog",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/confirm-dialog.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-confirm-dialog",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/confirm-dialog.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-confirm-dialog",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/confirm-dialog.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-confirm-dialog",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/confirm-dialog.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-create-api-key-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/create-api-key-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-create-api-key-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/create-api-key-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-create-api-key-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/create-api-key-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-create-api-key-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/create-api-key-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-trial-expired-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/trial-expired-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-trial-expired-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/trial-expired-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-trial-expired-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/trial-expired-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-trial-expired-modal",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/ui/trial-expired-modal.tsx",
+      "href": null,
+      "needsOpener": true,
+      "theme": "dark",
+      "locale": "pt-BR"
+    }
+  ]
+}

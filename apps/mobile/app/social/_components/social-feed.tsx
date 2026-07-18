@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
+import { AlertTriangle } from '@/components/ui/icons'
 import type { Cheer } from '@orbit/shared/types/social'
 import { EmptyState } from '@/components/ui/empty-state'
 import { PillButton } from '@/components/ui/pill-button'
@@ -84,6 +85,7 @@ export function SocialFeed({ onCheer, onAddFriends }: Readonly<SocialFeedProps>)
   } else if (feed.isError) {
     feedContent = (
       <EmptyState
+        icon={AlertTriangle}
         description={t('social.errors.loadFailed')}
         action={{
           label: t('common.retry'),

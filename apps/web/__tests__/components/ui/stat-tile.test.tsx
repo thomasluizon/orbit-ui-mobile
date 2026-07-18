@@ -14,4 +14,22 @@ describe('StatTile', () => {
     render(<StatTile emoji="⭐" value={12} label="Total" />)
     expect(screen.getByText('12')).toBeInTheDocument()
   })
+
+  it('reserves a two-line label box so tiles in a row share a baseline', () => {
+    render(<StatTile emoji="🏆" value={3} label="Maior" />)
+    expect(screen.getByText('Maior')).toHaveStyle({ minHeight: '40px' })
+  })
+
+  it('keeps a long label reachable in full when it clamps', () => {
+    const longLabel = 'Melhor sequência de hábitos concluídos'
+    render(<StatTile emoji="🥇" value={9} label={longLabel} />)
+    const label = screen.getByText(longLabel)
+    expect(label).toHaveAttribute('title', longLabel)
+  })
+
+  it('keeps a long value reachable in full when it truncates', () => {
+    const longValue = '1.284.937 conclusões'
+    render(<StatTile emoji="✅" value={longValue} label="Registros" />)
+    expect(screen.getByText(longValue)).toHaveAttribute('title', longValue)
+  })
 })

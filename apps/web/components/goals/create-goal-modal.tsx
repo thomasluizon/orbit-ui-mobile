@@ -21,7 +21,7 @@ import {
 } from '@orbit/shared/utils/goal-form'
 import type { GoalType } from '@orbit/shared/types/goal'
 import { MAX_GOAL_DESCRIPTION_LENGTH } from '@orbit/shared/validation'
-import { FieldWell } from './field-well'
+import { FieldInput } from '@/components/ui/field-input'
 import { GoalDeadlineField } from './create-goal-modal/goal-deadline-field'
 import { GoalTargetFields } from './create-goal-modal/goal-target-fields'
 import { GoalTypeSelector } from './create-goal-modal/goal-type-selector'
@@ -212,7 +212,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
       >
         <form id="create-goal-form" onSubmit={(e) => void onSubmit(e)} noValidate>
           <div style={{ padding: '4px 0 0' }}>
-            <FieldWell
+            <FieldInput
               label={t('goals.form.description')}
               id="create-goal-description"
               type="text"

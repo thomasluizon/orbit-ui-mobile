@@ -39,6 +39,7 @@ export function SettingsGroup({ children }: Readonly<SettingsGroupProps>) {
           {index > 0 ? (
             <div
               aria-hidden="true"
+              data-separator="true"
               style={{
                 height: 1,
                 background: 'var(--hairline)',
@@ -120,12 +121,13 @@ export function SettingsGroupRow({
         </span>
         {hint ? (
           <span
-            className="overflow-hidden whitespace-nowrap text-ellipsis"
+            className="overflow-hidden line-clamp-2"
             style={{
               fontFamily: 'var(--font-sans)',
               fontSize: 14,
               lineHeight: 1.35,
               color: 'var(--fg-3)',
+              overflowWrap: 'anywhere',
             }}
           >
             {hint}

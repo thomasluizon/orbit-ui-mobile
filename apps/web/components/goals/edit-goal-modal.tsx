@@ -21,7 +21,7 @@ import {
 import { MAX_GOAL_DESCRIPTION_LENGTH } from '@orbit/shared/validation'
 import { EditGoalDeadlineField } from './edit-goal-modal/edit-goal-deadline-field'
 import { EditGoalTargetFields } from './edit-goal-modal/edit-goal-target-fields'
-import { FieldWell } from './field-well'
+import { FieldInput } from '@/components/ui/field-input'
 
 interface EditGoalModalProps {
   open: boolean
@@ -163,7 +163,7 @@ export function EditGoalModal({
           </div>
 
           <div style={{ padding: '6px 0 0' }}>
-            <FieldWell
+            <FieldInput
               label={t('goals.form.description')}
               id="edit-goal-description"
               type="text"

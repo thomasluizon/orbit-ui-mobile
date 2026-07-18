@@ -563,7 +563,7 @@ export function ChatComposerBar({
             className="flex flex-col"
             style={{ paddingTop: 12, gap: 12 }}
           >
-            <InfoCard title={t('chat.limitReachedError')} />
+            <InfoCard title={t('chat.limitReachedError')} tone="accent" />
             <div className="flex justify-center">
               <PillButton
                 leading={<Crown size={18} strokeWidth={1.8} aria-hidden="true" />}

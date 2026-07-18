@@ -28,6 +28,7 @@ import { createTokensV2, radius, shadowsV2 } from '@/lib/theme'
 import { toAnimatedEasing, useResolvedMotionPreset } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { YearPicker } from '@/components/ui/year-picker'
+import { fieldWellShellStyle } from './field-ring'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
@@ -438,14 +439,10 @@ const DAY_SIZE = 36
 function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     trigger: {
+      ...fieldWellShellStyle(tokens),
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      minHeight: 54,
-      backgroundColor: tokens.bgField,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      borderRadius: 14,
       paddingVertical: 10,
       paddingHorizontal: 16,
     },

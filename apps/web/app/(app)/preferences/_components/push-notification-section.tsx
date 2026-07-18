@@ -30,7 +30,6 @@ export function PushNotificationSection({
       <SettingsRow
         label={t('settings.notifications.allowed')}
         accessory="none"
-        divider={false}
       >
         {push.supported && push.permission !== 'denied' && (
           <Switch

@@ -4,7 +4,8 @@ import { ChevronRight, type LucideIcon } from '@/components/ui/icons'
 import type { ReactNode } from 'react'
 
 /** Kit ListRow: flat row — leading icon/dot · title (+ desc) · value · trailing slot · chevron.
- *  Used for Profile nav, settings sub-screens, and stat strips. */
+ *  Used for Profile nav, settings sub-screens, and stat strips. Draws no rule of its own;
+ *  wrap rows in `SettingsGroup` when adjacent rows earn a hairline between them. */
 interface SettingsRowProps {
   label: string
   /** Secondary line under the label (Rubik 14 fg-3). */
@@ -21,7 +22,6 @@ interface SettingsRowProps {
   danger?: boolean
   children?: ReactNode
   ariaLabel?: string
-  divider?: boolean
 }
 
 export function SettingsRow({
@@ -37,7 +37,6 @@ export function SettingsRow({
   danger = false,
   children,
   ariaLabel,
-  divider = true,
 }: Readonly<SettingsRowProps>) {
   const interactive = typeof onClick === 'function'
   const RootTag = interactive ? 'button' : 'div'
@@ -55,9 +54,6 @@ export function SettingsRow({
         textAlign: 'left',
         appearance: 'none',
         border: 0,
-        borderBottomWidth: divider ? 1 : 0,
-        borderBottomStyle: 'solid',
-        borderBottomColor: 'var(--hairline)',
       }}
     >
       {LeadingIcon && (
@@ -116,10 +112,11 @@ export function SettingsRow({
       >
         {value != null && (
           <span
-            className="overflow-hidden whitespace-nowrap text-ellipsis"
+            className="overflow-hidden line-clamp-2 text-right"
             style={{
               color: valueColor ?? 'var(--fg-3)',
               maxWidth: 220,
+              overflowWrap: 'anywhere',
             }}
           >
             {value}

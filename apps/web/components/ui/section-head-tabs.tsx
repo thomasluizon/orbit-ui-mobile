@@ -41,7 +41,6 @@ export function SectionHeadTabs<TId extends string>({
       style={{
         padding: '12px 20px 16px',
         gap: 8,
-        borderRadius: 14,
       }}
     >
       {tabs.map((tab) => {

@@ -46,7 +46,6 @@ export function AiFeatureToggles({
           label={t('profile.aiMemory.title')}
           desc={t('profile.aiMemory.description')}
           accessory="none"
-          divider={false}
         >
           <Switch
             on={aiMemoryEnabled}
@@ -62,7 +61,6 @@ export function AiFeatureToggles({
           desc={t('profile.aiMemory.description')}
           onClick={onUpgrade}
           accessory="chevron"
-          divider={false}
         >
           <Lock size={18} strokeWidth={1.8} color="var(--fg-3)" aria-hidden="true" />
         </SettingsRow>
@@ -73,7 +71,6 @@ export function AiFeatureToggles({
           label={t('profile.aiSummary.title')}
           desc={t('profile.aiSummary.description')}
           accessory="none"
-          divider={false}
         >
           <Switch
             on={aiSummaryEnabled}
@@ -89,7 +86,6 @@ export function AiFeatureToggles({
           desc={t('profile.aiSummary.description')}
           onClick={onUpgrade}
           accessory="chevron"
-          divider={false}
         >
           <Lock size={18} strokeWidth={1.8} color="var(--fg-3)" aria-hidden="true" />
         </SettingsRow>
@@ -100,7 +96,6 @@ export function AiFeatureToggles({
           label={t('profile.proactiveAstra.title')}
           desc={t('profile.proactiveAstra.description')}
           accessory="none"
-          divider={false}
         >
           <Switch
             on={proactiveAstraEnabled}
@@ -116,7 +111,6 @@ export function AiFeatureToggles({
           desc={t('profile.proactiveAstra.description')}
           onClick={onUpgrade}
           accessory="chevron"
-          divider={false}
         >
           <Lock size={18} strokeWidth={1.8} color="var(--fg-3)" aria-hidden="true" />
         </SettingsRow>

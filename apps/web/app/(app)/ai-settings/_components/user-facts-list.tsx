@@ -2,45 +2,11 @@
 
 import { AstraMark } from '@/components/ui/astra-avatar'
 import { useTranslations } from 'next-intl'
-import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
-import { PillButton } from '@/components/ui/pill-button'
+import { AlertTriangle } from '@/components/ui/icons'
+import { EmptyState } from '@/components/ui/empty-state'
+import { SkeletonCard } from '@/components/ui/skeleton'
 import type { UserFact } from '@orbit/shared/types/user-fact'
 import { FactItem } from './fact-item'
-
-function FactsCenteredState({
-  message,
-  messageColor,
-  alert = false,
-  button,
-}: Readonly<{
-  message: string
-  messageColor: string
-  alert?: boolean
-  button: React.ReactNode
-}>) {
-  return (
-    <div
-      className="flex flex-col items-center text-center animate-scale-in"
-      style={{ padding: '40px 36px', gap: 18 }}
-    >
-      <SatelliteGlyph size={104} />
-      <span
-        role={alert ? 'alert' : undefined}
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 15,
-          color: messageColor,
-          lineHeight: 1.5,
-          maxWidth: 320,
-          textWrap: 'pretty',
-        }}
-      >
-        {message}
-      </span>
-      {button}
-    </div>
-  )
-}
 
 interface UserFactsListProps {
   isLoading: boolean
@@ -71,48 +37,34 @@ export function UserFactsList({
 
   if (isLoading) {
     return (
-      <div className="px-5 space-y-2.5">
-        <div
-          className="w-full animate-pulse"
-          style={{ height: 56, borderRadius: 16, background: 'var(--bg-elev)' }}
-        />
-        <div
-          className="w-full animate-pulse"
-          style={{ height: 56, borderRadius: 16, background: 'var(--bg-elev)' }}
-        />
+      <div className="flex flex-col gap-3 px-5" role="status" aria-label={t('common.loading')}>
+        <SkeletonCard lines={2} />
+        <SkeletonCard lines={2} />
       </div>
     )
   }
 
   if (hasError) {
     return (
-      <FactsCenteredState
-        message={t('profile.facts.factsError')}
-        messageColor="var(--status-bad-text)"
-        alert
-        button={
-          <PillButton onClick={onRetry} className="mt-2">
-            {t('profile.facts.retry')}
-          </PillButton>
-        }
-      />
+      <div role="alert">
+        <EmptyState
+          icon={AlertTriangle}
+          description={t('profile.facts.factsError')}
+          action={{ label: t('profile.facts.retry'), onClick: onRetry, variant: 'secondary' }}
+        />
+      </div>
     )
   }
 
   if (facts.length === 0) {
     return (
-      <FactsCenteredState
-        message={t('profile.facts.empty')}
-        messageColor="var(--fg-2)"
-        button={
-          <PillButton
-            onClick={onAskAstra}
-            leading={<AstraMark size={18} color="var(--fg-on-primary)" />}
-            className="mt-2"
-          >
-            {t('summary.askAstra')}
-          </PillButton>
-        }
+      <EmptyState
+        description={t('profile.facts.empty')}
+        action={{
+          label: t('summary.askAstra'),
+          onClick: onAskAstra,
+          leading: <AstraMark size={18} color="var(--fg-on-primary)" />,
+        }}
       />
     )
   }

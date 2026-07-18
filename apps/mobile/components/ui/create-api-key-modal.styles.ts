@@ -1,5 +1,6 @@
 import { StyleSheet } from 'react-native'
 import type { AppTokensV2 } from '@/lib/theme'
+import { fieldWellShellStyle } from './field-ring'
 
 export type ApiKeyModalStyles = ReturnType<typeof createStyles>
 
@@ -44,15 +45,11 @@ export function createStyles(tokens: AppTokensV2, bottomInset: number) {
       paddingVertical: 8,
     },
     switchRow: {
+      ...fieldWellShellStyle(tokens),
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
       gap: 12,
-      minHeight: 54,
-      borderRadius: 14,
-      backgroundColor: tokens.bgField,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
       paddingHorizontal: 16,
       paddingVertical: 8,
     },

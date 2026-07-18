@@ -11,9 +11,10 @@ import { useStreakInfo } from '@/hooks/use-gamification'
 import { useIsDesktop } from '@/hooks/use-is-desktop'
 import { useShellStore } from '@/stores/shell-store'
 import { RailToggle } from './rail-drawer'
-import { useTopbarSlotNode } from './topbar-slot'
+import { useTopbarHeadingClaim, useTopbarSlotNode } from './topbar-slot'
 
 interface DesktopTopbarProps {
+  /** Route-derived title. A page's own `useTopbarHeading` claim overrides it. */
   title: string
   /** Renders the rail-drawer toggle as the cluster's last control (home only, md..xl). */
   showRailToggle?: boolean
@@ -44,19 +45,22 @@ function PaletteTrigger() {
 }
 
 /**
- * Sticky command strip at the top of the main column on desktop (≥768px). Left holds
- * the page-contributed slot (Today's date navigation) or the page title; right
- * clusters the palette trigger, theme toggle, streak flame, notification bell, and
- * (on home, md..xl) the rail-drawer toggle. The bar shell always renders (`hidden
- * md:flex`) so its 56px is reserved at first paint; the tour-tagged cluster contents
- * stay gated to desktop so they never shadow the phone header's in the mobile DOM.
- * A 1px sentinel flips the bar from transparent-over-gradient to opaque + hairline
- * once it sticks.
+ * Sticky command strip at the top of the main column on desktop (≥768px). The shell
+ * is the single owner of the desktop page title: the left region renders exactly one
+ * `<h1>` (the page's `useTopbarHeading` override, else the route-derived title, and
+ * none at all when a page declares it carries the heading in its own content), with
+ * the page-contributed accessory slot beside it. The right side clusters the palette
+ * trigger, theme toggle, streak flame, notification bell, and (on home, md..xl) the
+ * rail-drawer toggle. The bar shell always renders (`hidden md:flex`) so its 56px is
+ * reserved at first paint; the tour-tagged cluster contents stay gated to desktop so
+ * they never shadow the phone header's in the mobile DOM. A 1px sentinel flips the bar
+ * from transparent-over-gradient to opaque + hairline once it sticks.
  */
 export function DesktopTopbar({ title, showRailToggle = false }: Readonly<DesktopTopbarProps>) {
   const { profile } = useProfile()
   const { data: streakInfo } = useStreakInfo(profile?.canViewGamification ?? false)
-  const slotNode = useTopbarSlotNode()
+  const accessoryNode = useTopbarSlotNode()
+  const { title: claimedTitle, ownedByPage } = useTopbarHeadingClaim()
   const isDesktop = useIsDesktop()
   const [stuck, setStuck] = useState(false)
   const sentinelRef = useRef<HTMLDivElement>(null)
@@ -71,6 +75,12 @@ export function DesktopTopbar({ title, showRailToggle = false }: Readonly<Deskto
     return () => observer.disconnect()
   }, [])
 
+  const resolvedTitle = claimedTitle ?? title
+  const heading =
+    ownedByPage || !resolvedTitle ? null : (
+      <h1 className="t-h2 min-w-0 truncate">{resolvedTitle}</h1>
+    )
+
   return (
     <>
       <div ref={sentinelRef} aria-hidden className="hidden md:block" style={{ height: 1, marginBottom: -1 }} />
@@ -83,8 +93,15 @@ export function DesktopTopbar({ title, showRailToggle = false }: Readonly<Deskto
           paddingBlock: 8,
         }}
       >
-        <div className="flex min-w-0 flex-1 items-center">
-          {slotNode ?? (title ? <h1 className="t-h2 truncate">{title}</h1> : null)}
+        <div className="flex min-w-0 flex-1 items-center" style={{ gap: 12 }}>
+          {heading}
+          {accessoryNode && (
+            <div
+              className={`flex min-w-0 flex-1 items-center ${heading ? 'justify-end' : 'justify-start'}`}
+            >
+              {accessoryNode}
+            </div>
+          )}
         </div>
         <div className="flex shrink-0 items-center" style={{ gap: 10 }}>
           {isDesktop && (

@@ -626,17 +626,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   @apply text-[length:var(--fs-sm)] font-medium text-[var(--fg-2)];
   display: block;
   padding: 0;
-  margin: 0 0 0.375rem 0;
-}
-
-.form-input {
-  @apply w-full bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-[14px] py-3.5 px-4 text-base focus:outline-none transition-[background-color,box-shadow,color] duration-200;
-  min-height: 54px;
-  box-shadow: inset 0 0 0 1px var(--hairline);
-}
-
-.form-input:focus {
-  box-shadow: inset 0 0 0 2px var(--primary);
+  margin: 0;
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -907,10 +897,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 /* In-field AI affordance: an accent-tinted sparkle well */
 .ai-spark-btn {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
+  position: relative;
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -938,7 +926,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   box-shadow: inset 0 0 0 1px rgba(var(--primary-rgb), 0.35);
 }
 .ai-spark-btn:active:not(:disabled) {
-  transform: translateY(-50%) scale(0.96);
+  transform: scale(0.96);
 }
 .ai-spark-btn:disabled {
   opacity: 0.45;
@@ -1133,6 +1121,35 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 :focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
+}
+
+/* The single field focus-ring contract. A field well (`.field-ring`, or
+   `.field-ring-flush` when it sits inside another surface and carries no rest
+   ring) owns ONE inset ring for itself and its text controls, and suppresses the
+   global offset outline on them — a class-level `outline-none` at a callsite ties
+   with `:focus-visible` above and loses on source order, which painted two rings
+   and pushed the outer one past the well's box.
+   https://github.com/thomasluizon/orbit-ui-mobile/issues/539 */
+.field-ring,
+.field-ring-flush {
+  transition: box-shadow var(--dur-fast) var(--ease-standard);
+}
+.field-ring {
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+.field-ring:focus-within,
+.field-ring-flush:focus-within {
+  box-shadow: inset 0 0 0 2px var(--primary);
+}
+.field-ring[data-invalid='true'],
+.field-ring-flush[data-invalid='true'] {
+  box-shadow: inset 0 0 0 2px var(--status-bad);
+}
+.field-ring:is(input, textarea):focus-visible,
+.field-ring-flush:is(input, textarea):focus-visible,
+.field-ring :is(input, textarea):focus-visible,
+.field-ring-flush :is(input, textarea):focus-visible {
+  outline: none;
 }
 
 /* Minimum touch target size: 44px effective, centered on the control */

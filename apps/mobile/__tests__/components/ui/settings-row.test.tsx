@@ -1,9 +1,64 @@
 import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { Switch } from '@/components/ui/settings-row'
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: undefined }),
+}))
+
+import { SettingsRow, Switch } from '@/components/ui/settings-row'
+import { SettingsGroup } from '@/components/ui/settings-group'
 
 const TestRenderer = require('react-test-renderer')
+
+function separatorCount(tree: any): number {
+  return tree.root.findAll(
+    (node: any) =>
+      typeof node.type === 'string' &&
+      node.props.testID === 'settings-group-separator',
+  ).length
+}
+
+describe('SettingsGroup', () => {
+  it('separates adjacent rows but never trails a rule after the last one', () => {
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <SettingsGroup>
+          <SettingsRow label="Language" accessory="none" />
+          <SettingsRow label="Theme" accessory="none" />
+          <SettingsRow label="Week start" accessory="none" />
+        </SettingsGroup>,
+      )
+    })
+
+    expect(separatorCount(tree)).toBe(2)
+  })
+
+  it('draws no separator for a single-row group', () => {
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <SettingsGroup>
+          <SettingsRow label="Language" accessory="none" />
+        </SettingsGroup>,
+      )
+    })
+
+    expect(separatorCount(tree)).toBe(0)
+  })
+
+  it('draws no rule of its own, so a standalone row sits flat', () => {
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<SettingsRow label="Language" accessory="none" />)
+    })
+
+    expect(separatorCount(tree)).toBe(0)
+  })
+})
 
 describe('Switch', () => {
   it('fires onToggle when pressed', () => {

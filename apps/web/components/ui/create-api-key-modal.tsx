@@ -324,34 +324,14 @@ function CreateStep(props: Readonly<CreateStepProps>) {
         />
       </div>
 
-      <div className="flex flex-col" style={{ gap: 8 }}>
-        <label
-          htmlFor="api-key-expiry"
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 14,
-            fontWeight: 500,
-            color: 'var(--fg-2)',
-          }}
-        >
-          {t('orbitMcp.expiresAtLabel')}
-        </label>
-        <input
-          id="api-key-expiry"
-          type="datetime-local"
-          value={expiresAt}
-          onChange={(event) => onExpiresAtChange(event.target.value)}
-          className="w-full appearance-none rounded-[14px] border-0 bg-[var(--bg-field)] shadow-[inset_0_0_0_1px_var(--hairline)] outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
-          style={{
-            minHeight: 54,
-            padding: '0 16px',
-            fontFamily: 'var(--font-mono)',
-            fontSize: 15,
-            color: 'var(--fg-1)',
-            fontVariantNumeric: 'tabular-nums',
-          }}
-        />
-      </div>
+      <FieldInput
+        id="api-key-expiry"
+        type="datetime-local"
+        mono
+        label={t('orbitMcp.expiresAtLabel')}
+        value={expiresAt}
+        onChange={onExpiresAtChange}
+      />
 
       {apiError && (
         <p

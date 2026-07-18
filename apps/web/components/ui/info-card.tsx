@@ -1,57 +1,59 @@
 import { Info, type LucideIcon } from '@/components/ui/icons'
 import type { ReactNode } from 'react'
 
+const toneSurface = {
+  quiet: { background: 'var(--bg-elev)', iconClass: 'text-[var(--fg-3)]' },
+  accent: {
+    background: 'rgba(var(--primary-rgb), 0.14)',
+    iconClass: 'text-[var(--primary-soft)]',
+  },
+} as const
+
+/** How loudly an aside asserts itself: `quiet` recedes onto the elevated surface,
+ *  `accent` is reserved for a call-out that is the focal element of its surface. */
+export type InfoCardTone = keyof typeof toneSurface
+
 interface InfoCardProps {
   icon?: LucideIcon
   title: string
   desc?: string
+  tone?: InfoCardTone
   trailing?: ReactNode
 }
 
-/** Kit info card: primary-tinted bordered row with leading icon, title, and description. */
-export function InfoCard({ icon: Icon = Info, title, desc, trailing }: Readonly<InfoCardProps>) {
+/** Kit info card: a borderless tonal aside. Title and description sit on the type-role
+ *  scale so supporting copy recedes through colour and weight rather than through a ring. */
+export function InfoCard({
+  icon: Icon = Info,
+  title,
+  desc,
+  tone = 'quiet',
+  trailing,
+}: Readonly<InfoCardProps>) {
+  const surface = toneSurface[tone]
+
   return (
     <div
-      className="flex items-center rounded-[18px]"
-      style={{
-        padding: '16px 20px',
-        gap: 12,
-        background: 'rgba(var(--primary-rgb), 0.18)',
-        boxShadow: 'inset 0 0 0 1px rgba(var(--primary-rgb), 0.28)',
-      }}
+      data-info-card=""
+      data-tone={tone}
+      className={`flex rounded-[18px] ${desc ? 'items-start' : 'items-center'}`}
+      style={{ padding: '16px 20px', gap: 12, background: surface.background }}
     >
       <Icon
-        size={24}
-        strokeWidth={1.9}
-        className="shrink-0 text-[var(--primary-soft)]"
+        size={22}
+        strokeWidth={1.8}
+        className={`shrink-0 ${surface.iconClass}`}
         aria-hidden="true"
       />
       <div className="min-w-0 flex-1">
-        <div
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 16,
-            fontWeight: 500,
-            color: 'var(--fg-1)',
-          }}
-        >
-          {title}
-        </div>
+        <div className="t-body m-0 font-medium text-balance">{title}</div>
         {desc ? (
-          <div
-            style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 13.5,
-              color: 'var(--fg-3)',
-              marginTop: 4,
-              lineHeight: 1.4,
-            }}
-          >
+          <p className="t-secondary m-0 max-w-[65ch] text-pretty" style={{ marginTop: 4 }}>
             {desc}
-          </div>
+          </p>
         ) : null}
       </div>
-      {trailing}
+      {trailing ? <div className="flex shrink-0 items-center gap-2">{trailing}</div> : null}
     </div>
   )
 }

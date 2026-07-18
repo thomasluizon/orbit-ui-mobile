@@ -101,15 +101,7 @@ export function ChallengeCard({ challenge, onOpen }: Readonly<ChallengeCardProps
         </div>
       ) : (
         <div className="flex items-baseline" style={{ gap: 6, marginTop: 12 }}>
-          <span
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: 24,
-              fontWeight: 700,
-              color: 'var(--fg-1)',
-              fontVariantNumeric: 'tabular-nums',
-            }}
-          >
+          <span className="t-num-xl" style={{ fontSize: 24 }}>
             {challenge.currentProgress}
           </span>
           <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--fg-3)' }}>

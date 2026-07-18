@@ -1052,7 +1052,7 @@
       "error": "Something went wrong. Please try again.",
       "view": {
         "tagline": "Habit tracking that keeps you in orbit.",
-        "dayStreakLabel": "Day streak",
+        "dayStreakLabel": "Streak",
         "longestStreakLabel": "Best: {count}",
         "level": "Level {level}",
         "achievementsTitle": "Achievements",
@@ -2272,9 +2272,9 @@
       "atRisk": "At Risk",
       "behind": "Behind Schedule",
       "noDeadline": "No Deadline",
-      "projectedCompletion": "Projected Completion",
-      "velocity": "Progress Rate",
-      "daysToDeadline": "Days to Deadline",
+      "projectedCompletion": "Projected",
+      "velocity": "Pace",
+      "daysToDeadline": "Deadline",
       "habitAdherence": "Linked Habit Performance",
       "noData": "No data",
       "perDay": "day"
@@ -3126,7 +3126,7 @@
     "friendProfile": {
       "unavailable": "This profile isn't available.",
       "loadError": "Couldn't load this profile.",
-      "longestStreakLabel": "Best streak",
+      "longestStreakLabel": "Longest",
       "xpLabel": "XP",
       "activityLabel": "Last 7 days",
       "friendsSince": "Friends since {date}",

@@ -28,17 +28,7 @@ export function AchievementXpCard({
         }}
       >
         <div className="flex items-center" style={{ gap: 14, marginBottom: 12 }}>
-          <span
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: 36,
-              fontWeight: 700,
-              letterSpacing: '-0.02em',
-              color: 'var(--fg-1)',
-              fontVariantNumeric: 'tabular-nums',
-              whiteSpace: 'nowrap',
-            }}
-          >
+          <span className="t-num-xl whitespace-nowrap" style={{ fontSize: 36 }}>
             {t('gamification.profileCard.level', { level: profile.level })}
           </span>
           <div className="flex-1 min-w-0">

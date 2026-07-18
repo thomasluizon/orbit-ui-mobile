@@ -72,7 +72,7 @@ describe('OfflineUnavailableState', () => {
         disabled
       />,
     )
-    expect(screen.getByText('Retry')).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeDisabled()
   })
 
   it('has accessible aria-label combining title and description', () => {

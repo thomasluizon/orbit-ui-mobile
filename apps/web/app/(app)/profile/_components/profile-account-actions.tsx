@@ -64,7 +64,6 @@ export function ProfileAccountActions({
         icon={LogOut}
         onClick={onLogout}
         label={t('profile.logout')}
-        showDivider={false}
       />
     </div>
   )

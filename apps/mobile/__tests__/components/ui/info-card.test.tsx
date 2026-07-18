@@ -31,4 +31,10 @@ describe('InfoCard (mobile)', () => {
     )
     expect(tree.root.findAllByType('TrailingNode')).toHaveLength(1)
   })
+
+  it('renders the accent tone without changing its content', () => {
+    const tree = renderCard(<InfoCard title="Astra" desc="Assistente" tone="accent" />)
+    const texts = tree.root.findAllByType('Text').map((node: any) => node.props.children)
+    expect(texts).toEqual(expect.arrayContaining(['Astra', 'Assistente']))
+  })
 })

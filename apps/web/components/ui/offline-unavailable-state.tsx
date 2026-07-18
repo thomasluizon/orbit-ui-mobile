@@ -1,6 +1,7 @@
 'use client'
 
 import { WifiOff } from '@/components/ui/icons'
+import { PillButton } from '@/components/ui/pill-button'
 
 interface OfflineUnavailableStateProps {
   title: string
@@ -11,6 +12,11 @@ interface OfflineUnavailableStateProps {
   disabled?: boolean
 }
 
+/**
+ * Inline alert shown where a capability needs a connection: a leading wifi-off glyph, the reason,
+ * and an optional hugging retry pill. `compact` steps the type and padding down for use inside a
+ * row or sheet rather than as a standalone block.
+ */
 export function OfflineUnavailableState({
   title,
   description,
@@ -21,13 +27,14 @@ export function OfflineUnavailableState({
 }: Readonly<OfflineUnavailableStateProps>) {
   return (
     <div
-      className={`flex gap-3.5 rounded-[18px] bg-[var(--bg-card)] ${
-        compact ? 'px-3.5 py-3' : 'p-4'
-      }`}
-      style={{ boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
+      className={[
+        'flex min-w-0 gap-3 rounded-[18px] bg-[var(--bg-card)] shadow-[inset_0_0_0_1px_var(--hairline)]',
+        compact ? 'p-3' : 'p-4',
+      ].join(' ')}
       role="alert"
       aria-live="polite"
       aria-label={`${title}. ${description}`}
+      data-offline-state={compact ? 'compact' : 'block'}
     >
       <WifiOff
         size={22}
@@ -35,44 +42,42 @@ export function OfflineUnavailableState({
         className="mt-px shrink-0 text-[var(--fg-3)]"
         aria-hidden="true"
       />
-      <div className="flex-1">
-        <p
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: compact ? 14 : 16,
-            fontWeight: 500,
-            color: 'var(--fg-1)',
-          }}
-        >
-          {title}
-        </p>
-        <p
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: compact ? 12.5 : 13.5,
-            color: 'var(--fg-3)',
-            lineHeight: 1.4,
-            marginTop: 3,
-          }}
-        >
-          {description}
-        </p>
-        {actionLabel && onAction ? (
-          <button
-            type="button"
-            className="mt-3 inline-flex cursor-pointer items-center rounded-full border-0 bg-transparent text-[13px] font-medium text-[var(--fg-1)] enabled:hover:opacity-85 enabled:active:opacity-85 disabled:cursor-not-allowed disabled:opacity-40"
+      <div className="flex min-w-0 flex-1 flex-col items-start gap-3">
+        <div className="flex min-w-0 flex-col gap-1">
+          <p
             style={{
               fontFamily: 'var(--font-sans)',
-              padding: '8px 16px',
-              boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
+              fontSize: compact ? 'var(--fs-sm)' : 'var(--fs-base)',
+              fontWeight: 500,
+              lineHeight: 'var(--lh-snug)',
+              color: 'var(--fg-1)',
             }}
+          >
+            {title}
+          </p>
+          <p
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: compact ? 'var(--fs-xs)' : 'var(--fs-sm)',
+              lineHeight: 'var(--lh-body)',
+              color: 'var(--fg-3)',
+              maxWidth: '46ch',
+              textWrap: 'pretty',
+            }}
+          >
+            {description}
+          </p>
+        </div>
+        {actionLabel && onAction ? (
+          <PillButton
+            variant="ghost"
+            size="sm"
             onClick={onAction}
             disabled={disabled}
-            aria-label={actionLabel}
-            aria-disabled={disabled}
+            ariaLabel={actionLabel}
           >
             {actionLabel}
-          </button>
+          </PillButton>
         ) : null}
       </div>
     </div>

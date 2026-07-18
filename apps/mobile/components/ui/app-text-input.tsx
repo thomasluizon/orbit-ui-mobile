@@ -9,6 +9,7 @@ import {
 import { StyleSheet, Text, TextInput } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { FIELD_WELL_PADDING, fieldRingStyle, fieldWellStyle } from './field-ring'
 import { useKeyboardAwareInputReveal } from './keyboard-aware-scroll-view'
 
 type AppTokens = ReturnType<typeof createTokensV2>
@@ -75,8 +76,12 @@ export const AppTextInput = forwardRef<TextInput, AppTextInputProps>(
           {...props}
           style={[
             styles.input,
-            focused ? styles.inputFocused : null,
-            error ? styles.inputError : null,
+            fieldRingStyle(tokens, {
+              focused,
+              invalid: !!error,
+              paddingHorizontal: FIELD_WELL_PADDING.horizontal,
+              paddingVertical: FIELD_WELL_PADDING.vertical,
+            }),
             dimmed ? styles.inputDisabled : null,
             style,
           ]}
@@ -91,30 +96,7 @@ export const AppTextInput = forwardRef<TextInput, AppTextInputProps>(
 
 function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
-    input: {
-      minHeight: 54,
-      borderRadius: 14,
-      backgroundColor: tokens.bgField,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      paddingHorizontal: 16,
-      paddingVertical: 16,
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 16,
-      color: tokens.fg1,
-    },
-    inputFocused: {
-      borderWidth: 2,
-      borderColor: tokens.primary,
-      paddingHorizontal: 15,
-      paddingVertical: 15,
-    },
-    inputError: {
-      borderWidth: 2,
-      borderColor: tokens.statusBad,
-      paddingHorizontal: 15,
-      paddingVertical: 15,
-    },
+    input: fieldWellStyle(tokens),
     inputDisabled: {
       opacity: 0.6,
     },

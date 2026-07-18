@@ -31,6 +31,7 @@ import { useExpandAdvancedSignal } from './habit-form-fields/use-expand-advanced
 import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { AppTimePicker } from '@/components/ui/app-time-picker'
 import { AppSelect } from '@/components/ui/app-select'
+import { FieldInput } from '@/components/ui/field-input'
 import { useAppToast } from '@/hooks/use-app-toast'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
@@ -239,49 +240,44 @@ export function HabitFormFields({
             selectedEmoji={watchedEmoji}
             onSelect={(emoji) => setValue('emoji', emoji, { shouldDirty: true })}
           />
-          <div className="relative flex-1 min-w-0">
-            <input
+          <div className="flex-1 min-w-0">
+            <FieldInput
               id="habit-form-title"
-              type="text"
               maxLength={MAX_HABIT_TITLE_LENGTH}
               placeholder={t('habits.form.titlePlaceholder')}
-              className="form-input w-full"
-              style={onSuggestSetup ? { paddingRight: 52 } : undefined}
-              aria-invalid={!!errors.title}
-              aria-describedby={errors.title ? 'habit-form-title-error' : undefined}
-              {...titleRegister}
-              ref={(element) => {
-                titleRegister.ref(element)
-                if (titleInputRef) {
-                  titleInputRef.current = element
-                }
+              error={errors.title?.message}
+              registration={{
+                ...titleRegister,
+                ref: (element: HTMLInputElement | null) => {
+                  titleRegister.ref(element)
+                  if (titleInputRef) {
+                    titleInputRef.current = element
+                  }
+                },
               }}
+              trailing={
+                onSuggestSetup ? (
+                  <button
+                    type="button"
+                    data-testid="habit-suggest-setup"
+                    className="ai-spark-btn"
+                    aria-busy={isSuggesting || undefined}
+                    aria-label={isSuggesting ? t('habits.form.aiSuggesting') : t('habits.form.aiSuggest')}
+                    title={t('habits.form.aiSuggest')}
+                    disabled={isSuggesting || watchedTitle.trim().length === 0}
+                    onClick={onSuggestSetup}
+                  >
+                    {isSuggesting ? (
+                      <Loader2 className="size-[18px] animate-spin" aria-hidden="true" />
+                    ) : (
+                      <AstraMark size={18} />
+                    )}
+                  </button>
+                ) : undefined
+              }
             />
-            {onSuggestSetup && (
-              <button
-                type="button"
-                data-testid="habit-suggest-setup"
-                className="ai-spark-btn"
-                aria-busy={isSuggesting || undefined}
-                aria-label={isSuggesting ? t('habits.form.aiSuggesting') : t('habits.form.aiSuggest')}
-                title={t('habits.form.aiSuggest')}
-                disabled={isSuggesting || watchedTitle.trim().length === 0}
-                onClick={onSuggestSetup}
-              >
-                {isSuggesting ? (
-                  <Loader2 className="size-[18px] animate-spin" aria-hidden="true" />
-                ) : (
-                  <AstraMark size={18} />
-                )}
-              </button>
-            )}
           </div>
         </div>
-        {errors.title && (
-          <p id="habit-form-title-error" className="text-xs text-[var(--status-bad)] mt-1" role="alert">
-            {errors.title.message}
-          </p>
-        )}
       </div>
 
       <FrequencyTypeCards
@@ -314,12 +310,11 @@ export function HabitFormFields({
                 ? t('habits.form.timesPerUnit')
                 : t('habits.form.every')}
             </label>
-            <input
+            <FieldInput
               id="habit-form-frequency-qty"
               type="number"
               min={1}
-              className="form-input"
-              {...register('frequencyQuantity', { valueAsNumber: true })}
+              registration={register('frequencyQuantity', { valueAsNumber: true })}
             />
           </div>
           <div className="flex flex-col gap-2">
@@ -580,13 +575,13 @@ export function HabitFormFields({
             <label htmlFor="habit-form-description" className="form-label">
               {t('habits.form.description')}
             </label>
-            <textarea
+            <FieldInput
               id="habit-form-description"
-              placeholder={t('habits.form.descriptionPlaceholder')}
+              multiline
               rows={2}
+              placeholder={t('habits.form.descriptionPlaceholder')}
               maxLength={MAX_HABIT_DESCRIPTION_LENGTH}
-              className="form-input resize-none"
-              {...register('description')}
+              registration={register('description')}
             />
           </div>
 

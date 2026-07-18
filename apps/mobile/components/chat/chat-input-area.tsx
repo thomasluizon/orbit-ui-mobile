@@ -253,7 +253,7 @@ function ChatLimitNotice({ tokens, styles, reward, onUpgrade }: Readonly<ChatLim
   const { t } = useTranslation();
   return (
     <View style={styles.limitBlock} accessibilityLiveRegion="polite">
-      <InfoCard title={t("chat.limitReachedError")} />
+      <InfoCard title={t("chat.limitReachedError")} tone="accent" />
       <PillButton
         style={{ alignSelf: 'center' }}
         leading={<Crown size={18} strokeWidth={1.8} color={tokens.fgOnPrimary} />}

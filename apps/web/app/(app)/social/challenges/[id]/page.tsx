@@ -4,10 +4,12 @@ import { useParams, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { AppBar } from '@/components/ui/app-bar'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+import { useTopbarHeading } from '@/components/shell/topbar-slot'
 import { ChallengeDetail } from '../_components/challenge-detail'
 
 export default function ChallengeDetailPage() {
   const t = useTranslations()
+  useTopbarHeading({ ownedByPage: true })
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
   const params = useParams<{ id: string }>()

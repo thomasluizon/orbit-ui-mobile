@@ -17,7 +17,11 @@ interface StatTileProps {
   style?: StyleProp<ViewStyle>
 }
 
-/** Kit stat tile: emoji over an Inter numeral (or compact Rubik phrase) and a muted Rubik label. */
+/**
+ * Kit stat tile: emoji over a single-line Inter numeral (or compact Rubik phrase) and a muted
+ * Rubik label clamped to two lines inside a fixed 40px reservation, so side-by-side tiles keep a
+ * shared baseline when a longer pt-BR label wraps.
+ */
 export function StatTile({
   emoji,
   value,
@@ -45,13 +49,15 @@ export function StatTile({
       </Text>
       <Text
         style={[styles.value, phraseValue && styles.valuePhrase, { color: tokens.fg1 }]}
-        numberOfLines={phraseValue ? 1 : undefined}
-        adjustsFontSizeToFit={phraseValue || undefined}
-        minimumFontScale={phraseValue ? 0.7 : undefined}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.7}
       >
         {value}
       </Text>
-      <Text style={[styles.label, { color: tokens.fg2 }]}>{label}</Text>
+      <Text style={[styles.label, { color: tokens.fg2 }]} numberOfLines={2}>
+        {label}
+      </Text>
     </View>
   )
 }
@@ -76,18 +82,22 @@ const styles = StyleSheet.create({
     fontSize: 24,
     letterSpacing: -0.24,
     fontVariant: ['tabular-nums'],
+    textAlign: 'center',
+    alignSelf: 'stretch',
+    minHeight: 29,
   },
   valuePhrase: {
     fontFamily: 'Rubik_600SemiBold',
     fontSize: 15,
-    lineHeight: 20,
     letterSpacing: 0,
-    textAlign: 'center',
-    minHeight: 29,
     textAlignVertical: 'center',
   },
   label: {
     fontFamily: 'Rubik_400Regular',
     fontSize: 15,
+    lineHeight: 20,
+    minHeight: 40,
+    textAlign: 'center',
+    alignSelf: 'stretch',
   },
 })

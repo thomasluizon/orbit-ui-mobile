@@ -18,6 +18,7 @@ import { createTokensV2, radius, shadowsV2 } from '@/lib/theme'
 import { toAnimatedEasing, useResolvedMotionPreset } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useProfile } from '@/hooks/use-profile'
+import { fieldWellShellStyle } from './field-ring'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
@@ -362,14 +363,10 @@ export function AppTimePicker({
 function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     trigger: {
+      ...fieldWellShellStyle(tokens),
       width: '100%',
       flexDirection: 'row',
       alignItems: 'center',
-      minHeight: 54,
-      backgroundColor: tokens.bgField,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      borderRadius: 14,
     },
     triggerDisabled: {
       opacity: 0.6,

@@ -69,6 +69,22 @@ describe('PillButton', () => {
     expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
   })
 
+  it('exposes its variant as a data attribute so consumers can assert the kit contract', () => {
+    render(
+      <>
+        <PillButton onClick={() => {}}>Default</PillButton>
+        <PillButton variant="ghost" onClick={() => {}}>
+          Quiet
+        </PillButton>
+      </>,
+    )
+    expect(screen.getByRole('button', { name: 'Default' })).toHaveAttribute(
+      'data-variant',
+      'primary',
+    )
+    expect(screen.getByRole('button', { name: 'Quiet' })).toHaveAttribute('data-variant', 'ghost')
+  })
+
   it('renders an icon-only square (width = height) when given a leading icon and no label', () => {
     render(
       <PillButton ariaLabel="Create" leading={<span data-testid="icon-only-leading" />} />,

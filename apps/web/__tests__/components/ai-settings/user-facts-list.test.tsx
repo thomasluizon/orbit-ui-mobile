@@ -46,8 +46,8 @@ const baseProps = {
 
 describe('UserFactsList', () => {
   it('renders skeletons while loading', () => {
-    const { container } = render(<UserFactsList {...baseProps} isLoading />)
-    expect(container.querySelectorAll('.animate-pulse')).toHaveLength(2)
+    render(<UserFactsList {...baseProps} isLoading />)
+    expect(screen.getByRole('status')).toBeInTheDocument()
     expect(screen.queryByTestId('fact')).not.toBeInTheDocument()
   })
 

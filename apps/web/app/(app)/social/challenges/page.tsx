@@ -10,8 +10,8 @@ import { useTopbarSlot } from '@/components/shell/topbar-slot'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useProfile } from '@/hooks/use-profile'
 import { useChallenges } from '@/hooks/use-challenges'
+import { ChallengeActionButtons } from './_components/challenge-action-buttons'
 import { ChallengesContent } from './_components/challenges-content'
-import { ChallengesTopbarHeading } from './_components/challenges-topbar-heading'
 import { CreateChallengeForm } from './_components/create-challenge-form'
 import { JoinByCodeForm } from './_components/join-by-code-form'
 
@@ -38,17 +38,19 @@ function ChallengesPageContent() {
 
   const openDetail = (id: string) => router.push(`/social/challenges/${id}`)
 
-  const topbarHeadingRow = useMemo(
+  const topbarActions = useMemo(
     () =>
       isDesktop && (profile?.socialOptIn ?? false) ? (
-        <ChallengesTopbarHeading
-          onCreate={() => setCreateOpen(true)}
-          onJoin={() => setJoinOpen(true)}
-        />
+        <div className="flex shrink-0 items-center" style={{ gap: 8 }}>
+          <ChallengeActionButtons
+            onCreate={() => setCreateOpen(true)}
+            onJoin={() => setJoinOpen(true)}
+          />
+        </div>
       ) : null,
     [isDesktop, profile?.socialOptIn],
   )
-  useTopbarSlot(topbarHeadingRow)
+  useTopbarSlot(topbarActions)
 
   return (
     <div className="relative">

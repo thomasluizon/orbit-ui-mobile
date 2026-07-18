@@ -101,7 +101,7 @@ describe('ConfirmDialog', () => {
         onConfirm={onConfirm}
       />,
     )
-    fireEvent.click(screen.getByText('common.confirm'))
+    fireEvent.click(screen.getByRole('button', { name: 'common.confirm' }))
     expect(onConfirm).toHaveBeenCalled()
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
@@ -119,7 +119,7 @@ describe('ConfirmDialog', () => {
         onCancel={onCancel}
       />,
     )
-    fireEvent.click(screen.getByText('common.cancel'))
+    fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
     expect(onCancel).toHaveBeenCalled()
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
@@ -136,7 +136,7 @@ describe('ConfirmDialog', () => {
         onConfirm={onConfirm}
       />,
     )
-    const cancelButton = screen.getByText('common.cancel') as HTMLElement
+    const cancelButton = screen.getByRole('button', { name: 'common.cancel' })
     cancelButton.focus()
     fireEvent.keyDown(document, { key: 'Enter' })
     expect(onConfirm).not.toHaveBeenCalled()
@@ -153,7 +153,7 @@ describe('ConfirmDialog', () => {
         onConfirm={vi.fn()}
       />,
     )
-    const confirmBtn = screen.getByText('common.confirm') as HTMLElement
+    const confirmBtn = screen.getByRole('button', { name: 'common.confirm' })
     expect(confirmBtn.getAttribute('data-variant')).toBe('destructive')
   })
 
@@ -185,6 +185,20 @@ describe('ConfirmDialog', () => {
     )
   })
 
+  it('renders the cancel action as the kit ghost pill rather than a one-off tonal button', () => {
+    render(
+      <ConfirmDialog
+        open={true}
+        onOpenChange={vi.fn()}
+        title="Delete?"
+        description="Sure?"
+        onConfirm={vi.fn()}
+      />,
+    )
+    const cancelBtn = screen.getByRole('button', { name: 'common.cancel' })
+    expect(cancelBtn.getAttribute('data-variant')).toBe('ghost')
+  })
+
   it('renders non-destructive variants as a primary fill pill', () => {
     render(
       <ConfirmDialog
@@ -196,7 +210,7 @@ describe('ConfirmDialog', () => {
         variant="success"
       />,
     )
-    const confirmBtn = screen.getByText('common.confirm') as HTMLElement
+    const confirmBtn = screen.getByRole('button', { name: 'common.confirm' })
     expect(confirmBtn.getAttribute('data-variant')).toBe('primary')
   })
 })

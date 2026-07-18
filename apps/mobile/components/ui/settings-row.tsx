@@ -30,12 +30,11 @@ interface SettingsRowProps {
   danger?: boolean
   /** Slot rendered between the value and the chevron (e.g. Switch, ProTag). */
   children?: ReactNode
-  /** Hairline rule below the row; disable when helper text follows. */
-  divider?: boolean
 }
 
 /**
- * Kit ListRow: flat hairline-separated row used in profile / settings / about.
+ * Kit ListRow: flat row used in profile / settings / about. Draws no rule of its own;
+ * wrap rows in `SettingsGroup` when adjacent rows earn a hairline between them.
  * Composed: leading icon/dot · title (+ desc) · value (optional) · trailing slot · chevron.
  */
 export function SettingsRow({
@@ -50,7 +49,6 @@ export function SettingsRow({
   icon: LeadingIcon,
   danger = false,
   children,
-  divider = true,
 }: Readonly<SettingsRowProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -67,8 +65,6 @@ export function SettingsRow({
         {
           backgroundColor:
             pressed && onPress ? tokens.bgElevPressed : 'transparent',
-          borderBottomColor: tokens.hairline,
-          borderBottomWidth: divider ? StyleSheet.hairlineWidth : 0,
         },
       ]}
     >
@@ -98,7 +94,7 @@ export function SettingsRow({
               mono ? styles.valueMono : styles.value,
               { color: valueColor ?? tokens.fg3 },
             ]}
-            numberOfLines={1}
+            numberOfLines={2}
           >
             {value}
           </Text>
@@ -231,12 +227,14 @@ const styles = StyleSheet.create({
     fontFamily: 'Rubik_400Regular',
     fontSize: 14,
     maxWidth: 220,
+    textAlign: 'right',
   },
   valueMono: {
     fontFamily: 'Roboto_400Regular',
     fontSize: 13,
     fontVariant: ['tabular-nums'],
     maxWidth: 220,
+    textAlign: 'right',
   },
   switchTrack: {
     width: 48,

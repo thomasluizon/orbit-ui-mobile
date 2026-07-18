@@ -119,7 +119,7 @@ export function NewPairFlow({ open, onOpenChange, initialHabitId }: Readonly<New
                     onChange={(event) => setFriendQuery(event.target.value)}
                     placeholder={t('social.buddies.newPair.searchFriends')}
                     aria-label={t('social.buddies.newPair.searchFriends')}
-                    className="flex-1 min-w-0 rounded-[8px] bg-transparent outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
+                    className="field-ring-flush flex-1 min-w-0 rounded-[8px] bg-transparent"
                     style={{ fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--fg-1)' }}
                   />
                   {friendQuery.length > 0 ? (

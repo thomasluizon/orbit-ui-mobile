@@ -87,18 +87,7 @@ function CoopProgressView({
 function StreakCounterView({ days, label }: Readonly<{ days: number; label: string }>) {
   return (
     <div className="flex flex-col items-center" style={{ gap: 2, padding: '8px 0' }}>
-      <span
-        data-testid="challenge-streak-count"
-        style={{
-          fontFamily: 'var(--font-display)',
-          fontSize: 44,
-          fontWeight: 700,
-          letterSpacing: '-0.02em',
-          color: 'var(--fg-1)',
-          lineHeight: 1,
-          fontVariantNumeric: 'tabular-nums',
-        }}
-      >
+      <span data-testid="challenge-streak-count" className="t-num-xl">
         {days}
       </span>
       <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-3)' }}>{label}</span>

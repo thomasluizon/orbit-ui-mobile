@@ -1,6 +1,7 @@
 import { View, Text, Pressable } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import {
+  AlertTriangle,
   BellRing,
   Brain,
   CheckCheck,
@@ -19,9 +20,8 @@ import { tintFromPrimary } from '@/lib/theme'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow, Switch } from '@/components/ui/settings-row'
 import { RadioGlyph } from '@/components/ui/select-check'
-import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
+import { EmptyState } from '@/components/ui/empty-state'
 import { SkeletonLine } from '@/components/ui/skeleton'
-import { PillButton } from '@/components/ui/pill-button'
 import { ProBadge } from '@/components/ui/pro-badge'
 import type { UseQueryResult } from '@tanstack/react-query'
 import { createStyles, type Tokens } from './ai-settings-styles'
@@ -79,7 +79,6 @@ export function AiFeatureToggles({
           label={t('profile.aiMemory.title')}
           desc={t('profile.aiMemory.description')}
           accessory="none"
-          divider={false}
         >
           <Switch
             on={aiMemoryEnabled}
@@ -95,7 +94,6 @@ export function AiFeatureToggles({
           desc={t('profile.aiMemory.description')}
           onPress={onUpgrade}
           accessory="chevron"
-          divider={false}
         >
           <Lock size={18} color={tokens.fg3} strokeWidth={1.8} />
         </SettingsRow>
@@ -106,7 +104,6 @@ export function AiFeatureToggles({
           label={t('profile.aiSummary.title')}
           desc={t('profile.aiSummary.description')}
           accessory="none"
-          divider={false}
         >
           <Switch
             on={aiSummaryEnabled}
@@ -122,7 +119,6 @@ export function AiFeatureToggles({
           desc={t('profile.aiSummary.description')}
           onPress={onUpgrade}
           accessory="chevron"
-          divider={false}
         >
           <Lock size={18} color={tokens.fg3} strokeWidth={1.8} />
         </SettingsRow>
@@ -133,7 +129,6 @@ export function AiFeatureToggles({
           label={t('profile.proactiveAstra.title')}
           desc={t('profile.proactiveAstra.description')}
           accessory="none"
-          divider={false}
         >
           <Switch
             on={proactiveAstraEnabled}
@@ -149,7 +144,6 @@ export function AiFeatureToggles({
           desc={t('profile.proactiveAstra.description')}
           onPress={onUpgrade}
           accessory="chevron"
-          divider={false}
         >
           <Lock size={18} color={tokens.fg3} strokeWidth={1.8} />
         </SettingsRow>
@@ -474,41 +468,32 @@ export function UserFactsList({
     return (
       <Animated.View
         entering={FadeInDown.duration(280).reduceMotion(ReduceMotion.System)}
-        style={styles.emptyBlock}
         accessibilityRole="alert"
       >
-        <SatelliteGlyph size={96} />
-        <Text style={[styles.emptyBody, { color: tokens.statusBadText }]}>
-          {t('profile.facts.factsError')}
-        </Text>
-        {/* eslint-disable-next-line local/no-fullbleed-button -- empty-state retry CTA */}
-        <PillButton fullWidth onPress={() => void factsQuery.refetch()}>
-          {t('profile.facts.retry')}
-        </PillButton>
+        <EmptyState
+          icon={AlertTriangle}
+          description={t('profile.facts.factsError')}
+          action={{
+            label: t('profile.facts.retry'),
+            onPress: () => void factsQuery.refetch(),
+            variant: 'secondary',
+          }}
+        />
       </Animated.View>
     )
   }
 
   if (facts.length === 0) {
     return (
-      <Animated.View
-        entering={FadeInDown.duration(280).reduceMotion(ReduceMotion.System)}
-        style={styles.emptyBlock}
-      >
-        <SatelliteGlyph size={96} />
-        <Text style={[styles.emptyBody, { color: tokens.fg2 }]}>
-          {t('profile.facts.empty')}
-        </Text>
-        <PillButton
-          // eslint-disable-next-line local/no-fullbleed-button -- empty-state primary CTA
-          fullWidth
-          onPress={onAskAstra}
-          leading={
-            <AstraMark size={18} color={tokens.fgOnPrimary} />
-          }
-        >
-          {t('summary.askAstra')}
-        </PillButton>
+      <Animated.View entering={FadeInDown.duration(280).reduceMotion(ReduceMotion.System)}>
+        <EmptyState
+          description={t('profile.facts.empty')}
+          action={{
+            label: t('summary.askAstra'),
+            onPress: onAskAstra,
+            leading: <AstraMark size={18} color={tokens.fgOnPrimary} />,
+          }}
+        />
       </Animated.View>
     )
   }

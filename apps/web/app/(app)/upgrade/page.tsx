@@ -17,6 +17,7 @@ import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
 import { useBilling } from '@/hooks/use-billing'
 import { openCustomerPortal } from '@/app/actions/subscription'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+import { useTopbarHeading } from '@/components/shell/topbar-slot'
 
 type SubscriptionInterval = 'monthly' | 'yearly'
 
@@ -45,6 +46,8 @@ export default function UpgradePage() {
   const usageUrgent = usagePercent > 80
 
   const isManageView = hasProAccess && !profile?.isTrialActive
+
+  useTopbarHeading({ ownedByPage: !isManageView })
 
   const handleCheckout = useCallback(async (interval: SubscriptionInterval) => {
     setCheckoutLoading(interval)

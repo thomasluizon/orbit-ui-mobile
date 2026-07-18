@@ -5,6 +5,7 @@
 > - Always: `--help`/`-h`, meaningful exit codes, non-interactive, cwd-safe.
 > - POSIX `.sh` is the baseline; add a `.ps1` twin only when it must run in the user's PowerShell shell.
 > - Large payloads come in on stdin, never argv; secrets never appear in argv.
+> - A tool that GATES on work being done derives its verdict from artifacts on disk, never from a status field (see "Gate tools" below).
 
 A tool here is something an agent invokes without reading its source. That only works if every tool obeys the same contract.
 
@@ -17,6 +18,17 @@ A tool here is something an agent invokes without reading its source. That only 
 - **Cwd-safe.** Resolve paths from the script's own location (`dirname "$0"` in bash, `$PSScriptRoot` in PowerShell), not the caller's working directory, so the tool runs from anywhere.
 - **stdin for big payloads.** A claim, a diff, a dossier, a file list goes in on stdin, not as a giant argv string. Small scalars (a repo slug, a PR number, `--model`) are fine as arguments.
 - **No secrets in argv.** Tokens and keys are visible in the process table and shell history. Read them from the environment or a file, never a positional argument or flag value.
+
+## Gate tools
+
+A tool whose job is to answer "is this work done?" obeys one extra rule: **the verdict is computed from artifacts on disk, never read from a status field.** A checklist an agent can edit is not a gate, it is a suggestion, and #539 proved it (five "done" reports over ~20% of the surfaces, every lint gate green).
+
+The pattern, as implemented by `surface-manifest.mjs` + `check-surface-coverage.mjs`:
+
+- **Derive the expected inventory from the codebase**, not from a hand-written list. A hand-written list omits what the author forgot; a glob does not.
+- **Store the expectation, compute the completion.** The manifest is the denominator. The numerator comes from `statSync` on the evidence.
+- **Make the evidence hard to fake by accident.** Existence alone is weak: also assert a minimum size (a blank/error render is tiny) and freshness against the source file's mtime (a screenshot older than the code it depicts proves nothing).
+- **Report the shortfall precisely** — every unverified item with its reason — so the ratio is the output, not a boolean an agent can round up.
 
 ## POSIX vs PowerShell
 

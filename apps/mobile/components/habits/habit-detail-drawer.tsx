@@ -13,6 +13,7 @@ import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { SectionLabel } from '@/components/ui/section-label'
+import { SettingsGroup } from '@/components/ui/settings-group'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { HabitChecklist } from './habit-checklist'
 import { DescriptionViewer } from './description-viewer'
@@ -177,7 +178,6 @@ function HabitDetailContent({
           })}
           mono
           accessory="none"
-          divider={false}
         />
       ) : null}
 
@@ -206,18 +206,19 @@ function HabitDetailContent({
         </View>
       </View>
 
-      <SettingsRow
-        label={t('social.buddies.pairThisHabit')}
-        icon={Users}
-        onPress={onPairBuddy}
-      />
-
-      <HabitAskAstraButton
-        tokens={tokens}
-        styles={styles}
-        askPrompt={askPrompt}
-        onPress={onAskAstra}
-      />
+      <SettingsGroup>
+        <SettingsRow
+          label={t('social.buddies.pairThisHabit')}
+          icon={Users}
+          onPress={onPairBuddy}
+        />
+        <HabitAskAstraButton
+          tokens={tokens}
+          styles={styles}
+          askPrompt={askPrompt}
+          onPress={onAskAstra}
+        />
+      </SettingsGroup>
     </ScrollView>
   )
 }

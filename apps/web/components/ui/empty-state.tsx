@@ -1,88 +1,97 @@
 'use client'
 
+import type { ReactNode } from 'react'
+import type { LucideIcon } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
 import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
 
 interface EmptyStateAction {
   label: string
-  onClick: () => void
+  onClick?: () => void
+  href?: string
+  disabled?: boolean
+  leading?: ReactNode
   variant?: 'primary' | 'secondary'
 }
 
 interface EmptyStateProps {
   title?: string
   description: string
+  /**
+   * Swaps the Satellite glyph for a tonal icon disc. The Satellite is the empty half of the state
+   * triad (DESIGN.md); every other centred state (locked, gated, no-data, load error) names its own
+   * icon and shares this one lockup instead of hand-rolling it.
+   */
+  icon?: LucideIcon
   action?: EmptyStateAction
+  /** Rendered under the action, on the same centred rhythm: an inline error, a hint, or a second CTA. */
+  footer?: ReactNode
   className?: string
 }
 
-/** Kit empty state: satellite glyph, optional title, body copy, and optional pill CTA. */
+/**
+ * The one centred state lockup: Satellite glyph or tonal icon disc, optional title, body copy at a
+ * readable measure, an optional hugging CTA, and an optional footer slot. Every empty, locked,
+ * gated, no-data and load-error surface on both platforms renders through this.
+ */
 export function EmptyState({
   title,
   description,
+  icon: Icon,
   action,
+  footer,
   className,
 }: Readonly<EmptyStateProps>) {
-  const renderAction = () => {
-    if (!action) return null
-    if (action.variant === 'secondary') {
-      return (
-        <button
-          type="button"
-          onClick={action.onClick}
-          className="mt-2 inline-flex cursor-pointer items-center border-0 bg-transparent px-4 py-[14px] text-[13px] font-medium text-[var(--primary)] hover:text-[var(--primary-pressed)] active:opacity-70"
-          style={{ fontFamily: 'var(--font-sans)' }}
-        >
-          {action.label}
-        </button>
-      )
-    }
-    return (
-      <PillButton onClick={action.onClick} className="mt-[22px]">
-        {action.label}
-      </PillButton>
-    )
-  }
+  const hasFooter = Boolean(footer)
 
   return (
     <div
+      data-empty-state={Icon ? 'icon' : 'satellite'}
       className={[
-        'flex flex-col items-center py-12 px-6 text-center animate-scale-in',
+        'animate-scale-in flex flex-col items-center gap-5 px-6 py-12 text-center',
         className,
       ]
         .filter(Boolean)
         .join(' ')}
     >
-      <SatelliteGlyph />
-
-      {title ? (
-        <p
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 20,
-            fontWeight: 500,
-            color: 'var(--fg-1)',
-            marginTop: 18,
-          }}
+      {Icon ? (
+        <span
+          aria-hidden="true"
+          className="flex size-14 shrink-0 items-center justify-center rounded-full bg-[var(--bg-field)]"
         >
-          {title}
+          <Icon size={28} strokeWidth={1.4} className="text-[var(--fg-3)]" />
+        </span>
+      ) : (
+        <SatelliteGlyph />
+      )}
+
+      <div className="flex min-w-0 flex-col items-center gap-2">
+        {title ? (
+          <p className="t-h2" style={{ maxWidth: '28ch', textWrap: 'balance' }}>
+            {title}
+          </p>
+        ) : null}
+        <p className="t-secondary" style={{ maxWidth: '46ch', textWrap: 'pretty' }}>
+          {description}
         </p>
+      </div>
+
+      {action || hasFooter ? (
+        <div className="flex min-w-0 flex-col items-center gap-3">
+          {action ? (
+            <PillButton
+              variant={action.variant === 'secondary' ? 'ghost' : 'primary'}
+              onClick={action.onClick}
+              href={action.href}
+              disabled={action.disabled}
+              leading={action.leading}
+            >
+              {action.label}
+            </PillButton>
+          ) : null}
+          {footer}
+        </div>
       ) : null}
-
-      <p
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 14,
-          color: 'var(--fg-3)',
-          lineHeight: 1.5,
-          maxWidth: 280,
-          marginTop: title ? 6 : 14,
-        }}
-      >
-        {description}
-      </p>
-
-      {renderAction()}
     </div>
   )
 }

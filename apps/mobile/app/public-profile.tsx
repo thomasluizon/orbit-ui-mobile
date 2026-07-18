@@ -91,7 +91,6 @@ export default function PublicProfileScreen() {
           label={t('profile.publicProfile.enable.title')}
           desc={enabled ? t('profile.publicProfile.disabledHint') : t('profile.publicProfile.enable.description')}
           accessory="none"
-          divider={false}
         >
           <Switch
             on={enabled}

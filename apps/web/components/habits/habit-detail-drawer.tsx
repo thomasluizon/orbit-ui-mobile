@@ -7,6 +7,7 @@ import { Users } from '@/components/ui/icons'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { SectionLabel } from '@/components/ui/section-label'
+import { SettingsGroup } from '@/components/ui/settings-group'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { HabitChecklist } from './habit-checklist'
 import { HabitCalendar } from './habit-calendar'
@@ -215,7 +216,6 @@ export function HabitDetailDrawer({
                 })}
                 mono
                 accessory="none"
-                divider={false}
               />
             )}
 
@@ -233,13 +233,14 @@ export function HabitDetailDrawer({
               <HabitCalendar habitId={habit.id} logs={logs} />
             </div>
 
-            <SettingsRow
-              label={t('social.buddies.pairThisHabit')}
-              icon={Users}
-              onClick={() => setPairFlowOpen(true)}
-            />
-
-            <HabitAskAstraButton askPrompt={askPrompt} onPress={handleAskAstra} />
+            <SettingsGroup>
+              <SettingsRow
+                label={t('social.buddies.pairThisHabit')}
+                icon={Users}
+                onClick={() => setPairFlowOpen(true)}
+              />
+              <HabitAskAstraButton askPrompt={askPrompt} onPress={handleAskAstra} />
+            </SettingsGroup>
           </div>
         )}
       </AppOverlay>

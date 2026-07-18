@@ -331,3 +331,105 @@ ruleTester.run('react19-api', rule('react19-api'), {
     { code: 'const v = React.useContext(ThemeContext)', errors: [{ messageId: 'useContextReplaced' }] },
   ],
 })
+
+ruleTester.run('spacing-scale', rule('spacing-scale'), {
+  valid: [
+    '<div style={{ gap: 12, paddingInline: 16 }} />',
+    '<div style={{ marginTop: 0, marginBottom: -8 }} />',
+    '<div style={{ padding: "24px" }} />',
+    '<div style={{ width: 34, height: 220, fontSize: 13 }} />',
+    '<div style={{ gap: tokens.gap, padding: spacing.md }} />',
+    '<div className="flex gap-3 px-4 pb-10" />',
+    '<div className="absolute inset-0 top-0 md:mt-6" />',
+    '<div className="p-px w-4 z-40 rounded-2xl grid-cols-2 space-y-2 translate-y-2 top-1/2" />',
+    '<div className="gap-[16px] mt-[1.5rem]" />',
+    '<div style={{ top: 1, right: -1 }} />',
+    'const s = StyleSheet.create({ row: { gap: 8, paddingVertical: 20 } })',
+    {
+      code: 'const s = StyleSheet.create({ row: { gap: 9, paddingX: 26 } })',
+      filename: 'packages/shared/src/theme/button.ts',
+      options: [{ exemptFiles: ['packages/shared/src/theme/button.ts'] }],
+    },
+    { code: '<div style={{ gap: 10 }} />', options: [{ allow: [10] }] },
+  ],
+  invalid: [
+    {
+      code: '<div style={{ gap: 13 }} />',
+      output: '<div style={{ gap: 12 }} />',
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: '<div style={{ paddingVertical: 9, gap: 7 }} />',
+      output: '<div style={{ paddingVertical: 8, gap: 8 }} />',
+      errors: [{ messageId: 'offScaleStyle' }, { messageId: 'offScaleStyle' }],
+    },
+    {
+      code: '<div style={{ marginTop: -3 }} />',
+      output: '<div style={{ marginTop: -4 }} />',
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: '<div style={{ padding: "15px" }} />',
+      output: '<div style={{ padding: "16px" }} />',
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: '<div style={{ gap: 10 }} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: '<div style={{ paddingInline: 18, rowGap: 14, marginBlock: 22 }} />',
+      output: null,
+      errors: [
+        { messageId: 'offScaleStyle' },
+        { messageId: 'offScaleStyle' },
+        { messageId: 'offScaleStyle' },
+      ],
+    },
+    {
+      code: '<div style={{ padding: 1 }} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: 'const s = StyleSheet.create({ row: { gap: 7 }, cell: { paddingHorizontal: 9 } })',
+      output: 'const s = StyleSheet.create({ row: { gap: 8 }, cell: { paddingHorizontal: 8 } })',
+      errors: [{ messageId: 'offScaleStyle' }, { messageId: 'offScaleStyle' }],
+    },
+    {
+      code: '<div className="gap-[13px]" />',
+      output: '<div className="gap-3" />',
+      errors: [{ messageId: 'offScaleClass' }],
+    },
+    {
+      code: '<div className="md:mt-[15px]" />',
+      output: '<div className="md:mt-4" />',
+      errors: [{ messageId: 'offScaleClass' }],
+    },
+    {
+      code: '<div className="p-1.5 px-2.5 mt-0.5" />',
+      output: null,
+      errors: [
+        { messageId: 'offScaleClass' },
+        { messageId: 'offScaleClass' },
+        { messageId: 'offScaleClass' },
+      ],
+    },
+    {
+      code: '<div className={cn("flex", "gap-[18px]")} />',
+      output: null,
+      errors: [{ messageId: 'offScaleClass' }],
+    },
+    {
+      code: '<div className={`flex ${x} pt-[9px]`} />',
+      output: null,
+      errors: [{ messageId: 'offScaleClass' }],
+    },
+    {
+      code: '<div style={{ top: 3 }} />',
+      output: '<div style={{ top: 4 }} />',
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+  ],
+})

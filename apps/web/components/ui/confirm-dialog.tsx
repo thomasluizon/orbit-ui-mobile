@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { Check, Trash2 } from '@/components/ui/icons'
+import { PillButton } from '@/components/ui/pill-button'
 // react-doctor-disable-next-line use-lazy-motion -- LazyMotion migration is app-wide (needs a shared provider + converting every motion.* across components/**); a partial per-file swap yields no bundle benefit and risks unprovided m https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { resolveMotionPreset } from '@orbit/shared/theme'
@@ -33,22 +34,14 @@ interface ConfirmDialogProps {
   leadingIcon?: ReactNode
 }
 
-const pillBase =
-  'flex-1 flex items-center justify-center gap-[6px] appearance-none border-0 cursor-pointer rounded-full transition-[background-color,transform,box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.96]'
-
-const actionVariantClasses: Record<'destructive' | 'primary', string> = {
-  destructive:
-    'bg-[var(--status-bad)] hover:bg-[color-mix(in_srgb,var(--status-bad)_85%,black)] hover:-translate-y-px active:translate-y-0',
-  primary:
-    'bg-[var(--primary)] hover:bg-[var(--primary-pressed)] hover:-translate-y-px active:translate-y-0',
-}
+const actionPillClassName = 'flex-1 min-w-0 overflow-hidden'
 
 function defaultConfirmIcon(variant: Variant): { key: string; node: ReactNode } | null {
   if (variant === 'danger') {
-    return { key: 'trash', node: <Trash2 size={16} strokeWidth={2} aria-hidden="true" /> }
+    return { key: 'trash', node: <Trash2 size={18} strokeWidth={2} aria-hidden="true" /> }
   }
   if (variant === 'success' || variant === 'warning') {
-    return { key: 'check', node: <Check size={17} strokeWidth={2.4} aria-hidden="true" /> }
+    return { key: 'check', node: <Check size={18} strokeWidth={2.4} aria-hidden="true" /> }
   }
   return null
 }
@@ -233,47 +226,32 @@ export function ConfirmDialog({
             </p>
             <div className="flex items-center" style={{ gap: 10, marginTop: 22 }}>
               {!infoOnly && (
-                <button
-                  type="button"
+                <PillButton
+                  variant="ghost"
                   onClick={handleCancel}
-                  className={`${pillBase} bg-[color-mix(in_srgb,var(--fg-1)_6%,transparent)] hover:bg-[color-mix(in_srgb,var(--fg-1)_10%,transparent)]`}
-                  style={{
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: 15,
-                    fontWeight: 500,
-                    color: 'var(--fg-1)',
-                    padding: '13px 0',
-                    minHeight: 44,
-                  }}
+                  className={actionPillClassName}
                 >
                   {cancelLabel || t('common.cancel')}
-                </button>
+                </PillButton>
               )}
-              <button
-                type="button"
+              <PillButton
+                variant={destructive ? 'destructive' : 'primary'}
                 onClick={handleConfirm}
-                data-variant={destructive ? 'destructive' : 'primary'}
-                className={`${pillBase} ${actionVariantClasses[destructive ? 'destructive' : 'primary']}`}
-                style={{
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 15,
-                  fontWeight: 500,
-                  color: destructive ? 'var(--fg-on-bad)' : 'var(--fg-on-primary)',
-                  padding: '13px 0',
-                  minHeight: 44,
-                }}
+                className={actionPillClassName}
+                leading={
+                  confirmIcon ? (
+                    <span
+                      aria-hidden="true"
+                      data-confirm-icon={leadingIcon ? 'custom' : defaultIcon?.key}
+                      className="inline-flex shrink-0"
+                    >
+                      {confirmIcon}
+                    </span>
+                  ) : undefined
+                }
               >
-                {confirmIcon ? (
-                  <span
-                    aria-hidden="true"
-                    data-confirm-icon={leadingIcon ? 'custom' : defaultIcon?.key}
-                    className="inline-flex shrink-0"
-                  >
-                    {confirmIcon}
-                  </span>
-                ) : null}
                 {confirmLabel || (infoOnly ? t('common.close') : t('common.confirm'))}
-              </button>
+              </PillButton>
             </div>
           </motion.div>
         </div>

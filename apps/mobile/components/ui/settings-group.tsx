@@ -24,7 +24,10 @@ export function SettingsGroup({ children }: Readonly<SettingsGroupProps>) {
       {items.map((child, index) => (
         <View key={child.key} collapsable={false}>
           {index > 0 ? (
-            <View style={[styles.divider, { backgroundColor: tokens.hairline }]} />
+            <View
+              testID="settings-group-separator"
+              style={[styles.divider, { backgroundColor: tokens.hairline }]}
+            />
           ) : null}
           {child}
         </View>
@@ -91,7 +94,7 @@ export function SettingsGroupRow({
           ) : null}
         </View>
         {hint ? (
-          <Text style={[styles.hint, { color: tokens.fg3 }]} numberOfLines={1}>
+          <Text style={[styles.hint, { color: tokens.fg3 }]} numberOfLines={2}>
             {hint}
           </Text>
         ) : null}

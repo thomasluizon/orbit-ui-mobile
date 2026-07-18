@@ -4,6 +4,7 @@ import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import type { AppTokensV2 } from '@/lib/theme'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsDescription } from '@/components/ui/settings-description'
+import { SettingsGroup } from '@/components/ui/settings-group'
 import { SettingsRow, Switch } from '@/components/ui/settings-row'
 import { useCalendars, useSetSelectedCalendars } from '@/hooks/use-calendars'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -96,15 +97,15 @@ export function CalendarPickerSection({
         </View>
       ) : null}
 
-      {!isLoading && !isError
-        ? calendars?.map((calendar, index) => (
+      {!isLoading && !isError ? (
+        <SettingsGroup>
+          {(calendars ?? []).map((calendar) => (
             <SettingsRow
               key={calendar.id}
               label={calendar.name}
               desc={calendar.primary ? t('calendar.calendars.primaryLabel') : undefined}
               leadingDot={calendar.backgroundColor ?? undefined}
               accessory="none"
-              divider={index < calendars.length - 1}
             >
               <Switch
                 on={calendar.isSynced}
@@ -114,8 +115,9 @@ export function CalendarPickerSection({
                 })}
               />
             </SettingsRow>
-          ))
-        : null}
+          ))}
+        </SettingsGroup>
+      ) : null}
 
       <SettingsDescription>{t('calendar.calendars.description')}</SettingsDescription>
     </>

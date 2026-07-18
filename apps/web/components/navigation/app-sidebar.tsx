@@ -161,6 +161,27 @@ export function AppSidebar({
           gap: 10,
         }}
       >
+        <div className="flex" style={{ justifyContent: 'center' }}>
+          {collapsed ? (
+            <PillButton
+              variant="primary"
+              size="xs"
+              onClick={onCreate}
+              ariaLabel={createLabel}
+              title={createLabel}
+              leading={<Plus size={20} strokeWidth={2.2} />}
+            />
+          ) : (
+            <PillButton
+              variant="primary"
+              size="xs"
+              onClick={onCreate}
+              leading={<Plus size={18} strokeWidth={2.2} />}
+            >
+              {createLabel}
+            </PillButton>
+          )}
+        </div>
         {account &&
           (collapsed ? (
             <button
@@ -197,27 +218,6 @@ export function AppSidebar({
               <Settings size={18} strokeWidth={1.8} color="var(--fg-3)" aria-hidden="true" />
             </button>
           ))}
-        <div className="flex" style={{ justifyContent: 'center' }}>
-          {collapsed ? (
-            <PillButton
-              variant="primary"
-              size="xs"
-              onClick={onCreate}
-              ariaLabel={createLabel}
-              title={createLabel}
-              leading={<Plus size={20} strokeWidth={2.2} />}
-            />
-          ) : (
-            <PillButton
-              variant="primary"
-              size="xs"
-              onClick={onCreate}
-              leading={<Plus size={18} strokeWidth={2.2} />}
-            >
-              {createLabel}
-            </PillButton>
-          )}
-        </div>
       </div>
       </div>
     </aside>

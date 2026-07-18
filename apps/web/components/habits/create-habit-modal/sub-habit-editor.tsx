@@ -3,6 +3,7 @@
 import { Trash2, Plus } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { ProBadge } from '@/components/ui/pro-badge'
+import { FieldInput } from '@/components/ui/field-input'
 import { MAX_HABIT_TITLE_LENGTH, MAX_SUB_HABITS } from '@orbit/shared/validation'
 
 export interface SubHabitEntry {
@@ -35,7 +36,7 @@ export function SubHabitEditor({
         <div className="flex items-center justify-between gap-3">
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
-              <span className="form-label !mb-0">
+              <span className="form-label">
                 {t('habits.form.subHabits')}
               </span>
               <ProBadge />
@@ -65,35 +66,32 @@ export function SubHabitEditor({
       {subHabits.length > 0 && (
         <div className="flex flex-col gap-2">
           {subHabits.map((entry, index) => (
-            <div
+            <FieldInput
               key={entry.id}
-              className="flex items-center rounded-[14px] bg-[var(--bg-field)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[box-shadow] duration-[var(--dur-fast)]"
-              style={{ minHeight: 54, gap: 10, padding: '0 8px 0 16px' }}
-            >
-              <span
-                className="w-4 shrink-0 text-right font-mono text-xs tabular-nums text-[var(--fg-3)]"
-                aria-hidden="true"
-              >
-                {index + 1}
-              </span>
-              <input
-                value={entry.value}
-                type="text"
-                maxLength={MAX_HABIT_TITLE_LENGTH}
-                aria-label={t('habits.form.subHabitInputLabel', { index: index + 1 })}
-                placeholder={t('habits.form.subHabitPlaceholder')}
-                className="flex-1 min-w-0 rounded-[13px] bg-transparent text-[15px] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] border-0 outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
-                onChange={(e) => onUpdateSubHabit(entry.id, e.target.value)}
-              />
-              <button
-                type="button"
-                aria-label={t('habits.form.removeSubHabit')}
-                className="shrink-0 grid size-11 place-items-center rounded-full text-[var(--fg-3)] hover:text-[var(--status-bad)] transition-colors duration-[var(--dur-fast)]"
-                onClick={() => onRemoveSubHabit(entry.id)}
-              >
-                <Trash2 size={16} strokeWidth={1.8} aria-hidden="true" />
-              </button>
-            </div>
+              value={entry.value}
+              maxLength={MAX_HABIT_TITLE_LENGTH}
+              ariaLabel={t('habits.form.subHabitInputLabel', { index: index + 1 })}
+              placeholder={t('habits.form.subHabitPlaceholder')}
+              onChange={(next) => onUpdateSubHabit(entry.id, next)}
+              leading={
+                <span
+                  className="w-4 shrink-0 text-right font-mono text-xs tabular-nums text-[var(--fg-3)]"
+                  aria-hidden="true"
+                >
+                  {index + 1}
+                </span>
+              }
+              trailing={
+                <button
+                  type="button"
+                  aria-label={t('habits.form.removeSubHabit')}
+                  className="shrink-0 grid size-11 place-items-center rounded-full text-[var(--fg-3)] hover:text-[var(--status-bad)] transition-colors duration-[var(--dur-fast)]"
+                  onClick={() => onRemoveSubHabit(entry.id)}
+                >
+                  <Trash2 size={16} strokeWidth={1.8} aria-hidden="true" />
+                </button>
+              }
+            />
           ))}
         </div>
       )}

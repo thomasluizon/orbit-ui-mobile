@@ -79,7 +79,6 @@ export function PushNotificationSection({
           <SettingsRow
             label={t('settings.notifications.allowed')}
             accessory="none"
-            divider={false}
           >
             <Switch
               on={pushEnabled}
@@ -141,7 +140,6 @@ function PersistentReminderRow({
       label={t('persistentReminder.label')}
       desc={t('persistentReminder.description')}
       accessory="none"
-      divider={false}
     >
       <Switch
         on={enabled}
@@ -191,21 +189,18 @@ export function PreferenceSettingsList({
           label={t('profile.language.title')}
           value={languageLabel}
           onPress={() => onOpenPicker('language')}
-          divider={false}
         />
         <SettingsRow
           icon={Moon}
           label={t('preferences.themeMode')}
           value={themeLabel}
           onPress={() => onOpenPicker('theme')}
-          divider={false}
         />
         <SettingsRow
           icon={Palette}
           label={t('profile.colorScheme.title')}
           value={schemeLabel}
           onPress={() => onOpenPicker('scheme')}
-          divider={false}
         >
           {schemeOption ? (
             <View
@@ -219,7 +214,6 @@ export function PreferenceSettingsList({
           label={t('settings.weekStartDay.title')}
           value={weekStartLabel}
           onPress={() => onOpenPicker('weekStart')}
-          divider={false}
         />
       </Animated.View>
 
@@ -229,7 +223,6 @@ export function PreferenceSettingsList({
           label={t('settings.homeScreen.showGeneral')}
           desc={t('settings.homeScreen.showGeneralDesc')}
           accessory="none"
-          divider={false}
         >
           <Switch
             on={showGeneralOnToday}

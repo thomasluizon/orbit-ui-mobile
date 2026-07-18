@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { StyleSheet, View } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
-import { UserPlus } from '@/components/ui/icons'
+import { AlertTriangle, UserPlus } from '@/components/ui/icons'
 import { EmptyState } from '@/components/ui/empty-state'
 import { SectionLabel } from '@/components/ui/section-label'
 import { PillButton } from '@/components/ui/pill-button'
@@ -42,6 +42,7 @@ export function AccountabilitySection({ initialHabitId }: Readonly<Accountabilit
   } else if (isError) {
     pairsContent = (
       <EmptyState
+        icon={AlertTriangle}
         description={t('social.errors.loadFailed')}
         action={{
           label: t('common.retry'),

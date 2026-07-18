@@ -8,6 +8,7 @@ import {
 } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { FIELD_WELL_PADDING, fieldRingStyle, fieldWellStyle } from './field-ring'
 
 interface FieldInputProps
   extends Omit<TextInputProps, 'style' | 'placeholderTextColor'> {
@@ -52,18 +53,14 @@ export const FieldInput = forwardRef<TextInput, FieldInputProps>(
           }}
           style={[
             styles.input,
-            {
-              fontFamily: mono ? 'Roboto_400Regular' : 'Rubik_400Regular',
-              color: tokens.fg1,
-              backgroundColor: tokens.bgField,
-              borderColor: tokens.hairline,
-            },
-            focused
-              ? { borderWidth: 2, borderColor: tokens.primary, paddingHorizontal: 15 }
-              : null,
-            error
-              ? { borderWidth: 2, borderColor: tokens.statusBad, paddingHorizontal: 15 }
-              : null,
+            fieldWellStyle(tokens),
+            mono ? styles.mono : null,
+            fieldRingStyle(tokens, {
+              focused,
+              invalid: !!error,
+              paddingHorizontal: FIELD_WELL_PADDING.horizontal,
+              paddingVertical: FIELD_WELL_PADDING.vertical,
+            }),
             dimmed ? styles.inputDisabled : null,
           ]}
         />
@@ -88,11 +85,9 @@ const styles = StyleSheet.create({
   },
   input: {
     width: '100%',
-    minHeight: 54,
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    fontSize: 16,
+  },
+  mono: {
+    fontFamily: 'Roboto_400Regular',
   },
   inputDisabled: {
     opacity: 0.6,

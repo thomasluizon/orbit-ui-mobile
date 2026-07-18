@@ -97,7 +97,6 @@ export function PublicProfileSettings() {
                 : t('profile.publicProfile.enable.description')
             }
             accessory="none"
-            divider={false}
           >
             <Switch
               on={enabled}

@@ -35,7 +35,6 @@ export function MarketingConsentSection() {
         label={t('profile.marketingEmails.title')}
         desc={t('profile.marketingEmails.description')}
         accessory="none"
-        divider={false}
       >
         <Switch
           on={enabled}

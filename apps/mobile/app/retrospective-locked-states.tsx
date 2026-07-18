@@ -1,8 +1,8 @@
-import { Text, View } from 'react-native'
-import { Lock } from '@/components/ui/icons'
+import { Text } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import { EmptyState } from '@/components/ui/empty-state'
+import { Lock } from '@/components/ui/icons'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
-import { PillButton } from '@/components/ui/pill-button'
 import { styles, type Tokens } from './retrospective-styles'
 
 interface RetrospectiveLockedYearlyProps {
@@ -23,52 +23,30 @@ export function RetrospectiveLockedYearly({
   onOpenPortal,
 }: Readonly<RetrospectiveLockedYearlyProps>) {
   const { t } = useTranslation()
+  const action = isTrialActive
+    ? { label: t('upgrade.subscribe'), onPress: onSubscribe }
+    : { label: t('retrospective.changePlan'), onPress: onOpenPortal, disabled: !isOnline }
+
   return (
-    <View style={styles.lockedBlock}>
-      <View
-        style={[
-          styles.lockedIconCircle,
-          { backgroundColor: tokens.bgField },
-        ]}
-      >
-        <Lock size={28} color={tokens.fg3} strokeWidth={1.4} />
-      </View>
-      <Text style={[styles.lockedTitle, { color: tokens.fg1 }]}>
-        {t('retrospective.lockedYearly')}
-      </Text>
-      <Text style={[styles.lockedDescription, { color: tokens.fg3 }]}>
-        {t('retrospective.lockedYearlyHint')}
-      </Text>
-      {isTrialActive ? (
-        <PillButton
-          onPress={onSubscribe}
-          accessibilityLabel={t('upgrade.subscribe')}
-          style={styles.lockedCta}
-        >
-          {t('upgrade.subscribe')}
-        </PillButton>
-      ) : (
-        <PillButton
-          onPress={onOpenPortal}
-          disabled={!isOnline}
-          accessibilityLabel={t('retrospective.changePlan')}
-          style={styles.lockedCta}
-        >
-          {t('retrospective.changePlan')}
-        </PillButton>
-      )}
-      {!isOnline ? (
-        <OfflineUnavailableState
-          title={t('offline.title')}
-          description={t('offline.description')}
-          compact
-        />
-      ) : null}
-      {portalError ? (
-        <Text style={[styles.statusError, { color: tokens.statusBad }]}>
-          {portalError}
-        </Text>
-      ) : null}
-    </View>
+    <EmptyState
+      icon={Lock}
+      title={t('retrospective.lockedYearly')}
+      description={t('retrospective.lockedYearlyHint')}
+      action={action}
+      footer={
+        <>
+          {isOnline ? null : (
+            <OfflineUnavailableState
+              title={t('offline.title')}
+              description={t('offline.description')}
+              compact
+            />
+          )}
+          {portalError ? (
+            <Text style={[styles.statusError, { color: tokens.statusBad }]}>{portalError}</Text>
+          ) : null}
+        </>
+      }
+    />
   )
 }

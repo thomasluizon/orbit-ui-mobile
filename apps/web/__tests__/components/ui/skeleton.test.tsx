@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { render } from '@testing-library/react'
 import React from 'react'
-import { SkeletonLine, SkeletonCard } from '@/components/ui/skeleton'
+import { SkeletonLine, SkeletonCard, SkeletonRow } from '@/components/ui/skeleton'
 
 describe('SkeletonLine', () => {
   it('renders with default classes', () => {
@@ -60,6 +60,30 @@ describe('SkeletonCard', () => {
     const { container } = render(<SkeletonCard className="my-card" />)
     const card = container.firstChild as HTMLElement
     expect(card).toHaveClass('my-card')
+  })
+})
+
+describe('SkeletonRow', () => {
+  it('renders an avatar row with two lines by default', () => {
+    const { container } = render(<SkeletonRow />)
+    const row = container.firstChild as HTMLElement
+    expect(row).toHaveAttribute('data-skeleton-row', 'avatar')
+    expect(row).toHaveAttribute('aria-hidden', 'true')
+    expect(row.querySelectorAll('.skeleton-pulse')).toHaveLength(3)
+  })
+
+  it('renders a square media row for icon lists', () => {
+    const { container } = render(<SkeletonRow media="square" lineWidths={['w-1/2']} />)
+    const row = container.firstChild as HTMLElement
+    expect(row).toHaveAttribute('data-skeleton-row', 'square')
+    expect(row.querySelectorAll('.skeleton-pulse')).toHaveLength(2)
+  })
+
+  it('renders no leading media when media is none', () => {
+    const { container } = render(<SkeletonRow media="none" />)
+    const row = container.firstChild as HTMLElement
+    expect(row).toHaveAttribute('data-skeleton-row', 'none')
+    expect(row.querySelectorAll('.skeleton-pulse')).toHaveLength(2)
   })
 })
 

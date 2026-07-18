@@ -1052,7 +1052,7 @@
       "error": "Algo deu errado. Tente novamente.",
       "view": {
         "tagline": "Controle de hábitos que mantém você em órbita.",
-        "dayStreakLabel": "Dias de sequência",
+        "dayStreakLabel": "Sequência",
         "longestStreakLabel": "Recorde: {count}",
         "level": "Nível {level}",
         "achievementsTitle": "Conquistas",
@@ -2272,9 +2272,9 @@
       "atRisk": "Em Risco",
       "behind": "Atrasada",
       "noDeadline": "Sem Prazo",
-      "projectedCompletion": "Conclusão Projetada",
-      "velocity": "Ritmo de Progresso",
-      "daysToDeadline": "Dias para o Prazo",
+      "projectedCompletion": "Projeção",
+      "velocity": "Ritmo",
+      "daysToDeadline": "Prazo",
       "habitAdherence": "Desempenho dos Hábitos Vinculados",
       "noData": "Sem dados",
       "perDay": "dia"
@@ -3126,7 +3126,7 @@
     "friendProfile": {
       "unavailable": "Este perfil não está disponível.",
       "loadError": "Não foi possível carregar este perfil.",
-      "longestStreakLabel": "Melhor sequência",
+      "longestStreakLabel": "Maior",
       "xpLabel": "XP",
       "activityLabel": "Últimos 7 dias",
       "friendsSince": "Amigos desde {date}",
