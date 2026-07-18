@@ -19,9 +19,11 @@
  *   SEED_TOKEN=<bearer> node tools/seed-visual-fixture.mjs            # against http://localhost:5000
  *   API_BASE=http://localhost:5000 SEED_TOKEN=<jwt> node tools/seed-visual-fixture.mjs
  *
- * Get a token: sign in on the local app and copy the bearer, OR enable TEST_ACCOUNTS
- * on the local API (email:code) for an unattended login. The script prints every
- * response so a drive session can adjust a payload shape if the API rejects one.
+ * Get a token: the SESSION mints it itself — set TEST_ACCOUNTS=email:code on the
+ * local API, restart `dotnet run`, and log in via the auth flow (SendCode returns
+ * the fixed code for that email). This is the session's own job over the local
+ * stack; never ask the human to enable an env var or restart a process. The script
+ * prints every response so a drive session can adjust a payload shape on rejection.
  *
  * IDEMPOTENCY: this ADDS habits; run against a fresh/dev account, not production.
  * There is a hard guard below that refuses any non-localhost API_BASE.
