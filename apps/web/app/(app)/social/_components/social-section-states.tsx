@@ -1,20 +1,35 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import { Loader2 } from '@/components/ui/icons'
 import { EmptyState } from '@/components/ui/empty-state'
+import { SkeletonLine } from '@/components/ui/skeleton'
 
-/** Centered spinner shown while a social section's query is loading. */
-export function SocialSectionSpinner() {
+function SocialRowSkeleton() {
+  return (
+    <div className="flex items-center" style={{ gap: 12, padding: '12px 20px' }}>
+      <div
+        aria-hidden="true"
+        className="skeleton-pulse shrink-0 rounded-full bg-[color-mix(in_srgb,var(--fg-1)_6%,transparent)]"
+        style={{ width: 40, height: 40 }}
+      />
+      <div className="flex min-w-0 flex-1 flex-col" style={{ gap: 6 }}>
+        <SkeletonLine width="w-1/3" height="h-4" />
+        <SkeletonLine width="w-2/3" height="h-3" />
+      </div>
+    </div>
+  )
+}
+
+/** Loading placeholder for a social list section: avatar-and-two-line rows shaped like the final
+ *  feed, friends, or buddies rows so nothing shifts when data lands (DESIGN.md: skeleton, not spinner). */
+export function SocialSectionSkeleton() {
   const t = useTranslations()
   return (
-    <output
-      aria-label={t('common.loading')}
-      className="flex justify-center"
-      style={{ padding: '48px 0' }}
-    >
-      <Loader2 className="size-[22px] animate-spin" style={{ color: 'var(--primary)' }} />
-    </output>
+    <div role="status" aria-label={t('common.loading')}>
+      {Array.from({ length: 4 }, (_, index) => (
+        <SocialRowSkeleton key={index} />
+      ))}
+    </div>
   )
 }
 

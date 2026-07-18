@@ -362,7 +362,7 @@ export function PreferencePickerSheet({
                 onPress={onClose}
                 leading={<Check size={18} color={tokens.bg} strokeWidth={2} />}
               >
-                {t('common.save')}
+                {t('common.done')}
               </PillButton>
             </View>
           </>

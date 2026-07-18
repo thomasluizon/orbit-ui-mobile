@@ -1,7 +1,6 @@
 import { Text, View } from 'react-native'
 import { Lock } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
-import { tintFromPrimary } from '@/lib/theme'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 import { PillButton } from '@/components/ui/pill-button'
 import { styles, type Tokens } from './retrospective-styles'
@@ -29,10 +28,10 @@ export function RetrospectiveLockedYearly({
       <View
         style={[
           styles.lockedIconCircle,
-          { backgroundColor: tintFromPrimary(tokens, 0.16) },
+          { backgroundColor: tokens.bgField },
         ]}
       >
-        <Lock size={30} color={tokens.primarySoft} strokeWidth={1.8} />
+        <Lock size={28} color={tokens.fg3} strokeWidth={1.4} />
       </View>
       <Text style={[styles.lockedTitle, { color: tokens.fg1 }]}>
         {t('retrospective.lockedYearly')}

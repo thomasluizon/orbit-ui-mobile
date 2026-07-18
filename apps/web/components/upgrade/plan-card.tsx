@@ -30,7 +30,7 @@ const cardOrder: Record<PlanCardVariant, string> = {
 const surface: Record<PlanCardVariant, string> = {
   hero: 'z-10 bg-[rgba(var(--primary-rgb),0.10)] shadow-[inset_0_0_0_1.5px_var(--primary)] lg:-translate-y-3',
   free: 'bg-[var(--bg-elev)] shadow-[inset_0_0_0_1px_var(--hairline)]',
-  anchor: 'bg-[var(--bg-card)] shadow-[inset_0_0_0_1px_var(--hairline)]',
+  anchor: 'bg-[var(--bg-elev)] shadow-[inset_0_0_0_1px_var(--hairline)]',
 }
 
 /** Upgrade chooser card: muted Free, violet-lit yearly hero, or outline monthly anchor, each carrying its own CTA. */

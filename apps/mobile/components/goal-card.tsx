@@ -253,7 +253,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       width: 42,
       height: 42,
       borderRadius: 12,
-      backgroundColor: tokens.bgElev,
+      backgroundColor: tokens.bgWell,
       alignItems: 'center',
       justifyContent: 'center',
       flexShrink: 0,

@@ -159,9 +159,10 @@ describe('social tab error states', () => {
 
     const tree = await renderTree(<SocialFriends onCheer={() => {}} />)
 
-    expect(tree.root.findByType('ActivityIndicator').props.accessibilityLabel).toBe(
-      'common.loading',
-    )
+    expect(
+      tree.root.findAll((node) => node.props?.accessibilityRole === 'progressbar')[0]?.props
+        .accessibilityLabel,
+    ).toBe('common.loading')
   })
 
   it('shows the load-failed state on the buddies tab and retries on press', async () => {
@@ -185,8 +186,9 @@ describe('social tab error states', () => {
 
     const tree = await renderTree(<AccountabilitySection initialHabitId={null} />)
 
-    expect(tree.root.findByType('ActivityIndicator').props.accessibilityLabel).toBe(
-      'common.loading',
-    )
+    expect(
+      tree.root.findAll((node) => node.props?.accessibilityRole === 'progressbar')[0]?.props
+        .accessibilityLabel,
+    ).toBe('common.loading')
   })
 })

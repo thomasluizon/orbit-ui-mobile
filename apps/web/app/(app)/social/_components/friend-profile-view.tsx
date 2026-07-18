@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { Loader2, Users } from '@/components/ui/icons'
+import { Users } from '@/components/ui/icons'
 // react-doctor-disable-next-line use-lazy-motion -- LazyMotion migration is app-wide (needs a shared provider + converting every motion.* incl. components/**); a partial per-file swap yields no bundle benefit and risks unprovided m https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { motion, useReducedMotion } from 'motion/react'
 import type { FriendProfileView as FriendProfileViewData } from '@orbit/shared/types/social'
@@ -11,6 +11,7 @@ import { achievementEmoji, ApiClientError, capitalizeFirstLetter, formatLocaleDa
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { PillButton } from '@/components/ui/pill-button'
 import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
+import { SkeletonLine } from '@/components/ui/skeleton'
 import { StatTile } from '@/components/ui/stat-tile'
 import { UserAvatar } from '@/components/ui/user-avatar'
 import { useFriendProfile } from '@/hooks/use-friends'
@@ -72,15 +73,7 @@ export function FriendProfileView({
 
   const renderProfileContent = () => {
     if (isLoading) {
-      return (
-        <output
-          aria-label={t('common.loading')}
-          className="flex items-center justify-center"
-          style={{ minHeight: 220 }}
-        >
-          <Loader2 className="size-[22px] animate-spin" style={{ color: 'var(--primary)' }} />
-        </output>
-      )
+      return <FriendProfileSkeleton loadingLabel={t('common.loading')} />
     }
     if (isError || !view) {
       return (
@@ -111,6 +104,42 @@ export function FriendProfileView({
     <AppOverlay open={open} onOpenChange={onOpenChange} title={displayName}>
       {renderProfileContent()}
     </AppOverlay>
+  )
+}
+
+function FriendProfileSkeleton({ loadingLabel }: Readonly<{ loadingLabel: string }>) {
+  return (
+    <div
+      role="status"
+      aria-label={loadingLabel}
+      className="flex flex-col"
+      style={{ gap: 14, paddingTop: 4 }}
+    >
+      <div className="flex flex-col items-center" style={{ gap: 10 }}>
+        <div
+          aria-hidden="true"
+          className="skeleton-pulse rounded-full bg-[color-mix(in_srgb,var(--fg-1)_6%,transparent)]"
+          style={{ width: 72, height: 72 }}
+        />
+        <SkeletonLine width="w-24" height="h-3" />
+      </div>
+      <div className="grid" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
+        {Array.from({ length: 4 }, (_, index) => (
+          <div
+            key={index}
+            className="flex flex-col"
+            style={{ ...cardStyle, gap: 8, padding: 16 }}
+          >
+            <SkeletonLine width="w-10" height="h-6" />
+            <SkeletonLine width="w-2/3" height="h-3" />
+          </div>
+        ))}
+      </div>
+      <div className="flex flex-col" style={{ ...cardStyle, gap: 12 }}>
+        <SkeletonLine width="w-1/3" height="h-3" />
+        <SkeletonLine width="w-full" height="h-8" />
+      </div>
+    </div>
   )
 }
 

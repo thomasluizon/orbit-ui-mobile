@@ -87,7 +87,9 @@ describe('InviteConfirmSheet', () => {
   it('shows the loading indicator while the preview is pending', async () => {
     mocks.previewReturn = { data: undefined, isLoading: true, isError: false, error: null }
     const tree = await renderTree(<InviteConfirmSheet code="REF123" onClose={mocks.onClose} />)
-    expect(tree.root.findByType('ActivityIndicator')).toBeTruthy()
+    expect(
+      tree.root.findAll((node) => node.props?.accessibilityRole === 'progressbar').length,
+    ).toBeGreaterThan(0)
   })
 
   it('previews the owner and sends a request with the referral code', async () => {

@@ -1,8 +1,9 @@
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { extractBackendStatus, getSocialErrorKey } from '@orbit/shared/utils'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { PillButton } from '@/components/ui/pill-button'
+import { SkeletonLine } from '@/components/ui/skeleton'
 import { UserAvatar } from '@/components/ui/user-avatar'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useInvitePreview, useSendFriendRequest } from '@/hooks/use-friends'
@@ -40,8 +41,13 @@ export function InviteConfirmSheet({ code, onClose }: Readonly<InviteConfirmShee
   function renderBody() {
     if (isLoading) {
       return (
-        <View style={styles.loading} accessibilityLabel={t('common.loading')}>
-          <ActivityIndicator color={tokens.primary} />
+        <View
+          style={styles.identity}
+          accessibilityRole="progressbar"
+          accessibilityLabel={t('common.loading')}
+        >
+          <SkeletonLine width={44} height={44} style={styles.skeletonAvatar} />
+          <SkeletonLine width={160} height={14} />
         </View>
       )
     }
@@ -105,7 +111,7 @@ export function InviteConfirmSheet({ code, onClose }: Readonly<InviteConfirmShee
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     content: { paddingHorizontal: 22, paddingTop: 8, paddingBottom: 24 },
-    loading: { alignItems: 'center', paddingVertical: 32 },
+    skeletonAvatar: { borderRadius: 22 },
     message: {
       fontFamily: 'Inter_400Regular',
       fontSize: 15,

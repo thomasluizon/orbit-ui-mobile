@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl'
 import { EmptyState } from '@/components/ui/empty-state'
 import { SectionLabel } from '@/components/ui/section-label'
-import { SocialSectionLoadError, SocialSectionSpinner } from './social-section-states'
+import { SocialSectionLoadError, SocialSectionSkeleton } from './social-section-states'
 import { useFriends } from '@/hooks/use-friends'
 import { AddFriendForm } from './add-friend-form'
 import { FriendRequestRow } from './friend-request-row'
@@ -23,7 +23,7 @@ export function SocialFriends({ onCheer }: Readonly<SocialFriendsProps>) {
   const outgoing = data?.outgoingRequests ?? []
 
   const renderFriends = () => {
-    if (isLoading) return <SocialSectionSpinner />
+    if (isLoading) return <SocialSectionSkeleton />
     if (isError) return <SocialSectionLoadError onRetry={() => void refetch()} />
     if (friends.length === 0) {
       return (

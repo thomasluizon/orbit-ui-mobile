@@ -233,7 +233,7 @@ export function createSectionStyles(tokens: AppTokens) {
 export function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     container: {
-      gap: 28,
+      gap: 24,
     },
     fieldGroup: {
       gap: 8,

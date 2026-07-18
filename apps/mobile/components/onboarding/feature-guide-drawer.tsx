@@ -231,9 +231,9 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     sectionDesc: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 13.5,
-      color: tokens.fg3,
-      lineHeight: 21,
+      fontSize: 14,
+      color: tokens.fg2,
+      lineHeight: 22,
     },
   })
 }

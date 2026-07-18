@@ -709,8 +709,8 @@
       "missed": "Perdido"
     },
     "thisMonth": "Este mês",
-    "bestStreak": "Melhor sequência",
-    "totalLogs": "Total de registros",
+    "bestStreak": "Recorde",
+    "totalLogs": "Registros",
     "missedCount": "Perdidos",
     "emptyMonth": "Nada registrado neste mês ainda. Seus dias vão aparecer aqui.",
     "loadError": "Não foi possível carregar o calendário. Tente de novo.",

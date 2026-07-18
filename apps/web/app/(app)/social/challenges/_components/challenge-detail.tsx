@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, type ReactNode } from 'react'
-import { Flame, Loader2, Pencil, Target } from '@/components/ui/icons'
+import { Flame, Pencil, Target } from '@/components/ui/icons'
 import { useLocale, useTranslations } from 'next-intl'
 import { formatLocaleDate } from '@orbit/shared/utils'
 import type { ChallengeParticipant } from '@orbit/shared/types/challenge'
@@ -9,6 +9,7 @@ import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { PillButton } from '@/components/ui/pill-button'
 import { ProgressBar } from '@/components/ui/progress-bar'
+import { SkeletonLine } from '@/components/ui/skeleton'
 import { UserAvatar } from '@/components/ui/user-avatar'
 import { useAppToast } from '@/hooks/use-app-toast'
 import {
@@ -276,6 +277,35 @@ function HabitsEditorSheet({
   )
 }
 
+function ChallengeDetailSkeleton({ loadingLabel }: Readonly<{ loadingLabel: string }>) {
+  return (
+    <div
+      role="status"
+      aria-label={loadingLabel}
+      className="flex flex-col"
+      style={{ gap: 12, padding: '8px 20px 32px' }}
+    >
+      <SkeletonLine width="w-28" height="h-6" />
+      <SkeletonLine width="w-3/4" height="h-7" />
+      <div className="flex flex-col" style={{ gap: 8, marginTop: 8 }}>
+        <SkeletonLine width="w-full" height="h-2" />
+        <SkeletonLine width="w-1/4" height="h-4" />
+      </div>
+      <SkeletonLine width="w-1/3" height="h-5" className="mt-2" />
+      {Array.from({ length: 2 }, (_, index) => (
+        <div key={index} className="flex items-center" style={{ gap: 12, padding: '8px 0' }}>
+          <div
+            aria-hidden="true"
+            className="skeleton-pulse shrink-0 rounded-full bg-[color-mix(in_srgb,var(--fg-1)_6%,transparent)]"
+            style={{ width: 36, height: 36 }}
+          />
+          <SkeletonLine width="w-1/2" height="h-4" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
 /** Challenge detail: type-appropriate shared viz (no per-person numbers), members, link-habits CTA,
  *  invite share, and leave. */
 export function ChallengeDetail({ challengeId, onLeft }: Readonly<ChallengeDetailProps>) {
@@ -290,11 +320,7 @@ export function ChallengeDetail({ challengeId, onLeft }: Readonly<ChallengeDetai
   const [editorHabitIds, setEditorHabitIds] = useState<string[]>([])
 
   if (isLoading) {
-    return (
-      <div className="flex justify-center" style={{ padding: 48, color: 'var(--fg-3)' }}>
-        <Loader2 className="animate-spin" size={22} />
-      </div>
-    )
+    return <ChallengeDetailSkeleton loadingLabel={t('common.loading')} />
   }
 
   if (isError) {

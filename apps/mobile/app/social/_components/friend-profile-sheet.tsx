@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
 import { Users } from '@/components/ui/icons'
@@ -8,6 +8,7 @@ import { achievementEmoji, ApiClientError, capitalizeFirstLetter, formatLocaleDa
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { PillButton } from '@/components/ui/pill-button'
 import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
+import { SkeletonLine } from '@/components/ui/skeleton'
 import { StatTile } from '@/components/ui/stat-tile'
 import { UserAvatar } from '@/components/ui/user-avatar'
 import { useFriendProfile } from '@/hooks/use-friends'
@@ -70,8 +71,27 @@ export function FriendProfileSheet({
   let profileContent: ReactNode
   if (isLoading) {
     profileContent = (
-      <View style={styles.centered}>
-        <ActivityIndicator color={tokens.primary} accessibilityLabel={t('common.loading')} />
+      <View
+        accessibilityRole="progressbar"
+        accessibilityLabel={t('common.loading')}
+        style={styles.skeletonWrap}
+      >
+        <View style={styles.identity}>
+          <SkeletonLine width={72} height={72} style={styles.skeletonAvatar} />
+          <SkeletonLine width={96} height={12} />
+        </View>
+        <View style={styles.statsGrid}>
+          {[0, 1, 2, 3].map((index) => (
+            <View key={index} style={styles.skeletonStat}>
+              <SkeletonLine width={40} height={24} />
+              <SkeletonLine width="66%" height={12} />
+            </View>
+          ))}
+        </View>
+        <View style={styles.card}>
+          <SkeletonLine width="33%" height={12} />
+          <SkeletonLine width="100%" height={32} />
+        </View>
       </View>
     )
   } else if (isError || !view) {
@@ -234,6 +254,18 @@ function createStyles(tokens: Tokens) {
   return StyleSheet.create({
     body: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 28, gap: 14 },
     centered: { alignItems: 'center', justifyContent: 'center', gap: 14, paddingVertical: 48 },
+    skeletonWrap: { gap: 14 },
+    skeletonAvatar: { borderRadius: 36 },
+    skeletonStat: {
+      flexBasis: '46%',
+      flexGrow: 1,
+      borderRadius: 18,
+      backgroundColor: tokens.bgElev,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
+      padding: 16,
+      gap: 8,
+    },
     unavailable: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 15,

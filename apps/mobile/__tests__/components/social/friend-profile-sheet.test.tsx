@@ -96,9 +96,10 @@ describe('FriendProfileSheet', () => {
   it('labels the loading indicator for TalkBack', async () => {
     setProfileReturn({ isLoading: true })
     const tree = await renderSheet()
-    expect(tree.root.findByType('ActivityIndicator').props.accessibilityLabel).toBe(
-      'common.loading',
-    )
+    expect(
+      tree.root.findAll((node) => node.props?.accessibilityRole === 'progressbar')[0]?.props
+        .accessibilityLabel,
+    ).toBe('common.loading')
   })
 
   it('shows the permanent unavailable copy without a retry action on 404', async () => {

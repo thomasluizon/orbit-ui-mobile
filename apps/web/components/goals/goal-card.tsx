@@ -156,7 +156,7 @@ export function GoalCard({ goal, onOpenDetail }: Readonly<GoalCardProps>) {
               width: 42,
               height: 42,
               borderRadius: 12,
-              background: 'var(--bg-elev)',
+              background: 'var(--bg-well)',
               fontSize: 20,
               lineHeight: 1,
             }}

@@ -191,8 +191,8 @@ export function FeatureGuideDrawer({ open, onOpenChange }: Readonly<FeatureGuide
             <p
               style={{
                 fontFamily: 'var(--font-sans)',
-                fontSize: 13.5,
-                color: 'var(--fg-3)',
+                fontSize: 14,
+                color: 'var(--fg-2)',
                 lineHeight: 1.55,
               }}
             >

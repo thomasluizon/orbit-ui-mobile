@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { Flame, Pencil, Target } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { formatLocaleDate } from '@orbit/shared/utils'
@@ -8,6 +8,7 @@ import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { PillButton } from '@/components/ui/pill-button'
 import { ProgressBar } from '@/components/ui/progress-bar'
+import { SkeletonLine } from '@/components/ui/skeleton'
 import { UserAvatar } from '@/components/ui/user-avatar'
 import { useAppToast } from '@/hooks/use-app-toast'
 import {
@@ -228,8 +229,24 @@ export function ChallengeDetail({ challengeId, onLeft }: Readonly<ChallengeDetai
 
   if (isLoading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator color={tokens.primary} />
+      <View
+        style={styles.container}
+        accessibilityRole="progressbar"
+        accessibilityLabel={t('common.loading')}
+      >
+        <SkeletonLine width={110} height={24} />
+        <SkeletonLine width="75%" height={28} />
+        <View style={styles.skeletonProgress}>
+          <SkeletonLine width="100%" height={8} />
+          <SkeletonLine width="30%" height={14} />
+        </View>
+        <SkeletonLine width="45%" height={20} />
+        {[0, 1].map((index) => (
+          <View key={index} style={styles.memberRow}>
+            <SkeletonLine width={36} height={36} style={styles.skeletonAvatar} />
+            <SkeletonLine width="50%" height={15} />
+          </View>
+        ))}
       </View>
     )
   }
@@ -370,7 +387,8 @@ export function ChallengeDetail({ challengeId, onLeft }: Readonly<ChallengeDetai
 
 const styles = StyleSheet.create({
   container: { paddingHorizontal: 20, paddingBottom: 32, gap: 8 },
-  centered: { paddingVertical: 48, alignItems: 'center' },
+  skeletonProgress: { gap: 8, marginTop: 12 },
+  skeletonAvatar: { borderRadius: 18 },
   errorBlock: { paddingHorizontal: 32, paddingVertical: 48, alignItems: 'center', gap: 12 },
   errorBody: {
     fontFamily: 'Rubik_400Regular',

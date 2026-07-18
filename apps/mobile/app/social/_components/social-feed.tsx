@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
 import type { Cheer } from '@orbit/shared/types/social'
@@ -12,6 +12,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { FeedEventCard } from './feed-event-card'
 import { FriendProfileSheet, type ProfileTarget } from './friend-profile-sheet'
+import { SocialSectionSkeleton } from './social-section-skeleton'
 import type { CheerTarget } from './cheer-composer'
 
 function rowEntrance(index: number) {
@@ -79,11 +80,7 @@ export function SocialFeed({ onCheer, onAddFriends }: Readonly<SocialFeedProps>)
 
   let feedContent: ReactNode
   if (feed.isLoading) {
-    feedContent = (
-      <View style={styles.loading}>
-        <ActivityIndicator color={tokens.primary} accessibilityLabel={t('common.loading')} />
-      </View>
-    )
+    feedContent = <SocialSectionSkeleton />
   } else if (feed.isError) {
     feedContent = (
       <EmptyState
@@ -169,7 +166,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     cheerRowPressed: { opacity: 0.7 },
     cheerText: { flex: 1, fontFamily: 'Rubik_400Regular', fontSize: 14, color: tokens.fg2 },
-    loading: { alignItems: 'center', paddingVertical: 48 },
     loadMore: { paddingHorizontal: 20, paddingVertical: 12, alignItems: 'center' },
   })
 }

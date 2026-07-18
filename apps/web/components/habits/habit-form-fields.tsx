@@ -227,9 +227,9 @@ export function HabitFormFields({
   const selectedTagIdSet = new Set(tags.selectedTagIds)
 
   return (
-    <div className="flex flex-col gap-7">
-      <div className="flex flex-col gap-7">
-      <div className="flex flex-col stagger-enter gap-7">
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6">
+      <div className="flex flex-col stagger-enter gap-6">
       <div className="flex flex-col gap-2">
         <label htmlFor="habit-form-title" className="form-label">
           {t('habits.form.title')}
@@ -394,7 +394,7 @@ export function HabitFormFields({
       )}
       </div>
 
-      <div className="flex flex-col stagger-enter gap-7">
+      <div className="flex flex-col stagger-enter gap-6">
       <fieldset className="flex flex-col m-0 min-w-0 gap-2 border-0 p-0" aria-labelledby="habit-form-tags-label">
         <span id="habit-form-tags-label" className="form-label">
           {t('habits.form.tags')}

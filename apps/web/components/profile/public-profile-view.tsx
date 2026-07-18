@@ -129,7 +129,8 @@ export function PublicProfileView({ view, t }: Readonly<PublicProfileViewProps>)
                         color: 'var(--fg-2)',
                         padding: '7px 12px',
                         borderRadius: 999,
-                        background: 'rgba(var(--primary-rgb), 0.12)',
+                        background: 'var(--bg-well)',
+                        boxShadow: 'inset 0 0 0 1px var(--hairline)',
                       }}
                     >
                       {t.has(key) ? t(key) : achievement.name}

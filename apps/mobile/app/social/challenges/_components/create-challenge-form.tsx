@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { Controller, useForm } from 'react-hook-form'
+import { Controller, useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
 import { formatAPIDate, toggleSelectedId } from '@orbit/shared/utils'
@@ -35,12 +35,12 @@ export function CreateChallengeForm({ onCreated }: Readonly<CreateChallengeFormP
   const [habitIds, setHabitIds] = useState<string[]>([])
   const [friendIds, setFriendIds] = useState<string[]>([])
 
-  const { control, handleSubmit, watch } = useForm<CreateChallengeFormValues>({
+  const { control, handleSubmit } = useForm<CreateChallengeFormValues>({
     resolver: zodResolver(createChallengeFormSchema),
     defaultValues: { type: 'CoopGoal', title: '', targetCount: '', periodEndUtc: '' },
   })
 
-  const type = watch('type')
+  const type = useWatch({ control, name: 'type' })
   const isCoop = type === 'CoopGoal'
 
   async function onSubmit(values: CreateChallengeFormValues) {

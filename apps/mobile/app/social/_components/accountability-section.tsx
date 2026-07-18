@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { ActivityIndicator, StyleSheet, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
 import { UserPlus } from '@/components/ui/icons'
@@ -12,6 +12,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { BuddyInviteRow } from './buddy-invite-row'
 import { BuddyRow } from './buddy-row'
 import { NewPairFlow } from './new-pair-flow'
+import { SocialSectionSkeleton } from './social-section-skeleton'
 
 interface AccountabilitySectionProps {
   initialHabitId?: string | null
@@ -37,11 +38,7 @@ export function AccountabilitySection({ initialHabitId }: Readonly<Accountabilit
 
   let pairsContent: ReactNode
   if (isLoading) {
-    pairsContent = (
-      <View style={styles.loading}>
-        <ActivityIndicator color={tokens.primary} accessibilityLabel={t('common.loading')} />
-      </View>
-    )
+    pairsContent = <SocialSectionSkeleton />
   } else if (isError) {
     pairsContent = (
       <EmptyState
@@ -117,5 +114,4 @@ export function AccountabilitySection({ initialHabitId }: Readonly<Accountabilit
 const styles = StyleSheet.create({
   container: { paddingBottom: 24 },
   ctaBlock: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8, alignItems: 'flex-start' },
-  loading: { alignItems: 'center', paddingVertical: 48 },
 })

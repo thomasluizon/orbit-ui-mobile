@@ -10,7 +10,7 @@ import { UserAvatar } from '@/components/ui/user-avatar'
 import { useCheers, useFriendFeed } from '@/hooks/use-friends'
 import { FeedEventCard } from './feed-event-card'
 import { FriendProfileView } from './friend-profile-view'
-import { SocialSectionLoadError, SocialSectionSpinner } from './social-section-states'
+import { SocialSectionLoadError, SocialSectionSkeleton } from './social-section-states'
 import type { CheerTarget } from './cheer-composer'
 
 const textStyle = {
@@ -82,7 +82,7 @@ export function SocialFeed({ onCheer, onAddFriends }: Readonly<SocialFeedProps>)
   const isEmpty = !feed.isLoading && items.length === 0 && receivedCheers.length === 0
 
   const renderFeed = () => {
-    if (feed.isLoading) return <SocialSectionSpinner />
+    if (feed.isLoading) return <SocialSectionSkeleton />
     if (feed.isError) return <SocialSectionLoadError onRetry={() => void feed.refetch()} />
     if (isEmpty) {
       return (

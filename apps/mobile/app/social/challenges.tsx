@@ -1,11 +1,12 @@
 import { useState, type ReactNode } from 'react'
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { AppBar } from '@/components/ui/app-bar'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { PillButton } from '@/components/ui/pill-button'
+import { SkeletonLine } from '@/components/ui/skeleton'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useProfile } from '@/hooks/use-profile'
 import { useChallenges } from '@/hooks/use-challenges'
@@ -36,8 +37,18 @@ export default function ChallengesScreen() {
   let challengesContent: ReactNode
   if (isLoading) {
     challengesContent = (
-      <View style={styles.centered}>
-        <ActivityIndicator color={tokens.primary} accessibilityLabel={t('common.loading')} />
+      <View
+        style={styles.skeletonList}
+        accessibilityRole="progressbar"
+        accessibilityLabel={t('common.loading')}
+      >
+        {[0, 1, 2].map((index) => (
+          <View key={index} style={styles.skeletonCard}>
+            <SkeletonLine width={96} height={20} />
+            <SkeletonLine width="66%" height={16} />
+            <SkeletonLine width="40%" height={12} />
+          </View>
+        ))}
       </View>
     )
   } else if (!socialEnabled) {
@@ -125,7 +136,15 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: tokens.bg },
     scroll: { paddingBottom: 40 },
-    centered: { paddingVertical: 48, alignItems: 'center' },
+    skeletonList: { paddingHorizontal: 20, paddingTop: 8, gap: 10 },
+    skeletonCard: {
+      padding: 16,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
+      backgroundColor: tokens.bgCard,
+      gap: 10,
+    },
     errorBlock: { paddingHorizontal: 32, paddingVertical: 48, alignItems: 'center', gap: 12 },
     errorBody: {
       fontFamily: 'Rubik_400Regular',

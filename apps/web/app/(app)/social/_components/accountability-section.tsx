@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { UserPlus } from '@/components/ui/icons'
 import { EmptyState } from '@/components/ui/empty-state'
 import { SectionLabel } from '@/components/ui/section-label'
-import { SocialSectionLoadError, SocialSectionSpinner } from './social-section-states'
+import { SocialSectionLoadError, SocialSectionSkeleton } from './social-section-states'
 import { PillButton } from '@/components/ui/pill-button'
 import { useAccountabilityPairs } from '@/hooks/use-accountability'
 import { BuddyInviteRow } from './buddy-invite-row'
@@ -29,7 +29,7 @@ export function AccountabilitySection({ initialHabitId }: Readonly<Accountabilit
   const outgoing = data?.outgoingInvites ?? []
 
   const renderActivePairs = () => {
-    if (isLoading) return <SocialSectionSpinner />
+    if (isLoading) return <SocialSectionSkeleton />
     if (isError) return <SocialSectionLoadError onRetry={() => void refetch()} />
     if (activePairs.length === 0) {
       return (

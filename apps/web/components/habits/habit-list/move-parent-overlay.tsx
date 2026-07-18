@@ -90,19 +90,9 @@ function MoveTargetRow({
       }}
     >
       <div className="flex items-center" style={{ gap: 10 }}>
-        {Array.from({ length: option.depth }, (_, index) => (
-          <span
-            key={index}
-            aria-hidden="true"
-            className="self-stretch shrink-0"
-            style={{ width: 20 }}
-          >
-            <span
-              className="block h-full"
-              style={{ width: 1, margin: '0 auto', background: 'var(--hairline)' }}
-            />
-          </span>
-        ))}
+        {option.depth > 0 && (
+          <span aria-hidden="true" className="shrink-0" style={{ width: option.depth * 20 }} />
+        )}
         <span
           className="grid shrink-0 place-items-center"
           style={{
