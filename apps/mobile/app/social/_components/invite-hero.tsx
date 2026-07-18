@@ -6,11 +6,9 @@ import QRCode from 'react-native-qrcode-svg'
 import { useTranslation } from 'react-i18next'
 import { PillButton } from '@/components/ui/pill-button'
 import { useReferral } from '@/hooks/use-referral'
+import { shareQrColors } from '@orbit/shared/theme'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-
-const QR_DARK = '#0b1020'
-const QR_LIGHT = '#ffffff'
 
 /** Invite-link hero on the add-friend surface: the user's referral link with a QR, copy, and
  *  native share — a low-friction way to pull a friend into Orbit. */
@@ -44,7 +42,12 @@ export function InviteHero() {
       </View>
 
       <View style={styles.qrPlate}>
-        <QRCode value={referralUrl} size={128} color={QR_DARK} backgroundColor={QR_LIGHT} />
+        <QRCode
+          value={referralUrl}
+          size={128}
+          color={shareQrColors.dark}
+          backgroundColor={shareQrColors.light}
+        />
       </View>
       <Text style={styles.scanHint}>{t('social.invite.scanHint')}</Text>
 
@@ -100,7 +103,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       color: tokens.fg3,
       textAlign: 'center',
     },
-    qrPlate: { borderRadius: 16, backgroundColor: QR_LIGHT, padding: 10 },
+    qrPlate: { borderRadius: 16, backgroundColor: shareQrColors.light, padding: 10 },
     scanHint: { fontFamily: 'Rubik_400Regular', fontSize: 12, color: tokens.fg4 },
     linkWell: {
       flexDirection: 'row',

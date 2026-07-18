@@ -3,6 +3,7 @@
 import { type CSSProperties, type Ref } from 'react'
 import { useTranslations } from 'next-intl'
 import { achievementEmoji } from '@orbit/shared/utils'
+import { shareQrColors } from '@orbit/shared/theme'
 import { ShareCardQr } from '@/components/share/share-card-qr'
 
 const rarityBadgeStyle: CSSProperties = {
@@ -56,7 +57,7 @@ export function MilestoneShareCard({
       }}
     >
       <div style={{ position: 'relative', padding: '20px 22px 24px', background: 'var(--bg-elev)' }}>
-        <div className="flex items-center" style={{ gap: 9 }}>
+        <div className="flex items-center" style={{ gap: 8 }}>
           <div
             aria-hidden="true"
             style={{
@@ -110,7 +111,7 @@ export function MilestoneShareCard({
           className="flex items-center"
           style={{ gap: 12, padding: '14px 18px 18px', borderTop: '1px solid var(--hairline)' }}
         >
-          <div style={{ padding: 6, borderRadius: 12, background: '#ffffff', lineHeight: 0 }}>
+          <div style={{ padding: 6, borderRadius: 12, background: shareQrColors.light, lineHeight: 0 }}>
             <ShareCardQr value={referralUrl} size={56} />
           </div>
           <div style={{ minWidth: 0 }}>

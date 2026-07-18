@@ -3,11 +3,51 @@
 import { useTranslations } from 'next-intl'
 import type { RetrospectivePeriod } from '@/hooks/use-retrospective'
 import type { RetrospectiveResponse } from '@orbit/shared/utils/retrospective'
+import { AlertTriangle } from '@/components/ui/icons'
 import { Chip } from '@/components/ui/chip'
+import { EmptyState } from '@/components/ui/empty-state'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
+import { SkeletonCard, SkeletonLine } from '@/components/ui/skeleton'
 import { RetrospectiveDashboard } from './retrospective-dashboard'
 import { RetrospectiveEmptyState } from './retrospective-empty-state'
 import { RetrospectiveNoDataState } from './retrospective-no-data-state'
+
+function StatTileSkeleton() {
+  return (
+    <div
+      className="flex min-w-0 flex-1 flex-col items-center gap-2 rounded-[18px] bg-[var(--bg-card)]"
+      style={{ padding: '20px 12px 16px', boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
+      aria-hidden="true"
+    >
+      <SkeletonLine width="w-7" height="h-7" />
+      <SkeletonLine width="w-10" height="h-6" />
+      <SkeletonLine width="w-12" height="h-3" />
+    </div>
+  )
+}
+
+/** Loading placeholder shaped like the retrospective dashboard — a header line, the three
+ *  stat tiles, then two narrative cards — so nothing shifts when the generated recap lands
+ *  (DESIGN.md States: the skeleton is shaped like the final layout, never a centered spinner). */
+function RetrospectiveLoadingSkeleton({ label }: Readonly<{ label: string }>) {
+  return (
+    <div
+      role="status"
+      aria-label={label}
+      className="flex flex-col"
+      style={{ gap: 12, padding: '16px 20px 24px' }}
+    >
+      <SkeletonLine width="w-1/3" height="h-3" />
+      <div className="flex" style={{ gap: 8 }}>
+        <StatTileSkeleton />
+        <StatTileSkeleton />
+        <StatTileSkeleton />
+      </div>
+      <SkeletonCard lines={4} />
+      <SkeletonCard lines={3} />
+    </div>
+  )
+}
 
 interface RetrospectiveViewProps {
   periods: { key: RetrospectivePeriod; label: string }[]
@@ -39,7 +79,7 @@ export function RetrospectiveView({
   return (
     <>
       {!isOnline && (
-        <div style={{ padding: '14px 20px 0' }}>
+        <div style={{ padding: '16px 20px 0' }}>
           <OfflineUnavailableState
             title={t('offline.title')}
             description={t('offline.description')}
@@ -51,8 +91,8 @@ export function RetrospectiveView({
       <div
         className="flex items-center"
         style={{
-          gap: 6,
-          padding: '10px 20px 14px',
+          gap: 8,
+          padding: '12px 20px',
           borderBottom: '1px solid var(--hairline)',
           overflowX: 'auto',
         }}
@@ -70,19 +110,7 @@ export function RetrospectiveView({
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto">
-        {isLoading && (
-          <div style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <span
-              className="t-secondary"
-              style={{ color: 'var(--fg-3)', textAlign: 'center' }}
-            >
-              {t('retrospective.generating')}
-            </span>
-            <div className="animate-pulse" style={{ width: '60%', height: 7, background: 'var(--bg-card)', borderRadius: 999 }} />
-            <div className="animate-pulse" style={{ width: '80%', height: 7, background: 'var(--bg-card)', borderRadius: 999 }} />
-            <div className="animate-pulse" style={{ width: '40%', height: 7, background: 'var(--bg-card)', borderRadius: 999 }} />
-          </div>
-        )}
+        {isLoading && <RetrospectiveLoadingSkeleton label={t('retrospective.generating')} />}
 
         {!isLoading && data && (
           <RetrospectiveDashboard
@@ -98,20 +126,16 @@ export function RetrospectiveView({
         )}
 
         {!isLoading && !data && !noData && errorMessage && (
-          <div style={{ padding: '32px 20px', textAlign: 'center' }}>
-            <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--status-bad)' }}>
-              {errorMessage || t('retrospective.error')}
-            </p>
-            <button
-              type="button"
-              onClick={onGenerate}
-              disabled={!isOnline}
-              className="chip"
-              style={{ marginTop: 10 }}
-            >
-              {t('common.retry')}
-            </button>
-          </div>
+          <EmptyState
+            icon={AlertTriangle}
+            description={errorMessage || t('retrospective.error')}
+            action={{
+              label: t('common.retry'),
+              onClick: onGenerate,
+              disabled: !isOnline,
+              variant: 'secondary',
+            }}
+          />
         )}
 
         {!isLoading && !data && !noData && !errorMessage && (

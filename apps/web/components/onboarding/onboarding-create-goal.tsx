@@ -164,7 +164,8 @@ export function OnboardingCreateGoal({
           style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 14,
-            color: 'var(--primary)',
+            fontWeight: 500,
+            color: 'var(--primary-soft)',
           }}
         >
           {t('onboarding.flow.createGoal.success')}

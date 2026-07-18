@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import type { FriendFeedItem } from '@orbit/shared/types/social'
 import { UserAvatar } from '@/components/ui/user-avatar'
+import { PillButton } from '@/components/ui/pill-button'
 import type { CheerTarget } from './cheer-composer'
 import { FriendProfileView } from './friend-profile-view'
 
@@ -44,35 +45,16 @@ export function FeedEventCard({ item, onCheer }: Readonly<FeedEventCardProps>) {
         style={{ gap: 12 }}
       >
         <UserAvatar name={name} />
-        <p
-          className="min-w-0 flex-1"
-          style={{
-            margin: 0,
-            fontFamily: 'var(--font-sans)',
-            fontSize: 15,
-            lineHeight: 1.4,
-            color: 'var(--fg-1)',
-          }}
-        >
-          {eventText()}
-        </p>
+        <p className="t-body m-0 min-w-0 flex-1">{eventText()}</p>
       </button>
-      <button
-        type="button"
+      <PillButton
+        variant="ghost"
+        size="sm"
         onClick={() => onCheer({ recipientId: item.actorUserId, displayName: name })}
-        className="touch-target-y shrink-0 cursor-pointer rounded-full transition-[background-color,transform] active:scale-[0.96]"
-        style={{
-          padding: '7px 14px',
-          fontFamily: 'var(--font-sans)',
-          fontSize: 14,
-          fontWeight: 500,
-          color: 'var(--primary)',
-          background: 'rgba(var(--primary-rgb), 0.12)',
-          border: 0,
-        }}
+        className="shrink-0"
       >
         {t('social.feed.cheerAction')}
-      </button>
+      </PillButton>
 
       <FriendProfileView
         userId={item.actorUserId}

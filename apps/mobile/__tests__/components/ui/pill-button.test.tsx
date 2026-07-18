@@ -102,6 +102,15 @@ describe('PillButton (mobile)', () => {
     expect(tree.root.findAllByType('Text')).toHaveLength(0)
   })
 
+  it('keeps a long label on one line and lets it shrink to truncate', () => {
+    const tree = renderPill(
+      <PillButton onPress={() => {}}>Experimente o Orbit gratis</PillButton>,
+    )
+    const label = tree.root.findByType('Text')
+    expect(label.props.numberOfLines).toBe(1)
+    expect(flattenStyle(label.props.style).flexShrink).toBe(1)
+  })
+
   it('drives the pill height from the size scale (sm < md < lg)', () => {
     expect(pressableHeight(renderPill(<PillButton size="sm" onPress={() => {}}>Small</PillButton>))).toBe(40)
     expect(pressableHeight(renderPill(<PillButton onPress={() => {}}>Medium</PillButton>))).toBe(50)

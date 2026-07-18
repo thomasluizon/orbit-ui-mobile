@@ -30,7 +30,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
+    gap: 12,
     paddingHorizontal: 20,
   },
   cell: {

@@ -43,10 +43,13 @@ export function GoalProgressHistorySection({
 
   return (
     <View>
-      {visibleEntries.map((entry) => (
+      {visibleEntries.map((entry, index) => (
         <View
           key={`${entry.createdAtUtc}-${entry.value}`}
-          style={styles.historyEntry}
+          style={[
+            styles.historyEntry,
+            index === visibleEntries.length - 1 ? styles.rowNoDivider : null,
+          ]}
         >
           <View style={styles.historyEntryHeader}>
             <Text style={styles.historyDate}>
@@ -102,8 +105,14 @@ export function GoalLinkedHabitsSection({
       accessibilityRole="list"
       accessibilityLabel={title}
     >
-      {linkedHabits.map((habit) => (
-        <View key={habit.id} style={styles.linkedRow}>
+      {linkedHabits.map((habit, index) => (
+        <View
+          key={habit.id}
+          style={[
+            styles.linkedRow,
+            index === linkedHabits.length - 1 ? styles.rowNoDivider : null,
+          ]}
+        >
           <View style={styles.linkedWell}>
             <Repeat size={18} strokeWidth={1.8} color={tokens.fg2} />
           </View>
@@ -184,6 +193,9 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       fontFamily: 'Rubik_400Regular',
       fontSize: 16,
       color: tokens.fg1,
+    },
+    rowNoDivider: {
+      borderBottomWidth: 0,
     },
   })
 }

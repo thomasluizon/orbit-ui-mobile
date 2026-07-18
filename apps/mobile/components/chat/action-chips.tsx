@@ -134,7 +134,9 @@ export function ActionChips({ actions, onChipClick }: Readonly<ActionChipsProps>
                 ]}
               >
                 <IconComponent size={16} color={style.text} strokeWidth={1.8} />
-                <Text style={[styles.chipText, { color: style.text }]}>{label}</Text>
+                <Text numberOfLines={1} style={[styles.chipText, { color: style.text }]}>
+                  {label}
+                </Text>
               </Pressable>
             ) : (
               <View
@@ -147,7 +149,9 @@ export function ActionChips({ actions, onChipClick }: Readonly<ActionChipsProps>
                 ]}
               >
                 <IconComponent size={16} color={style.text} strokeWidth={1.8} />
-                <Text style={[styles.chipText, { color: style.text }]}>{label}</Text>
+                <Text numberOfLines={1} style={[styles.chipText, { color: style.text }]}>
+                  {label}
+                </Text>
               </View>
             )}
 
@@ -203,12 +207,13 @@ function createStyles(tokens: AppTokens) {
     chip: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 6,
-      minHeight: 36,
-      paddingHorizontal: 14,
+      gap: 8,
+      minHeight: 32,
+      paddingHorizontal: 16,
       borderRadius: radius.full,
       borderWidth: 1,
       alignSelf: "flex-start",
+      maxWidth: "100%",
     },
     chipPressed: {
       transform: [{ scale: 0.96 }],
@@ -217,6 +222,7 @@ function createStyles(tokens: AppTokens) {
     chipText: {
       fontFamily: 'Rubik_500Medium',
       fontSize: 13,
+      flexShrink: 1,
     },
     errorText: {
       fontFamily: 'Rubik_400Regular',

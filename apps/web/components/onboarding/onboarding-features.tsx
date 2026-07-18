@@ -28,65 +28,33 @@ export function OnboardingFeatures() {
   const t = useTranslations()
 
   return (
-    <div
-      className="stagger-enter"
-      style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '12px 0' }}
-    >
-      <div
-        className="text-center"
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 24,
-          fontWeight: 500,
-          letterSpacing: '-0.01em',
-          lineHeight: 1.3,
-          color: 'var(--fg-1)',
-          marginBottom: 14,
-        }}
-      >
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '12px 0' }}>
+      <div className="t-h2 text-center text-balance">
         {t('onboarding.flow.features.title')}
       </div>
-      {FEATURE_ROWS.map(({ Icon, titleKey, descKey }) => (
-        <div
-          key={titleKey}
-          className="flex items-start"
-          style={{
-            padding: '14px 0',
-            borderBottom: '1px solid var(--hairline)',
-            gap: 14,
-          }}
-        >
-          <span
-            className="inline-flex shrink-0 justify-center"
-            style={{ width: 26, paddingTop: 1 }}
+      <div
+        className="stagger-enter"
+        style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+      >
+        {FEATURE_ROWS.map(({ Icon, titleKey, descKey }) => (
+          <div
+            key={titleKey}
+            className="flex items-start"
+            style={{ gap: 12 }}
           >
-            <Icon size={22} strokeWidth={1.8} color="var(--fg-2)" />
-          </span>
-          <div className="flex-1 min-w-0">
-            <div
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 16,
-                fontWeight: 500,
-                color: 'var(--fg-1)',
-              }}
+            <span
+              className="inline-flex shrink-0 justify-center"
+              style={{ width: 24 }}
             >
-              {t(titleKey)}
-            </div>
-            <div
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 13.5,
-                color: 'var(--fg-3)',
-                lineHeight: 1.4,
-                marginTop: 3,
-              }}
-            >
-              {t(descKey)}
+              <Icon size={22} strokeWidth={1.8} color="var(--fg-2)" />
+            </span>
+            <div className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
+              <div className="t-body font-medium">{t(titleKey)}</div>
+              <div className="t-secondary">{t(descKey)}</div>
             </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   )
 }

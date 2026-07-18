@@ -106,7 +106,7 @@
     "goBack": "Voltar",
     "later": "Talvez depois",
     "delete": "Excluir",
-    "dismiss": "Fechar",
+    "dismiss": "Dispensar",
     "confirm": "Confirmar",
     "discard": "Descartar",
     "keepEditing": "Continuar",
@@ -804,7 +804,7 @@
       "reconnectCta": "Reconectar",
       "reviewModeTitle": "Revisar novos eventos",
       "reviewModeEmpty": "Nenhum evento novo para revisar. Tudo em dia!",
-      "dismissSuggestion": "Descartar",
+      "dismissSuggestion": "Dispensar",
       "enableSuccess": "Sincronização automática ativada",
       "disableSuccess": "Sincronização automática desativada",
       "syncFailed": "A sincronização falhou. Tente de novo."
@@ -960,7 +960,7 @@
         "today": "Hoje",
         "gamification": "Conquistas",
         "notifications": "Notificações",
-        "subscriptions": "Assinar",
+        "subscriptions": "Fazer upgrade",
         "aiSettings": "Configurações de IA"
       }
     },
@@ -1121,7 +1121,6 @@
       "select": "Selecionar",
       "selectAll": "Selecionar tudo",
       "deselectAll": "Limpar",
-      "selectedCount": "{n} selecionado(s)",
       "deleteSelected": "Excluir ({n})",
       "deleteSelectedShort": "Excluir selecionados",
       "bulkDeleteConfirmTitle": "Excluir os fatos selecionados?",
@@ -1293,7 +1292,7 @@
     "stats": {
       "completionRate": "Conclusão",
       "completions": "Conclusões",
-      "bestStreak": "Melhor sequência",
+      "bestStreak": "Recorde",
       "activeDays": "Dias ativos",
       "topHabits": "Principais hábitos"
     },
@@ -1343,8 +1342,8 @@
         "caption": "Como foram seus últimos sete dias."
       },
       "streak": {
-        "eyebrow": "Melhor sequência",
-        "label": "Melhor sequência",
+        "eyebrow": "Recorde",
+        "label": "Recorde",
         "caption": "Atualmente uma sequência de {count} dias."
       },
       "topHabit": {
@@ -1453,7 +1452,7 @@
       "trialEyebrow": "Teste Pro",
       "daysLeft": "{days} dia restante | {days} dias restantes",
       "lastDay": "O teste acaba hoje!",
-      "upgrade": "Upgrade"
+      "upgrade": "Fazer upgrade"
     },
     "expired": {
       "eyebrow": "Teste encerrado",
@@ -3045,7 +3044,7 @@
       "acceptSuccess": "Vocês agora são parceiros de responsabilidade",
       "noHabits": "Você ainda não tem hábitos.",
       "habitsHint": "Escolha de 1 a 10 hábitos",
-      "habitCount": "{count} selecionado(s)",
+      "habitCount": "{count} selecionado | {count} selecionados",
       "searchHabits": "Buscar seus hábitos",
       "noHabitMatch": "Nenhum hábito corresponde à busca",
       "moreHabits": "Mais {count}. Continue digitando para refinar.",
@@ -3077,7 +3076,6 @@
         "editHabitsTitle": "Seus hábitos",
         "editSuccess": "Hábitos atualizados",
         "buddyHabits": "Hábitos de {name}",
-        "buddyHabitsCount": "{count} hábito(s) acompanhado(s)",
         "history": "Histórico de registros",
         "historyEmpty": "Nenhum registro ainda.",
         "unpair": "Desfazer dupla",

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
+import { shareQrColors } from '@orbit/shared/theme'
 
 interface ShareCardQrProps {
   value: string
@@ -17,7 +18,7 @@ export function ShareCardQr({ value, size }: Readonly<ShareCardQrProps>) {
     QRCode.toDataURL(value, {
       margin: 0,
       width: size * 4,
-      color: { dark: '#020618', light: '#ffffff' },
+      color: { dark: shareQrColors.dark, light: shareQrColors.light },
     })
       .then((url) => {
         if (active) setDataUrl(url)

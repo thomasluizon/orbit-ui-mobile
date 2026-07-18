@@ -366,13 +366,13 @@ export default function CalendarPage() {
                     data-testid="calendar-day-panel"
                     aria-label={dayDetailTitle}
                     className="sticky top-[72px] flex h-[calc(100dvh-84px)] flex-col"
-                    style={{ padding: '20px 0 10px 4px' }}
+                    style={{ padding: '20px 0 12px' }}
                   >
                     <h2
                       className="min-w-0 shrink-0 truncate"
                       style={{
                         margin: 0,
-                        padding: '0 0 12px',
+                        padding: '0 20px 12px',
                         fontFamily: 'var(--font-sans)',
                         fontSize: 20,
                         fontWeight: 500,

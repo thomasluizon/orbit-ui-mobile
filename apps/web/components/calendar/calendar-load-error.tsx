@@ -1,32 +1,22 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import { PillButton } from '@/components/ui/pill-button'
+import { EmptyState } from '@/components/ui/empty-state'
+import { AlertTriangle } from '@/components/ui/icons'
 
 interface CalendarLoadErrorProps {
   onRetry: () => void
 }
 
-/** Kit-card load-failure state shared by the calendar views: message + ghost retry pill. */
+/** Calendar load-failure state: the shared centred lockup (alert glyph + message + retry pill),
+ *  identical to the social-section and Today habit-list failures instead of a bespoke card. */
 export function CalendarLoadError({ onRetry }: Readonly<CalendarLoadErrorProps>) {
   const t = useTranslations()
   return (
-    <div
-      className="flex flex-col items-center text-center"
-      style={{
-        gap: 14,
-        padding: '28px 18px',
-        borderRadius: 18,
-        background: 'var(--bg-card)',
-        boxShadow: 'inset 0 0 0 1px var(--hairline)',
-      }}
-    >
-      <p className="text-sm text-[var(--fg-2)]" style={{ margin: 0 }}>
-        {t('calendar.loadError')}
-      </p>
-      <PillButton variant="ghost" onClick={onRetry}>
-        {t('common.retry')}
-      </PillButton>
-    </div>
+    <EmptyState
+      icon={AlertTriangle}
+      description={t('calendar.loadError')}
+      action={{ label: t('common.retry'), onClick: onRetry, variant: 'secondary' }}
+    />
   )
 }

@@ -236,7 +236,7 @@ export function AppOverlay({
         >
           <motion.button
             type="button"
-            className="absolute inset-0 bg-black/55 cursor-default"
+            className="absolute inset-0 bg-scrim cursor-default"
             aria-label={t('common.close')}
             tabIndex={-1}
             onPointerDown={handlePointerDown}
@@ -264,7 +264,7 @@ export function AppOverlay({
             aria-modal="true"
             aria-labelledby={hasTitle ? titleId : undefined}
             aria-describedby={description ? descriptionId : undefined}
-            className={`relative w-full ${panelWidth === 'wide' ? 'sm:max-w-2xl' : 'sm:max-w-lg'} max-h-[82dvh] overflow-clip rounded-t-[26px] bg-[var(--bg-sheet)] shadow-[0_-16px_44px_rgba(0,0,0,0.5)] sm:rounded-[20px] sm:shadow-[var(--shadow-3)] flex flex-col overscroll-contain`}
+            className={`relative w-full ${panelWidth === 'wide' ? 'sm:max-w-2xl' : 'sm:max-w-lg'} max-h-[82dvh] overflow-clip rounded-t-[26px] bg-[var(--bg-sheet)] shadow-[var(--shadow-3)] sm:rounded-[20px] flex flex-col overscroll-contain`}
             initial={{
               opacity: 0,
               y: motionPreset.shift,

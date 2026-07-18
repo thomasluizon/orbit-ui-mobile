@@ -6,9 +6,9 @@ import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-interface EmptyStateAction {
+export interface EmptyStateAction {
   label: string
-  onPress: () => void
+  onPress?: () => void
   disabled?: boolean
   leading?: ReactNode
   variant?: 'primary' | 'secondary'
@@ -16,7 +16,7 @@ interface EmptyStateAction {
 
 interface EmptyStateProps {
   title?: string
-  description: string
+  description?: string
   /**
    * Swaps the Satellite glyph for a tonal icon disc. The Satellite is the empty half of the state
    * triad (DESIGN.md); every other centred state (locked, gated, no-data, load error) names its own
@@ -57,7 +57,9 @@ export function EmptyState({
 
       <View style={styles.copy}>
         {title ? <Text style={[styles.title, { color: tokens.fg1 }]}>{title}</Text> : null}
-        <Text style={[styles.description, { color: tokens.fg2 }]}>{description}</Text>
+        {description ? (
+          <Text style={[styles.description, { color: tokens.fg2 }]}>{description}</Text>
+        ) : null}
       </View>
 
       {action || footer ? (

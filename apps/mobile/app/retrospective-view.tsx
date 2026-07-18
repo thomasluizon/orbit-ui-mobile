@@ -1,7 +1,9 @@
-import { Pressable, Text, View } from 'react-native'
+import { View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { RetrospectiveResponse } from '@orbit/shared/utils/retrospective'
-import { SkeletonLine } from '@/components/ui/skeleton'
+import { AlertTriangle } from '@/components/ui/icons'
+import { EmptyState } from '@/components/ui/empty-state'
+import { SkeletonCard, SkeletonLine } from '@/components/ui/skeleton'
 import { RetrospectiveDashboard } from './retrospective-dashboard'
 import { RetrospectiveEmptyState } from './retrospective-empty-state'
 import { RetrospectiveNoDataState } from './retrospective-no-data-state'
@@ -19,6 +21,18 @@ interface RetrospectiveContentProps {
   onGenerate: () => void
 }
 
+function StatTileSkeleton({ tokens }: Readonly<{ tokens: Tokens }>) {
+  return (
+    <View
+      style={[styles.skeletonTile, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}
+    >
+      <SkeletonLine width={28} height={28} />
+      <SkeletonLine width={40} height={24} />
+      <SkeletonLine width={48} height={12} />
+    </View>
+  )
+}
+
 export function RetrospectiveContent({
   tokens,
   isOnline,
@@ -34,13 +48,20 @@ export function RetrospectiveContent({
   return (
     <>
       {isLoading ? (
-        <View style={styles.skeletonStack}>
-          <Text style={[styles.skeletonLabel, { color: tokens.fg3 }]}>
-            {t('retrospective.generating')}
-          </Text>
-          <SkeletonLine width="60%" height={7} />
-          <SkeletonLine width="80%" height={7} />
-          <SkeletonLine width="40%" height={7} />
+        <View
+          accessible
+          accessibilityRole="progressbar"
+          accessibilityLabel={t('retrospective.generating')}
+          style={styles.skeletonStack}
+        >
+          <SkeletonLine width="33%" height={12} />
+          <View style={styles.statTilesRow}>
+            <StatTileSkeleton tokens={tokens} />
+            <StatTileSkeleton tokens={tokens} />
+            <StatTileSkeleton tokens={tokens} />
+          </View>
+          <SkeletonCard lines={4} />
+          <SkeletonCard lines={3} />
         </View>
       ) : null}
 
@@ -63,31 +84,16 @@ export function RetrospectiveContent({
       ) : null}
 
       {!isLoading && !displayedData && !noData && error ? (
-        <View style={styles.errorWrap}>
-          <Text style={[styles.errorText, { color: tokens.statusBad }]}>
-            {error || t('retrospective.error')}
-          </Text>
-          <Pressable
-            onPress={onGenerate}
-            disabled={!isOnline}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: !isOnline }}
-            hitSlop={{ top: 5, bottom: 5 }}
-            style={({ pressed }) => [
-              styles.actionChip,
-              {
-                backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
-                borderColor: tokens.hairline,
-                opacity: isOnline ? 1 : 0.5,
-              },
-              pressed ? styles.actionChipPressed : null,
-            ]}
-          >
-            <Text style={[styles.actionChipText, { color: tokens.fg1 }]}>
-              {t('common.retry')}
-            </Text>
-          </Pressable>
-        </View>
+        <EmptyState
+          icon={AlertTriangle}
+          description={error || t('retrospective.error')}
+          action={{
+            label: t('common.retry'),
+            onPress: onGenerate,
+            disabled: !isOnline,
+            variant: 'secondary',
+          }}
+        />
       ) : null}
 
       {!isLoading &&

@@ -2,8 +2,6 @@ import { View, Text, Pressable } from "react-native";
 import { X, PenSquare } from '@/components/ui/icons';
 import { type AppTokens, createStyles } from "./styles";
 
-const SELECTED_TAG_FOREGROUND = "#FFFFFF";
-
 interface HabitTagChipProps {
   tag: { id: string; name: string; color: string };
   selected: boolean;
@@ -58,7 +56,7 @@ export function HabitTagChip({
         <Text
           style={[
             styles.tagChipText,
-            selected && { color: SELECTED_TAG_FOREGROUND },
+            selected && { color: "white" },
           ]}
         >
           {tag.name}
@@ -68,6 +66,7 @@ export function HabitTagChip({
         style={({ pressed }) => [
           styles.tagAction,
           disabled && { opacity: 0.45 },
+          !disabled && selected && { opacity: 0.7 },
           pressed && { transform: [{ scale: 0.96 }] },
         ]}
         disabled={disabled}
@@ -79,13 +78,14 @@ export function HabitTagChip({
         <PenSquare
           size={13}
           strokeWidth={1.8}
-          color={selected ? SELECTED_TAG_FOREGROUND : tokens.fg3}
+          color={selected ? "white" : tokens.fg3}
         />
       </Pressable>
       <Pressable
         style={({ pressed }) => [
           styles.tagAction,
           disabled && { opacity: 0.45 },
+          !disabled && selected && { opacity: 0.7 },
           pressed && { transform: [{ scale: 0.96 }] },
         ]}
         disabled={disabled}
@@ -97,7 +97,7 @@ export function HabitTagChip({
         <X
           size={13}
           strokeWidth={1.8}
-          color={selected ? SELECTED_TAG_FOREGROUND : tokens.fg3}
+          color={selected ? "white" : tokens.fg3}
         />
       </Pressable>
     </View>

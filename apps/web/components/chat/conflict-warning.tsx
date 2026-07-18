@@ -43,25 +43,25 @@ export function ConflictWarning({ warning }: Readonly<ConflictWarningProps>) {
   return (
     <div
       data-severity={warning.severity}
-      className={`rounded-[16px] px-4 py-3 text-xs mt-2 ${severity.className}`}
+      className={`mt-2 flex flex-col gap-2 rounded-[16px] px-4 py-3 text-xs ${severity.className}`}
       style={{ boxShadow: `inset 0 0 0 1px ${severity.ring}` }}
     >
-      <p className="font-semibold mb-1 flex items-center gap-1.5">
-        <AlertTriangle className="size-3.5" />
+      <p className="flex items-center gap-1 font-semibold">
+        <AlertTriangle className="size-3.5 shrink-0" />
         {t('chat.conflict.title')}
       </p>
       {warning.conflictingHabits.length > 0 && (
-        <ul className="space-y-0.5 mb-1.5">
+        <ul className="flex flex-col gap-1">
           {warning.conflictingHabits.map((habit) => (
-            <li key={habit.habitId}>
-              <span className="font-semibold">{habit.habitTitle}</span>:{' '}
+            <li key={habit.habitId} className="min-w-0 [text-wrap:pretty]">
+              <span className="font-medium">{habit.habitTitle}</span>:{' '}
               {habit.conflictDescription}
             </li>
           ))}
         </ul>
       )}
       {warning.recommendation && (
-        <p className="opacity-80 text-[11px]">{warning.recommendation}</p>
+        <p className="[text-wrap:pretty]">{warning.recommendation}</p>
       )}
     </div>
   )

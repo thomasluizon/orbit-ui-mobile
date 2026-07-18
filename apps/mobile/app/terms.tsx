@@ -143,8 +143,8 @@ const styles = StyleSheet.create({
   scrollContent: { paddingBottom: 40 },
   bodyBlock: {
     paddingHorizontal: 20,
-    paddingBottom: 18,
-    gap: 6,
+    paddingBottom: 16,
+    gap: 8,
   },
   bodyText: {
     fontFamily: 'Rubik_400Regular',

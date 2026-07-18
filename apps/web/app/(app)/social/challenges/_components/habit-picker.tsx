@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl'
 import { isCompletedOneTimeHabit } from '@orbit/shared/utils'
+import { Chip } from '@/components/ui/chip'
 import { useHabits } from '@/hooks/use-habits'
 
 interface HabitPickerProps {
@@ -28,34 +29,16 @@ export function HabitPicker({ selectedIds, onToggle }: Readonly<HabitPickerProps
 
   return (
     <div className="flex flex-wrap" style={{ gap: 8 }}>
-      {habits.map((habit) => {
-        const active = selectedIdSet.has(habit.id)
-        return (
-          <button
-            key={habit.id}
-            type="button"
-            aria-pressed={active}
-            onClick={() => onToggle(habit.id)}
-            className={`transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.96] motion-reduce:transition-none ${
-              active
-                ? 'bg-[rgba(var(--primary-rgb),0.12)] shadow-[inset_0_0_0_1px_var(--primary)]'
-                : 'bg-[var(--bg-elev)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-elev-2)]'
-            }`}
-            style={{
-              padding: '8px 14px',
-              minHeight: 40,
-              borderRadius: 999,
-              border: 0,
-              cursor: 'pointer',
-              fontFamily: 'var(--font-sans)',
-              fontSize: 14,
-              color: active ? 'var(--primary)' : 'var(--fg-2)',
-            }}
-          >
-            {habit.title}
-          </button>
-        )
-      })}
+      {habits.map((habit) => (
+        <Chip
+          key={habit.id}
+          active={selectedIdSet.has(habit.id)}
+          ariaLabel={habit.title}
+          onClick={() => onToggle(habit.id)}
+        >
+          {habit.title}
+        </Chip>
+      ))}
     </div>
   )
 }

@@ -19,7 +19,7 @@ export function CalendarStats({ stats }: Readonly<CalendarStatsProps>) {
       className="grid"
       style={{
         gridTemplateColumns: 'repeat(auto-fit, minmax(96px, 1fr))',
-        gap: 10,
+        gap: 12,
         padding: '0 20px',
       }}
     >

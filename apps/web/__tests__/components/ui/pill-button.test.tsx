@@ -95,6 +95,14 @@ describe('PillButton', () => {
     expect(screen.getByTestId('icon-only-leading')).toBeInTheDocument()
   })
 
+  it('keeps a long label on one line and truncates it instead of wrapping', () => {
+    render(
+      <PillButton onClick={() => {}}>Experimente o Orbit gratis</PillButton>,
+    )
+    const label = screen.getByText('Experimente o Orbit gratis')
+    expect(label).toHaveClass('whitespace-nowrap', 'overflow-hidden', 'text-ellipsis', 'min-w-0')
+  })
+
   it('drives the pill height from the size scale (sm < md < lg)', () => {
     render(
       <>

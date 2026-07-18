@@ -23,7 +23,7 @@ export function BarChart({
   const max = bars.reduce((peak, bar) => Math.max(peak, bar.value), 0)
 
   return (
-    <ul aria-label={ariaLabel} className="flex flex-col" style={{ gap: 11 }}>
+    <ul aria-label={ariaLabel} className="flex flex-col" style={{ gap: 12 }}>
       {bars.map((bar) => {
         const ratio = max > 0 ? bar.value / max : 0
         return (

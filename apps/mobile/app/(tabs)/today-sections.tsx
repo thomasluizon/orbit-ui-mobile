@@ -3,7 +3,6 @@ import {
   // react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   Animated,
   ScrollView,
-  Text,
   View,
   type StyleProp,
   type ViewStyle,
@@ -12,8 +11,8 @@ import { useTranslation } from "react-i18next";
 import type { HabitsFilter } from "@orbit/shared/types/habit";
 import { HabitList, type HabitListHandle } from "@/components/habit-list";
 import { GoalsView } from "@/components/goals/goals-view";
-import { PillButton } from "@/components/ui/pill-button";
-import { SatelliteGlyph } from "@/components/ui/satellite-glyph";
+import { EmptyState } from "@/components/ui/empty-state";
+import { AlertTriangle } from "@/components/ui/icons";
 import type { createStyles, TodayView } from "./index";
 
 type TodayScreenStyles = ReturnType<typeof createStyles>;
@@ -103,18 +102,15 @@ export function TodayScreenBody({
     return (
       <ScrollView style={styles.listShell} showsVerticalScrollIndicator={false}>
         {sharedHeader}
-        <View style={styles.loadErrorState}>
-          <SatelliteGlyph size={96} />
-          <Text style={styles.loadErrorText}>{t("habits.loadError")}</Text>
-          <PillButton
-            variant="ghost"
-            style={styles.loadErrorRetry}
-            accessibilityLabel={t("common.retry")}
-            onPress={onRetry}
-          >
-            {t("common.retry")}
-          </PillButton>
-        </View>
+        <EmptyState
+          icon={AlertTriangle}
+          description={t("habits.loadError")}
+          action={{
+            label: t("common.retry"),
+            onPress: onRetry,
+            variant: "secondary",
+          }}
+        />
       </ScrollView>
     );
   }

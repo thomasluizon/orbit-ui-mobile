@@ -720,23 +720,6 @@ export function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     listShell: {
       flex: 1,
     },
-    loadErrorState: {
-      alignItems: "center",
-      paddingVertical: 48,
-      paddingHorizontal: 24,
-    },
-    loadErrorText: {
-      fontFamily: "Rubik_400Regular",
-      fontSize: 14,
-      lineHeight: 21,
-      color: tokens.fg3,
-      marginTop: 14,
-      maxWidth: 280,
-      textAlign: "center",
-    },
-    loadErrorRetry: {
-      marginTop: 22,
-    },
     bulkActionBarWrap: {
       position: "absolute",
       left: 20,

@@ -89,7 +89,7 @@ export function OnboardingMeetAstra({ onImport }: Readonly<OnboardingMeetAstraPr
           },
         ]}
       >
-        <AstraAvatar size={30} />
+        <AstraAvatar size={32} />
         <View style={styles.bubble}>
           <Text style={styles.bubbleText}>
             {t('onboarding.flow.meetAstra.subtitle')}
@@ -115,7 +115,7 @@ function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
     root: {
       alignItems: 'center',
-      gap: 22,
+      gap: 24,
       paddingTop: 24,
       paddingBottom: 8,
     },
@@ -123,14 +123,14 @@ function createStyles(tokens: AppTokensV2) {
       fontFamily: 'Rubik_500Medium',
       fontSize: 28,
       letterSpacing: -0.28,
-      lineHeight: 32,
+      lineHeight: 36,
       color: tokens.fg1,
       textAlign: 'center',
     },
     bubbleRow: {
       flexDirection: 'row',
       alignItems: 'flex-start',
-      gap: 10,
+      gap: 12,
       alignSelf: 'stretch',
       maxWidth: 340,
     },
@@ -142,12 +142,12 @@ function createStyles(tokens: AppTokensV2) {
       borderBottomLeftRadius: 18,
       borderBottomRightRadius: 18,
       paddingVertical: 12,
-      paddingHorizontal: 15,
+      paddingHorizontal: 16,
     },
     bubbleText: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 15,
-      lineHeight: 22,
+      fontSize: 16,
+      lineHeight: 25,
       color: tokens.fg1,
     },
   })

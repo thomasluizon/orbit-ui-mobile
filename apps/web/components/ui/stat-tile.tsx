@@ -9,19 +9,19 @@ interface StatTileProps {
   className?: string
 }
 
-const singleLineValueStyle: CSSProperties = {
-  display: 'block',
+const valueBaseStyle: CSSProperties = {
   maxWidth: '100%',
   minWidth: 0,
-  whiteSpace: 'nowrap',
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
   textAlign: 'center',
   color: 'var(--fg-1)',
 }
 
 const numeralValueStyle: CSSProperties = {
-  ...singleLineValueStyle,
+  ...valueBaseStyle,
+  display: 'block',
+  whiteSpace: 'nowrap',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
   fontFamily: 'var(--font-display)',
   fontSize: 24,
   fontWeight: 700,
@@ -31,7 +31,12 @@ const numeralValueStyle: CSSProperties = {
 }
 
 const phraseValueStyle: CSSProperties = {
-  ...singleLineValueStyle,
+  ...valueBaseStyle,
+  display: '-webkit-box',
+  WebkitBoxOrient: 'vertical',
+  WebkitLineClamp: 2,
+  overflow: 'hidden',
+  overflowWrap: 'anywhere',
   fontFamily: 'var(--font-sans)',
   fontSize: 15,
   fontWeight: 600,
@@ -56,9 +61,11 @@ const labelStyle: CSSProperties = {
 }
 
 /**
- * Kit stat tile: emoji over a single-line Inter numeral (or compact phrase) and a muted Rubik
- * label clamped to two lines inside a fixed 40px reservation, so side-by-side tiles keep a
- * shared baseline when a longer pt-BR label wraps.
+ * Kit stat tile: emoji over a value line and a muted Rubik label clamped to two lines inside a
+ * fixed 40px reservation, so side-by-side tiles keep a shared baseline when a longer pt-BR label
+ * wraps. A numeral value stays on one line (tabular, ellipsis-truncated if ever overlong); a
+ * `phraseValue` (date/state/tier) wraps to two lines so a longer pt-BR string stays fully readable
+ * instead of being clipped — matching the mobile tile.
  */
 export function StatTile({
   emoji,

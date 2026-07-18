@@ -125,7 +125,7 @@ describe('FreshStartModal', () => {
 
     fireEvent.click(screen.getByText('common.continue'))
 
-    const confirmBtn = screen.getByText('profile.freshStart.confirmButton')
+    const confirmBtn = screen.getByRole('button', { name: 'profile.freshStart.confirmButton' })
     expect(confirmBtn).toBeDisabled()
   })
 
@@ -137,7 +137,7 @@ describe('FreshStartModal', () => {
     const input = screen.getByPlaceholderText('profile.freshStart.confirmPlaceholder')
     fireEvent.change(input, { target: { value: 'ORB' } })
 
-    const confirmBtn = screen.getByText('profile.freshStart.confirmButton')
+    const confirmBtn = screen.getByRole('button', { name: 'profile.freshStart.confirmButton' })
     expect(confirmBtn).toBeDisabled()
   })
 
@@ -149,7 +149,7 @@ describe('FreshStartModal', () => {
     const input = screen.getByPlaceholderText('profile.freshStart.confirmPlaceholder')
     fireEvent.change(input, { target: { value: 'ORBIT' } })
 
-    const confirmBtn = screen.getByText('profile.freshStart.confirmButton')
+    const confirmBtn = screen.getByRole('button', { name: 'profile.freshStart.confirmButton' })
     expect(confirmBtn).not.toBeDisabled()
   })
 
@@ -161,7 +161,7 @@ describe('FreshStartModal', () => {
     const input = screen.getByPlaceholderText('profile.freshStart.confirmPlaceholder')
     fireEvent.change(input, { target: { value: 'orbit' } })
 
-    const confirmBtn = screen.getByText('profile.freshStart.confirmButton')
+    const confirmBtn = screen.getByRole('button', { name: 'profile.freshStart.confirmButton' })
     expect(confirmBtn).not.toBeDisabled()
   })
 

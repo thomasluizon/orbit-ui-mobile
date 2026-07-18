@@ -176,7 +176,7 @@ function createStyles(tokens: AppTokensV2) {
     },
     backdrop: {
       ...StyleSheet.absoluteFill,
-      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      backgroundColor: tokens.scrim,
     },
     dialog: {
       width: '100%',

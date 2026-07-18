@@ -105,20 +105,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     marginTop: 8,
+    gap: 8,
   },
   titleRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    marginBottom: 4,
+    gap: 4,
   },
   title: {
     fontFamily: 'Rubik_600SemiBold',
     fontSize: 12,
   },
   habitsList: {
-    gap: 2,
-    marginBottom: 6,
+    gap: 4,
   },
   habitText: {
     fontFamily: 'Rubik_400Regular',
@@ -130,7 +129,7 @@ const styles = StyleSheet.create({
   },
   recommendation: {
     fontFamily: 'Rubik_400Regular',
-    fontSize: 11,
-    opacity: 0.8,
+    fontSize: 12,
+    lineHeight: 16,
   },
 });

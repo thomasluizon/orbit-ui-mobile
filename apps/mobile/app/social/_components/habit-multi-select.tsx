@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { Check, Search, X } from '@/components/ui/icons'
-import { buildHabitPickerOptions, filterHabitPickerOptions } from '@orbit/shared/utils'
+import { buildHabitPickerOptions, filterHabitPickerOptions, plural } from '@orbit/shared/utils'
 import {
   EMPTY_CHILDREN_BY_PARENT,
   EMPTY_HABITS_BY_ID,
@@ -66,7 +66,7 @@ export function HabitMultiSelect({ selectedIds, onChange }: Readonly<HabitMultiS
       <View style={styles.header}>
         <Text style={styles.hint}>{t('social.buddies.habitsHint')}</Text>
         <Text style={styles.count}>
-          {t('social.buddies.habitCount', { count: selectedIds.length })}
+          {plural(t('social.buddies.habitCount', { count: selectedIds.length }), selectedIds.length)}
         </Text>
       </View>
 
@@ -87,7 +87,7 @@ export function HabitMultiSelect({ selectedIds, onChange }: Readonly<HabitMultiS
                 <Text style={styles.chipText} numberOfLines={1}>
                   {option.title}
                 </Text>
-                <X size={13} color={tokens.primary} strokeWidth={2.2} />
+                <X size={13} color={tokens.primarySoft} strokeWidth={2.2} />
               </Pressable>
             )
           })}
@@ -142,7 +142,7 @@ export function HabitMultiSelect({ selectedIds, onChange }: Readonly<HabitMultiS
               >
                 <View style={styles.rowText}>
                   <Text
-                    style={[styles.title, { color: active ? tokens.primary : tokens.fg1 }]}
+                    style={[styles.title, { color: active ? tokens.primarySoft : tokens.fg1 }]}
                     numberOfLines={1}
                   >
                     {option.title}
@@ -197,7 +197,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       borderRadius: 999,
       backgroundColor: tintFromPrimary(tokens, 0.12),
     },
-    chipText: { fontFamily: 'Rubik_500Medium', fontSize: 13, color: tokens.primary, flexShrink: 1 },
+    chipText: { fontFamily: 'Rubik_500Medium', fontSize: 13, color: tokens.primarySoft, flexShrink: 1 },
     search: {
       flexDirection: 'row',
       alignItems: 'center',

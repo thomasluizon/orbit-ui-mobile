@@ -75,7 +75,7 @@ function ReportSheet({
                   pressed ? styles.reasonChipPressed : null,
                 ]}
               >
-                <Text style={[styles.reasonText, { color: active ? tokens.primary : tokens.fg2 }]}>
+                <Text style={[styles.reasonText, { color: active ? tokens.primarySoft : tokens.fg2 }]}>
                   {t(`social.report.reasons.${option}`)}
                 </Text>
               </Pressable>
@@ -281,7 +281,7 @@ function createStyles(tokens: AppTokens) {
       backgroundColor: tintFromPrimary(tokens, 0.12),
     },
     cheerPressed: { transform: [{ scale: 0.96 }] },
-    cheerText: { fontFamily: 'Rubik_500Medium', fontSize: 14, color: tokens.primary },
+    cheerText: { fontFamily: 'Rubik_500Medium', fontSize: 14, color: tokens.primarySoft },
     more: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
     morePressed: { transform: [{ scale: 0.96 }] },
     actionsSheet: { paddingHorizontal: 20, paddingBottom: 24 },

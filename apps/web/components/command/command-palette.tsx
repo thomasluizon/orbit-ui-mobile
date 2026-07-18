@@ -54,7 +54,7 @@ export function CommandPalette({ navItems, onCreateHabit, onCreateGoal }: Readon
               type="button"
               aria-label={t('common.close')}
               tabIndex={-1}
-              className="absolute inset-0 cursor-default bg-black/55"
+              className="absolute inset-0 cursor-default bg-scrim"
               initial={{ opacity: 0 }}
               animate={{
                 opacity: 1,

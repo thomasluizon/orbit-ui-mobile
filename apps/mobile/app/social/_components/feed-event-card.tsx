@@ -2,7 +2,9 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { FriendFeedItem } from '@orbit/shared/types/social'
 import { UserAvatar } from '@/components/ui/user-avatar'
-import { createTokensV2, tintFromPrimary } from '@/lib/theme'
+import { PillButton } from '@/components/ui/pill-button'
+import { createTokensV2 } from '@/lib/theme'
+import { typeRoleStyle } from '@/lib/type-roles'
 import { useAppTheme } from '@/lib/use-app-theme'
 import type { CheerTarget } from './cheer-composer'
 import type { ProfileTarget } from './friend-profile-sheet'
@@ -19,7 +21,6 @@ export function FeedEventCard({ item, onCheer, onOpenProfile }: Readonly<FeedEve
   const { t, i18n } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const styles = createStyles(tokens)
   const name = item.actorDisplayName
 
   function eventText(): string {
@@ -46,45 +47,34 @@ export function FeedEventCard({ item, onCheer, onOpenProfile }: Readonly<FeedEve
         style={({ pressed }) => [styles.identity, pressed ? styles.identityPressed : null]}
       >
         <UserAvatar name={name} />
-        <Text style={styles.text}>{eventText()}</Text>
+        <Text style={[typeRoleStyle('body', tokens), styles.text]}>{eventText()}</Text>
       </Pressable>
-      <Pressable
-        accessibilityRole="button"
+      <PillButton
+        variant="ghost"
+        size="sm"
         onPress={() => onCheer({ recipientId: item.actorUserId, displayName: name })}
-        hitSlop={{ top: 7, bottom: 7 }}
-        style={({ pressed }) => [styles.cheer, pressed ? styles.cheerPressed : null]}
       >
-        <Text style={styles.cheerText}>{t('social.feed.cheerAction')}</Text>
-      </Pressable>
+        {t('social.feed.cheerAction')}
+      </PillButton>
     </View>
   )
 }
 
-function createStyles(tokens: ReturnType<typeof createTokensV2>) {
-  return StyleSheet.create({
-    row: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      paddingHorizontal: 20,
-      paddingVertical: 12,
-    },
-    identity: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      borderRadius: 12,
-    },
-    identityPressed: { opacity: 0.7 },
-    text: { flex: 1, fontFamily: 'Rubik_400Regular', fontSize: 15, lineHeight: 21, color: tokens.fg1 },
-    cheer: {
-      paddingHorizontal: 14,
-      paddingVertical: 7,
-      borderRadius: 999,
-      backgroundColor: tintFromPrimary(tokens, 0.12),
-    },
-    cheerPressed: { transform: [{ scale: 0.96 }] },
-    cheerText: { fontFamily: 'Rubik_500Medium', fontSize: 14, color: tokens.primary },
-  })
-}
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  identity: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: 12,
+  },
+  identityPressed: { opacity: 0.7 },
+  text: { flex: 1 },
+})

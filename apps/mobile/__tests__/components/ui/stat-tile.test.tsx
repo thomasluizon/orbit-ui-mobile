@@ -4,7 +4,12 @@ import { StatTile } from '@/components/ui/stat-tile'
 
 const TestRenderer = require('react-test-renderer')
 
-function renderTile(props: { emoji: string; value: string | number; label: string }) {
+function renderTile(props: {
+  emoji: string
+  value: string | number
+  label: string
+  phraseValue?: boolean
+}) {
   let tree: any
   TestRenderer.act(() => {
     tree = TestRenderer.create(<StatTile {...props} />)
@@ -25,7 +30,7 @@ describe('StatTile (mobile)', () => {
     expect(texts.map((node: any) => node.props.children)).toContain(12)
   })
 
-  it('clamps the label to two lines and the value to one', () => {
+  it('clamps the label to two lines and a numeral value to one', () => {
     const texts = renderTile({
       emoji: '🥇',
       value: 1284937,
@@ -36,8 +41,19 @@ describe('StatTile (mobile)', () => {
       (node: any) => node.props.children === 'Melhor sequência de hábitos concluídos',
     )
     expect(value.props.numberOfLines).toBe(1)
-    expect(value.props.adjustsFontSizeToFit).toBe(true)
     expect(label.props.numberOfLines).toBe(2)
+  })
+
+  it('wraps a phrase value to two lines so a longer pt-BR string stays readable', () => {
+    const phrase = '18 de julho de 2026'
+    const texts = renderTile({
+      emoji: '📅',
+      value: phrase,
+      label: 'Conclusão prevista',
+      phraseValue: true,
+    })
+    const value = texts.find((node: any) => node.props.children === phrase)
+    expect(value.props.numberOfLines).toBe(2)
   })
 
   it('reserves a two-line label box so tiles in a row share a baseline', () => {

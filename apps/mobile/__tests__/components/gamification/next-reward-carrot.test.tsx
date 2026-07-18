@@ -82,8 +82,17 @@ describe('NextRewardCarrot (mobile)', () => {
     const tree = render({ carrot: { ...baseCarrot, showProTeaser: true }, onUpgrade })
 
     const serialized = serialize(tree)
-    expect(serialized).toContain('gamification.carrot.title'.toUpperCase())
+    expect(serialized).toContain('gamification.carrot.title')
     expect(serialized).toContain('gamification.carrot.toNextLevel:{"xp":300,"level":4}')
+
+    const uppercaseTitle = tree.root.findAll(
+      (node) =>
+        Array.isArray(node.props?.style) &&
+        (node.props.style as Array<Record<string, unknown> | undefined>).some(
+          (styleEntry) => styleEntry?.textTransform === 'uppercase',
+        ),
+    )
+    expect(uppercaseTitle.length).toBeGreaterThan(0)
     expect(serialized).toContain('gamification.carrot.proTeaser.title')
     expect(serialized).toContain('gamification.carrot.proTeaser.achievements')
 

@@ -16,6 +16,7 @@ export {
   statusConstants,
   selectionAlpha,
   primaryTintAlphas,
+  shareQrColors,
   type NeutralTokenSpec,
   type NeutralRamp,
   type DarkNeutrals,

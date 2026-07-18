@@ -2,7 +2,7 @@
  *  (StyleSheet) mirrors. Colors resolve per-scheme at each primitive; only the
  *  scheme-independent geometry lives here so the two mirrors cannot drift.
  *  See DESIGN.md "Buttons" for the rule. */
-export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'destructive'
+export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'destructive' | 'caution'
 
 export type ButtonSize = 'xs' | 'sm' | 'md' | 'lg'
 

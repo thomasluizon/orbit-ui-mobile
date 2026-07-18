@@ -38,6 +38,8 @@ vi.mock('react-i18next', () => ({
 }))
 
 vi.mock('@/lib/theme', () => ({
+  radius: { xl: 20, full: 9999, md: 12, lg: 16, sm: 8 },
+  darkenHex: (hex: string) => hex,
   createTokensV2: () =>
     new Proxy(
       {},

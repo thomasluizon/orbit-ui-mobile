@@ -143,7 +143,7 @@ export function NewPairFlow({ open, onClose, initialHabitId }: Readonly<NewPairF
                     >
                       <UserAvatar name={friend.displayName} />
                       <Text
-                        style={[styles.friendName, { color: active ? tokens.primary : tokens.fg1 }]}
+                        style={[styles.friendName, { color: active ? tokens.primarySoft : tokens.fg1 }]}
                         numberOfLines={1}
                       >
                         {friend.displayName}
@@ -175,7 +175,7 @@ export function NewPairFlow({ open, onClose, initialHabitId }: Readonly<NewPairF
                     pressed && styles.pressedChip,
                   ]}
                 >
-                  <Text style={[styles.cadenceText, { color: active ? tokens.primary : tokens.fg2 }]}>
+                  <Text style={[styles.cadenceText, { color: active ? tokens.primarySoft : tokens.fg2 }]}>
                     {t(`social.buddies.cadence.${option}`)}
                   </Text>
                 </Pressable>

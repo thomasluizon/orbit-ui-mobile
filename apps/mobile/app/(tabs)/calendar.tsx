@@ -3,7 +3,6 @@ import { useTourTarget } from "@/hooks/use-tour-target";
 import { useTourScrollContainer } from "@/hooks/use-tour-scroll-container";
 import {
   View,
-  Text,
   StyleSheet,
   FlatList,
   ScrollView,
@@ -49,7 +48,7 @@ import { buildCalendarMonthModel } from "@/lib/calendar-month-model";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BottomSheetModal } from "@/components/bottom-sheet-modal";
 import { EmptyState } from "@/components/ui/empty-state";
-import { PillButton } from "@/components/ui/pill-button";
+import { AlertTriangle } from "@/components/ui/icons";
 import { SectionLabel } from "@/components/ui/section-label";
 import { SectionHeadTabs } from "@/components/ui/section-head-tabs";
 import {
@@ -419,21 +418,15 @@ export default function CalendarScreen() {
       <CalendarLoadingBar active={activeFetching} tokens={tokens} />
 
       {activeError && (
-        <View style={styles.errorWrap}>
-          <View
-            style={[
-              styles.errorCard,
-              { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
-            ]}
-          >
-            <Text style={[styles.errorText, { color: tokens.fg2 }]}>
-              {t("calendar.loadError")}
-            </Text>
-            <PillButton variant="ghost" onPress={() => void activeRefresh()}>
-              {t("common.retry")}
-            </PillButton>
-          </View>
-        </View>
+        <EmptyState
+          icon={AlertTriangle}
+          description={t("calendar.loadError")}
+          action={{
+            label: t("common.retry"),
+            onPress: () => void activeRefresh(),
+            variant: "secondary",
+          }}
+        />
       )}
       {!activeError && view === "month" && (
         <FlatList
@@ -551,24 +544,6 @@ function createStyles() {
 
     listFooter: {
       paddingTop: 4,
-    },
-
-    errorWrap: {
-      paddingHorizontal: 20,
-      paddingVertical: 12,
-    },
-    errorCard: {
-      alignItems: "center",
-      gap: 14,
-      paddingVertical: 28,
-      paddingHorizontal: 18,
-      borderRadius: 18,
-      borderWidth: 1,
-    },
-    errorText: {
-      fontFamily: "Rubik_400Regular",
-      fontSize: 14,
-      textAlign: "center",
     },
 
     sheetScroll: {

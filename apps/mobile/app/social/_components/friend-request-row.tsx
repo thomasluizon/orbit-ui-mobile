@@ -1,7 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { FriendRequestSummary } from '@orbit/shared/types/social'
 import { getSocialErrorKey } from '@orbit/shared/utils'
+import { PillButton } from '@/components/ui/pill-button'
 import { UserAvatar } from '@/components/ui/user-avatar'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useAcceptFriendRequest, useRemoveFriend } from '@/hooks/use-friends'
@@ -22,7 +23,6 @@ export function FriendRequestRow({ request, direction }: Readonly<FriendRequestR
   const { showError } = useAppToast()
   const accept = useAcceptFriendRequest()
   const remove = useRemoveFriend()
-  const busy = accept.isPending || remove.isPending
 
   async function handleAccept() {
     try {
@@ -56,56 +56,34 @@ export function FriendRequestRow({ request, direction }: Readonly<FriendRequestR
       <View style={styles.actions}>
         {direction === 'incoming' ? (
           <>
-            <Pressable
-              accessibilityRole="button"
+            <PillButton
+              variant="primary"
+              size="sm"
               onPress={() => void handleAccept()}
-              disabled={busy}
-              hitSlop={{ top: 6, bottom: 6 }}
-              style={({ pressed }) => [
-                styles.actionButton,
-                { backgroundColor: pressed ? tokens.primaryPressed : tokens.primary },
-                busy ? styles.actionBusy : null,
-                pressed ? styles.actionPressed : null,
-              ]}
+              busy={accept.isPending}
+              disabled={remove.isPending}
             >
-              <Text style={[styles.actionText, { color: tokens.fgOnPrimary }]}>
-                {t('social.friends.accept')}
-              </Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
+              {t('social.friends.accept')}
+            </PillButton>
+            <PillButton
+              variant="ghost"
+              size="sm"
               onPress={() => void handleRemove()}
-              disabled={busy}
-              hitSlop={{ top: 6, bottom: 6 }}
-              style={({ pressed }) => [
-                styles.actionButton,
-                { backgroundColor: tokens.bgElev },
-                busy ? styles.actionBusy : null,
-                pressed ? styles.actionPressed : null,
-              ]}
+              busy={remove.isPending}
+              disabled={accept.isPending}
             >
-              <Text style={[styles.actionText, { color: tokens.fg2 }]}>
-                {t('social.friends.decline')}
-              </Text>
-            </Pressable>
+              {t('social.friends.decline')}
+            </PillButton>
           </>
         ) : (
-          <Pressable
-            accessibilityRole="button"
+          <PillButton
+            variant="ghost"
+            size="sm"
             onPress={() => void handleRemove()}
-            disabled={busy}
-            hitSlop={{ top: 6, bottom: 6 }}
-            style={({ pressed }) => [
-              styles.actionButton,
-              { backgroundColor: tokens.bgElev },
-              busy ? styles.actionBusy : null,
-              pressed ? styles.actionPressed : null,
-            ]}
+            busy={remove.isPending}
           >
-            <Text style={[styles.actionText, { color: tokens.fg2 }]}>
-              {t('social.friends.cancel')}
-            </Text>
-          </Pressable>
+            {t('social.friends.cancel')}
+          </PillButton>
         )}
       </View>
     </View>
@@ -125,9 +103,5 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     name: { fontFamily: 'Rubik_500Medium', fontSize: 15, color: tokens.fg1 },
     sub: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: tokens.fg3 },
     actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    actionButton: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999 },
-    actionPressed: { transform: [{ scale: 0.96 }] },
-    actionBusy: { opacity: 0.4 },
-    actionText: { fontFamily: 'Rubik_500Medium', fontSize: 14 },
   })
 }

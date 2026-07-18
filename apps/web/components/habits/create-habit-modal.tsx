@@ -332,7 +332,8 @@ export function CreateHabitModal({
             </PillButton>
             <PillButton
               type="submit"
-              form={formId}              disabled={isPending || watchedTitle.trim().length === 0}
+              form={formId}
+              disabled={isPending || watchedTitle.trim().length === 0}
               dataTestId="habit-create-submit"
               leading={
                 isPending ? (

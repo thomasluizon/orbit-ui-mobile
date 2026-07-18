@@ -41,7 +41,7 @@ const TABS: readonly TabDef[] = [
 ]
 
 /** Kit bottom navigation: opaque canvas bar with top hairline, 4 labelled tabs
- *  and a centered 60px Plus FAB ringed by the canvas color plus primary glow. */
+ *  and a centered 60px Plus FAB ringed by the canvas color (no glow, per the #539 freeze). */
 export function BottomTabBar({
   active,
   onTab,

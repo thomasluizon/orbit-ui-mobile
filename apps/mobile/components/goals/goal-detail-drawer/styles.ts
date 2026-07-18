@@ -83,19 +83,23 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
       fontSize: 13,
       color: tokens.statusOverdueText,
     },
-    retryButton: {
-      alignSelf: 'flex-start',
-      minHeight: 44,
-      justifyContent: 'center',
+    loadError: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 12,
       paddingHorizontal: 20,
+      paddingTop: 8,
     },
-    retryButtonPressed: {
-      opacity: 0.7,
+    loadErrorContent: {
+      flex: 1,
+      alignItems: 'flex-start',
+      gap: 8,
     },
-    retryText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 13,
-      color: tokens.fg1,
+    loadErrorText: {
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 14,
+      lineHeight: 22,
+      color: tokens.fg2,
     },
     askAstra: {
       flexDirection: 'row',

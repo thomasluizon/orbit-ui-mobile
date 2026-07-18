@@ -199,7 +199,8 @@ export function BreakdownSuggestion({
 
       <div className="flex gap-2 pt-1">
         <PillButton
-          className="flex-1 py-[11px]! text-[14px]!"
+          size="sm"
+          className="flex-1 sm:flex-none"
           disabled={validHabits.length === 0 || isSubmitting}
           onClick={() => {
             void handleConfirm()
@@ -210,7 +211,7 @@ export function BreakdownSuggestion({
         </PillButton>
         <PillButton
           variant="ghost"
-          className="py-[11px]! text-[14px]! px-[18px]!"
+          size="sm"
           disabled={isSubmitting}
           onClick={onCancelled}
         >

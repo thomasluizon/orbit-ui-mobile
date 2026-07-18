@@ -46,7 +46,7 @@ export default function LoginPage() {
       {referralCode && <ReferralBanner motionPreset={feedbackMotion} t={t} />}
       <div
         className="flex flex-col"
-        style={{ padding: '40px 28px 24px', gap: 18 }}
+        style={{ padding: '40px 28px 24px', gap: 20 }}
       >
         <LoginHeader
           step={step}

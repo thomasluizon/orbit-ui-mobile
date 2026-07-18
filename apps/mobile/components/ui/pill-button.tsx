@@ -26,11 +26,16 @@ interface PillButtonProps {
 }
 
 /** Kit pill CTA in the canonical taxonomy: solid `primary`, inverted
- *  `secondary`, hairline `ghost`, or status-bad `destructive`. `size` (`sm` /
+ *  `secondary`, hairline `ghost`, status-bad `destructive`, or amber
+ *  status-overdue `caution` (the reversible-danger sibling of `destructive`,
+ *  e.g. account reset). `size` (`sm` /
  *  `md` / `lg`) drives a fixed height + horizontal padding + label/icon scale
  *  from the shared `BUTTON_SIZES` geometry so the web mirror cannot drift.
  *  While `busy`, a spinner fills the leading slot, the label dims, and presses
- *  no-op. With a `leading` icon and no label child it renders an icon-only
+ *  no-op. The label stays on a single line (`numberOfLines={1}` + `flexShrink`):
+ *  the pill hugs and grows to fit when unconstrained, and truncates with an
+ *  ellipsis (never wraps) when width-capped, so a long pt-BR CTA cannot blow out
+ *  the fixed height — matching the web mirror. With a `leading` icon and no label child it renders an icon-only
  *  square (width = the size's height); pass `accessibilityLabel` for its name. */
 export function PillButton({
   variant = 'primary',
@@ -55,6 +60,7 @@ export function PillButton({
     secondary: tokens.bg,
     ghost: tokens.fg1,
     destructive: tokens.fgOnBad,
+    caution: tokens.fgOnOverdue,
   }
 
   const variantStyle = (pressed: boolean): ViewStyle => {
@@ -71,6 +77,11 @@ export function PillButton({
     if (variant === 'destructive') {
       return {
         backgroundColor: pressed ? darkenHex(tokens.statusBad, 0.15) : tokens.statusBad,
+      }
+    }
+    if (variant === 'caution') {
+      return {
+        backgroundColor: pressed ? darkenHex(tokens.statusOverdue, 0.15) : tokens.statusOverdue,
       }
     }
     return {
@@ -146,6 +157,7 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.97 }],
   },
   label: {
+    flexShrink: 1,
     fontFamily: 'Rubik_500Medium',
   },
   labelBusy: {

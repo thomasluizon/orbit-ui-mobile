@@ -155,6 +155,7 @@ function BreakdownActions({
 
       <View style={styles.actions}>
         <PillButton
+          size="sm"
           style={styles.confirmPill}
           disabled={validCount === 0 || isSubmitting}
           onPress={onConfirm}
@@ -168,7 +169,7 @@ function BreakdownActions({
         </PillButton>
         <PillButton
           variant="ghost"
-          style={styles.cancelPill}
+          size="sm"
           disabled={isSubmitting}
           onPress={onCancel}
         >

@@ -34,7 +34,7 @@ function PaletteTrigger() {
       aria-label={t('shell.openPalette')}
       aria-haspopup="dialog"
       className="icon-btn icon-btn-ring icon-btn-well"
-      style={{ width: 'auto', gap: 7, paddingInline: 11 }}
+      style={{ width: 'auto', gap: 8, paddingInline: 12 }}
     >
       <Search size={20} strokeWidth={1.8} aria-hidden />
       <kbd className="t-meta" style={{ color: 'var(--fg-4)' }}>
@@ -54,7 +54,7 @@ function PaletteTrigger() {
  * rail-drawer toggle. The bar shell always renders (`hidden md:flex`) so its 56px is
  * reserved at first paint; the tour-tagged cluster contents stay gated to desktop so
  * they never shadow the phone header's in the mobile DOM. A 1px sentinel flips the bar
- * from transparent-over-gradient to opaque + hairline once it sticks.
+ * from transparent to opaque + hairline once it sticks.
  */
 export function DesktopTopbar({ title, showRailToggle = false }: Readonly<DesktopTopbarProps>) {
   const { profile } = useProfile()

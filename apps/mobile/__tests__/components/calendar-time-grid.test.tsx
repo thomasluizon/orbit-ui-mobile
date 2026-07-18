@@ -70,22 +70,16 @@ function hostsByTestID(tree: Tree, testID: string): TestNode[] {
 }
 
 function textValuesWithin(tree: Tree, testID: string): unknown[] {
-  return hostsByTestID(tree, testID).flatMap((node) =>
-    collectText(node as unknown as { props: { children?: unknown } }),
-  );
+  return hostsByTestID(tree, testID).flatMap((node) => collectText(node));
 }
 
-function collectText(node: { props?: { children?: unknown } }): unknown[] {
-  const children = node.props?.children;
+function collectText(node: unknown): unknown[] {
+  if (typeof node === "string" || typeof node === "number") return [node];
+  if (!node || typeof node !== "object") return [];
+  const children = (node as { children?: unknown }).children;
   if (children == null) return [];
   const list = Array.isArray(children) ? children : [children];
-  return list.flatMap((child) => {
-    if (typeof child === "string" || typeof child === "number") return [child];
-    if (child && typeof child === "object" && "props" in child) {
-      return collectText(child as { props: { children?: unknown } });
-    }
-    return [];
-  });
+  return list.flatMap((child) => collectText(child));
 }
 
 describe("CalendarTimeGrid (mobile)", () => {
@@ -132,7 +126,7 @@ describe("CalendarTimeGrid (mobile)", () => {
     expect(hostsByTestID(tree, "time-grid-all-day-event")).toHaveLength(4);
     const more = hostsByTestID(tree, "time-grid-all-day-more");
     expect(more).toHaveLength(1);
-    expect(textValuesWithin(tree, "time-grid-all-day-more")).toContain(4);
+    expect(textValuesWithin(tree, "time-grid-all-day-more")).toContain("4");
 
     TestRenderer.act(() => {
       more[0]!.props.onPress();

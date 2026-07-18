@@ -36,7 +36,7 @@ const headCell: CSSProperties = {
   top: 0,
   zIndex: 2,
   background: 'var(--bg)',
-  padding: '10px 8px',
+  padding: '12px 8px',
   borderBottom: '1px solid var(--hairline)',
   fontFamily: 'var(--font-sans)',
   fontSize: 12,
@@ -46,7 +46,7 @@ const headCell: CSSProperties = {
 }
 
 const bodyCell: CSSProperties = {
-  padding: '11px 8px',
+  padding: '12px 8px',
   borderBottom: '1px solid var(--hairline)',
   verticalAlign: 'middle',
 }
@@ -92,7 +92,7 @@ function ProCell({ row, t }: Readonly<{ row: UpgradeFeatureMatrixRow; t: Transla
   if (row.type === 'text') return <ValueText text={t(`upgrade.features.${row.key}.pro`)} emphasize />
   if (row.pro === 'yearly') {
     return (
-      <span className="inline-flex items-center justify-center gap-1.5">
+      <span className="inline-flex items-center justify-center gap-1">
         <Check size={15} strokeWidth={2.4} style={{ color: 'var(--primary)' }} aria-hidden="true" />
         <Badge tone="soft">{t('upgrade.matrix.yearlyTag')}</Badge>
       </span>
@@ -103,7 +103,7 @@ function ProCell({ row, t }: Readonly<{ row: UpgradeFeatureMatrixRow; t: Transla
 
 export function PlanComparisonCards({ t }: Readonly<{ t: Translate }>) {
   return (
-    <section style={{ marginTop: 30 }}>
+    <section style={{ marginTop: 28 }}>
       <h2 className="t-h2" style={{ marginBottom: 8 }}>
         {t('upgrade.matrix.title')}
       </h2>
@@ -128,9 +128,9 @@ export function PlanComparisonCards({ t }: Readonly<{ t: Translate }>) {
                   <th
                     colSpan={3}
                     scope="colgroup"
-                    style={{ padding: '18px 8px 8px', textAlign: 'left' }}
+                    style={{ padding: '20px 8px 8px', textAlign: 'left' }}
                   >
-                    <span className="flex items-center" style={{ gap: 7 }}>
+                    <span className="flex items-center" style={{ gap: 8 }}>
                       <Icon size={14} strokeWidth={1.8} style={{ color: 'var(--fg-3)' }} aria-hidden="true" />
                       <span
                         style={{

@@ -37,62 +37,31 @@ export function OnboardingCompleteHabit({
   return (
     <div
       className="stagger-enter"
-      style={{ display: 'flex', flexDirection: 'column', gap: 22, padding: '16px 0' }}
+      style={{ display: 'flex', flexDirection: 'column', gap: 24, padding: '16px 0' }}
     >
-      <div
-        className="text-center"
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 24,
-          fontWeight: 500,
-          letterSpacing: '-0.01em',
-          lineHeight: 1.3,
-          color: 'var(--fg-1)',
-        }}
-      >
-        {t('onboarding.flow.completeHabit.title')}
-      </div>
-      <div
-        className="text-center"
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 15,
-          color: 'var(--fg-2)',
-          lineHeight: 1.55,
-        }}
-      >
-        {t('onboarding.flow.completeHabit.instruction')}
+      <div className="flex flex-col" style={{ gap: 8 }}>
+        <div className="t-h2 text-center text-balance">
+          {t('onboarding.flow.completeHabit.title')}
+        </div>
+        <div className="t-secondary text-center text-balance">
+          {t('onboarding.flow.completeHabit.instruction')}
+        </div>
       </div>
 
       <div
         className="flex items-center rounded-[18px]"
         style={{
-          padding: '14px 16px',
+          padding: 16,
           background: 'var(--bg-card)',
           boxShadow: 'inset 0 0 0 1px var(--hairline)',
-          gap: 14,
+          gap: 12,
         }}
       >
-        <div className="flex-1 min-w-0">
-          <div
-            className="overflow-hidden whitespace-nowrap text-ellipsis"
-            style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 16,
-              fontWeight: 500,
-              color: 'var(--fg-1)',
-            }}
-          >
+        <div className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
+          <div className="t-body font-medium overflow-hidden whitespace-nowrap text-ellipsis">
             {habitTitle}
           </div>
-          <div
-            style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 13,
-              color: 'var(--fg-3)',
-              marginTop: 3,
-            }}
-          >
+          <div className="t-secondary">
             {t('onboarding.flow.completeHabit.tapHint')}
           </div>
         </div>
@@ -106,12 +75,8 @@ export function OnboardingCompleteHabit({
 
       {isCompleted && (
         <div
-          className="text-center"
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 14,
-            color: 'var(--primary)',
-          }}
+          className="t-secondary text-center font-medium"
+          style={{ color: 'var(--primary-soft)' }}
         >
           {t('onboarding.flow.completeHabit.success')}
         </div>

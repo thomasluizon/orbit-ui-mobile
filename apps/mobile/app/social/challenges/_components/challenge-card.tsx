@@ -35,11 +35,11 @@ export function ChallengeCard({ challenge, onOpen }: Readonly<ChallengeCardProps
       <View style={styles.badgeRow}>
         <View style={[styles.badge, { backgroundColor: tintFromPrimary(tokens, 0.12) }]}>
           {isCoop ? (
-            <Target size={13} strokeWidth={2} color={tokens.primary} />
+            <Target size={13} strokeWidth={2} color={tokens.primarySoft} />
           ) : (
-            <Flame size={13} strokeWidth={2} color={tokens.primary} />
+            <Flame size={13} strokeWidth={2} color={tokens.primarySoft} />
           )}
-          <Text style={[styles.badgeText, { color: tokens.primary }]}>
+          <Text style={[styles.badgeText, { color: tokens.primarySoft }]}>
             {isCoop ? t('challenges.type.coopGoal') : t('challenges.type.streakTogether')}
           </Text>
         </View>

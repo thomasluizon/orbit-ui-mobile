@@ -55,7 +55,7 @@ export function GoalMetricsPanel({
             key={i}
             style={{
               padding: '14px 20px',
-              borderBottom: '1px solid var(--hairline)',
+              borderBottom: i === 3 ? undefined : '1px solid var(--hairline)',
             }}
           >
             <SkeletonLine width="w-[120px]" height="h-3.5" />
@@ -116,12 +116,13 @@ export function GoalMetricsPanel({
       {metrics.habitAdherence.length > 0 && (
         <>
           <SectionLabel>{t('goals.metrics.habitAdherence')}</SectionLabel>
-          {metrics.habitAdherence.map((habit) => {
+          {metrics.habitAdherence.map((habit, index) => {
             const adherenceTone = getGoalHabitAdherenceTone(habit.weeklyCompletionRate)
             const barColor =
               adherenceTone === 'success' || adherenceTone === 'primary'
                 ? 'var(--primary)'
                 : 'var(--status-overdue)'
+            const isLast = index === metrics.habitAdherence.length - 1
 
             return (
               <div
@@ -129,7 +130,7 @@ export function GoalMetricsPanel({
                 className="flex items-center"
                 style={{
                   padding: '12px 20px',
-                  borderBottom: '1px solid var(--hairline)',
+                  borderBottom: isLast ? undefined : '1px solid var(--hairline)',
                   gap: 12,
                 }}
               >

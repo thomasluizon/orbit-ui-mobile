@@ -77,6 +77,11 @@ export function StreakCelebration() {
 
   if (!mounted || !shouldRender) return null
 
+  const subtitle = plural(
+    t('streakDisplay.celebration.subtitle', { count: streakCount }),
+    streakCount,
+  )
+
   return createPortal(
     <div role="status" aria-live="polite">
       <div
@@ -88,7 +93,7 @@ export function StreakCelebration() {
       >
         <button
           type="button"
-          aria-label={t('streakDisplay.celebration.subtitle', { count: streakCount })}
+          aria-label={subtitle}
           className="absolute inset-0 w-full cursor-pointer appearance-none border-none p-0"
           style={{ background: 'var(--bg)', opacity: 0.96 }}
           onClick={dismiss}
@@ -132,10 +137,7 @@ export function StreakCelebration() {
               animationDelay: '300ms',
             }}
           >
-            {plural(
-              t('streakDisplay.celebration.subtitle', { count: streakCount }),
-              streakCount,
-            )}
+            {subtitle}
             {isMilestone && (
               <>
                 {' '}

@@ -247,7 +247,7 @@ function createStyles(tokens: AppTokens) {
     },
     backdrop: {
       ...StyleSheet.absoluteFill,
-      backgroundColor: 'rgba(0,0,0,0.50)',
+      backgroundColor: tokens.scrim,
     },
     sheet: {
       width: '100%',

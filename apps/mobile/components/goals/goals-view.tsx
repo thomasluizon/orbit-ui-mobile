@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/anchored-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SectionLabel } from "@/components/ui/section-label";
-import { SkeletonLine } from "@/components/ui/skeleton";
+import { SkeletonCard } from "@/components/ui/skeleton";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { useUIStore } from "@/stores/ui-store";
@@ -40,20 +40,6 @@ interface GoalsViewProps {
   contentContainerStyle?: StyleProp<ViewStyle>;
   onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
   onScrollBeginDrag?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
-}
-
-function SkeletonCard({
-  styles,
-}: Readonly<{
-  styles: Record<string, object>;
-}>) {
-  return (
-    <View style={styles.skeletonCard}>
-      <SkeletonLine width="66%" height={20} />
-      <SkeletonLine width="100%" height={12} />
-      <SkeletonLine width="100%" height={8} />
-    </View>
-  );
 }
 
 export function GoalsView({
@@ -171,9 +157,9 @@ export function GoalsView({
 
   const listEmptyElement = !isFetched ? (
     <View style={styles.skeletonContainer}>
-      <SkeletonCard styles={styles} />
-      <SkeletonCard styles={styles} />
-      <SkeletonCard styles={styles} />
+      <SkeletonCard />
+      <SkeletonCard />
+      <SkeletonCard />
     </View>
   ) : (
     filteredEmptyElement
@@ -291,14 +277,6 @@ function createStyles(tokens: AppTokens) {
     skeletonContainer: {
       gap: 12,
       paddingHorizontal: 20,
-    },
-    skeletonCard: {
-      backgroundColor: tokens.bgCard,
-      borderRadius: 18,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      padding: 20,
-      gap: 10,
     },
   });
 }

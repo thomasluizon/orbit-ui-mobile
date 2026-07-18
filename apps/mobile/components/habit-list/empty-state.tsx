@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
-import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
+import { View, type StyleProp, type ViewStyle } from 'react-native'
 import Animated, {
   cancelAnimation,
   useAnimatedStyle,
@@ -10,8 +10,8 @@ import Animated, {
 import { Plus } from '@/components/ui/icons'
 import { AstraMark } from '@/components/ui/astra-avatar'
 import { getHabitEmptyStateKey } from '@orbit/shared/utils'
+import { EmptyState, type EmptyStateAction } from '@/components/ui/empty-state'
 import { PillButton } from '@/components/ui/pill-button'
-import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -27,9 +27,10 @@ interface HabitListEmptyStateProps {
 }
 
 /**
- * InicioEmpty kit state: 104px satellite glyph, 22/500 title, 15 fg-2 body,
- * then a stacked full-width Astra pill + ghost create pill. Mirrors the web
- * habit-list empty state.
+ * The habit-list empty surface (Today / all / general, both all-done and
+ * no-habits), rendered through the shared EmptyState lockup. The primary
+ * variant stacks an Ask-Astra pill over a ghost create pill; the secondary
+ * variant shows a single ghost action. Mirrors the web habit-list empty state.
  */
 export function HabitListEmptyState({
   title,
@@ -44,67 +45,44 @@ export function HabitListEmptyState({
   const tokens = createTokensV2(currentScheme, currentTheme)
   const isAstraPrompt = variant === 'primary'
   const hasDistinctDescription = Boolean(description) && description !== title
-  const showAstraAction =
-    isAstraPrompt && Boolean(askAstraLabel) && Boolean(onAskAstra)
-  const showStackedActions =
-    showAstraAction || (isAstraPrompt && Boolean(actionLabel))
 
-  let emptyActions: ReactNode = null
-  if (showStackedActions) {
-    emptyActions = (
-      <View style={styles.actions}>
-        {showAstraAction ? (
-          <PillButton
-            fullWidth
-            onPress={onAskAstra}
-            leading={
-              <AstraMark size={18} color={tokens.fgOnPrimary} />
-            }
-          >
-            {askAstraLabel}
-          </PillButton>
-        ) : null}
-        {actionLabel ? (
-          <PillButton
-            variant="ghost"
-            fullWidth
-            onPress={onAction}
-            leading={<Plus size={18} color={tokens.fg1} strokeWidth={1.8} />}
-          >
-            {actionLabel}
-          </PillButton>
-        ) : null}
-      </View>
-    )
-  } else if (actionLabel) {
-    emptyActions = (
-      <Pressable
-        onPress={onAction}
-        accessibilityRole="button"
-        accessibilityLabel={actionLabel}
-        style={({ pressed }) => [styles.linkAction, { opacity: pressed ? 0.7 : 1 }]}
-      >
-        <Text
-          style={[
-            styles.linkActionText,
-            { color: tokens.fg1, textDecorationColor: tokens.hairlineStrong },
-          ]}
+  let action: EmptyStateAction | undefined
+  let footer: ReactNode
+
+  if (isAstraPrompt && askAstraLabel && onAskAstra) {
+    action = {
+      label: askAstraLabel,
+      onPress: onAskAstra,
+      leading: <AstraMark size={18} color={tokens.fgOnPrimary} />,
+    }
+    if (actionLabel) {
+      footer = (
+        <PillButton
+          variant="ghost"
+          onPress={onAction}
+          accessibilityLabel={actionLabel}
+          leading={<Plus size={18} color={tokens.fg1} strokeWidth={1.8} />}
         >
           {actionLabel}
-        </Text>
-      </Pressable>
-    )
+        </PillButton>
+      )
+    }
+  } else if (actionLabel) {
+    action = {
+      label: actionLabel,
+      onPress: onAction,
+      variant: 'secondary',
+      leading: isAstraPrompt ? <Plus size={18} color={tokens.fg1} strokeWidth={1.8} /> : undefined,
+    }
   }
 
   return (
-    <View style={styles.container}>
-      <SatelliteGlyph size={104} />
-      <Text style={[styles.title, { color: tokens.fg1 }]}>{title}</Text>
-      {hasDistinctDescription ? (
-        <Text style={[styles.description, { color: tokens.fg2 }]}>{description}</Text>
-      ) : null}
-      {emptyActions}
-    </View>
+    <EmptyState
+      title={title}
+      description={hasDistinctDescription ? description : undefined}
+      action={action}
+      footer={footer}
+    />
   )
 }
 
@@ -151,40 +129,3 @@ export function getEmptyHabitsMessage(
 ): string {
   return t(getHabitEmptyStateKey(view))
 }
-
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 36,
-    paddingVertical: 64,
-    gap: 16,
-  },
-  title: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 22,
-    textAlign: 'center',
-  },
-  description: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 15,
-    lineHeight: 22.5,
-    textAlign: 'center',
-    maxWidth: 300,
-  },
-  actions: {
-    marginTop: 8,
-    alignSelf: 'stretch',
-    gap: 12,
-  },
-  linkAction: {
-    marginTop: 6,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-  },
-  linkActionText: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 13,
-    textDecorationLine: 'underline',
-  },
-})

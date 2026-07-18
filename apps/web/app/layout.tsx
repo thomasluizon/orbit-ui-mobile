@@ -122,8 +122,7 @@ export default async function RootLayout({
             toastOptions={{
               style: {
                 background: 'var(--bg-sheet)',
-                boxShadow:
-                  '0 14px 36px rgba(0, 0, 0, 0.5), inset 0 0 0 1px var(--hairline)',
+                boxShadow: 'var(--shadow-3), inset 0 0 0 1px var(--hairline)',
                 border: 'none',
                 color: 'var(--fg-1)',
                 borderRadius: 18,

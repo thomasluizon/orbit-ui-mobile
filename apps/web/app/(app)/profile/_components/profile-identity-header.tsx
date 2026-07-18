@@ -28,7 +28,7 @@ export function ProfileIdentityHeader({
   return (
     <div
       className="flex flex-col items-center text-center"
-      style={{ padding: '18px 20px 0', gap: 6 }}
+      style={{ padding: '20px 20px 0', gap: 8 }}
     >
       {isLoading ? (
         <>

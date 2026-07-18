@@ -221,7 +221,8 @@ export function EditHabitModal({
             </PillButton>
             <PillButton
               type="submit"
-              form={formId}              disabled={
+              form={formId}
+              disabled={
                 updateHabit.isPending ||
                 detailFieldsPending ||
                 watchedTitle.trim().length === 0

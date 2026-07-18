@@ -93,9 +93,15 @@ async function render(element: React.ReactNode): Promise<TestTree> {
 }
 
 function buttonWithLabel(tree: TestTree, label: string): TestNode | undefined {
-  return tree.root.findAll(
-    (node) => node.props?.accessibilityRole === 'button' && node.props?.accessibilityLabel === label,
-  )[0]
+  return tree.root.findAll((node) => {
+    if (node.props?.accessibilityRole !== 'button') return false
+    return node
+      .findAll((child) => child.type === 'Text')
+      .some((text) => {
+        const content = text.props?.children
+        return Array.isArray(content) ? content.includes(label) : content === label
+      })
+  })[0]
 }
 
 function input(tree: TestTree): TestNode {

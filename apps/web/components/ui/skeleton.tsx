@@ -17,6 +17,10 @@ interface SkeletonRowProps {
   className?: string
 }
 
+interface SkeletonHabitRowProps {
+  className?: string
+}
+
 const SKELETON_FILL = 'skeleton-pulse bg-[color-mix(in_srgb,var(--fg-1)_6%,transparent)]'
 
 const DEFAULT_ROW_LINES = ['w-1/3', 'w-2/3'] as const
@@ -69,6 +73,32 @@ export function SkeletonRow({
           <SkeletonLine key={index} width={width} height={index === 0 ? 'h-4' : 'h-3'} />
         ))}
       </div>
+    </div>
+  )
+}
+
+/**
+ * Loading placeholder shaped like a Today / all / general habit row: the emoji well, a title and
+ * meta line, and the trailing status-dot, inside the row's own card surface — so the list keeps the
+ * final content's dimensions and nothing shifts when habits land (DESIGN.md loading contract).
+ */
+export function SkeletonHabitRow({ className }: Readonly<SkeletonHabitRowProps>) {
+  return (
+    <div
+      className={[
+        'flex items-center gap-3 rounded-[18px] bg-[var(--bg-card)] px-4 py-3 shadow-[inset_0_0_0_1px_var(--hairline)]',
+        className,
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      aria-hidden="true"
+    >
+      <span className={`${SKELETON_FILL} size-12 shrink-0 rounded-[var(--radius-md)]`} />
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <SkeletonLine width="w-1/2" height="h-4" />
+        <SkeletonLine width="w-1/3" height="h-3" />
+      </div>
+      <span className={`${SKELETON_FILL} size-7 shrink-0 rounded-full`} />
     </div>
   )
 }

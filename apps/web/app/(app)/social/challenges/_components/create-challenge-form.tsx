@@ -93,7 +93,7 @@ export function CreateChallengeForm({ onCreated }: Readonly<CreateChallengeFormP
                         ? 'bg-[rgba(var(--primary-rgb),0.12)] shadow-[inset_0_0_0_1px_var(--primary)]'
                         : 'bg-[var(--bg-elev)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-elev-2)]'
                     }`}
-                    style={{ ...typeOptionStyle, color: selected ? 'var(--primary)' : 'var(--fg-2)' }}
+                    style={{ ...typeOptionStyle, color: selected ? 'var(--primary-soft)' : 'var(--fg-2)' }}
                   >
                     {option === 'CoopGoal'
                       ? t('challenges.type.coopGoal')

@@ -3,6 +3,8 @@
 import { useTranslations } from 'next-intl'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
+import { PillButton } from '@/components/ui/pill-button'
+import { Mail } from '@/components/ui/icons'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -36,29 +38,25 @@ export default function DeleteAccountPage() {
         {sections.map(({ label, body }) => (
           <div key={label}>
             <SectionLabel>{label}</SectionLabel>
-            <div className="t-secondary px-5 pb-[18px]" style={{ textWrap: 'pretty' }}>
+            <div className="t-secondary px-5 pb-4" style={{ textWrap: 'pretty' }}>
               {body}
             </div>
           </div>
         ))}
 
         <SectionLabel>{t('deleteAccount.webFallback.title')}</SectionLabel>
-        <div className="t-secondary px-5 pb-[18px]" style={{ textWrap: 'pretty' }}>
+        <div className="t-secondary px-5 pb-4" style={{ textWrap: 'pretty' }}>
           {t('deleteAccount.webFallback.body')}
         </div>
         <div className="px-5 pb-8">
-          <a
+          <PillButton
             href="mailto:contact@useorbit.org?subject=Account%20deletion%20request"
-            className="inline-flex items-center underline underline-offset-[3px]"
-            style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 14,
-              fontWeight: 500,
-              color: 'var(--primary)',
-            }}
+            variant="ghost"
+            size="sm"
+            leading={<Mail size={16} strokeWidth={1.8} />}
           >
             {t('deleteAccount.webFallback.button')}
-          </a>
+          </PillButton>
         </div>
       </div>
     </div>

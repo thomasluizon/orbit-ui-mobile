@@ -13,6 +13,7 @@ import { format } from "date-fns";
 import { enUS, ptBR } from "date-fns/locale";
 import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
+import { EmptyState } from "@/components/ui/empty-state";
 import { createTokensV2 } from "@/lib/theme";
 
 type Tokens = ReturnType<typeof createTokensV2>;
@@ -608,7 +609,7 @@ export function CalendarTimeGrid({
 
         {isEmpty ? (
           <View pointerEvents="none" testID="time-grid-empty" style={styles.emptyOverlay}>
-            <Text style={styles.emptyText}>{t("calendar.timeGrid.empty")}</Text>
+            <EmptyState description={t("calendar.timeGrid.empty")} />
           </View>
         ) : null}
       </View>
@@ -748,11 +749,6 @@ function createStyles(tokens: Tokens) {
       alignItems: "center",
       justifyContent: "center",
       padding: 24,
-    },
-    emptyText: {
-      fontFamily: "Rubik_400Regular",
-      fontSize: 14,
-      color: tokens.fg3,
     },
   });
 }

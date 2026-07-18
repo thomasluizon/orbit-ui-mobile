@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, Text, Pressable, StyleSheet } from 'react-native'
+import { View, Text, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
@@ -27,62 +27,6 @@ import { PillButton } from '@/components/ui/pill-button'
 import { FreshStartAnimation } from '@/components/ui/fresh-start-animation'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
-
-function AmberPillButton({
-  label,
-  onPress,
-  disabled = false,
-}: Readonly<{
-  label: string
-  onPress: () => void
-  disabled?: boolean
-}>) {
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
-
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ disabled }}
-      style={({ pressed }) => [
-        dangerPillStyles.base,
-        { backgroundColor: tokens.statusOverdue },
-        disabled ? dangerPillStyles.disabled : null,
-        pressed && !disabled ? dangerPillStyles.pressed : null,
-      ]}
-    >
-      <Text style={[dangerPillStyles.label, { color: tokens.fgOnOverdue }]}>
-        {label}
-      </Text>
-    </Pressable>
-  )
-}
-
-const dangerPillStyles = StyleSheet.create({
-  base: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 9,
-    borderRadius: 999,
-    paddingVertical: 15,
-    paddingHorizontal: 26,
-    width: '100%',
-  },
-  disabled: {
-    opacity: 0.4,
-  },
-  pressed: {
-    opacity: 0.85,
-  },
-  label: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 16,
-  },
-})
 
 interface FreshStartModalProps {
   open: boolean
@@ -249,10 +193,13 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
             </View>
 
             <View style={styles.modalActions}>
-              <AmberPillButton
-                label={t('common.continue')}
+              <PillButton
+                variant="caution"
+                fullWidth
                 onPress={() => setResetStep('confirm')}
-              />
+              >
+                {t('common.continue')}
+              </PillButton>
               <PillButton variant="ghost" fullWidth onPress={onClose}>
                 {t('common.cancel')}
               </PillButton>
@@ -290,17 +237,18 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
               </Text>
             ) : null}
             <View style={styles.modalActions}>
-              <AmberPillButton
-                label={
-                  resetLoading
-                    ? t('profile.freshStart.processing')
-                    : t('profile.freshStart.confirmButton')
-                }
+              <PillButton
+                variant="caution"
+                fullWidth
                 disabled={!isResetConfirmed || resetLoading}
                 onPress={() => {
                   void handleResetAccount()
                 }}
-              />
+              >
+                {resetLoading
+                  ? t('profile.freshStart.processing')
+                  : t('profile.freshStart.confirmButton')}
+              </PillButton>
               <PillButton
                 variant="ghost"
                 fullWidth

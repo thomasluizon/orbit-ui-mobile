@@ -40,20 +40,15 @@ export function LoginHeader({
   }
 
   return (
-    <>
+    <div className="flex flex-col items-center text-center" style={{ gap: 16 }}>
       <div
-        className="flex flex-col items-center"
-        style={{ gap: 14, paddingBottom: 4 }}
+        className="flex items-center justify-center"
+        style={{ animation: 'fresh-start-orb 0.6s var(--ease-out) both' }}
       >
-        <div
-          className="flex items-center justify-center"
-          style={{ animation: 'fresh-start-orb 0.6s var(--ease-out) both' }}
-        >
-          <AppLogo size={64} />
-        </div>
+        <AppLogo size={64} />
       </div>
 
-      <div className="flex flex-col text-center" style={{ gap: 6 }}>
+      <div className="flex flex-col" style={{ gap: 8 }}>
         <h2
           style={{
             fontFamily: 'var(--font-sans)',
@@ -86,7 +81,7 @@ export function LoginHeader({
           )
         )}
       </div>
-    </>
+    </div>
   )
 }
 
@@ -101,7 +96,7 @@ export function ReferralBanner({
       aria-atomic="true"
       className="flex items-center justify-center"
       style={{
-        padding: '8px 14px',
+        padding: '8px 12px',
         borderTop: '1px solid var(--hairline)',
         borderBottom: '1px solid var(--hairline)',
       }}

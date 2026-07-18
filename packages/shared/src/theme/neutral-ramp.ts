@@ -245,3 +245,11 @@ export const primaryTintAlphas = {
   soft: 0.18,
   ring: 0.28,
 } as const
+
+/**
+ * Fixed ink/quiet-zone colors for the QR code on every share and referral surface. A QR encoder
+ * takes a literal color string (it cannot read a token), so this one constant keeps the QR dark
+ * module identical across web and mobile — navy ink on a white quiet zone for maximum contrast and
+ * scannability — instead of a per-surface raw hex. https://github.com/thomasluizon/orbit-ui-mobile/issues/539
+ */
+export const shareQrColors = { dark: '#020618', light: '#ffffff' } as const

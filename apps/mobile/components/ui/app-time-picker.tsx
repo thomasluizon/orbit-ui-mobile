@@ -402,7 +402,7 @@ function createStyles(tokens: AppTokens) {
     },
     backdrop: {
       ...StyleSheet.absoluteFill,
-      backgroundColor: 'rgba(0,0,0,0.65)',
+      backgroundColor: tokens.scrim,
     },
     dialog: {
       width: '100%',

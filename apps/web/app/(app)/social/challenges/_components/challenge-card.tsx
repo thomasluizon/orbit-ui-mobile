@@ -11,7 +11,7 @@ const typeBadgeStyle = {
   padding: '4px 10px',
   borderRadius: 999,
   background: 'rgba(var(--primary-rgb), 0.12)',
-  color: 'var(--primary)',
+  color: 'var(--primary-soft)',
   fontFamily: 'var(--font-sans)',
   fontSize: 12,
   fontWeight: 500,

@@ -15,32 +15,6 @@ import { FieldInput } from '@/components/ui/field-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { resetAccount } from '@/app/actions/profile'
 
-function AmberPillButton({
-  disabled = false,
-  onClick,
-  children,
-}: Readonly<{
-  disabled?: boolean
-  onClick: () => void
-  children: React.ReactNode
-}>) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      className="inline-flex w-full cursor-pointer items-center justify-center gap-[9px] rounded-full border-0 px-[26px] py-[15px] text-[16px] font-medium transition-[opacity,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:hover:opacity-90 enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
-      style={{
-        fontFamily: 'var(--font-sans)',
-        background: 'var(--status-overdue)',
-        color: 'var(--fg-on-overdue)',
-      }}
-    >
-      {children}
-    </button>
-  )
-}
-
 function FreshStartHero({ body }: Readonly<{ body: string }>) {
   return (
     <div className="flex flex-col items-center text-center" style={{ gap: 16 }}>
@@ -262,9 +236,9 @@ function FreshStartInfoStep({
         className="flex flex-col sm:mx-auto sm:w-full sm:max-w-[360px]"
         style={{ gap: 12, paddingTop: 8 }}
       >
-        <AmberPillButton onClick={onContinue}>
+        <PillButton variant="caution" fullWidth onClick={onContinue}>
           {t('common.continue')}
-        </AmberPillButton>
+        </PillButton>
         <PillButton variant="ghost" fullWidth onClick={onCancel}>
           {t('common.cancel')}
         </PillButton>
@@ -334,9 +308,14 @@ function FreshStartConfirmStep({
         className="flex flex-col sm:mx-auto sm:w-full sm:max-w-[360px]"
         style={{ gap: 12, paddingTop: 8 }}
       >
-        <AmberPillButton disabled={!isConfirmed || loading} onClick={onReset}>
+        <PillButton
+          variant="caution"
+          fullWidth
+          disabled={!isConfirmed || loading}
+          onClick={onReset}
+        >
           {loading ? t('profile.freshStart.processing') : t('profile.freshStart.confirmButton')}
-        </AmberPillButton>
+        </PillButton>
         <PillButton variant="ghost" fullWidth disabled={loading} onClick={onCancel}>
           {t('common.cancel')}
         </PillButton>

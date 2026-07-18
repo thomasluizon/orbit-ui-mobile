@@ -17,7 +17,7 @@ interface PublicProfileViewProps {
 
 const cardStyle = {
   borderRadius: 18,
-  background: 'var(--bg-elev)',
+  background: 'var(--bg-card)',
   boxShadow: 'inset 0 0 0 1px var(--hairline)',
 } as const
 
@@ -40,7 +40,7 @@ export function PublicProfileView({ view, t }: Readonly<PublicProfileViewProps>)
   return (
     <div
       className="stagger-enter relative mx-auto flex w-full max-w-[var(--app-max-w)] flex-col py-8"
-      style={{ gap: 18 }}
+      style={{ gap: 16 }}
     >
       <Link
         href="/login"
@@ -64,7 +64,7 @@ export function PublicProfileView({ view, t }: Readonly<PublicProfileViewProps>)
 
       <header
         className="relative z-[1] flex flex-col items-center text-center"
-        style={{ padding: '8px 24px 12px', gap: 10 }}
+        style={{ padding: '8px 24px 12px', gap: 12 }}
       >
         <span
           aria-hidden="true"
@@ -83,8 +83,8 @@ export function PublicProfileView({ view, t }: Readonly<PublicProfileViewProps>)
         )}
       </header>
 
-      <div className="relative z-[1] flex flex-col" style={{ gap: 18 }}>
-        <div className="flex flex-col" style={{ gap: 18 }}>
+      <div className="relative z-[1] flex flex-col" style={{ gap: 16 }}>
+        <div className="flex flex-col" style={{ gap: 16 }}>
           {(view.currentStreak != null || view.level != null) && (
             <div className="flex flex-col" style={{ gap: 8 }}>
               <div className="grid grid-cols-2" style={{ gap: 12 }}>
@@ -113,7 +113,7 @@ export function PublicProfileView({ view, t }: Readonly<PublicProfileViewProps>)
           )}
 
           {view.achievements && view.achievements.length > 0 && (
-            <section style={{ ...cardStyle, padding: '18px 18px' }}>
+            <section style={{ ...cardStyle, padding: 16 }}>
               <h2 className="t-eyebrow" style={{ margin: '0 0 12px' }}>
                 {t('profile.publicProfile.view.achievementsTitle')}
               </h2>
@@ -127,7 +127,7 @@ export function PublicProfileView({ view, t }: Readonly<PublicProfileViewProps>)
                         fontFamily: 'var(--font-sans)',
                         fontSize: 13,
                         color: 'var(--fg-2)',
-                        padding: '7px 12px',
+                        padding: '8px 12px',
                         borderRadius: 999,
                         background: 'var(--bg-well)',
                         boxShadow: 'inset 0 0 0 1px var(--hairline)',
@@ -142,10 +142,10 @@ export function PublicProfileView({ view, t }: Readonly<PublicProfileViewProps>)
           )}
         </div>
 
-        <div className="flex flex-col" style={{ gap: 18 }}>
+        <div className="flex flex-col" style={{ gap: 16 }}>
           {view.topHabits && view.topHabits.length > 0 && (
-            <section style={{ ...cardStyle, padding: '18px 18px' }}>
-              <h2 className="t-eyebrow" style={{ margin: '0 0 10px' }}>
+            <section style={{ ...cardStyle, padding: 16 }}>
+              <h2 className="t-eyebrow" style={{ margin: '0 0 12px' }}>
                 {t('profile.publicProfile.view.topHabitsTitle')}
               </h2>
               <ul className="flex flex-col" style={{ gap: 8, listStyle: 'none', margin: 0, padding: 0 }}>

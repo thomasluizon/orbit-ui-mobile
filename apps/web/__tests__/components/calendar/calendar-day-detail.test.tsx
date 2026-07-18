@@ -206,7 +206,7 @@ describe('CalendarDayDetail', () => {
       const cta = container.querySelector('a[href="/?date=2025-06-15"]') as HTMLElement
       expect(scroller.contains(cta)).toBe(false)
       const scrollWrapper = scroller.parentElement as HTMLElement
-      expect(scrollWrapper.nextElementSibling).toBe(cta)
+      expect(scrollWrapper.nextElementSibling?.contains(cta)).toBe(true)
     })
   })
 })

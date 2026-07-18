@@ -9,7 +9,7 @@ export function TypingIndicator() {
   return (
     <div
       className="animate-msg-in flex items-start"
-      style={{ gap: 10, padding: '0 16px', marginBottom: 16 }}
+      style={{ gap: 8, padding: '0 16px', marginBottom: 16 }}
       role="status"
       aria-live="polite"
       aria-atomic="true"
@@ -30,7 +30,7 @@ export function TypingIndicator() {
         <span className="sr-only">{t('chat.senderOrbit')}</span>
         <div
           className="bg-[var(--bg-elev)]"
-          style={{ padding: '12px 15px', borderRadius: '4px 18px 18px 18px' }}
+          style={{ padding: '12px 16px', borderRadius: '4px 18px 18px 18px' }}
         >
           <div className="flex gap-1.5 items-center">
             <span

@@ -228,6 +228,28 @@ describe('CalendarAgendaView', () => {
     expect(showError).toHaveBeenCalledWith('errors.updateHabit')
   })
 
+  it('renders the shared empty-state lockup, not a bare label, when no habits are scheduled', () => {
+    agendaData.entries = []
+    agendaData.habitsById = new Map()
+
+    renderAgenda()
+
+    const emptyState = screen.getByText('calendar.agenda.empty').closest('[data-empty-state]')
+    expect(emptyState).not.toBeNull()
+    expect(emptyState).toHaveAttribute('data-empty-state', 'icon')
+    expect(screen.getByText('calendar.noHabitsScheduled')).toBeInTheDocument()
+    expect(screen.queryByTestId('calendar-agenda')).toBeNull()
+  })
+
+  it('keeps the recurring toggle reachable while the day is empty', () => {
+    agendaData.entries = []
+    agendaData.habitsById = new Map()
+
+    renderAgenda()
+
+    expect(screen.getByLabelText('calendar.showRecurring')).toBeInTheDocument()
+  })
+
   it('ignores a drop that resolves to the same time', () => {
     agendaData.entries = [makeEntry({ habitId: 'h1', dueTime: '07:00' })]
     agendaData.habitsById = new Map([['h1', makeHabit({ dueTime: '07:00' })]])

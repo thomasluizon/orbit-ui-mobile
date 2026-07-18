@@ -35,17 +35,7 @@ export function CheckCircle({ state, tone = 'default', onToggle, disabled, ariaL
     setJustCompleted(filled)
   }
 
-  let boxShadow: string
-  if (!filled) {
-    boxShadow = `inset 0 0 0 2px ${color}`
-  } else if (state === 'done') {
-    boxShadow =
-      tone === 'bad'
-        ? '0 4px 14px color-mix(in srgb, var(--status-bad) 35%, transparent)'
-        : '0 4px 14px rgba(var(--primary-rgb), 0.35)'
-  } else {
-    boxShadow = 'none'
-  }
+  const boxShadow = filled ? 'none' : `inset 0 0 0 2px ${color}`
 
   return (
     <button
@@ -60,7 +50,7 @@ export function CheckCircle({ state, tone = 'default', onToggle, disabled, ariaL
       aria-disabled={disabled}
       aria-label={ariaLabel}
       className={`appearance-none border-0 bg-transparent shrink-0 flex items-center justify-center ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
-      style={{ padding: 7, margin: -7, opacity: disabled ? 0.4 : 1 }}
+      style={{ padding: 8, margin: -8, opacity: disabled ? 0.4 : 1 }}
     >
       <span
         className={`flex items-center justify-center rounded-full transition-transform duration-[160ms] ease-[var(--ease-standard)] ${disabled ? '' : 'hover:scale-105 active:scale-[0.96]'} ${justCompleted ? 'animate-check-pop' : ''}`}

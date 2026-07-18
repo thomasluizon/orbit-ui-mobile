@@ -149,16 +149,11 @@ export function createStyles(tokens: AppTokens) {
   },
   confirmPill: {
     flex: 1,
-    paddingVertical: 11,
   },
   confirmPillLabel: {
     fontFamily: 'Rubik_500Medium',
     fontSize: 14,
     color: tokens.fgOnPrimary,
-  },
-  cancelPill: {
-    paddingVertical: 11,
-    paddingHorizontal: 18,
   },
   cancelPillLabel: {
     fontFamily: 'Rubik_500Medium',

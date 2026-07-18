@@ -29,7 +29,7 @@ export function createLoginStyles(tokens: AppTokensV2) {
 
     referralBanner: {
       alignSelf: 'stretch',
-      paddingHorizontal: 14,
+      paddingHorizontal: 12,
       paddingVertical: 8,
       borderTopWidth: 1,
       borderTopColor: tokens.hairline,
@@ -49,17 +49,16 @@ export function createLoginStyles(tokens: AppTokensV2) {
     formColumn: {
       width: '100%',
       maxWidth: 360,
-      gap: 18,
+      gap: 20,
     },
 
-    brandingHeader: {
+    header: {
       alignItems: 'center',
-      gap: 14,
-      paddingBottom: 4,
+      gap: 16,
     },
     titleBlock: {
       alignItems: 'center',
-      gap: 6,
+      gap: 8,
     },
     stepTitle: {
       fontFamily: 'Rubik_500Medium',

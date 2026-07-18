@@ -157,88 +157,85 @@ export function ApiKeyCard({
   onRevoke,
 }: Readonly<ApiKeyCardProps>) {
   const scopes = Array.isArray(apiKey.scopes) ? apiKey.scopes : []
-  const isReadOnly = apiKey.isReadOnly
-  const expiresAtUtc = apiKey.expiresAtUtc ?? null
+  const lastUsed = apiKey.lastUsedAtUtc
+    ? `${t('orbitMcp.lastUsed')} ${formatKeyDate(apiKey.lastUsedAtUtc)}`
+    : t('orbitMcp.never')
+  const perm = apiKey.isReadOnly ? t('orbitMcp.permReadOnly') : t('orbitMcp.permReadWrite')
+  const metaParts = [
+    perm,
+    lastUsed,
+    `${t('orbitMcp.created')} ${formatKeyDate(apiKey.createdAtUtc)}`,
+  ]
+  if (apiKey.expiresAtUtc) {
+    metaParts.push(t('orbitMcp.expiresOn', { date: formatKeyDate(apiKey.expiresAtUtc) }))
+  }
+  const meta = metaParts.join(' · ')
 
   return (
     <div
-      className="flex flex-col rounded-[16px] bg-[var(--bg-card)] gap-2"
+      className="flex flex-col rounded-[16px] bg-[var(--bg-card)]"
       style={{
         padding: '14px 16px',
+        gap: 4,
         boxShadow: 'inset 0 0 0 1px var(--hairline)',
       }}
     >
       <div className="flex items-center justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <p
-            className="truncate"
-            style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 15,
-              fontWeight: 500,
-              color: 'var(--fg-1)',
-            }}
-          >
-            {apiKey.name}
-          </p>
-          <p
-            style={{
-              marginTop: 3,
-              fontFamily: 'var(--font-mono)',
-              fontSize: 13,
-              color: 'var(--fg-2)',
-              fontVariantNumeric: 'tabular-nums',
-            }}
-          >
-            {apiKey.keyPrefix}...
-          </p>
-          <p
-            style={{
-              marginTop: 4,
-              fontFamily: 'var(--font-mono)',
-              fontSize: 12,
-              letterSpacing: '0.02em',
-              color: 'var(--fg-3)',
-            }}
-          >
-            {scopes.length > 0 ? scopes.join(', ') : t('orbitMcp.noScopes')}
-          </p>
-        </div>
-        <div
-          className="shrink-0 text-right"
+        <p
+          className="min-w-0 flex-1 truncate"
           style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: 12,
-            lineHeight: 1.6,
-            letterSpacing: '0.02em',
-            color: 'var(--fg-3)',
-            fontVariantNumeric: 'tabular-nums',
+            fontFamily: 'var(--font-sans)',
+            fontSize: 15,
+            fontWeight: 500,
+            color: 'var(--fg-1)',
           }}
         >
-          <p>{t('orbitMcp.created')} {formatKeyDate(apiKey.createdAtUtc)}</p>
-          <p>
-            {t('orbitMcp.lastUsed')}{' '}
-            {apiKey.lastUsedAtUtc ? formatKeyDate(apiKey.lastUsedAtUtc) : t('orbitMcp.never')}
-          </p>
-          <p>
-            {isReadOnly ? t('orbitMcp.permReadOnly') : t('orbitMcp.permReadWrite')}
-          </p>
-          {expiresAtUtc && (
-            <p>{t('orbitMcp.expiresOn', { date: formatKeyDate(expiresAtUtc) })}</p>
-          )}
-        </div>
-      </div>
-
-      <div className="flex justify-end">
+          {apiKey.name}
+        </p>
         <button
           type="button"
-          className="chip min-h-[44px]"
+          className="chip min-h-[44px] shrink-0"
           style={{ color: 'var(--status-bad-text)' }}
           onClick={() => onRevoke(apiKey.id)}
         >
           {t('orbitMcp.revoke')}
         </button>
       </div>
+      <p
+        style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: 13,
+          color: 'var(--fg-2)',
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        {apiKey.keyPrefix}...
+      </p>
+      <p
+        className="line-clamp-2"
+        style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: 12,
+          lineHeight: 1.5,
+          letterSpacing: '0.02em',
+          color: 'var(--fg-3)',
+        }}
+      >
+        {scopes.length > 0 ? scopes.join(', ') : t('orbitMcp.noScopes')}
+      </p>
+      <p
+        className="line-clamp-2"
+        style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: 12,
+          lineHeight: 1.5,
+          letterSpacing: '0.02em',
+          color: 'var(--fg-3)',
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        {meta}
+      </p>
     </div>
   )
 }

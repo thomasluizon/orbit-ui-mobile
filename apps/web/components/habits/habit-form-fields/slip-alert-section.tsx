@@ -67,7 +67,7 @@ export function SlipAlertSection({
             style={{
               width: 48,
               height: 28,
-              padding: 3,
+              padding: 4,
               background: 'color-mix(in srgb, var(--fg-1) 16%, transparent)',
             }}
           >
@@ -77,7 +77,7 @@ export function SlipAlertSection({
                 width: 22,
                 height: 22,
                 background: 'var(--fg-on-primary)',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.35)',
+                boxShadow: 'var(--shadow-1)',
               }}
             />
           </span>

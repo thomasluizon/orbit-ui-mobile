@@ -92,7 +92,7 @@ export function BuddyRow({ pair, onOpen }: Readonly<BuddyRowProps>) {
           fontFamily: 'var(--font-sans)',
           fontSize: 14,
           fontWeight: 500,
-          color: checkedInToday ? 'var(--fg-3)' : 'var(--primary)',
+          color: checkedInToday ? 'var(--fg-3)' : 'var(--primary-soft)',
           background: checkedInToday ? 'var(--bg-elev)' : 'rgba(var(--primary-rgb), 0.12)',
         }}
       >

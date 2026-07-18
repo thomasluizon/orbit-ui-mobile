@@ -15,7 +15,7 @@ export function OnboardingMeetAstra({ onImport }: Readonly<OnboardingMeetAstraPr
   const t = useTranslations()
 
   return (
-    <div className="flex flex-col items-center" style={{ gap: 22, padding: '24px 0 0' }}>
+    <div className="flex flex-col items-center" style={{ gap: 24, padding: '24px 0 0' }}>
       <AstraAvatar
         size={116}
         animate
@@ -23,34 +23,21 @@ export function OnboardingMeetAstra({ onImport }: Readonly<OnboardingMeetAstraPr
         style={{ animation: 'fresh-start-orb 0.6s var(--ease-out) both' }}
       />
 
-      <div
-        className="text-center"
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 28,
-          fontWeight: 500,
-          letterSpacing: '-0.01em',
-          lineHeight: 1.15,
-          color: 'var(--fg-1)',
-        }}
-      >
+      <div className="t-h1 text-center text-balance">
         {t('onboarding.flow.meetAstra.title')}
       </div>
 
       <div
         className="animate-msg-in flex w-full items-start"
-        style={{ gap: 10, maxWidth: 340, animationDelay: '200ms' }}
+        style={{ gap: 12, maxWidth: 340, animationDelay: '200ms' }}
       >
-        <AstraAvatar size={30} />
+        <AstraAvatar size={32} />
         <div
+          className="t-body"
           style={{
             background: 'var(--bg-elev)',
             borderRadius: '4px 18px 18px 18px',
-            padding: '12px 15px',
-            fontFamily: 'var(--font-sans)',
-            fontSize: 15,
-            lineHeight: 1.5,
-            color: 'var(--fg-1)',
+            padding: '12px 16px',
           }}
         >
           {t('onboarding.flow.meetAstra.subtitle')}

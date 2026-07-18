@@ -83,7 +83,7 @@ export function BuddyRow({ pair }: Readonly<BuddyRowProps>) {
           pressed ? styles.checkInPressed : null,
         ]}
       >
-        <Text style={[styles.checkInText, { color: checkedInToday ? tokens.fg3 : tokens.primary }]}>
+        <Text style={[styles.checkInText, { color: checkedInToday ? tokens.fg3 : tokens.primarySoft }]}>
           {checkedInToday ? t('social.buddies.checkedInLabel') : t('social.buddies.checkInAction')}
         </Text>
       </Pressable>

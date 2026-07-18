@@ -190,10 +190,6 @@ export function AnchoredMenu({
     return null
   }
 
-  const backdropOpacity = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 1],
-  })
   const scale = progress.interpolate({
     inputRange: [0, 1],
     outputRange: [menuMotion.scaleFrom, menuMotion.scaleTo],
@@ -212,10 +208,7 @@ export function AnchoredMenu({
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <Animated.View
-          pointerEvents="none"
-          style={[styles.backdrop, { opacity: backdropOpacity }]}
-        />
+        {/* No dim behind a trigger-anchored popover: --scrim is the modal/sheet/dialog backdrop only (DESIGN.md), and the web Popover mirror renders no scrim. This invisible press target is the tap-outside-to-dismiss affordance. https://github.com/thomasluizon/orbit-ui-mobile/issues/539 */}
         <Pressable
           style={styles.backdropPressTarget}
           onPress={onClose}
@@ -252,10 +245,6 @@ function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     overlay: {
       flex: 1,
-    },
-    backdrop: {
-      ...StyleSheet.absoluteFill,
-      backgroundColor: 'rgba(0, 0, 0, 0.16)',
     },
     backdropPressTarget: {
       ...StyleSheet.absoluteFill,

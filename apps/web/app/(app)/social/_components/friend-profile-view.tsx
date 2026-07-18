@@ -211,7 +211,7 @@ function ProfileBody({
         <motion.section style={cardStyle} {...section(4)}>
           {view.isAccountabilityPartner ? (
             <div className="flex items-center" style={{ gap: 10 }}>
-              <Users className="size-[18px]" style={{ color: 'var(--primary)' }} aria-hidden="true" />
+              <Users className="size-[18px]" style={{ color: 'var(--fg-2)' }} aria-hidden="true" />
               <span style={{ fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--fg-1)' }}>
                 {t('social.friendProfile.accountabilityPartner')}
               </span>
@@ -248,7 +248,7 @@ function ProfileBody({
                     fontFamily: 'var(--font-sans)',
                     fontSize: 13,
                     color: 'var(--fg-2)',
-                    padding: '7px 12px',
+                    padding: '8px 12px',
                     borderRadius: 999,
                     background: 'rgba(var(--primary-rgb), 0.12)',
                   }}

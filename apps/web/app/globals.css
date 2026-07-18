@@ -21,6 +21,7 @@
   --color-bg-elev-pressed: var(--bg-elev-pressed);
   --color-bg-sheet: var(--bg-sheet);
   --color-bg-sunk: var(--bg-sunk);
+  --color-scrim: var(--scrim);
   --color-primary-soft: var(--primary-soft);
   --color-hairline: var(--hairline);
   --color-hairline-strong: var(--hairline-strong);
@@ -142,6 +143,10 @@
 
   --hit-min: 44px;
   --hit-comfortable: 56px;
+
+  /* Canonical modal/sheet/dialog backdrop — theme- and scheme-independent
+     constant (DESIGN.md Sheet: rgba(0,0,0,0.55)). Mirrors mobile's tokens.scrim. */
+  --scrim: rgba(0, 0, 0, 0.55);
 
   /* Default scheme (purple, dark) — overridden by .scheme-* classes below */
   --primary: #8659ea;

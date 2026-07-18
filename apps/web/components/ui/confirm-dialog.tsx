@@ -142,7 +142,7 @@ export function ConfirmDialog({
             type="button"
             tabIndex={-1}
             aria-label={t('common.close')}
-            className="absolute inset-0 cursor-default bg-black/60 backdrop-blur-[2px]"
+            className="absolute inset-0 cursor-default bg-black/55"
             onClick={() => {
               if (isTopOverlay(overlayId)) onOpenChange(false)
             }}
@@ -174,8 +174,8 @@ export function ConfirmDialog({
               maxWidth: 340,
               borderRadius: 24,
               background: 'var(--bg-sheet)',
-              boxShadow: '0 24px 60px rgba(0,0,0,0.55), inset 0 0 0 1px var(--hairline)',
-              padding: '24px 22px 18px',
+              boxShadow: 'var(--shadow-3), inset 0 0 0 1px var(--hairline)',
+              padding: '24px 24px 20px',
             }}
             initial={{ opacity: 0, scale: motionPreset.scaleFrom, y: motionPreset.shift * 0.5 }}
             animate={{
@@ -224,7 +224,7 @@ export function ConfirmDialog({
             >
               {description}
             </p>
-            <div className="flex items-center" style={{ gap: 10, marginTop: 22 }}>
+            <div className="flex items-center" style={{ gap: 12, marginTop: 24 }}>
               {!infoOnly && (
                 <PillButton
                   variant="ghost"

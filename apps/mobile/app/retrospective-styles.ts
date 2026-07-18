@@ -22,13 +22,19 @@ export const styles = StyleSheet.create({
   },
   skeletonStack: {
     paddingHorizontal: 20,
-    paddingVertical: 32,
-    gap: 14,
-    alignItems: 'center',
+    paddingTop: 16,
+    paddingBottom: 24,
+    gap: 12,
   },
-  skeletonLabel: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 14,
+  skeletonTile: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingTop: 20,
+    paddingHorizontal: 12,
+    paddingBottom: 16,
   },
   contentWrap: {
     paddingHorizontal: 20,
@@ -156,10 +162,6 @@ export const styles = StyleSheet.create({
   actionChipPressed: {
     transform: [{ scale: 0.96 }],
   },
-  actionChipText: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 13,
-  },
   cachedText: {
     fontFamily: 'Roboto_400Regular',
     fontSize: 11,
@@ -170,7 +172,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 32,
     alignItems: 'center',
-    gap: 10,
+    gap: 16,
   },
   errorText: {
     fontFamily: 'Rubik_400Regular',

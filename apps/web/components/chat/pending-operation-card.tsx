@@ -157,7 +157,7 @@ export function PendingOperationCard({
       data-testid="pending-op-card"
       className="rounded-[16px] bg-[var(--bg-card)]"
       style={{
-        padding: '14px 16px',
+        padding: 16,
         boxShadow: 'inset 0 0 0 1px var(--hairline)',
         opacity: isExiting ? 0 : 1,
         transform: isExiting ? 'translateY(-4px)' : 'none',
@@ -222,7 +222,8 @@ export function PendingOperationCard({
           />
           <div className="flex gap-2">
             <PillButton
-              className="flex-1 py-[11px]! text-[14px]!"
+              size="sm"
+              className="flex-1 sm:flex-none"
               disabled={isLoading || verificationCode.trim().length < 6}
               leading={loadingSpinner}
               onClick={() => {
@@ -241,7 +242,8 @@ export function PendingOperationCard({
       {!challengeId && !successMessage && (
         <div className="flex gap-2">
           <PillButton
-            className="flex-1 py-[11px]! text-[14px]!"
+            size="sm"
+            className="flex-1 sm:flex-none"
             disabled={isLoading}
             dataTestId="pending-op-confirm"
             leading={loadingSpinner}
@@ -253,7 +255,7 @@ export function PendingOperationCard({
           </PillButton>
           <PillButton
             variant="ghost"
-            className="py-[11px]! text-[14px]! px-[18px]!"
+            size="sm"
             disabled={isLoading}
             dataTestId="pending-op-cancel"
             onClick={() => setIsExiting(true)}

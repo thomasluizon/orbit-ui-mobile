@@ -38,6 +38,8 @@ const variantClasses: Record<ButtonVariant, string> = {
     'bg-transparent text-[var(--fg-1)] shadow-[inset_0_0_0_1.5px_var(--hairline-strong)] enabled:hover:bg-[var(--bg-card)] enabled:active:scale-[0.97]',
   destructive:
     'bg-[var(--status-bad)] text-[var(--fg-on-bad)] enabled:hover:bg-[color-mix(in_srgb,var(--status-bad)_85%,black)] enabled:hover:-translate-y-px enabled:active:translate-y-0 enabled:active:scale-[0.97]',
+  caution:
+    'bg-[var(--status-overdue)] text-[var(--fg-on-overdue)] enabled:hover:bg-[color-mix(in_srgb,var(--status-overdue)_85%,black)] enabled:hover:-translate-y-px enabled:active:translate-y-0 enabled:active:scale-[0.97]',
 }
 
 function PillInner({
@@ -60,20 +62,32 @@ function PillInner({
       ) : (
         leading
       )}
-      {hasLabel ? <span className={busy ? 'opacity-60' : undefined}>{children}</span> : null}
+      {hasLabel ? (
+        <span
+          className={`min-w-0 overflow-hidden text-ellipsis whitespace-nowrap${busy ? ' opacity-60' : ''}`}
+        >
+          {children}
+        </span>
+      ) : null}
     </>
   )
 }
 
 /** Kit pill CTA in the canonical taxonomy: solid `primary`, inverted
- *  `secondary`, hairline `ghost`, or status-bad `destructive`. `size` (`sm` /
+ *  `secondary`, hairline `ghost`, status-bad `destructive`, or amber
+ *  status-overdue `caution` (the reversible-danger sibling of `destructive`,
+ *  e.g. account reset). `size` (`sm` /
  *  `md` / `lg`) drives a fixed height + horizontal padding + label/icon scale
  *  from the shared `BUTTON_SIZES` geometry so the mobile mirror cannot drift.
  *  While `busy`, a spinner fills the leading slot, the label dims, and clicks
  *  no-op. `fullWidth` spans the phone column but releases to its intrinsic
  *  (hug) width at the desktop breakpoint, capped at ~360px and centred in
  *  either a block or a flex parent — full-bleed pills are a phone-shell
- *  affordance only, so no callsite needs a self-center patch. With a
+ *  affordance only, so no callsite needs a self-center patch. The label
+ *  stays on a single line: the pill hugs and grows to fit when unconstrained,
+ *  and truncates with an ellipsis (never wraps) when width-capped, so a long
+ *  pt-BR CTA cannot blow out the fixed height — matching the mobile mirror's
+ *  `numberOfLines={1}`. With a
  *  `leading` icon and no label child it renders an icon-only square (width =
  *  the size's height), the canonical collapsed-sidebar-rail control — pass
  *  `ariaLabel` for its accessible name. */

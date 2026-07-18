@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import {
@@ -9,7 +9,8 @@ import {
 } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
-import { createTokensV2, tintFromPrimary } from '@/lib/theme'
+import { PillButton } from '@/components/ui/pill-button'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface NotificationDetailModalProps {
@@ -20,7 +21,7 @@ interface NotificationDetailModalProps {
   onDelete: (id: string) => void
 }
 
-/** Sheet chrome with a mono timestamp eyebrow, body copy, and quiet text-button actions. */
+/** Sheet chrome with a mono timestamp eyebrow, body copy, and a PillButton action row. */
 export function NotificationDetailModal({
   open,
   onClose,
@@ -71,84 +72,27 @@ export function NotificationDetailModal({
 
         <View style={styles.actions}>
           {canView ? (
-            <QuietAction
-              label={t('notifications.view')}
-              color={tokens.primary}
-              onPress={handleView}
-              primary
-            />
+            <PillButton size="sm" variant="primary" onPress={handleView}>
+              {t('notifications.view')}
+            </PillButton>
           ) : null}
           {canMarkAsRead ? (
-            <QuietAction
-              label={t('notifications.markAsRead')}
-              color={tokens.fg2}
+            <PillButton
+              size="sm"
+              variant="ghost"
               onPress={() => onMarkAsRead(notification.id)}
-            />
+            >
+              {t('notifications.markAsRead')}
+            </PillButton>
           ) : null}
-          <QuietAction
-            label={t('notifications.delete')}
-            color={tokens.statusBad}
-            onPress={handleDelete}
-          />
+          <PillButton size="sm" variant="destructive" onPress={handleDelete}>
+            {t('notifications.delete')}
+          </PillButton>
         </View>
       </View>
     </BottomSheetModal>
   )
 }
-
-function QuietAction({
-  label,
-  color,
-  onPress,
-  primary = false,
-}: Readonly<{ label: string; color: string; onPress: () => void; primary?: boolean }>) {
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = useMemo(
-    () => createTokensV2(currentScheme, currentTheme),
-    [currentScheme, currentTheme],
-  )
-  const surface = {
-    rest: primary ? tintFromPrimary(tokens, 0.1) : tokens.bgElev,
-    pressed: primary ? tintFromPrimary(tokens, 0.16) : tokens.bgElev2,
-    border: primary ? tintFromPrimary(tokens, 0.28) : tokens.hairline,
-  }
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      hitSlop={{ top: 4, bottom: 4 }}
-      style={({ pressed }) => [
-        quietActionStyles.chip,
-        {
-          backgroundColor: pressed ? surface.pressed : surface.rest,
-          borderColor: surface.border,
-        },
-        pressed && quietActionStyles.pressed,
-      ]}
-    >
-      <Text style={[quietActionStyles.label, { color }]}>{label}</Text>
-    </Pressable>
-  )
-}
-
-const quietActionStyles = StyleSheet.create({
-  chip: {
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingVertical: 9,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pressed: {
-    transform: [{ scale: 0.96 }],
-  },
-  label: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 13,
-  },
-})
 
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
@@ -182,7 +126,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       flexWrap: 'wrap',
       alignItems: 'center',
       justifyContent: 'flex-end',
-      gap: 10,
+      gap: 12,
       paddingHorizontal: 20,
       paddingTop: 4,
     },

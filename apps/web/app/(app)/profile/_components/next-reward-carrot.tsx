@@ -20,7 +20,7 @@ export function NextRewardCarrot({ carrot }: Readonly<NextRewardCarrotProps>) {
       <div
         className="rounded-[18px]"
         style={{
-          padding: 18,
+          padding: 16,
           background: 'rgba(var(--primary-rgb), 0.08)',
           boxShadow: 'inset 0 0 0 1px rgba(var(--primary-rgb), 0.28)',
         }}

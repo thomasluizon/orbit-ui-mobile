@@ -37,7 +37,7 @@ export function NextRewardCarrot({ carrot, onUpgrade }: Readonly<NextRewardCarro
         <View style={styles.titleRow}>
           <Gift size={18} strokeWidth={1.9} color={tokens.primarySoft} />
           <Text style={[styles.title, { color: tokens.fg2 }]}>
-            {t('gamification.carrot.title').toUpperCase()}
+            {t('gamification.carrot.title')}
           </Text>
         </View>
 
@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 18,
     borderWidth: 1,
-    padding: 18,
+    padding: 16,
   },
   titleRow: {
     flexDirection: 'row',
@@ -96,6 +96,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Rubik_500Medium',
     fontSize: 12,
     letterSpacing: 0.96,
+    textTransform: 'uppercase',
   },
   toNextLevel: {
     fontFamily: 'Rubik_500Medium',

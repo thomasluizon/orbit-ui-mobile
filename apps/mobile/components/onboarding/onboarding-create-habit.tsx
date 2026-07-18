@@ -266,16 +266,16 @@ function createStyles(tokens: AppTokensV2) {
     },
     title: {
       fontFamily: 'Rubik_500Medium',
-      fontSize: 24,
-      letterSpacing: -0.24,
-      lineHeight: 31,
+      fontSize: 22,
+      letterSpacing: -0.22,
+      lineHeight: 29,
       color: tokens.fg1,
       textAlign: 'center',
     },
     subtitle: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 15,
-      lineHeight: 23,
+      fontSize: 14,
+      lineHeight: 22,
       color: tokens.fg2,
       textAlign: 'center',
     },
@@ -285,7 +285,7 @@ function createStyles(tokens: AppTokensV2) {
       letterSpacing: 0.96,
       textTransform: 'uppercase',
       color: tokens.fg3,
-      marginTop: 6,
+      marginTop: 8,
     },
     toggleRow: {
       alignItems: 'center',
@@ -293,7 +293,7 @@ function createStyles(tokens: AppTokensV2) {
     chipsRow: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      gap: 6,
+      gap: 8,
     },
     createBtnWrap: {
       marginTop: 8,
@@ -301,7 +301,7 @@ function createStyles(tokens: AppTokensV2) {
     successCard: {
       paddingVertical: 24,
       alignItems: 'center',
-      gap: 6,
+      gap: 8,
     },
     successIcon: {
       width: 56,
@@ -314,7 +314,7 @@ function createStyles(tokens: AppTokensV2) {
     },
     successTitle: {
       fontFamily: 'Rubik_500Medium',
-      fontSize: 17,
+      fontSize: 16,
       color: tokens.fg1,
     },
     successFreq: {
@@ -325,8 +325,8 @@ function createStyles(tokens: AppTokensV2) {
     },
     successMessage: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 13,
-      color: tokens.fg3,
+      fontSize: 14,
+      color: tokens.fg2,
       marginTop: 8,
     },
   })

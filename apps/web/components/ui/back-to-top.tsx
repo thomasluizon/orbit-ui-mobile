@@ -14,11 +14,7 @@ const BACK_TO_TOP_STYLE = {
   width: 48,
   height: 48,
   borderRadius: 999,
-  background: 'var(--bg-elev-2)',
-  // react-doctor-disable-next-line no-large-animated-blur -- intentional frosted-glass control per DESIGN.md; the blur is static (only opacity/transform transition) on a small 48px surface, so the GPU cost stays bounded https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  backdropFilter: 'blur(12px)',
-  // react-doctor-disable-next-line no-large-animated-blur -- intentional frosted-glass control per DESIGN.md; the blur is static (only opacity/transform transition) on a small 48px surface, so the GPU cost stays bounded https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  WebkitBackdropFilter: 'blur(12px)',
+  background: 'var(--bg-sheet)',
   boxShadow: 'var(--shadow-2), inset 0 0 0 1px var(--hairline-strong)',
 } as const
 

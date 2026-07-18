@@ -3,7 +3,7 @@ import type { ComponentType, ReactNode } from 'react'
 // react-doctor-disable-next-line rn-prefer-reanimated -- RN Animated with useNativeDriver drives the switch thumb translateX on the UI thread already; Reanimated 4.x migration deferred (worklets 0.10.0 ABI-pinned to the SDK 57 set, needs on-device QA) https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native'
 import { ChevronRight, type LucideProps } from '@/components/ui/icons'
-import { createTokensV2, easings, type AppTokensV2 } from '@/lib/theme'
+import { createTokensV2, easings, shadowsV2, type AppTokensV2 } from '@/lib/theme'
 import { toAnimatedEasing } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -248,6 +248,6 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 999,
-    boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.20)',
+    ...shadowsV2.shadow1,
   },
 })

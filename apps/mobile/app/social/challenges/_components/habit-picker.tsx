@@ -1,8 +1,9 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { isCompletedOneTimeHabit } from '@orbit/shared/utils'
+import { Chip } from '@/components/ui/chip'
 import { useHabits } from '@/hooks/use-habits'
-import { createTokensV2, tintFromPrimary } from '@/lib/theme'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface HabitPickerProps {
@@ -31,38 +32,20 @@ export function HabitPicker({ selectedIds, onToggle }: Readonly<HabitPickerProps
 
   return (
     <View style={styles.wrap}>
-      {habits.map((habit) => {
-        const active = selectedIdSet.has(habit.id)
-        return (
-          <Pressable
-            key={habit.id}
-            accessibilityRole="button"
-            accessibilityState={{ selected: active }}
-            accessibilityLabel={habit.title}
-            hitSlop={{ top: 6, bottom: 6 }}
-            onPress={() => onToggle(habit.id)}
-            style={({ pressed }) => [
-              styles.chip,
-              {
-                backgroundColor: active ? tintFromPrimary(tokens, 0.12) : tokens.bgElev,
-                borderColor: active ? tokens.primary : tokens.hairline,
-              },
-              pressed ? styles.chipPressed : null,
-            ]}
-          >
-            <Text style={[styles.chipText, { color: active ? tokens.primary : tokens.fg2 }]}>
-              {habit.title}
-            </Text>
-          </Pressable>
-        )
-      })}
+      {habits.map((habit) => (
+        <Chip
+          key={habit.id}
+          active={selectedIdSet.has(habit.id)}
+          accessibilityLabel={habit.title}
+          onPress={() => onToggle(habit.id)}
+        >
+          {habit.title}
+        </Chip>
+      ))}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1 },
-  chipPressed: { transform: [{ scale: 0.96 }] },
-  chipText: { fontFamily: 'Rubik_400Regular', fontSize: 14 },
 })

@@ -50,14 +50,17 @@ export function GoalProgressHistorySection({
   return (
     <div>
       <SectionLabel>{title}</SectionLabel>
-      {visibleEntries.map((entry) => (
+      {visibleEntries.map((entry, index) => (
         <div
           key={`${entry.createdAtUtc}-${entry.value}`}
           className="flex flex-col"
           style={{
             padding: '10px 20px',
-            borderBottom: '1px solid var(--hairline)',
-            gap: 3,
+            borderBottom:
+              index === visibleEntries.length - 1
+                ? undefined
+                : '1px solid var(--hairline)',
+            gap: 4,
           }}
         >
           <div className="flex items-center justify-between">
@@ -225,13 +228,16 @@ export function GoalLinkedHabitsSection({
     <div data-tour="tour-goal-link">
       <SectionLabel>{title}</SectionLabel>
       <ul className="list-none" style={{ margin: 0, padding: 0 }}>
-        {linkedHabits.map((habit) => (
+        {linkedHabits.map((habit, index) => (
           <li
             key={habit.id}
             className="flex items-center"
             style={{
               padding: '10px 20px',
-              borderBottom: '1px solid var(--hairline)',
+              borderBottom:
+                index === linkedHabits.length - 1
+                  ? undefined
+                  : '1px solid var(--hairline)',
               gap: 14,
             }}
           >

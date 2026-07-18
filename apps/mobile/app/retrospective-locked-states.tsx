@@ -43,7 +43,7 @@ export function RetrospectiveLockedYearly({
             />
           )}
           {portalError ? (
-            <Text style={[styles.statusError, { color: tokens.statusBad }]}>{portalError}</Text>
+            <Text style={[styles.statusError, { color: tokens.statusBadText }]}>{portalError}</Text>
           ) : null}
         </>
       }

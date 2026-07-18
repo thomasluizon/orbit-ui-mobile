@@ -4,6 +4,7 @@ import { Image, StyleSheet, Text, View, type ImageSourcePropType } from 'react-n
 import QRCode from 'react-native-qrcode-svg'
 import { useTranslation } from 'react-i18next'
 import { achievementEmoji } from '@orbit/shared/utils'
+import { shareQrColors } from '@orbit/shared/theme'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -71,7 +72,12 @@ export const MilestoneShareCard = forwardRef<View, MilestoneShareCardProps>(
         {referralUrl ? (
           <View style={styles.footer}>
             <View style={styles.qrTile}>
-              <QRCode value={referralUrl} size={56} color="#020618" backgroundColor="#ffffff" />
+              <QRCode
+                value={referralUrl}
+                size={56}
+                color={shareQrColors.dark}
+                backgroundColor={shareQrColors.light}
+              />
             </View>
             <View style={styles.footerText}>
               <Text style={styles.scanText}>{t('shareCard.scanToJoin')}</Text>
@@ -183,7 +189,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     qrTile: {
       padding: 6,
       borderRadius: 12,
-      backgroundColor: '#ffffff',
+      backgroundColor: shareQrColors.light,
     },
     footerText: {
       flex: 1,

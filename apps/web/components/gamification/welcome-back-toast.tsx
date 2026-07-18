@@ -16,7 +16,7 @@ const toastSurfaceStyle: CSSProperties = {
   padding: '14px 16px',
   background: 'var(--bg-sheet)',
   borderRadius: 18,
-  boxShadow: '0 14px 36px rgba(0, 0, 0, 0.5), inset 0 0 0 1px var(--hairline)',
+  boxShadow: 'var(--shadow-3), inset 0 0 0 1px var(--hairline)',
   transition: 'opacity 280ms var(--ease-out), transform 280ms var(--ease-out)',
   zIndex: 'var(--z-index-toast)',
 }
@@ -127,7 +127,7 @@ export function WelcomeBackToast() {
             <Gift size={17} strokeWidth={2.2} color="var(--primary-soft)" />
           )}
         </span>
-        <div className="flex-1 flex flex-col" style={{ gap: 3 }}>
+        <div className="flex-1 flex flex-col" style={{ gap: 4 }}>
           <span
             style={{
               fontFamily: 'var(--font-sans)',

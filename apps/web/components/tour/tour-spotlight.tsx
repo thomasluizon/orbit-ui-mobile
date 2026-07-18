@@ -87,10 +87,7 @@ export function TourSpotlight({ targetRect, padding = 8 }: Readonly<TourSpotligh
               fill="none"
               stroke="rgba(var(--primary-rgb), 0.7)"
               strokeWidth={1.5}
-              style={{
-                filter: 'drop-shadow(0 0 12px rgba(var(--primary-rgb), 0.45))',
-                transition: GEOMETRY_TRANSITION,
-              }}
+              style={{ transition: GEOMETRY_TRANSITION }}
             />
           </>
         ) : (

@@ -76,14 +76,14 @@ export function OnboardingTemplatePacks({
       >
         <Heading title={t('onboarding.flow.templatePacks.title')} subtitle={t('onboarding.flow.templatePacks.subtitle')} />
 
-        <div className="flex flex-col" style={{ gap: 10 }}>
+        <div className="flex flex-col" style={{ gap: 12 }}>
           {TEMPLATE_PACKS.map((pack) => (
             <button
               key={pack.id}
               type="button"
               onClick={() => setSelectedPackId(pack.id)}
               className="card-int flex w-full appearance-none items-center border-0 text-left"
-              style={{ padding: '14px 16px', gap: 14 }}
+              style={{ padding: 16, gap: 12 }}
             >
               <span
                 aria-hidden="true"
@@ -92,11 +92,11 @@ export function OnboardingTemplatePacks({
               >
                 {pack.emoji}
               </span>
-              <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 3 }}>
-                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 16, fontWeight: 500, color: 'var(--fg-1)' }}>
+              <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
+                <span className="t-body font-medium">
                   {t(templatePackNameKey(pack.id))}
                 </span>
-                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--fg-3)' }}>
+                <span className="t-secondary">
                   {t(templatePackDescriptionKey(pack.id))}
                 </span>
               </span>
@@ -140,7 +140,7 @@ export function OnboardingTemplatePacks({
               className="flex w-full appearance-none items-center border-0 text-left bg-[var(--bg-elev)] cursor-pointer transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev-2)] active:scale-[0.99]"
               style={{
                 gap: 12,
-                padding: '12px 14px',
+                padding: '12px 16px',
                 borderRadius: 14,
                 opacity: enabled ? 1 : 0.55,
               }}
@@ -148,10 +148,7 @@ export function OnboardingTemplatePacks({
               <span aria-hidden="true" style={{ fontSize: 20 }}>
                 {habit.emoji}
               </span>
-              <span
-                className="min-w-0 flex-1"
-                style={{ fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--fg-1)' }}
-              >
+              <span className="t-body min-w-0 flex-1">
                 {t(templatePackHabitTitleKey(selectedPack.id, habit.key))}
               </span>
               <span
@@ -199,25 +196,8 @@ interface HeadingProps {
 function Heading({ title, subtitle }: Readonly<HeadingProps>) {
   return (
     <div className="flex flex-col" style={{ gap: 8 }}>
-      <div
-        className="text-center"
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 24,
-          fontWeight: 500,
-          letterSpacing: '-0.01em',
-          lineHeight: 1.3,
-          color: 'var(--fg-1)',
-        }}
-      >
-        {title}
-      </div>
-      <div
-        className="text-center"
-        style={{ fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--fg-2)', lineHeight: 1.55 }}
-      >
-        {subtitle}
-      </div>
+      <div className="t-h2 text-center text-balance">{title}</div>
+      <div className="t-secondary text-center text-balance">{subtitle}</div>
     </div>
   )
 }

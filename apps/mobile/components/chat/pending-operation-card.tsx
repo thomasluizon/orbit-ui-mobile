@@ -203,6 +203,7 @@ export function PendingOperationCard({
             style={styles.codeInput}
           />
           <PillButton
+            size="sm"
             style={styles.compactPill}
             disabled={isLoading || verificationCode.trim().length < 6}
             onPress={() => {
@@ -221,6 +222,7 @@ export function PendingOperationCard({
       {!challengeId && !successMessage ? (
         <View style={styles.actions}>
           <PillButton
+            size="sm"
             style={styles.confirmPill}
             disabled={isLoading}
             onPress={() => {
@@ -236,7 +238,7 @@ export function PendingOperationCard({
           </PillButton>
           <PillButton
             variant="ghost"
-            style={styles.cancelPill}
+            size="sm"
             disabled={isLoading}
             accessibilityLabel={t("common.cancel")}
             onPress={() => setDismissed(true)}
@@ -260,8 +262,7 @@ function createStyles(tokens: AppTokens) {
       borderWidth: 1,
       borderColor: tokens.hairline,
       backgroundColor: tokens.bgCard,
-      paddingVertical: 14,
-      paddingHorizontal: 16,
+      padding: 16,
     },
     header: {
       flexDirection: "row",
@@ -315,7 +316,6 @@ function createStyles(tokens: AppTokens) {
       textAlign: "center",
     },
     compactPill: {
-      paddingVertical: 11,
       alignSelf: "stretch",
     },
     actions: {
@@ -324,11 +324,6 @@ function createStyles(tokens: AppTokens) {
     },
     confirmPill: {
       flex: 1,
-      paddingVertical: 11,
-    },
-    cancelPill: {
-      paddingVertical: 11,
-      paddingHorizontal: 18,
     },
     cancelPillLabel: {
       fontFamily: 'Rubik_500Medium',

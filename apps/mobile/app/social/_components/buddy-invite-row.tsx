@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { AccountabilityPair } from '@orbit/shared/types/accountability'
 import { getAccountabilityErrorKey } from '@orbit/shared/utils'
@@ -72,56 +72,33 @@ export function BuddyInviteRow({ pair, direction }: Readonly<BuddyInviteRowProps
         <View style={styles.actions}>
           {direction === 'incoming' ? (
             <>
-              <Pressable
-                accessibilityRole="button"
+              <PillButton
+                variant="primary"
+                size="sm"
                 onPress={() => setAcceptOpen(true)}
                 disabled={busy}
-                hitSlop={{ top: 6, bottom: 6 }}
-                style={({ pressed }) => [
-                  styles.actionButton,
-                  { backgroundColor: pressed ? tokens.primaryPressed : tokens.primary },
-                  busy ? styles.actionBusy : null,
-                  pressed ? styles.actionPressed : null,
-                ]}
               >
-                <Text style={[styles.actionText, { color: tokens.fgOnPrimary }]}>
-                  {t('social.buddies.accept')}
-                </Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
+                {t('social.buddies.accept')}
+              </PillButton>
+              <PillButton
+                variant="ghost"
+                size="sm"
                 onPress={() => void handleEnd()}
-                disabled={busy}
-                hitSlop={{ top: 6, bottom: 6 }}
-                style={({ pressed }) => [
-                  styles.actionButton,
-                  { backgroundColor: tokens.bgElev },
-                  busy ? styles.actionBusy : null,
-                  pressed ? styles.actionPressed : null,
-                ]}
+                busy={end.isPending}
+                disabled={accept.isPending}
               >
-                <Text style={[styles.actionText, { color: tokens.fg2 }]}>
-                  {t('social.buddies.decline')}
-                </Text>
-              </Pressable>
+                {t('social.buddies.decline')}
+              </PillButton>
             </>
           ) : (
-            <Pressable
-              accessibilityRole="button"
+            <PillButton
+              variant="ghost"
+              size="sm"
               onPress={() => void handleEnd()}
-              disabled={busy}
-              hitSlop={{ top: 6, bottom: 6 }}
-              style={({ pressed }) => [
-                styles.actionButton,
-                { backgroundColor: tokens.bgElev },
-                busy ? styles.actionBusy : null,
-                pressed ? styles.actionPressed : null,
-              ]}
+              busy={end.isPending}
             >
-              <Text style={[styles.actionText, { color: tokens.fg2 }]}>
-                {t('social.buddies.rescind')}
-              </Text>
-            </Pressable>
+              {t('social.buddies.rescind')}
+            </PillButton>
           )}
         </View>
       </View>
@@ -165,10 +142,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     name: { fontFamily: 'Rubik_500Medium', fontSize: 15, color: tokens.fg1 },
     sub: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: tokens.fg3 },
     actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    actionButton: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999 },
-    actionPressed: { transform: [{ scale: 0.96 }] },
-    actionBusy: { opacity: 0.4 },
-    actionText: { fontFamily: 'Rubik_500Medium', fontSize: 14 },
     sheetBody: { paddingHorizontal: 22, paddingTop: 4, paddingBottom: 24, gap: 16 },
     sheetSubtitle: { fontFamily: 'Rubik_400Regular', fontSize: 14, color: tokens.fg3 },
   })

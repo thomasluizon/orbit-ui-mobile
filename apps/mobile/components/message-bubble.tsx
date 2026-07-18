@@ -16,6 +16,7 @@ import { GoalListCard } from "@/components/chat/goal-list-card";
 import { HabitListCard } from "@/components/chat/habit-list-card";
 import { PendingOperationCard } from "@/components/chat/pending-operation-card";
 import { Markdown } from "@/components/ui/markdown";
+import { PillButton } from "@/components/ui/pill-button";
 import { AstraMark } from "@/components/ui/astra-avatar";
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from "@/lib/use-app-theme";
@@ -256,24 +257,14 @@ export function MessageBubble({
                       : denial.reason}
                   </Text>
                   {upgradeResolution.shouldUpgrade && onUpgradeClick ? (
-                    <Pressable
+                    <PillButton
+                      variant="primary"
+                      size="sm"
                       onPress={onUpgradeClick}
-                      accessibilityRole="button"
-                      hitSlop={{ top: 6, bottom: 6 }}
-                      style={({ pressed }) => [
-                        styles.denialUpgrade,
-                        {
-                          backgroundColor: pressed
-                            ? tokens.primaryPressed
-                            : tokens.primary,
-                        },
-                        pressed ? styles.denialUpgradePressed : null,
-                      ]}
+                      style={styles.denialUpgrade}
                     >
-                      <Text style={styles.denialUpgradeText}>
-                        {t("upgrade.subscribe")}
-                      </Text>
-                    </Pressable>
+                      {t("upgrade.subscribe")}
+                    </PillButton>
                   ) : null}
                 </View>
               );
@@ -311,7 +302,7 @@ function createStyles(tokens: AppTokens) {
       flexDirection: "row",
       marginBottom: 16,
       paddingHorizontal: 16,
-      gap: 10,
+      gap: 8,
     },
     userContainer: {
       justifyContent: "flex-end",
@@ -343,7 +334,7 @@ function createStyles(tokens: AppTokens) {
     },
 
     bubble: {
-      paddingHorizontal: 15,
+      paddingHorizontal: 16,
       paddingVertical: 12,
     },
     userBubble: {
@@ -437,18 +428,7 @@ function createStyles(tokens: AppTokens) {
     },
     denialUpgrade: {
       alignSelf: "flex-start",
-      paddingVertical: 8,
-      paddingHorizontal: 16,
-      borderRadius: 999,
       marginTop: 8,
-    },
-    denialUpgradePressed: {
-      transform: [{ scale: 0.96 }],
-    },
-    denialUpgradeText: {
-      fontFamily: 'Rubik_600SemiBold',
-      fontSize: 12,
-      color: tokens.fgOnPrimary,
     },
   });
 }

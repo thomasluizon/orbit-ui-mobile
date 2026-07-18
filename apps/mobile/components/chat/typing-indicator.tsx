@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     marginBottom: 16,
     paddingHorizontal: 16,
-    gap: 10,
+    gap: 8,
   },
   aiAvatar: {
     width: 30,
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 18,
     borderBottomLeftRadius: 18,
     borderBottomRightRadius: 18,
-    paddingHorizontal: 15,
+    paddingHorizontal: 16,
     paddingVertical: 12,
   },
   dotsRow: {

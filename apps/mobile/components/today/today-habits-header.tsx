@@ -561,7 +561,7 @@ export function TodayHabitsHeader({
 
       <SectionLabel
         top={20}
-        bottom={showDayProgress ? 6 : 0}
+        bottom={showDayProgress ? 8 : 0}
         trailing={
           <View style={styles.sectionTrailing}>
             {showDayProgress ? (
@@ -784,11 +784,11 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       letterSpacing: 0.24,
       color: tokens.fg3,
       fontVariant: ["tabular-nums"],
-      marginRight: 6,
+      marginRight: 8,
     },
     dayProgressWrap: {
       paddingHorizontal: 20,
-      paddingBottom: 6,
+      paddingBottom: 8,
     },
     iconBtn: {
       width: 36,
@@ -804,7 +804,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     controlsMenuItem: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 10,
+      gap: 12,
       paddingHorizontal: 12,
       paddingVertical: 10,
       borderRadius: 8,

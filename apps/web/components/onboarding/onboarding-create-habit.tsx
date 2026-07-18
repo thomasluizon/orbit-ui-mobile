@@ -117,28 +117,13 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
             strokeWidth={2.4}
           />
         </div>
-        <div
-          className="text-center"
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 17,
-            fontWeight: 500,
-            color: 'var(--fg-1)',
-          }}
-        >
-          {title}
-        </div>
-        <div
-          className="text-center"
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 13,
-            color: 'var(--fg-3)',
-          }}
-        >
-          {t(getOnboardingHabitFrequencyLabelKey(frequencyUnit))}
-          {' · '}
-          {t('onboarding.flow.createHabit.success')}
+        <div className="flex flex-col items-center" style={{ gap: 4 }}>
+          <div className="t-body font-medium text-center text-balance">{title}</div>
+          <div className="t-secondary text-center">
+            {t(getOnboardingHabitFrequencyLabelKey(frequencyUnit))}
+            {' · '}
+            {t('onboarding.flow.createHabit.success')}
+          </div>
         </div>
       </div>
     )
@@ -149,29 +134,13 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
       className="stagger-enter"
       style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: '16px 0' }}
     >
-      <div
-        className="text-center"
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 24,
-          fontWeight: 500,
-          letterSpacing: '-0.01em',
-          lineHeight: 1.3,
-          color: 'var(--fg-1)',
-        }}
-      >
-        {t('onboarding.flow.createHabit.title')}
-      </div>
-      <div
-        className="text-center"
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 15,
-          color: 'var(--fg-2)',
-          lineHeight: 1.55,
-        }}
-      >
-        {t('onboarding.flow.createHabit.subtitle')}
+      <div className="flex flex-col" style={{ gap: 8 }}>
+        <div className="t-h2 text-center text-balance">
+          {t('onboarding.flow.createHabit.title')}
+        </div>
+        <div className="t-secondary text-center text-balance">
+          {t('onboarding.flow.createHabit.subtitle')}
+        </div>
       </div>
 
       <FieldInput
@@ -199,7 +168,7 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
       </div>
 
       {showFrequencyPicker && (
-        <div className="flex flex-wrap justify-center" style={{ gap: 6 }}>
+        <div className="flex flex-wrap justify-center" style={{ gap: 8 }}>
           {ONBOARDING_HABIT_FREQUENCIES.map((freq) => (
             <Chip
               key={freq.value}
@@ -212,10 +181,10 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
         </div>
       )}
 
-      <SectionLabel top={8} bottom={6}>
+      <SectionLabel top={8} bottom={8} inset={false}>
         {t('onboarding.flow.createHabit.starters')}
       </SectionLabel>
-      <div className="flex flex-wrap" style={{ gap: 6 }}>
+      <div className="flex flex-wrap" style={{ gap: 8 }}>
         {ONBOARDING_HABIT_SUGGESTIONS.map((suggestion) => (
           <Chip
             key={suggestion.key}

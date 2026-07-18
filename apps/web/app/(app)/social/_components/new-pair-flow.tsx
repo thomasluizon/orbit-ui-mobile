@@ -169,7 +169,7 @@ export function NewPairFlow({ open, onOpenChange, initialHabitId }: Readonly<New
                             fontFamily: 'var(--font-sans)',
                             fontSize: 15,
                             fontWeight: 500,
-                            color: active ? 'var(--primary)' : 'var(--fg-1)',
+                            color: active ? 'var(--primary-soft)' : 'var(--fg-1)',
                           }}
                         >
                           {friend.displayName}
@@ -203,7 +203,7 @@ export function NewPairFlow({ open, onOpenChange, initialHabitId }: Readonly<New
                     fontFamily: 'var(--font-sans)',
                     fontSize: 14,
                     fontWeight: 500,
-                    color: active ? 'var(--primary)' : 'var(--fg-2)',
+                    color: active ? 'var(--primary-soft)' : 'var(--fg-2)',
                     background: active ? 'rgba(var(--primary-rgb), 0.12)' : 'var(--bg-elev)',
                     boxShadow: active
                       ? 'inset 0 0 0 1px var(--primary)'

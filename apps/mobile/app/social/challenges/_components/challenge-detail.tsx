@@ -80,11 +80,11 @@ function ChallengeHeader({
       <View style={styles.badgeRow}>
         <View style={[styles.badge, { backgroundColor: tintFromPrimary(tokens, 0.12) }]}>
           {isCoop ? (
-            <Target size={13} strokeWidth={2} color={tokens.primary} />
+            <Target size={13} strokeWidth={2} color={tokens.primarySoft} />
           ) : (
-            <Flame size={13} strokeWidth={2} color={tokens.primary} />
+            <Flame size={13} strokeWidth={2} color={tokens.primarySoft} />
           )}
-          <Text style={[styles.badgeText, { color: tokens.primary }]}>{typeLabel}</Text>
+          <Text style={[styles.badgeText, { color: tokens.primarySoft }]}>{typeLabel}</Text>
         </View>
         {completeLabel ? (
           <Text style={[styles.completeText, { color: tokens.statusDone }]}>{completeLabel}</Text>

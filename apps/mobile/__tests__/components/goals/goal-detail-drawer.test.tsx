@@ -139,6 +139,7 @@ vi.mock('@/components/goals/goal-metrics-panel', () => ({
 vi.mock('@/components/ui/icons', () => {
   const createIcon = (name: string) => (props: any) => React.createElement(name, props)
   return {
+    AlertTriangle: createIcon('AlertTriangle'),
     ArchiveX: createIcon('ArchiveX'),
     CheckCircle2: createIcon('CheckCircle2'),
     ChevronRight: createIcon('ChevronRight'),

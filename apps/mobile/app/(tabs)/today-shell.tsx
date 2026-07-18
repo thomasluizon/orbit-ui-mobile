@@ -27,8 +27,8 @@ export type TodayTabItem = {
   label: string
 }
 
-/** Início header: the Orbit mark over the gradient, with the theme toggle,
- *  streak flame, and notification bell clustered top-right. */
+/** Today header: the Orbit mark, with the theme toggle, streak flame, and
+ *  notification bell clustered top-right. */
 export function TodayHeader({
   currentStreak,
   onGoToToday,

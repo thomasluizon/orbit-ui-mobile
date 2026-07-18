@@ -74,7 +74,7 @@ function ReportSheet({
                     cursor: 'pointer',
                     fontFamily: 'var(--font-sans)',
                     fontSize: 14,
-                    color: active ? 'var(--primary)' : 'var(--fg-2)',
+                    color: active ? 'var(--primary-soft)' : 'var(--fg-2)',
                     background: active ? 'rgba(var(--primary-rgb), 0.12)' : 'var(--bg-elev)',
                     boxShadow: active ? 'inset 0 0 0 1px var(--primary)' : 'inset 0 0 0 1px var(--hairline)',
                   }}
@@ -166,7 +166,7 @@ export function FriendRow({ friend, onCheer }: Readonly<FriendRowProps>) {
             fontFamily: 'var(--font-sans)',
             fontSize: 14,
             fontWeight: 500,
-            color: 'var(--primary)',
+            color: 'var(--primary-soft)',
             background: 'rgba(var(--primary-rgb), 0.12)',
           }}
         >

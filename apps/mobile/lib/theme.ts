@@ -136,6 +136,8 @@ export interface AppTokensV2 {
   /** Foreground for text/icons painted on a `statusOverdue` (amber) fill: fixed canvas ink both modes (white fails AA on amber). */
   fgOnOverdue: string
   selectionBg: string
+  /** Canonical modal/sheet backdrop scrim, theme-independent (DESIGN.md Sheet: rgba(0,0,0,0.55)). Mirrors the web overlay's `bg-black/55`. */
+  scrim: string
 }
 
 export interface AppShadowV2 extends Record<string, unknown> {
@@ -213,6 +215,7 @@ export function createTokensV2(
       fgOnBad: status.fgOnBad,
       fgOnOverdue: '#020618',
       selectionBg: `rgba(${accent.primaryRgb}, ${selectionAlpha.light})`,
+      scrim: 'rgba(0, 0, 0, 0.55)',
     }
   }
 
@@ -250,6 +253,7 @@ export function createTokensV2(
     fgOnBad: status.fgOnBad,
     fgOnOverdue: '#020618',
     selectionBg: `rgba(${accent.primaryRgb}, ${selectionAlpha.dark})`,
+    scrim: 'rgba(0, 0, 0, 0.55)',
   }
 }
 

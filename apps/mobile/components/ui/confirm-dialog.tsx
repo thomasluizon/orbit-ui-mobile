@@ -198,7 +198,7 @@ function createStyles(tokens: AppTokens) {
     },
     backdrop: {
       ...StyleSheet.absoluteFill,
-      backgroundColor: 'rgba(0,0,0,0.6)',
+      backgroundColor: tokens.scrim,
     },
     backdropPress: {
       flex: 1,
@@ -211,8 +211,8 @@ function createStyles(tokens: AppTokens) {
       borderWidth: 1,
       borderColor: tokens.hairline,
       paddingTop: 24,
-      paddingHorizontal: 22,
-      paddingBottom: 18,
+      paddingHorizontal: 24,
+      paddingBottom: 20,
       ...shadowsV2.shadow3,
     },
     title: {
@@ -226,12 +226,12 @@ function createStyles(tokens: AppTokens) {
       color: tokens.fg2,
       fontSize: 15,
       lineHeight: 22,
-      marginBottom: 22,
+      marginBottom: 24,
     },
     actions: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 10,
+      gap: 12,
     },
     actionPill: {
       flex: 1,

@@ -5,7 +5,7 @@ import type { LucideIcon } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
 import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
 
-interface EmptyStateAction {
+export interface EmptyStateAction {
   label: string
   onClick?: () => void
   href?: string
@@ -16,7 +16,7 @@ interface EmptyStateAction {
 
 interface EmptyStateProps {
   title?: string
-  description: string
+  description?: string
   /**
    * Swaps the Satellite glyph for a tonal icon disc. The Satellite is the empty half of the state
    * triad (DESIGN.md); every other centred state (locked, gated, no-data, load error) names its own
@@ -71,9 +71,11 @@ export function EmptyState({
             {title}
           </p>
         ) : null}
-        <p className="t-secondary" style={{ maxWidth: '46ch', textWrap: 'pretty' }}>
-          {description}
-        </p>
+        {description ? (
+          <p className="t-secondary" style={{ maxWidth: '46ch', textWrap: 'pretty' }}>
+            {description}
+          </p>
+        ) : null}
       </div>
 
       {action || hasFooter ? (

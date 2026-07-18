@@ -178,7 +178,7 @@ function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
     backdrop: {
       ...StyleSheet.absoluteFill,
-      backgroundColor: 'rgba(0, 0, 0, 0.55)',
+      backgroundColor: tokens.scrim,
     },
     wrapper: {
       position: 'absolute',

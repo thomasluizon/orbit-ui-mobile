@@ -10,7 +10,7 @@ import {
   format,
 } from 'date-fns'
 import type { Locale } from 'date-fns'
-import { ChevronLeft, ChevronRight } from '@/components/ui/icons'
+import { CalendarClock, ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import {
   DndContext,
   PointerSensor,
@@ -32,6 +32,7 @@ import type {
 } from '@orbit/shared/types/habit'
 import { useUpdateHabit } from '@/hooks/use-habits'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { EmptyState } from '@/components/ui/empty-state'
 import { CalendarLoadError } from './calendar-load-error'
 import { ShowRecurringToggle } from './show-recurring-toggle'
 import { useAgendaDay, type AgendaEntry } from './use-agenda-day'
@@ -500,6 +501,17 @@ export function CalendarAgendaView({
 
       {error ? (
         <CalendarLoadError onRetry={refresh} />
+      ) : isEmpty ? (
+        <>
+          <div className="flex items-center justify-end" style={{ padding: '0 0 8px' }}>
+            <ShowRecurringToggle checked={showRecurring} onChange={onShowRecurringChange} />
+          </div>
+          <EmptyState
+            icon={CalendarClock}
+            title={t('calendar.agenda.empty')}
+            description={t('calendar.noHabitsScheduled')}
+          />
+        </>
       ) : (
         <>
       <div className="flex items-center justify-between" style={{ gap: 12, padding: '0 0 8px' }}>
@@ -616,18 +628,6 @@ export function CalendarAgendaView({
                 )}
               </div>
             </div>
-
-            {isEmpty && (
-              <div
-                data-testid="agenda-empty"
-                className="absolute inset-0 flex items-center justify-center"
-                style={{ pointerEvents: 'none', padding: 24 }}
-              >
-                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-3)' }}>
-                  {t('calendar.agenda.empty')}
-                </span>
-              </div>
-            )}
           </div>
         </div>
       </DndContext>

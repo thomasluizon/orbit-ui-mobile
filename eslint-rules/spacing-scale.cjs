@@ -6,7 +6,10 @@
  * three places it actually lives in Orbit — JSX inline `style={{ }}` objects,
  * React Native `StyleSheet.create({ })` objects, and Tailwind `className`
  * utilities (both scale steps and arbitrary `[13px]` values) — because a
- * CSS-only linter sees none of the first two.
+ * CSS-only linter sees none of the first two. Inline-style values are read both
+ * as a single length (`padding: 15`, `'15px'`) and as a multi-value shorthand
+ * string (`padding: '0 20px 6px'`), so a spaced shorthand is not a loophole;
+ * unparseable tokens (`auto`, `calc(...)`, `%`) make the rule skip that value.
  *
  * Scope: margin / padding (every side + logical + RN Horizontal/Vertical),
  * gap / rowGap / columnGap, and the positional insets. `width` / `height` are
@@ -93,6 +96,17 @@ function pxFromStyleValue(node) {
   return null
 }
 
+function shorthandTokens(text) {
+  const tokens = []
+  for (const part of text.split(/\s+/)) {
+    if (/^-?\d+(\.\d+)?$/.test(part)) tokens.push({ raw: part, px: Number(part), unit: '' })
+    else if (/^-?\d+(\.\d+)?px$/.test(part)) tokens.push({ raw: part, px: Number(part.slice(0, -2)), unit: 'px' })
+    else if (/^-?\d+(\.\d+)?rem$/.test(part)) tokens.push({ raw: part, px: Number(part.slice(0, -3)) * 16, unit: 'rem' })
+    else return null
+  }
+  return tokens
+}
+
 function propertyName(property) {
   if (property.type !== 'Property' || property.computed) return null
   if (property.key.type === 'Identifier') return property.key.name
@@ -177,9 +191,15 @@ module.exports = {
       return scale.filter((step) => Math.abs(step - magnitude) <= 1).length === 1
     }
 
-    function reportStyleValue(valueNode, prop) {
-      const px = pxFromStyleValue(valueNode)
-      if (px === null || isOnScale(px, prop)) return
+    function renderScaleAmount(px, unit) {
+      const nearest = nearestStep(px)
+      if (unit === 'rem') return `${nearest / 16}rem`
+      if (unit === 'px') return `${nearest}px`
+      return String(nearest)
+    }
+
+    function reportSingleStyleValue(valueNode, prop, px) {
+      if (isOnScale(px, prop)) return
       const nearest = nearestStep(px)
       context.report({
         node: valueNode,
@@ -189,14 +209,50 @@ module.exports = {
           ? (fixer) => {
               if (valueNode.type === 'Literal' && typeof valueNode.value === 'string') {
                 const unit = valueNode.value.trim().endsWith('rem') ? 'rem' : 'px'
-                const amount = unit === 'rem' ? nearest / 16 : nearest
                 const quote = context.sourceCode.getText(valueNode)[0]
-                return fixer.replaceText(valueNode, `${quote}${amount}${unit}${quote}`)
+                return fixer.replaceText(valueNode, `${quote}${renderScaleAmount(px, unit)}${quote}`)
               }
               return fixer.replaceText(valueNode, String(nearest))
             }
           : undefined,
       })
+    }
+
+    function reportShorthandStyleValue(valueNode, prop) {
+      const text = valueNode.value.trim()
+      if (!/\s/.test(text)) return
+      const tokens = shorthandTokens(text)
+      if (tokens === null) return
+      const offScale = tokens.filter((token) => !isOnScale(token.px, prop))
+      if (offScale.length === 0) return
+      const allFixable = offScale.every((token) => isUnambiguous(token.px))
+      let fix
+      if (allFixable) {
+        const quote = context.sourceCode.getText(valueNode)[0]
+        const fixed = tokens
+          .map((token) => (isOnScale(token.px, prop) ? token.raw : renderScaleAmount(token.px, token.unit)))
+          .join(' ')
+        fix = (fixer) => fixer.replaceText(valueNode, `${quote}${fixed}${quote}`)
+      }
+      for (const token of offScale) {
+        context.report({
+          node: valueNode,
+          messageId: 'offScaleStyle',
+          data: { value: String(token.px), prop, scale: scaleLabel, nearest: String(nearestStep(token.px)) },
+          fix,
+        })
+      }
+    }
+
+    function reportStyleValue(valueNode, prop) {
+      const px = pxFromStyleValue(valueNode)
+      if (px !== null) {
+        reportSingleStyleValue(valueNode, prop, px)
+        return
+      }
+      if (valueNode.type === 'Literal' && typeof valueNode.value === 'string') {
+        reportShorthandStyleValue(valueNode, prop)
+      }
     }
 
     function scanStyleObject(node) {

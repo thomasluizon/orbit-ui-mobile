@@ -67,7 +67,7 @@ export function CalendarWeekView({
         onNextWeek={onNextWeek}
         onCurrentWeek={onCurrentWeek}
       />
-      <div className="flex justify-end" style={{ padding: '0 20px 6px' }}>
+      <div className="flex justify-end" style={{ padding: '0 20px 8px' }}>
         <ShowRecurringToggle
           checked={showRecurring}
           onChange={onShowRecurringChange}

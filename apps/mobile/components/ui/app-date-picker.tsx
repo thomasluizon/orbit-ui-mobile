@@ -464,7 +464,7 @@ function createStyles(tokens: AppTokens) {
     },
     backdrop: {
       ...StyleSheet.absoluteFill,
-      backgroundColor: 'rgba(0,0,0,0.50)',
+      backgroundColor: tokens.scrim,
     },
     dialog: {
       width: '100%',
@@ -473,7 +473,7 @@ function createStyles(tokens: AppTokens) {
       borderRadius: radius.lg,
       borderWidth: 1,
       borderColor: tokens.hairline,
-      padding: 10,
+      padding: 12,
       ...shadowsV2.shadow2,
     },
     monthNav: {
@@ -499,7 +499,7 @@ function createStyles(tokens: AppTokens) {
       fontSize: 13,
       fontVariant: ['tabular-nums'],
       paddingHorizontal: 4,
-      paddingVertical: 2,
+      paddingVertical: 4,
     },
     navHidden: {
       opacity: 0,

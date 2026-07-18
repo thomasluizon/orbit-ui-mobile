@@ -103,7 +103,7 @@ export function MessageBubble({
   return (
     <div
       className={`${animateEntry ? 'animate-msg-in ' : ''}flex ${isUser ? 'justify-end' : 'justify-start'}`}
-      style={{ gap: 10, padding: '0 16px', marginBottom: 16 }}
+      style={{ gap: 8, padding: '0 16px', marginBottom: 16 }}
     >
       {!isUser && (
         <div
@@ -139,7 +139,7 @@ export function MessageBubble({
               : 'inline-block max-w-full md:max-w-[65ch] bg-[var(--bg-elev)] text-[var(--fg-1)]'
           }
           style={{
-            padding: '12px 15px',
+            padding: '12px 16px',
             borderRadius: isUser ? '18px 4px 18px 18px' : '4px 18px 18px 18px',
           }}
         >

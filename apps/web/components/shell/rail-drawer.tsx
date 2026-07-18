@@ -63,8 +63,7 @@ export function RailDrawer({ open, onClose, children }: Readonly<RailDrawerProps
               aria-label={t('common.close')}
               tabIndex={-1}
               onClick={onClose}
-              className="absolute inset-0 cursor-default"
-              style={{ background: 'rgba(0, 0, 0, 0.55)' }}
+              className="absolute inset-0 bg-black/55 cursor-default"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1, transition: enterTransition }}
               exit={{ opacity: 0, transition: exitTransition }}

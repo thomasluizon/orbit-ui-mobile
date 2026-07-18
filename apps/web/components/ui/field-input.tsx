@@ -101,7 +101,7 @@ export function FieldInput({
     ...CONTROL_STYLE_BASE,
     fontFamily: mono ? 'var(--font-mono)' : 'var(--font-sans)',
     fontVariantNumeric: mono ? 'tabular-nums' : 'normal',
-    ...(multiline ? { resize: 'none', padding: '15px 0' } : null),
+    ...(multiline ? { resize: 'none', padding: '16px 0' } : null),
   }
 
   const controlProps = {

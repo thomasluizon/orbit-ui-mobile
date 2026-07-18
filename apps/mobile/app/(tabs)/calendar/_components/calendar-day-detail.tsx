@@ -4,10 +4,11 @@ import Animated, {
   FadeInDown,
   ReduceMotion,
 } from "react-native-reanimated";
-import { ArrowRight } from '@/components/ui/icons';
+import { ArrowRight, CalendarDays } from '@/components/ui/icons';
 import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import { plural } from "@/lib/plural";
+import { EmptyState } from "@/components/ui/empty-state";
 import { PillButton } from "@/components/ui/pill-button";
 import { createTokensV2 } from "@/lib/theme";
 import { CalendarDayEntryRow } from "./calendar-day-entry";
@@ -59,7 +60,7 @@ export function CalendarDayDetail({
   t,
   tokens,
 }: Readonly<CalendarDayDetailProps>) {
-  const styles = useMemo(() => createStyles(tokens), [tokens]);
+  const styles = useMemo(() => createStyles(), []);
 
   const renderEntry = (item: CalendarDayEntry, index: number) => {
     const badge = statusBadge(item, t);
@@ -112,11 +113,10 @@ export function CalendarDayDetail({
       ) : null}
 
       {selectedEntries.length === 0 || filteredEntries.length === 0 ? (
-        <View style={styles.emptyDayCard}>
-          <Text style={[styles.emptyDayText, { color: tokens.fg3 }]}>
-            {t("calendar.noHabitsScheduled")}
-          </Text>
-        </View>
+        <EmptyState
+          icon={CalendarDays}
+          description={t("calendar.noHabitsScheduled")}
+        />
       ) : (
         <>
           <Text style={[styles.summaryText, { color: tokens.fg3 }]}>
@@ -146,7 +146,7 @@ export function CalendarDayDetail({
   );
 }
 
-function createStyles(tokens: Tokens) {
+function createStyles() {
   return StyleSheet.create({
     recurringToggleRow: {
       flexDirection: "row",
@@ -155,21 +155,6 @@ function createStyles(tokens: Tokens) {
     summaryText: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 14,
-    },
-    emptyDayCard: {
-      alignItems: "center",
-      justifyContent: "center",
-      paddingVertical: 24,
-      paddingHorizontal: 18,
-      borderRadius: 18,
-      backgroundColor: tokens.bgCard,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-    },
-    emptyDayText: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 14,
-      textAlign: "center",
     },
     entryRowFrame: {
       borderLeftWidth: 1,

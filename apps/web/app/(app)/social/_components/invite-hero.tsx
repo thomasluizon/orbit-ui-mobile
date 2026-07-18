@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
+import { shareQrColors } from '@orbit/shared/theme'
 import { Check, Copy, Share2 } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
 import { ShareCardQr } from '@/components/share/share-card-qr'
@@ -58,7 +59,7 @@ export function InviteHero() {
         </p>
       </div>
 
-      <div style={{ borderRadius: 16, background: '#ffffff', padding: 10, lineHeight: 0 }}>
+      <div style={{ borderRadius: 16, background: shareQrColors.light, padding: 10, lineHeight: 0 }}>
         <ShareCardQr value={referralUrl} size={128} />
       </div>
       <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--fg-4)' }}>

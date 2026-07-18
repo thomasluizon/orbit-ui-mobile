@@ -177,10 +177,13 @@ export function OnboardingComplete({
       </View>
 
       <Animated.View style={[styles.recapList, riseSlot(0.25, 0.7)]}>
-        {recapItems.map((item) => (
-          <View key={item.key} style={styles.recapRow}>
-            <Text style={styles.recapText}>{item.label}</Text>
-            <Check size={18} color={tokens.primary} strokeWidth={1.8} />
+        {recapItems.map((item, index) => (
+          <View key={item.key} collapsable={false}>
+            {index > 0 ? <View style={styles.recapDivider} /> : null}
+            <View style={styles.recapRow}>
+              <Text style={styles.recapText}>{item.label}</Text>
+              <Check size={18} color={tokens.primary} strokeWidth={1.8} />
+            </View>
           </View>
         ))}
       </Animated.View>
@@ -237,13 +240,15 @@ function createStyles(tokens: AppTokensV2) {
     recapList: {
       gap: 0,
     },
+    recapDivider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: tokens.hairline,
+    },
     recapRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingVertical: 11,
-      borderBottomWidth: 1,
-      borderBottomColor: tokens.hairline,
+      paddingVertical: 12,
     },
     recapText: {
       fontFamily: 'Rubik_400Regular',

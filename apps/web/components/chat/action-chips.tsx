@@ -129,11 +129,11 @@ export function ActionChips({ actions, onChipClick }: Readonly<ActionChipsProps>
         const IconComponent = palette.Icon
         const navigable = isNavigable(action, !!onChipClick)
         const chipClassName =
-          'inline-flex items-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)]'
+          'inline-flex items-center max-w-full rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)]'
         const chipStyleProps = {
-          gap: 6,
-          minHeight: 36,
-          padding: '0 14px',
+          gap: 8,
+          minHeight: 32,
+          padding: '0 16px',
           fontFamily: 'var(--font-sans)',
           fontSize: 13,
           fontWeight: 500,
@@ -157,13 +157,23 @@ export function ActionChips({ actions, onChipClick }: Readonly<ActionChipsProps>
                 className={`${chipClassName} touch-target-y cursor-pointer border-0 hover:scale-[1.02] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60`}
                 style={chipStyleProps}
               >
-                <IconComponent size={16} strokeWidth={1.8} color={palette.iconColor} />
-                {actionLabel(action)}
+                <IconComponent
+                  size={16}
+                  strokeWidth={1.8}
+                  color={palette.iconColor}
+                  className="shrink-0"
+                />
+                <span className="min-w-0 truncate">{actionLabel(action)}</span>
               </button>
             ) : (
               <span className={chipClassName} style={chipStyleProps}>
-                <IconComponent size={16} strokeWidth={1.8} color={palette.iconColor} />
-                {actionLabel(action)}
+                <IconComponent
+                  size={16}
+                  strokeWidth={1.8}
+                  color={palette.iconColor}
+                  className="shrink-0"
+                />
+                <span className="min-w-0 truncate">{actionLabel(action)}</span>
               </span>
             )}
 

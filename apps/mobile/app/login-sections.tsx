@@ -57,24 +57,22 @@ export function LoginHeader({
   const title = showPlanSummary ? t('onboarding.flow.saveYourPlan.title') : authTitle
 
   return (
-    <>
-      <View style={styles.brandingHeader}>
-        <Animated.View
-          style={{
-            opacity: logoEntrance,
-            transform: [
-              {
-                scale: logoEntrance.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.9, 1],
-                }),
-              },
-            ],
-          }}
-        >
-          <AppLogo size={64} />
-        </Animated.View>
-      </View>
+    <View style={styles.header}>
+      <Animated.View
+        style={{
+          opacity: logoEntrance,
+          transform: [
+            {
+              scale: logoEntrance.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.9, 1],
+              }),
+            },
+          ],
+        }}
+      >
+        <AppLogo size={64} />
+      </Animated.View>
 
       <View style={styles.titleBlock}>
         <Text style={styles.stepTitle} accessibilityRole="header">
@@ -101,7 +99,7 @@ export function LoginHeader({
           )
         )}
       </View>
-    </>
+    </View>
   )
 }
 

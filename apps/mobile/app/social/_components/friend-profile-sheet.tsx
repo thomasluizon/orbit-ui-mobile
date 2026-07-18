@@ -184,7 +184,7 @@ function ProfileBody({
         <Animated.View entering={sectionEntrance(4)} style={styles.card}>
           {view.isAccountabilityPartner ? (
             <View style={styles.partnerRow}>
-              <Users size={18} color={tokens.primary} />
+              <Users size={18} color={tokens.fg2} />
               <Text style={styles.partnerText}>{t('social.friendProfile.accountabilityPartner')}</Text>
             </View>
           ) : null}

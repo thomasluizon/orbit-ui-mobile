@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Check, Search, X } from '@/components/ui/icons'
-import { buildHabitPickerOptions, filterHabitPickerOptions } from '@orbit/shared/utils'
+import { buildHabitPickerOptions, filterHabitPickerOptions, plural } from '@orbit/shared/utils'
 import {
   EMPTY_CHILDREN_BY_PARENT,
   EMPTY_HABITS_BY_ID,
@@ -21,7 +21,7 @@ const selectedPillStyle = {
   border: 0,
   maxWidth: '100%',
   background: 'rgba(var(--primary-rgb), 0.12)',
-  color: 'var(--primary)',
+  color: 'var(--primary-soft)',
   fontFamily: 'var(--font-sans)',
   fontSize: 13,
   fontWeight: 500,
@@ -89,7 +89,7 @@ export function HabitMultiSelect({ selectedIds, onChange }: Readonly<HabitMultiS
             fontVariantNumeric: 'tabular-nums',
           }}
         >
-          {t('social.buddies.habitCount', { count: selectedIds.length })}
+          {plural(t('social.buddies.habitCount', { count: selectedIds.length }), selectedIds.length)}
         </span>
       </div>
 
@@ -107,7 +107,7 @@ export function HabitMultiSelect({ selectedIds, onChange }: Readonly<HabitMultiS
                 className="touch-target-y flex items-center cursor-pointer transition-transform active:scale-[0.96]"
                 style={selectedPillStyle}
               >
-                <span className="truncate">{option.title}</span>
+                <span className="min-w-0 truncate">{option.title}</span>
                 <X size={13} strokeWidth={2.2} />
               </button>
             )
@@ -183,7 +183,7 @@ export function HabitMultiSelect({ selectedIds, onChange }: Readonly<HabitMultiS
                     style={{
                       fontFamily: 'var(--font-sans)',
                       fontSize: 15,
-                      color: active ? 'var(--primary)' : 'var(--fg-1)',
+                      color: active ? 'var(--primary-soft)' : 'var(--fg-1)',
                     }}
                   >
                     {option.title}

@@ -22,6 +22,7 @@ import noRawGradient from "../../eslint-rules/no-raw-gradient.cjs"
 import noScrollListenerMotion from "../../eslint-rules/no-scroll-listener-motion.cjs"
 import noSideStripeBorder from "../../eslint-rules/no-side-stripe-border.cjs"
 import noSpaceXY from "../../eslint-rules/no-space-x-y.cjs"
+import spacingScale from "../../eslint-rules/spacing-scale.cjs"
 import noUserScalableNo from "../../eslint-rules/no-user-scalable-no.cjs"
 import react19Api from "../../eslint-rules/react19-api.cjs"
 import requireDialogTitle from "../../eslint-rules/require-dialog-title.cjs"
@@ -78,6 +79,7 @@ export default [
           "no-scroll-listener-motion": noScrollListenerMotion,
           "no-side-stripe-border": noSideStripeBorder,
           "no-space-x-y": noSpaceXY,
+          "spacing-scale": spacingScale,
           "no-user-scalable-no": noUserScalableNo,
           "react19-api": react19Api,
           "require-dialog-title": requireDialogTitle,
@@ -136,6 +138,12 @@ export default [
       "local/no-space-x-y": "warn",
       "local/react19-api": "warn",
       "local/require-focus-replacement": "warn",
+
+      // Ships report-only per the audited baseline (1157 violations / 333 files) while the #539
+      // whole-app spacing migration is mid-flight; `button.ts` is the file-scoped pill-button
+      // geometry exemption. Promote to `error` when the count reaches 0 — never widen `allow`.
+      // https://github.com/thomasluizon/orbit-ui-mobile/blob/main/.claude/specs/issue-539-spacing-audit.md
+      "local/spacing-scale": ["warn", { exemptFiles: ["packages/shared/src/theme/button.ts"] }],
     },
   },
   {

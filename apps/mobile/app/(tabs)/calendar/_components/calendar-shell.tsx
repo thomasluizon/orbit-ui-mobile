@@ -114,7 +114,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     yearBackdrop: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.55)',
+      backgroundColor: tokens.scrim,
       justifyContent: 'center',
       alignItems: 'center',
       padding: 24,

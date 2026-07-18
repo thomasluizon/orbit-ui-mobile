@@ -88,7 +88,7 @@ export function CreateChallengeForm({ onCreated }: Readonly<CreateChallengeFormP
                     ]}
                   >
                     <Text
-                      style={[styles.typeButtonText, { color: selected ? tokens.primary : tokens.fg2 }]}
+                      style={[styles.typeButtonText, { color: selected ? tokens.primarySoft : tokens.fg2 }]}
                     >
                       {option === 'CoopGoal'
                         ? t('challenges.type.coopGoal')

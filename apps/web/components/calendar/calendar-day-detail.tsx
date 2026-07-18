@@ -1,9 +1,10 @@
 'use client'
 
 import { useMemo, useCallback } from 'react'
-import Link from 'next/link'
-import { ArrowRight, Check } from '@/components/ui/icons'
+import { ArrowRight, CalendarDays, Check } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
+import { EmptyState } from '@/components/ui/empty-state'
+import { PillButton } from '@/components/ui/pill-button'
 import { plural } from '@/lib/plural'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useDateFormat } from '@/hooks/use-date-format'
@@ -91,155 +92,116 @@ export function CalendarDayDetail({
     </div>
   )
 
-  const body = (
-    <>
-      {entries.length === 0 && (
+  const body =
+    filteredEntries.length === 0 ? (
+      <EmptyState icon={CalendarDays} description={t('calendar.noHabitsScheduled')} />
+    ) : (
+      <div className="flex flex-col" style={{ gap: 12 }}>
+        <p className="text-sm text-[var(--fg-3)]" style={{ margin: 0 }}>
+          {plural(t('calendar.dayDetail.completionSummary', {
+            done: completedCount,
+            total: filteredEntries.length,
+          }), filteredEntries.length)}
+        </p>
+
         <div
-          className="text-[var(--fg-3)] text-sm text-center"
+          className="stagger-enter"
           style={{
-            padding: '24px 18px',
             borderRadius: 18,
             background: 'var(--bg-card)',
             boxShadow: 'inset 0 0 0 1px var(--hairline)',
+            overflow: 'hidden',
           }}
         >
-          {t('calendar.noHabitsScheduled')}
-        </div>
-      )}
+          {filteredEntries.map((entry, i) => {
+            const label = statusLabel(entry)
+            return (
+              <div
+                key={entry.habitId}
+                className="flex items-center gap-3"
+                style={{
+                  padding: '15px 18px',
+                  borderBottom:
+                    i < filteredEntries.length - 1
+                      ? '1px solid var(--hairline)'
+                      : 'none',
+                }}
+              >
+                <span
+                  aria-hidden="true"
+                  className="inline-flex size-6 shrink-0 items-center justify-center rounded-full"
+                  style={statusCircleStyle(entry)}
+                >
+                  {entry.status === 'completed' && (
+                    <Check size={15} strokeWidth={2.5} color="var(--fg-on-primary)" />
+                  )}
+                </span>
 
-      {entries.length > 0 && (
-        <div className="flex flex-col" style={{ gap: 12 }}>
-          <p
-            className="text-sm text-[var(--fg-3)]"
-            style={{ margin: 0 }}
-          >
-            {plural(t('calendar.dayDetail.completionSummary', {
-              done: completedCount,
-              total: filteredEntries.length,
-            }), filteredEntries.length)}
-          </p>
-
-          {filteredEntries.length === 0 && (
-            <div
-              className="text-[var(--fg-3)] text-sm text-center"
-              style={{
-                padding: '24px 18px',
-                borderRadius: 18,
-                background: 'var(--bg-card)',
-                boxShadow: 'inset 0 0 0 1px var(--hairline)',
-              }}
-            >
-              {t('calendar.noHabitsScheduled')}
-            </div>
-          )}
-
-          {filteredEntries.length > 0 && (
-            <div
-              className="stagger-enter"
-              style={{
-                borderRadius: 18,
-                background: 'var(--bg-card)',
-                boxShadow: 'inset 0 0 0 1px var(--hairline)',
-                overflow: 'hidden',
-              }}
-            >
-              {filteredEntries.map((entry, i) => {
-                const label = statusLabel(entry)
-                return (
-                  <div
-                    key={entry.habitId}
-                    className="flex items-center gap-3"
-                    style={{
-                      padding: '15px 18px',
-                      borderBottom:
-                        i < filteredEntries.length - 1
-                          ? '1px solid var(--hairline)'
-                          : 'none',
-                    }}
-                  >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline gap-2">
                     <span
-                      aria-hidden="true"
-                      className="inline-flex size-6 shrink-0 items-center justify-center rounded-full"
-                      style={statusCircleStyle(entry)}
+                      className={`truncate ${
+                        entry.status === 'completed'
+                          ? 'text-[var(--fg-3)] line-through'
+                          : 'text-[var(--fg-1)]'
+                      }`}
+                      style={{
+                        fontFamily: 'var(--font-sans)',
+                        fontSize: 15,
+                        fontWeight: 500,
+                      }}
                     >
-                      {entry.status === 'completed' && (
-                        <Check size={15} strokeWidth={2.5} color="var(--fg-on-primary)" />
-                      )}
+                      {entry.title}
                     </span>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-baseline gap-2">
-                        <span
-                          className={`truncate ${
-                            entry.status === 'completed'
-                              ? 'text-[var(--fg-3)] line-through'
-                              : 'text-[var(--fg-1)]'
-                          }`}
-                          style={{
-                            fontFamily: 'var(--font-sans)',
-                            fontSize: 15,
-                            fontWeight: 500,
-                          }}
-                        >
-                          {entry.title}
-                        </span>
-                        {entry.dueTime && (
-                          <span
-                            className="shrink-0 text-[var(--fg-3)]"
-                            style={{
-                              fontFamily: 'var(--font-mono)',
-                              fontSize: 12,
-                              fontVariantNumeric: 'tabular-nums',
-                            }}
-                          >
-                            {displayTime(entry.dueTime)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {label && (
+                    {entry.dueTime && (
                       <span
-                        className="shrink-0 rounded-full uppercase"
+                        className="shrink-0 text-[var(--fg-3)]"
                         style={{
-                          padding: '3px 9px',
-                          fontFamily: 'var(--font-sans)',
+                          fontFamily: 'var(--font-mono)',
                           fontSize: 12,
-                          fontWeight: 600,
-                          letterSpacing: '0.06em',
-                          color: statusBadgeColor(entry),
-                          boxShadow: 'inset 0 0 0 1px var(--hairline)',
+                          fontVariantNumeric: 'tabular-nums',
                         }}
                       >
-                        {label}
+                        {displayTime(entry.dueTime)}
                       </span>
                     )}
                   </div>
-                )
-              })}
-            </div>
-          )}
+                </div>
+
+                {label && (
+                  <span
+                    className="shrink-0 rounded-full uppercase"
+                    style={{
+                      padding: '4px 8px',
+                      fontFamily: 'var(--font-sans)',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      letterSpacing: '0.06em',
+                      color: statusBadgeColor(entry),
+                      boxShadow: 'inset 0 0 0 1px var(--hairline)',
+                    }}
+                  >
+                    {label}
+                  </span>
+                )}
+              </div>
+            )
+          })}
         </div>
-      )}
-    </>
-  )
+      </div>
+    )
 
   const goToDay = (
-    <Link
-      href={`/?date=${dateStr}`}
-      className="flex w-full shrink-0 sm:max-w-[360px] sm:mx-auto items-center justify-center gap-[9px] rounded-full bg-transparent text-[var(--fg-1)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.98]"
-      style={{
-        marginTop: 16,
-        padding: '14px 26px',
-        fontFamily: 'var(--font-sans)',
-        fontSize: 16,
-        fontWeight: 500,
-        boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
-      }}
-    >
-      <ArrowRight size={18} strokeWidth={1.8} aria-hidden="true" />
-      {t('calendar.goToDay')}
-    </Link>
+    <div className="shrink-0" style={{ paddingTop: 16 }}>
+      <PillButton
+        variant="ghost"
+        href={`/?date=${dateStr}`}
+        fullWidth
+        leading={<ArrowRight size={18} strokeWidth={1.8} aria-hidden="true" />}
+      >
+        {t('calendar.goToDay')}
+      </PillButton>
+    </div>
   )
 
   if (fitViewport) {

@@ -88,9 +88,9 @@ export function WrappedCover({
               >
                 {t('wrapped.error')}
               </p>
-              <button type="button" className="chip" onClick={onRetry}>
+              <Chip onClick={onRetry} ariaLabel={t('wrapped.retry')}>
                 {t('wrapped.retry')}
-              </button>
+              </Chip>
             </div>
           )}
 

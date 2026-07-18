@@ -114,22 +114,29 @@ export function OnboardingComplete({
         className="stagger-enter"
         style={{ animation: 'slide-up-fade 0.28s var(--ease-out) backwards', animationDelay: '300ms' }}
       >
-        {recapItems.map((item) => (
-          <div
-            key={item.key}
-            className="flex items-center justify-between"
-            style={{ padding: '11px 0', borderBottom: '1px solid var(--hairline)' }}
-          >
-            <span
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 16,
-                color: 'var(--fg-2)',
-              }}
+        {recapItems.map((item, index) => (
+          <div key={item.key}>
+            {index > 0 ? (
+              <div
+                aria-hidden="true"
+                style={{ height: 1, background: 'var(--hairline)' }}
+              />
+            ) : null}
+            <div
+              className="flex items-center justify-between"
+              style={{ padding: '12px 0' }}
             >
-              {item.label}
-            </span>
-            <Check size={18} strokeWidth={1.8} color="var(--primary)" />
+              <span
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 16,
+                  color: 'var(--fg-2)',
+                }}
+              >
+                {item.label}
+              </span>
+              <Check size={18} strokeWidth={1.8} color="var(--primary)" />
+            </div>
           </div>
         ))}
       </div>

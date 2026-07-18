@@ -157,7 +157,7 @@ export function Switch({ on, onToggle, ariaLabel, disabled = false }: Readonly<S
           width: 48,
           height: 28,
           borderRadius: 999,
-          padding: 3,
+          padding: 4,
           background: on
             ? 'var(--primary)'
             : 'color-mix(in srgb, var(--fg-1) 16%, transparent)',
@@ -170,7 +170,7 @@ export function Switch({ on, onToggle, ariaLabel, disabled = false }: Readonly<S
             height: 22,
             borderRadius: 999,
             background: 'var(--fg-on-primary)',
-            boxShadow: '0 1px 2px rgba(0,0,0,.20)',
+            boxShadow: 'var(--shadow-1)',
             transform: on ? 'translateX(20px)' : 'translateX(0px)',
             transition: 'transform var(--dur-base) var(--ease-standard)',
           }}

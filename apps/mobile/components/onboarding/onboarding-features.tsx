@@ -49,8 +49,8 @@ const features: FeatureItem[] = [
 ]
 
 /**
- * Features step: "What else Orbit does." Hairline-divided kit list rows with
- * 22px icons, Rubik titles, and muted descriptions.
+ * Features step: "What else Orbit does." Kit list rows separated by whitespace,
+ * with 22px icons, Rubik titles, and muted descriptions.
  */
 export function OnboardingFeatures() {
   const { t } = useTranslation()
@@ -137,32 +137,28 @@ function createStyles(tokens: AppTokensV2) {
     },
     title: {
       fontFamily: 'Rubik_500Medium',
-      fontSize: 24,
-      letterSpacing: -0.24,
-      lineHeight: 31,
+      fontSize: 22,
+      letterSpacing: -0.22,
+      lineHeight: 29,
       color: tokens.fg1,
       textAlign: 'center',
-      marginBottom: 14,
+      marginBottom: 16,
     },
     list: {
-      gap: 0,
+      gap: 16,
     },
     row: {
       flexDirection: 'row',
       alignItems: 'flex-start',
-      gap: 14,
-      paddingVertical: 14,
-      borderBottomWidth: 1,
-      borderBottomColor: tokens.hairline,
+      gap: 12,
     },
     iconSlot: {
-      width: 26,
+      width: 24,
       alignItems: 'center',
-      paddingTop: 1,
     },
     text: {
       flex: 1,
-      gap: 3,
+      gap: 4,
     },
     featureTitle: {
       fontFamily: 'Rubik_500Medium',
@@ -171,9 +167,9 @@ function createStyles(tokens: AppTokensV2) {
     },
     featureDesc: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 13.5,
-      lineHeight: 19,
-      color: tokens.fg3,
+      fontSize: 14,
+      lineHeight: 22,
+      color: tokens.fg2,
     },
   })
 }

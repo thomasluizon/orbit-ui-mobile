@@ -199,27 +199,27 @@ function createStyles(tokens: AppTokensV2) {
     },
     title: {
       fontFamily: 'Rubik_500Medium',
-      fontSize: 24,
-      letterSpacing: -0.24,
-      lineHeight: 31,
+      fontSize: 22,
+      letterSpacing: -0.22,
+      lineHeight: 29,
       color: tokens.fg1,
       textAlign: 'center',
     },
     subtitle: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 15,
-      lineHeight: 23,
+      fontSize: 14,
+      lineHeight: 22,
       color: tokens.fg2,
       textAlign: 'center',
     },
     list: {
-      gap: 10,
+      gap: 12,
     },
     packRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 14,
-      padding: 14,
+      gap: 12,
+      padding: 16,
       borderRadius: 16,
       borderWidth: 1,
       borderColor: tokens.hairline,
@@ -237,7 +237,7 @@ function createStyles(tokens: AppTokensV2) {
     },
     packText: {
       flex: 1,
-      gap: 3,
+      gap: 4,
     },
     packName: {
       fontFamily: 'Rubik_500Medium',
@@ -246,9 +246,9 @@ function createStyles(tokens: AppTokensV2) {
     },
     packDesc: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 13,
-      lineHeight: 18,
-      color: tokens.fg3,
+      fontSize: 14,
+      lineHeight: 22,
+      color: tokens.fg2,
     },
     habitList: {
       gap: 8,
@@ -258,7 +258,7 @@ function createStyles(tokens: AppTokensV2) {
       alignItems: 'center',
       gap: 12,
       paddingVertical: 12,
-      paddingHorizontal: 14,
+      paddingHorizontal: 16,
       borderRadius: 14,
       backgroundColor: tokens.bgCard,
     },
@@ -268,7 +268,7 @@ function createStyles(tokens: AppTokensV2) {
     habitTitle: {
       flex: 1,
       fontFamily: 'Rubik_400Regular',
-      fontSize: 15,
+      fontSize: 16,
       color: tokens.fg1,
     },
     check: {

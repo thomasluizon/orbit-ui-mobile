@@ -159,8 +159,9 @@ export function PublicProfileSettings() {
               </div>
 
               {canShare && (
-                <div className="flex" style={{ padding: '10px 20px 6px' }}>
-                  <PillButton                    leading={<Share2 size={18} strokeWidth={1.8} color="var(--fg-on-primary)" />}
+                <div className="flex" style={{ padding: '12px 20px 8px' }}>
+                  <PillButton
+                    leading={<Share2 size={18} strokeWidth={1.8} color="var(--fg-on-primary)" />}
                     onClick={() => void shareLink()}
                   >
                     {t('profile.publicProfile.link.share')}
@@ -171,7 +172,7 @@ export function PublicProfileSettings() {
           </div>
 
           {enabled && (
-            <div style={{ padding: '14px 20px 4px' }}>
+            <div style={{ padding: '16px 20px 4px' }}>
               <button
                 type="button"
                 onClick={() => setConfirmRegenerate(true)}

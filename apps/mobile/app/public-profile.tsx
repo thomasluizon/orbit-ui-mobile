@@ -246,7 +246,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     regenBlock: {
       paddingHorizontal: 20,
-      paddingTop: 14,
+      paddingTop: 16,
       gap: 4,
     },
     regenButton: {
@@ -275,7 +275,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     privacyHint: {
       paddingHorizontal: 20,
-      paddingTop: 14,
+      paddingTop: 16,
       fontFamily: 'Rubik_400Regular',
       fontSize: 12,
       lineHeight: 18,

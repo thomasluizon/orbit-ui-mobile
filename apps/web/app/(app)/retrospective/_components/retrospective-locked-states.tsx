@@ -35,7 +35,7 @@ export function RetrospectiveLockedStates({
       action={action}
       footer={
         portalError ? (
-          <p className="t-secondary" style={{ color: 'var(--status-bad)', maxWidth: '46ch' }}>
+          <p className="t-secondary" style={{ color: 'var(--status-bad-text)', maxWidth: '46ch' }}>
             {portalError}
           </p>
         ) : null

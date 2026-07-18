@@ -23,8 +23,8 @@ export function createProfileStyles(_tokens: Tokens) {
     identityBlock: {
       alignItems: 'center',
       paddingHorizontal: 20,
-      paddingTop: 18,
-      gap: 6,
+      paddingTop: 20,
+      gap: 8,
     },
     planBadge: {
       alignSelf: 'center',
@@ -60,10 +60,10 @@ export function createProfileStyles(_tokens: Tokens) {
 
     statRow: {
       flexDirection: 'row',
-      gap: 14,
+      gap: 12,
       paddingHorizontal: 20,
       marginTop: 24,
-      marginBottom: 18,
+      marginBottom: 16,
     },
     statTileWrap: {
       flex: 1,

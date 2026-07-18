@@ -70,7 +70,7 @@ export function ProfileStatTiles({
 
   if (isLoading) {
     return (
-      <div className="flex px-5" style={{ gap: 14, marginTop: 24, marginBottom: 18 }}>
+      <div className="flex px-5" style={{ gap: 12, marginTop: 24, marginBottom: 16 }}>
         <StatTileSkeleton />
         <StatTileSkeleton />
       </div>
@@ -78,7 +78,7 @@ export function ProfileStatTiles({
   }
 
   return (
-    <div className="flex px-5" style={{ gap: 14, marginTop: 24, marginBottom: 18 }}>
+    <div className="flex px-5" style={{ gap: 12, marginTop: 24, marginBottom: 16 }}>
       <StatTileButton
         dataTour="tour-profile-streak"
         ariaLabel={`${streakValue} · ${streakLabel}`}

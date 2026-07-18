@@ -52,7 +52,7 @@ export function CenteredOverlay({
             type="button"
             tabIndex={-1}
             aria-label={t('common.close')}
-            className="absolute inset-0 cursor-default bg-black/55"
+            className="absolute inset-0 cursor-default bg-scrim"
             onClick={onDismiss}
             initial={{ opacity: 0 }}
             animate={{

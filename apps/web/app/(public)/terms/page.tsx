@@ -46,7 +46,7 @@ export default function TermsPage() {
           <div key={label}>
             <SectionLabel>{label}</SectionLabel>
             {Array.isArray(body) ? (
-              <div className="flex flex-col px-5 pb-[18px]" style={{ gap: 6 }}>
+              <div className="flex flex-col px-5 pb-4" style={{ gap: 8 }}>
                 {body.map((line, index) => (
                   // react-doctor-disable-next-line no-array-index-as-key -- static legal-text lines; the list never reorders or filters https://github.com/thomasluizon/orbit-ui-mobile/issues/243
                   <div
@@ -59,7 +59,7 @@ export default function TermsPage() {
                 ))}
               </div>
             ) : (
-              <div className="t-secondary px-5 pb-[18px]" style={{ textWrap: 'pretty' }}>
+              <div className="t-secondary px-5 pb-4" style={{ textWrap: 'pretty' }}>
                 {body}
               </div>
             )}

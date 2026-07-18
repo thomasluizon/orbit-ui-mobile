@@ -402,6 +402,7 @@ vi.mock('@/components/ui/icons', () => {
   const createIcon = (name: string) => (props: Record<string, unknown>) =>
     React.createElement(name, props);
   return {
+    AlertTriangle: createIcon("AlertTriangle"),
     ArrowUp: createIcon("ArrowUp"),
     Check: createIcon("Check"),
     CheckCircle2: createIcon("CheckCircle2"),

@@ -32,4 +32,12 @@ describe('StatTile', () => {
     render(<StatTile emoji="✅" value={longValue} label="Registros" />)
     expect(screen.getByText(longValue)).toHaveAttribute('title', longValue)
   })
+
+  it('wraps a phrase value to two lines instead of clipping a longer pt-BR string', () => {
+    const phrase = '18 de julho de 2026'
+    render(<StatTile emoji="📅" value={phrase} label="Conclusão prevista" phraseValue />)
+    const value = screen.getByText(phrase)
+    expect(value).toHaveStyle({ display: '-webkit-box', overflowWrap: 'anywhere' })
+    expect(value).toHaveAttribute('title', phrase)
+  })
 })

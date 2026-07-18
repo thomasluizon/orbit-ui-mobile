@@ -62,7 +62,10 @@ export function GoalMetricsPanel({
           {t('goals.metrics.title')}
         </SectionLabel>
         {[1, 2, 3].map((i) => (
-          <View key={i} style={styles.skeletonRow}>
+          <View
+            key={i}
+            style={[styles.skeletonRow, i === 3 ? styles.rowNoDivider : null]}
+          >
             <SkeletonLine width={120} height={14} />
           </View>
         ))}
@@ -125,7 +128,7 @@ export function GoalMetricsPanel({
           <SectionLabel top={8} bottom={0}>
             {t('goals.metrics.habitAdherence')}
           </SectionLabel>
-          {metrics.habitAdherence.map((habit) => {
+          {metrics.habitAdherence.map((habit, index) => {
             const adherenceTone = getGoalHabitAdherenceTone(
               habit.weeklyCompletionRate,
             )
@@ -133,9 +136,13 @@ export function GoalMetricsPanel({
               adherenceTone === 'success' || adherenceTone === 'primary'
                 ? tokens.primary
                 : tokens.statusOverdue
+            const isLast = index === metrics.habitAdherence.length - 1
 
             return (
-              <View key={habit.habitId} style={styles.adherenceRow}>
+              <View
+                key={habit.habitId}
+                style={[styles.adherenceRow, isLast ? styles.rowNoDivider : null]}
+              >
                 <Text style={styles.adherenceTitle} numberOfLines={1}>
                   {habit.habitTitle}
                 </Text>
@@ -164,6 +171,9 @@ function createStyles(tokens: AppTokens) {
       paddingVertical: 14,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: tokens.hairline,
+    },
+    rowNoDivider: {
+      borderBottomWidth: 0,
     },
     tileRow: {
       flexDirection: 'row',

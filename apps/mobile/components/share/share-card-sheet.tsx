@@ -162,7 +162,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       textAlign: 'center',
       fontFamily: 'Rubik_400Regular',
       fontSize: 14,
-      color: tokens.statusBad,
+      color: tokens.statusBadText,
     },
   })
 }

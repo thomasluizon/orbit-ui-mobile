@@ -38,11 +38,7 @@ function AstraLauncher({ open, onOpen }: Readonly<{ open: boolean; onOpen: () =>
       ].join(' ')}
       style={{
         height: 52,
-        background: 'var(--bg-elev-2)',
-        // react-doctor-disable-next-line no-large-animated-blur -- this FAB is desktop-only (hidden md:inline-flex) and never renders on phones, where the GPU-memory cost of an animated backdrop blur applies; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-        backdropFilter: 'blur(12px)',
-        // react-doctor-disable-next-line no-large-animated-blur -- this FAB is desktop-only (hidden md:inline-flex) and never renders on phones, where the GPU-memory cost of an animated backdrop blur applies; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-        WebkitBackdropFilter: 'blur(12px)',
+        background: 'var(--bg-sheet)',
         boxShadow: 'var(--shadow-2), inset 0 0 0 1px var(--hairline-strong)',
       }}
     >

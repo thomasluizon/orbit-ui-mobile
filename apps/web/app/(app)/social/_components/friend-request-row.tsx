@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl'
 import type { FriendRequestSummary } from '@orbit/shared/types/social'
 import { getSocialErrorKey } from '@orbit/shared/utils'
+import { PillButton } from '@/components/ui/pill-button'
 import { UserAvatar } from '@/components/ui/user-avatar'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useAcceptFriendRequest, useRemoveFriend } from '@/hooks/use-friends'
@@ -12,24 +13,12 @@ interface FriendRequestRowProps {
   direction: 'incoming' | 'outgoing'
 }
 
-const actionButtonClass =
-  'touch-target-y shrink-0 cursor-pointer rounded-full transition-[background-color,transform,opacity] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:active:scale-[0.96] disabled:opacity-40 disabled:cursor-default'
-
-const actionButtonStyle = {
-  padding: '8px 14px',
-  border: 0,
-  fontFamily: 'var(--font-sans)',
-  fontSize: 14,
-  fontWeight: 500,
-} as const
-
 /** A pending friend request: accept/decline when incoming, cancel when outgoing. */
 export function FriendRequestRow({ request, direction }: Readonly<FriendRequestRowProps>) {
   const t = useTranslations()
   const { showError } = useAppToast()
   const accept = useAcceptFriendRequest()
   const remove = useRemoveFriend()
-  const busy = accept.isPending || remove.isPending
 
   async function handleAccept() {
     try {
@@ -63,38 +52,37 @@ export function FriendRequestRow({ request, direction }: Readonly<FriendRequestR
             : t('social.friends.youRequested')}
         </p>
       </div>
-      <div className="flex items-center" style={{ gap: 8 }}>
+      <div className="flex shrink-0 items-center" style={{ gap: 8 }}>
         {direction === 'incoming' ? (
           <>
-            <button
-              type="button"
+            <PillButton
+              variant="primary"
+              size="sm"
               onClick={() => void handleAccept()}
-              disabled={busy}
-              className={`${actionButtonClass} bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-pressed)]`}
-              style={actionButtonStyle}
+              busy={accept.isPending}
+              disabled={remove.isPending}
             >
               {t('social.friends.accept')}
-            </button>
-            <button
-              type="button"
+            </PillButton>
+            <PillButton
+              variant="ghost"
+              size="sm"
               onClick={() => void handleRemove()}
-              disabled={busy}
-              className={`${actionButtonClass} bg-[var(--bg-elev)] text-[var(--fg-2)] enabled:hover:bg-[var(--bg-elev-2)]`}
-              style={actionButtonStyle}
+              busy={remove.isPending}
+              disabled={accept.isPending}
             >
               {t('social.friends.decline')}
-            </button>
+            </PillButton>
           </>
         ) : (
-          <button
-            type="button"
+          <PillButton
+            variant="ghost"
+            size="sm"
             onClick={() => void handleRemove()}
-            disabled={busy}
-            className={`${actionButtonClass} bg-[var(--bg-elev)] text-[var(--fg-2)] enabled:hover:bg-[var(--bg-elev-2)]`}
-            style={actionButtonStyle}
+            busy={remove.isPending}
           >
             {t('social.friends.cancel')}
-          </button>
+          </PillButton>
         )}
       </div>
     </div>

@@ -128,10 +128,7 @@ export function createStyles(tokens: CreateGoalTokens, bottomInset: number) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      paddingTop: 16,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: tokens.hairline,
-      marginTop: 8,
+      paddingTop: 8,
     },
     footerButton: {
       flex: 1,

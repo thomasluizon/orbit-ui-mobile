@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 12,
     paddingHorizontal: 20,
-    paddingBottom: 6,
+    paddingBottom: 8,
   },
   hintText: {
     flexShrink: 1,

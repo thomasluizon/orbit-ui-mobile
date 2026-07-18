@@ -120,7 +120,7 @@ export function AchievementToast() {
           padding: '14px 16px',
           background: 'var(--bg-sheet)',
           borderRadius: 18,
-          boxShadow: '0 14px 36px rgba(0, 0, 0, 0.5), inset 0 0 0 1px var(--hairline)',
+          boxShadow: 'var(--shadow-3), inset 0 0 0 1px var(--hairline)',
           gap: 12,
         }}
       >

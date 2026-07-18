@@ -18,9 +18,11 @@ interface StatTileProps {
 }
 
 /**
- * Kit stat tile: emoji over a single-line Inter numeral (or compact Rubik phrase) and a muted
- * Rubik label clamped to two lines inside a fixed 40px reservation, so side-by-side tiles keep a
- * shared baseline when a longer pt-BR label wraps.
+ * Kit stat tile: emoji over a value line and a muted Rubik label clamped to two lines inside a
+ * fixed 40px reservation, so side-by-side tiles keep a shared baseline when a longer pt-BR label
+ * wraps. A numeral value stays on one line (tabular); a `phraseValue` (date/state/tier) wraps to
+ * two lines so a longer pt-BR string stays fully readable instead of being clipped — matching the
+ * web tile.
  */
 export function StatTile({
   emoji,
@@ -49,9 +51,7 @@ export function StatTile({
       </Text>
       <Text
         style={[styles.value, phraseValue && styles.valuePhrase, { color: tokens.fg1 }]}
-        numberOfLines={1}
-        adjustsFontSizeToFit
-        minimumFontScale={0.7}
+        numberOfLines={phraseValue ? 2 : 1}
       >
         {value}
       </Text>
@@ -89,6 +89,7 @@ const styles = StyleSheet.create({
   valuePhrase: {
     fontFamily: 'Rubik_600SemiBold',
     fontSize: 15,
+    lineHeight: 20,
     letterSpacing: 0,
     textAlignVertical: 'center',
   },

@@ -25,8 +25,8 @@ interface TodayHeaderProps {
   streak: number
 }
 
-/** Início header: the Orbit mark over the gradient, with the theme toggle,
- *  streak flame, and notification bell clustered top-right. */
+/** Today header: the Orbit mark, with the theme toggle, streak flame, and
+ *  notification bell clustered top-right. */
 export function TodayHeader({ streak }: Readonly<TodayHeaderProps>) {
   const { profile } = useProfile()
   const { data: streakInfo } = useStreakInfo(profile?.canViewGamification ?? false)
@@ -248,7 +248,7 @@ export function TodayUtilityRow({
     <div
       className="flex items-center shrink-0"
       style={{
-        padding: '10px 8px 10px 12px',
+        padding: '8px 8px 8px 12px',
         gap: 0,
       }}
     >
@@ -461,8 +461,8 @@ function FrequencyMenuRow({ active, label, onClick }: Readonly<FrequencyMenuRowP
       onClick={onClick}
       className="w-full appearance-none border-0 bg-transparent cursor-pointer flex items-center transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-sunk)]"
       style={{
-        padding: '8px 10px',
-        gap: 10,
+        padding: '10px 12px',
+        gap: 12,
         fontFamily: 'var(--font-sans)',
         fontSize: 14,
         fontWeight: active ? 600 : 500,

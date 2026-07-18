@@ -9,6 +9,7 @@ import {
 } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { AppOverlay } from '@/components/ui/app-overlay'
+import { PillButton } from '@/components/ui/pill-button'
 
 interface NotificationDetailModalProps {
   open: boolean
@@ -18,7 +19,7 @@ interface NotificationDetailModalProps {
   onDelete: (id: string) => void
 }
 
-/** Sheet chrome with a mono timestamp eyebrow, body copy, and quiet text-button actions. */
+/** Sheet chrome with a mono timestamp eyebrow, body copy, and a PillButton action row. */
 export function NotificationDetailModal({
   open,
   onOpenChange,
@@ -49,20 +50,24 @@ export function NotificationDetailModal({
       onOpenChange={onOpenChange}
       title={notification.title}
       footer={
-        <div className="flex flex-wrap items-center justify-end" style={{ gap: 10 }}>
+        <div className="flex flex-wrap items-center justify-end gap-3">
           {canView && (
-            <QuietLink primary onClick={handleView}>
+            <PillButton size="sm" variant="primary" onClick={handleView}>
               {t('notifications.view')}
-            </QuietLink>
+            </PillButton>
           )}
           {canMarkAsRead && (
-            <QuietLink onClick={() => onMarkAsRead(notification.id)}>
+            <PillButton
+              size="sm"
+              variant="ghost"
+              onClick={() => onMarkAsRead(notification.id)}
+            >
               {t('notifications.markAsRead')}
-            </QuietLink>
+            </PillButton>
           )}
-          <QuietLink destructive onClick={handleDelete}>
+          <PillButton size="sm" variant="destructive" onClick={handleDelete}>
             {t('notifications.delete')}
-          </QuietLink>
+          </PillButton>
         </div>
       }
     >
@@ -97,30 +102,5 @@ export function NotificationDetailModal({
         </div>
       </div>
     </AppOverlay>
-  )
-}
-
-interface QuietLinkProps {
-  children: React.ReactNode
-  onClick: () => void
-  destructive?: boolean
-  primary?: boolean
-}
-
-function QuietLink({
-  children,
-  onClick,
-  destructive = false,
-  primary = false,
-}: Readonly<QuietLinkProps>) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={primary ? 'chip chip-ai' : 'chip'}
-      style={destructive ? { color: 'var(--status-bad)' } : undefined}
-    >
-      {children}
-    </button>
   )
 }

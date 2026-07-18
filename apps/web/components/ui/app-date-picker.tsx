@@ -163,12 +163,12 @@ export function AppDatePicker({
         open={isOpen}
         onDismiss={closePicker}
         ariaLabelledBy={dialogLabelId}
-        panelClassName="w-[min(90vw,320px)] rounded-[16px] bg-[var(--bg-sheet)] p-2.5 text-[var(--fg-1)] shadow-[var(--shadow-2),inset_0_0_0_1px_var(--hairline)]"
+        panelClassName="w-[min(90vw,320px)] rounded-[16px] bg-[var(--bg-sheet)] p-3 text-[var(--fg-1)] shadow-[var(--shadow-2),inset_0_0_0_1px_var(--hairline)]"
       >
         <div className="flex items-center justify-between mb-2">
           <button
             type="button"
-            className={`p-[13px] rounded-lg hover:bg-[var(--bg-elev)] ${pickerMode === 'years' ? 'invisible' : ''}`}
+            className={`relative p-2 rounded-md hover:bg-[var(--bg-elev)] before:absolute before:-inset-2 before:content-[''] ${pickerMode === 'years' ? 'invisible' : ''}`}
             aria-label={t('common.previousMonth')}
             onClick={prevMonth}
           >
@@ -183,7 +183,7 @@ export function AppDatePicker({
               aria-label={t('common.selectYear')}
               aria-expanded={pickerMode === 'years'}
               onClick={() => setPickerMode((mode) => (mode === 'years' ? 'days' : 'years'))}
-              className="relative text-xs font-medium rounded-md px-1 py-0.5 hover:bg-[var(--bg-elev)] transition-[background-color,color] after:content-[''] after:absolute after:-inset-[10px]"
+              className="relative text-xs font-medium rounded-md px-1 py-1 hover:bg-[var(--bg-elev)] transition-[background-color,color] after:content-[''] after:absolute after:-inset-3"
               style={{ color: pickerMode === 'years' ? 'var(--primary)' : 'var(--fg-1)' }}
             >
               {yearLabel}
@@ -191,7 +191,7 @@ export function AppDatePicker({
           </span>
           <button
             type="button"
-            className={`p-[13px] rounded-lg hover:bg-[var(--bg-elev)] ${pickerMode === 'years' ? 'invisible' : ''}`}
+            className={`relative p-2 rounded-md hover:bg-[var(--bg-elev)] before:absolute before:-inset-2 before:content-[''] ${pickerMode === 'years' ? 'invisible' : ''}`}
             aria-label={t('common.nextMonth')}
             onClick={nextMonth}
           >
