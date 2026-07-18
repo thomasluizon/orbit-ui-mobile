@@ -291,9 +291,10 @@ describe('z-index stacking scale', () => {
   ]
 
   it('ascends strictly monotonically through the canonical tiers', () => {
-    for (let index = 1; index < order.length; index += 1) {
-      expect(order[index]).toBeGreaterThan(order[index - 1])
-    }
+    order.reduce((previous, current) => {
+      expect(current).toBeGreaterThan(previous)
+      return current
+    })
   })
 
   it('places the tour-spotlight carve-out above the modal (it points at modals)', () => {
