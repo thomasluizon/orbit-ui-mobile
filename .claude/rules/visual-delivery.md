@@ -40,7 +40,7 @@ If you transformed 8 of 40 surfaces, the status is "8/40", not "the design pass 
 
 ## The seed fixture (the precondition rule 3 enforces)
 
-The standard visual-verification fixture, seeded before ANY vision pass on Orbit. Load it via `tools/seed-visual-fixture.mjs` (API-based; needs a bearer token for a dev account — enable `TEST_ACCOUNTS` on the local API for an unattended run). It must produce, for the signed-in account:
+The standard visual-verification fixture, seeded before ANY vision pass on Orbit. **The drive session seeds it ITSELF — this is never a manual step you hand to the human.** The autonomous path needs no token and no env change: the local browser is already signed in, and the web BFF (`app/api/[...path]/route.ts`) proxies authenticated requests to the API. So from the logged-in `localhost:<web>` page, drive `javascript_tool` to `fetch('/api/habits', { method:'POST', credentials:'include', headers:{'content-type':'application/json'}, body })` for each fixture habit (and `POST /api/habits/{id}/sub-habits` for nesting) — the httpOnly cookie rides along and the BFF attaches the bearer. `tools/seed-visual-fixture.mjs` is only the **headless fallback** (needs a bearer token) for a renderless box. It must produce, for the signed-in account:
 
 - **A 3-level habit family** — e.g. `Water` → `Morning` → `Big glass` (which itself has children, so the drill affordance appears at the third tier). This exercises the habit-list panels, the two-inline-levels + drill, and the indentation at every depth.
 - **A childless top-level habit** (single-row panel) and a **recurring habit with a checklist** (multi-row) — so both panel shapes render.

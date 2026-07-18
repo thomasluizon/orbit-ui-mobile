@@ -9,6 +9,12 @@
  * checklist habit, a long-title + long-description habit (to force wrap/overflow),
  * and — where the API allows — some scheduled/overdue/completed occurrences.
  *
+ * HEADLESS FALLBACK ONLY. The PREFERRED path (an attended /drive run) needs no
+ * token: seed through the already-signed-in browser via the web BFF —
+ * `fetch('/api/habits', {method:'POST', credentials:'include', ...})` from the
+ * logged-in page proxies authenticated to the API. Use this script only on a
+ * renderless box where no browser session exists.
+ *
  * USAGE:
  *   SEED_TOKEN=<bearer> node tools/seed-visual-fixture.mjs            # against http://localhost:5000
  *   API_BASE=http://localhost:5000 SEED_TOKEN=<jwt> node tools/seed-visual-fixture.mjs
