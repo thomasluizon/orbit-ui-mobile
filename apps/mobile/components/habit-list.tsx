@@ -1273,7 +1273,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
                 : undefined,
             firstInPanel: item.depth === 0,
             lastInPanel: nextItem === undefined || nextItem.depth === 0,
-            showDrillChevron: item.depth >= 1,
+            showDrillChevron: item.depth >= MAX_INLINE_DEPTH,
           },
         )
       },
@@ -1352,7 +1352,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
                     {
                       firstInPanel: rowIndex === 0,
                       lastInPanel: rowIndex === rows.length - 1,
-                      showDrillChevron: row.depth >= 1,
+                      showDrillChevron: row.depth >= MAX_INLINE_DEPTH,
                     },
                   ),
                 )}
