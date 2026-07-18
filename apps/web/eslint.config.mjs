@@ -7,6 +7,7 @@ import noComments from "../../eslint-rules/no-comments.cjs"
 import noFullbleedButton from "../../eslint-rules/no-fullbleed-button.cjs"
 import animatePresenceExit from "../../eslint-rules/animate-presence-exit.cjs"
 import animatePresenceStableKey from "../../eslint-rules/animate-presence-stable-key.cjs"
+import noArbitraryZindex from "../../eslint-rules/no-arbitrary-zindex.cjs"
 import noCalcPercentageWidth from "../../eslint-rules/no-calc-percentage-width.cjs"
 import noDeadHref from "../../eslint-rules/no-dead-href.cjs"
 import noDecorativeGlow from "../../eslint-rules/no-decorative-glow.cjs"
@@ -62,6 +63,7 @@ export default [
           "no-fullbleed-button": noFullbleedButton,
           "animate-presence-exit": animatePresenceExit,
           "animate-presence-stable-key": animatePresenceStableKey,
+          "no-arbitrary-zindex": noArbitraryZindex,
           "no-calc-percentage-width": noCalcPercentageWidth,
           "no-dead-href": noDeadHref,
           "no-decorative-glow": noDecorativeGlow,
@@ -90,6 +92,7 @@ export default [
       "no-console": "error",
 
       "local/animate-presence-stable-key": "error",
+      "local/no-arbitrary-zindex": "error",
       "local/no-calc-percentage-width": "error",
       "local/no-dead-href": "error",
       "local/no-gradient-text": "error",
@@ -103,13 +106,11 @@ export default [
       "local/require-dialog-title": "error",
       "local/will-change-discipline": "error",
 
-      // Staged at `warn`: current code violates these, and the fix is not this bundle's.
-      // Bundle 5 (#539) de-decorates the UI — it deletes the glow/gradient tokens and their
-      // ~46 call sites — and flips these two to `error` in the same PR. `error` today would
-      // fail CI on code that is only waiting its turn.
+      // Bundle 5 (#539) de-decorated the UI — the glow/gradient tokens and their ~46 call sites
+      // are gone, so these flip to `error` (both already report zero).
       // https://github.com/thomasluizon/orbit-ui-mobile/issues/539
-      "local/no-decorative-glow": "warn",
-      "local/no-raw-gradient": "warn",
+      "local/no-decorative-glow": "error",
+      "local/no-raw-gradient": "error",
 
       // Staged at `warn`: pre-existing violations that are NOT bundle 5's de-decoration work.
       // Each needs its own judgement call (a11y fix, motion fix, perf rewrite, React 19

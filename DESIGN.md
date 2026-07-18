@@ -318,6 +318,17 @@ The approved Today mockups define this exactly. It is the surface the whole desi
 - **Match a feature's flow shape to its neighbors**, not just its surface: the same progressive-disclosure depth, the same modal-vs-full-page and inline-vs-route and save-on-blur-vs-submit choices, the same conceptual weight given the same visual weight, the same nouns and verbs.
 - **A modal is never the first thought.** Exhaust inline and progressive-disclosure alternatives before reaching for one.
 
+### Stacking
+
+One semantic z-index scale, shared across both platforms. Overlays stack on a named tier, never a hand-picked number. Web reads it as Tailwind `z-<tier>` utilities from the `--z-index-*` theme tokens (`app/globals.css`); mobile reads `zLayers.<tier>` from `@orbit/shared/theme`. Values are spaced by 100 (1000–1700) so they sit far above local stacking and leave room without inviting off-scale literals.
+
+Six tiers ascend: `dropdown` (1000) < `sticky` (1100) < `modalBackdrop` (1200) < `modal` (1300) < `toast` (1600) < `tooltip` (1700). Plus two Orbit carve-outs a generic scale gets wrong:
+
+- **`celebration` (1500)** sits **just below `toast`**: an achievement/all-done/goal/streak-freeze overlay is modal-ish but transient, and a toast may still need to surface over it.
+- **`tourSpotlight` (1400)** sits **above `modal`**, inverting the usual order, because a tour points AT modals.
+
+Local sibling stacking is a different thing and stays local: lifting content above a `::before`, ordering a sticky table header, sending a decoration behind its content. Use a small `z-[1..9]` / standard `z-{n}` utility (web) or `zIndex: 1..9` (mobile) for those — they are not overlays and have no tier on this scale. Android shadow `elevation` is a depth cue, orthogonal to stacking, and is unaffected. The one banned thing is the arms-race literal: an arbitrary `z-[9999]` or raw `zIndex: 10003` that means "add until it works."
+
 ## Sub-screen navigation
 
 Every sub-screen (anything that is not a top-level tab or sidebar destination) shows a visible back affordance (NavHeader back chevron), on both platforms and at every breakpoint. Hardware or browser back is never the only way out.
@@ -435,7 +446,7 @@ Orbit has no a11y gate today. This section is where it starts, and bundle 4 turn
 - No bounce or elastic easing (any `cubic-bezier` whose y control points fall outside `[0,1]`). No spring overshoot.
 - No `h-screen`. Use `min-h-dvh`.
 - No structural hacks: no negative margin undoing a parent's padding, no escape-hatch `calc()`, no absolute positioning to dodge layout flow.
-- No arbitrary z-index (`z-[9999]`, `zIndex: 999`). Stacking comes from the semantic scale in the theme tokens.
+- No arbitrary z-index (`z-[9999]`, `zIndex: 999`). Overlays stack on the semantic scale in the theme tokens — see **Stacking**.
 - No new font families, radii, or colors outside this spec. Rubik/Inter/Roboto only.
 - No per-component scheme branches. Schemes resolve through tokens only.
 - No em dashes in copy. No UPPERCASE typed into a string.
@@ -494,7 +505,7 @@ Describe the rendered screen in one sentence as if narrating a film scene. If th
 | No coloured side-stripe (Bans) | `local/no-side-stripe-border` | Mobile via the style-object branch. |
 | No bounce or elastic easing (Motion) | `local/no-overshoot-easing`: any `cubic-bezier(a,b,c,d)` with `b` or `d` outside `[0,1]` | 4 skills independently proposed overshoot and were dropped each time; the ban is the settled position. |
 | No `space-x-*` / `space-y-*` (Spacing) | `local/no-space-x-y` | |
-| No arbitrary z-index (Bans) | `local/no-arbitrary-zindex` | **Blocked on a spec decision:** the semantic stacking scale (dropdown → sticky → modal-backdrop → modal → toast → tooltip) does not exist in the theme tokens yet, so the rule has nothing to allowlist against. Bundle 4 must land the scale first. |
+| No arbitrary z-index (Stacking) | `local/no-arbitrary-zindex`: arbitrary `z-[n]` / raw `zIndex: n` with `n >= 10` | Bans the arms-race literal only. Local sibling stacking (`z-[1..9]`, `zIndex: 1..9`), the `z-<tier>` utilities, `zLayers.<tier>`, and Android `elevation` are allowed — see **Stacking**. |
 | Focus outline never removed bare (A11y) | `local/require-focus-replacement`: `outline-none` with no `focus-visible:` sibling | WCAG 2.4.7. |
 | Never disable zoom (A11y) | `local/no-user-scalable-no` over the viewport meta / Next `viewport` export | Web only. |
 | `<div onClick>`, positive `tabIndex` (A11y semantics) | *enable, do not write*: `jsx-a11y/no-static-element-interactions`, `no-noninteractive-element-interactions`, `click-events-have-key-events`, `tabindex-no-positive` at **error** | |

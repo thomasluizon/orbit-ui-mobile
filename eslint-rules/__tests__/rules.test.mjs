@@ -101,6 +101,27 @@ ruleTester.run('no-space-x-y', rule('no-space-x-y'), {
   invalid: [{ code: '<div className="space-y-3" />', errors: [{ messageId: 'noSpaceUtility' }] }],
 })
 
+ruleTester.run('no-arbitrary-zindex', rule('no-arbitrary-zindex'), {
+  valid: [
+    '<div className="relative z-[1]" />',
+    '<div className="sticky top-0 z-[3]" />',
+    '<div className="z-40" />',
+    '<div className="z-modal" />',
+    '<div className="z-tour-spotlight" />',
+    'const s = { zIndex: 2 }',
+    'const s = { zIndex: -1 }',
+    'const s = { zIndex: zLayers.modal }',
+    'const s = { elevation: 12 }',
+    'const s = StyleSheet.create({ overlay: { zIndex: zLayers.toast } })',
+  ],
+  invalid: [
+    { code: '<div className="z-[9999]" />', errors: [{ messageId: 'arbitraryClass' }] },
+    { code: '<div className="fixed inset-0 z-[10003]" />', errors: [{ messageId: 'arbitraryClass' }] },
+    { code: '<div style={{ zIndex: 9999 }} />', errors: [{ messageId: 'rawZIndex' }] },
+    { code: 'const s = StyleSheet.create({ overlay: { zIndex: 10000 } })', errors: [{ messageId: 'rawZIndex' }] },
+  ],
+})
+
 ruleTester.run('no-dynamic-tailwind-class', rule('no-dynamic-tailwind-class'), {
   valid: [
     '<div className={`flex ${isActive ? "bg-red-500" : "bg-blue-500"}`} />',

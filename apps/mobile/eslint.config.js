@@ -9,6 +9,7 @@ const noGorhomSheet = require("../../eslint-rules/no-gorhom-sheet.cjs")
 const noFullbleedButton = require("../../eslint-rules/no-fullbleed-button.cjs")
 const animatePresenceExit = require("../../eslint-rules/animate-presence-exit.cjs")
 const animatePresenceStableKey = require("../../eslint-rules/animate-presence-stable-key.cjs")
+const noArbitraryZindex = require("../../eslint-rules/no-arbitrary-zindex.cjs")
 const noDecorativeGlow = require("../../eslint-rules/no-decorative-glow.cjs")
 const noJsxLogicalAnd = require("../../eslint-rules/no-jsx-logical-and.cjs")
 const noOvershootEasing = require("../../eslint-rules/no-overshoot-easing.cjs")
@@ -73,6 +74,7 @@ module.exports = defineConfig([
           "no-fullbleed-button": noFullbleedButton,
           "animate-presence-exit": animatePresenceExit,
           "animate-presence-stable-key": animatePresenceStableKey,
+          "no-arbitrary-zindex": noArbitraryZindex,
           "no-decorative-glow": noDecorativeGlow,
           "no-jsx-logical-and": noJsxLogicalAnd,
           "no-overshoot-easing": noOvershootEasing,
@@ -99,18 +101,18 @@ module.exports = defineConfig([
       // root override, so it could be extended here in a follow-up.
       "local/animate-presence-exit": "error",
       "local/animate-presence-stable-key": "error",
+      "local/no-arbitrary-zindex": "error",
       "local/no-jsx-logical-and": "error",
       "local/no-overshoot-easing": "error",
       "local/no-raw-font-feature-tag": "error",
       "local/no-scroll-listener-motion": "error",
       "local/no-side-stripe-border": "error",
 
-      // Staged at `warn`: bundle 5 (#539) de-decorates both platforms — it deletes the glow
-      // and gradient tokens and their call sites (LinearGradient here, GradientTop on web) —
-      // and flips these to `error` in the same PR.
+      // Bundle 5 (#539) de-decorated both platforms — glow and gradient tokens and their call
+      // sites (LinearGradient here, GradientTop on web) are gone, so these flip to `error`.
       // https://github.com/thomasluizon/orbit-ui-mobile/issues/539
-      "local/no-decorative-glow": "warn",
-      "local/no-raw-gradient": "warn",
+      "local/no-decorative-glow": "error",
+      "local/no-raw-gradient": "error",
     },
   },
   {
