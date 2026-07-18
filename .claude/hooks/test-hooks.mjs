@@ -199,12 +199,14 @@ for (const locale of ["en.json", "pt-BR.json"]) {
   const corpus = readFileSync(localePath, "utf8")
   T(`corpus: ${locale} has zero AI-cliché findings`, checkAiClicheCopy(corpus, localePath), null)
   T(`corpus: ${locale} has zero placeholder findings`, checkPlaceholderContent(corpus, localePath), null)
-  // Not zero: the two Ask-Astra eyebrow strings are real, pre-existing DESIGN.md
-  // violations (the eyebrow uppercases in CSS, so the string must be natural
-  // case). The hook scans added text only, so they block nothing until touched.
-  // Pinning the count keeps a future false positive from hiding among them.
+  // Zero: the two Ask-Astra eyebrow strings were the last typed-uppercase debt and
+  // b5's copy pass (#539) natural-cased them (the eyebrow uppercases in CSS, so the
+  // string is stored natural). The shipped locale now carries ZERO typed-uppercase
+  // violations, which is the desired invariant; the detector's block behavior is
+  // pinned by the synthetic "shouted sentence blocks" tests above. This corpus guard
+  // keeps any NEW typed-uppercase value from creeping into the real locale files.
   const uppercaseFindings = (checkTypedUppercase(corpus, localePath)?.message.match(/^ {2}- /gm) ?? []).length
-  T(`corpus: ${locale} flags exactly the 2 known eyebrow strings`, uppercaseFindings, 2)
+  T(`corpus: ${locale} has zero typed-uppercase findings`, uppercaseFindings, 0)
 }
 
 // Secrets in argv. The block is on a LITERAL; a variable reference is the
