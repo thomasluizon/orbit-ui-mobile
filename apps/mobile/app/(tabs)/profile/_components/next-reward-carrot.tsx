@@ -35,7 +35,7 @@ export function NextRewardCarrot({ carrot, onUpgrade }: Readonly<NextRewardCarro
         ]}
       >
         <View style={styles.titleRow}>
-          <Gift size={18} strokeWidth={1.9} color={tokens.primary} />
+          <Gift size={18} strokeWidth={1.9} color={tokens.primarySoft} />
           <Text style={[styles.title, { color: tokens.fg2 }]}>
             {t('gamification.carrot.title').toUpperCase()}
           </Text>
@@ -51,7 +51,7 @@ export function NextRewardCarrot({ carrot, onUpgrade }: Readonly<NextRewardCarro
         {carrot.showProTeaser ? (
           <View style={styles.teaserRow}>
             <View style={styles.teaserLead}>
-              <Lock size={16} strokeWidth={1.9} color={tokens.primary} />
+              <Lock size={16} strokeWidth={1.9} color={tokens.primarySoft} />
               <View style={styles.teaserCopy}>
                 <Text style={[styles.teaserTitle, { color: tokens.fg1 }]} numberOfLines={1}>
                   {t('gamification.carrot.proTeaser.title')}

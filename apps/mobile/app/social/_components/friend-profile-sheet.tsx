@@ -260,7 +260,7 @@ function createStyles(tokens: Tokens) {
       flexBasis: '46%',
       flexGrow: 1,
       borderRadius: 18,
-      backgroundColor: tokens.bgElev,
+      backgroundColor: tokens.bgCard,
       borderWidth: 1,
       borderColor: tokens.hairline,
       padding: 16,
@@ -280,7 +280,7 @@ function createStyles(tokens: Tokens) {
     statTile: { flexBasis: '46%', flexGrow: 1 },
     card: {
       borderRadius: 18,
-      backgroundColor: tokens.bgElev,
+      backgroundColor: tokens.bgCard,
       borderWidth: 1,
       borderColor: tokens.hairline,
       padding: 18,

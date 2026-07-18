@@ -26,7 +26,7 @@ export function NextRewardCarrot({ carrot }: Readonly<NextRewardCarrotProps>) {
         }}
       >
         <div className="flex items-center" style={{ gap: 8, marginBottom: 8 }}>
-          <Gift size={18} strokeWidth={1.9} color="var(--primary)" aria-hidden="true" />
+          <Gift size={18} strokeWidth={1.9} color="var(--primary-soft)" aria-hidden="true" />
           <span
             style={{
               fontFamily: 'var(--font-sans)',
@@ -63,7 +63,7 @@ export function NextRewardCarrot({ carrot }: Readonly<NextRewardCarrotProps>) {
             style={{ gap: 12, marginTop: 16 }}
           >
             <span className="flex min-w-0 items-center" style={{ gap: 8 }}>
-              <Lock size={16} strokeWidth={1.9} color="var(--primary)" aria-hidden="true" />
+              <Lock size={16} strokeWidth={1.9} color="var(--primary-soft)" aria-hidden="true" />
               <span className="min-w-0">
                 <span
                   className="block"

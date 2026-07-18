@@ -25,7 +25,7 @@ interface FriendProfileViewProps {
 
 const cardStyle = {
   borderRadius: 18,
-  background: 'var(--bg-elev)',
+  background: 'var(--bg-card)',
   boxShadow: 'inset 0 0 0 1px var(--hairline)',
   padding: 18,
 } as const
