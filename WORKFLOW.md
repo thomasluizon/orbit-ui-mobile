@@ -118,20 +118,24 @@ The plan file is the durable handoff; Session B implements against clean context
 
 ## Model & effort routing (applies everywhere)
 
-You drive on Opus 4.8 @ `xhigh` by default. **Model** routing is per-subagent and lives in agent config, never in how you invoke a skill. **Effort** has one extra, documented lever: a skill's own `effort:` frontmatter overrides the session effort while that skill runs, then reverts on the next turn ([Claude Code SKILL.md frontmatter reference](https://code.claude.com/docs/en/skills)). That is still config — declared in the skill file — not an argument passed at a call site.
+You drive on Opus 4.8 @ `high` by default (`effortLevel: high` in `~/.claude/settings.json`, per the [[Cheapen Claude Code effort and fan-out]] ADR — escalate a hard session with `/effort xhigh`; hard skills carry `effort: xhigh` in their own SKILL.md frontmatter). **Model** routing is per-subagent and lives in agent config, never in how you invoke a skill. **Effort** has one extra, documented lever: a skill's own `effort:` frontmatter overrides the session effort while that skill runs, then reverts on the next turn ([Claude Code SKILL.md frontmatter reference](https://code.claude.com/docs/en/skills)). That is still config — declared in the skill file — not an argument passed at a call site.
 
 **The rule, in one line: a subagent runs a different model ONLY if a named agent definition declares one.** Model resolves as `CLAUDE_CODE_SUBAGENT_MODEL` (unset here) → a per-invocation `model` param → the agent's `model:` frontmatter → the main conversation's model. Effort resolves from frontmatter, never a call-site argument, but from **two** frontmatter homes: **the Agent tool exposes no per-invocation effort parameter**, so a *subagent's* effort comes only from its `.claude/agents/*.md` frontmatter; a *driver-session skill's* effort comes from its `SKILL.md` frontmatter and overrides the session level for that turn. Both are a `.md` frontmatter block, which is why the routing still lives in config and never at a call site.
 
 So an anonymous subagent (no `subagent_type`) inherits your session wholesale: Opus 4.8 @ `xhigh`. That is correct for hard work and waste for grunt work.
 
+Delegate-first principle: keep the main session lean. Heavy or mechanical work (search, priming, review, planning, implementation) runs in a model-pinned subagent so its transcript never bloats the driver context; only the gates, grilling, vision-verify, and final judgment stay in the main session. Model routing is the quota lever — pin cheap models on the cheap work.
+
 | Role | Agent | Model | Effort |
 |---|---|---|---|
-| Driver | main session | Opus 4.8 | `xhigh` |
+| Driver | main session | Opus 4.8 | `high` |
 | Search / mechanical fan-out | `Explore`, `parity-checker`, `i18n-syncer`, `audit-readonly` | Haiku 4.5 | **none possible** |
 | Structured review | `security-reviewer`, `design-reviewer`, `contract-aligner` | Sonnet 5 | `medium` |
 | Web research fan-out | `web-researcher` | Sonnet 5 | `medium` |
 | Context load | `primer` | Sonnet 5 | `medium` |
-| Driver skill — heavy | `/plan`, `/implement` | Opus 4.8 | `xhigh` (SKILL.md frontmatter) |
+| Implement — hard path (default) | `implement-opus` | Opus 4.8 | `xhigh` |
+| Implement — isolated slice | `implement-sonnet` | Sonnet 5 | `high` |
+| Driver skill — heavy | `/plan`, `/implement` (single-issue inline) | Opus 4.8 | `xhigh` (SKILL.md frontmatter) |
 | Driver skill — cheap | `/validate`, `/rollup` | Opus 4.8 | `low` (SKILL.md frontmatter) |
 | Driver skill — medium | `/handoff` | Opus 4.8 | `medium` (SKILL.md frontmatter) |
 
@@ -139,7 +143,7 @@ So an anonymous subagent (no `subagent_type`) inherits your session wholesale: O
 
 **The criteria, when something goes wrong** (Anthropic's own diagnostic): wrong because it **didn't know enough** → bigger model. Wrong because it **didn't try hard enough** — skipped a file, skipped the tests, didn't check its work → **more effort**. Capability and diligence are different dials, and their guidance is that tuning effort is usually the better lever than switching models.
 
-**Why plan and implement stay on Opus.** Planning is architecture — the textbook case for the larger model. Implementing here is cross-repo, cross-platform, parity- and contract-bound; it is *not* "routine work you can describe precisely" (the cue for a smaller model), and a slightly-worse implement doesn't save money, it spends review rounds.
+**Why plan stays on Opus, and implement is now tiered.** Planning is architecture — the textbook case for the larger model, always Opus, never routed down. Implement used to be Opus-only for the same reason (cross-repo, parity- and contract-bound work is *not* "routine work you can describe precisely," and a slightly-worse implement spends review rounds). That reasoning still governs the **hard path** — but Sonnet 5 is now 1M-context on Max and strong enough to carry a *proven-isolated* slice, so `/plan` assigns a `Tier` and the delegated flows (`/drive`, multi-issue `/implement`) route accordingly: **`implement-opus` (Opus @ `xhigh`) is the default**; **`implement-sonnet` (Sonnet 5 @ `high`)** takes only single-repo, parity-`no`, no-contract, no-migration/auth/design slices. Model is the dominant quota lever, so this is the main token reclaim in the harness. The cheap tier carries a safety valve (it stops and returns `blocked` if the slice turns out to cross a boundary the plan missed), so the false-economy risk is bounded. **All modes delegate** — single-issue and path-based `/implement` (via `/execute`) now route the same way, spawning the tier agent in the repo root and keeping only the E2E/vision + merge gate in the main session; the driver no longer runs implement inline.
 
 **Fable 5 is a manual escalation, never a config.** It is the tier above Opus (there is no Opus 5) and its lead grows with task length — but it is 2x Opus ($10/$50 vs $5/$25), carries 30-day retention with no zero-data-retention option, and was suspended for ~3 weeks in June 2026 under an export-control directive. Never wire it into a skill or `night-run`'s config; a default that can be withdrawn is not a default. Reach for it by hand when Opus 4.8 has actually failed a specific hard problem. Note the trap: Fable's pitch ("multi-day autonomous agents") sounds like `/night-run`, but night-run's fit gate admits only bounded slices — the shape where Fable's edge is thinnest.
 

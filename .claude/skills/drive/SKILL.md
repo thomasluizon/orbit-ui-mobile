@@ -111,14 +111,20 @@ Parse `$ARGUMENTS`:
    `approve` (blanket) / `approve <bundle|issue>` / `revise <feedback>` / `abort`. NOTHING
    implements without an explicit approve. This is the gate `/execute` treats as critical and
    the reason `/drive` never does "prime → implement" with no plan review.
-3. **Implement (subagent).** For each approved bundle, spawn a subagent in the worktree to run
-   `/implement <plan-path>`: code + parity + tests + validation, then open a **draft PR**
-   (`gh pr create --draft`) and return one line of JSON `{"bundle":k,"status":"done"|"blocked"|"failed","pr":"<url>","summary":"…"}`.
-   The draft PR + your review is the merge gate (a subagent cannot hold `/implement`'s
-   interactive push prompt — the plan approval above already authorized the work; the draft
-   state keeps the human at the merge). Parity is mandatory: a web change lands in mobile and
-   vice versa; i18n keys in both `en.json` and `pt-BR.json`; backend support in `orbit-api`
-   via the added worktree.
+3. **Implement (tier-routed subagent).** For each approved bundle, read the bundle plan's **Tier**
+   field (`sonnet` / `opus`; default `opus` if absent) and spawn the matching implementation
+   agent in the worktree — **`implement-sonnet`** (Sonnet 5 @ `high`) for a proven-isolated
+   slice, **`implement-opus`** (Opus 4.8 @ `xhigh`) otherwise. It runs `/implement` Phases 1–6:
+   code + parity + tests + validation, opens a **draft PR** (`gh pr create --draft`), and returns
+   one line of JSON `{"bundle":k,"status":"done"|"blocked"|"failed","pr":"<url>","summary":"…"}`.
+   If `implement-sonnet` returns `blocked` with a `tier-mismatch` reason, re-spawn that bundle on
+   `implement-opus`. The draft PR + your review is the merge gate (a subagent cannot hold
+   `/implement`'s interactive push prompt — the plan approval above already authorized the work;
+   the draft state keeps the human at the merge). These named tier agents replace the old
+   anonymous spawn, which silently ran every bundle on the inherited Opus session with no way to
+   route the cheap slices down. Parity is mandatory: a web change lands in mobile and vice versa;
+   i18n keys in both `en.json` and `pt-BR.json`; backend support in `orbit-api` via the added
+   worktree.
 3b. **Vision-verify (UI bundles only — the pixel check `/night-run` cannot do).** If the bundle
    changed a rendered surface, verify the pixels before you spend review attention, since
    `/drive` is attended and a renderer is available here:

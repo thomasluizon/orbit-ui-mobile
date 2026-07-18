@@ -85,10 +85,13 @@ Reachable ONLY through an explicit `approve` at GATE 3. Run
 `/implement .claude/plans/issue-<N>.plan.md` (path-based mode) with the path captured
 in Stage 3.
 
-`/implement` owns its OWN downstream confirmation: it asks the user to confirm before
-pushing and opening the PR (its Phase 7). `/execute` does NOT re-add or fight that
-gate — `/execute` owns the gates up to and including the pre-implement approval, then
-delegates the push/PR checkpoint to `/implement`.
+`/implement` now delegates the work itself to a model-tier subagent (`implement-opus` /
+`implement-sonnet`, routed by the plan's Tier) that opens a **draft PR** and keeps the
+main session lean; `/implement` then owns its OWN downstream confirmation — the attended
+tail that runs the E2E/vision check and asks you to confirm before the PR is marked ready
+(its Phases 5 + 7). `/execute` does NOT re-add or fight that gate — `/execute` owns the
+gates up to and including the pre-implement approval, then delegates the implement +
+draft-PR + ready checkpoint to `/implement`.
 
 ## Gates (the core of this skill)
 
