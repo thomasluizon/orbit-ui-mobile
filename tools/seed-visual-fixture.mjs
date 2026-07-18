@@ -71,7 +71,7 @@ async function api(path, body) {
 const createHabit = (payload) => api('/api/habits', payload).then((r) => r?.id)
 /** Attach one sub-habit (by title) to a parent; returns the created child id if the API returns it. */
 const addSubHabit = (parentId, title) =>
-  api(`/api/habits/${parentId}/sub-habits`, { subHabits: [title] }).then(
+  api(`/api/habits/${parentId}/sub-habits`, { title, frequencyUnit: 'Day', frequencyQuantity: 1 }).then(
     (r) => r?.id ?? r?.children?.[r.children.length - 1]?.id ?? r?.[0]?.id,
   )
 
