@@ -56,6 +56,14 @@ try {
 
   process.stderr.write(shortfallMessage(verdict))
   process.exit(2)
-} catch {
+} catch (error) {
+  if (existsSync(ARMED_PATH)) {
+    process.stderr.write(
+      `Visual completion gate is ARMED (.claude/manifests/ACTIVE) but errored while checking coverage: ${error?.message ?? error}\n` +
+        "A gate that cannot confirm completion is UNKNOWN, not clean. Refusing to end the turn.\n" +
+        "Fix the error, or disarm intentionally by deleting .claude/manifests/ACTIVE.\n",
+    )
+    process.exit(2)
+  }
   process.exit(0)
 }

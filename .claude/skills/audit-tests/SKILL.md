@@ -100,8 +100,13 @@ Deferred — this bounds a systemically-weak suite), then loops until dry. It re
 
 ```
 { findings: [{ severity, title, category, location, evidence, rationale, fix, reference }],
-  counts, coverage, deferred, rounds, scopeLabel }
+  counts, coverage, deferred, rounds, converged, convergenceReason, criticErrors, scopeLabel }
 ```
+
+**Completeness is a computed field, not an assumption.** `converged === true` only after the
+critic ran and returned empty. If `converged !== true` (e.g. `criticErrors ≥ 2` from a
+rate-limit), the sweep did NOT prove completeness — report it as "coverage UNKNOWN —
+${convergenceReason}", never as a clean/complete audit. A dead verifier is not a clean pass.
 
 `fix` carries the concrete test to add; `rationale` carries what a break it would NOT catch.
 
