@@ -1,6 +1,6 @@
 ---
 name: batch-grill
-description: Grill a SET of correlated issues together instead of one at a time — collect the union of their open questions into one frontier, ask each shared question once and apply it to every affected issue, surface cross-issue conflicts before planning, and persist each issue's resolved decisions. Used by /execute and /drive in multi-issue mode; can also be run directly over 2+ already-primed issues.
+description: Grill a SET of correlated issues together instead of one at a time — collect the union of their open questions into one frontier, ask each shared question once and apply it to every affected issue, surface cross-issue conflicts before planning, and persist each issue's resolved decisions. Used by /drive in multi-issue mode; can also be run directly over 2+ already-primed issues.
 argument-hint: <issue-number> <issue-number> [issue-number ...]
 ---
 
@@ -37,10 +37,9 @@ before starting. Requires **2+ issues**; for a single issue use `grill-me`.
    repeat until the frontier is empty.
 5. **Attribute + persist.** Write each issue's resolved decisions to the **caller's durable
    store**, exactly:
-   - invoked by `/execute` → `<worktree>/.claude/plans/issue-<N>.decisions.md`, a
-     `## Decisions (from grilling)` block.
    - invoked by `/drive` → the issue's `.claude/specs/issue-<N>.spec.md` **Decisions** section.
-   - invoked directly → `.claude/plans/issue-<N>.decisions.md` per issue.
+   - invoked directly → `.claude/plans/issue-<N>.decisions.md` per issue, a
+     `## Decisions (from grilling)` block.
 
    A shared answer is written into EVERY affected issue's store, marked as a cross-issue
    decision. A resolved conflict is recorded in every issue it touched.
@@ -50,6 +49,6 @@ before starting. Requires **2+ issues**; for a single issue use `grill-me`.
 - Follow `grill-me` for every individual question — do not restate or override those mechanics.
 - Do not write code or plans during batch-grilling.
 - **Attribution must be exact** — never apply a shared answer to an issue it does not affect.
-- The caller (`/execute` GATE B, `/drive`) or the user exits the loop; that exit is the
+- The caller (`/drive`) or the user exits the loop; that exit is the
   caller's grill gate. On direct invocation, stop when the frontier is empty and report the
   per-issue decisions files written.

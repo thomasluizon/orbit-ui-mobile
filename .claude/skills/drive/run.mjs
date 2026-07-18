@@ -1,6 +1,17 @@
 #!/usr/bin/env node
 /**
- * night-run driver: drain a queue of tasks overnight, one FRESH `claude -p` per task.
+ * drive engine: run a queue of bundles/tasks, one FRESH `claude -p` per task.
+ *
+ * Two modes (one engine):
+ *  - ATTENDED (`--attended`, the default `/drive` path): readline gates — approve each bundle
+ *    before it runs, review its draft PR after. The human is the verifier, so the auto-verifier
+ *    is off. No `/clear` ever: each bundle is a fresh headless process, so context never accrues.
+ *  - UNATTENDED (`--sleep`, no `--attended`): the proven overnight queue-drain, UNCHANGED — no
+ *    gates, an independent Sonnet verifier grades each draft PR. This is the old `/night-run`.
+ *
+ * Per-task model tier: each queue entry may carry `tier` ("sonnet"|"opus") and `effort`
+ * ("high"|"xhigh"); the driver routes the fresh `claude -p` to that model/effort (falling back to
+ * the global config.model). This is the scriptable half of per-issue routing.
  *
  * Why a Node driver (not a live Claude session, not a bash script):
  *  - A live Claude-session driver taints children with CLAUDECODE / CLAUDE_CODE_ENTRYPOINT,
@@ -20,6 +31,7 @@
 import { spawnSync } from "node:child_process"
 import { readFileSync, writeFileSync, appendFileSync, mkdirSync, existsSync } from "node:fs"
 import { join, resolve } from "node:path"
+import { createInterface } from "node:readline/promises"
 
 const DEFAULTS = {
   model: "opus",
@@ -50,12 +62,23 @@ const TAINTED_ENV = [
 ]
 
 function parseArgs(argv) {
-  const out = { dir: ".claude/night-run", dryRun: false }
+  const out = { dir: ".claude/drive", dryRun: false, attended: false }
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--dir" && argv[i + 1]) out.dir = argv[++i]
     else if (argv[i] === "--dry-run") out.dryRun = true
+    else if (argv[i] === "--attended") out.attended = true
   }
   return out
+}
+
+/** Per-task tier routing: map a queue entry's `tier` to a model, falling back to the global model. */
+const TIER_MODEL = { sonnet: "sonnet", opus: "opus" }
+function resolveModel(task, config) {
+  return TIER_MODEL[task?.tier] || config.model
+}
+function resolveEffort(task) {
+  const e = task?.effort
+  return e === "high" || e === "xhigh" || e === "medium" || e === "low" ? e : null
 }
 
 function loadJson(path, fallback) {
@@ -94,7 +117,7 @@ function resetReposToBase(repos, log) {
   for (const repo of repos) {
     const repoPath = resolve(repo.path)
     if (!isClean(repoPath)) {
-      git(repoPath, ["stash", "push", "-u", "-m", `night-run leftovers ${stamp()}`])
+      git(repoPath, ["stash", "push", "-u", "-m", `drive leftovers ${stamp()}`])
       log(`  stashed leftover changes in ${repo.path} (recoverable via 'git stash list')`)
     }
     if (currentBranch(repoPath) !== repo.base) git(repoPath, ["checkout", repo.base])
@@ -135,8 +158,11 @@ function parseJsonLine(resultText, requiredKey) {
   return null
 }
 
-function buildClaudeArgs(config) {
-  const args = ["-p", "--output-format", "json", "--model", config.model, "--permission-mode", config.permissionMode]
+function buildClaudeArgs(config, task) {
+  const model = resolveModel(task, config)
+  const effort = resolveEffort(task)
+  const args = ["-p", "--output-format", "json", "--model", model, "--permission-mode", config.permissionMode]
+  if (effort) args.push("--effort", effort)
   args.push("--max-budget-usd", String(config.perTaskBudgetUsd))
   if (config.fallbackModel) args.push("--fallback-model", config.fallbackModel)
   if (config.allowedTools?.length) args.push("--allowedTools", config.allowedTools.join(" "))
@@ -147,7 +173,7 @@ function buildClaudeArgs(config) {
 
 function runTask(task, config, promptText, log) {
   const started = Date.now()
-  const run = spawnSync("claude", buildClaudeArgs(config), {
+  const run = spawnSync("claude", buildClaudeArgs(config, task), {
     input: promptText,
     cwd: resolve(config.repos[0].path),
     env: childEnv(),
@@ -288,7 +314,7 @@ function postVerdictComment(prUrl, verdict, log) {
   if (r.status !== 0) log(`  could not post verifier comment (${String(r.stderr || "").trim().slice(-160)})`)
 }
 
-function main() {
+async function main() {
   const opts = parseArgs(process.argv.slice(2))
   const dir = resolve(opts.dir)
   const config = { ...DEFAULTS, ...loadJson(join(dir, "config.json"), {}) }
@@ -305,7 +331,7 @@ function main() {
     appendFileSync(logPath, line + "\n")
   }
 
-  log(`night-run starting: ${queue.length} task(s), model=${config.model}, per-task cap $${config.perTaskBudgetUsd}, total cap $${config.totalBudgetUsd}`)
+  log(`${opts.attended ? "drive (attended)" : "drive --sleep"} starting: ${queue.length} bundle(s), model=${config.model}, per-task cap $${config.perTaskBudgetUsd}, total cap $${config.totalBudgetUsd}`)
   if (!queue.length) {
     log("queue.json is empty. Nothing to do.")
     return
@@ -333,9 +359,13 @@ function main() {
     const rows = results.map(row).join("\n")
     writeFileSync(
       statusPath,
-      `# night-run status\n\nSpent so far: $${spent.toFixed(2)} / $${config.totalBudgetUsd}\n\n| task | label | status | verifier | cost | PR |\n|---|---|---|---|---|---|\n${rows}\n`,
+      `# drive status\n\nSpent so far: $${spent.toFixed(2)} / $${config.totalBudgetUsd}\n\n| bundle | label | status | verifier | cost | PR |\n|---|---|---|---|---|---|\n${rows}\n`,
     )
   }
+
+  const rl = opts.attended ? createInterface({ input: process.stdin, output: process.stdout }) : null
+  const ask = async (q) => (rl ? (await rl.question(q)).trim().toLowerCase() : "")
+  if (opts.attended) log("ATTENDED mode: you approve each bundle before it runs and review its draft PR after (auto-verifier off — you are the verifier).")
 
   for (const task of queue) {
     if (existsSync(join(dir, "STOP"))) {
@@ -365,6 +395,23 @@ function main() {
       continue
     }
 
+    if (opts.attended) {
+      const tier = resolveModel(task, config)
+      const effort = resolveEffort(task)
+      const snippet = promptText.trim().slice(0, 240).replace(/\s+/g, " ")
+      const ans = await ask(`\n[${task.id}] ${task.label}  (tier=${tier}${effort ? " @" + effort : ""})\n  ${snippet}...\n  Run this bundle? [go / skip / abort] `)
+      if (ans === "abort" || ans === "a") {
+        log("Aborted by user before running this bundle.")
+        break
+      }
+      if (ans === "skip" || ans === "s") {
+        log(`  skipped [${task.id}] by user.`)
+        results.push({ id: task.id, label: task.label, status: "skipped", cost: 0, pr: null, summary: "skipped by user" })
+        writeStatus()
+        continue
+      }
+    }
+
     const outcome = runTask(task, config, promptText, log)
     spent += outcome.cost
     const record = { id: task.id, label: task.label, ...outcome }
@@ -372,7 +419,7 @@ function main() {
     log(`  status=${outcome.status} cost=$${outcome.cost.toFixed(2)} pr=${outcome.pr || "-"} (${Math.round(outcome.elapsedMs / 1000)}s)`)
     if (outcome.summary) log(`  summary: ${outcome.summary}`)
 
-    if (config.verify && outcome.pr && (outcome.status === "done" || outcome.status === "blocked")) {
+    if (config.verify && !opts.attended && outcome.pr && (outcome.status === "done" || outcome.status === "blocked")) {
       log(`  verifying [${task.id}] against acceptance criteria (independent ${config.verifyModel})...`)
       const verdict = verifyTask(task, config, promptText, outcome.pr)
       spent += verdict.cost
@@ -390,6 +437,15 @@ function main() {
     writeFileSync(join(runDir, `task-${task.id}.json`), JSON.stringify(record, null, 2))
     writeStatus()
 
+    if (opts.attended) {
+      const ans = await ask(`  -> ${outcome.status}${outcome.pr ? " " + outcome.pr : ""} — review the draft PR, then: continue to next bundle? [continue / stop] `)
+      if (ans === "stop" || ans === "s") {
+        log("Stopped by user after review.")
+        break
+      }
+      continue
+    }
+
     const hardFailure = outcome.status === "failed" || outcome.status === "unknown"
     consecutiveFailures = hardFailure ? consecutiveFailures + 1 : 0
     if (consecutiveFailures >= config.maxConsecutiveFailures) {
@@ -398,13 +454,14 @@ function main() {
     }
   }
 
+  if (rl) rl.close()
   resetReposToBase(config.repos, log)
   const done = results.filter((r) => r.status === "done").length
   const flagged = results.filter((r) => r.verdict === "DISAGREE").length
 
   if (lessons.length) {
     const lessonDoc = [
-      `# night-run lesson candidates — ${stamp()}`,
+      `# drive lesson candidates — ${stamp()}`,
       ``,
       `Fail/blocked outcomes and verifier DISAGREEs from this run. NOT auto-promoted: review each`,
       `and run \`/lesson\` to distill and graduate it (that human gate is deliberate).`,
@@ -416,7 +473,7 @@ function main() {
   }
 
   const summary = [
-    `# night-run summary`,
+    `# drive summary`,
     ``,
     `- tasks attempted: ${results.length} / ${queue.length}`,
     `- completed (done): ${done}`,
@@ -433,4 +490,7 @@ function main() {
   log(`DONE. ${done}/${queue.length} completed, ${flagged} flagged, ${lessons.length} lesson candidate(s), $${spent.toFixed(2)} spent. Summary: ${join(runDir, "SUMMARY.md")}`)
 }
 
-main()
+main().catch((err) => {
+  console.error(err)
+  process.exitCode = 1
+})

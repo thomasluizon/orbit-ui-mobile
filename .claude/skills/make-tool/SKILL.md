@@ -20,7 +20,7 @@ Do **not** build a tool for a true one-off. That stays in your shell history or 
 
 1. **Name the single purpose.** One sentence, one verb. If it needs an "and", that is two tools.
 2. **Write it to the `tools/` contract** in `tools/CONVENTIONS.md`: `--help`/`-h`, meaningful exit codes, non-interactive, cwd-safe (resolve paths from the script location), stdin for large payloads, no secrets in argv.
-3. **Pick the shells.** Author the POSIX `.sh` (the baseline: night-run bash loop, CI, Git Bash). Add a `.ps1` twin **only when the tool must run in the user's PowerShell shell** as an interactive path; the twin mirrors the `.sh` flags, stdin shape, and exit codes exactly. Give any `.sh` LF line endings.
+3. **Pick the shells.** Author the POSIX `.sh` (the baseline: CI, Git Bash). Add a `.ps1` twin **only when the tool must run in the user's PowerShell shell** as an interactive path; the twin mirrors the `.sh` flags, stdin shape, and exit codes exactly. Give any `.sh` LF line endings.
 4. **Prefer delegating over reimplementing.** If a vetted helper already does the hard part (a `.mjs`, a `gh` call), the tool is a thin wrapper over it. Do not re-derive its logic in shell.
 5. **Catalog it.** Add a row to `tools/README.md` (tool, what it does, usage) in the same change.
 6. **Point to it from `CLAUDE.md` only if broadly useful** across the workflow. A niche tool just lives in the `tools/` catalog.

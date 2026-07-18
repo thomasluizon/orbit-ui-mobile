@@ -1,63 +1,97 @@
 ---
 name: drive
-description: Drive an epic (a multi-bundle issue) or several issues to done across MULTIPLE fresh sessions via a living spec file that survives /clear. A resumable, spec-driven conductor over /prime, grill-me, /plan, and /implement — heavy plan/implement work runs in worktree subagents (multiple issues in parallel), the interactive gates stay in the main session, and the SAME command resumes from the spec until the issue is closed. Use for a known-diff epic that is too big for one /execute pass but is NOT a converging-metric campaign (for that, see WORKFLOW.md's campaign pattern).
-argument-hint: <issue-number> [issue-number ...] | status <#…> | stop <#>
+description: The one execution skill — issue(s), a free-text task, or nothing → reviewed draft PRs. Phase A runs live in this session (classify → recommend mode/tier → grill open questions → decompose into bundles → write a resumable spec → you approve); Phase B hands off to the driver engine (run.mjs, this folder), one FRESH `claude -p` per bundle so context never accrues and you never /clear. Attended by default (approve/review gates in the driver's terminal); --sleep runs it unattended overnight with an independent Sonnet verifier instead of gates. Auto-routes each bundle's model tier and recommends the execution mode. Replaces /execute (a one-bundle drive) and /night-run (drive --sleep).
+argument-hint: <issue-number ... | free-text task | (empty)> [--sleep] | status <#…> | stop <#>
 ---
 
-# Drive: spec-driven, resumable, multi-session issue conductor
+# Drive — the single execution skill
 
-A thin conductor, like `/execute`, but built to span **many fresh sessions**. It writes
-no new logic and re-implements nothing — `/prime`, `grill-me`, `/plan`, and `/implement`
-own their behavior; reference them by name, never restate them. The one thing `/drive`
-adds is a **living spec file** that is the durable state, so the whole run survives a
-`/clear` and resumes from the exact same command.
+One mental model: **`/drive <input> [--sleep]`** takes you from an issue (or several), a free-text task, or nothing, to reviewed draft PRs — without the `/clear`-and-repaste dance. It **replaces `/execute`** (which was just a one-bundle drive) **and `/night-run`** (which is `/drive --sleep`).
+
+It writes no new logic and re-implements nothing — `/prime`, `grill-me`, `/plan`, `/implement`, and the tier agents (`implement-opus` / `implement-sonnet`) own their behavior; reference them by name, never restate them. `/drive` adds two things: a **resumable spec** (durable state so a run survives any interruption or a fresh session) and a **driver engine** (`run.mjs`, this skill's folder) that runs each bundle in a fresh headless process so context never rots.
 
 `/drive` targets issues in `thomasluizon/orbit-ui-mobile`.
 
-**Why it exists:** `/execute` is single-pass — one prime → plan → implement in one session.
-An epic (a multi-bundle issue like a phased tech epic) is too big for that: one giant plan,
-one giant implement, and a context window that rots. `/drive` breaks the epic into bundles,
-does a bounded chunk per session, records progress in the spec, and hands you the exact
-next command. It is the *attended* twin of `/night-run` (fresh context per unit, state in a
-file) with the interactive gates kept, and it automates WORKFLOW.md's split-session pattern.
+## The two phases
 
-## The two levers, and how they compose
+**Phase A — live, in THIS session, once (all the thinking):** prime → classify the work → recommend mode + tier → grill open questions → decompose into bundles → write the spec → you approve. Interactive; this is the only part that must be live, because grilling is a conversation.
 
-- **Subagents keep the main session thin.** Plan and implement run in worktree subagents
-  (isolated, fresh context, parallel across issues). The main session accumulates only gate
-  exchanges + one-line summaries + spec diffs — never full implementation transcripts. So
-  you can drive several bundles in one session before it fills.
-- **The spec makes `/clear` free.** When the session does fill (or you want to stop for the
-  night), `/clear` and re-run `/drive <#>`; it reads the spec, reconciles against reality,
-  and continues. `/clear` becomes an *optional checkpoint*, not a mandatory per-bundle step.
+**Phase B — the driver takes over (no `/clear`, ever):** the engine loops the bundles, each a fresh `claude -p` (zero context accumulation), tier-routed to its model. Two ways to run it:
 
-Subagents reduce how often you must clear; the spec makes any clear resumable. Both, not either.
+- **Attended (default):** you approve each bundle before it runs and review its draft PR after, at gates in the **driver's terminal** (readline). The human is the verifier.
+- **`--sleep` (unattended):** no gates — an independent Sonnet verifier grades each draft PR and posts AGREE/DISAGREE. Detached; you wake to reviewed PRs. This is the old `/night-run`.
 
-## The living spec (the source of truth)
+Both open a **draft PR per bundle** and never touch `main` (each child runs without `--bare`, so it inherits `git-guardrails`, which blocks any push to main / force-push / `--no-verify`). Nothing merges — that stays a human action.
 
-One file per issue at `.claude/specs/issue-<N>.spec.md` (gitignored, like `.claude/plans/`).
-It is authoritative for *what is done and what is next*, but it is **reconciled against `gh`
-on every resume** — never trusted blindly (a PR the spec calls "done" might have been closed
-unmerged; verify with `gh pr view`). Template:
+## Why you never manage context (there is no session to "close")
+
+You never decide when to start a new session, and neither does the skill — because Phase B holds **zero** LLM context. `run.mjs` is a plain Node script; each bundle is a **separate `claude -p` process** that boots with a clean context window, does one bundle, and exits. Context never carries from one bundle to the next, so it cannot bloat. State passes between bundles through **files** — the spec, the plan files, and the draft PRs on git — not through conversation, so a fresh process loses nothing. (This is why compaction was rejected: external state beats a lossy compact.)
+
+The **bundle is the unit of context**, and its size is set once — by you, at Phase A decomposition — not by a runtime heuristic guessing when to `/clear`. A bundle must be small enough to finish in one clean context; the fit gate + the per-bundle budget/timeout enforce that. If a bundle is still too big and exhausts its own process, it returns `blocked` (WIP committed, a draft PR describing the block) — an explicit signal to split it, never a silent degradation. The live Phase A session stays lean too, because the heavy implement transcripts live in the children, not here.
+
+## What is AUTO vs RECOMMENDED vs MANUAL (the honest ceiling)
+
+A markdown skill cannot flip Claude Code session toggles; only code (the tier agents, and `run.mjs`) routes automatically.
+
+| Capability | Status |
+|---|---|
+| Classify size/shape/openness; decompose bundles; write + reconcile the spec | **AUTO** |
+| Model tier (`sonnet`/`opus`) per bundle | **AUTO** — `/plan`'s Tier → the queue entry → the engine's `--model` |
+| Effort (`high`/`xhigh`) per bundle | **AUTO** in the driver (`claude -p --effort`) |
+| Attended vs `--sleep` | **AUTO-detected, you confirm** — spending money unattended always needs explicit opt-in |
+| `ultracode` (session mode) / `ultrathink` (one-turn) | **RECOMMEND only** — a skill cannot enable them; the driver gets the reasoning half via `--effort xhigh`, the full toggle stays yours to set live |
+| Fable 5 | **MANUAL** — never auto-routed (capped, withdrawable) |
+
+## Mode detection
+
+Parse `$ARGUMENTS`. Strip `--sleep` first (it selects Phase B's unattended path); the remainder is the input.
+
+| Input | Mode |
+|---|---|
+| `status <#…>` | **Report** — read each spec, reconcile against `gh`, show the bundle tables + the latest run summary. No work. |
+| `stop <#>` | **Pause** — set the spec `status: blocked`; for a running unattended driver, `touch .claude/drive/STOP`. |
+| ≥ 1 issue number, no spec | **Init** that issue (Phase A). 2+ numbers → multi-issue (paired worktrees + parallel prime/plan). |
+| ≥ 1 issue number, spec exists | **Resume** that issue. |
+| Free-text task, no issue id | Treat the text as the task (no `gh` fetch); one bundle unless it is clearly an epic. |
+| empty | Ask for an issue number or a description. Do nothing else. |
+
+---
+
+## Phase A — live (once)
+
+1. **Prime.** `/prime <N>` (single, load-only) or `/prime <N…>` (2+ — creates paired worktrees and primes each in a parallel subagent). Carry only its summary forward.
+2. **Classify** from the issue/prompt:
+   - **shape** — a bounded single-bundle slice (the old `/execute` case), or an epic (phased / multiple independent items → several bundles);
+   - **openness** — genuine open design questions (→ must grill) or none (→ skip grill);
+   - **unattended-suitability** — is every bundle a self-contained slice with clear acceptance criteria, no open question, no whole-repo blast radius (→ `--sleep` is safe to recommend)?
+3. **Recommend** the mode + tier and state the reasoning in one line — e.g. *"single-repo, no parity, LOW → attended, one bundle, Sonnet tier"* or *"5-bundle epic, new DTOs + parity → attended, Opus tier; bundle 1 (data model + contract) is broad, I'll drive it at `--effort xhigh` — set `/effort ultracode` live first if you want the auto-workflow half too."* If the user passed `--sleep`, apply the **fit gate** (below) and exclude anything unsuitable, reporting why.
+4. **Grill** — only if there are open questions. `grill-me` (single issue) or `batch-grill <N…>` (2+). Interactive, main-session only, never a subagent. Record every resolved decision in the spec's Decisions section.
+5. **Decompose + assign tiers.** Break an epic into an ordered bundle list — group correlated items to minimize PRs, order by dependency. For each bundle, run `/plan` scoped to it (single-issue slice = one bundle, the degenerate case). Read each plan's **Tier** (`sonnet`/`opus`) and effort — that is the per-bundle model routing that Phase B applies.
+6. **Write the spec** (below), all bundles `todo`, `next-action: "/drive <N>"`.
+7. **GATE — approve the bundle plan.** Show the bundle table (id · scope · tier · PR-count) + sequencing. Wait for `approve` / `edit <note>` / `abort`. Default-deny: no or ambiguous response → restate and wait. NOTHING runs without an explicit approve.
+8. **Generate the driver artifacts** (the Phase B handoff) into `.claude/drive/` (gitignored runtime dir): `config.json` (from `config.example.json` in this folder — set budgets, `repos`, `addDirs`), `queue.json` (one entry per approved bundle: `{ "id", "label", "repo", "tier", "effort", "ui"? }` in run order), and `prompts/task-<id>.md` per bundle (the template below). Then hand off to Phase B.
+
+### The living spec
+
+One file per issue at `.claude/specs/issue-<N>.spec.md` (gitignored). Authoritative for what is done and what is next, but **reconciled against `gh` on every resume** — never trusted blindly (a PR the spec calls "done" may have been closed unmerged; verify with `gh pr view`).
 
 ```markdown
 ---
 issue: <N>
 title: <issue title>
 status: draft | in-progress | blocked | complete
-next-action: "/drive <N>"        # exact command to paste after /clear
+next-action: "/drive <N>"
 ---
 
 # Drive spec — #<N>: <title>
 
 ## Bundles
-| # | scope | status | plan | branch | PR |
-|---|-------|--------|------|--------|----|
-| 1 | <e.g. A1+A3+A4 docs/tools> | done        | plans/issue-<N>-b1.plan.md | feature/… | #123 merged |
-| 2 | <e.g. A2 /commit-sweep>    | in-progress | plans/issue-<N>-b2.plan.md | feature/… | #124 open   |
-| 3 | <e.g. A5 precommit>        | todo        | -                          | -         | -           |
+| # | scope | tier | status | plan | branch | PR |
+|---|-------|------|--------|------|--------|----|
+| 1 | <A1+A3 docs> | sonnet | done        | plans/issue-<N>-b1.plan.md | feature/… | #123 merged |
+| 2 | <A2 API>     | opus   | in-progress | plans/issue-<N>-b2.plan.md | feature/… | #124 open   |
 
-## Decisions (from grilling — durable across every /clear)
+## Decisions (from grilling — durable across every interruption)
 - <decision + why>
 
 ## Lesson candidates (from blocked bundles / verifier DISAGREE — promote via /lesson)
@@ -69,119 +103,86 @@ next-action: "/drive <N>"        # exact command to paste after /clear
 
 Bundle `status`: `todo` → `planned` → `in-progress` → `done` (PR merged) | `blocked`.
 
-## Mode detection
+### Per-bundle prompt template (`.claude/drive/prompts/task-<id>.md`)
 
-Parse `$ARGUMENTS`:
+Each child starts clean, so its prompt carries everything. Tier/effort come from the queue entry (the engine routes the model), not the prompt.
 
-| Input | Mode |
-|---|---|
-| `status <#…>` | **Report.** Read each spec, reconcile against `gh`, show the bundle table + next action. No work. |
-| `stop <#>` | **Pause.** Set the spec `status: blocked` with a one-line reason. No work. |
-| ≥ 1 issue number, no spec yet | **Init** that issue (below). |
-| ≥ 1 issue number, spec exists | **Resume** that issue (below). |
-| ≥ 2 issue numbers | Run init/resume per issue in **multi-issue mode** (worktrees + parallel subagents). |
-| 0 numeric tokens | Ask for an issue number. Do nothing else. |
+```
+You are an autonomous Orbit engineer running one bundle. Proceed to completion on your
+own judgement.
 
-## Init (first run on an issue)
+TASK: <bundle label>
+<the bundle scope + acceptance criteria, verbatim, plus the relevant spec Decisions>
 
-1. **Prime.** Run `/prime <N>` (load-only; single-issue) or, for 2+ issues, `/prime <N…>`
-   (it creates the paired worktrees and primes each in a parallel subagent). Do not carry
-   past its summary except into the spec.
-2. **Decompose.** Read the issue. If it is an epic (phased body / multiple independent
-   items), break it into an ordered **bundle** list — group correlated items to minimize PRs
-   (respect the "minimum PRs" preference), and order by dependency. A bounded slice is a
-   single bundle (degenerate case — `/drive` still works, it just finishes in one cycle).
-3. **Write the spec** with all bundles `todo`, decisions empty, `next-action: "/drive <N>"`.
-4. **GATE — SPEC.** Show the bundle table + sequencing. Wait for `approve` / `edit <note>` /
-   `abort`. Default-deny: no or ambiguous response → restate and wait.
-5. **Grill** (main session; interactive — it NEVER runs as a subagent). Single issue:
-   invoke `grill-me` on the open questions `/prime` surfaced. 2+ issues: invoke
-   `batch-grill <N…>` — one frontier over the whole set, shared questions asked once,
-   cross-issue conflicts surfaced before planning. Either way, record every resolved
-   decision in the issue's spec Decisions section. The user's explicit exit is the gate.
-6. Proceed to **Work** on the first `todo` bundle.
+Follow the Orbit workflow (CLAUDE.md + WORKFLOW.md, already loaded):
+1. Ensure you are on an up-to-date base branch, then create feature/<slug> (or fix/).
+2. Plan, then implement the change. CROSS-PLATFORM PARITY IS MANDATORY: any web change lands
+   in apps/mobile too and vice versa; i18n keys land in BOTH en.json and pt-BR.json. Backend
+   support goes in orbit-api (added via --add-dir).
+3. Add/extend Vitest (or xUnit) behavior tests for what you changed.
+4. Run the relevant validation (lint, typecheck, tests) and fix what you broke.
+5. Commit, push the branch, open a DRAFT PR with `gh pr create --draft`. Cross-repo → open
+   the paired PR and cross-link (orbit-ui-mobile uses `Closes #N`, orbit-api uses `Refs …#N`).
 
-## Work (per bundle — heavy steps delegated to subagents)
+HARD RULES: NEVER merge, NEVER push to/commit on main, NEVER force-push, NEVER --no-verify
+(hooks enforce this). If blocked, commit WIP, open a DRAFT PR describing exactly what is
+blocked, and exit — a blocked-but-documented bundle is a success. Do NOT run a browser
+E2E / vision check (you have no renderer) — leave it for the attended review.
 
-1. **Plan (subagent).** Spawn a subagent in the issue's worktree to run `/plan` scoped to the
-   bundle; it writes `.claude/plans/issue-<N>-b<k>.plan.md` and returns the plan Summary /
-   Files / Tasks. Mark the bundle `planned` in the spec. Across multiple issues these run in
-   parallel (3 concurrent cap, like `/implement`).
-2. **GATE — PLAN.** Main session shows each plan's Summary / Files / Tasks. Wait for
-   `approve` (blanket) / `approve <bundle|issue>` / `revise <feedback>` / `abort`. NOTHING
-   implements without an explicit approve. This is the gate `/execute` treats as critical and
-   the reason `/drive` never does "prime → implement" with no plan review.
-3. **Implement (tier-routed subagent).** For each approved bundle, read the bundle plan's **Tier**
-   field (`sonnet` / `opus`; default `opus` if absent) and spawn the matching implementation
-   agent in the worktree — **`implement-sonnet`** (Sonnet 5 @ `high`) for a proven-isolated
-   slice, **`implement-opus`** (Opus 4.8 @ `xhigh`) otherwise. It runs `/implement` Phases 1–6:
-   code + parity + tests + validation, opens a **draft PR** (`gh pr create --draft`), and returns
-   one line of JSON `{"bundle":k,"status":"done"|"blocked"|"failed","pr":"<url>","summary":"…"}`.
-   If `implement-sonnet` returns `blocked` with a `tier-mismatch` reason, re-spawn that bundle on
-   `implement-opus`. The draft PR + your review is the merge gate (a subagent cannot hold
-   `/implement`'s interactive push prompt — the plan approval above already authorized the work;
-   the draft state keeps the human at the merge). These named tier agents replace the old
-   anonymous spawn, which silently ran every bundle on the inherited Opus session with no way to
-   route the cheap slices down. Parity is mandatory: a web change lands in mobile and vice versa;
-   i18n keys in both `en.json` and `pt-BR.json`; backend support in `orbit-api` via the added
-   worktree.
-3b. **Vision-verify (UI bundles only — the pixel check `/night-run` cannot do).** If the bundle
-   changed a rendered surface, verify the pixels before you spend review attention, since
-   `/drive` is attended and a renderer is available here:
-   - Bring the stack up with the `dev-server` skill if it is not already running, then drive
-     the `claude-in-chrome` MCP to navigate to the changed surface and screenshot it (light +
-     dark). The **main session is vision-capable** — read the screenshot against `DESIGN.md`:
-     semantic tokens only, no decorative glow / gradient wash, base-4 spacing, the AI-slop and
-     scene-sentence tests, and the `#539` de-decorated anchor. Also run `design-reviewer` for
-     the static token/parity pass on the diff (it is read-only and has no browser, so it never
-     replaces the render — the two are complementary).
-   - Report **pass** or the concrete deviations before the merge review. Never claim a visual
-     pass you did not actually render; if the stack will not come up, say so and fall back to
-     the static `design-reviewer` pass only.
-4. **Update + reconcile.** Write the bundle's `status`, `branch`, and `PR` into the spec.
-   Verify the PR with `gh pr view` — the spec reflects `gh` truth, not the subagent's claim.
-   If the bundle came back `blocked`/`failed`, or vision-verify found a `DESIGN.md` deviation,
-   append one line to the spec's **Lesson candidates** section (what went wrong + the bundle)
-   and remind at handoff to run `/lesson`. Do not auto-edit the tracked `pending-lessons.md`.
-5. **Next.**
-   - More `todo` bundles AND the main session is still thin → offer to continue to the next
-     bundle now, in this session.
-   - Session getting long, or the user wants to pause → set `next-action: "/drive <N>"` and
-     print the handoff: **"Bundle <k> PR: <url>. Run `/clear`, then `/drive <N>` to continue."**
+END with EXACTLY one line of JSON (no fences):
+{"task":"<id>","status":"done"|"blocked"|"failed","pr":"<url or null>","summary":"<one sentence>"}
+```
+
+---
+
+## Phase B — the driver
+
+The engine is **`.claude/skills/drive/run.mjs`**; its runtime dir is **`.claude/drive/`** (config / queue / prompts / runs — gitignored). It spawns one fresh `claude -p` per bundle (clean context each time), routes each to its tier model + effort, resets every repo to its base between bundles, and stops each bundle at a draft PR.
+
+**Preflight (dry run):** `node .claude/skills/drive/run.mjs --dry-run` — verifies `claude` is runnable, `gh` is authenticated (if `push`), and every repo is a clean tree on its base branch, then lists the bundles it would run. Fix anything it flags (usually a dirty tree) before launching.
+
+**GATE — present the plan and STOP before spending money:** the ordered bundle list (id · label · tier), the **per-bundle and total budget caps**, the permission posture (`bypassPermissions`; `git-guardrails` + branch-per-bundle + budget caps are the real guardrails), the push/PR note (draft PRs open, CI + review bots run on them), and — for `--sleep` — the verifier (independent Sonnet, its cost counts toward the cap; mark UI bundles `"ui": true` so it reviews the diff against `DESIGN.md`). Wait for "go".
+
+**Launch — attended (default):** run in a terminal you watch:
+
+```
+node .claude/skills/drive/run.mjs --attended
+```
+
+It pauses at each bundle — `Run this bundle? [go / skip / abort]` — runs it (tier-routed), opens the draft PR, then `Continue to next bundle? [continue / stop]`. **No `/clear` ever**, and the gates live in the driver's terminal because the child is headless and cannot pause for input. So the flow is: grill/decompose in THIS chat (Phase A) → answer per-bundle gates in the terminal (Phase B). If a bundle needs real discussion, `stop`, drop back to interactive for that one, then resume.
+
+**Launch — `--sleep` (unattended, detached):**
+
+```
+Start-Process -FilePath node -ArgumentList '.claude/skills/drive/run.mjs' -WorkingDirectory '<repo-abs-path>' -WindowStyle Hidden
+```
+
+No gates; the independent verifier grades each PR. The machine must stay awake (sleep pauses it). Logs land in `.claude/drive/runs/<timestamp>/` regardless.
+
+**Reconcile.** After each bundle, write its `status` / `branch` / `PR` into the spec, verified against `gh` (not the child's claim). If a bundle came back `blocked`/`failed`, append a line to the spec's Lesson candidates and remind to run `/lesson` (never auto-promote).
 
 ## Resume (fresh session — the same `/drive <N>`)
 
-1. Read the spec. **Reconcile against `gh`** for every non-`todo` bundle: PR merged → `done`;
-   PR open → keep (awaiting merge); branch exists with no PR → `in-progress`; nothing on the
-   branch → back to `todo`. Correct the spec and append to the Reconcile log.
-2. Re-prime context (`/prime <N>` or a prime subagent) since the session is fresh.
-3. Continue from the first actionable bundle via the **Work** loop.
+Read the spec; reconcile every non-`todo` bundle against `gh` (PR merged → `done`; PR open → keep; branch, no PR → `in-progress`; nothing → back to `todo`); regenerate the queue for the remaining bundles; relaunch the driver. `/clear` is never required (Phase B accrued no context) — this path exists for when you closed the terminal or the machine.
+
+## Fit gate (for `--sleep` — exclude non-slices)
+
+A `--sleep` bundle must be a bounded, self-contained slice with clear acceptance criteria and no open question. EXCLUDE (report why → run it attended instead): a campaign / multi-phase issue, anything gated on an open question, work sequenced after other unmerged PRs, or a whole-repo blast radius. If EVERY task is excluded, say so and stop — do not launch an empty run.
 
 ## Termination
 
-When every bundle is `done` with a **merged** PR: confirm once, then `gh issue close <N>`
-(cross-repo issues: close the paired issue too), set the spec `status: complete`, and report
-the PRs landed. `/drive` does not merge PRs itself — merging stays a human action.
+When every bundle is `done` with a **merged** PR: confirm once, then `gh issue close <N>` (cross-repo → close the paired issue too), set the spec `status: complete`, and report the PRs landed. `/drive` never merges.
 
-## Multi-issue mode (2+ issue numbers)
+## status / stop
 
-Same loop, fanned out — mirroring `/execute`'s multi-issue mode and `/prime`/`/plan`/`/implement`'s
-own multi-issue modes (they own the worktree + parallel-subagent machinery; never restate it):
+- **`/drive status <#…>`** — the reconciled bundle table per issue + the newest run's `SUMMARY.md` (else `STATUS.md` + `run.log` tail): draft PRs, the verifier verdict per PR (**surface every DISAGREE first** — those are the PRs to scrutinize), spend vs cap, one-line next step per PR. If `LESSONS.md` has candidates, name the count and suggest `/lesson`.
+- **`/drive stop <#>`** — set the spec `status: blocked` with a one-line reason; for a running unattended driver, `touch .claude/drive/STOP` (halts before the next bundle) or kill the `node run.mjs` process (the in-flight bundle keeps whatever it committed).
 
-- **Prime** creates paired worktrees under `.claude/worktrees/<branch>` and primes each issue
-  in a parallel subagent.
-- **Grill** stays in the main session (interactive; never a subagent). 2+ issues use
-  `batch-grill <N…>` — one frontier over the set, shared questions asked once, cross-issue
-  conflicts surfaced — recording each issue's decisions in that issue's spec.
-- **Plan** and **Implement** run as parallel worktree subagents, per issue, 3 concurrent max.
-- The three gates become **batch gates** over all issues, with per-issue scoping allowed
-  (`approve <#…>`, `revise <#> <feedback>`, `drop <#…>`).
-- One spec per issue; each advances independently. A failing issue does not halt its siblings.
+## Guardrails — do NOT
 
-## Output / next step
-
-- **Mid-run:** end every turn with the concrete handoff line — the PR(s) opened and the exact
-  next command (`/drive <N>` after `/clear`, or "continue" to take the next bundle now).
-- **Report mode (`/drive status <#…>`):** the reconciled bundle table per issue, spent PRs,
-  and which bundle is next.
-- **On completion:** the merged PRs, the closed issue(s), and the archived spec path.
+- Re-implement prime / grill / plan / implement — chain them by name.
+- Skip the Phase A approval gate, or (attended) the per-bundle gates.
+- **Auto-launch `--sleep`** without explicit opt-in — it spends money detached.
+- Auto-route Fable 5 — it stays a manual, hand-invoked escalation.
+- Merge a PR or touch `main` — the driver opens draft PRs; merging is yours.
+- Translate the brand words "Orbit" / "Astra".

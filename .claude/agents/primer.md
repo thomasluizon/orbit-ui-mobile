@@ -1,6 +1,6 @@
 ---
 name: primer
-description: Loads context for ONE issue inside its worktree and reports a structured summary (title, repos label, parity flag, acceptance criteria, open questions/risks). Never plans, edits, or implements. Used as the agentType for /prime's multi-issue fan-out, and inherited by /execute and /drive's prime stage.
+description: Loads context for ONE issue inside its worktree and reports a structured summary (title, repos label, parity flag, acceptance criteria, open questions/risks). Never plans, edits, or implements. Used as the agentType for /prime's multi-issue fan-out, and inherited by /drive's prime stage.
 tools: Glob, Grep, Read, Bash
 model: sonnet
 effort: medium

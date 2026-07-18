@@ -23,7 +23,7 @@ dist/
 .claude/reviews/
 .claude/reports/
 .claude/audits/
-.claude/night-run/
+.claude/drive/
 .mcp.json
 *.swp
 *.swo

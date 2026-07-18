@@ -32,7 +32,7 @@ The pattern, as implemented by `surface-manifest.mjs` + `check-surface-coverage.
 
 ## POSIX vs PowerShell
 
-- **`.sh` is the baseline.** It runs in the night-run bash loop, in CI, and in Git Bash on Windows. Keep it POSIX-ish and give it LF line endings.
+- **`.sh` is the baseline.** It runs in CI and in Git Bash on Windows. Keep it POSIX-ish and give it LF line endings.
 - **Add a `.ps1` twin only when the tool must run in the user's primary PowerShell shell** (the interactive path). The twin mirrors the `.sh` interface exactly: same flags, same stdin shape, same exit codes. Do not maintain a `.ps1` for a script that only ever runs in the bash loop.
 - Prefer delegating to an existing vetted helper (a `.mjs`, a `gh` call) over reimplementing its logic in shell. The wrappers stay thin.
 
