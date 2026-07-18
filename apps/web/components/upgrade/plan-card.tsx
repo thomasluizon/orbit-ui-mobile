@@ -51,7 +51,7 @@ export function PlanCard({
   const isHero = variant === 'hero'
 
   return (
-    <div className={['flex h-full flex-col rounded-[18px] p-[22px]', cardOrder[variant], surface[variant]].join(' ')}>
+    <div className={['flex h-full flex-col rounded-[18px] p-6', cardOrder[variant], surface[variant]].join(' ')}>
       <div className="flex flex-wrap items-center gap-2" style={{ minHeight: 24 }}>
         <span
           style={{
@@ -66,7 +66,7 @@ export function PlanCard({
         {badge ? <Badge>{badge}</Badge> : null}
       </div>
 
-      <div className="flex items-baseline gap-1" style={{ marginTop: 14 }}>
+      <div className="flex items-baseline gap-1" style={{ marginTop: 16 }}>
         <span
           style={{
             fontFamily: 'var(--font-display)',
@@ -82,7 +82,7 @@ export function PlanCard({
       </div>
 
       {sub ? (
-        <p style={{ margin: '6px 0 0', fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.5, color: 'var(--fg-3)' }}>
+        <p style={{ margin: '8px 0 0', fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.5, color: 'var(--fg-3)' }}>
           {sub}
         </p>
       ) : null}
@@ -96,7 +96,7 @@ export function PlanCard({
       ) : null}
 
       {features.length > 0 ? (
-        <ul className="flex flex-col" style={{ marginTop: 16, gap: 10 }}>
+        <ul className="flex flex-col" style={{ marginTop: 16, gap: 12 }}>
           {features.map((feature) => (
             <li key={feature} className="flex items-center" style={{ gap: 8 }}>
               <Check size={14} strokeWidth={2.4} className="shrink-0 text-[var(--primary-soft)]" aria-hidden="true" />

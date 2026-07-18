@@ -1,26 +1,14 @@
 'use client'
 
-import Link from 'next/link'
 import { Lock } from '@/components/ui/icons'
+import { PillButton } from '@/components/ui/pill-button'
 import { useTranslations } from 'next-intl'
-
-const upgradeLinkStyle = {
-  marginTop: 8,
-  padding: '15px 26px',
-  borderRadius: 999,
-  background: 'var(--primary)',
-  color: 'var(--fg-on-primary)',
-  fontFamily: 'var(--font-sans)',
-  fontSize: 16,
-  fontWeight: 500,
-  textDecoration: 'none',
-}
 
 export function AchievementsLockedState() {
   const t = useTranslations()
 
   return (
-    <div className="flex flex-col items-center text-center" style={{ padding: '40px 24px', gap: 14 }}>
+    <div className="flex flex-col items-center text-center" style={{ padding: '40px 24px', gap: 16 }}>
       <span
         aria-hidden="true"
         className="flex items-center justify-center rounded-full"
@@ -48,13 +36,9 @@ export function AchievementsLockedState() {
       >
         {t('gamification.page.lockedDescription')}
       </span>
-      <Link
-        href="/upgrade"
-        className="inline-flex items-center justify-center transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] active:translate-y-0 active:scale-[0.98]"
-        style={upgradeLinkStyle}
-      >
+      <PillButton href="/upgrade" variant="primary" size="md" className="mt-2">
         {t('gamification.page.upgradeButton')}
-      </Link>
+      </PillButton>
     </div>
   )
 }

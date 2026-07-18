@@ -17,7 +17,6 @@ import {
   CalendarDays,
   User,
   ChevronLeft,
-  ChevronRight,
 } from '@/components/ui/icons'
 import type { TourStep, TourSection } from '@orbit/shared/types'
 import type { TourTargetRect } from '@orbit/shared/stores'
@@ -33,6 +32,7 @@ import {
   zLayers,
 } from '@/lib/theme'
 import { ProBadge } from '@/components/ui/pro-badge'
+import { PillButton } from '@/components/ui/pill-button'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
@@ -184,19 +184,9 @@ export function TourTooltip({
 
           <View style={{ flex: 1 }} />
 
-          <Pressable
-            accessibilityRole="button"
-            style={({ pressed }) => [
-              styles.nextButton,
-              pressed ? styles.nextButtonPressed : null,
-            ]}
-            onPress={onNext}
-          >
-            <Text style={styles.nextButtonText}>
-              {isLastStep ? t('tour.ui.finish') : t('tour.ui.next')}
-            </Text>
-            {!isLastStep && <ChevronRight size={16} color={tokens.fgOnPrimary} strokeWidth={1.8} />}
-          </Pressable>
+          <PillButton variant="primary" size="sm" onPress={onNext}>
+            {isLastStep ? t('tour.ui.finish') : t('tour.ui.next')}
+          </PillButton>
         </View>
 
         <Pressable
@@ -374,25 +364,6 @@ function createTooltipStyles(tokens: AppTokens) {
     backButtonPressed: {
       backgroundColor: tokens.bgElev,
       transform: [{ scale: 0.96 }],
-    },
-    nextButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 4,
-      paddingHorizontal: 18,
-      minHeight: 44,
-      borderRadius: radius.full,
-      backgroundColor: tokens.primary,
-    },
-    nextButtonPressed: {
-      backgroundColor: tokens.primaryPressed,
-      transform: [{ scale: 0.96 }],
-    },
-    nextButtonText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 15,
-      color: tokens.fgOnPrimary,
     },
     skipButton: {
       alignSelf: 'center',

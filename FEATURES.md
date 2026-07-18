@@ -187,6 +187,7 @@ XP/gamification is **Free**, enabled by a feature flag (migration `EnableGamific
 |---|---|---|---|---|
 | XP & levels | Earn XP for completing habits/goals; level up | Free | Both | — |
 | Achievements & badges | Unlock badges for streaks, consistency, milestones | Free | Both | — |
+| Per-achievement progress | Each quantifiable locked achievement exposes `ProgressCurrent`/`ProgressTarget` (from `/gamification/achievements` + `/gamification/profile`); the desktop rail's "Próxima conquista" module + the achievements list show a live progress bar toward the next unlock | Free | Both (rail is web-only) | — |
 | Streaks | Current and best streak per habit | Free | Both | — |
 | Streak freeze | Shields a streak on a missed day; limited per month | Free | Both | — |
 | Celebration overlays | Milestone/achievement celebration animations | Free | Both | — |

@@ -15,7 +15,6 @@ import type { TourTargetRect } from '@orbit/shared/stores'
 import { TOUR_SECTION_ICONS } from '@orbit/shared/types'
 import {
   ChevronLeft,
-  ChevronRight,
   CheckCircle,
   Target,
   MessageCircle,
@@ -23,6 +22,7 @@ import {
   User,
 } from '@/components/ui/icons'
 import { ProBadge } from '@/components/ui/pro-badge'
+import { PillButton } from '@/components/ui/pill-button'
 
 const surfaceStyle: CSSProperties = {
   boxShadow: 'var(--shadow-3), inset 0 0 0 1px var(--hairline)',
@@ -354,15 +354,14 @@ export function TourTooltip({
           </button>
         )}
         <div className="flex-1" />
-        <button
-          ref={nextButtonRef}
-          type="button"
+        <PillButton
+          buttonRef={nextButtonRef}
+          variant="primary"
+          size="sm"
           onClick={onNext}
-          className="flex min-h-[44px] items-center gap-1 rounded-full bg-[var(--primary)] px-[18px] text-[15px] font-medium text-[var(--fg-on-primary)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] active:translate-y-0 active:scale-[0.96]"
         >
           {isLastStep ? t('tour.ui.finish') : t('tour.ui.next')}
-          {!isLastStep && <ChevronRight className="size-4" strokeWidth={1.8} />}
-        </button>
+        </PillButton>
       </div>
 
       <button

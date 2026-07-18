@@ -2,7 +2,6 @@ import { useRef, useState, type ReactNode, type RefObject } from 'react'
 import {
   View,
   Text,
-  Pressable,
   StyleSheet,
   type TextInput,
   type TextInputKeyPressEvent,
@@ -23,62 +22,6 @@ import { CodeInput } from '@/components/ui/code-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
-
-function DangerPillButton({
-  label,
-  onPress,
-  disabled = false,
-}: Readonly<{
-  label: string
-  onPress: () => void
-  disabled?: boolean
-}>) {
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
-
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ disabled }}
-      style={({ pressed }) => [
-        dangerPillStyles.base,
-        { backgroundColor: tokens.statusBad },
-        disabled ? dangerPillStyles.disabled : null,
-        pressed && !disabled ? dangerPillStyles.pressed : null,
-      ]}
-    >
-      <Text style={[dangerPillStyles.label, { color: tokens.fgOnBad }]}>
-        {label}
-      </Text>
-    </Pressable>
-  )
-}
-
-const dangerPillStyles = StyleSheet.create({
-  base: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 9,
-    borderRadius: 999,
-    paddingVertical: 15,
-    paddingHorizontal: 26,
-    width: '100%',
-  },
-  disabled: {
-    opacity: 0.4,
-  },
-  pressed: {
-    opacity: 0.85,
-  },
-  label: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 16,
-  },
-})
 
 interface DeleteConfirmStepProps {
   profile: Profile | undefined
@@ -130,15 +73,17 @@ function DeleteConfirmStep({
         </Text>
       ) : null}
       <View style={styles.modalActions}>
-        <DangerPillButton
-          label={
-            deleteLoading
-              ? t('profile.deleteAccount.sending')
-              : t('profile.deleteAccount.sendCode')
-          }
+        <PillButton
+          variant="destructive"
+          size="md"
+          fullWidth
           disabled={deleteLoading}
           onPress={onRequestDeletion}
-        />
+        >
+          {deleteLoading
+            ? t('profile.deleteAccount.sending')
+            : t('profile.deleteAccount.sendCode')}
+        </PillButton>
         <PillButton
           variant="ghost"
           fullWidth
@@ -200,15 +145,17 @@ function DeleteCodeStep({
         </Text>
       ) : null}
       <View style={styles.modalActions}>
-        <DangerPillButton
-          label={
-            deleteLoading
-              ? t('profile.deleteAccount.deleting')
-              : t('profile.deleteAccount.confirmDelete')
-          }
+        <PillButton
+          variant="destructive"
+          size="md"
+          fullWidth
           disabled={deleteLoading || deleteCodeDigits.join('').length !== 6}
           onPress={onConfirm}
-        />
+        >
+          {deleteLoading
+            ? t('profile.deleteAccount.deleting')
+            : t('profile.deleteAccount.confirmDelete')}
+        </PillButton>
         <PillButton
           variant="ghost"
           fullWidth

@@ -1,6 +1,6 @@
 import React, { type ReactNode } from 'react'
-import Link from 'next/link'
 import { CalendarDays, Snowflake } from '@/components/ui/icons'
+import { PillButton } from '@/components/ui/pill-button'
 import { SectionLabel } from '@/components/ui/section-label'
 import { StatTile } from '@/components/ui/stat-tile'
 import { ProgressBar } from '@/components/ui/progress-bar'
@@ -550,20 +550,9 @@ function FreezeProGate({ t }: Readonly<{ t: TranslationFn }>) {
         >
           {t('streakDisplay.freeze.pro.gate')}
         </span>
-        <Link
-          href="/upgrade"
-          className="relative shrink-0 rounded-full transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] active:translate-y-0 active:scale-[0.96] after:absolute after:-inset-y-1.5 after:inset-x-0 after:content-['']"
-          style={{
-            padding: '9px 16px',
-            background: 'var(--primary)',
-            color: 'var(--fg-on-primary)',
-            fontFamily: 'var(--font-sans)',
-            fontSize: 13,
-            fontWeight: 500,
-          }}
-        >
+        <PillButton href="/upgrade" variant="primary" size="sm" className="shrink-0">
           {t('common.upgrade')}
-        </Link>
+        </PillButton>
       </div>
     </div>
   )

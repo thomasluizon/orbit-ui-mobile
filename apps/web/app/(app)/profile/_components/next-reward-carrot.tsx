@@ -1,19 +1,9 @@
 'use client'
 
-import Link from 'next/link'
 import { Gift, Lock } from '@/components/ui/icons'
+import { PillButton } from '@/components/ui/pill-button'
 import { useTranslations } from 'next-intl'
 import type { NextRewardCarrotState } from '@orbit/shared/utils'
-
-const upgradeLinkStyle = {
-  padding: '9px 16px',
-  background: 'var(--primary)',
-  color: 'var(--fg-on-primary)',
-  fontFamily: 'var(--font-sans)',
-  fontSize: 13,
-  fontWeight: 500,
-  textDecoration: 'none',
-}
 
 interface NextRewardCarrotProps {
   carrot: NextRewardCarrotState | null
@@ -35,7 +25,7 @@ export function NextRewardCarrot({ carrot }: Readonly<NextRewardCarrotProps>) {
           boxShadow: 'inset 0 0 0 1px rgba(var(--primary-rgb), 0.28)',
         }}
       >
-        <div className="flex items-center" style={{ gap: 10, marginBottom: 8 }}>
+        <div className="flex items-center" style={{ gap: 8, marginBottom: 8 }}>
           <Gift size={18} strokeWidth={1.9} color="var(--primary)" aria-hidden="true" />
           <span
             style={{
@@ -72,7 +62,7 @@ export function NextRewardCarrot({ carrot }: Readonly<NextRewardCarrotProps>) {
             className="flex items-center justify-between"
             style={{ gap: 12, marginTop: 16 }}
           >
-            <span className="flex min-w-0 items-center" style={{ gap: 10 }}>
+            <span className="flex min-w-0 items-center" style={{ gap: 8 }}>
               <Lock size={16} strokeWidth={1.9} color="var(--primary)" aria-hidden="true" />
               <span className="min-w-0">
                 <span
@@ -98,13 +88,9 @@ export function NextRewardCarrot({ carrot }: Readonly<NextRewardCarrotProps>) {
                 </span>
               </span>
             </span>
-            <Link
-              href="/upgrade"
-              className="touch-target-y shrink-0 rounded-full transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] active:translate-y-0 active:scale-[0.96]"
-              style={upgradeLinkStyle}
-            >
+            <PillButton href="/upgrade" variant="primary" size="sm" className="shrink-0">
               {t('common.upgrade')}
-            </Link>
+            </PillButton>
           </div>
         )}
       </div>

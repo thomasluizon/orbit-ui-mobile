@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import { Gift, Lock } from '@/components/ui/icons'
+import { PillButton } from '@/components/ui/pill-button'
 import { useTranslation } from 'react-i18next'
 import type { NextRewardCarrotState } from '@orbit/shared/utils'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
@@ -60,23 +61,14 @@ export function NextRewardCarrot({ carrot, onUpgrade }: Readonly<NextRewardCarro
                 </Text>
               </View>
             </View>
-            <Pressable
+            <PillButton
+              variant="primary"
+              size="sm"
               onPress={onUpgrade}
-              accessibilityRole="button"
               accessibilityLabel={t('common.upgrade')}
-              hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
-              style={({ pressed }) => [
-                styles.pill,
-                {
-                  backgroundColor: pressed ? tokens.primaryPressed : tokens.primary,
-                  transform: [{ scale: pressed ? 0.96 : 1 }],
-                },
-              ]}
             >
-              <Text style={[styles.pillLabel, { color: tokens.fgOnPrimary }]}>
-                {t('common.upgrade')}
-              </Text>
-            </Pressable>
+              {t('common.upgrade')}
+            </PillButton>
           </View>
         ) : null}
       </View>
@@ -97,7 +89,7 @@ const styles = StyleSheet.create({
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
     marginBottom: 8,
   },
   title: {
@@ -120,7 +112,7 @@ const styles = StyleSheet.create({
   teaserLead: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
     flexShrink: 1,
   },
   teaserCopy: {
@@ -133,15 +125,6 @@ const styles = StyleSheet.create({
   },
   teaserSub: {
     fontFamily: 'Rubik_400Regular',
-    fontSize: 13,
-  },
-  pill: {
-    borderRadius: 999,
-    paddingVertical: 9,
-    paddingHorizontal: 16,
-  },
-  pillLabel: {
-    fontFamily: 'Rubik_500Medium',
     fontSize: 13,
   },
 })

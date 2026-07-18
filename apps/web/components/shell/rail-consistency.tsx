@@ -32,7 +32,7 @@ export function RailConsistency() {
   if (!trends.isSuccess || trends.data.activeHabitCount === 0) return null
 
   return (
-    <div className="flex flex-col" style={{ gap: 10 }}>
+    <div className="flex flex-col" style={{ gap: 8 }}>
       <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--fg-2)' }}>
         {t('rail.consistency')}
       </span>
@@ -40,7 +40,7 @@ export function RailConsistency() {
         role="img"
         aria-label={t('rail.consistencyAria')}
         className="flex items-end"
-        style={{ gap: 5, height: CHART_HEIGHT }}
+        style={{ gap: 4, height: CHART_HEIGHT }}
       >
         {days.map((day) => {
           const active = day.rate > 0

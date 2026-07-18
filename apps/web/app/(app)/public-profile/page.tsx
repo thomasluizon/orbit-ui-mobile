@@ -10,7 +10,7 @@ export default function PublicProfilePage() {
   const goBackOrFallback = useGoBackOrFallback()
 
   return (
-    <div className="md:mx-auto md:max-w-[880px]">
+    <div className="md:mx-auto md:max-w-[760px]">
       <div className="flex flex-col min-h-[100dvh]">
         <AppBar
           back

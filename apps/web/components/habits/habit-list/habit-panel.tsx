@@ -17,7 +17,7 @@ export function HabitPanel({
         borderRadius: 18,
         marginLeft: 20,
         marginRight: 20,
-        marginBottom: 10,
+        marginBottom: 12,
         ...(clip ? { overflow: 'hidden' } : {}),
       }}
     >

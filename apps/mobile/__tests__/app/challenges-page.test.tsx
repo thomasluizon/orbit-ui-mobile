@@ -145,9 +145,8 @@ describe('ChallengesScreen (mobile)', () => {
 
     const tree = renderTree(<ChallengesScreen />)
 
-    const spinner = tree.root.findAll((node) => node.type === 'ActivityIndicator')
-    expect(spinner).toHaveLength(1)
-    expect(spinner[0]?.props.accessibilityLabel).toBe('common.loading')
+    const loaders = tree.root.findAll((node) => node.props?.accessibilityRole === 'progressbar')
+    expect(loaders.some((node) => node.props.accessibilityLabel === 'common.loading')).toBe(true)
     expect(textContent(tree.root)).not.toContain('challenges.empty.title')
   })
 

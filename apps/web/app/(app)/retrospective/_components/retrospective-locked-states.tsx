@@ -1,9 +1,8 @@
 'use client'
 
-import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { PillButton } from '@/components/ui/pill-button'
-import { LockedBlock, pillLinkClassName } from './locked-block'
+import { LockedBlock } from './locked-block'
 
 interface RetrospectiveLockedStatesProps {
   hasProAccess: boolean
@@ -31,9 +30,9 @@ export function RetrospectiveLockedStates({
         hint={t('retrospective.lockedYearlyHint')}
       >
         {isTrialActive ? (
-          <Link href="/upgrade" className={pillLinkClassName}>
+          <PillButton href="/upgrade" variant="primary" size="md">
             {t('upgrade.subscribe')}
-          </Link>
+          </PillButton>
         ) : (
           <PillButton onClick={onOpenPortal}>
             {t('retrospective.changePlan')}

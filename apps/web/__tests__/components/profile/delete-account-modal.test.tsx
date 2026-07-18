@@ -194,7 +194,7 @@ describe('DeleteAccountModal', () => {
       expect(screen.getByText('profile.deleteAccount.confirmDelete')).toBeInTheDocument()
     })
 
-    const confirmBtn = screen.getByText('profile.deleteAccount.confirmDelete')
+    const confirmBtn = screen.getByText('profile.deleteAccount.confirmDelete').closest('button')
     expect(confirmBtn).toBeDisabled()
   })
 

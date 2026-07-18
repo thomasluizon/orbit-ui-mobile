@@ -88,8 +88,8 @@ describe('InviteConfirmSheet', () => {
     mocks.previewReturn = { data: undefined, isLoading: true, isError: false, error: null }
     const tree = await renderTree(<InviteConfirmSheet code="REF123" onClose={mocks.onClose} />)
     expect(
-      tree.root.findAll((node) => node.props?.accessibilityRole === 'progressbar').length,
-    ).toBeGreaterThan(0)
+      tree.root.find((node) => node.props?.accessibilityRole === 'progressbar'),
+    ).toBeTruthy()
   })
 
   it('previews the owner and sends a request with the referral code', async () => {

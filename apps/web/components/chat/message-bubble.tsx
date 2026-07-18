@@ -9,6 +9,7 @@ import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
 import { getRelatedSurfaces, stripHabitListDirective } from '@orbit/shared/chat'
 import { resolveUpgradeEntitlementFromPolicyDenial } from '@orbit/shared/utils'
 import { AstraMark } from '@/components/ui/astra-avatar'
+import { PillButton } from '@/components/ui/pill-button'
 import { LocalImage } from '@/components/ui/local-image'
 import { Markdown } from '@/components/ui/markdown'
 import { ActionChips } from './action-chips'
@@ -262,13 +263,14 @@ export function MessageBubble({
                     {upgradeResolution.shouldUpgrade ? t('chat.proGate.body') : denial.reason}
                   </p>
                   {upgradeResolution.shouldUpgrade && onUpgradeClick && (
-                    <button
-                      type="button"
+                    <PillButton
+                      variant="primary"
+                      size="sm"
                       onClick={onUpgradeClick}
-                      className="touch-target-y mt-3 inline-flex items-center rounded-full bg-[var(--primary)] px-4 py-2 text-[12px] font-semibold text-[var(--fg-on-primary)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--primary-pressed)] active:scale-[0.96]"
+                      className="mt-3"
                     >
                       {t('upgrade.subscribe')}
-                    </button>
+                    </PillButton>
                   )}
                 </div>
               )

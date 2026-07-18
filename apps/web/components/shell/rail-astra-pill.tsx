@@ -13,7 +13,7 @@ export function RailAstraPill() {
       href="/chat"
       aria-label={t('rail.askAstra')}
       className="flex min-h-[44px] w-full items-center justify-center rounded-full transition-[transform,background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.97]"
-      style={{ gap: 10, paddingInline: 18, boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)' }}
+      style={{ gap: 8, paddingInline: 18, boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)' }}
     >
       <AstraMark size={18} />
       <span
