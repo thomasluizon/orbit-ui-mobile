@@ -254,7 +254,7 @@ export function TodayUtilityRow({
     >
       {searchOpen ? (
         <div
-          className="flex items-center flex-1 min-w-0 shadow-[inset_0_0_0_1px_var(--hairline)] focus-within:shadow-[inset_0_0_0_2px_var(--primary)] transition-[box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
+          className="flex items-center flex-1 min-w-0 shadow-[inset_0_0_0_1px_var(--hairline)] transition-[box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
           style={{
             gap: 8,
             minHeight: 44,
@@ -269,10 +269,8 @@ export function TodayUtilityRow({
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder={t('habits.searchPlaceholder')}
             autoFocus
-            className="appearance-none border-0 bg-transparent flex-1 min-w-0"
+            className="appearance-none border-0 bg-transparent flex-1 min-w-0 rounded-full outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
             style={{
-              // react-doctor-disable-next-line no-outline-none -- focus ring is shown on the wrapper via focus-within:shadow-[inset_0_0_0_2px_var(--primary)] https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-              outline: 'none',
               fontFamily: 'var(--font-sans)',
               fontSize: 15,
               color: 'var(--fg-1)',

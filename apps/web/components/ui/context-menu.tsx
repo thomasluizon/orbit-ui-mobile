@@ -219,7 +219,7 @@ function ContextMenuRow({ item, onRun }: Readonly<ContextMenuRowProps>) {
         event.stopPropagation()
         onRun()
       }}
-      className="appearance-none border-0 bg-transparent w-full flex items-center text-left transition-colors hover:bg-[var(--bg-sunk)] focus-visible:bg-[var(--bg-sunk)] focus:outline-none"
+      className="appearance-none border-0 bg-transparent w-full flex items-center text-left transition-colors hover:bg-[var(--bg-sunk)] focus-visible:bg-[var(--bg-sunk)] outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)]"
       style={{
         ...CONTEXT_MENU_ROW_STYLE,
         color: item.danger ? 'var(--status-bad-text)' : 'var(--fg-1)',

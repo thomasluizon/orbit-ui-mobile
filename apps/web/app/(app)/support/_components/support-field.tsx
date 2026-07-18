@@ -51,7 +51,7 @@ export function SupportField({
         placeholder={placeholder}
         aria-label={ariaLabel ?? label}
         rows={multiline ? rows : undefined}
-        className="w-full resize-none appearance-none rounded-[14px] border-0 bg-[var(--bg-field)] outline-none placeholder:text-[var(--fg-3)] focus:shadow-[inset_0_0_0_2px_var(--primary)]"
+        className="w-full resize-none appearance-none rounded-[14px] border-0 bg-[var(--bg-field)] outline-none placeholder:text-[var(--fg-3)] focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
         style={{
           minHeight: multiline ? undefined : 54,
           padding: multiline ? '14px 16px' : '0 16px',

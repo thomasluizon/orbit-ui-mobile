@@ -131,7 +131,7 @@ export function ReminderSection({
                       min={1}
                       aria-label={t('habits.form.reminderCustomPlaceholder')}
                       placeholder={t('habits.form.reminderCustomPlaceholder')}
-                      className="w-20 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-[12px] py-2 px-3 text-sm border-0 shadow-[inset_0_0_0_1px_var(--hairline)] focus:outline-none focus:shadow-[inset_0_0_0_2px_var(--primary)] transition-[box-shadow] duration-[var(--dur-fast)]"
+                      className="w-20 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-[12px] py-2 px-3 text-sm border-0 shadow-[inset_0_0_0_1px_var(--hairline)] focus:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] transition-[box-shadow] duration-[var(--dur-fast)]"
                       onChange={(e) => setCustomValue(e.target.value ? Number(e.target.value) : null)}
                       onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomReminder() } }}
                     />

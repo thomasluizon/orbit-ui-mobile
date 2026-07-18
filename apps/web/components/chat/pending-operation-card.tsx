@@ -217,7 +217,7 @@ export function PendingOperationCard({
               setVerificationCode(event.target.value.replaceAll(/\D/g, '').slice(0, 6))
             }
             placeholder={t('common.codePlaceholder')}
-            className="w-full rounded-[14px] bg-[var(--bg-field)] px-4 py-3 text-sm text-[var(--fg-1)] outline-none transition-[box-shadow] duration-[var(--dur-fast)] shadow-[inset_0_0_0_1px_var(--hairline)] focus:shadow-[inset_0_0_0_2px_var(--primary)]"
+            className="w-full rounded-[14px] bg-[var(--bg-field)] px-4 py-3 text-sm text-[var(--fg-1)] outline-none transition-[box-shadow] duration-[var(--dur-fast)] shadow-[inset_0_0_0_1px_var(--hairline)] focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
             style={{ fontFamily: 'var(--font-sans)' }}
           />
           <div className="flex gap-2">

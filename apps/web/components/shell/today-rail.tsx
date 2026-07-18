@@ -2,7 +2,7 @@
 
 import { useMemo, type ComponentType } from 'react'
 import { useTranslations } from 'next-intl'
-import { Flame, ListChecks, Sparkles, Trophy, type LucideProps } from 'lucide-react'
+import { Flame, ListChecks, Trophy, Zap, type LucideProps } from 'lucide-react'
 import { computeDayProgress } from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
 import { useToday } from '@/app/(app)/today-provider'
@@ -161,7 +161,7 @@ export function TodayRail() {
                 )}`}
               />
               <RailStatRow
-                icon={Sparkles}
+                icon={Zap}
                 label={t('gamification.profileCard.level', { level: gamification.level })}
                 value={`${xpProgress}%`}
                 meter={xpProgress}

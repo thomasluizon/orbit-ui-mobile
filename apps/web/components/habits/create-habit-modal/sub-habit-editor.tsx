@@ -67,7 +67,7 @@ export function SubHabitEditor({
           {subHabits.map((entry, index) => (
             <div
               key={entry.id}
-              className="flex items-center rounded-[14px] bg-[var(--bg-field)] shadow-[inset_0_0_0_1px_var(--hairline)] focus-within:shadow-[inset_0_0_0_2px_var(--primary)] transition-[box-shadow] duration-[var(--dur-fast)]"
+              className="flex items-center rounded-[14px] bg-[var(--bg-field)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[box-shadow] duration-[var(--dur-fast)]"
               style={{ minHeight: 54, gap: 10, padding: '0 8px 0 16px' }}
             >
               <span
@@ -82,7 +82,7 @@ export function SubHabitEditor({
                 maxLength={MAX_HABIT_TITLE_LENGTH}
                 aria-label={t('habits.form.subHabitInputLabel', { index: index + 1 })}
                 placeholder={t('habits.form.subHabitPlaceholder')}
-                className="flex-1 min-w-0 bg-transparent text-[15px] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] border-0 focus:outline-none"
+                className="flex-1 min-w-0 rounded-[13px] bg-transparent text-[15px] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] border-0 outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
                 onChange={(e) => onUpdateSubHabit(entry.id, e.target.value)}
               />
               <button

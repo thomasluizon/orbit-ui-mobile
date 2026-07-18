@@ -341,7 +341,7 @@ function CreateStep(props: Readonly<CreateStepProps>) {
           type="datetime-local"
           value={expiresAt}
           onChange={(event) => onExpiresAtChange(event.target.value)}
-          className="w-full appearance-none rounded-[14px] border-0 bg-[var(--bg-field)] shadow-[inset_0_0_0_1px_var(--hairline)] outline-none focus:shadow-[inset_0_0_0_2px_var(--primary)]"
+          className="w-full appearance-none rounded-[14px] border-0 bg-[var(--bg-field)] shadow-[inset_0_0_0_1px_var(--hairline)] outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
           style={{
             minHeight: 54,
             padding: '0 16px',

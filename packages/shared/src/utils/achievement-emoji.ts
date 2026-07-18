@@ -32,5 +32,5 @@ const ACHIEVEMENT_EMOJI: Record<string, string> = {
 
 /** Emoji for an achievement tile, keyed by the API's `iconKey`. */
 export function achievementEmoji(iconKey: string): string {
-  return ACHIEVEMENT_EMOJI[iconKey] ?? '✨'
+  return ACHIEVEMENT_EMOJI[iconKey] ?? '🏆'
 }

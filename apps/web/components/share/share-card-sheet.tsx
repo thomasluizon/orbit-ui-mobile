@@ -119,6 +119,14 @@ export function ShareCardSheet({ open, onOpenChange, displayName }: Readonly<Sha
                   ease: cardEnterMotion.enterEasing,
                 },
               }}
+              exit={{
+                opacity: 0,
+                y: cardEnterMotion.shift,
+                transition: {
+                  duration: cardEnterMotion.enterDuration / 1000,
+                  ease: cardEnterMotion.enterEasing,
+                },
+              }}
             >
               <div className="flex justify-center">
                 <ShareCard ref={captureRef} recap={recap} displayName={displayName} />

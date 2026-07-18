@@ -156,7 +156,7 @@ export function AppTimePicker({
           (displayValue ? t('common.selectedTime', { time: displayValue }) : t('common.selectTime'))
         }
         onClick={() => (isOpen ? closePicker() : openPicker())}
-        className="flex w-full min-h-[54px] items-center justify-between rounded-[14px] bg-[var(--bg-field)] px-4 py-3 text-left text-base text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color,box-shadow,color] duration-[var(--dur-fast)] focus:outline-none focus:shadow-[inset_0_0_0_2px_var(--primary)] disabled:opacity-60"
+        className="flex w-full min-h-[54px] items-center justify-between rounded-[14px] bg-[var(--bg-field)] px-4 py-3 text-left text-base text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color,box-shadow,color] duration-[var(--dur-fast)] focus:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] disabled:opacity-60"
         style={canClear ? { paddingRight: 40 } : undefined}
       >
         <span className={displayValue ? '' : 'text-[var(--fg-3)]'}>

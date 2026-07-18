@@ -178,7 +178,7 @@ export function CommandMenu({ navItems, onCreateHabit, onCreateGoal, onClose, in
           onValueChange={setSearch}
           onKeyDown={handleInputKeyDown}
           placeholder={t('command.placeholder')}
-          className="h-14 flex-1 bg-transparent text-[16px] text-[var(--fg-1)] outline-none placeholder:text-[var(--fg-4)]"
+          className="h-14 flex-1 bg-transparent text-[16px] text-[var(--fg-1)] outline-none placeholder:text-[var(--fg-4)] focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
         />
       </div>
 
