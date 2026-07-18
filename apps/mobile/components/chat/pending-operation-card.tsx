@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import Animated, { Keyframe, ReduceMotion } from "react-native-reanimated";
-import { ShieldAlert } from "lucide-react-native";
+import { ShieldAlert } from '@/components/ui/icons';
 import { useTranslation } from "react-i18next";
 import type { AgentExecuteOperationResponse, PendingAgentOperation } from "@orbit/shared/types";
 import {

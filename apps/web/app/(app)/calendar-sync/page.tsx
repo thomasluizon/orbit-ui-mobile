@@ -8,7 +8,7 @@ import {
   Link as LinkIcon,
   AlertTriangle,
   WifiOff,
-} from 'lucide-react'
+} from '@/components/ui/icons'
 import { useQueryClient } from '@tanstack/react-query'
 import { AppBar } from '@/components/ui/app-bar'
 import { PillButton } from '@/components/ui/pill-button'

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Check, Copy, Share2 } from 'lucide-react'
+import { Check, Copy, Share2 } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
 import { ShareCardQr } from '@/components/share/share-card-qr'
 import { useReferral } from '@/hooks/use-referral'

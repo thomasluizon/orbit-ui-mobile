@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native'
 import { Pressable } from 'react-native-gesture-handler'
-import { CheckCircle2, FastForward, Trash2, X } from 'lucide-react-native'
+import { CheckCircle2, FastForward, Trash2, X } from '@/components/ui/icons'
 import { createTokensV2, shadowsV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 

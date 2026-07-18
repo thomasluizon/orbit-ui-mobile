@@ -1,6 +1,6 @@
 'use client'
 
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import type { ConflictWarning as ConflictWarningType } from '@orbit/shared/types/chat'
 

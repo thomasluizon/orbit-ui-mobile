@@ -8,7 +8,7 @@ import {
   Plus,
   Settings,
   type LucideProps,
-} from 'lucide-react'
+} from '@/components/ui/icons'
 import { AppLogo } from '@/components/ui/app-logo'
 import { PillButton } from '@/components/ui/pill-button'
 import { UserAvatar } from '@/components/ui/user-avatar'

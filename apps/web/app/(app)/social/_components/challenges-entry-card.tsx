@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { ChevronRight, Trophy } from 'lucide-react'
+import { ChevronRight, Trophy } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 
 /** Tappable card on the Social screen that routes into the dedicated challenges surface. */

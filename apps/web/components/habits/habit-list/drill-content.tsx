@@ -1,6 +1,6 @@
 'use client'
 
-import { Plus } from 'lucide-react'
+import { Plus } from '@/components/ui/icons'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { PillButton } from '@/components/ui/pill-button'
 import { HabitListSkeleton } from './empty-state'

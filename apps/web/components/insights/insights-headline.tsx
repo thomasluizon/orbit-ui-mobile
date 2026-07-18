@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { TrendingDown, TrendingUp } from 'lucide-react'
+import { TrendingDown, TrendingUp } from '@/components/ui/icons'
 import { parseAPIDate } from '@orbit/shared/utils'
 import type { InsightsHeadlineProps } from './insights-headline-model'
 

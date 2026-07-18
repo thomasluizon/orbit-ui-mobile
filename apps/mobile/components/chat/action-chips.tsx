@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
 import Animated, { FadeInLeft, ReduceMotion } from "react-native-reanimated";
-import { CheckCircle, XCircle, Info } from "lucide-react-native";
+import { CheckCircle, XCircle, Info } from '@/components/ui/icons';
 import { useTranslation } from "react-i18next";
 import type { ActionResult } from "@orbit/shared/types/chat";
 import { ConflictWarning } from "./conflict-warning";

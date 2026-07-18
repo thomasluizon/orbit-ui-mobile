@@ -1,6 +1,6 @@
 'use client'
 
-import { Check } from 'lucide-react'
+import { Check } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { UserAvatar } from '@/components/ui/user-avatar'
 import { useFriends } from '@/hooks/use-friends'

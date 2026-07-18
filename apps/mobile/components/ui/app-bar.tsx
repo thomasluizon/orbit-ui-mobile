@@ -6,7 +6,7 @@ import {
   Share2,
   X,
   type LucideProps,
-} from 'lucide-react-native'
+} from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -117,7 +117,7 @@ interface AppBarProps {
   back?: boolean
   /** Callback for the back / leading button. */
   onBack?: () => void
-  /** Leading lucide-react-native icon (ignored when `back` is true). */
+  /** Leading icon (ignored when `back` is true). */
   LeadingIcon?: LucideIcon
   /** Mark rendered immediately before the centered title (e.g. Astra's avatar). */
   titleIcon?: ReactNode

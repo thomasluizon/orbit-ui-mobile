@@ -1,6 +1,6 @@
 import {
   AlertTriangle, CreditCard, Download, Receipt, Settings,
-} from 'lucide-react'
+} from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { Badge } from '@/components/ui/badge'
 import { PillButton } from '@/components/ui/pill-button'

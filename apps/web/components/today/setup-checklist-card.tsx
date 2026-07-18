@@ -1,7 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import { Check, X } from 'lucide-react'
+import { Check, X } from '@/components/ui/icons'
 import type { Profile } from '@orbit/shared/types'
 import { useProfile } from '@/hooks/use-profile'
 import { useUIStore } from '@/stores/ui-store'

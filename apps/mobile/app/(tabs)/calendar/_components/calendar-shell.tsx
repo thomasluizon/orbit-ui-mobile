@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
-} from "lucide-react-native";
+} from '@/components/ui/icons';
 import {
   Modal,
   Pressable,

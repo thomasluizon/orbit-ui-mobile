@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useCallback, useId, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Expand } from 'lucide-react'
+import { X, Expand } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import DOMPurify from 'dompurify'
 // react-doctor-disable-next-line use-lazy-motion -- LazyMotion migration is app-wide (needs a shared provider + converting every motion.* across components/**); a partial per-file swap yields no bundle benefit and risks unprovided m https://github.com/thomasluizon/orbit-ui-mobile/issues/243

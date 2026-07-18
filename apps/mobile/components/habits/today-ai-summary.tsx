@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { ArrowUpRight } from 'lucide-react-native'
+import { ArrowUpRight } from '@/components/ui/icons'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { AI_SUMMARY_CLAMP_CHARS } from '@orbit/shared/utils'

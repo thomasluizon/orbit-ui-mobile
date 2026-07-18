@@ -10,7 +10,7 @@ import {
   Download,
   Receipt,
   Settings,
-} from 'lucide-react-native'
+} from '@/components/ui/icons'
 import type { BillingDetails } from '@orbit/shared/types/subscription'
 import { Badge } from '@/components/ui/badge'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'

@@ -1,6 +1,6 @@
 'use client'
 
-import { Target, Flame } from 'lucide-react'
+import { Target, Flame } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import type { GoalType } from '@orbit/shared/types/goal'
 import { GoalGroupLabel } from './goal-group-label'

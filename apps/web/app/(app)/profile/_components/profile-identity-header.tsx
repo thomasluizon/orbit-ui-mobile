@@ -1,6 +1,6 @@
 'use client'
 
-import { Pencil } from 'lucide-react'
+import { Pencil } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { Badge } from '@/components/ui/badge'
 

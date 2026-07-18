@@ -6,12 +6,12 @@ import {
   Gift,
   Globe,
   Settings,
-  Sparkles,
   Trophy,
   Users,
   Wrench,
   type LucideIcon,
-} from 'lucide-react'
+} from '@/components/ui/icons'
+import { AstraMark } from '@/components/ui/astra-avatar'
 import type { ProfileNavIconKey } from '@orbit/shared/utils/profile-navigation'
 
 interface ProfileNavIconProps {
@@ -22,9 +22,8 @@ interface ProfileNavIconProps {
   size?: number
 }
 
-const ICON_BY_KEY: Record<ProfileNavIconKey, LucideIcon> = {
+const ICON_BY_KEY: Record<Exclude<ProfileNavIconKey, 'orbit'>, LucideIcon> = {
   settings: Settings,
-  orbit: Sparkles,
   retrospective: ChartLine,
   wrapped: Gift,
   achievements: Trophy,
@@ -41,6 +40,9 @@ export function ProfileNavIcon({
   color = 'var(--fg-1)',
   size = 22,
 }: Readonly<ProfileNavIconProps>) {
+  if (iconKey === 'orbit') {
+    return <AstraMark size={size} color={color} strokeWidth={1.8} />
+  }
   const Icon = ICON_BY_KEY[iconKey]
   return <Icon size={size} strokeWidth={1.8} color={color} />
 }

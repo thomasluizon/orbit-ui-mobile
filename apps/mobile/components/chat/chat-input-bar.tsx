@@ -6,7 +6,7 @@ import {
   Mic,
   Paperclip,
   Square,
-} from "lucide-react-native";
+} from '@/components/ui/icons';
 import { useTranslation } from "react-i18next";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { CHAT_DRAFT_STORAGE_KEY } from "@orbit/shared/hooks";

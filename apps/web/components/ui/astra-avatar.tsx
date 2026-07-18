@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
-import type { LucideProps } from 'lucide-react'
+import type { LucideProps } from '@/components/ui/icons'
 
 const RING_RADIUS = 8.25
 const CORE_RADIUS = 3

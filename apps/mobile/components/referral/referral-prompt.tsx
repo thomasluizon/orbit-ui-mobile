@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
-import { Gift } from 'lucide-react-native'
+import { Gift } from '@/components/ui/icons'
 import { referralKeys } from '@orbit/shared/query'
 import type { ReferralDashboard } from '@orbit/shared/types/referral'
 import {

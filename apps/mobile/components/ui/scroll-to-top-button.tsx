@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react'
 // react-doctor-disable-next-line rn-prefer-reanimated -- RN Animated with useNativeDriver drives the button transform/opacity on the UI thread already; Reanimated 4.x migration deferred (worklets 0.10.0 ABI-pinned to the SDK 57 set, needs on-device QA) https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { Animated, Pressable, StyleSheet } from 'react-native'
-import { ArrowUp } from 'lucide-react-native'
+import { ArrowUp } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { createTokensV2, easings, shadowsV2, zLayers } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'

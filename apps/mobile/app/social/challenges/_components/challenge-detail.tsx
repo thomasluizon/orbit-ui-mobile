@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
-import { Flame, Pencil, Target } from 'lucide-react-native'
+import { Flame, Pencil, Target } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { formatLocaleDate } from '@orbit/shared/utils'
 import type { ChallengeParticipant } from '@orbit/shared/types/challenge'

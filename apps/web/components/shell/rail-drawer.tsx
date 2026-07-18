@@ -10,7 +10,7 @@ import {
   useReducedMotion,
 } from 'motion/react'
 import { useTranslations } from 'next-intl'
-import { PanelRight } from 'lucide-react'
+import { PanelRight } from '@/components/ui/icons'
 import { resolveMotionPreset } from '@orbit/shared/theme'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useOverlayEscape } from '@/hooks/use-overlay-escape'

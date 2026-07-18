@@ -6,7 +6,7 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from 'react-native'
-import { Check } from 'lucide-react-native'
+import { Check } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { ClarificationRequest } from '@orbit/shared/types'
 import { useResolveClarification } from '@/hooks/use-resolve-clarification'

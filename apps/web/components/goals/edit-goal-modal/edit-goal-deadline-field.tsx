@@ -1,6 +1,6 @@
 'use client'
 
-import { Plus, X } from 'lucide-react'
+import { Plus, X } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { formatAPIDate } from '@orbit/shared/utils/dates'

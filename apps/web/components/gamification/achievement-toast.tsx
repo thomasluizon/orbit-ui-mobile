@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useEffectEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
-import { Trophy } from 'lucide-react'
+import { Trophy } from '@/components/ui/icons'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useUIStore } from '@/stores/ui-store'

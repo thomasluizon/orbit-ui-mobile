@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { Check } from 'lucide-react-native'
+import { Check } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { UserAvatar } from '@/components/ui/user-avatar'
 import { useFriends } from '@/hooks/use-friends'

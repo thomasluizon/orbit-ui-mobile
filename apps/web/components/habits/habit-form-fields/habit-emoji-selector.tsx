@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react'
-import { X, Plus } from 'lucide-react'
+import { X, Plus } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { HABIT_EMOJI_CATEGORIES, filterHabitEmojiCategories } from '@orbit/shared/utils'
 import { CenteredOverlay } from '@/components/ui/centered-overlay'

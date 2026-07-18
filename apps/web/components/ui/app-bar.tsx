@@ -1,7 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import { ChevronLeft, HelpCircle, Share2, X } from 'lucide-react'
+import { ChevronLeft, HelpCircle, Share2, X } from '@/components/ui/icons'
 import type { ReactNode } from 'react'
 import { useIsDesktop } from '@/hooks/use-is-desktop'
 import { useInAppShell } from '@/components/shell/in-app-shell-context'

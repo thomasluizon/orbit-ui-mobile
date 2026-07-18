@@ -15,7 +15,7 @@ import {
   Infinity,
   ChevronLeft,
   ChevronRight,
-} from "lucide-react-native";
+} from '@/components/ui/icons';
 import { useTranslation } from "react-i18next";
 import type { AppTokens } from "./styles";
 import type { HabitFormStyles } from "./types";

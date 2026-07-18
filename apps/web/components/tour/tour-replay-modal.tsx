@@ -21,7 +21,7 @@ import {
   User,
   Play,
   RotateCcw,
-} from 'lucide-react'
+} from '@/components/ui/icons'
 
 const SECTION_ICON_MAP = {
   'check-circle': CheckCircle,

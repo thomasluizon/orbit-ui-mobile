@@ -51,7 +51,7 @@ vi.mock('@/lib/theme', () => ({
   tintFromPrimary: () => 'rgba(17, 17, 17, 0.18)',
 }))
 
-vi.mock('lucide-react-native', () => {
+vi.mock('@/components/ui/icons', () => {
 
   const React = require('react')
   return {

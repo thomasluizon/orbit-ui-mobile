@@ -16,7 +16,7 @@ import {
   List,
   Plus,
   RotateCcw,
-} from 'lucide-react-native'
+} from '@/components/ui/icons'
 import type { ApiKey } from '@orbit/shared/types'
 import {
   buildMcpConfigJson,

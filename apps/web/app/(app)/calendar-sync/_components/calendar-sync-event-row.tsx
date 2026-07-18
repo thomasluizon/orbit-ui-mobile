@@ -1,6 +1,6 @@
 'use client'
 
-import { Bell, X } from 'lucide-react'
+import { Bell, X } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { RadioGlyph } from '@/components/ui/select-check'
 import { Badge } from '@/components/ui/badge'

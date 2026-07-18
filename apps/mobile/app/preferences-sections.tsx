@@ -1,6 +1,6 @@
 import { View, Text, Pressable, ScrollView } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
-import { Calendar, Check, Languages, Moon, Palette } from 'lucide-react-native'
+import { Calendar, Check, Languages, Moon, Palette } from '@/components/ui/icons'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
 import type { ThemeMode } from '@orbit/shared/types/profile'
 import {

@@ -1,6 +1,6 @@
 'use client'
 
-import { ListChecks, Trash2, X } from 'lucide-react'
+import { ListChecks, Trash2, X } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { FactsPagination } from './facts-pagination'
 

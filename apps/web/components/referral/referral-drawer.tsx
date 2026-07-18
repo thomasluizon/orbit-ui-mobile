@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, Copy, Gift, Loader2, Share2 } from 'lucide-react'
+import { Check, Copy, Gift, Loader2, Share2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { useReferral } from '@/hooks/use-referral'
 import { AppOverlay } from '@/components/ui/app-overlay'

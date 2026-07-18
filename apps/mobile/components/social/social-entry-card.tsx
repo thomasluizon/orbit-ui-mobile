@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
-import { ChevronRight, Users, X } from 'lucide-react-native'
+import { ChevronRight, Users, X } from '@/components/ui/icons'
 import { plural } from '@/lib/plural'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
 import { useFriends } from '@/hooks/use-friends'

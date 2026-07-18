@@ -1,4 +1,4 @@
-import { Sparkles, type LucideIcon } from 'lucide-react'
+import { Info, type LucideIcon } from '@/components/ui/icons'
 import type { ReactNode } from 'react'
 
 interface InfoCardProps {
@@ -9,7 +9,7 @@ interface InfoCardProps {
 }
 
 /** Kit info card: primary-tinted bordered row with leading icon, title, and description. */
-export function InfoCard({ icon: Icon = Sparkles, title, desc, trailing }: Readonly<InfoCardProps>) {
+export function InfoCard({ icon: Icon = Info, title, desc, trailing }: Readonly<InfoCardProps>) {
   return (
     <div
       className="flex items-center rounded-[18px]"

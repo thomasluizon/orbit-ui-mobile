@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { View, Text, Pressable, ActivityIndicator } from "react-native";
-import { Plus, Sparkles } from "lucide-react-native";
+import { Plus } from '@/components/ui/icons';
+import { AstraMark } from '@/components/ui/astra-avatar';
 import { useTranslation } from "react-i18next";
 import type { SuggestedTag } from "@orbit/shared/types/habit";
 import { getFriendlyErrorMessage } from "@orbit/shared/utils";
@@ -162,7 +163,7 @@ export function TagsSection({
           {tagSuggestions.isPending ? (
             <ActivityIndicator size="small" color={tokens.primary} />
           ) : (
-            <Sparkles size={14} color={tokens.primary} strokeWidth={2} />
+            <AstraMark size={14} />
           )}
           <Text style={styles.aiChipText}>
             {tagSuggestions.isPending

@@ -4,7 +4,7 @@ import Animated, {
   FadeInDown,
   ReduceMotion,
 } from "react-native-reanimated";
-import { ArrowRight } from "lucide-react-native";
+import { ArrowRight } from '@/components/ui/icons';
 import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import { plural } from "@/lib/plural";

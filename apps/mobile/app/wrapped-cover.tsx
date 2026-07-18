@@ -1,5 +1,5 @@
 import { Text, View } from 'react-native'
-import { Play } from 'lucide-react-native'
+import { Play } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { RECAP_SHARE_PERIODS, type RecapSharePeriod } from '@orbit/shared/utils'
 import { RingMotif } from '@/components/gamification/ring-motif'

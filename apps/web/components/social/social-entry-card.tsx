@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { ChevronRight, Users, X } from 'lucide-react'
+import { ChevronRight, Users, X } from '@/components/ui/icons'
 import { plural } from '@/lib/plural'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
 import { useFriends } from '@/hooks/use-friends'

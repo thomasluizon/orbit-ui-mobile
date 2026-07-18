@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
-import { Home, Search } from 'lucide-react-native'
+import { Home, Search } from '@/components/ui/icons'
 import { filterMoveTargetsBySearch } from '@orbit/shared/utils'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { AppTextInput } from '@/components/ui/app-text-input'

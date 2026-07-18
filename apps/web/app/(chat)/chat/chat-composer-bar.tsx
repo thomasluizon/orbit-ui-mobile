@@ -16,7 +16,7 @@ import {
   Image as ImageIcon,
   Paperclip,
   FileText,
-} from 'lucide-react'
+} from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import {
   CHAT_TEXT_FILE_WEB_ACCEPT,

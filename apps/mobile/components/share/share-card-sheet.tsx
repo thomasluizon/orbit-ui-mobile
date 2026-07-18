@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
-import { Share2 } from 'lucide-react-native'
+import { Share2 } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import {
   isRecapShareEmpty,

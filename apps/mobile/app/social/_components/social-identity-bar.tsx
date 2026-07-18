@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { Pencil } from 'lucide-react-native'
+import { Pencil } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { useProfile } from '@/hooks/use-profile'
 import { createTokensV2 } from '@/lib/theme'

@@ -2,7 +2,7 @@ import { type RefObject } from 'react'
 import { View } from 'react-native'
 import Animated from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
-import { CreditCard } from 'lucide-react-native'
+import { CreditCard } from '@/components/ui/icons'
 import type { Profile } from '@orbit/shared/types/profile'
 import {
   PROFILE_NAV_ITEMS,

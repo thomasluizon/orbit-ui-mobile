@@ -5,7 +5,7 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
 } from "react-native-reanimated";
-import { ChevronDown } from "lucide-react-native";
+import { ChevronDown } from '@/components/ui/icons';
 import { useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import type { AppTokens } from "./styles";

@@ -1,6 +1,6 @@
 'use client'
 
-import { Moon, Sun } from 'lucide-react'
+import { Moon, Sun } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { useColorScheme } from '@/hooks/use-color-scheme'
 

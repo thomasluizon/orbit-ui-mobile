@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { Flame, Target, Users } from 'lucide-react-native'
+import { Flame, Target, Users } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { plural } from '@orbit/shared/utils'
 import type { ChallengeListItem } from '@orbit/shared/types/challenge'

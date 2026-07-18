@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useRef } from 'react'
-import { Check, Plus, Loader2 } from 'lucide-react'
+import { Check, Plus, Loader2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import type { SuggestedSubHabit } from '@orbit/shared/types/chat'

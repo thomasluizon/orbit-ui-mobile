@@ -10,7 +10,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import type { FlatList } from "react-native-gesture-handler";
-import { Check, Filter } from "lucide-react-native";
+import { Check, Filter } from '@/components/ui/icons';
 import { useTranslation } from "react-i18next";
 import type { Goal, GoalStatus } from "@orbit/shared/types/goal";
 import { useGoals } from "@/hooks/use-goals";

@@ -251,7 +251,7 @@ vi.mock('@/lib/plural', () => ({
   plural: mocks.plural,
 }))
 
-vi.mock('lucide-react-native', () => {
+vi.mock('@/components/ui/icons', () => {
   const iconNames = [
     'AlertTriangle',
     'ArrowLeft',

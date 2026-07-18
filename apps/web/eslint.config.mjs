@@ -91,6 +91,19 @@ export default [
       "local/no-fullbleed-button": ["error", { flagFullWidthProp: false }],
       "no-console": "error",
 
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            { name: "lucide-react", message: "Import icons from '@/components/ui/icons' (the barrel), never lucide-react. #539 b6" },
+            { name: "@tabler/icons-react", message: "Import icons from '@/components/ui/icons' (the barrel), never @tabler/icons-react directly. #539 b6" },
+          ],
+          patterns: [
+            { group: ["lucide-react/*", "@tabler/icons-react/*"], message: "Import icons from '@/components/ui/icons' (the barrel). #539 b6" },
+          ],
+        },
+      ],
+
       "local/animate-presence-stable-key": "error",
       "local/no-arbitrary-zindex": "error",
       "local/no-calc-percentage-width": "error",
@@ -143,6 +156,10 @@ export default [
       // https://github.com/thomasluizon/orbit-ui-mobile/issues/539
       "jsx-a11y/no-noninteractive-element-interactions": "warn",
     },
+  },
+  {
+    files: ["**/components/ui/icons.tsx"],
+    rules: { "no-restricted-imports": "off" },
   },
   {
     files: [

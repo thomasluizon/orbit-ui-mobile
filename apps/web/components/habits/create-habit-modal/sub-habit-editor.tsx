@@ -1,6 +1,6 @@
 'use client'
 
-import { Trash2, Plus } from 'lucide-react'
+import { Trash2, Plus } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { MAX_HABIT_TITLE_LENGTH, MAX_SUB_HABITS } from '@orbit/shared/validation'

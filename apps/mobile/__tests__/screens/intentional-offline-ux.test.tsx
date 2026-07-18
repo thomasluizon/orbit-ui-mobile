@@ -304,7 +304,7 @@ vi.mock('@/lib/plural', () => ({
   plural: mocks.plural,
 }))
 
-vi.mock('lucide-react-native', () => {
+vi.mock('@/components/ui/icons', () => {
   const createIcon = (name: string) => (props: Record<string, unknown>) =>
     React.createElement(name, props)
 

@@ -30,7 +30,7 @@ import {
   Check,
   Eye,
   Filter,
-} from "lucide-react-native";
+} from '@/components/ui/icons';
 import { isToday } from "date-fns";
 import { useTranslation } from "react-i18next";
 import type { Tag } from "@/hooks/use-tags";

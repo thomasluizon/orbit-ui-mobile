@@ -11,7 +11,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native'
-import { Clock3, X } from 'lucide-react-native'
+import { Clock3, X } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { detectDefaultTimeFormat, formatLocaleTime } from '@orbit/shared/utils'
 import { createTokensV2, radius, shadowsV2 } from '@/lib/theme'

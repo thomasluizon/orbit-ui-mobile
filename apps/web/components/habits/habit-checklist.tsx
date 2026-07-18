@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback, useId } from 'react'
-import { GripHorizontal, X, Copy, Check, Plus, RotateCcw } from 'lucide-react'
+import { GripHorizontal, X, Copy, Check, Plus, RotateCcw } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import {
   DndContext,

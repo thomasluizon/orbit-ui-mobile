@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Check, Search, X } from 'lucide-react'
+import { Check, Search, X } from '@/components/ui/icons'
 import { buildHabitPickerOptions, filterHabitPickerOptions } from '@orbit/shared/utils'
 import {
   EMPTY_CHILDREN_BY_PARENT,

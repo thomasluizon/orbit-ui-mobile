@@ -1,4 +1,4 @@
-import { Settings } from 'lucide-react-native'
+import { Settings } from '@/components/ui/icons'
 import { Text, View } from 'react-native'
 import { PillButton } from '@/components/ui/pill-button'
 import { PlanSummaryCard } from './plan-summary-card'

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { Check, Search, X } from 'lucide-react-native'
+import { Check, Search, X } from '@/components/ui/icons'
 import { buildHabitPickerOptions, filterHabitPickerOptions } from '@orbit/shared/utils'
 import {
   EMPTY_CHILDREN_BY_PARENT,

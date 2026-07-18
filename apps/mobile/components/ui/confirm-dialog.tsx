@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from 'react-native'
-import { Check, Trash2 } from 'lucide-react-native'
+import { Check, Trash2 } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { createTokensV2, darkenHex, shadowsV2 } from '@/lib/theme'
 import { toAnimatedEasing, useResolvedMotionPreset } from '@/lib/motion'

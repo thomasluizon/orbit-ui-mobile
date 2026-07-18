@@ -1,7 +1,7 @@
 'use client'
 
 import { createElement, useCallback } from 'react'
-import { Clock } from 'lucide-react'
+import { Clock } from '@/components/ui/icons'
 import { toast } from 'sonner'
 
 export function useAppToast() {

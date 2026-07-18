@@ -146,7 +146,7 @@ vi.mock("@/components/ui/offline-unavailable-state", () => ({
   OfflineUnavailableState: () => null,
 }));
 
-vi.mock("lucide-react-native", () => {
+vi.mock('@/components/ui/icons', () => {
   const createIcon = (name: string) => (props: Record<string, unknown>) =>
     React.createElement(name, props);
 

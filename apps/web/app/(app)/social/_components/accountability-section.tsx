@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { UserPlus } from 'lucide-react'
+import { UserPlus } from '@/components/ui/icons'
 import { EmptyState } from '@/components/ui/empty-state'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SocialSectionLoadError, SocialSectionSpinner } from './social-section-states'

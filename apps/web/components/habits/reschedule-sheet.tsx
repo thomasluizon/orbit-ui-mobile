@@ -2,7 +2,8 @@
 
 import { useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { CalendarClock, Loader2, Sparkles } from 'lucide-react'
+import { CalendarClock, Loader2 } from '@/components/ui/icons'
+import { AstraMark } from '@/components/ui/astra-avatar'
 import { useLocale, useTranslations } from 'next-intl'
 import {
   computeHabitFrequencyLabel,
@@ -266,7 +267,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     >
       <div className="stagger-enter">
         <div className="flex items-center" style={{ gap: 8, marginBottom: 12 }}>
-          <Sparkles size={16} strokeWidth={1.9} color="var(--primary-soft)" aria-hidden="true" />
+          <AstraMark size={16} color="var(--primary-soft)" />
           <span
             style={{
               fontFamily: 'var(--font-sans)',

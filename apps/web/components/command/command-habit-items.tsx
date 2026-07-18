@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { Circle } from 'lucide-react'
+import { Circle } from '@/components/ui/icons'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { CommandRow } from './command-row'
 import type { CommandHabitEntry } from './build-command-habit-list'

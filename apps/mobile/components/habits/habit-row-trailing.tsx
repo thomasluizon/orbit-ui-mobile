@@ -1,6 +1,6 @@
 import { Pressable, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { MoreVertical } from 'lucide-react-native'
+import { MoreVertical } from '@/components/ui/icons'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { createTokensV2 } from '@/lib/theme'
 import { MenuAnchorHost } from '@/components/ui/anchored-menu'

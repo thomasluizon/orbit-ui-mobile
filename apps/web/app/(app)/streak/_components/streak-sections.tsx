@@ -1,6 +1,6 @@
 import React, { type ReactNode } from 'react'
 import Link from 'next/link'
-import { CalendarDays, Snowflake } from 'lucide-react'
+import { CalendarDays, Snowflake } from '@/components/ui/icons'
 import { SectionLabel } from '@/components/ui/section-label'
 import { StatTile } from '@/components/ui/stat-tile'
 import { ProgressBar } from '@/components/ui/progress-bar'

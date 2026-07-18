@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { View, Text, Pressable } from "react-native";
-import { X, Plus, Bell } from "lucide-react-native";
+import { X, Plus, Bell } from '@/components/ui/icons';
 import { useTranslation } from "react-i18next";
 import { HABIT_REMINDER_PRESETS } from "@orbit/shared/utils";
 import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-input";

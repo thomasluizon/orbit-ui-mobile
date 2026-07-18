@@ -7,7 +7,7 @@ import Animated, {
   withRepeat,
   withTiming,
 } from 'react-native-reanimated'
-import { Plus } from 'lucide-react-native'
+import { Plus } from '@/components/ui/icons'
 import { AstraMark } from '@/components/ui/astra-avatar'
 import { getHabitEmptyStateKey } from '@orbit/shared/utils'
 import { PillButton } from '@/components/ui/pill-button'

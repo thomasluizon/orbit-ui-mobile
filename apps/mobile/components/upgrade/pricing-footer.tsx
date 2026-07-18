@@ -1,5 +1,4 @@
 import { Text, View } from 'react-native'
-import { Sparkles } from 'lucide-react-native'
 import { PillButton } from '@/components/ui/pill-button'
 import { styles } from './styles'
 import type { SubscriptionInterval, Tokens, UpgradeTextFn } from './types'
@@ -39,7 +38,6 @@ export function PricingFooter({
         busy={checkoutLoading !== null}
         disabled={disabled || checkoutLoading !== null}
         onPress={() => onCheckout(selectedInterval)}
-        leading={<Sparkles size={18} strokeWidth={1.8} color={tokens.fgOnPrimary} />}
       >
         {ctaLabel}
       </PillButton>

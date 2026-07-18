@@ -7,7 +7,7 @@ vi.mock("@/hooks/use-tour-target", () => ({
   useTourTarget: () => {},
 }));
 
-vi.mock("lucide-react-native", () => {
+vi.mock('@/components/ui/icons', () => {
   const makeIcon = (name: string) => (props: Record<string, unknown>) =>
     React.createElement(name, props);
   return {

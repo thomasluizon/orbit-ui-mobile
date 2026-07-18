@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useEffectEvent } from 'react'
-import { ChevronLeft, X } from 'lucide-react'
+import { ChevronLeft, X } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import type { Recap } from '@orbit/shared/types/gamification'
 import type { RecapSharePeriod } from '@orbit/shared/utils'

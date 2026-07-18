@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from 'react'
 import { addMonths, subMonths, parseISO } from 'date-fns'
-import { ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import {
   buildHabitCalendarDayCells,

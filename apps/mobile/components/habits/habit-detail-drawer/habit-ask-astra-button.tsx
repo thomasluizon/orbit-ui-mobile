@@ -1,6 +1,6 @@
 import { Pressable, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { ChevronRight, Orbit } from 'lucide-react-native'
+import { ChevronRight, Orbit } from '@/components/ui/icons'
 import type { createTokensV2 } from '@/lib/theme'
 import type { createDrawerStyles } from './styles'
 

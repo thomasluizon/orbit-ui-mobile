@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from "react"
 import { View, Text, Pressable, StyleSheet } from "react-native"
 import { addMonths, subMonths, parseISO } from "date-fns"
-import { ChevronLeft, ChevronRight, X } from "lucide-react-native"
+import { ChevronLeft, ChevronRight, X } from '@/components/ui/icons'
 import { useTranslation } from "react-i18next"
 import {
   buildHabitCalendarDayCells,

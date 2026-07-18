@@ -91,6 +91,19 @@ module.exports = defineConfig([
       "local/no-fullbleed-button": ["error", { flagFullWidthProp: true }],
       "no-console": "error",
 
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            { name: "lucide-react-native", message: "Import icons from '@/components/ui/icons' (the barrel), never lucide-react-native. #539 b6" },
+            { name: "@tabler/icons-react-native", message: "Import icons from '@/components/ui/icons' (the barrel), never @tabler/icons-react-native directly. #539 b6" },
+          ],
+          patterns: [
+            { group: ["lucide-react-native/*", "@tabler/icons-react-native/*"], message: "Import icons from '@/components/ui/icons' (the barrel). #539 b6" },
+          ],
+        },
+      ],
+
       // The cross-platform half of the #539 gate set. Rules absent here are web-only by
       // scope, not by oversight: the Tailwind/CSS-string rules (no-space-x-y,
       // require-focus-replacement, no-calc-percentage-width, no-dynamic-tailwind-class,
@@ -114,6 +127,10 @@ module.exports = defineConfig([
       "local/no-decorative-glow": "error",
       "local/no-raw-gradient": "error",
     },
+  },
+  {
+    files: ["**/components/ui/icons.tsx"],
+    rules: { "no-restricted-imports": "off" },
   },
   {
     files: [

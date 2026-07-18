@@ -63,7 +63,7 @@ vi.mock('@/components/bottom-sheet-modal', () => ({
     open ? React.createElement('BottomSheetModal', null, children as never) : null,
 }))
 
-vi.mock('lucide-react-native', () => ({
+vi.mock('@/components/ui/icons', () => ({
   Pencil: (props: Record<string, unknown>) => React.createElement('Pencil', props),
 }))
 

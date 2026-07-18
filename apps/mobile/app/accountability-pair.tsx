@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { Pencil } from 'lucide-react-native'
+import { Pencil } from '@/components/ui/icons'
 import { useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import type { AccountabilityPair } from '@orbit/shared/types/accountability'

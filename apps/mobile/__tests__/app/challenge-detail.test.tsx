@@ -44,7 +44,7 @@ vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({ showError: vi.fn(), showSuccess: vi.fn() }),
 }))
 
-vi.mock('lucide-react-native', () => ({
+vi.mock('@/components/ui/icons', () => ({
   Target: () => null,
   Flame: () => null,
   Pencil: () => null,

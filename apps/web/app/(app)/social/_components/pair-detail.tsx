@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { Pencil } from 'lucide-react'
+import { Pencil } from '@/components/ui/icons'
 import type { AccountabilityPair } from '@orbit/shared/types/accountability'
 import { formatAPIDate, formatLocaleDate, getAccountabilityErrorKey } from '@orbit/shared/utils'
 import { AppOverlay } from '@/components/ui/app-overlay'

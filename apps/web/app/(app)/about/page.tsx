@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Compass, FileText, Mail, Shield } from 'lucide-react'
+import { Compass, FileText, Mail, Shield } from '@/components/ui/icons'
 import { AppBar } from '@/components/ui/app-bar'
 import { AppLogo } from '@/components/ui/app-logo'
 import { SettingsRow } from '@/components/ui/settings-row'

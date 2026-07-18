@@ -136,7 +136,7 @@ vi.mock('@/components/goals/goal-metrics-panel', () => ({
   GoalMetricsPanel: () => React.createElement('GoalMetricsPanel'),
 }))
 
-vi.mock('lucide-react-native', () => {
+vi.mock('@/components/ui/icons', () => {
   const createIcon = (name: string) => (props: any) => React.createElement(name, props)
   return {
     ArchiveX: createIcon('ArchiveX'),

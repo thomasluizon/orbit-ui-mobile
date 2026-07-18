@@ -1,6 +1,6 @@
 'use client'
 
-import { Sparkles } from 'lucide-react'
+import { AstraMark } from '@/components/ui/astra-avatar'
 import { useTranslations } from 'next-intl'
 import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
 import { PillButton } from '@/components/ui/pill-button'
@@ -107,7 +107,7 @@ export function UserFactsList({
         button={
           <PillButton
             onClick={onAskAstra}
-            leading={<Sparkles size={18} strokeWidth={1.8} aria-hidden="true" />}
+            leading={<AstraMark size={18} color="var(--fg-on-primary)" />}
             className="mt-2"
           >
             {t('summary.askAstra')}

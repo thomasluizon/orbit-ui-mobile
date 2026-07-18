@@ -52,7 +52,7 @@ vi.mock("@/lib/theme", () => ({
   tintFromPrimary: () => "rgba(127,70,247,0.16)",
 }));
 
-vi.mock("lucide-react-native", () => ({
+vi.mock('@/components/ui/icons', () => ({
   ArrowUpRight: (props: Record<string, unknown>) =>
     React.createElement("ArrowUpRight", props),
 }));

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { MoreVertical } from 'lucide-react'
+import { MoreVertical } from '@/components/ui/icons'
 import {
   reportReasonSchema,
   type FriendSummary,

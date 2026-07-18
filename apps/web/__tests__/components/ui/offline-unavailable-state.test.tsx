@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import React from 'react'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 
-vi.mock('lucide-react', () => ({
+vi.mock('@/components/ui/icons', () => ({
   WifiOff: (props: React.SVGProps<SVGSVGElement>) =>
     React.createElement('svg', { ...props, 'data-testid': 'wifi-off-icon' }),
 }))

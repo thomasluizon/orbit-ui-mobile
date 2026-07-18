@@ -6,7 +6,7 @@ import Animated, {
   withSequence,
   withSpring,
 } from 'react-native-reanimated'
-import { Check } from 'lucide-react-native'
+import { Check } from '@/components/ui/icons'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import type { createTokensV2 } from '@/lib/theme'
 import type { StatusDotState } from '@/components/ui/status-dot'

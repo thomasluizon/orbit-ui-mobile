@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { Loader2, ShieldAlert } from 'lucide-react'
+import { Loader2, ShieldAlert } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import type { AgentExecuteOperationResponse, PendingAgentOperation } from '@orbit/shared/types/ai'
 import {

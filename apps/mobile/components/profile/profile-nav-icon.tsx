@@ -4,13 +4,13 @@ import {
   Compass,
   Gift,
   Settings,
-  Sparkles,
   CircleHelp,
   Wrench,
   Users,
   Globe,
   Trophy,
-} from 'lucide-react-native'
+} from '@/components/ui/icons'
+import { AstraMark } from '@/components/ui/astra-avatar'
 import type { ProfileNavIconKey } from '@orbit/shared/utils/profile-navigation'
 
 export function ProfileNavIcon({
@@ -24,7 +24,7 @@ export function ProfileNavIcon({
     case 'settings':
       return <Settings size={22} color={color} strokeWidth={1.8} />
     case 'orbit':
-      return <Sparkles size={22} color={color} strokeWidth={1.8} />
+      return <AstraMark size={22} color={color} />
     case 'retrospective':
       return <ChartLine size={22} color={color} strokeWidth={1.8} />
     case 'wrapped':

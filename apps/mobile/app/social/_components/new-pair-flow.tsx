@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { Check, Search, X } from 'lucide-react-native'
+import { Check, Search, X } from '@/components/ui/icons'
 import type { AccountabilityCadence } from '@orbit/shared/types/accountability'
 import { getAccountabilityErrorKey } from '@orbit/shared/utils'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'

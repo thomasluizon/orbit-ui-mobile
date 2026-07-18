@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import Clipboard from "@react-native-clipboard/clipboard";
-import { Check, Copy } from "lucide-react-native";
+import { Check, Copy } from '@/components/ui/icons';
 import { useTranslation } from "react-i18next";
 import { BottomSheetModal } from "@/components/bottom-sheet-modal";
 import { withDrawerContentInset } from "@/components/ui/drawer-content-inset";

@@ -9,7 +9,7 @@ import {
   Plus,
   Trash2,
   type LucideIcon,
-} from 'lucide-react'
+} from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 
 interface HabitRowMenuProps {

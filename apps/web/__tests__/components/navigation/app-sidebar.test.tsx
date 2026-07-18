@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import type { ComponentProps, ComponentType } from 'react'
-import type { LucideProps } from 'lucide-react'
+import type { LucideProps } from '@/components/ui/icons'
 import {
   AppSidebar,
   type SidebarSection,

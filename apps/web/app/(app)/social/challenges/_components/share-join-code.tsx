@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, Clipboard, Share2 } from 'lucide-react'
+import { Check, Clipboard, Share2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { PillButton } from '@/components/ui/pill-button'
 

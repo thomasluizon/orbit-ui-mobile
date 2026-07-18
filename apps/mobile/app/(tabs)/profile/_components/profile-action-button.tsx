@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import type { LucideProps } from 'lucide-react-native'
+import type { LucideProps } from '@/components/ui/icons'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 

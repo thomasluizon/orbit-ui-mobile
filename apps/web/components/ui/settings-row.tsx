@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronRight, type LucideIcon } from 'lucide-react'
+import { ChevronRight, type LucideIcon } from '@/components/ui/icons'
 import type { ReactNode } from 'react'
 
 /** Kit ListRow: flat row — leading icon/dot · title (+ desc) · value · trailing slot · chevron.

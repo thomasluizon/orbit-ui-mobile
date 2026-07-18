@@ -1,6 +1,6 @@
 import { type ReactNode } from "react";
 import { View, Text, Pressable } from "react-native";
-import { X, Plus, TrendingUp, TrendingDown } from "lucide-react-native";
+import { X, Plus, TrendingUp, TrendingDown } from '@/components/ui/icons';
 import { useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { HABIT_REMINDER_PRESETS } from "@orbit/shared/utils";

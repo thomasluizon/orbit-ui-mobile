@@ -1,6 +1,6 @@
 'use client'
 
-import { Flame, Target, Users } from 'lucide-react'
+import { Flame, Target, Users } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { plural } from '@orbit/shared/utils'
 import type { ChallengeListItem } from '@orbit/shared/types/challenge'

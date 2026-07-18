@@ -7,8 +7,8 @@ import {
   ListTree,
   Orbit,
   Trophy,
-} from 'lucide-react-native'
-import type { LucideIcon } from 'lucide-react-native'
+} from '@/components/ui/icons'
+import type { LucideIcon } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { createTokensV2, easings, type AppTokensV2 } from '@/lib/theme'
 import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'

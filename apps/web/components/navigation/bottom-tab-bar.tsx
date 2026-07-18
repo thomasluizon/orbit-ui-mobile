@@ -2,7 +2,7 @@
 
 import type { ComponentType } from 'react'
 import { useTranslations } from 'next-intl'
-import { Home, CalendarDays, User, Plus, type LucideProps } from 'lucide-react'
+import { Home, CalendarDays, User, Plus, type LucideProps } from '@/components/ui/icons'
 import { AstraMark } from '@/components/ui/astra-avatar'
 
 /** Kit 4-tab bar (Home / Astra / Calendar / You) + centered 60px Plus FAB.

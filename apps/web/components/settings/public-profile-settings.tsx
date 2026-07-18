@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, type CSSProperties } from 'react'
-import { Copy, Check, Share2, RefreshCw } from 'lucide-react'
+import { Copy, Check, Share2, RefreshCw } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import type { UpdatePublicProfileRequest } from '@orbit/shared/types/public-profile'

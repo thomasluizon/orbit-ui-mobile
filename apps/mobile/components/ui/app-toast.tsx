@@ -8,8 +8,8 @@ import {
   Text,
   View,
 } from 'react-native'
-import { Bell, Check, Clock, X } from 'lucide-react-native'
-import type { LucideIcon } from 'lucide-react-native'
+import { Bell, Check, Clock, X } from '@/components/ui/icons'
+import type { LucideIcon } from '@/components/ui/icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { schemes } from '@orbit/shared/theme'
 import type { ThemeMode } from '@orbit/shared/types/profile'

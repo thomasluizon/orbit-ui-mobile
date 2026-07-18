@@ -1,6 +1,6 @@
 'use client'
 
-import { Check, Sparkles } from 'lucide-react'
+import { Check } from '@/components/ui/icons'
 import { Badge } from '@/components/ui/badge'
 import { PillButton } from '@/components/ui/pill-button'
 
@@ -89,10 +89,8 @@ export function PlanCard({
 
       {heroLine ? (
         <div
-          className="flex items-start gap-2"
           style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--hairline)' }}
         >
-          <Sparkles size={15} strokeWidth={1.8} className="shrink-0 text-[var(--primary-soft)]" style={{ marginTop: 1 }} aria-hidden="true" />
           <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.45, color: 'var(--fg-2)' }}>{heroLine}</span>
         </div>
       ) : null}

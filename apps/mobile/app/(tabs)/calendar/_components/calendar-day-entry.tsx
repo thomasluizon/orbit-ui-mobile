@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { StyleSheet, Text, View, type ViewStyle } from "react-native";
-import { Check } from "lucide-react-native";
+import { Check } from '@/components/ui/icons';
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import { createTokensV2 } from "@/lib/theme";
 

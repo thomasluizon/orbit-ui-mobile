@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
-import { Gift } from 'lucide-react'
+import { Gift } from '@/components/ui/icons'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useProfile } from '@/hooks/use-profile'
 

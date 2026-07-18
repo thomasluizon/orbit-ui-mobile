@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 import * as Sentry from '@sentry/nextjs'
 import { useTranslations } from 'next-intl'
-import { TriangleAlert } from 'lucide-react'
+import { TriangleAlert } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
 
 const errorTitleStyle = {

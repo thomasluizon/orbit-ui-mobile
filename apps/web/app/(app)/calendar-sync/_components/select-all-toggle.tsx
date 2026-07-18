@@ -1,6 +1,6 @@
 'use client'
 
-import { CheckCheck, SquareX } from 'lucide-react'
+import { CheckCheck, SquareX } from '@/components/ui/icons'
 
 interface SelectAllToggleProps {
   allSelected: boolean

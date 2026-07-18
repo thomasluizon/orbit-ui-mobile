@@ -45,7 +45,7 @@ vi.mock('@/components/chat/conflict-warning', () => {
   }
 })
 
-vi.mock('lucide-react-native', () => {
+vi.mock('@/components/ui/icons', () => {
   const React = require('react')
   const createIcon = (name: string) => (props: any) => React.createElement(name, props)
   return {

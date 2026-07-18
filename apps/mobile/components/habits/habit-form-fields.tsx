@@ -8,7 +8,7 @@ import {
 } from "react";
 import { ActivityIndicator, Pressable, View } from "react-native";
 import Animated, { FadeInDown, ReduceMotion } from "react-native-reanimated";
-import { Sparkles } from "lucide-react-native";
+import { AstraMark } from '@/components/ui/astra-avatar';
 import { useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { coalesceFormText } from "@orbit/shared/utils";
@@ -195,7 +195,7 @@ export function HabitFormFields({
               {isSuggesting ? (
                 <ActivityIndicator size="small" color={tokens.primary} />
               ) : (
-                <Sparkles size={18} color={tokens.primary} strokeWidth={2} />
+                <AstraMark size={18} />
               )}
             </Pressable>
           ) : undefined

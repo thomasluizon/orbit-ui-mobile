@@ -2,7 +2,8 @@
 
 import { useCallback, useMemo, useState, useSyncExternalStore } from 'react'
 import { AnimatePresence, domAnimation, LazyMotion, m } from 'motion/react'
-import { Bell, CheckCheck, Flame, Heart, Sparkles, Trash2, Trophy, UserPlus, Users, X } from 'lucide-react'
+import { Bell, CheckCheck, Flame, Heart, Trash2, Trophy, UserPlus, Users, X } from '@/components/ui/icons'
+import { AstraMark } from '@/components/ui/astra-avatar'
 import { useTranslations } from 'next-intl'
 import {
   formatNotificationRelativeTime,
@@ -33,7 +34,7 @@ import {
 const glyphIconMap = {
   streak: Flame,
   celebration: Trophy,
-  astra: Sparkles,
+  astra: AstraMark,
   friend: UserPlus,
   cheer: Heart,
   buddy: Users,

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useCallback } from 'react'
-import { Loader2, Check } from 'lucide-react'
+import { Loader2, Check } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useOnboardingActions } from './onboarding-actions-context'

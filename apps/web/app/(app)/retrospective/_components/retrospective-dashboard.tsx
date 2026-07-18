@@ -9,7 +9,7 @@ import {
   Star,
   TrendingUp,
   type LucideProps,
-} from 'lucide-react'
+} from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import type {
   RetrospectiveHabitStat,

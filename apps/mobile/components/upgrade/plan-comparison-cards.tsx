@@ -16,7 +16,7 @@ import {
   MessageSquare,
   Palette,
   ShieldCheck,
-} from 'lucide-react-native'
+} from '@/components/ui/icons'
 import { UPGRADE_FEATURE_CATEGORIES } from '@orbit/shared/utils/upgrade'
 import type {
   UpgradeFeatureMatrixRow,

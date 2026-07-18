@@ -1,6 +1,7 @@
 import { View, Text, Pressable } from 'react-native'
 import Animated, { FadeInDown, FadeOut, ReduceMotion } from 'react-native-reanimated'
-import { Bell, Flame, Heart, Sparkles, Trophy, UserPlus, Users, X } from 'lucide-react-native'
+import { Bell, Flame, Heart, Trophy, UserPlus, Users, X } from '@/components/ui/icons'
+import { AstraMark } from '@/components/ui/astra-avatar'
 import {
   formatNotificationRelativeTime,
   getNotificationGlyph,
@@ -15,7 +16,7 @@ type AppTokens = ReturnType<typeof createTokensV2>
 const glyphIconMap = {
   streak: Flame,
   celebration: Trophy,
-  astra: Sparkles,
+  astra: AstraMark,
   friend: UserPlus,
   cheer: Heart,
   buddy: Users,

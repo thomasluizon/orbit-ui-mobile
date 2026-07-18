@@ -18,7 +18,7 @@ let mockReschedule: {
   refetch: () => void
 }
 
-vi.mock('lucide-react-native', () => {
+vi.mock('@/components/ui/icons', () => {
   const ReactLib = require('react')
   return {
     Sparkles: (props: Record<string, unknown>) => ReactLib.createElement('Sparkles', props),

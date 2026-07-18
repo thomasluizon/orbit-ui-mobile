@@ -6,7 +6,7 @@ import {
   type LucideProps,
   Plus,
   User,
-} from 'lucide-react-native'
+} from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { AstraMark } from '@/components/ui/astra-avatar'
 import { createTokensV2 } from '@/lib/theme'

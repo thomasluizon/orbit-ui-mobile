@@ -1,4 +1,4 @@
-import { AlertTriangle, Tag } from 'lucide-react'
+import { AlertTriangle, Tag } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { PlanSelection } from './plan-selection'
 import { PlanComparisonCards } from './plan-comparison-cards'

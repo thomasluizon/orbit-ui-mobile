@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { AlertTriangle } from "lucide-react-native";
+import { AlertTriangle } from '@/components/ui/icons';
 import { useTranslation } from "react-i18next";
 import type { ConflictWarning as ConflictWarningType } from "@orbit/shared/types/chat";
 import { createTokensV2, tintFromPrimary } from '@/lib/theme';

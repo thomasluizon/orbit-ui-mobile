@@ -2,7 +2,7 @@
 
 import { useMemo, type ComponentType } from 'react'
 import { useTranslations } from 'next-intl'
-import { Flame, ListChecks, Trophy, Zap, type LucideProps } from 'lucide-react'
+import { Flame, ListChecks, Trophy, Zap, type LucideProps } from '@/components/ui/icons'
 import { computeDayProgress } from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
 import { useToday } from '@/app/(app)/today-provider'

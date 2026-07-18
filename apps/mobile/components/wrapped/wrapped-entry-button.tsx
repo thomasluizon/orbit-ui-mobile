@@ -1,4 +1,4 @@
-import { Gift } from 'lucide-react-native'
+import { Gift } from '@/components/ui/icons'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Chip } from '@/components/ui/chip'

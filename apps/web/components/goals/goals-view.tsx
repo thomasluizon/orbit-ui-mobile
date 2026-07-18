@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
-import { Check, Filter } from 'lucide-react'
+import { Check, Filter } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { GoalList } from './goal-list'
 import { SkeletonCard } from '@/components/ui/skeleton'

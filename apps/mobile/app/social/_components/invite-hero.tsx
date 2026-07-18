@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Pressable, Share, StyleSheet, Text, View } from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
-import { Check, Copy, Share2 } from 'lucide-react-native'
+import { Check, Copy, Share2 } from '@/components/ui/icons'
 import QRCode from 'react-native-qrcode-svg'
 import { useTranslation } from 'react-i18next'
 import { PillButton } from '@/components/ui/pill-button'

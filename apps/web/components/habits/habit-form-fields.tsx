@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useMemo, useCallback, useEffect, type ReactNode, type RefObject } from 'react'
-import { X, Plus, TrendingUp, TrendingDown, ChevronDown, Sparkles, Loader2 } from 'lucide-react'
+import { X, Plus, TrendingUp, TrendingDown, ChevronDown, Loader2 } from '@/components/ui/icons'
+import { AstraMark } from '@/components/ui/astra-avatar'
 import { useTranslations } from 'next-intl'
 import type { FrequencyUnit, SuggestedTag } from '@orbit/shared/types/habit'
 import {
@@ -270,7 +271,7 @@ export function HabitFormFields({
                 {isSuggesting ? (
                   <Loader2 className="size-[18px] animate-spin" aria-hidden="true" />
                 ) : (
-                  <Sparkles size={18} strokeWidth={2} aria-hidden="true" />
+                  <AstraMark size={18} />
                 )}
               </button>
             )}
@@ -446,7 +447,7 @@ export function HabitFormFields({
             {tagSuggestions.isPending ? (
               <Loader2 className="size-[14px] animate-spin" aria-hidden="true" />
             ) : (
-              <Sparkles size={14} strokeWidth={2} aria-hidden="true" />
+              <AstraMark size={14} />
             )}
             {tagSuggestions.isPending
               ? t('habits.form.suggestingTags')

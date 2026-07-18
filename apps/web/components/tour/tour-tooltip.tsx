@@ -21,7 +21,7 @@ import {
   MessageCircle,
   CalendarDays,
   User,
-} from 'lucide-react'
+} from '@/components/ui/icons'
 import { ProBadge } from '@/components/ui/pro-badge'
 
 const surfaceStyle: CSSProperties = {

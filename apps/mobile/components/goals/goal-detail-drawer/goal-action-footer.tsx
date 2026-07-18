@@ -7,7 +7,7 @@ import {
   RotateCw,
   Trash2,
   type LucideIcon,
-} from 'lucide-react-native'
+} from '@/components/ui/icons'
 import type { createStyles } from './styles'
 
 type GoalDetailStyles = ReturnType<typeof createStyles>

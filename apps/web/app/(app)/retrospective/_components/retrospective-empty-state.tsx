@@ -1,6 +1,6 @@
 'use client'
 
-import { Orbit } from 'lucide-react'
+import { Orbit } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { InfoCard } from '@/components/ui/info-card'
 import { PillButton } from '@/components/ui/pill-button'

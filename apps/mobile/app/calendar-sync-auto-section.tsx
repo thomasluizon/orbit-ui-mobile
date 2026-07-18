@@ -1,5 +1,5 @@
 import { ActivityIndicator, Pressable, Text, View, type ViewStyle } from 'react-native'
-import { AlertTriangle, CalendarDays, RefreshCw } from 'lucide-react-native'
+import { AlertTriangle, CalendarDays, RefreshCw } from '@/components/ui/icons'
 import type { TFunction } from 'i18next'
 import { isCalendarAutoSyncStatusReconnectRequired } from '@orbit/shared/utils'
 import type { CalendarAutoSyncState } from '@orbit/shared/types'

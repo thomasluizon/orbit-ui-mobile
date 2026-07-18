@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { Loader2, Users } from 'lucide-react'
+import { Loader2, Users } from '@/components/ui/icons'
 // react-doctor-disable-next-line use-lazy-motion -- LazyMotion migration is app-wide (needs a shared provider + converting every motion.* incl. components/**); a partial per-file swap yields no bundle benefit and risks unprovided m https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { motion, useReducedMotion } from 'motion/react'
 import type { FriendProfileView as FriendProfileViewData } from '@orbit/shared/types/social'

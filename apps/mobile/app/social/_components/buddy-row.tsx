@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
-import { ChevronRight } from 'lucide-react-native'
+import { ChevronRight } from '@/components/ui/icons'
 import type { AccountabilityPair } from '@orbit/shared/types/accountability'
 import { formatAPIDate, formatLocaleDate, getAccountabilityErrorKey } from '@orbit/shared/utils'
 import { UserAvatar } from '@/components/ui/user-avatar'

@@ -20,9 +20,9 @@ describe('InfoCard (mobile)', () => {
     expect(texts).toEqual(expect.arrayContaining(['Astra', 'Sua assistente de hábitos']))
   })
 
-  it('renders the default sparkles icon', () => {
+  it('renders the default info icon', () => {
     const tree = renderCard(<InfoCard title="Astra" />)
-    expect(tree.root.findAllByType('Sparkles')).toHaveLength(1)
+    expect(tree.root.findAllByType('IconInfoCircle')).toHaveLength(1)
   })
 
   it('renders a trailing slot', () => {

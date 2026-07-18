@@ -1,6 +1,6 @@
 'use client'
 
-import { Loader2 } from 'lucide-react'
+import { Loader2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { PillButton } from '@/components/ui/pill-button'
 import { SupportField } from './support-field'

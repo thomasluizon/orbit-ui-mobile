@@ -1,6 +1,6 @@
 import { memo, useState, type ReactNode } from "react";
 import { Pressable, View } from "react-native";
-import { ArrowUp } from "lucide-react-native";
+import { ArrowUp } from '@/components/ui/icons';
 import { useTranslation } from "react-i18next";
 import { AppTextInput } from "@/components/ui/app-text-input";
 import type { ChatStyles, Tokens } from "@/app/chat.styles";

@@ -1,5 +1,5 @@
 import { View, Text, Pressable } from "react-native";
-import { X, PenSquare } from "lucide-react-native";
+import { X, PenSquare } from '@/components/ui/icons';
 import { type AppTokens, createStyles } from "./styles";
 
 const SELECTED_TAG_FOREGROUND = "#FFFFFF";

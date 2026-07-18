@@ -1,6 +1,6 @@
 import { type ReactNode } from 'react'
 import { Text, View } from 'react-native'
-import { Snowflake } from 'lucide-react-native'
+import { Snowflake } from '@/components/ui/icons'
 import { getStreakTierLabelKey } from '@orbit/shared/utils'
 import { SectionLabel } from '@/components/ui/section-label'
 import { StatTile } from '@/components/ui/stat-tile'

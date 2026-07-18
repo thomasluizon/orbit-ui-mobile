@@ -11,7 +11,7 @@ import {
   User,
   Play,
   RotateCcw,
-} from 'lucide-react-native'
+} from '@/components/ui/icons'
 import { profileKeys } from '@orbit/shared/query'
 import type { Profile, TourSection } from '@orbit/shared/types'
 import { TOUR_SECTIONS, TOUR_SECTION_ICONS } from '@orbit/shared/types'

@@ -1,7 +1,7 @@
 'use client'
 
 import { type MouseEvent } from 'react'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronRight } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { SelectCheck } from '@/components/ui/select-check'

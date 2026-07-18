@@ -1,6 +1,6 @@
 'use client'
 
-import { Download, LogOut, RotateCcw, UserX } from 'lucide-react'
+import { Download, LogOut, RotateCcw, UserX } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { SectionLabel } from '@/components/ui/section-label'
 import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'

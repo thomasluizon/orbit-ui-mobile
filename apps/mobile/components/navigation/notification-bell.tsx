@@ -1,7 +1,7 @@
 import { useMemo, useState, useCallback, useSyncExternalStore } from 'react'
 import { View, Text, Pressable, type ListRenderItemInfo } from 'react-native'
 import Animated, { LinearTransition, ReduceMotion, ZoomIn } from 'react-native-reanimated'
-import { Bell, CheckCheck, Trash2 } from 'lucide-react-native'
+import { Bell, CheckCheck, Trash2 } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import {

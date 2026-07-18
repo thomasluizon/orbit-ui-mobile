@@ -76,7 +76,7 @@ vi.mock('@/components/ui/confirm-dialog', () => ({
   ConfirmDialog: (props: Record<string, unknown>) => React.createElement('ConfirmDialog', props),
 }))
 
-vi.mock('lucide-react-native', () => {
+vi.mock('@/components/ui/icons', () => {
   const make = (name: string) => (props: Record<string, unknown>) => React.createElement(name, props)
   return { Check: make('Check'), Copy: make('Copy'), RefreshCw: make('RefreshCw'), Share2: make('Share2') }
 })

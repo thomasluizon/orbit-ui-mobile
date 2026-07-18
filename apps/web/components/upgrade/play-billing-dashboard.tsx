@@ -1,4 +1,4 @@
-import { Settings } from 'lucide-react'
+import { Settings } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { playManageSubscriptionUrl } from '@orbit/shared/utils'
 import { UsageStats } from './usage-stats'

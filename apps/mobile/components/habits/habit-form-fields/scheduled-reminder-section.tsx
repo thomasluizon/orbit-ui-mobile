@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { View, Text, Pressable } from "react-native";
-import { X, Plus, Bell } from "lucide-react-native";
+import { X, Plus, Bell } from '@/components/ui/icons';
 import { useTranslation } from "react-i18next";
 import type { ScheduledReminderWhen } from "@orbit/shared/types/habit";
 import { formatLocaleTime } from "@orbit/shared/utils";

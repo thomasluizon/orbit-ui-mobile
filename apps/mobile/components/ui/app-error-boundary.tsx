@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { AlertTriangle } from 'lucide-react-native'
+import { AlertTriangle } from '@/components/ui/icons'
 import { i18n } from '@/lib/i18n'
 import { createTokensV2, radius } from '@/lib/theme'
 

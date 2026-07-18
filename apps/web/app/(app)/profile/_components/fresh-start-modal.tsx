@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
-import { Check, RotateCcw, X } from 'lucide-react'
+import { Check, RotateCcw, X } from '@/components/ui/icons'
 import {
   buildFreshStartDeletedItems,
   buildFreshStartPreservedItems,

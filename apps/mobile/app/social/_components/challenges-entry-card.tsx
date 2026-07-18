@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
-import { ChevronRight, Trophy } from 'lucide-react-native'
+import { ChevronRight, Trophy } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'

@@ -1,7 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import { Loader2 } from 'lucide-react'
+import { Loader2 } from '@/components/ui/icons'
 import { EmptyState } from '@/components/ui/empty-state'
 
 /** Centered spinner shown while a social section's query is loading. */

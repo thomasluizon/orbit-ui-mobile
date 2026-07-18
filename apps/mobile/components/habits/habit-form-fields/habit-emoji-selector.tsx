@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { View, Text, Pressable, ScrollView } from "react-native";
-import { Plus, X } from "lucide-react-native";
+import { Plus, X } from '@/components/ui/icons';
 import { useTranslation } from "react-i18next";
 import {
   HABIT_EMOJI_CATEGORIES,

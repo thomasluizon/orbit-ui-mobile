@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { WifiOff } from 'lucide-react-native'
+import { WifiOff } from '@/components/ui/icons'
 import { createTokensV2, radius, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 

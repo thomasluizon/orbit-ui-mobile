@@ -18,7 +18,7 @@ import {
   User,
   ChevronLeft,
   ChevronRight,
-} from 'lucide-react-native'
+} from '@/components/ui/icons'
 import type { TourStep, TourSection } from '@orbit/shared/types'
 import type { TourTargetRect } from '@orbit/shared/stores'
 import { TOUR_SECTION_ICONS } from '@orbit/shared/types'

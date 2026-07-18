@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import { ScrollView, StyleSheet, Text, View } from 'react-native'
-import { CalendarClock, Sparkles } from 'lucide-react-native'
+import { CalendarClock } from '@/components/ui/icons'
+import { AstraMark } from '@/components/ui/astra-avatar'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import {
@@ -190,7 +191,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.headerRow}>
-          <Sparkles size={16} color={tokens.primarySoft} strokeWidth={1.9} />
+          <AstraMark size={16} color={tokens.primarySoft} />
           <Text style={styles.eyebrow}>Astra</Text>
           <Text style={styles.aiBadge}>{t('aiDisclosure.isAiLabel')}</Text>
         </View>

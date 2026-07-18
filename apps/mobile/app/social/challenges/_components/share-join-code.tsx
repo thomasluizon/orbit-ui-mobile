@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 // react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { Animated, Pressable, Share, StyleSheet, Text, View } from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
-import { Check, Copy, Share2 } from 'lucide-react-native'
+import { Check, Copy, Share2 } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { motionEasings } from '@orbit/shared/theme'
 import { PillButton } from '@/components/ui/pill-button'

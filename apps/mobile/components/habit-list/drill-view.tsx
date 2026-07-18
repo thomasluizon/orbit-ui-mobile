@@ -11,7 +11,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native'
-import { ChevronLeft, Home } from 'lucide-react-native'
+import { ChevronLeft, Home } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { useDrillNavigation } from '@/hooks/use-drill-navigation'

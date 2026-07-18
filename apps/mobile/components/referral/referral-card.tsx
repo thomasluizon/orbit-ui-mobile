@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { ChevronRight, UserPlus, X } from 'lucide-react-native'
+import { ChevronRight, UserPlus, X } from '@/components/ui/icons'
 import { useReferral } from '@/hooks/use-referral'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'

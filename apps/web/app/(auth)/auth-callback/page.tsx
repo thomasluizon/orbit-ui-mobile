@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, Suspense, type CSSProperties } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
-import { TriangleAlert } from 'lucide-react'
+import { TriangleAlert } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
 import {
   extractAuthBackendMessage,

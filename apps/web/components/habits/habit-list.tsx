@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback, useEffect, useRef as useReactRef, useIm
 import {
   ArrowLeft,
   Home,
-} from 'lucide-react'
+} from '@/components/ui/icons'
 import { useTranslations, useLocale } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import {

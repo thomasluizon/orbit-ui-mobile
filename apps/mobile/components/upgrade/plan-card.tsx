@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react-native'
+import { Check } from '@/components/ui/icons'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { Badge } from '@/components/ui/badge'
 import { createTokensV2, radius, tintFromPrimary } from '@/lib/theme'

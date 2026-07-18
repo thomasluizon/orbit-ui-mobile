@@ -9,11 +9,11 @@ import {
   ListChecks,
   Lock,
   Satellite,
-  Sparkles,
   SquareX,
   Trash2,
   X,
-} from 'lucide-react-native'
+} from '@/components/ui/icons'
+import { AstraMark } from '@/components/ui/astra-avatar'
 import { normalizeUserFactCategory } from '@orbit/shared/utils'
 import { tintFromPrimary } from '@/lib/theme'
 import { SectionLabel } from '@/components/ui/section-label'
@@ -504,7 +504,7 @@ export function UserFactsList({
           fullWidth
           onPress={onAskAstra}
           leading={
-            <Sparkles size={18} color={tokens.fgOnPrimary} strokeWidth={1.8} />
+            <AstraMark size={18} color={tokens.fgOnPrimary} />
           }
         >
           {t('summary.askAstra')}

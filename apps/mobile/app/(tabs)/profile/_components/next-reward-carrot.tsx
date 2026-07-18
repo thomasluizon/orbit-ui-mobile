@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { Lock, Sparkles } from 'lucide-react-native'
+import { Gift, Lock } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { NextRewardCarrotState } from '@orbit/shared/utils'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
@@ -34,7 +34,7 @@ export function NextRewardCarrot({ carrot, onUpgrade }: Readonly<NextRewardCarro
         ]}
       >
         <View style={styles.titleRow}>
-          <Sparkles size={18} strokeWidth={1.9} color={tokens.primary} />
+          <Gift size={18} strokeWidth={1.9} color={tokens.primary} />
           <Text style={[styles.title, { color: tokens.fg2 }]}>
             {t('gamification.carrot.title').toUpperCase()}
           </Text>

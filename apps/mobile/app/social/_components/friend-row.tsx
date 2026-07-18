@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { MoreVertical } from 'lucide-react-native'
+import { MoreVertical } from '@/components/ui/icons'
 import {
   reportReasonSchema,
   type FriendSummary,

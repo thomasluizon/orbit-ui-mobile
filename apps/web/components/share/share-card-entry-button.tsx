@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Share2 } from 'lucide-react'
+import { Share2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { ProfileActionButton } from '@/app/(app)/profile/_components/profile-action-button'
 import { ShareCardSheet } from './share-card-sheet'

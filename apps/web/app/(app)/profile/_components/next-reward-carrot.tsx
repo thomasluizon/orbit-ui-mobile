@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Lock, Sparkles } from 'lucide-react'
+import { Gift, Lock } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import type { NextRewardCarrotState } from '@orbit/shared/utils'
 
@@ -36,7 +36,7 @@ export function NextRewardCarrot({ carrot }: Readonly<NextRewardCarrotProps>) {
         }}
       >
         <div className="flex items-center" style={{ gap: 10, marginBottom: 8 }}>
-          <Sparkles size={18} strokeWidth={1.9} color="var(--primary)" aria-hidden="true" />
+          <Gift size={18} strokeWidth={1.9} color="var(--primary)" aria-hidden="true" />
           <span
             style={{
               fontFamily: 'var(--font-sans)',

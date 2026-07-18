@@ -8,7 +8,7 @@ import {
   Animated,
   StyleSheet,
 } from 'react-native'
-import { RefreshCw } from 'lucide-react-native'
+import { RefreshCw } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { toAnimatedEasing } from '@/lib/motion'
 import { createTokensV2, easings, tintFromPrimary } from '@/lib/theme'

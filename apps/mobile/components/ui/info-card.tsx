@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Sparkles, type LucideIcon } from 'lucide-react-native'
+import { Info, type LucideIcon } from '@/components/ui/icons'
 import { StyleSheet, Text, View } from 'react-native'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -12,7 +12,7 @@ interface InfoCardProps {
 }
 
 /** Kit info card: primary-tinted bordered row with leading icon, title, and description. */
-export function InfoCard({ icon: Icon = Sparkles, title, desc, trailing }: Readonly<InfoCardProps>) {
+export function InfoCard({ icon: Icon = Info, title, desc, trailing }: Readonly<InfoCardProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
 

@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Loader2 } from '@/components/ui/icons'
 import { BUTTON_SIZES, type ButtonSize, type ButtonVariant } from '@orbit/shared/theme'
 
 interface PillButtonProps {

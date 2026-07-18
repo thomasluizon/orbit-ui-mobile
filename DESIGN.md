@@ -154,7 +154,7 @@ Each scheme needs its own `--primary-soft` satisfying the text floor on its canv
 - **Nested rounded surfaces use concentric radii: outer = inner + padding.** A parent and its inset child never share a radius. (The 46px emoji well at r14 inside a habit panel at r18 is the reference.)
 - Shadows: hairline `0 0 0 0.5px rgba(255,255,255,0.06)`, sh-1 `0 1px 2px rgba(0,0,0,.20)`, sh-2 `0 4px 16px rgba(0,0,0,.28)`, sh-3 `0 12px 40px rgba(0,0,0,.45)`. **There is no primary glow.** Shadows model real occlusion under a lifted surface (sheets, menus); they are never a depth decoration and never carry the accent hue.
 - Motion: `--ease-standard cubic-bezier(0.2,0,0,1)`, `--ease-out cubic-bezier(0.16,1,0.3,1)`, `--ease-in` for exits, durations 160/220/280. Transform + opacity only. Presets stay in `packages/shared/src/theme/motion.ts`. Full governance in **Motion** below.
-- Icons: Lucide (`lucide-react` web, `lucide-react-native` mobile), strokeWidth **1.8** default, **2.2** active/emphasis, size 22 default.
+- Icons: **Tabler**, always through the per-platform barrel `@/components/ui/icons` (never a direct `@tabler/*` import — the barrel wraps Tabler to a Lucide-compatible prop shape so a future set-swap is one file, and `no-restricted-imports` enforces this). strokeWidth **1.8** default, **2.2** active/emphasis, size 22 default. The barrel exports icons under their familiar Lucide names, so a swap of the underlying set never touches a callsite. The orange Sparkles ✨ is never an AI/default marker (identity is the Astra glyph); see Habit list.
 - Hit targets: 44 min / 56 comfortable. See **Accessibility** for how to reach the minimum without growing the glyph.
 - **Align optically, not geometrically.** Icons with directional or asymmetric mass (chevrons, play triangles, a leading plus, a glyph in a circular well) need a 1-2px nudge off mathematical center. This applies to the NavHeader back chevron, the ListRow trailing chevron, and PillButton leading icons.
 
@@ -518,6 +518,7 @@ Describe the rendered screen in one sentence as if narrating a film scene. If th
 | No em dashes in copy | `.claude/hooks/forbid-em-dashes.mjs` | **Already shipping.** |
 | No hardcoded brand color | `.claude/hooks/forbid-hardcoded-brand-color.mjs` | **Already shipping.** |
 | No full-bleed pill CTA (Buttons) | `local/no-fullbleed-button` | **Already shipping**, web only. Mobile StyleSheet width is not statically linkable, so mobile stays reviewer-judgment. |
+| Icons only through the barrel (Icons) | `no-restricted-imports` bans `lucide-react(-native)` + `@tabler/icons-react(-native)` outside `components/ui/icons.tsx` | #539 b6. The barrel is the only file allowed to import the icon set directly. |
 | AI-cliché copy words | `.claude/hooks/forbid-ai-cliche-copy.mjs` (new) | Wordlist over `en.json` + `pt-BR.json` values. Same shape as the em-dash hook. |
 | No UPPERCASE typed into a string (Copy) | wordlist/shape check over i18n **values** in the same hook family | Must not fire on keys or on acronyms. |
 

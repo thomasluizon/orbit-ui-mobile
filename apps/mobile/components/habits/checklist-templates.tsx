@@ -5,7 +5,7 @@ import {
   Text,
   View,
 } from 'react-native'
-import { Plus, X } from 'lucide-react-native'
+import { Plus, X } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 import { applyChecklistTemplate } from '@orbit/shared/utils'

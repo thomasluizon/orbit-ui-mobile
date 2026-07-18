@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Check, Search, X } from 'lucide-react'
+import { Check, Search, X } from '@/components/ui/icons'
 import type { AccountabilityCadence } from '@orbit/shared/types/accountability'
 import { getAccountabilityErrorKey } from '@orbit/shared/utils'
 import { AppOverlay } from '@/components/ui/app-overlay'

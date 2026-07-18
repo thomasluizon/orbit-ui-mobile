@@ -10,7 +10,7 @@ import {
   Plus,
   Trash2,
   type LucideIcon,
-} from 'lucide-react-native'
+} from '@/components/ui/icons'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import type { HabitRowActions } from './habit-row'

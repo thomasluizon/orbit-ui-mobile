@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, type ReactNode } from 'react'
-import { Flame, Loader2, Pencil, Target } from 'lucide-react'
+import { Flame, Loader2, Pencil, Target } from '@/components/ui/icons'
 import { useLocale, useTranslations } from 'next-intl'
 import { formatLocaleDate } from '@orbit/shared/utils'
 import type { ChallengeParticipant } from '@orbit/shared/types/challenge'

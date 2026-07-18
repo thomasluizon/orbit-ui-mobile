@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowUpRight } from 'lucide-react'
+import { ArrowUpRight } from '@/components/ui/icons'
 import { useLocale, useTranslations } from 'next-intl'
 import { AI_SUMMARY_CLAMP_CHARS } from '@orbit/shared/utils'
 import { AstraMark } from '@/components/ui/astra-avatar'

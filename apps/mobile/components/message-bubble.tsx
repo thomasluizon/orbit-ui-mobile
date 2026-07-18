@@ -3,7 +3,7 @@ import { useState, useMemo } from "react";
 import { View, Text, Image, StyleSheet, Pressable } from "react-native";
 import Animated, { FadeInUp, ReduceMotion } from "react-native-reanimated";
 import { useRouter } from "expo-router";
-import { ArrowUpRight } from "lucide-react-native";
+import { ArrowUpRight } from '@/components/ui/icons';
 import { useTranslation } from "react-i18next";
 import type { ChatMessage } from "@orbit/shared/types/chat";
 import type { AgentExecuteOperationResponse } from "@orbit/shared/types";

@@ -1,5 +1,5 @@
 import { View, Text, Pressable } from 'react-native'
-import { X } from 'lucide-react-native'
+import { X } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import type { BreakdownEditableHabit } from '@orbit/shared/utils'
 import { AppTextInput } from '@/components/ui/app-text-input'

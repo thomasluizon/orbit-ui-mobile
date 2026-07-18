@@ -1,6 +1,6 @@
 'use client'
 
-import { Lock } from 'lucide-react'
+import { Lock } from '@/components/ui/icons'
 
 /** Kit pill-chip row used as the Today / All / General / Goals view switcher:
  *  inactive chips sit on the bg-elev well, the active chip fills selection-bg

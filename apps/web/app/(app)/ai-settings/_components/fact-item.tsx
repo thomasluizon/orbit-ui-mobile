@@ -1,6 +1,6 @@
 'use client'
 
-import { Trash2 } from 'lucide-react'
+import { Trash2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { normalizeUserFactCategory } from '@orbit/shared/utils'
 import { RadioGlyph } from '@/components/ui/select-check'

@@ -34,9 +34,9 @@ vi.mock('@/lib/theme', async (importOriginal) => {
   }
 })
 
-vi.mock('lucide-react-native', () => ({
+vi.mock('@/components/ui/icons', () => ({
+  Gift: () => null,
   Lock: () => null,
-  Sparkles: () => null,
 }))
 
 function render(props: Parameters<typeof NextRewardCarrot>[0]) {
