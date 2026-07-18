@@ -256,6 +256,7 @@ export function HabitRow({
         selectMode={selectMode}
         selected={selected}
         hasChildren={hasChildren}
+        depth={depth}
         expanded={expanded}
         drillMode={drillMode}
         onToggleSelection={onToggleSelection}

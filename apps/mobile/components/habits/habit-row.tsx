@@ -241,6 +241,7 @@ export function HabitRow({
           isSelectMode={isSelectMode}
           isSelected={isSelected}
           hasChildren={hasChildren}
+          depth={depth}
           isExpanded={isExpanded}
           showDrillChevron={showDrillChevron}
           onToggleSelection={actions.onToggleSelection}

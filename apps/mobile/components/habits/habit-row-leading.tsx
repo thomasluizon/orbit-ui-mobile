@@ -21,6 +21,9 @@ interface HabitRowLeadingProps {
   isSelectMode: boolean
   isSelected: boolean
   hasChildren: boolean
+  /** Nesting depth (0 = top-level). An indented leaf reserves the chevron column
+   *  so its well aligns with expandable siblings at the same depth. */
+  depth: number
   isExpanded: boolean
   showDrillChevron: boolean
   onToggleSelection?: () => void
@@ -40,6 +43,7 @@ export function HabitRowLeading({
   isSelectMode,
   isSelected,
   hasChildren,
+  depth,
   isExpanded,
   showDrillChevron,
   onToggleSelection,
@@ -70,6 +74,8 @@ export function HabitRowLeading({
           accessibilityLabel={habitTitle}
         />
       ) : null}
+
+      {!hasChildren && !isSelectMode && depth > 0 ? <View style={{ width: 14 }} /> : null}
 
       {hasChildren && !isSelectMode ? (
         showDrillChevron ? (
