@@ -1,5 +1,21 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
+
+const motionScroll = vi.hoisted(() => ({
+  handler: undefined as ((value: number) => void) | undefined,
+}))
+
+vi.mock('motion/react', () => ({
+  useScroll: () => ({ scrollY: { get: () => window.scrollY } }),
+  useMotionValueEvent: (
+    _value: unknown,
+    _event: string,
+    handler: (value: number) => void,
+  ) => {
+    motionScroll.handler = handler
+  },
+}))
+
 import { usePopoverMenu } from '@/hooks/use-popover-menu'
 
 describe('usePopoverMenu', () => {
@@ -72,7 +88,7 @@ describe('usePopoverMenu', () => {
     expect(result.current.isOpen).toBe(true)
 
     act(() => {
-      window.dispatchEvent(new Event('scroll'))
+      motionScroll.handler?.(120)
     })
     expect(result.current.isOpen).toBe(false)
   })

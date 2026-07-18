@@ -16,6 +16,8 @@ vi.mock('motion/react', async () => {
   return {
     AnimatePresence: ({ children }: { children: React.ReactNode }) => children,
     useReducedMotion: () => false,
+    useScroll: () => ({ scrollY: { get: () => 0 } }),
+    useMotionValueEvent: () => {},
     motion: new Proxy({} as Record<string, unknown>, {
       get(_target, tag) {
         if (typeof tag !== 'string') return undefined

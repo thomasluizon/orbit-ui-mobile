@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useCallback } from 'react'
+import { useScroll, useMotionValueEvent } from 'motion/react'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   createTourUIState,
@@ -241,12 +242,10 @@ export function TourProvider() {
     }
   }, [pathname, isActive, getCurrentStep, waitForTarget, scheduleTimeout, resolveStepRoute])
 
-  useEffect(() => {
-    if (!isActive) return
-
-    let rafId: number
-
-    const update = () => {
+  const repositionRafRef = useRef(0)
+  const repositionSpotlight = useCallback(() => {
+    cancelAnimationFrame(repositionRafRef.current)
+    repositionRafRef.current = requestAnimationFrame(() => {
       const step = getCurrentStep()
       if (!step) return
       const el = document.querySelector(`[data-tour="${step.targetId}"]`)
@@ -258,22 +257,25 @@ export function TourProvider() {
         width: rect.width,
         height: rect.height,
       })
-    }
+    })
+  }, [getCurrentStep, setTargetRect])
 
-    const handleEvent = () => {
-      cancelAnimationFrame(rafId)
-      rafId = requestAnimationFrame(update)
-    }
+  const { scrollY } = useScroll()
+  useMotionValueEvent(scrollY, 'change', () => {
+    if (isActive) repositionSpotlight()
+  })
 
-    window.addEventListener('scroll', handleEvent, { passive: true })
-    window.addEventListener('resize', handleEvent, { passive: true })
+  useEffect(() => {
+    if (!isActive) return
+
+    const handleResize = () => repositionSpotlight()
+    window.addEventListener('resize', handleResize, { passive: true })
 
     return () => {
-      window.removeEventListener('scroll', handleEvent)
-      window.removeEventListener('resize', handleEvent)
-      cancelAnimationFrame(rafId)
+      window.removeEventListener('resize', handleResize)
+      cancelAnimationFrame(repositionRafRef.current)
     }
-  }, [isActive, getCurrentStep, setTargetRect])
+  }, [isActive, repositionSpotlight])
 
   useEffect(() => {
     return () => {

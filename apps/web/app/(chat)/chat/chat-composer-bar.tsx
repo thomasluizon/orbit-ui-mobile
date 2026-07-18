@@ -342,7 +342,7 @@ function ChatTextInputRow({
   return (
     <>
       <div
-        className="flex items-center flex-1 min-w-0 rounded-[26px] focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-[var(--primary)]"
+        className="flex items-center flex-1 min-w-0 rounded-[26px]"
         style={{
           gap: 2,
           minHeight: 50,
@@ -364,10 +364,8 @@ function ChatTextInputRow({
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
-          className={`appearance-none border-0 bg-transparent flex-1 min-w-0 resize-none${singleLine ? ' whitespace-nowrap overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden' : ''}`}
+          className={`appearance-none border-0 bg-transparent flex-1 min-w-0 resize-none outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)]${singleLine ? ' whitespace-nowrap overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden' : ''}`}
           style={{
-            // react-doctor-disable-next-line no-outline-none -- focus ring is shown on the wrapper via focus-within:outline-2 outline-[var(--primary)] https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-            outline: 'none',
             fontFamily: 'var(--font-sans)',
             fontSize: 16,
             color: 'var(--fg-1)',

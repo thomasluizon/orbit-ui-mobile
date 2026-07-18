@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState, useCallback, useEffect } from 'react'
+import { useScroll, useMotionValueEvent } from 'motion/react'
 
 export interface PopoverPosition {
   top: number
@@ -119,6 +120,11 @@ export function usePopoverMenu(options: UsePopoverMenuOptions = {}): UsePopoverM
     }
   }, [isOpen, computePosition])
 
+  const { scrollY } = useScroll()
+  useMotionValueEvent(scrollY, 'change', () => {
+    if (isOpen) setIsOpen(false)
+  })
+
   useEffect(() => {
     if (!isOpen) return
 
@@ -137,23 +143,17 @@ export function usePopoverMenu(options: UsePopoverMenuOptions = {}): UsePopoverM
       setIsOpen(false)
     }
 
-    function handleScroll() {
-      setIsOpen(false)
-    }
-
     function handleResize() {
       setIsOpen(false)
     }
 
     document.addEventListener('pointerdown', handlePointerDown)
     document.addEventListener('keydown', handleKeydown)
-    window.addEventListener('scroll', handleScroll, { capture: true })
     window.addEventListener('resize', handleResize)
 
     return () => {
       document.removeEventListener('pointerdown', handlePointerDown)
       document.removeEventListener('keydown', handleKeydown)
-      window.removeEventListener('scroll', handleScroll, { capture: true })
       window.removeEventListener('resize', handleResize)
     }
   }, [isOpen])

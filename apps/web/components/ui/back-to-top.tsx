@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useScroll, useMotionValueEvent } from 'motion/react'
 import { ArrowUp } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useShellStore } from '@/stores/shell-store'
@@ -39,13 +40,15 @@ export function BackToTop() {
   const astraOpen = useShellStore((state) => state.astraOpen)
   const isSelectMode = useUIStore((state) => state.isSelectMode)
   const [scrolled, setScrolled] = useState(false)
+  const { scrollY } = useScroll()
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > SHOW_THRESHOLD)
-    handleScroll()
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
+    void Promise.resolve().then(() => setScrolled(scrollY.get() > SHOW_THRESHOLD))
+  }, [scrollY])
+
+  useMotionValueEvent(scrollY, 'change', (value) => {
+    setScrolled(value > SHOW_THRESHOLD)
+  })
 
   const visible = scrolled && !astraOpen && !isSelectMode
 

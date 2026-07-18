@@ -23,6 +23,21 @@ vi.mock('@/hooks/use-tour-mock-data', () => ({
   useTourMockData: () => ({ inject: mockInject, restore: mockRestore }),
 }))
 
+const motionScroll = vi.hoisted(() => ({
+  handler: undefined as ((value: number) => void) | undefined,
+}))
+
+vi.mock('motion/react', () => ({
+  useScroll: () => ({ scrollY: { get: () => window.scrollY } }),
+  useMotionValueEvent: (
+    _value: unknown,
+    _event: string,
+    handler: (value: number) => void,
+  ) => {
+    motionScroll.handler = handler
+  },
+}))
+
 import { TourProvider } from '@/components/tour/tour-provider'
 
 function stubMatchMedia(matches: boolean) {
@@ -145,7 +160,7 @@ describe('TourProvider session lifecycle', () => {
     })
 
     await act(async () => {
-      window.dispatchEvent(new Event('scroll'))
+      motionScroll.handler?.(120)
       await new Promise((resolve) => requestAnimationFrame(() => resolve(null)))
     })
 

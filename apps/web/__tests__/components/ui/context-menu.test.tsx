@@ -1,8 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 
 vi.mock('@/hooks/use-is-client', () => ({
   useIsClient: () => true,
+}))
+
+const motionScroll = vi.hoisted(() => ({
+  handler: undefined as ((value: number) => void) | undefined,
 }))
 
 vi.mock('motion/react', async () => {
@@ -11,6 +15,14 @@ vi.mock('motion/react', async () => {
   return {
     AnimatePresence: ({ children }: { children: React.ReactNode }) => children,
     useReducedMotion: () => false,
+    useScroll: () => ({ scrollY: { get: () => window.scrollY } }),
+    useMotionValueEvent: (
+      _value: unknown,
+      _event: string,
+      handler: (value: number) => void,
+    ) => {
+      motionScroll.handler = handler
+    },
     motion: new Proxy({} as Record<string, unknown>, {
       get(_target, tag) {
         if (typeof tag !== 'string') return undefined
@@ -157,9 +169,17 @@ describe('useContextMenu positioning and keyboard navigation', () => {
     expect(screen.getByRole('menuitem', { name: 'Alpha' })).toHaveFocus()
   })
 
-  it('closes when the viewport scrolls or resizes', () => {
+  it('closes when the viewport scrolls', () => {
     open([{ key: 'a', label: 'Alpha', onSelect: vi.fn() }])
-    fireEvent.scroll(window)
+    act(() => motionScroll.handler?.(120))
+    expect(screen.queryByRole('menu')).toBeNull()
+  })
+
+  it('closes when the viewport resizes', () => {
+    open([{ key: 'a', label: 'Alpha', onSelect: vi.fn() }])
+    act(() => {
+      window.dispatchEvent(new Event('resize'))
+    })
     expect(screen.queryByRole('menu')).toBeNull()
   })
 

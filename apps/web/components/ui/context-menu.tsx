@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 // react-doctor-disable-next-line use-lazy-motion -- LazyMotion migration is app-wide (needs a shared provider + converting every motion.* across components/**); a partial per-file swap yields no bundle benefit and risks unprovided m https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { AnimatePresence, motion, useReducedMotion, useScroll, useMotionValueEvent } from 'motion/react'
 import { resolveMotionPreset } from '@orbit/shared/theme'
 import { useIsClient } from '@/hooks/use-is-client'
 import type {
@@ -91,6 +91,11 @@ export function useContextMenu(items: ReadonlyArray<ContextMenuItem>): UseContex
     return () => cancelAnimationFrame(rafId)
   }, [isOpen])
 
+  const { scrollY } = useScroll()
+  useMotionValueEvent(scrollY, 'change', () => {
+    if (isOpen) close()
+  })
+
   useEffect(() => {
     if (!isOpen) return
 
@@ -105,19 +110,17 @@ export function useContextMenu(items: ReadonlyArray<ContextMenuItem>): UseContex
       event.stopPropagation()
       close()
     }
-    function handleViewportChange() {
+    function handleResize() {
       close()
     }
 
     document.addEventListener('pointerdown', handlePointerDown)
     document.addEventListener('keydown', handleKeyDown)
-    window.addEventListener('scroll', handleViewportChange, { capture: true })
-    window.addEventListener('resize', handleViewportChange)
+    window.addEventListener('resize', handleResize)
     return () => {
       document.removeEventListener('pointerdown', handlePointerDown)
       document.removeEventListener('keydown', handleKeyDown)
-      window.removeEventListener('scroll', handleViewportChange, { capture: true })
-      window.removeEventListener('resize', handleViewportChange)
+      window.removeEventListener('resize', handleResize)
     }
   }, [isOpen, close])
 
