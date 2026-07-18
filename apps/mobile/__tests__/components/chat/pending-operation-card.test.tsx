@@ -40,7 +40,6 @@ vi.mock('@/lib/theme', () => ({
     },
   }),
   tintFromPrimary: () => 'rgba(17, 17, 17, 0.18)',
-  primaryGlow: () => ({}),
 }))
 
 vi.mock('@/components/ui/icons', () => {

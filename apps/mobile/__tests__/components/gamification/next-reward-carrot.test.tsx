@@ -29,7 +29,6 @@ vi.mock('@/lib/theme', async (importOriginal) => {
       fg2: '#cccccc',
       fg3: '#999999',
     }),
-    primaryGlow: () => ({}),
     tintFromPrimary: () => 'rgba(124, 92, 255, 0.08)',
   }
 })

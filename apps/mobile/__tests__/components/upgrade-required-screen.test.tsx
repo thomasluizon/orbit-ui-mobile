@@ -54,7 +54,6 @@ vi.mock('@/lib/i18n', () => ({
 
 vi.mock('@/lib/theme', () => ({
   radius: { full: 9999 },
-  primaryGlow: () => ({}),
   zLayers: {
     dropdown: 1000,
     sticky: 1100,

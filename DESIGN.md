@@ -3,7 +3,7 @@
 > **At a glance** - the authoritative spec for every Orbit UI surface; it overrides generic and user-global design defaults.
 > - Anchor (locked, 2026-07-17 freeze): de-decorated navy-violet orbital. Neutral canvas, rationed violet accent, hierarchy from surface steps + hairlines. **No decorative glow, no gradient wash, anywhere.**
 > - Identity is carried by the orbital logo mark, the Astra orbital glyph, and ring-shaped indicators. Never by background decoration.
-> - Semantic tokens only (`--bg`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-soft`, `--primary-rgb`, `--hairline`, ...); no raw hex in UI.
+> - Semantic tokens only (`--bg`, `--bg-card`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-soft`, `--primary-rgb`, `--hairline`, ...); no raw hex in UI.
 > - Scales: type, **spacing (base 4)**, radius, motion. Ships light AND dark, all 6 color schemes; mobile-first 412px shell.
 > - Tokens live in `apps/web/app/globals.css` + `apps/mobile/lib/theme.ts` + `packages/shared/src/theme/`.
 > - Sections (exact `##` names, so this line is greppable): Identity & anchor · Tokens · Type roles · Layout & spacing · Primitives kit · Buttons · Surface rules · Habit list · States · Copy · Desktop density & orientation · Sub-screen navigation · Motion · Accessibility · Special surfaces (paywall, landing hero) · Bans · Working model · Enforcement.
@@ -72,10 +72,11 @@ The dark surfaces below are the **white-alpha ladder composited over the frozen 
 
 ```
 --bg              #070910                     /* frozen canvas, neutral / faint-cool, NOT violet-tinted */
---bg-elev         rgba(255,255,255,0.04)      /* THE card. Habit tonal panels, Astra card, PlanCard. -> #111319 */
---bg-field        rgba(255,255,255,0.05)      /* Field, OTP fill */
---bg-well         rgba(255,255,255,0.06)      /* emoji wells, icon squares -> #16181E */
---bg-elev-2       rgba(255,255,255,0.10)      /* the highest step -> #1F2128 */
+--bg-card         rgba(248,250,252,0.04)      /* THE card. Habit tonal panels, Astra card, PlanCard. -> #111319 */
+--bg-field        rgba(248,250,252,0.05)      /* Field, OTP fill */
+--bg-well         rgba(248,250,252,0.06)      /* emoji wells, icon squares -> #16181E */
+--bg-elev         rgba(248,250,252,0.06)      /* elevated / hover step, same alpha as the well. NOT the card. */
+--bg-elev-2       rgba(248,250,252,0.10)      /* the highest step -> #1F2128 */
 --bg-sunk         rgba(0,0,0,0.28)            /* recessed wells */
 --hairline        rgba(255,255,255,0.08)      /* #FFFFFF14 */
 --hairline-ghost  rgba(255,255,255,0.10)      /* #FFFFFF1A - the habit tonal panel's ghost-edge ring ONLY */
@@ -100,7 +101,7 @@ There is **no `--gradient-header`** and **no glow shadow**. Both tokens are dele
 The freeze re-anchored dark only. Light keeps its slate-50 canvas and opaque white cards, minus the deleted gradient and glow. Its hairline alphas (0.08 / 0.16 ink) now match dark's, so the two modes share one ring weight.
 
 ```
---bg #F8FAFC · --bg-elev #FFFFFF (opaque white cards) · --bg-elev-2 #FFFFFF · --bg-sunk rgb(241,245,249)
+--bg #F8FAFC · --bg-card #FFFFFF (opaque white cards) · --bg-elev #FFFFFF · --bg-elev-2 #FFFFFF · --bg-sunk rgb(241,245,249)
 --hairline rgba(2,6,24,0.08) · --hairline-ghost rgba(2,6,24,0.10) · --hairline-strong rgba(2,6,24,0.16)
 --fg-1 rgb(15,23,43) · --fg-2 rgb(49,65,88) · --fg-3 rgb(98,116,142) · --fg-4 rgb(144,161,185)
 --primary-soft = --primary   /* on light, the accent is already dark enough to be text. See the accent split below. */
@@ -162,7 +163,7 @@ Each scheme needs its own `--primary-soft` satisfying the text floor on its canv
 
 Each scheme tints the neutral ramp; dark/light/system per scheme; 12 variants total.
 
-1. **Alpha tokens are scheme-independent constants.** `--bg-elev`, `--bg-field`, `--bg-well`, `--bg-elev-2`, `--bg-sunk`, all three hairlines, `--status-empty` are white-alpha (dark) / ink-alpha (light) and inherit tint optically from the canvas beneath. They are identical across all 6 schemes. Preserve this mechanism; it is what makes the surface ladder cost nothing per scheme.
+1. **Alpha tokens are scheme-independent constants.** `--bg-card`, `--bg-elev`, `--bg-field`, `--bg-well`, `--bg-elev-2`, `--bg-sunk`, all three hairlines, `--status-empty` are white-alpha (dark) / ink-alpha (light) and inherit tint optically from the canvas beneath. They are identical across all 6 schemes. Preserve this mechanism; it is what makes the surface ladder cost nothing per scheme.
 2. **Opaque neutrals re-derive per scheme via OKLCH:** convert each neutral (`--bg`, `--fg-1..4` dark; `--bg`, `--bg-sunk`, `--fg-1..4` light) to OKLCH; **lock L and C per token** (the ramp shape, shared by all schemes); hue varies per scheme.
 3. **Per-scheme neutral hue:** purple = the hue of the frozen canvas `#070910`, which is neutral / faint-cool and deliberately **not** the old violet-tinted 265.1322. Other 5 schemes: `neutralHue(s) = accentHue(s) + Δ` where `Δ` is the purple offset, then hand-tuned per scheme so each looks intentional (clamp chroma in the 50-170° hue band to avoid murk). Every hand-tune is one documented line below.
 4. **Acceptance (testable):** `createTokensV2('purple','dark')` and the web `.scheme-purple.dark` CSS resolve to exactly `#070910` bg, `#F6F7F9` fg-1, `#C7CBD2` fg-2, `#888E99` fg-3, `#565C67` fg-4, `#8659EA` primary, `#B69BF8` primary-soft. Light purple: `#F8FAFC` bg, white cards, `#0F172B` fg-1. A shared unit test asserts this.
@@ -234,7 +235,7 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | Radio/RadioRow | 24px, selected=primary fill + 9px white dot, else inset 2px fg-4 ring | `ui/select-check.tsx` | `ui/select-check.tsx` |
 | Badge | pill 3/9px, 10.5/600 +0.06em UPPERCASE; tones violet/soft/outline/amber | `ui/badge.tsx` (+ pro-badge) | same |
 | PillButton | pill CTA, 4 variants × 4 sizes off the shared `BUTTON_SIZES` geometry: primary (accent fill, **no glow**) / secondary (fg-1 bg + canvas text) / ghost (inset 1.5px hairline-strong) / destructive (status-bad fill + fg-on-bad); md = h50·26px pad·Rubik 16/500·18 icon·9 gap (default), sm = h40, xs = h38 (grounded desktop-sidebar Criar), lg = h56. Hugs content; caps ~360px at desktop. Full canon in **Buttons** | `ui/pill-button.tsx` | `ui/pill-button.tsx` |
-| StatTile | radius 18, `--bg-elev` + inset hairline ring, emoji 28, value Inter 24/700, label 15 fg-2 | `ui/stat-tile.tsx` | same |
+| StatTile | radius 18, `--bg-card` + inset hairline ring, emoji 28, value Inter 24/700, label 15 fg-2 | `ui/stat-tile.tsx` | same |
 | PlanCard | radius 18, selected = `--primary-dim` tint + inset 1.5px primary ring; price Inter 22/700 | `upgrade/plan-card.tsx` | same |
 | InfoCard | radius 18, `--primary-dim` tint bg + inset ring primary 0.28, icon 24/1.9 accent | `ui/info-card.tsx` | same |
 | Field | min-height 54, radius 14, `--bg-field` + inset hairline, **visible persistent label** 14/500 fg-2 | `ui/field-input.tsx` | `ui/app-text-input.tsx` |
@@ -274,9 +275,9 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 
 The approved Today mockups define this exactly. It is the surface the whole design freeze was fought over.
 
-- **Every top-level habit lives on its own tonal panel:** `--bg-elev` + an inset `--hairline-ghost` ring, radius 18. Single-row for a simple habit, multi-row for a family (parent + sub-habits on ONE panel). A childless habit is never a flat row sitting next to family panels.
+- **Every top-level habit lives on its own tonal panel:** `--bg-card` + an inset `--hairline-ghost` ring, radius 18. Single-row for a simple habit, multi-row for a family (parent + sub-habits on ONE panel). A childless habit is never a flat row sitting next to family panels.
 - **Panel row height matches across kinds.** A single-row panel is sized to the same row height as a family's parent row: web ~70px (via zeroed panel vertical padding), mobile ~66px.
-- The panel is `--bg-elev` (the quietest step) so the `--bg-well` emoji squares inside it read as the lighter elevation. The panel recedes; the content does not.
+- The panel is `--bg-card` (the quietest step) so the `--bg-well` emoji squares inside it read as the lighter elevation. The panel recedes; the content does not.
 - **Two levels inline, then drill in.** A node with children beyond level 2 shows a **violet `›`** (open in focus); a grey `⌄` means expand in place; a grey `›` means a collapsed family. Drilling makes the node the root and shows a breadcrumb (`‹ Water › Água da manhã`) to climb back: full width, always legible, unlimited depth. Reuses `onDrillInto` / `canDrillInto` in `habit-row.tsx`.
 - **Sub-habit rows:** indent + smaller well + dimmer text. **Zero connector or tree lines.** Connector lines are an AI-slop tell.
 - **The per-row `⋮` overflow menu stays.** The mockup omits it; the mockup is a mockup. The mockups define the visual language (surfaces, spacing, tokens, panel treatment, ring, layout), not the complete control set. Existing per-row affordances (kebab, swipe actions) are retained unless a decision explicitly removes them.
