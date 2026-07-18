@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   pressedScale: {
-    transform: [{ scale: 0.98 }],
+    transform: [{ scale: 0.97 }],
   },
   label: {
     fontFamily: 'Rubik_500Medium',

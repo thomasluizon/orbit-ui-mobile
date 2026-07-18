@@ -4,11 +4,11 @@ export const MAX_VISIBLE_TAGS = 3
 
 export const styles = StyleSheet.create({
   row: {
-    paddingVertical: 14,
+    paddingVertical: 12,
     paddingRight: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 12,
     position: 'relative',
   },
   rowPressed: {

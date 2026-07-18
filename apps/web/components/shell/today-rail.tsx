@@ -71,6 +71,7 @@ export function TodayRail() {
   const { profile: gamification, xpProgress } = useGamificationProfile(canViewGamification)
   const showGamification = canViewGamification && !!gamification
   const showStats = habitsQuery.isSuccess && progress.total > 0
+  const currentStreak = profile?.currentStreak ?? 0
 
   const renderOrbit = () => {
     if (habitsQuery.isPending) {
@@ -155,9 +156,9 @@ export function TodayRail() {
               <RailStatRow
                 icon={Flame}
                 label={t('streakDisplay.title')}
-                value={`${gamification.currentStreak} ${plural(
+                value={`${currentStreak} ${plural(
                   t('streakDisplay.daysSuffix'),
-                  gamification.currentStreak,
+                  currentStreak,
                 )}`}
               />
               <RailStatRow

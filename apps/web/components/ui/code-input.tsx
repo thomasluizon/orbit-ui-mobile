@@ -62,7 +62,7 @@ export function CodeInput({
   return (
     <fieldset
       className="flex items-center justify-center"
-      style={{ gap: 10, border: 0, padding: 0, margin: 0, minInlineSize: 0 }}
+      style={{ gap: 8, border: 0, padding: 0, margin: 0, minInlineSize: 0 }}
       aria-labelledby={ariaLabelledBy}
     >
       {digits.map((digit, index) => (

@@ -14,9 +14,9 @@ export function InfoCard({ icon: Icon = Sparkles, title, desc, trailing }: Reado
     <div
       className="flex items-center rounded-[18px]"
       style={{
-        padding: '16px 18px',
-        gap: 14,
-        background: 'rgba(var(--primary-rgb), 0.08)',
+        padding: '16px 20px',
+        gap: 12,
+        background: 'rgba(var(--primary-rgb), 0.18)',
         boxShadow: 'inset 0 0 0 1px rgba(var(--primary-rgb), 0.28)',
       }}
     >
@@ -43,7 +43,7 @@ export function InfoCard({ icon: Icon = Sparkles, title, desc, trailing }: Reado
               fontFamily: 'var(--font-sans)',
               fontSize: 13.5,
               color: 'var(--fg-3)',
-              marginTop: 3,
+              marginTop: 4,
               lineHeight: 1.4,
             }}
           >

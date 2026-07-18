@@ -44,8 +44,8 @@ function rowSurfaceStyle(
 ): React.CSSProperties {
   if (inPanel) {
     return {
-      gap: 14,
-      padding: `14px 16px 14px ${16 + indentPx}px`,
+      gap: 12,
+      padding: `12px 16px 12px ${16 + indentPx}px`,
       borderTopLeftRadius: firstInPanel ? 18 : 0,
       borderTopRightRadius: firstInPanel ? 18 : 0,
       borderBottomLeftRadius: lastInPanel ? 18 : 0,
@@ -53,12 +53,12 @@ function rowSurfaceStyle(
     }
   }
   return {
-    gap: 14,
-    padding: '14px 16px',
+    gap: 12,
+    padding: '12px 16px',
     borderRadius: 18,
     marginLeft: 20 + indentPx,
     marginRight: 20,
-    marginBottom: 10,
+    marginBottom: 12,
   }
 }
 

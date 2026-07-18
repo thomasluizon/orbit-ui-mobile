@@ -21,7 +21,7 @@ export function InfoCard({ icon: Icon = Sparkles, title, desc, trailing }: Reado
       style={[
         styles.card,
         {
-          backgroundColor: tintFromPrimary(tokens, 0.08),
+          backgroundColor: tintFromPrimary(tokens, 0.18),
           borderColor: tintFromPrimary(tokens, 0.28),
         },
       ]}
@@ -40,11 +40,11 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 12,
     borderRadius: 18,
     borderWidth: 1,
     paddingVertical: 16,
-    paddingHorizontal: 18,
+    paddingHorizontal: 20,
   },
   body: {
     flex: 1,
@@ -57,6 +57,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Rubik_400Regular',
     fontSize: 13.5,
     lineHeight: 19,
-    marginTop: 3,
+    marginTop: 4,
   },
 })

@@ -32,7 +32,7 @@ export function StatTile({
     <View
       style={[
         styles.tile,
-        { backgroundColor: tokens.bgField, borderColor: tokens.hairline },
+        { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
         style,
       ]}
     >
@@ -60,10 +60,10 @@ const styles = StyleSheet.create({
   tile: {
     flex: 1,
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     borderRadius: 18,
     borderWidth: 1,
-    paddingTop: 18,
+    paddingTop: 20,
     paddingHorizontal: 12,
     paddingBottom: 16,
   },

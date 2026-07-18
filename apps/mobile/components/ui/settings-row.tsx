@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 12,
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
   titleBlock: {
     flex: 1,
     minWidth: 0,
-    gap: 3,
+    gap: 4,
   },
   title: {
     fontFamily: 'Rubik_400Regular',
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
   trailingBlock: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
     flexShrink: 0,
   },
   value: {
@@ -250,6 +250,6 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 999,
-    boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.35)',
+    boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.20)',
   },
 })

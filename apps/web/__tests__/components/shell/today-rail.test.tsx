@@ -206,9 +206,9 @@ describe('TodayRail', () => {
 
   it('renders streak, level with XP, and achievements when gamification is loaded', () => {
     loadedHabits(1, 4)
-    useProfileMock.mockReturnValue({ profile: { canViewGamification: true } })
+    useProfileMock.mockReturnValue({ profile: { canViewGamification: true, currentStreak: 26 } })
     useGamificationProfileMock.mockReturnValue({
-      profile: { currentStreak: 26, level: 19, achievementsEarned: 12 },
+      profile: { currentStreak: 0, level: 19, achievementsEarned: 12 },
       xpProgress: 64,
     })
 

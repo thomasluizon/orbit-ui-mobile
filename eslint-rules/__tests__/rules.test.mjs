@@ -85,6 +85,34 @@ ruleTester.run('no-side-stripe-border', rule('no-side-stripe-border'), {
   ],
 })
 
+ruleTester.run('no-fullbleed-button', rule('no-fullbleed-button'), {
+  valid: [
+    '<PillButton>Save</PillButton>',
+    '<PillButton fullWidth={false}>Save</PillButton>',
+    // No pill radius: a full-width row / menu item / card button is legitimate layout, not a CTA.
+    '<button className="w-full flex items-center">Row</button>',
+    // A pill with no width utility hugs its content — nothing to flag.
+    '<PillButton className="rounded-full px-6">Save</PillButton>',
+    // flagFullWidthProp:false (the web config) leaves the prop unflagged, since the web
+    // PillButton self-caps fullWidth at the desktop breakpoint; the className vector still applies.
+    { code: '<PillButton fullWidth>Save</PillButton>', options: [{ flagFullWidthProp: false }] },
+  ],
+  invalid: [
+    // flagFullWidthProp defaults ON (the mobile config, no desktop self-cap): a bare fullWidth is flagged.
+    { code: '<PillButton fullWidth>Save</PillButton>', errors: [{ messageId: 'noFullWidthProp' }] },
+    { code: '<PillButton fullWidth={true}>Save</PillButton>', errors: [{ messageId: 'noFullWidthProp' }] },
+    // The raw uncapped-pill vector: a pill radius combined with a full-width utility.
+    { code: '<button className="rounded-full w-full">Save</button>', errors: [{ messageId: 'noFullWidthClass' }] },
+    { code: '<PillButton className="rounded-full flex-1">Save</PillButton>', errors: [{ messageId: 'noFullWidthClass' }] },
+    // The className vector is flagged independently of the prop option.
+    {
+      code: '<button className="rounded-full w-full">Save</button>',
+      options: [{ flagFullWidthProp: false }],
+      errors: [{ messageId: 'noFullWidthClass' }],
+    },
+  ],
+})
+
 ruleTester.run('no-overshoot-easing', rule('no-overshoot-easing'), {
   valid: [
     'const e = "cubic-bezier(0.2, 0, 0, 1)"',

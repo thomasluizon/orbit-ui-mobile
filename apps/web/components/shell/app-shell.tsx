@@ -180,13 +180,6 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
         active: pathname.startsWith('/explore'),
         onSelect: () => navigateTab('/explore'),
       },
-      {
-        id: 'profile',
-        label: t('nav.profile'),
-        icon: User,
-        active: pathname.startsWith('/profile'),
-        onSelect: () => navigateTab('/profile'),
-      },
     ],
     [
       t,

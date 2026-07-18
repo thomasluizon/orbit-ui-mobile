@@ -26,13 +26,13 @@ interface PillButtonProps {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-pressed)] enabled:hover:-translate-y-px enabled:active:translate-y-0 enabled:active:scale-[0.98]',
+    'bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-pressed)] enabled:hover:-translate-y-px enabled:active:translate-y-0 enabled:active:scale-[0.97]',
   secondary:
-    'bg-[var(--fg-1)] text-[var(--bg)] enabled:hover:opacity-90 enabled:hover:-translate-y-px enabled:active:translate-y-0 enabled:active:scale-[0.98] enabled:active:opacity-85',
+    'bg-[var(--fg-1)] text-[var(--bg)] enabled:hover:opacity-90 enabled:hover:-translate-y-px enabled:active:translate-y-0 enabled:active:scale-[0.97] enabled:active:opacity-85',
   ghost:
-    'bg-transparent text-[var(--fg-1)] shadow-[inset_0_0_0_1.5px_var(--hairline-strong)] enabled:hover:bg-[var(--bg-card)] enabled:active:scale-[0.98]',
+    'bg-transparent text-[var(--fg-1)] shadow-[inset_0_0_0_1.5px_var(--hairline-strong)] enabled:hover:bg-[var(--bg-card)] enabled:active:scale-[0.97]',
   destructive:
-    'bg-[var(--status-bad)] text-[var(--fg-on-bad)] enabled:hover:bg-[color-mix(in_srgb,var(--status-bad)_85%,black)] enabled:hover:-translate-y-px enabled:active:translate-y-0 enabled:active:scale-[0.98]',
+    'bg-[var(--status-bad)] text-[var(--fg-on-bad)] enabled:hover:bg-[color-mix(in_srgb,var(--status-bad)_85%,black)] enabled:hover:-translate-y-px enabled:active:translate-y-0 enabled:active:scale-[0.97]',
 }
 
 /** Kit pill CTA in the canonical taxonomy: solid `primary`, inverted

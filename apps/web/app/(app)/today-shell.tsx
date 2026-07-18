@@ -254,7 +254,7 @@ export function TodayUtilityRow({
     >
       {searchOpen ? (
         <div
-          className="flex items-center flex-1 min-w-0 shadow-[inset_0_0_0_1px_var(--hairline)] transition-[box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
+          className="flex items-center flex-1 min-w-0 box-border shadow-[inset_0_0_0_1px_var(--hairline)] transition-[box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-standard)] focus-within:shadow-[inset_0_0_0_2px_var(--primary)]"
           style={{
             gap: 8,
             minHeight: 44,
@@ -269,7 +269,7 @@ export function TodayUtilityRow({
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder={t('habits.searchPlaceholder')}
             autoFocus
-            className="appearance-none border-0 bg-transparent flex-1 min-w-0 rounded-full outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
+            className="appearance-none border-0 bg-transparent flex-1 min-w-0 w-full box-border outline-none focus-visible:shadow-none"
             style={{
               fontFamily: 'var(--font-sans)',
               fontSize: 15,

@@ -225,7 +225,7 @@ export function HabitRow({
               borderBottomRightRadius: lastInPanel ? 18 : 0,
               marginLeft: 20,
               marginRight: 20,
-              marginBottom: lastInPanel ? 10 : 0,
+              marginBottom: lastInPanel ? 12 : 0,
               paddingLeft: 16 + indentPx,
             },
             pressed ? styles.rowPressed : null,

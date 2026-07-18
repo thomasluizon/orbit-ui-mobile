@@ -209,7 +209,7 @@ export function AppBar({
 const styles = StyleSheet.create({
   row: {
     minHeight: 56,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     flexDirection: 'row',
     alignItems: 'center',
@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
   titleColumn: {
     flexShrink: 1,
     minWidth: 0,
-    gap: 2,
+    gap: 4,
     justifyContent: 'center',
   },
   titleRow: {
@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    gap: 10,
+    gap: 8,
     flexShrink: 0,
   },
 })

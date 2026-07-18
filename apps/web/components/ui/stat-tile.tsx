@@ -41,12 +41,12 @@ export function StatTile({
   return (
     <div
       className={[
-        'flex flex-1 flex-col items-center gap-[6px] rounded-[18px] bg-[var(--bg-field)]',
+        'flex flex-1 flex-col items-center gap-2 rounded-[18px] bg-[var(--bg-card)]',
         className,
       ]
         .filter(Boolean)
         .join(' ')}
-      style={{ padding: '18px 12px 16px', boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
+      style={{ padding: '20px 12px 16px', boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
     >
       <span style={{ fontSize: 28, lineHeight: 1 }} aria-hidden="true">
         {emoji}

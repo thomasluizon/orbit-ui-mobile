@@ -83,7 +83,7 @@ export function FieldInput({
       )}
       <div
         className={`flex items-center rounded-[14px] bg-[var(--bg-field)] ${wellRingClass} ${disabled ? 'opacity-60' : ''}`}
-        style={{ minHeight: 54, gap: 10, padding: '0 16px' }}
+        style={{ minHeight: 54, gap: 8, padding: '0 16px' }}
       >
         <input
           id={id}

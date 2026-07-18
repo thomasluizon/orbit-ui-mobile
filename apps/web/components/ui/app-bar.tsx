@@ -118,7 +118,7 @@ export function AppBar({
         style={{ minHeight: 48 }}
       >
         <div className="flex items-center justify-start">{backButton}</div>
-        <div className="flex items-center justify-end" style={{ gap: 10 }}>
+        <div className="flex items-center justify-end" style={{ gap: 8 }}>
           {trailingCluster}
         </div>
       </div>
@@ -128,7 +128,7 @@ export function AppBar({
   return (
     <div
       className="flex items-center shrink-0"
-      style={{ minHeight: 56, padding: '8px 14px', gap: 4 }}
+      style={{ minHeight: 56, padding: '8px 12px', gap: 4 }}
     >
       <div className="flex justify-start" style={{ flex: '1 0 0%', minWidth: 40 }}>
         {backButton ??
@@ -144,7 +144,7 @@ export function AppBar({
       </div>
 
       {(title || titleIcon) && (
-        <div className="flex flex-col justify-center min-w-0" style={{ gap: 2 }}>
+        <div className="flex flex-col justify-center min-w-0" style={{ gap: 4 }}>
           <div className="flex items-center justify-center min-w-0" style={{ gap: 8 }}>
             {titleIcon}
             {title && (
@@ -182,7 +182,7 @@ export function AppBar({
 
       <div
         className="flex items-center justify-end"
-        style={{ flex: '1 0 0%', minWidth: 40, gap: 10 }}
+        style={{ flex: '1 0 0%', minWidth: 40, gap: 8 }}
       >
         {trailing ?? rightAction}
       </div>

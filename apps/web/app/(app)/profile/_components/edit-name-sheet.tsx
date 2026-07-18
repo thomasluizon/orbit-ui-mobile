@@ -101,10 +101,7 @@ export function EditNameSheet({ open, onOpenChange }: Readonly<EditNameSheetProp
             {error}
           </p>
         )}
-        <div
-          className="flex flex-col sm:mx-auto sm:w-full sm:max-w-[360px]"
-          style={{ gap: 12, paddingTop: 8 }}
-        >
+        <div className="flex flex-col" style={{ gap: 12, paddingTop: 8 }}>
           <PillButton
             fullWidth
             onClick={handleSave}

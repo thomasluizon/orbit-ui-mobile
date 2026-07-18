@@ -51,7 +51,7 @@ export function SettingsRow({
       className={`w-full flex items-center bg-transparent ${interactive ? 'cursor-pointer transition-colors duration-150 ease-out hover:bg-[var(--bg-elev)] active:bg-[var(--bg-elev-pressed)]' : ''}`}
       style={{
         padding: '16px 20px',
-        gap: 14,
+        gap: 12,
         textAlign: 'left',
         appearance: 'none',
         border: 0,
@@ -76,7 +76,7 @@ export function SettingsRow({
           style={{ width: 8, height: 8, background: leadingDot }}
         />
       )}
-      <span className="flex flex-col min-w-0 flex-1" style={{ gap: 3 }}>
+      <span className="flex flex-col min-w-0 flex-1" style={{ gap: 4 }}>
         <span
           className="overflow-hidden line-clamp-2"
           style={{
@@ -107,7 +107,7 @@ export function SettingsRow({
       <span
         className="flex items-center shrink-0"
         style={{
-          gap: 10,
+          gap: 8,
           color: 'var(--fg-3)',
           fontFamily: mono ? 'var(--font-mono)' : 'var(--font-sans)',
           fontSize: mono ? 13 : 14,
@@ -173,7 +173,7 @@ export function Switch({ on, onToggle, ariaLabel, disabled = false }: Readonly<S
             height: 22,
             borderRadius: 999,
             background: 'var(--fg-on-primary)',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.35)',
+            boxShadow: '0 1px 2px rgba(0,0,0,.20)',
             transform: on ? 'translateX(20px)' : 'translateX(0px)',
             transition: 'transform var(--dur-base) var(--ease-standard)',
           }}
