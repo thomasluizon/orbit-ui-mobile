@@ -1,6 +1,6 @@
 # Standing rules
 
-**At a glance:** the judgement tier. 39 standing rules that no gate can check, harvested from 193 external skills (#539) and routed here because they are real but not mechanically decidable.
+**At a glance:** the judgement tier. 47 standing rules that no gate can check — 39 harvested from 193 external skills (#539), plus the 8 in `visual-delivery.md` written after b5's whole-app pass shipped at 5% and was reported done. Routed here because they are real but not mechanically decidable.
 
 ## Why this tier exists
 
@@ -20,6 +20,7 @@ These 39 rules are the ones that survived the "can this be a gate?" test by fail
 | `debugging.md` | 8 | chasing a bug, triaging an issue, `/investigate`, or resolving a merge conflict |
 | `planning-and-artifacts.md` | 11 | `/create-prd`, `/create-stories`, `/plan`, `/drive`, prototyping, ADRs, or deciding whether to hand off |
 | `product-and-content.md` | 9 | touching i18n copy, the landing page, JSON-LD, the design system, or removing anything |
+| `visual-delivery.md` | 8 | ANY task judged by how a rendered surface LOOKS — a redesign, a "de-slop", "apply the design", "make it beautiful", a whole-app pass. Makes completeness structural (surface inventory + per-surface screenshot artifacts + adversarial `completeness-critic` close gate + the seed fixture). Written after #539 b5 shipped at 5% and reported "done". |
 
 ## How these relate to the gates
 

@@ -75,7 +75,7 @@ Grep a doc's `At a glance` header before loading the whole file.
 | `FEATURES.md` | Code-derived, gating- and platform-aware map of every capability. |
 | `WORKFLOW.md` | Path-picking guide (`/execute` / `/drive` / `/night-run` / campaign) + the model & effort routing table. |
 | `TESTING.md` | How to write tests here + the catalog of every suite and what each proves. |
-| `.claude/rules/` | The judgement tier: 39 standing rules no gate can check, themed by activity (review, debugging, planning, product/content). Read the themed file when you start that activity; `README.md` indexes them. |
+| `.claude/rules/` | The judgement tier: 47 standing rules no gate can check, themed by activity (review, debugging, planning, product/content, **visual-delivery**). Read the themed file when you start that activity; `README.md` indexes them. **`visual-delivery.md` is mandatory for any redesign/"apply the design"/whole-app visual task** — it makes completeness structural (surface inventory + per-surface screenshot artifacts + the adversarial `completeness-critic` close gate + the seed fixture). |
 
 When you change a doc, update its `At a glance` header and this registry in the same edit.
 
