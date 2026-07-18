@@ -120,9 +120,6 @@ interface HabitRowProps {
   /** Force the accent drill-in chevron regardless of depth. Set for the drilled
    *  node's own children, which are the root of a focused sub-list. */
   forceDrillChevron?: boolean
-  /** When false, a deeper family always uses the grey expand chevron and never
-   *  the drill chevron. Set on the all view, which renders the full tree inline. */
-  enableDrillChevron?: boolean
   actions?: HabitRowActions
 }
 
@@ -145,7 +142,6 @@ export function HabitRow({
   firstInPanel = false,
   lastInPanel = false,
   forceDrillChevron = false,
-  enableDrillChevron = true,
   actions = EMPTY_ACTIONS,
 }: Readonly<HabitRowProps>) {
   const t = useTranslations()
@@ -166,7 +162,7 @@ export function HabitRow({
   const canSelect = !selectMode && !!onEnterSelectMode
   const canDrillInto = hasChildren && !!onDrillInto
   const drillMode =
-    canDrillInto && enableDrillChevron && (depth >= MAX_INLINE_DEPTH || forceDrillChevron)
+    canDrillInto && (depth >= MAX_INLINE_DEPTH || forceDrillChevron)
   const hasMenuActions = !!(
     onEdit ||
     onDuplicate ||

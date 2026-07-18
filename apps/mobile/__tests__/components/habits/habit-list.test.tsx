@@ -625,7 +625,7 @@ describe('HabitList', () => {
     expect(habitIds).toEqual(['parent', 'active-child', 'completed-recurring-child'])
   })
 
-  it('renders deeply nested all-view children up to the configured depth', () => {
+  it('caps all-view families at two inline levels and drills into deeper nodes', () => {
     const root = createMockHabit({ id: 'root', title: 'Root', hasSubHabits: true })
     const child = createMockHabit({ id: 'child', title: 'Child', parentId: 'root', hasSubHabits: true })
     const grandchild = createMockHabit({ id: 'grandchild', title: 'Grandchild', parentId: 'child', hasSubHabits: true })
@@ -651,11 +651,10 @@ describe('HabitList', () => {
       groupTree = TestRenderer.create(flatList.props.renderItem({ item: flatList.props.data[0] }))
     })
 
-    const habitIds = groupTree.root
-      .findAllByType(HabitRow)
-      .map((node: any) => node.props.habit.id)
-
-    expect(habitIds).toEqual(['root', 'child', 'grandchild', 'great-grandchild'])
+    const rows = groupTree.root.findAllByType(HabitRow)
+    expect(rows.map((node: any) => node.props.habit.id)).toEqual(['root', 'child'])
+    const childRow = rows.find((node: any) => node.props.habit.id === 'child')
+    expect(childRow.props.showDrillChevron).toBe(true)
   })
 
   it('uses plain draggable list for today view outside select mode', () => {

@@ -842,7 +842,6 @@ const isPostponeAction = useMemo(() => {
       inPanel?: boolean
       firstInPanel?: boolean
       lastInPanel?: boolean
-      enableDrillChevron?: boolean
     },
   ) {
     const progress = hasChildren ? getChildrenProgress(habit.id) : { done: 0, total: 0 }
@@ -876,7 +875,6 @@ const isPostponeAction = useMemo(() => {
         firstInPanel={options?.firstInPanel ?? false}
         lastInPanel={options?.lastInPanel ?? false}
         forceDrillChevron={options?.isDrillCard ?? false}
-        enableDrillChevron={options?.enableDrillChevron ?? true}
         actions={{
           onLog: () => { void handleDirectLog(habit.id) },
           onUnlog: () => logHabit.mutate({ habitId: habit.id }),
@@ -913,25 +911,6 @@ const isPostponeAction = useMemo(() => {
 
   if (habitsQuery.isLoading) {
     return <HabitListSkeleton />
-  }
-
-  function renderAllViewChildren(parentId: string, depth: number): React.ReactNode {
-    if (collapsedIds.has(parentId) || depth >= maxHabitDepth) return null
-    const children = getVisibleChildren(parentId)
-    if (children.length === 0) return null
-
-    return children.map((child) => (
-      <div key={child.id}>
-        {renderHabitCard(
-          child,
-          depth,
-          getVisibleChildren(child.id).length > 0,
-          habitsById.get(child.id)?.hasSubHabits ?? false,
-          { inPanel: true, enableDrillChevron: false },
-        )}
-        {renderAllViewChildren(child.id, depth + 1)}
-      </div>
-    ))
   }
 
   function renderMainContent(): React.ReactNode {
@@ -1045,24 +1024,30 @@ const isPostponeAction = useMemo(() => {
     if (view === 'all') {
       return (
         <>
-          {dateGroups.map((group) => (
-            <HabitListDateGroupSection key={group.key} group={group} overdueLabel={t('habits.overdue')}>
-              <div className="stagger-enter">
-                {group.habits.map((habit) => (
-                  <HabitPanel key={habit.id}>
-                    {renderHabitCard(
-                      habit,
-                      0,
-                      getChildren(habit.id).length > 0,
-                      habit.hasSubHabits,
-                      { inPanel: true, enableDrillChevron: false },
-                    )}
-                    {renderAllViewChildren(habit.id, 1)}
-                  </HabitPanel>
-                ))}
-              </div>
-            </HabitListDateGroupSection>
-          ))}
+          {dateGroups.map((group) => {
+            const groupPanels = groupHabitItemsIntoPanels(
+              buildDragItemsFlat(group.habits, collapsedIds, visibility.getVisibleChildren, view),
+            )
+            return (
+              <HabitListDateGroupSection key={group.key} group={group} overdueLabel={t('habits.overdue')}>
+                <div className="stagger-enter">
+                  {groupPanels.map((panel) => (
+                    <HabitPanel key={panel.rootId}>
+                      {panel.items.map((item) => (
+                        renderHabitCard(
+                          item.habit,
+                          item.depth,
+                          item.hasChildren,
+                          item.hasSubHabits,
+                          { inPanel: true },
+                        )
+                      ))}
+                    </HabitPanel>
+                  ))}
+                </div>
+              </HabitListDateGroupSection>
+            )
+          })}
         </>
       )
     }

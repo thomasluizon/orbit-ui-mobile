@@ -131,6 +131,8 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => {
 vi.mock('@/components/habits/habit-row', () => ({
   HabitRow: ({
     habit,
+    depth,
+    hasChildren,
     childProgress,
     tourTargetId,
     state,
@@ -139,6 +141,8 @@ vi.mock('@/components/habits/habit-row', () => ({
     actions,
   }: {
     habit: NormalizedHabit
+    depth?: number
+    hasChildren?: boolean
     childProgress?: { done: number; total: number }
     tourTargetId?: string
     state?: string
@@ -155,6 +159,8 @@ vi.mock('@/components/habits/habit-row', () => ({
     <div
       data-testid={`habit-card-${habit.id}`}
       data-tour={tourTargetId}
+      data-depth={depth}
+      data-has-children={hasChildren ? 'yes' : 'no'}
       data-select-mode={selectMode ? 'yes' : 'no'}
       data-selected={selected ? 'yes' : 'no'}
       data-state={state}
@@ -516,7 +522,7 @@ describe('HabitList', () => {
     expect(screen.getByTestId('habit-card-bad-child').getAttribute('data-state')).toBe('bad')
   })
 
-  it('renders deeply nested all-view children up to the configured depth', () => {
+  it('caps all-view families at two inline levels and drills into deeper nodes', () => {
     const root = createMockHabit({ id: 'root', title: 'Root', hasSubHabits: true })
     const child = createMockHabit({ id: 'child', title: 'Child', parentId: 'root', hasSubHabits: true })
     const grandchild = createMockHabit({ id: 'grandchild', title: 'Grandchild', parentId: 'child', hasSubHabits: true })
@@ -538,10 +544,12 @@ describe('HabitList', () => {
       />,
     )
 
-    expect(screen.getByTestId('habit-card-root')).toBeDefined()
-    expect(screen.getByTestId('habit-card-child')).toBeDefined()
-    expect(screen.getByTestId('habit-card-grandchild')).toBeDefined()
-    expect(screen.getByTestId('habit-card-great-grandchild')).toBeDefined()
+    expect(screen.getByTestId('habit-card-root').getAttribute('data-depth')).toBe('0')
+    const childCard = screen.getByTestId('habit-card-child')
+    expect(childCard.getAttribute('data-depth')).toBe('1')
+    expect(childCard.getAttribute('data-has-children')).toBe('yes')
+    expect(screen.queryByTestId('habit-card-grandchild')).toBeNull()
+    expect(screen.queryByTestId('habit-card-great-grandchild')).toBeNull()
   })
 
   it('renders the ask-astra and create-manually actions in all view empty state', () => {

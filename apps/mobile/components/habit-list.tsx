@@ -85,6 +85,7 @@ import {
   buildFlatHabitItems,
   buildMoveParentOptions,
   validateMoveTarget as computeMoveTargetValidation,
+  MAX_INLINE_DEPTH,
   type DragItem,
 } from './habit-list/tree-helpers'
 import { createStyles } from './habit-list/styles'
@@ -1232,7 +1233,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         ]
 
         function walk(parentId: string, depth: number) {
-          if (collapsedIds.has(parentId) || depth >= maxHabitDepth) return
+          if (collapsedIds.has(parentId) || depth > MAX_INLINE_DEPTH) return
           for (const child of getVisibleChildren(parentId)) {
             rows.push({
               habit: child,
@@ -1246,8 +1247,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         walk(rootHabit.id, 1)
         return rows
       },
-      // react-doctor-disable-next-line exhaustive-deps -- maxHabitDepth is the extracted appConfig.limits.maxHabitDepth and already listed; the analyzer wants the qualified path but the alias tracks it https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-      [collapsedIds, getVisibleChildren, maxHabitDepth],
+      [collapsedIds, getVisibleChildren],
     )
 
     /* No Reanimated entering animation here: a layout animation nested inside a
@@ -1352,6 +1352,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
                     {
                       firstInPanel: rowIndex === 0,
                       lastInPanel: rowIndex === rows.length - 1,
+                      showDrillChevron: row.depth >= 1,
                     },
                   ),
                 )}
