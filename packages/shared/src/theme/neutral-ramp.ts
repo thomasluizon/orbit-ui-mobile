@@ -159,6 +159,7 @@ export interface AlphaSurfaceConstants {
   readonly bgElev2: string
   readonly bgSunk?: string
   readonly hairline: string
+  readonly hairlineGhost: string
   readonly hairlineStrong: string
   readonly statusEmpty: string
 }
@@ -179,6 +180,7 @@ export const alphaSurfaces: Record<SchemeMode, AlphaSurfaceConstants> = {
     bgElev2: 'rgba(248, 250, 252, 0.10)',
     bgSunk: 'rgba(0, 0, 0, 0.28)',
     hairline: 'rgba(248, 250, 252, 0.10)',
+    hairlineGhost: 'rgba(255, 255, 255, 0.10)',
     hairlineStrong: 'rgba(248, 250, 252, 0.18)',
     statusEmpty: 'rgba(248, 250, 252, 0.22)',
   },
@@ -187,6 +189,7 @@ export const alphaSurfaces: Record<SchemeMode, AlphaSurfaceConstants> = {
     bgElev: 'rgb(255, 255, 255)',
     bgElev2: 'rgb(255, 255, 255)',
     hairline: 'rgba(2, 6, 24, 0.08)',
+    hairlineGhost: 'rgba(2, 6, 24, 0.10)',
     hairlineStrong: 'rgba(2, 6, 24, 0.16)',
     statusEmpty: 'rgba(2, 6, 24, 0.18)',
   },

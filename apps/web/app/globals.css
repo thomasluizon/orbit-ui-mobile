@@ -192,6 +192,7 @@
   --bg-sunk:         rgba(0, 0, 0, 0.28);
 
   --hairline:        rgba(248, 250, 252, 0.10);
+  --hairline-ghost:  rgba(255, 255, 255, 0.10);
   --hairline-strong: rgba(248, 250, 252, 0.18);
 
   --fg-1: oklch(0.975941527186872 calc(0.0028673413166476263 * var(--chroma-scale-fg)) calc(var(--hue) - 5.807762834095854));
@@ -237,6 +238,7 @@
   --bg-sunk:         oklch(0.9682603461349981 calc(0.006853583273311416 * var(--chroma-scale-bg)) calc(var(--hue) - 22.45423513044682));
 
   --hairline:        rgba(2, 6, 24, 0.08);
+  --hairline-ghost:  rgba(2, 6, 24, 0.10);
   --hairline-strong: rgba(2, 6, 24, 0.16);
 
   --fg-1: oklch(0.208402856504579 calc(0.04166282575754041 * var(--chroma-scale-fg)) calc(var(--hue) - 3.990596293373983));

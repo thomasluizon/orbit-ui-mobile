@@ -7,7 +7,8 @@ import Animated, {
   withRepeat,
   withTiming,
 } from 'react-native-reanimated'
-import { Plus, Sparkles } from 'lucide-react-native'
+import { Plus } from 'lucide-react-native'
+import { AstraMark } from '@/components/ui/astra-avatar'
 import { getHabitEmptyStateKey } from '@orbit/shared/utils'
 import { PillButton } from '@/components/ui/pill-button'
 import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
@@ -57,7 +58,7 @@ export function HabitListEmptyState({
             fullWidth
             onPress={onAskAstra}
             leading={
-              <Sparkles size={18} color={tokens.fgOnPrimary} strokeWidth={1.8} />
+              <AstraMark size={18} color={tokens.fgOnPrimary} />
             }
           >
             {askAstraLabel}

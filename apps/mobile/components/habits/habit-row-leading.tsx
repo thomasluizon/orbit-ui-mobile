@@ -79,7 +79,7 @@ export function HabitRowLeading({
             accessibilityRole="button"
             accessibilityLabel={t('habits.actions.openSubHabits')}
           >
-            <ChevronRight size={14} color={tokens.primary} strokeWidth={1.8} />
+            <ChevronRight size={14} color={tokens.primary} strokeWidth={2.2} />
           </Pressable>
         ) : (
           <Pressable

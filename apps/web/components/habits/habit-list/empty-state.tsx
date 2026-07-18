@@ -1,6 +1,7 @@
 'use client'
 
-import { Plus, Sparkles } from 'lucide-react'
+import { Plus } from 'lucide-react'
+import { AstraMark } from '@/components/ui/astra-avatar'
 import { PillButton } from '@/components/ui/pill-button'
 import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
 
@@ -85,7 +86,7 @@ export function HabitListEmptyState({
             <PillButton
               className="min-w-[240px]"
               onClick={onAskAstra}
-              leading={<Sparkles size={18} strokeWidth={1.8} aria-hidden="true" />}
+              leading={<AstraMark size={18} color="var(--fg-on-primary)" aria-hidden="true" />}
             >
               {askAstraLabel}
             </PillButton>

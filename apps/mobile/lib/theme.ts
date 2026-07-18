@@ -108,6 +108,7 @@ export interface AppTokensV2 {
   bgSheet: string
   bgSunk: string
   hairline: string
+  hairlineGhost: string
   hairlineStrong: string
   fg1: string
   fg2: string
@@ -120,8 +121,6 @@ export interface AppTokensV2 {
   primaryRgb: string
   /** Accent-text token: the per-scheme `primarySoft` clearing the text floor on canvas. */
   primarySoft: string
-  gradientHeaderFrom: string
-  gradientHeaderTo: string
   statusDone: string
   statusEmpty: string
   statusSkip: string
@@ -181,7 +180,6 @@ export function createTokensV2(
 
   if (themeMode === 'light') {
     const neutrals = resolveLightNeutrals(colorScheme)
-    const [r, g, b] = hexChannels(neutrals.bg)
     return {
       bg: neutrals.bg,
       bgCard: alpha.bgCard,
@@ -193,6 +191,7 @@ export function createTokensV2(
       bgSheet: '#ffffff',
       bgSunk: neutrals.bgSunk,
       hairline: alpha.hairline,
+      hairlineGhost: alpha.hairlineGhost,
       hairlineStrong: alpha.hairlineStrong,
       fg1: neutrals.fg1,
       fg2: neutrals.fg2,
@@ -203,8 +202,6 @@ export function createTokensV2(
       primaryPressed: accent.primaryPressed,
       primaryRgb: accent.primaryRgb,
       primarySoft: schemes[colorScheme].primarySoft[themeMode],
-      gradientHeaderFrom: neutrals.bg,
-      gradientHeaderTo: `rgba(${r}, ${g}, ${b}, 0)`,
       statusDone: accent.primary,
       statusEmpty: alpha.statusEmpty,
       statusSkip: neutrals.fg3,
@@ -220,7 +217,6 @@ export function createTokensV2(
   }
 
   const neutrals = resolveDarkNeutrals(colorScheme)
-  const [r, g, b] = hexChannels(neutrals.bg)
   return {
     bg: neutrals.bg,
     bgCard: alpha.bgCard,
@@ -232,6 +228,7 @@ export function createTokensV2(
     bgSheet: blendWhiteOverHex(neutrals.bg, 0.05),
     bgSunk: alpha.bgSunk ?? 'rgba(0, 0, 0, 0.28)',
     hairline: alpha.hairline,
+    hairlineGhost: alpha.hairlineGhost,
     hairlineStrong: alpha.hairlineStrong,
     fg1: neutrals.fg1,
     fg2: neutrals.fg2,
@@ -242,8 +239,6 @@ export function createTokensV2(
     primaryPressed: accent.primaryPressed,
     primaryRgb: accent.primaryRgb,
     primarySoft: schemes[colorScheme].primarySoft[themeMode],
-    gradientHeaderFrom: neutrals.bg,
-    gradientHeaderTo: `rgba(${r}, ${g}, ${b}, 0)`,
     statusDone: accent.primary,
     statusEmpty: alpha.statusEmpty,
     statusSkip: neutrals.fg3,

@@ -214,7 +214,7 @@ export function HabitRow({
             styles.row,
             {
               backgroundColor: isSelected ? tokens.bgSunk : pressedBackground,
-              borderColor: pressed ? tokens.hairlineStrong : tokens.hairline,
+              borderColor: pressed ? tokens.hairlineStrong : tokens.hairlineGhost,
               borderLeftWidth: 1,
               borderRightWidth: 1,
               borderTopWidth: firstInPanel ? 1 : 0,

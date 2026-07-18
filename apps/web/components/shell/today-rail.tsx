@@ -31,10 +31,10 @@ function RailStatRow({
     <div className="flex items-center" style={{ gap: 12, minHeight: 44 }}>
       <span
         className="flex shrink-0 items-center justify-center rounded-[12px]"
-        style={{ width: 36, height: 36, background: 'rgba(var(--primary-rgb), 0.12)' }}
+        style={{ width: 36, height: 36, background: 'var(--bg-well)' }}
         aria-hidden="true"
       >
-        <Icon size={18} strokeWidth={1.9} color="var(--primary)" />
+        <Icon size={18} strokeWidth={1.9} color="var(--fg-2)" />
       </span>
       <div className="flex min-w-0 flex-1 flex-col" style={{ gap: 5 }}>
         <span

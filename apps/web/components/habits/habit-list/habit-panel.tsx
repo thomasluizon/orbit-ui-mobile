@@ -13,7 +13,7 @@ export function HabitPanel({
       className="relative"
       style={{
         background: 'var(--bg-card)',
-        boxShadow: 'inset 0 0 0 1px var(--hairline)',
+        boxShadow: 'inset 0 0 0 1px var(--hairline-ghost)',
         borderRadius: 18,
         marginLeft: 20,
         marginRight: 20,

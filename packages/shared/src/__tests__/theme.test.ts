@@ -81,7 +81,7 @@ describe('color schemes', () => {
 
   it('has no gradient-header field (deleted in the #539 freeze)', () => {
     for (const name of ALL_SCHEMES) {
-      expect('gradientHeaderFrom' in schemes[name]).toBe(false)
+      expect(Object.keys(schemes[name]).some((key) => key.startsWith('gradient'))).toBe(false)
     }
   })
 })
@@ -174,6 +174,7 @@ describe('alpha surfaces and status constants', () => {
       bgElev2: 'rgba(248, 250, 252, 0.10)',
       bgSunk: 'rgba(0, 0, 0, 0.28)',
       hairline: 'rgba(248, 250, 252, 0.10)',
+      hairlineGhost: 'rgba(255, 255, 255, 0.10)',
       hairlineStrong: 'rgba(248, 250, 252, 0.18)',
       statusEmpty: 'rgba(248, 250, 252, 0.22)',
     })
@@ -184,6 +185,7 @@ describe('alpha surfaces and status constants', () => {
     expect(alphaSurfaces.light.bgElev).toBe('rgb(255, 255, 255)')
     expect(alphaSurfaces.light.bgElev2).toBe('rgb(255, 255, 255)')
     expect(alphaSurfaces.light.hairline).toBe('rgba(2, 6, 24, 0.08)')
+    expect(alphaSurfaces.light.hairlineGhost).toBe('rgba(2, 6, 24, 0.10)')
     expect(alphaSurfaces.light.hairlineStrong).toBe('rgba(2, 6, 24, 0.16)')
     expect(alphaSurfaces.light.statusEmpty).toBe('rgba(2, 6, 24, 0.18)')
   })
