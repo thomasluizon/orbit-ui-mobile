@@ -19,6 +19,7 @@
 import { createHash } from "node:crypto"
 import { spawnSync } from "node:child_process"
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs"
+import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -199,7 +200,7 @@ function runJudge(surfaces, options) {
   ]
   const run = spawnSync("claude", args, {
     input: judgePrompt(surfaces),
-    cwd: REPO_ROOT,
+    cwd: tmpdir(),
     env: childEnv(),
     encoding: "utf8",
     timeout: options.timeoutMin * 60 * 1000,
