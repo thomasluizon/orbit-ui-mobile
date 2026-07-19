@@ -82,6 +82,7 @@ export function HabitListEmptyState({
       description={hasDistinctDescription ? description : undefined}
       action={action}
       footer={footer}
+      matchActionFooterWidth={Boolean(action) && Boolean(footer)}
     />
   )
 }

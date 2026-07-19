@@ -26,6 +26,14 @@ interface EmptyStateProps {
   action?: EmptyStateAction
   /** Rendered under the action, on the same centred rhythm: an inline error, a hint, or a second CTA. */
   footer?: ReactNode
+  /**
+   * When both `action` and `footer` render as a stacked CTA pair, size them to match the wider
+   * of the two instead of each hugging its own content. `PillButton` is otherwise hug-only by
+   * contract (DESIGN.md Buttons) — this is that rule's one sanctioned, scoped exception, for the
+   * specific case of two pills stacked as a visual pair. Has no effect unless both `action` and
+   * `footer` are present. Mirrors the web `EmptyState`'s `matchActionFooterWidth`.
+   */
+  matchActionFooterWidth?: boolean
   style?: StyleProp<ViewStyle>
 }
 
@@ -40,10 +48,12 @@ export function EmptyState({
   icon: Icon,
   action,
   footer,
+  matchActionFooterWidth,
   style,
 }: Readonly<EmptyStateProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const matchWidth = matchActionFooterWidth && Boolean(action) && Boolean(footer)
 
   return (
     <View style={[styles.container, style]} testID={Icon ? 'empty-state-icon' : 'empty-state-satellite'}>
@@ -63,7 +73,7 @@ export function EmptyState({
       </View>
 
       {action || footer ? (
-        <View style={styles.actions}>
+        <View style={[styles.actions, matchWidth ? styles.actionsMatchWidth : null]}>
           {action ? (
             <PillButton
               variant={action.variant === 'secondary' ? 'ghost' : 'primary'}
@@ -120,5 +130,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     minWidth: 0,
+  },
+  actionsMatchWidth: {
+    alignItems: 'stretch',
   },
 })

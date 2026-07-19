@@ -127,6 +127,47 @@ describe('HabitListEmptyState', () => {
       tree.root.findAll((node) => node.props?.accessibilityRole === 'button'),
     ).toHaveLength(0)
   })
+
+  it('matches the Astra pill and create pill widths when both are present', () => {
+    const tree = render(
+      <HabitListEmptyState
+        title="Empty"
+        description=""
+        askAstraLabel="Ask Astra"
+        onAskAstra={vi.fn()}
+        actionLabel="Create"
+        onAction={vi.fn()}
+      />,
+    )
+    const actionsView = tree.root.findAll(
+      (node) =>
+        Array.isArray(node.props?.style) &&
+        (node.props.style as Array<Record<string, unknown>>).some(
+          (entry) => entry && entry.alignItems === 'stretch',
+        ),
+    )
+    expect(actionsView.length).toBeGreaterThan(0)
+  })
+
+  it('does not force matched widths for the single-action secondary variant', () => {
+    const tree = render(
+      <HabitListEmptyState
+        variant="secondary"
+        title="Empty"
+        description=""
+        actionLabel="Browse all"
+        onAction={vi.fn()}
+      />,
+    )
+    const actionsView = tree.root.findAll(
+      (node) =>
+        Array.isArray(node.props?.style) &&
+        (node.props.style as Array<Record<string, unknown>>).some(
+          (entry) => entry && entry.alignItems === 'stretch',
+        ),
+    )
+    expect(actionsView).toHaveLength(0)
+  })
 })
 
 describe('SkeletonCard', () => {

@@ -28,6 +28,14 @@ interface EmptyStateProps {
   action?: EmptyStateAction
   /** Rendered under the action, on the same centred rhythm: an inline error, a hint, or a second CTA. */
   footer?: ReactNode
+  /**
+   * When both `action` and `footer` render as a stacked CTA pair, size them to match the wider
+   * of the two instead of each hugging its own content. `PillButton` is otherwise hug-only by
+   * contract (DESIGN.md Buttons) — this is that rule's one sanctioned, scoped exception, for the
+   * specific case of two pills stacked as a visual pair. Has no effect unless both `action` and
+   * `footer` are present.
+   */
+  matchActionFooterWidth?: boolean
   className?: string
 }
 
@@ -42,9 +50,11 @@ export function EmptyState({
   icon: Icon,
   action,
   footer,
+  matchActionFooterWidth,
   className,
 }: Readonly<EmptyStateProps>) {
   const hasFooter = Boolean(footer)
+  const matchWidth = matchActionFooterWidth && Boolean(action) && hasFooter
 
   return (
     <div
@@ -81,7 +91,13 @@ export function EmptyState({
       </div>
 
       {action || hasFooter ? (
-        <div className="flex min-w-0 flex-col items-center gap-3">
+        <div
+          className={
+            matchWidth
+              ? 'grid min-w-0 justify-center gap-3'
+              : 'flex min-w-0 flex-col items-center gap-3'
+          }
+        >
           {action ? (
             <PillButton
               variant={action.variant === 'secondary' ? 'ghost' : 'primary'}

@@ -109,4 +109,31 @@ describe('EmptyState', () => {
     )
     expect(screen.getByText('Portal unavailable')).toBeInTheDocument()
   })
+
+  it('matches action/footer pill widths only when matchActionFooterWidth is set', () => {
+    render(
+      <EmptyState
+        description="Empty"
+        action={{ label: 'Ask Astra', onClick: vi.fn() }}
+        footer={<span>Create</span>}
+        matchActionFooterWidth
+      />,
+    )
+    const wrapper = screen.getByRole('button', { name: 'Ask Astra' }).parentElement
+    expect(wrapper).toHaveClass('grid')
+    expect(wrapper).not.toHaveClass('flex')
+  })
+
+  it('keeps the default hug layout when matchActionFooterWidth is not set', () => {
+    render(
+      <EmptyState
+        description="Empty"
+        action={{ label: 'Ask Astra', onClick: vi.fn() }}
+        footer={<span>Create</span>}
+      />,
+    )
+    const wrapper = screen.getByRole('button', { name: 'Ask Astra' }).parentElement
+    expect(wrapper).toHaveClass('flex')
+    expect(wrapper).not.toHaveClass('grid')
+  })
 })
