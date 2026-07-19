@@ -17,6 +17,15 @@ const PAUSED_RE = /\.claude[\\/]manifests[\\/]PAUSED/i
 const MANIFEST_RE = /\.claude[\\/]manifests[\\/]surfaces\.json/i
 const VERDICTS_RE = /(\.artifacts[\\/]surfaces[\\/]verdicts\.json|\.claude[\\/]manifests[\\/]defects\.json)/i
 const SIGNOFF_RE = /\.claude[\\/]manifests[\\/]signoff\.json/i
+// The recall number is the harness's own report card, and its adjudications
+// live in this tool's source. An agent that can edit it can flip a rejected
+// candidate to a hit, or loosen the match threshold, and turn a measurement
+// back into the self-graded number the rebuild exists to eliminate.
+const CALIBRATION_RE = /tools[\\/]calibrate-judge\.mjs/i
+const CALIBRATION_MESSAGE =
+  "gate-tamper: tools/calibrate-judge.mjs carries the ADJUDICATED recall of the vision judge against known " +
+  "human-found defects - the harness's own report card. Editing it can turn a measured 0/12 into any number you like. " +
+  "Running it (`npm run surfaces:calibrate`) is fine. If a candidate match is genuinely a hit, say so and let Thomas adjudicate it."
 
 const MANIFEST_WRITERS = [/^node\s+(\.\/)?tools[\\/]surface-manifest\.mjs\b/, /^npm\s+run\s+surfaces:manifest\b/]
 const VERDICT_WRITERS = [/^node\s+(\.\/)?tools[\\/]judge-surfaces\.mjs\b/, /^npm\s+run\s+surfaces:judge\b/]
@@ -59,6 +68,10 @@ export function checkGateTamperBash(command) {
     return { block: true, message: SIGNOFF_MESSAGE }
   }
 
+  if (CALIBRATION_RE.test(text) && looksLikeWrite(text)) {
+    return { block: true, message: CALIBRATION_MESSAGE }
+  }
+
   if (MANIFEST_RE.test(text) && !firstSegmentIsSanctioned(text, MANIFEST_WRITERS)) {
     if (looksLikeWrite(text) || !READ_ONLY_LEADERS.test(text.trim())) {
       return {
@@ -97,6 +110,7 @@ export function checkGateTamperEdit(filePath) {
     }
   }
   if (SIGNOFF_RE.test(path)) return { block: true, message: SIGNOFF_MESSAGE }
+  if (CALIBRATION_RE.test(path)) return { block: true, message: CALIBRATION_MESSAGE }
   if (MANIFEST_RE.test(path)) {
     return {
       block: true,

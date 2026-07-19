@@ -357,6 +357,13 @@ T("gate-tamper: cat signoff allows", checkGateTamperBash("cat .claude/manifests/
 T("gate-tamper: edit signoff blocks", !!checkGateTamperEdit("/x/.claude/manifests/signoff.json")?.block, true)
 T("gate-tamper: no sanctioned tool can write signoff", !!checkGateTamperBash("node tools/surface-manifest.mjs .claude/manifests/signoff.json")?.block, true)
 T("gate-tamper: edit defects blocks", !!checkGateTamperEdit("/x/.claude/manifests/defects.json")?.block, true)
+// The calibration tool carries the adjudicated recall of the vision judge in its
+// own source. An agent that can edit it can turn a measured 0/12 into any number.
+T("gate-tamper: edit calibrate-judge blocks", !!checkGateTamperEdit("/x/tools/calibrate-judge.mjs")?.block, true)
+T("gate-tamper: redirect over calibrate-judge blocks", !!checkGateTamperBash("echo x > tools/calibrate-judge.mjs")?.block, true)
+T("gate-tamper: sed -i on calibrate-judge blocks", !!checkGateTamperBash("sed -i s/false/true/ tools/calibrate-judge.mjs")?.block, true)
+T("gate-tamper: RUNNING calibrate-judge allows", checkGateTamperBash("node tools/calibrate-judge.mjs"), null)
+T("gate-tamper: npm surfaces:calibrate allows", checkGateTamperBash("npm run surfaces:calibrate"), null)
 
 // primer's agent-scoped shell allowlist. The deny cases are the point: a prefix
 // allowlist alone is not a fence, so the metacharacter rejection must run first.
@@ -505,7 +512,7 @@ const BASE_TSX = 'export default function P(){ return <div className="p-4">x</di
 const WORKED_TSX = 'export default function P(){ return <section className="p-6 rounded-3xl">x</section> }\n'
 function buildGateFixture(
   name,
-  { withManifest = true, withPaused = false, worked = true, judged = null, signed = false, blocker = false } = {},
+  { withManifest = true, withPaused = false, worked = true, judged = null, signed = false, blocker = false, status = "transformed", pixelEvidence = "web-capture" } = {},
 ) {
   const fixtureRoot = join(root, `gate-${name}`)
   mkdirSync(join(fixtureRoot, ".claude", "manifests"), { recursive: true })
@@ -530,6 +537,7 @@ function buildGateFixture(
     ownedFiles: ["src/page.tsx"],
     theme: "light",
     locale: "en",
+    pixelEvidence,
   }
   const manifest = { generatedFrom: "test", baselineRef: "HEAD", baselineSha: "HEAD", cells: [cell] }
   if (withManifest) writeFileSync(join(fixtureRoot, ".claude", "manifests", "surfaces.json"), JSON.stringify(manifest))
@@ -546,6 +554,7 @@ function buildGateFixture(
         cells: {
           "s1--default--light--en": {
             surfaceSignature: judged === "stale" ? "STALE-SIGNATURE" : signature,
+            status,
             findings: blocker ? [{ severity: "blocker", issue: "text overflows its container" }] : [],
           },
         },
@@ -632,6 +641,22 @@ T("oracle: unsigned cell names the missing human grant", /unsigned/.test(String(
 // 3. The judge can VETO. A blocker finding withholds a cell even when signed.
 const vetoed = oracle(buildGateFixture("veto", { judged: "fresh", signed: true, blocker: true }))
 T("oracle: a blocker finding vetoes an otherwise-complete cell", vetoed.complete, false)
+
+// 3b. A judge STATUS can veto even with zero blocker findings. Without this a
+//     surface the judge scored "default" (explicitly not redesigned) counted as
+//     defect-clear because all its findings were major/minor.
+const stillDefault = oracle(buildGateFixture("brokenstatus", { judged: "fresh", signed: true, status: "broken" }))
+T("oracle: a broken judge status vetoes even with no blocker finding", stillDefault.complete, false)
+const unseen = oracle(buildGateFixture("noartifact", { judged: "fresh", signed: true, status: "no-artifact" }))
+T("oracle: a surface the judge could not see is UNKNOWN, not clean", unseen.complete, false)
+
+// 3c. A cell whose pixels can NEVER be obtained (every mobile cell, every
+//     non-default state) must not demand a judge report. Requiring one made
+//     `done` mathematically unreachable for 348 of 804 cells - an unsatisfiable
+//     gate rather than a strict one.
+const noPixels = oracle(buildGateFixture("nopixels", { signed: true, pixelEvidence: "none" }))
+T("oracle: a cell with no obtainable screenshot does not demand a judge report", noPixels.complete, true)
+T("oracle: ...and still requires the human tick", oracle(buildGateFixture("nopixunsigned", { pixelEvidence: "none" })).complete, false)
 
 // 4. Evidence is pinned to the surface signature, so a stale report cannot carry.
 const staleJudge = oracle(buildGateFixture("stalejudge", { judged: "stale", signed: true }))

@@ -161,11 +161,22 @@ function evaluateCell(cell, context) {
     )
   }
 
+  // The judge can only VETO, and it can only veto what it could actually see.
+  // Demanding a report for a cell with no obtainable pixels (every mobile cell,
+  // every non-default state) made `done` mathematically unreachable for 348 of
+  // 804 cells - an unsatisfiable gate, not a strict one. Those cells rest on
+  // the human tick alone, and the scope banner says so.
   const report = defects?.cells?.[key]
   const blockers = report?.findings?.filter((finding) => finding.severity === "blocker") ?? []
-  if (!report) reasons.push("unjudged: no defect report for this cell - run: npm run surfaces:judge")
-  else if (report.surfaceSignature !== surfaceSignature(cell, signatureCache))
+  const judgeCouldNotSee = report?.status === "no-artifact"
+  if (!report) {
+    if (cell.pixelEvidence !== "none")
+      reasons.push("unjudged: no defect report for this cell - run: npm run surfaces:judge")
+  } else if (report.surfaceSignature !== surfaceSignature(cell, signatureCache))
     reasons.push("judge-stale: the surface changed since it was judged - re-run: npm run surfaces:judge")
+  else if (judgeCouldNotSee)
+    reasons.push("no-artifact: the judge could not see this surface (login/redirect/blank), so it is UNKNOWN, not clean")
+  else if (report.status === "broken") reasons.push(`broken: the judge recorded a broken surface${report.findings?.[0] ? ` - ${report.findings[0].issue}` : ""}`)
   else if (blockers.length > 0) reasons.push(`blocker: ${blockers[0].issue}`)
 
   const tick = signoff?.cells?.[key]
@@ -186,7 +197,15 @@ function evaluateCell(cell, context) {
     surfaceSignature: signature(),
     touched,
     changedFiles,
-    defectClear: Boolean(report) && reasons.every((reason) => !reason.startsWith("blocker") && !reason.startsWith("judge-stale")),
+    pixelEvidence: cell.pixelEvidence ?? "web-capture",
+    defectClear: !reasons.some(
+      (reason) =>
+        reason.startsWith("blocker") ||
+        reason.startsWith("judge-stale") ||
+        reason.startsWith("unjudged") ||
+        reason.startsWith("broken") ||
+        reason.startsWith("no-artifact"),
+    ),
     signed: Boolean(tick) && !reasons.some((reason) => reason.startsWith("signoff-stale")),
     done: reasons.length === 0,
     reasons,
@@ -257,11 +276,15 @@ export function scopeLines(manifest, verdict) {
   for (const platform of platforms) {
     const cells = manifest.cells.filter((cell) => cell.platform === platform)
     const done = verdict.results.filter((result) => result.platform === platform && result.done).length
-    lines.push(
-      `  ${platform.padEnd(7)} ${String(done).padStart(4)}/${String(cells.length).padEnd(4)} cells done` +
-        (platform === "mobile" ? "   (NO pixel pipeline exists for React Native: static + human evidence only)" : ""),
-    )
+    lines.push(`  ${platform.padEnd(7)} ${String(done).padStart(4)}/${String(cells.length).padEnd(4)} cells done`)
   }
+  const noPixels = manifest.cells.filter((cell) => cell.pixelEvidence === "none").length
+  if (noPixels > 0)
+    lines.push(
+      `  ${noPixels}/${verdict.total} cells can NEVER have a screenshot (every mobile cell; every non-default state).\n` +
+        "  For those the judge is silent by construction and the human tick is the WHOLE verdict - no\n" +
+        "  automated evidence backs them at all. Do not read them as machine-verified.",
+    )
   lines.push(`  baseline ${manifest.baselineRef} (${String(manifest.baselineSha ?? "").slice(0, 8)})   HEAD ${String(manifest.generatedFrom).slice(0, 8)}`)
   return lines
 }
@@ -306,7 +329,12 @@ function main() {
 
   process.stdout.write(`${verdict.verified}/${verdict.total} cells DONE (touched AND defect-clear AND human-signed)\n`)
   process.stdout.write(`  touched      ${String(verdict.touched).padStart(4)}/${verdict.total}   an owned file's visual signature moved since ${manifest.baselineRef}\n`)
-  process.stdout.write(`  defect-clear ${String(verdict.defectClear).padStart(4)}/${verdict.total}   independent judge report on file, no blocker\n`)
+  const unjudgeable = verdict.results.filter((result) => result.defectClear && result.pixelEvidence === "none").length
+  process.stdout.write(
+    `  defect-clear ${String(verdict.defectClear).padStart(4)}/${verdict.total}   no blocker recorded` +
+      (unjudgeable > 0 ? `  (${unjudgeable} of these have NO obtainable screenshot, so nothing was actually judged)` : "") +
+      "\n",
+  )
   process.stdout.write(`  human-signed ${String(verdict.signed).padStart(4)}/${verdict.total}   the ONLY axis that grants completion\n`)
   for (const line of scopeLines(scoped, verdict)) process.stdout.write(`${line}\n`)
 

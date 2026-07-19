@@ -49,6 +49,24 @@ const LOCALES = ["en", "pt-BR"]
 const DEFAULT_BASELINE_REF = "7d7c42c3"
 
 const SOURCE_EXTENSIONS = [".tsx", ".ts", ".css"]
+
+// How many surfaces may reach a file before it stops counting as any one
+// surface's own work.
+//
+// This is 1, and the value is load-bearing. Raising it to 2 was tried on
+// 2026-07-19 to fix a real hole (a component two sibling surfaces share is
+// owned by neither, so editing it moves nothing) and it immediately broke the
+// property that matters more: `route-explore`, which is byte-identical to the
+// pre-#539 baseline, flipped to touched 4/4 because a single nav component it
+// shares with one other surface had changed. A relaxed bound leaks the shared
+// shell back in one hop at a time.
+//
+// The hole is therefore ACCEPTED and documented rather than fixed: a file
+// reached by 2+ surfaces belongs to none of them, so work confined to such a
+// file does not move any surface's touched flag. Since `touched` can only
+// VETO and never grant, the cost is a surface that stays vetoed until
+// something it exclusively owns changes - conservative in the safe direction.
+const OWNERSHIP_MAX_REACH = 1
 const ALIASES = [
   ["@/", "apps/web/"],
   ["@orbit/shared/", "packages/shared/src/"],
@@ -125,10 +143,15 @@ function resolveSpecifier(specifier, fromFile) {
         break
       }
   if (!base) return null
+  // Only real source files may enter a closure. Resolving a bare specifier used
+  // to admit `apps/web/package.json` (about/page.tsx imports it for the version
+  // string), which no other surface reaches - so route-about "owned" it, and
+  // any dependency bump moved that surface's signature with zero pixels
+  // changed. A manifest is not a render-affecting file.
   const candidates = [
     ...SOURCE_EXTENSIONS.map((extension) => base + extension),
     ...SOURCE_EXTENSIONS.map((extension) => join(base, "index" + extension)),
-    base,
+    ...(SOURCE_EXTENSIONS.some((extension) => base.endsWith(extension)) ? [base] : []),
   ]
   for (const candidate of candidates) {
     try {
@@ -339,14 +362,36 @@ function attachOwnershipAndStates(surfaces) {
 
   for (const surface of surfaces) {
     const closure = closures.get(surface.surfaceId)
-    const owned = [...closure].filter((file) => reachCount.get(file) === 1).map(toPosix).sort()
-    // A surface that exclusively owns nothing (a thin re-export) still owns its
-    // own entry file for the purposes of "was this worked on".
+    // Ownership is NARROW but not strictly exclusive. Strict exclusivity
+    // (reach === 1) orphaned real files: the eight onboarding STEP components
+    // are reached by both the onboarding flow and the app layout, so they
+    // belonged to no surface and editing them moved nothing. Anything reached
+    // by at most OWNERSHIP_MAX_REACH surfaces is attributed to each of them -
+    // both genuinely changed when it changes. The shared app shell sits far
+    // above this bound (~100 reachers), so it still belongs to nobody, which
+    // is what keeps an untouched surface untouched.
+    const owned = [...closure].filter((file) => reachCount.get(file) <= OWNERSHIP_MAX_REACH).map(toPosix).sort()
+    // A surface that owns nothing under that bound (a thin re-export) still
+    // owns its own entry file for the purposes of "was this worked on".
     surface.ownedFiles = owned.length > 0 ? owned : [surface.sourceFile]
     surface.closureSize = closure.size
     surface.states = hasEmptyState(closure) ? ["default", "empty"] : ["default"]
   }
   return surfaces
+}
+
+/**
+ * Whether a screenshot of this cell is obtainable AT ALL. Recorded in the
+ * manifest because the completion oracle must not demand evidence that cannot
+ * exist: requiring a judge report for a mobile cell made `done` mathematically
+ * unreachable for 348 of 804 cells, which is a silently unsatisfiable gate
+ * rather than a strict one.
+ * @returns {"web-capture" | "none"}
+ */
+export function pixelEvidenceFor(surface, state) {
+  if (surface.platform !== "web") return "none"
+  if (state !== "default") return "none"
+  return "web-capture"
 }
 
 function gitSha(ref) {
@@ -373,7 +418,7 @@ function buildManifest(baselineRef) {
       for (const theme of THEMES)
         for (const locale of LOCALES) {
           const { states, ...rest } = surface
-          cells.push({ ...rest, state, theme, locale })
+          cells.push({ ...rest, state, theme, locale, pixelEvidence: pixelEvidenceFor(surface, state) })
         }
 
   const resolvedBaseline = gitSha(baselineRef)
