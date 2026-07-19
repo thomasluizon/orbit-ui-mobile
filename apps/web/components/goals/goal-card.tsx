@@ -100,7 +100,7 @@ export function GoalCard({ goal, onOpenDetail }: Readonly<GoalCardProps>) {
     pct: Math.min(100, Math.round(goal.progressPercentage)),
   })
 
-  const contextMenuItems: ContextMenuItem[] = [
+  const rawContextMenuItems: (ContextMenuItem | null)[] = [
         {
           key: 'viewDetails',
           label: t('contextMenu.viewDetails'),
@@ -110,6 +110,7 @@ export function GoalCard({ goal, onOpenDetail }: Readonly<GoalCardProps>) {
           key: 'edit',
           label: t('contextMenu.edit'),
           onSelect: () => onOpenDetail(goal.id, 'edit'),
+          dataTestId: 'goal-menu-edit',
         },
         goal.status === 'Active'
           ? {
@@ -124,7 +125,10 @@ export function GoalCard({ goal, onOpenDetail }: Readonly<GoalCardProps>) {
           onSelect: () => onOpenDetail(goal.id, 'delete'),
           danger: true,
         },
-  ].filter((item): item is ContextMenuItem => item !== null)
+  ]
+  const contextMenuItems = rawContextMenuItems.filter(
+    (item): item is ContextMenuItem => item !== null,
+  )
 
   const { onContextMenu, contextMenu } = useContextMenu(contextMenuItems)
 

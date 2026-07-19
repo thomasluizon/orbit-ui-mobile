@@ -59,18 +59,21 @@ export function PreferenceSettingsList({
             label={t('profile.language.title')}
             value={mounted ? languageLabel : undefined}
             onClick={() => onOpenPicker('language')}
+            dataTestId="pref-open-language"
           />
           <SettingsRow
             icon={Moon}
             label={t('preferences.themeMode')}
             value={mounted ? themeLabel : undefined}
             onClick={() => onOpenPicker('theme')}
+            dataTestId="pref-open-theme"
           />
           <SettingsRow
             icon={Palette}
             label={t('profile.colorScheme.title')}
             value={mounted ? schemeLabel : undefined}
             onClick={() => onOpenPicker('scheme')}
+            dataTestId="pref-open-scheme"
           >
             {mounted && schemeColor ? <SchemeDot color={schemeColor} /> : null}
             <ProBadge />
@@ -80,6 +83,7 @@ export function PreferenceSettingsList({
             label={t('settings.weekStartDay.title')}
             value={mounted ? weekStartLabel : undefined}
             onClick={() => onOpenPicker('weekStart')}
+            dataTestId="pref-open-weekStart"
           />
 
           <SectionLabel bottom={4}>{t('settings.homeScreen.title')}</SectionLabel>

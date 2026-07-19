@@ -12,6 +12,8 @@ export interface EmptyStateAction {
   disabled?: boolean
   leading?: ReactNode
   variant?: 'primary' | 'secondary'
+  /** Locale-independent hook for the surface-capture tool to open the action's overlay. */
+  testId?: string
 }
 
 interface EmptyStateProps {
@@ -87,6 +89,7 @@ export function EmptyState({
               href={action.href}
               disabled={action.disabled}
               leading={action.leading}
+              dataTestId={action.testId}
             >
               {action.label}
             </PillButton>

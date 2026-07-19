@@ -94,6 +94,7 @@ function NotificationRow({
     >
       <button
         type="button"
+        data-testid="notification-row"
         className="flex flex-1 min-w-0 items-start text-left appearance-none border-0 bg-transparent cursor-pointer p-0"
         style={{ gap: 12 }}
         onClick={() => onOpen(item)}
@@ -134,7 +135,7 @@ function NotificationRow({
               fontSize: 14,
               lineHeight: 1.4,
               color: 'var(--fg-3)',
-              marginTop: 3,
+              marginTop: 4,
             }}
           >
             {item.body}
@@ -237,8 +238,8 @@ export function NotificationBell() {
           aria-hidden="true"
           className="absolute animate-scale-in"
           style={{
-            top: 7,
-            right: 7,
+            top: 8,
+            right: 8,
             width: 8,
             height: 8,
             borderRadius: 999,

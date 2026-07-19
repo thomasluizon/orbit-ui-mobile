@@ -60,6 +60,7 @@ export default function AboutPage() {
               label={t('onboarding.featureGuide.openButton')}
               onClick={() => setShowGuide(true)}
               ariaLabel={t('onboarding.featureGuide.openButton')}
+              dataTestId="feature-guide-open"
             />
             <SettingsRow
               icon={Mail}

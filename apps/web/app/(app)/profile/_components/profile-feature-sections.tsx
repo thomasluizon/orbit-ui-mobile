@@ -44,6 +44,7 @@ export function ProfileFeatureSections({
             label={t('tour.replay.title')}
             hint={t('explore.tourHint')}
             onClick={onTourReplay}
+            dataTestId="profile-tour-replay"
           />
         </SettingsGroup>
       </nav>

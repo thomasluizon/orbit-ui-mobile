@@ -17,6 +17,8 @@ export interface ContextMenuItem {
   label: string
   onSelect: () => void
   danger?: boolean
+  /** Locale-independent hook for the surface-capture tool to open the item's overlay. */
+  dataTestId?: string
 }
 
 export interface UseContextMenuReturn {
@@ -218,6 +220,7 @@ function ContextMenuRow({ item, onRun }: Readonly<ContextMenuRowProps>) {
     <button
       type="button"
       role="menuitem"
+      data-testid={item.dataTestId}
       onClick={(event) => {
         event.stopPropagation()
         onRun()

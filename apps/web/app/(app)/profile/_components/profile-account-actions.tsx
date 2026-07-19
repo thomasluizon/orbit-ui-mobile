@@ -53,12 +53,14 @@ export function ProfileAccountActions({
         icon={RotateCcw}
         onClick={onFreshStart}
         label={t('profile.freshStart.button')}
+        dataTestId="profile-fresh-start"
       />
       <ProfileActionButton
         icon={UserX}
         onClick={onDeleteAccount}
         label={t('profile.deleteAccount.button')}
         tone="danger"
+        dataTestId="profile-delete-account"
       />
       <ProfileActionButton
         icon={LogOut}

@@ -50,6 +50,7 @@ export function ProfileIdentityHeader({
           {showPlanBadge && <Badge tone={planBadgeTone}>{planBadgeLabel}</Badge>}
           <button
             type="button"
+            data-testid="profile-edit-name"
             aria-label={t('profile.editName.title')}
             onClick={onEditName}
             className="flex max-w-full cursor-pointer appearance-none items-center border-0 bg-transparent p-0 transition-opacity duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:opacity-80 active:opacity-60"

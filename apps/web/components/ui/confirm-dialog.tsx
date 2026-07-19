@@ -34,7 +34,8 @@ interface ConfirmDialogProps {
   leadingIcon?: ReactNode
 }
 
-const actionPillClassName = 'flex-1 min-w-0 overflow-hidden'
+// sm:flex-none releases the paired pills to their hug width at desktop, was stretching full-bleed https://github.com/thomasluizon/orbit-ui-mobile/issues/539
+const actionPillClassName = 'flex-1 sm:flex-none min-w-0 overflow-hidden'
 
 function defaultConfirmIcon(variant: Variant): { key: string; node: ReactNode } | null {
   if (variant === 'danger') {

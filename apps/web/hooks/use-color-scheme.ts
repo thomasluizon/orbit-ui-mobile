@@ -27,12 +27,16 @@ function setCookie(name: string, value: string, maxAge = 60 * 60 * 24 * 365) {
 }
 
 export function useColorScheme() {
-  const [currentScheme, setCurrentScheme] = useState<ColorScheme>(() =>
-    normalizeColorScheme(getCookie('orbit_color_scheme')),
-  )
-  const [currentTheme, setCurrentTheme] = useState<ThemeMode>(() =>
-    normalizeThemeMode(getCookie('orbit_theme_mode')),
-  )
+  // Reading the cookie in the initializer differs server vs client (hydration mismatch); sync post-mount instead https://github.com/thomasluizon/orbit-ui-mobile/issues/539
+  const [currentScheme, setCurrentScheme] = useState<ColorScheme>(() => normalizeColorScheme(null))
+  const [currentTheme, setCurrentTheme] = useState<ThemeMode>(() => normalizeThemeMode(null))
+
+  useEffect(() => {
+    void Promise.resolve().then(() => {
+      setCurrentScheme(normalizeColorScheme(getCookie('orbit_color_scheme')))
+      setCurrentTheme(normalizeThemeMode(getCookie('orbit_theme_mode')))
+    })
+  }, [])
 
   useEffect(() => {
     applyThemeTokensToDOM(currentScheme, currentTheme, false)

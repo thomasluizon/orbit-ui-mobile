@@ -44,13 +44,118 @@ Exit codes:
 `
 
 // Overlays open from a bespoke trigger, so each needs its own opener. Only
-// openers whose selectors are verified against a real spec live here; every
-// other overlay is reported as unreachable rather than silently skipped.
-// The create-habit opener mirrors apps/web/e2e/visual/habit-create.visual.ts.
+// openers whose selectors are verified against a real spec live here
+// (.claude/specs/issue-539-overlay-openers.md); every other overlay is reported
+// as unreachable rather than silently skipped. The create-habit opener mirrors
+// apps/web/e2e/visual/habit-create.visual.ts. Locale-independent data-testids
+// on the triggers are added in apps/web in the same PR.
 const OPENERS = {
   "overlay-create-habit-modal": async (page) => {
     await page.locator('[data-bottom-nav] [data-tour="tour-fab-button"]').click()
     await page.getByTestId("habit-create-submit").waitFor({ state: "visible" })
+  },
+  "overlay-confirm-dialog": async (page) => {
+    await page.locator('[data-bottom-nav] [data-tour="tour-fab-button"]').click()
+    await page.getByTestId("habit-create-submit").waitFor({ state: "visible" })
+    await page.getByRole("dialog").getByRole("textbox").first().fill("x")
+    await page.keyboard.press("Escape")
+    await page.getByRole("alertdialog").waitFor({ state: "visible" })
+  },
+  "overlay-create-goal-modal": async (page) => {
+    await switchToHomeView(page, "goals")
+    const emptyStateCreate = page.getByTestId("goal-create-open")
+    if (await emptyStateCreate.count()) await emptyStateCreate.first().click()
+    else await page.locator('[data-bottom-nav] [data-tour="tour-fab-button"]').click()
+    await page.getByRole("dialog").waitFor({ state: "visible" })
+  },
+  "overlay-edit-goal-modal": async (page) => {
+    await switchToHomeView(page, "goals")
+    await page.locator('[data-tour="tour-goal-card"]').first().click({ button: "right" })
+    await page.getByTestId("goal-menu-edit").click()
+    await page.getByRole("dialog").waitFor({ state: "visible" })
+  },
+  "overlay-goal-detail-drawer": async (page) => {
+    await switchToHomeView(page, "goals")
+    await page.locator('[data-tour="tour-goal-card"]').first().click()
+    await page.getByRole("dialog").waitFor({ state: "visible" })
+  },
+  "overlay-habit-detail-drawer": async (page) => {
+    await switchToHomeView(page, "all")
+    await page.getByTestId("habit-row").first().click()
+    await page.getByRole("dialog").waitFor({ state: "visible" })
+  },
+  "overlay-edit-habit-modal": async (page) => {
+    await switchToHomeView(page, "all")
+    await page.getByTestId("habit-row-more").first().click()
+    await page.getByTestId("habit-menu-edit").click()
+    await page.getByRole("dialog").waitFor({ state: "visible" })
+  },
+  "overlay-reschedule-sheet": async (page) => {
+    await switchToHomeView(page, "all")
+    await page.getByTestId("habit-row-more").first().click()
+    await page.getByTestId("habit-menu-reschedule").click()
+    await page.getByRole("dialog").waitFor({ state: "visible" })
+  },
+  "overlay-confirm-dialogs": async (page) => {
+    await switchToHomeView(page, "all")
+    await page.getByTestId("habit-row-more").first().click()
+    await page.getByTestId("habit-menu-delete").click()
+    await page.getByRole("alertdialog").waitFor({ state: "visible" })
+  },
+  "overlay-notification-detail-modal": async (page) => {
+    await page.locator('[data-tour="tour-notification-bell"]').click()
+    await page.getByTestId("notification-row").first().click()
+    await page.getByRole("dialog").waitFor({ state: "visible" })
+  },
+  "overlay-referral-drawer": async (page) => {
+    await gotoSameOrigin(page, "/profile")
+    await page.getByTestId("referral-card-open").click()
+    await page.getByRole("dialog").waitFor({ state: "visible" })
+  },
+  "overlay-share-card-sheet": async (page) => {
+    await gotoSameOrigin(page, "/profile")
+    await page.getByTestId("share-card-open").click()
+    await page.getByRole("dialog").waitFor({ state: "visible" })
+  },
+  "overlay-edit-name-sheet": async (page) => {
+    await gotoSameOrigin(page, "/profile")
+    await page.getByTestId("profile-edit-name").click()
+    await page.getByRole("dialog").waitFor({ state: "visible" })
+  },
+  "overlay-fresh-start-modal": async (page) => {
+    await gotoSameOrigin(page, "/profile")
+    await page.getByTestId("profile-fresh-start").click()
+    await page.getByRole("dialog").waitFor({ state: "visible" })
+  },
+  "overlay-delete-account-modal": async (page) => {
+    await gotoSameOrigin(page, "/profile")
+    await page.getByTestId("profile-delete-account").click()
+    await page.getByRole("dialog").waitFor({ state: "visible" })
+  },
+  "overlay-tour-replay-modal": async (page) => {
+    await gotoSameOrigin(page, "/profile")
+    await page.getByTestId("profile-tour-replay").click()
+    await page.getByRole("dialog").waitFor({ state: "visible" })
+  },
+  "overlay-edit-handle-sheet": async (page) => {
+    await gotoSameOrigin(page, "/social")
+    await page.getByTestId("edit-handle-open").click()
+    await page.getByRole("dialog").waitFor({ state: "visible" })
+  },
+  "overlay-feature-guide-drawer": async (page) => {
+    await gotoSameOrigin(page, "/about")
+    await page.getByTestId("feature-guide-open").click()
+    await page.getByRole("dialog").waitFor({ state: "visible" })
+  },
+  "overlay-preference-picker-sheet": async (page) => {
+    await gotoSameOrigin(page, "/preferences")
+    await page.getByTestId("pref-open-language").click()
+    await page.getByRole("dialog").waitFor({ state: "visible" })
+  },
+  "overlay-create-api-key-modal": async (page) => {
+    await gotoSameOrigin(page, "/advanced")
+    await page.getByTestId("api-key-create-open").click()
+    await page.getByRole("dialog").waitFor({ state: "visible" })
   },
 }
 
@@ -64,16 +169,73 @@ const FREEZE_MOTION_CSS = `
 }
 `
 
+// Navigate to another same-origin route from inside an opener. captureCell only
+// visits cell.href (null for overlays -> "/"), so an overlay whose trigger lives
+// on another route drives here. Re-freezes motion because a fresh document drops
+// the style tag captureCell injected.
+async function gotoSameOrigin(page, path) {
+  const origin = new URL(page.url()).origin
+  await page.goto(new URL(path, origin).toString(), { waitUntil: "domcontentloaded" })
+  await page.waitForLoadState("networkidle")
+  await page.addStyleTag({ content: FREEZE_MOTION_CSS })
+}
+
+// Put the "/" root into a specific habit/goal sub-view (Today/All/General/Goals
+// are activeView switches, not routes) by seeding the persisted UI store, then
+// reloading so the trigger for a view-scoped overlay is present.
+async function switchToHomeView(page, activeView) {
+  await page.evaluate(
+    ([storeKey, storeVersion, view]) => {
+      window.localStorage.setItem(
+        storeKey,
+        JSON.stringify({ state: { activeView: view, searchQuery: "", selectedTagIds: [], activeFilters: {} }, version: storeVersion }),
+      )
+    },
+    [UI_STORE_KEY, UI_STORE_VERSION, activeView],
+  )
+  await page.reload({ waitUntil: "domcontentloaded" })
+  await page.waitForLoadState("networkidle")
+  await page.addStyleTag({ content: FREEZE_MOTION_CSS })
+}
+
 function parseArgs(argv) {
-  const args = { baseUrl: "http://localhost:3000", filter: null, storageState: null, viewport: "1280x900" }
+  const args = {
+    baseUrl: "http://localhost:3000",
+    apiBase: "http://localhost:5000",
+    filter: null,
+    storageState: null,
+    viewport: "1280x900",
+  }
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index]
     if (flag === "--base-url") args.baseUrl = argv[++index]
+    else if (flag === "--api-base") args.apiBase = argv[++index]
     else if (flag === "--filter") args.filter = argv[++index]
     else if (flag === "--storage-state") args.storageState = argv[++index]
     else if (flag === "--viewport") args.viewport = argv[++index]
   }
   return args
+}
+
+// The app's own client effects (apps/web/hooks/use-profile.ts, use-color-scheme.ts)
+// treat the ACCOUNT'S SAVED theme/language as authoritative over the cookie: if the
+// profile's DB value differs from the cookie, a useEffect overwrites the cookie back
+// to the DB value and reloads. Spoofing only the cookie therefore silently loses --
+// every "pt-BR" capture against a profile whose language was never set to pt-BR
+// renders in English. Sync the DB-side preference first so the cookie is correct by
+// construction, not by the coincidence of the profile happening to already match.
+async function syncProfilePreferences(apiBase, token, theme, locale) {
+  if (!token) return
+  await fetch(`${apiBase}/api/profile/theme-preference`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+    body: JSON.stringify({ themePreference: theme }),
+  })
+  await fetch(`${apiBase}/api/profile/language`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+    body: JSON.stringify({ language: locale }),
+  })
 }
 
 function cookiesFor(baseUrl, theme, locale) {
@@ -122,10 +284,17 @@ async function captureCell(page, cell, baseUrl) {
   }
 
   await page.waitForLoadState("networkidle")
+  // Client-side TanStack queries (and any post-hydration tree regeneration) resolve
+  // AFTER the initial networkidle, so a bare networkidle screenshot catches loading
+  // skeletons. Settle, then wait for idle again, so data-driven surfaces render
+  // populated -- verifying a skeleton is the empty-DB failure visual-delivery rule 3 bans.
+  await page.waitForTimeout(1800)
+  await page.waitForLoadState("networkidle").catch(() => {})
   await page.addStyleTag({ content: FREEZE_MOTION_CSS })
 
   const opener = OPENERS[cell.surfaceId]
   if (opener) await opener(page)
+  if (opener) await page.waitForTimeout(400)
 
   await page.screenshot({
     path: join(ARTIFACT_DIR, `${cell.surfaceId}--${cell.theme}--${cell.locale}.png`),
@@ -196,6 +365,8 @@ async function main() {
     for (const locale of manifest.locales) {
       const scoped = cells.filter((cell) => cell.theme === theme && cell.locale === locale)
       if (scoped.length === 0) continue
+
+      await syncProfilePreferences(args.apiBase, process.env.ORBIT_AUTH_TOKEN, theme, locale)
 
       const context = await browser.newContext({
         viewport: { width, height },

@@ -46,7 +46,7 @@ export default function ProfilePage() {
           onStreakClick={screen.handleStreakClick}
           onAchievementsClick={screen.handleAchievementsClick}
         />
-        <ReferralCard onOpen={() => screen.setShowReferral(true)} />
+        <ReferralCard onOpen={() => screen.setShowReferral(true)} dataTestId="referral-card-open" />
         <NextRewardCarrot carrot={screen.nextRewardCarrot} />
         <ProfileNavSections
           accountNavItems={screen.accountNavItems}

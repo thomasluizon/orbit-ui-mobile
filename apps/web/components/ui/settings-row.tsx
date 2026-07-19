@@ -22,6 +22,8 @@ interface SettingsRowProps {
   danger?: boolean
   children?: ReactNode
   ariaLabel?: string
+  /** Locale-independent hook for the surface-capture tool to open the row's overlay. */
+  dataTestId?: string
 }
 
 export function SettingsRow({
@@ -37,6 +39,7 @@ export function SettingsRow({
   danger = false,
   children,
   ariaLabel,
+  dataTestId,
 }: Readonly<SettingsRowProps>) {
   const interactive = typeof onClick === 'function'
   const RootTag = interactive ? 'button' : 'div'
@@ -47,6 +50,7 @@ export function SettingsRow({
       type={interactive ? 'button' : undefined}
       onClick={interactive ? onClick : undefined}
       aria-label={ariaLabel}
+      data-testid={dataTestId}
       className={`w-full flex items-center bg-transparent ${interactive ? 'cursor-pointer transition-colors duration-150 ease-out hover:bg-[var(--bg-elev)] active:bg-[var(--bg-elev-pressed)]' : ''}`}
       style={{
         padding: '16px 20px',

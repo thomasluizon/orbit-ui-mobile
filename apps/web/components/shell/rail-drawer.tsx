@@ -112,6 +112,7 @@ export function RailToggle() {
   return (
     <button
       type="button"
+      data-testid="rail-toggle"
       aria-label={railOpen ? t('shell.closeRail') : t('shell.openRail')}
       aria-haspopup="dialog"
       aria-expanded={railOpen}

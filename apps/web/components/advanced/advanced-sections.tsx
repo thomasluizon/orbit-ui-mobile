@@ -272,6 +272,7 @@ export function ApiKeysSection({
         {canCreateKey && (
           <button
             type="button"
+            data-testid="api-key-create-open"
             disabled={!canCreateScopedKey}
             aria-label={t('orbitMcp.createKey')}
             className="chip chip-active min-h-[44px] disabled:cursor-not-allowed disabled:opacity-40"

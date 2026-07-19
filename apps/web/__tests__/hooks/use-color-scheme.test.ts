@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, act } from '@testing-library/react'
+import { renderHook, act, waitFor } from '@testing-library/react'
 
 vi.mock('@/app/actions/profile', () => ({
   updateColorScheme: vi.fn().mockResolvedValue(undefined),
@@ -79,16 +79,16 @@ describe('useColorScheme', () => {
     expect(result.current.currentTheme).toBe('dark')
   })
 
-  it('reads scheme from cookie', () => {
+  it('reads scheme from cookie', async () => {
     mockCookies['orbit_color_scheme'] = 'blue'
     const { result } = renderHook(() => useColorScheme())
-    expect(result.current.currentScheme).toBe('blue')
+    await waitFor(() => expect(result.current.currentScheme).toBe('blue'))
   })
 
-  it('reads theme from cookie', () => {
+  it('reads theme from cookie', async () => {
     mockCookies['orbit_theme_mode'] = 'light'
     const { result } = renderHook(() => useColorScheme())
-    expect(result.current.currentTheme).toBe('light')
+    await waitFor(() => expect(result.current.currentTheme).toBe('light'))
   })
 
   it('ignores invalid scheme from cookie', () => {

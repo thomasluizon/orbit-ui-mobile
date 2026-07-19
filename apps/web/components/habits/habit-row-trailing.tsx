@@ -122,7 +122,7 @@ export function HabitRowTrailing({
                 parentAction?.()
               }}
               className="appearance-none border-0 bg-transparent flex items-center justify-center cursor-pointer"
-              style={{ padding: 7, margin: -7 }}
+              style={{ padding: 8, margin: -8 }}
             >
               <ParentRing
                 done={childProgress?.done ?? 0}
@@ -151,13 +151,14 @@ export function HabitRowTrailing({
           trigger={
             <button
               type="button"
+              data-testid="habit-row-more"
               aria-label={t('habits.actions.more')}
               onClick={(event) => event.stopPropagation()}
               className="touch-target appearance-none border-0 bg-transparent flex items-center justify-center rounded-full text-[var(--fg-3)] transition-[background-color,color,transform] duration-[160ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev-pressed)] hover:text-[var(--fg-1)] active:scale-[0.96]"
               style={{
                 width: 34,
                 height: 34,
-                margin: '-3px',
+                margin: '-4px',
                 cursor: 'pointer',
               }}
             >

@@ -8,10 +8,12 @@ interface ReferralCardProps {
   onOpen: () => void
   /** When provided, the card shows a dismiss control instead of the chevron (the dismissible Today entry). */
   onDismiss?: () => void
+  /** Locale-independent hook for the surface-capture tool to open the referral drawer. */
+  dataTestId?: string
 }
 
 /** Kit referral entry card: primary-tinted icon disc, title, progress line, and either a chevron or a dismiss control. */
-export function ReferralCard({ onOpen, onDismiss }: Readonly<ReferralCardProps>) {
+export function ReferralCard({ onOpen, onDismiss, dataTestId }: Readonly<ReferralCardProps>) {
   const t = useTranslations()
   const { stats, isLoading } = useReferral()
 
@@ -28,6 +30,7 @@ export function ReferralCard({ onOpen, onDismiss }: Readonly<ReferralCardProps>)
       <div className="relative">
         <button
           type="button"
+          data-testid={dataTestId}
           onClick={onOpen}
           className="card-int flex w-full appearance-none items-center border-0 text-left"
           style={{ padding: '14px 16px', gap: 14, paddingRight: onDismiss ? 52 : 16 }}
@@ -43,7 +46,7 @@ export function ReferralCard({ onOpen, onDismiss }: Readonly<ReferralCardProps>)
           >
             <UserPlus size={22} strokeWidth={1.8} color="var(--primary-soft)" />
           </span>
-          <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 3 }}>
+          <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
             <span
               style={{
                 fontFamily: 'var(--font-sans)',

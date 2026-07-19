@@ -44,6 +44,7 @@ export function SocialIdentityBar() {
         </div>
         <button
           type="button"
+          data-testid="edit-handle-open"
           className="icon-btn shrink-0"
           onClick={() => setShowEdit(true)}
           aria-label={t('social.identity.editAria')}

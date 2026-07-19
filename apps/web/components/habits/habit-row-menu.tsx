@@ -50,10 +50,10 @@ export function HabitRowMenu({
     <div role="menu">
       {onAddSubHabit && <MenuItem icon={Plus} label={t('habits.form.addSubHabit')} onClick={run(onAddSubHabit)} />}
       {onMoveParent && <MenuItem icon={ArrowRight} label={t('habits.moveParent.button')} onClick={run(onMoveParent)} />}
-      {onSkip && <MenuItem icon={FastForward} label={t('habits.actions.skip')} onClick={run(onSkip)} tone="warning" />}
-      {onReschedule && <MenuItem icon={CalendarClock} label={t('habits.actions.reschedule')} onClick={run(onReschedule)} />}
-      {onEdit && <MenuItem icon={Pencil} label={t('common.edit')} onClick={run(onEdit)} />}
-      {onDuplicate && <MenuItem icon={Copy} label={t('habits.actions.duplicate')} onClick={run(onDuplicate)} />}
+      {onSkip && <MenuItem icon={FastForward} label={t('habits.actions.skip')} onClick={run(onSkip)} tone="warning" testId="habit-menu-skip" />}
+      {onReschedule && <MenuItem icon={CalendarClock} label={t('habits.actions.reschedule')} onClick={run(onReschedule)} testId="habit-menu-reschedule" />}
+      {onEdit && <MenuItem icon={Pencil} label={t('common.edit')} onClick={run(onEdit)} testId="habit-menu-edit" />}
+      {onDuplicate && <MenuItem icon={Copy} label={t('habits.actions.duplicate')} onClick={run(onDuplicate)} testId="habit-menu-duplicate" />}
       {onEnterSelectMode && <MenuItem icon={CheckCircle2} label={t('common.select')} onClick={run(onEnterSelectMode)} />}
       {onDrillInto && <MenuItem icon={ChevronRight} label={t('habits.actions.openSubHabits')} onClick={run(onDrillInto)} />}
       {onDelete && (
@@ -66,7 +66,7 @@ export function HabitRowMenu({
               background: 'var(--hairline)',
             }}
           />
-          <MenuItem icon={Trash2} label={t('habits.deleteHabit')} onClick={run(onDelete)} tone="danger" />
+          <MenuItem icon={Trash2} label={t('habits.deleteHabit')} onClick={run(onDelete)} tone="danger" testId="habit-menu-delete" />
         </>
       )}
     </div>
@@ -78,9 +78,10 @@ interface MenuItemProps {
   label: string
   onClick: () => void
   tone?: 'default' | 'warning' | 'danger'
+  testId?: string
 }
 
-function MenuItem({ icon: Icon, label, onClick, tone = 'default' }: Readonly<MenuItemProps>) {
+function MenuItem({ icon: Icon, label, onClick, tone = 'default', testId }: Readonly<MenuItemProps>) {
   let color: string
   if (tone === 'danger') {
     color = 'var(--status-bad-text)'
@@ -93,6 +94,7 @@ function MenuItem({ icon: Icon, label, onClick, tone = 'default' }: Readonly<Men
     <button
       type="button"
       role="menuitem"
+      data-testid={testId}
       onClick={(event) => {
         event.stopPropagation()
         onClick()
@@ -100,7 +102,7 @@ function MenuItem({ icon: Icon, label, onClick, tone = 'default' }: Readonly<Men
       className="appearance-none border-0 bg-transparent w-full flex items-center text-left transition-colors hover:bg-[var(--bg-elev-pressed)]"
       style={{
         gap: 10,
-        padding: '11px 12px',
+        padding: '12px 12px',
         color,
         fontFamily: 'var(--font-sans)',
         fontSize: 14,

@@ -67,6 +67,7 @@ export function GoalsView() {
         action={{
           label: t('goals.create'),
           onClick: () => setShowCreateGoalModal(true),
+          testId: 'goal-create-open',
         }}
       />
     )

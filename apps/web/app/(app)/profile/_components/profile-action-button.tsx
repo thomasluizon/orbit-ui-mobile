@@ -8,6 +8,8 @@ interface ProfileActionButtonProps {
   /** Leading lucide icon rendered 22/1.8 in the kit ListRow 26px slot. */
   icon?: LucideIcon
   tone?: 'default' | 'danger'
+  /** Locale-independent hook for the surface-capture tool to open the action's overlay. */
+  dataTestId?: string
 }
 
 /** Kit ListRow action — `tone="danger"` colors icon and label in status-bad.
@@ -17,11 +19,13 @@ export function ProfileActionButton({
   onClick,
   icon: LeadingIcon,
   tone = 'default',
+  dataTestId,
 }: Readonly<ProfileActionButtonProps>) {
   const color = tone === 'danger' ? 'var(--status-bad)' : 'var(--fg-1)'
   return (
     <button
       type="button"
+      data-testid={dataTestId}
       onClick={onClick}
       className="flex w-full cursor-pointer items-center bg-transparent text-left transition-colors duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:bg-[var(--bg-elev-pressed)]"
       style={{

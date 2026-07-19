@@ -22,7 +22,7 @@ export function ShareCardEntryButton({
   return (
     <>
       {variant === 'row' ? (
-        <ProfileActionButton icon={Share2} onClick={() => setOpen(true)} label={t('shareCard.entry')} />
+        <ProfileActionButton icon={Share2} onClick={() => setOpen(true)} label={t('shareCard.entry')} dataTestId="share-card-open" />
       ) : (
         <button
           type="button"
