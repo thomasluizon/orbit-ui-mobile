@@ -19,7 +19,8 @@
     "surfaces:capture": "node tools/capture-surfaces.mjs",
     "surfaces:judge": "node tools/judge-surfaces.mjs",
     "surfaces:check": "node tools/check-surface-coverage.mjs",
-    "surfaces:sheet": "node tools/contact-sheet.mjs"
+    "surfaces:sheet": "node tools/contact-sheet.mjs",
+    "surfaces:calibrate": "node tools/calibrate-judge.mjs"
   },
   "devDependencies": {
     "@swc/helpers": "^0.5.15",

@@ -349,6 +349,20 @@ function cookiesFor(baseUrl, theme, locale) {
  * from the live API for a dynamic-route surface (see DYNAMIC_ROUTE_RESOLVERS).
  */
 export function unreachableReason(cell, resolvedHrefs = new Map()) {
+  // The manifest gained a state axis in the 2026-07-19 rebuild, but this
+  // live-stack capture path can only ever photograph a surface as the seeded
+  // database happens to render it. An `empty` cell is therefore NOT capturable
+  // here and is reported as such rather than being silently filled with a
+  // populated screenshot - which would be worse than having no artifact,
+  // because it would look like evidence. Empty/loading/error states need the
+  // hermetic mock-api harness (apps/web/e2e/visual/), which is not wired to
+  // this manifest yet.
+  if (cell.state && cell.state !== "default") {
+    return { reason: "state-not-capturable", detail: `state "${cell.state}" needs the hermetic mock-api harness; the live stack can only render the seeded state` }
+  }
+  if (cell.platform === "mobile") {
+    return { reason: "platform-not-capturable", detail: "no React Native capture pipeline exists; mobile is static + human evidence only" }
+  }
   if (cell.kind === "route" && cell.href === null && !resolvedHrefs.has(cell.surfaceId)) {
     return { reason: "dynamic-route", detail: "URL needs a real id; no fixture row resolvable from the API" }
   }
@@ -405,7 +419,7 @@ async function captureCell(page, cell, baseUrl, resolvedHrefs = new Map()) {
   if (opener) await page.waitForTimeout(400)
 
   await page.screenshot({
-    path: join(ARTIFACT_DIR, `${cell.surfaceId}--${cell.theme}--${cell.locale}.png`),
+    path: join(ARTIFACT_DIR, `${cell.surfaceId}--${cell.state ?? "default"}--${cell.theme}--${cell.locale}.png`),
     fullPage: true,
   })
   return { ok: true }

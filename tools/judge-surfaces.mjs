@@ -19,6 +19,7 @@
 import { createHash } from "node:crypto"
 import { spawn, spawnSync } from "node:child_process"
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs"
+import { signatureOfFile } from "./visual-signature.mjs"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -29,8 +30,12 @@ const REPO_ROOT = process.env.ORBIT_SURFACE_ROOT
 const MANIFEST_PATH = join(REPO_ROOT, ".claude", "manifests", "surfaces.json")
 const ARTIFACT_DIR = join(REPO_ROOT, ".artifacts", "surfaces")
 const VERDICTS_PATH = join(ARTIFACT_DIR, "verdicts.json")
+// The cell-keyed report the completion oracle reads. It lives under
+// .claude/manifests/ (committed) rather than .artifacts/ (gitignored) so the
+// evidence survives the session that produced it - every prior attempt lost
+// its findings at the session boundary and rediscovered them from scratch.
+const DEFECTS_PATH = join(REPO_ROOT, ".claude", "manifests", "defects.json")
 const DESIGN_MD = join(REPO_ROOT, "DESIGN.md")
-const DEFECTS_SPEC = join(REPO_ROOT, ".claude", "specs", "issue-539-user-found-defects.md")
 
 const STATUSES = ["transformed", "partial", "default", "broken", "no-artifact"]
 
@@ -107,12 +112,14 @@ function collectSurfaces(manifest, filter) {
   const bySurface = new Map()
   for (const cell of manifest.cells) {
     if (filter && !cell.surfaceId.includes(filter)) continue
-    const artifactName = `${cell.surfaceId}--${cell.theme}--${cell.locale}.png`
+    const key = `${cell.surfaceId}--${cell.state}--${cell.theme}--${cell.locale}`
+    const artifactName = `${key}.png`
     const absolutePath = join(ARTIFACT_DIR, artifactName)
     if (!bySurface.has(cell.surfaceId)) {
-      bySurface.set(cell.surfaceId, { surfaceId: cell.surfaceId, sourceFile: cell.sourceFile, artifacts: [], missing: [] })
+      bySurface.set(cell.surfaceId, { surfaceId: cell.surfaceId, sourceFile: cell.sourceFile, ownedFiles: cell.ownedFiles ?? [], artifacts: [], missing: [], cellKeys: [] })
     }
     const surface = bySurface.get(cell.surfaceId)
+    surface.cellKeys.push(key)
     if (existsSync(absolutePath)) surface.artifacts.push({ name: artifactName, path: absolutePath })
     else surface.missing.push(artifactName)
   }
@@ -127,19 +134,24 @@ function judgePrompt(surfaces) {
     })
     .join("\n")
 
-  const defectsLine = existsSync(DEFECTS_SPEC)
-    ? `Also read ${DEFECTS_SPEC} - it lists known user-found defects; a surface exhibiting one can never be "transformed".\n`
-    : ""
+  // The known-defect list is deliberately NOT shown to the judge. It used to
+  // be, and that made recall unmeasurable: a judge handed the answer key can
+  // quote a defect by number instead of seeing it, and one recorded finding is
+  // literally the judge saying it CANNOT verify "known defect #2". Calibration
+  // (tools/calibrate-judge.mjs) is only meaningful against a judge that was
+  // never told what to look for.
+  return `You are an ADVERSARIAL visual DEFECT DETECTOR for Orbit's whole-app redesign (#539).
+Your job is to find what is WRONG in these rendered surfaces. You did not write this code; do
+not be charitable.
 
-  return `You are an ADVERSARIAL visual-completeness judge for Orbit's whole-app redesign (#539).
-Your ONLY job is to FALSIFY the claim that these surfaces are done. You did not write this
-code; do not be charitable; a false "transformed" verdict recreates the exact failure this
-gate exists to stop.
+You are NOT the completion authority and your verdict cannot mark anything done - a human
+signs off on taste. What matters most from you is the findings list: concrete, pixel-grounded
+defects a person would agree with on sight.
 
 FIRST read ${DESIGN_MD} in full - it is the spec you judge against (de-decorated navy-violet,
 semantic tokens, no decorative glow, no gradient wash, tonal panels, enumerated spacing scale,
 restrained accent usage).
-${defectsLine}
+
 Then, for EACH surface below, use the Read tool on EVERY screenshot path listed (Read renders
 PNGs visually) and judge the rendered pixels:
 ${surfaceLines}
@@ -161,6 +173,12 @@ Verdict per surface (judge across all its screenshots together):
 
 List concrete findings (severity "blocker" | "major" | "minor" + a specific pixel-grounded
 issue). Never invent a file or line you did not derive from what you saw.
+
+Reserve "blocker" for something a user would hit: text overflowing or truncated, elements
+overlapping, a control that cannot be read or reached, a page rendering the wrong locale, or a
+functional failure visible on screen (an error state where content should be). A blocker
+WITHHOLDS the cell from completion, so it must be something you can point at in the pixels.
+Taste complaints are "minor" - they are advisory and never block.
 
 END your final message with EXACTLY one JSON object (no code fences), shaped:
 {"surfaces":[{"surfaceId":"...","status":"transformed|partial|default|broken|no-artifact","findings":[{"severity":"major","issue":"..."}]}]}`
@@ -301,6 +319,7 @@ async function judgeBatch(batch, label, options) {
         model: options.model,
         votes: options.votes,
         voteStatuses: merged.voteStatuses,
+        cellKeys: surface.cellKeys,
       },
     ])
     lines.push(`${label} ${surface.surfaceId}: ${merged.status} [votes: ${merged.voteStatuses.join(" | ")}]${merged.findings.length ? ` (${merged.findings.length} finding(s))` : ""}`)
@@ -308,11 +327,29 @@ async function judgeBatch(batch, label, options) {
   return { records, failures, costUsd, lines, errors }
 }
 
-/** The single writer of verdicts.json: fully synchronous, so a concurrent batch can never interleave with it and drop a verdict. */
-function commitBatch(store, result) {
-  for (const [surfaceId, record] of result.records) store.surfaces[surfaceId] = record
+/**
+ * The single writer of the judge's output: fully synchronous, so a concurrent
+ * batch can never interleave with it and drop a verdict. Writes BOTH the
+ * per-surface record (kept for history and for tools/calibrate-judge.mjs) and
+ * the cell-keyed defect report the completion oracle reads, pinned to each
+ * surface's visual signature so a stale report cannot carry forward.
+ */
+function commitBatch(store, defects, result, signatures) {
+  for (const [surfaceId, record] of result.records) {
+    store.surfaces[surfaceId] = record
+    for (const cellKeyName of record.cellKeys ?? [])
+      defects.cells[cellKeyName] = {
+        surfaceSignature: signatures.get(surfaceId) ?? "",
+        status: record.status,
+        findings: record.findings,
+        judgedAt: record.judgedAt,
+        model: record.model,
+      }
+  }
   mkdirSync(ARTIFACT_DIR, { recursive: true })
   writeFileSync(VERDICTS_PATH, JSON.stringify(store, null, 2) + "\n", "utf8")
+  mkdirSync(dirname(DEFECTS_PATH), { recursive: true })
+  writeFileSync(DEFECTS_PATH, JSON.stringify(defects, null, 2) + "\n", "utf8")
   for (const line of result.lines) process.stdout.write(`${line}\n`)
   for (const error of result.errors) process.stderr.write(`${error}\n`)
 }
@@ -359,6 +396,15 @@ function loadExistingVerdicts() {
   }
 }
 
+function loadExistingDefects() {
+  try {
+    const parsed = JSON.parse(readFileSync(DEFECTS_PATH, "utf8"))
+    return { version: 1, cells: parsed.cells ?? {} }
+  } catch {
+    return { version: 1, cells: {} }
+  }
+}
+
 async function main() {
   const options = parseArgs(process.argv.slice(2))
   if (options.help) {
@@ -393,6 +439,15 @@ async function main() {
   }
 
   const store = loadExistingVerdicts()
+  const defects = loadExistingDefects()
+
+  // Pin each surface's report to the visual signature of the code that
+  // produced the pixels, so the oracle can tell a current report from one
+  // describing a surface that has since been rewritten.
+  const signatures = new Map()
+  for (const surface of judgeable)
+    signatures.set(surface.surfaceId, surface.ownedFiles.map((path) => signatureOfFile(join(REPO_ROOT, path)) ?? "?").join("|").slice(0, 4096))
+
   const batches = []
   for (let i = 0; i < judgeable.length; i += options.batch) batches.push(judgeable.slice(i, i + options.batch))
 
@@ -401,7 +456,7 @@ async function main() {
       const label = `[judge ${index + 1}/${batches.length}]`
       process.stdout.write(`${label} ${batch.map((surface) => surface.surfaceId).join(", ")}\n`)
       const result = await judgeBatch(batch, label, options)
-      commitBatch(store, result)
+      commitBatch(store, defects, result, signatures)
       return result
     }),
     options.concurrency,
