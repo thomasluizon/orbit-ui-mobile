@@ -1,7 +1,7 @@
 ---
 name: implement-sonnet
 description: Cheap implementation tier. Runs the /implement flow for ONE planned bundle/plan on Sonnet 5 at high effort (1M context, no premium), in the worktree/cwd the caller sets, then opens a PR ready for review and returns a one-line JSON status. Route here ONLY for a proven-isolated slice — single-repo AND parity:no AND no shared-contract/DTO change AND not a migration/auth/design change. For anything cross-repo, parity-bound, contract-touching, or hard, use implement-opus instead.
-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
+tools: Read, Write, Edit, Glob, Grep, Bash, Agent(parity-checker), Agent(i18n-syncer), Agent(contract-aligner)
 model: sonnet
 effort: high
 ---

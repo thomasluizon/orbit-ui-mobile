@@ -113,14 +113,6 @@ export function StreakFreezeCelebration({
                     animation: 'fresh-start-orb 0.7s var(--ease-out) both',
                   }}
                 >
-                  <span
-                    aria-hidden="true"
-                    className="animate-orbit-pulse absolute inset-0 rounded-full"
-                    style={{
-                      boxShadow:
-                        '0 0 60px color-mix(in srgb, var(--status-frozen) 40%, transparent)',
-                    }}
-                  />
                   {'❄️'}
                 </span>
               }

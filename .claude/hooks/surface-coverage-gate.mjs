@@ -78,8 +78,15 @@ function statesRatio(text, total) {
   return new RegExp(`\\b\\d+\\s*/\\s*${total}\\b`).test(text)
 }
 
+// Tracked outside the try so the catch can tell a FIRST error (block, so the
+// error is seen) from a re-entry after a block (allow, so a broken gate cannot
+// wedge the session). Claude Code also overrides a Stop hook after 8 consecutive
+// blocks, so this is bounded twice over.
+let alreadyBlockedOnce = false
+
 try {
   const input = readStdinJson()
+  alreadyBlockedOnce = Boolean(input?.stop_hook_active)
   if (input?.stop_hook_active) process.exit(0)
   if (!existsSync(MANIFEST_PATH)) process.exit(0)
   if (existsSync(PAUSED_PATH)) process.exit(0)
@@ -112,6 +119,13 @@ try {
   )
   process.exit(2)
 } catch (error) {
-  process.stderr.write(`Visual completion gate errored and allowed the turn to end: ${error?.message ?? error}\n`)
-  process.exit(0)
+  // A verifier that errors is UNKNOWN, never a clean pass. This exited 0 on any
+  // internal error, so a broken gate was indistinguishable from a satisfied one -
+  // exactly what the "Fail-closed the completion gate" ADR forbids, in the file
+  // that ADR was written about.
+  process.stderr.write(
+    `Visual completion gate ERRORED, so your completion claim is UNVERIFIED: ${error?.message ?? error}\n` +
+      "An error is not a pass. Either fix the gate, or drop the completion claim and say the gate is broken.\n",
+  )
+  process.exit(alreadyBlockedOnce ? 0 : 2)
 }

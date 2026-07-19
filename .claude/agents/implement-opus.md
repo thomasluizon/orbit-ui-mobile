@@ -1,7 +1,7 @@
 ---
 name: implement-opus
 description: Hard-path implementation tier. Runs the /implement flow for ONE planned bundle/plan on Opus 4.8 at xhigh effort, in the worktree/cwd the caller sets, then opens a PR ready for review and returns a one-line JSON status. Spawned by /drive and /implement (multi-issue) so the heavy implement transcript never enters the main session. THE DEFAULT tier — route here for cross-repo, parity-required, contract/DTO-touching, migration, auth, or design/UI work. Cheap sibling for isolated slices: implement-sonnet.
-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
+tools: Read, Write, Edit, Glob, Grep, Bash, Agent(parity-checker), Agent(i18n-syncer), Agent(contract-aligner)
 model: opus
 effort: xhigh
 ---

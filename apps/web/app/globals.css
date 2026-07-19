@@ -511,17 +511,8 @@ button {
   mask: radial-gradient(transparent 58%, black 60%);
 }
 
-@keyframes orbit-pulse {
-  0%, 100% { opacity: 0.7; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.1); }
-}
-
 .animate-spin-slow {
   animation: spin 8s linear infinite;
-}
-
-.animate-orbit-pulse {
-  animation: orbit-pulse 2.5s ease-in-out infinite;
 }
 
 @keyframes astra-orbit {

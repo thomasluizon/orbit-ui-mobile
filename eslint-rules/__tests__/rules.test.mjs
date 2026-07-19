@@ -34,7 +34,15 @@ ruleTester.run('no-decorative-glow', rule('no-decorative-glow'), {
     '<PillButton glow={false}>Save</PillButton>',
     'const ring = "shadow-[inset_0_0_0_1.5px_var(--primary)]"',
     '<div className="shadow-sm" />',
+    // The sanctioned shadows are pure greyscale occlusion (DESIGN.md:177), so a
+    // hue is what separates a shadow from a glow - not which token produced it.
     'const shadow = { boxShadow: "0 1px 2px rgba(0,0,0,0.2)" }',
+    'const sh2 = { boxShadow: "0 4px 16px rgba(0,0,0,.28)" }',
+    'const sh3 = { boxShadow: "0 12px 40px rgba(0,0,0,.45)" }',
+    // A ring or hairline has ZERO blur, so it can never glow even carrying a hue.
+    'const hairline = { boxShadow: "0 0 0 0.5px rgba(255,255,255,0.06)" }',
+    'const ringed = { boxShadow: "0 0 0 6px var(--bg)" }',
+    'const insetAccent = { boxShadow: "inset 0 0 8px var(--primary)" }',
   ],
   invalid: [
     { code: 'const c = "shadow-[var(--primary-glow)]"', errors: [{ messageId: 'noGlowToken' }] },
@@ -43,6 +51,26 @@ ruleTester.run('no-decorative-glow', rule('no-decorative-glow'), {
     { code: 'const s = [styles.fab, primaryGlow(tokens)]', errors: [{ messageId: 'noGlowToken' }] },
     {
       code: '<div className="shadow-[0_8px_28px_rgba(var(--primary-rgb),0.45)]" />',
+      errors: [{ messageId: 'noHandRolledGlow' }],
+    },
+    // The exact glow that shipped in PR #560, the PR that bans glow. It escaped
+    // because the old test looked for `--primary-rgb` and this is `--status-frozen`.
+    {
+      code: '<div style={{ boxShadow: "0 0 60px color-mix(in srgb, var(--status-frozen) 40%, transparent)" }} />',
+      errors: [{ messageId: 'noHandRolledGlow' }],
+    },
+    // Shadow properties are read in ANY object now, not only a JSX `style`
+    // attribute, so the entire mobile StyleSheet surface is no longer invisible.
+    {
+      code: 'const styles = StyleSheet.create({ orb: { boxShadow: "0 0 40px rgba(134,89,234,0.5)" } })',
+      errors: [{ messageId: 'noHandRolledGlow' }],
+    },
+    {
+      code: 'const glow = { boxShadow: "0 0 24px #8659EA" }',
+      errors: [{ messageId: 'noHandRolledGlow' }],
+    },
+    {
+      code: 'const named = { boxShadow: "0 0 30px violet" }',
       errors: [{ messageId: 'noHandRolledGlow' }],
     },
   ],

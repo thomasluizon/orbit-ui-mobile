@@ -554,7 +554,7 @@ const BASE_TSX = 'export default function P(){ return <div className="p-4">x</di
 const WORKED_TSX = 'export default function P(){ return <section className="p-6 rounded-3xl">x</section> }\n'
 function buildGateFixture(
   name,
-  { withManifest = true, withPaused = false, worked = true, judged = null, signed = false, blocker = false, status = "transformed", pixelEvidence = "web-capture" } = {},
+  { withManifest = true, withPaused = false, worked = true, judged = null, signed = false, blocker = false, status = "transformed", pixelEvidence = "web-capture", brokenManifest = false } = {},
 ) {
   const fixtureRoot = join(root, `gate-${name}`)
   mkdirSync(join(fixtureRoot, ".claude", "manifests"), { recursive: true })
@@ -581,7 +581,12 @@ function buildGateFixture(
     locale: "en",
     pixelEvidence,
   }
-  const manifest = { generatedFrom: "test", baselineRef: "HEAD", baselineSha: "HEAD", cells: [cell] }
+  // `cells` as a non-iterable is parseable JSON that makes the oracle THROW, which
+  // is the only way to reach the gate's catch block on purpose. It is the fault
+  // injection for the fail-closed assertion below.
+  const manifest = brokenManifest
+    ? { generatedFrom: "test", baselineRef: "HEAD", baselineSha: "HEAD", cells: 5 }
+    : { generatedFrom: "test", baselineRef: "HEAD", baselineSha: "HEAD", cells: [cell] }
   if (withManifest) writeFileSync(join(fixtureRoot, ".claude", "manifests", "surfaces.json"), JSON.stringify(manifest))
   if (withPaused) writeFileSync(join(fixtureRoot, ".claude", "manifests", "PAUSED"), "")
 
@@ -641,6 +646,16 @@ T("cc surface-gate: shortfall + no transcript -> 0", gateStatus(buildGateFixture
 T("cc surface-gate: claim + unjudged -> 2", gateSaid(buildGateFixture("unjudged"), CLAIM), 2)
 T("cc surface-gate: claim + honest ratio stated -> 0", gateSaid(buildGateFixture("honest"), CLAIM_WITH_RATIO), 0)
 T("cc surface-gate: stop_hook_active loop guard -> 0", gateSaid(buildGateFixture("loop"), CLAIM, { stop_hook_active: true }), 0)
+// A verifier that ERRORS is UNKNOWN, never a clean pass. The catch block used to
+// exit 0, so a broken gate was indistinguishable from a satisfied one - the exact
+// thing the "Fail-closed the completion gate" ADR forbids, in the file it was
+// written about. The loop guard still wins, so a broken gate cannot wedge a session.
+T("cc surface-gate: internal error + claim -> 2 (fail closed)", gateSaid(buildGateFixture("errored", { brokenManifest: true }), CLAIM), 2)
+T(
+  "cc surface-gate: internal error after a block -> 0 (cannot wedge the session)",
+  gateSaid(buildGateFixture("errored-loop", { brokenManifest: true }), CLAIM, { stop_hook_active: true }),
+  0,
+)
 // All three axes satisfied is the only way a claim passes silently.
 T(
   "cc surface-gate: claim + touched+judged+signed -> 0",
@@ -830,8 +845,15 @@ for (const dir of agentDirs) {
   }
   for (const file of readdirSync(dir).filter((name) => name.endsWith(".md"))) {
     agentsScanned++
-    const offenders = frontmatterToolEntries(readFileSync(join(dir, file), "utf8")).filter(failsOpen)
-    T(`agents: ${file} declares no parenthesized tool specifier`, offenders, [])
+    const entries = frontmatterToolEntries(readFileSync(join(dir, file), "utf8"))
+    T(`agents: ${file} declares no fails-open parenthesized specifier`, entries.filter(failsOpen), [])
+    // A bare `Agent` grant on an IMPLEMENTER lets it spawn itself, unbounded, and
+    // both implement tiers carried one while their own bodies claimed the tool was
+    // "granted only for these three read-only checkers". Prose is not a grant.
+    // Flagged High on PR #560. `Agent(<type>)` is the form that actually scopes.
+    if (/^implement-/.test(file)) {
+      T(`agents: ${file} scopes Agent to named types, not bare`, entries.filter((entry) => /^Agent$/.test(entry)), [])
+    }
   }
 }
 // A guard that scanned nothing passes vacuously; make that a failure instead.
