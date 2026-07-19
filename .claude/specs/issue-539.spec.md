@@ -8,9 +8,12 @@ next-action: "Thomas ticks surfaces in signoff.json after looking at a contact s
 # Drive spec - #539 whole-app visual transformation
 
 Rewritten 2026-07-19 (evening) after the harness rebuild. The previous version of this file
-described a harness that has since been replaced; the full record of the rebuild, including
-the research and the two mechanisms that were prototyped and refuted, is in `approach-1.md`
-at the repo root.
+described a harness that has since been replaced. The full record of the rebuild - the
+research, the citations, and the two mechanisms that were prototyped and refuted - lives in
+the brain vault as `Orbit harness rebuild - the three-axis visual gate (#539)`; the
+keep-prune-replace survey that ran alongside it is `Orbit harness keep-prune-replace research
+2026-07-19 (#539)`. Both are under `brain/2 Areas/20-29 Orbit Engineering/`. The refuted
+mechanisms are also summarised in full below, so this file stands alone.
 
 **Read `## Refuted, do not re-propose` before proposing any change to the approach.**
 
