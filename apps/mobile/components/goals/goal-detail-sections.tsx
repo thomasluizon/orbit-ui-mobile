@@ -132,7 +132,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingVertical: 10,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: tokens.hairline,
-      gap: 3,
+      gap: 4,
     },
     historyEntryHeader: {
       flexDirection: 'row',

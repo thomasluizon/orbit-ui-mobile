@@ -27,7 +27,7 @@ export function createDrawerStyles(tokens: ReturnType<typeof createTokensV2>) {
     drawerTagChip: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 5,
+      gap: 4,
     },
     drawerTagDot: {
       width: 6,

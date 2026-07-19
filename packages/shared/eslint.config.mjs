@@ -6,6 +6,7 @@ import noDecorativeGlow from "../../eslint-rules/no-decorative-glow.cjs"
 import noOvershootEasing from "../../eslint-rules/no-overshoot-easing.cjs"
 import noRawFontFeatureTag from "../../eslint-rules/no-raw-font-feature-tag.cjs"
 import noRawGradient from "../../eslint-rules/no-raw-gradient.cjs"
+import spacingScale from "../../eslint-rules/spacing-scale.cjs"
 
 export default [
   ...tseslint.configs.recommendedTypeChecked,
@@ -41,11 +42,17 @@ export default [
           "no-overshoot-easing": noOvershootEasing,
           "no-raw-font-feature-tag": noRawFontFeatureTag,
           "no-raw-gradient": noRawGradient,
+          "spacing-scale": spacingScale,
         },
       },
     },
     rules: {
       "local/no-comments": "error",
+      // `theme/button.ts` owns the pill-button geometry, which is a component
+      // dimension rather than layout rhythm. The exemption lives HERE because this
+      // is the config that lints that file - it sat in apps/web's config, which
+      // never loads this package, so it was dead configuration.
+      "local/spacing-scale": ["error", { exemptFiles: ["src/theme/button.ts"] }],
       "local/no-fullbleed-button": "error",
 
       // The #539 gates with a surface in pure data. Unlike apps/web and apps/mobile, this

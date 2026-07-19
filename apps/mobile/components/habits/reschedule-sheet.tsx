@@ -234,7 +234,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       borderWidth: 1,
       borderColor: tokens.hairline,
       borderRadius: 999,
-      paddingHorizontal: 7,
+      paddingHorizontal: 8,
       paddingVertical: 1,
       overflow: 'hidden',
     },

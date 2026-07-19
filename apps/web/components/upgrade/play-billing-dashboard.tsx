@@ -30,7 +30,7 @@ export function PlayBillingDashboard({ profile, locale, usagePercent, usageUrgen
       <div className="overflow-hidden rounded-[18px]" style={cardSurface}>
         <div style={{ padding: '16px 18px' }}>
           <div style={cardLabelStyle}>{t('upgrade.billing.plan.title')}</div>
-          <div style={{ marginTop: 3, fontFamily: 'var(--font-sans)', fontSize: 17, color: 'var(--fg-1)' }}>
+          <div style={{ marginTop: 4, fontFamily: 'var(--font-sans)', fontSize: 17, color: 'var(--fg-1)' }}>
             {profile?.subscriptionInterval === 'yearly' ? t('upgrade.billing.plan.yearly') : t('upgrade.billing.plan.monthly')}
           </div>
           {profile?.planExpiresAt && (

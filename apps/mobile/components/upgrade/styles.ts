@@ -54,7 +54,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: 8,
-    marginTop: 3,
+    marginTop: 4,
   },
   cardValue: {
     fontFamily: 'Rubik_400Regular',
@@ -169,7 +169,7 @@ export const styles = StyleSheet.create({
   actionChip: {
     borderRadius: 999,
     borderWidth: 1,
-    paddingVertical: 9,
+    paddingVertical: 8,
     paddingHorizontal: 16,
     alignItems: 'center',
     justifyContent: 'center',
@@ -227,7 +227,7 @@ export const styles = StyleSheet.create({
   invoiceDate: {
     fontFamily: 'Rubik_400Regular',
     fontSize: 14,
-    marginTop: 3,
+    marginTop: 4,
   },
   invoiceStatus: {
     fontFamily: 'Roboto_400Regular',
@@ -283,7 +283,7 @@ export const styles = StyleSheet.create({
   matrixCategoryRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
+    gap: 8,
     paddingTop: 16,
     paddingBottom: 6,
   },
@@ -296,7 +296,7 @@ export const styles = StyleSheet.create({
   matrixRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 11,
+    paddingVertical: 12,
     borderTopWidth: 1,
   },
   matrixLabel: {
@@ -323,7 +323,7 @@ export const styles = StyleSheet.create({
   matrixYearlyCell: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 4,
   },
   footerBar: {
     paddingHorizontal: 20,

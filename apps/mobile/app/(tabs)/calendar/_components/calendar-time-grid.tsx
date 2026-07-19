@@ -706,7 +706,7 @@ function createStyles(tokens: Tokens) {
     allDayCell: {
       gap: ALL_DAY_GAP,
       paddingVertical: 6,
-      paddingHorizontal: 3,
+      paddingHorizontal: 4,
       borderLeftWidth: 1,
       borderLeftColor: tokens.hairline,
       borderBottomWidth: 1,
@@ -736,7 +736,7 @@ function createStyles(tokens: Tokens) {
       width: 7,
       height: 7,
       borderRadius: 999,
-      marginLeft: -3,
+      marginLeft: -4,
       backgroundColor: tokens.primary,
     },
     nowBar: {

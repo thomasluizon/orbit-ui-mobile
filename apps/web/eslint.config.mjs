@@ -139,11 +139,20 @@ export default [
       "local/react19-api": "warn",
       "local/require-focus-replacement": "warn",
 
-      // Ships report-only per the audited baseline (1157 violations / 333 files) while the #539
-      // whole-app spacing migration is mid-flight; `button.ts` is the file-scoped pill-button
-      // geometry exemption. Promote to `error` when the count reaches 0 — never widen `allow`.
+      // A RATCHET, not a backlog. It is `error`, and the pre-existing violations are
+      // carried in the committed eslint-suppressions.json baseline, so only NEW or
+      // CHANGED code fails. `--prune-suppressions` in the lint script means the
+      // baseline can only ever shrink. A `warn` with hundreds of open violations is
+      // a migration backlog wearing a gate's clothes; this is the gate.
+      //
+      // The old comment here cited "1157 violations / 333 files", which no current
+      // config can reproduce: the rule was registered ONLY in apps/web, so that
+      // number never had a denominator. Measured 2026-07-19: web 526, mobile 586,
+      // shared 0, of which 124 autofix and 988 are genuine layout decisions.
+      // The `button.ts` exemption moved to packages/shared's own config, which is
+      // the config that actually lints it; it was dead configuration here.
       // https://github.com/thomasluizon/orbit-ui-mobile/blob/main/.claude/specs/issue-539-spacing-audit.md
-      "local/spacing-scale": ["warn", { exemptFiles: ["packages/shared/src/theme/button.ts"] }],
+      "local/spacing-scale": "error",
     },
   },
   {

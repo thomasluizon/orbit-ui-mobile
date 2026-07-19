@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 28,
     borderRadius: 999,
-    padding: 3,
+    padding: 4,
     justifyContent: 'center',
     flexShrink: 0,
   },

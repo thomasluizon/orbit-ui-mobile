@@ -103,7 +103,7 @@ function createStyles(tokens: AppTokensV2) {
     },
     headerText: {
       flex: 1,
-      gap: 3,
+      gap: 4,
     },
     dismissButton: {
       width: 28,

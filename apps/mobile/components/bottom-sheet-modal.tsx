@@ -195,7 +195,7 @@ function createStyles(tokens: AppTokens) {
       justifyContent: 'space-between',
       gap: 16,
       paddingHorizontal: 22,
-      paddingTop: 33,
+      paddingTop: 32,
       paddingBottom: 8,
     },
     title: {

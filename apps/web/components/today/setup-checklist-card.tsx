@@ -39,7 +39,7 @@ export function SetupChecklistCard() {
         }}
       >
         <div className="flex items-start justify-between" style={{ gap: 12 }}>
-          <div className="flex min-w-0 flex-col" style={{ gap: 3 }}>
+          <div className="flex min-w-0 flex-col" style={{ gap: 4 }}>
             <span
               style={{
                 fontFamily: 'var(--font-sans)',

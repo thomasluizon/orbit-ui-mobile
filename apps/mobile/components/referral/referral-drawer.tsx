@@ -276,7 +276,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       backgroundColor: tokens.bgField,
       paddingLeft: 16,
       paddingRight: 6,
-      paddingVertical: 5,
+      paddingVertical: 4,
     },
     linkText: {
       flex: 1,

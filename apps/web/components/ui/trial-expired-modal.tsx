@@ -99,7 +99,7 @@ export function TrialExpiredModal() {
               key={featureKey}
               className="flex items-baseline justify-between"
               style={{
-                padding: '11px 0',
+                padding: '12px 0',
                 borderBottom:
                   index === PAUSED_FEATURES.length - 1
                     ? undefined

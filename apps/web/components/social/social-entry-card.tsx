@@ -52,7 +52,7 @@ export function SocialEntryCard() {
           >
             <Users size={22} strokeWidth={1.8} color="var(--primary-soft)" />
           </span>
-          <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 3 }}>
+          <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
             <span
               style={{
                 fontFamily: 'var(--font-sans)',

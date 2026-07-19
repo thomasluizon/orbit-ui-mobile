@@ -130,7 +130,7 @@ export function AutoSyncSettingsCard() {
               className="flex items-center"
               style={{
                 gap: 6,
-                marginTop: 3,
+                marginTop: 4,
                 fontFamily: 'var(--font-sans)',
                 fontSize: 13,
                 lineHeight: 1.4,

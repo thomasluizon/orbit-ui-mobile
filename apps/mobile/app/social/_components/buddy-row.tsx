@@ -113,7 +113,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     cadenceText: { fontFamily: 'Rubik_500Medium', fontSize: 11, color: tokens.fg3 },
     sub: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: tokens.fg3 },
-    checkIn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999 },
+    checkIn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999 },
     checkInPressed: { transform: [{ scale: 0.96 }] },
     checkInText: { fontFamily: 'Rubik_500Medium', fontSize: 14 },
   })

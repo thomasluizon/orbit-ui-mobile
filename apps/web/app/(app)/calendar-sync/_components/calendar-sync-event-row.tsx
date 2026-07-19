@@ -65,7 +65,7 @@ export function CalendarSyncEventRow({
           </span>
           <span
             className="flex flex-wrap items-center"
-            style={{ gap: 8, marginTop: 3 }}
+            style={{ gap: 8, marginTop: 4 }}
           >
             {event.startDate && (
               <span
@@ -103,7 +103,7 @@ export function CalendarSyncEventRow({
               <span
                 className="inline-flex items-center"
                 style={{
-                  gap: 3,
+                  gap: 4,
                   fontFamily: 'var(--font-mono)',
                   fontSize: 12,
                   color: 'var(--fg-3)',
@@ -135,7 +135,7 @@ export function CalendarSyncEventRow({
                 fontFamily: 'var(--font-sans)',
                 fontSize: 13,
                 color: 'var(--fg-3)',
-                marginTop: 3,
+                marginTop: 4,
               }}
             >
               {event.description}

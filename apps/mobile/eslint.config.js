@@ -17,6 +17,7 @@ const noRawFontFeatureTag = require("../../eslint-rules/no-raw-font-feature-tag.
 const noRawGradient = require("../../eslint-rules/no-raw-gradient.cjs")
 const noScrollListenerMotion = require("../../eslint-rules/no-scroll-listener-motion.cjs")
 const noSideStripeBorder = require("../../eslint-rules/no-side-stripe-border.cjs")
+const spacingScale = require("../../eslint-rules/spacing-scale.cjs")
 
 // https://github.com/expo/expo/issues/43758 — eslint-config-expo@56 bundles react-hooks v7 and
 // turns on its full recommended set (refs, immutability, purity, …) at error. This project owns
@@ -82,11 +83,19 @@ module.exports = defineConfig([
           "no-raw-gradient": noRawGradient,
           "no-scroll-listener-motion": noScrollListenerMotion,
           "no-side-stripe-border": noSideStripeBorder,
+          "spacing-scale": spacingScale,
         },
       },
     },
     rules: {
       "local/no-comments": "error",
+      // DESIGN.md's spacing scale is cross-platform, but this rule was registered
+      // ONLY in apps/web, so mobile spacing was completely ungated while CLAUDE.md
+      // described the gate without any platform qualifier. `error` from the start;
+      // the 494 pre-existing mobile violations ride the committed suppressions
+      // baseline, so only NEW or CHANGED code fails.
+      // https://github.com/thomasluizon/orbit-ui-mobile/issues/539
+      "local/spacing-scale": "error",
       "local/no-gorhom-sheet": "error",
       "local/no-fullbleed-button": ["error", { flagFullWidthProp: true }],
       "no-console": "error",

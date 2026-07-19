@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
   },
   textCol: {
     flex: 1,
-    gap: 3,
+    gap: 4,
   },
   eyebrow: {
     fontFamily: 'Rubik_500Medium',

@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
     minWidth: 0,
-    gap: 3,
+    gap: 4,
   },
   dismissButton: {
     width: 28,

@@ -78,8 +78,8 @@ export const styles = StyleSheet.create({
   },
   runBand: {
     position: 'absolute',
-    top: 7,
-    bottom: 7,
+    top: 8,
+    bottom: 8,
   },
   dayDisc: {
     width: 28,
@@ -157,7 +157,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
-    paddingVertical: 15,
+    paddingVertical: 16,
     paddingHorizontal: 18,
     minHeight: 52,
   },
@@ -219,7 +219,7 @@ export const styles = StyleSheet.create({
   gauge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 4,
   },
   proGateCard: {
     flexDirection: 'row',
@@ -239,7 +239,7 @@ export const styles = StyleSheet.create({
   },
   proGatePill: {
     borderRadius: 999,
-    paddingVertical: 9,
+    paddingVertical: 8,
     paddingHorizontal: 16,
     flexShrink: 0,
   },

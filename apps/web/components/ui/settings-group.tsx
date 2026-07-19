@@ -98,7 +98,7 @@ export function SettingsGroupRow({
           {icon}
         </span>
       ) : null}
-      <span className="flex flex-col flex-1 min-w-0" style={{ gap: 3 }}>
+      <span className="flex flex-col flex-1 min-w-0" style={{ gap: 4 }}>
         <span className="flex items-center" style={{ gap: 6 }}>
           <span
             className="min-w-0 overflow-hidden line-clamp-2"

@@ -320,7 +320,7 @@ function createStyles(tokens: Tokens) {
     sharedChallengesBlock: { marginTop: 14, gap: 12 },
     challengeTitle: { fontFamily: 'Rubik_400Regular', fontSize: 15, color: tokens.fg1 },
     chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999 },
+    chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999 },
     chipText: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: tokens.fg2 },
     noAchievements: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: tokens.fg4 },
   })

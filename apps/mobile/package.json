@@ -21,7 +21,8 @@
     "type-check": "tsc --noEmit",
     "lint": "expo lint",
     "clean": "rm -rf .expo",
-    "android": "node scripts/run-android.js"
+    "android": "node scripts/run-android.js",
+    "lint:prune": "expo lint -- --prune-suppressions"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",

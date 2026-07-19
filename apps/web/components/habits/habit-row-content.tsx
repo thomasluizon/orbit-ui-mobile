@@ -71,7 +71,7 @@ export function HabitRowContent({
             <span
               key={tag.id}
               className="inline-flex items-center shrink-0 min-w-0"
-              style={{ gap: 5, maxWidth: 132 }}
+              style={{ gap: 4, maxWidth: 132 }}
             >
               <span
                 aria-hidden="true"

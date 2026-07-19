@@ -161,7 +161,7 @@ export function FrequencyTypeCards({
                         style={{ color: 'var(--primary)' }}
                       />
                     </span>
-                    <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 3 }}>
+                    <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
                       <span
                         style={{
                           fontFamily: 'var(--font-sans)',

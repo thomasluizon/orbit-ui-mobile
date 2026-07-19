@@ -276,7 +276,7 @@ function createStyles(tokens: AppTokens) {
     sub: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: tokens.fg3 },
     cheer: {
       paddingHorizontal: 14,
-      paddingVertical: 7,
+      paddingVertical: 8,
       borderRadius: 999,
       backgroundColor: tintFromPrimary(tokens, 0.12),
     },

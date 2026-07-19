@@ -30,7 +30,7 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
         minWidth: 40,
         height: 40,
         borderRadius: 999,
-        padding: '0 9px',
+        padding: '0 8px',
         gap: 4,
         boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
       }}

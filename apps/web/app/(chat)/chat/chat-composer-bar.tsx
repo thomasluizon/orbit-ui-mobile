@@ -370,7 +370,7 @@ function ChatTextInputRow({
             fontSize: 16,
             color: 'var(--fg-1)',
             maxHeight: 120,
-            padding: '13px 0',
+            padding: '12px 0',
           }}
         />
         {limitLocked && (

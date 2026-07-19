@@ -20,8 +20,8 @@ export function createStyles(tokens: AppTokens) {
     },
     bellUnreadDot: {
       position: 'absolute',
-      top: 7,
-      right: 7,
+      top: 8,
+      right: 8,
       width: 8,
       height: 8,
       borderRadius: 999,
@@ -99,7 +99,7 @@ export function createStyles(tokens: AppTokens) {
       fontSize: 14,
       lineHeight: 19.6,
       color: tokens.fg3,
-      marginTop: 3,
+      marginTop: 4,
     },
     deleteBtn: {
       width: 36,
@@ -134,7 +134,7 @@ export function createStyles(tokens: AppTokens) {
       borderWidth: 1,
       borderColor: tokens.hairline,
       backgroundColor: tokens.bgElev,
-      paddingVertical: 9,
+      paddingVertical: 8,
       paddingHorizontal: 16,
     },
     retryChipPressed: {

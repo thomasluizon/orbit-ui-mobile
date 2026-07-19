@@ -57,7 +57,7 @@ export function HabitDetailHeader({
       {habit.tags.length > 0 ? (
         <span className="flex flex-wrap items-center justify-center" style={{ gap: 8 }}>
           {habit.tags.map((tag) => (
-            <span key={tag.id} className="inline-flex items-center" style={{ gap: 5 }}>
+            <span key={tag.id} className="inline-flex items-center" style={{ gap: 4 }}>
               <span
                 aria-hidden="true"
                 className="rounded-full shrink-0"

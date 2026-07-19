@@ -49,7 +49,7 @@ export function createStyles() {
       borderRadius: 999,
       borderWidth: 1,
       paddingVertical: 6,
-      paddingHorizontal: 11,
+      paddingHorizontal: 12,
       gap: 4,
       alignItems: 'center',
       justifyContent: 'center',
@@ -93,7 +93,7 @@ export function createStyles() {
     },
     categoryPill: {
       alignSelf: 'flex-start',
-      paddingHorizontal: 7,
+      paddingHorizontal: 8,
       paddingVertical: 2,
       borderRadius: 999,
       borderWidth: 1,

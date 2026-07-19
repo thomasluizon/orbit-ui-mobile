@@ -17,7 +17,7 @@ export function GoalStatusBadge({ text, color }: Readonly<GoalStatusBadgeProps>)
         fontSize: 10.5,
         fontWeight: 600,
         letterSpacing: '0.06em',
-        padding: '3px 9px',
+        padding: '4px 8px',
         boxShadow: 'inset 0 0 0 1px var(--hairline-strong)',
         color,
       }}

@@ -60,7 +60,7 @@ export function RailNextAchievement() {
         >
           {achievementEmoji(next.iconKey)}
         </span>
-        <div className="flex min-w-0 flex-1 flex-col" style={{ gap: 5 }}>
+        <div className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
           <span
             className="truncate"
             style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-1)' }}

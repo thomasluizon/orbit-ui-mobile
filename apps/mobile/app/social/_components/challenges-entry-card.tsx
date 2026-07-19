@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  textBlock: { flex: 1, minWidth: 0, gap: 3 },
+  textBlock: { flex: 1, minWidth: 0, gap: 4 },
   title: { fontFamily: 'Rubik_500Medium', fontSize: 16 },
   desc: { fontFamily: 'Rubik_400Regular', fontSize: 13, lineHeight: 18 },
 })

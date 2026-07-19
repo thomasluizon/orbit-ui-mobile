@@ -226,7 +226,7 @@ function createStyles(tokens: AppTokensV2) {
       alignItems: 'baseline',
       justifyContent: 'space-between',
       gap: 12,
-      paddingVertical: 11,
+      paddingVertical: 12,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: tokens.hairline,
     },

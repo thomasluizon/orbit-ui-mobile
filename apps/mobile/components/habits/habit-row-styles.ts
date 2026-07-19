@@ -49,7 +49,7 @@ export const styles = StyleSheet.create({
   tagChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 4,
     flexShrink: 0,
   },
   tagDot: {
@@ -94,7 +94,7 @@ export const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 999,
-    margin: -3,
+    margin: -4,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -110,7 +110,7 @@ export function ProgressOrbit({
       </svg>
 
       <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ gap: 4 }}>
-        <span className="flex items-baseline" style={{ gap: 3 }}>
+        <span className="flex items-baseline" style={{ gap: 4 }}>
           <span className="t-num-xl">{safeDone}</span>
           <span className="t-num" style={{ fontSize: 18, color: 'var(--fg-3)' }}>
             /{safeTotal}

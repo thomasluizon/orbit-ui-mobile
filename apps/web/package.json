@@ -12,7 +12,8 @@
     "test:smoke": "playwright test --project=smoke",
     "test:visual": "playwright test --project=visual",
     "perf": "lhci autorun",
-    "clean": "rm -rf .next"
+    "clean": "rm -rf .next",
+    "lint:prune": "eslint . --prune-suppressions"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

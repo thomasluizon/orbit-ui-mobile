@@ -1,0 +1,627 @@
+{
+  "app/(tabs)/calendar/_components/calendar-day-entry.tsx": {
+    "local/spacing-scale": {
+      "count": 2
+    }
+  },
+  "app/(tabs)/calendar/_components/calendar-grid.tsx": {
+    "local/spacing-scale": {
+      "count": 3
+    }
+  },
+  "app/(tabs)/calendar/_components/calendar-shell.tsx": {
+    "local/spacing-scale": {
+      "count": 5
+    }
+  },
+  "app/(tabs)/calendar/_components/calendar-time-grid.tsx": {
+    "local/spacing-scale": {
+      "count": 5
+    }
+  },
+  "app/(tabs)/index.tsx": {
+    "local/spacing-scale": {
+      "count": 1
+    }
+  },
+  "app/(tabs)/profile/_components/delete-account-modal.tsx": {
+    "local/spacing-scale": {
+      "count": 2
+    }
+  },
+  "app/(tabs)/profile/_components/edit-name-sheet.tsx": {
+    "local/spacing-scale": {
+      "count": 1
+    }
+  },
+  "app/(tabs)/profile/_components/fresh-start-modal.tsx": {
+    "local/spacing-scale": {
+      "count": 1
+    }
+  },
+  "app/(tabs)/profile/_components/profile-action-button.tsx": {
+    "local/spacing-scale": {
+      "count": 1
+    }
+  },
+  "app/(tabs)/profile/_components/profile-styles.ts": {
+    "local/spacing-scale": {
+      "count": 3
+    }
+  },
+  "app/(tabs)/today-shell.tsx": {
+    "local/spacing-scale": {
+      "count": 3
+    }
+  },
+  "app/about.tsx": {
+    "local/spacing-scale": {
+      "count": 1
+    }
+  },
+  "app/accountability-pair.tsx": {
+    "local/spacing-scale": {
+      "count": 7
+    }
+  },
+  "app/achievements-sections.tsx": {
+    "local/spacing-scale": {
+      "count": 3
+    }
+  },
+  "app/achievements.tsx": {
+    "local/spacing-scale": {
+      "count": 4
+    }
+  },
+  "app/advanced-styles.ts": {
+    "local/spacing-scale": {
+      "count": 10
+    }
+  },
+  "app/advanced.tsx": {
+    "local/spacing-scale": {
+      "count": 1
+    }
+  },
+  "app/ai-settings-styles.ts": {
+    "local/spacing-scale": {
+      "count": 8
+    }
+  },
+  "app/calendar-sync-styles.ts": {
+    "local/spacing-scale": {
+      "count": 10
+    }
+  },
+  "app/chat.styles.ts": {
+    "local/spacing-scale": {
+      "count": 5
+    }
+  },
+  "app/login-styles.ts": {
+    "local/spacing-scale": {
+      "count": 1
+    }
+  },
+  "app/preferences-styles.ts": {
+    "local/spacing-scale": {
+      "count": 2
+    }
+  },
+  "app/public-profile.tsx": {
+    "local/spacing-scale": {
+      "count": 1
+    }
+  },
+  "app/retrospective-styles.ts": {
+    "local/spacing-scale": {
+      "count": 12
+    }
+  },
+  "app/social/_components/add-friend-form.tsx": {
+    "local/spacing-scale": {
+      "count": 3
+    }
+  },
+  "app/social/_components/buddy-invite-row.tsx": {
+    "local/spacing-scale": {
+      "count": 2
+    }
+  },
+  "app/social/_components/buddy-row.tsx": {
+    "local/spacing-scale": {
+      "count": 4
+    }
+  },
+  "app/social/_components/challenges-entry-card.tsx": {
+    "local/spacing-scale": {
+      "count": 1
+    }
+  },
+  "app/social/_components/cheer-composer.tsx": {
+    "local/spacing-scale": {
+      "count": 2
+    }
+  },
+  "app/social/_components/edit-handle-sheet.tsx": {
+    "local/spacing-scale": {
+      "count": 1
+    }
+  },
+  "app/social/_components/friend-profile-sheet.tsx": {
+    "local/spacing-scale": {
+      "count": 10
+    }
+  },
+  "app/social/_components/friend-request-row.tsx": {
+    "local/spacing-scale": {
+      "count": 1
+    }
+  },
+  "app/social/_components/friend-row.tsx": {
+    "local/spacing-scale": {
+      "count": 7
+    }
+  },
+  "app/social/_components/habit-multi-select.tsx": {
+    "local/spacing-scale": {
+      "count": 8
+    }
+  },
+  "app/social/_components/invite-confirm-sheet.tsx": {
+    "local/spacing-scale": {
+      "count": 1
+    }
+  },
+  "app/social/_components/invite-hero.tsx": {
+    "local/spacing-scale": {
+      "count": 4
+    }
+  },
+  "app/social/_components/new-pair-flow.tsx": {
+    "local/spacing-scale": {
+      "count": 5
+    }
+  },
+  "app/social/_components/social-feed.tsx": {
+    "local/spacing-scale": {
+      "count": 1
+    }
+  },
+  "app/social/_components/social-identity-bar.tsx": {
+    "local/spacing-scale": {
+      "count": 2
+    }
+  },
+  "app/social/_components/social-opt-in-gate.tsx": {
+    "local/spacing-scale": {
+      "count": 2
+    }
+  },
+  "app/social/challenges.tsx": {
+    "local/spacing-scale": {
+      "count": 2
+    }
+  },
+  "app/social/challenges/_components/challenge-card.tsx": {
+    "local/spacing-scale": {
+      "count": 6
+    }
+  },
+  "app/social/challenges/_components/challenge-detail.tsx": {
+    "local/spacing-scale": {
+      "count": 5
+    }
+  },
+  "app/social/challenges/_components/challenge-list.tsx": {
+    "local/spacing-scale": {
+      "count": 1
+    }
+  },
+  "app/social/challenges/_components/create-challenge-form.tsx": {
+    "local/spacing-scale": {
+      "count": 2
+    }
+  },
+  "app/social/challenges/_components/invite-friends-picker.tsx": {
+    "local/spacing-scale": {
+      "count": 2
+    }
+  },
+  "app/social/challenges/_components/join-by-code-form.tsx": {
+    "local/spacing-scale": {
+      "count": 1
+    }
+  },
+  "app/social/challenges/_components/share-join-code.tsx": {
+    "local/spacing-scale": {
+      "count": 2
+    }
+  },
+  "app/streak-sections-styles.ts": {
+    "local/spacing-scale": {
+      "count": 12
+    }
+  },
+  "app/streak.tsx": {
+    "local/spacing-scale": {
+      "count": 5
+    }
+  },
+  "app/support.tsx": {
+    "local/spacing-scale": {
+      "count": 1
+    }
+  },
+  "app/wrapped-styles.ts": {
+    "local/spacing-scale": {
+      "count": 8
+    }
+  },
+  "components/bottom-sheet-modal.tsx": {
+    "local/spacing-scale": {
+      "count": 1
+    }
+  },
+  "components/chat/breakdown-suggestion.styles.ts": {
+    "local/spacing-scale": {
+      "count": 8
+    }
+  },
+  "components/chat/clarification-card.tsx": {
+    "local/spacing-scale": {
+      "count": 2
+    }
+  },
+  "components/chat/goal-list-card.tsx": {
+    "local/spacing-scale": {
+      "count": 5
+    }
+  },
+  "components/chat/habit-list-card.tsx": {
+    "local/spacing-scale": {
+      "count": 5
+    }
+  },
+  "components/chat/pending-operation-card.tsx": {
+    "local/spacing-scale": {
+      "count": 3
+    }
+  },
+  "components/chat/typing-indicator.tsx": {
+    "local/spacing-scale": {
+      "count": 1
+    }
+  },
+  "components/gamification/achievement-toast.tsx": {
+    "local/spacing-scale": {
+      "count": 2
+    }
+  },
+  "components/gamification/welcome-back-toast.tsx": {
+    "local/spacing-scale": {
+      "count": 1
+    }
+  },
+  "components/goal-card.tsx": {
+    "local/spacing-scale": {
+      "count": 2
+    }
+  },
+  "components/goals/create-goal-modal/styles.ts": {
+    "local/spacing-scale": {
+      "count": 5
+    }
+  },
+  "components/goals/edit-goal-modal/styles.ts": {
+    "local/spacing-scale": {
+      "count": 3
+    }
+  },
+  "components/goals/goal-detail-drawer/styles.ts": {
+    "local/spacing-scale": {
+      "count": 6
+    }
+  },
+  "components/goals/goal-detail-sections.tsx": {
+    "local/spacing-scale": {
+      "count": 4
+    }
+  },
+  "components/goals/goal-list.tsx": {
+    "local/spacing-scale": {
+      "count": 1
+    }
+  },
+  "components/goals/goal-metrics-panel.tsx": {
+    "local/spacing-scale": {
+      "count": 2
+    }
+  },
+  "components/goals/goals-view.tsx": {
+    "local/spacing-scale": {
+      "count": 1
+    }
+  },
+  "components/habit-list/move-parent-dialog.tsx": {
+    "local/spacing-scale": {
+      "count": 5
+    }
+  },
+  "components/habit-list/styles.ts": {
+    "local/spacing-scale": {
+      "count": 13
+    }
+  },
+  "components/habits/bulk-action-bar-v2.tsx": {
+    "local/spacing-scale": {
+      "count": 2
+    }
+  },
+  "components/habits/checklist-templates.tsx": {
+    "local/spacing-scale": {
+      "count": 5
+    }
+  },
+  "components/habits/create-habit-modal.tsx": {
+    "local/spacing-scale": {
+      "count": 7
+    }
+  },
+  "components/habits/description-viewer.tsx": {
+    "local/spacing-scale": {
+      "count": 2
+    }
+  },
+  "components/habits/goal-linking-field.tsx": {
+    "local/spacing-scale": {
+      "count": 1
+    }
+  },
+  "components/habits/habit-calendar.tsx": {
+    "local/spacing-scale": {
+      "count": 4
+    }
+  },
+  "components/habits/habit-checklist.tsx": {
+    "local/spacing-scale": {
+      "count": 3
+    }
+  },
+  "components/habits/habit-detail-drawer/styles.ts": {
+    "local/spacing-scale": {
+      "count": 4
+    }
+  },
+  "components/habits/habit-form-fields/styles.ts": {
+    "local/spacing-scale": {
+      "count": 30
+    }
+  },
+  "components/habits/habit-row-styles.ts": {
+    "local/spacing-scale": {
+      "count": 4
+    }
+  },
+  "components/habits/reschedule-sheet.tsx": {
+    "local/spacing-scale": {
+      "count": 12
+    }
+  },
+  "components/habits/today-ai-summary.tsx": {
+    "local/spacing-scale": {
+      "count": 5
+    }
+  },
+  "components/message-bubble.tsx": {
+    "local/spacing-scale": {
+      "count": 3
+    }
+  },
+  "components/milestone-share/milestone-share-card.tsx": {
+    "local/spacing-scale": {
+      "count": 9
+    }
+  },
+  "components/navigation/bottom-tab-bar.tsx": {
+    "local/spacing-scale": {
+      "count": 7
+    }
+  },
+  "components/navigation/notification-bell.styles.ts": {
+    "local/spacing-scale": {
+      "count": 3
+    }
+  },
+  "components/navigation/notification-detail-modal.tsx": {
+    "local/spacing-scale": {
+      "count": 2
+    }
+  },
+  "components/onboarding/astra-import-prompt.tsx": {
+    "local/spacing-scale": {
+      "count": 3
+    }
+  },
+  "components/onboarding/calendar-import-prompt.tsx": {
+    "local/spacing-scale": {
+      "count": 3
+    }
+  },
+  "components/onboarding/feature-guide-drawer.tsx": {
+    "local/spacing-scale": {
+      "count": 2
+    }
+  },
+  "components/onboarding/onboarding-complete.tsx": {
+    "local/spacing-scale": {
+      "count": 4
+    }
+  },
+  "components/onboarding/onboarding-create-goal.tsx": {
+    "local/spacing-scale": {
+      "count": 2
+    }
+  },
+  "components/onboarding/onboarding-flow.styles.ts": {
+    "local/spacing-scale": {
+      "count": 1
+    }
+  },
+  "components/onboarding/onboarding-welcome.tsx": {
+    "local/spacing-scale": {
+      "count": 3
+    }
+  },
+  "components/referral/referral-card.tsx": {
+    "local/spacing-scale": {
+      "count": 3
+    }
+  },
+  "components/referral/referral-drawer.tsx": {
+    "local/spacing-scale": {
+      "count": 3
+    }
+  },
+  "components/share/share-card-sheet.tsx": {
+    "local/spacing-scale": {
+      "count": 3
+    }
+  },
+  "components/share/share-card.tsx": {
+    "local/spacing-scale": {
+      "count": 16
+    }
+  },
+  "components/social/social-entry-card.tsx": {
+    "local/spacing-scale": {
+      "count": 3
+    }
+  },
+  "components/today/setup-checklist-card.tsx": {
+    "local/spacing-scale": {
+      "count": 1
+    }
+  },
+  "components/today/today-habits-header.tsx": {
+    "local/spacing-scale": {
+      "count": 2
+    }
+  },
+  "components/tour/tour-replay-modal.tsx": {
+    "local/spacing-scale": {
+      "count": 3
+    }
+  },
+  "components/tour/tour-tooltip.tsx": {
+    "local/spacing-scale": {
+      "count": 2
+    }
+  },
+  "components/ui/anchored-menu.tsx": {
+    "local/spacing-scale": {
+      "count": 1
+    }
+  },
+  "components/ui/app-date-picker.tsx": {
+    "local/spacing-scale": {
+      "count": 2
+    }
+  },
+  "components/ui/app-select.tsx": {
+    "local/spacing-scale": {
+      "count": 2
+    }
+  },
+  "components/ui/app-time-picker.tsx": {
+    "local/spacing-scale": {
+      "count": 4
+    }
+  },
+  "components/ui/app-toast.tsx": {
+    "local/spacing-scale": {
+      "count": 2
+    }
+  },
+  "components/ui/create-api-key-modal.styles.ts": {
+    "local/spacing-scale": {
+      "count": 7
+    }
+  },
+  "components/ui/expiry-warning.tsx": {
+    "local/spacing-scale": {
+      "count": 4
+    }
+  },
+  "components/ui/highlight-text.tsx": {
+    "local/spacing-scale": {
+      "count": 1
+    }
+  },
+  "components/ui/offline-unavailable-state.tsx": {
+    "local/spacing-scale": {
+      "count": 1
+    }
+  },
+  "components/ui/push-prompt.tsx": {
+    "local/spacing-scale": {
+      "count": 3
+    }
+  },
+  "components/ui/section-head-tabs.tsx": {
+    "local/spacing-scale": {
+      "count": 2
+    }
+  },
+  "components/ui/settings-group.tsx": {
+    "local/spacing-scale": {
+      "count": 3
+    }
+  },
+  "components/ui/trial-banner.tsx": {
+    "local/spacing-scale": {
+      "count": 3
+    }
+  },
+  "components/ui/trial-expired-modal.tsx": {
+    "local/spacing-scale": {
+      "count": 6
+    }
+  },
+  "components/ui/year-picker.tsx": {
+    "local/spacing-scale": {
+      "count": 1
+    }
+  },
+  "components/upgrade-required-screen.tsx": {
+    "local/spacing-scale": {
+      "count": 3
+    }
+  },
+  "components/upgrade/billing-dashboard.tsx": {
+    "local/spacing-scale": {
+      "count": 1
+    }
+  },
+  "components/upgrade/plan-card.tsx": {
+    "local/spacing-scale": {
+      "count": 3
+    }
+  },
+  "components/upgrade/pricing-section.tsx": {
+    "local/spacing-scale": {
+      "count": 3
+    }
+  },
+  "components/upgrade/styles.ts": {
+    "local/spacing-scale": {
+      "count": 17
+    }
+  },
+  "components/version-update-drawer.tsx": {
+    "local/spacing-scale": {
+      "count": 5
+    }
+  }
+}

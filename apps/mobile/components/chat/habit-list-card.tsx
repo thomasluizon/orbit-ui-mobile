@@ -105,7 +105,7 @@ function createStyles(tokens: AppTokens) {
       width: 8,
       height: 8,
       borderRadius: 999,
-      marginHorizontal: 5,
+      marginHorizontal: 4,
     },
     title: {
       flex: 1,

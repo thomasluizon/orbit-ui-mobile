@@ -227,8 +227,8 @@ export function HabitChecklist({
               fontFamily: 'var(--font-sans)',
               fontSize: 12,
               fontWeight: 500,
-              padding: '13px 8px',
-              margin: '-13px -8px',
+              padding: '12px 8px',
+              margin: '-12px -8px',
             }}
             onClick={clearAll}
           >

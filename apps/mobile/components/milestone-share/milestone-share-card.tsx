@@ -111,7 +111,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     brandRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 9,
+      gap: 8,
     },
     logo: {
       width: 26,
@@ -167,7 +167,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       alignSelf: 'flex-start',
       marginTop: 8,
       paddingHorizontal: 10,
-      paddingVertical: 3,
+      paddingVertical: 4,
       borderRadius: 999,
       backgroundColor: tintFromPrimary(tokens, 0.16),
     },

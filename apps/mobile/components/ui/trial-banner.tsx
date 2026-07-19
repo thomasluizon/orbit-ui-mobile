@@ -125,7 +125,7 @@ function createStyles(tokens: AppTokensV2) {
       gap: 12,
       borderWidth: 1,
       paddingHorizontal: 14,
-      paddingVertical: 9,
+      paddingVertical: 8,
     },
     leadText: {
       flex: 1,

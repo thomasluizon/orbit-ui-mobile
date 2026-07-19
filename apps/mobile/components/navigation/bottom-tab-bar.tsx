@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
   tabBtn: {
     flex: 1,
     alignItems: 'center',
-    gap: 5,
+    gap: 4,
     paddingTop: 10,
     paddingBottom: 12,
   },
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
   unreadDot: {
     position: 'absolute',
     top: -4,
-    right: -5,
+    right: -4,
     width: 10,
     height: 10,
     borderRadius: 5,

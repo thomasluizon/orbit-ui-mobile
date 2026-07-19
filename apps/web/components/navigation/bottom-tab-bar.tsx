@@ -131,7 +131,7 @@ function TabBtn({ tab, label, active, onClick, unread = false }: Readonly<TabBtn
       }
       style={{
         padding: '10px 0 12px',
-        gap: 5,
+        gap: 4,
       }}
     >
       <span className="relative">
@@ -142,7 +142,7 @@ function TabBtn({ tab, label, active, onClick, unread = false }: Readonly<TabBtn
             className="absolute rounded-full"
             style={{
               top: -2,
-              right: -3,
+              right: -4,
               width: 6,
               height: 6,
               background: 'var(--primary)',

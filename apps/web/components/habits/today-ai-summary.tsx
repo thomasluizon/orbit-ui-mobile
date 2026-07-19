@@ -164,8 +164,8 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
               fontWeight: 500,
               color: 'var(--primary-soft)',
               minHeight: 44,
-              marginTop: -7,
-              marginBottom: -13,
+              marginTop: -8,
+              marginBottom: -12,
             }}
           >
             {expanded ? t('common.seeLess') : t('common.seeMore')}

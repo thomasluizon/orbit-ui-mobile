@@ -202,8 +202,8 @@ export function createStyles(tokens: Tokens) {
       fontSize: 16,
       lineHeight: 22,
       paddingHorizontal: 0,
-      paddingTop: 13,
-      paddingBottom: 5,
+      paddingTop: 12,
+      paddingBottom: 4,
       maxHeight: 120,
     },
     fieldIconButton: {
@@ -216,9 +216,9 @@ export function createStyles(tokens: Tokens) {
     composerFieldFocused: {
       borderWidth: 2,
       borderColor: tokens.primary,
-      paddingLeft: 17,
-      paddingRight: 7,
-      paddingBottom: 7,
+      paddingLeft: 16,
+      paddingRight: 8,
+      paddingBottom: 8,
     },
     composerFieldLocked: {
       opacity: 0.45,

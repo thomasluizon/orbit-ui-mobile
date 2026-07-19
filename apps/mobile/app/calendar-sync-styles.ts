@@ -36,7 +36,7 @@ export function createStyles() {
       fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       lineHeight: 18,
-      marginTop: 3,
+      marginTop: 4,
     },
     syncNowRow: {
       flexDirection: 'row',
@@ -97,7 +97,7 @@ export function createStyles() {
     },
     eventBody: {
       flex: 1,
-      gap: 3,
+      gap: 4,
     },
     eventTitle: {
       fontFamily: 'Rubik_500Medium',
@@ -117,7 +117,7 @@ export function createStyles() {
     eventReminders: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 3,
+      gap: 4,
     },
     eventDescription: {
       fontFamily: 'Rubik_400Regular',
@@ -135,10 +135,10 @@ export function createStyles() {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 7,
+      gap: 8,
       borderRadius: 999,
       borderWidth: 1,
-      paddingVertical: 9,
+      paddingVertical: 8,
       paddingHorizontal: 16,
     },
     quietActionDim: {

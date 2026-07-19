@@ -42,7 +42,7 @@ export function Badge({ tone = 'violet', children, className }: Readonly<BadgePr
         fontSize: 10.5,
         fontWeight: 600,
         letterSpacing: '0.06em',
-        padding: '3px 9px',
+        padding: '4px 8px',
         ...toneStyles[tone],
       }}
     >

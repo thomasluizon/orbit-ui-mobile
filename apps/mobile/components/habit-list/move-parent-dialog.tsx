@@ -283,7 +283,7 @@ function createStyles(tokens: AppTokensV2) {
       borderRadius: 14,
       borderWidth: 1,
       paddingHorizontal: 12,
-      paddingVertical: 9,
+      paddingVertical: 8,
     },
     moveOptionDefault: {
       borderColor: tokens.hairline,
@@ -353,7 +353,7 @@ function createStyles(tokens: AppTokensV2) {
       fontSize: 11,
       lineHeight: 15,
       color: tokens.fg3,
-      marginTop: 5,
+      marginTop: 4,
     },
     moveDialogEmpty: {
       fontFamily: 'Rubik_400Regular',
