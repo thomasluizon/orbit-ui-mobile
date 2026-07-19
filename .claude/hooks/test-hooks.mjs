@@ -370,6 +370,43 @@ T("gate-tamper: running calibrate-judge with 2>&1 allows", checkGateTamperBash("
 T("gate-tamper: cat verdicts with 2>&1 allows", checkGateTamperBash("cat .artifacts/surfaces/verdicts.json 2>&1"), null)
 T("gate-tamper: a real redirect over calibrate-judge still blocks", !!checkGateTamperBash("node x.mjs > tools/calibrate-judge.mjs 2>&1")?.block, true)
 
+// The guard judges a command PER SEGMENT. Every case below failed under the
+// previous whole-string version, and each was observed rather than imagined:
+// the read blocks fired three times in one session on read-only commands, and
+// both bypasses were flagged Critical on PR #560.
+//
+// 1. A read-only leader was matched with `^` against the ENTIRE command, so any
+//    `cd` prefix or compound form blocked a pure read.
+T("gate-tamper: cd prefix then read signoff allows", checkGateTamperBash('cd /c/repo && jq . .claude/manifests/signoff.json'), null)
+T("gate-tamper: read manifest through a pipe allows", checkGateTamperBash("jq -r .cellCount .claude/manifests/surfaces.json 2>&1 | head"), null)
+T("gate-tamper: cd with a quoted spaced path then read allows", checkGateTamperBash('cd "/c/x y/repo" && grep -c surfaceId .claude/manifests/surfaces.json'), null)
+T("gate-tamper: a quoted && does not split a segment", checkGateTamperBash('grep "a && b" .claude/manifests/surfaces.json'), null)
+// 2. `git` is a read-only leader and `--output=` was not a write pattern, so
+//    `git log --output=<path> --format=<text>` forged a protected file and passed.
+T("gate-tamper: git --output over manifest blocks", !!checkGateTamperBash("git log --output=.claude/manifests/surfaces.json --format=format:x")?.block, true)
+T("gate-tamper: git -o over manifest blocks", !!checkGateTamperBash("git log -o .claude/manifests/surfaces.json")?.block, true)
+T("gate-tamper: git --output over signoff blocks", !!checkGateTamperBash("git log --output=.claude/manifests/signoff.json --format=format:x")?.block, true)
+// 3. The sanctioned-writer test had no end anchor, so anything chained after a
+//    sanctioned tool inherited its sanction.
+T("gate-tamper: chaining past a sanctioned writer blocks", !!checkGateTamperBash("node tools/surface-manifest.mjs && rm -rf .claude/manifests")?.block, true)
+T("gate-tamper: semicolon chain past a sanctioned writer blocks", !!checkGateTamperBash('npm run surfaces:judge; echo fake > .artifacts/surfaces/verdicts.json')?.block, true)
+// 4. Naming the containing DIRECTORY destroys every protected file at once while
+//    naming none of them, so no filename pattern matched. Found by probing 3.
+T("gate-tamper: rm of the manifests directory blocks", !!checkGateTamperBash("rm -rf .claude/manifests")?.block, true)
+T("gate-tamper: rm of the surfaces artifacts directory blocks", !!checkGateTamperBash("rm -rf .artifacts/surfaces")?.block, true)
+T("gate-tamper: listing the manifests directory allows", checkGateTamperBash("ls -la .claude/manifests"), null)
+T("gate-tamper: a bare cd into the manifests directory allows", checkGateTamperBash("cd .claude/manifests"), null)
+// A bare filename after a cd is still the protected artifact.
+T("gate-tamper: cd then read a bare signoff filename allows", checkGateTamperBash("cd .claude/manifests && cat signoff.json"), null)
+T("gate-tamper: cd then rm a bare signoff filename blocks", !!checkGateTamperBash("cd .claude/manifests && rm signoff.json")?.block, true)
+// An unknown leader fails CLOSED: the allowlist is of shape, not of verbs.
+T("gate-tamper: unknown interpreter writing signoff blocks", !!checkGateTamperBash(`python -c "open('.claude/manifests/signoff.json','w')"`)?.block, true)
+// 5. A heredoc BODY is data, not commands. A commit message DESCRIBING a write
+//    was blocked as if it were one, which is how this was found.
+T("gate-tamper: a heredoc body describing a write allows", checkGateTamperBash("git commit -F - <<'EOF'\nfix: stop rm signoff.json from working\nrm -rf .claude/manifests was allowed\nEOF"), null)
+T("gate-tamper: a real redirect on the heredoc command line still blocks", !!checkGateTamperBash("cat <<'EOF' > .claude/manifests/signoff.json\n{}\nEOF")?.block, true)
+T("gate-tamper: tee from a heredoc still blocks", !!checkGateTamperBash("tee .claude/manifests/signoff.json <<'EOF'\n{}\nEOF")?.block, true)
+
 // primer's agent-scoped shell allowlist. The deny cases are the point: a prefix
 // allowlist alone is not a fence, so the metacharacter rejection must run first.
 const PRIMER = { allowlist: PRIMER_SHELL_ALLOWLIST, agent: "primer" }
