@@ -1,0 +1,28 @@
+{
+  "_readme": [
+    "HUMAN-ONLY. This is the only file in the harness that can GRANT completion,",
+    "and no agent may write it - forbid-gate-tamper blocks agent Edit/Write and",
+    "any shell command that would modify it. Thomas ticks cells here in his own",
+    "editor after looking at the contact sheet.",
+    "",
+    "Why a human owns this axis: 'is this surface good?' is a taste judgement, and",
+    "the measured evidence says a vision model cannot make it. UI-Lens (CVPR 2026)",
+    "puts MLLM F1 at 20.4% on text overflow and 31.2% on collision; arXiv 2510.08783",
+    "puts pairwise UI-quality accuracy near chance when two screens are close in",
+    "quality; arXiv 2606.13685 needs >=11 trials for 95% reliability where this",
+    "harness used 2. The judge stays, but as a defect detector that can only veto.",
+    "",
+    "To tick a cell, add an entry keyed exactly as the oracle prints it:",
+    "  \"cells\": {",
+    "    \"route-calendar--default--dark--en\": {",
+    "      \"surfaceSignature\": \"<paste from: node tools/check-surface-coverage.mjs --explain route-calendar --json>\",",
+    "      \"by\": \"thomas\",",
+    "      \"note\": \"optional\"",
+    "    }",
+    "  }",
+    "The signature pin means a tick expires the moment the surface changes again:",
+    "sign-off applies to what you actually looked at, not to the surface forever."
+  ],
+  "version": 1,
+  "cells": {}
+}
