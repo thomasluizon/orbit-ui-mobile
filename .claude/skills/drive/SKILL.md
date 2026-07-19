@@ -42,6 +42,8 @@ A markdown skill cannot flip Claude Code session toggles; only code (the tier ag
 | `ultracode` (session mode) / `ultrathink` (one-turn) | **RECOMMEND only** — a skill cannot enable them; the driver gets the reasoning half via `--effort xhigh`, the full toggle stays yours to set live |
 | Fable 5 | **MANUAL** — never auto-routed (capped, withdrawable) |
 
+**A/B override (`config.modelOverride`).** Set `"modelOverride": "sonnet"` (or `"opus"`) in `config.example.json` / the runtime `config.json` to force **every** bundle to that model, ignoring the per-bundle `tier` Phase A assigned — the switch for a controlled "all-Sonnet vs Opus baseline" week. Each run records the model that actually ran per bundle (`runs/**/task-<id>.json` → `model`); `tools/drive-ab-report.mjs` tallies done/blocked/failed + verifier DISAGREE per model so the quality delta is measured, not guessed. **Revert by deleting the key** (restores tier routing). The verifier stays on its own `verifyModel` (independent, unaffected).
+
 ## Mode detection
 
 Parse `$ARGUMENTS`. Strip `--sleep` first (it selects Phase B's unattended path); the remainder is the input.

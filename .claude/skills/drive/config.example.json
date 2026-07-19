@@ -1,6 +1,7 @@
 {
-  "model": "opus",
+  "model": "sonnet",
   "fallbackModel": "sonnet",
+  "modelOverride": "sonnet",
   "permissionMode": "bypassPermissions",
   "perTaskBudgetUsd": 4,
   "totalBudgetUsd": 20,

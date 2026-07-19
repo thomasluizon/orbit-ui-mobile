@@ -36,6 +36,7 @@ import { createInterface } from "node:readline/promises"
 const DEFAULTS = {
   model: "opus",
   fallbackModel: "sonnet",
+  modelOverride: null,
   permissionMode: "bypassPermissions",
   perTaskBudgetUsd: 4,
   totalBudgetUsd: 20,
@@ -71,9 +72,10 @@ function parseArgs(argv) {
   return out
 }
 
-/** Per-task tier routing: map a queue entry's `tier` to a model, falling back to the global model. */
+/** Per-task tier routing: `config.modelOverride` (A/B: force every bundle to one model) wins; else map a queue entry's `tier` to a model, falling back to the global model. */
 const TIER_MODEL = { sonnet: "sonnet", opus: "opus" }
 function resolveModel(task, config) {
+  if (config.modelOverride) return config.modelOverride
   return TIER_MODEL[task?.tier] || config.model
 }
 function resolveEffort(task) {
@@ -173,6 +175,7 @@ function buildClaudeArgs(config, task) {
 
 function runTask(task, config, promptText, log) {
   const started = Date.now()
+  const model = resolveModel(task, config)
   const run = spawnSync("claude", buildClaudeArgs(config, task), {
     input: promptText,
     cwd: resolve(config.repos[0].path),
@@ -186,7 +189,7 @@ function runTask(task, config, promptText, log) {
 
   if (run.error) {
     const reason = run.error.code === "ETIMEDOUT" ? "timed out" : `spawn failed (${run.error.code})`
-    return { status: "failed", cost: 0, pr: null, summary: reason, elapsedMs, raw: String(run.stderr || "").slice(-500) }
+    return { status: "failed", model, cost: 0, pr: null, summary: reason, elapsedMs, raw: String(run.stderr || "").slice(-500) }
   }
 
   const outer = (() => {
@@ -199,15 +202,16 @@ function runTask(task, config, promptText, log) {
   const cost = Number(outer?.total_cost_usd ?? outer?.cost_usd ?? 0) || 0
   const resultText = outer?.result ?? run.stdout ?? ""
   if (!outer || outer.is_error) {
-    return { status: "failed", cost, pr: null, summary: "child reported an error", elapsedMs, raw: String(resultText).slice(-500) }
+    return { status: "failed", model, cost, pr: null, summary: "child reported an error", elapsedMs, raw: String(resultText).slice(-500) }
   }
 
   const line = parseJsonLine(resultText, "status")
   if (!line) {
-    return { status: "unknown", cost, pr: null, summary: "no status line in child output", elapsedMs, raw: String(resultText).slice(-500) }
+    return { status: "unknown", model, cost, pr: null, summary: "no status line in child output", elapsedMs, raw: String(resultText).slice(-500) }
   }
   return {
     status: line.status,
+    model,
     cost,
     pr: line.pr || null,
     summary: String(line.summary || "").slice(0, 500),
