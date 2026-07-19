@@ -29,7 +29,7 @@
  * and returns every repo to its base branch between tasks.
  */
 import { spawnSync } from "node:child_process"
-import { readFileSync, writeFileSync, appendFileSync, mkdirSync, existsSync } from "node:fs"
+import { readFileSync, writeFileSync, appendFileSync, mkdirSync, existsSync, rmSync } from "node:fs"
 import { join, resolve } from "node:path"
 import { createInterface } from "node:readline/promises"
 
@@ -122,6 +122,49 @@ function resetReposToBase(repos, log, label = "unattributed") {
     }
     if (currentBranch(repoPath) !== repo.base) git(repoPath, ["checkout", repo.base])
     git(repoPath, ["pull", "--ff-only"])
+  }
+}
+
+/**
+ * Two drive runs against one checkout is the top operational risk in this repo:
+ * children share the working tree, and `resetReposToBase` stashes and checks out
+ * on every repo, so the second run silently rips the tree out from under the
+ * first. preflight's clean-tree check is a check-then-act race, not a lock -
+ * both runs pass it, then fight. Observed for real: a concurrent session landed
+ * 9 commits into this tree mid-session while another was reading it.
+ *
+ * A stale lock whose pid is gone is reclaimed; a live one aborts.
+ */
+function acquireRunLock(dir, log) {
+  const lockPath = join(dir, "RUNNING")
+  if (existsSync(lockPath)) {
+    let holder = null
+    try {
+      holder = JSON.parse(readFileSync(lockPath, "utf8"))
+    } catch {
+      holder = null
+    }
+    if (holder?.pid && processIsAlive(holder.pid)) {
+      log(`ANOTHER DRIVE RUN IS ACTIVE: pid ${holder.pid}, started ${holder.startedAt}, branch ${holder.branch}.`)
+      log(`Two runs share this working tree and will corrupt each other. Stop that run, or delete ${lockPath} if you know it is dead.`)
+      return null
+    }
+    log(`Reclaiming a stale drive lock (pid ${holder?.pid ?? "unknown"} is not running).`)
+  }
+  const branch = spawnSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], { encoding: "utf8" })
+  writeFileSync(
+    lockPath,
+    JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString(), branch: branch.stdout?.trim() || "unknown" }, null, 2),
+  )
+  return lockPath
+}
+
+function processIsAlive(pid) {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return error?.code === "EPERM"
   }
 }
 
@@ -376,6 +419,21 @@ async function main() {
     return
   }
 
+  const lockPath = acquireRunLock(dir, log)
+  if (!lockPath) {
+    log("Aborting before any task ran.")
+    return
+  }
+  const releaseLock = () => {
+    try {
+      if (existsSync(lockPath)) rmSync(lockPath)
+    } catch {
+      /* the lock is advisory; a failed cleanup must never mask the run's own outcome */
+    }
+  }
+  process.on("exit", releaseLock)
+  try {
+
   const results = []
   const lessons = []
   let consecutiveFailures = 0
@@ -507,6 +565,9 @@ async function main() {
   ].join("\n")
   writeFileSync(join(runDir, "SUMMARY.md"), summary)
   log(`DONE. ${done}/${queue.length} completed, ${flagged} flagged, ${lessons.length} lesson candidate(s). Summary: ${join(runDir, "SUMMARY.md")}`)
+  } finally {
+    releaseLock()
+  }
 }
 
 main().catch((err) => {
