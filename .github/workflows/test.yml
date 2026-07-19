@@ -166,10 +166,19 @@ jobs:
         with:
           node-version: 22
 
+      # The suite stopped being zero-dependency when the visual completion oracle
+      # landed: tools/visual-signature.mjs requires the TypeScript compiler API to
+      # build its render-affecting AST fingerprint, and check-surface-coverage.mjs
+      # imports it. Without this the import throws and EVERY surface-gate and oracle
+      # assertion fails with exit 1 - which is exactly what happened from the moment
+      # the rebuild landed. Installing only `typescript` keeps the job at seconds
+      # rather than a full `npm ci`, and the version is pinned to the root manifest.
+      - name: Install the one non-builtin the suite needs
+        run: npm install --no-save --no-audit --no-fund typescript@^6.0.2
+
       - name: Prove the hook rules, the real hooks, and the opencode plugin agree
-        # Zero-dependency suite (node builtins + .claude/hooks/_lib only), so no npm ci.
-        # It also carries the agent-frontmatter guard: `tools: Bash(gh:*)` fails OPEN
-        # (the specifier is stripped and the agent gets a full shell), which no linter
+        # Carries the agent-frontmatter guard: `tools: Bash(gh:*)` fails OPEN (the
+        # specifier is stripped and the agent gets a full shell), which no linter
         # catches. orbit-api's agents are not checked out here, so this job covers the
         # UI repo's agents only; the local run covers both.
         run: node .claude/hooks/test-hooks.mjs
