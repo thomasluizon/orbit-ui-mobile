@@ -17,7 +17,7 @@
 // nested `claude -p` works from inside any session (anthropics/claude-code#26190).
 
 import { createHash } from "node:crypto"
-import { spawnSync } from "node:child_process"
+import { spawn, spawnSync } from "node:child_process"
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
@@ -34,6 +34,8 @@ const DEFECTS_SPEC = join(REPO_ROOT, ".claude", "specs", "issue-539-user-found-d
 
 const STATUSES = ["transformed", "partial", "default", "broken", "no-artifact"]
 
+const MAX_JUDGE_STDOUT = 64 * 1024 * 1024
+
 const TAINTED_ENV = [
   "CLAUDECODE",
   "CLAUDE_CODE_ENTRYPOINT",
@@ -46,7 +48,7 @@ const USAGE = `judge-surfaces - independent vision judge over captured surface s
 Usage:
   node tools/judge-surfaces.mjs [--filter <substring>] [--model <model>]
                                 [--batch <n>] [--votes <n>] [--timeout-min <n>]
-                                [--help]
+                                [--concurrency <n>] [--help]
 
 For each manifest surface with at least one screenshot on disk, spawns N fresh
 INDEPENDENT read-only \`claude -p\` judges (--votes) that Read the PNGs and
@@ -64,6 +66,10 @@ Flags:
   --batch        surfaces per judge process (default: 5)
   --votes        independent judges per batch, merged worst-wins (default: 2, min 1)
   --timeout-min  per-judge timeout in minutes (default: 15)
+  --concurrency  batches judged at once (default: 4, clamped 1-12). A batch's
+                 votes also run together, so up to concurrency x votes judge
+                 processes are in flight; output is prefixed per batch because
+                 lines interleave.
   --help         this text
 
 Exit codes:
@@ -73,13 +79,14 @@ Exit codes:
 `
 
 function parseArgs(argv) {
-  const out = { filter: null, model: "sonnet", batch: 5, votes: 2, timeoutMin: 15, help: false }
+  const out = { filter: null, model: "sonnet", batch: 5, votes: 2, timeoutMin: 15, concurrency: 4, help: false }
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--filter" && argv[i + 1]) out.filter = argv[++i]
     else if (argv[i] === "--model" && argv[i + 1]) out.model = argv[++i]
     else if (argv[i] === "--batch" && argv[i + 1]) out.batch = Math.max(1, Number(argv[++i]) || 5)
     else if (argv[i] === "--votes" && argv[i + 1]) out.votes = Math.max(1, Number(argv[++i]) || 2)
     else if (argv[i] === "--timeout-min" && argv[i + 1]) out.timeoutMin = Math.max(1, Number(argv[++i]) || 15)
+    else if (argv[i] === "--concurrency" && argv[i + 1]) out.concurrency = Math.min(12, Math.max(1, Number(argv[++i]) || 4))
     else if (argv[i] === "--help" || argv[i] === "-h") out.help = true
   }
   return out
@@ -204,30 +211,124 @@ function runJudge(surfaces, options) {
     "--allowedTools",
     "Read",
   ]
-  const run = spawnSync("claude", args, {
-    input: judgePrompt(surfaces),
-    cwd: tmpdir(),
-    env: childEnv(),
-    encoding: "utf8",
-    timeout: options.timeoutMin * 60 * 1000,
-    maxBuffer: 64 * 1024 * 1024,
-    shell: false,
+  return new Promise((settle) => {
+    const child = spawn("claude", args, { cwd: tmpdir(), env: childEnv(), shell: false })
+    let stdout = ""
+    let stderr = ""
+    let timedOut = false
+    let overflowed = false
+    const timer = setTimeout(() => {
+      timedOut = true
+      child.kill()
+    }, options.timeoutMin * 60 * 1000)
+    child.stdout.setEncoding("utf8")
+    child.stderr.setEncoding("utf8")
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk
+      if (stdout.length > MAX_JUDGE_STDOUT) {
+        overflowed = true
+        child.kill()
+      }
+    })
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk
+    })
+    child.stdin.on("error", () => child.kill())
+    child.on("error", (error) => {
+      clearTimeout(timer)
+      settle({ error: `judge spawn failed (${error.code})` })
+    })
+    child.on("close", () => {
+      clearTimeout(timer)
+      if (timedOut) return settle({ error: "judge timed out" })
+      if (overflowed) return settle({ error: "judge spawn failed (ENOBUFS)" })
+      let outer
+      try {
+        outer = JSON.parse(stdout)
+      } catch {
+        outer = null
+      }
+      if (!outer || outer.is_error) {
+        return settle({ error: "judge process reported an error", raw: String(stdout || stderr || "").slice(-400) })
+      }
+      const verdicts = parseVerdicts(outer.result ?? "")
+      if (!verdicts) return settle({ error: "judge returned no parseable verdict object", raw: String(outer.result ?? "").slice(-400) })
+      settle({ verdicts, costUsd: Number(outer.total_cost_usd ?? 0) || 0 })
+    })
+    child.stdin.end(judgePrompt(surfaces))
   })
-  if (run.error) {
-    return { error: run.error.code === "ETIMEDOUT" ? "judge timed out" : `judge spawn failed (${run.error.code})` }
+}
+
+/** Run one batch's independent votes together and reduce them to store-ready records; a failed or invalid vote leaves the batch's surfaces unjudged (fail closed). */
+async function judgeBatch(batch, label, options) {
+  const outcomes = await Promise.all(Array.from({ length: options.votes }, () => runJudge(batch, options)))
+  const lines = []
+  const errors = []
+  const voteMaps = []
+  let costUsd = 0
+  outcomes.forEach((outcome, vote) => {
+    if (outcome.error) {
+      errors.push(`${label} FAILED: vote ${vote + 1}/${options.votes}: ${outcome.error}${outcome.raw ? `\n${label} tail: ${outcome.raw}` : ""}`)
+      return
+    }
+    costUsd += outcome.costUsd
+    voteMaps.push(new Map(outcome.verdicts.map((verdict) => [verdict.surfaceId, verdict])))
+  })
+  if (voteMaps.length < options.votes) {
+    errors.push(`${label} FAILED: batch got ${voteMaps.length}/${options.votes} vote(s) - its surfaces stay unjudged (fail closed)`)
+    return { records: [], failures: 1, costUsd, lines, errors }
   }
-  let outer
-  try {
-    outer = JSON.parse(run.stdout)
-  } catch {
-    outer = null
+
+  const records = []
+  let failures = 0
+  for (const surface of batch) {
+    const surfaceVotes = voteMaps.map((byId) => byId.get(surface.surfaceId))
+    if (surfaceVotes.some((verdict) => !verdict || !STATUSES.includes(verdict.status))) {
+      failures++
+      errors.push(`${label} FAILED: fewer than ${options.votes} valid vote(s) for ${surface.surfaceId} - left unjudged (fail closed)`)
+      continue
+    }
+    const merged = mergeVotes(surfaceVotes)
+    const judgedCells = {}
+    for (const artifact of surface.artifacts) judgedCells[artifact.name] = sha256File(artifact.path)
+    records.push([
+      surface.surfaceId,
+      {
+        status: merged.status,
+        findings: merged.findings,
+        judgedCells,
+        judgedAt: new Date().toISOString(),
+        model: options.model,
+        votes: options.votes,
+        voteStatuses: merged.voteStatuses,
+      },
+    ])
+    lines.push(`${label} ${surface.surfaceId}: ${merged.status} [votes: ${merged.voteStatuses.join(" | ")}]${merged.findings.length ? ` (${merged.findings.length} finding(s))` : ""}`)
   }
-  if (!outer || outer.is_error) {
-    return { error: "judge process reported an error", raw: String(run.stdout || run.stderr || "").slice(-400) }
+  return { records, failures, costUsd, lines, errors }
+}
+
+/** The single writer of verdicts.json: fully synchronous, so a concurrent batch can never interleave with it and drop a verdict. */
+function commitBatch(store, result) {
+  for (const [surfaceId, record] of result.records) store.surfaces[surfaceId] = record
+  mkdirSync(ARTIFACT_DIR, { recursive: true })
+  writeFileSync(VERDICTS_PATH, JSON.stringify(store, null, 2) + "\n", "utf8")
+  for (const line of result.lines) process.stdout.write(`${line}\n`)
+  for (const error of result.errors) process.stderr.write(`${error}\n`)
+}
+
+/** Run async thunks through a fixed-width promise pool, preserving input order in the results. */
+async function runPool(tasks, width) {
+  const results = []
+  let next = 0
+  const worker = async () => {
+    while (next < tasks.length) {
+      const index = next++
+      results[index] = await tasks[index]()
+    }
   }
-  const verdicts = parseVerdicts(outer.result ?? "")
-  if (!verdicts) return { error: "judge returned no parseable verdict object", raw: String(outer.result ?? "").slice(-400) }
-  return { verdicts, costUsd: Number(outer.total_cost_usd ?? 0) || 0 }
+  await Promise.all(Array.from({ length: Math.min(width, tasks.length) }, worker))
+  return results
 }
 
 /** Worst-wins merge across independent votes: the surface is only as good as its worst verdict; findings union, deduped by issue text. */
@@ -258,7 +359,7 @@ function loadExistingVerdicts() {
   }
 }
 
-function main() {
+async function main() {
   const options = parseArgs(process.argv.slice(2))
   if (options.help) {
     process.stdout.write(USAGE)
@@ -282,7 +383,7 @@ function main() {
   const judgeable = surfaces.filter((surface) => surface.artifacts.length > 0)
   const skipped = surfaces.filter((surface) => surface.artifacts.length === 0)
 
-  process.stdout.write(`judging ${judgeable.length} surface(s) with artifacts (model ${options.model}, batch ${options.batch}, votes ${options.votes})\n`)
+  process.stdout.write(`judging ${judgeable.length} surface(s) with artifacts (model ${options.model}, batch ${options.batch}, votes ${options.votes}, concurrency ${options.concurrency})\n`)
   for (const surface of skipped) {
     process.stdout.write(`  [no artifacts yet] ${surface.surfaceId} - capture it first (npm run surfaces:capture)\n`)
   }
@@ -292,51 +393,21 @@ function main() {
   }
 
   const store = loadExistingVerdicts()
-  let failures = 0
-  let totalCost = 0
+  const batches = []
+  for (let i = 0; i < judgeable.length; i += options.batch) batches.push(judgeable.slice(i, i + options.batch))
 
-  for (let i = 0; i < judgeable.length; i += options.batch) {
-    const batch = judgeable.slice(i, i + options.batch)
-    process.stdout.write(`  judge ${1 + i / options.batch}: ${batch.map((surface) => surface.surfaceId).join(", ")}\n`)
-    const voteMaps = []
-    for (let vote = 0; vote < options.votes; vote++) {
-      const outcome = runJudge(batch, options)
-      if (outcome.error) {
-        process.stderr.write(`    FAILED: vote ${vote + 1}/${options.votes}: ${outcome.error}${outcome.raw ? `\n    tail: ${outcome.raw}` : ""}\n`)
-        break
-      }
-      totalCost += outcome.costUsd
-      voteMaps.push(new Map(outcome.verdicts.map((verdict) => [verdict.surfaceId, verdict])))
-    }
-    if (voteMaps.length < options.votes) {
-      failures++
-      process.stderr.write(`    FAILED: batch got ${voteMaps.length}/${options.votes} vote(s) - its surfaces stay unjudged (fail closed)\n`)
-      continue
-    }
-    for (const surface of batch) {
-      const surfaceVotes = voteMaps.map((byId) => byId.get(surface.surfaceId))
-      if (surfaceVotes.some((verdict) => !verdict || !STATUSES.includes(verdict.status))) {
-        failures++
-        process.stderr.write(`    FAILED: fewer than ${options.votes} valid vote(s) for ${surface.surfaceId} - left unjudged (fail closed)\n`)
-        continue
-      }
-      const merged = mergeVotes(surfaceVotes)
-      const judgedCells = {}
-      for (const artifact of surface.artifacts) judgedCells[artifact.name] = sha256File(artifact.path)
-      store.surfaces[surface.surfaceId] = {
-        status: merged.status,
-        findings: merged.findings,
-        judgedCells,
-        judgedAt: new Date().toISOString(),
-        model: options.model,
-        votes: options.votes,
-        voteStatuses: merged.voteStatuses,
-      }
-      process.stdout.write(`    ${surface.surfaceId}: ${merged.status} [votes: ${merged.voteStatuses.join(" | ")}]${merged.findings.length ? ` (${merged.findings.length} finding(s))` : ""}\n`)
-    }
-    mkdirSync(ARTIFACT_DIR, { recursive: true })
-    writeFileSync(VERDICTS_PATH, JSON.stringify(store, null, 2) + "\n", "utf8")
-  }
+  const results = await runPool(
+    batches.map((batch, index) => async () => {
+      const label = `[judge ${index + 1}/${batches.length}]`
+      process.stdout.write(`${label} ${batch.map((surface) => surface.surfaceId).join(", ")}\n`)
+      const result = await judgeBatch(batch, label, options)
+      commitBatch(store, result)
+      return result
+    }),
+    options.concurrency,
+  )
+  const failures = results.reduce((sum, result) => sum + result.failures, 0)
+  const totalCost = results.reduce((sum, result) => sum + result.costUsd, 0)
 
   const counts = {}
   for (const surface of judgeable) {
@@ -350,4 +421,4 @@ function main() {
   return failures ? 1 : 0
 }
 
-process.exit(main())
+process.exit(await main())
