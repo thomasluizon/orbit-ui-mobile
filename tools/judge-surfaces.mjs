@@ -182,14 +182,18 @@ function parseVerdicts(resultText) {
 }
 
 function runJudge(surfaces, options) {
+  // --safe-mode: no project hooks/CLAUDE.md reach the judge - the repo's own
+  // Stop gate must not hijack its final verdict message (verified failure
+  // without it; --bare is unusable because it also skips credential reads).
+  // A pure judge sees only DESIGN.md + pixels. Read-only allowlist, no
+  // bypassPermissions: it is structurally unable to write.
   const args = [
     "-p",
+    "--safe-mode",
     "--output-format",
     "json",
     "--model",
     options.model,
-    "--permission-mode",
-    "bypassPermissions",
     "--allowedTools",
     "Read",
   ]
