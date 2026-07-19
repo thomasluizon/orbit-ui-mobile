@@ -111,13 +111,14 @@ function currentBranch(repoPath) {
   return git(repoPath, ["rev-parse", "--abbrev-ref", "HEAD"]).stdout.trim()
 }
 
-/** Return each repo to its base branch, stashing (never discarding) any leftover changes. */
-function resetReposToBase(repos, log) {
+/** Return each repo to its base branch, stashing (never discarding) any leftover changes, labelled with the bundle that produced them. */
+function resetReposToBase(repos, log, label = "unattributed") {
   for (const repo of repos) {
     const repoPath = resolve(repo.path)
     if (!isClean(repoPath)) {
-      git(repoPath, ["stash", "push", "-u", "-m", `drive leftovers ${stamp()}`])
-      log(`  stashed leftover changes in ${repo.path} (recoverable via 'git stash list')`)
+      git(repoPath, ["stash", "push", "-u", "-m", `drive leftovers [${label}] ${stamp()}`])
+      const ref = git(repoPath, ["rev-parse", "stash@{0}"]).stdout.trim()
+      log(`  stashed leftover changes from [${label}] in ${repo.path} -> ${ref || "stash@{0}"} (git stash list)`)
     }
     if (currentBranch(repoPath) !== repo.base) git(repoPath, ["checkout", repo.base])
     git(repoPath, ["pull", "--ff-only"])
@@ -169,9 +170,22 @@ function buildClaudeArgs(config, task) {
   return args
 }
 
+/** Head sha + open PR url for a repo, sampled before and after a child so a task's outcome can be read from what it DID, not from what it said. */
+function repoSideEffects(repoPath) {
+  const head = git(repoPath, ["rev-parse", "HEAD"]).stdout.trim()
+  const branch = currentBranch(repoPath)
+  const pr = spawnSync("gh", ["pr", "list", "--head", branch, "--state", "open", "--limit", "1", "--json", "url", "--jq", ".[0].url"], {
+    cwd: repoPath,
+    encoding: "utf8",
+  })
+  return { head, branch, pr: (pr.stdout || "").trim() || null }
+}
+
 function runTask(task, config, promptText, log) {
   const started = Date.now()
   const model = resolveModel(task, config)
+  const repoPath = resolve(config.repos[0].path)
+  const before = repoSideEffects(repoPath)
   const run = spawnSync("claude", buildClaudeArgs(config, task), {
     input: promptText,
     cwd: resolve(config.repos[0].path),
@@ -202,7 +216,24 @@ function runTask(task, config, promptText, log) {
 
   const line = parseJsonLine(resultText, "status")
   if (!line) {
-    return { status: "unknown", model, pr: null, summary: "no status line in child output", elapsedMs, raw: String(resultText).slice(-500) }
+    // A missing status line is a reporting failure, not necessarily a work failure: the repo's own
+    // Stop hook could reject the child's final message and push the JSON out of `result`. Read the
+    // outcome from durable side effects instead, so a bundle that committed and pushed is never
+    // recorded as a loss (#539 post-mortem, 2026-07-19 - `social` cost a bundle exactly this way).
+    const after = repoSideEffects(repoPath)
+    if (after.head !== before.head || (after.pr && after.pr !== before.pr)) {
+      const commits = git(repoPath, ["rev-list", "--count", `${before.head}..${after.head}`]).stdout.trim() || "?"
+      return {
+        status: "blocked",
+        model,
+        pr: after.pr,
+        summary: `no status line, but the child left ${commits} new commit(s)${after.pr ? " and a PR" : ""} - status derived from side effects`,
+        elapsedMs,
+        derived: true,
+        raw: String(resultText).slice(-500),
+      }
+    }
+    return { status: "unknown", model, pr: null, summary: "no status line and no commits or PR - the child left nothing", elapsedMs, raw: String(resultText).slice(-500) }
   }
   return {
     status: line.status,
@@ -348,6 +379,7 @@ async function main() {
   const results = []
   const lessons = []
   let consecutiveFailures = 0
+  let previousTaskId = "pre-run"
   const wall = (r) => (r.elapsedMs ? `${Math.round(r.elapsedMs / 60000)}min` : "-")
   const row = (r) => `| ${r.id} | ${r.label} | ${r.status} | ${r.verdict || "-"} | ${wall(r)} | ${r.pr || "-"} |`
   const writeStatus = () => {
@@ -368,7 +400,8 @@ async function main() {
       break
     }
     log(`--- task [${task.id}] ${task.label} ---`)
-    resetReposToBase(config.repos, log)
+    resetReposToBase(config.repos, log, previousTaskId)
+    previousTaskId = task.id
 
     const promptPath = join(dir, "prompts", `task-${task.id}.md`)
     const promptText = (() => {
@@ -442,7 +475,7 @@ async function main() {
   }
 
   if (rl) rl.close()
-  resetReposToBase(config.repos, log)
+  resetReposToBase(config.repos, log, previousTaskId)
   const done = results.filter((r) => r.status === "done").length
   const flagged = results.filter((r) => r.verdict === "DISAGREE").length
 

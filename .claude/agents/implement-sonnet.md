@@ -1,6 +1,6 @@
 ---
 name: implement-sonnet
-description: Cheap implementation tier. Runs the /implement flow for ONE planned bundle/plan on Sonnet 5 at high effort (1M context, no premium), in the worktree/cwd the caller sets, then opens a draft PR and returns a one-line JSON status. Route here ONLY for a proven-isolated slice — single-repo AND parity:no AND no shared-contract/DTO change AND not a migration/auth/design change. For anything cross-repo, parity-bound, contract-touching, or hard, use implement-opus instead.
+description: Cheap implementation tier. Runs the /implement flow for ONE planned bundle/plan on Sonnet 5 at high effort (1M context, no premium), in the worktree/cwd the caller sets, then opens a PR ready for review and returns a one-line JSON status. Route here ONLY for a proven-isolated slice — single-repo AND parity:no AND no shared-contract/DTO change AND not a migration/auth/design change. For anything cross-repo, parity-bound, contract-touching, or hard, use implement-opus instead.
 tools: Read, Write, Edit, Glob, Grep, Bash, Agent
 model: sonnet
 effort: high
@@ -18,7 +18,7 @@ Sonnet 5 is 1M-context on Max (no opt-in, no premium) and strong enough to carry
 
 - Run in the `cwd` the caller set (a paired worktree for `/drive` and multi-issue; the `orbit-ui-mobile` repo root for single-issue/path-based `/implement`). Take the plan end-to-end: code + tests + static validation.
 - **Parity (Phase 4):** invoke `parity-checker` / `i18n-syncer` / `contract-aligner` as `/implement` Phase 4 directs — `Agent` is granted only for these three read-only checkers.
-- **Open a draft PR** (`gh pr create --draft`), cross-linked as `/implement` specifies. Draft state keeps the human at the merge.
+- **Open a PR ready for review** (`gh pr create`, never `--draft`), cross-linked as `/implement` specifies. Ready-for-review is what makes CI and the review bots run; merging stays human-only (`git-guardrails` blocks pushes to `main`).
 - **Do NOT run browser E2E / vision-verify** — no renderer in a subagent. Report it pending for the attended caller.
 
 ## Tier safety valve (read this)
@@ -36,4 +36,4 @@ Return exactly one line of JSON, nothing else:
 ## Hard rules
 
 - Never merge a PR, never push to `main`, never `--no-verify`.
-- If validation fails, fix and re-run — never leave broken state or open a draft PR over a red build. If blocked, return `blocked` with the reason.
+- If validation fails, fix and re-run — never leave broken state or open a PR over a red build. If blocked, return `blocked` with the reason.

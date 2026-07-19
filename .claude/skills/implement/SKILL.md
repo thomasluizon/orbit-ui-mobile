@@ -45,8 +45,8 @@ Parse `$ARGUMENTS`. Count numeric tokens (`123`, `#123`).
 **Single-issue and path-based modes** (multi-issue has its own fan-out below):
 
 1. Read the plan's metadata only — lightweight, stays in the main session: Repos, Parity Required, **Tier** (default `opus` if absent), GitHub Issue. Do **not** run Phases 1–6 inline.
-2. Spawn `implement-<tier>` (default `implement-opus`) with `cwd` = the `orbit-ui-mobile` repo root (single-issue/path work runs on the main working tree, not a worktree). It runs **Phases 1–6** (branch → code → parity → validate → tests → report) and opens a **draft PR** per affected repo, then returns its one-line JSON. If `implement-sonnet` returns a `tier-mismatch` block, re-spawn on `implement-opus`.
-3. Run the **attended tail** in the main session: the browser **E2E / vision-verify** from Phase 5 (plus `design-reviewer` for a UI diff — the subagent could not render it), then **Phases 7–9** — show the draft PR + diff, confirm with the user, mark the PR ready, update the issue, and output.
+2. Spawn `implement-<tier>` (default `implement-opus`) with `cwd` = the `orbit-ui-mobile` repo root (single-issue/path work runs on the main working tree, not a worktree). It runs **Phases 1–6** (branch → code → parity → validate → tests → report) and opens a **PR ready for review** per affected repo, then returns its one-line JSON. If `implement-sonnet` returns a `tier-mismatch` block, re-spawn on `implement-opus`.
+3. Run the **attended tail** in the main session: the browser **E2E / vision-verify** from Phase 5 (plus `design-reviewer` for a UI diff — the subagent could not render it), then **Phases 7–9** — show the PR + diff, confirm with the user, update the issue, and output.
 
 The Phases 1–9 below are the authoritative **work spec**: the tier agent follows Phases 1–6; the main session performs the Phase 5 browser-E2E/vision step and Phases 7–9. Nothing runs Phases 1–6 inline in the main session anymore — this is the leanness win, and it unifies single-issue with multi-issue and `/drive`.
 
@@ -368,7 +368,7 @@ For each issue, read the plan's **Tier** field (`sonnet` / `opus`; default `opus
 Each tier subagent:
 
 - Has `cwd` set to the orbit-ui-mobile worktree for that issue.
-- Runs the `/implement` Phases 1–6 inside its worktree and opens a **draft PR** per repo (orbit-api cross-linked), then returns its one-line JSON status. The browser E2E / vision-verify is **not** done in the subagent (no renderer) — it is pending for the attended review.
+- Runs the `/implement` Phases 1–6 inside its worktree and opens a **PR ready for review** per repo (orbit-api cross-linked), then returns its one-line JSON status. The browser E2E / vision-verify is **not** done in the subagent (no renderer) — it is pending for the attended review.
 - If `implement-sonnet` returns `blocked` with a `tier-mismatch` reason, **re-spawn that issue on `implement-opus`** (the safety valve caught a misclassification).
 
 The named tier agents replace the old anonymous spawn — an anonymous subagent silently inherited the main session's Opus model and could never be routed, and its transcript is exactly the heavy context these agents keep out of the main session.

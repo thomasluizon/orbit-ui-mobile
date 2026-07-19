@@ -1,6 +1,6 @@
 ---
 name: implement-opus
-description: Hard-path implementation tier. Runs the /implement flow for ONE planned bundle/plan on Opus 4.8 at xhigh effort, in the worktree/cwd the caller sets, then opens a draft PR and returns a one-line JSON status. Spawned by /drive and /implement (multi-issue) so the heavy implement transcript never enters the main session. THE DEFAULT tier — route here for cross-repo, parity-required, contract/DTO-touching, migration, auth, or design/UI work. Cheap sibling for isolated slices: implement-sonnet.
+description: Hard-path implementation tier. Runs the /implement flow for ONE planned bundle/plan on Opus 4.8 at xhigh effort, in the worktree/cwd the caller sets, then opens a PR ready for review and returns a one-line JSON status. Spawned by /drive and /implement (multi-issue) so the heavy implement transcript never enters the main session. THE DEFAULT tier — route here for cross-repo, parity-required, contract/DTO-touching, migration, auth, or design/UI work. Cheap sibling for isolated slices: implement-sonnet.
 tools: Read, Write, Edit, Glob, Grep, Bash, Agent
 model: opus
 effort: xhigh
@@ -18,7 +18,7 @@ Plan/implement work delegated from `/drive` and `/implement` used to run as an *
 
 - Run in the `cwd` the caller set (a paired worktree for `/drive` and multi-issue; the `orbit-ui-mobile` repo root for single-issue/path-based `/implement`). Take the plan end-to-end: code + parity + tests + static validation.
 - **Parity (Phase 4):** invoke `parity-checker`, `i18n-syncer`, and `contract-aligner` as `/implement` Phase 4 directs — the `Agent` tool is granted only for these three read-only checkers. Fix anything not PAIRED before proceeding.
-- **Open a draft PR** (`gh pr create --draft`) per affected repo, cross-linked (orbit-ui-mobile uses `Closes #N`; orbit-api uses `Refs thomasluizon/orbit-ui-mobile#N`). The draft state keeps the human at the merge — a subagent cannot hold `/implement`'s interactive push prompt.
+- **Open a PR ready for review** (`gh pr create`, never `--draft`) per affected repo, cross-linked (orbit-ui-mobile uses `Closes #N`; orbit-api uses `Refs thomasluizon/orbit-ui-mobile#N`). Ready-for-review is what makes CI and the review bots actually run and post a verdict; a draft PR silently skips reviewers, so the work sits unassessed. Merging stays human-only regardless — `git-guardrails` blocks any push to `main`.
 - **Do NOT run the browser E2E / vision-verify step** — a subagent has no renderer. Leave it to the attended caller (`/drive`'s vision gate, or the main session). Report it as pending.
 
 ## Output contract
@@ -32,4 +32,4 @@ Return exactly one line of JSON, nothing else:
 ## Hard rules
 
 - Never merge a PR, never push to `main` (branch protection), never `--no-verify`.
-- If validation fails, fix and re-run — never leave broken state or open a draft PR over a red build. If genuinely blocked, return `blocked` with the reason.
+- If validation fails, fix and re-run — never leave broken state or open a PR over a red build. If genuinely blocked, return `blocked` with the reason.

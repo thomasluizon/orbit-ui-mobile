@@ -511,14 +511,30 @@ function buildGateFixture(name, { withManifest = true, withPaused = false, artif
   return fixtureRoot
 }
 const gateStatus = (fixtureRoot, payload = {}) => runHookEnv("surface-coverage-gate.mjs", payload, { ORBIT_SURFACE_ROOT: fixtureRoot })
+/** Point the gate at a transcript whose last assistant message is `text`. */
+function saidInTranscript(fixtureRoot, text) {
+  const transcriptPath = join(fixtureRoot, "transcript.jsonl")
+  writeFileSync(transcriptPath, JSON.stringify({ type: "assistant", message: { role: "assistant", content: [{ type: "text", text }] } }) + "\n")
+  return { transcript_path: transcriptPath }
+}
+const CLAIM = "The visual pass is complete - all surfaces now carry the new design."
+const CLAIM_WITH_RATIO = "The visual pass is complete for this slice. Honest ratio: 0/1 cells verified."
+const NO_CLAIM = "I refactored the drive engine and removed its cost accounting."
+const gateSaid = (fixtureRoot, text, payload = {}) => gateStatus(fixtureRoot, { ...saidInTranscript(fixtureRoot, text), ...payload })
+
 T("cc surface-gate: no manifest -> 0 (not armed)", gateStatus(buildGateFixture("none", { withManifest: false })), 0)
 T("cc surface-gate: PAUSED -> 0 (human disarm)", gateStatus(buildGateFixture("paused", { withPaused: true })), 0)
-T("cc surface-gate: artifact but unjudged -> 2", gateStatus(buildGateFixture("unjudged")), 2)
-T("cc surface-gate: missing artifact -> 2", gateStatus(buildGateFixture("missing", { artifact: false })), 2)
-T("cc surface-gate: judge-rejected -> 2", gateStatus(buildGateFixture("rejected", { verdictStatus: "partial" })), 2)
-T("cc surface-gate: verdict hash mismatch -> 2", gateStatus(buildGateFixture("stalev", { verdictStatus: "transformed", hashMatches: false })), 2)
-T("cc surface-gate: transformed + matching hash -> 0", gateStatus(buildGateFixture("done", { verdictStatus: "transformed" })), 0)
-T("cc surface-gate: stop_hook_active loop guard -> 0", gateStatus(buildGateFixture("loop"), { stop_hook_active: true }), 0)
+// The anti-shredding property: a turn that claims nothing ends silently no matter the ratio, so a
+// headless drive child's {"status":...} line survives (#539 post-mortem, 2026-07-19).
+T("cc surface-gate: shortfall + no completion claim -> 0", gateSaid(buildGateFixture("noclaim"), NO_CLAIM), 0)
+T("cc surface-gate: shortfall + no transcript -> 0", gateStatus(buildGateFixture("notranscript")), 0)
+T("cc surface-gate: claim + unjudged -> 2", gateSaid(buildGateFixture("unjudged"), CLAIM), 2)
+T("cc surface-gate: claim + missing artifact -> 2", gateSaid(buildGateFixture("missing", { artifact: false }), CLAIM), 2)
+T("cc surface-gate: claim + judge-rejected -> 2", gateSaid(buildGateFixture("rejected", { verdictStatus: "partial" }), CLAIM), 2)
+T("cc surface-gate: claim + verdict hash mismatch -> 2", gateSaid(buildGateFixture("stalev", { verdictStatus: "transformed", hashMatches: false }), CLAIM), 2)
+T("cc surface-gate: claim + honest ratio stated -> 0", gateSaid(buildGateFixture("honest"), CLAIM_WITH_RATIO), 0)
+T("cc surface-gate: transformed + matching hash -> 0", gateSaid(buildGateFixture("done", { verdictStatus: "transformed" }), CLAIM), 0)
+T("cc surface-gate: stop_hook_active loop guard -> 0", gateSaid(buildGateFixture("loop"), CLAIM, { stop_hook_active: true }), 0)
 
 // ---------------------------------------------------------------------------
 // 3. opencode plugin — same rules, opencode contract
