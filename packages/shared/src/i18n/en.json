@@ -3229,8 +3229,8 @@
     "empty": {
       "title": "No challenges yet",
       "body": "Start a shared goal or streak, or join one with a code.",
-      "create": "Create a challenge",
-      "join": "Join with a code"
+      "create": "Create",
+      "join": "Join"
     },
     "type": {
       "coopGoal": "Shared goal",

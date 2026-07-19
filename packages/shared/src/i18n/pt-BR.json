@@ -3229,8 +3229,8 @@
     "empty": {
       "title": "Nenhum desafio ainda",
       "body": "Comece uma meta ou sequência em grupo, ou entre em uma com um código.",
-      "create": "Criar um desafio",
-      "join": "Entrar com um código"
+      "create": "Criar",
+      "join": "Entrar"
     },
     "type": {
       "coopGoal": "Meta compartilhada",
