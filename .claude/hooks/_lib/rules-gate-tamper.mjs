@@ -15,10 +15,21 @@
 
 const PAUSED_RE = /\.claude[\\/]manifests[\\/]PAUSED/i
 const MANIFEST_RE = /\.claude[\\/]manifests[\\/]surfaces\.json/i
-const VERDICTS_RE = /\.artifacts[\\/]surfaces[\\/]verdicts\.json/i
+const VERDICTS_RE = /(\.artifacts[\\/]surfaces[\\/]verdicts\.json|\.claude[\\/]manifests[\\/]defects\.json)/i
+const SIGNOFF_RE = /\.claude[\\/]manifests[\\/]signoff\.json/i
 
 const MANIFEST_WRITERS = [/^node\s+(\.\/)?tools[\\/]surface-manifest\.mjs\b/, /^npm\s+run\s+surfaces:manifest\b/]
 const VERDICT_WRITERS = [/^node\s+(\.\/)?tools[\\/]judge-surfaces\.mjs\b/, /^npm\s+run\s+surfaces:judge\b/]
+
+// signoff.json is the ONLY axis of the completion oracle that GRANTS a cell.
+// There is deliberately no sanctioned agent writer for it: a tool an agent can
+// run is a tool an agent can use to sign its own work, which is the exact
+// self-certification loop the harness rebuild exists to break.
+const SIGNOFF_MESSAGE =
+  "gate-tamper: .claude/manifests/signoff.json is the HUMAN-ONLY completion grant. " +
+  "It is the one axis of the visual gate an agent may never write - a cell is only DONE when Thomas has personally " +
+  "looked at the surface and ticked it in his own editor. Signing your own work is the failure this gate exists to stop. " +
+  "Reading it (cat/jq/git) is fine; if you believe a surface is ready, say so and let Thomas tick it."
 const READ_ONLY_LEADERS = /^(cat|jq|ls|dir|stat|head|tail|wc|grep|rg|git|type|sha256sum|certutil|node\s+(\.\/)?tools[\\/]check-surface-coverage\.mjs|npm\s+run\s+surfaces:check)\b/
 
 function firstSegmentIsSanctioned(command, writers) {
@@ -42,6 +53,10 @@ export function checkGateTamperBash(command) {
         "gate-tamper: .claude/manifests/PAUSED is the HUMAN-ONLY pause switch for the visual completion gate. " +
         "An agent never creates, edits, or reads-to-copy it. If the gate should pause, say so and let Thomas create the file in his own terminal.",
     }
+  }
+
+  if (SIGNOFF_RE.test(text) && (looksLikeWrite(text) || !READ_ONLY_LEADERS.test(text.trim()))) {
+    return { block: true, message: SIGNOFF_MESSAGE }
   }
 
   if (MANIFEST_RE.test(text) && !firstSegmentIsSanctioned(text, MANIFEST_WRITERS)) {
@@ -81,6 +96,7 @@ export function checkGateTamperEdit(filePath) {
       message: "gate-tamper: .claude/manifests/PAUSED is human-only. Do not create or edit it from an agent session.",
     }
   }
+  if (SIGNOFF_RE.test(path)) return { block: true, message: SIGNOFF_MESSAGE }
   if (MANIFEST_RE.test(path)) {
     return {
       block: true,

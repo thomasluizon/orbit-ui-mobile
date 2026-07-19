@@ -5,22 +5,23 @@
 // without stating the machine-computed ratio alongside the claim. A turn that
 // makes no such claim ends silently, whatever the ratio is.
 //
-// Why it is no longer a "block until every cell verifies" gate (#539
-// post-mortem, 2026-07-19): the old version exited 2 on ANY epic-wide
-// shortfall, which is true on every turn, including turns that never touched a
-// surface. Interactively that is a harmless nag. In a headless `claude -p`
-// drive child it is fatal - the hook rejects the child's final message, the
-// child is forced to continue, its reply to the hook becomes the NEW final
-// message, and the {"status":...} line the driver greps for is gone. Three
-// bundles were recorded `unknown` that way in a single night; one of them
-// (`social`) had already committed, pushed, and reported honestly. The
-// driver's circuit breaker then halted a healthy run. The gate built to
-// prevent a false "done" was manufacturing false failures instead.
+// Why it is not a "block until every cell verifies" gate (#539 post-mortem,
+// 2026-07-19): the old version exited 2 on ANY shortfall, i.e. every turn. In
+// a headless `claude -p` drive child that is fatal - the hook rejects the
+// child's final message, the child is forced to continue, and the
+// {"status":...} line the driver greps for is gone. Three bundles were
+// recorded `unknown` that way in one night; one had already committed, pushed
+// and reported honestly. The gate built to prevent a false "done" was
+// manufacturing false failures instead.
 //
-// A gate cannot make work happen; it can only make the CLAIM honest. So that
-// is all this does, and it does it mechanically: claim + no ratio = blocked.
-// Completion itself stays derived from screenshots + independent judge
-// verdicts on disk (tools/check-surface-coverage.mjs), never from a sentence.
+// Why the claim-detection regex is NOT the honesty mechanism: a regex over
+// prose is a guess about wording, and the previous rebuild's own review found
+// its only measured effect was destroying a status line. The real mechanical
+// enforcement lives in the TOOL: tools/check-surface-coverage.mjs prints its
+// three axis counts and its platform scope on every single run, and
+// test-hooks asserts it cannot print a completion number without them. This
+// hook is the backstop for the one case a tool cannot cover - a model
+// asserting completion in prose without running the tool at all.
 //
 // ARMED whenever .claude/manifests/surfaces.json exists. Disarm is HUMAN-ONLY:
 // Thomas creates .claude/manifests/PAUSED in his own terminal (agents are
@@ -99,19 +100,15 @@ try {
   if (verdict.complete) process.exit(0)
   if (statesRatio(finalText, verdict.total)) process.exit(0)
 
-  const byReason = verdict.failures.reduce((acc, failure) => {
-    acc[failure.reason] = (acc[failure.reason] ?? 0) + 1
-    return acc
-  }, {})
   process.stderr.write(
-    `Visual completion gate: you claimed the visual work is done, but it is ${verdict.verified}/${verdict.total} ` +
-      `(${Object.entries(byReason)
-        .sort()
-        .map(([reason, count]) => `${reason}: ${count}`)
-        .join(", ")}).\n\n` +
+    `Visual completion gate: you claimed the visual work is done, but it is ${verdict.verified}/${verdict.total} cells.\n\n` +
+      `  touched      ${verdict.touched}/${verdict.total}   an owned file's visual signature moved since the baseline\n` +
+      `  defect-clear ${verdict.defectClear}/${verdict.total}   independent judge report on file, no blocker\n` +
+      `  human-signed ${verdict.signed}/${verdict.total}   the ONLY axis that can grant a cell\n\n` +
       `State "${verdict.verified}/${verdict.total}" in the same message as the claim, or drop the claim.\n` +
-      'A cell counts only with a fresh screenshot AND an independent judge verdict of "transformed" whose hash still matches.\n' +
-      "The loop: npm run surfaces:capture -> npm run surfaces:judge -> npm run surfaces:check\n",
+      "No automatic check can mark a surface done: completion is granted only by a human tick in\n" +
+      ".claude/manifests/signoff.json, which agents cannot write. If you believe surfaces are ready,\n" +
+      "say which ones and ask Thomas to look at the contact sheet.\n",
   )
   process.exit(2)
 } catch (error) {
