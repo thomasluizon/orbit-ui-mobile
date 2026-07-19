@@ -364,6 +364,11 @@ T("gate-tamper: redirect over calibrate-judge blocks", !!checkGateTamperBash("ec
 T("gate-tamper: sed -i on calibrate-judge blocks", !!checkGateTamperBash("sed -i s/false/true/ tools/calibrate-judge.mjs")?.block, true)
 T("gate-tamper: RUNNING calibrate-judge allows", checkGateTamperBash("node tools/calibrate-judge.mjs"), null)
 T("gate-tamper: npm surfaces:calibrate allows", checkGateTamperBash("npm run surfaces:calibrate"), null)
+// A file-descriptor duplication is not a write. Treating `2>&1` as one made
+// every guarded tool unrunnable under the ordinary `cmd ... 2>&1` idiom.
+T("gate-tamper: running calibrate-judge with 2>&1 allows", checkGateTamperBash("node tools/calibrate-judge.mjs 2>&1"), null)
+T("gate-tamper: cat verdicts with 2>&1 allows", checkGateTamperBash("cat .artifacts/surfaces/verdicts.json 2>&1"), null)
+T("gate-tamper: a real redirect over calibrate-judge still blocks", !!checkGateTamperBash("node x.mjs > tools/calibrate-judge.mjs 2>&1")?.block, true)
 
 // primer's agent-scoped shell allowlist. The deny cases are the point: a prefix
 // allowlist alone is not a fence, so the metacharacter rejection must run first.

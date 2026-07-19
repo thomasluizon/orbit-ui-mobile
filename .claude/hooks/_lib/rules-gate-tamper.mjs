@@ -46,8 +46,17 @@ function firstSegmentIsSanctioned(command, writers) {
   return writers.some((writer) => writer.test(trimmed))
 }
 
+// A file-descriptor duplication (`2>&1`, `1>&2`, `>&2`) is not a write to any
+// file, but it contains `>` and so used to trip the write check - which made
+// the guarded tools unrunnable under the ordinary `cmd ... 2>&1` idiom. Strip
+// those before asking whether the command writes anything.
+const FD_REDIRECT = /\d?>&\d/g
+
 function looksLikeWrite(command) {
-  return /[>]|(\brm\b)|(\bmv\b)|(\bcp\b)|(\bsed\s+-i\b)|(\btee\b)|(\btruncate\b)|(\bdel\b)|(\bRemove-Item\b)|(\bSet-Content\b)|(\bOut-File\b)|(\bgit\s+rm\b)|(\bgit\s+checkout\b)|(\bgit\s+restore\b)/i.test(command)
+  const withoutFdRedirects = String(command).replace(FD_REDIRECT, " ")
+  return /[>]|(\brm\b)|(\bmv\b)|(\bcp\b)|(\bsed\s+-i\b)|(\btee\b)|(\btruncate\b)|(\bdel\b)|(\bRemove-Item\b)|(\bSet-Content\b)|(\bOut-File\b)|(\bgit\s+rm\b)|(\bgit\s+checkout\b)|(\bgit\s+restore\b)/i.test(
+    withoutFdRedirects,
+  )
 }
 
 /** Bash-side guard: block shell commands that create PAUSED or rewrite the manifest/verdicts outside their sanctioned tools. Returns { block, message } or null. */

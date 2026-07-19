@@ -69,6 +69,21 @@ headless drive child that runs `npm run surfaces:judge` can still block against 
 ceiling. **No real judge sweep has been run against the new output format**, which is why
 `defect-clear` reads 0/804. Treat the new judge path as untested end to end.
 
+**Found by an adversarial completeness pass, fixed (commit `491a257e`):** mobile cells were
+*mathematically* unable to reach done (they demanded a judge report that can never exist —
+348/804 cells, an unsatisfiable gate rather than a strict one); a judge status of `broken` or
+`no-artifact` could not veto, only a blocker *finding* could; `route-about` owned
+`apps/web/package.json` so a dependency bump would move its signature; and the recall number
+had no tamper protection while every other evidence file did.
+
+**Found by the same pass, ACCEPTED not fixed:** a file reached by 2+ surfaces is owned by
+none of them, so the eight onboarding step components (shared between the onboarding flow and
+the app layout) belong to no surface — editing them moves nothing. Raising the ownership bound
+to 2 was tried and immediately broke the `route-explore` property (it flipped to `touched 4/4`
+via one shared nav component), because a relaxed bound leaks the app shell back one hop at a
+time. Since `touched` only ever vetoes, the cost is a surface that stays vetoed until
+something it exclusively owns changes. The constant carries the experiment and its result.
+
 **Beyond the ten:**
 
 - `touched` can be cleared by a deliberate no-op sweep (`data-x=""` on every element). It only
