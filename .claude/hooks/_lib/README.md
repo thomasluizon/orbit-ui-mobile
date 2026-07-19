@@ -54,11 +54,13 @@ opencode has **no equivalent**. Its agent schema has no `hooks` field, plugins a
 global, and `tool.execute.before` receives only `{ tool, sessionID, callID }` — no
 agent identity, and the SDK's `Session` type has no agent field to recover it from.
 So this rule cannot be mirrored into `orbit-guardrails.js` the way the others are.
-The opencode mirror falls back to that engine's native per-agent `permission.bash`
-globs, which are **weaker**: the matcher tests the raw command string, so
-`git log && rm -rf /` matches a `"git log *"` allow rule and runs. `.opencode/agents/primer.md`
-documents that gap where a reader will hit it. Do not describe the Claude Code
-fence as a cross-engine guarantee.
+opencode has no per-agent hooks at all, and its native `permission.bash` globs are
+**weaker**: the matcher tests the raw command string, so `git log && rm -rf /`
+matches a `"git log *"` allow rule and runs. The `.opencode/agents/` mirrors that
+used to document this gap were deleted 2026-07-19 rather than maintained on an
+inverted allowlist/denylist schema that silently widens as it drifts; the gap is
+recorded in `CLAUDE.md` instead. Do not describe the Claude Code fence as a
+cross-engine guarantee.
 
 **The allowlist is two levels, and level 2 is the one people forget.** Metacharacters
 (`& | ; $ backtick > < newline`) are rejected before any matching, because a prefix

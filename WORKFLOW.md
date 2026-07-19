@@ -142,6 +142,26 @@ Delegate-first principle: keep the main session lean. Heavy or mechanical work (
 
 **Fable 5 is a manual escalation, never a config.** It is the tier above Opus (there is no Opus 5) and its lead grows with task length — but it is 2x Opus ($10/$50 vs $5/$25), carries 30-day retention with no zero-data-retention option, and was suspended for ~3 weeks in June 2026 under an export-control directive. Never wire it into a skill or the `/drive` engine's config; a default that can be withdrawn is not a default. Reach for it by hand when Opus 4.8 has actually failed a specific hard problem. Note the trap: Fable's pitch ("multi-day autonomous agents") sounds like `/drive --sleep`, but its fit gate admits only bounded slices — the shape where Fable's edge is thinnest.
 
+## On-demand skills (you invoke these; no path leads to them)
+
+These are not steps on the ladder above — nothing routes to them, you reach for them when the
+situation matches. They were absent from this guide entirely, which made them look orphaned in
+an audit even though several are the canonical tool for their job. Skills cost no always-loaded
+context (only a name and a one-line description load), so the cost of listing them is nil and
+the cost of forgetting them is doing the job by hand.
+
+| skill | reach for it when |
+|---|---|
+| `/investigate` | a production error, Sentry alert, or "why is X broken in prod". The full incident runbook over Sentry + Render + Postgres + csharp-lsp. |
+| `/llm-council` | a decision needs genuinely opposed lenses and one committed verdict. Not for web research. |
+| `/deep-research` | an open "what is the best way to…?" that needs current external evidence. |
+| `/second-opinion` | one load-bearing claim or Critical finding needs an independent cross-model check. |
+| `/dev-server` | you need the full local stack up (Docker Postgres, then orbit-api, then web) in dependency order. |
+| `/android-generate` | you need an Android APK from `apps/mobile`. |
+| `/profile` | a web surface is slow, or a Lighthouse budget went red and you need a trace-analyze-fix loop. |
+| `/thermo-nuclear-code-quality-review` | ONLY when explicitly asked for a nuclear structural pass. It rewrites code. |
+| `/mirror-harness`, `/provider-update` | after changing an agent, skill, hook, or MCP server, to resync the public pack / other providers. |
+
 ## Two recurring details
 
 - Stories carry a `repo:frontend` / `repo:backend` / `repo:both` label; `/implement` reads it and opens branches + PRs in the right repo(s), cross-linked.

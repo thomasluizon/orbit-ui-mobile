@@ -51,7 +51,7 @@ The first deliverable is a **checked-from-disk** inventory of what exists on the
 | Memory | `.claude/projects/**/memory/` + `MEMORY.md` (Claude-Code-only by design) |
 | Orchestration | the Workflow tool + any scripted `run.mjs` (e.g. `.claude/skills/drive/run.mjs`) |
 
-Then enumerate what each other provider *already* has: `.opencode/agents/*.md`, `.opencode/plugin/*.js`, `opencode.json`; `.codex/`, `.agents/`, `AGENTS.md`, `~/.codex/config.toml`. The gap is (Claude source) − (provider has).
+Then enumerate what each other provider *already* has: `.opencode/plugin/*.js`, `opencode.json`; `.codex/`, `.agents/`, `AGENTS.md`, `~/.codex/config.toml`. The gap is (Claude source) − (provider has).
 
 ## The equivalence map (a PRIOR — Step 0's live table overrides every cell)
 
@@ -59,7 +59,7 @@ Then enumerate what each other provider *already* has: `.opencode/agents/*.md`, 
 |---|---|---|---|
 | Project rules | `CLAUDE.md` (nested, `@import`) | reads `CLAUDE.md` natively — **do not create `AGENTS.md` for opencode's sake**, it shadows `CLAUDE.md` | `AGENTS.md` (nested, walks git-root→cwd, **32 KiB `project_doc_max_bytes` cap**, no `@import`) |
 | Skills / commands | `.claude/skills/*/SKILL.md` (`/name`) | discovers `.claude/skills/**` as-is (no port needed) | `.agents/skills/*/SKILL.md` (`/skills`, `$name`; auto-invoked by description) + `~/.codex/prompts/*.md` (deprecated). **No per-skill model/effort.** |
-| Subagents + model pin | `.claude/agents/*.md` (`model:` / `effort:` frontmatter) | `.opencode/agents/*.md` — **permission DENYLIST, inverted** from Claude's allowlist; no per-agent model in the mirrors | `.codex/agents/*.toml` (`model` + `model_reasoning_effort`). **Known spawn-model bug — verify the pin is honored.** |
+| Subagents + model pin | `.claude/agents/*.md` (`model:` / `effort:` frontmatter) | **none, by decision** — agent mirrors deleted 2026-07-19 (inverted denylist schema silently widens on drift). Only the shared plugin is mirrored. | `.codex/agents/*.toml` (`model` + `model_reasoning_effort`). **Known spawn-model bug — verify the pin is honored.** |
 | Hooks (blocking) | `.claude/hooks/*.mjs` (PreToolUse deny/modify, per-agent scoping) | **NO per-agent hooks**; global `.opencode/plugin/*.js` (`permission.bash` denylist, last-match-wins, raw-string match) | Codex hooks (`[features] codex_hooks=true`, **off by default, flaky on Windows**) |
 | MCP | `.mcp.json` | native (`opencode.json` → `mcp`) | `~/.codex/config.toml` / `.codex/config.toml` (stdio + HTTP/OAuth) |
 | Memory | `memory/` + `MEMORY.md` (Claude-Code-only) | **none** | **none** (AGENTS.md holds static instructions only) |
@@ -84,11 +84,8 @@ For each row, **detect → (ask if needed) → update → verify**. Detection mu
 
 ### 3. Subagents + model pinning
 
-- **opencode**: for each `.claude/agents/<name>.md` there must be a `.opencode/agents/<name>.md` pointer. Detection = set difference (this is where **`Explore.md`** currently shows as an opencode gap). When creating a mirror, **translate the allowlist to a denylist**, and get the ordering right:
-  - opencode `permission` defaults to **allow**, and the **last matching rule wins** → the catch-all `"*": deny` MUST come **first**, specific `allow`s after.
-  - A Claude `tools:` allowlist that omits WebFetch/WebSearch → deny `webfetch`/`websearch` explicitly (absence = granted otherwise).
-  - Never end a `permission.bash` allow pattern in `*` (an interior/trailing `*` compiles to dotall `.*` and spans `&&`/`|`, admitting chaining). Pin exact tails, as the `primer` mirror documents.
-  - opencode mirrors carry **no per-agent model** — do not invent one.
+- **opencode: DO NOT create agent mirrors. This is a locked decision, not a gap.** `.opencode/agents/` was deleted on 2026-07-19 and must stay deleted. A subagent mirror is a security-shaped config on an **inverted** schema (Claude `tools:` is an allowlist, opencode `permission:` is a denylist where absence = GRANTED), maintained by hand, for an engine that is not the daily driver. It does not fail loudly when it drifts; it silently **widens** the agent, and it had already drifted (both implement mirrors asserted a "draft PR" rule the Claude side reversed). A missing `.opencode/agents/<name>.md` is therefore **correct**, never a finding. Record the absence of per-agent scoping in `providers.md` as an honest capability gap instead.
+  - What DOES stay mirrored is `.opencode/plugin/orbit-guardrails.js`: one file, sharing the same `_lib` rule core, held to it by 19 `test-hooks` assertions that drive the real plugin. It cannot drift silently, which is exactly why it survives where the agent mirrors did not.
 - **Codex**: `.codex/agents/<name>.toml` with `model` + `model_reasoning_effort` mapped from the Claude `model:`/`effort:`. **Verify the spawn-model bug**: after writing, if Codex does not actually honor the pinned model on spawn, record it in `providers.md` as a known-broken pin rather than claiming parity. Map effort levels to Codex's accepted values (verify the enum).
 
 ### 4. Hooks (blocking gates)
@@ -148,6 +145,6 @@ If `--check` was the invocation, produce the same report but make **zero writes*
 
 ## Notes on grounding
 
-- This skill is authored against the real repo layout: `.claude/agents/*.md` ↔ `.opencode/agents/*.md` (thin pointers), `.opencode/plugin/orbit-guardrails.js` (global, shares `_lib`), `opencode.json` (MCP + `instructions`), `.mcp.json`. Codex has **no** footprint yet (`.codex/`, `.agents/`, `AGENTS.md` all absent) — the first non-`--check` run bootstraps it (behind the `AGENTS.md` gate).
-- A known live drift at authoring time: `.claude/agents/Explore.md` has no `.opencode/agents/Explore.md` mirror. A correct run flags and fixes exactly that.
+- This skill is authored against the real repo layout: `.claude/agents/*.md` (Claude Code only; no opencode agent mirrors, by decision), `.opencode/plugin/orbit-guardrails.js` (global, shares `_lib`), `opencode.json` (MCP + `instructions`), `.mcp.json`. Codex has **no** footprint yet (`.codex/`, `.agents/`, `AGENTS.md` all absent) — the first non-`--check` run bootstraps it (behind the `AGENTS.md` gate).
+- Note: an absent `.opencode/agents/<name>.md` is NEVER a finding. Those mirrors were deleted deliberately; recreating them is a regression.
 - Prefer **pointers over copies** everywhere a provider can resolve them, so each piece stays single-sourced in `.claude/` and drift is structurally impossible. Copy only where a provider cannot follow a pointer, and then **hash-track** the copy so the next run detects staleness.
