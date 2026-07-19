@@ -16,12 +16,18 @@
 // So nothing automatic GRANTS completion any more. The oracle now combines
 // three independent facts, and only a human can supply the one that grants:
 //
-//   touched      DETERMINISTIC VETO. At least one file this surface
-//                exclusively owns has a different VISUAL SIGNATURE (see
-//                tools/visual-signature.mjs) at HEAD than at the baseline
-//                commit. A surface nobody edited cannot be done. This is a
-//                necessary condition, never a sufficient one - a formatting
-//                sweep can clear it, which is exactly why it does not grant.
+//   touched      DETERMINISTIC VETO. Enough of this surface's render-affecting
+//                content actually MOVED since the baseline - measured as the
+//                multiset distance between its VISUAL SIGNATURE token streams
+//                (tools/visual-signature.mjs), against REDESIGN_DEPTH_FLOOR.
+//                It was a boolean until 2026-07-19, and a boolean let a surface
+//                with four edited lines report exactly what a rebuilt screen
+//                reports. Measured that day: 89% of the app sat under 15%
+//                changed while the oracle called 608/804 cells touched, and the
+//                owner kept opening the calendar (9.6%) and Today (0.0%) and
+//                finding them unchanged. Still a necessary condition and never
+//                a sufficient one - a large mechanical sweep can clear it,
+//                which is exactly why it vetoes and never grants.
 //   defectClear  RECORDED VETO. An independent judge report exists for the
 //                cell, keyed to that signature, carrying no blocker finding.
 //                The judge detects defects; it never certifies taste.
@@ -43,7 +49,23 @@ import { execFileSync } from "node:child_process"
 import { readFileSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
-import { signatureOfFile, signatureOfSource } from "./visual-signature.mjs"
+import { extractTokens, signatureOfFile, signatureOfSource, tokenDistance } from "./visual-signature.mjs"
+
+/**
+ * How much of a surface's render-affecting token stream must move before it counts
+ * as redesigned. NOT a taste judgement: it is the floor for "somebody actually did
+ * the work here", which is the question a human cannot answer by reading a diff of
+ * 750 files and should never be asked to.
+ *
+ * Set from measurement, not taste. Across all 171 surfaces at the pre-#539 baseline:
+ * 42 sat at exactly 0%, 57 more under 5%, 53 more under 15% - 89% of the app under
+ * 15% - while the old boolean reported 608/804 cells "touched". route-calendar came
+ * back 9.6% and view-today 0.0%, which is precisely what "I opened the calendar and
+ * it looks the same" means, ten times over.
+ *
+ * Override with ORBIT_REDESIGN_DEPTH (0..1) to tighten or loosen deliberately.
+ */
+export const REDESIGN_DEPTH_FLOOR = Number(process.env.ORBIT_REDESIGN_DEPTH ?? 0.3)
 
 const REPO_ROOT = process.env.ORBIT_SURFACE_ROOT
   ? resolve(process.env.ORBIT_SURFACE_ROOT)
@@ -59,7 +81,8 @@ Usage:
                                         [--explain <surfaceId>] [--help]
 
 A cell is DONE only when all three hold:
-  touched      an owned file's visual signature differs from the baseline commit
+  touched      the surface's render-affecting content moved by at least the
+               redesign depth floor since the baseline commit (edited != redesigned)
   defectClear  a judge report exists for that signature with no blocker finding
   signed       a human tick in .claude/manifests/signoff.json (the only grant)
 
@@ -97,11 +120,10 @@ function readJson(path, fallback) {
   }
 }
 
-/** Visual signature of a repo-relative path as it existed at a git ref, or null when absent/unparseable. */
-export function signatureAtRef(relativePath, ref) {
-  let source
+/** Source of a repo-relative path at a git ref, or null when it did not exist there. */
+function sourceAtRef(relativePath, ref) {
   try {
-    source = execFileSync("git", ["show", `${ref}:${relativePath}`], {
+    return execFileSync("git", ["show", `${ref}:${relativePath}`], {
       cwd: REPO_ROOT,
       encoding: "utf8",
       maxBuffer: 64 * 1024 * 1024,
@@ -110,6 +132,21 @@ export function signatureAtRef(relativePath, ref) {
   } catch {
     return null
   }
+}
+
+/** Source of a file at HEAD, or null when unreadable. */
+function readSource(absolutePath) {
+  try {
+    return readFileSync(absolutePath, "utf8")
+  } catch {
+    return null
+  }
+}
+
+/** Visual signature of a repo-relative path as it existed at a git ref, or null when absent/unparseable. */
+export function signatureAtRef(relativePath, ref) {
+  const source = sourceAtRef(relativePath, ref)
+  if (source === null) return null
   return signatureOfSource(source, relativePath)
 }
 
@@ -122,13 +159,20 @@ export function signatureAtRef(relativePath, ref) {
 function evaluateTouched(surface, baselineRef, signatureCache) {
   const changed = []
   let unknown = 0
+  const baselineTokens = []
+  const headTokens = []
   for (const relativePath of surface.ownedFiles) {
     const cacheKey = relativePath
     let entry = signatureCache.get(cacheKey)
     if (!entry) {
+      const absolutePath = join(REPO_ROOT, relativePath)
+      const headSource = readSource(absolutePath)
+      const baseSource = sourceAtRef(relativePath, baselineRef)
       entry = {
-        head: signatureOfFile(join(REPO_ROOT, relativePath)),
+        head: signatureOfFile(absolutePath),
         base: signatureAtRef(relativePath, baselineRef),
+        headTokens: headSource === null ? null : extractTokens(headSource, relativePath),
+        baseTokens: baseSource === null ? null : extractTokens(baseSource, relativePath),
       }
       signatureCache.set(cacheKey, entry)
     }
@@ -136,9 +180,22 @@ function evaluateTouched(surface, baselineRef, signatureCache) {
       unknown += 1
       continue
     }
+    // A file absent at the baseline is entirely new, so all of its tokens are new
+    // work and none are shared: pushing only the head side says exactly that.
+    if (entry.baseTokens) baselineTokens.push(...entry.baseTokens)
+    if (entry.headTokens) headTokens.push(...entry.headTokens)
     if (entry.base === null || entry.base !== entry.head) changed.push(relativePath)
   }
-  return { touched: changed.length > 0, changedFiles: changed, unknownFiles: unknown }
+  const depth = tokenDistance(baselineTokens, headTokens)
+  return {
+    // Depth, not existence. `changed.length > 0` let four edited lines report the
+    // same as a rebuilt screen, which is how ten runs reported done over an app
+    // that was 89% untouched.
+    touched: changed.length > 0 && depth >= REDESIGN_DEPTH_FLOOR,
+    depth,
+    changedFiles: changed,
+    unknownFiles: unknown,
+  }
 }
 
 /** Signature of the surface as a whole: the ordered signatures of its owned files. */
@@ -152,13 +209,24 @@ function evaluateCell(cell, context) {
   const reasons = []
   const signature = () => surfaceSignature(cell, signatureCache)
 
-  const { touched, changedFiles, unknownFiles } = evaluateTouched(cell, baselineRef, signatureCache)
+  const { touched, depth, changedFiles, unknownFiles } = evaluateTouched(cell, baselineRef, signatureCache)
+  const depthPercent = `${(depth * 100).toFixed(1)}%`
+  const floorPercent = `${(REDESIGN_DEPTH_FLOOR * 100).toFixed(0)}%`
   if (!touched) {
-    reasons.push(
-      unknownFiles > 0
-        ? `untouched: no owned file changed since ${baselineRef} (${unknownFiles} unparseable, counted as unknown)`
-        : `untouched: no owned file's visual signature differs from ${baselineRef}`,
-    )
+    if (changedFiles.length === 0) {
+      reasons.push(
+        unknownFiles > 0
+          ? `untouched: no owned file changed since ${baselineRef} (${unknownFiles} unparseable, counted as unknown)`
+          : `untouched: no owned file's visual signature differs from ${baselineRef}`,
+      )
+    } else {
+      // The failure mode this exists for: files were edited, so the old boolean
+      // said "worked on", but only a sliver of the surface actually moved.
+      reasons.push(
+        `too-shallow: only ${depthPercent} of this surface's render-affecting content changed since ${baselineRef} ` +
+          `(floor ${floorPercent}); ${changedFiles.length} file(s) edited. Edited is not redesigned.`,
+      )
+    }
   }
 
   // The judge can only VETO, and it can only veto what it could actually see.
@@ -328,7 +396,9 @@ function main() {
   }
 
   process.stdout.write(`${verdict.verified}/${verdict.total} cells DONE (touched AND defect-clear AND human-signed)\n`)
-  process.stdout.write(`  touched      ${String(verdict.touched).padStart(4)}/${verdict.total}   an owned file's visual signature moved since ${manifest.baselineRef}\n`)
+  process.stdout.write(
+    `  touched      ${String(verdict.touched).padStart(4)}/${verdict.total}   >=${(REDESIGN_DEPTH_FLOOR * 100).toFixed(0)}% of the surface actually changed since ${manifest.baselineRef} (edited != redesigned)\n`,
+  )
   const unjudgeable = verdict.results.filter((result) => result.defectClear && result.pixelEvidence === "none").length
   process.stdout.write(
     `  defect-clear ${String(verdict.defectClear).padStart(4)}/${verdict.total}   no blocker recorded` +

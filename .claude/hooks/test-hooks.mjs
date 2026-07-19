@@ -550,11 +550,48 @@ function runHookEnv(file, payload, env) {
 // diff against a baseline commit, so a stubbed tree would test nothing. The
 // baseline is the fixture's initial commit; `worked` decides whether the
 // surface's owned file is restyled afterwards.
-const BASE_TSX = 'export default function P(){ return <div className="p-4">x</div> }\n'
-const WORKED_TSX = 'export default function P(){ return <section className="p-6 rounded-3xl">x</section> }\n'
+// The depth floor is a PERCENTAGE of a surface's render-affecting tokens, so these
+// fixtures have to be big enough for a one-value tweak to be a small fraction, the
+// way it is in a real component. A three-token fixture would make every edit look
+// like a rewrite and the floor would never be exercised.
+const BASE_TSX = `export default function P(){
+  return (
+    <div className="p-4 gap-4 rounded-xl border">
+      <header className="flex items-center gap-2">
+        <span className="text-sm font-medium">Calendar</span>
+        <button className="px-3 py-1 rounded-md">Today</button>
+      </header>
+      <ul className="mt-4 grid grid-cols-7 gap-1">
+        <li className="h-10 text-center">1</li>
+        <li className="h-10 text-center">2</li>
+      </ul>
+      <footer className="mt-4 text-xs">Best streak</footer>
+    </div>
+  )
+}
+`
+// A one-value tweak on an otherwise identical tree.
+const SHALLOW_TSX = BASE_TSX.replace('className="p-4 gap-4 rounded-xl border"', 'className="p-8 gap-4 rounded-xl border"')
+// A real redesign: elements, classes and copy all move together.
+const WORKED_TSX = `export default function P(){
+  return (
+    <section className="px-6 py-8 gap-6 rounded-3xl bg-elev">
+      <nav className="inline-flex items-baseline gap-3">
+        <h2 className="text-2xl font-semibold tracking-tight">Month</h2>
+        <PillButton variant="ghost" size="sm">Jump to now</PillButton>
+      </nav>
+      <ol className="mt-6 flex flex-col gap-2">
+        <DayRow index={1} state="done" />
+        <DayRow index={2} state="overdue" />
+      </ol>
+      <aside className="mt-6 text-sm text-fg-3">Longest run</aside>
+    </section>
+  )
+}
+`
 function buildGateFixture(
   name,
-  { withManifest = true, withPaused = false, worked = true, judged = null, signed = false, blocker = false, status = "transformed", pixelEvidence = "web-capture", brokenManifest = false } = {},
+  { withManifest = true, withPaused = false, worked = true, shallow = false, judged = null, signed = false, blocker = false, status = "transformed", pixelEvidence = "web-capture", brokenManifest = false } = {},
 ) {
   const fixtureRoot = join(root, `gate-${name}`)
   mkdirSync(join(fixtureRoot, ".claude", "manifests"), { recursive: true })
@@ -568,7 +605,8 @@ function buildGateFixture(
   git("config", "user.name", "t")
   git("add", "-A")
   git("commit", "-qm", "baseline")
-  if (worked) writeFileSync(surfaceFile, WORKED_TSX)
+  if (shallow) writeFileSync(surfaceFile, SHALLOW_TSX)
+  else if (worked) writeFileSync(surfaceFile, WORKED_TSX)
 
   const cell = {
     surfaceId: "s1",
@@ -689,6 +727,19 @@ const oracleText = (fixtureRoot) =>
 const untouched = oracle(buildGateFixture("untouched", { worked: false, judged: "fresh", signed: true }))
 T("oracle: unchanged surface is not touched", untouched.results?.[0]?.touched, false)
 T("oracle: unchanged surface is never done", untouched.complete, false)
+
+// 1b. EDITED IS NOT REDESIGNED. The whole point of the depth floor: a surface that
+// was genuinely edited, but only barely, must NOT count as worked on. Until
+// 2026-07-19 `touched` was `changed.length > 0`, so a one-class tweak reported
+// exactly what a rebuilt screen reported - and ten drive runs said "done" over an
+// app whose calendar had moved 9.6% and whose Today screen had moved 0.0%.
+const shallow = oracle(buildGateFixture("shallow", { shallow: true }))
+T("oracle: a shallow edit is NOT touched (edited != redesigned)", shallow.results?.[0]?.touched, false)
+T("oracle: a shallow edit is never done", shallow.complete, false)
+T("oracle: shallow cell says too-shallow, not untouched", /too-shallow/.test(String(shallow.failures?.[0]?.reasons)), true)
+T("oracle: shallow reason reports the measured percentage", /% of this surface/.test(String(shallow.failures?.[0]?.reasons)), true)
+// A real redesign still clears the floor, so the gate is not simply always-red.
+T("oracle: a real redesign still counts as touched", oracle(buildGateFixture("deep")).results?.[0]?.touched, true)
 
 // 2. NOTHING automatic grants: touched + judge-clear without a human tick is not done.
 const unsigned = oracle(buildGateFixture("unsigned", { judged: "fresh" }))

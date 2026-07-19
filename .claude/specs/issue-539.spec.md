@@ -17,6 +17,38 @@ mechanisms are also summarised in full below, so this file stands alone.
 
 **Read `## Refuted, do not re-propose` before proposing any change to the approach.**
 
+## Edited is not redesigned (2026-07-19, the correction that mattered most)
+
+`touched` was a boolean: any changed file flipped it true. So a surface with four
+edited lines reported exactly what a rebuilt screen reported, and ten drive runs
+said "done" while Thomas opened the calendar and found it unchanged. **He was
+right every time.** Measured against baseline `7d7c42c3` across all 171 surfaces:
+
+| depth of change | surfaces |
+|---|---|
+| 0% (byte-identical) | 42 |
+| under 5% | 57 |
+| 5-15% | 53 |
+| 15-30% | 10 |
+| 30-60% | 7 |
+| 60%+ | 2 |
+
+**89% of the app had moved less than 15%** while the oracle reported 608/804 cells
+touched. `route-calendar` was 9.6% across 12 files. `view-today` was **0.0%** -
+byte-identical to the pre-#539 baseline.
+
+`touched` now requires the surface's render-affecting token stream to differ by
+`REDESIGN_DEPTH_FLOOR` (30%, override with `ORBIT_REDESIGN_DEPTH`). The count went
+608 -> **48/804**. A shallow cell now fails with its measured percentage rather
+than passing silently:
+
+> `too-shallow: only 9.6% of this surface's render-affecting content changed since
+> 7d7c42c3 (floor 30%); 9 file(s) edited. Edited is not redesigned.`
+
+This is a **veto**, not a grant: a large mechanical sweep can clear it. It only
+answers "did anyone actually do the work here", which is the question that has to
+be settled *before* a human is asked to look at anything.
+
 ## The single most important thing
 
 **Nothing automatic can mark a surface done.** Not the judge, not a lint pass, not a
@@ -36,7 +68,7 @@ A cell is DONE only when all three hold. Two can only withhold; one grants.
 
 | axis | meaning | direction |
 |---|---|---|
-| `touched` | an owned file's **visual signature** differs from baseline `7d7c42c3` | veto only |
+| `touched` | **at least 30%** of the surface's render-affecting content moved since baseline `7d7c42c3` | veto only |
 | `defectClear` | an independent judge report exists for the cell, pinned to that signature, with no **blocker** finding | veto only |
 | `signed` | a human tick in `signoff.json` | **the only grant** |
 
