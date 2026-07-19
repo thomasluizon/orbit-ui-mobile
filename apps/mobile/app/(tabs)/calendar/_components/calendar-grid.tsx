@@ -6,6 +6,7 @@ import { enUS, ptBR } from "date-fns/locale";
 import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import { GestureDetector, type PanGesture } from "react-native-gesture-handler";
+import Svg, { Path } from "react-native-svg";
 import { createTokensV2, tintFromPrimary } from "@/lib/theme";
 
 type Tokens = ReturnType<typeof createTokensV2>;
@@ -211,14 +212,14 @@ function DayDot({
   }
   if (status === "missed") {
     return (
-      <View
-        style={{
-          width: 6,
-          height: 6,
-          borderRadius: 999,
-          backgroundColor: tokens.statusOverdue,
-        }}
-      />
+      <Svg width={7} height={7} viewBox="0 0 7 7">
+        <Path
+          d="M1 1L6 6M6 1L1 6"
+          stroke={tokens.statusOverdue}
+          strokeWidth={1.5}
+          strokeLinecap="round"
+        />
+      </Svg>
     );
   }
   if (status === "partial") {

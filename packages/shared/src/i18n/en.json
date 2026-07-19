@@ -709,6 +709,7 @@
       "missed": "Missed"
     },
     "thisMonth": "This month",
+    "monthCompletionLabel": "{percent}% completed this month",
     "bestStreak": "Best streak",
     "totalLogs": "Total logs",
     "missedCount": "Missed",
@@ -798,7 +799,7 @@
       "lastSyncedDaysAgo": "{n} day ago | {n} days ago",
       "syncNow": "Sync",
       "syncNowRunning": "Syncing...",
-      "connectGoogleFirst": "Connect your Google account first to enable auto-sync.",
+      "connectGoogleFirst": "Not connected",
       "reconnectTitle": "Google Calendar disconnected",
       "reconnectBody": "Auto-sync paused. Reconnect to resume.",
       "reconnectCta": "Reconnect",

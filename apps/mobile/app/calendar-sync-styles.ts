@@ -77,6 +77,7 @@ export function createStyles() {
       width: 64,
       height: 64,
       borderRadius: 999,
+      borderWidth: 1.5,
       alignItems: 'center',
       justifyContent: 'center',
     },

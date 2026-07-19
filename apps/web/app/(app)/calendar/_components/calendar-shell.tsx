@@ -201,7 +201,7 @@ export function CalendarLegend({
       <LegendItem dotColor="var(--primary)" hollow label={todayLabel} />
       <LegendItem dotColor="var(--primary)" label={doneLabel} />
       <LegendItem dotColor="var(--fg-4)" hollow label={partialLabel} />
-      <LegendItem dotColor="var(--status-overdue)" label={missedLabel} />
+      <LegendItem dotColor="var(--status-overdue)" cross label={missedLabel} />
     </div>
   )
 }
@@ -210,9 +210,32 @@ interface LegendItemProps {
   dotColor: string
   label: string
   hollow?: boolean
+  /** Missed uses an X mark instead of a filled circle so done/missed differ by
+   *  shape, not hue alone (DESIGN.md Accessibility > Perception) - a rotated
+   *  square read as a circle at 6px, so the mark needs a genuinely distinct
+   *  silhouette. */
+  cross?: boolean
 }
 
-function LegendItem({ dotColor, label, hollow = false }: Readonly<LegendItemProps>) {
+function LegendItem({ dotColor, label, hollow = false, cross = false }: Readonly<LegendItemProps>) {
+  if (cross) {
+    return (
+      <span className="inline-flex items-center" style={{ gap: 6 }}>
+        <svg width={7} height={7} viewBox="0 0 7 7" aria-hidden="true" className="shrink-0">
+          <path
+            d="M1 1L6 6M6 1L1 6"
+            stroke={dotColor}
+            strokeWidth={1.5}
+            strokeLinecap="round"
+            opacity={0.8}
+          />
+        </svg>
+        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--fg-3)' }}>
+          {label}
+        </span>
+      </span>
+    )
+  }
   return (
     <span className="inline-flex items-center" style={{ gap: 6 }}>
       <span
@@ -220,8 +243,8 @@ function LegendItem({ dotColor, label, hollow = false }: Readonly<LegendItemProp
         className="rounded-full shrink-0"
         style={
           hollow
-            ? { width: 6, height: 6, boxShadow: `inset 0 0 0 1.5px ${dotColor}`, opacity: 0.6 }
-            : { width: 6, height: 6, background: dotColor, opacity: 0.6 }
+            ? { width: 6, height: 6, borderRadius: 999, boxShadow: `inset 0 0 0 1.5px ${dotColor}`, opacity: 0.6 }
+            : { width: 6, height: 6, borderRadius: 999, background: dotColor, opacity: 0.6 }
         }
       />
       <span

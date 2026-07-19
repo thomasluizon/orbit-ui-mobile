@@ -10,6 +10,7 @@ import {
   Text,
   View,
 } from "react-native";
+import Svg, { Path } from "react-native-svg";
 import { useTourTarget } from "@/hooks/use-tour-target";
 import { createTokensV2, radius, shadowsV2 } from "@/lib/theme";
 import { YearPicker } from "@/components/ui/year-picker";
@@ -164,13 +165,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       borderRadius: 999,
       borderWidth: 1.5,
       borderColor: tokens.fg4,
-      opacity: 0.6,
-    },
-    legendDotMissed: {
-      width: 6,
-      height: 6,
-      borderRadius: 999,
-      backgroundColor: tokens.statusOverdue,
       opacity: 0.6,
     },
     legendLabel: {
@@ -365,7 +359,15 @@ export function CalendarLegend({
         <Text style={styles.legendLabel}>{partialLabel}</Text>
       </View>
       <View style={styles.legendItem}>
-        <View style={styles.legendDotMissed} />
+        <Svg width={7} height={7} viewBox="0 0 7 7">
+          <Path
+            d="M1 1L6 6M6 1L1 6"
+            stroke={tokens.statusOverdue}
+            strokeWidth={1.5}
+            strokeLinecap="round"
+            opacity={0.8}
+          />
+        </Svg>
         <Text style={styles.legendLabel}>{missedLabel}</Text>
       </View>
     </View>

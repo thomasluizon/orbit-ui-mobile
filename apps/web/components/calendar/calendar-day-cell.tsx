@@ -89,10 +89,14 @@ function renderDot(kind: DayStatus): React.ReactNode {
   }
   if (kind === 'missed') {
     return (
-      <span
-        className="block rounded-full"
-        style={{ width: 6, height: 6, background: 'var(--status-overdue)' }}
-      />
+      <svg width={7} height={7} viewBox="0 0 7 7" aria-hidden="true">
+        <path
+          d="M1 1L6 6M6 1L1 6"
+          stroke="var(--status-overdue)"
+          strokeWidth={1.5}
+          strokeLinecap="round"
+        />
+      </svg>
     )
   }
   return null

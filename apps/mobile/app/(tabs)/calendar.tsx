@@ -337,13 +337,13 @@ export default function CalendarScreen() {
       },
       {
         key: "totalLogs",
-        emoji: "✅",
+        emoji: "📈",
         value: monthStats.totalLogs,
         label: t("calendar.totalLogs"),
       },
       {
         key: "missed",
-        emoji: "⚠️",
+        emoji: "🚫",
         value: monthStats.missed,
         label: t("calendar.missedCount"),
       },

@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Loader2,
   Check,
-  Link as LinkIcon,
   AlertTriangle,
   WifiOff,
 } from '@/components/ui/icons'
@@ -262,7 +261,8 @@ function CalendarSyncPageContent() {
   }
 
   return (
-    <div className="flex flex-col min-h-[100dvh]">
+    <div className="md:mx-auto md:max-w-[760px]">
+      <div className="flex flex-col min-h-[100dvh]">
       <AppBar
         back
         backLabel={t('common.backToProfile')}
@@ -297,77 +297,28 @@ function CalendarSyncPageContent() {
       )}
 
       {step === 'not-connected' && !isReviewMode && (
-        <div className="flex flex-col items-center justify-center gap-5 pt-12" role="status" aria-live="polite">
-          <div
-            className="flex items-center justify-center rounded-full"
-            style={{
-              width: 64,
-              height: 64,
-              background: 'rgba(var(--primary-rgb), 0.10)',
+        <div role="status" aria-live="polite">
+          <EmptyState
+            title={t('calendar.notConnectedTitle')}
+            description={t('calendar.notConnectedDesc')}
+            action={{
+              label: t('auth.signInWithGoogle'),
+              onClick: () => {
+                void handleConnect()
+              },
+              disabled: isConnecting,
             }}
-          >
-            <LinkIcon className="size-7 text-[var(--primary)]" strokeWidth={1.8} />
-          </div>
-          <div className="text-center px-6">
-            <h2
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 18,
-                fontWeight: 500,
-                color: 'var(--fg-1)',
-                marginBottom: 4,
-              }}
-            >
-              {t('calendar.notConnectedTitle')}
-            </h2>
-            <p
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 14,
-                lineHeight: 1.5,
-                color: 'var(--fg-3)',
-              }}
-            >
-              {t('calendar.notConnectedDesc')}
-            </p>
-          </div>
-          <PillButton
-            onClick={() => {
-              void handleConnect()
-            }}
-            disabled={isConnecting}
-          >
-            {t('auth.signInWithGoogle')}
-          </PillButton>
+          />
         </div>
       )}
 
       {step === 'offline' && (
-        <div className="flex flex-col items-center justify-center gap-4 pt-12" role="status" aria-live="polite">
-          <WifiOff className="size-7 text-[var(--fg-3)]" strokeWidth={1.4} />
-          <div className="text-center px-6">
-            <h2
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 18,
-                fontWeight: 500,
-                color: 'var(--fg-1)',
-                marginBottom: 4,
-              }}
-            >
-              {t('offline.title')}
-            </h2>
-            <p
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 14,
-                lineHeight: 1.5,
-                color: 'var(--fg-3)',
-              }}
-            >
-              {t('offline.description')}
-            </p>
-          </div>
+        <div role="status" aria-live="polite">
+          <EmptyState
+            icon={WifiOff}
+            title={t('offline.title')}
+            description={t('offline.description')}
+          />
         </div>
       )}
 
@@ -484,6 +435,7 @@ function CalendarSyncPageContent() {
               width: 64,
               height: 64,
               background: 'rgba(var(--primary-rgb), 0.15)',
+              boxShadow: 'inset 0 0 0 1.5px rgba(var(--primary-rgb), 0.35)',
             }}
           >
             <Check className="size-8 text-[var(--status-done)]" strokeWidth={2.2} />
@@ -531,6 +483,7 @@ function CalendarSyncPageContent() {
               width: 64,
               height: 64,
               background: 'color-mix(in srgb, var(--status-bad) 15%, transparent)',
+              boxShadow: 'inset 0 0 0 1.5px color-mix(in srgb, var(--status-bad) 35%, transparent)',
             }}
           >
             <AlertTriangle className="size-8 text-[var(--status-bad)]" strokeWidth={1.8} />
@@ -567,6 +520,7 @@ function CalendarSyncPageContent() {
         </div>
       )}
         </div>
+      </div>
       </div>
     </div>
   )

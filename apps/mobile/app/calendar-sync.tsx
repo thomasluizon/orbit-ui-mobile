@@ -12,7 +12,6 @@ import { useTranslation } from 'react-i18next'
 import {
   AlertTriangle,
   Check,
-  Link as LinkIcon,
   WifiOff,
 } from '@/components/ui/icons'
 import { calendarKeys } from '@orbit/shared/query'
@@ -469,47 +468,25 @@ export default function CalendarSyncScreen() {
         )}
 
         {step === 'not-connected' && !isProfileLoading && (
-          <View
-            style={styles.centerBlock}
-            accessibilityLiveRegion="polite"
-            accessibilityLabel={t('calendar.notConnectedTitle')}
-          >
-            <View
-              style={[styles.stateGlyphCircle, { backgroundColor: tintFromPrimary(tokens, 0.1) }]}
-            >
-              <LinkIcon size={28} color={tokens.primary} strokeWidth={1.8} />
-            </View>
-            <Text style={[styles.stateTitle, { color: tokens.fg1 }]}>
-              {t('calendar.notConnectedTitle')}
-            </Text>
-            <Text style={[styles.stateText, { color: tokens.fg3 }]}>
-              {t('calendar.notConnectedDesc')}
-            </Text>
-            <PillButton
-              onPress={() => {
+          <EmptyState
+            title={t('calendar.notConnectedTitle')}
+            description={t('calendar.notConnectedDesc')}
+            action={{
+              label: t('auth.signInWithGoogle'),
+              onPress: () => {
                 void handleConnect()
-              }}
-              disabled={isConnecting}
-            >
-              {t('auth.signInWithGoogle')}
-            </PillButton>
-          </View>
+              },
+              disabled: isConnecting,
+            }}
+          />
         )}
 
         {step === 'offline' && !isProfileLoading && (
-          <View
-            style={styles.centerBlock}
-            accessibilityLiveRegion="polite"
-            accessibilityLabel={t('offline.title')}
-          >
-            <WifiOff size={28} color={tokens.fg3} strokeWidth={1.4} />
-            <Text style={[styles.stateTitle, { color: tokens.fg1 }]}>
-              {t('offline.title')}
-            </Text>
-            <Text style={[styles.stateText, { color: tokens.fg3 }]}>
-              {t('offline.description')}
-            </Text>
-          </View>
+          <EmptyState
+            icon={WifiOff}
+            title={t('offline.title')}
+            description={t('offline.description')}
+          />
         )}
 
         {step === 'select' && (
@@ -628,7 +605,7 @@ export default function CalendarSyncScreen() {
               <View
                 style={[
                   styles.stateGlyphCircle,
-                  { backgroundColor: tintFromPrimary(tokens, 0.15) },
+                  { backgroundColor: tintFromPrimary(tokens, 0.15), borderColor: tintFromPrimary(tokens, 0.35) },
                 ]}
               >
                 <Check size={32} color={tokens.statusDone} strokeWidth={2.2} />
@@ -663,7 +640,10 @@ export default function CalendarSyncScreen() {
             <View
               style={[
                 styles.stateGlyphCircle,
-                { backgroundColor: rgbaFromHex(tokens.statusBad, 0.15) },
+                {
+                  backgroundColor: rgbaFromHex(tokens.statusBad, 0.15),
+                  borderColor: rgbaFromHex(tokens.statusBad, 0.35),
+                },
               ]}
             >
               <AlertTriangle size={32} color={tokens.statusBad} strokeWidth={1.8} />

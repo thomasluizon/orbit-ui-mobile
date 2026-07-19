@@ -145,6 +145,7 @@ export function CalendarDayDetail({
                           ? 'text-[var(--fg-3)] line-through'
                           : 'text-[var(--fg-1)]'
                       }`}
+                      title={entry.title}
                       style={{
                         fontFamily: 'var(--font-sans)',
                         fontSize: 15,

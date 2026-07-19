@@ -39,6 +39,7 @@ import { CalendarRangeView } from '@/components/calendar/calendar-range-view'
 import { CalendarAgendaView } from '@/components/calendar/calendar-agenda-view'
 import { CalendarLoadError } from '@/components/calendar/calendar-load-error'
 import type { TimeGridColumn } from '@/components/calendar/calendar-time-grid'
+import { ChartRing } from '@/components/charts/chart-ring'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { EmptyState } from '@/components/ui/empty-state'
 import { SectionLabel } from '@/components/ui/section-label'
@@ -243,10 +244,14 @@ export default function CalendarPage() {
   const monthStatTiles = useMemo(
     () => [
       { key: 'bestStreak', emoji: '🔥', value: monthStats.bestStreak, label: t('calendar.bestStreak') },
-      { key: 'totalLogs', emoji: '✅', value: monthStats.totalLogs, label: t('calendar.totalLogs') },
-      { key: 'missed', emoji: '⚠️', value: monthStats.missed, label: t('calendar.missedCount') },
+      { key: 'totalLogs', emoji: '📈', value: monthStats.totalLogs, label: t('calendar.totalLogs') },
+      { key: 'missed', emoji: '🚫', value: monthStats.missed, label: t('calendar.missedCount') },
     ],
     [monthStats, t],
+  )
+
+  const monthCompletionPercent = Math.round(
+    (monthStats.totalLogs / Math.max(monthStats.totalLogs + monthStats.missed, 1)) * 100,
   )
 
   const viewTabs = useMemo<SectionHeadTabItem<CalendarView>[]>(() => {
@@ -355,7 +360,22 @@ export default function CalendarPage() {
                     <EmptyState description={t('calendar.emptyMonth')} />
                   ) : (
                     <>
-                      <SectionLabel>{t('calendar.thisMonth')}</SectionLabel>
+                      <SectionLabel
+                        trailing={
+                          monthStats.hasEntries ? (
+                            <ChartRing
+                              value={monthCompletionPercent}
+                              max={100}
+                              size={56}
+                              ariaLabel={t('calendar.monthCompletionLabel', {
+                                percent: monthCompletionPercent,
+                              })}
+                            />
+                          ) : undefined
+                        }
+                      >
+                        {t('calendar.thisMonth')}
+                      </SectionLabel>
                       <CalendarStats stats={monthStatTiles} />
                     </>
                   )}
@@ -365,7 +385,7 @@ export default function CalendarPage() {
                   <section
                     data-testid="calendar-day-panel"
                     aria-label={dayDetailTitle}
-                    className="sticky top-[72px] flex h-[calc(100dvh-84px)] flex-col"
+                    className="sticky top-[72px] flex max-h-[calc(100dvh-84px)] flex-col"
                     style={{ padding: '20px 0 12px' }}
                   >
                     <h2

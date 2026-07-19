@@ -709,6 +709,7 @@
       "missed": "Perdido"
     },
     "thisMonth": "Este mês",
+    "monthCompletionLabel": "{percent}% concluído este mês",
     "bestStreak": "Recorde",
     "totalLogs": "Registros",
     "missedCount": "Perdidos",
@@ -798,7 +799,7 @@
       "lastSyncedDaysAgo": "há {n} dia | há {n} dias",
       "syncNow": "Sincronizar",
       "syncNowRunning": "Sincronizando...",
-      "connectGoogleFirst": "Conecte sua conta Google antes de ativar a sincronização automática.",
+      "connectGoogleFirst": "Não conectado",
       "reconnectTitle": "Google Calendar desconectado",
       "reconnectBody": "A sincronização automática está pausada. Reconecte para retomar.",
       "reconnectCta": "Reconectar",
