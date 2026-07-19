@@ -45,11 +45,15 @@ const USAGE = `judge-surfaces - independent vision judge over captured surface s
 
 Usage:
   node tools/judge-surfaces.mjs [--filter <substring>] [--model <model>]
-                                [--batch <n>] [--timeout-min <n>] [--help]
+                                [--batch <n>] [--votes <n>] [--timeout-min <n>]
+                                [--help]
 
-For each manifest surface with at least one screenshot on disk, spawns a fresh
-read-only \`claude -p\` judge that Reads the PNGs and DESIGN.md and returns a
-verdict per surface: ${STATUSES.join(" | ")}.
+For each manifest surface with at least one screenshot on disk, spawns N fresh
+INDEPENDENT read-only \`claude -p\` judges (--votes) that Read the PNGs and
+DESIGN.md and return a verdict per surface: ${STATUSES.join(" | ")}.
+Votes merge worst-wins: a surface is "transformed" ONLY if every vote says so;
+findings are unioned. If any vote fails, its surfaces stay unjudged (fail
+closed) - a verdict is never built from fewer than the requested votes.
 Verdicts land in .artifacts/surfaces/verdicts.json, each cell hash-bound to the
 exact PNG bytes judged. tools/check-surface-coverage.mjs requires a
 "transformed" verdict with a matching hash before a cell counts as verified.
@@ -58,6 +62,7 @@ Flags:
   --filter       only judge surfaces whose surfaceId contains this substring
   --model        judge model (default: sonnet)
   --batch        surfaces per judge process (default: 5)
+  --votes        independent judges per batch, merged worst-wins (default: 2, min 1)
   --timeout-min  per-judge timeout in minutes (default: 15)
   --help         this text
 
@@ -68,11 +73,12 @@ Exit codes:
 `
 
 function parseArgs(argv) {
-  const out = { filter: null, model: "sonnet", batch: 5, timeoutMin: 15, help: false }
+  const out = { filter: null, model: "sonnet", batch: 5, votes: 2, timeoutMin: 15, help: false }
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--filter" && argv[i + 1]) out.filter = argv[++i]
     else if (argv[i] === "--model" && argv[i + 1]) out.model = argv[++i]
     else if (argv[i] === "--batch" && argv[i + 1]) out.batch = Math.max(1, Number(argv[++i]) || 5)
+    else if (argv[i] === "--votes" && argv[i + 1]) out.votes = Math.max(1, Number(argv[++i]) || 2)
     else if (argv[i] === "--timeout-min" && argv[i + 1]) out.timeoutMin = Math.max(1, Number(argv[++i]) || 15)
     else if (argv[i] === "--help" || argv[i] === "-h") out.help = true
   }
@@ -224,6 +230,26 @@ function runJudge(surfaces, options) {
   return { verdicts, costUsd: Number(outer.total_cost_usd ?? 0) || 0 }
 }
 
+/** Worst-wins merge across independent votes: the surface is only as good as its worst verdict; findings union, deduped by issue text. */
+function mergeVotes(surfaceVotes) {
+  const voteStatuses = surfaceVotes.map((verdict) => verdict.status)
+  const status = voteStatuses.reduce((worst, current) =>
+    STATUSES.indexOf(current) > STATUSES.indexOf(worst) ? current : worst,
+  )
+  const seenIssues = new Set()
+  const findings = []
+  for (const verdict of surfaceVotes) {
+    const verdictFindings = Array.isArray(verdict.findings) ? verdict.findings : []
+    for (const finding of verdictFindings) {
+      const issue = String(finding?.issue ?? "")
+      if (seenIssues.has(issue)) continue
+      seenIssues.add(issue)
+      findings.push(finding)
+    }
+  }
+  return { status, voteStatuses, findings: findings.slice(0, 20) }
+}
+
 function loadExistingVerdicts() {
   try {
     return JSON.parse(readFileSync(VERDICTS_PATH, "utf8"))
@@ -256,7 +282,7 @@ function main() {
   const judgeable = surfaces.filter((surface) => surface.artifacts.length > 0)
   const skipped = surfaces.filter((surface) => surface.artifacts.length === 0)
 
-  process.stdout.write(`judging ${judgeable.length} surface(s) with artifacts (model ${options.model}, batch ${options.batch})\n`)
+  process.stdout.write(`judging ${judgeable.length} surface(s) with artifacts (model ${options.model}, batch ${options.batch}, votes ${options.votes})\n`)
   for (const surface of skipped) {
     process.stdout.write(`  [no artifacts yet] ${surface.surfaceId} - capture it first (npm run surfaces:capture)\n`)
   }
@@ -272,31 +298,41 @@ function main() {
   for (let i = 0; i < judgeable.length; i += options.batch) {
     const batch = judgeable.slice(i, i + options.batch)
     process.stdout.write(`  judge ${1 + i / options.batch}: ${batch.map((surface) => surface.surfaceId).join(", ")}\n`)
-    const outcome = runJudge(batch, options)
-    if (outcome.error) {
+    const voteMaps = []
+    for (let vote = 0; vote < options.votes; vote++) {
+      const outcome = runJudge(batch, options)
+      if (outcome.error) {
+        process.stderr.write(`    FAILED: vote ${vote + 1}/${options.votes}: ${outcome.error}${outcome.raw ? `\n    tail: ${outcome.raw}` : ""}\n`)
+        break
+      }
+      totalCost += outcome.costUsd
+      voteMaps.push(new Map(outcome.verdicts.map((verdict) => [verdict.surfaceId, verdict])))
+    }
+    if (voteMaps.length < options.votes) {
       failures++
-      process.stderr.write(`    FAILED: ${outcome.error}${outcome.raw ? `\n    tail: ${outcome.raw}` : ""}\n`)
+      process.stderr.write(`    FAILED: batch got ${voteMaps.length}/${options.votes} vote(s) - its surfaces stay unjudged (fail closed)\n`)
       continue
     }
-    totalCost += outcome.costUsd
-    const byId = new Map(outcome.verdicts.map((verdict) => [verdict.surfaceId, verdict]))
     for (const surface of batch) {
-      const verdict = byId.get(surface.surfaceId)
-      if (!verdict || !STATUSES.includes(verdict.status)) {
+      const surfaceVotes = voteMaps.map((byId) => byId.get(surface.surfaceId))
+      if (surfaceVotes.some((verdict) => !verdict || !STATUSES.includes(verdict.status))) {
         failures++
-        process.stderr.write(`    FAILED: judge returned no valid verdict for ${surface.surfaceId}\n`)
+        process.stderr.write(`    FAILED: fewer than ${options.votes} valid vote(s) for ${surface.surfaceId} - left unjudged (fail closed)\n`)
         continue
       }
+      const merged = mergeVotes(surfaceVotes)
       const judgedCells = {}
       for (const artifact of surface.artifacts) judgedCells[artifact.name] = sha256File(artifact.path)
       store.surfaces[surface.surfaceId] = {
-        status: verdict.status,
-        findings: Array.isArray(verdict.findings) ? verdict.findings.slice(0, 20) : [],
+        status: merged.status,
+        findings: merged.findings,
         judgedCells,
         judgedAt: new Date().toISOString(),
         model: options.model,
+        votes: options.votes,
+        voteStatuses: merged.voteStatuses,
       }
-      process.stdout.write(`    ${surface.surfaceId}: ${verdict.status}${verdict.findings?.length ? ` (${verdict.findings.length} finding(s))` : ""}\n`)
+      process.stdout.write(`    ${surface.surfaceId}: ${merged.status} [votes: ${merged.voteStatuses.join(" | ")}]${merged.findings.length ? ` (${merged.findings.length} finding(s))` : ""}\n`)
     }
     mkdirSync(ARTIFACT_DIR, { recursive: true })
     writeFileSync(VERDICTS_PATH, JSON.stringify(store, null, 2) + "\n", "utf8")
@@ -308,7 +344,7 @@ function main() {
     counts[status] = (counts[status] ?? 0) + 1
   }
   process.stdout.write(
-    `\nverdicts: ${Object.entries(counts).sort().map(([status, count]) => `${status}: ${count}`).join(", ")} ($${totalCost.toFixed(2)} judge spend)\n`,
+    `\nverdicts: ${Object.entries(counts).sort().map(([status, count]) => `${status}: ${count}`).join(", ")} ($${totalCost.toFixed(2)} judge spend across ${options.votes} vote(s)/batch)\n`,
   )
   process.stdout.write(`wrote ${VERDICTS_PATH.split("\\").join("/")}\nnext: npm run surfaces:check\n`)
   return failures ? 1 : 0
