@@ -3,8 +3,6 @@
   "fallbackModel": "sonnet",
   "modelOverride": "sonnet",
   "permissionMode": "bypassPermissions",
-  "perTaskBudgetUsd": 4,
-  "totalBudgetUsd": 20,
   "perTaskTimeoutMs": 3600000,
   "maxConsecutiveFailures": 2,
   "allowedTools": [],
@@ -15,7 +13,6 @@
   "repos": [{ "path": ".", "base": "main" }],
   "verify": true,
   "verifyModel": "sonnet",
-  "verifyBudgetUsd": 2,
   "verifyTimeoutMs": 1200000,
   "verifyAllowedTools": ["Read", "Grep", "Glob", "Bash(gh pr diff:*)", "Bash(gh pr view:*)", "Bash(git diff:*)", "Bash(git log:*)", "Bash(git show:*)"]
 }

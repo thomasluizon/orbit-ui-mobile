@@ -27,7 +27,7 @@ Both open a **draft PR per bundle** and never touch `main` (each child runs with
 
 You never decide when to start a new session, and neither does the skill — because Phase B holds **zero** LLM context. `run.mjs` is a plain Node script; each bundle is a **separate `claude -p` process** that boots with a clean context window, does one bundle, and exits. Context never carries from one bundle to the next, so it cannot bloat. State passes between bundles through **files** — the spec, the plan files, and the draft PRs on git — not through conversation, so a fresh process loses nothing. (This is why compaction was rejected: external state beats a lossy compact.)
 
-The **bundle is the unit of context**, and its size is set once — by you, at Phase A decomposition — not by a runtime heuristic guessing when to `/clear`. A bundle must be small enough to finish in one clean context; the fit gate + the per-bundle budget/timeout enforce that. If a bundle is still too big and exhausts its own process, it returns `blocked` (WIP committed, a draft PR describing the block) — an explicit signal to split it, never a silent degradation. The live Phase A session stays lean too, because the heavy implement transcripts live in the children, not here.
+The **bundle is the unit of context**, and its size is set once — by you, at Phase A decomposition — not by a runtime heuristic guessing when to `/clear`. A bundle must be small enough to finish in one clean context; the fit gate + the per-bundle timeout enforce that. If a bundle is still too big and exhausts its own process, it returns `blocked` (WIP committed, a draft PR describing the block) — an explicit signal to split it, never a silent degradation. The live Phase A session stays lean too, because the heavy implement transcripts live in the children, not here.
 
 ## What is AUTO vs RECOMMENDED vs MANUAL (the honest ceiling)
 
@@ -38,7 +38,7 @@ A markdown skill cannot flip Claude Code session toggles; only code (the tier ag
 | Classify size/shape/openness; decompose bundles; write + reconcile the spec | **AUTO** |
 | Model tier (`sonnet`/`opus`) per bundle | **AUTO** — `/plan`'s Tier → the queue entry → the engine's `--model` |
 | Effort (`high`/`xhigh`) per bundle | **AUTO** in the driver (`claude -p --effort`) |
-| Attended vs `--sleep` | **AUTO-detected, you confirm** — spending money unattended always needs explicit opt-in |
+| Attended vs `--sleep` | **AUTO-detected, you confirm** — running unattended for hours always needs explicit opt-in |
 | `ultracode` (session mode) / `ultrathink` (one-turn) | **RECOMMEND only** — a skill cannot enable them; the driver gets the reasoning half via `--effort xhigh`, the full toggle stays yours to set live |
 | Fable 5 | **MANUAL** — never auto-routed (capped, withdrawable) |
 
@@ -71,7 +71,7 @@ Parse `$ARGUMENTS`. Strip `--sleep` first (it selects Phase B's unattended path)
 5. **Decompose + assign tiers.** Break an epic into an ordered bundle list — group correlated items to minimize PRs, order by dependency. For each bundle, run `/plan` scoped to it (single-issue slice = one bundle, the degenerate case). Read each plan's **Tier** (`sonnet`/`opus`) and effort — that is the per-bundle model routing that Phase B applies.
 6. **Write the spec** (below), all bundles `todo`, `next-action: "/drive <N>"`.
 7. **GATE — approve the bundle plan.** Show the bundle table (id · scope · tier · PR-count) + sequencing. Wait for `approve` / `edit <note>` / `abort`. Default-deny: no or ambiguous response → restate and wait. NOTHING runs without an explicit approve.
-8. **Generate the driver artifacts** (the Phase B handoff) into `.claude/drive/` (gitignored runtime dir): `config.json` (from `config.example.json` in this folder — set budgets, `repos`, `addDirs`), `queue.json` (one entry per approved bundle: `{ "id", "label", "repo", "tier", "effort", "ui"? }` in run order), and `prompts/task-<id>.md` per bundle (the template below). Then hand off to Phase B.
+8. **Generate the driver artifacts** (the Phase B handoff) into `.claude/drive/` (gitignored runtime dir): `config.json` (from `config.example.json` in this folder — set timeouts, `repos`, `addDirs`), `queue.json` (one entry per approved bundle: `{ "id", "label", "repo", "tier", "effort", "ui"? }` in run order), and `prompts/task-<id>.md` per bundle (the template below). Then hand off to Phase B.
 
 ### The living spec
 
@@ -156,7 +156,9 @@ The engine is **`.claude/skills/drive/run.mjs`**; its runtime dir is **`.claude/
 
 **Preflight (dry run):** `node .claude/skills/drive/run.mjs --dry-run` — verifies `claude` is runnable, `gh` is authenticated (if `push`), and every repo is a clean tree on its base branch, then lists the bundles it would run. Fix anything it flags (usually a dirty tree) before launching.
 
-**GATE — present the plan and STOP before spending money:** the ordered bundle list (id · label · tier), the **per-bundle and total budget caps**, the permission posture (`bypassPermissions`; `git-guardrails` + branch-per-bundle + budget caps are the real guardrails), the push/PR note (draft PRs open, CI + review bots run on them), and — for `--sleep` — the verifier (independent Sonnet, its cost counts toward the cap; mark UI bundles `"ui": true` so it reviews the diff against `DESIGN.md`). Wait for "go".
+**GATE — present the plan and STOP before launching:** the ordered bundle list (id · label · tier), the **per-bundle timeout** and the consecutive-failure circuit breaker, the permission posture (`bypassPermissions`; `git-guardrails` + branch-per-bundle + the timeout are the real guardrails), the push/PR note (draft PRs open, CI + review bots run on them), and — for `--sleep` — the verifier (independent Sonnet; mark UI bundles `"ui": true` so it reviews the diff against `DESIGN.md`). Wait for "go".
+
+**There are no dollar budgets.** Work runs on a subscription, so the only real costs are **wall-clock** and **rate-limit headroom**. The engine bounds a run with `perTaskTimeoutMs`, `maxConsecutiveFailures`, and the `.claude/drive/STOP` flag (drop that file to halt gracefully before the next bundle). Cost control is **routing the right model to the right task**, not a spend cap.
 
 **Launch — attended (default):** run in a terminal you watch:
 
