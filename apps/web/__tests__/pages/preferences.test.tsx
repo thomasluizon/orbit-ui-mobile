@@ -303,6 +303,20 @@ describe('PreferencesPage', () => {
     expect(screen.queryByRole('switch', { name: 'settings.notifications.title' })).not.toBeInTheDocument()
   })
 
+  it('hides the whole notifications row and shows the unsupported note when push is unsupported', () => {
+    mockPushPreferences = {
+      ...mockPushPreferences,
+      supported: false,
+      status: 'unsupported',
+    }
+
+    render(<PreferencesPage />)
+
+    expect(screen.getByText('settings.notifications.unsupported')).toBeInTheDocument()
+    expect(screen.queryByText('settings.notifications.allowed')).not.toBeInTheDocument()
+    expect(screen.queryByRole('switch', { name: 'settings.notifications.title' })).not.toBeInTheDocument()
+  })
+
 
   it('renders with null profile without crashing', () => {
     mockProfile = null

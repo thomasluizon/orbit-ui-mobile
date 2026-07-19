@@ -27,35 +27,49 @@ export function PushNotificationSection({
   return (
     <>
       <SectionLabel bottom={4}>{t('settings.notifications.title')}</SectionLabel>
-      <SettingsRow
-        label={t('settings.notifications.allowed')}
-        accessory="none"
-      >
-        {push.supported && push.permission !== 'denied' && (
-          <Switch
-            on={push.subscribed}
-            onToggle={push.onToggle}
-            ariaLabel={t('settings.notifications.title')}
-            disabled={push.loading}
-          />
-        )}
-      </SettingsRow>
-      <SettingsDescription>
-        {t('settings.notifications.description')}
-      </SettingsDescription>
-      <div
-        className={getPushStatusTone(push.status)}
-        style={{
-          padding: '0 20px 14px',
-          fontFamily: 'var(--font-sans)',
-          fontSize: 12,
-          fontWeight: 500,
-        }}
-      >
-        {push.supported
-          ? t(getPushStatusMessageKey(push.status, push.permission))
-          : t('settings.notifications.unsupported')}
-      </div>
+      {push.supported ? (
+        <>
+          <SettingsRow
+            label={t('settings.notifications.allowed')}
+            accessory="none"
+          >
+            {push.permission !== 'denied' && (
+              <Switch
+                on={push.subscribed}
+                onToggle={push.onToggle}
+                ariaLabel={t('settings.notifications.title')}
+                disabled={push.loading}
+              />
+            )}
+          </SettingsRow>
+          <SettingsDescription>
+            {t('settings.notifications.description')}
+          </SettingsDescription>
+          <div
+            className={getPushStatusTone(push.status)}
+            style={{
+              padding: '0 20px 12px',
+              fontFamily: 'var(--font-sans)',
+              fontSize: 12,
+              fontWeight: 500,
+            }}
+          >
+            {t(getPushStatusMessageKey(push.status, push.permission))}
+          </div>
+        </>
+      ) : (
+        <div
+          style={{
+            padding: '0 20px 12px',
+            fontFamily: 'var(--font-sans)',
+            fontSize: 12,
+            fontWeight: 500,
+            color: 'var(--fg-3)',
+          }}
+        >
+          {t('settings.notifications.unsupported')}
+        </div>
+      )}
     </>
   )
 }
