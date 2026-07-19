@@ -29,6 +29,12 @@ as either ORBIT_AUTH_TOKEN (the auth_token cookie value) or a Playwright
 storageState file (--storage-state). There is no implicit session default: a
 wrong session silently captures 200 login screens.
 
+Optional: ORBIT_REFERRAL_PEER_TOKEN, the bearer of a second fixture account
+that is NOT a friend of the captured account. route-r-code resolves against
+its referral code instead of the captured account's own, so the surface shows
+the real invite-preview UI (inviter avatar/name/handle + send-request CTA)
+rather than the "this is your own invite link" self-invite edge case.
+
 Flags:
   --base-url        web origin (default http://localhost:3000)
   --filter          only capture cells whose surfaceId contains this substring
@@ -177,6 +183,63 @@ const OPENERS = {
   },
 }
 
+// Dynamic-route surfaces (page.tsx under a [param] segment) always derive with
+// href:null -- surface-manifest.mjs cannot invent a real id. Rather than baking a
+// fixture id into a checked-in file (which rots the moment the local DB resets),
+// each resolver asks the running local API for a real id belonging to the
+// captured account, using the same bearer the harness already requires. A
+// resolver that gets no usable row returns null, which unreachableReason reports
+// honestly instead of silently skipping the surface (.claude/rules/visual-delivery.md rule 1).
+const DYNAMIC_ROUTE_RESOLVERS = {
+  "route-social-challenges-id": async (apiBase, token) => {
+    const response = await fetch(`${apiBase}/api/challenges`, {
+      headers: { authorization: `Bearer ${token}` },
+    })
+    if (!response.ok) return null
+    const challenges = await response.json()
+    const first = Array.isArray(challenges) ? challenges[0] : null
+    return first ? `/social/challenges/${first.id}` : null
+  },
+  "route-u-slug": async (apiBase, token) => {
+    const response = await fetch(`${apiBase}/api/profile`, {
+      headers: { authorization: `Bearer ${token}` },
+    })
+    if (!response.ok) return null
+    const profile = await response.json()
+    const slug = profile?.publicProfile?.enabled ? profile.publicProfile.slug : null
+    return slug ? `/u/${slug}` : null
+  },
+  // The captured account's OWN code always renders the self-invite edge case
+  // ("This is your own invite link"), never the real invite-preview UI a
+  // recipient sees. When a second fixture account's bearer is available (not
+  // a friend of the captured account), its code exercises the actual surface
+  // (inviter avatar/name/handle + send-request CTA) instead of the edge case.
+  "route-r-code": async (apiBase, token) => {
+    const peerToken = process.env.ORBIT_REFERRAL_PEER_TOKEN
+    const codeToken = peerToken ?? token
+    const response = await fetch(`${apiBase}/api/referrals/dashboard`, {
+      headers: { authorization: `Bearer ${codeToken}` },
+    })
+    if (!response.ok) return null
+    const dashboard = await response.json()
+    return dashboard?.code ? `/r/${dashboard.code}` : null
+  },
+}
+
+async function resolveDynamicRouteHrefs(apiBase, token) {
+  const resolved = new Map()
+  if (!token) return resolved
+  for (const [surfaceId, resolver] of Object.entries(DYNAMIC_ROUTE_RESOLVERS)) {
+    try {
+      const href = await resolver(apiBase, token)
+      if (href) resolved.set(surfaceId, href)
+    } catch {
+      // Left unresolved; unreachableReason reports it below.
+    }
+  }
+  return resolved
+}
+
 const FREEZE_MOTION_CSS = `
 *, *::before, *::after {
   animation-duration: 0s !important;
@@ -282,11 +345,12 @@ function cookiesFor(baseUrl, theme, locale) {
 
 /**
  * Why a cell cannot be captured generically, or null when it can be. Reported,
- * never silently skipped.
+ * never silently skipped. `resolvedHrefs` maps surfaceId -> a real URL resolved
+ * from the live API for a dynamic-route surface (see DYNAMIC_ROUTE_RESOLVERS).
  */
-export function unreachableReason(cell) {
-  if (cell.kind === "route" && cell.href === null) {
-    return { reason: "dynamic-route", detail: "URL needs a real id; no fixture id wired" }
+export function unreachableReason(cell, resolvedHrefs = new Map()) {
+  if (cell.kind === "route" && cell.href === null && !resolvedHrefs.has(cell.surfaceId)) {
+    return { reason: "dynamic-route", detail: "URL needs a real id; no fixture row resolvable from the API" }
   }
   if (cell.kind === "overlay" && !OPENERS[cell.surfaceId]) {
     return { reason: "needs-opener", detail: `no opener implemented for ${cell.sourceFile}` }
@@ -300,7 +364,7 @@ export function unreachableReason(cell) {
 // time. all/general have no such gate, so they stay on the cheap localStorage path.
 const NAV_CLICK_VIEWS = new Set(["goals"])
 
-async function captureCell(page, cell, baseUrl) {
+async function captureCell(page, cell, baseUrl, resolvedHrefs = new Map()) {
   const viewState = cell.viewState ?? null
   await page.addInitScript(
     ([storeKey, storeVersion, activeView]) => {
@@ -313,7 +377,8 @@ async function captureCell(page, cell, baseUrl) {
     [UI_STORE_KEY, UI_STORE_VERSION, NAV_CLICK_VIEWS.has(viewState) ? null : viewState],
   )
 
-  const target = new URL(cell.href ?? "/", baseUrl).toString()
+  const href = cell.href ?? resolvedHrefs.get(cell.surfaceId) ?? "/"
+  const target = new URL(href, baseUrl).toString()
   const response = await page.goto(target, { waitUntil: "domcontentloaded" })
   if (response && response.status() >= 400) {
     return { ok: false, reason: "http-error", detail: `${response.status()} at ${target}` }
@@ -390,10 +455,12 @@ async function main() {
     return 2
   }
 
+  const resolvedHrefs = await resolveDynamicRouteHrefs(args.apiBase, process.env.ORBIT_AUTH_TOKEN)
+
   const unreachable = []
   const cells = []
   for (const cell of inScope) {
-    const blocked = unreachableReason(cell)
+    const blocked = unreachableReason(cell, resolvedHrefs)
     if (blocked) unreachable.push({ cell, ...blocked })
     else cells.push(cell)
   }
@@ -433,7 +500,7 @@ async function main() {
         const page = await context.newPage()
         await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" })
         try {
-          const result = await captureCell(page, cell, args.baseUrl)
+          const result = await captureCell(page, cell, args.baseUrl, resolvedHrefs)
           if (result.ok) captured.push(cell)
           else failed.push({ cell, ...result })
         } catch (error) {

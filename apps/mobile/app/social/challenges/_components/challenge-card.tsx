@@ -33,11 +33,11 @@ export function ChallengeCard({ challenge, onOpen }: Readonly<ChallengeCardProps
       ]}
     >
       <View style={styles.badgeRow}>
-        <View style={[styles.badge, { backgroundColor: tintFromPrimary(tokens, 0.12) }]}>
+        <View style={[styles.badge, { backgroundColor: tintFromPrimary(tokens, 0.18) }]}>
           {isCoop ? (
-            <Target size={13} strokeWidth={2} color={tokens.primarySoft} />
+            <Target size={11} strokeWidth={2} color={tokens.primarySoft} />
           ) : (
-            <Flame size={13} strokeWidth={2} color={tokens.primarySoft} />
+            <Flame size={11} strokeWidth={2} color={tokens.primarySoft} />
           )}
           <Text style={[styles.badgeText, { color: tokens.primarySoft }]}>
             {isCoop ? t('challenges.type.coopGoal') : t('challenges.type.streakTogether')}
@@ -75,7 +75,7 @@ export function ChallengeCard({ challenge, onOpen }: Readonly<ChallengeCardProps
         <View style={styles.streakRow}>
           <Text style={[styles.streakCount, { color: tokens.fg1 }]}>{challenge.currentProgress}</Text>
           <Text style={[styles.streakUnit, { color: tokens.fg3 }]}>
-            {t('challenges.card.streakUnit')}
+            {plural(t('challenges.card.streakUnit'), challenge.currentProgress)}
           </Text>
         </View>
       )}
@@ -101,7 +101,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 999,
   },
-  badgeText: { fontFamily: 'Rubik_500Medium', fontSize: 12 },
+  badgeText: {
+    fontFamily: 'Rubik_600SemiBold',
+    fontSize: 10.5,
+    letterSpacing: 0.63,
+    textTransform: 'uppercase',
+  },
   completeText: { marginLeft: 'auto', fontFamily: 'Rubik_500Medium', fontSize: 12 },
   title: { fontFamily: 'Rubik_500Medium', fontSize: 17 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },

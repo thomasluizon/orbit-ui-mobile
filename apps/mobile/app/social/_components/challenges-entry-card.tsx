@@ -43,7 +43,7 @@ export function ChallengesEntryCard() {
 }
 
 const styles = StyleSheet.create({
-  container: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 8 },
+  container: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 8 },
   card: {
     flexDirection: 'row',
     alignItems: 'center',

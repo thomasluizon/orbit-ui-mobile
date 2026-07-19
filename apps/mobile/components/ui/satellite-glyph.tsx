@@ -6,35 +6,25 @@ interface SatelliteGlyphProps {
   size?: number
 }
 
-/** Kit satellite empty-state glyph: muted orbiter with a primary arc and accent star dots. */
+/** Kit satellite empty-state glyph: a planet ring with a small satellite riding the primary
+ *  sweep arc, plus accent star dots. */
 export function SatelliteGlyph({ size = 96 }: Readonly<SatelliteGlyphProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
 
   return (
     <Svg width={size} height={size} viewBox="0 0 96 96" fill="none">
-      <Circle cx={34} cy={34} r={19} stroke={tokens.fg4} strokeWidth={2.5} />
+      <Circle cx={46} cy={48} r={24} stroke={tokens.fg4} strokeWidth={2.5} />
       <Path
-        d="M34 21 a13 13 0 0 1 13 13"
+        d="M46 24 a24 24 0 0 1 24 24"
         stroke={tokens.primary}
         strokeWidth={3}
         strokeLinecap="round"
       />
-      <Circle cx={34} cy={34} r={5} fill={tokens.fg3} />
-      <Rect
-        x={52}
-        y={52}
-        width={22}
-        height={13}
-        rx={2.5}
-        transform="rotate(45, 63, 58)"
-        stroke={tokens.fg4}
-        strokeWidth={2.5}
-      />
-      <Path d="M63 70 L63 84" stroke={tokens.fg4} strokeWidth={2.5} strokeLinecap="round" />
-      <Path d="M56 84 L70 84" stroke={tokens.fg4} strokeWidth={2.5} strokeLinecap="round" />
-      <Circle cx={74} cy={22} r={2} fill={tokens.primarySoft} />
-      <Circle cx={20} cy={68} r={1.6} fill={tokens.primarySoft} />
+      <Circle cx={46} cy={48} r={6} fill={tokens.fg3} />
+      <Rect x={65} y={43} width={10} height={10} rx={2.5} stroke={tokens.primary} strokeWidth={2.5} />
+      <Circle cx={78} cy={20} r={2} fill={tokens.primarySoft} />
+      <Circle cx={16} cy={72} r={1.6} fill={tokens.primarySoft} />
     </Svg>
   )
 }

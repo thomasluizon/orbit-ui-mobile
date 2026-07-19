@@ -73,6 +73,7 @@ export async function serverPublicFetch<T = unknown>(
 ): Promise<T | null> {
   const appVersion = process.env.APP_VERSION
   const res = await fetch(`${API_BASE}${path}`, {
+    cache: 'no-store',
     ...init,
     headers: {
       'Content-Type': 'application/json',

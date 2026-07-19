@@ -10,7 +10,7 @@ import type { SupportedLocale } from '@orbit/shared/types/profile'
 import { serverPublicFetch } from '@/lib/server-fetch'
 import { PublicProfileView, type PublicProfileTranslator } from '@/components/profile/public-profile-view'
 
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
 
 interface PageParams {
   params: Promise<{ slug: string }>

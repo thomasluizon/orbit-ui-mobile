@@ -3240,7 +3240,7 @@
     },
     "card": {
       "participants": "{count} participante | {count} participantes",
-      "streakUnit": "dias em sequência",
+      "streakUnit": "dia em sequência | dias em sequência",
       "linkHabitsHint": "Vincule seus hábitos para contribuir"
     },
     "create": {

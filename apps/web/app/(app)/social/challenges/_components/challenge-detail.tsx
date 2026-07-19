@@ -3,9 +3,10 @@
 import { useState, type ReactNode } from 'react'
 import { Flame, Pencil, Target } from '@/components/ui/icons'
 import { useLocale, useTranslations } from 'next-intl'
-import { formatLocaleDate } from '@orbit/shared/utils'
+import { formatLocaleDate, plural } from '@orbit/shared/utils'
 import type { ChallengeParticipant } from '@orbit/shared/types/challenge'
 import { AppOverlay } from '@/components/ui/app-overlay'
+import { Badge } from '@/components/ui/badge'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { PillButton } from '@/components/ui/pill-button'
 import { ProgressBar } from '@/components/ui/progress-bar'
@@ -21,17 +22,6 @@ import { ChallengeErrorState } from './challenge-error-state'
 import { getChallengeErrorKey } from './challenge-errors'
 import { HabitPicker } from './habit-picker'
 import { ShareJoinCode } from './share-join-code'
-
-const typeBadgeStyle = {
-  gap: 6,
-  padding: '4px 10px',
-  borderRadius: 999,
-  background: 'rgba(var(--primary-rgb), 0.12)',
-  color: 'var(--primary-soft)',
-  fontFamily: 'var(--font-sans)',
-  fontSize: 12,
-  fontWeight: 500,
-}
 
 interface ChallengeDetailProps {
   challengeId: string
@@ -84,22 +74,32 @@ function CoopProgressView({
   )
 }
 
-function StreakCounterView({ days, label }: Readonly<{ days: number; label: string }>) {
+function StreakCounterView({ days, unitLabel }: Readonly<{ days: number; unitLabel: string }>) {
   return (
     <div className="flex flex-col items-center" style={{ gap: 2, padding: '8px 0' }}>
       <span data-testid="challenge-streak-count" className="t-num-xl">
         {days}
       </span>
-      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-3)' }}>{label}</span>
+      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-3)' }}>
+        {unitLabel}
+      </span>
     </div>
   )
 }
 
 function MembersList({ participants }: Readonly<{ participants: ChallengeParticipant[] }>) {
   return (
-    <div data-testid="challenge-members" className="flex flex-col">
-      {participants.map((participant) => (
-        <div key={participant.userId} className="flex items-center" style={{ gap: 12, padding: '8px 0' }}>
+    <div data-testid="challenge-members" className="flex flex-col" style={panelStyle}>
+      {participants.map((participant, index) => (
+        <div
+          key={participant.userId}
+          className="flex items-center"
+          style={{
+            gap: 12,
+            padding: '8px 0',
+            marginTop: index === 0 ? 0 : 4,
+          }}
+        >
           <UserAvatar name={participant.name} size={36} />
           <span
             className="truncate"
@@ -129,10 +129,10 @@ function ChallengeHeader({
   return (
     <>
       <div className="flex items-center" style={{ gap: 8 }}>
-        <span className="inline-flex items-center" style={typeBadgeStyle}>
-          {isCoop ? <Target size={13} strokeWidth={2} /> : <Flame size={13} strokeWidth={2} />}
+        <Badge tone="soft" className="gap-1.5">
+          {isCoop ? <Target size={11} strokeWidth={2} /> : <Flame size={11} strokeWidth={2} />}
           {typeLabel}
-        </span>
+        </Badge>
         {completeLabel ? (
           <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 500, color: 'var(--status-done)' }}>
             {completeLabel}
@@ -156,11 +156,19 @@ function ChallengeHeader({
   )
 }
 
+const panelStyle = {
+  borderRadius: 18,
+  padding: 16,
+  background: 'var(--bg-card)',
+  boxShadow: 'inset 0 0 0 1px var(--hairline)',
+} as const
+
 function SharedProgressSection({
   isCoop,
   current,
   target,
   heading,
+  streakUnitLabel,
   editLabel,
   onEdit,
 }: Readonly<{
@@ -168,11 +176,12 @@ function SharedProgressSection({
   current: number
   target: number
   heading: string
+  streakUnitLabel: string
   editLabel: string
   onEdit?: () => void
 }>) {
   return (
-    <div style={{ marginTop: 10 }}>
+    <div style={{ ...panelStyle, marginTop: 10 }}>
       <SectionHeader
         action={
           onEdit ? (
@@ -192,7 +201,7 @@ function SharedProgressSection({
       {isCoop ? (
         <CoopProgressView current={current} target={target} label={heading} />
       ) : (
-        <StreakCounterView days={current} label={heading} />
+        <StreakCounterView days={current} unitLabel={streakUnitLabel} />
       )}
     </div>
   )
@@ -205,17 +214,7 @@ function LinkHabitsCard({
   onLink,
 }: Readonly<{ title: string; body: string; cta: string; onLink: () => void }>) {
   return (
-    <div
-      className="flex flex-col"
-      style={{
-        gap: 8,
-        marginTop: 6,
-        padding: 16,
-        borderRadius: 16,
-        background: 'var(--bg-card)',
-        boxShadow: 'inset 0 0 0 1px var(--hairline)',
-      }}
-    >
+    <div className="flex flex-col" style={{ ...panelStyle, gap: 8, marginTop: 6 }}>
       <span style={{ fontFamily: 'var(--font-sans)', fontSize: 15, fontWeight: 500, color: 'var(--fg-1)' }}>
         {title}
       </span>
@@ -364,50 +363,52 @@ export function ChallengeDetail({ challengeId, onLeft }: Readonly<ChallengeDetai
         className="flex flex-col gap-2"
         style={{ padding: '4px 20px 32px' }}
       >
-        <div className="flex min-w-0 flex-col gap-2">
-          <ChallengeHeader
-            isCoop={isCoop}
-            typeLabel={isCoop ? t('challenges.type.coopGoal') : t('challenges.type.streakTogether')}
-            completeLabel={challenge.isComplete ? t('challenges.detail.complete') : null}
-            title={challenge.title}
-            endsOnText={
-              isCoop && challenge.periodEndUtc
-                ? t('challenges.detail.endsOn', { date: formatLocaleDate(challenge.periodEndUtc, locale) })
-                : null
-            }
-          />
+        <ChallengeHeader
+          isCoop={isCoop}
+          typeLabel={isCoop ? t('challenges.type.coopGoal') : t('challenges.type.streakTogether')}
+          completeLabel={challenge.isComplete ? t('challenges.detail.complete') : null}
+          title={challenge.title}
+          endsOnText={
+            isCoop && challenge.periodEndUtc
+              ? t('challenges.detail.endsOn', { date: formatLocaleDate(challenge.periodEndUtc, locale) })
+              : null
+          }
+        />
 
-          <SharedProgressSection
-            isCoop={isCoop}
-            current={challenge.currentProgress}
-            target={challenge.targetCount ?? 0}
-            heading={isCoop ? t('challenges.detail.progressLabel') : t('challenges.detail.sharedStreak')}
-            editLabel={t('challenges.detail.editHabits')}
-            onEdit={hasLinkedHabits ? openHabitsEditor : undefined}
-          />
-
-          {hasLinkedHabits ? null : (
-            <LinkHabitsCard
-              title={t('challenges.detail.linkHabitsTitle')}
-              body={t('challenges.detail.linkHabitsBody')}
-              cta={t('challenges.detail.linkHabitsCta')}
-              onLink={openHabitsEditor}
+        <div className="grid gap-4 sm:grid-cols-2" style={{ marginTop: 4 }}>
+          <div className="flex min-w-0 flex-col gap-2">
+            <SharedProgressSection
+              isCoop={isCoop}
+              current={challenge.currentProgress}
+              target={challenge.targetCount ?? 0}
+              heading={isCoop ? t('challenges.detail.progressLabel') : t('challenges.detail.sharedStreak')}
+              streakUnitLabel={plural(t('challenges.card.streakUnit'), challenge.currentProgress)}
+              editLabel={t('challenges.detail.editHabits')}
+              onEdit={hasLinkedHabits ? openHabitsEditor : undefined}
             />
-          )}
-        </div>
 
-        <div className="flex min-w-0 flex-col gap-2" style={{ marginTop: 8 }}>
-          <SectionHeader>{t('challenges.detail.membersTitle')}</SectionHeader>
-          <MembersList participants={challenge.participants} />
+            {hasLinkedHabits ? null : (
+              <LinkHabitsCard
+                title={t('challenges.detail.linkHabitsTitle')}
+                body={t('challenges.detail.linkHabitsBody')}
+                cta={t('challenges.detail.linkHabitsCta')}
+                onLink={openHabitsEditor}
+              />
+            )}
+          </div>
 
-          <SectionHeader>{t('challenges.detail.shareTitle')}</SectionHeader>
-          <ShareJoinCode title={challenge.title} joinCode={challenge.joinCode} />
+          <div className="flex min-w-0 flex-col gap-2">
+            <SectionHeader>{t('challenges.detail.membersTitle')}</SectionHeader>
+            <MembersList participants={challenge.participants} />
+
+            <SectionHeader>{t('challenges.detail.shareTitle')}</SectionHeader>
+            <ShareJoinCode title={challenge.title} joinCode={challenge.joinCode} />
+          </div>
         </div>
 
         <PillButton
           variant="ghost"
           fullWidth
-          className="sm:mx-0"
           onClick={() => setConfirmLeave(true)}
         >
           {t('challenges.detail.leave')}

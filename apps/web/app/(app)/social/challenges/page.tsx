@@ -43,6 +43,7 @@ function ChallengesPageContent() {
       isDesktop && (profile?.socialOptIn ?? false) ? (
         <div className="flex shrink-0 items-center" style={{ gap: 8 }}>
           <ChallengeActionButtons
+            size="sm"
             onCreate={() => setCreateOpen(true)}
             onJoin={() => setJoinOpen(true)}
           />

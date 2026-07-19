@@ -78,7 +78,7 @@ export function DesktopTopbar({ title, showRailToggle = false }: Readonly<Deskto
   const resolvedTitle = claimedTitle ?? title
   const heading =
     ownedByPage || !resolvedTitle ? null : (
-      <h1 className="t-h2 min-w-0 truncate">{resolvedTitle}</h1>
+      <h1 className="t-h2 min-w-0 flex-1 truncate">{resolvedTitle}</h1>
     )
 
   return (
@@ -97,7 +97,11 @@ export function DesktopTopbar({ title, showRailToggle = false }: Readonly<Deskto
           {heading}
           {accessoryNode && (
             <div
-              className={`flex min-w-0 flex-1 items-center ${heading ? 'justify-end' : 'justify-start'}`}
+              className={
+                heading
+                  ? 'flex shrink-0 items-center justify-end'
+                  : 'flex min-w-0 flex-1 items-center justify-start'
+              }
             >
               {accessoryNode}
             </div>

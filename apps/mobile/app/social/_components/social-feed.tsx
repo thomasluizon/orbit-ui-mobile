@@ -102,7 +102,6 @@ export function SocialFeed({ onCheer, onAddFriends }: Readonly<SocialFeedProps>)
         action={{
           label: t('social.feed.emptyCta'),
           onPress: onAddFriends,
-          variant: 'secondary',
         }}
       />
     )

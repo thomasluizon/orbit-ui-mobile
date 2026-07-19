@@ -10,7 +10,7 @@ export function ChallengesEntryCard() {
   const router = useRouter()
 
   return (
-    <div style={{ padding: '4px 20px 8px' }}>
+    <div style={{ padding: '8px 20px 8px' }}>
       <button
         type="button"
         onClick={() => router.push('/social/challenges')}
@@ -30,7 +30,7 @@ export function ChallengesEntryCard() {
         >
           <Trophy size={22} strokeWidth={1.8} />
         </span>
-        <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 3 }}>
+        <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
           <span
             style={{ fontFamily: 'var(--font-sans)', fontSize: 16, fontWeight: 600, color: 'var(--fg-1)' }}
           >

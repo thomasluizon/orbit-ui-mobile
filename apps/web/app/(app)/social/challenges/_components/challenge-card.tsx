@@ -4,18 +4,8 @@ import { Flame, Target, Users } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { plural } from '@orbit/shared/utils'
 import type { ChallengeListItem } from '@orbit/shared/types/challenge'
+import { Badge } from '@/components/ui/badge'
 import { ProgressBar } from '@/components/ui/progress-bar'
-
-const typeBadgeStyle = {
-  gap: 6,
-  padding: '4px 10px',
-  borderRadius: 999,
-  background: 'rgba(var(--primary-rgb), 0.12)',
-  color: 'var(--primary-soft)',
-  fontFamily: 'var(--font-sans)',
-  fontSize: 12,
-  fontWeight: 500,
-}
 
 interface ChallengeCardProps {
   challenge: ChallengeListItem
@@ -42,10 +32,10 @@ export function ChallengeCard({ challenge, onOpen }: Readonly<ChallengeCardProps
       }}
     >
       <div className="flex items-center" style={{ gap: 8, marginBottom: 8 }}>
-        <span className="inline-flex items-center" style={typeBadgeStyle}>
-          {isCoop ? <Target size={13} strokeWidth={2} /> : <Flame size={13} strokeWidth={2} />}
+        <Badge tone="soft" className="gap-1.5">
+          {isCoop ? <Target size={11} strokeWidth={2} /> : <Flame size={11} strokeWidth={2} />}
           {isCoop ? t('challenges.type.coopGoal') : t('challenges.type.streakTogether')}
-        </span>
+        </Badge>
         {challenge.isComplete ? (
           <span
             style={{
@@ -105,7 +95,7 @@ export function ChallengeCard({ challenge, onOpen }: Readonly<ChallengeCardProps
             {challenge.currentProgress}
           </span>
           <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--fg-3)' }}>
-            {t('challenges.card.streakUnit')}
+            {plural(t('challenges.card.streakUnit'), challenge.currentProgress)}
           </span>
         </div>
       )}

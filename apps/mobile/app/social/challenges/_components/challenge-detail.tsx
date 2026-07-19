@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { Flame, Pencil, Target } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
-import { formatLocaleDate } from '@orbit/shared/utils'
+import { formatLocaleDate, plural } from '@orbit/shared/utils'
 import type { ChallengeParticipant } from '@orbit/shared/types/challenge'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -29,15 +29,15 @@ interface ChallengeDetailProps {
 
 function StreakCounterView({
   days,
-  label,
+  unitLabel,
   tokens,
-}: Readonly<{ days: number; label: string; tokens: AppTokensV2 }>) {
+}: Readonly<{ days: number; unitLabel: string; tokens: AppTokensV2 }>) {
   return (
     <View style={styles.streakBlock}>
       <Text testID="challenge-streak-count" style={[styles.streakCount, { color: tokens.fg1 }]}>
         {days}
       </Text>
-      <Text style={[styles.streakLabel, { color: tokens.fg3 }]}>{label}</Text>
+      <Text style={[styles.streakLabel, { color: tokens.fg3 }]}>{unitLabel}</Text>
     </View>
   )
 }
@@ -47,9 +47,15 @@ function MembersList({
   tokens,
 }: Readonly<{ participants: ChallengeParticipant[]; tokens: AppTokensV2 }>) {
   return (
-    <View testID="challenge-members">
-      {participants.map((participant) => (
-        <View key={participant.userId} style={styles.memberRow}>
+    <View
+      testID="challenge-members"
+      style={[styles.panel, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}
+    >
+      {participants.map((participant, index) => (
+        <View
+          key={participant.userId}
+          style={[styles.memberRow, index === 0 ? styles.memberRowFirst : null]}
+        >
           <UserAvatar name={participant.name} size={36} />
           <Text style={[styles.memberName, { color: tokens.fg1 }]} numberOfLines={1}>
             {participant.name}
@@ -78,11 +84,11 @@ function ChallengeHeader({
   return (
     <>
       <View style={styles.badgeRow}>
-        <View style={[styles.badge, { backgroundColor: tintFromPrimary(tokens, 0.12) }]}>
+        <View style={[styles.badge, { backgroundColor: tintFromPrimary(tokens, 0.18) }]}>
           {isCoop ? (
-            <Target size={13} strokeWidth={2} color={tokens.primarySoft} />
+            <Target size={11} strokeWidth={2} color={tokens.primarySoft} />
           ) : (
-            <Flame size={13} strokeWidth={2} color={tokens.primarySoft} />
+            <Flame size={11} strokeWidth={2} color={tokens.primarySoft} />
           )}
           <Text style={[styles.badgeText, { color: tokens.primarySoft }]}>{typeLabel}</Text>
         </View>
@@ -105,6 +111,7 @@ function SharedProgressSection({
   current,
   target,
   heading,
+  streakUnitLabel,
   editLabel,
   onEdit,
   tokens,
@@ -113,13 +120,20 @@ function SharedProgressSection({
   current: number
   target: number
   heading: string
+  streakUnitLabel: string
   editLabel: string
   onEdit?: () => void
   tokens: AppTokensV2
 }>) {
   const ratio = target > 0 ? Math.min(1, current / target) : 0
   return (
-    <>
+    <View
+      style={[
+        styles.panel,
+        styles.progressPanel,
+        { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
+      ]}
+    >
       <View style={styles.sectionHeaderRow}>
         <Text style={[styles.sectionHeader, styles.sectionHeaderInRow, { color: tokens.fg1 }]}>
           {heading}
@@ -150,9 +164,9 @@ function SharedProgressSection({
           </Text>
         </View>
       ) : (
-        <StreakCounterView days={current} label={heading} tokens={tokens} />
+        <StreakCounterView days={current} unitLabel={streakUnitLabel} tokens={tokens} />
       )}
-    </>
+    </View>
   )
 }
 
@@ -170,7 +184,13 @@ function LinkHabitsCard({
   tokens: AppTokensV2
 }>) {
   return (
-    <View style={[styles.linkCard, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
+    <View
+      style={[
+        styles.panel,
+        styles.linkCard,
+        { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
+      ]}
+    >
       <Text style={[styles.linkTitle, { color: tokens.fg1 }]}>{title}</Text>
       <Text style={[styles.linkBody, { color: tokens.fg3 }]}>{body}</Text>
       {/* eslint-disable-next-line local/no-fullbleed-button -- link-habits prompt card CTA */}
@@ -329,6 +349,7 @@ export function ChallengeDetail({ challengeId, onLeft }: Readonly<ChallengeDetai
         current={challenge.currentProgress}
         target={challenge.targetCount ?? 0}
         heading={isCoop ? t('challenges.detail.progressLabel') : t('challenges.detail.sharedStreak')}
+        streakUnitLabel={plural(t('challenges.card.streakUnit'), challenge.currentProgress)}
         editLabel={t('challenges.detail.editHabits')}
         onEdit={hasLinkedHabits ? openHabitsEditor : undefined}
         tokens={tokens}
@@ -406,18 +427,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 999,
   },
-  badgeText: { fontFamily: 'Rubik_500Medium', fontSize: 12 },
+  badgeText: {
+    fontFamily: 'Rubik_600SemiBold',
+    fontSize: 10.5,
+    letterSpacing: 0.63,
+    textTransform: 'uppercase',
+  },
   completeText: { marginLeft: 'auto', fontFamily: 'Rubik_500Medium', fontSize: 12 },
   title: { fontFamily: 'Rubik_500Medium', fontSize: 24 },
   subtle: { fontFamily: 'Rubik_400Regular', fontSize: 13 },
+  panel: { padding: 16, borderRadius: 18, borderWidth: 1 },
   sectionHeader: { fontFamily: 'Rubik_500Medium', fontSize: 20, marginTop: 16, marginBottom: 8 },
   sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 8,
-    marginTop: 16,
-    marginBottom: 8,
   },
   sectionHeaderInRow: { marginTop: 0, marginBottom: 0 },
   editButton: {
@@ -427,15 +452,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  progressPanel: { marginTop: 10 },
   progressBlock: { gap: 8 },
   progressText: { fontFamily: 'Roboto_400Regular', fontSize: 14, fontVariant: ['tabular-nums'] },
   streakBlock: { alignItems: 'center', gap: 2, paddingVertical: 8 },
   streakCount: { fontFamily: 'Inter_700Bold', fontSize: 44, lineHeight: 44, fontVariant: ['tabular-nums'] },
   streakLabel: { fontFamily: 'Rubik_400Regular', fontSize: 14 },
-  linkCard: { gap: 8, marginTop: 6, padding: 16, borderRadius: 16, borderWidth: 1 },
+  linkCard: { gap: 8, marginTop: 6 },
   linkTitle: { fontFamily: 'Rubik_500Medium', fontSize: 15 },
   linkBody: { fontFamily: 'Rubik_400Regular', fontSize: 13, lineHeight: 19 },
-  memberRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
+  memberRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, marginTop: 4 },
+  memberRowFirst: { marginTop: 0 },
   memberName: { flex: 1, minWidth: 0, fontFamily: 'Rubik_400Regular', fontSize: 15 },
   leaveBlock: { marginTop: 8 },
   sheetContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 32, gap: 16 },
