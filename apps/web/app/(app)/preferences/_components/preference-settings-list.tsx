@@ -3,6 +3,7 @@
 import { Calendar, Languages, Moon, Palette } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { SectionLabel } from '@/components/ui/section-label'
+import { SettingsGroup } from '@/components/ui/settings-group'
 import { SettingsRow, Switch } from '@/components/ui/settings-row'
 import { ProBadge } from '@/components/ui/pro-badge'
 import type { PreferencePicker } from './preference-picker-sheet'
@@ -54,37 +55,39 @@ export function PreferenceSettingsList({
       <div>
         <div className="stagger-enter">
           <SectionLabel bottom={4}>{t('preferences.general')}</SectionLabel>
-          <SettingsRow
-            icon={Languages}
-            label={t('profile.language.title')}
-            value={mounted ? languageLabel : undefined}
-            onClick={() => onOpenPicker('language')}
-            dataTestId="pref-open-language"
-          />
-          <SettingsRow
-            icon={Moon}
-            label={t('preferences.themeMode')}
-            value={mounted ? themeLabel : undefined}
-            onClick={() => onOpenPicker('theme')}
-            dataTestId="pref-open-theme"
-          />
-          <SettingsRow
-            icon={Palette}
-            label={t('profile.colorScheme.title')}
-            value={mounted ? schemeLabel : undefined}
-            onClick={() => onOpenPicker('scheme')}
-            dataTestId="pref-open-scheme"
-          >
-            {mounted && schemeColor ? <SchemeDot color={schemeColor} /> : null}
-            <ProBadge />
-          </SettingsRow>
-          <SettingsRow
-            icon={Calendar}
-            label={t('settings.weekStartDay.title')}
-            value={mounted ? weekStartLabel : undefined}
-            onClick={() => onOpenPicker('weekStart')}
-            dataTestId="pref-open-weekStart"
-          />
+          <SettingsGroup>
+            <SettingsRow
+              icon={Languages}
+              label={t('profile.language.title')}
+              value={mounted ? languageLabel : undefined}
+              onClick={() => onOpenPicker('language')}
+              dataTestId="pref-open-language"
+            />
+            <SettingsRow
+              icon={Moon}
+              label={t('preferences.themeMode')}
+              value={mounted ? themeLabel : undefined}
+              onClick={() => onOpenPicker('theme')}
+              dataTestId="pref-open-theme"
+            />
+            <SettingsRow
+              icon={Palette}
+              label={t('profile.colorScheme.title')}
+              value={mounted ? schemeLabel : undefined}
+              onClick={() => onOpenPicker('scheme')}
+              dataTestId="pref-open-scheme"
+            >
+              {mounted && schemeColor ? <SchemeDot color={schemeColor} /> : null}
+              <ProBadge />
+            </SettingsRow>
+            <SettingsRow
+              icon={Calendar}
+              label={t('settings.weekStartDay.title')}
+              value={mounted ? weekStartLabel : undefined}
+              onClick={() => onOpenPicker('weekStart')}
+              dataTestId="pref-open-weekStart"
+            />
+          </SettingsGroup>
 
           <SectionLabel bottom={4}>{t('settings.homeScreen.title')}</SectionLabel>
           <SettingsRow

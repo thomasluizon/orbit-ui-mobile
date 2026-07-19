@@ -20,6 +20,7 @@ const regenerateButtonStyle: CSSProperties = {
 import { useProfile } from '@/hooks/use-profile'
 import { usePublicProfileSettings } from '@/hooks/use-public-profile-settings'
 import { SettingsRow, Switch } from '@/components/ui/settings-row'
+import { SettingsGroup } from '@/components/ui/settings-group'
 import { SectionLabel } from '@/components/ui/section-label'
 import { PillButton } from '@/components/ui/pill-button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -114,7 +115,7 @@ export function PublicProfileSettings() {
                   className="flex items-center rounded-[14px]"
                   style={{
                     gap: 8,
-                    padding: '4px 6px 4px 16px',
+                    padding: '4px 4px 4px 16px',
                     background: 'var(--bg-field)',
                     boxShadow: 'inset 0 0 0 1px var(--hairline)',
                   }}
@@ -200,21 +201,23 @@ export function PublicProfileSettings() {
 
         <div>
           <SectionLabel>{t('profile.publicProfile.visibilityTitle')}</SectionLabel>
-          {VISIBILITY_FIELDS.map(({ field, i18nKey }) => (
-            <SettingsRow
-              key={field}
-              label={t(`profile.publicProfile.fields.${i18nKey}.title`)}
-              desc={t(`profile.publicProfile.fields.${i18nKey}.description`)}
-              accessory="none"
-            >
-              <Switch
-                on={settings?.[field] ?? false}
-                onToggle={() => submit({ [field]: !(settings?.[field] ?? false) })}
-                ariaLabel={t(`profile.publicProfile.fields.${i18nKey}.title`)}
-                disabled={!enabled || mutation.isPending}
-              />
-            </SettingsRow>
-          ))}
+          <SettingsGroup>
+            {VISIBILITY_FIELDS.map(({ field, i18nKey }) => (
+              <SettingsRow
+                key={field}
+                label={t(`profile.publicProfile.fields.${i18nKey}.title`)}
+                desc={t(`profile.publicProfile.fields.${i18nKey}.description`)}
+                accessory="none"
+              >
+                <Switch
+                  on={settings?.[field] ?? false}
+                  onToggle={() => submit({ [field]: !(settings?.[field] ?? false) })}
+                  ariaLabel={t(`profile.publicProfile.fields.${i18nKey}.title`)}
+                  disabled={!enabled || mutation.isPending}
+                />
+              </SettingsRow>
+            ))}
+          </SettingsGroup>
 
           <p
             style={{

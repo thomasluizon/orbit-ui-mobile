@@ -12,6 +12,7 @@ import type { NotificationPermissionStatus } from '@/lib/push-notification-permi
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { PillButton } from '@/components/ui/pill-button'
 import { SectionLabel } from '@/components/ui/section-label'
+import { SettingsGroup } from '@/components/ui/settings-group'
 import { SettingsRow, Switch } from '@/components/ui/settings-row'
 import { RadioRow } from '@/components/ui/select-check'
 import { ProBadge } from '@/components/ui/pro-badge'
@@ -184,37 +185,39 @@ export function PreferenceSettingsList({
     <>
       <Animated.View entering={sectionEntrance(0)}>
         <SectionLabel bottom={4}>{t('preferences.general')}</SectionLabel>
-        <SettingsRow
-          icon={Languages}
-          label={t('profile.language.title')}
-          value={languageLabel}
-          onPress={() => onOpenPicker('language')}
-        />
-        <SettingsRow
-          icon={Moon}
-          label={t('preferences.themeMode')}
-          value={themeLabel}
-          onPress={() => onOpenPicker('theme')}
-        />
-        <SettingsRow
-          icon={Palette}
-          label={t('profile.colorScheme.title')}
-          value={schemeLabel}
-          onPress={() => onOpenPicker('scheme')}
-        >
-          {schemeOption ? (
-            <View
-              style={[styles.schemeDot, { backgroundColor: schemeOption.color }]}
-            />
-          ) : null}
-          <ProBadge />
-        </SettingsRow>
-        <SettingsRow
-          icon={Calendar}
-          label={t('settings.weekStartDay.title')}
-          value={weekStartLabel}
-          onPress={() => onOpenPicker('weekStart')}
-        />
+        <SettingsGroup>
+          <SettingsRow
+            icon={Languages}
+            label={t('profile.language.title')}
+            value={languageLabel}
+            onPress={() => onOpenPicker('language')}
+          />
+          <SettingsRow
+            icon={Moon}
+            label={t('preferences.themeMode')}
+            value={themeLabel}
+            onPress={() => onOpenPicker('theme')}
+          />
+          <SettingsRow
+            icon={Palette}
+            label={t('profile.colorScheme.title')}
+            value={schemeLabel}
+            onPress={() => onOpenPicker('scheme')}
+          >
+            {schemeOption ? (
+              <View
+                style={[styles.schemeDot, { backgroundColor: schemeOption.color }]}
+              />
+            ) : null}
+            <ProBadge />
+          </SettingsRow>
+          <SettingsRow
+            icon={Calendar}
+            label={t('settings.weekStartDay.title')}
+            value={weekStartLabel}
+            onPress={() => onOpenPicker('weekStart')}
+          />
+        </SettingsGroup>
       </Animated.View>
 
       <Animated.View entering={sectionEntrance(1)}>

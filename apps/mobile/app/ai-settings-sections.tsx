@@ -18,6 +18,7 @@ import { AstraMark } from '@/components/ui/astra-avatar'
 import { normalizeUserFactCategory } from '@orbit/shared/utils'
 import { tintFromPrimary } from '@/lib/theme'
 import { SectionLabel } from '@/components/ui/section-label'
+import { SettingsGroup } from '@/components/ui/settings-group'
 import { SettingsRow, Switch } from '@/components/ui/settings-row'
 import { RadioGlyph } from '@/components/ui/select-check'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -73,6 +74,7 @@ export function AiFeatureToggles({
       <SectionLabel bottom={4} trailing={<ProBadge />}>
         {t('profile.sections.aiFeatures')}
       </SectionLabel>
+      <SettingsGroup>
       {hasProAccess ? (
         <SettingsRow
           icon={Brain}
@@ -148,6 +150,7 @@ export function AiFeatureToggles({
           <Lock size={18} color={tokens.fg3} strokeWidth={1.8} />
         </SettingsRow>
       )}
+      </SettingsGroup>
     </>
   )
 }

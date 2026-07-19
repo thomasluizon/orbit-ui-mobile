@@ -32,7 +32,7 @@ export function ProfileNavGroup({
   return (
     <div>
       <SectionLabel>{t(labelKey)}</SectionLabel>
-      <nav aria-label={t(labelKey)} className="px-5">
+      <nav aria-label={t(labelKey)}>
         <SettingsGroup>
           {items.map((item) => (
             <SettingsGroupRow

@@ -37,7 +37,7 @@ export function ProfileFeatureSections({
   return (
     <div>
       <SectionLabel>{t('explore.sections.discover')}</SectionLabel>
-      <nav aria-label={t('explore.sections.discover')} className="px-5">
+      <nav aria-label={t('explore.sections.discover')}>
         <SettingsGroup>
           <SettingsGroupRow
             icon={<ProfileNavIcon iconKey="compass" />}

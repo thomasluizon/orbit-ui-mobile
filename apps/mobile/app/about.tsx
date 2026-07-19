@@ -12,6 +12,7 @@ import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { AppBar } from '@/components/ui/app-bar'
+import { SettingsGroup } from '@/components/ui/settings-group'
 import { SettingsRow } from '@/components/ui/settings-row'
 
 function sectionEntrance(index: number) {
@@ -60,26 +61,28 @@ export default function AboutScreen() {
           ) : null}
         </Animated.View>
         <Animated.View entering={sectionEntrance(1)}>
-          <SettingsRow
-            icon={Compass}
-            label={t('onboarding.featureGuide.openButton')}
-            onPress={() => setShowGuide(true)}
-          />
-          <SettingsRow
-            icon={Mail}
-            label={t('profile.support.title')}
-            onPress={() => router.push('/support')}
-          />
-          <SettingsRow
-            icon={FileText}
-            label={t('terms.title')}
-            onPress={() => router.push('/terms')}
-          />
-          <SettingsRow
-            icon={Shield}
-            label={t('privacy.title')}
-            onPress={() => router.push('/privacy')}
-          />
+          <SettingsGroup>
+            <SettingsRow
+              icon={Compass}
+              label={t('onboarding.featureGuide.openButton')}
+              onPress={() => setShowGuide(true)}
+            />
+            <SettingsRow
+              icon={Mail}
+              label={t('profile.support.title')}
+              onPress={() => router.push('/support')}
+            />
+            <SettingsRow
+              icon={FileText}
+              label={t('terms.title')}
+              onPress={() => router.push('/terms')}
+            />
+            <SettingsRow
+              icon={Shield}
+              label={t('privacy.title')}
+              onPress={() => router.push('/privacy')}
+            />
+          </SettingsGroup>
         </Animated.View>
         <View style={{ height: 24 }} />
       </ScrollView>

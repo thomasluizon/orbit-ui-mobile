@@ -3,6 +3,7 @@
 import { BellRing, Brain, Lock, Satellite } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { SectionLabel } from '@/components/ui/section-label'
+import { SettingsGroup } from '@/components/ui/settings-group'
 import { SettingsRow, Switch } from '@/components/ui/settings-row'
 import { ProBadge } from '@/components/ui/pro-badge'
 
@@ -40,6 +41,7 @@ export function AiFeatureToggles({
       <SectionLabel bottom={4} trailing={<ProBadge />}>
         {t('profile.sections.aiFeatures')}
       </SectionLabel>
+      <SettingsGroup>
       {hasProAccess ? (
         <SettingsRow
           icon={Brain}
@@ -115,6 +117,7 @@ export function AiFeatureToggles({
           <Lock size={18} strokeWidth={1.8} color="var(--fg-3)" aria-hidden="true" />
         </SettingsRow>
       )}
+      </SettingsGroup>
     </>
   )
 }

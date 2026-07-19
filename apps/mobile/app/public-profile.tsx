@@ -15,6 +15,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { AppBar } from '@/components/ui/app-bar'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { SectionLabel } from '@/components/ui/section-label'
+import { SettingsGroup } from '@/components/ui/settings-group'
 import { SettingsRow, Switch } from '@/components/ui/settings-row'
 import { PillButton } from '@/components/ui/pill-button'
 
@@ -143,22 +144,24 @@ export default function PublicProfileScreen() {
         ) : null}
 
         <SectionLabel>{t('profile.publicProfile.visibilityTitle')}</SectionLabel>
-        {/* react-doctor-disable-next-line rn-no-scrollview-mapped-list -- Fixed, tiny config list (VISIBILITY_FIELDS is a module constant of a handful of settings toggles); the screen ScrollView is the correct container and a FlatList would be an anti-pattern here. https://github.com/thomasluizon/orbit-ui-mobile/issues/243 */}
-        {VISIBILITY_FIELDS.map(({ field, i18nKey }) => (
-          <SettingsRow
-            key={field}
-            label={t(`profile.publicProfile.fields.${i18nKey}.title`)}
-            desc={t(`profile.publicProfile.fields.${i18nKey}.description`)}
-            accessory="none"
-          >
-            <Switch
-              on={settings?.[field] ?? false}
-              onToggle={() => submit({ [field]: !(settings?.[field] ?? false) })}
-              accessibilityLabel={t(`profile.publicProfile.fields.${i18nKey}.title`)}
-              disabled={!enabled || mutation.isPending}
-            />
-          </SettingsRow>
-        ))}
+        <SettingsGroup>
+          {/* react-doctor-disable-next-line rn-no-scrollview-mapped-list -- Fixed, tiny config list (VISIBILITY_FIELDS is a module constant of a handful of settings toggles); the screen ScrollView is the correct container and a FlatList would be an anti-pattern here. https://github.com/thomasluizon/orbit-ui-mobile/issues/243 */}
+          {VISIBILITY_FIELDS.map(({ field, i18nKey }) => (
+            <SettingsRow
+              key={field}
+              label={t(`profile.publicProfile.fields.${i18nKey}.title`)}
+              desc={t(`profile.publicProfile.fields.${i18nKey}.description`)}
+              accessory="none"
+            >
+              <Switch
+                on={settings?.[field] ?? false}
+                onToggle={() => submit({ [field]: !(settings?.[field] ?? false) })}
+                accessibilityLabel={t(`profile.publicProfile.fields.${i18nKey}.title`)}
+                disabled={!enabled || mutation.isPending}
+              />
+            </SettingsRow>
+          ))}
+        </SettingsGroup>
 
         {enabled ? (
           <View style={styles.regenBlock}>

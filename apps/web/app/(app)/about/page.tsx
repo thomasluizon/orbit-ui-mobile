@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { Compass, FileText, Mail, Shield } from '@/components/ui/icons'
 import { AppBar } from '@/components/ui/app-bar'
 import { AppLogo } from '@/components/ui/app-logo'
+import { SettingsGroup } from '@/components/ui/settings-group'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
@@ -29,7 +30,7 @@ export default function AboutPage() {
         <div className="flex-1 min-h-0 overflow-y-auto stagger-enter">
           <div
             className="flex flex-col items-center"
-            style={{ gap: 10, padding: '24px 0 20px' }}
+            style={{ gap: 8, padding: '24px 0 20px' }}
           >
             <AppLogo size={72} />
             <span
@@ -54,7 +55,7 @@ export default function AboutPage() {
               {t('about.version', { version: packageJson.version })}
             </span>
           </div>
-          <div>
+          <SettingsGroup>
             <SettingsRow
               icon={Compass}
               label={t('onboarding.featureGuide.openButton')}
@@ -80,7 +81,7 @@ export default function AboutPage() {
               onClick={() => router.push('/privacy')}
               ariaLabel={t('privacy.title')}
             />
-          </div>
+          </SettingsGroup>
         </div>
         <FeatureGuideDrawer open={showGuide} onOpenChange={setShowGuide} />
       </div>

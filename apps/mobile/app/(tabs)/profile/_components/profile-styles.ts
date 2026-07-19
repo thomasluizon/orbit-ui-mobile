@@ -89,8 +89,6 @@ export function createProfileStyles(_tokens: Tokens) {
       justifyContent: 'center',
     },
 
-    groupWrap: {
-      paddingHorizontal: 20,
-    },
+    groupWrap: {},
   })
 }
