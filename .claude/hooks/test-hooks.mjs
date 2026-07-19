@@ -348,6 +348,15 @@ T("gate-tamper: edit PAUSED blocks", !!checkGateTamperEdit("C:\\x\\.claude\\mani
 T("gate-tamper: edit manifest blocks", !!checkGateTamperEdit("/x/.claude/manifests/surfaces.json")?.block, true)
 T("gate-tamper: edit verdicts blocks", !!checkGateTamperEdit("/x/.artifacts/surfaces/verdicts.json")?.block, true)
 T("gate-tamper: edit ordinary file allows", checkGateTamperEdit("/x/apps/web/app/page.tsx"), null)
+// signoff.json is the ONLY axis that grants a cell, so it has no sanctioned
+// agent writer at all - an agent that can tick can certify its own work.
+T("gate-tamper: redirect into signoff blocks", !!checkGateTamperBash('echo "{}" > .claude/manifests/signoff.json')?.block, true)
+T("gate-tamper: node write to signoff blocks", !!checkGateTamperBash(`node -e "require('fs').writeFileSync('.claude/manifests/signoff.json','{}')"`)?.block, true)
+T("gate-tamper: rm signoff blocks", !!checkGateTamperBash("rm .claude/manifests/signoff.json")?.block, true)
+T("gate-tamper: cat signoff allows", checkGateTamperBash("cat .claude/manifests/signoff.json"), null)
+T("gate-tamper: edit signoff blocks", !!checkGateTamperEdit("/x/.claude/manifests/signoff.json")?.block, true)
+T("gate-tamper: no sanctioned tool can write signoff", !!checkGateTamperBash("node tools/surface-manifest.mjs .claude/manifests/signoff.json")?.block, true)
+T("gate-tamper: edit defects blocks", !!checkGateTamperEdit("/x/.claude/manifests/defects.json")?.block, true)
 
 // primer's agent-scoped shell allowlist. The deny cases are the point: a prefix
 // allowlist alone is not a fence, so the metacharacter rejection must run first.
@@ -488,27 +497,77 @@ function runHookEnv(file, payload, env) {
   })
   return res.status
 }
-function buildGateFixture(name, { withManifest = true, withPaused = false, artifact = true, verdictStatus = null, hashMatches = true } = {}) {
+// The gate fixture is a REAL git repo: the touched axis is a visual-signature
+// diff against a baseline commit, so a stubbed tree would test nothing. The
+// baseline is the fixture's initial commit; `worked` decides whether the
+// surface's owned file is restyled afterwards.
+const BASE_TSX = 'export default function P(){ return <div className="p-4">x</div> }\n'
+const WORKED_TSX = 'export default function P(){ return <section className="p-6 rounded-3xl">x</section> }\n'
+function buildGateFixture(
+  name,
+  { withManifest = true, withPaused = false, worked = true, judged = null, signed = false, blocker = false } = {},
+) {
   const fixtureRoot = join(root, `gate-${name}`)
   mkdirSync(join(fixtureRoot, ".claude", "manifests"), { recursive: true })
-  mkdirSync(join(fixtureRoot, ".artifacts", "surfaces"), { recursive: true })
   mkdirSync(join(fixtureRoot, "src"), { recursive: true })
-  writeFileSync(join(fixtureRoot, "src", "page.tsx"), "export default 1\n")
-  const manifest = { generatedFrom: "test", cells: [{ surfaceId: "s1", kind: "route", sourceFile: "src/page.tsx", theme: "light", locale: "en" }] }
+  const surfaceFile = join(fixtureRoot, "src", "page.tsx")
+  writeFileSync(surfaceFile, BASE_TSX)
+
+  const git = (...args) => spawnSync("git", args, { cwd: fixtureRoot, encoding: "utf8" })
+  git("init", "-q")
+  git("config", "user.email", "t@example.com")
+  git("config", "user.name", "t")
+  git("add", "-A")
+  git("commit", "-qm", "baseline")
+  if (worked) writeFileSync(surfaceFile, WORKED_TSX)
+
+  const cell = {
+    surfaceId: "s1",
+    platform: "web",
+    kind: "route",
+    state: "default",
+    sourceFile: "src/page.tsx",
+    ownedFiles: ["src/page.tsx"],
+    theme: "light",
+    locale: "en",
+  }
+  const manifest = { generatedFrom: "test", baselineRef: "HEAD", baselineSha: "HEAD", cells: [cell] }
   if (withManifest) writeFileSync(join(fixtureRoot, ".claude", "manifests", "surfaces.json"), JSON.stringify(manifest))
   if (withPaused) writeFileSync(join(fixtureRoot, ".claude", "manifests", "PAUSED"), "")
-  if (artifact) {
-    const bytes = Buffer.alloc(6 * 1024, 7)
-    writeFileSync(join(fixtureRoot, ".artifacts", "surfaces", "s1--light--en.png"), bytes)
-    if (verdictStatus) {
-      const hash = hashMatches ? createHash("sha256").update(bytes).digest("hex") : "0".repeat(64)
-      writeFileSync(
-        join(fixtureRoot, ".artifacts", "surfaces", "verdicts.json"),
-        JSON.stringify({ version: 1, surfaces: { s1: { status: verdictStatus, findings: [], judgedCells: { "s1--light--en.png": hash } } } }),
-      )
-    }
-  }
+
+  // The evidence files are keyed to the surface signature, so the fixture asks
+  // the real oracle for it instead of hardcoding a hash that would rot.
+  const signature = surfaceSignatureFor(fixtureRoot)
+  if (judged)
+    writeFileSync(
+      join(fixtureRoot, ".claude", "manifests", "defects.json"),
+      JSON.stringify({
+        version: 1,
+        cells: {
+          "s1--default--light--en": {
+            surfaceSignature: judged === "stale" ? "STALE-SIGNATURE" : signature,
+            findings: blocker ? [{ severity: "blocker", issue: "text overflows its container" }] : [],
+          },
+        },
+      }),
+    )
+  if (signed)
+    writeFileSync(
+      join(fixtureRoot, ".claude", "manifests", "signoff.json"),
+      JSON.stringify({ version: 1, cells: { "s1--default--light--en": { surfaceSignature: signature, by: "thomas" } } }),
+    )
   return fixtureRoot
+}
+
+/** Ask the real oracle for the fixture surface's signature, so tests never hardcode a hash. */
+function surfaceSignatureFor(fixtureRoot) {
+  const res = spawnSync(process.execPath, [join(hooksDir, "..", "..", "tools", "check-surface-coverage.mjs"), "--json"], {
+    cwd: fixtureRoot,
+    env: { ...process.env, ORBIT_SURFACE_ROOT: fixtureRoot },
+    encoding: "utf8",
+  })
+  const parsed = JSON.parse(res.stdout || "{}")
+  return parsed?.results?.[0]?.surfaceSignature ?? ""
 }
 const gateStatus = (fixtureRoot, payload = {}) => runHookEnv("surface-coverage-gate.mjs", payload, { ORBIT_SURFACE_ROOT: fixtureRoot })
 /** Point the gate at a transcript whose last assistant message is `text`. */
@@ -529,12 +588,86 @@ T("cc surface-gate: PAUSED -> 0 (human disarm)", gateStatus(buildGateFixture("pa
 T("cc surface-gate: shortfall + no completion claim -> 0", gateSaid(buildGateFixture("noclaim"), NO_CLAIM), 0)
 T("cc surface-gate: shortfall + no transcript -> 0", gateStatus(buildGateFixture("notranscript")), 0)
 T("cc surface-gate: claim + unjudged -> 2", gateSaid(buildGateFixture("unjudged"), CLAIM), 2)
-T("cc surface-gate: claim + missing artifact -> 2", gateSaid(buildGateFixture("missing", { artifact: false }), CLAIM), 2)
-T("cc surface-gate: claim + judge-rejected -> 2", gateSaid(buildGateFixture("rejected", { verdictStatus: "partial" }), CLAIM), 2)
-T("cc surface-gate: claim + verdict hash mismatch -> 2", gateSaid(buildGateFixture("stalev", { verdictStatus: "transformed", hashMatches: false }), CLAIM), 2)
 T("cc surface-gate: claim + honest ratio stated -> 0", gateSaid(buildGateFixture("honest"), CLAIM_WITH_RATIO), 0)
-T("cc surface-gate: transformed + matching hash -> 0", gateSaid(buildGateFixture("done", { verdictStatus: "transformed" }), CLAIM), 0)
 T("cc surface-gate: stop_hook_active loop guard -> 0", gateSaid(buildGateFixture("loop"), CLAIM, { stop_hook_active: true }), 0)
+// All three axes satisfied is the only way a claim passes silently.
+T(
+  "cc surface-gate: claim + touched+judged+signed -> 0",
+  gateSaid(buildGateFixture("done", { judged: "fresh", signed: true }), CLAIM),
+  0,
+)
+
+// ---------------------------------------------------------------------------
+// The completion oracle's own guarantees (#539 harness rebuild, 2026-07-19).
+// These are the properties six sessions asserted in prose and never checked.
+// ---------------------------------------------------------------------------
+console.log("\n# visual completion oracle")
+const oracle = (fixtureRoot) => {
+  const res = spawnSync(process.execPath, [join(hooksDir, "..", "..", "tools", "check-surface-coverage.mjs"), "--json"], {
+    cwd: fixtureRoot,
+    env: { ...process.env, ORBIT_SURFACE_ROOT: fixtureRoot },
+    encoding: "utf8",
+  })
+  return JSON.parse(res.stdout || "{}")
+}
+const oracleText = (fixtureRoot) =>
+  spawnSync(process.execPath, [join(hooksDir, "..", "..", "tools", "check-surface-coverage.mjs")], {
+    cwd: fixtureRoot,
+    env: { ...process.env, ORBIT_SURFACE_ROOT: fixtureRoot },
+    encoding: "utf8",
+  }).stdout
+
+// 1. An UNTOUCHED surface can never be done, however much other evidence exists.
+//    This is the route-explore property: byte-identical to the pre-#539 baseline,
+//    yet the old judge scored it "transformed" on both votes.
+const untouched = oracle(buildGateFixture("untouched", { worked: false, judged: "fresh", signed: true }))
+T("oracle: unchanged surface is not touched", untouched.results?.[0]?.touched, false)
+T("oracle: unchanged surface is never done", untouched.complete, false)
+
+// 2. NOTHING automatic grants: touched + judge-clear without a human tick is not done.
+const unsigned = oracle(buildGateFixture("unsigned", { judged: "fresh" }))
+T("oracle: touched + judged but unsigned is not done", unsigned.complete, false)
+T("oracle: unsigned cell names the missing human grant", /unsigned/.test(String(unsigned.failures?.[0]?.reasons)), true)
+
+// 3. The judge can VETO. A blocker finding withholds a cell even when signed.
+const vetoed = oracle(buildGateFixture("veto", { judged: "fresh", signed: true, blocker: true }))
+T("oracle: a blocker finding vetoes an otherwise-complete cell", vetoed.complete, false)
+
+// 4. Evidence is pinned to the surface signature, so a stale report cannot carry.
+const staleJudge = oracle(buildGateFixture("stalejudge", { judged: "stale", signed: true }))
+T("oracle: a judge report for a different signature does not count", staleJudge.complete, false)
+
+// 5. DETERMINISM. Two runs over an unchanged tree must be byte-identical; the
+//    old oracle drifted 16 -> 20 -> 19 -> 20 with nobody editing.
+const twiceRoot = buildGateFixture("twice", { judged: "fresh", signed: true })
+T("oracle: two runs on an unchanged tree are byte-identical", oracleText(twiceRoot) === oracleText(twiceRoot), true)
+
+// 6. HONESTY AS CODE. Every human-readable run states its own scope, so a
+//    partial number can never be read as whole-app coverage. This replaces the
+//    prose sentence whose only measured effect was shredding a status line.
+const scopeText = oracleText(twiceRoot)
+T("oracle: output always states its scope", /^SCOPE:/m.test(scopeText), true)
+T("oracle: output always names the human-signed axis", /human-signed/.test(scopeText), true)
+T("oracle: output always names the baseline it compares against", /baseline /.test(scopeText), true)
+
+// 7. FAIL CLOSED. An unresolvable baseline makes every file look new, which
+//    would silently satisfy the touched axis for the whole app.
+const noGitRoot = join(root, "gate-nogit")
+mkdirSync(join(noGitRoot, ".claude", "manifests"), { recursive: true })
+mkdirSync(join(noGitRoot, "src"), { recursive: true })
+writeFileSync(join(noGitRoot, "src", "page.tsx"), WORKED_TSX)
+writeFileSync(
+  join(noGitRoot, ".claude", "manifests", "surfaces.json"),
+  JSON.stringify({
+    generatedFrom: "test",
+    baselineRef: "deadbeef",
+    baselineSha: "deadbeef",
+    cells: [{ surfaceId: "s1", platform: "web", kind: "route", state: "default", sourceFile: "src/page.tsx", ownedFiles: ["src/page.tsx"], theme: "light", locale: "en" }],
+  }),
+)
+const unresolvable = oracle(noGitRoot)
+T("oracle: unresolvable baseline is UNKNOWN, not touched", unresolvable.results?.[0]?.touched, false)
+T("oracle: unresolvable baseline says so explicitly", /baseline-unresolvable/.test(String(unresolvable.failures?.[0]?.reasons)), true)
 
 // ---------------------------------------------------------------------------
 // 3. opencode plugin — same rules, opencode contract
