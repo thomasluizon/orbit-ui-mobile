@@ -59,7 +59,7 @@ export default function AchievementsScreen() {
   }, [accountProfile, canViewGamification, router])
 
   const levelSubtitle = profile
-    ? `${t('gamification.profileCard.level', { level: profile.level })} · ${profile.levelTitle}`
+    ? `${t('gamification.profileCard.level', { level: profile.level })} · ${t(`gamification.levelTitles.${profile.levelTitleKey}`)}`
     : undefined
 
   const xpLine = profile
@@ -156,7 +156,7 @@ export default function AchievementsScreen() {
                       style={[styles.levelTitle, { color: tokens.fg1 }]}
                       numberOfLines={1}
                     >
-                      {profile.levelTitle}
+                      {t(`gamification.levelTitles.${profile.levelTitleKey}`)}
                     </Text>
                     <Text style={[styles.levelMeta, { color: tokens.fg3 }]}>
                       {xpLine}

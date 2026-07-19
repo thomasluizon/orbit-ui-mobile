@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, type ReactNode } from 'react'
 import { Animated, Pressable, Text, View } from 'react-native'
 import { CalendarDays, Snowflake } from '@/components/ui/icons'
 import { usePrefersReducedMotion } from '@/lib/motion'
+import { EmptyState } from '@/components/ui/empty-state'
 import { SectionLabel } from '@/components/ui/section-label'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { StatusDot } from '@/components/ui/status-dot'
@@ -50,7 +51,6 @@ export function FreezeProgressCard(props: Readonly<FreezeProgressCardProps>) {
 
 function FreezeAutoCard(props: Readonly<FreezeProgressCardProps>) {
   const { t, isFrozenToday, protectedDates, displayDate } = props
-  const tokens = useTokens()
   const dates = protectedDates.slice(0, 5)
 
   return (
@@ -81,9 +81,7 @@ function FreezeAutoCard(props: Readonly<FreezeProgressCardProps>) {
             ))}
           </CardGroup>
         ) : (
-          <Text style={[styles.emptyText, { color: tokens.fg3 }]}>
-            {t('streakDisplay.freeze.protected.empty')}
-          </Text>
+          <EmptyState icon={Snowflake} description={t('streakDisplay.freeze.protected.empty')} />
         )}
       </View>
     </>

@@ -9,6 +9,11 @@ interface RingMotifProps {
   ringSize?: number
   ringColor?: string
   dashed?: boolean
+  /** Render the concentric ring backdrop. Off for a static (non-celebration) anchor: an
+   *  un-animated multi-ring backdrop is a decorative background orbit arc, which DESIGN.md
+   *  bans outright — the rings are sanctioned only as the transient one-time celebration
+   *  burst they were designed for, never as static page chrome. */
+  showRings?: boolean
 }
 
 export function RingMotif({
@@ -19,6 +24,7 @@ export function RingMotif({
   ringSize = 280,
   ringColor,
   dashed = false,
+  showRings = true,
 }: Readonly<RingMotifProps>) {
   const color = ringColor ?? 'var(--primary)'
 
@@ -27,28 +33,30 @@ export function RingMotif({
       className="relative flex flex-col items-center"
       style={{ gap: 16 }}
     >
-      <div
-        aria-hidden="true"
-        data-slot="celebration-rings"
-        className="absolute inset-0 flex items-center justify-center pointer-events-none"
-      >
-        {Array.from({ length: ringCount }).map((_, i) => {
-          const size = (ringSize * (i + 1)) / ringCount
-          const opacity = i === 0 ? 0.85 : (1 - i / ringCount) * 0.6
-          return (
-            <span
-              key={size}
-              className="absolute rounded-full"
-              style={{
-                width: size,
-                height: size,
-                border: `1px ${dashed ? 'dashed' : 'solid'} ${color}`,
-                opacity,
-              }}
-            />
-          )
-        })}
-      </div>
+      {showRings && (
+        <div
+          aria-hidden="true"
+          data-slot="celebration-rings"
+          className="absolute inset-0 flex items-center justify-center pointer-events-none"
+        >
+          {Array.from({ length: ringCount }).map((_, i) => {
+            const size = (ringSize * (i + 1)) / ringCount
+            const opacity = i === 0 ? 0.85 : (1 - i / ringCount) * 0.6
+            return (
+              <span
+                key={size}
+                className="absolute rounded-full"
+                style={{
+                  width: size,
+                  height: size,
+                  border: `1px ${dashed ? 'dashed' : 'solid'} ${color}`,
+                  opacity,
+                }}
+              />
+            )
+          })}
+        </div>
+      )}
 
       {eyebrow && (
         <div

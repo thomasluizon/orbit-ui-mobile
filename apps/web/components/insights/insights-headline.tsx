@@ -20,7 +20,7 @@ export function InsightsHeadline({
   const t = useTranslations()
 
   return (
-    <div className="flex flex-col items-end gap-0.5">
+    <div className="flex flex-col items-end gap-1">
       <span className="t-num" style={{ fontSize: 22, lineHeight: 1.1, color: 'var(--fg-1)' }}>
         {value}
       </span>

@@ -23,7 +23,8 @@ interface StreakStatsRowProps {
   longestStreak: number
 }
 
-/** Kit StatTile row for the streak detail: current, longest, and tier. */
+/** Kit StatTile row for the streak detail: longest and tier (current streak is
+ *  already the hero's focal number above; repeating it here would say it twice). */
 export function StreakStatsRow({
   t,
   streak,
@@ -33,11 +34,6 @@ export function StreakStatsRow({
     <View>
       <SectionLabel>{t('streakDisplay.detail.stats')}</SectionLabel>
       <View style={styles.statsRow}>
-        <StatTile
-          emoji="🔥"
-          value={streak}
-          label={t('streakDisplay.detail.currentStreak')}
-        />
         <StatTile
           emoji="🏆"
           value={longestStreak}

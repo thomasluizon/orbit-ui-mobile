@@ -42,7 +42,7 @@ export function StreakHero({
         style={{
           width: 64,
           height: 64,
-          background: 'color-mix(in srgb, var(--fg-1) 6%, transparent)',
+          background: 'var(--bg-well)',
         }}
       >
         {streak === 0 ? (

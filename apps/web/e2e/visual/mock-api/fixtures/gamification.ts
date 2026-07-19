@@ -9,6 +9,7 @@ export const gamificationProfileFixture = {
   totalXp: 0,
   level: 1,
   levelTitle: 'Newcomer',
+  levelTitleKey: 'starter',
   xpForCurrentLevel: 0,
   xpForNextLevel: 100,
   xpToNextLevel: 100,

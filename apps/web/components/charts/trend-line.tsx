@@ -176,7 +176,7 @@ export function TrendLine({
         {activePoint && (
           <div
             aria-hidden
-            className="pointer-events-none absolute z-10 whitespace-nowrap rounded-[10px] px-2.5 py-1.5"
+            className="pointer-events-none absolute z-10 whitespace-nowrap rounded-[10px] px-3 py-1"
             style={{
               left: `${dotLeft}%`,
               top: yAt(activePoint.value),

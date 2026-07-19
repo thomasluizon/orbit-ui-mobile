@@ -56,7 +56,7 @@ export default function InsightsPage() {
     <div className="stagger-enter min-h-dvh pb-10">
       {phoneBackBar}
       <header className="flex flex-col gap-4 pt-6 pb-2">
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-2">
           <h1 className="t-display text-balance">{t('insights.title')}</h1>
           <p className="t-secondary text-balance">{t('insights.subtitle')}</p>
         </div>

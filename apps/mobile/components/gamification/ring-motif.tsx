@@ -18,6 +18,11 @@ interface RingMotifProps {
   ringColor?: string
   /** Render rings with a dashed border instead of solid. */
   dashed?: boolean
+  /** Render the concentric ring backdrop. Off for a static (non-celebration) anchor: an
+   *  un-animated multi-ring backdrop is a decorative background orbit arc, which DESIGN.md
+   *  bans outright — the rings are sanctioned only as the transient one-time celebration
+   *  burst they were designed for, never as static page chrome. */
+  showRings?: boolean
 }
 
 /** Saturn-ring celebration primitive — concentric hairline rings around an anchor. */
@@ -29,31 +34,34 @@ export function RingMotif({
   ringSize = 280,
   ringColor,
   dashed = false,
+  showRings = true,
 }: Readonly<RingMotifProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const color = ringColor ?? tokens.primary
 
-  const rings = Array.from({ length: ringCount }).map((_, i) => {
-    const size = (ringSize * (i + 1)) / ringCount
-    const opacity = i === 0 ? 0.85 : (1 - i / ringCount) * 0.6
-    return (
-      <View
-        key={size}
-        pointerEvents="none"
-        style={{
-          position: 'absolute',
-          width: size,
-          height: size,
-          borderRadius: 999,
-          borderWidth: 1,
-          borderStyle: dashed ? 'dashed' : 'solid',
-          borderColor: color,
-          opacity,
-        }}
-      />
-    )
-  })
+  const rings = showRings
+    ? Array.from({ length: ringCount }).map((_, i) => {
+        const size = (ringSize * (i + 1)) / ringCount
+        const opacity = i === 0 ? 0.85 : (1 - i / ringCount) * 0.6
+        return (
+          <View
+            key={size}
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              width: size,
+              height: size,
+              borderRadius: 999,
+              borderWidth: 1,
+              borderStyle: dashed ? 'dashed' : 'solid',
+              borderColor: color,
+              opacity,
+            }}
+          />
+        )
+      })
+    : null
 
   return (
     <View style={styles.root}>

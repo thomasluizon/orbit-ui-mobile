@@ -48,8 +48,8 @@ export const titleStyle: CSSProperties = {
 
 export const coverTitleStyle: CSSProperties = {
   fontFamily: 'var(--font-display)',
-  fontSize: 44,
-  lineHeight: 1.1,
+  fontSize: 60,
+  lineHeight: 1.15,
   fontWeight: 700,
   letterSpacing: '-0.02em',
   color: 'var(--fg-1)',

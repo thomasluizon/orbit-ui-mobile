@@ -61,7 +61,6 @@ function AchievementTile({ achievement, t, displayDate }: Readonly<AchievementTi
         borderRadius: 16,
         background: 'var(--bg-card)',
         boxShadow: 'inset 0 0 0 1px var(--hairline)',
-        opacity: earned ? 1 : 0.45,
       }}
     >
       <span
@@ -70,6 +69,7 @@ function AchievementTile({ achievement, t, displayDate }: Readonly<AchievementTi
           fontSize: 30,
           lineHeight: 1,
           marginBottom: 8,
+          opacity: earned ? 1 : 0.5,
           filter: earned ? 'none' : 'grayscale(1)',
         }}
       >
@@ -81,7 +81,7 @@ function AchievementTile({ achievement, t, displayDate }: Readonly<AchievementTi
           fontSize: 12,
           fontWeight: 500,
           lineHeight: 1.3,
-          color: earned ? 'var(--fg-1)' : 'var(--fg-2)',
+          color: earned ? 'var(--fg-1)' : 'var(--fg-3)',
           marginBottom: 4,
         }}
       >
@@ -93,7 +93,7 @@ function AchievementTile({ achievement, t, displayDate }: Readonly<AchievementTi
           // react-doctor-disable-next-line no-tiny-text -- secondary achievement description, one step below the 12px name for hierarchy; intentional small caption https://github.com/thomasluizon/orbit-ui-mobile/issues/243
           fontSize: 11,
           lineHeight: 1.35,
-          color: 'var(--fg-3)',
+          color: earned ? 'var(--fg-3)' : 'var(--fg-4)',
         }}
       >
         {description}

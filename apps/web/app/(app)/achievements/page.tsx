@@ -44,7 +44,7 @@ export default function AchievementsPage() {
   }, [accountProfile, canViewGamification, router])
 
   const subtitle = profile
-    ? `${t('gamification.profileCard.level', { level: profile.level })} · ${profile.levelTitle}`
+    ? `${t('gamification.profileCard.level', { level: profile.level })} · ${t(`gamification.levelTitles.${profile.levelTitleKey}`)}`
     : undefined
 
   return (

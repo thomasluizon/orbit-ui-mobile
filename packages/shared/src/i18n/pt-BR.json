@@ -2290,6 +2290,18 @@
       "totalXp": "{total} XP",
       "earned": "{count}/{total} conquistas"
     },
+    "levelTitles": {
+      "starter": "Iniciante",
+      "explorer": "Explorador",
+      "orbiter": "Orbitante",
+      "navigator": "Navegador",
+      "pilot": "Piloto",
+      "captain": "Capitão",
+      "commander": "Comandante",
+      "admiral": "Almirante",
+      "elite": "Elite",
+      "legend": "Lenda"
+    },
     "page": {
       "lockedTitle": "Libere as conquistas",
       "lockedDescription": "Assine o Pro para acompanhar seu progresso, ganhar XP e desbloquear conquistas.",
@@ -2554,7 +2566,7 @@
       "tierStrong": "Forte",
       "tierSteady": "Constante",
       "tierNormal": "Normal",
-      "tierTileLabel": "Rank",
+      "tierTileLabel": "Classificação",
       "dayActive": "Ativo",
       "dayFrozen": "Congelado",
       "dayMissed": "Perdido",

@@ -408,6 +408,7 @@ export function RetrospectiveDashboard({
 
   return (
     <div
+      data-testid="retrospective-dashboard"
       className="flex flex-col"
       style={{ gap: 12, padding: '16px 20px 24px' }}
     >

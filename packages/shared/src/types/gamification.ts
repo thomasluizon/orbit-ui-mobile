@@ -64,6 +64,7 @@ export const gamificationProfileSchema = z.object({
   totalXp: z.number(),
   level: z.number(),
   levelTitle: z.string(),
+  levelTitleKey: z.string(),
   xpForCurrentLevel: z.number(),
   xpForNextLevel: z.number(),
   xpToNextLevel: z.number().nullable(),

@@ -7,11 +7,7 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
-vi.mock('@/components/gamification/ring-motif', () => ({
-  RingMotif: ({ eyebrow, anchor }: { eyebrow: string; anchor: React.ReactNode }) => (
-    <div>{eyebrow}{anchor}</div>
-  ),
-}))
+vi.mock('@/components/ui/app-logo', () => ({ AppLogo: () => <span data-testid="logo" /> }))
 vi.mock('@/components/ui/chip', () => ({
   Chip: ({ active, onClick, children, ariaLabel }: {
     active: boolean; onClick: () => void; children: React.ReactNode; ariaLabel: string
@@ -27,7 +23,11 @@ vi.mock('@/components/ui/pill-button', () => ({
   ),
 }))
 vi.mock('@/components/ui/satellite-glyph', () => ({ SatelliteGlyph: () => <span data-testid="glyph" /> }))
-vi.mock('@/app/(app)/wrapped/_components/wrapped-styles', () => ({ coverTitleStyle: {}, coverSubtitleStyle: {} }))
+vi.mock('@/app/(app)/wrapped/_components/wrapped-styles', () => ({
+  coverTitleStyle: {},
+  coverSubtitleStyle: {},
+  eyebrowStyle: {},
+}))
 
 import { WrappedCover } from '@/app/(app)/wrapped/_components/wrapped-cover'
 

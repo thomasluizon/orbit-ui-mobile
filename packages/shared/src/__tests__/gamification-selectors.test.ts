@@ -33,6 +33,7 @@ function makeProfile(overrides: Partial<GamificationProfile> = {}): Gamification
     totalXp: 500,
     level: 5,
     levelTitle: 'Adept',
+    levelTitleKey: 'pilot',
     xpForCurrentLevel: 400,
     xpForNextLevel: 600,
     xpToNextLevel: 100,

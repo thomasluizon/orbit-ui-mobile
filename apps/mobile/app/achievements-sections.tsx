@@ -90,7 +90,6 @@ function AchievementTile({
       testID={`achievement-${achievement.id}`}
       style={[
         styles.tile,
-        !earned && styles.tileLocked,
         {
           width,
           backgroundColor: tokens.bgCard,
@@ -104,13 +103,13 @@ function AchievementTile({
         </Text>
       </View>
       <Text
-        style={[styles.name, { color: earned ? tokens.fg1 : tokens.fg2 }]}
+        style={[styles.name, { color: earned ? tokens.fg1 : tokens.fg3 }]}
         numberOfLines={2}
       >
         {name}
       </Text>
       <Text
-        style={[styles.description, { color: tokens.fg3 }]}
+        style={[styles.description, { color: earned ? tokens.fg3 : tokens.fg4 }]}
         numberOfLines={3}
       >
         {description}
@@ -142,10 +141,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     alignItems: 'center',
   },
-  tileLocked: {
-    opacity: 0.45,
-  },
   lockedEmoji: {
+    opacity: 0.5,
     filter: [{ grayscale: 1 }],
   },
   emoji: {

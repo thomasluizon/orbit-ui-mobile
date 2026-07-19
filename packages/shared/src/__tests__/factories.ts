@@ -173,6 +173,7 @@ export function createMockGamificationProfile(
     totalXp: 500,
     level: 3,
     levelTitle: 'Habit Builder',
+    levelTitleKey: 'habit_builder',
     xpForCurrentLevel: 400,
     xpForNextLevel: 800,
     xpToNextLevel: 300,

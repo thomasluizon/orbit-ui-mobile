@@ -25,6 +25,7 @@ export function RetrospectiveEmptyState({
           onClick={onGenerate}
           disabled={!isOnline}
           fullWidth
+          dataTestId="retrospective-generate"
           leading={<Orbit size={16} strokeWidth={1.8} aria-hidden="true" />}
         >
           {t('retrospective.generate')}

@@ -1,5 +1,6 @@
 import React, { type ReactNode } from 'react'
 import { CalendarDays, Snowflake } from '@/components/ui/icons'
+import { EmptyState } from '@/components/ui/empty-state'
 import { PillButton } from '@/components/ui/pill-button'
 import { SectionLabel } from '@/components/ui/section-label'
 import { StatTile } from '@/components/ui/stat-tile'
@@ -45,11 +46,6 @@ export function StreakStatsRow({
     <div>
       <SectionLabel>{t('streakDisplay.detail.stats')}</SectionLabel>
       <div className="flex px-5" style={{ gap: 12 }}>
-        <StatTile
-          emoji="🔥"
-          value={streak}
-          label={t('streakDisplay.detail.currentStreak')}
-        />
         <StatTile
           emoji="🏆"
           value={longestStreak}
@@ -164,8 +160,8 @@ function StreakDayCell({
           aria-hidden="true"
           className="absolute"
           style={{
-            top: 7,
-            bottom: 7,
+            top: 8,
+            bottom: 8,
             left: runStart ? 5 : 0,
             right: runEnd ? 5 : 0,
             background: 'color-mix(in srgb, var(--status-overdue) 16%, transparent)',
@@ -352,16 +348,7 @@ function FreezeAutoCard(props: Readonly<FreezeProgressCardProps>) {
             ))}
           </CardGroup>
         ) : (
-          <p
-            style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 14,
-              lineHeight: 1.55,
-              color: 'var(--fg-3)',
-            }}
-          >
-            {t('streakDisplay.freeze.protected.empty')}
-          </p>
+          <EmptyState description={t('streakDisplay.freeze.protected.empty')} />
         )}
       </div>
     </>
@@ -563,7 +550,7 @@ function ChargeGauge({
   max,
 }: Readonly<{ banked: number; max: number }>) {
   return (
-    <span className="inline-flex items-center" style={{ gap: 5 }}>
+    <span className="inline-flex items-center" style={{ gap: 4 }}>
       {Array.from({ length: max }, (_, index) => `charge-pip-${index}`).map((pipKey, index) => {
         const filled = index < banked
         return (

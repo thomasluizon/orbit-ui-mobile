@@ -91,9 +91,9 @@ export const styles = StyleSheet.create({
   coverHeader: { alignItems: 'center', gap: 10 },
   coverTitle: {
     fontFamily: 'Inter_700Bold',
-    fontSize: 44,
-    lineHeight: 48,
-    letterSpacing: -0.88,
+    fontSize: 60,
+    lineHeight: 69,
+    letterSpacing: -1.2,
     textAlign: 'center',
   },
   coverSubtitle: { fontFamily: 'Rubik_400Regular', fontSize: 14, textAlign: 'center', maxWidth: 300 },

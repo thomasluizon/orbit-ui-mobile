@@ -41,7 +41,7 @@ export function AchievementXpCard({
                 color: 'var(--fg-1)',
               }}
             >
-              {profile.levelTitle}
+              {t(`gamification.levelTitles.${profile.levelTitleKey}`)}
             </div>
             <div
               style={{

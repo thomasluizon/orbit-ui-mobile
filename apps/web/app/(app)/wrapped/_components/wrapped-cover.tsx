@@ -3,11 +3,11 @@
 import { Play } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { RECAP_SHARE_PERIODS, type RecapSharePeriod } from '@orbit/shared/utils'
-import { RingMotif } from '@/components/gamification/ring-motif'
+import { AppLogo } from '@/components/ui/app-logo'
 import { Chip } from '@/components/ui/chip'
 import { PillButton } from '@/components/ui/pill-button'
 import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
-import { coverSubtitleStyle, coverTitleStyle } from './wrapped-styles'
+import { coverSubtitleStyle, coverTitleStyle, eyebrowStyle } from './wrapped-styles'
 
 interface WrappedCoverProps {
   period: RecapSharePeriod
@@ -39,17 +39,14 @@ export function WrappedCover({
       className="flex flex-1 flex-col items-center justify-center text-center md:flex-none md:min-h-[calc(100dvh-168px)]"
       style={{ gap: 28, padding: '0 28px 32px' }}
     >
-      <RingMotif
-        dashed
-        ringSize={300}
-        eyebrow={t('wrapped.coverEyebrow')}
-        anchor={
-          <div className="flex flex-col items-center" style={{ gap: 10 }}>
-            <h1 style={coverTitleStyle}>{t('wrapped.title')}</h1>
-            <p style={coverSubtitleStyle}>{t('wrapped.coverSubtitle')}</p>
-          </div>
-        }
-      />
+      <div className="flex flex-col items-center" style={{ gap: 16 }}>
+        <AppLogo size={40} />
+        <span style={eyebrowStyle}>{t('wrapped.coverEyebrow')}</span>
+        <div className="flex flex-col items-center" style={{ gap: 10 }}>
+          <h1 style={coverTitleStyle}>{t('wrapped.title')}</h1>
+          <p style={coverSubtitleStyle}>{t('wrapped.coverSubtitle')}</p>
+        </div>
+      </div>
 
       <div className="flex flex-col items-center" style={{ gap: 22 }}>
         <div className="flex items-center justify-center" style={{ gap: 8, flexWrap: 'wrap' }}>

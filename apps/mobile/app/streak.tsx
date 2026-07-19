@@ -151,7 +151,7 @@ export default function StreakScreen() {
               <View
                 style={[
                   styles.heroWell,
-                  { backgroundColor: rgbaFromHex(tokens.fg1, 0.06) },
+                  { backgroundColor: tokens.bgWell },
                 ]}
                 accessibilityElementsHidden
               >

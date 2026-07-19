@@ -2290,6 +2290,18 @@
       "totalXp": "{total} XP",
       "earned": "{count}/{total} achievements"
     },
+    "levelTitles": {
+      "starter": "Starter",
+      "explorer": "Explorer",
+      "orbiter": "Orbiter",
+      "navigator": "Navigator",
+      "pilot": "Pilot",
+      "captain": "Captain",
+      "commander": "Commander",
+      "admiral": "Admiral",
+      "elite": "Elite",
+      "legend": "Legend"
+    },
     "page": {
       "lockedTitle": "Unlock Achievements",
       "lockedDescription": "Upgrade to Pro to track your progress, earn XP, and unlock achievements.",

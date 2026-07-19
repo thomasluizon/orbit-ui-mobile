@@ -126,6 +126,7 @@ describe('AchievementsPage', () => {
     mockGamificationProfile = {
       level: 5,
       levelTitle: 'Habit Builder',
+      levelTitleKey: 'pilot',
       totalXp: 1200,
       xpForNextLevel: 2000,
       achievementsEarned: 3,
@@ -135,13 +136,14 @@ describe('AchievementsPage', () => {
     }
     render(<AchievementsPage />)
     expect(document.body.textContent).toContain('gamification.profileCard.level:{"level":5}')
-    expect(screen.getByText('Habit Builder')).toBeInTheDocument()
+    expect(screen.getByText('gamification.levelTitles.pilot')).toBeInTheDocument()
   })
 
   it('renders XP progress information', () => {
     mockGamificationProfile = {
       level: 5,
       levelTitle: 'Habit Builder',
+      levelTitleKey: 'pilot',
       totalXp: 1200,
       xpForNextLevel: 2000,
       achievementsEarned: 3,
@@ -158,6 +160,7 @@ describe('AchievementsPage', () => {
     mockGamificationProfile = {
       level: 5,
       levelTitle: 'Habit Builder',
+      levelTitleKey: 'pilot',
       totalXp: 1200,
       xpForNextLevel: 2000,
       achievementsEarned: 3,
@@ -173,6 +176,7 @@ describe('AchievementsPage', () => {
     mockGamificationProfile = {
       level: 5,
       levelTitle: 'Habit Builder',
+      levelTitleKey: 'pilot',
       totalXp: 1200,
       xpForNextLevel: 2000,
       achievementsEarned: 2,
@@ -205,6 +209,7 @@ describe('AchievementsPage', () => {
     mockGamificationProfile = {
       level: 5,
       levelTitle: 'Habit Builder',
+      levelTitleKey: 'pilot',
       totalXp: 1200,
       xpForNextLevel: 2000,
       achievementsEarned: 1,
@@ -232,6 +237,7 @@ describe('AchievementsPage', () => {
     mockGamificationProfile = {
       level: 1,
       levelTitle: 'Beginner',
+      levelTitleKey: 'starter',
       totalXp: 0,
       xpForNextLevel: 100,
       achievementsEarned: 0,
@@ -254,6 +260,7 @@ describe('AchievementsPage', () => {
     mockGamificationProfile = {
       level: 3,
       levelTitle: 'Intermediate',
+      levelTitleKey: 'orbiter',
       totalXp: 600,
       xpForNextLevel: 1000,
       achievementsEarned: 1,

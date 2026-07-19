@@ -168,6 +168,13 @@ const OPENERS = {
     await page.getByTestId("api-key-create-open").click()
     await page.getByRole("dialog").waitFor({ state: "visible" })
   },
+  // The route itself only ever renders the pre-generation prompt on a fresh
+  // fixture; the actual dashboard (charts, narrative, gamification numbers) is
+  // one AI call away. Drive it so the judge sees the real surface, not the shell.
+  "route-retrospective": async (page) => {
+    await page.getByTestId("retrospective-generate").click()
+    await page.getByTestId("retrospective-dashboard").waitFor({ state: "visible", timeout: 30000 })
+  },
 }
 
 const FREEZE_MOTION_CSS = `
@@ -411,7 +418,10 @@ async function main() {
         storageState: storageStatePath ?? undefined,
       })
       await context.addCookies(cookiesFor(args.baseUrl, theme, locale))
-      context.setDefaultTimeout(8000)
+      // 8000ms flaked under a warm-but-busy local Next dev server (observed goto ~8.1s,
+      // networkidle ~18.7s under normal #539 session load) -- 30000ms matches Playwright's
+      // own built-in default instead of tightening it.
+      context.setDefaultTimeout(30000)
       // A fresh account never dismissed the coach-mark tour: its spotlight overlay
       // intercepts every click below it, silently breaking every opener that needs
       // to interact with the page. Applies to every page created in this context.

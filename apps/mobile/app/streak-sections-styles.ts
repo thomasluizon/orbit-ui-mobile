@@ -247,9 +247,4 @@ export const styles = StyleSheet.create({
     fontFamily: 'Rubik_500Medium',
     fontSize: 13,
   },
-  emptyText: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 14,
-    lineHeight: 21,
-  },
 })
