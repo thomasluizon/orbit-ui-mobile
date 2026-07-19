@@ -280,6 +280,20 @@ function evaluateCell(cell, context) {
   }
 }
 
+/** True when HEAD is on the trunk branch, where a redesign-pinned baseline is spent. */
+function currentBranchIsTrunk() {
+  try {
+    const branch = execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], {
+      cwd: REPO_ROOT,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim()
+    return branch === "main" || branch === "master"
+  } catch {
+    return false
+  }
+}
+
 /** True when the baseline ref actually resolves in this tree. */
 function baselineResolves(ref) {
   try {
@@ -354,6 +368,18 @@ export function scopeLines(manifest, verdict) {
         "  automated evidence backs them at all. Do not read them as machine-verified.",
     )
   lines.push(`  baseline ${manifest.baselineRef} (${String(manifest.baselineSha ?? "").slice(0, 8)})   HEAD ${String(manifest.generatedFrom).slice(0, 8)}`)
+  // A pinned baseline is SINGLE-USE. Once the redesign it was pinned for merges,
+  // every surface reads as hugely changed against it, `touched` passes for
+  // everything, and the depth floor silently degrades into the rubber stamp it
+  // was built to replace. Nothing else in the harness notices, so say it here.
+  if (currentBranchIsTrunk()) {
+    lines.push(
+      `  WARNING: this baseline was pinned for a redesign branch, and you are on trunk.\n` +
+        `  "Changed since ${manifest.baselineRef}" no longer measures anything: that work has landed.\n` +
+        `  Re-pin the baseline to the current trunk commit and regenerate before trusting the touched axis:\n` +
+        `    npm run surfaces:manifest`,
+    )
+  }
   return lines
 }
 
