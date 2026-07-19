@@ -38,8 +38,6 @@ const DEFAULTS = {
   fallbackModel: "sonnet",
   modelOverride: null,
   permissionMode: "bypassPermissions",
-  perTaskBudgetUsd: 4,
-  totalBudgetUsd: 20,
   perTaskTimeoutMs: 60 * 60 * 1000,
   maxConsecutiveFailures: 2,
   allowedTools: [],
@@ -50,7 +48,6 @@ const DEFAULTS = {
   repos: [{ path: ".", base: "main" }],
   verify: true,
   verifyModel: "sonnet",
-  verifyBudgetUsd: 2,
   verifyTimeoutMs: 20 * 60 * 1000,
   verifyAllowedTools: ["Read", "Grep", "Glob", "Bash(gh pr diff:*)", "Bash(gh pr view:*)", "Bash(git diff:*)", "Bash(git log:*)", "Bash(git show:*)"],
 }
@@ -165,7 +162,6 @@ function buildClaudeArgs(config, task) {
   const effort = resolveEffort(task)
   const args = ["-p", "--output-format", "json", "--model", model, "--permission-mode", config.permissionMode]
   if (effort) args.push("--effort", effort)
-  args.push("--max-budget-usd", String(config.perTaskBudgetUsd))
   if (config.fallbackModel) args.push("--fallback-model", config.fallbackModel)
   if (config.allowedTools?.length) args.push("--allowedTools", config.allowedTools.join(" "))
   if (config.disallowedTools?.length) args.push("--disallowedTools", config.disallowedTools.join(" "))
@@ -189,7 +185,7 @@ function runTask(task, config, promptText, log) {
 
   if (run.error) {
     const reason = run.error.code === "ETIMEDOUT" ? "timed out" : `spawn failed (${run.error.code})`
-    return { status: "failed", model, cost: 0, pr: null, summary: reason, elapsedMs, raw: String(run.stderr || "").slice(-500) }
+    return { status: "failed", model, pr: null, summary: reason, elapsedMs, raw: String(run.stderr || "").slice(-500) }
   }
 
   const outer = (() => {
@@ -199,20 +195,18 @@ function runTask(task, config, promptText, log) {
       return null
     }
   })()
-  const cost = Number(outer?.total_cost_usd ?? outer?.cost_usd ?? 0) || 0
   const resultText = outer?.result ?? run.stdout ?? ""
   if (!outer || outer.is_error) {
-    return { status: "failed", model, cost, pr: null, summary: "child reported an error", elapsedMs, raw: String(resultText).slice(-500) }
+    return { status: "failed", model, pr: null, summary: "child reported an error", elapsedMs, raw: String(resultText).slice(-500) }
   }
 
   const line = parseJsonLine(resultText, "status")
   if (!line) {
-    return { status: "unknown", model, cost, pr: null, summary: "no status line in child output", elapsedMs, raw: String(resultText).slice(-500) }
+    return { status: "unknown", model, pr: null, summary: "no status line in child output", elapsedMs, raw: String(resultText).slice(-500) }
   }
   return {
     status: line.status,
     model,
-    cost,
     pr: line.pr || null,
     summary: String(line.summary || "").slice(0, 500),
     elapsedMs,
@@ -254,14 +248,13 @@ END your final message with EXACTLY one line of JSON (no fences):
 
 function buildVerifyArgs(config) {
   const args = ["-p", "--output-format", "json", "--model", config.verifyModel, "--permission-mode", "bypassPermissions"]
-  args.push("--max-budget-usd", String(config.verifyBudgetUsd))
   if (config.fallbackModel) args.push("--fallback-model", config.fallbackModel)
   if (config.verifyAllowedTools?.length) args.push("--allowedTools", config.verifyAllowedTools.join(" "))
   for (const dir of config.addDirs || []) args.push("--add-dir", resolve(dir))
   return args
 }
 
-/** Run the independent verifier over a task's draft PR. Its cost is returned so the caller adds it to spend. */
+/** Run the independent verifier over a task's draft PR and return its verdict. */
 function verifyTask(task, config, promptText, prUrl) {
   const started = Date.now()
   const run = spawnSync("claude", buildVerifyArgs(config), {
@@ -276,7 +269,7 @@ function verifyTask(task, config, promptText, prUrl) {
   const elapsedMs = Date.now() - started
   if (run.error) {
     const reason = run.error.code === "ETIMEDOUT" ? "verifier timed out" : `verifier spawn failed (${run.error.code})`
-    return { verdict: "UNSURE", cost: 0, reasons: reason, lesson: null, elapsedMs }
+    return { verdict: "UNSURE", reasons: reason, lesson: null, elapsedMs }
   }
   const outer = (() => {
     try {
@@ -285,11 +278,10 @@ function verifyTask(task, config, promptText, prUrl) {
       return null
     }
   })()
-  const cost = Number(outer?.total_cost_usd ?? outer?.cost_usd ?? 0) || 0
   const resultText = outer?.result ?? run.stdout ?? ""
   const line = parseJsonLine(resultText, "verdict")
   if (!line) {
-    return { verdict: "UNSURE", cost, reasons: "verifier returned no verdict line", lesson: null, elapsedMs }
+    return { verdict: "UNSURE", reasons: "verifier returned no verdict line", lesson: null, elapsedMs }
   }
   return {
     verdict: line.verdict,
@@ -297,7 +289,6 @@ function verifyTask(task, config, promptText, prUrl) {
     parityOk: line.parity_ok === true,
     reasons: String(line.reasons || "").slice(0, 600),
     lesson: line.lesson && line.lesson !== "null" ? String(line.lesson).slice(0, 300) : null,
-    cost,
     elapsedMs,
   }
 }
@@ -335,7 +326,7 @@ async function main() {
     appendFileSync(logPath, line + "\n")
   }
 
-  log(`${opts.attended ? "drive (attended)" : "drive --sleep"} starting: ${queue.length} bundle(s), model=${config.model}, per-task cap $${config.perTaskBudgetUsd}, total cap $${config.totalBudgetUsd}`)
+  log(`${opts.attended ? "drive (attended)" : "drive --sleep"} starting: ${queue.length} bundle(s), model=${config.model}, per-task timeout ${Math.round(config.perTaskTimeoutMs / 60000)}min`)
   if (!queue.length) {
     log("queue.json is empty. Nothing to do.")
     return
@@ -356,14 +347,14 @@ async function main() {
 
   const results = []
   const lessons = []
-  let spent = 0
   let consecutiveFailures = 0
-  const row = (r) => `| ${r.id} | ${r.label} | ${r.status} | ${r.verdict || "-"} | $${r.cost.toFixed(2)} | ${r.pr || "-"} |`
+  const wall = (r) => (r.elapsedMs ? `${Math.round(r.elapsedMs / 60000)}min` : "-")
+  const row = (r) => `| ${r.id} | ${r.label} | ${r.status} | ${r.verdict || "-"} | ${wall(r)} | ${r.pr || "-"} |`
   const writeStatus = () => {
     const rows = results.map(row).join("\n")
     writeFileSync(
       statusPath,
-      `# drive status\n\nSpent so far: $${spent.toFixed(2)} / $${config.totalBudgetUsd}\n\n| bundle | label | status | verifier | cost | PR |\n|---|---|---|---|---|---|\n${rows}\n`,
+      `# drive status\n\n| bundle | label | status | verifier | wall | PR |\n|---|---|---|---|---|---|\n${rows}\n`,
     )
   }
 
@@ -376,11 +367,6 @@ async function main() {
       log("STOP flag found. Halting gracefully before the next task.")
       break
     }
-    if (spent >= config.totalBudgetUsd) {
-      log(`Total budget cap ($${config.totalBudgetUsd}) reached. Halting.`)
-      break
-    }
-
     log(`--- task [${task.id}] ${task.label} ---`)
     resetReposToBase(config.repos, log)
 
@@ -394,7 +380,7 @@ async function main() {
     })()
     if (!promptText.trim()) {
       log(`  no prompt for task ${task.id}; skipping.`)
-      results.push({ id: task.id, label: task.label, status: "skipped", cost: 0, pr: null, summary: "missing prompt" })
+      results.push({ id: task.id, label: task.label, status: "skipped", pr: null, summary: "missing prompt" })
       writeStatus()
       continue
     }
@@ -410,28 +396,25 @@ async function main() {
       }
       if (ans === "skip" || ans === "s") {
         log(`  skipped [${task.id}] by user.`)
-        results.push({ id: task.id, label: task.label, status: "skipped", cost: 0, pr: null, summary: "skipped by user" })
+        results.push({ id: task.id, label: task.label, status: "skipped", pr: null, summary: "skipped by user" })
         writeStatus()
         continue
       }
     }
 
     const outcome = runTask(task, config, promptText, log)
-    spent += outcome.cost
     const record = { id: task.id, label: task.label, ...outcome }
     results.push(record)
-    log(`  status=${outcome.status} cost=$${outcome.cost.toFixed(2)} pr=${outcome.pr || "-"} (${Math.round(outcome.elapsedMs / 1000)}s)`)
+    log(`  status=${outcome.status} pr=${outcome.pr || "-"} (${Math.round(outcome.elapsedMs / 1000)}s)`)
     if (outcome.summary) log(`  summary: ${outcome.summary}`)
 
     if (config.verify && !opts.attended && outcome.pr && (outcome.status === "done" || outcome.status === "blocked")) {
       log(`  verifying [${task.id}] against acceptance criteria (independent ${config.verifyModel})...`)
       const verdict = verifyTask(task, config, promptText, outcome.pr)
-      spent += verdict.cost
       record.verdict = verdict.verdict
-      record.verifyCost = verdict.cost
       record.verifyReasons = verdict.reasons
       if (config.push) postVerdictComment(outcome.pr, verdict, log)
-      log(`  verifier=${verdict.verdict} criteriaMet=${verdict.criteriaMet} parityOk=${verdict.parityOk} cost=$${verdict.cost.toFixed(2)}`)
+      log(`  verifier=${verdict.verdict} criteriaMet=${verdict.criteriaMet} parityOk=${verdict.parityOk}`)
       if (verdict.lesson) lessons.push({ id: task.id, label: task.label, source: "verifier", text: verdict.lesson })
     }
     if (outcome.status === "blocked" || outcome.status === "failed") {
@@ -453,7 +436,7 @@ async function main() {
     const hardFailure = outcome.status === "failed" || outcome.status === "unknown"
     consecutiveFailures = hardFailure ? consecutiveFailures + 1 : 0
     if (consecutiveFailures >= config.maxConsecutiveFailures) {
-      log(`Circuit breaker: ${consecutiveFailures} consecutive hard failures. Halting to avoid burning budget.`)
+      log(`Circuit breaker: ${consecutiveFailures} consecutive hard failures. Halting rather than burning the rest of the night.`)
       break
     }
   }
@@ -483,15 +466,14 @@ async function main() {
     `- completed (done): ${done}`,
     `- verifier flagged (DISAGREE): ${flagged}`,
     `- lesson candidates: ${lessons.length}${lessons.length ? ` (see LESSONS.md — run /lesson to promote)` : ""}`,
-    `- total spent: $${spent.toFixed(2)} / $${config.totalBudgetUsd}`,
     ``,
-    `| task | label | status | verifier | cost | PR |`,
+    `| task | label | status | verifier | wall | PR |`,
     `|---|---|---|---|---|---|`,
     ...results.map(row),
     ``,
   ].join("\n")
   writeFileSync(join(runDir, "SUMMARY.md"), summary)
-  log(`DONE. ${done}/${queue.length} completed, ${flagged} flagged, ${lessons.length} lesson candidate(s), $${spent.toFixed(2)} spent. Summary: ${join(runDir, "SUMMARY.md")}`)
+  log(`DONE. ${done}/${queue.length} completed, ${flagged} flagged, ${lessons.length} lesson candidate(s). Summary: ${join(runDir, "SUMMARY.md")}`)
 }
 
 main().catch((err) => {
