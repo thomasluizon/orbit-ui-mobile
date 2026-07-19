@@ -17,6 +17,7 @@
     "clean": "turbo run clean",
     "surfaces:manifest": "node tools/surface-manifest.mjs",
     "surfaces:capture": "node tools/capture-surfaces.mjs",
+    "surfaces:judge": "node tools/judge-surfaces.mjs",
     "surfaces:check": "node tools/check-surface-coverage.mjs",
     "surfaces:sheet": "node tools/contact-sheet.mjs"
   },

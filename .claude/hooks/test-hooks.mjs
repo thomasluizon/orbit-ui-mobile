@@ -9,6 +9,7 @@
 
 import { mkdirSync, writeFileSync, rmSync, cpSync, readFileSync, readdirSync, existsSync } from "node:fs"
 import { spawnSync } from "node:child_process"
+import { createHash } from "node:crypto"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
@@ -28,6 +29,7 @@ import {
   checkCsharpFluentConfig,
 } from "./_lib/rules-source.mjs"
 import { classifyScope, parityMessages } from "./_lib/rules-parity.mjs"
+import { checkGateTamperBash, checkGateTamperEdit } from "./_lib/rules-gate-tamper.mjs"
 
 const hooksDir = dirname(fileURLToPath(import.meta.url))
 let fails = 0
@@ -324,6 +326,29 @@ T("csharp-fluent: unconfigured blocks", !!checkCsharpFluentConfig("/x/orbit-api/
 T("parity: classify web", classifyScope("/x/apps/web/a.ts"), "web")
 T("parity: nudge fires", parityMessages({ web: 3, mobile: 0 }).length > 0, true)
 
+// Visual-gate tamper guard. The gate's state files decide "done" for a visual
+// pass; an agent that can rewrite them can fake completion without doing the
+// work, which is the exact #539 failure. PAUSED is human-only; the manifest and
+// verdicts are writable only through their sanctioned tools.
+T("gate-tamper: touch PAUSED blocks", !!checkGateTamperBash("touch .claude/manifests/PAUSED")?.block, true)
+T("gate-tamper: redirect into PAUSED blocks", !!checkGateTamperBash("echo x > .claude/manifests/PAUSED")?.block, true)
+T("gate-tamper: cat manifest allows", checkGateTamperBash("cat .claude/manifests/surfaces.json"), null)
+T("gate-tamper: jq manifest allows", checkGateTamperBash("jq .cellCount .claude/manifests/surfaces.json"), null)
+T("gate-tamper: rm manifest blocks", !!checkGateTamperBash("rm .claude/manifests/surfaces.json")?.block, true)
+T("gate-tamper: redirect over manifest blocks", !!checkGateTamperBash('echo "{}" > .claude/manifests/surfaces.json')?.block, true)
+T("gate-tamper: git checkout manifest blocks", !!checkGateTamperBash("git checkout HEAD~5 -- .claude/manifests/surfaces.json")?.block, true)
+T("gate-tamper: sanctioned manifest regen allows", checkGateTamperBash("node tools/surface-manifest.mjs"), null)
+T("gate-tamper: npm surfaces:manifest allows", checkGateTamperBash("npm run surfaces:manifest"), null)
+T("gate-tamper: cat verdicts allows", checkGateTamperBash("cat .artifacts/surfaces/verdicts.json"), null)
+T("gate-tamper: node -e write to verdicts blocks", !!checkGateTamperBash(`node -e "require('fs').writeFileSync('.artifacts/surfaces/verdicts.json','{}')"`)?.block, true)
+T("gate-tamper: redirect over verdicts blocks", !!checkGateTamperBash('echo "{}" > .artifacts/surfaces/verdicts.json')?.block, true)
+T("gate-tamper: rm verdicts blocks", !!checkGateTamperBash("rm .artifacts/surfaces/verdicts.json")?.block, true)
+T("gate-tamper: ordinary command allows", checkGateTamperBash("npm run build"), null)
+T("gate-tamper: edit PAUSED blocks", !!checkGateTamperEdit("C:\\x\\.claude\\manifests\\PAUSED")?.block, true)
+T("gate-tamper: edit manifest blocks", !!checkGateTamperEdit("/x/.claude/manifests/surfaces.json")?.block, true)
+T("gate-tamper: edit verdicts blocks", !!checkGateTamperEdit("/x/.artifacts/surfaces/verdicts.json")?.block, true)
+T("gate-tamper: edit ordinary file allows", checkGateTamperEdit("/x/apps/web/app/page.tsx"), null)
+
 // primer's agent-scoped shell allowlist. The deny cases are the point: a prefix
 // allowlist alone is not a fence, so the metacharacter rejection must run first.
 const PRIMER = { allowlist: PRIMER_SHELL_ALLOWLIST, agent: "primer" }
@@ -444,6 +469,57 @@ T("cc primer-allowlist: unreadable payload fails CLOSED -> 2", runHook("primer-s
 // The file-write primitive that has no shell metacharacter, through the real hook.
 T("cc primer-allowlist: git log --output= -> 2", primerShell("git log -1 --format=format:pwned --output=/tmp/orbit-poc.txt"), 2)
 
+const tamperHook = (payload) => runHook("forbid-gate-tamper.mjs", payload)
+T("cc gate-tamper: touch PAUSED -> 2", tamperHook({ tool_name: "Bash", tool_input: { command: "touch .claude/manifests/PAUSED" } }), 2)
+T("cc gate-tamper: cat manifest -> 0", tamperHook({ tool_name: "Bash", tool_input: { command: "cat .claude/manifests/surfaces.json" } }), 0)
+T("cc gate-tamper: rm manifest -> 2", tamperHook({ tool_name: "Bash", tool_input: { command: "rm .claude/manifests/surfaces.json" } }), 2)
+T("cc gate-tamper: Write PAUSED -> 2", tamperHook({ tool_name: "Write", tool_input: { file_path: "/x/.claude/manifests/PAUSED", content: "" } }), 2)
+T("cc gate-tamper: Write verdicts -> 2", tamperHook({ tool_name: "Write", tool_input: { file_path: "/x/.artifacts/surfaces/verdicts.json", content: "{}" } }), 2)
+T("cc gate-tamper: ordinary command -> 0", tamperHook({ tool_name: "Bash", tool_input: { command: "npm run build" } }), 0)
+
+// The Stop gate itself, against disposable fixture roots (ORBIT_SURFACE_ROOT).
+// Polarity is the point under test: armed BY DEFAULT when the manifest exists,
+// disarmed only by completion, a human PAUSED file, or having no manifest.
+function runHookEnv(file, payload, env) {
+  const res = spawnSync(process.execPath, [join(hooksDir, file)], {
+    input: JSON.stringify(payload),
+    encoding: "utf8",
+    env: { ...process.env, ...env },
+  })
+  return res.status
+}
+function buildGateFixture(name, { withManifest = true, withPaused = false, artifact = true, verdictStatus = null, hashMatches = true } = {}) {
+  const fixtureRoot = join(root, `gate-${name}`)
+  mkdirSync(join(fixtureRoot, ".claude", "manifests"), { recursive: true })
+  mkdirSync(join(fixtureRoot, ".artifacts", "surfaces"), { recursive: true })
+  mkdirSync(join(fixtureRoot, "src"), { recursive: true })
+  writeFileSync(join(fixtureRoot, "src", "page.tsx"), "export default 1\n")
+  const manifest = { generatedFrom: "test", cells: [{ surfaceId: "s1", kind: "route", sourceFile: "src/page.tsx", theme: "light", locale: "en" }] }
+  if (withManifest) writeFileSync(join(fixtureRoot, ".claude", "manifests", "surfaces.json"), JSON.stringify(manifest))
+  if (withPaused) writeFileSync(join(fixtureRoot, ".claude", "manifests", "PAUSED"), "")
+  if (artifact) {
+    const bytes = Buffer.alloc(6 * 1024, 7)
+    writeFileSync(join(fixtureRoot, ".artifacts", "surfaces", "s1--light--en.png"), bytes)
+    if (verdictStatus) {
+      const hash = hashMatches ? createHash("sha256").update(bytes).digest("hex") : "0".repeat(64)
+      writeFileSync(
+        join(fixtureRoot, ".artifacts", "surfaces", "verdicts.json"),
+        JSON.stringify({ version: 1, surfaces: { s1: { status: verdictStatus, findings: [], judgedCells: { "s1--light--en.png": hash } } } }),
+      )
+    }
+  }
+  return fixtureRoot
+}
+const gateStatus = (fixtureRoot, payload = {}) => runHookEnv("surface-coverage-gate.mjs", payload, { ORBIT_SURFACE_ROOT: fixtureRoot })
+T("cc surface-gate: no manifest -> 0 (not armed)", gateStatus(buildGateFixture("none", { withManifest: false })), 0)
+T("cc surface-gate: PAUSED -> 0 (human disarm)", gateStatus(buildGateFixture("paused", { withPaused: true })), 0)
+T("cc surface-gate: artifact but unjudged -> 2", gateStatus(buildGateFixture("unjudged")), 2)
+T("cc surface-gate: missing artifact -> 2", gateStatus(buildGateFixture("missing", { artifact: false })), 2)
+T("cc surface-gate: judge-rejected -> 2", gateStatus(buildGateFixture("rejected", { verdictStatus: "partial" })), 2)
+T("cc surface-gate: verdict hash mismatch -> 2", gateStatus(buildGateFixture("stalev", { verdictStatus: "transformed", hashMatches: false })), 2)
+T("cc surface-gate: transformed + matching hash -> 0", gateStatus(buildGateFixture("done", { verdictStatus: "transformed" })), 0)
+T("cc surface-gate: stop_hook_active loop guard -> 0", gateStatus(buildGateFixture("loop"), { stop_hook_active: true }), 0)
+
 // ---------------------------------------------------------------------------
 // 3. opencode plugin — same rules, opencode contract
 // ---------------------------------------------------------------------------
@@ -490,6 +566,9 @@ T("oc after: csharp authz throws", await after("write", { filePath: ctrlBad, con
 T("oc after: supabase eager throws", await after("write", { filePath: supabaseBad, content: "x" }), true)
 T("oc after: supabase lazy allows", await after("write", { filePath: supabaseGood, content: "x" }), false)
 T("oc after: ef raw index throws", await after("write", { filePath: efBad, content: "x" }), true)
+T("oc before: touch PAUSED throws", await before("bash", { command: "touch .claude/manifests/PAUSED" }), true)
+T("oc before: write verdicts throws", await before("write", { filePath: "/x/.artifacts/surfaces/verdicts.json", content: "{}" }), true)
+T("oc before: cat manifest allows", await before("bash", { command: "cat .claude/manifests/surfaces.json" }), false)
 T("oc exposes session.idle guard", typeof hooks["event"], "function")
 
 // ---------------------------------------------------------------------------

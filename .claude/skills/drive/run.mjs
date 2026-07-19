@@ -226,7 +226,7 @@ function runTask(task, config, promptText, log) {
  */
 function buildVerifyPrompt(task, promptText, prUrl) {
   const uiClause = task.ui
-    ? `5. UI/DESIGN: this task changed UI. Review the JSX/CSS/token diff against DESIGN.md — semantic tokens only, NO decorative glow or gradient wash, base-4 spacing, and the AI-slop test. (You are headless: do NOT claim any pixel/rendered check you did not actually run; a static diff review against DESIGN.md is the expected depth here.)\n`
+    ? `5. UI/DESIGN: this task changed UI. First review the JSX/CSS/token diff against DESIGN.md - semantic tokens only, NO decorative glow or gradient wash, base-4 spacing, and the AI-slop test. Then demand ARTIFACT evidence, never prose: Read .artifacts/surfaces/verdicts.json and Read the task's screenshots under .artifacts/surfaces/ (the Read tool renders PNGs). A visual acceptance criterion whose surface has no fresh screenshot, or whose judge status is anything other than "transformed", is UNMET - verdict DISAGREE. An implementer sentence like "looks good" or "vision-verify PASS" is not evidence and must be treated as unverified by construction.\n`
     : ""
   return `You are an INDEPENDENT VERIFIER for an unattended overnight engineering run. You did
 NOT write this code and must not defer to any claim the implementer made — judge ONLY the

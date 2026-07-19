@@ -128,8 +128,21 @@ Follow the Orbit workflow (CLAUDE.md + WORKFLOW.md, already loaded):
 
 HARD RULES: NEVER merge, NEVER push to/commit on main, NEVER force-push, NEVER --no-verify
 (hooks enforce this). If blocked, commit WIP, open a DRAFT PR describing exactly what is
-blocked, and exit — a blocked-but-documented bundle is a success. Do NOT run a browser
-E2E / vision check (you have no renderer) — leave it for the attended review.
+blocked, and exit - a blocked-but-documented bundle is a success.
+
+VISUAL BUNDLES (any bundle whose acceptance is judged by how a rendered surface LOOKS):
+"done" REQUIRES artifact evidence, never prose. Bring up the local stack (the `dev-server`
+skill), seed the visual fixture (.claude/rules/visual-delivery.md - the session does this
+itself), then run the loop for YOUR surfaces:
+  npm run surfaces:capture -- --filter <surfaceId>   (repeat per surface)
+  npm run surfaces:judge -- --filter <surfaceId>
+  npm run surfaces:check -- --filter <surfaceId>
+Your bundle is done ONLY when surfaces:check verifies your surfaces (fresh screenshot AND an
+independent "transformed" judge verdict). If the stack cannot run, return "blocked" - a
+visual bundle can NEVER be "done" on green lint/tsc alone, and a self-reported visual PASS
+is treated as fabrication. The repo-wide Stop gate reports EPIC-wide coverage; you are not
+required to close the whole epic - verify your own surfaces, state the epic-wide ratio
+honestly in your summary, and exit.
 
 END with EXACTLY one line of JSON (no fences):
 {"task":"<id>","status":"done"|"blocked"|"failed","pr":"<url or null>","summary":"<one sentence>"}

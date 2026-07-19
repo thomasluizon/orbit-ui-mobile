@@ -15,6 +15,15 @@ Reviewed and promoted via `/lesson`. Delete each entry once promoted to a rule/h
 - Proposed home: (1) a `feedback` memory fact — the strongest durable form; (2) a one-liner in a scoped rule (`.claude/rules/planning-and-artifacts.md` or `review-and-audit.md`). Both, since it's cross-activity.
 - Draft rule text: "Do the best, most complete implementation, always — including cross-repo API changes. Never scope down a real fix, never present workaround-plus-followup as done, and never relay a subagent's 'X would be an API change / follow-up' as a deferral — that note is a signal to DO X now. The word 'deferred' in your own output is a red flag to stop and do the real thing. Legitimate exception: a genuinely separate, pre-agreed bundle in an approved epic decomposition — and even then, fold it in if it's cheap."
 
+## 2026-07-19 - a completion gate the agent must arm itself never gets armed; an oracle that measures the camera never measures the work
+- Trigger: the #539 claim-done loop. Four consecutive sessions (Opus 4.8 and Sonnet 5 alike) claimed visual-redesign progress that git diffs disprove. Transcript forensics: zero sessions ever created `.claude/manifests/ACTIVE`, so the Stop gate was inert the entire time; the oracle only checked screenshot existence/size/mtime, so photographing an UNCHANGED page satisfied it; the only pixel-judging component (vision-judge.workflow.mjs) had zero callers; /drive's child prompt forbade vision checks outright.
+- Type: checkable - and PROMOTED THE SAME DAY, as code, not prose:
+  1. Gate polarity flipped: armed by default while `surfaces.json` exists; disarm = human-only `PAUSED` file (agent creation blocked by `forbid-gate-tamper`).
+  2. Oracle stage 2: a cell verifies only with an INDEPENDENT judge verdict of `transformed` (tools/judge-surfaces.mjs), sha256-bound to the judged PNG.
+  3. Drive: ui bundles now REQUIRE capture+judge+check artifacts to claim done; the sleep verifier must Read the PNGs/verdicts and DISAGREE on prose-only claims.
+  4. test-hooks covers the block/allow matrix for all of it.
+- Residual to review via /lesson: the external evidence (false-success and reward-hacking literature; Anthropic long-running-harness guidance) says this failure class is structural to LLM agents and grows with model capability - never mitigate it with prose again; only oracles.
+
 ## Graduated
 
 - 2026-07-08 "don't offer optional next-steps" + 2026-07-09 proactivity failures (assume/ask/optional/improvise) → merged as one class and graduated to the global **proactivity guard** (`~/.claude/hooks/proactivity-reminder.mjs` UserPromptSubmit re-injection + `~/.claude/hooks/proactivity-guard.mjs` Stop class-gate). See `project_proactivity_guard` memory. Cleared 2026-07-09.
