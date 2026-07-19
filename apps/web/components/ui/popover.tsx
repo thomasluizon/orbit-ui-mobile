@@ -20,6 +20,9 @@ interface PopoverProps extends UsePopoverMenuOptions {
   onOpenChange?: (open: boolean) => void
   /** Additional className applied to the panel div. */
   className?: string
+  /** ARIA role of the panel. `'menu'` for an actionable item list (pair with `role="menuitem"`
+   *  children and drop any inner role wrapper); `'dialog'` (default) for arbitrary content. */
+  role?: 'dialog' | 'menu'
 }
 
 function getFocusableElements(container: HTMLElement): HTMLElement[] {
@@ -39,6 +42,7 @@ export function Popover({
   placement,
   offset,
   margin,
+  role = 'dialog',
 }: Readonly<PopoverProps>) {
   const isControlled = controlledOpen !== undefined
   const prefersReducedMotion = useReducedMotion()
@@ -171,8 +175,8 @@ export function Popover({
             {isOpen ? (
               <motion.div
                 ref={panelRef}
-                role="dialog"
-                aria-modal="false"
+                role={role}
+                aria-modal={role === 'dialog' ? 'false' : undefined}
                 className={[
                   'fixed',
                   'p-1',

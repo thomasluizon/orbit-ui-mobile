@@ -72,7 +72,9 @@ const OPENERS = {
     await switchToHomeView(page, "goals")
     await page.locator('[data-tour="tour-goal-card"]').first().click({ button: "right" })
     await page.getByTestId("goal-menu-edit").click()
-    await page.getByRole("dialog").waitFor({ state: "visible" })
+    // The card's own onClick (goal-detail-drawer) can still be open underneath; the
+    // edit modal opens last, so target the most recent role="dialog" instance.
+    await page.getByRole("dialog").last().waitFor({ state: "visible" })
   },
   "overlay-goal-detail-drawer": async (page) => {
     await switchToHomeView(page, "goals")
@@ -91,8 +93,13 @@ const OPENERS = {
     await page.getByRole("dialog").waitFor({ state: "visible" })
   },
   "overlay-reschedule-sheet": async (page) => {
-    await switchToHomeView(page, "all")
-    await page.getByTestId("habit-row-more").first().click()
+    // Reschedule only appears on a habit whose isOverdue is true (a one-time task
+    // past its due date, per HabitScheduleService.IsOverdueOnDate -- a recurring
+    // habit due "today" is never overdue regardless of its stored DueDate). The Today
+    // view is where this reliably shows; sort order is not guaranteed, so target the
+    // seeded fixture by title rather than assuming row position.
+    const overdueRow = page.locator('[data-testid="habit-row"]', { hasText: "Overdue habit fixture" })
+    await overdueRow.locator('[data-testid="habit-row-more"]').click()
     await page.getByTestId("habit-menu-reschedule").click()
     await page.getByRole("dialog").waitFor({ state: "visible" })
   },
@@ -103,9 +110,13 @@ const OPENERS = {
     await page.getByRole("alertdialog").waitFor({ state: "visible" })
   },
   "overlay-notification-detail-modal": async (page) => {
-    await page.locator('[data-tour="tour-notification-bell"]').click()
+    // Both the mobile inline header (today-shell.tsx) and the desktop topbar render their own
+    // bell; only one is visually shown at a given viewport, so scope to :visible.
+    await page.locator('[data-tour="tour-notification-bell"]:visible').first().click()
     await page.getByTestId("notification-row").first().click()
-    await page.getByRole("dialog").waitFor({ state: "visible" })
+    // The bell's own dropdown panel (role="dialog") can still be open underneath; the
+    // detail modal opens last, so target the most recent role="dialog" instance.
+    await page.getByRole("dialog").last().waitFor({ state: "visible" })
   },
   "overlay-referral-drawer": async (page) => {
     await gotoSameOrigin(page, "/profile")
@@ -184,6 +195,17 @@ async function gotoSameOrigin(page, path) {
 // are activeView switches, not routes) by seeding the persisted UI store, then
 // reloading so the trigger for a view-scoped overlay is present.
 async function switchToHomeView(page, activeView) {
+  // "goals" is Pro-gated (see the NAV_CLICK_VIEWS comment on captureCell): a reload
+  // re-triggers the hasProAccess race every time, so click the real nav item instead
+  // of seeding localStorage -- by now the page has already settled once and the
+  // profile query has resolved, so the click is not racing anything.
+  if (activeView === "goals") {
+    await page.getByTestId("nav-section-goals").click()
+    await page.waitForLoadState("networkidle").catch(() => {})
+    await page.waitForTimeout(500)
+    await page.addStyleTag({ content: FREEZE_MOTION_CSS })
+    return
+  }
   await page.evaluate(
     ([storeKey, storeVersion, view]) => {
       window.localStorage.setItem(
@@ -265,7 +287,14 @@ export function unreachableReason(cell) {
   return null
 }
 
+// "goals" is Pro-gated: use-today-view-state.ts resets activeView back to "today"
+// whenever hasProAccess is false, which is TRUE on first render (the profile query is
+// still loading). Pre-seeding localStorage before that resolves loses the race every
+// time. all/general have no such gate, so they stay on the cheap localStorage path.
+const NAV_CLICK_VIEWS = new Set(["goals"])
+
 async function captureCell(page, cell, baseUrl) {
+  const viewState = cell.viewState ?? null
   await page.addInitScript(
     ([storeKey, storeVersion, activeView]) => {
       if (!activeView) return
@@ -274,7 +303,7 @@ async function captureCell(page, cell, baseUrl) {
         JSON.stringify({ state: { activeView, searchQuery: "", selectedTagIds: [], activeFilters: {} }, version: storeVersion }),
       )
     },
-    [UI_STORE_KEY, UI_STORE_VERSION, cell.viewState ?? null],
+    [UI_STORE_KEY, UI_STORE_VERSION, NAV_CLICK_VIEWS.has(viewState) ? null : viewState],
   )
 
   const target = new URL(cell.href ?? "/", baseUrl).toString()
@@ -290,6 +319,13 @@ async function captureCell(page, cell, baseUrl) {
   // populated -- verifying a skeleton is the empty-DB failure visual-delivery rule 3 bans.
   await page.waitForTimeout(1800)
   await page.waitForLoadState("networkidle").catch(() => {})
+
+  if (NAV_CLICK_VIEWS.has(viewState)) {
+    await page.getByTestId(`nav-section-${viewState}`).click()
+    await page.waitForLoadState("networkidle").catch(() => {})
+    await page.waitForTimeout(500)
+  }
+
   await page.addStyleTag({ content: FREEZE_MOTION_CSS })
 
   const opener = OPENERS[cell.surfaceId]
@@ -375,6 +411,13 @@ async function main() {
         storageState: storageStatePath ?? undefined,
       })
       await context.addCookies(cookiesFor(args.baseUrl, theme, locale))
+      context.setDefaultTimeout(8000)
+      // A fresh account never dismissed the coach-mark tour: its spotlight overlay
+      // intercepts every click below it, silently breaking every opener that needs
+      // to interact with the page. Applies to every page created in this context.
+      await context.addInitScript(() => {
+        window.localStorage.setItem("orbit_coach_tour_seen", "true")
+      })
 
       for (const cell of scoped) {
         const page = await context.newPage()

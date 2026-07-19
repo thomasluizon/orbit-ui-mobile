@@ -148,6 +148,7 @@ export function HabitRowTrailing({
         <Popover
           placement="bottom-end"
           className="min-w-[180px]"
+          role="menu"
           trigger={
             <button
               type="button"

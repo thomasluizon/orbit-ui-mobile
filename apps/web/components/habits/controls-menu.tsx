@@ -42,6 +42,7 @@ export function ControlsMenu({
     <Popover
       placement="bottom-end"
       className="min-w-[220px]"
+      role="menu"
       trigger={
         <button
           type="button"

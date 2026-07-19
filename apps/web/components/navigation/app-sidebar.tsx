@@ -251,6 +251,7 @@ function SidebarSectionRow({
         aria-controls={hasChildren && !collapsed ? subListId : undefined}
         title={collapsed ? section.label : undefined}
         data-tooltip={collapsed ? section.label : undefined}
+        data-testid={`nav-section-${section.id}`}
         className={sectionButtonClassName}
         style={sectionButtonStyle}
       >

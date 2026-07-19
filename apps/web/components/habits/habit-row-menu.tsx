@@ -47,7 +47,7 @@ export function HabitRowMenu({
   }
 
   return (
-    <div role="menu">
+    <>
       {onAddSubHabit && <MenuItem icon={Plus} label={t('habits.form.addSubHabit')} onClick={run(onAddSubHabit)} />}
       {onMoveParent && <MenuItem icon={ArrowRight} label={t('habits.moveParent.button')} onClick={run(onMoveParent)} />}
       {onSkip && <MenuItem icon={FastForward} label={t('habits.actions.skip')} onClick={run(onSkip)} tone="warning" testId="habit-menu-skip" />}
@@ -69,7 +69,7 @@ export function HabitRowMenu({
           <MenuItem icon={Trash2} label={t('habits.deleteHabit')} onClick={run(onDelete)} tone="danger" testId="habit-menu-delete" />
         </>
       )}
-    </div>
+    </>
   )
 }
 
