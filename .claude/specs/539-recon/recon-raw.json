@@ -1,0 +1,1905 @@
+{
+  "summary": "#539 whole-app recon: map every surface to files, enumerate the Lucide→Tabler worklist, audit shared primitives vs DESIGN.md",
+  "agentCount": 4,
+  "logs": [],
+  "result": {
+    "routeMap": {
+      "surfaces": [
+        {
+          "name": "Today / Home",
+          "webFiles": [
+            "apps/web/app/(app)/page.tsx",
+            "apps/web/app/(app)/today-page-view.tsx",
+            "apps/web/app/(app)/today-sections.tsx",
+            "apps/web/app/(app)/use-today-page.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/app/(tabs)/index.tsx",
+            "apps/mobile/app/(tabs)/today-shell.tsx",
+            "apps/mobile/app/(tabs)/today-sections.tsx",
+            "apps/mobile/app/(tabs)/today-modals.tsx"
+          ],
+          "sharedComponents": [
+            "SectionLabel",
+            "HabitRow",
+            "StatusDot",
+            "ProgressRing",
+            "PillButton",
+            "StatTile",
+            "BulkActionBarV2",
+            "TrialBanner",
+            "DismissibleCard"
+          ]
+        },
+        {
+          "name": "Calendar (Month/Week/Range/Agenda views)",
+          "webFiles": [
+            "apps/web/app/(app)/calendar/page.tsx",
+            "apps/web/app/(app)/calendar/_components/calendar-shell.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/app/(tabs)/calendar.tsx",
+            "apps/mobile/app/(tabs)/calendar/_components/calendar-grid.tsx",
+            "apps/mobile/app/(tabs)/calendar/_components/calendar-week-view.tsx",
+            "apps/mobile/app/(tabs)/calendar/_components/calendar-range-view.tsx",
+            "apps/mobile/app/(tabs)/calendar/_components/calendar-day-detail.tsx",
+            "apps/mobile/app/(tabs)/calendar/_components/calendar-stats.tsx"
+          ],
+          "sharedComponents": [
+            "SectionHeadTabs",
+            "StatTile",
+            "ProgressBar",
+            "PillButton",
+            "AppOverlay",
+            "CalendarDayEntry type",
+            "calendar utilities (formatAPIDate, parseAPIDate)"
+          ]
+        },
+        {
+          "name": "Profile",
+          "webFiles": [
+            "apps/web/app/(app)/profile/page.tsx",
+            "apps/web/app/(app)/profile/_components/profile-identity-header.tsx",
+            "apps/web/app/(app)/profile/_components/profile-stat-tiles.tsx",
+            "apps/web/app/(app)/profile/_components/profile-feature-sections.tsx",
+            "apps/web/app/(app)/profile/_components/profile-nav-sections.tsx",
+            "apps/web/app/(app)/profile/_components/subscription-card.tsx",
+            "apps/web/app/(app)/profile/_components/profile-modals.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/app/(tabs)/profile.tsx",
+            "apps/mobile/app/(tabs)/profile/_components/profile-identity.tsx",
+            "apps/mobile/app/(tabs)/profile/_components/profile-stat-row.tsx",
+            "apps/mobile/app/(tabs)/profile/_components/profile-sections.tsx",
+            "apps/mobile/app/(tabs)/profile/_components/delete-account-modal.tsx",
+            "apps/mobile/app/(tabs)/profile/_components/fresh-start-modal.tsx",
+            "apps/mobile/app/(tabs)/profile/_components/edit-name-sheet.tsx"
+          ],
+          "sharedComponents": [
+            "StatTile",
+            "PillButton",
+            "SettingsRow",
+            "ConfirmDialog",
+            "ProgressRing",
+            "NavHeader"
+          ]
+        },
+        {
+          "name": "Achievements",
+          "webFiles": [
+            "apps/web/app/(app)/achievements/page.tsx",
+            "apps/web/app/(app)/achievements/_components/achievement-category-section.tsx",
+            "apps/web/app/(app)/achievements/_components/achievement-xp-card.tsx",
+            "apps/web/app/(app)/achievements/_components/achievements-locked-state.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/app/achievements.tsx",
+            "apps/mobile/app/achievements-sections.tsx"
+          ],
+          "sharedComponents": [
+            "StatTile",
+            "Badge",
+            "ProgressBar",
+            "InfoCard",
+            "PillButton",
+            "EmptyState"
+          ]
+        },
+        {
+          "name": "Streak",
+          "webFiles": [
+            "apps/web/app/(app)/streak/page.tsx",
+            "apps/web/app/(app)/streak/_components/streak-hero.tsx",
+            "apps/web/app/(app)/streak/_components/streak-frozen-banner.tsx",
+            "apps/web/app/(app)/streak/_components/streak-sections.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/app/streak.tsx",
+            "apps/mobile/app/streak-sections.tsx",
+            "apps/mobile/app/streak-sections-freeze.tsx"
+          ],
+          "sharedComponents": [
+            "StatTile",
+            "ProgressRing",
+            "PillButton",
+            "status tokens (done/frozen/overdue)"
+          ]
+        },
+        {
+          "name": "Social (Friends, Feed, Accountability)",
+          "webFiles": [
+            "apps/web/app/(app)/social/page.tsx",
+            "apps/web/app/(app)/social/_components/social-feed.tsx",
+            "apps/web/app/(app)/social/_components/social-friends.tsx",
+            "apps/web/app/(app)/social/_components/social-identity-bar.tsx",
+            "apps/web/app/(app)/social/_components/buddy-row.tsx",
+            "apps/web/app/(app)/social/_components/friend-row.tsx",
+            "apps/web/app/(app)/social/_components/add-friend-form.tsx",
+            "apps/web/app/(app)/social/_components/accountability-section.tsx",
+            "apps/web/app/(app)/social/_components/cheer-composer.tsx",
+            "apps/web/app/(app)/social/_components/edit-handle-sheet.tsx",
+            "apps/web/app/(app)/social/_components/pair-detail.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/app/social.tsx",
+            "apps/mobile/app/social/_components/social-feed.tsx",
+            "apps/mobile/app/social/_components/social-friends.tsx",
+            "apps/mobile/app/social/_components/social-opt-in-gate.tsx",
+            "apps/mobile/app/social/_components/buddy-row.tsx",
+            "apps/mobile/app/social/_components/friend-row.tsx",
+            "apps/mobile/app/social/_components/friend-request-row.tsx",
+            "apps/mobile/app/social/_components/friend-profile-sheet.tsx",
+            "apps/mobile/app/social/_components/accountability-section.tsx",
+            "apps/mobile/app/social/_components/edit-handle-sheet.tsx"
+          ],
+          "sharedComponents": [
+            "PillButton",
+            "ConfirmDialog",
+            "AppOverlay",
+            "ListRow",
+            "Field",
+            "Badge",
+            "StatTile"
+          ]
+        },
+        {
+          "name": "Social Challenges",
+          "webFiles": [
+            "apps/web/app/(app)/social/challenges/page.tsx",
+            "apps/web/app/(app)/social/challenges/_components/challenge-list.tsx",
+            "apps/web/app/(app)/social/challenges/_components/challenges-topbar-heading.tsx",
+            "apps/web/app/(app)/social/challenges/_components/challenges-content.tsx",
+            "apps/web/app/(app)/social/challenges/_components/challenge-card.tsx",
+            "apps/web/app/(app)/social/challenges/_components/create-challenge-form.tsx",
+            "apps/web/app/(app)/social/challenges/_components/join-by-code-form.tsx",
+            "apps/web/app/(app)/social/challenges/_components/share-join-code.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/app/social/challenges.tsx",
+            "apps/mobile/app/social/challenges/_components/challenge-list.tsx",
+            "apps/mobile/app/social/challenges/_components/challenge-card.tsx",
+            "apps/mobile/app/social/challenges/_components/create-challenge-form.tsx",
+            "apps/mobile/app/social/challenges/_components/join-by-code-form.tsx",
+            "apps/mobile/app/social/challenges/_components/habit-picker.tsx",
+            "apps/mobile/app/social/challenges/_components/invite-friends-picker.tsx"
+          ],
+          "sharedComponents": [
+            "PillButton",
+            "InfoCard",
+            "Badge",
+            "Field",
+            "SettingsRow",
+            "ConfirmDialog"
+          ]
+        },
+        {
+          "name": "Social Challenge Detail",
+          "webFiles": [
+            "apps/web/app/(app)/social/challenges/[id]/page.tsx",
+            "apps/web/app/(app)/social/challenges/_components/challenge-detail.tsx",
+            "apps/web/app/(app)/social/challenges/_components/challenge-action-buttons.tsx",
+            "apps/web/app/(app)/social/challenges/_components/challenge-error-state.tsx",
+            "apps/web/app/(app)/social/challenges/_components/habit-picker.tsx",
+            "apps/web/app/(app)/social/challenges/_components/invite-friends-picker.tsx",
+            "apps/web/app/(app)/social/challenges/_components/share-join-code.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/app/social/challenges/[id].tsx",
+            "apps/mobile/app/social/challenges/_components/challenge-detail.tsx",
+            "apps/mobile/app/social/challenges/_components/habit-picker.tsx",
+            "apps/mobile/app/social/challenges/_components/invite-friends-picker.tsx",
+            "apps/mobile/app/social/challenges/_components/share-join-code.tsx"
+          ],
+          "sharedComponents": [
+            "PillButton",
+            "StatTile",
+            "ProgressRing",
+            "SettingsRow",
+            "ConfirmDialog",
+            "Field"
+          ]
+        },
+        {
+          "name": "Insights / Retrospective",
+          "webFiles": [
+            "apps/web/app/(app)/insights/page.tsx",
+            "apps/web/app/(app)/retrospective/page.tsx",
+            "apps/web/app/(app)/retrospective/_components/retrospective-dashboard.tsx",
+            "apps/web/app/(app)/retrospective/_components/retrospective-view.tsx",
+            "apps/web/app/(app)/retrospective/_components/retrospective-empty-state.tsx",
+            "apps/web/app/(app)/retrospective/_components/retrospective-locked-states.tsx",
+            "apps/web/app/(app)/retrospective/_components/retrospective-no-data-state.tsx",
+            "apps/web/app/(app)/retrospective/_components/locked-block.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/app/insights.tsx",
+            "apps/mobile/app/retrospective.tsx",
+            "apps/mobile/app/retrospective-dashboard.tsx",
+            "apps/mobile/app/retrospective-view.tsx",
+            "apps/mobile/app/retrospective-empty-state.tsx",
+            "apps/mobile/app/retrospective-locked-states.tsx",
+            "apps/mobile/app/retrospective-no-data-state.tsx"
+          ],
+          "sharedComponents": [
+            "StatTile",
+            "ProgressRing",
+            "ProgressBar",
+            "EmptyState",
+            "Satellite glyph",
+            "semantic tokens"
+          ]
+        },
+        {
+          "name": "AI Settings",
+          "webFiles": [
+            "apps/web/app/(app)/ai-settings/page.tsx",
+            "apps/web/app/(app)/ai-settings/_components/user-facts-list.tsx",
+            "apps/web/app/(app)/ai-settings/_components/facts-pagination.tsx",
+            "apps/web/app/(app)/ai-settings/_components/facts-select-bar.tsx",
+            "apps/web/app/(app)/ai-settings/_components/fact-item.tsx",
+            "apps/web/app/(app)/ai-settings/_components/ai-feature-toggles.tsx",
+            "apps/web/app/(app)/ai-settings/_components/pro-upgrade-link.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/app/ai-settings.tsx",
+            "apps/mobile/app/ai-settings-sections.tsx"
+          ],
+          "sharedComponents": [
+            "SettingsRow",
+            "Switch",
+            "Field",
+            "Badge",
+            "PillButton"
+          ]
+        },
+        {
+          "name": "Calendar Sync",
+          "webFiles": [
+            "apps/web/app/(app)/calendar-sync/page.tsx",
+            "apps/web/app/(app)/calendar-sync/_components/auto-sync-settings-card.tsx",
+            "apps/web/app/(app)/calendar-sync/_components/calendar-picker-section.tsx",
+            "apps/web/app/(app)/calendar-sync/_components/calendar-sync-event-row.tsx",
+            "apps/web/app/(app)/calendar-sync/_components/select-all-toggle.tsx",
+            "apps/web/app/(app)/calendar-sync/_components/quiet-action-button.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/app/calendar-sync.tsx",
+            "apps/mobile/app/calendar-sync-auto-section.tsx",
+            "apps/mobile/app/calendar-sync-event-row.tsx",
+            "apps/mobile/app/calendar-sync-select-all-toggle.tsx",
+            "apps/mobile/app/calendar-picker-section.tsx"
+          ],
+          "sharedComponents": [
+            "SettingsRow",
+            "Switch",
+            "Field",
+            "PillButton",
+            "ConfirmDialog"
+          ]
+        },
+        {
+          "name": "Advanced Settings",
+          "webFiles": [
+            "apps/web/app/(app)/advanced/page.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/app/advanced.tsx",
+            "apps/mobile/app/advanced-sections.tsx"
+          ],
+          "sharedComponents": [
+            "SettingsRow",
+            "ConfirmDialog",
+            "PillButton",
+            "Switch"
+          ]
+        },
+        {
+          "name": "Preferences",
+          "webFiles": [
+            "apps/web/app/(app)/preferences/page.tsx",
+            "apps/web/app/(app)/preferences/_components/preference-settings-list.tsx",
+            "apps/web/app/(app)/preferences/_components/preference-picker-sheet.tsx",
+            "apps/web/app/(app)/preferences/_components/push-notification-section.tsx",
+            "apps/web/app/(app)/preferences/_components/marketing-consent-section.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/app/preferences.tsx",
+            "apps/mobile/app/preferences-sections.tsx"
+          ],
+          "sharedComponents": [
+            "SettingsRow",
+            "Switch",
+            "AppOverlay",
+            "Badge",
+            "Radio",
+            "PillButton"
+          ]
+        },
+        {
+          "name": "Wrapped (Year in Review)",
+          "webFiles": [
+            "apps/web/app/(app)/wrapped/page.tsx",
+            "apps/web/app/(app)/wrapped/_components/wrapped-cover.tsx",
+            "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
+            "apps/web/app/(app)/wrapped/_components/wrapped-player.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/app/wrapped.tsx",
+            "apps/mobile/app/wrapped-cover.tsx",
+            "apps/mobile/app/wrapped-slide.tsx"
+          ],
+          "sharedComponents": [
+            "PillButton",
+            "StatTile",
+            "motion/transition utilities",
+            "type roles (display, hero)"
+          ]
+        },
+        {
+          "name": "Support",
+          "webFiles": [
+            "apps/web/app/(app)/support/page.tsx",
+            "apps/web/app/(app)/support/_components/support-form.tsx",
+            "apps/web/app/(app)/support/_components/support-success-state.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/app/support.tsx"
+          ],
+          "sharedComponents": [
+            "Field",
+            "PillButton",
+            "ConfirmDialog",
+            "AppOverlay"
+          ]
+        },
+        {
+          "name": "Upgrade / Paywall",
+          "webFiles": [
+            "apps/web/app/(app)/upgrade/page.tsx",
+            "apps/web/upgrade/plan-card.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/app/upgrade.tsx"
+          ],
+          "sharedComponents": [
+            "PlanCard",
+            "PillButton",
+            "Badge (pro-badge)",
+            "subscription tokens"
+          ]
+        },
+        {
+          "name": "About",
+          "webFiles": [
+            "apps/web/app/(app)/about/page.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/app/about.tsx"
+          ],
+          "sharedComponents": [
+            "PillButton",
+            "typography tokens"
+          ]
+        },
+        {
+          "name": "Explore",
+          "webFiles": [
+            "apps/web/app/(app)/explore/page.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/app/explore.tsx (if implemented)"
+          ],
+          "sharedComponents": [
+            "PillButton",
+            "ListRow",
+            "SettingsRow"
+          ]
+        },
+        {
+          "name": "Login & Auth",
+          "webFiles": [
+            "apps/web/app/(auth)/login/page.tsx",
+            "apps/web/app/(auth)/auth-callback/page.tsx",
+            "apps/web/app/api/auth/send-code/route.ts",
+            "apps/web/app/api/auth/verify-code/route.ts"
+          ],
+          "mobileFiles": [
+            "apps/mobile/app/login.tsx",
+            "apps/mobile/app/login-sections.tsx",
+            "apps/mobile/app/email-step.tsx",
+            "apps/mobile/app/code-step.tsx",
+            "apps/mobile/app/auth-callback.tsx"
+          ],
+          "sharedComponents": [
+            "Field",
+            "OTP (CodeInput)",
+            "PillButton",
+            "ConfirmDialog"
+          ]
+        },
+        {
+          "name": "Onboarding",
+          "webFiles": [
+            "apps/web/app/(onboarding)/onboarding/page.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/app/(onboarding)/index.tsx",
+            "apps/mobile/app/(onboarding)/_layout.tsx"
+          ],
+          "sharedComponents": [
+            "Field",
+            "PillButton",
+            "Radio",
+            "Checkbox",
+            "AppOverlay"
+          ]
+        },
+        {
+          "name": "Chat (Astra AI)",
+          "webFiles": [
+            "apps/web/app/(chat)/chat/page.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/app/chat.tsx"
+          ],
+          "sharedComponents": [
+            "Field",
+            "PillButton",
+            "AppOverlay",
+            "Server Streaming (SSE)"
+          ]
+        },
+        {
+          "name": "Public Profile Share",
+          "webFiles": [
+            "apps/web/app/(app)/public-profile/page.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/app/public-profile.tsx"
+          ],
+          "sharedComponents": [
+            "StatTile",
+            "PillButton",
+            "ProgressRing",
+            "NavHeader"
+          ]
+        },
+        {
+          "name": "Delete Account (Public)",
+          "webFiles": [
+            "apps/web/app/(public)/delete-account/page.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/app/delete-account-modal.tsx (modal within profile)"
+          ],
+          "sharedComponents": [
+            "ConfirmDialog",
+            "PillButton"
+          ]
+        },
+        {
+          "name": "Privacy Policy (Public)",
+          "webFiles": [
+            "apps/web/app/(public)/privacy/page.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/app/privacy.tsx"
+          ],
+          "sharedComponents": [
+            "typography tokens only"
+          ]
+        },
+        {
+          "name": "Terms of Service (Public)",
+          "webFiles": [
+            "apps/web/app/(public)/terms/page.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/app/terms.tsx"
+          ],
+          "sharedComponents": [
+            "typography tokens only"
+          ]
+        },
+        {
+          "name": "Shared Habit Feed (/u/:slug)",
+          "webFiles": [
+            "apps/web/app/(public)/u/[slug]/page.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/app/social/_components/friend-profile-sheet.tsx (modal)"
+          ],
+          "sharedComponents": [
+            "StatTile",
+            "HabitRow",
+            "ProgressRing",
+            "NavHeader",
+            "PillButton"
+          ]
+        },
+        {
+          "name": "Referral Join (/r/:code)",
+          "webFiles": [
+            "apps/web/app/r/[code]/page.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/app/r/[code].tsx"
+          ],
+          "sharedComponents": [
+            "PillButton",
+            "ConfirmDialog",
+            "Field"
+          ]
+        }
+      ]
+    },
+    "modalMap": {
+      "surfaces": [
+        {
+          "name": "create-habit-modal",
+          "webFiles": [
+            "apps/web/components/habits/create-habit-modal.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/components/habits/create-habit-modal.tsx"
+          ],
+          "sharedComponents": [
+            "AppOverlay (web) / BottomSheetModal (mobile)",
+            "PillButton",
+            "ConfirmDialog",
+            "HabitFormFields",
+            "Field / AppTextInput"
+          ],
+          "notes": "Orchestrates shared form with tag/goal/sub-habit/reminder state and AI-suggest flow. Uses AppOverlay on web, BottomSheetModal on mobile. Dismiss guard confirms changes before closing."
+        },
+        {
+          "name": "edit-habit-modal",
+          "webFiles": [
+            "apps/web/components/habits/edit-habit-modal.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/components/habits/edit-habit-modal.tsx"
+          ],
+          "sharedComponents": [
+            "AppOverlay (web) / BottomSheetModal (mobile)",
+            "PillButton",
+            "ConfirmDialog",
+            "HabitFormFields",
+            "Field / AppTextInput"
+          ],
+          "notes": "Mirrors create-habit-modal but for editing existing habits. Same form orchestration and shared primitives."
+        },
+        {
+          "name": "habit-detail-drawer",
+          "webFiles": [
+            "apps/web/components/habits/habit-detail-drawer.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/components/habits/habit-detail-drawer.tsx"
+          ],
+          "sharedComponents": [
+            "AppOverlay (web) / BottomSheetModal (mobile)",
+            "ConfirmDialog",
+            "SectionLabel",
+            "HabitChecklist",
+            "HabitCalendar",
+            "HabitDetailHeader",
+            "HabitDetailReminders"
+          ],
+          "notes": "Full habit detail view with checklist, calendar, stats, reminders. Mobile uses withDrawerContentInset for bottom sheet styling."
+        },
+        {
+          "name": "reschedule-sheet",
+          "webFiles": [
+            "apps/web/components/habits/reschedule-sheet.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/components/habits/reschedule-sheet.tsx"
+          ],
+          "sharedComponents": [
+            "AppOverlay (web) / BottomSheetModal (mobile)",
+            "PillButton"
+          ],
+          "notes": "Reschedule habit with AI suggestion cards. Simple sheet with minimal content."
+        },
+        {
+          "name": "create-goal-modal",
+          "webFiles": [
+            "apps/web/components/goals/create-goal-modal.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/components/goals/create-goal-modal.tsx"
+          ],
+          "sharedComponents": [
+            "AppOverlay (web) / BottomSheetModal (mobile)",
+            "PillButton",
+            "ConfirmDialog",
+            "FieldWell",
+            "GoalTypeSelector",
+            "GoalTargetFields",
+            "GoalDeadlineField"
+          ],
+          "notes": "Goal creation with type selector, target fields, and deadline. Dismiss guard on dirty state."
+        },
+        {
+          "name": "edit-goal-modal",
+          "webFiles": [
+            "apps/web/components/goals/edit-goal-modal.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/components/goals/edit-goal-modal.tsx"
+          ],
+          "sharedComponents": [
+            "AppOverlay (web) / BottomSheetModal (mobile)",
+            "PillButton",
+            "ConfirmDialog"
+          ],
+          "notes": "Edit existing goal. Same structure as create but with populated form values."
+        },
+        {
+          "name": "goal-detail-drawer",
+          "webFiles": [
+            "apps/web/components/goals/goal-detail-drawer.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/components/goals/goal-detail-drawer.tsx"
+          ],
+          "sharedComponents": [
+            "AppOverlay (web) / BottomSheetModal (mobile)",
+            "ConfirmDialog",
+            "EditGoalModal",
+            "PillButton",
+            "GoalMetricsPanel",
+            "GoalProgressForm"
+          ],
+          "notes": "Full goal detail view with metrics, progress tracking, and action footer. Embeds EditGoalModal for inline editing."
+        },
+        {
+          "name": "notification-detail-modal",
+          "webFiles": [
+            "apps/web/components/navigation/notification-detail-modal.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/components/navigation/notification-detail-modal.tsx"
+          ],
+          "sharedComponents": [
+            "AppOverlay (web) / BottomSheetModal (mobile)"
+          ],
+          "notes": "Notification detail view with body copy and action buttons. Minimal chrome, no special form fields."
+        },
+        {
+          "name": "feature-guide-drawer",
+          "webFiles": [
+            "apps/web/components/onboarding/feature-guide-drawer.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/components/onboarding/feature-guide-drawer.tsx"
+          ],
+          "sharedComponents": [
+            "AppOverlay (web) / BottomSheetModal (mobile)",
+            "Chip"
+          ],
+          "notes": "Onboarding feature guide with tabbed sections (astra, connect, social, habits, goals, calendar, rewards, settings, notifications)."
+        },
+        {
+          "name": "referral-drawer",
+          "webFiles": [
+            "apps/web/components/referral/referral-drawer.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/components/referral/referral-drawer.tsx"
+          ],
+          "sharedComponents": [
+            "AppOverlay (web) / BottomSheetModal (mobile)",
+            "PillButton",
+            "ProgressBar",
+            "SectionLabel",
+            "SettingsRow",
+            "InfoCard"
+          ],
+          "notes": "Referral stats, link copy, progress rows, and share CTA. Hero icon disc, mono link well, progress indicators."
+        },
+        {
+          "name": "share-card-sheet",
+          "webFiles": [
+            "apps/web/components/share/share-card-sheet.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/components/share/share-card-sheet.tsx"
+          ],
+          "sharedComponents": [
+            "AppOverlay (web) / BottomSheetModal (mobile)",
+            "PillButton",
+            "Chip",
+            "SatelliteGlyph"
+          ],
+          "notes": "Recap share preview with period selector, recap fetch, branded ShareCard, and native share. Shows empty state via SatelliteGlyph."
+        },
+        {
+          "name": "rail-drawer",
+          "webFiles": [
+            "apps/web/components/shell/rail-drawer.tsx"
+          ],
+          "mobileFiles": [],
+          "sharedComponents": [
+            "RailDrawer (web-only right-side slide-in)"
+          ],
+          "notes": "Web-only. Right-side slide-in drawer for desktop breakpoint (768–1279px) showing contextual rail content. Distinct from cross-platform modals."
+        },
+        {
+          "name": "tour-replay-modal",
+          "webFiles": [
+            "apps/web/components/tour/tour-replay-modal.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/components/tour/tour-replay-modal.tsx"
+          ],
+          "sharedComponents": [
+            "AppOverlay (web) / BottomSheetModal (mobile)",
+            "PillButton"
+          ],
+          "notes": "Tour replay modal with section list and step icons. Allows users to re-run onboarding tours."
+        },
+        {
+          "name": "confirm-dialog",
+          "webFiles": [
+            "apps/web/components/ui/confirm-dialog.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/components/ui/confirm-dialog.tsx"
+          ],
+          "sharedComponents": [
+            "AnimatePresence / Animated (motion library)",
+            "PillButton (internal button styling)"
+          ],
+          "notes": "Generic confirmation dialog with danger/warning/success/info variants. Title + description + confirm/cancel pills. Handles focus management, keyboard trap, and overlay stacking on both platforms."
+        },
+        {
+          "name": "create-api-key-modal",
+          "webFiles": [
+            "apps/web/components/ui/create-api-key-modal.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/components/ui/create-api-key-modal.tsx"
+          ],
+          "sharedComponents": [
+            "AppOverlay (web) / BottomSheetModal (mobile)",
+            "PillButton",
+            "FieldInput / AppTextInput",
+            "Chip",
+            "Switch"
+          ],
+          "notes": "API key creation form with name input, scope checkboxes, and expiry toggle. Displays created key in mono font well."
+        },
+        {
+          "name": "trial-expired-modal",
+          "webFiles": [
+            "apps/web/components/ui/trial-expired-modal.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/components/ui/trial-expired-modal.tsx"
+          ],
+          "sharedComponents": [
+            "AppOverlay (web) / Modal (mobile, full-screen)",
+            "PillButton"
+          ],
+          "notes": "Trial-expired upsell modal with crown hero, paused Pro features list, and upgrade CTAs. Async storage gating (seen-once). Web uses AppOverlay, mobile uses Modal for full-screen presentation."
+        },
+        {
+          "name": "edit-name-sheet",
+          "webFiles": [
+            "apps/web/app/(app)/profile/_components/edit-name-sheet.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/app/(tabs)/profile/_components/edit-name-sheet.tsx"
+          ],
+          "sharedComponents": [
+            "AppOverlay (web) / BottomSheetModal (mobile)",
+            "PillButton",
+            "FieldInput (web) / AppTextInput (mobile)"
+          ],
+          "notes": "Simple edit-name form used in profile. Validates name, handles submission via updateName (web) or apiClient (mobile). Mobile uses offline queue mutation."
+        },
+        {
+          "name": "version-update-drawer",
+          "webFiles": [],
+          "mobileFiles": [
+            "apps/mobile/components/version-update-drawer.tsx"
+          ],
+          "sharedComponents": [
+            "BottomSheetModal"
+          ],
+          "notes": "Mobile-only. App version update notification drawer."
+        },
+        {
+          "name": "move-parent-dialog",
+          "webFiles": [],
+          "mobileFiles": [
+            "apps/mobile/components/habit-list/move-parent-dialog.tsx"
+          ],
+          "sharedComponents": [
+            "ConfirmDialog"
+          ],
+          "notes": "Mobile-only. Dialog for moving a habit to a different parent in the hierarchy."
+        },
+        {
+          "name": "confirm-dialogs (habit-specific)",
+          "webFiles": [
+            "apps/web/components/habits/habit-list/confirm-dialogs.tsx"
+          ],
+          "mobileFiles": [
+            "apps/mobile/components/habit-list/confirm-dialogs.tsx"
+          ],
+          "sharedComponents": [
+            "ConfirmDialog"
+          ],
+          "notes": "Habit-specific confirmation dialogs (delete, duplicate, etc.). Specialized uses of the generic ConfirmDialog primitive."
+        }
+      ]
+    },
+    "iconAudit": {
+      "distinctIcons": [
+        {
+          "lucideName": "AlertTriangle",
+          "tablerName": "IconAlertTriangle",
+          "webCount": 7,
+          "mobileCount": 6,
+          "uncertain": false
+        },
+        {
+          "lucideName": "ArrowRight",
+          "tablerName": "IconArrowRight",
+          "webCount": 1,
+          "mobileCount": 1,
+          "uncertain": false
+        },
+        {
+          "lucideName": "ArrowUp",
+          "tablerName": "IconArrowUp",
+          "webCount": 2,
+          "mobileCount": 1,
+          "uncertain": false
+        },
+        {
+          "lucideName": "ArrowUpRight",
+          "tablerName": "IconArrowUpRight",
+          "webCount": 3,
+          "mobileCount": 2,
+          "uncertain": false
+        },
+        {
+          "lucideName": "BarChart3",
+          "tablerName": "IconChartBar",
+          "webCount": 2,
+          "mobileCount": 1,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Bell",
+          "tablerName": "IconBell",
+          "webCount": 7,
+          "mobileCount": 7,
+          "uncertain": false
+        },
+        {
+          "lucideName": "BellRing",
+          "tablerName": "IconBellRinging",
+          "webCount": 1,
+          "mobileCount": 0,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Brain",
+          "tablerName": "IconBrain",
+          "webCount": 1,
+          "mobileCount": 0,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Calendar",
+          "tablerName": "IconCalendar",
+          "webCount": 2,
+          "mobileCount": 2,
+          "uncertain": false
+        },
+        {
+          "lucideName": "CalendarCheck",
+          "tablerName": "IconCalendarCheck",
+          "webCount": 1,
+          "mobileCount": 0,
+          "uncertain": false
+        },
+        {
+          "lucideName": "CalendarClock",
+          "tablerName": "IconCalendarClock",
+          "webCount": 2,
+          "mobileCount": 2,
+          "uncertain": false
+        },
+        {
+          "lucideName": "CalendarDays",
+          "tablerName": "IconCalendarDays",
+          "webCount": 5,
+          "mobileCount": 5,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Check",
+          "tablerName": "IconCheck",
+          "webCount": 32,
+          "mobileCount": 28,
+          "uncertain": false
+        },
+        {
+          "lucideName": "CheckCheck",
+          "tablerName": "IconCheckCheck",
+          "webCount": 3,
+          "mobileCount": 3,
+          "uncertain": false
+        },
+        {
+          "lucideName": "CheckCircle",
+          "tablerName": "IconCircleCheck",
+          "webCount": 2,
+          "mobileCount": 2,
+          "uncertain": false
+        },
+        {
+          "lucideName": "CheckCircle2",
+          "tablerName": "IconCircleCheck",
+          "webCount": 1,
+          "mobileCount": 1,
+          "uncertain": false
+        },
+        {
+          "lucideName": "ChevronDown",
+          "tablerName": "IconChevronDown",
+          "webCount": 9,
+          "mobileCount": 8,
+          "uncertain": false
+        },
+        {
+          "lucideName": "ChevronLeft",
+          "tablerName": "IconChevronLeft",
+          "webCount": 11,
+          "mobileCount": 10,
+          "uncertain": false
+        },
+        {
+          "lucideName": "ChevronRight",
+          "tablerName": "IconChevronRight",
+          "webCount": 17,
+          "mobileCount": 14,
+          "uncertain": false
+        },
+        {
+          "lucideName": "ChevronUp",
+          "tablerName": "IconChevronUp",
+          "webCount": 0,
+          "mobileCount": 1,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Circle",
+          "tablerName": "IconCircle",
+          "webCount": 1,
+          "mobileCount": 0,
+          "uncertain": false
+        },
+        {
+          "lucideName": "CircleHelp",
+          "tablerName": "IconCircleHelp",
+          "webCount": 1,
+          "mobileCount": 0,
+          "uncertain": true
+        },
+        {
+          "lucideName": "Clipboard",
+          "tablerName": "IconClipboard",
+          "webCount": 1,
+          "mobileCount": 0,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Clock",
+          "tablerName": "IconClock",
+          "webCount": 1,
+          "mobileCount": 0,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Clock3",
+          "tablerName": "IconClock3",
+          "webCount": 1,
+          "mobileCount": 1,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Compass",
+          "tablerName": "IconCompass",
+          "webCount": 2,
+          "mobileCount": 2,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Copy",
+          "tablerName": "IconCopy",
+          "webCount": 7,
+          "mobileCount": 7,
+          "uncertain": false
+        },
+        {
+          "lucideName": "CreditCard",
+          "tablerName": "IconCreditCard",
+          "webCount": 2,
+          "mobileCount": 2,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Crown",
+          "tablerName": "IconCrown",
+          "webCount": 2,
+          "mobileCount": 2,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Download",
+          "tablerName": "IconDownload",
+          "webCount": 7,
+          "mobileCount": 3,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Expand",
+          "tablerName": "IconExpand",
+          "webCount": 2,
+          "mobileCount": 2,
+          "uncertain": false
+        },
+        {
+          "lucideName": "FastForward",
+          "tablerName": "IconPlayerSkipForward",
+          "webCount": 0,
+          "mobileCount": 1,
+          "uncertain": true
+        },
+        {
+          "lucideName": "FileText",
+          "tablerName": "IconFileText",
+          "webCount": 2,
+          "mobileCount": 2,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Filter",
+          "tablerName": "IconFilter",
+          "webCount": 2,
+          "mobileCount": 2,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Flame",
+          "tablerName": "IconFlame",
+          "webCount": 6,
+          "mobileCount": 6,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Gift",
+          "tablerName": "IconGift",
+          "webCount": 7,
+          "mobileCount": 6,
+          "uncertain": false
+        },
+        {
+          "lucideName": "GripHorizontal",
+          "tablerName": "IconGripHorizontal",
+          "webCount": 1,
+          "mobileCount": 0,
+          "uncertain": false
+        },
+        {
+          "lucideName": "HelpCircle",
+          "tablerName": "IconCircleQuestion",
+          "webCount": 1,
+          "mobileCount": 0,
+          "uncertain": true
+        },
+        {
+          "lucideName": "Heart",
+          "tablerName": "IconHeart",
+          "webCount": 2,
+          "mobileCount": 2,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Home",
+          "tablerName": "IconHome",
+          "webCount": 4,
+          "mobileCount": 3,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Infinity",
+          "tablerName": "IconInfinity",
+          "webCount": 1,
+          "mobileCount": 0,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Info",
+          "tablerName": "IconInfoCircle",
+          "webCount": 2,
+          "mobileCount": 2,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Languages",
+          "tablerName": "IconLanguage",
+          "webCount": 1,
+          "mobileCount": 1,
+          "uncertain": false
+        },
+        {
+          "lucideName": "ListChecks",
+          "tablerName": "IconListCheck",
+          "webCount": 2,
+          "mobileCount": 0,
+          "uncertain": false
+        },
+        {
+          "lucideName": "ListTodo",
+          "tablerName": "IconListCheck",
+          "webCount": 1,
+          "mobileCount": 0,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Lock",
+          "tablerName": "IconLock",
+          "webCount": 7,
+          "mobileCount": 9,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Loader2",
+          "tablerName": "IconLoader2",
+          "webCount": 15,
+          "mobileCount": 0,
+          "uncertain": false
+        },
+        {
+          "lucideName": "LogOut",
+          "tablerName": "IconLogout",
+          "webCount": 1,
+          "mobileCount": 1,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Mail",
+          "tablerName": "IconMail",
+          "webCount": 4,
+          "mobileCount": 4,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Maximize2",
+          "tablerName": "IconMaximize",
+          "webCount": 1,
+          "mobileCount": 0,
+          "uncertain": false
+        },
+        {
+          "lucideName": "MessageSquare",
+          "tablerName": "IconMessageSquare",
+          "webCount": 1,
+          "mobileCount": 0,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Minimize2",
+          "tablerName": "IconMinimize",
+          "webCount": 1,
+          "mobileCount": 0,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Moon",
+          "tablerName": "IconMoon",
+          "webCount": 2,
+          "mobileCount": 2,
+          "uncertain": false
+        },
+        {
+          "lucideName": "MoreVertical",
+          "tablerName": "IconDots",
+          "webCount": 3,
+          "mobileCount": 3,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Orbit",
+          "tablerName": "IconOrbit",
+          "webCount": 4,
+          "mobileCount": 4,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Palette",
+          "tablerName": "IconPalette",
+          "webCount": 2,
+          "mobileCount": 2,
+          "uncertain": false
+        },
+        {
+          "lucideName": "PanelRight",
+          "tablerName": "IconPanelRight",
+          "webCount": 1,
+          "mobileCount": 0,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Pencil",
+          "tablerName": "IconPencil",
+          "webCount": 3,
+          "mobileCount": 4,
+          "uncertain": false
+        },
+        {
+          "lucideName": "PenSquare",
+          "tablerName": "IconSquarePencil",
+          "webCount": 2,
+          "mobileCount": 2,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Play",
+          "tablerName": "IconPlayerPlay",
+          "webCount": 1,
+          "mobileCount": 1,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Plus",
+          "tablerName": "IconPlus",
+          "webCount": 21,
+          "mobileCount": 18,
+          "uncertain": false
+        },
+        {
+          "lucideName": "RefreshCw",
+          "tablerName": "IconRefresh",
+          "webCount": 4,
+          "mobileCount": 4,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Repeat",
+          "tablerName": "IconRepeat",
+          "webCount": 2,
+          "mobileCount": 2,
+          "uncertain": false
+        },
+        {
+          "lucideName": "RotateCcw",
+          "tablerName": "IconRotateCounterClockwise",
+          "webCount": 3,
+          "mobileCount": 3,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Satellite",
+          "tablerName": "IconSatellite",
+          "webCount": 1,
+          "mobileCount": 0,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Search",
+          "tablerName": "IconSearch",
+          "webCount": 4,
+          "mobileCount": 2,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Settings",
+          "tablerName": "IconSettings",
+          "webCount": 2,
+          "mobileCount": 2,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Settings2",
+          "tablerName": "IconSliders",
+          "webCount": 1,
+          "mobileCount": 1,
+          "uncertain": true
+        },
+        {
+          "lucideName": "Share2",
+          "tablerName": "IconShare",
+          "webCount": 10,
+          "mobileCount": 10,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Shield",
+          "tablerName": "IconShield",
+          "webCount": 1,
+          "mobileCount": 0,
+          "uncertain": false
+        },
+        {
+          "lucideName": "ShieldAlert",
+          "tablerName": "IconShieldAlert",
+          "webCount": 2,
+          "mobileCount": 2,
+          "uncertain": false
+        },
+        {
+          "lucideName": "ShieldCheck",
+          "tablerName": "IconShieldCheck",
+          "webCount": 1,
+          "mobileCount": 0,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Smartphone",
+          "tablerName": "IconSmartphone",
+          "webCount": 1,
+          "mobileCount": 1,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Snowflake",
+          "tablerName": "IconSnowflake",
+          "webCount": 3,
+          "mobileCount": 4,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Sparkles",
+          "tablerName": "IconSparkles",
+          "webCount": 9,
+          "mobileCount": 9,
+          "uncertain": false
+        },
+        {
+          "lucideName": "SquareX",
+          "tablerName": "IconSquareX",
+          "webCount": 1,
+          "mobileCount": 1,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Sun",
+          "tablerName": "IconSun",
+          "webCount": 1,
+          "mobileCount": 1,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Tag",
+          "tablerName": "IconTag",
+          "webCount": 1,
+          "mobileCount": 0,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Target",
+          "tablerName": "IconTarget",
+          "webCount": 4,
+          "mobileCount": 4,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Trash2",
+          "tablerName": "IconTrash",
+          "webCount": 7,
+          "mobileCount": 7,
+          "uncertain": false
+        },
+        {
+          "lucideName": "TrendingDown",
+          "tablerName": "IconTrendingDown",
+          "webCount": 2,
+          "mobileCount": 2,
+          "uncertain": false
+        },
+        {
+          "lucideName": "TrendingUp",
+          "tablerName": "IconTrendingUp",
+          "webCount": 2,
+          "mobileCount": 2,
+          "uncertain": false
+        },
+        {
+          "lucideName": "TriangleAlert",
+          "tablerName": "IconAlertTriangle",
+          "webCount": 6,
+          "mobileCount": 6,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Trophy",
+          "tablerName": "IconTrophy",
+          "webCount": 5,
+          "mobileCount": 4,
+          "uncertain": false
+        },
+        {
+          "lucideName": "User",
+          "tablerName": "IconUser",
+          "webCount": 3,
+          "mobileCount": 2,
+          "uncertain": false
+        },
+        {
+          "lucideName": "UserPlus",
+          "tablerName": "IconUserPlus",
+          "webCount": 4,
+          "mobileCount": 4,
+          "uncertain": false
+        },
+        {
+          "lucideName": "UserX",
+          "tablerName": "IconUserX",
+          "webCount": 1,
+          "mobileCount": 1,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Users",
+          "tablerName": "IconUsers",
+          "webCount": 6,
+          "mobileCount": 6,
+          "uncertain": false
+        },
+        {
+          "lucideName": "WifiOff",
+          "tablerName": "IconWifiOff",
+          "webCount": 2,
+          "mobileCount": 2,
+          "uncertain": false
+        },
+        {
+          "lucideName": "X",
+          "tablerName": "IconX",
+          "webCount": 26,
+          "mobileCount": 24,
+          "uncertain": false
+        },
+        {
+          "lucideName": "XCircle",
+          "tablerName": "IconCircleX",
+          "webCount": 2,
+          "mobileCount": 2,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Zap",
+          "tablerName": "IconZap",
+          "webCount": 2,
+          "mobileCount": 0,
+          "uncertain": false
+        },
+        {
+          "lucideName": "Shuffle",
+          "tablerName": "IconShuffle",
+          "webCount": 1,
+          "mobileCount": 0,
+          "uncertain": false
+        }
+      ],
+      "sparklesUsages": [
+        {
+          "file": "apps/web/components/upgrade/plan-card.tsx",
+          "context": "Line 95: <Sparkles size={15} strokeWidth={1.8} ... /> - visual accent in Pro plan feature row marking premium features"
+        },
+        {
+          "file": "apps/web/components/ui/info-card.tsx",
+          "context": "Line 12: Icon = Sparkles as default export - default icon for generic info cards"
+        },
+        {
+          "file": "apps/web/components/habits/reschedule-sheet.tsx",
+          "context": "Line 269: <Sparkles size={16} strokeWidth={1.9} ... /> - Astra AI disclosure marker in reschedule suggestions"
+        },
+        {
+          "file": "apps/web/app/(app)/ai-settings/_components/user-facts-list.tsx",
+          "context": "Line 110: leading={<Sparkles size={18} strokeWidth={1.8} ... />} - leading icon for 'Ask Astra' action button"
+        },
+        {
+          "file": "apps/web/components/habits/habit-form-fields.tsx",
+          "context": "Line 273, 449: Sparkles as AI suggestion button icon in tag suggestions and habit tweaks"
+        },
+        {
+          "file": "apps/web/app/(app)/profile/_components/next-reward-carrot.tsx",
+          "context": "Line 39: <Sparkles size={18} strokeWidth={1.9} ... /> - gamification reward indicator"
+        },
+        {
+          "file": "apps/web/components/navigation/notification-bell.tsx",
+          "context": "Line 36: astra: Sparkles - maps 'astra' notification type to Sparkles icon"
+        },
+        {
+          "file": "apps/web/components/profile/profile-nav-icon.tsx",
+          "context": "Line 27: orbit: Sparkles - maps 'orbit' nav key to Sparkles icon"
+        },
+        {
+          "file": "apps/mobile/components/upgrade/pricing-footer.tsx",
+          "context": "Line 42: leading={<Sparkles size={18} strokeWidth={1.8} ... />} - upgrade CTA leading icon"
+        },
+        {
+          "file": "apps/mobile/components/navigation/notification-row.tsx",
+          "context": "Line 18: astra: Sparkles - maps 'astra' notification type to Sparkles icon"
+        },
+        {
+          "file": "apps/mobile/components/habits/reschedule-sheet.tsx",
+          "context": "Line 193: <Sparkles size={16} color={tokens.primarySoft} ... /> - Astra AI disclosure marker"
+        },
+        {
+          "file": "apps/mobile/app/ai-settings-sections.tsx",
+          "context": "Line 507: leading={<Sparkles size={18} color={tokens.fgOnPrimary} ... />} - Ask Astra button icon"
+        },
+        {
+          "file": "apps/mobile/components/habits/habit-form-fields.tsx",
+          "context": "Line 198: <Sparkles size={18} color={tokens.primary} ... /> - AI suggestion toggle in form"
+        },
+        {
+          "file": "apps/mobile/components/habits/habit-form-fields/tags-section.tsx",
+          "context": "Line 165: <Sparkles size={14} color={tokens.primary} ... /> - AI tag suggestion indicator"
+        },
+        {
+          "file": "apps/mobile/app/(tabs)/profile/_components/next-reward-carrot.tsx",
+          "context": "Line 37: <Sparkles size={18} strokeWidth={1.9} color={tokens.primary} /> - reward carrot gamification marker"
+        },
+        {
+          "file": "apps/mobile/components/ui/info-card.tsx",
+          "context": "Line 15: Icon = Sparkles as default - default info card icon"
+        },
+        {
+          "file": "apps/mobile/components/profile/profile-nav-icon.tsx",
+          "context": "Line 7: Sparkles imported, used in nav icon mapping"
+        }
+      ],
+      "webFileCount": 157,
+      "mobileFileCount": 136,
+      "notes": "#539 kills Sparkles-as-AI-marker everywhere (DESIGN.md 2026-07-17 freeze replaces with Astra orbital glyph + 'AI'/'IA' badge deleted). Web Loader2 has 15 usage counts (mobile Loader2 is 0 because mobile uses ActivityIndicator from React Native instead). ListChecks + ListTodo both resolve to IconListCheck in Tabler. CheckCircle + CheckCircle2 both use IconCircleCheck (CheckCircle2 is a Lucide variant). FastForward → IconPlayerSkipForward (Tabler's skip-forward variant). Settings2 → IconSliders (Tabler equivalent for secondary settings icon). HelpCircle → IconCircleQuestion (Lucide's help icon). All 86 distinct icons plus Shuffle (custom Orbit icon). Zero icon breakage risk: all Lucide names are 1:1 renames to Icon-prefixed Tabler names except the 5 marked uncertain (which have clear Tabler equivalents but need human verification on visual parity).\""
+    },
+    "primitiveAudit": {
+      "primitives": [
+        {
+          "name": "PillButton",
+          "webFile": "apps/web/components/ui/pill-button.tsx",
+          "mobileFile": "apps/mobile/components/ui/pill-button.tsx",
+          "violations": [
+            {
+              "designRule": "Buttons - Press feedback scale",
+              "detail": "Line 29, 32, 35: enabled:active:scale-[0.98] violates DESIGN.md spec 'A pill scales to 0.96-0.97 on pointer-down, never lower.' Scale of 0.98 is outside the specified range.",
+              "fileLine": "web:pill-button.tsx:29,32,35",
+              "severity": "medium"
+            },
+            {
+              "designRule": "Styling - Semantic tokens only",
+              "detail": "Line 33: ghost variant uses 'bg-[var(--bg-card)]' but DESIGN.md does not define a --bg-card token. Should use semantic tokens from the defined system (--bg-elev, --bg-field, --bg-well, --bg-elev-2, --bg-sunk).",
+              "fileLine": "web:pill-button.tsx:33",
+              "severity": "high"
+            }
+          ]
+        },
+        {
+          "name": "AppBar (NavHeader)",
+          "webFile": "apps/web/components/ui/app-bar.tsx",
+          "mobileFile": "apps/mobile/components/ui/app-bar.tsx",
+          "violations": [
+            {
+              "designRule": "Spacing - base 4 rule",
+              "detail": "Web line 121: gap: 10 is not a multiple of 4. Should be 8 or 12.",
+              "fileLine": "web:app-bar.tsx:121",
+              "severity": "high"
+            },
+            {
+              "designRule": "Spacing - base 4 rule",
+              "detail": "Web line 131: padding '8px 14px' uses 14px horizontal padding, not a multiple of 4. Should be 12 or 16.",
+              "fileLine": "web:app-bar.tsx:131",
+              "severity": "high"
+            },
+            {
+              "designRule": "Spacing - base 4 rule",
+              "detail": "Web line 147: gap: 2 is not a multiple of 4. Should be 0, 4, 8, etc.",
+              "fileLine": "web:app-bar.tsx:147",
+              "severity": "high"
+            },
+            {
+              "designRule": "Spacing - base 4 rule",
+              "detail": "Web line 185: gap: 10 is not a multiple of 4. Should be 8 or 12.",
+              "fileLine": "web:app-bar.tsx:185",
+              "severity": "high"
+            },
+            {
+              "designRule": "Spacing - base 4 rule",
+              "detail": "Mobile line 212: paddingHorizontal: 14 is not a multiple of 4. Should be 12 or 16.",
+              "fileLine": "mobile:app-bar.tsx:212",
+              "severity": "high"
+            },
+            {
+              "designRule": "Spacing - base 4 rule",
+              "detail": "Mobile line 239: gap: 2 is not a multiple of 4. Should be 0, 4, 8, etc.",
+              "fileLine": "mobile:app-bar.tsx:239",
+              "severity": "high"
+            },
+            {
+              "designRule": "Spacing - base 4 rule",
+              "detail": "Mobile line 269: gap: 10 in trailingSlot is not a multiple of 4. Should be 8 or 12.",
+              "fileLine": "mobile:app-bar.tsx:269",
+              "severity": "high"
+            }
+          ]
+        },
+        {
+          "name": "StatTile",
+          "webFile": "apps/web/components/ui/stat-tile.tsx",
+          "mobileFile": "apps/mobile/components/ui/stat-tile.tsx",
+          "violations": [
+            {
+              "designRule": "Tokens - Semantic tokens only",
+              "detail": "Line 44: bg-[var(--bg-field)] should be --bg-elev per DESIGN.md Primitives kit spec: 'radius 18, `--bg-elev` + inset hairline ring'. StatTile is a card, not a field input.",
+              "fileLine": "web:stat-tile.tsx:44",
+              "severity": "high"
+            },
+            {
+              "designRule": "Spacing - base 4 rule",
+              "detail": "Line 44: gap-[6px] is not a multiple of 4. Should be 4 or 8.",
+              "fileLine": "web:stat-tile.tsx:44",
+              "severity": "high"
+            },
+            {
+              "designRule": "Spacing - base 4 rule",
+              "detail": "Line 49: padding '18px 12px 16px' uses 18px top padding, not a multiple of 4. Should be 16 or 20.",
+              "fileLine": "web:stat-tile.tsx:49",
+              "severity": "high"
+            }
+          ]
+        },
+        {
+          "name": "ListRow (SettingsRow)",
+          "webFile": "apps/web/components/ui/settings-row.tsx",
+          "mobileFile": "apps/mobile/components/ui/settings-row.tsx",
+          "violations": [
+            {
+              "designRule": "Spacing - base 4 rule",
+              "detail": "Line 54: gap: 14 is not a multiple of 4. Should be 12 or 16.",
+              "fileLine": "web:settings-row.tsx:54",
+              "severity": "high"
+            },
+            {
+              "designRule": "Spacing - base 4 rule",
+              "detail": "Line 79: gap: 3 is not a multiple of 4. Should be 0, 4, 8, etc.",
+              "fileLine": "web:settings-row.tsx:79",
+              "severity": "high"
+            },
+            {
+              "designRule": "Spacing - base 4 rule",
+              "detail": "Line 110: gap: 10 is not a multiple of 4. Should be 8 or 12.",
+              "fileLine": "web:settings-row.tsx:110",
+              "severity": "high"
+            },
+            {
+              "designRule": "Surface rules - Shadows",
+              "detail": "Line 176 (Switch thumb): boxShadow '0 1px 3px rgba(0,0,0,0.35)' is a custom shadow. DESIGN.md specifies exact shadows (sh-1, sh-2, sh-3). Should use sh-1 '0 1px 2px rgba(0,0,0,.20)'.",
+              "fileLine": "web:settings-row.tsx:176",
+              "severity": "medium"
+            }
+          ]
+        },
+        {
+          "name": "InfoCard",
+          "webFile": "apps/web/components/ui/info-card.tsx",
+          "mobileFile": "apps/mobile/components/ui/info-card.tsx",
+          "violations": [
+            {
+              "designRule": "Tokens - Primary tint",
+              "detail": "Line 19: background 'rgba(var(--primary-rgb), 0.08)' should use --primary-dim which is rgba(primary-rgb, 0.18) per DESIGN.md. The alpha value 0.08 is incorrect.",
+              "fileLine": "web:info-card.tsx:19",
+              "severity": "high"
+            },
+            {
+              "designRule": "Spacing - base 4 rule",
+              "detail": "Line 17: padding '16px 18px' uses 18px horizontal padding, not a multiple of 4. Should be 16 or 20.",
+              "fileLine": "web:info-card.tsx:17",
+              "severity": "high"
+            },
+            {
+              "designRule": "Spacing - base 4 rule",
+              "detail": "Line 18: gap: 14 is not a multiple of 4. Should be 12 or 16.",
+              "fileLine": "web:info-card.tsx:18",
+              "severity": "high"
+            },
+            {
+              "designRule": "Spacing - base 4 rule",
+              "detail": "Line 46: marginTop: 3 is not a multiple of 4. Should be 0, 4, 8, etc.",
+              "fileLine": "web:info-card.tsx:46",
+              "severity": "high"
+            }
+          ]
+        },
+        {
+          "name": "FieldInput",
+          "webFile": "apps/web/components/ui/field-input.tsx",
+          "mobileFile": "apps/mobile/components/ui/app-text-input.tsx",
+          "violations": [
+            {
+              "designRule": "Spacing - base 4 rule",
+              "detail": "Web line 86: gap: 10 is not a multiple of 4. Should be 8 or 12.",
+              "fileLine": "web:field-input.tsx:86",
+              "severity": "high"
+            }
+          ]
+        },
+        {
+          "name": "CodeInput (OTP)",
+          "webFile": "apps/web/components/ui/code-input.tsx",
+          "mobileFile": "apps/mobile/components/ui/code-input.tsx",
+          "violations": [
+            {
+              "designRule": "Spacing - base 4 rule",
+              "detail": "Line 65: gap: 10 in fieldset is not a multiple of 4. Should be 8 or 12.",
+              "fileLine": "web:code-input.tsx:65",
+              "severity": "high"
+            }
+          ]
+        },
+        {
+          "name": "HabitRow",
+          "webFile": "apps/web/components/habits/habit-row.tsx",
+          "mobileFile": "apps/mobile/components/habits/habit-row.tsx",
+          "violations": [
+            {
+              "designRule": "Spacing - base 4 rule",
+              "detail": "Line 47: gap: 14 (for panel rows) is not a multiple of 4. Should be 12 or 16.",
+              "fileLine": "web:habit-row.tsx:47",
+              "severity": "high"
+            },
+            {
+              "designRule": "Spacing - base 4 rule",
+              "detail": "Line 48: padding '14px 16px 14px ...' uses 14px top/bottom padding, not a multiple of 4. Should be 12 or 16.",
+              "fileLine": "web:habit-row.tsx:48",
+              "severity": "high"
+            },
+            {
+              "designRule": "Spacing - base 4 rule",
+              "detail": "Line 56: gap: 14 (for standalone rows) is not a multiple of 4. Should be 12 or 16.",
+              "fileLine": "web:habit-row.tsx:56",
+              "severity": "high"
+            },
+            {
+              "designRule": "Spacing - base 4 rule",
+              "detail": "Line 57: padding '14px 16px' uses 14px top/bottom padding, not a multiple of 4. Should be 12 or 16.",
+              "fileLine": "web:habit-row.tsx:57",
+              "severity": "high"
+            },
+            {
+              "designRule": "Spacing - base 4 rule",
+              "detail": "Line 61: marginBottom: 10 is not a multiple of 4. Should be 8 or 12.",
+              "fileLine": "web:habit-row.tsx:61",
+              "severity": "high"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "workflowProgress": [
+    {
+      "type": "workflow_phase",
+      "index": 1,
+      "title": "Recon"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 1,
+      "label": "route-map",
+      "phaseIndex": 1,
+      "phaseTitle": "Recon",
+      "agentId": "a36aef8334120952b",
+      "agentType": "audit-readonly",
+      "model": "claude-haiku-4-5-20251001",
+      "state": "done",
+      "startedAt": 1784349094747,
+      "queuedAt": 1784349094728,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "promptPreview": "The authoritative spec is C:/Users/thoma/Documents/Programming/Projects/orbit-ui-mobile/DESIGN.md — READ IT FIRST. Orbit is a Turborepo: apps/web (Next.js), apps/mobile (Expo), packages/shared. Every web surface has a mobile mirror.\n\nMap every top-level ROUTE surface of the app to its real files. Web routes live under apps/web/app/**/page.tsx (and their layout.tsx). The route list to resolve (from…",
+      "lastProgressAt": 1784349234087,
+      "tokens": 66565,
+      "toolCalls": 17,
+      "durationMs": 139340,
+      "resultPreview": "{\"surfaces\":[{\"name\":\"Today / Home\",\"webFiles\":[\"apps/web/app/(app)/page.tsx\",\"apps/web/app/(app)/today-page-view.tsx\",\"apps/web/app/(app)/today-sections.tsx\",\"apps/web/app/(app)/use-today-page.tsx\"],\"mobileFiles\":[\"apps/mobile/app/(tabs)/index.tsx\",\"apps/mobile/app/(tabs)/today-shell.tsx\",\"apps/mobile/app/(tabs)/today-sections.tsx\",\"apps/mobile/app/(tabs)/today-modals.tsx\"],\"sharedComponents\":[\"S…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 2,
+      "label": "modal-map",
+      "phaseIndex": 1,
+      "phaseTitle": "Recon",
+      "agentId": "a149d749a101ceca2",
+      "agentType": "audit-readonly",
+      "model": "claude-haiku-4-5-20251001",
+      "state": "done",
+      "startedAt": 1784349094750,
+      "queuedAt": 1784349094728,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "promptPreview": "The authoritative spec is C:/Users/thoma/Documents/Programming/Projects/orbit-ui-mobile/DESIGN.md — READ IT FIRST. Orbit is a Turborepo: apps/web (Next.js), apps/mobile (Expo), packages/shared. Every web surface has a mobile mirror.\n\nMap every MODAL / DIALOG / SHEET / DRAWER to its real files (web + mobile mirror). The components to resolve (from the #539 inventory): create-habit-modal, edit-habit…",
+      "lastProgressAt": 1784349216071,
+      "tokens": 81685,
+      "toolCalls": 47,
+      "durationMs": 121321,
+      "resultPreview": "{\"surfaces\":[{\"name\":\"create-habit-modal\",\"webFiles\":[\"apps/web/components/habits/create-habit-modal.tsx\"],\"mobileFiles\":[\"apps/mobile/components/habits/create-habit-modal.tsx\"],\"sharedComponents\":[\"AppOverlay (web) / BottomSheetModal (mobile)\",\"PillButton\",\"ConfirmDialog\",\"HabitFormFields\",\"Field / AppTextInput\"],\"notes\":\"Orchestrates shared form with tag/goal/sub-habit/reminder state and AI-sugg…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 3,
+      "label": "icon-audit",
+      "phaseIndex": 1,
+      "phaseTitle": "Recon",
+      "agentId": "a312c9b7a1da88424",
+      "agentType": "audit-readonly",
+      "model": "claude-haiku-4-5-20251001",
+      "state": "done",
+      "startedAt": 1784349094764,
+      "queuedAt": 1784349094728,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "#539 kills Sparkles-as-AI-marker everywhere (DESIGN.md 2026…",
+      "promptPreview": "The authoritative spec is C:/Users/thoma/Documents/Programming/Projects/orbit-ui-mobile/DESIGN.md — READ IT FIRST. Orbit is a Turborepo: apps/web (Next.js), apps/mobile (Expo), packages/shared. Every web surface has a mobile mirror.\n\nEnumerate the COMPLETE Lucide→Tabler icon-migration worklist. (1) Grep every import from 'lucide-react' (web, apps/web/**) and 'lucide-react-native' (mobile, apps/mob…",
+      "lastProgressAt": 1784349199782,
+      "tokens": 77322,
+      "toolCalls": 14,
+      "durationMs": 105018,
+      "resultPreview": "{\"distinctIcons\":[{\"lucideName\":\"AlertTriangle\",\"tablerName\":\"IconAlertTriangle\",\"webCount\":7,\"mobileCount\":6,\"uncertain\":false},{\"lucideName\":\"ArrowRight\",\"tablerName\":\"IconArrowRight\",\"webCount\":1,\"mobileCount\":1,\"uncertain\":false},{\"lucideName\":\"ArrowUp\",\"tablerName\":\"IconArrowUp\",\"webCount\":2,\"mobileCount\":1,\"uncertain\":false},{\"lucideName\":\"ArrowUpRight\",\"tablerName\":\"IconArrowUpRight\",\"webCo…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 4,
+      "label": "primitive-audit",
+      "phaseIndex": 1,
+      "phaseTitle": "Recon",
+      "agentId": "aa075d602b4d313b0",
+      "agentType": "audit-readonly",
+      "model": "claude-haiku-4-5-20251001",
+      "state": "done",
+      "startedAt": 1784349094777,
+      "queuedAt": 1784349094728,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "promptPreview": "The authoritative spec is C:/Users/thoma/Documents/Programming/Projects/orbit-ui-mobile/DESIGN.md — READ IT FIRST. Orbit is a Turborepo: apps/web (Next.js), apps/mobile (Expo), packages/shared. Every web surface has a mobile mirror.\n\nAudit the SHARED PRIMITIVE KIT against DESIGN.md's \"Primitives kit\", \"Buttons\", \"Surface rules\", \"States\", and \"Bans\" sections. These primitives (web in apps/web/comp…",
+      "lastProgressAt": 1784349226013,
+      "tokens": 77516,
+      "toolCalls": 21,
+      "durationMs": 131235,
+      "resultPreview": "{\"primitives\":[{\"name\":\"PillButton\",\"webFile\":\"apps/web/components/ui/pill-button.tsx\",\"mobileFile\":\"apps/mobile/components/ui/pill-button.tsx\",\"violations\":[{\"designRule\":\"Buttons - Press feedback scale\",\"detail\":\"Line 29, 32, 35: enabled:active:scale-[0.98] violates DESIGN.md spec 'A pill scales to 0.96-0.97 on pointer-down, never lower.' Scale of 0.98 is outside the specified range.\",\"fileLine\"…"
+    }
+  ],
+  "totalTokens": 303088,
+  "totalToolCalls": 99
+}

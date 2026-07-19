@@ -1,0 +1,726 @@
+{
+ "map": [
+  {
+   "lucide": "AlertTriangle",
+   "tabler": "IconAlertTriangle",
+   "web": 7,
+   "mobile": 6,
+   "uncertain": false
+  },
+  {
+   "lucide": "ArrowRight",
+   "tabler": "IconArrowRight",
+   "web": 1,
+   "mobile": 1,
+   "uncertain": false
+  },
+  {
+   "lucide": "ArrowUp",
+   "tabler": "IconArrowUp",
+   "web": 2,
+   "mobile": 1,
+   "uncertain": false
+  },
+  {
+   "lucide": "ArrowUpRight",
+   "tabler": "IconArrowUpRight",
+   "web": 3,
+   "mobile": 2,
+   "uncertain": false
+  },
+  {
+   "lucide": "BarChart3",
+   "tabler": "IconChartBar",
+   "web": 2,
+   "mobile": 1,
+   "uncertain": false
+  },
+  {
+   "lucide": "Bell",
+   "tabler": "IconBell",
+   "web": 7,
+   "mobile": 7,
+   "uncertain": false
+  },
+  {
+   "lucide": "BellRing",
+   "tabler": "IconBellRinging",
+   "web": 1,
+   "mobile": 0,
+   "uncertain": false
+  },
+  {
+   "lucide": "Brain",
+   "tabler": "IconBrain",
+   "web": 1,
+   "mobile": 0,
+   "uncertain": false
+  },
+  {
+   "lucide": "Calendar",
+   "tabler": "IconCalendar",
+   "web": 2,
+   "mobile": 2,
+   "uncertain": false
+  },
+  {
+   "lucide": "CalendarCheck",
+   "tabler": "IconCalendarCheck",
+   "web": 1,
+   "mobile": 0,
+   "uncertain": false
+  },
+  {
+   "lucide": "CalendarClock",
+   "tabler": "IconCalendarClock",
+   "web": 2,
+   "mobile": 2,
+   "uncertain": false
+  },
+  {
+   "lucide": "CalendarDays",
+   "tabler": "IconCalendarDays",
+   "web": 5,
+   "mobile": 5,
+   "uncertain": false
+  },
+  {
+   "lucide": "Check",
+   "tabler": "IconCheck",
+   "web": 32,
+   "mobile": 28,
+   "uncertain": false
+  },
+  {
+   "lucide": "CheckCheck",
+   "tabler": "IconCheckCheck",
+   "web": 3,
+   "mobile": 3,
+   "uncertain": false
+  },
+  {
+   "lucide": "CheckCircle",
+   "tabler": "IconCircleCheck",
+   "web": 2,
+   "mobile": 2,
+   "uncertain": false
+  },
+  {
+   "lucide": "CheckCircle2",
+   "tabler": "IconCircleCheck",
+   "web": 1,
+   "mobile": 1,
+   "uncertain": false
+  },
+  {
+   "lucide": "ChevronDown",
+   "tabler": "IconChevronDown",
+   "web": 9,
+   "mobile": 8,
+   "uncertain": false
+  },
+  {
+   "lucide": "ChevronLeft",
+   "tabler": "IconChevronLeft",
+   "web": 11,
+   "mobile": 10,
+   "uncertain": false
+  },
+  {
+   "lucide": "ChevronRight",
+   "tabler": "IconChevronRight",
+   "web": 17,
+   "mobile": 14,
+   "uncertain": false
+  },
+  {
+   "lucide": "ChevronUp",
+   "tabler": "IconChevronUp",
+   "web": 0,
+   "mobile": 1,
+   "uncertain": false
+  },
+  {
+   "lucide": "Circle",
+   "tabler": "IconCircle",
+   "web": 1,
+   "mobile": 0,
+   "uncertain": false
+  },
+  {
+   "lucide": "CircleHelp",
+   "tabler": "IconCircleHelp",
+   "web": 1,
+   "mobile": 0,
+   "uncertain": true
+  },
+  {
+   "lucide": "Clipboard",
+   "tabler": "IconClipboard",
+   "web": 1,
+   "mobile": 0,
+   "uncertain": false
+  },
+  {
+   "lucide": "Clock",
+   "tabler": "IconClock",
+   "web": 1,
+   "mobile": 0,
+   "uncertain": false
+  },
+  {
+   "lucide": "Clock3",
+   "tabler": "IconClock3",
+   "web": 1,
+   "mobile": 1,
+   "uncertain": false
+  },
+  {
+   "lucide": "Compass",
+   "tabler": "IconCompass",
+   "web": 2,
+   "mobile": 2,
+   "uncertain": false
+  },
+  {
+   "lucide": "Copy",
+   "tabler": "IconCopy",
+   "web": 7,
+   "mobile": 7,
+   "uncertain": false
+  },
+  {
+   "lucide": "CreditCard",
+   "tabler": "IconCreditCard",
+   "web": 2,
+   "mobile": 2,
+   "uncertain": false
+  },
+  {
+   "lucide": "Crown",
+   "tabler": "IconCrown",
+   "web": 2,
+   "mobile": 2,
+   "uncertain": false
+  },
+  {
+   "lucide": "Download",
+   "tabler": "IconDownload",
+   "web": 7,
+   "mobile": 3,
+   "uncertain": false
+  },
+  {
+   "lucide": "Expand",
+   "tabler": "IconExpand",
+   "web": 2,
+   "mobile": 2,
+   "uncertain": false
+  },
+  {
+   "lucide": "FastForward",
+   "tabler": "IconPlayerSkipForward",
+   "web": 0,
+   "mobile": 1,
+   "uncertain": true
+  },
+  {
+   "lucide": "FileText",
+   "tabler": "IconFileText",
+   "web": 2,
+   "mobile": 2,
+   "uncertain": false
+  },
+  {
+   "lucide": "Filter",
+   "tabler": "IconFilter",
+   "web": 2,
+   "mobile": 2,
+   "uncertain": false
+  },
+  {
+   "lucide": "Flame",
+   "tabler": "IconFlame",
+   "web": 6,
+   "mobile": 6,
+   "uncertain": false
+  },
+  {
+   "lucide": "Gift",
+   "tabler": "IconGift",
+   "web": 7,
+   "mobile": 6,
+   "uncertain": false
+  },
+  {
+   "lucide": "GripHorizontal",
+   "tabler": "IconGripHorizontal",
+   "web": 1,
+   "mobile": 0,
+   "uncertain": false
+  },
+  {
+   "lucide": "HelpCircle",
+   "tabler": "IconCircleQuestion",
+   "web": 1,
+   "mobile": 0,
+   "uncertain": true
+  },
+  {
+   "lucide": "Heart",
+   "tabler": "IconHeart",
+   "web": 2,
+   "mobile": 2,
+   "uncertain": false
+  },
+  {
+   "lucide": "Home",
+   "tabler": "IconHome",
+   "web": 4,
+   "mobile": 3,
+   "uncertain": false
+  },
+  {
+   "lucide": "Infinity",
+   "tabler": "IconInfinity",
+   "web": 1,
+   "mobile": 0,
+   "uncertain": false
+  },
+  {
+   "lucide": "Info",
+   "tabler": "IconInfoCircle",
+   "web": 2,
+   "mobile": 2,
+   "uncertain": false
+  },
+  {
+   "lucide": "Languages",
+   "tabler": "IconLanguage",
+   "web": 1,
+   "mobile": 1,
+   "uncertain": false
+  },
+  {
+   "lucide": "ListChecks",
+   "tabler": "IconListCheck",
+   "web": 2,
+   "mobile": 0,
+   "uncertain": false
+  },
+  {
+   "lucide": "ListTodo",
+   "tabler": "IconListCheck",
+   "web": 1,
+   "mobile": 0,
+   "uncertain": false
+  },
+  {
+   "lucide": "Lock",
+   "tabler": "IconLock",
+   "web": 7,
+   "mobile": 9,
+   "uncertain": false
+  },
+  {
+   "lucide": "Loader2",
+   "tabler": "IconLoader2",
+   "web": 15,
+   "mobile": 0,
+   "uncertain": false
+  },
+  {
+   "lucide": "LogOut",
+   "tabler": "IconLogout",
+   "web": 1,
+   "mobile": 1,
+   "uncertain": false
+  },
+  {
+   "lucide": "Mail",
+   "tabler": "IconMail",
+   "web": 4,
+   "mobile": 4,
+   "uncertain": false
+  },
+  {
+   "lucide": "Maximize2",
+   "tabler": "IconMaximize",
+   "web": 1,
+   "mobile": 0,
+   "uncertain": false
+  },
+  {
+   "lucide": "MessageSquare",
+   "tabler": "IconMessageSquare",
+   "web": 1,
+   "mobile": 0,
+   "uncertain": false
+  },
+  {
+   "lucide": "Minimize2",
+   "tabler": "IconMinimize",
+   "web": 1,
+   "mobile": 0,
+   "uncertain": false
+  },
+  {
+   "lucide": "Moon",
+   "tabler": "IconMoon",
+   "web": 2,
+   "mobile": 2,
+   "uncertain": false
+  },
+  {
+   "lucide": "MoreVertical",
+   "tabler": "IconDots",
+   "web": 3,
+   "mobile": 3,
+   "uncertain": false
+  },
+  {
+   "lucide": "Orbit",
+   "tabler": "IconOrbit",
+   "web": 4,
+   "mobile": 4,
+   "uncertain": false
+  },
+  {
+   "lucide": "Palette",
+   "tabler": "IconPalette",
+   "web": 2,
+   "mobile": 2,
+   "uncertain": false
+  },
+  {
+   "lucide": "PanelRight",
+   "tabler": "IconPanelRight",
+   "web": 1,
+   "mobile": 0,
+   "uncertain": false
+  },
+  {
+   "lucide": "Pencil",
+   "tabler": "IconPencil",
+   "web": 3,
+   "mobile": 4,
+   "uncertain": false
+  },
+  {
+   "lucide": "PenSquare",
+   "tabler": "IconSquarePencil",
+   "web": 2,
+   "mobile": 2,
+   "uncertain": false
+  },
+  {
+   "lucide": "Play",
+   "tabler": "IconPlayerPlay",
+   "web": 1,
+   "mobile": 1,
+   "uncertain": false
+  },
+  {
+   "lucide": "Plus",
+   "tabler": "IconPlus",
+   "web": 21,
+   "mobile": 18,
+   "uncertain": false
+  },
+  {
+   "lucide": "RefreshCw",
+   "tabler": "IconRefresh",
+   "web": 4,
+   "mobile": 4,
+   "uncertain": false
+  },
+  {
+   "lucide": "Repeat",
+   "tabler": "IconRepeat",
+   "web": 2,
+   "mobile": 2,
+   "uncertain": false
+  },
+  {
+   "lucide": "RotateCcw",
+   "tabler": "IconRotateCounterClockwise",
+   "web": 3,
+   "mobile": 3,
+   "uncertain": false
+  },
+  {
+   "lucide": "Satellite",
+   "tabler": "IconSatellite",
+   "web": 1,
+   "mobile": 0,
+   "uncertain": false
+  },
+  {
+   "lucide": "Search",
+   "tabler": "IconSearch",
+   "web": 4,
+   "mobile": 2,
+   "uncertain": false
+  },
+  {
+   "lucide": "Settings",
+   "tabler": "IconSettings",
+   "web": 2,
+   "mobile": 2,
+   "uncertain": false
+  },
+  {
+   "lucide": "Settings2",
+   "tabler": "IconSliders",
+   "web": 1,
+   "mobile": 1,
+   "uncertain": true
+  },
+  {
+   "lucide": "Share2",
+   "tabler": "IconShare",
+   "web": 10,
+   "mobile": 10,
+   "uncertain": false
+  },
+  {
+   "lucide": "Shield",
+   "tabler": "IconShield",
+   "web": 1,
+   "mobile": 0,
+   "uncertain": false
+  },
+  {
+   "lucide": "ShieldAlert",
+   "tabler": "IconShieldAlert",
+   "web": 2,
+   "mobile": 2,
+   "uncertain": false
+  },
+  {
+   "lucide": "ShieldCheck",
+   "tabler": "IconShieldCheck",
+   "web": 1,
+   "mobile": 0,
+   "uncertain": false
+  },
+  {
+   "lucide": "Smartphone",
+   "tabler": "IconSmartphone",
+   "web": 1,
+   "mobile": 1,
+   "uncertain": false
+  },
+  {
+   "lucide": "Snowflake",
+   "tabler": "IconSnowflake",
+   "web": 3,
+   "mobile": 4,
+   "uncertain": false
+  },
+  {
+   "lucide": "Sparkles",
+   "tabler": "IconSparkles",
+   "web": 9,
+   "mobile": 9,
+   "uncertain": false
+  },
+  {
+   "lucide": "SquareX",
+   "tabler": "IconSquareX",
+   "web": 1,
+   "mobile": 1,
+   "uncertain": false
+  },
+  {
+   "lucide": "Sun",
+   "tabler": "IconSun",
+   "web": 1,
+   "mobile": 1,
+   "uncertain": false
+  },
+  {
+   "lucide": "Tag",
+   "tabler": "IconTag",
+   "web": 1,
+   "mobile": 0,
+   "uncertain": false
+  },
+  {
+   "lucide": "Target",
+   "tabler": "IconTarget",
+   "web": 4,
+   "mobile": 4,
+   "uncertain": false
+  },
+  {
+   "lucide": "Trash2",
+   "tabler": "IconTrash",
+   "web": 7,
+   "mobile": 7,
+   "uncertain": false
+  },
+  {
+   "lucide": "TrendingDown",
+   "tabler": "IconTrendingDown",
+   "web": 2,
+   "mobile": 2,
+   "uncertain": false
+  },
+  {
+   "lucide": "TrendingUp",
+   "tabler": "IconTrendingUp",
+   "web": 2,
+   "mobile": 2,
+   "uncertain": false
+  },
+  {
+   "lucide": "TriangleAlert",
+   "tabler": "IconAlertTriangle",
+   "web": 6,
+   "mobile": 6,
+   "uncertain": false
+  },
+  {
+   "lucide": "Trophy",
+   "tabler": "IconTrophy",
+   "web": 5,
+   "mobile": 4,
+   "uncertain": false
+  },
+  {
+   "lucide": "User",
+   "tabler": "IconUser",
+   "web": 3,
+   "mobile": 2,
+   "uncertain": false
+  },
+  {
+   "lucide": "UserPlus",
+   "tabler": "IconUserPlus",
+   "web": 4,
+   "mobile": 4,
+   "uncertain": false
+  },
+  {
+   "lucide": "UserX",
+   "tabler": "IconUserX",
+   "web": 1,
+   "mobile": 1,
+   "uncertain": false
+  },
+  {
+   "lucide": "Users",
+   "tabler": "IconUsers",
+   "web": 6,
+   "mobile": 6,
+   "uncertain": false
+  },
+  {
+   "lucide": "WifiOff",
+   "tabler": "IconWifiOff",
+   "web": 2,
+   "mobile": 2,
+   "uncertain": false
+  },
+  {
+   "lucide": "X",
+   "tabler": "IconX",
+   "web": 26,
+   "mobile": 24,
+   "uncertain": false
+  },
+  {
+   "lucide": "XCircle",
+   "tabler": "IconCircleX",
+   "web": 2,
+   "mobile": 2,
+   "uncertain": false
+  },
+  {
+   "lucide": "Zap",
+   "tabler": "IconZap",
+   "web": 2,
+   "mobile": 0,
+   "uncertain": false
+  },
+  {
+   "lucide": "Shuffle",
+   "tabler": "IconShuffle",
+   "web": 1,
+   "mobile": 0,
+   "uncertain": false
+  }
+ ],
+ "sparklesUsages": [
+  {
+   "file": "apps/web/components/upgrade/plan-card.tsx",
+   "context": "Line 95: <Sparkles size={15} strokeWidth={1.8} ... /> - visual accent in Pro plan feature row marking premium features"
+  },
+  {
+   "file": "apps/web/components/ui/info-card.tsx",
+   "context": "Line 12: Icon = Sparkles as default export - default icon for generic info cards"
+  },
+  {
+   "file": "apps/web/components/habits/reschedule-sheet.tsx",
+   "context": "Line 269: <Sparkles size={16} strokeWidth={1.9} ... /> - Astra AI disclosure marker in reschedule suggestions"
+  },
+  {
+   "file": "apps/web/app/(app)/ai-settings/_components/user-facts-list.tsx",
+   "context": "Line 110: leading={<Sparkles size={18} strokeWidth={1.8} ... />} - leading icon for 'Ask Astra' action button"
+  },
+  {
+   "file": "apps/web/components/habits/habit-form-fields.tsx",
+   "context": "Line 273, 449: Sparkles as AI suggestion button icon in tag suggestions and habit tweaks"
+  },
+  {
+   "file": "apps/web/app/(app)/profile/_components/next-reward-carrot.tsx",
+   "context": "Line 39: <Sparkles size={18} strokeWidth={1.9} ... /> - gamification reward indicator"
+  },
+  {
+   "file": "apps/web/components/navigation/notification-bell.tsx",
+   "context": "Line 36: astra: Sparkles - maps 'astra' notification type to Sparkles icon"
+  },
+  {
+   "file": "apps/web/components/profile/profile-nav-icon.tsx",
+   "context": "Line 27: orbit: Sparkles - maps 'orbit' nav key to Sparkles icon"
+  },
+  {
+   "file": "apps/mobile/components/upgrade/pricing-footer.tsx",
+   "context": "Line 42: leading={<Sparkles size={18} strokeWidth={1.8} ... />} - upgrade CTA leading icon"
+  },
+  {
+   "file": "apps/mobile/components/navigation/notification-row.tsx",
+   "context": "Line 18: astra: Sparkles - maps 'astra' notification type to Sparkles icon"
+  },
+  {
+   "file": "apps/mobile/components/habits/reschedule-sheet.tsx",
+   "context": "Line 193: <Sparkles size={16} color={tokens.primarySoft} ... /> - Astra AI disclosure marker"
+  },
+  {
+   "file": "apps/mobile/app/ai-settings-sections.tsx",
+   "context": "Line 507: leading={<Sparkles size={18} color={tokens.fgOnPrimary} ... />} - Ask Astra button icon"
+  },
+  {
+   "file": "apps/mobile/components/habits/habit-form-fields.tsx",
+   "context": "Line 198: <Sparkles size={18} color={tokens.primary} ... /> - AI suggestion toggle in form"
+  },
+  {
+   "file": "apps/mobile/components/habits/habit-form-fields/tags-section.tsx",
+   "context": "Line 165: <Sparkles size={14} color={tokens.primary} ... /> - AI tag suggestion indicator"
+  },
+  {
+   "file": "apps/mobile/app/(tabs)/profile/_components/next-reward-carrot.tsx",
+   "context": "Line 37: <Sparkles size={18} strokeWidth={1.9} color={tokens.primary} /> - reward carrot gamification marker"
+  },
+  {
+   "file": "apps/mobile/components/ui/info-card.tsx",
+   "context": "Line 15: Icon = Sparkles as default - default info card icon"
+  },
+  {
+   "file": "apps/mobile/components/profile/profile-nav-icon.tsx",
+   "context": "Line 7: Sparkles imported, used in nav icon mapping"
+  }
+ ],
+ "notes": "#539 kills Sparkles-as-AI-marker everywhere (DESIGN.md 2026-07-17 freeze replaces with Astra orbital glyph + 'AI'/'IA' badge deleted). Web Loader2 has 15 usage counts (mobile Loader2 is 0 because mobile uses ActivityIndicator from React Native instead). ListChecks + ListTodo both resolve to IconListCheck in Tabler. CheckCircle + CheckCircle2 both use IconCircleCheck (CheckCircle2 is a Lucide variant). FastForward → IconPlayerSkipForward (Tabler's skip-forward variant). Settings2 → IconSliders (Tabler equivalent for secondary settings icon). HelpCircle → IconCircleQuestion (Lucide's help icon). All 86 distinct icons plus Shuffle (custom Orbit icon). Zero icon breakage risk: all Lucide names are 1:1 renames to Icon-prefixed Tabler names except the 5 marked uncertain (which have clear Tabler equivalents but need human verification on visual parity).\""
+}
