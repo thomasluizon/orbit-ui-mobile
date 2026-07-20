@@ -363,6 +363,7 @@ export function CreateHabitModal({
           expandAdvancedSignal={expandAdvancedSignal}
           onSuggestSetup={isSubHabitMode ? undefined : () => void handleSuggest()}
           isSuggesting={suggestion.isPending}
+          lockedGeneral={parentHabit?.isGeneral ?? null}
         >
           {!isSubHabitMode && (
             <SubHabitEditor

@@ -131,7 +131,7 @@ export function HabitRow({
   } = useAnchoredMenu()
   const menuActivityAt = useRef(0)
 
-  const hasMenuActions = hasHabitRowMenuActions(actions, isSelectMode, hasChildren)
+  const hasMenuActions = hasHabitRowMenuActions(actions, isSelectMode)
 
   const openMenu = useCallback(() => {
     menuActivityAt.current = Date.now()
@@ -264,11 +264,10 @@ export function HabitRow({
           anchorRect={menuAnchorRect}
           onClose={closeMenu}
           width={208}
-          estimatedHeight={hasChildren ? 340 : 296}
+          estimatedHeight={actions.onDrillInto ? 340 : 296}
         >
           <HabitRowMenuBody
             actions={actions}
-            hasChildren={hasChildren}
             isSelectMode={isSelectMode}
             close={closeMenu}
             t={t}

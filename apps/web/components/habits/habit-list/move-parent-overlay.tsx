@@ -96,12 +96,7 @@ function MoveTargetRow({
             aria-hidden="true"
             className="self-stretch shrink-0"
             style={{ width: 20 }}
-          >
-            <span
-              className="block h-full"
-              style={{ width: 1, margin: '0 auto', background: 'var(--hairline)' }}
-            />
-          </span>
+          />
         ))}
         <span
           className="grid shrink-0 place-items-center"

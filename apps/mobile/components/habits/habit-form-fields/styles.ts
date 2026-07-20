@@ -233,7 +233,7 @@ export function createSectionStyles(tokens: AppTokens) {
 export function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     container: {
-      gap: 28,
+      gap: 24,
     },
     fieldGroup: {
       gap: 8,
@@ -640,12 +640,6 @@ export function createStyles(tokens: AppTokens) {
       height: 40,
       alignItems: "center",
       justifyContent: "center",
-    },
-    moreOptionsDivider: {
-      borderTopWidth: 1,
-      borderTopColor: tokens.hairline,
-      paddingTop: 12,
-      marginTop: 4,
     },
     moreOptionsButton: {
       flexDirection: "row",

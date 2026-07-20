@@ -225,8 +225,9 @@ export default function TodayScreen() {
       }
 
       setActiveView(nextView);
+      setSearchQueryStore("");
     },
-    [profile?.hasProAccess, router, setActiveView],
+    [profile?.hasProAccess, router, setActiveView, setSearchQueryStore],
   );
 
   const tabItems = useMemo<TodayTabItem[]>(
@@ -690,6 +691,11 @@ export default function TodayScreen() {
         onCloseDetail={() => setDetailHabit(null)}
         onHabitLogged={handleHabitLogged}
         editHabit={editHabit}
+        editHabitParentIsGeneral={
+          editHabit?.parentId
+            ? (habitsById.get(editHabit.parentId)?.isGeneral ?? null)
+            : null
+        }
         onCloseEdit={handleEditHabitClose}
         editHabitOnSaved={editHabitOnSaved}
         showBulkDeleteConfirm={showBulkDeleteConfirm}

@@ -9,14 +9,15 @@ export interface TodayViewSyncParams {
   isSelectMode: boolean
   setActiveView: (view: 'today') => void
   setLocalSearchQuery: (value: string) => void
+  setSearchQuery: (value: string) => void
   clearSelection: () => void
 }
 
 /**
  * Render-phase view synchronisation for the Today page (adjusting-state-during-render
  * pattern): pins the "today" view when a date is deep-linked, mirrors the store search
- * into the local input, and clears the selection when the active view changes.
- * Mirrors the mobile `useTodayScreenViewSync` hook.
+ * into the local input, clears the selection when the active view changes, and clears
+ * the search query on any tab or day change. Mirrors the mobile `useTodayScreenViewSync` hook.
  */
 export function useTodayViewSync({
   pinnedDateStr,
@@ -25,6 +26,7 @@ export function useTodayViewSync({
   isSelectMode,
   setActiveView,
   setLocalSearchQuery,
+  setSearchQuery,
   clearSelection,
 }: TodayViewSyncParams) {
   const [previousPinnedDateStr, setPreviousPinnedDateStr] = useState<string | null>(null)
@@ -32,6 +34,8 @@ export function useTodayViewSync({
     setPreviousPinnedDateStr(pinnedDateStr)
     // react-doctor-disable-next-line no-prop-callback-in-render -- documented adjusting-state-during-render sync: idempotent store setter guarded by a prev-value check https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     if (pinnedDateStr) setActiveView('today')
+    // react-doctor-disable-next-line no-prop-callback-in-render -- documented adjusting-state-during-render sync: idempotent store setter guarded by a prev-value check https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+    setSearchQuery('')
   }
 
   const [previousStoreSearch, setPreviousStoreSearch] = useState(searchQueryStore)
@@ -46,5 +50,7 @@ export function useTodayViewSync({
     setPreviousActiveView(activeView)
     // react-doctor-disable-next-line no-prop-callback-in-render -- documented adjusting-state-during-render sync: idempotent store setter guarded by a prev-value check https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     if (isSelectMode) clearSelection()
+    // react-doctor-disable-next-line no-prop-callback-in-render -- documented adjusting-state-during-render sync: idempotent store setter guarded by a prev-value check https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+    setSearchQuery('')
   }
 }
