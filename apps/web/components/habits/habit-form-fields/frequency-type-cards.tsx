@@ -119,6 +119,13 @@ export function FrequencyTypeCards({
     return lockedGeneral ? cardKey !== 'general' : cardKey === 'general'
   }
 
+  const isPreviousDisabled =
+    activeFrequencyIndex === 0 ||
+    isCardDisabled(FREQUENCY_TYPE_CARDS[activeFrequencyIndex - 1]?.key ?? '')
+  const isNextDisabled =
+    activeFrequencyIndex === FREQUENCY_TYPE_CARDS.length - 1 ||
+    isCardDisabled(FREQUENCY_TYPE_CARDS[activeFrequencyIndex + 1]?.key ?? '')
+
   return (
     <div className="space-y-2" role="radiogroup" aria-labelledby="habit-form-frequency-label">
       <span id="habit-form-frequency-label" className="form-label">
@@ -128,7 +135,7 @@ export function FrequencyTypeCards({
         <button
           type="button"
           aria-label={t('common.previous')}
-          disabled={activeFrequencyIndex === 0}
+          disabled={isPreviousDisabled}
           onClick={() => goToFrequencyIndex(activeFrequencyIndex - 1)}
           className="touch-target grid size-8 shrink-0 place-items-center rounded-full bg-[var(--bg-elev)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-opacity duration-[var(--dur-fast)] hover:text-[var(--fg-1)] disabled:pointer-events-none disabled:opacity-30 sm:hidden"
         >
@@ -222,7 +229,7 @@ export function FrequencyTypeCards({
         <button
           type="button"
           aria-label={t('common.next')}
-          disabled={activeFrequencyIndex === FREQUENCY_TYPE_CARDS.length - 1}
+          disabled={isNextDisabled}
           onClick={() => goToFrequencyIndex(activeFrequencyIndex + 1)}
           className="touch-target grid size-8 shrink-0 place-items-center rounded-full bg-[var(--bg-elev)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-opacity duration-[var(--dur-fast)] hover:text-[var(--fg-1)] disabled:pointer-events-none disabled:opacity-30 sm:hidden"
         >

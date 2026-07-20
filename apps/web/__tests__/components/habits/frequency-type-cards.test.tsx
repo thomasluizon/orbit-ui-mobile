@@ -59,4 +59,20 @@ describe('FrequencyTypeCards lockedGeneral', () => {
     screen.getByRole('button', { name: 'common.next' }).click()
     expect(props.onSetGeneral).not.toHaveBeenCalled()
   })
+
+  it('disables the forward arrow when the next card is locked out', () => {
+    renderCards({ isFlexible: true, lockedGeneral: false })
+    expect(screen.getByRole('button', { name: 'common.next' })).toBeDisabled()
+  })
+
+  it('disables the back arrow when the previous card is locked out', () => {
+    renderCards({ isGeneral: true, lockedGeneral: true })
+    expect(screen.getByRole('button', { name: 'common.previous' })).toBeDisabled()
+  })
+
+  it('leaves the arrows enabled when nothing is locked', () => {
+    renderCards({ isFlexible: true, lockedGeneral: null })
+    expect(screen.getByRole('button', { name: 'common.previous' })).not.toBeDisabled()
+    expect(screen.getByRole('button', { name: 'common.next' })).not.toBeDisabled()
+  })
 })
