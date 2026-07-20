@@ -85,7 +85,6 @@ export function buildHabitRowAccessibilityLabel({
 export function hasHabitRowMenuActions(
   actions: HabitRowActions,
   isSelectMode: boolean,
-  hasChildren: boolean,
 ): boolean {
   return (
     !!actions.onEdit ||
@@ -96,6 +95,6 @@ export function hasHabitRowMenuActions(
     !!actions.onReschedule ||
     !!actions.onDelete ||
     (!isSelectMode && !!actions.onEnterSelectMode) ||
-    (hasChildren && !!actions.onDrillInto)
+    !!actions.onDrillInto
   )
 }

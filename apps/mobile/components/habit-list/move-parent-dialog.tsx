@@ -74,9 +74,7 @@ function MoveTargetRow({
       <View style={styles.moveOptionHeader}>
         {Array.from({ length: option.depth }, (_, index) => (
           // react-doctor-disable-next-line no-array-index-as-key -- decorative indent rails: identical stateless spacers keyed by position, with no data identity to preserve https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-          <View key={index} style={styles.rail}>
-            <View style={styles.railLine} />
-          </View>
+          <View key={index} style={styles.rail} />
         ))}
         <View style={[styles.well, isRoot ? styles.wellRoot : styles.wellFilled]}>
           {isRoot ? (
@@ -318,13 +316,6 @@ function createStyles(tokens: AppTokensV2) {
     rail: {
       width: 20,
       alignSelf: 'stretch',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    railLine: {
-      width: 1,
-      height: '100%',
-      backgroundColor: tokens.hairline,
     },
     well: {
       width: 30,

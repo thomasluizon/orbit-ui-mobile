@@ -40,6 +40,8 @@ interface EditHabitModalProps {
   onClose: () => void
   habit: NormalizedHabit | null
   onSaved?: () => void | Promise<void>
+  /** The habit's parent's `isGeneral`, when it has a parent, from the caller's loaded habit map. */
+  parentIsGeneral?: boolean | null
 }
 
 export function EditHabitModal({
@@ -47,6 +49,7 @@ export function EditHabitModal({
   onClose,
   habit,
   onSaved,
+  parentIsGeneral = null,
 }: Readonly<EditHabitModalProps>) {
   const { t, i18n } = useTranslation()
   const translate = useCallback(
@@ -93,6 +96,8 @@ export function EditHabitModal({
     error: detailError,
   } = useHabitDetail(open && habit ? habit.id : null)
   const detailFieldsPending = open && !!habit && detailPending
+  const childrenIsGeneral = habitDetail?.children[0]?.isGeneral ?? null
+  const lockedGeneral = childrenIsGeneral ?? parentIsGeneral ?? null
 
   const toggleGoal = useCallback((goalId: string) => {
     setSelectedGoalIds((prev) => toggleSelectedId(prev, goalId))
@@ -290,6 +295,7 @@ export function EditHabitModal({
               onSuggestSetup={() => void handleSuggest()}
               isSuggesting={suggestion.isPending}
               defaultExpanded={true}
+              lockedGeneral={lockedGeneral}
             />
           </View>
         </KeyboardAwareBottomSheetScrollView>

@@ -56,6 +56,9 @@ interface HabitRowProps {
   selected?: boolean
   /** Parent expand/collapse. Caller is responsible for managing expanded state. */
   hasChildren?: boolean
+  /** Whether this habit truly has sub-habits (backend-computed, independent of the
+   *  current view's visibility filtering). Gates the "go to sub-habits" drill action. */
+  hasSubHabits?: boolean
   expanded?: boolean
   /** When the row is a parent, displays a ParentRing instead of StatusDot. */
   childProgress?: { done: number; total: number }
@@ -77,6 +80,7 @@ export function HabitRow({
   selectMode = false,
   selected = false,
   hasChildren = false,
+  hasSubHabits = false,
   expanded = false,
   childProgress,
   showLinkedGoalDot = false,
@@ -99,7 +103,7 @@ export function HabitRow({
     onDrillInto,
   } = actions
   const canSelect = !selectMode && !!onEnterSelectMode
-  const canDrillInto = hasChildren && !!onDrillInto
+  const canDrillInto = hasSubHabits && !!onDrillInto
   const hasMenuActions = !!(
     onEdit ||
     onDuplicate ||

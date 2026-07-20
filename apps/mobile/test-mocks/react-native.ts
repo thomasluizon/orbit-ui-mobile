@@ -48,6 +48,8 @@ function createHostComponent(name: string) {
       setNativeProps: () => {},
       focus: () => {},
       blur: () => {},
+      scrollTo: () => {},
+      scrollToEnd: () => {},
     }
 
     if (!hostRefsNull) {

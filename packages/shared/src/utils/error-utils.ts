@@ -342,6 +342,8 @@ export const ERROR_CODE_TO_KEY: Record<string, string> = {
   ALL_INSTANCES_DONE: 'errors.api.logNotAllowed',
   BEYOND_OVERDUE_WINDOW: 'errors.api.logNotAllowed',
   SELF_PARENT: 'errors.api.selfParent',
+  GENERAL_MISMATCH_WITH_PARENT: 'errors.api.generalMismatchWithParent',
+  GENERAL_MISMATCH_WITH_CHILDREN: 'errors.api.generalMismatchWithChildren',
   CALENDAR_NOT_CONNECTED: 'errors.api.calendarNotConnected',
   CALENDAR_RECONNECT_REQUIRED: 'errors.api.calendarReconnect',
   CALENDAR_FETCH_FAILED: 'errors.api.calendarFetchFailed',

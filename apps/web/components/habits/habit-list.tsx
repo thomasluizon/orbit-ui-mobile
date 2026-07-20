@@ -594,6 +594,17 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     (option) => option.id === selectedMoveParentId,
   ) ?? null
 
+  const editHabitLockedGeneral = ((): boolean | null => {
+    if (!habitToEdit) return null
+    if (habitToEdit.parentId) {
+      return habitsById.get(habitToEdit.parentId)?.isGeneral ?? null
+    }
+    for (const candidate of habitsById.values()) {
+      if (candidate.parentId === habitToEdit.id) return candidate.isGeneral
+    }
+    return null
+  })()
+
   const canSubmitMoveParent =
     movingHabit !== null &&
     !isMovingParent &&
@@ -832,7 +843,7 @@ const isPostponeAction = useMemo(() => {
     habit: NormalizedHabit,
     depth: number,
     hasChildren: boolean,
-    _hasSubHabits: boolean,
+    hasSubHabits: boolean,
     options?: {
       isDrillCard?: boolean
       isDraggingList?: boolean
@@ -862,6 +873,7 @@ const isPostponeAction = useMemo(() => {
         selectMode={isSelectMode}
         selected={selectedHabitIds?.has(habit.id) ?? false}
         hasChildren={hasChildren}
+        hasSubHabits={hasSubHabits}
         expanded={!collapsedIds.has(habit.id)}
         childProgress={hasChildren ? progress : undefined}
         showLinkedGoalDot={hasLinkedGoal}
@@ -1115,6 +1127,7 @@ const isPostponeAction = useMemo(() => {
         onOpenChange={handleEditModalOpenChange}
         habit={habitToEdit}
         onSaved={editModalOnSaved ?? undefined}
+        lockedGeneral={editHabitLockedGeneral}
       />
 
       <RescheduleSheet

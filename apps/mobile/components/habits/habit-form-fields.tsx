@@ -55,6 +55,8 @@ interface HabitFormFieldsProps {
   /** When provided, renders the "Suggest with AI" affordance that requests a setup for the title. */
   onSuggestSetup?: () => void;
   isSuggesting?: boolean;
+  /** When set (not null), locks the FrequencyTypeCards "General" option to this value because a parent or existing children constrain it. */
+  lockedGeneral?: boolean | null;
   children?: ReactNode;
 }
 
@@ -73,6 +75,7 @@ export function HabitFormFields({
   expandAdvancedSignal = 0,
   onSuggestSetup,
   isSuggesting = false,
+  lockedGeneral = null,
   children,
 }: Readonly<HabitFormFieldsProps>) {
   const { t } = useTranslation();
@@ -211,6 +214,7 @@ export function HabitFormFields({
         onSetRecurring={setRecurring}
         onSetFlexible={setFlexible}
         onSetGeneral={setGeneral}
+        lockedGeneral={lockedGeneral}
         styles={styles}
         tokens={tokens}
       />

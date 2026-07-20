@@ -59,6 +59,12 @@ interface FrequencyTypeCardsProps {
   onSetRecurring: () => void;
   onSetFlexible: () => void;
   onSetGeneral: () => void;
+  /**
+   * When set (not null), the "General" option is locked to this value: the
+   * habit has a parent or children whose `isGeneral` it must match. The
+   * mismatching option(s) render dimmed and non-interactive.
+   */
+  lockedGeneral?: boolean | null;
   styles: HabitFormStyles;
   tokens: AppTokens;
 }
@@ -71,6 +77,7 @@ export function FrequencyTypeCards({
   onSetRecurring,
   onSetFlexible,
   onSetGeneral,
+  lockedGeneral = null,
   styles,
   tokens,
 }: Readonly<FrequencyTypeCardsProps>) {
@@ -90,6 +97,15 @@ export function FrequencyTypeCards({
     onSetFlexible,
     onSetGeneral,
   ];
+
+  const isCardDisabled = useCallback(
+    (index: number) => {
+      if (lockedGeneral === null) return false;
+      const isGeneralCard = FREQUENCY_TYPE_CARDS[index]?.key === "general";
+      return lockedGeneral ? !isGeneralCard : isGeneralCard;
+    },
+    [lockedGeneral],
+  );
 
   const scrollToActive = useCallback(
     (animated: boolean) => {
@@ -119,17 +135,30 @@ export function FrequencyTypeCards({
     const nextIndex = Math.round(
       event.nativeEvent.contentOffset.x / pageWidth,
     );
-    if (nextIndex !== activeIndex) {
-      frequencyHandlers[nextIndex]?.();
+    if (nextIndex === activeIndex) {
+      return;
     }
+    if (isCardDisabled(nextIndex)) {
+      scrollToActive(true);
+      return;
+    }
+    frequencyHandlers[nextIndex]?.();
   }
 
   function goToIndex(index: number) {
     if (index < 0 || index >= FREQUENCY_TYPE_CARDS.length) {
       return;
     }
+    if (isCardDisabled(index)) {
+      return;
+    }
     frequencyHandlers[index]?.();
   }
+
+  const isPreviousDisabled = activeIndex === 0 || isCardDisabled(activeIndex - 1);
+  const isNextDisabled =
+    activeIndex === FREQUENCY_TYPE_CARDS.length - 1 ||
+    isCardDisabled(activeIndex + 1);
 
   return (
     <View style={styles.fieldGroup}>
@@ -138,10 +167,10 @@ export function FrequencyTypeCards({
         <Pressable
           style={({ pressed }) => [
             styles.frequencyArrow,
-            activeIndex === 0 ? styles.frequencyArrowDisabled : null,
+            isPreviousDisabled ? styles.frequencyArrowDisabled : null,
             pressed ? { transform: [{ scale: 0.96 }] } : null,
           ]}
-          disabled={activeIndex === 0}
+          disabled={isPreviousDisabled}
           onPress={() => goToIndex(activeIndex - 1)}
           accessibilityRole="button"
           accessibilityLabel={t("common.previous")}
@@ -171,12 +200,17 @@ export function FrequencyTypeCards({
                 <Pressable
                   style={({ pressed }) => [
                     styles.frequencyCardCarousel,
+                    isCardDisabled(index) ? { opacity: 0.5 } : null,
                     pressed ? { transform: [{ scale: 0.98 }] } : null,
                   ]}
+                  disabled={isCardDisabled(index)}
                   onPress={frequencyHandlers[index]}
                   accessibilityRole="radio"
                   accessibilityLabel={t(card.titleKey)}
-                  accessibilityState={{ checked: index === activeIndex }}
+                  accessibilityState={{
+                    checked: index === activeIndex,
+                    disabled: isCardDisabled(index),
+                  }}
                 >
                   <View style={styles.frequencyCardIconWell}>
                     <CardIcon
@@ -205,12 +239,10 @@ export function FrequencyTypeCards({
         <Pressable
           style={({ pressed }) => [
             styles.frequencyArrow,
-            activeIndex === FREQUENCY_TYPE_CARDS.length - 1
-              ? styles.frequencyArrowDisabled
-              : null,
+            isNextDisabled ? styles.frequencyArrowDisabled : null,
             pressed ? { transform: [{ scale: 0.96 }] } : null,
           ]}
-          disabled={activeIndex === FREQUENCY_TYPE_CARDS.length - 1}
+          disabled={isNextDisabled}
           onPress={() => goToIndex(activeIndex + 1)}
           accessibilityRole="button"
           accessibilityLabel={t("common.next")}

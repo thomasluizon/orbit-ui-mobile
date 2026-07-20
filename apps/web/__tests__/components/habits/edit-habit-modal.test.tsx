@@ -156,11 +156,14 @@ vi.mock('@/components/habits/habit-form-fields', () => ({
   HabitFormFields: ({
     children,
     onSuggestSetup,
+    lockedGeneral,
   }: {
     children?: React.ReactNode
     onSuggestSetup?: () => void
+    lockedGeneral?: boolean | null
   }) => (
     <div data-testid="habit-form-fields">
+      <span data-testid="habit-form-fields-locked-general">{String(lockedGeneral)}</span>
       {onSuggestSetup && (
         <button
           type="button"
@@ -257,6 +260,40 @@ describe('EditHabitModal', () => {
     expect(screen.getByTestId('habit-form-fields')).toBeDefined()
   })
 
+  it('locks General from the caller-supplied prop when the habit has no children', () => {
+    mockHabitDetailResult = {
+      data: { id: 'h-1', children: [] },
+      isPending: false,
+      error: null,
+    }
+    renderWithProviders(
+      <EditHabitModal
+        open={true}
+        onOpenChange={vi.fn()}
+        habit={defaultHabit}
+        lockedGeneral={true}
+      />,
+    )
+    expect(screen.getByTestId('habit-form-fields-locked-general')).toHaveTextContent('true')
+  })
+
+  it('overrides the caller-supplied lockedGeneral prop with the fetched children, avoiding the filtered-habitsById gap', () => {
+    mockHabitDetailResult = {
+      data: { id: 'h-1', children: [{ isGeneral: false }] },
+      isPending: false,
+      error: null,
+    }
+    renderWithProviders(
+      <EditHabitModal
+        open={true}
+        onOpenChange={vi.fn()}
+        habit={defaultHabit}
+        lockedGeneral={null}
+      />,
+    )
+    expect(screen.getByTestId('habit-form-fields-locked-general')).toHaveTextContent('false')
+  })
+
   it('calls onOpenChange(false) when cancel is clicked', () => {
     const onOpenChange = vi.fn()
     renderWithProviders(
@@ -308,7 +345,7 @@ describe('EditHabitModal', () => {
 
   it('enables the fields once the habit detail has loaded', () => {
     mockHabitDetailResult = {
-      data: { ...defaultHabit, checklistItems: [] },
+      data: { ...defaultHabit, checklistItems: [], children: [] },
       isPending: false,
       error: null,
     }

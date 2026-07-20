@@ -246,7 +246,8 @@ vi.mock("@/components/habits/habit-detail-drawer", () => ({
 }));
 
 vi.mock("@/components/habits/edit-habit-modal", () => ({
-  EditHabitModal: () => null,
+  EditHabitModal: (props: Record<string, unknown>) =>
+    React.createElement("EditHabitModal", props),
 }));
 
 vi.mock("@/components/habits/today-ai-summary", () => ({
@@ -724,6 +725,58 @@ describe("TodayScreen", () => {
     });
 
     expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears the search query when the active view changes", async () => {
+    const tree = await renderTodayScreen();
+
+    const tabs = tree.root.findAllByType("TodayTabs")[0];
+    if (!tabs) {
+      throw new Error("Expected TodayTabs to be rendered");
+    }
+
+    await TestRenderer.act(async () => {
+      (tabs.props.onChangeView as (view: string) => void)("all");
+      await Promise.resolve();
+    });
+
+    expect(uiState.setSearchQuery).toHaveBeenCalledWith("");
+  });
+
+  it("locks the edit modal General toggle to the parent isGeneral when editing a sub-habit", async () => {
+    const parent = createMockHabit({
+      id: "parent",
+      title: "Parent",
+      isGeneral: true,
+    });
+    const child = createMockHabit({
+      id: "child",
+      title: "Child",
+      parentId: "parent",
+      isGeneral: true,
+    });
+    mockHabitsData.habitsById.set(parent.id, parent);
+    mockHabitsData.habitsById.set(child.id, child);
+
+    const tree = await renderTodayScreen();
+
+    const habitList = tree.root.findAllByType("HabitList")[0];
+    if (!habitList) {
+      throw new Error("Expected HabitList to be rendered");
+    }
+
+    await TestRenderer.act(async () => {
+      (habitList.props.onEditHabit as (habit: NormalizedHabit) => void)(
+        child,
+      );
+      await Promise.resolve();
+    });
+
+    const editModal = tree.root.findAllByType("EditHabitModal")[0];
+    if (!editModal) {
+      throw new Error("Expected EditHabitModal to be rendered");
+    }
+    expect(editModal.props.parentIsGeneral).toBe(true);
   });
 });
 

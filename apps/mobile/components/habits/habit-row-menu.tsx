@@ -18,7 +18,6 @@ import { styles } from './habit-row-styles'
 
 interface HabitRowMenuBodyProps {
   actions: HabitRowActions
-  hasChildren: boolean
   isSelectMode: boolean
   close: () => void
   t: (key: string) => string
@@ -27,7 +26,6 @@ interface HabitRowMenuBodyProps {
 
 export function HabitRowMenuBody({
   actions,
-  hasChildren,
   isSelectMode,
   close,
   t,
@@ -39,7 +37,7 @@ export function HabitRowMenuBody({
   }
 
   const canSelect = !isSelectMode && !!actions.onEnterSelectMode
-  const canDrillInto = hasChildren && !!actions.onDrillInto
+  const canDrillInto = !!actions.onDrillInto
 
   return (
     <>

@@ -19,6 +19,10 @@ interface FrequencyTypeCardsProps {
   onSetRecurring: () => void
   onSetFlexible: () => void
   onSetGeneral: () => void
+  /** When set, the General type must match this value (a sub-habit's parent, or a
+   *  parent's existing sub-habits): the mismatching card(s) are dimmed and disabled.
+   *  `null` leaves all four cards freely selectable. */
+  lockedGeneral?: boolean | null
   t: ReturnType<typeof useTranslations>
 }
 
@@ -30,6 +34,7 @@ export function FrequencyTypeCards({
   onSetRecurring,
   onSetFlexible,
   onSetGeneral,
+  lockedGeneral = null,
   t,
 }: Readonly<FrequencyTypeCardsProps>) {
   const activeFrequencyKey = (() => {
@@ -93,18 +98,33 @@ export function FrequencyTypeCards({
       if (!track || track.clientWidth === 0) return
       const index = Math.round(track.scrollLeft / track.clientWidth)
       const nextCard = FREQUENCY_TYPE_CARDS[index]
-      if (nextCard && nextCard.key !== activeFrequencyKey) {
-        frequencyHandlers[nextCard.key]?.()
+      if (!nextCard || nextCard.key === activeFrequencyKey) return
+      if (isCardDisabled(nextCard.key)) {
+        track.scrollTo({ left: activeFrequencyIndex * track.clientWidth, behavior: 'smooth' })
+        return
       }
+      frequencyHandlers[nextCard.key]?.()
     }, FREQUENCY_SCROLL_SETTLE_MS)
   }
 
   function goToFrequencyIndex(index: number) {
     const nextCard = FREQUENCY_TYPE_CARDS[index]
-    if (nextCard) {
+    if (nextCard && !isCardDisabled(nextCard.key)) {
       frequencyHandlers[nextCard.key]?.()
     }
   }
+
+  function isCardDisabled(cardKey: string): boolean {
+    if (lockedGeneral === null) return false
+    return lockedGeneral ? cardKey !== 'general' : cardKey === 'general'
+  }
+
+  const isPreviousDisabled =
+    activeFrequencyIndex === 0 ||
+    isCardDisabled(FREQUENCY_TYPE_CARDS[activeFrequencyIndex - 1]?.key ?? '')
+  const isNextDisabled =
+    activeFrequencyIndex === FREQUENCY_TYPE_CARDS.length - 1 ||
+    isCardDisabled(FREQUENCY_TYPE_CARDS[activeFrequencyIndex + 1]?.key ?? '')
 
   return (
     <div className="space-y-2" role="radiogroup" aria-labelledby="habit-form-frequency-label">
@@ -115,7 +135,7 @@ export function FrequencyTypeCards({
         <button
           type="button"
           aria-label={t('common.previous')}
-          disabled={activeFrequencyIndex === 0}
+          disabled={isPreviousDisabled}
           onClick={() => goToFrequencyIndex(activeFrequencyIndex - 1)}
           className="touch-target grid size-8 shrink-0 place-items-center rounded-full bg-[var(--bg-elev)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-opacity duration-[var(--dur-fast)] hover:text-[var(--fg-1)] disabled:pointer-events-none disabled:opacity-30 sm:hidden"
         >
@@ -129,6 +149,7 @@ export function FrequencyTypeCards({
         >
           {FREQUENCY_TYPE_CARDS.map((card) => {
             const isActive = activeFrequencyKey === card.key
+            const isDisabled = isCardDisabled(card.key)
             const Icon = card.icon
             return (
               <div key={card.key} className="w-full shrink-0 snap-center px-1 sm:w-auto sm:min-w-0 sm:px-0">
@@ -136,8 +157,13 @@ export function FrequencyTypeCards({
                   type="button"
                   role="radio"
                   aria-checked={isActive}
+                  disabled={isDisabled}
                   onClick={frequencyHandlers[card.key]}
-                  className={`appearance-none cursor-pointer text-left w-full sm:h-full rounded-[18px] border-0 transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.99] ${
+                  className={`appearance-none text-left w-full sm:h-full rounded-[18px] border-0 transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] ${
+                    isDisabled
+                      ? 'cursor-not-allowed opacity-50'
+                      : 'cursor-pointer active:scale-[0.99]'
+                  } ${
                     isActive
                       ? 'bg-[rgba(var(--primary-rgb),0.10)] shadow-[inset_0_0_0_1.5px_var(--primary)]'
                       : 'bg-[var(--bg-elev)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-elev-2)]'
@@ -203,7 +229,7 @@ export function FrequencyTypeCards({
         <button
           type="button"
           aria-label={t('common.next')}
-          disabled={activeFrequencyIndex === FREQUENCY_TYPE_CARDS.length - 1}
+          disabled={isNextDisabled}
           onClick={() => goToFrequencyIndex(activeFrequencyIndex + 1)}
           className="touch-target grid size-8 shrink-0 place-items-center rounded-full bg-[var(--bg-elev)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-opacity duration-[var(--dur-fast)] hover:text-[var(--fg-1)] disabled:pointer-events-none disabled:opacity-30 sm:hidden"
         >
