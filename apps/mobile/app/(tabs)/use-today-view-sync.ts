@@ -10,13 +10,15 @@ export interface TodayViewSyncParams {
   setRenderBulkActionBar: (value: boolean) => void;
   setActiveView: (view: "today") => void;
   setFilters: (filters: HabitsFilter) => void;
+  setSearchQuery: (value: string) => void;
 }
 
 /**
  * Render-phase view synchronisation for the Today screen (adjusting-state-during-render
  * pattern): resets the scroll-to-top affordance when the view changes, mounts the bulk
- * action bar when entering select mode, pins the "today" view for a deep-linked date, and
- * mirrors the computed filters into the shared store. Mirrors the web `useTodayViewSync`.
+ * action bar when entering select mode, pins the "today" view for a deep-linked date, clears
+ * the search query on any tab or day change, and mirrors the computed filters into the shared
+ * store. Mirrors the web `useTodayViewSync`.
  */
 export function useTodayViewSync({
   currentActiveView,
@@ -27,12 +29,15 @@ export function useTodayViewSync({
   setRenderBulkActionBar,
   setActiveView,
   setFilters,
+  setSearchQuery,
 }: TodayViewSyncParams) {
   const [prevScrollTopView, setPrevScrollTopView] = useState(currentActiveView);
   if (currentActiveView !== prevScrollTopView) {
     setPrevScrollTopView(currentActiveView);
     // react-doctor-disable-next-line no-prop-callback-in-render -- Deliberate adjusting-state-during-render pattern (mirrors web useTodayViewSync); the prop setter is an idempotent guard (constant value under a change check), so a replayed render is harmless. Moving to an effect would add a flash and break web parity. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     setShowScrollTop(false);
+    // react-doctor-disable-next-line no-prop-callback-in-render -- Deliberate adjusting-state-during-render pattern (mirrors web useTodayViewSync); the prop setter is an idempotent guard (constant value under a change check), so a replayed render is harmless. Moving to an effect would add a flash and break web parity. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+    setSearchQuery("");
   }
 
   const [prevIsSelectMode, setPrevIsSelectMode] = useState(isSelectMode);
@@ -49,6 +54,8 @@ export function useTodayViewSync({
     setPreviousPinnedDateStr(pinnedDateStr);
     // react-doctor-disable-next-line no-prop-callback-in-render -- Deliberate adjusting-state-during-render pattern (mirrors web useTodayViewSync); the prop setter is an idempotent guard (constant value under a change check), so a replayed render is harmless. Moving to an effect would add a flash and break web parity. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     if (pinnedDateStr) setActiveView("today");
+    // react-doctor-disable-next-line no-prop-callback-in-render -- Deliberate adjusting-state-during-render pattern (mirrors web useTodayViewSync); the prop setter is an idempotent guard (constant value under a change check), so a replayed render is harmless. Moving to an effect would add a flash and break web parity. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+    setSearchQuery("");
   }
 
   const [prevFilters, setPrevFilters] = useState(filters);

@@ -391,6 +391,7 @@ export default function TodayScreen() {
     setRenderBulkActionBar,
     setActiveView,
     setFilters,
+    setSearchQuery: setSearchQueryStore,
   });
 
   const showSummary = currentActiveView === "today" && isToday(selectedDate);

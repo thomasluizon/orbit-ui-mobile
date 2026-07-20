@@ -69,8 +69,6 @@ interface FrequencyTypeCardsProps {
   tokens: AppTokens;
 }
 
-const GENERAL_CARD_INDEX = 3;
-
 export function FrequencyTypeCards({
   isOneTime,
   isGeneral,
@@ -103,7 +101,7 @@ export function FrequencyTypeCards({
   const isCardDisabled = useCallback(
     (index: number) => {
       if (lockedGeneral === null) return false;
-      const isGeneralCard = index === GENERAL_CARD_INDEX;
+      const isGeneralCard = FREQUENCY_TYPE_CARDS[index]?.key === "general";
       return lockedGeneral ? !isGeneralCard : isGeneralCard;
     },
     [lockedGeneral],
@@ -202,7 +200,7 @@ export function FrequencyTypeCards({
                 <Pressable
                   style={({ pressed }) => [
                     styles.frequencyCardCarousel,
-                    isCardDisabled(index) ? { opacity: 0.45 } : null,
+                    isCardDisabled(index) ? { opacity: 0.5 } : null,
                     pressed ? { transform: [{ scale: 0.98 }] } : null,
                   ]}
                   disabled={isCardDisabled(index)}

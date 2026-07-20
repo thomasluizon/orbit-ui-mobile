@@ -94,6 +94,8 @@ export function EditHabitModal({
     error: detailError,
   } = useHabitDetail(open && habit ? habit.id : null)
   const detailFieldsPending = open && !!habit && detailPending
+  const childrenIsGeneral = habitDetail?.children[0]?.isGeneral ?? null
+  const resolvedLockedGeneral = childrenIsGeneral ?? lockedGeneral ?? null
 
   const toggleGoal = useCallback((goalId: string) => {
     setSelectedGoalIds((prev) => toggleSelectedId(prev, goalId))
@@ -269,7 +271,7 @@ export function EditHabitModal({
           hasScheduledReminders={(habit?.scheduledReminders.length ?? 0) > 0}
           onSuggestSetup={() => void handleSuggest()}
           isSuggesting={suggestion.isPending}
-          lockedGeneral={lockedGeneral}
+          lockedGeneral={resolvedLockedGeneral}
           defaultExpanded
         />
         </fieldset>
