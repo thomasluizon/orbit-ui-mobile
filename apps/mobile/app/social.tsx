@@ -1,11 +1,17 @@
-import { useState, type ReactNode } from 'react'
-import { ScrollView, StyleSheet } from 'react-native'
+import { useCallback, useRef, useState, type ReactNode } from 'react'
+import {
+  ScrollView,
+  StyleSheet,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { isValidReferralCode } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
 import { GradientTop } from '@/components/ui/gradient-top'
+import { ScrollToTopButton } from '@/components/ui/scroll-to-top-button'
 import { SectionHeadTabs } from '@/components/ui/section-head-tabs'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useProfile } from '@/hooks/use-profile'
@@ -36,10 +42,25 @@ export default function SocialScreen() {
     invite?: string
   }>()
   const inviteCode = isValidReferralCode(inviteParam) ? inviteParam : null
-  const [tab, setTab] = useState<SocialTab>(
+  const [tab, setTabState] = useState<SocialTab>(
     tabParam === 'buddies' || tabParam === 'friends' ? tabParam : 'feed',
   )
   const [cheerTarget, setCheerTarget] = useState<CheerTarget | null>(null)
+  const scrollRef = useRef<ScrollView>(null)
+  const [showScrollTop, setShowScrollTop] = useState(false)
+  const setTab = useCallback((nextTab: SocialTab) => {
+    setTabState(nextTab)
+    setShowScrollTop(false)
+  }, [])
+  const scrollToTop = useCallback(() => {
+    scrollRef.current?.scrollTo({ y: 0, animated: true })
+  }, [])
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      setShowScrollTop(event.nativeEvent.contentOffset.y > 600)
+    },
+    [],
+  )
 
   const socialEnabled = profile?.socialOptIn ?? false
   const tabs = [
@@ -65,14 +86,18 @@ export default function SocialScreen() {
       <>
         <SectionHeadTabs tabs={tabs} active={tab} onChange={setTab} ariaLabel={t('social.title')} />
         <ScrollView
+          ref={scrollRef}
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
         >
           <SocialIdentityBar />
           <ChallengesEntryCard />
           {tabContent}
         </ScrollView>
+        <ScrollToTopButton visible={showScrollTop} onPress={scrollToTop} bottom={24} />
       </>
     )
   }

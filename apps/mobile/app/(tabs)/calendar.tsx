@@ -7,7 +7,10 @@ import {
   StyleSheet,
   FlatList,
   ScrollView,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from "react-native";
+import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 import {
   FadeInLeft,
   FadeInRight,
@@ -107,8 +110,24 @@ export default function CalendarScreen() {
     "/calendar",
     calendarScrollTo,
   );
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const scrollCalendarToTop = useCallback(() => {
+    calendarScrollTo(0);
+  }, [calendarScrollTo]);
+  const handleCalendarScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      onCalendarTourScroll(event);
+      setShowScrollTop(event.nativeEvent.contentOffset.y > 600);
+    },
+    [onCalendarTourScroll],
+  );
 
   const [view, setView] = useState<CalendarView>("month");
+  const [scrollTopResetView, setScrollTopResetView] = useState(view);
+  if (view !== scrollTopResetView) {
+    setScrollTopResetView(view);
+    setShowScrollTop(false);
+  }
   const [currentMonth, setCurrentMonth] = useState(() =>
     startOfMonth(new Date()),
   );
@@ -447,8 +466,15 @@ export default function CalendarScreen() {
           ListHeaderComponent={listHeader}
           ListFooterComponent={listFooter}
           showsVerticalScrollIndicator={false}
-          onScroll={onCalendarTourScroll}
+          onScroll={handleCalendarScroll}
           scrollEventThrottle={16}
+        />
+      )}
+      {!activeError && view === "month" && (
+        <ScrollToTopButton
+          visible={showScrollTop}
+          onPress={scrollCalendarToTop}
+          bottom={24}
         />
       )}
       {!activeError && view !== "month" && (
