@@ -126,10 +126,16 @@ export function CreateHabitModal({
     router.push('/upgrade')
   }, [isSubHabitMode, onOpenChange, open, profile, router])
 
-  const [previousOpen, setPreviousOpen] = useState(false)
-  if (open !== previousOpen) {
-    setPreviousOpen(open)
-    if (open) {
+  const resetOnOpenRef = useRef({ initialDate, parentHabit, activeView, formHelpers, tags })
+  useEffect(() => {
+    resetOnOpenRef.current = { initialDate, parentHabit, activeView, formHelpers, tags }
+  })
+
+  useEffect(() => {
+    if (!open) return
+
+    void Promise.resolve().then(() => {
+      const { initialDate, parentHabit, activeView, formHelpers, tags } = resetOnOpenRef.current
       const fallbackDate = initialDate ?? formatAPIDate(new Date())
 
       setReminderWasManuallyToggled(false)
@@ -163,8 +169,9 @@ export function CreateHabitModal({
         subHabits: JSON.stringify([]),
         reminderTimes: JSON.stringify(prefill?.reminderTimes ?? [0, 15]),
       })
-    }
-  }
+    })
+    // react-doctor-disable-next-line exhaustive-deps -- reset-on-open must run once per open transition only, never re-fire on formHelpers/tags/parentHabit reference churn while already open; latest values are read from resetOnOpenRef, updated every render https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+  }, [open])
 
   const [previousHasProAccess, setPreviousHasProAccess] = useState(hasProAccess)
   if (hasProAccess !== previousHasProAccess) {

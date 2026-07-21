@@ -11,6 +11,7 @@ function createIcon(name: string) {
 export const AlertTriangle = createIcon('AlertTriangle')
 export const RotateCcw = createIcon('RotateCcw')
 export const ArrowRight = createIcon('ArrowRight')
+export const ArrowUp = createIcon('ArrowUp')
 export const BarChart3 = createIcon('BarChart3')
 export const Bell = createIcon('Bell')
 export const BellRing = createIcon('BellRing')

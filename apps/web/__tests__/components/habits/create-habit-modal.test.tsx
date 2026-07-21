@@ -340,12 +340,14 @@ describe('CreateHabitModal', () => {
     expect(mockCreateSubMutateAsync).not.toHaveBeenCalled()
   })
 
-  it('resets form when modal opens', () => {
+  it('resets form when modal opens', async () => {
     renderWithProviders(
       <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
     )
-    expect(mockFormReset).toHaveBeenCalled()
-    expect(mockResetTags).toHaveBeenCalled()
+    await waitFor(() => {
+      expect(mockFormReset).toHaveBeenCalled()
+      expect(mockResetTags).toHaveBeenCalled()
+    })
   })
 
   it('auto-enables reminders when a due time is present in create mode', () => {
