@@ -1,3 +1,10 @@
+---
+paths:
+  - "apps/web/**/*.{tsx,ts,css}"
+  - "apps/mobile/**/*.{tsx,ts}"
+  - "packages/shared/src/theme/**/*.ts"
+---
+
 # Visual delivery & anti-fabrication of "done"
 
 **At a glance:** 8 standing rules that make completeness STRUCTURAL for any visual/redesign/transformation task (a page, a screen, a "de-slop", a "make it beautiful", a whole-app pass). Read this the moment a task's success is judged by how a rendered surface LOOKS rather than by a passing test. Judgement-bound but artifact-enforced. See `README.md` for the tier's contract.

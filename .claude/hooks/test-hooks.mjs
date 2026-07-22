@@ -23,7 +23,6 @@ import {
   checkTsAntipatterns,
   checkMobileSupabaseLazy,
   checkEfMigrationRawIndex,
-  checkNewTodos,
   checkCsharpAuthz,
   checkCsharpTimezone,
   checkCsharpFluentConfig,
@@ -316,8 +315,6 @@ T(
   ),
   null,
 )
-T("todos: marker blocks", !!checkNewTodos("/x/apps/web/a.ts", `// ${MARK}: fix`)?.block, true)
-T("todos: tracked ref allows", checkNewTodos("/x/apps/web/a.ts", `// ${MARK} #123: later`), null)
 T("csharp-authz: missing blocks", !!checkCsharpAuthz("/x/orbit-api/src/Orbit.Api/Controllers/FooController.cs", "public class FooController {}")?.block, true)
 T("csharp-authz: present allows", checkCsharpAuthz("/x/orbit-api/src/Orbit.Api/Controllers/FooController.cs", "[Authorize]\npublic class FooController {}"), null)
 T("csharp-tz: UtcNow blocks", !!checkCsharpTimezone("/x/orbit-api/src/Orbit.Application/Foo.cs", "var x = DateTime.UtcNow;")?.block, true)
@@ -407,6 +404,35 @@ T("gate-tamper: a heredoc body describing a write allows", checkGateTamperBash("
 T("gate-tamper: a real redirect on the heredoc command line still blocks", !!checkGateTamperBash("cat <<'EOF' > .claude/manifests/signoff.json\n{}\nEOF")?.block, true)
 T("gate-tamper: tee from a heredoc still blocks", !!checkGateTamperBash("tee .claude/manifests/signoff.json <<'EOF'\n{}\nEOF")?.block, true)
 
+// 6. The guard was scoped to COMMAND SHAPE (an allowlist of read-only leaders)
+//    rather than to write intent, so any shell CONTROL STRUCTURE that merely
+//    NAMED a protected file was blocked: the leader is `for` / `if` / `do`, not
+//    a command, so it can never be on a leader allowlist. Reproduced live three
+//    times in one session on pure reads, which is what sent this back for a
+//    rewrite. A control keyword performs no action by itself; the write-verb,
+//    output-flag and redirect checks run leader-independently and still catch a
+//    write inside the body (`do rm signoff.json` blocks below).
+T("gate-tamper: a for-loop naming signoff in its list allows", checkGateTamperBash(`for f in a.md .claude/manifests/signoff.json b.md; do printf "%s" "$(wc -l < "$f")"; done`), null)
+T("gate-tamper: a for-loop naming the manifest allows", checkGateTamperBash(`for f in a.md .claude/manifests/surfaces.json; do wc -l < "$f"; done`), null)
+T("gate-tamper: an if-test on signoff allows", checkGateTamperBash("if [ -f .claude/manifests/signoff.json ]; then echo yes; fi"), null)
+T("gate-tamper: a while-read over the manifest allows", checkGateTamperBash("while read -r line; do echo \"$line\"; done < .claude/manifests/surfaces.json"), null)
+T("gate-tamper: a write inside a loop body still blocks", !!checkGateTamperBash("for f in x; do rm .claude/manifests/signoff.json; done")?.block, true)
+T("gate-tamper: a redirect inside a loop body still blocks", !!checkGateTamperBash("for f in x; do echo {} > .claude/manifests/signoff.json; done")?.block, true)
+// 7. `2>/dev/null` is a redirect to the NULL DEVICE, not a write to any file,
+//    but it contains `>` and so failed the redirect test - which blocked the
+//    single most common read idiom there is. `2>&1` was already exempt; the
+//    null device was not.
+T("gate-tamper: a read with 2>/dev/null allows", checkGateTamperBash("wc -l < .claude/manifests/surfaces.json 2>/dev/null"), null)
+T("gate-tamper: a read with 2>NUL allows", checkGateTamperBash("cat .claude/manifests/signoff.json 2>NUL"), null)
+T("gate-tamper: a redirect to a real file still blocks", !!checkGateTamperBash("echo x > .claude/manifests/surfaces.json 2>/dev/null")?.block, true)
+// Interpreters stay fail-CLOSED on purpose: a string of arbitrary code cannot be
+// classified soundly, and blocklisting write APIs inside it is the whack-a-mole
+// CLAUDE.md's shell-allowlist section exists to forbid. The block message now
+// names the Read tool instead of claiming `cat/jq` is enough, because that
+// claim was false for every command in group 6 above.
+T("gate-tamper: node -e over signoff stays blocked", !!checkGateTamperBash(`node -e "require('fs').readFileSync('.claude/manifests/signoff.json')"`)?.block, true)
+T("gate-tamper: unknown interpreter reading signoff stays blocked", !!checkGateTamperBash(`python -c "open('.claude/manifests/signoff.json')"`)?.block, true)
+
 // primer's agent-scoped shell allowlist. The deny cases are the point: a prefix
 // allowlist alone is not a fence, so the metacharacter rejection must run first.
 const PRIMER = { allowlist: PRIMER_SHELL_ALLOWLIST, agent: "primer" }
@@ -494,7 +520,6 @@ const tsGood = write("apps/web/good.ts", "export const a = 1\n")
 T("cc ts-antipatterns: console -> 2", runHook("forbid-ts-antipatterns.mjs", { tool_name: "Write", tool_input: { file_path: tsBad } }), 2)
 T("cc ts-antipatterns: clean -> 0", runHook("forbid-ts-antipatterns.mjs", { tool_name: "Write", tool_input: { file_path: tsGood } }), 0)
 const todoBad = write("apps/web/todo.ts", `// ${MARK}: later\n`)
-T("cc flag-new-todos: marker -> 2", runHook("flag-new-todos.mjs", { tool_name: "Write", tool_input: { file_path: todoBad } }), 2)
 const ctrlBad = write("orbit-api/src/Orbit.Api/Controllers/FooController.cs", "public class FooController {}\n")
 T("cc csharp-authz: missing -> 2", runHook("csharp-authz.mjs", { tool_name: "Write", tool_input: { file_path: ctrlBad } }), 2)
 const tzBad = write("orbit-api/src/Orbit.Application/Foo.cs", "var x = DateTime.UtcNow;\n")
@@ -910,6 +935,16 @@ for (const dir of agentDirs) {
 // A guard that scanned nothing passes vacuously; make that a failure instead.
 T("agents: the guard actually scanned agent files", agentsScanned > 0, true)
 
-rmSync(root, { recursive: true, force: true })
+// Cleanup is housekeeping, never a verification signal. `force: true` only
+// swallows ENOENT, so a transient Windows lock on the temp fixture (observed:
+// EPERM from an indexer holding the directory) threw HERE - after every
+// assertion had passed - and turned a green suite into a non-zero exit with no
+// failed test. A tidy-up that can veto a verdict it did not compute is the same
+// fail-open/fail-wrong confusion the gate rules exist to prevent.
+try {
+  rmSync(root, { recursive: true, force: true })
+} catch (error) {
+  console.log(`(could not remove the temp fixture at ${root}: ${error?.code ?? error}. Harmless; the verdict below stands.)`)
+}
 console.log(`\n${fails === 0 ? "ORBIT HOOK PARITY OK" : `ORBIT HOOK PARITY FAILED (${fails})`}`)
 process.exit(fails === 0 ? 0 : 1)

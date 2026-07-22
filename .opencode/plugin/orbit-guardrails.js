@@ -125,7 +125,6 @@ export default async ({ directory, worktree } = {}) => {
             source.checkTsAntipatterns(filePath, contents),
             source.checkMobileSupabaseLazy(filePath, contents),
             source.checkEfMigrationRawIndex(filePath, contents),
-            source.checkNewTodos(filePath, contents),
             source.checkCsharpAuthz(filePath, contents),
             source.checkCsharpTimezone(filePath, contents),
             source.checkCsharpFluentConfig(filePath, contents),

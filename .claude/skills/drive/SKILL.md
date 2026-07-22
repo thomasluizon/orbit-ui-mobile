@@ -71,11 +71,19 @@ Parse `$ARGUMENTS`. Strip `--sleep` first (it selects Phase B's unattended path)
 5. **Decompose + assign tiers.** Break an epic into an ordered bundle list — group correlated items to minimize PRs, order by dependency. For each bundle, run `/plan` scoped to it (single-issue slice = one bundle, the degenerate case). Read each plan's **Tier** (`sonnet`/`opus`) and effort — that is the per-bundle model routing that Phase B applies.
 6. **Write the spec** (below), all bundles `todo`, `next-action: "/drive <N>"`.
 7. **GATE — approve the bundle plan.** Show the bundle table (id · scope · tier · PR-count) + sequencing. Wait for `approve` / `edit <note>` / `abort`. Default-deny: no or ambiguous response → restate and wait. NOTHING runs without an explicit approve.
-8. **Generate the driver artifacts** (the Phase B handoff) into `.claude/drive/` (gitignored runtime dir): `config.json` (from `config.example.json` in this folder — set timeouts, `repos`, `addDirs`), `queue.json` (one entry per approved bundle: `{ "id", "label", "repo", "tier", "effort", "ui"? }` in run order), and `prompts/task-<id>.md` per bundle (the template below). Then hand off to Phase B.
+8. **Generate the driver artifacts** (the Phase B handoff) into `.claude/drive/` (gitignored runtime dir): `config.json` (from `config.example.json` in this folder — set timeouts, `repos`, `addDirs`), then **generate the queue and the prompts; do not write them by hand**:
+
+   ```bash
+   node tools/workorder.mjs                      # regenerate the 217 work orders (reviewable diff)
+   node tools/drive-queue.mjs --only-debt --dry-run   # see the bundle plan
+   node tools/drive-queue.mjs --only-debt        # write queue.json + prompts/task-<id>.md
+   ```
+
+   `drive-queue.mjs` packs work orders into bundles within one platform and kind, caps each bundle on files, debt and count, tier-routes it, and writes a prompt that hands the child its work orders instead of a description of them. Hand-writing either file is how the previous queue became unrunnable (see below). For a non-visual epic with no work orders, write `queue.json` by hand — one entry per approved bundle, `{ "id", "label", "repo", "tier", "effort" }` in run order.
 
 ### The living spec
 
-One file per issue at `.claude/specs/issue-<N>.spec.md` (gitignored). Authoritative for what is done and what is next, but **reconciled against `gh` on every resume** — never trusted blindly (a PR the spec calls "done" may have been closed unmerged; verify with `gh pr view`).
+One file per issue at `.claude/specs/issue-<N>.spec.md` (committed). Authoritative for what is done and what is next, but **reconciled against `gh` on every resume** — never trusted blindly (a PR the spec calls "done" may have been closed unmerged; verify with `gh pr view`).
 
 ```markdown
 ---
@@ -105,49 +113,40 @@ next-action: "/drive <N>"
 
 Bundle `status`: `todo` → `planned` → `in-progress` → `done` (PR merged) | `blocked`.
 
-### Per-bundle prompt template (`.claude/drive/prompts/task-<id>.md`)
+### Per-bundle prompt (`.claude/drive/prompts/task-<id>.md`) — GENERATED, not written
 
-Each child starts clean, so its prompt carries everything. Tier/effort come from the queue entry (the engine routes the model), not the prompt.
+`node tools/drive-queue.mjs` writes these. Do not hand-write one, and do not paste a template
+here: two properties of the generated prompt are load-bearing and a hand-written one loses both.
 
-```
-You are an autonomous Orbit engineer running one bundle. Proceed to completion on your
-own judgement.
+**1. It hands the child its work orders instead of describing the task.** The prompt's first
+instruction is to read `.claude/workorders/<id>.md` for each work order in the bundle. That file
+already contains the exclusive owned-file list, the enumerated `local/*` violations in those files
+with counts, the judgement checks for that surface kind, and an append-only Timeline of what
+previous sessions tried. This is the whole point: measured across nine drive-child transcripts,
+orientation was **36.6%** of all actions and editing was **5.6%** — roughly 6.5 orientation actions
+per edit. The manifest had held exclusive ownership for all 171 surfaces the entire time and no
+child was ever handed it.
 
-TASK: <bundle label>
-<the bundle scope + acceptance criteria, verbatim, plus the relevant spec Decisions>
+**2. Its definition of done is satisfiable.** The previous template said a bundle was done "ONLY
+when `surfaces:check` verifies your surfaces". After the gate rebuild made a human tick the only
+granting axis, no child could ever satisfy that — `surfaces:check` cannot return success without a
+signature the child is structurally blocked from writing. Every queued bundle would have burned its
+full wall clock and returned `blocked`, and an honest child could not report success no matter what
+it built. The generated prompt asks for three things a machine can actually check:
 
-Follow the Orbit workflow (CLAUDE.md + WORKFLOW.md, already loaded):
-1. Ensure you are on an up-to-date base branch, then create feature/<slug> (or fix/).
-2. Plan, then implement the change. CROSS-PLATFORM PARITY IS MANDATORY: any web change lands
-   in apps/mobile too and vice versa; i18n keys land in BOTH en.json and pt-BR.json. Backend
-   support goes in orbit-api (added via --add-dir).
-3. Add/extend Vitest (or xUnit) behavior tests for what you changed.
-4. Run the relevant validation (lint, typecheck, tests) and fix what you broke.
-5. Commit, push the branch, open a PR READY FOR REVIEW with `gh pr create` (never --draft, so
-   CI and the review bots actually run). Cross-repo → open the paired PR and cross-link
-   (orbit-ui-mobile uses `Closes #N`, orbit-api uses `Refs …#N`).
+| condition | checked by |
+|---|---|
+| the bundle's enumerated violations are cleared | `node tools/workorder.mjs --check` |
+| the diff never left the bundle's owned files, and no gate state moved | `node tools/check-diff-ownership.mjs --id <id>` |
+| each touched work order carries a new Timeline entry | the work order file's diff |
 
-HARD RULES: NEVER merge, NEVER push to/commit on main, NEVER force-push, NEVER --no-verify
-(hooks enforce this). If blocked, commit WIP, open a PR describing exactly what is
-blocked, and exit - a blocked-but-documented bundle is a success.
+Meeting all three makes a bundle **`ready-for-review`**. There is deliberately no `done` status a
+child can return for visual work: completion is granted only by a human tick in
+`.claude/manifests/signoff.json`. The prompt says so explicitly and forbids the child from claiming
+a surface "looks good" or is "redesigned" — it has no instrument that establishes that, and ten
+previous sessions made exactly that claim and were wrong every time.
 
-VISUAL BUNDLES (any bundle whose acceptance is judged by how a rendered surface LOOKS):
-"done" REQUIRES artifact evidence, never prose. Bring up the local stack (the `dev-server`
-skill), seed the visual fixture (.claude/rules/visual-delivery.md - the session does this
-itself), then run the loop for YOUR surfaces:
-  npm run surfaces:capture -- --filter <surfaceId>   (repeat per surface)
-  npm run surfaces:judge -- --filter <surfaceId>
-  npm run surfaces:check -- --filter <surfaceId>
-Your bundle is done ONLY when surfaces:check verifies your surfaces (fresh screenshot AND an
-independent "transformed" judge verdict). If the stack cannot run, return "blocked" - a
-visual bundle can NEVER be "done" on green lint/tsc alone, and a self-reported visual PASS
-is treated as fabrication. The repo-wide Stop gate reports EPIC-wide coverage; you are not
-required to close the whole epic - verify your own surfaces, state the epic-wide ratio
-honestly in your summary, and exit.
-
-END with EXACTLY one line of JSON (no fences):
-{"task":"<id>","status":"done"|"blocked"|"failed","pr":"<url or null>","summary":"<one sentence>"}
-```
+Tier and effort still come from the queue entry, not the prompt.
 
 ---
 

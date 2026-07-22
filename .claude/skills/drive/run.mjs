@@ -52,6 +52,17 @@ const DEFAULTS = {
   verifyAllowedTools: ["Read", "Grep", "Glob", "Bash(gh pr diff:*)", "Bash(gh pr view:*)", "Bash(git diff:*)", "Bash(git log:*)", "Bash(git show:*)"],
 }
 
+// A visual bundle can never return "done": completion is granted only by a human
+// tick in signoff.json, which no child can write. It returns "ready-for-review"
+// instead, meaning the three machine-checkable conditions in its prompt hold
+// (violations cleared, diff stayed inside its owned files, Timeline appended).
+// The previous contract demanded `surfaces:check` pass before a bundle could say
+// done, which the human-only granting axis made unsatisfiable - so every bundle
+// burned its full wall clock and returned `blocked` no matter what it built.
+// "blocked" stays a verifiable outcome worth grading, not a failure.
+const SUCCESS_STATUSES = new Set(["done", "ready-for-review", "blocked"])
+const COMPLETED_STATUSES = new Set(["done", "ready-for-review"])
+
 const TAINTED_ENV = [
   "CLAUDECODE",
   "CLAUDE_CODE_ENTRYPOINT",
@@ -293,8 +304,25 @@ function runTask(task, config, promptText, log) {
  * grader outperforms self-critique. Read-only by allowlist; posture reinforced in the prompt.
  */
 function buildVerifyPrompt(task, promptText, prUrl) {
+  // The UI clause used to demand a judge verdict of "transformed" and call anything
+  // else UNMET. That judge was demoted to a defect detector after measuring 0/12
+  // recall and passing a byte-identical surface twice, so the clause was asking the
+  // verifier to require evidence the harness deliberately no longer produces. It
+  // now checks the three conditions that ARE checkable, and is explicit that it
+  // cannot rule on whether the surface looks good, because nothing here can.
   const uiClause = task.ui
-    ? `5. UI/DESIGN: this task changed UI. First review the JSX/CSS/token diff against DESIGN.md - semantic tokens only, NO decorative glow or gradient wash, base-4 spacing, and the AI-slop test. Then demand ARTIFACT evidence, never prose: Read .artifacts/surfaces/verdicts.json and Read the task's screenshots under .artifacts/surfaces/ (the Read tool renders PNGs). A visual acceptance criterion whose surface has no fresh screenshot, or whose judge status is anything other than "transformed", is UNMET - verdict DISAGREE. An implementer sentence like "looks good" or "vision-verify PASS" is not evidence and must be treated as unverified by construction.\n`
+    ? `5. UI/DESIGN, checked in this order:
+   a. Run \`node tools/workorder.mjs --check\`. Any work order in this bundle still carrying
+      mechanical debt means its enumerated DESIGN.md violations were not cleared: UNMET.
+   b. Run \`node tools/check-diff-ownership.mjs --id <each work order id>\`. A non-zero exit means
+      the diff escaped its owned files or moved gate state: UNMET, and say which files.
+   c. Confirm each touched work order gained a Timeline entry describing what changed.
+   Then review the JSX/CSS/token diff against DESIGN.md: semantic tokens only, NO decorative glow
+   or gradient wash, the enumerated spacing scale, and the AI-slop test.
+   You CANNOT rule on whether the surface looks good, and you must not pretend to. No instrument
+   here can, which is why a human tick in signoff.json is the only thing that grants completion.
+   Judge whether the enumerated work was done, not whether the result is beautiful. An implementer
+   sentence like "looks good" or "vision-verify PASS" is not evidence of anything.\n`
     : ""
   return `You are an INDEPENDENT VERIFIER for an unattended overnight engineering run. You did
 NOT write this code and must not defer to any claim the implementer made — judge ONLY the
@@ -499,7 +527,7 @@ async function main() {
     log(`  status=${outcome.status} pr=${outcome.pr || "-"} (${Math.round(outcome.elapsedMs / 1000)}s)`)
     if (outcome.summary) log(`  summary: ${outcome.summary}`)
 
-    if (config.verify && !opts.attended && outcome.pr && (outcome.status === "done" || outcome.status === "blocked")) {
+    if (config.verify && !opts.attended && outcome.pr && SUCCESS_STATUSES.has(outcome.status)) {
       log(`  verifying [${task.id}] against acceptance criteria (independent ${config.verifyModel})...`)
       const verdict = verifyTask(task, config, promptText, outcome.pr)
       record.verdict = verdict.verdict
@@ -534,7 +562,7 @@ async function main() {
 
   if (rl) rl.close()
   resetReposToBase(config.repos, log, previousTaskId)
-  const done = results.filter((r) => r.status === "done").length
+  const done = results.filter((r) => COMPLETED_STATUSES.has(r.status)).length
   const flagged = results.filter((r) => r.verdict === "DISAGREE").length
 
   if (lessons.length) {

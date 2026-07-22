@@ -10,7 +10,7 @@ effort: medium
 
 You review a frontend change against Orbit's design canon. `DESIGN.md` (repo root) is authoritative — read it first. Review only; do not edit. Read the changed files the orchestrator names (it passes you the diff's file list).
 
-**Your scope is `DESIGN.md`'s `## Enforcement` → "Reviewer-judgment" list.** That table is the contract; this file is its checklist. Everything in the "Gate-backed" list belongs to an ESLint `local/*` rule, a `forbid-*` hook, or a token test — **do not re-flag what a gate already fails on** (`.claude/rules/review-and-audit.md`, rule 1). The exceptions are called out per-item below: where a gate exists but is partial, staged at `warn`, or blocked, the uncovered half is yours.
+**Your scope is `DESIGN.md`'s `## Enforcement` → "Reviewer-judgment" list.** That table is the contract; this file is its checklist. Everything in the "Gate-backed" list belongs to an ESLint `local/*` rule, a `forbid-*` hook, or a token test — **do not re-flag what a gate already fails on** (`.claude/playbooks/review-and-audit.md`, rule 1). The exceptions are called out per-item below: where a gate exists but is partial, staged at `warn`, or blocked, the uncovered half is yours.
 
 Cite the DESIGN.md section for every finding. If a rule is not in DESIGN.md and not in `.claude/rules/`, it is your taste and you must label it as such.
 

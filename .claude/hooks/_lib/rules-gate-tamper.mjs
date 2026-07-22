@@ -67,10 +67,42 @@ const SIGNOFF_MESSAGE =
   "gate-tamper: .claude/manifests/signoff.json is the HUMAN-ONLY completion grant. " +
   "It is the one axis of the visual gate an agent may never write - a cell is only DONE when Thomas has personally " +
   "looked at the surface and ticked it in his own editor. Signing your own work is the failure this gate exists to stop. " +
-  "Reading it (cat/jq/git, with or without a `cd` prefix or a pipe) is fine; if you believe a surface is ready, say so and let Thomas tick it."
+  "Reading it is fine - ordinary shell reads (cat/jq/grep/wc/a for-loop/an if-test, with or without a `cd` prefix, " +
+  "a pipe or `2>/dev/null`) all pass, and the Read tool ALWAYS works. What does not pass is an interpreter " +
+  "(`node -e`, `python -c`): arbitrary code cannot be classified as read-only, so it stays blocked by design - use Read. " +
+  "If you believe a surface is ready, say so and let Thomas tick it."
 
 const READ_ONLY_LEADERS =
-  /^(cd|cat|jq|ls|dir|stat|head|tail|wc|grep|rg|git|type|file|diff|awk|sed|cut|sort|uniq|tr|od|xxd|find|echo|printf|basename|dirname|realpath|sha256sum|md5sum|certutil|node\s+(\.\/)?tools[\\/]check-surface-coverage\.mjs|node\s+(\.\/)?tools[\\/]calibrate-judge\.mjs|npm\s+run\s+surfaces:(check|calibrate))\b/
+  /^(cd|cat|jq|ls|dir|stat|head|tail|wc|grep|rg|git|type|file|diff|awk|sed|cut|sort|uniq|tr|od|xxd|find|echo|printf|read|test|true|false|basename|dirname|realpath|sha256sum|md5sum|certutil|node\s+(\.\/)?tools[\\/]check-surface-coverage\.mjs|node\s+(\.\/)?tools[\\/]calibrate-judge\.mjs|npm\s+run\s+surfaces:(check|calibrate))\b/
+
+// Shell CONTROL STRUCTURES are grammar, not commands. `for f in <list>`,
+// `if [ -f x ]`, `while read`, `do`, `done`, `fi` NAME a file without acting on
+// it, and their leader is a keyword, so no allowlist of read-only COMMAND
+// leaders can ever admit them. That made every loop or conditional mentioning a
+// protected path a false block - the guard's most-reproduced defect, fired on
+// three separate pure reads in one session (a `for` over a file list, an
+// if-test, and a `while read`).
+//
+// Stripping the keyword and judging the REMAINDER is safe, and strictly safer
+// than treating the whole segment as read-only: the write-verb, output-flag and
+// redirect checks already ran leader-independently above (so `do rm
+// signoff.json` blocks on `rm`), and re-testing the remainder keeps an
+// interpreter fail-closed behind a keyword too (`do node -e "...write..."`
+// blocks exactly like the bare form).
+const CONTROL_KEYWORD_RE = /^(for|while|until|if|elif|then|else|do|done|fi|case|esac|in|select|time|function|!)\b\s*/
+// What legitimately remains after the keywords: a loop binding (`f in a b c`),
+// a test (`[ -f x ]`, `[[ ... ]]`, `(( ... ))`), an assignment, or an INPUT
+// redirect (`done < surfaces.json` feeds a loop from a file and writes nothing).
+const BENIGN_REMAINDER_RE = /^(\w+\s+in\b|\[\[?\s|\(\(|\w+=|<)/
+
+function stripControlKeywords(text) {
+  let out = text
+  for (;;) {
+    const stripped = out.replace(CONTROL_KEYWORD_RE, "")
+    if (stripped === out) return out
+    out = stripped
+  }
+}
 
 // A read-only leader stops being read-only the moment it carries an argument that
 // names an output destination. This is an ALLOWLIST of shape, not a blocklist of
@@ -84,6 +116,14 @@ const WRITE_VERB_RE =
 // file, but it contains `>` and so used to trip the write check - which made
 // the guarded tools unrunnable under the ordinary `cmd ... 2>&1` idiom.
 const FD_REDIRECT = /\d?>&\d?/g
+
+// A redirect to the NULL DEVICE writes to no file, but it contains `>` and so
+// tripped the redirect check - which blocked the single most common read idiom
+// there is (`... 2>/dev/null`). `2>&1` was already exempt; the null device was
+// not, so `wc -l < surfaces.json 2>/dev/null` blocked while `wc -l
+// surfaces.json` passed. Only the null and standard streams are exempt: any
+// other redirect target is still a real write.
+const NULL_REDIRECT = /\d?>\s*(\/dev\/(null|stdout|stderr)|NUL|nul|\$null)\b/gi
 
 // A heredoc BODY is data, not commands - a commit message describing `rm
 // signoff.json` is prose about a write, not a write. The command line carrying
@@ -144,10 +184,10 @@ function withoutQuotedText(segment) {
 }
 
 function redirectsToFile(segment) {
-  return withoutQuotedText(segment).replace(FD_REDIRECT, " ").includes(">")
+  return withoutQuotedText(segment).replace(FD_REDIRECT, " ").replace(NULL_REDIRECT, " ").includes(">")
 }
 
-/** True when this ONE segment only reads: a read-only leader, no output-naming flag, no write verb, no file redirect. */
+/** True when this ONE segment only reads: no output-naming flag, no write verb, no redirect to a real file, and either a read-only leader or a shell control structure whose remainder is itself read-only. */
 export function segmentIsReadOnly(segment) {
   const text = segment.trim()
   if (!text) return true
@@ -155,7 +195,12 @@ export function segmentIsReadOnly(segment) {
   if (OUTPUT_FLAG_RE.test(unquoted)) return false
   if (WRITE_VERB_RE.test(unquoted)) return false
   if (redirectsToFile(text)) return false
-  return READ_ONLY_LEADERS.test(text)
+  if (READ_ONLY_LEADERS.test(text)) return true
+  const remainder = stripControlKeywords(text)
+  if (remainder === text) return false
+  if (!remainder) return true
+  if (BENIGN_REMAINDER_RE.test(remainder)) return true
+  return READ_ONLY_LEADERS.test(remainder)
 }
 
 function segmentIsSanctionedWriter(segment, writers) {
@@ -199,7 +244,8 @@ export function checkGateTamperBash(command) {
       message:
         "gate-tamper: .claude/manifests/surfaces.json is the completion denominator and is derived from the codebase. " +
         "Never edit, overwrite, or delete it by hand - regenerate it with `npm run surfaces:manifest` (tools/surface-manifest.mjs). " +
-        "Reading it (cat/jq/git, with or without a `cd` prefix or a pipe) is fine.",
+        "Reading it is fine - ordinary shell reads and the Read tool all pass; an interpreter (`node -e`, `python -c`) " +
+        "stays blocked by design because arbitrary code cannot be classified as read-only, so use Read for that.",
     }
   }
 

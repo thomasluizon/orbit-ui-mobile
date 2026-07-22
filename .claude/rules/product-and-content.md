@@ -1,3 +1,11 @@
+---
+paths:
+  - "packages/shared/src/i18n/*.json"
+  - "apps/web/app/globals.css"
+  - "packages/shared/src/theme/**/*.ts"
+  - "../orbit-landing-page/src/**/*"
+---
+
 # Standing product & content constraints
 
 **At a glance:** 9 standing rules for i18n copy, the landing page, JSON-LD, the design system, and any subtraction pass. Judgement-bound; none is gate-checkable. See `README.md` for the tier's contract.

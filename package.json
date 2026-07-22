@@ -20,7 +20,11 @@
     "surfaces:judge": "node tools/judge-surfaces.mjs",
     "surfaces:check": "node tools/check-surface-coverage.mjs",
     "surfaces:sheet": "node tools/contact-sheet.mjs",
-    "surfaces:calibrate": "node tools/calibrate-judge.mjs"
+    "surfaces:calibrate": "node tools/calibrate-judge.mjs",
+    "workorders": "node tools/workorder.mjs",
+    "workorders:check": "node tools/workorder.mjs --check",
+    "drive:queue": "node tools/drive-queue.mjs",
+    "ownership:check": "node tools/check-diff-ownership.mjs"
   },
   "devDependencies": {
     "@swc/helpers": "^0.5.15",
