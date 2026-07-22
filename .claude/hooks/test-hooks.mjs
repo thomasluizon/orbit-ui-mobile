@@ -7,7 +7,7 @@
 //      SAME rule, off the SAME _lib, must block/allow identically.
 // Run: node .claude/hooks/test-hooks.mjs   (exits non-zero on any failure)
 
-import { mkdirSync, writeFileSync, rmSync, cpSync, readFileSync, readdirSync, existsSync } from "node:fs"
+import { mkdirSync, mkdtempSync, writeFileSync, rmSync, cpSync, readFileSync, readdirSync, existsSync } from "node:fs"
 import { spawnSync } from "node:child_process"
 import { createHash } from "node:crypto"
 import { tmpdir } from "node:os"
@@ -479,9 +479,22 @@ T("shell: gh issue edit denied", !!checkShellAllowlist("gh issue edit 1 --body x
 // 2. Claude Code hooks — run the real files, assert exit codes
 // ---------------------------------------------------------------------------
 console.log("\n# claude code hooks (real files)")
-const root = join(tmpdir(), "orbit-hook-parity")
-rmSync(root, { recursive: true, force: true })
-mkdirSync(root, { recursive: true })
+// One UNIQUE fixture root per run. The previous fixed path (tmpdir()/orbit-hook-parity)
+// was shared by every invocation: a second concurrent run (CI + local, or two clones)
+// began by rmSync'ing the first run's LIVE fixtures, which surfaced as false
+// ownership-gate verdicts inside the suite and as an uncaught crash mid-flight; and a
+// leftover dir with a held Windows handle made that same module-level rmSync throw
+// EPERM after 195 green tests. mkdtempSync removes the pre-clean entirely - there is
+// nothing to fight over and nothing stale to trip on. Cleanup is registered on exit,
+// best-effort: a leaked tmp dir is garbage, never a verdict.
+const root = mkdtempSync(join(tmpdir(), "orbit-hook-parity-"))
+process.on("exit", () => {
+  try {
+    rmSync(root, { recursive: true, force: true })
+  } catch {
+    /* a transient lock on the fixture root must never mask the suite's verdict */
+  }
+})
 const write = (rel, body) => {
   const p = join(root, rel)
   mkdirSync(dirname(p), { recursive: true })
@@ -899,12 +912,24 @@ T("workorder: global --check with any debt exits 1", globalVerdict.status, 1)
 T("workorder: global --check prints a greppable per-order DEBT line", /^DEBT r-cal {2}3 {2}worst: apps\/web\/app\/page\.tsx \(3\)/m.test(globalVerdict.stdout), true)
 T("workorder: global --check prints the one-line depth summary", /^depth: 1 of 1 surface orders at 0% depth, 1 below the 30% floor/m.test(globalVerdict.stdout), true)
 
+// A malformed per-order command must be a loud exit 2, never a silent
+// fall-through to the GLOBAL check: the child would read the repo-wide
+// verdict as its own order's.
+const missingId = runWorkorder(woDebt, ["--check", "--id"])
+T("workorder: --check --id with a missing value exits 2", missingId.status, 2)
+T("workorder: ...and never runs the global check instead", /^DEBT /m.test(missingId.stdout), false)
+T("workorder: --id with a flag-like value exits 2", runWorkorder(woDebt, ["--id", "--check"]).status, 2)
+T("workorder: --from-plan with no path exits 2", runWorkorder(woDebt, ["--from-plan"]).status, 2)
+
 const woRegen = buildWorkorderFixture("regen", { cells: [workorderCell("r-cal", "apps/web/app/page.tsx")] })
 mkdirSync(join(woRegen, ".claude", "plans"), { recursive: true })
-writeFileSync(join(woRegen, ".claude", "plans", "issue-9.plan.md"), "# Plan: issue-9\n\n## Files to Change\n\n- EDIT `apps/web/app/page.tsx`\n")
+// The plan names a file NO surface owns: --from-plan refuses a surface-owned
+// file now (exclusive ownership), and that refusal has its own tests below.
+writeFileSync(join(woRegen, ".claude", "plans", "issue-9.plan.md"), "# Plan: issue-9\n\n## Files to Change\n\n- EDIT `apps/web/lib/notify.ts`\n")
 const fromPlan = runWorkorder(woRegen, ["--from-plan", ".claude/plans/issue-9.plan.md"])
 T("workorder: --from-plan writes the plan order", fromPlan.status === 0 && existsSync(join(woRegen, ".claude", "workorders", "issue-9.md")), true)
 T("workorder: --check --id answers for a plan order too", runWorkorder(woRegen, ["--check", "--id", "issue-9"]).status, 0)
+T("workorder: re-running --from-plan on the SAME plan stays exit 0 (idempotent)", runWorkorder(woRegen, ["--from-plan", ".claude/plans/issue-9.plan.md"]).status, 0)
 writeFileSync(join(woRegen, ".claude", "workorders", "stale-route.md"), "---\nsurfaceId: stale-route\nkind: route\n---\n\n# Work order: stale-route\n")
 const regen = runWorkorder(woRegen)
 T("workorder: regeneration exits 0", regen.status, 0)
@@ -940,6 +965,61 @@ const woOrphan = buildWorkorderFixture("orphan", {
 const orphanRun = runWorkorder(woOrphan)
 T("workorder: a zero-owned unit with no fold target fails generation (exit 2)", orphanRun.status, 2)
 T("workorder: the zero-owned invariant names the stranded unit", /r-orphan/.test(orphanRun.stderr), true)
+
+// ---------------------------------------------------------------------------
+// workorder: exclusive ownership at --from-plan time, and a definition of done
+// that stays satisfiable. All three shipped broken once: a plan named after a
+// surface CLOBBERED the surface's order in place (kind flipped route -> plan),
+// a plan granted a surface-owned file exclusively to a second bundle, and
+// clearing a residual order's LAST violation made its own done command exit 2
+// "no work order" - the reward for finishing was a recorded failure.
+// ---------------------------------------------------------------------------
+const woGuard = buildWorkorderFixture("guard", {
+  cells: [workorderCell("r-cal", "apps/web/app/page.tsx")],
+  suppressions: {
+    "app/shared.ts": { "local/spacing-scale": { count: 2 } },
+    "app/page.tsx": { "local/spacing-scale": { count: 3 } },
+  },
+})
+mkdirSync(join(woGuard, ".claude", "plans"), { recursive: true })
+runWorkorder(woGuard)
+T("workorder: generated done commands single-quote the id", /--check --id 'r-cal'/.test(readFileSync(join(woGuard, ".claude", "workorders", "r-cal.md"), "utf8")), true)
+
+writeFileSync(join(woGuard, ".claude", "plans", "overlap.plan.md"), "# Plan\n\n## Files to Change\n\n- EDIT `apps/web/app/page.tsx`\n")
+const overlapRefusal = runWorkorder(woGuard, ["--from-plan", ".claude/plans/overlap.plan.md"])
+T("workorder: --from-plan refuses a surface-owned file (exit 2)", overlapRefusal.status, 2)
+T("workorder: ...naming the file and its owning surface", /apps\/web\/app\/page\.tsx/.test(overlapRefusal.stderr) && /r-cal/.test(overlapRefusal.stderr), true)
+T("workorder: ...and the refusal writes nothing", existsSync(join(woGuard, ".claude", "workorders", "overlap.md")), false)
+
+writeFileSync(join(woGuard, ".claude", "plans", "r-cal.plan.md"), "# Plan\n\n## Files to Change\n\n- EDIT `apps/web/lib/free.ts`\n")
+const clobberRefusal = runWorkorder(woGuard, ["--from-plan", ".claude/plans/r-cal.plan.md"])
+T("workorder: --from-plan refuses an id collision with a manifest order (exit 2)", clobberRefusal.status, 2)
+T("workorder: ...saying whose id it would clobber", /r-cal/.test(clobberRefusal.stderr) && /clobber/.test(clobberRefusal.stderr), true)
+T("workorder: ...and the manifest order survives untouched", /^kind: route$/m.test(readFileSync(join(woGuard, ".claude", "workorders", "r-cal.md"), "utf8")), true)
+
+writeFileSync(join(woGuard, ".claude", "plans", "issue-77.plan.md"), "# Plan\n\n## Files to Change\n\n- EDIT `apps/web/lib/free.ts`\n")
+T("workorder: --from-plan on an unowned file still passes", runWorkorder(woGuard, ["--from-plan", ".claude/plans/issue-77.plan.md"]).status, 0)
+writeFileSync(join(woGuard, ".claude", "plans", "issue-78.plan.md"), "# Plan\n\n## Files to Change\n\n- EDIT `apps/web/lib/free.ts`\n")
+const planVsPlan = runWorkorder(woGuard, ["--from-plan", ".claude/plans/issue-78.plan.md"])
+T("workorder: --from-plan refuses a file another plan order owns", planVsPlan.status, 2)
+T("workorder: ...naming the owning plan order", /issue-77/.test(planVsPlan.stderr), true)
+
+// residual-web-app derives from app/shared.ts's ledger entry alone. Clearing it
+// is exactly what the order's Backlog A demands, and the id stops deriving.
+const residualPath = join(woGuard, ".claude", "workorders", "residual-web-app.md")
+const residualBody = readFileSync(residualPath, "utf8")
+T("workorder: the residual order text carries the sanctioned escape", /eslint-disable-next-line/.test(residualBody), true)
+T("workorder: the residual order no longer orders zero rendered change", /without changing (rendered behaviour|what they render)/.test(residualBody), false)
+writeFileSync(join(woGuard, "apps", "web", "eslint-suppressions.json"), JSON.stringify({ "app/page.tsx": { "local/spacing-scale": { count: 3 } } }))
+const clearedResidual = runWorkorder(woGuard, ["--check", "--id", "residual-web-app"])
+T("workorder: a fully-cleared residual's done command exits 0", clearedResidual.status, 0)
+T("workorder: ...with the honest swept-on-next-regeneration note", /no longer derives/.test(clearedResidual.stdout) && /sweep/.test(clearedResidual.stdout), true)
+T("workorder: an unknown id still exits 2", runWorkorder(woGuard, ["--check", "--id", "no-such-order"]).status, 2)
+// The fallback reads Boundaries off the child-writable .md, so pin the
+// anti-gaming property: annexing files into Boundaries can only ADD debt.
+writeFileSync(residualPath, residualBody.replace("- `apps/web/app/shared.ts`", "- `apps/web/app/shared.ts`\n- `apps/web/app/page.tsx`"))
+const annexed = runWorkorder(woGuard, ["--check", "--id", "residual-web-app"])
+T("workorder: annexing a debt-carrying file into the cleared order exits 1", annexed.status, 1)
 
 // ---------------------------------------------------------------------------
 // check-diff-ownership gate. The property under test is d4's fix: the generated
@@ -980,6 +1060,10 @@ function buildOwnershipFixture(name, extraFiles = {}) {
   git("init", "-q")
   git("config", "user.email", "t@example.com")
   git("config", "user.name", "t")
+  // Line endings are pinned per-fixture: under the machine's autocrlf a CRLF
+  // body would be normalized at add time, and the CRLF-at-base test below
+  // would silently commit (and so test) an LF blob.
+  git("config", "core.autocrlf", "false")
   git("add", "-A")
   git("commit", "-qm", "baseline")
   return { fixtureRoot, fixWrite }
@@ -1048,6 +1132,135 @@ function buildOwnershipFixture(name, extraFiles = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// ownership trust root + base resolution. Both shipped broken once: the gate
+// read Boundaries off the WORKING-TREE work order - a file the policed child
+// must edit (the Timeline append is part of its definition of done) - so one
+// inserted line annexed any file in the repo, and the driver's own measurement
+// reported a false green. And defaultBase() returned "" when @{upstream} was
+// unset, silently dropping the COMMITTED diff, so the gate went vacuously
+// green the moment the child obeyed the commit step of its own contract. The
+// permitted set now comes from the BASE ref, the work order file is
+// append-only against it, and a base that cannot resolve is a loud exit 2.
+// ---------------------------------------------------------------------------
+const ownershipGit = (fixtureRoot, ...args) => spawnSync("git", args, { cwd: fixtureRoot, encoding: "utf8" })
+const runOwnershipNoBase = (fixtureRoot, args) =>
+  spawnSync(process.execPath, [ownershipTool, ...args], {
+    cwd: fixtureRoot,
+    env: { ...process.env, ORBIT_SURFACE_ROOT: fixtureRoot },
+    encoding: "utf8",
+  })
+
+{
+  // The measured annexation exploit: a working-tree Boundaries edit must not
+  // widen ownership. A mid-file insert is a rewrite, whatever it claims.
+  const { fixtureRoot, fixWrite } = buildOwnershipFixture("annexrewrite")
+  const orderBody = readFileSync(join(fixtureRoot, ".claude", "workorders", "wo-login.md"), "utf8")
+  fixWrite(".claude/workorders/wo-login.md", orderBody.replace("## Backlog A", "- `apps/mobile/app/other-styles.ts`\n## Backlog A"))
+  fixWrite("apps/mobile/app/other-styles.ts", "export const pad = 12\n")
+  const verdict = runOwnership(fixtureRoot, ["--id", "wo-login"])
+  T("ownership: a Boundaries edit does not widen ownership (rewrite exits 1)", verdict.status, 1)
+  T("ownership: ...named as the append-only Timeline contract", /append-only/.test(verdict.stderr), true)
+}
+{
+  // The other annexation door: a grant line APPENDED at EOF survives the
+  // append-only check and must still grant nothing - the base list governs.
+  const { fixtureRoot, fixWrite } = buildOwnershipFixture("annexappend")
+  const orderBody = readFileSync(join(fixtureRoot, ".claude", "workorders", "wo-login.md"), "utf8")
+  fixWrite(".claude/workorders/wo-login.md", orderBody + "- `apps/mobile/app/other-styles.ts`\n")
+  fixWrite("apps/mobile/app/other-styles.ts", "export const pad = 12\n")
+  const verdict = runOwnership(fixtureRoot, ["--id", "wo-login"])
+  T("ownership: an appended grant line grants nothing (base list governs)", verdict.status, 1)
+  T("ownership: ...and the annexed file is named as the escape", /other-styles\.ts/.test(verdict.stderr), true)
+}
+{
+  // The one edit the contract orders on the child's own file must stay legal.
+  const { fixtureRoot, fixWrite } = buildOwnershipFixture("timeline")
+  const orderBody = readFileSync(join(fixtureRoot, ".claude", "workorders", "wo-login.md"), "utf8")
+  fixWrite(".claude/workorders/wo-login.md", orderBody + "\n## Timeline\n\n- 2026-07-22 cleared one gap\n")
+  fixWrite("apps/mobile/app/login-styles.ts", "export const gap = 12\n")
+  T("ownership: an append-only Timeline edit passes", runOwnership(fixtureRoot, ["--id", "wo-login"]).status, 0)
+}
+{
+  const { fixtureRoot, fixWrite } = buildOwnershipFixture("truncated")
+  fixWrite(".claude/workorders/wo-login.md", ownershipOrder("wo-login", "apps/mobile/app/login-styles.ts").slice(0, 40))
+  const verdict = runOwnership(fixtureRoot, ["--id", "wo-login"])
+  T("ownership: a truncated work order exits 1", verdict.status, 1)
+  T("ownership: ...as a rewrite, not a parse error", /append-only/.test(verdict.stderr), true)
+}
+{
+  // Windows materialises the committed LF orders with CRLF. Normalisation must
+  // keep a mere checkout from reading as a rewrite.
+  const { fixtureRoot, fixWrite } = buildOwnershipFixture("crlf")
+  const orderBody = readFileSync(join(fixtureRoot, ".claude", "workorders", "wo-login.md"), "utf8")
+  fixWrite(".claude/workorders/wo-login.md", orderBody.replace(/\n/g, "\r\n") + "- 2026-07-22 timeline entry\r\n")
+  fixWrite("apps/mobile/app/login-styles.ts", "export const gap = 12\n")
+  T("ownership: a CRLF copy of an LF order is not a rewrite", runOwnership(fixtureRoot, ["--id", "wo-login"]).status, 0)
+}
+{
+  // The other CRLF door: the BASE blob itself. A checkout that committed a work
+  // order as-is can pin a CRLF copy at the base ref, and the Boundaries reader
+  // must parse it identically to its LF twin - or every owned edit reads as an
+  // escape.
+  const crlfBody = ownershipOrder("wo-login", "apps/mobile/app/login-styles.ts").replace(/\n/g, "\r\n")
+  const { fixtureRoot, fixWrite } = buildOwnershipFixture("crlfbase", { ".claude/workorders/wo-login.md": crlfBody })
+  fixWrite("apps/mobile/app/login-styles.ts", "export const gap = 12\n")
+  T("ownership: a CRLF base blob's Boundaries still grant the owned file", runOwnership(fixtureRoot, ["--id", "wo-login"]).status, 0)
+  fixWrite("apps/mobile/app/other-styles.ts", "export const pad = 12\n")
+  T("ownership: ...and still fence an unowned edit (the parse was real)", runOwnership(fixtureRoot, ["--id", "wo-login"]).status, 1)
+}
+{
+  // The committed escape that used to vanish: a fresh branch, no upstream, the
+  // escape committed exactly as the definition of done orders. The main
+  // merge-base fallback must keep it visible.
+  const { fixtureRoot, fixWrite } = buildOwnershipFixture("nobase")
+  ownershipGit(fixtureRoot, "branch", "-M", "main")
+  ownershipGit(fixtureRoot, "checkout", "-q", "-b", "feature/child")
+  fixWrite("apps/mobile/app/other-styles.ts", "export const pad = 12\n")
+  ownershipGit(fixtureRoot, "add", "-A")
+  ownershipGit(fixtureRoot, "commit", "-qm", "escape")
+  const verdict = runOwnershipNoBase(fixtureRoot, ["--id", "wo-login"])
+  T("ownership: a committed escape on a no-upstream branch is caught via main", verdict.status, 1)
+  T("ownership: ...the escape is named", /other-styles\.ts/.test(verdict.stderr), true)
+  T("ownership: ...and the output says how the base resolved", /merge-base with main/.test(verdict.stdout), true)
+}
+{
+  // The post-push shape: an upstream at HEAD is the branch's own copy, whose
+  // merge-base proves nothing about committed work. Skip it for the trunk.
+  const { fixtureRoot, fixWrite } = buildOwnershipFixture("selfupstream")
+  ownershipGit(fixtureRoot, "branch", "-M", "main")
+  ownershipGit(fixtureRoot, "checkout", "-q", "-b", "feature/child")
+  fixWrite("apps/mobile/app/other-styles.ts", "export const pad = 12\n")
+  ownershipGit(fixtureRoot, "add", "-A")
+  ownershipGit(fixtureRoot, "commit", "-qm", "escape")
+  ownershipGit(fixtureRoot, "branch", "pushed-copy")
+  ownershipGit(fixtureRoot, "branch", "--set-upstream-to=pushed-copy")
+  const verdict = runOwnershipNoBase(fixtureRoot, ["--id", "wo-login"])
+  T("ownership: an upstream at HEAD is skipped for the trunk merge-base", verdict.status, 1)
+  T("ownership: ...keeping the committed escape visible", /other-styles\.ts/.test(verdict.stderr), true)
+}
+{
+  // No upstream, no origin/main, no main: refuse to guess.
+  const { fixtureRoot } = buildOwnershipFixture("norefs")
+  ownershipGit(fixtureRoot, "branch", "-M", "trunkless")
+  const verdict = runOwnershipNoBase(fixtureRoot, ["--id", "wo-login"])
+  T("ownership: no resolvable base is exit 2, never an empty diff", verdict.status, 2)
+  T("ownership: ...and the remedy names --base", /--base/.test(verdict.stderr), true)
+}
+{
+  const { fixtureRoot } = buildOwnershipFixture("badbase")
+  const verdict = runOwnershipNoBase(fixtureRoot, ["--id", "wo-login", "--base", "no-such-ref-zzz"])
+  T("ownership: an unresolvable explicit --base is exit 2", verdict.status, 2)
+}
+{
+  // A work order born mid-run is absent at base and cannot self-grant.
+  const { fixtureRoot, fixWrite } = buildOwnershipFixture("midrun")
+  fixWrite(".claude/workorders/wo-new.md", ownershipOrder("wo-new", "apps/mobile/app/other-styles.ts"))
+  const verdict = runOwnership(fixtureRoot, ["--id", "wo-new"])
+  T("ownership: a work order absent at base cannot self-grant (exit 2)", verdict.status, 2)
+  T("ownership: ...saying ownership is granted by the base ref", /base ref/.test(verdict.stderr), true)
+}
+
+// ---------------------------------------------------------------------------
 // drive-queue bundling. Three properties, each verified broken end to end
 // before the fix: every bundle shipped `ui: true` (a 2-file packages/shared
 // plan bundle was graded against DESIGN.md by the --sleep verifier),
@@ -1112,7 +1325,7 @@ const dqRoutePrompt = readFileSync(join(dqRoot, ".claude", "drive", "prompts", `
 const dqPlanPrompt = readFileSync(join(dqRoot, ".claude", "drive", "prompts", "task-plan-epic-7.md"), "utf8")
 // Condition (a) must be per order: the global --check cannot pass while OTHER
 // bundles still carry debt, so ordering it makes done unreachable again.
-T("drive-queue: condition (a) is the per-order --check --id form", /--check --id r-page/.test(dqRoutePrompt), true)
+T("drive-queue: condition (a) is the per-order --check --id form", /--check --id 'r-page'/.test(dqRoutePrompt), true)
 T("drive-queue: the global --check form stays out of the conditions", /workorder\.mjs --check(?! --id)/.test(dqRoutePrompt), false)
 T("drive-queue: rule 3 says the lint:prune ledger rewrite is permitted", /lint:prune/.test(dqRoutePrompt) && /PERMITTED/.test(dqRoutePrompt), true)
 T("drive-queue: rule 3 keeps the unedited-file count drop fatal", /never edited/.test(dqRoutePrompt), true)
@@ -1137,13 +1350,75 @@ const dqVerdict = runOwnership(dqRoot, ["--id", "r-page"])
 T("drive-queue: every edit class the prompt orders passes the ownership gate", dqVerdict.status, 0)
 
 // ---------------------------------------------------------------------------
+// drive-queue robustness: CRLF checkouts, malformed flags, shell-safe ids.
+// Each shipped broken once: a fresh Windows checkout materializes the
+// committed orders with CRLF and the LF-only frontmatter regex parsed ZERO of
+// them (a loud exit 2 all-CRLF, a silent exit-0 one-bundle queue once a single
+// LF plan order joined); `--max-files abc` yielded NaN, every cap comparison
+// against NaN is false, and a 33-file bundle sailed past the documented
+// 14-file default at exit 0; and the printed DoD command for a route-group id
+// (`residual-web-app-(app)-...`) was a bash syntax error exactly as printed.
+// ---------------------------------------------------------------------------
+console.log("\n# drive-queue robustness (CRLF, flags, id quoting)")
+const dqBadCap = runDriveQueue(dqRoot, ["--max-files", "abc", "--dry-run"])
+T("drive-queue: --max-files with a non-numeric value exits 2 naming the flag", dqBadCap.status === 2 && /--max-files/.test(dqBadCap.stderr), true)
+const dqNoCapValue = runDriveQueue(dqRoot, ["--dry-run", "--max-debt"])
+T("drive-queue: a numeric flag missing its value exits 2 naming the flag", dqNoCapValue.status === 2 && /--max-debt/.test(dqNoCapValue.stderr), true)
+const dqBadPlatform = runDriveQueue(dqRoot, ["--platform", "ios", "--dry-run"])
+T("drive-queue: --platform with an unknown value exits 2 naming the flag", dqBadPlatform.status === 2 && /--platform/.test(dqBadPlatform.stderr), true)
+T("drive-queue: --platform missing its value exits 2", runDriveQueue(dqRoot, ["--dry-run", "--platform"]).status, 2)
+T("drive-queue: a valid numeric cap still runs", runDriveQueue(dqRoot, ["--max-files", "3", "--dry-run"]).status, 0)
+
+// One fixture whose residual id inherits a Next.js route group - literal
+// parentheses in the id, the exact shape that lexed as a shell error unquoted -
+// and whose order files then get rewritten CRLF, the way a fresh Windows
+// checkout materializes them.
+const dqCrlfRoot = buildWorkorderFixture("queue-crlf", {
+  cells: [workorderCell("r-page", "apps/web/app/page.tsx")],
+  suppressions: { "app/(app)/social/_parts/x-styles.ts": { "local/spacing-scale": { count: 1 } } },
+})
+runWorkorder(dqCrlfRoot)
+const dqCrlfOrders = join(dqCrlfRoot, ".claude", "workorders")
+const dqLfDry = runDriveQueue(dqCrlfRoot, ["--dry-run"])
+for (const name of readdirSync(dqCrlfOrders).filter((entry) => entry.endsWith(".md"))) {
+  const orderPath = join(dqCrlfOrders, name)
+  writeFileSync(orderPath, readFileSync(orderPath, "utf8").replace(/\r?\n/g, "\r\n"))
+}
+const dqCrlfDry = runDriveQueue(dqCrlfRoot, ["--dry-run"])
+T("drive-queue: a CRLF checkout still parses every order", dqLfDry.status === 0 && dqCrlfDry.status === 0, true)
+T("drive-queue: CRLF orders bundle identically to their LF twins", dqCrlfDry.stdout, dqLfDry.stdout)
+const dqCrlfRun = runDriveQueue(dqCrlfRoot)
+T("drive-queue: the queue writes from CRLF orders", dqCrlfRun.status, 0)
+const parensId = "residual-web-app-(app)-social-_parts"
+const dqCrlfQueue = JSON.parse(readFileSync(join(dqCrlfRoot, ".claude", "drive", "queue.json"), "utf8"))
+const dqParensBundle = dqCrlfQueue.find((entry) => entry.workOrders.includes(parensId))
+T("drive-queue: an id parsed from CRLF frontmatter carries no trailing \\r", !!dqParensBundle, true)
+
+const parensPrompt = readFileSync(join(dqCrlfRoot, ".claude", "drive", "prompts", `task-${dqParensBundle.id}.md`), "utf8")
+T("drive-queue: condition (a) single-quotes the route-group id", parensPrompt.includes(`--check --id '${parensId}'`), true)
+T("drive-queue: condition (b) single-quotes it too", parensPrompt.includes(`check-diff-ownership.mjs --id '${parensId}'`), true)
+// The printed commands must survive a shell's lexer, not just a regex: bash -n
+// parses without executing, so a syntax error here is exactly what a child
+// pasting its own definition of done would have hit.
+const bashLex = (command) => spawnSync("bash", ["-n"], { input: command, encoding: "utf8" }).status
+const dodConditionA = (parensPrompt.split("\n").find((line) => line.includes(`--check --id '${parensId}'`)) ?? "").trim()
+const dodConditionB = /`(node tools\/check-diff-ownership\.mjs[^`]*)`/.exec(parensPrompt)?.[1] ?? ""
+T("drive-queue: the printed condition (a) command lexes in bash", dodConditionA.includes(parensId) && bashLex(dodConditionA) === 0, true)
+T("drive-queue: the printed condition (b) command lexes in bash", dodConditionB.includes(parensId) && bashLex(dodConditionB) === 0, true)
+T("drive-queue: ...and bash does reject the unquoted form (the control)", bashLex(`node tools/workorder.mjs --check --id ${parensId}`) !== 0, true)
+
+writeFileSync(join(dqCrlfOrders, "junk.md"), "no frontmatter here\n")
+const dqJunk = runDriveQueue(dqCrlfRoot, ["--dry-run"])
+T("drive-queue: an unparseable order file is named, never silently dropped", dqJunk.status === 0 && /junk\.md/.test(dqJunk.stderr), true)
+
+// ---------------------------------------------------------------------------
 // drive engine preflight. A hand-written queue entry with no prompt used to
 // sail through --dry-run and then have every bundle recorded "skipped" at
 // runtime - a run that does nothing while reporting no failure. The validation
 // is exported precisely so it can be pinned here without spawning the engine.
 // ---------------------------------------------------------------------------
 console.log("\n# drive engine preflight (queue prompts)")
-const { queuePromptProblems } = await import(pathToFileURL(join(hooksDir, "..", "skills", "drive", "run.mjs")).href)
+const { queuePromptProblems, buildRunReport } = await import(pathToFileURL(join(hooksDir, "..", "skills", "drive", "run.mjs")).href)
 const drivePreflightDir = join(root, "drive-preflight")
 mkdirSync(join(drivePreflightDir, "prompts"), { recursive: true })
 writeFileSync(join(drivePreflightDir, "prompts", "task-filed.md"), "do the thing\n")
@@ -1154,6 +1429,77 @@ const promptProblems = queuePromptProblems(
 T("drive: a promptless queue entry is a preflight error naming its id", promptProblems.some((problem) => /"epic-1"/.test(problem)), true)
 T("drive: a whitespace-only prompt field is still promptless", promptProblems.some((problem) => /"blank"/.test(problem)), true)
 T("drive: a prompt file or an inline prompt both satisfy preflight", promptProblems.length, 2)
+
+// ---------------------------------------------------------------------------
+// drive engine: operator-facing honesty. Two shapes shipped broken once: the
+// rollup counted ready-for-review inside "completed (done)" - re-conflating the
+// two statuses the redesign separated (only a human signoff.json tick grants
+// done) - and config.example.json shipped `modelOverride: "sonnet"` permanently
+// ON, so the documented copy-the-example step silently forced every opus-tier
+// bundle to sonnet with nothing surfacing it.
+// ---------------------------------------------------------------------------
+console.log("\n# drive engine report + example config")
+const reportOutcomes = [
+  { id: "b1", label: "route slice", status: "ready-for-review", pr: "https://x/1", elapsedMs: 60000 },
+  { id: "b2", label: "blocked slice", status: "blocked", elapsedMs: 60000 },
+  { id: "b3", label: "signed cell", status: "done", verdict: "DISAGREE", elapsedMs: 60000 },
+]
+const report = buildRunReport(reportOutcomes, 4, 1)
+T("drive report: ready-for-review is its own count", /- ready for review: 1\b/.test(report.summary), true)
+T("drive report: done stays reserved for the human-granted state", /- done \(human-granted\): 1\b/.test(report.summary), true)
+T("drive report: nothing is labelled 'completed (done)' anymore", /completed \(done\)/.test(report.summary), false)
+T("drive report: the headline splits the counts the same way", /1\/4 ready for review/.test(report.headline) && /1 done \(human-granted\)/.test(report.headline), true)
+T("drive report: the per-task table still shows the literal machine status", /\| b1 \| route slice \| ready-for-review \|/.test(report.summary), true)
+
+const exampleConfig = JSON.parse(readFileSync(join(hooksDir, "..", "skills", "drive", "config.example.json"), "utf8"))
+T("drive config: the example ships no modelOverride (tier routing on by default)", "modelOverride" in exampleConfig, false)
+
+// ---------------------------------------------------------------------------
+// drive engine preflight, spawned for real. Round 1 observed a PREFLIGHT
+// FAILED run exit 0 (success to any caller checking the code), and SKILL.md
+// promised a base-branch check the engine never had: launched from a feature
+// branch with base "main", the first reset would check out a base carrying
+// none of the queue's work orders or gate tools. The `claude`-CLI probe may
+// legitimately fail here too (CI has no claude on PATH); that only ADDS a
+// preflight problem, so the nonzero-exit and message assertions below hold
+// with or without it.
+// ---------------------------------------------------------------------------
+console.log("\n# drive engine preflight (spawned)")
+const driveEngine = join(hooksDir, "..", "skills", "drive", "run.mjs")
+function buildDriveEngineFixture(name, { branch = "main", promptless = false } = {}) {
+  const repoDir = join(root, `drive-repo-${name}`)
+  mkdirSync(repoDir, { recursive: true })
+  writeFileSync(join(repoDir, "README.md"), "fixture\n")
+  const git = (...args) => spawnSync("git", args, { cwd: repoDir, encoding: "utf8" })
+  git("init", "-q")
+  git("config", "user.email", "t@example.com")
+  git("config", "user.name", "t")
+  git("add", "-A")
+  git("commit", "-qm", "baseline")
+  git("branch", "-M", "main")
+  if (branch !== "main") git("checkout", "-q", "-b", branch)
+  const engineDir = join(root, `drive-engine-${name}`)
+  mkdirSync(join(engineDir, "prompts"), { recursive: true })
+  // push:false keeps preflight off `gh`; --dry-run never reaches the lock or a spawn.
+  writeFileSync(join(engineDir, "config.json"), JSON.stringify({ push: false, repos: [{ path: repoDir, base: "main" }] }))
+  const task = promptless ? { id: "b1", label: "no prompt" } : { id: "b1", label: "with prompt", prompt: "do the thing" }
+  writeFileSync(join(engineDir, "queue.json"), JSON.stringify([task]))
+  return engineDir
+}
+const runDriveEngine = (engineDir) => spawnSync(process.execPath, [driveEngine, "--dry-run", "--dir", engineDir], { encoding: "utf8" })
+
+const enginePromptless = runDriveEngine(buildDriveEngineFixture("promptless", { promptless: true }))
+T("drive engine: a failed preflight exits nonzero, never 0", enginePromptless.status !== 0, true)
+T("drive engine: ...printing PREFLIGHT FAILED and naming the promptless entry", /PREFLIGHT FAILED/.test(enginePromptless.stdout) && /"b1"/.test(enginePromptless.stdout), true)
+
+const engineBranch = runDriveEngine(buildDriveEngineFixture("offbase", { branch: "feature/child" }))
+T("drive engine: a repo off its configured base fails preflight nonzero", engineBranch.status !== 0, true)
+T("drive engine: ...naming the actual and the configured branch", /"feature\/child"/.test(engineBranch.stdout) && /base is "main"/.test(engineBranch.stdout), true)
+
+// The startup line prints before preflight, so this holds even where preflight
+// then fails on a missing claude CLI.
+T("drive engine: a dry run announces itself as a dry run, never --sleep", /drive \(dry run\) starting/.test(runDriveEngine(buildDriveEngineFixture("mode")).stdout), true)
+T("drive engine: no dry run is mislabelled as --sleep", /drive --sleep starting/.test(engineBranch.stdout), false)
 
 // ---------------------------------------------------------------------------
 // 3. opencode plugin — same rules, opencode contract
@@ -1263,16 +1609,8 @@ for (const dir of agentDirs) {
 // A guard that scanned nothing passes vacuously; make that a failure instead.
 T("agents: the guard actually scanned agent files", agentsScanned > 0, true)
 
-// Cleanup is housekeeping, never a verification signal. `force: true` only
-// swallows ENOENT, so a transient Windows lock on the temp fixture (observed:
-// EPERM from an indexer holding the directory) threw HERE - after every
-// assertion had passed - and turned a green suite into a non-zero exit with no
-// failed test. A tidy-up that can veto a verdict it did not compute is the same
-// fail-open/fail-wrong confusion the gate rules exist to prevent.
-try {
-  rmSync(root, { recursive: true, force: true })
-} catch (error) {
-  console.log(`(could not remove the temp fixture at ${root}: ${error?.code ?? error}. Harmless; the verdict below stands.)`)
-}
+// Cleanup is housekeeping, never a verification signal: it lives in the exit
+// handler registered at the fixture root's creation (best-effort, error-swallowed),
+// so it runs even on a mid-suite crash and can never veto the verdict below.
 console.log(`\n${fails === 0 ? "ORBIT HOOK PARITY OK" : `ORBIT HOOK PARITY FAILED (${fails})`}`)
 process.exit(fails === 0 ? 0 : 1)

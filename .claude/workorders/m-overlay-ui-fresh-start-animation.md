@@ -46,12 +46,12 @@ Mobile: no deterministic pixel pipeline exists, so there is no screenshot to pro
 
 ## Definition of done for THIS work order
 
-1. Backlog A is 0 (`node tools/workorder.mjs --check --id m-overlay-ui-fresh-start-animation` exits 0).
+1. Backlog A is 0 (`node tools/workorder.mjs --check --id 'm-overlay-ui-fresh-start-animation'` exits 0).
 2. The diff touches only the owned files above (`node tools/check-diff-ownership.mjs --id <id>` agrees).
 3. You appended one Timeline entry saying what you changed and what you deliberately did not.
 
 Clearing Backlog A is a floor and is NOT evidence of redesign: the depth number for this
-surface comes from `node tools/workorder.mjs --check --id m-overlay-ui-fresh-start-animation`, and it is a veto
+surface comes from `node tools/workorder.mjs --check --id 'm-overlay-ui-fresh-start-animation'`, and it is a veto
 axis a human consults, never a target. Only a human tick in `signoff.json` grants completion.
 
 This makes the work order READY FOR REVIEW. It does not make it done: a human tick in

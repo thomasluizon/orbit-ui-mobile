@@ -37,8 +37,13 @@ unambiguous snap (within 1px of a unique step: 9 -> 8, 13 -> 12) and deliberatel
 rest, because taking a 6px gap to 4 or a 14px padding to 12 CHANGES THE LAYOUT. Verified on this
 repo: `eslint --fix` over a 30-violation file changed zero lines. So do not batch-snap every
 number to the nearest step and call it done - that is the shallow sweep this harness exists to
-stop. Decide each one against the surrounding rhythm (tight within a group, air between groups),
-and where a value is genuinely load-bearing, say so in the Timeline rather than forcing it.
+stop. Decide each one against the surrounding rhythm (tight within a group, air between groups).
+
+A value you judge genuinely load-bearing is KEPT, through the sanctioned escape - never a forced
+snap: add an inline `// eslint-disable-next-line local/<rule> -- <why>, see <this work order or its issue>`
+(a tooling directive with a linked WHY is legal under the comment policy), run `npm run lint:prune`,
+then append a Timeline entry naming each value you kept and why. The source file IS edited, so the
+count falls legitimately and the definition of done below stays reachable for honest work.
 
 See the violations with:
   `npx eslint <file> --suppressions-location <an-empty-json-file>`  (the baseline hides them otherwise)
@@ -63,12 +68,12 @@ Web: `npm run surfaces:capture -- --filter <id>` produces the screenshot a human
 
 ## Definition of done for THIS work order
 
-1. Backlog A is 0 (`node tools/workorder.mjs --check --id overlay-components-friend-profile-view` exits 0).
+1. Backlog A is 0 (`node tools/workorder.mjs --check --id 'overlay-components-friend-profile-view'` exits 0).
 2. The diff touches only the owned files above (`node tools/check-diff-ownership.mjs --id <id>` agrees).
 3. You appended one Timeline entry saying what you changed and what you deliberately did not.
 
 Clearing Backlog A is a floor and is NOT evidence of redesign: the depth number for this
-surface comes from `node tools/workorder.mjs --check --id overlay-components-friend-profile-view`, and it is a veto
+surface comes from `node tools/workorder.mjs --check --id 'overlay-components-friend-profile-view'`, and it is a veto
 axis a human consults, never a target. Only a human tick in `signoff.json` grants completion.
 
 This makes the work order READY FOR REVIEW. It does not make it done: a human tick in

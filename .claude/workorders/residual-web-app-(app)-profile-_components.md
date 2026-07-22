@@ -13,7 +13,7 @@ generatedFrom: 498537f0715177cf58aa9dffbed9806385434db1
 
 ## Goal
 
-Bring these shared/style-only files into DESIGN.md conformance without changing what they render.
+Bring these shared/style-only files into DESIGN.md conformance. A spacing fix is expected to change the layout - deliberately and minimally; structure and components stay as they are.
 
 ## Boundaries: you own these files, and only these
 
@@ -37,8 +37,13 @@ unambiguous snap (within 1px of a unique step: 9 -> 8, 13 -> 12) and deliberatel
 rest, because taking a 6px gap to 4 or a 14px padding to 12 CHANGES THE LAYOUT. Verified on this
 repo: `eslint --fix` over a 30-violation file changed zero lines. So do not batch-snap every
 number to the nearest step and call it done - that is the shallow sweep this harness exists to
-stop. Decide each one against the surrounding rhythm (tight within a group, air between groups),
-and where a value is genuinely load-bearing, say so in the Timeline rather than forcing it.
+stop. Decide each one against the surrounding rhythm (tight within a group, air between groups).
+
+A value you judge genuinely load-bearing is KEPT, through the sanctioned escape - never a forced
+snap: add an inline `// eslint-disable-next-line local/<rule> -- <why>, see <this work order or its issue>`
+(a tooling directive with a linked WHY is legal under the comment policy), run `npm run lint:prune`,
+then append a Timeline entry naming each value you kept and why. The source file IS edited, so the
+count falls legitimately and the definition of done below stays reachable for honest work.
 
 See the violations with:
   `npx eslint <file> --suppressions-location <an-empty-json-file>`  (the baseline hides them otherwise)
@@ -51,12 +56,13 @@ and `tools/check-diff-ownership.mjs` detects a count that fell for a file you ne
 No gate can check these. They are why a human tick is the only thing that grants a cell.
 
 - These files are shared or style-only modules that no single surface owns.
-- Fix the enumerated violations without changing rendered behaviour: this is conformance work, not a redesign.
+- This is conformance work, not a redesign: keep structure and components as they are. A spacing fix is EXPECTED to change the layout - deliberately and minimally, each value judged against the surrounding rhythm, exactly as Backlog A says.
+- A value you judge genuinely load-bearing gets Backlog A's sanctioned escape (an inline `eslint-disable-next-line` with a WHY comment linking this work order or its issue, then `npm run lint:prune`, then a Timeline entry), never a forced snap.
 - A token or primitive that does not exist yet is a REQUEST, never a judgement call (`.claude/rules` product-and-content rule 2).
 
 ## Definition of done for THIS work order
 
-1. Backlog A is 0 (`node tools/workorder.mjs --check --id residual-web-app-(app)-profile-_components` exits 0).
+1. Backlog A is 0 (`node tools/workorder.mjs --check --id 'residual-web-app-(app)-profile-_components'` exits 0).
 2. The diff touches only the owned files above (`node tools/check-diff-ownership.mjs --id <id>` agrees).
 3. You appended one Timeline entry saying what you changed and what you deliberately did not.
 

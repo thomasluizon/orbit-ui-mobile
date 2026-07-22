@@ -224,6 +224,15 @@ function preflight(config, repos, queue, dir) {
       continue
     }
     if (!isClean(repoPath)) problems.push(`${repo.path} has uncommitted changes. Commit or stash before starting.`)
+    // The run's first act is resetReposToBase: checkout base + pull. Launched
+    // from the wrong branch, that reset silently swaps the tree for a base that
+    // may contain none of the work orders or gate tools the queue depends on
+    // (measured: origin/main carries zero .claude/workorders/ files). SKILL.md
+    // documented this check long before it existed; now it exists.
+    const branch = currentBranch(repoPath)
+    if (branch !== repo.base) {
+      problems.push(`${repo.path} is on branch "${branch}" but its configured base is "${repo.base}". The run resets each repo to its base before bundle 1, so start from ${repo.base} (or point config.repos[].base at the branch that carries the queue's work orders).`)
+    }
   }
   problems.push(...queuePromptProblems(queue, dir))
   return problems
@@ -487,6 +496,39 @@ function postVerdictComment(prUrl, verdict, log) {
   if (r.status !== 0) log(`  could not post verifier comment (${String(r.stderr || "").trim().slice(-160)})`)
 }
 
+const taskWall = (r) => (r.elapsedMs ? `${Math.round(r.elapsedMs / 60000)}min` : "-")
+const taskRow = (r) => `| ${r.id} | ${r.label} | ${r.status} | ${r.verdict || "-"} | ${taskWall(r)} | ${r.pr || "-"} |`
+
+/**
+ * The operator-facing rollup (SUMMARY.md + the final log line). `ready-for-review`
+ * is deliberately its OWN count: the redesign's whole point is that no machine can
+ * grant "done" (only a human tick in signoff.json can), and the previous headline
+ * folded ready-for-review into "completed (done)" - reinstating the exact
+ * reported-done framing the harness exists to eliminate. Exported so the wording
+ * is pinned by tests without spawning the engine.
+ */
+export function buildRunReport(results, queueLength, lessonCount) {
+  const readyForReview = results.filter((r) => r.status === "ready-for-review").length
+  const done = results.filter((r) => r.status === "done").length
+  const flagged = results.filter((r) => r.verdict === "DISAGREE").length
+  const summary = [
+    `# drive summary`,
+    ``,
+    `- tasks attempted: ${results.length} / ${queueLength}`,
+    `- ready for review: ${readyForReview} (a human review and a signoff.json tick are still owed)`,
+    `- done (human-granted): ${done}`,
+    `- verifier flagged (DISAGREE): ${flagged}`,
+    `- lesson candidates: ${lessonCount}${lessonCount ? ` (see LESSONS.md - run /lesson to promote)` : ""}`,
+    ``,
+    `| task | label | status | verifier | wall | PR |`,
+    `|---|---|---|---|---|---|`,
+    ...results.map(taskRow),
+    ``,
+  ].join("\n")
+  const headline = `RUN COMPLETE. ${readyForReview}/${queueLength} ready for review, ${done} done (human-granted), ${flagged} flagged, ${lessonCount} lesson candidate(s).`
+  return { summary, headline }
+}
+
 async function main() {
   const opts = parseArgs(process.argv.slice(2))
   const dir = resolve(opts.dir)
@@ -504,7 +546,11 @@ async function main() {
     appendFileSync(logPath, line + "\n")
   }
 
-  log(`${opts.attended ? "drive (attended)" : "drive --sleep"} starting: ${queue.length} bundle(s), model=${config.model}, per-task timeout ${Math.round(config.perTaskTimeoutMs / 60000)}min`)
+  // The label must say what was actually asked for: a plain `--dry-run` used to
+  // announce itself as "drive --sleep starting", so a run.log reader concluded
+  // an unattended overnight run had been launched when none was.
+  const modeLabel = opts.dryRun ? "drive (dry run)" : opts.attended ? "drive (attended)" : "drive --sleep"
+  log(`${modeLabel} starting: ${queue.length} bundle(s), model=${config.model}, per-task timeout ${Math.round(config.perTaskTimeoutMs / 60000)}min`)
   if (!queue.length) {
     log("queue.json is empty. Nothing to do.")
     return
@@ -529,6 +575,9 @@ async function main() {
   const lockPath = acquireRunLock(dir, log)
   if (!lockPath) {
     log("Aborting before any task ran.")
+    // Same fail-open shape as an aborted preflight: a caller checking the exit
+    // code must never read "another run holds the tree" as success.
+    process.exitCode = 1
     return
   }
   const releaseLock = () => {
@@ -545,10 +594,8 @@ async function main() {
   const lessons = []
   let consecutiveFailures = 0
   let previousTaskId = "pre-run"
-  const wall = (r) => (r.elapsedMs ? `${Math.round(r.elapsedMs / 60000)}min` : "-")
-  const row = (r) => `| ${r.id} | ${r.label} | ${r.status} | ${r.verdict || "-"} | ${wall(r)} | ${r.pr || "-"} |`
   const writeStatus = () => {
-    const rows = results.map(row).join("\n")
+    const rows = results.map(taskRow).join("\n")
     writeFileSync(
       statusPath,
       `# drive status\n\n| bundle | label | status | verifier | wall | PR |\n|---|---|---|---|---|---|\n${rows}\n`,
@@ -668,8 +715,6 @@ async function main() {
 
   if (rl) rl.close()
   resetReposToBase(config.repos, log, previousTaskId)
-  const done = results.filter((r) => COMPLETED_STATUSES.has(r.status)).length
-  const flagged = results.filter((r) => r.verdict === "DISAGREE").length
 
   if (lessons.length) {
     const lessonDoc = [
@@ -684,21 +729,9 @@ async function main() {
     writeFileSync(join(runDir, "LESSONS.md"), lessonDoc)
   }
 
-  const summary = [
-    `# drive summary`,
-    ``,
-    `- tasks attempted: ${results.length} / ${queue.length}`,
-    `- completed (done): ${done}`,
-    `- verifier flagged (DISAGREE): ${flagged}`,
-    `- lesson candidates: ${lessons.length}${lessons.length ? ` (see LESSONS.md — run /lesson to promote)` : ""}`,
-    ``,
-    `| task | label | status | verifier | wall | PR |`,
-    `|---|---|---|---|---|---|`,
-    ...results.map(row),
-    ``,
-  ].join("\n")
-  writeFileSync(join(runDir, "SUMMARY.md"), summary)
-  log(`DONE. ${done}/${queue.length} completed, ${flagged} flagged, ${lessons.length} lesson candidate(s). Summary: ${join(runDir, "SUMMARY.md")}`)
+  const report = buildRunReport(results, queue.length, lessons.length)
+  writeFileSync(join(runDir, "SUMMARY.md"), report.summary)
+  log(`${report.headline} Summary: ${join(runDir, "SUMMARY.md")}`)
   } finally {
     releaseLock()
   }

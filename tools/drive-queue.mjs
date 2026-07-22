@@ -83,22 +83,40 @@ function fail(message) {
   process.exit(2)
 }
 
-/** Read the frontmatter every work order carries, so bundling never re-parses prose. */
+/**
+ * Read the frontmatter every work order carries, so bundling never re-parses
+ * prose. \r?\n throughout, and every captured value is trimmed: a fresh Windows
+ * checkout materializes the committed orders with CRLF (core.autocrlf), and the
+ * LF-only regex here parsed ZERO of the 214 committed orders - a loud exit 2
+ * when all of them were CRLF, but a silent exit-0 ONE-bundle queue the moment a
+ * single LF plan order joined them. workorder.mjs's own parsers already
+ * tolerate CRLF; this one had missed it. A file that still fails to parse is
+ * named on stderr rather than dropped, because a skipped order silently shrinks
+ * the queue.
+ */
 function readWorkOrders() {
   if (!existsSync(WORKORDER_DIR)) fail("no .claude/workorders/. Run `node tools/workorder.mjs` first.")
   const orders = []
+  const unparseable = []
   for (const name of readdirSync(WORKORDER_DIR)) {
     if (!name.endsWith(".md") || name === "INDEX.md") continue
     const text = readFileSync(join(WORKORDER_DIR, name), "utf8")
-    const frontmatter = text.match(/^---\n([\s\S]*?)\n---/)
-    if (!frontmatter) continue
+    const frontmatter = text.match(/^---\r?\n([\s\S]*?)\r?\n---/)
+    if (!frontmatter) {
+      unparseable.push(name)
+      continue
+    }
     const fields = {}
-    for (const line of frontmatter[1].split("\n")) {
+    for (const line of frontmatter[1].split(/\r?\n/)) {
       const match = line.match(/^(\w+):\s*(.*)$/)
-      if (match) fields[match[1]] = match[2]
+      if (match) fields[match[1]] = match[2].trim()
+    }
+    if (!fields.surfaceId) {
+      unparseable.push(name)
+      continue
     }
     const timelineEntries = (text.split("## Timeline")[1] ?? "")
-      .split("\n")
+      .split(/\r?\n/)
       .filter((line) => line.trim().startsWith("- ") && !line.includes("(no work recorded"))
     orders.push({
       id: fields.surfaceId,
@@ -111,7 +129,13 @@ function readWorkOrders() {
       attempts: timelineEntries.length,
     })
   }
-  return orders.filter((order) => order.id)
+  if (unparseable.length) {
+    process.stderr.write(
+      `drive-queue: skipped ${unparseable.length} file(s) in .claude/workorders/ with no parseable frontmatter: ` +
+        `${unparseable.join(", ")}. Each one silently shrinks the queue - regenerate with \`node tools/workorder.mjs\`.\n`,
+    )
+  }
+  return orders
 }
 
 /**
@@ -266,6 +290,11 @@ claim a surface "looks good", is "redesigned", or is "complete" - you have no in
 that can establish that, and ten previous sessions made exactly that claim and were wrong.
 State what you changed and what you verified. If you believe a surface is ready for a human
 to look at, say which ones and why.`
+  // Ids are single-quoted in every runnable command line the prompt prints,
+  // same as workorder.mjs's generated done commands: a route-group id like
+  // `residual-web-app-(app)-social-_components` is a shell syntax error bare,
+  // so a child pasting its own definition of done got a bash error instead of
+  // a gate verdict.
   return `You are an autonomous Orbit engineer running one bundle. Proceed to completion on your own
 judgement. Do not ask questions; there is nobody to answer them.
 
@@ -313,8 +342,8 @@ ${depthParagraph}
 DEFINITION OF DONE - three machine-checkable conditions, and nothing else:
   a. EACH of these exits 0 (per order; the global \`--check\` form covers bundles that are
      not yours and can stay red while your work is complete, so it is not your condition):
-${ids.map((id) => `       node tools/workorder.mjs --check --id ${id}`).join("\n")}
-  b. \`node tools/check-diff-ownership.mjs ${ids.map((id) => `--id ${id}`).join(" ")}\` exits 0.
+${ids.map((id) => `       node tools/workorder.mjs --check --id '${id}'`).join("\n")}
+  b. \`node tools/check-diff-ownership.mjs ${ids.map((id) => `--id '${id}'`).join(" ")}\` exits 0.
   c. Each touched work order has your new Timeline entry.
 Then lint, type-check and the tests pass.
 
@@ -336,12 +365,26 @@ function main() {
     process.stdout.write(USAGE)
     return
   }
+  // A malformed or missing flag value must be a loud exit 2, never NaN: every
+  // cap comparison against NaN is false, so `--max-files abc` silently turned
+  // the cap OFF and packed a 33-file bundle under the documented 14-file
+  // default while exiting 0 - against this tool's own exit-2-on-bad-flag
+  // contract.
   const flag = (name, fallback) => {
     const index = argv.indexOf(name)
-    return index === -1 ? fallback : Number(argv[index + 1])
+    if (index === -1) return fallback
+    const raw = argv[index + 1]
+    const value = Number(raw)
+    if (raw === undefined || !Number.isFinite(value)) {
+      fail(`${name} needs a numeric value as its next argument${raw !== undefined ? ` (got "${raw}")` : ""}. See --help.`)
+    }
+    return value
   }
   const platformIndex = argv.indexOf("--platform")
   const platform = platformIndex === -1 ? null : argv[platformIndex + 1]
+  if (platformIndex !== -1 && platform !== "web" && platform !== "mobile") {
+    fail(`--platform needs "web" or "mobile" as its next argument${platform ? ` (got "${platform}")` : ""}. See --help.`)
+  }
   const limits = {
     maxFiles: flag("--max-files", DEFAULTS.maxFiles),
     maxDebt: flag("--max-debt", DEFAULTS.maxDebt),

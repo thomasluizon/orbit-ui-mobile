@@ -93,7 +93,10 @@ EXIT CODES
      (repo-wide without --id, scoped to that one order with --id)
   1  --check found outstanding mechanical debt in its scope
   2  a required input is missing or unreadable (manifest, suppression baseline),
-     or a unit with cells owns zero files after resolution and cannot be folded
+     a flag is missing its value, --from-plan would breach exclusive ownership
+     (an id collision with an order it did not source, or a file another order
+     already owns), or a unit with cells owns zero files after resolution and
+     cannot be folded
 
 INPUTS (all on disk, none hand-written)
   .claude/manifests/surfaces.json   the denominator + exclusive file ownership
@@ -217,6 +220,32 @@ function residualGroups(suppressions, ownedEverywhere) {
   }))
 }
 
+/**
+ * file -> the surfaceId that primarily owns it. A multi-claimant file goes to
+ * the unit it is the sourceFile of, else the alphabetically-first claimant -
+ * the same resolution main() applies before writing orders, extracted so the
+ * --from-plan guard judges ownership by the identical rule.
+ */
+function primaryOwnerByFile(units) {
+  const claimants = new Map()
+  for (const unit of units) {
+    for (const file of unit.ownedFiles) {
+      if (!claimants.has(file)) claimants.set(file, [])
+      claimants.get(file).push(unit)
+    }
+  }
+  const primaryOf = new Map()
+  for (const [file, owners] of claimants) {
+    const preferred =
+      owners.length === 1
+        ? owners[0]
+        : (owners.find((owner) => owner.sourceFile === file) ??
+          [...owners].sort((a, b) => a.surfaceId.localeCompare(b.surfaceId))[0])
+    primaryOf.set(file, preferred.surfaceId)
+  }
+  return primaryOf
+}
+
 // DESIGN.md's reviewer-judgment list is one 3-line paragraph covering every
 // surface in the app. Handed over whole it is unreadable, so it is split by the
 // kind of surface it is being applied to. This is a POINTER into DESIGN.md, not
@@ -245,7 +274,8 @@ const JUDGEMENT_BY_KIND = {
   ],
   residual: [
     "These files are shared or style-only modules that no single surface owns.",
-    "Fix the enumerated violations without changing rendered behaviour: this is conformance work, not a redesign.",
+    "This is conformance work, not a redesign: keep structure and components as they are. A spacing fix is EXPECTED to change the layout - deliberately and minimally, each value judged against the surrounding rhythm, exactly as Backlog A says.",
+    "A value you judge genuinely load-bearing gets Backlog A's sanctioned escape (an inline `eslint-disable-next-line` with a WHY comment linking this work order or its issue, then `npm run lint:prune`, then a Timeline entry), never a forced snap.",
     "A token or primitive that does not exist yet is a REQUEST, never a judgement call (`.claude/rules` product-and-content rule 2).",
   ],
 }
@@ -255,7 +285,12 @@ function judgementFor(kind) {
   return JUDGEMENT_BY_KIND[kind] ?? JUDGEMENT_BY_KIND.route
 }
 
-/** Keep whatever an agent appended under `## Timeline`, so regeneration never eats history. */
+/**
+ * Keep whatever an agent appended under `## Timeline`, so regeneration never
+ * eats history. \r?\n like every other on-disk read here: a fresh Windows
+ * checkout materializes committed orders with CRLF, and trimEnd strips any
+ * trailing \r so a preserved entry is re-written clean.
+ */
 function existingTimeline(path) {
   if (!existsSync(path)) return []
   const text = readFileSync(path, "utf8")
@@ -263,7 +298,7 @@ function existingTimeline(path) {
   if (index === -1) return []
   return text
     .slice(index + TIMELINE_HEADING.length)
-    .split("\n")
+    .split(/\r?\n/)
     .map((line) => line.trimEnd())
     .filter((line) => line.trim().startsWith("- "))
 }
@@ -293,7 +328,7 @@ function renderWorkOrder(surface, debt, timeline, manifest) {
     "## Goal",
     "",
     surface.kind === "residual"
-      ? "Bring these shared/style-only files into DESIGN.md conformance without changing what they render."
+      ? "Bring these shared/style-only files into DESIGN.md conformance. A spacing fix is expected to change the layout - deliberately and minimally; structure and components stay as they are."
       : surface.kind === "plan"
         ? `Implement the plan at \`${surface.sourceFile}\`. That file holds the objective, the tasks and the acceptance criteria; this work order holds your boundary and your starting state, so you do not have to go looking for either.`
         : `Bring \`${surface.surfaceId}\`${surface.href ? ` (\`${surface.href}\`)` : ""} to DESIGN.md. Read DESIGN.md once, then edit; the parts that apply to this surface are named below so you do not have to search for them.`,
@@ -358,8 +393,13 @@ function renderWorkOrder(surface, debt, timeline, manifest) {
       "rest, because taking a 6px gap to 4 or a 14px padding to 12 CHANGES THE LAYOUT. Verified on this",
       "repo: `eslint --fix` over a 30-violation file changed zero lines. So do not batch-snap every",
       "number to the nearest step and call it done - that is the shallow sweep this harness exists to",
-      "stop. Decide each one against the surrounding rhythm (tight within a group, air between groups),",
-      "and where a value is genuinely load-bearing, say so in the Timeline rather than forcing it.",
+      "stop. Decide each one against the surrounding rhythm (tight within a group, air between groups).",
+      "",
+      "A value you judge genuinely load-bearing is KEPT, through the sanctioned escape - never a forced",
+      "snap: add an inline `// eslint-disable-next-line local/<rule> -- <why>, see <this work order or its issue>`",
+      "(a tooling directive with a linked WHY is legal under the comment policy), run `npm run lint:prune`,",
+      "then append a Timeline entry naming each value you kept and why. The source file IS edited, so the",
+      "count falls legitimately and the definition of done below stays reachable for honest work.",
       "",
       "See the violations with:",
       "  `npx eslint <file> --suppressions-location <an-empty-json-file>`  (the baseline hides them otherwise)",
@@ -391,17 +431,19 @@ function renderWorkOrder(surface, debt, timeline, manifest) {
     )
   }
 
+  // Ids are single-quoted in every runnable command line: a route-group id like
+  // `residual-web-app-(app)-social-_components` is a shell syntax error bare.
   lines.push(
     "## Definition of done for THIS work order",
     "",
-    `1. Backlog A is 0 (\`node tools/workorder.mjs --check --id ${surface.surfaceId}\` exits 0).`,
+    `1. Backlog A is 0 (\`node tools/workorder.mjs --check --id '${surface.surfaceId}'\` exits 0).`,
     "2. The diff touches only the owned files above (`node tools/check-diff-ownership.mjs --id <id>` agrees).",
     "3. You appended one Timeline entry saying what you changed and what you deliberately did not.",
     "",
     ...(surface.cells > 0
       ? [
           "Clearing Backlog A is a floor and is NOT evidence of redesign: the depth number for this",
-          `surface comes from \`node tools/workorder.mjs --check --id ${surface.surfaceId}\`, and it is a veto`,
+          `surface comes from \`node tools/workorder.mjs --check --id '${surface.surfaceId}'\`, and it is a veto`,
           "axis a human consults, never a target. Only a human tick in `signoff.json` grants completion.",
           "",
         ]
@@ -517,7 +559,49 @@ function ownedFilesFromDisk(path) {
   if (start === -1 || end === -1) return []
   const sharedAt = text.indexOf("### Shared, and NOT yours to edit")
   const stop = sharedAt !== -1 && sharedAt < end ? sharedAt : end
-  return [...text.slice(start, stop).matchAll(/^- `([^`]+)`$/gm)].map((match) => match[1])
+  // \r? for the same reason planOrdersOnDisk carries it: a fresh Windows
+  // checkout materializes committed orders with CRLF.
+  return [...text.slice(start, stop).matchAll(/^- `([^`]+)`\r?$/gm)].map((match) => match[1])
+}
+
+/**
+ * Why --from-plan refuses instead of writing: exclusive ownership is the one
+ * invariant that lets bundles run in parallel, and both breaches shipped once.
+ * A plan named after a surface (route-login.plan.md) silently CLOBBERED the
+ * surface's work order in place, and a plan whose "## Files to Change" named a
+ * surface-owned file granted the same file exclusively to two queued bundles -
+ * the exact parallel-overwrite hazard work orders exist to prevent. Re-running
+ * --from-plan on the SAME plan (same id, same source) stays legal: regenerating
+ * your own order is idempotent.
+ */
+function fromPlanConflicts(unit) {
+  const problems = []
+  const existingPath = join(OUT_DIR, `${unit.surfaceId}.md`)
+  if (existsSync(existingPath)) {
+    const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(readFileSync(existingPath, "utf8"))?.[1] ?? ""
+    const kind = (/^kind:\s*(.+)$/m.exec(frontmatter)?.[1] ?? "unknown").trim()
+    const source = (/^generatedFrom:\s*(.+)$/m.exec(frontmatter)?.[1] ?? "unknown").trim()
+    if (kind !== "plan" || source !== unit.sourceFile) {
+      problems.push(
+        `id "${unit.surfaceId}" already names a ${kind} work order (generated from \`${source}\`); writing would clobber it. Rename the plan file.`,
+      )
+    }
+  }
+  // The manifest partition is the other exclusive owner. Absent manifest (a
+  // repo that never generated one) there is no surface partition to breach.
+  if (existsSync(MANIFEST_PATH)) {
+    const surfaceOwners = primaryOwnerByFile(collapseSurfaces(readJson(MANIFEST_PATH, "surface manifest")))
+    for (const file of unit.ownedFiles) {
+      if (surfaceOwners.has(file)) problems.push(`\`${file}\` is exclusively owned by surface \`${surfaceOwners.get(file)}\``)
+    }
+  }
+  for (const order of planOrdersOnDisk()) {
+    if (order.surfaceId === unit.surfaceId) continue
+    for (const file of ownedFilesFromDisk(join(OUT_DIR, order.file))) {
+      if (unit.ownedFiles.includes(file)) problems.push(`\`${file}\` is exclusively owned by plan order \`${order.surfaceId}\``)
+    }
+  }
+  return problems
 }
 
 /**
@@ -573,7 +657,19 @@ function main() {
 
   const planIndex = argv.indexOf("--from-plan")
   if (planIndex !== -1) {
-    const unit = planUnit(argv[planIndex + 1])
+    const planPath = argv[planIndex + 1]
+    if (!planPath || planPath.startsWith("--")) {
+      fail(`--from-plan needs a plan-file path as its next argument${planPath ? ` (got "${planPath}")` : ""}. See --help.`)
+    }
+    const unit = planUnit(planPath)
+    const conflicts = fromPlanConflicts(unit)
+    if (conflicts.length) {
+      fail(
+        `--from-plan refused for ${planPath}:\n` +
+          conflicts.map((problem) => `  - ${problem}`).join("\n") +
+          `\nOwnership is exclusive. Narrow the plan's "## Files to Change", or route the visual\nwork through the owning surface's own work order.`,
+      )
+    }
     const suppressions = loadSuppressions()
     const debt = debtOf(unit.ownedFiles, suppressions)
     mkdirSync(OUT_DIR, { recursive: true })
@@ -589,6 +685,12 @@ function main() {
   }
   const checkOnly = argv.includes("--check")
   const idIndex = argv.indexOf("--id")
+  // A missing --id value must be a loud exit 2, never a silent fall-through to
+  // the GLOBAL check: a child that malforms its per-order command would read
+  // the repo-wide verdict as its own order's.
+  if (idIndex !== -1 && (!argv[idIndex + 1] || argv[idIndex + 1].startsWith("--"))) {
+    fail(`--id needs a work-order id as its next argument${argv[idIndex + 1] ? ` (got "${argv[idIndex + 1]}")` : ""}. See --help.`)
+  }
   const wantedId = idIndex !== -1 ? argv[idIndex + 1] : null
 
   if (!existsSync(MANIFEST_PATH)) fail("the surface manifest does not exist. Run `npm run surfaces:manifest` first.")
@@ -610,24 +712,7 @@ function main() {
   // surface it is the sourceFile of, else the alphabetically-first claimant) and the
   // other claimants carry it as read-only context. Debt is therefore counted exactly
   // once globally, and no two agents are ever told to edit the same file.
-  const claimants = new Map()
-  for (const unit of units) {
-    for (const file of unit.ownedFiles) {
-      if (!claimants.has(file)) claimants.set(file, [])
-      claimants.get(file).push(unit)
-    }
-  }
-  const primaryOf = new Map()
-  for (const [file, owners] of claimants) {
-    if (owners.length === 1) {
-      primaryOf.set(file, owners[0].surfaceId)
-      continue
-    }
-    const preferred =
-      owners.find((owner) => owner.sourceFile === file) ??
-      [...owners].sort((a, b) => a.surfaceId.localeCompare(b.surfaceId))[0]
-    primaryOf.set(file, preferred.surfaceId)
-  }
+  const primaryOf = primaryOwnerByFile(units)
   for (const unit of units) {
     unit.sharedFiles = unit.ownedFiles
       .filter((file) => primaryOf.get(file) !== unit.surfaceId)
@@ -676,15 +761,32 @@ function main() {
   if (wantedId) {
     const foldedPrimary = foldedInto.get(wantedId)
     if (foldedPrimary) {
-      fail(`work order "${wantedId}" is folded into "${foldedPrimary}": it renders entirely through files that order owns, so its cells ride there. Use --id ${foldedPrimary}.`)
+      fail(`work order "${wantedId}" is folded into "${foldedPrimary}": it renders entirely through files that order owns, so its cells ride there. Use --id '${foldedPrimary}'.`)
     }
     let found = ledger.find((entry) => entry.unit.surfaceId === wantedId)
+    let sweptNote = null
     if (!found) {
+      const onDiskPath = join(OUT_DIR, `${wantedId}.md`)
       const planOrder = planOrdersOnDisk().find((order) => order.surfaceId === wantedId)
-      if (planOrder && checkOnly) {
-        found = { unit: { surfaceId: wantedId, cells: 0 }, debt: debtOf(ownedFilesFromDisk(join(OUT_DIR, planOrder.file)), suppressions) }
+      if (checkOnly && (planOrder || existsSync(onDiskPath))) {
+        // A residual order derives from the suppression ledger, so the moment a
+        // child clears its LAST violation the id stops deriving - and the
+        // order's own definition of done ("--check --id <id> exits 0") was
+        // rewarded with exit 2 "no work order". Success must stay satisfiable:
+        // fall back to the on-disk contract file's Boundaries. Debt is still
+        // counted from the ledger, never from the .md, so the fallback cannot
+        // be gamed by editing the file - annexing extra files into Boundaries
+        // can only ADD debt, never remove it.
+        const orderPath = planOrder ? join(OUT_DIR, planOrder.file) : onDiskPath
+        found = { unit: { surfaceId: wantedId, cells: 0 }, debt: debtOf(ownedFilesFromDisk(orderPath), suppressions) }
+        if (!planOrder && found.debt.total === 0) {
+          sweptNote =
+            "This order no longer derives from the manifest or the suppression ledger: its debt is fully cleared, and the next `node tools/workorder.mjs` regeneration will sweep the file."
+        }
       } else if (planOrder) {
         fail(`"${wantedId}" is a plan work order with no manifest unit to re-render: read .claude/workorders/${planOrder.file} directly.`)
+      } else if (existsSync(onDiskPath)) {
+        fail(`"${wantedId}" no longer derives from the manifest or the suppression ledger: read .claude/workorders/${wantedId}.md directly, or regenerate.`)
       } else {
         fail(`no work order with id "${wantedId}". Run without --id to list them.`)
       }
@@ -699,6 +801,7 @@ function main() {
     const lines = [`${wantedId}: ${found.debt.total} outstanding mechanical violation(s)`]
     for (const row of found.debt.rows) lines.push(`  ${row.file}  ${row.rule}  ${row.count}`)
     if (found.unit.cells > 0) lines.push(depthLineFor(found.unit, manifest))
+    if (sweptNote) lines.push(sweptNote)
     lines.push("Mechanical debt is a floor, not a grant. Only a human tick in signoff.json completes a cell.")
     process.stdout.write(lines.join("\n") + "\n")
     process.exit(found.debt.total > 0 ? 1 : 0)

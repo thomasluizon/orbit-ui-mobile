@@ -21,6 +21,16 @@
  *   2. Did the change touch gate state, or shrink a suppression baseline for a
  *      file it never edited (the precise shape of faking the mechanical floor)?
  *
+ * The trust root for question 1 is GIT HISTORY, never the working tree. The
+ * child is ordered to edit its own work order file (the Timeline append is part
+ * of the definition of done), so the on-disk copy is writable by the exact
+ * party this gate polices. Reading Boundaries from it let a child annex any
+ * file in the repo with one appended line, and for plan orders nothing
+ * downstream ever reverted it. The base ref is "before the child ran" (the
+ * driver starts every bundle from a clean committed tree), which no child can
+ * edit from inside a run: ownership is read from `git show <base>:...`, and the
+ * child's copies may only APPEND to that base copy. See ownedFilesOf.
+ *
  * WHAT THIS TOOL DOES NOT CATCH, stated plainly because an adversarial review of
  * this design refuted the claim that it would:
  *
@@ -130,17 +140,22 @@ USAGE
   --id <id>       A work order whose owned files are permitted. Repeatable, so a
                   bundle of several work orders passes several --id flags.
   --files <list>  Comma-separated permitted paths, for a unit with no work order.
-  --base <ref>    Compare against this ref (default: the branch merge-base with
-                  origin/HEAD, else HEAD). Uncommitted changes are always included.
+  --base <ref>    Compare against this ref. Default resolution, fail-closed: the
+                  merge-base with @{upstream}, else with origin/main, else with
+                  main; none resolving is exit 2, never an empty diff. An
+                  unresolvable explicit ref is exit 2 too. Uncommitted changes
+                  are always included.
   --help, -h      This text.
 
 EXIT CODES
   0  every changed file is owned or structurally permitted (the suppression
      ledgers, an owned file's test companion, the i18n pair), and no gate state
      was touched
-  1  the diff escaped its ownership, touched gate state, or moved a suppression
-     count for a file it never edited
-  2  bad invocation, or a work order that does not exist
+  1  the diff escaped its ownership, touched gate state, moved a suppression
+     count for a file it never edited, or rewrote a work order file (the base
+     copy must be a byte-prefix of the current copy - Timeline is append-only)
+  2  bad invocation, an unresolvable base, or a work order absent at the base
+     ref (a work order created mid-run cannot self-grant ownership)
 `
 
 function fail(message, code = 2) {
@@ -153,36 +168,104 @@ function git(args) {
   return result.status === 0 ? result.stdout : ""
 }
 
+/** A ref's copy of a repo file, or null when the path is absent at that ref. */
+function gitShow(ref, path) {
+  const result = spawnSync("git", ["show", `${ref}:${path}`], { cwd: REPO_ROOT, encoding: "utf8" })
+  return result.status === 0 ? result.stdout : null
+}
+
 function normalize(path) {
   return path.replace(/\\/g, "/").replace(/^\.\//, "").trim()
 }
 
 /** Every path the working tree has changed against `base`, committed or not. */
 function changedFiles(base) {
-  const committed = base ? git(["diff", "--name-only", `${base}...HEAD`]) : ""
+  const committed = git(["diff", "--name-only", `${base}...HEAD`])
   const unstaged = git(["diff", "--name-only", "HEAD"])
   const untracked = git(["ls-files", "--others", "--exclude-standard"])
   return [...new Set([committed, unstaged, untracked].join("\n").split("\n").map(normalize).filter(Boolean))]
 }
 
-function defaultBase() {
+/**
+ * Resolve the ref the diff is judged against, and refuse to guess. The old
+ * default returned "" when @{upstream} was unset, and "" silently dropped the
+ * COMMITTED diff from the verdict - vacuously green exactly when the child had
+ * committed, which the definition of done orders it to do. An unresolvable
+ * explicit --base degraded the same way. A gate that cannot see the diff must
+ * fail loudly, never pass quietly.
+ *
+ * Resolution order: merge-base with @{upstream}, else origin/main, else main.
+ * A candidate whose merge-base IS HEAD proves nothing about branch-local
+ * commits - the post-push upstream is the branch's own remote copy, so their
+ * merge-base is HEAD and the committed diff is empty by construction. Such a
+ * candidate is kept only as a last resort for the legitimate no-local-commits
+ * case, where HEAD genuinely is the base.
+ */
+function resolveBase(explicitBase) {
+  if (explicitBase) {
+    const sha = git(["rev-parse", "--verify", "--quiet", `${explicitBase}^{commit}`]).trim()
+    if (!sha) fail(`--base "${explicitBase}" does not resolve to a commit. An unresolvable base must never degrade to an empty diff.`)
+    return { sha, how: `explicit --base ${explicitBase}` }
+  }
+  const head = git(["rev-parse", "HEAD"]).trim()
   const upstream = git(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"]).trim()
-  if (!upstream) return ""
-  return git(["merge-base", "HEAD", upstream]).trim()
+  let headIsBase = null
+  for (const candidate of [upstream, "origin/main", "main"].filter(Boolean)) {
+    if (!git(["rev-parse", "--verify", "--quiet", `${candidate}^{commit}`]).trim()) continue
+    const mergeBase = git(["merge-base", "HEAD", candidate]).trim()
+    if (!mergeBase) continue
+    if (mergeBase !== head) return { sha: mergeBase, how: `merge-base with ${candidate}` }
+    if (!headIsBase) headIsBase = { sha: head, how: `HEAD (already contained in ${candidate})` }
+  }
+  if (headIsBase) return headIsBase
+  fail(
+    "no base resolved: no @{upstream}, origin/main or main to merge-base against. Pass --base <ref>. " +
+      "Without a base the committed diff is invisible, and a gate that cannot see the diff fails rather than passes.",
+  )
 }
 
-/** The owned-file list a work order declares in its Boundaries section. */
-function ownedFilesOf(id) {
-  const path = join(WORKORDER_DIR, `${id}.md`)
-  if (!existsSync(path)) fail(`no work order "${id}". Run \`node tools/workorder.mjs\` to generate them.`)
-  const text = readFileSync(path, "utf8")
-  const start = text.indexOf("## Boundaries")
-  const sharedAt = text.indexOf("### Shared, and NOT yours to edit")
-  const end = text.indexOf("## Backlog A")
-  if (start === -1 || end === -1) fail(`work order "${id}" is malformed: no Boundaries or Backlog A section.`)
+/**
+ * The owned-file list a work order declares in its Boundaries section, read
+ * from the BASE ref's copy - never the working tree, which the policed child
+ * writes to by contract (the Timeline append). The base ref cannot be edited
+ * from inside a run, so a Boundaries line added mid-run grants nothing: this is
+ * the fix for the measured annexation exploit, where one working-tree line
+ * handed a child exclusive ownership of another order's file and the driver's
+ * own measurement then reported a false green.
+ *
+ * Both the committed (HEAD) and working copies are held APPEND-ONLY against the
+ * base copy: byte-prefix after CRLF normalisation, because checkouts
+ * materialise these files with either line ending. The Timeline may grow at the
+ * end; a rewrite, reorder or truncation is the same exploit through the other
+ * door, and checking HEAD as well as the working tree closes the
+ * commit-the-rewrite-then-revert-the-working-copy variant.
+ */
+function ownedFilesOf(id, baseSha) {
+  const relPath = `.claude/workorders/${id}.md`
+  const baseRaw = gitShow(baseSha, relPath)
+  if (baseRaw === null)
+    fail(
+      `no work order "${id}" at base ${baseSha}. Ownership is granted by the base ref, not the working tree: ` +
+        `a work order created mid-run cannot self-grant ownership. A legitimate order is committed before the ` +
+        `run starts (the driver requires a clean tree); commit it and pass a --base that contains it.`,
+    )
+  const baseText = baseRaw.replace(/\r\n/g, "\n")
+  const workingPath = join(WORKORDER_DIR, `${id}.md`)
+  const workingText = existsSync(workingPath) ? readFileSync(workingPath, "utf8").replace(/\r\n/g, "\n") : ""
+  const headText = (gitShow("HEAD", relPath) ?? "").replace(/\r\n/g, "\n")
+  if (!workingText.startsWith(baseText) || !headText.startsWith(baseText))
+    fail(
+      `work order "${id}" rewritten - Timeline is append-only. The base ref's copy must be a byte-prefix of ` +
+        `both the committed and working copies; revert the file and append your Timeline entry at the end instead.`,
+      1,
+    )
+  const start = baseText.indexOf("## Boundaries")
+  const sharedAt = baseText.indexOf("### Shared, and NOT yours to edit")
+  const end = baseText.indexOf("## Backlog A")
+  if (start === -1 || end === -1) fail(`work order "${id}" is malformed at base ${baseSha}: no Boundaries or Backlog A section.`)
   // A file listed under "Shared" is deliberately NOT owned, so the slice stops there.
   const stop = sharedAt !== -1 && sharedAt < end ? sharedAt : end
-  return [...text.slice(start, stop).matchAll(/^- `([^`]+)`$/gm)].map((match) => normalize(match[1]))
+  return [...baseText.slice(start, stop).matchAll(/^- `([^`]+)`$/gm)].map((match) => normalize(match[1]))
 }
 
 /**
@@ -195,7 +278,7 @@ function fakedSuppressions(base, changed) {
   const changedSet = new Set(changed)
   for (const file of SUPPRESSION_FILES) {
     if (!changedSet.has(file)) continue
-    const before = base ? git(["show", `${base}:${file}`]) : ""
+    const before = gitShow(base, file) ?? ""
     if (!before.trim()) continue
     const workspace = `${file.split("/").slice(0, 2).join("/")}/`
     let previous
@@ -238,24 +321,25 @@ function main() {
   }
   if (!ids.length && !explicitFiles) fail("pass at least one --id or a --files list. See --help.")
 
-  const resolvedBase = base ?? defaultBase()
-  const owned = new Set(explicitFiles ?? ids.flatMap(ownedFilesOf))
+  const resolvedBase = resolveBase(base)
+  const owned = new Set(explicitFiles ?? ids.flatMap((id) => ownedFilesOf(id, resolvedBase.sha)))
   // A work order's own file is owned by the unit it describes: appending to the
   // Timeline is required by the definition of done, so it must not read as an
-  // escape. INDEX.md is NOT included - it is generated, and hand-editing it is
-  // editing the scoreboard.
+  // escape. What it may GRANT is pinned to the base ref's copy by ownedFilesOf,
+  // and any non-append edit already failed there. INDEX.md is NOT included - it
+  // is generated, and hand-editing it is editing the scoreboard.
   for (const id of ids) owned.add(`.claude/workorders/${id}.md`)
-  const changed = changedFiles(resolvedBase)
+  const changed = changedFiles(resolvedBase.sha)
 
   const touchedGateState = changed.filter((file) => GATE_STATE.some((pattern) => pattern.test(file.replace(/\//g, "/"))))
   const structurallyPermitted = (file) =>
     SUPPRESSION_FILES.includes(file) || I18N_PAIR.includes(file) || isOwnedTestCompanion(file, owned)
   const escaped = changed.filter((file) => !owned.has(file) && !touchedGateState.includes(file) && !structurallyPermitted(file))
-  const faked = fakedSuppressions(resolvedBase, changed)
+  const faked = fakedSuppressions(resolvedBase.sha, changed)
 
   const label = explicitFiles ? `${owned.size} explicit file(s)` : ids.join(", ")
   process.stdout.write(
-    `scope: ${label}\nbase: ${resolvedBase || "(none, comparing working tree to HEAD)"}\nchanged: ${changed.length} file(s), ${owned.size} owned\n\n`,
+    `scope: ${label}\nbase: ${resolvedBase.sha} (${resolvedBase.how})\nchanged: ${changed.length} file(s), ${owned.size} owned\n\n`,
   )
 
   if (!touchedGateState.length && !escaped.length && !faked.length) {
