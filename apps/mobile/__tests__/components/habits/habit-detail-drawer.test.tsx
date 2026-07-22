@@ -95,7 +95,7 @@ interface TestNode {
 }
 
 function render(ui: React.ReactElement) {
-  let tree: { root: TestNode }
+  let tree: { root: TestNode; update: (nextUi: React.ReactElement) => void }
   TestRenderer.act(() => {
     tree = TestRenderer.create(ui)
   })
@@ -242,7 +242,7 @@ describe('HabitDetailDrawer (mobile)', () => {
     expect(mockLogHabitMutateAsync).not.toHaveBeenCalled()
   })
 
-  it('seeds a sub-habit chat draft and navigates when Ask Astra is pressed for a checklist habit', () => {
+  it('seeds a sub-habit chat draft and navigates only after the drawer dismisses when Ask Astra is pressed', () => {
     const setItem = vi.spyOn(AsyncStorage, 'setItem').mockResolvedValue(undefined)
     const onClose = vi.fn()
     const habit = createMockHabit({
@@ -262,7 +262,14 @@ describe('HabitDetailDrawer (mobile)', () => {
       'habits.detail.askAstraSeedSubHabits:{"title":"Strength"}',
     )
     expect(onClose).toHaveBeenCalledTimes(1)
+    expect(mocks.push).not.toHaveBeenCalled()
+
+    TestRenderer.act(() => {
+      tree.update(<HabitDetailDrawer open={false} onClose={onClose} habit={habit} />)
+    })
+
     expect(mocks.push).toHaveBeenCalledWith('/chat')
+    expect(mocks.push).toHaveBeenCalledTimes(1)
   })
 
   it('seeds the default chat draft for a habit with no checklist', () => {

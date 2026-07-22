@@ -8,6 +8,7 @@ import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { KeyboardAwareBottomSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
 import { EditGoalModal } from './edit-goal-modal'
 import { GoalMetricsPanel } from './goal-metrics-panel'
 import { GoalActionFooter } from './goal-detail-drawer/goal-action-footer'
@@ -146,13 +147,14 @@ export function GoalDetailDrawer({
   }, [deleteGoalMut, goalId, onClose, showError, translate])
 
   const router = useRouter()
+  const { scheduleExitAction, runExitAction } = useSheetExitAction()
   const handleAskAstra = useCallback(() => {
     if (!goal) return
     const seed = t('goals.detail.askAstraSeedDefault', { title: goal.title })
     void AsyncStorage.setItem('orbit-chat-draft', seed)
+    scheduleExitAction(() => router.push('/chat'))
     onClose()
-    router.push('/chat')
-  }, [goal, onClose, router, t])
+  }, [goal, onClose, router, scheduleExitAction, t])
 
   if (!goal) return null
 
@@ -170,6 +172,7 @@ export function GoalDetailDrawer({
       <BottomSheetModal
         open={open}
         onClose={onClose}
+        onDidDismiss={runExitAction}
         title={goal.title}
         snapPoints={['60%', '90%']}
         canDismiss={!isProgressDirty}

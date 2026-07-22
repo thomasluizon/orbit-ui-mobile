@@ -9,6 +9,7 @@ import { GradientTop } from '@/components/ui/gradient-top'
 import { PillButton } from '@/components/ui/pill-button'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useProfile } from '@/hooks/use-profile'
+import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
 import { useChallenges } from '@/hooks/use-challenges'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -31,6 +32,7 @@ export default function ChallengesScreen() {
   const { data: challenges, isError, refetch } = useChallenges({ enabled: socialEnabled })
   const [createOpen, setCreateOpen] = useState(false)
   const [joinOpen, setJoinOpen] = useState(deepLinkCode.length > 0)
+  const { scheduleExitAction, runExitAction } = useSheetExitAction()
 
   const openDetail = (id: string) => router.push(`/social/challenges/${id}`)
 
@@ -94,6 +96,7 @@ export default function ChallengesScreen() {
       <BottomSheetModal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
+        onDidDismiss={runExitAction}
         title={t('challenges.create.title')}
         snapPoints={['70%', '92%']}
         contentManagesScroll
@@ -101,8 +104,8 @@ export default function ChallengesScreen() {
         <ScrollView contentContainerStyle={styles.sheet} keyboardShouldPersistTaps="handled">
           <CreateChallengeForm
             onCreated={(id) => {
+              scheduleExitAction(() => openDetail(id))
               setCreateOpen(false)
-              openDetail(id)
             }}
           />
         </ScrollView>

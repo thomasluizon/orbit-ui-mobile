@@ -39,6 +39,7 @@ interface AdvancedSectionProps {
   styles: HabitFormStyles;
   sectionStyles: ReturnType<typeof createSectionStyles>;
   tokens: AppTokens;
+  onUpgrade: () => void;
   children?: ReactNode;
 }
 
@@ -61,6 +62,7 @@ export function AdvancedSection({
   styles,
   sectionStyles,
   tokens,
+  onUpgrade,
   children,
 }: Readonly<AdvancedSectionProps>) {
   const { t } = useTranslation();
@@ -293,6 +295,7 @@ export function AdvancedSection({
               shouldDirty: true,
             })
           }
+          onUpgrade={onUpgrade}
         />
       )}
 

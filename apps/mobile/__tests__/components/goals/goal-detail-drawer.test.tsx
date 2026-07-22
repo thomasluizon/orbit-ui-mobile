@@ -77,7 +77,7 @@ vi.mock('@/lib/use-app-theme', () => ({
 }))
 
 vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: ({ open, children, title, onAttemptDismiss }: any) =>
+  BottomSheetModal: ({ open, children, title, onAttemptDismiss, onDidDismiss }: any) =>
     open
       ? React.createElement(
           'BottomSheetModal',
@@ -85,6 +85,10 @@ vi.mock('@/components/bottom-sheet-modal', () => ({
           React.createElement('Pressable', {
             accessibilityLabel: 'attempt-dismiss',
             onPress: () => onAttemptDismiss?.(),
+          }),
+          React.createElement('Pressable', {
+            accessibilityLabel: 'sheet-did-dismiss',
+            onPress: () => onDidDismiss?.(),
           }),
           children,
         )
@@ -421,7 +425,7 @@ describe('GoalDetailDrawer', () => {
     expect(onClose).not.toHaveBeenCalled()
   })
 
-  it('seeds a chat draft and navigates to Astra from the goal drawer', () => {
+  it('seeds a chat draft and navigates to Astra only after the drawer dismisses', () => {
     const setItem = vi.spyOn(AsyncStorage, 'setItem').mockResolvedValue(undefined)
     const onClose = vi.fn()
     const tree = renderDrawer(onClose)
@@ -433,7 +437,12 @@ describe('GoalDetailDrawer', () => {
       'goals.detail.askAstraSeedDefault:{"title":"Read 12 books"}',
     )
     expect(onClose).toHaveBeenCalledTimes(1)
+    expect(mockPush).not.toHaveBeenCalled()
+
+    press(tree, 'sheet-did-dismiss')
+
     expect(mockPush).toHaveBeenCalledWith('/chat')
+    expect(mockPush).toHaveBeenCalledTimes(1)
   })
 
   it('runs status mutations from the active action footer', () => {

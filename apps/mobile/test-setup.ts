@@ -129,15 +129,35 @@ vi.mock('@/lib/theme-provider', () => ({
 }))
 
 vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: ({ open, children, title }: { open: boolean; children?: React.ReactNode; title?: string }) =>
-    open
+  BottomSheetModal: ({
+    open,
+    children,
+    title,
+    onDidDismiss,
+  }: {
+    open: boolean
+    children?: React.ReactNode
+    title?: string
+    onDidDismiss?: () => void
+  }) => {
+    const wasOpenRef = React.useRef(false)
+    React.useEffect(() => {
+      if (open) {
+        wasOpenRef.current = true
+      } else if (wasOpenRef.current) {
+        wasOpenRef.current = false
+        onDidDismiss?.()
+      }
+    }, [open, onDidDismiss])
+    return open
       ? React.createElement(
           'BottomSheetModal',
           null,
           title ? React.createElement('Text', null, title) : null,
           children,
         )
-      : null,
+      : null
+  },
 }))
 
 vi.mock('@/hooks/use-ad-mob', () => ({
