@@ -69,9 +69,19 @@ Parse `$ARGUMENTS`. Strip `--sleep` first (it selects Phase B's unattended path)
 3. **Recommend** the mode + tier and state the reasoning in one line — e.g. *"single-repo, no parity, LOW → attended, one bundle, Sonnet tier"* or *"5-bundle epic, new DTOs + parity → attended, Opus tier; bundle 1 (data model + contract) is broad, I'll drive it at `--effort xhigh` — set `/effort ultracode` live first if you want the auto-workflow half too."* If the user passed `--sleep`, apply the **fit gate** (below) and exclude anything unsuitable, reporting why.
 4. **Grill** — only if there are open questions. `grill-me` (single issue) or `batch-grill <N…>` (2+). Interactive, main-session only, never a subagent. Record every resolved decision in the spec's Decisions section.
 5. **Decompose + assign tiers.** Break an epic into an ordered bundle list — group correlated items to minimize PRs, order by dependency. For each bundle, run `/plan` scoped to it (single-issue slice = one bundle, the degenerate case). Read each plan's **Tier** (`sonnet`/`opus`) and effort — that is the per-bundle model routing that Phase B applies.
-6. **Write the spec** (below), all bundles `todo`, `next-action: "/drive <N>"`.
-7. **GATE — approve the bundle plan.** Show the bundle table (id · scope · tier · PR-count) + sequencing. Wait for `approve` / `edit <note>` / `abort`. Default-deny: no or ambiguous response → restate and wait. NOTHING runs without an explicit approve.
-8. **Generate the driver artifacts** (the Phase B handoff) into `.claude/drive/` (gitignored runtime dir): `config.json` (from `config.example.json` in this folder — set timeouts, `repos`, `addDirs`), then **generate the queue and the prompts; do not write them by hand**:
+
+6. **Turn every plan into a work order. Not optional, and not only for visual work.**
+
+   ```bash
+   node tools/workorder.mjs --from-plan .claude/plans/<name>.plan.md   # once per plan
+   ```
+
+   This is what stops the child rediscovering its own file list, and it is the single largest measured cost in the whole loop (orientation 36.6% of actions, editing 5.6%). The plan's `## Files to Change` becomes a checkable ownership boundary, and `tools/check-diff-ownership.mjs` enforces it afterwards.
+
+   If the tool reports that globs were **not** granted as ownership (`apps/web/**`), fix the PLAN: name the real files. A glob is not a boundary, and an agent handed one has no way to know when it has left its lane. A visual epic skips this step because `node tools/workorder.mjs` already derives its 217 work orders from the surface manifest.
+7. **Write the spec** (below), all bundles `todo`, `next-action: "/drive <N>"`.
+8. **GATE — approve the bundle plan.** Show the bundle table (id · scope · tier · PR-count) + sequencing. Wait for `approve` / `edit <note>` / `abort`. Default-deny: no or ambiguous response → restate and wait. NOTHING runs without an explicit approve.
+9. **Generate the driver artifacts** (the Phase B handoff) into `.claude/drive/` (gitignored runtime dir): `config.json` (from `config.example.json` in this folder — set timeouts, `repos`, `addDirs`), then **generate the queue and the prompts; do not write them by hand**:
 
    ```bash
    node tools/workorder.mjs                      # regenerate the 217 work orders (reviewable diff)

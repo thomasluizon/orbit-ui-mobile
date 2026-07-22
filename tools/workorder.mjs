@@ -46,10 +46,17 @@ const WORKSPACES = [
 
 const TIMELINE_HEADING = "## Timeline"
 
-const USAGE = `workorder - generate per-surface contract files an agent reads instead of exploring
+const USAGE = `workorder - generate per-unit contract files an agent reads instead of exploring
 
 USAGE
   node tools/workorder.mjs [--check] [--id <surfaceId>] [--help]
+  node tools/workorder.mjs --from-plan <path/to/x.plan.md>
+
+  --from-plan <p> Emit ONE work order for an arbitrary issue, sourced from a /plan file's
+                  "## Files to Change" section instead of the surface manifest. This is what
+                  makes the orientation fix apply to EVERY issue, not just visual ones:
+                  without it a non-visual bundle gets no contract and the agent goes back to
+                  discovering its own file list. Writes .claude/workorders/<plan-name>.md.
 
   (no flags)      Regenerate every work order into .claude/workorders/ plus INDEX.md.
                   Existing Timeline sections are PRESERVED verbatim; everything else
@@ -206,6 +213,12 @@ const JUDGEMENT_BY_KIND = {
     "Stacking uses a named `z-<tier>` / `zLayers.<tier>`, never an arbitrary literal (`### Stacking`).",
     "The three shipping tests: AI-slop, squint, scene-sentence.",
   ],
+  plan: [
+    "The acceptance criteria in the source plan are the real backlog. Read them there; they are not copied here, because a copy goes stale the moment the plan is edited.",
+    "Cross-platform parity is MANDATORY: a web change lands in `apps/mobile` too and vice versa, and i18n keys land in BOTH `en.json` and `pt-BR.json` in the same edit.",
+    "A shared or DTO change is append-only and deploy-API-first: add optional fields, never rename or retype a field an old mobile client still reads.",
+    "Add or extend behaviour tests for what you changed. A green suite that never exercised your change proves nothing.",
+  ],
   residual: [
     "These files are shared or style-only modules that no single surface owns.",
     "Fix the enumerated violations without changing rendered behaviour: this is conformance work, not a redesign.",
@@ -257,12 +270,18 @@ function renderWorkOrder(surface, debt, timeline, manifest) {
     "",
     surface.kind === "residual"
       ? "Bring these shared/style-only files into DESIGN.md conformance without changing what they render."
-      : `Bring \`${surface.surfaceId}\`${surface.href ? ` (\`${surface.href}\`)` : ""} to DESIGN.md. Read DESIGN.md once, then edit; the parts that apply to this surface are named below so you do not have to search for them.`,
+      : surface.kind === "plan"
+        ? `Implement the plan at \`${surface.sourceFile}\`. That file holds the objective, the tasks and the acceptance criteria; this work order holds your boundary and your starting state, so you do not have to go looking for either.`
+        : `Bring \`${surface.surfaceId}\`${surface.href ? ` (\`${surface.href}\`)` : ""} to DESIGN.md. Read DESIGN.md once, then edit; the parts that apply to this surface are named below so you do not have to search for them.`,
     "",
     "## Boundaries: you own these files, and only these",
     "",
-    "Ownership is exclusive and frozen in the manifest. Two agents editing one file overwrite",
-    "each other, so editing outside this list is a defect even when the change is correct.",
+    surface.kind === "plan"
+      ? "Ownership comes from the plan's own \"Files to Change\" section. Two agents editing one file"
+      : "Ownership is exclusive and frozen in the manifest. Two agents editing one file overwrite",
+    surface.kind === "plan"
+      ? "overwrite each other, so editing outside this list is a defect even when the change is correct."
+      : "each other, so editing outside this list is a defect even when the change is correct.",
     "If a shared file must change, STOP, write it in the Timeline, and say so in your summary.",
     "",
     ...surface.ownedFiles.map((file) => `- \`${file}\``),
@@ -343,8 +362,16 @@ function renderWorkOrder(surface, debt, timeline, manifest) {
     "2. The diff touches only the owned files above (`node tools/check-diff-ownership.mjs --id <id>` agrees).",
     "3. You appended one Timeline entry saying what you changed and what you deliberately did not.",
     "",
-    "This makes the work order READY FOR REVIEW. It does not make it done: a human tick in",
-    "`.claude/manifests/signoff.json` is the only thing that grants completion, and you cannot write it.",
+    ...(surface.kind === "plan"
+      ? [
+          "Meeting all three, plus the plan's own acceptance criteria and a green lint/type-check/test run,",
+          "makes this READY FOR REVIEW. Open the PR and stop there. Merging is a human action, and whether",
+          "the acceptance criteria are genuinely met is a human judgement, not yours to record.",
+        ]
+      : [
+          "This makes the work order READY FOR REVIEW. It does not make it done: a human tick in",
+          "`.claude/manifests/signoff.json` is the only thing that grants completion, and you cannot write it.",
+        ]),
     "",
     TIMELINE_HEADING,
     "",
@@ -358,10 +385,78 @@ function renderWorkOrder(surface, debt, timeline, manifest) {
   return lines.filter((line) => line !== null).join("\n")
 }
 
+/**
+ * Turn a /plan file into a work-order unit.
+ *
+ * The manifest-sourced path only covers visual surfaces, so without this a
+ * non-visual issue gets no contract at all and its agent goes straight back to
+ * discovering its own file list - the 36.6% orientation cost this whole tool
+ * exists to remove. A plan already names every file it will touch, which is the
+ * one input the manifest was providing.
+ *
+ * Both documented plan shapes are parsed: the `| repo | file | action |` table
+ * in plan/SKILL.md, and the `- CREATE \`path\`` bullet list real plans actually
+ * use. Glob entries (`apps/web/**`) are kept out of the owned list deliberately:
+ * ownership has to be checkable file by file, and a glob would silently grant
+ * an agent the whole tree.
+ */
+function planUnit(planPath) {
+  const absolute = resolve(planPath)
+  if (!existsSync(absolute)) fail(`no plan file at ${absolute}`)
+  const text = readFileSync(absolute, "utf8")
+  const section = text.split(/^##\s+Files to Change\s*$/m)[1]
+  if (!section) fail(`${planPath} has no "## Files to Change" section, so it declares no ownership.`)
+  const body = section.split(/^##\s+/m)[0]
+
+  const candidates = [...body.matchAll(/`([^`\n]+)`/g)].map((match) => match[1].trim())
+  const owned = []
+  const globs = []
+  for (const candidate of candidates) {
+    if (!candidate.includes("/") || /\s/.test(candidate)) continue
+    if (candidate.includes("*") || candidate.includes("{")) globs.push(candidate)
+    else if (!owned.includes(candidate)) owned.push(candidate)
+  }
+  if (!owned.length) fail(`${planPath} names no concrete file paths in "## Files to Change".`)
+
+  const id = absolute.split(/[\\/]/).pop().replace(/\.plan\.md$/, "").replace(/[^\w-]/g, "-")
+  return {
+    surfaceId: id,
+    platform: owned.some((file) => file.startsWith("apps/mobile/")) ? "mobile" : "web",
+    kind: "plan",
+    sourceFile: planPath.replace(/\\/g, "/"),
+    href: null,
+    ownedFiles: owned,
+    sharedFiles: [],
+    globs,
+    pixelEvidence: "none",
+    cells: 0,
+    states: new Set(),
+    themes: new Set(),
+    locales: new Set(),
+  }
+}
+
 function main() {
   const argv = process.argv.slice(2)
   if (argv.includes("--help") || argv.includes("-h")) {
     process.stdout.write(USAGE)
+    return
+  }
+
+  const planIndex = argv.indexOf("--from-plan")
+  if (planIndex !== -1) {
+    const unit = planUnit(argv[planIndex + 1])
+    const suppressions = loadSuppressions()
+    const debt = debtOf(unit.ownedFiles, suppressions)
+    mkdirSync(OUT_DIR, { recursive: true })
+    const path = join(OUT_DIR, `${unit.surfaceId}.md`)
+    writeFileSync(path, renderWorkOrder(unit, debt, existingTimeline(path), { generatedFrom: unit.sourceFile }))
+    process.stdout.write(
+      `wrote ${path}\n  ${unit.ownedFiles.length} owned file(s), ${debt.total} existing lint violation(s) in them\n` +
+        (unit.globs.length
+          ? `  ${unit.globs.length} glob(s) in the plan were NOT granted as ownership (${unit.globs.join(", ")}).\n  Name the real files in the plan, or the agent has no checkable boundary there.\n`
+          : ""),
+    )
     return
   }
   const checkOnly = argv.includes("--check")
