@@ -28,6 +28,7 @@ Mobile client (Android only — no iOS app exists). Direct calls to `orbit-api` 
 
 - **Android only.** No iOS app ships. Don't write iOS-specific branches in new code; if you see one in pre-existing code, leave it unless explicitly tasked with iOS removal.
 - **Bottom-sheet modals use TrueSheet (`@lodev09/react-native-true-sheet`), NOT `@gorhom/bottom-sheet`.** gorhom's `present()` + portal silently no-op on the New Architecture (Fabric/Bridgeless) in release builds (rAF-gated mount never flushes). The shared wrapper is `components/bottom-sheet-modal.tsx` — the single styling seam for all sheets; sheet content uses core `ScrollView`/`TextInput`. Don't reintroduce gorhom.
+- **Never navigate from a sheet in the same tick as closing it.** TrueSheet + expo-router without the react-native-screens patch (we ship unpatched - https://sheet.lodev09.com/guides/navigation) wedges ALL RN Modals on Android release builds until process restart. Schedule the navigation with `useSheetExitAction` (`hooks/use-sheet-exit-action.ts`: `scheduleExitAction`, then close) and run it from `BottomSheetModal`'s `onDidDismiss` (pass `runExitAction`); never call `router.*` directly from sheet content or while `open` flips false. Reference wiring: `app/(tabs)/calendar.tsx`.
 - **Android elevation + `overflow: 'hidden'`** is a documented React Native bug: elevated children inside `overflow: 'hidden'` parents disappear on Android. Use `elevation: 0` on the child, or shadow the parent.
 
 ## State management
