@@ -49,9 +49,12 @@ export const GoalList = forwardRef<FlatList<Goal>, Readonly<GoalListProps>>(
       setShowDetail(true)
     }, [])
 
+    /* WHY: selectedGoalId stays set on close - unmounting the drawer here tears
+       down its presented TrueSheet mid-dismissal, which wedges every later RN
+       Modal and drops the onDidDismiss that runs the scheduled exit action.
+       https://sheet.lodev09.com/guides/navigation */
     const handleCloseDetail = useCallback(() => {
       setShowDetail(false)
-      setSelectedGoalId(null)
     }, [])
 
     const handleDragEnd = useCallback(
