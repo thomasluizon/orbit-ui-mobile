@@ -7,13 +7,7 @@ import {
   type ReactElement,
 } from "react";
 // react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-import {
-  Animated,
-  StyleSheet,
-  View,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-} from "react-native";
+import { Animated, StyleSheet, View } from "react-native";
 import type { FlatList } from "react-native-gesture-handler";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
@@ -155,7 +149,7 @@ export default function TodayScreen() {
   const goalsScrollTo = useCallback((y: number) => {
     goalsScrollRef.current?.scrollToOffset({ offset: y, animated: true });
   }, []);
-  const { onTourScroll: onGoalsTourScroll } = useTourScrollContainer(
+  const { onTourScrollOffset: onGoalsTourScrollOffset } = useTourScrollContainer(
     "/",
     goalsScrollTo,
   );
@@ -163,11 +157,11 @@ export default function TodayScreen() {
     goalsScrollTo(0);
   }, [goalsScrollTo]);
   const handleGoalsScroll = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      onGoalsTourScroll(event);
-      setShowScrollTop(event.nativeEvent.contentOffset.y > 600);
+    (offsetY: number) => {
+      onGoalsTourScrollOffset(offsetY);
+      setShowScrollTop(offsetY > 600);
     },
-    [onGoalsTourScroll],
+    [onGoalsTourScrollOffset],
   );
   const isGoalsView = currentActiveView === "goals";
   const [scrollTopResetGoalsView, setScrollTopResetGoalsView] =

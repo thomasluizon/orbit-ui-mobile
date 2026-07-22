@@ -72,9 +72,13 @@ vi.mock('react-native-draggable-flatlist', () => {
         ? [renderComponentProp(ListEmptyComponent)]
         : renderDraggableItems(data, renderItem)
 
+    // WHY: the real library replaces any caller onScroll with its own reanimated handler, so the mock must drop it too or tests would pass against wiring that is dead on device; onScrollOffsetChange stays reachable as the supported API https://github.com/computerjazz/react-native-draggable-flatlist/blob/v4.0.3/src/components/DraggableFlatList.tsx#L396
+    const forwardedProps = { ...props }
+    delete forwardedProps.onScroll
+
     return React.createElement(
       'DraggableFlatList',
-      props,
+      forwardedProps,
       React.createElement(
         React.Fragment,
         null,
