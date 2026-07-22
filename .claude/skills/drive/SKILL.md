@@ -84,12 +84,12 @@ Parse `$ARGUMENTS`. Strip `--sleep` first (it selects Phase B's unattended path)
 9. **Generate the driver artifacts** (the Phase B handoff) into `.claude/drive/` (gitignored runtime dir): `config.json` (from `config.example.json` in this folder — set timeouts, `repos`, `addDirs`), then **generate the queue and the prompts; do not write them by hand**:
 
    ```bash
-   node tools/workorder.mjs                      # regenerate the 217 work orders (reviewable diff)
+   node tools/workorder.mjs                      # regenerate the manifest work orders (plan orders from step 6 are preserved)
    node tools/drive-queue.mjs --only-debt --dry-run   # see the bundle plan
    node tools/drive-queue.mjs --only-debt        # write queue.json + prompts/task-<id>.md
    ```
 
-   `drive-queue.mjs` packs work orders into bundles within one platform and kind, caps each bundle on files, debt and count, tier-routes it, and writes a prompt that hands the child its work orders instead of a description of them. Hand-writing either file is how the previous queue became unrunnable (see below). For a non-visual epic with no work orders, write `queue.json` by hand — one entry per approved bundle, `{ "id", "label", "repo", "tier", "effort" }` in run order.
+   `drive-queue.mjs` packs manifest work orders into bundles within one platform and kind, caps each bundle on files, debt and count, tier-routes it, and writes a prompt that hands the child its work orders instead of a description of them. A plan work order (step 6) is never packed: it becomes its OWN bundle (`plan-<name>`, solo - a plan is already a sized slice), its tier read from the plan's Tier field (a plan without one falls back to opus with a printed warning), and `ui: false` so the `--sleep` verifier does not grade non-visual work against DESIGN.md; manifest bundles carry `ui: true`. `--only-debt` keeps plan orders regardless of debt, because their backlog is the plan's acceptance criteria, not the lint baseline. So a non-visual epic takes the SAME path: `workorder --from-plan` per plan (step 6), then the three commands above - there is no hand-written queue. If you ever hand-write `queue.json` anyway (a one-off outside any plan), every entry REQUIRES a prompt (a `prompts/task-<id>.md` file or a non-empty `"prompt"` field): the engine's preflight hard-fails (exit 1) on a promptless entry, because a queue written without prompts once passed `--dry-run` and then skipped 100% of its bundles at runtime.
 
 ### The living spec
 
@@ -146,15 +146,23 @@ it built. The generated prompt asks for three things a machine can actually chec
 
 | condition | checked by |
 |---|---|
-| the bundle's enumerated violations are cleared | `node tools/workorder.mjs --check` |
-| the diff never left the bundle's owned files, and no gate state moved | `node tools/check-diff-ownership.mjs --id <id>` |
+| the bundle's enumerated violations are cleared | `node tools/workorder.mjs --check --id <id>`, once per work order in the bundle (the global `--check` stays out of the child's conditions: it cannot pass while OTHER bundles still carry debt) |
+| the diff stayed inside the bundle's owned files plus the structurally permitted classes (the suppressions ledgers, an owned file's test companion, the i18n pair), and no gate state moved | `node tools/check-diff-ownership.mjs --id <id> ...` (every id in the bundle, one run) |
 | each touched work order carries a new Timeline entry | the work order file's diff |
+
+The prompt's parity rule follows the bundle kind. A plan bundle owns its cross-platform files from
+the plan and does full parity in-bundle, i18n pairs included. A manifest (visual-conformance)
+bundle does NOT edit the other platform's mirror files - the mirror surface has its own work order
+and possibly its own agent right now - so when a fix genuinely requires an unowned mirror edit the
+child STOPs and records it in the Timeline. i18n pair edits are permitted for both kinds.
 
 Meeting all three makes a bundle **`ready-for-review`**. There is deliberately no `done` status a
 child can return for visual work: completion is granted only by a human tick in
 `.claude/manifests/signoff.json`. The prompt says so explicitly and forbids the child from claiming
-a surface "looks good" or is "redesigned" — it has no instrument that establishes that, and ten
-previous sessions made exactly that claim and were wrong every time.
+a surface "looks good" or is "redesigned" - it has no instrument that establishes that, and ten
+previous sessions made exactly that claim and were wrong every time. For a plan bundle the human
+grant is the merge: the prompt ends at READY FOR REVIEW and leaves whether the acceptance criteria
+are genuinely met to the human reviewer.
 
 Tier and effort still come from the queue entry, not the prompt.
 
@@ -164,9 +172,9 @@ Tier and effort still come from the queue entry, not the prompt.
 
 The engine is **`.claude/skills/drive/run.mjs`**; its runtime dir is **`.claude/drive/`** (config / queue / prompts / runs — gitignored). It spawns one fresh `claude -p` per bundle (clean context each time), routes each to its tier model + effort, resets every repo to its base between bundles, and stops each bundle at a PR ready for review.
 
-**Preflight (dry run):** `node .claude/skills/drive/run.mjs --dry-run` — verifies `claude` is runnable, `gh` is authenticated (if `push`), and every repo is a clean tree on its base branch, then lists the bundles it would run. Fix anything it flags (usually a dirty tree) before launching.
+**Preflight (dry run):** `node .claude/skills/drive/run.mjs --dry-run` - verifies `claude` is runnable, `gh` is authenticated (if `push`), every repo is a clean tree on its base branch, and every queue entry has a prompt (a promptless entry is a preflight ERROR that names the entry, not a runtime skip), then lists the bundles it would run. A failed preflight exits 1. Fix anything it flags (usually a dirty tree) before launching.
 
-**GATE — present the plan and STOP before launching:** the ordered bundle list (id · label · tier), the **per-bundle timeout** and the consecutive-failure circuit breaker, the permission posture (`bypassPermissions`; `git-guardrails` + branch-per-bundle + the timeout are the real guardrails), the push/PR note (PRs open ready for review, so CI + review bots run on them), and — for `--sleep` — the verifier (independent Sonnet; mark UI bundles `"ui": true` so it reviews the diff against `DESIGN.md`). Wait for "go".
+**GATE - present the plan and STOP before launching:** the ordered bundle list (id · label · tier), the **per-bundle timeout** and the consecutive-failure circuit breaker, the permission posture (`bypassPermissions`; `git-guardrails` + branch-per-bundle + the timeout are the real guardrails), the push/PR note (PRs open ready for review, so CI + review bots run on them), and - for `--sleep` - the verifier (independent Sonnet; `drive-queue.mjs` sets `"ui"` from the bundle's kind - manifest bundles true, plan bundles false - so only visual bundles are reviewed against `DESIGN.md`). Wait for "go".
 
 **There are no dollar budgets.** Work runs on a subscription, so the only real costs are **wall-clock** and **rate-limit headroom**. The engine bounds a run with `perTaskTimeoutMs`, `maxConsecutiveFailures`, and the `.claude/drive/STOP` flag (drop that file to halt gracefully before the next bundle). Cost control is **routing the right model to the right task**, not a spend cap.
 

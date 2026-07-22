@@ -4,7 +4,7 @@ platform: web
 kind: view
 href: /
 ownedFiles: 1
-cells: 8
+cells: 32
 mechanicalDebt: 0
 pixelEvidence: web-capture
 generatedFrom: 498537f0715177cf58aa9dffbed9806385434db1
@@ -15,6 +15,16 @@ generatedFrom: 498537f0715177cf58aa9dffbed9806385434db1
 ## Goal
 
 Bring `view-today` (`/`) to DESIGN.md. Read DESIGN.md once, then edit; the parts that apply to this surface are named below so you do not have to search for them.
+
+## Folded in: surface ids this order also carries
+
+These surfaces render entirely through files this order owns, so a work order of their
+own would forbid every edit that could move their cells. Their cells and axes are merged
+into this order's counts; there is no other file to look for.
+
+- `view-all`
+- `view-general`
+- `view-goals`
 
 ## Boundaries: you own these files, and only these
 
@@ -43,14 +53,18 @@ No gate can check these. They are why a human tick is the only thing that grants
 
 ## Cells
 
-This surface expands to 8 cell(s): states default/empty, themes dark/light, locales en/pt-BR.
+This order (with its folded surface ids) expands to 32 cell(s): states default/empty, themes dark/light, locales en/pt-BR.
 Web: `npm run surfaces:capture -- --filter <id>` produces the screenshot a human will look at.
 
 ## Definition of done for THIS work order
 
-1. Backlog A is 0 (`node tools/workorder.mjs --check` agrees).
+1. Backlog A is 0 (`node tools/workorder.mjs --check --id view-today` exits 0).
 2. The diff touches only the owned files above (`node tools/check-diff-ownership.mjs --id <id>` agrees).
 3. You appended one Timeline entry saying what you changed and what you deliberately did not.
+
+Clearing Backlog A is a floor and is NOT evidence of redesign: the depth number for this
+surface comes from `node tools/workorder.mjs --check --id view-today`, and it is a veto
+axis a human consults, never a target. Only a human tick in `signoff.json` grants completion.
 
 This makes the work order READY FOR REVIEW. It does not make it done: a human tick in
 `.claude/manifests/signoff.json` is the only thing that grants completion, and you cannot write it.

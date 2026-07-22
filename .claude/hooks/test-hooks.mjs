@@ -828,6 +828,334 @@ T("oracle: unresolvable baseline is UNKNOWN, not touched", unresolvable.results?
 T("oracle: unresolvable baseline says so explicitly", /baseline-unresolvable/.test(String(unresolvable.failures?.[0]?.reasons)), true)
 
 // ---------------------------------------------------------------------------
+// workorder contract (per-order --check verdicts, regeneration, folding).
+// Each property below shipped broken once: --check --id exited 0 over 68
+// violations, a regeneration deleted the plan order --from-plan had just
+// written, and three Today views carried 24 cells no work order could move.
+// ---------------------------------------------------------------------------
+console.log("\n# workorder contract")
+const workorderTool = join(hooksDir, "..", "..", "tools", "workorder.mjs")
+const runWorkorder = (fixtureRoot, args = []) =>
+  spawnSync(process.execPath, [workorderTool, ...args], {
+    cwd: fixtureRoot,
+    env: { ...process.env, ORBIT_SURFACE_ROOT: fixtureRoot },
+    encoding: "utf8",
+  })
+
+function workorderCell(surfaceId, sourceFile, overrides = {}) {
+  return {
+    surfaceId,
+    platform: "web",
+    kind: "route",
+    state: "default",
+    theme: "light",
+    locale: "en",
+    sourceFile,
+    ownedFiles: [sourceFile],
+    pixelEvidence: "web-capture",
+    ...overrides,
+  }
+}
+
+// A real git repo, like the gate fixtures above: the depth line is a signature
+// diff against a baseline commit, so a stubbed tree would test nothing.
+function buildWorkorderFixture(name, { cells, suppressions = null } = {}) {
+  const fixtureRoot = join(root, `wo-${name}`)
+  mkdirSync(join(fixtureRoot, ".claude", "manifests"), { recursive: true })
+  mkdirSync(join(fixtureRoot, "apps", "web", "app"), { recursive: true })
+  writeFileSync(join(fixtureRoot, "apps", "web", "app", "page.tsx"), BASE_TSX)
+  const git = (...args) => spawnSync("git", args, { cwd: fixtureRoot, encoding: "utf8" })
+  git("init", "-q")
+  git("config", "user.email", "t@example.com")
+  git("config", "user.name", "t")
+  git("add", "-A")
+  git("commit", "-qm", "baseline")
+  if (suppressions) writeFileSync(join(fixtureRoot, "apps", "web", "eslint-suppressions.json"), JSON.stringify(suppressions))
+  writeFileSync(
+    join(fixtureRoot, ".claude", "manifests", "surfaces.json"),
+    JSON.stringify({ generatedFrom: "test", baselineRef: "HEAD", baselineSha: "HEAD", cells }),
+  )
+  return fixtureRoot
+}
+
+const woDebt = buildWorkorderFixture("debt", {
+  cells: [workorderCell("r-cal", "apps/web/app/page.tsx")],
+  suppressions: { "app/page.tsx": { "local/spacing-scale": { count: 3 } } },
+})
+const debtVerdict = runWorkorder(woDebt, ["--check", "--id", "r-cal"])
+T("workorder: --check --id with debt exits 1", debtVerdict.status, 1)
+T("workorder: --check --id prints the order's own debt rows", /apps\/web\/app\/page\.tsx {2}local\/spacing-scale {2}3/.test(debtVerdict.stdout), true)
+T("workorder: --check --id prints the depth veto axis", /depth 0\.0% vs floor 30%/.test(debtVerdict.stdout), true)
+
+const woClean = buildWorkorderFixture("clean", { cells: [workorderCell("r-cal", "apps/web/app/page.tsx")] })
+const cleanVerdict = runWorkorder(woClean, ["--check", "--id", "r-cal"])
+T("workorder: --check --id without debt exits 0", cleanVerdict.status, 0)
+// The load-bearing half of the depth contract: 0.0% is far below the floor,
+// and the exit code above is still 0 - depth reports, it never vetoes here.
+T("workorder: the depth line never moves the exit code", /depth 0\.0% vs floor 30%/.test(cleanVerdict.stdout), true)
+
+const globalVerdict = runWorkorder(woDebt, ["--check"])
+T("workorder: global --check with any debt exits 1", globalVerdict.status, 1)
+T("workorder: global --check prints a greppable per-order DEBT line", /^DEBT r-cal {2}3 {2}worst: apps\/web\/app\/page\.tsx \(3\)/m.test(globalVerdict.stdout), true)
+T("workorder: global --check prints the one-line depth summary", /^depth: 1 of 1 surface orders at 0% depth, 1 below the 30% floor/m.test(globalVerdict.stdout), true)
+
+const woRegen = buildWorkorderFixture("regen", { cells: [workorderCell("r-cal", "apps/web/app/page.tsx")] })
+mkdirSync(join(woRegen, ".claude", "plans"), { recursive: true })
+writeFileSync(join(woRegen, ".claude", "plans", "issue-9.plan.md"), "# Plan: issue-9\n\n## Files to Change\n\n- EDIT `apps/web/app/page.tsx`\n")
+const fromPlan = runWorkorder(woRegen, ["--from-plan", ".claude/plans/issue-9.plan.md"])
+T("workorder: --from-plan writes the plan order", fromPlan.status === 0 && existsSync(join(woRegen, ".claude", "workorders", "issue-9.md")), true)
+T("workorder: --check --id answers for a plan order too", runWorkorder(woRegen, ["--check", "--id", "issue-9"]).status, 0)
+writeFileSync(join(woRegen, ".claude", "workorders", "stale-route.md"), "---\nsurfaceId: stale-route\nkind: route\n---\n\n# Work order: stale-route\n")
+const regen = runWorkorder(woRegen)
+T("workorder: regeneration exits 0", regen.status, 0)
+T("workorder: regeneration preserves the plan order (step 9 must not destroy step 6)", existsSync(join(woRegen, ".claude", "workorders", "issue-9.md")), true)
+T("workorder: regeneration still sweeps a stale manifest-derived order", existsSync(join(woRegen, ".claude", "workorders", "stale-route.md")), false)
+T("workorder: INDEX.md lists the plan order it sits next to", /\[issue-9\]\(issue-9\.md\)/.test(readFileSync(join(woRegen, ".claude", "workorders", "INDEX.md"), "utf8")), true)
+
+// Two views, one sourceFile: the view-today shape. The secondary must fold into
+// the primary instead of surviving as an order that owns nothing and forbids
+// every edit that could move its cells.
+const woFold = buildWorkorderFixture("fold", {
+  cells: [
+    workorderCell("v-today", "apps/web/app/page.tsx", { kind: "view" }),
+    workorderCell("v-all", "apps/web/app/page.tsx", { kind: "view" }),
+  ],
+})
+const foldRegen = runWorkorder(woFold)
+T("workorder: a zero-owned view folds into its sourceFile's primary owner", foldRegen.status, 0)
+T("workorder: the folded id gets no file of its own", existsSync(join(woFold, ".claude", "workorders", "v-all.md")), false)
+const primaryBody = readFileSync(join(woFold, ".claude", "workorders", "v-today.md"), "utf8")
+T("workorder: the primary order names the folded id and carries its cells", /- `v-all`/.test(primaryBody) && /cells: 2/.test(primaryBody), true)
+T("workorder: INDEX.md shows the folded id as folded into the primary", /`v-all` folded into \[v-today\]\(v-today\.md\)/.test(readFileSync(join(woFold, ".claude", "workorders", "INDEX.md"), "utf8")), true)
+
+// A zero-owned unit whose sourceFile nobody owns has no fold target. That must
+// fail generation loudly, naming the unit - cells reachable through no work
+// order is the exact shape of work that never gets done.
+const woOrphan = buildWorkorderFixture("orphan", {
+  cells: [
+    workorderCell("r-shared", "apps/web/app/page.tsx"),
+    workorderCell("r-orphan", "apps/web/app/orphan.tsx", { ownedFiles: ["apps/web/app/page.tsx"] }),
+  ],
+})
+const orphanRun = runWorkorder(woOrphan)
+T("workorder: a zero-owned unit with no fold target fails generation (exit 2)", orphanRun.status, 2)
+T("workorder: the zero-owned invariant names the stranded unit", /r-orphan/.test(orphanRun.stderr), true)
+
+// ---------------------------------------------------------------------------
+// check-diff-ownership gate. The property under test is d4's fix: the generated
+// prompt itself orders edits to the suppression ledger, a test file and the
+// i18n pair, so obeying the prompt must not fail the prompt's own gate. The
+// three permitted classes are structural; everything else must keep failing.
+// ---------------------------------------------------------------------------
+console.log("\n# check-diff-ownership gate")
+const ownershipTool = join(hooksDir, "..", "..", "tools", "check-diff-ownership.mjs")
+const runOwnership = (fixtureRoot, args) =>
+  spawnSync(process.execPath, [ownershipTool, ...args, "--base", "HEAD"], {
+    cwd: fixtureRoot,
+    env: { ...process.env, ORBIT_SURFACE_ROOT: fixtureRoot },
+    encoding: "utf8",
+  })
+
+const ownershipOrder = (id, ownedFile) =>
+  `---\nsurfaceId: ${id}\nkind: route\n---\n\n# Work order: ${id}\n\n## Boundaries: you own these files, and only these\n\n- \`${ownedFile}\`\n\n## Backlog A: enumerated\n\n(none)\n`
+
+function buildOwnershipFixture(name, extraFiles = {}) {
+  const fixtureRoot = join(root, `own-${name}`)
+  const fixWrite = (rel, body) => {
+    const p = join(fixtureRoot, rel)
+    mkdirSync(dirname(p), { recursive: true })
+    writeFileSync(p, body)
+  }
+  fixWrite("apps/mobile/app/login-styles.ts", "export const gap = 14\n")
+  fixWrite("apps/mobile/app/other-styles.ts", "export const pad = 14\n")
+  fixWrite(
+    "apps/mobile/eslint-suppressions.json",
+    JSON.stringify({ "app/login-styles.ts": { "local/spacing-scale": { count: 2 } }, "app/other-styles.ts": { "local/spacing-scale": { count: 2 } } }),
+  )
+  fixWrite("packages/shared/src/i18n/en.json", '{"a":"Hi"}\n')
+  fixWrite("packages/shared/src/i18n/pt-BR.json", '{"a":"Oi"}\n')
+  fixWrite(".claude/workorders/wo-login.md", ownershipOrder("wo-login", "apps/mobile/app/login-styles.ts"))
+  for (const [rel, body] of Object.entries(extraFiles)) fixWrite(rel, body)
+  const git = (...args) => spawnSync("git", args, { cwd: fixtureRoot, encoding: "utf8" })
+  git("init", "-q")
+  git("config", "user.email", "t@example.com")
+  git("config", "user.name", "t")
+  git("add", "-A")
+  git("commit", "-qm", "baseline")
+  return { fixtureRoot, fixWrite }
+}
+
+// The full d4 shape in ONE diff: owned source fixed, its own suppression count
+// reduced, its conventional test companion created, both locale files edited.
+{
+  const { fixtureRoot, fixWrite } = buildOwnershipFixture("legit")
+  fixWrite("apps/mobile/app/login-styles.ts", "export const gap = 12\n")
+  fixWrite(
+    "apps/mobile/eslint-suppressions.json",
+    JSON.stringify({ "app/login-styles.ts": { "local/spacing-scale": { count: 1 } }, "app/other-styles.ts": { "local/spacing-scale": { count: 2 } } }),
+  )
+  fixWrite("apps/mobile/__tests__/app/login-styles.test.ts", "import { gap } from '../../app/login-styles'\n")
+  fixWrite("packages/shared/src/i18n/en.json", '{"a":"Hi","b":"New"}\n')
+  fixWrite("packages/shared/src/i18n/pt-BR.json", '{"a":"Oi","b":"Novo"}\n')
+  const verdict = runOwnership(fixtureRoot, ["--id", "wo-login"])
+  T("ownership: obeying the prompt (source + test + prune + i18n pair) exits 0", verdict.status, 0)
+}
+{
+  const { fixtureRoot, fixWrite } = buildOwnershipFixture("escape")
+  fixWrite("apps/mobile/app/other-styles.ts", "export const pad = 12\n")
+  const verdict = runOwnership(fixtureRoot, ["--id", "wo-login"])
+  T("ownership: an unowned source file still exits 1", verdict.status, 1)
+  T("ownership: the escape names the unowned file", /other-styles\.ts/.test(verdict.stderr), true)
+}
+{
+  // The scoreboard moving on its own: a count falls for a file the diff never
+  // edited. The suppressions file being always-permitted must NOT weaken this.
+  const { fixtureRoot, fixWrite } = buildOwnershipFixture("faked")
+  fixWrite(
+    "apps/mobile/eslint-suppressions.json",
+    JSON.stringify({ "app/login-styles.ts": { "local/spacing-scale": { count: 2 } }, "app/other-styles.ts": { "local/spacing-scale": { count: 1 } } }),
+  )
+  const verdict = runOwnership(fixtureRoot, ["--id", "wo-login"])
+  T("ownership: a suppression count falling for an unedited file still exits 1", verdict.status, 1)
+  T("ownership: ...and says the baseline moved without the code", /SUPPRESSION BASELINE MOVED/.test(verdict.stderr), true)
+}
+{
+  const { fixtureRoot, fixWrite } = buildOwnershipFixture("gatestate")
+  fixWrite(".claude/manifests/surfaces.json", "{}")
+  const verdict = runOwnership(fixtureRoot, ["--id", "wo-login"])
+  T("ownership: gate state still exits 1", verdict.status, 1)
+  T("ownership: ...and is named as gate state", /GATE STATE TOUCHED/.test(verdict.stderr), true)
+}
+{
+  // A test file is only a companion when its SOURCE counterpart is owned;
+  // otherwise it belongs to whoever owns that source.
+  const { fixtureRoot, fixWrite } = buildOwnershipFixture("foreigntest")
+  fixWrite("apps/mobile/__tests__/app/other-styles.test.ts", "import { pad } from '../../app/other-styles'\n")
+  const verdict = runOwnership(fixtureRoot, ["--id", "wo-login"])
+  T("ownership: a test whose source is not owned still exits 1", verdict.status, 1)
+}
+{
+  // The second real naming shape: `challenges-page.test.tsx` for an owned
+  // router `challenges/page.tsx`.
+  const { fixtureRoot, fixWrite } = buildOwnershipFixture("pagetest", {
+    "apps/web/app/(app)/challenges/page.tsx": "export default function C(){return null}\n",
+    ".claude/workorders/wo-page.md": ownershipOrder("wo-page", "apps/web/app/(app)/challenges/page.tsx"),
+  })
+  fixWrite("apps/web/app/(app)/challenges/page.tsx", "export default function C(){return 1}\n")
+  fixWrite("apps/web/__tests__/app/challenges-page.test.tsx", "export {}\n")
+  const verdict = runOwnership(fixtureRoot, ["--id", "wo-page"])
+  T("ownership: the <dir>-page test naming shape is a companion too", verdict.status, 0)
+}
+
+// ---------------------------------------------------------------------------
+// drive-queue bundling. Three properties, each verified broken end to end
+// before the fix: every bundle shipped `ui: true` (a 2-file packages/shared
+// plan bundle was graded against DESIGN.md by the --sleep verifier),
+// --only-debt dropped plan work orders entirely (0 lint debt by construction,
+// so the documented step-9 commands queued a plan nowhere), and the generated
+// prompt ordered edits its own definition-of-done gate then failed (d4). The
+// satisfiability block at the end is the d4 pin: every file class the prompt
+// ORDERS an edit to must pass the CURRENT check-diff-ownership permitted set
+// for that bundle. A future prompt rule that orders a forbidden edit class
+// belongs in that block, where it goes red.
+// ---------------------------------------------------------------------------
+console.log("\n# drive-queue bundling")
+const driveQueueTool = join(hooksDir, "..", "..", "tools", "drive-queue.mjs")
+const runDriveQueue = (fixtureRoot, args = []) =>
+  spawnSync(process.execPath, [driveQueueTool, ...args], {
+    cwd: fixtureRoot,
+    env: { ...process.env, ORBIT_SURFACE_ROOT: fixtureRoot },
+    encoding: "utf8",
+  })
+
+// One fixture, the real pipeline: manifest -> workorder.mjs -> drive-queue ->
+// prompt -> check-diff-ownership, so a format drift in any link breaks here.
+const dqRoot = buildWorkorderFixture("queue", {
+  cells: [workorderCell("r-page", "apps/web/app/page.tsx")],
+  suppressions: { "app/page.tsx": { "local/spacing-scale": { count: 2 } } },
+})
+const dqWrite = (rel, body) => {
+  const p = join(dqRoot, rel)
+  mkdirSync(dirname(p), { recursive: true })
+  writeFileSync(p, body)
+}
+dqWrite(".gitignore", ".claude/drive/\n")
+dqWrite("apps/web/lib/nav.ts", "export const nav = 1\n")
+dqWrite("apps/web/lib/menu.ts", "export const menu = 1\n")
+dqWrite("packages/shared/src/i18n/en.json", '{"a":"Hi"}\n')
+dqWrite("packages/shared/src/i18n/pt-BR.json", '{"a":"Oi"}\n')
+dqWrite(".claude/plans/epic-7.plan.md", "# Plan: epic-7\n\n| Field | Value |\n|---|---|\n| Tier | sonnet |\n\n## Files to Change\n\n- EDIT `apps/web/lib/nav.ts`\n")
+dqWrite(".claude/plans/epic-8.plan.md", "# Plan: epic-8\n\n## Files to Change\n\n- EDIT `apps/web/lib/menu.ts`\n")
+runWorkorder(dqRoot)
+runWorkorder(dqRoot, ["--from-plan", ".claude/plans/epic-7.plan.md"])
+runWorkorder(dqRoot, ["--from-plan", ".claude/plans/epic-8.plan.md"])
+spawnSync("git", ["add", "-A"], { cwd: dqRoot, encoding: "utf8" })
+spawnSync("git", ["commit", "-qm", "workorders"], { cwd: dqRoot, encoding: "utf8" })
+
+const dqDry = runDriveQueue(dqRoot, ["--only-debt", "--dry-run"])
+T("drive-queue: --only-debt keeps a plan work order despite 0 debt", /plan-epic-7/.test(dqDry.stdout), true)
+const dqRun = runDriveQueue(dqRoot, ["--only-debt"])
+T("drive-queue: queue written", dqRun.status, 0)
+const dqQueue = JSON.parse(readFileSync(join(dqRoot, ".claude", "drive", "queue.json"), "utf8"))
+const dqPlanBundle = dqQueue.find((entry) => entry.workOrders.includes("epic-7"))
+const dqPlanNoTier = dqQueue.find((entry) => entry.workOrders.includes("epic-8"))
+const dqRouteBundle = dqQueue.find((entry) => entry.workOrders.includes("r-page"))
+T("drive-queue: a plan bundle is ui:false", dqPlanBundle?.ui, false)
+T("drive-queue: a manifest route bundle is ui:true", dqRouteBundle?.ui, true)
+T("drive-queue: a plan bundle is solo, never packed with siblings", dqPlanBundle?.workOrders, ["epic-7"])
+T("drive-queue: the plan bundle id names the plan", dqPlanBundle?.id, "plan-epic-7")
+T("drive-queue: plan tier is read from the plan's Tier field", dqPlanBundle?.tier, "sonnet")
+T("drive-queue: a plan with no Tier field falls back to opus", dqPlanNoTier?.tier, "opus")
+T("drive-queue: ...and the fallback warning names the plan and the field", /epic-8/.test(dqRun.stderr) && /Tier/.test(dqRun.stderr), true)
+
+const dqRoutePrompt = readFileSync(join(dqRoot, ".claude", "drive", "prompts", `task-${dqRouteBundle.id}.md`), "utf8")
+const dqPlanPrompt = readFileSync(join(dqRoot, ".claude", "drive", "prompts", "task-plan-epic-7.md"), "utf8")
+// Condition (a) must be per order: the global --check cannot pass while OTHER
+// bundles still carry debt, so ordering it makes done unreachable again.
+T("drive-queue: condition (a) is the per-order --check --id form", /--check --id r-page/.test(dqRoutePrompt), true)
+T("drive-queue: the global --check form stays out of the conditions", /workorder\.mjs --check(?! --id)/.test(dqRoutePrompt), false)
+T("drive-queue: rule 3 says the lint:prune ledger rewrite is permitted", /lint:prune/.test(dqRoutePrompt) && /PERMITTED/.test(dqRoutePrompt), true)
+T("drive-queue: rule 3 keeps the unedited-file count drop fatal", /never edited/.test(dqRoutePrompt), true)
+T("drive-queue: rule 6 names the real test-companion convention", /__tests__/.test(dqRoutePrompt) && /-page\.test\.tsx/.test(dqRoutePrompt), true)
+T("drive-queue: a visual prompt forbids editing the mirror platform's files", /mirror/.test(dqRoutePrompt) && /STOP/.test(dqRoutePrompt), true)
+T("drive-queue: a visual prompt frames depth as a veto, never a target", /redesign-depth/.test(dqRoutePrompt) && /veto a human consults/.test(dqRoutePrompt), true)
+T("drive-queue: a plan prompt does full in-bundle parity instead", /parity\s+is MANDATORY and yours to do IN THIS BUNDLE/.test(dqPlanPrompt), true)
+T("drive-queue: a plan prompt carries no depth paragraph or signoff claim", /redesign-depth/.test(dqPlanPrompt) || /signoff\.json/.test(dqPlanPrompt), false)
+
+// THE d4 PIN. Apply every edit class the prompt ORDERS - the owned source, its
+// lint:prune ledger rewrite, its conventional test companion, the i18n pair,
+// the work order's own Timeline - in ONE diff, then run the real gate with the
+// bundle's ids. Obeying the prompt must satisfy the prompt's own gate.
+dqWrite("apps/web/app/page.tsx", BASE_TSX.replace('className="p-4 gap-4 rounded-xl border"', 'className="p-8 gap-8 rounded-xl border"'))
+dqWrite("apps/web/eslint-suppressions.json", JSON.stringify({ "app/page.tsx": { "local/spacing-scale": { count: 1 } } }))
+dqWrite("apps/web/__tests__/app/page.test.tsx", "export {}\n")
+dqWrite("packages/shared/src/i18n/en.json", '{"a":"Hi","b":"New"}\n')
+dqWrite("packages/shared/src/i18n/pt-BR.json", '{"a":"Oi","b":"Novo"}\n')
+const dqOrderPath = join(dqRoot, ".claude", "workorders", "r-page.md")
+writeFileSync(dqOrderPath, readFileSync(dqOrderPath, "utf8") + "- 2026-07-22 cleared one spacing violation; left the load-bearing gap alone\n")
+const dqVerdict = runOwnership(dqRoot, ["--id", "r-page"])
+T("drive-queue: every edit class the prompt orders passes the ownership gate", dqVerdict.status, 0)
+
+// ---------------------------------------------------------------------------
+// drive engine preflight. A hand-written queue entry with no prompt used to
+// sail through --dry-run and then have every bundle recorded "skipped" at
+// runtime - a run that does nothing while reporting no failure. The validation
+// is exported precisely so it can be pinned here without spawning the engine.
+// ---------------------------------------------------------------------------
+console.log("\n# drive engine preflight (queue prompts)")
+const { queuePromptProblems } = await import(pathToFileURL(join(hooksDir, "..", "skills", "drive", "run.mjs")).href)
+const drivePreflightDir = join(root, "drive-preflight")
+mkdirSync(join(drivePreflightDir, "prompts"), { recursive: true })
+writeFileSync(join(drivePreflightDir, "prompts", "task-filed.md"), "do the thing\n")
+const promptProblems = queuePromptProblems(
+  [{ id: "filed" }, { id: "inline", prompt: "an inline prompt" }, { id: "epic-1", label: "hand-written, promptless" }, { id: "blank", prompt: "   " }],
+  drivePreflightDir,
+)
+T("drive: a promptless queue entry is a preflight error naming its id", promptProblems.some((problem) => /"epic-1"/.test(problem)), true)
+T("drive: a whitespace-only prompt field is still promptless", promptProblems.some((problem) => /"blank"/.test(problem)), true)
+T("drive: a prompt file or an inline prompt both satisfy preflight", promptProblems.length, 2)
+
+// ---------------------------------------------------------------------------
 // 3. opencode plugin — same rules, opencode contract
 // ---------------------------------------------------------------------------
 console.log("\n# opencode plugin (real plugin, .mjs copy for the Node loader)")

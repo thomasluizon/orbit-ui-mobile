@@ -31,12 +31,27 @@
  * (.claude/manifests/signoff.json). See `## Refuted, do not re-propose` in
  * .claude/specs/issue-539.spec.md - a churn threshold and a vision judge were
  * both tried as grants and both failed.
+ *
+ * Redesign depth is wired in as MEASUREMENT, never as a target. The loop's only
+ * countable axis here is lint debt, and that axis is disjoint from the failure
+ * this harness was built for: view-today measured 0.0% changed against the
+ * baseline while carrying mechanicalDebt 0. So a per-order --check now prints
+ * the surface's depth against the floor - the number rides along for the human
+ * who holds the veto. It never moves an exit code, because the refuted-grants
+ * ledger above already records what happens when it does: an agent optimizing
+ * token distance produces churn, not design.
  */
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, rmSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
+import { REDESIGN_DEPTH_FLOOR, baselineResolves, redesignDepthOf } from "./check-surface-coverage.mjs"
 
-const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
+// ORBIT_SURFACE_ROOT mirrors check-surface-coverage.mjs: hermetic tests point
+// both tools at a disposable fixture repo instead of this checkout's live debt
+// numbers, which change under them.
+const REPO_ROOT = process.env.ORBIT_SURFACE_ROOT
+  ? resolve(process.env.ORBIT_SURFACE_ROOT)
+  : resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const MANIFEST_PATH = join(REPO_ROOT, ".claude", "manifests", "surfaces.json")
 const OUT_DIR = join(REPO_ROOT, ".claude", "workorders")
 const WORKSPACES = [
@@ -59,17 +74,26 @@ USAGE
                   discovering its own file list. Writes .claude/workorders/<plan-name>.md.
 
   (no flags)      Regenerate every work order into .claude/workorders/ plus INDEX.md.
-                  Existing Timeline sections are PRESERVED verbatim; everything else
+                  Existing Timeline sections are PRESERVED verbatim, and so are the
+                  plan work orders --from-plan wrote (they are not manifest-derived,
+                  so a regeneration must never read them as stale); everything else
                   is derived, so a regeneration is a reviewable diff.
-  --check         Do not write. Print the ledger and exit non-zero if any work order
-                  still carries mechanical debt.
+  --check         Do not write. Print one greppable "DEBT <id> ..." line per work
+                  order still carrying debt, the totals, and a one-line depth
+                  summary; exit 1 if ANY work order still carries mechanical debt.
   --id <id>       Print one work order to stdout and exit. Does not write.
+  --check --id <id>  Per-order verdict: THAT order's outstanding debt rows and total,
+                  plus (for a surface order) its redesign depth vs the floor. The
+                  depth is a veto axis a human consults - it never moves the exit
+                  code. Exit 1 only if that order carries mechanical debt.
   --help, -h      This text.
 
 EXIT CODES
   0  generation succeeded, or --check found no outstanding mechanical debt
-  1  --check found outstanding mechanical debt
-  2  a required input is missing or unreadable (manifest, suppression baseline)
+     (repo-wide without --id, scoped to that one order with --id)
+  1  --check found outstanding mechanical debt in its scope
+  2  a required input is missing or unreadable (manifest, suppression baseline),
+     or a unit with cells owns zero files after resolution and cannot be folded
 
 INPUTS (all on disk, none hand-written)
   .claude/manifests/surfaces.json   the denominator + exclusive file ownership
@@ -274,6 +298,18 @@ function renderWorkOrder(surface, debt, timeline, manifest) {
         ? `Implement the plan at \`${surface.sourceFile}\`. That file holds the objective, the tasks and the acceptance criteria; this work order holds your boundary and your starting state, so you do not have to go looking for either.`
         : `Bring \`${surface.surfaceId}\`${surface.href ? ` (\`${surface.href}\`)` : ""} to DESIGN.md. Read DESIGN.md once, then edit; the parts that apply to this surface are named below so you do not have to search for them.`,
     "",
+    ...(surface.foldedSurfaceIds?.length
+      ? [
+          "## Folded in: surface ids this order also carries",
+          "",
+          "These surfaces render entirely through files this order owns, so a work order of their",
+          "own would forbid every edit that could move their cells. Their cells and axes are merged",
+          "into this order's counts; there is no other file to look for.",
+          "",
+          ...surface.foldedSurfaceIds.map((id) => `- \`${id}\``),
+          "",
+        ]
+      : []),
     "## Boundaries: you own these files, and only these",
     "",
     surface.kind === "plan"
@@ -347,7 +383,7 @@ function renderWorkOrder(surface, debt, timeline, manifest) {
     lines.push(
       "## Cells",
       "",
-      `This surface expands to ${surface.cells} cell(s): ${axes.join(", ")}.`,
+      `This ${surface.foldedSurfaceIds?.length ? "order (with its folded surface ids)" : "surface"} expands to ${surface.cells} cell(s): ${axes.join(", ")}.`,
       surface.pixelEvidence === "web-capture"
         ? "Web: `npm run surfaces:capture -- --filter <id>` produces the screenshot a human will look at."
         : "Mobile: no deterministic pixel pipeline exists, so there is no screenshot to produce. Say so plainly rather than implying visual evidence you do not have.",
@@ -358,10 +394,18 @@ function renderWorkOrder(surface, debt, timeline, manifest) {
   lines.push(
     "## Definition of done for THIS work order",
     "",
-    "1. Backlog A is 0 (`node tools/workorder.mjs --check` agrees).",
+    `1. Backlog A is 0 (\`node tools/workorder.mjs --check --id ${surface.surfaceId}\` exits 0).`,
     "2. The diff touches only the owned files above (`node tools/check-diff-ownership.mjs --id <id>` agrees).",
     "3. You appended one Timeline entry saying what you changed and what you deliberately did not.",
     "",
+    ...(surface.cells > 0
+      ? [
+          "Clearing Backlog A is a floor and is NOT evidence of redesign: the depth number for this",
+          `surface comes from \`node tools/workorder.mjs --check --id ${surface.surfaceId}\`, and it is a veto`,
+          "axis a human consults, never a target. Only a human tick in `signoff.json` grants completion.",
+          "",
+        ]
+      : []),
     ...(surface.kind === "plan"
       ? [
           "Meeting all three, plus the plan's own acceptance criteria and a green lint/type-check/test run,",
@@ -436,6 +480,90 @@ function planUnit(planPath) {
   }
 }
 
+/**
+ * Plan work orders already on disk. They come from --from-plan, not the
+ * manifest, so a regeneration that treats "not derived from the manifest" as
+ * "stale" destroys them - verified end to end: the documented step-9 regen
+ * deleted the work order the documented step 6 had just written. The sweep
+ * keeps them, and INDEX.md lists them so the index never claims a file that
+ * exists is stale.
+ */
+function planOrdersOnDisk() {
+  if (!existsSync(OUT_DIR)) return []
+  const orders = []
+  for (const name of readdirSync(OUT_DIR)) {
+    if (!name.endsWith(".md") || name === "INDEX.md") continue
+    const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(readFileSync(join(OUT_DIR, name), "utf8"))
+    if (!frontmatter || !/^kind:\s*plan\s*$/m.test(frontmatter[1])) continue
+    orders.push({
+      file: name,
+      surfaceId: (/^surfaceId:\s*(.+)$/m.exec(frontmatter[1])?.[1] ?? name.replace(/\.md$/, "")).trim(),
+      source: (/^generatedFrom:\s*(.+)$/m.exec(frontmatter[1])?.[1] ?? "unknown").trim(),
+    })
+  }
+  return orders.sort((a, b) => a.surfaceId.localeCompare(b.surfaceId))
+}
+
+/**
+ * Owned files of a work order read back off disk. A plan order has no manifest
+ * unit to recompute from, yet its definition of done points at
+ * `--check --id <id>` - so that verdict has to be answerable from the contract
+ * file itself, the same Boundaries slice tools/check-diff-ownership.mjs trusts.
+ */
+function ownedFilesFromDisk(path) {
+  const text = readFileSync(path, "utf8")
+  const start = text.indexOf("## Boundaries")
+  const end = text.indexOf("## Backlog A")
+  if (start === -1 || end === -1) return []
+  const sharedAt = text.indexOf("### Shared, and NOT yours to edit")
+  const stop = sharedAt !== -1 && sharedAt < end ? sharedAt : end
+  return [...text.slice(start, stop).matchAll(/^- `([^`]+)`$/gm)].map((match) => match[1])
+}
+
+/**
+ * The depth line is measurement for the human veto, never a target for the
+ * agent: it must not move the exit code, and it must not read as a number to
+ * raise - the header's refuted-grants ledger records that a churn threshold
+ * was already tried as a grant and failed.
+ */
+function depthLineFor(unit, manifest) {
+  const floorPercent = `${(REDESIGN_DEPTH_FLOOR * 100).toFixed(0)}%`
+  const caveat = "veto axis a human consults; Backlog A being clear is NOT evidence of redesign"
+  const baselineRef = manifest.baselineSha ?? manifest.baselineRef
+  if (!baselineResolves(baselineRef)) {
+    return `depth UNKNOWN vs floor ${floorPercent} - baseline ${manifest.baselineRef} does not resolve in this tree (${caveat})`
+  }
+  const depth = redesignDepthOf(unit.ownedFiles, baselineRef)
+  return `depth ${(depth * 100).toFixed(1)}% vs floor ${floorPercent} since ${manifest.baselineRef} - ${caveat}`
+}
+
+/**
+ * One line for the global --check: how much of the app the depth veto still
+ * holds back, without turning --check into the full oracle. Measured before
+ * wiring it in: computing depth for every surface costs ~10-15s on this repo
+ * (one TS parse per owned file per side), far under the 90s budget that would
+ * have demoted this to a pointer line.
+ */
+function depthSummaryLine(surfaceEntries, manifest) {
+  const floorPercent = `${(REDESIGN_DEPTH_FLOOR * 100).toFixed(0)}%`
+  const baselineRef = manifest.baselineSha ?? manifest.baselineRef
+  if (!baselineResolves(baselineRef)) {
+    return `depth: UNKNOWN for all ${surfaceEntries.length} surface orders - baseline ${manifest.baselineRef} does not resolve in this tree. Full report: npm run surfaces:check`
+  }
+  const signatureCache = new Map()
+  let atZero = 0
+  let belowFloor = 0
+  for (const entry of surfaceEntries) {
+    const depth = redesignDepthOf(entry.unit.ownedFiles, baselineRef, signatureCache)
+    if (depth === 0) atZero += 1
+    if (depth < REDESIGN_DEPTH_FLOOR) belowFloor += 1
+  }
+  return (
+    `depth: ${atZero} of ${surfaceEntries.length} surface orders at 0% depth, ${belowFloor} below the ${floorPercent} floor - ` +
+    "a veto axis a human consults, not a number to chase. Full report: npm run surfaces:check"
+  )
+}
+
 function main() {
   const argv = process.argv.slice(2)
   if (argv.includes("--help") || argv.includes("-h")) {
@@ -507,31 +635,95 @@ function main() {
     unit.ownedFiles = unit.ownedFiles.filter((file) => primaryOf.get(file) === unit.surfaceId)
   }
 
+  // The resolution above can strand a unit: the four Today views all claim
+  // `apps/web/app/(app)/page.tsx`, so after view-today takes it the other three
+  // own ZERO files while still carrying 8 cells each - and their only work
+  // order forbids every edit that could move those 24 cells. A unit like that
+  // is FOLDED into the unit that owns its sourceFile: the cells, axes and any
+  // recorded Timeline ride with the primary, and the primary's order names the
+  // folded ids. A stranded unit with no fold target is a generation failure,
+  // not a warning - cells reachable through no work order is exactly the shape
+  // of debt that never gets done.
+  const unitById = new Map(units.map((unit) => [unit.surfaceId, unit]))
+  const foldedInto = new Map()
+  for (const unit of units) {
+    if (unit.ownedFiles.length > 0 || unit.cells === 0) continue
+    const primary = unit.sourceFile ? unitById.get(primaryOf.get(unit.sourceFile)) : null
+    if (!primary) {
+      fail(
+        `unit "${unit.surfaceId}" carries ${unit.cells} cell(s) but owns zero files after primary-owner ` +
+          `resolution, and its sourceFile has no primary owner to fold into. Its cells would be reachable ` +
+          `through no work order - fix the derivation before regenerating.`,
+      )
+    }
+    primary.cells += unit.cells
+    for (const state of unit.states) primary.states.add(state)
+    for (const theme of unit.themes) primary.themes.add(theme)
+    for (const locale of unit.locales) primary.locales.add(locale)
+    primary.foldedSurfaceIds = [...(primary.foldedSurfaceIds ?? []), unit.surfaceId]
+    primary.foldedTimeline = [
+      ...(primary.foldedTimeline ?? []),
+      ...existingTimeline(join(OUT_DIR, `${unit.surfaceId}.md`)).filter((line) => !line.includes("(no work recorded")),
+    ]
+    foldedInto.set(unit.surfaceId, primary.surfaceId)
+  }
+
   const ledger = units
+    .filter((unit) => !foldedInto.has(unit.surfaceId))
     .map((unit) => ({ unit, debt: debtOf(unit.ownedFiles, suppressions) }))
     .sort((a, b) => b.debt.total - a.debt.total || a.unit.surfaceId.localeCompare(b.unit.surfaceId))
 
   if (wantedId) {
-    const found = ledger.find((entry) => entry.unit.surfaceId === wantedId)
-    if (!found) fail(`no work order with id "${wantedId}". Run without --id to list them.`)
-    process.stdout.write(renderWorkOrder(found.unit, found.debt, existingTimeline(join(OUT_DIR, `${wantedId}.md`)), manifest))
-    return
+    const foldedPrimary = foldedInto.get(wantedId)
+    if (foldedPrimary) {
+      fail(`work order "${wantedId}" is folded into "${foldedPrimary}": it renders entirely through files that order owns, so its cells ride there. Use --id ${foldedPrimary}.`)
+    }
+    let found = ledger.find((entry) => entry.unit.surfaceId === wantedId)
+    if (!found) {
+      const planOrder = planOrdersOnDisk().find((order) => order.surfaceId === wantedId)
+      if (planOrder && checkOnly) {
+        found = { unit: { surfaceId: wantedId, cells: 0 }, debt: debtOf(ownedFilesFromDisk(join(OUT_DIR, planOrder.file)), suppressions) }
+      } else if (planOrder) {
+        fail(`"${wantedId}" is a plan work order with no manifest unit to re-render: read .claude/workorders/${planOrder.file} directly.`)
+      } else {
+        fail(`no work order with id "${wantedId}". Run without --id to list them.`)
+      }
+    }
+    if (!checkOnly) {
+      process.stdout.write(renderWorkOrder(found.unit, found.debt, existingTimeline(join(OUT_DIR, `${wantedId}.md`)), manifest))
+      return
+    }
+    // The per-order verdict a bundle child can act on. Before this existed,
+    // --check --id printed the work order and returned before the exit logic,
+    // so an order carrying 68 violations exited 0 exactly like a clean one.
+    const lines = [`${wantedId}: ${found.debt.total} outstanding mechanical violation(s)`]
+    for (const row of found.debt.rows) lines.push(`  ${row.file}  ${row.rule}  ${row.count}`)
+    if (found.unit.cells > 0) lines.push(depthLineFor(found.unit, manifest))
+    lines.push("Mechanical debt is a floor, not a grant. Only a human tick in signoff.json completes a cell.")
+    process.stdout.write(lines.join("\n") + "\n")
+    process.exit(found.debt.total > 0 ? 1 : 0)
   }
 
   const totalDebt = ledger.reduce((sum, entry) => sum + entry.debt.total, 0)
   const withDebt = ledger.filter((entry) => entry.debt.total > 0)
   const residual = ledger.filter((entry) => entry.unit.kind === "residual")
+  const surfaceOrders = ledger.filter((entry) => entry.unit.kind !== "residual")
+
+  const planOrders = planOrdersOnDisk()
+  const foldedList = [...foldedInto.entries()].sort((a, b) => a[0].localeCompare(b[0]))
 
   if (!checkOnly) {
     mkdirSync(OUT_DIR, { recursive: true })
     const keep = new Set(ledger.map((entry) => `${entry.unit.surfaceId}.md`))
     keep.add("INDEX.md")
+    for (const order of planOrders) keep.add(order.file)
     for (const stale of readdirSync(OUT_DIR).filter((name) => name.endsWith(".md") && !keep.has(name))) {
       rmSync(join(OUT_DIR, stale))
     }
     for (const entry of ledger) {
       const path = join(OUT_DIR, `${entry.unit.surfaceId}.md`)
-      writeFileSync(path, renderWorkOrder(entry.unit, entry.debt, existingTimeline(path), manifest))
+      const timeline = [...existingTimeline(path), ...(entry.unit.foldedTimeline ?? [])]
+      writeFileSync(path, renderWorkOrder(entry.unit, entry.debt, timeline, manifest))
     }
     writeFileSync(
       join(OUT_DIR, "INDEX.md"),
@@ -540,11 +732,33 @@ function main() {
         "",
         `Generated from manifest \`${manifest.generatedFrom ?? "unknown"}\`. Do not hand-edit; run \`node tools/workorder.mjs\`.`,
         "",
-        `- ${ledger.length} work orders (${surfaces.length} surfaces + ${residual.length} residual groups)`,
+        `- ${ledger.length} work orders (${surfaceOrders.length} surfaces + ${residual.length} residual groups)`,
         `- ${totalDebt} mechanical violations outstanding across ${withDebt.length} work orders`,
         "",
         "Mechanical debt is a FLOOR. Completion is granted only by a human tick in signoff.json.",
         "",
+        ...(foldedList.length
+          ? [
+              "## Folded surface ids (no file of their own, by design)",
+              "",
+              "Each renders entirely through files its primary owner's order controls, so a separate",
+              "order would forbid every edit that could move its cells. The cells ride with the primary.",
+              "",
+              ...foldedList.map(([id, primary]) => `- \`${id}\` folded into [${primary}](${primary}.md)`),
+              "",
+            ]
+          : []),
+        ...(planOrders.length
+          ? [
+              "## Plan work orders (from --from-plan, preserved across regenerations)",
+              "",
+              "Not manifest-derived, so they are never stale to a regeneration; one is deleted by",
+              "hand when its plan ships.",
+              "",
+              ...planOrders.map((order) => `- [${order.surfaceId}](${order.file}) - plan \`${order.source}\``),
+              "",
+            ]
+          : []),
         "| work order | platform | kind | owned | cells | mech. debt |",
         "|---|---|---|---|---|---|",
         ...ledger.map(
@@ -556,12 +770,22 @@ function main() {
     )
   }
 
+  if (checkOnly) {
+    // One stable, greppable line per order still carrying debt, so a bundle
+    // child can read ITS OWN number out of the global run (`grep '^DEBT <id> '`)
+    // instead of inferring it from an aggregate total it cannot influence.
+    for (const entry of withDebt) {
+      const worst = entry.debt.rows.slice(0, 3).map((row) => `${row.file} (${row.count})`).join(", ")
+      process.stdout.write(`DEBT ${entry.unit.surfaceId}  ${entry.debt.total}  worst: ${worst}\n`)
+    }
+  }
+
   process.stdout.write(
     [
-      `${ledger.length} work orders  (${surfaces.length} surfaces + ${residual.length} residual groups)`,
+      `${ledger.length} work orders  (${surfaceOrders.length} surfaces + ${residual.length} residual groups${foldedList.length ? `; ${foldedList.length} surface id(s) folded into their primary` : ""})`,
       `${ownedEverywhere.size} files owned by a surface; ${residual.reduce((n, entry) => n + entry.unit.ownedFiles.length, 0)} more carry debt and are owned by a residual group`,
       `${totalDebt} mechanical violations outstanding across ${withDebt.length} work orders`,
-      checkOnly ? "" : `written to .claude/workorders/`,
+      checkOnly ? depthSummaryLine(surfaceOrders, manifest) : `written to .claude/workorders/`,
       "",
       "Mechanical debt is a floor, not a grant. Only a human tick in signoff.json completes a cell.",
       "",

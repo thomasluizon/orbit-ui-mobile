@@ -14,6 +14,12 @@
  *  - The old prompt said "redesign these routes to DESIGN.md" and handed over no
  *    file list, no defect list, and no history, which is how a fresh child spent
  *    36.6% of its actions orienting and 5.6% editing.
+ *  - The old bundler hardcoded `ui: true` on every bundle and filtered --only-debt
+ *    on lint debt alone. Verified end to end: a 2-file packages/shared plan bundle
+ *    was queued as UI work and graded against DESIGN.md, while under the documented
+ *    --only-debt commands the same plan (0 lint debt by construction) was queued
+ *    NOWHERE. Kind now decides both: a plan work order is always kept, always its
+ *    own bundle, and never flagged ui.
  *
  * The definition of done here is three things a machine can actually check, and
  * it deliberately stops short of granting completion: a bundle reaches READY FOR
@@ -23,7 +29,13 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
-const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
+// ORBIT_SURFACE_ROOT mirrors the other gate tools (workorder,
+// check-diff-ownership): hermetic tests point this tool at a disposable fixture
+// repo instead of bundling the live checkout's work orders, which change under
+// them.
+const REPO_ROOT = process.env.ORBIT_SURFACE_ROOT
+  ? resolve(process.env.ORBIT_SURFACE_ROOT)
+  : resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const WORKORDER_DIR = join(REPO_ROOT, ".claude", "workorders")
 const DRIVE_DIR = join(REPO_ROOT, ".claude", "drive")
 
@@ -37,8 +49,10 @@ USAGE
                              [--dry-run] [--help]
 
   --only-debt     Queue only work orders carrying mechanical debt (the machine-checkable
-                  work). Without it, every work order is queued, including the 87 whose
-                  backlog is judgement-only.
+                  work). Plan work orders (kind: plan) are kept regardless of debt: their
+                  backlog is the plan's acceptance criteria, not the lint baseline, so a
+                  debt filter would silently drop them. Without the flag, every work order
+                  is queued, including the 87 whose backlog is judgement-only.
   --platform      Restrict to one platform.
   --max-files N   Owned-file cap per bundle (default ${DEFAULTS.maxFiles}).
   --max-debt N    Mechanical-debt cap per bundle (default ${DEFAULTS.maxDebt}).
@@ -55,6 +69,11 @@ EXIT CODES
   2  no work orders on disk, or a bad flag
 
 NOTE
+  A plan work order always becomes its OWN bundle (a plan is already a sized slice),
+  with tier read from the plan file's Tier field and ui: false, so the --sleep
+  verifier never grades non-visual work against DESIGN.md. Manifest-derived bundles
+  (route, view, overlay, residual) carry ui: true.
+
   A bundle can reach READY FOR REVIEW. It can never reach DONE: completion is granted
   only by a human tick in .claude/manifests/signoff.json, which no agent can write.
 `
@@ -85,6 +104,7 @@ function readWorkOrders() {
       id: fields.surfaceId,
       platform: fields.platform,
       kind: fields.kind,
+      generatedFrom: fields.generatedFrom ?? null,
       ownedFiles: Number(fields.ownedFiles ?? 0),
       cells: Number(fields.cells ?? 0),
       debt: Number(fields.mechanicalDebt ?? 0),
@@ -95,17 +115,50 @@ function readWorkOrders() {
 }
 
 /**
+ * A plan bundle's tier comes from the plan file itself: /plan writes a Tier
+ * field (default opus; sonnet must be earned), and the work order's
+ * generatedFrom frontmatter points back at that file. Both shapes /plan has
+ * produced are read: the `| Tier | sonnet |` metadata row and a bare
+ * `Tier: sonnet` line. A plan without one falls back to opus, LOUDLY - a
+ * silent default is how a hard epic ends up on the cheap model.
+ */
+function planTierOf(order) {
+  const source = order.generatedFrom
+  if (source) {
+    const path = resolve(REPO_ROOT, source)
+    if (existsSync(path)) {
+      const text = readFileSync(path, "utf8")
+      const match = /^\|\s*Tier\s*\|\s*(sonnet|opus)\s*\|/im.exec(text) ?? /^Tier:\s*(sonnet|opus)\s*$/im.exec(text)
+      if (match) return match[1].toLowerCase()
+    }
+  }
+  process.stderr.write(`drive-queue: plan "${order.id}" has no Tier field in ${source || "(no generatedFrom in its work order)"}; defaulting to opus.\n`)
+  return "opus"
+}
+
+/**
  * Pack work orders into bundles.
  *
- * Bundles are packed within a platform and a kind, because a child that switches
- * between a web route and a mobile StyleSheet mid-bundle pays the orientation
- * cost twice. Caps are on files, debt and count together: any one of them alone
- * lets a pathological bundle through (one 30-violation file, or twelve trivial
- * work orders spread across twelve directories).
+ * Manifest-derived orders are packed within a platform and a kind, because a
+ * child that switches between a web route and a mobile StyleSheet mid-bundle
+ * pays the orientation cost twice. Caps are on files, debt and count together:
+ * any one of them alone lets a pathological bundle through (one 30-violation
+ * file, or twelve trivial work orders spread across twelve directories).
+ *
+ * A plan work order is never packed: Phase A already approved it as ONE sized
+ * slice, so folding it into a debt-picked bundle would bury an approved epic
+ * under a numeric id and grade it against caps meant for lint conformance.
+ * Plan bundles run first - they are the work the run was launched for; the
+ * debt bundles are the standing backlog.
  */
 function bundle(orders, limits) {
   const groups = new Map()
+  const planOrders = []
   for (const order of orders) {
+    if (order.kind === "plan") {
+      planOrders.push(order)
+      continue
+    }
     const key = `${order.platform}-${order.kind}`
     if (!groups.has(key)) groups.set(key, [])
     groups.get(key).push(order)
@@ -122,7 +175,7 @@ function bundle(orders, limits) {
           current.files + order.ownedFiles > limits.maxFiles ||
           current.debt + order.debt > limits.maxDebt)
       if (!current || wouldExceed) {
-        current = { key, orders: [], files: 0, debt: 0, cells: 0 }
+        current = { key, kind: order.kind, orders: [], files: 0, debt: 0, cells: 0 }
         bundles.push(current)
       }
       current.orders.push(order)
@@ -132,7 +185,26 @@ function bundle(orders, limits) {
     }
   }
 
-  return bundles
+  const planBundles = [...planOrders]
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .map((order) => ({
+      id: `plan-${order.id}`,
+      label: `plan ${order.id}: ${order.ownedFiles} owned file(s), ${order.debt} mechanical violation(s)`,
+      repo: "orbit-ui-mobile",
+      tier: planTierOf(order),
+      effort: "high",
+      ui: false,
+      kind: "plan",
+      workOrders: [order.id],
+      debt: order.debt,
+      files: order.ownedFiles,
+    }))
+
+  // The ui flag routes the --sleep verifier's DESIGN.md clause, and it used to
+  // be hardcoded true for every bundle - a 2-file packages/shared plan bundle
+  // got graded as UI work. Kind decides it now: every manifest-derived kind
+  // (route, view, overlay, residual) is visual by construction; plan is not.
+  const manifestBundles = bundles
     .filter((entry) => entry.orders.length)
     .sort((a, b) => b.debt - a.debt)
     .map((entry, index) => ({
@@ -142,14 +214,58 @@ function bundle(orders, limits) {
       tier: entry.debt > 25 || entry.files > 10 ? "opus" : "sonnet",
       effort: "high",
       ui: true,
+      kind: entry.kind,
       workOrders: entry.orders.map((order) => order.id),
       debt: entry.debt,
       files: entry.files,
     }))
+
+  return [...planBundles, ...manifestBundles]
 }
 
+/**
+ * Every action this prompt ORDERS must be permitted by the ownership gate as it
+ * stands - the first cut ordered lint:prune, tests and i18n parity, then made
+ * the gate's exit 0 a condition of done, and obeying the prompt failed the
+ * prompt's own gate. The satisfiability test in test-hooks pins that: each file
+ * class ordered here (owned files, their test companions, the suppressions
+ * ledger, the i18n pair, the work order's Timeline) is asserted against the
+ * real check-diff-ownership permitted set.
+ */
 function renderPrompt(entry) {
   const ids = entry.workOrders
+  const isPlan = entry.kind === "plan"
+  const parityRule = isPlan
+    ? `4. Work Backlog B and the source plan's acceptance criteria with the plan open. Cross-platform
+   parity is MANDATORY and yours to do IN THIS BUNDLE: the plan's owned files are your boundary
+   across BOTH platforms, so a web change lands in apps/mobile too and vice versa, and i18n keys
+   land in BOTH en.json and pt-BR.json in the same edit.`
+    : `4. Work Backlog B (the judgement list) with DESIGN.md open. Do NOT edit the other platform's
+   mirror files: the mirror surface has its own work order, and possibly its own agent running
+   right now. If a fix genuinely requires an edit to a mirror file you do not own, STOP on that
+   fix and record it in the Timeline - that is a useful result, not a failure. The i18n pair is
+   the one cross-platform edit that IS yours: microcopy changes land in BOTH en.json and
+   pt-BR.json in the same edit.`
+  const depthParagraph = isPlan
+    ? ""
+    : `
+The redesign-depth oracle measures how much of each surface's render signature actually moved;
+\`node tools/workorder.mjs --check --id <id>\` prints it. Clearing Backlog A does not move it.
+The number is a veto a human consults, never a target you optimize: deliberately inflating it -
+churn for churn's sake - reads as fabrication.
+`
+  const closing = isPlan
+    ? `Meeting a, b and c makes this bundle READY FOR REVIEW. It does NOT make it done, and you
+must not say it does: merging is a human action, and whether the plan's acceptance criteria
+are genuinely met is a human judgement, not yours to record. State what you changed and what
+you verified.`
+    : `Meeting a, b and c makes this bundle READY FOR REVIEW. It does NOT make it done, and you
+must not say it does. Completion is granted only by a human tick in
+.claude/manifests/signoff.json, which you are structurally blocked from writing. Do not
+claim a surface "looks good", is "redesigned", or is "complete" - you have no instrument
+that can establish that, and ten previous sessions made exactly that claim and were wrong.
+State what you changed and what you verified. If you believe a surface is ready for a human
+to look at, say which ones and why.`
   return `You are an autonomous Orbit engineer running one bundle. Proceed to completion on your own
 judgement. Do not ask questions; there is nobody to answer them.
 
@@ -158,49 +274,51 @@ ${ids.map((id) => `  .claude/workorders/${id}.md`).join("\n")}
 
 Each work order already contains what you would otherwise spend a third of this session
 rediscovering: the exact files you own, the enumerated DESIGN.md violations in them with
-counts, the judgement checks that apply to this kind of surface, and a Timeline of what
-previous sessions already tried here. Read the Timeline before you plan: several of these
-surfaces have been attempted and reported done before, and repeating a failed approach is
-the single most likely way this bundle wastes its clock.
+counts, the judgement checks that apply to this kind of work, and a Timeline of what
+previous sessions already tried here. Read the Timeline before you plan: repeating a failed
+approach is the single most likely way this bundle wastes its clock.
 
 RULES OF ENGAGEMENT
 1. Branch off the current base: \`feature/<slug>\` or \`fix/<slug>\`. Never commit to main.
-2. Edit ONLY the files your work orders list under "Boundaries". Files under "Shared, and
-   NOT yours to edit" are context: another work order owns them and another agent may be
-   editing them right now. If the fix you need lives in a shared file, do NOT edit it -
-   record that in the Timeline and say so in your summary. That is a useful result, not a
-   failure.
+2. Edit ONLY the files your work orders list under "Boundaries", plus the classes rules 3, 4
+   and 6 permit (the lint-suppressions ledger, the i18n pair, an owned file's test companion)
+   and your own work orders' Timeline sections. Files under "Shared, and NOT yours to edit"
+   are context: another work order owns them and another agent may be editing them right now.
+   If the fix you need lives in a shared file, do NOT edit it - record that in the Timeline
+   and say so in your summary. That is a useful result, not a failure.
 3. Clear Backlog A (the enumerated violations) by fixing the SOURCE, then run
-   \`npm run lint:prune\` in the affected workspace. Never hand-edit eslint-suppressions.json:
-   the gate detects a count that fell for a file you did not edit, and treats it as fabrication.
+   \`npm run lint:prune\` in the affected workspace. The rewrite it makes to
+   eslint-suppressions.json is PERMITTED: the ledger is workspace-global, and the ownership
+   gate expects it to move when files you edited improve. What stays detected and fatal is a
+   count that falls for a file this diff never edited - that is the scoreboard moving without
+   the code, and it reads as fabrication.
    COUNTING these is objective; FIXING them is not. \`local/spacing-scale\` autofixes only a
    within-1px snap and refuses the rest on purpose, because moving a 6px gap to 4 changes the
    layout. Measured on this repo: \`eslint --fix\` over a 30-violation file changed zero lines.
    Judge each value against the surrounding rhythm. Batch-snapping every number to the nearest
    step is the shallow sweep this harness exists to stop, and it will read as one.
-4. Work Backlog B (the judgement list) with DESIGN.md open. Cross-platform parity is
-   MANDATORY: a web change lands in apps/mobile too and vice versa, and i18n keys land in
-   BOTH en.json and pt-BR.json.
+${parityRule}
 5. Append ONE Timeline entry per work order you touched, saying what you changed and what
    you deliberately left alone. Append only; never rewrite an existing entry, including
    your own.
-6. Add or extend Vitest behaviour tests for logic you changed.
+6. Add or extend Vitest behaviour tests for logic you changed. The ownership gate permits a
+   new test file ONLY at the repo's convention, and only for a file this bundle owns: the
+   workspace \`__tests__\` tree (\`apps/web/__tests__/\`, \`apps/mobile/__tests__/\`,
+   \`packages/shared/src/__tests__/\`), named \`<source-basename>.test.ts\` / \`.tsx\`, or
+   \`<dir>-page.test.tsx\` for a router \`page.tsx\`. A test for a file you do not own
+   belongs to whoever owns that file - do not write it.
 7. Commit, push, and open a PR READY FOR REVIEW with \`gh pr create\` (never --draft, so CI
    and the review bots run).
-
+${depthParagraph}
 DEFINITION OF DONE - three machine-checkable conditions, and nothing else:
-  a. \`node tools/workorder.mjs --check\` reports 0 mechanical debt for your work orders.
+  a. EACH of these exits 0 (per order; the global \`--check\` form covers bundles that are
+     not yours and can stay red while your work is complete, so it is not your condition):
+${ids.map((id) => `       node tools/workorder.mjs --check --id ${id}`).join("\n")}
   b. \`node tools/check-diff-ownership.mjs ${ids.map((id) => `--id ${id}`).join(" ")}\` exits 0.
   c. Each touched work order has your new Timeline entry.
 Then lint, type-check and the tests pass.
 
-Meeting a, b and c makes this bundle READY FOR REVIEW. It does NOT make it done, and you
-must not say it does. Completion is granted only by a human tick in
-.claude/manifests/signoff.json, which you are structurally blocked from writing. Do not
-claim a surface "looks good", is "redesigned", or is "complete" - you have no instrument
-that can establish that, and ten previous sessions made exactly that claim and were wrong.
-State what you changed and what you verified. If you believe a surface is ready for a human
-to look at, say which ones and why.
+${closing}
 
 If you cannot finish: commit what works, open the PR describing exactly what is blocked, and
 exit. A blocked-but-documented bundle is a success.
@@ -233,7 +351,11 @@ function main() {
   let orders = readWorkOrders()
   if (!orders.length) fail("no work orders parsed. Run `node tools/workorder.mjs` first.")
   if (platform) orders = orders.filter((order) => order.platform === platform)
-  if (argv.includes("--only-debt")) orders = orders.filter((order) => order.debt > 0)
+  // A plan order carries 0 lint debt by construction (its backlog is the plan's
+  // acceptance criteria), so a pure debt filter silently dropped every plan -
+  // verified: the documented step-9 commands queued 48 bundles and the plan
+  // work order appeared nowhere.
+  if (argv.includes("--only-debt")) orders = orders.filter((order) => order.debt > 0 || order.kind === "plan")
   if (!orders.length) fail("no work orders match those filters.")
 
   const queue = bundle(orders, limits)

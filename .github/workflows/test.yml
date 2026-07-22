@@ -183,6 +183,26 @@ jobs:
         # UI repo's agents only; the local run covers both.
         run: node .claude/hooks/test-hooks.mjs
 
+      - name: Work-order ledger freshness
+        # The committed .claude/workorders/ ledger is generated, and until now
+        # nothing failed when it was hand-edited or left stale after a manifest
+        # or suppression change. Regeneration is idempotent (verified: two
+        # consecutive runs produce a byte-identical tree), so ANY drift from
+        # HEAD after regenerating means the ledger no longer matches its inputs.
+        # `git add -N` plus diffing against HEAD is deliberate: it catches all
+        # three drift shapes (a modified order, a DELETED one - the fold case -
+        # and a NEW one), where a plain index diff goes blind on deletions the
+        # moment they are staged. Timeline appends survive regeneration, so
+        # committing the regenerated output loses nothing.
+        run: |
+          node tools/workorder.mjs
+          git add -N .claude/workorders/
+          if ! git diff --exit-code HEAD -- .claude/workorders/; then
+            echo "::error::.claude/workorders/ is stale or hand-edited: regenerating it changed the tree. Run 'node tools/workorder.mjs' and commit the result; never edit a work order by hand."
+            exit 1
+          fi
+          echo "Work-order ledger is fresh: regeneration was a no-op."
+
   contract-drift:
     name: Contract Drift
     runs-on: ubuntu-latest

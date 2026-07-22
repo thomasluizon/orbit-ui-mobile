@@ -198,6 +198,17 @@ function evaluateTouched(surface, baselineRef, signatureCache) {
   }
 }
 
+/**
+ * Redesign depth (0..1) of an owned-file set against a baseline ref, sharing the
+ * signature cache across calls. Exported for tools/workorder.mjs, which reports
+ * depth as a veto-axis MEASUREMENT beside the mechanical-debt ledger: one oracle
+ * computes the number, so what a work-order verdict prints can never drift from
+ * what this tool's own verdict uses.
+ */
+export function redesignDepthOf(ownedFiles, baselineRef, signatureCache = new Map()) {
+  return evaluateTouched({ ownedFiles }, baselineRef, signatureCache).depth
+}
+
 /** Signature of the surface as a whole: the ordered signatures of its owned files. */
 function surfaceSignature(surface, signatureCache) {
   return surface.ownedFiles.map((path) => signatureCache.get(path)?.head ?? "?").join("|").slice(0, 4096)
@@ -295,7 +306,7 @@ function currentBranchIsTrunk() {
 }
 
 /** True when the baseline ref actually resolves in this tree. */
-function baselineResolves(ref) {
+export function baselineResolves(ref) {
   try {
     execFileSync("git", ["rev-parse", "--verify", `${ref}^{commit}`], {
       cwd: REPO_ROOT,

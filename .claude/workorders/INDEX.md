@@ -2,10 +2,19 @@
 
 Generated from manifest `498537f0715177cf58aa9dffbed9806385434db1`. Do not hand-edit; run `node tools/workorder.mjs`.
 
-- 217 work orders (171 surfaces + 46 residual groups)
+- 214 work orders (168 surfaces + 46 residual groups)
 - 988 mechanical violations outstanding across 130 work orders
 
 Mechanical debt is a FLOOR. Completion is granted only by a human tick in signoff.json.
+
+## Folded surface ids (no file of their own, by design)
+
+Each renders entirely through files its primary owner's order controls, so a separate
+order would forbid every edit that could move its cells. The cells ride with the primary.
+
+- `view-all` folded into [view-today](view-today.md)
+- `view-general` folded into [view-today](view-today.md)
+- `view-goals` folded into [view-today](view-today.md)
 
 | work order | platform | kind | owned | cells | mech. debt |
 |---|---|---|---|---|---|
@@ -222,7 +231,4 @@ Mechanical debt is a FLOOR. Completion is granted only by a human tick in signof
 | [route-support](route-support.md) | web | route | 5 | 4 | 0 |
 | [route-terms](route-terms.md) | web | route | 1 | 4 | 0 |
 | [route-upgrade](route-upgrade.md) | web | route | 1 | 4 | 0 |
-| [view-all](view-all.md) | web | view | 0 | 8 | 0 |
-| [view-general](view-general.md) | web | view | 0 | 8 | 0 |
-| [view-goals](view-goals.md) | web | view | 0 | 8 | 0 |
-| [view-today](view-today.md) | web | view | 1 | 8 | 0 |
+| [view-today](view-today.md) | web | view | 1 | 32 | 0 |

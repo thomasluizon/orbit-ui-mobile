@@ -46,7 +46,12 @@ import { readFileSync, existsSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
-const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
+// ORBIT_SURFACE_ROOT mirrors the other gate tools (check-surface-coverage,
+// workorder): hermetic tests point this gate at a disposable fixture repo
+// instead of judging the live checkout's diff, which changes under them.
+const REPO_ROOT = process.env.ORBIT_SURFACE_ROOT
+  ? resolve(process.env.ORBIT_SURFACE_ROOT)
+  : resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const WORKORDER_DIR = join(REPO_ROOT, ".claude", "workorders")
 
 // State the gate derives its verdict from. An agent editing any of these is
@@ -64,6 +69,57 @@ const GATE_STATE = [
 
 const SUPPRESSION_FILES = ["apps/web/eslint-suppressions.json", "apps/mobile/eslint-suppressions.json"]
 
+/*
+ * Three classes of path are PERMITTED without being owned, because the harness's
+ * own generated prompt orders edits to them: the first mobile-residual bundle
+ * owns 9 style files, yet its rules demand `npm run lint:prune` (rewrites a
+ * suppression ledger), Vitest tests (creates a test file) and i18n parity
+ * (edits both locale files) - and then makes this gate's exit 0 a condition of
+ * done. Obeying the prompt failed the prompt's own gate. Each class is
+ * structural, not prompt-text, and each has a guard that is not ownership:
+ *
+ *  - The eslint-suppressions ledgers are workspace-GLOBAL by construction:
+ *    `lint:prune` rewrites the whole file, so no per-surface order can own one.
+ *    The real guard stays fakedSuppressions below, at full strength - a count
+ *    that falls for a file this diff never edited still fails.
+ *  - A test companion of an OWNED file, in the repo's actual Vitest layout
+ *    (per-workspace `__tests__` trees, `*.test.ts[x]` named after the source
+ *    file, or `<dir>-page` for a router `page.tsx`). A test whose source
+ *    counterpart is NOT owned stays an escape: it belongs to whoever owns that
+ *    source.
+ *  - The i18n pair, en.json + pt-BR.json: DESIGN.md judgement work includes
+ *    microcopy, the parity contract requires BOTH files in the same edit, and
+ *    they are append-mostly shared state no single surface could ever own.
+ *    Whether the pair actually moved together is the parity hook's verdict,
+ *    not this one's.
+ *
+ * Nothing else is granted. Any other unowned path is still exactly the
+ * parallel-agent overwrite hazard this gate exists to stop.
+ */
+const I18N_PAIR = ["packages/shared/src/i18n/en.json", "packages/shared/src/i18n/pt-BR.json"]
+
+/**
+ * The Vitest convention, read off the configs rather than guessed: apps/web and
+ * apps/mobile include `__tests__/**\/*.test.{ts,tsx}`, packages/shared includes
+ * `src/__tests__/**\/*.test.ts`. Test names are the source basename
+ * (`login-styles.test.ts` for `login-styles.ts`) or `<dir>-page.test.tsx` for a
+ * router `page.tsx` (`challenges-page.test.tsx` for `challenges/page.tsx`).
+ */
+function isOwnedTestCompanion(file, owned) {
+  const match = /^(apps\/(?:web|mobile)\/|packages\/shared\/src\/)__tests__\/(?:.+\/)?([^/]+)\.test\.tsx?$/.exec(file)
+  if (!match) return false
+  const workspace = match[1] === "packages/shared/src/" ? "packages/shared/" : match[1]
+  const stem = match[2]
+  for (const ownedFile of owned) {
+    if (!ownedFile.startsWith(workspace)) continue
+    const segments = ownedFile.split("/")
+    const base = segments[segments.length - 1].replace(/\.[jt]sx?$/, "")
+    if (base === stem) return true
+    if (base === "page" && `${(segments[segments.length - 2] ?? "").replace(/^\(|\)$/g, "")}-page` === stem) return true
+  }
+  return false
+}
+
 const USAGE = `check-diff-ownership - fail a run whose diff escaped its work order
 
 USAGE
@@ -79,8 +135,11 @@ USAGE
   --help, -h      This text.
 
 EXIT CODES
-  0  every changed file is owned, and no gate state was touched
-  1  the diff escaped its ownership, or touched gate state
+  0  every changed file is owned or structurally permitted (the suppression
+     ledgers, an owned file's test companion, the i18n pair), and no gate state
+     was touched
+  1  the diff escaped its ownership, touched gate state, or moved a suppression
+     count for a file it never edited
   2  bad invocation, or a work order that does not exist
 `
 
@@ -189,7 +248,9 @@ function main() {
   const changed = changedFiles(resolvedBase)
 
   const touchedGateState = changed.filter((file) => GATE_STATE.some((pattern) => pattern.test(file.replace(/\//g, "/"))))
-  const escaped = changed.filter((file) => !owned.has(file) && !touchedGateState.includes(file))
+  const structurallyPermitted = (file) =>
+    SUPPRESSION_FILES.includes(file) || I18N_PAIR.includes(file) || isOwnedTestCompanion(file, owned)
+  const escaped = changed.filter((file) => !owned.has(file) && !touchedGateState.includes(file) && !structurallyPermitted(file))
   const faked = fakedSuppressions(resolvedBase, changed)
 
   const label = explicitFiles ? `${owned.size} explicit file(s)` : ids.join(", ")
@@ -198,7 +259,7 @@ function main() {
   )
 
   if (!touchedGateState.length && !escaped.length && !faked.length) {
-    process.stdout.write("OK: every changed file is owned by this work order, and no gate state moved.\n")
+    process.stdout.write("OK: every changed file is owned by this work order or structurally permitted, and no gate state moved.\n")
     return
   }
 

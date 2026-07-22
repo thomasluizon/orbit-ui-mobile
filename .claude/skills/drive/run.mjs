@@ -27,11 +27,21 @@
  * PreToolUse hooks (git-guardrails blocks any push to main, force-push, --no-verify). Each task
  * works on its own branch off an up-to-date base and ends at a DRAFT PR. The driver never merges
  * and returns every repo to its base branch between tasks.
+ *
+ * A bundle that carries `workOrders` is additionally measured by the DRIVER after its child
+ * exits: `workorder --check --id` per order, and one `check-diff-ownership` run over the whole
+ * bundle's diff against the base sha the driver recorded when the bundle started. Before this,
+ * the only caller of either tool was a sentence in the child's own prompt - an instruction a
+ * model may skip is advisory, not enforcement, and a repo-wide grep found zero deterministic
+ * callers anywhere (no CI, no git hook, no settings). The verdicts ride into the task record,
+ * the run log and the verifier prompt, and a child that claims ready-for-review against a
+ * failing verdict is overridden to failed: the measurement wins over the claim.
  */
 import { spawnSync } from "node:child_process"
 import { readFileSync, writeFileSync, appendFileSync, mkdirSync, existsSync, rmSync } from "node:fs"
 import { join, resolve } from "node:path"
 import { createInterface } from "node:readline/promises"
+import { pathToFileURL } from "node:url"
 
 const DEFAULTS = {
   model: "opus",
@@ -179,7 +189,27 @@ function processIsAlive(pid) {
   }
 }
 
-function preflight(config, repos) {
+/**
+ * A queue entry with no prompt used to surface at RUNTIME as a quiet "skipped",
+ * which buried an entire hand-written queue: the documented fallback entry shape
+ * carried no prompt field, `--dry-run` said "Preflight passed", and the run then
+ * skipped 100% of its bundles. The prompt IS the task, so its absence is a
+ * preflight ERROR that names the entry. Exported so the check is testable
+ * against a fixture dir without spawning the engine.
+ */
+export function queuePromptProblems(queue, dir) {
+  const problems = []
+  for (const task of queue) {
+    const promptPath = join(dir, "prompts", `task-${task.id}.md`)
+    const hasInline = typeof task.prompt === "string" && task.prompt.trim() !== ""
+    if (!existsSync(promptPath) && !hasInline) {
+      problems.push(`task "${task.id}" has no prompt: neither ${promptPath} nor a non-empty "prompt" field. Generate it with tools/drive-queue.mjs, or add a prompt to the entry.`)
+    }
+  }
+  return problems
+}
+
+function preflight(config, repos, queue, dir) {
   const problems = []
   const version = spawnSync("claude", ["--version"], { encoding: "utf8", env: childEnv() })
   if (version.status !== 0) problems.push("`claude` CLI is not runnable on PATH.")
@@ -195,6 +225,7 @@ function preflight(config, repos) {
     }
     if (!isClean(repoPath)) problems.push(`${repo.path} has uncommitted changes. Commit or stash before starting.`)
   }
+  problems.push(...queuePromptProblems(queue, dir))
   return problems
 }
 
@@ -233,6 +264,41 @@ function repoSideEffects(repoPath) {
     encoding: "utf8",
   })
   return { head, branch, pr: (pr.stdout || "").trim() || null }
+}
+
+function gateOutputTail(run) {
+  return `${run.stdout || ""}${run.stderr ? `\n${run.stderr}` : ""}`.trim().slice(-600)
+}
+
+/**
+ * The deterministic gates, run by the driver itself against what the child left
+ * behind. `workorder --check --id` answers per order (each order's own debt is
+ * its own verdict); `check-diff-ownership` runs ONCE with every id in the
+ * bundle, because the diff is bundle-wide and a per-order run would read the
+ * sibling orders' legitimate files as escapes. The base is the sha the driver
+ * recorded after resetting the repo, not anything the child reported.
+ */
+function measureGates(task, config, baseSha) {
+  const repoPath = resolve(config.repos[0].path)
+  const runTool = (tool, args) =>
+    spawnSync(process.execPath, [join(repoPath, "tools", tool), ...args], {
+      cwd: repoPath,
+      encoding: "utf8",
+      maxBuffer: 16 * 1024 * 1024,
+    })
+  const checks = []
+  for (const id of task.workOrders) {
+    const check = runTool("workorder.mjs", ["--check", "--id", id])
+    checks.push({ command: `workorder --check --id ${id}`, exit: check.status, tail: gateOutputTail(check) })
+  }
+  const idFlags = task.workOrders.flatMap((id) => ["--id", id])
+  const ownership = runTool("check-diff-ownership.mjs", baseSha ? [...idFlags, "--base", baseSha] : idFlags)
+  checks.push({
+    command: `check-diff-ownership ${task.workOrders.map((id) => `--id ${id}`).join(" ")}${baseSha ? ` --base ${baseSha.slice(0, 12)}` : ""}`,
+    exit: ownership.status,
+    tail: gateOutputTail(ownership),
+  })
+  return checks
 }
 
 function runTask(task, config, promptText, log) {
@@ -303,7 +369,7 @@ function runTask(task, config, promptText, log) {
  * (fresh context, only the diff + the acceptance criteria) — the structural reason a separate
  * grader outperforms self-critique. Read-only by allowlist; posture reinforced in the prompt.
  */
-function buildVerifyPrompt(task, promptText, prUrl) {
+function buildVerifyPrompt(task, promptText, prUrl, gateChecks) {
   // The UI clause used to demand a judge verdict of "transformed" and call anything
   // else UNMET. That judge was demoted to a defect detector after measuring 0/12
   // recall and passing a byte-identical surface twice, so the clause was asking the
@@ -324,6 +390,15 @@ function buildVerifyPrompt(task, promptText, prUrl) {
    Judge whether the enumerated work was done, not whether the result is beautiful. An implementer
    sentence like "looks good" or "vision-verify PASS" is not evidence of anything.\n`
     : ""
+  // The verifier used to be TOLD to run these tools, which handed enforcement
+  // back to a model's discretion - the same hole the driver-side measurement
+  // closes for the child. Now the driver's own verdicts are embedded, so the
+  // grader sees the measurement, not anyone's claim about it.
+  const gateClause = gateChecks?.length
+    ? `\nDRIVER-MEASURED GATE VERDICTS (the driver ran these itself after the implementer finished;
+they are measurements, not claims - weigh them over anything the implementer says):
+${gateChecks.map((gate) => `- ${gate.command} -> exit ${gate.exit}${gate.tail ? `\n  ${gate.tail.split("\n").join("\n  ")}` : ""}`).join("\n")}\n`
+    : ""
   return `You are an INDEPENDENT VERIFIER for an unattended overnight engineering run. You did
 NOT write this code and must not defer to any claim the implementer made — judge ONLY the
 artifact against the acceptance criteria below.
@@ -335,6 +410,7 @@ The implementer opened this draft PR: ${prUrl}
 Inspect the ACTUAL change, do not trust the summary:
 - \`gh pr diff ${prUrl}\` for the full diff (and the paired orbit-api PR if the task was cross-repo).
 - Read any file you need for surrounding context.
+${gateClause}
 
 Verify, specifically:
 1. Does the diff satisfy EVERY acceptance criterion above? Name any unmet one.
@@ -357,10 +433,10 @@ function buildVerifyArgs(config) {
 }
 
 /** Run the independent verifier over a task's draft PR and return its verdict. */
-function verifyTask(task, config, promptText, prUrl) {
+function verifyTask(task, config, promptText, prUrl, gateChecks) {
   const started = Date.now()
   const run = spawnSync("claude", buildVerifyArgs(config), {
-    input: buildVerifyPrompt(task, promptText, prUrl),
+    input: buildVerifyPrompt(task, promptText, prUrl, gateChecks),
     cwd: resolve(config.repos[0].path),
     env: childEnv(),
     encoding: "utf8",
@@ -434,11 +510,14 @@ async function main() {
     return
   }
 
-  const problems = preflight(config, config.repos)
+  const problems = preflight(config, config.repos, queue, dir)
   if (problems.length) {
     log("PREFLIGHT FAILED:")
     for (const p of problems) log(`  - ${p}`)
     log("Aborting before any task ran.")
+    // An aborted run that exits 0 reads as success to any caller checking the
+    // code, which is the fail-open shape the whole harness forbids.
+    process.exitCode = 1
     return
   }
   if (opts.dryRun) {
@@ -488,6 +567,9 @@ async function main() {
     log(`--- task [${task.id}] ${task.label} ---`)
     resetReposToBase(config.repos, log, previousTaskId)
     previousTaskId = task.id
+    // The base every gate measures against: the work repo's sha right after the
+    // reset, recorded by the driver so no child report can move it.
+    const bundleBaseSha = git(resolve(config.repos[0].path), ["rev-parse", "HEAD"]).stdout.trim()
 
     const promptPath = join(dir, "prompts", `task-${task.id}.md`)
     const promptText = (() => {
@@ -498,9 +580,17 @@ async function main() {
       }
     })()
     if (!promptText.trim()) {
-      log(`  no prompt for task ${task.id}; skipping.`)
-      results.push({ id: task.id, label: task.label, status: "skipped", pr: null, summary: "missing prompt" })
+      // Preflight already errors on this shape; reaching it here means the
+      // prompt vanished mid-run. That is a FAILURE that feeds the circuit
+      // breaker, never a quiet skip - a skip once buried a whole queue.
+      log(`  no prompt for task ${task.id}; recording FAILED.`)
+      results.push({ id: task.id, label: task.label, status: "failed", pr: null, summary: "missing prompt" })
       writeStatus()
+      consecutiveFailures += 1
+      if (consecutiveFailures >= config.maxConsecutiveFailures) {
+        log(`Circuit breaker: ${consecutiveFailures} consecutive hard failures. Halting rather than burning the rest of the night.`)
+        break
+      }
       continue
     }
 
@@ -523,28 +613,44 @@ async function main() {
 
     const outcome = runTask(task, config, promptText, log)
     const record = { id: task.id, label: task.label, ...outcome }
+    if (Array.isArray(task.workOrders) && task.workOrders.length) {
+      record.gates = measureGates(task, config, bundleBaseSha)
+      for (const gate of record.gates) {
+        log(`  gate: ${gate.command} -> exit ${gate.exit}`)
+        for (const line of gate.tail ? gate.tail.split("\n") : []) log(`    ${line}`)
+      }
+      const failedGates = record.gates.filter((gate) => gate.exit !== 0)
+      // ready-for-review (and the stronger "done") is a CLAIM; the gates are a
+      // measurement. When they disagree, the measurement wins.
+      if (failedGates.length && COMPLETED_STATUSES.has(record.status)) {
+        record.claimedStatus = record.status
+        record.status = "failed"
+        record.summary = `gate-contradicted: child claimed ${record.claimedStatus} but ${failedGates.map((gate) => gate.command).join("; ")} failed`
+        log(`  GATE-CONTRADICTED: overriding claimed ${record.claimedStatus} to failed.`)
+      }
+    }
     results.push(record)
-    log(`  status=${outcome.status} pr=${outcome.pr || "-"} (${Math.round(outcome.elapsedMs / 1000)}s)`)
-    if (outcome.summary) log(`  summary: ${outcome.summary}`)
+    log(`  status=${record.status} pr=${record.pr || "-"} (${Math.round(record.elapsedMs / 1000)}s)`)
+    if (record.summary) log(`  summary: ${record.summary}`)
 
-    if (config.verify && !opts.attended && outcome.pr && SUCCESS_STATUSES.has(outcome.status)) {
+    if (config.verify && !opts.attended && record.pr && SUCCESS_STATUSES.has(record.status)) {
       log(`  verifying [${task.id}] against acceptance criteria (independent ${config.verifyModel})...`)
-      const verdict = verifyTask(task, config, promptText, outcome.pr)
+      const verdict = verifyTask(task, config, promptText, record.pr, record.gates)
       record.verdict = verdict.verdict
       record.verifyReasons = verdict.reasons
-      if (config.push) postVerdictComment(outcome.pr, verdict, log)
+      if (config.push) postVerdictComment(record.pr, verdict, log)
       log(`  verifier=${verdict.verdict} criteriaMet=${verdict.criteriaMet} parityOk=${verdict.parityOk}`)
       if (verdict.lesson) lessons.push({ id: task.id, label: task.label, source: "verifier", text: verdict.lesson })
     }
-    if (outcome.status === "blocked" || outcome.status === "failed") {
-      lessons.push({ id: task.id, label: task.label, source: outcome.status, text: outcome.summary || outcome.raw || "(no detail)" })
+    if (record.status === "blocked" || record.status === "failed") {
+      lessons.push({ id: task.id, label: task.label, source: record.status, text: record.summary || record.raw || "(no detail)" })
     }
 
     writeFileSync(join(runDir, `task-${task.id}.json`), JSON.stringify(record, null, 2))
     writeStatus()
 
     if (opts.attended) {
-      const ans = await ask(`  -> ${outcome.status}${outcome.pr ? " " + outcome.pr : ""} — review the draft PR, then: continue to next bundle? [continue / stop] `)
+      const ans = await ask(`  -> ${record.status}${record.pr ? " " + record.pr : ""} - review the draft PR, then: continue to next bundle? [continue / stop] `)
       if (ans === "stop" || ans === "s") {
         log("Stopped by user after review.")
         break
@@ -552,7 +658,7 @@ async function main() {
       continue
     }
 
-    const hardFailure = outcome.status === "failed" || outcome.status === "unknown"
+    const hardFailure = record.status === "failed" || record.status === "unknown"
     consecutiveFailures = hardFailure ? consecutiveFailures + 1 : 0
     if (consecutiveFailures >= config.maxConsecutiveFailures) {
       log(`Circuit breaker: ${consecutiveFailures} consecutive hard failures. Halting rather than burning the rest of the night.`)
@@ -598,7 +704,15 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error(err)
-  process.exitCode = 1
-})
+// Importable for hermetic tests (test-hooks drives queuePromptProblems against a
+// fixture dir); only a direct `node run.mjs` invocation starts the engine. The
+// comparison is case-insensitive because Windows reports the drive letter in
+// either case depending on how the process was launched.
+const invokedDirectly =
+  process.argv[1] && import.meta.url.toLowerCase() === pathToFileURL(resolve(process.argv[1])).href.toLowerCase()
+if (invokedDirectly) {
+  main().catch((err) => {
+    console.error(err)
+    process.exitCode = 1
+  })
+}
