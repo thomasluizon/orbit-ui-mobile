@@ -79,6 +79,8 @@ Parse `$ARGUMENTS`. Strip `--sleep` first (it selects Phase B's unattended path)
    This is what stops the child rediscovering its own file list, and it is the single largest measured cost in the whole loop (orientation 36.6% of actions, editing 5.6%). The plan's `## Files to Change` becomes a checkable ownership boundary, and `tools/check-diff-ownership.mjs` enforces it afterwards.
 
    If the tool reports that globs were **not** granted as ownership (`apps/web/**`), fix the PLAN: name the real files. A glob is not a boundary, and an agent handed one has no way to know when it has left its lane. The tool also REFUSES (exit 2) a plan whose id or files collide with an existing work order's exclusive ownership - narrow the plan, or route the visual work through the owning surface's own order. A visual epic skips this step because `node tools/workorder.mjs` already derives the manifest work orders; their live count is the first lines of `.claude/workorders/INDEX.md`, never hardcoded here, because it moves whenever a surface id folds into its primary owner or residual debt clears.
+
+   **Plans are COMMITTED alongside the work orders they source** (`.claude/plans/*.plan.md` is un-ignored for exactly this; the rest of `.claude/plans/` stays local). The committed order's `generatedFrom` frontmatter points at the plan, so a checkout without the plan file has a bundle whose contract - its Tier, its acceptance criteria, its whole Backlog B - cannot be read: drive-queue falls back to opus with a warning, and the child's Goal points at a file that does not exist. Commit the plan in the same commit as its work order.
 7. **Write the spec** (below), all bundles `todo`, `next-action: "/drive <N>"`.
 8. **GATE — approve the bundle plan.** Show the bundle table (id · scope · tier · PR-count) + sequencing. Wait for `approve` / `edit <note>` / `abort`. Default-deny: no or ambiguous response → restate and wait. NOTHING runs without an explicit approve.
 9. **Generate the driver artifacts** (the Phase B handoff) into `.claude/drive/` (gitignored runtime dir): `config.json` (from `config.example.json` in this folder — set timeouts, `repos`, `addDirs`), then **generate the queue and the prompts; do not write them by hand**:
@@ -147,14 +149,23 @@ it built. The generated prompt asks for three things a machine can actually chec
 | condition | checked by |
 |---|---|
 | the bundle's enumerated violations are cleared | `node tools/workorder.mjs --check --id <id>`, once per work order in the bundle (the global `--check` stays out of the child's conditions: it cannot pass while OTHER bundles still carry debt) |
-| the diff stayed inside the bundle's owned files plus the structurally permitted classes (the suppressions ledgers, an owned file's test companion, the i18n pair), and no gate state moved | `node tools/check-diff-ownership.mjs --id <id> ...` (every id in the bundle, one run) |
+| the diff stayed inside the bundle's owned files plus the structurally permitted classes (the suppressions ledgers, an owned file's test companion, the i18n pair), and no gate state moved | `node tools/check-diff-ownership.mjs --id <id> ... --base <sha>` (every id in the bundle, one run). The `--base` is PINNED: the generated prompt carries a `{{DRIVE_BASE}}` placeholder the driver substitutes at spawn with the sha the bundle branched from - unpinned, the gate resolves a base that predates the work orders and exits 2 for honest work, and `--base HEAD` after committing measures an empty diff. The engine hard-fails a pinned prompt it cannot fill, and its preflight rejects a workOrders bundle whose prompt lacks the placeholder. |
 | each touched work order carries a new Timeline entry | the work order file's diff |
 
-The prompt's parity rule follows the bundle kind. A plan bundle owns its cross-platform files from
-the plan and does full parity in-bundle, i18n pairs included. A manifest (visual-conformance)
+The prompt's parity rule follows the bundle kind. A plan bundle's parity is scoped to the files
+the plan itself owns: a plan whose "Files to Change" spans both platforms does full parity
+in-bundle; one that names only one platform shipped with a parity gap, and the child STOPs on the
+mirror work, records the gap in the Timeline as a planning defect, and never edits unowned mirror
+files - the ownership gate reads any such edit as an escape. A manifest (visual-conformance)
 bundle does NOT edit the other platform's mirror files - the mirror surface has its own work order
 and possibly its own agent right now - so when a fix genuinely requires an unowned mirror edit the
 child STOPs and records it in the Timeline. i18n pair edits are permitted for both kinds.
+
+The prompt's final pre-commit step is a full `node tools/workorder.mjs` regeneration, committed
+with the work: clearing debt moves the order's `mechanicalDebt` frontmatter, CI's ledger-freshness
+gate asserts the committed orders byte-equal a fresh regeneration, and the ownership gate
+sanctions a work-order rewrite only when it IS byte-identical regeneration output with every
+recorded Timeline entry intact. The ledger is derived state; the child never hand-edits it.
 
 Meeting all three makes a bundle **`ready-for-review`**. There is deliberately no `done` status a
 child can return for visual work: completion is granted only by a human tick in
@@ -172,7 +183,7 @@ Tier and effort still come from the queue entry, not the prompt.
 
 The engine is **`.claude/skills/drive/run.mjs`**; its runtime dir is **`.claude/drive/`** (config / queue / prompts / runs — gitignored). It spawns one fresh `claude -p` per bundle (clean context each time), routes each to its tier model + effort, resets every repo to its base between bundles, and stops each bundle at a PR ready for review.
 
-**Preflight (dry run):** `node .claude/skills/drive/run.mjs --dry-run` - verifies `claude` is runnable, `gh` is authenticated (if `push`), every repo is a clean tree on its base branch, and every queue entry has a prompt (a promptless entry is a preflight ERROR that names the entry, not a runtime skip), then lists the bundles it would run. A failed preflight exits 1. Fix anything it flags (usually a dirty tree) before launching.
+**Preflight (dry run):** `node .claude/skills/drive/run.mjs --dry-run` - verifies `claude` is runnable, `gh` is authenticated (if `push`), every repo is a clean tree on its base branch, every queue entry has a prompt (a promptless entry is a preflight ERROR that names the entry, not a runtime skip), and every bundle carrying work orders pins its ownership base (its prompt contains the `{{DRIVE_BASE}}` placeholder the driver fills at spawn - a missing pin is a preflight ERROR), then lists the bundles it would run. A failed preflight exits 1. Fix anything it flags (usually a dirty tree) before launching.
 
 **GATE - present the plan and STOP before launching:** the ordered bundle list (id · label · tier), the **per-bundle timeout** and the consecutive-failure circuit breaker, the permission posture (`bypassPermissions`; `git-guardrails` + branch-per-bundle + the timeout are the real guardrails), the push/PR note (PRs open ready for review, so CI + review bots run on them), and - for `--sleep` - the verifier (independent Sonnet; `drive-queue.mjs` sets `"ui"` from the bundle's kind - manifest bundles true, plan bundles false - so only visual bundles are reviewed against `DESIGN.md`). Wait for "go".
 
@@ -198,7 +209,7 @@ No gates; the independent verifier grades each PR. The machine must stay awake (
 
 ## Resume (fresh session — the same `/drive <N>`)
 
-Read the spec; reconcile every non-`todo` bundle against `gh` (PR merged → `done`; PR open → keep; branch, no PR → `in-progress`; nothing → back to `todo`); regenerate the queue for the remaining bundles; relaunch the driver. `/clear` is never required (Phase B accrued no context) — this path exists for when you closed the terminal or the machine.
+Read the spec; reconcile every non-`todo` bundle against `gh` (PR merged → `done`; PR open → keep; branch, no PR → `in-progress`; nothing → back to `todo`); regenerate the queue for the remaining bundles; relaunch the driver. Bundle ids are content-derived (platform-kind plus a stable hash of the bundle's sorted work-order ids), so a regeneration re-keys a bundle only when its membership actually changed: run logs, spec rows and operator notes written before the resume keep naming the same work, and a changed id is itself a signal that the bundle's composition moved. Stale prompts for ids the new queue no longer contains are swept by the write. `/clear` is never required (Phase B accrued no context) - this path exists for when you closed the terminal or the machine.
 
 ## Fit gate (for `--sleep` — exclude non-slices)
 

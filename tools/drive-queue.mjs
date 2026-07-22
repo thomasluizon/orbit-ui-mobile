@@ -25,7 +25,8 @@
  * it deliberately stops short of granting completion: a bundle reaches READY FOR
  * REVIEW, never DONE. Only a human tick in signoff.json grants a cell.
  */
-import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from "node:fs"
+import { createHash } from "node:crypto"
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, rmSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -150,11 +151,21 @@ function planTierOf(order) {
   const source = order.generatedFrom
   if (source) {
     const path = resolve(REPO_ROOT, source)
-    if (existsSync(path)) {
-      const text = readFileSync(path, "utf8")
-      const match = /^\|\s*Tier\s*\|\s*(sonnet|opus)\s*\|/im.exec(text) ?? /^Tier:\s*(sonnet|opus)\s*$/im.exec(text)
-      if (match) return match[1].toLowerCase()
+    if (!existsSync(path)) {
+      // A missing plan file is a different failure from a plan missing its Tier
+      // field: plans are committed alongside the work orders they source, so an
+      // absent file means this checkout lost the bundle's contract, not that
+      // /plan forgot a field. The old message blamed the field either way, and
+      // an operator on a fresh checkout hunted the wrong bug.
+      process.stderr.write(
+        `drive-queue: plan "${order.id}"'s source file ${source} is missing from this checkout ` +
+          `(plans are committed next to their work orders - restore it); defaulting to opus.\n`,
+      )
+      return "opus"
     }
+    const text = readFileSync(path, "utf8")
+    const match = /^\|\s*Tier\s*\|\s*(sonnet|opus)\s*\|/im.exec(text) ?? /^Tier:\s*(sonnet|opus)\s*$/im.exec(text)
+    if (match) return match[1].toLowerCase()
   }
   process.stderr.write(`drive-queue: plan "${order.id}" has no Tier field in ${source || "(no generatedFrom in its work order)"}; defaulting to opus.\n`)
   return "opus"
@@ -228,11 +239,22 @@ function bundle(orders, limits) {
   // be hardcoded true for every bundle - a 2-file packages/shared plan bundle
   // got graded as UI work. Kind decides it now: every manifest-derived kind
   // (route, view, overlay, residual) is visual by construction; plan is not.
+  //
+  // The id is derived from the bundle's CONTENT (platform-kind plus a short
+  // hash of its sorted work-order ids), never from its position: positional
+  // ids (`web-residual-02` = second-most debt globally) re-keyed EVERY bundle
+  // whenever any debt moved, so after the documented mid-campaign queue
+  // regeneration, run logs and spec rows written before it silently named
+  // different work orders than the same id did after. A stable id re-keys only
+  // when the bundle's membership genuinely changed.
   const manifestBundles = bundles
     .filter((entry) => entry.orders.length)
     .sort((a, b) => b.debt - a.debt)
-    .map((entry, index) => ({
-      id: `${entry.key}-${String(index + 1).padStart(2, "0")}`,
+    .map((entry) => ({
+      id: `${entry.key}-${createHash("sha256")
+        .update([...entry.orders.map((order) => order.id)].sort().join("\n"))
+        .digest("hex")
+        .slice(0, 8)}`,
       label: `${entry.orders.length} ${entry.key} work order(s), ${entry.debt} mechanical violation(s), ${entry.files} owned file(s)`,
       repo: "orbit-ui-mobile",
       tier: entry.debt > 25 || entry.files > 10 ? "opus" : "sonnet",
@@ -255,15 +277,28 @@ function bundle(orders, limits) {
  * class ordered here (owned files, their test companions, the suppressions
  * ledger, the i18n pair, the work order's Timeline) is asserted against the
  * real check-diff-ownership permitted set.
+ *
+ * Condition (b) is PINNED through the {{DRIVE_BASE}} placeholder, because this
+ * tool cannot know the run base at generation time and only the driver knows
+ * the sha it just reset the work repo to. Unpinned, the gate's own resolution
+ * lands on a merge-base that predates every work order in this deployment
+ * (exit 2 for honest work), while a child improvising --base HEAD after
+ * committing measures an empty diff (a vacuous green). run.mjs substitutes the
+ * placeholder at spawn and hard-fails a prompt it cannot pin; its preflight
+ * rejects a workOrders bundle whose prompt lacks the placeholder.
  */
 function renderPrompt(entry) {
   const ids = entry.workOrders
   const isPlan = entry.kind === "plan"
   const parityRule = isPlan
-    ? `4. Work Backlog B and the source plan's acceptance criteria with the plan open. Cross-platform
-   parity is MANDATORY and yours to do IN THIS BUNDLE: the plan's owned files are your boundary
-   across BOTH platforms, so a web change lands in apps/mobile too and vice versa, and i18n keys
-   land in BOTH en.json and pt-BR.json in the same edit.`
+    ? `4. Work Backlog B and the source plan's acceptance criteria with the plan open. Parity is
+   scoped to the files the plan itself owns: if its "Files to Change" names BOTH platforms,
+   full cross-platform parity is yours to do IN THIS BUNDLE. If it names only one platform,
+   the plan shipped with a parity gap - STOP on the mirror work, record the gap in the
+   Timeline as a planning defect, and do NOT edit mirror files you do not own: the ownership
+   gate reads any such edit as an escape, and obeying a parity order it forbids is how a
+   prompt fails its own gate. The i18n pair is still yours either way: keys land in BOTH
+   en.json and pt-BR.json in the same edit.`
     : `4. Work Backlog B (the judgement list) with DESIGN.md open. Do NOT edit the other platform's
    mirror files: the mirror surface has its own work order, and possibly its own agent running
    right now. If a fix genuinely requires an edit to a mirror file you do not own, STOP on that
@@ -316,11 +351,14 @@ RULES OF ENGAGEMENT
    If the fix you need lives in a shared file, do NOT edit it - record that in the Timeline
    and say so in your summary. That is a useful result, not a failure.
 3. Clear Backlog A (the enumerated violations) by fixing the SOURCE, then run
-   \`npm run lint:prune\` in the affected workspace. The rewrite it makes to
-   eslint-suppressions.json is PERMITTED: the ledger is workspace-global, and the ownership
-   gate expects it to move when files you edited improve. What stays detected and fatal is a
-   count that falls for a file this diff never edited - that is the scoreboard moving without
-   the code, and it reads as fabrication.
+   \`npm run lint:prune\` in the workspace that carries the ledger: apps/web and apps/mobile
+   are the ONLY workspaces with that script. A bundle owning only packages/shared files
+   skips the prune step - the suppression scan covers apps/web and apps/mobile alone, so
+   its Backlog A is zero by construction and there is no ledger to prune there. The rewrite
+   lint:prune makes to eslint-suppressions.json is PERMITTED: the ledger is
+   workspace-global, and the ownership gate expects it to move when files you edited
+   improve. What stays detected and fatal is a count that falls for a file this diff
+   never edited - that is the scoreboard moving without the code, and it reads as fabrication.
    COUNTING these is objective; FIXING them is not. \`local/spacing-scale\` autofixes only a
    within-1px snap and refuses the rest on purpose, because moving a 6px gap to 4 changes the
    layout. Measured on this repo: \`eslint --fix\` over a 30-violation file changed zero lines.
@@ -336,14 +374,25 @@ ${parityRule}
    \`packages/shared/src/__tests__/\`), named \`<source-basename>.test.ts\` / \`.tsx\`, or
    \`<dir>-page.test.tsx\` for a router \`page.tsx\`. A test for a file you do not own
    belongs to whoever owns that file - do not write it.
-7. Commit, push, and open a PR READY FOR REVIEW with \`gh pr create\` (never --draft, so CI
+7. LAST, before you commit: run \`node tools/workorder.mjs\` (the full regeneration) and
+   commit its diff together with the work. Clearing debt moves your work order's
+   mechanicalDebt frontmatter, and CI's ledger-freshness gate asserts the committed orders
+   byte-equal a fresh regeneration. The ledger is DERIVED state: the ownership gate
+   sanctions a work-order rewrite ONLY when it is byte-identical regeneration output with
+   every recorded Timeline entry intact, so never hand-edit what the generator writes.
+8. Commit, push, and open a PR READY FOR REVIEW with \`gh pr create\` (never --draft, so CI
    and the review bots run).
 ${depthParagraph}
 DEFINITION OF DONE - three machine-checkable conditions, and nothing else:
   a. EACH of these exits 0 (per order; the global \`--check\` form covers bundles that are
      not yours and can stay red while your work is complete, so it is not your condition):
 ${ids.map((id) => `       node tools/workorder.mjs --check --id '${id}'`).join("\n")}
-  b. \`node tools/check-diff-ownership.mjs ${ids.map((id) => `--id '${id}'`).join(" ")}\` exits 0.
+  b. The ownership gate, pinned to the commit this bundle branched from. The --base value
+     below is stamped in by the driver at spawn; running the command by hand, substitute
+     that branch-point sha yourself - never HEAD, whose committed diff is empty by
+     construction, and never an unpinned run, which resolves a base that may predate your
+     work orders entirely.
+     \`node tools/check-diff-ownership.mjs ${ids.map((id) => `--id '${id}'`).join(" ")} --base {{DRIVE_BASE}}\` exits 0.
   c. Each touched work order has your new Timeline entry.
 Then lint, type-check and the tests pass.
 
@@ -415,6 +464,17 @@ function main() {
   mkdirSync(join(DRIVE_DIR, "prompts"), { recursive: true })
   writeFileSync(join(DRIVE_DIR, "queue.json"), `${JSON.stringify(queue, null, 2)}\n`)
   for (const entry of queue) writeFileSync(join(DRIVE_DIR, "prompts", `task-${entry.id}.md`), renderPrompt(entry))
+  // A stale prompt is a same-format file with a current-looking name: this loop
+  // only ever added, so three writes left 81 prompt files for a 50-entry queue,
+  // and a resumed operator could hand a child a bundle the queue no longer
+  // contains. Prompts are derived from queue.json alone, so any task-*.md the
+  // current queue does not name is swept with the write.
+  const currentPrompts = new Set(queue.map((entry) => `task-${entry.id}.md`))
+  for (const name of readdirSync(join(DRIVE_DIR, "prompts"))) {
+    if (name.startsWith("task-") && name.endsWith(".md") && !currentPrompts.has(name)) {
+      rmSync(join(DRIVE_DIR, "prompts", name))
+    }
+  }
   process.stdout.write(`written: .claude/drive/queue.json and ${queue.length} prompt(s)\n`)
 }
 

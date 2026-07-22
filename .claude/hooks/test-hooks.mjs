@@ -883,7 +883,10 @@ function buildWorkorderFixture(name, { cells, suppressions = null } = {}) {
   git("config", "user.name", "t")
   git("add", "-A")
   git("commit", "-qm", "baseline")
-  if (suppressions) writeFileSync(join(fixtureRoot, "apps", "web", "eslint-suppressions.json"), JSON.stringify(suppressions))
+  // The apps/web workspace exists in every fixture and a missing ledger is a
+  // hard exit 2 (a deleted ledger read as zero debt once), so a healthy
+  // fixture always carries one - empty when the test declares no debt.
+  writeFileSync(join(fixtureRoot, "apps", "web", "eslint-suppressions.json"), JSON.stringify(suppressions ?? {}))
   writeFileSync(
     join(fixtureRoot, ".claude", "manifests", "surfaces.json"),
     JSON.stringify({ generatedFrom: "test", baselineRef: "HEAD", baselineSha: "HEAD", cells }),
@@ -1015,11 +1018,95 @@ const clearedResidual = runWorkorder(woGuard, ["--check", "--id", "residual-web-
 T("workorder: a fully-cleared residual's done command exits 0", clearedResidual.status, 0)
 T("workorder: ...with the honest swept-on-next-regeneration note", /no longer derives/.test(clearedResidual.stdout) && /sweep/.test(clearedResidual.stdout), true)
 T("workorder: an unknown id still exits 2", runWorkorder(woGuard, ["--check", "--id", "no-such-order"]).status, 2)
-// The fallback reads Boundaries off the child-writable .md, so pin the
-// anti-gaming property: annexing files into Boundaries can only ADD debt.
+// The fallback reads Boundaries off the child-writable .md for an UNCOMMITTED
+// order (this one is untracked), so pin the anti-gaming property that remains
+// there: annexing files into Boundaries can only ADD debt.
 writeFileSync(residualPath, residualBody.replace("- `apps/web/app/shared.ts`", "- `apps/web/app/shared.ts`\n- `apps/web/app/page.tsx`"))
 const annexed = runWorkorder(woGuard, ["--check", "--id", "residual-web-app"])
 T("workorder: annexing a debt-carrying file into the cleared order exits 1", annexed.status, 1)
+
+// ---------------------------------------------------------------------------
+// workorder round 2. Each property shipped broken once: a plan naming a
+// residual-owned file granted the same file exclusively to two parallel-queued
+// bundles, deleting a Boundaries line from the child-writable working copy hid
+// real debt behind exit 0, `rm eslint-suppressions.json` wiped every recorded
+// web violation as a false green through both driver gates, condition (b)
+// printed a literal unfilled `<id>`, and "(no work recorded on this surface
+// yet)" survived every regeneration directly above recorded work.
+// ---------------------------------------------------------------------------
+console.log("\n# workorder round 2 (residual ownership, HEAD trust, ledger fail-closed)")
+
+// The residual partition is an exclusive owner at --from-plan time.
+const woResidualGuard = buildWorkorderFixture("residualguard", {
+  cells: [workorderCell("r-cal", "apps/web/app/page.tsx")],
+  suppressions: { "app/shared-styles.ts": { "local/spacing-scale": { count: 4 } } },
+})
+mkdirSync(join(woResidualGuard, ".claude", "plans"), { recursive: true })
+writeFileSync(join(woResidualGuard, ".claude", "plans", "grab.plan.md"), "# Plan\n\n## Files to Change\n\n- EDIT `apps/web/app/shared-styles.ts`\n")
+const residualRefusal = runWorkorder(woResidualGuard, ["--from-plan", ".claude/plans/grab.plan.md"])
+T("workorder: --from-plan refuses a residual-owned file (exit 2)", residualRefusal.status, 2)
+T("workorder: ...naming the owning residual group", /residual-web-app/.test(residualRefusal.stderr), true)
+T("workorder: ...and the remediation", /Clear that debt through the residual order/.test(residualRefusal.stderr), true)
+T("workorder: ...and the refusal writes nothing", existsSync(join(woResidualGuard, ".claude", "workorders", "grab.md")), false)
+
+// The definition of done prints real ids, and pins the --base to the bundle
+// prompt instead of baking a sha regeneration would churn.
+runWorkorder(woResidualGuard)
+const dodBody = readFileSync(join(woResidualGuard, ".claude", "workorders", "r-cal.md"), "utf8")
+T("workorder: DoD condition (b) carries the real single-quoted id", dodBody.includes("check-diff-ownership.mjs --id 'r-cal'"), true)
+T("workorder: no DoD line prints an unfilled <id> placeholder", /--id <id>/.test(dodBody), false)
+T("workorder: DoD condition (b) points at the bundle prompt for the --base pin", /bundle prompt/.test(dodBody) && /--base/.test(dodBody), true)
+T("workorder: the work order bakes no base sha", /--base ['"`]?[0-9a-f]{7,40}\b/.test(dodBody), false)
+
+// The --check --id fallback's Boundaries come from HEAD, so a child deleting a
+// line from the working copy hides nothing; an uncommitted plan order (absent
+// at HEAD) stays answerable from the working tree.
+const woHeadTrust = buildWorkorderFixture("headtrust", { cells: [workorderCell("r-cal", "apps/web/app/page.tsx")] })
+mkdirSync(join(woHeadTrust, ".claude", "plans"), { recursive: true })
+writeFileSync(join(woHeadTrust, ".claude", "plans", "issue-42.plan.md"), "# Plan\n\n## Files to Change\n\n- EDIT `apps/web/lib/notify.ts`\n")
+T("workorder: --from-plan on a debt-free file passes with the residual guard live", runWorkorder(woHeadTrust, ["--from-plan", ".claude/plans/issue-42.plan.md"]).status, 0)
+T("workorder: an uncommitted plan order still answers --check --id (working tree)", runWorkorder(woHeadTrust, ["--check", "--id", "issue-42"]).status, 0)
+T("workorder: same-plan --from-plan re-run stays exit 0 with the residual guard", runWorkorder(woHeadTrust, ["--from-plan", ".claude/plans/issue-42.plan.md"]).status, 0)
+const headTrustGit = (...args) => spawnSync("git", args, { cwd: woHeadTrust, encoding: "utf8" })
+headTrustGit("add", "-A")
+headTrustGit("commit", "-qm", "plan order committed")
+// Debt lands on the plan's file after the order is committed (the lint:prune
+// shape): the verdict must count it...
+writeFileSync(join(woHeadTrust, "apps", "web", "eslint-suppressions.json"), JSON.stringify({ "lib/notify.ts": { "local/spacing-scale": { count: 2 } } }))
+T("workorder: a committed plan order's --check --id counts its file's debt", runWorkorder(woHeadTrust, ["--check", "--id", "issue-42"]).status, 1)
+// ...and stripping the Boundaries line from the child-writable working copy
+// must not zero it: HEAD is the trust root.
+const headTrustOrder = join(woHeadTrust, ".claude", "workorders", "issue-42.md")
+writeFileSync(headTrustOrder, readFileSync(headTrustOrder, "utf8").replace("- `apps/web/lib/notify.ts`\n", ""))
+T("workorder: deleting a working-tree Boundaries line hides no debt", runWorkorder(woHeadTrust, ["--check", "--id", "issue-42"]).status, 1)
+
+// The "(no work recorded...)" placeholder is presentation, not history: it
+// must vanish once real work is recorded, and only then.
+const woPlaceholder = buildWorkorderFixture("placeholder", { cells: [workorderCell("r-cal", "apps/web/app/page.tsx")] })
+runWorkorder(woPlaceholder)
+const placeholderPath = join(woPlaceholder, ".claude", "workorders", "r-cal.md")
+T("workorder: a fresh order shows the no-work placeholder", /\(no work recorded on this surface yet\)/.test(readFileSync(placeholderPath, "utf8")), true)
+writeFileSync(placeholderPath, readFileSync(placeholderPath, "utf8") + "- 2026-07-22 probe: first real entry\n")
+runWorkorder(woPlaceholder)
+const regeneratedTimeline = readFileSync(placeholderPath, "utf8")
+T("workorder: regeneration keeps the real Timeline entry", /first real entry/.test(regeneratedTimeline), true)
+T("workorder: ...and drops the placeholder above it", /\(no work recorded/.test(regeneratedTimeline), false)
+
+// The ledger fails closed: a deleted or unparseable baseline for a workspace
+// that exists on disk must never read as zero debt, in any mode.
+const woLedger = buildWorkorderFixture("ledger", {
+  cells: [workorderCell("r-cal", "apps/web/app/page.tsx")],
+  suppressions: { "app/page.tsx": { "local/spacing-scale": { count: 3 } } },
+})
+runWorkorder(woLedger)
+rmSync(join(woLedger, "apps", "web", "eslint-suppressions.json"))
+T("workorder: a deleted ledger fails generation closed (exit 2)", runWorkorder(woLedger).status, 2)
+const ledgerMissing = runWorkorder(woLedger, ["--check"])
+T("workorder: a deleted ledger fails --check closed, never zero debt", ledgerMissing.status, 2)
+T("workorder: ...naming the file and the sanctioned WORKSPACES retirement", /apps\/web\/eslint-suppressions\.json/.test(ledgerMissing.stderr) && /WORKSPACES/.test(ledgerMissing.stderr), true)
+T("workorder: a deleted ledger fails --check --id closed too", runWorkorder(woLedger, ["--check", "--id", "r-cal"]).status, 2)
+writeFileSync(join(woLedger, "apps", "web", "eslint-suppressions.json"), "not json {")
+T("workorder: an unparseable ledger is exit 2, never zero debt", runWorkorder(woLedger, ["--check", "--id", "r-cal"]).status, 2)
 
 // ---------------------------------------------------------------------------
 // check-diff-ownership gate. The property under test is d4's fix: the generated
@@ -1261,6 +1348,119 @@ const runOwnershipNoBase = (fixtureRoot, args) =>
 }
 
 // ---------------------------------------------------------------------------
+// ownership ledger fail-closed. One `rm apps/web/eslint-suppressions.json`
+// wiped every recorded web violation and passed this gate as a clean exit 0:
+// the deletion was structurally permitted (SUPPRESSION_FILES) and the ENOENT
+// in fakedSuppressions was swallowed by its catch. The scoreboard cannot
+// vanish mid-run: a ledger that existed at base but is missing or unparseable
+// in the working tree is an explicit exit 1, never a skip.
+// ---------------------------------------------------------------------------
+console.log("\n# check-diff-ownership ledger fail-closed")
+{
+  const { fixtureRoot } = buildOwnershipFixture("ledgergone")
+  rmSync(join(fixtureRoot, "apps", "mobile", "eslint-suppressions.json"))
+  const verdict = runOwnership(fixtureRoot, ["--id", "wo-login"])
+  T("ownership: a deleted suppressions ledger exits 1, never a skip", verdict.status, 1)
+  T("ownership: ...saying the scoreboard cannot vanish mid-run", /cannot vanish/.test(verdict.stderr), true)
+}
+{
+  const { fixtureRoot, fixWrite } = buildOwnershipFixture("ledgergarbage")
+  fixWrite("apps/mobile/eslint-suppressions.json", "not json {")
+  T("ownership: an unparseable ledger exits 1", runOwnership(fixtureRoot, ["--id", "wo-login"]).status, 1)
+}
+{
+  // The committed variant: `git rm` + commit is the same vanish through git.
+  const { fixtureRoot } = buildOwnershipFixture("ledgercommit")
+  const sha = ownershipGit(fixtureRoot, "rev-parse", "HEAD").stdout.trim()
+  rmSync(join(fixtureRoot, "apps", "mobile", "eslint-suppressions.json"))
+  ownershipGit(fixtureRoot, "add", "-A")
+  ownershipGit(fixtureRoot, "commit", "-qm", "delete the scoreboard")
+  T("ownership: a COMMITTED ledger deletion exits 1 the same way", runOwnershipNoBase(fixtureRoot, ["--id", "wo-login", "--base", sha]).status, 1)
+}
+
+// ---------------------------------------------------------------------------
+// The regeneration carve-out. Before it, the freshness gate (test.yml) and the
+// append-only ownership gate were mutually unsatisfiable for a debt-clearing
+// bundle - the loop's primary work: clearing Backlog A moves `mechanicalDebt`
+// in the frontmatter (before the append point), and CI demands that
+// regenerated ledger COMMITTED. Measured end to end: Timeline-append-only kept
+// ownership green and freshness red; committing the regen flipped both. The
+// carve-out sanctions exactly regen-shaped changes (byte-equal to a fresh
+// `node tools/workorder.mjs` run, base Timeline entries intact) and nothing
+// else, and only while gate state is untouched.
+// ---------------------------------------------------------------------------
+console.log("\n# check-diff-ownership regeneration carve-out (freshness vs append-only)")
+const regenRoot = buildWorkorderFixture("regen-honest", {
+  cells: [workorderCell("r-cal", "apps/web/app/page.tsx")],
+  suppressions: { "app/page.tsx": { "local/spacing-scale": { count: 3 } } },
+})
+const regenGit = (...args) => spawnSync("git", args, { cwd: regenRoot, encoding: "utf8" })
+regenGit("config", "core.autocrlf", "false")
+runWorkorder(regenRoot)
+const rCalPath = join(regenRoot, ".claude", "workorders", "r-cal.md")
+// A REAL Timeline entry in the base copy, canonicalized by a second regen, so
+// deleting recorded history is distinguishable from never having any.
+writeFileSync(rCalPath, readFileSync(rCalPath, "utf8") + "- 2026-07-21 earlier session: probe entry\n")
+runWorkorder(regenRoot)
+regenGit("add", "-A")
+regenGit("commit", "-qm", "base: orders generated and committed")
+const regenBase = regenGit("rev-parse", "HEAD").stdout.trim()
+
+// The honest debt-clearing bundle, end to end: fix the owned source, prune the
+// ledger (lint:prune shape), append the Timeline, regenerate, commit.
+writeFileSync(
+  join(regenRoot, "apps", "web", "app", "page.tsx"),
+  BASE_TSX.replace('className="p-4 gap-4 rounded-xl border"', 'className="p-8 gap-8 rounded-xl border"'),
+)
+writeFileSync(join(regenRoot, "apps", "web", "eslint-suppressions.json"), "{}")
+writeFileSync(rCalPath, readFileSync(rCalPath, "utf8") + "- 2026-07-22 honest child: cleared all three spacing violations\n")
+T("regen carve-out: the honest regeneration itself runs clean", runWorkorder(regenRoot).status, 0)
+regenGit("add", "-A")
+regenGit("commit", "-qm", "honest debt clearance, regenerated ledger committed")
+
+const honestVerdict = runOwnershipNoBase(regenRoot, ["--id", "r-cal", "--base", regenBase])
+T("regen carve-out: an honest debt-clearing bundle passes ownership (exit 0)", honestVerdict.status, 0)
+T("regen carve-out: workorder --check --id agrees the debt is gone", runWorkorder(regenRoot, ["--check", "--id", "r-cal"]).status, 0)
+runWorkorder(regenRoot)
+T(
+  "regen carve-out: regeneration is idempotent (the CI freshness gate's exact assertion)",
+  regenGit("status", "--porcelain", "--", ".claude/workorders").stdout.trim(),
+  "",
+)
+
+const honestOrder = readFileSync(rCalPath, "utf8")
+const regenIndexPath = join(regenRoot, ".claude", "workorders", "INDEX.md")
+const honestIndex = readFileSync(regenIndexPath, "utf8")
+{
+  // A hand edit that is NOT regen output stays a rewrite.
+  writeFileSync(rCalPath, honestOrder.replace("Backlog B is the work", "Backlog B is optional"))
+  const handEdited = runOwnershipNoBase(regenRoot, ["--id", "r-cal", "--base", regenBase])
+  T("regen carve-out: a hand-edited order that is not regen output still exits 1", handEdited.status, 1)
+  T("regen carve-out: ...named as the append-only contract", /append-only/.test(handEdited.stderr), true)
+  writeFileSync(rCalPath, honestOrder)
+}
+{
+  // Hand-editing the generated INDEX is editing the scoreboard.
+  writeFileSync(regenIndexPath, honestIndex.replace("# Work order index", "# Work order index (adjusted)"))
+  T("regen carve-out: an INDEX.md hand edit still exits 1", runOwnershipNoBase(regenRoot, ["--id", "r-cal", "--base", regenBase]).status, 1)
+  writeFileSync(regenIndexPath, honestIndex)
+}
+{
+  // Annexation through Boundaries grants nothing, regen-adjacent or not.
+  writeFileSync(rCalPath, honestOrder.replace("- `apps/web/app/page.tsx`", "- `apps/web/app/page.tsx`\n- `apps/web/lib/free.ts`"))
+  T("regen carve-out: annexing a Boundaries line still exits 1", runOwnershipNoBase(regenRoot, ["--id", "r-cal", "--base", regenBase]).status, 1)
+  writeFileSync(rCalPath, honestOrder)
+}
+{
+  // Deleting recorded history and laundering the file through a regeneration
+  // is still a rewrite: the base ref's Timeline entries govern.
+  writeFileSync(rCalPath, honestOrder.replace("- 2026-07-21 earlier session: probe entry\n", ""))
+  runWorkorder(regenRoot)
+  T("regen carve-out: deleting a recorded Timeline entry never sanctions", runOwnershipNoBase(regenRoot, ["--id", "r-cal", "--base", regenBase]).status, 1)
+  writeFileSync(rCalPath, honestOrder)
+}
+
+// ---------------------------------------------------------------------------
 // drive-queue bundling. Three properties, each verified broken end to end
 // before the fix: every bundle shipped `ui: true` (a 2-file packages/shared
 // plan bundle was graded against DESIGN.md by the --sleep verifier),
@@ -1332,13 +1532,44 @@ T("drive-queue: rule 3 keeps the unedited-file count drop fatal", /never edited/
 T("drive-queue: rule 6 names the real test-companion convention", /__tests__/.test(dqRoutePrompt) && /-page\.test\.tsx/.test(dqRoutePrompt), true)
 T("drive-queue: a visual prompt forbids editing the mirror platform's files", /mirror/.test(dqRoutePrompt) && /STOP/.test(dqRoutePrompt), true)
 T("drive-queue: a visual prompt frames depth as a veto, never a target", /redesign-depth/.test(dqRoutePrompt) && /veto a human consults/.test(dqRoutePrompt), true)
-T("drive-queue: a plan prompt does full in-bundle parity instead", /parity\s+is MANDATORY and yours to do IN THIS BUNDLE/.test(dqPlanPrompt), true)
+T("drive-queue: rule 3 names the only workspaces carrying lint:prune", /apps\/web and apps\/mobile\s+are the ONLY workspaces with that script/.test(dqRoutePrompt), true)
+T("drive-queue: rule 3 tells a shared-only bundle to skip the prune step", /packages\/shared files\s+skips the prune step/.test(dqRoutePrompt), true)
+T("drive-queue: the prompt orders the pre-commit ledger regeneration", /run `node tools\/workorder\.mjs` \(the full regeneration\)/.test(dqRoutePrompt), true)
+T(
+  "drive-queue: ...framing the ledger as derived state, gate-sanctioned only byte-identical",
+  /DERIVED state/.test(dqRoutePrompt) && /byte-identical regeneration output/.test(dqRoutePrompt),
+  true,
+)
+T(
+  "drive-queue: a plan prompt scopes parity to the plan's own files",
+  /Parity is\s+scoped to the files the plan itself owns/.test(dqPlanPrompt) && /planning defect/.test(dqPlanPrompt),
+  true,
+)
+T("drive-queue: a plan prompt never orders unconditional cross-platform parity", /parity\s+is MANDATORY and yours to do IN THIS BUNDLE/.test(dqPlanPrompt), false)
 T("drive-queue: a plan prompt carries no depth paragraph or signoff claim", /redesign-depth/.test(dqPlanPrompt) || /signoff\.json/.test(dqPlanPrompt), false)
+T(
+  "drive-queue: condition (b) pins --base to the driver placeholder",
+  dqRoutePrompt.includes("check-diff-ownership.mjs --id 'r-page' --base {{DRIVE_BASE}}"),
+  true,
+)
+T(
+  "drive-queue: condition (b) prose says what a human substitutes by hand",
+  /substitute\s+that branch-point sha yourself/.test(dqRoutePrompt) && /never HEAD/.test(dqRoutePrompt),
+  true,
+)
 
 // THE d4 PIN. Apply every edit class the prompt ORDERS - the owned source, its
 // lint:prune ledger rewrite, its conventional test companion, the i18n pair,
-// the work order's own Timeline - in ONE diff, then run the real gate with the
-// bundle's ids. Obeying the prompt must satisfy the prompt's own gate.
+// the work order's own Timeline, and (rule 7) the pre-commit ledger
+// regeneration - then run the prompt's own printed condition (b) with its
+// {{DRIVE_BASE}} placeholder substituted by the real branch point, exactly as
+// the driver does at spawn. Obeying the prompt must satisfy the prompt's own
+// gate, uncommitted AND committed: the committed leg is the exact topology
+// where the old unpinned command exited 2 for an honest child (its self-resolved
+// merge-base predated every work order), and where an improvised --base HEAD
+// was a vacuous green.
+const dqGit = (...args) => spawnSync("git", args, { cwd: dqRoot, encoding: "utf8" })
+const dqBaseSha = dqGit("rev-parse", "HEAD").stdout.trim()
 dqWrite("apps/web/app/page.tsx", BASE_TSX.replace('className="p-4 gap-4 rounded-xl border"', 'className="p-8 gap-8 rounded-xl border"'))
 dqWrite("apps/web/eslint-suppressions.json", JSON.stringify({ "app/page.tsx": { "local/spacing-scale": { count: 1 } } }))
 dqWrite("apps/web/__tests__/app/page.test.tsx", "export {}\n")
@@ -1346,8 +1577,24 @@ dqWrite("packages/shared/src/i18n/en.json", '{"a":"Hi","b":"New"}\n')
 dqWrite("packages/shared/src/i18n/pt-BR.json", '{"a":"Oi","b":"Novo"}\n')
 const dqOrderPath = join(dqRoot, ".claude", "workorders", "r-page.md")
 writeFileSync(dqOrderPath, readFileSync(dqOrderPath, "utf8") + "- 2026-07-22 cleared one spacing violation; left the load-bearing gap alone\n")
-const dqVerdict = runOwnership(dqRoot, ["--id", "r-page"])
-T("drive-queue: every edit class the prompt orders passes the ownership gate", dqVerdict.status, 0)
+const dqDodB = /`(node tools\/check-diff-ownership\.mjs[^`]*)`/.exec(dqRoutePrompt)?.[1] ?? ""
+T("drive-queue: the extracted condition (b) command ends in the pinned --base", / --base \{\{DRIVE_BASE\}\}$/.test(dqDodB), true)
+const dqDodArgv = [...dqDodB.split("{{DRIVE_BASE}}").join(dqBaseSha).matchAll(/'([^']*)'|(\S+)/g)]
+  .map((match) => match[1] ?? match[2])
+  .slice(2)
+const dqRunSubstituted = () =>
+  spawnSync(process.execPath, [ownershipTool, ...dqDodArgv], {
+    cwd: dqRoot,
+    env: { ...process.env, ORBIT_SURFACE_ROOT: dqRoot },
+    encoding: "utf8",
+  })
+T("drive-queue: the SUBSTITUTED condition (b) passes every edit class the prompt orders", dqRunSubstituted().status, 0)
+// Rule 7 (regen) plus the commit: the CI freshness gate wants the regenerated
+// ledger COMMITTED, and the carve-out sanctions exactly that committed shape.
+runWorkorder(dqRoot)
+dqGit("add", "-A")
+dqGit("commit", "-qm", "honest bundle child: fix + prune + test + i18n + timeline + regen")
+T("drive-queue: ...and stays green after the child commits (the old false-red topology)", dqRunSubstituted().status, 0)
 
 // ---------------------------------------------------------------------------
 // drive-queue robustness: CRLF checkouts, malformed flags, shell-safe ids.
@@ -1368,6 +1615,19 @@ const dqBadPlatform = runDriveQueue(dqRoot, ["--platform", "ios", "--dry-run"])
 T("drive-queue: --platform with an unknown value exits 2 naming the flag", dqBadPlatform.status === 2 && /--platform/.test(dqBadPlatform.stderr), true)
 T("drive-queue: --platform missing its value exits 2", runDriveQueue(dqRoot, ["--dry-run", "--platform"]).status, 2)
 T("drive-queue: a valid numeric cap still runs", runDriveQueue(dqRoot, ["--max-files", "3", "--dry-run"]).status, 0)
+
+// A missing plan FILE is a different failure from a plan missing its Tier
+// field: plans are committed alongside their work orders, so an absent file
+// means the checkout lost the bundle's contract. The old warning blamed the
+// field either way and the operator hunted the wrong bug.
+rmSync(join(dqRoot, ".claude", "plans", "epic-8.plan.md"))
+const dqMissingPlan = runDriveQueue(dqRoot, ["--only-debt", "--dry-run"])
+T(
+  "drive-queue: a missing plan file is reported as missing, not as a missing Tier field",
+  /epic-8/.test(dqMissingPlan.stderr) && /missing from this checkout/.test(dqMissingPlan.stderr),
+  true,
+)
+T("drive-queue: ...defaulting the tier loudly rather than failing the queue", dqMissingPlan.status, 0)
 
 // One fixture whose residual id inherits a Next.js route group - literal
 // parentheses in the id, the exact shape that lexed as a shell error unquoted -
@@ -1412,13 +1672,86 @@ const dqJunk = runDriveQueue(dqCrlfRoot, ["--dry-run"])
 T("drive-queue: an unparseable order file is named, never silently dropped", dqJunk.status === 0 && /junk\.md/.test(dqJunk.stderr), true)
 
 // ---------------------------------------------------------------------------
+// drive-queue stable bundle ids. Positional ids (`web-residual-02` = second
+// most debt GLOBALLY) re-keyed every bundle whenever any debt moved: clearing
+// one group's debt renamed unrelated bundles, so run records and spec rows
+// written before the documented mid-campaign queue regeneration silently named
+// different work than the same id did after it. Content-derived ids (platform-
+// kind + a hash of the sorted work-order ids) re-key only when membership
+// changes, and the write sweeps prompts for ids the queue no longer contains
+// (the old write loop only ever added: 81 prompt files for a 50-entry queue).
+// ---------------------------------------------------------------------------
+console.log("\n# drive-queue stable bundle ids")
+const dqIdRoot = buildWorkorderFixture("queue-ids", {
+  cells: [workorderCell("r-page", "apps/web/app/page.tsx")],
+  suppressions: {
+    "components/alpha/a-styles.ts": { "local/spacing-scale": { count: 9 } },
+    "components/beta/b-styles.ts": { "local/spacing-scale": { count: 2 } },
+  },
+})
+runWorkorder(dqIdRoot)
+const dqIdQueue = () => JSON.parse(readFileSync(join(dqIdRoot, ".claude", "drive", "queue.json"), "utf8"))
+const dqIdOf = (queue, orderId) => queue.find((entry) => entry.workOrders.includes(orderId))?.id
+runDriveQueue(dqIdRoot, ["--only-debt", "--max-orders", "1"])
+const dqIdsFirst = dqIdQueue()
+const alphaId = dqIdOf(dqIdsFirst, "residual-web-components-alpha")
+const betaId = dqIdOf(dqIdsFirst, "residual-web-components-beta")
+T("drive-queue: ids are platform-kind plus a stable content hash", /^web-residual-[0-9a-f]{8}$/.test(alphaId ?? ""), true)
+T("drive-queue: the debt-heavy bundle still runs first", dqIdsFirst[0]?.id, alphaId)
+runDriveQueue(dqIdRoot, ["--only-debt", "--max-orders", "1"])
+T(
+  "drive-queue: ids are stable across identical runs",
+  [dqIdOf(dqIdQueue(), "residual-web-components-alpha"), dqIdOf(dqIdQueue(), "residual-web-components-beta")],
+  [alphaId, betaId],
+)
+// Permute the debt ranking (beta now outranks alpha). Under positional ids
+// this renamed BOTH bundles; under content ids neither moves.
+writeFileSync(
+  join(dqIdRoot, "apps", "web", "eslint-suppressions.json"),
+  JSON.stringify({
+    "components/alpha/a-styles.ts": { "local/spacing-scale": { count: 1 } },
+    "components/beta/b-styles.ts": { "local/spacing-scale": { count: 7 } },
+  }),
+)
+runWorkorder(dqIdRoot)
+runDriveQueue(dqIdRoot, ["--only-debt", "--max-orders", "1"])
+const dqIdsPermuted = dqIdQueue()
+T(
+  "drive-queue: a debt permutation re-orders the queue without re-keying any bundle",
+  [dqIdOf(dqIdsPermuted, "residual-web-components-alpha"), dqIdOf(dqIdsPermuted, "residual-web-components-beta")],
+  [alphaId, betaId],
+)
+T("drive-queue: ...and the run order follows the new ranking", dqIdsPermuted[0]?.id, betaId)
+// Clear alpha entirely: its bundle leaves the queue and its stale prompt goes
+// with it, so a resumed operator cannot hand a child a bundle that no longer exists.
+writeFileSync(
+  join(dqIdRoot, "apps", "web", "eslint-suppressions.json"),
+  JSON.stringify({ "components/beta/b-styles.ts": { "local/spacing-scale": { count: 7 } } }),
+)
+runWorkorder(dqIdRoot)
+runDriveQueue(dqIdRoot, ["--only-debt", "--max-orders", "1"])
+const dqIdPrompts = readdirSync(join(dqIdRoot, ".claude", "drive", "prompts"))
+T("drive-queue: a bundle that left the queue loses its prompt file", dqIdPrompts.includes(`task-${alphaId}.md`), false)
+T("drive-queue: ...while surviving bundles keep theirs", dqIdPrompts.includes(`task-${betaId}.md`), true)
+
+// ---------------------------------------------------------------------------
 // drive engine preflight. A hand-written queue entry with no prompt used to
 // sail through --dry-run and then have every bundle recorded "skipped" at
 // runtime - a run that does nothing while reporting no failure. The validation
 // is exported precisely so it can be pinned here without spawning the engine.
 // ---------------------------------------------------------------------------
 console.log("\n# drive engine preflight (queue prompts)")
-const { queuePromptProblems, buildRunReport } = await import(pathToFileURL(join(hooksDir, "..", "skills", "drive", "run.mjs")).href)
+const {
+  queuePromptProblems,
+  queueBasePinProblems,
+  substituteDriveBase,
+  DRIVE_BASE_PLACEHOLDER,
+  buildRunReport,
+  normalizeChildStatus,
+  extractBaseGateTool,
+  measureGates,
+  buildVerifyPrompt,
+} = await import(pathToFileURL(join(hooksDir, "..", "skills", "drive", "run.mjs")).href)
 const drivePreflightDir = join(root, "drive-preflight")
 mkdirSync(join(drivePreflightDir, "prompts"), { recursive: true })
 writeFileSync(join(drivePreflightDir, "prompts", "task-filed.md"), "do the thing\n")
@@ -1431,28 +1764,153 @@ T("drive: a whitespace-only prompt field is still promptless", promptProblems.so
 T("drive: a prompt file or an inline prompt both satisfy preflight", promptProblems.length, 2)
 
 // ---------------------------------------------------------------------------
-// drive engine: operator-facing honesty. Two shapes shipped broken once: the
-// rollup counted ready-for-review inside "completed (done)" - re-conflating the
-// two statuses the redesign separated (only a human signoff.json tick grants
-// done) - and config.example.json shipped `modelOverride: "sonnet"` permanently
-// ON, so the documented copy-the-example step silently forced every opus-tier
-// bundle to sonnet with nothing surfacing it.
+// drive engine base pinning. The generated prompt's condition (b) carries a
+// {{DRIVE_BASE}} placeholder because only the driver knows the child's fork
+// point at spawn time: unpinned, the gate's own resolution lands on a
+// merge-base that predates every work order in this deployment (exit 2 for
+// honest work, measured), while a child improvising --base HEAD after
+// committing measures an empty diff - a vacuous green. The driver substitutes
+// every occurrence at spawn and fails the task BEFORE spawn when it cannot;
+// preflight rejects a workOrders bundle whose prompt lacks the pin at all.
 // ---------------------------------------------------------------------------
-console.log("\n# drive engine report + example config")
+console.log("\n# drive engine base pinning ({{DRIVE_BASE}})")
+const pinSha = "f".repeat(40)
+const pinned = substituteDriveBase(`gate: --base ${DRIVE_BASE_PLACEHOLDER}; prose repeats ${DRIVE_BASE_PLACEHOLDER}`, pinSha)
+T("drive: substitution fills every placeholder occurrence", pinned.text?.includes(DRIVE_BASE_PLACEHOLDER), false)
+T("drive: ...with the recorded sha", (pinned.text?.match(new RegExp(pinSha, "g")) ?? []).length, 2)
+T("drive: a prompt with no placeholder passes through untouched", substituteDriveBase("plain prompt", pinSha).text, "plain prompt")
+T("drive: a pinned prompt with no base to fill fails loudly before spawn", !!substituteDriveBase(`--base ${DRIVE_BASE_PLACEHOLDER}`, "").problem, true)
+T("drive: a non-sha base is refused, never stamped into the gate command", !!substituteDriveBase(`--base ${DRIVE_BASE_PLACEHOLDER}`, "not a sha").problem, true)
+
+writeFileSync(join(drivePreflightDir, "prompts", "task-pinned.md"), `run the gate with --base ${DRIVE_BASE_PLACEHOLDER}\n`)
+const basePinProblems = queueBasePinProblems(
+  [
+    { id: "filed", workOrders: ["wo-a"] },
+    { id: "pinned", workOrders: ["wo-a"] },
+    { id: "inline-pinned", workOrders: ["wo-a"], prompt: `x ${DRIVE_BASE_PLACEHOLDER}` },
+    { id: "free-task", prompt: "no work orders, no pin needed" },
+  ],
+  drivePreflightDir,
+)
+T("drive: a workOrders bundle whose prompt never pins the base is a preflight error", basePinProblems.some((problem) => /"filed"/.test(problem)), true)
+T("drive: pinned prompts and orderless tasks pass the pin check", basePinProblems.length, 1)
+
+// ---------------------------------------------------------------------------
+// drive engine: operator-facing honesty. Three shapes shipped broken once: the
+// rollup counted ready-for-review inside "completed (done)"; a child-returned
+// status "done" - which no generated prompt even offers - was recorded
+// verbatim and then reported as "done (human-granted)" though no signoff.json
+// grant existed; and config.example.json shipped `modelOverride: "sonnet"`
+// permanently ON. "done" wording now appears ONLY for a result whose
+// humanGranted flag the driver set itself, and no code path sets it today.
+// ---------------------------------------------------------------------------
+console.log("\n# drive engine report + child-status honesty + example config")
+const demoted = normalizeChildStatus("done")
+T("drive: a child-returned 'done' demotes to ready-for-review", demoted.status, "ready-for-review")
+T("drive: ...recording the claim", demoted.claimedStatus, "done")
+T("drive: ...and saying only a signoff.json tick grants done", /signoff\.json/.test(demoted.note), true)
+T("drive: offered statuses pass through untouched", normalizeChildStatus("blocked"), { status: "blocked" })
+T("drive: an unrecognized child status is a reporting failure", normalizeChildStatus("wibble").status, "unknown")
+
 const reportOutcomes = [
   { id: "b1", label: "route slice", status: "ready-for-review", pr: "https://x/1", elapsedMs: 60000 },
   { id: "b2", label: "blocked slice", status: "blocked", elapsedMs: 60000 },
-  { id: "b3", label: "signed cell", status: "done", verdict: "DISAGREE", elapsedMs: 60000 },
+  { id: "b3", label: "over-claimer", status: "ready-for-review", claimedStatus: "done", verdict: "DISAGREE", elapsedMs: 60000 },
+  { id: "b4", label: "hard failure", status: "failed", elapsedMs: 60000 },
 ]
-const report = buildRunReport(reportOutcomes, 4, 1)
-T("drive report: ready-for-review is its own count", /- ready for review: 1\b/.test(report.summary), true)
-T("drive report: done stays reserved for the human-granted state", /- done \(human-granted\): 1\b/.test(report.summary), true)
+const report = buildRunReport(reportOutcomes, 5, 1)
+T("drive report: ready-for-review is its own count", /- ready for review: 2\b/.test(report.summary), true)
+T("drive report: blocked and failed are reported as what they are", /- blocked: 1\b/.test(report.summary) && /- failed: 1\b/.test(report.summary), true)
+T("drive report: no done wording without a driver-verified grant", /done \(human-granted\)/.test(report.summary) || /done \(human-granted\)/.test(report.headline), false)
+T(
+  "drive report: even a raw child status 'done' earns no done wording",
+  /done/.test(buildRunReport([{ id: "x", label: "cheat", status: "done", elapsedMs: 1 }], 1, 0).headline),
+  false,
+)
+T(
+  "drive report: a driver-verified signoff grant is the only source of done wording",
+  /- done \(human-granted\): 1\b/.test(buildRunReport([{ id: "g", label: "granted", status: "ready-for-review", humanGranted: true, elapsedMs: 1 }], 1, 0).summary),
+  true,
+)
 T("drive report: nothing is labelled 'completed (done)' anymore", /completed \(done\)/.test(report.summary), false)
-T("drive report: the headline splits the counts the same way", /1\/4 ready for review/.test(report.headline) && /1 done \(human-granted\)/.test(report.headline), true)
+T("drive report: the headline splits the counts the same way", /2\/5 ready for review, 1 blocked, 1 failed/.test(report.headline), true)
 T("drive report: the per-task table still shows the literal machine status", /\| b1 \| route slice \| ready-for-review \|/.test(report.summary), true)
+T("drive report: the table shows a demotion next to its claim", /\| b3 \| over-claimer \| ready-for-review \(claimed done\) \|/.test(report.summary), true)
 
 const exampleConfig = JSON.parse(readFileSync(join(hooksDir, "..", "skills", "drive", "config.example.json"), "utf8"))
 T("drive config: the example ships no modelOverride (tier routing on by default)", "modelOverride" in exampleConfig, false)
+
+// ---------------------------------------------------------------------------
+// drive verifier prompt. Two contradictions shipped once: the child prompt
+// ordered a ready-for-review PR ("never --draft, so CI and the review bots
+// run") while the verifier prompt asserted "the implementer opened this draft
+// PR"; and the ui clause told the verifier to run gate tools its read-only
+// allowlist cannot execute, against a base it would have to guess (the same
+// unpinned-base false red the child prompt had). The verifier now describes
+// the PR as ready-for-review and consumes the DRIVER-MEASURED verdicts.
+// ---------------------------------------------------------------------------
+console.log("\n# drive verifier prompt (ready-for-review, verdict-consuming)")
+const verifierPrompt = buildVerifyPrompt(
+  { ui: true, workOrders: ["r-page"] },
+  "ACCEPTANCE CRITERIA",
+  "https://example/pr/1",
+  [{ command: "check-diff-ownership (base-ref copy) --id r-page --base abcd1234", exit: 0, tail: "OK" }],
+  "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+)
+T("drive verify: the PR is described as ready for review", /ready for review/.test(verifierPrompt), true)
+T("drive verify: nothing calls the PR a draft anymore", /draft/i.test(verifierPrompt), false)
+T("drive verify: the ui clause reads the driver-measured verdicts", /DRIVER-MEASURED GATE VERDICTS/.test(verifierPrompt), true)
+T("drive verify: the stale unpinned re-run instruction is gone", /--id <each work order id>/.test(verifierPrompt), false)
+T(
+  "drive verify: the clause names the pinned base and forbids re-deriving one",
+  /pinned base\s+a1b2c3d4e5f6/.test(verifierPrompt) && /never re-derive a base of your own/.test(verifierPrompt),
+  true,
+)
+
+// ---------------------------------------------------------------------------
+// drive engine pristine gate. measureGates used to execute the gate tools from
+// the child's own working checkout - the exact tree the child just committed
+// to - and forbid-gate-tamper does not protect the gate tools, so a stubbed
+// check-diff-ownership.mjs measured a fabricated green. The ownership gate now
+// runs from the BASE ref's copy (driver-recorded sha, node-builtins-only file,
+// extracted to a temp path), FIRST; only its pass proves the working-tree
+// workorder.mjs is untouched and therefore sound to run second.
+// ---------------------------------------------------------------------------
+console.log("\n# drive engine pristine gate (base-ref extraction)")
+const gateToolRepo = join(root, "pristine-gate-repo")
+mkdirSync(join(gateToolRepo, "tools"), { recursive: true })
+writeFileSync(join(gateToolRepo, "tools", "check-diff-ownership.mjs"), 'process.stdout.write("PRISTINE-BASE-COPY ran\\n")\nprocess.exit(0)\n')
+writeFileSync(join(gateToolRepo, "tools", "workorder.mjs"), 'process.stdout.write("WORKING-WORKORDER ran\\n")\nprocess.exit(0)\n')
+const gateGit = (...args) => spawnSync("git", args, { cwd: gateToolRepo, encoding: "utf8" })
+gateGit("init", "-q")
+gateGit("config", "user.email", "t@example.com")
+gateGit("config", "user.name", "t")
+gateGit("add", "-A")
+gateGit("commit", "-qm", "base")
+const gateBaseSha = gateGit("rev-parse", "HEAD").stdout.trim()
+writeFileSync(join(gateToolRepo, "tools", "check-diff-ownership.mjs"), 'process.stdout.write("TAMPERED WORKING COPY ran\\n")\nprocess.exit(0)\n')
+
+const extracted = extractBaseGateTool(gateToolRepo, gateBaseSha, "tools/check-diff-ownership.mjs")
+T("drive: the pristine gate is the BASE ref's copy, not the working tree's", /PRISTINE-BASE-COPY/.test(readFileSync(extracted.path, "utf8")), true)
+T("drive: ...the tampered working copy is never selected", /TAMPERED/.test(readFileSync(extracted.path, "utf8")), false)
+rmSync(extracted.dir, { recursive: true, force: true })
+T("drive: a tool absent at base is a problem, never a working-tree fallback", !!extractBaseGateTool(gateToolRepo, gateBaseSha, "tools/no-such.mjs").problem, true)
+T("drive: a missing base sha fails closed", !!extractBaseGateTool(gateToolRepo, "", "tools/check-diff-ownership.mjs").problem, true)
+
+const gateChecks = measureGates({ workOrders: ["wo-x"] }, { repos: [{ path: gateToolRepo }] }, gateBaseSha)
+T(
+  "drive: measureGates runs the ownership gate FIRST, from the base copy",
+  /check-diff-ownership \(base-ref copy\)/.test(gateChecks[0].command) && /PRISTINE-BASE-COPY/.test(gateChecks[0].tail),
+  true,
+)
+T("drive: ...the tampered working-tree gate never runs", gateChecks.some((check) => /TAMPERED/.test(check.tail)), false)
+T(
+  "drive: ...then the working-tree workorder check runs second",
+  /workorder --check --id wo-x/.test(gateChecks[1].command) && /WORKING-WORKORDER/.test(gateChecks[1].tail),
+  true,
+)
+const gateChecksNoBase = measureGates({ workOrders: ["wo-x"] }, { repos: [{ path: gateToolRepo }] }, "")
+T("drive: measureGates with no recorded base records a FAILING ownership check", gateChecksNoBase[0].exit !== 0 && /failed closed/.test(gateChecksNoBase[0].tail), true)
 
 // ---------------------------------------------------------------------------
 // drive engine preflight, spawned for real. Round 1 observed a PREFLIGHT
@@ -1500,6 +1958,25 @@ T("drive engine: ...naming the actual and the configured branch", /"feature\/chi
 // then fails on a missing claude CLI.
 T("drive engine: a dry run announces itself as a dry run, never --sleep", /drive \(dry run\) starting/.test(runDriveEngine(buildDriveEngineFixture("mode")).stdout), true)
 T("drive engine: no dry run is mislabelled as --sleep", /drive --sleep starting/.test(engineBranch.stdout), false)
+
+// ---------------------------------------------------------------------------
+// gitignore: plans ride the branch. Committed work orders point at their
+// source plan via generatedFrom, so an ignored .claude/plans/ meant every
+// fresh checkout carried plan bundles whose contract file (Tier, acceptance
+// criteria) did not exist. Only *.plan.md is un-ignored; the rest of the dir
+// and the drive runtime dir stay local. Asserted against a fixture repo
+// carrying a copy of the real .gitignore, so nested ignore files in the live
+// checkout cannot skew the verdict.
+// ---------------------------------------------------------------------------
+console.log("\n# gitignore (plans ride the branch)")
+const giRoot = join(root, "gitignore-plans")
+mkdirSync(giRoot, { recursive: true })
+cpSync(join(hooksDir, "..", "..", ".gitignore"), join(giRoot, ".gitignore"))
+spawnSync("git", ["init", "-q"], { cwd: giRoot, encoding: "utf8" })
+const giIgnored = (path) => spawnSync("git", ["check-ignore", "-q", path], { cwd: giRoot, encoding: "utf8" }).status === 0
+T("gitignore: a *.plan.md under .claude/plans is committable, not ignored", giIgnored(".claude/plans/issue-9.plan.md"), false)
+T("gitignore: everything else under .claude/plans stays local", giIgnored(".claude/plans/notes.txt"), true)
+T("gitignore: the drive runtime dir stays local", giIgnored(".claude/drive/queue.json"), true)
 
 // ---------------------------------------------------------------------------
 // 3. opencode plugin — same rules, opencode contract

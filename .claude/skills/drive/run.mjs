@@ -4,10 +4,10 @@
  *
  * Two modes (one engine):
  *  - ATTENDED (`--attended`, the default `/drive` path): readline gates — approve each bundle
- *    before it runs, review its draft PR after. The human is the verifier, so the auto-verifier
+ *    before it runs, review its PR after. The human is the verifier, so the auto-verifier
  *    is off. No `/clear` ever: each bundle is a fresh headless process, so context never accrues.
  *  - UNATTENDED (`--sleep`, no `--attended`): the proven overnight queue-drain, UNCHANGED — no
- *    gates, an independent Sonnet verifier grades each draft PR. This is the old `/night-run`.
+ *    gates, an independent Sonnet verifier grades each PR. This is the old `/night-run`.
  *
  * Per-task model tier: each queue entry may carry `tier` ("sonnet"|"opus") and `effort`
  * ("high"|"xhigh"); the driver routes the fresh `claude -p` to that model/effort (falling back to
@@ -25,8 +25,9 @@
  *
  * Safety model (see README.md): the child runs WITHOUT `--bare`, so it inherits the project
  * PreToolUse hooks (git-guardrails blocks any push to main, force-push, --no-verify). Each task
- * works on its own branch off an up-to-date base and ends at a DRAFT PR. The driver never merges
- * and returns every repo to its base branch between tasks.
+ * works on its own branch off an up-to-date base and ends at a PR opened READY FOR REVIEW
+ * (never a draft - SKILL.md's contract, so CI and the review bots run on it). The driver never
+ * merges and returns every repo to its base branch between tasks.
  *
  * A bundle that carries `workOrders` is additionally measured by the DRIVER after its child
  * exits: `workorder --check --id` per order, and one `check-diff-ownership` run over the whole
@@ -38,8 +39,9 @@
  * failing verdict is overridden to failed: the measurement wins over the claim.
  */
 import { spawnSync } from "node:child_process"
-import { readFileSync, writeFileSync, appendFileSync, mkdirSync, existsSync, rmSync } from "node:fs"
-import { join, resolve } from "node:path"
+import { readFileSync, writeFileSync, appendFileSync, mkdirSync, mkdtempSync, existsSync, rmSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { basename, join, resolve } from "node:path"
 import { createInterface } from "node:readline/promises"
 import { pathToFileURL } from "node:url"
 
@@ -62,16 +64,39 @@ const DEFAULTS = {
   verifyAllowedTools: ["Read", "Grep", "Glob", "Bash(gh pr diff:*)", "Bash(gh pr view:*)", "Bash(git diff:*)", "Bash(git log:*)", "Bash(git show:*)"],
 }
 
-// A visual bundle can never return "done": completion is granted only by a human
-// tick in signoff.json, which no child can write. It returns "ready-for-review"
-// instead, meaning the three machine-checkable conditions in its prompt hold
-// (violations cleared, diff stayed inside its owned files, Timeline appended).
-// The previous contract demanded `surfaces:check` pass before a bundle could say
-// done, which the human-only granting axis made unsatisfiable - so every bundle
-// burned its full wall clock and returned `blocked` no matter what it built.
-// "blocked" stays a verifiable outcome worth grading, not a failure.
-const SUCCESS_STATUSES = new Set(["done", "ready-for-review", "blocked"])
-const COMPLETED_STATUSES = new Set(["done", "ready-for-review"])
+// A child can return only what its generated prompt offers: "ready-for-review"
+// (the machine-checkable conditions hold: violations cleared, diff inside its
+// owned files, Timeline appended), "blocked" (a verifiable outcome worth
+// grading, not a failure), or "failed". "done" is deliberately NOT a child
+// status: completion is granted only by a human tick in signoff.json, which no
+// child can write - yet the engine recorded a child-returned "done" verbatim,
+// and the operator rollup then printed "done (human-granted)" for work no
+// human had granted. normalizeChildStatus is the enforcement point; the two
+// sets below are what the driver acts on afterwards.
+const CHILD_STATUSES = new Set(["ready-for-review", "blocked", "failed"])
+// Statuses worth grading: the verifier runs on these when a PR exists.
+const SUCCESS_STATUSES = new Set(["ready-for-review", "blocked"])
+// The subset that CLAIMS the work is complete enough to review, which a
+// failing driver-measured gate overrides.
+const COMPLETED_STATUSES = new Set(["ready-for-review"])
+
+/**
+ * Child-returned statuses pass through only when they are in the offered enum.
+ * "done" demotes to ready-for-review with the claim recorded: only a human
+ * signoff.json tick grants done, so the rollup must never launder a child's
+ * claim into "done (human-granted)". Anything else is a reporting failure.
+ * Exported so the demotion is pinned by tests without spawning a child.
+ */
+export function normalizeChildStatus(status) {
+  if (CHILD_STATUSES.has(status)) return { status }
+  if (status === "done")
+    return {
+      status: "ready-for-review",
+      claimedStatus: "done",
+      note: 'child claimed "done", which only a human signoff.json tick can grant - recorded as ready-for-review',
+    }
+  return { status: "unknown", claimedStatus: status, note: `child returned unrecognized status "${status}"` }
+}
 
 const TAINTED_ENV = [
   "CLAUDECODE",
@@ -190,6 +215,63 @@ function processIsAlive(pid) {
 }
 
 /**
+ * The token drive-queue prints into condition (b)'s `--base`, because only the
+ * driver knows the child's true fork point at spawn time. Unpinned, the gate's
+ * own base resolution lands on a merge-base that predates every work order in
+ * this deployment (exit 2 for honest work - measured), and a child improvising
+ * `--base HEAD` after committing measures an empty diff, a vacuous green.
+ */
+export const DRIVE_BASE_PLACEHOLDER = "{{DRIVE_BASE}}"
+
+/**
+ * Fill every occurrence of the placeholder with the driver-recorded base sha.
+ * Fails closed instead of spawning: a pinned prompt with no sha to pin it to,
+ * a non-sha value, or (belt on braces) any occurrence left after substitution
+ * is a `problem` the caller records as a task FAILURE before spawn - a child
+ * must never receive a prompt whose definition of done still carries the token
+ * or, worse, carries a base the driver never recorded.
+ */
+export function substituteDriveBase(promptText, baseSha) {
+  if (!promptText.includes(DRIVE_BASE_PLACEHOLDER)) return { text: promptText }
+  if (!baseSha || !/^[0-9a-f]{7,40}$/i.test(baseSha)) {
+    return {
+      problem: `the prompt pins its ownership gate to ${DRIVE_BASE_PLACEHOLDER} but the driver has no commit sha to fill it with (got "${baseSha || ""}")`,
+    }
+  }
+  const text = promptText.split(DRIVE_BASE_PLACEHOLDER).join(baseSha)
+  if (text.includes(DRIVE_BASE_PLACEHOLDER)) {
+    return { problem: `substitution left ${DRIVE_BASE_PLACEHOLDER} in the prompt - refusing to spawn with an unpinned gate` }
+  }
+  return { text }
+}
+
+/**
+ * A workOrders bundle whose prompt never pins its base would hand the child an
+ * ownership gate that exits 2 for honest work (or a gameable improvised base),
+ * so the gap is a preflight ERROR naming the entry, not a runtime surprise.
+ * Exported so the check is testable against a fixture dir without spawning the
+ * engine, like queuePromptProblems below.
+ */
+export function queueBasePinProblems(queue, dir) {
+  const problems = []
+  for (const task of queue) {
+    if (!Array.isArray(task.workOrders) || !task.workOrders.length) continue
+    const promptPath = join(dir, "prompts", `task-${task.id}.md`)
+    const promptText = existsSync(promptPath)
+      ? readFileSync(promptPath, "utf8")
+      : typeof task.prompt === "string"
+        ? task.prompt
+        : ""
+    if (!promptText.includes(DRIVE_BASE_PLACEHOLDER)) {
+      problems.push(
+        `task "${task.id}" carries workOrders but its prompt never pins ${DRIVE_BASE_PLACEHOLDER}: its ownership gate would resolve a base of its own and exit 2 for honest work. Regenerate with tools/drive-queue.mjs.`,
+      )
+    }
+  }
+  return problems
+}
+
+/**
  * A queue entry with no prompt used to surface at RUNTIME as a quiet "skipped",
  * which buried an entire hand-written queue: the documented fallback entry shape
  * carried no prompt field, `--dry-run` said "Preflight passed", and the run then
@@ -235,6 +317,7 @@ function preflight(config, repos, queue, dir) {
     }
   }
   problems.push(...queuePromptProblems(queue, dir))
+  problems.push(...queueBasePinProblems(queue, dir))
   return problems
 }
 
@@ -280,33 +363,84 @@ function gateOutputTail(run) {
 }
 
 /**
+ * The BASE ref's copy of a gate tool, extracted to a temp file the child never
+ * touched. The driver used to execute tools/check-diff-ownership.mjs from the
+ * child's own working checkout - the exact tree the child just committed to -
+ * while framing the verdicts as "measurements, not claims". forbid-gate-tamper
+ * does not protect the gate tools, so a child stubbing the tool to `exit 0`
+ * would have measured a fabricated green. The base sha is driver-recorded, so
+ * no child report can move it; check-diff-ownership.mjs imports node builtins
+ * only, so the single extracted file runs from anywhere, pointed at the judged
+ * tree via ORBIT_SURFACE_ROOT. Returns { path, dir } or { problem }; the
+ * caller records a problem as a FAILING check - an unextractable pristine gate
+ * is never a fallback to the working-tree copy.
+ */
+export function extractBaseGateTool(repoPath, baseSha, toolRelPath) {
+  if (!baseSha) return { problem: "no driver-recorded base sha to extract the pristine gate from" }
+  const shown = spawnSync("git", ["show", `${baseSha}:${toolRelPath}`], { cwd: repoPath, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 })
+  if (shown.status !== 0 || !shown.stdout) {
+    return { problem: `git show ${String(baseSha).slice(0, 12)}:${toolRelPath} failed - the gate tool does not exist at the recorded base` }
+  }
+  const dir = mkdtempSync(join(tmpdir(), "drive-pristine-gate-"))
+  const path = join(dir, basename(toolRelPath))
+  writeFileSync(path, shown.stdout)
+  return { path, dir }
+}
+
+/**
  * The deterministic gates, run by the driver itself against what the child left
  * behind. `workorder --check --id` answers per order (each order's own debt is
  * its own verdict); `check-diff-ownership` runs ONCE with every id in the
  * bundle, because the diff is bundle-wide and a per-order run would read the
  * sibling orders' legitimate files as escapes. The base is the sha the driver
  * recorded after resetting the repo, not anything the child reported.
+ *
+ * Two-step trust chain, in this order:
+ *  1. check-diff-ownership runs from the BASE ref's copy (extractBaseGateTool),
+ *     never the child-writable working tree. Its exit 0 proves tools/ and the
+ *     hooks are untouched, because the gate tools are GATE_STATE inside it and
+ *     any edit to them fails this very step.
+ *  2. Only then is running the WORKING TREE's workorder.mjs sound: step 1 just
+ *     proved it byte-identical to the base copy. It cannot be base-extracted
+ *     itself - it imports sibling tool modules and node_modules - which is why
+ *     the self-contained ownership gate goes first.
+ * Exported so the ordering and the pristine-copy selection are pinned by tests
+ * against a fixture repo, without spawning the engine.
  */
-function measureGates(task, config, baseSha) {
+export function measureGates(task, config, baseSha) {
   const repoPath = resolve(config.repos[0].path)
-  const runTool = (tool, args) =>
-    spawnSync(process.execPath, [join(repoPath, "tools", tool), ...args], {
+  const checks = []
+  const idFlags = task.workOrders.flatMap((id) => ["--id", id])
+  const idLabel = task.workOrders.map((id) => `--id ${id}`).join(" ")
+  const pristine = extractBaseGateTool(repoPath, baseSha, "tools/check-diff-ownership.mjs")
+  if (pristine.problem) {
+    checks.push({ command: `check-diff-ownership (base-ref copy) ${idLabel}`, exit: 2, tail: `failed closed: ${pristine.problem}` })
+  } else {
+    const ownership = spawnSync(process.execPath, [pristine.path, ...idFlags, "--base", baseSha], {
+      cwd: repoPath,
+      env: { ...process.env, ORBIT_SURFACE_ROOT: repoPath },
+      encoding: "utf8",
+      maxBuffer: 16 * 1024 * 1024,
+    })
+    checks.push({
+      command: `check-diff-ownership (base-ref copy) ${idLabel} --base ${baseSha.slice(0, 12)}`,
+      exit: ownership.status,
+      tail: gateOutputTail(ownership),
+    })
+    try {
+      rmSync(pristine.dir, { recursive: true, force: true })
+    } catch {
+      /* temp cleanup is housekeeping; it must never move a gate verdict */
+    }
+  }
+  for (const id of task.workOrders) {
+    const check = spawnSync(process.execPath, [join(repoPath, "tools", "workorder.mjs"), "--check", "--id", id], {
       cwd: repoPath,
       encoding: "utf8",
       maxBuffer: 16 * 1024 * 1024,
     })
-  const checks = []
-  for (const id of task.workOrders) {
-    const check = runTool("workorder.mjs", ["--check", "--id", id])
     checks.push({ command: `workorder --check --id ${id}`, exit: check.status, tail: gateOutputTail(check) })
   }
-  const idFlags = task.workOrders.flatMap((id) => ["--id", id])
-  const ownership = runTool("check-diff-ownership.mjs", baseSha ? [...idFlags, "--base", baseSha] : idFlags)
-  checks.push({
-    command: `check-diff-ownership ${task.workOrders.map((id) => `--id ${id}`).join(" ")}${baseSha ? ` --base ${baseSha.slice(0, 12)}` : ""}`,
-    exit: ownership.status,
-    tail: gateOutputTail(ownership),
-  })
   return checks
 }
 
@@ -364,11 +498,13 @@ function runTask(task, config, promptText, log) {
     }
     return { status: "unknown", model, pr: null, summary: "no status line and no commits or PR - the child left nothing", elapsedMs, raw: String(resultText).slice(-500) }
   }
+  const normalized = normalizeChildStatus(line.status)
   return {
-    status: line.status,
+    status: normalized.status,
+    ...(normalized.claimedStatus ? { claimedStatus: normalized.claimedStatus } : {}),
     model,
     pr: line.pr || null,
-    summary: String(line.summary || "").slice(0, 500),
+    summary: [normalized.note, String(line.summary || "").slice(0, 500)].filter(Boolean).join(" | "),
     elapsedMs,
   }
 }
@@ -377,20 +513,27 @@ function runTask(task, config, promptText, log) {
  * Build the independent-verifier prompt. The verifier never sees the maker's reasoning trail
  * (fresh context, only the diff + the acceptance criteria) — the structural reason a separate
  * grader outperforms self-critique. Read-only by allowlist; posture reinforced in the prompt.
+ * Exported so the wording (ready-for-review PR, verdict-consuming ui clause) is pinned by
+ * tests without spawning a verifier.
  */
-function buildVerifyPrompt(task, promptText, prUrl, gateChecks) {
+export function buildVerifyPrompt(task, promptText, prUrl, gateChecks, baseSha) {
   // The UI clause used to demand a judge verdict of "transformed" and call anything
   // else UNMET. That judge was demoted to a defect detector after measuring 0/12
   // recall and passing a byte-identical surface twice, so the clause was asking the
   // verifier to require evidence the harness deliberately no longer produces. It
-  // now checks the three conditions that ARE checkable, and is explicit that it
-  // cannot rule on whether the surface looks good, because nothing here can.
+  // now reads the three conditions that ARE checkable off the driver's own embedded
+  // measurements - the verifier's allowlist cannot run the gate tools, and a re-run
+  // against a base the verifier resolved itself measures a different (or empty)
+  // diff - and is explicit that it cannot rule on whether the surface looks good,
+  // because nothing here can.
   const uiClause = task.ui
     ? `5. UI/DESIGN, checked in this order:
-   a. Run \`node tools/workorder.mjs --check\`. Any work order in this bundle still carrying
-      mechanical debt means its enumerated DESIGN.md violations were not cleared: UNMET.
-   b. Run \`node tools/check-diff-ownership.mjs --id <each work order id>\`. A non-zero exit means
-      the diff escaped its owned files or moved gate state: UNMET, and say which files.
+   a. Read the DRIVER-MEASURED GATE VERDICTS above. A non-zero \`workorder --check --id\` exit
+      means that order's enumerated DESIGN.md violations were not cleared: UNMET.
+   b. A non-zero \`check-diff-ownership\` exit means the diff escaped its owned files or moved
+      gate state: UNMET, and say which files. The driver measured it against the pinned base
+      ${baseSha ? String(baseSha).slice(0, 12) : "it recorded at spawn"}; never re-derive a base of your own - an unpinned or HEAD base
+      measures a different (or empty) diff.
    c. Confirm each touched work order gained a Timeline entry describing what changed.
    Then review the JSX/CSS/token diff against DESIGN.md: semantic tokens only, NO decorative glow
    or gradient wash, the enumerated spacing scale, and the AI-slop test.
@@ -415,7 +558,7 @@ artifact against the acceptance criteria below.
 TASK — acceptance criteria (verbatim):
 ${promptText}
 
-The implementer opened this draft PR: ${prUrl}
+The implementer opened this PR ready for review (CI and the review bots run on it): ${prUrl}
 Inspect the ACTUAL change, do not trust the summary:
 - \`gh pr diff ${prUrl}\` for the full diff (and the paired orbit-api PR if the task was cross-repo).
 - Read any file you need for surrounding context.
@@ -441,11 +584,11 @@ function buildVerifyArgs(config) {
   return args
 }
 
-/** Run the independent verifier over a task's draft PR and return its verdict. */
-function verifyTask(task, config, promptText, prUrl, gateChecks) {
+/** Run the independent verifier over a task's ready-for-review PR and return its verdict. */
+function verifyTask(task, config, promptText, prUrl, gateChecks, baseSha) {
   const started = Date.now()
   const run = spawnSync("claude", buildVerifyArgs(config), {
-    input: buildVerifyPrompt(task, promptText, prUrl, gateChecks),
+    input: buildVerifyPrompt(task, promptText, prUrl, gateChecks, baseSha),
     cwd: resolve(config.repos[0].path),
     env: childEnv(),
     encoding: "utf8",
@@ -480,7 +623,7 @@ function verifyTask(task, config, promptText, prUrl, gateChecks) {
   }
 }
 
-/** Post the verifier verdict onto the draft PR so it is visible at review time. Best-effort. */
+/** Post the verifier verdict onto the PR so it is visible at review time. Best-effort. */
 function postVerdictComment(prUrl, verdict, log) {
   const body = [
     `**Night-run independent verifier — ${verdict.verdict}**`,
@@ -497,26 +640,34 @@ function postVerdictComment(prUrl, verdict, log) {
 }
 
 const taskWall = (r) => (r.elapsedMs ? `${Math.round(r.elapsedMs / 60000)}min` : "-")
-const taskRow = (r) => `| ${r.id} | ${r.label} | ${r.status} | ${r.verdict || "-"} | ${taskWall(r)} | ${r.pr || "-"} |`
+const taskStatus = (r) => (r.claimedStatus && r.claimedStatus !== r.status ? `${r.status} (claimed ${r.claimedStatus})` : r.status)
+const taskRow = (r) => `| ${r.id} | ${r.label} | ${taskStatus(r)} | ${r.verdict || "-"} | ${taskWall(r)} | ${r.pr || "-"} |`
 
 /**
- * The operator-facing rollup (SUMMARY.md + the final log line). `ready-for-review`
- * is deliberately its OWN count: the redesign's whole point is that no machine can
- * grant "done" (only a human tick in signoff.json can), and the previous headline
- * folded ready-for-review into "completed (done)" - reinstating the exact
- * reported-done framing the harness exists to eliminate. Exported so the wording
- * is pinned by tests without spawning the engine.
+ * The operator-facing rollup (SUMMARY.md + the final log line). Child statuses
+ * are reported as exactly what they are - ready-for-review / blocked / failed
+ * counts - and the phrase "done (human-granted)" is printed ONLY for a result
+ * whose `humanGranted` flag the DRIVER set after verifying a signoff.json
+ * grant itself. No code path sets that flag today, so the wording is simply
+ * absent: the engine once bucketed any child-returned status "done" under
+ * "done (human-granted)", asserting a grant nobody had made - the exact
+ * reported-done framing the harness exists to eliminate. Exported so the
+ * wording is pinned by tests without spawning the engine.
  */
 export function buildRunReport(results, queueLength, lessonCount) {
   const readyForReview = results.filter((r) => r.status === "ready-for-review").length
-  const done = results.filter((r) => r.status === "done").length
+  const blocked = results.filter((r) => r.status === "blocked").length
+  const failed = results.filter((r) => r.status === "failed" || r.status === "unknown").length
+  const humanGranted = results.filter((r) => r.humanGranted === true).length
   const flagged = results.filter((r) => r.verdict === "DISAGREE").length
   const summary = [
     `# drive summary`,
     ``,
     `- tasks attempted: ${results.length} / ${queueLength}`,
     `- ready for review: ${readyForReview} (a human review and a signoff.json tick are still owed)`,
-    `- done (human-granted): ${done}`,
+    `- blocked: ${blocked}`,
+    `- failed: ${failed}`,
+    ...(humanGranted ? [`- done (human-granted): ${humanGranted} (signoff.json grant verified by the driver)`] : []),
     `- verifier flagged (DISAGREE): ${flagged}`,
     `- lesson candidates: ${lessonCount}${lessonCount ? ` (see LESSONS.md - run /lesson to promote)` : ""}`,
     ``,
@@ -525,7 +676,7 @@ export function buildRunReport(results, queueLength, lessonCount) {
     ...results.map(taskRow),
     ``,
   ].join("\n")
-  const headline = `RUN COMPLETE. ${readyForReview}/${queueLength} ready for review, ${done} done (human-granted), ${flagged} flagged, ${lessonCount} lesson candidate(s).`
+  const headline = `RUN COMPLETE. ${readyForReview}/${queueLength} ready for review, ${blocked} blocked, ${failed} failed${humanGranted ? `, ${humanGranted} done (human-granted)` : ""}, ${flagged} flagged, ${lessonCount} lesson candidate(s).`
   return { summary, headline }
 }
 
@@ -604,7 +755,7 @@ async function main() {
 
   const rl = opts.attended ? createInterface({ input: process.stdin, output: process.stdout }) : null
   const ask = async (q) => (rl ? (await rl.question(q)).trim().toLowerCase() : "")
-  if (opts.attended) log("ATTENDED mode: you approve each bundle before it runs and review its draft PR after (auto-verifier off — you are the verifier).")
+  if (opts.attended) log("ATTENDED mode: you approve each bundle before it runs and review its PR after (auto-verifier off - you are the verifier).")
 
   for (const task of queue) {
     if (existsSync(join(dir, "STOP"))) {
@@ -619,14 +770,14 @@ async function main() {
     const bundleBaseSha = git(resolve(config.repos[0].path), ["rev-parse", "HEAD"]).stdout.trim()
 
     const promptPath = join(dir, "prompts", `task-${task.id}.md`)
-    const promptText = (() => {
+    const rawPromptText = (() => {
       try {
         return readFileSync(promptPath, "utf8")
       } catch {
         return task.prompt || ""
       }
     })()
-    if (!promptText.trim()) {
+    if (!rawPromptText.trim()) {
       // Preflight already errors on this shape; reaching it here means the
       // prompt vanished mid-run. That is a FAILURE that feeds the circuit
       // breaker, never a quiet skip - a skip once buried a whole queue.
@@ -640,6 +791,24 @@ async function main() {
       }
       continue
     }
+    // The prompt's condition (b) pins its ownership base to a token only the
+    // driver can fill: the sha it just reset the work repo to, which no child
+    // report can move. A prompt the driver cannot pin is a FAILURE before
+    // spawn, never a prompt handed over with the token (or an improvised base)
+    // still in it.
+    const substituted = substituteDriveBase(rawPromptText, bundleBaseSha)
+    if (substituted.problem) {
+      log(`  ${substituted.problem}; recording FAILED before spawn.`)
+      results.push({ id: task.id, label: task.label, status: "failed", pr: null, summary: substituted.problem })
+      writeStatus()
+      consecutiveFailures += 1
+      if (consecutiveFailures >= config.maxConsecutiveFailures) {
+        log(`Circuit breaker: ${consecutiveFailures} consecutive hard failures. Halting rather than burning the rest of the night.`)
+        break
+      }
+      continue
+    }
+    const promptText = substituted.text
 
     if (opts.attended) {
       const tier = resolveModel(task, config)
@@ -667,7 +836,7 @@ async function main() {
         for (const line of gate.tail ? gate.tail.split("\n") : []) log(`    ${line}`)
       }
       const failedGates = record.gates.filter((gate) => gate.exit !== 0)
-      // ready-for-review (and the stronger "done") is a CLAIM; the gates are a
+      // ready-for-review is a CLAIM; the gates are a
       // measurement. When they disagree, the measurement wins.
       if (failedGates.length && COMPLETED_STATUSES.has(record.status)) {
         record.claimedStatus = record.status
@@ -682,7 +851,7 @@ async function main() {
 
     if (config.verify && !opts.attended && record.pr && SUCCESS_STATUSES.has(record.status)) {
       log(`  verifying [${task.id}] against acceptance criteria (independent ${config.verifyModel})...`)
-      const verdict = verifyTask(task, config, promptText, record.pr, record.gates)
+      const verdict = verifyTask(task, config, promptText, record.pr, record.gates, bundleBaseSha)
       record.verdict = verdict.verdict
       record.verifyReasons = verdict.reasons
       if (config.push) postVerdictComment(record.pr, verdict, log)
@@ -697,7 +866,7 @@ async function main() {
     writeStatus()
 
     if (opts.attended) {
-      const ans = await ask(`  -> ${record.status}${record.pr ? " " + record.pr : ""} - review the draft PR, then: continue to next bundle? [continue / stop] `)
+      const ans = await ask(`  -> ${record.status}${record.pr ? " " + record.pr : ""} - review the PR, then: continue to next bundle? [continue / stop] `)
       if (ans === "stop" || ans === "s") {
         log("Stopped by user after review.")
         break

@@ -41,6 +41,7 @@
  * ledger above already records what happens when it does: an agent optimizing
  * token distance produces churn, not design.
  */
+import { spawnSync } from "node:child_process"
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, rmSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -95,8 +96,8 @@ EXIT CODES
   2  a required input is missing or unreadable (manifest, suppression baseline),
      a flag is missing its value, --from-plan would breach exclusive ownership
      (an id collision with an order it did not source, or a file another order
-     already owns), or a unit with cells owns zero files after resolution and
-     cannot be folded
+     or residual group already owns), or a unit with cells owns zero files
+     after resolution and cannot be folded
 
 INPUTS (all on disk, none hand-written)
   .claude/manifests/surfaces.json   the denominator + exclusive file ownership
@@ -126,7 +127,19 @@ function loadSuppressions() {
   const byFile = {}
   for (const workspace of WORKSPACES) {
     const path = join(REPO_ROOT, workspace.suppressions)
-    if (!existsSync(path)) continue
+    if (!existsSync(path)) {
+      // A missing ledger must never read as zero debt: one `rm` of a baseline
+      // wiped every recorded web violation and passed the driver's gates as a
+      // false green. Only a workspace that is itself absent has nothing for a
+      // ledger to describe; anything else fails closed, in every mode.
+      if (!existsSync(join(REPO_ROOT, workspace.prefix))) continue
+      fail(
+        `the lint suppression baseline ${workspace.suppressions} is missing while ${workspace.prefix} exists on disk. ` +
+          `A missing ledger would read as zero debt, which is exactly the shape of faking the mechanical floor - ` +
+          `restore the file. The sanctioned way to retire a ledger is removing its workspace from WORKSPACES in ` +
+          `tools/workorder.mjs, in the same commit.`,
+      )
+    }
     const raw = readJson(path, "lint suppression baseline")
     for (const [file, rules] of Object.entries(raw)) {
       const key = (workspace.prefix + file).replace(/\\/g, "/")
@@ -268,7 +281,7 @@ const JUDGEMENT_BY_KIND = {
   ],
   plan: [
     "The acceptance criteria in the source plan are the real backlog. Read them there; they are not copied here, because a copy goes stale the moment the plan is edited.",
-    "Cross-platform parity is MANDATORY: a web change lands in `apps/mobile` too and vice versa, and i18n keys land in BOTH `en.json` and `pt-BR.json` in the same edit.",
+    "Parity is scoped to the files this plan owns: a plan spanning both platforms does full parity in-bundle; one naming a single platform shipped with a parity gap - STOP on the mirror work, record it in the Timeline as a planning defect, and never edit unowned mirror files. i18n keys still land in BOTH `en.json` and `pt-BR.json` in the same edit.",
     "A shared or DTO change is append-only and deploy-API-first: add optional fields, never rename or retype a field an old mobile client still reads.",
     "Add or extend behaviour tests for what you changed. A green suite that never exercised your change proves nothing.",
   ],
@@ -296,11 +309,15 @@ function existingTimeline(path) {
   const text = readFileSync(path, "utf8")
   const index = text.indexOf(TIMELINE_HEADING)
   if (index === -1) return []
+  // The generator's own "(no work recorded...)" placeholder is presentation,
+  // not history: preserving it as an entry made every regeneration after the
+  // first real entry say "no work recorded" directly above recorded work.
+  // renderWorkOrder re-emits it whenever the timeline is genuinely empty.
   return text
     .slice(index + TIMELINE_HEADING.length)
     .split(/\r?\n/)
     .map((line) => line.trimEnd())
-    .filter((line) => line.trim().startsWith("- "))
+    .filter((line) => line.trim().startsWith("- ") && !line.includes("(no work recorded on this surface yet)"))
 }
 
 function renderWorkOrder(surface, debt, timeline, manifest) {
@@ -437,7 +454,9 @@ function renderWorkOrder(surface, debt, timeline, manifest) {
     "## Definition of done for THIS work order",
     "",
     `1. Backlog A is 0 (\`node tools/workorder.mjs --check --id '${surface.surfaceId}'\` exits 0).`,
-    "2. The diff touches only the owned files above (`node tools/check-diff-ownership.mjs --id <id>` agrees).",
+    `2. The diff touches only the owned files above: \`tools/check-diff-ownership.mjs --id '${surface.surfaceId}'\` agrees.`,
+    "   Run the EXACT command from your bundle prompt - it pins the `--base` this gate needs. This file",
+    "   deliberately bakes no base sha: a regeneration would churn it.",
     "3. You appended one Timeline entry saying what you changed and what you deliberately did not.",
     "",
     ...(surface.cells > 0
@@ -551,9 +570,21 @@ function planOrdersOnDisk() {
  * unit to recompute from, yet its definition of done points at
  * `--check --id <id>` - so that verdict has to be answerable from the contract
  * file itself, the same Boundaries slice tools/check-diff-ownership.mjs trusts.
+ *
+ * The trust root is the COMMITTED copy (`git show HEAD:...`), never the
+ * working tree: the policed child edits the working-tree file by contract (the
+ * Timeline append), and deleting a Boundaries line there flipped a
+ * debt-carrying order to exit 0. HEAD predates the child - the driver starts
+ * every bundle from a clean committed tree - so its copy cannot be edited from
+ * inside a run. The working tree is read only for a path HEAD does not carry:
+ * a plan order --from-plan just wrote in this session. There, tampering can
+ * only annex files into Boundaries, which ADDS debt, never removes it.
  */
-function ownedFilesFromDisk(path) {
-  const text = readFileSync(path, "utf8")
+function ownedFilesFromDisk(orderFile) {
+  const committed = spawnSync("git", ["show", `HEAD:.claude/workorders/${orderFile}`], { cwd: REPO_ROOT, encoding: "utf8" })
+  const workingPath = join(OUT_DIR, orderFile)
+  const text =
+    committed.status === 0 ? committed.stdout : existsSync(workingPath) ? readFileSync(workingPath, "utf8") : ""
   const start = text.indexOf("## Boundaries")
   const end = text.indexOf("## Backlog A")
   if (start === -1 || end === -1) return []
@@ -566,15 +597,15 @@ function ownedFilesFromDisk(path) {
 
 /**
  * Why --from-plan refuses instead of writing: exclusive ownership is the one
- * invariant that lets bundles run in parallel, and both breaches shipped once.
- * A plan named after a surface (route-login.plan.md) silently CLOBBERED the
- * surface's work order in place, and a plan whose "## Files to Change" named a
- * surface-owned file granted the same file exclusively to two queued bundles -
- * the exact parallel-overwrite hazard work orders exist to prevent. Re-running
- * --from-plan on the SAME plan (same id, same source) stays legal: regenerating
- * your own order is idempotent.
+ * invariant that lets bundles run in parallel, and every breach here shipped
+ * once. A plan named after a surface (route-login.plan.md) silently CLOBBERED
+ * the surface's work order in place, and a plan whose "## Files to Change"
+ * named a surface-owned file - or a residual-owned one - granted the same file
+ * exclusively to two queued bundles, the exact parallel-overwrite hazard work
+ * orders exist to prevent. Re-running --from-plan on the SAME plan (same id,
+ * same source) stays legal: regenerating your own order is idempotent.
  */
-function fromPlanConflicts(unit) {
+function fromPlanConflicts(unit, suppressions) {
   const problems = []
   const existingPath = join(OUT_DIR, `${unit.surfaceId}.md`)
   if (existsSync(existingPath)) {
@@ -589,15 +620,31 @@ function fromPlanConflicts(unit) {
   }
   // The manifest partition is the other exclusive owner. Absent manifest (a
   // repo that never generated one) there is no surface partition to breach.
+  // Residual groups are part of that partition too, derived here exactly as
+  // main() derives them (the suppression ledger minus the surface-owned set):
+  // this guard used to consult only surfaces and other plans, so a plan naming
+  // a residual-owned file was accepted and two parallel-queued bundles each
+  // held an exclusive grant on the same file.
   if (existsSync(MANIFEST_PATH)) {
-    const surfaceOwners = primaryOwnerByFile(collapseSurfaces(readJson(MANIFEST_PATH, "surface manifest")))
+    const surfaces = collapseSurfaces(readJson(MANIFEST_PATH, "surface manifest"))
+    const ownedBySurfaces = new Set(surfaces.flatMap((surface) => surface.ownedFiles))
+    const units = [...surfaces, ...residualGroups(suppressions, ownedBySurfaces)]
+    const kindById = new Map(units.map((candidate) => [candidate.surfaceId, candidate.kind]))
+    const owners = primaryOwnerByFile(units)
     for (const file of unit.ownedFiles) {
-      if (surfaceOwners.has(file)) problems.push(`\`${file}\` is exclusively owned by surface \`${surfaceOwners.get(file)}\``)
+      if (!owners.has(file)) continue
+      const ownerId = owners.get(file)
+      problems.push(
+        kindById.get(ownerId) === "residual"
+          ? `\`${file}\` is exclusively owned by residual group \`${ownerId}\` (committed lint debt no surface owns). ` +
+            `Clear that debt through the residual order first, or drop the file from the plan.`
+          : `\`${file}\` is exclusively owned by surface \`${ownerId}\``,
+      )
     }
   }
   for (const order of planOrdersOnDisk()) {
     if (order.surfaceId === unit.surfaceId) continue
-    for (const file of ownedFilesFromDisk(join(OUT_DIR, order.file))) {
+    for (const file of ownedFilesFromDisk(order.file)) {
       if (unit.ownedFiles.includes(file)) problems.push(`\`${file}\` is exclusively owned by plan order \`${order.surfaceId}\``)
     }
   }
@@ -662,15 +709,15 @@ function main() {
       fail(`--from-plan needs a plan-file path as its next argument${planPath ? ` (got "${planPath}")` : ""}. See --help.`)
     }
     const unit = planUnit(planPath)
-    const conflicts = fromPlanConflicts(unit)
+    const suppressions = loadSuppressions()
+    const conflicts = fromPlanConflicts(unit, suppressions)
     if (conflicts.length) {
       fail(
         `--from-plan refused for ${planPath}:\n` +
           conflicts.map((problem) => `  - ${problem}`).join("\n") +
-          `\nOwnership is exclusive. Narrow the plan's "## Files to Change", or route the visual\nwork through the owning surface's own work order.`,
+          `\nOwnership is exclusive. Narrow the plan's "## Files to Change", or route the\nwork through the owning order instead.`,
       )
     }
-    const suppressions = loadSuppressions()
     const debt = debtOf(unit.ownedFiles, suppressions)
     mkdirSync(OUT_DIR, { recursive: true })
     const path = join(OUT_DIR, `${unit.surfaceId}.md`)
@@ -748,7 +795,7 @@ function main() {
     primary.foldedSurfaceIds = [...(primary.foldedSurfaceIds ?? []), unit.surfaceId]
     primary.foldedTimeline = [
       ...(primary.foldedTimeline ?? []),
-      ...existingTimeline(join(OUT_DIR, `${unit.surfaceId}.md`)).filter((line) => !line.includes("(no work recorded")),
+      ...existingTimeline(join(OUT_DIR, `${unit.surfaceId}.md`)),
     ]
     foldedInto.set(unit.surfaceId, primary.surfaceId)
   }
@@ -773,12 +820,16 @@ function main() {
         // child clears its LAST violation the id stops deriving - and the
         // order's own definition of done ("--check --id <id> exits 0") was
         // rewarded with exit 2 "no work order". Success must stay satisfiable:
-        // fall back to the on-disk contract file's Boundaries. Debt is still
-        // counted from the ledger, never from the .md, so the fallback cannot
-        // be gamed by editing the file - annexing extra files into Boundaries
-        // can only ADD debt, never remove it.
-        const orderPath = planOrder ? join(OUT_DIR, planOrder.file) : onDiskPath
-        found = { unit: { surfaceId: wantedId, cells: 0 }, debt: debtOf(ownedFilesFromDisk(orderPath), suppressions) }
+        // fall back to the contract file's own Boundaries. ownedFilesFromDisk
+        // trusts HEAD over the child-writable working copy, so deleting a
+        // Boundaries line hides nothing, and debt is still counted from the
+        // ledger, never from the .md - for the one uncommitted case (a plan
+        // order born this session) tampering can only annex files, which ADDS
+        // debt, never removes it.
+        found = {
+          unit: { surfaceId: wantedId, cells: 0 },
+          debt: debtOf(ownedFilesFromDisk(planOrder ? planOrder.file : `${wantedId}.md`), suppressions),
+        }
         if (!planOrder && found.debt.total === 0) {
           sweptNote =
             "This order no longer derives from the manifest or the suppression ledger: its debt is fully cleared, and the next `node tools/workorder.mjs` regeneration will sweep the file."

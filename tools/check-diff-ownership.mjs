@@ -52,7 +52,8 @@
  * and two parallel agents overwriting each other. Keep the claim that size.
  */
 import { spawnSync } from "node:child_process"
-import { readFileSync, existsSync } from "node:fs"
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs"
+import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -149,11 +150,13 @@ USAGE
 
 EXIT CODES
   0  every changed file is owned or structurally permitted (the suppression
-     ledgers, an owned file's test companion, the i18n pair), and no gate state
-     was touched
+     ledgers, an owned file's test companion, the i18n pair, or a work-order
+     change that byte-equals a fresh \`node tools/workorder.mjs\` regeneration
+     with every base Timeline entry intact), and no gate state was touched
   1  the diff escaped its ownership, touched gate state, moved a suppression
-     count for a file it never edited, or rewrote a work order file (the base
-     copy must be a byte-prefix of the current copy - Timeline is append-only)
+     count for a file it never edited, deleted or corrupted a suppression
+     ledger that existed at base (the scoreboard cannot vanish mid-run), or
+     rewrote a work order file beyond an append or a sanctioned regeneration
   2  bad invocation, an unresolvable base, or a work order absent at the base
      ref (a work order created mid-run cannot self-grant ownership)
 `
@@ -238,9 +241,11 @@ function resolveBase(explicitBase) {
  * materialise these files with either line ending. The Timeline may grow at the
  * end; a rewrite, reorder or truncation is the same exploit through the other
  * door, and checking HEAD as well as the working tree closes the
- * commit-the-rewrite-then-revert-the-working-copy variant.
+ * commit-the-rewrite-then-revert-the-working-copy variant. The ONE sanctioned
+ * exception to the byte-prefix rule is regeneration output - see the
+ * regeneration carve-out below for why it exists and why it grants nothing.
  */
-function ownedFilesOf(id, baseSha) {
+function ownedFilesOf(id, baseSha, regenAllowed) {
   const relPath = `.claude/workorders/${id}.md`
   const baseRaw = gitShow(baseSha, relPath)
   if (baseRaw === null)
@@ -251,14 +256,25 @@ function ownedFilesOf(id, baseSha) {
     )
   const baseText = baseRaw.replace(/\r\n/g, "\n")
   const workingPath = join(WORKORDER_DIR, `${id}.md`)
-  const workingText = existsSync(workingPath) ? readFileSync(workingPath, "utf8").replace(/\r\n/g, "\n") : ""
-  const headText = (gitShow("HEAD", relPath) ?? "").replace(/\r\n/g, "\n")
-  if (!workingText.startsWith(baseText) || !headText.startsWith(baseText))
-    fail(
-      `work order "${id}" rewritten - Timeline is append-only. The base ref's copy must be a byte-prefix of ` +
-        `both the committed and working copies; revert the file and append your Timeline entry at the end instead.`,
-      1,
-    )
+  const workingText = existsSync(workingPath) ? readFileSync(workingPath, "utf8").replace(/\r\n/g, "\n") : null
+  const headRaw = gitShow("HEAD", relPath)
+  const headText = headRaw === null ? null : headRaw.replace(/\r\n/g, "\n")
+  const appendOnly = (text) => text !== null && text.startsWith(baseText)
+  if (!appendOnly(workingText) || !appendOnly(headText)) {
+    // The bundle's own order may change beyond an append in exactly one way:
+    // clearing Backlog A moves `mechanicalDebt` in the frontmatter, and the CI
+    // freshness gate requires that regenerated ledger committed. The Timeline
+    // may still only grow.
+    const sanctioned = regenAllowed && regenSanctioned(relPath, baseText, [workingText, headText], true)
+    if (!sanctioned)
+      fail(
+        `work order "${id}" rewritten - Timeline is append-only. The base ref's copy must be a byte-prefix of ` +
+          `both the committed and working copies; revert the file and append your Timeline entry at the end instead. ` +
+          `The one sanctioned exception is byte-exact \`node tools/workorder.mjs\` regeneration output with every ` +
+          `base Timeline entry intact${regenAllowed ? ", and this change is not it" : "; it is withheld here because gate state was touched"}.`,
+        1,
+      )
+  }
   const start = baseText.indexOf("## Boundaries")
   const sharedAt = baseText.indexOf("### Shared, and NOT yours to edit")
   const end = baseText.indexOf("## Backlog A")
@@ -268,27 +284,183 @@ function ownedFilesOf(id, baseSha) {
   return [...baseText.slice(start, stop).matchAll(/^- `([^`]+)`$/gm)].map((match) => normalize(match[1]))
 }
 
+/*
+ * THE REGENERATION CARVE-OUT, and its trust chain.
+ *
+ * An honest debt-clearing bundle cannot avoid rewriting its own work order:
+ * clearing Backlog A moves `mechanicalDebt` in the frontmatter, which sits
+ * BEFORE the Timeline append point, and the CI freshness gate (test.yml,
+ * "Work-order ledger freshness") requires the regenerated ledger to be
+ * COMMITTED. Byte-prefix append-only plus byte-strict freshness were therefore
+ * mutually unsatisfiable for the loop's primary work - measured end to end:
+ * append-only green with freshness red, or freshness green with append-only
+ * red, and no third state existed.
+ *
+ * The resolution is not to weaken either gate but to sanction exactly ONE
+ * shape: a work-order change whose content byte-equals what the CURRENT
+ * `tools/workorder.mjs` regenerates from the same inputs (CRLF-normalised),
+ * with every base-ref Timeline entry still present in order. The trust chain:
+ *
+ *   1. Gate state is judged FIRST (main computes touchedGateState before any
+ *      ownership check runs). The generator, this tool, the manifest and the
+ *      hooks are all GATE_STATE, so a run that edited any of them never
+ *      reaches this carve-out: a tampered generator cannot certify its own
+ *      output.
+ *   2. Regeneration DERIVES from the manifest (gate state, untouched by step 1)
+ *      and the suppression ledgers (whose legitimacy fakedSuppressions and its
+ *      ledger-vanish check enforce independently). Matching regeneration output
+ *      can therefore only re-state what those inputs already say - it can never
+ *      GRANT ownership, and Boundaries are read off the base ref regardless.
+ *   3. Timeline entries recorded at the base ref must survive verbatim, in
+ *      order: regeneration preserves them, so a regen-shaped copy missing one
+ *      is a hand rewrite laundered through the generator, and it fails.
+ *
+ * A plan order gets NO carve-out: regeneration preserves plan orders verbatim
+ * instead of re-deriving them, so "matches regeneration output" would be
+ * vacuously true for any hand edit. Their append-only contract stands whole.
+ */
+
+/**
+ * The generator the carve-out compares against: the judged tree's own
+ * tools/workorder.mjs. Hermetic tests point ORBIT_SURFACE_ROOT at a fixture
+ * tree carrying no tools/, so the sibling next to this script (the same file
+ * in a real checkout) is the fallback; in a real run a deleted or edited
+ * in-repo copy is gate state and failed before the carve-out could run.
+ */
+function generatorPath() {
+  const inRepo = join(REPO_ROOT, "tools", "workorder.mjs")
+  return existsSync(inRepo) ? inRepo : join(dirname(fileURLToPath(import.meta.url)), "workorder.mjs")
+}
+
+let regenCanonical = null
+/** Regenerate the work-order ledger from the working tree's inputs, once, in a throwaway dir. */
+function canonicalRegenTree() {
+  if (regenCanonical) return regenCanonical
+  const temp = mkdtempSync(join(tmpdir(), "orbit-regen-canonical-"))
+  process.on("exit", () => {
+    try {
+      rmSync(temp, { recursive: true, force: true })
+    } catch {
+      /* temp cleanup is housekeeping; it must never move a verdict */
+    }
+  })
+  const seed = (rel) => {
+    const source = join(REPO_ROOT, rel)
+    if (!existsSync(source)) return
+    const target = join(temp, rel)
+    mkdirSync(dirname(target), { recursive: true })
+    cpSync(source, target, { recursive: true })
+  }
+  seed(".claude/manifests/surfaces.json")
+  seed(".claude/workorders")
+  for (const file of SUPPRESSION_FILES) {
+    seed(file)
+    // loadSuppressions treats "ledger missing while its workspace exists" as a
+    // hard failure, so the workspace's presence must be mirrored too.
+    const workspace = file.split("/").slice(0, 2).join("/")
+    if (existsSync(join(REPO_ROOT, workspace))) mkdirSync(join(temp, workspace), { recursive: true })
+  }
+  const regen = spawnSync(process.execPath, [generatorPath()], {
+    cwd: temp,
+    env: { ...process.env, ORBIT_SURFACE_ROOT: temp },
+    encoding: "utf8",
+    maxBuffer: 16 * 1024 * 1024,
+  })
+  regenCanonical =
+    regen.status === 0
+      ? { dir: temp }
+      : { failure: `the generator exited ${regen.status}: ${(regen.stderr || regen.stdout || "").trim().slice(-200)}` }
+  return regenCanonical
+}
+
+/** Timeline entries of a work-order body; the generator's own placeholder is presentation, not history. */
+function timelineEntriesOf(text) {
+  const index = text.indexOf("## Timeline")
+  if (index === -1) return []
+  return text
+    .slice(index)
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .filter((line) => line.trim().startsWith("- ") && !line.includes("(no work recorded on this surface yet)"))
+}
+
+/**
+ * Is every candidate copy exactly the generator's own output, with the base
+ * ref's recorded history intact? `timelineMayGrow` is true only for the
+ * bundle's OWN orders (the Timeline append is part of its contract); a foreign
+ * order's Timeline is not this bundle's to write, appended or otherwise.
+ * A `null` candidate is an absent copy, sanctioned only when the regeneration
+ * also produces no such file (the generator's own sweep of a cleared order).
+ */
+function regenSanctioned(relPath, baseText, candidates, timelineMayGrow) {
+  const canonical = canonicalRegenTree()
+  if (!canonical.dir) return false
+  const canonicalPath = join(canonical.dir, relPath)
+  const canonicalText = existsSync(canonicalPath) ? readFileSync(canonicalPath, "utf8").replace(/\r\n/g, "\n") : null
+  const isIndex = relPath === ".claude/workorders/INDEX.md"
+  const kindOf = (text) => /^kind:\s*(.+?)\s*$/m.exec(/^---\n([\s\S]*?)\n---/.exec(text ?? "")?.[1] ?? "")?.[1] ?? null
+  if (!isIndex && (kindOf(baseText) === "plan" || kindOf(canonicalText) === "plan")) return false
+  const baseEntries = timelineEntriesOf(baseText ?? "")
+  for (const text of candidates) {
+    if (text === null && canonicalText === null) continue
+    if (text === null || canonicalText === null || text !== canonicalText) return false
+    if (isIndex) continue
+    const entries = timelineEntriesOf(text)
+    if (!baseEntries.every((entry, index) => entries[index] === entry)) return false
+    if (!timelineMayGrow && entries.length !== baseEntries.length) return false
+  }
+  return true
+}
+
+/** The carve-out for a changed workorders file the bundle does not own - INDEX.md, or a sibling swept by regeneration. */
+function regenSanctionedFile(relPath, baseSha) {
+  const readNormalized = (raw) => (raw === null ? null : raw.replace(/\r\n/g, "\n"))
+  const workingPath = join(REPO_ROOT, relPath)
+  const workingText = existsSync(workingPath) ? readFileSync(workingPath, "utf8").replace(/\r\n/g, "\n") : null
+  return regenSanctioned(
+    relPath,
+    readNormalized(gitShow(baseSha, relPath)),
+    [workingText, readNormalized(gitShow("HEAD", relPath))],
+    false,
+  )
+}
+
 /**
  * A suppression count that fell for a file the diff never touched is the exact
  * shape of faking the mechanical floor: the scoreboard moved without the code
  * moving. Legitimately clearing debt always edits the source file too.
+ *
+ * A ledger that existed at base but is missing or unparseable in the working
+ * tree is the same threat through a cruder door: one `rm` of a baseline wiped
+ * every recorded web violation and read as a clean pass here, because the
+ * ENOENT was swallowed. The scoreboard cannot vanish mid-run - deletion or
+ * corruption is an explicit failure, never a skip.
  */
 function fakedSuppressions(base, changed) {
   const problems = []
   const changedSet = new Set(changed)
   for (const file of SUPPRESSION_FILES) {
-    if (!changedSet.has(file)) continue
-    const before = gitShow(base, file) ?? ""
-    if (!before.trim()) continue
+    const before = gitShow(base, file)
+    if (before === null || !before.trim()) continue
     const workspace = `${file.split("/").slice(0, 2).join("/")}/`
     let previous
-    let current
     try {
       previous = JSON.parse(before)
-      current = JSON.parse(readFileSync(join(REPO_ROOT, file), "utf8"))
     } catch {
+      problems.push(`${file}: the base ref's copy is not valid JSON, so suppression movement cannot be judged - failing closed`)
       continue
     }
+    let current
+    try {
+      current = JSON.parse(readFileSync(join(REPO_ROOT, file), "utf8"))
+    } catch {
+      problems.push(
+        `${file}: ledger deleted or unreadable - the scoreboard cannot vanish mid-run. Restore the committed ` +
+          `baseline; debt is cleared by fixing the source, then \`npm run lint:prune\`.`,
+      )
+      continue
+    }
+    if (!changedSet.has(file)) continue
     for (const [entry, rules] of Object.entries(previous)) {
       for (const [rule, value] of Object.entries(rules)) {
         const was = value?.count ?? 0
@@ -322,19 +494,33 @@ function main() {
   if (!ids.length && !explicitFiles) fail("pass at least one --id or a --files list. See --help.")
 
   const resolvedBase = resolveBase(base)
-  const owned = new Set(explicitFiles ?? ids.flatMap((id) => ownedFilesOf(id, resolvedBase.sha)))
+  const changed = changedFiles(resolvedBase.sha)
+
+  // ORDER MATTERS: gate state is judged before any ownership check runs,
+  // because the regeneration carve-out trusts the working tree's generator and
+  // that trust holds only while tools/ and the hooks are untouched. A run that
+  // moved gate state gets no sanction path at all - a tampered generator must
+  // never certify its own output.
+  const touchedGateState = changed.filter((file) => GATE_STATE.some((pattern) => pattern.test(file)))
+  const regenAllowed = touchedGateState.length === 0
+
+  const owned = new Set(explicitFiles ?? ids.flatMap((id) => ownedFilesOf(id, resolvedBase.sha, regenAllowed)))
   // A work order's own file is owned by the unit it describes: appending to the
   // Timeline is required by the definition of done, so it must not read as an
   // escape. What it may GRANT is pinned to the base ref's copy by ownedFilesOf,
   // and any non-append edit already failed there. INDEX.md is NOT included - it
-  // is generated, and hand-editing it is editing the scoreboard.
+  // is generated, and hand-editing it is editing the scoreboard; the one thing
+  // that may change it is the generator itself, which the carve-out below
+  // verifies byte for byte.
   for (const id of ids) owned.add(`.claude/workorders/${id}.md`)
-  const changed = changedFiles(resolvedBase.sha)
 
-  const touchedGateState = changed.filter((file) => GATE_STATE.some((pattern) => pattern.test(file.replace(/\//g, "/"))))
   const structurallyPermitted = (file) =>
     SUPPRESSION_FILES.includes(file) || I18N_PAIR.includes(file) || isOwnedTestCompanion(file, owned)
-  const escaped = changed.filter((file) => !owned.has(file) && !touchedGateState.includes(file) && !structurallyPermitted(file))
+  const escaped = changed.filter((file) => {
+    if (owned.has(file) || touchedGateState.includes(file) || structurallyPermitted(file)) return false
+    if (regenAllowed && /^\.claude\/workorders\/[^/]+\.md$/.test(file) && regenSanctionedFile(file, resolvedBase.sha)) return false
+    return true
+  })
   const faked = fakedSuppressions(resolvedBase.sha, changed)
 
   const label = explicitFiles ? `${owned.size} explicit file(s)` : ids.join(", ")

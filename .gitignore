@@ -18,7 +18,12 @@ dist/
 .vscode/
 .idea/
 .claude/worktrees/
-.claude/plans/
+# Plans are the contract source the committed work orders point at (their
+# generatedFrom frontmatter): ignoring the whole dir left every fresh checkout
+# with plan bundles whose Tier and acceptance criteria named a file that did
+# not exist. The *.plan.md files ride the branch; everything else stays local.
+.claude/plans/*
+!.claude/plans/*.plan.md
 .claude/reviews/
 .claude/reports/
 .claude/audits/

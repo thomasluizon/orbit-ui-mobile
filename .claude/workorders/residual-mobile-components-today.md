@@ -65,7 +65,9 @@ No gate can check these. They are why a human tick is the only thing that grants
 ## Definition of done for THIS work order
 
 1. Backlog A is 0 (`node tools/workorder.mjs --check --id 'residual-mobile-components-today'` exits 0).
-2. The diff touches only the owned files above (`node tools/check-diff-ownership.mjs --id <id>` agrees).
+2. The diff touches only the owned files above: `tools/check-diff-ownership.mjs --id 'residual-mobile-components-today'` agrees.
+   Run the EXACT command from your bundle prompt - it pins the `--base` this gate needs. This file
+   deliberately bakes no base sha: a regeneration would churn it.
 3. You appended one Timeline entry saying what you changed and what you deliberately did not.
 
 This makes the work order READY FOR REVIEW. It does not make it done: a human tick in

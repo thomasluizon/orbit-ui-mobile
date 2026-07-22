@@ -69,7 +69,9 @@ Web: `npm run surfaces:capture -- --filter <id>` produces the screenshot a human
 ## Definition of done for THIS work order
 
 1. Backlog A is 0 (`node tools/workorder.mjs --check --id 'overlay-referral-referral-drawer'` exits 0).
-2. The diff touches only the owned files above (`node tools/check-diff-ownership.mjs --id <id>` agrees).
+2. The diff touches only the owned files above: `tools/check-diff-ownership.mjs --id 'overlay-referral-referral-drawer'` agrees.
+   Run the EXACT command from your bundle prompt - it pins the `--base` this gate needs. This file
+   deliberately bakes no base sha: a regeneration would churn it.
 3. You appended one Timeline entry saying what you changed and what you deliberately did not.
 
 Clearing Backlog A is a floor and is NOT evidence of redesign: the depth number for this

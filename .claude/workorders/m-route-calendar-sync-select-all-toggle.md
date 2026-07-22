@@ -49,7 +49,9 @@ Mobile: no deterministic pixel pipeline exists, so there is no screenshot to pro
 ## Definition of done for THIS work order
 
 1. Backlog A is 0 (`node tools/workorder.mjs --check --id 'm-route-calendar-sync-select-all-toggle'` exits 0).
-2. The diff touches only the owned files above (`node tools/check-diff-ownership.mjs --id <id>` agrees).
+2. The diff touches only the owned files above: `tools/check-diff-ownership.mjs --id 'm-route-calendar-sync-select-all-toggle'` agrees.
+   Run the EXACT command from your bundle prompt - it pins the `--base` this gate needs. This file
+   deliberately bakes no base sha: a regeneration would churn it.
 3. You appended one Timeline entry saying what you changed and what you deliberately did not.
 
 Clearing Backlog A is a floor and is NOT evidence of redesign: the depth number for this
