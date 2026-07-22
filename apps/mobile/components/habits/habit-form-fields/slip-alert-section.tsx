@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import { View, Text, Pressable } from "react-native";
-import { useRouter } from "expo-router";
 import { ShieldAlert } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { ProBadge } from "@/components/ui/pro-badge";
@@ -12,6 +11,7 @@ interface SlipAlertSectionProps {
   hasProAccess: boolean;
   slipAlertEnabled: boolean;
   onToggle: () => void;
+  onUpgrade: () => void;
 }
 
 export function SlipAlertSection({
@@ -19,9 +19,9 @@ export function SlipAlertSection({
   hasProAccess,
   slipAlertEnabled,
   onToggle,
+  onUpgrade,
 }: Readonly<SlipAlertSectionProps>) {
   const { t } = useTranslation();
-  const router = useRouter();
   const sectionStyles = useMemo(() => createSectionStyles(tokens), [tokens]);
 
   return (
@@ -51,7 +51,7 @@ export function SlipAlertSection({
             sectionStyles.headerRow,
             pressed && { transform: [{ scale: 0.98 }] },
           ]}
-          onPress={() => router.push("/upgrade")}
+          onPress={onUpgrade}
           accessibilityRole="button"
         >
           <View style={{ flex: 1, gap: 4 }}>

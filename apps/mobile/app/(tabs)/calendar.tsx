@@ -44,6 +44,7 @@ import {
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import { useCalendarData, useCalendarRange } from "@/hooks/use-habits";
 import { useProfile } from "@/hooks/use-profile";
+import { useSheetExitAction } from "@/hooks/use-sheet-exit-action";
 import { useTimeFormat } from "@/hooks/use-time-format";
 import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
 import { createTokensV2 } from "@/lib/theme";
@@ -342,10 +343,12 @@ export default function CalendarScreen() {
     (entry: CalendarDayEntry) => entry.status === "completed",
   ).length;
 
+  const { scheduleExitAction, runExitAction } = useSheetExitAction();
+
   const goToSelectedDay = () => {
     if (!selectedDay) return;
+    scheduleExitAction(() => router.push(`/?date=${selectedDay}`));
     setIsDayDetailOpen(false);
-    router.push(`/?date=${selectedDay}`);
   };
 
   const monthStatTiles = useMemo(
@@ -542,6 +545,7 @@ export default function CalendarScreen() {
       <BottomSheetModal
         open={isDayDetailOpen}
         onClose={closeDayDetail}
+        onDidDismiss={runExitAction}
         title={formattedSelectedDate}
         contentKey={selectedDay ?? undefined}
         contentManagesScroll

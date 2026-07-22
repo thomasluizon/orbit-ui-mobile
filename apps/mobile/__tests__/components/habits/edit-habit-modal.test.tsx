@@ -23,6 +23,10 @@ let mockHabitDetailResult: {
   error: unknown
 } = { data: null, isPending: false, error: null }
 
+vi.mock('expo-router', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
+}))
+
 vi.mock('react-hook-form', () => ({
   useWatch: (args: { name: string }) => useWatchMock(args),
 }))

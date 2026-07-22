@@ -228,12 +228,19 @@ describe('usePreferenceControls', () => {
     })
   })
 
-  it('routes a free user to upgrade when picking a non-purple scheme', async () => {
+  it('routes a free user to upgrade only after the picker sheet dismisses', async () => {
     mocks.profile = makeProfile({ hasProAccess: false })
     const hook = await renderControls()
 
     TestRenderer.act(() => {
       hook.current.handleSchemeChange('blue')
+    })
+
+    expect(mocks.routerPush).not.toHaveBeenCalled()
+    expect(mocks.applyScheme).not.toHaveBeenCalled()
+
+    TestRenderer.act(() => {
+      hook.current.runPickerExitAction()
     })
 
     expect(mocks.routerPush).toHaveBeenCalledTimes(1)

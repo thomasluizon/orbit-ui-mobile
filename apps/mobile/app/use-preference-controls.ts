@@ -13,6 +13,7 @@ import {
 } from '@orbit/shared/utils'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { useProfile } from '@/hooks/use-profile'
+import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { useAppTheme } from '@/lib/use-app-theme'
 import type { PreferencePicker } from './preferences-sections'
@@ -25,6 +26,7 @@ export function usePreferenceControls() {
   const { applyScheme, applyTheme, currentTheme, currentScheme } = useAppTheme()
 
   const [activePicker, setActivePicker] = useState<PreferencePicker | null>(null)
+  const { scheduleExitAction, runExitAction } = useSheetExitAction()
 
   const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'pt-BR'>(() =>
     resolveSystemLocale(i18n.language),
@@ -88,8 +90,8 @@ export function usePreferenceControls() {
 
   function handleSchemeChange(scheme: ColorScheme) {
     if (!profile?.hasProAccess && scheme !== 'purple') {
+      scheduleExitAction(() => router.push(buildUpgradeHref('/preferences')))
       setActivePicker(null)
-      router.push(buildUpgradeHref('/preferences'))
       return
     }
     applyScheme(scheme)
@@ -137,6 +139,7 @@ export function usePreferenceControls() {
     handleSchemeChange,
     handleThemeModeChange,
     handleShowGeneralToggle,
+    runPickerExitAction: runExitAction,
     weekStartMutation,
   }
 }

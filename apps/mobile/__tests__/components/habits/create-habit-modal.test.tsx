@@ -158,13 +158,23 @@ function renderModal(ui: React.ReactElement) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
-  let tree: { root: { findAll: (predicate: (node: any) => boolean) => any[] } }
+  let tree: {
+    root: { findAll: (predicate: (node: any) => boolean) => any[] }
+    update: (nextUi: React.ReactElement) => void
+  }
   TestRenderer.act(() => {
     tree = TestRenderer.create(
       <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
     )
   })
-  return tree!
+  const updateModal = (nextUi: React.ReactElement) => {
+    TestRenderer.act(() => {
+      tree.update(
+        <QueryClientProvider client={queryClient}>{nextUi}</QueryClientProvider>,
+      )
+    })
+  }
+  return { root: tree!.root, updateModal }
 }
 
 function hasText(root: { findAll: (predicate: (node: any) => boolean) => any[] }, value: string) {
@@ -358,17 +368,24 @@ describe('CreateHabitModal (mobile)', () => {
     expect(onClose).not.toHaveBeenCalled()
   })
 
-  it('redirects non-pro users out of sub-habit mode when opened', () => {
+  it('redirects non-pro users out of sub-habit mode only after the sheet dismisses', () => {
     mockHasProAccess = false
     const onClose = vi.fn()
     const parentHabit = createMockHabit({ id: 'p-1', title: 'Parent' })
 
-    renderModal(
+    const tree = renderModal(
       <CreateHabitModal open onClose={onClose} parentHabit={parentHabit} />,
     )
 
     expect(onClose).toHaveBeenCalled()
+    expect(mockPush).not.toHaveBeenCalled()
+
+    tree.updateModal(
+      <CreateHabitModal open={false} onClose={onClose} parentHabit={parentHabit} />,
+    )
+
     expect(mockPush).toHaveBeenCalledWith('/upgrade')
+    expect(mockPush).toHaveBeenCalledTimes(1)
   })
 
   it('notifies when an AI suggestion applied nothing', async () => {

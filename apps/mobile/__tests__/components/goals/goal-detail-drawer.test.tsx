@@ -76,19 +76,25 @@ vi.mock('@/lib/use-app-theme', () => ({
   }),
 }))
 
+/* WHY: like the real wrapper, the mock stays in the tree when `open` is false -
+   TrueSheet only fires didDismiss after a close, so modelling close as unmount
+   would green-light flows production cannot execute.
+   https://sheet.lodev09.com/guides/navigation */
 vi.mock('@/components/bottom-sheet-modal', () => ({
-  BottomSheetModal: ({ open, children, title, onAttemptDismiss }: any) =>
-    open
-      ? React.createElement(
-          'BottomSheetModal',
-          { title },
-          React.createElement('Pressable', {
-            accessibilityLabel: 'attempt-dismiss',
-            onPress: () => onAttemptDismiss?.(),
-          }),
-          children,
-        )
-      : null,
+  BottomSheetModal: ({ open, children, title, onAttemptDismiss, onDidDismiss }: any) =>
+    React.createElement(
+      'BottomSheetModal',
+      { title, open },
+      React.createElement('Pressable', {
+        accessibilityLabel: 'attempt-dismiss',
+        onPress: () => onAttemptDismiss?.(),
+      }),
+      React.createElement('Pressable', {
+        accessibilityLabel: 'sheet-did-dismiss',
+        onPress: () => onDidDismiss?.(),
+      }),
+      children,
+    ),
 }))
 
 vi.mock('@/components/ui/keyboard-aware-scroll-view', () => ({
@@ -421,10 +427,42 @@ describe('GoalDetailDrawer', () => {
     expect(onClose).not.toHaveBeenCalled()
   })
 
-  it('seeds a chat draft and navigates to Astra from the goal drawer', () => {
+  /* WHY: replicates the goal-list host contract (drawer mounted while
+     selectedGoalId is set, close only clears `open`) so the exit action is
+     proven to survive the close the way production actually runs it.
+     https://sheet.lodev09.com/guides/navigation */
+  function GoalListHostReplica() {
+    const [selectedGoalId, setSelectedGoalId] = React.useState<string | null>(null)
+    const [showDetail, setShowDetail] = React.useState(false)
+    return React.createElement(
+      React.Fragment,
+      null,
+      React.createElement('Pressable', {
+        accessibilityLabel: 'open-goal-detail',
+        onPress: () => {
+          setSelectedGoalId('1')
+          setShowDetail(true)
+        },
+      }),
+      selectedGoalId
+        ? React.createElement(GoalDetailDrawer, {
+            open: showDetail,
+            onClose: () => setShowDetail(false),
+            goalId: selectedGoalId,
+          })
+        : null,
+    )
+  }
+
+  it('seeds a chat draft and navigates to Astra only after the host-mounted sheet finishes dismissing', () => {
     const setItem = vi.spyOn(AsyncStorage, 'setItem').mockResolvedValue(undefined)
-    const onClose = vi.fn()
-    const tree = renderDrawer(onClose)
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<GoalListHostReplica />)
+    })
+
+    press(tree, 'open-goal-detail')
+    expect(tree.root.findByType('BottomSheetModal').props.open).toBe(true)
 
     press(tree, 'ask-astra')
 
@@ -432,8 +470,18 @@ describe('GoalDetailDrawer', () => {
       'orbit-chat-draft',
       'goals.detail.askAstraSeedDefault:{"title":"Read 12 books"}',
     )
-    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(mockPush).not.toHaveBeenCalled()
+
+    const sheet = tree.root.findByType('BottomSheetModal')
+    expect(sheet.props.open).toBe(false)
+
+    press(tree, 'sheet-did-dismiss')
+
     expect(mockPush).toHaveBeenCalledWith('/chat')
+    expect(mockPush).toHaveBeenCalledTimes(1)
+
+    press(tree, 'sheet-did-dismiss')
+    expect(mockPush).toHaveBeenCalledTimes(1)
   })
 
   it('runs status mutations from the active action footer', () => {

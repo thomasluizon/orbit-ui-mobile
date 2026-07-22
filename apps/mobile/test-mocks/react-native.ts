@@ -131,6 +131,10 @@ export const Dimensions = {
   }),
 }
 
+export function useWindowDimensions() {
+  return { width: 412, height: 892, scale: 1, fontScale: 1 }
+}
+
 export const Easing = {
   out: <T>(value: T) => value,
   cubic: 'cubic',
@@ -245,6 +249,7 @@ export default {
   Dimensions,
   Easing,
   FlatList,
+  useWindowDimensions,
   findNodeHandle,
   Image,
   Keyboard,

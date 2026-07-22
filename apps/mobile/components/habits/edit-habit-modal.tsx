@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
 import { useWatch } from 'react-hook-form'
 import { Check } from 'lucide-react-native'
+import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
@@ -17,6 +18,7 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useHabitForm } from '@/hooks/use-habit-form'
 import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
+import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
 import { useTagSelection } from '@/hooks/use-tag-selection'
 import { useUpdateHabit, useHabitDetail } from '@/hooks/use-habits'
 import { useAssignTags } from '@/hooks/use-tags'
@@ -89,6 +91,13 @@ export function EditHabitModal({
     isDirty,
     onDismiss: onClose,
   })
+  const router = useRouter()
+  const { scheduleExitAction, runExitAction } = useSheetExitAction()
+
+  const navigateToUpgrade = useCallback(() => {
+    scheduleExitAction(() => router.push('/upgrade'))
+    onClose()
+  }, [onClose, router, scheduleExitAction])
 
   const {
     data: habitDetail,
@@ -264,6 +273,7 @@ export function EditHabitModal({
       <BottomSheetModal
         open={open}
         onClose={onClose}
+        onDidDismiss={runExitAction}
         title={t('habits.editHabit')}
         snapPoints={['80%', '95%']}
         canDismiss={dismissGuard.canDismiss}
@@ -296,6 +306,7 @@ export function EditHabitModal({
               isSuggesting={suggestion.isPending}
               defaultExpanded={true}
               lockedGeneral={lockedGeneral}
+              onUpgrade={navigateToUpgrade}
             />
           </View>
         </KeyboardAwareBottomSheetScrollView>

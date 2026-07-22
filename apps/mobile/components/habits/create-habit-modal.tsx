@@ -19,6 +19,7 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useHabitForm } from '@/hooks/use-habit-form'
 import { useProfile } from '@/hooks/use-profile'
+import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
 import { useTagSelection } from '@/hooks/use-tag-selection'
 import { useCreateHabit, useCreateSubHabit } from '@/hooks/use-habits'
 import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
@@ -140,6 +141,12 @@ export function CreateHabitModal({
     isDirty,
     onDismiss: onClose,
   })
+  const { scheduleExitAction, runExitAction } = useSheetExitAction()
+
+  const navigateToUpgrade = useCallback(() => {
+    scheduleExitAction(() => router.push('/upgrade'))
+    onClose()
+  }, [onClose, router, scheduleExitAction])
 
   const toggleGoal = useCallback((goalId: string) => {
     setSelectedGoalIds((prev) => toggleSelectedId(prev, goalId))
@@ -148,9 +155,8 @@ export function CreateHabitModal({
   useEffect(() => {
     if (!open || !isSubHabitMode || !profile || profile.hasProAccess) return
     // react-doctor-disable-next-line no-prop-callback-in-effect -- access gate: closes the sub-habit modal and redirects non-pro users to /upgrade; a side-effecting gate, not a state sync to the parent https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    onClose()
-    router.push('/upgrade')
-  }, [isSubHabitMode, onClose, open, profile, router])
+    navigateToUpgrade()
+  }, [isSubHabitMode, navigateToUpgrade, open, profile])
 
   const resetOnOpenRef = useRef({ initialDate, parentHabit, activeView, formHelpers, tags })
   useEffect(() => {
@@ -254,8 +260,7 @@ export function CreateHabitModal({
     flushBufferedInputsRef.current()
 
     if (isSubHabitMode && !hasProAccess) {
-      onClose()
-      router.push('/upgrade')
+      navigateToUpgrade()
       return
     }
 
@@ -319,8 +324,8 @@ export function CreateHabitModal({
     createHabit,
     createSubHabit,
     hasProAccess,
+    navigateToUpgrade,
     onClose,
-    router,
     showError,
     translate,
   ])
@@ -395,6 +400,7 @@ export function CreateHabitModal({
       <BottomSheetModal
         open={open}
         onClose={onClose}
+        onDidDismiss={runExitAction}
         title={
           isSubHabitMode ? t('habits.createSubHabit') : t('habits.createHabit')
         }
@@ -424,6 +430,7 @@ export function CreateHabitModal({
             onSuggestSetup={isSubHabitMode ? undefined : () => void handleSuggest()}
             isSuggesting={suggestion.isPending}
             lockedGeneral={parentHabit ? parentHabit.isGeneral : null}
+            onUpgrade={navigateToUpgrade}
           >
             {!isSubHabitMode ? (
               <SubHabitEditor
@@ -432,7 +439,7 @@ export function CreateHabitModal({
                 onUpdateSubHabit={updateSubHabitValue}
                 onRemoveSubHabit={removeSubHabit}
                 onAddSubHabit={addSubHabit}
-                onUpgrade={() => router.push('/upgrade')}
+                onUpgrade={navigateToUpgrade}
                 tokens={tokens}
                 styles={styles}
               />

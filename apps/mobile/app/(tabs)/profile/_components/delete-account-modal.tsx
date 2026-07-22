@@ -17,6 +17,7 @@ import { apiClient } from '@/lib/api-client'
 import { useOffline } from '@/hooks/use-offline'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useLogout } from '@/hooks/use-logout'
+import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { CodeInput } from '@/components/ui/code-input'
@@ -287,6 +288,7 @@ export function DeleteAccountModal({
   const { t } = useTranslation()
   const { isOnline } = useOffline()
   const handleLogout = useLogout()
+  const { scheduleExitAction, runExitAction } = useSheetExitAction()
 
   const [deleteStep, setDeleteStep] = useState<'confirm' | 'code' | 'deactivated'>('confirm')
   const [deleteCodeDigits, setDeleteCodeDigits] = useState(['', '', '', '', '', ''])
@@ -438,7 +440,10 @@ export function DeleteAccountModal({
     deleteContent = (
       <DeleteDeactivatedStep
         scheduledDeletionDate={scheduledDeletionDate}
-        onLogout={() => void handleLogout()}
+        onLogout={() => {
+          scheduleExitAction(() => void handleLogout())
+          onClose()
+        }}
       />
     )
   }
@@ -447,6 +452,7 @@ export function DeleteAccountModal({
     <BottomSheetModal
       open={open}
       onClose={onClose}
+      onDidDismiss={runExitAction}
       title={t('profile.deleteAccount.title')}
       snapPoints={['70%']}
     >

@@ -1,5 +1,6 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 
 vi.unmock('@/components/bottom-sheet-modal')
@@ -31,6 +32,7 @@ vi.mock('@/lib/use-app-theme', () => ({
 
 interface TestNode {
   type: unknown
+  props: Record<string, unknown>
 }
 
 interface TestTree {
@@ -45,11 +47,20 @@ interface TestRendererApi {
 
 const TestRenderer: TestRendererApi = require('react-test-renderer')
 
-async function renderModal(open: boolean) {
+interface ModalCallbacks {
+  onClose?: () => void
+  onDidDismiss?: () => void
+}
+
+async function renderModal(open: boolean, callbacks: ModalCallbacks = {}) {
   let tree!: TestTree
   await TestRenderer.act(async () => {
     tree = TestRenderer.create(
-      <BottomSheetModal open={open} onClose={() => {}}>
+      <BottomSheetModal
+        open={open}
+        onClose={callbacks.onClose ?? (() => {})}
+        onDidDismiss={callbacks.onDidDismiss}
+      >
         <></>
       </BottomSheetModal>,
     )
@@ -57,13 +68,25 @@ async function renderModal(open: boolean) {
   return tree
 }
 
-async function setOpen(tree: TestTree, open: boolean) {
+async function setOpen(tree: TestTree, open: boolean, callbacks: ModalCallbacks = {}) {
   await TestRenderer.act(async () => {
     tree.update(
-      <BottomSheetModal open={open} onClose={() => {}}>
+      <BottomSheetModal
+        open={open}
+        onClose={callbacks.onClose ?? (() => {})}
+        onDidDismiss={callbacks.onDidDismiss}
+      >
         <></>
       </BottomSheetModal>,
     )
+  })
+}
+
+async function fireNativeDidDismiss(tree: TestTree) {
+  const sheet = tree.root.findAll((node) => node.type === TrueSheet)[0]
+  if (!sheet) throw new Error('TrueSheet not rendered')
+  await TestRenderer.act(async () => {
+    ;(sheet.props.onDidDismiss as () => void)()
   })
 }
 
@@ -144,5 +167,43 @@ describe('BottomSheetModal', () => {
 
     expect(present).toHaveBeenCalledTimes(1)
     expect(dismiss).not.toHaveBeenCalled()
+  })
+
+  it('fires onDidDismiss only after the NATIVE dismissal completes on a programmatic close', async () => {
+    const onClose = vi.fn()
+    const onDidDismiss = vi.fn()
+    const tree = await renderModal(true, { onClose, onDidDismiss })
+
+    await setOpen(tree, false, { onClose, onDidDismiss })
+
+    expect(dismiss).toHaveBeenCalledTimes(1)
+    expect(onDidDismiss).not.toHaveBeenCalled()
+
+    await fireNativeDidDismiss(tree)
+
+    expect(onDidDismiss).toHaveBeenCalledTimes(1)
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('fires onDidDismiss once on an interactive dismissal, after syncing state through onClose', async () => {
+    const onClose = vi.fn()
+    const onDidDismiss = vi.fn()
+    const tree = await renderModal(true, { onClose, onDidDismiss })
+
+    await fireNativeDidDismiss(tree)
+
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(onDidDismiss).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not fire onDidDismiss when the sheet never presented', async () => {
+    const onDidDismiss = vi.fn()
+    const tree = await renderModal(false, { onDidDismiss })
+
+    await setOpen(tree, false, { onDidDismiss })
+
+    expect(present).not.toHaveBeenCalled()
+    expect(dismiss).not.toHaveBeenCalled()
+    expect(onDidDismiss).not.toHaveBeenCalled()
   })
 })

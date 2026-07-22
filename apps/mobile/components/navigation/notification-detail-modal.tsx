@@ -9,6 +9,7 @@ import {
 } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -36,6 +37,7 @@ export function NotificationDetailModal({
     [currentScheme, currentTheme],
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
+  const { scheduleExitAction, runExitAction } = useSheetExitAction()
   const { canView, canMarkAsRead } = getNotificationDetailActionVisibility(
     notification,
   )
@@ -43,8 +45,8 @@ export function NotificationDetailModal({
   function handleView() {
     const url = notification.url
     if (isViewableNotificationUrl(url)) {
+      scheduleExitAction(() => router.push(url))
       onClose()
-      router.push(url)
     }
   }
 
@@ -57,6 +59,7 @@ export function NotificationDetailModal({
     <BottomSheetModal
       open={open}
       onClose={onClose}
+      onDidDismiss={runExitAction}
       title={notification.title}
       snapPoints={['50%', '92%']}
     >

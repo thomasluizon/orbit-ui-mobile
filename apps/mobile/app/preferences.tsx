@@ -34,6 +34,7 @@ export default function PreferencesScreen() {
     handleSchemeChange,
     handleThemeModeChange,
     handleShowGeneralToggle,
+    runPickerExitAction,
     weekStartMutation,
   } = usePreferenceControls()
   const tokens = useMemo(
@@ -181,6 +182,7 @@ export default function PreferencesScreen() {
         themeModeOptions={themeModeOptions}
         weekStartOptions={weekStartOptions}
         onClose={closePicker}
+        onDidDismiss={runPickerExitAction}
         onLanguageChange={(locale) => {
           void handleLanguageChange(locale)
         }}
