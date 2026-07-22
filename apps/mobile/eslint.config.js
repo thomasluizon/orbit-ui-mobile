@@ -10,6 +10,7 @@ const noFullbleedButton = require("../../eslint-rules/no-fullbleed-button.cjs")
 const animatePresenceExit = require("../../eslint-rules/animate-presence-exit.cjs")
 const animatePresenceStableKey = require("../../eslint-rules/animate-presence-stable-key.cjs")
 const noDecorativeGlow = require("../../eslint-rules/no-decorative-glow.cjs")
+const noDraggableOnscroll = require("../../eslint-rules/no-draggable-onscroll.cjs")
 const noJsxLogicalAnd = require("../../eslint-rules/no-jsx-logical-and.cjs")
 const noOvershootEasing = require("../../eslint-rules/no-overshoot-easing.cjs")
 const noRawFontFeatureTag = require("../../eslint-rules/no-raw-font-feature-tag.cjs")
@@ -74,6 +75,7 @@ module.exports = defineConfig([
           "animate-presence-exit": animatePresenceExit,
           "animate-presence-stable-key": animatePresenceStableKey,
           "no-decorative-glow": noDecorativeGlow,
+          "no-draggable-onscroll": noDraggableOnscroll,
           "no-jsx-logical-and": noJsxLogicalAnd,
           "no-overshoot-easing": noOvershootEasing,
           "no-raw-font-feature-tag": noRawFontFeatureTag,
@@ -99,6 +101,7 @@ module.exports = defineConfig([
       // root override, so it could be extended here in a follow-up.
       "local/animate-presence-exit": "error",
       "local/animate-presence-stable-key": "error",
+      "local/no-draggable-onscroll": "error",
       "local/no-jsx-logical-and": "error",
       "local/no-overshoot-easing": "error",
       "local/no-raw-font-feature-tag": "error",
