@@ -64,4 +64,24 @@ describe('GoalList', () => {
       expect(typeof card.props.onLongPress).toBe('function')
     }
   })
+
+  it('feeds the scroll offset upward through onScrollOffsetChange, never the discarded onScroll', () => {
+    const onScroll = vi.fn()
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <GoalList goals={[createMockGoal({ id: 'goal-1', position: 0 })]} onScroll={onScroll} />,
+      )
+    })
+
+    const draggableList = tree.root.findByType('DraggableFlatList')
+    expect(draggableList.props.onScroll).toBeUndefined()
+    expect(typeof draggableList.props.onScrollOffsetChange).toBe('function')
+
+    TestRenderer.act(() => {
+      draggableList.props.onScrollOffsetChange(700)
+    })
+
+    expect(onScroll).toHaveBeenCalledWith(700)
+  })
 })

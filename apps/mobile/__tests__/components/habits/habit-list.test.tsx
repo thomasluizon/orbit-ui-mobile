@@ -1,11 +1,13 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { formatAPIDate } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { HabitVisibilityOptions } from '@orbit/shared/utils/habit-visibility'
 import { HabitList, type HabitListHandle } from '@/components/habit-list'
 import { HabitRow } from '@/components/habits/habit-row'
+import { tourScrollRegistry } from '@/components/tour/tour-target-context'
+import { useTourStore } from '@/stores/tour-store'
 
 const TODAY = formatAPIDate(new Date())
 const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
@@ -1628,5 +1630,62 @@ describe('HabitList', () => {
       .filter((node: any) => node.props.title === 'habits.autoLogParentTitle')
 
     expect(reopenedDialogs).toHaveLength(0)
+  })
+
+  describe('today view scroll offset wiring', () => {
+    afterEach(() => {
+      TestRenderer.act(() => {
+        useTourStore.setState({ isActive: false })
+      })
+    })
+
+    function renderTodayList(onScroll?: (offsetY: number) => void) {
+      let tree: any
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          <HabitList
+            view="today"
+            filters={{}}
+            showCompleted
+            onCreatePress={vi.fn()}
+            onScroll={onScroll}
+          />,
+        )
+      })
+      return tree
+    }
+
+    it('feeds the scroll offset upward through onScrollOffsetChange, never the discarded onScroll', () => {
+      const onScroll = vi.fn()
+      const tree = renderTodayList(onScroll)
+
+      const draggableList = tree.root.findByType('DraggableFlatList')
+      expect(draggableList.props.onScroll).toBeUndefined()
+      expect(typeof draggableList.props.onScrollOffsetChange).toBe('function')
+
+      TestRenderer.act(() => {
+        draggableList.props.onScrollOffsetChange(650)
+      })
+      expect(onScroll).toHaveBeenCalledWith(650)
+
+      TestRenderer.act(() => {
+        draggableList.props.onScrollOffsetChange(120)
+      })
+      expect(onScroll).toHaveBeenLastCalledWith(120)
+    })
+
+    it('tracks the tour scroll position from onScrollOffsetChange while a tour is active', () => {
+      TestRenderer.act(() => {
+        useTourStore.setState({ isActive: true })
+      })
+      const tree = renderTodayList()
+
+      const draggableList = tree.root.findByType('DraggableFlatList')
+      TestRenderer.act(() => {
+        draggableList.props.onScrollOffsetChange(320)
+      })
+
+      expect(tourScrollRegistry.get('/')?.scrollY).toBe(320)
+    })
   })
 })
