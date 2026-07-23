@@ -16,12 +16,20 @@
  *   - PreToolUse (.claude/hooks/forbid-gate-tamper.mjs) is a cheap early NUDGE.
  *   - This tool is the AUTHORITY for the threat it actually covers.
  *
- * Two independent questions, both answered from `git`:
- *   1. Did the change stay inside the work order's owned files?
- *   2. Did the change touch gate state, or shrink a suppression baseline for a
+ * Three independent questions, all answered from `git`:
+ *   1. Did the range produce anything at all? An empty diff is a no-op, and a
+ *      no-op recorded green is the whole failure this harness exists to stop.
+ *   2. Did the change stay inside the work order's owned files?
+ *   3. Did the change touch gate state, or shrink a suppression baseline for a
  *      file it never edited (the precise shape of faking the mechanical floor)?
  *
- * The trust root for question 1 is GIT HISTORY, never the working tree. The
+ * The SUBJECT of all three is an explicit `base...head` range the caller names,
+ * never "whatever HEAD happens to be checked out". A child that committed its
+ * escape, opened the PR and then ran `git checkout <base branch>` used to score
+ * a clean exit 0 here, because every leg of the diff was anchored to the tree it
+ * had just vacated.
+ *
+ * The trust root for question 2 is GIT HISTORY, never the working tree. The
  * child is ordered to edit its own work order file (the Timeline append is part
  * of the definition of done), so the on-disk copy is writable by the exact
  * party this gate polices. Reading Boundaries from it let a child annex any
@@ -32,24 +40,21 @@
  * child's copies may only APPEND to that base copy. See ownedFilesOf.
  *
  * WHAT THIS TOOL DOES NOT CATCH, stated plainly because an adversarial review of
- * this design refuted the claim that it would:
+ * this design refuted the claim that it would: it is structurally blind to a bad
+ * change that stays entirely inside the files the unit legitimately owns. An
+ * agent that guts a surface, memorises a test, or reports far more progress than
+ * it made, without ever touching an unowned path, passes cleanly. No redrawing
+ * of the ownership manifest fixes that, and it is EXACTLY the failure this
+ * harness was built for - ten sessions reported a whole-app redesign done while
+ * 9 of 171 surfaces cleared the depth floor, with no protected file ever
+ * tampered with. Nor does the mechanical-debt count address it: that is a LINT
+ * COUNT, and hoisting an off-scale literal into a named constant drives it to
+ * zero with nothing moved. The only axis that speaks to depth is the redesign
+ * measurement, and the only thing that GRANTS is a human tick in signoff.json.
  *
- * It is structurally blind to a bad change that stays entirely inside the files
- * the unit legitimately owns. An agent that guts a surface, memorises a test, or
- * reports far more progress than it made, without ever touching an unowned path,
- * passes this gate cleanly. That blind spot is not a tuning problem and no
- * redrawing of the ownership manifest fixes it.
- *
- * That matters because it is EXACTLY the shape of the failure this harness was
- * built for: ten sessions reported a whole-app redesign done while 9 of 171
- * surfaces cleared a 30% depth floor. No protected file was ever tampered with.
- * So this tool does not address that failure and must not be credited with it.
- * What addresses it is the work order's objective per-unit count
- * (`tools/workorder.mjs --check`, which cannot be satisfied by a self-report)
- * and the removal of any `done` status a child is able to return at all.
- *
- * This tool covers a real but narrower threat: an agent editing the scoreboard,
- * and two parallel agents overwriting each other. Keep the claim that size.
+ * So this tool covers three narrow things: an agent editing the scoreboard, two
+ * parallel agents overwriting each other, and a bundle that produced nothing at
+ * all. Keep the claim that size.
  */
 import { spawnSync } from "node:child_process"
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs"
@@ -134,34 +139,35 @@ function isOwnedTestCompanion(file, owned) {
 const USAGE = `check-diff-ownership - fail a run whose diff escaped its work order
 
 USAGE
-  node tools/check-diff-ownership.mjs --id <workOrderId> [--id <id2> ...] [--base <ref>]
-  node tools/check-diff-ownership.mjs --files <a,b,c> [--base <ref>]
+  node tools/check-diff-ownership.mjs --id <workOrderId> [--id <id2> ...] --base <ref> [--head <ref>]
   node tools/check-diff-ownership.mjs --help
 
   --id <id>       A work order whose owned files are permitted. Repeatable, so a
                   bundle of several work orders passes several --id flags.
-  --files <list>  Comma-separated permitted paths, for a unit with no work order.
-                  MUTUALLY EXCLUSIVE with --id: --files carries no work-order
-                  trust root, so accepting both would drop every --id check while
-                  still granting each order file (exit 2 if both are passed).
-  --base <ref>    Compare against this ref. Default resolution, fail-closed: the
-                  merge-base with @{upstream}, else with origin/main, else with
-                  main; none resolving is exit 2, never an empty diff. An
-                  unresolvable explicit ref is exit 2 too. Uncommitted changes
-                  are always included.
+  --base <ref>    REQUIRED. The commit the work started from. No default, no
+                  guessing: see resolveRef for the guess this replaced.
+  --head <ref>    The commit whose work is judged. Defaults to the current HEAD,
+                  and then the uncommitted working tree is judged too, so a child
+                  self-checking mid-work gets a truthful answer. Naming a
+                  DIFFERENT commit - the sha the driver recorded for the child -
+                  judges the committed range only, so vacating the branch hides
+                  nothing.
   --help, -h      This text.
 
 EXIT CODES
-  0  every changed file is owned or structurally permitted (the suppression
-     ledgers, an owned file's test companion, the i18n pair, or a work-order
-     change that byte-equals a fresh \`node tools/workorder.mjs\` regeneration
-     with every base Timeline entry intact), and no gate state was touched
-  1  the diff escaped its ownership, touched gate state, moved a suppression
-     count for a file it never edited, deleted or corrupted a suppression
-     ledger that existed at base (the scoreboard cannot vanish mid-run), or
-     rewrote a work order file beyond an append or a sanctioned regeneration
-  2  bad invocation, an unresolvable base, or a work order absent at the base
-     ref (a work order created mid-run cannot self-grant ownership)
+  0  the range changed at least one file, every changed file is owned or
+     structurally permitted (the suppression ledgers, an owned file's test
+     companion, the i18n pair, or a work-order change that byte-equals a fresh
+     \`node tools/workorder.mjs\` regeneration with every base Timeline entry
+     intact), and no gate state was touched
+  1  the range changed NOTHING (a bundle that produced no diff is a no-op, and a
+     no-op recorded green is the failure this harness exists to stop), or the
+     diff escaped its ownership, touched gate state, moved a suppression count
+     for a file it never edited, deleted or corrupted a suppression ledger that
+     existed at base (the scoreboard cannot vanish mid-run), or rewrote a work
+     order file beyond an append or a sanctioned regeneration
+  2  bad invocation, an unresolvable --base/--head, or a work order absent at the
+     base ref (a work order created mid-run cannot self-grant ownership)
 `
 
 function fail(message, code = 2) {
@@ -184,50 +190,34 @@ function normalize(path) {
   return path.replace(/\\/g, "/").replace(/^\.\//, "").trim()
 }
 
-/** Every path the working tree has changed against `base`, committed or not. */
-function changedFiles(base) {
-  const committed = git(["diff", "--name-only", `${base}...HEAD`])
-  const unstaged = git(["diff", "--name-only", "HEAD"])
-  const untracked = git(["ls-files", "--others", "--exclude-standard"])
-  return [...new Set([committed, unstaged, untracked].join("\n").split("\n").map(normalize).filter(Boolean))]
+/**
+ * Every path the range changed. The committed leg is the subject the driver
+ * measures; the working tree is added only when `head` IS the checked-out
+ * commit, because then the uncommitted edits belong to the same subject. When
+ * the caller names a different head - the sha the child actually produced - the
+ * working tree is a different tree and mixing it in would judge neither.
+ */
+function changedFiles(base, head, includeWorkingTree) {
+  const parts = [git(["diff", "--name-only", `${base}...${head}`])]
+  if (includeWorkingTree) {
+    parts.push(git(["diff", "--name-only", head]), git(["ls-files", "--others", "--exclude-standard"]))
+  }
+  return [...new Set(parts.join("\n").split("\n").map(normalize).filter(Boolean))]
 }
 
 /**
- * Resolve the ref the diff is judged against, and refuse to guess. The old
- * default returned "" when @{upstream} was unset, and "" silently dropped the
- * COMMITTED diff from the verdict - vacuously green exactly when the child had
- * committed, which the definition of done orders it to do. An unresolvable
- * explicit --base degraded the same way. A gate that cannot see the diff must
- * fail loudly, never pass quietly.
- *
- * Resolution order: merge-base with @{upstream}, else origin/main, else main.
- * A candidate whose merge-base IS HEAD proves nothing about branch-local
- * commits - the post-push upstream is the branch's own remote copy, so their
- * merge-base is HEAD and the committed diff is empty by construction. Such a
- * candidate is kept only as a last resort for the legitimate no-local-commits
- * case, where HEAD genuinely is the base.
+ * A ref the caller named, resolved or refused. Both endpoints are named by the
+ * caller and neither is guessed: the ladder this replaced (merge-base with
+ * @{upstream}, else origin/main, else main) ended in a branch that returned
+ * HEAD itself whenever the merge-base WAS HEAD - the exact post-push shape a
+ * child reaches by checking the base branch back out - so the gate resolved a
+ * base whose diff was empty by construction and reported OK. A gate that cannot
+ * see the range it is judging fails rather than passes.
  */
-function resolveBase(explicitBase) {
-  if (explicitBase) {
-    const sha = git(["rev-parse", "--verify", "--quiet", `${explicitBase}^{commit}`]).trim()
-    if (!sha) fail(`--base "${explicitBase}" does not resolve to a commit. An unresolvable base must never degrade to an empty diff.`)
-    return { sha, how: `explicit --base ${explicitBase}` }
-  }
-  const head = git(["rev-parse", "HEAD"]).trim()
-  const upstream = git(["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"]).trim()
-  let headIsBase = null
-  for (const candidate of [upstream, "origin/main", "main"].filter(Boolean)) {
-    if (!git(["rev-parse", "--verify", "--quiet", `${candidate}^{commit}`]).trim()) continue
-    const mergeBase = git(["merge-base", "HEAD", candidate]).trim()
-    if (!mergeBase) continue
-    if (mergeBase !== head) return { sha: mergeBase, how: `merge-base with ${candidate}` }
-    if (!headIsBase) headIsBase = { sha: head, how: `HEAD (already contained in ${candidate})` }
-  }
-  if (headIsBase) return headIsBase
-  fail(
-    "no base resolved: no @{upstream}, origin/main or main to merge-base against. Pass --base <ref>. " +
-      "Without a base the committed diff is invisible, and a gate that cannot see the diff fails rather than passes.",
-  )
+function resolveRef(flag, value) {
+  const sha = git(["rev-parse", "--verify", "--quiet", `${value}^{commit}`]).trim()
+  if (!sha) fail(`${flag} "${value}" does not resolve to a commit. An unresolvable endpoint must never degrade to an empty diff.`)
+  return sha
 }
 
 /**
@@ -239,16 +229,25 @@ function resolveBase(explicitBase) {
  * handed a child exclusive ownership of another order's file and the driver's
  * own measurement then reported a false green.
  *
- * Both the committed (HEAD) and working copies are held APPEND-ONLY against the
- * base copy: byte-prefix after CRLF normalisation, because checkouts
+ * Both the committed (headSha) and working copies are held APPEND-ONLY against
+ * the base copy: byte-prefix after CRLF normalisation, because checkouts
  * materialise these files with either line ending. The Timeline may grow at the
  * end; a rewrite, reorder or truncation is the same exploit through the other
- * door, and checking HEAD as well as the working tree closes the
+ * door, and checking the committed copy as well as the working tree closes the
  * commit-the-rewrite-then-revert-the-working-copy variant. The ONE sanctioned
  * exception to the byte-prefix rule is regeneration output - see the
  * regeneration carve-out below for why it exists and why it grants nothing.
+ *
+ * Each copy is judged ON ITS OWN. One verdict across both was measured as a
+ * false red for the entire pre-commit window of an HONEST child: the prompt
+ * orders the regeneration (rule 7) before the commit (rule 8), so between them
+ * the working copy is regeneration output while the committed copy is still the
+ * base copy - and demanding that BOTH byte-equal the regeneration failed the
+ * child at the exact moment its own printed condition (b) told it to self-check.
+ * Per copy, that state is legal (one append-only, one regen-shaped) and every
+ * dishonest shape still fails, because a rewritten copy is neither.
  */
-function ownedFilesOf(id, baseSha, regenAllowed) {
+function ownedFilesOf(id, baseSha, headSha, regenAllowed) {
   const relPath = `.claude/workorders/${id}.md`
   const baseRaw = gitShow(baseSha, relPath)
   if (baseRaw === null)
@@ -260,23 +259,22 @@ function ownedFilesOf(id, baseSha, regenAllowed) {
   const baseText = baseRaw.replace(/\r\n/g, "\n")
   const workingPath = join(WORKORDER_DIR, `${id}.md`)
   const workingText = existsSync(workingPath) ? readFileSync(workingPath, "utf8").replace(/\r\n/g, "\n") : null
-  const headRaw = gitShow("HEAD", relPath)
+  const headRaw = gitShow(headSha, relPath)
   const headText = headRaw === null ? null : headRaw.replace(/\r\n/g, "\n")
-  const appendOnly = (text) => text !== null && text.startsWith(baseText)
-  if (!appendOnly(workingText) || !appendOnly(headText)) {
-    // The bundle's own order may change beyond an append in exactly one way:
-    // clearing Backlog A moves `mechanicalDebt` in the frontmatter, and the CI
-    // freshness gate requires that regenerated ledger committed. The Timeline
-    // may still only grow.
-    const sanctioned = regenAllowed && regenSanctioned(relPath, baseText, [workingText, headText], true)
-    if (!sanctioned)
-      fail(
-        `work order "${id}" rewritten - Timeline is append-only. The base ref's copy must be a byte-prefix of ` +
-          `both the committed and working copies; revert the file and append your Timeline entry at the end instead. ` +
-          `The one sanctioned exception is byte-exact \`node tools/workorder.mjs\` regeneration output with every ` +
-          `base Timeline entry intact${regenAllowed ? ", and this change is not it" : "; it is withheld here because gate state was touched"}.`,
-        1,
-      )
+  // The bundle's own order may change beyond an append in exactly one way:
+  // clearing Backlog A moves `mechanicalDebt` in the frontmatter, and the CI
+  // freshness gate requires that regenerated ledger committed. The Timeline may
+  // still only grow.
+  const copyIsLegal = (text) =>
+    (text !== null && text.startsWith(baseText)) || (regenAllowed && regenSanctioned(relPath, baseText, [text], true))
+  if (!copyIsLegal(workingText) || !copyIsLegal(headText)) {
+    fail(
+      `work order "${id}" rewritten - Timeline is append-only. The base ref's copy must be a byte-prefix of ` +
+        `the committed copy and of the working copy; revert the file and append your Timeline entry at the end instead. ` +
+        `The one sanctioned exception, judged per copy, is byte-exact \`node tools/workorder.mjs\` regeneration output ` +
+        `with every base Timeline entry intact${regenAllowed ? ", and this change is not it" : "; it is withheld here because gate state was touched"}.`,
+      1,
+    )
   }
   const start = baseText.indexOf("## Boundaries")
   const sharedAt = baseText.indexOf("### Shared, and NOT yours to edit")
@@ -394,6 +392,12 @@ function timelineEntriesOf(text) {
  * order's Timeline is not this bundle's to write, appended or otherwise.
  * A `null` candidate is an absent copy, sanctioned only when the regeneration
  * also produces no such file (the generator's own sweep of a cleared order).
+ *
+ * A candidate byte-equal to the BASE copy is skipped, because it is not a
+ * change at all. That is the pre-commit window again, through the foreign-file
+ * door: the mandated regeneration rewrites INDEX.md and any swept sibling in
+ * the working tree while the committed copy is still the base copy, and
+ * demanding that BOTH match the regeneration turned rule 7 into an escape.
  */
 function regenSanctioned(relPath, baseText, candidates, timelineMayGrow) {
   const canonical = canonicalRegenTree()
@@ -405,6 +409,7 @@ function regenSanctioned(relPath, baseText, candidates, timelineMayGrow) {
   if (!isIndex && (kindOf(baseText) === "plan" || kindOf(canonicalText) === "plan")) return false
   const baseEntries = timelineEntriesOf(baseText ?? "")
   for (const text of candidates) {
+    if (text === baseText) continue
     if (text === null && canonicalText === null) {
       // A DELETION can never carry the base ref's recorded history forward, so
       // sanctioning one used to launder exactly the destruction step 3 below
@@ -426,14 +431,14 @@ function regenSanctioned(relPath, baseText, candidates, timelineMayGrow) {
 }
 
 /** The carve-out for a changed workorders file the bundle does not own - INDEX.md, or a sibling swept by regeneration. */
-function regenSanctionedFile(relPath, baseSha) {
+function regenSanctionedFile(relPath, baseSha, headSha) {
   const readNormalized = (raw) => (raw === null ? null : raw.replace(/\r\n/g, "\n"))
   const workingPath = join(REPO_ROOT, relPath)
   const workingText = existsSync(workingPath) ? readFileSync(workingPath, "utf8").replace(/\r\n/g, "\n") : null
   return regenSanctioned(
     relPath,
     readNormalized(gitShow(baseSha, relPath)),
-    [workingText, readNormalized(gitShow("HEAD", relPath))],
+    [workingText, readNormalized(gitShow(headSha, relPath))],
     false,
   )
 }
@@ -448,10 +453,26 @@ function regenSanctionedFile(relPath, baseSha) {
  * every recorded web violation and read as a clean pass here, because the
  * ENOENT was swallowed. The scoreboard cannot vanish mid-run - deletion or
  * corruption is an explicit failure, never a skip.
+ *
+ * KEPT, with its blind spot reported rather than papered over. It still catches
+ * what nothing else does: a ledger entry removed for a file this diff never
+ * edited, which pinning the range by sha cannot see because the forgery is a
+ * legal edit to a permitted file. What it CANNOT catch, measured: hoisting
+ * `padding: '6px 20px'` into `const CARD_PADDING_Y = 6` deletes the violation,
+ * so the source genuinely IS edited and the count genuinely IS zero while the
+ * rendered padding is still 6px. No tuning here detects that - eslint counts
+ * literals and taste is not a literal - so `cleared` rides back alongside the
+ * problems and main() prints it as what it is.
  */
-function fakedSuppressions(base, changed) {
+function fakedSuppressions(base, head, judgesWorkingTree, changed) {
   const problems = []
+  const cleared = []
   const changedSet = new Set(changed)
+  // The ledger is read from the SAME subject as the diff. Reading the working
+  // tree while judging a committed range would have let a vacated checkout hide
+  // a committed ledger forgery: the base copy would be on disk, so every count
+  // would look untouched.
+  const currentCopy = (file) => (judgesWorkingTree ? readFileSync(join(REPO_ROOT, file), "utf8") : gitShow(head, file))
   for (const file of SUPPRESSION_FILES) {
     const before = gitShow(base, file)
     if (before === null || !before.trim()) continue
@@ -465,7 +486,9 @@ function fakedSuppressions(base, changed) {
     }
     let current
     try {
-      current = JSON.parse(readFileSync(join(REPO_ROOT, file), "utf8"))
+      const raw = currentCopy(file)
+      if (raw === null) throw new Error(`${file} is absent at the judged head`)
+      current = JSON.parse(raw)
     } catch {
       problems.push(
         `${file}: ledger deleted or unreadable - the scoreboard cannot vanish mid-run. Restore the committed ` +
@@ -480,13 +503,12 @@ function fakedSuppressions(base, changed) {
         const now = current[entry]?.[rule]?.count ?? 0
         if (now >= was) continue
         const source = normalize(workspace + entry)
-        if (!changedSet.has(source)) {
-          problems.push(`${file}: ${entry} ${rule} dropped ${was} -> ${now}, but ${source} was never edited`)
-        }
+        if (changedSet.has(source)) cleared.push({ source, rule, was, now })
+        else problems.push(`${file}: ${entry} ${rule} dropped ${was} -> ${now}, but ${source} was never edited`)
       }
     }
   }
-  return problems
+  return { problems, cleared }
 }
 
 function main() {
@@ -497,8 +519,8 @@ function main() {
   }
 
   const ids = []
-  let explicitFiles = null
   let base = null
+  let head = null
   // A flag whose value is empty or missing used to be DROPPED silently, so
   // `--base ""` judged the tool's own default resolution while the caller
   // believed it had pinned one - the same class of silence as an unresolvable
@@ -510,28 +532,27 @@ function main() {
     }
     return value
   }
+  // An unrecognised token is refused rather than ignored. `--files` used to be a
+  // second, weaker trust root here and is DELETED: it replaced the work-order
+  // ownership root wholesale, so appending `--files x` to a failing `--id` run
+  // flipped exit 1 to exit 0 on the identical tree. No caller passed it - the
+  // driver and the generated prompt only ever emit --id - so removing the flag
+  // removes the bypass permanently instead of guarding against it.
   for (let index = 0; index < argv.length; index += 1) {
-    if (argv[index] === "--id") ids.push(valueOf("--id", index++))
-    else if (argv[index] === "--files") explicitFiles = valueOf("--files", index++).split(",").map(normalize)
-    else if (argv[index] === "--base") base = valueOf("--base", index++)
+    const token = argv[index]
+    if (token === "--id") ids.push(valueOf("--id", index++))
+    else if (token === "--base") base = valueOf("--base", index++)
+    else if (token === "--head") head = valueOf("--head", index++)
+    else fail(`unrecognised argument "${token}". A typo'd flag would be silently dropped and this gate would judge something other than what you asked for. See --help.`)
   }
-  if (!ids.length && !explicitFiles) fail("pass at least one --id or a --files list. See --help.")
-  // --files used to WIN silently: `owned` short-circuited to the explicit list,
-  // so ownedFilesOf never ran for any --id and neither the "no work order at
-  // base" check nor the append-only byte-prefix check was applied - while the
-  // loop below still granted every named order's file. Adding a flag strictly
-  // WEAKENED the gate: the identical tree exited 1 under --id and 0 with
-  // `--files x` appended. They are alternatives, so they are refused together.
-  if (ids.length && explicitFiles) {
-    fail(
-      "--id and --files are mutually exclusive. --files replaces the work-order trust root entirely (no " +
-        "base-existence check, no append-only check), so combining them silently drops every verification " +
-        "--id exists to perform. Pass --id for a work order, --files for a unit that has none.",
-    )
-  }
+  if (!ids.length) fail("pass at least one --id. See --help.")
+  if (!base) fail("--base <ref> is required. This gate judges an explicit base...head range and never guesses one: the guess it replaced could resolve to HEAD itself, whose diff is empty by construction.")
 
-  const resolvedBase = resolveBase(base)
-  const changed = changedFiles(resolvedBase.sha)
+  const baseSha = resolveRef("--base", base)
+  const headSha = resolveRef("--head", head ?? "HEAD")
+  const currentHead = git(["rev-parse", "HEAD"]).trim()
+  const judgesWorkingTree = headSha === currentHead
+  const changed = changedFiles(baseSha, headSha, judgesWorkingTree)
 
   // ORDER MATTERS: gate state is judged before any ownership check runs,
   // because the regeneration carve-out trusts the working tree's generator and
@@ -541,7 +562,7 @@ function main() {
   const touchedGateState = changed.filter((file) => GATE_STATE.some((pattern) => pattern.test(file)))
   const regenAllowed = touchedGateState.length === 0
 
-  const owned = new Set(explicitFiles ?? ids.flatMap((id) => ownedFilesOf(id, resolvedBase.sha, regenAllowed)))
+  const owned = new Set(ids.flatMap((id) => ownedFilesOf(id, baseSha, headSha, regenAllowed)))
   // A work order's own file is owned by the unit it describes: appending to the
   // Timeline is required by the definition of done, so it must not read as an
   // escape. What it may GRANT is pinned to the base ref's copy by ownedFilesOf,
@@ -555,15 +576,43 @@ function main() {
     SUPPRESSION_FILES.includes(file) || I18N_PAIR.includes(file) || isOwnedTestCompanion(file, owned)
   const escaped = changed.filter((file) => {
     if (owned.has(file) || touchedGateState.includes(file) || structurallyPermitted(file)) return false
-    if (regenAllowed && /^\.claude\/workorders\/[^/]+\.md$/.test(file) && regenSanctionedFile(file, resolvedBase.sha)) return false
+    if (regenAllowed && /^\.claude\/workorders\/[^/]+\.md$/.test(file) && regenSanctionedFile(file, baseSha, headSha)) return false
     return true
   })
-  const faked = fakedSuppressions(resolvedBase.sha, changed)
+  const { problems: faked, cleared } = fakedSuppressions(baseSha, headSha, judgesWorkingTree, changed)
 
-  const label = explicitFiles ? `${owned.size} explicit file(s)` : ids.join(", ")
   process.stdout.write(
-    `scope: ${label}\nbase: ${resolvedBase.sha} (${resolvedBase.how})\nchanged: ${changed.length} file(s), ${owned.size} owned\n\n`,
+    `scope: ${ids.join(", ")}\n` +
+      `base: ${baseSha} (explicit --base ${base})\n` +
+      `head: ${headSha} (${head ? `explicit --head ${head}` : "current HEAD"}${judgesWorkingTree ? " + uncommitted working tree" : ", committed range only"})\n` +
+      `changed: ${changed.length} file(s), ${owned.size} owned\n\n`,
   )
+
+  // A range that changed nothing used to be this gate's easiest exit 0: an
+  // untouched tree, and a child that committed an escape then checked the base
+  // branch back out, both printed "changed: 0 file(s)" and OK. Absence of work
+  // cannot be certified as work.
+  if (!changed.length) {
+    process.stderr.write(
+      "NOTHING WAS PRODUCED. This gate judged the range above and found zero changed files, so there is no work\n" +
+        "here to own. A no-op recorded green is the failure this harness was built to stop. If the child committed\n" +
+        "to a branch and then checked another out, name that branch with --head. If the surface genuinely needs no\n" +
+        "change, say so in the summary and let a human decide.\n",
+    )
+    process.exit(1)
+  }
+
+  if (cleared.length) {
+    const files = [...new Set(cleared.map((entry) => entry.source))]
+    const count = cleared.reduce((sum, entry) => sum + (entry.was - entry.now), 0)
+    process.stdout.write(
+      `LINT-COUNT AXIS: ${count} suppressed violation(s) cleared across ${files.length} edited file(s). A lint count\n` +
+        "fell; that is NOT evidence anything looks different, because hoisting an off-scale literal into a named\n" +
+        "constant deletes the violation with zero pixels moved. The axis that measures movement is redesign depth,\n" +
+        "printed beside the same count by `node tools/workorder.mjs --check --id '<id>'`. Read them together.\n" +
+        files.map((file) => `  - ${file}\n`).join(""),
+    )
+  }
 
   if (!touchedGateState.length && !escaped.length && !faked.length) {
     process.stdout.write("OK: every changed file is owned by this work order or structurally permitted, and no gate state moved.\n")

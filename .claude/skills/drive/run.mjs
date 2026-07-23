@@ -6,8 +6,9 @@
  *  - ATTENDED (`--attended`, the default `/drive` path): readline gates — approve each bundle
  *    before it runs, review its PR after. The human is the verifier, so the auto-verifier
  *    is off. No `/clear` ever: each bundle is a fresh headless process, so context never accrues.
- *  - UNATTENDED (`--sleep`, no `--attended`): the proven overnight queue-drain, UNCHANGED — no
- *    gates, an independent Sonnet verifier grades each PR. This is the old `/night-run`.
+ *  - UNATTENDED (`--sleep`, no `--attended`): the overnight queue-drain - no readline gates, an
+ *    independent Sonnet verifier grades what each bundle produced (its PR, or the driver-measured
+ *    commit range when it opened none). This is the old `/night-run`.
  *
  * Per-task model tier: each queue entry may carry `tier` ("sonnet"|"opus") and `effort`
  * ("high"|"xhigh"); the driver routes the fresh `claude -p` to that model/effort (falling back to
@@ -29,14 +30,16 @@
  * (never a draft - SKILL.md's contract, so CI and the review bots run on it). The driver never
  * merges and returns every repo to its base branch between tasks.
  *
- * A bundle that carries `workOrders` is additionally measured by the DRIVER after its child
- * exits: `workorder --check --id` per order, and one `check-diff-ownership` run over the whole
- * bundle's diff against the base sha the driver recorded when the bundle started. Before this,
- * the only caller of either tool was a sentence in the child's own prompt - an instruction a
- * model may skip is advisory, not enforcement, and a repo-wide grep found zero deterministic
- * callers anywhere (no CI, no git hook, no settings). The verdicts ride into the task record,
- * the run log and the verifier prompt, and a child that claims ready-for-review against a
- * failing verdict is overridden to failed: the measurement wins over the claim.
+ * NOTHING A CHILD SAYS BECOMES ITS RECORDED OUTCOME. The driver records the base sha before the
+ * spawn and measures the commit the child actually left off it (measureChildWork), then judges
+ * that explicit base..childHead range - never "whatever HEAD the child left checked out" - with
+ * `check-diff-ownership --head` and `workorder --check`. deriveOutcome turns those measurements
+ * into the recorded status; the child's status line is evidence weighed against them, never the
+ * verdict. A bundle that produced no commit off the base, or a commit whose diff is empty, is
+ * terminal `no-work-produced`: never ready-for-review, never green, and it feeds the circuit
+ * breaker. Measured before this existed: a child that changed nothing, committed nothing and
+ * opened no PR was recorded ready-for-review and rolled up green, and a child whose last act was
+ * `git checkout <base>` hid its whole committed escape from a gate that then printed OK.
  */
 import { spawnSync } from "node:child_process"
 import { readFileSync, writeFileSync, appendFileSync, mkdirSync, mkdtempSync, existsSync, rmSync } from "node:fs"
@@ -55,7 +58,6 @@ const DEFAULTS = {
   allowedTools: [],
   disallowedTools: ["Bash(rm -rf *)", "Bash(git reset --hard*)", "Bash(git push --force*)"],
   addDirs: [],
-  baseBranch: "main",
   push: true,
   repos: [{ path: ".", base: "main" }],
   verify: true,
@@ -71,14 +73,16 @@ const DEFAULTS = {
 // status: completion is granted only by a human tick in signoff.json, which no
 // child can write - yet the engine recorded a child-returned "done" verbatim,
 // and the operator rollup then printed "done (human-granted)" for work no
-// human had granted. normalizeChildStatus is the enforcement point; the two
-// sets below are what the driver acts on afterwards.
+// human had granted. normalizeChildStatus is where a claim is read; what the
+// driver RECORDS is deriveOutcome's, off the measurements below.
 const CHILD_STATUSES = new Set(["ready-for-review", "blocked", "failed"])
-// Statuses worth grading: the verifier runs on these when a PR exists.
+// Statuses worth grading: the verifier runs on these whenever there is an
+// artifact to grade (a PR, or the measured base..childHead range).
 const SUCCESS_STATUSES = new Set(["ready-for-review", "blocked"])
-// The subset that CLAIMS the work is complete enough to review, which a
-// failing driver-measured gate overrides.
-const COMPLETED_STATUSES = new Set(["ready-for-review"])
+// The one claim that says "this is complete enough to review", and the terminal
+// state the driver records instead when its own measurement finds no artifact.
+const CLAIMS_COMPLETION = "ready-for-review"
+const NO_WORK = "no-work-produced"
 
 /**
  * Child-returned statuses pass through only when they are in the offered enum.
@@ -126,12 +130,35 @@ function resolveEffort(task) {
   return e === "high" || e === "xhigh" || e === "medium" || e === "low" ? e : null
 }
 
-function loadJson(path, fallback) {
-  try {
-    return JSON.parse(readFileSync(path, "utf8"))
-  } catch {
-    return fallback
+/**
+ * A load-bearing JSON file, read loudly. Absent is legal only where the caller
+ * says so; unreadable, empty, unparseable or the wrong shape is an abort naming
+ * the file. The silent `catch { return fallback }` this replaces turned a
+ * truncated queue.json into "0 bundle(s), Nothing to do" and exit 0 with 48
+ * generated prompts sitting beside it, and let a corrupt config.json reassert
+ * every DEFAULT over the operator's file. Throws; main logs and exits 1.
+ */
+export function readJsonFile(path, { optional = false, shape } = {}) {
+  if (!existsSync(path)) {
+    if (optional) return null
+    throw new Error(`${path} does not exist. The drive engine cannot run without it.`)
   }
+  let text
+  try {
+    text = readFileSync(path, "utf8")
+  } catch (error) {
+    throw new Error(`${path} cannot be read: ${error.message}`)
+  }
+  if (!text.trim()) throw new Error(`${path} is empty. An empty file is a broken run, never "nothing to do".`)
+  let parsed
+  try {
+    parsed = JSON.parse(text)
+  } catch (error) {
+    throw new Error(`${path} is not valid JSON (${error.message}). Fix it or regenerate it.`)
+  }
+  if (shape === "array" && !Array.isArray(parsed)) throw new Error(`${path} must be a JSON array of queue entries, got ${parsed === null ? "null" : typeof parsed}.`)
+  if (shape === "object" && (parsed === null || Array.isArray(parsed) || typeof parsed !== "object")) throw new Error(`${path} must be a JSON object of config keys.`)
+  return parsed
 }
 
 function stamp() {
@@ -181,14 +208,20 @@ function resetReposToBase(repos, log, label = "unattributed") {
  *
  * A stale lock whose pid is gone is reclaimed; a live one aborts.
  */
-function acquireRunLock(dir, log) {
+export function acquireRunLock(dir, log) {
   const lockPath = join(dir, "RUNNING")
   if (existsSync(lockPath)) {
-    let holder = null
+    // An unreadable lock used to be treated as no lock at all, which is the
+    // fail-open direction: the file exists because SOMETHING claimed this tree,
+    // and stealing it on a parse error is exactly the corruption the lock is
+    // for. A lock we cannot read is a lock we must not reclaim.
+    let holder
     try {
-      holder = JSON.parse(readFileSync(lockPath, "utf8"))
-    } catch {
-      holder = null
+      holder = readJsonFile(lockPath, { shape: "object" })
+    } catch (error) {
+      log(`THE RUN LOCK IS UNREADABLE: ${error.message}`)
+      log(`Another run may hold this working tree. Inspect ${lockPath} and delete it yourself if you know it is dead.`)
+      return null
     }
     if (holder?.pid && processIsAlive(holder.pid)) {
       log(`ANOTHER DRIVE RUN IS ACTIVE: pid ${holder.pid}, started ${holder.startedAt}, branch ${holder.branch}.`)
@@ -347,15 +380,61 @@ function buildClaudeArgs(config, task) {
   return args
 }
 
-/** Head sha + open PR url for a repo, sampled before and after a child so a task's outcome can be read from what it DID, not from what it said. */
-function repoSideEffects(repoPath) {
-  const head = git(repoPath, ["rev-parse", "HEAD"]).stdout.trim()
-  const branch = currentBranch(repoPath)
+/** Every local branch tip, sampled before a child so a commit it PRODUCED can be told from one that was already there. Exported for the hermetic derivation tests. */
+export function branchTips(repoPath) {
+  const listed = git(repoPath, ["for-each-ref", "--format=%(objectname) %(refname:short)", "refs/heads"]).stdout || ""
+  return listed
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const space = line.indexOf(" ")
+      return { sha: line.slice(0, space), name: line.slice(space + 1) }
+    })
+}
+
+/** The open PR for a branch, read from GitHub - not from the child's status line. Null when `gh` cannot answer. */
+function openPrFor(repoPath, branch) {
+  if (!branch) return null
   const pr = spawnSync("gh", ["pr", "list", "--head", branch, "--state", "open", "--limit", "1", "--json", "url", "--jq", ".[0].url"], {
     cwd: repoPath,
     encoding: "utf8",
   })
-  return { head, branch, pr: (pr.stdout || "").trim() || null }
+  return (pr.stdout || "").trim() || null
+}
+
+/**
+ * What the child actually PRODUCED against the driver's own base: the commit it
+ * left, the branch carrying it, and the size of that range. This is the subject
+ * of every gate, because "whatever HEAD the child left checked out" is chosen by
+ * the child - one that committed an escape and then ran `git checkout <base>`
+ * was measured at "changed: 0 file(s), OK" while its PR carried unowned files.
+ * The head is found among the branch tips regardless of the checkout. A tip that
+ * existed at spawn time belongs to an earlier bundle, and one that does not
+ * descend from the base is not this range; when nothing qualifies the head is
+ * null and the caller records the terminal no-work state, never a green.
+ */
+export function measureChildWork(repoPath, baseSha, tipsBefore) {
+  const empty = { head: null, branch: null, commits: 0, files: 0, insertions: 0, deletions: 0 }
+  if (!baseSha) return empty
+  const known = new Set((tipsBefore || []).map((tip) => tip.sha))
+  const headSha = git(repoPath, ["rev-parse", "HEAD"]).stdout.trim()
+  const tipsAfter = branchTips(repoPath)
+  const produced = [...new Set([headSha, ...tipsAfter.map((tip) => tip.sha)])].filter(
+    (sha) => sha && sha !== baseSha && !known.has(sha) && git(repoPath, ["merge-base", "--is-ancestor", baseSha, sha]).status === 0,
+  )
+  if (!produced.length) return empty
+  const commitsOf = (sha) => Number(git(repoPath, ["rev-list", "--count", `${baseSha}..${sha}`]).stdout.trim() || 0)
+  const head = produced.includes(headSha) ? headSha : [...produced].sort((a, b) => commitsOf(b) - commitsOf(a) || a.localeCompare(b))[0]
+  const work = { head, branch: tipsAfter.find((tip) => tip.sha === head)?.name ?? null, commits: commitsOf(head), files: 0, insertions: 0, deletions: 0 }
+  for (const row of (git(repoPath, ["diff", "--numstat", `${baseSha}...${head}`]).stdout || "").split("\n")) {
+    const [added, removed] = row.split("\t")
+    if (!row.trim()) continue
+    work.files += 1
+    work.insertions += Number(added) || 0
+    work.deletions += Number(removed) || 0
+  }
+  return work
 }
 
 function gateOutputTail(run) {
@@ -417,23 +496,28 @@ export function extractBaseGateTool(repoPath, baseSha, toolRelPath) {
  * Exported so the ordering and the pristine-copy selection are pinned by tests
  * against a fixture repo, without spawning the engine.
  */
-export function measureGates(task, config, baseSha) {
+export function measureGates(task, config, baseSha, childHeadSha) {
   const repoPath = resolve(config.repos[0].path)
   const checks = []
   const idFlags = task.workOrders.flatMap((id) => ["--id", id])
   const idLabel = task.workOrders.map((id) => `--id ${id}`).join(" ")
+  // The judged head is named, never inferred from the checkout. Callers that
+  // have measured the child's produced commit pass it; the fallback is the
+  // current HEAD, which is only the right subject for a self-check inside the
+  // tree being judged.
+  const headSha = childHeadSha || git(repoPath, ["rev-parse", "HEAD"]).stdout.trim()
   const pristine = extractBaseGateTool(repoPath, baseSha, "tools/check-diff-ownership.mjs")
   if (pristine.problem) {
     checks.push({ command: `check-diff-ownership (base-ref copy) ${idLabel}`, exit: 2, tail: `failed closed: ${pristine.problem}` })
   } else {
-    const ownership = spawnSync(process.execPath, [pristine.path, ...idFlags, "--base", baseSha], {
+    const ownership = spawnSync(process.execPath, [pristine.path, ...idFlags, "--base", baseSha, "--head", headSha], {
       cwd: repoPath,
       env: { ...process.env, ORBIT_SURFACE_ROOT: repoPath },
       encoding: "utf8",
       maxBuffer: 16 * 1024 * 1024,
     })
     checks.push({
-      command: `check-diff-ownership (base-ref copy) ${idLabel} --base ${baseSha.slice(0, 12)}`,
+      command: `check-diff-ownership (base-ref copy) ${idLabel} --base ${baseSha.slice(0, 12)} --head ${String(headSha).slice(0, 12)}`,
       exit: ownership.status,
       tail: gateOutputTail(ownership),
     })
@@ -462,11 +546,16 @@ export function measureGates(task, config, baseSha) {
   return checks
 }
 
-function runTask(task, config, promptText, log) {
+/**
+ * Spawn the child and return WHAT IT SAID, nothing more. It used to return a
+ * recorded status - taking `{"status":"ready-for-review"}` at its word and, on
+ * a missing status line, sampling git itself - so the claim and the verdict were
+ * the same object. They are separate now: this reports the claim, deriveOutcome
+ * weighs it against measureChildWork and the gates.
+ */
+function runTask(task, config, promptText) {
   const started = Date.now()
   const model = resolveModel(task, config)
-  const repoPath = resolve(config.repos[0].path)
-  const before = repoSideEffects(repoPath)
   const run = spawnSync("claude", buildClaudeArgs(config, task), {
     input: promptText,
     cwd: resolve(config.repos[0].path),
@@ -477,12 +566,10 @@ function runTask(task, config, promptText, log) {
     shell: false,
   })
   const elapsedMs = Date.now() - started
-
   if (run.error) {
     const reason = run.error.code === "ETIMEDOUT" ? "timed out" : `spawn failed (${run.error.code})`
-    return { status: "failed", model, pr: null, summary: reason, elapsedMs, raw: String(run.stderr || "").slice(-500) }
+    return { model, elapsedMs, claim: null, failure: reason, raw: String(run.stderr || "").slice(-500) }
   }
-
   const outer = (() => {
     try {
       return JSON.parse(run.stdout)
@@ -492,39 +579,97 @@ function runTask(task, config, promptText, log) {
   })()
   const resultText = outer?.result ?? run.stdout ?? ""
   if (!outer || outer.is_error) {
-    return { status: "failed", model, pr: null, summary: "child reported an error", elapsedMs, raw: String(resultText).slice(-500) }
+    return { model, elapsedMs, claim: null, failure: "child reported an error", raw: String(resultText).slice(-500) }
   }
-
   const line = parseJsonLine(resultText, "status")
-  if (!line) {
-    // A missing status line is a reporting failure, not necessarily a work failure: the repo's own
-    // Stop hook could reject the child's final message and push the JSON out of `result`. Read the
-    // outcome from durable side effects instead, so a bundle that committed and pushed is never
-    // recorded as a loss (#539 post-mortem, 2026-07-19 - `social` cost a bundle exactly this way).
-    const after = repoSideEffects(repoPath)
-    if (after.head !== before.head || (after.pr && after.pr !== before.pr)) {
-      const commits = git(repoPath, ["rev-list", "--count", `${before.head}..${after.head}`]).stdout.trim() || "?"
-      return {
-        status: "blocked",
-        model,
-        pr: after.pr,
-        summary: `no status line, but the child left ${commits} new commit(s)${after.pr ? " and a PR" : ""} - status derived from side effects`,
-        elapsedMs,
-        derived: true,
-        raw: String(resultText).slice(-500),
-      }
-    }
-    return { status: "unknown", model, pr: null, summary: "no status line and no commits or PR - the child left nothing", elapsedMs, raw: String(resultText).slice(-500) }
-  }
+  if (!line) return { model, elapsedMs, claim: null, raw: String(resultText).slice(-500) }
   const normalized = normalizeChildStatus(line.status)
   return {
-    status: normalized.status,
-    ...(normalized.claimedStatus ? { claimedStatus: normalized.claimedStatus } : {}),
     model,
-    pr: line.pr || null,
-    summary: [normalized.note, String(line.summary || "").slice(0, 500)].filter(Boolean).join(" | "),
     elapsedMs,
+    raw: String(resultText).slice(-500),
+    claim: {
+      status: normalized.status,
+      claimedStatus: normalized.claimedStatus ?? null,
+      note: normalized.note ?? null,
+      pr: line.pr || null,
+      summary: String(line.summary || "").slice(0, 500),
+    },
   }
+}
+
+/**
+ * The recorded outcome, DERIVED. Ordered so the measurements decide and the
+ * claim only narrows what a measurement already allows: (1) no commit off the
+ * recorded base, or an empty diff, is terminal `no-work-produced` - nothing was
+ * made, so nothing can be ready for review, which is the shape that recorded
+ * zero-change bundles as green; a child's own blocked/failed is an admission,
+ * not a lie, so it stands with the zero measurement beside it. (2) a failing
+ * gate beats a completion claim. (3) work with no status line is blocked, so a
+ * Stop hook eating the final message never costs a bundle that really
+ * committed. (4) a completion claim with no PR anywhere is not reviewable.
+ * Pure and exported, so it is checkable on inputs no child can forge.
+ */
+export function deriveOutcome(claim, work, gates, { requirePr = true, prUrl = null } = {}) {
+  const failedGates = (gates || []).filter((gate) => gate.exit !== 0)
+  const produced = !!work?.head && work.files > 0
+  if (!produced) {
+    const measured = work?.head
+      ? `it committed ${work.commits} commit(s) off the base but the diff is empty`
+      : "no commit off the base the driver recorded before the spawn"
+    if (claim && (claim.status === "blocked" || claim.status === "failed")) {
+      return { status: claim.status, claimedStatus: claim.claimedStatus, note: `${claim.status} with NO WORK PRODUCED: ${measured}` }
+    }
+    return {
+      status: NO_WORK,
+      claimedStatus: claim ? claim.claimedStatus || claim.status : null,
+      note: `NO WORK PRODUCED: ${measured}. A claim of completion cannot stand against an absent artifact.`,
+    }
+  }
+  if (failedGates.length && (!claim || claim.status === CLAIMS_COMPLETION)) {
+    return {
+      status: "failed",
+      claimedStatus: claim ? claim.claimedStatus || claim.status : null,
+      note: `gate-contradicted: ${failedGates.map((gate) => gate.command).join("; ")} failed over ${work.files} changed file(s)`,
+    }
+  }
+  if (!claim) {
+    return { status: "blocked", claimedStatus: null, note: `no status line, but the child left ${work.commits} commit(s) over ${work.files} file(s) - status derived from what it did` }
+  }
+  if (claim.status === CLAIMS_COMPLETION && requirePr && !prUrl) {
+    return { status: "blocked", claimedStatus: claim.claimedStatus || claim.status, note: "claimed ready-for-review, but no open PR was found for the branch it produced - there is nothing to review" }
+  }
+  return { status: claim.status, claimedStatus: claim.claimedStatus, note: claim.note }
+}
+
+/** Every `depth N% vs floor M%` reading the gate tails carry: a MEASUREMENT and a human veto, never a target a child can aim at. */
+export function depthReadings(gates) {
+  const readings = { min: null, unknown: 0, belowFloor: 0, total: 0, floor: 30 }
+  for (const gate of gates || []) {
+    for (const match of String(gate.tail || "").matchAll(/depth (?:(\d+(?:\.\d+)?)%|UNKNOWN) vs floor (\d+)%/g)) {
+      readings.total += 1
+      readings.floor = Number(match[2])
+      if (match[1] === undefined) {
+        readings.unknown += 1
+        continue
+      }
+      const value = Number(match[1])
+      if (value < readings.floor) readings.belowFloor += 1
+      if (readings.min === null || value < readings.min) readings.min = value
+    }
+  }
+  return readings
+}
+
+/** The outstanding mechanical-violation count the gate tails report. A LINT COUNT, never evidence of visual change - see the legend buildRunReport prints beside it. */
+export function debtReadings(gates) {
+  let measured = null
+  for (const gate of gates || []) {
+    for (const match of String(gate.tail || "").matchAll(/(\d+) outstanding mechanical violation\(s\)/g)) {
+      measured = (measured ?? 0) + Number(match[1])
+    }
+  }
+  return measured
 }
 
 /**
@@ -534,7 +679,7 @@ function runTask(task, config, promptText, log) {
  * Exported so the wording (ready-for-review PR, verdict-consuming ui clause) is pinned by
  * tests without spawning a verifier.
  */
-export function buildVerifyPrompt(task, promptText, prUrl, gateChecks, baseSha) {
+export function buildVerifyPrompt(task, promptText, prUrl, gateChecks, baseSha, range) {
   // The UI clause used to demand a judge verdict of "transformed" and call anything
   // else UNMET. That judge was demoted to a defect detector after measuring 0/12
   // recall and passing a byte-identical surface twice, so the clause was asking the
@@ -553,6 +698,11 @@ export function buildVerifyPrompt(task, promptText, prUrl, gateChecks, baseSha) 
       ${baseSha ? String(baseSha).slice(0, 12) : "it recorded at spawn"}; never re-derive a base of your own - an unpinned or HEAD base
       measures a different (or empty) diff.
    c. Confirm each touched work order gained a Timeline entry describing what changed.
+   d. Read the \`depth N% vs floor 30%\` reading in those verdicts. It is a MEASUREMENT of how much
+      of the surface's render signature moved since the baseline, and a veto a human consults -
+      never a target. A cleared \`workorder --check\` is a LINT COUNT reaching zero, which hoisting
+      an off-scale literal into a named constant achieves with zero pixels moved; say so plainly
+      when depth sits far below the floor while the debt count reads clear.
    Then review the JSX/CSS/token diff against DESIGN.md: semantic tokens only, NO decorative glow
    or gradient wash, the enumerated spacing scale, and the AI-slop test.
    You CANNOT rule on whether the surface looks good, and you must not pretend to. No instrument
@@ -576,9 +726,13 @@ artifact against the acceptance criteria below.
 TASK — acceptance criteria (verbatim):
 ${promptText}
 
-The implementer opened this PR ready for review (CI and the review bots run on it): ${prUrl}
+${
+    prUrl
+      ? `The implementer opened this PR ready for review (CI and the review bots run on it): ${prUrl}`
+      : `The implementer opened NO PR. The driver measured the commit range it actually produced: ${range}`
+  }
 Inspect the ACTUAL change, do not trust the summary:
-- \`gh pr diff ${prUrl}\` for the full diff (and the paired orbit-api PR if the task was cross-repo).
+- ${prUrl ? `\`gh pr diff ${prUrl}\` for the full diff (and the paired orbit-api PR if the task was cross-repo).` : `\`git diff ${range}\` for the full diff, and \`git log ${range}\` for what it claims to have done.`}
 - Read any file you need for surrounding context.
 ${gateClause}
 
@@ -602,11 +756,11 @@ function buildVerifyArgs(config) {
   return args
 }
 
-/** Run the independent verifier over a task's ready-for-review PR and return its verdict. */
-function verifyTask(task, config, promptText, prUrl, gateChecks, baseSha) {
+/** Run the independent verifier over what the child produced - its PR, or the driver-measured commit range when it opened none - and return its verdict. */
+function verifyTask(task, config, promptText, prUrl, gateChecks, baseSha, range) {
   const started = Date.now()
   const run = spawnSync("claude", buildVerifyArgs(config), {
-    input: buildVerifyPrompt(task, promptText, prUrl, gateChecks, baseSha),
+    input: buildVerifyPrompt(task, promptText, prUrl, gateChecks, baseSha, range),
     cwd: resolve(config.repos[0].path),
     env: childEnv(),
     encoding: "utf8",
@@ -658,26 +812,56 @@ function postVerdictComment(prUrl, verdict, log) {
 }
 
 const taskWall = (r) => (r.elapsedMs ? `${Math.round(r.elapsedMs / 60000)}min` : "-")
-const taskStatus = (r) => (r.claimedStatus && r.claimedStatus !== r.status ? `${r.status} (claimed ${r.claimedStatus})` : r.status)
-const taskRow = (r) => `| ${r.id} | ${r.label} | ${taskStatus(r)} | ${r.verdict || "-"} | ${taskWall(r)} | ${r.pr || "-"} |`
+const taskStatus = (r) => (r.status === NO_WORK ? `**NO WORK PRODUCED**` : r.claimedStatus && r.claimedStatus !== r.status ? `${r.status} (claimed ${r.claimedStatus})` : r.status)
+const taskFiles = (r) => (r.work ? (r.work.files === 0 ? `**0**` : String(r.work.files)) : "-")
+const taskChurn = (r) => (r.work ? `+${r.work.insertions}/-${r.work.deletions}` : "-")
+const taskDepth = (r) => {
+  if (!r.depth?.total) return "-"
+  const parts = [r.depth.min === null ? "UNKNOWN" : `min ${r.depth.min.toFixed(1)}%`]
+  if (r.depth.belowFloor) parts.push(`${r.depth.belowFloor}/${r.depth.total} below`)
+  if (r.depth.unknown) parts.push(`${r.depth.unknown} unknown`)
+  return parts.join(", ")
+}
+const taskDebt = (r) => {
+  if (!r.debt) return "-"
+  const before = r.debt.queued ?? "?"
+  return `${before} -> ${r.debt.measured ?? "?"}`
+}
+const taskRow = (r) =>
+  `| ${r.id} | ${r.label} | ${taskStatus(r)} | ${taskFiles(r)} | ${taskChurn(r)} | ${taskDepth(r)} | ${taskDebt(r)} | ${r.verdict || "-"} | ${taskWall(r)} | ${r.pr || "-"} |`
 
 /**
- * The operator-facing rollup (SUMMARY.md + the final log line). Child statuses
- * are reported as exactly what they are - ready-for-review / blocked / failed
- * counts - and the phrase "done (human-granted)" is printed ONLY for a result
- * whose `humanGranted` flag the DRIVER set after verifying a signoff.json
- * grant itself. No code path sets that flag today, so the wording is simply
- * absent: the engine once bucketed any child-returned status "done" under
- * "done (human-granted)", asserting a grant nobody had made - the exact
- * reported-done framing the harness exists to eliminate. Exported so the
- * wording is pinned by tests without spawning the engine.
+ * The operator-facing rollup (SUMMARY.md + the final log line) - the two
+ * artifacts read the morning after. It carried status, verifier verdict, wall
+ * time and PR only, while the driver computed the changed-file count and the
+ * depth reading seconds earlier and wrote them nowhere a human looks: 16
+ * zero-change bundles printed identically to 16 real ones. Every row now carries
+ * what was produced, the depth measurement, the debt delta and the PR, and a
+ * zero-change bundle is bolded NO WORK PRODUCED and counted on its own line.
+ * The legend must keep saying both measured things: debt is a LINT COUNT a
+ * no-op refactor can drive to zero, and depth is a measurement and a veto,
+ * never a target (a target would be satisfied by churn). `completionLine` is the
+ * surface completion ratio, which the documented path never showed the operator.
  */
-export function buildRunReport(results, queueLength, lessonCount) {
+export function buildRunReport(results, queueLength, lessonCount, completionLine) {
   const readyForReview = results.filter((r) => r.status === "ready-for-review").length
   const blocked = results.filter((r) => r.status === "blocked").length
   const failed = results.filter((r) => r.status === "failed" || r.status === "unknown").length
-  const humanGranted = results.filter((r) => r.humanGranted === true).length
+  const noWork = results.filter((r) => r.status === NO_WORK).length
   const flagged = results.filter((r) => r.verdict === "DISAGREE").length
+  const totals = results.reduce(
+    (sum, r) => ({
+      files: sum.files + (r.work?.files || 0),
+      insertions: sum.insertions + (r.work?.insertions || 0),
+      deletions: sum.deletions + (r.work?.deletions || 0),
+      belowFloor: sum.belowFloor + (r.depth?.belowFloor || 0),
+      orders: sum.orders + (r.depth?.total || 0),
+    }),
+    { files: 0, insertions: 0, deletions: 0, belowFloor: 0, orders: 0 },
+  )
+  const depthLine = totals.orders
+    ? `- depth: ${totals.belowFloor} of ${totals.orders} measured order(s) below the 30% floor - a MEASUREMENT and a human veto, never a target`
+    : `- depth: no order was measured for redesign depth in this run`
   const summary = [
     `# drive summary`,
     ``,
@@ -685,26 +869,53 @@ export function buildRunReport(results, queueLength, lessonCount) {
     `- ready for review: ${readyForReview} (a human review and a signoff.json tick are still owed)`,
     `- blocked: ${blocked}`,
     `- failed: ${failed}`,
-    ...(humanGranted ? [`- done (human-granted): ${humanGranted} (signoff.json grant verified by the driver)`] : []),
+    `- NO WORK PRODUCED: ${noWork} (no commit off the recorded base, or an empty diff - never a pass)`,
+    `- diff produced: ${totals.files} file(s), +${totals.insertions}/-${totals.deletions}`,
+    depthLine,
+    `- ${completionLine || "surface completion: NOT MEASURED in this run"}`,
     `- verifier flagged (DISAGREE): ${flagged}`,
     `- lesson candidates: ${lessonCount}${lessonCount ? ` (see LESSONS.md - run /lesson to promote)` : ""}`,
     ``,
-    `| task | label | status | verifier | wall | PR |`,
-    `|---|---|---|---|---|---|`,
+    `| task | label | status | files | +/- | depth (floor 30%) | debt (lint-count) | verifier | wall | PR |`,
+    `|---|---|---|---|---|---|---|---|---|---|`,
     ...results.map(taskRow),
     ``,
+    `debt is a LINT-COUNT axis: eslint counts literals, so hoisting an off-scale value into a named`,
+    `constant clears a violation with zero pixels moved. A cleared debt column is NOT evidence of`,
+    `visual change - read it beside the depth column, which is the axis that measures movement.`,
+    ``,
   ].join("\n")
-  const headline = `RUN COMPLETE. ${readyForReview}/${queueLength} ready for review, ${blocked} blocked, ${failed} failed${humanGranted ? `, ${humanGranted} done (human-granted)` : ""}, ${flagged} flagged, ${lessonCount} lesson candidate(s).`
+  const headline =
+    `RUN COMPLETE. ${readyForReview}/${queueLength} ready for review, ${blocked} blocked, ${failed} failed, ` +
+    `${noWork} produced NO WORK, ${flagged} flagged, ${lessonCount} lesson candidate(s). ` +
+    `${totals.files} file(s) changed, +${totals.insertions}/-${totals.deletions}; ` +
+    `${totals.belowFloor} of ${totals.orders} measured order(s) below the 30% depth floor. ` +
+    `${completionLine || "surface completion: NOT MEASURED"}`
   return { summary, headline }
+}
+
+/**
+ * The ratio the whole harness exists to move, printed where the operator
+ * actually looks. It appears in no drive command in the documented path, so a
+ * night could report "16/16 ready for review" while 0 of 804 cells were done.
+ * The oracle exits non-zero on any shortfall - that is its normal state - so
+ * the ratio is read from its output, and a failure to produce one is reported
+ * as UNAVAILABLE rather than quietly omitted.
+ */
+function surfaceCompletionLine(repoPath) {
+  const oracle = join(repoPath, "tools", "check-surface-coverage.mjs")
+  if (!existsSync(oracle)) return `surface completion: UNAVAILABLE - ${oracle} does not exist`
+  const run = spawnSync(process.execPath, [oracle], { cwd: repoPath, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 })
+  const lines = String(run.stdout || "").split("\n")
+  const done = lines.find((line) => /cells DONE/.test(line))
+  const touched = lines.find((line) => /^\s*touched\s/.test(line))
+  if (!done) return `surface completion: UNAVAILABLE - tools/check-surface-coverage.mjs printed no ratio (exit ${run.status}${run.error ? `, ${run.error.code}` : ""})`
+  return `surface completion: ${done.trim()}${touched ? `; ${touched.trim().replace(/\s{2,}/g, " ")}` : ""} - only a human tick in signoff.json grants a cell`
 }
 
 async function main() {
   const opts = parseArgs(process.argv.slice(2))
   const dir = resolve(opts.dir)
-  const config = { ...DEFAULTS, ...loadJson(join(dir, "config.json"), {}) }
-  config.repos = config.repos?.length ? config.repos : DEFAULTS.repos
-  const queue = loadJson(join(dir, "queue.json"), [])
-
   const runDir = join(dir, "runs", stamp())
   mkdirSync(runDir, { recursive: true })
   const logPath = join(runDir, "run.log")
@@ -715,15 +926,30 @@ async function main() {
     appendFileSync(logPath, line + "\n")
   }
 
+  // Load-bearing state, read loudly. A truncated queue.json used to yield
+  // "0 bundle(s). Nothing to do." and exit 0 with every prompt generated beside
+  // it, and a corrupt config.json silently reverted to DEFAULTS while the log
+  // printed the default model as though the operator had chosen it.
+  let config
+  let queue
+  try {
+    config = { ...DEFAULTS, ...(readJsonFile(join(dir, "config.json"), { optional: true, shape: "object" }) ?? {}) }
+    if (!Array.isArray(config.repos) || !config.repos.length) {
+      throw new Error(`${join(dir, "config.json")} sets "repos" to something other than a non-empty array. The engine has no repo to drive.`)
+    }
+    queue = readJsonFile(join(dir, "queue.json"), { shape: "array" })
+    if (!queue.length) throw new Error(`${join(dir, "queue.json")} is an empty array. There is nothing queued, which is a broken setup, not a successful run. Regenerate it with tools/drive-queue.mjs.`)
+  } catch (error) {
+    log(`ABORTING: ${error.message}`)
+    process.exitCode = 1
+    return
+  }
+
   // The label must say what was actually asked for: a plain `--dry-run` used to
   // announce itself as "drive --sleep starting", so a run.log reader concluded
   // an unattended overnight run had been launched when none was.
   const modeLabel = opts.dryRun ? "drive (dry run)" : opts.attended ? "drive (attended)" : "drive --sleep"
   log(`${modeLabel} starting: ${queue.length} bundle(s), model=${config.model}, per-task timeout ${Math.round(config.perTaskTimeoutMs / 60000)}min`)
-  if (!queue.length) {
-    log("queue.json is empty. Nothing to do.")
-    return
-  }
 
   const problems = preflight(config, config.repos, queue, dir)
   if (problems.length) {
@@ -761,14 +987,27 @@ async function main() {
 
   const results = []
   const lessons = []
+  const workRepoPath = resolve(config.repos[0].path)
   let consecutiveFailures = 0
   let previousTaskId = "pre-run"
+  let halted = false
   const writeStatus = () => {
     const rows = results.map(taskRow).join("\n")
     writeFileSync(
       statusPath,
-      `# drive status\n\n| bundle | label | status | verifier | wall | PR |\n|---|---|---|---|---|---|\n${rows}\n`,
+      `# drive status\n\n| bundle | label | status | files | +/- | depth (floor 30%) | debt (lint-count) | verifier | wall | PR |\n|---|---|---|---|---|---|---|---|---|---|\n${rows}\n`,
     )
+  }
+  // One breaker, one place. The same six lines were pasted at three exits and
+  // are the reason a night of no-ops must halt rather than run to completion.
+  const recordHardFailure = (id, label, summary) => {
+    results.push({ id, label, status: "failed", pr: null, summary })
+    writeStatus()
+    consecutiveFailures += 1
+    if (consecutiveFailures >= config.maxConsecutiveFailures) {
+      log(`Circuit breaker: ${consecutiveFailures} consecutive hard failures. Halting rather than burning the rest of the night.`)
+      halted = true
+    }
   }
 
   const rl = opts.attended ? createInterface({ input: process.stdin, output: process.stdout }) : null
@@ -784,29 +1023,21 @@ async function main() {
     resetReposToBase(config.repos, log, previousTaskId)
     previousTaskId = task.id
     // The base every gate measures against: the work repo's sha right after the
-    // reset, recorded by the driver so no child report can move it.
-    const bundleBaseSha = git(resolve(config.repos[0].path), ["rev-parse", "HEAD"]).stdout.trim()
+    // reset, recorded by the driver so no child report can move it. The branch
+    // tips are recorded with it, so a commit this child produces can be told
+    // from one an earlier bundle left behind.
+    const bundleBaseSha = git(workRepoPath, ["rev-parse", "HEAD"]).stdout.trim()
+    const tipsBeforeChild = branchTips(workRepoPath)
 
     const promptPath = join(dir, "prompts", `task-${task.id}.md`)
-    const rawPromptText = (() => {
-      try {
-        return readFileSync(promptPath, "utf8")
-      } catch {
-        return task.prompt || ""
-      }
-    })()
+    const rawPromptText = existsSync(promptPath) ? readFileSync(promptPath, "utf8") : task.prompt || ""
     if (!rawPromptText.trim()) {
       // Preflight already errors on this shape; reaching it here means the
       // prompt vanished mid-run. That is a FAILURE that feeds the circuit
       // breaker, never a quiet skip - a skip once buried a whole queue.
-      log(`  no prompt for task ${task.id}; recording FAILED.`)
-      results.push({ id: task.id, label: task.label, status: "failed", pr: null, summary: "missing prompt" })
-      writeStatus()
-      consecutiveFailures += 1
-      if (consecutiveFailures >= config.maxConsecutiveFailures) {
-        log(`Circuit breaker: ${consecutiveFailures} consecutive hard failures. Halting rather than burning the rest of the night.`)
-        break
-      }
+      log(`  no prompt for task ${task.id} (looked in ${promptPath}); recording FAILED.`)
+      recordHardFailure(task.id, task.label, `missing prompt (${promptPath})`)
+      if (halted) break
       continue
     }
     // The prompt's condition (b) pins its ownership base to a token only the
@@ -817,13 +1048,8 @@ async function main() {
     const substituted = substituteDriveBase(rawPromptText, bundleBaseSha)
     if (substituted.problem) {
       log(`  ${substituted.problem}; recording FAILED before spawn.`)
-      results.push({ id: task.id, label: task.label, status: "failed", pr: null, summary: substituted.problem })
-      writeStatus()
-      consecutiveFailures += 1
-      if (consecutiveFailures >= config.maxConsecutiveFailures) {
-        log(`Circuit breaker: ${consecutiveFailures} consecutive hard failures. Halting rather than burning the rest of the night.`)
-        break
-      }
+      recordHardFailure(task.id, task.label, substituted.problem)
+      if (halted) break
       continue
     }
     const promptText = substituted.text
@@ -845,38 +1071,59 @@ async function main() {
       }
     }
 
-    const outcome = runTask(task, config, promptText, log)
-    const record = { id: task.id, label: task.label, ...outcome }
-    if (Array.isArray(task.workOrders) && task.workOrders.length) {
-      record.gates = measureGates(task, config, bundleBaseSha)
+    const reported = runTask(task, config, promptText)
+    // MEASURE FIRST, then derive. What the child produced is read from git
+    // against the driver's own base, and every gate judges that explicit range -
+    // never whatever HEAD the child left checked out.
+    const work = measureChildWork(workRepoPath, bundleBaseSha, tipsBeforeChild)
+    const observedPr = openPrFor(workRepoPath, work.branch)
+    const record = {
+      id: task.id,
+      label: task.label,
+      model: reported.model,
+      elapsedMs: reported.elapsedMs,
+      raw: reported.raw,
+      work,
+      pr: observedPr || reported.claim?.pr || null,
+      prSource: observedPr ? "driver-observed" : reported.claim?.pr ? "claimed by the child, no open PR found for its branch" : null,
+    }
+    if (Array.isArray(task.workOrders) && task.workOrders.length && work.head) {
+      record.gates = measureGates(task, config, bundleBaseSha, work.head)
       for (const gate of record.gates) {
         log(`  gate: ${gate.command} -> exit ${gate.exit}`)
         for (const line of gate.tail ? gate.tail.split("\n") : []) log(`    ${line}`)
       }
-      const failedGates = record.gates.filter((gate) => gate.exit !== 0)
-      // ready-for-review is a CLAIM; the gates are a
-      // measurement. When they disagree, the measurement wins.
-      if (failedGates.length && COMPLETED_STATUSES.has(record.status)) {
-        record.claimedStatus = record.status
-        record.status = "failed"
-        record.summary = `gate-contradicted: child claimed ${record.claimedStatus} but ${failedGates.map((gate) => gate.command).join("; ")} failed`
-        log(`  GATE-CONTRADICTED: overriding claimed ${record.claimedStatus} to failed.`)
-      }
     }
+    record.depth = depthReadings(record.gates)
+    record.debt = { queued: typeof task.debt === "number" ? task.debt : null, measured: debtReadings(record.gates) }
+    const derived = reported.failure
+      ? { status: "failed", claimedStatus: null, note: reported.failure }
+      : deriveOutcome(reported.claim, work, record.gates, { requirePr: config.push !== false, prUrl: record.pr })
+    record.status = derived.status
+    if (derived.claimedStatus && derived.claimedStatus !== derived.status) record.claimedStatus = derived.claimedStatus
+    record.summary = [derived.note, reported.claim?.summary].filter(Boolean).join(" | ")
     results.push(record)
-    log(`  status=${record.status} pr=${record.pr || "-"} (${Math.round(record.elapsedMs / 1000)}s)`)
+    log(
+      `  status=${record.status} files=${work.files} +${work.insertions}/-${work.deletions} commits=${work.commits} ` +
+        `depth=${taskDepth(record)} debt=${taskDebt(record)} (LINT-COUNT axis, not visual change) pr=${record.pr || "-"} (${Math.round(record.elapsedMs / 1000)}s)`,
+    )
     if (record.summary) log(`  summary: ${record.summary}`)
 
-    if (config.verify && !opts.attended && record.pr && SUCCESS_STATUSES.has(record.status)) {
+    // The verifier is no longer bought off by a null PR. It grades whatever the
+    // child produced: its PR, or the driver-measured commit range when it opened
+    // none - a shape the generated prompt's own JSON schema offers, and which
+    // used to buy total exemption from the independent grader.
+    const verifyRange = work.head ? `${bundleBaseSha}..${work.head}` : null
+    if (config.verify && !opts.attended && SUCCESS_STATUSES.has(record.status) && (record.pr || verifyRange)) {
       log(`  verifying [${task.id}] against acceptance criteria (independent ${config.verifyModel})...`)
-      const verdict = verifyTask(task, config, promptText, record.pr, record.gates, bundleBaseSha)
+      const verdict = verifyTask(task, config, promptText, record.pr, record.gates, bundleBaseSha, verifyRange)
       record.verdict = verdict.verdict
       record.verifyReasons = verdict.reasons
-      if (config.push) postVerdictComment(record.pr, verdict, log)
+      if (config.push && record.pr) postVerdictComment(record.pr, verdict, log)
       log(`  verifier=${verdict.verdict} criteriaMet=${verdict.criteriaMet} parityOk=${verdict.parityOk}`)
       if (verdict.lesson) lessons.push({ id: task.id, label: task.label, source: "verifier", text: verdict.lesson })
     }
-    if (record.status === "blocked" || record.status === "failed") {
+    if (record.status === "blocked" || record.status === "failed" || record.status === NO_WORK) {
       lessons.push({ id: task.id, label: task.label, source: record.status, text: record.summary || record.raw || "(no detail)" })
     }
 
@@ -892,7 +1139,9 @@ async function main() {
       continue
     }
 
-    const hardFailure = record.status === "failed" || record.status === "unknown"
+    // A bundle that produced nothing is a hard failure for the breaker: a night
+    // of no-ops must halt, not run to completion and print all-green.
+    const hardFailure = record.status === "failed" || record.status === "unknown" || record.status === NO_WORK
     consecutiveFailures = hardFailure ? consecutiveFailures + 1 : 0
     if (consecutiveFailures >= config.maxConsecutiveFailures) {
       log(`Circuit breaker: ${consecutiveFailures} consecutive hard failures. Halting rather than burning the rest of the night.`)
@@ -916,7 +1165,7 @@ async function main() {
     writeFileSync(join(runDir, "LESSONS.md"), lessonDoc)
   }
 
-  const report = buildRunReport(results, queue.length, lessons.length)
+  const report = buildRunReport(results, queue.length, lessons.length, surfaceCompletionLine(workRepoPath))
   writeFileSync(join(runDir, "SUMMARY.md"), report.summary)
   log(`${report.headline} Summary: ${join(runDir, "SUMMARY.md")}`)
   } finally {

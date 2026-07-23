@@ -42,7 +42,7 @@ A markdown skill cannot flip Claude Code session toggles; only code (the tier ag
 | `ultracode` (session mode) / `ultrathink` (one-turn) | **RECOMMEND only** — a skill cannot enable them; the driver gets the reasoning half via `--effort xhigh`, the full toggle stays yours to set live |
 | Fable 5 | **MANUAL** — never auto-routed (capped, withdrawable) |
 
-**A/B override (`config.modelOverride`).** Set `"modelOverride": "sonnet"` (or `"opus"`) in the runtime `config.json` (`.claude/drive/config.json` - the engine reads only that file; `config.example.json` deliberately ships WITHOUT the key, because an example that carries it permanently forces every opus-tier bundle to sonnet for anyone who copies it) to force **every** bundle to that model, ignoring the per-bundle `tier` Phase A assigned - the switch for a controlled "all-Sonnet vs Opus baseline" week. Each run records the model that actually ran per bundle (`runs/**/task-<id>.json` → `model`); `tools/drive-ab-report.mjs` tallies done/blocked/failed + verifier DISAGREE per model so the quality delta is measured, not guessed. **Revert by deleting the key** (restores tier routing). The verifier stays on its own `verifyModel` (independent, unaffected).
+**A/B override (`config.modelOverride`).** Set `"modelOverride": "sonnet"` (or `"opus"`) in the runtime `config.json` (`.claude/drive/config.json` - the engine reads only that file; `config.example.json` deliberately ships WITHOUT the key, because an example that carries it permanently forces every opus-tier bundle to sonnet for anyone who copies it) to force **every** bundle to that model, ignoring the per-bundle `tier` Phase A assigned - the switch for a controlled "all-Sonnet vs Opus baseline" week. Each run records the model that actually ran per bundle (`runs/**/task-<id>.json` → `model`); `tools/drive-ab-report.mjs` tallies done/blocked/failed + verifier DISAGREE per model so the quality delta is measured, not guessed - it predates the `no-work-produced` bucket and does not count it yet, so read its totals against `SUMMARY.md`, never instead of it. **Revert by deleting the key** (restores tier routing). The verifier stays on its own `verifyModel` (independent, unaffected).
 
 ## Mode detection
 
@@ -51,7 +51,7 @@ Parse `$ARGUMENTS`. Strip `--sleep` first (it selects Phase B's unattended path)
 | Input | Mode |
 |---|---|
 | `status <#…>` | **Report** — read each spec, reconcile against `gh`, show the bundle tables + the latest run summary. No work. |
-| `stop <#>` | **Pause** — set the spec `status: blocked`; for a running unattended driver, `touch .claude/drive/STOP`. |
+| `stop <#>` | **Pause** - set the spec `status: blocked`; for a running unattended driver, drop the `.claude/drive/STOP` flag (see `/drive stop` below for the PowerShell form). |
 | ≥ 1 issue number, no spec | **Init** that issue (Phase A). 2+ numbers → multi-issue (paired worktrees + parallel prime/plan). |
 | ≥ 1 issue number, spec exists | **Resume** that issue. |
 | Free-text task, no issue id | Treat the text as the task (no `gh` fetch); one bundle unless it is clearly an epic. |
@@ -70,39 +70,47 @@ Parse `$ARGUMENTS`. Strip `--sleep` first (it selects Phase B's unattended path)
 4. **Grill** — only if there are open questions. `grill-me` (single issue) or `batch-grill <N…>` (2+). Interactive, main-session only, never a subagent. Record every resolved decision in the spec's Decisions section.
 5. **Decompose + assign tiers.** Break an epic into an ordered bundle list — group correlated items to minimize PRs, order by dependency. For each bundle, run `/plan` scoped to it (single-issue slice = one bundle, the degenerate case). Read each plan's **Tier** (`sonnet`/`opus`) and effort — that is the per-bundle model routing that Phase B applies.
 
-6. **Turn every plan into a work order. Not optional, and not only for visual work.**
+6. **Turn every plan into a work order, regenerate, and COMMIT. Not optional, and not only for visual work.**
 
    ```bash
+   mkdir -p .claude/plans                                             # gitignored except *.plan.md; absent in a fresh clone
    node tools/workorder.mjs --from-plan .claude/plans/<name>.plan.md   # once per plan
+   npm run surfaces:manifest                                          # the manifest every later step is derived from
+   node tools/workorder.mjs                                           # full regeneration; rewrites INDEX.md
+   git add .claude/workorders .claude/manifests/surfaces.json .claude/plans/<name>.plan.md
+   git commit -m "chore(drive): work orders for <name>"
    ```
 
-   This is what stops the child rediscovering its own file list, and it is the single largest measured cost in the whole loop (orientation 36.6% of actions, editing 5.6%). The plan's `## Files to Change` becomes a checkable ownership boundary, and `tools/check-diff-ownership.mjs` enforces it afterwards.
+   The work order is what stops the child rediscovering its own file list, and that is the single largest measured cost in the whole loop (orientation 36.6% of actions, editing 5.6%). The plan's `## Files to Change` becomes a checkable ownership boundary, and `tools/check-diff-ownership.mjs` enforces it afterwards. **Name every file the change must pass through, including the barrels** - `packages/shared/src/index.ts` is an explicit named-export list, so a plan that omits it hands the child a boundary it cannot finish inside, and the honest child then STOPs and records a planning defect.
 
-   If the tool reports that globs were **not** granted as ownership (`apps/web/**`), fix the PLAN: name the real files. A glob is not a boundary, and an agent handed one has no way to know when it has left its lane. The tool also REFUSES (exit 2) a plan whose id or files collide with an existing work order's exclusive ownership - narrow the plan, or route the visual work through the owning surface's own order. A visual epic skips this step because `node tools/workorder.mjs` already derives the manifest work orders; their live count is the first lines of `.claude/workorders/INDEX.md`, never hardcoded here, because it moves whenever a surface id folds into its primary owner or residual debt clears.
+   If the tool reports that globs were **not** granted as ownership (`apps/web/**`), fix the PLAN: name the real files. A glob is not a boundary, and an agent handed one has no way to know when it has left its lane. The tool also REFUSES (exit 2) a plan whose id or files collide with an existing work order's exclusive ownership - narrow the plan, or route the visual work through the owning surface's own order. A visual epic runs the same block without the `--from-plan` line, and drops the plan path from the `git add`: `node tools/workorder.mjs` derives the manifest work orders on its own, and their live count is the first lines of `.claude/workorders/INDEX.md`, never hardcoded here, because it moves whenever a surface id folds into its primary owner or residual debt clears.
 
-   **Commit the work order before the queue is built, not after.** `check-diff-ownership` reads Boundaries from `git show <base>:` by design, so an order that is only on disk grants NOTHING: run against a realistic driver base, condition (b) exits 2 with `no work order "<id>" at base <sha>`. The regeneration in step 9 also dirties `INDEX.md`, so it is two files, not one:
-
-   ```bash
-   git add .claude/workorders/<id>.md .claude/workorders/INDEX.md .claude/plans/<name>.plan.md
-   git commit -m "chore(drive): work order for <id>"
-   ```
+   **Every line of that block is required, in that order, and the commit most of all.** `check-diff-ownership` reads Boundaries from `git show <base>:` by design, so an order that is only on disk grants NOTHING: run against a realistic driver base, condition (b) exits 2 with `no work order "<id>" at base <sha>`. The regeneration also dirties `INDEX.md` and the surface manifest, and the driver's preflight refuses to start on a dirty tree - a Phase A that skips this commit cannot reach a passing preflight at all.
 
    **Plans are COMMITTED alongside the work orders they source** (`.claude/plans/*.plan.md` is un-ignored for exactly this; the rest of `.claude/plans/` stays local). The committed order's `generatedFrom` frontmatter points at the plan, so a checkout without the plan file has a bundle whose contract - its Tier, its acceptance criteria, its whole Backlog B - cannot be read: drive-queue falls back to opus with a warning, and the child's Goal points at a file that does not exist. Commit the plan in the same commit as its work order.
+
+   The work order's own printed condition 2 (`tools/check-diff-ownership.mjs --id '<id>'`) carries **no `--base`, deliberately**, and exits 2 as printed: only the driver knows the sha it reset to. That refusal is correct - run the bundle prompt's pinned form instead, or pass the branch-point sha yourself.
 7. **Write the spec** (below), all bundles `todo`, `next-action: "/drive <N>"`.
 8. **GATE — approve the bundle plan.** Show the bundle table (id · scope · tier · PR-count) + sequencing. Wait for `approve` / `edit <note>` / `abort`. Default-deny: no or ambiguous response → restate and wait. NOTHING runs without an explicit approve.
-9. **Generate the driver artifacts** (the Phase B handoff) into `.claude/drive/` (gitignored runtime dir): `config.json` (from `config.example.json` in this folder — set timeouts, `repos`, `addDirs`), then **generate the queue and the prompts; do not write them by hand**:
+9. **Generate the driver artifacts** (the Phase B handoff) into `.claude/drive/` - a gitignored runtime dir that does **not** exist in a fresh clone:
 
    ```bash
-   node tools/workorder.mjs                      # regenerate the manifest work orders (plan orders from step 6 are preserved)
-   node tools/drive-queue.mjs --only-debt --dry-run   # see the bundle plan
-   node tools/drive-queue.mjs --only-debt        # write queue.json + prompts/task-<id>.md
+   mkdir -p .claude/drive
+   cp .claude/skills/drive/config.example.json .claude/drive/config.json
+   # then EDIT config.json: timeouts, addDirs, and - required - repos[].base
+   node tools/drive-queue.mjs --only-debt --dry-run   # see the bundle plan + the two measured ratios
+   node tools/drive-queue.mjs --only-debt             # write queue.json + prompts/task-<id>.md
    ```
 
-   `drive-queue.mjs` packs manifest work orders into bundles within one platform and kind, caps each bundle on files, debt and count, tier-routes it, and writes a prompt that hands the child its work orders instead of a description of them. A plan work order (step 6) is never packed: it becomes its OWN bundle (`plan-<name>`, solo - a plan is already a sized slice), its tier read from the plan's Tier field (a plan without one falls back to opus with a printed warning), and `ui: false` so the `--sleep` verifier does not grade non-visual work against DESIGN.md; manifest bundles carry `ui: true`. `--only-debt` keeps plan orders regardless of debt, because their backlog is the plan's acceptance criteria, not the lint baseline. **It DROPS every other debt-free order** - roughly 39% of the manifest orders, the ones whose own body reads "Backlog A is a FLOOR you have already met; Backlog B is the work" - and the run prints the excluded count so you never have to infer it. A full `--sleep` drain of this queue can therefore come back all-green while those surfaces were never handed to any agent. Drop `--only-debt` (or run a second pass without it) when the judgement backlog is what you are draining. So a non-visual epic takes the SAME path: `workorder --from-plan` per plan (step 6), then the three commands above - there is no hand-written queue. If you ever hand-write `queue.json` anyway (a one-off outside any plan), every entry REQUIRES a prompt (a `prompts/task-<id>.md` file or a non-empty `"prompt"` field): the engine's preflight hard-fails (exit 1) on a promptless entry, because a queue written without prompts once passed `--dry-run` and then skipped 100% of its bundles at runtime.
+   **`repos[].base` must name the branch step 6 committed the work orders to.** The example ships a placeholder precisely so copying it unedited fails preflight instead of running: the driver's first act is to reset every repo to its base, and a base that predates the work orders hands every child a bundle whose contract is not in the tree (`origin/main` carries zero `.claude/workorders/` files). Preflight also refuses to start unless you are already ON that branch with a clean tree.
+
+   Both drive-queue commands print, under `MEASURED`, the surface completion ratio (`N/804 cells DONE`) and the redesign-depth spread. Those are the numbers the queue cannot move, and the queue's own debt total is a LINT-COUNT axis that says nothing about either - read them before deciding a drain was worth launching.
+
+   `drive-queue.mjs` packs manifest work orders into bundles within one platform and kind, caps each bundle on files, debt and count, tier-routes it, and writes a prompt that hands the child its work orders instead of a description of them. A plan work order (step 6) is never packed: it becomes its OWN bundle (`plan-<name>`, solo - a plan is already a sized slice), its tier read from the plan's Tier field (a plan without one falls back to opus with a printed warning), and `ui: false` so the `--sleep` verifier does not grade non-visual work against DESIGN.md; manifest bundles carry `ui: true`. `--only-debt` keeps plan orders regardless of debt, because their backlog is the plan's acceptance criteria, not the lint baseline. **It DROPS every other debt-free order** - roughly 39% of the manifest orders, the ones whose own body reads "Backlog A is a FLOOR you have already met; Backlog B is the work" - and the run prints the excluded count so you never have to infer it. A full `--sleep` drain of this queue can therefore come back all-green while those surfaces were never handed to any agent. Drop `--only-debt` (or run a second pass without it) when the judgement backlog is what you are draining - and know what that pass is: a debt-free bundle has NO machine check of its design work, its generated prompt says so in those words, and the only thing that can fail its child is the ownership gate (which does fail an empty diff). So a non-visual epic takes the SAME path: `workorder --from-plan` per plan (step 6), then the two commands above - there is no hand-written queue. If you ever hand-write `queue.json` anyway (a one-off outside any plan), every entry REQUIRES a prompt (a `prompts/task-<id>.md` file or a non-empty `"prompt"` field): the engine's preflight hard-fails (exit 1) on a promptless entry, because a queue written without prompts once passed `--dry-run` and then skipped 100% of its bundles at runtime.
 
 ### The living spec
 
-One file per issue at `.claude/specs/issue-<N>.spec.md` (committed). Authoritative for what is done and what is next, but **reconciled against `gh` on every resume** — never trusted blindly (a PR the spec calls "done" may have been closed unmerged; verify with `gh pr view`).
+One file per run, committed: `.claude/specs/issue-<N>.spec.md` when there is an issue number, and `.claude/specs/task-<slug>.spec.md` for the free-text mode (no `gh` fetch, `issue: N/A` in the frontmatter, `<slug>` kebab-cased from the task). The free-text path is a documented mode, so it needs a documented filename - without one the resumable-state artifact has nowhere to go and step 8's approval gate has no spec to show. Authoritative for what is done and what is next, but **reconciled against `gh` on every resume** - never trusted blindly (a PR the spec calls "done" may have been closed unmerged; verify with `gh pr view`).
 
 ```markdown
 ---
@@ -146,18 +154,21 @@ orientation was **36.6%** of all actions and editing was **5.6%** — roughly 6.
 per edit. The manifest had held exclusive ownership for all 171 surfaces the entire time and no
 child was ever handed it.
 
-**2. Its definition of done is satisfiable.** The previous template said a bundle was done "ONLY
-when `surfaces:check` verifies your surfaces". After the gate rebuild made a human tick the only
-granting axis, no child could ever satisfy that — `surfaces:check` cannot return success without a
-signature the child is structurally blocked from writing. Every queued bundle would have burned its
-full wall clock and returned `blocked`, and an honest child could not report success no matter what
-it built. The generated prompt asks for three things a machine can actually check:
+**2. Its definition of done is satisfiable, bundle-specific, and honest about its own reach.** The
+previous template said a bundle was done "ONLY when `surfaces:check` verifies your surfaces". After
+the gate rebuild made a human tick the only granting axis, no child could ever satisfy that:
+`surfaces:check` cannot return success without a signature the child is structurally blocked from
+writing. The cut after that overcorrected: it announced "three machine-checkable conditions, and
+nothing else" for **every** bundle, and for the 16 of 64 whose orders already carried zero debt all
+three held before the child wrote a line (measured on a 32-cell surface). The prompt now prints only
+what can FAIL for the bundle it belongs to, and names what nothing checks:
 
 | condition | checked by |
 |---|---|
-| the bundle's enumerated violations are cleared | `node tools/workorder.mjs --check --id <id>`, once per work order in the bundle (the global `--check` stays out of the child's conditions: it cannot pass while OTHER bundles still carry debt) |
-| the diff stayed inside the bundle's owned files plus the structurally permitted classes (the suppressions ledgers, an owned file's test companion, the i18n pair), and no gate state moved | `node tools/check-diff-ownership.mjs --id <id> ... --base <sha>` (every id in the bundle, one run). The `--base` is PINNED: the generated prompt carries a `{{DRIVE_BASE}}` placeholder the driver substitutes at spawn with the sha the bundle branched from - unpinned, the gate resolves a base that predates the work orders and exits 2 for honest work, and `--base HEAD` after committing measures an empty diff. The engine hard-fails a pinned prompt it cannot fill, and its preflight rejects a workOrders bundle whose prompt lacks the placeholder. |
-| each touched work order carries a new Timeline entry | the work order file's diff |
+| the bundle's enumerated violations are cleared | `node tools/workorder.mjs --check --id <id>`, printed **only for the orders that carry debt today** (the global `--check` stays out: it cannot pass while OTHER bundles still carry debt). A bundle whose orders are all at zero debt is told in those words that it has NO machine check of its design work, and that the green gates were green before it started. |
+| the diff stayed inside the bundle's owned files plus the structurally permitted classes (the suppressions ledgers, an owned file's test companion, the i18n pair), no gate state moved, and **something was actually produced** | `node tools/check-diff-ownership.mjs --id <id> ... --base <sha>` (every id in the bundle, one run). The `--base` is PINNED: the prompt carries a `{{DRIVE_BASE}}` placeholder the driver substitutes at spawn with the sha the bundle branched from; `--base` is required, so an unpinned run exits 2 rather than guessing, and `--base HEAD` after committing measures an empty diff. An empty `base..head` range exits 1 - this is the one condition a do-nothing child cannot pass. The engine hard-fails a pinned prompt it cannot fill, and its preflight rejects a workOrders bundle whose prompt lacks the placeholder. |
+| lint, type-check and tests pass in the workspaces the bundle touched | CI, on the PR. The driver does not run them, and the prompt says so rather than implying a gate that does not exist. |
+| **NOT checked by anything**: Backlog B, the Timeline entry, and whether the surface looks right | nothing. The prompt lists these separately, under a heading that says a green run is not evidence they were done. A Timeline entry is satisfied by any appended line, and the depth number moves no exit code by design. |
 
 The prompt's parity rule follows the bundle kind. A plan bundle's parity is scoped to the files
 the plan itself owns: a plan whose "Files to Change" spans both platforms does full parity
@@ -174,8 +185,13 @@ gate asserts the committed orders byte-equal a fresh regeneration, and the owner
 sanctions a work-order rewrite only when it IS byte-identical regeneration output with every
 recorded Timeline entry intact. The ledger is derived state; the child never hand-edits it.
 
-Meeting all three makes a bundle **`ready-for-review`**. There is deliberately no `done` status a
-child can return for visual work: completion is granted only by a human tick in
+Meeting them makes a bundle **`ready-for-review`** - but the child does not record that, the driver
+does. Nothing a child says becomes its outcome: the driver records the base sha before the spawn,
+measures the commit the child actually left off it, judges that explicit range, and DERIVES the
+status. A bundle with no commit off the base, or a commit whose diff is empty, is recorded
+**`no-work-produced`**: terminal, never ready-for-review, never green, and it feeds the
+consecutive-failure circuit breaker. There is deliberately no `done` status a child can return for
+visual work either: completion is granted only by a human tick in
 `.claude/manifests/signoff.json`. The prompt says so explicitly and forbids the child from claiming
 a surface "looks good" or is "redesigned" - it has no instrument that establishes that, and ten
 previous sessions made exactly that claim and were wrong every time. For a plan bundle the human
@@ -228,8 +244,13 @@ When every bundle is `done` with a **merged** PR: confirm once, then `gh issue c
 
 ## status / stop
 
-- **`/drive status <#…>`** — the reconciled bundle table per issue + the newest run's `SUMMARY.md` (else `STATUS.md` + `run.log` tail): PRs, the verifier verdict per PR (**surface every DISAGREE first** — those are the PRs to scrutinize), spend vs cap, one-line next step per PR. If `LESSONS.md` has candidates, name the count and suggest `/lesson`.
-- **`/drive stop <#>`** — set the spec `status: blocked` with a one-line reason; for a running unattended driver, `touch .claude/drive/STOP` (halts before the next bundle) or kill the `node run.mjs` process (the in-flight bundle keeps whatever it committed).
+- **`/drive status <#…>`** - the reconciled bundle table per issue + the newest run's `SUMMARY.md` (else `STATUS.md` + `run.log` tail). Both tables carry, per bundle: **files changed, +ins/-del, the depth reading, the debt delta**, the verifier verdict and the PR; a bundle that produced nothing renders **NO WORK PRODUCED** with a bold **0** and is counted on its own summary line. Read the numbers first - **a zero-change bundle must never be reported as if it were a real one**, and that confusion is exactly what a rollup of status words alone caused. Then surface every **DISAGREE**. `SUMMARY.md` also carries the surface completion ratio and the standing legend that the debt column is a LINT-COUNT axis, not evidence of visual change. If `LESSONS.md` has candidates, name the count and suggest `/lesson`.
+- **`/drive stop <#>`** - set the spec `status: blocked` with a one-line reason; for a running unattended driver, drop the STOP flag (halts before the next bundle) or kill the `node run.mjs` process (the in-flight bundle keeps whatever it committed). `touch` does not exist in PowerShell, which is the shell this is usually typed into, so use the form that works there:
+
+  ```powershell
+  New-Item -ItemType File .claude/drive/STOP    # PowerShell
+  touch .claude/drive/STOP                      # Git Bash
+  ```
 
 ## Guardrails — do NOT
 

@@ -21,10 +21,16 @@
  *    NOWHERE. Kind now decides both: a plan work order is always kept, always its
  *    own bundle, and never flagged ui.
  *
- * The definition of done here is three things a machine can actually check, and
- * it deliberately stops short of granting completion: a bundle reaches READY FOR
- * REVIEW, never DONE. Only a human tick in signoff.json grants a cell.
+ * The printed definition of done states ONLY what can fail for the bundle it is
+ * printed for, and says which half of it no machine checks. The previous version
+ * announced "three machine-checkable conditions, and nothing else" for every
+ * bundle alike: for the 16 of 64 bundles whose orders already carried zero
+ * mechanical debt, all three held before the child wrote a line (measured), so
+ * the contract that was supposed to make faking hard was satisfied by doing
+ * nothing. A bundle reaches READY FOR REVIEW, never DONE - only a human tick in
+ * signoff.json grants a cell.
  */
+import { spawnSync } from "node:child_process"
 import { createHash } from "node:crypto"
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, rmSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
@@ -67,9 +73,14 @@ OUTPUT
   .claude/drive/queue.json              one entry per bundle, in run order
   .claude/drive/prompts/task-<id>.md    the bundle's prompt
 
+  Every run also prints the two ratios the queue itself cannot move - surface completion
+  and redesign depth - by running tools/check-surface-coverage.mjs and
+  tools/workorder.mjs --check. They cost ~35s together, and they are the numbers that say
+  whether the last drain moved anything; the queue's own debt total does not.
+
 EXIT CODES
   0  queue written (or planned, under --dry-run)
-  2  no work orders on disk, or a bad flag
+  2  no work orders on disk, an unparseable work order, or a bad flag
 
 NOTE
   A plan work order always becomes its OWN bundle (a plan is already a sized slice),
@@ -93,9 +104,10 @@ function fail(message) {
  * LF-only regex here parsed ZERO of the 214 committed orders - a loud exit 2
  * when all of them were CRLF, but a silent exit-0 ONE-bundle queue the moment a
  * single LF plan order joined them. workorder.mjs's own parsers already
- * tolerate CRLF; this one had missed it. A file that still fails to parse is
- * named on stderr rather than dropped, because a skipped order silently shrinks
- * the queue.
+ * tolerate CRLF; this one had missed it. A file that still fails to parse is a
+ * hard exit 2 naming it: a work order IS the child's contract, so one that
+ * cannot be read is a broken deployment, and warning-then-continuing shrinks the
+ * queue by exactly the bundles nobody then notices are missing.
  */
 function readWorkOrders() {
   if (!existsSync(WORKORDER_DIR)) fail("no .claude/workorders/. Run `node tools/workorder.mjs` first.")
@@ -122,24 +134,20 @@ function readWorkOrders() {
     // debt is cleared or its surface left the manifest, so there is nothing to
     // assign. Queuing one hands a child a bundle with no work in it.
     if (fields.retired === "true") continue
-    const timelineEntries = (text.split("## Timeline")[1] ?? "")
-      .split(/\r?\n/)
-      .filter((line) => line.trim().startsWith("- ") && !line.includes("(no work recorded"))
     orders.push({
       id: fields.surfaceId,
       platform: fields.platform,
       kind: fields.kind,
       generatedFrom: fields.generatedFrom ?? null,
       ownedFiles: Number(fields.ownedFiles ?? 0),
-      cells: Number(fields.cells ?? 0),
       debt: Number(fields.mechanicalDebt ?? 0),
-      attempts: timelineEntries.length,
     })
   }
   if (unparseable.length) {
-    process.stderr.write(
-      `drive-queue: skipped ${unparseable.length} file(s) in .claude/workorders/ with no parseable frontmatter: ` +
-        `${unparseable.join(", ")}. Each one silently shrinks the queue - regenerate with \`node tools/workorder.mjs\`.\n`,
+    fail(
+      `${unparseable.length} file(s) in .claude/workorders/ have no parseable frontmatter: ${unparseable.join(", ")}. ` +
+        `A work order is a bundle's whole contract, so an unreadable one is a broken deployment, not a file to skip - ` +
+        `regenerate with \`node tools/workorder.mjs\` or delete the stray file.`,
     )
   }
   return orders
@@ -216,13 +224,12 @@ function bundle(orders, limits) {
           current.files + order.ownedFiles > limits.maxFiles ||
           current.debt + order.debt > limits.maxDebt)
       if (!current || wouldExceed) {
-        current = { key, kind: order.kind, orders: [], files: 0, debt: 0, cells: 0 }
+        current = { key, kind: order.kind, orders: [], files: 0, debt: 0 }
         bundles.push(current)
       }
       current.orders.push(order)
       current.files += order.ownedFiles
       current.debt += order.debt
-      current.cells += order.cells
     }
   }
 
@@ -231,7 +238,6 @@ function bundle(orders, limits) {
     .map((order) => ({
       id: `plan-${order.id}`,
       label: `plan ${order.id}: ${order.ownedFiles} owned file(s), ${order.debt} mechanical violation(s)`,
-      repo: "orbit-ui-mobile",
       tier: planTierOf(order),
       effort: "high",
       ui: false,
@@ -262,7 +268,6 @@ function bundle(orders, limits) {
         .digest("hex")
         .slice(0, 8)}`,
       label: `${entry.orders.length} ${entry.key} work order(s), ${entry.debt} mechanical violation(s), ${entry.files} owned file(s)`,
-      repo: "orbit-ui-mobile",
       tier: entry.debt > 25 || entry.files > 10 ? "opus" : "sonnet",
       effort: "high",
       ui: true,
@@ -292,10 +297,19 @@ function bundle(orders, limits) {
  * committing measures an empty diff (a vacuous green). run.mjs substitutes the
  * placeholder at spawn and hard-fails a prompt it cannot pin; its preflight
  * rejects a workOrders bundle whose prompt lacks the placeholder.
+ *
+ * `debtOfOrder` is what makes the printed contract bundle-specific: a condition
+ * is printed only where it can FAIL for these work orders. An order already at
+ * zero mechanical debt gets no `--check --id` line, because that line exits 0
+ * before the child starts, and printing it under a "machine-checkable" banner is
+ * how a bundle covering a 32-cell surface was satisfiable by appending one
+ * sentence to a Timeline.
  */
-function renderPrompt(entry) {
+function renderPrompt(entry, debtOfOrder) {
   const ids = entry.workOrders
   const isPlan = entry.kind === "plan"
+  const checkable = ids.filter((id) => (debtOfOrder.get(id) ?? 0) > 0)
+  const uncheckable = ids.filter((id) => (debtOfOrder.get(id) ?? 0) === 0)
   const parityRule = isPlan
     ? `4. Work Backlog B and the source plan's acceptance criteria with the plan open. Parity is
    scoped to the files the plan itself owns: if its "Files to Change" names BOTH platforms,
@@ -315,17 +329,19 @@ function renderPrompt(entry) {
     ? ""
     : `
 The redesign-depth oracle measures how much of each surface's render signature actually moved;
-\`node tools/workorder.mjs --check --id <id>\` prints it. Clearing Backlog A does not move it.
-The number is a veto a human consults, never a target you optimize: deliberately inflating it -
-churn for churn's sake - reads as fabrication.
+\`node tools/workorder.mjs --check --id <id>\` prints it beside the debt count. Clearing Backlog A
+does not move it: the debt count is a LINT-COUNT axis, and hoisting an off-scale literal into a
+named constant clears a violation with zero pixels moved. The number is a veto a human consults,
+never a target you optimize: deliberately inflating it - churn for churn's sake - reads as
+fabrication. Read the two together; neither one alone says anything about how the surface looks.
 `
   const closing = isPlan
-    ? `Meeting a, b and c makes this bundle READY FOR REVIEW. It does NOT make it done, and you
-must not say it does: merging is a human action, and whether the plan's acceptance criteria
-are genuinely met is a human judgement, not yours to record. State what you changed and what
-you verified.`
-    : `Meeting a, b and c makes this bundle READY FOR REVIEW. It does NOT make it done, and you
-must not say it does. Completion is granted only by a human tick in
+    ? `Meeting the conditions above makes this bundle READY FOR REVIEW. It does NOT make it done,
+and you must not say it does: merging is a human action, and whether the plan's acceptance
+criteria are genuinely met is a human judgement, not yours to record. State what you changed
+and what you verified.`
+    : `Meeting the conditions above makes this bundle READY FOR REVIEW. It does NOT make it done,
+and you must not say it does. Completion is granted only by a human tick in
 .claude/manifests/signoff.json, which you are structurally blocked from writing. Do not
 claim a surface "looks good", is "redesigned", or is "complete" - you have no instrument
 that can establish that, and ten previous sessions made exactly that claim and were wrong.
@@ -394,18 +410,34 @@ ${parityRule}
 8. Commit, push, and open a PR READY FOR REVIEW with \`gh pr create\` (never --draft, so CI
    and the review bots run).
 ${depthParagraph}
-DEFINITION OF DONE - three machine-checkable conditions, and nothing else:
+WHAT A MACHINE CHECKS HERE, and it is less than you would like:
 ${
   isPlan
     ? `  a. \`npm run lint\`, \`npm run type-check\` and \`npm run test\` pass in every workspace this
-     plan touched. This is condition (a) for a plan bundle because the work-order debt count
-     is NOT: a plan order is structurally forbidden from owning any file that carries lint
-     debt (\`--from-plan\` refuses one), so \`node tools/workorder.mjs --check --id '${ids[0]}'\`
-     exits 0 before you write a line and can never fail. It measures nothing here, the driver
-     does not record it for a plan bundle, and you must not cite it as evidence of anything.`
-    : `  a. EACH of these exits 0 (per order; the global \`--check\` form covers bundles that are
+     plan touched (\`-w apps/web\`, \`-w apps/mobile\`, \`-w packages/shared\`; the bare root
+     form runs every workspace, so a pre-existing red in one this plan never touches is not
+     yours to fix under rule 2 - record it in the Timeline and say so). CI runs these on your
+     PR; the driver does not. This is condition (a) for a plan bundle because the work-order
+     debt count is NOT: a plan order is structurally forbidden from owning any file that
+     carries lint debt (\`--from-plan\` refuses one), so
+     \`node tools/workorder.mjs --check --id '${ids[0]}'\` exits 0 before you write a line and
+     can never fail. It measures nothing here, the driver does not record it for a plan
+     bundle, and you must not cite it as evidence of anything.`
+    : checkable.length
+      ? `  a. EACH of these exits 0 (per order; the global \`--check\` form covers bundles that are
      not yours and can stay red while your work is complete, so it is not your condition):
-${ids.map((id) => `       node tools/workorder.mjs --check --id '${id}'`).join("\n")}`
+${checkable.map((id) => `       node tools/workorder.mjs --check --id '${id}'`).join("\n")}${
+          uncheckable.length
+            ? `\n     The other ${uncheckable.length} order(s) in this bundle (${uncheckable.map((id) => `'${id}'`).join(", ")}) already
+     carry ZERO mechanical violations, so nothing machine-checkable exists for them: their
+     whole backlog is Backlog B, which no gate counts.`
+            : ""
+        }`
+      : `  a. THERE IS NONE. Every work order in this bundle already carries zero mechanical
+     violations, so \`node tools/workorder.mjs --check --id\` exits 0 for all of them before
+     you write a line and cannot fail. Do not cite it, and do not read the green gates at the
+     end of this bundle as evidence that you did anything: they were green when you started.
+     Everything real in this bundle is Backlog B, and the only judge of it is a human.`
 }
   b. The ownership gate, pinned to the commit this bundle branched from. The --base value
      below is stamped in by the driver at spawn; running the command by hand, substitute
@@ -413,8 +445,39 @@ ${ids.map((id) => `       node tools/workorder.mjs --check --id '${id}'`).join("
      construction, and never an unpinned run, which resolves a base that may predate your
      work orders entirely.
      \`node tools/check-diff-ownership.mjs ${ids.map((id) => `--id '${id}'`).join(" ")} --base {{DRIVE_BASE}}\` exits 0.
-  c. Each touched work order has your new Timeline entry.
-${isPlan ? "Plus the plan's own acceptance criteria, which only a human can judge." : "Then lint, type-check and the tests pass."}
+     An EMPTY range fails it: no commit off that base, or a commit whose diff is empty, exits
+     1, and the driver records the bundle as NO WORK PRODUCED. That is terminal - it can never
+     be ready for review.${
+       isPlan
+         ? ""
+         : `
+  c. \`npm run lint\`, \`npm run type-check\` and \`npm run test\` pass in the workspaces you
+     touched. CI runs these on your PR; the driver does not.`
+     }
+
+WHAT NO MACHINE HERE CHECKS, which does not make any of it optional. A green run is not
+evidence you did these, and saying you did is not evidence either:
+  - Backlog B, the judgement list in each work order. Nothing counts it${isPlan ? ", and the plan's\n    acceptance criteria are a human judgement made at review, not at merge-time by you." : "."}
+  - One Timeline entry per work order you touched. No gate checks that you appended one, or
+    that what it says happened actually happened. It is the only thing the next session
+    inherits about this surface.${
+      isPlan
+        ? ""
+        : `
+  - Whether the surface now looks right. Depth measures how much of the render signature
+    moved; nothing here measures taste. Ten sessions claimed this and were wrong every time.`
+    }
+
+The driver re-runs these gates itself after you exit, from the BASE ref's own copy of the
+tool, over the commit range it measured you produce - not over whatever HEAD you leave
+checked out.${
+      !isPlan && uncheckable.length
+        ? ` It runs \`workorder --check --id\` for the zero-debt order(s) too and will
+record exit 0 for them. That verdict measured nothing, and neither you nor the independent
+verifier may cite it: read the depth line printed beside it instead.`
+        : ""
+    } Your final JSON line is evidence the driver weighs against those
+measurements; it is never the verdict.
 
 ${closing}
 
@@ -428,11 +491,43 @@ END with EXACTLY one line of JSON (no fences):
 `
 }
 
+/**
+ * A ratio line lifted from a tool that OWNS the number, printed for the operator
+ * rather than left for a command nobody in the documented path runs. Both tools
+ * exit non-zero in their normal state (any shortfall), so only the absence of a
+ * ratio LINE is a failure - reported as UNAVAILABLE naming the tool, never
+ * quietly omitted, because an operator who sees no number reads it as no problem.
+ */
+function ratioLine(toolRelPath, args, match, label) {
+  const tool = join(REPO_ROOT, toolRelPath)
+  if (!existsSync(tool)) return `${label}: UNAVAILABLE - ${toolRelPath} is not in this checkout`
+  const run = spawnSync(process.execPath, [tool, ...args], {
+    cwd: REPO_ROOT,
+    env: { ...process.env, ORBIT_SURFACE_ROOT: REPO_ROOT },
+    encoding: "utf8",
+    maxBuffer: 16 * 1024 * 1024,
+  })
+  const line = String(run.stdout || "").split("\n").find((text) => match.test(text))
+  return line ? line.trim() : `${label}: UNAVAILABLE - ${toolRelPath} printed no ratio (exit ${run.status}${run.error ? `, ${run.error.code}` : ""})`
+}
+
 function main() {
   const argv = process.argv.slice(2)
   if (argv.includes("--help") || argv.includes("-h")) {
     process.stdout.write(USAGE)
     return
+  }
+  // USAGE has always documented exit 2 for a bad flag and nothing enforced it:
+  // a typo'd `--only-dept` was silently ignored, so the operator read a 214-order
+  // queue as the 130-order one they thought they had asked for.
+  const KNOWN_FLAGS = new Set(["--only-debt", "--dry-run", "--platform", "--max-files", "--max-debt", "--max-orders"])
+  const valueOf = new Set(["--platform", "--max-files", "--max-debt", "--max-orders"])
+  for (let index = 0; index < argv.length; index += 1) {
+    if (KNOWN_FLAGS.has(argv[index])) {
+      if (valueOf.has(argv[index])) index += 1
+      continue
+    }
+    fail(`unrecognised argument "${argv[index]}". See --help.`)
   }
   // A malformed or missing flag value must be a loud exit 2, never NaN: every
   // cap comparison against NaN is false, so `--max-files abc` silently turned
@@ -490,17 +585,34 @@ function main() {
   const queue = bundle(orders, limits)
   const totalDebt = queue.reduce((sum, entry) => sum + entry.debt, 0)
 
+  const noDebt = queue.filter((entry) => entry.debt === 0).length
   process.stdout.write(
     `${queue.length} bundle(s) over ${orders.length} work order(s), ${totalDebt} mechanical violation(s)\n\n` +
       queue.map((entry) => `  ${entry.id.padEnd(22)} ${String(entry.debt).padStart(3)} debt  ${String(entry.files).padStart(2)} files  ${entry.tier}\n`).join("") +
       "\n",
+  )
+  // The two ratios the queue cannot move, printed where the operator actually
+  // looks. Neither appeared anywhere in the documented Phase A: a night could
+  // report "16/16 ready for review" while 0 of 804 cells were done and every
+  // measured surface sat below the depth floor. The debt total above is a
+  // LINT-COUNT axis and says nothing about either.
+  process.stdout.write(
+    `MEASURED (the queue moves none of these):\n` +
+      `  ${ratioLine("tools/check-surface-coverage.mjs", [], /cells DONE/, "surface completion")}\n` +
+      `  ${ratioLine("tools/workorder.mjs", ["--check"], /^depth: /, "redesign depth")}\n\n` +
+      `The debt column above is a LINT-COUNT axis: hoisting an off-scale literal into a named constant\n` +
+      `clears a violation with zero pixels moved, so it is never evidence of visual change - read it\n` +
+      `beside the depth line. ${noDebt} of ${queue.length} bundle(s) carry zero debt; for those a machine can fail\n` +
+      `a child only on the ownership gate, their real work is judgement, and their prompts say so. Only a\n` +
+      `human tick in .claude/manifests/signoff.json completes a cell.\n\n`,
   )
 
   if (argv.includes("--dry-run")) return
 
   mkdirSync(join(DRIVE_DIR, "prompts"), { recursive: true })
   writeFileSync(join(DRIVE_DIR, "queue.json"), `${JSON.stringify(queue, null, 2)}\n`)
-  for (const entry of queue) writeFileSync(join(DRIVE_DIR, "prompts", `task-${entry.id}.md`), renderPrompt(entry))
+  const debtOfOrder = new Map(orders.map((order) => [order.id, order.debt]))
+  for (const entry of queue) writeFileSync(join(DRIVE_DIR, "prompts", `task-${entry.id}.md`), renderPrompt(entry, debtOfOrder))
   // A stale prompt is a same-format file with a current-looking name: this loop
   // only ever added, so three writes left 81 prompt files for a 50-entry queue,
   // and a resumed operator could hand a child a bundle the queue no longer

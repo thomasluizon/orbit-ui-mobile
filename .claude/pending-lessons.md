@@ -26,6 +26,8 @@ Reviewed and promoted via `/lesson`. Delete each entry once promoted to a rule/h
 
 ## Graduated
 
+- 2026-07-22 TrueSheet navigate-while-dismissing wedges every RN Modal on Android → graduated to the "Platform reality" bullet in `apps/mobile/CLAUDE.md` naming the invariant and `use-sheet-exit-action` as the one sanctioned pattern; shipped in PR #569 (merged). Cleared 2026-07-23.
+- 2026-07-22 DraggableFlatList silently discards `onScroll` → graduated to the `local/no-draggable-onscroll` ESLint rule (`eslint-rules/no-draggable-onscroll.cjs`, wired for apps/mobile) plus a mock that models the real prop contract; shipped in PR #568 (merged). Cleared 2026-07-23.
 - 2026-07-08 "don't offer optional next-steps" + 2026-07-09 proactivity failures (assume/ask/optional/improvise) → merged as one class and graduated to the global **proactivity guard** (`~/.claude/hooks/proactivity-reminder.mjs` UserPromptSubmit re-injection + `~/.claude/hooks/proactivity-guard.mjs` Stop class-gate). See `project_proactivity_guard` memory. Cleared 2026-07-09.
 - 2026-07-14 "opencode + Zen" is the opencode Zen gateway, NOT Z.ai → promoted to the `feedback_opencode_zen_not_zai` memory and to the `OpenCode Go plus Zen over OpenRouter` ADR in the brain vault, which carries the full naming trap + the pricing rationale. Cleared 2026-07-16.
 - 2026-07-18 wrote em dashes into a brain-vault ADR despite the vault's own explicit ban, plus asserted a hook's scope without checking it → promoted, instantly, to the `feedback_never_use_em_dash_anywhere` memory: unconditional ban on the em dash character in ALL output, not scoped to gated files. Cleared 2026-07-18.

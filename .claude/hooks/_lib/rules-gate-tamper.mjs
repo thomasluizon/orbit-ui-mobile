@@ -12,9 +12,9 @@
 //                                      by tools/judge-surfaces.mjs
 //   tools/calibrate-judge.mjs        - the judge's own report card
 //
-// The guard evaluates a command PER SEGMENT, not as one string. Three bugs made
-// the previous whole-string version both too strict and too loose, and all three
-// were observed live rather than theorised:
+// The guard evaluates a command PER SEGMENT, not as one string, and a command
+// substitution is a segment of its own. Four bugs made earlier versions both too
+// strict and too loose, and all four were observed live rather than theorised:
 //   1. The read-only leader test was anchored `^` against the ENTIRE command, so
 //      `cd <repo> && jq signoff.json` was blocked - a pure read - while the block
 //      message said "Reading it (cat/jq) is fine". It fired three times in one
@@ -25,10 +25,15 @@
 //   3. `firstSegmentIsSanctioned` matched the sanctioned writer anywhere in the
 //      string with no end anchor, so `node tools/surface-manifest.mjs && rm -rf
 //      .claude/manifests` inherited the sanction. Also Critical on #560.
+//   4. Stripping a control keyword and treating any `word=` remainder as benign
+//      let `if x=$(node -e "...write signoff...")` through while the bare form
+//      blocked - one keyword defeating the ONE human-only grant in the design.
 // Segmenting fixes 1 and 3 by construction (a chained command is separate
-// segments, each judged alone) and 2 is fixed by ALLOWLISTING the arguments a
+// segments, each judged alone), 2 is fixed by ALLOWLISTING the arguments a
 // read-only leader may carry rather than blocklisting write verbs - the same
-// reasoning CLAUDE.md's "Agent tool scoping" section gives for shell allowlists.
+// reasoning CLAUDE.md's "Agent tool scoping" section gives for shell allowlists -
+// and 4 by judging a substitution as its own segment instead of trusting the
+// wrapper around it.
 //
 // Honest limit, unchanged: this stops drift and casual shortcuts, not a determined
 // adversarial payload. An agent with a full shell can always find a path around a
@@ -68,9 +73,10 @@ const SIGNOFF_MESSAGE =
   "It is the one axis of the visual gate an agent may never write - a cell is only DONE when Thomas has personally " +
   "looked at the surface and ticked it in his own editor. Signing your own work is the failure this gate exists to stop. " +
   "Reading it is fine - ordinary shell reads (cat/jq/grep/wc/a for-loop/an if-test, with or without a `cd` prefix, " +
-  "a pipe or `2>/dev/null`) all pass, and the Read tool ALWAYS works. What does not pass is an interpreter " +
-  "(`node -e`, `python -c`): arbitrary code cannot be classified as read-only, so it stays blocked by design - use Read. " +
-  "If you believe a surface is ready, say so and let Thomas tick it."
+  "a pipe or `2>/dev/null`) all pass, the Read tool ALWAYS works, and an interpreter one-liner passes when every " +
+  "call it makes is a read (`node -e \"console.log(require('./file.json').x)\"`). What does not pass is an interpreter " +
+  "that calls anything outside that read set, however it is wrapped - a keyword, an assignment or a `$(...)` " +
+  "substitution does not launder it. If you believe a surface is ready, say so and let Thomas tick it."
 
 const READ_ONLY_LEADERS =
   /^(cd|cat|jq|ls|dir|stat|head|tail|wc|grep|rg|git|type|file|diff|awk|sed|cut|sort|uniq|tr|od|xxd|find|echo|printf|read|test|true|false|basename|dirname|realpath|sha256sum|md5sum|certutil|node\s+(\.\/)?tools[\\/]check-surface-coverage\.mjs|node\s+(\.\/)?tools[\\/]calibrate-judge\.mjs|npm\s+run\s+surfaces:(check|calibrate))\b/
@@ -83,25 +89,137 @@ const READ_ONLY_LEADERS =
 // three separate pure reads in one session (a `for` over a file list, an
 // if-test, and a `while read`).
 //
-// Stripping the keyword and judging the REMAINDER is safe, and strictly safer
-// than treating the whole segment as read-only: the write-verb, output-flag and
-// redirect checks already ran leader-independently above (so `do rm
-// signoff.json` blocks on `rm`), and re-testing the remainder keeps an
-// interpreter fail-closed behind a keyword too (`do node -e "...write..."`
-// blocks exactly like the bare form).
+// Stripping the keyword and judging the REMAINDER is safe only because a
+// command substitution is judged as its own segment (splitSegments hoists it):
+// the first cut treated ANY remainder starting `word=` as benign, so
+// `if x=$(node -e "...write signoff...")` was ALLOWED while the bare `node -e`
+// form blocked. One keyword defeated the only human-granted axis in the design.
+// An assignment PREFIX is stripped like a keyword now, and whatever the value
+// substituted has already been split out and judged on its own.
 const CONTROL_KEYWORD_RE = /^(for|while|until|if|elif|then|else|do|done|fi|case|esac|in|select|time|function|!)\b\s*/
-// What legitimately remains after the keywords: a loop binding (`f in a b c`),
-// a test (`[ -f x ]`, `[[ ... ]]`, `(( ... ))`), an assignment, or an INPUT
-// redirect (`done < surfaces.json` feeds a loop from a file and writes nothing).
-const BENIGN_REMAINDER_RE = /^(\w+\s+in\b|\[\[?\s|\(\(|\w+=|<)/
+// `VAR=value` and `VAR=value cmd ...`: the value may be quoted, so it is
+// consumed as quoted runs or non-space characters rather than a bare \S*.
+const ASSIGNMENT_PREFIX_RE = /^\w+=(?:'[^']*'|"[^"]*"|\S)*\s*/
+// What legitimately remains after the prefixes: a loop binding (`f in a b c`),
+// a test (`[ -f x ]`, `[[ ... ]]`, `(( ... ))`), or an INPUT redirect
+// (`done < surfaces.json` feeds a loop from a file and writes nothing).
+const BENIGN_REMAINDER_RE = /^(\w+\s+in\b|\[\[?\s|\(\(|<)/
 
-function stripControlKeywords(text) {
+function stripPrefixes(text) {
   let out = text
   for (;;) {
-    const stripped = out.replace(CONTROL_KEYWORD_RE, "")
+    const stripped = out.replace(CONTROL_KEYWORD_RE, "").replace(ASSIGNMENT_PREFIX_RE, "")
     if (stripped === out) return out
     out = stripped
   }
+}
+
+// An interpreter cannot be classified by its leader, so it used to fail closed
+// unconditionally - which blocked pure reads of the denominator and pushed a
+// planning session toward disarming the hook (the friction is documented; a
+// disarmed hook is the real risk). The CODE is judged instead, by an ALLOWLIST
+// of what it may CALL, the same doctrine CLAUDE.md's shell-allowlist section
+// gives: every called name must be on the read list, and a call whose callee is
+// not a plain name at all (`f[k](...)`, `(0,fs.writeFileSync)(...)`) is refused
+// outright, so a computed or concatenated writer name cannot smuggle past the
+// list. Template literals are refused for the same reason - `${...}` is code.
+const INLINE_CODE_RE = /^(?:node|nodejs|bun|deno|python3?|py|ruby|perl)(?:\.exe)?\s+(?:[^\s'"]+\s+)*?-(?:e|p|c|-eval|-print)\s+(['"])([\s\S]*)\1/
+const READ_ONLY_CALLS = new Set([
+  "require", "readFileSync", "readFile", "readdirSync", "existsSync", "statSync", "lstatSync", "realpathSync",
+  "parse", "stringify", "log", "error", "warn", "print", "keys", "values", "entries", "isArray", "from", "of",
+  "map", "filter", "reduce", "flatMap", "forEach", "find", "findIndex", "some", "every", "includes", "indexOf",
+  "join", "split", "slice", "sort", "concat", "trim", "toString", "toFixed", "padStart", "padEnd", "repeat",
+  "startsWith", "endsWith", "match", "test", "has", "get", "size", "Number", "String", "Boolean", "Object",
+  "Array", "Set", "Map", "JSON", "Math", "min", "max", "round", "abs", "basename", "dirname", "resolve",
+  "relative", "extname", "if", "for", "while", "switch", "catch", "function", "return", "typeof",
+])
+
+// `require` is on the call list because reading a JSON file (or reaching
+// readFileSync) needs it - but `require('./x.js')` EXECUTES a local module,
+// which is arbitrary code none of which is visible in this string. Its argument
+// is allowlisted too, and a require whose argument is not a plain string literal
+// is refused outright. Without this, allowing interpreter READS would have
+// opened `node -e "require('./w.js')" <protected path>`, which the equivalent
+// `node w.js <protected path>` has always been blocked for.
+const REQUIRE_ARG_RE = /require\s*\(\s*(['"])([^'"]*)\1\s*\)/g
+const REQUIRABLE = /^(node:)?(fs|path)$|\.json$/
+
+/** True when an interpreter one-liner only READS: every call it makes names a read API, no call is made through a computed or parenthesised callee, and every `require` names fs, path, or a .json file. */
+export function inlineCodeIsReadOnly(code) {
+  if (code.includes("`")) return false
+  const bare = code.replace(/'(?:\\.|[^'\\])*'/g, "''").replace(/"(?:\\.|[^"\\])*"/g, '""')
+  const literalRequires = [...code.matchAll(REQUIRE_ARG_RE)]
+  if (literalRequires.length !== (bare.match(/require\s*\(/g) || []).length) return false
+  if (literalRequires.some((call) => !REQUIRABLE.test(call[2]))) return false
+  for (let index = 0; index < bare.length; index += 1) {
+    if (bare[index] !== "(") continue
+    const before = bare.slice(0, index).replace(/\s+$/, "")
+    const callee = /[\w$]+$/.exec(before)
+    if (callee) {
+      if (!READ_ONLY_CALLS.has(callee[0])) return false
+      continue
+    }
+    if (/[)\]]$/.test(before)) return false
+  }
+  return true
+}
+
+/** True when this segment is an interpreter one-liner (or a control/assignment wrapper around a plain read command) that only reads. */
+function commandIsReadOnly(text) {
+  if (READ_ONLY_LEADERS.test(text)) return true
+  const inline = INLINE_CODE_RE.exec(text)
+  return inline ? inlineCodeIsReadOnly(inline[2]) : false
+}
+
+/**
+ * Split a command into the text OUTSIDE its substitutions and the substituted
+ * commands themselves. A substitution is a COMMAND and must be judged as one:
+ * `if x=$(node -e "...")` hid an interpreter behind an assignment the guard read
+ * as benign, and `echo $(node -e "...")` hid one behind a read-only leader.
+ * `$((` is arithmetic, not a substitution, and is left alone. The outer text
+ * keeps a `""` placeholder so the wrapper cannot inherit the substitution's
+ * shape in either direction - `rm $(echo signoff.json)` still reads as `rm`.
+ */
+function splitSubstitutions(text) {
+  const inner = []
+  let outer = ""
+  let single = false
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index]
+    if (single) {
+      outer += char
+      if (char === "'") single = false
+      continue
+    }
+    if (char === "'") {
+      single = true
+      outer += char
+      continue
+    }
+    const isSubstitution = char === "$" && text[index + 1] === "(" && text[index + 2] !== "("
+    if (!isSubstitution && char !== "`") {
+      outer += char
+      continue
+    }
+    let end = index + 1
+    if (isSubstitution) {
+      let depth = 0
+      for (; end < text.length; end += 1) {
+        if (text[end] === "(") depth += 1
+        else if (text[end] === ")" && --depth === 0) break
+      }
+    } else {
+      end = text.indexOf("`", index + 1)
+      if (end === -1) {
+        outer += char
+        continue
+      }
+    }
+    inner.push(text.slice(index + (isSubstitution ? 2 : 1), end))
+    outer += '""'
+    index = end
+  }
+  return { outer, inner }
 }
 
 // A read-only leader stops being read-only the moment it carries an argument that
@@ -139,7 +257,7 @@ export function withoutHeredocBodies(command) {
   return String(command ?? "").replace(HEREDOC_RE, (_match, _quote, tag, restOfLine) => `<<${tag}${restOfLine}`)
 }
 
-/** Split a shell command into independently-judged segments on `&&`, `||`, `;`, `|` and newlines, respecting quotes. `2>&1` is never a split point because a single `&` is not a separator. */
+/** Split a shell command into independently-judged segments on `&&`, `||`, `;`, `|` and newlines, respecting quotes, plus one segment per command substitution. `2>&1` is never a split point because a single `&` is not a separator. */
 export function splitSegments(command) {
   const segments = []
   const text = withoutHeredocBodies(command)
@@ -176,7 +294,8 @@ export function splitSegments(command) {
     current += char
   }
   segments.push(current)
-  return segments.map((segment) => segment.trim()).filter(Boolean)
+  const outerSegments = segments.map((segment) => segment.trim()).filter(Boolean)
+  return [...outerSegments, ...outerSegments.flatMap((segment) => splitSubstitutions(segment).inner.flatMap(splitSegments))]
 }
 
 function withoutQuotedText(segment) {
@@ -187,20 +306,20 @@ function redirectsToFile(segment) {
   return withoutQuotedText(segment).replace(FD_REDIRECT, " ").replace(NULL_REDIRECT, " ").includes(">")
 }
 
-/** True when this ONE segment only reads: no output-naming flag, no write verb, no redirect to a real file, and either a read-only leader or a shell control structure whose remainder is itself read-only. */
+/** True when this ONE segment only reads: no output-naming flag, no write verb, no redirect to a real file, and either a read-only command (leader or interpreter one-liner) or a control/assignment wrapper whose remainder is itself read-only. Substitutions are blanked here and judged as their own segments. */
 export function segmentIsReadOnly(segment) {
-  const text = segment.trim()
+  const text = splitSubstitutions(segment.trim()).outer.trim()
   if (!text) return true
   const unquoted = withoutQuotedText(text)
   if (OUTPUT_FLAG_RE.test(unquoted)) return false
   if (WRITE_VERB_RE.test(unquoted)) return false
   if (redirectsToFile(text)) return false
-  if (READ_ONLY_LEADERS.test(text)) return true
-  const remainder = stripControlKeywords(text)
+  if (commandIsReadOnly(text)) return true
+  const remainder = stripPrefixes(text)
   if (remainder === text) return false
   if (!remainder) return true
   if (BENIGN_REMAINDER_RE.test(remainder)) return true
-  return READ_ONLY_LEADERS.test(remainder)
+  return commandIsReadOnly(remainder)
 }
 
 function segmentIsSanctionedWriter(segment, writers) {
@@ -244,8 +363,8 @@ export function checkGateTamperBash(command) {
       message:
         "gate-tamper: .claude/manifests/surfaces.json is the completion denominator and is derived from the codebase. " +
         "Never edit, overwrite, or delete it by hand - regenerate it with `npm run surfaces:manifest` (tools/surface-manifest.mjs). " +
-        "Reading it is fine - ordinary shell reads and the Read tool all pass; an interpreter (`node -e`, `python -c`) " +
-        "stays blocked by design because arbitrary code cannot be classified as read-only, so use Read for that.",
+        "Reading it is fine - ordinary shell reads and the Read tool all pass, and so does an interpreter one-liner whose " +
+        "every call is a read (`node -p \"require('./.claude/manifests/surfaces.json').cells.length\"`).",
     }
   }
 

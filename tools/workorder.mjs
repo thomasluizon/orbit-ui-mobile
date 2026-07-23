@@ -95,9 +95,12 @@ USAGE
                   summary; exit 1 if ANY work order still carries mechanical debt.
   --id <id>       Print one work order to stdout and exit. Does not write.
   --check --id <id>  Per-order verdict: THAT order's outstanding debt rows and total,
-                  plus (for a surface order) its redesign depth vs the floor. The
-                  depth is a veto axis a human consults - it never moves the exit
-                  code. Exit 1 only if that order carries mechanical debt.
+                  plus, for any order that owns files (residual groups included,
+                  plan orders excluded - they own non-visual files), its redesign
+                  depth vs the floor. The debt total is a LINT-COUNT axis and is
+                  never evidence of visual change; the depth is the axis that
+                  measures movement, and it is a veto a human consults - it never
+                  moves the exit code. Exit 1 only if that order carries debt.
   --help, -h      This text.
 
 EXIT CODES
@@ -521,6 +524,16 @@ function renderWorkOrder(surface, debt, timeline, manifest) {
  * use. Glob entries (`apps/web/**`) are kept out of the owned list deliberately:
  * ownership has to be checkable file by file, and a glob would silently grant
  * an agent the whole tree.
+ *
+ * A REPO-ROOT path is a path. Requiring a `/` dropped `package.json`,
+ * `tsconfig.json`, `lefthook.yml`, `DESIGN.md` and `.gitignore` from the
+ * boundary in silence, so a plan child that edited a file its own plan ordered
+ * it to change failed its own ownership gate, the driver overrode its status to
+ * `failed`, and two such bundles tripped the circuit breaker. The filter's real
+ * job is rejecting backticked PROSE - `npm run lint`, `mechanicalDebt`,
+ * `local/spacing-scale` - so it now asks the question it meant to ask: a
+ * root-level candidate is a path when it is a bare filename carrying an
+ * extension. Whatever is dropped is REPORTED, never silently discarded.
  */
 function planUnit(planPath) {
   const absolute = resolve(planPath)
@@ -533,8 +546,13 @@ function planUnit(planPath) {
   const candidates = [...body.matchAll(/`([^`\n]+)`/g)].map((match) => match[1].trim())
   const owned = []
   const globs = []
+  const ignored = []
+  const isRootFile = (candidate) => /^[\w.-]+$/.test(candidate) && candidate.includes(".") && candidate !== ".."
   for (const candidate of candidates) {
-    if (!candidate.includes("/") || /\s/.test(candidate)) continue
+    if (/\s/.test(candidate) || !(candidate.includes("/") || isRootFile(candidate))) {
+      if (!ignored.includes(candidate)) ignored.push(candidate)
+      continue
+    }
     if (candidate.includes("*") || candidate.includes("{")) globs.push(candidate)
     else if (!owned.includes(candidate)) owned.push(candidate)
   }
@@ -550,6 +568,7 @@ function planUnit(planPath) {
     ownedFiles: owned,
     sharedFiles: [],
     globs,
+    ignored,
     pixelEvidence: "none",
     cells: 0,
     states: new Set(),
@@ -813,6 +832,12 @@ function main() {
       `wrote ${path}\n  ${unit.ownedFiles.length} owned file(s), ${debt.total} existing lint violation(s) in them\n` +
         (unit.globs.length
           ? `  ${unit.globs.length} glob(s) in the plan were NOT granted as ownership (${unit.globs.join(", ")}).\n  Name the real files in the plan, or the agent has no checkable boundary there.\n`
+          : "") +
+        // Silence here is what shipped the root-path defect: the count simply
+        // read "2 owned file(s)" for a 3-file plan and nobody could see which
+        // one had gone. Anything the parser refuses to read as a path is named.
+        (unit.ignored.length
+          ? `  ${unit.ignored.length} backticked token(s) were not read as paths (${unit.ignored.join(", ")}).\n  If one of those is a file this plan changes, write it as a real repo-relative path.\n`
           : ""),
     )
     return
@@ -939,9 +964,10 @@ function main() {
         // ledger, never from the .md - for the one uncommitted case (a plan
         // order born this session) tampering can only annex files, which ADDS
         // debt, never removes it.
+        const ownedOnDisk = ownedFilesFromDisk(planOrder ? planOrder.file : `${wantedId}.md`)
         found = {
-          unit: { surfaceId: wantedId, cells: 0 },
-          debt: debtOf(ownedFilesFromDisk(planOrder ? planOrder.file : `${wantedId}.md`), suppressions),
+          unit: { surfaceId: wantedId, cells: 0, kind: planOrder ? "plan" : "residual", ownedFiles: ownedOnDisk },
+          debt: debtOf(ownedOnDisk, suppressions),
         }
         if (!planOrder && found.debt.total === 0) {
           sweptNote =
@@ -964,11 +990,23 @@ function main() {
     // The per-order verdict a bundle child can act on. Before this existed,
     // --check --id printed the work order and returned before the exit logic,
     // so an order carrying 68 violations exited 0 exactly like a clean one.
-    const lines = [`${wantedId}: ${found.debt.total} outstanding mechanical violation(s)`]
+    const lines = [`${wantedId}: ${found.debt.total} outstanding mechanical violation(s) (LINT-COUNT axis)`]
     for (const row of found.debt.rows) lines.push(`  ${row.file}  ${row.rule}  ${row.count}`)
-    if (found.unit.cells > 0) lines.push(depthLineFor(found.unit, manifest))
+    // Depth for EVERY order that owns files, not only the ones carrying cells.
+    // A residual order printed its debt with no depth beside it, so "0
+    // outstanding mechanical violation(s)" was the entire verdict - and the
+    // measured forgery that clears that count (hoisting an off-scale literal
+    // into a named constant) leaves the depth at 1.6%. The two numbers only
+    // mean something together. Plan orders are excluded because they own
+    // arbitrary non-visual files and a depth against the redesign baseline
+    // would be a number with no meaning.
+    if (found.unit.kind !== "plan" && found.unit.ownedFiles?.length) lines.push(depthLineFor(found.unit, manifest))
     if (sweptNote) lines.push(sweptNote)
-    lines.push("Mechanical debt is a floor, not a grant. Only a human tick in signoff.json completes a cell.")
+    lines.push(
+      "The count above is a LINT COUNT, never evidence of visual change: eslint counts literals, so hoisting an",
+      "off-scale value into a named constant clears it with zero pixels moved. Read it beside the depth line, never",
+      "alone. Mechanical debt is a floor, not a grant - only a human tick in signoff.json completes a cell.",
+    )
     process.stdout.write(lines.join("\n") + "\n")
     process.exit(found.debt.total > 0 ? 1 : 0)
   }
@@ -1077,10 +1115,13 @@ function main() {
       `${ledger.length} work orders  (${surfaceOrders.length} surfaces + ${residual.length} residual groups${foldedList.length ? `; ${foldedList.length} surface id(s) folded into their primary` : ""})` +
         `${planOrders.length ? `, ${planOrders.length} plan order(s)` : ""}${retired.length ? `, ${retired.length} retired order(s) kept for their Timeline` : ""}`,
       `${ownedEverywhere.size} files owned by a surface; ${residual.reduce((n, entry) => n + entry.unit.ownedFiles.length, 0)} more carry debt and are owned by a residual group`,
-      `${totalDebt} mechanical violations outstanding across ${withDebt.length} work orders`,
+      `${totalDebt} mechanical violations outstanding across ${withDebt.length} work orders (LINT-COUNT axis)`,
       checkOnly ? depthSummaryLine(surfaceOrders, manifest) : `written to .claude/workorders/`,
       "",
-      "Mechanical debt is a floor, not a grant. Only a human tick in signoff.json completes a cell.",
+      "That total is a LINT COUNT, not a measure of how the app looks: hoisting an off-scale value into a named",
+      "constant clears a violation with zero pixels moved. The depth line (`node tools/workorder.mjs --check`) is",
+      "the axis that answers whether anything moved. Read them together, never the count alone.",
+      "Mechanical debt is a floor, not a grant - only a human tick in signoff.json completes a cell.",
       "",
     ]
       .filter(Boolean)
