@@ -6,8 +6,8 @@
 
 | Path | You are | Sessions | Finish line | Ends at |
 |---|---|---|---|---|
-| **`/drive <#…>`** (attended) | at the keyboard | fresh `claude -p` per bundle, resumable via a living spec | known diffs — one slice or a whole epic | draft PR per bundle, issue closed |
-| **`/drive <#…> --sleep`** | asleep | fresh `claude -p` per bundle, unattended | known-diff slices, no open questions | draft PRs + an independent verifier verdict, reviewed at breakfast |
+| **`/drive <#…>`** (attended) | at the keyboard | fresh `claude -p` per bundle, resumable via a living spec | known diffs — one slice or a whole epic | ready-for-review PR per bundle, issue closed |
+| **`/drive <#…> --sleep`** | asleep | fresh `claude -p` per bundle, unattended | known-diff slices, no open questions | ready-for-review PRs + an independent verifier verdict, reviewed at breakfast |
 | **campaign** (no command) | at the keyboard | many, looped | a *converging metric* | the bar holds |
 
 Pick the lightest path that fits. Two questions: **(1) slice/epic or campaign?** · **(2) attended or `--sleep`?** Most work is an attended `/drive` — a single bounded slice is just a **one-bundle drive** (what `/execute` used to be); an epic is a **many-bundle drive**. Campaigns are the shape for big, looped, converging work.
@@ -18,7 +18,7 @@ Pick the lightest path that fits. Two questions: **(1) slice/epic or campaign?**
 |---|---|---|
 | **What** | A bounded change you can land in one focused pass — a bug, a feature, even a multi-story feature. You can name the finish line up front. | Big, **looped**, multi-session work: run → assess → fix → re-run until a bar is met. You *can't* name the finish line — it's "until the audit is clean" / "until coverage hits 100%." |
 | **Examples** | fix a timezone bug; add streak-freeze; a 3-story feature | #243 (final gate: loop `/prod-readiness` + Sonar-to-zero); a repo-wide audit-and-remediate; a large migration |
-| **How** | `/execute` + the slice ladder below | the **Campaign pattern** below — workflows to assess, `/implement` to fix, across **fresh sessions**. Never one `/execute`. |
+| **How** | `/drive` + the slice ladder below | the **Campaign pattern** below — workflows to assess, `/implement` to fix, across **fresh sessions**. Never one `/drive`. |
 
 **Litmus test:** if the finish line is a *converging metric* ("0 findings", "100% coverage") rather than a *known diff*, it's a campaign.
 

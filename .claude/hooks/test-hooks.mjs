@@ -38,7 +38,6 @@ const T = (name, got, want) => {
   console.log(`${ok ? "PASS" : "FAIL"} ${name}${ok ? "" : `  got=${JSON.stringify(got)} want=${JSON.stringify(want)}`}`)
 }
 const NV = "--no-" + "verify"
-const MARK = "TO" + "DO"
 const EM = String.fromCharCode(8212) // em dash
 
 // ---------------------------------------------------------------------------
@@ -213,7 +212,7 @@ for (const locale of ["en.json", "pt-BR.json"]) {
 // Secrets in argv. The block is on a LITERAL; a variable reference is the
 // correct way to pass a credential and must stay allowed.
 //
-// The fixtures below are ASSEMBLED, the same idiom as NV / MARK / EM above: this
+// The fixtures below are ASSEMBLED, the same idiom as NV / EM above: this
 // file cannot spell out the very strings its guards detect. Here the detector is
 // the required GitGuardian check, which matches the SHAPE of a credential-bearing
 // command rather than the entropy of its value, so a spelled-out
@@ -534,7 +533,6 @@ const tsBad = write("apps/web/bad.ts", "console.log(1)\n")
 const tsGood = write("apps/web/good.ts", "export const a = 1\n")
 T("cc ts-antipatterns: console -> 2", runHook("forbid-ts-antipatterns.mjs", { tool_name: "Write", tool_input: { file_path: tsBad } }), 2)
 T("cc ts-antipatterns: clean -> 0", runHook("forbid-ts-antipatterns.mjs", { tool_name: "Write", tool_input: { file_path: tsGood } }), 0)
-const todoBad = write("apps/web/todo.ts", `// ${MARK}: later\n`)
 const ctrlBad = write("orbit-api/src/Orbit.Api/Controllers/FooController.cs", "public class FooController {}\n")
 T("cc csharp-authz: missing -> 2", runHook("csharp-authz.mjs", { tool_name: "Write", tool_input: { file_path: ctrlBad } }), 2)
 const tzBad = write("orbit-api/src/Orbit.Application/Foo.cs", "var x = DateTime.UtcNow;\n")
@@ -2934,6 +2932,15 @@ T("gate-tamper: reaching the promises submodule off fs blocks", !!checkGateTampe
 T("gate-tamper: requiring fs/promises is not requirable at all", !!checkGateTamperBash(`node -e "const p=require('fs/promises'); const get=p.writeFile; get('${SIGNOFF_PATH}','x')"`)?.block, true)
 T("gate-tamper: shelling out through child_process blocks", !!checkGateTamperBash(`node -e "require('child_process').execSync('echo x > ${SIGNOFF_PATH}')"`)?.block, true)
 T("gate-tamper: a path built by concatenation blocks", !!checkGateTamperBash(`node -e "const m=require('fs'); const map=m.writeFileSync; map('.claude/manifests/'+'signoff'+'.json','x')"`)?.block, true)
+// BYPASS #7: the test directly above passed for the WRONG reason - it fragmented
+// only the filename, so the directory rule still matched a contiguous token and
+// the hole stayed open. Fragmenting the directory too defeated every path rule at
+// once, and a segment no rule matches is never examined at all. Adjacent literals
+// are joined before matching now, so these judge the path by the value it builds.
+T("gate-tamper: fragmenting the DIRECTORY name still blocks", !!checkGateTamperBash(`node -e "const m=require('fs'); const w=m.writeFileSync; w('.claude/manif'+'ests/sig'+'noff.json','{}')"`)?.block, true)
+T("gate-tamper: ...with spaces around the plus too", !!checkGateTamperBash(`node -e "const m=require('fs'); const w=m.writeFileSync; w('.claude/mani' + 'fests/signoff' + '.json','{}')"`)?.block, true)
+T("gate-tamper: ...and for the surfaces manifest", !!checkGateTamperBash(`node -e "const m=require('fs'); const w=m.writeFileSync; w('.claude/mani'+'fests/surf'+'aces.json','{}')"`)?.block, true)
+T("gate-tamper: an honest concatenated read of an unrelated file still allows", checkGateTamperBash(`node -e "console.log(require('./pack'+'age.json').name)"`), null)
 
 // ---------------------------------------------------------------------------
 // drive-queue: the printed contract must state only what can FAIL for THIS

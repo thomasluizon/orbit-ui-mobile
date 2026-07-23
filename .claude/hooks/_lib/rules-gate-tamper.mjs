@@ -375,9 +375,22 @@ function segmentIsSanctionedWriter(segment, writers) {
   return writers.some((writer) => writer.test(segment.trim()))
 }
 
+// BYPASS #7, caught reviewing the tests for #6: every path rule matches a
+// CONTIGUOUS literal in the raw text, so splitting the path across concatenated
+// string literals means no rule ever fires and the segment is never examined at
+// all. Fragmenting only the filename still tripped the directory rule, which is
+// why the first test for this passed while the hole stayed open - the test was
+// the shallowest instance of its own class. Adjacent same-quoted literals are
+// joined before matching, so the path is judged by the value it builds rather
+// than the way it is spelled.
+function joinConcatenatedLiterals(text) {
+  return text.replace(/(['"])\s*\+\s*\1/g, "")
+}
+
 function blockedSegment(command, pathPattern, writers) {
   for (const segment of splitSegments(command)) {
-    if (!pathPattern.test(segment)) continue
+    const joined = joinConcatenatedLiterals(segment)
+    if (!pathPattern.test(segment) && !pathPattern.test(joined)) continue
     if (writers && segmentIsSanctionedWriter(segment, writers)) continue
     if (!segmentIsReadOnly(segment)) return segment
   }
