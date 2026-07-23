@@ -11,8 +11,8 @@ export function StreakFrozenBanner() {
       <div
         className="flex items-center rounded-[18px]"
         style={{
-          padding: '16px 18px',
-          gap: 14,
+          padding: '16px 16px',
+          gap: 12,
           background: 'color-mix(in srgb, var(--status-frozen) 10%, transparent)',
           boxShadow: 'inset 0 0 0 1px color-mix(in srgb, var(--status-frozen) 28%, transparent)',
         }}

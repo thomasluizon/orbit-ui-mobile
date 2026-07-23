@@ -20,7 +20,7 @@ export function StreakHero({
   return (
     <div
       className="streak-hero flex flex-col items-center text-center"
-      style={{ padding: '28px 20px 24px', gap: 14 }}
+      style={{ padding: '28px 20px 24px', gap: 12 }}
     >
       <span
         style={{
@@ -51,7 +51,7 @@ export function StreakHero({
           <span style={{ fontSize: 30, lineHeight: 1 }}>🔥</span>
         )}
       </span>
-      <span className="flex items-baseline justify-center" style={{ gap: 10 }}>
+      <span className="flex items-baseline justify-center" style={{ gap: 8 }}>
         <span
           className="streak-hero__count t-num-xl"
           style={{ fontSize: 64 }}

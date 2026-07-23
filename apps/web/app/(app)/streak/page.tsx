@@ -108,7 +108,7 @@ export default function StreakPage() {
               {streakQuery.isError && !streakInfo ? (
                 <div>
                   <SectionLabel>{t('streakDisplay.freeze.title')}</SectionLabel>
-                  <div className="px-5" style={{ paddingBottom: 14 }}>
+                  <div className="px-5" style={{ paddingBottom: 12 }}>
                     <div
                       className="flex flex-col items-center gap-3 rounded-[18px] px-5 py-8 text-center"
                       style={{ background: 'var(--bg-card)', boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
