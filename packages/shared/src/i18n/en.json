@@ -2139,6 +2139,8 @@
       "transcriptionFailed": "Couldn't transcribe the audio. Please try again.",
       "logNotAllowed": "You can't log this habit right now.",
       "selfParent": "A habit can't be its own sub-habit.",
+      "generalMismatchWithParent": "A sub-habit's General setting must match its parent habit's.",
+      "generalMismatchWithChildren": "Can't change this while it has sub-habits with a different General setting.",
       "calendarNotConnected": "Connect Google Calendar first.",
       "calendarReconnect": "Your Google Calendar connection expired. Reconnect to continue.",
       "calendarFetchFailed": "Couldn't load your calendar events. Please try again.",

@@ -18,6 +18,7 @@ describe('HabitRow drill-in and expand chevrons', () => {
         depth={2}
         child
         hasChildren
+        hasSubHabits
         actions={{ onDrillInto, onToggleExpand }}
       />,
     )
@@ -57,6 +58,7 @@ describe('HabitRow drill-in and expand chevrons', () => {
         depth={2}
         child
         hasChildren
+        hasSubHabits
         inPanel
         actions={{ onDrillInto: vi.fn(), onEdit: vi.fn(), onDelete: vi.fn() }}
       />,

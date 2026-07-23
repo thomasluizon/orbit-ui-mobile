@@ -310,6 +310,6 @@ describe('PushPrompt enable flow', () => {
     fireEvent.click(await screen.findByText('pushPrompt.enable'))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('pushPrompt.retryHint')
-    expect(screen.getByRole('dialog').style.opacity).toBe('1')
+    await waitFor(() => expect(screen.getByRole('dialog').style.opacity).toBe('1'))
   })
 })

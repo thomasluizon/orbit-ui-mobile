@@ -48,6 +48,8 @@ function createHostComponent(name: string) {
       setNativeProps: () => {},
       focus: () => {},
       blur: () => {},
+      scrollTo: () => {},
+      scrollToEnd: () => {},
     }
 
     if (!hostRefsNull) {
@@ -127,6 +129,10 @@ export const Dimensions = {
   ) => ({
     remove: () => {},
   }),
+}
+
+export function useWindowDimensions() {
+  return { width: 412, height: 892, scale: 1, fontScale: 1 }
 }
 
 export const Easing = {
@@ -243,6 +249,7 @@ export default {
   Dimensions,
   Easing,
   FlatList,
+  useWindowDimensions,
   findNodeHandle,
   Image,
   Keyboard,

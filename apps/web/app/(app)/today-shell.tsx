@@ -248,7 +248,7 @@ export function TodayUtilityRow({
     <div
       className="flex items-center shrink-0"
       style={{
-        padding: '8px 8px 8px 12px',
+        padding: '8px 20px',
         gap: 0,
       }}
     >

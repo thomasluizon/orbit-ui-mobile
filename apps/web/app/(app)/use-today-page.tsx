@@ -80,6 +80,7 @@ export function useTodayPage(): TodayView {
   useCoachTour()
 
   const searchQueryStore = useUIStore((s) => s.searchQuery)
+  const setSearchQuery = useUIStore((s) => s.setSearchQuery)
   const activeView = useUIStore((s) => s.activeView)
   const setActiveView = useUIStore((s) => s.setActiveView)
   const isSelectMode = useUIStore((s) => s.isSelectMode)
@@ -126,6 +127,7 @@ export function useTodayPage(): TodayView {
     isSelectMode,
     setActiveView,
     setLocalSearchQuery: search.setLocalSearchQuery,
+    setSearchQuery,
     clearSelection,
   })
 

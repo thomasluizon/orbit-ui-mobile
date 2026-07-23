@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
 import { useProfile } from '@/hooks/use-profile'
+import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { PillButton } from '@/components/ui/pill-button'
@@ -26,6 +27,8 @@ export function CalendarImportPrompt() {
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const [dismissed, setDismissed] = useState(false)
+  const [sheetMounted, setSheetMounted] = useState(false)
+  const { scheduleExitAction, runExitAction } = useSheetExitAction()
 
   const shouldShow = Boolean(
     profile?.hasCompletedOnboarding &&
@@ -53,18 +56,26 @@ export function CalendarImportPrompt() {
     }
   }, [invalidate])
 
-  const handleImport = useCallback(async () => {
-    await dismissPrompt()
-    router.push('/calendar-sync')
-  }, [dismissPrompt, router])
+  const handleImport = useCallback(() => {
+    scheduleExitAction(() => router.push('/calendar-sync'))
+    void dismissPrompt()
+  }, [dismissPrompt, router, scheduleExitAction])
 
-  if (!shouldShow) return null
+  if (shouldShow && !sheetMounted) {
+    setSheetMounted(true)
+  }
+
+  if (!sheetMounted) return null
 
   return (
     <BottomSheetModal
       open={shouldShow}
       onClose={() => {
         void dismissPrompt()
+      }}
+      onDidDismiss={() => {
+        runExitAction()
+        setSheetMounted(false)
       }}
       title={t('onboarding.wizard.calendarTitle')}
       snapPoints={['50%']}
@@ -74,7 +85,7 @@ export function CalendarImportPrompt() {
           {t('onboarding.wizard.calendarDescription')}
         </Text>
         <View style={styles.spacer} />
-        <PillButton fullWidth onPress={() => void handleImport()}>
+        <PillButton fullWidth onPress={handleImport}>
           {t('onboarding.wizard.calendarButton')}
         </PillButton>
         <Pressable

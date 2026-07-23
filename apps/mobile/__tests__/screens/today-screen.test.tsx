@@ -28,6 +28,7 @@ vi.mock("@/components/referral/referral-drawer", () => ({
 const TestRenderer: typeof import("react-test-renderer") = require("react-test-renderer");
 type RenderedNode = {
   props: Record<string, unknown>;
+  parent: RenderedNode | null;
 };
 
 type RenderedTree = {
@@ -134,6 +135,7 @@ const habitListHandle = {
   markRecentlyCompleted,
   checkAndPromptParentLog,
   refetch: vi.fn(),
+  scrollToOffset: vi.fn(),
 };
 function defaultUseHabitsReturn() {
   return {
@@ -246,7 +248,8 @@ vi.mock("@/components/habits/habit-detail-drawer", () => ({
 }));
 
 vi.mock("@/components/habits/edit-habit-modal", () => ({
-  EditHabitModal: () => null,
+  EditHabitModal: (props: Record<string, unknown>) =>
+    React.createElement("EditHabitModal", props),
 }));
 
 vi.mock("@/components/habits/today-ai-summary", () => ({
@@ -278,7 +281,8 @@ vi.mock("@/components/ui/section-label", () => ({
 }));
 
 vi.mock("@/components/goals/goals-view", () => ({
-  GoalsView: () => React.createElement("GoalsView"),
+  GoalsView: (props: Record<string, unknown>) =>
+    React.createElement("GoalsView", props),
 }));
 
 vi.mock("@/components/goals/create-goal-modal", () => ({
@@ -436,6 +440,29 @@ async function renderTodayScreen(): Promise<RenderedTree> {
   }
 
   return tree as unknown as RenderedTree;
+}
+
+function findBackToTopButton(tree: RenderedTree): RenderedNode {
+  const button = tree.root.findAll(
+    (node) =>
+      node.props.accessibilityLabel === "common.backToTop" &&
+      typeof node.props.onPress === "function",
+  )[0];
+  if (!button) {
+    throw new Error("Expected the back-to-top button to be rendered");
+  }
+  return button;
+}
+
+function isBackToTopHiddenFromAccessibility(tree: RenderedTree): boolean {
+  let ancestor = findBackToTopButton(tree).parent;
+  while (ancestor) {
+    if ("accessibilityElementsHidden" in ancestor.props) {
+      return ancestor.props.accessibilityElementsHidden === true;
+    }
+    ancestor = ancestor.parent;
+  }
+  throw new Error("Expected the back-to-top visibility wrapper to be rendered");
 }
 
 describe("TodayScreen", () => {
@@ -735,6 +762,110 @@ describe("TodayScreen", () => {
     });
 
     expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears the search query when the active view changes", async () => {
+    const tree = await renderTodayScreen();
+
+    const tabs = tree.root.findAllByType("TodayTabs")[0];
+    if (!tabs) {
+      throw new Error("Expected TodayTabs to be rendered");
+    }
+
+    await TestRenderer.act(async () => {
+      (tabs.props.onChangeView as (view: string) => void)("all");
+      await Promise.resolve();
+    });
+
+    expect(uiState.setSearchQuery).toHaveBeenCalledWith("");
+  });
+
+  it("locks the edit modal General toggle to the parent isGeneral when editing a sub-habit", async () => {
+    const parent = createMockHabit({
+      id: "parent",
+      title: "Parent",
+      isGeneral: true,
+    });
+    const child = createMockHabit({
+      id: "child",
+      title: "Child",
+      parentId: "parent",
+      isGeneral: true,
+    });
+    mockHabitsData.habitsById.set(parent.id, parent);
+    mockHabitsData.habitsById.set(child.id, child);
+
+    const tree = await renderTodayScreen();
+
+    const habitList = tree.root.findAllByType("HabitList")[0];
+    if (!habitList) {
+      throw new Error("Expected HabitList to be rendered");
+    }
+
+    await TestRenderer.act(async () => {
+      (habitList.props.onEditHabit as (habit: NormalizedHabit) => void)(
+        child,
+      );
+      await Promise.resolve();
+    });
+
+    const editModal = tree.root.findAllByType("EditHabitModal")[0];
+    if (!editModal) {
+      throw new Error("Expected EditHabitModal to be rendered");
+    }
+    expect(editModal.props.parentIsGeneral).toBe(true);
+  });
+
+  it("shows the back-to-top button past 600 on the today view, scrolls back on press, and hides under 600", async () => {
+    const tree = await renderTodayScreen();
+
+    expect(isBackToTopHiddenFromAccessibility(tree)).toBe(true);
+
+    const driveHabitListScroll = async (offsetY: number) => {
+      const habitList = tree.root.findByType("HabitList");
+      await TestRenderer.act(async () => {
+        (habitList.props.onScroll as (offsetY: number) => void)(offsetY);
+        await Promise.resolve();
+      });
+    };
+
+    await driveHabitListScroll(650);
+    expect(isBackToTopHiddenFromAccessibility(tree)).toBe(false);
+
+    const button = findBackToTopButton(tree);
+    TestRenderer.act(() => {
+      (button.props.onPress as () => void)();
+    });
+    expect(habitListHandle.scrollToOffset).toHaveBeenCalledWith(0);
+
+    await driveHabitListScroll(120);
+    expect(isBackToTopHiddenFromAccessibility(tree)).toBe(true);
+  });
+
+  it("gates the back-to-top button on the goals view scroll offset", async () => {
+    mockProfile = createMockProfile({
+      hasProAccess: true,
+      aiSummaryEnabled: false,
+    });
+    uiState.activeView = "goals";
+
+    const tree = await renderTodayScreen();
+
+    expect(isBackToTopHiddenFromAccessibility(tree)).toBe(true);
+
+    const driveGoalsScroll = async (offsetY: number) => {
+      const goalsView = tree.root.findByType("GoalsView");
+      await TestRenderer.act(async () => {
+        (goalsView.props.onScroll as (offsetY: number) => void)(offsetY);
+        await Promise.resolve();
+      });
+    };
+
+    await driveGoalsScroll(650);
+    expect(isBackToTopHiddenFromAccessibility(tree)).toBe(false);
+
+    await driveGoalsScroll(80);
+    expect(isBackToTopHiddenFromAccessibility(tree)).toBe(true);
   });
 });
 

@@ -267,6 +267,7 @@ interface PreferencePickerSheetProps {
   themeModeOptions: { value: ThemeMode; label: string }[]
   weekStartOptions: { value: 0 | 1; label: string }[]
   onClose: () => void
+  onDidDismiss: () => void
   onLanguageChange: (locale: 'en' | 'pt-BR') => void
   onThemeModeChange: (mode: ThemeMode) => void
   onSchemeChange: (scheme: ColorScheme) => void
@@ -286,6 +287,7 @@ export function PreferencePickerSheet({
   themeModeOptions,
   weekStartOptions,
   onClose,
+  onDidDismiss,
   onLanguageChange,
   onThemeModeChange,
   onSchemeChange,
@@ -295,6 +297,7 @@ export function PreferencePickerSheet({
     <BottomSheetModal
       open={activePicker !== null}
       onClose={onClose}
+      onDidDismiss={onDidDismiss}
       title={activePicker ? pickerTitles[activePicker] : undefined}
       contentKey={activePicker ?? 'none'}
       snapPoints={['55%']}

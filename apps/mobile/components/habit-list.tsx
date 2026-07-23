@@ -202,19 +202,19 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const scrollTo = useCallback((y: number) => {
       scrollContainerRef.current?.scrollToOffset({ offset: y, animated: true })
     }, [])
-    const { onTourScroll } = useTourScrollContainer('/', scrollTo)
+    const { onTourScrollOffset } = useTourScrollContainer('/', scrollTo)
     const handleListScroll = useCallback(
       (e: NativeSyntheticEvent<NativeScrollEvent>) => {
         onScroll?.(e.nativeEvent.contentOffset.y)
       },
       [onScroll],
     )
-    const handleMainListScroll = useCallback(
-      (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-        onTourScroll(e)
-        onScroll?.(e.nativeEvent.contentOffset.y)
+    const handleMainListOffsetChange = useCallback(
+      (offsetY: number) => {
+        onTourScrollOffset(offsetY)
+        onScroll?.(offsetY)
       },
-      [onScroll, onTourScroll],
+      [onScroll, onTourScrollOffset],
     )
 
     const isTourActive = useTourStore((s) => s.isActive)
@@ -1618,8 +1618,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           onDragEnd={(params) => void handleDragEnd(params)}
           ListHeaderComponent={listHeaderComponent}
           ListEmptyComponent={renderEmptyState(view)}
-          onScroll={handleMainListScroll}
-          scrollEventThrottle={16}
+          // WHY: DraggableFlatList overwrites any caller onScroll with its own reanimated handler; onScrollOffsetChange is its supported scroll-offset API https://github.com/computerjazz/react-native-draggable-flatlist/blob/v4.0.3/src/components/DraggableFlatList.tsx#L396
+          onScrollOffsetChange={handleMainListOffsetChange}
           onScrollBeginDrag={onScrollBeginDrag}
           showsVerticalScrollIndicator={false}
           initialNumToRender={10}

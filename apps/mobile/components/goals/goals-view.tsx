@@ -38,7 +38,7 @@ interface GoalsViewProps {
   listHeader?: ReactElement;
   scrollRef?: React.Ref<FlatList<Goal>>;
   contentContainerStyle?: StyleProp<ViewStyle>;
-  onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
+  onScroll?: (offsetY: number) => void;
   onScrollBeginDrag?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
 }
 

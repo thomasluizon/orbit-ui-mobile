@@ -36,7 +36,12 @@ type Handlers = {
 }
 
 function renderCards(
-  flags: { isOneTime?: boolean; isGeneral?: boolean; isFlexible?: boolean } = {},
+  flags: {
+    isOneTime?: boolean
+    isGeneral?: boolean
+    isFlexible?: boolean
+    lockedGeneral?: boolean | null
+  } = {},
 ) {
   const handlers: Handlers = {
     onSetOneTime: vi.fn<() => void>(),
@@ -51,6 +56,7 @@ function renderCards(
         isOneTime={flags.isOneTime ?? false}
         isGeneral={flags.isGeneral ?? false}
         isFlexible={flags.isFlexible ?? false}
+        lockedGeneral={flags.lockedGeneral}
         {...handlers}
         styles={styles}
         tokens={tokens}
@@ -156,5 +162,54 @@ describe('FrequencyTypeCards', () => {
       }).onMomentumScrollEnd({ nativeEvent: { contentOffset: { x: 600 } } })
     })
     expect(handlers.onSetFlexible).not.toHaveBeenCalled()
+  })
+
+  describe('lockedGeneral', () => {
+    it('leaves every card enabled when lockedGeneral is null', () => {
+      const { tree } = renderCards({ lockedGeneral: null })
+      expect(radioByLabel(tree, 'habits.form.general')!.props.disabled).toBe(false)
+      expect(radioByLabel(tree, 'habits.form.recurring')!.props.disabled).toBe(false)
+    })
+
+    it('disables the non-general cards and locks the active card to general when lockedGeneral is true', () => {
+      const { tree } = renderCards({ lockedGeneral: true })
+      const generalCard = radioByLabel(tree, 'habits.form.general')!
+      const recurringCard = radioByLabel(tree, 'habits.form.recurring')!
+      expect(generalCard.props.disabled).toBe(false)
+      expect((generalCard.props.accessibilityState as { disabled: boolean }).disabled).toBe(false)
+      expect(recurringCard.props.disabled).toBe(true)
+      expect((recurringCard.props.accessibilityState as { disabled: boolean }).disabled).toBe(true)
+    })
+
+    it('disables the general card when lockedGeneral is false', () => {
+      const { tree } = renderCards({ lockedGeneral: false })
+      const generalCard = radioByLabel(tree, 'habits.form.general')!
+      expect(generalCard.props.disabled).toBe(true)
+      expect((generalCard.props.accessibilityState as { disabled: boolean }).disabled).toBe(true)
+    })
+
+    it('disables the right arrow one step before a locked-out general card', () => {
+      const { tree, handlers } = renderCards({ isFlexible: true, lockedGeneral: false })
+      const next = arrowByLabel(tree, 'common.next')!
+      expect(next.props.disabled).toBe(true)
+      press(next)
+      expect(handlers.onSetGeneral).not.toHaveBeenCalled()
+    })
+
+    it('snaps momentum scroll back to the active card when it settles on a disabled card', () => {
+      const { tree, handlers } = renderCards({ lockedGeneral: false })
+      const scroll = tree.root.findAll((node) => node.type === 'ScrollView')[0]!
+      TestRenderer.act(() => {
+        ;(scroll.props as {
+          onLayout: (event: { nativeEvent: { layout: { width: number } } }) => void
+        }).onLayout({ nativeEvent: { layout: { width: 300 } } })
+      })
+      TestRenderer.act(() => {
+        ;(scroll.props as {
+          onMomentumScrollEnd: (event: { nativeEvent: { contentOffset: { x: number } } }) => void
+        }).onMomentumScrollEnd({ nativeEvent: { contentOffset: { x: 900 } } })
+      })
+      expect(handlers.onSetGeneral).not.toHaveBeenCalled()
+    })
   })
 })

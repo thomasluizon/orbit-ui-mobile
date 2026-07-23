@@ -24,6 +24,7 @@ import { HabitDetailReminders } from './habit-detail-drawer/habit-detail-reminde
 import { HabitAskAstraButton } from './habit-detail-drawer/habit-ask-astra-button'
 import { createDrawerStyles } from './habit-detail-drawer/styles'
 import { NewPairFlow } from '@/app/social/_components/new-pair-flow'
+import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import {
   useHabitFullDetail,
@@ -265,6 +266,7 @@ export function HabitDetailDrawer({
     useState(false)
 
   const router = useRouter()
+  const { scheduleExitAction, runExitAction } = useSheetExitAction()
   const askPrompt = useMemo(() => {
     if (!habit) return ''
     return habit.checklistItems.length > 0
@@ -279,9 +281,9 @@ export function HabitDetailDrawer({
         ? t('habits.detail.askAstraSeedSubHabits', { title: habit.title })
         : t('habits.detail.askAstraSeedDefault', { title: habit.title })
     void AsyncStorage.setItem('orbit-chat-draft', seed)
+    scheduleExitAction(() => router.push('/chat'))
     onClose()
-    router.push('/chat')
-  }, [habit, onClose, router, t])
+  }, [habit, onClose, router, scheduleExitAction, t])
 
   const handlePairBuddy = useCallback(() => {
     setPairFlowOpen(true)
@@ -400,6 +402,7 @@ export function HabitDetailDrawer({
       <BottomSheetModal
         open={open}
         onClose={onClose}
+        onDidDismiss={runExitAction}
         title={habit?.title}
         contentKey={habitId}
         snapPoints={['68%', '92%']}

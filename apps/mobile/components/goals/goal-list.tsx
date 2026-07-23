@@ -24,7 +24,7 @@ interface GoalListProps {
   ListHeaderComponent?: Exclude<FlatListProps<Goal>['ListHeaderComponent'], undefined>
   ListEmptyComponent?: Exclude<FlatListProps<Goal>['ListEmptyComponent'], undefined>
   contentContainerStyle?: StyleProp<ViewStyle>
-  onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void
+  onScroll?: (offsetY: number) => void
   onScrollBeginDrag?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void
 }
 
@@ -49,9 +49,12 @@ export const GoalList = forwardRef<FlatList<Goal>, Readonly<GoalListProps>>(
       setShowDetail(true)
     }, [])
 
+    /* WHY: selectedGoalId stays set on close - unmounting the drawer here tears
+       down its presented TrueSheet mid-dismissal, which wedges every later RN
+       Modal and drops the onDidDismiss that runs the scheduled exit action.
+       https://sheet.lodev09.com/guides/navigation */
     const handleCloseDetail = useCallback(() => {
       setShowDetail(false)
-      setSelectedGoalId(null)
     }, [])
 
     const handleDragEnd = useCallback(
@@ -104,9 +107,9 @@ export const GoalList = forwardRef<FlatList<Goal>, Readonly<GoalListProps>>(
           ItemSeparatorComponent={ItemSeparator}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="always"
-          onScroll={onScroll}
+          // WHY: DraggableFlatList overwrites any caller onScroll with its own reanimated handler; onScrollOffsetChange is its supported scroll-offset API https://github.com/computerjazz/react-native-draggable-flatlist/blob/v4.0.3/src/components/DraggableFlatList.tsx#L396
+          onScrollOffsetChange={onScroll}
           onScrollBeginDrag={onScrollBeginDrag}
-          scrollEventThrottle={16}
         />
 
         {selectedGoalId ? (

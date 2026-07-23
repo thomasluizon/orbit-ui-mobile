@@ -212,10 +212,18 @@ vi.mock('@/components/habits/edit-habit-modal', () => ({
   EditHabitModal: ({
     open,
     onSaved,
+    lockedGeneral,
   }: {
     open: boolean
     onSaved?: () => void | Promise<void>
-  }) => (open ? <button data-testid="edit-habit-modal-save" onClick={() => void onSaved?.()}>save</button> : null),
+    lockedGeneral?: boolean | null
+  }) =>
+    open ? (
+      <>
+        <button data-testid="edit-habit-modal-save" onClick={() => void onSaved?.()}>save</button>
+        <span data-testid="edit-habit-modal-locked-general">{String(lockedGeneral)}</span>
+      </>
+    ) : null,
 }))
 
 vi.mock('@/components/habits/log-habit-modal', () => ({
@@ -1046,6 +1054,61 @@ describe('HabitList', () => {
 
     fireEvent.click(screen.getByTestId('edit-habit-modal-save'))
     expect(drillRefreshCurrent).toHaveBeenCalledTimes(1)
+  })
+
+  it('locks the edit modal General toggle to the parent isGeneral when editing a sub-habit', () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      isGeneral: true,
+      hasSubHabits: true,
+    })
+    const child = createMockHabit({
+      id: 'child',
+      title: 'Child',
+      parentId: 'parent',
+      isGeneral: true,
+      hasSubHabits: false,
+    })
+
+    mockHabitsData.habitsById.set(parent.id, parent)
+    mockHabitsData.habitsById.set(child.id, child)
+    mockHabitsData.topLevelHabits = [parent]
+
+    mockDrillState.drillStack = ['parent']
+    mockDrillState.currentParentId = 'parent'
+    mockDrillState.currentParent = parent
+    mockDrillState.drillChildren = [child]
+
+    renderWithProviders(<HabitList filters={defaultFilters} />)
+
+    fireEvent.click(screen.getByTestId('edit-child'))
+    expect(screen.getByTestId('edit-habit-modal-locked-general')).toHaveTextContent('true')
+  })
+
+  it('locks the edit modal General toggle to an existing child isGeneral when editing a parent', () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      isGeneral: false,
+      hasSubHabits: true,
+    })
+    const child = createMockHabit({
+      id: 'child',
+      title: 'Child',
+      parentId: 'parent',
+      isGeneral: false,
+      hasSubHabits: false,
+    })
+
+    mockHabitsData.habitsById.set(parent.id, parent)
+    mockHabitsData.habitsById.set(child.id, child)
+    mockHabitsData.topLevelHabits = [parent]
+
+    renderWithProviders(<HabitList filters={defaultFilters} />)
+
+    fireEvent.click(screen.getByTestId('edit-parent'))
+    expect(screen.getByTestId('edit-habit-modal-locked-general')).toHaveTextContent('false')
   })
 
   it('retries loading drill children from the drill error state', () => {

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { View, Text, Pressable } from "react-native";
+import { Text, Pressable } from "react-native";
 import Animated, {
   ReduceMotion,
   useAnimatedStyle,
@@ -65,28 +65,26 @@ export function MoreOptionsToggle({
   }), [expanded]);
 
   return (
-    <View style={styles.moreOptionsDivider}>
-      <Pressable
-        style={({ pressed }) => [
-          styles.moreOptionsButton,
-          pressed && { transform: [{ scale: 0.98 }] },
-        ]}
-        accessibilityRole="button"
-        accessibilityState={{ expanded }}
-        onPress={onToggle}
-      >
-        <Animated.View style={chevronStyle}>
-          <ChevronDown size={16} color={tokens.fg2} strokeWidth={1.8} />
-        </Animated.View>
-        <Text style={styles.moreOptionsLabel}>
-          {t("habits.form.moreOptions")}
+    <Pressable
+      style={({ pressed }) => [
+        styles.moreOptionsButton,
+        pressed && { transform: [{ scale: 0.98 }] },
+      ]}
+      accessibilityRole="button"
+      accessibilityState={{ expanded }}
+      onPress={onToggle}
+    >
+      <Animated.View style={chevronStyle}>
+        <ChevronDown size={16} color={tokens.fg2} strokeWidth={1.8} />
+      </Animated.View>
+      <Text style={styles.moreOptionsLabel}>
+        {t("habits.form.moreOptions")}
+      </Text>
+      {advancedFieldCount > 0 && (
+        <Text style={styles.moreOptionsBadge}>
+          {t("habits.form.moreOptionsCount", { count: advancedFieldCount })}
         </Text>
-        {advancedFieldCount > 0 && (
-          <Text style={styles.moreOptionsBadge}>
-            {t("habits.form.moreOptionsCount", { count: advancedFieldCount })}
-          </Text>
-        )}
-      </Pressable>
-    </View>
+      )}
+    </Pressable>
   );
 }

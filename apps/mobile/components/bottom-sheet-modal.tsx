@@ -19,6 +19,13 @@ interface BottomSheetModalProps {
   canDismiss?: boolean
   isDirty?: boolean
   onAttemptDismiss?: (reason: DismissReason) => void
+  /**
+   * Fires exactly once per completed NATIVE dismissal (programmatic and
+   * interactive), after the internal state sync. Navigation out of a sheet must
+   * wait for this event: see https://sheet.lodev09.com/guides/navigation and
+   * `hooks/use-sheet-exit-action.ts`.
+   */
+  onDidDismiss?: () => void
   /** Set when the children render their own ScrollView/FlatList; the wrapper then skips its default scroll container so the two never nest. */
   contentManagesScroll?: boolean
   children: ReactNode
@@ -50,6 +57,7 @@ export function BottomSheetModal({
   canDismiss = true,
   isDirty = false,
   onAttemptDismiss,
+  onDidDismiss,
   contentManagesScroll = false,
   children,
 }: Readonly<BottomSheetModalProps>) {
@@ -106,6 +114,7 @@ export function BottomSheetModal({
   function handleDidDismiss() {
     presentedRef.current = false
     if (openRef.current) onClose()
+    onDidDismiss?.()
   }
 
   return (

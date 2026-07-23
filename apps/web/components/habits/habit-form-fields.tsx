@@ -87,6 +87,12 @@ interface HabitFormFieldsProps {
   hasScheduledReminders?: boolean
   /** When true, advanced fields are visible by default (used in edit modal) */
   defaultExpanded?: boolean
+  /**
+   * The General setting this habit must match, given its position in the tree: a
+   * sub-habit's parent, or an existing parent's own sub-habits. `null` (default)
+   * leaves the General type freely selectable.
+   */
+  lockedGeneral?: boolean | null
   /** Incrementing this opens the advanced section (used to reveal AI-applied checklist / sub-habits). */
   expandAdvancedSignal?: number
   /** When provided, renders the "Suggest with AI" affordance that requests a setup for the title. */
@@ -108,6 +114,7 @@ export function HabitFormFields({
   onReminderEnabledChange,
   hasScheduledReminders = false,
   defaultExpanded = false,
+  lockedGeneral = null,
   expandAdvancedSignal = 0,
   onSuggestSetup,
   isSuggesting = false,
@@ -288,6 +295,7 @@ export function HabitFormFields({
         onSetRecurring={setRecurring}
         onSetFlexible={setFlexible}
         onSetGeneral={setGeneral}
+        lockedGeneral={lockedGeneral}
         t={t}
       />
 
@@ -554,20 +562,18 @@ export function HabitFormFields({
       </div>
       </div>
 
-      <div className="border-t border-[var(--hairline)] pt-4 mt-2">
-        <button
-          type="button"
-          aria-expanded={showAdvanced}
-          onClick={() => setShowAdvanced(!showAdvanced)}
-          className="flex items-center gap-2 text-sm font-medium text-[var(--fg-2)] hover:text-[var(--fg-1)] transition-colors w-full py-3"
-        >
-          <ChevronDown className={`size-4 transition-transform duration-[var(--dur-base)] ${showAdvanced ? 'rotate-180' : ''}`} />
-          {t('habits.form.moreOptions')}
-          {advancedFieldCount > 0 && (
-            <span className="font-mono text-xs tabular-nums text-[var(--primary)]">{t('habits.form.moreOptionsCount', { count: advancedFieldCount })}</span>
-          )}
-        </button>
-      </div>
+      <button
+        type="button"
+        aria-expanded={showAdvanced}
+        onClick={() => setShowAdvanced(!showAdvanced)}
+        className="flex items-center gap-2 text-sm font-medium text-[var(--fg-2)] hover:text-[var(--fg-1)] transition-colors w-full py-3"
+      >
+        <ChevronDown className={`size-4 transition-transform duration-[var(--dur-base)] ${showAdvanced ? 'rotate-180' : ''}`} />
+        {t('habits.form.moreOptions')}
+        {advancedFieldCount > 0 && (
+          <span className="font-mono text-xs tabular-nums text-[var(--primary)]">{t('habits.form.moreOptionsCount', { count: advancedFieldCount })}</span>
+        )}
+      </button>
 
       <div className={`collapsible ${showAdvanced ? 'is-open' : ''}`}>
         <div className="flex flex-col gap-6 pt-2">

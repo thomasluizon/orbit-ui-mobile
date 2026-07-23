@@ -15,6 +15,7 @@ import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { SkeletonLine } from '@/components/ui/skeleton'
 import { PillButton } from '@/components/ui/pill-button'
 import { useProfile } from '@/hooks/use-profile'
+import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useUpdateHabit } from '@/hooks/use-habits'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -47,6 +48,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
   const hasProAccess = profile?.hasProAccess ?? false
   const locale = profile?.language ?? i18n.language
   const isOverdue = habit?.isOverdue ?? false
+  const { scheduleExitAction, runExitAction } = useSheetExitAction()
 
   const { suggestion, isLoading, error, refetch } = useRescheduleSuggestion({
     habitId: habit?.id ?? '',
@@ -134,7 +136,13 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     if (!hasProAccess) {
       return (
         <View style={styles.actions}>
-          <PillButton fullWidth onPress={() => router.push('/upgrade')}>
+          <PillButton
+            fullWidth
+            onPress={() => {
+              scheduleExitAction(() => router.push('/upgrade'))
+              onOpenChange(false)
+            }}
+          >
             {t('habits.reschedule.upgrade')}
           </PillButton>
           <PillButton variant="ghost" fullWidth onPress={() => onOpenChange(false)}>
@@ -181,6 +189,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     <BottomSheetModal
       open={open}
       onClose={() => onOpenChange(false)}
+      onDidDismiss={runExitAction}
       title={t('habits.reschedule.title')}
       snapPoints={['60%', '90%']}
       contentManagesScroll

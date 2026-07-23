@@ -93,6 +93,7 @@ export default function ChatScreen() {
   const [keyboardInset, setKeyboardInset] = useState(0);
   const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null);
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
+  const [goalDrawerOpen, setGoalDrawerOpen] = useState(false);
 
   const {
     adsEnabledForUser,
@@ -137,10 +138,11 @@ export default function ChatScreen() {
         }
         setSelectedHabitId(null);
         setSelectedGoalId(entityId);
+        setGoalDrawerOpen(true);
         return;
       }
 
-      setSelectedGoalId(null);
+      setGoalDrawerOpen(false);
       setSelectedHabitId(entityId);
     },
     [hasProAccess, router],
@@ -150,8 +152,12 @@ export default function ChatScreen() {
     setSelectedHabitId(null);
   }, []);
 
+  /* WHY: selectedGoalId stays set on close - unmounting the drawer here tears
+     down its presented TrueSheet mid-dismissal, which wedges every later RN
+     Modal and drops the onDidDismiss that runs the scheduled exit action.
+     https://sheet.lodev09.com/guides/navigation */
   const handleGoalDrawerClose = useCallback(() => {
-    setSelectedGoalId(null);
+    setGoalDrawerOpen(false);
   }, []);
 
   const renderMessage = useCallback<ListRenderItem<ChatMessage>>(
@@ -294,7 +300,7 @@ export default function ChatScreen() {
       />
       {selectedGoalId && (
         <GoalDetailDrawer
-          open={!!selectedGoalId}
+          open={goalDrawerOpen}
           onClose={handleGoalDrawerClose}
           goalId={selectedGoalId}
         />

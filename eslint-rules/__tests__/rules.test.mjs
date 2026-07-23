@@ -351,6 +351,28 @@ ruleTester.run('no-scroll-listener-motion', rule('no-scroll-listener-motion'), {
   ],
 })
 
+ruleTester.run('no-draggable-onscroll', rule('no-draggable-onscroll'), {
+  valid: [
+    '<DraggableFlatList data={rows} onScrollOffsetChange={handleOffsetChange} />',
+    '<FlatList data={rows} onScroll={handleScroll} scrollEventThrottle={16} />',
+    '<DraggableFlatList data={rows} onScrollBeginDrag={handleScrollBeginDrag} />',
+  ],
+  invalid: [
+    {
+      code: '<DraggableFlatList data={rows} onScroll={handleScroll} />',
+      errors: [{ messageId: 'noDiscardedScrollProp' }],
+    },
+    {
+      code: '<DraggableFlatList data={rows} scrollEventThrottle={16} />',
+      errors: [{ messageId: 'noDiscardedScrollProp' }],
+    },
+    {
+      code: '<DraggableFlatList data={rows} onScroll={handleScroll} scrollEventThrottle={16} />',
+      errors: [{ messageId: 'noDiscardedScrollProp' }, { messageId: 'noDiscardedScrollProp' }],
+    },
+  ],
+})
+
 ruleTester.run('react19-api', rule('react19-api'), {
   valid: ['const v = use(ThemeContext)', 'function Row({ ref }) { return <li ref={ref} /> }'],
   invalid: [

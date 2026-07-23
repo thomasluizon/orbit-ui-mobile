@@ -44,6 +44,7 @@ export function useTodayDate(): TodayDate {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const setActiveView = useUIStore((s) => s.setActiveView);
+  const setSearchQuery = useUIStore((s) => s.setSearchQuery);
   const { date } = useLocalSearchParams<{ date?: string | string[] }>();
 
   const [slideDirection, setSlideDirection] = useState<"left" | "right">(
@@ -70,19 +71,22 @@ export function useTodayDate(): TodayDate {
 
   const goToPreviousDay = useCallback(() => {
     setSlideDirection("left");
+    setSearchQuery("");
     router.push(`/?date=${formatAPIDate(subDays(selectedDate, 1))}`);
-  }, [router, selectedDate]);
+  }, [router, selectedDate, setSearchQuery]);
 
   const goToNextDay = useCallback(() => {
     setSlideDirection("right");
+    setSearchQuery("");
     router.push(`/?date=${formatAPIDate(addDays(selectedDate, 1))}`);
-  }, [router, selectedDate]);
+  }, [router, selectedDate, setSearchQuery]);
 
   const goToToday = useCallback(() => {
     setSlideDirection(selectedDate > new Date() ? "left" : "right");
     setActiveView("today");
+    setSearchQuery("");
     router.navigate("/");
-  }, [router, selectedDate, setActiveView]);
+  }, [router, selectedDate, setActiveView, setSearchQuery]);
 
   useEffect(() => {
     let rolloverTimer: ReturnType<typeof globalThis.setTimeout> | null = null;

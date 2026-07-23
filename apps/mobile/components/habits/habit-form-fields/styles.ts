@@ -641,12 +641,6 @@ export function createStyles(tokens: AppTokens) {
       alignItems: "center",
       justifyContent: "center",
     },
-    moreOptionsDivider: {
-      borderTopWidth: 1,
-      borderTopColor: tokens.hairline,
-      paddingTop: 12,
-      marginTop: 4,
-    },
     moreOptionsButton: {
       flexDirection: "row",
       alignItems: "center",

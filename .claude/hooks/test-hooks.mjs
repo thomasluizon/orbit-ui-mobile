@@ -38,7 +38,6 @@ const T = (name, got, want) => {
   console.log(`${ok ? "PASS" : "FAIL"} ${name}${ok ? "" : `  got=${JSON.stringify(got)} want=${JSON.stringify(want)}`}`)
 }
 const NV = "--no-" + "verify"
-const MARK = "TO" + "DO"
 const EM = String.fromCharCode(8212) // em dash
 
 // ---------------------------------------------------------------------------
@@ -200,20 +199,20 @@ for (const locale of ["en.json", "pt-BR.json"]) {
   const corpus = readFileSync(localePath, "utf8")
   T(`corpus: ${locale} has zero AI-cliché findings`, checkAiClicheCopy(corpus, localePath), null)
   T(`corpus: ${locale} has zero placeholder findings`, checkPlaceholderContent(corpus, localePath), null)
-  // Zero: the two Ask-Astra eyebrow strings were the last typed-uppercase debt and
-  // b5's copy pass (#539) natural-cased them (the eyebrow uppercases in CSS, so the
-  // string is stored natural). The shipped locale now carries ZERO typed-uppercase
-  // violations, which is the desired invariant; the detector's block behavior is
-  // pinned by the synthetic "shouted sentence blocks" tests above. This corpus guard
-  // keeps any NEW typed-uppercase value from creeping into the real locale files.
   const uppercaseFindings = (checkTypedUppercase(corpus, localePath)?.message.match(/^ {2}- /gm) ?? []).length
-  T(`corpus: ${locale} has zero typed-uppercase findings`, uppercaseFindings, 0)
+  // A RATCHET, not a zero. main still carries two pre-existing values per locale:
+  // askAstraEyebrow ("ASK ASTRA"), which #539 b5's copy pass natural-cases because the
+  // eyebrow uppercases in CSS, and confirmPlaceholder ("ORBIT"), which is load-bearing -
+  // the user types it verbatim to confirm account deletion, so it must never be recased.
+  // The guard still blocks anything NEW creeping in; b5 tightens the ceiling when it lands.
+  // https://github.com/thomasluizon/orbit-ui-mobile/issues/539
+  T(`corpus: ${locale} adds no new typed-uppercase findings`, uppercaseFindings <= 2, true)
 }
 
 // Secrets in argv. The block is on a LITERAL; a variable reference is the
 // correct way to pass a credential and must stay allowed.
 //
-// The fixtures below are ASSEMBLED, the same idiom as NV / MARK / EM above: this
+// The fixtures below are ASSEMBLED, the same idiom as NV / EM above: this
 // file cannot spell out the very strings its guards detect. Here the detector is
 // the required GitGuardian check, which matches the SHAPE of a credential-bearing
 // command rather than the entropy of its value, so a spelled-out
@@ -534,7 +533,6 @@ const tsBad = write("apps/web/bad.ts", "console.log(1)\n")
 const tsGood = write("apps/web/good.ts", "export const a = 1\n")
 T("cc ts-antipatterns: console -> 2", runHook("forbid-ts-antipatterns.mjs", { tool_name: "Write", tool_input: { file_path: tsBad } }), 2)
 T("cc ts-antipatterns: clean -> 0", runHook("forbid-ts-antipatterns.mjs", { tool_name: "Write", tool_input: { file_path: tsGood } }), 0)
-const todoBad = write("apps/web/todo.ts", `// ${MARK}: later\n`)
 const ctrlBad = write("orbit-api/src/Orbit.Api/Controllers/FooController.cs", "public class FooController {}\n")
 T("cc csharp-authz: missing -> 2", runHook("csharp-authz.mjs", { tool_name: "Write", tool_input: { file_path: ctrlBad } }), 2)
 const tzBad = write("orbit-api/src/Orbit.Application/Foo.cs", "var x = DateTime.UtcNow;\n")
@@ -2902,6 +2900,76 @@ T("gate-tamper: a write verb hidden in a substitution blocks", !!checkGateTamper
 // The honest half, which is the half that gets a hook disarmed when it is wrong.
 T("gate-tamper: node -p require of the manifest allows", checkGateTamperBash(`node -p "require('./${MANIFEST_PATH}').cells.length"`), null)
 T("gate-tamper: an interpreter read that indexes and maps allows", checkGateTamperBash(`node -e "const m=require('./${MANIFEST_PATH}'); console.log(m.cells[0].surfaceId, m.cells.map(c=>c.sourceFile).join(','))"`), null)
+// BYPASS #5, caught in review of PR #570 and reproduced before it was closed: the
+// call allowlist judged the identifier at the call site, so binding a writer to any
+// allowlisted NAME walked straight through. The member lifted off a module is what
+// is judged now, so every rename below is dead, while a member read off required
+// JSON data stays allowed.
+T("gate-tamper: aliasing a writer to an allowlisted name blocks", !!checkGateTamperBash(`node -e "const map=require('fs').writeFileSync; map('${SIGNOFF_PATH}','fake')"`)?.block, true)
+T("gate-tamper: ...and the alias cannot reach the manifest either", !!checkGateTamperBash(`node -e "const parse=require('fs').writeFileSync; parse('./${MANIFEST_PATH}','x')"`)?.block, true)
+T("gate-tamper: ...nor through node: prefixed fs", !!checkGateTamperBash(`node -e "const test=require('node:fs').writeFileSync; test('${SIGNOFF_PATH}','x')"`)?.block, true)
+T("gate-tamper: a destructured writer rename blocks", !!checkGateTamperBash(`node -e "const {writeFileSync: filter}=require('fs'); filter('${SIGNOFF_PATH}','x')"`)?.block, true)
+T("gate-tamper: a computed member off a module blocks", !!checkGateTamperBash(`node -e "const w=require('fs')['writeFileSync']; w('${SIGNOFF_PATH}','x')"`)?.block, true)
+// Renaming even a READ is refused: the guard judges names, so a rename it cannot
+// classify is fail-closed by design. The Read tool covers what this turns away.
+T("gate-tamper: renaming even a read API is refused, fail-closed", !!checkGateTamperBash(`node -e "const read=require('fs').readFileSync; console.log(read('./${MANIFEST_PATH}','utf8').length)"`)?.block, true)
+T("gate-tamper: the direct read call off fs still allows", checkGateTamperBash(`node -e "console.log(require('fs').readFileSync('./${MANIFEST_PATH}','utf8').length)"`), null)
+// BYPASS #6, caught reviewing the fix for #5: chaining the member onto require()
+// is only the one-statement spelling. Splitting it across statements put the write
+// behind an allowlisted call-site name again, so the module REFERENCE is tracked
+// now, through plain rebinding too.
+T("gate-tamper: a two-step module indirection blocks", !!checkGateTamperBash(`node -e "const m=require('fs'); const map=m.writeFileSync; map('${SIGNOFF_PATH}','{}')"`)?.block, true)
+T("gate-tamper: ...and a transitive rebind of the module blocks", !!checkGateTamperBash(`node -e "const a=require('fs'); const b=a; const get=b.writeFileSync; get('${SIGNOFF_PATH}','{}')"`)?.block, true)
+T("gate-tamper: ...and a computed member off the bound ref blocks", !!checkGateTamperBash(`node -e "const a=require('fs'); const has=a['writeFileSync']; has('${SIGNOFF_PATH}','{}')"`)?.block, true)
+T("gate-tamper: ...and destructuring off the bound ref blocks", !!checkGateTamperBash(`node -e "const x=require('fs'); const {writeFileSync}=x; writeFileSync('${SIGNOFF_PATH}','{}')"`)?.block, true)
+T("gate-tamper: a bound module ref used for a direct read still allows", checkGateTamperBash(`node -e "const m=require('fs'); console.log(m.readFileSync('./package.json','utf8').length)"`), null)
+// The rest of the class, probed rather than reported: if the reference tracking is
+// the right fix, these fall out of it for free. They do. Kept so a later change to
+// the classifier cannot quietly reopen any of them.
+T("gate-tamper: a write stream off a bound ref blocks", !!checkGateTamperBash(`node -e "const m=require('fs'); const get=m.createWriteStream; get('${SIGNOFF_PATH}').write('x')"`)?.block, true)
+T("gate-tamper: a deletion off a bound ref blocks", !!checkGateTamperBash(`node -e "const m=require('fs'); const filter=m.rmSync; filter('${SIGNOFF_PATH}')"`)?.block, true)
+T("gate-tamper: reaching the promises submodule off fs blocks", !!checkGateTamperBash(`node -e "const m=require('fs'); const q=m.promises; q.writeFile('${SIGNOFF_PATH}','x')"`)?.block, true)
+T("gate-tamper: requiring fs/promises is not requirable at all", !!checkGateTamperBash(`node -e "const p=require('fs/promises'); const get=p.writeFile; get('${SIGNOFF_PATH}','x')"`)?.block, true)
+T("gate-tamper: shelling out through child_process blocks", !!checkGateTamperBash(`node -e "require('child_process').execSync('echo x > ${SIGNOFF_PATH}')"`)?.block, true)
+T("gate-tamper: a path built by concatenation blocks", !!checkGateTamperBash(`node -e "const m=require('fs'); const map=m.writeFileSync; map('.claude/manifests/'+'signoff'+'.json','x')"`)?.block, true)
+// BYPASS #7: the test directly above passed for the WRONG reason - it fragmented
+// only the filename, so the directory rule still matched a contiguous token and
+// the hole stayed open. Fragmenting the directory too defeated every path rule at
+// once, and a segment no rule matches is never examined at all. Adjacent literals
+// are joined before matching now, so these judge the path by the value it builds.
+T("gate-tamper: fragmenting the DIRECTORY name still blocks", !!checkGateTamperBash(`node -e "const m=require('fs'); const w=m.writeFileSync; w('.claude/manif'+'ests/sig'+'noff.json','{}')"`)?.block, true)
+T("gate-tamper: ...with spaces around the plus too", !!checkGateTamperBash(`node -e "const m=require('fs'); const w=m.writeFileSync; w('.claude/mani' + 'fests/signoff' + '.json','{}')"`)?.block, true)
+T("gate-tamper: ...and for the surfaces manifest", !!checkGateTamperBash(`node -e "const m=require('fs'); const w=m.writeFileSync; w('.claude/mani'+'fests/surf'+'aces.json','{}')"`)?.block, true)
+// A concatenated require() argument is refused, and always was: the tool cannot
+// tell which module it names. It reaches the refusal one step earlier now, via the
+// interpreter rule, which is the same verdict for the same reason.
+T("gate-tamper: a concatenated require argument is refused", !!checkGateTamperBash(`node -e "console.log(require('./pack'+'age.json').name)"`)?.block, true)
+
+// BYPASS #8 and the end of the arms race. Four rounds each closed one spelling of
+// "hide the path" - an alias, a split literal, a mixed quote pair, a variable. The
+// path is no longer what decides: an interpreter one-liner that cannot be proven to
+// only read is refused whatever it names. These four are the shapes that beat the
+// previous fix, including two the review did not report.
+T("gate-tamper: mixed-quote fragmentation blocks", !!checkGateTamperBash(`node -e "const m=require('fs'); const w=m.writeFileSync; w('.claude/manif'+\"ests/sig\"+'noff.json','{}')"`)?.block, true)
+T("gate-tamper: a path split across variables blocks", !!checkGateTamperBash(`node -e "const m=require('fs'); const a='.claude/mani'; const b='fests/sig'; const c='noff.json'; m.writeFileSync(a+b+c,'{}')"`)?.block, true)
+T("gate-tamper: a path assembled by Array.join blocks", !!checkGateTamperBash(`node -e "const m=require('fs'); const p=['.claude/mani','fests/sig','noff.json'].join(''); m.writeFileSync(p,'{}')"`)?.block, true)
+T("gate-tamper: an interpreter write naming NO protected path blocks too", !!checkGateTamperBash(`node -e "require('fs').writeFileSync('/tmp/unrelated.txt','x')"`)?.block, true)
+// BYPASS #9: PAUSED was the only pattern without the optional directory prefix,
+// and the only one tested against the whole raw command instead of per segment.
+// `cd .claude/manifests && touch PAUSED` matched nothing - the cd segment reads,
+// the touch segment carries no directory text - and silently disarms the honesty
+// gate. Not an obfuscation; a command someone types by accident. The same shape
+// hit the other four through plain shell quote-splicing (sign''off.json).
+T("gate-tamper: cd then touch PAUSED blocks", !!checkGateTamperBash(`cd .claude/manifests && touch PAUSED`)?.block, true)
+T("gate-tamper: cd then redirect into PAUSED blocks", !!checkGateTamperBash(`cd .claude/manifests && echo x > PAUSED`)?.block, true)
+T("gate-tamper: shell quote-splicing the signoff name blocks", !!checkGateTamperBash(`cd .claude/manifests && rm sign''off.json`)?.block, true)
+T("gate-tamper: shell quote-splicing the manifest name blocks", !!checkGateTamperBash(`cd .claude/manifests && rm surf''aces.json`)?.block, true)
+T("gate-tamper: an honest cd then ls in that directory still allows", checkGateTamperBash(`cd .claude/manifests && ls -la`), null)
+
+// The honest half stays honest: the reads this guard advertises must keep working,
+// or the next session disarms the hook instead of using it.
+T("gate-tamper: node -p require of the manifest still allows", checkGateTamperBash(`node -p "require('./${MANIFEST_PATH}').cells.length"`), null)
+T("gate-tamper: an ordinary shell read of the manifest still allows", checkGateTamperBash(`jq -r '.cells | length' ./${MANIFEST_PATH}`), null)
 
 // ---------------------------------------------------------------------------
 // drive-queue: the printed contract must state only what can FAIL for THIS

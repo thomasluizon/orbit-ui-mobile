@@ -2139,6 +2139,8 @@
       "transcriptionFailed": "Não deu para transcrever o áudio. Tente de novo.",
       "logNotAllowed": "Não dá para registrar esse hábito agora.",
       "selfParent": "Um hábito não pode ser sub-hábito de si mesmo.",
+      "generalMismatchWithParent": "A opção Geral de um sub-hábito precisa ser igual à do hábito principal.",
+      "generalMismatchWithChildren": "Não é possível mudar isso enquanto houver sub-hábitos com uma opção Geral diferente.",
       "calendarNotConnected": "Conecte o Google Agenda primeiro.",
       "calendarReconnect": "Sua conexão com o Google Agenda expirou. Reconecte para continuar.",
       "calendarFetchFailed": "Não foi possível carregar seus eventos. Tente de novo.",

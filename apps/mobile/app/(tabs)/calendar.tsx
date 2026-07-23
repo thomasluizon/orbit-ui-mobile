@@ -6,7 +6,10 @@ import {
   StyleSheet,
   FlatList,
   ScrollView,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from "react-native";
+import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 import {
   FadeInLeft,
   FadeInRight,
@@ -40,6 +43,7 @@ import {
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import { useCalendarData, useCalendarRange } from "@/hooks/use-habits";
 import { useProfile } from "@/hooks/use-profile";
+import { useSheetExitAction } from "@/hooks/use-sheet-exit-action";
 import { useTimeFormat } from "@/hooks/use-time-format";
 import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
 import { createTokensV2 } from "@/lib/theme";
@@ -105,8 +109,24 @@ export default function CalendarScreen() {
     "/calendar",
     calendarScrollTo,
   );
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const scrollCalendarToTop = useCallback(() => {
+    calendarScrollTo(0);
+  }, [calendarScrollTo]);
+  const handleCalendarScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      onCalendarTourScroll(event);
+      setShowScrollTop(event.nativeEvent.contentOffset.y > 600);
+    },
+    [onCalendarTourScroll],
+  );
 
   const [view, setView] = useState<CalendarView>("month");
+  const [scrollTopResetView, setScrollTopResetView] = useState(view);
+  if (view !== scrollTopResetView) {
+    setScrollTopResetView(view);
+    setShowScrollTop(false);
+  }
   const [currentMonth, setCurrentMonth] = useState(() =>
     startOfMonth(new Date()),
   );
@@ -321,10 +341,12 @@ export default function CalendarScreen() {
     (entry: CalendarDayEntry) => entry.status === "completed",
   ).length;
 
+  const { scheduleExitAction, runExitAction } = useSheetExitAction();
+
   const goToSelectedDay = () => {
     if (!selectedDay) return;
+    scheduleExitAction(() => router.push(`/?date=${selectedDay}`));
     setIsDayDetailOpen(false);
-    router.push(`/?date=${selectedDay}`);
   };
 
   const monthStatTiles = useMemo(
@@ -438,8 +460,15 @@ export default function CalendarScreen() {
           ListHeaderComponent={listHeader}
           ListFooterComponent={listFooter}
           showsVerticalScrollIndicator={false}
-          onScroll={onCalendarTourScroll}
+          onScroll={handleCalendarScroll}
           scrollEventThrottle={16}
+        />
+      )}
+      {!activeError && view === "month" && (
+        <ScrollToTopButton
+          visible={showScrollTop}
+          onPress={scrollCalendarToTop}
+          bottom={24}
         />
       )}
       {!activeError && view !== "month" && (
@@ -507,6 +536,7 @@ export default function CalendarScreen() {
       <BottomSheetModal
         open={isDayDetailOpen}
         onClose={closeDayDetail}
+        onDidDismiss={runExitAction}
         title={formattedSelectedDate}
         contentKey={selectedDay ?? undefined}
         contentManagesScroll

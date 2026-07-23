@@ -11,6 +11,7 @@ const animatePresenceExit = require("../../eslint-rules/animate-presence-exit.cj
 const animatePresenceStableKey = require("../../eslint-rules/animate-presence-stable-key.cjs")
 const noArbitraryZindex = require("../../eslint-rules/no-arbitrary-zindex.cjs")
 const noDecorativeGlow = require("../../eslint-rules/no-decorative-glow.cjs")
+const noDraggableOnscroll = require("../../eslint-rules/no-draggable-onscroll.cjs")
 const noJsxLogicalAnd = require("../../eslint-rules/no-jsx-logical-and.cjs")
 const noOvershootEasing = require("../../eslint-rules/no-overshoot-easing.cjs")
 const noRawFontFeatureTag = require("../../eslint-rules/no-raw-font-feature-tag.cjs")
@@ -77,6 +78,7 @@ module.exports = defineConfig([
           "animate-presence-stable-key": animatePresenceStableKey,
           "no-arbitrary-zindex": noArbitraryZindex,
           "no-decorative-glow": noDecorativeGlow,
+          "no-draggable-onscroll": noDraggableOnscroll,
           "no-jsx-logical-and": noJsxLogicalAnd,
           "no-overshoot-easing": noOvershootEasing,
           "no-raw-font-feature-tag": noRawFontFeatureTag,
@@ -124,6 +126,7 @@ module.exports = defineConfig([
       "local/animate-presence-exit": "error",
       "local/animate-presence-stable-key": "error",
       "local/no-arbitrary-zindex": "error",
+      "local/no-draggable-onscroll": "error",
       "local/no-jsx-logical-and": "error",
       "local/no-overshoot-easing": "error",
       "local/no-raw-font-feature-tag": "error",

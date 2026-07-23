@@ -36,6 +36,13 @@ interface EditHabitModalProps {
   onOpenChange: (open: boolean) => void
   habit: NormalizedHabit | null
   onSaved?: () => void | Promise<void>
+  /**
+   * The General setting this habit must match, given its position in the tree: its
+   * parent's General value when it is a sub-habit, or its existing sub-habits'
+   * General value when it is a parent. `null` when unconstrained. The caller (which
+   * holds the full habit map) is responsible for deriving this.
+   */
+  lockedGeneral?: boolean | null
 }
 
 export function EditHabitModal({
@@ -43,6 +50,7 @@ export function EditHabitModal({
   onOpenChange,
   habit,
   onSaved,
+  lockedGeneral = null,
 }: Readonly<EditHabitModalProps>) {
   const t = useTranslations()
   const translate = useCallback(
@@ -86,6 +94,8 @@ export function EditHabitModal({
     error: detailError,
   } = useHabitDetail(open && habit ? habit.id : null)
   const detailFieldsPending = open && !!habit && detailPending
+  const childrenIsGeneral = habitDetail?.children[0]?.isGeneral ?? null
+  const resolvedLockedGeneral = childrenIsGeneral ?? lockedGeneral ?? null
 
   const toggleGoal = useCallback((goalId: string) => {
     setSelectedGoalIds((prev) => toggleSelectedId(prev, goalId))
@@ -260,6 +270,7 @@ export function EditHabitModal({
           hasScheduledReminders={(habit?.scheduledReminders.length ?? 0) > 0}
           onSuggestSetup={() => void handleSuggest()}
           isSuggesting={suggestion.isPending}
+          lockedGeneral={resolvedLockedGeneral}
           defaultExpanded
         />
         </fieldset>

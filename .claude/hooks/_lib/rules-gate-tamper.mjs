@@ -41,7 +41,14 @@
 // is that faking "done" requires deliberate multi-step tampering instead of one
 // careless sentence.
 
-const PAUSED_RE = /\.claude[\\/]manifests[\\/]PAUSED/i
+// BYPASS #9: PAUSED was the only one of the five patterns without the optional
+// directory prefix, and the only one tested against the whole raw command rather
+// than per segment. `cd .claude/manifests && touch PAUSED` therefore matched
+// nothing: the cd segment is a read, and the touch segment carries no directory
+// text at all. That is not an obfuscation, it is a command someone types by
+// accident, and it silently disarms the honesty gate. Same shape as the other
+// four now, judged per segment. https://github.com/thomasluizon/orbit-ui-mobile/pull/570
+const PAUSED_RE = /(\.claude[\\/]manifests[\\/])?\bPAUSED\b/i
 // Bare filenames are matched too: `cd .claude/manifests && rm signoff.json` puts
 // no directory in the segment that writes, so a path-only pattern would miss it.
 const MANIFEST_RE = /(\.claude[\\/]manifests[\\/])?\bsurfaces\.json\b/i
@@ -151,6 +158,55 @@ export function inlineCodeIsReadOnly(code) {
   const literalRequires = [...code.matchAll(REQUIRE_ARG_RE)]
   if (literalRequires.length !== (bare.match(/require\s*\(/g) || []).length) return false
   if (literalRequires.some((call) => !REQUIRABLE.test(call[2]))) return false
+  // BYPASS #5 (PR #570 review): a require() RESULT is a module object, and every
+  // member of it is reachable under any name the code picks. `const map =
+  // require("fs").writeFileSync` rebinds a writer to a name the call allowlist
+  // happily accepts, so judging only the call-site identifier let an arbitrary
+  // write through. A member lifted off a MODULE must itself be a read API and a
+  // computed member is refused (the name is not visible); a destructured binding
+  // is judged by the KEYS it lifts, never the local names it gives them. A
+  // required .json is DATA, not a module, so `require("./x.json").cells` stays
+  // allowed - that is the read this hook's own message advertises.
+  // https://github.com/thomasluizon/orbit-ui-mobile/pull/570
+  const MODULE_MEMBER_RE = /require\s*\(\s*(['"])([^'"]*)\1\s*\)\s*(?:\.\s*([\w$]+)|\[)/g
+  for (const lift of code.matchAll(MODULE_MEMBER_RE)) {
+    if (lift[2].endsWith(".json")) continue
+    if (!lift[3] || !READ_ONLY_CALLS.has(lift[3])) return false
+  }
+  // BYPASS #6, caught reviewing the fix for #5: chaining the member straight onto
+  // require() is only the one-statement spelling. `const m = require("fs"); const
+  // get = m.writeFileSync; get(path, data)` splits it across statements, and the
+  // call-site name is on the read list, so a purely syntactic check waves it past.
+  // The module reference is tracked instead - through plain rebinding too, so a
+  // chain of aliases inherits it - and every member lifted off one must be a read
+  // API. Renaming a read is still refused later by the callee scan, which is the
+  // fail-closed half: this list grants nothing, it only withholds.
+  const moduleRefs = new Set()
+  for (const bind of code.matchAll(/(?:const|let|var)\s+([\w$]+)\s*=\s*require\s*\(\s*(['"])([^'"]*)\2\s*\)/g)) {
+    if (!bind[3].endsWith(".json")) moduleRefs.add(bind[1])
+  }
+  for (let pass = 0; pass < moduleRefs.size + 1; pass += 1) {
+    const before = moduleRefs.size
+    for (const bind of bare.matchAll(/(?:const|let|var)\s+([\w$]+)\s*=\s*([\w$]+)\s*(?=[;\n]|$)/g)) {
+      if (moduleRefs.has(bind[2])) moduleRefs.add(bind[1])
+    }
+    if (moduleRefs.size === before) break
+  }
+  for (const use of bare.matchAll(/([\w$]+)\s*(?:\.\s*([\w$]+)|(\[))/g)) {
+    if (!moduleRefs.has(use[1])) continue
+    if (use[3] || !READ_ONLY_CALLS.has(use[2])) return false
+  }
+  for (const use of bare.matchAll(/\{([^{}]*)\}\s*=\s*([\w$]+)/g)) {
+    if (!moduleRefs.has(use[2])) continue
+    const lifted = use[1].split(",").map((entry) => entry.split(":")[0].trim()).filter(Boolean)
+    if (lifted.some((key) => !READ_ONLY_CALLS.has(key))) return false
+  }
+  const MODULE_DESTRUCTURE_RE = /\{([^{}]*)\}\s*=\s*require\s*\(\s*(['"])([^'"]*)\2\s*\)/g
+  for (const lift of code.matchAll(MODULE_DESTRUCTURE_RE)) {
+    if (lift[3].endsWith(".json")) continue
+    const lifted = lift[1].split(",").map((entry) => entry.split(":")[0].trim()).filter(Boolean)
+    if (lifted.some((key) => !READ_ONLY_CALLS.has(key))) return false
+  }
   for (let index = 0; index < bare.length; index += 1) {
     if (bare[index] !== "(") continue
     const before = bare.slice(0, index).replace(/\s+$/, "")
@@ -326,9 +382,22 @@ function segmentIsSanctionedWriter(segment, writers) {
   return writers.some((writer) => writer.test(segment.trim()))
 }
 
+// BYPASS #7, caught reviewing the tests for #6: every path rule matches a
+// CONTIGUOUS literal in the raw text, so splitting the path across concatenated
+// string literals means no rule ever fires and the segment is never examined at
+// all. Fragmenting only the filename still tripped the directory rule, which is
+// why the first test for this passed while the hole stayed open - the test was
+// the shallowest instance of its own class. Adjacent same-quoted literals are
+// joined before matching, so the path is judged by the value it builds rather
+// than the way it is spelled.
+function joinConcatenatedLiterals(text) {
+  return text.replace(/(['"])\s*\+\s*\1/g, "").replace(/''|""/g, "")
+}
+
 function blockedSegment(command, pathPattern, writers) {
   for (const segment of splitSegments(command)) {
-    if (!pathPattern.test(segment)) continue
+    const joined = joinConcatenatedLiterals(segment)
+    if (!pathPattern.test(segment) && !pathPattern.test(joined)) continue
     if (writers && segmentIsSanctionedWriter(segment, writers)) continue
     if (!segmentIsReadOnly(segment)) return segment
   }
@@ -340,7 +409,36 @@ export function checkGateTamperBash(command) {
   const text = withoutHeredocBodies(command)
   if (!text) return null
 
-  if (PAUSED_RE.test(text)) {
+  // BYPASSES #5 through #8 were all the same move wearing different clothes: hide
+  // the path from a rule that matches contiguous text. Aliasing the writer,
+  // splitting the literal, mixing quote types, splitting across variables, joining
+  // an array - four review rounds each closed one spelling and the next round found
+  // the next. Deciding what a path argument evaluates to inside arbitrary code is
+  // not a thing a regex can do, so the path is no longer what decides.
+  //
+  // An interpreter one-liner that cannot be PROVEN to be a pure read is refused,
+  // whatever it names. That is the same doctrine the rest of this file already
+  // states - the code is judged by an allowlist of what it may call - applied where
+  // it was previously skipped because no path rule had fired yet. It costs an
+  // occasional honest `node -e` write, which the Write tool covers; it buys the end
+  // of an obfuscation arms race the guard was structurally losing.
+  // https://github.com/thomasluizon/orbit-ui-mobile/pull/570
+  for (const segment of splitSegments(text)) {
+    const inline = INLINE_CODE_RE.exec(segment)
+    if (inline && !inlineCodeIsReadOnly(inline[2])) {
+      return {
+        block: true,
+        message:
+          "gate-tamper: this is an interpreter one-liner (`node -e`, `python -c`) that cannot be proven to only READ. " +
+          "Arbitrary code can build any path at runtime, so the guard refuses it rather than trying to work out which file it touches - " +
+          "hiding the path behind concatenation, an alias, or a variable is exactly how earlier versions of this fence were defeated. " +
+          "Use the Write or Edit tool for writes, and the Read tool (or cat/jq/grep) for reads. " +
+          "Gate state - signoff.json, surfaces.json, verdicts.json - has no sanctioned agent writer at all.",
+      }
+    }
+  }
+
+  if (blockedSegment(text, PAUSED_RE, null)) {
     return {
       block: true,
       message:

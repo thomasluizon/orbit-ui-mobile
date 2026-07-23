@@ -148,10 +148,27 @@ export default function TodayScreen() {
   const goalsScrollTo = useCallback((y: number) => {
     goalsScrollRef.current?.scrollToOffset({ offset: y, animated: true });
   }, []);
-  const { onTourScroll: onGoalsTourScroll } = useTourScrollContainer(
+  const { onTourScrollOffset: onGoalsTourScrollOffset } = useTourScrollContainer(
     "/",
     goalsScrollTo,
   );
+  const scrollGoalsToTop = useCallback(() => {
+    goalsScrollTo(0);
+  }, [goalsScrollTo]);
+  const handleGoalsScroll = useCallback(
+    (offsetY: number) => {
+      onGoalsTourScrollOffset(offsetY);
+      setShowScrollTop(offsetY > 600);
+    },
+    [onGoalsTourScrollOffset],
+  );
+  const isGoalsView = currentActiveView === "goals";
+  const [scrollTopResetGoalsView, setScrollTopResetGoalsView] =
+    useState(isGoalsView);
+  if (isGoalsView !== scrollTopResetGoalsView) {
+    setScrollTopResetGoalsView(isGoalsView);
+    setShowScrollTop(false);
+  }
 
   const [detailHabit, setDetailHabit] = useState<NormalizedHabit | null>(null);
   const [editHabit, setEditHabit] = useState<NormalizedHabit | null>(null);
@@ -224,8 +241,9 @@ export default function TodayScreen() {
       }
 
       setActiveView(nextView);
+      setSearchQueryStore("");
     },
-    [profile?.hasProAccess, router, setActiveView],
+    [profile?.hasProAccess, router, setActiveView, setSearchQueryStore],
   );
 
   const tabItems = useMemo<TodayTabItem[]>(
@@ -389,6 +407,7 @@ export default function TodayScreen() {
     setRenderBulkActionBar,
     setActiveView,
     setFilters,
+    setSearchQuery: setSearchQueryStore,
   });
 
   const showSummary = currentActiveView === "today" && isToday(selectedDate);
@@ -623,7 +642,7 @@ export default function TodayScreen() {
         showCompleted={showCompleted}
         searchQuery={searchQueryStore}
         selectedHabitIds={selectedHabitIds}
-        onGoalsScroll={onGoalsTourScroll}
+        onGoalsScroll={handleGoalsScroll}
         onScrollBeginDrag={handleListScrollBeginDrag}
         onRetry={() => {
           void habitsQuery.refetch();
@@ -669,13 +688,11 @@ export default function TodayScreen() {
         </Animated.View>
       )}
 
-      {currentActiveView !== "goals" ? (
-        <ScrollToTopButton
-          visible={showScrollTop && !isSelectMode}
-          onPress={scrollHabitsToTop}
-          bottom={insets.bottom + 24}
-        />
-      ) : null}
+      <ScrollToTopButton
+        visible={showScrollTop && !isSelectMode}
+        onPress={isGoalsView ? scrollGoalsToTop : scrollHabitsToTop}
+        bottom={insets.bottom + 24}
+      />
 
       <TodayModals
         showCreateModal={showCreateModal}
@@ -687,6 +704,11 @@ export default function TodayScreen() {
         onCloseDetail={() => setDetailHabit(null)}
         onHabitLogged={handleHabitLogged}
         editHabit={editHabit}
+        editHabitParentIsGeneral={
+          editHabit?.parentId
+            ? (habitsById.get(editHabit.parentId)?.isGeneral ?? null)
+            : null
+        }
         onCloseEdit={handleEditHabitClose}
         editHabitOnSaved={editHabitOnSaved}
         showBulkDeleteConfirm={showBulkDeleteConfirm}

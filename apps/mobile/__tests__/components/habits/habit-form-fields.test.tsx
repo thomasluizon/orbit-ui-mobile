@@ -198,6 +198,7 @@ describe('HabitFormFields (mobile)', () => {
           selectedGoalIds={[]}
           atGoalLimit={false}
           onToggleGoal={vi.fn()}
+          onUpgrade={vi.fn()}
           reminderTimes={[]}
           onReminderTimesChange={vi.fn()}
         />,
@@ -232,6 +233,7 @@ describe('HabitFormFields (mobile)', () => {
           selectedGoalIds={[]}
           atGoalLimit={false}
           onToggleGoal={vi.fn()}
+          onUpgrade={vi.fn()}
           reminderTimes={[]}
           onReminderTimesChange={vi.fn()}
           defaultExpanded
@@ -267,6 +269,7 @@ describe('HabitFormFields (mobile)', () => {
           selectedGoalIds={[]}
           atGoalLimit={false}
           onToggleGoal={vi.fn()}
+          onUpgrade={vi.fn()}
           reminderTimes={[]}
           onReminderTimesChange={vi.fn()}
         />,
@@ -309,6 +312,7 @@ describe('HabitFormFields (mobile)', () => {
           selectedGoalIds={[]}
           atGoalLimit={false}
           onToggleGoal={vi.fn()}
+          onUpgrade={vi.fn()}
           reminderTimes={[]}
           onReminderTimesChange={vi.fn()}
         />,
@@ -348,6 +352,7 @@ describe('HabitFormFields (mobile)', () => {
           selectedGoalIds={[]}
           atGoalLimit={false}
           onToggleGoal={vi.fn()}
+          onUpgrade={vi.fn()}
           reminderTimes={[]}
           onReminderTimesChange={vi.fn()}
         />,
@@ -388,6 +393,7 @@ describe('HabitFormFields (mobile)', () => {
           selectedGoalIds={[]}
           atGoalLimit={false}
           onToggleGoal={vi.fn()}
+          onUpgrade={vi.fn()}
           reminderTimes={[]}
           onReminderTimesChange={vi.fn()}
           defaultExpanded
@@ -412,6 +418,7 @@ describe('HabitFormFields (mobile)', () => {
           selectedGoalIds={[]}
           atGoalLimit={false}
           onToggleGoal={vi.fn()}
+          onUpgrade={vi.fn()}
           reminderTimes={[]}
           onReminderTimesChange={vi.fn()}
           defaultExpanded
@@ -435,6 +442,7 @@ describe('HabitFormFields (mobile)', () => {
           selectedGoalIds={[]}
           atGoalLimit={false}
           onToggleGoal={vi.fn()}
+          onUpgrade={vi.fn()}
           reminderTimes={[30]}
           onReminderTimesChange={vi.fn()}
           defaultExpanded
@@ -470,6 +478,7 @@ describe('HabitFormFields (mobile)', () => {
           selectedGoalIds={[]}
           atGoalLimit={false}
           onToggleGoal={vi.fn()}
+          onUpgrade={vi.fn()}
           reminderTimes={[15]}
           onReminderTimesChange={vi.fn()}
           hasScheduledReminders
@@ -509,6 +518,7 @@ describe('HabitFormFields (mobile)', () => {
           selectedGoalIds={[]}
           atGoalLimit={false}
           onToggleGoal={vi.fn()}
+          onUpgrade={vi.fn()}
           reminderTimes={[15]}
           onReminderTimesChange={vi.fn()}
           defaultExpanded
@@ -539,6 +549,7 @@ describe('HabitFormFields (mobile)', () => {
           selectedGoalIds={[]}
           atGoalLimit={false}
           onToggleGoal={vi.fn()}
+          onUpgrade={vi.fn()}
           reminderTimes={[]}
           onReminderTimesChange={vi.fn()}
         />,
@@ -568,6 +579,7 @@ describe('HabitFormFields (mobile)', () => {
           selectedGoalIds={[]}
           atGoalLimit={false}
           onToggleGoal={vi.fn()}
+          onUpgrade={vi.fn()}
           reminderTimes={[]}
           onReminderTimesChange={vi.fn()}
         />,
@@ -597,6 +609,7 @@ describe('HabitFormFields (mobile)', () => {
           selectedGoalIds={[]}
           atGoalLimit={false}
           onToggleGoal={vi.fn()}
+          onUpgrade={vi.fn()}
           reminderTimes={[]}
           onReminderTimesChange={vi.fn()}
         />,
@@ -627,6 +640,7 @@ describe('HabitFormFields (mobile)', () => {
           selectedGoalIds={[]}
           atGoalLimit={false}
           onToggleGoal={vi.fn()}
+          onUpgrade={vi.fn()}
           reminderTimes={[]}
           onReminderTimesChange={vi.fn()}
         />,
@@ -668,6 +682,7 @@ describe('HabitFormFields (mobile)', () => {
           selectedGoalIds={[]}
           atGoalLimit={false}
           onToggleGoal={vi.fn()}
+          onUpgrade={vi.fn()}
           reminderTimes={[]}
           onReminderTimesChange={vi.fn()}
         />,
@@ -708,6 +723,7 @@ describe('HabitFormFields (mobile)', () => {
           selectedGoalIds={[]}
           atGoalLimit={false}
           onToggleGoal={vi.fn()}
+          onUpgrade={vi.fn()}
           reminderTimes={[]}
           onReminderTimesChange={vi.fn()}
         />,
@@ -743,6 +759,7 @@ describe('HabitFormFields (mobile)', () => {
           selectedGoalIds={[]}
           atGoalLimit={false}
           onToggleGoal={vi.fn()}
+          onUpgrade={vi.fn()}
           reminderTimes={[]}
           onReminderTimesChange={vi.fn()}
           defaultExpanded

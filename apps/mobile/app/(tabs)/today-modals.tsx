@@ -16,6 +16,7 @@ interface TodayModalsProps {
   onCloseDetail: () => void;
   onHabitLogged: (habitId: string) => void;
   editHabit: NormalizedHabit | null;
+  editHabitParentIsGeneral: boolean | null;
   onCloseEdit: () => void;
   editHabitOnSaved: (() => void | Promise<void>) | null;
   showBulkDeleteConfirm: boolean;
@@ -48,6 +49,7 @@ export function TodayModals({
   onCloseDetail,
   onHabitLogged,
   editHabit,
+  editHabitParentIsGeneral,
   onCloseEdit,
   editHabitOnSaved,
   showBulkDeleteConfirm,
@@ -87,6 +89,7 @@ export function TodayModals({
         onClose={onCloseEdit}
         habit={editHabit}
         onSaved={editHabitOnSaved ?? undefined}
+        parentIsGeneral={editHabitParentIsGeneral}
       />
 
       <ConfirmDialog

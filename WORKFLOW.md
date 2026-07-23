@@ -6,8 +6,8 @@
 
 | Path | You are | Sessions | Finish line | Ends at |
 |---|---|---|---|---|
-| **`/drive <#…>`** (attended) | at the keyboard | fresh `claude -p` per bundle, resumable via a living spec | known diffs — one slice or a whole epic | draft PR per bundle, issue closed |
-| **`/drive <#…> --sleep`** | asleep | fresh `claude -p` per bundle, unattended | known-diff slices, no open questions | draft PRs + an independent verifier verdict, reviewed at breakfast |
+| **`/drive <#…>`** (attended) | at the keyboard | fresh `claude -p` per bundle, resumable via a living spec | known diffs — one slice or a whole epic | ready-for-review PR per bundle, issue closed |
+| **`/drive <#…> --sleep`** | asleep | fresh `claude -p` per bundle, unattended | known-diff slices, no open questions | ready-for-review PRs + an independent verifier verdict, reviewed at breakfast |
 | **campaign** (no command) | at the keyboard | many, looped | a *converging metric* | the bar holds |
 
 Pick the lightest path that fits. Two questions: **(1) slice/epic or campaign?** · **(2) attended or `--sleep`?** Most work is an attended `/drive` — a single bounded slice is just a **one-bundle drive** (what `/execute` used to be); an epic is a **many-bundle drive**. Campaigns are the shape for big, looped, converging work.
@@ -18,7 +18,7 @@ Pick the lightest path that fits. Two questions: **(1) slice/epic or campaign?**
 |---|---|---|
 | **What** | A bounded change you can land in one focused pass — a bug, a feature, even a multi-story feature. You can name the finish line up front. | Big, **looped**, multi-session work: run → assess → fix → re-run until a bar is met. You *can't* name the finish line — it's "until the audit is clean" / "until coverage hits 100%." |
 | **Examples** | fix a timezone bug; add streak-freeze; a 3-story feature | #243 (final gate: loop `/prod-readiness` + Sonar-to-zero); a repo-wide audit-and-remediate; a large migration |
-| **How** | `/execute` + the slice ladder below | the **Campaign pattern** below — workflows to assess, `/implement` to fix, across **fresh sessions**. Never one `/execute`. |
+| **How** | `/drive` + the slice ladder below | the **Campaign pattern** below — workflows to assess, `/implement` to fix, across **fresh sessions**. Never one `/drive`. |
 
 **Litmus test:** if the finish line is a *converging metric* ("0 findings", "100% coverage") rather than a *known diff*, it's a campaign.
 
@@ -31,7 +31,7 @@ A second axis, orthogonal to the first: **are you at the keyboard?**
 | **You are** | driving, answering the gates | asleep, or away from the machine |
 | **Gates** | a hard blocking gate at every stage boundary | ONE gate before launch, then autonomy inside a budget cap |
 | **How** | `/drive` (attended) or the campaign loop | **`/drive --sleep`** — the same detached Node driver, one fresh `claude -p` per bundle, gates off |
-| **Ends at** | draft PRs you gated at each bundle | **draft** PRs + an independent verifier verdict; nothing merges, `main` is never touched |
+| **Ends at** | ready-for-review PRs you gated at each bundle | **ready-for-review** PRs + an independent verifier verdict; nothing merges, `main` is never touched |
 
 Going unattended does not change *what* counts as a slice — it removes the human from the loop, so the work must be work that needs no human. A campaign, or anything gated on an open design question, CANNOT go unattended: `/drive --sleep` screens both out of its queue by design (the fit gate), because a child with nobody to ask just guesses.
 
@@ -43,7 +43,7 @@ Just edit + `/validate`. No PRD, plan, or issue.
 
 ### Real bug or small feature (one vertical slice, clear scope)
 
-`/drive <issue#>` — a bounded slice is a **one-bundle drive**: it primes, grills if there are open questions, plans, you approve, then the driver implements it to a draft PR (tier-routed — Sonnet for an isolated slice, Opus otherwise). Or drive the steps yourself:
+`/drive <issue#>` — a bounded slice is a **one-bundle drive**: it primes, grills if there are open questions, plans, you approve, then the driver implements it to a ready-for-review PR (tier-routed — Sonnet for an isolated slice, Opus otherwise). Or drive the steps yourself:
 
 1. `/prime` — load context (add `<issue#>` if you opened one)
 2. `/plan "short description"` — get a plan file
@@ -62,19 +62,19 @@ Just edit + `/validate`. No PRD, plan, or issue.
 
 An **epic** — a multi-bundle issue (a phased tech epic, a feature that lands over several PRs) — is a slice-set (you *can* name the finish line: a set of known diffs), not a campaign (the finish line is known diffs, not a converging metric). `/drive` handles it as a **many-bundle drive** — the same command, decomposed into more bundles.
 
-**Phase A** (live, once): `/drive <#>` primes, classifies the epic, grills the open questions, decomposes it into ordered **bundles**, writes a **living spec** at `.claude/specs/issue-<N>.spec.md` (committed, so a fresh session inherits it), and you approve the bundle plan. **Phase B** (the driver): each bundle runs in a **fresh `claude -p`** — zero context accumulation, so you never `/clear`; state passes through the spec + plan files + draft PRs, not conversation. Each bundle is tier-routed to its model and opens a draft PR. Attended, you gate each bundle in the driver's terminal; the same `/drive <N>` resumes from the spec (reconciled against `gh`) if you close the terminal. See the `/drive` skill for the full two-phase model and the AUTO/RECOMMEND/MANUAL table.
+**Phase A** (live, once): `/drive <#>` primes, classifies the epic, grills the open questions, decomposes it into ordered **bundles**, writes a **living spec** at `.claude/specs/issue-<N>.spec.md` (committed, so a fresh session inherits it), and you approve the bundle plan. **Phase B** (the driver): each bundle runs in a **fresh `claude -p`** — zero context accumulation, so you never `/clear`; state passes through the spec + plan files + the PRs, not conversation. Each bundle is tier-routed to its model and opens a ready-for-review PR. Attended, you gate each bundle in the driver's terminal; the same `/drive <N>` resumes from the spec (reconciled against `gh`) if you close the terminal. See the `/drive` skill for the full two-phase model and the AUTO/RECOMMEND/MANUAL table.
 
 A **UI bundle** gets a **vision-verify** step in the attended review: bring up the dev stack, screenshot the changed surface (light + dark) via the `claude-in-chrome` MCP (the default browser driver; chrome-devtools MCP stays reserved for `/profile`), and check the pixels against `DESIGN.md` (with `design-reviewer` on the static token/parity pass). `--sleep` cannot do this — a headless child has no renderer, so it falls back to a static `DESIGN.md` diff review.
 
 ### Unattended slice-set (you are asleep) — `/drive --sleep`
 
-`/drive <issue#… | free-text> --sleep` drains a queue of **well-formed slices** overnight. Each bundle gets its own fresh `claude -p` — a live Claude session driving children taints them (`CLAUDECODE` inheritance) and rots its own context — runs on its own branch, and stops at a **draft PR**. Nothing merges; `main` is never touched (the child runs without `--bare`, inheriting `git-guardrails`, which blocks a push to `main`, a force-push, or `--no-verify` for free).
+`/drive <issue#… | free-text> --sleep` drains a queue of **well-formed slices** overnight. Each bundle gets its own fresh `claude -p` — a live Claude session driving children taints them (`CLAUDECODE` inheritance) and rots its own context — runs on its own branch, and stops at a **ready-for-review PR**. Nothing merges; `main` is never touched (the child runs without `--bare`, inheriting `git-guardrails`, which blocks a push to `main`, a force-push, or `--no-verify` for free).
 
-It is `/drive` with the gates off — the **same engine**, same fresh-context-per-bundle principle, trading the attended terminal gates for a budget cap plus a morning review queue. Because nobody is in the loop, each PR is graded by an **independent verifier** — a fresh, cheaper (`sonnet`), read-only `claude -p` with no view of the maker's reasoning — that checks the diff against the acceptance criteria and posts an `AGREE`/`DISAGREE`/`UNSURE` verdict onto the draft PR (a maker cannot reliably grade its own work; a separate grader sees only the artifact). It flags, never blocks. Fail/blocked/`DISAGREE` outcomes are distilled into a run-dir `LESSONS.md` to promote via `/lesson`. Pixel-level vision-verify is **not** wired here (a headless box has no renderer); UI bundles get a static `DESIGN.md` diff review, and the real render check lives in attended `/drive`'s UI gate.
+It is `/drive` with the gates off — the **same engine**, same fresh-context-per-bundle principle, trading the attended terminal gates for a budget cap plus a morning review queue. Because nobody is in the loop, each PR is graded by an **independent verifier** — a fresh, cheaper (`sonnet`), read-only `claude -p` with no view of the maker's reasoning — that checks the diff against the acceptance criteria and posts an `AGREE`/`DISAGREE`/`UNSURE` verdict onto the PR (a maker cannot reliably grade its own work; a separate grader sees only the artifact). It flags, never blocks. Fail/blocked/`DISAGREE` outcomes are distilled into a run-dir `LESSONS.md` to promote via `/lesson`. Pixel-level vision-verify is **not** wired here (a headless box has no renderer); UI bundles get a static `DESIGN.md` diff review, and the real render check lives in attended `/drive`'s UI gate.
 
 Every bundle passes a **fit gate** first. Excluded (report why → run it attended): a campaign or multi-phase issue, anything gated on an open question, anything sequenced behind other unmerged work, anything with whole-repo blast radius. Groom it into slices, or run it attended.
 
-`/drive status <#…>` reports the run and its draft PRs; `/drive stop <#>` halts gracefully before the next bundle.
+`/drive status <#…>` reports the run and its PRs; `/drive stop <#>` halts gracefully before the next bundle.
 
 ## Campaign pattern (looped, multi-session)
 
@@ -169,4 +169,4 @@ the cost of forgetting them is doing the job by hand.
 
 ## Rule of thumb
 
-Single PR's worth of work → skip the PRD, go `/prime` → `/plan`. PRDs and stories pay off at **3+** connected pieces. A bounded slice or a known-diff **epic** that spans several PRs / sessions → `/drive` (resumable, spec-driven, fresh-context per bundle). Slices you want finished by morning → `/drive --sleep` (draft PRs, budget-capped, independent verifier, one gate before launch). A converging-metric finish line → it's a **campaign**: loop workflows across fresh sessions, don't force it into one pass.
+Single PR's worth of work → skip the PRD, go `/prime` → `/plan`. PRDs and stories pay off at **3+** connected pieces. A bounded slice or a known-diff **epic** that spans several PRs / sessions → `/drive` (resumable, spec-driven, fresh-context per bundle). Slices you want finished by morning → `/drive --sleep` (ready-for-review PRs, budget-capped, independent verifier, one gate before launch). A converging-metric finish line → it's a **campaign**: loop workflows across fresh sessions, don't force it into one pass.

@@ -72,6 +72,16 @@ vi.mock("@/lib/theme", () => ({
     shadow2: { elevation: 4 },
     shadow3: { elevation: 10 },
   },
+  zLayers: {
+    dropdown: 1000,
+    sticky: 1100,
+    modalBackdrop: 1200,
+    modal: 1300,
+    tourSpotlight: 1400,
+    celebration: 1500,
+    toast: 1600,
+    tooltip: 1700,
+  },
 }));
 
 vi.mock("@/components/bottom-sheet-modal", () => ({ BottomSheetModal: () => null }));

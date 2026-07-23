@@ -8,6 +8,7 @@ import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { KeyboardAwareBottomSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { useSheetExitAction } from '@/hooks/use-sheet-exit-action'
 import { EditGoalModal } from './edit-goal-modal'
 import { GoalMetricsPanel } from './goal-metrics-panel'
 import { GoalActionFooter } from './goal-detail-drawer/goal-action-footer'
@@ -34,11 +35,34 @@ interface GoalDetailDrawerProps {
   goalId: string
 }
 
+function formatGoalProgressText(
+  goal: { currentValue: number; targetValue: number; unit: string } | null,
+  isStreak: boolean,
+  translate: (key: string, values?: Record<string, unknown>) => string,
+): string {
+  if (!goal) return ''
+  return isStreak
+    ? translate('goals.streak.ofTarget', {
+        current: goal.currentValue,
+        target: goal.targetValue,
+      })
+    : translate('goals.progressOf', {
+        current: goal.currentValue,
+        target: goal.targetValue,
+        unit: goal.unit,
+      })
+}
+
 /**
  * Goal Detail Drawer. Covers all 7 spec variants by status: on-track,
  * at-risk, behind, completed, abandoned, streak, update (active progress
  * form). Preserves: streak vs standard handling, progress mutation,
  * status mutation, delete mutation, edit modal, dismiss guard.
+ * The BottomSheetModal renders even when `goal` is null: unmounting a
+ * presented TrueSheet mid-dismissal wedges every subsequent RN Modal and
+ * drops the onDidDismiss that runs the scheduled exit action - see
+ * https://sheet.lodev09.com/guides/navigation. Hosts must likewise keep
+ * this drawer mounted after onClose until the dismissal completes.
  */
 export function GoalDetailDrawer({
   open,
@@ -116,23 +140,11 @@ export function GoalDetailDrawer({
     [i18n.language],
   )
 
-  let progressText = ''
-  if (goal) {
-    progressText = isStreak
-      ? t('goals.streak.ofTarget', {
-          current: goal.currentValue,
-          target: goal.targetValue,
-        })
-      : t('goals.progressOf', {
-          current: goal.currentValue,
-          target: goal.targetValue,
-          unit: goal.unit,
-        })
-  }
+  const progressText = formatGoalProgressText(goal, isStreak, translate)
 
-  const confirmDelete = useCallback(() => {
+  const confirmDelete = () => {
     setShowDeleteConfirm(true)
-  }, [])
+  }
 
   const handleDeleteConfirm = useCallback(async () => {
     try {
@@ -146,21 +158,20 @@ export function GoalDetailDrawer({
   }, [deleteGoalMut, goalId, onClose, showError, translate])
 
   const router = useRouter()
+  const { scheduleExitAction, runExitAction } = useSheetExitAction()
   const handleAskAstra = useCallback(() => {
     if (!goal) return
     const seed = t('goals.detail.askAstraSeedDefault', { title: goal.title })
     void AsyncStorage.setItem('orbit-chat-draft', seed)
+    scheduleExitAction(() => router.push('/chat'))
     onClose()
-    router.push('/chat')
-  }, [goal, onClose, router, t])
+  }, [goal, onClose, router, scheduleExitAction, t])
 
-  if (!goal) return null
-
-  const isActive = goal.status === 'Active'
+  const isActive = goal?.status === 'Active'
 
   const progressFillColor = isStreak ? tokens.statusOverdue : tokens.primary
-  const progressPct = Math.min(goal.progressPercentage, 100)
-  const headerUnitSuffix = goal.unit ? `  ·  ${goal.unit}` : ''
+  const progressPct = Math.min(goal?.progressPercentage ?? 0, 100)
+  const headerUnitSuffix = goal?.unit ? `  ·  ${goal.unit}` : ''
   const headerLine = isStreak
     ? t('goals.form.typeStreak')
     : `${t('goals.form.typeStandard')}${headerUnitSuffix}`
@@ -170,100 +181,105 @@ export function GoalDetailDrawer({
       <BottomSheetModal
         open={open}
         onClose={onClose}
-        title={goal.title}
+        onDidDismiss={runExitAction}
+        title={goal?.title}
         snapPoints={['60%', '90%']}
         canDismiss={!isProgressDirty}
         isDirty={isProgressDirty}
         onAttemptDismiss={() => requestProgressDismiss('drawer')}
         contentManagesScroll
       >
-        <KeyboardAwareBottomSheetScrollView
-          style={styles.scroll}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="always"
-        >
-          <Text style={styles.headerLine}>{headerLine}</Text>
+        {goal ? (
+          <KeyboardAwareBottomSheetScrollView
+            style={styles.scroll}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="always"
+          >
+            <Text style={styles.headerLine}>{headerLine}</Text>
 
-          <GoalProgressBlock
-            progressPct={progressPct}
-            progressFillColor={progressFillColor}
-            progressText={progressText}
-            progressPercentage={goal.progressPercentage}
-            showEdit={isActive && !showProgressForm}
-            onEdit={openProgressForm}
-            styles={styles}
-            tokens={tokens}
-          />
-
-          {showProgressForm && isActive ? (
-            <GoalProgressForm
-              isStreak={isStreak}
-              progressValue={progressValue}
-              onChangeValue={setProgressValue}
-              progressNote={progressNote}
-              onChangeNote={setProgressNote}
-              progressExceedsTarget={progressExceedsTarget}
-              isUpdatingProgress={isUpdatingProgress}
-              onCancel={() => requestProgressDismiss('form')}
-              onSubmit={() => void submitProgress()}
+            <GoalProgressBlock
+              progressPct={progressPct}
+              progressFillColor={progressFillColor}
+              progressText={progressText}
+              progressPercentage={goal.progressPercentage}
+              showEdit={isActive && !showProgressForm}
+              onEdit={openProgressForm}
               styles={styles}
               tokens={tokens}
             />
-          ) : null}
 
-          {isActive ? (
-            <GoalMetricsPanel
-              metrics={metrics}
-              unit={goal.unit}
-              isLoading={isLoadingDetail}
+            {showProgressForm && isActive ? (
+              <GoalProgressForm
+                isStreak={isStreak}
+                progressValue={progressValue}
+                onChangeValue={setProgressValue}
+                progressNote={progressNote}
+                onChangeNote={setProgressNote}
+                progressExceedsTarget={progressExceedsTarget}
+                isUpdatingProgress={isUpdatingProgress}
+                onCancel={() => requestProgressDismiss('form')}
+                onSubmit={() => void submitProgress()}
+                styles={styles}
+                tokens={tokens}
+              />
+            ) : null}
+
+            {isActive ? (
+              <GoalMetricsPanel
+                metrics={metrics}
+                unit={goal.unit}
+                isLoading={isLoadingDetail}
+                isStreak={isStreak}
+              />
+            ) : null}
+
+            <GoalDetailCollections
               isStreak={isStreak}
+              linkedHabits={goal.linkedHabits}
+              entries={detail?.progressHistory ?? []}
+              unit={goal.unit}
+              formatDate={formatDate}
             />
-          ) : null}
 
-          <GoalDetailCollections
-            isStreak={isStreak}
-            linkedHabits={goal.linkedHabits}
-            entries={detail?.progressHistory ?? []}
-            unit={goal.unit}
-            formatDate={formatDate}
-          />
+            {loadError ? (
+              <GoalLoadError
+                onRetry={() => {
+                  void refetchDetail()
+                }}
+                styles={styles}
+              />
+            ) : null}
 
-          {loadError ? (
-            <GoalLoadError
-              onRetry={() => {
-                void refetchDetail()
-              }}
+            <GoalActionFooter
+              isActive={isActive}
+              isUpdatingStatus={isUpdatingStatus}
+              iconColor={tokens.fg3}
+              dangerColor={tokens.statusBad}
+              onMarkCompleted={() => void markCompleted()}
+              onMarkAbandoned={() => void markAbandoned()}
+              onReactivate={() => void reactivate()}
+              onEdit={() => setShowEditModal(true)}
+              onDelete={confirmDelete}
               styles={styles}
             />
-          ) : null}
 
-          <GoalActionFooter
-            isActive={isActive}
-            isUpdatingStatus={isUpdatingStatus}
-            iconColor={tokens.fg3}
-            dangerColor={tokens.statusBad}
-            onMarkCompleted={() => void markCompleted()}
-            onMarkAbandoned={() => void markAbandoned()}
-            onReactivate={() => void reactivate()}
-            onEdit={() => setShowEditModal(true)}
-            onDelete={confirmDelete}
-            styles={styles}
-          />
-
-          <GoalAskAstraButton
-            tokens={tokens}
-            styles={styles}
-            onPress={handleAskAstra}
-          />
-        </KeyboardAwareBottomSheetScrollView>
+            <GoalAskAstraButton
+              tokens={tokens}
+              styles={styles}
+              onPress={handleAskAstra}
+            />
+          </KeyboardAwareBottomSheetScrollView>
+        ) : null}
       </BottomSheetModal>
 
-      <EditGoalModal
-        open={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        goal={goal}
-      />
+      {goal ? (
+        <EditGoalModal
+          open={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          goal={goal}
+        />
+      ) : null}
 
       <ConfirmDialog
         open={showProgressDiscardDialog}

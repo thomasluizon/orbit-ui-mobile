@@ -2,10 +2,52 @@
 issue: 539
 title: "Whole-app visual transformation to DESIGN.md + mockups (web + mobile)"
 status: in-progress
-next-action: "Thomas ticks surfaces in signoff.json after looking at a contact sheet. See '## How a surface actually gets done'."
+next-action: "FINISH THE IN-PROGRESS MERGE of main into this branch (staged, uncommitted). See '## Where this stands (2026-07-23)'."
 ---
 
 # Drive spec - #539 whole-app visual transformation
+
+## Where this stands (2026-07-23)
+
+**The harness now lives on `main`.** PR #570 was squash-merged as `56c6605f` after six
+independent review rounds, each of which found a real defect (nine numbered gate-tamper
+bypasses now carry regression tests, 766 assertions). `tools/workorder.mjs`,
+`check-diff-ownership.mjs`, `drive-queue.mjs`, `surface-manifest.mjs`, `visual-signature.mjs`
+and `.claude/skills/drive/run.mjs` are all on main, so `/drive` works for any issue rather
+than only this one.
+
+**A merge of `main` into this branch is IN PROGRESS and uncommitted.** `.git/MERGE_HEAD` is
+`56c6605f`; all 191 conflicts are resolved and 297 files are staged. How each class was
+resolved:
+
+| class | resolution |
+|---|---|
+| 11 app-code conflicts | union of both sides, one agent per file, then three adversarial verifiers |
+| 160 `.claude/workorders/*` + `surfaces.json` | derived - took main's, then regenerated from the merged tree |
+| 9 differing harness/doc files | main (they carry the bypass fixes, fail-closed guard, `**` gitignore idiom) |
+| both `eslint-suppressions.json` | ours - the real design debt; main's `{}` was a port placeholder |
+| `test-mocks/lucide-react-native.ts` | stays deleted - the b6 icon-barrel migration replaced it with `tabler-icons.ts` |
+| `habit-create.png` | ours, but **the baseline is stale and must be regenerated** - both sides changed the create-habit form |
+
+**The three fixes that shipped to production while this branch was open all survived**,
+verified line-by-line rather than assumed: #568 (`onScrollOffsetChange`, never the discarded
+`onScroll`, plus the corrected test mock and the `local/no-draggable-onscroll` rule), #569
+(`useSheetExitAction` / `onDidDismiss` sheet-navigation deferral), and #566 (sub-habit
+frequency mirroring + scroll-to-top). The one surviving `onScroll=` in `habit-list.tsx` is on
+a plain `FlatList`, which honours it correctly.
+
+**Two merge-introduced test failures are known and NOT yet fixed:**
+
+1. `apps/web/__tests__/components/habits/habit-row.test.tsx` - a branch-only test whose
+   drill-chevron expectation collides with main's `canDrillInto = hasSubHabits && !!onDrillInto`.
+2. `apps/mobile/__tests__/screens/calendar-views.test.tsx` - fails to load with "No zLayers
+   export is defined on the @/lib/theme mock". Main added `ScrollToTopButton` to
+   `app/(tabs)/calendar.tsx` while this branch rewrote `components/ui/scroll-to-top-button.tsx`
+   to use `zLayers`, so the test's theme mock is missing that export.
+
+**Still true, and still the highest-value unbuilt thing:** the harness has never completed a
+real run. `run.mjs --dry-run` passes and enumerates all 64 bundles once the tree is clean.
+One small attended `/drive` on a single bundle beats another review round.
 
 Rewritten 2026-07-19 (evening) after the harness rebuild. The previous version of this file
 described a harness that has since been replaced. The full record of the rebuild - the

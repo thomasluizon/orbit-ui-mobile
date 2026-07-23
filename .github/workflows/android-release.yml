@@ -389,6 +389,7 @@ jobs:
         shell: bash
         env:
           CLEAR_CACHE: ${{ inputs.clear_cache }}
+          EXPO_NO_METRO_WORKSPACE_ROOT: "1"
           EAS_BUILD_PROFILE: ${{ env.BUILD_EAS_PROFILE }}
           EXPO_PUBLIC_API_BASE: ${{ env.BUILD_API_BASE }}
           EXPO_PUBLIC_ADMOB_USE_TEST_IDS: ${{ env.BUILD_ADMOB_USE_TEST_IDS }}

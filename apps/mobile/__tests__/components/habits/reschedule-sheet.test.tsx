@@ -50,7 +50,7 @@ interface TestNode {
 }
 
 function render(ui: React.ReactElement) {
-  let tree: { root: TestNode }
+  let tree: { root: TestNode; update: (nextUi: React.ReactElement) => void }
   TestRenderer.act(() => {
     tree = TestRenderer.create(ui)
   })
@@ -108,16 +108,27 @@ describe('RescheduleSheet (mobile)', () => {
     })
   })
 
-  it('shows the upgrade prompt for free users and routes to /upgrade', () => {
+  it('shows the upgrade prompt for free users and routes to /upgrade only after the sheet dismisses', () => {
     mockProfile = { hasProAccess: false, language: 'en' }
+    const onOpenChange = vi.fn()
 
-    const tree = render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
+    const tree = render(<RescheduleSheet open onOpenChange={onOpenChange} habit={overdueHabit} />)
 
     expect(hasText(tree.root, 'habits.reschedule.freePrompt')).toBe(true)
     TestRenderer.act(() => {
       pressButton(tree.root, 'habits.reschedule.upgrade')
     })
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+    expect(mockPush).not.toHaveBeenCalled()
+
+    TestRenderer.act(() => {
+      tree.update(
+        <RescheduleSheet open={false} onOpenChange={onOpenChange} habit={overdueHabit} />,
+      )
+    })
+
     expect(mockPush).toHaveBeenCalledWith('/upgrade')
+    expect(mockPush).toHaveBeenCalledTimes(1)
   })
 
   it('shows an error with a retry that refetches', () => {
