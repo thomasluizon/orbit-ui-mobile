@@ -23,7 +23,12 @@
  *    surface kind so the agent is not re-reading a 557-line spec to find the
  *    eight lines that apply to it.
  *  - TIMELINE: append-only. The one thing a fresh process cannot reconstruct is
- *    what the previous nine sessions already tried here.
+ *    what the previous nine sessions already tried here. An order that stops
+ *    deriving is therefore RETIRED rather than deleted whenever it carries a
+ *    recorded entry: the sweep that used to delete it fired on SUCCESS (a
+ *    residual group's id derives from the suppression ledger, so clearing its
+ *    last violation de-derives it), destroying the record and making the
+ *    order's own definition of done exit 2 forever.
  *
  * What it deliberately does NOT do: grant completion. The mechanical backlog is
  * a floor, and clearing it means "this surface no longer violates the rules we
@@ -78,7 +83,13 @@ USAGE
                   Existing Timeline sections are PRESERVED verbatim, and so are the
                   plan work orders --from-plan wrote (they are not manifest-derived,
                   so a regeneration must never read them as stale); everything else
-                  is derived, so a regeneration is a reviewable diff.
+                  is derived, so a regeneration is a reviewable diff. An order that
+                  stopped deriving (a residual group whose debt is cleared, a surface
+                  the manifest dropped) is RETIRED - kept, marked "retired: true",
+                  cells 0 - whenever it carries a recorded Timeline entry, and swept
+                  only when it carries none. Retirement is what keeps success
+                  survivable: the sweep used to delete the order the moment its
+                  Backlog A hit 0, taking the Timeline with it.
   --check         Do not write. Print one greppable "DEBT <id> ..." line per work
                   order still carrying debt, the totals, and a one-line depth
                   summary; exit 1 if ANY work order still carries mechanical debt.
@@ -337,6 +348,7 @@ function renderWorkOrder(surface, debt, timeline, manifest) {
     `cells: ${surface.cells}`,
     `mechanicalDebt: ${debt.total}`,
     `pixelEvidence: ${surface.pixelEvidence}`,
+    surface.retired ? "retired: true" : null,
     `generatedFrom: ${manifest.generatedFrom ?? "unknown"}`,
     "---",
     "",
@@ -344,7 +356,9 @@ function renderWorkOrder(surface, debt, timeline, manifest) {
     "",
     "## Goal",
     "",
-    surface.kind === "residual"
+    surface.retired
+      ? "RETIRED. This order no longer derives from the manifest or the suppression ledger - its mechanical debt is cleared, or its surface left the manifest. It is kept, not deleted, for the Timeline at the bottom: that record is the one thing a fresh session cannot reconstruct, and deleting the file destroyed it. Nothing here is assigned work, and no bundle queues a retired order."
+      : surface.kind === "residual"
       ? "Bring these shared/style-only files into DESIGN.md conformance. A spacing fix is expected to change the layout - deliberately and minimally; structure and components stay as they are."
       : surface.kind === "plan"
         ? `Implement the plan at \`${surface.sourceFile}\`. That file holds the objective, the tasks and the acceptance criteria; this work order holds your boundary and your starting state, so you do not have to go looking for either.`
@@ -418,8 +432,9 @@ function renderWorkOrder(surface, debt, timeline, manifest) {
       "then append a Timeline entry naming each value you kept and why. The source file IS edited, so the",
       "count falls legitimately and the definition of done below stays reachable for honest work.",
       "",
-      "See the violations with:",
-      "  `npx eslint <file> --suppressions-location <an-empty-json-file>`  (the baseline hides them otherwise)",
+      "See the violations with (a TEMPLATE: substitute the two capitalised words. The angle-bracket",
+      "form this used to print was a bash redirect - pasted verbatim it was a syntax error, not a run):",
+      "  `npx eslint FILE --suppressions-location EMPTY_JSON_FILE`  (the baseline hides them otherwise)",
       "Then `npm run lint:prune` in the workspace, then `node tools/workorder.mjs --check`.",
       "Editing `eslint-suppressions.json` by hand instead of fixing the code is fabricating a result,",
       "and `tools/check-diff-ownership.mjs` detects a count that fell for a file you never edited.",
@@ -563,6 +578,63 @@ function planOrdersOnDisk() {
     })
   }
   return orders.sort((a, b) => a.surfaceId.localeCompare(b.surfaceId))
+}
+
+/**
+ * A work order that no longer derives, read back off disk so the regeneration
+ * can KEEP it instead of deleting it.
+ *
+ * The sweep used to rmSync anything not currently derived, and for a residual
+ * group that was the reward for SUCCESS: clearing its last violation removes
+ * its files from the suppression ledger, so the id stops deriving, so the
+ * regeneration the bundle prompt orders LAST deleted the order. That took the
+ * Timeline with it - the one artifact the header above says a fresh process
+ * cannot reconstruct - and left the order's own definition of done
+ * (`--check --id <id>`) exiting 2 "no work order" forever, which the driver
+ * records as a hard failure for a bundle that did its work perfectly.
+ *
+ * So an order carrying RECORDED HISTORY is retired, never deleted: it keeps its
+ * Timeline and its Boundaries, its debt is recomputed from the ledger, and it
+ * re-renders byte-identically on every later regeneration (cells drop to 0,
+ * because a retired order is in no denominator). An order with no recorded
+ * history has nothing to lose and is still swept.
+ *
+ * Returns null for anything that must not be retired: no frontmatter, no
+ * recorded Timeline, a plan order (preserved by its own path), a malformed
+ * body, or a filename that does not match its own surfaceId (re-rendering that
+ * would write a second file and the regeneration would stop being idempotent).
+ */
+function retiredUnitFrom(name) {
+  const path = join(OUT_DIR, name)
+  const text = readFileSync(path, "utf8")
+  const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text)?.[1]
+  if (!frontmatter) return null
+  if (!existingTimeline(path).length) return null
+  const field = (key) => (new RegExp(`^${key}:\\s*(.+)$`, "m").exec(frontmatter)?.[1] ?? "").trim()
+  const kind = field("kind")
+  if (kind === "plan") return null
+  const surfaceId = field("surfaceId")
+  if (!surfaceId || `${surfaceId}.md` !== name) return null
+  const start = text.indexOf("## Boundaries")
+  const end = text.indexOf("## Backlog A")
+  if (start === -1 || end === -1) return null
+  const sharedAt = text.indexOf("### Shared, and NOT yours to edit")
+  const stop = sharedAt !== -1 && sharedAt < end ? sharedAt : end
+  return {
+    surfaceId,
+    platform: field("platform") || "web",
+    kind: kind || "residual",
+    sourceFile: null,
+    href: null,
+    ownedFiles: [...text.slice(start, stop).matchAll(/^- `([^`]+)`\r?$/gm)].map((match) => match[1]),
+    sharedFiles: [],
+    retired: true,
+    pixelEvidence: "none",
+    cells: 0,
+    states: new Set(),
+    themes: new Set(),
+    locales: new Set(),
+  }
 }
 
 /**
@@ -805,6 +877,18 @@ function main() {
     .map((unit) => ({ unit, debt: debtOf(unit.ownedFiles, suppressions) }))
     .sort((a, b) => b.debt.total - a.debt.total || a.unit.surfaceId.localeCompare(b.unit.surfaceId))
 
+  const planOrders = planOrdersOnDisk()
+  // Everything on disk that no longer derives and is not a plan order. Those
+  // carrying recorded history are RETIRED (kept, re-rendered, answerable to
+  // --check --id); the rest are swept below exactly as before.
+  const derivedNames = new Set([...ledger.map((entry) => `${entry.unit.surfaceId}.md`), "INDEX.md", ...planOrders.map((order) => order.file)])
+  const retired = (existsSync(OUT_DIR) ? readdirSync(OUT_DIR) : [])
+    .filter((name) => name.endsWith(".md") && !derivedNames.has(name))
+    .map((name) => ({ name, unit: retiredUnitFrom(name) }))
+    .filter((entry) => entry.unit !== null)
+    .map((entry) => ({ ...entry, debt: debtOf(entry.unit.ownedFiles, suppressions) }))
+    .sort((a, b) => a.unit.surfaceId.localeCompare(b.unit.surfaceId))
+
   if (wantedId) {
     const foldedPrimary = foldedInto.get(wantedId)
     if (foldedPrimary) {
@@ -812,9 +896,16 @@ function main() {
     }
     let found = ledger.find((entry) => entry.unit.surfaceId === wantedId)
     let sweptNote = null
+    const retiredEntry = found ? null : retired.find((entry) => entry.unit.surfaceId === wantedId)
+    if (retiredEntry) {
+      found = retiredEntry
+      sweptNote =
+        "This order is RETIRED: it no longer derives from the manifest or the suppression ledger, and the " +
+        "regeneration KEEPS it for its recorded Timeline. It is queued by no bundle."
+    }
     if (!found) {
       const onDiskPath = join(OUT_DIR, `${wantedId}.md`)
-      const planOrder = planOrdersOnDisk().find((order) => order.surfaceId === wantedId)
+      const planOrder = planOrders.find((order) => order.surfaceId === wantedId)
       if (checkOnly && (planOrder || existsSync(onDiskPath))) {
         // A residual order derives from the suppression ledger, so the moment a
         // child clears its LAST violation the id stops deriving - and the
@@ -832,7 +923,9 @@ function main() {
         }
         if (!planOrder && found.debt.total === 0) {
           sweptNote =
-            "This order no longer derives from the manifest or the suppression ledger: its debt is fully cleared, and the next `node tools/workorder.mjs` regeneration will sweep the file."
+            "This order no longer derives from the manifest or the suppression ledger: its debt is fully cleared. It " +
+            "carries no recorded Timeline entry, so the next `node tools/workorder.mjs` regeneration will sweep the " +
+            "file - append your Timeline entry first (condition c) and the regeneration RETIRES it instead, keeping the record."
         }
       } else if (planOrder) {
         fail(`"${wantedId}" is a plan work order with no manifest unit to re-render: read .claude/workorders/${planOrder.file} directly.`)
@@ -863,7 +956,6 @@ function main() {
   const residual = ledger.filter((entry) => entry.unit.kind === "residual")
   const surfaceOrders = ledger.filter((entry) => entry.unit.kind !== "residual")
 
-  const planOrders = planOrdersOnDisk()
   const foldedList = [...foldedInto.entries()].sort((a, b) => a[0].localeCompare(b[0]))
 
   if (!checkOnly) {
@@ -871,6 +963,9 @@ function main() {
     const keep = new Set(ledger.map((entry) => `${entry.unit.surfaceId}.md`))
     keep.add("INDEX.md")
     for (const order of planOrders) keep.add(order.file)
+    // Retirement, not deletion: see retiredUnitFrom. Only an order with NO
+    // recorded history is swept, because only then is nothing lost.
+    for (const entry of retired) keep.add(entry.name)
     for (const stale of readdirSync(OUT_DIR).filter((name) => name.endsWith(".md") && !keep.has(name))) {
       rmSync(join(OUT_DIR, stale))
     }
@@ -879,6 +974,10 @@ function main() {
       const timeline = [...existingTimeline(path), ...(entry.unit.foldedTimeline ?? [])]
       writeFileSync(path, renderWorkOrder(entry.unit, entry.debt, timeline, manifest))
     }
+    for (const entry of retired) {
+      const path = join(OUT_DIR, entry.name)
+      writeFileSync(path, renderWorkOrder(entry.unit, entry.debt, existingTimeline(path), manifest))
+    }
     writeFileSync(
       join(OUT_DIR, "INDEX.md"),
       [
@@ -886,7 +985,12 @@ function main() {
         "",
         `Generated from manifest \`${manifest.generatedFrom ?? "unknown"}\`. Do not hand-edit; run \`node tools/workorder.mjs\`.`,
         "",
-        `- ${ledger.length} work orders (${surfaceOrders.length} surfaces + ${residual.length} residual groups)`,
+        // Every file in this directory is counted here, in one headline. The
+        // manifest-derived total alone disagreed with `drive-queue`'s count the
+        // moment a plan or retired order existed, and a reader quoting the
+        // headline was quoting the wrong denominator.
+        `- ${ledger.length + planOrders.length + retired.length} order files: ${ledger.length} derived (${surfaceOrders.length} surfaces + ${residual.length} residual groups)` +
+          `${planOrders.length ? ` + ${planOrders.length} plan` : ""}${retired.length ? ` + ${retired.length} retired` : ""}`,
         `- ${totalDebt} mechanical violations outstanding across ${withDebt.length} work orders`,
         "",
         "Mechanical debt is a FLOOR. Completion is granted only by a human tick in signoff.json.",
@@ -913,6 +1017,18 @@ function main() {
               "",
             ]
           : []),
+        ...(retired.length
+          ? [
+              "## Retired work orders (no longer derived, kept for their Timeline)",
+              "",
+              "Their debt is cleared or their surface left the manifest, so nothing derives them any more.",
+              "Deleting them destroyed the one artifact a fresh session cannot reconstruct, so the",
+              "regeneration keeps them. No bundle queues a retired order.",
+              "",
+              ...retired.map((entry) => `- [${entry.unit.surfaceId}](${entry.name})`),
+              "",
+            ]
+          : []),
         "| work order | platform | kind | owned | cells | mech. debt |",
         "|---|---|---|---|---|---|",
         ...ledger.map(
@@ -936,7 +1052,8 @@ function main() {
 
   process.stdout.write(
     [
-      `${ledger.length} work orders  (${surfaceOrders.length} surfaces + ${residual.length} residual groups${foldedList.length ? `; ${foldedList.length} surface id(s) folded into their primary` : ""})`,
+      `${ledger.length} work orders  (${surfaceOrders.length} surfaces + ${residual.length} residual groups${foldedList.length ? `; ${foldedList.length} surface id(s) folded into their primary` : ""})` +
+        `${planOrders.length ? `, ${planOrders.length} plan order(s)` : ""}${retired.length ? `, ${retired.length} retired order(s) kept for their Timeline` : ""}`,
       `${ownedEverywhere.size} files owned by a surface; ${residual.reduce((n, entry) => n + entry.unit.ownedFiles.length, 0)} more carry debt and are owned by a residual group`,
       `${totalDebt} mechanical violations outstanding across ${withDebt.length} work orders`,
       checkOnly ? depthSummaryLine(surfaceOrders, manifest) : `written to .claude/workorders/`,

@@ -1017,6 +1017,7 @@ writeFileSync(join(woGuard, "apps", "web", "eslint-suppressions.json"), JSON.str
 const clearedResidual = runWorkorder(woGuard, ["--check", "--id", "residual-web-app"])
 T("workorder: a fully-cleared residual's done command exits 0", clearedResidual.status, 0)
 T("workorder: ...with the honest swept-on-next-regeneration note", /no longer derives/.test(clearedResidual.stdout) && /sweep/.test(clearedResidual.stdout), true)
+T("workorder: ...telling the child a Timeline entry is what makes the order survive", /RETIRES it instead/.test(clearedResidual.stdout), true)
 T("workorder: an unknown id still exits 2", runWorkorder(woGuard, ["--check", "--id", "no-such-order"]).status, 2)
 // The fallback reads Boundaries off the child-writable .md for an UNCOMMITTED
 // order (this one is untracked), so pin the anti-gaming property that remains
@@ -1024,6 +1025,72 @@ T("workorder: an unknown id still exits 2", runWorkorder(woGuard, ["--check", "-
 writeFileSync(residualPath, residualBody.replace("- `apps/web/app/shared.ts`", "- `apps/web/app/shared.ts`\n- `apps/web/app/page.tsx`"))
 const annexed = runWorkorder(woGuard, ["--check", "--id", "residual-web-app"])
 T("workorder: annexing a debt-carrying file into the cleared order exits 1", annexed.status, 1)
+
+// ---------------------------------------------------------------------------
+// RETIREMENT, and why it is the loop's satisfiability. Lived end to end before
+// the fix: a residual order's id derives from the suppression ledger alone, so
+// clearing its LAST violation - the exact outcome its Backlog A demands - made
+// the id stop deriving, and prompt rule 7's mandated regeneration then DELETED
+// the order. That destroyed its Timeline (the one artifact the generator's own
+// header says a fresh process cannot reconstruct) and left the order's own
+// definition of done, `--check --id <id>`, exiting 2 "no work order" forever,
+// which the driver records as GATE-CONTRADICTED and feeds to the circuit
+// breaker. The only alternative - skip rule 7 - failed CI's ledger-freshness
+// gate instead, so no end state satisfied both. An order carrying recorded
+// history is now RETIRED rather than swept.
+// ---------------------------------------------------------------------------
+console.log("\n# workorder retirement (a cleared residual survives its own success)")
+const woRetire = buildWorkorderFixture("retire", {
+  cells: [workorderCell("r-cal", "apps/web/app/page.tsx")],
+  suppressions: { "lib/styles.ts": { "local/spacing-scale": { count: 2 } } },
+})
+const retireGit = (...args) => spawnSync("git", args, { cwd: woRetire, encoding: "utf8" })
+retireGit("config", "core.autocrlf", "false")
+mkdirSync(join(woRetire, "apps", "web", "lib"), { recursive: true })
+writeFileSync(join(woRetire, "apps", "web", "lib", "styles.ts"), "export const gap = 10\n")
+runWorkorder(woRetire)
+const retirePath = join(woRetire, ".claude", "workorders", "residual-web-lib.md")
+T("workorder: the residual group derives while its debt stands", existsSync(retirePath), true)
+writeFileSync(retirePath, readFileSync(retirePath, "utf8") + "- 2026-07-14 session 7: batch-snapping was tried and reverted. DO NOT repeat.\n")
+runWorkorder(woRetire)
+retireGit("add", "-A")
+retireGit("commit", "-qm", "base: orders generated, one recorded Timeline entry")
+const retireBase = retireGit("rev-parse", "HEAD").stdout.trim()
+
+// The honest child: fix the source, clear the ledger (lint:prune shape),
+// append its own Timeline entry, then obey rule 7 and regenerate.
+writeFileSync(join(woRetire, "apps", "web", "lib", "styles.ts"), "export const gap = 8\n")
+writeFileSync(join(woRetire, "apps", "web", "eslint-suppressions.json"), "{}")
+writeFileSync(retirePath, readFileSync(retirePath, "utf8") + "- 2026-07-22 cleared both violations; kept nothing.\n")
+T("workorder: condition (a) is green BEFORE the mandated regeneration", runWorkorder(woRetire, ["--check", "--id", "residual-web-lib"]).status, 0)
+T("workorder: rule 7's regeneration itself exits 0", runWorkorder(woRetire).status, 0)
+T("workorder: ...and the cleared order is RETIRED, not deleted", existsSync(retirePath), true)
+const retiredBody = existsSync(retirePath) ? readFileSync(retirePath, "utf8") : ""
+T("workorder: the retired order is marked in its frontmatter", /^retired: true$/m.test(retiredBody), true)
+T("workorder: ...keeps every recorded Timeline entry", /DO NOT repeat/.test(retiredBody) && /kept nothing/.test(retiredBody), true)
+T("workorder: ...and states plainly that it is assigned to nobody", /RETIRED\./.test(retiredBody), true)
+const retiredVerdict = runWorkorder(woRetire, ["--check", "--id", "residual-web-lib"])
+T("workorder: condition (a) STAYS green after the mandated regeneration", retiredVerdict.status, 0)
+T("workorder: ...and says so, instead of 'no work order with id'", /RETIRED/.test(retiredVerdict.stdout), true)
+T("workorder: INDEX.md lists the retired order rather than dropping it", /\[residual-web-lib\]\(residual-web-lib\.md\)/.test(readFileSync(join(woRetire, ".claude", "workorders", "INDEX.md"), "utf8")), true)
+retireGit("add", "-A")
+retireGit("commit", "-qm", "honest child: cleared the last violation, regenerated")
+T("workorder: the recorded history survives in git after the whole sequence", /DO NOT repeat/.test(retireGit("show", "HEAD:.claude/workorders/residual-web-lib.md").stdout), true)
+runWorkorder(woRetire)
+T(
+  "workorder: retirement is idempotent (CI's ledger-freshness assertion)",
+  retireGit("status", "--porcelain", "--", ".claude/workorders").stdout.trim(),
+  "",
+)
+T(
+  "workorder: condition (b) agrees with the same sequence",
+  spawnSync(process.execPath, [join(hooksDir, "..", "..", "tools", "check-diff-ownership.mjs"), "--id", "residual-web-lib", "--base", retireBase], {
+    cwd: woRetire,
+    env: { ...process.env, ORBIT_SURFACE_ROOT: woRetire },
+    encoding: "utf8",
+  }).status,
+  0,
+)
 
 // ---------------------------------------------------------------------------
 // workorder round 2. Each property shipped broken once: a plan naming a
@@ -1459,6 +1526,31 @@ const honestIndex = readFileSync(regenIndexPath, "utf8")
   T("regen carve-out: deleting a recorded Timeline entry never sanctions", runOwnershipNoBase(regenRoot, ["--id", "r-cal", "--base", regenBase]).status, 1)
   writeFileSync(rCalPath, honestOrder)
 }
+{
+  // A DELETION was the hole: the sanction loop skipped every check when both
+  // the candidate and the regeneration produced no file, so the gate exited 0
+  // on a diff that erased recorded history - the exact destruction the
+  // carve-out's step 3 claims is impossible. A deletion can never carry the
+  // base ref's entries forward, so with any recorded history it fails.
+  rmSync(rCalPath)
+  const deletedHistory = runOwnershipNoBase(regenRoot, ["--id", "r-cal", "--base", regenBase])
+  T("regen carve-out: deleting a work order that carries recorded history exits 1", deletedHistory.status, 1)
+  T("regen carve-out: ...named as the append-only contract, not as an escape", /append-only/.test(deletedHistory.stderr), true)
+  writeFileSync(rCalPath, honestOrder)
+  T("regen carve-out: restoring it returns the gate to green", runOwnershipNoBase(regenRoot, ["--id", "r-cal", "--base", regenBase]).status, 0)
+}
+{
+  // --files used to WIN over --id: ownedFilesOf never ran, so the base-existence
+  // and append-only trust roots were both skipped while the order file was
+  // still granted. Adding a flag strictly WEAKENED the gate - exit 1 became
+  // exit 0 on the identical tree.
+  writeFileSync(rCalPath, honestOrder.replace("Backlog B is the work", "Backlog B is optional"))
+  T("check-diff-ownership: --id alone still catches the rewrite", runOwnershipNoBase(regenRoot, ["--id", "r-cal", "--base", regenBase]).status, 1)
+  const both = runOwnershipNoBase(regenRoot, ["--files", "apps/web/app/page.tsx", "--id", "r-cal", "--base", regenBase])
+  T("check-diff-ownership: --files alongside --id is refused, never silently honoured", both.status, 2)
+  T("check-diff-ownership: ...saying which verifications --files would have dropped", /mutually exclusive/.test(both.stderr), true)
+  writeFileSync(rCalPath, honestOrder)
+}
 
 // ---------------------------------------------------------------------------
 // drive-queue bundling. Three properties, each verified broken end to end
@@ -1533,7 +1625,15 @@ T("drive-queue: rule 6 names the real test-companion convention", /__tests__/.te
 T("drive-queue: a visual prompt forbids editing the mirror platform's files", /mirror/.test(dqRoutePrompt) && /STOP/.test(dqRoutePrompt), true)
 T("drive-queue: a visual prompt frames depth as a veto, never a target", /redesign-depth/.test(dqRoutePrompt) && /veto a human consults/.test(dqRoutePrompt), true)
 T("drive-queue: rule 3 names the only workspaces carrying lint:prune", /apps\/web and apps\/mobile\s+are the ONLY workspaces with that script/.test(dqRoutePrompt), true)
-T("drive-queue: rule 3 tells a shared-only bundle to skip the prune step", /packages\/shared files\s+skips the prune step/.test(dqRoutePrompt), true)
+// The skip clause used to be scoped to "a bundle owning only packages/shared
+// files", which left a plan bundle owning root-level tools/ or .github/ paths
+// ordered to run a script that exits 1 there (`Missing script: lint:prune`).
+T(
+  "drive-queue: rule 3's prune skip covers every bundle with no apps/web or apps/mobile file",
+  /owning no apps\/web or apps\/mobile\s+files at all/.test(dqRoutePrompt) && /tools\/ and \.github\//.test(dqRoutePrompt),
+  true,
+)
+T("drive-queue: rule 6 refuses to invent a test location outside the three workspaces", /no\s+sanctioned location/.test(dqRoutePrompt), true)
 T("drive-queue: the prompt orders the pre-commit ledger regeneration", /run `node tools\/workorder\.mjs` \(the full regeneration\)/.test(dqRoutePrompt), true)
 T(
   "drive-queue: ...framing the ledger as derived state, gate-sanctioned only byte-identical",
@@ -1546,6 +1646,14 @@ T(
   true,
 )
 T("drive-queue: a plan prompt never orders unconditional cross-platform parity", /parity\s+is MANDATORY and yours to do IN THIS BUNDLE/.test(dqPlanPrompt), false)
+// A plan order is structurally forbidden from owning a debt-carrying file
+// (--from-plan refuses one), so `workorder --check --id` is 0 before the child
+// starts and can never fail. Printing it as condition (a) made the plan
+// bundle's ENTIRE machine-checkable definition of done vacuous, and the driver
+// then fed that tautology to the verifier as a "measurement".
+T("drive-queue: a plan prompt's condition (a) is the lint/type-check/test run", /a\. `npm run lint`, `npm run type-check` and `npm run test` pass/.test(dqPlanPrompt), true)
+T("drive-queue: ...and it says outright that the debt count measures nothing here", /It measures nothing here/.test(dqPlanPrompt), true)
+T("drive-queue: a route prompt keeps the per-order debt count as condition (a)", /a\. EACH of these exits 0/.test(dqRoutePrompt), true)
 T("drive-queue: a plan prompt carries no depth paragraph or signoff claim", /redesign-depth/.test(dqPlanPrompt) || /signoff\.json/.test(dqPlanPrompt), false)
 T(
   "drive-queue: condition (b) pins --base to the driver placeholder",
@@ -1666,6 +1774,30 @@ const dodConditionB = /`(node tools\/check-diff-ownership\.mjs[^`]*)`/.exec(pare
 T("drive-queue: the printed condition (a) command lexes in bash", dodConditionA.includes(parensId) && bashLex(dodConditionA) === 0, true)
 T("drive-queue: the printed condition (b) command lexes in bash", dodConditionB.includes(parensId) && bashLex(dodConditionB) === 0, true)
 T("drive-queue: ...and bash does reject the unquoted form (the control)", bashLex(`node tools/workorder.mjs --check --id ${parensId}`) !== 0, true)
+
+// --only-debt's whole effect was invisible: the orders it drops are exactly the
+// ones whose own body reads "Backlog A is a FLOOR you have already met; Backlog
+// B is the work", so a full drain could come back all-green with 39% of the
+// app's surfaces never handed to any agent. r-page here carries no debt.
+const dqOnlyDebtCrlf = runDriveQueue(dqCrlfRoot, ["--only-debt", "--dry-run"])
+T(
+  "drive-queue: --only-debt prints how many judgement-only orders it excluded",
+  /--only-debt excluded 1 work order\(s\) with no mechanical debt/.test(dqOnlyDebtCrlf.stdout),
+  true,
+)
+T("drive-queue: ...naming what is left unscheduled, not just the count", /JUDGEMENT backlog/.test(dqOnlyDebtCrlf.stdout), true)
+T("drive-queue: ...and the excluded order really is out of the queue", /r-page/.test(dqOnlyDebtCrlf.stdout), false)
+
+// A retired order (debt cleared, kept only for its Timeline) is work-free by
+// construction: queuing one hands a child a bundle with nothing in it.
+writeFileSync(
+  join(dqCrlfOrders, "residual-web-gone.md"),
+  "---\nsurfaceId: residual-web-gone\nplatform: web\nkind: residual\nownedFiles: 1\ncells: 0\nmechanicalDebt: 0\npixelEvidence: none\nretired: true\ngeneratedFrom: test\n---\n\n# Work order: residual-web-gone\n",
+)
+const dqRetired = runDriveQueue(dqCrlfRoot, ["--dry-run"])
+T("drive-queue: a retired work order is never queued", /residual-web-gone/.test(dqRetired.stdout), false)
+T("drive-queue: ...and is not reported as unparseable either", /residual-web-gone/.test(dqRetired.stderr), false)
+rmSync(join(dqCrlfOrders, "residual-web-gone.md"))
 
 writeFileSync(join(dqCrlfOrders, "junk.md"), "no frontmatter here\n")
 const dqJunk = runDriveQueue(dqCrlfRoot, ["--dry-run"])
@@ -1911,6 +2043,14 @@ T(
 )
 const gateChecksNoBase = measureGates({ workOrders: ["wo-x"] }, { repos: [{ path: gateToolRepo }] }, "")
 T("drive: measureGates with no recorded base records a FAILING ownership check", gateChecksNoBase[0].exit !== 0 && /failed closed/.test(gateChecksNoBase[0].tail), true)
+
+// A plan order is structurally forbidden from owning a file that carries lint
+// debt, so `workorder --check --id` is 0 before the child starts and can never
+// fail. Recording it handed the verifier a tautology under the banner
+// "measurements, not claims - weigh them over anything the implementer says".
+const gateChecksPlan = measureGates({ kind: "plan", workOrders: ["wo-x"] }, { repos: [{ path: gateToolRepo }] }, gateBaseSha)
+T("drive: a plan bundle records no vacuous workorder-debt verdict", gateChecksPlan.some((check) => /workorder --check/.test(check.command)), false)
+T("drive: ...but the ownership gate still runs for it, from the base copy", /check-diff-ownership \(base-ref copy\)/.test(gateChecksPlan[0].command), true)
 
 // ---------------------------------------------------------------------------
 // drive engine preflight, spawned for real. Round 1 observed a PREFLIGHT

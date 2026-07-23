@@ -52,8 +52,10 @@ USAGE
   --only-debt     Queue only work orders carrying mechanical debt (the machine-checkable
                   work). Plan work orders (kind: plan) are kept regardless of debt: their
                   backlog is the plan's acceptance criteria, not the lint baseline, so a
-                  debt filter would silently drop them. Without the flag, every work order
-                  is queued, including the 87 whose backlog is judgement-only.
+                  debt filter would silently drop them. Every other debt-free order IS
+                  dropped - the run prints how many - and those are exactly the orders
+                  whose backlog is judgement-only. Without the flag, every work order is
+                  queued. Retired orders (retired: true) are never queued either way.
   --platform      Restrict to one platform.
   --max-files N   Owned-file cap per bundle (default ${DEFAULTS.maxFiles}).
   --max-debt N    Mechanical-debt cap per bundle (default ${DEFAULTS.maxDebt}).
@@ -116,6 +118,10 @@ function readWorkOrders() {
       unparseable.push(name)
       continue
     }
+    // A retired order (tools/workorder.mjs) is kept only for its Timeline: its
+    // debt is cleared or its surface left the manifest, so there is nothing to
+    // assign. Queuing one hands a child a bundle with no work in it.
+    if (fields.retired === "true") continue
     const timelineEntries = (text.split("## Timeline")[1] ?? "")
       .split(/\r?\n/)
       .filter((line) => line.trim().startsWith("- ") && !line.includes("(no work recorded"))
@@ -352,9 +358,11 @@ RULES OF ENGAGEMENT
    and say so in your summary. That is a useful result, not a failure.
 3. Clear Backlog A (the enumerated violations) by fixing the SOURCE, then run
    \`npm run lint:prune\` in the workspace that carries the ledger: apps/web and apps/mobile
-   are the ONLY workspaces with that script. A bundle owning only packages/shared files
-   skips the prune step - the suppression scan covers apps/web and apps/mobile alone, so
-   its Backlog A is zero by construction and there is no ledger to prune there. The rewrite
+   are the ONLY workspaces with that script. A bundle owning no apps/web or apps/mobile
+   files at all - packages/shared only, or root-level paths like tools/ and .github/ -
+   skips the prune step entirely: the suppression scan covers apps/web and apps/mobile
+   alone, so its Backlog A is zero by construction, there is no ledger to prune, and
+   running the command from such a bundle's scope is a \`Missing script\` error. The rewrite
    lint:prune makes to eslint-suppressions.json is PERMITTED: the ledger is
    workspace-global, and the ownership gate expects it to move when files you edited
    improve. What stays detected and fatal is a count that falls for a file this diff
@@ -373,7 +381,10 @@ ${parityRule}
    workspace \`__tests__\` tree (\`apps/web/__tests__/\`, \`apps/mobile/__tests__/\`,
    \`packages/shared/src/__tests__/\`), named \`<source-basename>.test.ts\` / \`.tsx\`, or
    \`<dir>-page.test.tsx\` for a router \`page.tsx\`. A test for a file you do not own
-   belongs to whoever owns that file - do not write it.
+   belongs to whoever owns that file - do not write it. If your owned files live OUTSIDE
+   those three workspaces (root-level \`tools/\`, \`.github/\`, config), there is no
+   sanctioned location and the gate reads any test file you add as an escape: do not invent
+   one. Say in the Timeline and your summary how you verified the change instead.
 7. LAST, before you commit: run \`node tools/workorder.mjs\` (the full regeneration) and
    commit its diff together with the work. Clearing debt moves your work order's
    mechanicalDebt frontmatter, and CI's ledger-freshness gate asserts the committed orders
@@ -384,9 +395,18 @@ ${parityRule}
    and the review bots run).
 ${depthParagraph}
 DEFINITION OF DONE - three machine-checkable conditions, and nothing else:
-  a. EACH of these exits 0 (per order; the global \`--check\` form covers bundles that are
+${
+  isPlan
+    ? `  a. \`npm run lint\`, \`npm run type-check\` and \`npm run test\` pass in every workspace this
+     plan touched. This is condition (a) for a plan bundle because the work-order debt count
+     is NOT: a plan order is structurally forbidden from owning any file that carries lint
+     debt (\`--from-plan\` refuses one), so \`node tools/workorder.mjs --check --id '${ids[0]}'\`
+     exits 0 before you write a line and can never fail. It measures nothing here, the driver
+     does not record it for a plan bundle, and you must not cite it as evidence of anything.`
+    : `  a. EACH of these exits 0 (per order; the global \`--check\` form covers bundles that are
      not yours and can stay red while your work is complete, so it is not your condition):
-${ids.map((id) => `       node tools/workorder.mjs --check --id '${id}'`).join("\n")}
+${ids.map((id) => `       node tools/workorder.mjs --check --id '${id}'`).join("\n")}`
+}
   b. The ownership gate, pinned to the commit this bundle branched from. The --base value
      below is stamped in by the driver at spawn; running the command by hand, substitute
      that branch-point sha yourself - never HEAD, whose committed diff is empty by
@@ -394,7 +414,7 @@ ${ids.map((id) => `       node tools/workorder.mjs --check --id '${id}'`).join("
      work orders entirely.
      \`node tools/check-diff-ownership.mjs ${ids.map((id) => `--id '${id}'`).join(" ")} --base {{DRIVE_BASE}}\` exits 0.
   c. Each touched work order has your new Timeline entry.
-Then lint, type-check and the tests pass.
+${isPlan ? "Plus the plan's own acceptance criteria, which only a human can judge." : "Then lint, type-check and the tests pass."}
 
 ${closing}
 
@@ -447,7 +467,24 @@ function main() {
   // acceptance criteria), so a pure debt filter silently dropped every plan -
   // verified: the documented step-9 commands queued 48 bundles and the plan
   // work order appeared nowhere.
-  if (argv.includes("--only-debt")) orders = orders.filter((order) => order.debt > 0 || order.kind === "plan")
+  if (argv.includes("--only-debt")) {
+    const before = orders.length
+    orders = orders.filter((order) => order.debt > 0 || order.kind === "plan")
+    // The exclusion is the whole point of the flag and it was invisible: the
+    // dropped orders are exactly the ones whose own body says "Backlog A is a
+    // FLOOR you have already met - Backlog B is the work", so a full drain of
+    // this queue can come back all-green with 39% of the app's surfaces never
+    // handed to any agent. Printing the number is the gate; SKILL.md step 9
+    // repeats it in prose.
+    const excluded = before - orders.length
+    if (excluded) {
+      process.stdout.write(
+        `--only-debt excluded ${excluded} work order(s) with no mechanical debt. Their Backlog A is already ` +
+          `clear, so what remains in them is the JUDGEMENT backlog (Backlog B) - it is real work, and this queue ` +
+          `does not schedule it. Run without --only-debt to queue them.\n\n`,
+      )
+    }
+  }
   if (!orders.length) fail("no work orders match those filters.")
 
   const queue = bundle(orders, limits)

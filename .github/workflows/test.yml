@@ -192,8 +192,12 @@ jobs:
         # `git add -N` plus diffing against HEAD is deliberate: it catches all
         # three drift shapes (a modified order, a DELETED one - the fold case -
         # and a NEW one), where a plain index diff goes blind on deletions the
-        # moment they are staged. Timeline appends survive regeneration, so
-        # committing the regenerated output loses nothing.
+        # moment they are staged. Timeline appends survive regeneration - an
+        # order that stops deriving is RETIRED rather than deleted whenever it
+        # carries a recorded entry (tools/workorder.mjs) - so committing the
+        # regenerated output loses no history. Before retirement existed this
+        # comment was false: clearing a residual group's last violation made the
+        # regeneration delete the order and its Timeline with it.
         run: |
           node tools/workorder.mjs
           git add -N .claude/workorders/

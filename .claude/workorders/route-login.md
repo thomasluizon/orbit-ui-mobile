@@ -53,8 +53,9 @@ snap: add an inline `// eslint-disable-next-line local/<rule> -- <why>, see <thi
 then append a Timeline entry naming each value you kept and why. The source file IS edited, so the
 count falls legitimately and the definition of done below stays reachable for honest work.
 
-See the violations with:
-  `npx eslint <file> --suppressions-location <an-empty-json-file>`  (the baseline hides them otherwise)
+See the violations with (a TEMPLATE: substitute the two capitalised words. The angle-bracket
+form this used to print was a bash redirect - pasted verbatim it was a syntax error, not a run):
+  `npx eslint FILE --suppressions-location EMPTY_JSON_FILE`  (the baseline hides them otherwise)
 Then `npm run lint:prune` in the workspace, then `node tools/workorder.mjs --check`.
 Editing `eslint-suppressions.json` by hand instead of fixing the code is fabricating a result,
 and `tools/check-diff-ownership.mjs` detects a count that fell for a file you never edited.

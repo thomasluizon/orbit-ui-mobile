@@ -2,7 +2,7 @@
 
 Generated from manifest `498537f0715177cf58aa9dffbed9806385434db1`. Do not hand-edit; run `node tools/workorder.mjs`.
 
-- 214 work orders (168 surfaces + 46 residual groups)
+- 214 order files: 214 derived (168 surfaces + 46 residual groups)
 - 988 mechanical violations outstanding across 130 work orders
 
 Mechanical debt is a FLOOR. Completion is granted only by a human tick in signoff.json.

@@ -404,6 +404,16 @@ export function extractBaseGateTool(repoPath, baseSha, toolRelPath) {
  *     proved it byte-identical to the base copy. It cannot be base-extracted
  *     itself - it imports sibling tool modules and node_modules - which is why
  *     the self-contained ownership gate goes first.
+ *
+ * A PLAN bundle gets no workorder --check verdict at all, and that is honesty,
+ * not leniency: --from-plan refuses any file a surface or residual group owns,
+ * and every file carrying lint debt is owned by one of those two, so a plan
+ * order's debt is 0 before the child starts and can never fail. Recording it
+ * put a tautology in front of the verifier under the banner "measurements, not
+ * claims - weigh them over anything the implementer says". A plan bundle's real
+ * machine check is its lint/type-check/test run, which the child owns; the
+ * ownership gate above still applies to it in full.
+ *
  * Exported so the ordering and the pristine-copy selection are pinned by tests
  * against a fixture repo, without spawning the engine.
  */
@@ -433,6 +443,7 @@ export function measureGates(task, config, baseSha) {
       /* temp cleanup is housekeeping; it must never move a gate verdict */
     }
   }
+  if (task.kind === "plan") return checks
   for (const id of task.workOrders) {
     const check = spawnSync(process.execPath, [join(repoPath, "tools", "workorder.mjs"), "--check", "--id", id], {
       cwd: repoPath,

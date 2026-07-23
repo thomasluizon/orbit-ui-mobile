@@ -141,6 +141,9 @@ USAGE
   --id <id>       A work order whose owned files are permitted. Repeatable, so a
                   bundle of several work orders passes several --id flags.
   --files <list>  Comma-separated permitted paths, for a unit with no work order.
+                  MUTUALLY EXCLUSIVE with --id: --files carries no work-order
+                  trust root, so accepting both would drop every --id check while
+                  still granting each order file (exit 2 if both are passed).
   --base <ref>    Compare against this ref. Default resolution, fail-closed: the
                   merge-base with @{upstream}, else with origin/main, else with
                   main; none resolving is exit 2, never an empty diff. An
@@ -402,7 +405,17 @@ function regenSanctioned(relPath, baseText, candidates, timelineMayGrow) {
   if (!isIndex && (kindOf(baseText) === "plan" || kindOf(canonicalText) === "plan")) return false
   const baseEntries = timelineEntriesOf(baseText ?? "")
   for (const text of candidates) {
-    if (text === null && canonicalText === null) continue
+    if (text === null && canonicalText === null) {
+      // A DELETION can never carry the base ref's recorded history forward, so
+      // sanctioning one used to launder exactly the destruction step 3 below
+      // claims is impossible: the mandated regeneration deleted a cleared
+      // residual order and this gate exited 0 on a diff that erased its
+      // Timeline. The generator now RETIRES such an order instead
+      // (tools/workorder.mjs retiredUnitFrom), so a deletion that drops
+      // recorded history is a hand rewrite again, and it fails.
+      if (baseEntries.length) return false
+      continue
+    }
     if (text === null || canonicalText === null || text !== canonicalText) return false
     if (isIndex) continue
     const entries = timelineEntriesOf(text)
@@ -492,6 +505,19 @@ function main() {
     else if (argv[index] === "--base" && argv[index + 1]) base = argv[++index]
   }
   if (!ids.length && !explicitFiles) fail("pass at least one --id or a --files list. See --help.")
+  // --files used to WIN silently: `owned` short-circuited to the explicit list,
+  // so ownedFilesOf never ran for any --id and neither the "no work order at
+  // base" check nor the append-only byte-prefix check was applied - while the
+  // loop below still granted every named order's file. Adding a flag strictly
+  // WEAKENED the gate: the identical tree exited 1 under --id and 0 with
+  // `--files x` appended. They are alternatives, so they are refused together.
+  if (ids.length && explicitFiles) {
+    fail(
+      "--id and --files are mutually exclusive. --files replaces the work-order trust root entirely (no " +
+        "base-existence check, no append-only check), so combining them silently drops every verification " +
+        "--id exists to perform. Pass --id for a work order, --files for a unit that has none.",
+    )
+  }
 
   const resolvedBase = resolveBase(base)
   const changed = changedFiles(resolvedBase.sha)
