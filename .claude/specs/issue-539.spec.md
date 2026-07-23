@@ -2,10 +2,59 @@
 issue: 539
 title: "Whole-app visual transformation to DESIGN.md + mockups (web + mobile)"
 status: in-progress
-next-action: "FINISH THE IN-PROGRESS MERGE of main into this branch (staged, uncommitted). See '## Where this stands (2026-07-23)'."
+next-action: "/drive 539 - resume the attended run. Bundle table below; B1 ran 2026-07-23, B2 (web-route-5805b8be) is approved and queued."
 ---
 
 # Drive spec - #539 whole-app visual transformation
+
+## Bundles (this session's approved slice)
+
+Approved at the Phase A gate on 2026-07-23: 2 web route bundles, sonnet tier. Web-only is
+deliberate - web is the only platform with a capture path, so `claude-in-chrome` vision-verify
+is real evidence rather than theatre. The full queue holds 48 debt-carrying bundles; these two
+are the slice, not the whole.
+
+| # | bundle id | surface | tier | debt | files | status | PR |
+|---|---|---|---|---|---|---|----|
+| B1 | `web-route-56d279c7` | `route-streak` (`/streak`) | sonnet | 19 | 4 | ready-for-review (driver said `failed`, see below) | #574 |
+| B2 | `web-route-5805b8be` | `route-calendar-sync` | sonnet | 17 | 7 | approved, queued | - |
+
+**B1's recorded `failed` status is an operator artifact, not a defect in the child's work.**
+The ownership gate measures `--head <sha>` **plus the uncommitted working tree** (it prints
+`+ uncommitted working tree` in its own header). This file was edited mid-run, so the gate
+counted `.claude/specs/issue-539.spec.md` as a changed file outside `route-streak`'s boundary
+and exited 1. Re-run on the child's own branch, with the working copy matching the commit, the
+identical command exits **0**: `every changed file is owned by this work order or structurally
+permitted, and no gate state moved`. The child's 7 files are the 4 owned sources plus the two
+regenerated ledger files (rule 7) plus `eslint-suppressions.json` (rule 3), and its
+`route-streak.md` was verified **byte-exact** against a fresh `node tools/workorder.mjs`.
+
+## Lesson candidates (promote via /lesson)
+
+- **Never edit ANY tracked file in the repo while a drive child is running.** The existing rule
+  was "no local git during a run"; that is too narrow. `check-diff-ownership` reads the
+  uncommitted working tree, so an operator edit to an unrelated file lands inside the child's
+  measured diff and fails an honest bundle. Cost here: B1 recorded `failed`, fed the
+  consecutive-failure circuit breaker, and produced a lesson candidate for a bundle that had
+  actually done its job correctly. Park edits in the scratchpad, or commit them before launch.
+
+Run artifacts: `.claude/drive/b1/runs/<stamp>/` (per-bundle dirs under the gitignored
+`.claude/drive/`). Orca provenance: task `task_a2438b3e0fa6` (Phase A, completed), gate
+`gate_c0ef1733aefd` (resolved), B1 `task_f0be80002038`, B2 `task_96c9682d6a33`.
+
+## Reconcile log
+
+- **2026-07-23** - resumed. Corrected three stale claims in this file: the merge is committed
+  (`6a2e1136`), not in progress; both "known, not yet fixed" test failures pass; the work-order
+  ledger was stale and was regenerated + committed (`52348783`). Queue rebuilt to 48 bundles,
+  preflight green, B1 launched.
+- **2026-07-23** - measured, unchanged by any of the above: `0/804 cells DONE`; 37 of 168
+  surface orders at 0% depth, 159 below the 30% floor.
+- **2026-07-23** - established that **Orca orchestration has no human-facing UI**. Tasks and
+  gates are agent-facing runtime state reachable only by CLI/RPC; the app's "Tasks" panel is a
+  GitHub/Jira issue browser, and the accessibility tree carries no gate/inbox/decision surface
+  (confirmed against the running app and the published docs). Drive gates therefore stay in the
+  terminal; Orca records them for provenance only.
 
 ## Where this stands (2026-07-23)
 
@@ -16,9 +65,9 @@ bypasses now carry regression tests, 766 assertions). `tools/workorder.mjs`,
 and `.claude/skills/drive/run.mjs` are all on main, so `/drive` works for any issue rather
 than only this one.
 
-**A merge of `main` into this branch is IN PROGRESS and uncommitted.** `.git/MERGE_HEAD` is
-`56c6605f`; all 191 conflicts are resolved and 297 files are staged. How each class was
-resolved:
+**That merge is now COMMITTED as `6a2e1136`** (2026-07-23 12:41 -0300); `.git/MERGE_HEAD` is
+gone and the tree is clean. All 191 conflicts were resolved across 297 files. How each class
+was resolved:
 
 | class | resolution |
 |---|---|
@@ -36,18 +85,24 @@ verified line-by-line rather than assumed: #568 (`onScrollOffsetChange`, never t
 frequency mirroring + scroll-to-top). The one surviving `onScroll=` in `habit-list.tsx` is on
 a plain `FlatList`, which honours it correctly.
 
-**Two merge-introduced test failures are known and NOT yet fixed:**
+**The two merge-introduced test failures this file used to list are RESOLVED.** Both were
+re-run 2026-07-23 and pass: `habit-row.test.tsx` 10/10 and `calendar-views.test.tsx` 6/6. The
+whole monorepo suite is green - **313 files, 2605 tests, exit 0**. (Note for whoever reads
+this next: `apps/mobile` runs **Vitest**, not Jest. Invoking `npx jest` there produces a
+spurious "cannot be imported in a CommonJS module" failure that looks like a real regression
+and is not one.)
 
-1. `apps/web/__tests__/components/habits/habit-row.test.tsx` - a branch-only test whose
-   drill-chevron expectation collides with main's `canDrillInto = hasSubHabits && !!onDrillInto`.
-2. `apps/mobile/__tests__/screens/calendar-views.test.tsx` - fails to load with "No zLayers
-   export is defined on the @/lib/theme mock". Main added `ScrollToTopButton` to
-   `app/(tabs)/calendar.tsx` while this branch rewrote `components/ui/scroll-to-top-button.tsx`
-   to use `zLayers`, so the test's theme mock is missing that export.
+**The work-order ledger was stale after the merge and has been regenerated** (commit
+`52348783`). All 214 orders still carried `generatedFrom: 48e4496e`; a fresh regeneration
+differed on 216 files, so CI's ledger-freshness gate would have failed and `drive-queue` was
+packing bundles from a stale ledger. The diff was provenance-only - no Timeline entry, debt
+count or ownership moved.
 
-**Still true, and still the highest-value unbuilt thing:** the harness has never completed a
-real run. `run.mjs --dry-run` passes and enumerates all 64 bundles once the tree is clean.
-One small attended `/drive` on a single bundle beats another review round.
+**The harness has now been driven for real.** Queue rebuilt with `--only-debt` to 48
+debt-carrying bundles; `run.mjs --dry-run` passes. Bundle 1 (`web-route-56d279c7`,
+`route-streak`) was run attended on 2026-07-23 through an isolated single-entry runtime dir
+(`--dir .claude/drive/b1`), which is the supported way to run one bundle: the engine is
+unmodified, so base-sha pinning, `measureChildWork` and driver-derived status all still hold.
 
 Rewritten 2026-07-19 (evening) after the harness rebuild. The previous version of this file
 described a harness that has since been replaced. The full record of the rebuild - the
