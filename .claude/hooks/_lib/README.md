@@ -17,7 +17,7 @@ in **both** tools off that one core, so a fix lands in both at once (no twin dri
 | `rules-secrets.mjs` | literal credential in argv | forbid-secret-in-argv (**fails closed**) | tool.execute.before(bash) |
 | `rules-content.mjs` | em dashes, brand colors | forbid-em-dashes, forbid-hardcoded-brand-color | tool.execute.before(edit/write) |
 | `rules-copy.mjs` | i18n copy register: AI-cliché, placeholder content, typed UPPERCASE | forbid-ai-cliche-copy, forbid-placeholder-content, forbid-typed-uppercase | tool.execute.before(edit/write) |
-| `rules-source.mjs` | TS anti-patterns, workaround markers, csharp authz/tz/fluentconfig | forbid-ts-antipatterns, flag-new-todos, csharp-authz, csharp-tz, csharp-fluentconfig | tool.execute.after(edit/write) |
+| `rules-source.mjs` | TS anti-patterns, csharp authz/tz/fluentconfig | forbid-ts-antipatterns, csharp-authz, csharp-tz, csharp-fluentconfig | tool.execute.after(edit/write) |
 | `rules-parity.mjs` | cross-platform parity nudge | parity-nudge | tool.execute.after(edit/write) |
 | `rules-shell-allowlist.mjs` | agent-scoped shell allowlists | primer-shell-allowlist (**agent frontmatter**, not settings.json) | **none** — see "The one rule that is not dual-target" |
 | `io.mjs` | payload normalizers (both tools) | all | all |
@@ -54,11 +54,13 @@ opencode has **no equivalent**. Its agent schema has no `hooks` field, plugins a
 global, and `tool.execute.before` receives only `{ tool, sessionID, callID }` — no
 agent identity, and the SDK's `Session` type has no agent field to recover it from.
 So this rule cannot be mirrored into `orbit-guardrails.js` the way the others are.
-The opencode mirror falls back to that engine's native per-agent `permission.bash`
-globs, which are **weaker**: the matcher tests the raw command string, so
-`git log && rm -rf /` matches a `"git log *"` allow rule and runs. `.opencode/agents/primer.md`
-documents that gap where a reader will hit it. Do not describe the Claude Code
-fence as a cross-engine guarantee.
+opencode has no per-agent hooks at all, and its native `permission.bash` globs are
+**weaker**: the matcher tests the raw command string, so `git log && rm -rf /`
+matches a `"git log *"` allow rule and runs. The `.opencode/agents/` mirrors that
+used to document this gap were deleted 2026-07-19 rather than maintained on an
+inverted allowlist/denylist schema that silently widens as it drifts; the gap is
+recorded in `CLAUDE.md` instead. Do not describe the Claude Code fence as a
+cross-engine guarantee.
 
 **The allowlist is two levels, and level 2 is the one people forget.** Metacharacters
 (`& | ; $ backtick > < newline`) are rejected before any matching, because a prefix

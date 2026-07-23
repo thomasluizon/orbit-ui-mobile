@@ -18,12 +18,22 @@ dist/
 .vscode/
 .idea/
 .claude/worktrees/
-.claude/plans/
-.claude/specs/
+# Plans are the contract source the committed work orders point at (their
+# generatedFrom frontmatter): ignoring the whole dir left every fresh checkout
+# with plan bundles whose Tier and acceptance criteria named a file that did
+# not exist. The *.plan.md files ride the branch; everything else stays local.
+# The ** idiom is load-bearing: git never descends into an excluded DIRECTORY to
+# evaluate a nested negation, so `.claude/plans/*` would have swallowed
+# .claude/plans/completed/ whole - which is exactly where implement/SKILL.md
+# files a finished plan. Re-including the directories is what lets the negation
+# reach the plans inside them.
+.claude/plans/**
+!.claude/plans/**/
+!.claude/plans/**/*.plan.md
 .claude/reviews/
 .claude/reports/
 .claude/audits/
-.claude/night-run/
+.claude/drive/
 .mcp.json
 *.swp
 *.swo
@@ -52,6 +62,14 @@ apps/web/e2e/.results/
 .tmp/
 temporary screenshots/
 
+# Screenshots are bulk binary evidence: regenerable, never committed.
+# The DURABLE evidence the oracle reads - the surface inventory, the defect
+# reports and the human sign-off - lives in .claude/manifests/ and IS
+# committed. Ignoring it was the mechanism behind "attempt N+1 rediscovers
+# attempt N": six sessions each rebuilt a denominator the last one had
+# already derived, because nothing survived the session boundary.
+.artifacts/
+
 # Expo
 *.jks
 *.p8
@@ -79,3 +97,4 @@ yarn-error.log*
 
 # foglamp scan (edit token in scan.lock.json is a secret)
 .foglamp/
+.tmp_session_text.txt
