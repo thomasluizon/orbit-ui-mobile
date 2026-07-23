@@ -372,7 +372,7 @@ jobs:
       # stale entry should be missed rather than reused. run_id keeps each run's cache
       # unique to write, with restore-keys falling back to the newest compatible one.
       - name: Restore the ccache directory
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ccache
           key: ccache-android-release-${{ hashFiles('package-lock.json') }}-${{ github.run_id }}
