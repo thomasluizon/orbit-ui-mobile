@@ -22,8 +22,14 @@ dist/
 # generatedFrom frontmatter): ignoring the whole dir left every fresh checkout
 # with plan bundles whose Tier and acceptance criteria named a file that did
 # not exist. The *.plan.md files ride the branch; everything else stays local.
-.claude/plans/*
-!.claude/plans/*.plan.md
+# The ** idiom is load-bearing: git never descends into an excluded DIRECTORY to
+# evaluate a nested negation, so `.claude/plans/*` would have swallowed
+# .claude/plans/completed/ whole - which is exactly where implement/SKILL.md
+# files a finished plan. Re-including the directories is what lets the negation
+# reach the plans inside them.
+.claude/plans/**
+!.claude/plans/**/
+!.claude/plans/**/*.plan.md
 .claude/reviews/
 .claude/reports/
 .claude/audits/
