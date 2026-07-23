@@ -2916,6 +2916,15 @@ T("gate-tamper: a computed member off a module blocks", !!checkGateTamperBash(`n
 // classify is fail-closed by design. The Read tool covers what this turns away.
 T("gate-tamper: renaming even a read API is refused, fail-closed", !!checkGateTamperBash(`node -e "const read=require('fs').readFileSync; console.log(read('./${MANIFEST_PATH}','utf8').length)"`)?.block, true)
 T("gate-tamper: the direct read call off fs still allows", checkGateTamperBash(`node -e "console.log(require('fs').readFileSync('./${MANIFEST_PATH}','utf8').length)"`), null)
+// BYPASS #6, caught reviewing the fix for #5: chaining the member onto require()
+// is only the one-statement spelling. Splitting it across statements put the write
+// behind an allowlisted call-site name again, so the module REFERENCE is tracked
+// now, through plain rebinding too.
+T("gate-tamper: a two-step module indirection blocks", !!checkGateTamperBash(`node -e "const m=require('fs'); const map=m.writeFileSync; map('${SIGNOFF_PATH}','{}')"`)?.block, true)
+T("gate-tamper: ...and a transitive rebind of the module blocks", !!checkGateTamperBash(`node -e "const a=require('fs'); const b=a; const get=b.writeFileSync; get('${SIGNOFF_PATH}','{}')"`)?.block, true)
+T("gate-tamper: ...and a computed member off the bound ref blocks", !!checkGateTamperBash(`node -e "const a=require('fs'); const has=a['writeFileSync']; has('${SIGNOFF_PATH}','{}')"`)?.block, true)
+T("gate-tamper: ...and destructuring off the bound ref blocks", !!checkGateTamperBash(`node -e "const x=require('fs'); const {writeFileSync}=x; writeFileSync('${SIGNOFF_PATH}','{}')"`)?.block, true)
+T("gate-tamper: a bound module ref used for a direct read still allows", checkGateTamperBash(`node -e "const m=require('fs'); console.log(m.readFileSync('./package.json','utf8').length)"`), null)
 
 // ---------------------------------------------------------------------------
 // drive-queue: the printed contract must state only what can FAIL for THIS

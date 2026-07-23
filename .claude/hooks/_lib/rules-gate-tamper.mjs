@@ -166,6 +166,34 @@ export function inlineCodeIsReadOnly(code) {
     if (lift[2].endsWith(".json")) continue
     if (!lift[3] || !READ_ONLY_CALLS.has(lift[3])) return false
   }
+  // BYPASS #6, caught reviewing the fix for #5: chaining the member straight onto
+  // require() is only the one-statement spelling. `const m = require("fs"); const
+  // get = m.writeFileSync; get(path, data)` splits it across statements, and the
+  // call-site name is on the read list, so a purely syntactic check waves it past.
+  // The module reference is tracked instead - through plain rebinding too, so a
+  // chain of aliases inherits it - and every member lifted off one must be a read
+  // API. Renaming a read is still refused later by the callee scan, which is the
+  // fail-closed half: this list grants nothing, it only withholds.
+  const moduleRefs = new Set()
+  for (const bind of code.matchAll(/(?:const|let|var)\s+([\w$]+)\s*=\s*require\s*\(\s*(['"])([^'"]*)\2\s*\)/g)) {
+    if (!bind[3].endsWith(".json")) moduleRefs.add(bind[1])
+  }
+  for (let pass = 0; pass < moduleRefs.size + 1; pass += 1) {
+    const before = moduleRefs.size
+    for (const bind of bare.matchAll(/(?:const|let|var)\s+([\w$]+)\s*=\s*([\w$]+)\s*(?=[;\n]|$)/g)) {
+      if (moduleRefs.has(bind[2])) moduleRefs.add(bind[1])
+    }
+    if (moduleRefs.size === before) break
+  }
+  for (const use of bare.matchAll(/([\w$]+)\s*(?:\.\s*([\w$]+)|(\[))/g)) {
+    if (!moduleRefs.has(use[1])) continue
+    if (use[3] || !READ_ONLY_CALLS.has(use[2])) return false
+  }
+  for (const use of bare.matchAll(/\{([^{}]*)\}\s*=\s*([\w$]+)/g)) {
+    if (!moduleRefs.has(use[2])) continue
+    const lifted = use[1].split(",").map((entry) => entry.split(":")[0].trim()).filter(Boolean)
+    if (lifted.some((key) => !READ_ONLY_CALLS.has(key))) return false
+  }
   const MODULE_DESTRUCTURE_RE = /\{([^{}]*)\}\s*=\s*require\s*\(\s*(['"])([^'"]*)\2\s*\)/g
   for (const lift of code.matchAll(MODULE_DESTRUCTURE_RE)) {
     if (lift[3].endsWith(".json")) continue
