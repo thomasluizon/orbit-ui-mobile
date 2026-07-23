@@ -2925,6 +2925,15 @@ T("gate-tamper: ...and a transitive rebind of the module blocks", !!checkGateTam
 T("gate-tamper: ...and a computed member off the bound ref blocks", !!checkGateTamperBash(`node -e "const a=require('fs'); const has=a['writeFileSync']; has('${SIGNOFF_PATH}','{}')"`)?.block, true)
 T("gate-tamper: ...and destructuring off the bound ref blocks", !!checkGateTamperBash(`node -e "const x=require('fs'); const {writeFileSync}=x; writeFileSync('${SIGNOFF_PATH}','{}')"`)?.block, true)
 T("gate-tamper: a bound module ref used for a direct read still allows", checkGateTamperBash(`node -e "const m=require('fs'); console.log(m.readFileSync('./package.json','utf8').length)"`), null)
+// The rest of the class, probed rather than reported: if the reference tracking is
+// the right fix, these fall out of it for free. They do. Kept so a later change to
+// the classifier cannot quietly reopen any of them.
+T("gate-tamper: a write stream off a bound ref blocks", !!checkGateTamperBash(`node -e "const m=require('fs'); const get=m.createWriteStream; get('${SIGNOFF_PATH}').write('x')"`)?.block, true)
+T("gate-tamper: a deletion off a bound ref blocks", !!checkGateTamperBash(`node -e "const m=require('fs'); const filter=m.rmSync; filter('${SIGNOFF_PATH}')"`)?.block, true)
+T("gate-tamper: reaching the promises submodule off fs blocks", !!checkGateTamperBash(`node -e "const m=require('fs'); const q=m.promises; q.writeFile('${SIGNOFF_PATH}','x')"`)?.block, true)
+T("gate-tamper: requiring fs/promises is not requirable at all", !!checkGateTamperBash(`node -e "const p=require('fs/promises'); const get=p.writeFile; get('${SIGNOFF_PATH}','x')"`)?.block, true)
+T("gate-tamper: shelling out through child_process blocks", !!checkGateTamperBash(`node -e "require('child_process').execSync('echo x > ${SIGNOFF_PATH}')"`)?.block, true)
+T("gate-tamper: a path built by concatenation blocks", !!checkGateTamperBash(`node -e "const m=require('fs'); const map=m.writeFileSync; map('.claude/manifests/'+'signoff'+'.json','x')"`)?.block, true)
 
 // ---------------------------------------------------------------------------
 // drive-queue: the printed contract must state only what can FAIL for THIS
