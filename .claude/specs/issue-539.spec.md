@@ -17,7 +17,20 @@ are the slice, not the whole.
 | # | bundle id | surface | tier | debt | files | status | PR |
 |---|---|---|---|---|---|---|----|
 | B1 | `web-route-56d279c7` | `route-streak` (`/streak`) | sonnet | 19 | 4 | ready-for-review (driver said `failed`, see below) | #574 |
-| B2 | `web-route-5805b8be` | `route-calendar-sync` | sonnet | 17 | 7 | approved, queued | - |
+| B2 | `web-route-5805b8be` | `route-calendar-sync` | **opus** | 17 | 7 | **ready-for-review, depth 36.0%** | #575 |
+
+**B2 is the first bundle in this project's history to clear the 30% depth floor.** It ran the
+same engine and gates as B1 with two changes: a hand-amended prompt (B1's failure as named
+precedent, Backlog A demoted to a side effect, a required before/after depth measurement, and a
+summary contract naming the focal element and the structural change) and `modelOverride: opus`.
+Depth went 9.1% -> 36.0% on a **net -125 line** diff, so the change was structural
+simplification rather than churn. Independent verifier: AGREE, `criteriaMet=true parityOk=true`.
+Two variables moved at once, so the clean next experiment is the amended prompt at Sonnet.
+
+**PR #575 opened against `main` and had to be retargeted by hand.** See `harness-issues.md`
+H11: the generated prompt's rule 8 never pins a `--base`, so `gh pr create` used the repo
+default. It showed 914 files until retargeted, after which it reports its true 12 files. B1 got
+this right unprompted in the same run, so the defect is intermittent, which is worse.
 
 **B1's recorded `failed` status is an operator artifact, not a defect in the child's work.**
 The ownership gate measures `--head <sha>` **plus the uncommitted working tree** (it prints

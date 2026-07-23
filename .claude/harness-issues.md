@@ -107,6 +107,39 @@ moved to its nearest scale step and none moved away from it, the diff is a pure 
 mechanically decidable and would let the driver mark the bundle `shallow` rather than
 `ready-for-review`. It does not require judgement, only arithmetic.
 
+### MEASURED FOLLOW-UP: the prompt is a real lever (B2, 2026-07-23)
+
+B2 (`route-calendar-sync`) ran the **same engine, same gates, same work-order shape** as B1,
+with two changes: the generated prompt was amended by hand, and the bundle was routed to Opus
+via `modelOverride`. The amendment added what B1's prompt lacked:
+
+1. **B1's failure as named precedent** - the PR number, the literal edits (`18->16 14->12
+   10->8 6->4`), the measured 11.2% against the 30% floor, and the fact that it was rejected
+   on review despite every gate going green.
+2. **An explicit demotion of Backlog A** - "clearing Backlog A alone is a FAILING outcome even
+   though every machine gate will go green. Backlog B is the deliverable."
+3. **A required before/after measurement** - run `workorder --check --id` at both ends and put
+   both numbers in the summary and the Timeline.
+4. **A structured summary contract** - the summary MUST name the focal element, the structural
+   change, and the depth delta. A summary reporting only cleared violations is the failure.
+
+Result: depth **9.1% -> 36.0%**, above the floor, versus B1's 11.2%. Debt 17 -> 0. Diff
+**+281/-406** - a net removal of 125 lines, so the change was structural simplification rather
+than churn. The independent verifier returned AGREE with `criteriaMet=true parityOk=true`.
+Verified by hand, not taken on the child's word: `AutoSyncSettingsCard` became
+`AutoSyncSection` with the card chrome (`borderRadius`, `background: var(--bg-card)`, inset
+hairline ring) deleted and a JSDoc explaining the choice; loading became `SkeletonRow`; the
+error step moved to the shared `EmptyState`; and the i18n pair moved symmetrically in both
+locales with the microcopy de-slopped ("Import complete!" -> "Import complete").
+
+**What this means for the fix.** The deterministic pure-snap detector above is still worth
+building, because it catches the failure without depending on the child reading carefully. But
+the cheaper half of the fix is proven and should land first: **put the target, the precedent
+and the summary contract into the generated prompt for every debt-carrying bundle**, and route
+redesign bundles to Opus. Two variables moved at once here (prompt and model), so which one
+carried the result is not yet isolated - the clean next experiment is the amended prompt at
+Sonnet.
+
 ---
 
 ## H4 - The work-order ledger goes stale after a merge and nothing warns before it does damage
@@ -206,6 +239,40 @@ its whole value is that a fresh session can trust it.
 there produces a "Vitest cannot be imported in a CommonJS module" error that reads exactly like
 a real regression and is not one. Two of this session's early "confirmations" of the stale
 failures were this mistake.
+
+---
+
+## H11 - The generated prompt never pins the PR base, so a child can open its PR against `main`
+
+**Severity: critical.** Caught on B2, PR #575.
+
+Rule 8 of every generated prompt says: *"Commit, push, and open a PR READY FOR REVIEW with
+`gh pr create`"*. It never names a `--base`. With no `--base`, `gh pr create` targets the
+**repository default branch**, which is `main`.
+
+B2 branched from `feature/539-b5-apply-design` and opened PR #575 **against `main`**, showing
+**914 changed files**. Merging it would have dumped the entire in-progress #539 branch onto
+`main` along with the redesign. It was retargeted by hand (`gh pr edit 575 --base
+feature/539-b5-apply-design`), after which the PR reports its true scope: 12 files, +281/-406.
+
+**Why this is worse than it looks.** B1 got it right in the same run: PR #574 opened against
+`feature/539-b5-apply-design` with no intervention. So the defect is **intermittent**, decided
+by whatever the child infers from branch tracking rather than by anything the harness states.
+An intermittent wrong-base PR is exactly the kind of thing that passes review by inspection
+nine times and lands on the tenth.
+
+The driver already knows the correct value: `config.repos[].base`, the same branch it resets to
+and pins into `{{DRIVE_BASE}}`.
+
+**Candidate fix.** Print the exact command in rule 8, with the base substituted the same way
+`{{DRIVE_BASE}}` already is:
+
+```
+gh pr create --base <config.repos[].base> --title ... --body ...
+```
+
+and have the driver refuse a PR whose `baseRefName` is not that branch, the same way it refuses
+an unpinned ownership gate.
 
 ---
 
