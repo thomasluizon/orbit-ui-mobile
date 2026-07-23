@@ -151,6 +151,27 @@ export function inlineCodeIsReadOnly(code) {
   const literalRequires = [...code.matchAll(REQUIRE_ARG_RE)]
   if (literalRequires.length !== (bare.match(/require\s*\(/g) || []).length) return false
   if (literalRequires.some((call) => !REQUIRABLE.test(call[2]))) return false
+  // BYPASS #5 (PR #570 review): a require() RESULT is a module object, and every
+  // member of it is reachable under any name the code picks. `const map =
+  // require("fs").writeFileSync` rebinds a writer to a name the call allowlist
+  // happily accepts, so judging only the call-site identifier let an arbitrary
+  // write through. A member lifted off a MODULE must itself be a read API and a
+  // computed member is refused (the name is not visible); a destructured binding
+  // is judged by the KEYS it lifts, never the local names it gives them. A
+  // required .json is DATA, not a module, so `require("./x.json").cells` stays
+  // allowed - that is the read this hook's own message advertises.
+  // https://github.com/thomasluizon/orbit-ui-mobile/pull/570
+  const MODULE_MEMBER_RE = /require\s*\(\s*(['"])([^'"]*)\1\s*\)\s*(?:\.\s*([\w$]+)|\[)/g
+  for (const lift of code.matchAll(MODULE_MEMBER_RE)) {
+    if (lift[2].endsWith(".json")) continue
+    if (!lift[3] || !READ_ONLY_CALLS.has(lift[3])) return false
+  }
+  const MODULE_DESTRUCTURE_RE = /\{([^{}]*)\}\s*=\s*require\s*\(\s*(['"])([^'"]*)\2\s*\)/g
+  for (const lift of code.matchAll(MODULE_DESTRUCTURE_RE)) {
+    if (lift[3].endsWith(".json")) continue
+    const lifted = lift[1].split(",").map((entry) => entry.split(":")[0].trim()).filter(Boolean)
+    if (lifted.some((key) => !READ_ONLY_CALLS.has(key))) return false
+  }
   for (let index = 0; index < bare.length; index += 1) {
     if (bare[index] !== "(") continue
     const before = bare.slice(0, index).replace(/\s+$/, "")

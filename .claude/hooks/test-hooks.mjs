@@ -200,12 +200,6 @@ for (const locale of ["en.json", "pt-BR.json"]) {
   const corpus = readFileSync(localePath, "utf8")
   T(`corpus: ${locale} has zero AI-cliché findings`, checkAiClicheCopy(corpus, localePath), null)
   T(`corpus: ${locale} has zero placeholder findings`, checkPlaceholderContent(corpus, localePath), null)
-  // Zero: the two Ask-Astra eyebrow strings were the last typed-uppercase debt and
-  // b5's copy pass (#539) natural-cased them (the eyebrow uppercases in CSS, so the
-  // string is stored natural). The shipped locale now carries ZERO typed-uppercase
-  // violations, which is the desired invariant; the detector's block behavior is
-  // pinned by the synthetic "shouted sentence blocks" tests above. This corpus guard
-  // keeps any NEW typed-uppercase value from creeping into the real locale files.
   const uppercaseFindings = (checkTypedUppercase(corpus, localePath)?.message.match(/^ {2}- /gm) ?? []).length
   // A RATCHET, not a zero. main still carries two pre-existing values per locale:
   // askAstraEyebrow ("ASK ASTRA"), which #539 b5's copy pass natural-cases because the
@@ -2908,6 +2902,20 @@ T("gate-tamper: a write verb hidden in a substitution blocks", !!checkGateTamper
 // The honest half, which is the half that gets a hook disarmed when it is wrong.
 T("gate-tamper: node -p require of the manifest allows", checkGateTamperBash(`node -p "require('./${MANIFEST_PATH}').cells.length"`), null)
 T("gate-tamper: an interpreter read that indexes and maps allows", checkGateTamperBash(`node -e "const m=require('./${MANIFEST_PATH}'); console.log(m.cells[0].surfaceId, m.cells.map(c=>c.sourceFile).join(','))"`), null)
+// BYPASS #5, caught in review of PR #570 and reproduced before it was closed: the
+// call allowlist judged the identifier at the call site, so binding a writer to any
+// allowlisted NAME walked straight through. The member lifted off a module is what
+// is judged now, so every rename below is dead, while a member read off required
+// JSON data stays allowed.
+T("gate-tamper: aliasing a writer to an allowlisted name blocks", !!checkGateTamperBash(`node -e "const map=require('fs').writeFileSync; map('${SIGNOFF_PATH}','fake')"`)?.block, true)
+T("gate-tamper: ...and the alias cannot reach the manifest either", !!checkGateTamperBash(`node -e "const parse=require('fs').writeFileSync; parse('./${MANIFEST_PATH}','x')"`)?.block, true)
+T("gate-tamper: ...nor through node: prefixed fs", !!checkGateTamperBash(`node -e "const test=require('node:fs').writeFileSync; test('${SIGNOFF_PATH}','x')"`)?.block, true)
+T("gate-tamper: a destructured writer rename blocks", !!checkGateTamperBash(`node -e "const {writeFileSync: filter}=require('fs'); filter('${SIGNOFF_PATH}','x')"`)?.block, true)
+T("gate-tamper: a computed member off a module blocks", !!checkGateTamperBash(`node -e "const w=require('fs')['writeFileSync']; w('${SIGNOFF_PATH}','x')"`)?.block, true)
+// Renaming even a READ is refused: the guard judges names, so a rename it cannot
+// classify is fail-closed by design. The Read tool covers what this turns away.
+T("gate-tamper: renaming even a read API is refused, fail-closed", !!checkGateTamperBash(`node -e "const read=require('fs').readFileSync; console.log(read('./${MANIFEST_PATH}','utf8').length)"`)?.block, true)
+T("gate-tamper: the direct read call off fs still allows", checkGateTamperBash(`node -e "console.log(require('fs').readFileSync('./${MANIFEST_PATH}','utf8').length)"`), null)
 
 // ---------------------------------------------------------------------------
 // drive-queue: the printed contract must state only what can FAIL for THIS
