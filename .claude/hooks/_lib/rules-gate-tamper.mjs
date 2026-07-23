@@ -41,7 +41,14 @@
 // is that faking "done" requires deliberate multi-step tampering instead of one
 // careless sentence.
 
-const PAUSED_RE = /\.claude[\\/]manifests[\\/]PAUSED/i
+// BYPASS #9: PAUSED was the only one of the five patterns without the optional
+// directory prefix, and the only one tested against the whole raw command rather
+// than per segment. `cd .claude/manifests && touch PAUSED` therefore matched
+// nothing: the cd segment is a read, and the touch segment carries no directory
+// text at all. That is not an obfuscation, it is a command someone types by
+// accident, and it silently disarms the honesty gate. Same shape as the other
+// four now, judged per segment. https://github.com/thomasluizon/orbit-ui-mobile/pull/570
+const PAUSED_RE = /(\.claude[\\/]manifests[\\/])?\bPAUSED\b/i
 // Bare filenames are matched too: `cd .claude/manifests && rm signoff.json` puts
 // no directory in the segment that writes, so a path-only pattern would miss it.
 const MANIFEST_RE = /(\.claude[\\/]manifests[\\/])?\bsurfaces\.json\b/i
@@ -384,7 +391,7 @@ function segmentIsSanctionedWriter(segment, writers) {
 // joined before matching, so the path is judged by the value it builds rather
 // than the way it is spelled.
 function joinConcatenatedLiterals(text) {
-  return text.replace(/(['"])\s*\+\s*\1/g, "")
+  return text.replace(/(['"])\s*\+\s*\1/g, "").replace(/''|""/g, "")
 }
 
 function blockedSegment(command, pathPattern, writers) {
@@ -431,7 +438,7 @@ export function checkGateTamperBash(command) {
     }
   }
 
-  if (PAUSED_RE.test(text)) {
+  if (blockedSegment(text, PAUSED_RE, null)) {
     return {
       block: true,
       message:

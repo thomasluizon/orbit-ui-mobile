@@ -2954,6 +2954,17 @@ T("gate-tamper: mixed-quote fragmentation blocks", !!checkGateTamperBash(`node -
 T("gate-tamper: a path split across variables blocks", !!checkGateTamperBash(`node -e "const m=require('fs'); const a='.claude/mani'; const b='fests/sig'; const c='noff.json'; m.writeFileSync(a+b+c,'{}')"`)?.block, true)
 T("gate-tamper: a path assembled by Array.join blocks", !!checkGateTamperBash(`node -e "const m=require('fs'); const p=['.claude/mani','fests/sig','noff.json'].join(''); m.writeFileSync(p,'{}')"`)?.block, true)
 T("gate-tamper: an interpreter write naming NO protected path blocks too", !!checkGateTamperBash(`node -e "require('fs').writeFileSync('/tmp/unrelated.txt','x')"`)?.block, true)
+// BYPASS #9: PAUSED was the only pattern without the optional directory prefix,
+// and the only one tested against the whole raw command instead of per segment.
+// `cd .claude/manifests && touch PAUSED` matched nothing - the cd segment reads,
+// the touch segment carries no directory text - and silently disarms the honesty
+// gate. Not an obfuscation; a command someone types by accident. The same shape
+// hit the other four through plain shell quote-splicing (sign''off.json).
+T("gate-tamper: cd then touch PAUSED blocks", !!checkGateTamperBash(`cd .claude/manifests && touch PAUSED`)?.block, true)
+T("gate-tamper: cd then redirect into PAUSED blocks", !!checkGateTamperBash(`cd .claude/manifests && echo x > PAUSED`)?.block, true)
+T("gate-tamper: shell quote-splicing the signoff name blocks", !!checkGateTamperBash(`cd .claude/manifests && rm sign''off.json`)?.block, true)
+T("gate-tamper: shell quote-splicing the manifest name blocks", !!checkGateTamperBash(`cd .claude/manifests && rm surf''aces.json`)?.block, true)
+T("gate-tamper: an honest cd then ls in that directory still allows", checkGateTamperBash(`cd .claude/manifests && ls -la`), null)
 
 // The honest half stays honest: the reads this guard advertises must keep working,
 // or the next session disarms the hook instead of using it.
