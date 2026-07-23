@@ -12,7 +12,9 @@ import { useQueryClient } from '@tanstack/react-query'
 import { AppBar } from '@/components/ui/app-bar'
 import { PillButton } from '@/components/ui/pill-button'
 import { SectionLabel } from '@/components/ui/section-label'
+import { SettingsGroup } from '@/components/ui/settings-group'
 import { SettingsRow } from '@/components/ui/settings-row'
+import { SkeletonRow } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { useTopbarHeading } from '@/components/shell/topbar-slot'
 import { useTranslations } from 'next-intl'
@@ -34,7 +36,7 @@ import {
   type WizardStage,
 } from '@/lib/calendar-sync-state'
 import { CalendarPickerSection } from './_components/calendar-picker-section'
-import { AutoSyncSettingsCard } from './_components/auto-sync-settings-card'
+import { AutoSyncSection } from './_components/auto-sync-settings-card'
 import { CalendarSyncEventRow } from './_components/calendar-sync-event-row'
 import { SelectAllToggle } from './_components/select-all-toggle'
 import { connectGoogle } from './_components/connect-google'
@@ -271,28 +273,19 @@ function CalendarSyncPageContent() {
       />
 
       <div className="flex-1 min-h-0 overflow-y-auto pb-8">
-        <div>
-          {hasProAccess && (
-            <>
-              <AutoSyncSettingsCard />
-              <CalendarPickerSection enabled={googleConnected && isOnline} />
-            </>
-          )}
-        </div>
+        {hasProAccess && (
+          <>
+            <AutoSyncSection />
+            <CalendarPickerSection enabled={googleConnected && isOnline} />
+          </>
+        )}
 
-        <div>
       {step === 'loading' && (
-        <div className="flex flex-col items-center justify-center gap-4 pt-12" role="status" aria-live="polite">
-          <Loader2 className="size-8 animate-spin text-[var(--primary)]" />
-          <p
-            style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 14,
-              color: 'var(--fg-2)',
-            }}
-          >
-            {t('calendar.fetchingEvents')}
-          </p>
+        <div role="status" aria-live="polite" style={{ paddingTop: 32 }}>
+          <span className="sr-only">{t('calendar.fetchingEvents')}</span>
+          {Array.from({ length: 5 }, (_, index) => (
+            <SkeletonRow key={index} media="square" lineWidths={['w-2/5', 'w-1/4']} />
+          ))}
         </div>
       )}
 
@@ -338,6 +331,7 @@ function CalendarSyncPageContent() {
           ) : (
             <>
               <SectionLabel
+                top={32}
                 trailing={
                   <SelectAllToggle
                     allSelected={allSelected}
@@ -351,25 +345,33 @@ function CalendarSyncPageContent() {
               </SectionLabel>
 
               <div className="stagger-enter">
-                {events.slice(0, visibleCount).map((event) => (
-                  <CalendarSyncEventRow
-                    key={event.id}
-                    event={event}
-                    selected={selectedIds.has(event.id)}
-                    isReviewMode={isReviewMode}
-                    suggestionId={isReviewMode ? findSuggestionIdForEvent(event.id) : null}
-                    dismissPending={dismissSuggestion.isPending}
-                    onToggle={toggleEvent}
-                    onDismiss={(suggestionId) => void handleDismissSuggestion(suggestionId)}
-                    t={t}
-                  />
+                {events.slice(0, visibleCount).map((event, index) => (
+                  <div key={event.id}>
+                    {index > 0 && (
+                      <div
+                        aria-hidden="true"
+                        data-separator="true"
+                        style={{ height: 1, background: 'var(--hairline)' }}
+                      />
+                    )}
+                    <CalendarSyncEventRow
+                      event={event}
+                      selected={selectedIds.has(event.id)}
+                      isReviewMode={isReviewMode}
+                      suggestionId={isReviewMode ? findSuggestionIdForEvent(event.id) : null}
+                      dismissPending={dismissSuggestion.isPending}
+                      onToggle={toggleEvent}
+                      onDismiss={(suggestionId) => void handleDismissSuggestion(suggestionId)}
+                      t={t}
+                    />
+                  </div>
                 ))}
               </div>
 
               {events.length > visibleCount && (
                 <div
                   className="flex flex-col items-center"
-                  style={{ gap: 8, padding: '14px 20px 0' }}
+                  style={{ gap: 8, padding: '16px 20px 0' }}
                 >
                   <button
                     type="button"
@@ -382,14 +384,7 @@ function CalendarSyncPageContent() {
                   >
                     {t('calendar.showMore')}
                   </button>
-                  <span
-                    style={{
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: 12,
-                      color: 'var(--fg-3)',
-                      fontVariantNumeric: 'tabular-nums',
-                    }}
-                  >
+                  <span className="t-meta">
                     {t('calendar.showingCount', {
                       shown: Math.min(visibleCount, events.length),
                       total: events.length,
@@ -398,7 +393,7 @@ function CalendarSyncPageContent() {
                 </div>
               )}
 
-              <div className="md:flex md:justify-center" style={{ padding: '18px 20px 0' }}>
+              <div className="md:flex md:justify-center" style={{ padding: '24px 20px 0' }}>
                 <PillButton
                   fullWidth
                   disabled={selectedIds.size === 0 || !isOnline}
@@ -413,60 +408,51 @@ function CalendarSyncPageContent() {
       )}
 
       {step === 'importing' && (
-        <div className="flex flex-col items-center justify-center gap-4 pt-12" role="status" aria-live="polite">
-          <Loader2 className="size-8 animate-spin text-[var(--primary)]" />
-          <p
-            style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 14,
-              color: 'var(--fg-2)',
-            }}
-          >
-            {t('calendar.importing')}
-          </p>
+        <div
+          className="flex flex-col items-center text-center"
+          style={{ gap: 20, padding: '48px 24px 0' }}
+          role="status"
+          aria-live="polite"
+        >
+          <span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-[var(--bg-field)]">
+            <Loader2 className="size-7 animate-spin text-[var(--fg-3)]" aria-hidden />
+          </span>
+          <p className="t-secondary max-w-[46ch] text-pretty">{t('calendar.importing')}</p>
         </div>
       )}
 
       {step === 'done' && (
-        <div className="flex flex-col items-center justify-center gap-6 pt-12" role="status" aria-live="polite">
-          <div
-            className="flex items-center justify-center rounded-full"
+        <div
+          className="flex flex-col items-center"
+          style={{ gap: 20, padding: '48px 0 0' }}
+          role="status"
+          aria-live="polite"
+        >
+          <span
+            className="flex size-14 shrink-0 items-center justify-center rounded-full"
             style={{
-              width: 64,
-              height: 64,
               background: 'rgba(var(--primary-rgb), 0.15)',
               boxShadow: 'inset 0 0 0 1.5px rgba(var(--primary-rgb), 0.35)',
             }}
           >
-            <Check className="size-8 text-[var(--status-done)]" strokeWidth={2.2} />
-          </div>
-          <div className="text-center px-6">
-            <h2
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 18,
-                fontWeight: 500,
-                color: 'var(--fg-1)',
-                marginBottom: 6,
-              }}
-            >
-              {t('calendar.importDone')}
-            </h2>
-            <p
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 14,
-                color: 'var(--fg-2)',
-              }}
-            >
+            <Check className="size-7 text-[var(--status-done)]" strokeWidth={2.2} aria-hidden />
+          </span>
+          <div
+            className="flex flex-col items-center text-center"
+            style={{ gap: 8, paddingLeft: 24, paddingRight: 24 }}
+          >
+            <h2 className="t-h2 m-0 max-w-[28ch] text-balance">{t('calendar.importDone')}</h2>
+            <p className="t-secondary max-w-[46ch] text-pretty">
               {plural(t('calendar.importedCount', { count: importedCount }), importedCount)}
             </p>
           </div>
           {importResult && importResult.habits.length > 0 && (
             <div className="w-full">
-              {importResult.habits.map((habit) => (
-                <SettingsRow key={habit.id} label={habit.title} accessory="none" />
-              ))}
+              <SettingsGroup>
+                {importResult.habits.map((habit) => (
+                  <SettingsRow key={habit.id} label={habit.title} accessory="none" />
+                ))}
+              </SettingsGroup>
             </div>
           )}
           <PillButton onClick={() => router.push('/')}>
@@ -476,50 +462,21 @@ function CalendarSyncPageContent() {
       )}
 
       {step === 'error' && (
-        <div className="flex flex-col items-center justify-center gap-6 pt-12" role="alert" aria-live="assertive">
-          <div
-            className="flex items-center justify-center rounded-full"
-            style={{
-              width: 64,
-              height: 64,
-              background: 'color-mix(in srgb, var(--status-bad) 15%, transparent)',
-              boxShadow: 'inset 0 0 0 1.5px color-mix(in srgb, var(--status-bad) 35%, transparent)',
-            }}
-          >
-            <AlertTriangle className="size-8 text-[var(--status-bad)]" strokeWidth={1.8} />
-          </div>
-          <div className="text-center px-6">
-            <h2
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 18,
-                fontWeight: 500,
-                color: 'var(--fg-1)',
-                marginBottom: 6,
-              }}
-            >
-              {t('calendar.errorTitle')}
-            </h2>
-            <p
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 14,
-                lineHeight: 1.5,
-                color: 'var(--fg-2)',
-              }}
-            >
-              {displayedErrorMessage}
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <PillButton onClick={handleRetry}>{t('calendar.retry')}</PillButton>
-            <PillButton variant="ghost" onClick={() => goBackOrFallback('/profile')}>
-              {t('common.goBack')}
-            </PillButton>
-          </div>
+        <div role="alert" aria-live="assertive">
+          <EmptyState
+            icon={AlertTriangle}
+            title={t('calendar.errorTitle')}
+            description={displayedErrorMessage}
+            action={{ label: t('calendar.retry'), onClick: handleRetry }}
+            footer={
+              <PillButton variant="ghost" onClick={() => goBackOrFallback('/profile')}>
+                {t('common.goBack')}
+              </PillButton>
+            }
+            matchActionFooterWidth
+          />
         </div>
       )}
-        </div>
       </div>
       </div>
     </div>

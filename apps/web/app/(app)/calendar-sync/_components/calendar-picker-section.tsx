@@ -1,11 +1,10 @@
 'use client'
 
-import { Loader2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { SectionLabel } from '@/components/ui/section-label'
-import { SettingsDescription } from '@/components/ui/settings-description'
 import { SettingsGroup } from '@/components/ui/settings-group'
 import { SettingsRow, Switch } from '@/components/ui/settings-row'
+import { SkeletonRow } from '@/components/ui/skeleton'
 import { useCalendars, useSetSelectedCalendars } from '@/hooks/use-calendars'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { toast } from 'sonner'
@@ -34,38 +33,26 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
     }
   }
 
+  const hasCalendars = (calendars ?? []).length > 0
+
   return (
     <>
-      <SectionLabel bottom={10}>{t('calendar.calendars.title')}</SectionLabel>
+      <SectionLabel top={32} description={t('calendar.calendars.description')}>
+        {t('calendar.calendars.title')}
+      </SectionLabel>
 
       {isLoading && (
-        <div
-          className="flex items-center"
-          style={{ gap: 8, padding: '6px 20px 0' }}
-          role="status"
-          aria-live="polite"
-        >
-          <Loader2 className="size-3 animate-spin shrink-0" aria-hidden />
-          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-2)' }}>
-            {t('calendar.calendars.loading')}
-          </span>
+        <div role="status" aria-live="polite">
+          <span className="sr-only">{t('calendar.calendars.loading')}</span>
+          {Array.from({ length: 3 }, (_, index) => (
+            <SkeletonRow key={index} media="none" lineWidths={['w-2/5', 'w-1/5']} />
+          ))}
         </div>
       )}
 
       {isError && (
-        <div
-          className="flex items-center"
-          style={{ gap: 8, padding: '6px 20px 0' }}
-          role="alert"
-        >
-          <span
-            style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 14,
-              color: 'var(--status-bad-text)',
-              flex: 1,
-            }}
-          >
+        <div className="flex items-center px-5" style={{ gap: 12 }} role="alert">
+          <span className="t-secondary min-w-0 flex-1" style={{ color: 'var(--status-bad-text)' }}>
             {t('calendar.calendars.error')}
           </span>
           <button type="button" className="chip shrink-0" onClick={() => void refetch()}>
@@ -74,20 +61,13 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
         </div>
       )}
 
-      {!isLoading && !isError && calendars && calendars.length === 0 && (
-        <p
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 14,
-            color: 'var(--fg-3)',
-            padding: '6px 20px 0',
-          }}
-        >
+      {!isLoading && !isError && !hasCalendars && (
+        <p className="t-secondary max-w-[65ch] px-5 text-pretty">
           {t('calendar.calendars.empty')}
         </p>
       )}
 
-      {!isLoading && !isError && (
+      {!isLoading && !isError && hasCalendars && (
         <SettingsGroup>
           {(calendars ?? []).map((calendar) => (
             <SettingsRow
@@ -106,8 +86,6 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
           ))}
         </SettingsGroup>
       )}
-
-      <SettingsDescription>{t('calendar.calendars.description')}</SettingsDescription>
     </>
   )
 }

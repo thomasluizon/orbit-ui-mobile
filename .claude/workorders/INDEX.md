@@ -3,7 +3,7 @@
 Generated from manifest `6a2e1136aebb61a0c94c0dff34c216f29b8a1de8`. Do not hand-edit; run `node tools/workorder.mjs`.
 
 - 214 order files: 214 derived (168 surfaces + 46 residual groups)
-- 988 mechanical violations outstanding across 130 work orders
+- 971 mechanical violations outstanding across 129 work orders
 
 Mechanical debt is a FLOOR. Completion is granted only by a human tick in signoff.json.
 
@@ -34,7 +34,6 @@ order would forbid every edit that could move its cells. The cells ride with the
 | [residual-mobile-components-habit-list](residual-mobile-components-habit-list.md) | mobile | residual | 2 | 0 | 18 |
 | [route-calendar](route-calendar.md) | web | route | 12 | 8 | 18 |
 | [residual-web-components-chat](residual-web-components-chat.md) | web | residual | 7 | 0 | 17 |
-| [route-calendar-sync](route-calendar-sync.md) | web | route | 7 | 8 | 17 |
 | [overlay-app-layout](overlay-app-layout.md) | web | overlay | 30 | 4 | 16 |
 | [m-route-social-challenges](m-route-social-challenges.md) | mobile | route | 6 | 4 | 14 |
 | [residual-mobile-components](residual-mobile-components.md) | mobile | residual | 5 | 0 | 14 |
@@ -220,6 +219,7 @@ order would forbid every edit that could move its cells. The cells ride with the
 | [overlay-ui-popover](overlay-ui-popover.md) | web | overlay | 1 | 4 | 0 |
 | [route-about](route-about.md) | web | route | 1 | 4 | 0 |
 | [route-auth-callback](route-auth-callback.md) | web | route | 1 | 4 | 0 |
+| [route-calendar-sync](route-calendar-sync.md) | web | route | 7 | 8 | 0 |
 | [route-chat](route-chat.md) | web | route | 2 | 8 | 0 |
 | [route-delete-account](route-delete-account.md) | web | route | 1 | 4 | 0 |
 | [route-onboarding](route-onboarding.md) | web | route | 1 | 4 | 0 |

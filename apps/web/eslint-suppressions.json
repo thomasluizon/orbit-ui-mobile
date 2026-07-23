@@ -39,26 +39,6 @@
       "count": 2
     }
   },
-  "app/(app)/calendar-sync/_components/auto-sync-settings-card.tsx": {
-    "local/spacing-scale": {
-      "count": 7
-    }
-  },
-  "app/(app)/calendar-sync/_components/calendar-picker-section.tsx": {
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
-  "app/(app)/calendar-sync/_components/calendar-sync-event-row.tsx": {
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
-  "app/(app)/calendar-sync/page.tsx": {
-    "local/spacing-scale": {
-      "count": 4
-    }
-  },
   "app/(app)/calendar/_components/calendar-shell.tsx": {
     "local/spacing-scale": {
       "count": 6

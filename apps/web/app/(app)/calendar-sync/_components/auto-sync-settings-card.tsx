@@ -3,13 +3,11 @@
 import { useMemo, useState } from 'react'
 import {
   Loader2,
-  CalendarDays,
   AlertTriangle,
   RefreshCw,
 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { SectionLabel } from '@/components/ui/section-label'
-import { SettingsDescription } from '@/components/ui/settings-description'
 import { Switch } from '@/components/ui/settings-row'
 import { useOffline } from '@/hooks/use-offline'
 import {
@@ -26,7 +24,12 @@ import { toast } from 'sonner'
 import { QuietActionButton } from './quiet-action-button'
 import { connectGoogle } from './connect-google'
 
-export function AutoSyncSettingsCard() {
+/**
+ * Auto-sync configuration band: a section head that owns the switch and the explanation,
+ * over a single quiet status strip pairing "when it last ran" with the action that runs it.
+ * Deliberately card-less so it shares one rhythm with the Calendars group below it.
+ */
+export function AutoSyncSection() {
   const t = useTranslations()
   const { data: state, isLoading } = useCalendarAutoSyncState()
   const setAutoSync = useSetCalendarAutoSync()
@@ -95,64 +98,26 @@ export function AutoSyncSettingsCard() {
 
   return (
     <>
-      <SectionLabel bottom={10}>{t('calendar.autoSync.title')}</SectionLabel>
-      <div style={{ padding: '0 20px' }}>
-        <div
-          className="flex items-center"
-          style={{
-            gap: 14,
-            padding: '16px 18px',
-            borderRadius: 16,
-            background: 'var(--bg-card)',
-            boxShadow: 'inset 0 0 0 1px var(--hairline)',
-          }}
-        >
-          <span
-            aria-hidden="true"
-            className="inline-flex justify-center shrink-0"
-            style={{ width: 26 }}
-          >
-            <CalendarDays size={22} strokeWidth={1.8} color="var(--fg-1)" />
-          </span>
-          <div className="flex-1 min-w-0">
-            <div
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 18,
-                fontWeight: 400,
-                lineHeight: 1.25,
-                color: 'var(--fg-1)',
-              }}
-            >
-              {t('calendar.title')}
-            </div>
-            <div
-              className="flex items-center"
-              style={{
-                gap: 6,
-                marginTop: 4,
-                fontFamily: 'var(--font-sans)',
-                fontSize: 13,
-                lineHeight: 1.4,
-                color: 'var(--fg-3)',
-              }}
-            >
-              {isLoading && <Loader2 className="size-3 animate-spin shrink-0" aria-hidden />}
-              <span>{statusMeta}</span>
-            </div>
-          </div>
+      <SectionLabel
+        description={t('calendar.autoSync.description')}
+        trailing={
           <Switch
             on={enabled}
             onToggle={() => void handleToggle()}
             ariaLabel={t('calendar.autoSync.toggleLabel')}
             disabled={toggleDisabled}
           />
-        </div>
-      </div>
-      <SettingsDescription>{t('calendar.autoSync.description')}</SettingsDescription>
+        }
+      >
+        {t('calendar.autoSync.title')}
+      </SectionLabel>
 
-      {!isLoading && hasConnection && (
-        <div className="flex justify-end" style={{ padding: '0 20px 6px' }}>
+      <div className="flex min-w-0 items-center justify-between px-5" style={{ gap: 12 }}>
+        <span className="t-meta inline-flex min-w-0 items-center" style={{ gap: 8 }}>
+          {isLoading && <Loader2 className="size-3 animate-spin shrink-0" aria-hidden />}
+          <span className="truncate">{statusMeta}</span>
+        </span>
+        {!isLoading && hasConnection && (
           <QuietActionButton onClick={() => void handleSyncNow()} disabled={runSyncNow.isPending}>
             {runSyncNow.isPending ? (
               <>
@@ -166,46 +131,33 @@ export function AutoSyncSettingsCard() {
               </>
             )}
           </QuietActionButton>
-        </div>
-      )}
+        )}
+      </div>
 
       {showReconnect && (
-        <div
-          style={{
-            padding: '6px 20px 14px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 4,
-          }}
-        >
-          <div className="flex items-start gap-2 text-[var(--status-overdue-text)]">
-            <AlertTriangle className="size-4 mt-0.5 shrink-0" aria-hidden />
-            <div className="flex-1 min-w-0">
-              <p
-                style={{
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 14,
-                  fontWeight: 500,
-                }}
-              >
-                {t('calendar.autoSync.reconnectTitle')}
-              </p>
-              <p
-                style={{
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 13,
-                  marginTop: 4,
-                  color: 'var(--fg-3)',
-                  lineHeight: 1.5,
-                }}
-              >
-                {t('calendar.autoSync.reconnectBody')}
-              </p>
-            </div>
+        <div className="flex items-start px-5" style={{ gap: 8, paddingTop: 12 }}>
+          <AlertTriangle
+            className="size-4 shrink-0 text-[var(--status-overdue-text)]"
+            aria-hidden
+          />
+          <div className="flex min-w-0 flex-1 flex-col items-start" style={{ gap: 8 }}>
+            <p
+              className="t-secondary"
+              style={{ color: 'var(--status-overdue-text)', fontWeight: 500 }}
+            >
+              {t('calendar.autoSync.reconnectTitle')}
+            </p>
+            <p className="t-secondary max-w-[65ch] text-pretty">
+              {t('calendar.autoSync.reconnectBody')}
+            </p>
+            <QuietActionButton
+              onClick={() => void handleReconnect()}
+              disabled={isConnecting}
+              tone="warning"
+            >
+              {t('calendar.autoSync.reconnectCta')}
+            </QuietActionButton>
           </div>
-          <QuietActionButton onClick={() => void handleReconnect()} disabled={isConnecting} tone="warning">
-            {t('calendar.autoSync.reconnectCta')}
-          </QuietActionButton>
         </div>
       )}
     </>

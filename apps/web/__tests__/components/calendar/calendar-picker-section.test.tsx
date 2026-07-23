@@ -78,10 +78,11 @@ describe('CalendarPickerSection', () => {
     expect(mutateAsync).toHaveBeenCalledWith({ id: 'cal-1', isSynced: false })
   })
 
-  it('shows the loading state', () => {
+  it('shows a row-shaped skeleton while the calendars load', () => {
     useCalendarsMock.mockReturnValue({ data: undefined, isLoading: true, isError: false })
-    render(<CalendarPickerSection enabled />)
+    const { container } = render(<CalendarPickerSection enabled />)
     expect(screen.getByText('calendar.calendars.loading')).toBeInTheDocument()
+    expect(container.querySelectorAll('[data-skeleton-row]').length).toBeGreaterThan(0)
   })
 
   it('shows the error state', () => {
