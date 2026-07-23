@@ -1,6 +1,6 @@
 # Work order index
 
-Generated from manifest `48e4496eb16af25858794d4bda3cf343189a1a73`. Do not hand-edit; run `node tools/workorder.mjs`.
+Generated from manifest `6a2e1136aebb61a0c94c0dff34c216f29b8a1de8`. Do not hand-edit; run `node tools/workorder.mjs`.
 
 - 214 order files: 214 derived (168 surfaces + 46 residual groups)
 - 988 mechanical violations outstanding across 130 work orders
