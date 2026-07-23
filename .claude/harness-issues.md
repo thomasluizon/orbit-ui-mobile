@@ -209,6 +209,38 @@ failures were this mistake.
 
 ---
 
+## H10 - The sanctioned capture pipeline needs a real session token, so it cannot run unattended
+
+**Severity: high.** This is a structural reason pixel evidence sits at 0/804.
+
+Every work order points at `npm run surfaces:capture -- --filter <id>` as the command that
+"produces the screenshot a human will look at." Against a freshly booted local stack it exits 2:
+
+```
+capture-surfaces: no session. Set ORBIT_AUTH_TOKEN to the auth_token cookie value for the
+local stack, or pass --storage-state <path>.
+```
+
+So the only two ways to capture are a real `auth_token` cookie value or a pre-seeded storage
+state. A real token is a credential: it cannot be pasted into a transcript, committed, or held
+by an agent, which means the documented capture path cannot run in CI, cannot run in a
+`--sleep` drive, and cannot run in any attended session where the operator is away from the
+machine.
+
+**What actually worked here**, and why it is not a substitute: driving the developer's own
+already-logged-in Chrome through the `claude-in-chrome` MCP rendered `/streak` immediately, in
+both themes, with no credential handled. But that depends on a human's browser holding a live
+session for `localhost:3000`. It is attended-only and reproducible by nobody else.
+
+**Candidate fix.** The repo already contains the mechanism: `perf.yml` / LHCI drive the
+signed-in `/` surface by injecting a **fake JWT** cookie via `browser.setCookie()` against the
+hermetic mock orbit-api (`apps/web/e2e/visual/`). Pointing `capture-surfaces.mjs` at that same
+harness would need no real credential at all. It would also reach the 120 `empty` cells the
+manifest enumerates but capture currently reports as `state-not-capturable`, since the mock api
+controls the fixture data.
+
+---
+
 ## H9 - Orca orchestration has no human-facing UI, so gates cannot be approved from the app or phone
 
 **Severity: informational, but it invalidates a plausible workflow design.**

@@ -260,6 +260,29 @@ against the new one yet. That is real work outstanding, not a display bug.
 
 ## Open defects to fold in
 
+### `route-streak` - observed live in both themes, 2026-07-23 (B1's untouched Backlog B)
+
+Captured through `claude-in-chrome` against the local stack on B1's branch. B1's spacing pass
+changed none of this, which is what a depth of 11.2% looks like in practice.
+
+- **Colour emoji used as stat iconography.** The Estatisticas cards carry a trophy and a medal
+  emoji. DESIGN.md mandates Tabler glyphs through the shared `<Icon>` barrel; the standing
+  "colour emoji stay" decision covers HABIT emoji, not decorative stat glyphs. This is the
+  AI-slop test's central example.
+- **Card as a layout primitive.** Three stacked cards run down one column (Estatisticas 2-up,
+  Esta Semana, Congelamento de sequencia). The work order's own Backlog B names this: "A card
+  is not a layout primitive."
+- **Two cards carrying one scalar each** ("0 / Maior", "Normal / Classificacao"). Very low
+  information density for the vertical space consumed.
+- **The orbital glyph above the streak count is near-invisible**, in light theme especially.
+  It is meant to be identity-carrying under the de-decorated anchor, and instead reads as an
+  artifact.
+- **Confirms the known orphaned back-chevron defect on this route**: the chevron sits alone
+  below the top bar while the bar carries the page title separately.
+- **Large empty right-hand region at desktop width** (content column roughly 600px centred in
+  ~1280px). Expected from a mobile-first 412px shell, but worth a deliberate decision rather
+  than an accident.
+
 - Broken paywall on `route-upgrade` (functional, launch-blocking) - found by the judge, which
   is the kind of thing it is genuinely good for.
 - The orphaned back-chevron / missing NavHeader title: one shared-layout fix across up to 9
