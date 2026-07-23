@@ -1016,8 +1016,8 @@ T("workorder: the residual order no longer orders zero rendered change", /withou
 writeFileSync(join(woGuard, "apps", "web", "eslint-suppressions.json"), JSON.stringify({ "app/page.tsx": { "local/spacing-scale": { count: 3 } } }))
 const clearedResidual = runWorkorder(woGuard, ["--check", "--id", "residual-web-app"])
 T("workorder: a fully-cleared residual's done command exits 0", clearedResidual.status, 0)
-T("workorder: ...with the honest swept-on-next-regeneration note", /no longer derives/.test(clearedResidual.stdout) && /sweep/.test(clearedResidual.stdout), true)
-T("workorder: ...telling the child a Timeline entry is what makes the order survive", /RETIRES it instead/.test(clearedResidual.stdout), true)
+T("workorder: ...with the honest no-longer-derives note", /no longer derives/.test(clearedResidual.stdout) && /RETIRED/.test(clearedResidual.stdout), true)
+T("workorder: ...saying the regeneration KEEPS the order and queues it nowhere", /KEEPS it/.test(clearedResidual.stdout) && /queued by no bundle/.test(clearedResidual.stdout), true)
 T("workorder: an unknown id still exits 2", runWorkorder(woGuard, ["--check", "--id", "no-such-order"]).status, 2)
 // The fallback reads Boundaries off the child-writable .md for an UNCOMMITTED
 // order (this one is untracked), so pin the anti-gaming property that remains
@@ -1090,9 +1090,14 @@ const woRetireEarly = buildWorkorderFixture("retire-early", {
   cells: [workorderCell("r-cal", "apps/web/app/page.tsx")],
   suppressions: { "lib/styles.ts": { "local/spacing-scale": { count: 2 } } },
 })
+const retireEarlyGit = (...args) => spawnSync("git", args, { cwd: woRetireEarly, encoding: "utf8" })
+retireEarlyGit("config", "core.autocrlf", "false")
 mkdirSync(join(woRetireEarly, "apps", "web", "lib"), { recursive: true })
 writeFileSync(join(woRetireEarly, "apps", "web", "lib", "styles.ts"), "export const gap = 10\n")
 runWorkorder(woRetireEarly)
+retireEarlyGit("add", "-A")
+retireEarlyGit("commit", "-qm", "base: orders generated, nothing recorded")
+const retireEarlyBase = retireEarlyGit("rev-parse", "HEAD").stdout.trim()
 writeFileSync(join(woRetireEarly, "apps", "web", "lib", "styles.ts"), "export const gap = 8\n")
 writeFileSync(join(woRetireEarly, "apps", "web", "eslint-suppressions.json"), "{}")
 runWorkorder(woRetireEarly)
@@ -1102,16 +1107,38 @@ T(
   true,
 )
 T("workorder: ...and its done command exits 0", runWorkorder(woRetireEarly, ["--check", "--id", "residual-web-lib"]).status, 0)
-// The other half of the rule: an order whose owned files are GONE and which
-// recorded nothing has nothing to keep, so garbage collection still happens.
+retireEarlyGit("add", "-A")
+retireEarlyGit("commit", "-qm", "child: cleared, regenerated, no Timeline entry yet")
+// The retirement decision has to be identical in check-diff-ownership's
+// canonical regeneration, which runs in a temp tree seeded with ONLY the
+// manifest, the orders and the ledgers. Measured: a rule that also consulted
+// the source files retired here and swept there, so the honest child's diff
+// stopped matching regeneration output and condition (b) went red.
+T(
+  "workorder: ...and condition (b) agrees, canonical regen and real tree alike",
+  spawnSync(process.execPath, [join(hooksDir, "..", "..", "tools", "check-diff-ownership.mjs"), "--id", "residual-web-lib", "--base", retireEarlyBase], {
+    cwd: woRetireEarly,
+    env: { ...process.env, ORBIT_SURFACE_ROOT: woRetireEarly },
+    encoding: "utf8",
+  }).status,
+  0,
+)
+// The other half of the rule: a stale order that recorded nothing and whose
+// debt belongs to a group that DOES derive is garbage, and garbage collection
+// still happens. Both halves read only the order file and the ledger - the
+// filesystem is deliberately not consulted, because check-diff-ownership
+// re-derives this ledger in a temp tree that carries neither the source files
+// nor anything else, and a rule that split on file existence retired in the
+// real tree and swept in the canonical one, breaking the honest child's diff.
+writeFileSync(join(woRetireEarly, "apps", "web", "eslint-suppressions.json"), JSON.stringify({ "lib/other.ts": { "local/spacing-scale": { count: 1 } } }))
 writeFileSync(
-  join(woRetireEarly, ".claude", "workorders", "residual-web-vanished.md"),
-  "---\nsurfaceId: residual-web-vanished\nplatform: web\nkind: residual\nownedFiles: 1\ncells: 0\nmechanicalDebt: 0\npixelEvidence: none\ngeneratedFrom: test\n---\n\n# Work order: residual-web-vanished\n\n## Boundaries: you own these files, and only these\n\n- `apps/web/lib/deleted.ts`\n\n## Backlog A: enumerated\n\nNone.\n",
+  join(woRetireEarly, ".claude", "workorders", "residual-web-stale.md"),
+  "---\nsurfaceId: residual-web-stale\nplatform: web\nkind: residual\nownedFiles: 1\ncells: 0\nmechanicalDebt: 1\npixelEvidence: none\ngeneratedFrom: test\n---\n\n# Work order: residual-web-stale\n\n## Boundaries: you own these files, and only these\n\n- `apps/web/lib/other.ts`\n\n## Backlog A: enumerated\n\nNone.\n",
 )
 runWorkorder(woRetireEarly)
 T(
-  "workorder: an order whose files are gone and which recorded nothing is still swept",
-  existsSync(join(woRetireEarly, ".claude", "workorders", "residual-web-vanished.md")),
+  "workorder: a stale order carrying debt another order derives is still swept",
+  existsSync(join(woRetireEarly, ".claude", "workorders", "residual-web-stale.md")),
   false,
 )
 

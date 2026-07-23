@@ -594,15 +594,16 @@ function planOrdersOnDisk() {
  * records as a hard failure for a bundle that did its work perfectly.
  *
  * So an order is retired rather than deleted when either half of "success" is
- * visible: it carries RECORDED HISTORY, or its owned files are all still on
- * disk and carry no debt (the cleared case - which covers a child that
- * regenerated before appending its Timeline entry, so the ORDER of two rules it
- * was given cannot cost it the file it still has to write into). It keeps its
+ * visible: it carries RECORDED HISTORY, or it names owned files and carries no
+ * debt (the cleared case - which covers a child that regenerated before
+ * appending its Timeline entry, so the ORDER of two rules it was given cannot
+ * cost it the file it still has to write into). It keeps its
  * Timeline and its Boundaries, its debt is recomputed from the ledger, and it
  * re-renders byte-identically on every later regeneration (cells drop to 0,
- * because a retired order is in no denominator). Anything else - an order whose
- * files moved or were deleted, with nothing recorded - has nothing to lose and
- * is still swept.
+ * because a retired order is in no denominator). Anything else - a stale order
+ * naming files another order now owns, one with no Boundaries at all, one that
+ * still carries debt yet derives from nothing, all with nothing recorded - has
+ * nothing to lose and is still swept.
  *
  * Returns null for anything that can never be retired: no frontmatter, a plan
  * order (preserved by its own path), a malformed body, or a filename that does
@@ -893,13 +894,13 @@ function main() {
     .map((name) => ({ name, unit: retiredUnitFrom(name) }))
     .filter((entry) => entry.unit !== null && !foldedInto.has(entry.unit.surfaceId))
     .map((entry) => ({ ...entry, debt: debtOf(entry.unit.ownedFiles, suppressions) }))
-    .filter(
-      (entry) =>
-        entry.unit.hasHistory ||
-        (entry.unit.ownedFiles.length > 0 &&
-          entry.debt.total === 0 &&
-          entry.unit.ownedFiles.every((file) => existsSync(join(REPO_ROOT, file)))),
-    )
+    // Both halves are decided from the SEEDED inputs only - the order file and
+    // the suppression ledger - never from the filesystem. check-diff-ownership
+    // re-derives this ledger in a temp tree carrying those two inputs and
+    // nothing else, so a rule that consulted the source files (do they still
+    // exist?) retired here and swept there, and the honest child's diff stopped
+    // matching regeneration output. Same inputs, same verdict, everywhere.
+    .filter((entry) => entry.unit.hasHistory || (entry.unit.ownedFiles.length > 0 && entry.debt.total === 0))
     .sort((a, b) => a.unit.surfaceId.localeCompare(b.unit.surfaceId))
 
   if (wantedId) {
@@ -936,9 +937,9 @@ function main() {
         }
         if (!planOrder && found.debt.total === 0) {
           sweptNote =
-            "This order no longer derives from the manifest or the suppression ledger: its debt is fully cleared. It " +
-            "carries no recorded Timeline entry, so the next `node tools/workorder.mjs` regeneration will sweep the " +
-            "file - append your Timeline entry first (condition c) and the regeneration RETIRES it instead, keeping the record."
+            "This order no longer derives from the manifest or the suppression ledger, and it names no owned files " +
+            "and records no history to retire, so the next `node tools/workorder.mjs` regeneration will sweep the file. " +
+            "A cleared order that names its files is RETIRED instead - kept, with its Timeline."
         }
       } else if (planOrder) {
         fail(`"${wantedId}" is a plan work order with no manifest unit to re-render: read .claude/workorders/${planOrder.file} directly.`)
