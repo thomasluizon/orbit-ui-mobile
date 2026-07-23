@@ -45,33 +45,6 @@ export function checkTsAntipatterns(filePath, contents) {
   }
 }
 
-export function checkNewTodos(filePath, contents) {
-  const n = norm(filePath)
-  if (/\/(node_modules|\.next|\.expo|\.turbo|dist|build|coverage)\//.test(n)) return null
-  if (/\/\.claude\/(hooks|scripts|agents|skills)\//.test(n)) return null
-  if (/\/\.github\/workflows\//.test(n)) return null
-  if (/\.(md|mdx|json|yml|yaml)$/.test(n)) return null
-  if (typeof contents !== "string") return null
-
-  const markers = /(?<![A-Za-z])(TODO|FIXME|HACK|XXX|BUG)(?!\s*\(?[A-Za-z0-9_/-]*#\d+)/g
-  const findings = []
-  for (const match of contents.matchAll(markers)) {
-    const lineNumber = contents.slice(0, match.index).split("\n").length
-    const lineContent = contents.split("\n")[lineNumber - 1].trim().slice(0, 120)
-    findings.push(`${filePath}:${lineNumber} — ${match[1]} — ${lineContent}`)
-  }
-  if (findings.length === 0) return null
-  return {
-    block: true,
-    message:
-      `Untracked workaround markers in ${filePath}:\n` +
-      findings.map((f) => `  - ${f}`).join("\n") +
-      `\n\nThese are root-cause-avoidance markers. Either:\n` +
-      `  1. Fix the underlying issue and remove the marker.\n` +
-      `  2. Open a GitHub issue and reference it: \`TODO #<number>: ...\`.\n`,
-  }
-}
-
 export function checkCsharpAuthz(filePath, contents) {
   const n = norm(filePath)
   if (!/\/orbit-api\/src\/Orbit\.Api\/Controllers\/.*\.cs$/.test(n)) return null

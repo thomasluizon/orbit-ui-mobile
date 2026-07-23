@@ -138,6 +138,19 @@ If touching `apps/web`, you almost always also touch `apps/mobile`. List the par
 |---|---|
 | {issue} | {handling} |
 
+### Assign the implementation tier (routing signal)
+
+Set the plan's `Tier` field — it tells `/implement` and `/drive` which implementation subagent to spawn (`implement-sonnet` cheap vs `implement-opus` hard-path), so a proven-isolated slice runs on Sonnet 5 for a fraction of the quota. **Default is `opus`; `sonnet` must be earned.**
+
+Assign `sonnet` ONLY when ALL of these hold:
+- **Repos = frontend OR backend** (single-repo — not `both`), AND
+- **Parity Required = no**, AND
+- **no shared-contract/DTO change** (nothing in `packages/shared/src/types/*`, `packages/shared/src/api/endpoints.ts`, or an orbit-api DTO/Controller), AND
+- **no DB migration, no auth/security path, no design-token/UI-visual change**, AND
+- **Complexity = LOW or MEDIUM**.
+
+Otherwise assign `opus` (cross-repo, parity-bound, contract-touching, migration, auth, design, or HIGH complexity — the work where a cheap-tier failure spends review rounds). When in doubt, `opus`. The `implement-sonnet` agent carries a safety valve: if it discovers mid-implementation that the slice actually crosses one of these boundaries, it stops and returns `blocked` for re-routing — so a misclassification is caught, not silently under-built.
+
 ---
 
 ## Phase 4: GENERATE
@@ -172,6 +185,7 @@ So that {benefit}
 | GitHub Issue | #{N} (or "N/A") |
 | Web Affected | yes / no |
 | Mobile Affected | yes / no |
+| Tier | sonnet / opus |
 
 ---
 

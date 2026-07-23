@@ -1,0 +1,16 @@
+{
+  "model": "sonnet",
+  "fallbackModel": "sonnet",
+  "permissionMode": "bypassPermissions",
+  "perTaskTimeoutMs": 3600000,
+  "maxConsecutiveFailures": 2,
+  "allowedTools": [],
+  "disallowedTools": ["Bash(rm -rf *)", "Bash(git reset --hard*)", "Bash(git push --force*)"],
+  "addDirs": ["C:\\Users\\thoma\\Documents\\Programming\\Projects\\orbit-api"],
+  "push": true,
+  "repos": [{ "path": ".", "base": "SET-ME-to-the-branch-carrying-the-work-orders" }],
+  "verify": true,
+  "verifyModel": "sonnet",
+  "verifyTimeoutMs": 1200000,
+  "verifyAllowedTools": ["Read", "Grep", "Glob", "Bash(gh pr diff:*)", "Bash(gh pr view:*)", "Bash(git diff:*)", "Bash(git log:*)", "Bash(git show:*)"]
+}

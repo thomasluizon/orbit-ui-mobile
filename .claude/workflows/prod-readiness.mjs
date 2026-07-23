@@ -220,4 +220,7 @@ return {
     { check: 'backups', reason: 'un-verifiable from a repo read — verify in the DB console: automated backups / PITR enabled AND a tested restore path' },
   ],
   failedAudits: auditResults.filter((r) => r.failed).map((r) => r.kind),
+  unconvergedAudits: auditResults
+    .filter((r) => !r.failed && r.converged !== true)
+    .map((r) => ({ kind: r.kind, reason: r.convergenceReason || 'completeness unproven', criticErrors: r.criticErrors ?? null })),
 }

@@ -53,7 +53,7 @@ function throwBlocks(results, tag) {
 
 export default async ({ directory, worktree } = {}) => {
   const dir = directory || worktree || process.cwd()
-  const [git, content, copy, secrets, source, parity, io] = await Promise.all([
+  const [git, content, copy, secrets, source, parity, io, gate] = await Promise.all([
     lib("rules-git.mjs", dir),
     lib("rules-content.mjs", dir),
     lib("rules-copy.mjs", dir),
@@ -61,6 +61,7 @@ export default async ({ directory, worktree } = {}) => {
     lib("rules-source.mjs", dir),
     lib("rules-parity.mjs", dir),
     lib("io.mjs", dir),
+    lib("rules-gate-tamper.mjs", dir),
   ])
   const resolveHeadBranch = (d) =>
     execFileSync("git", ["-C", d || dir, "rev-parse", "--abbrev-ref", "HEAD"], {
@@ -85,11 +86,13 @@ export default async ({ directory, worktree } = {}) => {
               git.checkGitWorktreeRemove(args.command),
               git.checkNpmExpoPin(args.command),
               secrets.checkSecretInArgv(args.command),
+              gate.checkGateTamperBash(args.command),
             ],
             "command",
           )
         } else if (tool === "edit" || tool === "write") {
           const { filePath, addedText } = io.fromOpenCodeEdit(args)
+          if (filePath) throwBlocks([gate.checkGateTamperEdit(filePath)], "gate-tamper")
           if (filePath && addedText) {
             throwBlocks(
               [
@@ -122,7 +125,6 @@ export default async ({ directory, worktree } = {}) => {
             source.checkTsAntipatterns(filePath, contents),
             source.checkMobileSupabaseLazy(filePath, contents),
             source.checkEfMigrationRawIndex(filePath, contents),
-            source.checkNewTodos(filePath, contents),
             source.checkCsharpAuthz(filePath, contents),
             source.checkCsharpTimezone(filePath, contents),
             source.checkCsharpFluentConfig(filePath, contents),

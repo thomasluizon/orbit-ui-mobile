@@ -256,25 +256,41 @@ log(`verified: ${kept.length} kept · ${capped.length} deferred (cap)`)
 phase('Complete')
 let round = 0
 let dry = 0
+let criticErrors = 0
+let convergenceReason = ''
 const maxDry = parsedArgs.loop?.maxDryRounds ?? 2
+const MAX_CRITIC_ERRORS = 2
 while (dry < maxDry && round < HARD_ROUNDS) {
   round += 1
   const critic = await agent(criticPrompt(kind, scope, sweptLabels, kept.length), { label: `critic:round-${round}`, phase: 'Complete', model: 'haiku', agentType: 'audit-readonly', schema: CRITIC_SCHEMA })
-  const gaps = (critic && critic.gaps) || []
+  if (!critic) {
+    criticErrors += 1
+    log(`round ${round}: critic DIED (${criticErrors}/${MAX_CRITIC_ERRORS}) — a dead verifier is UNKNOWN, not a clean pass; not counting as dry`)
+    if (criticErrors >= MAX_CRITIC_ERRORS) {
+      convergenceReason = `critic died ${criticErrors}× (rate-limit or API error) — completeness UNKNOWN`
+      break
+    }
+    continue
+  }
+  const gaps = critic.gaps || []
   if (!gaps.length) {
     dry += 1
     continue
   }
-  const roundRaw = (
-    await parallel(
-      gaps.map((g) => () =>
-        agent(g.prompt, { label: `find:${g.label}`, phase: 'Complete', model: 'haiku', agentType: 'audit-readonly', schema: FINDINGS_SCHEMA })
-      )
+  const roundResults = await parallel(
+    gaps.map((g) => () =>
+      agent(g.prompt, { label: `find:${g.label}`, phase: 'Complete', model: 'haiku', agentType: 'audit-readonly', schema: FINDINGS_SCHEMA })
     )
-  ).filter(Boolean).flatMap((r) => r.findings || [])
+  )
+  const finderDied = roundResults.some((r) => !r)
+  const roundRaw = roundResults.filter(Boolean).flatMap((r) => r.findings || [])
   gaps.forEach((g) => sweptLabels.push(g.label))
   const fresh = dedupeFresh(roundRaw)
   if (!fresh.length) {
+    if (finderDied) {
+      log(`round ${round}: a gap-finder died and no fresh findings surfaced — absence is UNPROVEN, not counting as dry`)
+      continue
+    }
     dry += 1
     continue
   }
@@ -284,6 +300,18 @@ while (dry < maxDry && round < HARD_ROUNDS) {
   freshCapped.forEach((f) => deferred.push({ title: f.title, location: f.location, severity: f.severity, deferReason: 'exceeded the adversarial-verify cap — shipped unchallenged, re-verify before acting' }))
   log(`round ${round}: +${fresh.length} fresh (${freshKept.length} kept)`)
 }
+
+const converged = dry >= maxDry
+if (!convergenceReason) {
+  convergenceReason = converged
+    ? `${dry} consecutive executed-empty critic round(s)`
+    : `stopped at the ${HARD_ROUNDS}-round hard cap without ${maxDry} executed-empty rounds`
+}
+
+const budgetSnapshot =
+  typeof budget !== 'undefined' && budget
+    ? { spent: budget.spent(), remaining: budget.remaining(), total: budget.total }
+    : null
 
 kept.sort((a, b) => rank(a.severity) - rank(b.severity))
 return {
@@ -295,5 +323,9 @@ return {
   coverage: sweptLabels,
   deferred,
   rounds: round,
+  converged,
+  convergenceReason,
+  criticErrors,
+  tokenBudget: budgetSnapshot,
   loopBound: round >= HARD_ROUNDS ? `stopped at the ${HARD_ROUNDS}-round hard cap` : `${dry} consecutive dry round(s)`,
 }
