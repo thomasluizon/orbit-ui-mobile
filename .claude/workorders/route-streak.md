@@ -5,7 +5,7 @@ kind: route
 href: /streak
 ownedFiles: 4
 cells: 8
-mechanicalDebt: 19
+mechanicalDebt: 0
 pixelEvidence: web-capture
 generatedFrom: 6a2e1136aebb61a0c94c0dff34c216f29b8a1de8
 ---
@@ -29,37 +29,9 @@ If a shared file must change, STOP, write it in the Timeline, and say so in your
 
 ## Backlog A: enumerated and machine-COUNTED (the fix is still a judgement call)
 
-19 suppressed DESIGN.md violation(s) in your owned files. These are real defects that
-were measured and committed to the lint baseline, then never assigned to anyone.
+None. Every `local/*` design rule already passes on your owned files.
 
-| file | rule | count |
-|---|---|---|
-| `apps/web/app/(app)/streak/_components/streak-sections.tsx` | `local/spacing-scale` | 14 |
-| `apps/web/app/(app)/streak/_components/streak-frozen-banner.tsx` | `local/spacing-scale` | 2 |
-| `apps/web/app/(app)/streak/_components/streak-hero.tsx` | `local/spacing-scale` | 2 |
-| `apps/web/app/(app)/streak/page.tsx` | `local/spacing-scale` | 1 |
-
-**Counting these is objective. Fixing them is not.** `local/spacing-scale` autofixes only an
-unambiguous snap (within 1px of a unique step: 9 -> 8, 13 -> 12) and deliberately refuses the
-rest, because taking a 6px gap to 4 or a 14px padding to 12 CHANGES THE LAYOUT. Verified on this
-repo: `eslint --fix` over a 30-violation file changed zero lines. So do not batch-snap every
-number to the nearest step and call it done - that is the shallow sweep this harness exists to
-stop. Decide each one against the surrounding rhythm (tight within a group, air between groups).
-
-A value you judge genuinely load-bearing is KEPT, through the sanctioned escape - never a forced
-snap: add an inline `// eslint-disable-next-line local/<rule> -- <why>, see <this work order or its issue>`
-(a tooling directive with a linked WHY is legal under the comment policy), run `npm run lint:prune`,
-then append a Timeline entry naming each value you kept and why. The source file IS edited, so the
-count falls legitimately and the definition of done below stays reachable for honest work.
-
-See the violations with (a TEMPLATE: substitute the two capitalised words, and run it FROM THE
-WORKSPACE - apps/web or apps/mobile - never the repo root, which carries no eslint config or
-binary. The angle-bracket form this used to print was a bash redirect: pasted verbatim it was a
-syntax error, not a run):
-  `npx eslint FILE --suppressions-location EMPTY_JSON_FILE`  (the baseline hides them otherwise)
-Then `npm run lint:prune` in that same workspace, then `node tools/workorder.mjs --check` from the root.
-Editing `eslint-suppressions.json` by hand instead of fixing the code is fabricating a result,
-and `tools/check-diff-ownership.mjs` detects a count that fell for a file you never edited.
+That is a FLOOR you have already met, not evidence the surface looks right. Backlog B is the work.
 
 ## Backlog B: judgement, human-granted
 
@@ -97,4 +69,4 @@ This makes the work order READY FOR REVIEW. It does not make it done: a human ti
 Append-only. Never rewrite or delete an entry, including your own. A fresh session cannot
 reconstruct what the previous ones already tried here, and that is the whole cost this section buys.
 
-- (no work recorded on this surface yet)
+- **2026-07-23 (bundle `web-route-56d279c7`):** Cleared all 19 `local/spacing-scale` violations

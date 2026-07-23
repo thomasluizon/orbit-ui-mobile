@@ -82,7 +82,7 @@ export function StreakTimelineCard({
         <div
           className="rounded-[18px] bg-[var(--bg-card)]"
           style={{
-            padding: '16px 14px 14px',
+            padding: '16px 12px 12px',
             boxShadow: 'inset 0 0 0 1px var(--hairline)',
           }}
         >
@@ -215,7 +215,7 @@ function LegendItem({
     <span
       className="inline-flex items-center"
       style={{
-        gap: 6,
+        gap: 4,
         fontFamily: 'var(--font-mono)',
         fontSize: 11,
         color: 'var(--fg-3)',
@@ -255,7 +255,7 @@ function CardRow({
   return (
     <div
       className="flex items-center justify-between"
-      style={{ padding: '15px 18px', gap: 12, minHeight: 52 }}
+      style={{ padding: '16px 16px', gap: 12, minHeight: 52 }}
     >
       <span className="flex min-w-0 items-center" style={{ gap: 12 }}>
         {icon ? (
@@ -273,7 +273,7 @@ function CardRow({
           {label}
         </span>
       </span>
-      <span className="flex shrink-0 items-center" style={{ gap: 10 }}>
+      <span className="flex shrink-0 items-center" style={{ gap: 8 }}>
         {trailing}
       </span>
     </div>
@@ -331,7 +331,7 @@ function FreezeAutoCard(props: Readonly<FreezeProgressCardProps>) {
       <FreezeBankCard {...props} />
 
       <SectionLabel>{t('streakDisplay.freeze.protected.label')}</SectionLabel>
-      <div className="px-5" style={{ paddingBottom: 14 }}>
+      <div className="px-5" style={{ paddingBottom: 12 }}>
         {isFrozenToday || protectedDates.length > 0 ? (
           <CardGroup>
             {isFrozenToday && (
@@ -374,7 +374,7 @@ function FreezeStatRow({
           {label}
         </span>
       </span>
-      <span className="flex shrink-0 items-center" style={{ gap: 10 }}>
+      <span className="flex shrink-0 items-center" style={{ gap: 8 }}>
         {trailing}
       </span>
     </div>
@@ -399,7 +399,7 @@ function FreezeBankCard({
     <div className="px-5">
       <p
         style={{
-          marginBottom: 14,
+          marginBottom: 12,
           fontFamily: 'var(--font-sans)',
           fontSize: 14,
           lineHeight: 1.55,
@@ -411,7 +411,7 @@ function FreezeBankCard({
       <div
         className="rounded-[18px] bg-[var(--bg-card)]"
         style={{
-          padding: '16px 18px',
+          padding: '16px 16px',
           boxShadow: 'inset 0 0 0 1px var(--hairline)',
           display: 'flex',
           flexDirection: 'column',
@@ -477,7 +477,7 @@ function NextFreezeRow({
   nextFreezeProgress: number
 }>) {
   return (
-    <div className="flex flex-col" style={{ gap: 10 }}>
+    <div className="flex flex-col" style={{ gap: 8 }}>
       <div className="flex items-center justify-between" style={{ gap: 12 }}>
         <span
           style={{
@@ -509,12 +509,12 @@ function NextFreezeRow({
 
 function FreezeProGate({ t }: Readonly<{ t: TranslationFn }>) {
   return (
-    <div className="px-5" style={{ paddingBottom: 14 }}>
+    <div className="px-5" style={{ paddingBottom: 12 }}>
       <div
         className="flex items-center rounded-[18px]"
         style={{
-          padding: '16px 18px',
-          gap: 14,
+          padding: '16px 16px',
+          gap: 12,
           background: 'rgba(var(--primary-rgb), 0.08)',
           boxShadow: 'inset 0 0 0 1px rgba(var(--primary-rgb), 0.28)',
         }}

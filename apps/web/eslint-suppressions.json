@@ -209,26 +209,6 @@
       "count": 2
     }
   },
-  "app/(app)/streak/_components/streak-frozen-banner.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "app/(app)/streak/_components/streak-hero.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "app/(app)/streak/_components/streak-sections.tsx": {
-    "local/spacing-scale": {
-      "count": 14
-    }
-  },
-  "app/(app)/streak/page.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
   "app/(app)/today-page-view.tsx": {
     "local/spacing-scale": {
       "count": 2

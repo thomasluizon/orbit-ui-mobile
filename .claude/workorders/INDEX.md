@@ -3,7 +3,7 @@
 Generated from manifest `6a2e1136aebb61a0c94c0dff34c216f29b8a1de8`. Do not hand-edit; run `node tools/workorder.mjs`.
 
 - 214 order files: 214 derived (168 surfaces + 46 residual groups)
-- 988 mechanical violations outstanding across 130 work orders
+- 969 mechanical violations outstanding across 129 work orders
 
 Mechanical debt is a FLOOR. Completion is granted only by a human tick in signoff.json.
 
@@ -30,7 +30,6 @@ order would forbid every edit that could move its cells. The cells ride with the
 | [residual-mobile-components-upgrade](residual-mobile-components-upgrade.md) | mobile | residual | 4 | 0 | 24 |
 | [residual-mobile-app-social-_components](residual-mobile-app-social-_components.md) | mobile | residual | 4 | 0 | 22 |
 | [residual-mobile-components-share](residual-mobile-components-share.md) | mobile | residual | 2 | 0 | 19 |
-| [route-streak](route-streak.md) | web | route | 4 | 8 | 19 |
 | [residual-mobile-components-habit-list](residual-mobile-components-habit-list.md) | mobile | residual | 2 | 0 | 18 |
 | [route-calendar](route-calendar.md) | web | route | 12 | 8 | 18 |
 | [residual-web-components-chat](residual-web-components-chat.md) | web | residual | 7 | 0 | 17 |
@@ -228,6 +227,7 @@ order would forbid every edit that could move its cells. The cells ride with the
 | [route-public-profile](route-public-profile.md) | web | route | 1 | 4 | 0 |
 | [route-r-code](route-r-code.md) | web | route | 1 | 4 | 0 |
 | [route-social-challenges-id](route-social-challenges-id.md) | web | route | 1 | 4 | 0 |
+| [route-streak](route-streak.md) | web | route | 4 | 8 | 0 |
 | [route-support](route-support.md) | web | route | 5 | 4 | 0 |
 | [route-terms](route-terms.md) | web | route | 1 | 4 | 0 |
 | [route-upgrade](route-upgrade.md) | web | route | 1 | 4 | 0 |
