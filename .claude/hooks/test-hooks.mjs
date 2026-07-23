@@ -1082,6 +1082,39 @@ T(
   retireGit("status", "--porcelain", "--", ".claude/workorders").stdout.trim(),
   "",
 )
+// The child is given two rules - append your Timeline entry (5), regenerate
+// LAST (7) - and running them in the other order must not cost it the file it
+// still has to write into. A cleared order whose owned files are all still on
+// disk retires even with nothing recorded yet.
+const woRetireEarly = buildWorkorderFixture("retire-early", {
+  cells: [workorderCell("r-cal", "apps/web/app/page.tsx")],
+  suppressions: { "lib/styles.ts": { "local/spacing-scale": { count: 2 } } },
+})
+mkdirSync(join(woRetireEarly, "apps", "web", "lib"), { recursive: true })
+writeFileSync(join(woRetireEarly, "apps", "web", "lib", "styles.ts"), "export const gap = 10\n")
+runWorkorder(woRetireEarly)
+writeFileSync(join(woRetireEarly, "apps", "web", "lib", "styles.ts"), "export const gap = 8\n")
+writeFileSync(join(woRetireEarly, "apps", "web", "eslint-suppressions.json"), "{}")
+runWorkorder(woRetireEarly)
+T(
+  "workorder: a cleared order regenerated BEFORE its Timeline entry still survives",
+  existsSync(join(woRetireEarly, ".claude", "workorders", "residual-web-lib.md")),
+  true,
+)
+T("workorder: ...and its done command exits 0", runWorkorder(woRetireEarly, ["--check", "--id", "residual-web-lib"]).status, 0)
+// The other half of the rule: an order whose owned files are GONE and which
+// recorded nothing has nothing to keep, so garbage collection still happens.
+writeFileSync(
+  join(woRetireEarly, ".claude", "workorders", "residual-web-vanished.md"),
+  "---\nsurfaceId: residual-web-vanished\nplatform: web\nkind: residual\nownedFiles: 1\ncells: 0\nmechanicalDebt: 0\npixelEvidence: none\ngeneratedFrom: test\n---\n\n# Work order: residual-web-vanished\n\n## Boundaries: you own these files, and only these\n\n- `apps/web/lib/deleted.ts`\n\n## Backlog A: enumerated\n\nNone.\n",
+)
+runWorkorder(woRetireEarly)
+T(
+  "workorder: an order whose files are gone and which recorded nothing is still swept",
+  existsSync(join(woRetireEarly, ".claude", "workorders", "residual-web-vanished.md")),
+  false,
+)
+
 T(
   "workorder: condition (b) agrees with the same sequence",
   spawnSync(process.execPath, [join(hooksDir, "..", "..", "tools", "check-diff-ownership.mjs"), "--id", "residual-web-lib", "--base", retireBase], {

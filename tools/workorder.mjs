@@ -593,23 +593,28 @@ function planOrdersOnDisk() {
  * (`--check --id <id>`) exiting 2 "no work order" forever, which the driver
  * records as a hard failure for a bundle that did its work perfectly.
  *
- * So an order carrying RECORDED HISTORY is retired, never deleted: it keeps its
+ * So an order is retired rather than deleted when either half of "success" is
+ * visible: it carries RECORDED HISTORY, or its owned files are all still on
+ * disk and carry no debt (the cleared case - which covers a child that
+ * regenerated before appending its Timeline entry, so the ORDER of two rules it
+ * was given cannot cost it the file it still has to write into). It keeps its
  * Timeline and its Boundaries, its debt is recomputed from the ledger, and it
  * re-renders byte-identically on every later regeneration (cells drop to 0,
- * because a retired order is in no denominator). An order with no recorded
- * history has nothing to lose and is still swept.
+ * because a retired order is in no denominator). Anything else - an order whose
+ * files moved or were deleted, with nothing recorded - has nothing to lose and
+ * is still swept.
  *
- * Returns null for anything that must not be retired: no frontmatter, no
- * recorded Timeline, a plan order (preserved by its own path), a malformed
- * body, or a filename that does not match its own surfaceId (re-rendering that
- * would write a second file and the regeneration would stop being idempotent).
+ * Returns null for anything that can never be retired: no frontmatter, a plan
+ * order (preserved by its own path), a malformed body, or a filename that does
+ * not match its own surfaceId (re-rendering that would write a SECOND file and
+ * the regeneration would stop being idempotent). `hasHistory` rides along
+ * because the caller needs the debt, computed from the ledger, to decide.
  */
 function retiredUnitFrom(name) {
   const path = join(OUT_DIR, name)
   const text = readFileSync(path, "utf8")
   const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text)?.[1]
   if (!frontmatter) return null
-  if (!existingTimeline(path).length) return null
   const field = (key) => (new RegExp(`^${key}:\\s*(.+)$`, "m").exec(frontmatter)?.[1] ?? "").trim()
   const kind = field("kind")
   if (kind === "plan") return null
@@ -628,6 +633,7 @@ function retiredUnitFrom(name) {
     href: null,
     ownedFiles: [...text.slice(start, stop).matchAll(/^- `([^`]+)`\r?$/gm)].map((match) => match[1]),
     sharedFiles: [],
+    hasHistory: existingTimeline(path).length > 0,
     retired: true,
     pixelEvidence: "none",
     cells: 0,
@@ -885,8 +891,15 @@ function main() {
   const retired = (existsSync(OUT_DIR) ? readdirSync(OUT_DIR) : [])
     .filter((name) => name.endsWith(".md") && !derivedNames.has(name))
     .map((name) => ({ name, unit: retiredUnitFrom(name) }))
-    .filter((entry) => entry.unit !== null)
+    .filter((entry) => entry.unit !== null && !foldedInto.has(entry.unit.surfaceId))
     .map((entry) => ({ ...entry, debt: debtOf(entry.unit.ownedFiles, suppressions) }))
+    .filter(
+      (entry) =>
+        entry.unit.hasHistory ||
+        (entry.unit.ownedFiles.length > 0 &&
+          entry.debt.total === 0 &&
+          entry.unit.ownedFiles.every((file) => existsSync(join(REPO_ROOT, file)))),
+    )
     .sort((a, b) => a.unit.surfaceId.localeCompare(b.unit.surfaceId))
 
   if (wantedId) {
