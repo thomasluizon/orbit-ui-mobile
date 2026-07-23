@@ -2940,7 +2940,25 @@ T("gate-tamper: a path built by concatenation blocks", !!checkGateTamperBash(`no
 T("gate-tamper: fragmenting the DIRECTORY name still blocks", !!checkGateTamperBash(`node -e "const m=require('fs'); const w=m.writeFileSync; w('.claude/manif'+'ests/sig'+'noff.json','{}')"`)?.block, true)
 T("gate-tamper: ...with spaces around the plus too", !!checkGateTamperBash(`node -e "const m=require('fs'); const w=m.writeFileSync; w('.claude/mani' + 'fests/signoff' + '.json','{}')"`)?.block, true)
 T("gate-tamper: ...and for the surfaces manifest", !!checkGateTamperBash(`node -e "const m=require('fs'); const w=m.writeFileSync; w('.claude/mani'+'fests/surf'+'aces.json','{}')"`)?.block, true)
-T("gate-tamper: an honest concatenated read of an unrelated file still allows", checkGateTamperBash(`node -e "console.log(require('./pack'+'age.json').name)"`), null)
+// A concatenated require() argument is refused, and always was: the tool cannot
+// tell which module it names. It reaches the refusal one step earlier now, via the
+// interpreter rule, which is the same verdict for the same reason.
+T("gate-tamper: a concatenated require argument is refused", !!checkGateTamperBash(`node -e "console.log(require('./pack'+'age.json').name)"`)?.block, true)
+
+// BYPASS #8 and the end of the arms race. Four rounds each closed one spelling of
+// "hide the path" - an alias, a split literal, a mixed quote pair, a variable. The
+// path is no longer what decides: an interpreter one-liner that cannot be proven to
+// only read is refused whatever it names. These four are the shapes that beat the
+// previous fix, including two the review did not report.
+T("gate-tamper: mixed-quote fragmentation blocks", !!checkGateTamperBash(`node -e "const m=require('fs'); const w=m.writeFileSync; w('.claude/manif'+\"ests/sig\"+'noff.json','{}')"`)?.block, true)
+T("gate-tamper: a path split across variables blocks", !!checkGateTamperBash(`node -e "const m=require('fs'); const a='.claude/mani'; const b='fests/sig'; const c='noff.json'; m.writeFileSync(a+b+c,'{}')"`)?.block, true)
+T("gate-tamper: a path assembled by Array.join blocks", !!checkGateTamperBash(`node -e "const m=require('fs'); const p=['.claude/mani','fests/sig','noff.json'].join(''); m.writeFileSync(p,'{}')"`)?.block, true)
+T("gate-tamper: an interpreter write naming NO protected path blocks too", !!checkGateTamperBash(`node -e "require('fs').writeFileSync('/tmp/unrelated.txt','x')"`)?.block, true)
+
+// The honest half stays honest: the reads this guard advertises must keep working,
+// or the next session disarms the hook instead of using it.
+T("gate-tamper: node -p require of the manifest still allows", checkGateTamperBash(`node -p "require('./${MANIFEST_PATH}').cells.length"`), null)
+T("gate-tamper: an ordinary shell read of the manifest still allows", checkGateTamperBash(`jq -r '.cells | length' ./${MANIFEST_PATH}`), null)
 
 // ---------------------------------------------------------------------------
 // drive-queue: the printed contract must state only what can FAIL for THIS

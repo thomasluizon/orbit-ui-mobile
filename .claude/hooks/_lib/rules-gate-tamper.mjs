@@ -402,6 +402,35 @@ export function checkGateTamperBash(command) {
   const text = withoutHeredocBodies(command)
   if (!text) return null
 
+  // BYPASSES #5 through #8 were all the same move wearing different clothes: hide
+  // the path from a rule that matches contiguous text. Aliasing the writer,
+  // splitting the literal, mixing quote types, splitting across variables, joining
+  // an array - four review rounds each closed one spelling and the next round found
+  // the next. Deciding what a path argument evaluates to inside arbitrary code is
+  // not a thing a regex can do, so the path is no longer what decides.
+  //
+  // An interpreter one-liner that cannot be PROVEN to be a pure read is refused,
+  // whatever it names. That is the same doctrine the rest of this file already
+  // states - the code is judged by an allowlist of what it may call - applied where
+  // it was previously skipped because no path rule had fired yet. It costs an
+  // occasional honest `node -e` write, which the Write tool covers; it buys the end
+  // of an obfuscation arms race the guard was structurally losing.
+  // https://github.com/thomasluizon/orbit-ui-mobile/pull/570
+  for (const segment of splitSegments(text)) {
+    const inline = INLINE_CODE_RE.exec(segment)
+    if (inline && !inlineCodeIsReadOnly(inline[2])) {
+      return {
+        block: true,
+        message:
+          "gate-tamper: this is an interpreter one-liner (`node -e`, `python -c`) that cannot be proven to only READ. " +
+          "Arbitrary code can build any path at runtime, so the guard refuses it rather than trying to work out which file it touches - " +
+          "hiding the path behind concatenation, an alias, or a variable is exactly how earlier versions of this fence were defeated. " +
+          "Use the Write or Edit tool for writes, and the Read tool (or cat/jq/grep) for reads. " +
+          "Gate state - signoff.json, surfaces.json, verdicts.json - has no sanctioned agent writer at all.",
+      }
+    }
+  }
+
   if (PAUSED_RE.test(text)) {
     return {
       block: true,
