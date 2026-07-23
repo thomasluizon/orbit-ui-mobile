@@ -499,10 +499,21 @@ function main() {
   const ids = []
   let explicitFiles = null
   let base = null
+  // A flag whose value is empty or missing used to be DROPPED silently, so
+  // `--base ""` judged the tool's own default resolution while the caller
+  // believed it had pinned one - the same class of silence as an unresolvable
+  // base degrading to an empty diff, which this tool already fails closed on.
+  const valueOf = (flag, index) => {
+    const value = argv[index + 1]
+    if (!value || value.startsWith("--")) {
+      fail(`${flag} needs a value as its next argument${value === undefined ? "" : ` (got "${value}")`}. A dropped flag would judge something other than what you asked for.`)
+    }
+    return value
+  }
   for (let index = 0; index < argv.length; index += 1) {
-    if (argv[index] === "--id" && argv[index + 1]) ids.push(argv[++index])
-    else if (argv[index] === "--files" && argv[index + 1]) explicitFiles = argv[++index].split(",").map(normalize)
-    else if (argv[index] === "--base" && argv[index + 1]) base = argv[++index]
+    if (argv[index] === "--id") ids.push(valueOf("--id", index++))
+    else if (argv[index] === "--files") explicitFiles = valueOf("--files", index++).split(",").map(normalize)
+    else if (argv[index] === "--base") base = valueOf("--base", index++)
   }
   if (!ids.length && !explicitFiles) fail("pass at least one --id or a --files list. See --help.")
   // --files used to WIN silently: `owned` short-circuited to the explicit list,

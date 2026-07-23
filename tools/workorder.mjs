@@ -432,10 +432,12 @@ function renderWorkOrder(surface, debt, timeline, manifest) {
       "then append a Timeline entry naming each value you kept and why. The source file IS edited, so the",
       "count falls legitimately and the definition of done below stays reachable for honest work.",
       "",
-      "See the violations with (a TEMPLATE: substitute the two capitalised words. The angle-bracket",
-      "form this used to print was a bash redirect - pasted verbatim it was a syntax error, not a run):",
+      "See the violations with (a TEMPLATE: substitute the two capitalised words, and run it FROM THE",
+      "WORKSPACE - apps/web or apps/mobile - never the repo root, which carries no eslint config or",
+      "binary. The angle-bracket form this used to print was a bash redirect: pasted verbatim it was a",
+      "syntax error, not a run):",
       "  `npx eslint FILE --suppressions-location EMPTY_JSON_FILE`  (the baseline hides them otherwise)",
-      "Then `npm run lint:prune` in the workspace, then `node tools/workorder.mjs --check`.",
+      "Then `npm run lint:prune` in that same workspace, then `node tools/workorder.mjs --check` from the root.",
       "Editing `eslint-suppressions.json` by hand instead of fixing the code is fabricating a result,",
       "and `tools/check-diff-ownership.mjs` detects a count that fell for a file you never edited.",
       "",
@@ -653,11 +655,17 @@ function retiredUnitFrom(name) {
  * The trust root is the COMMITTED copy (`git show HEAD:...`), never the
  * working tree: the policed child edits the working-tree file by contract (the
  * Timeline append), and deleting a Boundaries line there flipped a
- * debt-carrying order to exit 0. HEAD predates the child - the driver starts
- * every bundle from a clean committed tree - so its copy cannot be edited from
- * inside a run. The working tree is read only for a path HEAD does not carry:
- * a plan order --from-plan just wrote in this session. There, tampering can
- * only annex files into Boundaries, which ADDS debt, never removes it.
+ * debt-carrying order to exit 0.
+ *
+ * HEAD is NOT "before the child" at the moment the driver measures - the child
+ * is ordered to commit before it exits, so HEAD is usually the child's own
+ * commit. What makes the committed copy sound anyway is the shape of the two
+ * possible edits, not its age: REMOVING a Boundaries line is caught by
+ * check-diff-ownership, which reads Boundaries from the pinned base ref and
+ * holds every later copy append-only against it, and ANNEXING one only ADDS
+ * debt here, never removes it. The working tree is read only for a path HEAD
+ * does not carry: a plan order --from-plan just wrote in this session, where
+ * the same annexation argument applies.
  */
 function ownedFilesFromDisk(orderFile) {
   const committed = spawnSync("git", ["show", `HEAD:.claude/workorders/${orderFile}`], { cwd: REPO_ROOT, encoding: "utf8" })

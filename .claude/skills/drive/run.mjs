@@ -443,6 +443,13 @@ export function measureGates(task, config, baseSha) {
       /* temp cleanup is housekeeping; it must never move a gate verdict */
     }
   }
+  // The trust chain is only sound in sequence: step 1's exit 0 is what proves
+  // the working tree's generator is byte-identical to the base copy (tools/ is
+  // GATE_STATE inside the ownership gate). When step 1 does NOT pass, running
+  // the working-tree generator anyway recorded a stubbed generator's fabricated
+  // exit 0 next to the failure - and run.mjs embeds both in the verifier prompt
+  // as "measurements, not claims". A gate that cannot be trusted is not run.
+  if (checks[0].exit !== 0) return checks
   if (task.kind === "plan") return checks
   for (const id of task.workOrders) {
     const check = spawnSync(process.execPath, [join(repoPath, "tools", "workorder.mjs"), "--check", "--id", id], {

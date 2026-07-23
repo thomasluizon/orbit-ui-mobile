@@ -1606,6 +1606,12 @@ const honestIndex = readFileSync(regenIndexPath, "utf8")
   // exit 0 on the identical tree.
   writeFileSync(rCalPath, honestOrder.replace("Backlog B is the work", "Backlog B is optional"))
   T("check-diff-ownership: --id alone still catches the rewrite", runOwnershipNoBase(regenRoot, ["--id", "r-cal", "--base", regenBase]).status, 1)
+  // An empty or missing flag value used to be dropped silently, so `--base ""`
+  // judged the tool's own default resolution while the caller believed it had
+  // pinned one.
+  T("check-diff-ownership: an empty --base value is a loud exit 2, never a silent default", runOwnershipNoBase(regenRoot, ["--id", "r-cal", "--base", ""]).status, 2)
+  T("check-diff-ownership: a --base with no value at all exits 2 too", runOwnershipNoBase(regenRoot, ["--id", "r-cal", "--base"]).status, 2)
+  T("check-diff-ownership: an empty --id value exits 2", runOwnershipNoBase(regenRoot, ["--id", "", "--base", regenBase]).status, 2)
   const both = runOwnershipNoBase(regenRoot, ["--files", "apps/web/app/page.tsx", "--id", "r-cal", "--base", regenBase])
   T("check-diff-ownership: --files alongside --id is refused, never silently honoured", both.status, 2)
   T("check-diff-ownership: ...saying which verifications --files would have dropped", /mutually exclusive/.test(both.stderr), true)
@@ -2103,6 +2109,12 @@ T(
 )
 const gateChecksNoBase = measureGates({ workOrders: ["wo-x"] }, { repos: [{ path: gateToolRepo }] }, "")
 T("drive: measureGates with no recorded base records a FAILING ownership check", gateChecksNoBase[0].exit !== 0 && /failed closed/.test(gateChecksNoBase[0].tail), true)
+// Step 2 is only sound after step 1 passes: the ownership gate's exit 0 is what
+// proves the working-tree generator was not stubbed (tools/ is GATE_STATE
+// inside it). Running it anyway recorded a stub's fabricated exit 0 beside the
+// failure, and both go into the verifier prompt as "measurements".
+T("drive: a failed ownership gate stops the chain before the working-tree generator runs", gateChecksNoBase.length, 1)
+T("drive: ...so no fabricated second verdict is recorded", gateChecksNoBase.some((check) => /WORKING-WORKORDER/.test(check.tail || "")), false)
 
 // A plan order is structurally forbidden from owning a file that carries lint
 // debt, so `workorder --check --id` is 0 before the child starts and can never
