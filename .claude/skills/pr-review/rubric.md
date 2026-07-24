@@ -9,8 +9,15 @@ templates** — no orchestration, no scope resolution, no GitHub mechanics. Thos
 the consuming skill.
 
 Every finding cites the rule it came from (a `CLAUDE.md` rule number, `no-comments.cjs`,
-a `DESIGN.md` line, an orbit-api hard rule, or a security category) so the author can
-trace it back. Tag every finding with a severity from the ladder at the bottom.
+a `DESIGN.md` section, an orbit-api hard rule, or a security category) so the author can
+trace it back. Cite sections, never line numbers: line numbers rot silently and then point
+a reviewer at the wrong rule. Tag every finding with a severity from the ladder at the
+bottom.
+
+> **Machine-read.** `.claude/workflows/audit.mjs` passes this file's path to every
+> code-quality finder as "the contract for what counts and how findings are shaped"
+> (`KIND['code-quality'].checklist`), which is why it stays orchestration-free: an edit here
+> changes the finder prompt as well as the review.
 
 ---
 
@@ -164,30 +171,66 @@ well-named function** so the code reads without prose.
 
 ### 8. DESIGN.md / AI-slop
 
-> Reference: DESIGN.md:181 (AI-slop tells), DESIGN.md:185 (scene-sentence test),
-> DESIGN.md:159-169 (bans). **Gated: only when the diff touches `apps/*` UI files.**
+> Reference: `DESIGN.md` sections **Identity & anchor**, **Bans**, **AI-slop test**, and
+> **Scene-sentence test**. **Gated: only when the diff touches `apps/*` UI files.**
 
-Scan for the AI-slop tells from `DESIGN.md:181`:
+The anchor is the **de-decorated navy-violet orbital** (#539 freeze, 2026-07-17): a
+near-black canvas, one rationed violet, opaque-reading surface steps, hairline rings and
+dividers. Identity is carried by the orbital logo mark, the Astra glyph, and ring-shaped
+status and progress indicators, and by nothing else. Hierarchy is bought with surface steps,
+hairlines, size, weight, and whitespace. **Quiet decoration is still decoration**: a softened
+glow, a 0.03-opacity texture, a "subtle" mesh are the same violation as the loud version.
 
-- Gradients used as decoration outside the sanctioned gradient-header.
-- Cards-in-cards (opaque card-on-card on dark).
-- Gray text on colored backgrounds.
-- Rounded-square icon tiles above headings.
+Scan for the AI-slop tells:
+
+- **Any decorative glow.** The primary-glow shadow token is deleted, so a glow reaching this
+  diff is hand-rolled. Not on the CTA, not on the FAB, not anywhere.
+- **Any decorative gradient.** `--gradient-header` and `GradientTop` are deleted; there is no
+  sanctioned gradient left to be outside of. No wash, no gradient border, no gradient text
+  (`bg-clip-text` over a gradient), no mesh, bloom, scanlines, or "subtle texture".
+- **Decorative background orbit arcs**, deleted with the rest of the decoration layer.
+- A coloured side-stripe: a `border-left` / `border-right` thicker than 1px used as an accent
+  stripe on a card, row, callout, or alert.
+- Cards-in-cards (opaque card-on-card on dark), or a card where spacing would have grouped.
+- Connector or tree lines in a hierarchy.
+- Gray text on colored backgrounds; rounded-square icon tiles above headings.
 - Semantic-red destructive fills where the artboard shows a text pill.
-- Oversized centered H1 outside hero contexts; decorative gradient borders.
+- Oversized centered H1 outside a hero context.
+- The hero-metric template (big number, small label, stat row) used as decoration, or any
+  invented precise-looking number.
 
-Token / ban checks (`DESIGN.md:159-169`):
+Accent split and rationing (`DESIGN.md`, **Tokens**):
 
-- No raw `--slate-*` references or hardcoded violet rgba — semantic tokens only
-  (`--primary` / `--primary-rgb` / `tintFromPrimary`).
+- `--primary` is **fill and graphic only**: CTA background, FAB, progress ring, done dots,
+  level bar, active tab. It is **never** small text on the canvas.
+- `--primary-soft` is the **accent-text** token: an accent-coloured word, link, or numeral.
+- The accent appears on the active tab, progress and ring indicators, done dots, the primary
+  CTA, the FAB, and active nav. That is the whole list. It is never decorative on a card, a
+  row, a border, a heading, or an icon that is not communicating state.
+
+Token / ban checks (`DESIGN.md`, **Bans**):
+
+- No raw `--slate-*` references or hardcoded violet rgba: tints come from `--primary-rgb` /
+  `tintFromPrimary`.
 - No `transition-all` (animate `transform` / `opacity`, named); no `h-screen` (use
   `min-h-dvh`); no new font families, radii, or colors outside the spec.
 - No per-component scheme branches — schemes resolve through tokens.
-- No em dashes in user-facing copy.
+- No off-scale shadow: lifted surfaces read `--shadow-1/2/3` (mobile `shadowsV2`) verbatim
+  with the inset hairline lift ring, never a heavier hand-rolled `box-shadow`.
 
-Then the **scene-sentence test** (`:185`): describe the rendered screen in one sentence.
-If it reads like every other SaaS app, it is generic — flag it to rework until the
-sentence names Orbit's navy-cosmic, violet-glow character.
+`local/no-decorative-glow` and `local/no-raw-gradient` ship at `warn` in `apps/*` pending the
+redesign's cleanup, so the pre-existing violations are known debt, not review findings. A
+**newly introduced** glow or raw gradient in this diff is still a Blocker: the tokens are
+deleted and the ban is settled. Em dashes are owned outright by the Dash Ban gate; do not
+re-flag them here.
+
+Then the **scene-sentence test**: describe the rendered screen in one sentence, as if
+narrating a film scene. If it reads like every other SaaS app ("a clean modern dashboard with
+cards"), it is generic: flag it to rework until the sentence names Orbit's character, a
+near-black neutral canvas, quiet tonal panels separated by hairlines, one violet reserved for
+what is done and what is next, and the orbital ring language carrying the identity. If the
+only way to make the sentence specific is to describe decoration, the design has failed and
+the decoration is not the fix.
 
 ### 9. Parity (web ↔ mobile)
 

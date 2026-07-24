@@ -8,6 +8,11 @@ Orbit is **unit-tests-only** in both repos (the integration/E2E suites were remo
 deliberately). Frontend: Vitest + React Testing Library. Backend: xUnit + FluentAssertions.
 Suggested tests use the real builders in `packages/shared/src/__tests__/factories.ts`.
 
+> **Machine-read.** `.claude/workflows/audit.mjs` passes this file's path to every tests
+> finder as "the contract for what counts and how findings are shaped"
+> (`KIND.tests.checklist`). Editing this file edits the finder prompt; the skill's pipeline,
+> guardrails, and output shape belong in `SKILL.md`, which the finders never read.
+
 ---
 
 ## The three axes — score every test
