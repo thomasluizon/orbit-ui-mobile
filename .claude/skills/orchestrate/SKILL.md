@@ -49,11 +49,29 @@ Per launchable ticket, up to `maxParallelWorktrees`:
    the screenshot to the issue FIRST when the ticket carries `visible-effect` (D7),
    set the issue to In Review, and STOP. Workers never merge, never touch another
    ticket's files, never edit gate baselines.
-5. `orca terminal create` in the worktree and `orca terminal send` the engine command
-   from orchestrator.json (`claude -p ... "<prompt>"` or `codex exec "<prompt>"`);
-   `orca terminal wait` for exit. Model routing (the flip orchestrator.json's notes
-   name): a ticket labelled `worker:sonnet` swaps `--model opus` for `--model sonnet`
-   in the claude args; every other ticket uses the configured args verbatim.
+5. Launch the worker as a VISIBLE TUI, never headless. `orca terminal create --worktree
+   <selector> --command '<engine command WITHOUT -p>'`, then `orca terminal wait --for
+   tui-idle` for readiness, then `orca terminal send --text "<prompt>" --enter`, then
+   `orca terminal switch --terminal <handle>` so the worktree's terminal is the one
+   Thomas sees when he clicks the card. Model routing (the flip orchestrator.json's
+   notes name): a ticket labelled `worker:sonnet` swaps `--model opus` for
+   `--model sonnet`; every other ticket uses the configured args verbatim.
+
+   **Why not `claude -p`.** Headless mode is invisible to Orca: it is not a TUI, so the
+   worktree card shows no Agents row and clicking the card reveals only a bare shell.
+   Measured on the ORB-75 Phase 7 run, where the card read `agents: none` with an empty
+   comment for the worker's entire life and death. A TUI worker populates the card's
+   Agents row with its live prompt, current tool and elapsed time, which is the only
+   in-Orca window into a running worker.
+
+   Two consequences of dropping `-p`. The process does NOT exit when the work is done,
+   so wait with `--for tui-idle`, never `--for exit`. And the permission mode must still
+   come from orchestrator.json (`bypassPermissions`), because an interactive worker with
+   nobody at the keyboard is just as stuck as a headless one.
+6. `orca worktree set --worktree <selector> --comment "<one line>"` at every checkpoint
+   (launched, gates green, PR open, blocked), and `--workspace-status` to match. The
+   comment is the worktree card's status line, so an empty one means the card reads as
+   idle no matter what the worker is doing.
 
 ## 3. Babysit
 
