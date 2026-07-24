@@ -50,6 +50,11 @@ risk or measurement exists), then run
 
 ## Phase C: create
 
+0. **HARD GATE, before anything external exists:** show Thomas the full plan in one
+   message: project name, the locked decisions, and the ticket table (title, repo
+   label, parity label, blockedBy, wave). Then ask for explicit approval via ONE
+   AskUserQuestion call. Nothing is created in Linear until he approves; an edit
+   request loops back through Phase B and re-validation, then this gate again.
 1. `orca linear create` the project (name = the feature); the project description
    carries the locked decisions from Phase A verbatim; /orchestrate re-reads it every
    wave and honours it.

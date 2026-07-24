@@ -45,7 +45,9 @@ Per launchable ticket, up to `maxParallelWorktrees`:
    ticket's files, never edit gate baselines.
 5. `orca terminal create` in the worktree and `orca terminal send` the engine command
    from orchestrator.json (`claude -p ... "<prompt>"` or `codex exec "<prompt>"`);
-   `orca terminal wait` for exit.
+   `orca terminal wait` for exit. Model routing (the flip orchestrator.json's notes
+   name): a ticket labelled `worker:sonnet` swaps `--model opus` for `--model sonnet`
+   in the claude args; every other ticket uses the configured args verbatim.
 
 ## 3. Babysit
 

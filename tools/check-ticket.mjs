@@ -1,15 +1,26 @@
 #!/usr/bin/env node
-// The ticket-template checker (REBUILD.md 6.2): a ticket a fresh agent cannot
-// execute is a defective ticket, and a checker rejects it BEFORE a worker
-// burns a worktree discovering that. Validates one Linear issue (fetched via
-// the orca CLI) or a local markdown body.
-//
-// Usage:
-//   node tools/check-ticket.mjs --issue ORB-12      validate a Linear issue (body + labels + relations)
-//   node tools/check-ticket.mjs --file body.md      validate a drafted body before creation
+/**
+ * The ticket-template checker (REBUILD.md 6.2): a ticket a fresh agent cannot
+ * execute is a defective ticket, and a checker rejects it BEFORE a worker
+ * burns a worktree discovering that. Validates one Linear issue (fetched via
+ * the orca CLI) or a local markdown body.
+ */
 
 import { execFileSync } from "node:child_process"
 import { readFileSync } from "node:fs"
+
+const USAGE = `usage: check-ticket.mjs --issue ORB-12 | --file body.md
+
+  --issue ORB-12   validate a Linear issue (body + labels + relations, fetched via the orca CLI)
+  --file body.md   validate a drafted body before creation (no labels/relations checks)
+  --help, -h       print this usage and exit 0
+
+exit codes: 0 ticket ok, 1 defective ticket (problems listed on stderr), 2 usage error`
+
+if (process.argv.includes("--help") || process.argv.includes("-h")) {
+  console.log(USAGE)
+  process.exit(0)
+}
 
 const ORCA = process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs\\orca\\resources\\bin\\orca"
 
@@ -43,7 +54,7 @@ const validateBody = (body) => {
     "acceptance criteria needs at least 2 checkable items",
   )
   require_(!/\b(TBD|TODO|FIXME|\?\?\?)\b/.test(body), "body carries TBD/TODO placeholders; resolve before dispatch")
-  require_(!/[—]/.test(body), "body carries an em dash (banned everywhere)")
+  require_(!/\u2014/.test(body), "body carries an em dash (banned everywhere)")
   const visibleEffect = /\b(screen|page|component|modal|sheet|button|copy|string|animation|style|design)\b/i.test(body)
   if (visibleEffect) {
     require_(
@@ -56,7 +67,7 @@ const validateBody = (body) => {
 const validateTitle = (title) => {
   require_(title.length >= 12, "title too short to be executable")
   require_(!/\b(maybe|somehow|stuff|things|misc)\b/i.test(title), "title is vague")
-  require_(!/[—]/.test(title), "title carries an em dash")
+  require_(!/\u2014/.test(title), "title carries an em dash")
 }
 
 const validateLabels = (labels) => {
@@ -85,19 +96,21 @@ if (mode === "--file") {
     maxBuffer: 16 * 1024 * 1024,
   })
   const parsed = JSON.parse(raw)
-  const issue = parsed.result?.issue ?? parsed.result ?? parsed
+  const parsedResult = parsed.result ?? parsed
+  const issue = parsedResult.issue ?? parsedResult
   const title = issue.title ?? ""
   const body = issue.description ?? ""
   const labels = (issue.labels ?? []).map((label) => (typeof label === "string" ? label : label.name))
   validateTitle(title)
   validateBody(body)
   validateLabels(labels)
-  const blockedBy = issue.relations?.filter?.((r) => r.type === "blockedBy" || r.type === "blocks") ?? []
+  const relations = parsedResult.relations ?? issue.relations ?? []
+  const blockedBy = relations.filter((r) => r.relationship === "blockedBy" || r.type === "blockedBy")
   if (/\b(after|once|depends on|blocked by)\b/i.test(body) && blockedBy.length === 0) {
     problems.push("body PROSE mentions a dependency but the issue has no blockedBy relation; the DAG is explicit, never inferred from titles (6.2)")
   }
 } else {
-  console.error("usage: check-ticket.mjs --issue ORB-12 | --file body.md")
+  console.error(USAGE)
   process.exit(2)
 }
 

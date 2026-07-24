@@ -1,18 +1,36 @@
 #!/usr/bin/env node
-// The deterministic half of /orchestrate (REBUILD.md 3.2): read a Linear
-// project via the orca CLI, build the explicit blockedBy DAG, and print the
-// wave table. Merge-gated (D3): a ticket is READY only when every blocker is
-// in a completed/canceled state, and completion is granted by Thomas merging
-// the PR, never by an agent. This script only reads; it launches nothing.
-//
-// Usage:
-//   node tools/wave-plan.mjs --project "<name>" [--json]
-//   node tools/wave-plan.mjs --label "<label>" [--json]
+/**
+ * The deterministic half of /orchestrate (REBUILD.md 3.2): read a Linear
+ * project via the orca CLI, build the explicit blockedBy DAG, and print the
+ * wave table. Merge-gated (D3): a ticket is READY only when every blocker is
+ * in a completed/canceled state, and completion is granted by Thomas merging
+ * the PR, never by an agent. This script only reads; it launches nothing.
+ */
 
 import { execFileSync } from "node:child_process"
+import { readFileSync } from "node:fs"
+
+const USAGE = `usage: wave-plan.mjs --project "<name>" | --label "<label>" | --all [--json]
+
+  --project "<name>"   plan the issues of one Linear project
+  --label "<label>"    plan the issues carrying one label
+  --all                plan every non-done issue of the team
+  --json               emit the wave table as JSON instead of text
+  --help, -h           print this usage and exit 0
+
+exit codes: 0 wave table printed, 1 nothing to plan or a cycle, 2 usage/orca error`
+
+if (process.argv.includes("--help") || process.argv.includes("-h")) {
+  console.log(USAGE)
+  process.exit(0)
+}
 
 const ORCA = process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs\\orca\\resources\\bin\\orca"
 const TEAM = "ORB"
+const orchestratorConfig = JSON.parse(
+  readFileSync(new URL("../.claude/orchestrator.json", import.meta.url), "utf8"),
+)
+const ATTEMPTS_BEFORE_REWRITE = orchestratorConfig.attemptsBeforeRewrite
 
 const orcaJson = (args) => {
   const raw = execFileSync(ORCA, [...args, "--json"], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
@@ -33,7 +51,7 @@ const project = argOf("--project")
 const label = argOf("--label")
 const all = process.argv.includes("--all")
 if (!project && !label && !all) {
-  console.error('usage: wave-plan.mjs --project "<name>" | --label "<label>" | --all [--json]')
+  console.error(USAGE)
   process.exit(2)
 }
 
@@ -94,7 +112,7 @@ while (frontier.length) {
 
 const launchable = waves[0]?.filter((identifier) => {
   const issue = byIdentifier.get(identifier)
-  return issue.blockedBy.every(isDone) && issue.stateType !== "started" && issue.attempts < 2
+  return issue.blockedBy.every(isDone) && issue.stateType !== "started" && issue.attempts < ATTEMPTS_BEFORE_REWRITE
 })
 
 if (process.argv.includes("--json")) {
@@ -117,7 +135,7 @@ if (process.argv.includes("--json")) {
     for (const identifier of wave) {
       const issue = byIdentifier.get(identifier)
       const blockers = issue.blockedBy.length ? `  blockedBy: ${issue.blockedBy.join(", ")}` : ""
-      const strikes = issue.attempts >= 2 ? "  [TWO STRIKES: rewrite the ticket first (D9)]" : ""
+      const strikes = issue.attempts >= ATTEMPTS_BEFORE_REWRITE ? "  [TWO STRIKES: rewrite the ticket first (D9)]" : ""
       console.log(`  ${identifier}  [${issue.state}]  ${issue.title}${blockers}${strikes}`)
     }
   }

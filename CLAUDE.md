@@ -73,6 +73,7 @@ Grep a doc's `At a glance` header before loading the whole file.
 | Doc | Purpose |
 |---|---|
 | `DESIGN.md` | Authoritative UI spec: de-decorated navy-violet anchor (no glow, no gradient wash), semantic tokens, the enumerated spacing scale (`0 4 8 12 16 20 24 28 32 40 48 56 64` + three named exemptions, gated by `local/spacing-scale`), measure/motion/a11y rules, 412px shell, plus the `## Enforcement` gate-vs-reviewer contract. |
+| `REBUILD.md` | The workflow teardown/rebuild plan and its locked decision register (D1..D38, the phase ledger) that the harness files cite by number. **Temporary by design**: it dies when Phase 7 completes; its durable parts graduate to CLAUDE.md, AGENTS.md, DESIGN.md, and brain ADRs. |
 | `FEATURES.md` | Code-derived, gating- and platform-aware map of every capability. |
 | `WORKFLOW.md` | Path-picking guide (`/drive` attended / `/drive --sleep` unattended, + the campaign loop) + the model & effort routing table. |
 | `TESTING.md` | How to write tests here + the catalog of every suite and what each proves. |
