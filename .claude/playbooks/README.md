@@ -49,7 +49,7 @@ are read on demand by the skill or agent that needs them:
 |---|---|---|
 | `debugging.md` | 8 | chasing a bug, triaging an issue, `/investigate`, or resolving a merge conflict |
 | `review-and-audit.md` | 11 | `/pr-review`, `/audit-*`, `/commit-sweep`, `/prod-readiness`, or any fan-out assessment |
-| `planning-and-artifacts.md` | 11 | `/create-prd`, `/create-stories`, `/plan`, `/drive`, prototyping, ADRs, or deciding whether to hand off |
+| `planning-and-artifacts.md` | 11 | `/feature`, `/bug`, `/orchestrate`, ticket writing, prototyping, ADRs, or deciding whether to hand off |
 
 ## How these relate to the gates
 

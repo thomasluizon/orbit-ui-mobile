@@ -1,6 +1,6 @@
 # Planning, specs & artifacts
 
-**At a glance:** 11 standing rules for `/create-prd`, `/create-stories`, `/plan`, `/drive`, prototyping, ADRs, and session handoff. Judgement-bound; none is gate-checkable. See `README.md` for the tier's contract.
+**At a glance:** 11 standing rules for planning and ticket-writing work (`/feature`, `/bug`, `/orchestrate`), prototyping, ADRs, and session handoff. Judgement-bound; none is gate-checkable. Some rules cite the deleted pre-rebuild skills as the incidents that produced them; the lessons stand. See `README.md` for the tier's contract.
 
 ## What goes in a document
 

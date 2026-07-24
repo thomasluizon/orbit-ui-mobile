@@ -17,14 +17,7 @@
     "clean": "turbo run clean",
     "surfaces:manifest": "node tools/surface-manifest.mjs",
     "surfaces:capture": "node tools/capture-surfaces.mjs",
-    "surfaces:judge": "node tools/judge-surfaces.mjs",
-    "surfaces:check": "node tools/check-surface-coverage.mjs",
-    "surfaces:sheet": "node tools/contact-sheet.mjs",
-    "surfaces:calibrate": "node tools/calibrate-judge.mjs",
-    "workorders": "node tools/workorder.mjs",
-    "workorders:check": "node tools/workorder.mjs --check",
-    "drive:queue": "node tools/drive-queue.mjs",
-    "ownership:check": "node tools/check-diff-ownership.mjs"
+    "redesign:coverage": "node tools/redesign-coverage.mjs"
   },
   "devDependencies": {
     "@swc/helpers": "^0.5.15",

@@ -1,8 +1,7 @@
-// Command (Bash) invariants — the git workflow guard and the Expo-SDK pin guard.
+// Command (Bash) invariants: the git workflow guard.
 // Pure: they take the command string (and, for the bare-push case, a resolver so
 // the module stays runtime-agnostic) and return { block, message } or null.
-// Both the Claude Code PreToolUse(Bash) hooks and the opencode
-// tool.execute.before plugin call these.
+// The Claude Code PreToolUse(Bash) git-guardrails hook calls these.
 
 // Branch protection is Orbit's, not a universal law. These three repos have it;
 // a session launched from orbit-ui-mobile routinely drives sibling repos (the
@@ -53,11 +52,7 @@ function pushTargetDir(segments, pushIndex, cwd) {
 // text-is-not-command bug one level down.
 const heredoc = /^([^\n]*?)<<-?[ \t]*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\2([^\n]*)\n[\s\S]*?^\3[ \t]*$/gm
 
-/**
- * Strip heredoc bodies so a message that NAMES a flag is not read as using it.
- * Exported for rules-secrets.mjs, which needs the identical text-is-not-command
- * distinction (a commit message about `--token` must not trip the secret guard).
- */
+/** Strip heredoc bodies so a message that NAMES a flag is not read as using it. */
 export function stripHeredocBodies(command) {
   return command.replace(heredoc, (match, beforeOperator, _quote, _tag, restOfLine) =>
     /\b(?:ba|z)?sh[ \t]+$/.test(beforeOperator) ? match : `${beforeOperator}${restOfLine}`,
@@ -160,29 +155,5 @@ export function checkGitWorktreeRemove(command) {
         "  3. THEN `git worktree remove` (no --force needed once the tree carries no reparse points).\n",
     }
   }
-  return null
-}
-
-export function checkNpmExpoPin(command) {
-  if (typeof command !== "string" || !/\bnpm\b/.test(command)) return null
-
-  if (/\bnpm\s+(?:update|upgrade|up)\b/.test(command)) {
-    return {
-      block: true,
-      message:
-        `BLOCKED npm command (Expo SDK pin):\n  ${command}\n\n` +
-        "`npm update`/`upgrade` bulk-bumps the Expo-pinned tree. Use `npx expo install` for SDK packages, or the /dep-sweep skill for a controlled sweep.\n",
-    }
-  }
-
-  if (/\bnpm\s+(?:i|install|add)\b[^&|;]*\s(?:expo(?:-[\w.-]+)?|react-native(?:-[\w.-]+)?|hermes-compiler|nativewind)@/.test(command)) {
-    return {
-      block: true,
-      message:
-        `BLOCKED npm command (Expo SDK pin):\n  ${command}\n\n` +
-        "That package's version is managed by the Expo SDK 57 pin. Install it with `npx expo install <pkg>` so it resolves to the SDK-correct, ABI-compatible version.\n",
-    }
-  }
-
   return null
 }
