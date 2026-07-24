@@ -81,9 +81,9 @@ before Phase 1's gates are green on its target branch.
 
 ## Delegation discipline (the session-flood rule)
 
-The orchestrating session ORCHESTRATES; it never implements. Measured 2026-07-24: a
-main session that wrote rule files, wired configs, and chased CI failures inline
-flooded to 611k tokens, while every slice it delegated landed clean. Therefore:
+The orchestrating session ORCHESTRATES; it never implements. Measured 2026-07-24:
+implementing inline flooded a main session to 611k tokens, while every delegated slice
+landed clean. So:
 
 - Every self-contained multi-file build or fix slice runs as a background agent with
   a branch + commit + PR + verification contract in its prompt (worktree or

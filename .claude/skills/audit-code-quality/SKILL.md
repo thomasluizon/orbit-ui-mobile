@@ -1,6 +1,7 @@
 ---
 name: audit-code-quality
-description: Repo-wide code-quality audit across both Orbit repos, opening one Linear ticket per verified debt after a human approval gate (D10). Finds the judgement-level debt no gate can see (D11): dead/stale code, SOLID/clean-arch violations, DRY-at-the-wrong-level, naming, function size, and non-gated DESIGN.md drift, each evidence-backed with file:line. EXCLUDES the mechanical layer (comment policy, spacing scale, react-doctor, dashes, and every ESLint local/Roslyn rule). Use when the user asks to audit code quality, find tech debt, or check the codebase against the standards. Not for a single diff (use /pr-review).
+description: >-
+  Repo-wide code-quality audit across both Orbit repos, opening one Linear ticket per verified debt after a human approval gate (D10). Finds the judgement-level debt no gate can see (D11): dead/stale code, SOLID/clean-arch violations, DRY-at-the-wrong-level, naming, function size, and non-gated DESIGN.md drift, each evidence-backed with file:line. EXCLUDES the mechanical layer (comment policy, spacing scale, react-doctor, dashes, and every ESLint local/Roslyn rule). Use when the user asks to audit code quality, find tech debt, or check the codebase against the standards. Not for a single diff (use /pr-review).
 argument-hint: <path | workspace | repo | blank=both repos>
 ---
 
@@ -26,17 +27,15 @@ it isn't a finding.
 ## Phase 0 — Provenance & self-containment
 
 This skill **shares one rubric file** with `/pr-review`:
-`.claude/skills/pr-review/rubric.md`. There is no second copy and no fork of the rules —
-both skills read that exact file, so the diff-review and the repo-audit can never drift
-(the #228 requirement). The rubric's own dimensions were adapted at authoring time from
+`.claude/skills/pr-review/rubric.md` (the #228 no-drift requirement). The rubric's own
+dimensions were adapted at authoring time from
 the **code-review base on claudeskills.info** (https://claudeskills.info) and specialized
 to Orbit's ten Code Standards, the orbit-api hard rules, `eslint-rules/no-comments.cjs`,
 and `DESIGN.md` — see the rubric's Phase 0 note. That URL is the single WHY-with-URL the
 comment policy allows.
 
 **Self-contained**: the workflow's finder/skeptic agents read local repo files and run
-`git` / `rg` against the project's own checkout. **CI / headless fallback**: if the
-`Workflow` tool is unavailable, run the fan-out inline per Phase 3's fallback.
+`git` / `rg` against the project's own checkout.
 
 ---
 
@@ -101,22 +100,16 @@ claims); loops a completeness critic until dry (cap 2 dry rounds). It returns:
 ```
 
 **Completeness is a computed field, not an assumption.** `converged === true` only after the
-critic ran and returned empty. If `converged !== true` (e.g. `criticErrors ≥ 2` from a
-rate-limit), the sweep did NOT prove completeness — report it as "coverage UNKNOWN —
-${convergenceReason}", never as a clean/complete audit. A dead verifier is not a clean pass.
+critic ran and returned empty. Anything else (e.g. `criticErrors ≥ 2` from a rate-limit)
+reports as "coverage UNKNOWN, ${convergenceReason}": a dead verifier is not a clean pass.
 
-The workflow **keeps Low/Info** (the sanctioned deep-audit exception) and ranks by
-blast-radius × churn. Diff-only dimensions — contract drift / backward-compat (#11) and the
-security orchestration — are **not** re-derived here; note them as "covered by
-/audit-security" at the approval gate, never as a code-quality ticket.
+Diff-only dimensions (contract drift / backward-compat (#11) and the security orchestration)
+are **not** re-derived here; note them as "covered by /audit-security" at the approval gate,
+never as a code-quality ticket.
 
 **Fallback (no `Workflow` tool):** run the fan-out inline — `Explore` finders (Haiku, 3
 concurrent) over the five areas against the shared rubric, Haiku skeptics per Critical/High
 finding, a completeness pass — same findings shape.
-
-React correctness is NOT audited here: `react-doctor.yml` is a required CI gate and owns it
-(D11). The standing full-repo react-doctor backlog is mechanical debt for the ORB-46 project,
-not a code-quality audit finding.
 
 ---
 
@@ -134,8 +127,7 @@ High-value dimensions for a standing codebase (the finders lead with these): **d
 code (#2)** proven by a zero-reference grep · **SOLID/clean-arch (#3)** (functions over the
 ~50/~100-line caps, nesting past ~3, premature abstraction, DRY-at-the-wrong-level) ·
 **naming** (`data`/`info`/`temp`/`helper`/`util` finals, abbreviations) · **DESIGN.md drift
-(#8)** on `apps/*` UI, but only the drift no lint rule covers. Comment policy (#4) is NOT a
-dimension here: `local/no-comments` and Roslyn `ORBIT0001` own it (D11).
+(#8)** on `apps/*` UI, but only the drift no lint rule covers.
 
 ---
 
@@ -149,8 +141,7 @@ ticket per verified debt, drafted to the 6.2 template, validated by
 Code-quality-specific mapping into the 6.2 body:
 
 - **Problem / why it matters** carries the rubric dimension it breaks (`reference`) and, from
-  `rationale`, why it is real debt (blast-radius × churn: a smell in a hot handler outranks
-  the same in a stable leaf).
+  `rationale`, why it is real debt (blast-radius × churn).
 - **Technical details** carries the `evidence`; a dead-code ticket carries the zero-reference
   grep command and its empty result that PROVES the code is dead (drop any dead-code finding
   that lacks it).
@@ -165,7 +156,7 @@ Code-quality-specific mapping into the 6.2 body:
 At the approval gate, present the Hotspots (the 3-5 highest-debt files) and per-area
 **coverage** (apps/web, apps/mobile, packages/shared, orbit-api) as provenance, plus the
 **Deferred ledger** (the workflow's `deferred`, dimensions deferred to `/audit-security` or
-`/pr-review`) and the convergence state. None of it is written to disk.
+`/pr-review`) and the convergence state.
 
 ---
 
@@ -173,14 +164,10 @@ At the approval gate, present the Hotspots (the 3-5 highest-debt files) and per-
 
 - **Fork the rubric.** The workflow's finders read `.claude/skills/pr-review/rubric.md`;
   never inline a copy of the dimensions here. One file, zero drift — the whole point of #228.
-- **Re-run /pr-review's diff job.** This audits the repo as it stands, not a change.
 - **Re-derive security or contract findings.** Point at `/audit-security` and
   `/audit-tests`; stay in the quality lane.
-- **Re-run the workflow's analysis.** It owns the fan-out, the grep-proof skeptic pass, and
-  the loop; you turn its return into tickets. Only re-invoke for a coverage gap.
-- **Flag anything a gate owns.** Comment policy, spacing scale, dashes, copy register, `any`,
-  `console`, React correctness, and every ESLint `local/*` / Roslyn `ORBIT0001..0005` concern
-  are the mechanical layer (D11).
+- **Re-run the workflow's analysis.** You turn its return into tickets; only re-invoke for a
+  coverage gap.
 - **Trust an un-proven dead-code claim.** Every dead-code ticket carries the zero-reference
   grep that proves it (the skeptic re-runs it) — drop any that lack one.
 - **Write a report file, or create tickets unattended.** The output is Linear tickets behind

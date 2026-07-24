@@ -14,7 +14,7 @@ launch verdict. This skill is an **orchestrator**: the **`prod-readiness` dynami
 (`.claude/workflows/prod-readiness.mjs`) runs the four audit workflows in parallel (**Haiku
 fan-out**), adds the ops-layer audit none of them cover, verifies its own ops findings, and
 returns everything; **you (Opus) consolidate** the return into one combined ticket table and
-a launch verdict. Cheap discovery, expensive judgment only here.
+a launch verdict.
 
 **Golden rule: orchestrate, don't re-derive.** Each audit workflow owns its own analysis, its
 own adversarial Verify, and its own loop; this skill's workflow **invokes** them and
@@ -72,7 +72,7 @@ project, not a prod-readiness finding.
 | 9 | Staging | ops check | the workflow (own §2 challenge) |
 
 This list is **binding**: by the end every item is either **(a) covered with a verdict** or
-**(b) in the Deferred ledger with a one-line reason**. There is no silently-skipped bucket.
+**(b) in the Deferred ledger with a one-line reason**.
 
 ---
 
@@ -167,8 +167,7 @@ Present ONE message and get ONE approval (mirror /feature Phase C step 0). The h
   deferred and the result. Backups is always `deferred` (verify in the DB console). Any
   `failedAudit` or `unconvergedAudits` entry is named here as `coverage UNKNOWN`.
 - **Deferred ledger**: merge every child's `deferred` (attributed, e.g. "from security:
-  verify-cap overflow") plus `opsDeferred` (backups) plus enterprise-only ops. Every one of
-  the 9 items appears in the table or the ledger; silence reads as coverage.
+  verify-cap overflow") plus `opsDeferred` (backups) plus enterprise-only ops.
 - **What's solid**: the genuine production strengths, so the gate is decision-ready, not a
   fear list.
 
@@ -215,27 +214,13 @@ re-validate each with `--issue`.
 
 ## Guardrails — do NOT
 
-- **Re-derive child findings.** The workflow runs each audit, inherits its verify (§2/§3) and
-  its ledger. Re-running a child's analysis doubles cost and risks a divergent verdict.
-- **Run each child skill's own approval gate.** prod-readiness invokes the audit workflows
-  directly and owns the ONE consolidated gate and ticket emission; a per-child gate would
-  fragment the launch decision.
 - **Write a report file, or create tickets unattended.** The output is a consolidated Linear
   ticket set plus a verdict headline, behind the one approval gate; nothing is persisted to
   `.claude/audits/` and nothing is created before Thomas approves (D10).
-- **Silently drop an audit that failed to run.** A `failedAudit` is a Deferred-ledger entry
-  **and** a verdict downgrade (at most CONDITIONAL), named as a blocker, never an unstated gap.
 - **Invent ops findings to look thorough.** A clean ops check earns a plain "ready," not a
   manufactured nit. An ops finding with no concrete anchor plus risk is not a finding.
 - **Hardcode a verdict, the QA-env state, or the backup state.** The workflow discovers
-  staging plus background topology at runtime per repo; the workflow set and the QA env drift (#211).
-- **Assert backups or staging you cannot verify from a repo read.** Backups defaults to the
-  Deferred ledger ("verify in console"), never "clean."
-- **Audit React correctness.** `react-doctor.yml` is the gate that owns it (D11); it is not in
-  the 9-item inventory.
+  staging plus background topology at runtime per repo; the workflow set and the QA env drift
+  (#211). What a repo read cannot verify goes to the Deferred ledger, never to "clean."
 - **Paste enterprise checklists.** SOC2 / SIEM / multi-region / DR drills get one acknowledging
   Deferred line, not a finding each; right-size to a solo, pre-scale app.
-- **Present a verdict without a Verify pass plus a Deferred ledger.** The workflow runs the
-  Verify; you must show the merged Deferred ledger at the gate, or you are only *saying* the
-  protocol ran.
-```

@@ -13,9 +13,6 @@ Review a diff end-to-end against `rubric.md`, fold in the five review subagents,
 against changes that break already-shipped mobile clients, and produce one
 severity-ranked report — posted to the PR when the scope is a PR.
 
-This skill subsumes the old `/review` and `/security-review` commands: it does
-everything both did and adds the backward-compat guard and a single shared rubric.
-
 **Golden rule**: every finding is constructive and actionable — a clear fix, a file:line,
 and the rule it traces to. Severity is about blast radius, not which dimension raised it.
 
@@ -24,16 +21,12 @@ and the rule it traces to. Severity is about blast radius, not which dimension r
 ## Phase 0 — Provenance & self-containment
 
 The review dimensions in `rubric.md` were adapted at authoring time from the
-**code-review base on claudeskills.info** (https://claudeskills.info — the "code-review"
-/ reviewing-AI-code base), then specialized to Orbit's own standards (the ten Code
-Standards in root `CLAUDE.md`, the orbit-api hard rules, `eslint-rules/no-comments.cjs`,
-`DESIGN.md`, and the folded-in `/security-review` categories), which are richer than any
-generic base. The adapted result is committed in-repo at `rubric.md`.
-
-This skill is **self-contained**: it makes **no network call at run time** and has no
-runtime marketplace dependency. It reads only local repo files and runs `gh` / `git`
-against the project's own remotes. The provenance above is the single WHY-with-URL note
-the standard allows; nothing here is fetched live.
+**code-review base on claudeskills.info** (https://claudeskills.info), then specialized to
+Orbit's own standards (the ten Code Standards in root `CLAUDE.md`, the orbit-api hard
+rules, `eslint-rules/no-comments.cjs`, `DESIGN.md`, and the security categories). The
+adapted result is committed in-repo at `rubric.md`, so a run reads only local repo files
+and `gh` / `git` against the project's own remotes: no network call, no runtime
+marketplace dependency. That URL is the single WHY-with-URL note the standard allows.
 
 ---
 
@@ -112,30 +105,28 @@ FEATURES.md parity.
 Focus on changed code, not pre-existing issues — unless a pre-existing issue is Critical.
 
 **Coverage contract (verification protocol §1):** the diff's changed files are the binding
-inventory — rank them worst-first (highest-blast-radius / most-churned files and the
-trust-boundary + contract surfaces before stable leaves) so the riskiest code is reviewed
-even under pressure, and every changed file ends with a verdict or in the Deferred ledger.
-Nothing changed is silently skipped.
+inventory, ranked worst-first (trust-boundary and contract surfaces, then blast-radius x
+churn, then stable leaves). Every changed file ends with a verdict or in the Deferred
+ledger.
 
-Apply the rubric's **Signal gate**: post Critical/High and concretely-actionable Medium only — drop Low/Info nits and style preferences (manufacturing nits to avoid approving is a defect). The outcome is deterministic: **NEEDS WORK** iff any Critical/High finding survives, otherwise **APPROVE**.
+Apply the rubric's **Signal gate** as written there: it fixes what gets posted and the
+deterministic outcome (**NEEDS WORK** iff any Critical/High finding survives, otherwise
+**APPROVE**).
 
 ---
 
 ## Phase 4 — Orchestrate subagents
 
 Delegate the five specialist subagents, gated by what the diff touches, **3 concurrent
-at a time** (the root CLAUDE.md delegation cap). Pass
-each the list of changed files. Fold every result back into the Phase 3 findings under
-the matching rubric dimension.
+at a time** (the root CLAUDE.md delegation cap). Pass each the list of changed files. Fold
+every result back into the Phase 3 findings under the matching rubric dimension.
 
-**Await them synchronously — this is a blocking fan-out, not fire-and-forget.** Spawn the
-gated subagents, then wait for every one to return *within this same turn* and fold its
-result in before moving to Phase 5. Never end your turn with a subagent still running on
-the expectation that a completion notification will wake you back up: the CI wrapper
-(`.github/workflows/claude-review.yml`) runs a single execution and delivers **no**
-background-completion wake-up, so yielding there strands the review half-done and posts
-nothing. If for any reason you cannot block on a subagent, run its check inline yourself
-rather than deferring — the review is not finished until every gated subagent has returned.
+**Block on them within this same turn.** Spawn the gated subagents, wait for every one to
+return, and fold its result in before moving to Phase 5. The CI wrapper
+(`.github/workflows/claude-review.yml`) runs a single execution with **no**
+background-completion wake-up, so a subagent still running when the turn ends strands the
+review half-done and posts nothing. If you cannot block on one, run its check inline
+yourself.
 
 | Subagent | Gate (fire when…) | Folds into rubric dimension |
 |---|---|---|
@@ -145,38 +136,27 @@ rather than deferring — the review is not finished until every gated subagent 
 | `security-reviewer` | `orbit-api` code changed | Security (#12, API side) |
 | `design-reviewer` | any `apps/web/**`, `apps/mobile/**`, or `orbit-landing-page/src/**` UI file changed | DESIGN.md / AI-slop (#8) |
 
-The five are independent — launch them together (respecting the 3-cap; queue the extras
-behind the first three). `security-reviewer` covers orbit-api security; the rubric's
-frontend-security checks (XSS, auth-state leakage) cover what that agent explicitly does
-not.
+`security-reviewer` covers orbit-api security; the rubric's frontend-security checks (XSS,
+auth-state leakage) cover what that agent explicitly does not.
 
 ---
 
 ## Phase 5 — Backward-compat guard
 
 Answer one question: **does this diff rename or remove a field that an already-shipped
-(old) mobile client still sends or reads?** Old Android builds run a frozen
-`@orbit/shared` snapshot, so a server/shared rename is invisible to them — they keep the
-old name and silently break. This leans on `contract-aligner`'s field comparison from
-Phase 4 and adds the direction + add/remove judgment.
+(old) mobile client still sends or reads?** This leans on `contract-aligner`'s field
+comparison from Phase 4 and adds the direction + add/remove judgment that drift detection
+alone does not make.
 
 1. From the diff, isolate hunks in `packages/shared/src/types/*.ts` (Zod
    `z.object({...})` schemas) and in `orbit-api/**/DTOs/*.cs` (records / classes).
 2. A **removed line** declaring a field (`fieldName: z.…` removed with no matching add),
    OR a **renamed field** (one field removed + one added in the same schema, types
    compatible), is a candidate.
-3. Classify each candidate and tag per `rubric.md` dimension 11:
-   - Removed/renamed in a **response** shape → old readers get `undefined` →
-     **`⚠️ breaks old mobile clients` (Critical)**, unless already optional AND unused
-     (cite the grep).
-   - Removed/renamed in a **request** shape, or a field made **newly-required** → old
-     senders are rejected by validation → **`⚠️ breaks old mobile clients` (Critical)**.
-   - **Added optional** field → forward-compatible → **Info**.
-   - **Enum value removed** → old clients may still send it → flag.
-4. In the fix, recommend the compatible alternative: keep-and-deprecate the old field,
-   accept both names server-side for a release, or gate behind the min-version gate.
-   When old-client reach is uncertain, downgrade to **High** with a "verify old-client
-   usage" note rather than over-claiming Critical.
+3. Classify and tag each candidate by `rubric.md` dimension 11, which carries the whole
+   table (response vs request direction, removed/renamed vs added-optional vs
+   newly-required vs enum-value-removed), the compatible-alternative fix, and the
+   downgrade-to-High rule when old-client reach is uncertain.
 
 Scope is **field add/remove/rename in the reviewed diff**. Semantic/behavioral breaks
 under an unchanged field name are caught by Correctness (#1) and the human reviewer — do
@@ -189,35 +169,22 @@ not over-claim completeness here.
 Run `.claude/skills/_shared/verification-protocol.md` before validating — every finding
 that will decide the outcome has to survive a challenge first.
 
-1. **Adversarial pass (§2).** For every **Critical / High** finding (including any
-   `⚠️ breaks old mobile clients`), spawn an independent skeptic subagent (3 concurrent)
-   whose only job is to *refute* it — read the cited `file:line` in full diff context and
-   argue it is a false positive (the path is unreachable, the value already validated, the
-   field actually still present or optional-and-unused with the grep to prove it, a
-   duplicate, the severity inflated). Default to refuted when uncertain. Drop or downgrade
-   anything the skeptic disproves — a false Critical that blocks a clean PR is as costly as
-   a missed one. The survivors decide the recommendation.
-2. **Cross-model second opinion (§2, Critical survivors — interactive only).** For each
+1. **Adversarial pass (§2).** Spawn a skeptic per **Critical / High** finding (including
+   any `⚠️ breaks old mobile clients`) exactly as the protocol specifies, adding the
+   diff-specific refutation angle: is the field actually still present, or
+   optional-and-unused with the grep to prove it? The survivors decide the recommendation.
+2. **Cross-model second opinion (§2, Critical survivors, interactive only).** For each
    **Critical** finding that survives step 1 (including any `⚠️ breaks old mobile clients`),
-   fire **`/second-opinion`** so a *different* model (GLM-5.2 via opencode) independently
-   judges it — pipe the finding dossier (title · severity · `repo/path:line` · the claimed
-   defect · the cited code hunk) to `node .claude/skills/second-opinion/second-opinion.mjs`
-   and apply the JSON verdict it prints:
-   - **AGREE** → the finding is cross-model corroborated; keep the severity, note the
-     confirmation.
-   - **DISAGREE** → tag the finding **`CONTESTED`** and record GLM's `reasoning` beside
-     Claude's; surface **both** verdicts in the report. It stays Critical — the
-     disagreement is the human's to resolve. **Never** let it force a merge or silently drop
-     the finding (the skeptic in step 1 already owns the drop decision).
-   - **UNSURE** → note it; the finding stands as step 1 left it.
-   - **UNAVAILABLE** (opencode absent — **always the case in CI**, or capped / offline) →
-     skip the second opinion, leave the finding unchanged, and state it in one line. Never
-     read "couldn't ask" as agreement. This graceful-degradation path keeps the CI review
-     (no opencode) byte-for-byte identical to today.
-   Scope to **Critical only** (not High) — cross-model time/cost is reserved for the findings
-   that actually block. This is the on-demand-diversity budget: cross-model judgement is a
-   tool for blocking calls, never a standing gate. CONTESTED never changes the deterministic
-   recommendation: a surviving Critical still means NEEDS WORK.
+   fire **`/second-opinion`**: pipe the finding dossier (title · severity ·
+   `repo/path:line` · the claimed defect · the cited code hunk) to
+   `node .claude/skills/second-opinion/second-opinion.mjs` and apply the verdict table that
+   skill carries. Two bindings are this skill's own: a **DISAGREE** finding is tagged
+   **`CONTESTED`**, records GLM's `reasoning` beside Claude's, and stays Critical for the
+   human to resolve; **UNAVAILABLE** (opencode is absent on every CI runner, and when
+   capped or offline) leaves the finding exactly as step 1 left it, stated in one line.
+   Scope to **Critical only**, never High: cross-model time and cost is reserved for the
+   findings that actually block. CONTESTED never changes the deterministic recommendation,
+   so a surviving Critical still means NEEDS WORK.
 3. **Completeness pass (§3).** One pass only — a diff is its own boundary, so no loop: ask
    *"what changed file or hunk did I not give a verdict, what dimension did I mark N/A
    without checking its surface?"* and close the gap before reporting.

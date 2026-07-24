@@ -106,12 +106,5 @@ A finding is not "this test is weak." It is the **concrete test to add or rewrit
 ```
 
 The test must be **runnable as written**: real factory, real call, an assertion that
-*fails* if the behavior regresses.
-
----
-
-## Self-check
-
-This rubric is held to its own standard: it scores behavior over implementation, demands a
-failure-path for every critical test, and makes each finding ship a runnable test. If a
-suggested test couldn't fail when the code breaks, it doesn't belong in the report.
+*fails* if the behavior regresses. A suggested test that could not fail when the code
+breaks is not a finding.
