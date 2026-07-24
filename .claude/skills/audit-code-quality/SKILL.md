@@ -1,6 +1,6 @@
 ---
 name: audit-code-quality
-description: Repo-wide code-quality audit across both Orbit repos against the same rubric /pr-review uses. Reports dead/stale code, SOLID/clean-arch violations, comment-policy breaks, DRY, naming, function size, and DESIGN.md drift — each finding evidence-backed with file:line. Use when the user asks to audit code quality, find tech debt, or check the codebase against the standards. Not for a single diff (use /pr-review).
+description: Repo-wide code-quality audit across both Orbit repos, opening one Linear ticket per verified debt after a human approval gate (D10). Finds the judgement-level debt no gate can see (D11): dead/stale code, SOLID/clean-arch violations, DRY-at-the-wrong-level, naming, function size, and non-gated DESIGN.md drift, each evidence-backed with file:line. EXCLUDES the mechanical layer (comment policy, spacing scale, react-doctor, dashes, and every ESLint local/Roslyn rule). Use when the user asks to audit code quality, find tech debt, or check the codebase against the standards. Not for a single diff (use /pr-review).
 argument-hint: <path | workspace | repo | blank=both repos>
 ---
 
@@ -9,8 +9,9 @@ argument-hint: <path | workspace | repo | blank=both repos>
 **Input**: $ARGUMENTS
 
 Walk the **whole repo** (or a scoped path) against `rubric.md` — the *same* rubric
-`/pr-review` walks over a diff — and produce one severity-ranked report of real
-quality debt. `/pr-review` reviews what changed; this audits what *exists*.
+`/pr-review` walks over a diff, and opens one Linear ticket per verified debt (D10).
+`/pr-review` reviews what changed; this audits what *exists*. The output is executable
+tickets behind one approval gate, never a report that rots the day after it is written.
 
 The fan-out, the adversarial verify, and the loop-until-dry run as the **`audit` dynamic
 workflow** (`.claude/workflows/audit.mjs`) — **Haiku finders + Haiku skeptics**,
@@ -59,8 +60,22 @@ Parse `$ARGUMENTS` into a `{scope}` token for the workflow.
 
 The workflow excludes generated / vendored / test-fixture code (`node_modules`, `.next`,
 `dist`, `build`, `bin`, `obj`, `coverage`, `.turbo`, `Migrations/`, `design/handoff/`,
-`.claude/`). Load **`.claude/skills/_shared/verification-protocol.md`** — the workflow
-executes §1/§2/§3; you emit the Verify summary + Deferred ledger (§4/§5).
+`.claude/`). Load **`.claude/skills/_shared/verification-protocol.md`** (the workflow
+executes §1/§2/§3; you carry the Verify summary + Deferred ledger §4/§5 into the approval
+gate) and **`.claude/skills/_shared/audit-to-tickets.md`** (the D10 ticket-emission pipeline
+Phase 4 runs).
+
+### D11 scope: judgement only, never what a gate checks
+
+Read **`.claude/skills/_shared/gate-owned-exclusions.md`**. The shared rubric was written for
+`/pr-review` over a diff; as a standing audit this skill audits ONLY the rubric dimensions no
+gate enforces. It does NOT re-flag: comment policy (ESLint `local/no-comments` + Roslyn
+`ORBIT0001`), the enumerated spacing scale (`local/spacing-scale`), `console` / `any` bans,
+dashes, copy register, React correctness (`react-doctor.yml`), or any other `local/*` /
+`guards.yml` / `ORBIT0001..0005` concern. It DOES own: dead/stale code, SOLID/clean-arch
+(function size over the ~50/~100-line caps, nesting past ~3, premature abstraction), DRY-at-
+the-wrong-level, naming judgement, and the DESIGN.md drift no lint rule covers (visual
+hierarchy, semantic-token misuse beyond spacing/dash/copy).
 
 ---
 
@@ -93,34 +108,15 @@ ${convergenceReason}", never as a clean/complete audit. A dead verifier is not a
 The workflow **keeps Low/Info** (the sanctioned deep-audit exception) and ranks by
 blast-radius × churn. Diff-only dimensions — contract drift / backward-compat (#11) and the
 security orchestration — are **not** re-derived here; note them as "covered by
-/audit-security" in the report.
+/audit-security" at the approval gate, never as a code-quality ticket.
 
 **Fallback (no `Workflow` tool):** run the fan-out inline — `Explore` finders (Haiku, 3
 concurrent) over the five areas against the shared rubric, Haiku skeptics per Critical/High
 finding, a completeness pass — same findings shape.
 
----
-
-## Phase 2.5 — React Doctor pass (ui / frontend / both scope)
-
-For any scope that includes the frontend, also run the deterministic **React-correctness
-scanner** — it catches state/effects, hydration, perf, and a11y bugs the rubric's LLM finders
-miss, and it is a **required CI check** (`.github/workflows/react-doctor.yml`):
-
-```bash
-npx -y react-doctor@0.7.6 --project apps/web,apps/mobile,packages/shared \
-  --json --json-out "${TMPDIR:-/tmp}/rd-audit.json" \
-  --no-supply-chain --no-score --no-dead-code --yes --max-duration 360 --no-color
-```
-
-Scope to the three workspaces via `--project` — this **excludes `design/handoff/**`**, whose
-vendored `*.jsx` design mockups emit ~1054 false `jsx-no-undef` errors that are not app code.
-The flags match the CI gate's hermetic/no-knip stance; the CI gate is `--scope changed`, so it
-never sees the standing backlog this full scan surfaces. Fold every diagnostic into the report
-(the JSON's paths are workspace-relative — prefix with the project): react-doctor **errors** →
-**High** (real React bugs), **warnings** → **Low/Info**, each tagged `[react-doctor · {rule}]`
-with file:line + the rule's fix; group warnings by rule with a count. `api` scope skips this
-(React-only). Report-only — surface findings, do not fix here.
+React correctness is NOT audited here: `react-doctor.yml` is a required CI gate and owns it
+(D11). The standing full-repo react-doctor backlog is mechanical debt for the ORB-46 project,
+not a code-quality audit finding.
 
 ---
 
@@ -137,73 +133,39 @@ The rubric was written for a diff; the workflow's finders already recalibrate tw
 High-value dimensions for a standing codebase (the finders lead with these): **dead/stale
 code (#2)** proven by a zero-reference grep · **SOLID/clean-arch (#3)** (functions over the
 ~50/~100-line caps, nesting past ~3, premature abstraction, DRY-at-the-wrong-level) ·
-**comment policy (#4)** (fix = rename/extract) · **naming** (`data`/`info`/`temp`/`helper`/
-`util` finals, abbreviations) · **DESIGN.md drift (#8)** on `apps/*` UI.
+**naming** (`data`/`info`/`temp`/`helper`/`util` finals, abbreviations) · **DESIGN.md drift
+(#8)** on `apps/*` UI, but only the drift no lint rule covers. Comment policy (#4) is NOT a
+dimension here: `local/no-comments` and Roslyn `ORBIT0001` own it (D11).
 
 ---
 
-## Phase 4 — Synthesize the report (Opus)
+## Phase 4: Emit tickets (D10), not a report
 
-```bash
-mkdir -p .claude/audits
-```
+Run the shared pipeline in **`.claude/skills/_shared/audit-to-tickets.md`**: one Linear
+ticket per verified debt, drafted to the 6.2 template, validated by
+`node tools/check-ticket.mjs --file`, presented behind ONE approval gate, then created via
+`orca linear create` and re-validated with `--issue`.
 
-**Output path**: `.claude/audits/code-quality-{scope}.md`
+Code-quality-specific mapping into the 6.2 body:
 
-Bucket the workflow's `findings` by severity (keeping the Low/Info bucket), rank the
-Hotspots from the highest-debt files, fill coverage from `coverage`, carry `deferred`
-verbatim:
+- **Problem / why it matters** carries the rubric dimension it breaks (`reference`) and, from
+  `rationale`, why it is real debt (blast-radius × churn: a smell in a hot handler outranks
+  the same in a stable leaf).
+- **Technical details** carries the `evidence`; a dead-code ticket carries the zero-reference
+  grep command and its empty result that PROVES the code is dead (drop any dead-code finding
+  that lacks it).
+- **Scope** is the concrete `fix`: delete the dead export, split the oversized function,
+  collapse the premature abstraction, rename the `data`/`temp` symbol.
+- Fold Low/Info nits that share a cleanup and PR into one ticket rather than minting a ticket
+  per trivial nit; a systemic Low pattern (e.g. one naming smell across a folder) is one
+  ticket, not twenty. `repo:*` from `location`; ui tickets carry `parity:yes|no`.
+- For a `frontend`/`ui` scope, a dead export in `apps/web` whose mirror is still live in
+  `apps/mobile` (or vice-versa) is a parity ticket, not just dead code: say so in the body.
 
-```markdown
-# Code-Quality Audit: {SCOPE}
-
-**Scope**: {scopeLabel}
-**Rubric**: `.claude/skills/pr-review/rubric.md` (shared with /pr-review)
-**Health**: {1-line verdict — e.g. "Solid; 2 dead exports + 1 oversized handler"}
-
-## Findings
-
-### Critical
-{rubric-template findings, or "None"}
-
-### High
-{… or "None"}
-
-### Medium
-{… or "None"}
-
-### Low / Info
-{audit-only bucket — dead nits, minor naming, micro-cleanup. "None" if clean.}
-
-## Hotspots
-
-{The 3-5 files carrying the most debt, ranked. One line each: file — what's wrong.}
-
-## Coverage
-
-| Area | Audited | Notable |
-|---|---|---|
-| apps/web | yes/no | {count by severity} |
-| apps/mobile | yes/no | {…} |
-| packages/shared | yes/no | {…} |
-| orbit-api | yes/no | {…} |
-
-## Deferred — in scope but not verdicted
-
-{From the workflow's `deferred` + dimensions deferred to `/audit-security` or `/pr-review`
-+ any slice the run did not reach — each with a one-line reason. "Nothing deferred — full
-coverage" if empty.}
-
-## What's good
-
-{Genuine strengths — patterns worth keeping. Not filler.}
-```
-
-For a `frontend`/`ui` scope, cross-check parity intent: a dead export in `apps/web` whose
-mirror is still live in `apps/mobile` (or vice-versa) is a parity finding, not just dead
-code — call it out.
-
-Each finding uses the rubric's finding template.
+At the approval gate, present the Hotspots (the 3-5 highest-debt files) and per-area
+**coverage** (apps/web, apps/mobile, packages/shared, orbit-api) as provenance, plus the
+**Deferred ledger** (the workflow's `deferred`, dimensions deferred to `/audit-security` or
+`/pr-review`) and the convergence state. None of it is written to disk.
 
 ---
 
@@ -215,11 +177,16 @@ Each finding uses the rubric's finding template.
 - **Re-derive security or contract findings.** Point at `/audit-security` and
   `/audit-tests`; stay in the quality lane.
 - **Re-run the workflow's analysis.** It owns the fan-out, the grep-proof skeptic pass, and
-  the loop; you synthesize its return. Only re-invoke for a coverage gap.
-- **Trust an un-proven dead-code claim.** Every dead-code finding carries the zero-reference
+  the loop; you turn its return into tickets. Only re-invoke for a coverage gap.
+- **Flag anything a gate owns.** Comment policy, spacing scale, dashes, copy register, `any`,
+  `console`, React correctness, and every ESLint `local/*` / Roslyn `ORBIT0001..0005` concern
+  are the mechanical layer (D11).
+- **Trust an un-proven dead-code claim.** Every dead-code ticket carries the zero-reference
   grep that proves it (the skeptic re-runs it) — drop any that lack one.
-- **Refactor during the audit.** Findings first; write code only if the user asks after.
-- **Pad the list.** A clean area gets "None," not invented Low nits.
+- **Write a report file, or create tickets unattended.** The output is Linear tickets behind
+  the one approval gate; nothing is persisted to `.claude/audits/`.
+- **Refactor during the audit.** Tickets first; write code only if the user asks after.
+- **Pad the backlog.** A clean area produces no ticket, not an invented Low nit.
 
 ---
 
@@ -229,15 +196,15 @@ Each finding uses the rubric's finding template.
 ## Audit Complete — Code Quality
 
 **Scope**: {what was audited}
-**Health**: {1-line verdict}
+**Health**: {1-line verdict, e.g. "Solid; 2 dead exports + 1 oversized handler"}
 
-| Severity | Count |
-|---|---|
-| Critical | {N} |
-| High | {N} |
-| Medium | {N} |
-| Low / Info | {N} |
+| Severity | Findings | Tickets |
+|---|---|---|
+| Critical | {N} | {created / pending approval} |
+| High | {N} | {…} |
+| Medium | {N} | {…} |
+| Low / Info | {N} | {folded / …} |
 
-**Report**: `.claude/audits/code-quality-{scope}.md`
-**Top fix**: {the single highest-leverage thing to do first}
+**Tickets**: {the final ORB-N table, identifier · title · repo · blockedBy, or "clean: no judgement-level debt beyond the gates"}
+**Top fix**: {the single highest-leverage ticket to pick up first}
 ```

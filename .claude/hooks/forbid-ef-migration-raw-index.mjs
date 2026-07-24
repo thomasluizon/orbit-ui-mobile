@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// PostToolUse adapter for the EF raw-index idempotency guard. Thin: logic in
-// _lib/rules-source.mjs (shared with the .opencode/plugin equivalent). Reads the
-// edited file. Exits 0 or 2 + stderr. Any error exits 0.
+// PostToolUse adapter for the EF raw-index idempotency guard. Thin: the reusable
+// core is the pure function in _lib/rules-source.mjs (opencode was dropped from
+// this repo, D22). Reads the edited file. Exits 0 or 2 + stderr. Any error exits 0.
 
 import { readFileSync, existsSync } from "node:fs"
 import { readStdinJson, filePathFrom } from "./_lib/io.mjs"

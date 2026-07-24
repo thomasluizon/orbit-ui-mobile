@@ -25,6 +25,21 @@ before writing code.
   endpoints, or module structure, commit the regenerated artifacts).
 - Never edit a gate baseline to admit a new violation. Fix the violation.
 
+### Guardrails you must not trip
+
+These hold for EVERY worker and every engine. They are enforced by CI, GitHub branch
+protection, and the lefthook pre-commit/pre-push hooks, NOT by the Claude Code session
+hooks (those do not run under `codex exec` or a raw shell). This list is the readable
+copy; the gates are the enforcement.
+
+- Never push or force-push to `main` (or `redesign/main`). Branch to
+  `feature/`|`fix/`|`chore/`, open a PR, squash-merge only. Never reuse a squash-merged
+  branch.
+- Never bypass the git hooks: no `--no-verify` (or its `-n` commit alias), no
+  `--no-gpg-sign` and no `commit.gpgsign=false`. Fix what a hook flags, then commit.
+- Never `git worktree remove --force`: on Windows it follows a junction and deletes the
+  link target. Remove the junctions first, then remove the worktree without `--force`.
+
 ## Code Review Rules
 
 Only what no gate can check; mechanical findings belong to CI and are noise here.
