@@ -4,7 +4,10 @@
  * project via the orca CLI, build the explicit blockedBy DAG, and print the
  * wave table. Merge-gated (D3): a ticket is READY only when every blocker is
  * in a completed/canceled state, and completion is granted by Thomas merging
- * the PR, never by an agent. This script only reads; it launches nothing.
+ * the PR, never by an agent. Blockers outside the queried selection are
+ * fetched individually and count as blocking unless done; a blocker that
+ * cannot be fetched fails closed as blocking. This script only reads; it
+ * launches nothing.
  */
 
 import { execFileSync } from "node:child_process"
@@ -67,28 +70,48 @@ if (!Array.isArray(issues) || issues.length === 0) {
 
 const DONE_TYPES = new Set(["completed", "canceled", "duplicate"])
 
-const byIdentifier = new Map()
-for (const issue of issues) {
-  const detail = orcaJson(["linear", "issue", issue.identifier ?? issue.id, "--relations"])
+const toPlanIssue = (detail) => {
   const full = detail.issue ?? detail
   const relations = detail.relations ?? full.relations ?? []
-  byIdentifier.set(full.identifier, {
+  const labelNames = (full.labels ?? []).map((entry) => (typeof entry === "string" ? entry : entry.name))
+  return {
     identifier: full.identifier,
     title: full.title,
     state: full.state?.name ?? full.state,
     stateType: full.state?.type ?? null,
-    labels: (full.labels ?? []).map((entry) => (typeof entry === "string" ? entry : entry.name)),
-    attempts: Number(((full.labels ?? []).map((entry) => (typeof entry === "string" ? entry : entry.name)).find((name) => /^attempts:\d+$/.test(name)) ?? "attempts:0").split(":")[1]),
+    labels: labelNames,
+    attempts: Number((labelNames.find((name) => /^attempts:\d+$/.test(name)) ?? "attempts:0").split(":")[1]),
     blockedBy: relations
       .filter((relation) => relation.relationship === "blockedBy" || relation.type === "blockedBy")
       .map((relation) => relation.relatedIssue?.identifier ?? relation.issue?.identifier ?? relation.identifier)
       .filter(Boolean),
-  })
+  }
+}
+
+const byIdentifier = new Map()
+for (const issue of issues) {
+  const planIssue = toPlanIssue(orcaJson(["linear", "issue", issue.identifier ?? issue.id, "--relations"]))
+  byIdentifier.set(planIssue.identifier, planIssue)
+}
+
+const externalBlockers = [...new Set([...byIdentifier.values()].flatMap((issue) => issue.blockedBy))].filter(
+  (blocker) => !byIdentifier.has(blocker),
+)
+for (const blocker of externalBlockers) {
+  try {
+    const raw = execFileSync(ORCA, ["linear", "issue", blocker, "--json"], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
+    const parsed = JSON.parse(raw)
+    if (parsed.ok === false) throw new Error(parsed.error?.message ?? "unknown orca error")
+    byIdentifier.set(blocker, { ...toPlanIssue(parsed.result ?? parsed), blockedBy: [], external: true })
+  } catch (error) {
+    console.error(`WARNING: blocker ${blocker} could not be fetched (${error.message}); treating it as blocking`)
+    byIdentifier.set(blocker, { identifier: blocker, title: "unresolved external blocker", state: "Unknown", stateType: null, labels: [], attempts: 0, blockedBy: [], external: true })
+  }
 }
 
 const isDone = (identifier) => {
   const issue = byIdentifier.get(identifier)
-  if (!issue) return true
+  if (!issue) return false
   return DONE_TYPES.has(issue.stateType) || issue.state === "Done"
 }
 
@@ -112,7 +135,7 @@ while (frontier.length) {
 
 const launchable = waves[0]?.filter((identifier) => {
   const issue = byIdentifier.get(identifier)
-  return issue.blockedBy.every(isDone) && issue.stateType !== "started" && issue.attempts < ATTEMPTS_BEFORE_REWRITE
+  return !issue.external && issue.blockedBy.every(isDone) && issue.stateType !== "started" && issue.attempts < ATTEMPTS_BEFORE_REWRITE
 })
 
 if (process.argv.includes("--json")) {
@@ -136,7 +159,8 @@ if (process.argv.includes("--json")) {
       const issue = byIdentifier.get(identifier)
       const blockers = issue.blockedBy.length ? `  blockedBy: ${issue.blockedBy.join(", ")}` : ""
       const strikes = issue.attempts >= ATTEMPTS_BEFORE_REWRITE ? "  [TWO STRIKES: rewrite the ticket first (D9)]" : ""
-      console.log(`  ${identifier}  [${issue.state}]  ${issue.title}${blockers}${strikes}`)
+      const external = issue.external ? "  [external]" : ""
+      console.log(`  ${identifier}  [${issue.state}]${external}  ${issue.title}${blockers}${strikes}`)
     }
   }
   console.log(`\nLAUNCHABLE NOW (all blockers merged, not started, under the strike limit): ${launchable?.join(", ") || "none"}`)
