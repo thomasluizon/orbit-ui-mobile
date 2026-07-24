@@ -14,10 +14,16 @@ repo a ticket's `repo:*` label names.
 
 ## 0. Read the contract
 
-1. `orca linear list-issues --team ORB --project "<name>" --json` and read the PROJECT
-   DESCRIPTION first: it carries the locked decisions and, for the #539 project only,
-   `targetBranch: redesign/main` (D36). Default target is `main`; orbit-api tickets
-   always target `main` (D37).
+1. `orca linear list-issues --team ORB --project "<name>" --json` for the tickets.
+   Note: the project description is only a 255-char pointer (Linear hard-caps it), and
+   list payloads carry neither the description nor the content. The locked decisions,
+   and for the #539 project only `targetBranch: redesign/main` (D36), live in the
+   project OVERVIEW CONTENT. Read it first: resolve the project id via
+   `orca linear project list`, read the personal key at
+   `$env:USERPROFILE\.linear-api-key` into a variable (never echo it), then POST
+   https://api.linear.app/graphql with header `Authorization: <key>` (the raw key) and
+   query `project(id: "<id>") { name description content }`. Default target is `main`;
+   orbit-api tickets always target `main` (D37).
 2. `node tools/wave-plan.mjs --project "<name>"` prints the wave table. Show it.
 
 ## 1. Reconcile before dispatch (D8)
@@ -75,9 +81,9 @@ before Phase 1's gates are green on its target branch.
 
 ## Delegation discipline (the session-flood rule)
 
-The orchestrating session ORCHESTRATES; it never implements. Measured 2026-07-24: a
-main session that wrote rule files, wired configs, and chased CI failures inline
-flooded to 611k tokens, while every slice it delegated landed clean. Therefore:
+The orchestrating session ORCHESTRATES; it never implements. Measured 2026-07-24:
+implementing inline flooded a main session to 611k tokens, while every delegated slice
+landed clean. So:
 
 - Every self-contained multi-file build or fix slice runs as a background agent with
   a branch + commit + PR + verification contract in its prompt (worktree or

@@ -75,7 +75,7 @@ const KIND = {
     ladder: 'Tier 1 (must fix — exploitable now, real blast radius) / Tier 2 (should fix before launch) / Tier 3 (enterprise — OUT of scope, mention once)',
     rationale: 'threat — who reaches it (other user / anon / forged webhook / crafted prompt) and what they get',
     checklist: `${UI}\\.claude\\skills\\audit-security\\checklist.md`,
-    extra: 'For cross-user access, PROVE the query is NOT scoped to the caller userId by citing the exact line. Payment/webhook handlers: verify the signature check exists. Secrets: cite the committed line. AI/MCP tools must derive userId from the session and accept no target-user parameter.',
+    extra: 'For cross-user access, PROVE the query is NOT scoped to the caller userId by citing the exact line. Payment/webhook handlers: verify the signature check exists. AI/MCP tools must derive userId from the session and accept no target-user parameter. Gate-owned, do NOT flag: a controller merely MISSING [Authorize] (Roslyn ORBIT0003 owns presence, but an authenticated handler that acts on a client-supplied id without an ownership check IS in scope), and committed-secret SHAPES (GitGuardian owns those, but a key read per-request instead of set globally, a secret logged or returned in an error, or a token in the wrong store IS in scope).',
     surfaces: [
       { label: 'authz-isolation', repos: 'both', where: 'orbit-api controllers + every CQRS query/command handler in src/Orbit.Application — each must scope its query by the authenticated userId (from the JWT, never a client-controlled field)', sections: 'A' },
       { label: 'ai-mcp-scoping', repos: 'api', where: 'the agent/MCP tool handlers in orbit-api (execute_agent_operation_v2, bulk_delete_habits, bulk_log_habits, delete_goal, manage_account, and the per-entity mutators) — each must resolve the caller userId and cannot touch another user rows', sections: 'A, F' },
@@ -102,7 +102,7 @@ const KIND = {
     ladder: 'High (degrades with scale — fix before it bites) / Medium (measurable but bounded) / Low or Info (micro, or only-at-enterprise-scale — noted, not prioritized)',
     rationale: 'impact — how it scales, concrete (e.g. "50-habit user → 50 round-trips")',
     checklist: `${UI}\\.claude\\skills\\audit-performance\\SKILL.md`,
-    extra: 'Flag ONLY patterns that degrade quadratically/linearly with data or traffic: N+1 queries (missing .Include / projecting after materializing), missing index on a hot Where/OrderBy/FK, unbounded list rendered in full, sync slow work (HTTP/AI/email/push) inline in a request path, blocking async (.Result/.Wait), IQueryable materialized too early, missing AsNoTracking on hot reads; frontend render thrash, bundle bloat, over-eager or stale caching, waterfalls. CONFIRM every index claim against the EF migrations (read them, cite the migration). Do NOT micro-optimize, do NOT over-prescribe memoization/virtualization, do NOT list enterprise-only tuning (note once).',
+    extra: 'Flag ONLY patterns that degrade quadratically/linearly with data or traffic: N+1 queries (missing .Include / projecting after materializing), missing index on a hot Where/OrderBy/FK, unbounded list rendered in full, sync slow work (HTTP/AI/email/push) inline in a request path, blocking async (.Result/.Wait), IQueryable materialized too early, missing AsNoTracking on hot reads; frontend render thrash, bundle bloat (mobile Metro or a non-Today web route, since the Today web budget is gated), over-eager or stale caching, waterfalls. CONFIRM every index claim against the EF migrations (read them, cite the migration). Gate-owned, do NOT flag: the web LCP/TBT/script-bundle-size budgets on the authed-Today surface (perf.yml owns those), an N+1 regression on the three query shapes already under tests/Orbit.Infrastructure.Tests/Persistence/QueryRoundTripCountTests.cs, and render-thrash patterns react-doctor perf rules already fail on. Do NOT micro-optimize, do NOT over-prescribe memoization/virtualization, do NOT list enterprise-only tuning (note once).',
     surfaces: [
       { label: 'api-queries', where: 'orbit-api CQRS query handlers in src/Orbit.Application/**/Queries, the generic repository, EF DbContext usage — N+1 and index coverage (read src/Orbit.Infrastructure/Migrations to confirm indexes)', sections: '' },
       { label: 'api-requestpath', where: 'orbit-api controllers + command handlers — sync slow work in the request path, blocking async, over-fetching, missing AsNoTracking', sections: '' },
@@ -114,7 +114,7 @@ const KIND = {
     ladder: 'Critical / High / Medium / Low / Info (a deep audit KEEPS Low/Info — the sanctioned rubric exception — but bucket them separately)',
     rationale: 'the rubric dimension it breaks and why it is real debt',
     checklist: `${UI}\\.claude\\skills\\pr-review\\rubric.md`,
-    extra: 'Hunt dead/stale code and PROVE each with a zero-reference grep (cite the command and its empty result — never guess). Flag SOLID/clean-arch (functions over the ~50-line soft cap / ~100 hard cap, nesting past ~3), premature abstraction, DRY-at-the-wrong-level, comment-policy breaks (fix is rename-the-symbol or extract, never reword), naming (data/info/temp/helper/util as final names, abbreviations), and DESIGN.md drift on apps/* UI files only. Rank by blast-radius × churn — a smell in a hot handler outranks the same in a stable leaf. Do NOT re-derive security/contract findings (owned by /audit-security and /pr-review).',
+    extra: 'Hunt dead/stale code and PROVE each with a zero-reference grep (cite the command and its empty result, never guess). Flag SOLID/clean-arch (functions over the ~50-line soft cap / ~100 hard cap, nesting past ~3), premature abstraction, DRY-at-the-wrong-level, naming (data/info/temp/helper/util as final names, abbreviations), and the DESIGN.md drift on apps/* UI that no lint rule covers (visual hierarchy, semantic-token misuse beyond the gated spacing scale). Do NOT flag comment-policy breaks (local/no-comments + ORBIT0001 own those), the spacing scale, console/any, dashes, or copy register; those are gate-owned. Rank by blast-radius x churn, so a smell in a hot handler outranks the same in a stable leaf. Do NOT re-derive security/contract findings (owned by /audit-security and /pr-review).',
     surfaces: [
       { label: 'web', where: 'apps/web/ — dimensions 2,3,4,6,7,8,9,10', sections: '' },
       { label: 'mobile', where: 'apps/mobile/ — dimensions 2,3,4,6,7,8,9,10', sections: '' },
@@ -126,6 +126,9 @@ const KIND = {
 }
 
 const EXCLUDE = 'Exclude generated/vendored dirs (node_modules, .next, dist, build, bin, obj, coverage, .turbo, Migrations/ except when reading them to confirm an index, design/handoff/).'
+
+const GATE_OWNED =
+  'D11 boundary: audit ONLY what no gate can check; NEVER emit a finding a gate already fails on. The mechanical layer, owned by gates, is off-limits: ESLint local/* (comment policy, spacing scale, console/any bans, animate-presence), the guards.yml jobs (Dash Ban, Copy Register, Suppressions Ratchet, Expo SDK Pin, Cross-Platform Parity), Roslyn ORBIT0001..0005 (narration comments, redundant tx rollbacks, controller-missing-[Authorize], raw DateTime.UtcNow for user-facing dates, DbSet without entity config), react-doctor.yml (React correctness plus its a11y/perf rules), visual.yml, perf.yml (the web LCP/TBT/bundle budgets), and arch-map.yml. When a concern is half-mechanical, keep ONLY the judgement half and name the gate that owns the other.'
 
 const isApiSurface = (s) => s.label.startsWith('api-') || /orbit-api/.test(s.where)
 const surfaceRepos = (s) => s.repos || (isApiSurface(s) ? 'api' : 'ui')
@@ -153,6 +156,7 @@ function finderPrompt(kind, surface, scope) {
     `Read the rubric/checklist FIRST: ${cfg.checklist}${sectionNote}. It is the contract for what counts and how findings are shaped.`,
     `Where to look: ${surface.where}.`,
     `Repo roots — orbit-ui-mobile: ${UI} · orbit-api: ${API}.`,
+    GATE_OWNED,
     cfg.extra,
     `For every REAL issue emit a finding with: severity from [${cfg.ladder}]; a one-line title; category (the rubric/checklist dimension); location (repo-relative path:line); evidence (the exact line/command that proves it); rationale (${cfg.rationale}); fix (the concrete change); reference (the CLAUDE.md rule / rubric dimension / checklist section / OWASP item).`,
     `Calibrate to Orbit's solo-dev, pre-scale reality — never inflate severity to look thorough; when uncertain, pick the lower tier with a "verify" note. ${EXCLUDE} Findings only, no padding. If the surface is clean, return an empty findings array.`,
@@ -173,7 +177,7 @@ function criticPrompt(kind, scope, sweptLabels, count) {
     `Completeness critic for the ${kind} audit of ${scopeLabelFor(scope)}.`,
     `Surfaces swept so far: ${sweptLabels.join(', ')} — producing ${count} findings.`,
     `What did this audit NOT examine — a surface never swept, a file/handler/route skipped, or a claim left unverified (a dead-code grep not run, a userId scope unchecked, an index-in-migration unconfirmed, a critical-path test unmapped)?`,
-    `Stay strictly within this audit's calibration — ${KIND[kind].ladder}. Do NOT propose gaps outside the in-scope tiers (for security, enterprise/Tier-3 controls — GDPR/SOC2, dependency-CVE scanning, SIEM/attack-monitoring — are deliberately out of scope; for tests, coverage-percentage). Propose at most 6 gaps, highest-value first.`,
+    `Stay strictly within this audit's calibration: ${KIND[kind].ladder}. Do NOT propose gaps outside the in-scope tiers (for security, enterprise/Tier-3 controls such as GDPR/SOC2, dependency-CVE scanning, SIEM/attack-monitoring are deliberately out of scope; for tests, coverage-percentage). ${GATE_OWNED} Never propose a gap a gate already owns. Propose at most 6 gaps, highest-value first.`,
     `Return gaps as {label, prompt}, where prompt is a ready-to-run finder objective for that gap (same finding shape as the finders). Return an EMPTY gaps array if coverage is genuinely complete — do not invent gaps.`,
   ].join('\n')
 }

@@ -21,3 +21,8 @@ pre-commit:
     copy-register:
       glob: "packages/shared/src/i18n/*.json"
       run: node tools/check-copy.mjs --check
+pre-push:
+  commands:
+    protect-main:
+      use_stdin: true
+      run: node tools/check-push-target.mjs

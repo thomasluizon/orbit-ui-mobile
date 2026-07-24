@@ -1,6 +1,6 @@
 # Playbooks: the on-demand judgement tier
 
-**At a glance:** 47 standing rules that no gate can check, split by activity and read **on demand**.
+**At a glance:** 55 standing rules that no gate can check, split by activity and read **on demand**.
 Nothing here loads automatically. The handful of rules that genuinely apply to every turn live in
 `.claude/rules/core.md`, which does load automatically and is deliberately ~50 lines.
 
@@ -23,7 +23,7 @@ because the citation pattern already worked and was already in use:
 
 - `.claude/agents/design-reviewer.md` cites `product-and-content` rule 3 by name.
 - `.claude/agents/completeness-critic.md` opens with "visual-delivery is your charter, read it first".
-- `.claude/skills/android-release/SKILL.md` cites `debugging.md` mid-flow.
+- `.claude/agents/design-reviewer.md` also cites `review-and-audit.md` rule 1 ("do not re-flag what a gate fails on").
 
 An agent that needs a playbook is told to read it by the skill or agent that needs it. That is a
 Read call at the moment of relevance instead of 375 lines on every turn forever.
@@ -50,6 +50,7 @@ are read on demand by the skill or agent that needs them:
 | `debugging.md` | 8 | chasing a bug, triaging an issue, `/investigate`, or resolving a merge conflict |
 | `review-and-audit.md` | 11 | `/pr-review`, `/audit-*`, `/commit-sweep`, `/prod-readiness`, or any fan-out assessment |
 | `planning-and-artifacts.md` | 11 | `/feature`, `/bug`, `/orchestrate`, ticket writing, prototyping, ADRs, or deciding whether to hand off |
+| `context-engineering.md` | 8 | authoring or editing anything the agent itself reads: a `CLAUDE.md`, a rule, a playbook, a skill, an agent, a tool interface, a ticket body. The 5-generation delta: constrain less, prompt the positive, design interfaces instead of writing examples, and prefer a runnable artifact over prose |
 
 ## How these relate to the gates
 

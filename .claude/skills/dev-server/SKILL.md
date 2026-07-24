@@ -71,7 +71,7 @@ DB   localhost:5432   (docker: orbit-postgres)
 API  http://localhost:5000   (/scalar for docs, /health)
 Web  http://localhost:3000   ← open this
 ```
-Tell the user the web proxies to the local API by default, and to open http://localhost:3000. The API + web run in background tasks; their logs stream to their task output files.
+Tell the user the web proxies to the local API by default. The API + web run in background tasks; their logs stream to their task output files.
 
 ## Status
 
@@ -81,8 +81,3 @@ Tell the user the web proxies to the local API by default, and to open http://lo
 
 - Kill the background API + web tasks (TaskStop on their task ids, or close the shells).
 - Stop the DB only if asked: `docker stop orbit-postgres` (keep the container so data + next `docker start` are instant; never `rm` it unless the user asks).
-
-## Notes
-
-- Bring tiers up in order; a failed gate stops the chain (don't start the API before Postgres accepts connections, nor web before the API is healthy).
-- This is a local-only dev runbook; it touches no secrets and edits no `.env`.

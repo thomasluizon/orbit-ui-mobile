@@ -10,13 +10,11 @@ argument-hint: [the lesson / what went wrong]
 
 ## Why this exists
 
-An auto-writer that appends "lessons" straight into loaded memory degrades over time (instruction-budget dilution, contradictory rules, no measured win anywhere). The reliable pattern is a GATED, GRADUATING loop: capture to a staging file, I approve, and anything machine-checkable graduates OUT of prose into a hook/lint rule.
-
-This is measured, not a hunch: adherence falls monotonically with instruction count (100%@10 → 68.9%@500), and **prohibitions decay worse than requirements** (73%→20%) — so a "never do X" memory is the weakest possible form of a rule. Anthropic's own docs: *"If Claude keeps doing something despite a rule against it, the file is probably too long and the rule is getting lost... delete it or convert it to a hook."* Full rationale + citations: the `Encode checkable rules as guardrails not memory rules` ADR in the brain vault (`2 Areas/20-29 Orbit Engineering/Decisions/`).
+An auto-writer that appends "lessons" straight into loaded memory degrades over time: measured adherence falls monotonically with instruction count, and **prohibitions decay worse than requirements**, so a "never do X" memory is the weakest possible form of a rule. The loop is therefore GATED and GRADUATING: capture to a staging file, I approve, and anything machine-checkable graduates OUT of prose into a hook/lint rule. Full rationale + citations: the `Encode checkable rules as guardrails not memory rules` ADR in the brain vault (`2 Areas/20-29 Orbit Engineering/Decisions/`).
 
 ## Trigger
 
-Only capture on a genuine signal: I explicitly corrected you, OR the same mistake has recurred (3+ times). Do NOT capture on every turn.
+Only capture on a genuine signal: I explicitly corrected you, OR the same mistake has recurred (3+ times).
 
 ## Steps
 
