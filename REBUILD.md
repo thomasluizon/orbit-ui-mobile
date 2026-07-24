@@ -17,7 +17,7 @@ section 5 carried out with the D39 survivors honored (`surface-manifest.mjs`, `s
 rewritten, the old wired hooks + Harness Hook Parity CI job deleted (merged PR #581,
 32k lines). Phase 5 executed: the full Linear board exists in workspace `useorbitai`, team
 `ORB` (id `99996489-8aad-4e01-a8f9-6123adfb7d6b`): **539 Redesign** 26 tickets (launchable
-ORB-30), **562 Astra** 14, **Launch** 11, **PostHog** 8 (ORB-75..82, launchable ORB-75, an
+ORB-30), **562 Astra** 17, **Launch** 11, **PostHog** 8 (ORB-75..82, launchable ORB-75, an
 adopted feature cut via the new /feature flow), **Brand Assets** 2, **Backlog** 12; ~40 GitHub
 issues closed with Linear pointers; stay-GitHub: ui#387, api#319, landing#43, landing#42. The
 D38 file-level coverage assertion, the wave-plan cross-project-blocker fix, and the
@@ -949,6 +949,35 @@ Net: ~26 Linear tickets from migration + the ~24 redesign tickets from 8.2/8.5 +
 under the 250 free-tier cap.
 
 ---
+
+## 13.1 The board is populated but only PostHog is startable (measured 2026-07-24)
+
+Counted live via GraphQL, because `orca linear list-issues` pages at 50 and silently returned 50
+of 78. Never take a raw count from that command.
+
+| State | Count |
+|---|---|
+| Backlog | 68 |
+| Todo | 8 |
+| Canceled | 2 (the ORB-5 / ORB-6 smoke tickets) |
+| **Total** | **78** |
+
+| Project | Total | In Todo |
+|---|---|---|
+| 539 Redesign | 26 | **0** |
+| 562 Astra | 17 | **0** |
+| Backlog | 12 | 0 |
+| Launch | 11 | **0** |
+| PostHog | 8 | 8 |
+| Brand Assets | 2 | **0** |
+
+**The consequence, which bites the first time `/orchestrate` runs on anything but PostHog:**
+`.claude/orchestrator.json` sets `"ready": ["Todo"]`, so the wave engine only picks up tickets in
+Todo. Every project except PostHog sits entirely in Backlog, so `/orchestrate "539 Redesign"`
+would compute an empty wave 1 today even though ORB-30 has no blockers and this document calls it
+launchable. Starting a project means moving its unblocked tickets to Todo first. This is a state
+convention, not a defect in either the board or the engine, and it is recorded so it is not
+rediscovered as a bug.
 
 ## 14. Open follow-ups carried out of Phase 6
 
