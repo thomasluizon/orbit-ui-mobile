@@ -7,6 +7,12 @@ should-fix, **Tier 3** = enterprise/out-of-scope.
 
 Every finding cites a file:line and a **threat** (who reaches it, what they get).
 
+> **Machine-read.** `.claude/workflows/audit.mjs` passes this file's path to every security
+> finder as "the contract for what counts and how findings are shaped"
+> (`KIND.security.checklist`), section-scoped per surface. Editing this file edits the finder
+> prompt; the skill's pipeline, guardrails, and output shape belong in `SKILL.md`, which the
+> finders never read.
+
 ---
 
 ## A. Authorization & data-isolation — the Orbit flagship

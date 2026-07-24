@@ -77,7 +77,6 @@ In parallel:
   project `CLAUDE.md`) — only if the diff touches backend.
 - `DESIGN.md` — only if the diff touches `apps/*` UI files.
 - `TESTING.md` - the suite catalog and test-writing conventions; consult it for suite semantics when the diff touches tests.
-- The plan in `.claude/plans/completed/` if the PR body references one.
 - **`.claude/skills/pr-review/rubric.md`** — the dimensions, severities, and finding
   template this review walks.
 - **`.claude/skills/_shared/verification-protocol.md`** — the shared reliability contract;
