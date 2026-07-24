@@ -1,0 +1,119 @@
+name: Guards
+
+# The deterministic replacements for the Claude-session-only PostToolUse hooks
+# (REBUILD.md 6.1): these hold for Codex, Claude, a human, or a bot, because CI
+# is the one layer nothing bypasses. Jobs:
+#   dashes  - the cross-repo dash ban: changed files, the shrink-only baseline, and the PR title/body
+#   copy    - AI-cliche / placeholder / typed-uppercase locale values + hardcoded brand colors
+#   ratchet - the eslint-suppressions.json baselines may only shrink
+#   parity  - a web-scope code change with zero mobile-scope change (or inverse) fails without the parity:exempt label
+#   expo-pin - apps/mobile/package.json changes must keep the Expo SDK pin resolution intact
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  dashes:
+    name: Dash Ban
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Changed files carry no new dashes
+        if: github.event_name == 'pull_request'
+        run: |
+          git diff --name-only --diff-filter=ACMR origin/${{ github.base_ref }}...HEAD -z \
+            | xargs -0 --no-run-if-empty node tools/check-dashes.mjs --files
+      - name: Baseline only shrinks
+        run: node tools/check-dashes.mjs --check-baseline
+      - name: PR title and body carry no dashes
+        if: github.event_name == 'pull_request'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: node tools/check-dashes.mjs --text "$PR_TITLE $PR_BODY"
+
+  copy:
+    name: Copy Register
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: node tools/check-copy.mjs --check
+
+  ratchet:
+    name: Suppressions Ratchet
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'ratchet:reseed')
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: node tools/check-suppressions-ratchet.mjs
+
+  parity:
+    name: Cross-Platform Parity
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'parity:exempt') && github.actor != 'dependabot[bot]'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: A UI change lands on both platforms or carries parity:exempt
+        run: |
+          changed=$(git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD)
+          web=$(echo "$changed" | grep -Ec '^apps/web/(app|components|hooks|stores|lib)/' || true)
+          mobile=$(echo "$changed" | grep -Ec '^apps/mobile/(app|components|hooks|stores|lib)/' || true)
+          echo "web-scope files: $web   mobile-scope files: $mobile"
+          if [ "$web" -gt 0 ] && [ "$mobile" -eq 0 ]; then
+            echo "::error::apps/web UI code changed with zero apps/mobile change. Parity is mandatory (root CLAUDE.md). Apply the mirror change, or add the parity:exempt label with a one-line justification in the PR body (platform adapters only)."
+            exit 1
+          fi
+          if [ "$mobile" -gt 0 ] && [ "$web" -eq 0 ]; then
+            echo "::error::apps/mobile UI code changed with zero apps/web change. Parity is mandatory (root CLAUDE.md). Apply the mirror change, or add the parity:exempt label with a one-line justification in the PR body (platform adapters only)."
+            exit 1
+          fi
+
+  expo-pin:
+    name: Expo SDK Pin
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Detect apps/mobile/package.json change
+        id: mobile-pkg
+        run: |
+          if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -q '^apps/mobile/package\.json$'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-node@v7
+        if: steps.mobile-pkg.outputs.changed == 'true'
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        if: steps.mobile-pkg.outputs.changed == 'true'
+      - name: Expo-pinned versions still resolve to the SDK set
+        if: steps.mobile-pkg.outputs.changed == 'true'
+        working-directory: apps/mobile
+        run: CI=1 npx expo install --check
