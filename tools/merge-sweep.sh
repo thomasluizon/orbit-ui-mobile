@@ -27,10 +27,11 @@ new-code-coverage-only Sonar failure should be admin-overridden instead.
 
 It refuses to merge while the \`$REVIEW_CHECK_NAME\` check for the CURRENT head SHA is still
 running, and re-reads reviewDecision after that check settles, so a pre-update APPROVED can
-never carry a merge. Repos without $REVIEW_WORKFLOW_PATH skip that wait.
+never carry a merge. Only a workflow lookup that succeeds and shows no $REVIEW_WORKFLOW_PATH
+skips that wait; a failed lookup keeps the guard on.
 
-After the sweep it re-checks every merged PR's head branch: a branch that exists again was
-re-created by a post-merge push, so its commits never reached main.
+After the sweep it re-checks every merged PR's head branch. A branch whose tip moved past the
+SHA that was merged carries a post-merge commit that never reached main.
 
 Output (stdout): one MERGED/SKIP/MERGE-REFUSED line per PR, then any ORPHANED-HEAD lines, then
 SWEEP-DONE.
@@ -51,15 +52,19 @@ fi
 repo="$1"
 shift
 
-review_required=""
-if gh api "repos/$repo/actions/workflows" --jq '.workflows[].path' 2>/dev/null | grep -qx "$REVIEW_WORKFLOW_PATH"; then
-  review_required=1
+# Fails CLOSED: only a lookup that SUCCEEDS and positively shows no review workflow turns the wait
+# off, so an auth/rate-limit/network hiccup costs a slower sweep rather than the guard itself.
+review_required=1
+if workflow_paths=$(gh api "repos/$repo/actions/workflows" --paginate --jq '.workflows[].path' 2>/dev/null); then
+  printf '%s\n' "$workflow_paths" | grep -qx "$REVIEW_WORKFLOW_PATH" || review_required=""
+else
+  echo "WARN: could not list $repo workflows; assuming the $REVIEW_CHECK_NAME check is required" >&2
 fi
 
 merged_heads=""
 
-mstate() { # prints  MS | REVIEW | FAILEDCHECKS | REVIEWCHECK
-  gh pr view "$1" --repo "$repo" --json mergeStateStatus,reviewDecision,statusCheckRollup 2>/dev/null | node -e "
+mstate() { # prints  MS | REVIEW | FAILEDCHECKS | REVIEWCHECK | SHA
+  gh pr view "$1" --repo "$repo" --json mergeStateStatus,reviewDecision,statusCheckRollup,headRefOid 2>/dev/null | node -e "
     let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{
       try{
         const d=JSON.parse(s);
@@ -69,8 +74,8 @@ mstate() { # prints  MS | REVIEW | FAILEDCHECKS | REVIEWCHECK
         const review=rows.find(c=>(c.name||c.context)==='$REVIEW_CHECK_NAME');
         const reviewSettled=!!review&&(!!review.conclusion||(review.status||'').toUpperCase()==='COMPLETED');
         const reviewCheck=!review?'ABSENT':(reviewSettled?'SETTLED':'RUNNING');
-        process.stdout.write([(d.mergeStateStatus||'?'),(d.reviewDecision||'?'),failed,reviewCheck].join('|'));
-      }catch(e){process.stdout.write('ERR|ERR|err|ERR');}
+        process.stdout.write([(d.mergeStateStatus||'?'),(d.reviewDecision||'?'),failed,reviewCheck,(d.headRefOid||'')].join('|'));
+      }catch(e){process.stdout.write('ERR|ERR|err|ERR|');}
     })"
 }
 
@@ -79,7 +84,7 @@ for n in "$@"; do
   done_pr=""
   block_reason="never reached a mergeable state"
   for i in $(seq 1 50); do # up to ~17min per PR
-    IFS='|' read -r ms rev failed reviewcheck <<<"$(mstate "$n")"
+    IFS='|' read -r ms rev failed reviewcheck sha <<<"$(mstate "$n")"
     if [ "$failed" != "none" ]; then
       echo "SKIP #$n ms=$ms FAILED=$failed"
       done_pr=1
@@ -103,7 +108,8 @@ for n in "$@"; do
       branch=$(gh pr view "$n" --repo "$repo" --json headRefName --jq .headRefName 2>/dev/null)
       if gh pr merge "$n" --repo "$repo" --squash --delete-branch >/dev/null 2>&1; then
         echo "MERGED #$n"
-        merged_heads="$merged_heads $n=$branch"
+        # `^` is illegal in a refname, so it cannot collide with a branch name.
+        merged_heads="$merged_heads $n^$branch^$sha"
       else
         echo "MERGE-REFUSED #$n ms=$ms rev=$rev"
       fi
@@ -116,13 +122,18 @@ for n in "$@"; do
   [ -z "$done_pr" ] && echo "SKIP #$n (timeout: $block_reason)"
 done
 
+# A head branch that merely survived --delete-branch is benign; only a tip that MOVED past the SHA
+# that was merged proves a post-merge commit that never reached main.
 orphans=0
 for entry in $merged_heads; do
-  pr="${entry%%=*}"
-  branch="${entry#*=}"
+  pr="${entry%%^*}"
+  rest="${entry#*^}"
+  branch="${rest%^*}"
+  merged_sha="${rest##*^}"
   [ -n "$branch" ] || continue
-  if gh api "repos/$repo/branches/$branch" >/dev/null 2>&1; then
-    echo "ORPHANED-HEAD #$pr $branch (re-created after the merge, so its commits are NOT on main)"
+  tip=$(gh api "repos/$repo/branches/$branch" --jq .commit.sha 2>/dev/null) || continue
+  if [ -n "$tip" ] && [ "$tip" != "$merged_sha" ]; then
+    echo "ORPHANED-HEAD #$pr $branch tip=$tip (moved past the merged $merged_sha, so those commits are NOT on main)"
     orphans=$((orphans + 1))
   fi
 done

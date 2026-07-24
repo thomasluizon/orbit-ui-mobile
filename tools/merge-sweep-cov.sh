@@ -34,10 +34,11 @@ Per PR it update-branches, polls until the merge state is decidable, then merges
 
 It refuses to merge while the \`$REVIEW_CHECK_NAME\` check for the CURRENT head SHA is still
 running, and re-reads reviewDecision after that check settles, so a pre-update APPROVED can
-never carry a merge. Repos without $REVIEW_WORKFLOW_PATH skip that wait.
+never carry a merge. Only a workflow lookup that succeeds and shows no $REVIEW_WORKFLOW_PATH
+skips that wait; a failed lookup keeps the guard on.
 
-After the sweep it re-checks every merged PR's head branch: a branch that exists again was
-re-created by a post-merge push, so its commits never reached main.
+After the sweep it re-checks every merged PR's head branch. A branch whose tip moved past the
+SHA that was merged carries a post-merge commit that never reached main.
 
 Output (stdout): one MERGED/SKIP/FAIL-ADMIN line per PR, then any ORPHANED-HEAD lines, then
 COV-SWEEP-DONE.
@@ -58,9 +59,13 @@ fi
 repo="$1"
 shift
 
-review_required=""
-if gh api "repos/$repo/actions/workflows" --jq '.workflows[].path' 2>/dev/null | grep -qx "$REVIEW_WORKFLOW_PATH"; then
-  review_required=1
+# Fails CLOSED: only a lookup that SUCCEEDS and positively shows no review workflow turns the wait
+# off, so an auth/rate-limit/network hiccup costs a slower sweep rather than the guard itself.
+review_required=1
+if workflow_paths=$(gh api "repos/$repo/actions/workflows" --paginate --jq '.workflows[].path' 2>/dev/null); then
+  printf '%s\n' "$workflow_paths" | grep -qx "$REVIEW_WORKFLOW_PATH" || review_required=""
+else
+  echo "WARN: could not list $repo workflows; assuming the $REVIEW_CHECK_NAME check is required" >&2
 fi
 
 merged_heads=""
@@ -84,14 +89,15 @@ gate() { # prints  MS \t REVIEW \t NONSONAR_FAILED \t SONARSTATE \t SHA \t REVIE
     })"
 }
 
-squash_merge() { # <pr> <label> [extra gh pr merge flags...]
-  local pr="$1" label="$2"
-  shift 2
+squash_merge() { # <pr> <head-sha> <label> [extra gh pr merge flags...]
+  local pr="$1" head_sha="$2" label="$3"
+  shift 3
   local branch
   branch=$(gh pr view "$pr" --repo "$repo" --json headRefName --jq .headRefName 2>/dev/null)
   if gh pr merge "$pr" --repo "$repo" --squash --delete-branch "$@" >/dev/null 2>&1; then
     echo "MERGED #$pr ($label)"
-    merged_heads="$merged_heads $pr=$branch"
+    # `^` is illegal in a refname, so it cannot collide with a branch name.
+    merged_heads="$merged_heads $pr^$branch^$head_sha"
     return 0
   fi
   return 1
@@ -137,7 +143,7 @@ for n in "$@"; do
     if [ "$sonar" = "FAILURE" ]; then
       summary=$(gh api "repos/$repo/commits/$sha/check-runs" --jq '.check_runs[] | select(.name=="SonarCloud Code Analysis") | .output.summary' 2>/dev/null)
       if printf '%s' "$summary" | grep -qi "Coverage on New Code" && ! printf '%s' "$summary" | grep -qiE "New Bugs|Bugs |Vulnerabilit|Security Hotspots|Security Rating|Code Smell|Duplicat|Maintainability Rating|Reliability Rating"; then
-        squash_merge "$n" "admin: coverage-only override" --admin || echo "FAIL-ADMIN #$n"
+        squash_merge "$n" "$sha" "admin: coverage-only override" --admin || echo "FAIL-ADMIN #$n"
       else
         echo "SKIP #$n Sonar fails on MORE than coverage, needs a real fix"
       fi
@@ -145,7 +151,7 @@ for n in "$@"; do
       break
     fi
     if { [ "$ms" = "CLEAN" ] || [ "$ms" = "UNSTABLE" ]; } && { [ "$sonar" = "SUCCESS" ] || [ "$sonar" = "NONE" ]; }; then
-      if squash_merge "$n" "clean"; then
+      if squash_merge "$n" "$sha" "clean"; then
         done_pr=1
         break
       fi
@@ -157,13 +163,18 @@ for n in "$@"; do
   [ -z "$done_pr" ] && echo "SKIP #$n (timeout: $block_reason)"
 done
 
+# A head branch that merely survived --delete-branch is benign; only a tip that MOVED past the SHA
+# that was merged proves a post-merge commit that never reached main.
 orphans=0
 for entry in $merged_heads; do
-  pr="${entry%%=*}"
-  branch="${entry#*=}"
+  pr="${entry%%^*}"
+  rest="${entry#*^}"
+  branch="${rest%^*}"
+  merged_sha="${rest##*^}"
   [ -n "$branch" ] || continue
-  if gh api "repos/$repo/branches/$branch" >/dev/null 2>&1; then
-    echo "ORPHANED-HEAD #$pr $branch (re-created after the merge, so its commits are NOT on main)"
+  tip=$(gh api "repos/$repo/branches/$branch" --jq .commit.sha 2>/dev/null) || continue
+  if [ -n "$tip" ] && [ "$tip" != "$merged_sha" ]; then
+    echo "ORPHANED-HEAD #$pr $branch tip=$tip (moved past the merged $merged_sha, so those commits are NOT on main)"
     orphans=$((orphans + 1))
   fi
 done
