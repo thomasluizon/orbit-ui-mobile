@@ -1,0 +1,31 @@
+{
+  "worker": "claude",
+  "workers": {
+    "claude": {
+      "command": "claude",
+      "args": ["-p", "--permission-mode", "acceptEdits", "--model", "opus"],
+      "notes": "The prompt is the ticket body (D2). Model routing: opus for cross-repo, parity-bound, contract-touching or hard tickets; sonnet for proven-isolated slices; flip per ticket via the ticket's worker:sonnet label."
+    },
+    "codex": {
+      "command": "codex",
+      "args": ["exec", "--full-auto"],
+      "notes": "Requires a paid ChatGPT plan + codex login. Reads AGENTS.md natively."
+    }
+  },
+  "maxParallelWorktrees": 8,
+  "attemptsBeforeRewrite": 2,
+  "linear": {
+    "team": "ORB",
+    "workspace": "useorbitai",
+    "states": {
+      "ready": ["Todo"],
+      "working": "In Progress",
+      "review": "In Review",
+      "done": "Done"
+    }
+  },
+  "repos": {
+    "ui": "C:\\Users\\thoma\\Documents\\Programming\\Projects\\orbit-ui-mobile",
+    "api": "C:\\Users\\thoma\\Documents\\Programming\\Projects\\orbit-api"
+  }
+}

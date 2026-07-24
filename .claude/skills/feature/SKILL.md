@@ -1,113 +1,70 @@
 ---
 name: feature
-description: Idea → PRD → stories, gated. Chains /create-prd (or /prd-interactive on a cold start) and /create-stories, with a hard confirmation gate before stories and the existing /create-stories gate before issues. Use when the user wants to turn a rough idea into well-formed GitHub issues end to end.
+description: Idea in, Linear project out. Interrogates the idea with the product-manager (and design-specialist for UI) agents, decomposes it into executable tickets per the 6.2 template, validates every body with tools/check-ticket.mjs, then creates the Linear project + issues + explicit blockedBy DAG via the orca CLI. Writes NO code. Use for any feature request; /bug is its one-ticket sibling; /orchestrate builds what this creates.
+argument-hint: <the idea, one sentence is enough>
+effort: high
 ---
 
-# Feature: idea → PRD → stories (gated)
+# /feature: idea -> Linear project
 
-Drive a rough idea through the full backlog pipeline so it becomes well-formed GitHub issues without the dev hand-running each step. This is a **thin orchestrator**: it does NOT reimplement PRD writing or story slicing. It chains the already-shipped flows by their invocation names — `grill-me`, `/create-prd` (or `/prd-interactive`), `/create-stories` — and inserts one hard confirmation gate of its own at the PRD→stories boundary. The second gate (before issues are created) is `/create-stories`'s OWN existing gate; reuse it, never duplicate it.
+The ticket is the prompt (D2): a ticket that a fresh agent with no session history
+cannot execute is a defective ticket. This skill exists to make defective tickets
+impossible to create.
 
-The pipeline ends at the report. It *suggests* the per-issue `/prime`→`/plan`→`/implement` loop but never runs it.
+Constants: orca binary `C:\Users\thoma\AppData\Local\Programs\orca\resources\bin\orca`,
+team `ORB`. Config: `.claude/orchestrator.json`.
 
-**Usage**: `/feature "<idea>" [--cold] [--milestone "MVP"] [--no-create]`
+## Phase A: interrogate
 
-- `--cold` — force the full `/prd-interactive` question flow instead of `/create-prd` synthesis. Also the route when `<idea>` is empty.
-- `--milestone "<name>"` — pass-through to `/create-stories` (assigns every issue to the milestone).
-- `--no-create` — pass-through to `/create-stories`; writes the local stories file only and skips `gh issue create`. The dry/abort path for the issue side.
+1. Spawn the `product-manager` agent with the idea + `architecture.json` (the map of
+   routes, endpoints, parity pairs). It returns: the sharpened problem statement, the
+   affected surfaces/endpoints, open questions, and a first-cut ticket split.
+2. If any surface is user-visible, spawn `design-specialist` in parallel: it returns the
+   DESIGN.md constraints that bind each ticket and whether the ask needs a token or
+   pattern DESIGN.md lacks (which is a question for Thomas, never a judgement call).
+3. Batch every genuine fork into ONE AskUserQuestion call. Do not ask what the codebase,
+   `architecture.json`, or DESIGN.md already answers.
 
----
+## Phase B: decompose and validate
 
-## Stage 0 — Input & flag parse
+Standing rules (violating any one is a defect):
+- One ticket = one repo = one reviewable PR, target under 400 lines (D4). Label exactly
+  one of `repo:ui` / `repo:api` / `repo:landing`. `repo:both` does not exist: cross-repo
+  work is an api ticket that BLOCKS a ui ticket, which encodes deploy-API-first as a DAG
+  edge.
+- ui tickets declare `parity:yes` (web + mobile in the same PR) or `parity:no` with the
+  platform-adapter justification in the body.
+- Never a separate ticket for tests. Migration + schema live in the feature's ticket.
+  No "foundation" ticket full of unused functions. Tickets over 5 points get split.
+- The dependency graph is explicit relations, never prose ("after X lands" in a body
+  without a blockedBy relation fails the checker).
+- User-visible tickets carry the `visible-effect` label and state the D7 contract in the
+  body: a screenshot attached to the Linear issue is required to reach In Review.
+- Shared/DTO changes are append-only and deploy-API-first; say so in the api ticket.
 
-The args hold the idea string plus optional flags. Strip the flags; the remainder is the idea.
+Per ticket: draft the body to the scratchpad using the template sections (Problem/why,
+Scope, Out of scope, Expected behaviour, Technical details, Affected modules/files,
+Acceptance criteria, Test scenarios, plus Rollout/kill-switch and Events/metrics where
+risk or measurement exists), then run
+`node tools/check-ticket.mjs --file <draft>` and fix until it exits 0.
 
-Routing decision (mirror the `/prime` mode-detection style — branch on a condition, then do NOT run the other path):
+## Phase C: create
 
-| Condition | Route |
-|---|---|
-| `--cold` present, OR idea string is empty | **Cold path** — skip Stage 1, hand straight to `/prd-interactive` (Stage 2 cold). |
-| Idea string is non-empty and no `--cold` | **Warm path** — run Stage 1 grill, then `/create-prd` (Stage 2 warm). |
+0. **HARD GATE, before anything external exists:** show Thomas the full plan in one
+   message: project name, the locked decisions, and the ticket table (title, repo
+   label, parity label, blockedBy, wave). Then ask for explicit approval via ONE
+   AskUserQuestion call. Nothing is created in Linear until he approves; an edit
+   request loops back through Phase B and re-validation, then this gate again.
+1. `orca linear create` the project (name = the feature); the project description
+   carries the locked decisions from Phase A verbatim; /orchestrate re-reads it every
+   wave and honours it.
+2. `orca linear create` each issue (title, validated body, labels, state Todo,
+   project).
+3. `orca linear relation add` every blockedBy edge.
+4. Re-validate each created issue: `node tools/check-ticket.mjs --issue ORB-N` (this
+   pass also checks labels + relations, which --file cannot).
+5. Print the final table: identifier, title, repo, blockedBy, wave (from
+   `node tools/wave-plan.mjs --project "<name>"`).
 
-Hold `--milestone` and `--no-create` to forward to `/create-stories` in Stage 3.
-
----
-
-## Stage 1 — Grill (clarifying questions) [warm path only]
-
-Invoke the `grill-me` skill (`C:/Users/thoma/.claude/skills/grill-me/SKILL.md`) — it owns all grilling mechanics (batching, recommended answers, and researching the codebase instead of asking); do not restate or override them. Grill the load-bearing PRODUCT branches, and do not write any artifact during this stage. (The resolved decisions are captured durably by Stage 2's `/create-prd`, which synthesizes them into the PRD file — so no separate paper trail is needed here.)
-
-Stop when these are pinned: **scope** (what's in / what's out), **platforms** (web / mobile / both), **API & data surface** (endpoints, shapes, migrations, or "none"), and **out-of-scope**. This warms the conversation so the PRD step has real material to synthesize from — it is not busywork.
-
-**No double-grill on the cold path.** When routing cold, this stage is subsumed by `/prd-interactive`'s own Phase 1–4 questions. Skip Stage 1 entirely and hand straight to it.
-
----
-
-## Stage 2 — PRD
-
-Derive a kebab-case name from the idea (e.g. "pin a habit to the top of Today" → `pin-habit-today`).
-
-- **Warm path (default)** — run **`/create-prd <kebab-name>.prd.md`**. Its argument IS the output filename; it synthesizes from the now-warm conversation and writes `.claude/PRDs/<kebab-name>.prd.md`, then emits its Phase 5 OUTPUT digest (Product / Problem / Solution / story count / repos).
-- **Cold path (`--cold` or empty idea)** — run **`/prd-interactive "<idea>"`**. It asks its own Phase 1–4 question set, then writes `.claude/PRDs/<kebab-case-name>.prd.md` and emits its Phase 6 SUMMARY. It derives its own filename, so **read the path back from the SUMMARY** before Stage 3 rather than assuming it.
-
-Do not reimplement PRD content. The chained flow owns the template and the file write; `/feature` only routes and passes the filename.
-
----
-
-## GATE 1 — Confirm PRD (HARD)
-
-After the PRD file exists, surface its path and a short digest reusing what the chained flow already emitted (problem line, solution line, story count, repos touched, open-questions count). Then **STOP and wait** for an explicit reply:
-
-> PRD written to `.claude/PRDs/<name>.prd.md`. Proceed to break it into stories? Reply:
-> `yes` to continue · `edit <notes>` to revise the PRD · `abort` to stop here.
-
-Branches:
-
-- **`yes`** → proceed to Stage 3.
-- **`edit <notes>`** → loop back into the SAME PRD flow with the notes to revise the file in place (same path, no new file), then re-hit GATE 1.
-- **`abort`** → stop. Report the PRD path so the dev can resume manually later. Create no stories, no issues.
-
-Nothing downstream runs until `yes`. This gate is what prevents stories/issues from being generated off an unconfirmed PRD.
-
----
-
-## Stage 3 — Stories
-
-Run **`/create-stories .claude/PRDs/<name>.prd.md`**, forwarding `--milestone "<name>"` and/or `--no-create` if they were passed. It writes `.claude/stories/<name>.md` (its Phase 5) and then proceeds to its own Phase 6.
-
-Do not reimplement story slicing, the labels, or the issue-body template — they live in `/create-stories`.
-
----
-
-## GATE 2 — Confirm before issues are created (HARD, reused)
-
-Do **not** add a second bespoke prompt. `/create-stories` Phase 6.1 already halts with:
-
-> About to create {N} issues in `thomasluizon/orbit-ui-mobile`. Confirm?
-
-Let that gate fire and let the dev answer it. `/feature` must NOT auto-answer it, pre-confirm it, or suppress it.
-
-- If `--no-create` was passed, `/create-stories` skips Phase 6 entirely (local stories file only) — report that no issues were created and how to create them later.
-- The abort path here is the dev declining the Phase 6.1 prompt; `/create-stories` then stops and `/feature` reports the local stories file path.
-
----
-
-## Report
-
-Final compact summary:
-
-- **PRD**: `.claude/PRDs/<name>.prd.md`
-- **Stories file**: `.claude/stories/<name>.md`
-- **Issues**: the created issue numbers/URLs (from `/create-stories` Phase 7), or "no issues created (`--no-create` / declined)".
-- **Next step** (suggest, do not run): pick an issue → `/prime <n>` → `/plan <n>` → `/implement`.
-
----
-
-## Guardrails — do NOT
-
-- Reimplement PRD writing or story slicing — chain `/create-prd` / `/prd-interactive` / `/create-stories` by name; they own the templates, labels, and issue bodies.
-- Skip or weaken either gate. GATE 1 (PRD→stories) is owned here; GATE 2 (issue creation) is reused from `/create-stories` Phase 6.1 — never re-spell it or auto-answer it.
-- Create issues off an unconfirmed PRD, or run anything past GATE 1 before an explicit `yes`.
-- Write any file except through the chained flows.
-- Double-grill: on the cold path, Stage 1 is skipped — `/prd-interactive` does the questioning.
-- Run the per-issue `/plan`/`/implement` loop — the skill ends at the report and only suggests it.
-- Translate the brand words "Orbit" / "Astra" — they stay literal everywhere.
+Stop there. No code, no branches, no worktrees (D10: output is tickets, never a report
+and never an implementation).

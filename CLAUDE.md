@@ -42,7 +42,7 @@ Auth: web cookie is httpOnly + sameSite strict + secure; mobile tokens live in S
 ## Conventions & tooling
 
 - `orbit-api` is a sibling at `C:\Users\thoma\Documents\Programming\Projects\orbit-api`; update it in the same task when a feature needs backend support. Separate git histories, branches, and PRs.
-- Never create an `AGENTS.md` — opencode reads this CLAUDE.md natively; an AGENTS.md would shadow it.
+- `AGENTS.md` (repo root) is Codex's entry doc: the worker contract plus `## Code Review Rules` (D26/D27 in REBUILD.md). It DEFERS to this CLAUDE.md for conventions; change behaviour here, never there. The old never-create-AGENTS.md rule died with the opencode drop (D22).
 - **There are no `.opencode/agents/` mirrors, deliberately — do not recreate them.** They were deleted 2026-07-19 because the two schemas are **inverted**: Claude Code `tools:` is an ALLOWLIST (absent = unavailable), opencode `permission:` is a DENYLIST (absent = GRANTED, and unmatched `permission.bash` globs default to allow). A hand-mirrored security config on an inverted schema silently WIDENS every agent as it drifts, and it had drifted. What survives is `.opencode/plugin/orbit-guardrails.js`, which enforces the same `_lib` rule core in both tools and is held to it by 19 `test-hooks` assertions that drive the real plugin (the loader globs `{plugin,plugins}/*.{ts,js}`, one level deep — so keep that file `.js`; renaming it `.mjs` to match the hooks would silently unload every opencode guardrail). Memory and the `.claude/hooks/*.mjs` adapters are Claude-Code-only. The rule that cannot be mirrored at all is the agent-scoped shell allowlist — see "Agent tool scoping".
 - C# LSP for orbit-api is wired via `.mcp.json` — the Roslyn-backed CWM.RoslynNavigator MCP server (install once: `dotnet tool install -g CWM.RoslynNavigator`) pointed at orbit-api's `Orbit.slnx`; copy from `.claude/mcp.json.example`.
 - Reusable agent scripts live in `tools/` (`agent-review`, the merge-sweep scripts) under the `tools/CONVENTIONS.md` contract; build a new one with `/make-tool` once you have run the same incantation twice; a one-off stays in the scratchpad.
@@ -73,6 +73,7 @@ Grep a doc's `At a glance` header before loading the whole file.
 | Doc | Purpose |
 |---|---|
 | `DESIGN.md` | Authoritative UI spec: de-decorated navy-violet anchor (no glow, no gradient wash), semantic tokens, the enumerated spacing scale (`0 4 8 12 16 20 24 28 32 40 48 56 64` + three named exemptions, gated by `local/spacing-scale`), measure/motion/a11y rules, 412px shell, plus the `## Enforcement` gate-vs-reviewer contract. |
+| `REBUILD.md` | The workflow teardown/rebuild plan and its locked decision register (D1..D38, the phase ledger) that the harness files cite by number. **Temporary by design**: it dies when Phase 7 completes; its durable parts graduate to CLAUDE.md, AGENTS.md, DESIGN.md, and brain ADRs. |
 | `FEATURES.md` | Code-derived, gating- and platform-aware map of every capability. |
 | `WORKFLOW.md` | Path-picking guide (`/drive` attended / `/drive --sleep` unattended, + the campaign loop) + the model & effort routing table. |
 | `TESTING.md` | How to write tests here + the catalog of every suite and what each proves. |
