@@ -1,13 +1,17 @@
 #!/usr/bin/env node
-// Asserts that EVERY surface in .claude/manifests/surfaces.json is claimed by exactly one
-// redesign ticket. A surface claimed by no ticket is the failure mode this exists to prevent:
-// it is how "we redesigned the whole app" silently ships with screens nobody looked at.
-// Exits 1 on any unclaimed surface. Multi-match is reported and resolved first-rule-wins.
+// Asserts the redesign's denominator twice over (REBUILD.md D35 + D38):
+// 1. EVERY surface in .claude/manifests/surfaces.json is claimed by exactly one redesign
+//    ticket. A surface claimed by no ticket is the failure mode this exists to prevent:
+//    it is how "we redesigned the whole app" silently ships with screens nobody looked at.
+// 2. EVERY .tsx under apps/*/app and apps/*/components maps to exactly one ticket by
+//    directory rule (D38, 8.5.2), because the manifest only sees files a surface closure
+//    reaches; the 2026-07-24 denominator audit confirmed orphan component files it cannot.
+// Exits 1 on any unclaimed surface or orphaned file. Multi-match is resolved first-rule-wins.
 //
 // Usage: node tools/redesign-coverage.mjs [--json]
 
-import { readFileSync } from "node:fs"
-import { dirname, join, resolve } from "node:path"
+import { readFileSync, readdirSync } from "node:fs"
+import { dirname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
@@ -61,6 +65,71 @@ export const TICKETS = [
   ["R18-screen-static", "About, privacy, terms, support", has("about", "privacy", "terms", "support")],
 ]
 
+/**
+ * Ordered directory rules over repo-relative .tsx paths; first match wins. The file-level
+ * assignments follow REBUILD.md 8.5.2: chat to R11, upgrade to R17, habit form fields to R7,
+ * goals to R6, gamification to R4, ui primitives to R1, layouts and not-found to R2. The
+ * feature rules come first so a feature-scoped layout stays with its feature; the shell rule
+ * then owns the remaining layouts, errors and not-found files; the ui-primitives rule is the
+ * final catch-all for everything under components/ui.
+ */
+export const FILE_RULES = [
+  ["R1-primitive-overlay", has("confirm-dialog")],
+  ["R4-motion-celebration", has("/gamification/", "fresh-start", "app-toast", "/review-moment/")],
+  ["R11-screen-astra", has("/chat/", "/chat.tsx", "(chat)", "message-bubble", "ai-settings")],
+  ["R3-primitive-row", has("habit-row", "habit-list", "bulk-action-bar", "controls-menu")],
+  ["R7-screen-habits-crud", has("/habits/")],
+  ["R6-screen-goals", has("/goals/", "goal-card")],
+  ["R13-screen-social",
+    has("/social", "public-profile", "accountability-pair", "explore", "(public)/u/",
+      "friend-profile")],
+  ["R12-screen-insights", has("insights", "retrospective", "wrapped", "/charts/")],
+  ["R9-screen-streak", has("streak")],
+  ["R10-screen-achievements", has("achievements")],
+  ["R8-screen-calendar", has("calendar")],
+  ["R14-screen-onboarding", has("onboarding", "/tour/", "feature-guide")],
+  ["R15-screen-auth", has("login", "auth-callback", "email-step", "code-step", "(auth)")],
+  ["R16-screen-settings",
+    has("preferences", "notification", "create-api-key", "delete-account", "advanced",
+      "/profile")],
+  ["R17-screen-monetization",
+    has("upgrade", "trial-", "referral", "/share/", "milestone", "marketing-consent",
+      "push-prompt", "expiry-warning", "pro-badge", "/r/")],
+  ["R5-screen-today",
+    has("(app)/page.tsx", "(tabs)/index", "today-sections", "today-modals", "today-page-view",
+      "today-provider", "use-today-page", "/today/")],
+  ["R18-screen-static", has("about", "privacy", "terms", "support")],
+  ["R2-primitive-shell",
+    has("today-shell", "/shell/", "/navigation/", "/command/", "/motion/", "layout",
+      "not-found", "global-error", "error.tsx", "version-update", "update-available",
+      "update-prompt")],
+  ["R1-primitive-overlay", has("/components/ui/", "bottom-sheet-modal", "global-overlays")],
+]
+
+const FILE_ROOTS = ["apps/web/app", "apps/web/components", "apps/mobile/app", "apps/mobile/components"]
+
+const knownTickets = new Set(TICKETS.map(([ticket]) => ticket))
+for (const [ticket] of FILE_RULES)
+  if (!knownTickets.has(ticket)) throw new Error(`FILE_RULES references unknown ticket "${ticket}"`)
+
+const toPosix = (absolutePath) => relative(REPO_ROOT, absolutePath).split("\\").join("/")
+
+function walkTsx(dir, found = []) {
+  let entries
+  try {
+    entries = readdirSync(dir, { withFileTypes: true })
+  } catch {
+    return found
+  }
+  for (const entry of entries) {
+    if (entry.name === "node_modules" || entry.name === "__tests__") continue
+    const full = join(dir, entry.name)
+    if (entry.isDirectory()) walkTsx(full, found)
+    else if (entry.name.endsWith(".tsx")) found.push(full)
+  }
+  return found
+}
+
 const manifest = JSON.parse(readFileSync(MANIFEST_PATH, "utf8"))
 const surfaces = [...new Set(manifest.cells.map((cell) => `${cell.platform}:${cell.surfaceId}`))].sort()
 
@@ -77,12 +146,28 @@ const unclaimed = surfaces.filter((id) => !assignment.has(id))
 const perTicket = {}
 for (const [id, ticket] of assignment) (perTicket[ticket] ||= []).push(id)
 
+const files = FILE_ROOTS.flatMap((root) => walkTsx(join(REPO_ROOT, root))).map(toPosix).sort()
+const fileAssignment = new Map()
+for (const path of files) {
+  const match = FILE_RULES.find(([, test]) => test(path))
+  if (match) fileAssignment.set(path, match[0])
+}
+const orphans = files.filter((path) => !fileAssignment.has(path))
+const filesPerTicket = {}
+for (const [path, ticket] of fileAssignment) (filesPerTicket[ticket] ||= []).push(path)
+
 if (process.argv.includes("--json")) {
-  console.log(JSON.stringify({ total: surfaces.length, perTicket, unclaimed, multiMatch }, null, 2))
+  console.log(JSON.stringify({
+    total: surfaces.length, perTicket, unclaimed, multiMatch,
+    files: { total: files.length, perTicket: filesPerTicket, orphans },
+  }, null, 2))
 } else {
-  console.log(`surfaces ${surfaces.length}   claimed ${assignment.size}   unclaimed ${unclaimed.length}\n`)
+  console.log(`surfaces ${surfaces.length}   claimed ${assignment.size}   unclaimed ${unclaimed.length}`)
+  console.log(`files    ${files.length}   claimed ${fileAssignment.size}   orphaned ${orphans.length}\n`)
   for (const [ticket, description] of TICKETS) {
-    console.log(`${String((perTicket[ticket] || []).length).padStart(3)}  ${ticket.padEnd(26)} ${description}`)
+    const surfaceCount = String((perTicket[ticket] || []).length).padStart(3)
+    const fileCount = String((filesPerTicket[ticket] || []).length).padStart(4)
+    console.log(`${surfaceCount} ${fileCount}  ${ticket.padEnd(26)} ${description}`)
   }
   if (multiMatch.length > 0) {
     console.log(`\nmulti-match (resolved first-rule-wins): ${multiMatch.length}`)
@@ -92,6 +177,10 @@ if (process.argv.includes("--json")) {
     console.log("\nUNCLAIMED, these would never be redesigned:")
     for (const id of unclaimed) console.log(`  ${id}`)
   }
+  if (orphans.length > 0) {
+    console.log("\nORPHANED FILES, no ticket owns these:")
+    for (const path of orphans) console.log(`  ${path}`)
+  }
 }
 
-process.exit(unclaimed.length > 0 ? 1 : 0)
+process.exit(unclaimed.length > 0 || orphans.length > 0 ? 1 : 0)
