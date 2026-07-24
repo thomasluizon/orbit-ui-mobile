@@ -245,6 +245,11 @@ Use the semantic classes (web `.t-*`) / shared role data (`packages/shared/src/t
 
 ## Primitives kit
 
+> **Spec-versus-main note (2026-07-24):** this kit describes the #539 target. Four details are
+> spec-only until the redesign's primitive tickets land on `main`: the `--scrim` token,
+> PillButton's `caution` variant and `xs` size, `EmptyState.matchActionFooterWidth`, and
+> `InfoCard.tone`. Everything else in the table exists on `main` today.
+
 Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same name, same props, same behavior.
 
 | Primitive | Key specs | Web | Mobile |
@@ -344,7 +349,7 @@ The approved Today mockups define this exactly. It is the surface the whole desi
 
 ### Stacking
 
-One semantic z-index scale, shared across both platforms. Overlays stack on a named tier, never a hand-picked number. Web reads it as Tailwind `z-<tier>` utilities from the `--z-index-*` theme tokens (`app/globals.css`); mobile reads `zLayers.<tier>` from `@orbit/shared/theme`. Values are spaced by 100 (1000–1700) so they sit far above local stacking and leave room without inviting off-scale literals.
+One semantic z-index scale, shared across both platforms. Overlays stack on a named tier, never a hand-picked number. Web reads it as `z-<tier>` utilities backed by the `--z-index-*` tokens (both in `app/globals.css`; they are explicit `@utility` blocks because Tailwind v4 has no z-index theme namespace); mobile reads `zLayers.<tier>` from `@orbit/shared/theme` (`packages/shared/src/theme/z-layers.ts`). Values are spaced by 100 (1000–1700) so they sit far above local stacking and leave room without inviting off-scale literals.
 
 Six tiers ascend: `dropdown` (1000) < `sticky` (1100) < `modalBackdrop` (1200) < `modal` (1300) < `toast` (1600) < `tooltip` (1700). Plus two Orbit carve-outs a generic scale gets wrong:
 

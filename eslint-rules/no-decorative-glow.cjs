@@ -56,9 +56,16 @@ const CSS_NAMED_COLORS = new Set([
   'yellow', 'pink', 'gold', 'lime', 'aqua', 'fuchsia', 'maroon', 'navy', 'olive', 'silver',
 ])
 
-/** The blur is the THIRD length in a shadow value. A ring or hairline has blur 0; only a blurred shadow can glow. */
+/**
+ * The blur is the THIRD length in a shadow value. A ring or hairline has blur 0;
+ * only a blurred shadow can glow. Color functions are STRIPPED (not truncated at
+ * the first paren) before extracting lengths, because CSS also permits the
+ * color-first form ("rgba(...) 0 0 40px") and truncation there read zero lengths
+ * and silently accepted the glow - found in review of #577.
+ */
 function blurRadius(value) {
-  const lengths = String(value).slice(0, value.indexOf('(') === -1 ? undefined : value.indexOf('(')).match(LENGTH_RE)
+  const withoutFunctions = String(value).replace(/[a-z-]+\([^()]*(?:\([^()]*\)[^()]*)*\)/gi, ' ')
+  const lengths = withoutFunctions.match(LENGTH_RE)
   if (!lengths || lengths.length < 3) return 0
   return Math.abs(Number.parseFloat(lengths[2])) || 0
 }

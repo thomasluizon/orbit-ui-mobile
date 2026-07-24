@@ -41,6 +41,7 @@ ruleTester.run('no-decorative-glow', rule('no-decorative-glow'), {
     'const sh3 = { boxShadow: "0 12px 40px rgba(0,0,0,.45)" }',
     // A ring or hairline has ZERO blur, so it can never glow even carrying a hue.
     'const hairline = { boxShadow: "0 0 0 0.5px rgba(255,255,255,0.06)" }',
+    'const colorFirstOcclusion = { boxShadow: "rgba(0,0,0,0.3) 0 4px 16px" }',
     'const ringed = { boxShadow: "0 0 0 6px var(--bg)" }',
     'const insetAccent = { boxShadow: "inset 0 0 8px var(--primary)" }',
   ],
@@ -63,6 +64,16 @@ ruleTester.run('no-decorative-glow', rule('no-decorative-glow'), {
     // attribute, so the entire mobile StyleSheet surface is no longer invisible.
     {
       code: 'const styles = StyleSheet.create({ orb: { boxShadow: "0 0 40px rgba(134,89,234,0.5)" } })',
+      errors: [{ messageId: 'noHandRolledGlow' }],
+    },
+    // CSS also permits the COLOR-FIRST form; truncating at the first paren used
+    // to read zero lengths here and silently accept the glow (#577 review).
+    {
+      code: 'const s = { boxShadow: "rgba(134,89,234,0.5) 0 0 40px" }',
+      errors: [{ messageId: 'noHandRolledGlow' }],
+    },
+    {
+      code: 'const s = { boxShadow: "color-mix(in srgb, var(--status-frozen) 40%, transparent) 0 0 60px" }',
       errors: [{ messageId: 'noHandRolledGlow' }],
     },
     {
