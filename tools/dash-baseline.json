@@ -160,7 +160,5 @@
   "packages/shared/src/utils/plural.ts": 1,
   "sonar-project.properties": 13,
   "TESTING.md": 7,
-  "tools/CONVENTIONS.md": 2,
-  "tools/merge-sweep-cov.sh": 3,
-  "tools/merge-sweep.sh": 1
+  "tools/CONVENTIONS.md": 2
 }
