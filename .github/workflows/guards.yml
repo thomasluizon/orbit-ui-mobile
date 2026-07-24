@@ -54,6 +54,16 @@ jobs:
           node-version: 22
       - run: node tools/check-copy.mjs --check
 
+  frontmatter:
+    name: Skill and Agent Frontmatter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: node tools/check-frontmatter.mjs
+
   ratchet:
     name: Suppressions Ratchet
     runs-on: ubuntu-latest
