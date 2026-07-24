@@ -1,0 +1,32 @@
+name: arch-map
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    name: Architecture map drift
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Regenerate the architecture map
+        run: node tools/arch-map.mjs
+
+      - name: Fail on drift
+        run: git diff --exit-code architecture.json architecture.html
