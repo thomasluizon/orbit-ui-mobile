@@ -141,8 +141,8 @@ jobs:
 
       - name: Ban raw --slate-*, transition-all, h-screen in app code
         run: |
-          # DESIGN.md bans semantic-token violations. Accent-color literals are caught at
-          # edit time by the forbid-hardcoded-brand-color hook; this gate covers hand edits.
+          # DESIGN.md bans semantic-token violations. Accent-color literals are caught by
+          # the Copy Register gate (tools/check-copy.mjs); this gate covers the rest.
           hits=$(grep -rnE '\-\-slate-|transition-all|\bh-screen\b' apps/web apps/mobile \
             --include='*.ts' --include='*.tsx' --include='*.css' \
             --exclude-dir=node_modules --exclude-dir=__tests__ \
@@ -154,58 +154,6 @@ jobs:
             exit 1
           fi
           echo "Design token guard passed."
-
-  harness-hooks:
-    name: Harness Hook Parity
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-
-      # The suite stopped being zero-dependency when the visual completion oracle
-      # landed: tools/visual-signature.mjs requires the TypeScript compiler API to
-      # build its render-affecting AST fingerprint, and check-surface-coverage.mjs
-      # imports it. Without this the import throws and EVERY surface-gate and oracle
-      # assertion fails with exit 1 - which is exactly what happened from the moment
-      # the rebuild landed. Installing only `typescript` keeps the job at seconds
-      # rather than a full `npm ci`, and the version is pinned to the root manifest.
-      - name: Install the one non-builtin the suite needs
-        run: npm install --no-save --no-audit --no-fund typescript@^6.0.2
-
-      - name: Prove the hook rules, the real hooks, and the opencode plugin agree
-        # Carries the agent-frontmatter guard: `tools: Bash(gh:*)` fails OPEN (the
-        # specifier is stripped and the agent gets a full shell), which no linter
-        # catches. orbit-api's agents are not checked out here, so this job covers the
-        # UI repo's agents only; the local run covers both.
-        run: node .claude/hooks/test-hooks.mjs
-
-      - name: Work-order ledger freshness
-        # The committed .claude/workorders/ ledger is generated, and until now
-        # nothing failed when it was hand-edited or left stale after a manifest
-        # or suppression change. Regeneration is idempotent (verified: two
-        # consecutive runs produce a byte-identical tree), so ANY drift from
-        # HEAD after regenerating means the ledger no longer matches its inputs.
-        # `git add -N` plus diffing against HEAD is deliberate: it catches all
-        # three drift shapes (a modified order, a DELETED one - the fold case -
-        # and a NEW one), where a plain index diff goes blind on deletions the
-        # moment they are staged. Timeline appends survive regeneration - an
-        # order that stops deriving is RETIRED rather than deleted whenever it
-        # carries a recorded entry (tools/workorder.mjs) - so committing the
-        # regenerated output loses no history. Before retirement existed this
-        # comment was false: clearing a residual group's last violation made the
-        # regeneration delete the order and its Timeline with it.
-        run: |
-          node tools/workorder.mjs
-          git add -N .claude/workorders/
-          if ! git diff --exit-code HEAD -- .claude/workorders/; then
-            echo "::error::.claude/workorders/ is stale or hand-edited: regenerating it changed the tree. Run 'node tools/workorder.mjs' and commit the result; never edit a work order by hand."
-            exit 1
-          fi
-          echo "Work-order ledger is fresh: regeneration was a no-op."
 
   contract-drift:
     name: Contract Drift

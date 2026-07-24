@@ -23,7 +23,7 @@ A tool here is something an agent invokes without reading its source. That only 
 
 A tool whose job is to answer "is this work done?" obeys one extra rule: **the verdict is computed from artifacts on disk, never read from a status field.** A checklist an agent can edit is not a gate, it is a suggestion, and #539 proved it (five "done" reports over ~20% of the surfaces, every lint gate green).
 
-The pattern, as implemented by `surface-manifest.mjs` + `check-surface-coverage.mjs`:
+The pattern, as implemented by `surface-manifest.mjs` + `redesign-coverage.mjs`:
 
 - **Derive the expected inventory from the codebase**, not from a hand-written list. A hand-written list omits what the author forgot; a glob does not.
 - **Store the expectation, compute the completion.** The manifest is the denominator. The numerator comes from `statSync` on the evidence.

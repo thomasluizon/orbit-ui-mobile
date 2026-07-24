@@ -21,7 +21,7 @@ so nothing can trigger them for you.
 |---|---|
 | `.claude/playbooks/debugging.md` | a bug, a triage, `/investigate`, a merge conflict |
 | `.claude/playbooks/review-and-audit.md` | `/pr-review`, `/audit-*`, `/commit-sweep`, any fan-out assessment |
-| `.claude/playbooks/planning-and-artifacts.md` | `/create-prd`, `/create-stories`, `/plan`, `/drive`, ADRs, handoff |
+| `.claude/playbooks/planning-and-artifacts.md` | `/feature`, `/bug`, `/orchestrate`, ticket writing, ADRs |
 
 ### 1. No red-capable command, no hypothesising
 
@@ -35,8 +35,9 @@ have a story about one. Then cut the repro down before you think.
 
 ### 3. Never re-flag what a gate already enforces
 
-If ESLint `local/*`, a `.claude/hooks/forbid-*` guard, or Roslyn `ORBIT0001`/`ORBIT0002` already
-fails on it, repeating it by hand is noise. The inverse of gates-over-prose, and the most-broken rule.
+If ESLint `local/*`, a `guards.yml` job (Dash Ban, Copy Register, Suppressions Ratchet, Expo SDK
+Pin, Cross-Platform Parity), or Roslyn `ORBIT0001..0005` already fails on it, repeating it by hand
+is noise. The inverse of gates-over-prose, and the most-broken rule.
 
 ### 4. Load-bearing strings need approval before they change
 

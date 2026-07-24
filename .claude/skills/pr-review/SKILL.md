@@ -124,7 +124,7 @@ Apply the rubric's **Signal gate**: post Critical/High and concretely-actionable
 ## Phase 4 — Orchestrate subagents
 
 Delegate the five specialist subagents, gated by what the diff touches, **3 concurrent
-at a time** (mirrors `/implement` Phase 4 and the root CLAUDE.md delegation cap). Pass
+at a time** (the root CLAUDE.md delegation cap). Pass
 each the list of changed files. Fold every result back into the Phase 3 findings under
 the matching rubric dimension.
 
