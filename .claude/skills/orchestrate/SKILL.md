@@ -70,3 +70,17 @@ then print the final ledger: ticket, PR, merge SHA, evidence link.
 
 Never: merge a PR, push to main, relaunch a two-strike ticket, or let a worker run
 before Phase 1's gates are green on its target branch.
+
+## Delegation discipline (the session-flood rule)
+
+The orchestrating session ORCHESTRATES; it never implements. Measured 2026-07-24: a
+main session that wrote rule files, wired configs, and chased CI failures inline
+flooded to 611k tokens, while every slice it delegated landed clean. Therefore:
+
+- Every self-contained multi-file build or fix slice runs as a background agent with
+  a branch + commit + PR + verification contract in its prompt (worktree or
+  scratchpad-clone isolation when trees could collide).
+- A CI failure or review finding on a delegated PR goes BACK to its author agent
+  (SendMessage), never into the main session.
+- The main session keeps only: decisions, small verification reads, user
+  checkpoints, and cross-repo sequencing.
