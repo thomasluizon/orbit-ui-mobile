@@ -67,11 +67,3 @@ A single summary: what was bumped (PR link), what was held and why (majors,
 test-breakers), the mobile SDK-spec status, and the API drift list. If a major bump or
 the mobile `--check` surfaces something that matters, call it out as a follow-up — don't
 bury it.
-
-## Guardrails — do NOT
-- Bump anything in `apps/mobile` (expo-*, react, react-native, native transitives) —
-  that is the `upgrading-expo` skill's job, driven by the Expo SDK watcher.
-- Apply major versions automatically.
-- Open a PR with failing tests.
-- Touch security patches — Dependabot security updates own those.
-- Use `--no-verify` / force-push, or sweep on a dirty tree.

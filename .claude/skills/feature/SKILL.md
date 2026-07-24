@@ -12,7 +12,7 @@ cannot execute is a defective ticket. This skill exists to make defective ticket
 impossible to create.
 
 Constants: orca binary `C:\Users\thoma\AppData\Local\Programs\orca\resources\bin\orca`,
-team `ORB`. Config: `.claude/orchestrator.json`.
+team `ORB`.
 
 ## Phase A: interrogate
 
