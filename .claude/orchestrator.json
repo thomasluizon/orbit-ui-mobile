@@ -3,8 +3,8 @@
   "workers": {
     "claude": {
       "command": "claude",
-      "args": ["-p", "--permission-mode", "bypassPermissions", "--model", "opus"],
-      "notes": "The prompt is the ticket body (D2). Model routing: opus for cross-repo, parity-bound, contract-touching or hard tickets; sonnet for proven-isolated slices; flip per ticket via the ticket's worker:sonnet label. The mode MUST be bypassPermissions, never acceptEdits: acceptEdits auto-approves file writes only, so every shell command still prompts, and a -p worker has nobody to prompt. Measured on the ORB-75 Phase 7 run, where git switch, dotnet build/test/format, gh and orca were all denied and the worker delivered files with zero gates run, zero commit and zero PR."
+      "args": ["--permission-mode", "bypassPermissions", "--model", "opus"],
+      "notes": "The prompt is the ticket body (D2). Model routing: opus for cross-repo, parity-bound, contract-touching or hard tickets; sonnet for proven-isolated slices; flip per ticket via the ticket's worker:sonnet label. The mode MUST be bypassPermissions, never acceptEdits: acceptEdits auto-approves file writes only, so every shell command still prompts, and a worker with nobody at the keyboard is stuck. Measured on the ORB-75 Phase 7 run, where git switch, dotnet build/test/format, gh and orca were all denied and the worker delivered files with zero gates run, zero commit and zero PR. There is deliberately no -p here either: headless mode is invisible to Orca, so the worktree card shows no Agents row and clicking it reveals a bare shell. The worker runs as a TUI, which means orca terminal wait must use --for tui-idle, never --for exit."
     },
     "codex": {
       "command": "codex",
