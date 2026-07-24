@@ -115,7 +115,7 @@ The dark surfaces below are the **white-alpha ladder composited over the frozen 
 --scrim rgba(0,0,0,0.55)                     /* THE modal/sheet/dialog backdrop. Theme-independent. Web `bg-black/55`, mobile `tokens.scrim`. */
 ```
 
-There is **no `--gradient-header`** and **no glow shadow**. Both tokens are deleted, not softened.
+There is **no `--gradient-header`** and **no glow shadow** in the #539 target. Both are deleted, not softened. (Staging: both are still live on `main` behind the `no-decorative-glow` warn-to-error flip; see the Enforcement table and the spec-versus-main note in **Primitives kit**.)
 
 ### Light mode (MANDATORY, ships with every surface, all 6 schemes)
 
@@ -245,10 +245,16 @@ Use the semantic classes (web `.t-*`) / shared role data (`packages/shared/src/t
 
 ## Primitives kit
 
-> **Spec-versus-main note (2026-07-24):** this kit describes the #539 target. Four details are
-> spec-only until the redesign's primitive tickets land on `main`: the `--scrim` token,
-> PillButton's `caution` variant and `xs` size, `EmptyState.matchActionFooterWidth`, and
-> `InfoCard.tone`. Everything else in the table exists on `main` today.
+> **Spec-versus-main note (2026-07-24):** this kit describes the #539 target. Details marked
+> *(spec-only)* are ahead of `main` until the redesign's primitive tickets land: the `--scrim` token,
+> PillButton's `caution` variant and `xs` size, `EmptyState.matchActionFooterWidth`, `InfoCard.tone`,
+> ListRow's rule handoff (`settings-row` on `main` still draws its own default bottom hairline via
+> `divider`), InfoCard's borderless body (`main` still paints an inset primary ring), StatTile's
+> `--bg-card` fill and fixed value/label boxes (`main` is still on `--bg-field` with no
+> truncation or clamp), and every "no glow" / "GradientTop is deleted" claim (`GradientTop`,
+> `--gradient-header`, and the PillButton/FAB glow are still live on `main`, staged behind the
+> `no-decorative-glow` warn-to-error flip in the Enforcement table). Everything else in the table
+> exists on `main` today.
 
 Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same name, same props, same behavior.
 
@@ -256,26 +262,26 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 |---|---|---|---|
 | NavHeader | 56px, centered UPPERCASE Rubik 13/500 +0.09em title, back chevron 26/2.0, right slot help (40px circled, inset 1.5px hairline-strong ring) / close / share | `ui/app-bar.tsx` | `ui/app-bar.tsx` |
 | SectionTitle | Rubik 20/500 -0.01em, 24/14 padding | `ui/section-label.tsx` | `ui/section-label.tsx` |
-| ListRow | 16/20 padding, icon 22/1.8 in 26px slot, title Rubik 18/400, desc 14 fg-3, value + trailing + chevron 22 fg-4, **draws no rule of its own**, danger=status-bad | `ui/settings-row.tsx` | `ui/settings-row.tsx` |
+| ListRow | 16/20 padding, icon 22/1.8 in 26px slot, title Rubik 18/400, desc 14 fg-3, value + trailing + chevron 22 fg-4, **draws no rule of its own** *(spec-only, see note)*, danger=status-bad | `ui/settings-row.tsx` | `ui/settings-row.tsx` |
 | SettingsGroup | the only owner of row separation: renders a hairline *between* adjacent rows and never after the last, so a rule can never trail into a section break or stack against a bordered element | `ui/settings-group.tsx` | `ui/settings-group.tsx` |
 | Switch | 48×28 pill, 22px white thumb, on=primary / off=rgba(fg,0.16) | inside settings-row | inside settings-row |
 | Radio/RadioRow | 24px, selected=primary fill + 9px white dot, else inset 2px fg-4 ring | `ui/select-check.tsx` | `ui/select-check.tsx` |
 | Badge | pill 3/9px, 10.5/600 +0.06em UPPERCASE; tones violet/soft/outline/amber | `ui/badge.tsx` (+ pro-badge) | same |
-| PillButton | pill CTA, 5 variants × 4 sizes off the shared `BUTTON_SIZES` geometry: primary (accent fill, **no glow**) / secondary (fg-1 bg + canvas text) / ghost (inset 1.5px hairline-strong) / destructive (status-bad fill + fg-on-bad) / caution (status-overdue fill + fg-on-overdue); md = h50·26px pad·Rubik 16/500·18 icon·9 gap (default), sm = h40, xs = h38 (grounded desktop-sidebar Criar), lg = h56. Hugs content; caps ~360px at desktop. Full canon in **Buttons** | `ui/pill-button.tsx` | `ui/pill-button.tsx` |
-| StatTile | radius 18, `--bg-card` + inset hairline ring, emoji 28, value Inter 24/700 held to one line in a 29px box (web truncates with an ellipsis, mobile shrinks the font to 0.7), label 15/20 fg-2 clamped to **2 lines inside a fixed 40px reservation** so side-by-side tiles keep one baseline when a longer pt-BR label wraps. Tile and both text boxes carry `min-width: 0` | `ui/stat-tile.tsx` | same |
+| PillButton | pill CTA, 5 variants × 4 sizes off the shared `BUTTON_SIZES` geometry: primary (accent fill, **no glow** *(spec-only, see note)*) / secondary (fg-1 bg + canvas text) / ghost (inset 1.5px hairline-strong) / destructive (status-bad fill + fg-on-bad) / caution (status-overdue fill + fg-on-overdue); md = h50·26px pad·Rubik 16/500·18 icon·9 gap (default), sm = h40, xs = h38 (grounded desktop-sidebar Criar), lg = h56. Hugs content; caps ~360px at desktop. Full canon in **Buttons** | `ui/pill-button.tsx` | `ui/pill-button.tsx` |
+| StatTile | radius 18, `--bg-card` + inset hairline ring, emoji 28, value Inter 24/700 held to one line in a 29px box (web truncates with an ellipsis, mobile shrinks the font to 0.7), label 15/20 fg-2 clamped to **2 lines inside a fixed 40px reservation** so side-by-side tiles keep one baseline when a longer pt-BR label wraps. Tile and both text boxes carry `min-width: 0` *(fill + overflow model spec-only, see note)* | `ui/stat-tile.tsx` | same |
 | PlanCard | radius 18, selected = `--primary-dim` tint + inset 1.5px primary ring; price Inter 22/700 | `upgrade/plan-card.tsx` | same |
-| InfoCard | radius 18, borderless tonal aside (**no ring**); tone `quiet` (default, recedes) = `--bg-elev` bg + fg-3 icon, tone `accent` (focal call-out) = `rgba(var(--primary-rgb),0.14)` bg + `--primary-soft` icon; icon 22/1.8, 16/20 padding, gap 12 | `ui/info-card.tsx` | same |
+| InfoCard | radius 18, borderless tonal aside (**no ring** *(spec-only, see note)*); tone `quiet` (default, recedes) = `--bg-elev` bg + fg-3 icon, tone `accent` (focal call-out) = `rgba(var(--primary-rgb),0.14)` bg + `--primary-soft` icon; icon 22/1.8, 16/20 padding, gap 12 | `ui/info-card.tsx` | same |
 | Field | min-height 54, radius 14, `--bg-field` + inset hairline, **visible persistent label** 14/500 fg-2 | `ui/field-input.tsx` | `ui/app-text-input.tsx` |
 | OTP | 6 boxes 48×58, radius 14, `--bg-field`, active inset 2px primary, Roboto 26/500. Paste of a whole code MUST work | `ui/code-input.tsx` | `ui/code-input.tsx` |
 | Sheet | backdrop `--scrim` (rgba(0,0,0,0.55)), panel 26px top radius, grabber 44×5 hairline-strong, title Rubik 24/500 | `ui/app-overlay.tsx` | `bottom-sheet-modal.tsx` |
-| TabBar + FAB | top hairline, opaque canvas bg, **max 5 destinations**, icon 24 (active primary 2.2 / inactive fg-4 1.8), label 11; FAB 60px primary circle, ring `0 0 0 6px var(--bg)`, **no glow** | `navigation/bottom-tab-bar.tsx` | `navigation/bottom-tab-bar.tsx` |
+| TabBar + FAB | top hairline, opaque canvas bg, **max 5 destinations**, icon 24 (active primary 2.2 / inactive fg-4 1.8), label 11; FAB 60px primary circle, ring `0 0 0 6px var(--bg)`, **no glow** *(spec-only, see note)* | `navigation/bottom-tab-bar.tsx` | `navigation/bottom-tab-bar.tsx` |
 | Satellite | 96px empty-state glyph, fg-4 strokes + primary arc. The empty half of the **state triad** | `ui/satellite-glyph.tsx` | same (react-native-svg) |
 | VerifiedBadge | scalloped check, `--primary-dim` disc | `ui/verified-badge.tsx` | same |
 | ProgressBar | 8px pill track rgba(fg,0.08), primary fill | `ui/progress-bar.tsx` | same |
 | ProgressRing | thin band, `innerRadius` 0.94 (~6px stroke), primary sweep on a fg-4 track | right rail / Today | same |
 | HabitRow | inside a tonal panel: 46px emoji well radius 14 `--bg-well`, name Rubik 16/500, meta 13 fg-3 + streak flame, trailing 30px check ring, per-row `⋮` overflow menu | `habits/habit-row.tsx` | `habits/habit-row.tsx` |
 
-`GradientTop` is **deleted**. It backed the `--gradient-header` wash, which no longer exists.
+`GradientTop` is **deleted** in the #539 target. It backed the `--gradient-header` wash. *(Spec-only, see note: both are still live on `main`, staged behind the `no-decorative-glow` Enforcement row.)*
 
 ## Buttons
 
