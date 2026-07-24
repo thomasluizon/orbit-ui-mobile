@@ -8,6 +8,7 @@ name: Guards
 #   ratchet - the eslint-suppressions.json baselines may only shrink
 #   parity  - a web-scope code change with zero mobile-scope change (or inverse) fails without the parity:exempt label
 #   expo-pin - apps/mobile/package.json changes must keep the Expo SDK pin resolution intact
+#   frontmatter - every skill and agent .md has parseable YAML frontmatter (an unquoted ": " drops it silently)
 
 on:
   pull_request:
@@ -53,6 +54,16 @@ jobs:
         with:
           node-version: 22
       - run: node tools/check-copy.mjs --check
+
+  frontmatter:
+    name: Skill and Agent Frontmatter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: node tools/check-frontmatter.mjs
 
   ratchet:
     name: Suppressions Ratchet
