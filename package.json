@@ -69,6 +69,13 @@
     "expo-sqlite": "57.0.0",
     "expo-store-review": "57.0.0",
     "expo-web-browser": "57.0.0",
-    "underscore": "^1.13.8"
+    "underscore": "^1.13.8",
+    "postcss": "^8.5.18",
+    "sharp": "^0.35.0",
+    "tmp": "^0.2.6",
+    "qs": "^6.15.2",
+    "uuid": "^11.1.1",
+    "brace-expansion@1": "1.1.16",
+    "js-yaml@4": "4.3.0"
   }
 }
