@@ -1,15 +1,12 @@
-# Pending lessons (staging — not loaded into context)
+# Pending lessons (staging, not loaded into context)
 
 Reviewed and promoted via `/lesson`. Delete each entry once promoted to a rule/hook or dropped.
 
-## 2026-07-14 — sweep-merge can race a re-triggered review on a BEHIND PR → merges past CHANGES_REQUESTED
-- Trigger: `tools/merge-sweep-cov.sh` merging any PR that is BEHIND main (require-up-to-date) and therefore needs an update-branch. Hit once on orbit-api #403 (a HIGH backend-contract finding shipped to main + deployed before the re-review landed; the fix went to the orphaned head branch, not main).
-- Type: checkable (the sweep script can enforce this deterministically).
-- Proposed home: a guard inside `tools/merge-sweep-cov.sh` — after its update-branch step, re-poll `gh pr view <n> --json reviewDecision` until the re-triggered `review` check reaches a terminal state, and BLOCK the merge unless it re-settles to APPROVED (never merge on the pre-update APPROVED snapshot). Secondary signal to detect a past occurrence: the PR's head branch survives deletion (a post-merge push re-created it) = an orphaned fix that never reached main — scan for surviving head branches after a sweep.
-- Draft: In the sweep, sequence = update-branch → wait-for-checks-terminal (INCLUDING `review`) → re-read reviewDecision → if APPROVED and required checks green (or coverage-only), merge; else abort + report. Do not read reviewDecision once before the update-branch and reuse it.
-- Interim operational guard (until promoted): for every BEHIND-PR sweep tonight, after merge re-check `reviewDecision` + whether the head branch still exists; if flipped/orphaned, fix-forward onto main.
+Queue is empty.
 
 ## Graduated
 
 - 2026-07-08 "don't offer optional next-steps" + 2026-07-09 proactivity failures (assume/ask/optional/improvise) → merged as one class and graduated to the global **proactivity guard** (`~/.claude/hooks/proactivity-reminder.mjs` UserPromptSubmit re-injection + `~/.claude/hooks/proactivity-guard.mjs` Stop class-gate). See `project_proactivity_guard` memory. Cleared 2026-07-09.
 - 2026-07-14 "opencode + Zen" is the opencode Zen gateway, NOT Z.ai → promoted to the `feedback_opencode_zen_not_zai` memory and to the `OpenCode Go plus Zen over OpenRouter` ADR in the brain vault, which carries the full naming trap + the pricing rationale. Cleared 2026-07-16.
+- 2026-07-14 sweep-merge races a re-triggered review on a BEHIND PR and merges past CHANGES_REQUESTED (orbit-api #403) → graduated to a **gate**, not prose: `tools/merge-sweep-cov.sh` and `tools/merge-sweep.sh` now block every merge path until the `review` check on the CURRENT head SHA settles, re-read `reviewDecision` after it does, and scan merged PRs' head branches at end of sweep, exiting 1 on a re-created (orphaned) branch. Cleared 2026-07-24.
+- 2026-07-24 background subagents idle on phantom "background waiters" while babysitting CI → promoted to `.claude/skills/orchestrate/SKILL.md`, "Delegation discipline → Waiting is foreground work, on both sides": the subagent-side foreground-poll contract plus the parent-side rule that "standing by" is not progress. Cleared 2026-07-24.
