@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// PreToolUse(Bash) adapter for the git-workflow guard. Thin: the rule logic lives
-// in _lib/rules-git.mjs (shared with the .opencode/plugin equivalent, so a fix
-// lands in both tools). Exits 0 (allow) or 2 + stderr (block). Any error exits 0
-// so the hook never wedges Bash.
+// PreToolUse(Bash) adapter for the git-workflow guard. Thin: the reusable core is
+// the pure functions in _lib/rules-git.mjs (opencode was dropped from this repo,
+// D22). Exits 0 (allow) or 2 + stderr (block). Any error exits 0 so the hook
+// never wedges Bash.
 
 import { execFileSync } from "node:child_process"
 import { readStdinJson } from "./_lib/io.mjs"
