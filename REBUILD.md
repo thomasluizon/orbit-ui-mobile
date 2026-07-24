@@ -640,7 +640,7 @@ The 187-line gitignored spec becomes a Linear project. The mapping:
 
 | Today | Becomes |
 |---|---|
-| The "locked decisions, do NOT re-litigate" block | The **Linear project description**, which `/orchestrate` reads first and honours verbatim, every wave |
+| The "locked decisions, do NOT re-litigate" block | The **Linear project overview content**, which `/orchestrate` reads first and honours verbatim, every wave (the 255-char description holds only a pointer) |
 | The 10-bundle table | 12 to 14 tickets (bundles 4 and 7 split across repos) |
 | "Sequence B2 after B1" | `blockedBy` from api#410 to api#407 |
 | "Run B10 last as the pre-launch gate" | ui#537 blocked by every other ticket |
@@ -909,7 +909,7 @@ All 45 open issues measured live via `gh issue list` on 2026-07-24. Disposition 
 
 | # | Disposition |
 |---|---|
-| 43 flagship landing redesign | **GitHub** (D1) but referenced by the #539 Linear project description and executed on the landing `redesign/main` per D40 |
+| 43 flagship landing redesign | **GitHub** (D1) but referenced by the #539 Linear project overview content and executed on the landing `redesign/main` per D40 |
 | 42 ADHD ASO experiment | **GitHub** (marketing experiment, post-launch) |
 
 Net: ~26 Linear tickets from migration + the ~24 redesign tickets from 8.2/8.5 + #562's ~12, well
