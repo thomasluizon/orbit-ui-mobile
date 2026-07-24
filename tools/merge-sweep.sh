@@ -1,27 +1,131 @@
 #!/usr/bin/env bash
-# Require-up-to-date merge sweep (server-side gh). Per PR: update-branch, then
-# poll mergeStateStatus itself until CLEAN/UNSTABLE (mergeable) and merge —
-# waiting THROUGH the transient UNKNOWN/BLOCKED window while post-update CI
-# re-runs. Skips only on a genuinely FAILED required check or timeout.
-repo="$1"; shift
-PRS="$@"
-mstate() { # prints "MS|REVIEW|FAILEDCHECKS"
-  gh pr view "$1" --repo "$repo" --json mergeStateStatus,reviewDecision,statusCheckRollup 2>/dev/null | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const d=JSON.parse(s);const r=d.statusCheckRollup||[];const failed=r.filter(c=>['FAILURE','ERROR','CANCELLED','TIMED_OUT','ACTION_REQUIRED','STARTUP_FAILURE'].includes((c.conclusion||c.state||'').toUpperCase())).map(c=>c.name||c.context).join(',')||'none';process.stdout.write((d.mergeStateStatus||'?')+'|'+(d.reviewDecision||'?')+'|'+failed);}catch(e){process.stdout.write('ERR|ERR|err');}})"
+# Require-up-to-date merge sweep (server-side gh). Per PR: update-branch, then poll
+# mergeStateStatus itself until CLEAN/UNSTABLE (mergeable) and merge, waiting THROUGH the
+# transient UNKNOWN/BLOCKED window while post-update CI re-runs. Skips only on a genuinely
+# FAILED required check or timeout.
+# WHY the review-staleness guard below: an update-branch rewrites the head SHA and re-triggers the
+# `review` check, but GitHub keeps the PRE-update APPROVED reviewDecision while that re-review runs,
+# so a sweep that merges on a decidable merge state can ship past a CHANGES_REQUESTED that lands
+# seconds later. That happened on https://github.com/thomasluizon/orbit-api/pull/403: a HIGH
+# backend-contract finding reached main and deployed, and the fix went to the orphaned head branch.
+# Never touches the local working tree.
+set -u
+
+REVIEW_WORKFLOW_PATH=".github/workflows/claude-review.yml"
+REVIEW_CHECK_NAME="review"
+
+usage() {
+  cat <<EOF
+Require-up-to-date merge sweep: squash-merge each APPROVED, green PR server-side.
+
+Usage: merge-sweep.sh <owner/repo> <pr-number>...
+       merge-sweep.sh --help
+
+Per PR it update-branches and polls until the merge state is decidable, then squash-merges.
+A SonarCloud failure counts as a failed check here and SKIPs; use merge-sweep-cov.sh when a
+new-code-coverage-only Sonar failure should be admin-overridden instead.
+
+It refuses to merge while the \`$REVIEW_CHECK_NAME\` check for the CURRENT head SHA is still
+running, and re-reads reviewDecision after that check settles, so a pre-update APPROVED can
+never carry a merge. Repos without $REVIEW_WORKFLOW_PATH skip that wait.
+
+After the sweep it re-checks every merged PR's head branch: a branch that exists again was
+re-created by a post-merge push, so its commits never reached main.
+
+Output (stdout): one MERGED/SKIP/MERGE-REFUSED line per PR, then any ORPHANED-HEAD lines, then
+SWEEP-DONE.
+Exit codes: 0 no orphaned head branch; 1 at least one orphaned head branch; 2 bad usage.
+EOF
 }
-for n in $PRS; do
+
+case "${1:-}" in
+  -h | --help)
+    usage
+    exit 0
+    ;;
+esac
+if [ "$#" -lt 2 ]; then
+  usage >&2
+  exit 2
+fi
+repo="$1"
+shift
+
+review_required=""
+if gh api "repos/$repo/actions/workflows" --jq '.workflows[].path' 2>/dev/null | grep -qx "$REVIEW_WORKFLOW_PATH"; then
+  review_required=1
+fi
+
+merged_heads=""
+
+mstate() { # prints  MS | REVIEW | FAILEDCHECKS | REVIEWCHECK
+  gh pr view "$1" --repo "$repo" --json mergeStateStatus,reviewDecision,statusCheckRollup 2>/dev/null | node -e "
+    let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{
+      try{
+        const d=JSON.parse(s);
+        const rows=d.statusCheckRollup||[];
+        const bad=['FAILURE','ERROR','CANCELLED','TIMED_OUT','ACTION_REQUIRED','STARTUP_FAILURE'];
+        const failed=rows.filter(c=>bad.includes((c.conclusion||c.state||'').toUpperCase())).map(c=>c.name||c.context).join(',')||'none';
+        const review=rows.find(c=>(c.name||c.context)==='$REVIEW_CHECK_NAME');
+        const reviewSettled=!!review&&(!!review.conclusion||(review.status||'').toUpperCase()==='COMPLETED');
+        const reviewCheck=!review?'ABSENT':(reviewSettled?'SETTLED':'RUNNING');
+        process.stdout.write([(d.mergeStateStatus||'?'),(d.reviewDecision||'?'),failed,reviewCheck].join('|'));
+      }catch(e){process.stdout.write('ERR|ERR|err|ERR');}
+    })"
+}
+
+for n in "$@"; do
   gh pr update-branch "$n" --repo "$repo" >/dev/null 2>&1
   done_pr=""
-  for i in $(seq 1 50); do   # up to ~17min per PR
-    IFS='|' read -r ms rev failed <<< "$(mstate "$n")"
-    if [ "$failed" != "none" ]; then echo "SKIP #$n ms=$ms FAILED=$failed"; done_pr=1; break; fi
-    if { [ "$ms" = "CLEAN" ] || [ "$ms" = "UNSTABLE" ]; } && [ "$rev" = "APPROVED" ]; then
-      if gh pr merge "$n" --repo "$repo" --squash --delete-branch >/dev/null 2>&1; then echo "MERGED #$n"; else echo "MERGE-REFUSED #$n ms=$ms rev=$rev"; fi
-      done_pr=1; break
+  block_reason="never reached a mergeable state"
+  for i in $(seq 1 50); do # up to ~17min per PR
+    IFS='|' read -r ms rev failed reviewcheck <<<"$(mstate "$n")"
+    if [ "$failed" != "none" ]; then
+      echo "SKIP #$n ms=$ms FAILED=$failed"
+      done_pr=1
+      break
+    fi
+    if [ "$ms" = "DIRTY" ]; then
+      echo "SKIP #$n ms=DIRTY (conflict)"
+      done_pr=1
+      break
+    fi
+    # The APPROVED below is PR-level and survives the update-branch, so it can predate this head
+    # SHA. Nothing may merge until this SHA's own review has settled.
+    review_stale=""
+    if [ -n "$review_required" ] && [ "$reviewcheck" != "SETTLED" ]; then
+      review_stale=1
+      block_reason="the $REVIEW_CHECK_NAME check on the current head never settled (state=$reviewcheck), so the APPROVED is stale"
+    else
+      block_reason="never reached a mergeable state (ms=$ms rev=$rev)"
+    fi
+    if [ -z "$review_stale" ] && { [ "$ms" = "CLEAN" ] || [ "$ms" = "UNSTABLE" ]; } && [ "$rev" = "APPROVED" ]; then
+      branch=$(gh pr view "$n" --repo "$repo" --json headRefName --jq .headRefName 2>/dev/null)
+      if gh pr merge "$n" --repo "$repo" --squash --delete-branch >/dev/null 2>&1; then
+        echo "MERGED #$n"
+        merged_heads="$merged_heads $n=$branch"
+      else
+        echo "MERGE-REFUSED #$n ms=$ms rev=$rev"
+      fi
+      done_pr=1
+      break
     fi
     if [ "$ms" = "BEHIND" ]; then gh pr update-branch "$n" --repo "$repo" >/dev/null 2>&1; fi
-    if [ "$ms" = "DIRTY" ]; then echo "SKIP #$n ms=DIRTY (conflict)"; done_pr=1; break; fi
     sleep 20
   done
-  [ -z "$done_pr" ] && echo "SKIP #$n (timeout waiting for CLEAN)"
+  [ -z "$done_pr" ] && echo "SKIP #$n (timeout: $block_reason)"
 done
+
+orphans=0
+for entry in $merged_heads; do
+  pr="${entry%%=*}"
+  branch="${entry#*=}"
+  [ -n "$branch" ] || continue
+  if gh api "repos/$repo/branches/$branch" >/dev/null 2>&1; then
+    echo "ORPHANED-HEAD #$pr $branch (re-created after the merge, so its commits are NOT on main)"
+    orphans=$((orphans + 1))
+  fi
+done
+
 echo "SWEEP-DONE"
+[ "$orphans" -eq 0 ] || exit 1
