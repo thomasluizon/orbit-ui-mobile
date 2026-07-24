@@ -37,9 +37,18 @@ repo (#590, api #434). Vendored skills (Orca, accesslint, impeccable, obsidian-m
 them. Also landed in Phase 6: **D42** and the context-engineering playbook (#592), and the
 frontmatter gate (#593).
 
-**Phase 7 needs Thomas:** the end-to-end proof run (best candidate ORB-75) needs a PostHog EU
-Cloud account + `codex login` on ChatGPT Pro first. The denominator audit register is in 8.5; raw
-output at `brain/2 Areas/20-29 Orbit Engineering/denominator-audit-2026-07-24 (raw, #539).json`.
+**Section 14 is fully closed and section 15 records what closing it exposed** (2026-07-24): the
+Dash Ban gate failing on every Dependabot PR in all three repos, `claude-code-action` silently
+self-skipping on PRs that edit its own workflow, a guard whose precondition failed open, the
+Contract Drift tripwire firing across repos, the security posture measured and cleared, the
+PostHog region reversed to US, ORB-83's account inventory, and the proactivity guard rework.
+
+**Phase 7 needs Thomas:** one act only. Create a **PostHog US Cloud** org and project at
+`https://app.posthog.com/signup` (region picked at signup, not changeable afterwards) and hand
+over the project API key. That gates ORB-75's screenshot acceptance criterion and therefore In
+Review; it does NOT gate the run starting, because an absent key binds a no-op and behaviour stays
+byte-identical. `codex login` is optional and always was. The denominator audit register is in 8.5;
+raw output at `brain/2 Areas/20-29 Orbit Engineering/denominator-audit-2026-07-24 (raw, #539).json`.
 
 ---
 
@@ -1022,25 +1031,45 @@ it produced exactly one wrong conclusion in this document before being caught. R
 sibling `working` / `review` / `done` values stay, because the `/orchestrate` skill uses them for
 `orca linear status set`.
 
-## 14. Open follow-ups carried out of Phase 6
+## 14. Open follow-ups carried out of Phase 6 (ALL CLOSED 2026-07-24)
 
 Real work found while finishing Phase 6, none of it blocking Phase 7. Recorded here rather than in
 a side file: a handoff doc under `.claude/specs/` is untracked by default and section 5 deletes
 that directory anyway, which is how `issue-562.spec.md` ended up local-only and at risk (4.2).
+
+**Every item below is now done.** The resolution is recorded inline per item, and the work that
+this clearing exposed is in section 15. Nothing in this section is open.
 
 1. **`orbit-api` needs `tools/check-frontmatter.mjs` vendored**, as orbit-ui-mobile has it. Its
    own `security-reviewer` copy is fixed, but nothing stops a recurrence there. The bug: an
    unquoted YAML frontmatter value containing `": "` drops the skill or agent silently, which
    disabled 5 skills and the `security-reviewer` agent (so `/pr-review` ran with no security pass)
    before it was caught 2026-07-24.
+   **DONE, api #435.** Vendored as job `Skill and Agent Frontmatter` in that repo's `guards.yml`,
+   with `actions/setup-node` in the job because orbit-api has no Node toolchain and none was added.
+   Roots are `.claude/agents`, `.claude/skills` and `.opencode/agents`. One deliberate divergence
+   from the ui original: a MISSING root is an error there rather than a quiet skip, because all
+   three are tracked and a renamed directory would otherwise turn the gate into a silent no-op.
+   That divergence is arguably right for orbit-ui-mobile too and is carried into 15.3.
 2. **`orbit-api/.github/workflows/claude-review.yml` cites stale phase numbers.** It tells CI to
    skip "Phase 6 (dotnet build / test)" and "Phase 7 posting", but validate is Phase 7 and posting
    is Phase 8. Followed literally, CI skips the adversarial verification pass and runs the
    validation it was told to skip.
+   **DONE, api #436**, and the evidence is in `pr-review/SKILL.md`: `:182` is Phase 6 adversarial,
+   `:225` is Phase 7 Validate with the dotnet commands at `:229-232`, `:240` is Phase 8 Report with
+   posting at `:306`. The skill's own note at `:326-327` already said the opposite of the workflow.
+   Both instructions now carry the phase NAME as well as the number so the pairing cannot rot
+   silently again. That PR needed a human merge; see 15.2 for why the bot could not review it.
 3. **`rubric.md` dimension 8 is stale against the post-#539 `DESIGN.md` in BOTH repos.** It still
    sanctions the gradient header and asks for "violet-glow character", both deleted by the freeze.
    The api copy's preamble also claims `/audit-code-quality` shares it and "there is no second
    copy"; neither is true in that repo.
+   **DONE, ui #595 (ui copy) and api #435 (api copy).** Both preamble claims were confirmed false
+   and corrected: orbit-api's `.claude/skills/` holds only `pr-review`, `second-opinion` and
+   `_shared`, so no `/audit-code-quality` shares it, and the ui copy exists and is not even
+   byte-identical (the api one carries four extra lines under dimension 13 for `ORBIT0002`).
+   Dimension 8 now cites `DESIGN.md` section NAMES rather than line numbers, since stale line
+   pointers were the original rot.
 4. **The skill sweep's flagged-not-applied list**, one report per batch in the session scratchpad,
    holds every proposal withheld because it touched a trigger, a completion criterion, or an
    output contract. The ones with consequences: `_shared/verification-protocol.md` still speaks
@@ -1051,9 +1080,27 @@ that directory anyway, which is how `issue-562.spec.md` ended up local-only and 
    `audit-readonly`, a wider tool surface; `.claude/audits/prod-readiness-both.md` still exists on
    disk while three D10-rewritten skills promise nothing is persisted there; and `llm-council` and
    `deep-research` both cite a "3-concurrent subagent cap" that exists in no rules file.
+   **DONE, ui #595**, with three of the five premises corrected by contact with the code.
+   `verification-protocol.md` was rewritten to the D10/D11 contract, and a new section 0 fixes the
+   output per consumer instead of leaving "the report" ambiguous; `/thermo-nuclear-code-quality-review`
+   cited it in three places while appearing in neither its header list nor its calibration table,
+   so it gained a row. `audit-performance` was DECOUPLED rather than documented: its finder
+   checklist moved to `audit-performance/checklist.md` and all four machine-read artifacts now
+   carry a `Machine-read` header naming the coupling, which also stopped the finder prompt being
+   fed the skill's ticket-emission pipeline and guardrails. All four audit skills' headless
+   fallbacks now spawn `audit-readonly` instead of `Explore`. The three corrections: the coupling
+   is at `.claude/workflows/audit.mjs:104`, not `tools/audit.mjs` which never existed; nothing was
+   still writing to `.claude/audits/` (the files were pre-D10 leftovers from July 9 and 11, and the
+   directory is gitignored so there was no repo diff to make); and the subagent cap was not phantom
+   as a NUMBER, five skills use 3 consistently as a fan-out convention, what was phantom was the
+   citation of `CLAUDE.md` as its source.
 5. **`.tmp_users.txt` at the repo root** is the original 3,830-line planning transcript that
    produced this document. Untracked and NOT gitignored, so it can be committed by accident.
    Thomas has been asked whether to archive it to the vault; unanswered.
+   **DONE.** Archived to
+   `brain/2 Areas/20-29 Orbit Engineering/Workflow rebuild planning transcript 2026-07-24 (raw, source of REBUILD.md).md`,
+   byte-compared identical with `cmp` before the repo copy was deleted. The vault holds knowledge,
+   the repo holds machines.
 6. **A `/doctor` pass on 2026-07-24 removed a Stop hook** (`brain/scripts/session-capture.ps1`)
    that spawned a nested `claude -p` and timed out on 131 of 135 runs, about 2h16m of blocked
    time in one day. Settings backup at `~/.claude/settings.json.bak-doctor`. If brain session
@@ -1061,3 +1108,139 @@ that directory anyway, which is how `issue-562.spec.md` ended up local-only and 
    The same pass found this repo runs `core.hooksPath` redirected to `C:\orbit\.git\hooks`, so
    lefthook reports "Skipping hook sync" and its pre-push guard never installs here. Server-side
    branch protection is the real gate on `main`; the local guard is not protection in this repo.
+   **DONE, both halves.** The capture script is now fire-and-forget: the prompt goes to a temp file
+   and a detached `Start-Process` picks it up, so the hook returns in about 100ms instead of
+   blocking, measured. It is re-enabled at a 10s timeout rather than 60s, because a long timeout on
+   a fire-and-forget script only buys a long stall if it ever regresses. Committed to the brain
+   repo as `b08be84`, with the reasoning written into `scripts/cron/optional-extras.md` so the
+   synchronous version cannot come back by accident.
+   The `core.hooksPath` finding turned out to be worse than recorded: it pointed at `C:\orbit\.git\hooks`,
+   which is a DIFFERENT repository's hooks directory containing git-lfs hooks, while this repo's own
+   `.git/hooks` was empty. So lefthook had never run here at all, not merely "reported skipping".
+   Unset, `lefthook install` re-run, and the pre-push guard proven by hand: exit 1 on
+   `refs/heads/main`, exit 0 on a feature branch. Every commit in this session since then has shown
+   the lefthook banner, which is the standing proof it is live.
+
+---
+
+## 15. What clearing section 14 exposed (2026-07-24)
+
+Every item here was found while doing section 14, not planned. Each is fixed. They are recorded
+because four of them are defect CLASSES rather than instances, and a class that is not named comes
+back.
+
+### 15.1 The Dash Ban gate failed on every Dependabot PR, in all three repos
+
+The `dashes` job fed the raw PR title and body to `check-dashes.mjs` with no author scoping.
+Dependabot copies the dependency's own changelog verbatim into the body, so an upstream release
+note containing an en dash failed a gate on text Orbit neither wrote nor can edit, and which
+Dependabot regenerates on every rebase. It was not hypothetical: api #425, a 21-package NuGet
+security bump, was red because a Hangfire release note contains `**Added** - Russian translation`.
+
+Fixed identically in all three repos (ui #598, api #435, landing #50) by scoping ONLY the prose
+step to `github.event.pull_request.user.type != 'Bot'`, verified against live GitHub data (`Bot`
+for `dependabot[bot]`, `User` for a human). The file-level dash check and the shrink-only baseline
+deliberately still run on bot PRs, because the files a Dependabot PR changes ARE Orbit's.
+
+**The class:** a gate whose input is not authored by the project will produce a false red that
+nobody can fix, and a false red that cannot be fixed trains people to merge past gates.
+
+### 15.2 `claude-code-action` self-skips on any PR that edits `claude-review.yml`
+
+It reports the `review` check as PASSING while posting no review at all, leaving
+`reviewDecision: REVIEW_REQUIRED` and zero reviews. api #435 originally carried six fixes,
+including an OAuth behaviour change and a security fix, and would have merged with no review
+whatsoever behind a green check.
+
+The fix is structural, not a one-off: **split the workflow-file edit into its own PR.** #435 then
+got a genuine two-review APPROVE, and #436 carried only the two-file comment change that no bot
+can ever review. Do this every time a PR would touch `claude-review.yml`.
+
+### 15.3 A guard's own precondition can fail open
+
+The lesson-1 promotion (ui #597) added a review-staleness guard to the merge sweeps. Its first
+version switched itself on from an unpaginated, error-swallowed `gh api .../actions/workflows`
+call that DEFAULTED TO OFF, so a repo with more than 30 workflow files, or any transient auth,
+rate-limit or network failure, silently disabled the entire guard with no error line. Its orphan
+scan had a second fail-open lookup. Both were caught in review and fixed by paginating and
+inverting the default so an API failure fails toward waiting.
+
+This is the locked decision *"a verifier error is not a clean pass"* one level up, and it is the
+third time in three days it has bitten. **Fail-closed applies to a gate's INPUTS, not only to its
+verdict.** The same reasoning is why 14.1's vendored frontmatter gate treats a missing root as an
+error rather than a quiet skip; the ui copy still skips quietly and should be brought into line.
+
+### 15.4 The Contract Drift gate is a real cross-repo tripwire and it fired
+
+api #435 dropped the unread `client_id` field from `/oauth/token`, which changed the published
+OpenAPI spec, which staled the committed Zod snapshot, which turned Contract Drift red on EVERY
+open ui PR at once. The gate was correct and the blast radius is the point: an api merge can block
+the entire ui queue. Re-baselined in ui #600 (`npm run generate:zod -w @orbit/shared`), a two-line
+diff, with a grep confirming no hand-written consumer referenced the field.
+
+**Sequencing rule this establishes:** after an orbit-api merge that touches any contract surface,
+re-baseline the ui snapshot BEFORE queuing ui merges, not after they go red.
+
+### 15.5 Security posture, measured and closed
+
+- **orbit-ui-mobile:** 11 open Dependabot alerts (postcss x3, sharp, js-yaml, brace-expansion,
+  tmp x2, qs, uuid, dompurify). dompurify cleared by #576; the remaining ten by #599.
+- **orbit-api:** 2 CodeQL alerts. The medium (`arch-map.yml` not limiting `GITHUB_TOKEN`) fixed in
+  #435, which audited all 9 workflows rather than the one CodeQL happened to surface, and found
+  the other 8 already minimal. The HIGH (`cs/user-controlled-bypass` at `OAuthController.cs:294`,
+  open since 2026-07-08) was reviewed and **dismissed as a false positive with the reasoning
+  attached**: `grant_type != "authorization_code"` is a protocol discriminator, while the real gate
+  is `OAuthAuthorizationStore.ExchangeCode` at lines 35-56 (atomic single-use `TryRemove`, 5-minute
+  expiry, exact ordinal `redirect_uri` binding, PKCE verification), none of which any value of
+  `grant_type` can influence. `IsRedirectUriAllowed` was checked specifically for the prefix-match
+  weakness and is an exact `HashSet` host match.
+- **orbit-landing-page:** zero alerts of any kind, zero open PRs.
+- The same review found a genuine LOW that CodeQL did not: `client_id` was bound on the token
+  endpoint and never read. Dropped rather than wired, because `/oauth/register` returns a
+  throwaway GUID and persists nothing and `token_endpoint_auth_method` is `none`, so both the
+  authorize-time and token-time values are unverified client assertions. That removal is what
+  triggered 15.4.
+- **`Dash Ban` and `Skill and Agent Frontmatter` are now REQUIRED contexts on orbit-api's `main`.**
+  They were running red without blocking anything, which is not a gate. Added only after #435
+  merged, because requiring a job that does not yet exist on `main` would have blocked every open
+  PR permanently.
+
+### 15.6 The PostHog region decision was reversed, EU to US
+
+The PostHog project locked EU Cloud (Frankfurt) on a rationale of "Brazilian founder plus likely
+EU users, LGPD and GDPR overlap". Thomas challenged it and was right. orbit-api runs on Render in
+`ohio` and the primary user database is in the US, so analytics in the EU protected nothing while
+splitting the stack across two jurisdictions. GDPR follows the data subject rather than the server,
+and LGPD is Brazilian law that never required EU hosting.
+
+Now `https://us.i.posthog.com`, verified as PostHog's own documented default. All 20 references
+rewritten across the project overview and ORB-75, 76, 77, 79, 81, with the reversal and its reason
+recorded in the project overview so it is not re-litigated. Settled BEFORE signup because PostHog
+does not document a way to move a project between regions.
+
+### 15.7 ORB-83: every third-party account is now inventoried
+
+Thomas asked which vendor accounts sit on a personal email versus `contact@useorbit.org`. Nobody
+could answer. **ORB-83** (Launch project) carries the swept inventory: 12 product-critical services
+ranked by blast radius, 5 developer-tooling accounts, the excluded no-account list, a migration
+order that puts the domain registrar last, and the 16 CI secret NAMES that a token rotation would
+invalidate. It passes `check-ticket.mjs`. The rule it encodes: anything holding user data or
+costing money lives on `contact@useorbit.org`. ORB-28 already owns the Play listing half.
+
+The one genuinely unrecoverable item the sweep surfaced: the Android upload keystore. Losing it
+means the app cannot be updated on Play without Google's key-reset process, so ORB-83 requires
+confirming a backup exists off a single personal machine before any migration starts.
+
+### 15.8 The proactivity guard misfired and was reworked
+
+The Stop-hook proactivity guard blocked a turn for "deferring" a Linear ticket that was waiting on
+a still-running sweep subagent, which was correct sequencing. Thomas: it "rushed a lot of work".
+The judge prompt had no way to tell an in-flight delegation from a punt to a future session.
+
+Reworked: the hook now extracts `Agent`, `SendMessage` and `Workflow` tool calls from the turn and
+passes them to the judge as an explicit list, and ONLY when that list is non-empty does it add a
+scoped rule that waiting on those agents is not deferral. The rule is deliberately conditional,
+because an unconditional version measurably leaked into unrelated judgments and made the guard too
+permissive. **Honest limitation:** the original misfire could not be reproduced synthetically, so
+the fix is reasoned rather than proven. If it misfires again, deleting the `Stop` entry from
+`~/.claude/settings.json` is the one-line answer.
