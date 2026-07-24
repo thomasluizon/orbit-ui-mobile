@@ -101,7 +101,7 @@ rounds). It returns:
 
 ```
 { findings: [{ severity, title, category, location, evidence, rationale, fix, reference }],
-  counts, coverage, deferred, rounds, converged, convergenceReason, criticErrors, scopeLabel }
+  counts, coverage, deferred, rounds, converged, convergenceReason, loopBound, criticErrors, scopeLabel }
 ```
 
 **Completeness is a computed field, not an assumption.** `converged === true` only after the
@@ -114,9 +114,11 @@ Orbit-specific must-checks (Phase 3), if the returned `coverage` omits one, add 
 gap and re-invoke the workflow with a narrowed scope.
 
 **Fallback (no `Workflow` tool, headless/CI):** run the fan-out inline instead, spawn
-`Explore` finders (Haiku, 3 concurrent) over the six surfaces against `checklist.md`, then
-Haiku skeptics per Tier-1/2 finding, then a completeness pass, exactly the workflow's
-phases, per verification-protocol §2/§3. Same findings shape.
+`audit-readonly` finders (Haiku, 3 concurrent) over the six surfaces against `checklist.md`,
+then Haiku skeptics per Tier-1/2 finding, then a completeness pass, exactly the workflow's
+phases, per verification-protocol §2/§3. Same findings shape. The fallback keeps the primary
+path's agent type on purpose: `audit-readonly` has no write, edit, or shell tools, so a
+missing `Workflow` tool can never widen a read-only audit's tool surface.
 
 ---
 

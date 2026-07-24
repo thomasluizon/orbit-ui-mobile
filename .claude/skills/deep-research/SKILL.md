@@ -27,10 +27,10 @@ Don't research yet. First pin:
 | Signal | Mode | Fan-out | Verify |
 |---|---|---|---|
 | `--quick`, "just check", single narrow axis | **Quick** | 1–2 agents | single confirm |
-| default | **Standard** | 3–4 agents (the 3-concurrent cap, +1 queued) | targeted re-confirm of top claims |
+| default | **Standard** | 3–4 agents (3 concurrent, +1 queued) | targeted re-confirm of top claims |
 | `--deep`, "exhaustive", "go crazy", "be thorough"; or high-stakes / hard-to-reverse | **Deep** | waves of agents + **loop-until-saturation** | adversarial refute-panel on every load-bearing claim |
 
-Raise the **3-concurrent subagent cap** only when the user said "go crazy / no cap / all at once" (root CLAUDE.md).
+**3 concurrent** is this skill's own token and rate-limit budget, not a cap enforced anywhere; raise it only when the user said "go crazy / no cap / all at once".
 
 ---
 

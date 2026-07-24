@@ -103,7 +103,7 @@ Deferred, this bounds a systemically-weak suite), then loops until dry. It retur
 
 ```
 { findings: [{ severity, title, category, location, evidence, rationale, fix, reference }],
-  counts, coverage, deferred, rounds, converged, convergenceReason, criticErrors, scopeLabel }
+  counts, coverage, deferred, rounds, converged, convergenceReason, loopBound, criticErrors, scopeLabel }
 ```
 
 **Completeness is a computed field, not an assumption.** `converged === true` only after the
@@ -113,9 +113,11 @@ ${convergenceReason}", never as a clean/complete audit. A dead verifier is not a
 
 `fix` carries the concrete test to add; `rationale` carries what a break it would NOT catch.
 
-**Fallback (no `Workflow` tool, the #213 requirement):** run the fan-out inline, `Explore` finders (Haiku, 3
-concurrent) over the five suite areas against `rubric.md`, Haiku skeptics (each Critical;
-High batched one-per-~5 or capped at top 15), a completeness pass, same findings shape.
+**Fallback (no `Workflow` tool, the #213 requirement):** run the fan-out inline,
+`audit-readonly` finders (Haiku, 3 concurrent) over the five suite areas against
+`rubric.md`, Haiku skeptics (each Critical; High batched one-per-~5 or capped at top 15), a
+completeness pass, same findings shape. The fallback keeps the primary path's agent type on
+purpose: an audit reads, so its workers carry no write, edit, or shell tools either way.
 
 ---
 

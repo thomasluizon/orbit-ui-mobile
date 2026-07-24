@@ -40,7 +40,7 @@ Pin, in one or two lines each:
    cross-platform parity, backward-compat). State assumptions rather than interrogating; ask
    only a load-bearing unknown that would flip the recommendation.
 4. **Panel size**, default **4 councillors** (+ chairman). `--panel N` overrides; floor 3,
-   cap at the 3-concurrent subagent limit per the root CLAUDE.md (queue extras).
+   and the panel runs 3 at a time (Phase 2), so a larger `N` queues rather than widens.
 
 ---
 
@@ -66,7 +66,8 @@ say the same thing (correlated councillors waste the panel).
 ## Phase 2: Independent framings (fan out)
 
 Spawn the councillors as **independent subagents, 3 concurrent** (queue extras), each
-blind to the others. Each prompt embeds:
+blind to the others. Three at a time is this skill's own token and rate-limit budget, not a
+cap enforced anywhere; widen it only if the user asks for it. Each prompt embeds:
 
 > **You are <lens>** vetting: <the decision, with Phase-0 framing & constraints>. Argue
 > **from your lens only**, don't hedge into neutrality. Give: your **recommendation** (a

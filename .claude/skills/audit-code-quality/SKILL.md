@@ -96,7 +96,7 @@ claims); loops a completeness critic until dry (cap 2 dry rounds). It returns:
 
 ```
 { findings: [{ severity, title, category, location, evidence, rationale, fix, reference }],
-  counts, coverage, deferred, rounds, converged, convergenceReason, criticErrors, scopeLabel }
+  counts, coverage, deferred, rounds, converged, convergenceReason, loopBound, criticErrors, scopeLabel }
 ```
 
 **Completeness is a computed field, not an assumption.** `converged === true` only after the
@@ -107,9 +107,11 @@ Diff-only dimensions (contract drift / backward-compat (#11) and the security or
 are **not** re-derived here; note them as "covered by /audit-security" at the approval gate,
 never as a code-quality ticket.
 
-**Fallback (no `Workflow` tool):** run the fan-out inline — `Explore` finders (Haiku, 3
-concurrent) over the five areas against the shared rubric, Haiku skeptics per Critical/High
-finding, a completeness pass — same findings shape.
+**Fallback (no `Workflow` tool):** run the fan-out inline, `audit-readonly` finders (Haiku,
+3 concurrent) over the five areas against the shared rubric, Haiku skeptics per Critical/High
+finding, a completeness pass, same findings shape. The fallback keeps the primary path's
+agent type on purpose: an audit reads, so its workers carry no write, edit, or shell tools
+either way.
 
 ---
 
