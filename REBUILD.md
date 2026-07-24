@@ -9,7 +9,7 @@ truth until the rebuild lands.
 parts graduate to `CLAUDE.md`, `AGENTS.md`, `DESIGN.md`, and brain ADRs. Do not let it survive as
 a stale artifact.
 
-**Status: PHASES 0-5 EXECUTED 2026-07-24. Phase 6 next, then Phase 7.** Phases 0-4 done
+**Status: PHASES 0-6 EXECUTED 2026-07-24. Phase 7 is the only one left.** Phases 0-4 done
 (branches archived, Dependabot merged, worktrees gone; 5 guard PRs; both arch-map PRs; the
 orchestrator PR, wave machinery proven against live Linear). Phase 3 (the deletion) executed:
 section 5 carried out with the D39 survivors honored (`surface-manifest.mjs`, `surfaces.json`,
@@ -413,7 +413,7 @@ Ordered. Phase 1 cannot be reordered: running any worker before it ships unguard
 | **4** | `AGENTS.md`, `orchestrator.json`, the two agents, `/feature`, `/bug`, `/orchestrate`, the ticket template and checker, and D7/D8/D9 as machinery | A dry-run wave table prints. **DONE 2026-07-24** (PR pending): `tools/wave-plan.mjs` printed a REAL two-wave table against live Linear (smoke tickets ORB-5 blocking ORB-6, then canceled), `tools/check-ticket.mjs` passed a valid body and correctly rejected the live issue for its missing repo label. **Constraint discovered:** the orca CLI can create/edit ISSUES and relations but has NO project-create or label-create; Phase 5 needs the `repo:*`, `parity:*`, `visible-effect`, `attempts:2` labels and the projects (539, 562, Launch, Backlog) to exist first, via either a Linear personal API key (GraphQL, automatable, PREFERRED: Thomas creates the key once at linear.app Settings > Security & access > Personal API keys) or manual UI creation. Ask Thomas at the next checkpoint |
 | **5** | Migrate 43 open GitHub issues into Linear as a triage pass (fold, close, rewrite). Re-cut #539 and #562 as Linear projects, including R19-R21, the landing ticket(s) and the D20 assets (8.5.2), with the animation list and claimed-orphan candidates reconciled per D8 into ticket bodies. Extend `redesign-coverage.mjs` with the file-level assertion (D38). | Thomas approves the fold/close table, then sees the wave tables |
 | **6** | Generate the mechanical-debt project from the suppression ledgers. Redesign `/prod-readiness` and the 4 `/audit-*` per D10 and D11. Sort every doc per D12. Run the redesigned audit once. Run the skill rewrite pass (section 10). | **DONE 2026-07-24.** The mechanical debt did NOT become its own project: it is drained inside the #539 per-surface tickets that already own those files (D38), with ORB-46 rewritten as the terminal must-equal-zero backstop. Audits redesigned (#588), docs sorted and WORKFLOW.md deleted (#586), 48 skills swept (#590 + api #434). The one item deliberately NOT done is running the redesigned audit once: under D10 an audit's output is Linear tickets, and firing a ~22.8M-token pass to mint tickets nobody will start before Phase 7 is waste. Run it when Phase 7 proves the flow |
-| **7** | Run the full flow end to end on one small real ticket while Thomas watches. Then #539 wave 1. Candidate: **ORB-75** (PostHog server SDK), the launchable ticket of the PostHog project. Blocked on two acts only Thomas can perform: a PostHog EU Cloud org and project with the key on Render, and `codex login` on ChatGPT Pro IF the proof should run on the codex engine (otherwise it runs on `claude`, the current `orchestrator.json` default, which needs nothing). | A PR comes out the other side |
+| **7** | Run the full flow end to end on one small real ticket while Thomas watches. Then #539 wave 1. Candidate: **ORB-75** (PostHog server SDK), the launchable ticket of the PostHog project. **The blocker is narrower than it reads** (measured against the live ticket body 2026-07-24): ORB-75 is written so an absent key binds a no-op implementation and behaviour stays byte-identical, so the code and all six unit tests can be written and reviewed with no account at all. What the account gates is the LAST acceptance criterion, a screenshot of the four subscription events arriving in the PostHog EU project from a Stripe CLI session, and that criterion is explicitly required to reach In Review. Setting `PostHog:ApiKey` on Render is a post-merge rollout step, not a prerequisite. So: a PostHog EU org plus one project plus a test key unblocks In Review; nothing blocks the run from starting. `codex login` is optional and always was, since `orchestrator.json` defaults to the `claude` engine; `codex-cli` 0.118.0 is already installed on this machine and reports `Not logged in`. | A PR comes out the other side |
 
 **The one screen Thomas watches while a wave runs.** Asked three times on 2026-07-24 and answered
 wrong twice, so the exact configuration is recorded here rather than re-derived.
@@ -790,7 +790,14 @@ there; note it and move on.
 
 Everything not on this list is Claude's.
 
-### ALL DONE as of 2026-07-23. Nothing is waiting on Thomas.
+### Everything below was DONE by 2026-07-23. One new item opened for Phase 7 (2026-07-24).
+
+- [ ] **A PostHog EU Cloud org and one project, plus a test project key.** Gates the ORB-75
+      screenshot acceptance criterion and therefore In Review, not the orchestrate run itself.
+      See the Phase 7 row of the phase table for exactly what is and is not blocked.
+- [ ] **`codex login`, optional.** `codex-cli` 0.118.0 is installed and reports `Not logged in`.
+      Only needed if the Phase 7 proof should run on the codex engine; `orchestrator.json`
+      defaults to `claude`, which needs nothing.
 
 - [x] PR #574 merged (cleared 4 of the 271 spacing violations on the web streak page)
 - [x] `/tui fullscreen` enabled
@@ -904,7 +911,14 @@ Output feeds #539 ticket 0 (section 8.2). This is the only genuine blocker for t
 
 ---
 
-## 13. The Phase 5 triage table (drafted 2026-07-24, needs Thomas's approval before execution)
+## 13. The Phase 5 triage table (EXECUTED 2026-07-24, historical record)
+
+Approved and carried out: roughly 40 GitHub issues were closed with Linear pointers and the
+stay-GitHub set (ui#387, api#319, landing#43, landing#42) was left in place, as the status header
+records. The table below is kept as the audit trail of what was decided for each issue, not as
+pending work. Its forward-looking phrasings ("INTO the Phase 6 mechanical-debt project") describe
+intent at drafting time; where reality diverged, the phase table and section 14 are authoritative.
+The mechanical-debt project in particular was never created, by design (see the Phase 6 row).
 
 All 45 open issues measured live via `gh issue list` on 2026-07-24. Disposition legend:
 **Linear** = re-cut as a Linear ticket/project then close the GitHub issue with a pointer;
