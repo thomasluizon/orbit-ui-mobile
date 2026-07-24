@@ -9,21 +9,37 @@ truth until the rebuild lands.
 parts graduate to `CLAUDE.md`, `AGENTS.md`, `DESIGN.md`, and brain ADRs. Do not let it survive as
 a stale artifact.
 
-**Status: PHASES 0-4 EXECUTED 2026-07-24** (overnight run). Phase 0 done (branches archived,
-Dependabot merged, #560/#575 closed, worktrees gone). Phase 1 done (5 guard PRs across 3 repos).
-Phase 2 done (both arch-map PRs, drift gates green in CI). Phase 4 done (orchestrator PR, wave
-machinery proven against live Linear). **Phase 3 (the deletion) EXECUTED 2026-07-24** after the
-ui PRs merged: section 5 carried out with the D39 survivors honored (`surface-manifest.mjs`,
-`surfaces.json`, `capture-surfaces.mjs`, and `redesign-coverage.mjs`, which that PR landed in
-git for the first time); `CLAUDE.md` and `.claude/rules/core.md` rewritten; the old wired hooks
-and the Harness Hook Parity CI job deleted with the harness (the job was not a required context).
-**Phase 5 needs from Thomas**: (1) the merges, (2) ~~Linear API key~~ DONE 2026-07-24: key lives
-at `~\.linear-api-key` (read at call time, never echoed); the 4 projects (539 Redesign, 562 Astra,
-Launch, Backlog) + 7 labels (repo:ui/api/landing, parity:yes/no, visible-effect, attempts:2)
-created via GraphQL and verified visible to orca, (3) approval of the section 13 triage table.
-Linear workspace `useorbitai`, team `ORB`, team id `99996489-8aad-4e01-a8f9-6123adfb7d6b`.
-The denominator audit register is in 8.5; raw output archived at
-`.claude/specs/denominator-audit-2026-07-24.json`.
+**Status: PHASES 0-5 EXECUTED 2026-07-24. Phase 6 next, then Phase 7.** Phases 0-4 done
+(branches archived, Dependabot merged, worktrees gone; 5 guard PRs; both arch-map PRs; the
+orchestrator PR, wave machinery proven against live Linear). Phase 3 (the deletion) executed:
+section 5 carried out with the D39 survivors honored (`surface-manifest.mjs`, `surfaces.json`,
+`capture-surfaces.mjs`, `redesign-coverage.mjs`), `CLAUDE.md` and `.claude/rules/core.md`
+rewritten, the old wired hooks + Harness Hook Parity CI job deleted (merged PR #581,
+32k lines). Phase 5 executed: the full Linear board exists in workspace `useorbitai`, team
+`ORB` (id `99996489-8aad-4e01-a8f9-6123adfb7d6b`): **539 Redesign** 26 tickets (launchable
+ORB-30), **562 Astra** 14, **Launch** 11, **PostHog** 8 (ORB-75..82, launchable ORB-75, an
+adopted feature cut via the new /feature flow), **Brand Assets** 2, **Backlog** 12; ~40 GitHub
+issues closed with Linear pointers; stay-GitHub: ui#387, api#319, landing#43, landing#42. The
+D38 file-level coverage assertion, the wave-plan cross-project-blocker fix, and the
+/orchestrate overview-content fetch all merged (PRs #582/#583/#584). Linear API key at
+`~\.linear-api-key` (read at call time, never echoed); each project's locked decisions live in
+its OVERVIEW CONTENT, not the 255-char description.
+
+**Phase 6 COMPLETE 2026-07-24.** All four items done. (1) The mechanical-debt work was NOT cut
+as its own project: the suppression debt is drained inside the #539 per-surface tickets, which
+already own their files under D38, and seed ticket **ORB-46** was rewritten as the terminal
+backstop that flips the ratchet to must-equal-zero once every R ticket has merged. A separate
+batch-drain project would have double-owned files, a D4/D35/D38 defect. (2) `/prod-readiness`
+and the 4 `/audit-*` redesigned to D10/D11 (PR #588). (3) Docs sorted per D12; `WORKFLOW.md`
+deleted (PR #586). (4) The skill sweep ran across all 48 skills, 13 batched agents, one PR per
+repo (#590, api #434). Vendored skills (Orca, accesslint, impeccable, obsidian-markdown, the
+`brain-*` family) got recommendations only, never writes, so an upstream update cannot clobber
+them. Also landed in Phase 6: **D42** and the context-engineering playbook (#592), and the
+frontmatter gate (#593).
+
+**Phase 7 needs Thomas:** the end-to-end proof run (best candidate ORB-75) needs a PostHog EU
+Cloud account + `codex login` on ChatGPT Pro first. The denominator audit register is in 8.5; raw
+output at `.claude/specs/denominator-audit-2026-07-24.json`.
 
 ---
 
@@ -145,6 +161,7 @@ Numbered so they can be cited. Do not re-litigate without a superseding entry.
 | **D39** | **`surface-manifest.mjs`, `surfaces.json` and `redesign-coverage.mjs` survive Phase 3 until the #539 project completes.** The coverage gate reads the manifest; deleting it with the rest of the 804-cell machine (section 5) would orphan the redesign's denominator. The judge, signoff and verdict machinery still dies on schedule. The manifest folds into `arch-map.mjs` when #539 closes. |
 | **D40** | **The landing page and the emails switch the same day the app does.** The landing repo gets its own `redesign/main` integration branch (D36's mechanism, second repo), merged the same day as the app's; `R20-comms` (orbit-api) merges to `main` right before the switch. Chosen by Thomas 2026-07-24 over landing-leads and landing-trails. |
 | **D41** | **The logo: Claude generates flat-SVG candidates against the D32 brief, Thomas picks or rejects.** Same pattern as the reference board. Rejection loops with new candidates; commissioning stays available as the fallback if no round survives. Chosen by Thomas 2026-07-24. |
+| **D42** | **A rendered reference outranks a written spec, and ticket 0 ships one.** Anthropic's 2026-07-24 context-engineering guidance for 5-generation models states that a rendered mockup produces better results as agent input than a description or a screenshot. That is a direct diagnosis of the #539 failure: 1.2 records the causes as "the spec is subtractive" and "nothing in the loop rendered a picture", and `DESIGN.md` carried one mechanical rule with everything else as prose adjectives. So **ORB-30 also produces `design/reference.html`**, one self-contained page rendering every token, the type scale at real sizes, each list density as real rows, all 8 states per primitive, the habit-colour palette on real rows, and D34 shown correct beside violated. Where the page and the prose disagree, **the page wins and the prose is the defect**. The ticket carries `visible-effect` so the D7 evidence gate binds, and Thomas's approval of that page is the D13 human grant that unblocks R1 to R21. Generalised into `.claude/playbooks/context-engineering.md` (read before authoring anything the agent reads), whose other seven rules mostly corroborate conclusions this repo had already measured. |
 | **D27** | **`## Code Review Rules` covers only what no gate can check.** OpenAI's own guidance matches D11: *"Keep formatting and other mechanical checks in CI."* Their measurement: well-scoped rules reach 98% violation recall while staying quiet on clean diffs; broad rules produce noise. **Do not restate** the lint rules, the comment policy, `DateTime.UtcNow`, or the authorization attribute; all become deterministic gates in Phase 1. **Do state**, each with a safe path: (1) a DTO field renamed, removed or retyped that a shipped mobile client still reads, which `Contract Drift` cannot judge because it does not know the Play fleet lag; (2) `AppConfig.MinSupportedVersion` raised before the carrying build is live; (3) a mobile mirror that exists but behaves differently from the web change, which the CI parity job cannot see; (4) a load-bearing string changed (URL slug, anchor id, primary nav label, form field `name` or order), which is `core.md` rule 4 and has no gate. |
 
 ### 2.1 Decisions carried in from existing ADRs (unchanged)
@@ -395,7 +412,7 @@ Ordered. Phase 1 cannot be reordered: running any worker before it ships unguard
 | **3** | The deletion (section 5). Rewrite `CLAUDE.md` and `.claude/rules/core.md`. | ~34,000 lines lighter, all CI green. **DONE 2026-07-24**: 32,046 lines deleted across 290 files in the Phase 3 PR (the `.claude/drive/` and specs/plans lines in section 5's estimate were never tracked on `main`); D39 survivors kept; test-hooks trimmed to the surviving hooks + the frontmatter guard, local-only |
 | **4** | `AGENTS.md`, `orchestrator.json`, the two agents, `/feature`, `/bug`, `/orchestrate`, the ticket template and checker, and D7/D8/D9 as machinery | A dry-run wave table prints. **DONE 2026-07-24** (PR pending): `tools/wave-plan.mjs` printed a REAL two-wave table against live Linear (smoke tickets ORB-5 blocking ORB-6, then canceled), `tools/check-ticket.mjs` passed a valid body and correctly rejected the live issue for its missing repo label. **Constraint discovered:** the orca CLI can create/edit ISSUES and relations but has NO project-create or label-create; Phase 5 needs the `repo:*`, `parity:*`, `visible-effect`, `attempts:2` labels and the projects (539, 562, Launch, Backlog) to exist first, via either a Linear personal API key (GraphQL, automatable, PREFERRED: Thomas creates the key once at linear.app Settings > Security & access > Personal API keys) or manual UI creation. Ask Thomas at the next checkpoint |
 | **5** | Migrate 43 open GitHub issues into Linear as a triage pass (fold, close, rewrite). Re-cut #539 and #562 as Linear projects, including R19-R21, the landing ticket(s) and the D20 assets (8.5.2), with the animation list and claimed-orphan candidates reconciled per D8 into ticket bodies. Extend `redesign-coverage.mjs` with the file-level assertion (D38). | Thomas approves the fold/close table, then sees the wave tables |
-| **6** | Generate the mechanical-debt project from the suppression ledgers. Redesign `/prod-readiness` and the 4 `/audit-*` per D10 and D11. Sort every doc per D12. Run the redesigned audit once. Run the skill rewrite pass (section 10). | Backlog contains the cleanup tickets |
+| **6** | Generate the mechanical-debt project from the suppression ledgers. Redesign `/prod-readiness` and the 4 `/audit-*` per D10 and D11. Sort every doc per D12. Run the redesigned audit once. Run the skill rewrite pass (section 10). | **DONE 2026-07-24.** The mechanical debt did NOT become its own project: it is drained inside the #539 per-surface tickets that already own those files (D38), with ORB-46 rewritten as the terminal must-equal-zero backstop. Audits redesigned (#588), docs sorted and WORKFLOW.md deleted (#586), 48 skills swept (#590 + api #434). The one item deliberately NOT done is running the redesigned audit once: under D10 an audit's output is Linear tickets, and firing a ~22.8M-token pass to mint tickets nobody will start before Phase 7 is waste. Run it when Phase 7 proves the flow |
 | **7** | Run the full flow end to end on one small real ticket while Thomas watches. Then #539 wave 1. | A PR comes out the other side |
 
 ---
@@ -785,7 +802,7 @@ The steps below are kept only as the record of what was done.
 
 ### 3. Set the session model
 
-1. `/model` -> **Fable 5**
+1. `/model` -> **Opus 5**
 2. `/effort` -> **High**. If the command does not exist, say so.
 3. This is the only model setting ever touched. Workers get theirs from
    `.claude/orchestrator.json`.
@@ -851,8 +868,15 @@ Output feeds #539 ticket 0 (section 8.2). This is the only genuine blocker for t
 2. ~~CodeRabbit.~~ **Decided 2026-07-23: rejected (D24).** No CI reviewer is added at all (D25).
    The cross-model second opinion runs locally inside the orchestrator on the Codex CLI
    subscription (D26). Nothing here needs an API key or a stored credential.
-3. **Whether `FEATURES.md`, `TESTING.md`, `WORKFLOW.md`, the 4 playbooks and the 3 rules files
-   are generated, kept small, or deleted.** Decided per file during Phase 6 under D12.
+3. ~~Whether `FEATURES.md`, `TESTING.md`, `WORKFLOW.md`, the 4 playbooks and the 3 rules files
+   are generated, kept small, or deleted.~~ **Decided 2026-07-24 under D12 (PR #586).**
+   `WORKFLOW.md` deleted, its `/drive` instructions being actively wrong after Phase 3.
+   `FEATURES.md` kept as hand-maintained, because the Free/Trial/Pro/Yearly gating it carries is
+   not derivable from the arch map; the `/pr-review` feature-inventory check (rubric 14) keeps it
+   honest. `TESTING.md` kept small. The playbooks and rules files kept, and the tier grew a fifth
+   playbook, `context-engineering.md` (D42, PR #592).
+
+**Nothing in this section is open.** Every remaining unknown is empirical and belongs to Phase 7.
 
 ---
 
