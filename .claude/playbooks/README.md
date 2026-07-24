@@ -23,7 +23,7 @@ because the citation pattern already worked and was already in use:
 
 - `.claude/agents/design-reviewer.md` cites `product-and-content` rule 3 by name.
 - `.claude/agents/completeness-critic.md` opens with "visual-delivery is your charter, read it first".
-- `.claude/skills/android-release/SKILL.md` cites `debugging.md` mid-flow.
+- `.claude/agents/design-reviewer.md` also cites `review-and-audit.md` rule 1 ("do not re-flag what a gate fails on").
 
 An agent that needs a playbook is told to read it by the skill or agent that needs it. That is a
 Read call at the moment of relevance instead of 375 lines on every turn forever.
