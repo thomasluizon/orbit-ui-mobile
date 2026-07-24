@@ -3,9 +3,11 @@
 // 1. EVERY surface in .claude/manifests/surfaces.json is claimed by exactly one redesign
 //    ticket. A surface claimed by no ticket is the failure mode this exists to prevent:
 //    it is how "we redesigned the whole app" silently ships with screens nobody looked at.
-// 2. EVERY .tsx under apps/*/app and apps/*/components maps to exactly one ticket by
-//    directory rule (D38, 8.5.2), because the manifest only sees files a surface closure
-//    reaches; the 2026-07-24 denominator audit confirmed orphan component files it cannot.
+// 2. EVERY .tsx AND co-located StyleSheet module (*.styles.ts, *-styles.ts, styles.ts) under
+//    apps/*/app and apps/*/components maps to exactly one ticket by directory rule (D38, 8.5.2),
+//    because the manifest only sees files a surface closure reaches; the 2026-07-24 denominator
+//    audit confirmed orphan component files it cannot. Style modules are covered because they
+//    carry the local/spacing-scale and z-index suppressions the redesign must own.
 // Exits 1 on any unclaimed surface or orphaned file. Multi-match is resolved first-rule-wins.
 //
 // Usage: node tools/redesign-coverage.mjs [--json]
@@ -76,7 +78,7 @@ export const TICKETS = [
 export const FILE_RULES = [
   ["R1-primitive-overlay", has("confirm-dialog")],
   ["R4-motion-celebration", has("/gamification/", "fresh-start", "app-toast", "/review-moment/")],
-  ["R11-screen-astra", has("/chat/", "/chat.tsx", "(chat)", "message-bubble", "ai-settings")],
+  ["R11-screen-astra", has("/chat/", "/chat.tsx", "/chat.styles", "(chat)", "message-bubble", "ai-settings")],
   ["R3-primitive-row", has("habit-row", "habit-list", "bulk-action-bar", "controls-menu")],
   ["R7-screen-habits-crud", has("/habits/")],
   ["R6-screen-goals", has("/goals/", "goal-card")],
@@ -114,7 +116,10 @@ for (const [ticket] of FILE_RULES)
 
 const toPosix = (absolutePath) => relative(REPO_ROOT, absolutePath).split("\\").join("/")
 
-function walkTsx(dir, found = []) {
+const isStyleModule = (name) =>
+  name.endsWith(".styles.ts") || name.endsWith("-styles.ts") || name === "styles.ts"
+
+function walkSurfaceFiles(dir, found = []) {
   let entries
   try {
     entries = readdirSync(dir, { withFileTypes: true })
@@ -124,8 +129,8 @@ function walkTsx(dir, found = []) {
   for (const entry of entries) {
     if (entry.name === "node_modules" || entry.name === "__tests__") continue
     const full = join(dir, entry.name)
-    if (entry.isDirectory()) walkTsx(full, found)
-    else if (entry.name.endsWith(".tsx")) found.push(full)
+    if (entry.isDirectory()) walkSurfaceFiles(full, found)
+    else if (entry.name.endsWith(".tsx") || isStyleModule(entry.name)) found.push(full)
   }
   return found
 }
@@ -146,7 +151,7 @@ const unclaimed = surfaces.filter((id) => !assignment.has(id))
 const perTicket = {}
 for (const [id, ticket] of assignment) (perTicket[ticket] ||= []).push(id)
 
-const files = FILE_ROOTS.flatMap((root) => walkTsx(join(REPO_ROOT, root))).map(toPosix).sort()
+const files = FILE_ROOTS.flatMap((root) => walkSurfaceFiles(join(REPO_ROOT, root))).map(toPosix).sort()
 const fileAssignment = new Map()
 for (const path of files) {
   const match = FILE_RULES.find(([, test]) => test(path))
