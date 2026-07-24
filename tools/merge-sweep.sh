@@ -35,7 +35,8 @@ SHA that was merged carries a post-merge commit that never reached main.
 
 Output (stdout): one MERGED/SKIP/MERGE-REFUSED line per PR, then any ORPHANED-HEAD lines, then
 SWEEP-DONE.
-Exit codes: 0 no orphaned head branch; 1 at least one orphaned head branch; 2 bad usage.
+Exit codes: 0 every merged head verified clean; 1 at least one orphaned head branch; 2 bad usage;
+3 a head branch could not be verified (unknown is not a clean pass).
 EOF
 }
 
@@ -123,15 +124,29 @@ for n in "$@"; do
 done
 
 # A head branch that merely survived --delete-branch is benign; only a tip that MOVED past the SHA
-# that was merged proves a post-merge commit that never reached main.
+# that was merged proves a post-merge commit that never reached main. The GraphQL ref lookup exits 0
+# with an EMPTY oid for a deleted branch, so a non-zero exit is unambiguously "could not verify",
+# which is reported and counted, never silently read as clean.
+branch_tip() { # <branch>; stdout: tip SHA, or empty when the ref is confirmed absent
+  gh api graphql \
+    -f query='query($o:String!,$n:String!,$q:String!){repository(owner:$o,name:$n){ref(qualifiedName:$q){target{oid}}}}' \
+    -F o="${repo%%/*}" -F n="${repo##*/}" -F q="refs/heads/$1" \
+    --jq '.data.repository.ref.target.oid // ""' 2>/dev/null
+}
+
 orphans=0
+unverified=0
 for entry in $merged_heads; do
   pr="${entry%%^*}"
   rest="${entry#*^}"
   branch="${rest%^*}"
   merged_sha="${rest##*^}"
   [ -n "$branch" ] || continue
-  tip=$(gh api "repos/$repo/branches/$branch" --jq .commit.sha 2>/dev/null) || continue
+  if ! tip=$(branch_tip "$branch"); then
+    echo "WARN: could not verify branch $branch for #$pr; orphan status unknown" >&2
+    unverified=$((unverified + 1))
+    continue
+  fi
   if [ -n "$tip" ] && [ "$tip" != "$merged_sha" ]; then
     echo "ORPHANED-HEAD #$pr $branch tip=$tip (moved past the merged $merged_sha, so those commits are NOT on main)"
     orphans=$((orphans + 1))
@@ -140,3 +155,4 @@ done
 
 echo "SWEEP-DONE"
 [ "$orphans" -eq 0 ] || exit 1
+[ "$unverified" -eq 0 ] || exit 3
