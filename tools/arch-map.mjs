@@ -326,7 +326,7 @@ function buildEndpoints() {
   const exportMap = typesExportMap()
 
   return endpoints.map(({ name, path }) => {
-    const reference = new RegExp(`\\bAPI\\.${name.replace(/\./g, "\\.")}\\b`)
+    const reference = new RegExp(`\\bAPI\\.${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`)
     const referenceAll = new RegExp(reference.source, "g")
     const webActions = webActionFiles.filter((file) => reference.test(read(file)))
     const mobileCallsites = mobileFiles.filter((file) => reference.test(read(file)))
