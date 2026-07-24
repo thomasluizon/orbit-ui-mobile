@@ -1,6 +1,6 @@
 ---
 name: audit-performance
-description: Performance-risk audit across both Orbit repos. API — N+1 queries, missing indexes, synchronous slow work in request paths. Frontend — bundle bloat, render thrash, over-eager or stale caching. Each finding carries file:line evidence and a remediation, calibrated to Orbit's solo-dev scale. Use when the user asks to audit performance, find slowdowns, or check for scaling risks. Not for running benchmarks.
+description: Performance-risk audit across both Orbit repos, opening one Linear ticket per verified risk after a human approval gate (D10). API side: N+1 queries, missing indexes, synchronous slow work in request paths. Frontend side: render thrash, over-eager or stale caching, waterfalls. EXCLUDES what the gates own (D11): the perf.yml web LCP/TBT/bundle budgets, the N+1 guard test's three query shapes, and react-doctor's perf rules. Each finding carries file:line evidence and a remediation, calibrated to Orbit's solo-dev scale. Use when the user asks to audit performance, find slowdowns, or check for scaling risks. Not for running benchmarks.
 argument-hint: <path | repo | blank=both repos>
 ---
 
@@ -10,8 +10,8 @@ argument-hint: <path | repo | blank=both repos>
 
 Find the performance risks that bite at scale — before they do — across both repos. The
 API side is where Orbit's real risk lives (database round-trips per request); the frontend
-side is render and cache hygiene. Output: one report, each finding pinned to a file:line
-with the fix.
+side is render and cache hygiene. Output: one Linear ticket per verified risk (D10), each
+pinned to a file:line with the fix, behind one approval gate, never a report that rots.
 
 The fan-out, the adversarial verify, and the loop-until-dry run as the **`audit` dynamic
 workflow** (`.claude/workflows/audit.mjs`) — **Haiku finders + Haiku skeptics**,
@@ -54,8 +54,20 @@ Parse `$ARGUMENTS` into a `{scope}` token: blank → `both`; `api`/`backend` →
 
 The workflow's finders **read the EF migrations** to confirm which indexes exist (load-bearing
 for the index checks), and exclude other generated/vendored dirs. Load
-**`.claude/skills/_shared/verification-protocol.md`** — the workflow executes §1/§2/§3; you
-emit the Verify summary + Deferred ledger (§4/§5).
+**`.claude/skills/_shared/verification-protocol.md`** (the workflow executes §1/§2/§3; you
+carry the Verify summary + Deferred ledger §4/§5 into the approval gate) and
+**`.claude/skills/_shared/audit-to-tickets.md`** (the D10 ticket-emission pipeline Phase 5
+runs).
+
+### D11 scope: judgement only, never what a gate checks
+
+Read **`.claude/skills/_shared/gate-owned-exclusions.md`**. This audit does NOT re-flag: the
+web LCP / TBT / script-bundle-size budgets on the authed-Today surface (`perf.yml` owns
+those), an N+1 regression on the three query shapes already under the round-trip guard test
+(`tests/Orbit.Infrastructure.Tests/Persistence/QueryRoundTripCountTests.cs`), or render-thrash
+patterns react-doctor's perf rules already fail on. It DOES own the judgement layer no gate
+sees: N+1 on any OTHER query, a missing index on a hot `Where`/`OrderBy`/FK, sync slow work in
+a request path, over-fetching, stale/over-eager cache invalidation, and waterfalls.
 
 ---
 
@@ -133,62 +145,31 @@ finding, a completeness pass — same findings shape.
 
 ---
 
-## Phase 5 — Synthesize the report (Opus)
+## Phase 5: Emit tickets (D10), not a report
 
-```bash
-mkdir -p .claude/audits
-```
+Run the shared pipeline in **`.claude/skills/_shared/audit-to-tickets.md`**: one Linear
+ticket per verified risk, drafted to the 6.2 template, validated by
+`node tools/check-ticket.mjs --file`, presented behind ONE approval gate, then created via
+`orca linear create` and re-validated with `--issue`.
 
-**Output path**: `.claude/audits/performance-{scope}.md`
+Performance-specific mapping into the 6.2 body:
 
-Bucket the workflow's `findings` by severity, build the Hotspots table from the highest-impact
-findings, carry `deferred` verbatim:
+- **Problem / why it matters** carries the severity and, from `rationale`, the concrete
+  scaling **impact** ("50-habit user -> 50 round-trips"). Only patterns that degrade with
+  data or traffic become tickets; a micro-optimization is not a ticket.
+- **Technical details** carries the `evidence` (the code causing it) and the concrete `fix`
+  (.Include / add the `HasIndex` / invalidateQueries / dynamic import / FlatList). A
+  missing-index ticket cites the EF migration that lacks it.
+- **Acceptance criteria** name the observable change (the round-trip count drops, the index
+  exists, the request no longer blocks).
+- A frontend fix that depends on a new API index or endpoint is a ui ticket blockedBy the api
+  ticket (deploy-API-first). `repo:*` from `location`; ui tickets carry `parity:yes|no`; add
+  `visible-effect` only if the fix changes what the user sees.
 
-```markdown
-# Performance Audit: {SCOPE}
-
-**Scope**: {scopeLabel}
-**Calibration**: solo-dev scale — patterns that degrade with data/traffic; enterprise-only tuning skipped.
-**Verdict**: {1 line — e.g. "One N+1 in the summary query; web bundle clean; 1 missing log index"}
-
-## Findings
-
-### High — degrades with scale (fix before it bites)
-{N+1, missing index on a hot path, sync slow work in a request, unbounded list — or "None"}
-
-### Medium — measurable but bounded
-{over-fetching, aggressive cache, render thrash on a warm path — or "None"}
-
-### Low / Info — micro, or only-at-enterprise-scale
-{noted, deliberately not prioritized — or "None"}
-
-## Hotspots
-
-| Path | Side | Risk | Impact at scale |
-|---|---|---|---|
-| {handler/route or component} | API/FE | {pattern} | {how it grows} |
-
-## Deferred — in scope but not verdicted
-
-{From the workflow's `deferred` + enterprise-only tuning + load-test territory (#230) + any
-slice the run did not reach — each with a one-line reason. "Nothing deferred — full coverage"
-if empty.}
-
-## What's efficient
-
-{Patterns done right — eager-loads, proper invalidation, projections. Not filler.}
-```
-
-Each finding uses:
-
-```
-[SEVERITY] <one-line risk>
-· side: API | Frontend
-· location: <repo>/<path>:<line>
-· evidence: <the code causing it>
-· impact: <how it scales — concrete: "50-habit user → 50 queries">
-· fix: <the concrete change — .Include / add index / invalidateQueries / dynamic import / FlatList>
-```
+At the approval gate, present the Hotspots (the highest-impact risks, side + pattern + how it
+grows) as provenance, plus the **Deferred ledger** (the workflow's `deferred`, enterprise-only
+tuning, load-test territory #230) and the convergence state, so Thomas approves with the
+scaling picture in view. None of it is written to disk.
 
 ---
 
@@ -203,9 +184,14 @@ Each finding uses:
 - **Claim an index is missing without checking the migrations.** The finders read them and
   cite the migration; drop any index finding that skipped that.
 - **Run a benchmark or load test.** This reads code; load testing is #230.
+- **Flag anything a gate owns.** The web LCP/TBT/bundle budgets (`perf.yml`), the three query
+  shapes under the round-trip guard test, and react-doctor's perf rules are the mechanical
+  layer (D11).
 - **Re-run the workflow's analysis.** It owns the fan-out, the skeptic pass, and the loop;
-  you synthesize its return. Only re-invoke for a coverage gap.
-- **Optimize during the audit.** Findings first; change code only if the user asks after.
+  you turn its return into tickets. Only re-invoke for a coverage gap.
+- **Write a report file, or create tickets unattended.** The output is Linear tickets behind
+  the one approval gate; nothing is persisted to `.claude/audits/`.
+- **Optimize during the audit.** Tickets first; change code only if the user asks after.
 
 ---
 
@@ -215,14 +201,14 @@ Each finding uses:
 ## Audit Complete — Performance
 
 **Scope**: {what was audited}
-**Verdict**: {1-line}
+**Verdict**: {1-line, e.g. "One N+1 in the summary query; 1 missing log index"}
 
-| Severity | Count |
-|---|---|
-| High (scales badly) | {N} |
-| Medium (bounded) | {N} |
-| Low / Info | {N} |
+| Severity | Findings | Tickets |
+|---|---|---|
+| High (scales badly) | {N} | {created / pending approval} |
+| Medium (bounded) | {N} | {…} |
+| Low / Info | {N} | {…} |
 
-**Report**: `.claude/audits/performance-{scope}.md`
-**Top risk**: {the single pattern most worth fixing first, with its scaling impact}
+**Tickets**: {the final ORB-N table, identifier · title · repo · blockedBy, or "clean: no scaling risks the gates do not already own"}
+**Top risk**: {the single ticket most worth picking up first, with its scaling impact}
 ```

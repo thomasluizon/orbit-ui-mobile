@@ -1,6 +1,6 @@
 ---
 name: prod-readiness
-description: Pre-launch orchestrator — runs the four repo-wide audits (security, tests, performance, code-quality) in parallel via the audit workflow, adds an ops-layer audit (observability, multi-instance readiness, background durability, backups, staging) AND a full-repo React-correctness scan (React Doctor) over orbit-ui-mobile, then consolidates everything into ONE tier-tagged, verification-protocol-backed report with an honest launch verdict. Use before a release to know what's safe to ship. Orchestrates + consolidates; it does not re-derive the child audits' findings.
+description: Pre-launch orchestrator that runs the four repo-wide audits (security, tests, performance, code-quality) in parallel via the audit workflow and adds an ops-layer audit (observability, multi-instance readiness, background durability, backups, staging), then consolidates everything into ONE combined Linear ticket set behind a single approval gate (D10), headlined by an honest launch verdict. It looks only at what no gate can check (D11); React correctness is owned by the react-doctor.yml gate, not this skill. Use before a release to know what's safe to ship. Orchestrates and consolidates; it does not re-derive the child audits' findings.
 argument-hint: <both (default) | ui | api | path>
 ---
 
@@ -8,19 +8,21 @@ argument-hint: <both (default) | ui | api | path>
 
 **Input**: $ARGUMENTS
 
-Run a pre-launch readiness sweep across **both** Orbit repos and return ONE consolidated,
-tier-tagged report with an honest launch verdict. This skill is an **orchestrator**: the
-**`prod-readiness` dynamic workflow** (`.claude/workflows/prod-readiness.mjs`) runs the four
-audit workflows in parallel (**Haiku fan-out**), adds the ops-layer audit none of them
-cover, verifies its own ops findings, and returns everything; **you (Opus) consolidate** the
-return into a single decision-ready document. Cheap discovery, expensive judgment only here.
+Run a pre-launch readiness sweep across **both** Orbit repos and open ONE consolidated,
+severity-ranked Linear ticket set (D10) behind a single approval gate, headlined by an honest
+launch verdict. This skill is an **orchestrator**: the **`prod-readiness` dynamic workflow**
+(`.claude/workflows/prod-readiness.mjs`) runs the four audit workflows in parallel (**Haiku
+fan-out**), adds the ops-layer audit none of them cover, verifies its own ops findings, and
+returns everything; **you (Opus) consolidate** the return into one combined ticket table and
+a launch verdict. Cheap discovery, expensive judgment only here.
 
-**Golden rule — orchestrate, don't re-derive.** Each audit workflow owns its own analysis,
-its own adversarial Verify, and its own loop; this skill's workflow **invokes** them and
-**inherits** their verification — it never re-runs their finding logic. The ops layer is the
+**Golden rule: orchestrate, don't re-derive.** Each audit workflow owns its own analysis, its
+own adversarial Verify, and its own loop; this skill's workflow **invokes** them and
+**inherits** their verification, never re-running their finding logic. The ops layer is the
 only analysis this skill adds. Three things are non-negotiable: no audit is silently skipped
 (every one runs-and-reports or lands in the Deferred ledger with a reason), no ops finding
-ships without surviving a challenge, and the report states what it did **not** do.
+ships without surviving a challenge, and the approval gate states what the sweep did **not**
+do. The output is tickets plus a verdict, never a persisted report (D10).
 
 ---
 
@@ -36,15 +38,26 @@ single WHY-with-URL the comment policy allows.
 **Self-contained / CI-safe**: no network call, no live scanner, no marketplace dependency.
 The workflow's agents run `git` / `rg` against the project's own checkout and read repo
 config. **CI / headless fallback**: if the `Workflow` tool is unavailable, run the four
-`/audit-*` skills' own fallbacks inline + the ops fan-out, then consolidate — the report
-still exists, the contract still holds.
+`/audit-*` skills' own fallbacks inline plus the ops fan-out, then consolidate; the ticket
+set and the contract still hold.
 
-Read **`.claude/skills/_shared/verification-protocol.md`** — the shared reliability contract.
-The workflow runs its own coverage contract over the ops inventory + the §2 challenge over
-its ops findings, and **inherits** each child audit's verify and loop; you merge every child
-ledger into the consolidated report.
+Read **`.claude/skills/_shared/verification-protocol.md`** (the reliability contract: the
+workflow runs its own coverage contract over the ops inventory plus the §2 challenge over its
+ops findings, and **inherits** each child audit's verify and loop; you merge every child
+ledger into the approval-gate provenance) and
+**`.claude/skills/_shared/audit-to-tickets.md`** (the D10 ticket-emission pipeline Phase 3
+runs over the consolidated finding set).
 
-**The binding inventory (§1) — ten items:**
+### D11 scope
+
+Read **`.claude/skills/_shared/gate-owned-exclusions.md`**. The ops layer this skill adds is
+exactly the judgement no gate can check: whether the RUNNING system survives production
+(observability, multi-instance safety, background durability, backups, a pre-prod gate). React
+correctness is NOT in this skill's inventory: `react-doctor.yml` is a required CI gate and owns
+it (D11); the standing full-repo react-doctor backlog is mechanical debt for the ORB-46
+project, not a prod-readiness finding.
+
+**The binding inventory (§1), nine items:**
 
 | # | Inventory item | Kind | Owner of the analysis |
 |---|---|---|---|
@@ -55,9 +68,8 @@ ledger into the consolidated report.
 | 5 | Observability | ops check | the workflow (own §2 challenge) |
 | 6 | Multi-instance readiness | ops check | the workflow (own §2 challenge) |
 | 7 | Background durability | ops check | the workflow (own §2 challenge) |
-| 8 | Backups | ops check | the workflow (returns as Deferred — un-verifiable from a repo read) |
+| 8 | Backups | ops check | the workflow (returns as Deferred, un-verifiable from a repo read) |
 | 9 | Staging | ops check | the workflow (own §2 challenge) |
-| 10 | React correctness (React Doctor) | scanner | the workflow (full-repo react-doctor scan of apps/web + apps/mobile + packages/shared; ui/both scope only) |
 
 This list is **binding**: by the end every item is either **(a) covered with a verdict** or
 **(b) in the Deferred ledger with a one-line reason**. There is no silently-skipped bucket.
@@ -92,126 +104,90 @@ Workflow({ scriptPath: '.claude/workflows/prod-readiness.mjs', args: { scope: '<
 
 (`scriptPath` is canonical — named workflow resolution is not available in this Claude Code build.)
 
-It runs the four `audit` workflows in parallel (each self-caps its own fan-out + verify +
-loop), then fans out the **ops-layer** checks — observability · multi-instance · background
-durability · staging — as Haiku finders, runs a Haiku skeptic per Blocker/High ops finding
-(default-refuted), and returns:
+It runs the four `audit` workflows in parallel (each self-caps its own fan-out plus verify
+plus loop), then fans out the **ops-layer** checks (observability · multi-instance ·
+background durability · staging) as Haiku finders, runs a Haiku skeptic per Blocker/High ops
+finding (default-refuted), and returns:
 
 ```
 { scope,
   audits: [ { kind, findings, counts, coverage, deferred, rounds }, … ×4 ],
   opsFindings: [ { severity, check, title, location, risk, evidence, fix } ],
-  reactDoctor: { ran, errorCount, warningCount, findings: [ { severity, rule, category, location, message, fix } ], note },
-  opsChecksRun, opsDeferred, failedAudits }
+  opsChecksRun, opsDeferred, failedAudits, unconvergedAudits }
 ```
 
-`opsDeferred` always includes **backups** ("verify in the DB console — PITR + a tested
-restore path"). `failedAudits` names any audit workflow that errored — each forces **≤
-CONDITIONAL** and is named as a blocker.
-
-**React Doctor (item 10)** runs only for `ui`/`both` scope (it is React-only — `api` scope
-returns `ran:false`, a legitimate skip, not a gap). It is the deterministic React-correctness
-gate that also runs in CI as a **required** check (`.github/workflows/react-doctor.yml`, but
-there `--scope changed` — only NEW issues). Here it scans the **full** app backlog across the
-three workspaces (design/handoff mockups excluded — their vendored `*.jsx` throw ~1054 false
-`jsx-no-undef`). A `reactDoctor.ran:false` for a ui/both scope is a **Deferred coverage gap**
-(react-doctor couldn't run), not "clean".
+`opsDeferred` always includes **backups** ("verify in the DB console: PITR plus a tested
+restore path"). `failedAudits` names any audit workflow that errored; each forces **at most
+CONDITIONAL** and is named as a blocker. `unconvergedAudits` names any child whose critic
+never ran dry (coverage UNKNOWN), which the approval gate must surface.
 
 ---
 
-## Phase 3 — Consolidate & write reports (Opus)
+## Phase 3: Consolidate and emit tickets (Opus, D10)
 
-```bash
-mkdir -p .claude/audits
-```
+### Unified ladder (severity normalization for ranking)
 
-First write each child report from its returned audit result — `.claude/audits/{kind}-{scope}.md`
-(same skeleton each `/audit-*` skill defines) — so the per-child paths the coverage table
-references exist. Then write the consolidated report.
-
-**Output path**: `.claude/audits/prod-readiness-{scope}.md`
-
-### Unified ladder (normalization)
-
-Normalize each source's native label onto one spine, tagging each finding with its **source
-audit + native label** so nothing is silently relabeled:
+Consolidate the child + ops findings into one severity spine, tagging each with its **source
+audit + native label** so nothing is silently relabeled. This ranking orders the ticket table
+and drives the verdict; it is not a report:
 
 | Consolidated tier | Maps from |
 |---|---|
 | **Blocker** | security Tier 1 · tests Critical · performance Critical · code-quality Critical · ops Blocker |
-| **High** | security Tier 2 · tests High · performance High · code-quality High · ops High · **react-doctor error** (real React bug: effect cleanup, hydration/browser-global in render, impure updater, prop-callback-in-render, server-auth-actions) |
+| **High** | security Tier 2 · tests High · performance High · code-quality High · ops High |
 | **Medium** | tests Medium · performance Medium · code-quality Medium · ops Medium |
-| **Low / Info** | performance Low/Info · code-quality Low/Info · **react-doctor warning** (perf/a11y/maintainability nits) |
+| **Low / Info** | performance Low/Info · code-quality Low/Info |
 | **Out-of-scope / acknowledged** | security Tier 3 · enterprise-only ops |
 
-Tag each react-doctor finding `[react-doctor · {rule} · {error/warning}]` with its `location`
-and `fix`. Group the (typically many) warnings by rule with a count rather than listing each.
+### Emit the consolidated ticket set
 
-### Report skeleton
+Run the shared pipeline in **`.claude/skills/_shared/audit-to-tickets.md`** over the **whole
+consolidated finding set** (all four children plus the ops findings), as ONE combined table
+behind ONE approval gate. Do not run each child skill's own gate; prod-readiness invokes the
+audit workflows directly and owns the single consolidated emission.
 
-```markdown
-# Prod-Readiness: {SCOPE}
+- Dedupe across sources (a finding that surfaced in two children is one ticket) and fold
+  findings that share a fix and PR into one ticket (D4).
+- Map each to its `repo:*` from `location`; an ops finding is almost always `repo:api`. A ui
+  fix that depends on an api change is the ui ticket blockedBy the api ticket.
+- Draft each body to the 6.2 template, validate with `node tools/check-ticket.mjs --file`. An
+  ops ticket's Problem carries the `risk` (what breaks in production and when); Technical
+  details carry `evidence`; Acceptance criteria name the observable ready-state (the scheduler
+  fires once cluster-wide, work survives a restart, the pre-prod gate exists).
 
-**Scope**: {both repos / repo / path}
-**Calibration**: launch-blocking risk for a solo-dev, pre-scale app; enterprise controls acknowledged, not itemized.
-**Verdict**: {GO | CONDITIONAL | NO-GO} — {one calibrated line: why, and the single thing standing in the way}
+### HARD GATE, headlined by the launch verdict
 
-## Findings (consolidated, tier-tagged)
+Present ONE message and get ONE approval (mirror /feature Phase C step 0). The headline is the
+**launch verdict**; the body is the combined ticket table plus the full provenance:
 
-### Blocker
-{each finding with [source audit · native label] prefix, in its own template, or "None"}
+- **Verdict**: {GO | CONDITIONAL | NO-GO}, one calibrated line (why, and the single thing in
+  the way).
+- **Ticket table**: title · repo · parity · consolidated tier · blockedBy, ordered by tier.
+- **Coverage (the binding 9-item inventory)**: for each of the 9 items, ran / did-not-run /
+  deferred and the result. Backups is always `deferred` (verify in the DB console). Any
+  `failedAudit` or `unconvergedAudits` entry is named here as `coverage UNKNOWN`.
+- **Deferred ledger**: merge every child's `deferred` (attributed, e.g. "from security:
+  verify-cap overflow") plus `opsDeferred` (backups) plus enterprise-only ops. Every one of
+  the 9 items appears in the table or the ledger; silence reads as coverage.
+- **What's solid**: the genuine production strengths, so the gate is decision-ready, not a
+  fear list.
 
-### High
-{… or "None"}
+Nothing is created in Linear until Thomas approves, and none of the above is written to a
+report file (D10). On approval, create via `orca linear create`, wire blockedBy, and
+re-validate each with `--issue`.
 
-### Medium
-{… or "None"}
+### Launch verdict (§5 honesty), computed, never hardcoded
 
-### Low / Info
-{… or "None"}
-
-## Out of scope (acknowledged)
-{one line each: security Tier 3 + enterprise-only ops — deliberately deferred}
-
-## Coverage (the binding 9-item inventory)
-
-| # | Inventory item | Ran? | Result |
-|---|---|---|---|
-| 1 | security audit | yes/no/deferred | {tier counts / "did not run — blocker"} |
-| 2 | tests audit | … | … |
-| 3 | performance audit | … | … |
-| 4 | code-quality audit | … | … |
-| 5 | Observability | … | … |
-| 6 | Multi-instance readiness | … | … |
-| 7 | Background durability | … | … |
-| 8 | Backups | deferred | verify in the DB console |
-| 9 | Staging | … | … |
-| 10 | React correctness (React Doctor) | yes/skipped(api)/deferred | {errorCount errors / warningCount warnings, or "skipped — api scope" / "did not run — deferred"} |
-
-## Deferred ledger (verification-protocol §4)
-
-{Merge every child's returned `deferred` (attributed, e.g. "from security: verify-cap
-overflow"), PLUS `opsDeferred` (backups) PLUS any `failedAudits` (named as a blocker) PLUS
-enterprise-only ops. Every one of the 9 inventory items appears here or in findings/coverage
-above — silence reads as coverage.}
-
-## What's solid
-
-{Genuine production strengths across the children + ops — controls done right. Not filler.}
-```
-
-### Launch verdict (§5 honesty) — computed, never hardcoded
-
-- **GO** only if **zero Blockers** AND all **10** inventory items produced a verdict (every
-  audit ran; every ops check resolved or is a legitimately Deferred un-verifiable like backups)
-  AND **react-doctor reports zero errors** (a react-doctor error is a real React bug and the
-  required CI gate's currency — GO requires the app-code error backlog at zero).
+- **GO** only if **zero Blockers** AND all **9** inventory items produced a verdict (every
+  audit ran and converged; every ops check resolved or is a legitimately Deferred
+  un-verifiable like backups).
 - **CONDITIONAL** if no Blockers but some items are Deferred in a way that gates launch (e.g.
-  backups unverified, staging gate absent, react-doctor errors outstanding, or react-doctor
-  did not run for a ui/both scope) — name the conditions.
+  backups unverified, staging gate absent, a child audit did not converge): name the
+  conditions.
 - **NO-GO** if any Blocker stands.
-- **A `failedAudit` forces at most CONDITIONAL and names itself as the blocker** — a partial
-  sweep can never read green. The coverage table makes any non-running audit visible.
+- **A `failedAudit` forces at most CONDITIONAL and names itself as the blocker**: a partial
+  sweep can never read green. The coverage table makes any non-running or unconverged audit
+  visible.
 
 ---
 
@@ -221,18 +197,18 @@ above — silence reads as coverage.}
 ## Prod-Readiness Complete
 
 **Scope**: {what was swept}
-**Verdict**: {GO | CONDITIONAL | NO-GO} — {the single top blocker, or "clean — all 9 verdicted, zero blockers"}
+**Verdict**: {GO | CONDITIONAL | NO-GO}, {the single top blocker, or "clean: all 9 verdicted, zero blockers"}
 
-| Consolidated tier | Count |
-|---|---|
-| Blocker | {N} |
-| High | {N} |
-| Medium | {N} |
-| Low / Info | {N} |
+| Consolidated tier | Findings | Tickets |
+|---|---|---|
+| Blocker | {N} | {created / pending approval} |
+| High | {N} | {…} |
+| Medium | {N} | {…} |
+| Low / Info | {N} | {…} |
 
-**Inventory (10)**: security {ran/deferred} · tests {…} · performance {…} · code-quality {…} · observability {…} · multi-instance {…} · background durability {…} · backups {deferred} · staging {…} · react-doctor {N errors / M warnings, or skipped-api}
-**Report**: `.claude/audits/prod-readiness-{scope}.md`
-**Top blocker**: {the single highest-priority thing standing between here and launch, or "none"}
+**Inventory (9)**: security {ran/deferred} · tests {…} · performance {…} · code-quality {…} · observability {…} · multi-instance {…} · background durability {…} · backups {deferred} · staging {…}
+**Tickets**: {the final ORB-N table, identifier · title · repo · tier · blockedBy, or "clean: nothing to ticket"}
+**Top blocker**: {the single highest-priority ticket standing between here and launch, or "none"}
 ```
 
 ---
@@ -241,18 +217,25 @@ above — silence reads as coverage.}
 
 - **Re-derive child findings.** The workflow runs each audit, inherits its verify (§2/§3) and
   its ledger. Re-running a child's analysis doubles cost and risks a divergent verdict.
+- **Run each child skill's own approval gate.** prod-readiness invokes the audit workflows
+  directly and owns the ONE consolidated gate and ticket emission; a per-child gate would
+  fragment the launch decision.
+- **Write a report file, or create tickets unattended.** The output is a consolidated Linear
+  ticket set plus a verdict headline, behind the one approval gate; nothing is persisted to
+  `.claude/audits/` and nothing is created before Thomas approves (D10).
 - **Silently drop an audit that failed to run.** A `failedAudit` is a Deferred-ledger entry
-  **and** a verdict downgrade (≤ CONDITIONAL), named as a blocker — never an unstated gap.
+  **and** a verdict downgrade (at most CONDITIONAL), named as a blocker, never an unstated gap.
 - **Invent ops findings to look thorough.** A clean ops check earns a plain "ready," not a
-  manufactured nit. An ops finding with no concrete anchor + risk is not a finding.
+  manufactured nit. An ops finding with no concrete anchor plus risk is not a finding.
 - **Hardcode a verdict, the QA-env state, or the backup state.** The workflow discovers
-  staging + background topology at runtime per repo; the workflow set and the QA env drift (#211).
+  staging plus background topology at runtime per repo; the workflow set and the QA env drift (#211).
 - **Assert backups or staging you cannot verify from a repo read.** Backups defaults to the
   Deferred ledger ("verify in console"), never "clean."
+- **Audit React correctness.** `react-doctor.yml` is the gate that owns it (D11); it is not in
+  the 9-item inventory.
 - **Paste enterprise checklists.** SOC2 / SIEM / multi-region / DR drills get one acknowledging
-  Deferred line, not a finding each — right-size to a solo, pre-scale app.
-- **Fork a child's tier ladder or finding template.** The only new vocabulary here is the
-  unified-ladder *mapping*, which is this skill's own job.
-- **Emit a report without a Verify pass + a Deferred ledger.** The workflow runs the Verify;
-  you must emit the merged Deferred ledger — otherwise you are only *saying* the protocol ran.
+  Deferred line, not a finding each; right-size to a solo, pre-scale app.
+- **Present a verdict without a Verify pass plus a Deferred ledger.** The workflow runs the
+  Verify; you must show the merged Deferred ledger at the gate, or you are only *saying* the
+  protocol ran.
 ```
