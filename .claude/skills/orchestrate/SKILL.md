@@ -92,3 +92,19 @@ landed clean. So:
   (SendMessage), never into the main session.
 - The main session keeps only: decisions, small verification reads, user
   checkpoints, and cross-repo sequencing.
+
+### Waiting is foreground work, on both sides
+
+A stopped agent receives no notifications, so a background waiter it armed can never wake
+it: ending a turn with the goal unmet records the task as idle, and only a human nudge
+restarts it. Measured 2026-07-24: three agents in one day (the ui merge-chain, the Phase 3
+deletion, the orchestrate-skill fix) each ended their turn on "the monitor will notify me"
+with no live background child. Two of the three prompts already carried a warning against
+exactly that, so the subagent-side half alone does not hold. Both halves are the rule:
+
+- **In a prompt whose task includes waiting on CI or a review:** poll in the FOREGROUND,
+  sleep 60 to 120s per loop, inside your own turn. End the turn only on the goal state or a
+  genuinely unfixable blocker, and say which one.
+- **On any completion notification whose result reads "waiting", "standing by", or "monitor
+  armed":** read the real PR/CI state yourself and send the agent back to work with it.
+  Standing by is not progress.
