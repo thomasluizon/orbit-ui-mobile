@@ -415,14 +415,29 @@ Ordered. Phase 1 cannot be reordered: running any worker before it ships unguard
 | **6** | Generate the mechanical-debt project from the suppression ledgers. Redesign `/prod-readiness` and the 4 `/audit-*` per D10 and D11. Sort every doc per D12. Run the redesigned audit once. Run the skill rewrite pass (section 10). | **DONE 2026-07-24.** The mechanical debt did NOT become its own project: it is drained inside the #539 per-surface tickets that already own those files (D38), with ORB-46 rewritten as the terminal must-equal-zero backstop. Audits redesigned (#588), docs sorted and WORKFLOW.md deleted (#586), 48 skills swept (#590 + api #434). The one item deliberately NOT done is running the redesigned audit once: under D10 an audit's output is Linear tickets, and firing a ~22.8M-token pass to mint tickets nobody will start before Phase 7 is waste. Run it when Phase 7 proves the flow |
 | **7** | Run the full flow end to end on one small real ticket while Thomas watches. Then #539 wave 1. Candidate: **ORB-75** (PostHog server SDK), the launchable ticket of the PostHog project. Blocked on two acts only Thomas can perform: a PostHog EU Cloud org and project with the key on Render, and `codex login` on ChatGPT Pro IF the proof should run on the codex engine (otherwise it runs on `claude`, the current `orchestrator.json` default, which needs nothing). | A PR comes out the other side |
 
-**What Thomas watches while a wave runs** (asked and answered 2026-07-24, recorded so it is not
-re-derived): the Linear board at `https://linear.app/useorbitai/team/ORB/active`, which is already
-a kanban board; In Progress and In Review sit under "Hidden columns" only because they are empty,
-and appear when `/orchestrate` moves a ticket. Alongside it, `orca worktree ps` for the live
-per-worktree branch, terminal count and output preview, and `gh pr list` for what is waiting on a
-human merge. One `/orchestrate <project>` already fans out to `maxParallelWorktrees: 8`; running
-three at once is not what it was built for, because the cap is per-run and three runs cannot see
-each other.
+**The one screen Thomas watches while a wave runs.** Asked three times on 2026-07-24 and answered
+wrong twice, so the exact configuration is recorded here rather than re-derived.
+
+`https://linear.app/useorbitai/team/ORB/all`, then the display options (the sliders icon, top
+right):
+
+| Setting | Value | Why |
+|---|---|---|
+| Layout | Board | |
+| Columns | Status | Backlog, Todo, In Progress, In Review, Done |
+| **Rows** | **Project** | The whole answer. At the default `No grouping` the Backlog column is one undifferentiated pile of 68 cards across 6 projects, which is why the board reads as broken |
+| Show empty columns | On | Otherwise In Progress and In Review hide under "Hidden columns" until something lands in them, so the columns you most want to watch are the ones missing |
+
+That is every ticket, every project, every state, on one screen. Star it or save it as a View.
+
+Two answers that were WRONG and are recorded so they are not repeated: the per-project board
+(`/project/<slug>` then the Issues tab) shows only that project, and the `/team/ORB/active` filter
+hides Backlog entirely. Neither is the one-screen view.
+
+Alongside it: `orca worktree ps` for the live per-worktree branch, terminal count and output
+preview, and `gh pr list` for what is waiting on a human merge. One `/orchestrate <project>`
+already fans out to `maxParallelWorktrees: 8`; running three at once is not what it was built for,
+because the cap is per-run and three runs cannot see each other.
 
 ---
 
