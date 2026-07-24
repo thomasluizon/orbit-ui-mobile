@@ -11,6 +11,7 @@ import noArbitraryZindex from "../../eslint-rules/no-arbitrary-zindex.cjs"
 import noCalcPercentageWidth from "../../eslint-rules/no-calc-percentage-width.cjs"
 import noDeadHref from "../../eslint-rules/no-dead-href.cjs"
 import noDecorativeGlow from "../../eslint-rules/no-decorative-glow.cjs"
+import noDoubleAssertion from "../../eslint-rules/no-double-assertion.cjs"
 import noDynamicTailwindClass from "../../eslint-rules/no-dynamic-tailwind-class.cjs"
 import noGradientText from "../../eslint-rules/no-gradient-text.cjs"
 import noJsxLogicalAnd from "../../eslint-rules/no-jsx-logical-and.cjs"
@@ -22,6 +23,7 @@ import noRawGradient from "../../eslint-rules/no-raw-gradient.cjs"
 import noScrollListenerMotion from "../../eslint-rules/no-scroll-listener-motion.cjs"
 import noSideStripeBorder from "../../eslint-rules/no-side-stripe-border.cjs"
 import noSpaceXY from "../../eslint-rules/no-space-x-y.cjs"
+import noUnjustifiedDisable from "../../eslint-rules/no-unjustified-disable.cjs"
 import spacingScale from "../../eslint-rules/spacing-scale.cjs"
 import noUserScalableNo from "../../eslint-rules/no-user-scalable-no.cjs"
 import react19Api from "../../eslint-rules/react19-api.cjs"
@@ -68,6 +70,7 @@ export default [
           "no-calc-percentage-width": noCalcPercentageWidth,
           "no-dead-href": noDeadHref,
           "no-decorative-glow": noDecorativeGlow,
+          "no-double-assertion": noDoubleAssertion,
           "no-dynamic-tailwind-class": noDynamicTailwindClass,
           "no-gradient-text": noGradientText,
           "no-jsx-logical-and": noJsxLogicalAnd,
@@ -79,6 +82,7 @@ export default [
           "no-scroll-listener-motion": noScrollListenerMotion,
           "no-side-stripe-border": noSideStripeBorder,
           "no-space-x-y": noSpaceXY,
+          "no-unjustified-disable": noUnjustifiedDisable,
           "spacing-scale": spacingScale,
           "no-user-scalable-no": noUserScalableNo,
           "react19-api": react19Api,
@@ -97,6 +101,7 @@ export default [
       "local/no-arbitrary-zindex": "error",
       "local/no-calc-percentage-width": "error",
       "local/no-dead-href": "error",
+      "local/no-double-assertion": "error",
       "local/no-gradient-text": "error",
       "local/no-jsx-logical-and": "error",
       "local/no-nested-component-definition": "error",
@@ -104,6 +109,7 @@ export default [
       "local/no-placeholder-alt": "error",
       "local/no-raw-font-feature-tag": "error",
       "local/no-side-stripe-border": "error",
+      "local/no-unjustified-disable": "error",
       "local/no-user-scalable-no": "error",
       "local/require-dialog-title": "error",
       "local/will-change-discipline": "error",
@@ -194,6 +200,7 @@ export default [
     files: ["__tests__/**/*.{ts,tsx}", "**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}", "e2e/**/*.{ts,tsx}"],
     rules: {
       "local/no-fullbleed-button": "off",
+      "local/no-double-assertion": "off",
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-require-imports": "off",
       "@typescript-eslint/no-unused-vars": "off",

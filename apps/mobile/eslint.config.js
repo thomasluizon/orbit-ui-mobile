@@ -11,6 +11,7 @@ const animatePresenceExit = require("../../eslint-rules/animate-presence-exit.cj
 const animatePresenceStableKey = require("../../eslint-rules/animate-presence-stable-key.cjs")
 const noArbitraryZindex = require("../../eslint-rules/no-arbitrary-zindex.cjs")
 const noDecorativeGlow = require("../../eslint-rules/no-decorative-glow.cjs")
+const noDoubleAssertion = require("../../eslint-rules/no-double-assertion.cjs")
 const noDraggableOnscroll = require("../../eslint-rules/no-draggable-onscroll.cjs")
 const noJsxLogicalAnd = require("../../eslint-rules/no-jsx-logical-and.cjs")
 const noOvershootEasing = require("../../eslint-rules/no-overshoot-easing.cjs")
@@ -19,6 +20,8 @@ const noRawGradient = require("../../eslint-rules/no-raw-gradient.cjs")
 const noScrollListenerMotion = require("../../eslint-rules/no-scroll-listener-motion.cjs")
 const noSideStripeBorder = require("../../eslint-rules/no-side-stripe-border.cjs")
 const spacingScale = require("../../eslint-rules/spacing-scale.cjs")
+const noUnjustifiedDisable = require("../../eslint-rules/no-unjustified-disable.cjs")
+const mobileSupabaseLazy = require("../../eslint-rules/mobile-supabase-lazy.cjs")
 
 // https://github.com/expo/expo/issues/43758 — eslint-config-expo@56 bundles react-hooks v7 and
 // turns on its full recommended set (refs, immutability, purity, …) at error. This project owns
@@ -78,6 +81,7 @@ module.exports = defineConfig([
           "animate-presence-stable-key": animatePresenceStableKey,
           "no-arbitrary-zindex": noArbitraryZindex,
           "no-decorative-glow": noDecorativeGlow,
+          "no-double-assertion": noDoubleAssertion,
           "no-draggable-onscroll": noDraggableOnscroll,
           "no-jsx-logical-and": noJsxLogicalAnd,
           "no-overshoot-easing": noOvershootEasing,
@@ -86,6 +90,8 @@ module.exports = defineConfig([
           "no-scroll-listener-motion": noScrollListenerMotion,
           "no-side-stripe-border": noSideStripeBorder,
           "spacing-scale": spacingScale,
+          "no-unjustified-disable": noUnjustifiedDisable,
+          "mobile-supabase-lazy": mobileSupabaseLazy,
         },
       },
     },
@@ -113,12 +119,14 @@ module.exports = defineConfig([
       "local/animate-presence-exit": "error",
       "local/animate-presence-stable-key": "error",
       "local/no-arbitrary-zindex": "error",
+      "local/no-double-assertion": "error",
       "local/no-draggable-onscroll": "error",
       "local/no-jsx-logical-and": "error",
       "local/no-overshoot-easing": "error",
       "local/no-raw-font-feature-tag": "error",
       "local/no-scroll-listener-motion": "error",
       "local/no-side-stripe-border": "error",
+      "local/no-unjustified-disable": "error",
 
       // Staged at `warn`: bundle 5 (#539) de-decorates both platforms — it deletes the glow
       // and gradient tokens and their call sites (LinearGradient here, GradientTop on web) —
@@ -153,6 +161,10 @@ module.exports = defineConfig([
     rules: { "local/no-fullbleed-button": "off" },
   },
   {
+    files: ["**/supabase.ts"],
+    rules: { "local/mobile-supabase-lazy": "error" },
+  },
+  {
     plugins: { "react-hooks": reactHooks },
     rules: {
       "react-hooks/rules-of-hooks": "error",
@@ -180,6 +192,7 @@ module.exports = defineConfig([
     files: ["__tests__/**/*.{ts,tsx}", "**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"],
     rules: {
       "local/no-fullbleed-button": "off",
+      "local/no-double-assertion": "off",
       "@typescript-eslint/no-require-imports": "off",
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unused-vars": "off",
@@ -212,6 +225,6 @@ module.exports = defineConfig([
     },
   },
   {
-    ignores: ["dist/*", ".expo/*"],
+    ignores: ["dist/*", ".expo/*", "eslint.config.js"],
   },
 ])
