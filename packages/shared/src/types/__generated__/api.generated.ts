@@ -1230,8 +1230,6 @@ export const PostOauthTokenBody = zod.object({
 })).and(zod.object({
   "code_verifier": zod.string().optional()
 })).and(zod.object({
-  "client_id": zod.string().optional()
-})).and(zod.object({
   "redirect_uri": zod.string().optional()
 }))
 
