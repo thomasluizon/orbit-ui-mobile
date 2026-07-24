@@ -3,8 +3,8 @@
 > **At a glance** - the authoritative spec for every Orbit UI surface; it overrides generic and user-global design defaults.
 > - Anchor (locked, 2026-07-17 freeze): de-decorated navy-violet orbital. Neutral canvas, rationed violet accent, hierarchy from surface steps + hairlines. **No decorative glow, no gradient wash, anywhere.**
 > - Identity is carried by the orbital logo mark, the Astra orbital glyph, and ring-shaped indicators. Never by background decoration.
-> - Semantic tokens only (`--bg`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-soft`, `--primary-rgb`, `--hairline`, ...); no raw hex in UI.
-> - Scales: type, **spacing (base 4)**, radius, motion. Ships light AND dark, all 6 color schemes; mobile-first 412px shell.
+> - Semantic tokens only (`--bg`, `--bg-card`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-soft`, `--primary-rgb`, `--hairline`, `--scrim`, ...); no raw hex in UI.
+> - Scales: type, **spacing (enumerated: `0 4 8 12 16 20 24 28 32 40 48 56 64`, three named exemptions, gated by `local/spacing-scale`)**, radius, motion. Ships light AND dark, all 6 color schemes; mobile-first 412px shell.
 > - Tokens live in `apps/web/app/globals.css` + `apps/mobile/lib/theme.ts` + `packages/shared/src/theme/`.
 > - Sections (exact `##` names, so this line is greppable): Identity & anchor · Tokens · Type roles · Layout & spacing · Primitives kit · Buttons · Surface rules · Habit list · States · Copy · Desktop density & orientation · Sub-screen navigation · Motion · Accessibility · Special surfaces (paywall, landing hero) · Bans · Working model · Enforcement.
 > - Read the whole doc before shaping, reviewing, or theming any surface. `## Enforcement` says which rules are gate-backed and which are reviewer judgment.
@@ -45,7 +45,15 @@ Canonical CSS lives in `apps/web/app/globals.css`; the mobile equivalent is `cre
 
 ### Spacing (base 4)
 
-**The base unit is 4px. Every layout value is a multiple of 4, taken from this named scale.** An off-scale spacing value is a defect.
+**The scale is these thirteen values and nothing else:**
+
+```
+0  4  8  12  16  20  24  28  32  40  48  56  64
+```
+
+A spacing value outside that set is a defect. The set is enumerated rather than described as "a multiple of 4" because a machine has to be able to check it: `local/spacing-scale` reads exactly this list, and "base 4" as prose let 6, 10, 14, 18 and 22 accumulate across a third of the app before anyone counted.
+
+Negative values are legal only at the negation of a scale step (`-8`, not `-6`), and only where a negative offset is genuinely the layout - never to undo a parent's padding (see **Bans**).
 
 | token | px | typical use |
 |---|---|---|
@@ -55,14 +63,26 @@ Canonical CSS lives in `apps/web/app/globals.css`; the mobile equivalent is `cre
 | `space-4` | 16 | card padding, list-row horizontal padding |
 | `space-5` | 20 | row vertical padding, right-rail module gap |
 | `space-6` | 24 | section padding, between-group air |
+| `space-7` | 28 | dense section padding |
 | `space-8` | 32 | between sections |
 | `space-10` | 40 | screen top/bottom padding |
 | `space-12` | 48 | between major blocks |
+| `space-14` | 56 | large hero inset |
 | `space-16` | 64 | hero and empty-state breathing room |
+
+**What the scale governs:** `margin` and `padding` (every side, every logical and React Native `Horizontal`/`Vertical` variant), `gap` / `rowGap` / `columnGap`, and the positional insets (`top` / `right` / `bottom` / `left` / `start` / `end` / `inset*`). It governs them wherever they are written - a Tailwind utility, a Tailwind arbitrary value, a JSX inline `style={{ }}` object, or a React Native `StyleSheet.create` object. Inline style objects are where most of Orbit's spacing actually lives and are invisible to CSS tooling; they are not a loophole.
+
+**What the scale does not govern:** `width` and `height`. An avatar diameter, an icon box, a sheet height are component dimensions, not layout rhythm. They answer to the primitives kit, not to this scale. Folding them in would force an exemption list wide enough to make the gate meaningless.
 
 Mechanics: use a flex or grid container with `gap-*`. **Never `space-x-*` / `space-y-*`, never a margin for sibling spacing.**
 
-**Exemption, and only this one:** `PillButton`'s internal geometry (heights 40/50/56, horizontal padding 18/26/30, icon gaps 7/9/10) is locked shared data in `packages/shared/src/theme/button.ts` and is off-scale by history. It is a primitive constant, not a layout decision, and is never hand-tuned per call. Nothing else is exempt.
+**The named exemptions - these three, and nothing else.** An exemption is a category with a reason, never a value added to the scale because code already used it:
+
+| name | what it covers | why |
+|---|---|---|
+| `pill-button-geometry` | the locked size table in `packages/shared/src/theme/button.ts` (heights 38/40/50/56, `paddingX` 18/26/30, icon `gap` 7/9/10) | A primitive's internal geometry, off-scale by history and frozen as shared data. It is read through `PillButton`, never hand-tuned per call. **The exemption is scoped to that one file.** Re-typing 9 or 26 into a chip, badge, or toolbar is not covered - that is the leak this scoping exists to stop. |
+| `hairline-inset` | `±1` on a positional inset only (`top` / `right` / `bottom` / `left` / `start` / `end` / `inset*`) | Aligning an element to a 1px hairline is a rendering fact, not a spacing decision. It never applies to padding, margin, or gap. |
+| `explicit-allow` | values passed to the rule's `allow` option | The escape hatch, and it is deliberately loud: adding one is a diff to the lint config, reviewed like any other. Per **Standing rules / product-and-content #2**, expanding the system is a request, not a judgement call. |
 
 **Space unevenly on purpose:** tight within a group, real air between groups. Uniform gaps everywhere is the tell of no decision, not a system.
 
@@ -72,10 +92,11 @@ The dark surfaces below are the **white-alpha ladder composited over the frozen 
 
 ```
 --bg              #070910                     /* frozen canvas, neutral / faint-cool, NOT violet-tinted */
---bg-elev         rgba(255,255,255,0.04)      /* THE card. Habit tonal panels, Astra card, PlanCard. -> #111319 */
---bg-field        rgba(255,255,255,0.05)      /* Field, OTP fill */
---bg-well         rgba(255,255,255,0.06)      /* emoji wells, icon squares -> #16181E */
---bg-elev-2       rgba(255,255,255,0.10)      /* the highest step -> #1F2128 */
+--bg-card         rgba(248,250,252,0.04)      /* THE card. Habit tonal panels, Astra card, PlanCard. -> #111319 */
+--bg-field        rgba(248,250,252,0.05)      /* Field, OTP fill */
+--bg-well         rgba(248,250,252,0.06)      /* emoji wells, icon squares -> #16181E */
+--bg-elev         rgba(248,250,252,0.06)      /* elevated / hover step, same alpha as the well. NOT the card. */
+--bg-elev-2       rgba(248,250,252,0.10)      /* the highest step -> #1F2128 */
 --bg-sunk         rgba(0,0,0,0.28)            /* recessed wells */
 --hairline        rgba(255,255,255,0.08)      /* #FFFFFF14 */
 --hairline-ghost  rgba(255,255,255,0.10)      /* #FFFFFF1A - the habit tonal panel's ghost-edge ring ONLY */
@@ -91,16 +112,17 @@ The dark surfaces below are the **white-alpha ladder composited over the frozen 
 --status-overdue-text rgb(254,154,0) · bad-text rgb(251,44,54)   /* = base; AA >= 4.5 on canvas */
 --fg-on-bad rgb(2,6,24) · --fg-on-overdue rgb(2,6,24)   /* painted ON the bad|overdue fill; per-mode, see hand-tune log */
 --selection-bg rgba(var(--primary-rgb),0.32)
+--scrim rgba(0,0,0,0.55)                     /* THE modal/sheet/dialog backdrop. Theme-independent. Web `bg-black/55`, mobile `tokens.scrim`. */
 ```
 
-There is **no `--gradient-header`** and **no glow shadow**. Both tokens are deleted, not softened.
+There is **no `--gradient-header`** and **no glow shadow** in the #539 target. Both are deleted, not softened. (Staging: both are still live on `main` behind the `no-decorative-glow` warn-to-error flip; see the Enforcement table and the spec-versus-main note in **Primitives kit**.)
 
 ### Light mode (MANDATORY, ships with every surface, all 6 schemes)
 
 The freeze re-anchored dark only. Light keeps its slate-50 canvas and opaque white cards, minus the deleted gradient and glow. Its hairline alphas (0.08 / 0.16 ink) now match dark's, so the two modes share one ring weight.
 
 ```
---bg #F8FAFC · --bg-elev #FFFFFF (opaque white cards) · --bg-elev-2 #FFFFFF · --bg-sunk rgb(241,245,249)
+--bg #F8FAFC · --bg-card #FFFFFF (opaque white cards) · --bg-elev #FFFFFF · --bg-elev-2 #FFFFFF · --bg-sunk rgb(241,245,249)
 --hairline rgba(2,6,24,0.08) · --hairline-ghost rgba(2,6,24,0.10) · --hairline-strong rgba(2,6,24,0.16)
 --fg-1 rgb(15,23,43) · --fg-2 rgb(49,65,88) · --fg-3 rgb(98,116,142) · --fg-4 rgb(144,161,185)
 --primary-soft = --primary   /* on light, the accent is already dark enough to be text. See the accent split below. */
@@ -154,7 +176,7 @@ Each scheme needs its own `--primary-soft` satisfying the text floor on its canv
 - **Nested rounded surfaces use concentric radii: outer = inner + padding.** A parent and its inset child never share a radius. (The 46px emoji well at r14 inside a habit panel at r18 is the reference.)
 - Shadows: hairline `0 0 0 0.5px rgba(255,255,255,0.06)`, sh-1 `0 1px 2px rgba(0,0,0,.20)`, sh-2 `0 4px 16px rgba(0,0,0,.28)`, sh-3 `0 12px 40px rgba(0,0,0,.45)`. **There is no primary glow.** Shadows model real occlusion under a lifted surface (sheets, menus); they are never a depth decoration and never carry the accent hue.
 - Motion: `--ease-standard cubic-bezier(0.2,0,0,1)`, `--ease-out cubic-bezier(0.16,1,0.3,1)`, `--ease-in` for exits, durations 160/220/280. Transform + opacity only. Presets stay in `packages/shared/src/theme/motion.ts`. Full governance in **Motion** below.
-- Icons: Lucide (`lucide-react` web, `lucide-react-native` mobile), strokeWidth **1.8** default, **2.2** active/emphasis, size 22 default.
+- Icons: **Tabler**, always through the per-platform barrel `@/components/ui/icons` (never a direct `@tabler/*` import - the barrel wraps Tabler to a Lucide-compatible prop shape so a future set-swap is one file, and `no-restricted-imports` enforces this). strokeWidth **1.8** default, **2.2** active/emphasis, size 22 default. The barrel exports icons under their familiar Lucide names, so a swap of the underlying set never touches a callsite. The orange Sparkles ✨ is never an AI/default marker (identity is the Astra glyph); see Habit list.
 - Hit targets: 44 min / 56 comfortable. See **Accessibility** for how to reach the minimum without growing the glyph.
 - **Align optically, not geometrically.** Icons with directional or asymmetric mass (chevrons, play triangles, a leading plus, a glyph in a circular well) need a 1-2px nudge off mathematical center. This applies to the NavHeader back chevron, the ListRow trailing chevron, and PillButton leading icons.
 
@@ -162,7 +184,7 @@ Each scheme needs its own `--primary-soft` satisfying the text floor on its canv
 
 Each scheme tints the neutral ramp; dark/light/system per scheme; 12 variants total.
 
-1. **Alpha tokens are scheme-independent constants.** `--bg-elev`, `--bg-field`, `--bg-well`, `--bg-elev-2`, `--bg-sunk`, all three hairlines, `--status-empty` are white-alpha (dark) / ink-alpha (light) and inherit tint optically from the canvas beneath. They are identical across all 6 schemes. Preserve this mechanism; it is what makes the surface ladder cost nothing per scheme.
+1. **Alpha tokens are scheme-independent constants.** `--bg-card`, `--bg-elev`, `--bg-field`, `--bg-well`, `--bg-elev-2`, `--bg-sunk`, all three hairlines, `--status-empty` are white-alpha (dark) / ink-alpha (light) and inherit tint optically from the canvas beneath. They are identical across all 6 schemes. Preserve this mechanism; it is what makes the surface ladder cost nothing per scheme.
 2. **Opaque neutrals re-derive per scheme via OKLCH:** convert each neutral (`--bg`, `--fg-1..4` dark; `--bg`, `--bg-sunk`, `--fg-1..4` light) to OKLCH; **lock L and C per token** (the ramp shape, shared by all schemes); hue varies per scheme.
 3. **Per-scheme neutral hue:** purple = the hue of the frozen canvas `#070910`, which is neutral / faint-cool and deliberately **not** the old violet-tinted 265.1322. Other 5 schemes: `neutralHue(s) = accentHue(s) + Δ` where `Δ` is the purple offset, then hand-tuned per scheme so each looks intentional (clamp chroma in the 50-170° hue band to avoid murk). Every hand-tune is one documented line below.
 4. **Acceptance (testable):** `createTokensV2('purple','dark')` and the web `.scheme-purple.dark` CSS resolve to exactly `#070910` bg, `#F6F7F9` fg-1, `#C7CBD2` fg-2, `#888E99` fg-3, `#565C67` fg-4, `#8659EA` primary, `#B69BF8` primary-soft. Light purple: `#F8FAFC` bg, white cards, `#0F172B` fg-1. A shared unit test asserts this.
@@ -223,39 +245,52 @@ Use the semantic classes (web `.t-*`) / shared role data (`packages/shared/src/t
 
 ## Primitives kit
 
+> **Spec-versus-main note (2026-07-24):** this kit describes the #539 target. Details marked
+> *(spec-only)* are ahead of `main` until the redesign's primitive tickets land: the `--scrim` token,
+> PillButton's `caution` variant and `xs` size, `EmptyState.matchActionFooterWidth`, `InfoCard.tone`,
+> ListRow's rule handoff (`settings-row` on `main` still draws its own default bottom hairline via
+> `divider`), InfoCard's borderless body (`main` still paints an inset primary ring), StatTile's
+> `--bg-card` fill and fixed value/label boxes (`main` is still on `--bg-field` with no
+> truncation or clamp), and every "no glow" / "GradientTop is deleted" claim (`GradientTop`,
+> `--gradient-header`, and the PillButton/FAB glow are still live on `main`, staged behind the
+> `no-decorative-glow` warn-to-error flip in the Enforcement table). Everything else in the table
+> exists on `main` today.
+
 Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same name, same props, same behavior.
 
 | Primitive | Key specs | Web | Mobile |
 |---|---|---|---|
 | NavHeader | 56px, centered UPPERCASE Rubik 13/500 +0.09em title, back chevron 26/2.0, right slot help (40px circled, inset 1.5px hairline-strong ring) / close / share | `ui/app-bar.tsx` | `ui/app-bar.tsx` |
 | SectionTitle | Rubik 20/500 -0.01em, 24/14 padding | `ui/section-label.tsx` | `ui/section-label.tsx` |
-| ListRow | 16/20 padding, icon 22/1.8 in 26px slot, title Rubik 18/400, desc 14 fg-3, trailing + chevron 22 fg-4, optional divider (default on; drop it on the last row before a section break or against a bordered element, never stack two hairlines), danger=status-bad | `ui/settings-row.tsx` | `ui/settings-row.tsx` |
+| ListRow | 16/20 padding, icon 22/1.8 in 26px slot, title Rubik 18/400, desc 14 fg-3, value + trailing + chevron 22 fg-4, **draws no rule of its own** *(spec-only, see note)*, danger=status-bad | `ui/settings-row.tsx` | `ui/settings-row.tsx` |
+| SettingsGroup | the only owner of row separation: renders a hairline *between* adjacent rows and never after the last, so a rule can never trail into a section break or stack against a bordered element | `ui/settings-group.tsx` | `ui/settings-group.tsx` |
 | Switch | 48×28 pill, 22px white thumb, on=primary / off=rgba(fg,0.16) | inside settings-row | inside settings-row |
 | Radio/RadioRow | 24px, selected=primary fill + 9px white dot, else inset 2px fg-4 ring | `ui/select-check.tsx` | `ui/select-check.tsx` |
 | Badge | pill 3/9px, 10.5/600 +0.06em UPPERCASE; tones violet/soft/outline/amber | `ui/badge.tsx` (+ pro-badge) | same |
-| PillButton | pill CTA, 4 variants × 3 sizes off the shared `BUTTON_SIZES` geometry: primary (accent fill, **no glow**) / secondary (fg-1 bg + canvas text) / ghost (inset 1.5px hairline-strong) / destructive (status-bad fill + fg-on-bad); md = h50·26px pad·Rubik 16/500·18 icon·9 gap (default), sm = h40, lg = h56. Hugs content; caps ~360px at desktop. Full canon in **Buttons** | `ui/pill-button.tsx` | `ui/pill-button.tsx` |
-| StatTile | radius 18, `--bg-elev` + inset hairline ring, emoji 28, value Inter 24/700, label 15 fg-2 | `ui/stat-tile.tsx` | same |
+| PillButton | pill CTA, 5 variants × 4 sizes off the shared `BUTTON_SIZES` geometry: primary (accent fill, **no glow** *(spec-only, see note)*) / secondary (fg-1 bg + canvas text) / ghost (inset 1.5px hairline-strong) / destructive (status-bad fill + fg-on-bad) / caution (status-overdue fill + fg-on-overdue); md = h50·26px pad·Rubik 16/500·18 icon·9 gap (default), sm = h40, xs = h38 (grounded desktop-sidebar Criar), lg = h56. Hugs content; caps ~360px at desktop. Full canon in **Buttons** | `ui/pill-button.tsx` | `ui/pill-button.tsx` |
+| StatTile | radius 18, `--bg-card` + inset hairline ring, emoji 28, value Inter 24/700 held to one line in a 29px box (web truncates with an ellipsis, mobile shrinks the font to 0.7), label 15/20 fg-2 clamped to **2 lines inside a fixed 40px reservation** so side-by-side tiles keep one baseline when a longer pt-BR label wraps. Tile and both text boxes carry `min-width: 0` *(fill + overflow model spec-only, see note)* | `ui/stat-tile.tsx` | same |
 | PlanCard | radius 18, selected = `--primary-dim` tint + inset 1.5px primary ring; price Inter 22/700 | `upgrade/plan-card.tsx` | same |
-| InfoCard | radius 18, `--primary-dim` tint bg + inset ring primary 0.28, icon 24/1.9 accent | `ui/info-card.tsx` | same |
+| InfoCard | radius 18, borderless tonal aside (**no ring** *(spec-only, see note)*); tone `quiet` (default, recedes) = `--bg-elev` bg + fg-3 icon, tone `accent` (focal call-out) = `rgba(var(--primary-rgb),0.14)` bg + `--primary-soft` icon; icon 22/1.8, 16/20 padding, gap 12 | `ui/info-card.tsx` | same |
 | Field | min-height 54, radius 14, `--bg-field` + inset hairline, **visible persistent label** 14/500 fg-2 | `ui/field-input.tsx` | `ui/app-text-input.tsx` |
 | OTP | 6 boxes 48×58, radius 14, `--bg-field`, active inset 2px primary, Roboto 26/500. Paste of a whole code MUST work | `ui/code-input.tsx` | `ui/code-input.tsx` |
-| Sheet | backdrop rgba(0,0,0,0.55), panel 26px top radius, grabber 44×5 hairline-strong, title Rubik 24/500 | `ui/app-overlay.tsx` | `bottom-sheet-modal.tsx` |
-| TabBar + FAB | top hairline, opaque canvas bg, **max 5 destinations**, icon 24 (active primary 2.2 / inactive fg-4 1.8), label 11; FAB 60px primary circle, ring `0 0 0 6px var(--bg)`, **no glow** | `navigation/bottom-tab-bar.tsx` | `navigation/bottom-tab-bar.tsx` |
+| Sheet | backdrop `--scrim` (rgba(0,0,0,0.55)), panel 26px top radius, grabber 44×5 hairline-strong, title Rubik 24/500 | `ui/app-overlay.tsx` | `bottom-sheet-modal.tsx` |
+| TabBar + FAB | top hairline, opaque canvas bg, **max 5 destinations**, icon 24 (active primary 2.2 / inactive fg-4 1.8), label 11; FAB 60px primary circle, ring `0 0 0 6px var(--bg)`, **no glow** *(spec-only, see note)* | `navigation/bottom-tab-bar.tsx` | `navigation/bottom-tab-bar.tsx` |
 | Satellite | 96px empty-state glyph, fg-4 strokes + primary arc. The empty half of the **state triad** | `ui/satellite-glyph.tsx` | same (react-native-svg) |
 | VerifiedBadge | scalloped check, `--primary-dim` disc | `ui/verified-badge.tsx` | same |
 | ProgressBar | 8px pill track rgba(fg,0.08), primary fill | `ui/progress-bar.tsx` | same |
 | ProgressRing | thin band, `innerRadius` 0.94 (~6px stroke), primary sweep on a fg-4 track | right rail / Today | same |
 | HabitRow | inside a tonal panel: 46px emoji well radius 14 `--bg-well`, name Rubik 16/500, meta 13 fg-3 + streak flame, trailing 30px check ring, per-row `⋮` overflow menu | `habits/habit-row.tsx` | `habits/habit-row.tsx` |
 
-`GradientTop` is **deleted**. It backed the `--gradient-header` wash, which no longer exists.
+`GradientTop` is **deleted** in the #539 target. It backed the `--gradient-header` wash. *(Spec-only, see note: both are still live on `main`, staged behind the `no-decorative-glow` Enforcement row.)*
 
 ## Buttons
 
 `PillButton` (`ui/pill-button.tsx`, mirrored web + mobile) is the one pill CTA. Its geometry is shared data in `packages/shared/src/theme/button.ts` (`BUTTON_SIZES`) so the two platform mirrors cannot drift. Over-wide and over-wordy buttons are the two AI-slop tells this rule kills.
 
-- **Variants:** `primary` (accent fill, no glow), `secondary` (fg-1 fill, canvas text), `ghost` (transparent, inset 1.5px hairline-strong ring), `destructive` (status-bad fill, fg-on-bad text). `ConfirmDialog` reuses the `primary` / `destructive` fills for its paired action row.
-- **Sizes:** `sm` (h40, 18px pad, 14px label, 16 icon, 7 gap), `md` (h50, 26px pad, 16px label, 18 icon, 9 gap; the default), `lg` (h56, 30px pad, 17px label, 20 icon, 10 gap). A size is a fixed height + horizontal padding + label / icon / gap set; never hand-tune per call.
-- **Width, hug by default.** A pill sizes to its content. A lone CTA in a wide container caps at ~360px and never spans a desktop content column. Full-width (`fullWidth`, or a phone-shell stretch) is sanctioned ONLY in: (1) the single primary action of a mobile bottom-sheet or dialog, (2) a form submit at or below the mobile breakpoint (auth, onboarding, support, create flows), (3) a full-screen empty-state primary CTA. `ConfirmDialog`'s paired action row is also allowed. Everywhere else the pill hugs.
+- **Variants:** `primary` (accent fill, no glow), `secondary` (fg-1 fill, canvas text), `ghost` (transparent, inset 1.5px hairline-strong ring), `destructive` (status-bad fill, fg-on-bad text), `caution` (status-overdue amber fill, fg-on-overdue text - the reversible-danger sibling of `destructive`, for the account-reset / fresh-start action; full account deletion stays `destructive`). `ConfirmDialog` builds its paired action row from `PillButton` itself - `ghost` for cancel, `primary` / `destructive` for confirm - never a hand-rolled pill.
+- **Sizes:** `xs` (h38, 18px pad, 14px label, 16 icon, 7 gap; the grounded desktop-sidebar Criar), `sm` (h40, 18px pad, 14px label, 16 icon, 7 gap), `md` (h50, 26px pad, 16px label, 18 icon, 9 gap; the default), `lg` (h56, 30px pad, 17px label, 20 icon, 10 gap). A size is a fixed height + horizontal padding + label / icon / gap set; never hand-tune per call.
+- **Width, hug by default.** A pill sizes to its content. A lone CTA in a wide container caps at ~360px and never spans a desktop content column. Full-width (`fullWidth`, or a phone-shell stretch) is sanctioned ONLY in: (1) the single primary action of a mobile bottom-sheet or dialog, (2) a form submit at or below the mobile breakpoint (auth, onboarding, support, create flows), (3) a full-screen empty-state primary CTA. `ConfirmDialog`'s paired action row is also allowed. Everywhere else the pill hugs. `fullWidth` enforces this itself: it stretches below the `sm` breakpoint and **releases to intrinsic (hug) width at `sm` and up**, capped at ~360px and centred in both block and flex parents - so a callsite never needs a `self-center` or width patch, and passing `fullWidth` can never produce a desktop slab.
+- **The one matched-width exception: a stacked action+footer CTA pair.** `EmptyState`'s `matchActionFooterWidth` prop (web + mobile) is the single sanctioned carve-out from hug-by-default, scoped exactly to the case of a primary pill stacked directly over a secondary/ghost pill as one visual unit (e.g. the habit-list empty state's "Ask Astra" over "Create"). When set, both pills size to the wider of the two instead of each hugging its own label - two pills of visibly different width read as an unrelated pair, not a matched set, and that mismatch is itself an AI-slop tell (#539 row 9). Mechanism: web uses a CSS grid wrapper (default `justify-items: stretch` sizes every track to its widest child); mobile sets the actions `View`'s `alignItems` to `stretch` instead of `center` (Yoga resolves the same way - container width from the widest child's intrinsic size, then all children stretch to it). This does **not** reopen hand-tuned widths generally - `PillButton` itself is untouched, the sizing happens only in the shared `EmptyState` wrapper, and only when a caller explicitly opts in with both an `action` and a `footer` pill present.
 - **Labels, 1-2 words, action-first.** Strip words the surrounding dialog title or section header already carries ("Log all" becomes "Log", "Registrar todos" becomes "Registrar"). pt-BR runs longer than en, so the size scale must absorb the longer string without going full-bleed.
 - **One label per CTA intent per surface, and the name survives the whole flow.** The button that says "Publish" produces "Published", never "Submit" for "Save changes". Nav, hero, and footer pointing at one action use one string. This has real teeth here: every string exists twice (`en.json` + `pt-BR.json`) and the shortening rule above is exactly when a label and its toast drift apart.
 - **Icons, a leading glyph where it aids recognition** (create → plus, confirm → check, destructive → trash), sized and gapped from the size token. Icon-only pills MUST carry a localized `aria-label` / `accessibilityLabel`. No decorative icons.
@@ -267,16 +302,16 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 - **Opaque white cards on light.** Never translucent.
 - **Inset 1px hairline rings instead of borders** (web `box-shadow: inset 0 0 0 1px var(--hairline)`; RN border with the same color reads equivalently).
 - **No opaque card-on-card on dark.**
-- **Minimal dividers.** Separate with whitespace or an inset ring first; a hairline rule is earned only between two adjacent flat rows. Drop a row's divider when it is the last before a section break or sits against a bordered element, and never stack two hairlines.
+- **Minimal dividers.** Separate with whitespace or an inset ring first; a hairline rule is earned only between two adjacent flat rows. **Separation is the container's job, never the row's** - a row cannot know whether it is last or what follows it, so a row that draws its own rule inevitably trails one into a section break. Rows render flat; wrap them in `SettingsGroup` when adjacent rows earn a rule between them. Never stack two hairlines.
 - **Blur and glass are never a default or a decoration.** A backdrop blur must be rare and purposeful or absent. An animated blur stays <= 8px, short, one-time, and never on a large surface. Orbit's ladder is an alpha ladder, not a blur ladder; with glow gone, backdrop-blur is the likeliest place decoration creeps back in.
 
 ## Habit list (frozen treatment)
 
 The approved Today mockups define this exactly. It is the surface the whole design freeze was fought over.
 
-- **Every top-level habit lives on its own tonal panel:** `--bg-elev` + an inset `--hairline-ghost` ring, radius 18. Single-row for a simple habit, multi-row for a family (parent + sub-habits on ONE panel). A childless habit is never a flat row sitting next to family panels.
+- **Every top-level habit lives on its own tonal panel:** `--bg-card` + an inset `--hairline-ghost` ring, radius 18. Single-row for a simple habit, multi-row for a family (parent + sub-habits on ONE panel). A childless habit is never a flat row sitting next to family panels.
 - **Panel row height matches across kinds.** A single-row panel is sized to the same row height as a family's parent row: web ~70px (via zeroed panel vertical padding), mobile ~66px.
-- The panel is `--bg-elev` (the quietest step) so the `--bg-well` emoji squares inside it read as the lighter elevation. The panel recedes; the content does not.
+- The panel is `--bg-card` (the quietest step) so the `--bg-well` emoji squares inside it read as the lighter elevation. The panel recedes; the content does not.
 - **Two levels inline, then drill in.** A node with children beyond level 2 shows a **violet `›`** (open in focus); a grey `⌄` means expand in place; a grey `›` means a collapsed family. Drilling makes the node the root and shows a breadcrumb (`‹ Water › Água da manhã`) to climb back: full width, always legible, unlimited depth. Reuses `onDrillInto` / `canDrillInto` in `habit-row.tsx`.
 - **Sub-habit rows:** indent + smaller well + dimmer text. **Zero connector or tree lines.** Connector lines are an AI-slop tell.
 - **The per-row `⋮` overflow menu stays.** The mockup omits it; the mockup is a mockup. The mockups define the visual language (surfaces, spacing, tokens, panel treatment, ring, layout), not the complete control set. Existing per-row affordances (kebab, swipe actions) are retained unless a decision explicitly removes them.
@@ -317,6 +352,17 @@ The approved Today mockups define this exactly. It is the surface the whole desi
 - **Never hide core functionality at a breakpoint**, and keep one information architecture across every context. Adapt the layout, not the feature set or the mental model.
 - **Match a feature's flow shape to its neighbors**, not just its surface: the same progressive-disclosure depth, the same modal-vs-full-page and inline-vs-route and save-on-blur-vs-submit choices, the same conceptual weight given the same visual weight, the same nouns and verbs.
 - **A modal is never the first thought.** Exhaust inline and progressive-disclosure alternatives before reaching for one.
+
+### Stacking
+
+One semantic z-index scale, shared across both platforms. Overlays stack on a named tier, never a hand-picked number. Web reads it as `z-<tier>` utilities backed by the `--z-index-*` tokens (both in `app/globals.css`; they are explicit `@utility` blocks because Tailwind v4 has no z-index theme namespace); mobile reads `zLayers.<tier>` from `@orbit/shared/theme` (`packages/shared/src/theme/z-layers.ts`). Values are spaced by 100 (1000–1700) so they sit far above local stacking and leave room without inviting off-scale literals.
+
+Six tiers ascend: `dropdown` (1000) < `sticky` (1100) < `modalBackdrop` (1200) < `modal` (1300) < `toast` (1600) < `tooltip` (1700). Plus two Orbit carve-outs a generic scale gets wrong:
+
+- **`celebration` (1500)** sits **just below `toast`**: an achievement/all-done/goal/streak-freeze overlay is modal-ish but transient, and a toast may still need to surface over it.
+- **`tourSpotlight` (1400)** sits **above `modal`**, inverting the usual order, because a tour points AT modals.
+
+Local sibling stacking is a different thing and stays local: lifting content above a `::before`, ordering a sticky table header, sending a decoration behind its content. Use a small `z-[1..9]` / standard `z-{n}` utility (web) or `zIndex: 1..9` (mobile) for those - they are not overlays and have no tier on this scale. Android shadow `elevation` is a depth cue, orthogonal to stacking, and is unaffected. The one banned thing is the arms-race literal: an arbitrary `z-[9999]` or raw `zIndex: 10003` that means "add until it works."
 
 ## Sub-screen navigation
 
@@ -429,13 +475,14 @@ Orbit has no a11y gate today. This section is where it starts, and bundle 4 turn
 - No coloured side-stripe: never a `border-left` / `border-right` thicker than 1px as an accent stripe on a card, row, callout, or alert.
 - No raw `--slate-*` references in app code. Semantic tokens only.
 - No hardcoded violet rgba. Tints come from `--primary-rgb` / `tintFromPrimary`.
+- No off-scale shadow. Lifted surfaces (sheets, menus, dialogs, toasts, tooltips) read sh-1/sh-2/sh-3 (`--shadow-1/2/3`, mobile `shadowsV2`) verbatim, paired with `inset 0 0 0 1px var(--hairline)` for the lift ring. Never a hand-rolled `box-shadow` with a heavier blur or darker alpha than the token - a bespoke `0 24px 60px rgba(0,0,0,0.55)` is a depth decoration, which shadows are never.
 - No opaque card-on-card on dark. No borders-as-borders where the kit uses inset rings. No stacked hairlines.
-- No off-scale spacing value. No `space-x-*` / `space-y-*`. No margins for sibling spacing.
+- No off-scale spacing value - the legal set is `0 4 8 12 16 20 24 28 32 40 48 56 64` and the three named exemptions in **Spacing**, nothing else. No `space-x-*` / `space-y-*`. No margins for sibling spacing.
 - No `transition-all`. Animate `transform` and `opacity` only, named explicitly.
 - No bounce or elastic easing (any `cubic-bezier` whose y control points fall outside `[0,1]`). No spring overshoot.
 - No `h-screen`. Use `min-h-dvh`.
 - No structural hacks: no negative margin undoing a parent's padding, no escape-hatch `calc()`, no absolute positioning to dodge layout flow.
-- No arbitrary z-index (`z-[9999]`, `zIndex: 999`). Stacking comes from the semantic scale in the theme tokens.
+- No arbitrary z-index (`z-[9999]`, `zIndex: 999`). Overlays stack on the semantic scale in the theme tokens - see **Stacking**.
 - No new font families, radii, or colors outside this spec. Rubik/Inter/Roboto only.
 - No per-component scheme branches. Schemes resolve through tokens only.
 - No em dashes in copy. No UPPERCASE typed into a string.
@@ -489,12 +536,13 @@ Describe the rendered screen in one sentence as if narrating a film scene. If th
 |---|---|---|
 | The accent split and its three floors (Tokens) | **accent-AA token test**, per scheme × mode: (1) white on `--primary` >= 4.5; (2) `--primary` on canvas >= 3.0; (3) `--primary-soft` on canvas >= 4.5 | The headline gate. **Not** a blanket "primary as text >= 4.5", which would false-fail a fill-only accent. |
 | Byte-exact token acceptance (Derivation rule 4) | shared unit test on `createTokensV2` + the resolved web CSS | Targets moved in the freeze; re-baseline. |
-| No decorative glow (Bans) | `local/no-decorative-glow` lint | The token is deleted; the lint stops it being re-derived from `--primary-rgb`. |
+| No decorative glow (Bans) | `local/no-decorative-glow` lint | Staged at `warn` in `apps/web` and `apps/mobile` until the redesign deletes the glow/gradient tokens and their call sites (`error` in `packages/shared`, already clean); flips to `error` in the PR that de-decorates. The lint stops the pattern being re-derived by hand. It tests the PRINCIPLE, not a token list: a shadow that is not inset, has a non-zero blur, and carries **any hue** is a glow, because every sanctioned shadow here is pure greyscale occlusion. Reads shadow properties in **any** object, not just a JSX `style` attribute, so `StyleSheet.create` is covered. The earlier version matched `--primary-rgb` only, and a `--status-frozen` glow shipped past it in the very PR that banned glow. |
 | No gradient wash / gradient text (Bans) | `local/no-raw-gradient` + `local/no-gradient-text` | |
 | No coloured side-stripe (Bans) | `local/no-side-stripe-border` | Mobile via the style-object branch. |
 | No bounce or elastic easing (Motion) | `local/no-overshoot-easing`: any `cubic-bezier(a,b,c,d)` with `b` or `d` outside `[0,1]` | 4 skills independently proposed overshoot and were dropped each time; the ban is the settled position. |
 | No `space-x-*` / `space-y-*` (Spacing) | `local/no-space-x-y` | |
-| No arbitrary z-index (Bans) | `local/no-arbitrary-zindex` | **Blocked on a spec decision:** the semantic stacking scale (dropdown → sticky → modal-backdrop → modal → toast → tooltip) does not exist in the theme tokens yet, so the rule has nothing to allowlist against. Bundle 4 must land the scale first. |
+| Off-scale spacing (Spacing) | `local/spacing-scale`: margin / padding / gap / inset values checked in Tailwind utilities, Tailwind arbitrary values, JSX inline `style={{ }}`, and `StyleSheet.create` | Reads the enumerated scale, carries the three named exemptions (`allow` option + the file-scoped PillButton exemption + the `±1` inset hairline). Autofixes only an unambiguous snap (within 1px of a unique non-zero step: 9 → 8, 13 → 12); leaves 6/10/14/18/22 unfixed because those are layout decisions. **Ships as a RATCHET at `error` on all three workspaces**: the pre-existing violations (measured against `main` 2026-07-24: web 718, mobile 718, shared 0) ride a committed `eslint-suppressions.json` per workspace, so only NEW or CHANGED code fails, and `npm run lint:prune` shrinks the baseline as they are fixed. It never grows. Before 2026-07-24 the rule ran nowhere on `main` (it lived only on the archived #539 branch), so all spacing was ungated. |
+| No arbitrary z-index (Stacking) | `local/no-arbitrary-zindex`: arbitrary `z-[n]` / raw `zIndex: n` with `n >= 10` | Bans the arms-race literal only. Local sibling stacking (`z-[1..9]`, `zIndex: 1..9`), the `z-<tier>` utilities, `zLayers.<tier>`, and Android `elevation` are allowed - see **Stacking**. |
 | Focus outline never removed bare (A11y) | `local/require-focus-replacement`: `outline-none` with no `focus-visible:` sibling | WCAG 2.4.7. |
 | Never disable zoom (A11y) | `local/no-user-scalable-no` over the viewport meta / Next `viewport` export | Web only. |
 | `<div onClick>`, positive `tabIndex` (A11y semantics) | *enable, do not write*: `jsx-a11y/no-static-element-interactions`, `no-noninteractive-element-interactions`, `click-events-have-key-events`, `tabindex-no-positive` at **error** | |
@@ -507,6 +555,7 @@ Describe the rendered screen in one sentence as if narrating a film scene. If th
 | No em dashes in copy | `.claude/hooks/forbid-em-dashes.mjs` | **Already shipping.** |
 | No hardcoded brand color | `.claude/hooks/forbid-hardcoded-brand-color.mjs` | **Already shipping.** |
 | No full-bleed pill CTA (Buttons) | `local/no-fullbleed-button` | **Already shipping**, web only. Mobile StyleSheet width is not statically linkable, so mobile stays reviewer-judgment. |
+| Icons only through the barrel (Icons) | `no-restricted-imports` bans `lucide-react(-native)` + `@tabler/icons-react(-native)` outside `components/ui/icons.tsx` | #539 b6. The barrel is the only file allowed to import the icon set directly. **Pending on `main`**: the barrel ships with the redesign's primitive tickets; the restriction lands in the same PR (banning today would fail every existing direct import). |
 | AI-cliché copy words | `.claude/hooks/forbid-ai-cliche-copy.mjs` (new) | Wordlist over `en.json` + `pt-BR.json` values. Same shape as the em-dash hook. |
 | No UPPERCASE typed into a string (Copy) | wordlist/shape check over i18n **values** in the same hook family | Must not fire on keys or on acronyms. |
 
@@ -516,4 +565,4 @@ Everything else, and specifically: the 65ch measure, the spacing rhythm (tight w
 
 ### Not enforceable here
 
-`prefers-reduced-transparency` / `prefers-contrast` handling, the 200% zoom layout, keyboard traps, and screen-reader semantics need the **live rendered DOM**. They belong to the proposed a11y baseline-diff CI gate (reusing `visual.yml`'s hermetic mock-api plus `perf.yml`'s fake-JWT harness), which reports only diff-introduced violations. Note the baseline must be captured **without** `git stash` / `git checkout`: a night-run's children share the tree.
+`prefers-reduced-transparency` / `prefers-contrast` handling, the 200% zoom layout, keyboard traps, and screen-reader semantics need the **live rendered DOM**. They belong to the proposed a11y baseline-diff CI gate (reusing `visual.yml`'s hermetic mock-api plus `perf.yml`'s fake-JWT harness), which reports only diff-introduced violations. Note the baseline must be captured **without** `git stash` / `git checkout`: the `/drive` engine's children share the tree.
