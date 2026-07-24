@@ -52,7 +52,7 @@ The workflow's finders **read the EF migrations** to confirm which indexes exist
 for the index checks), and exclude other generated/vendored dirs. Load
 **`.claude/skills/_shared/verification-protocol.md`** (the workflow executes §1/§2/§3; you
 carry the Verify summary + Deferred ledger §4/§5 into the approval gate) and
-**`.claude/skills/_shared/audit-to-tickets.md`** (the D10 ticket-emission pipeline Phase 5
+**`.claude/skills/_shared/audit-to-tickets.md`** (the D10 ticket-emission pipeline Phase 4
 runs).
 
 ### D11 scope: judgement only, never what a gate checks
@@ -80,65 +80,42 @@ Workflow({ scriptPath: '.claude/workflows/audit.mjs', args: { kind: 'performance
 It fans out **one Haiku finder per slice**, `api-queries` (N+1, index coverage vs the
 migrations) · `api-requestpath` (sync slow work, blocking async, over-fetch, AsNoTracking) ·
 `fe-web` (TanStack cache hygiene, render thrash, bundle) · `fe-mobile` (long lists, Metro
-bundle, asset weight), against the Phase-3/4 checklist below; runs a **Haiku skeptic** per
+bundle, asset weight), each reading `checklist.md`; runs a **Haiku skeptic** per
 **High** finding (default-refuted, the impact is bounded at Orbit's scale, the index
 actually exists, the query is already projected); loops until dry. It returns:
 
 ```
 { findings: [{ severity, title, category, location, evidence, rationale, fix, reference }],
-  counts, coverage, deferred, rounds, converged, convergenceReason, criticErrors, scopeLabel }
+  counts, coverage, deferred, rounds, converged, convergenceReason, loopBound, criticErrors, scopeLabel }
 ```
 
 **Completeness is a computed field, not an assumption.** `converged === true` only after the
 critic ran and returned empty. Anything else (e.g. `criticErrors ≥ 2` from a rate-limit)
 reports as "coverage UNKNOWN, ${convergenceReason}": a dead verifier is not a clean pass.
 
-**Fallback (no `Workflow` tool):** run the fan-out inline, `Explore` finders (Haiku, 3
-concurrent) over the four slices against the checklist below, Haiku skeptics per High
-finding, a completeness pass, same findings shape.
+**Fallback (no `Workflow` tool):** run the fan-out inline, `audit-readonly` finders (Haiku,
+3 concurrent) over the four slices against `checklist.md`, Haiku skeptics per High finding,
+a completeness pass, same findings shape. The fallback keeps the primary path's agent type
+on purpose: an audit reads, so its workers carry no write, edit, or shell tools either way.
 
 ---
 
-## Phase 3: API performance checklist (the finders apply this)
+## Phase 3: The checklist the finders apply
 
-> The flagship for Orbit: a habit tracker is read-heavy, and the killer is **round-trips
-> per request**.
+`checklist.md`, next to this file, is the pattern list: section **A** the API side (N+1,
+missing indexes, over-fetching, sync slow work in a request path, blocking async, early
+materialization, missing `AsNoTracking`), section **B** the frontend side (bundle bloat,
+render thrash, list virtualization, over-eager and stale caching, waterfalls, asset weight),
+section **C** the enterprise tuning that is noted once and never itemized.
 
-- **N+1 queries**, a query that loads a list then lazy-loads a relation per item; missing
-  `.Include()`/`.ThenInclude()`, or projecting after materializing. Fix: eager-load or project
-  with `.Select`.
-- **Missing indexes**, a `Where`/`OrderBy`/join on an unindexed column → sequential scan.
-  Check the EF migrations for an index on every filtered FK (`UserId`, `HabitId`, `GoalId`)
-  and hot `Where`/`OrderBy` columns (`DueDate`, `Date`), plus filtered/partial-unique where
-  the schema needs it (the `HabitLogs` Value>0 partial constraint). Fix: add the `HasIndex`.
-- **Over-fetching**, full-entity loads where a projection would do; no pagination on an
-  unbounded list.
-- **Synchronous slow work in the request path**, CPU loops, an HTTP/AI call, email, or push
-  done inline instead of offloaded to the background queue.
-- **Blocking async**, `.Result`/`.Wait()`/`.GetAwaiter().GetResult()` in a request path.
-- **`IQueryable` materialized too early**, `.ToList()` then `.Where()` in memory.
-- **Missing `AsNoTracking()`** on read-only hot paths.
-
-## Phase 4: Frontend performance checklist (the finders apply this)
-
-- **Bundle bloat**, a heavy or non-tree-shakeable import for a small need; a large dep that
-  could be dynamic-`import()`ed / server-only. Check `next.config` and the Metro bundle.
-- **Render thrash**, a new object/array/function literal as a prop every render defeating
-  memoization; an unstable-dependency `useEffect`; a missing stable `key`. Only flag where the
-  render is demonstrably hot, premature `memo` is its own smell.
-- **List virtualization**, a long unbounded list rendered in full (mobile: `.map()` over a
-  large array vs a `FlatList`). Bounded-small lists are fine.
-- **Over-eager caching**, refetch on every mount/focus for stable data; a query per keystroke
-  without debounce.
-- **Stale caching**, a mutation that doesn't `invalidateQueries` the data it changed; a
-  too-long `staleTime` on data that must feel live.
-- **Waterfalls**, sequential awaits that could `Promise.all`; a client fetch that should be
-  server-rendered.
-- **Image / asset weight**, unoptimized large images to a 412px phone shell.
+It is a separate file because `.claude/workflows/audit.mjs` hands its path to every finder
+as their contract, so its prose is a machine input: an edit there changes the finder prompt,
+and anything added here does not reach them. Confirm the returned `coverage` addresses both
+sections, and re-invoke with a narrowed scope for any slice it missed.
 
 ---
 
-## Phase 5: Emit tickets (D10), not a report
+## Phase 4: Emit tickets (D10), not a report
 
 Run the shared pipeline in **`.claude/skills/_shared/audit-to-tickets.md`**: one Linear
 ticket per verified risk, drafted to the 6.2 template, validated by
