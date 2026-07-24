@@ -971,13 +971,27 @@ of 78. Never take a raw count from that command.
 | PostHog | 8 | 8 |
 | Brand Assets | 2 | **0** |
 
-**The consequence, which bites the first time `/orchestrate` runs on anything but PostHog:**
-`.claude/orchestrator.json` sets `"ready": ["Todo"]`, so the wave engine only picks up tickets in
-Todo. Every project except PostHog sits entirely in Backlog, so `/orchestrate "539 Redesign"`
-would compute an empty wave 1 today even though ORB-30 has no blockers and this document calls it
-launchable. Starting a project means moving its unblocked tickets to Todo first. This is a state
-convention, not a defect in either the board or the engine, and it is recorded so it is not
-rediscovered as a bug.
+**Backlog does NOT block a wave, and nothing needs promoting by hand.** `tools/wave-plan.mjs`
+computes launchability from the DAG, not from the board column: a ticket is launchable when every
+`blockedBy` is done, its state type is not `started`, and `attempts < 2`. Verified by running it:
+
+```
+$ node tools/wave-plan.mjs --project "539 Redesign"
+WAVE 1
+  ORB-30  [Backlog]  Rewrite DESIGN.md as the dense and warm mechanical spec (ticket 0)
+WAVE 2
+  ORB-32, ORB-34, ORB-36, ORB-38, ORB-41, ORB-68, ORB-69, ORB-70, ORB-71   blockedBy: ORB-30
+```
+
+So the day-to-day is `/orchestrate "<project>"` and nothing else. Todo versus Backlog is a human
+reading aid; the orchestrator moves a ticket to In Progress itself when it launches it.
+
+**The one real defect this exposed:** `.claude/orchestrator.json` carries `states.ready: ["Todo"]`
+and **no code reads it**. `wave-plan.mjs` never loads `config.states`. Dead config that states a
+rule the engine does not implement is worse than no config, because it is read as authoritative:
+it produced exactly one wrong conclusion in this document before being caught. Removed. The
+sibling `working` / `review` / `done` values stay, because the `/orchestrate` skill uses them for
+`orca linear status set`.
 
 ## 14. Open follow-ups carried out of Phase 6
 
