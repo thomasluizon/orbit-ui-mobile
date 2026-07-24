@@ -39,7 +39,7 @@ frontmatter gate (#593).
 
 **Phase 7 needs Thomas:** the end-to-end proof run (best candidate ORB-75) needs a PostHog EU
 Cloud account + `codex login` on ChatGPT Pro first. The denominator audit register is in 8.5; raw
-output at `.claude/specs/denominator-audit-2026-07-24.json`.
+output at `brain/2 Areas/20-29 Orbit Engineering/denominator-audit-2026-07-24 (raw, #539).json`.
 
 ---
 
@@ -233,7 +233,7 @@ Thomas's job reduces to: talk to the PM agent, then review and merge. Merging ad
 |---|---|---|
 | Linear workspace not connected (`orca linear team list` returns `teams: []`) | Create account, connect in Orca | Thomas |
 | **orbit-api and orbit-landing-page not registered in Orca** (`orca repo list` shows only orbit-ui-mobile, brain, gta6-shorts-factory, portfolio) | `orca repo add --path <path>` | Claude |
-| `.claude/specs/issue-562.spec.md` is **not in git** (187 lines, local only) | Back up to the brain vault before touching anything | Claude |
+| ~~`.claude/specs/issue-562.spec.md` is **not in git** (187 lines, local only)~~ | **DONE.** Backed up to the vault as `0 Inbox/issue-562 spec backup (2026-07-24).md` and `2 Areas/20-29 Orbit Engineering/Orbit ui562 Astra epic spec (rescued from gitignore 2026-07-23).md`, extracted to the 562 Astra Linear project (17 tickets), then deleted with the rest of `.claude/specs/` on 2026-07-24 | Claude |
 | No `AGENTS.md` in either repo | Create in Phase 4 | Claude |
 
 ### 4.3 Linear plan
@@ -259,7 +259,7 @@ Workspace `Orbit`, one team `Orbit`, key `ORB`. Workflow states will be read wit
 | Agents: `primer`, `implement-opus`, `implement-sonnet` | 3 | ~150 | Orca worktree + an explicit CLI command replaces model routing |
 | Hooks: `surface-coverage-gate`, `forbid-gate-tamper`, `primer-shell-allowlist` | 3 | ~900 | They guard deleted things |
 | `.opencode/` + its 19 parity assertions | - | - | D22 |
-| `.claude/specs/`, `.claude/plans/`, `.claude/audits/` | ~20 | - | After extracting 562 to Linear and the vault |
+| `.claude/specs/`, `.claude/plans/`, `.claude/audits/` | ~20 | - | After extracting 562 to Linear and the vault. **`.claude/specs/` DONE 2026-07-24**: it was never tracked in git, so it held three local-only files. 562 was extracted to Linear and the vault first (4.2); the denominator audit's raw output moved to `brain/2 Areas/20-29 Orbit Engineering/`, byte-compared before the delete, and this document's three references repointed there. `.claude/audits/` still holds `prod-readiness-both.md`, which section 14 item 4 flags for deletion under D10 |
 
 **Roughly 34,000 of 44,700 lines. About 75%.**
 
@@ -522,7 +522,7 @@ then R5 to R18 in parallel.
    but the check animation, sheet transitions, page transitions and skeletons are not counted
    anywhere. **Resolved 2026-07-24:** the denominator audit produced the list, 69 distinct
    user-visible animation behaviours, 0 of which the manifest can see. The full enumeration is in
-   `.claude/specs/denominator-audit-2026-07-24.json`; Phase 5 distributes each item to its owning
+   `brain/2 Areas/20-29 Orbit Engineering/denominator-audit-2026-07-24 (raw, #539).json`; Phase 5 distributes each item to its owning
    ticket body (celebrations to R4, screen-specific to the screen ticket, cross-cutting route
    transitions, skeletons, press feedback and focus rings to R1/R2, landing motion to the landing
    ticket).
@@ -605,7 +605,7 @@ would ship with all of it untouched:
 
 7 counting agents, each claim adversarially verified by independent skeptics (a sample of 10-12
 per denominator; Haiku verifiers). 89 agents, 0 errors, 4.4M tokens. Raw output:
-`.claude/specs/denominator-audit-2026-07-24.json`.
+`brain/2 Areas/20-29 Orbit Engineering/denominator-audit-2026-07-24 (raw, #539).json`.
 
 | Denominator | Total | In manifest | Claimed uncovered | Verified sample: confirmed / refuted |
 |---|---|---|---|---|
