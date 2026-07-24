@@ -1,6 +1,6 @@
 ---
 name: audit-security
-description: Repo-wide security audit across both Orbit repos (orbit-ui-mobile + orbit-api). Checks authz / data-isolation (incl. AI & MCP tool scoping), injection, secrets, CORS, rate-limit coverage, AI-abuse, and error leakage. Each finding carries severity, file:line evidence, threat model, and remediation, calibrated to Tier 1+2 (Tier 3 marked out-of-scope). Self-contained — runs in CI. Use when the user asks for a security audit, threat review, or pre-launch hardening pass.
+description: Repo-wide security audit across both Orbit repos (orbit-ui-mobile + orbit-api), opening one Linear ticket per verified risk after a human approval gate (D10). Checks judgement-level authz / data-isolation (incl. AI & MCP tool scoping), injection, secrets handling, CORS, rate-limit coverage, AI-abuse, and error leakage, EXCLUDING everything the gates already enforce (D11). Each finding carries severity, file:line evidence, threat model, and remediation, calibrated to Tier 1+2 (Tier 3 out-of-scope). Use when the user asks for a security audit, threat review, or pre-launch hardening pass.
 argument-hint: <path | repo | blank=both repos>
 ---
 
@@ -8,9 +8,10 @@ argument-hint: <path | repo | blank=both repos>
 
 **Input**: $ARGUMENTS
 
-Run a repo-wide security audit across **both** Orbit repos and produce one
-severity-ranked, evidence-backed report of real risks — each finding pinned to a
-file:line, with the threat it enables and the fix that closes it.
+Run a repo-wide security audit across **both** Orbit repos and open one Linear ticket
+per verified risk (D10), each pinned to a file:line, with the threat it enables and the
+fix that closes it. The output is executable tickets behind one approval gate, never a
+report that rots the day after it is written.
 
 The fan-out, the adversarial verify, and the loop-until-dry now run as the **`audit`
 dynamic workflow** (`.claude/workflows/audit.mjs`) — **Haiku finders + Haiku skeptics**,
@@ -55,6 +56,17 @@ explicitly out-of-scope so the report stays decision-ready, not a fear list.
 When old-client reach or real-world exploitability is uncertain, say so and pick the
 lower tier with a "verify" note — never inflate to Tier 1 to look thorough.
 
+### D11 scope: judgement only, never what a gate checks
+
+Read **`.claude/skills/_shared/gate-owned-exclusions.md`**. This audit looks ONLY for what
+no gate can see. It does NOT re-flag: a controller missing `[Authorize]` (Roslyn `ORBIT0003`
+owns that), committed-secret shapes (GitGuardian owns those), or any ESLint `local/*` /
+`guards.yml` concern. It DOES own the judgement half: a handler that carries `[Authorize]`
+but loads a row without scoping it to the caller `userId` (IDOR), an AI/MCP tool that accepts
+a target-user parameter, a webhook with no signature check, a secret used per-request or sent
+to a log sink, prompt-injection that reaches a mutating tool. Presence is gated; correctness
+is the audit.
+
 ---
 
 ## Phase 1 — Resolve scope
@@ -67,10 +79,11 @@ Parse `$ARGUMENTS` into a `{scope}` token to pass to the workflow: blank → `bo
 | `orbit-ui-mobile` | `C:\Users\thoma\Documents\Programming\Projects\orbit-ui-mobile` |
 | `orbit-api` | `C:\Users\thoma\Documents\Programming\Projects\orbit-api` |
 
-Load **`.claude/skills/_shared/verification-protocol.md`** — the shared reliability
-contract. The workflow *executes* its coverage contract (§1), adversarial verify (§2), and
-loop-until-dry (§3); you *emit* the Verify summary + Deferred ledger from the workflow's
-return (§4/§5).
+Load **`.claude/skills/_shared/verification-protocol.md`** (the reliability contract: the
+workflow *executes* the coverage contract §1, adversarial verify §2, and loop-until-dry §3;
+you carry the Verify summary + Deferred ledger §4/§5 into the approval gate) and
+**`.claude/skills/_shared/audit-to-tickets.md`** (the D10 ticket-emission pipeline this
+skill's Phase 4 runs).
 
 ---
 
@@ -124,80 +137,44 @@ re-invoke for any gap:
 3. **AI-abuse / prompt-injection** — the AI endpoint is rate-limited + size-capped; a crafted
    prompt cannot make a tool act outside the user's data or run an unbounded-cost loop; model
    output never *authorizes*.
-4. **`[Authorize]` by default** — every endpoint requires JWT Bearer unless `/health` or
-   `/api/auth/*`. Neither `[Authorize]` nor `[AllowAnonymous]` = **Tier 1**.
-5. **Payment & webhook integrity** — Stripe/Play webhooks verify their signature; the Stripe
+4. **`[Authorize]` covers the right identity.** The attribute's PRESENCE is gated by Roslyn
+   `ORBIT0003` (not an audit finding). In scope: an endpoint that authenticates but then acts
+   on a client-supplied id without an ownership check, or an over-broad `[AllowAnonymous]`.
+5. **Payment & webhook integrity.** Stripe/Play webhooks verify their signature; the Stripe
    key is set globally, never per-request. Unverified webhook = **Tier 1**.
-6. **Secrets never in source** — no JWT secret, DB password, OpenAI/Stripe/Play key, or VAPID
-   private key committed. A committed secret is **Tier 1**.
+6. **Secrets handled safely.** Committed-secret SHAPES are gated by GitGuardian (not an audit
+   finding). In scope: a key read per-request instead of set globally, a secret logged or
+   returned in an error, or a token in the wrong store (mobile AsyncStorage vs SecureStore).
 7. **Boundary flags intact** — web cookie httpOnly+strict+secure; mobile tokens in SecureStore;
    CORS not `AllowAnyOrigin()` with `AllowCredentials()`; security-headers middleware live.
 
 ---
 
-## Phase 4 — Synthesize the report (Opus)
+## Phase 4: Emit tickets (D10), not a report
 
-```bash
-mkdir -p .claude/audits
-```
+Run the shared pipeline in **`.claude/skills/_shared/audit-to-tickets.md`**: one Linear
+ticket per verified finding, drafted to the 6.2 template, validated by
+`node tools/check-ticket.mjs --file`, presented to Thomas behind ONE approval gate, then
+created via `orca linear create` and re-validated with `--issue`.
 
-**Output path**: `.claude/audits/security-{scope}.md`
+Security-specific mapping into the 6.2 body:
 
-Bucket the workflow's `findings` onto the tiers (Tier 1 = `Tier 1` severities, Tier 2 =
-`Tier 2`), render each in the finding template, fill the coverage table from `coverage`, and
-carry `deferred` verbatim into the Deferred ledger:
+- **Problem / why it matters** carries the tier and the **threat** (`rationale`): who reaches
+  it (other user / anon / forged webhook / crafted prompt) and what they get. A Tier-1 IDOR
+  and a Tier-2 missing rate limit are different tickets, never one.
+- **Technical details** carries the `evidence` line (e.g. "query loads habit by id with no
+  userId filter") and the `reference` (CLAUDE.md security boundary / orbit-api hard rule /
+  OWASP A0x / checklist section).
+- **Out of scope** names the Tier-3 controls deliberately deferred (WAF, SIEM, vault rotation)
+  and the gate-owned half where relevant (`ORBIT0003` presence, GitGuardian shapes).
+- `repo:*` comes from `location`; an api-side fix that a ui change depends on is the api
+  ticket that BLOCKS the ui ticket.
 
-```markdown
-# Security Audit: {SCOPE}
-
-**Scope**: {scopeLabel}
-**Calibration**: Tier 1 (must fix) + Tier 2 (should fix); Tier 3 listed as out-of-scope.
-**Posture**: {1-line verdict — e.g. "No cross-user holes found; 1 unrated AI endpoint missing a rate limit"}
-
-## Findings
-
-### Tier 1 — Must fix (exploitable now)
-{findings in the template, or "None"}
-
-### Tier 2 — Should fix (before/at launch)
-{… or "None"}
-
-## Out of scope (Tier 3 — enterprise, not yet)
-{one line each: WAF, secrets-vault rotation, SIEM, … — acknowledged, deliberately deferred}
-
-## Surface coverage
-
-| Surface | Audited | Result |
-|---|---|---|
-| AuthZ & data-isolation | yes/no | clean / N findings |
-| AI / MCP tool scoping | yes/no | … |
-| Injection | yes/no | … |
-| Secrets & config | yes/no | … |
-| Rate-limit & AI-abuse | yes/no | … |
-| Error leakage & web/mobile auth | yes/no | … |
-
-## Deferred — in scope but not verdicted
-
-{From the workflow's `deferred` (verify-cap overflow, loop bound) + any surface the run did
-not reach + Tier-3 controls — each with a one-line reason. "Nothing deferred — full
-coverage" if empty.}
-
-## What's solid
-
-{Genuine strengths — controls done right. Not filler.}
-```
-
-### Finding template
-
-```
-[TIER N] <one-line title>
-· category: <checklist section — e.g. A. AuthZ / data-isolation>
-· location: <repo>/<path>:<line>
-· threat: <who reaches it (other user / anon / forged webhook / crafted prompt) and what they get>
-· evidence: <the line that proves it — e.g. "query loads habit by id with no userId filter">
-· fix: <the concrete change>
-· reference: <CLAUDE.md security boundary | orbit-api hard rule | OWASP A0x | checklist section>
-```
+At the approval gate, present the surface **coverage** (authz-isolation, ai-mcp-scoping,
+injection, secrets-config, ratelimit-ai-abuse, error-web-auth), the **Deferred ledger** (the
+workflow's `deferred`: verify-cap overflow, loop bound, plus Tier-3), and the convergence
+state (`coverage UNKNOWN, <convergenceReason>` if `converged !== true`) so Thomas approves
+with the full provenance in view. None of it is written to disk.
 
 ---
 
@@ -213,8 +190,13 @@ coverage" if empty.}
 - **Trust the model for authz.** Flag any path where an AI tool's output decides access —
   authorization is server-side, always.
 - **Re-run the workflow's analysis.** It owns the fan-out, the skeptic pass, and the loop;
-  you synthesize its return. Only re-invoke for a coverage gap.
-- **Remediate during the audit.** Findings first; fix only if the user asks after.
+  you turn its return into tickets. Only re-invoke for a coverage gap.
+- **Flag anything a gate owns.** `ORBIT0003` (authz presence), GitGuardian (secret shapes),
+  and every ESLint `local/*` / `guards.yml` concern are the mechanical layer (D11).
+- **Write a report file, or create tickets unattended.** The output is Linear tickets behind
+  the one approval gate; nothing is persisted to `.claude/audits/` and nothing is created
+  before Thomas approves.
+- **Remediate during the audit.** Tickets first; fix only if the user asks after.
 
 ---
 
@@ -224,14 +206,14 @@ coverage" if empty.}
 ## Audit Complete — Security
 
 **Scope**: {what was audited}
-**Posture**: {1-line verdict}
+**Posture**: {1-line verdict, e.g. "No cross-user holes; 1 AI endpoint missing a rate limit"}
 
-| Tier | Count |
-|---|---|
-| Tier 1 (must fix) | {N} |
-| Tier 2 (should fix) | {N} |
-| Tier 3 (out of scope) | {acknowledged, not counted} |
+| Tier | Findings | Tickets |
+|---|---|---|
+| Tier 1 (must fix) | {N} | {created / pending approval} |
+| Tier 2 (should fix) | {N} | {…} |
+| Tier 3 (out of scope) | {acknowledged, not counted} | {none} |
 
-**Report**: `.claude/audits/security-{scope}.md`
-**Top risk**: {the single highest-priority thing to fix first, or "no Tier-1 findings"}
+**Tickets**: {the final ORB-N table, identifier · title · repo · blockedBy, or "clean: no judgement-level findings; the mechanical layer is gate-owned"}
+**Top risk**: {the single highest-priority ticket, or "no Tier-1 findings"}
 ```
