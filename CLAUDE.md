@@ -75,7 +75,7 @@ Grep a doc's `At a glance` header before loading the whole file.
 | Doc | Purpose |
 |---|---|
 | `DESIGN.md` | Authoritative UI spec: de-decorated navy-violet anchor (no glow, no gradient wash), semantic tokens, the enumerated spacing scale (`0 4 8 12 16 20 24 28 32 40 48 56 64` + three named exemptions, gated by `local/spacing-scale`), measure/motion/a11y rules, 412px shell, plus the `## Enforcement` gate-vs-reviewer contract. |
-| `REBUILD.md` | The workflow teardown/rebuild plan and its locked decision register (D1..D41, the phase ledger). **Temporary by design**: it dies when Phase 7 completes; its durable parts graduate to CLAUDE.md, AGENTS.md, DESIGN.md, and brain ADRs. |
+| `REBUILD.md` | The workflow teardown/rebuild plan and its locked decision register (D1..D42, the phase ledger). **Temporary by design**: it dies when Phase 7 completes; its durable parts graduate to CLAUDE.md, AGENTS.md, DESIGN.md, and brain ADRs. |
 | `AGENTS.md` | Codex's entry doc: the worker contract + `## Code Review Rules`. Defers to this CLAUDE.md for conventions. |
 | `FEATURES.md` | Hand-maintained, gating- and platform-aware capability catalogue (the source the Play listing, landing, and QA copy derive from). Kept honest by the `/pr-review` feature-inventory parity gate (rubric #14), not by generation; it holds the Free/Trial/Pro/Yearly gating the generated arch map does not. |
 | `TESTING.md` | How to write tests here + the catalog of every suite and what each proves. |

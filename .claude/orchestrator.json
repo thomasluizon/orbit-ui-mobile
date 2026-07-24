@@ -18,7 +18,6 @@
     "team": "ORB",
     "workspace": "useorbitai",
     "states": {
-      "ready": ["Todo"],
       "working": "In Progress",
       "review": "In Review",
       "done": "Done"
