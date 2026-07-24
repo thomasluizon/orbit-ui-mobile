@@ -14,10 +14,16 @@ repo a ticket's `repo:*` label names.
 
 ## 0. Read the contract
 
-1. `orca linear list-issues --team ORB --project "<name>" --json` and read the PROJECT
-   DESCRIPTION first: it carries the locked decisions and, for the #539 project only,
-   `targetBranch: redesign/main` (D36). Default target is `main`; orbit-api tickets
-   always target `main` (D37).
+1. `orca linear list-issues --team ORB --project "<name>" --json` for the tickets.
+   Note: the project description is only a 255-char pointer (Linear hard-caps it), and
+   list payloads carry neither the description nor the content. The locked decisions,
+   and for the #539 project only `targetBranch: redesign/main` (D36), live in the
+   project OVERVIEW CONTENT. Read it first: resolve the project id via
+   `orca linear project list`, read the personal key at
+   `$env:USERPROFILE\.linear-api-key` into a variable (never echo it), then POST
+   https://api.linear.app/graphql with header `Authorization: <key>` (the raw key) and
+   query `project(id: "<id>") { name description content }`. Default target is `main`;
+   orbit-api tickets always target `main` (D37).
 2. `node tools/wave-plan.mjs --project "<name>"` prints the wave table. Show it.
 
 ## 1. Reconcile before dispatch (D8)
