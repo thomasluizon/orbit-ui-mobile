@@ -34,7 +34,15 @@ ruleTester.run('no-decorative-glow', rule('no-decorative-glow'), {
     '<PillButton glow={false}>Save</PillButton>',
     'const ring = "shadow-[inset_0_0_0_1.5px_var(--primary)]"',
     '<div className="shadow-sm" />',
+    // The sanctioned shadows are pure greyscale occlusion (DESIGN.md:177), so a
+    // hue is what separates a shadow from a glow - not which token produced it.
     'const shadow = { boxShadow: "0 1px 2px rgba(0,0,0,0.2)" }',
+    'const sh2 = { boxShadow: "0 4px 16px rgba(0,0,0,.28)" }',
+    'const sh3 = { boxShadow: "0 12px 40px rgba(0,0,0,.45)" }',
+    // A ring or hairline has ZERO blur, so it can never glow even carrying a hue.
+    'const hairline = { boxShadow: "0 0 0 0.5px rgba(255,255,255,0.06)" }',
+    'const ringed = { boxShadow: "0 0 0 6px var(--bg)" }',
+    'const insetAccent = { boxShadow: "inset 0 0 8px var(--primary)" }',
   ],
   invalid: [
     { code: 'const c = "shadow-[var(--primary-glow)]"', errors: [{ messageId: 'noGlowToken' }] },
@@ -43,6 +51,26 @@ ruleTester.run('no-decorative-glow', rule('no-decorative-glow'), {
     { code: 'const s = [styles.fab, primaryGlow(tokens)]', errors: [{ messageId: 'noGlowToken' }] },
     {
       code: '<div className="shadow-[0_8px_28px_rgba(var(--primary-rgb),0.45)]" />',
+      errors: [{ messageId: 'noHandRolledGlow' }],
+    },
+    // The exact glow that shipped in PR #560, the PR that bans glow. It escaped
+    // because the old test looked for `--primary-rgb` and this is `--status-frozen`.
+    {
+      code: '<div style={{ boxShadow: "0 0 60px color-mix(in srgb, var(--status-frozen) 40%, transparent)" }} />',
+      errors: [{ messageId: 'noHandRolledGlow' }],
+    },
+    // Shadow properties are read in ANY object now, not only a JSX `style`
+    // attribute, so the entire mobile StyleSheet surface is no longer invisible.
+    {
+      code: 'const styles = StyleSheet.create({ orb: { boxShadow: "0 0 40px rgba(134,89,234,0.5)" } })',
+      errors: [{ messageId: 'noHandRolledGlow' }],
+    },
+    {
+      code: 'const glow = { boxShadow: "0 0 24px #8659EA" }',
+      errors: [{ messageId: 'noHandRolledGlow' }],
+    },
+    {
+      code: 'const named = { boxShadow: "0 0 30px violet" }',
       errors: [{ messageId: 'noHandRolledGlow' }],
     },
   ],
@@ -85,6 +113,34 @@ ruleTester.run('no-side-stripe-border', rule('no-side-stripe-border'), {
   ],
 })
 
+ruleTester.run('no-fullbleed-button', rule('no-fullbleed-button'), {
+  valid: [
+    '<PillButton>Save</PillButton>',
+    '<PillButton fullWidth={false}>Save</PillButton>',
+    // No pill radius: a full-width row / menu item / card button is legitimate layout, not a CTA.
+    '<button className="w-full flex items-center">Row</button>',
+    // A pill with no width utility hugs its content — nothing to flag.
+    '<PillButton className="rounded-full px-6">Save</PillButton>',
+    // flagFullWidthProp:false (the web config) leaves the prop unflagged, since the web
+    // PillButton self-caps fullWidth at the desktop breakpoint; the className vector still applies.
+    { code: '<PillButton fullWidth>Save</PillButton>', options: [{ flagFullWidthProp: false }] },
+  ],
+  invalid: [
+    // flagFullWidthProp defaults ON (the mobile config, no desktop self-cap): a bare fullWidth is flagged.
+    { code: '<PillButton fullWidth>Save</PillButton>', errors: [{ messageId: 'noFullWidthProp' }] },
+    { code: '<PillButton fullWidth={true}>Save</PillButton>', errors: [{ messageId: 'noFullWidthProp' }] },
+    // The raw uncapped-pill vector: a pill radius combined with a full-width utility.
+    { code: '<button className="rounded-full w-full">Save</button>', errors: [{ messageId: 'noFullWidthClass' }] },
+    { code: '<PillButton className="rounded-full flex-1">Save</PillButton>', errors: [{ messageId: 'noFullWidthClass' }] },
+    // The className vector is flagged independently of the prop option.
+    {
+      code: '<button className="rounded-full w-full">Save</button>',
+      options: [{ flagFullWidthProp: false }],
+      errors: [{ messageId: 'noFullWidthClass' }],
+    },
+  ],
+})
+
 ruleTester.run('no-overshoot-easing', rule('no-overshoot-easing'), {
   valid: [
     'const e = "cubic-bezier(0.2, 0, 0, 1)"',
@@ -99,6 +155,27 @@ ruleTester.run('no-overshoot-easing', rule('no-overshoot-easing'), {
 ruleTester.run('no-space-x-y', rule('no-space-x-y'), {
   valid: ['<div className="flex gap-3" />', '<div className="space-between" />'],
   invalid: [{ code: '<div className="space-y-3" />', errors: [{ messageId: 'noSpaceUtility' }] }],
+})
+
+ruleTester.run('no-arbitrary-zindex', rule('no-arbitrary-zindex'), {
+  valid: [
+    '<div className="relative z-[1]" />',
+    '<div className="sticky top-0 z-[3]" />',
+    '<div className="z-40" />',
+    '<div className="z-modal" />',
+    '<div className="z-tour-spotlight" />',
+    'const s = { zIndex: 2 }',
+    'const s = { zIndex: -1 }',
+    'const s = { zIndex: zLayers.modal }',
+    'const s = { elevation: 12 }',
+    'const s = StyleSheet.create({ overlay: { zIndex: zLayers.toast } })',
+  ],
+  invalid: [
+    { code: '<div className="z-[9999]" />', errors: [{ messageId: 'arbitraryClass' }] },
+    { code: '<div className="fixed inset-0 z-[10003]" />', errors: [{ messageId: 'arbitraryClass' }] },
+    { code: '<div style={{ zIndex: 9999 }} />', errors: [{ messageId: 'rawZIndex' }] },
+    { code: 'const s = StyleSheet.create({ overlay: { zIndex: 10000 } })', errors: [{ messageId: 'rawZIndex' }] },
+  ],
 })
 
 ruleTester.run('no-dynamic-tailwind-class', rule('no-dynamic-tailwind-class'), {
@@ -302,5 +379,107 @@ ruleTester.run('react19-api', rule('react19-api'), {
     { code: 'const C = forwardRef((props, ref) => <div ref={ref} />)', errors: [{ messageId: 'forwardRefRemoved' }] },
     { code: 'const v = useContext(ThemeContext)', errors: [{ messageId: 'useContextReplaced' }] },
     { code: 'const v = React.useContext(ThemeContext)', errors: [{ messageId: 'useContextReplaced' }] },
+  ],
+})
+
+ruleTester.run('spacing-scale', rule('spacing-scale'), {
+  valid: [
+    '<div style={{ gap: 12, paddingInline: 16 }} />',
+    '<div style={{ marginTop: 0, marginBottom: -8 }} />',
+    '<div style={{ padding: "24px" }} />',
+    '<div style={{ width: 34, height: 220, fontSize: 13 }} />',
+    '<div style={{ gap: tokens.gap, padding: spacing.md }} />',
+    '<div className="flex gap-3 px-4 pb-10" />',
+    '<div className="absolute inset-0 top-0 md:mt-6" />',
+    '<div className="p-px w-4 z-40 rounded-2xl grid-cols-2 space-y-2 translate-y-2 top-1/2" />',
+    '<div className="gap-[16px] mt-[1.5rem]" />',
+    '<div style={{ top: 1, right: -1 }} />',
+    'const s = StyleSheet.create({ row: { gap: 8, paddingVertical: 20 } })',
+    {
+      code: 'const s = StyleSheet.create({ row: { gap: 9, paddingX: 26 } })',
+      filename: 'packages/shared/src/theme/button.ts',
+      options: [{ exemptFiles: ['packages/shared/src/theme/button.ts'] }],
+    },
+    { code: '<div style={{ gap: 10 }} />', options: [{ allow: [10] }] },
+  ],
+  invalid: [
+    {
+      code: '<div style={{ gap: 13 }} />',
+      output: '<div style={{ gap: 12 }} />',
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: '<div style={{ paddingVertical: 9, gap: 7 }} />',
+      output: '<div style={{ paddingVertical: 8, gap: 8 }} />',
+      errors: [{ messageId: 'offScaleStyle' }, { messageId: 'offScaleStyle' }],
+    },
+    {
+      code: '<div style={{ marginTop: -3 }} />',
+      output: '<div style={{ marginTop: -4 }} />',
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: '<div style={{ padding: "15px" }} />',
+      output: '<div style={{ padding: "16px" }} />',
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: '<div style={{ gap: 10 }} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: '<div style={{ paddingInline: 18, rowGap: 14, marginBlock: 22 }} />',
+      output: null,
+      errors: [
+        { messageId: 'offScaleStyle' },
+        { messageId: 'offScaleStyle' },
+        { messageId: 'offScaleStyle' },
+      ],
+    },
+    {
+      code: '<div style={{ padding: 1 }} />',
+      output: null,
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
+    {
+      code: 'const s = StyleSheet.create({ row: { gap: 7 }, cell: { paddingHorizontal: 9 } })',
+      output: 'const s = StyleSheet.create({ row: { gap: 8 }, cell: { paddingHorizontal: 8 } })',
+      errors: [{ messageId: 'offScaleStyle' }, { messageId: 'offScaleStyle' }],
+    },
+    {
+      code: '<div className="gap-[13px]" />',
+      output: '<div className="gap-3" />',
+      errors: [{ messageId: 'offScaleClass' }],
+    },
+    {
+      code: '<div className="md:mt-[15px]" />',
+      output: '<div className="md:mt-4" />',
+      errors: [{ messageId: 'offScaleClass' }],
+    },
+    {
+      code: '<div className="p-1.5 px-2.5 mt-0.5" />',
+      output: null,
+      errors: [
+        { messageId: 'offScaleClass' },
+        { messageId: 'offScaleClass' },
+        { messageId: 'offScaleClass' },
+      ],
+    },
+    {
+      code: '<div className={cn("flex", "gap-[18px]")} />',
+      output: null,
+      errors: [{ messageId: 'offScaleClass' }],
+    },
+    {
+      code: '<div className={`flex ${x} pt-[9px]`} />',
+      output: null,
+      errors: [{ messageId: 'offScaleClass' }],
+    },
+    {
+      code: '<div style={{ top: 3 }} />',
+      output: '<div style={{ top: 4 }} />',
+      errors: [{ messageId: 'offScaleStyle' }],
+    },
   ],
 })

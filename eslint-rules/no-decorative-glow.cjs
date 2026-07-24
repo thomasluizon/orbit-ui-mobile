@@ -13,35 +13,88 @@
  *  - a CALL to mobile's `primaryGlow()` / `primaryGlowHover()` token helper
  *    (`apps/mobile/lib/theme.ts`), which is how the same shadow is spelled on the
  *    RN side — an identifier, never a string, so the token regex cannot see it;
- *  - a hand-rolled accent glow: a `shadow-[...]` / `boxShadow` value combining a
- *    blur radius with `--primary-rgb` (`0 8px 28px rgba(var(--primary-rgb), .45)`)
- *    — the exact shape of the deleted token;
+ *  - a hand-rolled glow: any `shadow-[...]` / `boxShadow` value that is not inset,
+ *    has a non-zero BLUR, and carries a HUE;
  *  - `glow` on <PillButton> unless explicitly `glow={false}`.
  *
+ * The hue test, not a token list, is the rule. DESIGN.md:177: shadows "model real
+ * occlusion under a lifted surface... they are never a depth decoration and never
+ * carry the accent hue." Every sanctioned shadow (sh-1/sh-2/sh-3, the hairline
+ * ring) is pure greyscale, so "shadow with a hue" IS "decorative glow" and needs
+ * no enumeration. The previous version tested for `--primary-rgb` specifically,
+ * which is why a `color-mix(in srgb, var(--status-frozen) 40%, transparent)` glow
+ * shipped in the very PR that bans glow (#560, caught by a reviewer, not by this).
+ * Any semantic token, named hue, hsl/oklch function or non-grey rgb/hex counts.
+ *
  * An INSET ring is not a glow (`shadow-[inset_0_0_0_1.5px_var(--primary)]` is the
- * sanctioned selected-card treatment), so an inset-only shadow value is skipped.
+ * sanctioned selected-card treatment), and neither is a zero-blur ring or hairline
+ * (`0 0 0 0.5px rgba(255,255,255,.06)`) - the blur is the third length.
  *
  * SCOPE LIMIT (mobile): an ad-hoc RN glow assembled from raw shadow primitives
- * (`shadowColor: tokens.primary` + `shadowRadius` + `shadowOpacity`) is not matched
- * — separating it from a legitimate elevation shadow needs the colour's resolved
- * value, which is not static here. `primaryGlow()` is the canonical seam and is
- * what apps/mobile actually uses; the raw-primitive form stays design-reviewer
- * judgement, exactly as mobile button width does for `local/no-fullbleed-button`.
+ * (`shadowColor: tokens.primary` + `shadowRadius` + `shadowOpacity`) is still not
+ * matched — a bare colour carries no blur, so it cannot be told from a legitimate
+ * elevation shadow without resolving the value. `primaryGlow()` is the canonical
+ * seam. Shadow properties are now read in ANY object, not only a JSX `style`
+ * attribute, so `StyleSheet.create({ })` and module-level style objects are
+ * covered where they were previously invisible.
  */
 
-const { collectStaticStrings, collectStyleProperties, getAttribute, getAttributeValueNode, getElementName, getPropertyKeyName } = require('./_jsx-strings.cjs')
+const { collectStaticStrings, getAttribute, getAttributeValueNode, getElementName, getPropertyKeyName } = require('./_jsx-strings.cjs')
 
 const GLOW_TOKEN_RE = /--primary-glow/
 const GLOW_HELPERS = new Set(['primaryGlow', 'primaryGlowHover'])
 const SHADOW_CLASS_RE = /shadow-\[([^\]]+)\]/g
-const PRIMARY_RGB_RE = /--primary-rgb|primaryRgb/
-const BLUR_RE = /\d+\s*px/
 const SHADOW_STYLE_KEYS = new Set(['boxShadow', 'shadowColor', 'shadowOpacity', 'shadowRadius'])
 
+const LENGTH_RE = /(-?\d*\.?\d+)(px|rem|em)?/g
+const NEUTRAL_NAMES = new Set(['transparent', 'black', 'white', 'none', 'currentcolor', 'inherit', 'initial', 'unset'])
+const HUE_FUNCTION_RE = /\b(hsla?|oklch|oklab|lch|lab)\s*\(/
+// Only the hues a glow would plausibly reach for. A full CSS colour list would
+// false-fire on ordinary identifiers appearing inside a shadow expression.
+const CSS_NAMED_COLORS = new Set([
+  'red', 'blue', 'green', 'purple', 'violet', 'indigo', 'magenta', 'cyan', 'teal', 'orange',
+  'yellow', 'pink', 'gold', 'lime', 'aqua', 'fuchsia', 'maroon', 'navy', 'olive', 'silver',
+])
+
+/** The blur is the THIRD length in a shadow value. A ring or hairline has blur 0; only a blurred shadow can glow. */
+function blurRadius(value) {
+  const lengths = String(value).slice(0, value.indexOf('(') === -1 ? undefined : value.indexOf('(')).match(LENGTH_RE)
+  if (!lengths || lengths.length < 3) return 0
+  return Math.abs(Number.parseFloat(lengths[2])) || 0
+}
+
+/**
+ * DESIGN.md:177 - shadows "model real occlusion under a lifted surface... they are
+ * never a depth decoration and never carry the accent hue." So the test is not
+ * which token was used, it is whether the shadow carries a HUE at all. Every
+ * sanctioned shadow (sh-1/sh-2/sh-3, the hairline ring) is pure greyscale.
+ */
+function hasNonNeutralColor(value) {
+  const text = String(value).toLowerCase()
+  if (/var\(\s*--/.test(text) || /color-mix\s*\(/.test(text)) return true
+  for (const match of text.matchAll(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/g)) {
+    const [red, green, blue] = [match[1], match[2], match[3]].map(Number)
+    if (red !== green || green !== blue) return true
+  }
+  for (const match of text.matchAll(/#([0-9a-f]{3}|[0-9a-f]{6})\b/g)) {
+    const hex = match[1]
+    const pairs =
+      hex.length === 3 ? [...hex].map((char) => char + char) : [hex.slice(0, 2), hex.slice(2, 4), hex.slice(4, 6)]
+    if (pairs[0] !== pairs[1] || pairs[1] !== pairs[2]) return true
+  }
+  if (HUE_FUNCTION_RE.test(text)) return true
+  for (const word of text.matchAll(/\b([a-z]{3,20})\b/g)) {
+    const name = word[1]
+    if (NEUTRAL_NAMES.has(name)) continue
+    if (CSS_NAMED_COLORS.has(name)) return true
+  }
+  return false
+}
+
 function isGlowShadowValue(value) {
-  if (!PRIMARY_RGB_RE.test(value)) return false
-  if (!BLUR_RE.test(value)) return false
-  return !/\binset\b/.test(value)
+  if (/\binset\b/.test(value)) return false
+  if (blurRadius(value) <= 0) return false
+  return hasNonNeutralColor(value)
 }
 
 function findHandRolledGlow(text) {
@@ -112,14 +165,20 @@ module.exports = {
           }
         }
 
-        for (const property of collectStyleProperties(node)) {
-          const key = getPropertyKeyName(property)
-          if (!key || !SHADOW_STYLE_KEYS.has(key)) continue
-          const strings = collectStaticStrings(property.value)
-          if (strings.some((value) => GLOW_TOKEN_RE.test(value))) continue
-          if (strings.some((value) => isGlowShadowValue(value))) {
-            context.report({ node: property, messageId: 'noHandRolledGlow' })
-          }
+      },
+      /**
+       * Any shadow property in any object, not only a JSX `style` attribute. The
+       * previous version read `style={{ }}` alone, so a glow inside
+       * `StyleSheet.create({ })` or a module-level style object was never visited
+       * at all - the whole mobile surface was blind to this rule.
+       */
+      Property(node) {
+        const key = getPropertyKeyName(node)
+        if (!key || !SHADOW_STYLE_KEYS.has(key)) return
+        const strings = collectStaticStrings(node.value)
+        if (strings.some((value) => GLOW_TOKEN_RE.test(value))) return
+        if (strings.some((value) => isGlowShadowValue(value))) {
+          context.report({ node, messageId: 'noHandRolledGlow' })
         }
       },
     }
