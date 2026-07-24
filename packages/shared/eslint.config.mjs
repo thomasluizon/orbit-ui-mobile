@@ -8,6 +8,7 @@ import noOvershootEasing from "../../eslint-rules/no-overshoot-easing.cjs"
 import noRawFontFeatureTag from "../../eslint-rules/no-raw-font-feature-tag.cjs"
 import noRawGradient from "../../eslint-rules/no-raw-gradient.cjs"
 import noUnjustifiedDisable from "../../eslint-rules/no-unjustified-disable.cjs"
+import spacingScale from "../../eslint-rules/spacing-scale.cjs"
 
 export default [
   ...tseslint.configs.recommendedTypeChecked,
@@ -45,12 +46,17 @@ export default [
           "no-raw-font-feature-tag": noRawFontFeatureTag,
           "no-raw-gradient": noRawGradient,
           "no-unjustified-disable": noUnjustifiedDisable,
+          "spacing-scale": spacingScale,
         },
       },
     },
     rules: {
       "local/no-comments": "error",
       "local/no-double-assertion": "error",
+      // `theme/button.ts` owns the pill-button geometry, which is a component
+      // dimension rather than layout rhythm; this is the config that actually
+      // lints that file, so the exemption lives here.
+      "local/spacing-scale": ["error", { exemptFiles: ["src/theme/button.ts"] }],
       "local/no-fullbleed-button": "error",
       "local/no-unjustified-disable": "error",
       // Shared is pure cross-platform TS with no logger and no UI console; any

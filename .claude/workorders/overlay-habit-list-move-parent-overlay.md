@@ -4,7 +4,7 @@ platform: web
 kind: overlay
 ownedFiles: 1
 cells: 4
-mechanicalDebt: 0
+mechanicalDebt: 5
 pixelEvidence: web-capture
 generatedFrom: 478dbc1e7c670ab2c2808b03a08e431d2629e117
 ---
@@ -25,9 +25,34 @@ If a shared file must change, STOP, write it in the Timeline, and say so in your
 
 ## Backlog A: enumerated and machine-COUNTED (the fix is still a judgement call)
 
-None. Every `local/*` design rule already passes on your owned files.
+5 suppressed DESIGN.md violation(s) in your owned files. These are real defects that
+were measured and committed to the lint baseline, then never assigned to anyone.
 
-That is a FLOOR you have already met, not evidence the surface looks right. Backlog B is the work.
+| file | rule | count |
+|---|---|---|
+| `apps/web/components/habits/habit-list/move-parent-overlay.tsx` | `local/spacing-scale` | 5 |
+
+**Counting these is objective. Fixing them is not.** `local/spacing-scale` autofixes only an
+unambiguous snap (within 1px of a unique step: 9 -> 8, 13 -> 12) and deliberately refuses the
+rest, because taking a 6px gap to 4 or a 14px padding to 12 CHANGES THE LAYOUT. Verified on this
+repo: `eslint --fix` over a 30-violation file changed zero lines. So do not batch-snap every
+number to the nearest step and call it done - that is the shallow sweep this harness exists to
+stop. Decide each one against the surrounding rhythm (tight within a group, air between groups).
+
+A value you judge genuinely load-bearing is KEPT, through the sanctioned escape - never a forced
+snap: add an inline `// eslint-disable-next-line local/<rule> -- <why>, see <this work order or its issue>`
+(a tooling directive with a linked WHY is legal under the comment policy), run `npm run lint:prune`,
+then append a Timeline entry naming each value you kept and why. The source file IS edited, so the
+count falls legitimately and the definition of done below stays reachable for honest work.
+
+See the violations with (a TEMPLATE: substitute the two capitalised words, and run it FROM THE
+WORKSPACE - apps/web or apps/mobile - never the repo root, which carries no eslint config or
+binary. The angle-bracket form this used to print was a bash redirect: pasted verbatim it was a
+syntax error, not a run):
+  `npx eslint FILE --suppressions-location EMPTY_JSON_FILE`  (the baseline hides them otherwise)
+Then `npm run lint:prune` in that same workspace, then `node tools/workorder.mjs --check` from the root.
+Editing `eslint-suppressions.json` by hand instead of fixing the code is fabricating a result,
+and `tools/check-diff-ownership.mjs` detects a count that fell for a file you never edited.
 
 ## Backlog B: judgement, human-granted
 

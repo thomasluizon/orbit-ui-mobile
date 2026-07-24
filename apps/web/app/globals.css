@@ -52,6 +52,47 @@
   --animate-slide-up: slide-up-fade 0.28s cubic-bezier(0.16, 1, 0.3, 1) backwards;
   --animate-scale-in: scale-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-gentle-pulse: gentle-pulse 2s ease-in-out infinite;
+
+  /* Stacking (DESIGN.md): the semantic z-index scale, mirrored from
+     @orbit/shared/theme zLayers. Overlays stack on a named tier via the
+     z-<tier> utilities below; a raw literal >= 10 is a lint error
+     (local/no-arbitrary-zindex). Deliberate inversions: celebration below
+     toast, tourSpotlight above modal. */
+  --z-index-dropdown: 1000;
+  --z-index-sticky: 1100;
+  --z-index-modal-backdrop: 1200;
+  --z-index-modal: 1300;
+  --z-index-tour-spotlight: 1400;
+  --z-index-celebration: 1500;
+  --z-index-toast: 1600;
+  --z-index-tooltip: 1700;
+}
+
+/* Tailwind v4 has no --z-index theme namespace, so the tier utilities are
+   explicit (DESIGN.md, Stacking). */
+@utility z-dropdown {
+  z-index: var(--z-index-dropdown);
+}
+@utility z-sticky {
+  z-index: var(--z-index-sticky);
+}
+@utility z-modal-backdrop {
+  z-index: var(--z-index-modal-backdrop);
+}
+@utility z-modal {
+  z-index: var(--z-index-modal);
+}
+@utility z-tour-spotlight {
+  z-index: var(--z-index-tour-spotlight);
+}
+@utility z-celebration {
+  z-index: var(--z-index-celebration);
+}
+@utility z-toast {
+  z-index: var(--z-index-toast);
+}
+@utility z-tooltip {
+  z-index: var(--z-index-tooltip);
 }
 
 :root {

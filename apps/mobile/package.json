@@ -20,6 +20,7 @@
     "test": "vitest run",
     "type-check": "tsc --noEmit",
     "lint": "expo lint",
+    "lint:prune": "expo lint -- --prune-suppressions",
     "clean": "rm -rf .expo",
     "android": "node scripts/run-android.js"
   },

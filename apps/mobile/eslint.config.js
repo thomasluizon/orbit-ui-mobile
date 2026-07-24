@@ -9,6 +9,7 @@ const noGorhomSheet = require("../../eslint-rules/no-gorhom-sheet.cjs")
 const noFullbleedButton = require("../../eslint-rules/no-fullbleed-button.cjs")
 const animatePresenceExit = require("../../eslint-rules/animate-presence-exit.cjs")
 const animatePresenceStableKey = require("../../eslint-rules/animate-presence-stable-key.cjs")
+const noArbitraryZindex = require("../../eslint-rules/no-arbitrary-zindex.cjs")
 const noDecorativeGlow = require("../../eslint-rules/no-decorative-glow.cjs")
 const noDoubleAssertion = require("../../eslint-rules/no-double-assertion.cjs")
 const noDraggableOnscroll = require("../../eslint-rules/no-draggable-onscroll.cjs")
@@ -18,6 +19,7 @@ const noRawFontFeatureTag = require("../../eslint-rules/no-raw-font-feature-tag.
 const noRawGradient = require("../../eslint-rules/no-raw-gradient.cjs")
 const noScrollListenerMotion = require("../../eslint-rules/no-scroll-listener-motion.cjs")
 const noSideStripeBorder = require("../../eslint-rules/no-side-stripe-border.cjs")
+const spacingScale = require("../../eslint-rules/spacing-scale.cjs")
 const noUnjustifiedDisable = require("../../eslint-rules/no-unjustified-disable.cjs")
 const mobileSupabaseLazy = require("../../eslint-rules/mobile-supabase-lazy.cjs")
 
@@ -77,6 +79,7 @@ module.exports = defineConfig([
           "no-fullbleed-button": noFullbleedButton,
           "animate-presence-exit": animatePresenceExit,
           "animate-presence-stable-key": animatePresenceStableKey,
+          "no-arbitrary-zindex": noArbitraryZindex,
           "no-decorative-glow": noDecorativeGlow,
           "no-double-assertion": noDoubleAssertion,
           "no-draggable-onscroll": noDraggableOnscroll,
@@ -86,6 +89,7 @@ module.exports = defineConfig([
           "no-raw-gradient": noRawGradient,
           "no-scroll-listener-motion": noScrollListenerMotion,
           "no-side-stripe-border": noSideStripeBorder,
+          "spacing-scale": spacingScale,
           "no-unjustified-disable": noUnjustifiedDisable,
           "mobile-supabase-lazy": mobileSupabaseLazy,
         },
@@ -93,6 +97,13 @@ module.exports = defineConfig([
     },
     rules: {
       "local/no-comments": "error",
+      // DESIGN.md's spacing scale is cross-platform, but this rule was registered
+      // ONLY in apps/web, so mobile spacing was completely ungated while CLAUDE.md
+      // described the gate without any platform qualifier. `error` from the start;
+      // pre-existing mobile violations ride the committed suppressions baseline
+      // (regenerated against main, 2026-07-24), so only NEW or CHANGED code fails.
+      // https://github.com/thomasluizon/orbit-ui-mobile/issues/539
+      "local/spacing-scale": "error",
       "local/no-gorhom-sheet": "error",
       "local/no-fullbleed-button": ["error", { flagFullWidthProp: true }],
       "no-console": "error",
@@ -107,6 +118,7 @@ module.exports = defineConfig([
       // root override, so it could be extended here in a follow-up.
       "local/animate-presence-exit": "error",
       "local/animate-presence-stable-key": "error",
+      "local/no-arbitrary-zindex": "error",
       "local/no-double-assertion": "error",
       "local/no-draggable-onscroll": "error",
       "local/no-jsx-logical-and": "error",
