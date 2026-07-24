@@ -162,6 +162,5 @@
   "TESTING.md": 7,
   "tools/CONVENTIONS.md": 2,
   "tools/merge-sweep-cov.sh": 3,
-  "tools/merge-sweep.sh": 1,
-  "WORKFLOW.md": 59
+  "tools/merge-sweep.sh": 1
 }

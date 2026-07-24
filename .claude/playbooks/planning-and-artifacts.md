@@ -63,7 +63,7 @@ Name the question **before writing it**. The question decides the shape:
 
 If you had to guess at anything, **state the assumption at the top**.
 
-Stack-neutral, and absent from `WORKFLOW.md`, whose paths all assume the diff is known. This is the path for when it is not.
+Stack-neutral, and absent from the execution workflow (`/feature`, `/bug`, `/orchestrate`), whose paths all assume the diff is known. This is the path for when it is not.
 
 ### 9. Prototype code is throwaway from day one
 Located next to what it prototypes. Named so a reader sees it is a prototype. **No persistence, no tests, no error handling beyond runnability, no abstractions, one command to run.**
