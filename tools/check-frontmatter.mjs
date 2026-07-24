@@ -23,9 +23,18 @@ import path from 'node:path';
 const ROOTS = ['.claude/skills', '.claude/agents'];
 const BLOCK_SCALAR = /^[>|][-+]?\d*$/;
 
+const missingRoots = ROOTS.filter((root) => !fs.existsSync(root));
+if (missingRoots.length > 0) {
+  console.error(`Frontmatter roots missing: ${missingRoots.join(', ')}`);
+  console.error('Both roots are tracked, so a missing one means a rename or a bad working');
+  console.error('directory, not an optional directory. Skipping it would turn this gate into a');
+  console.error('silent no-op that still reports success, which is the exact failure mode the');
+  console.error('gate exists to prevent.');
+  process.exit(1);
+}
+
 const targets = [];
 for (const root of ROOTS) {
-  if (!fs.existsSync(root)) continue;
   const walk = (dir) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
@@ -37,25 +46,27 @@ for (const root of ROOTS) {
 }
 
 const offenders = [];
+let withFrontmatter = 0;
 for (const file of targets) {
   const text = fs.readFileSync(file, 'utf8');
   const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---/);
   if (!match) continue;
-  for (const raw of match[1].split(/\r?\n/)) {
+  withFrontmatter++;
+  match[1].split(/\r?\n/).forEach((raw, offset) => {
     const line = raw.endsWith('\r') ? raw.slice(0, -1) : raw;
     const kv = line.match(/^([A-Za-z][\w-]*):[ \t](.*)$/);
-    if (!kv) continue;
+    if (!kv) return;
     const value = kv[2].trim();
-    if (!value) continue;
-    if (BLOCK_SCALAR.test(value)) continue;
-    if (/^"[^"]*"$/.test(value) || /^'[^']*'$/.test(value)) continue;
-    if (/^\[.*\]$/.test(value) || /^\{.*\}$/.test(value)) continue;
-    if (/:[ \t]/.test(value)) offenders.push({ file, key: kv[1], value });
-  }
+    if (!value) return;
+    if (BLOCK_SCALAR.test(value)) return;
+    if (/^"[^"]*"$/.test(value) || /^'[^']*'$/.test(value)) return;
+    if (/^\[.*\]$/.test(value) || /^\{.*\}$/.test(value)) return;
+    if (/:[ \t]/.test(value)) offenders.push({ file, key: kv[1], value, lineIndex: offset + 1 });
+  });
 }
 
 if (offenders.length === 0) {
-  console.log(`frontmatter ok: ${targets.length} skill and agent files parse`);
+  console.log(`frontmatter ok: ${withFrontmatter} skill and agent files parse`);
   process.exit(0);
 }
 
@@ -66,9 +77,8 @@ if (process.argv.includes('--fix')) {
     const text = fs.readFileSync(file, 'utf8');
     const eol = text.includes('\r\n') ? '\r\n' : '\n';
     const lines = text.split(/\r?\n/);
-    for (const { key, value } of items) {
-      const index = lines.findIndex((line) => line.startsWith(`${key}: `));
-      if (index !== -1) lines.splice(index, 1, `${key}: >-`, `  ${value}`);
+    for (const { key, value, lineIndex } of [...items].sort((a, b) => b.lineIndex - a.lineIndex)) {
+      lines.splice(lineIndex, 1, `${key}: >-`, `  ${value}`);
     }
     fs.writeFileSync(file, lines.join(eol));
     console.log(`fixed ${file}`);
