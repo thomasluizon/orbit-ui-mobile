@@ -55,9 +55,10 @@ risk or measurement exists), then run
    label, parity label, blockedBy, wave). Then ask for explicit approval via ONE
    AskUserQuestion call. Nothing is created in Linear until he approves; an edit
    request loops back through Phase B and re-validation, then this gate again.
-1. `orca linear create` the project (name = the feature); the project description
-   carries the locked decisions from Phase A verbatim; /orchestrate re-reads it every
-   wave and honours it.
+1. `orca linear create` the project (name = the feature); write the locked decisions
+   from Phase A verbatim into the project CONTENT (the overview document) and put a
+   one-line pointer to it in the description (Linear hard-caps `description` at 255
+   chars); /orchestrate re-reads the content every wave and honours it.
 2. `orca linear create` each issue (title, validated body, labels, state Todo,
    project).
 3. `orca linear relation add` every blockedBy edge.
