@@ -3,9 +3,11 @@ import sonarjs from "eslint-plugin-sonarjs"
 import noComments from "../../eslint-rules/no-comments.cjs"
 import noFullbleedButton from "../../eslint-rules/no-fullbleed-button.cjs"
 import noDecorativeGlow from "../../eslint-rules/no-decorative-glow.cjs"
+import noDoubleAssertion from "../../eslint-rules/no-double-assertion.cjs"
 import noOvershootEasing from "../../eslint-rules/no-overshoot-easing.cjs"
 import noRawFontFeatureTag from "../../eslint-rules/no-raw-font-feature-tag.cjs"
 import noRawGradient from "../../eslint-rules/no-raw-gradient.cjs"
+import noUnjustifiedDisable from "../../eslint-rules/no-unjustified-disable.cjs"
 
 export default [
   ...tseslint.configs.recommendedTypeChecked,
@@ -38,15 +40,24 @@ export default [
           "no-comments": noComments,
           "no-fullbleed-button": noFullbleedButton,
           "no-decorative-glow": noDecorativeGlow,
+          "no-double-assertion": noDoubleAssertion,
           "no-overshoot-easing": noOvershootEasing,
           "no-raw-font-feature-tag": noRawFontFeatureTag,
           "no-raw-gradient": noRawGradient,
+          "no-unjustified-disable": noUnjustifiedDisable,
         },
       },
     },
     rules: {
       "local/no-comments": "error",
+      "local/no-double-assertion": "error",
       "local/no-fullbleed-button": "error",
+      "local/no-unjustified-disable": "error",
+      // Shared is pure cross-platform TS with no logger and no UI console; any
+      // console usage here reaches both bundles. Web and mobile already carry
+      // this at error; the gap was flagged by the rule-vs-gate audit.
+      // https://github.com/thomasluizon/orbit-ui-mobile/blob/main/REBUILD.md
+      "no-console": "error",
 
       // The #539 gates with a surface in pure data. Unlike apps/web and apps/mobile, this
       // package is already clean of all four, so they land at `error` directly. Note that
@@ -83,6 +94,7 @@ export default [
   {
     files: ["src/__tests__/**/*.ts", "**/*.test.ts", "**/*.spec.ts"],
     rules: {
+      "local/no-double-assertion": "off",
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-require-imports": "off",
       "@typescript-eslint/no-unused-vars": "off",
