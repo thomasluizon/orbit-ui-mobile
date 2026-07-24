@@ -3,9 +3,9 @@
  *
  * DESIGN.md `### Spacing (base 4)` enumerates the only legal steps
  * (0 4 8 12 16 20 24 28 32 40 48 56 64 px). This gate reads spacing from the
- * three places it actually lives in Orbit — JSX inline `style={{ }}` objects,
+ * three places it actually lives in Orbit - JSX inline `style={{ }}` objects,
  * React Native `StyleSheet.create({ })` objects, and Tailwind `className`
- * utilities (both scale steps and arbitrary `[13px]` values) — because a
+ * utilities (both scale steps and arbitrary `[13px]` values) - because a
  * CSS-only linter sees none of the first two. Inline-style values are read both
  * as a single length (`padding: 15`, `'15px'`) and as a multi-value shorthand
  * string (`padding: '0 20px 6px'`), so a spaced shorthand is not a loophole;
@@ -148,9 +148,9 @@ module.exports = {
     ],
     messages: {
       offScaleStyle:
-        '{{value}}px is off the spacing scale ({{prop}}). DESIGN.md allows {{scale}}. Use {{nearest}}, or add a named exemption to the rule options — never widen the scale.',
+        '{{value}}px is off the spacing scale ({{prop}}). DESIGN.md allows {{scale}}. Use {{nearest}}, or add a named exemption to the rule options - never widen the scale.',
       offScaleClass:
-        '`{{token}}` resolves to {{value}}px, off the spacing scale. DESIGN.md allows {{scale}}. Use `{{suggestion}}`, or add a named exemption to the rule options — never widen the scale.',
+        '`{{token}}` resolves to {{value}}px, off the spacing scale. DESIGN.md allows {{scale}}. Use `{{suggestion}}`, or add a named exemption to the rule options - never widen the scale.',
     },
   },
   create(context) {

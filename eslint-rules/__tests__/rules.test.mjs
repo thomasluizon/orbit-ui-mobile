@@ -130,7 +130,7 @@ ruleTester.run('no-fullbleed-button', rule('no-fullbleed-button'), {
     '<PillButton fullWidth={false}>Save</PillButton>',
     // No pill radius: a full-width row / menu item / card button is legitimate layout, not a CTA.
     '<button className="w-full flex items-center">Row</button>',
-    // A pill with no width utility hugs its content — nothing to flag.
+    // A pill with no width utility hugs its content - nothing to flag.
     '<PillButton className="rounded-full px-6">Save</PillButton>',
     // flagFullWidthProp:false (the web config) leaves the prop unflagged, since the web
     // PillButton self-caps fullWidth at the desktop breakpoint; the className vector still applies.
@@ -256,7 +256,7 @@ ruleTester.run('no-user-scalable-no', rule('no-user-scalable-no'), {
 ruleTester.run('animate-presence-exit', rule('animate-presence-exit'), {
   valid: [
     '<AnimatePresence><m.div exit={{ opacity: 0 }} /></AnimatePresence>',
-    // The ancestor lives at the call site in another file — the sound composition.
+    // The ancestor lives at the call site in another file - the sound composition.
     '<m.div exit={{ opacity: 0 }} />',
     // A non-motion child is composed elsewhere and cannot be judged here.
     '<AnimatePresence>{rows.map((r) => <NotificationRow key={r.id} />)}</AnimatePresence>',
