@@ -48,6 +48,10 @@
       "type": "http",
       "url": "https://mcp.sentry.dev/mcp"
     },
+    "posthog": {
+      "type": "http",
+      "url": "https://mcp.posthog.com/mcp"
+    },
     "csharp-lsp": {
       "command": "C:/Users/thoma/.dotnet/tools/cwm-roslyn-navigator.exe",
       "args": ["--solution", "C:/Users/thoma/Documents/Programming/Projects/orbit-api/Orbit.slnx"],
