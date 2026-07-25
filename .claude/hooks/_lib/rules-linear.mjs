@@ -45,8 +45,26 @@ const ENDPOINT = /api\.linear\.app/
 // `-d @payload.json` one (PR #611 review): the `@` may be quoted, and `-T` /
 // `--upload-file` sends the file as the body with no `@` at all. Inline reads are
 // unaffected, since both alternatives require a file reference.
-const OPAQUE_PAYLOAD =
-  /(?:^|\s)(?:--data(?:-binary|-raw|-urlencode)?|-d)[=\s]+["']?@|(?:^|\s)(?:--upload-file|-T)[=\s]+["']?[^\s"']/
+// Enumerating one more curl flag per review round is the whack-a-mole an
+// allowlist exists to avoid, so this matches the CLASS instead: a request body
+// that comes from somewhere other than the command text. Three rounds of this
+// regex missed a quoted `@`, then `-T`, then the attached `-d@file` form; the
+// question is not which flag, it is whether the body is readable here at all.
+//
+// A body is opaque when a data flag's value is a file reference (`@`) or a
+// subshell (`$(...)`, backticks), or when curl is told to upload a file as the
+// body. The separator is optional throughout, since curl's short options attach
+// to their value. An inline body is unaffected: `-d'{"query": ...}'` has a brace
+// where these require `@`, `$(` or a backtick.
+//
+// Deliberately NOT extended to the whole command: `-H "Authorization: $(cat
+// ~/.linear-api-key)"` is the sanctioned way to pass the key, and blocking it
+// would fail every legitimate read.
+const DATA_FLAG = String.raw`(?:--data(?:-binary|-raw|-urlencode)?|--json|-d)`
+const OPAQUE_PAYLOAD = new RegExp(
+  String.raw`(?:^|\s)${DATA_FLAG}[=\s]*["']?(?:@|\$\(|\x60)` +
+    String.raw`|(?:^|\s)(?:--upload-file|-T)[=\s]*["']?[^\s"']`,
+)
 
 /**
  * One depth walk, under one assumption about which quote (if any) delimits a

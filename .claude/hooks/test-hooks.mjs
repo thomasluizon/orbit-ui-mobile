@@ -201,9 +201,27 @@ T("linear: single-quoted @file payload blocks", !!checkLinearMutation(`curl -s $
 T("linear: --data=@file payload blocks", !!checkLinearMutation(`curl -s ${LINEAR} --data-raw=@payload.json`)?.block, true)
 T("linear: -T upload sends the file as the body and blocks", !!checkLinearMutation(`curl -X POST ${LINEAR} -T payload.json`)?.block, true)
 T("linear: --upload-file blocks", !!checkLinearMutation(`curl -X POST ${LINEAR} --upload-file payload.json`)?.block, true)
+// curl's short options attach to their value with no separator at all, which two
+// rounds of widening this regex still missed (PR #611 review).
+T("linear: attached -d@file blocks", !!checkLinearMutation(`curl -s ${LINEAR} -d@payload.json`)?.block, true)
+T("linear: attached -Tfile blocks", !!checkLinearMutation(`curl -X POST ${LINEAR} -Tpayload.json`)?.block, true)
 // The broadened regex must not swallow an ordinary inline body: -d followed by a
-// quoted JSON object is the normal read this gate deliberately allows.
+// quoted JSON object is the normal read this gate deliberately allows, attached
+// or spaced. The `@` is what marks a file reference.
 T("linear: inline -d read is not mistaken for a file body", checkLinearMutation(post("query { project(id: $p) { content } }")), null)
+T("linear: attached inline -d'{...}' read still allows", checkLinearMutation(`curl -s ${LINEAR} -d'{"query":"query { project(id: $p) { content } }"}'`), null)
+// The other two ways a body arrives from outside the command text, closed as a
+// class rather than one flag per review round.
+T("linear: --json @file blocks", !!checkLinearMutation(`curl -s ${LINEAR} --json @payload.json`)?.block, true)
+T("linear: a subshell body blocks", !!checkLinearMutation(`curl -s ${LINEAR} -d "$(cat payload.json)"`)?.block, true)
+T("linear: a backtick body blocks", !!checkLinearMutation(`curl -s ${LINEAR} --data \`cat payload.json\``)?.block, true)
+// A subshell in the AUTH HEADER is the sanctioned way to pass the key without
+// echoing it, and must never be mistaken for an opaque body.
+T(
+  "linear: a subshell in the auth header does not block a read",
+  checkLinearMutation(`curl -s ${LINEAR} -H "Authorization: $(cat ~/.linear-api-key)" -d '{"query":"query { project(id: $p) { content } }"}'`),
+  null,
+)
 // Prose that merely says the word is not a call: a real operation always parses
 // to a root field. The fail-safe lives on the opaque-payload form above, not here.
 T("linear: the bare word mutation is prose, allows", checkLinearMutation(`curl ${LINEAR} -d "mutation"`), null)
