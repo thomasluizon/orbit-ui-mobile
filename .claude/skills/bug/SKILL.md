@@ -19,9 +19,18 @@ marked as the red case that must turn green.
 3. Label: exactly one `repo:*`; `parity:yes|no` for ui; `visible-effect` when the fix
    changes pixels. If the fix genuinely spans repos, that is TWO tickets (api blocks
    ui) even for a bug (D4).
-4. Validate with `node tools/check-ticket.mjs --file <draft>`, create via
-   `orca linear create` (team ORB, state Todo), re-validate with `--issue`, print the
-   identifier.
+4. Pick the project. Every ticket belongs to one: /orchestrate is project-scoped
+   by default, so a project-less ticket is created and then never picked up by
+   anything. Route the bug into the project whose scope it falls in (a redesign
+   bug to `539 Redesign`, an Astra bug to `562 Astra`, a launch blocker to
+   `Launch`); `Backlog` is the home for everything else, including tech debt.
+   Never invent a project for a single bug. `orca linear project list` is the
+   current set.
+5. Validate with `node tools/check-ticket.mjs --file <draft>`, then create with
+   `node tools/new-ticket.mjs --title "<t>" --project "<name>" --team ORB
+   --state Todo --body-file -` (it wraps `orca linear create` and re-validates
+   the issue the API reported, so the check cannot land on a guessed
+   identifier). Print the identifier it returns.
 
 No fixing inside this skill, even for a one-liner: the ticket is the record that makes
 the fix reviewable.
