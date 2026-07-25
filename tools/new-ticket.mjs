@@ -30,8 +30,12 @@ const USAGE = `usage: new-ticket.mjs <orca linear create flags> < body.md
   A thin wrapper over \`orca linear create\`. Every flag is forwarded verbatim, so
   see \`orca linear create --help\` for the full set. Typical:
 
-    --title "<text>"        the issue title
-    --project "<name>"      exact project name
+    --title "<text>"        the issue title (required)
+    --project "<name>"      exact project name (required). A project-less issue
+                            is invisible to /orchestrate, which is project-scoped
+                            by default, so it is created and then never worked
+                            on. Route it into the project whose scope it falls
+                            in; "Backlog" is the home for everything else.
     --body-file -           read the body from stdin (recommended)
     --label "<name>"        repeatable, exact label name
     --estimate <number>
@@ -55,8 +59,9 @@ if (argv.length === 0 || argv.includes("--help") || argv.includes("-h")) {
   process.exit(argv.length === 0 ? 2 : 0)
 }
 
-if (!argv.includes("--title")) {
-  console.error("--title is required\n")
+for (const required of ["--title", "--project"]) {
+  if (argv.includes(required)) continue
+  console.error(`${required} is required\n`)
   console.error(USAGE)
   process.exit(2)
 }
@@ -76,9 +81,11 @@ try {
 
 let identifier
 try {
+  // The same two-level unwrap check-ticket.mjs uses on orca JSON. Confirmed
+  // against the live envelope, which is { ok, result: { <entity> } }.
   const parsed = JSON.parse(raw)
-  const issue = parsed?.result?.issue ?? parsed?.issue ?? parsed?.result ?? parsed
-  identifier = issue?.identifier
+  const result = parsed.result ?? parsed
+  identifier = (result.issue ?? result)?.identifier
 } catch {
   identifier = undefined
 }
