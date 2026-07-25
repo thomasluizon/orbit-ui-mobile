@@ -12,7 +12,24 @@ team `ORB`. Config `.claude/orchestrator.json` (worker engine, parallel cap, rep
 paths). The session always runs from orbit-ui-mobile (D17); worktrees open in whichever
 repo a ticket's `repo:*` label names.
 
-## 0. Read the contract
+## 0. Classify the scope, then read the contract
+
+The argument decides how far the run goes, and it is the FIRST thing to resolve
+because it binds every later section. An `ORB-N` argument is **single-ticket
+scope**. Anything else is **project scope**. Print the resolved scope as the run's
+first output line, before any agent spawns, so the blast radius is visible while it
+is still cheap to correct.
+
+Single-ticket scope reconciles and launches THAT TICKET ONLY. It never reconciles a
+sibling, never spawns an agent for one, and never advances a wave, because a wave is
+a project-scope concept. It still reads whatever the one ticket needs from the
+project overview.
+
+This paragraph exists because the skill accepted both argument shapes while
+documenting only the project flow, so `/orchestrate ORB-75` had no honest reading
+except "resolve its project and run the project flow". Measured on the ORB-75 run:
+three unrequested reconciliation agents for ORB-76, ORB-77 and ORB-79, about 230k
+tokens, none of it asked for. The session followed the text; the text was the defect.
 
 1. `orca linear list-issues --team ORB --project "<name>" --json` for the tickets.
    Note: the project description is only a 255-char pointer (Linear hard-caps it), and
@@ -157,9 +174,17 @@ same feedback is never replayed twice:
 
 ## 4. Advance
 
-Thomas merges. On his word (or on observing merges), fetch, re-run wave-plan, and
-launch the newly launchable set. Repeat until the project has no unfinished tickets,
-then print the final ledger: ticket, PR, merge SHA, evidence link.
+**Project scope only.** Thomas merges. On his word (or on observing merges), fetch,
+re-run wave-plan, and launch the newly launchable set. Repeat until the project has
+no unfinished tickets, then print the final ledger: ticket, PR, merge SHA, evidence
+link.
+
+**Single-ticket scope ends here instead.** The run is complete once that one
+ticket's PR is open and its issue is In Review with the PR attached (plus the
+screenshot when it carries `visible-effect`). Print that ticket's ledger row and
+STOP. A merge of that ticket is not a trigger to launch anything: observing it may
+have opened a wave, but the run Thomas asked for was one ticket. Tell him which
+tickets became launchable and let him decide, rather than deciding for him.
 
 Never: merge a PR, push to main, relaunch a two-strike ticket, or let a worker run
 before Phase 1's gates are green on its target branch.
