@@ -1,6 +1,6 @@
 ---
 name: feature
-description: Idea in, Linear project out. Interrogates the idea with the product-manager (and design-specialist for UI) agents, decomposes it into executable tickets per the 6.2 template, validates every body with tools/check-ticket.mjs, then creates the Linear project + issues + explicit blockedBy DAG via the orca CLI. Writes NO code. Use for any feature request; /bug is its one-ticket sibling; /orchestrate builds what this creates.
+description: Idea in, executable Linear tickets out. Interrogates the idea with the product-manager (and design-specialist for UI) agents, decomposes it into tickets per the 6.2 template, validates every body with tools/check-ticket.mjs, routes them into an existing project or a new one, then creates the issues + explicit blockedBy DAG via the orca CLI. Writes NO code. Use for any feature request; /bug is its one-ticket sibling; /orchestrate builds what this creates.
 argument-hint: <the idea, one sentence is enough>
 effort: high
 ---
@@ -50,17 +50,35 @@ risk or measurement exists), then run
 
 ## Phase C: create
 
-0. **HARD GATE, before anything external exists:** show Thomas the full plan in one
-   message: project name, the locked decisions, and the ticket table (title, repo
-   label, parity label, blockedBy, wave). Then ask for explicit approval via ONE
-   AskUserQuestion call. Nothing is created in Linear until he approves; an edit
+0. **Resolve the project BEFORE the gate, and never by default.** Run
+   `orca linear project list` and decide between two outcomes. A new project is not
+   the automatic answer; minting one per idea is how the board fills with
+   single-ticket projects nobody orchestrates.
+   - **Route into an existing project** when the work extends its scope (a redesign
+     ticket into `539 Redesign`, an Astra ticket into `562 Astra`, a launch blocker
+     into `Launch`). Also route when the feature is small: under 3 tickets, or with
+     no internal blockedBy edges, belongs in an existing project, `Backlog` if none
+     fits. Its locked decisions then go in the ticket bodies, not a project content
+     document, because the existing project's content belongs to its own work.
+   - **Create a new project** only when the work is 3+ tickets AND carries either an
+     internal DAG or a set of locked decisions every ticket must honour. That
+     content document is the thing a project buys; without one, a project is a label
+     with extra steps.
+1. **HARD GATE, before anything external exists:** show Thomas the full plan in one
+   message: the resolved project (named, and whether it is new or existing, with the
+   one-line reason), the locked decisions, and the ticket table (title, repo label,
+   parity label, blockedBy, wave). Then ask for explicit approval via ONE
+   AskUserQuestion call, whose FIRST question is the project decision with the
+   alternative as the second option, so routing is a choice he sees rather than one
+   this skill made quietly. Nothing is created in Linear until he approves; an edit
    request loops back through Phase B and re-validation, then this gate again.
-1. Create the project (name = the feature). `orca linear` has no project write of
-   any kind (`project list` is its whole project surface), so this and the content
-   write below are the ONLY two Linear writes done raw. Read the personal key at
-   `$env:USERPROFILE\.linear-api-key` into a variable (never echo it), and POST
-   https://api.linear.app/graphql with header `Authorization: <key>` (the raw key)
-   and mutation `projectCreate(input: { name: "<name>", teamIds: ["<ORB team id>"],
+2. Only when step 0 resolved to a NEW project: create it (name = the feature).
+   `orca linear` has no project write of any kind (`project list` is its whole
+   project surface), so this and the content write below are the ONLY two Linear
+   writes done raw. Read the personal key at `$env:USERPROFILE\.linear-api-key`
+   into a variable (never echo it), and POST https://api.linear.app/graphql with
+   header `Authorization: <key>` (the raw key) and mutation
+   `projectCreate(input: { name: "<name>", teamIds: ["<ORB team id>"],
    description: "<one-line pointer>" }) { project { id } }`. Linear hard-caps
    `description` at 255 chars, so the substance goes in CONTENT, not there.
    Then write the locked decisions from Phase A verbatim into the project content
@@ -69,13 +87,18 @@ risk or measurement exists), then run
    /orchestrate re-reads the content every wave and honours it.
    Every OTHER Linear write in this skill goes through orca, enforced by the
    `forbid-raw-linear-mutation` hook: a raw `issueCreate` is blocked at act time.
-2. `node tools/new-ticket.mjs` each issue (title, validated body, labels, state
-   Todo, project), which wraps `orca linear create` and validates what it created.
-3. `orca linear relation add` every blockedBy edge.
-4. Re-validate each created issue: `node tools/check-ticket.mjs --issue ORB-N` (this
+3. `node tools/new-ticket.mjs` each issue (title, validated body, labels, state
+   Todo, and `--project` with the project step 0 resolved), which wraps
+   `orca linear create` and validates what it created. It REFUSES to create a
+   ticket with no project: /orchestrate is project-scoped by default, so a
+   project-less ticket is created and then never picked up by anything.
+4. `orca linear relation add` every blockedBy edge.
+5. Re-validate each created issue: `node tools/check-ticket.mjs --issue ORB-N` (this
    pass also checks labels + relations, which --file cannot).
-5. Print the final table: identifier, title, repo, blockedBy, wave (from
-   `node tools/wave-plan.mjs --project "<name>"`).
+6. Print the final table: identifier, title, repo, blockedBy, wave (from
+   `node tools/wave-plan.mjs --project "<name>"`). When the tickets were routed into
+   an existing project, that table covers the WHOLE project, so say which rows are
+   the new ones.
 
 Stop there. No code, no branches, no worktrees (D10: output is tickets, never a report
 and never an implementation).
