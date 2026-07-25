@@ -94,6 +94,21 @@ const printFindings = (perFile, limitPerFile = 3) => {
 const HOW_TO_FIX =
   "\nEm dashes are a banned LLM tell in Orbit prose. Use a plain hyphen (-), a comma, or restructure.\nEn dashes are allowed only inside a numeric range (1–10).\nPre-existing debt lives in tools/dash-baseline.json and may only shrink (regenerate with --write-baseline AFTER removing dashes, never to admit new ones)."
 
+const USAGE = `usage: check-dashes.mjs --files <path>... | --check-baseline | --write-baseline | --text "<string>"
+
+  --files <path>...   check exactly these files (exit 1 on any hit above the baseline)
+  --check-baseline    full tree vs tools/dash-baseline.json (exit 1 on growth)
+  --write-baseline    regenerate tools/dash-baseline.json
+  --text "<string>"   check a string, for PR titles and bodies (exit 1 on any hit)
+  --help, -h          print this usage and exit 0
+
+exit codes: 0 clean, 1 a banned dash, 2 usage error`
+
+if (process.argv.includes("--help") || process.argv.includes("-h")) {
+  console.log(USAGE)
+  process.exit(0)
+}
+
 const mode = process.argv[2]
 
 if (mode === "--text") {
@@ -142,5 +157,5 @@ if (mode === "--check-baseline" || mode === "--write-baseline") {
   process.exit(0)
 }
 
-console.error("usage: check-dashes.mjs --files <f>... | --check-baseline | --write-baseline | --text <s>")
+console.error(USAGE)
 process.exit(2)

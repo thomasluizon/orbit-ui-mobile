@@ -37,6 +37,7 @@ rather than the "this is your own invite link" self-invite edge case.
 
 Flags:
   --base-url        web origin (default http://localhost:3000)
+  --api-base        orbit-api origin (default http://localhost:5000)
   --filter          only capture cells whose surfaceId contains this substring
   --storage-state   Playwright storageState JSON for the signed-in session
   --viewport        WxH (default 1280x900)
@@ -45,7 +46,7 @@ Flags:
 Exit codes:
   0  every cell in scope captured
   1  at least one cell failed to capture
-  2  preconditions missing (no manifest, no playwright, no session)
+  2  preconditions missing (no manifest, no playwright, no session) or a usage error
   3  cells in scope need a bespoke opener that is not implemented yet
 `
 
@@ -297,6 +298,7 @@ function parseArgs(argv) {
     filter: null,
     storageState: null,
     viewport: "1280x900",
+    unknown: null,
   }
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index]
@@ -305,6 +307,7 @@ function parseArgs(argv) {
     else if (flag === "--filter") args.filter = argv[++index]
     else if (flag === "--storage-state") args.storageState = argv[++index]
     else if (flag === "--viewport") args.viewport = argv[++index]
+    else args.unknown ??= flag
   }
   return args
 }
@@ -432,6 +435,10 @@ async function main() {
     return 0
   }
   const args = parseArgs(argv)
+  if (args.unknown) {
+    process.stderr.write(`capture-surfaces: unknown argument: ${args.unknown}\n\n${USAGE}`)
+    return 2
+  }
 
   if (!existsSync(MANIFEST_PATH)) {
     process.stderr.write("capture-surfaces: no manifest. Run: npm run surfaces:manifest\n")

@@ -13,14 +13,33 @@
  *   description: >-
  *     Text that: contains a colon.
  *
- * Usage: node tools/check-frontmatter.mjs [--fix]
- * Exit 0 clean, 1 on any offender.
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOTS = ['.claude/skills', '.claude/agents'];
+const USAGE = `usage: check-frontmatter.mjs [--fix]
+
+  --fix       rewrite each offending value as a folded block scalar
+  --help, -h  print this usage and exit 0
+
+exit codes: 0 every skill and agent file parses, 1 an unparseable file, 2 usage error`;
+
+if (process.argv.includes('--help') || process.argv.includes('-h')) {
+  console.log(USAGE);
+  process.exit(0);
+}
+
+const unknownArgument = process.argv.slice(2).find((argument) => argument !== '--fix');
+if (unknownArgument) {
+  console.error(`check-frontmatter: unknown argument: ${unknownArgument}\n`);
+  console.error(USAGE);
+  process.exit(2);
+}
+
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const ROOTS = ['.claude/skills', '.claude/agents'].map((root) => path.join(REPO_ROOT, root));
 const BLOCK_SCALAR = /^[>|][-+]?\d*$/;
 
 const missingRoots = ROOTS.filter((root) => !fs.existsSync(root));
@@ -81,7 +100,7 @@ if (process.argv.includes('--fix')) {
       lines.splice(lineIndex, 1, `${key}: >-`, `  ${value}`);
     }
     fs.writeFileSync(file, lines.join(eol));
-    console.log(`fixed ${file}`);
+    console.log(`fixed ${path.relative(REPO_ROOT, file)}`);
   }
   process.exit(0);
 }
@@ -89,7 +108,7 @@ if (process.argv.includes('--fix')) {
 console.error(`Unparseable frontmatter in ${offenders.length} file(s).`);
 console.error('A ": " inside an unquoted YAML value breaks the parse, so the skill or agent');
 console.error('loads with no description or does not load at all, silently.\n');
-for (const { file, key } of offenders) console.error(`  ${file}  [${key}]`);
+for (const { file, key } of offenders) console.error(`  ${path.relative(REPO_ROOT, file)}  [${key}]`);
 console.error('\nFix: make the value a folded block scalar, or run:');
 console.error('  node tools/check-frontmatter.mjs --fix');
 process.exit(1);

@@ -128,6 +128,19 @@ const allFindings = () => [...localeFindings(), ...brandColorFindings()]
 
 const keyOf = (finding) => `${finding.kind} :: ${finding.file} :: ${finding.key}`
 
+const USAGE = `usage: check-copy.mjs --check | --write-baseline
+
+  --check           fail on any locale-copy or brand-color finding not in tools/copy-baseline.json
+  --write-baseline  regenerate tools/copy-baseline.json
+  --help, -h        print this usage and exit 0
+
+exit codes: 0 clean, 1 a finding outside the baseline, 2 usage error`
+
+if (process.argv.includes("--help") || process.argv.includes("-h")) {
+  console.log(USAGE)
+  process.exit(0)
+}
+
 const mode = process.argv[2]
 const findings = allFindings()
 const current = findings.map(keyOf).sort()
@@ -158,5 +171,5 @@ if (mode === "--check") {
   process.exit(0)
 }
 
-console.error("usage: check-copy.mjs --check | --write-baseline")
+console.error(USAGE)
 process.exit(2)

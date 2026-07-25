@@ -6,6 +6,7 @@
 > - POSIX `.sh` is the baseline; add a `.ps1` twin only when it must run in the user's PowerShell shell.
 > - Large payloads come in on stdin, never argv; secrets never appear in argv.
 > - A tool that GATES on work being done derives its verdict from artifacts on disk, never from a status field (see "Gate tools" below).
+> - This contract is EXECUTED, not trusted: `test-tools.mjs` runs every script here and fails on a missing `--help`, a swallowed bad argument, or an uncovered new tool.
 
 A tool here is something an agent invokes without reading its source. That only works if every tool obeys the same contract.
 
@@ -35,6 +36,12 @@ The pattern, as implemented by `surface-manifest.mjs` + `redesign-coverage.mjs`:
 - **`.sh` is the baseline.** It runs in CI and in Git Bash on Windows. Keep it POSIX-ish and give it LF line endings.
 - **Add a `.ps1` twin only when the tool must run in the user's primary PowerShell shell** (the interactive path). The twin mirrors the `.sh` interface exactly: same flags, same stdin shape, same exit codes. Do not maintain a `.ps1` for a script that only ever runs in the bash loop.
 - Prefer delegating to an existing vetted helper (a `.mjs`, a `gh` call) over reimplementing its logic in shell. The wrappers stay thin.
+
+## The gate
+
+`test-tools.mjs` is the executable half of this document, and it is the reason a broken tool cannot be read, approved and merged: the CI reviewer reads the diff, this runs the code. It proves, per script, that `--help` exits `0` with usage on stdout and that invalid input is refused before the tool does any work, then exercises each tool's real decision paths with orca stubbed and every side effect staged in a temp dir. It also enumerates `tools/*.{mjs,sh,ps1}` and fails on any script with no coverage entry, so tool N+1 cannot land uncovered.
+
+A new tool therefore lands with its coverage entry in the same PR: an `INVALID_INPUT` row (the argv that must be refused, and the exit code), plus a `gateCases` entry when the tool has decision paths worth driving. Keep the cases hermetic: no network, no worktree, no Linear, no writes outside the suite's temp root.
 
 ## Adding one
 

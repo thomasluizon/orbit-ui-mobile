@@ -9,6 +9,7 @@ name: Guards
 #   parity  - a web-scope code change with zero mobile-scope change (or inverse) fails without the parity:exempt label
 #   expo-pin - apps/mobile/package.json changes must keep the Expo SDK pin resolution intact
 #   frontmatter - every skill and agent .md has parseable YAML frontmatter (an unquoted ": " drops it silently)
+#   harness - the harness is EXECUTED, not read: every tools/ script and both session hooks run
 
 on:
   pull_request:
@@ -70,6 +71,37 @@ jobs:
         with:
           node-version: 22
       - run: node tools/check-frontmatter.mjs
+
+  harness:
+    name: Harness Execution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      # Job-level `paths:` does not exist, and a workflow-level one would filter the
+      # other guards too, so the scope check is a step like the Expo SDK Pin job's.
+      # The job itself always runs and always reports, which is what a required check
+      # needs; only the two executions below are scoped.
+      - name: Detect a harness change
+        id: scope
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          elif git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -Eq '^(tools/|\.claude/)'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Every tools/ script executes to its contract
+        if: steps.scope.outputs.changed == 'true'
+        run: node tools/test-tools.mjs
+      - name: Both session hooks block and allow as specified
+        if: steps.scope.outputs.changed == 'true'
+        run: node .claude/hooks/test-hooks.mjs
 
   ratchet:
     name: Suppressions Ratchet
