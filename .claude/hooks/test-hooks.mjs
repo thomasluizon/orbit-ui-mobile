@@ -9,7 +9,7 @@
 // deterministic gates and died with the old harness.
 // Run: node .claude/hooks/test-hooks.mjs   (exits non-zero on any failure)
 
-import { mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync, readdirSync, existsSync } from "node:fs"
+import { mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync, readdirSync, existsSync, statSync } from "node:fs"
 import { spawnSync } from "node:child_process"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
@@ -214,7 +214,16 @@ T("linear: attached inline -d'{...}' read still allows", checkLinearMutation(`cu
 // class rather than one flag per review round.
 T("linear: --json @file blocks", !!checkLinearMutation(`curl -s ${LINEAR} --json @payload.json`)?.block, true)
 T("linear: a subshell body blocks", !!checkLinearMutation(`curl -s ${LINEAR} -d "$(cat payload.json)"`)?.block, true)
-T("linear: a backtick body blocks", !!checkLinearMutation(`curl -s ${LINEAR} --data \`cat payload.json\``)?.block, true)
+// `--json` means "send this JSON body" to curl and "print JSON" to orca and gh.
+// Pairing it with the subshell arm blocked a plain orca read line in the
+// orchestrate skill, so it survives only on the unambiguous @file arm. A
+// backtick was withdrawn for the same reason: it is a markdown code span in
+// every doc this gate also scans.
+T(
+  "linear: an orca --json read line near the endpoint does not block",
+  checkLinearMutation(`see ${LINEAR} for reads; run \`orca linear list-issues --project "x" --json\` for the tickets`),
+  null,
+)
 // A subshell in the AUTH HEADER is the sanctioned way to pass the key without
 // echoing it, and must never be mistaken for an opaque body.
 T(
@@ -350,6 +359,30 @@ for (const dir of agentDirs) {
 }
 // A guard that scanned nothing passes vacuously; make that a failure instead.
 T("agents: the guard actually scanned agent files", agentsScanned > 0, true)
+
+// ---------------------------------------------------------------------------
+// 4. The Linear gate must not block this repo's own docs
+// ---------------------------------------------------------------------------
+// A gate that fires on prose gets switched off, so its false-positive rate is
+// part of its contract, not an afterthought. Every widening of the rule so far
+// hit a real doc: the hook's own hyphenated name read as a GraphQL keyword, the
+// shorthand `mutation \`projectCreate(...)\`` both skills document, and
+// `orca linear list-issues --json` read as a curl JSON body. Each was found by
+// running this scan BY HAND after the change, which is exactly the check that
+// stops happening. Here it runs every time.
+console.log("\n# linear gate false positives (this repo's tracked docs)")
+const trackedDocs = spawnSync("git", ["-C", repoRoot, "ls-files", "*.md", ".claude/*", "tools/*"], { encoding: "utf8" })
+const docPaths = (trackedDocs.status === 0 ? trackedDocs.stdout.trim().split(/\r?\n/) : [])
+  .filter(Boolean)
+  // The gate exempts its own source at the adapter, since a rule module must
+  // contain the strings it matches on. Mirror that here rather than reporting it.
+  .filter((relative) => !relative.startsWith(".claude/hooks/"))
+  .map((relative) => join(repoRoot, relative))
+  .filter((absolute) => existsSync(absolute) && statSync(absolute).isFile())
+
+const blockedDocs = docPaths.filter((path) => checkLinearMutation(readFileSync(path, "utf8"))?.block)
+T("linear gate: blocks none of this repo's tracked docs", blockedDocs.map((p) => p.slice(repoRoot.length + 1)), [])
+T("linear gate: the doc scan actually read files", docPaths.length > 0, true)
 
 console.log(`\n${fails === 0 ? "ORBIT HOOK PARITY OK" : `ORBIT HOOK PARITY FAILED (${fails})`}`)
 process.exit(fails === 0 ? 0 : 1)

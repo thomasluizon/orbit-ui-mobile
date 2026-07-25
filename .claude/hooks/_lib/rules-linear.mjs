@@ -52,17 +52,25 @@ const ENDPOINT = /api\.linear\.app/
 // question is not which flag, it is whether the body is readable here at all.
 //
 // A body is opaque when a data flag's value is a file reference (`@`) or a
-// subshell (`$(...)`, backticks), or when curl is told to upload a file as the
-// body. The separator is optional throughout, since curl's short options attach
-// to their value. An inline body is unaffected: `-d'{"query": ...}'` has a brace
-// where these require `@`, `$(` or a backtick.
+// subshell (`$(...)`), or when curl is told to upload a file as the body. The
+// separator is optional throughout, since curl's short options attach to their
+// value. An inline body is unaffected: `-d'{"query": ...}'` has a brace where
+// these require `@` or `$(`.
+//
+// Two markers were tried and withdrawn, both measured against this repo's own
+// docs. A backtick reads as a subshell in shell and as a code span in every
+// markdown file this gate also scans. And `--json` means "send this JSON body"
+// to curl but "print JSON" to orca and gh, so pairing it with the subshell arm
+// blocked the line `orca linear list-issues --project "<name>" --json` in the
+// orchestrate skill. It survives only on the unambiguous `@file` arm.
 //
 // Deliberately NOT extended to the whole command: `-H "Authorization: $(cat
 // ~/.linear-api-key)"` is the sanctioned way to pass the key, and blocking it
 // would fail every legitimate read.
-const DATA_FLAG = String.raw`(?:--data(?:-binary|-raw|-urlencode)?|--json|-d)`
+const BODY_FLAG = String.raw`(?:--data(?:-binary|-raw|-urlencode)?|-d)`
 const OPAQUE_PAYLOAD = new RegExp(
-  String.raw`(?:^|\s)${DATA_FLAG}[=\s]*["']?(?:@|\$\(|\x60)` +
+  String.raw`(?:^|\s)(?:${BODY_FLAG}|--json)[=\s]*["']?@` +
+    String.raw`|(?:^|\s)${BODY_FLAG}[=\s]*["']?\$\(` +
     String.raw`|(?:^|\s)(?:--upload-file|-T)[=\s]*["']?[^\s"']`,
 )
 
