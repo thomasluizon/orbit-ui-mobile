@@ -174,8 +174,22 @@ const comment = argOf("--comment") ?? `${issue} launched: worker running`
 /** Model routing: a worker:sonnet ticket swaps the configured opus for sonnet, nothing else. */
 const wantsSonnet = labels.includes("worker:sonnet")
 const engineArgs = engine.args.map((arg, index) => (wantsSonnet && engine.args[index - 1] === "--model" && arg === "opus" ? "sonnet" : arg))
-if (engineArgs.includes("-p") || engineArgs.includes("--print")) {
-  fail(2, "the engine args carry -p/--print: a headless worker is invisible to Orca and cannot be babysat. Remove it from .claude/orchestrator.json")
+if (engine.interactive !== true) {
+  fail(
+    2,
+    `.claude/orchestrator.json worker "${engineName}" does not declare interactive: true. Everything below this line assumes a supervisable TUI: the trust-prompt answer, the tui-idle poll, nudge-worker's busy refusal, worker-status' idle-then-check. A headless engine has none of that, so it launches unwatched and lands zero commits, zero gates and no PR. Declare the engine interactive only when its invocation really opens a TUI.`,
+  )
+}
+
+/**
+ * Second level, for an entry that declares interactive: true while carrying a headless
+ * invocation anyway. This is an assertion on the known headless shapes, not a blocklist to
+ * extend flag by flag: the declaration above is the gate.
+ */
+const HEADLESS_TOKENS = ["-p", "--print", "exec"]
+const headless = engineArgs.find((arg) => HEADLESS_TOKENS.includes(arg))
+if (headless) {
+  fail(2, `worker "${engineName}" declares interactive: true but its args carry "${headless}", which is a headless invocation. Fix the args or the declaration in .claude/orchestrator.json`)
 }
 const command = [engine.command, ...engineArgs].join(" ")
 

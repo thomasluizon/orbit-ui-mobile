@@ -94,7 +94,17 @@ worktree card shows no Agents row and clicking the card reveals only a bare shel
 Measured on the ORB-75 Phase 7 run, where the card read `agents: none` with an empty
 comment for the worker's entire life and death. A TUI worker populates the card's Agents
 row with its live prompt, current tool and elapsed time, which is the only in-Orca window
-into a running worker. The tool refuses to launch if the configured args carry `-p`.
+into a running worker.
+
+`claude -p` is not the only way to get there: `codex exec` is Codex CLI's non-interactive
+subcommand and lands in exactly the same place, and flipping the top-level `worker` key is
+a one-word edit (D5). So the guard is not a flag check. Every entry in
+`orchestrator.json`'s `workers` map must declare `interactive: true`, and
+`launch-worker.mjs` refuses (exit 2) to launch anything that does not, with a second
+assertion catching an entry that declares itself interactive while carrying `-p`,
+`--print` or `exec`. `codex` is declared `interactive: false` today, so selecting it fails
+loudly at launch rather than producing an unsupervisable run; making it usable again means
+giving it an interactive invocation, not deleting the flag.
 
 Two consequences of dropping `-p`. The process does NOT exit when the work is done, so
 wait with `--for tui-idle`, never `--for exit`. And the permission mode must still come
