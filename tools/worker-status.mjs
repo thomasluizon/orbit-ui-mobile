@@ -59,7 +59,19 @@ const run = (file, args, { allowFailure = false } = {}) => {
 }
 
 const orca = (args) => {
-  const raw = run(ORCA, [...args, "--json"])
+  let raw
+  try {
+    raw = execFileSync(ORCA, [...args, "--json"], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 }).trim()
+  } catch (error) {
+    const payload = error.stdout?.toString() ?? ""
+    let reason = error.stderr?.toString().trim() || error.message
+    try {
+      reason = JSON.parse(payload).error?.message ?? reason
+    } catch {
+      if (payload.trim()) reason = payload.trim().slice(0, 400)
+    }
+    fail(3, `orca ${args.join(" ")} failed: ${reason}`)
+  }
   let parsed
   try {
     parsed = JSON.parse(raw)
@@ -78,12 +90,26 @@ const asJson = process.argv.includes("--json")
 if (!worktree) fail(2, `${USAGE}\n\n--worktree is required`)
 if (!issue || !/^[A-Z]+-\d+$/.test(issue)) fail(2, `${USAGE}\n\n--issue must be a Linear identifier such as ORB-75`)
 
-const config = JSON.parse(readFileSync(new URL("../.claude/orchestrator.json", import.meta.url), "utf8"))
+let config
+try {
+  config = JSON.parse(readFileSync(new URL("../.claude/orchestrator.json", import.meta.url), "utf8"))
+} catch (error) {
+  fail(2, `.claude/orchestrator.json could not be read as JSON: ${error.message}`)
+}
 const reviewState = config.linear?.states?.review ?? "In Review"
 
 const git = (args, options) => run("git", ["-C", worktree, ...args], options)
 const branch = git(["rev-parse", "--abbrev-ref", "HEAD"])
-const baseRef = git(["rev-parse", "--verify", "--quiet", base], { allowFailure: true }) ? base : `origin/${base}`
+
+/**
+ * The base has to be the REMOTE ref, refreshed. A worktree shares the repo's local branches, so
+ * a local `main` left behind by an older session resolves happily and every commit merged to
+ * origin since then counts as the worker's own: measured on this branch, a worktree sitting
+ * exactly on origin/main with zero worker commits reported "1 commit(s)" and passed the check
+ * that exists to catch a worker who committed nothing.
+ */
+git(["fetch", "--quiet", "origin", base], { allowFailure: true })
+const baseRef = git(["rev-parse", "--verify", "--quiet", `origin/${base}`], { allowFailure: true }) ? `origin/${base}` : base
 const commits = git(["log", "--oneline", `${baseRef}..HEAD`]).split("\n").filter(Boolean)
 const dirty = git(["status", "--porcelain"]).split("\n").filter(Boolean)
 const pushed = (git(["ls-remote", "--heads", "origin", branch]) || "").length > 0

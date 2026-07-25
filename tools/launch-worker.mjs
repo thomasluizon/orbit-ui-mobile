@@ -35,7 +35,12 @@ branch, baseBranch, terminal, engine, command, promptFile, trustPromptAnswered, 
 Progress goes to stderr, so stdout stays pipeable.
 
 exit codes: 0 worker launched, 1 the worker never reached tui-idle, 2 usage or config error,
-            3 an orca or git command failed`
+            3 an orca or git command failed
+
+Any non-zero exit after the worktree exists stops its terminals and removes that worktree and
+the branches this run created, so a relaunch starts clean instead of piling up orb-N-slug-2.
+If orca still refuses to remove it (a wedged setup PTY), the exact removal command is printed
+on stderr; run it before relaunching.`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
@@ -56,8 +61,46 @@ const MAX_WAIT_ATTEMPTS = 6
 const TRUST_BLOCKED_REASON = /trust/i
 const TRUST_ON_SCREEN = /(is this a project you created or one you trust|do you trust the files|trust this folder)/i
 
+/**
+ * Everything created after `orca worktree create` succeeds has to come back out on any later
+ * failure, or a failed launch leaves a full checkout, its terminals and an `npm install`
+ * behind. Orca then de-duplicates the NAME on the next attempt (orb-N-slug-2) while the
+ * contract branch survives, so `git switch -c` fails again and the retry the skill tells the
+ * operator to run compounds the mess instead of clearing it. Measured on this branch.
+ */
+let rollback = null
+
 const fail = (code, message) => {
   console.error(message)
+  if (rollback) {
+    const { selector, contractBranch, orcaBranch, repoPath: rollbackRepo } = rollback
+    rollback = null
+    console.error(`rolling back ${selector} so a relaunch starts clean`)
+    /**
+     * `orca worktree create` spawns its own startup PTYs (a shell, plus the repo's setup hook,
+     * which is `npm install` here). `worktree rm --force` fails with "Failed to physically stop
+     * every PTY" while one of those is still alive, so stop them first and give a slow one a
+     * second chance before giving up. Measured on this branch: the first rollback attempt
+     * failed exactly this way with npm install still running.
+     */
+    spawnSync(ORCA, ["terminal", "stop", "--worktree", selector, "--json"], { encoding: "utf8" })
+    let removal = spawnSync(ORCA, ["worktree", "rm", "--worktree", selector, "--force", "--json"], { encoding: "utf8" })
+    if (removal.status !== 0) {
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5000)
+      spawnSync(ORCA, ["terminal", "stop", "--worktree", selector, "--json"], { encoding: "utf8" })
+      removal = spawnSync(ORCA, ["worktree", "rm", "--worktree", selector, "--force", "--json"], { encoding: "utf8" })
+    }
+    if (removal.status !== 0) {
+      console.error(`could not remove the worktree: ${(removal.stdout || removal.stderr || "").trim().slice(0, 300)}`)
+      console.error(`remove it by hand before relaunching: orca worktree rm --worktree ${selector} --force`)
+    }
+    for (const branchToDrop of [contractBranch, orcaBranch].filter(Boolean)) {
+      const stillThere = spawnSync("git", ["-C", rollbackRepo, "rev-parse", "--verify", "--quiet", `refs/heads/${branchToDrop}`], { encoding: "utf8" })
+      if (stillThere.status !== 0) continue
+      const dropped = spawnSync("git", ["-C", rollbackRepo, "branch", "-D", branchToDrop], { encoding: "utf8" })
+      if (dropped.status !== 0) console.error(`left the branch ${branchToDrop} behind: ${(dropped.stderr || "").trim().slice(0, 200)}`)
+    }
+  }
   process.exit(code)
 }
 
@@ -66,12 +109,25 @@ const argOf = (flag) => {
   return index === -1 ? null : process.argv[index + 1]
 }
 
+/** orca prints its `ok: false` payload on STDOUT and leaves stderr empty, so a failed call whose
+ * reason is only read off stderr reports "Command failed" and nothing else. Read stdout first. */
+const orcaFailureReason = (error) => {
+  const payload = error.stdout?.toString() ?? ""
+  try {
+    const parsed = JSON.parse(payload)
+    if (parsed.error?.message) return parsed.error.message
+  } catch {
+    if (payload.trim()) return payload.trim().slice(0, 400)
+  }
+  return error.stderr?.toString().trim() || error.message
+}
+
 const orca = (args) => {
   let raw
   try {
     raw = execFileSync(ORCA, [...args, "--json"], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
   } catch (error) {
-    fail(3, `orca ${args.join(" ")} failed: ${error.stderr?.toString().trim() || error.message}`)
+    fail(3, `orca ${args.join(" ")} failed: ${orcaFailureReason(error)}`)
   }
   let parsed
   try {
@@ -133,10 +189,25 @@ const promptFile = resolve(promptFileArg)
 if (!existsSync(promptFile)) fail(2, `prompt file not found: ${promptFile}`)
 if (statSync(promptFile).size === 0) fail(2, `prompt file is empty: ${promptFile}`)
 
-const config = JSON.parse(readFileSync(new URL("../.claude/orchestrator.json", import.meta.url), "utf8"))
+let config
+try {
+  config = JSON.parse(readFileSync(new URL("../.claude/orchestrator.json", import.meta.url), "utf8"))
+} catch (error) {
+  fail(2, `.claude/orchestrator.json could not be read as JSON: ${error.message}`)
+}
 const engineName = config.worker
 const engine = config.workers?.[engineName]
 if (!engine?.command) fail(2, `.claude/orchestrator.json names worker "${engineName}" but carries no command for it`)
+if (!Array.isArray(engine.args)) fail(2, `.claude/orchestrator.json worker "${engineName}" carries no args array; give it one (use [] for none)`)
+if (engine.interactive !== true) {
+  fail(
+    2,
+    `.claude/orchestrator.json worker "${engineName}" does not declare interactive: true. Everything below this line assumes a supervisable TUI: the trust-prompt answer, the tui-idle poll, nudge-worker's busy refusal, worker-status' idle-then-check. A headless engine has none of that, so it launches unwatched and lands zero commits, zero gates and no PR. Declare the engine interactive only when its invocation really opens a TUI.`,
+  )
+}
+if (!config.repos || typeof config.repos !== "object") {
+  fail(2, ".claude/orchestrator.json carries no repos map; add one keyed by the repo:* label ids (ui, api, landing)")
+}
 
 const normalize = (path) => path.replaceAll("\\", "/").replace(/\/+$/, "").toLowerCase()
 const isInside = (child, parent) => normalize(child) === normalize(parent) || normalize(child).startsWith(`${normalize(parent)}/`)
@@ -174,24 +245,21 @@ const comment = argOf("--comment") ?? `${issue} launched: worker running`
 /** Model routing: a worker:sonnet ticket swaps the configured opus for sonnet, nothing else. */
 const wantsSonnet = labels.includes("worker:sonnet")
 const engineArgs = engine.args.map((arg, index) => (wantsSonnet && engine.args[index - 1] === "--model" && arg === "opus" ? "sonnet" : arg))
-if (engine.interactive !== true) {
-  fail(
-    2,
-    `.claude/orchestrator.json worker "${engineName}" does not declare interactive: true. Everything below this line assumes a supervisable TUI: the trust-prompt answer, the tui-idle poll, nudge-worker's busy refusal, worker-status' idle-then-check. A headless engine has none of that, so it launches unwatched and lands zero commits, zero gates and no PR. Declare the engine interactive only when its invocation really opens a TUI.`,
-  )
-}
+const command = [engine.command, ...engineArgs].join(" ")
 
 /**
  * Second level, for an entry that declares interactive: true while carrying a headless
- * invocation anyway. This is an assertion on the known headless shapes, not a blocklist to
- * extend flag by flag: the declaration above is the gate.
+ * invocation anyway. It scans the WHOLE invocation, command included: "command": "codex exec"
+ * and "command": "claude --print" are the same headless launch as the same token sitting in
+ * args, and a guard that only reads args is one field move from passing them. This is an
+ * assertion on the known headless shapes, not a blocklist to extend flag by flag: the
+ * interactive declaration above is the gate.
  */
 const HEADLESS_TOKENS = ["-p", "--print", "exec"]
-const headless = engineArgs.find((arg) => HEADLESS_TOKENS.includes(arg))
+const headless = command.split(/\s+/).find((token) => HEADLESS_TOKENS.includes(token))
 if (headless) {
-  fail(2, `worker "${engineName}" declares interactive: true but its args carry "${headless}", which is a headless invocation. Fix the args or the declaration in .claude/orchestrator.json`)
+  fail(2, `worker "${engineName}" declares interactive: true but its invocation "${command}" carries "${headless}", which is a headless invocation. Fix the command or args, or the declaration, in .claude/orchestrator.json`)
 }
-const command = [engine.command, ...engineArgs].join(" ")
 
 const plan = {
   issue,
@@ -224,13 +292,20 @@ const created = orca([
 const worktreePath = created.worktree?.path
 if (!worktreePath) fail(3, `orca worktree create returned no path: ${JSON.stringify(created).slice(0, 400)}`)
 const worktreeSelector = `path:${worktreePath}`
+rollback = {
+  selector: worktreeSelector,
+  repoPath,
+  orcaBranch: (created.worktree?.branch ?? "").replace(/^refs\/heads\//, "") || null,
+  contractBranch: null,
+}
 
 if (isInside(promptFile, worktreePath)) {
-  fail(3, `prompt file lives inside the new worktree (${worktreePath}); remove the worktree and write the prompt to the session scratchpad`)
+  fail(3, `prompt file lives inside the new worktree (${worktreePath}); write the prompt to the session scratchpad instead`)
 }
 
 console.error(`switching ${worktreePath} onto the contract branch ${branch}`)
 git(["-C", worktreePath, "switch", "-c", branch])
+rollback.contractBranch = branch
 const actualBranch = git(["-C", worktreePath, "rev-parse", "--abbrev-ref", "HEAD"])
 if (actualBranch !== branch) fail(3, `expected the worktree on ${branch}, found ${actualBranch}`)
 
@@ -265,6 +340,7 @@ if (!idle) {
 const pointer = `Read ${promptFile} and execute it in full. That file is your complete work order for ${issue}: the ticket body verbatim, then the finishing contract. You are on branch ${branch} in ${worktreePath}. Do not summarise the file back to me, start the work now.`
 console.error("sending the prompt pointer")
 orca(["terminal", "send", "--terminal", terminal, "--text", pointer, "--enter"])
+rollback = null
 orca(["terminal", "switch", "--terminal", terminal])
 orca(["worktree", "set", "--worktree", worktreeSelector, "--comment", comment, "--workspace-status", workspaceStatus])
 

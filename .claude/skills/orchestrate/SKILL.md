@@ -78,9 +78,13 @@ Per launchable ticket, up to `maxParallelWorktrees`:
    (`--base-branch <target>` when the target is not `main`, `--branch-prefix fix` for a
    bug ticket, `--repo ui|api|landing` only to override the `repo:*` label). It prints
    the terminal handle, worktree path and branch as JSON: keep that, it is what you
-   babysit with. A non-zero exit means NOTHING launched (1 the worker never reached
-   tui-idle, 2 usage or config, 3 an orca or git command failed); read stderr, fix the
-   cause, relaunch. Run `--dry-run` first if you want to see the resolved plan.
+   babysit with. On a non-zero exit (1 the worker never reached tui-idle, 2 usage or
+   config, 3 an orca or git command failed) the tool rolls its own worktree and branches
+   back out, so relaunching after fixing the cause starts clean rather than piling up
+   `orb-N-slug-2` with a surviving contract branch that fails `git switch -c` all over
+   again. If it could not remove the worktree (a wedged setup PTY), it prints the exact
+   removal command on stderr; run that BEFORE relaunching. Read stderr, fix the cause,
+   relaunch. Run `--dry-run` first if you want to see the resolved plan.
 4. `orca linear status set ORB-N --to "In Progress"`.
 5. `orca worktree set --worktree path:<worktreePath> --comment "<one line>"` at every
    LATER checkpoint (gates green, PR open, blocked), and `--workspace-status` to match.
@@ -128,7 +132,9 @@ a one-word edit (D5). So the guard is not a flag check. Every entry in
 `orchestrator.json`'s `workers` map must declare `interactive: true`, and
 `launch-worker.mjs` refuses (exit 2) to launch anything that does not, with a second
 assertion catching an entry that declares itself interactive while carrying `-p`,
-`--print` or `exec`. `codex` is declared `interactive: false` today, so selecting it fails
+`--print` or `exec` anywhere in its `command` OR its `args` (a guard that reads only `args`
+is one field move from passing `"command": "codex exec"`). `codex` is declared
+`interactive: false` today, so selecting it fails
 loudly at launch rather than producing an unsupervisable run; making it usable again means
 giving it an interactive invocation, not deleting the flag.
 
@@ -149,7 +155,8 @@ Progress. So idle is a trigger to CHECK, never a report of success:
 node tools/worker-status.mjs --worktree <worktreePath> --issue ORB-N [--base <target>]
 ```
 
-It derives the verdict from artifacts (commits above the base, a clean worktree, the branch
+It derives the verdict from artifacts (commits above the freshly fetched `origin/<target>`,
+never a stale local ref, a clean worktree, the branch
 pushed, a PR open against the target, the issue In Review with the PR attached, and an image
 attached when the ticket is `visible-effect`, D7) and exits non-zero listing exactly what is
 unmet. That list is what you nudge with. Nothing else counts as "done".

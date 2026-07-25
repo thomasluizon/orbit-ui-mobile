@@ -20,7 +20,8 @@ const USAGE = `usage: nudge-worker.mjs --terminal <handle> (--text "<one line>" 
   --terminal <handle>   the worker's terminal handle, as printed by launch-worker.mjs (required)
   --prompt-file <path>  the worker's prompt file. The update arrives on STDIN and is appended
                         to that file first; the sent text is then a one-line pointer telling the
-                        worker to re-read it. This is the only safe way to add work mid-run
+                        worker to re-read it. This is the only safe way to add work mid-run.
+                        MUST live outside every Orbit repo, exactly as at launch
   --text "<one line>"   send this exact one-liner instead. Newlines are rejected: a multi-line
                         payload through a TUI submits early and arrives quoting-damaged
   --wait-attempts <n>   how many 60s tui-idle waits to allow before refusing (default: 3)
@@ -52,12 +53,25 @@ const argOf = (flag) => {
   return index === -1 ? null : process.argv[index + 1]
 }
 
+/** orca prints its `ok: false` payload on STDOUT and leaves stderr empty, so a failed call whose
+ * reason is only read off stderr reports "Command failed" and nothing else. Read stdout first. */
+const orcaFailureReason = (error) => {
+  const payload = error.stdout?.toString() ?? ""
+  try {
+    const parsed = JSON.parse(payload)
+    if (parsed.error?.message) return parsed.error.message
+  } catch {
+    if (payload.trim()) return payload.trim().slice(0, 400)
+  }
+  return error.stderr?.toString().trim() || error.message
+}
+
 const orca = (args) => {
   let raw
   try {
     raw = execFileSync(ORCA, [...args, "--json"], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
   } catch (error) {
-    fail(3, `orca ${args.join(" ")} failed: ${error.stderr?.toString().trim() || error.message}`)
+    fail(3, `orca ${args.join(" ")} failed: ${orcaFailureReason(error)}`)
   }
   let parsed
   try {
@@ -111,6 +125,18 @@ let update = ""
 if (promptFileArg) {
   promptFile = resolve(promptFileArg)
   if (!existsSync(promptFile)) fail(2, `prompt file not found: ${promptFile}`)
+  let repos
+  try {
+    repos = JSON.parse(readFileSync(new URL("../.claude/orchestrator.json", import.meta.url), "utf8")).repos
+  } catch (error) {
+    fail(2, `.claude/orchestrator.json could not be read as JSON: ${error.message}`)
+  }
+  const normalize = (path) => path.replaceAll("\\", "/").replace(/\/+$/, "").toLowerCase()
+  for (const [key, path] of Object.entries(repos ?? {})) {
+    if (normalize(promptFile) === normalize(path) || normalize(promptFile).startsWith(`${normalize(path)}/`)) {
+      fail(2, `prompt file lives inside the ${key} repo (${path}); the worker would commit the appended update. Point at the scratchpad file launch-worker.mjs was given`)
+    }
+  }
   if (process.stdin.isTTY) fail(2, "--prompt-file expects the update on stdin")
   update = readFileSync(0, "utf8").trim()
   if (!update) fail(2, "stdin was empty; nothing to append")
