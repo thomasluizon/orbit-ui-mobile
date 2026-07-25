@@ -17,6 +17,7 @@ import { fileURLToPath } from "node:url"
 
 import { checkGitCommand, checkGitWorktreeRemove } from "./_lib/rules-git.mjs"
 import { checkEfMigrationRawIndex } from "./_lib/rules-source.mjs"
+import { checkLinearMutation } from "./_lib/rules-linear.mjs"
 
 const hooksDir = dirname(fileURLToPath(import.meta.url))
 let fails = 0
@@ -150,6 +151,52 @@ T(
   null,
 )
 
+// A Linear WRITE goes through orca; only the project overview document, which
+// orca cannot reach, may be mutated raw. Reads stay open - /orchestrate depends
+// on `project(id) { content }`, which `orca linear project list` does not return.
+const LINEAR = "https://api.linear.app/graphql"
+const post = (body) => `curl -s ${LINEAR} -H "Authorization: $KEY" -d '{"query":"${body}"}'`
+T("linear: issueCreate blocks", !!checkLinearMutation(post('mutation { issueCreate(input: {title: \\"x\\"}) { success } }'))?.block, true)
+T("linear: issueUpdate blocks", !!checkLinearMutation(post('mutation { issueUpdate(id: \\"x\\", input: {stateId: \\"y\\"}) { success } }'))?.block, true)
+T("linear: commentCreate blocks", !!checkLinearMutation(post('mutation { commentCreate(input: {body: \\"x\\"}) { success } }'))?.block, true)
+T("linear: named mutation with variables blocks", !!checkLinearMutation(post("mutation Add($i: IssueCreateInput!) { issueCreate(input: $i) { success } }"))?.block, true)
+T("linear: aliased field is judged on the real field", !!checkLinearMutation(post("mutation { made: issueCreate(input: {}) { success } }"))?.block, true)
+// The one legitimate raw write, and the read /orchestrate runs every launch.
+T("linear: projectUpdate allows", checkLinearMutation(post('mutation { projectUpdate(id: \\"x\\", input: {content: \\"y\\"}) { success } }')), null)
+T("linear: project content read allows", checkLinearMutation(post('query { project(id: \\"x\\") { name description content } }')), null)
+T("linear: bare selection-set read allows", checkLinearMutation(post('{ issue(id: \\"ORB-1\\") { title } }')), null)
+T("linear: a non-Linear endpoint is none of this gate's business", checkLinearMutation('curl https://api.github.com/graphql -d \'{"query":"mutation { issueCreate }"}\''), null)
+// An allowed mutation batched with a banned one must not launder it.
+T(
+  "linear: projectUpdate batched with issueCreate blocks",
+  !!checkLinearMutation(post("mutation { projectUpdate(id: $p, input: {}) { success } issueCreate(input: {}) { success } }"))?.block,
+  true,
+)
+// A nested field named like a root mutation is not one: depth decides.
+T("linear: nested issueCreate-shaped selection allows", checkLinearMutation(post("mutation { projectUpdate(id: $p, input: {}) { project { issueCreate { id } } } }")), null)
+// Fails safe on anything unreadable: a payload behind a file reference, and a
+// mutation keyword with no selection set to parse.
+T("linear: file-reference payload blocks", !!checkLinearMutation(`curl -s ${LINEAR} -H "Authorization: $KEY" --data-binary @payload.json`)?.block, true)
+T("linear: -d @file payload blocks", !!checkLinearMutation(`curl -s ${LINEAR} -d @payload.json`)?.block, true)
+// Prose that merely says the word is not a call: a real operation always parses
+// to a root field. The fail-safe lives on the opaque-payload form above, not here.
+T("linear: the bare word mutation is prose, allows", checkLinearMutation(`curl ${LINEAR} -d "mutation"`), null)
+T("linear: the hook's own hyphenated name is not the keyword", checkLinearMutation(`see forbid-raw-linear-mutation for the ${LINEAR} rules { and a stray brace }`), null)
+// Prose shorthand: the operation and its body written without the outer selection
+// set, so the first brace is the input object. Both skills document a call this
+// way, and the first version of this rule reported both of them.
+T(
+  "linear: shorthand projectCreate allows",
+  checkLinearMutation('POST https://api.linear.app/graphql with mutation `projectCreate(input: { name: "x", teamIds: ["y"] }) { project { id } }`'),
+  null,
+)
+T(
+  "linear: shorthand issueCreate still blocks",
+  !!checkLinearMutation('POST https://api.linear.app/graphql with mutation `issueCreate(input: { title: "x" }) { success }`')?.block,
+  true,
+)
+T("linear: non-string input allows", checkLinearMutation(undefined), null)
+
 // ---------------------------------------------------------------------------
 // 2. Claude Code hooks: run the real files, assert exit codes
 // ---------------------------------------------------------------------------
@@ -183,6 +230,31 @@ const efBad = write("orbit-api/src/Orbit.Infrastructure/Migrations/20260101_Add.
 const efGood = write("orbit-api/src/Orbit.Infrastructure/Migrations/20260102_Add.cs", 'migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS ix_foo ON foo (bar)");\n')
 T("cc ef-index: raw CREATE INDEX -> 2", runHook("forbid-ef-migration-raw-index.mjs", { tool_name: "Write", tool_input: { file_path: efBad } }), 2)
 T("cc ef-index: IF NOT EXISTS -> 0", runHook("forbid-ef-migration-raw-index.mjs", { tool_name: "Write", tool_input: { file_path: efGood } }), 0)
+
+// The Linear guard is wired to BOTH events: the shell call, and the script that
+// will make it. Only the second can be pre-empted before anything reaches Linear.
+const LINEAR_HOOK = "forbid-raw-linear-mutation.mjs"
+T("cc linear: bash issueCreate -> 2", runHook(LINEAR_HOOK, { tool_name: "Bash", tool_input: { command: post("mutation { issueCreate(input: {}) { success } }") } }), 2)
+T("cc linear: bash projectUpdate -> 0", runHook(LINEAR_HOOK, { tool_name: "Bash", tool_input: { command: post("mutation { projectUpdate(id: $p, input: {}) { success } }") } }), 0)
+T("cc linear: bash content read -> 0", runHook(LINEAR_HOOK, { tool_name: "Bash", tool_input: { command: post("query { project(id: $p) { content } }") } }), 0)
+T(
+  "cc linear: written script that mutates -> 2",
+  runHook(LINEAR_HOOK, { tool_name: "Write", tool_input: { file_path: join(root, "post.mjs"), content: `fetch("${LINEAR}", { body: '{"query":"mutation { issueCreate(input: {}) { id } }"}' })` } }),
+  2,
+)
+T(
+  "cc linear: MultiEdit that mutates -> 2",
+  runHook(LINEAR_HOOK, { tool_name: "MultiEdit", tool_input: { file_path: join(root, "post.mjs"), edits: [{ new_string: "const x = 1" }, { new_string: `fetch("${LINEAR}", { body: 'mutation { commentCreate(input: {}) { id } }' })` }] } }),
+  2,
+)
+// The gate does not police its own source: a fixture that NAMES the pattern is
+// not a call. Without this, adding the tests above reports the tests.
+T(
+  "cc linear: the gate's own fixtures -> 0",
+  runHook(LINEAR_HOOK, { tool_name: "Edit", tool_input: { file_path: join(hooksDir, "test-hooks.mjs"), new_string: post("mutation { issueCreate(input: {}) { id } }") } }),
+  0,
+)
+T("cc linear: unrelated command -> 0", runHook(LINEAR_HOOK, { tool_name: "Bash", tool_input: { command: "npm test" } }), 0)
 
 // ---------------------------------------------------------------------------
 // 3. Agent frontmatter: the fails-open `Bash(...)` trap

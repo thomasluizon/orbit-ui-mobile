@@ -55,17 +55,22 @@ risk or measurement exists), then run
    label, parity label, blockedBy, wave). Then ask for explicit approval via ONE
    AskUserQuestion call. Nothing is created in Linear until he approves; an edit
    request loops back through Phase B and re-validation, then this gate again.
-1. `orca linear create` the project (name = the feature), passing the one-line pointer
-   as the description (Linear hard-caps `description` at 255 chars). Then write the
-   locked decisions from Phase A verbatim into the project CONTENT (the overview
-   document), which `orca linear create` cannot set: resolve the new project id via
-   `orca linear project list`, read the personal key at `$env:USERPROFILE\.linear-api-key`
-   into a variable (never echo it), and POST https://api.linear.app/graphql with header
-   `Authorization: <key>` (the raw key) and mutation
+1. Create the project (name = the feature). `orca linear` has no project write of
+   any kind (`project list` is its whole project surface), so this and the content
+   write below are the ONLY two Linear writes done raw. Read the personal key at
+   `$env:USERPROFILE\.linear-api-key` into a variable (never echo it), and POST
+   https://api.linear.app/graphql with header `Authorization: <key>` (the raw key)
+   and mutation `projectCreate(input: { name: "<name>", teamIds: ["<ORB team id>"],
+   description: "<one-line pointer>" }) { project { id } }`. Linear hard-caps
+   `description` at 255 chars, so the substance goes in CONTENT, not there.
+   Then write the locked decisions from Phase A verbatim into the project content
+   (the overview document) with
    `projectUpdate(id: "<id>", input: { content: "<locked decisions>" }) { success }`.
    /orchestrate re-reads the content every wave and honours it.
-2. `orca linear create` each issue (title, validated body, labels, state Todo,
-   project).
+   Every OTHER Linear write in this skill goes through orca, enforced by the
+   `forbid-raw-linear-mutation` hook: a raw `issueCreate` is blocked at act time.
+2. `node tools/new-ticket.mjs` each issue (title, validated body, labels, state
+   Todo, project), which wraps `orca linear create` and validates what it created.
 3. `orca linear relation add` every blockedBy edge.
 4. Re-validate each created issue: `node tools/check-ticket.mjs --issue ORB-N` (this
    pass also checks labels + relations, which --file cannot).
