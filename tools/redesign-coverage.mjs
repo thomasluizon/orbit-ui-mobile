@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Asserts the redesign's denominator twice over (REBUILD.md D35 + D38):
+// Asserts the redesign's denominator twice over (D35 + D38):
 // 1. EVERY surface in .claude/manifests/surfaces.json is claimed by exactly one redesign
 //    ticket. A surface claimed by no ticket is the failure mode this exists to prevent:
 //    it is how "we redesigned the whole app" silently ships with screens nobody looked at.
@@ -86,7 +86,7 @@ export const TICKETS = [
 
 /**
  * Ordered directory rules over repo-relative .tsx paths; first match wins. The file-level
- * assignments follow REBUILD.md 8.5.2: chat to R11, upgrade to R17, habit form fields to R7,
+ * assignments follow the D38 disposition: chat to R11, upgrade to R17, habit form fields to R7,
  * goals to R6, gamification to R4, ui primitives to R1, layouts and not-found to R2. The
  * feature rules come first so a feature-scoped layout stays with its feature; the shell rule
  * then owns the remaining layouts, errors and not-found files; the ui-primitives rule is the

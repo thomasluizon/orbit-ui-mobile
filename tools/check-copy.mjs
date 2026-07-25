@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// The copy-register gate (REBUILD.md 6.1): AI-cliche words, placeholder
+// The copy-register gate (D6): AI-cliche words, placeholder
 // content, and typed-in UPPERCASE in locale string VALUES, plus hardcoded
 // brand-accent colors in source. Replaces the added-text-only PostToolUse
 // hooks (forbid-ai-cliche-copy, forbid-placeholder-content,

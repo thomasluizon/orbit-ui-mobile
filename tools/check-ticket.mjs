@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * The ticket-template checker (REBUILD.md 6.2): a ticket a fresh agent cannot
+ * The ticket-template checker (D2, the ticket IS the prompt): a ticket a fresh agent cannot
  * execute is a defective ticket, and a checker rejects it BEFORE a worker
  * burns a worktree discovering that. Validates one Linear issue (fetched via
  * the orca CLI) or a local markdown body.

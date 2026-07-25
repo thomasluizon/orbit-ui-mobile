@@ -72,7 +72,7 @@ better results than a description of the design or a screenshot."*
 Prefer, in order: a runnable artifact, then code, then a rubric, then prose. A spec can be a test
 suite. A design spec can be a rendered page. A taste can be a rubric a verifier agent applies.
 
-This is a diagnosis of the #539 failure, not a style note. REBUILD.md 1.2 names the causes as "the
+This is a diagnosis of the #539 failure, not a style note. The measured causes were "the
 spec is subtractive" and "nothing in the loop rendered a picture", and `DESIGN.md` carried exactly
 one mechanical rule with everything else as prose adjectives. D42 is the correction: ticket 0 ships
 `design/reference.html` alongside the prose, and where the two disagree the rendered page wins.

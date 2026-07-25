@@ -6,7 +6,7 @@ noise, not signal. This is the single list of those gates, so the four audit ski
 prod-readiness cannot drift on where the line sits; each skill also names its own
 kind-specific exclusions inline.
 
-REBUILD.md D11: "An audit looks only for what no gate can check. Gates own the mechanical
+D11: "An audit looks only for what no gate can check. Gates own the mechanical
 layer. Audits own judgement. Never both."
 
 ## The mechanical layer (never a finding)

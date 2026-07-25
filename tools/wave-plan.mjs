@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * The deterministic half of /orchestrate (REBUILD.md 3.2): read a Linear
+ * The deterministic half of /orchestrate: read a Linear
  * project via the orca CLI, build the explicit blockedBy DAG, and print the
  * wave table. Merge-gated (D3): a ticket is READY only when every blocker is
  * in a completed/canceled state, and completion is granted by Thomas merging
