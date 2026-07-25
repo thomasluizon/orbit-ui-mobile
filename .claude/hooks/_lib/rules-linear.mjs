@@ -39,17 +39,15 @@ const ALLOWED = new Set(["projectCreate", "projectUpdate"])
 
 const ENDPOINT = /api\.linear\.app/
 
-// A payload read from a file is opaque to this gate, so a mutation hidden behind
-// `-d @payload.json` would sail past a keyword scan. Inline reads are unaffected:
-// this matches only the file-reference form.
-const OPAQUE_PAYLOAD = /--data(?:-binary|-raw|-urlencode)?[= ]\s*@|(?:^|\s)-d[= ]?\s*@/
+// A body read from a file is opaque to this gate: the mutation lives in the file,
+// so the command string carries no keyword to scan and would be silently allowed.
+// Every curl form that sources a request body from a file, not just the bare
+// `-d @payload.json` one (PR #611 review): the `@` may be quoted, and `-T` /
+// `--upload-file` sends the file as the body with no `@` at all. Inline reads are
+// unaffected, since both alternatives require a file reference.
+const OPAQUE_PAYLOAD =
+  /(?:^|\s)(?:--data(?:-binary|-raw|-urlencode)?|-d)[=\s]+["']?@|(?:^|\s)(?:--upload-file|-T)[=\s]+["']?[^\s"']/
 
-/**
- * Root field names of every GraphQL mutation operation in the text.
- * Returns null when a mutation keyword is present but no field could be read,
- * which is the fail-safe case: an unreadable mutation cannot be shown to be one
- * of the two allowed ones.
- */
 /**
  * One depth walk, under one assumption about which quote (if any) delimits a
  * string literal. `delimiter` is "" (count every brace), '"' (raw GraphQL), or

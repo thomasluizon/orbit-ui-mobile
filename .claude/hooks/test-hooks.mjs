@@ -193,6 +193,17 @@ T(
 // mutation keyword with no selection set to parse.
 T("linear: file-reference payload blocks", !!checkLinearMutation(`curl -s ${LINEAR} -H "Authorization: $KEY" --data-binary @payload.json`)?.block, true)
 T("linear: -d @file payload blocks", !!checkLinearMutation(`curl -s ${LINEAR} -d @payload.json`)?.block, true)
+// Every other way curl sources a body from a file. The first two cases above are
+// the only forms the original regex matched, which read as full coverage while a
+// quote or a -T slipped straight through (PR #611 review).
+T("linear: double-quoted @file payload blocks", !!checkLinearMutation(`curl -s ${LINEAR} -d "@payload.json"`)?.block, true)
+T("linear: single-quoted @file payload blocks", !!checkLinearMutation(`curl -s ${LINEAR} --data '@payload.json'`)?.block, true)
+T("linear: --data=@file payload blocks", !!checkLinearMutation(`curl -s ${LINEAR} --data-raw=@payload.json`)?.block, true)
+T("linear: -T upload sends the file as the body and blocks", !!checkLinearMutation(`curl -X POST ${LINEAR} -T payload.json`)?.block, true)
+T("linear: --upload-file blocks", !!checkLinearMutation(`curl -X POST ${LINEAR} --upload-file payload.json`)?.block, true)
+// The broadened regex must not swallow an ordinary inline body: -d followed by a
+// quoted JSON object is the normal read this gate deliberately allows.
+T("linear: inline -d read is not mistaken for a file body", checkLinearMutation(post("query { project(id: $p) { content } }")), null)
 // Prose that merely says the word is not a call: a real operation always parses
 // to a root field. The fail-safe lives on the opaque-payload form above, not here.
 T("linear: the bare word mutation is prose, allows", checkLinearMutation(`curl ${LINEAR} -d "mutation"`), null)
