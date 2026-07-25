@@ -50,7 +50,12 @@ const OPAQUE_PAYLOAD = /--data(?:-binary|-raw|-urlencode)?[= ]\s*@|(?:^|\s)-d[= 
  * which is the fail-safe case: an unreadable mutation cannot be shown to be one
  * of the two allowed ones.
  */
-export function mutationFields(text) {
+/**
+ * One depth walk, under one assumption about which quote (if any) delimits a
+ * string literal. `delimiter` is "" (count every brace), '"' (raw GraphQL), or
+ * '\\"' (GraphQL embedded in a JSON payload, where the inner quotes are escaped).
+ */
+function fieldsUnderQuoting(text, delimiter) {
   const fields = []
 
   // `\bmutation\b` alone also matches inside `forbid-raw-linear-mutation`, since
@@ -61,6 +66,7 @@ export function mutationFields(text) {
     const open = text.indexOf("{", match.index)
     if (open === -1) continue
     let depth = 0
+    let inString = false
     let found = false
     // Shorthand, common in prose and in a command that names the operation and
     // its body in separate strings: `mutation \`projectCreate(input: {...})\``.
@@ -69,6 +75,12 @@ export function mutationFields(text) {
     // such a form on the first call-shaped identifier after the keyword.
     const shorthand = /^[^{]*?\b([A-Za-z_][A-Za-z0-9_]*)\s*\(/.exec(text.slice(match.index + "mutation".length, open + 1))
     for (let index = open; index < text.length; index++) {
+      if (delimiter && text.startsWith(delimiter, index)) {
+        inString = !inString
+        index += delimiter.length - 1
+        continue
+      }
+      if (inString) continue
       const char = text[index]
       if (char === "{") {
         depth++
@@ -92,13 +104,35 @@ export function mutationFields(text) {
     if (!found && shorthand) fields.push(shorthand[1])
   }
 
+  return fields
+}
+
+export function mutationFields(text) {
+  // Three passes, unioned, because no single quoting assumption reads every real
+  // payload. Counting every brace desyncs on a `}` inside a string argument, and
+  // `content` - the whole reason projectUpdate is on the allowlist - is free
+  // prose, so the ONE mutation allowed raw is also the one whose realistic
+  // payload defeats a naive walk (PR #611 review, reproduced). But treating a
+  // bare `"` as the delimiter swallows the entire operation when it is wrapped
+  // in a JSON body, where the outer `"query": "mutation ..."` opens a string
+  // that only closes past the last brace, and the inner quotes are escaped.
+  //
+  // Union, not a best guess: a field ANY pass can see is judged. The bias is
+  // toward blocking, which is the safe direction for a gate whose false
+  // negative is an unwanted write and whose false positive is one retry through
+  // orca. Nesting still holds in every pass, since depth decides.
+  const seen = new Set()
+  for (const delimiter of ["", '"', '\\"']) {
+    for (const field of fieldsUnderQuoting(text, delimiter)) seen.add(field)
+  }
+
   // An occurrence that parses to no field at all is prose, not an operation: a
   // real call always has a root field. The fail-safe deliberately does NOT live
   // here - it lives in OPAQUE_PAYLOAD, which is the only form that genuinely
   // hides a mutation. Blocking every paragraph that says "mutation" near a
   // Linear URL is the kind of noise that gets a gate switched off, and the
   // threat model is an accident, not an adversary.
-  return fields
+  return [...seen]
 }
 
 function message(offenders) {

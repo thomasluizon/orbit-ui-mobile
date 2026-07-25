@@ -174,6 +174,21 @@ T(
 )
 // A nested field named like a root mutation is not one: depth decides.
 T("linear: nested issueCreate-shaped selection allows", checkLinearMutation(post("mutation { projectUpdate(id: $p, input: {}) { project { issueCreate { id } } } }")), null)
+// The batched case above used an EMPTY input object, so it never exercised the
+// bypass it looked like it covered (PR #611 review). A `}` inside a string
+// argument desyncs a naive brace walk and ends the scan early, hiding every
+// field after it. `content` is free prose and is the entire reason projectUpdate
+// is allowed raw, so the one permitted mutation carries the payload most likely
+// to defeat the parse. Both wire forms, since the quoting differs:
+const SMUGGLE = 'mutation { a: projectUpdate(input: {content: "note } trailing"}) { id } b: issueCreate(input: {title: "x"}) { id } }'
+T("linear: a brace inside a string argument cannot smuggle issueCreate", !!checkLinearMutation(`curl ${LINEAR} -d '${SMUGGLE}'`)?.block, true)
+T("linear: same smuggle inside a JSON payload blocks", !!checkLinearMutation(post(SMUGGLE.replaceAll('"', '\\"')))?.block, true)
+// The allowed mutation must still pass when its content legitimately holds a brace.
+T(
+  "linear: projectUpdate whose content contains a brace still allows",
+  checkLinearMutation(post('mutation { projectUpdate(id: $p, input: {content: \\"a snippet: if (x) { y }\\"}) { success } }')),
+  null,
+)
 // Fails safe on anything unreadable: a payload behind a file reference, and a
 // mutation keyword with no selection set to parse.
 T("linear: file-reference payload blocks", !!checkLinearMutation(`curl -s ${LINEAR} -H "Authorization: $KEY" --data-binary @payload.json`)?.block, true)
