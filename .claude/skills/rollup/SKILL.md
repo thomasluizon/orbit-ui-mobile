@@ -7,12 +7,8 @@ effort: low
 
 # Roll-up
 
-The on-demand twin of the nightly `rollup.yml`. It reads the latest `main` run of
-every tracked CI/nightly quality gate across the three Orbit repos and prints ONE
-consolidated verdict. It **reads run conclusions only** - no tests, no build, no audit,
-no `claude-code-action`. This is a mechanical status meta-read, distinct from
-`/validate` (which *executes* lint/type/test) and `/prod-readiness` (a heavy LLM
-pre-launch audit with a GO/NO-GO verdict).
+The on-demand twin of the nightly `rollup.yml`: a mechanical meta-read of run
+conclusions. No tests, no build, no audit, no `claude-code-action`.
 
 ## Run it
 
@@ -40,7 +36,7 @@ exit code:
 
 ## Report-only
 
-This skill READS and reports. It never opens or edits an issue - that is the workflow's
-job on its nightly run (RED verdict upserts the one `rollup`-labeled tracking issue).
-The tiers (hard / advisory / excluded) and their rationale live in `tools/rollup.sh`;
-do not restate or fork them here.
+The skill ends at the printed report. Opening or editing an issue is the workflow's job
+on its nightly run (a RED verdict upserts the one `rollup`-labeled tracking issue). The
+tiers (hard / advisory / excluded) and their rationale live in `tools/rollup.sh`; read
+them there rather than restating them here.

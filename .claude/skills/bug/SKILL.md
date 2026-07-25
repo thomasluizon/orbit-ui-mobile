@@ -7,11 +7,10 @@ effort: medium
 
 # /bug: report -> one Linear ticket
 
-Rule 1 of `.claude/rules/core.md` applies BEFORE the ticket: build and run one command
-that drives the real code path and asserts the exact symptom. Until it is red you have
-a story about a bug, not a bug. The repro command (or the Sentry issue link, or the
-exact manual steps when neither exists) goes in the ticket body's Test scenarios
-section as the first entry, marked as the red case that must turn green.
+Rule 1 of `.claude/rules/core.md` binds BEFORE the ticket exists: the repro goes red
+first. That repro command (or the Sentry issue link, or the exact manual steps when
+neither exists) goes in the ticket body's Test scenarios section as the first entry,
+marked as the red case that must turn green.
 
 1. Reproduce (or gather the evidence: Sentry via the MCP, logs via Render MCP, DB via
    the read-only postgres MCP). Never ask Thomas to paste what a tool can fetch.

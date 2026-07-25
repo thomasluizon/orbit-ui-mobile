@@ -9,14 +9,12 @@ context: fork
 
 **Input**: $ARGUMENTS
 
-Adapted at authoring time from cursor's `thermo-nuclear-code-quality-review`
-(https://github.com/cursor/plugins — the strict maintainability rubric in **The standard**
-below) and wrapped in the phased, coverage-contracted, hard-gated harness Orbit actually
-ran it under. That URL is the single WHY-with-URL the comment policy allows.
+Adapted from cursor's `thermo-nuclear-code-quality-review`
+(https://github.com/cursor/plugins), whose strict maintainability rubric is **The standard**
+below, wrapped in the phased, coverage-contracted, hard-gated harness Orbit runs it under.
 
 **The one non-negotiable: every change is behavior-preserving.** Structure only — never
-behavior, never UI, never an API/DTO contract, never the EF model/schema. If a refactor
-*could* change what the program does, it is out of scope for this skill. The gate in
+behavior, never UI, never an API/DTO contract, never the EF model/schema. The gate in
 Phase 2 is not "tests pass," it is "behavior is provably identical."
 
 **Golden rule**: deepen the codebase — more behavior behind a smaller, clearer interface —
@@ -166,12 +164,8 @@ to click.
 
 - **Change behavior, UI, an API/DTO contract, or the EF model.** If you can't prove a
   change is invisible to callers and to the database, it is out of scope — revert + defer.
-- **Fix two easy files and stop.** The Phase-0 inventory is binding; every entry is fixed
-  or in the Deferred ledger.
-- **Silently omit a big offender.** A hard file left alone is a Deferred-ledger line with a
-  reason, never an unstated gap.
-- **Claim parity without opening both files.** Verify web↔mobile symmetry by reading each.
-- **Report relocation as simplification.** Honest Applied notes only.
-- **Let a subagent run git/build/test** on the shared tree — the orchestrator owns those.
+- **Fix two easy files and stop, or silently omit a hard one.** The Phase-0 inventory is
+  binding; every entry ends the run either fixed or as a Deferred-ledger line with a
+  concrete reason, never as an unstated gap.
 - **Add a new abstraction for its own sake.** Deepen existing modules; the simplicity and
   no-premature-abstraction rules still hold (this cuts code, never adds speculative layers).

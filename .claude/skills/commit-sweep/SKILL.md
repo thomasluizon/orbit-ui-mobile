@@ -1,7 +1,8 @@
 ---
 name: commit-sweep
 description: Report-only cross-commit, cross-repo regression sweep over a window of `main` commits in BOTH Orbit repos. Reads the last N commits (default 10) or `--since <when>` on each repo and diff-reviews them together, hunting the gotchas a per-PR review structurally cannot see because each PR merged in isolation (migration DDL dupes, dropped RN pins, analyzer-silent-locally violations, cross-repo contract drift, parity/i18n drift, stale-artifact QA hazards). Emits one severity-ranked report to `.claude/audits/commit-sweep.md` plus a `.status` sidecar. Runs nightly via `.github/workflows/commit-sweep.yml` and on demand as `/commit-sweep`. Not for a single diff (use /pr-review); not for a whole-repo audit (use /audit-*).
-argument-hint: <N=10 | --since <when>> <repo-scope: both|ui|api>
+argument-hint: >-
+  <N=10 | --since <when>> <repo-scope: both|ui|api>
 ---
 
 # Commit Sweep
@@ -13,8 +14,8 @@ Read a window of recent `main` commits across BOTH Orbit repos and diff-review t
 never sees: each PR merged in isolation, so a migration that duplicates an index an earlier
 migration already created, or an orbit-api DTO rename whose paired Zod change never landed,
 only becomes visible when the whole window is read in one reasoning context. This is the
-cross-session backstop for the gotchas the per-edit hooks and the per-diff review structurally
-miss.
+cross-session backstop for the gotchas the deterministic gates and the per-diff review
+structurally miss.
 
 **Golden rule**: no vibes. Every finding names the `file:line`, the commit sha, and the exact
 prior evidence (the earlier migration that already made the object, the removed pin's hunk, the
@@ -25,9 +26,11 @@ skeptic, so the evidence bar is the discipline that keeps it honest.
 
 ## Phase 0 - Provenance & self-containment
 
-**Report-only.** This skill reads local `git` history on both checkouts and writes one report.
-It NEVER remediates, refactors, edits code, or posts to GitHub - the workflow surfaces the
-report, mirroring the `/audit-*` convention.
+**Report-only.** This skill reads local `git` history on both checkouts and writes exactly two
+files: the report and its `.status` sidecar. It never remediates, refactors, edits code, or posts
+to GitHub - the human (or a later task) fixes, and the workflow's own `run:` steps do the label +
+issue upsert, which keeps the tool surface minimal and the logic portable. Same hard line the
+`/audit-*` skills hold.
 
 **Self-contained.** It uses only local `git` (`git -C "<root>" ...`) and file reads. No network,
 no suite run, no build. It runs identically locally (`/commit-sweep`) and on the ubuntu CI runner
@@ -176,9 +179,9 @@ Rank most-severe first via the Critical / High / Medium / Low ladder.
   platform-adapter differences; OR an i18n key added to `en.json` without `pt-BR.json` (or vice
   versa).
 - **Evidence**: the changed `file:line` + sha and the missing mirror path.
-- **Rationale**: the `parity-nudge` hook catches this per-edit inside one session, but two
-  separately-merged PRs (web in one, mobile "later") slip past it - the sweep is the cross-session
-  backstop.
+- **Rationale**: the Cross-Platform Parity job in `guards.yml` only asserts that a PR touches both
+  trees, and `parity:exempt` skips it entirely - so behavioural drift, or web in one PR and mobile
+  "later", passes it. The sweep is the cross-session backstop.
 - **Reference**: root CLAUDE.md "Cross-platform parity (MANDATORY)",
   `feedback_cross_platform_parity_reflex`.
 
@@ -245,22 +248,8 @@ one word (the workflow's surfacing step branches on this token, never on greppin
 - `clean`    - commits reviewed, no findings
 - `findings` - at least one finding
 
----
-
-## Guardrails - do NOT
-
-- **Remediate.** Do not edit, refactor, or fix anything. This skill reports; the human (or a later
-  task) fixes. This is the hard report-only line the `/audit-*` skills also hold.
-- **Post to GitHub.** The workflow's own `run:` steps do the label + issue upsert. The skill only
-  writes the report + `.status`, keeping its tool surface minimal and its logic portable.
-- **Re-run `/pr-review`'s single-diff job.** This is the cross-commit sweep, a different lens.
-- **Pad a clean window with invented Low nits.** A clean window is a `clean` status and a short
-  "What's clean" note, not manufactured findings.
-- **Fork the incident rubric elsewhere.** The six checks live here; do not restate them in another
-  skill or a comment.
-- **Claim a finding without its evidence.** No dup-migration finding without the prior migration's
-  `file:line`; no dropped-pin finding without the removal hunk; no parity finding without the
-  missing mirror path. Unproven -> dropped.
+A clean window earns a `clean` status and a short "What's clean" note - never a pad of invented
+Low nits.
 
 ---
 

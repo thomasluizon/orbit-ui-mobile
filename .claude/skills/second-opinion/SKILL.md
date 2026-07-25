@@ -8,26 +8,21 @@ argument-hint: <a claim to test, optionally with a file:line to pull context fro
 
 **Input**: $ARGUMENTS
 
-Ask a **different model** — GLM-5.2, run through the local `opencode` CLI on the OpenCode
-Go subscription — to independently judge one concrete claim. Claude and GLM fail in
-different ways; a second architecture disagreeing is a real signal, an agreement is
-corroboration. This is the **on-demand cross-model diversity** the harness reserves for
-high-stakes calls. **Locked decision: no standing consensus voting** — the adversarial
-skeptic already beats it (a refuter kills false positives; N agents voting rubber-stamp
-each other), and the skeptics' only real gap is that they share a model family, so their
-blind spots correlate. That gap is what GLM closes. Bring it only when it pays.
-
-The model is **GLM-5.2 on OpenCode Go** (`opencode-go/glm-5.2`) — the top open-weight coder
-as of build time, ~1/6 Claude's cost, vetted full-precision weights on the Go plan. The
-slug was confirmed live against opencode's own catalog when this skill was built.
+Ask a **different model**, GLM-5.2 run through the local `opencode` CLI on the OpenCode Go
+subscription, to independently judge one concrete claim. Claude and GLM fail in different
+ways; a second architecture disagreeing is a real signal, an agreement is corroboration.
+**Locked decision: no standing consensus voting** (a refuter kills false positives where N
+agents voting rubber-stamp each other); the skeptics' one real gap is that they share a
+model family, so their blind spots correlate, and that gap is what GLM closes. This is the
+**on-demand cross-model diversity** the harness reserves for high-stakes calls: bring it
+only when it pays.
 
 ## Operating rules
 
 - **Interactive-only, degrades to a no-op.** `opencode` is a local CLI, absent from CI
-  runners (and unfunded / rate-limited plans, and offline). Every one of those returns
-  `UNAVAILABLE` and the skill **says so and moves on** — it never blocks, never invents a
-  verdict, never treats "couldn't ask" as "disagreed." Same CI-fallback discipline as the
-  audit skills: when the tool isn't there, the work still completes without it.
+  runners, offline, and on unfunded or rate-limited plans. Every one of those returns
+  `UNAVAILABLE`: the skill **says so in one line and moves on**, completing the work
+  without it.
 - **Never force a decision.** A GLM verdict is *input*, not a gate. It never auto-merges,
   auto-drops a finding, or overrides Claude's own judgement — it surfaces a second view for
   a human to weigh.
@@ -85,6 +80,5 @@ For a `/second-opinion <claim>` invocation outside a review:
 ## Inside /pr-review
 
 `/pr-review` Phase 6 fires this on each **Critical** finding that survives the adversarial
-skeptic (interactive runs only). The contract there is identical: `DISAGREE` → the finding
-is tagged `CONTESTED` with both verdicts shown, the recommendation is never forced, and
-`UNAVAILABLE` leaves the finding exactly as the skeptic left it.
+skeptic (interactive runs only). The verdict table above is the whole contract there; the
+only thing `/pr-review` adds is the `CONTESTED` tag it puts on a `DISAGREE`.

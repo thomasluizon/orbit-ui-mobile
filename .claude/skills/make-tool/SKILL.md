@@ -10,16 +10,12 @@ argument-hint: [what the tool should do]
 
 ## When to reach for this
 
-- You have typed the **same multi-flag command a second time** (rule 6: the third real use is the extract point, so the second is the signal to build it now).
-- A one-liner has become a **pipeline worth a name** that you will run again.
-- A future agent would need to rediscover an incantation you already worked out.
-
-Do **not** build a tool for a true one-off. That stays in your shell history or the scratchpad. `tools/` is for scripts that earn their keep by running more than once.
+`tools/` is for scripts that earn their keep by running more than once: a multi-flag command typed a **second time** (build it at the second use so it exists by rule 6's third), a one-liner grown into a **pipeline worth a name**, an incantation a future agent would otherwise rediscover. A true one-off stays in your shell history or the scratchpad.
 
 ## Steps
 
 1. **Name the single purpose.** One sentence, one verb. If it needs an "and", that is two tools.
-2. **Write it to the `tools/` contract** in `tools/CONVENTIONS.md`: `--help`/`-h`, meaningful exit codes, non-interactive, cwd-safe (resolve paths from the script location), stdin for large payloads, no secrets in argv.
+2. **Write it to the `tools/` contract** in `tools/CONVENTIONS.md`: `--help`/`-h`, meaningful exit codes, non-interactive, cwd-safe (resolve paths from the script location), stdin for any large payload (a claim, a diff, a file list), secrets read from the environment or a file rather than argv (the process table and shell history leak argv).
 3. **Pick the shells.** Author the POSIX `.sh` (the baseline: CI, Git Bash). Add a `.ps1` twin **only when the tool must run in the user's PowerShell shell** as an interactive path; the twin mirrors the `.sh` flags, stdin shape, and exit codes exactly. Give any `.sh` LF line endings.
 4. **Prefer delegating over reimplementing.** If a vetted helper already does the hard part (a `.mjs`, a `gh` call), the tool is a thin wrapper over it. Do not re-derive its logic in shell.
 5. **Catalog it.** Add a row to `tools/README.md` (tool, what it does, usage) in the same change.
@@ -29,6 +25,4 @@ Do **not** build a tool for a true one-off. That stays in your shell history or 
 ## Guardrails
 
 - **No premature abstraction (rule 6).** Do not build a shared shell library for the first two small wrappers. Extract on the third real use.
-- **stdin over argv** for a claim, a diff, a file list, or any large payload.
-- **No secrets in argv** (process table + shell history leak them). Read them from the environment or a file.
 - **One purpose per script.** A flag matrix that forks behavior is a sign you are hiding two tools in one file.

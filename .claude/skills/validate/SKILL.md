@@ -7,8 +7,6 @@ effort: low
 
 # Validate
 
-Run all validation checks and report results.
-
 **Input**: $ARGUMENTS (default: `both`)
 
 ---
@@ -37,14 +35,6 @@ cd "C:\Users\thoma\Documents\Programming\Projects\orbit-api"
 dotnet build
 dotnet test
 ```
-
----
-
-## Process
-
-1. Run each enabled check, capture output
-2. Collect failures
-3. Report results
 
 ---
 

@@ -9,21 +9,46 @@ truth until the rebuild lands.
 parts graduate to `CLAUDE.md`, `AGENTS.md`, `DESIGN.md`, and brain ADRs. Do not let it survive as
 a stale artifact.
 
-**Status: PHASES 0-4 EXECUTED 2026-07-24** (overnight run). Phase 0 done (branches archived,
-Dependabot merged, #560/#575 closed, worktrees gone). Phase 1 done (5 guard PRs across 3 repos).
-Phase 2 done (both arch-map PRs, drift gates green in CI). Phase 4 done (orchestrator PR, wave
-machinery proven against live Linear). **Phase 3 (the deletion) EXECUTED 2026-07-24** after the
-ui PRs merged: section 5 carried out with the D39 survivors honored (`surface-manifest.mjs`,
-`surfaces.json`, `capture-surfaces.mjs`, and `redesign-coverage.mjs`, which that PR landed in
-git for the first time); `CLAUDE.md` and `.claude/rules/core.md` rewritten; the old wired hooks
-and the Harness Hook Parity CI job deleted with the harness (the job was not a required context).
-**Phase 5 needs from Thomas**: (1) the merges, (2) ~~Linear API key~~ DONE 2026-07-24: key lives
-at `~\.linear-api-key` (read at call time, never echoed); the 4 projects (539 Redesign, 562 Astra,
-Launch, Backlog) + 7 labels (repo:ui/api/landing, parity:yes/no, visible-effect, attempts:2)
-created via GraphQL and verified visible to orca, (3) approval of the section 13 triage table.
-Linear workspace `useorbitai`, team `ORB`, team id `99996489-8aad-4e01-a8f9-6123adfb7d6b`.
-The denominator audit register is in 8.5; raw output archived at
-`.claude/specs/denominator-audit-2026-07-24.json`.
+**Status: PHASES 0-6 EXECUTED 2026-07-24. Phase 7 is the only one left.** Phases 0-4 done
+(branches archived, Dependabot merged, worktrees gone; 5 guard PRs; both arch-map PRs; the
+orchestrator PR, wave machinery proven against live Linear). Phase 3 (the deletion) executed:
+section 5 carried out with the D39 survivors honored (`surface-manifest.mjs`, `surfaces.json`,
+`capture-surfaces.mjs`, `redesign-coverage.mjs`), `CLAUDE.md` and `.claude/rules/core.md`
+rewritten, the old wired hooks + Harness Hook Parity CI job deleted (merged PR #581,
+32k lines). Phase 5 executed: the full Linear board exists in workspace `useorbitai`, team
+`ORB` (id `99996489-8aad-4e01-a8f9-6123adfb7d6b`): **539 Redesign** 26 tickets (launchable
+ORB-30), **562 Astra** 17, **Launch** 11, **PostHog** 8 (ORB-75..82, launchable ORB-75, an
+adopted feature cut via the new /feature flow), **Brand Assets** 2, **Backlog** 12; ~40 GitHub
+issues closed with Linear pointers; stay-GitHub: ui#387, api#319, landing#43, landing#42. The
+D38 file-level coverage assertion, the wave-plan cross-project-blocker fix, and the
+/orchestrate overview-content fetch all merged (PRs #582/#583/#584). Linear API key at
+`~\.linear-api-key` (read at call time, never echoed); each project's locked decisions live in
+its OVERVIEW CONTENT, not the 255-char description.
+
+**Phase 6 COMPLETE 2026-07-24.** All four items done. (1) The mechanical-debt work was NOT cut
+as its own project: the suppression debt is drained inside the #539 per-surface tickets, which
+already own their files under D38, and seed ticket **ORB-46** was rewritten as the terminal
+backstop that flips the ratchet to must-equal-zero once every R ticket has merged. A separate
+batch-drain project would have double-owned files, a D4/D35/D38 defect. (2) `/prod-readiness`
+and the 4 `/audit-*` redesigned to D10/D11 (PR #588). (3) Docs sorted per D12; `WORKFLOW.md`
+deleted (PR #586). (4) The skill sweep ran across all 48 skills, 13 batched agents, one PR per
+repo (#590, api #434). Vendored skills (Orca, accesslint, impeccable, obsidian-markdown, the
+`brain-*` family) got recommendations only, never writes, so an upstream update cannot clobber
+them. Also landed in Phase 6: **D42** and the context-engineering playbook (#592), and the
+frontmatter gate (#593).
+
+**Section 14 is fully closed and section 15 records what closing it exposed** (2026-07-24): the
+Dash Ban gate failing on every Dependabot PR in all three repos, `claude-code-action` silently
+self-skipping on PRs that edit its own workflow, a guard whose precondition failed open, the
+Contract Drift tripwire firing across repos, the security posture measured and cleared, the
+PostHog region reversed to US, ORB-83's account inventory, and the proactivity guard rework.
+
+**Phase 7 needs Thomas:** one act only. Create a **PostHog US Cloud** org and project at
+`https://app.posthog.com/signup` (region picked at signup, not changeable afterwards) and hand
+over the project API key. That gates ORB-75's screenshot acceptance criterion and therefore In
+Review; it does NOT gate the run starting, because an absent key binds a no-op and behaviour stays
+byte-identical. `codex login` is optional and always was. The denominator audit register is in 8.5;
+raw output at `brain/2 Areas/20-29 Orbit Engineering/denominator-audit-2026-07-24 (raw, #539).json`.
 
 ---
 
@@ -145,6 +170,7 @@ Numbered so they can be cited. Do not re-litigate without a superseding entry.
 | **D39** | **`surface-manifest.mjs`, `surfaces.json` and `redesign-coverage.mjs` survive Phase 3 until the #539 project completes.** The coverage gate reads the manifest; deleting it with the rest of the 804-cell machine (section 5) would orphan the redesign's denominator. The judge, signoff and verdict machinery still dies on schedule. The manifest folds into `arch-map.mjs` when #539 closes. |
 | **D40** | **The landing page and the emails switch the same day the app does.** The landing repo gets its own `redesign/main` integration branch (D36's mechanism, second repo), merged the same day as the app's; `R20-comms` (orbit-api) merges to `main` right before the switch. Chosen by Thomas 2026-07-24 over landing-leads and landing-trails. |
 | **D41** | **The logo: Claude generates flat-SVG candidates against the D32 brief, Thomas picks or rejects.** Same pattern as the reference board. Rejection loops with new candidates; commissioning stays available as the fallback if no round survives. Chosen by Thomas 2026-07-24. |
+| **D42** | **A rendered reference outranks a written spec, and ticket 0 ships one.** Anthropic's 2026-07-24 context-engineering guidance for 5-generation models states that a rendered mockup produces better results as agent input than a description or a screenshot. That is a direct diagnosis of the #539 failure: 1.2 records the causes as "the spec is subtractive" and "nothing in the loop rendered a picture", and `DESIGN.md` carried one mechanical rule with everything else as prose adjectives. So **ORB-30 also produces `design/reference.html`**, one self-contained page rendering every token, the type scale at real sizes, each list density as real rows, all 8 states per primitive, the habit-colour palette on real rows, and D34 shown correct beside violated. Where the page and the prose disagree, **the page wins and the prose is the defect**. The ticket carries `visible-effect` so the D7 evidence gate binds, and Thomas's approval of that page is the D13 human grant that unblocks R1 to R21. Generalised into `.claude/playbooks/context-engineering.md` (read before authoring anything the agent reads), whose other seven rules mostly corroborate conclusions this repo had already measured. |
 | **D27** | **`## Code Review Rules` covers only what no gate can check.** OpenAI's own guidance matches D11: *"Keep formatting and other mechanical checks in CI."* Their measurement: well-scoped rules reach 98% violation recall while staying quiet on clean diffs; broad rules produce noise. **Do not restate** the lint rules, the comment policy, `DateTime.UtcNow`, or the authorization attribute; all become deterministic gates in Phase 1. **Do state**, each with a safe path: (1) a DTO field renamed, removed or retyped that a shipped mobile client still reads, which `Contract Drift` cannot judge because it does not know the Play fleet lag; (2) `AppConfig.MinSupportedVersion` raised before the carrying build is live; (3) a mobile mirror that exists but behaves differently from the web change, which the CI parity job cannot see; (4) a load-bearing string changed (URL slug, anchor id, primary nav label, form field `name` or order), which is `core.md` rule 4 and has no gate. |
 
 ### 2.1 Decisions carried in from existing ADRs (unchanged)
@@ -216,7 +242,7 @@ Thomas's job reduces to: talk to the PM agent, then review and merge. Merging ad
 |---|---|---|
 | Linear workspace not connected (`orca linear team list` returns `teams: []`) | Create account, connect in Orca | Thomas |
 | **orbit-api and orbit-landing-page not registered in Orca** (`orca repo list` shows only orbit-ui-mobile, brain, gta6-shorts-factory, portfolio) | `orca repo add --path <path>` | Claude |
-| `.claude/specs/issue-562.spec.md` is **not in git** (187 lines, local only) | Back up to the brain vault before touching anything | Claude |
+| ~~`.claude/specs/issue-562.spec.md` is **not in git** (187 lines, local only)~~ | **DONE.** Backed up to the vault as `0 Inbox/issue-562 spec backup (2026-07-24).md` and `2 Areas/20-29 Orbit Engineering/Orbit ui562 Astra epic spec (rescued from gitignore 2026-07-23).md`, extracted to the 562 Astra Linear project (17 tickets), then deleted with the rest of `.claude/specs/` on 2026-07-24 | Claude |
 | No `AGENTS.md` in either repo | Create in Phase 4 | Claude |
 
 ### 4.3 Linear plan
@@ -242,7 +268,7 @@ Workspace `Orbit`, one team `Orbit`, key `ORB`. Workflow states will be read wit
 | Agents: `primer`, `implement-opus`, `implement-sonnet` | 3 | ~150 | Orca worktree + an explicit CLI command replaces model routing |
 | Hooks: `surface-coverage-gate`, `forbid-gate-tamper`, `primer-shell-allowlist` | 3 | ~900 | They guard deleted things |
 | `.opencode/` + its 19 parity assertions | - | - | D22 |
-| `.claude/specs/`, `.claude/plans/`, `.claude/audits/` | ~20 | - | After extracting 562 to Linear and the vault |
+| `.claude/specs/`, `.claude/plans/`, `.claude/audits/` | ~20 | - | After extracting 562 to Linear and the vault. **`.claude/specs/` DONE 2026-07-24**: it was never tracked in git, so it held three local-only files. 562 was extracted to Linear and the vault first (4.2); the denominator audit's raw output moved to `brain/2 Areas/20-29 Orbit Engineering/`, byte-compared before the delete, and this document's three references repointed there. `.claude/audits/` still holds `prod-readiness-both.md`, which section 14 item 4 flags for deletion under D10 |
 
 **Roughly 34,000 of 44,700 lines. About 75%.**
 
@@ -395,8 +421,32 @@ Ordered. Phase 1 cannot be reordered: running any worker before it ships unguard
 | **3** | The deletion (section 5). Rewrite `CLAUDE.md` and `.claude/rules/core.md`. | ~34,000 lines lighter, all CI green. **DONE 2026-07-24**: 32,046 lines deleted across 290 files in the Phase 3 PR (the `.claude/drive/` and specs/plans lines in section 5's estimate were never tracked on `main`); D39 survivors kept; test-hooks trimmed to the surviving hooks + the frontmatter guard, local-only |
 | **4** | `AGENTS.md`, `orchestrator.json`, the two agents, `/feature`, `/bug`, `/orchestrate`, the ticket template and checker, and D7/D8/D9 as machinery | A dry-run wave table prints. **DONE 2026-07-24** (PR pending): `tools/wave-plan.mjs` printed a REAL two-wave table against live Linear (smoke tickets ORB-5 blocking ORB-6, then canceled), `tools/check-ticket.mjs` passed a valid body and correctly rejected the live issue for its missing repo label. **Constraint discovered:** the orca CLI can create/edit ISSUES and relations but has NO project-create or label-create; Phase 5 needs the `repo:*`, `parity:*`, `visible-effect`, `attempts:2` labels and the projects (539, 562, Launch, Backlog) to exist first, via either a Linear personal API key (GraphQL, automatable, PREFERRED: Thomas creates the key once at linear.app Settings > Security & access > Personal API keys) or manual UI creation. Ask Thomas at the next checkpoint |
 | **5** | Migrate 43 open GitHub issues into Linear as a triage pass (fold, close, rewrite). Re-cut #539 and #562 as Linear projects, including R19-R21, the landing ticket(s) and the D20 assets (8.5.2), with the animation list and claimed-orphan candidates reconciled per D8 into ticket bodies. Extend `redesign-coverage.mjs` with the file-level assertion (D38). | Thomas approves the fold/close table, then sees the wave tables |
-| **6** | Generate the mechanical-debt project from the suppression ledgers. Redesign `/prod-readiness` and the 4 `/audit-*` per D10 and D11. Sort every doc per D12. Run the redesigned audit once. Run the skill rewrite pass (section 10). | Backlog contains the cleanup tickets |
-| **7** | Run the full flow end to end on one small real ticket while Thomas watches. Then #539 wave 1. | A PR comes out the other side |
+| **6** | Generate the mechanical-debt project from the suppression ledgers. Redesign `/prod-readiness` and the 4 `/audit-*` per D10 and D11. Sort every doc per D12. Run the redesigned audit once. Run the skill rewrite pass (section 10). | **DONE 2026-07-24.** The mechanical debt did NOT become its own project: it is drained inside the #539 per-surface tickets that already own those files (D38), with ORB-46 rewritten as the terminal must-equal-zero backstop. Audits redesigned (#588), docs sorted and WORKFLOW.md deleted (#586), 48 skills swept (#590 + api #434). The one item deliberately NOT done is running the redesigned audit once: under D10 an audit's output is Linear tickets, and firing a ~22.8M-token pass to mint tickets nobody will start before Phase 7 is waste. Run it when Phase 7 proves the flow |
+| **7** | Run the full flow end to end on one small real ticket while Thomas watches. Then #539 wave 1. Candidate: **ORB-75** (PostHog server SDK), the launchable ticket of the PostHog project. **The blocker is narrower than it reads** (measured against the live ticket body 2026-07-24): ORB-75 is written so an absent key binds a no-op implementation and behaviour stays byte-identical, so the code and all six unit tests can be written and reviewed with no account at all. What the account gates is the LAST acceptance criterion, a screenshot of the four subscription events arriving in the PostHog US project from a Stripe CLI session, and that criterion is explicitly required to reach In Review. Setting `PostHog:ApiKey` on Render is a post-merge rollout step, not a prerequisite. So: a PostHog US org plus one project plus a test key unblocks In Review; nothing blocks the run from starting. `codex login` is optional and always was, since `orchestrator.json` defaults to the `claude` engine; `codex-cli` 0.118.0 is already installed on this machine and reports `Not logged in`. | A PR comes out the other side |
+
+**The one screen Thomas watches while a wave runs.** Asked three times on 2026-07-24 and answered
+wrong twice, so the exact configuration is recorded here rather than re-derived.
+
+`https://linear.app/useorbitai/team/ORB/all`, then the display options (the sliders icon, top
+right):
+
+| Setting | Value | Why |
+|---|---|---|
+| Layout | Board | |
+| Columns | Status | Backlog, Todo, In Progress, In Review, Done |
+| **Rows** | **Project** | The whole answer. At the default `No grouping` the Backlog column is one undifferentiated pile of 68 cards across 6 projects, which is why the board reads as broken |
+| Show empty columns | On | Otherwise In Progress and In Review hide under "Hidden columns" until something lands in them, so the columns you most want to watch are the ones missing |
+
+That is every ticket, every project, every state, on one screen. Star it or save it as a View.
+
+Two answers that were WRONG and are recorded so they are not repeated: the per-project board
+(`/project/<slug>` then the Issues tab) shows only that project, and the `/team/ORB/active` filter
+hides Backlog entirely. Neither is the one-screen view.
+
+Alongside it: `orca worktree ps` for the live per-worktree branch, terminal count and output
+preview, and `gh pr list` for what is waiting on a human merge. One `/orchestrate <project>`
+already fans out to `maxParallelWorktrees: 8`; running three at once is not what it was built for,
+because the cap is per-run and three runs cannot see each other.
 
 ---
 
@@ -496,7 +546,7 @@ then R5 to R18 in parallel.
    but the check animation, sheet transitions, page transitions and skeletons are not counted
    anywhere. **Resolved 2026-07-24:** the denominator audit produced the list, 69 distinct
    user-visible animation behaviours, 0 of which the manifest can see. The full enumeration is in
-   `.claude/specs/denominator-audit-2026-07-24.json`; Phase 5 distributes each item to its owning
+   `brain/2 Areas/20-29 Orbit Engineering/denominator-audit-2026-07-24 (raw, #539).json`; Phase 5 distributes each item to its owning
    ticket body (celebrations to R4, screen-specific to the screen ticket, cross-cutting route
    transitions, skeletons, press feedback and focus rings to R1/R2, landing motion to the landing
    ticket).
@@ -579,7 +629,7 @@ would ship with all of it untouched:
 
 7 counting agents, each claim adversarially verified by independent skeptics (a sample of 10-12
 per denominator; Haiku verifiers). 89 agents, 0 errors, 4.4M tokens. Raw output:
-`.claude/specs/denominator-audit-2026-07-24.json`.
+`brain/2 Areas/20-29 Orbit Engineering/denominator-audit-2026-07-24 (raw, #539).json`.
 
 | Denominator | Total | In manifest | Claimed uncovered | Verified sample: confirmed / refuted |
 |---|---|---|---|---|
@@ -749,7 +799,14 @@ there; note it and move on.
 
 Everything not on this list is Claude's.
 
-### ALL DONE as of 2026-07-23. Nothing is waiting on Thomas.
+### Everything below was DONE by 2026-07-23. One new item opened for Phase 7 (2026-07-24).
+
+- [ ] **A PostHog US Cloud org and one project, plus a test project key.** Gates the ORB-75
+      screenshot acceptance criterion and therefore In Review, not the orchestrate run itself.
+      See the Phase 7 row of the phase table for exactly what is and is not blocked.
+- [ ] **`codex login`, optional.** `codex-cli` 0.118.0 is installed and reports `Not logged in`.
+      Only needed if the Phase 7 proof should run on the codex engine; `orchestrator.json`
+      defaults to `claude`, which needs nothing.
 
 - [x] PR #574 merged (cleared 4 of the 271 spacing violations on the web streak page)
 - [x] `/tui fullscreen` enabled
@@ -785,7 +842,7 @@ The steps below are kept only as the record of what was done.
 
 ### 3. Set the session model
 
-1. `/model` -> **Fable 5**
+1. `/model` -> **Opus 5**
 2. `/effort` -> **High**. If the command does not exist, say so.
 3. This is the only model setting ever touched. Workers get theirs from
    `.claude/orchestrator.json`.
@@ -851,12 +908,26 @@ Output feeds #539 ticket 0 (section 8.2). This is the only genuine blocker for t
 2. ~~CodeRabbit.~~ **Decided 2026-07-23: rejected (D24).** No CI reviewer is added at all (D25).
    The cross-model second opinion runs locally inside the orchestrator on the Codex CLI
    subscription (D26). Nothing here needs an API key or a stored credential.
-3. **Whether `FEATURES.md`, `TESTING.md`, `WORKFLOW.md`, the 4 playbooks and the 3 rules files
-   are generated, kept small, or deleted.** Decided per file during Phase 6 under D12.
+3. ~~Whether `FEATURES.md`, `TESTING.md`, `WORKFLOW.md`, the 4 playbooks and the 3 rules files
+   are generated, kept small, or deleted.~~ **Decided 2026-07-24 under D12 (PR #586).**
+   `WORKFLOW.md` deleted, its `/drive` instructions being actively wrong after Phase 3.
+   `FEATURES.md` kept as hand-maintained, because the Free/Trial/Pro/Yearly gating it carries is
+   not derivable from the arch map; the `/pr-review` feature-inventory check (rubric 14) keeps it
+   honest. `TESTING.md` kept small. The playbooks and rules files kept, and the tier grew a fifth
+   playbook, `context-engineering.md` (D42, PR #592).
+
+**Nothing in this section is open.** Every remaining unknown is empirical and belongs to Phase 7.
 
 ---
 
-## 13. The Phase 5 triage table (drafted 2026-07-24, needs Thomas's approval before execution)
+## 13. The Phase 5 triage table (EXECUTED 2026-07-24, historical record)
+
+Approved and carried out: roughly 40 GitHub issues were closed with Linear pointers and the
+stay-GitHub set (ui#387, api#319, landing#43, landing#42) was left in place, as the status header
+records. The table below is kept as the audit trail of what was decided for each issue, not as
+pending work. Its forward-looking phrasings ("INTO the Phase 6 mechanical-debt project") describe
+intent at drafting time; where reality diverged, the phase table and section 14 are authoritative.
+The mechanical-debt project in particular was never created, by design (see the Phase 6 row).
 
 All 45 open issues measured live via `gh issue list` on 2026-07-24. Disposition legend:
 **Linear** = re-cut as a Linear ticket/project then close the GitHub issue with a pointer;
@@ -914,3 +985,267 @@ All 45 open issues measured live via `gh issue list` on 2026-07-24. Disposition 
 
 Net: ~26 Linear tickets from migration + the ~24 redesign tickets from 8.2/8.5 + #562's ~12, well
 under the 250 free-tier cap.
+
+---
+
+## 13.1 The board is populated but only PostHog is startable (measured 2026-07-24)
+
+Counted live via GraphQL, because `orca linear list-issues` pages at 50 and silently returned 50
+of 78. Never take a raw count from that command.
+
+| State | Count |
+|---|---|
+| Backlog | 68 |
+| Todo | 8 |
+| Canceled | 2 (the ORB-5 / ORB-6 smoke tickets) |
+| **Total** | **78** |
+
+| Project | Total | In Todo |
+|---|---|---|
+| 539 Redesign | 26 | **0** |
+| 562 Astra | 17 | **0** |
+| Backlog | 12 | 0 |
+| Launch | 11 | **0** |
+| PostHog | 8 | 8 |
+| Brand Assets | 2 | **0** |
+
+**Backlog does NOT block a wave, and nothing needs promoting by hand.** `tools/wave-plan.mjs`
+computes launchability from the DAG, not from the board column: a ticket is launchable when every
+`blockedBy` is done, its state type is not `started`, and `attempts < 2`. Verified by running it:
+
+```
+$ node tools/wave-plan.mjs --project "539 Redesign"
+WAVE 1
+  ORB-30  [Backlog]  Rewrite DESIGN.md as the dense and warm mechanical spec (ticket 0)
+WAVE 2
+  ORB-32, ORB-34, ORB-36, ORB-38, ORB-41, ORB-68, ORB-69, ORB-70, ORB-71   blockedBy: ORB-30
+```
+
+So the day-to-day is `/orchestrate "<project>"` and nothing else. Todo versus Backlog is a human
+reading aid; the orchestrator moves a ticket to In Progress itself when it launches it.
+
+**The one real defect this exposed:** `.claude/orchestrator.json` carries `states.ready: ["Todo"]`
+and **no code reads it**. `wave-plan.mjs` never loads `config.states`. Dead config that states a
+rule the engine does not implement is worse than no config, because it is read as authoritative:
+it produced exactly one wrong conclusion in this document before being caught. Removed. The
+sibling `working` / `review` / `done` values stay, because the `/orchestrate` skill uses them for
+`orca linear status set`.
+
+## 14. Open follow-ups carried out of Phase 6 (ALL CLOSED 2026-07-24)
+
+Real work found while finishing Phase 6, none of it blocking Phase 7. Recorded here rather than in
+a side file: a handoff doc under `.claude/specs/` is untracked by default and section 5 deletes
+that directory anyway, which is how `issue-562.spec.md` ended up local-only and at risk (4.2).
+
+**Every item below is now done.** The resolution is recorded inline per item, and the work that
+this clearing exposed is in section 15. Nothing in this section is open.
+
+1. **`orbit-api` needs `tools/check-frontmatter.mjs` vendored**, as orbit-ui-mobile has it. Its
+   own `security-reviewer` copy is fixed, but nothing stops a recurrence there. The bug: an
+   unquoted YAML frontmatter value containing `": "` drops the skill or agent silently, which
+   disabled 5 skills and the `security-reviewer` agent (so `/pr-review` ran with no security pass)
+   before it was caught 2026-07-24.
+   **DONE, api #435.** Vendored as job `Skill and Agent Frontmatter` in that repo's `guards.yml`,
+   with `actions/setup-node` in the job because orbit-api has no Node toolchain and none was added.
+   Roots are `.claude/agents`, `.claude/skills` and `.opencode/agents`. One deliberate divergence
+   from the ui original: a MISSING root is an error there rather than a quiet skip, because all
+   three are tracked and a renamed directory would otherwise turn the gate into a silent no-op.
+   That divergence is arguably right for orbit-ui-mobile too and is carried into 15.3.
+2. **`orbit-api/.github/workflows/claude-review.yml` cites stale phase numbers.** It tells CI to
+   skip "Phase 6 (dotnet build / test)" and "Phase 7 posting", but validate is Phase 7 and posting
+   is Phase 8. Followed literally, CI skips the adversarial verification pass and runs the
+   validation it was told to skip.
+   **DONE, api #436**, and the evidence is in `pr-review/SKILL.md`: `:182` is Phase 6 adversarial,
+   `:225` is Phase 7 Validate with the dotnet commands at `:229-232`, `:240` is Phase 8 Report with
+   posting at `:306`. The skill's own note at `:326-327` already said the opposite of the workflow.
+   Both instructions now carry the phase NAME as well as the number so the pairing cannot rot
+   silently again. That PR needed a human merge; see 15.2 for why the bot could not review it.
+3. **`rubric.md` dimension 8 is stale against the post-#539 `DESIGN.md` in BOTH repos.** It still
+   sanctions the gradient header and asks for "violet-glow character", both deleted by the freeze.
+   The api copy's preamble also claims `/audit-code-quality` shares it and "there is no second
+   copy"; neither is true in that repo.
+   **DONE, ui #595 (ui copy) and api #435 (api copy).** Both preamble claims were confirmed false
+   and corrected: orbit-api's `.claude/skills/` holds only `pr-review`, `second-opinion` and
+   `_shared`, so no `/audit-code-quality` shares it, and the ui copy exists and is not even
+   byte-identical (the api one carries four extra lines under dimension 13 for `ORBIT0002`).
+   Dimension 8 now cites `DESIGN.md` section NAMES rather than line numbers, since stale line
+   pointers were the original rot.
+4. **The skill sweep's flagged-not-applied list**, one report per batch in the session scratchpad,
+   holds every proposal withheld because it touched a trigger, a completion criterion, or an
+   output contract. The ones with consequences: `_shared/verification-protocol.md` still speaks
+   the pre-D10 vocabulary of a "report" and is upstream of all five audit skills;
+   `audit-performance/SKILL.md` doubles as its own finders' checklist (`audit.mjs:104`) so its
+   prose cannot be disclosed out of the file and every edit mutates the finder prompt;
+   `audit-security`'s headless fallback uses `Explore` where the primary path uses
+   `audit-readonly`, a wider tool surface; `.claude/audits/prod-readiness-both.md` still exists on
+   disk while three D10-rewritten skills promise nothing is persisted there; and `llm-council` and
+   `deep-research` both cite a "3-concurrent subagent cap" that exists in no rules file.
+   **DONE, ui #595**, with three of the five premises corrected by contact with the code.
+   `verification-protocol.md` was rewritten to the D10/D11 contract, and a new section 0 fixes the
+   output per consumer instead of leaving "the report" ambiguous; `/thermo-nuclear-code-quality-review`
+   cited it in three places while appearing in neither its header list nor its calibration table,
+   so it gained a row. `audit-performance` was DECOUPLED rather than documented: its finder
+   checklist moved to `audit-performance/checklist.md` and all four machine-read artifacts now
+   carry a `Machine-read` header naming the coupling, which also stopped the finder prompt being
+   fed the skill's ticket-emission pipeline and guardrails. All four audit skills' headless
+   fallbacks now spawn `audit-readonly` instead of `Explore`. The three corrections: the coupling
+   is at `.claude/workflows/audit.mjs:104`, not `tools/audit.mjs` which never existed; nothing was
+   still writing to `.claude/audits/` (the files were pre-D10 leftovers from July 9 and 11, and the
+   directory is gitignored so there was no repo diff to make); and the subagent cap was not phantom
+   as a NUMBER, five skills use 3 consistently as a fan-out convention, what was phantom was the
+   citation of `CLAUDE.md` as its source.
+5. **`.tmp_users.txt` at the repo root** is the original 3,830-line planning transcript that
+   produced this document. Untracked and NOT gitignored, so it can be committed by accident.
+   Thomas has been asked whether to archive it to the vault; unanswered.
+   **DONE.** Archived to
+   `brain/2 Areas/20-29 Orbit Engineering/Workflow rebuild planning transcript 2026-07-24 (raw, source of REBUILD.md).md`,
+   byte-compared identical with `cmp` before the repo copy was deleted. The vault holds knowledge,
+   the repo holds machines.
+6. **A `/doctor` pass on 2026-07-24 removed a Stop hook** (`brain/scripts/session-capture.ps1`)
+   that spawned a nested `claude -p` and timed out on 131 of 135 runs, about 2h16m of blocked
+   time in one day. Settings backup at `~/.claude/settings.json.bak-doctor`. If brain session
+   capture is wanted back it has to be non-blocking; it could never finish inside the 60s timeout.
+   The same pass found this repo runs `core.hooksPath` redirected to `C:\orbit\.git\hooks`, so
+   lefthook reports "Skipping hook sync" and its pre-push guard never installs here. Server-side
+   branch protection is the real gate on `main`; the local guard is not protection in this repo.
+   **DONE, both halves.** The capture script is now fire-and-forget: the prompt goes to a temp file
+   and a detached `Start-Process` picks it up, so the hook returns in about 100ms instead of
+   blocking, measured. It is re-enabled at a 10s timeout rather than 60s, because a long timeout on
+   a fire-and-forget script only buys a long stall if it ever regresses. Committed to the brain
+   repo as `b08be84`, with the reasoning written into `scripts/cron/optional-extras.md` so the
+   synchronous version cannot come back by accident.
+   The `core.hooksPath` finding turned out to be worse than recorded: it pointed at `C:\orbit\.git\hooks`,
+   which is a DIFFERENT repository's hooks directory containing git-lfs hooks, while this repo's own
+   `.git/hooks` was empty. So lefthook had never run here at all, not merely "reported skipping".
+   Unset, `lefthook install` re-run, and the pre-push guard proven by hand: exit 1 on
+   `refs/heads/main`, exit 0 on a feature branch. Every commit in this session since then has shown
+   the lefthook banner, which is the standing proof it is live.
+
+---
+
+## 15. What clearing section 14 exposed (2026-07-24)
+
+Every item here was found while doing section 14, not planned. Each is fixed. They are recorded
+because four of them are defect CLASSES rather than instances, and a class that is not named comes
+back.
+
+**Merge state of every PR cited below**, so no claim here rests on a PR that never landed: ui #576,
+#594, #595, #596, #597, #598, #599 and #600, api #425, #432, #435 and #436, and landing #50 are all
+squash-merged to `main` as of 2026-07-24. The only PRs open when this section was written were this
+one and ui #602 (the frontmatter-gate hardening in 15.3), both of which merge the same day.
+
+### 15.1 The Dash Ban gate failed on every Dependabot PR, in all three repos
+
+The `dashes` job fed the raw PR title and body to `check-dashes.mjs` with no author scoping.
+Dependabot copies the dependency's own changelog verbatim into the body, so an upstream release
+note containing an en dash failed a gate on text Orbit neither wrote nor can edit, and which
+Dependabot regenerates on every rebase. It was not hypothetical: api #425, a 21-package NuGet
+security bump, was red because a Hangfire release note contains `**Added** - Russian translation`.
+
+Fixed identically in all three repos (ui #598, api #435, landing #50) by scoping ONLY the prose
+step to `github.event.pull_request.user.type != 'Bot'`, verified against live GitHub data (`Bot`
+for `dependabot[bot]`, `User` for a human). The file-level dash check and the shrink-only baseline
+deliberately still run on bot PRs, because the files a Dependabot PR changes ARE Orbit's.
+
+**The class:** a gate whose input is not authored by the project will produce a false red that
+nobody can fix, and a false red that cannot be fixed trains people to merge past gates.
+
+### 15.2 `claude-code-action` self-skips on any PR that edits `claude-review.yml`
+
+It reports the `review` check as PASSING while posting no review at all, leaving
+`reviewDecision: REVIEW_REQUIRED` and zero reviews. api #435 originally carried six fixes,
+including an OAuth behaviour change and a security fix, and would have merged with no review
+whatsoever behind a green check.
+
+The fix is structural, not a one-off: **split the workflow-file edit into its own PR.** #435 then
+got a genuine two-review APPROVE, and #436 carried only the two-file comment change that no bot
+can ever review. Do this every time a PR would touch `claude-review.yml`.
+
+### 15.3 A guard's own precondition can fail open
+
+The lesson-1 promotion (ui #597) added a review-staleness guard to the merge sweeps. Its first
+version switched itself on from an unpaginated, error-swallowed `gh api .../actions/workflows`
+call that DEFAULTED TO OFF, so a repo with more than 30 workflow files, or any transient auth,
+rate-limit or network failure, silently disabled the entire guard with no error line. Its orphan
+scan had a second fail-open lookup. Both were caught in review and fixed by paginating and
+inverting the default so an API failure fails toward waiting.
+
+This is the locked decision *"a verifier error is not a clean pass"* one level up, and it is the
+third time in three days it has bitten. **Fail-closed applies to a gate's INPUTS, not only to its
+verdict.** The same reasoning is why 14.1's vendored frontmatter gate treats a missing root as an
+error rather than a quiet skip; the ui copy still skips quietly and should be brought into line.
+
+### 15.4 The Contract Drift gate is a real cross-repo tripwire and it fired
+
+api #435 dropped the unread `client_id` field from `/oauth/token`, which changed the published
+OpenAPI spec, which staled the committed Zod snapshot, which turned Contract Drift red on EVERY
+open ui PR at once. The gate was correct and the blast radius is the point: an api merge can block
+the entire ui queue. Re-baselined in ui #600 (`npm run generate:zod -w @orbit/shared`), a two-line
+diff, with a grep confirming no hand-written consumer referenced the field.
+
+**Sequencing rule this establishes:** after an orbit-api merge that touches any contract surface,
+re-baseline the ui snapshot BEFORE queuing ui merges, not after they go red.
+
+### 15.5 Security posture, measured and closed
+
+- **orbit-ui-mobile:** 11 open Dependabot alerts (postcss x3, sharp, js-yaml, brace-expansion,
+  tmp x2, qs, uuid, dompurify). dompurify cleared by #576; the remaining ten by #599.
+- **orbit-api:** 2 CodeQL alerts. The medium (`arch-map.yml` not limiting `GITHUB_TOKEN`) fixed in
+  #435, which audited all 9 workflows rather than the one CodeQL happened to surface, and found
+  the other 8 already minimal. The HIGH (`cs/user-controlled-bypass` at `OAuthController.cs:294`,
+  open since 2026-07-08) was reviewed and **dismissed as a false positive with the reasoning
+  attached**: `grant_type != "authorization_code"` is a protocol discriminator, while the real gate
+  is `OAuthAuthorizationStore.ExchangeCode` at lines 35-56 (atomic single-use `TryRemove`, 5-minute
+  expiry, exact ordinal `redirect_uri` binding, PKCE verification), none of which any value of
+  `grant_type` can influence. `IsRedirectUriAllowed` was checked specifically for the prefix-match
+  weakness and is an exact `HashSet` host match.
+- **orbit-landing-page:** zero alerts of any kind, zero open PRs.
+- The same review found a genuine LOW that CodeQL did not: `client_id` was bound on the token
+  endpoint and never read. Dropped rather than wired, because `/oauth/register` returns a
+  throwaway GUID and persists nothing and `token_endpoint_auth_method` is `none`, so both the
+  authorize-time and token-time values are unverified client assertions. That removal is what
+  triggered 15.4.
+- **`Dash Ban` and `Skill and Agent Frontmatter` are now REQUIRED contexts on orbit-api's `main`.**
+  They were running red without blocking anything, which is not a gate. Added only after #435
+  merged, because requiring a job that does not yet exist on `main` would have blocked every open
+  PR permanently.
+
+### 15.6 The PostHog region decision was reversed, EU to US
+
+The PostHog project locked EU Cloud (Frankfurt) on a rationale of "Brazilian founder plus likely
+EU users, LGPD and GDPR overlap". Thomas challenged it and was right. orbit-api runs on Render in
+`ohio` and the primary user database is in the US, so analytics in the EU protected nothing while
+splitting the stack across two jurisdictions. GDPR follows the data subject rather than the server,
+and LGPD is Brazilian law that never required EU hosting.
+
+Now `https://us.i.posthog.com`, verified as PostHog's own documented default. All 20 references
+rewritten across the project overview and ORB-75, 76, 77, 79, 81, with the reversal and its reason
+recorded in the project overview so it is not re-litigated. Settled BEFORE signup because PostHog
+does not document a way to move a project between regions.
+
+### 15.7 ORB-83: every third-party account is now inventoried
+
+Thomas asked which vendor accounts sit on a personal email versus `contact@useorbit.org`. Nobody
+could answer. **ORB-83** (Launch project) carries the swept inventory: 12 product-critical services
+ranked by blast radius, 5 developer-tooling accounts, the excluded no-account list, a migration
+order that puts the domain registrar last, and the 16 CI secret NAMES that a token rotation would
+invalidate. It passes `check-ticket.mjs`. The rule it encodes: anything holding user data or
+costing money lives on `contact@useorbit.org`. ORB-28 already owns the Play listing half.
+
+The one genuinely unrecoverable item the sweep surfaced: the Android upload keystore. Losing it
+means the app cannot be updated on Play without Google's key-reset process, so ORB-83 requires
+confirming a backup exists off a single personal machine before any migration starts.
+
+### 15.8 The proactivity guard misfired and was reworked
+
+The Stop-hook proactivity guard blocked a turn for "deferring" a Linear ticket that was waiting on
+a still-running sweep subagent, which was correct sequencing. Thomas: it "rushed a lot of work".
+The judge prompt had no way to tell an in-flight delegation from a punt to a future session.
+
+Reworked: the hook now extracts `Agent`, `SendMessage` and `Workflow` tool calls from the turn and
+passes them to the judge as an explicit list, and ONLY when that list is non-empty does it add a
+scoped rule that waiting on those agents is not deferral. The rule is deliberately conditional,
+because an unconditional version measurably leaked into unrelated judgments and made the guard too
+permissive. **Honest limitation:** the original misfire could not be reproduced synthetically, so
+the fix is reasoned rather than proven. If it misfires again, deleting the `Stop` entry from
+`~/.claude/settings.json` is the one-line answer.
