@@ -113,6 +113,7 @@ Flags:
 Exit codes:
   0  manifest written
   1  inventory could not be derived (missing tree, duplicate surface id)
+  2  usage error
 `
 
 const toPosix = (absolutePath) => relative(REPO_ROOT, absolutePath).split("\\").join("/")
@@ -445,6 +446,14 @@ function main() {
   }
   const baselineIndex = args.indexOf("--baseline")
   const baselineRef = baselineIndex !== -1 ? args[baselineIndex + 1] : DEFAULT_BASELINE_REF
+
+  const known = new Set(["--baseline", "--json"])
+  const baselineValueIndex = baselineIndex === -1 ? -1 : baselineIndex + 1
+  const unknown = args.find((argument, index) => index !== baselineValueIndex && !known.has(argument))
+  if (unknown) {
+    process.stderr.write(`surface-manifest: unknown argument: ${unknown}\n\n${USAGE}`)
+    return 2
+  }
 
   let manifest
   try {

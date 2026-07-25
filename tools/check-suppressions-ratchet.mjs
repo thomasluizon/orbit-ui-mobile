@@ -13,6 +13,26 @@ import { readFileSync, existsSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
+const USAGE = `usage: check-suppressions-ratchet.mjs
+
+  Compares each workspace's eslint-suppressions.json total against origin/main.
+  Takes no arguments.
+
+  --help, -h  print this usage and exit 0
+
+exit codes: 0 every baseline held or shrank, 1 a baseline grew, 2 usage error`
+
+if (process.argv.includes("--help") || process.argv.includes("-h")) {
+  console.log(USAGE)
+  process.exit(0)
+}
+
+if (process.argv.length > 2) {
+  console.error(`check-suppressions-ratchet: takes no arguments, got: ${process.argv.slice(2).join(" ")}\n`)
+  console.error(USAGE)
+  process.exit(2)
+}
+
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const BASELINES = ["apps/web/eslint-suppressions.json", "apps/mobile/eslint-suppressions.json"]
 
