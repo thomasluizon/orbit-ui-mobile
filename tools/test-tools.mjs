@@ -267,7 +267,65 @@ const WAVE_STUB = [
   },
 ]
 
+// new-ticket.mjs shells out to check-ticket.mjs, which makes its OWN orca call,
+// so both legs are stubbed in one plan: `linear create` for the creation and
+// `linear issue` for the validation the wrapper exists to perform. The shim
+// stands aside for a real file path, so the nested node invocation still runs
+// the real check-ticket.
+const VALID_TICKET_BODY = [
+  "## Problem / why it matters",
+  "The gate has no coverage for its own create and validate round trip.",
+  "## Scope",
+  "Add the coverage.",
+  "## Out of scope",
+  "Anything else.",
+  "## Expected behaviour",
+  "The round trip executes under CI.",
+  "## Technical details",
+  "Stub both orca legs.",
+  "## Affected modules / files",
+  "tools/test-tools.mjs",
+  "## Acceptance criteria",
+  "- the created identifier is the one validated",
+  "- a defective ticket exits 1",
+  "## Test scenarios",
+  "- run the gate",
+].join("\n\n")
+
+const newTicketStub = (created, issue, options = {}) => [
+  { match: "linear create", stdout: JSON.stringify(created), exit: options.createExit ?? 0 },
+  { match: "linear issue", stdout: JSON.stringify({ ok: true, result: { issue, relations: [] } }) },
+]
+const CREATED_OK = { ok: true, result: { issue: { identifier: "ORB-99" } } }
+const VALID_ISSUE = { identifier: "ORB-99", title: "Cover the create and validate round trip", description: VALID_TICKET_BODY, labels: [{ name: "repo:api" }] }
+
 const gateCases = {
+  "new-ticket.mjs": () => {
+    const argv = ["--title", "Cover the create and validate round trip", "--project", "Backlog"]
+    check("new-ticket.mjs", "validates the identifier orca reported", argv, { status: 0, stdout: /ticket ok/ }, { env: orcaEnv(newTicketStub(CREATED_OK, VALID_ISSUE)) })
+    check(
+      "new-ticket.mjs",
+      "a created but defective ticket exits 1 naming it",
+      argv,
+      { status: 1, stderr: /ORB-99 was CREATED but is DEFECTIVE/ },
+      { env: orcaEnv(newTicketStub(CREATED_OK, { ...VALID_ISSUE, description: "nothing" })) },
+    )
+    check(
+      "new-ticket.mjs",
+      "an orca failure creates nothing and exits 3",
+      argv,
+      { status: 3, stderr: /orca linear create failed/ },
+      { env: orcaEnv(newTicketStub({ ok: false, error: { message: "no such project" } }, VALID_ISSUE, { createExit: 1 })) },
+    )
+    check(
+      "new-ticket.mjs",
+      "success with no identifier is a tool error, never a silent pass",
+      argv,
+      { status: 3, stderr: /no issue identifier/ },
+      { env: orcaEnv(newTicketStub({ ok: true, result: {} }, VALID_ISSUE)) },
+    )
+    check("new-ticket.mjs", "requires --project so the ticket cannot be orphaned", ["--title", "Cover the create and validate round trip"], { status: 2, stderr: /--project is required/ })
+  },
   "launch-worker.mjs": launchWorkerCases,
   "nudge-worker.mjs": nudgeWorkerCases,
   "worker-status.mjs": () => {
@@ -311,6 +369,7 @@ const INVALID_INPUT = {
   "launch-worker.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "merge-sweep-cov.sh": { argv: ["--orbit-not-a-flag", "zzz"], status: 2 },
   "merge-sweep.sh": { argv: ["--orbit-not-a-flag", "zzz"], status: 2 },
+  "new-ticket.mjs": { argv: [], status: 2 },
   "nudge-worker.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "redesign-coverage.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "rollup.sh": { argv: ["--orbit-not-a-flag"], status: 2 },
