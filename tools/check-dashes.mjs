@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// The cross-repo dash ban (REBUILD.md 6.1.1). Em dashes are banned everywhere;
+// The cross-repo dash ban. Em dashes are banned everywhere;
 // en dashes are banned except inside a numeric range (1–10). ESLint cannot be
 // the home: the rule spans a TS monorepo, a .NET solution, and an Astro site,
 // so this ONE script is vendored into all three repos and wired as a CI job

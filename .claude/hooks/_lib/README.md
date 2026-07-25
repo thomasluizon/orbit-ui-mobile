@@ -5,7 +5,7 @@ directory. The `.mjs` files in `.claude/hooks/` are thin adapters: read the stdi
 payload, call a `_lib` rule, `exit 2` + stderr on a block. Wired in
 `.claude/settings.json` (`PreToolUse` / `PostToolUse`).
 
-Most of the old hook fleet migrated to deterministic gates in REBUILD.md Phase 1
+Most of the old hook fleet migrated to deterministic gates (D6)
 (ESLint `local/*` rules, Roslyn `ORBIT0001..0005`, `tools/check-dashes.mjs`,
 `tools/check-copy.mjs`, and the `guards.yml` CI jobs) and was deleted in Phase 3,
 along with the opencode dual-target plugin (D22). What stays here is what only a

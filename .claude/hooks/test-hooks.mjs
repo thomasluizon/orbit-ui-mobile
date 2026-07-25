@@ -6,7 +6,7 @@
 //   3. Agent frontmatter: no agent declares a fails-open `Bash(...)` specifier.
 // The rest of the old parity suite (copy register, dash ban, secrets, csharp,
 // parity nudge, the visual gate, the opencode plugin) migrated to deterministic
-// gates in REBUILD.md Phase 1 and died with the harness in Phase 3.
+// deterministic gates and died with the old harness.
 // Run: node .claude/hooks/test-hooks.mjs   (exits non-zero on any failure)
 
 import { mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync, readdirSync, existsSync } from "node:fs"

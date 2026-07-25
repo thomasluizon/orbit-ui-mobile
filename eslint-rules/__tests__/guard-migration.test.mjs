@@ -1,5 +1,5 @@
 /**
- * RuleTester coverage for the Phase 1 guard-migration rules (REBUILD.md 6.1):
+ * RuleTester coverage for the guard-migration rules (D6):
  * the lint-tier replacements for forbid-ts-antipatterns (double assertion,
  * unjustified eslint-disable) and forbid-mobile-supabase-eager. Valid cases pin
  * the shapes that must stay silent so the gate never false-positives on real

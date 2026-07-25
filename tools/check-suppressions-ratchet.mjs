@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// The handle on the spacing ratchet (REBUILD.md 6.1.2 gap 3): the two
+// The handle on the spacing ratchet: the two
 // eslint-suppressions.json baselines may only SHRINK. Before this job existed,
 // zero CI read the suppression files, so a baseline edit could absorb a new
 // violation silently. Compares each workspace's total suppressed-violation

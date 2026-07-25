@@ -1,7 +1,7 @@
 name: Guards
 
 # The deterministic replacements for the Claude-session-only PostToolUse hooks
-# (REBUILD.md 6.1): these hold for Codex, Claude, a human, or a bot, because CI
+# (D6): these hold for Codex, Claude, a human, or a bot, because CI
 # is the one layer nothing bypasses. Jobs:
 #   dashes  - the cross-repo dash ban: changed files, the shrink-only baseline, and the PR title/body
 #   copy    - AI-cliche / placeholder / typed-uppercase locale values + hardcoded brand colors

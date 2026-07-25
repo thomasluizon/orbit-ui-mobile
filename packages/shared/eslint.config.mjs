@@ -62,8 +62,7 @@ export default [
       // Shared is pure cross-platform TS with no logger and no UI console; any
       // console usage here reaches both bundles. Web and mobile already carry
       // this at error; the gap was flagged by the rule-vs-gate audit.
-      // https://github.com/thomasluizon/orbit-ui-mobile/blob/main/REBUILD.md
-      "no-console": "error",
+            "no-console": "error",
 
       // The #539 gates with a surface in pure data. Unlike apps/web and apps/mobile, this
       // package is already clean of all four, so they land at `error` directly. Note that

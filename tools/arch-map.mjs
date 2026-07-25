@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Generates architecture.json + architecture.html at the repo root: the
-// DERIVED architecture map (REBUILD.md 6.4) an agent reads INSTEAD of
+// DERIVED architecture map (D12) an agent reads INSTEAD of
 // exploring the codebase, and the page Thomas reads instead of the JSON.
 //
 // Five sections, every one computed from the tree, none hand-maintained:
