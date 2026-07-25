@@ -1,6 +1,6 @@
 ---
 name: orchestrate
-description: Linear project (or single ticket) in, reviewed PRs out, wave by wave. Computes the merge-gated DAG with tools/wave-plan.mjs, reconciles each ticket against the code (D8), launches one Orca worktree + worker per ticket (engine from .claude/orchestrator.json, claude or codex), babysits CI and review, enforces the evidence gate (D7) and two-strikes (D9). A human merge is the only thing that advances a wave (D3). Use after /feature or /bug created the tickets.
+description: Linear project (or single ticket) in, reviewed PRs out, wave by wave. Computes the merge-gated DAG with tools/wave-plan.mjs, reconciles each ticket against the code (D8), launches one Orca worktree + worker per ticket (engine from .claude/orchestrator.json, claude or codex), babysits CI and review, enforces the evidence gate (D7) and two-strikes (D9). A human merge is the only thing that advances a wave (D3), unless --sleep is passed. Scope is the whole project unless --single bounds it to one ticket. Use after /feature or /bug created the tickets.
 argument-hint: <Linear project name or ORB-N> [--single] [--sleep]
 effort: high
 ---
