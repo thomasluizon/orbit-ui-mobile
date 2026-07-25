@@ -1,7 +1,7 @@
 ---
 name: orchestrate
 description: Linear project (or single ticket) in, reviewed PRs out, wave by wave. Computes the merge-gated DAG with tools/wave-plan.mjs, reconciles each ticket against the code (D8), launches one Orca worktree + worker per ticket (engine from .claude/orchestrator.json, claude or codex), babysits CI and review, enforces the evidence gate (D7) and two-strikes (D9). A human merge is the only thing that advances a wave (D3). Use after /feature or /bug created the tickets.
-argument-hint: <Linear project name or ORB-N>
+argument-hint: <Linear project name or ORB-N> [--single] [--sleep]
 effort: high
 ---
 
@@ -14,22 +14,31 @@ repo a ticket's `repo:*` label names.
 
 ## 0. Classify the scope, then read the contract
 
-The argument decides how far the run goes, and it is the FIRST thing to resolve
-because it binds every later section. An `ORB-N` argument is **single-ticket
-scope**. Anything else is **project scope**. Print the resolved scope as the run's
-first output line, before any agent spawns, so the blast radius is visible while it
-is still cheap to correct.
+The `--single` FLAG decides how far the run goes, not the argument shape, and it is
+the FIRST thing to resolve because it binds every later section.
 
-Single-ticket scope reconciles and launches THAT TICKET ONLY. It never reconciles a
-sibling, never spawns an agent for one, and never advances a wave, because a wave is
-a project-scope concept. It still reads whatever the one ticket needs from the
-project overview.
+- **Default, flag absent: project scope.** A project name runs that project. An
+  `ORB-N` argument resolves to the project that ticket belongs to and runs the whole
+  project from that ticket's wave onward. This is the behaviour to preserve; a
+  ticket argument is a starting point, not a boundary.
+- **`--single` present: single-ticket scope.** Only valid with an `ORB-N` argument.
+  Reconcile and launch THAT TICKET ONLY. Never reconcile a sibling, never spawn an
+  agent for one, never advance a wave. `--single` on a project name is a usage error:
+  say so and stop rather than guessing which ticket was meant.
 
-This paragraph exists because the skill accepted both argument shapes while
-documenting only the project flow, so `/orchestrate ORB-75` had no honest reading
-except "resolve its project and run the project flow". Measured on the ORB-75 run:
-three unrequested reconciliation agents for ORB-76, ORB-77 and ORB-79, about 230k
-tokens, none of it asked for. The session followed the text; the text was the defect.
+`--sleep` is a separate, orthogonal flag: it says Thomas is asleep, so the run must
+never ask a question and must merge its own PRs. It combines with either scope.
+Section 4a is its full contract; read it before using it.
+
+Print the resolved scope, and whether `--sleep` is on, as the run's first output
+line, before any agent spawns, so the blast radius is visible while it is still
+cheap to correct.
+
+The flag exists because the skill previously accepted both argument shapes while
+documenting only the project flow, so the reader could not tell which one an `ORB-N`
+argument selected. Measured on the ORB-75 run: three reconciliation agents for
+ORB-76, ORB-77 and ORB-79 that Thomas had not asked for, about 230k tokens. Widening
+was the RIGHT default and stays the default; what was missing was a way to say no.
 
 1. `orca linear list-issues --team ORB --project "<name>" --json` for the tickets.
    Note: the project description is only a 255-char pointer (Linear hard-caps it), and
@@ -174,20 +183,60 @@ same feedback is never replayed twice:
 
 ## 4. Advance
 
-**Project scope only.** Thomas merges. On his word (or on observing merges), fetch,
-re-run wave-plan, and launch the newly launchable set. Repeat until the project has
-no unfinished tickets, then print the final ledger: ticket, PR, merge SHA, evidence
-link.
+**Project scope, the default.** Thomas merges. On his word (or on observing merges),
+fetch, re-run wave-plan, and launch the newly launchable set. Repeat until the
+project has no unfinished tickets, then print the final ledger: ticket, PR, merge
+SHA, evidence link. This holds whether the run was invoked with a project name or
+with a single `ORB-N`, because without `--single` a ticket argument names where to
+start, not where to stop.
 
-**Single-ticket scope ends here instead.** The run is complete once that one
-ticket's PR is open and its issue is In Review with the PR attached (plus the
-screenshot when it carries `visible-effect`). Print that ticket's ledger row and
-STOP. A merge of that ticket is not a trigger to launch anything: observing it may
-have opened a wave, but the run Thomas asked for was one ticket. Tell him which
-tickets became launchable and let him decide, rather than deciding for him.
+**`--single` ends here instead.** The run is complete once that one ticket's PR is
+open and its issue is In Review with the PR attached (plus the screenshot when it
+carries `visible-effect`). Print that ticket's ledger row and STOP. A merge of that
+ticket is not a trigger to launch anything: observing it may have opened a wave, but
+the run was explicitly bounded. Name the tickets that became launchable so Thomas can
+start them, and do not start them.
 
-Never: merge a PR, push to main, relaunch a two-strike ticket, or let a worker run
-before Phase 1's gates are green on its target branch.
+## 4a. `--sleep`: no questions, and the run merges its own PRs
+
+`--sleep` means Thomas is asleep. It suspends exactly one thing, the human merge of
+D3, and nothing else. Every gate stays where it is; the flag removes the reviewer
+from the loop, never the review.
+
+**This is a deliberate, Thomas-authorised exception to D3** ("a human merge is the
+only thing that advances a wave"), and to the `Never: merge a PR` line below. Say so
+in the run's opening line, so a reader of the transcript is never left wondering
+whether the run went rogue.
+
+Merge a PR under `--sleep` only when ALL of these hold, checked in this order:
+
+1. `reviewDecision` is `APPROVED`. Not `REVIEW_REQUIRED`, not `null`, and never
+   `CHANGES_REQUESTED`. A passing `review` check is not approval.
+2. Every check has concluded and none failed. A `PENDING` / `QUEUED` / `IN_PROGRESS`
+   check means wait, not proceed.
+3. `mergeStateStatus` is `CLEAN`. `BEHIND` means update the branch and re-read BOTH
+   the checks and `reviewDecision` afterwards, because updating invalidates them.
+4. The D7 evidence gate is satisfied: the PR is attached to the issue, and a
+   `visible-effect` ticket has its screenshot attached.
+5. The ticket carries no `attempts:2` label (D9 refuses it regardless of colour).
+
+Then squash-merge and delete the branch. **Never `--admin`.** Admin-merging bypasses
+the checks, and a bypass with nobody watching is the one combination that can put a
+broken commit on `main` and leave it there until morning.
+
+On anything the run cannot decide from those five checks, do NOT guess and do NOT
+pick a middle path. Stop that ticket, leave its PR open, record the reason, and carry
+on with the others. A single stuck ticket must never stall the rest of the wave.
+
+The run's closing report lists, separately: PRs merged while asleep with their SHAs,
+tickets stopped and why, and anything that would have been a question. That list is
+the first thing Thomas reads when he wakes up, so it is written for someone with no
+memory of the run.
+
+Never: push to main, merge with `--admin`, merge a PR that fails any of the five
+checks above, relaunch a two-strike ticket, or let a worker run before Phase 1's
+gates are green on its target branch. Merging a PR is forbidden too, EXCEPT under
+`--sleep` on the terms in 4a.
 
 ## A run RECORDS harness defects, it never repairs them
 
