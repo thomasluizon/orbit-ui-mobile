@@ -62,6 +62,7 @@ regenerates them and fails on drift.
 Exit codes:
   0  both files written
   1  derivation failed (missing tree, unparseable endpoints const)
+  2  usage error
 `
 
 const byCode = (a, b) => (a < b ? -1 : a > b ? 1 : 0)
@@ -579,6 +580,10 @@ function main() {
   if (process.argv.slice(2).some((argument) => argument === "--help" || argument === "-h")) {
     process.stdout.write(USAGE)
     return 0
+  }
+  if (process.argv.length > 2) {
+    process.stderr.write(`arch-map: takes no arguments, got: ${process.argv.slice(2).join(" ")}\n\n${USAGE}`)
+    return 2
   }
   let map
   try {

@@ -5,6 +5,7 @@
 > - Every tool is non-interactive, supports `--help`, and returns meaningful exit codes (see `CONVENTIONS.md`).
 > - POSIX `.sh` is the baseline; add a `.ps1` twin only when it must run in the user's PowerShell shell.
 > - Add a new tool with `/make-tool`; add its row to the catalog below in the same change.
+> - `test-tools.mjs` EXECUTES every script here (Harness Execution CI job). A new tool with no coverage entry fails it, so coverage lands in the same PR as the tool.
 
 Reusable scripts an agent (or a human) invokes from the CLI. The bar for landing a file here: it has a single clear purpose and you will run it again. One-off commands stay in your shell history or the scratchpad.
 
@@ -25,5 +26,8 @@ Read `CONVENTIONS.md` before adding one. Use the `/make-tool` skill to scaffold 
 | `check-dashes.mjs` | The cross-repo dash ban (REBUILD.md 6.1.1): em dashes banned everywhere, en dashes only in numeric ranges. Backs the Dash Ban CI job, lefthook, and the shrink-only `dash-baseline.json`. | `--files <f>...` \| `--check-baseline` \| `--write-baseline` \| `--text "<s>"` |
 | `check-copy.mjs` | The copy register: whole-file, values-only scan of locale copy for AI cliches, placeholder content, typed uppercase, and hardcoded brand colors. Backs the Copy Register CI job. | `node tools/check-copy.mjs --check` \| `--write-baseline` |
 | `check-suppressions-ratchet.mjs` | Asserts the ESLint suppression baselines only shrink (escape hatch: the `ratchet:reseed` label). Backs the Suppressions Ratchet CI job. | `node tools/check-suppressions-ratchet.mjs` |
+| `check-frontmatter.mjs` | Asserts every skill and agent `.md` has parseable YAML frontmatter (an unquoted `": "` silently drops the file's description, or the whole file). Backs the Skill and Agent Frontmatter CI job. | `node tools/check-frontmatter.mjs` (`--fix`) |
+| `check-push-target.mjs` | The lefthook `pre-push` guard: reads git's pre-push stdin and rejects a push whose remote ref is a protected branch. | `node tools/check-push-target.mjs < <pre-push stdin>` |
+| `test-tools.mjs` | The harness execution gate: runs every script in this directory and asserts the `CONVENTIONS.md` CLI contract plus each tool's real decision paths, with orca stubbed and every side effect staged in a temp dir. Fails when a script here has no coverage entry. Backs the Harness Execution CI job. | `node tools/test-tools.mjs` |
 | `check-ticket.mjs` | Validates a Linear ticket body against the 6.2 template; rejects an incomplete ticket rather than letting a worker guess. | `node tools/check-ticket.mjs --help` |
 | `wave-plan.mjs` | Reads a Linear project's tickets + `blockedBy` relations via the orca CLI and prints the merge-gated wave table for `/orchestrate`. | `node tools/wave-plan.mjs --help` |

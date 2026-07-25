@@ -7,7 +7,7 @@
  */
 
 import { execFileSync } from "node:child_process"
-import { readFileSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 
 const USAGE = `usage: check-ticket.mjs --issue ORB-12 | --file body.md
 
@@ -86,6 +86,11 @@ const mode = process.argv[2]
 const target = process.argv[3]
 
 if (mode === "--file") {
+  if (!target || !existsSync(target)) {
+    console.error(`check-ticket: body file not found: ${target ?? "(none given)"}\n`)
+    console.error(USAGE)
+    process.exit(2)
+  }
   const body = readFileSync(target, "utf8")
   const firstLine = body.split("\n")[0].replace(/^#\s*/, "")
   validateTitle(firstLine)

@@ -59,6 +59,17 @@ if [ "$#" -lt 2 ]; then
 fi
 repo="$1"
 shift
+# Validate before the first gh call: an unvalidated slug or PR number reaches the API as a
+# 404 and reads as "SKIP, nothing to merge" rather than as the usage error it is.
+case "$repo" in
+  */*) ;;
+  *) printf 'merge-sweep-cov.sh: first argument must be <owner/repo>, got: %s\n\n' "$repo" >&2; usage >&2; exit 2 ;;
+esac
+for pr in "$@"; do
+  case "$pr" in
+    '' | *[!0-9]*) printf 'merge-sweep-cov.sh: PR arguments must be numbers, got: %s\n\n' "$pr" >&2; usage >&2; exit 2 ;;
+  esac
+done
 
 # Fails CLOSED: only a lookup that SUCCEEDS and positively shows no review workflow turns the wait
 # off, so an auth/rate-limit/network hiccup costs a slower sweep rather than the guard itself.

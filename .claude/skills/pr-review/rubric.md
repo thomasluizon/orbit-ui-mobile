@@ -362,6 +362,35 @@ options are enforced server-side.
   finding as "FEATURES.md update required in thomasluizon/orbit-ui-mobile" (**High**)
   so it lands in the paired frontend PR.
 
+### 15. Harness changes need EXECUTED evidence
+
+> Reference: `TESTING.md` (Harness Execution job); `tools/CONVENTIONS.md`. **Gated: only when
+> the diff touches `tools/**`, `.claude/skills/**`, `.claude/agents/**`, `.claude/hooks/**`, or
+> `.claude/orchestrator.json`.**
+
+A harness cannot be certified by reading it. One session built a harness, passed its own
+checks, and an independent session found seven Critical/High defects in the same commit
+range - four of them findable only by running the documented sequence end to end.
+`tools/launch-worker.mjs` then shipped reading `orca terminal wait`'s "not yet" (exit 1 with
+an `ok:false` payload) as a fatal error, which would have broken the loop the tool exists for.
+Only running it caught that. This dimension exists so a review of harness code cites an
+execution, never an impression.
+
+- The review must cite the **Harness Execution** job's result for this PR (`node
+  tools/test-tools.mjs` + `node .claude/hooks/test-hooks.mjs`). A red job is **Critical**; a
+  job that never ran on a diff in scope is **High** (the evidence is missing, not clean).
+- A new or changed script under `tools/` with no matching coverage in `tools/test-tools.mjs`
+  is **High**: it merges unexecuted, and the next tool inherits the same hole.
+- **"Verified" without an execution is itself a finding** (**High**). A claim that a tool,
+  hook, skill, or agent works - in the PR body, a code comment, or the review - must trace to
+  a command that ran and its output. Reading the diff is not verification.
+- A new decision path added to a tool that already has coverage (a new refusal, a new exit
+  code, a new branch on an external tool's payload) needs its own case, not an extension of
+  an existing assertion. **Medium**, and concrete: name the path and the missing case.
+- Consistent with the **Signal gate**: this dimension does not license nits about a tool's
+  style, its flag names, or its usage wording. It fires on missing execution and missing
+  coverage, both of which are concrete and checkable.
+
 ---
 
 ## Self-review note

@@ -9,12 +9,29 @@
 //    audit confirmed orphan component files it cannot. Style modules are covered because they
 //    carry the local/spacing-scale and z-index suppressions the redesign must own.
 // Exits 1 on any unclaimed surface or orphaned file. Multi-match is resolved first-rule-wins.
-//
-// Usage: node tools/redesign-coverage.mjs [--json]
 
 import { readFileSync, readdirSync } from "node:fs"
 import { dirname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
+
+const USAGE = `usage: redesign-coverage.mjs [--json]
+
+  --json      emit the coverage report as JSON instead of text
+  --help, -h  print this usage and exit 0
+
+exit codes: 0 every surface and file is claimed, 1 an unclaimed surface or orphaned file, 2 usage error`
+
+if (process.argv.includes("--help") || process.argv.includes("-h")) {
+  console.log(USAGE)
+  process.exit(0)
+}
+
+const unknownArgument = process.argv.slice(2).find((argument) => argument !== "--json")
+if (unknownArgument) {
+  console.error(`redesign-coverage: unknown argument: ${unknownArgument}\n`)
+  console.error(USAGE)
+  process.exit(2)
+}
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const MANIFEST_PATH = join(REPO_ROOT, ".claude", "manifests", "surfaces.json")

@@ -3,7 +3,8 @@
 > **At a glance** - how to write a test in orbit-ui-mobile and the catalog of every suite.
 > - Unit-only policy (Vitest); the only sanctioned E2E against prod is the post-deploy web smoke suite.
 > - Assert behavior and data-attributes, never class names or implementation details.
-> - Eight suites: web / mobile / shared unit, web Playwright e2e (which IS the post-deploy smoke), the hermetic web visual-regression PR gate, Stryker mutation, and the harness hook-parity suite (the only one that tests the agent harness rather than the product).
+> - Nine suites: web / mobile / shared unit, web Playwright e2e (which IS the post-deploy smoke), the hermetic web visual-regression PR gate, the authed-Today Lighthouse budget gate, Stryker mutation, and the two harness suites (hook parity and the tools execution gate) that test the agent harness rather than the product.
+> - The two harness suites run in CI as the `Harness Execution` guards job, path-scoped to `tools/**` and `.claude/**`: a harness change is EXECUTED before it merges, never only read.
 > - The visual gate is web-only by locked decision (mobile Android visual regression is out of scope) and hermetic: it renders the PR's own build against a local mock orbit-api with a fake-JWT session, so it needs no prod and no secrets. Baselines are Linux-seeded in CI, never from a dev machine.
 > - The authed-Today Lighthouse budget gate (`perf.yml`) reuses that same hermetic mock-api + fake-JWT harness to enforce LCP / TBT / script-bundle-size budgets on the signed-in Today surface at PR time (web-only, no prod, no secrets). Its interactive twin is the `/profile` skill.
 > - orbit-api has its own xUnit suite, documented in that repo.
@@ -36,7 +37,8 @@ Happy-path-only; rubber-stamp / assertion-free; "asserts a mock was called" taut
 | Web visual regression (hermetic PR gate) | `apps/web/e2e/visual` | `VISUAL=1 SMOKE_BASE_URL=http://127.0.0.1:3000 npm run test:visual -w @orbit/web` | that four web surfaces (login, Today, habit-create, paywall) match their Linux pixel baselines — rendered from the PR build against a local mock orbit-api, no prod |
 | Web perf budget (authed Today Lighthouse) | `apps/web` (`perf.yml`) | build web, boot the mock-api on `:5099`, then `API_BASE=http://127.0.0.1:5099 npm run perf -w @orbit/web` (`lhci autorun`) | that the signed-in Today surface (`/`) stays within its LCP / TBT / script-bundle-size budgets, measured over 5 median runs against the local mock orbit-api |
 | Stryker mutation | `packages/shared` | `npm run mutation -w @orbit/shared` (`stryker run`) | that the shared unit tests actually kill mutants (effectiveness, not coverage percent) |
-| Harness hook parity | `.claude/hooks` | `node .claude/hooks/test-hooks.mjs` (no deps, local-only) | that the two surviving session hooks (git-guardrails, forbid-ef-migration-raw-index) block and allow exactly as their `_lib` rules specify, and that no agent's frontmatter carries a fails-open `Bash(...)` specifier |
+| Harness hook parity | `.claude/hooks` | `node .claude/hooks/test-hooks.mjs` (no deps) | that the two surviving session hooks (git-guardrails, forbid-ef-migration-raw-index) block and allow exactly as their `_lib` rules specify, and that no agent's frontmatter carries a fails-open `Bash(...)` specifier |
+| Harness tools execution | `tools/` | `node tools/test-tools.mjs` (no deps) | that every script in `tools/` actually RUNS: the `CONVENTIONS.md` CLI contract (`--help` exits 0, invalid input refused before any work) plus each tool's real decision paths, orca stubbed and hermetic. Fails when a new tool arrives with no coverage |
 
 **The prod-E2E suite and the post-deploy smoke suite are one and the same.** The `smoke` project's `*.spec.ts` require `SMOKE_BASE_URL` and execute against the live production deployment, never localhost — the only sanctioned E2E against prod. The **one** other Playwright suite is the `visual` project (`*.visual.ts`), which is deliberately NOT a prod E2E: it is fully hermetic (localhost `next start` + a local mock orbit-api, fake-JWT session, no secrets) and exists only to catch pixel-level UI regressions at PR time. The two projects share `playwright.config.ts` but never overlap — `smoke` matches `*.spec.ts`, `visual` matches `*.visual.ts`, and the mock-backed `webServer` array only boots when `VISUAL=1`.
 
@@ -59,7 +61,8 @@ Happy-path-only; rubber-stamp / assertion-free; "asserts a mock was called" taut
 
 ## CI mapping
 
-- **`.github/workflows/test.yml`** - build, unit tests with coverage thresholds (`turbo run test -- --coverage`), type-check, lint, dependency-audit, design-guard, and contract-drift, on PRs to `main`. The hook suite (`node .claude/hooks/test-hooks.mjs`) is local-only since the Phase 3 teardown; run it after touching `.claude/hooks/` or an agent's frontmatter.
+- **`.github/workflows/test.yml`** - build, unit tests with coverage thresholds (`turbo run test -- --coverage`), type-check, lint, dependency-audit, design-guard, and contract-drift, on PRs to `main`.
+- **`.github/workflows/guards.yml`, `Harness Execution` job** - the two harness suites, on any PR touching `tools/**` or `.claude/**` and on every push to `main`. It runs `node tools/test-tools.mjs` then `node .claude/hooks/test-hooks.mjs`, so a change to a tool, a hook, or an agent's frontmatter is executed before it merges. Run both locally too after touching either directory; the reviewer cites this job's result rather than re-deriving it (review rubric, dimension 15).
 - **`.github/workflows/mutation.yml`** - PR-incremental Stryker run on `packages/shared`, report-only.
 - **`.github/workflows/nightly.yml`** - full-scope Stryker mutation run.
 - **`.github/workflows/smoke-prod.yml`** - the Playwright smoke suite, post-deploy against the live production deployment.
