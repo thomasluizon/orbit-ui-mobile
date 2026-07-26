@@ -57,7 +57,7 @@ correctness is NOT in this skill's inventory: `react-doctor.yml` is a required C
 it (D11); the standing full-repo react-doctor backlog is mechanical debt for the ORB-46
 project, not a prod-readiness finding.
 
-**The binding inventory (§1), nine items:**
+**The binding inventory (§1), ten items:**
 
 | # | Inventory item | Kind | Owner of the analysis |
 |---|---|---|---|
@@ -70,6 +70,7 @@ project, not a prod-readiness finding.
 | 7 | Background durability | ops check | the workflow (own §2 challenge) |
 | 8 | Backups | ops check | the workflow (returns as Deferred, un-verifiable from a repo read) |
 | 9 | Staging | ops check | the workflow (own §2 challenge) |
+| 10 | Paid-API cost caps + spend alerts | ops check | the workflow (returns as Deferred, un-verifiable from a repo read) |
 
 This list is **binding**: by the end every item is either **(a) covered with a verdict** or
 **(b) in the Deferred ledger with a one-line reason**.
@@ -117,7 +118,8 @@ finding (default-refuted), and returns:
 ```
 
 `opsDeferred` always includes **backups** ("verify in the DB console: PITR plus a tested
-restore path"). `failedAudits` names any audit workflow that errored; each forces **at most
+restore path") and **paid-api-cost-caps** ("verify in each provider console: a hard monthly
+cap plus a spend alert"). Neither is repo-readable, so neither may ever read as clean. `failedAudits` names any audit workflow that errored; each forces **at most
 CONDITIONAL** and is named as a blocker. `unconvergedAudits` names any child whose critic
 never ran dry (coverage UNKNOWN), which the approval gate must surface.
 
@@ -163,7 +165,7 @@ Present ONE message and get ONE approval (mirror /feature Phase C step 0). The h
 - **Verdict**: {GO | CONDITIONAL | NO-GO}, one calibrated line (why, and the single thing in
   the way).
 - **Ticket table**: title · repo · parity · consolidated tier · blockedBy, ordered by tier.
-- **Coverage (the binding 9-item inventory)**: for each of the 9 items, ran / did-not-run /
+- **Coverage (the binding 10-item inventory)**: for each of the 10 items, ran / did-not-run /
   deferred and the result. Backups is always `deferred` (verify in the DB console). Any
   `failedAudit` or `unconvergedAudits` entry is named here as `coverage UNKNOWN`.
 - **Deferred ledger**: merge every child's `deferred` (attributed, e.g. "from security:
@@ -177,9 +179,9 @@ re-validate each with `--issue`.
 
 ### Launch verdict (§5 honesty), computed, never hardcoded
 
-- **GO** only if **zero Blockers** AND all **9** inventory items produced a verdict (every
+- **GO** only if **zero Blockers** AND all **10** inventory items produced a verdict (every
   audit ran and converged; every ops check resolved or is a legitimately Deferred
-  un-verifiable like backups).
+  un-verifiable like backups and the paid-API cost caps).
 - **CONDITIONAL** if no Blockers but some items are Deferred in a way that gates launch (e.g.
   backups unverified, staging gate absent, a child audit did not converge): name the
   conditions.
@@ -196,7 +198,7 @@ re-validate each with `--issue`.
 ## Prod-Readiness Complete
 
 **Scope**: {what was swept}
-**Verdict**: {GO | CONDITIONAL | NO-GO}, {the single top blocker, or "clean: all 9 verdicted, zero blockers"}
+**Verdict**: {GO | CONDITIONAL | NO-GO}, {the single top blocker, or "clean: all 10 verdicted, zero blockers"}
 
 | Consolidated tier | Findings | Tickets |
 |---|---|---|
@@ -205,7 +207,7 @@ re-validate each with `--issue`.
 | Medium | {N} | {…} |
 | Low / Info | {N} | {…} |
 
-**Inventory (9)**: security {ran/deferred} · tests {…} · performance {…} · code-quality {…} · observability {…} · multi-instance {…} · background durability {…} · backups {deferred} · staging {…}
+**Inventory (10)**: security {ran/deferred} · tests {…} · performance {…} · code-quality {…} · observability {…} · multi-instance {…} · background durability {…} · backups {deferred} · staging {…} · paid-API cost caps {deferred}
 **Tickets**: {the final ORB-N table, identifier · title · repo · tier · blockedBy, or "clean: nothing to ticket"}
 **Top blocker**: {the single highest-priority ticket standing between here and launch, or "none"}
 ```

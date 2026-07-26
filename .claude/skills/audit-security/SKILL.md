@@ -1,6 +1,6 @@
 ---
 name: audit-security
-description: Repo-wide security audit across both Orbit repos (orbit-ui-mobile + orbit-api), opening one Linear ticket per verified risk after a human approval gate (D10). Checks judgement-level authz / data-isolation (incl. AI & MCP tool scoping), injection, secrets handling, CORS, rate-limit coverage, AI-abuse, and error leakage, EXCLUDING everything the gates already enforce (D11). Each finding carries severity, file:line evidence, threat model, and remediation, calibrated to Tier 1+2 (Tier 3 out-of-scope). Use when the user asks for a security audit, threat review, or pre-launch hardening pass.
+description: Repo-wide security audit across both Orbit repos (orbit-ui-mobile + orbit-api), opening one Linear ticket per verified risk after a human approval gate (D10). Checks judgement-level authz / data-isolation (incl. AI & MCP tool scoping), injection, secrets handling, CORS, rate-limit and bot-protection coverage, AI-abuse, error leakage, the auth failure paths (account enumeration, per-account throttling, single-use tokens), and the legal/data-handling posture (privacy-policy vs real processors, GDPR delete and export, PII in analytics, copyleft dependencies), EXCLUDING everything the gates already enforce (D11). Each finding carries severity, file:line evidence, threat model, and remediation, calibrated to Tier 1+2 (Tier 3 out-of-scope). Use when the user asks for a security audit, threat review, or pre-launch hardening pass.
 argument-hint: <path | repo | blank=both repos>
 ---
 
@@ -94,8 +94,9 @@ Workflow({ scriptPath: '.claude/workflows/audit.mjs', args: { kind: 'security', 
 (`scriptPath` is canonical, named workflow resolution is not available in this Claude Code build.)
 
 It fans out **one Haiku finder per attack surface**, authz & data-isolation · AI/MCP tool
-scoping · injection · secrets & config · rate-limit & AI-abuse · error-leakage & web/mobile
-auth, each reading `checklist.md`; runs a **Haiku adversarial skeptic** per **Tier-1/Tier-2**
+scoping · injection · secrets & config · rate-limit, bot-protection & AI-abuse ·
+error-leakage, web/mobile auth & auth-failure-path enumeration · privacy & data rights, each
+reading `checklist.md`; runs a **Haiku adversarial skeptic** per **Tier-1/Tier-2**
 finding (default-refuted); runs a **completeness critic** and loops until dry (cap 2 dry
 rounds). It returns:
 
@@ -130,6 +131,12 @@ re-invoke for any gap:
 
 1. **Every data query is user-scoped**, each orbit-api handler filters by the JWT `userId`,
    never a client field. An `id` loaded without an ownership check is a **Tier 1 IDOR**.
+   **Then check the second door.** Orbit's Postgres IS Supabase and the web bundle ships a
+   real publishable key, so PostgREST reaches the same rows without touching the API. That
+   state lives in the database, not the repo, so the finders structurally cannot see it and
+   YOU run the three checks in checklist section A's final bullet: RLS on every `public`
+   table, zero `public` grants to `anon`/`authenticated`, and a live 401 on a curl with the
+   real key. A code-only sweep would report a naked database as clean.
 2. **AI / MCP tools cannot cross users**, the agent operations derive `userId` from the
    session; no tool accepts a target-user parameter. A raw-id mutator is **Tier 1**.
 3. **AI-abuse / prompt-injection**, the AI endpoint is rate-limited + size-capped; a crafted
@@ -145,6 +152,17 @@ re-invoke for any gap:
    returned in an error, or a token in the wrong store (mobile AsyncStorage vs SecureStore).
 7. **Boundary flags intact**, web cookie httpOnly+strict+secure; mobile tokens in SecureStore;
    CORS not `AllowAnyOrigin()` with `AllowCredentials()`; security-headers middleware live.
+8. **The auth FAILURE paths hold**, send-code / verify-code / password-reset / signup answer
+   identically for a known and an unknown email (enumeration), throttle per account and not
+   only per IP, and reject a consumed verification or reset token cleanly. A consumed token
+   that still authenticates is **Tier 1**.
+9. **Public unauthenticated write forms carry a bot gate** (CAPTCHA / Turnstile), and every
+   paid API has a provider-side hard cap plus a spend alert. The cap is not repo-readable, so
+   it lands in the Deferred ledger as "verify in the provider console", never as clean.
+10. **The legal posture is real**, the privacy policy is reachable and its processor list
+    matches the services the code actually calls; account deletion and data export are
+    user-reachable (GDPR); analytics and crash payloads carry no undisclosed PII (**Tier 1**);
+    no GPL/AGPL dependency ships under `apps/*` or a shipped orbit-api project.
 
 ---
 
@@ -169,7 +187,8 @@ Security-specific mapping into the 6.2 body:
   ticket that BLOCKS the ui ticket.
 
 At the approval gate, present the surface **coverage** (authz-isolation, ai-mcp-scoping,
-injection, secrets-config, ratelimit-ai-abuse, error-web-auth), the **Deferred ledger** (the
+injection, secrets-config, ratelimit-ai-abuse, error-web-auth, privacy-data-rights), the
+**Deferred ledger** (the
 workflow's `deferred`: verify-cap overflow, loop bound, plus Tier-3), and the convergence
 state (`coverage UNKNOWN, <convergenceReason>` if `converged !== true`) so Thomas approves
 with the full provenance in view. None of it is written to disk.
