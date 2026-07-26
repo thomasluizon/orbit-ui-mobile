@@ -33,6 +33,24 @@ Every finding cites a file:line and a **threat** (who reaches it, what they get)
   `userId` predicate.
 - [ ] **Mass-assignment**: update commands bind only allowed fields; a client can't set
   `UserId`, `IsPro`, role, or balance through an unscoped DTO bind.
+- [ ] **The Supabase layer is shut, and this is NOT repo-readable, so QUERY it.** Orbit's
+  Postgres IS Supabase and the web bundle ships a real publishable key, so PostgREST is a
+  second, code-invisible door onto the same rows. EF Core migrations create tables with RLS
+  **off** by default. A reader-only audit that skips this reports a naked database as clean.
+  Run all three, never infer:
+  1. `select c.relname, c.relrowsecurity, (select count(*) from pg_policy p where p.polrelid
+     = c.oid) from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname =
+     'public' and c.relkind = 'r'` (via the postgres MCP). Any table with
+     `relrowsecurity = false` is **Tier 1**.
+  2. `select grantee, table_schema, count(*) from information_schema.role_table_grants where
+     grantee in ('anon','authenticated') group by 1,2`. A `public`-schema grant to `anon` or
+     `authenticated` is **Tier 1** unless a policy set deliberately backs it.
+  3. Prove it from outside with the real publishable key:
+     `curl -s -o /dev/null -w '%{http_code}' "$SUPABASE_URL/rest/v1/Users?select=*" -H
+     "apikey: $ANON_KEY"`. Anything other than 401/403 on a user-owned table is **Tier 1**.
+  Verified clean 2026-07-26: RLS on all 48 tables, zero `public` grants to anon/authenticated,
+  live probe 401, and a `public.rls_auto_enable` event trigger enables RLS on each new table.
+  Re-verify rather than trusting that line, since it is a snapshot of a live system.
 
 ## B. Injection
 
@@ -74,6 +92,14 @@ Every finding cites a file:line and a **threat** (who reaches it, what they get)
   can drain the OpenAI budget).
 - [ ] **Request-size limits in place** — Kestrel 10MB global, chat endpoint 20MB (per the
   review rubric). An unbounded body is a DoS/cost vector.
+- [ ] **Public unauthenticated write forms carry bot protection** (CAPTCHA / Cloudflare
+  Turnstile): signup, send-code, password-reset, the iOS waitlist, any landing form. A rate
+  limit throttles one IP; a bot pool walks around it. No bot gate on a public write form is
+  **Tier 2**.
+- [ ] **Provider-side hard cost caps and spend alerts exist** for every paid API the server
+  calls (OpenAI, Resend, Stripe, FCM). An application rate limit bounds one caller; only the
+  provider cap bounds the bill. Not repo-readable: verify in the provider console and put it
+  in the Deferred ledger, never report it clean.
 
 ## F. AI-abuse & MCP tool safety — Orbit-specific
 
@@ -115,6 +141,43 @@ Every finding cites a file:line and a **threat** (who reaches it, what they get)
   token is **Tier 1** (readable on a compromised/rooted device, plaintext).
 - [ ] **No auth state leaked to logs / crash reports / analytics** — tokens scrubbed from
   Sentry breadcrumbs and any telemetry.
+
+## I. Auth failure paths & account enumeration
+
+> Attackers probe the error path first, not the happy path. Orbit's auth is passwordless
+> email-code (send-code / verify-code) plus password reset, so the thing that leaks is
+> **which emails have accounts**.
+
+- [ ] **A known and an unknown account get the same answer**: send-code, password-reset,
+  and signup return the same status, body shape, and latency class for a registered and an
+  unregistered email. A differential response is account enumeration (**Tier 2**).
+- [ ] **Repeated failures are throttled per account, not only per IP**: N wrong codes in a
+  row backs off or closes the attempt window for that account. Per-IP-only throttling leaves
+  distributed brute force open (**Tier 2**).
+- [ ] **Verification / reset tokens are single-use and expiring**: clicking the link twice
+  is rejected cleanly, never a 500 and never a second session. A consumed token that still
+  authenticates is **Tier 1**.
+- [ ] **Signup with an existing email neither confirms the account to an anonymous caller
+  nor mutates the existing user** (re-link, overwrite, reset of a field). Mutation is
+  **Tier 1**.
+
+## J. Legal & data-handling posture
+
+> Collecting user data puts Orbit under GDPR/CCPA at any scale. These four are
+> repo-checkable; the policy's legal wording is not, and is not a finding.
+
+- [ ] **A privacy policy is reachable and linked** from the app and the landing page, and
+  the processors it names match the ones the code actually calls (Supabase/Render region,
+  Stripe, PostHog US Cloud, Sentry, Resend, Firebase). A policy that contradicts the real
+  processor list is **Tier 2**.
+- [ ] **Account deletion and data export are user-reachable**, not a manual DB action (GDPR
+  erasure + portability). Missing a user-facing delete path is **Tier 2**.
+- [ ] **Third-party data flows are intentional**: analytics, crash, and log payloads carry
+  no email, token, or habit content beyond what the policy declares. An undisclosed PII flow
+  to a processor is **Tier 1**.
+- [ ] **No copyleft contamination in shipped dependencies**: a GPL/AGPL package under
+  `apps/*` or a NuGet reference in a shipped project forces source disclosure. Cite the
+  package and its license (**Tier 2**).
 
 ## Tier 3 — out of scope for this audit (acknowledge, don't itemize as findings)
 

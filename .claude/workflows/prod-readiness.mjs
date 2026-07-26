@@ -148,6 +148,7 @@ return {
   opsChecksRun: OPS_CHECKS.map((c) => c.check),
   opsDeferred: [
     { check: 'backups', reason: 'un-verifiable from a repo read — verify in the DB console: automated backups / PITR enabled AND a tested restore path' },
+    { check: 'paid-api-cost-caps', reason: 'un-verifiable from a repo read: verify in each provider console (OpenAI, Resend, Stripe, FCM): a hard monthly cap AND a spend alert at 50% of it. An in-app rate limit bounds one caller, only the provider cap bounds the bill' },
   ],
   failedAudits: auditResults.filter((r) => r.failed).map((r) => r.kind),
   unconvergedAudits: auditResults
