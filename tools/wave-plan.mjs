@@ -138,15 +138,41 @@ const launchable = waves[0]?.filter((identifier) => {
   return !issue.external && issue.blockedBy.every(isDone) && issue.stateType !== "started" && issue.attempts < ATTEMPTS_BEFORE_REWRITE
 })
 
+const twoStrikes = [...byIdentifier.values()]
+  .filter((issue) => !isDone(issue.identifier) && issue.attempts >= ATTEMPTS_BEFORE_REWRITE)
+  .map((issue) => issue.identifier)
+  .sort()
+
+const dependents = new Map()
+for (const issue of byIdentifier.values()) {
+  for (const blocker of issue.blockedBy) {
+    if (!dependents.has(blocker)) dependents.set(blocker, [])
+    dependents.get(blocker).push(issue.identifier)
+  }
+}
+
+const reachOf = (identifier) => {
+  const seen = new Set()
+  const queue = [...(dependents.get(identifier) ?? [])]
+  while (queue.length) {
+    const next = queue.shift()
+    if (seen.has(next) || isDone(next)) continue
+    seen.add(next)
+    queue.push(...(dependents.get(next) ?? []))
+  }
+  return seen.size
+}
+
 if (process.argv.includes("--json")) {
   console.log(
     JSON.stringify(
       {
         waves: waves.map((wave, index) => ({
           wave: index + 1,
-          issues: wave.map((identifier) => byIdentifier.get(identifier)),
+          issues: wave.map((identifier) => ({ ...byIdentifier.get(identifier), reach: reachOf(identifier) })),
         })),
         launchable,
+        twoStrikes,
       },
       null,
       2,

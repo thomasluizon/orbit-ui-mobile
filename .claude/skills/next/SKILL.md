@@ -37,9 +37,10 @@ the full board, because every blocker outside the selection is fetched individua
 before you start it, then wait. Do not fall back to the text mode; the ranking below needs
 the JSON.
 
-The payload is `{ waves: [{ wave, issues: [...] }], launchable: [identifier, ...] }`. Each
-issue carries `identifier`, `title`, `state`, `stateType`, `labels`, `attempts` and
-`blockedBy`.
+The payload is
+`{ waves: [{ wave, issues: [...] }], launchable: [identifier, ...], twoStrikes: [identifier, ...] }`.
+Each issue carries `identifier`, `title`, `state`, `stateType`, `labels`, `attempts`,
+`blockedBy` and `reach`.
 
 If the run exits non-zero, report the exit code and stop. Exit 1 is "nothing to plan or a
 cycle" and a cycle is a real defect in the ticket graph worth naming, not a retry.
@@ -50,17 +51,18 @@ cycle" and a cycle is a real defect in the ticket graph worth naming, not a retr
 that is under the strike limit (D9). It is usually large; on 2026-07-26 it was 62 of 109.
 A list of 62 is not an answer.
 
-Rank it by **downstream reach**: for each launchable identifier, count how many issues
-anywhere in `waves` name it in their `blockedBy`, transitively. The ticket that unblocks the
-most is the recommendation. Break ties in this order:
+Rank it by **downstream reach**: each issue's `reach` field is how many still-open tickets it
+unblocks transitively, computed by the script, not by you. Never recount it by hand. The
+launchable ticket with the highest `reach` is the recommendation. Break ties in this order:
 
 1. A ticket blocking a LATER wave beats one blocking only the next wave.
 2. `repo:api` beats `repo:ui` when both unblock the same work, because deploy-API-first is a
    DAG edge (D3) and the API side has to land first anyway.
 3. Lower ticket number, so the answer is stable across runs.
 
-Flag separately, never silently drop: any launchable ticket at `attempts >= 2`, which means
-the ticket BODY is wrong and needs a rewrite before any worker sees it again (D9).
+`twoStrikes` is every open ticket at `attempts >= 2`, which means the ticket BODY is wrong and
+needs a rewrite before any worker sees it again (D9). These never appear in `launchable`, so
+report them from `twoStrikes` and never silently drop them.
 
 ## 3. Answer
 
@@ -76,10 +78,13 @@ runner-ups
   ORB-88  unblocks 2   repo:ui
   ...
 
+two-strikes: ORB-41 (rewrite the body first, D9)  or  none
 board: 109 open, 62 launchable now, 5 waves
 ```
 
-State the board line every time. It is the one number that shows movement between runs, and
+State the two-strikes line and the board line every time, `none` included, so an empty flag is
+a reported result and not an omission. The board line is the one number that shows movement
+between runs, and
 per the launch decision of 2026-07-26 every open ticket is a launch gate, so the open count
 IS the distance to launch.
 
