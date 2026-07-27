@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Captures one screenshot per manifest cell into .artifacts/surfaces/ against a
-// running local stack (web :3000, orbit-api :5000). It produces the evidence the
+// running local stack (assigned web port, orbit-api :5000). It produces the evidence the
 // oracle checks; it never decides completion -- that stays with
 // tools/check-surface-coverage.mjs reading the files this wrote.
 //
@@ -8,6 +8,7 @@
 // silently skipped surface is exactly the failure the completion gate exists to
 // prevent (.claude/rules/visual-delivery.md rule 1).
 
+import { spawnSync } from "node:child_process"
 import { readFileSync, mkdirSync, existsSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -36,7 +37,7 @@ the real invite-preview UI (inviter avatar/name/handle + send-request CTA)
 rather than the "this is your own invite link" self-invite edge case.
 
 Flags:
-  --base-url        web origin (default http://localhost:3000)
+  --base-url        web origin (default: this worktree's assigned localhost port)
   --api-base        orbit-api origin (default http://localhost:5000)
   --filter          only capture cells whose surfaceId contains this substring
   --storage-state   Playwright storageState JSON for the signed-in session
@@ -293,7 +294,7 @@ async function switchToHomeView(page, activeView) {
 
 function parseArgs(argv) {
   const args = {
-    baseUrl: "http://localhost:3000",
+    baseUrl: null,
     apiBase: "http://localhost:5000",
     filter: null,
     storageState: null,
@@ -310,6 +311,23 @@ function parseArgs(argv) {
     else args.unknown ??= flag
   }
   return args
+}
+
+export function resolveDefaultBaseUrl(repositoryRoot = REPO_ROOT) {
+  const result = spawnSync(process.execPath, [join(repositoryRoot, "tools", "orca-web-port.mjs")], {
+    cwd: repositoryRoot,
+    encoding: "utf8",
+  })
+  const port = Number(result.stdout.trim())
+  if (result.status !== 0 || !Number.isInteger(port) || (port !== 3000 && (port < 3100 || port >= 4100))) {
+    const detail = result.stderr.trim() || "no valid port was reported"
+    throw new Error(`could not resolve this worktree's web port: ${detail}`)
+  }
+  return `http://localhost:${port}`
+}
+
+export function resolveBaseUrl(explicitBaseUrl, repositoryRoot = REPO_ROOT) {
+  return explicitBaseUrl ?? resolveDefaultBaseUrl(repositoryRoot)
 }
 
 // The app's own client effects (apps/web/hooks/use-profile.ts, use-color-scheme.ts)
@@ -437,6 +455,12 @@ async function main() {
   const args = parseArgs(argv)
   if (args.unknown) {
     process.stderr.write(`capture-surfaces: unknown argument: ${args.unknown}\n\n${USAGE}`)
+    return 2
+  }
+  try {
+    args.baseUrl = resolveBaseUrl(args.baseUrl)
+  } catch (error) {
+    process.stderr.write(`capture-surfaces: ${error.message}\n`)
     return 2
   }
 

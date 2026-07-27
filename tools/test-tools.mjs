@@ -424,6 +424,72 @@ const nudgeWorkerCases = () => {
   check("nudge-worker.mjs", "--dry-run calls orca not at all", ["--terminal", "t1", "--text", "hi", "--dry-run"], { status: 0, stdout: /"dryRun": true/ }, { env: orcaEnv([]) })
 }
 
+const orcaWebPortCases = () => {
+  const portFor = (name) => Number(run("orca-web-port.mjs", ["--derive", "--name", name]).stdout.trim())
+  const names = Array.from({ length: 256 }, (_, index) => `generated-worktree-${index}`)
+  const ports = names.map(portFor)
+  check("orca-web-port.mjs", "rejects multiple operation flags", ["--setup", "--next-dev"], { status: 2, stderr: /alternatives/ })
+  check("orca-web-port.mjs", "rejects --name without --derive", ["--name", "orphaned-name"], { status: 2, stderr: /requires --derive/ })
+  check("orca-web-port.mjs", "requires a name for --derive", ["--derive"], { status: 2, stderr: /requires --name/ })
+  T("orca-web-port.mjs: derives the same port for the same name", portFor("recreated-worktree") === portFor("recreated-worktree"))
+  T("orca-web-port.mjs: keeps generated ports inside the guarded web window", ports.every((port) => Number.isInteger(port) && port >= 3100 && port < 4100 && port !== 5000 && port !== 5432))
+
+  const fixture = join(root, "orca-web-port")
+  const gitFixture = (argv, cwd = fixture) => spawnSync("git", argv, { cwd, encoding: "utf8" })
+  mkdirSync(join(fixture, "apps", "web"), { recursive: true })
+  gitFixture(["init", "--initial-branch=main"])
+  gitFixture(["config", "user.email", "tools@example.test"])
+  gitFixture(["config", "user.name", "Orbit tools gate"])
+  writeFileSync(join(fixture, "README.md"), "fixture\n")
+  gitFixture(["add", "README.md"])
+  gitFixture(["commit", "-m", "fixture"])
+  gitFixture(["worktree", "add", "-b", "feature/one", "one"])
+  gitFixture(["worktree", "add", "-b", "feature/two", "two"])
+  gitFixture(["worktree", "add", "-b", "feature/collision-one", "collision-worktree-29"])
+  gitFixture(["worktree", "add", "-b", "feature/collision-two", "collision-worktree-32"])
+  const first = join(fixture, "one")
+  const second = join(fixture, "two")
+  const collision = join(fixture, "collision-worktree-32")
+  mkdirSync(join(first, "apps", "web"), { recursive: true })
+  mkdirSync(join(second, "apps", "web"), { recursive: true })
+  writeFileSync(join(first, "apps", "web", ".env.local"), "API_BASE=http://example.test\n")
+  check("orca-web-port.mjs", "a linked worktree without setup refuses to guess", [], { status: 1, stderr: /no assigned port/ }, { cwd: first })
+  check("orca-web-port.mjs", "setup assigns the first linked worktree", ["--setup"], { status: 0, stdout: /^3\d{3}/ }, { cwd: first })
+  check("orca-web-port.mjs", "setup assigns a different linked worktree", ["--setup"], { status: 0, stdout: /^3\d{3}/ }, { cwd: second })
+  const firstPort = Number(run("orca-web-port.mjs", [], { cwd: first }).stdout.trim())
+  const secondPort = Number(run("orca-web-port.mjs", [], { cwd: second }).stdout.trim())
+  T("orca-web-port.mjs: linked worktrees report their own distinct assignments", firstPort !== secondPort && firstPort >= 3100 && secondPort >= 3100)
+  T("orca-web-port.mjs: setup does not clobber an existing local environment file", readFileSync(join(first, "apps", "web", ".env.local"), "utf8") === "API_BASE=http://example.test\n")
+  check("orca-web-port.mjs", "refuses a deterministic port collision before persisting", ["--setup"], { status: 1, stderr: /collides with linked worktree collision-worktree-29/ }, { cwd: collision })
+  T("orca-web-port.mjs: collision refusal leaves no marker behind", !existsSync(join(collision, ".orca", "web-port")))
+
+  const primary = join(root, "orca-web-port-primary")
+  mkdirSync(primary, { recursive: true })
+  const gitPrimary = (argv) => spawnSync("git", argv, { cwd: primary, encoding: "utf8" })
+  gitPrimary(["init", "--initial-branch=main"])
+  check("orca-web-port.mjs", "the primary checkout keeps the default port", [], { status: 0, stdout: /^3000\s*$/ }, { cwd: primary })
+  check("orca-web-port.mjs", "setup refuses the primary checkout", ["--setup"], { status: 1, stderr: /keeps the default web port/ }, { cwd: primary })
+}
+
+const captureSurfacesCases = () => {
+  const fixture = join(root, "capture-surfaces-origin")
+  const tools = join(fixture, "tools")
+  mkdirSync(tools, { recursive: true })
+  cpSync(join(TOOLS_DIR, "capture-surfaces.mjs"), join(tools, "capture-surfaces.mjs"))
+  writeFileSync(
+    join(tools, "orca-web-port.mjs"),
+    `if (process.env.ORBIT_CAPTURE_FAIL === "1") { process.stderr.write("unassigned\\n"); process.exit(1) }\nprocess.stdout.write(process.env.ORBIT_CAPTURE_PORT ?? "3000")\n`,
+  )
+  const probe = stage(
+    "capture-surfaces-origin/probe.mjs",
+    `import { resolveBaseUrl } from "./tools/capture-surfaces.mjs"\nconsole.log(resolveBaseUrl(process.argv[2] === "none" ? null : process.argv[2]))\n`,
+  )
+  check("capture-surfaces.mjs", "uses the primary checkout default when no base URL is supplied", ["none"], { status: 0, stdout: /^http:\/\/localhost:3000\s*$/ }, { path: probe })
+  check("capture-surfaces.mjs", "uses the linked worktree port when no base URL is supplied", ["none"], { status: 0, stdout: /^http:\/\/localhost:3286\s*$/ }, { path: probe, env: { ORBIT_CAPTURE_PORT: "3286" } })
+  check("capture-surfaces.mjs", "keeps an explicit base URL over the assigned port", ["http://localhost:7777"], { status: 0, stdout: /^http:\/\/localhost:7777\s*$/ }, { path: probe, env: { ORBIT_CAPTURE_PORT: "3286" } })
+  check("capture-surfaces.mjs", "refuses capture when a linked worktree has no assigned port", ["none"], { status: 1, stderr: /could not resolve this worktree's web port/ }, { path: probe, env: { ORBIT_CAPTURE_FAIL: "1" } })
+}
+
 // ORB-1 <- ORB-2 <- ORB-3 is a three-link chain, so ORB-1's reach is 2 only if
 // the count is transitive. ORB-4 is unblocked but at the strike limit: it lands
 // in wave 1, is excluded from `launchable` by design, and must still surface in
@@ -521,6 +587,7 @@ const gateCases = {
   },
   "launch-worker.mjs": launchWorkerCases,
   "nudge-worker.mjs": nudgeWorkerCases,
+  "orca-web-port.mjs": orcaWebPortCases,
   "worker-status.mjs": () => {
     check("worker-status.mjs", "requires --worktree", ["--issue", "ORB-75"], { status: 2, stderr: /--worktree is required/ })
     check("worker-status.mjs", "requires a Linear issue identifier", ["--worktree", root, "--issue", "nope"], { status: 2, stderr: /Linear identifier/ })
@@ -537,6 +604,7 @@ const gateCases = {
     check("check-dashes.mjs", "an em dash in text is rejected", ["--text", `a${EM_DASH}b`], { status: 1, stderr: /Banned dash/ })
     check("check-dashes.mjs", "clean text passes", ["--text", "a plain hyphen - is fine"], { status: 0 })
   },
+  "capture-surfaces.mjs": captureSurfacesCases,
   "check-ticket.mjs": () => {
     check("check-ticket.mjs", "an incomplete body is rejected", ["--file", stage("ticket.md", "# A ticket\n\nno template sections here\n")], { nonZero: true })
     check("check-ticket.mjs", "a missing body file is a usage error", ["--file", join(root, "absent.md")], { status: 2 })
@@ -567,6 +635,7 @@ const INVALID_INPUT = {
   "merge-sweep.sh": { argv: ["--orbit-not-a-flag", "zzz"], status: 2 },
   "new-ticket.mjs": { argv: [], status: 2 },
   "nudge-worker.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "orca-web-port.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "redesign-coverage.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "rollup.sh": { argv: ["--orbit-not-a-flag"], status: 2 },
   "surface-manifest.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
