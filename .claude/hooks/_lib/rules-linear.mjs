@@ -177,10 +177,64 @@ project overview document, which orca also cannot do.
 `
 }
 
+// A COMMAND is one string and judging it whole is right. A DOCUMENT is not: this
+// same gate scans every tracked `.md`, and there it was asking "does this file
+// mention api.linear.app anywhere?" and then scanning the ENTIRE file for
+// mutation fields. Any mutation against any other service, anywhere in a document
+// that also documents a Linear read, was reported as a raw Linear write.
+//
+// Measured 2026-07-27: `.claude/skills/orchestrate/SKILL.md` has documented the
+// Linear project-overview READ (`POST https://api.linear.app/graphql`) since D36.
+// Adding a GitHub `gh api graphql -f query='mutation{resolveReviewThread(...)}'`
+// elsewhere in the same file turned the whole doc red, and `gh api graphql`
+// cannot target Linear at all.
+//
+// So a document is judged in chunks, and only a chunk that itself carries the
+// Linear endpoint is scanned. Chunks are fenced code blocks (kept whole, blank
+// lines inside a fence do NOT split it, because a real multi-line curl payload
+// lives in one fence) and, outside fences, blank-line-separated prose. A command
+// string has no fences and no blank line, so it is one chunk and behaves exactly
+// as before: this narrows the DOCUMENT case only.
+function endpointChunks(text) {
+  if (!text.includes("\n")) return [text]
+  const chunks = []
+  let fence = null
+  let current = []
+  const flush = () => {
+    if (current.length) chunks.push(current.join("\n"))
+    current = []
+  }
+  for (const line of text.split(/\r?\n/)) {
+    const marker = /^\s*(`{3,}|~{3,})/.exec(line)
+    if (fence) {
+      current.push(line)
+      if (marker && line.trim().startsWith(fence)) {
+        fence = null
+        flush()
+      }
+      continue
+    }
+    if (marker) {
+      flush()
+      fence = marker[1]
+      current.push(line)
+      continue
+    }
+    if (line.trim() === "") flush()
+    else current.push(line)
+  }
+  flush()
+  // An unterminated fence leaves its lines in the final chunk, which is still
+  // scanned. Nothing is dropped: every line reaches exactly one chunk.
+  return chunks
+}
+
 /** Verdict for a shell command about to run, or null to allow. */
 export function checkLinearMutation(text) {
   if (typeof text !== "string" || !ENDPOINT.test(text)) return null
-  const fields = OPAQUE_PAYLOAD.test(text) ? null : mutationFields(text)
+  const targeted = endpointChunks(text).filter((chunk) => ENDPOINT.test(chunk))
+  const scanned = targeted.length ? targeted.join("\n") : text
+  const fields = OPAQUE_PAYLOAD.test(scanned) ? null : mutationFields(scanned)
   if (fields === null) {
     return {
       block: true,
