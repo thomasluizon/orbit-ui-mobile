@@ -15,6 +15,8 @@ import { execFileSync, spawnSync } from "node:child_process"
 import { appendFileSync, existsSync, readFileSync } from "node:fs"
 import { resolve } from "node:path"
 
+import { SETTLE_MS, isRepainting, pause } from "./lib/tui-repaint.mjs"
+
 const USAGE = `usage: nudge-worker.mjs --terminal <handle> (--text "<one line>" | --prompt-file <path> < update.md)
 
   --terminal <handle>   the worker's terminal handle, as printed by launch-worker.mjs (required)
@@ -108,30 +110,10 @@ const waitForIdle = (handle) => {
   return parsed.result?.wait ?? {}
 }
 
-/**
- * `orca terminal wait --for tui-idle` is NOT a busy signal for every engine. Measured
- * 2026-07-27 against a live codex worker mid-turn: the wait returned satisfied: true while
- * the TUI was painting `Working (30s - esc to interupt)`, so this tool's entire reason to
- * exist failed open and delivered the send. The terminal TEXT cannot correct it, because a
- * read keeps stale output: an IDLE codex composer still carried the
- * `Starting MCP servers ... esc to interrupt` line from its own startup, so matching the
- * interrupt hint refuses forever. Repaint activity separates them cleanly, and for BOTH
- * engines: a running turn repaints its spinner continuously while an idle TUI emits nothing
- * at all. Measured lastOutputAt advancing 2.4s to 3.7s per sample window on a busy codex and
- * on a busy claude, and frozen at delta 0 on an idle one of each.
- */
-const REPAINT_SAMPLE_MS = 3000
-/** A satisfied-but-repainting wait returns instantly, so the retry needs its own pause or the
- * allowed attempts burn in seconds while the engine is merely still starting up. */
-const SETTLE_MS = 10000
-const pause = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
-
-const isRepainting = (handle) => {
-  const paintedAt = () => orca(["terminal", "show", "--terminal", handle]).terminal?.lastOutputAt ?? 0
-  const before = paintedAt()
-  pause(REPAINT_SAMPLE_MS)
-  return paintedAt() !== before
-}
+/** Why a satisfied tui-idle wait is not enough to send on, and why the delta is measured
+ * instead of read off the screen: tools/lib/tui-repaint.mjs. This tool's entire reason to
+ * exist failed open without it. */
+const busy = (handle) => isRepainting(orca, handle)
 
 const terminal = argOf("--terminal")
 const promptFileArg = argOf("--prompt-file")
@@ -179,7 +161,7 @@ while (waitAttempts < waitAttemptsAllowed && !idle) {
   }
   const wait = waitForIdle(terminal)
   if (wait.status === "exited") fail(1, `${terminal} has exited; there is no worker to nudge`)
-  if (wait.satisfied && !isRepainting(terminal)) {
+  if (wait.satisfied && !busy(terminal)) {
     idle = true
     break
   }

@@ -87,7 +87,9 @@ Per launchable ticket, up to `maxParallelWorktrees`:
    (`--base-branch <target>` when the target is not `main`, `--branch-prefix fix` for a
    bug ticket, `--repo ui|api|landing` only to override the `repo:*` label). It prints
    the terminal handle, worktree path and branch as JSON: keep that, it is what you
-   babysit with. On a non-zero exit (1 the worker never reached tui-idle, 2 usage or
+   babysit with. Exit 0 means the worker ACCEPTED the prompt as a user turn, read back off
+   the TUI, not merely that orca accepted the send. On a non-zero exit (1 the worker never
+   reached tui-idle or never took the pointer, 2 usage or
    config, 3 an orca or git command failed) the tool rolls its own worktree and branches
    back out, so relaunching after fixing the cause starts clean rather than piling up
    `orb-N-slug-2` with a surviving contract branch that fails `git switch -c` all over
@@ -100,8 +102,8 @@ Per launchable ticket, up to `maxParallelWorktrees`:
    The comment is the worktree card's status line, so an empty one means the card reads
    as idle no matter what the worker is doing.
 
-**What `launch-worker.mjs` handles for you**, all four measured on the 2026-07-24 ORB-75
-launch, all four fatal to an unattended worker:
+**What `launch-worker.mjs` handles for you**, every one measured on a real launch, every one
+fatal to an unattended worker:
 
 - **`orca worktree create` needs `--name`.** Without it the command exits 1 on
   `Missing required --name`. The tool passes the full working set:
@@ -131,6 +133,16 @@ launch, all four fatal to an unattended worker:
   through a TUI submits early and arrives quoting-damaged. The tool sends a one-line
   pointer to the prompt FILE and the worker reads it, so the body reaches the worker
   byte-for-byte.
+- **An accepted send is not a delivered prompt.** Measured on the 2026-07-27 ORB-88 launch:
+  orca accepted the pointer, the launcher printed a full plan and exited 0, and the pointer
+  never became a user turn. The TUI sat at an empty composer with its placeholder still
+  painted, alive and idle with no work, and would have sat there until a human noticed.
+  `waitAttempts: 1` was the clue: on a cold TUI, reaching tui-idle on the first wait means the
+  composer had not finished mounting, and the send went into nothing. So the tool now READS THE
+  POINTER BACK off the terminal after sending, re-sends up to three times, and exits 1 (rolling
+  the worktree out) if the pointer never appears; the plan reports `pointerSends`. A repainting
+  TUI is never sent to twice: it settles and re-reads instead, because a second send into a busy
+  worker is the ORB-75 corruption.
 
 It also applies the model routing orchestrator.json's notes name: a ticket labelled
 `worker:sonnet` swaps `--model opus` for `--model sonnet`; every other ticket uses the
@@ -213,9 +225,33 @@ node tools/nudge-worker.mjs --terminal <handle> --text "<one line>"
 Either form waits for tui-idle first and REFUSES with exit 1 (sending nothing) while the
 worker is busy, so a mid-turn send is not reachable through the sanctioned path.
 
-Then poll each launched ticket's PR (`gh pr checks`, `gh pr view --json reviewDecision`),
-keyed by branch + head SHA + a fingerprint of the feedback already addressed, so the
-same feedback is never replayed twice:
+**What the fleet is doing right now** is `/watch` (`tools/worker-watch.mjs`): per worktree, the
+ticket, the branch, the Linear state, BUSY or IDLE by repaint delta, the last meaningful output
+lines, and the contract verdict above. Liveness and delivery answer different questions, and
+`IDLE + NOT MET` is the pair that costs a run: a worker that stopped on a question with nobody
+at the keyboard. Read it instead of hand-running `orca terminal read`, which returns a busy
+worker's tail as thousands of characters of concatenated `Working` fragments.
+
+Then watch each launched ticket's PR with the tool, never a hand-written poll loop:
+
+```
+node tools/pr-watch.mjs --repo <owner/name> --pr <n> --acted <n>=<sha>:<verdict>
+```
+
+It exits on the first state you have NOT already acted on and names which one: `gone` (merged
+or closed, exit 5), `checks-failed` (exit 1), `changes-requested` or `review-comment` (exit 1),
+`approved` / `ready-to-merge` (exit 0), `timeout` (exit 4). `--acted` is what you have already
+handled on that PR, as the head SHA the verdict sat on plus the verdict; pass it after every fix
+cycle so the same feedback is never replayed, and pass nothing on the first watch. A verdict
+counts only when it sits on the CURRENT head, so a stale `CHANGES_REQUESTED` carried on an older
+commit does not satisfy it.
+
+Write no loop of your own. Both hand-rolled loops on the ORB-88 run were wrong and both failed
+silently: the first fired instantly on a stale verdict from an earlier commit, the second could
+only exit on approval or a failing check, so a fresh CHANGES_REQUESTED left it spinning for
+90 minutes with the answer in its own output and nobody reading it. The terminal condition is
+"anything other than the state I have already acted on", never an allowlist of the states
+somebody remembered.
 
 - CI red or CHANGES_REQUESTED: ONE fix cycle per strike; send the failure text + review
   comments to a fresh worker in the same worktree. Resolve addressed review threads.
