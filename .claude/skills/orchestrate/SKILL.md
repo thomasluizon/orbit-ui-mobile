@@ -261,6 +261,14 @@ somebody remembered.
 - D9 two strikes: a second failed cycle sets the `attempts:2` label and the ticket is
   REFUSED further launches until its body is rewritten (two failures mean the spec is
   wrong, not the agent). wave-plan.mjs surfaces this.
+  **Under `--sleep`, the run performs that rewrite itself rather than stalling until
+  morning** (Thomas, 2026-07-27). Diagnose from the two failed attempts WHY the spec was
+  wrong, rewrite the body in Linear, re-run `node tools/check-ticket.mjs --issue ORB-N`,
+  and relaunch exactly ONCE. A third failure stops the ticket for real: leave `attempts:2`
+  in place, launch nothing further, and report it. The rewrite, its reasoning and the diff
+  against the original body all go in the closing report, because an agent editing its own
+  work order unsupervised is exactly the thing that must be auditable afterwards. Without
+  `--sleep` this does not apply: a human is awake, and the rewrite is theirs.
 - "All PRs green" requires reviewDecision APPROVED, not just checks passing.
 
 ## 4. Advance
@@ -314,15 +322,24 @@ On anything the run cannot decide from those five checks, do NOT guess and do NO
 pick a middle path. Stop that ticket, leave its PR open, record the reason, and carry
 on with the others. A single stuck ticket must never stall the rest of the wave.
 
-The run's closing report lists, separately: PRs merged while asleep with their SHAs,
-tickets stopped and why, and anything that would have been a question. That list is
-the first thing Thomas reads when he wakes up, so it is written for someone with no
-memory of the run.
+The run's closing report is written for someone with no memory of the run, because that
+is what Thomas is when he reads it. Five sections, in this order, every one present even
+when empty:
+
+1. **Merged**, one line each: ticket, PR, merge SHA.
+2. **Stopped**, with the exact reason and what it is waiting on.
+3. **Anything that would have been a question.** The most important section; never
+   compress it. Every fork the run decided alone belongs here with its reasoning.
+4. **Harness defects**: the ledger, the ticket it became, and the PR that permanently
+   fixed each one, or why one could not be fixed unattended.
+5. **Anything that reproduced differently from what its ticket claimed**, because that
+   means a ticket body is lying and Thomas needs to know which one.
 
 Never: push to main, merge with `--admin`, merge a PR that fails any of the five
-checks above, relaunch a two-strike ticket, or let a worker run before Phase 1's
-gates are green on its target branch. Merging a PR is forbidden too, EXCEPT under
-`--sleep` on the terms in 4a.
+checks above, or let a worker run before Phase 1's gates are green on its target
+branch. Merging a PR is forbidden too, EXCEPT under `--sleep` on the terms in 4a.
+Relaunching a two-strike ticket is forbidden except through the single audited rewrite
+`--sleep` authorises in section 3.
 
 ## A run RECORDS harness defects, it never repairs them
 
@@ -357,6 +374,30 @@ So, on hitting a harness defect mid-run:
 Linear rather than printed output, because D10: an audit's output is tickets, never a
 report. A report is a photograph that starts lying the day after it is written, and a list
 printed into a session dies with the session.
+
+### Then REPAIR the ledger, permanently, as the run's last act
+
+Recording is how a defect survives the run without corrupting it. It is not where the defect
+ends. Thomas's standing rule (2026-07-27): **a one-time fix is not a fix; a defect is resolved
+only when it cannot recur.** A run that files a ticket and stops has deferred the work, and
+the same defect then taxes every later run until somebody schedules it.
+
+So once every ticket in the run is merged or stopped, and NOTHING is still executing:
+
+1. Work the ledger, one PR per defect, through the same worker machinery as any ticket. The
+   run is over, so editing `tools/`, this skill or `.claude/orchestrator.json` no longer
+   changes a contract anything is executing.
+2. Each fix ships the GATE that makes the defect impossible, not only the repair. A test in
+   `tools/test-tools.mjs`, a case in `.claude/hooks/test-hooks.mjs`, or a `guards.yml` job.
+   A repair with no gate is a one-time fix and does not close the ledger entry.
+3. The Linear ticket from step 3 above is still created first, and is closed by the merge.
+   The ticket is the record; the PR is the resolution. Never skip the ticket to save a step,
+   because a defect fixed with no ticket leaves no trace of why the gate exists.
+4. A defect the run genuinely cannot fix unattended stays a ticket, and the report says which
+   one and why.
+
+The ordering is the whole point: **record during, repair after.** Both halves are required,
+and doing the second one first is the failure this section's opening paragraphs describe.
 
 ## Delegation discipline (the session-flood rule)
 
