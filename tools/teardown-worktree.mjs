@@ -6,7 +6,7 @@
  */
 
 import { execFileSync, spawnSync } from "node:child_process"
-import { existsSync, realpathSync } from "node:fs"
+import { existsSync } from "node:fs"
 import { resolve } from "node:path"
 
 import { isRepainting } from "./lib/tui-repaint.mjs"
@@ -76,7 +76,7 @@ const git = (path, args, { allowFailure = false } = {}) => {
   fail(3, `git ${args.join(" ")} failed: ${(result.stderr || result.stdout || "unknown error").trim()}`)
 }
 const selectorPath = (value) => value?.replace(/^path:/, "")
-const normalize = (path) => resolve(selectorPath(path)).replaceAll("\\", "/").replace(/\/+$/, "").toLowerCase()
+const normalize = (path) => (typeof path === "string" ? resolve(selectorPath(path)) : "").replaceAll("\\", "/").replace(/\/+$/, "").toLowerCase()
 
 const worktrees = orca(["worktree", "list"]).worktrees ?? []
 const worktree = requestedIssue
