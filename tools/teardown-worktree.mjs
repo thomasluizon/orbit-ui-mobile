@@ -38,7 +38,9 @@ const fail = (code, message) => {
 }
 const argOf = (flag) => {
   const index = process.argv.indexOf(flag)
-  return index === -1 ? null : process.argv[index + 1]
+  if (index === -1) return null
+  const value = process.argv[index + 1]
+  return value === undefined || value.startsWith("-") ? undefined : value
 }
 const KNOWN_FLAGS = new Set(["--issue", "--worktree", "--base", "--help", "-h"])
 const unknown = process.argv.slice(2).filter((token) => token.startsWith("-") && !KNOWN_FLAGS.has(token))
@@ -47,9 +49,9 @@ if (unknown.length > 0) fail(2, `${USAGE}\n\nunknown option(s): ${unknown.join("
 const requestedIssue = argOf("--issue")
 const requestedWorktree = argOf("--worktree")
 const requestedBase = argOf("--base")
+if ([requestedIssue, requestedWorktree, requestedBase].some((value) => value === undefined)) fail(2, `${USAGE}\n\nselector flags require a value`)
 if ((requestedIssue && requestedWorktree) || (!requestedIssue && !requestedWorktree)) fail(2, `${USAGE}\n\nprovide exactly one selector`)
 if (requestedIssue && !/^[A-Z]+-\d+$/.test(requestedIssue)) fail(2, `${USAGE}\n\n--issue must be a Linear identifier such as ORB-75`)
-if ((requestedIssue && !argOf("--issue")) || (requestedWorktree && !argOf("--worktree")) || (requestedBase === null && process.argv.includes("--base"))) fail(2, `${USAGE}\n\nselector flags require a value`)
 
 const orca = (args) => {
   let raw
@@ -98,10 +100,12 @@ const state = linearIssue.state?.name ?? linearIssue.state
 
 git(path, ["fetch", "--quiet", "origin", base], { allowFailure: true })
 const baseRef = git(path, ["rev-parse", "--verify", "--quiet", `origin/${base}`], { allowFailure: true }) ? `origin/${base}` : base
-const treePresent = git(path, ["diff", "--quiet", baseRef, branch], { allowFailure: true }) !== null
+const mergeBase = git(path, ["merge-base", baseRef, branch])
+const branchPaths = git(path, ["diff", "--name-only", mergeBase, branch]).split("\n").filter(Boolean)
+const treePresent = branchPaths.length === 0 || git(path, ["diff", "--quiet", baseRef, branch, "--", ...branchPaths], { allowFailure: true }) !== null
 const checks = [
   { name: "worktree-clean", ok: dirty.length === 0, detail: dirty.length ? `uncommitted paths: ${dirty.join(", ")}` : "no uncommitted work" },
-  { name: "tree-present-in-target", ok: treePresent, detail: treePresent ? `${branch}'s tree matches ${baseRef}` : `${branch}'s content is not present in ${baseRef}` },
+  { name: "tree-present-in-target", ok: treePresent, detail: treePresent ? `${branch}'s content is present in ${baseRef}` : `${branch}'s content is not present in ${baseRef}` },
   { name: "linear-done", ok: state === "Done", detail: `issue is ${state ?? "unknown"}, expected Done` },
   { name: "terminals-idle", ok: busy.length === 0, detail: busy.length ? `worker is still working: ${busy.map((terminal) => terminal.handle).join(", ")}` : `${terminals.length} terminal(s) idle` },
 ]

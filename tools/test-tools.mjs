@@ -775,7 +775,7 @@ const workerWatchCases = () => {
 }
 
 /** A linked child checkout is the smallest real Git fixture that can prove teardown verification. */
-const stageTeardownWorktree = (label, { dirty = false, changed = false, squashMerged = false } = {}) => {
+const stageTeardownWorktree = (label, { dirty = false, changed = false, squashMerged = false, siblingTargetAdvance = false } = {}) => {
   const primary = join(root, "teardown", label, "primary")
   const child = join(root, "teardown", label, "child")
   mkdirSync(primary, { recursive: true })
@@ -789,6 +789,10 @@ const stageTeardownWorktree = (label, { dirty = false, changed = false, squashMe
     if (squashMerged) {
       writeFileSync(join(primary, "captured.txt"), "not in main\n")
       if (git(primary, ["add", "captured.txt"]).status !== 0 || git(primary, ["commit", "-q", "-m", "squashed capture"]).status !== 0) return null
+    }
+    if (siblingTargetAdvance) {
+      writeFileSync(join(primary, "sibling-ticket.txt"), "already in main\n")
+      if (git(primary, ["add", "sibling-ticket.txt"]).status !== 0 || git(primary, ["commit", "-q", "-m", "sibling ticket"]).status !== 0) return null
     }
   }
   if (dirty) writeFileSync(join(child, "dirty.txt"), "uncommitted\n")
@@ -813,6 +817,10 @@ const teardownPlan = (fixture, { state = "Done", terminals = [], removePath, rem
 ]
 
 const teardownWorktreeCases = () => {
+  check("teardown-worktree.mjs", "refuses a valueless issue selector", ["--issue"], { status: 2, stderr: /selector flags require a value/ })
+  check("teardown-worktree.mjs", "refuses a valueless worktree selector", ["--worktree"], { status: 2, stderr: /selector flags require a value/ })
+  check("teardown-worktree.mjs", "refuses a valueless base", ["--issue", "ORB-124", "--base"], { status: 2, stderr: /selector flags require a value/ })
+
   const allGood = stageTeardownWorktree("all-good")
   if (!allGood) {
     T("teardown-worktree.mjs: real git fixture is available", false, "could not create a linked Git worktree")
@@ -868,6 +876,9 @@ const teardownWorktreeCases = () => {
 
   const selector = stageTeardownWorktree("selector", { changed: true, squashMerged: true })
   check("teardown-worktree.mjs", "a path selector accepts a squash-merged tree without ancestry", ["--worktree", `path:${selector.child}`], { status: 0 }, { env: orcaEnv(teardownPlan(selector, { removePath: selector.child })) })
+
+  const siblingAdvanced = stageTeardownWorktree("sibling-advance", { changed: true, squashMerged: true, siblingTargetAdvance: true })
+  check("teardown-worktree.mjs", "a squash-merged tree is present when the target advanced on unrelated paths", ["--issue", "ORB-124"], { status: 0, stdout: /REMOVED worktree/ }, { env: orcaEnv(teardownPlan(siblingAdvanced, { removePath: siblingAdvanced.child })) })
 }
 
 const orcaWebPortCases = () => {
