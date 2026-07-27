@@ -24,7 +24,7 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs"
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -113,7 +113,8 @@ if (!match) {
   process.stdout.write(JSON.stringify({ ok: false, error: { code: "stub-miss", message: "unstubbed orca call: " + line } }))
   process.exit(9)
 }
-process.stdout.write(match.stdout)
+if (process.env.ORBIT_ORCA_LOG) require("node:fs").appendFileSync(process.env.ORBIT_ORCA_LOG, JSON.stringify(argv) + "\\n")
+process.stdout.write(match.stdout.replaceAll("__NOW__", String(Date.now())))
 process.exit(match.exit ?? 0)
 `,
 )
@@ -170,29 +171,32 @@ const check = (file, name, argv, expect, options = {}) => {
   return result
 }
 
-const orchestratorConfig = (repoPath, worker) =>
+const orchestratorConfig = (repoPath, worker, engineName) =>
   JSON.stringify({
-    worker: "claude",
-    workers: { claude: worker },
+    worker: engineName,
+    workers: { [engineName]: worker },
     attemptsBeforeRewrite: 2,
     linear: { team: "ORB", states: { working: "In Progress", review: "In Review", done: "Done" } },
     repos: { ui: repoPath },
   })
 
 const INTERACTIVE_WORKER = { command: "claude", args: ["--permission-mode", "bypassPermissions", "--model", "opus"], interactive: true }
+const INTERACTIVE_CODEX = { command: "codex", args: ["-c", 'windows.sandbox="unelevated"', "--dangerously-bypass-approvals-and-sandbox"], interactive: true }
 
 /**
  * Stages a private copy of launch-worker.mjs beside a hand-written
  * .claude/orchestrator.json, because the tool resolves that config from its own
  * location. Returns the copy's path so each config variant is a fresh, isolated run.
+ * The engine name is what the top-level `worker` key selects, which is the only way to
+ * exercise a non-default engine: the tool has no engine-override flag by design.
  */
-const stageLaunchWorker = (label, worker) => {
+const stageLaunchWorker = (label, worker, engineName = "claude") => {
   const base = join(root, "launch", label)
   const repoPath = join(base, "repos", "ui")
   mkdirSync(repoPath, { recursive: true })
   mkdirSync(join(base, "tools"), { recursive: true })
   mkdirSync(join(base, ".claude"), { recursive: true })
-  writeFileSync(join(base, ".claude", "orchestrator.json"), orchestratorConfig(repoPath, worker))
+  writeFileSync(join(base, ".claude", "orchestrator.json"), orchestratorConfig(repoPath, worker, engineName))
   cpSync(join(TOOLS_DIR, "launch-worker.mjs"), join(base, "tools", "launch-worker.mjs"))
   return { path: join(base, "tools", "launch-worker.mjs"), repoPath, base }
 }
@@ -206,6 +210,117 @@ const linearIssueStub = (labels) => [
     }),
   },
 ]
+
+/**
+ * Kept in step with tools/launch-worker.mjs's WORKER_CONTRACT. Each entry is a clause a worker
+ * broke in practice, so deleting one from the launcher must fail this gate rather than quietly
+ * shipping a worker that stalls on a question or babysits someone else's PR.
+ */
+const WORKER_CONTRACT_MARKER = "## Standing worker contract (injected by tools/launch-worker.mjs)"
+const REQUIRED_CONTRACT_CLAUSES = {
+  "asking a question": /Never ask a question/,
+  "dropping a blocked criterion": /A blocked sub-step never blocks the PR/,
+  "watching its own PR or another ticket": /Never poll your own PR's CI[\s\S]*never watch another ticket/,
+  "arming a monitor that outlives the contract": /Never arm a background monitor/,
+  "resolving a watch-and-stop conflict by doing both": /STOP wins/,
+  "merging or pushing to main": /Never merge any PR, never push to/,
+  "blanket staging that sweeps in a sibling's artifacts": /Stage explicitly[\s\S]*git add -A/,
+  "pushing a commit it has not read back": /Verify before pushing[\s\S]*git show --stat HEAD/,
+  "writing into another worker's worktree": /Never write into another worktree/,
+}
+
+/**
+ * The trust screen as each CLI really paints it, verbatim, because the launcher matches this
+ * text and nothing else once the wait comes back without a blockedReason. A regex that drifts
+ * one character from these strings hangs a worker forever with nobody at the keyboard, which is
+ * exactly what shipped: the claude alternation read "createdoron" against a real
+ * "createdorone" and could never match. Review caught it; this is the coverage that should have.
+ */
+const TRUST_SCREENS = {
+  claude: {
+    engine: { command: "claude", args: ["--permission-mode", "bypassPermissions"], interactive: true },
+    answer: "1",
+    /**
+     * ONE screen per alternative the profile claims to recognise, each phrased so that only
+     * that alternative can match. A single fixture carrying the whole real screen is NOT
+     * coverage: the first version of this case included "Yes, I trust this folder" alongside
+     * the question, so the `trustthisfolder` alternative matched and the case stayed green with
+     * the shipped `createdoron` typo still in place. Verified by reintroducing that typo.
+     */
+    screens: [
+      { label: "the created-or-trust wording", tail: "Quick safety check\nIs this a project you created or one you trust?\n 1. Yes, proceed\n 2. No, exit" },
+      { label: "the trust-the-files wording", tail: "Do you trust the files in this directory?\n 1. Yes, proceed\n 2. No, exit" },
+      { label: "the trust-this-folder wording", tail: "Quick safety check\n 1. Yes, I trust this folder\n 2. No, exit" },
+    ],
+  },
+  codex: {
+    engine: { command: "codex", args: ["--dangerously-bypass-approvals-and-sandbox"], interactive: true },
+    answer: "",
+    screens: [{ label: "the trust-the-contents wording", tail: "You are in C:\\wt\nDoyoutrustthecontentsofthisdirectory?\n> 1. Yes, continue2.No,quitPress enter to continue" }],
+  },
+}
+
+/**
+ * A real launch needs a real checkout to `git switch -c` into, since git is not stubbed here.
+ * Everything else the launch touches is orca, which is.
+ */
+const stageCheckout = (base) => {
+  const path = join(base, "checkout")
+  mkdirSync(path, { recursive: true })
+  for (const argv of [["init", "-q"], ["config", "user.email", "gate@orbit.test"], ["config", "user.name", "Orbit Gate"], ["commit", "-q", "--allow-empty", "-m", "base"]]) {
+    const result = spawnSync("git", ["-C", path, ...argv], { encoding: "utf8" })
+    if (result.status !== 0) return null
+  }
+  return path
+}
+
+/**
+ * Drives the launcher down the UNPROTECTED trust path: the wait reports not-idle with NO
+ * blockedReason, so the screen text is the only signal left. Returns the orca calls the launch
+ * made, so the assertion is on what was actually sent to the terminal.
+ */
+const runTrustScreen = (label, engineName, tail) => {
+  const { engine, answer } = TRUST_SCREENS[engineName]
+  const staged = stageLaunchWorker(label, engine, engineName)
+  const checkout = stageCheckout(staged.base)
+  if (!checkout) return null
+  const log = join(staged.base, "orca-calls.log")
+  const promptFile = stage(`${label}-prompt.md`, "the ticket body verbatim\n")
+  const plan = [
+    ...linearIssueStub(["repo:ui"]),
+    { match: "worktree create", stdout: JSON.stringify({ ok: true, result: { worktree: { path: checkout, branch: "refs/heads/thomasluizon/orb-75" } } }) },
+    { match: "terminal create", stdout: JSON.stringify({ ok: true, result: { terminal: { handle: "t1" } } }) },
+    { match: "terminal wait", stdout: JSON.stringify({ ok: true, result: { wait: { satisfied: false } } }) },
+    { match: "terminal read", stdout: JSON.stringify({ ok: true, result: { terminal: { tail: [tail] } } }) },
+    { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }) },
+    { match: "terminal stop", stdout: JSON.stringify({ ok: true, result: {} }) },
+    { match: "worktree rm", stdout: JSON.stringify({ ok: true, result: {} }) },
+  ]
+  const result = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile], { path: staged.path, env: { ...orcaEnv(plan), ORBIT_ORCA_LOG: log } })
+  const calls = existsSync(log) ? readFileSync(log, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line)) : []
+  return { calls, answer, result }
+}
+
+const trustScreenCases = () => {
+  for (const [engineName, { screens }] of Object.entries(TRUST_SCREENS)) {
+    screens.forEach(({ label, tail }, index) => {
+      const name = `launch-worker.mjs: answers ${engineName}'s trust screen on ${label}, from the terminal text alone`
+      const outcome = runTrustScreen(`trust-${engineName}-${index}`, engineName, tail)
+      if (!outcome) {
+        T(name, false, "could not stage a git checkout for the launch; git is required for this case")
+        return
+      }
+      /** node resolves the shim's argv[0] to an absolute path, so the subcommand is its basename. */
+      const send = outcome.calls.find((argv) => argv[0].split(/[\\/]/).pop() === "terminal" && argv[1] === "send")
+      const sent = send ? send[send.indexOf("--text") + 1] : null
+      T(
+        name,
+        Boolean(send) && sent === outcome.answer && send.includes("--enter"),
+        `with no blockedReason the screen text is the ONLY signal, so this is the path a drifted regex breaks.\n     expected a terminal send of ${JSON.stringify(outcome.answer)} + Enter, got ${send ? JSON.stringify(send) : "no terminal send at all"}\n     launcher stderr: ${(outcome.result.stderr || "").trim().split("\n").slice(0, 5).join("\n     ")}`,
+      )
+    })
+  }
+}
 
 const launchWorkerCases = () => {
   const promptFile = stage("prompt.md", "the ticket body verbatim\n")
@@ -230,15 +345,71 @@ const launchWorkerCases = () => {
   const headless = stageLaunchWorker("headless-args", { command: "claude", args: ["-p", "--model", "opus"], interactive: true })
   check("launch-worker.mjs", "refuses headless args behind an interactive declaration", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /headless invocation/ }, { path: headless.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
+  const headlessCommand = stageLaunchWorker("headless-command", { command: "claude --print", args: [], interactive: true })
+  check("launch-worker.mjs", "refuses a headless token hidden in the command field", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /headless invocation/ }, { path: headlessCommand.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+
+  // Headless is a property of the CLI, not of the harness: codex's -p is --profile, an
+  // interactive flag, while claude's -p is --print. One shared token list cannot tell them
+  // apart, so these five cases pin both halves of the per-engine split.
+  const codex = stageLaunchWorker("codex-interactive", INTERACTIVE_CODEX, "codex")
+  const codexPlan = check("launch-worker.mjs", "an interactive codex entry launches", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 0, stdout: /"engine": "codex"/ }, { path: codex.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+  T(
+    "launch-worker.mjs: the codex plan's command carries no headless token",
+    codexPlan.status === 0 && !/(^|\s)(-p|--print|exec|e)(\s|"|$)/.test(JSON.parse(codexPlan.stdout).command),
+    `command was: ${codexPlan.stdout.trim().slice(0, 200)}`,
+  )
+
+  const codexProfile = stageLaunchWorker("codex-profile", { ...INTERACTIVE_CODEX, args: ["-p", "my-profile"] }, "codex")
+  check("launch-worker.mjs", "accepts codex -p, which is --profile and not --print", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 0, stdout: /codex -p my-profile/ }, { path: codexProfile.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+
+  const codexExec = stageLaunchWorker("codex-exec", { command: "codex", args: ["exec", "--full-auto"], interactive: true }, "codex")
+  check("launch-worker.mjs", "still refuses codex exec behind an interactive declaration", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /carries "exec", which is a headless invocation of codex/ }, { path: codexExec.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+
+  const codexExecAlias = stageLaunchWorker("codex-exec-alias", { command: "codex", args: ["e"], interactive: true }, "codex")
+  check("launch-worker.mjs", "refuses codex e, the documented alias for exec", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /headless invocation of codex/ }, { path: codexExecAlias.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+
+  const unknownEngine = stageLaunchWorker("unknown-engine", { command: "aider", args: [], interactive: true }, "aider")
+  check("launch-worker.mjs", "refuses an engine binary with no profile rather than waving it through", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /no engine profile for/ }, { path: unknownEngine.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+
   check("launch-worker.mjs", "refuses a missing prompt file", ["--issue", "ORB-75", "--prompt-file", join(root, "absent.md"), "--dry-run"], { status: 2, stderr: /prompt file not found/ }, { path: good.path })
   check("launch-worker.mjs", "refuses a non-Linear issue identifier", ["--issue", "nope", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /Linear identifier/ }, { path: good.path })
+
+  /**
+   * The standing worker contract has to be OWNED by the launcher, not by whoever composed the
+   * prompt. Both clauses it carries were broken on the ORB-88 run by a worker whose hand-written
+   * prompt happened not to say them: it ended a turn on a question, and it armed a monitor on
+   * another ticket's PR. These cases are what makes dropping a clause fail Harness Execution.
+   */
+  check("launch-worker.mjs", "injects the standing worker contract into a prompt that lacks it", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 0, stdout: /"workerContract": "appended"/ }, { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+
+  const alreadyContracted = stage("prompt-with-contract.md", `the ticket body verbatim\n\n${WORKER_CONTRACT_MARKER}\n\nclauses already here\n`)
+  check("launch-worker.mjs", "does not stack a second copy on relaunch", ["--issue", "ORB-75", "--prompt-file", alreadyContracted, "--dry-run"], { status: 0, stdout: /"workerContract": "already present"/ }, { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+
+  trustScreenCases()
+
+  const launcherSource = readFileSync(join(TOOLS_DIR, "launch-worker.mjs"), "utf8")
+  for (const [clause, pattern] of Object.entries(REQUIRED_CONTRACT_CLAUSES)) {
+    T(`launch-worker.mjs: the injected contract still forbids ${clause}`, pattern.test(launcherSource), `WORKER_CONTRACT no longer matches ${pattern}. A worker without this clause repeats the failure it was written for; restore it rather than relaxing this check.`)
+  }
 }
 
 const TIMEOUT_PAYLOAD = JSON.stringify({ ok: false, error: { code: "timeout", message: "condition not met in time" } })
 const BUSY_STUB = [{ match: "terminal wait", stdout: TIMEOUT_PAYLOAD, exit: 1 }]
 const BROKEN_STUB = [{ match: "terminal wait", stdout: JSON.stringify({ ok: false, error: { code: "no-such-terminal", message: "unknown handle" } }), exit: 1 }]
+/** A settled TUI emits nothing, so lastOutputAt is the SAME on both samples. */
 const IDLE_STUB = [
   { match: "terminal wait", stdout: JSON.stringify({ ok: true, result: { wait: { satisfied: true } } }), exit: 0 },
+  { match: "terminal show", stdout: JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1785168487585 } } }), exit: 0 },
+  { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }), exit: 0 },
+]
+/**
+ * The measured codex failure: orca reports tui-idle while the worker is mid-turn. The stub
+ * says satisfied AND repaints (lastOutputAt is stamped fresh on every call), which is exactly
+ * what a running turn looks like. A send here is the ORB-75 corruption, so this must refuse.
+ */
+const FALSE_IDLE_STUB = [
+  { match: "terminal wait", stdout: JSON.stringify({ ok: true, result: { wait: { satisfied: true } } }), exit: 0 },
+  { match: "terminal show", stdout: '{"ok":true,"result":{"terminal":{"lastOutputAt":__NOW__}}}', exit: 0 },
   { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }), exit: 0 },
 ]
 
@@ -249,6 +420,7 @@ const nudgeWorkerCases = () => {
   check("nudge-worker.mjs", "refuses to send while the worker is busy", ["--terminal", "t1", "--text", "hi", "--wait-attempts", "1"], { status: 1, stderr: /NOTHING was sent/ }, { env: orcaEnv(BUSY_STUB) })
   check("nudge-worker.mjs", "an orca failure that is not a timeout is a tool error", ["--terminal", "t1", "--text", "hi", "--wait-attempts", "1"], { status: 3, stderr: /unknown handle/ }, { env: orcaEnv(BROKEN_STUB) })
   check("nudge-worker.mjs", "sends once the worker is idle", ["--terminal", "t1", "--text", "hi", "--wait-attempts", "1"], { status: 0, stdout: /"sent": "hi"/ }, { env: orcaEnv(IDLE_STUB) })
+  check("nudge-worker.mjs", "refuses a tui-idle that is still repainting, which is a worker mid-turn", ["--terminal", "t1", "--text", "hi", "--wait-attempts", "1"], { status: 1, stderr: /still repainting[\s\S]*NOTHING was sent/ }, { env: orcaEnv(FALSE_IDLE_STUB) })
   check("nudge-worker.mjs", "--dry-run calls orca not at all", ["--terminal", "t1", "--text", "hi", "--dry-run"], { status: 0, stdout: /"dryRun": true/ }, { env: orcaEnv([]) })
 }
 
