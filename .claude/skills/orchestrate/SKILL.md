@@ -256,6 +256,13 @@ somebody remembered.
 
 - CI red or CHANGES_REQUESTED: ONE fix cycle per strike; send the failure text + review
   comments to a fresh worker in the same worktree. Resolve addressed review threads.
+- **A non-blocking review is still work.** `pr-watch.mjs` reports `review-comment` as its own
+  transition for exactly this reason. Sweep both endpoints (`gh api .../pulls/<n>/comments`
+  for inline threads and `gh pr view <n> --json reviews` for `COMMENTED` bodies) on every
+  head, not only when the verdict moves. Each finding is reconciled against the code (D8),
+  then fixed and its thread resolved, or disputed with a written reply. Never merge over an
+  untouched comment: `reviewDecision` cannot see it. This is condition 6 in 4a, and it binds
+  the awake path too, where it is Thomas's merge that it gates rather than the run's.
 - D7: an issue may sit In Review only with its PR attached, and with a screenshot
   attached when labelled `visible-effect`; otherwise demote to In Progress and finish.
 - D9 two strikes: a second failed cycle sets the `attempts:2` label and the ticket is
@@ -264,11 +271,16 @@ somebody remembered.
   **Under `--sleep`, the run performs that rewrite itself rather than stalling until
   morning** (Thomas, 2026-07-27). Diagnose from the two failed attempts WHY the spec was
   wrong, rewrite the body in Linear, re-run `node tools/check-ticket.mjs --issue ORB-N`,
-  and relaunch exactly ONCE. A third failure stops the ticket for real: leave `attempts:2`
-  in place, launch nothing further, and report it. The rewrite, its reasoning and the diff
-  against the original body all go in the closing report, because an agent editing its own
-  work order unsupervised is exactly the thing that must be auditable afterwards. Without
-  `--sleep` this does not apply: a human is awake, and the rewrite is theirs.
+  and relaunch exactly ONCE.
+  **REMOVE the `attempts:2` label as part of that relaunch**, once the rewritten body passes
+  `check-ticket.mjs` and before the worker starts. Without that step the feature is inert:
+  4a condition 5 refuses to merge any ticket carrying `attempts:2`, so a rewritten ticket
+  that then went fully green would still stop unmerged, which is the exact stall this
+  paragraph exists to prevent. A third failure RESTORES the label: put `attempts:2` back,
+  launch nothing further, and report it. The rewrite, its reasoning and the diff against the
+  original body all go in the closing report, because an agent editing its own work order
+  unsupervised is exactly the thing that must be auditable afterwards. Without `--sleep`
+  this does not apply: a human is awake, and the rewrite is theirs.
 - "All PRs green" requires reviewDecision APPROVED, not just checks passing.
 
 ## 4. Advance
@@ -313,6 +325,30 @@ Merge a PR under `--sleep` only when ALL of these hold, checked in this order:
 4. The D7 evidence gate is satisfied: the PR is attached to the issue, and a
    `visible-effect` ticket has its screenshot attached.
 5. The ticket carries no `attempts:2` label (D9 refuses it regardless of colour).
+6. **Every comment from every reviewer is addressed, whatever its review state.**
+   `reviewDecision` only reflects reviews that BLOCK. A `COMMENTED` review and an inline
+   comment thread do not move it, so a PR can read `APPROVED` while carrying unaddressed
+   findings. Measured on PR #621, 2026-07-27: the Codex connector posted two P1 inline
+   comments, `reviewDecision` stayed `APPROVED`, and conditions 1 to 5 alone would have
+   merged both defects. One of the two was a real mechanical break that the blocking
+   reviewer had missed entirely.
+
+   So enumerate them yourself, from BOTH endpoints, because they are different objects:
+   `gh api repos/<owner>/<repo>/pulls/<n>/comments` (inline threads) and
+   `gh pr view <n> --json reviews` (review bodies, including `COMMENTED` ones). Then each
+   comment ends in exactly one of two states:
+
+   - **Addressed.** The finding is real: fix it through a worker in that ticket's worktree,
+     reply on the thread naming the commit that fixed it, and RESOLVE the thread. Re-read
+     the checks and `reviewDecision` afterwards, because the fix pushed a new head.
+   - **Disagreed.** Reconcile the finding against the code first (D8): a reviewer can be
+     wrong, and a finding that does not reproduce is not work. Post a reply saying plainly
+     why you disagree, with the evidence you checked. Then **STOP that ticket**: leave the
+     PR open, do not merge it, and put the disagreement in the closing report. A reviewer
+     and the run disagreeing is precisely a case the run cannot decide alone.
+
+   A comment that is purely informational, with nothing to fix and nothing to dispute, is
+   addressed by a reply saying so. Silence is never "addressed".
 
 Then squash-merge and delete the branch. **Never `--admin`.** Admin-merging bypasses
 the checks, and a bypass with nobody watching is the one combination that can put a
@@ -327,7 +363,9 @@ is what Thomas is when he reads it. Five sections, in this order, every one pres
 when empty:
 
 1. **Merged**, one line each: ticket, PR, merge SHA.
-2. **Stopped**, with the exact reason and what it is waiting on.
+2. **Stopped**, with the exact reason and what it is waiting on. A ticket stopped because
+   the run DISAGREED with a reviewer names the comment, the reply posted, and the evidence
+   checked, so Thomas can settle it in one read.
 3. **Anything that would have been a question.** The most important section; never
    compress it. Every fork the run decided alone belongs here with its reasoning.
 4. **Harness defects**: the ledger, the ticket it became, and the PR that permanently
@@ -341,7 +379,7 @@ branch. Merging a PR is forbidden too, EXCEPT under `--sleep` on the terms in 4a
 Relaunching a two-strike ticket is forbidden except through the single audited rewrite
 `--sleep` authorises in section 3.
 
-## A run RECORDS harness defects, it never repairs them
+## Harness defects: RECORD during the run, REPAIR after it
 
 A HARNESS defect is anything wrong with the launch, the waiter, the gates, this skill, or
 `.claude/orchestrator.json`. A TICKET defect is a different animal and D9 already owns it
@@ -384,17 +422,24 @@ the same defect then taxes every later run until somebody schedules it.
 
 So once every ticket in the run is merged or stopped, and NOTHING is still executing:
 
-1. Work the ledger, one PR per defect, through the same worker machinery as any ticket. The
+1. **The run ticket stays the record; each defect gets its own CHILD ticket to be fixed
+   from.** The aggregate ticket above is one per RUN and cannot carry N repair PRs: it would
+   close on the first merge, leaving the rest with no live issue to launch from, attach to or
+   close, and `launch-worker.mjs` derives the worktree name and branch from the issue, so two
+   PRs off one issue collide before that even matters. So file one child ticket per ledger
+   entry (`orca linear create --parent <run ticket>`), each passing `check-ticket.mjs`, each
+   describing ONE defect. A ledger with exactly one entry needs no child: the run ticket is
+   already that shape.
+2. Work the children one PR per ticket, through the same worker machinery as any ticket. The
    run is over, so editing `tools/`, this skill or `.claude/orchestrator.json` no longer
    changes a contract anything is executing.
-2. Each fix ships the GATE that makes the defect impossible, not only the repair. A test in
+3. Each fix ships the GATE that makes the defect impossible, not only the repair. A test in
    `tools/test-tools.mjs`, a case in `.claude/hooks/test-hooks.mjs`, or a `guards.yml` job.
    A repair with no gate is a one-time fix and does not close the ledger entry.
-3. The Linear ticket from step 3 above is still created first, and is closed by the merge.
-   The ticket is the record; the PR is the resolution. Never skip the ticket to save a step,
-   because a defect fixed with no ticket leaves no trace of why the gate exists.
-4. A defect the run genuinely cannot fix unattended stays a ticket, and the report says which
-   one and why.
+4. The parent run ticket closes only when every child is Done. Never skip the ticket layer to
+   save a step: a defect fixed with no ticket leaves no trace of why the gate exists.
+5. A defect the run genuinely cannot fix unattended stays an open child ticket, and the report
+   says which one and why.
 
 The ordering is the whole point: **record during, repair after.** Both halves are required,
 and doing the second one first is the failure this section's opening paragraphs describe.
