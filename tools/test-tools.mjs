@@ -1007,6 +1007,19 @@ const gateCases = {
       { status: 2, stderr: /failed to fetch ORB-2: unavailable/ },
       { env: orcaEnv([{ ...WAVE_STUB[0] }, WAVE_STUB[1], { match: "linear issue ORB-2", stdout: JSON.stringify({ ok: false, error: { message: "unavailable" } }) }, WAVE_STUB[3], WAVE_STUB[4]]) },
     )
+    check(
+      "wave-plan.mjs",
+      "keeps planning when one external blocker cannot be fetched",
+      ["--project", "External"],
+      { status: 0, stdout: /ORB-1[\s\S]*blockedBy: ORB-99/, stderr: /WARNING: blocker ORB-99 could not be fetched[\s\S]*treating it as blocking/ },
+      {
+        env: orcaEnv([
+          { match: "linear list-issues", stdout: JSON.stringify({ ok: true, result: { issues: [{ identifier: "ORB-1" }] } }) },
+          { match: "linear issue ORB-1", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-1", title: "dependent", state: { name: "Todo", type: "unstarted" }, labels: [] }, relations: [{ relationship: "blockedBy", relatedIssue: { identifier: "ORB-99" } }] } }) },
+          { match: "linear issue ORB-99", stdout: JSON.stringify({ ok: false, error: { message: "unavailable" } }) },
+        ]),
+      },
+    )
   },
   "check-dashes.mjs": () => {
     check("check-dashes.mjs", "an em dash in text is rejected", ["--text", `a${EM_DASH}b`], { status: 1, stderr: /Banned dash/ })

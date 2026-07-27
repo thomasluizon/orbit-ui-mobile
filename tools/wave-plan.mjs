@@ -147,17 +147,15 @@ const byIdentifier = new Map(planIssues.map((issue) => [issue.identifier, issue]
 const externalBlockers = [...new Set([...byIdentifier.values()].flatMap((issue) => issue.blockedBy))].filter(
   (blocker) => !byIdentifier.has(blocker),
 )
-try {
-  const blockers = await mapBounded(externalBlockers, async (identifier) => ({
-    ...toPlanIssue(await orcaJson(["linear", "issue", identifier], identifier)),
-    blockedBy: [],
-    external: true,
-  }))
-  for (const blocker of blockers) byIdentifier.set(blocker.identifier, blocker)
-} catch (error) {
-  console.error(error.message)
-  process.exit(2)
-}
+const blockers = await mapBounded(externalBlockers, async (identifier) => {
+  try {
+    return { ...toPlanIssue(await orcaJson(["linear", "issue", identifier], identifier)), blockedBy: [], external: true }
+  } catch (error) {
+    console.error(`WARNING: blocker ${identifier} could not be fetched (${error.message}); treating it as blocking`)
+    return { identifier, title: "unresolved external blocker", state: "Unknown", stateType: null, labels: [], attempts: 0, blockedBy: [], external: true }
+  }
+})
+for (const blocker of blockers) byIdentifier.set(blocker.identifier, blocker)
 
 const isDone = (identifier) => {
   const issue = byIdentifier.get(identifier)
