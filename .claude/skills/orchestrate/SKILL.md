@@ -67,13 +67,22 @@ Per launchable ticket, up to `maxParallelWorktrees`:
    BEFORE launch, not patched in the prompt.
 2. Compose the worker prompt into a file OUTSIDE every repo (the session scratchpad; a
    file written inside the worktree gets committed by the worker): the ticket body
-   VERBATIM (it is the prompt, D2), then the finishing contract: run lint + type-check +
-   tests for the touched workspace, commit, push, open a PR to `<target>` whose body
-   links `ORB-N`, attach the PR URL to the Linear issue (`orca linear attach`), attach
-   the screenshot to the issue FIRST when the ticket carries `visible-effect` (D7), set
-   the issue to In Review, and STOP. Workers never merge, never touch another ticket's
-   files, never edit gate baselines. The branch is NOT the worker's job; step 3 hands it
-   the contract branch already checked out.
+   VERBATIM (it is the prompt, D2), then the PER-TICKET finishing contract: run lint +
+   type-check + tests for the touched workspace, commit, push, open a PR to `<target>`
+   whose body links `ORB-N`, attach the PR URL to the Linear issue (`orca linear
+   attach`), attach the screenshot to the issue FIRST when the ticket carries
+   `visible-effect` (D7), set the issue to In Review, and STOP. The branch is NOT the
+   worker's job; step 3 hands it the contract branch already checked out.
+
+   **Do NOT hand-write the STANDING clauses here.** Never ask a question, state a blocked
+   criterion as UNMET instead of stalling, never watch your own PR's CI or another
+   ticket, never arm a monitor that outlives the contract, never merge: all of that is
+   `WORKER_CONTRACT` in `tools/launch-worker.mjs`, which APPENDS it to your prompt file
+   at launch (idempotently). The guarantee is structural precisely because it used to be
+   prose in this list: on the ORB-88 run a worker whose hand-composed prompt omitted the
+   clauses ended a turn on a question and stalled until a human noticed the terminal, and
+   then armed a monitor on another ticket's PR. `tools/test-tools.mjs` fails if a clause
+   is dropped, so the Harness Execution job is what keeps it true, not this paragraph.
 3. `node tools/launch-worker.mjs --issue ORB-N --prompt-file "<absolute path>"`
    (`--base-branch <target>` when the target is not `main`, `--branch-prefix fix` for a
    bug ticket, `--repo ui|api|landing` only to override the `repo:*` label). It prints

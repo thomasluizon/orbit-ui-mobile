@@ -24,7 +24,7 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs"
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -210,6 +210,21 @@ const linearIssueStub = (labels) => [
   },
 ]
 
+/**
+ * Kept in step with tools/launch-worker.mjs's WORKER_CONTRACT. Each entry is a clause a worker
+ * broke in practice, so deleting one from the launcher must fail this gate rather than quietly
+ * shipping a worker that stalls on a question or babysits someone else's PR.
+ */
+const WORKER_CONTRACT_MARKER = "## Standing worker contract (injected by tools/launch-worker.mjs)"
+const REQUIRED_CONTRACT_CLAUSES = {
+  "asking a question": /Never ask a question/,
+  "dropping a blocked criterion": /A blocked sub-step never blocks the PR/,
+  "watching its own PR or another ticket": /Never poll your own PR's CI[\s\S]*never watch another ticket/,
+  "arming a monitor that outlives the contract": /Never arm a background monitor/,
+  "resolving a watch-and-stop conflict by doing both": /STOP wins/,
+  "merging or pushing to main": /Never merge any PR, never push to/,
+}
+
 const launchWorkerCases = () => {
   const promptFile = stage("prompt.md", "the ticket body verbatim\n")
 
@@ -261,6 +276,22 @@ const launchWorkerCases = () => {
 
   check("launch-worker.mjs", "refuses a missing prompt file", ["--issue", "ORB-75", "--prompt-file", join(root, "absent.md"), "--dry-run"], { status: 2, stderr: /prompt file not found/ }, { path: good.path })
   check("launch-worker.mjs", "refuses a non-Linear issue identifier", ["--issue", "nope", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /Linear identifier/ }, { path: good.path })
+
+  /**
+   * The standing worker contract has to be OWNED by the launcher, not by whoever composed the
+   * prompt. Both clauses it carries were broken on the ORB-88 run by a worker whose hand-written
+   * prompt happened not to say them: it ended a turn on a question, and it armed a monitor on
+   * another ticket's PR. These cases are what makes dropping a clause fail Harness Execution.
+   */
+  check("launch-worker.mjs", "injects the standing worker contract into a prompt that lacks it", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 0, stdout: /"workerContract": "appended"/ }, { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+
+  const alreadyContracted = stage("prompt-with-contract.md", `the ticket body verbatim\n\n${WORKER_CONTRACT_MARKER}\n\nclauses already here\n`)
+  check("launch-worker.mjs", "does not stack a second copy on relaunch", ["--issue", "ORB-75", "--prompt-file", alreadyContracted, "--dry-run"], { status: 0, stdout: /"workerContract": "already present"/ }, { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+
+  const launcherSource = readFileSync(join(TOOLS_DIR, "launch-worker.mjs"), "utf8")
+  for (const [clause, pattern] of Object.entries(REQUIRED_CONTRACT_CLAUSES)) {
+    T(`launch-worker.mjs: the injected contract still forbids ${clause}`, pattern.test(launcherSource), `WORKER_CONTRACT no longer matches ${pattern}. A worker without this clause repeats the failure it was written for; restore it rather than relaxing this check.`)
+  }
 }
 
 const TIMEOUT_PAYLOAD = JSON.stringify({ ok: false, error: { code: "timeout", message: "condition not met in time" } })

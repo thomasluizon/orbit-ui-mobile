@@ -14,7 +14,7 @@
  */
 
 import { execFileSync, spawnSync } from "node:child_process"
-import { existsSync, readFileSync, statSync } from "node:fs"
+import { appendFileSync, existsSync, readFileSync, statSync } from "node:fs"
 import { resolve } from "node:path"
 
 const USAGE = `usage: launch-worker.mjs --issue ORB-N --prompt-file <path> [options]
@@ -23,7 +23,10 @@ const USAGE = `usage: launch-worker.mjs --issue ORB-N --prompt-file <path> [opti
   --prompt-file <path>   the composed worker prompt: ticket body verbatim (D2) then the
                          finishing contract. MUST live outside every Orbit repo and outside
                          the worktree (an in-worktree prompt gets committed). Only its path
-                         is sent to the TUI, never its text (required)
+                         is sent to the TUI, never its text. The standing worker contract
+                         (never ask a question, never watch your own PR, never merge) is
+                         APPENDED to this file at launch, so it does not depend on the
+                         caller having remembered it (required)
   --repo ui|api|landing  override the repo the ticket's repo:* label names
   --base-branch <ref>    base branch for the worktree (default: main)
   --branch-prefix <p>    contract branch prefix, feature or fix (default: feature)
@@ -33,7 +36,8 @@ const USAGE = `usage: launch-worker.mjs --issue ORB-N --prompt-file <path> [opti
   --help, -h             print this usage and exit 0
 
 Prints one JSON object on stdout: issue, repo, repoPath, worktreePath, worktreeSelector,
-branch, baseBranch, terminal, engine, command, promptFile, trustPromptAnswered, waitAttempts.
+branch, baseBranch, terminal, engine, command, promptFile, workerContract, trustPromptAnswered,
+waitAttempts.
 Progress goes to stderr, so stdout stays pipeable.
 
 exit codes: 0 worker launched, 1 the worker never reached tui-idle, 2 usage or config error,
@@ -105,6 +109,46 @@ const REPAINT_SAMPLE_MS = 3000
  * six attempts burn in seconds while the engine is merely still starting up. */
 const SETTLE_MS = 10000
 const pause = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
+
+/**
+ * The standing worker contract, owned HERE rather than by whoever composed the prompt file.
+ * Both failures it closes were measured on the ORB-88 run itself: a worker ENDED A TURN ON A
+ * QUESTION and stalled until a human happened to look at its terminal, and a worker armed a
+ * monitor on another ticket's PR, burning 34 minutes and 105k tokens re-deriving state the
+ * orchestrator already had. Both clauses existed, in prose, in a prompt an orchestrating
+ * session composes by hand: prose is advisory and one forgetful session away from shipping the
+ * same stall again. The launch APPENDS this to the prompt file before pointing the worker at
+ * it, so the guarantee is structural and does not depend on the caller remembering.
+ * Idempotent via the marker, so a relaunch against the same file does not stack copies.
+ */
+const WORKER_CONTRACT_MARKER = "## Standing worker contract (injected by tools/launch-worker.mjs)"
+const WORKER_CONTRACT = `
+
+---
+
+${WORKER_CONTRACT_MARKER}
+
+These clauses come from the launcher, not from whoever composed the work order above. Where they
+conflict with anything above, these win.
+
+1. **Never ask a question.** Nobody is at your keyboard, so a question is not a safe default, it
+   is a silent stall: the run stops until a human notices your terminal by accident. Never
+   present a menu, never wait for a choice, never end a turn on a question. Decide every fork
+   yourself, the way this repo's CLAUDE.md and the ticket body point, and record each decision
+   and its reasoning in the PR body under a \`## Decisions taken unattended\` heading.
+2. **A blocked sub-step never blocks the PR.** If one step is genuinely impossible, finish every
+   other part in full, mark that criterion explicitly UNMET in the PR body with the evidence,
+   and still complete the contract: gates, commit, push, PR, attach, In Review. Unmet and stated
+   is acceptable; unmentioned is not. Never silently drop a criterion.
+3. **Your job ENDS when your own ticket's PR is open, attached, and the issue is In Review.**
+   Never poll your own PR's CI, never poll its review verdict, and never watch another ticket,
+   another worktree or another PR. The orchestrator owns all of that and already has it in view.
+4. **Never arm a background monitor, watcher or wait loop that outlives this contract.**
+5. **If your work order tells you both to watch something and to stop, STOP wins.** Record the
+   conflict in your PR body rather than silently doing both.
+6. **Never merge any PR, never push to \`main\`, never use \`--no-verify\`, never edit a gate
+   baseline.**
+`
 
 /**
  * Everything created after `orca worktree create` succeeds has to come back out on any later
@@ -319,6 +363,10 @@ if (headless) {
   fail(2, `worker "${engineName}" declares interactive: true but its invocation "${command}" carries "${headless}", which is a headless invocation of ${binary}. Fix the command or args, or the declaration, in .claude/orchestrator.json`)
 }
 
+/** Reported in the plan so a dry run shows whether this launch would inject the contract, and a
+ * relaunch against an already-injected file is visibly a no-op rather than a silent second copy. */
+const workerContract = readFileSync(promptFile, "utf8").includes(WORKER_CONTRACT_MARKER) ? "already present" : "appended"
+
 const plan = {
   issue,
   repo: repoKey,
@@ -329,6 +377,7 @@ const plan = {
   engine: engineName,
   command,
   promptFile,
+  workerContract,
   labels,
 }
 
@@ -336,6 +385,10 @@ if (dryRun) {
   console.log(JSON.stringify({ ...plan, dryRun: true }, null, 2))
   process.exit(0)
 }
+
+/** Before anything is created, so a launch that fails later still leaves the work order complete
+ * for the relaunch. A dry run resolves this decision but writes nothing. */
+if (workerContract === "appended") appendFileSync(promptFile, WORKER_CONTRACT, "utf8")
 
 console.error(`creating worktree ${worktreeName} in ${repoKey} from ${baseBranch}`)
 const created = orca([
