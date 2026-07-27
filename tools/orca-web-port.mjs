@@ -123,7 +123,6 @@ const nextDev = (repository) => {
   const child = spawn(process.execPath, [next, "dev", "--turbopack", "--port", String(port)], {
     cwd: webDirectory,
     stdio: "inherit",
-    env: { ...process.env, API_BASE: process.env.API_BASE ?? "http://localhost:5000" },
   })
   child.on("error", (error) => fail(`could not start Next: ${error.message}`, 3))
   child.on("exit", (code, signal) => process.exit(code ?? (signal ? 1 : 0)))
