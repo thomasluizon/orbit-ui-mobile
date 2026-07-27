@@ -100,10 +100,16 @@ const BASH = resolveBash()
  * subcommand, not a file) and stands aside when node is running the tool itself.
  * An unstubbed call exits 9 with a stub-miss payload, so an unexpected orca call is
  * a loud failure rather than a silent pass.
+ *
+ * A `sequence` entry answers successive calls differently, which is the only way to
+ * drive a retry loop: launch-worker.mjs re-sends a prompt pointer that did not land,
+ * so "delivered on the second send" needs the second `terminal read` to differ from
+ * the first. The counter cannot live in memory (every stub call is its own process),
+ * so it is derived from the call log, which is why `sequence` requires ORBIT_ORCA_LOG.
  */
 const ORCA_SHIM = stage(
   "orca-shim.cjs",
-  `const { existsSync } = require("node:fs")
+  `const { appendFileSync, existsSync, readFileSync } = require("node:fs")
 const argv = process.argv.slice(1)
 if (argv[0] && existsSync(argv[0])) return
 const line = argv.join(" ")
@@ -113,15 +119,28 @@ if (!match) {
   process.stdout.write(JSON.stringify({ ok: false, error: { code: "stub-miss", message: "unstubbed orca call: " + line } }))
   process.exit(9)
 }
-if (process.env.ORBIT_ORCA_LOG) require("node:fs").appendFileSync(process.env.ORBIT_ORCA_LOG, JSON.stringify(argv) + "\\n")
-process.stdout.write(match.stdout.replaceAll("__NOW__", String(Date.now())))
+let out = match.stdout
+if (Array.isArray(match.sequence)) {
+  const log = process.env.ORBIT_ORCA_LOG
+  const previous = log && existsSync(log)
+    ? readFileSync(log, "utf8").split("\\n").filter(Boolean).filter((entry) => JSON.parse(entry).join(" ").includes(match.match)).length
+    : 0
+  out = match.sequence[Math.min(previous, match.sequence.length - 1)]
+}
+if (process.env.ORBIT_ORCA_LOG) appendFileSync(process.env.ORBIT_ORCA_LOG, JSON.stringify(argv) + "\\n")
+process.stdout.write(out.replaceAll("__NOW__", String(Date.now())))
 process.exit(match.exit ?? 0)
 `,
 )
 
-/** NODE_OPTIONS treats a backslash inside quotes as an escape, so the shim path goes in POSIX form. */
+/**
+ * NODE_OPTIONS treats a backslash inside quotes as an escape, so the shim path goes in POSIX form.
+ * The same shim answers `gh`, because it keys on the command line and nothing else: pr-watch.mjs
+ * shells out to `gh api graphql`, and a stub plan entry matching `number=615` answers it.
+ */
 const orcaEnv = (plan) => ({
   ORCA_BIN: process.execPath,
+  GH_BIN: process.execPath,
   NODE_OPTIONS: `--require "${ORCA_SHIM.replaceAll("\\", "/")}"`,
   ORBIT_ORCA_STUB: JSON.stringify(plan),
 })
@@ -198,6 +217,8 @@ const stageLaunchWorker = (label, worker, engineName = "claude") => {
   mkdirSync(join(base, ".claude"), { recursive: true })
   writeFileSync(join(base, ".claude", "orchestrator.json"), orchestratorConfig(repoPath, worker, engineName))
   cpSync(join(TOOLS_DIR, "launch-worker.mjs"), join(base, "tools", "launch-worker.mjs"))
+  /** The copy imports tools/lib/tui-repaint.mjs by relative path, so the staged tree carries it too. */
+  cpSync(join(TOOLS_DIR, "lib"), join(base, "tools", "lib"), { recursive: true })
   return { path: join(base, "tools", "launch-worker.mjs"), repoPath, base }
 }
 
@@ -322,6 +343,89 @@ const trustScreenCases = () => {
   }
 }
 
+/**
+ * The empty composer a swallowed pointer leaves behind, verbatim from the 2026-07-27 ORB-88
+ * launch: the worker alive, idle, holding no work, with orca having reported the send accepted.
+ */
+const EMPTY_COMPOSER = ' (logo)   Claude Code v2.1.220\n> Try "how do I log an error?"\n  Opus 5@high  ctx [..........] --%'
+
+/**
+ * Drives a launch to the prompt pointer, with `terminal read` answering `tails` in order:
+ * "delivered" is a tail carrying the pointer as a user line, anything else is a tail without it.
+ * Returns the orca calls, because the assertion that matters is how many sends really happened.
+ */
+const runPointerLaunch = (label, tails) => {
+  const staged = stageLaunchWorker(label, INTERACTIVE_WORKER)
+  const checkout = stageCheckout(staged.base)
+  if (!checkout) return null
+  const log = join(staged.base, "orca-calls.log")
+  const promptFile = stage(`${label}-prompt.md`, "the ticket body verbatim\n")
+  const painted = `> Read ${promptFile} and execute it in full. That file is your complete work order for ORB-75:`
+  const plan = [
+    ...linearIssueStub(["repo:ui"]),
+    { match: "worktree create", stdout: JSON.stringify({ ok: true, result: { worktree: { path: checkout, branch: "refs/heads/thomasluizon/orb-75" } } }) },
+    { match: "terminal create", stdout: JSON.stringify({ ok: true, result: { terminal: { handle: "t1" } } }) },
+    { match: "terminal wait", stdout: JSON.stringify({ ok: true, result: { wait: { satisfied: true } } }) },
+    /** Frozen lastOutputAt: a settled TUI, so the launch sends instead of waiting out a repaint. */
+    { match: "terminal show", stdout: JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1785168487585 } } }) },
+    {
+      match: "terminal read",
+      sequence: tails.map((tail) => JSON.stringify({ ok: true, result: { terminal: { tail: [tail === "delivered" ? painted : tail] } } })),
+    },
+    { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }) },
+    { match: "terminal switch", stdout: JSON.stringify({ ok: true, result: {} }) },
+    { match: "worktree set", stdout: JSON.stringify({ ok: true, result: {} }) },
+    { match: "terminal stop", stdout: JSON.stringify({ ok: true, result: {} }) },
+    { match: "worktree rm", stdout: JSON.stringify({ ok: true, result: {} }) },
+  ]
+  const result = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile], {
+    path: staged.path,
+    env: { ...orcaEnv(plan), ORBIT_ORCA_LOG: log },
+  })
+  const calls = existsSync(log) ? readFileSync(log, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line)) : []
+  const sends = calls.filter((argv) => argv[0].split(/[\\/]/).pop() === "terminal" && argv[1] === "send").length
+  return { result, calls, sends }
+}
+
+/**
+ * The ORB-88 defect: `terminal send` succeeded, the launcher exited 0 printing a full plan, and
+ * the pointer never became a user turn. An exit code may not assert a state it never verified,
+ * so these three cases pin the read-back: it lands, it lands on a retry, it never lands.
+ */
+const pointerDeliveryCases = () => {
+  const first = runPointerLaunch("pointer-first", ["delivered"])
+  if (!first) {
+    T("launch-worker.mjs: a delivered pointer exits 0", false, "could not stage a git checkout for the launch; git is required for this case")
+    return
+  }
+  T(
+    "launch-worker.mjs: a pointer that lands on the first send exits 0 with the plan unchanged",
+    first.result.status === 0 && /"pointerSends": 1/.test(first.result.stdout) && /"terminal": "t1"/.test(first.result.stdout) && /"branch": "feature\/orb-75-/.test(first.result.stdout),
+    `exit ${first.result.status}, ${first.sends} send(s)\n     stdout: ${first.result.stdout.trim().slice(0, 300)}\n     stderr: ${first.result.stderr.trim().split("\n").slice(-3).join("\n     ")}`,
+  )
+  T("launch-worker.mjs: a pointer that lands is sent exactly once", first.sends === 1, `sent ${first.sends} time(s)`)
+
+  const second = runPointerLaunch("pointer-second", [EMPTY_COMPOSER, "delivered"])
+  T(
+    "launch-worker.mjs: a pointer the composer swallowed is re-sent, and the plan reports how many sends it took",
+    second.result.status === 0 && /"pointerSends": 2/.test(second.result.stdout) && second.sends === 2,
+    `exit ${second.result.status}, ${second.sends} send(s)\n     stdout: ${second.result.stdout.trim().slice(0, 300)}\n     stderr: ${second.result.stderr.trim().split("\n").slice(-3).join("\n     ")}`,
+  )
+
+  const never = runPointerLaunch("pointer-never", [EMPTY_COMPOSER])
+  T(
+    "launch-worker.mjs: a pointer that never becomes a user turn is a launch FAILURE, not a success",
+    never.result.status === 1 && /never showed the prompt pointer/.test(never.result.stderr),
+    `exit ${never.result.status}, expected 1\n     stderr: ${never.result.stderr.trim().split("\n").slice(-4).join("\n     ")}`,
+  )
+  T("launch-worker.mjs: the undelivered launch is bounded, not retried forever", never.sends === 3, `sent ${never.sends} time(s), expected the 3-send bound`)
+  T(
+    "launch-worker.mjs: the undelivered launch leaves no orphaned worktree",
+    never.calls.some((argv) => argv[0].split(/[\\/]/).pop() === "worktree" && argv[1] === "rm"),
+    `no worktree rm in: ${never.calls.map((argv) => argv.slice(0, 2).join(" ")).join(" | ")}`,
+  )
+}
+
 const launchWorkerCases = () => {
   const promptFile = stage("prompt.md", "the ticket body verbatim\n")
 
@@ -386,6 +490,7 @@ const launchWorkerCases = () => {
   check("launch-worker.mjs", "does not stack a second copy on relaunch", ["--issue", "ORB-75", "--prompt-file", alreadyContracted, "--dry-run"], { status: 0, stdout: /"workerContract": "already present"/ }, { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
   trustScreenCases()
+  pointerDeliveryCases()
 
   const launcherSource = readFileSync(join(TOOLS_DIR, "launch-worker.mjs"), "utf8")
   for (const [clause, pattern] of Object.entries(REQUIRED_CONTRACT_CLAUSES)) {
@@ -422,6 +527,193 @@ const nudgeWorkerCases = () => {
   check("nudge-worker.mjs", "sends once the worker is idle", ["--terminal", "t1", "--text", "hi", "--wait-attempts", "1"], { status: 0, stdout: /"sent": "hi"/ }, { env: orcaEnv(IDLE_STUB) })
   check("nudge-worker.mjs", "refuses a tui-idle that is still repainting, which is a worker mid-turn", ["--terminal", "t1", "--text", "hi", "--wait-attempts", "1"], { status: 1, stderr: /still repainting[\s\S]*NOTHING was sent/ }, { env: orcaEnv(FALSE_IDLE_STUB) })
   check("nudge-worker.mjs", "--dry-run calls orca not at all", ["--terminal", "t1", "--text", "hi", "--dry-run"], { status: 0, stdout: /"dryRun": true/ }, { env: orcaEnv([]) })
+}
+
+/**
+ * pr-watch cases. Every one is a state the two hand-rolled ORB-88 loops got wrong, so the
+ * regression they pin is "the watcher went back to sleep with the answer on screen".
+ */
+const HEAD_SHA = "d9a3f1c43e6d6c571d09fe7ea8afc55c26aa19dd"
+const OLD_SHA = "1111111111111111111111111111111111111111"
+const reviewOn = (state, oid) => ({ state, author: { login: "claude" }, commit: { oid } })
+const checkRun = (name, conclusion) => ({ __typename: "CheckRun", name, status: "COMPLETED", conclusion })
+const pullRequestStub = (number, pullRequest) => ({
+  match: `number=${number}`,
+  stdout: JSON.stringify({
+    data: {
+      repository: {
+        pullRequest: {
+          number,
+          url: `https://github.com/thomasluizon/orbit-ui-mobile/pull/${number}`,
+          state: "OPEN",
+          merged: false,
+          isDraft: false,
+          mergeStateStatus: "BLOCKED",
+          reviewDecision: null,
+          headRefOid: HEAD_SHA,
+          latestReviews: { nodes: [] },
+          commits: { nodes: [{ commit: { statusCheckRollup: { state: "SUCCESS", contexts: { nodes: [checkRun("Lint", "SUCCESS")] } } } }] },
+          ...pullRequest,
+        },
+      },
+    },
+  }),
+})
+const rollup = (...contexts) => ({ nodes: [{ commit: { statusCheckRollup: { state: "FAILURE", contexts: { nodes: contexts } } } }] })
+
+const prWatchCases = () => {
+  const argv = ["--repo", "thomasluizon/orbit-ui-mobile", "--pr", "615", "--once"]
+
+  check(
+    "pr-watch.mjs",
+    "a verdict sitting on an OLDER commit does not satisfy the watch",
+    argv,
+    { status: 4, stdout: /"transition": "none"/ },
+    { env: orcaEnv([pullRequestStub(615, { reviewDecision: "CHANGES_REQUESTED", latestReviews: { nodes: [reviewOn("CHANGES_REQUESTED", OLD_SHA)] } })]) },
+  )
+  check(
+    "pr-watch.mjs",
+    "a fresh CHANGES_REQUESTED on the current head fires, which is the silent-spin regression",
+    argv,
+    { status: 1, stdout: /"transition": "changes-requested"/ },
+    { env: orcaEnv([pullRequestStub(615, { reviewDecision: "CHANGES_REQUESTED", latestReviews: { nodes: [reviewOn("CHANGES_REQUESTED", HEAD_SHA)] } })]) },
+  )
+  const approved = pullRequestStub(615, { reviewDecision: "APPROVED", mergeStateStatus: "CLEAN", latestReviews: { nodes: [reviewOn("APPROVED", HEAD_SHA)] } })
+  check("pr-watch.mjs", "a fresh approval fires", argv, { status: 0, stdout: /"transition": "approved"/ }, { env: orcaEnv([approved]) })
+  check(
+    "pr-watch.mjs",
+    "an approval the caller already acted on reports mergeable-and-approved instead of repeating itself",
+    [...argv, "--acted", `615=${HEAD_SHA.slice(0, 7)}:APPROVED`],
+    { status: 0, stdout: /"transition": "ready-to-merge"/ },
+    { env: orcaEnv([approved]) },
+  )
+  check(
+    "pr-watch.mjs",
+    "a failing check beats an approval",
+    argv,
+    { status: 1, stdout: /"transition": "checks-failed"/ },
+    {
+      env: orcaEnv([
+        pullRequestStub(615, {
+          reviewDecision: "APPROVED",
+          mergeStateStatus: "CLEAN",
+          latestReviews: { nodes: [reviewOn("APPROVED", HEAD_SHA)] },
+          commits: rollup(checkRun("Lint", "SUCCESS"), checkRun("Harness Execution", "FAILURE")),
+        }),
+      ]),
+    },
+  )
+  check(
+    "pr-watch.mjs",
+    "a merged PR ends the watch",
+    argv,
+    { status: 5, stdout: /"transition": "gone"/ },
+    { env: orcaEnv([pullRequestStub(615, { state: "MERGED", merged: true })]) },
+  )
+  check(
+    "pr-watch.mjs",
+    "watching several PRs reports whichever one transitioned",
+    ["--repo", "thomasluizon/orbit-ui-mobile", "--pr", "615,616", "--once"],
+    { status: 1, stdout: /"pr": 616[\s\S]*"transition": "changes-requested"/ },
+    {
+      env: orcaEnv([
+        pullRequestStub(615, {}),
+        pullRequestStub(616, { reviewDecision: "CHANGES_REQUESTED", latestReviews: { nodes: [reviewOn("CHANGES_REQUESTED", HEAD_SHA)] } }),
+      ]),
+    },
+  )
+  check("pr-watch.mjs", "refuses a baseline for a PR it is not watching", [...argv, "--acted", `616=${HEAD_SHA}:APPROVED`], { status: 2, stderr: /--pr does not watch/ })
+  check("pr-watch.mjs", "refuses a malformed baseline rather than ignoring it", [...argv, "--acted", "615=APPROVED"], { status: 2, stderr: /--acted must look like/ })
+  check("pr-watch.mjs", "refuses a repo that is not an owner\\/name slug", ["--repo", "orbit-ui-mobile", "--pr", "615", "--once"], { status: 2, stderr: /owner\/name slug/ })
+}
+
+/**
+ * worker-watch cases. The liveness half is the whole point: a single terminal read cannot tell a
+ * busy worker from an idle one, and a busy worker's tail is thousands of characters of
+ * concatenated repaint fragments that hide whatever it last really said.
+ */
+const workerWatchCases = () => {
+  const childWorktree = (path) => ({
+    path,
+    repoId: "r-ui",
+    projectId: "github:thomasluizon/orbit-ui-mobile",
+    isMainWorktree: false,
+    isArchived: false,
+    branch: "refs/heads/feature/orb-75-prove-the-harness-gate",
+    linkedLinearIssue: "ORB-75",
+    baseRef: "main",
+    comment: "ORB-75 launched: worker running",
+  })
+  const linearState = {
+    match: "linear issue ORB-75",
+    stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-75", state: { name: "In Progress" }, labels: [] } } }),
+  }
+  const fleet = (path, { lastOutputAt, tail }) => [
+    { match: "worktree list", stdout: JSON.stringify({ ok: true, result: { worktrees: [childWorktree(path)] } }) },
+    {
+      match: "terminal list",
+      stdout: JSON.stringify({ ok: true, result: { terminals: [{ handle: "term_abc123def4567", worktreePath: path, title: "Claude Code", lastOutputAt: 0 }] } }).replace(
+        '"lastOutputAt":0',
+        `"lastOutputAt":${lastOutputAt}`,
+      ),
+    },
+    { match: "terminal read", stdout: JSON.stringify({ ok: true, result: { terminal: { tail } } }) },
+    linearState,
+  ]
+
+  check(
+    "worker-watch.mjs",
+    "an empty fleet says so rather than printing nothing",
+    [],
+    { status: 0, stdout: /no Orca worktrees/ },
+    { env: orcaEnv([{ match: "worktree list", stdout: JSON.stringify({ ok: true, result: { worktrees: [] } }) }]) },
+  )
+
+  /** __NOW__ is stamped per stub call, so the two samples differ: a TUI painting its spinner. */
+  const busy = check(
+    "worker-watch.mjs",
+    "a repainting terminal is BUSY, and its repaint tail yields no output lines",
+    ["--no-contract"],
+    { status: 0, stdout: /BUSY\s+ORB-75/ },
+    {
+      env: orcaEnv(
+        fleet("C:/wt/orb-75", {
+          lastOutputAt: "__NOW__",
+          tail: ["WorkingWorkingWorkingWorking (12s - esc to interupt)WorkingWorking", "  ⠋ ⠙ ⠹ ⠸  "],
+        }),
+      ),
+    },
+  )
+  T("worker-watch.mjs: the repaint tail is stripped to nothing rather than printed raw", /nothing but repaint noise/.test(busy.stdout), busy.stdout.slice(0, 400))
+  T("worker-watch.mjs: the ticket's Linear state is reported alongside liveness", /In Progress/.test(busy.stdout), busy.stdout.slice(0, 400))
+
+  /** A frozen lastOutputAt is a settled TUI: identical samples, so IDLE. */
+  const idle = check(
+    "worker-watch.mjs",
+    "two identical samples are IDLE, and real content survives the stripping",
+    [],
+    { status: 0, stdout: /IDLE\s+ORB-75/ },
+    {
+      env: orcaEnv(
+        fleet(root, {
+          lastOutputAt: "1785168487585",
+          tail: ["Working (30s - esc to interupt)", "Wrote tools/pr-watch.mjs", "Which of these two approaches do you want?"],
+        }),
+      ),
+    },
+  )
+  T(
+    "worker-watch.mjs: the last meaningful lines survive, so a worker stopped on a question is readable",
+    /Wrote tools\/pr-watch\.mjs/.test(idle.stdout) && /Which of these two approaches/.test(idle.stdout),
+    idle.stdout.slice(0, 400),
+  )
+  T(
+    "worker-watch.mjs: an unreadable contract verdict is reported, never silently dropped",
+    /contract\s+unavailable/.test(idle.stdout),
+    `worker-status ran against a non-repo path, so the verdict must degrade visibly\n     ${idle.stdout.slice(0, 400)}`,
+  )
+  check("worker-watch.mjs", "refuses a repo outside orchestrator.json", ["--repo", "zzz"], { status: 2, stderr: /--repo must be one of/ })
+  check("worker-watch.mjs", "refuses a non-positive --lines", ["--lines", "0"], { status: 2, stderr: /positive integer/ })
 }
 
 const orcaWebPortCases = () => {
@@ -587,6 +879,8 @@ const gateCases = {
   },
   "launch-worker.mjs": launchWorkerCases,
   "nudge-worker.mjs": nudgeWorkerCases,
+  "pr-watch.mjs": prWatchCases,
+  "worker-watch.mjs": workerWatchCases,
   "orca-web-port.mjs": orcaWebPortCases,
   "worker-status.mjs": () => {
     check("worker-status.mjs", "requires --worktree", ["--issue", "ORB-75"], { status: 2, stderr: /--worktree is required/ })
@@ -636,11 +930,13 @@ const INVALID_INPUT = {
   "new-ticket.mjs": { argv: [], status: 2 },
   "nudge-worker.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "orca-web-port.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "pr-watch.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "redesign-coverage.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "rollup.sh": { argv: ["--orbit-not-a-flag"], status: 2 },
   "surface-manifest.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "wave-plan.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "worker-status.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "worker-watch.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
 }
 
 console.log("# structural coverage")

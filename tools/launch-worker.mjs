@@ -6,7 +6,11 @@
  * blocks forever on the worker CLI's workspace-trust prompt, Orca's
  * <gituser>/<name> branch is not the worker contract's feature/fix branch, and a
  * multi-line prompt pushed through `terminal send --text` submits early and
- * arrives mangled. Engine, model routing and repo paths come from
+ * arrives mangled. A fifth, measured on the 2026-07-27 ORB-88 run, is the reason
+ * this script now READS THE POINTER BACK off the TUI before exiting 0: orca
+ * accepted the send, the cold composer swallowed it, and the launcher reported a
+ * running worker that was in fact idle with no work at all. Engine, model routing
+ * and repo paths come from
  * .claude/orchestrator.json; what each engine CLI spells differently (its headless
  * shape, its trust screen and the keystroke that answers it) lives in
  * ENGINE_PROFILES below. This script launches a worker; it never merges,
@@ -15,7 +19,9 @@
 
 import { execFileSync, spawnSync } from "node:child_process"
 import { appendFileSync, existsSync, readFileSync, statSync } from "node:fs"
-import { resolve } from "node:path"
+import { basename, resolve } from "node:path"
+
+import { SETTLE_MS, isRepainting, pause } from "./lib/tui-repaint.mjs"
 
 const USAGE = `usage: launch-worker.mjs --issue ORB-N --prompt-file <path> [options]
 
@@ -37,10 +43,14 @@ const USAGE = `usage: launch-worker.mjs --issue ORB-N --prompt-file <path> [opti
 
 Prints one JSON object on stdout: issue, repo, repoPath, worktreePath, worktreeSelector,
 branch, baseBranch, terminal, engine, command, promptFile, workerContract, trustPromptAnswered,
-waitAttempts.
+waitAttempts, pointerSends.
 Progress goes to stderr, so stdout stays pipeable.
 
-exit codes: 0 worker launched, 1 the worker never reached tui-idle, 2 usage or config error,
+exit 0 means the worker ACCEPTED the prompt as a user turn, verified by reading the pointer back
+off the TUI, never merely that orca accepted the send.
+
+exit codes: 0 worker launched and holding the work order, 1 the worker never reached tui-idle or
+            never took the prompt pointer as a turn, 2 usage or config error,
             3 an orca or git command failed
 
 Any non-zero exit after the worktree exists stops its terminals and removes that worktree and
@@ -92,23 +102,24 @@ const ENGINE_PROFILES = {
 const TRUST_BLOCKED_REASON = /trust/i
 const flatten = (text) => text.replace(/\s+/g, "").toLowerCase()
 
+/** The prompt pointer below is a `terminal send`, and a send to a busy worker is the ORB-75
+ * failure this whole script exists to avoid, so a satisfied tui-idle wait alone is not enough
+ * to send on. Why the repaint delta is the signal that works for both engines, and why the
+ * terminal text is not: tools/lib/tui-repaint.mjs. */
+const busy = (handle) => isRepainting(orca, handle)
+
 /**
- * `orca terminal wait --for tui-idle` is NOT a busy signal for every engine. Measured
- * 2026-07-27 against a live codex worker mid-turn: the wait returned satisfied: true while
- * the TUI was painting `Working (30s - esc to interupt)`. The prompt pointer below is a
- * `terminal send`, and a send to a busy worker is the ORB-75 failure this whole script
- * exists to avoid, so a satisfied wait alone is not enough to send on. Repaint activity is
- * the signal that works for both engines: a running turn repaints its spinner continuously,
- * an idle TUI emits nothing at all. Measured lastOutputAt advancing 2.4s to 3.7s per sample
- * window on a busy codex and on a busy claude, and frozen at delta 0 on an idle one of each.
- * The terminal TEXT cannot be used for this: an idle codex composer still carried the
- * `Starting MCP servers ... esc to interrupt` line from its own startup.
+ * How many times the pointer may be sent before the launch is a failure, and how long the TUI
+ * gets to paint the sent text before it is read back. Measured on the 2026-07-27 ORB-88 launch:
+ * `terminal send` was accepted by orca, the launcher printed a full plan and exited 0, and the
+ * pointer never became a user turn at all. The TUI sat at an empty composer with its
+ * `Try "how do I log an error?"` placeholder still painted, alive and idle with no work, and
+ * nobody at the keyboard to notice. `waitAttempts: 1` was the clue: the launch reached
+ * tui-idle on its first wait, which on a cold TUI means the composer had not finished mounting,
+ * and then sent into it. So an exit code may never again assert delivery it did not verify.
  */
-const REPAINT_SAMPLE_MS = 3000
-/** A satisfied-but-repainting wait returns instantly, so the retry needs its own pause or the
- * six attempts burn in seconds while the engine is merely still starting up. */
-const SETTLE_MS = 10000
-const pause = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
+const MAX_POINTER_SENDS = 3
+const POINTER_PAINT_MS = 4000
 
 /**
  * The standing worker contract, owned HERE rather than by whoever composed the prompt file.
@@ -265,13 +276,6 @@ const waitForIdle = (handle) => {
     fail(3, `orca terminal wait failed: ${parsed.error?.message ?? "unknown orca error"}`)
   }
   return parsed.result?.wait ?? {}
-}
-
-const isRepainting = (handle) => {
-  const paintedAt = () => orca(["terminal", "show", "--terminal", handle]).terminal?.lastOutputAt ?? 0
-  const before = paintedAt()
-  pause(REPAINT_SAMPLE_MS)
-  return paintedAt() !== before
 }
 
 const git = (args) => {
@@ -449,7 +453,7 @@ while (waitAttempts < MAX_WAIT_ATTEMPTS && !idle) {
    * text from a gate that is long gone and type into the worker's live composer.
    */
   if (wait.satisfied) {
-    if (!isRepainting(terminal)) {
+    if (!busy(terminal)) {
       idle = true
       break
     }
@@ -475,15 +479,57 @@ if (!idle) {
 }
 
 const pointer = `Read ${promptFile} and execute it in full. That file is your complete work order for ${issue}: the ticket body verbatim, then the finishing contract. You are on branch ${branch} in ${worktreePath}. Do not summarise the file back to me, start the work now.`
-console.error("sending the prompt pointer")
-orca(["terminal", "send", "--terminal", terminal, "--text", pointer, "--enter"])
+
+/**
+ * What a DELIVERED pointer looks like on screen: a send that became a user turn makes the TUI
+ * paint the sent text as a user line and clears the composer placeholder. Two fingerprints
+ * rather than the whole pointer, because a TUI wraps a long line and the flatten below rejoins
+ * the wrap: the prompt file's basename, which no other screen carries, plus the instruction
+ * that follows it. Matched with all whitespace stripped for the same reason the trust screens
+ * are: `orca terminal read` flattens a repaint and swallows spacing unevenly.
+ */
+const POINTER_FINGERPRINTS = [flatten(basename(promptFile)), flatten("and execute it in full")]
+const pointerOnScreen = () => {
+  const tail = (orca(["terminal", "read", "--terminal", terminal, "--limit", "80"]).terminal?.tail ?? []).join("\n")
+  const painted = flatten(tail)
+  return POINTER_FINGERPRINTS.every((fingerprint) => painted.includes(fingerprint))
+}
+
+let pointerSends = 0
+let pointerDelivered = false
+while (pointerSends < MAX_POINTER_SENDS && !pointerDelivered) {
+  pointerSends += 1
+  console.error(`sending the prompt pointer (send ${pointerSends} of ${MAX_POINTER_SENDS})`)
+  orca(["terminal", "send", "--terminal", terminal, "--text", pointer, "--enter"])
+  pause(POINTER_PAINT_MS)
+  pointerDelivered = pointerOnScreen()
+  if (pointerDelivered || pointerSends >= MAX_POINTER_SENDS) break
+  /**
+   * A repainting TUI with no pointer on screen is ambiguous: it may be a worker that took the
+   * turn and has already scrolled the line away, or an engine still starting up. Either way a
+   * second send into a busy TUI is the ORB-75 corruption (queued, never a user turn, running
+   * turn cut short), so settle and re-read rather than sending again.
+   */
+  if (busy(terminal)) {
+    console.error(`the pointer is not on screen yet and the TUI is painting, so waiting instead of sending again`)
+    pause(SETTLE_MS)
+    pointerDelivered = pointerOnScreen()
+  }
+}
+if (!pointerDelivered) {
+  fail(
+    1,
+    `${terminal} never showed the prompt pointer as a user turn after ${pointerSends} send(s); the worker is alive, idle and has NO work. This is the 2026-07-27 ORB-88 failure: orca accepts the send, the TUI's composer swallows it, and an exit 0 here would report a launch that delivered nothing. Inspect it with: orca terminal read --terminal ${terminal}`,
+  )
+}
+
 rollback = null
 orca(["terminal", "switch", "--terminal", terminal])
 orca(["worktree", "set", "--worktree", worktreeSelector, "--comment", comment, "--workspace-status", workspaceStatus])
 
 console.log(
   JSON.stringify(
-    { ...plan, worktreePath, worktreeSelector, terminal, trustPromptAnswered, waitAttempts },
+    { ...plan, worktreePath, worktreeSelector, terminal, trustPromptAnswered, waitAttempts, pointerSends },
     null,
     2,
   ),
