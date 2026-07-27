@@ -339,16 +339,42 @@ Merge a PR under `--sleep` only when ALL of these hold, checked in this order:
    comment ends in exactly one of two states:
 
    - **Addressed.** The finding is real: fix it through a worker in that ticket's worktree,
-     reply on the thread naming the commit that fixed it, and RESOLVE the thread. Re-read
-     the checks and `reviewDecision` afterwards, because the fix pushed a new head.
+     PUSH the fix, then reply on the thread naming the commit that fixed it, then RESOLVE
+     the thread. That order matters: resolving before the fix is pushed marks a defect
+     handled that is not yet in the branch. Re-read the checks and `reviewDecision`
+     afterwards, because the fix pushed a new head.
    - **Disagreed.** Reconcile the finding against the code first (D8): a reviewer can be
      wrong, and a finding that does not reproduce is not work. Post a reply saying plainly
      why you disagree, with the evidence you checked. Then **STOP that ticket**: leave the
      PR open, do not merge it, and put the disagreement in the closing report. A reviewer
-     and the run disagreeing is precisely a case the run cannot decide alone.
+     and the run disagreeing is precisely a case the run cannot decide alone. Leave that
+     thread UNRESOLVED: it is the one case where an open thread is the correct end state,
+     because Thomas has to settle it.
 
    A comment that is purely informational, with nothing to fix and nothing to dispute, is
-   addressed by a reply saying so. Silence is never "addressed".
+   addressed by a reply saying so, and then resolved. Silence is never "addressed".
+
+   **Check this mechanically, never by memory.** A thread is resolved only when GitHub says
+   so, and "I replied to it" is not resolution: an unresolved thread is what Thomas actually
+   sees when he opens the PR, which is the entire point of this condition.
+
+   ```bash
+   gh api graphql -f query='query{repository(owner:"<owner>",name:"<repo>"){pullRequest(number:<n>){reviewThreads(first:100){nodes{id isResolved comments(first:1){nodes{author{login} body}}}}}}}' \
+     --jq '[.data.repository.pullRequest.reviewThreads.nodes[]|select(.isResolved==false)]|length'
+   ```
+
+   That number must be `0` before a `--sleep` merge, with the single exception of a thread
+   deliberately left open by the disagreement path above, and that ticket is not being
+   merged anyway. Resolve with:
+
+   ```bash
+   gh api graphql -f query='mutation{resolveReviewThread(input:{threadId:"<PRRT_...>"}){thread{isResolved}}}' \
+     --jq '.data.resolveReviewThread.thread.isResolved'
+   ```
+
+   Read that mutation's `true` back rather than assuming it worked. Thomas must never wake
+   up to a merged PR carrying open threads whose findings were in fact fixed hours earlier;
+   from the outside those two states look identical, and one of them is a lie.
 
 Then squash-merge and delete the branch. **Never `--admin`.** Admin-merging bypasses
 the checks, and a bypass with nobody watching is the one combination that can put a
@@ -362,7 +388,9 @@ The run's closing report is written for someone with no memory of the run, becau
 is what Thomas is when he reads it. Five sections, in this order, every one present even
 when empty:
 
-1. **Merged**, one line each: ticket, PR, merge SHA.
+1. **Merged**, one line each: ticket, PR, merge SHA, and the count of reviewer comments
+   addressed on it. Every merged PR must read zero unresolved threads; say so, because an
+   unresolved thread on a merged PR is the thing this report exists to make impossible.
 2. **Stopped**, with the exact reason and what it is waiting on. A ticket stopped because
    the run DISAGREED with a reviewer names the comment, the reply posted, and the evidence
    checked, so Thomas can settle it in one read.
