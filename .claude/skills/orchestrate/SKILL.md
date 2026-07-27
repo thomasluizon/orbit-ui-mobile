@@ -67,13 +67,22 @@ Per launchable ticket, up to `maxParallelWorktrees`:
    BEFORE launch, not patched in the prompt.
 2. Compose the worker prompt into a file OUTSIDE every repo (the session scratchpad; a
    file written inside the worktree gets committed by the worker): the ticket body
-   VERBATIM (it is the prompt, D2), then the finishing contract: run lint + type-check +
-   tests for the touched workspace, commit, push, open a PR to `<target>` whose body
-   links `ORB-N`, attach the PR URL to the Linear issue (`orca linear attach`), attach
-   the screenshot to the issue FIRST when the ticket carries `visible-effect` (D7), set
-   the issue to In Review, and STOP. Workers never merge, never touch another ticket's
-   files, never edit gate baselines. The branch is NOT the worker's job; step 3 hands it
-   the contract branch already checked out.
+   VERBATIM (it is the prompt, D2), then the PER-TICKET finishing contract: run lint +
+   type-check + tests for the touched workspace, commit, push, open a PR to `<target>`
+   whose body links `ORB-N`, attach the PR URL to the Linear issue (`orca linear
+   attach`), attach the screenshot to the issue FIRST when the ticket carries
+   `visible-effect` (D7), set the issue to In Review, and STOP. The branch is NOT the
+   worker's job; step 3 hands it the contract branch already checked out.
+
+   **Do NOT hand-write the STANDING clauses here.** Never ask a question, state a blocked
+   criterion as UNMET instead of stalling, never watch your own PR's CI or another
+   ticket, never arm a monitor that outlives the contract, never merge: all of that is
+   `WORKER_CONTRACT` in `tools/launch-worker.mjs`, which APPENDS it to your prompt file
+   at launch (idempotently). The guarantee is structural precisely because it used to be
+   prose in this list: on the ORB-88 run a worker whose hand-composed prompt omitted the
+   clauses ended a turn on a question and stalled until a human noticed the terminal, and
+   then armed a monitor on another ticket's PR. `tools/test-tools.mjs` fails if a clause
+   is dropped, so the Harness Execution job is what keeps it true, not this paragraph.
 3. `node tools/launch-worker.mjs --issue ORB-N --prompt-file "<absolute path>"`
    (`--base-branch <target>` when the target is not `main`, `--branch-prefix fix` for a
    bug ticket, `--repo ui|api|landing` only to override the `repo:*` label). It prints
@@ -98,14 +107,22 @@ launch, all four fatal to an unattended worker:
   `Missing required --name`. The tool passes the full working set:
   `--repo path:<repo> --name <slug> --base-branch <target> --linear-issue ORB-N
   --no-parent --comment "<one line>" --json`.
-- **A fresh checkout blocks on Claude Code's workspace-trust prompt** ("Is this a project
-  you created or one you trust?"), which surfaces as `orca terminal wait` returning
-  `satisfied: false` with `blockedReason: codex-trust-workspace`. Nobody is at the
-  keyboard, so the worker hangs there forever. The tool detects it on the blockedReason
-  or on the terminal text, sends `1` + Enter, and waits again, bounded. Note that a wait
-  which is simply not met yet comes back differently again, as exit 1 with an
-  `ok: false` / `error.code: timeout` payload, so the tool reads the payload and never
-  the exit code.
+- **A fresh checkout blocks on the worker CLI's workspace-trust prompt**, which surfaces
+  as `orca terminal wait` returning `satisfied: false` with a `blockedReason`. Nobody is
+  at the keyboard, so the worker hangs there forever. The tool detects it on the terminal
+  text, answers it once and waits again, bounded. The screen text, the blockedReason AND
+  the answering keystroke all differ per engine, so they live in `ENGINE_PROFILES`:
+  Claude Code paints "Is this a project you created or one you trust?", reports
+  `codex-trust-workspace`, and takes `1` + Enter; codex paints "Do you trust the contents
+  of this directory?", reports `codex-interactive-prompt`, and takes **Enter alone**,
+  because its list preselects option 1 and says so ("Press enter to continue"). Sending
+  codex the digit was measured leaving its process exited (-1). Two matching subtleties:
+  the tool checks `satisfied` BEFORE the screen text, because a TUI repaint has no
+  scrollback and the answered trust screen stays in the tail forever, and it matches that
+  tail with all whitespace stripped, because `orca terminal read` swallows spacing
+  unevenly ("Doyoutrustthecontents..."). Note also that a wait which is simply not met yet
+  comes back differently again, as exit 1 with an `ok: false` / `error.code: timeout`
+  payload, so the tool reads the payload and never the exit code.
 - **Orca's branch is not the contract branch.** Orca creates
   `refs/heads/<gituser>/<name>`; the worker contract needs `feature/orb-N-<slug>` (or
   `fix/`). The tool runs the `git switch -c` itself and verifies HEAD landed on it, so
@@ -131,12 +148,33 @@ subcommand and lands in exactly the same place, and flipping the top-level `work
 a one-word edit (D5). So the guard is not a flag check. Every entry in
 `orchestrator.json`'s `workers` map must declare `interactive: true`, and
 `launch-worker.mjs` refuses (exit 2) to launch anything that does not, with a second
-assertion catching an entry that declares itself interactive while carrying `-p`,
-`--print` or `exec` anywhere in its `command` OR its `args` (a guard that reads only `args`
-is one field move from passing `"command": "codex exec"`). `codex` is declared
-`interactive: false` today, so selecting it fails
-loudly at launch rather than producing an unsupervisable run; making it usable again means
-giving it an interactive invocation, not deleting the flag.
+assertion catching an entry that declares itself interactive while carrying its CLI's
+headless token anywhere in its `command` OR its `args` (a guard that reads only `args` is
+one field move from passing `"command": "codex exec"`).
+
+That second assertion is **per engine**, keyed by the binary, because headless is a
+property of the CLI: `exec` (and its alias `e`) for codex, `-p` / `--print` for claude.
+One shared token list cannot tell codex's `-p`, which is `--profile`, apart from claude's
+`-p`, which is `--print`, and rejected every valid `codex --profile` invocation as
+headless. A binary with no `ENGINE_PROFILES` entry is refused rather than waved through,
+so adding a third engine means declaring what headless looks like for it.
+
+**codex is a usable engine.** Its entry is bare `codex` with no subcommand
+(`codex --help`: "If no subcommand is specified, options will be forwarded to the
+interactive CLI") plus `--dangerously-bypass-approvals-and-sandbox`, which is codex's
+`bypassPermissions`. Never `--full-auto`: that is `-a on-request --sandbox
+workspace-write`, and `on-request` lets the MODEL decide when to ask a human who is not
+there. The single bypass flag is preferred over the equivalent pair
+`-a never --sandbox danger-full-access` because the pair has a half-state, where an edit
+dropping `-a never` silently restores approval prompts to an unwatched worker. On Windows
+the entry also carries `-c windows.sandbox="unelevated"`: codex's default Windows sandbox
+needs Administrator rights to set up, and its first-run TUI otherwise sits on "Setting up
+sandbox... Input disabled until setup completes" forever in a PTY with no desktop to raise
+UAC on, while `orca terminal wait` reports `satisfied: true` throughout. The prerequisite
+the harness cannot supply is the account: a paid ChatGPT plan and `codex login`
+(`codex login --device-auth` works from a headless session, printing a URL and a one-time
+code). Making codex the DEFAULT is still a separate decision (D5) and Thomas's call; this
+only makes selecting it work.
 
 Two consequences of dropping `-p`. The process does NOT exit when the work is done, so
 wait with `--for tui-idle`, never `--for exit`. And the permission mode must still come

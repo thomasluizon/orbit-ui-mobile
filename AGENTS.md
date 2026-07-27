@@ -29,7 +29,7 @@ before writing code.
 
 These hold for EVERY worker and every engine. They are enforced by CI, GitHub branch
 protection, and the lefthook pre-commit/pre-push hooks, NOT by the Claude Code session
-hooks (those do not run under `codex exec` or a raw shell). This list is the readable
+hooks (those do not run under a codex worker or a raw shell). This list is the readable
 copy; the gates are the enforcement.
 
 - Never push or force-push to `main` (or `redesign/main`). Branch to
