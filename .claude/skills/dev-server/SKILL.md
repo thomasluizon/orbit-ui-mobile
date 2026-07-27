@@ -14,10 +14,12 @@ Brings up the three tiers **in order, each gated on the previous being ready**: 
 |---|---|---|---|
 | DB | Docker container `orbit-postgres` (`postgres:17`) | `docker start orbit-postgres` | `localhost:5432` |
 | API | `C:\Users\thoma\Documents\Programming\Projects\orbit-api` | `dotnet run --project src/Orbit.Api` | http://localhost:5000 |
-| Web | `C:\Users\thoma\Documents\Programming\Projects\orbit-ui-mobile` | `npm run web` | http://localhost:3000 |
+| Web | current Orbit UI checkout | `npm run web` | `http://localhost:<worktree web port>` |
 
 - DB connection (from `appsettings.Development.json`): `Host=localhost;Port=5432;Database=orbit;Username=postgres;Password=postgres`.
-- Web→API wiring needs nothing: the BFF proxy reads `API_BASE` and defaults to `http://localhost:5000`. **Only** intervene if `apps/web/.env*` sets `API_BASE` to a non-localhost value (then the local web would hit prod) — warn the user, don't edit their `.env`.
+- Read the web port before starting or checking web: `node tools/orca-web-port.mjs`. A linked worktree with no assignment is an error, not a fallback to 3000. The root checkout still reports 3000.
+- Web→API wiring needs nothing: the BFF proxy reads `API_BASE` and defaults to `http://localhost:5000`. The web-port runner preserves that local API base on every assigned web port. **Only** intervene if `apps/web/.env*` sets `API_BASE` to a non-localhost value (then the local web would hit prod) - warn the user, don't edit their `.env`.
+- The database and API remain shared across worktrees at 5432 and 5000. This skill isolates only the web server port.
 
 ## Mode (from `$ARGUMENTS`)
 
@@ -58,10 +60,10 @@ Launch it with `run_in_background: true`. Then gate on health: poll `http://loca
 ## Step 4 — Web (background, gated)
 
 ```bash
-cd "C:/Users/thoma/Documents/Programming/Projects/orbit-ui-mobile"
+cd "<the worktree you are testing>"
 npm run web
 ```
-Launch with `run_in_background: true`. Gate on `http://localhost:3000` returning HTML. `npm run web` = `turbo run dev --filter=@orbit/web` (Next dev), so it serves only the web app, not Expo.
+First run `node tools/orca-web-port.mjs` and save the reported value as `<web-port>`. Launch with `run_in_background: true`. Gate on `http://localhost:<web-port>` returning HTML. `npm run web` = `turbo run dev --filter=@orbit/web` (Next dev), so it serves only the web app, not Expo.
 
 ## Report
 
@@ -69,13 +71,13 @@ Print the live URLs and what's running:
 ```
 DB   localhost:5432   (docker: orbit-postgres)
 API  http://localhost:5000   (/scalar for docs, /health)
-Web  http://localhost:3000   ← open this
+Web  http://localhost:<web-port>   ← open this
 ```
-Tell the user the web proxies to the local API by default. The API + web run in background tasks; their logs stream to their task output files.
+Tell the user the web port and that it proxies to the shared local API by default. The API + web run in background tasks; their logs stream to their task output files.
 
 ## Status
 
-`docker ps --filter name=orbit-postgres` for the DB; check `http://localhost:5000/health` and `http://localhost:3000`. Report which tiers are up.
+Run `node tools/orca-web-port.mjs` for `<web-port>`, then use `docker ps --filter name=orbit-postgres` for the DB; check `http://localhost:5000/health` and `http://localhost:<web-port>`. Report which tiers are up.
 
 ## Stop
 
