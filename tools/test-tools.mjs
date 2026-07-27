@@ -354,7 +354,7 @@ const EMPTY_COMPOSER = ' (logo)   Claude Code v2.1.220\n> Try "how do I log an e
  * "delivered" is a tail carrying the pointer as a user line, anything else is a tail without it.
  * Returns the orca calls, because the assertion that matters is how many sends really happened.
  */
-const runPointerLaunch = (label, tails) => {
+const runPointerLaunch = (label, tails, { repainting = false } = {}) => {
   const staged = stageLaunchWorker(label, INTERACTIVE_WORKER)
   const checkout = stageCheckout(staged.base)
   if (!checkout) return null
@@ -366,8 +366,26 @@ const runPointerLaunch = (label, tails) => {
     { match: "worktree create", stdout: JSON.stringify({ ok: true, result: { worktree: { path: checkout, branch: "refs/heads/thomasluizon/orb-75" } } }) },
     { match: "terminal create", stdout: JSON.stringify({ ok: true, result: { terminal: { handle: "t1" } } }) },
     { match: "terminal wait", stdout: JSON.stringify({ ok: true, result: { wait: { satisfied: true } } }) },
-    /** Frozen lastOutputAt: a settled TUI, so the launch sends instead of waiting out a repaint. */
-    { match: "terminal show", stdout: JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1785168487585 } } }) },
+    /**
+     * Frozen lastOutputAt is a settled TUI, so the launch sends instead of waiting out a repaint.
+     *
+     * `repainting` has to be a SEQUENCE, not a fresh stamp on every call: the tui-idle wait
+     * before the pointer uses the same repaint check, so a terminal that paints from the first
+     * call never gets past it and the pointer branch stays unreached. Measured: the first version
+     * of this stub died at "never reached tui-idle after 6 waits". The first two calls are the
+     * idle wait's own before/after pair and must be equal; every call after them is stamped
+     * fresh, which is a TUI that starts painting once the pointer has been sent.
+     */
+    repainting
+      ? {
+          match: "terminal show",
+          sequence: [
+            JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1785168487585 } } }),
+            JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1785168487585 } } }),
+            '{"ok":true,"result":{"terminal":{"lastOutputAt":__NOW__}}}',
+          ],
+        }
+      : { match: "terminal show", stdout: JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1785168487585 } } }) },
     {
       match: "terminal read",
       sequence: tails.map((tail) => JSON.stringify({ ok: true, result: { terminal: { tail: [tail === "delivered" ? painted : tail] } } })),
@@ -419,6 +437,24 @@ const pointerDeliveryCases = () => {
     `exit ${never.result.status}, expected 1\n     stderr: ${never.result.stderr.trim().split("\n").slice(-4).join("\n     ")}`,
   )
   T("launch-worker.mjs: the undelivered launch is bounded, not retried forever", never.sends === 3, `sent ${never.sends} time(s), expected the 3-send bound`)
+
+  /**
+   * The branch every other case misses, because they all freeze lastOutputAt: a TUI that keeps
+   * repainting past the settle window. The first shape of this loop settled ONCE and then fell
+   * through to another send, which queues into a running turn and cuts it short (ORB-75). The
+   * assertion is the send COUNT: one send, then settle, then give up. Never a second send.
+   */
+  const busyThroughout = runPointerLaunch("pointer-busy", [EMPTY_COMPOSER], { repainting: true })
+  T(
+    "launch-worker.mjs: a TUI that keeps painting is never sent to a second time",
+    busyThroughout.sends === 1,
+    `sent ${busyThroughout.sends} time(s); a re-send into a repainting TUI is the ORB-75 corruption\n     stderr: ${busyThroughout.result.stderr.trim().split("\n").slice(-4).join("\n     ")}`,
+  )
+  T(
+    "launch-worker.mjs: a TUI that never goes quiet is a launch failure naming that cause",
+    busyThroughout.result.status === 1 && /never went quiet/.test(busyThroughout.result.stderr),
+    `exit ${busyThroughout.result.status}\n     stderr: ${busyThroughout.result.stderr.trim().split("\n").slice(-4).join("\n     ")}`,
+  )
   T(
     "launch-worker.mjs: the undelivered launch leaves no orphaned worktree",
     never.calls.some((argv) => argv[0].split(/[\\/]/).pop() === "worktree" && argv[1] === "rm"),
@@ -622,6 +658,25 @@ const prWatchCases = () => {
       ]),
     },
   )
+  /**
+   * The REAL loop, not --once: every other case here short-circuits it, and this is the code
+   * that runs unattended for 90 minutes in place of two predecessors that failed silently.
+   * --interval 1 --timeout 3 gives it two sleeps before the deadline, so polls > 1 is the proof
+   * that it slept and came back rather than falling out of the loop on the first pass.
+   */
+  const timedOut = check(
+    "pr-watch.mjs",
+    "the polling loop sleeps, re-polls and times out reporting it, without --once",
+    ["--repo", "thomasluizon/orbit-ui-mobile", "--pr", "615", "--interval", "1", "--timeout", "3"],
+    { status: 4, stdout: /"transition": "timeout"/ },
+    { env: orcaEnv([pullRequestStub(615, { reviewDecision: "CHANGES_REQUESTED", latestReviews: { nodes: [reviewOn("CHANGES_REQUESTED", OLD_SHA)] } })]) },
+  )
+  T(
+    "pr-watch.mjs: the timed-out watch really polled more than once",
+    timedOut.status === 4 && JSON.parse(timedOut.stdout).polls > 1,
+    `polls was ${timedOut.status === 4 ? JSON.parse(timedOut.stdout).polls : "unreadable"}; one poll means the loop never slept\n     ${timedOut.stderr.trim().split("\n").slice(0, 4).join("\n     ")}`,
+  )
+
   check("pr-watch.mjs", "refuses a baseline for a PR it is not watching", [...argv, "--acted", `616=${HEAD_SHA}:APPROVED`], { status: 2, stderr: /--pr does not watch/ })
   check("pr-watch.mjs", "refuses a malformed baseline rather than ignoring it", [...argv, "--acted", "615=APPROVED"], { status: 2, stderr: /--acted must look like/ })
   check("pr-watch.mjs", "refuses a repo that is not an owner\\/name slug", ["--repo", "orbit-ui-mobile", "--pr", "615", "--once"], { status: 2, stderr: /owner\/name slug/ })

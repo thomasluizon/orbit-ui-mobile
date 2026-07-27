@@ -120,6 +120,10 @@ const busy = (handle) => isRepainting(orca, handle)
  */
 const MAX_POINTER_SENDS = 3
 const POINTER_PAINT_MS = 4000
+/** How many settle windows a painting TUI gets before the launch gives up. A TUI that is still
+ * repainting after all of them is never re-sent to: there is no safe moment, and a queued send
+ * would cut its running turn short. */
+const MAX_POINTER_SETTLES = 3
 
 /**
  * The standing worker contract, owned HERE rather than by whoever composed the prompt file.
@@ -497,29 +501,40 @@ const pointerOnScreen = () => {
 
 let pointerSends = 0
 let pointerDelivered = false
+let painting = false
 while (pointerSends < MAX_POINTER_SENDS && !pointerDelivered) {
   pointerSends += 1
   console.error(`sending the prompt pointer (send ${pointerSends} of ${MAX_POINTER_SENDS})`)
   orca(["terminal", "send", "--terminal", terminal, "--text", pointer, "--enter"])
   pause(POINTER_PAINT_MS)
   pointerDelivered = pointerOnScreen()
-  if (pointerDelivered || pointerSends >= MAX_POINTER_SENDS) break
   /**
    * A repainting TUI with no pointer on screen is ambiguous: it may be a worker that took the
    * turn and has already scrolled the line away, or an engine still starting up. Either way a
    * second send into a busy TUI is the ORB-75 corruption (queued, never a user turn, running
    * turn cut short), so settle and re-read rather than sending again.
+   *
+   * The paint state is re-measured on EVERY iteration, exactly as the tui-idle wait above does,
+   * because an agent turn runs for minutes and a single settle expires long before it ends. A
+   * shape that settled once and then fell through to the top of this loop resent into a busy TUI
+   * in precisely the case this branch exists to prevent (PR #616 review round 1).
    */
-  if (busy(terminal)) {
-    console.error(`the pointer is not on screen yet and the TUI is painting, so waiting instead of sending again`)
+  painting = !pointerDelivered && busy(terminal)
+  let settles = 0
+  while (painting && settles < MAX_POINTER_SETTLES) {
+    settles += 1
+    console.error(`the pointer is not on screen and the TUI is painting, so settling instead of sending again (${settles} of ${MAX_POINTER_SETTLES})`)
     pause(SETTLE_MS)
     pointerDelivered = pointerOnScreen()
+    painting = !pointerDelivered && busy(terminal)
   }
+  /** Still painting past the bound: there is no safe moment to re-send, so this launch is over. */
+  if (painting) break
 }
 if (!pointerDelivered) {
   fail(
     1,
-    `${terminal} never showed the prompt pointer as a user turn after ${pointerSends} send(s); the worker is alive, idle and has NO work. This is the 2026-07-27 ORB-88 failure: orca accepts the send, the TUI's composer swallows it, and an exit 0 here would report a launch that delivered nothing. Inspect it with: orca terminal read --terminal ${terminal}`,
+    `${terminal} never showed the prompt pointer as a user turn after ${pointerSends} send(s)${painting ? ", and the TUI never went quiet, so re-sending would have queued into a running turn" : ", and the worker is alive, idle and has NO work"}. This is the 2026-07-27 ORB-88 failure: orca accepts the send, the TUI's composer swallows it, and an exit 0 here would report a launch that delivered nothing. Inspect it with: orca terminal read --terminal ${terminal}`,
   )
 }
 
