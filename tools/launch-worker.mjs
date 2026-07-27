@@ -3,11 +3,13 @@
  * Launch one ticket's Orca worktree + TUI worker end to end, and be the single
  * place the four launch gotchas measured on 2026-07-24 (the ORB-75 Phase 7 run)
  * are handled: `orca worktree create` exits 1 without --name, a fresh checkout
- * blocks forever on Claude Code's workspace-trust prompt, Orca's
+ * blocks forever on the worker CLI's workspace-trust prompt, Orca's
  * <gituser>/<name> branch is not the worker contract's feature/fix branch, and a
  * multi-line prompt pushed through `terminal send --text` submits early and
  * arrives mangled. Engine, model routing and repo paths come from
- * .claude/orchestrator.json. This script launches a worker; it never merges,
+ * .claude/orchestrator.json; what each engine CLI spells differently (its headless
+ * shape, its trust screen and the keystroke that answers it) lives in
+ * ENGINE_PROFILES below. This script launches a worker; it never merges,
  * reviews, or moves a Linear issue.
  */
 
@@ -54,12 +56,55 @@ const WAIT_TIMEOUT_MS = 60000
 const MAX_WAIT_ATTEMPTS = 6
 
 /**
- * Claude Code's first-run workspace-trust gate, seen two ways: Orca reports it as a
- * blockedReason on the wait, and the TUI paints it as a numbered question. Either signal
- * answers it, because a blocked worker with nobody at the keyboard hangs forever.
+ * What each worker CLI does that this script has to know, keyed by the binary it runs.
+ * All three facts are properties of the CLI, not of the harness, so a shared list cannot
+ * hold them: codex's `-p` is `--profile`, a legitimate interactive flag, while claude's
+ * `-p` is `--print`, the headless mode this guard exists for. One flat token list
+ * rejected every valid `codex --profile` invocation as headless.
+ *
+ * `trustOnScreen` matches the tail with ALL whitespace removed, because `orca terminal
+ * read` flattens a TUI repaint and swallows spacing unevenly ("Doyoutrustthecontents...").
+ * `trustAnswer` is the keystroke that answers that gate, and it differs per CLI for the
+ * reason each CLI prints on the screen itself: Claude Code takes the digit, codex paints
+ * a preselected list saying "Press enter to continue" and takes Enter alone. Both
+ * measured; sending codex the digit left its process exited (-1).
  */
+const ENGINE_PROFILES = {
+  claude: {
+    headlessTokens: ["-p", "--print"],
+    trustOnScreen: /isthisaprojectyoucreatedoronyoutrust|doyoutrustthefiles|trustthisfolder/,
+    trustAnswer: "1",
+  },
+  codex: {
+    headlessTokens: ["exec", "e"],
+    trustOnScreen: /doyoutrustthecontentsofthisdirectory/,
+    trustAnswer: "",
+  },
+}
+
+/** Orca's own signal for the same gate, and it is not one string: Claude Code's surfaces as
+ * `codex-trust-workspace`, codex's as `codex-interactive-prompt`. Only the screen text is
+ * precise, so this stays a corroborating signal and never the sole trigger for a keystroke. */
 const TRUST_BLOCKED_REASON = /trust/i
-const TRUST_ON_SCREEN = /(is this a project you created or one you trust|do you trust the files|trust this folder)/i
+const flatten = (text) => text.replace(/\s+/g, "").toLowerCase()
+
+/**
+ * `orca terminal wait --for tui-idle` is NOT a busy signal for every engine. Measured
+ * 2026-07-27 against a live codex worker mid-turn: the wait returned satisfied: true while
+ * the TUI was painting `Working (30s - esc to interupt)`. The prompt pointer below is a
+ * `terminal send`, and a send to a busy worker is the ORB-75 failure this whole script
+ * exists to avoid, so a satisfied wait alone is not enough to send on. Repaint activity is
+ * the signal that works for both engines: a running turn repaints its spinner continuously,
+ * an idle TUI emits nothing at all. Measured lastOutputAt advancing 2.4s to 3.7s per sample
+ * window on a busy codex and on a busy claude, and frozen at delta 0 on an idle one of each.
+ * The terminal TEXT cannot be used for this: an idle codex composer still carried the
+ * `Starting MCP servers ... esc to interrupt` line from its own startup.
+ */
+const REPAINT_SAMPLE_MS = 3000
+/** A satisfied-but-repainting wait returns instantly, so the retry needs its own pause or the
+ * six attempts burn in seconds while the engine is merely still starting up. */
+const SETTLE_MS = 10000
+const pause = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
 
 /**
  * Everything created after `orca worktree create` succeeds has to come back out on any later
@@ -86,7 +131,7 @@ const fail = (code, message) => {
     spawnSync(ORCA, ["terminal", "stop", "--worktree", selector, "--json"], { encoding: "utf8" })
     let removal = spawnSync(ORCA, ["worktree", "rm", "--worktree", selector, "--force", "--json"], { encoding: "utf8" })
     if (removal.status !== 0) {
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5000)
+      pause(5000)
       spawnSync(ORCA, ["terminal", "stop", "--worktree", selector, "--json"], { encoding: "utf8" })
       removal = spawnSync(ORCA, ["worktree", "rm", "--worktree", selector, "--force", "--json"], { encoding: "utf8" })
     }
@@ -163,6 +208,13 @@ const waitForIdle = (handle) => {
     fail(3, `orca terminal wait failed: ${parsed.error?.message ?? "unknown orca error"}`)
   }
   return parsed.result?.wait ?? {}
+}
+
+const isRepainting = (handle) => {
+  const paintedAt = () => orca(["terminal", "show", "--terminal", handle]).terminal?.lastOutputAt ?? 0
+  const before = paintedAt()
+  pause(REPAINT_SAMPLE_MS)
+  return paintedAt() !== before
 }
 
 const git = (args) => {
@@ -252,13 +304,19 @@ const command = [engine.command, ...engineArgs].join(" ")
  * invocation anyway. It scans the WHOLE invocation, command included: "command": "codex exec"
  * and "command": "claude --print" are the same headless launch as the same token sitting in
  * args, and a guard that only reads args is one field move from passing them. This is an
- * assertion on the known headless shapes, not a blocklist to extend flag by flag: the
- * interactive declaration above is the gate.
+ * assertion on each CLI's known headless shape, not a blocklist to extend flag by flag: the
+ * interactive declaration above is the gate. A binary with no profile is refused rather than
+ * waved through, so adding a third engine means declaring what headless looks like for it.
  */
-const HEADLESS_TOKENS = ["-p", "--print", "exec"]
-const headless = command.split(/\s+/).find((token) => HEADLESS_TOKENS.includes(token))
+const invocationTokens = command.split(/\s+/).filter(Boolean)
+const binary = invocationTokens[0].split(/[\\/]/).pop().replace(/\.(exe|cmd|bat|ps1)$/i, "").toLowerCase()
+const profile = ENGINE_PROFILES[binary]
+if (!profile) {
+  fail(2, `worker "${engineName}" runs "${binary}", which tools/launch-worker.mjs has no engine profile for. Add one to ENGINE_PROFILES naming that CLI's headless tokens (the subcommand or flag that runs it with no TUI), its first-run trust screen and the keystroke that answers it. Known: ${Object.keys(ENGINE_PROFILES).join(", ")}`)
+}
+const headless = invocationTokens.slice(1).find((token) => profile.headlessTokens.includes(token))
 if (headless) {
-  fail(2, `worker "${engineName}" declares interactive: true but its invocation "${command}" carries "${headless}", which is a headless invocation. Fix the command or args, or the declaration, in .claude/orchestrator.json`)
+  fail(2, `worker "${engineName}" declares interactive: true but its invocation "${command}" carries "${headless}", which is a headless invocation of ${binary}. Fix the command or args, or the declaration, in .claude/orchestrator.json`)
 }
 
 const plan = {
@@ -319,17 +377,30 @@ let idle = false
 while (waitAttempts < MAX_WAIT_ATTEMPTS && !idle) {
   waitAttempts += 1
   const wait = waitForIdle(terminal)
-  const tail = (orca(["terminal", "read", "--terminal", terminal, "--limit", "60"]).terminal?.tail ?? []).join("\n")
-  const trustBlocking = TRUST_BLOCKED_REASON.test(wait.blockedReason ?? "") || TRUST_ON_SCREEN.test(tail)
-  if (trustBlocking) {
-    console.error(`attempt ${waitAttempts}: workspace-trust prompt detected, answering it`)
-    orca(["terminal", "send", "--terminal", terminal, "--text", "1", "--enter"])
-    trustPromptAnswered = true
+  /**
+   * Idle first: the terminal tail keeps the answered trust screen forever (a TUI repaint
+   * has no scrollback to fall off), so a trust check that ran first would keep matching
+   * text from a gate that is long gone and type into the worker's live composer.
+   */
+  if (wait.satisfied) {
+    if (!isRepainting(terminal)) {
+      idle = true
+      break
+    }
+    console.error(`attempt ${waitAttempts}: orca reports tui-idle but the TUI is still repainting, so the engine is still working`)
+    if (waitAttempts < MAX_WAIT_ATTEMPTS) pause(SETTLE_MS)
     continue
   }
-  if (wait.satisfied) {
-    idle = true
-    break
+  const tail = (orca(["terminal", "read", "--terminal", terminal, "--limit", "60"]).terminal?.tail ?? []).join("\n")
+  const trustBlocking = profile.trustOnScreen.test(flatten(tail)) || TRUST_BLOCKED_REASON.test(wait.blockedReason ?? "")
+  /** Answered at most once. The keystroke is deterministic and the gate is definitely on
+   * screen, so a second send would be spraying input at an unknown screen rather than
+   * retrying; a gate that survives one correct answer is a launch failure worth reading. */
+  if (trustBlocking && !trustPromptAnswered) {
+    console.error(`attempt ${waitAttempts}: ${binary} workspace-trust prompt detected, answering it with ${profile.trustAnswer === "" ? "Enter" : `"${profile.trustAnswer}" then Enter`}`)
+    orca(["terminal", "send", "--terminal", terminal, "--text", profile.trustAnswer, "--enter"])
+    trustPromptAnswered = true
+    continue
   }
   console.error(`attempt ${waitAttempts}: not idle yet (${wait.blockedReason ?? wait.status ?? "unknown"})`)
 }
