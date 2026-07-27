@@ -66,13 +66,14 @@ Per launchable ticket, up to `maxParallelWorktrees`:
 1. `node tools/check-ticket.mjs --issue ORB-N`; a defective ticket is fixed in Linear
    BEFORE launch, not patched in the prompt.
 2. Compose the worker prompt into a file OUTSIDE every repo (the session scratchpad; a
-   file written inside the worktree gets committed by the worker): the ticket body
-   VERBATIM (it is the prompt, D2), then the PER-TICKET finishing contract: run lint +
-   type-check + tests for the touched workspace, commit, push, open a PR to `<target>`
-   whose body links `ORB-N`, attach the PR URL to the Linear issue (`orca linear
-   attach`), attach the screenshot to the issue FIRST when the ticket carries
-   `visible-effect` (D7), set the issue to In Review, and STOP. The branch is NOT the
-   worker's job; step 3 hands it the contract branch already checked out.
+   file written inside the worktree gets committed by the worker) with
+   `node tools/compose-prompt.mjs --issue ORB-N --output "<absolute path>"`. It carries
+   the ticket body VERBATIM (it is the prompt, D2) and every chronological issue comment.
+   Append the PER-TICKET finishing contract: run lint + type-check + tests for the touched
+   workspace, commit, push, open a PR to `<target>` whose body links `ORB-N`, attach the PR
+   URL to the Linear issue (`orca linear attach`), attach the screenshot to the issue FIRST
+   when the ticket carries `visible-effect` (D7), set the issue to In Review, and STOP. The
+   branch is NOT the worker's job; step 3 hands it the contract branch already checked out.
 
    **Do NOT hand-write the STANDING clauses here.** Never ask a question, state a blocked
    criterion as UNMET instead of stalling, never watch your own PR's CI or another
@@ -366,6 +367,10 @@ landed clean. So:
   (SendMessage), never into the main session.
 - The main session keeps only: decisions, small verification reads, user
   checkpoints, and cross-repo sequencing.
+- The launcher carries the same delegation rule to every worker: a multi-file work order or
+  review round fans independent slices or findings out one subagent each, with explicit output
+  contracts. Same-file edits and the final raw gate run stay inline so agents cannot conflict
+  and PR evidence remains first-hand.
 
 ### Waiting is foreground work, on both sides
 

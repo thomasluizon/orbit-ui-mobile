@@ -119,6 +119,7 @@ if (!match) {
   process.stdout.write(JSON.stringify({ ok: false, error: { code: "stub-miss", message: "unstubbed orca call: " + line } }))
   process.exit(9)
 }
+if (match.delayMs) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, match.delayMs)
 let out = match.stdout
 if (Array.isArray(match.sequence)) {
   const log = process.env.ORBIT_ORCA_LOG
@@ -248,6 +249,7 @@ const REQUIRED_CONTRACT_CLAUSES = {
   "blanket staging that sweeps in a sibling's artifacts": /Stage explicitly[\s\S]*git add -A/,
   "pushing a commit it has not read back": /Verify before pushing[\s\S]*git show --stat HEAD/,
   "writing into another worker's worktree": /Never write into another worktree/,
+  "delegating independent slices while keeping conflicts and PR evidence inline": /Delegate independent slices[\s\S]*SAME file[\s\S]*final gate run[\s\S]*review round/,
 }
 
 /**
@@ -873,6 +875,52 @@ const WAVE_STUB = [
   },
 ]
 
+const delayedWaveStub = () => {
+  const issues = Array.from({ length: 100 }, (_, index) => ({ identifier: `ORB-${index + 1}` }))
+  return [
+    { match: "linear list-issues", stdout: JSON.stringify({ ok: true, result: { issues } }) },
+    ...issues.map(({ identifier }, index) => ({
+      match: `linear issue ${identifier} --relations`,
+      delayMs: 40,
+      stdout: JSON.stringify({ ok: true, result: { issue: { identifier, title: `ticket ${index + 1}`, state: { name: "Todo", type: "unstarted" }, labels: [] }, relations: [] } }),
+    })),
+  ]
+}
+
+const composePromptCases = () => {
+  const output = stage("prompts/orb-125.md", "")
+  const comments = [
+    { user: { name: "Later reviewer" }, createdAt: "2026-07-28T10:00:00.000Z", body: "Later comment" },
+    { user: { name: "First reviewer" }, createdAt: "2026-07-27T10:00:00.000Z", body: "First comment with ```ts\nconst answer = 42\n```" },
+  ]
+  const issue = { identifier: "ORB-125", description: "# Ticket body\n\nKeep this verbatim.", comments }
+  const result = check(
+    "compose-prompt.mjs",
+    "writes the body and chronological, attributed comments without changing fenced Markdown",
+    ["--issue", "ORB-125", "--output", output],
+    { status: 0, stdout: /orb-125\.md/ },
+    { env: orcaEnv([{ match: "linear issue ORB-125", stdout: JSON.stringify({ ok: true, result: { issue } }) }]) },
+  )
+  const prompt = readFileSync(output, "utf8")
+  T(
+    "compose-prompt.mjs: comment order, attribution, and fences survive composition",
+    result.status === 0 && prompt.indexOf("First reviewer - 2026-07-27T10:00:00.000Z") < prompt.indexOf("Later reviewer - 2026-07-28T10:00:00.000Z") && /```ts\nconst answer = 42\n```/.test(prompt),
+    prompt,
+  )
+  const launcher = stageLaunchWorker("compose-prompt", INTERACTIVE_WORKER)
+  check("launch-worker.mjs", "accepts a composed prompt file unchanged", ["--issue", "ORB-75", "--prompt-file", output, "--dry-run"], { status: 0 }, { path: launcher.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+
+  const noComments = stage("prompts/no-comments.md", "")
+  check(
+    "compose-prompt.mjs",
+    "omits the comments heading when the issue has no comments",
+    ["--issue", "ORB-126", "--output", noComments],
+    { status: 0 },
+    { env: orcaEnv([{ match: "linear issue ORB-126", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-126", description: "# Body", comments: [] } } }) }]) },
+  )
+  T("compose-prompt.mjs: zero comments add no empty heading", !/Comments on this issue/.test(readFileSync(noComments, "utf8")))
+}
+
 // new-ticket.mjs shells out to check-ticket.mjs, which makes its OWN orca call,
 // so both legs are stubbed in one plan: `linear create` for the creation and
 // `linear issue` for the validation the wrapper exists to perform. The shim
@@ -941,6 +989,7 @@ const gateCases = {
     check("worker-status.mjs", "requires --worktree", ["--issue", "ORB-75"], { status: 2, stderr: /--worktree is required/ })
     check("worker-status.mjs", "requires a Linear issue identifier", ["--worktree", root, "--issue", "nope"], { status: 2, stderr: /Linear identifier/ })
   },
+  "compose-prompt.mjs": composePromptCases,
   "wave-plan.mjs": () => {
     check("wave-plan.mjs", "orders a blockedBy pair into two waves", ["--project", "Redesign", "--json"], { status: 0, stdout: /"wave": 2[\s\S]*ORB-2/ }, { env: orcaEnv(WAVE_STUB) })
     check("wave-plan.mjs", "wave 1 is the unblocked ticket", ["--project", "Redesign", "--json"], { status: 0, stdout: /"launchable": \[\s*"ORB-1"\s*\]/ }, { env: orcaEnv(WAVE_STUB) })
@@ -948,6 +997,16 @@ const gateCases = {
     check("wave-plan.mjs", "a wave-1 ticket at the strike limit is reported, not dropped", ["--project", "Redesign", "--json"], { status: 0, stdout: /"twoStrikes": \[\s*"ORB-4"\s*\]/ }, { env: orcaEnv(WAVE_STUB) })
     check("wave-plan.mjs", "text mode marks the same strike-limit ticket", ["--project", "Redesign"], { status: 0, stdout: /ORB-4[\s\S]*?TWO STRIKES/ }, { env: orcaEnv(WAVE_STUB) })
     check("wave-plan.mjs", "an empty project is nothing to plan", ["--project", "Empty"], { status: 1, stderr: /nothing to plan/ }, { env: orcaEnv([{ match: "linear list-issues", stdout: JSON.stringify({ ok: true, result: { issues: [] } }) }]) })
+    const start = Date.now()
+    const delayed = run("wave-plan.mjs", ["--all"], { env: orcaEnv(delayedWaveStub()) })
+    T("wave-plan.mjs: fetches 100 relations in a bounded pool while preserving the table order", delayed.status === 0 && Date.now() - start < 3000 && /ORB-1[\s\S]*ORB-100/.test(delayed.stdout), `exit ${delayed.status}, elapsed ${Date.now() - start}ms\n     ${delayed.stderr}`)
+    check(
+      "wave-plan.mjs",
+      "names a failing relation fetch without an execFile stack trace",
+      ["--project", "Redesign"],
+      { status: 2, stderr: /failed to fetch ORB-2: unavailable/ },
+      { env: orcaEnv([{ ...WAVE_STUB[0] }, WAVE_STUB[1], { match: "linear issue ORB-2", stdout: JSON.stringify({ ok: false, error: { message: "unavailable" } }) }, WAVE_STUB[3], WAVE_STUB[4]]) },
+    )
   },
   "check-dashes.mjs": () => {
     check("check-dashes.mjs", "an em dash in text is rejected", ["--text", `a${EM_DASH}b`], { status: 1, stderr: /Banned dash/ })
@@ -979,6 +1038,7 @@ const INVALID_INPUT = {
   "check-push-target.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-suppressions-ratchet.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-ticket.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "compose-prompt.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "launch-worker.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "merge-sweep-cov.sh": { argv: ["--orbit-not-a-flag", "zzz"], status: 2 },
   "merge-sweep.sh": { argv: ["--orbit-not-a-flag", "zzz"], status: 2 },
