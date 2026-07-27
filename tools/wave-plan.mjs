@@ -10,7 +10,8 @@
  * launches nothing.
  */
 
-import { execFileSync } from "node:child_process"
+import { execFile } from "node:child_process"
+import { promisify } from "node:util"
 import { readFileSync } from "node:fs"
 
 const USAGE = `usage: wave-plan.mjs --project "<name>" | --label "<label>" | --all [--json]
@@ -34,15 +35,52 @@ const orchestratorConfig = JSON.parse(
   readFileSync(new URL("../.claude/orchestrator.json", import.meta.url), "utf8"),
 )
 const ATTEMPTS_BEFORE_REWRITE = orchestratorConfig.attemptsBeforeRewrite
+const RELATION_FETCH_CONCURRENCY = 8
+const execFileAsync = promisify(execFile)
 
-const orcaJson = (args) => {
-  const raw = execFileSync(ORCA, [...args, "--json"], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
-  const parsed = JSON.parse(raw)
-  if (parsed.ok === false) {
-    console.error(`orca ${args.join(" ")} failed: ${parsed.error?.message}`)
-    process.exit(2)
+const failureReason = (error) => {
+  const output = error.stdout?.toString().trim()
+  if (output) {
+    try {
+      const parsed = JSON.parse(output)
+      if (parsed.error?.message) return parsed.error.message
+    } catch {
+      return output.slice(0, 400)
+    }
   }
+  if (error.signal) return `terminated by ${error.signal}`
+  if (error.stderr?.toString().trim()) return error.stderr.toString().trim().slice(0, 400)
+  return error.message
+}
+
+const orcaJson = async (args, identifier) => {
+  let raw
+  try {
+    ;({ stdout: raw } = await execFileAsync(ORCA, [...args, "--json"], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 }))
+  } catch (error) {
+    throw new Error(`failed to fetch ${identifier}: ${failureReason(error)}`)
+  }
+  let parsed
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    throw new Error(`failed to fetch ${identifier}: orca returned unparseable JSON`)
+  }
+  if (parsed.ok === false) throw new Error(`failed to fetch ${identifier}: ${parsed.error?.message ?? "unknown orca error"}`)
   return parsed.result ?? parsed
+}
+
+const mapBounded = async (items, mapper) => {
+  const results = new Array(items.length)
+  let nextIndex = 0
+  const worker = async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex++
+      results[index] = await mapper(items[index])
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(RELATION_FETCH_CONCURRENCY, items.length) }, worker))
+  return results
 }
 
 const argOf = (flag) => {
@@ -61,7 +99,13 @@ if (!project && !label && !all) {
 const listArgs = ["linear", "list-issues", "--team", TEAM, "--limit", "250"]
 if (project) listArgs.push("--project", project)
 if (label) listArgs.push("--label", label)
-const listed = orcaJson(listArgs)
+let listed
+try {
+  listed = await orcaJson(listArgs, project ?? label ?? "the requested issue list")
+} catch (error) {
+  console.error(error.message)
+  process.exit(2)
+}
 const issues = listed.issues ?? listed.nodes ?? listed
 if (!Array.isArray(issues) || issues.length === 0) {
   console.error("no issues matched; nothing to plan")
@@ -88,26 +132,30 @@ const toPlanIssue = (detail) => {
   }
 }
 
-const byIdentifier = new Map()
-for (const issue of issues) {
-  const planIssue = toPlanIssue(orcaJson(["linear", "issue", issue.identifier ?? issue.id, "--relations"]))
-  byIdentifier.set(planIssue.identifier, planIssue)
+let planIssues
+try {
+  planIssues = await mapBounded(issues, async (issue) => {
+    const identifier = issue.identifier ?? issue.id
+    return toPlanIssue(await orcaJson(["linear", "issue", identifier, "--relations"], identifier))
+  })
+} catch (error) {
+  console.error(error.message)
+  process.exit(2)
 }
+const byIdentifier = new Map(planIssues.map((issue) => [issue.identifier, issue]))
 
 const externalBlockers = [...new Set([...byIdentifier.values()].flatMap((issue) => issue.blockedBy))].filter(
   (blocker) => !byIdentifier.has(blocker),
 )
-for (const blocker of externalBlockers) {
+const blockers = await mapBounded(externalBlockers, async (identifier) => {
   try {
-    const raw = execFileSync(ORCA, ["linear", "issue", blocker, "--json"], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
-    const parsed = JSON.parse(raw)
-    if (parsed.ok === false) throw new Error(parsed.error?.message ?? "unknown orca error")
-    byIdentifier.set(blocker, { ...toPlanIssue(parsed.result ?? parsed), blockedBy: [], external: true })
+    return { ...toPlanIssue(await orcaJson(["linear", "issue", identifier], identifier)), blockedBy: [], external: true }
   } catch (error) {
-    console.error(`WARNING: blocker ${blocker} could not be fetched (${error.message}); treating it as blocking`)
-    byIdentifier.set(blocker, { identifier: blocker, title: "unresolved external blocker", state: "Unknown", stateType: null, labels: [], attempts: 0, blockedBy: [], external: true })
+    console.error(`WARNING: blocker ${identifier} could not be fetched (${error.message}); treating it as blocking`)
+    return { identifier, title: "unresolved external blocker", state: "Unknown", stateType: null, labels: [], attempts: 0, blockedBy: [], external: true }
   }
-}
+})
+for (const blocker of blockers) byIdentifier.set(blocker.identifier, blocker)
 
 const isDone = (identifier) => {
   const issue = byIdentifier.get(identifier)

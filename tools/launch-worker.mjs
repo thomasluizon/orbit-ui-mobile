@@ -176,6 +176,11 @@ conflict with anything above, these win.
 9. **Never write into another worktree.** A live sibling worktree is another worker's working
    tree, and a file you leave there can land in that worker's PR. If your proof genuinely needs
    a second worktree, create a disposable one for it and remove it afterwards.
+10. **Delegate independent slices.** A work order spanning more than one independent file or
+    slice is executed by spawning parallel subagents, one per slice, each with an explicit output
+    contract, then reconciling their output. Keep edits landing in the SAME file inline, and keep
+    the final gate run inline because its raw output ships in the PR body. A review round with
+    more than one independent finding is dispatched one subagent per finding, not fixed inline.
 `
 
 /**
