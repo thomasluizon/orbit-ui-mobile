@@ -223,6 +223,9 @@ const REQUIRED_CONTRACT_CLAUSES = {
   "arming a monitor that outlives the contract": /Never arm a background monitor/,
   "resolving a watch-and-stop conflict by doing both": /STOP wins/,
   "merging or pushing to main": /Never merge any PR, never push to/,
+  "blanket staging that sweeps in a sibling's artifacts": /Stage explicitly[\s\S]*git add -A/,
+  "pushing a commit it has not read back": /Verify before pushing[\s\S]*git show --stat HEAD/,
+  "writing into another worker's worktree": /Never write into another worktree/,
 }
 
 const launchWorkerCases = () => {

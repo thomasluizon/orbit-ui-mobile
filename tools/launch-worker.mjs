@@ -24,9 +24,9 @@ const USAGE = `usage: launch-worker.mjs --issue ORB-N --prompt-file <path> [opti
                          finishing contract. MUST live outside every Orbit repo and outside
                          the worktree (an in-worktree prompt gets committed). Only its path
                          is sent to the TUI, never its text. The standing worker contract
-                         (never ask a question, never watch your own PR, never merge) is
-                         APPENDED to this file at launch, so it does not depend on the
-                         caller having remembered it (required)
+                         (never ask a question, never watch your own PR, stage explicitly,
+                         never merge) is APPENDED to this file at launch, so it does not
+                         depend on the caller having remembered it (required)
   --repo ui|api|landing  override the repo the ticket's repo:* label names
   --base-branch <ref>    base branch for the worktree (default: main)
   --branch-prefix <p>    contract branch prefix, feature or fix (default: feature)
@@ -112,14 +112,18 @@ const pause = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 
 
 /**
  * The standing worker contract, owned HERE rather than by whoever composed the prompt file.
- * Both failures it closes were measured on the ORB-88 run itself: a worker ENDED A TURN ON A
- * QUESTION and stalled until a human happened to look at its terminal, and a worker armed a
- * monitor on another ticket's PR, burning 34 minutes and 105k tokens re-deriving state the
- * orchestrator already had. Both clauses existed, in prose, in a prompt an orchestrating
- * session composes by hand: prose is advisory and one forgetful session away from shipping the
- * same stall again. The launch APPENDS this to the prompt file before pointing the worker at
- * it, so the guarantee is structural and does not depend on the caller remembering.
- * Idempotent via the marker, so a relaunch against the same file does not stack copies.
+ * Every failure it closes was measured on the ORB-88 run itself: a worker ENDED A TURN ON A
+ * QUESTION and stalled until a human happened to look at its terminal; a worker armed a monitor
+ * on another ticket's PR, burning 34 minutes and 105k tokens re-deriving state the orchestrator
+ * already had; and a `git add -A` swept a SIBLING worker's runtime artifact (`.orca/web-port`,
+ * written into the ORB-88 worktree by the ORB-90 worker) into an unrelated PR, because a
+ * worktree is a shared filesystem and a blanket stage does not know whose file it is. Each
+ * clause existed, if at all, as prose in a prompt an orchestrating session composes by hand:
+ * prose is advisory and one forgetful session away from shipping the same failure again. The
+ * launch APPENDS this to the prompt file before pointing the worker at it, so the guarantee is
+ * structural and does not depend on the caller remembering. Idempotent via the marker, so a
+ * relaunch against the same file does not stack copies. Note the staging clauses cover the
+ * CLASS: a .gitignore entry only ever covers the one artifact somebody already got burned by.
  */
 const WORKER_CONTRACT_MARKER = "## Standing worker contract (injected by tools/launch-worker.mjs)"
 const WORKER_CONTRACT = `
@@ -148,6 +152,15 @@ conflict with anything above, these win.
    conflict in your PR body rather than silently doing both.
 6. **Never merge any PR, never push to \`main\`, never use \`--no-verify\`, never edit a gate
    baseline.**
+7. **Stage explicitly.** Commit only the paths you edited yourself. \`git add -A\`, \`git add .\`
+   and \`git commit -a\` are forbidden. A worktree is a shared filesystem that sibling workers,
+   dev servers and tooling all write into, so a blanket stage turns any of their runtime
+   artifacts into your diff.
+8. **Verify before pushing.** Run \`git show --stat HEAD\` and confirm every path in it is one
+   you meant to change. A path you cannot explain is a defect to resolve, never a file to push.
+9. **Never write into another worktree.** A live sibling worktree is another worker's working
+   tree, and a file you leave there can land in that worker's PR. If your proof genuinely needs
+   a second worktree, create a disposable one for it and remove it afterwards.
 `
 
 /**
