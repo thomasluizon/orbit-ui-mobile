@@ -76,7 +76,7 @@ const MAX_WAIT_ATTEMPTS = 6
 const ENGINE_PROFILES = {
   claude: {
     headlessTokens: ["-p", "--print"],
-    trustOnScreen: /isthisaprojectyoucreatedoronyoutrust|doyoutrustthefiles|trustthisfolder/,
+    trustOnScreen: /isthisaprojectyoucreatedoroneyoutrust|doyoutrustthefiles|trustthisfolder/,
     trustAnswer: "1",
   },
   codex: {

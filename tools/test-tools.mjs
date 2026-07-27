@@ -113,6 +113,7 @@ if (!match) {
   process.stdout.write(JSON.stringify({ ok: false, error: { code: "stub-miss", message: "unstubbed orca call: " + line } }))
   process.exit(9)
 }
+if (process.env.ORBIT_ORCA_LOG) require("node:fs").appendFileSync(process.env.ORBIT_ORCA_LOG, JSON.stringify(argv) + "\\n")
 process.stdout.write(match.stdout.replaceAll("__NOW__", String(Date.now())))
 process.exit(match.exit ?? 0)
 `,
@@ -228,6 +229,99 @@ const REQUIRED_CONTRACT_CLAUSES = {
   "writing into another worker's worktree": /Never write into another worktree/,
 }
 
+/**
+ * The trust screen as each CLI really paints it, verbatim, because the launcher matches this
+ * text and nothing else once the wait comes back without a blockedReason. A regex that drifts
+ * one character from these strings hangs a worker forever with nobody at the keyboard, which is
+ * exactly what shipped: the claude alternation read "createdoron" against a real
+ * "createdorone" and could never match. Review caught it; this is the coverage that should have.
+ */
+const TRUST_SCREENS = {
+  claude: {
+    engine: { command: "claude", args: ["--permission-mode", "bypassPermissions"], interactive: true },
+    answer: "1",
+    /**
+     * ONE screen per alternative the profile claims to recognise, each phrased so that only
+     * that alternative can match. A single fixture carrying the whole real screen is NOT
+     * coverage: the first version of this case included "Yes, I trust this folder" alongside
+     * the question, so the `trustthisfolder` alternative matched and the case stayed green with
+     * the shipped `createdoron` typo still in place. Verified by reintroducing that typo.
+     */
+    screens: [
+      { label: "the created-or-trust wording", tail: "Quick safety check\nIs this a project you created or one you trust?\n 1. Yes, proceed\n 2. No, exit" },
+      { label: "the trust-the-files wording", tail: "Do you trust the files in this directory?\n 1. Yes, proceed\n 2. No, exit" },
+      { label: "the trust-this-folder wording", tail: "Quick safety check\n 1. Yes, I trust this folder\n 2. No, exit" },
+    ],
+  },
+  codex: {
+    engine: { command: "codex", args: ["--dangerously-bypass-approvals-and-sandbox"], interactive: true },
+    answer: "",
+    screens: [{ label: "the trust-the-contents wording", tail: "You are in C:\\wt\nDoyoutrustthecontentsofthisdirectory?\n> 1. Yes, continue2.No,quitPress enter to continue" }],
+  },
+}
+
+/**
+ * A real launch needs a real checkout to `git switch -c` into, since git is not stubbed here.
+ * Everything else the launch touches is orca, which is.
+ */
+const stageCheckout = (base) => {
+  const path = join(base, "checkout")
+  mkdirSync(path, { recursive: true })
+  for (const argv of [["init", "-q"], ["config", "user.email", "gate@orbit.test"], ["config", "user.name", "Orbit Gate"], ["commit", "-q", "--allow-empty", "-m", "base"]]) {
+    const result = spawnSync("git", ["-C", path, ...argv], { encoding: "utf8" })
+    if (result.status !== 0) return null
+  }
+  return path
+}
+
+/**
+ * Drives the launcher down the UNPROTECTED trust path: the wait reports not-idle with NO
+ * blockedReason, so the screen text is the only signal left. Returns the orca calls the launch
+ * made, so the assertion is on what was actually sent to the terminal.
+ */
+const runTrustScreen = (label, engineName, tail) => {
+  const { engine, answer } = TRUST_SCREENS[engineName]
+  const staged = stageLaunchWorker(label, engine, engineName)
+  const checkout = stageCheckout(staged.base)
+  if (!checkout) return null
+  const log = join(staged.base, "orca-calls.log")
+  const promptFile = stage(`${label}-prompt.md`, "the ticket body verbatim\n")
+  const plan = [
+    ...linearIssueStub(["repo:ui"]),
+    { match: "worktree create", stdout: JSON.stringify({ ok: true, result: { worktree: { path: checkout, branch: "refs/heads/thomasluizon/orb-75" } } }) },
+    { match: "terminal create", stdout: JSON.stringify({ ok: true, result: { terminal: { handle: "t1" } } }) },
+    { match: "terminal wait", stdout: JSON.stringify({ ok: true, result: { wait: { satisfied: false } } }) },
+    { match: "terminal read", stdout: JSON.stringify({ ok: true, result: { terminal: { tail: [tail] } } }) },
+    { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }) },
+    { match: "terminal stop", stdout: JSON.stringify({ ok: true, result: {} }) },
+    { match: "worktree rm", stdout: JSON.stringify({ ok: true, result: {} }) },
+  ]
+  const result = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile], { path: staged.path, env: { ...orcaEnv(plan), ORBIT_ORCA_LOG: log } })
+  const calls = existsSync(log) ? readFileSync(log, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line)) : []
+  return { calls, answer, result }
+}
+
+const trustScreenCases = () => {
+  for (const [engineName, { screens }] of Object.entries(TRUST_SCREENS)) {
+    screens.forEach(({ label, tail }, index) => {
+      const name = `launch-worker.mjs: answers ${engineName}'s trust screen on ${label}, from the terminal text alone`
+      const outcome = runTrustScreen(`trust-${engineName}-${index}`, engineName, tail)
+      if (!outcome) {
+        T(name, false, "could not stage a git checkout for the launch; git is required for this case")
+        return
+      }
+      /** node resolves the shim's argv[0] to an absolute path, so the subcommand is its basename. */
+      const send = outcome.calls.find((argv) => argv[0].split(/[\\/]/).pop() === "terminal" && argv[1] === "send")
+      const sent = send ? send[send.indexOf("--text") + 1] : null
+      T(
+        name,
+        Boolean(send) && sent === outcome.answer && send.includes("--enter"),
+        `with no blockedReason the screen text is the ONLY signal, so this is the path a drifted regex breaks.\n     expected a terminal send of ${JSON.stringify(outcome.answer)} + Enter, got ${send ? JSON.stringify(send) : "no terminal send at all"}\n     launcher stderr: ${(outcome.result.stderr || "").trim().split("\n").slice(0, 5).join("\n     ")}`,
+      )
+    })
+  }
+}
+
 const launchWorkerCases = () => {
   const promptFile = stage("prompt.md", "the ticket body verbatim\n")
 
@@ -290,6 +384,8 @@ const launchWorkerCases = () => {
 
   const alreadyContracted = stage("prompt-with-contract.md", `the ticket body verbatim\n\n${WORKER_CONTRACT_MARKER}\n\nclauses already here\n`)
   check("launch-worker.mjs", "does not stack a second copy on relaunch", ["--issue", "ORB-75", "--prompt-file", alreadyContracted, "--dry-run"], { status: 0, stdout: /"workerContract": "already present"/ }, { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+
+  trustScreenCases()
 
   const launcherSource = readFileSync(join(TOOLS_DIR, "launch-worker.mjs"), "utf8")
   for (const [clause, pattern] of Object.entries(REQUIRED_CONTRACT_CLAUSES)) {
