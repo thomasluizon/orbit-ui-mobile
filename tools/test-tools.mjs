@@ -109,7 +109,7 @@ const BASH = resolveBash()
  */
 const ORCA_SHIM = stage(
   "orca-shim.cjs",
-  `const { appendFileSync, existsSync, readFileSync } = require("node:fs")
+  `const { appendFileSync, existsSync, readFileSync, rmSync } = require("node:fs")
 const argv = process.argv.slice(1)
 if (argv[0] && existsSync(argv[0])) return
 const line = argv.join(" ")
@@ -120,6 +120,7 @@ if (!match) {
   process.exit(9)
 }
 if (match.delayMs) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, match.delayMs)
+if (match.removePath) rmSync(match.removePath, { recursive: true, force: true })
 let out = match.stdout
 if (Array.isArray(match.sequence)) {
   const log = process.env.ORBIT_ORCA_LOG
@@ -773,6 +774,102 @@ const workerWatchCases = () => {
   check("worker-watch.mjs", "refuses a non-positive --lines", ["--lines", "0"], { status: 2, stderr: /positive integer/ })
 }
 
+/** A linked child checkout is the smallest real Git fixture that can prove teardown verification. */
+const stageTeardownWorktree = (label, { dirty = false, changed = false, squashMerged = false } = {}) => {
+  const primary = join(root, "teardown", label, "primary")
+  const child = join(root, "teardown", label, "child")
+  mkdirSync(primary, { recursive: true })
+  const git = (cwd, args) => spawnSync("git", ["-C", cwd, ...args], { encoding: "utf8" })
+  for (const args of [["init", "-q", "--initial-branch=main"], ["config", "user.email", "gate@orbit.test"], ["config", "user.name", "Orbit Gate"], ["commit", "-q", "--allow-empty", "-m", "base"], ["worktree", "add", "-q", "-b", "feature/orb-124-teardown", child]]) {
+    if (git(primary, args).status !== 0) return null
+  }
+  if (changed) {
+    writeFileSync(join(child, "captured.txt"), "not in main\n")
+    if (git(child, ["add", "captured.txt"]).status !== 0 || git(child, ["commit", "-q", "-m", "captured work"]).status !== 0) return null
+    if (squashMerged) {
+      writeFileSync(join(primary, "captured.txt"), "not in main\n")
+      if (git(primary, ["add", "captured.txt"]).status !== 0 || git(primary, ["commit", "-q", "-m", "squashed capture"]).status !== 0) return null
+    }
+  }
+  if (dirty) writeFileSync(join(child, "dirty.txt"), "uncommitted\n")
+  return { primary, child, branch: "feature/orb-124-teardown" }
+}
+
+const teardownWorktreeRecord = (fixture) => ({
+  path: fixture.child,
+  isMainWorktree: false,
+  isArchived: false,
+  linkedLinearIssue: "ORB-124",
+  branch: `refs/heads/${fixture.branch}`,
+  baseRef: "main",
+})
+
+const teardownPlan = (fixture, { state = "Done", terminals = [], removePath, removal = JSON.stringify({ ok: true, result: {} }), removalExit = 0 } = {}) => [
+  { match: "worktree list", stdout: JSON.stringify({ ok: true, result: { worktrees: [teardownWorktreeRecord(fixture)] } }) },
+  { match: "terminal list", stdout: JSON.stringify({ ok: true, result: { terminals } }) },
+  { match: "linear issue ORB-124", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-124", state: { name: state } } } }) },
+  { match: "terminal stop", stdout: JSON.stringify({ ok: true, result: {} }) },
+  { match: "worktree rm", stdout: removal, exit: removalExit, ...(removePath ? { removePath } : {}) },
+]
+
+const teardownWorktreeCases = () => {
+  const allGood = stageTeardownWorktree("all-good")
+  if (!allGood) {
+    T("teardown-worktree.mjs: real git fixture is available", false, "could not create a linked Git worktree")
+    return
+  }
+  const unavailable = check(
+    "teardown-worktree.mjs",
+    "runtime_unavailable is success when filesystem and git verification prove removal",
+    ["--issue", "ORB-124"],
+    { status: 0, stdout: /REMOVED worktree[\s\S]*REMOVED terminals[\s\S]*REMOVED local branch/ },
+    {
+      env: orcaEnv(
+        teardownPlan(allGood, {
+          removePath: allGood.child,
+          removal: JSON.stringify({ ok: false, code: "runtime_unavailable", message: "connection closed" }),
+          removalExit: 1,
+        }),
+      ),
+    },
+  )
+  T("teardown-worktree.mjs: verified removal actually deleted the fixture", !existsSync(allGood.child), unavailable.stderr)
+
+  const dirty = stageTeardownWorktree("dirty", { dirty: true })
+  check("teardown-worktree.mjs", "a dirty tree is refused with its uncommitted path", ["--issue", "ORB-124"], { status: 1, stderr: /worktree-clean[\s\S]*dirty\.txt/ }, { env: orcaEnv(teardownPlan(dirty, { removePath: dirty.child })) })
+  T("teardown-worktree.mjs: dirty refusal leaves the tree untouched", existsSync(dirty.child), "the dirty fixture was removed")
+
+  const unmerged = stageTeardownWorktree("unmerged", { changed: true })
+  check("teardown-worktree.mjs", "content absent from the target branch is refused", ["--issue", "ORB-124"], { status: 1, stderr: /tree-present-in-target/ }, { env: orcaEnv(teardownPlan(unmerged, { removePath: unmerged.child })) })
+
+  const notDone = stageTeardownWorktree("not-done")
+  check("teardown-worktree.mjs", "a closed-looking but non-Done Linear issue is refused", ["--issue", "ORB-124"], { status: 1, stderr: /linear-done[\s\S]*In Review/ }, { env: orcaEnv(teardownPlan(notDone, { state: "In Review", removePath: notDone.child })) })
+
+  const repainting = stageTeardownWorktree("repainting")
+  const log = join(root, "teardown", "repainting.log")
+  check(
+    "teardown-worktree.mjs",
+    "a repainting terminal is refused because the worker is still working",
+    ["--issue", "ORB-124"],
+    { status: 1, stderr: /terminals-idle[\s\S]*worker is still working/ },
+    {
+      env: {
+        ...orcaEnv([
+          ...teardownPlan(repainting, { terminals: [{ handle: "term_busy", worktreePath: repainting.child }] }),
+          { match: "terminal show", sequence: [JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1 } } }), JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 2 } } })] },
+        ]),
+        ORBIT_ORCA_LOG: log,
+      },
+    },
+  )
+
+  const survives = stageTeardownWorktree("survives")
+  check("teardown-worktree.mjs", "an ok removal response is failure when the directory survives", ["--issue", "ORB-124"], { status: 1, stderr: /removal verification failed/ }, { env: orcaEnv(teardownPlan(survives)) })
+
+  const selector = stageTeardownWorktree("selector", { changed: true, squashMerged: true })
+  check("teardown-worktree.mjs", "a path selector accepts a squash-merged tree without ancestry", ["--worktree", `path:${selector.child}`], { status: 0 }, { env: orcaEnv(teardownPlan(selector, { removePath: selector.child })) })
+}
+
 const orcaWebPortCases = () => {
   const portFor = (name) => Number(run("orca-web-port.mjs", ["--derive", "--name", name]).stdout.trim())
   const names = Array.from({ length: 256 }, (_, index) => `generated-worktree-${index}`)
@@ -984,6 +1081,7 @@ const gateCases = {
   "nudge-worker.mjs": nudgeWorkerCases,
   "pr-watch.mjs": prWatchCases,
   "worker-watch.mjs": workerWatchCases,
+  "teardown-worktree.mjs": teardownWorktreeCases,
   "orca-web-port.mjs": orcaWebPortCases,
   "worker-status.mjs": () => {
     check("worker-status.mjs", "requires --worktree", ["--issue", "ORB-75"], { status: 2, stderr: /--worktree is required/ })
@@ -1062,6 +1160,7 @@ const INVALID_INPUT = {
   "redesign-coverage.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "rollup.sh": { argv: ["--orbit-not-a-flag"], status: 2 },
   "surface-manifest.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "teardown-worktree.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "wave-plan.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "worker-status.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "worker-watch.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
