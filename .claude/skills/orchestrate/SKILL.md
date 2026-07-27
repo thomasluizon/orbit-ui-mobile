@@ -1,6 +1,6 @@
 ---
 name: orchestrate
-description: Linear project (or single ticket) in, reviewed PRs out, wave by wave. Computes the merge-gated DAG with tools/wave-plan.mjs, reconciles each ticket against the code (D8), launches one Orca worktree + worker per ticket (engine from .claude/orchestrator.json, claude or codex), babysits CI and review, enforces the evidence gate (D7) and two-strikes (D9). A human merge is the only thing that advances a wave (D3), unless --sleep is passed. Scope is the whole project unless --single bounds it to one ticket. Use after /feature or /bug created the tickets.
+description: Linear project (or single ticket) in, reviewed PRs out, wave by wave. Computes the merge-gated DAG with tools/wave-plan.mjs, reconciles each ticket against the code (D8), launches one Orca worktree + worker per ticket (engine from .claude/orchestrator.json, claude or codex), babysits CI and review, enforces the evidence gate (D7) and two-strikes (D9), then tears down each worktree immediately after verified Done. A human merge is the only thing that advances a wave (D3), unless --sleep is passed. Scope is the whole project unless --single bounds it to one ticket. Use after /feature or /bug created the tickets.
 argument-hint: <Linear project name or ORB-N> [--single] [--sleep]
 effort: high
 ---
@@ -266,11 +266,15 @@ somebody remembered.
 ## 4. Advance
 
 **Project scope, the default.** Thomas merges. On his word (or on observing merges),
-fetch, re-run wave-plan, and launch the newly launchable set. Repeat until the
-project has no unfinished tickets, then print the final ledger: ticket, PR, merge
-SHA, evidence link. This holds whether the run was invoked with a project name or
-with a single `ORB-N`, because without `--single` a ticket argument names where to
-start, not where to stop.
+fetch, verify the Linear issue is Done, then immediately run
+`node tools/teardown-worktree.mjs --issue ORB-N` for that ticket. It is evidence-gated:
+if it refuses, leave the tree untouched, record the failed check, and do not call the
+ticket cleaned up. On confirmed removal, record the removed worktree path in that
+ticket's ledger row. Then re-run wave-plan and launch the newly launchable set. Repeat
+until the project has no unfinished tickets, then print the final ledger: ticket, PR,
+merge SHA, evidence link, removed worktree. This holds whether the run was invoked with
+a project name or with a single `ORB-N`, because without `--single` a ticket argument
+names where to start, not where to stop.
 
 **`--single` ends here instead.** The run is complete once that one ticket's PR is
 open and its issue is In Review with the PR attached (plus the screenshot when it
