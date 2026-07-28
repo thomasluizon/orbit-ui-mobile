@@ -83,7 +83,7 @@ risk or measurement exists), then run
    AskUserQuestion call, whose FIRST question is the project decision with the
    alternative as the second option, so routing is a choice he sees rather than one
    this skill made quietly. Nothing is created in Linear until he approves; an edit
-   request loops back through Phase B and re-validation, then this gate again.
+   request loops back through Phase C and re-validation, then this gate again.
 2. Only when step 0 resolved to a NEW project: create it (name = the feature).
    `orca linear` has no project write of any kind (`project list` is its whole
    project surface), so this and the content write below are the ONLY two Linear
