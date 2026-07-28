@@ -303,26 +303,36 @@ lines, and the contract verdict above. Liveness and delivery answer different qu
 at the keyboard. Read it instead of hand-running `orca terminal read`, which returns a busy
 worker's tail as thousands of characters of concatenated `Working` fragments.
 
-Then watch each launched ticket's PR with the tool, never a hand-written poll loop:
+Then watch the launched tickets' PRs as one fleet with the tool, never a hand-written poll
+loop:
 
 ```
-node tools/pr-watch.mjs --repo <owner/name> --pr <n> --acted <n>=<sha>:<verdict>
+node tools/pr-watch.mjs --repo <owner/name> --pr <n>[,<n>...] --acted <n>=<sha>:CHANGES_REQUESTED --acted <n>=<sha>:COMMENTED
 ```
 
-It exits on the first state you have NOT already acted on and names which one: `gone` (merged
-or closed, exit 5), `checks-failed` (exit 1), `changes-requested` or `review-comment` (exit 1),
-`approved` / `ready-to-merge` (exit 0), `timeout` (exit 4). `--acted` is what you have already
-handled on that PR, as the head SHA the verdict sat on plus the verdict; pass it after every fix
-cycle so the same feedback is never replayed, and pass nothing on the first watch. A verdict
-counts only when it sits on the CURRENT head, so a stale `CHANGES_REQUESTED` carried on an older
-commit does not satisfy it.
+It exits on the first actionable transition you have NOT already acted on and names which one:
+`gone` (merged or closed, exit 5), `checks-failed` (exit 1), `changes-requested` or
+`review-comment` (exit 1), `approved` / `ready-to-merge` (exit 0), `head-changed` (exit 1),
+`review-decision` (exit 0 for `APPROVED`, otherwise 1), `merge-clean` (exit 0), `timeout`
+(exit 4). Actionable means the head SHA changed, the review decision changed, the merge state
+became `CLEAN`, a required check concluded as failed, or the PR merged or closed. `UNKNOWN` and
+churn between other non-terminal merge states never fire. The first poll establishes the
+baseline for state transitions, but fresh unacted verdicts and unhandled readiness still fire
+immediately. `--acted` is what you have already handled on that PR, as the head SHA plus the
+verdict or `READY_TO_MERGE`; entries accumulate by PR and head. Repeat the flag for every
+handled verdict, including two verdicts on the same head, and add `READY_TO_MERGE` after acting
+on readiness so that PR does not starve later fleet entries. `APPROVED` suppresses only the
+approval verdict, not readiness that may appear between watcher runs. Pass the handled signals
+after every fix cycle so the same event is never replayed, and pass none on the first watch. A
+verdict counts only when it sits on the CURRENT head, so a stale `CHANGES_REQUESTED` carried on
+an older commit does not satisfy it.
 
 Write no loop of your own. Both hand-rolled loops on the ORB-88 run were wrong and both failed
 silently: the first fired instantly on a stale verdict from an earlier commit, the second could
 only exit on approval or a failing check, so a fresh CHANGES_REQUESTED left it spinning for
 90 minutes with the answer in its own output and nobody reading it. The terminal condition is
-"anything other than the state I have already acted on", never an allowlist of the states
-somebody remembered.
+one of the actionable transitions enumerated above; `UNKNOWN` and other non-terminal
+merge-state churn never terminate the watcher.
 
 - CI red or CHANGES_REQUESTED: ONE fix cycle per strike; send the failure text + review
   comments to a fresh worker in the same worktree. Resolve addressed review threads.
