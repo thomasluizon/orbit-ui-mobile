@@ -485,6 +485,9 @@ for (const [label, command, skills] of [
   ["ticket creation", "node tools/new-ticket.mjs --help", ["/ticket", "/feature"]],
   ["web port", "node tools/orca-web-port.mjs", ["/dev-server"]],
   ["second opinion", "tools/agent-review.sh --claim test", ["/second-opinion"]],
+  ["PowerShell second opinion", "pwsh tools/agent-review.ps1 --claim test", ["/second-opinion"]],
+  ["Windows PowerShell second opinion", "powershell.exe .\\tools\\agent-review.ps1 --claim test", ["/second-opinion"]],
+  ["direct PowerShell second opinion", ".\\tools\\agent-review.ps1 --claim test", ["/second-opinion"]],
 ]) {
   const result = runHookResult(RAW_TOOL_HOOK, stopPayload(`Run ${command}`))
   T(`cc raw-tool: ${label} wrapper instruction -> 2`, result.status, 2)

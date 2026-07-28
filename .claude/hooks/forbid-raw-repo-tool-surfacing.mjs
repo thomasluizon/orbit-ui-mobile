@@ -16,7 +16,8 @@ import { filePathFrom, readStdinJson } from "./_lib/io.mjs"
 const APPEAL_SUFFIX = /\s+(?:#\s*)?Repo-tool appeal:\s*(\S.*)\s*$/i
 const NODE_TOOL_COMMAND =
   /\bnode(?:\.exe)?(?:[ \t]+-{1,2}[a-z0-9][a-z0-9-]*(?:=[^`\s]+|[ \t]+[^`\s]+)?)*[ \t]+(?:"(?:(?:[a-z]:)?[\\/]*(?:[^"`\r\n]+[\\/])*)?tools[\\/][a-z0-9_./\\-]+\.(?:mjs|cjs|js|ts)"|'(?:(?:[a-z]:)?[\\/]*(?:[^'`\r\n]+[\\/])*)?tools[\\/][a-z0-9_./\\-]+\.(?:mjs|cjs|js|ts)'|(?:(?:[a-z]:)?[\\/]*(?:[a-z0-9_.-]+[\\/])*)?tools[\\/][a-z0-9_./\\-]+\.(?:mjs|cjs|js|ts))(?:[ \t]+[^`\r\n]*)?/i
-const TOOL_SCRIPT_COMMAND = /(?:\.?[\\/])?tools[\\/][a-z0-9_./\\-]+\.sh(?:[ \t]+[^`\r\n]*)?/i
+const TOOL_SCRIPT_COMMAND =
+  /(?:(?:(?:pwsh|powershell)(?:\.exe)?[ \t]+)?["']?(?:\.?[\\/])?tools[\\/][a-z0-9_./\\-]+\.ps1["']?|(?:\.?[\\/])?tools[\\/][a-z0-9_./\\-]+\.sh)(?:[ \t]+[^`\r\n]*)?/i
 const NPX_COMMAND = /\bnpx(?:\.cmd)?[ \t]+\S[^`\r\n]*/i
 const SHELL_FENCE = /^(?:bash|sh|shell|zsh|powershell|pwsh|cmd|console)?$/i
 const DOCUMENTATION =
@@ -234,7 +235,9 @@ function alternativeFor(command) {
     return "Use /ticket for one work item or /feature for a multi-ticket feature."
   }
   if (basename === "orca-web-port.mjs") return "Use /dev-server for the supported local server workflow."
-  if (basename === "agent-review.sh") return "Use /second-opinion for the supported cross-model verdict."
+  if (basename === "agent-review.sh" || basename === "agent-review.ps1") {
+    return "Use /second-opinion for the supported cross-model verdict."
+  }
   return "No skill currently exposes this capability. Say that plainly and describe the skill to build instead of giving Thomas the raw command."
 }
 
