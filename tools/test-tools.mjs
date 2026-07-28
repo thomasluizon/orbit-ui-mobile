@@ -665,6 +665,7 @@ const TIMEOUT_PAYLOAD = JSON.stringify({ ok: false, error: { code: "timeout", me
 const BUSY_STUB = [{ match: "terminal wait", stdout: TIMEOUT_PAYLOAD, exit: 1 }]
 const BROKEN_STUB = [{ match: "terminal wait", stdout: JSON.stringify({ ok: false, error: { code: "no-such-terminal", message: "unknown handle" } }), exit: 1 }]
 const STALE_BLOCKED_WAIT = JSON.stringify({ ok: true, result: { wait: { satisfied: false, status: "running", blockedReason: "codex-trust-workspace" } } })
+const DOCUMENTED_CODEX_BLOCKED_WAIT = JSON.stringify({ ok: true, result: { wait: { satisfied: false, status: "running", blockedReason: "codex-interactive-prompt" } } })
 const CODEX_READY_PLACEHOLDER_CASES = [
   ["explain-codebase", "› Explain this codebase"],
   ["review-changes", "› Run /review on my current changes"],
@@ -786,6 +787,10 @@ const BLOCKED_BUSY_STUB = [
   { match: "terminal show", stdout: '{"ok":true,"result":{"terminal":{"lastOutputAt":__NOW__}}}', exit: 0 },
   { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }), exit: 0 },
 ]
+const DOCUMENTED_CODEX_BLOCKED_IDLE_STUB = [
+  { match: "terminal wait", stdout: DOCUMENTED_CODEX_BLOCKED_WAIT, exit: 0 },
+  { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }), exit: 0 },
+]
 
 const runNudgeSignalCase = (label, name, plan, expect, expectedSends, options = {}) => {
   const log = join(root, `nudge-${label}.log`)
@@ -857,6 +862,7 @@ const nudgeWorkerCases = () => {
   runNudgeSignalCase("unrecognized-block", "refuses an unrecognized static screen with no ready composer signal", UNRECOGNIZED_BLOCKED_IDLE_STUB, { status: 1, stderr: /codex-trust-workspace[\s\S]*not repainting[\s\S]*no known trust prompt[\s\S]*no known ready composer is on screen[\s\S]*worker remains blocked[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("unrecognized-block", "codex").path })
   runNudgeSignalCase("false-idle", "refuses a tui-idle that is still repainting, which is a worker mid-turn", FALSE_IDLE_STUB, { status: 1, stderr: /tui-idle[\s\S]*still repainting[\s\S]*repaint signal wins[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("false-idle", "codex").path })
   runNudgeSignalCase("both-busy", "refuses when both signals say the worker is busy", BLOCKED_BUSY_STUB, { status: 1, stderr: /codex-trust-workspace[\s\S]*TUI is repainting[\s\S]*both signals[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("both-busy", "codex").path })
+  runNudgeSignalCase("documented-codex-reason", "does not treat codex-interactive-prompt as the measured stale reason", DOCUMENTED_CODEX_BLOCKED_IDLE_STUB, { status: 1, stderr: /worker is busy \(codex-interactive-prompt\)[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("documented-codex-reason", "codex").path })
   check("nudge-worker.mjs", "--dry-run calls orca not at all", ["--terminal", "t1", "--text", "hi", "--dry-run"], { status: 0, stdout: /"dryRun": true/ }, { env: orcaEnv([]) })
 }
 
