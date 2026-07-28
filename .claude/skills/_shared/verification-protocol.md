@@ -2,10 +2,10 @@
 
 **At a glance:** the shared reliability layer for every review and audit skill in this
 repo: `/pr-review`, `/audit-security`, `/audit-tests`, `/audit-performance`,
-`/audit-code-quality`, `/prod-readiness`, and `/thermo-nuclear-code-quality-review`. Where
-`pr-review/rubric.md` defines *what* these skills look for, this file defines *how* they
-stay trustworthy: nothing in scope is silently skipped, no serious finding ships without
-surviving a challenge, and every run states what it did **not** do.
+`/audit-code-quality`, and `/prod-readiness`. Where `pr-review/rubric.md` defines *what*
+these skills look for, this file defines *how* they stay trustworthy: nothing in scope is
+silently skipped, no serious finding ships without surviving a challenge, and every run
+states what it did **not** do.
 
 One file, every skill reads it, so the reliability bar can never drift between them (the
 same no-drift principle as the shared rubric). Each consuming skill names, in its own
@@ -24,10 +24,9 @@ into the inventory in §1 and where the ledger in §4 is delivered.
 day after it is written. The four `/audit-*` skills and `/prod-readiness` turn verified
 findings into **Linear tickets behind one human approval gate**, via the shared pipeline in
 `.claude/skills/_shared/audit-to-tickets.md`. `/pr-review` delivers its findings against the
-diff, in session. `/thermo-nuclear-code-quality-review` delivers a PR per repo with an
-Applied table. None of the seven persists a findings document, and none writes to
-`.claude/audits/`. Coverage, the Deferred ledger, and the convergence state are
-**provenance presented at the point of decision**, not an artifact left on disk.
+diff, in session. None of the six persists a findings document, and none writes to
+`.claude/audits/`. Coverage, the Deferred ledger, and the convergence state are **provenance
+presented at the point of decision**, not an artifact left on disk.
 
 **D11, only what no gate can check.** A finding a gate already fails on is noise, not
 signal. The mechanical layer therefore never enters the §1 inventory and never becomes a
@@ -99,10 +98,10 @@ sweep, it asks what it missed and goes again until a round comes back empty.
 
 Every run carries an explicit **Deferred** ledger, presented with the findings at the point
 of decision: the approval gate for the audits and `/prod-readiness`, the review itself for
-`/pr-review`, the PR body for `/thermo-nuclear-code-quality-review`. Every item that was in
-scope but given no verdict, skipped for size, unverifiable in CI, out-of-scope by tier, past
-the adversarial-verify cap, is listed there with a one-line reason. **Silence reads as
-coverage**, so "not examined" is stated, never disguised as "clean."
+`/pr-review`. Every item that was in scope but given no verdict, skipped for size,
+unverifiable in CI, out-of-scope by tier, past the adversarial-verify cap, is listed there
+with a one-line reason. **Silence reads as coverage**, so "not examined" is stated, never
+disguised as "clean."
 
 - If the run bounded itself (top-N, sampled, no sibling repo in CI, capped findings), the
   ledger names exactly what that dropped.
@@ -132,7 +131,6 @@ manufactures findings to look thorough has failed this protocol, not passed it.
 | `/audit-performance` (repo-wide) | hot zones, by scaling impact | each High finding | yes, until dry | enterprise-only tuning |
 | `/audit-code-quality` (repo-wide) | code slices, blast-radius x churn | each Critical/High finding | yes, until dry | dimensions deferred to other audits |
 | `/prod-readiness` (orchestrator) | the four audits + ops checks | inherits each child audit's verify | inherits each child's loop | merges every child ledger |
-| `/thermo-nuclear-code-quality-review` (refactor) | top offenders per repo, blast-radius x churn | the build / test / EF-model gates are the challenge | no, the binding inventory is the bound | every inventory item not fixed, with its verified reason |
 
 ---
 
