@@ -1025,6 +1025,14 @@ const captureSurfacesCases = () => {
 // the count is transitive. ORB-4 is unblocked but at the strike limit: it lands
 // in wave 1, is excluded from `launchable` by design, and must still surface in
 // `twoStrikes` (PR #613 review, D9).
+const ISSUES_WAVE_STUB = [
+  { match: "linear list-issues", stdout: JSON.stringify({ ok: true, result: { issues: [{ identifier: "ORB-1" }, { identifier: "ORB-2" }, { identifier: "ORB-3" }, { identifier: "ORB-99" }] } }) },
+  { match: "linear issue ORB-1", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-1", title: "requested first", state: { name: "Todo", type: "unstarted" }, labels: [] }, relations: [] } }) },
+  { match: "linear issue ORB-2", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-2", title: "requested second", state: { name: "Todo", type: "unstarted" }, labels: [{ name: "attempts:2" }] }, relations: [{ relationship: "blockedBy", relatedIssue: { identifier: "ORB-99" } }] } }) },
+  { match: "linear issue ORB-3", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-3", title: "out-of-set dependent", state: { name: "Todo", type: "unstarted" }, labels: [] }, relations: [{ relationship: "blockedBy", relatedIssue: { identifier: "ORB-1" } }] } }) },
+  { match: "linear issue ORB-99", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-99", title: "external blocker", state: { name: "In Progress", type: "started" }, labels: [] }, relations: [] } }) },
+]
+
 const WAVE_STUB = [
   {
     match: "linear list-issues",
@@ -1174,6 +1182,21 @@ const gateCases = {
   },
   "compose-prompt.mjs": composePromptCases,
   "wave-plan.mjs": () => {
+    check("wave-plan.mjs", "documents the explicit issue selection mode", ["--help"], { status: 0, stdout: /--issues "ORB-a,\.\.\."/ })
+    check("wave-plan.mjs", "plans one explicitly requested identifier and counts out-of-set dependents in reach", ["--issues", "ORB-1", "--json"], { status: 0, stdout: /"identifier": "ORB-1"[\s\S]*?"reach": 1[\s\S]*?"launchable": true/ }, { env: orcaEnv(ISSUES_WAVE_STUB) })
+    const duplicateLog = stage("wave-plan-duplicate.log", "")
+    const duplicate = run("wave-plan.mjs", ["--issues", "ORB-1,ORB-1", "--json"], { env: { ...orcaEnv(ISSUES_WAVE_STUB), ORBIT_ORCA_LOG: duplicateLog } })
+    const duplicateFetches = readFileSync(duplicateLog, "utf8").split("\n").filter(Boolean).map(JSON.parse).filter((argv) => argv[0].split(/[\\/]/).pop() === "linear" && argv[1] === "issue" && argv[2] === "ORB-1")
+    T("wave-plan.mjs: deduplicates explicitly requested identifiers before fetching", duplicate.status === 0 && duplicateFetches.length === 1, duplicate.stderr || duplicate.stdout)
+    check("wave-plan.mjs", "renders both members of an explicit two-ticket selection", ["--issues", "ORB-1,ORB-2", "--json"], { status: 0, stdout: /"identifier": "ORB-1"[\s\S]*?"identifier": "ORB-2"/ }, { env: orcaEnv(ISSUES_WAVE_STUB) })
+    check("wave-plan.mjs", "refuses explicit issues combined with another mode", ["--issues", "ORB-1", "--project", "Redesign"], { status: 2, stderr: /cannot be combined/ })
+    check("wave-plan.mjs", "refuses explicit issues combined with a label", ["--issues", "ORB-1", "--label", "bug"], { status: 2, stderr: /cannot be combined/ })
+    check("wave-plan.mjs", "refuses explicit issues combined with all", ["--issues", "ORB-1", "--all"], { status: 2, stderr: /cannot be combined/ })
+    check("wave-plan.mjs", "requires a value for explicit issues", ["--issues"], { status: 2, stderr: /requires at least one identifier/ })
+    check("wave-plan.mjs", "names an unresolved requested identifier", ["--issues", "ORB-404"], { status: 1, stderr: /unresolved requested identifier\(s\): ORB-404/ }, { env: orcaEnv([{ match: "linear issue ORB-404", stdout: JSON.stringify({ ok: false, error: { message: "not found" } }) }]) })
+    check("wave-plan.mjs", "refuses a requested Done identifier", ["--issues", "ORB-3"], { status: 1, stderr: /Done requested identifier\(s\): ORB-3/ }, { env: orcaEnv([{ match: "linear issue ORB-3", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-3", title: "done", state: { name: "Done", type: "completed" }, labels: [] }, relations: [] } }) }]) })
+    check("wave-plan.mjs", "uses an out-of-set team blocker while displaying only requested issues", ["--issues", "ORB-2", "--json"], { status: 0, stdout: /"blockedBy": \[\s*"ORB-99"\s*\][\s\S]*?"blockerState": "blocked by ORB-99"[\s\S]*?"launchable": false[\s\S]*?"twoStrikes": \[\s*"ORB-2"\s*\]/ }, { env: orcaEnv(ISSUES_WAVE_STUB) })
+    check("wave-plan.mjs", "restricts text output to requested identifiers with their blocker state", ["--issues", "ORB-2"], { status: 0, stdout: /ORB-2[\s\S]*?blockerState: blocked by ORB-99[\s\S]*?launchable: no/, stderr: /^$/ }, { env: orcaEnv(ISSUES_WAVE_STUB) })
     check("wave-plan.mjs", "orders a blockedBy pair into two waves", ["--project", "Redesign", "--json"], { status: 0, stdout: /"wave": 2[\s\S]*ORB-2/ }, { env: orcaEnv(WAVE_STUB) })
     check("wave-plan.mjs", "wave 1 is the unblocked ticket", ["--project", "Redesign", "--json"], { status: 0, stdout: /"launchable": \[\s*"ORB-1"\s*\]/ }, { env: orcaEnv(WAVE_STUB) })
     check("wave-plan.mjs", "reach counts the whole downstream chain, not just direct blockers", ["--project", "Redesign", "--json"], { status: 0, stdout: /"identifier": "ORB-1"[\s\S]*?"reach": 2/ }, { env: orcaEnv(WAVE_STUB) })
