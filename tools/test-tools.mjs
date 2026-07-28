@@ -133,7 +133,8 @@ const BASH = resolveBash()
  */
 const ORCA_SHIM = stage(
   "orca-shim.cjs",
-  `const { appendFileSync, existsSync, readFileSync, rmSync } = require("node:fs")
+  `const { spawnSync } = require("node:child_process")
+const { appendFileSync, existsSync, readFileSync, rmSync } = require("node:fs")
 const argv = process.argv.slice(1)
 if (argv[0] && existsSync(argv[0])) return
 const line = argv.join(" ")
@@ -145,17 +146,21 @@ if (!match) {
 }
 if (match.delayMs) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, match.delayMs)
 if (match.removePath) rmSync(match.removePath, { recursive: true, force: true })
+if (match.pruneRepo) spawnSync("git", ["-C", match.pruneRepo, "worktree", "prune"])
 let out = match.stdout
+let exit = match.exit ?? 0
 if (Array.isArray(match.sequence)) {
   const log = process.env.ORBIT_ORCA_LOG
   const previous = log && existsSync(log)
     ? readFileSync(log, "utf8").split("\\n").filter(Boolean).filter((entry) => JSON.parse(entry).join(" ").includes(match.match)).length
     : 0
-  out = match.sequence[Math.min(previous, match.sequence.length - 1)]
+  const selected = match.sequence[Math.min(previous, match.sequence.length - 1)]
+  out = typeof selected === "string" ? selected : selected.stdout
+  if (typeof selected !== "string") exit = selected.exit ?? exit
 }
 if (process.env.ORBIT_ORCA_LOG) appendFileSync(process.env.ORBIT_ORCA_LOG, JSON.stringify(argv) + "\\n")
 process.stdout.write(out.replaceAll("__NOW__", String(Date.now())))
-process.exit(match.exit ?? 0)
+process.exit(exit)
 `,
 )
 
@@ -489,6 +494,73 @@ const pointerDeliveryCases = () => {
   )
 }
 
+const runTerminalCreateLaunch = (label, terminalCreateSequence) => {
+  const staged = stageLaunchWorker(label, INTERACTIVE_WORKER)
+  const checkout = join(staged.base, "checkout")
+  const git = (args) => spawnSync("git", ["-C", staged.repoPath, ...args], { encoding: "utf8" })
+  for (const args of [
+    ["init", "-q", "--initial-branch=main"],
+    ["config", "user.email", "gate@orbit.test"],
+    ["config", "user.name", "Orbit Gate"],
+    ["commit", "-q", "--allow-empty", "-m", "base"],
+    ["worktree", "add", "-q", "-b", "thomasluizon/orb-75", checkout],
+  ]) {
+    if (git(args).status !== 0) return null
+  }
+
+  const log = join(staged.base, "orca-calls.log")
+  const promptFile = stage(`${label}-prompt.md`, "the ticket body verbatim\n")
+  const painted = `> Read ${promptFile} and execute it in full. That file is your complete work order for ORB-75:`
+  const plan = [
+    ...linearIssueStub(["repo:ui"]),
+    { match: "worktree create", stdout: JSON.stringify({ ok: true, result: { worktree: { path: checkout, branch: "refs/heads/thomasluizon/orb-75" } } }) },
+    { match: "terminal create", sequence: terminalCreateSequence },
+    { match: "terminal wait", stdout: JSON.stringify({ ok: true, result: { wait: { satisfied: true } } }) },
+    { match: "terminal show", stdout: JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1785168487585 } } }) },
+    { match: "terminal read", stdout: JSON.stringify({ ok: true, result: { terminal: { tail: [painted] } } }) },
+    { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }) },
+    { match: "terminal switch", stdout: JSON.stringify({ ok: true, result: {} }) },
+    { match: "worktree set", stdout: JSON.stringify({ ok: true, result: {} }) },
+    { match: "terminal stop", stdout: JSON.stringify({ ok: true, result: {} }) },
+    { match: "worktree rm", stdout: JSON.stringify({ ok: true, result: {} }), removePath: checkout, pruneRepo: staged.repoPath },
+  ]
+  const result = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile], {
+    path: staged.path,
+    env: { ...orcaEnv(plan), ORBIT_ORCA_LOG: log },
+  })
+  const calls = existsSync(log) ? readFileSync(log, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line)) : []
+  const count = (first, second) => calls.filter((argv) => argv[0].split(/[\\/]/).pop() === first && argv[1] === second).length
+  const branches = git(["branch", "--list", "feature/orb-75-prove-the-harness-gate", "thomasluizon/orb-75"]).stdout.trim()
+  return { result, terminalCreates: count("terminal", "create"), worktreeCreates: count("worktree", "create"), checkout, branches }
+}
+
+const terminalCreateRetryCases = () => {
+  const timeout = { stdout: JSON.stringify({ ok: false, error: { code: "timeout", message: "Terminal creation timed out" } }), exit: 1 }
+  const success = { stdout: JSON.stringify({ ok: true, result: { terminal: { handle: "t1" } } }), exit: 0 }
+  const recovered = runTerminalCreateLaunch("terminal-create-recovers", [timeout, success])
+  if (!recovered) {
+    T("launch-worker.mjs: terminal create retries can be staged", false, "could not stage a linked git worktree")
+    return
+  }
+  T(
+    "launch-worker.mjs: a terminal create timeout retries inside the same worktree and then succeeds",
+    recovered.result.status === 0 && recovered.terminalCreates === 2 && recovered.worktreeCreates === 1 && /"terminal": "t1"/.test(recovered.result.stdout),
+    `exit ${recovered.result.status}, terminal creates ${recovered.terminalCreates}, worktree creates ${recovered.worktreeCreates}\n     ${recovered.result.stderr.trim().split("\n").slice(-5).join("\n     ")}`,
+  )
+
+  const exhausted = runTerminalCreateLaunch("terminal-create-exhausted", [timeout, timeout, timeout])
+  T(
+    "launch-worker.mjs: terminal create timeout retries are bounded and preserve the timeout cause",
+    exhausted.result.status === 3 && exhausted.terminalCreates === 3 && /failed after 3 attempts: Terminal creation timed out/.test(exhausted.result.stderr),
+    `exit ${exhausted.result.status}, terminal creates ${exhausted.terminalCreates}\n     ${exhausted.result.stderr.trim().split("\n").slice(-6).join("\n     ")}`,
+  )
+  T(
+    "launch-worker.mjs: exhausting terminal create retries rolls back the one worktree and both branches",
+    exhausted.worktreeCreates === 1 && !existsSync(exhausted.checkout) && exhausted.branches === "",
+    `worktree creates ${exhausted.worktreeCreates}, checkout exists ${existsSync(exhausted.checkout)}, branches ${JSON.stringify(exhausted.branches)}`,
+  )
+}
+
 const launchWorkerCases = () => {
   const promptFile = stage("prompt.md", "the ticket body verbatim\n")
 
@@ -554,6 +626,7 @@ const launchWorkerCases = () => {
 
   trustScreenCases()
   pointerDeliveryCases()
+  terminalCreateRetryCases()
 
   const launcherSource = readFileSync(join(TOOLS_DIR, "launch-worker.mjs"), "utf8")
   for (const [clause, pattern] of Object.entries(REQUIRED_CONTRACT_CLAUSES)) {
@@ -715,6 +788,7 @@ const prWatchCases = () => {
  * concatenated repaint fragments that hide whatever it last really said.
  */
 const workerWatchCases = () => {
+  const terminalHandle = "term_ca852374-175d-42cd-8407-b579a03cc13a"
   const childWorktree = (path) => ({
     path,
     repoId: "r-ui",
@@ -734,7 +808,7 @@ const workerWatchCases = () => {
     { match: "worktree list", stdout: JSON.stringify({ ok: true, result: { worktrees: [childWorktree(path)] } }) },
     {
       match: "terminal list",
-      stdout: JSON.stringify({ ok: true, result: { terminals: [{ handle: "term_abc123def4567", worktreePath: path, title: "Claude Code", lastOutputAt: 0 }] } }).replace(
+      stdout: JSON.stringify({ ok: true, result: { terminals: [{ handle: terminalHandle, worktreePath: path, title: "Claude Code", lastOutputAt: 0 }] } }).replace(
         '"lastOutputAt":0',
         `"lastOutputAt":${lastOutputAt}`,
       ),
@@ -768,6 +842,11 @@ const workerWatchCases = () => {
   )
   T("worker-watch.mjs: the repaint tail is stripped to nothing rather than printed raw", /nothing but repaint noise/.test(busy.stdout), busy.stdout.slice(0, 400))
   T("worker-watch.mjs: the ticket's Linear state is reported alongside liveness", /In Progress/.test(busy.stdout), busy.stdout.slice(0, 400))
+  T(
+    "worker-watch.mjs: the rendered terminal handle is complete and directly reusable",
+    busy.stdout.includes(`${terminalHandle} BUSY`) && !/term_ca852374\s+BUSY/.test(busy.stdout),
+    busy.stdout.slice(0, 400),
+  )
 
   /** A frozen lastOutputAt is a settled TUI: identical samples, so IDLE. */
   const idle = check(
@@ -1255,6 +1334,30 @@ const gateCases = {
   "check-ticket.mjs": () => {
     check("check-ticket.mjs", "an incomplete body is rejected", ["--file", stage("ticket.md", "# A ticket\n\nno template sections here\n")], { nonZero: true })
     check("check-ticket.mjs", "a missing body file is a usage error", ["--file", join(root, "absent.md")], { status: 2 })
+    const issue = (sentence) => ({
+      match: "linear issue ORB-99",
+      stdout: JSON.stringify({
+        ok: true,
+        result: {
+          issue: { identifier: "ORB-99", title: "Keep explicit issue dependencies precise", description: `${VALID_TICKET_BODY}\n\n${sentence}`, labels: [{ name: "repo:api" }] },
+          relations: [],
+        },
+      }),
+    })
+    for (const sentence of [
+      "Cleanup runs after the terminal exits.",
+      "The launcher retries once the daemon is responsive.",
+      "The branch name depends on configuration, and startup can be blocked by a trust prompt.",
+    ]) {
+      check("check-ticket.mjs", `ordinary prose does not imply a dependency: ${sentence}`, ["--issue", "ORB-99"], { status: 0, stdout: /ticket ok/ }, { env: orcaEnv([issue(sentence)]) })
+    }
+    check(
+      "check-ticket.mjs",
+      "a named issue blocker still requires a blockedBy relation",
+      ["--issue", "ORB-99"],
+      { status: 1, stderr: /body PROSE mentions a dependency/ },
+      { env: orcaEnv([issue("This change is blocked by ORB-1.")]) },
+    )
   },
   "check-push-target.mjs": () => {
     check("check-push-target.mjs", "a push to main is blocked", [], { status: 1, stderr: /BLOCKED/ }, { input: "refs/heads/main abc refs/heads/main def\n" })
