@@ -151,7 +151,12 @@ if (!match) {
   process.stdout.write(JSON.stringify({ ok: false, error: { code: "stub-miss", message: "unstubbed orca call: " + line } }))
   process.exit(9)
 }
-if (match.delayMs) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, match.delayMs)
+if (match.delayMs) {
+  const timingLog = process.env.ORBIT_ORCA_TIMING_LOG
+  if (timingLog) appendFileSync(timingLog, JSON.stringify({ event: "start", line, pid: process.pid }) + "\\n")
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, match.delayMs)
+  if (timingLog) appendFileSync(timingLog, JSON.stringify({ event: "end", line, pid: process.pid }) + "\\n")
+}
 if (match.removePath) rmSync(match.removePath, { recursive: true, force: true })
 if (match.pruneRepo) spawnSync("git", ["-C", match.pruneRepo, "worktree", "prune"])
 let out = match.stdout
@@ -1615,6 +1620,17 @@ const delayedWaveStub = () => {
   ]
 }
 
+const relationFetchConcurrency = (timingLog) => {
+  const events = readFileSync(timingLog, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line))
+  let active = 0
+  let peak = 0
+  for (const event of events) {
+    active += event.event === "start" ? 1 : -1
+    peak = Math.max(peak, active)
+  }
+  return { events, peak, active }
+}
+
 const composePromptCases = () => {
   const output = stage("prompts/orb-125.md", "")
   const comments = [
@@ -2378,9 +2394,21 @@ const gateCases = {
     check("wave-plan.mjs", "a wave-1 ticket at the strike limit is reported, not dropped", ["--project", "Redesign", "--json"], { status: 0, stdout: /"twoStrikes": \[\s*"ORB-4"\s*\]/ }, { env: orcaEnv(WAVE_STUB) })
     check("wave-plan.mjs", "text mode marks the same strike-limit ticket", ["--project", "Redesign"], { status: 0, stdout: /ORB-4[\s\S]*?TWO STRIKES/ }, { env: orcaEnv(WAVE_STUB) })
     check("wave-plan.mjs", "an empty project is nothing to plan", ["--project", "Empty"], { status: 1, stderr: /nothing to plan/ }, { env: orcaEnv([{ match: "linear list-issues", stdout: JSON.stringify({ ok: true, result: { issues: [] } }) }]) })
-    const start = Date.now()
-    const delayed = run("wave-plan.mjs", ["--all"], { env: orcaEnv(delayedWaveStub()) })
-    T("wave-plan.mjs: fetches 100 relations in a bounded pool while preserving the table order", delayed.status === 0 && Date.now() - start < 3000 && /ORB-1[\s\S]*ORB-100/.test(delayed.stdout), `exit ${delayed.status}, elapsed ${Date.now() - start}ms\n     ${delayed.stderr}`)
+    const timingLog = stage("wave-plan-timing.log", "")
+    const delayed = run("wave-plan.mjs", ["--all"], {
+      env: { ...orcaEnv(delayedWaveStub()), ORBIT_ORCA_TIMING_LOG: timingLog },
+    })
+    const concurrency = relationFetchConcurrency(timingLog)
+    T(
+      "wave-plan.mjs: fetches 100 relations in a bounded pool while preserving the table order",
+      delayed.status === 0
+        && concurrency.events.filter((event) => event.event === "start").length === 100
+        && concurrency.peak > 1
+        && concurrency.peak <= 8
+        && concurrency.active === 0
+        && /ORB-1[\s\S]*ORB-100/.test(delayed.stdout),
+      `exit ${delayed.status}, relation events ${concurrency.events.length}, peak concurrency ${concurrency.peak}, active at exit ${concurrency.active}\n     ${delayed.stderr}`,
+    )
     check(
       "wave-plan.mjs",
       "names a failing relation fetch without an execFile stack trace",
