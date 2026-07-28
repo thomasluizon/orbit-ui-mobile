@@ -25,7 +25,7 @@
 
 import { spawn, spawnSync } from "node:child_process"
 import { createHash } from "node:crypto"
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, utimesSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { delimiter, dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -1036,6 +1036,87 @@ const launchConcurrencyCases = async (promptFile) => {
     { status: 2, stderr: /maxParallelWorktrees must be a positive integer/ },
     { path: invalidConfig.path },
   )
+
+  const reservationRecoveryCase = (label, lockBody, lockAgeMs) => {
+    const fixture = stageLaunchWorker(`concurrency-reservation-${label}`, INTERACTIVE_WORKER, "claude", 1)
+    const checkout = stageCheckout(fixture.base)
+    if (!checkout) {
+      T(`launch-worker.mjs: reclaims a ${label} reservation`, false, "could not stage a linked Git worktree")
+      return
+    }
+    const lockPath = join(fixture.repoPath, ".git", "orbit-launch-worker.lock")
+    writeFileSync(lockPath, lockBody)
+    if (lockAgeMs) {
+      const staleAt = new Date(Date.now() - lockAgeMs)
+      utimesSync(lockPath, staleAt, staleAt)
+    }
+    const result = run(
+      "launch-worker.mjs",
+      ["--issue", "ORB-75", "--prompt-file", promptFile],
+      {
+        path: fixture.path,
+        env: orcaEnv(linearIssueStub(["repo:ui"], [launchWorktreeStub(checkout)])),
+      },
+    )
+    T(
+      `launch-worker.mjs: reclaims a ${label} reservation`,
+      result.status === 1
+        && /maxParallelWorktrees cap 1[\s\S]*current count 1/.test(result.stderr)
+        && !existsSync(lockPath),
+      `exit ${result.status}; lock exists: ${existsSync(lockPath)}\n     ${result.stderr.trim()}`,
+    )
+  }
+  reservationRecoveryCase(
+    "dead-owner",
+    JSON.stringify({ pid: 2147483647, startedAt: Date.now() - 1000 }),
+    0,
+  )
+  reservationRecoveryCase("stale-corrupt", "{not-json", 10000)
+
+  const timeout = stageLaunchWorker("concurrency-reservation-timeout", INTERACTIVE_WORKER, "claude", 1)
+  const timeoutCheckout = stageCheckout(timeout.base)
+  if (!timeoutCheckout) {
+    T("launch-worker.mjs: times out on a live reservation owner", false, "could not stage a linked Git worktree")
+  } else {
+    const timeoutLock = join(timeout.repoPath, ".git", "orbit-launch-worker.lock")
+    writeFileSync(timeoutLock, JSON.stringify({ pid: process.pid, startedAt: Date.now() }))
+    const timeoutSource = readFileSync(timeout.path, "utf8")
+    const productionDeadline = "const deadline = Date.now() + 5 * 60 * 1000"
+    if (!timeoutSource.includes(productionDeadline)) {
+      T(
+        "launch-worker.mjs: stages a bounded reservation timeout",
+        false,
+        "production reservation deadline expression drifted",
+      )
+    } else {
+      writeFileSync(
+        timeout.path,
+        timeoutSource.replace(productionDeadline, "const deadline = Date.now() + 200"),
+      )
+      const timeoutLog = stage("concurrency-reservation-timeout.log", "")
+      const timeoutResult = run(
+        "launch-worker.mjs",
+        ["--issue", "ORB-75", "--prompt-file", promptFile],
+        {
+          path: timeout.path,
+          env: {
+            ...orcaEnv(linearIssueStub(["repo:ui"], [])),
+            ORBIT_ORCA_LOG: timeoutLog,
+          },
+        },
+      )
+      const timeoutCalls = readFileSync(timeoutLog, "utf8").split("\n").filter(Boolean).map(JSON.parse)
+      T(
+        "launch-worker.mjs: times out on a live reservation owner before listing or creating worktrees",
+        timeoutResult.status === 1
+          && /timed out waiting for another launch reservation/.test(timeoutResult.stderr)
+          && !timeoutCalls.some((argv) => argv.join(" ").includes("worktree list"))
+          && !timeoutCalls.some((argv) => argv.join(" ").includes("worktree create")),
+        `exit ${timeoutResult.status}\n     ${timeoutResult.stderr.trim()}\n     ${timeoutCalls.map((argv) => argv.join(" ")).join("\n     ")}`,
+      )
+    }
+    rmSync(timeoutLock, { force: true })
+  }
 
   const concurrent = stageLaunchWorker("concurrency-atomic-last-slot", INTERACTIVE_WORKER, "claude", 1)
   const concurrentCheckout = stageCheckout(concurrent.base)
