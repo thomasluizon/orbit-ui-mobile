@@ -314,18 +314,18 @@ only thing that advances a wave"), and to the `Never: merge a PR` line below. Sa
 in the run's opening line, so a reader of the transcript is never left wondering
 whether the run went rogue.
 
-Merge a PR under `--sleep` only when ALL of these hold, checked in this order:
+Before invoking the merge tool, enforce the run-scope conditions that it cannot
+decide for one PR:
 
-1. `reviewDecision` is `APPROVED`. Not `REVIEW_REQUIRED`, not `null`, and never
-   `CHANGES_REQUESTED`. A passing `review` check is not approval.
-2. Every check has concluded and none failed. A `PENDING` / `QUEUED` / `IN_PROGRESS`
-   check means wait, not proceed.
-3. `mergeStateStatus` is `CLEAN`. `BEHIND` means update the branch and re-read BOTH
-   the checks and `reviewDecision` afterwards, because updating invalidates them.
-4. The D7 evidence gate is satisfied: the PR is attached to the issue, and a
+1. `--sleep` was passed, every wave blocker is merged, and Phase 1's gates are green
+   on the target branch.
+2. Every status check has concluded. The tool rejects failed conclusions and waits
+   on merge-blocking checks, but it does not keep a non-required pending check from
+   being merged past.
+3. The D7 evidence gate is satisfied: the PR is attached to the issue, and a
    `visible-effect` ticket has its screenshot attached.
-5. The ticket carries no `attempts:2` label (D9 refuses it regardless of colour).
-6. **Every comment from every reviewer is addressed, whatever its review state.**
+4. The ticket carries no `attempts:2` label (D9 refuses it regardless of colour).
+5. **Every comment from every reviewer is addressed, whatever its review state.**
    `reviewDecision` only reflects reviews that BLOCK. A `COMMENTED` review and an inline
    comment thread do not move it, so a PR can read `APPROVED` while carrying unaddressed
    findings. Measured on PR #621, 2026-07-27: the Codex connector posted two P1 inline
@@ -376,13 +376,40 @@ Merge a PR under `--sleep` only when ALL of these hold, checked in this order:
    up to a merged PR carrying open threads whose findings were in fact fixed hours earlier;
    from the outside those two states look identical, and one of them is a lie.
 
-Then squash-merge and delete the branch. **Never `--admin`.** Admin-merging bypasses
-the checks, and a bypass with nobody watching is the one combination that can put a
-broken commit on `main` and leave it there until morning.
+After every skill-only condition holds, group eligible PR numbers by repository and
+invoke the strict sweep from the repository root:
 
-On anything the run cannot decide from those five checks, do NOT guess and do NOT
-pick a middle path. Stop that ticket, leave its PR open, record the reason, and carry
-on with the others. A single stuck ticket must never stall the rest of the wave.
+```bash
+bash tools/merge-sweep.sh <owner/repo> <pr-number>...
+```
+
+The script owns the mechanical merge decision. It updates the branch, polls
+`mergeStateStatus`, rejects failed checks, requires `reviewDecision=APPROVED`, waits
+for the `review` check on the current head SHA to settle, re-reads the decision after
+updates, squash-merges without `--admin`, deletes the branch, and checks that a merged
+head did not move afterwards. Its workflow lookup fails closed: if it cannot prove
+the repository has no review workflow, the current-head review wait stays enabled.
+
+`--sleep` always invokes `tools/merge-sweep.sh`. It never invokes
+`tools/merge-sweep-cov.sh`: that variant can use `--admin` to override a SonarCloud
+new-code-coverage failure, while an unattended run must never bypass a red check. A
+PR blocked only by new-code coverage is stopped for human review and listed in the
+closing report. The coverage variant is an attended choice outside `--sleep`, made
+only by a human deliberately invoking:
+
+```bash
+bash tools/merge-sweep-cov.sh <owner/repo> <pr-number>...
+```
+
+Read the script's per-PR output, not only its process exit code. `MERGED #<n>` is the
+merge result; `SKIP` or `MERGE-REFUSED` leaves that PR open and supplies its stopped
+reason. Exit `0` also covers a completed sweep that skipped a PR. A non-zero exit
+reports an orphaned or unverifiable merged head, so re-read the affected PR state and
+record it as a harness defect rather than claiming the PR remained unmerged.
+
+On anything the skill-only gates or the strict script cannot decide, do NOT guess and
+do NOT pick a middle path. Stop that ticket, leave its PR open, record the reason, and
+carry on with the others. A single stuck ticket must never stall the rest of the wave.
 
 The run's closing report is written for someone with no memory of the run, because that
 is what Thomas is when he reads it. Five sections, in this order, every one present even
@@ -401,9 +428,9 @@ when empty:
 5. **Anything that reproduced differently from what its ticket claimed**, because that
    means a ticket body is lying and Thomas needs to know which one.
 
-Never: push to main, merge with `--admin`, merge a PR that fails any of the five
-checks above, or let a worker run before Phase 1's gates are green on its target
-branch. Merging a PR is forbidden too, EXCEPT under `--sleep` on the terms in 4a.
+Never: push to main, merge with `--admin`, merge a PR that fails a skill-only gate
+or the strict sweep, or let a worker run before Phase 1's gates are green on its
+target branch. Merging a PR is forbidden too, EXCEPT under `--sleep` on the terms in 4a.
 Relaunching a two-strike ticket is forbidden except through the single audited rewrite
 `--sleep` authorises in section 3.
 
