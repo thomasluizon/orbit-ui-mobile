@@ -169,6 +169,7 @@ const affectedSectionOf = (description) => {
 }
 
 const isDeclaredPath = (section, path, index) => {
+  if (/[a-z][a-z0-9+.-]*:\/\/$/i.test(section.slice(Math.max(0, index - 24), index))) return false
   if (/[\\/]/.test(path)) return true
   if (section[index - 1] === "`" && section[index + path.length] === "`") return true
   const lineStart = section.lastIndexOf("\n", index) + 1
