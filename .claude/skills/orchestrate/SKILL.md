@@ -1,6 +1,6 @@
 ---
 name: orchestrate
-description: Linear project, single ticket, or explicit ticket set in, reviewed PRs out, wave by wave. Computes the merge-gated DAG with tools/wave-plan.mjs, reconciles each ticket against the code (D8), launches one Orca worktree + worker per ticket (engine from .claude/orchestrator.json, claude or codex), babysits CI and review, enforces the evidence gate (D7) and two-strikes (D9), then tears down each worktree immediately after verified Done. A human merge is the only thing that advances a wave (D3), unless --sleep is passed. Scope is the whole project for a name or one ticket argument, one ticket under --single, or exactly the named tickets when two or more are supplied. Use after /feature or /ticket created the tickets.
+description: Linear project, single ticket, or explicit ticket set in, reviewed PRs out, wave by wave. Computes the merge-gated DAG with tools/wave-plan.mjs, preflights every target repo before worktree creation, reconciles each ticket against the code (D8), launches one Orca worktree + worker per ticket (engine from .claude/orchestrator.json, claude or codex), babysits CI and review, enforces the evidence gate (D7) and two-strikes (D9), then tears down each worktree immediately after verified Done. A human merge is the only thing that advances a wave (D3), unless --sleep is passed. Scope is the whole project for a name or one ticket argument, one ticket under --single, or exactly the named tickets when two or more are supplied. Use after /feature or /ticket created the tickets.
 argument-hint: <Linear project name | ORB-N [ORB-N ...]> [--single] [--sleep]
 effort: high
 ---
@@ -77,6 +77,26 @@ and every entry must be accounted for by assigning it to a specific ticket in th
 explicitly marking it out of scope with a reason. An unchecked box is the normal
 pre-dispatch state: it tracks completion and is checked by the implementation worker as the
 work lands. No ticket reaches dispatch with an omitted category or an unaccounted entry.
+
+## 0b. Preflight the launch environment
+
+Before Phase 1, and before creating ANY worktree, run the fast environment preflight
+for every target repo represented by the launchable set:
+
+```
+node tools/preflight.mjs --repo <ui|api|landing> --base-branch <target> [--require <cli> ...]
+```
+
+The tool checks the selected worker invocation, GitHub CLI installation and
+authentication, Orca reachability, the target repo's branch and cleanliness, and the
+core CLIs the run needs. Read every launchable ticket first and append one repeated
+`--require <cli>` for each ticket-specific CLI it names beyond those repo defaults.
+This checks only that the executable exists; authenticating a third-party service stays
+with the ticket. Print the complete PASS/FAIL table as part of the run transcript. Exit
+0 is the only permission to continue for that repo. On any non-zero exit, report the
+table exactly, create no worktrees, attempt no repair, and STOP the run. A preflight
+failure is an environment defect to surface, not a condition the orchestrator silently
+fixes.
 
 ## 1. Reconcile before dispatch (D8)
 

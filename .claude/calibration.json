@@ -171,7 +171,7 @@
       "file": ".claude/skills/orchestrate/SKILL.md",
       "verdict": "kept",
       "reason": "High effort fits merge-gated multi-worker coordination and reconciliation.",
-      "fingerprint": "sha256:eb5c13d348140a4983dcddb8125a838b2b1c355880c57af041d8e52c9e9dbc54"
+      "fingerprint": "sha256:afefc0a5713c059305cf28be95abbb1974f60a517b3e1905d36b1b7816cc54e0"
     },
     {
       "file": ".claude/skills/pr-review/SKILL.md",
