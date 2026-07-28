@@ -376,18 +376,17 @@ cannot decide for one PR, all against that recorded head:
    merged both defects. One of the two was a real mechanical break that the blocking
    reviewer had missed entirely.
 
-   Immediately before this enumeration, record the current UTC time in ISO-8601
-   format as the reconciliation timestamp. Taking it before the lookups is
-   deliberate: a review or comment that races the enumeration is newer than this
-   boundary, so the merge tool can refuse it rather than treating the lookup as a
-   clean snapshot.
-
-   Then enumerate them yourself from all THREE endpoints, because they are different objects:
+   Do not record `reviewed-through` yet. First enumerate them yourself from all THREE
+   endpoints, because they are different objects:
    `gh api --paginate repos/<owner>/<repo>/pulls/<n>/comments` (inline comments and replies),
    `gh api --paginate repos/<owner>/<repo>/pulls/<n>/reviews` (review bodies, including
    `COMMENTED` ones), plus
    `gh api --paginate repos/<owner>/<repo>/issues/<n>/comments` (conversation comments). Then
-   each comment ends in exactly one of two states:
+   each comment ends in exactly one of two states. Include activity from every author,
+   including the PR author, the orchestrator account, bots, and reviewer accounts. Never
+   filter or exempt activity by author: identity does not prove that an item was part of
+   this reconciliation, and an exclusion would hide a late review, reply, or edit from
+   the final safety gate.
 
    - **Addressed.** The finding is real: fix it through a worker in that ticket's worktree,
      PUSH the fix, then reply on the thread naming the commit that fixed it, then RESOLVE
@@ -432,14 +431,24 @@ when the state is `CLEAN`. If it is `BEHIND`, do not invoke the script: update t
 wait for the new head, and repeat conditions 1 to 6 against it. If the head moved at any
 point after the conditions ran, discard their results and repeat the same update-first
 sequence. Every repeat includes re-enumerating review bodies, inline comments and
-conversation comments, plus unresolved review threads, and records a fresh
-reconciliation timestamp only after starting that new enumeration. The merge script
-independently checks the thread and activity boundaries again immediately before
-merging.
+conversation comments, posting every required reconciliation reply, and resolving and
+mechanically verifying every addressed thread.
 
-Record this final `headRefOid` as the expected head and keep the reconciliation
-timestamp beside it as `reviewed-through`. Then invoke the strict sweep for ONE PR
-at a time from the repository root:
+Record the final `headRefOid` as the expected head. Then, as the LAST act of
+reconciliation, after every required reply has been posted and the final unresolved
+thread count has been verified as zero, re-read all three activity endpoints and find
+the latest reconciled creation, edit, or submission timestamp. Capture a current UTC
+ISO-8601 instant that is strictly later than that timestamp as `reviewed-through`.
+GitHub timestamps have second precision and the sweep deliberately treats activity
+equal to the cutoff as new, so if the current UTC second is not later, wait for the
+next second before capturing the boundary. Invoke the strict sweep immediately after
+capturing it, for ONE PR at a time from the repository root. This ordering is
+load-bearing: capturing the boundary before posting reconciliation replies, or in
+their same timestamp second, makes those already-reconciled replies appear to be new
+activity and tempts an unsafe author-based exclusion. Capturing it last and strictly
+later lets the sweep examine every actor under one timestamp rule without a blind
+spot. Do not post, edit, resolve, or otherwise mutate review activity between
+capturing the timestamp and invoking the sweep.
 
 ```bash
 bash tools/merge-sweep.sh \
@@ -464,14 +473,22 @@ server refuses a last-moment change.
 The script owns the remaining mechanical merge decision. It repeats the branch update
 as a safety check, polls `mergeStateStatus`, rejects failed checks, requires
 `reviewDecision=APPROVED`, waits for the `review` check on the current head SHA to
-settle, re-reads the decision after updates, and immediately before merging re-checks
-that every review thread is resolved and that no review submission, inline review
-comment, or conversation comment is newer than `reviewed-through`. It compares both
-creation and edit times for comments, paginates all three activity endpoints, and
-fails closed on every thread or activity lookup. It then squash-merges without
-`--admin`, deletes the branch, and checks that a merged head did not move afterwards.
-Its workflow lookup also fails closed: if it cannot prove the repository has no
-review workflow, the current-head review wait stays enabled.
+settle, and re-reads the decision after updates. Its review-safety query is the last
+API read before the merge call: it requires every review thread to be resolved and no
+review submission, inline review comment, or conversation comment at or after
+`reviewed-through`. It compares both creation and edit times for comments, paginates
+all three activity endpoints, admits no author exclusions, and fails closed on every
+thread or activity lookup.
+
+There is still an unavoidable final API race between the response to that safety query
+and the merge request. The sweep makes the safety query last, but it cannot prevent new
+activity from arriving after that response. It squash-merges without `--admin`, then
+rechecks review activity after every successful merge. Activity found by that recheck
+was detected and reported, not prevented: the script prints
+`POST-MERGE-ACTIVITY`, exits `4`, and the run stops all further unattended merges and
+copies that result into the closing report. It also checks that a merged head did not
+move afterwards. Its workflow lookup fails closed: if it cannot prove the repository
+has no review workflow, the current-head review wait stays enabled.
 
 `--sleep` always invokes `tools/merge-sweep.sh`. It never invokes
 `tools/merge-sweep-cov.sh`: that variant can use `--admin` to override a SonarCloud
@@ -492,15 +509,20 @@ merge result. `SKIP #<n> UNRESOLVED-THREADS=<count>`,
 form, either named review-lookup failure, any other `SKIP`, or `MERGE-REFUSED`
 leaves that PR open and supplies its stopped reason.
 Exit `0` also covers a completed sweep that skipped a PR. Exit `1` reports an
-orphaned merged head, exit `2` bad usage, and exit `3` an unverifiable merged head;
-for a non-zero exit, re-read the affected PR state and record it as a harness defect
-rather than claiming the PR remained unmerged.
+orphaned merged head, exit `2` bad usage, exit `3` an unverifiable merged head, and
+exit `4` post-merge review activity. Exit `4` is not proof that the merge was unsafe,
+but the activity missed the pre-merge decision boundary: stop further unattended
+merges and report the exact `POST-MERGE-ACTIVITY` line. For exits `1` or `3`, re-read
+the affected PR state and record it as a harness defect rather than claiming the PR
+remained unmerged.
 
 After the script returns, read the PR's `headRefOid` and merge commit. For a `MERGED`
 result, the merged `headRefOid` must equal the expected head that passed conditions 1
 to 6. If it differs, say loudly in the closing report that the PR merged on an
 ungated head, include both head SHAs and the merge commit, and stop all further merges
-in that repository until Thomas has looked.
+in that repository until Thomas has looked. A PR named by `POST-MERGE-ACTIVITY` is
+already merged: keep it in the Merged section, copy the marker and its activity detail
+into that entry, and stop all further unattended merges.
 
 On anything the skill-only gates or the strict script cannot decide, do NOT guess and
 do NOT pick a middle path. Stop that ticket, leave its PR open, record the reason, and

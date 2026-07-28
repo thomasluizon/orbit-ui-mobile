@@ -28,13 +28,17 @@ A SonarCloud failure counts as a failed check here and SKIPs; use merge-sweep-co
 new-code-coverage-only Sonar failure should be admin-overridden instead.
 
 The expected head defaults to the PR's head SHA at entry. Pass --expected-head once per PR to
-pin an earlier observed SHA. If update-branch or any later poll sees a different head, that PR
-prints HEAD-MOVED and is never merged. The merge API also atomically matches the expected SHA.
+pin an earlier observed SHA. A routine update-branch merge is adopted only when its parents
+include both the prior expected SHA and the current base tip; any other change prints HEAD-MOVED.
+The merge API also atomically matches the final expected SHA.
 
 Before any merge, --reviewed-through must name the latest instant through which that PR's
 reviews, inline review comments, and issue comments were inspected. A newer or edited item,
 an unresolved review thread, a missing mapping, or a failed lookup skips the PR. Repeat the
 flag once per PR. The cutoff is exclusive: activity at or after that timestamp counts as new.
+The safety query is the last operation before merge and runs again after success. Post-merge
+activity or an unverifiable post-merge review state is reported with a URL when available and
+exits 4; this detects but cannot prevent the residual response-to-merge race.
 
 It refuses to merge while the \`$REVIEW_CHECK_NAME\` check for the CURRENT head SHA is still
 running, and re-reads reviewDecision after that check settles, so a pre-update APPROVED can
@@ -47,7 +51,8 @@ SHA that was merged carries a post-merge commit that never reached main.
 Output (stdout): one MERGED/SKIP/MERGE-REFUSED line per PR, then any ORPHANED-HEAD lines, then
 SWEEP-DONE.
 Exit codes: 0 every merged head verified clean; 1 at least one orphaned head branch; 2 bad usage;
-3 a head branch could not be verified (unknown is not a clean pass).
+3 a head branch could not be verified; 4 post-merge review activity or an unverifiable review
+state (unknown is not a clean pass).
 EOF
 }
 
@@ -190,6 +195,7 @@ else
 fi
 
 merged_heads=""
+post_merge_review_failures=0
 
 expected_head_for() { # <pr>; stdout: supplied SHA, or empty when the entry SHA must be captured
   local sought_pr="$1" mapping
@@ -211,7 +217,7 @@ reviewed_through_for() { # <pr>; stdout: supplied review cutoff
   done
 }
 
-newest_review_item_after() { # <cutoff>; author/timestamp TSV on stdin; exit 1 with newest item, 2 if malformed
+newest_review_item_after() { # <cutoff>; author/timestamp/url TSV on stdin; exit 1 with newest item, 2 if malformed
   node -e '
     const cutoff=Date.parse(process.argv[1]);
     let input="";
@@ -220,28 +226,32 @@ newest_review_item_after() { # <cutoff>; author/timestamp TSV on stdin; exit 1 w
       let newest;
       for(const line of input.split(/\r?\n/).filter(Boolean)){
         const fields=line.split("\t");
-        if(fields.length!==2||!fields[0]||!fields[1]){process.exitCode=2;return}
+        if(fields.length!==3||!fields[0]||!fields[1]||!fields[2]){process.exitCode=2;return}
         const instant=Date.parse(fields[1]);
         if(!Number.isFinite(instant)){process.exitCode=2;return}
-        if(!newest||instant>newest.instant)newest={author:fields[0],timestamp:fields[1],instant};
+        if(!newest||instant>newest.instant)newest={author:fields[0],timestamp:fields[1],url:fields[2],instant};
       }
       if(newest&&newest.instant>=cutoff){
-        process.stdout.write(`${newest.author}\t${newest.timestamp}`);
+        process.stdout.write(`${newest.author}\t${newest.timestamp}\t${newest.url}`);
         process.exitCode=1;
       }
     })' "$1"
 }
 
-check_review_items() { # <pr> <source> <cutoff>; author/timestamp TSV on stdin
-  local pr="$1" source="$2" cutoff="$3" newest_item item_status author item_timestamp
+check_review_items() { # <pr> <source> <cutoff> <pre|post>; author/timestamp/url TSV on stdin
+  local pr="$1" source="$2" cutoff="$3" phase="$4" newest_item item_status author item_timestamp item_url remainder
   newest_item="$(newest_review_item_after "$cutoff")"
   item_status=$?
   case "$item_status" in
     0) return 0 ;;
     1)
       author="${newest_item%%$'\t'*}"
-      item_timestamp="${newest_item#*$'\t'}"
-      if [ "$source" = "inline-comments" ]; then
+      remainder="${newest_item#*$'\t'}"
+      item_timestamp="${remainder%%$'\t'*}"
+      item_url="${remainder#*$'\t'}"
+      if [ "$phase" = "post" ]; then
+        echo "POST-MERGE-ACTIVITY #$pr $author at $item_timestamp $item_url"
+      elif [ "$source" = "inline-comments" ]; then
         echo "SKIP #$pr NEW-REVIEW-SINCE $cutoff (inline comment by $author at $item_timestamp)"
       else
         echo "SKIP #$pr NEW-REVIEW-SINCE $cutoff by $author at $item_timestamp"
@@ -249,55 +259,87 @@ check_review_items() { # <pr> <source> <cutoff>; author/timestamp TSV on stdin
       return 1
       ;;
     *)
-      echo "SKIP #$pr REVIEW-LOOKUP-FAILED source=$source"
+      if [ "$phase" = "post" ]; then
+        echo "POST-MERGE-REVIEW-LOOKUP-FAILED #$pr source=$source"
+      else
+        echo "SKIP #$pr REVIEW-LOOKUP-FAILED source=$source"
+      fi
       return 1
       ;;
   esac
 }
 
-review_safety_gate() { # <pr>; prints the fail-closed SKIP reason
-  local pr="$1" reviewed_through unresolved review_items inline_items comment_items
+review_safety_gate() { # <pr> <pre|post>; prints the fail-closed reason
+  local pr="$1" phase="$2" reviewed_through unresolved review_items inline_items comment_items
   reviewed_through="$(reviewed_through_for "$pr")"
   if [ -z "$reviewed_through" ]; then
-    echo "SKIP #$pr REVIEW-LOOKUP-FAILED source=reviewed-through"
+    if [ "$phase" = "post" ]; then
+      echo "POST-MERGE-REVIEW-LOOKUP-FAILED #$pr source=reviewed-through"
+    else
+      echo "SKIP #$pr REVIEW-LOOKUP-FAILED source=reviewed-through"
+    fi
     return 1
   fi
   if ! unresolved=$(gh api graphql \
     -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){reviewThreads(first:100){nodes{isResolved} pageInfo{hasNextPage}}}}}' \
     -F o="${repo%%/*}" -F r="${repo##*/}" -F n="$pr" \
     --jq '.data.repository.pullRequest.reviewThreads | if .pageInfo.hasNextPage then "PAGINATED" else ([.nodes[] | select(.isResolved == false)] | length) end' 2>/dev/null); then
-    echo "SKIP #$pr REVIEW-LOOKUP-FAILED source=reviewThreads"
+    if [ "$phase" = "post" ]; then
+      echo "POST-MERGE-REVIEW-LOOKUP-FAILED #$pr source=reviewThreads"
+    else
+      echo "SKIP #$pr REVIEW-LOOKUP-FAILED source=reviewThreads"
+    fi
     return 1
   fi
   case "$unresolved" in
     '' | *[!0-9]*)
-      echo "SKIP #$pr REVIEW-LOOKUP-FAILED source=reviewThreads"
+      if [ "$phase" = "post" ]; then
+        echo "POST-MERGE-REVIEW-LOOKUP-FAILED #$pr source=reviewThreads"
+      else
+        echo "SKIP #$pr REVIEW-LOOKUP-FAILED source=reviewThreads"
+      fi
       return 1
       ;;
   esac
   if [ "$unresolved" -ne 0 ]; then
-    echo "SKIP #$pr UNRESOLVED-THREADS=$unresolved"
+    if [ "$phase" = "post" ]; then
+      echo "POST-MERGE-UNRESOLVED-THREADS #$pr count=$unresolved"
+    else
+      echo "SKIP #$pr UNRESOLVED-THREADS=$unresolved"
+    fi
     return 1
   fi
-  if ! review_items=$(gh api "repos/$repo/pulls/$pr/reviews" --paginate --jq '.[] | [.user.login, .submitted_at] | @tsv' 2>/dev/null); then
-    echo "SKIP #$pr REVIEW-LOOKUP-FAILED source=reviews"
+  if ! review_items=$(gh api "repos/$repo/pulls/$pr/reviews" --paginate --jq '.[] | [.user.login, .submitted_at, .html_url] | @tsv' 2>/dev/null); then
+    if [ "$phase" = "post" ]; then
+      echo "POST-MERGE-REVIEW-LOOKUP-FAILED #$pr source=reviews"
+    else
+      echo "SKIP #$pr REVIEW-LOOKUP-FAILED source=reviews"
+    fi
     return 1
   fi
-  if ! printf '%s\n' "$review_items" | check_review_items "$pr" reviews "$reviewed_through"; then
+  if ! printf '%s\n' "$review_items" | check_review_items "$pr" reviews "$reviewed_through" "$phase"; then
     return 1
   fi
-  if ! inline_items=$(gh api "repos/$repo/pulls/$pr/comments" --paginate --jq '.[] | ([.user.login, .created_at], [.user.login, .updated_at]) | @tsv' 2>/dev/null); then
-    echo "SKIP #$pr REVIEW-LOOKUP-FAILED source=inline-comments"
+  if ! inline_items=$(gh api "repos/$repo/pulls/$pr/comments" --paginate --jq '.[] | ([.user.login, .created_at, .html_url], [.user.login, .updated_at, .html_url]) | @tsv' 2>/dev/null); then
+    if [ "$phase" = "post" ]; then
+      echo "POST-MERGE-REVIEW-LOOKUP-FAILED #$pr source=inline-comments"
+    else
+      echo "SKIP #$pr REVIEW-LOOKUP-FAILED source=inline-comments"
+    fi
     return 1
   fi
-  if ! printf '%s\n' "$inline_items" | check_review_items "$pr" inline-comments "$reviewed_through"; then
+  if ! printf '%s\n' "$inline_items" | check_review_items "$pr" inline-comments "$reviewed_through" "$phase"; then
     return 1
   fi
-  if ! comment_items=$(gh api "repos/$repo/issues/$pr/comments" --paginate --jq '.[] | ([.user.login, .created_at], [.user.login, .updated_at]) | @tsv' 2>/dev/null); then
-    echo "SKIP #$pr REVIEW-LOOKUP-FAILED source=issue-comments"
+  if ! comment_items=$(gh api "repos/$repo/issues/$pr/comments" --paginate --jq '.[] | ([.user.login, .created_at, .html_url], [.user.login, .updated_at, .html_url]) | @tsv' 2>/dev/null); then
+    if [ "$phase" = "post" ]; then
+      echo "POST-MERGE-REVIEW-LOOKUP-FAILED #$pr source=issue-comments"
+    else
+      echo "SKIP #$pr REVIEW-LOOKUP-FAILED source=issue-comments"
+    fi
     return 1
   fi
-  if ! printf '%s\n' "$comment_items" | check_review_items "$pr" issue-comments "$reviewed_through"; then
+  if ! printf '%s\n' "$comment_items" | check_review_items "$pr" issue-comments "$reviewed_through" "$phase"; then
     return 1
   fi
 }
@@ -306,7 +348,30 @@ head_oid() { # <pr>; stdout: current head SHA
   gh pr view "$1" --repo "$repo" --json headRefOid --jq .headRefOid 2>/dev/null
 }
 
-mstate() { # prints  MS | REVIEW | FAILEDCHECKS | REVIEWCHECK | SHA
+UPDATED_EXPECTED=""
+UPDATED_ACTUAL=""
+adopt_routine_update() { # <pr> <old-expected>; sets UPDATED_EXPECTED and UPDATED_ACTUAL
+  local pr="$1" old_expected="$2" state base_tip parents
+  UPDATED_EXPECTED=""
+  UPDATED_ACTUAL=""
+  if ! state=$(gh pr view "$pr" --repo "$repo" --json headRefOid,baseRefOid --jq '[.headRefOid, .baseRefOid] | @tsv' 2>/dev/null); then
+    return 1
+  fi
+  IFS=$'\t' read -r UPDATED_ACTUAL base_tip <<<"$state"
+  [ -n "$UPDATED_ACTUAL" ] && [ -n "$base_tip" ] || return 1
+  if [ "$UPDATED_ACTUAL" = "$old_expected" ]; then
+    UPDATED_EXPECTED="$old_expected"
+    return 0
+  fi
+  if ! parents=$(gh api "repos/$repo/commits/$UPDATED_ACTUAL" --jq '.parents[].sha' 2>/dev/null); then
+    return 1
+  fi
+  printf '%s\n' "$parents" | grep -Fxq "$old_expected" || return 1
+  printf '%s\n' "$parents" | grep -Fxq "$base_tip" || return 1
+  UPDATED_EXPECTED="$UPDATED_ACTUAL"
+}
+
+mstate() { # prints  MS | REVIEW | FAILEDCHECKS | PENDINGCHECKS | REVIEWCHECK | SHA
   gh pr view "$1" --repo "$repo" --json mergeStateStatus,reviewDecision,statusCheckRollup,headRefOid 2>/dev/null | node -e "
     let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{
       try{
@@ -314,11 +379,18 @@ mstate() { # prints  MS | REVIEW | FAILEDCHECKS | REVIEWCHECK | SHA
         const rows=d.statusCheckRollup||[];
         const bad=['FAILURE','ERROR','CANCELLED','TIMED_OUT','ACTION_REQUIRED','STARTUP_FAILURE'];
         const failed=rows.filter(c=>bad.includes((c.conclusion||c.state||'').toUpperCase())).map(c=>c.name||c.context).join(',')||'none';
+        const terminalStates=['SUCCESS',...bad,'NEUTRAL','SKIPPED','STALE'];
+        const pending=rows.filter(c=>{
+          const conclusion=(c.conclusion||'').toUpperCase();
+          const status=(c.status||'').toUpperCase();
+          const state=(c.state||'').toUpperCase();
+          return !conclusion&&status!=='COMPLETED'&&!terminalStates.includes(state);
+        }).map(c=>c.name||c.context||'?').join(',')||'none';
         const review=rows.find(c=>(c.name||c.context)==='$REVIEW_CHECK_NAME');
         const reviewSettled=!!review&&(!!review.conclusion||(review.status||'').toUpperCase()==='COMPLETED');
         const reviewCheck=!review?'ABSENT':(reviewSettled?'SETTLED':'RUNNING');
-        process.stdout.write([(d.mergeStateStatus||'?'),(d.reviewDecision||'?'),failed,reviewCheck,(d.headRefOid||'')].join('|'));
-      }catch(e){process.stdout.write('ERR|ERR|err|ERR|');}
+        process.stdout.write([(d.mergeStateStatus||'?'),(d.reviewDecision||'?'),failed,pending,reviewCheck,(d.headRefOid||'')].join('|'));
+      }catch(e){process.stdout.write('ERR|ERR|err|err|ERR|');}
     })"
 }
 
@@ -331,16 +403,22 @@ for n in "$@"; do
     echo "SKIP #$n HEAD-MOVED expected=<unavailable> actual=<unavailable>"
     continue
   fi
-  gh pr update-branch "$n" --repo "$repo" >/dev/null 2>&1
   actual="$(head_oid "$n")"
   if [ "$actual" != "$expected" ]; then
     echo "SKIP #$n HEAD-MOVED expected=$expected actual=$actual"
     continue
   fi
+  gh pr update-branch "$n" --repo "$repo" >/dev/null 2>&1
+  old_expected="$expected"
+  if ! adopt_routine_update "$n" "$old_expected"; then
+    echo "SKIP #$n HEAD-MOVED expected=$old_expected actual=${UPDATED_ACTUAL:-<unavailable>}"
+    continue
+  fi
+  expected="$UPDATED_EXPECTED"
   done_pr=""
   block_reason="never reached a mergeable state"
   for i in $(seq 1 50); do # up to ~17min per PR
-    IFS='|' read -r ms rev failed reviewcheck sha <<<"$(mstate "$n")"
+    IFS='|' read -r ms rev failed pending reviewcheck sha <<<"$(mstate "$n")"
     if [ "$sha" != "$expected" ]; then
       echo "SKIP #$n HEAD-MOVED expected=$expected actual=$sha"
       done_pr=1
@@ -365,9 +443,14 @@ for n in "$@"; do
     else
       block_reason="never reached a mergeable state (ms=$ms rev=$rev)"
     fi
-    if [ -z "$review_stale" ] && { [ "$ms" = "CLEAN" ] || [ "$ms" = "UNSTABLE" ]; } && [ "$rev" = "APPROVED" ]; then
+    checks_pending=""
+    if [ "$pending" != "none" ]; then
+      checks_pending=1
+      block_reason="checks on the current head never all concluded (pending=$pending)"
+    fi
+    if [ -z "$review_stale" ] && [ -z "$checks_pending" ] && { [ "$ms" = "CLEAN" ] || [ "$ms" = "UNSTABLE" ]; } && [ "$rev" = "APPROVED" ]; then
       branch=$(gh pr view "$n" --repo "$repo" --json headRefName --jq .headRefName 2>/dev/null)
-      if ! review_safety_gate "$n"; then
+      if ! review_safety_gate "$n" pre; then
         done_pr=1
         break
       fi
@@ -375,6 +458,9 @@ for n in "$@"; do
         echo "MERGED #$n"
         # `^` is illegal in a refname, so it cannot collide with a branch name.
         merged_heads="$merged_heads $n^$branch^$expected"
+        if ! review_safety_gate "$n" post; then
+          post_merge_review_failures=1
+        fi
       else
         actual="$(head_oid "$n")"
         if [ "$actual" != "$expected" ]; then
@@ -387,13 +473,20 @@ for n in "$@"; do
       break
     fi
     if [ "$ms" = "BEHIND" ]; then
-      gh pr update-branch "$n" --repo "$repo" >/dev/null 2>&1
       actual="$(head_oid "$n")"
       if [ "$actual" != "$expected" ]; then
         echo "SKIP #$n HEAD-MOVED expected=$expected actual=$actual"
         done_pr=1
         break
       fi
+      gh pr update-branch "$n" --repo "$repo" >/dev/null 2>&1
+      old_expected="$expected"
+      if ! adopt_routine_update "$n" "$old_expected"; then
+        echo "SKIP #$n HEAD-MOVED expected=$old_expected actual=${UPDATED_ACTUAL:-<unavailable>}"
+        done_pr=1
+        break
+      fi
+      expected="$UPDATED_EXPECTED"
     fi
     sleep 20
   done
@@ -431,5 +524,6 @@ for entry in $merged_heads; do
 done
 
 echo "SWEEP-DONE"
+[ "$post_merge_review_failures" -eq 0 ] || exit 4
 [ "$orphans" -eq 0 ] || exit 1
 [ "$unverified" -eq 0 ] || exit 3

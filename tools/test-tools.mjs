@@ -191,21 +191,31 @@ const { appendFileSync, existsSync, writeFileSync } = require("node:fs")
 const argv = process.argv.slice(2)
 const line = argv.join(" ")
 appendFileSync(process.env.ORBIT_MERGE_SWEEP_LOG, JSON.stringify(argv) + "\\n")
+const updateMarker = process.env.ORBIT_MERGE_SWEEP_LOG + ".updated"
+const postMergeMarker = process.env.ORBIT_MERGE_SWEEP_LOG + ".post-merge"
+const currentHead = () => existsSync(updateMarker) && process.env.ORBIT_MERGE_SWEEP_UPDATED_HEAD ? process.env.ORBIT_MERGE_SWEEP_UPDATED_HEAD : process.env.ORBIT_MERGE_SWEEP_HEAD
+const withUrls = (value, source) => value.split("\\n").filter(Boolean).map((item, index) => item.split("\\t").length === 2 ? item + "\\thttps://example.test/" + source + "/" + index : item).join("\\n")
 if (line.includes("/actions/workflows")) process.exit(0)
-if (argv[0] === "pr" && argv[1] === "update-branch") process.exit(0)
+if (argv[0] === "pr" && argv[1] === "update-branch") {
+  if (process.env.ORBIT_MERGE_SWEEP_UPDATED_HEAD) writeFileSync(updateMarker, "")
+  process.exit(0)
+}
 if (argv[0] === "api" && argv[1] === "graphql" && line.includes("reviewThreads(first:100)")) {
   if (process.env.ORBIT_MERGE_SWEEP_THREADS_LOOKUP_FAILURE) process.exit(7)
   process.stdout.write(process.env.ORBIT_MERGE_SWEEP_UNRESOLVED_THREADS)
   process.exit(0)
 }
 if (argv[0] === "pr" && argv[1] === "view") {
-  if (line.includes("--json headRefOid")) {
+  if (line.includes("--json headRefOid,baseRefOid")) {
+    process.stdout.write(currentHead() + "\\t" + process.env.ORBIT_MERGE_SWEEP_BASE_TIP)
+  } else if (line.includes("--json headRefOid")) {
     const moved = process.env.ORBIT_MERGE_SWEEP_MOVE_MARKER && existsSync(process.env.ORBIT_MERGE_SWEEP_MOVE_MARKER)
-    process.stdout.write(moved ? process.env.ORBIT_MERGE_SWEEP_CHANGED_HEAD : process.env.ORBIT_MERGE_SWEEP_HEAD)
+    process.stdout.write(moved ? process.env.ORBIT_MERGE_SWEEP_CHANGED_HEAD : currentHead())
   } else if (line.includes("headRefName")) {
     process.stdout.write(process.env.ORBIT_MERGE_SWEEP_BRANCH)
   } else {
-    const checks = [{ name: "review", status: "COMPLETED", conclusion: "SUCCESS" }]
+    const checks = [{ name: "review", status: process.env.ORBIT_MERGE_SWEEP_REVIEW_RUNNING ? "IN_PROGRESS" : "COMPLETED", conclusion: process.env.ORBIT_MERGE_SWEEP_REVIEW_RUNNING ? "" : "SUCCESS" }]
+    if (process.env.ORBIT_MERGE_SWEEP_FAIL_NEW_HEAD) checks.push({ name: "new-head-gate", status: "COMPLETED", conclusion: "FAILURE" })
     if (process.env.ORBIT_MERGE_SWEEP_SONAR === "success") {
       checks.push({ name: "SonarCloud Code Analysis", status: "COMPLETED", conclusion: "SUCCESS" })
     }
@@ -216,7 +226,7 @@ if (argv[0] === "pr" && argv[1] === "view") {
       mergeStateStatus: process.env.ORBIT_MERGE_SWEEP_STATE,
       reviewDecision: "APPROVED",
       statusCheckRollup: checks,
-      headRefOid: process.env.ORBIT_MERGE_SWEEP_HEAD,
+      headRefOid: currentHead(),
     }))
   }
   process.exit(0)
@@ -226,11 +236,12 @@ if (argv[0] === "pr" && argv[1] === "merge") {
     writeFileSync(process.env.ORBIT_MERGE_SWEEP_MOVE_MARKER, "")
     process.exit(1)
   }
+  if (process.env.ORBIT_MERGE_SWEEP_POST_MERGE_ACTIVITY) writeFileSync(postMergeMarker, "")
   process.exit(0)
 }
 if (line.includes("/pulls/") && line.includes("/reviews")) {
   if (process.env.ORBIT_MERGE_SWEEP_REVIEWS_LOOKUP_FAILURE) process.exit(7)
-  process.stdout.write(process.env.ORBIT_MERGE_SWEEP_REVIEW_TIMES)
+  process.stdout.write(withUrls(process.env.ORBIT_MERGE_SWEEP_REVIEW_TIMES, "reviews"))
   process.exit(0)
 }
 if (line.includes("/pulls/") && line.includes("/comments")) {
@@ -239,12 +250,18 @@ if (line.includes("/pulls/") && line.includes("/comments")) {
   if (process.env.ORBIT_MERGE_SWEEP_INLINE_PAGE_TWO && argv.includes("--paginate")) {
     items += "\\n" + process.env.ORBIT_MERGE_SWEEP_INLINE_PAGE_TWO
   }
-  process.stdout.write(items)
+  process.stdout.write(withUrls(items, "inline"))
   process.exit(0)
 }
 if (line.includes("/issues/") && line.includes("/comments")) {
   if (process.env.ORBIT_MERGE_SWEEP_COMMENTS_LOOKUP_FAILURE) process.exit(7)
-  process.stdout.write(process.env.ORBIT_MERGE_SWEEP_COMMENT_TIMES)
+  let items = process.env.ORBIT_MERGE_SWEEP_COMMENT_TIMES
+  if (existsSync(postMergeMarker) && process.env.ORBIT_MERGE_SWEEP_POST_MERGE_ACTIVITY) items += "\\n" + process.env.ORBIT_MERGE_SWEEP_POST_MERGE_ACTIVITY
+  process.stdout.write(withUrls(items, "conversation"))
+  process.exit(0)
+}
+if (line.includes("/commits/") && !line.includes("/check-runs") && process.env.ORBIT_MERGE_SWEEP_UPDATE_PARENTS) {
+  process.stdout.write(process.env.ORBIT_MERGE_SWEEP_UPDATE_PARENTS)
   process.exit(0)
 }
 if (line.includes("/check-runs")) {
@@ -257,41 +274,57 @@ process.exit(9)
 `,
 )
 chmodSync(MERGE_SWEEP_GH, 0o755)
+const MERGE_SWEEP_SLEEP = stage("merge-sweep-bin/sleep", "#!/usr/bin/env node\\nprocess.exit(0)\\n")
+chmodSync(MERGE_SWEEP_SLEEP, 0o755)
+const MERGE_SWEEP_BASH_ENV = stage("merge-sweep-bin/bash-env", "sleep() { :; }\n")
 
 const mergeSweepEnv = ({
   changedHead = "",
   commentTimes = "issue-commenter\t2026-07-27T22:00:00Z",
   commentsLookupFailure = false,
+  baseTip = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  failNewHead = false,
   head,
   inlineItems = "inline-reviewer\t2026-07-27T22:00:00Z\ninline-reviewer\t2026-07-27T22:00:00Z",
   inlineLookupFailure = false,
   inlinePageTwo = "",
   moveAtMerge = false,
+  postMergeActivity = "",
   reviewTimes = "reviewer\t2026-07-27T22:00:00Z",
   reviewsLookupFailure = false,
   sonar = "success",
   state = "CLEAN",
+  reviewRunning = false,
   threadsLookupFailure = false,
   unresolvedThreads = "0",
+  updatedHead = "",
+  updateParents = "",
   log,
 }) => ({
+  BASH_ENV: MERGE_SWEEP_BASH_ENV,
   PATH: `${MERGE_SWEEP_GH_DIR}${delimiter}${process.env.PATH}`,
   ORBIT_MERGE_SWEEP_BRANCH: "feature/orb-106",
+  ORBIT_MERGE_SWEEP_BASE_TIP: baseTip,
   ORBIT_MERGE_SWEEP_CHANGED_HEAD: changedHead,
   ORBIT_MERGE_SWEEP_COMMENTS_LOOKUP_FAILURE: commentsLookupFailure ? "1" : "",
   ORBIT_MERGE_SWEEP_COMMENT_TIMES: commentTimes,
   ORBIT_MERGE_SWEEP_HEAD: head,
+  ORBIT_MERGE_SWEEP_FAIL_NEW_HEAD: failNewHead ? "1" : "",
   ORBIT_MERGE_SWEEP_INLINE_ITEMS: inlineItems,
   ORBIT_MERGE_SWEEP_INLINE_LOOKUP_FAILURE: inlineLookupFailure ? "1" : "",
   ORBIT_MERGE_SWEEP_INLINE_PAGE_TWO: inlinePageTwo,
   ORBIT_MERGE_SWEEP_LOG: log,
   ORBIT_MERGE_SWEEP_MOVE_MARKER: moveAtMerge ? `${log}.moved` : "",
+  ORBIT_MERGE_SWEEP_POST_MERGE_ACTIVITY: postMergeActivity,
+  ORBIT_MERGE_SWEEP_REVIEW_RUNNING: reviewRunning ? "1" : "",
   ORBIT_MERGE_SWEEP_REVIEWS_LOOKUP_FAILURE: reviewsLookupFailure ? "1" : "",
   ORBIT_MERGE_SWEEP_REVIEW_TIMES: reviewTimes,
   ORBIT_MERGE_SWEEP_SONAR: sonar,
   ORBIT_MERGE_SWEEP_STATE: state,
   ORBIT_MERGE_SWEEP_THREADS_LOOKUP_FAILURE: threadsLookupFailure ? "1" : "",
   ORBIT_MERGE_SWEEP_UNRESOLVED_THREADS: unresolvedThreads,
+  ORBIT_MERGE_SWEEP_UPDATED_HEAD: updatedHead,
+  ORBIT_MERGE_SWEEP_UPDATE_PARENTS: updateParents,
 })
 
 const mergeSweepCalls = (log) =>
@@ -1515,9 +1548,100 @@ const mergeSweepCases = (file) => {
 
   check(
     file,
-    "help documents the exclusive reviewed-through cutoff",
+    "help documents the exclusive cutoff and residual post-merge window",
     ["--help"],
-    { status: 0, stdout: /--reviewed-through[\s\S]*cutoff is exclusive: activity at or after that timestamp counts as new\./ },
+    { status: 0, stdout: /(?=[\s\S]*--reviewed-through)(?=[\s\S]*cutoff is exclusive: activity at or after that timestamp counts as new\.)(?=[\s\S]*residual response-to-merge race)(?=[\s\S]*exits 4)/ },
+  )
+
+  const updatedHead = "3333333333333333333333333333333333333333"
+  const baseTip = "4444444444444444444444444444444444444444"
+  const routineParents = `${expectedHead}\n${baseTip}`
+  const updateCase = (label, envOptions, expect) => {
+    const log = join(root, `${file}-${label}.log`)
+    const result = run(file, ["--reviewed-through", `615=${reviewedThrough}`, "thomasluizon/orbit-ui-mobile", "615"], {
+      env: mergeSweepEnv({
+        baseTip,
+        head: expectedHead,
+        log,
+        sonar: coverageAware ? "coverage-failure" : "success",
+        state: coverageAware ? "BLOCKED" : "CLEAN",
+        updatedHead,
+        updateParents: routineParents,
+        ...envOptions,
+      }),
+    })
+    const calls = mergeSweepCalls(log)
+    const merges = calls.filter(([group, command]) => group === "pr" && command === "merge")
+    T(
+      `${file}: ${label}`,
+      expect(result, calls, merges),
+      `exit ${result.status}\n     stdout: ${result.stdout.trim()}\n     stderr: ${result.stderr.trim()}\n     calls: ${JSON.stringify(calls)}`,
+    )
+  }
+
+  updateCase(
+    "a routine update adopts and rechecks the new head before merging",
+    {},
+    (result, calls, merges) =>
+      result.status === 0 &&
+      /MERGED #615/.test(result.stdout) &&
+      calls.some(([group, command]) => group === "pr" && command === "update-branch") &&
+      calls.some((argv) => argv.includes("headRefOid,baseRefOid")) &&
+      calls.some((argv) => argv.some((value) => value.includes(`/commits/${updatedHead}`))) &&
+      merges.length === 1 &&
+      merges[0][merges[0].indexOf("--match-head-commit") + 1] === updatedHead,
+  )
+  updateCase(
+    "an adversarial update without the expected parents is rejected",
+    { updateParents: `${baseTip}\n5555555555555555555555555555555555555555` },
+    (result, _calls, merges) =>
+      result.status === 0 && result.stdout.includes(`SKIP #615 HEAD-MOVED expected=${expectedHead} actual=${updatedHead}`) && merges.length === 0,
+  )
+  updateCase(
+    "a failing check on the adopted head skips without merging",
+    { failNewHead: true },
+    (result, _calls, merges) =>
+      result.status === 0 &&
+      (coverageAware ? /SKIP #615 FAILED\(non-sonar\)=\[new-head-gate\]/ : /SKIP #615[\s\S]*FAILED=new-head-gate/).test(result.stdout) &&
+      merges.length === 0,
+  )
+  updateCase(
+    "an unsettled current-head review check skips without merging",
+    { reviewRunning: true },
+    (result, _calls, merges) => result.status === 0 && /SKIP #615 \(timeout: checks on the current head never all concluded \(pending=review\)\)/.test(result.stdout) && merges.length === 0,
+  )
+
+  const reconciledLog = join(root, `${file}-reconciled-before-cutoff.log`)
+  const reconciled = run(file, reviewedArgs, {
+    env: mergeSweepEnv({
+      commentTimes: "orchestrator\t2026-07-27T23:59:59Z",
+      head: expectedHead,
+      log: reconciledLog,
+      sonar: coverageAware ? "coverage-failure" : "success",
+      state: coverageAware ? "BLOCKED" : "CLEAN",
+    }),
+  })
+  const reconciledMerges = mergeSweepCalls(reconciledLog).filter(([group, command]) => group === "pr" && command === "merge")
+  T(`${file}: a reconciled reply before the refreshed cutoff merges`, reconciled.status === 0 && reconciledMerges.length === 1, reconciled.stderr || reconciled.stdout)
+
+  const postMergeLog = join(root, `${file}-post-merge-activity.log`)
+  const postMergeUrl = "https://example.test/conversation/late"
+  const postMergeActivity = run(file, reviewedArgs, {
+    env: mergeSweepEnv({
+      head: expectedHead,
+      log: postMergeLog,
+      postMergeActivity: `late-reviewer\t${newerReviewTime}\t${postMergeUrl}`,
+      sonar: coverageAware ? "coverage-failure" : "success",
+      state: coverageAware ? "BLOCKED" : "CLEAN",
+    }),
+  })
+  const postMergeMerges = mergeSweepCalls(postMergeLog).filter(([group, command]) => group === "pr" && command === "merge")
+  T(
+    `${file}: activity in the residual merge window is reported after the merge`,
+    postMergeActivity.status === 4 &&
+      postMergeActivity.stdout.includes(`POST-MERGE-ACTIVITY #615 late-reviewer at ${newerReviewTime} ${postMergeUrl}`) &&
+      postMergeMerges.length === 1,
+    `exit ${postMergeActivity.status}\n     stdout: ${postMergeActivity.stdout.trim()}\n     stderr: ${postMergeActivity.stderr.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(postMergeLog))}`,
   )
 
   const reviewSkip = (label, envOptions, outputPattern) => {
@@ -1538,6 +1662,12 @@ const mergeSweepCases = (file) => {
       `exit ${result.status}\n     stdout: ${result.stdout.trim()}\n     stderr: ${result.stderr.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(log))}`,
     )
   }
+
+  reviewSkip(
+    "genuine third-party activity at the refreshed cutoff skips",
+    { commentTimes: `third-party\t${reviewedThrough}` },
+    new RegExp(`SKIP #615 NEW-REVIEW-SINCE ${reviewedThrough} by third-party at ${reviewedThrough}`),
+  )
 
   reviewSkip("unresolved review threads skip without merging", { unresolvedThreads: "2" }, /SKIP #615 UNRESOLVED-THREADS=2/)
   reviewSkip("a newer review skips without merging", { reviewTimes: `reviewer\t${newerReviewTime}` }, new RegExp(`SKIP #615 NEW-REVIEW-SINCE ${reviewedThrough} by reviewer at ${newerReviewTime}`))
