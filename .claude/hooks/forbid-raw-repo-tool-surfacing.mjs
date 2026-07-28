@@ -162,14 +162,12 @@ function surfacedCommands(text) {
     if (insideFence === "documentation") continue
     if (insideFence === "other") continue
 
-    const previousLine = previousNonemptyLine(lines, index)
     const lineCommands = []
     for (const rawSegment of splitShellSegments(lines[index])) {
       const segment = splitAppeal(rawSegment)
       const match = commandMatch(segment.line)
       if (!match) continue
-      const framing = `${previousLine} ${segment.line}`
-      if (DOCUMENTATION.test(framing)) continue
+      if (DOCUMENTATION.test(segment.line)) continue
       const imperativeRun = /^\s*(?:(?:[-*+]|\d+[.)])\s+)?(?:please\s+)?run\b/i.test(segment.line.slice(0, match.index))
       if (isAmbiguousNpxName(match.command, insideFence) && !imperativeRun) continue
       lineCommands.push({ command: match.command, reason: segment.reason })

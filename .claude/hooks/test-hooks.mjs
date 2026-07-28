@@ -525,6 +525,43 @@ T(
   ),
   0,
 )
+for (const [label, text] of [
+  [
+    "previous skill context cannot exempt an instruction",
+    ["The skill runs internally to gather inputs.", "To refresh it yourself, run node tools/wave-plan.mjs --all"].join("\n"),
+  ],
+  [
+    "previous ticket context cannot exempt an instruction",
+    ["This is captured in the ticket body.", "Next: node tools/wave-plan.mjs --all"].join("\n"),
+  ],
+]) {
+  const result = runHookResult(RAW_TOOL_HOOK, stopPayload(text))
+  T(`cc raw-tool: ${label} -> 2`, result.status, 2)
+  T(`cc raw-tool: ${label} names the command`, result.stderr.includes("node tools/wave-plan.mjs --all"), true)
+}
+T(
+  "cc raw-tool: documentation prose without a command -> 0",
+  runHook(RAW_TOOL_HOOK, stopPayload("The skill runs internally to gather inputs.")),
+  0,
+)
+T(
+  "cc raw-tool: same-line internal command remains documentation -> 0",
+  runHook(
+    RAW_TOOL_HOOK,
+    stopPayload("Internally the orchestrator calls node tools/wave-plan.mjs to build the table."),
+  ),
+  0,
+)
+T(
+  "cc raw-tool: documentation line opens a fenced command block -> 0",
+  runHook(
+    RAW_TOOL_HOOK,
+    stopPayload(
+      ["The skill runs internally to gather inputs.", "```bash", "node tools/wave-plan.mjs --all", "```"].join("\n"),
+    ),
+  ),
+  0,
+)
 T(
   "cc raw-tool: command quoted in a non-shell fence -> 0",
   runHook(
