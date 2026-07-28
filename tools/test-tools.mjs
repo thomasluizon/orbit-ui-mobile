@@ -754,7 +754,7 @@ const runNudgeSignalCase = (label, name, plan, expect, expectedSends, options = 
 }
 
 const nudgeWorkerCases = () => {
-  check("nudge-worker.mjs", "--help documents the engine override and fail-closed rule", ["--help"], { status: 0, stdout: /--engine <name>[\s\S]*Missing, auto or unknown values fail closed/ })
+  check("nudge-worker.mjs", "--help documents the engine override and fail-closed rule", ["--help"], { status: 0, stdout: /--engine <name>[\s\S]*Claude has no verified readiness profile[\s\S]*Missing, auto or unknown values[\s\S]*fail closed/ })
   check("nudge-worker.mjs", "rejects multi-line text", ["--terminal", "t1", "--text", "first line\nsecond line"], { status: 2, stderr: /single line/ })
   check("nudge-worker.mjs", "rejects --text together with --prompt-file", ["--terminal", "t1", "--text", "hi", "--prompt-file", stage("nudge-prompt.md", "body\n")], { status: 2, stderr: /alternatives/ })
   check("nudge-worker.mjs", "rejects a non-positive --wait-attempts", ["--terminal", "t1", "--text", "hi", "--wait-attempts", "0"], { status: 2, stderr: /positive integer/ })
@@ -780,7 +780,7 @@ const nudgeWorkerCases = () => {
     "> quoted output painted after the working indicator",
   ]
   runNudgeSignalCase("codex-incidental-greater-than", "does not let incidental greater-than output select the claude profile for a codex worker", staleBlockedIdleStub(incidentalGreaterThanTail), { status: 1, stderr: /no known ready composer is on screen for the codex profile[\s\S]*NOTHING was sent/ }, 0, { path: codexProfile.path })
-  runNudgeSignalCase("explicit-claude-profile", "uses the explicitly selected claude profile on the same tail", staleBlockedIdleStub(incidentalGreaterThanTail), { status: 0, stdout: /"engine": "claude"[\s\S]*"engineSource": "--engine"/ }, 1, { path: codexProfile.path, argv: ["--engine", "claude"] })
+  runNudgeSignalCase("explicit-claude-profile", "fails closed for the explicitly selected unverified claude profile", staleBlockedIdleStub(incidentalGreaterThanTail), { status: 1, stderr: /claude readiness profile is unverified[\s\S]*captured Claude Code composer screen with and without a live working indicator[\s\S]*pull\/629[\s\S]*NOTHING was sent/ }, 0, { path: codexProfile.path, argv: ["--engine", "claude"] })
   const autoProfile = stageNudgeWorker("auto-profile", "auto")
   runNudgeSignalCase("auto-profile", "fails closed when the orchestrator worker is auto", staleBlockedIdleStub(["› Explain this codebase"]), { status: 1, stderr: /engine "auto" from \.claude\/orchestrator\.json worker does not resolve[\s\S]*NOTHING was sent/ }, 0, { path: autoProfile.path })
   const unknownProfile = stageNudgeWorker("unknown-profile", "future-engine")
@@ -788,6 +788,7 @@ const nudgeWorkerCases = () => {
   const missingProfile = stageNudgeWorker("missing-profile", undefined)
   runNudgeSignalCase("missing-profile", "fails closed when the orchestrator worker is missing", staleBlockedIdleStub(["› Explain this codebase"]), { status: 1, stderr: /engine "<missing>" from \.claude\/orchestrator\.json worker does not resolve[\s\S]*NOTHING was sent/ }, 0, { path: missingProfile.path })
   const claudeProfile = stageNudgeWorker("claude-profile", "claude")
+  runNudgeSignalCase("configured-claude-profile", "fails closed for the configured unverified claude profile", staleBlockedIdleStub(incidentalGreaterThanTail), { status: 1, stderr: /claude readiness profile is unverified[\s\S]*captured Claude Code composer screen with and without a live working indicator[\s\S]*pull\/629[\s\S]*NOTHING was sent/ }, 0, { path: claudeProfile.path })
   runNudgeSignalCase("engine-override", "--engine overrides a disagreeing orchestrator worker", staleBlockedIdleStub(["› Explain this codebase"]), { status: 0, stdout: /"engine": "codex"[\s\S]*"engineSource": "--engine"/ }, 1, { path: claudeProfile.path, argv: ["--engine", "codex"] })
   const pauseProbe = stageNudgeWorker("pause-probe", "codex", true)
   const pauseLog = join(pauseProbe.base, "pause.log")

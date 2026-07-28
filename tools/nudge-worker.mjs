@@ -27,8 +27,9 @@ const USAGE = `usage: nudge-worker.mjs --terminal <handle> (--text "<one line>" 
   --text "<one line>"   send this exact one-liner instead. Newlines are rejected: a multi-line
                         payload through a TUI submits early and arrives quoting-damaged
   --engine <name>       readiness profile override: claude or codex. Otherwise uses the
-                        orchestrator worker. Missing, auto or unknown values fail closed
-                        by disabling stale-block recovery
+                        orchestrator worker. Claude has no verified readiness profile and
+                        always refuses stale-block recovery. Missing, auto or unknown values
+                        also fail closed
   --wait-attempts <n>   how many 60s tui-idle waits to allow before refusing (default: 3)
   --dry-run             resolve and print what would be sent; append nothing, send nothing
   --help, -h            print this usage and exit 0
@@ -49,13 +50,11 @@ const ORCA = process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs
 /** One wait is a full minute; three of them is a worker that is genuinely working, not one that is stuck. */
 const WAIT_TIMEOUT_MS = 60000
 const STALE_BLOCKED_REASON = "codex-trust-workspace"
-// WHY: ORB-129 measured rotating Codex placeholders, unstable status placement, and the selected-engine marker/no-working predicate against three live terminals plus the repaint oracle. https://github.com/thomasluizon/orbit-ui-mobile/pull/629
+// WHY: ORB-129 measured the Codex marker/no-working predicate against three live terminals plus the repaint oracle; readiness stays absent for unmeasured engines. https://github.com/thomasluizon/orbit-ui-mobile/pull/629
 const ENGINE_PROFILES = {
   claude: {
-    // WHY: No Claude worker ran during ORB-129, so this analogous composer/working profile remains explicitly unverified pending a captured screen. https://github.com/thomasluizon/orbit-ui-mobile/pull/629
+    // WHY: No Claude worker ran during ORB-129, so readiness stays disabled pending captured composer screens with and without a live working indicator. https://github.com/thomasluizon/orbit-ui-mobile/pull/629
     trustOnScreen: /isthisaprojectyoucreatedoroneyoutrust|doyoutrustthefiles|trustthisfolder/,
-    composerMarker: ">",
-    workingOnScreen: /esctointerrupt/,
   },
   codex: {
     trustOnScreen: /doyoutrustthecontentsofthisdirectory/,
@@ -148,7 +147,8 @@ const screenSignals = (handle, resolvedEngine) => {
   const screen = flatten(tail)
   const trustEngine = Object.entries(ENGINE_PROFILES).find(([, profile]) => profile.trustOnScreen.test(screen))?.[0] ?? null
   const profile = resolvedEngine ? ENGINE_PROFILES[resolvedEngine] : null
-  const composerIndex = profile ? screen.lastIndexOf(profile.composerMarker) : -1
+  const hasVerifiedReadiness = Boolean(profile?.composerMarker && profile?.workingOnScreen)
+  const composerIndex = hasVerifiedReadiness ? screen.lastIndexOf(profile.composerMarker) : -1
   const currentComposer = composerIndex === -1 ? null : screen.slice(composerIndex)
   const readyEngine = currentComposer && !profile.workingOnScreen.test(currentComposer) ? resolvedEngine : null
   return { trustEngine, readyEngine }
@@ -174,6 +174,14 @@ const engineValue = engineOverridePresent ? engineOverride : orchestrator.config
 const normalizedEngine = typeof engineValue === "string" ? engineValue.trim().toLowerCase() : ""
 const resolvedEngine = Object.hasOwn(ENGINE_PROFILES, normalizedEngine) ? normalizedEngine : null
 const displayedEngine = normalizedEngine || "<missing>"
+const readinessRefusalReason = () => {
+  if (!resolvedEngine) return `engine "${displayedEngine}" from ${engineSource} does not resolve to a known readiness profile`
+  const profile = ENGINE_PROFILES[resolvedEngine]
+  if (!profile.composerMarker || !profile.workingOnScreen) {
+    return `the ${resolvedEngine} readiness profile is unverified; enabling it requires a captured Claude Code composer screen with and without a live working indicator; see https://github.com/thomasluizon/orbit-ui-mobile/pull/629`
+  }
+  return `no known ready composer is on screen for the ${resolvedEngine} profile`
+}
 
 let promptFile = null
 let update = ""
@@ -223,9 +231,7 @@ while (waitAttempts < waitAttemptsAllowed && !idle) {
         continue
       }
       if (!readyEngine) {
-        const engineReason = resolvedEngine
-          ? `no known ready composer is on screen for the ${resolvedEngine} profile`
-          : `engine "${displayedEngine}" from ${engineSource} does not resolve to a known readiness profile`
+        const engineReason = readinessRefusalReason()
         console.error(`attempt ${waitAttempts}: orca reports ${wait.blockedReason}, the TUI is not repainting, and no known trust prompt is on screen, but ${engineReason}, so the worker remains blocked`)
         if (waitAttempts < waitAttemptsAllowed) pause(SETTLE_MS)
         continue
