@@ -186,9 +186,12 @@ fatal to an unattended worker:
   TUI is never sent to twice: it settles and re-reads instead, because a second send into a busy
   worker is the ORB-75 corruption.
 
-It also applies the model routing orchestrator.json's notes name: a ticket labelled
-`worker:sonnet` swaps `--model opus` for `--model sonnet`; every other ticket uses the
-configured args verbatim.
+It also resolves model routing from the selected engine's `models` map in
+orchestrator.json. No tier label selects `default`; `tier:cheap` and `tier:deep` select
+the corresponding engine-specific entries. A tier must change the resolved invocation.
+Unknown or conflicting tier labels, missing mappings, and identical tier invocations
+fail the launch loudly. The legacy `worker:sonnet` label is rejected with remediation to
+use `tier:cheap`; it is never silently translated or ignored.
 
 **Why not `claude -p`.** Headless mode is invisible to Orca: it is not a TUI, so the
 worktree card shows no Agents row and clicking the card reveals only a bare shell.
@@ -227,8 +230,12 @@ sandbox... Input disabled until setup completes" forever in a PTY with no deskto
 UAC on, while `orca terminal wait` reports `satisfied: true` throughout. The prerequisite
 the harness cannot supply is the account: a paid ChatGPT plan and `codex login`
 (`codex login --device-auth` works from a headless session, printing a URL and a one-time
-code). Making codex the DEFAULT is still a separate decision (D5) and Thomas's call; this
-only makes selecting it work.
+code). Its model map defaults to gpt-5.6-sol at high reasoning, maps `tier:cheap` to
+gpt-5.6-luna at low reasoning, and maps `tier:deep` to gpt-5.6-sol at max reasoning.
+Sol-high is the routine default because Terra-medium lost two review rounds on ORB-124 /
+PR #619 to care failures. The ADR reserves xhigh and max for per-ticket routing, so
+`tier:deep` spends max while the no-label invocation remains high. Model routing does not
+change the top-level `worker` selection; D5 keeps that as an explicit configuration decision.
 
 Two consequences of dropping `-p`. The process does NOT exit when the work is done, so
 wait with `--for tui-idle`, never `--for exit`. And the permission mode must still come
@@ -365,14 +372,17 @@ only thing that advances a wave"), and to the `Never: merge a PR` line below. Sa
 in the run's opening line, so a reader of the transcript is never left wondering
 whether the run went rogue.
 
-Merge a PR under `--sleep` only when ALL of these hold, checked in this order:
+For each candidate PR, read `mergeStateStatus` and `headRefOid` first. If it is
+`BEHIND`, run `gh pr update-branch <n> --repo <owner/repo>` and wait for GitHub to
+expose the resulting head SHA. Only then enforce the conditions the merge tool
+cannot decide for one PR, all against that recorded head:
 
-1. `reviewDecision` is `APPROVED`. Not `REVIEW_REQUIRED`, not `null`, and never
-   `CHANGES_REQUESTED`. A passing `review` check is not approval.
-2. Every check has concluded and none failed. A `PENDING` / `QUEUED` / `IN_PROGRESS`
-   check means wait, not proceed.
-3. `mergeStateStatus` is `CLEAN`. `BEHIND` means update the branch and re-read BOTH
-   the checks and `reviewDecision` afterwards, because updating invalidates them.
+1. `--sleep` was passed, every wave blocker is merged, and Phase 1's gates are green
+   on the target branch.
+2. Every status check has concluded. The tool rejects failed conclusions and keeps
+   every pending check from being merged past, including non-required checks. This
+   is intentionally stricter than GitHub's mergeability state.
+3. `mergeStateStatus` is `CLEAN` and `headRefOid` still matches the recorded head.
 4. The D7 evidence gate is satisfied: the PR is attached to the issue, and a
    `visible-effect` ticket has its final screenshots and critique attached, with
    the critique's final result recorded as `clean`. A critique that ends with
@@ -387,10 +397,27 @@ Merge a PR under `--sleep` only when ALL of these hold, checked in this order:
    merged both defects. One of the two was a real mechanical break that the blocking
    reviewer had missed entirely.
 
-   So enumerate them yourself, from BOTH endpoints, because they are different objects:
-   `gh api repos/<owner>/<repo>/pulls/<n>/comments` (inline threads) and
-   `gh pr view <n> --json reviews` (review bodies, including `COMMENTED` ones). Then each
-   comment ends in exactly one of two states:
+   Do not record `reviewed-through` yet. First enumerate them yourself from all THREE
+   activity sources, because they are different objects:
+   `gh api --paginate repos/<owner>/<repo>/pulls/<n>/comments` (inline comments and replies),
+   the paginated GraphQL `pullRequest.reviews` connection (all review submissions and their
+   edit timestamps, including `COMMENTED` review bodies), plus
+   `gh api --paginate repos/<owner>/<repo>/issues/<n>/comments` (conversation comments). Then
+   enumerate the reviews with:
+
+   ```bash
+   gh api graphql --paginate \
+     -f query='query($endCursor:String){repository(owner:"<owner>",name:"<repo>"){pullRequest(number:<n>){reviews(first:100,after:$endCursor){nodes{author{login} body submittedAt updatedAt lastEditedAt} pageInfo{hasNextPage endCursor}}}}}'
+   ```
+
+   Each finding-bearing item ends in exactly one of two states. Include activity from every author,
+   including the PR author, the orchestrator account, bots, and reviewer accounts. Never
+   filter or exempt activity by author: identity does not prove that an item was part of
+   this reconciliation, and an exclusion would hide a late review, reply, or edit from
+   the final safety gate. An edited review body is observable through `updatedAt` and
+   `lastEditedAt`; it is not a documented limitation or a reason to waive the gate.
+   Treat `submittedAt` and every non-null `updatedAt` and `lastEditedAt` as review
+   activity.
 
    - **Addressed.** The finding is real: fix it through a worker in that ticket's worktree,
      PUSH the fix, then reply on the thread naming the commit that fixed it, then RESOLVE
@@ -430,13 +457,124 @@ Merge a PR under `--sleep` only when ALL of these hold, checked in this order:
    up to a merged PR carrying open threads whose findings were in fact fixed hours earlier;
    from the outside those two states look identical, and one of them is a lie.
 
-Then squash-merge and delete the branch. **Never `--admin`.** Admin-merging bypasses
-the checks, and a bypass with nobody watching is the one combination that can put a
-broken commit on `main` and leave it there until morning.
+Immediately before handoff, re-read `headRefOid` and `mergeStateStatus`. Hand off only
+when the state is `CLEAN`. If it is `BEHIND`, do not invoke the script: update the branch,
+wait for the new head, and repeat conditions 1 to 6 against it. If the head moved at any
+point after the conditions ran, discard their results and repeat the same update-first
+sequence. Every repeat includes re-enumerating review submissions and their edit
+timestamps through GraphQL, inline comments, and conversation comments, posting every
+required reconciliation reply, and resolving and mechanically verifying every
+addressed thread.
 
-On anything the run cannot decide from those five checks, do NOT guess and do NOT
-pick a middle path. Stop that ticket, leave its PR open, record the reason, and carry
-on with the others. A single stuck ticket must never stall the rest of the wave.
+Record the final `headRefOid` as the expected head. After every required reply has
+been posted and every addressed thread resolved, retain the complete reconciled
+activity snapshot: item identifiers plus every review `submittedAt` and non-null
+`updatedAt` and `lastEditedAt`, every inline-comment creation and edit, and every
+conversation-comment creation and edit. Find its latest timestamp. GitHub timestamps have second precision
+and the sweep deliberately treats activity equal to the cutoff as new, so wait for the
+next second when necessary, then capture a current UTC ISO-8601 instant strictly later
+than that latest reconciled timestamp as `reviewed-through`.
+
+Capturing the boundary is the LAST reconciliation mutation and happens BEFORE the
+final validation reads. Immediately re-read all three activity sources and the
+unresolved-thread count. The activity snapshot must be byte-for-byte unchanged from
+the reconciled snapshot, no activity may be at or after `reviewed-through`, and the
+unresolved count must be zero. Any new item, edit, or unresolved thread restarts
+reconciliation and requires a new boundary. The snapshot comparison is load-bearing:
+it catches activity that lands while waiting for GitHub's next timestamp second but
+still sorts before the boundary. The cutoff then lets the sweep catch activity that
+lands after these validation reads. Do not filter by author.
+
+Invoke the strict sweep immediately after the final reads pass, for ONE PR at a time
+from the repository root. Capturing the boundary before posting reconciliation
+replies makes those replies appear new; capturing it after the final reads makes
+activity in the read-to-cutoff interval look already reconciled. The required order
+is: reconciliation mutations, boundary, validation reads, sweep. Do not post, edit,
+resolve, or otherwise mutate review activity between capturing the timestamp and
+invoking the sweep.
+
+```bash
+bash tools/merge-sweep.sh \
+  --expected-head <pr-number>=<expected-head-sha> \
+  --reviewed-through <pr-number>=<ISO-8601-timestamp> \
+  <owner/repo> <pr-number>
+```
+
+One PR at a time is load-bearing, not a style choice. Serialising each preflight and
+sweep keeps this run's own merges from advancing the base under a sibling PR.
+Re-batching PR numbers would reopen the stale-head window whenever an earlier PR
+merged. It does not control independent merge actors:
+`.github/workflows/dependabot-auto-merge.yml` can advance the base through a
+repository-level auto-merge.
+
+That independent actor can advance the base between the final `CLEAN` read and the
+script's own `gh pr update-branch`. Passing the expected head closes that race: the
+script re-reads the head after updating and during every poll, skips with both SHAs if
+it changed, and supplies `--match-head-commit` to GitHub at the merge call so the
+server refuses a last-moment change.
+
+The script owns the remaining mechanical merge decision. It repeats the branch update
+as a safety check, polls `mergeStateStatus`, rejects failed checks, requires
+`reviewDecision=APPROVED`, waits for the `review` check on the current head SHA to
+settle, and re-reads the decision after updates. Its review-safety query is the last
+API read before the merge call: it requires every review thread to be resolved and no
+review submission or edit, inline review comment or edit, or conversation comment or
+edit at or after `reviewed-through`. It paginates review submissions through GraphQL
+and checks `submittedAt`, `updatedAt`, and `lastEditedAt`, checks both creation and edit times
+for comments, admits no author exclusions, and fails closed on every thread or activity
+lookup.
+
+There is still an unavoidable final API race between the response to that safety query
+and the merge request. The sweep makes the safety query last, but it cannot prevent new
+activity from arriving after that response. It squash-merges without `--admin`, then
+rechecks review activity after every successful merge. New activity, unresolved
+threads, or an unverifiable review lookup found by that recheck were detected and
+reported, not prevented: the script prints the corresponding
+`POST-MERGE-ACTIVITY`, `POST-MERGE-UNRESOLVED-THREADS`, or
+`POST-MERGE-REVIEW-LOOKUP-FAILED` marker, exits `4`, and the run stops all further
+unattended merges and copies that result into the closing report. It also checks that
+a merged head did not move afterwards. Its workflow lookup fails closed: if it cannot
+prove the repository has no review workflow, the current-head review wait stays
+enabled.
+
+`--sleep` always invokes `tools/merge-sweep.sh`. It never invokes
+`tools/merge-sweep-cov.sh`: that variant can use `--admin` to override a SonarCloud
+new-code-coverage failure, while an unattended run must never bypass a red check. A
+PR blocked only by new-code coverage is stopped for human review and listed in the
+closing report. The coverage variant is an attended choice outside `--sleep`, made
+only by a human deliberately invoking:
+
+```bash
+bash tools/merge-sweep-cov.sh \
+  --reviewed-through <pr-number>=<ISO-8601-timestamp> \
+  <owner/repo> <pr-number>
+```
+
+Read the script's per-PR output, not only its process exit code. `MERGED #<n>` is the
+merge result. `SKIP #<n> UNRESOLVED-THREADS=<count>`,
+`SKIP #<n> NEW-REVIEW-SINCE ...`, including the endpoint-specific inline-comment
+form, either named review-lookup failure, any other `SKIP`, or `MERGE-REFUSED`
+leaves that PR open and supplies its stopped reason.
+Exit `0` also covers a completed sweep that skipped a PR. Exit `1` reports an
+orphaned merged head, exit `2` bad usage, exit `3` an unverifiable merged head, and
+exit `4` post-merge review activity or an unverifiable post-merge review state. Exit
+`4` is not proof that the merge was unsafe, but the result missed or could not verify
+the pre-merge decision boundary: stop further unattended merges and report the exact
+`POST-MERGE-*` line, including its activity, count, or lookup source detail. For exits
+`1` or `3`, re-read the affected PR state and record it as a harness defect rather
+than claiming the PR remained unmerged.
+
+After the script returns, read the PR's `headRefOid` and merge commit. For a `MERGED`
+result, the merged `headRefOid` must equal the expected head that passed conditions 1
+to 6. If it differs, say loudly in the closing report that the PR merged on an
+ungated head, include both head SHAs and the merge commit, and stop all further merges
+in that repository until Thomas has looked. A PR named by any `POST-MERGE-*` marker is
+already merged: keep it in the Merged section, copy the exact marker and its activity,
+count, or lookup source detail into that entry, and stop all further unattended merges.
+
+On anything the skill-only gates or the strict script cannot decide, do NOT guess and
+do NOT pick a middle path. Stop that ticket, leave its PR open, record the reason, and
+carry on with the others. A single stuck ticket must never stall the rest of the wave.
 
 The run's closing report is written for someone with no memory of the run, because that
 is what Thomas is when he reads it. Five sections, in this order, every one present even
@@ -455,9 +593,9 @@ when empty:
 5. **Anything that reproduced differently from what its ticket claimed**, because that
    means a ticket body is lying and Thomas needs to know which one.
 
-Never: push to main, merge with `--admin`, merge a PR that fails any of the five
-checks above, or let a worker run before Phase 1's gates are green on its target
-branch. Merging a PR is forbidden too, EXCEPT under `--sleep` on the terms in 4a.
+Never: push to main, merge with `--admin`, merge a PR that fails a skill-only gate
+or the strict sweep, or let a worker run before Phase 1's gates are green on its
+target branch. Merging a PR is forbidden too, EXCEPT under `--sleep` on the terms in 4a.
 Relaunching a two-strike ticket is forbidden except through the single audited rewrite
 `--sleep` authorises in section 3.
 
