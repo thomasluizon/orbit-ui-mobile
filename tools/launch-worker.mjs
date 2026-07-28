@@ -21,6 +21,7 @@ import { execFileSync, spawnSync } from "node:child_process"
 import { appendFileSync, existsSync, readFileSync, statSync } from "node:fs"
 import { basename, resolve } from "node:path"
 
+import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
 import { SETTLE_MS, isRepainting, pause } from "./lib/tui-repaint.mjs"
 
 const USAGE = `usage: launch-worker.mjs --issue ORB-N --prompt-file <path> [options]
@@ -96,9 +97,11 @@ const ENGINE_PROFILES = {
   },
 }
 
-/** Orca's own signal for the same gate, and it is not one string: Claude Code's surfaces as
- * `codex-trust-workspace`, codex's as `codex-interactive-prompt`. Only the screen text is
- * precise, so this stays a corroborating signal and never the sole trigger for a keystroke. */
+/** Orca's own signal is not reliably one string: a genuine codex trust gate normally reports
+ * `codex-interactive-prompt`, but Orca 1.4.156 retained `codex-trust-workspace` on an idle codex
+ * terminal that never saw a trust gate. Only the screen text is precise, so this stays a
+ * corroborating signal and never the sole trigger for a keystroke.
+ * WHY: PR #629 owner adjudication makes the live capture authoritative over the older reason mapping. https://github.com/thomasluizon/orbit-ui-mobile/pull/629 */
 const TRUST_BLOCKED_REASON = /trust/i
 const flatten = (text) => text.replace(/\s+/g, "").toLowerCase()
 
@@ -120,6 +123,8 @@ const busy = (handle) => isRepainting(orca, handle)
  */
 const MAX_POINTER_SENDS = 3
 const POINTER_PAINT_MS = 4000
+const MAX_TERMINAL_CREATE_ATTEMPTS = 3
+const TERMINAL_CREATE_BACKOFF_MS = 1000
 /** How many settle windows a painting TUI gets before the launch gives up. A TUI that is still
  * repainting after all of them is never re-sent to: there is no safe moment, and a queued send
  * would cut its running turn short. */
@@ -261,6 +266,37 @@ const orca = (args) => {
   return parsed.result ?? parsed
 }
 
+const createTerminal = (worktreeSelector, command) => {
+  const args = ["terminal", "create", "--worktree", worktreeSelector, "--command", command]
+  for (let attempt = 1; attempt <= MAX_TERMINAL_CREATE_ATTEMPTS; attempt += 1) {
+    const result = spawnSync(ORCA, [...args, "--json"], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
+    if (result.error) fail(3, `orca terminal create failed: ${result.error.message}`)
+
+    let parsed
+    try {
+      parsed = JSON.parse(result.stdout)
+    } catch {
+      fail(3, `orca ${args.join(" ")} returned unparseable output: ${(result.stdout || result.stderr || "").slice(0, 400)}`)
+    }
+
+    const failureMessage = parsed.error?.message || result.stderr?.trim() || "unknown orca error"
+    const timedOut = parsed.error?.code === "timeout" || /terminal creation timed out/i.test(failureMessage)
+    if (parsed.ok !== false && result.status === 0) {
+      const handle = (parsed.result ?? parsed).terminal?.handle
+      if (!handle) fail(3, "orca terminal create returned no handle")
+      return handle
+    }
+    if (!timedOut) fail(3, `orca ${args.join(" ")} failed: ${failureMessage}`)
+    if (attempt === MAX_TERMINAL_CREATE_ATTEMPTS) {
+      fail(3, `orca ${args.join(" ")} failed after ${attempt} attempts: ${failureMessage}`)
+    }
+
+    const backoff = TERMINAL_CREATE_BACKOFF_MS * attempt
+    console.error(`orca terminal create timed out (attempt ${attempt} of ${MAX_TERMINAL_CREATE_ATTEMPTS}); retrying in ${backoff}ms`)
+    pause(backoff)
+  }
+}
+
 /**
  * `orca terminal wait` reports "not yet" two different ways, and neither is a tool failure:
  * a condition it cannot meet in time exits 1 with ok:false and error.code timeout, while a
@@ -313,9 +349,9 @@ if (statSync(promptFile).size === 0) fail(2, `prompt file is empty: ${promptFile
 
 let config
 try {
-  config = JSON.parse(readFileSync(new URL("../.claude/orchestrator.json", import.meta.url), "utf8"))
+  config = readOrchestratorConfig()
 } catch (error) {
-  fail(2, `.claude/orchestrator.json could not be read as JSON: ${error.message}`)
+  fail(2, error.message)
 }
 const engineName = config.worker
 const engine = config.workers?.[engineName]
@@ -364,9 +400,12 @@ const worktreeName = `${issue.toLowerCase()}-${slug}`
 const branch = `${branchPrefix}/${worktreeName}`
 const comment = argOf("--comment") ?? `${issue} launched: worker running`
 
-/** Model routing: a worker:sonnet ticket swaps the configured opus for sonnet, nothing else. */
-const wantsSonnet = labels.includes("worker:sonnet")
-const engineArgs = engine.args.map((arg, index) => (wantsSonnet && engine.args[index - 1] === "--model" && arg === "opus" ? "sonnet" : arg))
+let engineArgs
+try {
+  engineArgs = resolveWorkerInvocation(engineName, engine, labels).args
+} catch (error) {
+  fail(2, error.message)
+}
 const command = [engine.command, ...engineArgs].join(" ")
 
 /**
@@ -447,8 +486,7 @@ const actualBranch = git(["-C", worktreePath, "rev-parse", "--abbrev-ref", "HEAD
 if (actualBranch !== branch) fail(3, `expected the worktree on ${branch}, found ${actualBranch}`)
 
 console.error(`starting the ${engineName} TUI: ${command}`)
-const terminal = orca(["terminal", "create", "--worktree", worktreeSelector, "--command", command]).terminal?.handle
-if (!terminal) fail(3, "orca terminal create returned no handle")
+const terminal = createTerminal(worktreeSelector, command)
 
 let trustPromptAnswered = false
 let waitAttempts = 0

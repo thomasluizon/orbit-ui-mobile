@@ -12,7 +12,8 @@
  */
 
 import { execFileSync } from "node:child_process"
-import { readFileSync } from "node:fs"
+
+import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
 const USAGE = `usage: worker-status.mjs --worktree <path> --issue ORB-N [--base <ref>] [--json]
 
@@ -24,7 +25,8 @@ const USAGE = `usage: worker-status.mjs --worktree <path> --issue ORB-N [--base 
 
 Checks, all from artifacts: commits exist on the branch, the worktree carries no uncommitted
 work, the branch is pushed, a PR is open against <ref>, the Linear issue is In Review with the
-PR attached, and a screenshot is attached when the ticket carries visible-effect (D7).
+PR attached, and both a screenshot and critique artifact are attached when the ticket carries
+visible-effect (D7).
 
 exit codes: 0 the contract is met, 1 unmet items (listed), 2 usage error,
             3 a git, gh or orca command failed`
@@ -35,9 +37,13 @@ if (process.argv.includes("--help") || process.argv.includes("-h")) {
 }
 
 const ORCA = process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs\\orca\\resources\\bin\\orca"
+const GH = process.env.GH_BIN || "gh"
 
-/** A Linear attachment counts as the D7 screenshot when its URL looks like an uploaded image. */
-const IMAGE_URL = /(\.(png|jpe?g|gif|webp)(\?|$)|uploads\.linear\.app)/i
+/** A Linear attachment counts as D7 evidence only when its URL or title identifies its artifact type. */
+const IMAGE_ARTIFACT = /\.(png|jpe?g|gif|webp)(\?|$)/i
+const CRITIQUE_ARTIFACT = /\.(md|markdown|txt)(\?|$)/i
+const CRITIQUE_TITLE = /\bcritique\b/i
+const LINEAR_UPLOAD = /^https?:\/\/uploads\.linear\.app(?:[/?#]|$)/i
 
 const fail = (code, message) => {
   console.error(message)
@@ -92,9 +98,9 @@ if (!issue || !/^[A-Z]+-\d+$/.test(issue)) fail(2, `${USAGE}\n\n--issue must be 
 
 let config
 try {
-  config = JSON.parse(readFileSync(new URL("../.claude/orchestrator.json", import.meta.url), "utf8"))
+  config = readOrchestratorConfig()
 } catch (error) {
-  fail(2, `.claude/orchestrator.json could not be read as JSON: ${error.message}`)
+  fail(2, error.message)
 }
 const reviewState = config.linear?.states?.review ?? "In Review"
 
@@ -117,7 +123,7 @@ const pushed = (git(["ls-remote", "--heads", "origin", branch]) || "").length > 
 const remoteUrl = git(["remote", "get-url", "origin"])
 const slug = remoteUrl.replace(/\.git$/, "").split(/[:/]/).slice(-2).join("/")
 const pullRequests = JSON.parse(
-  run("gh", ["pr", "list", "--repo", slug, "--head", branch, "--state", "all", "--json", "url,state,baseRefName,isDraft"]) || "[]",
+  run(GH, ["pr", "list", "--repo", slug, "--head", branch, "--state", "all", "--json", "url,state,baseRefName,isDraft"]) || "[]",
 )
 const pullRequest = pullRequests.find((entry) => entry.state === "OPEN") ?? pullRequests[0] ?? null
 
@@ -125,6 +131,18 @@ const detail = orca(["linear", "issue", issue, "--attachments"])
 const linearIssue = detail.issue ?? detail
 const attachments = detail.attachments ?? linearIssue.attachments ?? []
 const attachmentUrls = attachments.map((entry) => entry.url ?? entry.href ?? "").filter(Boolean)
+const screenshotAttachments = attachments.filter((entry) => {
+  const url = entry.url ?? entry.href ?? ""
+  const title = entry.title ?? entry.name ?? ""
+  const critique = CRITIQUE_ARTIFACT.test(url) || CRITIQUE_ARTIFACT.test(title) || CRITIQUE_TITLE.test(title)
+  return IMAGE_ARTIFACT.test(url) || IMAGE_ARTIFACT.test(title) || (LINEAR_UPLOAD.test(url) && !critique)
+})
+const critiqueAttachments = attachments.filter((entry) => {
+  const url = entry.url ?? entry.href ?? ""
+  const title = entry.title ?? entry.name ?? ""
+  const image = IMAGE_ARTIFACT.test(url) || IMAGE_ARTIFACT.test(title)
+  return !image && (CRITIQUE_ARTIFACT.test(url) || CRITIQUE_ARTIFACT.test(title) || CRITIQUE_TITLE.test(title))
+})
 const labels = (linearIssue.labels ?? []).map((label) => (typeof label === "string" ? label : label.name))
 const visibleEffect = labels.includes("visible-effect")
 
@@ -147,8 +165,13 @@ const checks = [
 if (visibleEffect) {
   checks.push({
     name: "screenshot-attached",
-    ok: attachmentUrls.some((url) => IMAGE_URL.test(url)),
+    ok: screenshotAttachments.length > 0,
     detail: "ticket is visible-effect, so D7 needs an image attachment on the issue",
+  })
+  checks.push({
+    name: "critique-attached",
+    ok: critiqueAttachments.length > 0,
+    detail: "ticket is visible-effect, so D7 needs a non-image critique artifact on the issue",
   })
 }
 

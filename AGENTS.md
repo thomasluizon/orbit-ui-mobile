@@ -15,8 +15,14 @@ before writing code.
 - Parity is mandatory for `parity:yes` tickets: `apps/web` and `apps/mobile` change in
   the SAME PR, logic and behaviour identical; i18n keys land in `en.json` AND
   `pt-BR.json` in the same edit.
-- `visible-effect` tickets: attach a screenshot to the Linear issue before it reaches
-  In Review.
+- `visible-effect` tickets: capture the affected surfaces, read every captured
+  screenshot, and critique the pixels against `DESIGN.md` plus
+  `RENDER-CORRECTNESS.md`. Revise and re-capture until the critique is clean or a
+  hard cap of three capture-critique iterations is reached; the cap prevents a
+  subjective review loop from consuming the worker budget. Before In Review, attach
+  the final screenshots and the critique to the Linear issue. At the cap, the
+  critique must explicitly report every unresolved finding. For `parity:yes`, critique
+  both platforms or name the platform not covered and why.
 - Gates you will hit (all CI-enforced, none optional): ESLint `local/*` rules, the
   spacing-scale and z-index ratchets (`eslint-suppressions.json` may only shrink), the
   dash ban (`tools/check-dashes.mjs`; never type an em dash anywhere, including
