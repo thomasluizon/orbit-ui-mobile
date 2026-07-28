@@ -602,6 +602,32 @@ const rollup = (...contexts) => ({ nodes: [{ commit: { statusCheckRollup: { stat
 
 const prWatchCases = () => {
   const argv = ["--repo", "thomasluizon/orbit-ui-mobile", "--pr", "615", "--once"]
+  check(
+    "pr-watch.mjs",
+    "--help says repeated acted verdicts on one PR and head accumulate",
+    ["--help"],
+    { status: 0, stdout: /same PR and head accumulate/ },
+  )
+  let sequenceNumber = 0
+  const checkSequence = (name, states, extraArgv, expect) => {
+    sequenceNumber += 1
+    const log = join(root, `pr-watch-sequence-${sequenceNumber}.log`)
+    const result = check(
+      "pr-watch.mjs",
+      name,
+      ["--repo", "thomasluizon/orbit-ui-mobile", "--pr", "615", "--interval", "0.05", "--timeout", "2", ...extraArgv],
+      expect,
+      {
+        env: {
+          ...orcaEnv([{ match: "number=615", sequence: states.map((state) => pullRequestStub(615, state).stdout) }]),
+          ORBIT_ORCA_LOG: log,
+        },
+      },
+    )
+    const polls = existsSync(log) ? readFileSync(log, "utf8").trim().split("\n").filter(Boolean).length : 0
+    T(`pr-watch.mjs: ${name} consumed the state sequence`, polls >= states.length, `polled ${polls} time(s), expected at least ${states.length}`)
+    return result
+  }
 
   check(
     "pr-watch.mjs",
@@ -626,6 +652,31 @@ const prWatchCases = () => {
     { status: 0, stdout: /"transition": "ready-to-merge"/ },
     { env: orcaEnv([approved]) },
   )
+  const twoVerdicts = {
+    reviewDecision: "CHANGES_REQUESTED",
+    latestReviews: { nodes: [reviewOn("CHANGES_REQUESTED", HEAD_SHA), reviewOn("COMMENTED", HEAD_SHA)] },
+  }
+  check(
+    "pr-watch.mjs",
+    "two acted verdicts on the same PR and head both remain suppressed",
+    [...argv, "--acted", `615=${HEAD_SHA}:CHANGES_REQUESTED`, "--acted", `615=${HEAD_SHA}:COMMENTED`],
+    { status: 4, stdout: /"transition": "none"/ },
+    { env: orcaEnv([pullRequestStub(615, twoVerdicts)]) },
+  )
+  check(
+    "pr-watch.mjs",
+    "acting only on the comment leaves changes requested actionable",
+    [...argv, "--acted", `615=${HEAD_SHA}:COMMENTED`],
+    { status: 1, stdout: /"transition": "changes-requested"/ },
+    { env: orcaEnv([pullRequestStub(615, twoVerdicts)]) },
+  )
+  check(
+    "pr-watch.mjs",
+    "acting only on changes requested leaves the comment actionable",
+    [...argv, "--acted", `615=${HEAD_SHA}:CHANGES_REQUESTED`],
+    { status: 1, stdout: /"transition": "review-comment"/ },
+    { env: orcaEnv([pullRequestStub(615, twoVerdicts)]) },
+  )
   check(
     "pr-watch.mjs",
     "a failing check beats an approval",
@@ -648,6 +699,52 @@ const prWatchCases = () => {
     argv,
     { status: 5, stdout: /"transition": "gone"/ },
     { env: orcaEnv([pullRequestStub(615, { state: "MERGED", merged: true })]) },
+  )
+  check(
+    "pr-watch.mjs",
+    "a closed PR ends the watch",
+    argv,
+    { status: 5, stdout: /"transition": "gone"[\s\S]*"reason": "the PR is closed unmerged"/ },
+    { env: orcaEnv([pullRequestStub(615, { state: "CLOSED" })]) },
+  )
+  checkSequence(
+    "a review decision changing on the current head fires",
+    [{ reviewDecision: null }, { reviewDecision: "APPROVED" }],
+    [],
+    { status: 0, stdout: /"transition": "review-decision"/ },
+  )
+  checkSequence(
+    "a required check concluding as failed fires",
+    [
+      { commits: { nodes: [{ commit: { statusCheckRollup: { state: "PENDING", contexts: { nodes: [{ ...checkRun("Lint", null), status: "IN_PROGRESS" }] } } } }] } },
+      { commits: rollup(checkRun("Lint", "FAILURE")) },
+    ],
+    [],
+    { status: 1, stdout: /"transition": "checks-failed"[\s\S]*Lint: FAILURE/ },
+  )
+  checkSequence(
+    "a head change wins when merge state becomes clean in the same poll",
+    [{ headRefOid: OLD_SHA, mergeStateStatus: "BLOCKED" }, { headRefOid: HEAD_SHA, mergeStateStatus: "CLEAN" }],
+    [],
+    { status: 1, stdout: /"transition": "head-changed"/ },
+  )
+  checkSequence(
+    "clean through unknown and back to clean emits nothing",
+    [{ mergeStateStatus: "CLEAN" }, { mergeStateStatus: "UNKNOWN" }, { mergeStateStatus: "CLEAN" }],
+    [],
+    { status: 4, stdout: /"transition": "timeout"/ },
+  )
+  checkSequence(
+    "blocked through unknown to clean emits once for clean",
+    [{ mergeStateStatus: "BLOCKED" }, { mergeStateStatus: "UNKNOWN" }, { mergeStateStatus: "CLEAN" }],
+    [],
+    { status: 0, stdout: /"transition": "merge-clean"/ },
+  )
+  checkSequence(
+    "non-terminal merge state churn emits nothing",
+    [{ mergeStateStatus: "BLOCKED" }, { mergeStateStatus: "UNKNOWN" }, { mergeStateStatus: "BEHIND" }],
+    [],
+    { status: 4, stdout: /"transition": "timeout"/ },
   )
   check(
     "pr-watch.mjs",

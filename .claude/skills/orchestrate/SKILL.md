@@ -233,19 +233,25 @@ lines, and the contract verdict above. Liveness and delivery answer different qu
 at the keyboard. Read it instead of hand-running `orca terminal read`, which returns a busy
 worker's tail as thousands of characters of concatenated `Working` fragments.
 
-Then watch each launched ticket's PR with the tool, never a hand-written poll loop:
+Then watch the launched tickets' PRs as one fleet with the tool, never a hand-written poll
+loop:
 
 ```
-node tools/pr-watch.mjs --repo <owner/name> --pr <n> --acted <n>=<sha>:<verdict>
+node tools/pr-watch.mjs --repo <owner/name> --pr <n>[,<n>...] --acted <n>=<sha>:CHANGES_REQUESTED --acted <n>=<sha>:COMMENTED
 ```
 
-It exits on the first state you have NOT already acted on and names which one: `gone` (merged
-or closed, exit 5), `checks-failed` (exit 1), `changes-requested` or `review-comment` (exit 1),
-`approved` / `ready-to-merge` (exit 0), `timeout` (exit 4). `--acted` is what you have already
-handled on that PR, as the head SHA the verdict sat on plus the verdict; pass it after every fix
-cycle so the same feedback is never replayed, and pass nothing on the first watch. A verdict
-counts only when it sits on the CURRENT head, so a stale `CHANGES_REQUESTED` carried on an older
-commit does not satisfy it.
+It exits on the first actionable transition you have NOT already acted on and names which one:
+`gone` (merged or closed, exit 5), `checks-failed` (exit 1), `changes-requested` or
+`review-comment` (exit 1), `approved` / `ready-to-merge` (exit 0), `head-changed` (exit 1),
+`review-decision` (exit 0 for `APPROVED`, otherwise 1), `merge-clean` (exit 0), `timeout`
+(exit 4). Actionable means the head SHA changed, the review decision changed, the merge state
+became `CLEAN`, a required check concluded as failed, or the PR merged or closed. `UNKNOWN` and
+churn between other non-terminal merge states never fire. `--acted` is what you have already
+handled on that PR, as the head SHA the verdict sat on plus the verdict; entries accumulate by
+PR and head, so repeat the flag for every handled verdict, including two verdicts on the same
+head. Pass them after every fix cycle so the same feedback is never replayed, and pass none on
+the first watch. A verdict counts only when it sits on the CURRENT head, so a stale
+`CHANGES_REQUESTED` carried on an older commit does not satisfy it.
 
 Write no loop of your own. Both hand-rolled loops on the ORB-88 run were wrong and both failed
 silently: the first fired instantly on a stale verdict from an earlier commit, the second could
