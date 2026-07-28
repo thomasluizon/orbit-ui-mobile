@@ -6,6 +6,7 @@
 > - Semantic tokens only (`--bg`, `--bg-card`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-soft`, `--primary-rgb`, `--hairline`, `--scrim`, ...); no raw hex in UI.
 > - Scales: type, **spacing (enumerated: `0 4 8 12 16 20 24 28 32 40 48 56 64`, three named exemptions, gated by `local/spacing-scale`)**, radius, motion. Ships light AND dark, all 6 color schemes; mobile-first 412px shell.
 > - Tokens live in `apps/web/app/globals.css` + `apps/mobile/lib/theme.ts` + `packages/shared/src/theme/`.
+> - `RENDER-CORRECTNESS.md` is the single authority for the bounded screenshot self-critique on `visible-effect` tickets. This file remains the visual rubric.
 > - Sections (exact `##` names, so this line is greppable): Identity & anchor · Tokens · Type roles · Layout & spacing · Primitives kit · Buttons · Surface rules · Habit list · States · Copy · Desktop density & orientation · Sub-screen navigation · Motion · Accessibility · Special surfaces (paywall, landing hero) · Bans · Working model · Enforcement.
 > - Read the whole doc before shaping, reviewing, or theming any surface. `## Enforcement` says which rules are gate-backed and which are reviewer judgment.
 
@@ -500,7 +501,7 @@ Orbit has no a11y gate today. This section is where it starts, and bundle 4 turn
 3. **Focal element** - name the one element that wins this view, and how (size, weight, contrast, whitespace). Demote everything else deliberately.
 4. **Differentiator** - name the one memorable move for this screen in one sentence. It must be visible in the build, and it must come from the identity carriers (logo, Astra glyph, ring indicators, rationed accent), never from added decoration.
 5. **System** - use the tokens above. No new colors, font families, radii, or spacing values.
-6. **Implementation** - outline structure, then build. Then run the three tests below.
+6. **Implementation** - outline structure, then build. Then run the three tests below. For `visible-effect` work, follow the rendered-evidence loop in `RENDER-CORRECTNESS.md` after capture.
 
 ### AI-slop test
 

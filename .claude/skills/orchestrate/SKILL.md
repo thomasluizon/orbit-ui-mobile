@@ -102,10 +102,16 @@ batch sleep before filling an observed free slot.
    `node tools/compose-prompt.mjs --issue ORB-N --output "<absolute path>"`. It carries
    the ticket body VERBATIM (it is the prompt, D2) and every chronological issue comment.
    Append the PER-TICKET finishing contract: run lint + type-check + tests for the touched
-   workspace, commit, push, open a PR to `<target>` whose body links `ORB-N`, attach the PR
-   URL to the Linear issue (`orca linear attach`), attach the screenshot to the issue FIRST
-   when the ticket carries `visible-effect` (D7), set the issue to In Review, and STOP. The
-   branch is NOT the worker's job; step 3 hands it the contract branch already checked out.
+   workspace, commit, push, open a PR to `<target>` whose body links `ORB-N`, and attach the PR
+   URL to the Linear issue (`orca linear attach`). When the ticket carries `visible-effect`,
+   capture its surfaces, read every captured screenshot, and critique each one against
+   `DESIGN.md` plus the root `RENDER-CORRECTNESS.md` before attaching evidence. Fix every
+   finding and re-capture, stopping when the critique is clean or after at most three critique
+   iterations because an unbounded subjective loop burns the worker budget. At the cap, stop
+   revising and state every unresolved finding honestly in the critique. For `parity:yes`,
+   cover web and mobile, or name the platform gap and its reason. Attach the final screenshots
+   and the critique to the issue, then set the issue to In Review and STOP. The branch is NOT
+   the worker's job; step 3 hands it the contract branch already checked out.
 
    **Do NOT hand-write the STANDING clauses here.** Never ask a question, state a blocked
    criterion as UNMET instead of stalling, never watch your own PR's CI or another
@@ -239,10 +245,12 @@ node tools/worker-status.mjs --worktree <worktreePath> --issue ORB-N [--base <ta
 ```
 
 It derives the verdict from artifacts (commits above the freshly fetched `origin/<target>`,
-never a stale local ref, a clean worktree, the branch
-pushed, a PR open against the target, the issue In Review with the PR attached, and an image
-attached when the ticket is `visible-effect`, D7) and exits non-zero listing exactly what is
-unmet. That list is what you nudge with. Nothing else counts as "done".
+never a stale local ref, a clean worktree, the branch pushed, a PR open against the target,
+the issue In Review with the PR attached, and an image attached when the ticket is
+`visible-effect`, D7) and exits non-zero listing exactly what is unmet. For a `visible-effect`
+ticket, also inspect the issue evidence and require the attached critique paired with the final
+screenshots before treating the contract as met. That list plus this critique check is what you
+nudge with. Nothing else counts as "done".
 
 **Never `terminal send` to a worker that is not idle.** Measured on the same run: a send
 issued mid-turn never became a user turn at all. It appears in the worker's session
@@ -295,8 +303,9 @@ somebody remembered.
   then fixed and its thread resolved, or disputed with a written reply. Never merge over an
   untouched comment: `reviewDecision` cannot see it. This is condition 6 in 4a, and it binds
   the awake path too, where it is Thomas's merge that it gates rather than the run's.
-- D7: an issue may sit In Review only with its PR attached, and with a screenshot
-  attached when labelled `visible-effect`; otherwise demote to In Progress and finish.
+- D7: an issue may sit In Review only with its PR attached. When labelled `visible-effect`,
+  it also needs final screenshots and the worker's critique attached; otherwise demote to In
+  Progress and finish.
 - D9 two strikes: a second failed cycle sets the `attempts:2` label and the ticket is
   REFUSED further launches until its body is rewritten (two failures mean the spec is
   wrong, not the agent). wave-plan.mjs surfaces this.
@@ -328,12 +337,12 @@ merge SHA, evidence link, removed worktree. This holds whether the run was invok
 a project name or with a single `ORB-N`, because without `--single` a ticket argument
 names where to start, not where to stop.
 
-**`--single` ends here instead.** The run is complete once that one ticket's PR is
-open and its issue is In Review with the PR attached (plus the screenshot when it
-carries `visible-effect`). Print that ticket's ledger row and STOP. A merge of that
-ticket is not a trigger to launch anything: observing it may have opened a wave, but
-the run was explicitly bounded. Name the tickets that became launchable so Thomas can
-start them, and do not start them.
+**`--single` ends here instead.** The run is complete once that one ticket's PR is open and
+its issue is In Review with the PR attached, plus the final screenshots and critique when it
+carries `visible-effect`. Print that ticket's ledger row and STOP. A merge of that ticket is
+not a trigger to launch anything: observing it may have opened a wave, but the run was
+explicitly bounded. Name the tickets that became launchable so Thomas can start them, and do
+not start them.
 
 **Explicit-set scope also ends here.** It never advances a wave, including when a
 member merge makes a successor launchable. Finish after every launchable member has
@@ -362,7 +371,10 @@ Merge a PR under `--sleep` only when ALL of these hold, checked in this order:
 3. `mergeStateStatus` is `CLEAN`. `BEHIND` means update the branch and re-read BOTH
    the checks and `reviewDecision` afterwards, because updating invalidates them.
 4. The D7 evidence gate is satisfied: the PR is attached to the issue, and a
-   `visible-effect` ticket has its screenshot attached.
+   `visible-effect` ticket has its final screenshots and critique attached, with
+   the critique's final result recorded as `clean`. A critique that ends with
+   `unresolved findings` at the iteration cap stops that ticket for human review.
+   The cap permits an honest handoff; it never permits an unattended merge.
 5. The ticket carries no `attempts:2` label (D9 refuses it regardless of colour).
 6. **Every comment from every reviewer is addressed, whatever its review state.**
    `reviewDecision` only reflects reviews that BLOCK. A `COMMENTED` review and an inline

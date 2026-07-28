@@ -43,8 +43,8 @@ PR, target under 400 lines). Never split one fix across tickets.
   infer it silently.
 - `repo:ui` tickets declare `parity:yes` (web + mobile in one PR) or `parity:no` with the
   adapter-only justification in the body.
-- Add `visible-effect` and the D7 screenshot line when the fix changes pixels; check-ticket
-  fails a body that names a user-visible surface without it.
+- Add `visible-effect` and the D7 screenshots plus critique line when the fix changes pixels;
+  check-ticket fails a body that names a user-visible surface without both artifacts.
 - blockedBy is an explicit relation, never prose: a ui perf fix that needs an api index first
   is a ui ticket blockedBy the api ticket.
 

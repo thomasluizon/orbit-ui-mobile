@@ -1,0 +1,81 @@
+# Render Correctness
+
+**At a glance:** the single authority for self-critiquing rendered UI before a
+`visible-effect` ticket reaches In Review. Read the captured pixels against
+`DESIGN.md`, apply the checks below, and attach a Markdown critique beside the
+final screenshots. Stop after at most three capture and critique iterations so a
+subjective review cannot consume the worker's remaining budget.
+
+`DESIGN.md` remains the visual authority. This file adds the correctness checks
+that require looking at rendered output and defines the bounded evidence loop. It
+does not replace `design-reviewer`, add another completion gate, or grant merge
+authority.
+
+## Current evidence coverage
+
+`tools/capture-surfaces.mjs` currently:
+
+- captures web only;
+- covers light and dark themes in `en` and `pt-BR`;
+- writes screenshots to `.artifacts/surfaces/`;
+- captures only the default state produced by the seeded live stack.
+
+Loading, empty, and error cells are not capturable through this live-stack path.
+Mobile has no automated capture pipeline and has static plus human evidence only.
+A critique must state these limits and must not describe an uncaptured state or
+platform as pixel-verified.
+
+## Required loop
+
+1. Capture every changed surface in the available theme and locale matrix,
+   including a 412px-wide capture for shell correctness.
+2. Read every screenshot and judge it against the whole of `DESIGN.md` plus every
+   check below.
+3. Record the evidence, findings, and coverage gaps in one Markdown critique
+   artifact inside `.artifacts/surfaces/`, alongside the screenshots.
+4. Fix each finding that can be resolved within the ticket, then recapture and
+   critique the affected surfaces.
+5. Stop when an iteration is clean or after iteration 3. Three is a hard cap
+   because a subjective render loop must leave enough budget to finish and report.
+   At the cap, preserve every unresolved finding in the critique instead of
+   continuing or attaching silently.
+6. Attach the final screenshots and the critique artifact to the Linear issue
+   before moving it to In Review.
+
+An iteration is one capture followed by one complete critique. A clean first pass
+therefore ends after one iteration without a revision.
+
+## Render-correctness checks
+
+- **Human-readable values:** no raw recurrence rule such as
+  `FREQ=WEEKLY;BYDAY=MO`, ISO timestamp, enum member name, internal ID, or
+  untranslated i18n key reaches user-facing output. Render the localized,
+  user-recognizable meaning.
+- **412px shell:** no text, control, dialog, menu, table, or other content clips,
+  overlaps, escapes its container, creates unintended horizontal overflow, or
+  hides a required action at 412px. Check both locales because `pt-BR` often
+  expands copy.
+- **Finished content:** no fixture placeholder, `Lorem ipsum`, `TODO`, `TBD`,
+  mock label, or other authoring filler appears as shipped content.
+- **State reachability:** loading, empty, and error states are each reachable and
+  useful, as required by `DESIGN.md`. Record the evidence used for each state.
+  When the live capture cannot render one, mark it as a coverage gap and use the
+  available static or human evidence. Never treat the default-state screenshot as
+  proof of the triad.
+
+## Critique artifact
+
+The critique must be specific enough for a reviewer to reproduce the worker's
+judgment. Include:
+
+- ticket, iteration count, screenshot paths, and the surfaces reviewed;
+- themes, locales, states, viewport widths, and platforms actually covered;
+- each finding, the evidence that exposed it, and the revision made;
+- loading, empty, and error reachability with its evidence or stated gap;
+- every unresolved finding and why it remains unresolved;
+- a final result of `clean` or `unresolved findings`, without a numeric score.
+
+For `parity:yes`, cover both web and mobile. Until mobile capture exists, review
+the web pixels and provide the available mobile static plus human evidence. Name
+the mobile capture gap explicitly. If any other platform cannot be examined,
+state which platform was covered and why the gap remains.

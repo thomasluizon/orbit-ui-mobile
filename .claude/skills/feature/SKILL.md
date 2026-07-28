@@ -51,7 +51,8 @@ Standing rules (violating any one is a defect):
 - The dependency graph is explicit relations, never prose ("after X lands" in a body
   without a blockedBy relation fails the checker).
 - User-visible tickets carry the `visible-effect` label and state the D7 contract in the
-  body: a screenshot attached to the Linear issue is required to reach In Review.
+  body: final screenshots and the critique artifact must be attached to the Linear issue
+  before In Review.
 - Shared/DTO changes are append-only and deploy-API-first; say so in the api ticket.
 
 Per ticket: draft the body to the scratchpad using the template sections (Problem/why,
