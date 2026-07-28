@@ -553,12 +553,12 @@ Describe the rendered screen in one sentence as if narrating a film scene. If th
 | Raw font feature / axis tags (Type) | `local/no-raw-font-feature-tag` | |
 | No `calc()` percentage widths (Layout) | `local/no-calc-percentage-width` | Web only. |
 | AnimatePresence `exit` + stable keys (Motion) | `local/animate-presence-exit`, `local/animate-presence-stable-key` | Silent failures: nothing errors, the animation just does not play, or the wrong row animates out. |
-| No em dashes in copy | `.claude/hooks/forbid-em-dashes.mjs` | **Already shipping.** |
-| No hardcoded brand color | `.claude/hooks/forbid-hardcoded-brand-color.mjs` | **Already shipping.** |
+| No em dashes in copy | `tools/check-dashes.mjs` | **Already shipping.** Whole-file checks plus the committed `tools/dash-baseline.json` full-tree ratchet block growth; the ratchet does not prove the existing set is clean. |
+| No hardcoded brand color | `tools/check-copy.mjs --check` | **Already shipping.** Whole-file source scan against the committed `tools/copy-baseline.json` ratchet; it blocks growth rather than proving the existing set is clean. |
 | No full-bleed pill CTA (Buttons) | `local/no-fullbleed-button` | **Already shipping**, web only. Mobile StyleSheet width is not statically linkable, so mobile stays reviewer-judgment. |
 | Icons only through the barrel (Icons) | `no-restricted-imports` bans `lucide-react(-native)` + `@tabler/icons-react(-native)` outside `components/ui/icons.tsx` | #539 b6. The barrel is the only file allowed to import the icon set directly. **Pending on `main`**: the barrel ships with the redesign's primitive tickets; the restriction lands in the same PR (banning today would fail every existing direct import). |
-| AI-cliché copy words | `.claude/hooks/forbid-ai-cliche-copy.mjs` (new) | Wordlist over `en.json` + `pt-BR.json` values. Same shape as the em-dash hook. |
-| No UPPERCASE typed into a string (Copy) | wordlist/shape check over i18n **values** in the same hook family | Must not fire on keys or on acronyms. |
+| AI-cliché copy words | `tools/check-copy.mjs --check` | **Already shipping.** Wordlist over `en.json` + `pt-BR.json` string values only, never keys, against the committed `tools/copy-baseline.json` ratchet; it blocks growth rather than proving the existing set is clean. |
+| No UPPERCASE typed into a string (Copy) | `tools/check-copy.mjs --check` | **Already shipping.** Shape check over i18n string values only, never keys. It flags all-uppercase prose only when it has at least two tokens and a 3+ letter uppercase run, so single-token acronyms are exempt; findings are checked against the committed `tools/copy-baseline.json` ratchet, which blocks growth rather than proving the existing set is clean. |
 
 ### Reviewer-judgment (the `design-reviewer` agent enforces these per diff)
 
@@ -566,4 +566,4 @@ Everything else, and specifically: the 65ch measure, the spacing rhythm (tight w
 
 ### Not enforceable here
 
-`prefers-reduced-transparency` / `prefers-contrast` handling, the 200% zoom layout, keyboard traps, and screen-reader semantics need the **live rendered DOM**. They belong to the proposed a11y baseline-diff CI gate (reusing `visual.yml`'s hermetic mock-api plus `perf.yml`'s fake-JWT harness), which reports only diff-introduced violations. Note the baseline must be captured **without** `git stash` / `git checkout`: the `/drive` engine's children share the tree.
+`prefers-reduced-transparency` / `prefers-contrast` handling, the 200% zoom layout, keyboard traps, and screen-reader semantics need the **live rendered DOM**. They belong to the proposed a11y baseline-diff CI gate (reusing `visual.yml`'s hermetic mock-api plus `perf.yml`'s fake-JWT harness), which reports only diff-introduced violations. Note the baseline must be captured **without** `git stash` / `git checkout` while parallel agents share the current worktree.

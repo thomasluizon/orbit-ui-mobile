@@ -14,11 +14,12 @@ import { execFile } from "node:child_process"
 import { promisify } from "node:util"
 import { readFileSync } from "node:fs"
 
-const USAGE = `usage: wave-plan.mjs --project "<name>" | --label "<label>" | --all [--json]
+const USAGE = `usage: wave-plan.mjs --project "<name>" | --label "<label>" | --all | --issues "ORB-a,ORB-b" [--json]
 
   --project "<name>"   plan the issues of one Linear project
   --label "<label>"    plan the issues carrying one label
   --all                plan every non-done issue of the team
+  --issues "ORB-a,..." plan only these issues, resolving their complete blocker DAG
   --json               emit the wave table as JSON instead of text
   --help, -h           print this usage and exit 0
 
@@ -91,25 +92,41 @@ const argOf = (flag) => {
 const project = argOf("--project")
 const label = argOf("--label")
 const all = process.argv.includes("--all")
-if (!project && !label && !all) {
+const issuesArgument = argOf("--issues")
+const issuesMode = issuesArgument !== null
+const requestedIdentifiers = typeof issuesArgument === "string" ? [...new Set(issuesArgument.split(",").map((identifier) => identifier.trim()).filter(Boolean))] : []
+if (issuesMode && (project || label || all)) {
+  console.error("--issues cannot be combined with --project, --label, or --all")
+  process.exit(2)
+}
+if (!project && !label && !all && !issuesMode) {
   console.error(USAGE)
   process.exit(2)
 }
-
-const listArgs = ["linear", "list-issues", "--team", TEAM, "--limit", "250"]
-if (project) listArgs.push("--project", project)
-if (label) listArgs.push("--label", label)
-let listed
-try {
-  listed = await orcaJson(listArgs, project ?? label ?? "the requested issue list")
-} catch (error) {
-  console.error(error.message)
+if (issuesMode && (!issuesArgument || issuesArgument.startsWith("--") || requestedIdentifiers.length === 0)) {
+  console.error("--issues requires at least one identifier")
   process.exit(2)
 }
-const issues = listed.issues ?? listed.nodes ?? listed
-if (!Array.isArray(issues) || issues.length === 0) {
-  console.error("no issues matched; nothing to plan")
-  process.exit(1)
+
+let issues
+if (issuesMode) {
+  issues = requestedIdentifiers.map((identifier) => ({ identifier }))
+} else {
+  const listArgs = ["linear", "list-issues", "--team", TEAM, "--limit", "250"]
+  if (project) listArgs.push("--project", project)
+  if (label) listArgs.push("--label", label)
+  let listed
+  try {
+    listed = await orcaJson(listArgs, project ?? label ?? "the requested issue list")
+  } catch (error) {
+    console.error(error.message)
+    process.exit(2)
+  }
+  issues = listed.issues ?? listed.nodes ?? listed
+  if (!Array.isArray(issues) || issues.length === 0) {
+    console.error("no issues matched; nothing to plan")
+    process.exit(1)
+  }
 }
 
 const DONE_TYPES = new Set(["completed", "canceled", "duplicate"])
@@ -133,14 +150,56 @@ const toPlanIssue = (detail) => {
 }
 
 let planIssues
-try {
-  planIssues = await mapBounded(issues, async (issue) => {
+if (issuesMode) {
+  const requested = await mapBounded(issues, async (issue) => {
     const identifier = issue.identifier ?? issue.id
-    return toPlanIssue(await orcaJson(["linear", "issue", identifier, "--relations"], identifier))
+    try {
+      return { identifier, issue: toPlanIssue(await orcaJson(["linear", "issue", identifier, "--relations"], identifier)) }
+    } catch {
+      return { identifier, error: true }
+    }
   })
-} catch (error) {
-  console.error(error.message)
-  process.exit(2)
+  const unresolved = requested.filter((result) => result.error).map((result) => result.identifier)
+  const done = requested.filter((result) => !result.error && (DONE_TYPES.has(result.issue.stateType) || result.issue.state === "Done")).map((result) => result.identifier)
+  if (unresolved.length || done.length) {
+    if (unresolved.length) console.error(`unresolved requested identifier(s): ${unresolved.join(", ")}`)
+    if (done.length) console.error(`Done requested identifier(s): ${done.join(", ")}`)
+    process.exit(1)
+  }
+  let listed
+  try {
+    listed = await orcaJson(["linear", "list-issues", "--team", TEAM, "--limit", "250"], "the complete team issue list")
+  } catch (error) {
+    console.error(error.message)
+    process.exit(2)
+  }
+  const teamIssues = listed.issues ?? listed.nodes ?? listed
+  if (!Array.isArray(teamIssues)) {
+    console.error("failed to fetch the complete team issue list: orca returned no issue list")
+    process.exit(2)
+  }
+  const requestedByIdentifier = new Map(requested.map((result) => [result.identifier, result.issue]))
+  try {
+    const remainingTeamIssues = teamIssues.filter((issue) => !requestedByIdentifier.has(issue.identifier ?? issue.id))
+    const remainingPlanIssues = await mapBounded(remainingTeamIssues, async (issue) => {
+      const identifier = issue.identifier ?? issue.id
+      return toPlanIssue(await orcaJson(["linear", "issue", identifier, "--relations"], identifier))
+    })
+    planIssues = [...requestedByIdentifier.values(), ...remainingPlanIssues]
+  } catch (error) {
+    console.error(error.message)
+    process.exit(2)
+  }
+} else {
+  try {
+    planIssues = await mapBounded(issues, async (issue) => {
+      const identifier = issue.identifier ?? issue.id
+      return toPlanIssue(await orcaJson(["linear", "issue", identifier, "--relations"], identifier))
+    })
+  } catch (error) {
+    console.error(error.message)
+    process.exit(2)
+  }
 }
 const byIdentifier = new Map(planIssues.map((issue) => [issue.identifier, issue]))
 
@@ -211,31 +270,57 @@ const reachOf = (identifier) => {
   return seen.size
 }
 
+const visibleWaves = issuesMode
+  ? waves.map((wave, index) => ({ wave: index + 1, issues: wave.filter((identifier) => requestedIdentifiers.includes(identifier)) })).filter(({ issues: wave }) => wave.length)
+  : waves.map((wave, index) => ({ wave: index + 1, issues: wave }))
+const visibleLaunchable = issuesMode
+  ? requestedIdentifiers.filter((identifier) => {
+      const issue = byIdentifier.get(identifier)
+      return issue.blockedBy.every(isDone) && issue.stateType !== "started" && issue.attempts < ATTEMPTS_BEFORE_REWRITE
+    })
+  : launchable
+const visibleTwoStrikes = issuesMode ? twoStrikes.filter((identifier) => requestedIdentifiers.includes(identifier)) : twoStrikes
+const blockerStateOf = (issue) => {
+  const blocking = issue.blockedBy.filter((identifier) => !isDone(identifier))
+  return blocking.length ? `blocked by ${blocking.join(", ")}` : "clear"
+}
+const visibleIssue = (identifier) => {
+  const issue = byIdentifier.get(identifier)
+  if (!issuesMode) return { ...issue, reach: reachOf(identifier) }
+  return {
+    ...issue,
+    reach: reachOf(identifier),
+    blockerState: blockerStateOf(issue),
+    launchable: visibleLaunchable.includes(identifier),
+  }
+}
+
 if (process.argv.includes("--json")) {
   console.log(
     JSON.stringify(
       {
-        waves: waves.map((wave, index) => ({
-          wave: index + 1,
-          issues: wave.map((identifier) => ({ ...byIdentifier.get(identifier), reach: reachOf(identifier) })),
+        waves: visibleWaves.map(({ wave, issues: waveIssues }) => ({
+          wave,
+          issues: waveIssues.map(visibleIssue),
         })),
-        launchable,
-        twoStrikes,
+        launchable: visibleLaunchable,
+        twoStrikes: visibleTwoStrikes,
       },
       null,
       2,
     ),
   )
 } else {
-  for (const [index, wave] of waves.entries()) {
-    console.log(`WAVE ${index + 1}`)
-    for (const identifier of wave) {
+  for (const { wave, issues: waveIssues } of visibleWaves) {
+    console.log(`WAVE ${wave}`)
+    for (const identifier of waveIssues) {
       const issue = byIdentifier.get(identifier)
       const blockers = issue.blockedBy.length ? `  blockedBy: ${issue.blockedBy.join(", ")}` : ""
       const strikes = issue.attempts >= ATTEMPTS_BEFORE_REWRITE ? "  [TWO STRIKES: rewrite the ticket first (D9)]" : ""
       const external = issue.external ? "  [external]" : ""
-      console.log(`  ${identifier}  [${issue.state}]${external}  ${issue.title}${blockers}${strikes}`)
+      const restriction = issuesMode ? `  blockerState: ${blockerStateOf(issue)}  launchable: ${visibleLaunchable.includes(identifier) ? "yes" : "no"}` : ""
+      console.log(`  ${identifier}  [${issue.state}]${external}  ${issue.title}${blockers}${restriction}${strikes}`)
     }
   }
-  console.log(`\nLAUNCHABLE NOW (all blockers merged, not started, under the strike limit): ${launchable?.join(", ") || "none"}`)
+  console.log(`\nLAUNCHABLE NOW (all blockers merged, not started, under the strike limit): ${visibleLaunchable?.join(", ") || "none"}`)
 }

@@ -219,7 +219,8 @@ for (const entry of report) {
   console.log(`  path      ${entry.path}`)
   if (entry.linearState) console.log(`  linear    ${entry.linearState}`)
   if (entry.comment) console.log(`  card      ${entry.comment}`)
-  console.log(`  terminals ${entry.terminals.length === 0 ? "none (no TUI attached)" : entry.terminals.map((terminal) => `${terminal.handle.slice(0, 13)} ${terminal.liveness}`).join(", ")}`)
+  const terminalLines = entry.terminals.map((terminal) => `${terminal.handle} ${terminal.liveness}`).join("\n            ")
+  console.log(`  terminals ${terminalLines || "none (no TUI attached)"}`)
   if (entry.contract) {
     const line =
       entry.contract.state === "met"

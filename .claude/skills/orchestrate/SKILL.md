@@ -1,7 +1,7 @@
 ---
 name: orchestrate
-description: Linear project (or single ticket) in, reviewed PRs out, wave by wave. Computes the merge-gated DAG with tools/wave-plan.mjs, reconciles each ticket against the code (D8), launches one Orca worktree + worker per ticket (engine from .claude/orchestrator.json, claude or codex), babysits CI and review, enforces the evidence gate (D7) and two-strikes (D9), then tears down each worktree immediately after verified Done. A human merge is the only thing that advances a wave (D3), unless --sleep is passed. Scope is the whole project unless --single bounds it to one ticket. Use after /feature or /bug created the tickets.
-argument-hint: <Linear project name or ORB-N> [--single] [--sleep]
+description: Linear project, single ticket, or explicit ticket set in, reviewed PRs out, wave by wave. Computes the merge-gated DAG with tools/wave-plan.mjs, reconciles each ticket against the code (D8), launches one Orca worktree + worker per ticket (engine from .claude/orchestrator.json, claude or codex), babysits CI and review, enforces the evidence gate (D7) and two-strikes (D9), then tears down each worktree immediately after verified Done. A human merge is the only thing that advances a wave (D3), unless --sleep is passed. Scope is the whole project for a name or one ticket argument, one ticket under --single, or exactly the named tickets when two or more are supplied. Use after /feature or /bug created the tickets.
+argument-hint: <Linear project name | ORB-N [ORB-N ...]> [--single] [--sleep]
 effort: high
 ---
 
@@ -14,25 +14,33 @@ repo a ticket's `repo:*` label names.
 
 ## 0. Classify the scope, then read the contract
 
-The `--single` FLAG decides how far the run goes, not the argument shape, and it is
-the FIRST thing to resolve because it binds every later section.
+Classify by the number of `ORB-N` identifiers after splitting on spaces and commas:
 
-- **Default, flag absent: project scope.** A project name runs that project. An
-  `ORB-N` argument resolves to the project that ticket belongs to and runs the whole
-  project from that ticket's wave onward. This is the behaviour to preserve; a
-  ticket argument is a starting point, not a boundary.
-- **`--single` present: single-ticket scope.** Only valid with an `ORB-N` argument.
-  Reconcile and launch THAT TICKET ONLY. Never reconcile a sibling, never spawn an
-  agent for one, never advance a wave. `--single` on a project name is a usage error:
-  say so and stop rather than guessing which ticket was meant.
+- **Zero identifiers: project scope.** The remaining name runs that project.
+- **One identifier: project or single-ticket scope.** Without `--single`, resolve
+  the ticket's project and run it from that ticket's wave onward. The ticket is a
+  starting point, not a boundary. With `--single`, reconcile and launch THAT TICKET
+  ONLY. Never reconcile a sibling, spawn an agent for one, or advance a wave.
+- **Two or more identifiers: explicit-set scope.** Deduplicate the identifiers while
+  preserving their first-seen order, then run exactly those tickets and nothing else.
+  `--single` with an explicit set is a usage error: say that `--single` means one
+  ticket and stop. Resolve every member before doing any work; an identifier that
+  does not resolve or is already Done is an error for the set, never a reason to
+  silently shrink it.
+
+`--single` on a project name is also a usage error: say so and stop rather than
+guessing which ticket was meant. These arity rules preserve every existing
+single-argument behaviour.
 
 `--sleep` is a separate, orthogonal flag: it says Thomas is asleep, so the run must
-never ask a question and must merge its own PRs. It combines with either scope.
+never ask a question and must merge its own PRs. It combines with any scope.
 Section 4a is its full contract; read it before using it.
 
 Print the resolved scope, and whether `--sleep` is on, as the run's first output
 line, before any agent spawns, so the blast radius is visible while it is still
-cheap to correct.
+cheap to correct. Use `SCOPE: <project | single ticket | explicit set> [<resolved
+name or deduplicated members>]; sleep: <on | off>`. Usage errors stop before this
+line because no scope was resolved.
 
 The flag exists because the skill previously accepted both argument shapes while
 documenting only the project flow, so the reader could not tell which one an `ORB-N`
@@ -52,6 +60,13 @@ was the RIGHT default and stays the default; what was missing was a way to say n
    orbit-api tickets always target `main` (D37).
 2. `node tools/wave-plan.mjs --project "<name>"` prints the wave table. Show it.
 
+For explicit-set scope, run
+`node tools/wave-plan.mjs --issues ORB-a,ORB-b` instead. It resolves blockers
+against the full team DAG while displaying only the requested members. Refuse each
+blocked member with every unmerged blocker named, and continue with the other
+launchable members. Apply sections 1 through 3 and every D7, D8, D9 and
+`check-ticket.mjs` gate independently to each member that proceeds.
+
 ## 1. Reconcile before dispatch (D8)
 
 For each LAUNCHABLE ticket: open the files its body cites and confirm the stated
@@ -62,6 +77,12 @@ worker. This applies equally to tickets written by humans, agents, or reviewers.
 ## 2. Launch a wave
 
 Per launchable ticket, up to `maxParallelWorktrees`:
+
+For an explicit set larger than the cap, keep the remaining members in first-seen
+order. Launch the next member only when `tools/worker-status.mjs` reports that a
+running member has completed its contract and freed a slot. The cap is a concurrency
+limit, not a batch size: never launch above it, truncate the set, or wait for a fixed
+batch sleep before filling an observed free slot.
 
 1. `node tools/check-ticket.mjs --issue ORB-N`; a defective ticket is fixed in Linear
    BEFORE launch, not patched in the prompt.
@@ -311,6 +332,13 @@ carries `visible-effect`. Print that ticket's ledger row and STOP. A merge of th
 not a trigger to launch anything: observing it may have opened a wave, but the run was
 explicitly bounded. Name the tickets that became launchable so Thomas can start them, and do
 not start them.
+
+**Explicit-set scope also ends here.** It never advances a wave, including when a
+member merge makes a successor launchable. Finish after every launchable member has
+an open PR and is In Review with its PR attached (plus D7 evidence when required),
+and every refused member has its blocker or strike reason recorded. Print one ledger
+covering every requested member, then re-read the full DAG, name the tickets that
+became launchable, and STOP without starting them.
 
 ## 4a. `--sleep`: no questions, and the run merges its own PRs
 
