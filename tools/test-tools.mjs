@@ -1476,6 +1476,12 @@ const prWatchCases = () => {
     { status: 0, stdout: /"transition": "review-decision"/ },
   )
   checkSequence(
+    "a non-approving review decision change needs work",
+    [{ reviewDecision: "APPROVED" }, { reviewDecision: "CHANGES_REQUESTED" }],
+    [],
+    { status: 1, stdout: /"transition": "review-decision"/ },
+  )
+  checkSequence(
     "a required check concluding as failed fires",
     [
       { commits: { nodes: [{ commit: { statusCheckRollup: { state: "PENDING", contexts: { nodes: [{ ...checkRun("Lint", null), status: "IN_PROGRESS" }] } } } }] } },
