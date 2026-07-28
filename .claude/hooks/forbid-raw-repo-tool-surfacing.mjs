@@ -17,10 +17,11 @@ import { filePathFrom, readStdinJson } from "./_lib/io.mjs"
 
 const APPEAL_SUFFIX = /\s+(?:#\s*)?Repo-tool appeal:\s*(\S.*)\s*$/i
 const NODE_TOOL_COMMAND =
-  /\bnode(?:\.exe)?(?:[ \t]+-{1,2}[a-z0-9][a-z0-9-]*(?:=[^`\s]+|[ \t]+[^`\s]+)?)*[ \t]+(?:"(?:(?:[a-z]:)?[\\/]*(?:[^"`\r\n]+[\\/])*)?tools[\\/][a-z0-9_./\\-]+\.(?:mjs|cjs|js|ts)"|'(?:(?:[a-z]:)?[\\/]*(?:[^'`\r\n]+[\\/])*)?tools[\\/][a-z0-9_./\\-]+\.(?:mjs|cjs|js|ts)'|(?:(?:[a-z]:)?[\\/]*(?:[a-z0-9_.-]+[\\/])*)?tools[\\/][a-z0-9_./\\-]+\.(?:mjs|cjs|js|ts))/gi
+  /\bnode(?:\.exe)?(?:[ \t]+-{1,2}[a-z0-9][a-z0-9-]*(?:=[^`\s]+|[ \t]+[^`\s]+)?)*[ \t]+(?:"(?:(?:[a-z]:)?[\\/]*(?:[^"`\r\n\\/]+[\\/])*)?tools[\\/][a-z0-9_./\\-]+\.(?:mjs|cjs|js|ts)"|'(?:(?:[a-z]:)?[\\/]*(?:[^'`\r\n\\/]+[\\/])*)?tools[\\/][a-z0-9_./\\-]+\.(?:mjs|cjs|js|ts)'|(?:(?:[a-z]:)?[\\/]*(?:[a-z0-9_.-]+[\\/])*)?tools[\\/][a-z0-9_./\\-]+\.(?:mjs|cjs|js|ts))/gi
 const TOOL_SCRIPT_COMMAND =
   /(?:(?:(?:pwsh|powershell)(?:\.exe)?[ \t]+)?["']?(?:\.?[\\/])?tools[\\/][a-z0-9_./\\-]+\.ps1["']?|(?:\.?[\\/])?tools[\\/][a-z0-9_./\\-]+\.sh)/gi
 const NPX_COMMAND = /\bnpx(?:\.cmd)?\b/gi
+const NPM_RUN_COMMAND = /\bnpm(?:\.cmd)?[ \t]+run[ \t]+([a-z0-9:_-]+)(?![a-z0-9:_-])/gi
 const SHELL_FENCE = /^(?:bash|sh|shell|zsh|powershell|pwsh|cmd|console)?$/i
 const QUOTED_FENCE = /^(?:json|jsonc|yaml|yml|text|markdown|md|toml|xml)$/i
 const DOCUMENTATION =
@@ -33,6 +34,8 @@ const DESCRIPTIVE_NPX_PREFIX =
   /^\s*(?:the|this|that)\s+(?:(?:--?[a-z0-9-]+)\s+)?(?:package|command|tool|option|flag|example|implementation)\b.*\b(?:as|about|regarding|describes?|explains?|tells?|mentions?)\s*$/i
 const DESCRIPTIVE_NPX_CLAUSE =
   /^\s*(?:the|this|that)\b[^.!?]*\b(?:option|flag)\b[^.!?]*\b(?:tells?|describes?|explains?)\b/i
+const DESCRIPTIVE_NPX_SUBJECT =
+  /^\s*npx(?:\.cmd)?\s+(?:is\b|invocations?\b|runs\b)[^`]*[.,;:!?]\s*$/i
 const DESCRIPTIVE_NPX_LINK = /\b(?:as|about|regarding|describes?|explains?|tells?|mentions?)\s*$/i
 const DOCUMENT_BASENAME = /^(?:ticket(?:-body)?|pr(?:-body|-description)?|pull-request-description)\.(?:md|txt)$/i
 const TICKET_BASENAME = /^ORB-\d+\.(?:md|txt)$/
@@ -54,11 +57,54 @@ function declaredRepoRoots() {
 
 const REPO_ROOTS = declaredRepoRoots()
 
+function containsDirectRepoToolInvocation(command) {
+  for (const pattern of [NODE_TOOL_COMMAND, TOOL_SCRIPT_COMMAND, NPX_COMMAND]) {
+    pattern.lastIndex = 0
+    if (pattern.test(command)) return true
+  }
+  return false
+}
+
+function npmRunTargets(command) {
+  NPM_RUN_COMMAND.lastIndex = 0
+  return [...command.matchAll(NPM_RUN_COMMAND)].map((match) => match[1].toLowerCase())
+}
+
+function repoToolNpmAliases() {
+  try {
+    const scripts = Object.entries(JSON.parse(readFileSync(resolve(HOOK_REPO_ROOT, "package.json"), "utf8"))?.scripts ?? {}).filter(
+      ([, command]) => typeof command === "string",
+    )
+    const tracked = new Set(
+      scripts.filter(([, command]) => containsDirectRepoToolInvocation(command)).map(([name]) => name.toLowerCase()),
+    )
+
+    let previousSize = -1
+    while (tracked.size !== previousSize) {
+      previousSize = tracked.size
+      for (const [name, command] of scripts) {
+        if (npmRunTargets(command).some((target) => tracked.has(target))) tracked.add(name.toLowerCase())
+      }
+    }
+    return tracked
+  } catch {
+    return new Set()
+  }
+}
+
+const REPO_TOOL_NPM_ALIASES = repoToolNpmAliases()
+
 function commandMatches(text) {
   const matches = []
   for (const pattern of [NODE_TOOL_COMMAND, TOOL_SCRIPT_COMMAND, NPX_COMMAND]) {
     pattern.lastIndex = 0
     for (const match of text.matchAll(pattern)) matches.push({ index: match.index, end: match.index + match[0].length })
+  }
+  NPM_RUN_COMMAND.lastIndex = 0
+  for (const match of text.matchAll(NPM_RUN_COMMAND)) {
+    if (REPO_TOOL_NPM_ALIASES.has(match[1].toLowerCase())) {
+      matches.push({ index: match.index, end: match.index + match[0].length })
+    }
   }
   matches.sort((left, right) => left.index - right.index || right.end - left.end)
 
@@ -121,6 +167,13 @@ function isClauseBoundary(text, index) {
   const character = text[index]
   if (!/[.,;:]/.test(character)) return false
   if (character === ":" && /[a-z]/i.test(text[index - 1] ?? "") && /[\\/]/.test(text[index + 1] ?? "")) return false
+  if (
+    character === ":" &&
+    /\bnpm(?:\.cmd)?[ \t]+run[ \t]+[a-z0-9_-][a-z0-9:_-]*$/i.test(text.slice(0, index)) &&
+    /^[a-z0-9_-]/i.test(text.slice(index + 1))
+  ) {
+    return false
+  }
   if (character === "." && text[index + 1] !== undefined && !/\s/.test(text[index + 1])) return false
   return true
 }
@@ -183,68 +236,12 @@ function splitClauseAtoms(text) {
   return { clauses, ambiguous }
 }
 
-function npxTokens(command) {
-  return command.match(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\s]+/g) ?? []
-}
-
-function npxOptionStates(tokens) {
-  const pending = [{ index: 1, assigned: false, confirmed: false, consumed: false, quoted: false }]
-  const states = []
-  const seen = new Set()
-
-  while (pending.length) {
-    const state = pending.pop()
-    const key = `${state.index}:${state.assigned}:${state.confirmed}:${state.consumed}:${state.quoted}`
-    if (seen.has(key)) continue
-    seen.add(key)
-
-    const option = tokens[state.index]
-    if (!/^-{1,2}[^-]/.test(option ?? "")) {
-      states.push(state)
-      continue
-    }
-
-    pending.push({
-      ...state,
-      index: state.index + 1,
-      assigned: state.assigned || option.includes("="),
-      confirmed: state.confirmed || /^(?:--yes|-y)$/i.test(option),
-    })
-    const value = tokens[state.index + 1]
-    if (option.includes("=") || !value || /^-{1,2}[^-]/.test(value)) continue
-    pending.push({
-      ...state,
-      index: state.index + 2,
-      consumed: true,
-      quoted: state.quoted || /^(['"]).*\1$/.test(value),
-    })
-  }
-
-  return states
-}
-
 function isClearlyDescriptiveNpxMention(command, { insideFence, insideCode, prefix, clauseText }) {
   if (insideFence === "shell" || insideCode) return false
+  if (!/^npx(?:\.cmd)?\b/i.test(command)) return false
   if (DESCRIPTIVE_NPX_PREFIX.test(prefix)) return true
   if (DESCRIPTIVE_NPX_CLAUSE.test(clauseText)) return true
-  const tokens = npxTokens(command)
-  if (!/^npx(?:\.cmd)?$/i.test(tokens[0] ?? "")) return false
-  const hasPrefix = prefix.trim().length > 0
-  const standaloneCommand = !hasPrefix && !/[.,;!?:]\s*$/.test(clauseText)
-  const positionalInvocation = (hasPrefix || standaloneCommand) && !/^-{1,2}[^-]/.test(tokens[1] ?? "")
-
-  return !npxOptionStates(tokens).some((state) => {
-    if (state.assigned || state.confirmed || state.quoted) return true
-    const packageName = tokens[state.index]
-    if (!packageName) return state.consumed
-    if (/[./@-]/.test(packageName)) return true
-    const argumentsAfterPackage = tokens.slice(state.index + 1)
-    return (
-      argumentsAfterPackage[0]?.startsWith("-") ||
-      (positionalInvocation && argumentsAfterPackage.length > 0) ||
-      (state.consumed && argumentsAfterPackage.length === 0)
-    )
-  })
+  return DESCRIPTIVE_NPX_SUBJECT.test(clauseText)
 }
 
 function hasInstructionFraming(prefix) {

@@ -341,6 +341,12 @@ const surfacedWavePlan = "Re-derive any time with `node tools/wave-plan.mjs --al
 
 export const RAW_TOOL_REVIEW_CORPUS = [
   { label: "ticket measured command", text: surfacedWavePlan, status: 2, includes: ["/next"] },
+  ...["surfaces:manifest", "surfaces:capture", "redesign:coverage"].map((script) => ({
+    label: `root npm repo-tool alias ${script}`,
+    text: `npm run ${script}`,
+    status: 2,
+  })),
+  { label: "ordinary root npm alias", text: "npm run lint", status: 0 },
   {
     label: "standalone code span after instruction",
     text: ["Run this:", "`node tools/wave-plan.mjs --all`"].join("\n"),
@@ -379,6 +385,12 @@ export const RAW_TOOL_REVIEW_CORPUS = [
     "npx turbo run lint",
     "npx prisma generate",
     "`npx prisma generate`",
+    "npx serve",
+    "npx serve.",
+    "npx nodemon",
+    "`npx cowsay.`",
+    "Just run npx tsc",
+    "Next: npx serve",
     "npx --package=foo -c 'command'",
     "npx --package=@orbit/cli -c 'orbit check'",
     "npx -p typescript tsc --noEmit",
@@ -509,7 +521,12 @@ export const RAW_TOOL_REVIEW_CORPUS = [
   ...[
     "The command is documented as npx --yes @orbit/cli deploy.",
     "The package is described as npx --yes @orbit/cli deploy.",
+    "The tool described as npx serve is deprecated.",
   ].map((text, index) => ({ label: `descriptive npx connector ${index + 1}`, text, status: 0 })),
+  ...[
+    "The tool described as node tools/wave-plan.mjs --all is deprecated.",
+    "The command mentioned as tools/rollup.sh runs nightly.",
+  ].map((text, index) => ({ label: `npx description cannot exempt repo tool ${index + 1}`, text, status: 2 })),
   {
     label: "overlap resolution keeps the accepted outer command",
     text: "node --require tools/npx-a.mjs --loader tools/npx-b.mjs tools/wave-plan.mjs",
@@ -584,6 +601,27 @@ const appealedOverlap = checkRawRepoToolSurfacing(
 )
 T("cc raw-tool: one overlapping node invocation needs one appeal", appealedOverlap?.appeal, true)
 T("cc raw-tool: overlapping node invocation yields one command", appealedOverlap?.commands?.length, 1)
+
+const slashHeavyQuotedPathProbe = spawnSync(
+  process.execPath,
+  [
+    "--input-type=module",
+    "--eval",
+    `
+      import { checkRawRepoToolSurfacing } from ${JSON.stringify(new URL("./forbid-raw-repo-tool-surfacing.mjs", import.meta.url).href)}
+      for (const quote of ['"', "'"]) {
+        const text = "node " + quote + "segment/".repeat(2048) + "not-a-tool.js" + quote
+        if (checkRawRepoToolSurfacing(text) !== null) process.exit(1)
+      }
+    `,
+  ],
+  { encoding: "utf8", timeout: 5000 },
+)
+T(
+  "cc raw-tool: slash-heavy quoted nonmatch completes within the fixed probe timeout",
+  { error: slashHeavyQuotedPathProbe.error?.code ?? null, status: slashHeavyQuotedPathProbe.status },
+  { error: null, status: 0 },
+)
 
 export const RAW_TOOL_CLAUSE_FUZZ_BUDGET = 1600
 const fuzzFirst = "node tools/wave-plan.mjs --all"
