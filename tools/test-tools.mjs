@@ -2341,16 +2341,20 @@ const gateCases = {
   "wave-plan.mjs": () => {
     check("wave-plan.mjs", "documents the explicit issue selection mode", ["--help"], { status: 0, stdout: /--issues "ORB-a,\.\.\."/ })
     const body = (files) => `## Affected modules / files\n\n${files}\n`
-    const stub = (aFiles, bFiles) =>
+    const stubDescriptions = (aDescription, bDescription) =>
       orcaEnv([
         { match: "linear list-issues", stdout: JSON.stringify({ ok: true, result: { issues: [{ identifier: "ORB-201" }, { identifier: "ORB-202" }] } }) },
-        { match: "linear issue ORB-201", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-201", title: "first collision probe", description: body(aFiles), state: { name: "Todo", type: "unstarted" }, labels: [] }, relations: [] } }) },
-        { match: "linear issue ORB-202", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-202", title: "second collision probe", description: body(bFiles), state: { name: "Todo", type: "unstarted" }, labels: [] }, relations: [] } }) },
+        { match: "linear issue ORB-201", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-201", title: "first collision probe", description: aDescription, state: { name: "Todo", type: "unstarted" }, labels: [] }, relations: [] } }) },
+        { match: "linear issue ORB-202", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-202", title: "second collision probe", description: bDescription, state: { name: "Todo", type: "unstarted" }, labels: [] }, relations: [] } }) },
       ])
+    const stub = (aFiles, bFiles) => stubDescriptions(body(aFiles), body(bFiles))
     check("wave-plan.mjs", "two tickets naming a common path are reported as a collision pair", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /ORB-201 \+ ORB-202: tools\/test-tools\.mjs/ }, { env: stub("`tools/test-tools.mjs`", "`tools/test-tools.mjs`") })
     check("wave-plan.mjs", "two tickets naming disjoint paths report no collision", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /collisions: none/ }, { env: stub("`tools/a.mjs`", "`tools/b.mjs`") })
     check("wave-plan.mjs", "dynamic route segments stay part of disjoint paths", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /collisions: none/ }, { env: stub("`apps/web/app/r/[code]/page.tsx`", "`apps/web/app/(app)/social/challenges/[id]/page.tsx`") })
     check("wave-plan.mjs", "native paths collide even when each ticket also names a recognised tool path", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /ORB-201 \+ ORB-202: apps\/mobile\/android\/app\/src\/main\/java\/com\/orbit\/MainActivity\.kt/ }, { env: stub("`tools/a.mjs`\n`apps/mobile/android/app/src/main/java/com/orbit/MainActivity.kt`", "`tools/b.mjs`\n`apps/mobile/android/app/src/main/java/com/orbit/MainActivity.kt`") })
+    const fencedDescription = ["## Technical details", "```sh", "# Files affected: `scripts/deploy.sh`", "```", "## Affected modules / files", "`tools/test-tools.mjs`"].join("\n")
+    check("wave-plan.mjs", "a heading-shaped line inside a fence cannot shadow the affected section", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /ORB-201 \+ ORB-202: tools\/test-tools\.mjs/ }, { env: stubDescriptions(fencedDescription, body("`tools/test-tools.mjs`")) })
+    check("wave-plan.mjs", "a ticket with no affected section is reported as unknown", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /unknown \(no parseable path in Affected modules \/ files\): ORB-201/ }, { env: stubDescriptions("## Summary\n\nno affected section here\n", body("`tools/b.mjs`")) })
     check("wave-plan.mjs", "a ticket with no parseable affected path is reported as unknown", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /unknown \(no parseable path/ }, { env: stub("nothing recognisable here", "`tools/b.mjs`") })
     check("wave-plan.mjs", "the json output carries the same collision pair", ["--issues", "ORB-201,ORB-202", "--json"], { status: 0, stdout: /"files": \[\s*"tools\/test-tools\.mjs"/ }, { env: stub("`tools/test-tools.mjs`", "`tools/test-tools.mjs`") })
 

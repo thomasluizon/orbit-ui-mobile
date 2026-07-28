@@ -146,10 +146,30 @@ const DONE_TYPES = new Set(["completed", "canceled", "duplicate"])
  */
 const AFFECTED_PATH = /\.?[\w@][\w./\\@()[\]{}+-]*\.[a-z0-9][a-z0-9-]*/gi
 
+const affectedSectionOf = (description) => {
+  const lines = (description ?? "").split(/\r?\n/)
+  let fence = null
+  let section = null
+  for (const line of lines) {
+    const marker = line.match(/^\s*(`{3,}|~{3,})/)?.[1][0] ?? null
+    if (marker) {
+      if (!fence) fence = marker
+      else if (fence === marker) fence = null
+      if (section) section.push(line)
+      continue
+    }
+    if (!fence && /^#+[ \t]+/.test(line)) {
+      if (section) break
+      if (/^#+\s*(affected|files|modules)\b/i.test(line)) section = [line]
+      continue
+    }
+    if (section) section.push(line)
+  }
+  return section?.join("\n") ?? null
+}
+
 const affectedFilesOf = (description) => {
-  const section = (description ?? "")
-    .split(/(?=^#+[ \t]+)/m)
-    .find((chunk) => /^#+\s*(affected|files|modules)\b/im.test(chunk))
+  const section = affectedSectionOf(description)
   if (!section) return []
   return [...new Set((section.match(AFFECTED_PATH) ?? []).map((path) => path.replace(/\\/g, "/")))]
 }
