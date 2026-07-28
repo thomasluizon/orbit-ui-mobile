@@ -393,10 +393,21 @@ ONE PR at a time from the repository root:
 bash tools/merge-sweep.sh <owner/repo> <pr-number>
 ```
 
-One PR at a time is load-bearing, not a style choice. Under `--sleep`, this run is the
-only merge actor in the repository, so serialising each preflight and sweep is what
-keeps the base from advancing between the final `CLEAN` read and handoff. Re-batching
-PR numbers would reopen the stale-head window whenever an earlier PR merged.
+One PR at a time is load-bearing, not a style choice. Serialising each preflight and
+sweep keeps this run's own merges from advancing the base under a sibling PR.
+Re-batching PR numbers would reopen the stale-head window whenever an earlier PR
+merged. It does not control independent merge actors:
+`.github/workflows/dependabot-auto-merge.yml` can advance the base through a
+repository-level auto-merge.
+
+That independent actor leaves a residual race. Between the final `CLEAN` read and the
+script's own `gh pr update-branch`, a Dependabot auto-merge can advance the base. The
+script will then update the candidate and can merge a head the skill-owned gates never
+saw. The post-hoc expected-head comparison detects this outcome but cannot prevent it.
+Closing the gap requires `tools/merge-sweep.sh` to accept an expected head SHA and
+refuse to merge if updating or polling changes it. Thomas's decision for this ticket
+puts that script change out of scope, so this PR documents the gap and the closing
+report carries it to Thomas as a decision.
 
 The script owns the remaining mechanical merge decision. It repeats the branch update
 as a safety check, polls `mergeStateStatus`, rejects failed checks, requires
