@@ -332,6 +332,20 @@ const chatSurfacing = runHookResult(RAW_TOOL_HOOK, stopPayload(surfacedWavePlan)
 T("cc raw-tool: measured chat instruction -> 2", chatSurfacing.status, 2)
 T("cc raw-tool: measured chat instruction names /next", chatSurfacing.stderr.includes("/next"), true)
 
+for (const [label, text] of [
+  ["bare command", "node tools/wave-plan.mjs --all"],
+  ["inline command", "You can run `node tools/wave-plan.mjs --all` to see it."],
+  ["prose-prefixed run", "To find the next ticket, run node tools/wave-plan.mjs --all and read the top row."],
+  ["colon-prefixed run", "Run this: node tools/wave-plan.mjs --all"],
+  ["next prefix", "Next: node tools/wave-plan.mjs --all"],
+  ["just-do colon prefix", "Just do: node tools/wave-plan.mjs --all"],
+  ["just-do prefix", "Just do node tools/wave-plan.mjs --all"],
+  ["bash script prefix", "Just do: bash tools/merge-sweep.sh owner/repo 1"],
+  ["npx prefix", "Just do: npx --yes @orbit/cli check"],
+]) {
+  T(`cc raw-tool: round 3 ${label} -> 2`, runHook(RAW_TOOL_HOOK, stopPayload(text)), 2)
+}
+
 const standaloneCodeSpan = runHookResult(
   RAW_TOOL_HOOK,
   stopPayload(["Run this to refresh the order:", "", "`node tools/wave-plan.mjs --all`"].join("\n")),
@@ -371,6 +385,8 @@ for (const prose of [
 ]) {
   T(`cc raw-tool: npx prose "${prose}" -> 0`, runHook(RAW_TOOL_HOOK, stopPayload(prose)), 0)
 }
+T("cc raw-tool: ambiguous bare npx name -> 0", runHook(RAW_TOOL_HOOK, stopPayload("The package is invoked as npx cowsay.")), 0)
+T("cc raw-tool: npx package followed by a flag -> 2", runHook(RAW_TOOL_HOOK, stopPayload("Next: npx eslint --fix")), 2)
 
 const bareToolSurfacing = runHookResult(
   RAW_TOOL_HOOK,
@@ -425,6 +441,14 @@ T(
   runHook(
     RAW_TOOL_HOOK,
     stopPayload(["The captured `--help` output is:", "", "```bash", "node tools/wave-plan.mjs --all", "```"].join("\n")),
+  ),
+  0,
+)
+T(
+  "cc raw-tool: command quoted in a non-shell fence -> 0",
+  runHook(
+    RAW_TOOL_HOOK,
+    stopPayload(["The configuration value is:", "```json", "\"command\": \"node tools/wave-plan.mjs --all\"", "```"].join("\n")),
   ),
   0,
 )

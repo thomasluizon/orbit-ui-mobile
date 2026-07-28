@@ -15,18 +15,12 @@ import { filePathFrom, readStdinJson } from "./_lib/io.mjs"
 const APPEAL_SUFFIX = /\s+(?:#\s*)?Repo-tool appeal:\s*(\S.*)\s*$/i
 const COMMAND =
   /(?:node(?:\.exe)?\s+(?:\.?[\\/])?tools[\\/][a-z0-9_./\\-]+\.(?:mjs|cjs|js|ts)|npx(?:\.cmd)?\s+(?:(?:--yes|-y)\s+)?(?:@?[a-z0-9_][a-z0-9_./@-]*)|(?:\.?[\\/])?tools[\\/][a-z0-9_./\\-]+\.sh)(?:[ \t]+[^`\r\n]*)?/i
-const DIRECT_COMMAND =
-  /^\s*(?:(?:[-*+]|\d+[.)])\s+)?(?:[$>]\s*)?(?:node(?:\.exe)?\s+(?:\.?[\\/])?tools[\\/][a-z0-9_./\\-]+\.(?:mjs|cjs|js|ts)|npx(?:\.cmd)?\s+(?:(?:--yes|-y)\s+@?[a-z0-9_][a-z0-9_./@-]*|@[a-z0-9_][a-z0-9_.-]*\/[a-z0-9_][a-z0-9_.-]*|[a-z0-9_][a-z0-9_]*[./-][a-z0-9_./@-]*|[a-z0-9_][a-z0-9_.-]*@[^\s`]+|[a-z0-9_][a-z0-9_.-]*\s+--?[a-z0-9][a-z0-9-]*(?:=[^\s`]+)?)|(?:\.?[\\/])?tools[\\/][a-z0-9_./\\-]+\.sh)\b/i
-const NPX_COMMAND = /npx(?:\.cmd)?\s+/i
 const SHELL_FENCE = /^(?:bash|sh|shell|zsh|powershell|pwsh|cmd|console)?$/i
-const INSTRUCTION =
-  /\b(?:run|execute|invoke|use|type|enter|try|rerun|re-run|re-derive|regenerate|recreate|repeat|command|shell|terminal)\b/i
 const DOCUMENTATION =
-  /\b(?:skill body|agent body|ticket body|linear ticket|PR description|pull request description|tool help|internally|under the hood)\b|(?<![\p{L}\p{N}_-])(?:--help|help)[^\p{L}\p{N}_\r\n]+(?:output|text)\b/iu
+  /\b(?:skill body|agent body|ticket body|linear ticket|PR description|pull request description|tool help|internally|under the hood|inside (?:its|the) automation)\b|(?<![\p{L}\p{N}_-])(?:--help|help)[^\p{L}\p{N}_\r\n]+(?:output|text)\b/iu
 const DOCUMENT_PATH =
   /(?:^|[/\\])(?:\.claude[/\\](?:skills|agents|hooks)[/\\]|(?:ticket(?:-body)?|pr(?:-body|-description)?|pull-request-description|[A-Z][A-Z0-9]+-\d+)\.(?:md|txt)$)/i
 const HELP_PATH = /(?:^|[/\\])(?:help|.+--help)(?:[-_.].*)?\.(?:md|txt|log)$/i
-const INSTRUCTION_HEADING = /^#{1,6}\s+.*\b(?:instructions?|steps?|commands?|how to|run|usage|re-derive|regenerate)\b/i
 
 function commandFrom(line) {
   return (
@@ -49,10 +43,17 @@ function splitAppeal(line) {
   return { line: line.slice(0, appeal.index).trimEnd(), reason: appeal[1].trim() }
 }
 
-function surfacedCommands(text, source) {
+function isAmbiguousNpxName(command, insideFence) {
+  if (insideFence === "shell") return false
+  const invocation = /^npx(?:\.cmd)?\s+([^\s]+)(?:\s+(.*))?$/i.exec(command)
+  if (!invocation || /^(?:--yes|-y)$/i.test(invocation[1])) return false
+  if (/[./@-]/.test(invocation[1])) return false
+  return !invocation[2]?.trimStart().startsWith("-")
+}
+
+function surfacedCommands(text) {
   const lines = text.split(/\r?\n/)
   const surfaced = []
-  let underInstructionHeading = false
   let insideFence = null
 
   for (let index = 0; index < lines.length; index++) {
@@ -65,27 +66,15 @@ function surfacedCommands(text, source) {
       continue
     }
     if (insideFence === "documentation") continue
-
-    const heading = /^#{1,6}\s+/.test(line)
-    if (heading) underInstructionHeading = INSTRUCTION_HEADING.test(line)
+    if (insideFence === "other") continue
 
     const command = commandFrom(line)
     if (!command) continue
     const previousLine = previousNonemptyLine(lines, index)
     const framing = `${previousLine} ${line}`
     if (DOCUMENTATION.test(framing)) continue
-    const standaloneCodeSpan = /^\s*(?:(?:[-*+]|\d+[.)])\s+)?`[^`]+`\s*[.,;:]?\s*$/.test(line)
-    const imperative = INSTRUCTION.test(line.slice(0, line.search(COMMAND)))
-    const promptedNpx = NPX_COMMAND.test(command) && insideFence === "shell"
-    if (
-      DIRECT_COMMAND.test(line) ||
-      (standaloneCodeSpan && INSTRUCTION.test(previousLine)) ||
-      imperative ||
-      promptedNpx ||
-      (source === "artifact" && underInstructionHeading)
-    ) {
-      surfaced.push({ command, reason })
-    }
+    if (isAmbiguousNpxName(command, insideFence)) continue
+    surfaced.push({ command, reason })
   }
   return surfaced
 }
@@ -105,7 +94,7 @@ export function checkRawRepoToolSurfacing(text, { source = "chat", filePath = ""
   if (typeof text !== "string" || !text.trim()) return null
   if (source === "artifact" && (DOCUMENT_PATH.test(filePath) || HELP_PATH.test(filePath))) return null
 
-  const commands = surfacedCommands(text, source)
+  const commands = surfacedCommands(text)
   if (!commands.length) return null
 
   const unappealed = commands.find(({ reason }) => !reason)
