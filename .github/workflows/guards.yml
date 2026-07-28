@@ -102,6 +102,7 @@ jobs:
           node-version: 22
       - name: Report calibration drift
         # Report-only through 2026-08-11. Remove --report-only to make this blocking.
+        shell: bash
         run: node tools/check-calibration.mjs --report-only | tee -a "$GITHUB_STEP_SUMMARY"
 
   harness:

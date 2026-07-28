@@ -1800,6 +1800,9 @@ const calibrationDate = (daysAgo) => {
 
 const stageCalibration = (label, options = {}) => {
   const base = join(root, "calibration", label)
+  const currentModel = options.currentModel ?? "gpt-current"
+  const currentDefaultArgs = options.currentDefaultArgs ?? ["-c", 'model_reasoning_effort="high"']
+  const stampedModel = options.stampedModel ?? "gpt-current"
   mkdirSync(join(base, "tools", "lib"), { recursive: true })
   mkdirSync(join(base, ".claude", "agents"), { recursive: true })
   mkdirSync(join(base, ".claude", "skills", "sample"), { recursive: true })
@@ -1812,13 +1815,13 @@ const stageCalibration = (label, options = {}) => {
   writeFileSync(join(base, ".claude", "skills", "sample", "SKILL.md"), "---\nname: sample\n---\n")
   writeFileSync(
     join(base, ".claude", "orchestrator.json"),
-    JSON.stringify({
+    JSON.stringify(options.orchestrator ?? {
       worker: "codex",
       workers: {
         codex: {
           args: [],
           models: {
-            default: { model: options.currentModel ?? "gpt-current" },
+            default: { model: currentModel, args: currentDefaultArgs },
             cheap: { model: "gpt-cheap" },
             deep: { model: "gpt-deep" },
           },
@@ -1828,7 +1831,12 @@ const stageCalibration = (label, options = {}) => {
   )
   if (!options.missingArtifact) {
     const artifact = options.artifact ?? {
-      model: options.stampedModel ?? "gpt-current",
+      model: stampedModel,
+      invocation: options.stampedInvocation ?? [
+        ...currentDefaultArgs,
+        "--model",
+        stampedModel,
+      ],
       date: options.date ?? calibrationDate(0),
       entries: options.entries ?? [
         { file: ".claude/agents/sample.md", verdict: "kept", reason: "The bounded role still fits." },
@@ -1863,12 +1871,25 @@ const calibrationCases = () => {
 
   const mismatch = stageCalibration("model-mismatch", { stampedModel: "gpt-old" })
   check("check-calibration.mjs", "rejects a model mismatch", [], { status: 1, stdout: /model mismatch/ }, { path: mismatch })
+  const invocationMismatch = stageCalibration("invocation-mismatch", {
+    stampedInvocation: ["-c", 'model_reasoning_effort="medium"', "--model", "gpt-current"],
+  })
+  check(
+    "check-calibration.mjs",
+    "rejects a same-model default invocation change",
+    [],
+    { status: 1, stdout: /invocation mismatch/ },
+    { path: invocationMismatch },
+  )
   const refreshable = stageCalibration("refresh", { stampedModel: "gpt-old", date: calibrationDate(91) })
-  check("check-calibration.mjs", "refresh stamps the selected model and current date", ["--refresh"], { status: 0, stdout: /PASS/ }, { path: refreshable })
+  check("check-calibration.mjs", "refresh stamps the selected invocation and current date", ["--refresh"], { status: 0, stdout: /PASS/ }, { path: refreshable })
   const refreshedArtifact = JSON.parse(readFileSync(join(dirname(dirname(refreshable)), ".claude", "calibration.json"), "utf8"))
   T(
     "check-calibration.mjs: refresh wrote the live header",
-    refreshedArtifact.model === "gpt-current" && refreshedArtifact.date === calibrationDate(0),
+    refreshedArtifact.model === "gpt-current" &&
+      refreshedArtifact.date === calibrationDate(0) &&
+      JSON.stringify(refreshedArtifact.invocation) ===
+        JSON.stringify(["-c", 'model_reasoning_effort="high"', "--model", "gpt-current"]),
     JSON.stringify(refreshedArtifact),
   )
 
@@ -1883,10 +1904,46 @@ const calibrationCases = () => {
   const absent = stageCalibration("absent", { missingArtifact: true })
   check("check-calibration.mjs", "missing calibration is an operational error", [], { status: 2, stderr: /could not be read/ }, { path: absent })
 
+  const missingWorker = stageCalibration("missing-worker", {
+    orchestrator: { worker: "codex", workers: {} },
+  })
+  check(
+    "check-calibration.mjs",
+    "missing selected worker is an operational error",
+    [],
+    { status: 2, stderr: /worker engine "codex" is missing/ },
+    { path: missingWorker },
+  )
+  check(
+    "check-calibration.mjs",
+    "report-only neutralizes a missing selected worker",
+    ["--report-only"],
+    { status: 0, stdout: /report-only[\s\S]*worker engine "codex" is missing/ },
+    { path: missingWorker },
+  )
+  const invalidWorker = stageCalibration("invalid-worker", {
+    orchestrator: { worker: "codex", workers: { codex: { args: [], models: {} } } },
+  })
+  check(
+    "check-calibration.mjs",
+    "invalid selected worker is an operational error",
+    [],
+    { status: 2, stderr: /invalid models\.default mapping/ },
+    { path: invalidWorker },
+  )
+  check(
+    "check-calibration.mjs",
+    "report-only neutralizes an invalid selected worker",
+    ["--report-only"],
+    { status: 0, stdout: /report-only[\s\S]*invalid models\.default mapping/ },
+    { path: invalidWorker },
+  )
+
   for (const [label, path] of [
     ["missing entry", missing],
     ["stale entry", staleEntry],
     ["model mismatch", mismatch],
+    ["invocation mismatch", invocationMismatch],
     ["old stamp", tooOld],
     ["malformed artifact", malformed],
     ["missing artifact", absent],

@@ -71,6 +71,12 @@ function validateArtifactShape(artifact) {
   if (typeof artifact.model !== "string" || artifact.model.trim() === "") {
     problems.push("model must be a non-empty string")
   }
+  if (
+    !Array.isArray(artifact.invocation) ||
+    artifact.invocation.some((argument) => typeof argument !== "string")
+  ) {
+    problems.push("invocation must be an array of strings")
+  }
   if (!validIsoDate(artifact.date)) problems.push("date must be a real ISO date in YYYY-MM-DD form")
   if (!Array.isArray(artifact.entries)) {
     problems.push("entries must be an array")
@@ -120,13 +126,13 @@ function inventory() {
   return [...agentFiles, ...skillFiles].sort()
 }
 
-function declaredModel() {
+function declaredInvocation() {
   try {
     const config = readOrchestratorConfig()
     const workerName = config.worker
     const worker = config.workers?.[workerName]
-    resolveWorkerInvocation(workerName, worker, [])
-    return worker.models.default.model
+    const resolved = resolveWorkerInvocation(workerName, worker, [])
+    return { model: worker.models.default.model, invocation: resolved.args }
   } catch (error) {
     finishOperational(error.message)
   }
@@ -165,11 +171,12 @@ const shapeProblems = validateArtifactShape(artifact)
 if (shapeProblems.length > 0) finishOperational(`.claude/calibration.json is malformed: ${shapeProblems.join("; ")}`)
 
 const expectedFiles = inventory()
-const currentModel = declaredModel()
+const current = declaredInvocation()
 
 let problems = coverageProblems(expectedFiles, artifact.entries)
 if (refresh && problems.length === 0) {
-  artifact.model = currentModel
+  artifact.model = current.model
+  artifact.invocation = current.invocation
   artifact.date = new Date().toISOString().slice(0, 10)
   try {
     writeFileSync(CALIBRATION_PATH, `${JSON.stringify(artifact, null, 2)}\n`)
@@ -179,8 +186,16 @@ if (refresh && problems.length === 0) {
 }
 
 if (problems.length === 0) {
-  if (artifact.model !== currentModel) {
-    problems.push(`model mismatch: stamp ${JSON.stringify(artifact.model)}, orchestrator ${JSON.stringify(currentModel)}`)
+  if (artifact.model !== current.model) {
+    problems.push(`model mismatch: stamp ${JSON.stringify(artifact.model)}, orchestrator ${JSON.stringify(current.model)}`)
+  }
+  if (
+    artifact.invocation.length !== current.invocation.length ||
+    artifact.invocation.some((argument, index) => argument !== current.invocation[index])
+  ) {
+    problems.push(
+      `invocation mismatch: stamp ${JSON.stringify(artifact.invocation)}, orchestrator ${JSON.stringify(current.invocation)}`,
+    )
   }
   const today = Date.parse(`${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`)
   const stamped = Date.parse(`${artifact.date}T00:00:00.000Z`)
