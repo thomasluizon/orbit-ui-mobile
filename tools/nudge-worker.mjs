@@ -187,6 +187,50 @@ const readinessRefusalReason = () => {
   return `no known ready composer is on screen for the ${resolvedEngine} profile`
 }
 
+const staleBlockVerdict = (handle, blockedReason) => {
+  if (busy(handle)) {
+    return {
+      verdict: "blocked",
+      message: `orca reports ${blockedReason} and the TUI is repainting, so both signals say the worker is mid-turn`,
+    }
+  }
+  const { trustEngine, readyEngine, hasVerifiedReadiness, currentScreenLocated, statusStructureOnScreen, workingOnScreen } = screenSignals(handle, resolvedEngine)
+  if (!hasVerifiedReadiness) {
+    return {
+      verdict: "blocked",
+      message: `orca reports ${blockedReason}, the TUI is not repainting, but ${readinessRefusalReason()}, so the worker remains blocked`,
+    }
+  }
+  if (!currentScreenLocated) {
+    const trustReason = trustEngine
+      ? `the ${trustEngine} trust prompt is still on screen in retained tail`
+      : "no known trust prompt is on screen"
+    return {
+      verdict: "blocked",
+      message: `orca reports ${blockedReason}, the TUI is not repainting, but the current screen region could not be located because no ${resolvedEngine} composer marker is on screen, ${trustReason}, and no known ready composer is on screen, so the worker remains blocked`,
+    }
+  }
+  if (trustEngine) {
+    return {
+      verdict: "blocked",
+      message: `orca reports ${blockedReason}, the TUI is not repainting, and the ${trustEngine} trust prompt is still on screen, so the worker remains blocked`,
+    }
+  }
+  if (!readyEngine) {
+    const missingSignal = workingOnScreen
+      ? "the live working indicator follows the composer marker"
+      : "the live model, effort, separator and working-directory status structure is absent"
+    return {
+      verdict: "blocked",
+      message: `orca reports ${blockedReason}, the TUI is not repainting, and no known trust prompt is on screen, but no known ready composer is on screen for the ${resolvedEngine} profile because ${statusStructureOnScreen ? missingSignal : "the live model, effort, separator and working-directory status structure is absent"}, so the worker remains blocked`,
+    }
+  }
+  return {
+    verdict: "idle",
+    message: `orca reports ${blockedReason}, but the TUI is not repainting, no known trust prompt is on screen, and the ${readyEngine} ready composer is on screen with its status structure and no live working indicator, so the retained blocked reason is stale and the current screen and repaint signals win`,
+  }
+}
+
 let promptFile = null
 let update = ""
 if (promptFileArg) {
@@ -227,40 +271,12 @@ while (waitAttempts < waitAttemptsAllowed && !idle) {
     continue
   }
   if (wait.blockedReason === STALE_BLOCKED_REASON) {
-    if (!busy(terminal)) {
-      const { trustEngine, readyEngine, hasVerifiedReadiness, currentScreenLocated, statusStructureOnScreen, workingOnScreen } = screenSignals(terminal, resolvedEngine)
-      if (!hasVerifiedReadiness) {
-        const engineReason = readinessRefusalReason()
-        console.error(`attempt ${waitAttempts}: orca reports ${wait.blockedReason}, the TUI is not repainting, but ${engineReason}, so the worker remains blocked`)
-        if (waitAttempts < waitAttemptsAllowed) pause(SETTLE_MS)
-        continue
-      }
-      if (!currentScreenLocated) {
-        const trustReason = trustEngine
-          ? `the ${trustEngine} trust prompt is still on screen in retained tail`
-          : "no known trust prompt is on screen"
-        console.error(`attempt ${waitAttempts}: orca reports ${wait.blockedReason}, the TUI is not repainting, but the current screen region could not be located because no ${resolvedEngine} composer marker is on screen, ${trustReason}, and no known ready composer is on screen, so the worker remains blocked`)
-        if (waitAttempts < waitAttemptsAllowed) pause(SETTLE_MS)
-        continue
-      }
-      if (trustEngine) {
-        console.error(`attempt ${waitAttempts}: orca reports ${wait.blockedReason}, the TUI is not repainting, and the ${trustEngine} trust prompt is still on screen, so the worker remains blocked`)
-        if (waitAttempts < waitAttemptsAllowed) pause(SETTLE_MS)
-        continue
-      }
-      if (!readyEngine) {
-        const missingSignal = workingOnScreen
-          ? "the live working indicator follows the composer marker"
-          : "the live model, effort, separator and working-directory status structure is absent"
-        console.error(`attempt ${waitAttempts}: orca reports ${wait.blockedReason}, the TUI is not repainting, and no known trust prompt is on screen, but no known ready composer is on screen for the ${resolvedEngine} profile because ${statusStructureOnScreen ? missingSignal : "the live model, effort, separator and working-directory status structure is absent"}, so the worker remains blocked`)
-        if (waitAttempts < waitAttemptsAllowed) pause(SETTLE_MS)
-        continue
-      }
-      console.error(`attempt ${waitAttempts}: orca reports ${wait.blockedReason}, but the TUI is not repainting, no known trust prompt is on screen, and the ${readyEngine} ready composer is on screen with its status structure and no live working indicator, so the retained blocked reason is stale and the current screen and repaint signals win`)
+    const { verdict, message } = staleBlockVerdict(terminal, wait.blockedReason)
+    console.error(`attempt ${waitAttempts}: ${message}`)
+    if (verdict === "idle") {
       idle = true
       break
     }
-    console.error(`attempt ${waitAttempts}: orca reports ${wait.blockedReason} and the TUI is repainting, so both signals say the worker is mid-turn`)
     if (waitAttempts < waitAttemptsAllowed) pause(SETTLE_MS)
     continue
   }
