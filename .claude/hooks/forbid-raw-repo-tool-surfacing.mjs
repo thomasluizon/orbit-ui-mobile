@@ -28,6 +28,7 @@ const DOCUMENTATION =
 const INTERNAL_DOCUMENTATION = /\b(?:internally|under the hood|inside (?:its|the) automation)\b/i
 const SECOND_PERSON_RUN =
   /\b(?:you|you['’](?:d|ll)|you\s+(?:can|could|may|might|must|should|will|would)|you\s+(?:have|need|ought)\s+to)\s+(?:(?:just|simply)\s+)?run(?:\s+(?:this|it|the command))?\s*$/i
+const DESCRIPTIVE_OWNER = /^\s*(?:the|this)\s+(?:implementation|orchestrator|skill|agent)\b/i
 const DOCUMENT_BASENAME = /^(?:ticket(?:-body)?|pr(?:-body|-description)?|pull-request-description)\.(?:md|txt)$/i
 const TICKET_BASENAME = /^ORB-\d+\.(?:md|txt)$/
 const HELP_BASENAME = /^(?:help|.+--help)(?:[-_.].*)?\.(?:md|txt|log)$/i
@@ -292,14 +293,16 @@ function commandContexts(segmentText, insideFence, inheritedAmbiguity) {
         const command = atom.text.slice(match.index, end).trim().replace(/[.,;:]+$/, "")
         const previous = atom.kind === "code" && atoms[atomIndex - 1]?.kind === "prose" ? atoms[atomIndex - 1].text : ""
         const following = atom.kind === "code" && atoms[atomIndex + 1]?.kind === "prose" ? atoms[atomIndex + 1].text : ""
+        const prefix = `${previous}${atom.text.slice(0, match.index)}`
         contexts.push({
           ambiguous: inheritedAmbiguity || clauseAmbiguity,
           clauseText: `${previous}${atom.text}${following}`,
           command,
-          documentationText: atom.kind === "code" ? `${previous}${following}` : atom.text,
+          documentationPrefix: atom.kind === "code" ? previous : prefix,
+          documentationSuffix: atom.kind === "code" ? following : atom.text.slice(match.end),
           insideCode: atom.kind === "code",
           insideFence,
-          prefix: `${previous}${atom.text.slice(0, match.index)}`,
+          prefix,
         })
       }
     }
@@ -335,7 +338,11 @@ function surfacedCommands(text) {
       const segmentCommands = []
       for (const context of contexts) {
         const instructionFramed = hasInstructionFraming(context.prefix)
-        const documented = DOCUMENTATION.test(context.documentationText) && !instructionFramed
+        const documentedPrefix = DOCUMENTATION.test(context.documentationPrefix)
+        const documentedSuffix =
+          DOCUMENTATION.test(context.documentationSuffix) &&
+          (!context.documentationPrefix.trim() || DESCRIPTIVE_OWNER.test(context.documentationPrefix))
+        const documented = (documentedPrefix || documentedSuffix) && !instructionFramed
         const descriptiveNpx = isClearlyDescriptiveNpxMention(context.command, context)
         if (!context.ambiguous && (documented || descriptiveNpx)) continue
         segmentCommands.push({ command: context.command, reason: null })
