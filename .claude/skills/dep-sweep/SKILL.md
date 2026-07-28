@@ -2,6 +2,7 @@
 name: dep-sweep
 description: Monthly cross-repo non-security dependency freshness sweep. Bumps apps/web + packages/shared npm minor/patch (the only surfaces with no version automation), defers apps/mobile entirely to Expo's own tooling (never generic-bumps SDK-pinned packages), and reports orbit-api NuGet drift (Dependabot owns the bumps there). Runs the affected test suites and opens one PR. Use when the monthly "Dependency sweep" reminder issue fires, or when the user asks to refresh dependencies. NOT for security patches (Dependabot security updates auto-flow) and NOT for Expo SDK upgrades (use the upgrading-expo skill).
 argument-hint: <blank = full sweep>
+effort: medium
 ---
 
 # Dependency Sweep

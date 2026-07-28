@@ -86,6 +86,7 @@ Grep a doc's `At a glance` header before loading the whole file.
 | `TESTING.md` | How to write tests here + the catalog of every suite and what each proves. |
 | `architecture.json` / `architecture.html` | The generated architecture map (routes and screens with parity pairs, endpoints, i18n key ownership), kept fresh by the `arch-map.yml` drift gate. What an agent reads INSTEAD of exploring the codebase. |
 | `tools/context-budget.json` | The seeded shrink-only byte baseline for repo-visible always-loaded context. `tools/check-context-budget.mjs` also guards sibling `@` imports and unconditional rules files; the Context Budget CI job enforces both. |
+| `.claude/calibration.json` | The dated worker-model calibration stamp: exactly one kept-or-changed verdict for every skill and agent, checked against the declared orchestrator model and a 90-day maximum age by `tools/check-calibration.mjs`. |
 | `.claude/rules/core.md` | The ~50 lines of judgement that auto-load on EVERY turn. A rule earns a place only if it applies in any turn AND no skill invocation reliably precedes it. Everything in `.claude/rules/` is paid for on every turn of every session, so treat additions here as expensive. |
 | `.claude/playbooks/` | On-demand judgement that no gate can check. Read `context-engineering.md` before authoring agent context or configuring agent tool scoping. |
 | `.claude/manifests/surfaces.json` | Generated visual-surface inventory; owned by `tools/surface-manifest.mjs`. |
