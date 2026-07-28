@@ -1,6 +1,7 @@
 ---
 name: android-generate
 description: Build the Android APK for the mobile app by running npm run android:apk. Use when the user asks to generate, build, or produce an Android APK / release / install file for apps/mobile.
+effort: low
 ---
 
 # Android Generate
