@@ -71,8 +71,9 @@ const mentionsIssueDependency = (body) => {
     .find((section) => /^#+\s*dependencies\b/im.test(section))
   const dependencyProse = dependencySection?.replace(/^#+[^\n]*(?:\n|$)/, "") ?? ""
   const signal = /\b(after|once|depends on|blocked by)\b/i
+  const issueIdentifier = /\b[A-Z][A-Z0-9]+-\d+\b/
   const signalNamingIssue = /\b(after|once|depends on|blocked by)\b[^\n.!?]{0,80}\b[A-Z][A-Z0-9]+-\d+\b/i
-  return signal.test(dependencyProse) || signalNamingIssue.test(body)
+  return signal.test(dependencyProse) || issueIdentifier.test(dependencyProse) || signalNamingIssue.test(body)
 }
 
 const validateTitle = (title) => {
