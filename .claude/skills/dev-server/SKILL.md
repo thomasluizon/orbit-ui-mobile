@@ -2,6 +2,7 @@
 name: dev-server
 description: Bring up the full Orbit local stack for manual/visual testing — Docker Postgres, then the orbit-api .NET backend, then the web dev server — in dependency order with readiness gates. Use when the user wants to run the app locally, start the dev server, spin up the local stack, or view web changes in a browser.
 argument-hint: "[web-only | up | down | status]"
+effort: low
 ---
 
 # Dev Server — full local Orbit stack
