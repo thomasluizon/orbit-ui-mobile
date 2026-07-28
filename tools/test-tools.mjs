@@ -527,8 +527,9 @@ const REQUIRED_CONTRACT_CLAUSES = {
   "asking a question": /Never ask a question/,
   "dropping a blocked criterion": /A blocked sub-step never blocks the PR/,
   "owning its automated review cycle": /Own the automated review cycle[\s\S]*approved with zero unresolved threads/,
-  "replying with the fix commit before resolving": /reply on that thread naming[\s\S]*the fix commit, then resolve it/,
+  "replying with the fix commit before resolving": /reply on that thread naming[\s\S]*the fix commit, then[\s\S]*resolve it/,
   "acknowledging non-thread review activity": /review body or PR conversation[\s\S]*activity ID[\s\S]*PR commit/,
+  "resolving informational findings with audited evidence": /informational automated finding[\s\S]*No code change required: <reason>\. Evidence: <PR commit>[\s\S]*change the reviewed path/,
   "escalating a disagreement": /Escalate when you disagree with a finding/,
   "escalating a blocked decision": /when you are[\s\S]*blocked on a decision you may not make/,
   "escalating after two failed cycles": /when two consecutive cycles fail on the same[\s\S]*finding/,
@@ -1614,7 +1615,19 @@ const stageWorkerStatusWorktree = () => {
   return { fixCommit, unrelatedCommit, prHead: unrelatedCommit, worktree }
 }
 
-const workerStatusPlan = (attachments, { comments = [], prHead, reviews = [], reviewThreads = [] } = {}) => [
+const workerStatusPlan = (
+  attachments,
+  {
+    comments = [],
+    commentsHasNextPage = false,
+    prHead,
+    reviewDecision = "APPROVED",
+    reviews = [],
+    reviewsHasNextPage = false,
+    reviewThreads = [],
+    reviewThreadsHasNextPage = false,
+  } = {},
+) => [
   {
     match: "pr list",
     stdout: JSON.stringify([{ number: 75, url: "https://github.com/orbit/orbit/pull/75", state: "OPEN", baseRefName: "main", isDraft: false }]),
@@ -1627,10 +1640,10 @@ const workerStatusPlan = (attachments, { comments = [], prHead, reviews = [], re
         repository: {
           pullRequest: {
             headRefOid: prHead,
-            reviewDecision: "APPROVED",
-            reviews: { pageInfo: { hasNextPage: false }, nodes: reviews },
-            comments: { pageInfo: { hasNextPage: false }, nodes: comments },
-            reviewThreads: { pageInfo: { hasNextPage: false }, nodes: reviewThreads },
+            reviewDecision,
+            reviews: { pageInfo: { hasNextPage: reviewsHasNextPage }, nodes: reviews },
+            comments: { pageInfo: { hasNextPage: commentsHasNextPage }, nodes: comments },
+            reviewThreads: { pageInfo: { hasNextPage: reviewThreadsHasNextPage }, nodes: reviewThreads },
           },
         },
       },
@@ -1671,9 +1684,13 @@ const runWorkerStatusCase = (fixture, attachments, options = {}) => {
         ...orcaEnv(
           workerStatusPlan(attachments, {
             comments: options.comments,
+            commentsHasNextPage: options.commentsHasNextPage,
             prHead: options.prHead ?? fixture.prHead,
+            reviewDecision: options.reviewDecision,
             reviews: options.reviews,
+            reviewsHasNextPage: options.reviewsHasNextPage,
             reviewThreads: options.reviewThreads,
+            reviewThreadsHasNextPage: options.reviewThreadsHasNextPage,
           }),
         ),
         ...(options.log ? { ORBIT_ORCA_LOG: options.log } : {}),
@@ -2649,6 +2666,38 @@ const gateCases = {
         complete.verdict.checks.find((entry) => entry.name === "critique-attached")?.ok === true,
       `exit ${complete.status}\n     ${(complete.stderr || complete.stdout).slice(0, 600)}`,
     )
+    const changesRequested = runWorkerStatusCase(fixture, [screenshot, critique], { reviewDecision: "CHANGES_REQUESTED" })
+    T(
+      "worker-status.mjs: a non-approved pull request does not report done",
+      changesRequested.status === 1 &&
+        changesRequested.verdict?.unmet.length === 1 &&
+        changesRequested.verdict.unmet[0] === "review-approved",
+      `exit ${changesRequested.status}\n     ${(changesRequested.stderr || changesRequested.stdout).slice(0, 600)}`,
+    )
+    const nestedPaginatedThread = reviewThread({
+      author: "claude[bot]",
+      authorType: "Bot",
+      id: "PRRT_paginated_comments",
+      isResolved: true,
+      resolvedBy: "worker",
+      reply: "No code change required: informational note only",
+    })
+    nestedPaginatedThread.comments.pageInfo.hasNextPage = true
+    for (const [label, options] of [
+      ["review threads", { reviewThreadsHasNextPage: true }],
+      ["review bodies", { reviewsHasNextPage: true }],
+      ["PR conversation comments", { commentsHasNextPage: true }],
+      ["nested thread comments", { reviewThreads: [nestedPaginatedThread] }],
+    ]) {
+      const paginated = runWorkerStatusCase(fixture, [screenshot, critique], options)
+      T(
+        `worker-status.mjs: ${label} pagination fails the review inventory closed`,
+        paginated.status === 1 &&
+          paginated.verdict?.unmet.length === 1 &&
+          paginated.verdict.unmet[0] === "review-thread-inventory",
+        `exit ${paginated.status}\n     ${(paginated.stderr || paginated.stdout).slice(0, 600)}`,
+      )
+    }
     const linearUpload = {
       title: "about capture",
       url: "https://uploads.linear.app/8c329d15-b91e-47ac-9389-1b230452249d",
@@ -2703,6 +2752,42 @@ const gateCases = {
         fixed.verdict?.ok === true &&
         fixed.verdict.checks.find((entry) => entry.name === "pr-head-match")?.ok === true,
       `exit ${fixed.status}\n     ${(fixed.stderr || fixed.stdout).slice(0, 600)}`,
+    )
+    const informationalThread = reviewThread({
+      author: "claude[bot]",
+      authorType: "Bot",
+      id: "PRRT_informational",
+      isResolved: true,
+      resolvedBy: "worker",
+      reply: `No code change required: the reviewer only confirmed the expected behavior. Evidence: ${fixture.fixCommit}`,
+    })
+    const informational = runWorkerStatusCase(fixture, [screenshot, critique], {
+      reviewThreads: [informationalThread],
+      verifyReview: true,
+    })
+    T(
+      "worker-status.mjs: an informational automated finding passes with an explicit no-change reason",
+      informational.status === 0 &&
+        informational.verdict?.checks.find((entry) => entry.name === "resolved-thread-fixes")?.ok === true,
+      `exit ${informational.status}\n     ${(informational.stderr || informational.stdout).slice(0, 600)}`,
+    )
+    const unauditedInformationalThread = reviewThread({
+      author: "claude[bot]",
+      authorType: "Bot",
+      id: "PRRT_informational_unaudited",
+      isResolved: true,
+      resolvedBy: "worker",
+      reply: "No code change required: the reviewer only confirmed the expected behavior",
+    })
+    const unauditedInformational = runWorkerStatusCase(fixture, [screenshot, critique], {
+      reviewThreads: [unauditedInformationalThread],
+      verifyReview: true,
+    })
+    T(
+      "worker-status.mjs: a bare informational explanation cannot bypass diff evidence",
+      unauditedInformational.status === 1 &&
+        unauditedInformational.verdict?.checks.find((entry) => entry.name === "resolved-thread-fixes")?.ok === false,
+      `exit ${unauditedInformational.status}\n     ${(unauditedInformational.stderr || unauditedInformational.stdout).slice(0, 600)}`,
     )
     const standaloneReview = {
       id: "PRR_standalone",

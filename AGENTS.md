@@ -18,6 +18,11 @@ before writing code.
   naming the fix commit, resolve the thread, and repeat until the review decision is
   approved with zero unresolved threads. Never resolve a thread opened by a human,
   and never report completion while any thread remains unresolved.
+- Use `node tools/pr-watch.mjs --repo <owner/name> --pr <number> --once` for each
+  transition poll. An informational automated finding that needs no code change may
+  be resolved after replying with
+  `No code change required: <reason>. Evidence: <PR commit>`. The named commit must
+  be on the PR and change the reviewed path.
 - For an automated finding in a review body or PR conversation comment with no
   thread, post a PR comment naming that activity ID and the PR commit that addresses
   it so the pre-merge verification can prove it was handled.

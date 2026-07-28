@@ -169,7 +169,9 @@ const threadHasFix = (thread) => {
   }
   return false
 }
-const automatedResolvedWithoutFix = reviewThreads.filter((thread) => automatedAuthor(thread.comments?.nodes?.[0]?.author) && thread.isResolved && !threadHasFix(thread))
+const automatedResolvedWithoutFix = reviewThreads.filter(
+  (thread) => automatedAuthor(thread.comments?.nodes?.[0]?.author) && thread.isResolved && !threadHasFix(thread),
+)
 const workerResolvedHumanThreads = reviewThreads.filter(
   (thread) => !automatedAuthor(thread.comments?.nodes?.[0]?.author) && thread.isResolved && thread.resolvedBy?.login === workerLogin,
 )

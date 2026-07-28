@@ -314,6 +314,10 @@ worker report:
   that finding's review body and the worker's reasoning, reconcile it against the diff (D8), and
   adjudicate it. Do not load unrelated review bodies.
 
+An informational automated finding that needs no code change is handled by the worker replying
+`No code change required: <reason>. Evidence: <PR commit>`, naming a commit on the PR that
+changed the reviewed path, and resolving it. It is neither a disagreement nor an escalation.
+
 The worker's two failed cycles on one review finding trigger escalation, not D9. D9 still counts
 failed ticket-body implementation cycles and is unchanged.
 
