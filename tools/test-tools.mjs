@@ -469,6 +469,7 @@ const stageTierLabels = (label, models = CODEX_MODELS) => {
     JSON.stringify({
       worker: "codex",
       workers: { codex: { ...INTERACTIVE_CODEX, models } },
+      maxParallelWorktrees: 8,
       linear: { team: "ORB" },
       repos: {},
     }),
