@@ -671,6 +671,16 @@ const CODEX_READY_PLACEHOLDER_CASES = [
   ["write-tests", "› Write tests for @filename"],
   ["list-skills", "› Use /skills to list available skills"],
 ]
+/**
+ * WHY: Captured 2026-07-28 from three live Codex composers. Placeholder text rotates, while
+ * every ready region carries model, effort, separator and working-directory structure.
+ * https://github.com/thomasluizon/orbit-ui-mobile/pull/629
+ *
+ * › Run /review on my current changes gpt-5.6-sol high · ~\orca\workspaces\orbit-ui-mobile\orb-106-... · Main [default]
+ * › Improve documentation in @filename gpt-5.6-sol high · ~\orca\workspaces\orbit-ui-mobile\orb-113-...
+ * › Explain this codebase gpt-5.6-sol high · ~\orca\workspaces\orbit-ui-mobile\orb-122-... · Main [default]
+ */
+const CODEX_STATUS_STRUCTURE = "gpt-5.6-sol high · ~\\orca\\workspaces\\orbit-ui-mobile\\orb-129-nudge-worker-is-unreachable-when-orca · Main [default]"
 const MEASURED_CODEX_READY_TAIL = [
   "Working (52s · esc to interrupt)",
   "a · Main [default]",
@@ -691,11 +701,12 @@ const LIVE_CODEX_SAMPLE_CASES = [
   ["term-65aa37cd-busy", "refuses the live busy composer shape", [
     "a · Main [default]",
     "› Improve documentation in @filename",
+    CODEX_STATUS_STRUCTURE,
     "(7s • esc to interrupt)",
   ], false],
   ["term-652dd931-idle", "recognizes the second live idle composer shape", [
-    "gpt-5.6-sol high · ~\\orca\\workspaces\\orbit-ui-mobile\\orb-129-nudge-worker-is-unreachable-when-orca · Main [default]",
     "› Use /skills to list available skills",
+    CODEX_STATUS_STRUCTURE,
   ], true],
 ]
 /** A settled TUI emits nothing, so lastOutputAt is the SAME on both samples. */
@@ -712,6 +723,7 @@ const staleBlockedIdleStub = (tail) => [
 ]
 const WORKING_COMPOSER_IDLE_STUB = staleBlockedIdleStub([
   "› Explain this codebase",
+  CODEX_STATUS_STRUCTURE,
   "Working (52s · esc to interrupt)",
 ])
 const LIVE_BLOCKED_IDLE_STUB = [
@@ -724,10 +736,22 @@ const ANSWERED_TRUST_BEFORE_READY_TAIL = [
   "Do you trust the contents of this directory?",
   "Trust once and continue",
   "› Explain this codebase",
+  CODEX_STATUS_STRUCTURE,
 ]
 const LIVE_TRUST_AFTER_COMPOSER_TAIL = [
   "› Explain this codebase",
+  CODEX_STATUS_STRUCTURE,
   "Do you trust the contents of this directory?",
+]
+const RETAINED_COMPOSER_STATIC_SCREEN_TAIL = [
+  "› Run /review on my current changes",
+  "Permission required",
+  "Allow this command?",
+  "[y] Yes  [n] No",
+]
+const ALTERNATE_MODEL_READY_TAIL = [
+  "› Explain this codebase",
+  "orbit-coder.v2 ultra · C:\\worktrees\\orbit-ui-mobile\\orb-129 · Main [default]",
 ]
 const UNRECOGNIZED_BLOCKED_IDLE_STUB = [
   { match: "terminal wait", stdout: STALE_BLOCKED_WAIT, exit: 0 },
@@ -771,11 +795,13 @@ const nudgeWorkerCases = () => {
   check("nudge-worker.mjs", "an orca failure that is not a timeout is a tool error", ["--terminal", "t1", "--text", "hi", "--wait-attempts", "1"], { status: 3, stderr: /unknown handle/ }, { env: orcaEnv(BROKEN_STUB) })
   runNudgeSignalCase("both-idle", "sends once both signals say the worker is idle", IDLE_STUB, { status: 0, stdout: /"sent": "hi"/ }, 1)
   for (const [label, placeholder] of CODEX_READY_PLACEHOLDER_CASES) {
-    const readyTail = ["Worked for 13m 01s", "PR opened and issue moved to In Review", placeholder]
+    const readyTail = ["Worked for 13m 01s", "PR opened and issue moved to In Review", placeholder, CODEX_STATUS_STRUCTURE]
     runNudgeSignalCase(`stale-block-${label}`, `trusts the codex ready composer structure with ${placeholder}`, staleBlockedIdleStub(readyTail), { status: 0, stdout: /"sent": "hi"/, stderr: /codex-trust-workspace[\s\S]*not repainting[\s\S]*no known trust prompt[\s\S]*codex ready composer is on screen[\s\S]*blocked reason is stale[\s\S]*screen and repaint signals win/ }, 1)
   }
+  runNudgeSignalCase("retained-composer-static-screen", "refuses a retained composer marker followed by a static permission screen", staleBlockedIdleStub(RETAINED_COMPOSER_STATIC_SCREEN_TAIL), { status: 1, stderr: /no known ready composer is on screen[\s\S]*NOTHING was sent/ }, 0)
   runNudgeSignalCase("measured-ready-composer", "trusts the measured idle codex tail despite a historical working indicator", staleBlockedIdleStub(MEASURED_CODEX_READY_TAIL), { status: 0, stdout: /"sent": "hi"/, stderr: /codex ready composer is on screen/ }, 1)
   runNudgeSignalCase("measured-working-composer", "refuses the measured codex tail with a live working indicator after the composer", staleBlockedIdleStub(MEASURED_CODEX_WORKING_TAIL), { status: 1, stderr: /no known ready composer is on screen[\s\S]*NOTHING was sent/ }, 0)
+  runNudgeSignalCase("alternate-model-ready-composer", "recognizes structural status with a different codex model and effort", staleBlockedIdleStub(ALTERNATE_MODEL_READY_TAIL), { status: 0, stdout: /"sent": "hi"/, stderr: /codex ready composer is on screen/ }, 1)
   for (const [label, name, tail, ready] of LIVE_CODEX_SAMPLE_CASES) {
     const expect = ready
       ? { status: 0, stdout: /"sent": "hi"/, stderr: /codex ready composer is on screen/ }
@@ -801,7 +827,7 @@ const nudgeWorkerCases = () => {
   runNudgeSignalCase("missing-profile", "fails closed when the orchestrator worker is missing", staleBlockedIdleStub(["› Explain this codebase"]), { status: 1, stderr: /engine "<missing>" from \.claude\/orchestrator\.json worker does not resolve[\s\S]*NOTHING was sent/ }, 0, { path: missingProfile.path })
   const claudeProfile = stageNudgeWorker("claude-profile", "claude")
   runNudgeSignalCase("configured-claude-profile", "fails closed for the configured unverified claude profile", staleBlockedIdleStub(incidentalGreaterThanTail), { status: 1, stderr: /claude readiness profile is unverified[\s\S]*captured Claude Code composer screen with and without a live working indicator[\s\S]*pull\/629[\s\S]*NOTHING was sent/ }, 0, { path: claudeProfile.path })
-  runNudgeSignalCase("engine-override", "--engine overrides a disagreeing orchestrator worker", staleBlockedIdleStub(["› Explain this codebase"]), { status: 0, stdout: /"engine": "codex"[\s\S]*"engineSource": "--engine"/ }, 1, { path: claudeProfile.path, argv: ["--engine", "codex"] })
+  runNudgeSignalCase("engine-override", "--engine overrides a disagreeing orchestrator worker", staleBlockedIdleStub(["› Explain this codebase", CODEX_STATUS_STRUCTURE]), { status: 0, stdout: /"engine": "codex"[\s\S]*"engineSource": "--engine"/ }, 1, { path: claudeProfile.path, argv: ["--engine", "codex"] })
   const pauseProbe = stageNudgeWorker("pause-probe", "codex", true)
   const pauseLog = join(pauseProbe.base, "pause.log")
   runNudgeSignalCase("trust-prompt-pause", "settles before retrying a trust prompt that remains on screen", LIVE_BLOCKED_IDLE_STUB, { status: 1, stderr: /attempt 1:[\s\S]*trust prompt is still on screen[\s\S]*attempt 2:[\s\S]*trust prompt is still on screen[\s\S]*NOTHING was sent/ }, 0, {

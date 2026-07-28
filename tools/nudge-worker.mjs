@@ -50,7 +50,7 @@ const ORCA = process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs
 /** One wait is a full minute; three of them is a worker that is genuinely working, not one that is stuck. */
 const WAIT_TIMEOUT_MS = 60000
 const STALE_BLOCKED_REASON = "codex-trust-workspace"
-// WHY: ORB-129 measured the Codex marker/no-working predicate against three live terminals plus the repaint oracle; readiness stays absent for unmeasured engines. https://github.com/thomasluizon/orbit-ui-mobile/pull/629
+// WHY: ORB-129 measured Codex marker/status/no-working structure against three live terminals; readiness stays absent for unmeasured engines. https://github.com/thomasluizon/orbit-ui-mobile/pull/629
 const ENGINE_PROFILES = {
   claude: {
     // WHY: No Claude worker ran during ORB-129, so readiness stays disabled pending captured composer screens with and without a live working indicator. https://github.com/thomasluizon/orbit-ui-mobile/pull/629
@@ -59,6 +59,7 @@ const ENGINE_PROFILES = {
   codex: {
     trustOnScreen: /doyoutrustthecontentsofthisdirectory/,
     composerMarker: "›",
+    statusOnScreen: /(?:^| )[a-z0-9][a-z0-9._/-]* (?:low|medium|high|xhigh|max|ultra) · (?:~[\\/]|[a-z]:[\\/]|\/)[^·]+/,
     workingOnScreen: /esctointerrupt/,
   },
 }
@@ -144,15 +145,17 @@ const busy = (handle) => isRepainting(orca, handle)
 
 const screenSignals = (handle, resolvedEngine) => {
   const tail = (orca(["terminal", "read", "--terminal", handle, "--limit", "60"]).terminal?.tail ?? []).join("\n")
-  const screen = flatten(tail)
+  const screen = tail.replace(/\s+/g, " ").toLowerCase()
   const profile = resolvedEngine ? ENGINE_PROFILES[resolvedEngine] : null
-  const hasVerifiedReadiness = Boolean(profile?.composerMarker && profile?.workingOnScreen)
+  const hasVerifiedReadiness = Boolean(profile?.composerMarker && profile?.statusOnScreen && profile?.workingOnScreen)
   const composerIndex = hasVerifiedReadiness ? screen.lastIndexOf(profile.composerMarker) : -1
   const currentScreen = composerIndex === -1 ? null : screen.slice(composerIndex)
-  const trustScreen = currentScreen ?? screen
+  const trustScreen = flatten(currentScreen ?? screen)
   const trustEngine = Object.entries(ENGINE_PROFILES).find(([, candidate]) => candidate.trustOnScreen.test(trustScreen))?.[0] ?? null
-  const readyEngine = currentScreen && !profile.workingOnScreen.test(currentScreen) ? resolvedEngine : null
-  return { trustEngine, readyEngine, hasVerifiedReadiness, currentScreenLocated: currentScreen !== null }
+  const statusStructureOnScreen = Boolean(currentScreen && profile.statusOnScreen.test(currentScreen))
+  const workingOnScreen = Boolean(currentScreen && profile.workingOnScreen.test(flatten(currentScreen)))
+  const readyEngine = currentScreen && statusStructureOnScreen && !workingOnScreen ? resolvedEngine : null
+  return { trustEngine, readyEngine, hasVerifiedReadiness, currentScreenLocated: currentScreen !== null, statusStructureOnScreen, workingOnScreen }
 }
 
 const terminal = argOf("--terminal")
@@ -178,7 +181,7 @@ const displayedEngine = normalizedEngine || "<missing>"
 const readinessRefusalReason = () => {
   if (!resolvedEngine) return `engine "${displayedEngine}" from ${engineSource} does not resolve to a known readiness profile`
   const profile = ENGINE_PROFILES[resolvedEngine]
-  if (!profile.composerMarker || !profile.workingOnScreen) {
+  if (!profile.composerMarker || !profile.statusOnScreen || !profile.workingOnScreen) {
     return `the ${resolvedEngine} readiness profile is unverified; enabling it requires a captured Claude Code composer screen with and without a live working indicator; see https://github.com/thomasluizon/orbit-ui-mobile/pull/629`
   }
   return `no known ready composer is on screen for the ${resolvedEngine} profile`
@@ -225,7 +228,7 @@ while (waitAttempts < waitAttemptsAllowed && !idle) {
   }
   if (wait.blockedReason === STALE_BLOCKED_REASON) {
     if (!busy(terminal)) {
-      const { trustEngine, readyEngine, hasVerifiedReadiness, currentScreenLocated } = screenSignals(terminal, resolvedEngine)
+      const { trustEngine, readyEngine, hasVerifiedReadiness, currentScreenLocated, statusStructureOnScreen, workingOnScreen } = screenSignals(terminal, resolvedEngine)
       if (!hasVerifiedReadiness) {
         const engineReason = readinessRefusalReason()
         console.error(`attempt ${waitAttempts}: orca reports ${wait.blockedReason}, the TUI is not repainting, but ${engineReason}, so the worker remains blocked`)
@@ -246,11 +249,14 @@ while (waitAttempts < waitAttemptsAllowed && !idle) {
         continue
       }
       if (!readyEngine) {
-        console.error(`attempt ${waitAttempts}: orca reports ${wait.blockedReason}, the TUI is not repainting, and no known trust prompt is on screen, but no known ready composer is on screen for the ${resolvedEngine} profile, so the worker remains blocked`)
+        const missingSignal = workingOnScreen
+          ? "the live working indicator follows the composer marker"
+          : "the live model, effort, separator and working-directory status structure is absent"
+        console.error(`attempt ${waitAttempts}: orca reports ${wait.blockedReason}, the TUI is not repainting, and no known trust prompt is on screen, but no known ready composer is on screen for the ${resolvedEngine} profile because ${statusStructureOnScreen ? missingSignal : "the live model, effort, separator and working-directory status structure is absent"}, so the worker remains blocked`)
         if (waitAttempts < waitAttemptsAllowed) pause(SETTLE_MS)
         continue
       }
-      console.error(`attempt ${waitAttempts}: orca reports ${wait.blockedReason}, but the TUI is not repainting, no known trust prompt is on screen, and the ${readyEngine} ready composer is on screen, so the retained blocked reason is stale and the current screen and repaint signals win`)
+      console.error(`attempt ${waitAttempts}: orca reports ${wait.blockedReason}, but the TUI is not repainting, no known trust prompt is on screen, and the ${readyEngine} ready composer is on screen with its status structure and no live working indicator, so the retained blocked reason is stale and the current screen and repaint signals win`)
       idle = true
       break
     }
