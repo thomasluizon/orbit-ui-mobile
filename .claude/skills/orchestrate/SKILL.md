@@ -455,23 +455,32 @@ timestamps through GraphQL, inline comments, and conversation comments, posting 
 required reconciliation reply, and resolving and mechanically verifying every
 addressed thread.
 
-Record the final `headRefOid` as the expected head. Then, as the LAST act of
-reconciliation, after every required reply has been posted and the final unresolved
-thread count has been verified as zero, re-read all three activity sources. Find the
-latest reconciled timestamp across every review `submittedAt` and non-null
+Record the final `headRefOid` as the expected head. After every required reply has
+been posted and every addressed thread resolved, retain the complete reconciled
+activity snapshot: item identifiers plus every review `submittedAt` and non-null
 `lastEditedAt`, every inline-comment creation and edit, and every conversation-comment
-creation and edit. Capture a current UTC ISO-8601 instant that is strictly later than
-that timestamp as `reviewed-through`.
-GitHub timestamps have second precision and the sweep deliberately treats activity
-equal to the cutoff as new, so if the current UTC second is not later, wait for the
-next second before capturing the boundary. Invoke the strict sweep immediately after
-capturing it, for ONE PR at a time from the repository root. This ordering is
-load-bearing: capturing the boundary before posting reconciliation replies, or in
-their same timestamp second, makes those already-reconciled replies appear to be new
-activity and tempts an unsafe author-based exclusion. Capturing it last and strictly
-later lets the sweep examine every actor under one timestamp rule without a blind
-spot. Do not post, edit, resolve, or otherwise mutate review activity between
-capturing the timestamp and invoking the sweep.
+creation and edit. Find its latest timestamp. GitHub timestamps have second precision
+and the sweep deliberately treats activity equal to the cutoff as new, so wait for the
+next second when necessary, then capture a current UTC ISO-8601 instant strictly later
+than that latest reconciled timestamp as `reviewed-through`.
+
+Capturing the boundary is the LAST reconciliation mutation and happens BEFORE the
+final validation reads. Immediately re-read all three activity sources and the
+unresolved-thread count. The activity snapshot must be byte-for-byte unchanged from
+the reconciled snapshot, no activity may be at or after `reviewed-through`, and the
+unresolved count must be zero. Any new item, edit, or unresolved thread restarts
+reconciliation and requires a new boundary. The snapshot comparison is load-bearing:
+it catches activity that lands while waiting for GitHub's next timestamp second but
+still sorts before the boundary. The cutoff then lets the sweep catch activity that
+lands after these validation reads. Do not filter by author.
+
+Invoke the strict sweep immediately after the final reads pass, for ONE PR at a time
+from the repository root. Capturing the boundary before posting reconciliation
+replies makes those replies appear new; capturing it after the final reads makes
+activity in the read-to-cutoff interval look already reconciled. The required order
+is: reconciliation mutations, boundary, validation reads, sweep. Do not post, edit,
+resolve, or otherwise mutate review activity between capturing the timestamp and
+invoking the sweep.
 
 ```bash
 bash tools/merge-sweep.sh \
