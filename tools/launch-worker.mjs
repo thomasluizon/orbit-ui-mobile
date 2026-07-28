@@ -120,6 +120,8 @@ const busy = (handle) => isRepainting(orca, handle)
  */
 const MAX_POINTER_SENDS = 3
 const POINTER_PAINT_MS = 4000
+const MAX_TERMINAL_CREATE_ATTEMPTS = 3
+const TERMINAL_CREATE_BACKOFF_MS = 1000
 /** How many settle windows a painting TUI gets before the launch gives up. A TUI that is still
  * repainting after all of them is never re-sent to: there is no safe moment, and a queued send
  * would cut its running turn short. */
@@ -259,6 +261,37 @@ const orca = (args) => {
   }
   if (parsed.ok === false) fail(3, `orca ${args.join(" ")} failed: ${parsed.error?.message ?? "unknown orca error"}`)
   return parsed.result ?? parsed
+}
+
+const createTerminal = (worktreeSelector, command) => {
+  const args = ["terminal", "create", "--worktree", worktreeSelector, "--command", command]
+  for (let attempt = 1; attempt <= MAX_TERMINAL_CREATE_ATTEMPTS; attempt += 1) {
+    const result = spawnSync(ORCA, [...args, "--json"], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
+    if (result.error) fail(3, `orca terminal create failed: ${result.error.message}`)
+
+    let parsed
+    try {
+      parsed = JSON.parse(result.stdout)
+    } catch {
+      fail(3, `orca ${args.join(" ")} returned unparseable output: ${(result.stdout || result.stderr || "").slice(0, 400)}`)
+    }
+
+    const failureMessage = parsed.error?.message || result.stderr?.trim() || "unknown orca error"
+    const timedOut = parsed.error?.code === "timeout" || /terminal creation timed out/i.test(failureMessage)
+    if (parsed.ok !== false && result.status === 0) {
+      const handle = (parsed.result ?? parsed).terminal?.handle
+      if (!handle) fail(3, "orca terminal create returned no handle")
+      return handle
+    }
+    if (!timedOut) fail(3, `orca ${args.join(" ")} failed: ${failureMessage}`)
+    if (attempt === MAX_TERMINAL_CREATE_ATTEMPTS) {
+      fail(3, `orca ${args.join(" ")} failed after ${attempt} attempts: ${failureMessage}`)
+    }
+
+    const backoff = TERMINAL_CREATE_BACKOFF_MS * attempt
+    console.error(`orca terminal create timed out (attempt ${attempt} of ${MAX_TERMINAL_CREATE_ATTEMPTS}); retrying in ${backoff}ms`)
+    pause(backoff)
+  }
 }
 
 /**
@@ -447,8 +480,7 @@ const actualBranch = git(["-C", worktreePath, "rev-parse", "--abbrev-ref", "HEAD
 if (actualBranch !== branch) fail(3, `expected the worktree on ${branch}, found ${actualBranch}`)
 
 console.error(`starting the ${engineName} TUI: ${command}`)
-const terminal = orca(["terminal", "create", "--worktree", worktreeSelector, "--command", command]).terminal?.handle
-if (!terminal) fail(3, "orca terminal create returned no handle")
+const terminal = createTerminal(worktreeSelector, command)
 
 let trustPromptAnswered = false
 let waitAttempts = 0
