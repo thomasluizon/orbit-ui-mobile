@@ -832,7 +832,13 @@ budgetReservation = reserveAutomationBudget(
 
 /** Before anything is created, so a launch that fails later still leaves the work order complete
  * for the relaunch. A dry run resolves this decision but writes nothing. */
-if (workerContract === "appended") appendFileSync(promptFile, WORKER_CONTRACT, "utf8")
+if (workerContract === "appended") {
+  try {
+    appendFileSync(promptFile, WORKER_CONTRACT, "utf8")
+  } catch (error) {
+    fail(3, `could not append the worker contract to ${promptFile}: ${error.message}`)
+  }
+}
 
 console.error(`creating worktree ${worktreeName} in ${repoKey} from ${baseBranch}`)
 const created = orca([

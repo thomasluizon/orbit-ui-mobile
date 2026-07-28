@@ -1540,6 +1540,47 @@ const launchWorkerCases = async () => {
   const alreadyContracted = stage("prompt-with-contract.md", `the ticket body verbatim\n\n${WORKER_CONTRACT_MARKER}\n\nclauses already here\n`)
   check("launch-worker.mjs", "does not stack a second copy on relaunch", ["--issue", "ORB-75", "--prompt-file", alreadyContracted, "--dry-run"], { status: 0, stdout: /"workerContract": "already present"/ }, { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
+  const appendFailure = stageLaunchWorker("contract-append-failure", INTERACTIVE_WORKER)
+  const appendFailureSource = readFileSync(appendFailure.path, "utf8")
+  const appendCall = 'appendFileSync(promptFile, WORKER_CONTRACT, "utf8")'
+  if (!appendFailureSource.includes(appendCall)) {
+    throw new Error("launch-worker fixture could not locate the worker-contract append")
+  }
+  writeFileSync(
+    appendFailure.path,
+    appendFailureSource.replace(appendCall, 'throw new Error("fixture append failure")'),
+  )
+  const appendFailurePrompt = stage("contract-append-failure-prompt.md", "the ticket body verbatim\n")
+  const appendFailureLedger = join(appendFailure.base, "automation-budget.jsonl")
+  const appendFailureLog = join(appendFailure.base, "orca-calls.log")
+  const appendFailureResult = run(
+    "launch-worker.mjs",
+    ["--issue", "ORB-75", "--prompt-file", appendFailurePrompt],
+    {
+      path: appendFailure.path,
+      env: {
+        ...orcaEnv(linearIssueStub(["repo:ui"])),
+        ORBIT_AUTOMATION_BUDGET_LEDGER: appendFailureLedger,
+        ORBIT_ORCA_LOG: appendFailureLog,
+      },
+    },
+  )
+  const appendFailureCalls = readFileSync(appendFailureLog, "utf8")
+  const appendFailureRecords = readFileSync(appendFailureLedger, "utf8")
+    .trim()
+    .split(/\r?\n/)
+    .map((line) => JSON.parse(line))
+  T(
+    "launch-worker.mjs: a worker-contract append failure cancels its pre-worktree reservation",
+    appendFailureResult.status === 3 &&
+      /could not append the worker contract[\s\S]*fixture append failure/.test(appendFailureResult.stderr) &&
+      !appendFailureCalls.includes("worktree create") &&
+      appendFailureRecords.length === 2 &&
+      appendFailureRecords[0]?.identity === appendFailureRecords[1]?.identity &&
+      appendFailureRecords[1]?.cancelled === true,
+    `exit ${appendFailureResult.status}\n     stderr: ${appendFailureResult.stderr}\n     calls: ${appendFailureCalls}\n     ledger: ${JSON.stringify(appendFailureRecords)}`,
+  )
+
   const blocked = stageLaunchWorker("budget-blocked", INTERACTIVE_CODEX, "codex")
   const blockedLedger = stage("launch/budget-blocked.jsonl", `${budgetRecord("prior-routine", 600_000, 350_000, "routine", "codex")}\n`)
   const blockedLog = join(root, "launch", "budget-blocked-calls.jsonl")
@@ -4321,6 +4362,36 @@ const automationBudgetCases = () => {
     "a later authoritative append for the same identity closes its pending measurement",
     checkArgs("after-correction", correctedLedger, 100, ["--json"]),
     { status: 0, stdout: /"projectedTokens":600[\s\S]*"totalTokens":500[\s\S]*"missingIdentities":\[\]/ },
+  )
+
+  const reportLedger = stage(
+    "budget/report.jsonl",
+    [
+      budgetRecord("report-routine", 300, 200),
+      budgetRecord("report-reserved", 100, 50, "reserved"),
+      budgetRecord("report-pending", undefined, undefined),
+      "",
+    ].join("\n"),
+  )
+  check(
+    "automation-budget.mjs",
+    "report emits deterministic token totals and missing identities as JSON",
+    ["report", "--engine", "claude", "--reset-at", resetAt, "--ledger", reportLedger, "--json"],
+    {
+      status: 0,
+      stdout:
+        /"engine":"claude","inputTokens":400,"outputTokens":250,"totalTokens":650,"routineTokens":500,"reservedTokens":150,"missingIdentities":\["report-pending"\],"windowStart":"2030-01-01T00:00:00.000Z","resetsAt":"2030-01-08T00:00:00.000Z"/,
+    },
+  )
+  check(
+    "automation-budget.mjs",
+    "report renders deterministic token totals and missing identities as plain text",
+    ["report", "--engine", "claude", "--reset-at", resetAt, "--ledger", reportLedger],
+    {
+      status: 0,
+      stdout:
+        /^claude: 650 tokens \(400 input, 250 output; 500 routine, 150 reserved\); missing identities: report-pending; resets at 2030-01-08T00:00:00.000Z\r?\n$/,
+    },
   )
 
   const atomicLedger = join(root, "budget", "atomic-reservations.jsonl")
