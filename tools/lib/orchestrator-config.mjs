@@ -25,11 +25,16 @@ const invocationFor = (baseArgs, entry) => [...baseArgs, ...(entry.args ?? []), 
 export const readOrchestratorConfig = (
   configUrl = new URL("../../.claude/orchestrator.json", import.meta.url),
 ) => {
+  let config
   try {
-    return JSON.parse(readFileSync(configUrl, "utf8"))
+    config = JSON.parse(readFileSync(configUrl, "utf8"))
   } catch (error) {
     throw new Error(`.claude/orchestrator.json could not be read as JSON: ${error.message}`)
   }
+  if (!isRecord(config) || !Number.isInteger(config.maxParallelWorktrees) || config.maxParallelWorktrees < 1) {
+    throw new Error(".claude/orchestrator.json maxParallelWorktrees must be a positive integer")
+  }
+  return config
 }
 
 export const resolveWorkerInvocation = (engineName, engine, labels) => {

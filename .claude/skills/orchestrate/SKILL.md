@@ -1,7 +1,7 @@
 ---
 name: orchestrate
-description: Linear project, single ticket, or explicit ticket set in, reviewed PRs out, wave by wave. Computes the merge-gated DAG with tools/wave-plan.mjs, preflights every target repo before worktree creation, reconciles each ticket against the code (D8), launches one Orca worktree + worker per ticket (engine from .claude/orchestrator.json, claude or codex), babysits CI and review, enforces the evidence gate (D7) and two-strikes (D9), then tears down each worktree immediately after verified Done. A human merge is the only thing that advances a wave (D3), unless --sleep is passed. Scope is the whole project for a name or one ticket argument, one ticket under --single, or exactly the named tickets when two or more are supplied. Use after /feature or /ticket created the tickets.
-argument-hint: <Linear project name | ORB-N [ORB-N ...]> [--single] [--sleep]
+description: Linear project, single ticket, or explicit ticket set in, reviewed PRs out, wave by wave. Computes the merge-gated DAG with tools/wave-plan.mjs, preflights every target repo before worktree creation, reconciles each ticket against the code (D8), launches one Orca worktree + worker per ticket (engine from .claude/orchestrator.json, claude or codex), babysits CI and review, enforces the evidence gate (D7) and two-strikes (D9), then tears down each worktree immediately after verified Done. A human merge is the only thing that advances a wave (D3), unless --sleep is passed. Scope is the whole project for a name or one ticket argument, one ticket under --only, or exactly the named tickets when two or more are supplied; --single runs that resolved scope serially. Use after /feature or /ticket created the tickets.
+argument-hint: <Linear project name | ORB-N [ORB-N ...]> [--only] [--single] [--sleep]
 effort: high
 ---
 
@@ -17,20 +17,25 @@ repo a ticket's `repo:*` label names.
 Classify by the number of `ORB-N` identifiers after splitting on spaces and commas:
 
 - **Zero identifiers: project scope.** The remaining name runs that project.
-- **One identifier: project or single-ticket scope.** Without `--single`, resolve
+- **One identifier: project or single-ticket scope.** Without `--only`, resolve
   the ticket's project and run it from that ticket's wave onward. The ticket is a
-  starting point, not a boundary. With `--single`, reconcile and launch THAT TICKET
+  starting point, not a boundary. With `--only`, reconcile and launch THAT TICKET
   ONLY. Never reconcile a sibling, spawn an agent for one, or advance a wave.
 - **Two or more identifiers: explicit-set scope.** Deduplicate the identifiers while
   preserving their first-seen order, then run exactly those tickets and nothing else.
-  `--single` with an explicit set is a usage error: say that `--single` means one
-  ticket and stop. Resolve every member before doing any work; an identifier that
+  `--only` with an explicit set is a usage error: say that `--only` means one-ticket
+  scope and `--single` is the serial concurrency flag, then stop. Resolve every member
+  before doing any work; an identifier that
   does not resolve or is already Done is an error for the set, never a reason to
   silently shrink it.
 
-`--single` on a project name is also a usage error: say so and stop rather than
-guessing which ticket was meant. These arity rules preserve every existing
-single-argument behaviour.
+`--only` on a project name is also a usage error: name both flags by saying that
+`--only` requires one `ORB-N` identifier and `--single` serialises a project run,
+then stop. `--single` is valid with every resolved scope, including an explicit set,
+and does not change which tickets belong to it. It sets the invocation's effective
+`maxParallelWorktrees` to 1 through the same cap enforcement as every other run.
+Wait for each ticket to reach a terminal state before launching the next. `--only`
+and `--single` may be combined for a one-ticket serial run.
 
 `--sleep` is a separate, orthogonal flag: it says Thomas is asleep, so the run must
 never ask a question and must merge its own PRs. It combines with any scope.
@@ -107,13 +112,23 @@ worker. This applies equally to tickets written by humans, agents, or reviewers.
 
 ## 2. Launch a wave
 
-Per launchable ticket, up to `maxParallelWorktrees`:
+Per launchable ticket, up to the effective `maxParallelWorktrees`: the configured
+cap for a normal run, or 1 when `--single` is present. `tools/launch-worker.mjs`
+enforces that cap against the target repo's live Orca worktrees before creating a
+worktree or branch. It serialises the live inventory and worktree creation per
+target repo, so concurrent launch processes cannot claim the same final slot. A
+refusal names the cap, observed count, and every worktree holding a slot. The
+repository's main worktree and archived child worktrees do not consume slots.
 
 For an explicit set larger than the cap, keep the remaining members in first-seen
 order. Launch the next member only when `tools/worker-status.mjs` reports that a
 running member has completed its contract and freed a slot. The cap is a concurrency
 limit, not a batch size: never launch above it, truncate the set, or wait for a fixed
 batch sleep before filling an observed free slot.
+
+Under `--single`, this same queue applies to every scope size: launch one ticket,
+wait for it to reach a terminal state and free the slot, then launch the next
+eligible ticket. Do not reorder waves or explicit-set members.
 
 1. `node tools/check-ticket.mjs --issue ORB-N`; a defective ticket is fixed in Linear
    BEFORE launch, not patched in the prompt.
@@ -144,13 +159,16 @@ batch sleep before filling an observed free slot.
    is dropped, so the Harness Execution job is what keeps it true, not this paragraph.
 3. `node tools/launch-worker.mjs --issue ORB-N --prompt-file "<absolute path>"`
    (`--base-branch <target>` when the target is not `main`, `--branch-prefix fix` for a
-   bug ticket, `--repo ui|api|landing` only to override the `repo:*` label). It prints
+   bug ticket, `--repo ui|api|landing` only to override the `repo:*` label, and
+   `--max-parallel-worktrees 1` when the run has `--single`). It prints
    the terminal handle, worktree path and branch as JSON: keep that, it is what you
    babysit with. Exit 0 means the worker ACCEPTED the prompt as a user turn, read back off
-   the TUI, not merely that orca accepted the send. On a non-zero exit (1 the worker never
-   reached tui-idle or never took the pointer, 2 usage or
-   config, 3 an orca or git command failed) the tool rolls its own worktree and branches
-   back out, so relaunching after fixing the cause starts clean rather than piling up
+   the TUI, not merely that orca accepted the send. Exit 1 means the concurrency cap was
+   reached before anything was created, or the worker never reached tui-idle or took the
+   pointer. Exit 2 is usage or config; exit 3 is an orca or git failure. A cap refusal
+   creates nothing to roll back. After any later non-zero exit, the tool rolls its own
+   worktree and branches back out, so relaunching after fixing the cause starts clean
+   rather than piling up
    `orb-N-slug-2` with a surviving contract branch that fails `git switch -c` all over
    again. If it could not remove the worktree (a wedged setup PTY), it prints the exact
    removal command on stderr; run that BEFORE relaunching. Read stderr, fix the cause,
@@ -303,26 +321,36 @@ lines, and the contract verdict above. Liveness and delivery answer different qu
 at the keyboard. Read it instead of hand-running `orca terminal read`, which returns a busy
 worker's tail as thousands of characters of concatenated `Working` fragments.
 
-Then watch each launched ticket's PR with the tool, never a hand-written poll loop:
+Then watch the launched tickets' PRs as one fleet with the tool, never a hand-written poll
+loop:
 
 ```
-node tools/pr-watch.mjs --repo <owner/name> --pr <n> --acted <n>=<sha>:<verdict>
+node tools/pr-watch.mjs --repo <owner/name> --pr <n>[,<n>...] --acted <n>=<sha>:CHANGES_REQUESTED --acted <n>=<sha>:COMMENTED
 ```
 
-It exits on the first state you have NOT already acted on and names which one: `gone` (merged
-or closed, exit 5), `checks-failed` (exit 1), `changes-requested` or `review-comment` (exit 1),
-`approved` / `ready-to-merge` (exit 0), `timeout` (exit 4). `--acted` is what you have already
-handled on that PR, as the head SHA the verdict sat on plus the verdict; pass it after every fix
-cycle so the same feedback is never replayed, and pass nothing on the first watch. A verdict
-counts only when it sits on the CURRENT head, so a stale `CHANGES_REQUESTED` carried on an older
-commit does not satisfy it.
+It exits on the first actionable transition you have NOT already acted on and names which one:
+`gone` (merged or closed, exit 5), `checks-failed` (exit 1), `changes-requested` or
+`review-comment` (exit 1), `approved` / `ready-to-merge` (exit 0), `head-changed` (exit 1),
+`review-decision` (exit 0 for `APPROVED`, otherwise 1), `merge-clean` (exit 0), `timeout`
+(exit 4). Actionable means the head SHA changed, the review decision changed, the merge state
+became `CLEAN`, a required check concluded as failed, or the PR merged or closed. `UNKNOWN` and
+churn between other non-terminal merge states never fire. The first poll establishes the
+baseline for state transitions, but fresh unacted verdicts and unhandled readiness still fire
+immediately. `--acted` is what you have already handled on that PR, as the head SHA plus the
+verdict or `READY_TO_MERGE`; entries accumulate by PR and head. Repeat the flag for every
+handled verdict, including two verdicts on the same head, and add `READY_TO_MERGE` after acting
+on readiness so that PR does not starve later fleet entries. `APPROVED` suppresses only the
+approval verdict, not readiness that may appear between watcher runs. Pass the handled signals
+after every fix cycle so the same event is never replayed, and pass none on the first watch. A
+verdict counts only when it sits on the CURRENT head, so a stale `CHANGES_REQUESTED` carried on
+an older commit does not satisfy it.
 
 Write no loop of your own. Both hand-rolled loops on the ORB-88 run were wrong and both failed
 silently: the first fired instantly on a stale verdict from an earlier commit, the second could
 only exit on approval or a failing check, so a fresh CHANGES_REQUESTED left it spinning for
 90 minutes with the answer in its own output and nobody reading it. The terminal condition is
-"anything other than the state I have already acted on", never an allowlist of the states
-somebody remembered.
+one of the actionable transitions enumerated above; `UNKNOWN` and other non-terminal
+merge-state churn never terminate the watcher.
 
 - CI red or CHANGES_REQUESTED: ONE fix cycle per strike; send the failure text + review
   comments to a fresh worker in the same worktree. Resolve addressed review threads.
@@ -364,10 +392,10 @@ ticket cleaned up. On confirmed removal, record the removed worktree path in tha
 ticket's ledger row. Then re-run wave-plan and launch the newly launchable set. Repeat
 until the project has no unfinished tickets, then print the final ledger: ticket, PR,
 merge SHA, evidence link, removed worktree. This holds whether the run was invoked with
-a project name or with a single `ORB-N`, because without `--single` a ticket argument
+a project name or with a single `ORB-N`, because without `--only` a ticket argument
 names where to start, not where to stop.
 
-**`--single` ends here instead.** The run is complete once that one ticket's PR is open and
+**`--only` ends here instead.** The run is complete once that one ticket's PR is open and
 its issue is In Review with the PR attached, plus the final screenshots and critique when it
 carries `visible-effect`. Print that ticket's ledger row and STOP. A merge of that ticket is
 not a trigger to launch anything: observing it may have opened a wave, but the run was

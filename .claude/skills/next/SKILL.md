@@ -71,7 +71,7 @@ Lead with the single recommendation, then the runner-ups. Keep it to five rows.
 ```
 NEXT: ORB-30 - Rewrite DESIGN.md as the de-decorated canon
   unblocks 11 tickets across waves 2 to 5, repo:ui
-  run it with: /orchestrate ORB-30 --single
+  run it with: /orchestrate ORB-30 --only
 
 runner-ups
   ORB-76  unblocks 4   repo:api
@@ -89,4 +89,4 @@ per the launch decision of 2026-07-26 every open ticket is a launch gate, so the
 IS the distance to launch.
 
 Then stop. Do not reconcile tickets against the code, do not open files, do not launch
-anything. `/orchestrate ORB-N --single` is the next command and it is Thomas's to type.
+anything. `/orchestrate ORB-N --only` is the next command and it is Thomas's to type.

@@ -19,9 +19,18 @@
 
 import { execFileSync, spawnSync } from "node:child_process"
 import { randomUUID } from "node:crypto"
-import { appendFileSync, existsSync, readFileSync, statSync } from "node:fs"
+import {
+  appendFileSync,
+  closeSync,
+  existsSync,
+  openSync,
+  readFileSync,
+  statSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs"
 import { homedir } from "node:os"
-import { basename, resolve } from "node:path"
+import { basename, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
@@ -40,9 +49,11 @@ const USAGE = `usage: launch-worker.mjs --issue ORB-N --prompt-file <path> [opti
   --repo ui|api|landing  override the repo the ticket's repo:* label names
   --base-branch <ref>    base branch for the worktree (default: main)
   --branch-prefix <p>    contract branch prefix, feature or fix (default: feature)
+  --max-parallel-worktrees <n>
+                         override the configured concurrency cap for this invocation
   --comment "<text>"     worktree card comment (default: "<ORB-N> launched: worker running")
   --workspace-status <s> Orca board status id (default: in-progress)
-  --dry-run              resolve everything and print the plan; run no orca or git command
+  --dry-run              resolve everything and print the plan; run no mutating orca or git command
   --help, -h             print this usage and exit 0
 
 Prints one JSON object on stdout: issue, repo, repoPath, worktreePath, worktreeSelector,
@@ -54,7 +65,8 @@ exit 0 means the worker ACCEPTED the prompt as a user turn, verified by reading 
 off the TUI, never merely that orca accepted the send.
 
 exit codes: 0 worker launched and holding the work order, 1 the worker never reached tui-idle or
-            never took the prompt pointer as a turn, 2 usage or config error,
+            never took the prompt pointer as a turn, or the concurrency cap was reached,
+            2 usage or config error,
             3 an orca, git, quota reader or budget command failed,
             4 the proposed invocation would cross the engine token budget
 
@@ -206,9 +218,26 @@ let rollback = null
 let budgetReservation = null
 let reservationMaySpend = false
 let cancelBudgetReservation = null
+let concurrencyReservation = null
+
+const releaseConcurrencyReservation = () => {
+  if (!concurrencyReservation) return
+  const { path, token } = concurrencyReservation
+  concurrencyReservation = null
+  try {
+    if (readFileSync(path, "utf8") === token) unlinkSync(path)
+  } catch (error) {
+    if (error.code !== "ENOENT") {
+      console.error(`could not release launch reservation ${path}: ${error.message}`)
+    }
+  }
+}
+
+process.on("exit", releaseConcurrencyReservation)
 
 const fail = (code, message) => {
   console.error(message)
+  releaseConcurrencyReservation()
   let cleanupConfirmed = rollback === null
   if (rollback) {
     const { selector, contractBranch, orcaBranch, repoPath: rollbackRepo } = rollback
@@ -495,17 +524,99 @@ cancelBudgetReservation = ({ identity, engineName, tier, startedAt, ledgerPath }
   return false
 }
 
+const processIsAlive = (pid) => {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return error.code !== "ESRCH"
+  }
+}
+
+const unlinkReservation = (path) => {
+  try {
+    unlinkSync(path)
+    return true
+  } catch (error) {
+    if (error.code === "ENOENT") return false
+    throw error
+  }
+}
+
+const acquireConcurrencyReservation = (repoPath) => {
+  const gitCommonDirectory = resolve(
+    repoPath,
+    git(["-C", repoPath, "rev-parse", "--git-common-dir"]),
+  )
+  const path = join(gitCommonDirectory, "orbit-launch-worker.lock")
+  const token = JSON.stringify({ pid: process.pid, startedAt: Date.now() })
+  const deadline = Date.now() + 5 * 60 * 1000
+
+  while (true) {
+    let descriptor
+    try {
+      descriptor = openSync(path, "wx")
+      writeFileSync(descriptor, token, "utf8")
+      closeSync(descriptor)
+      concurrencyReservation = { path, token }
+      return
+    } catch (error) {
+      if (descriptor !== undefined) {
+        try {
+          closeSync(descriptor)
+        } catch {
+          // The descriptor may already have closed before a later setup step failed.
+        }
+        unlinkReservation(path)
+      }
+      if (error.code !== "EEXIST") {
+        fail(3, `could not reserve a concurrency slot for ${repoPath}: ${error.message}`)
+      }
+    }
+
+    try {
+      const owner = JSON.parse(readFileSync(path, "utf8"))
+      if (Number.isInteger(owner.pid) && !processIsAlive(owner.pid)) {
+        unlinkReservation(path)
+        continue
+      }
+    } catch (error) {
+      if (error.code === "ENOENT") continue
+      let stale = false
+      try {
+        stale = Date.now() - statSync(path).mtimeMs > 5000
+      } catch (statError) {
+        if (statError.code === "ENOENT") continue
+        fail(3, `could not inspect launch reservation ${path}: ${statError.message}`)
+      }
+      if (stale) {
+        unlinkReservation(path)
+        continue
+      }
+    }
+
+    if (Date.now() >= deadline) {
+      fail(1, `timed out waiting for another launch reservation in ${repoPath}`)
+    }
+    pause(100)
+  }
+}
+
 const issue = argOf("--issue")
 const promptFileArg = argOf("--prompt-file")
 const repoOverride = argOf("--repo")
 const baseBranch = argOf("--base-branch") ?? "main"
 const branchPrefix = argOf("--branch-prefix") ?? "feature"
+const maxParallelOverride = argOf("--max-parallel-worktrees")
 const workspaceStatus = argOf("--workspace-status") ?? "in-progress"
 const dryRun = process.argv.includes("--dry-run")
 
 if (!issue || !/^[A-Z]+-\d+$/.test(issue)) fail(2, `${USAGE}\n\n--issue must be a Linear identifier such as ORB-75`)
 if (!promptFileArg) fail(2, `${USAGE}\n\n--prompt-file is required`)
 if (branchPrefix !== "feature" && branchPrefix !== "fix") fail(2, "--branch-prefix must be feature or fix")
+if (maxParallelOverride !== null && !/^[1-9]\d*$/.test(maxParallelOverride)) {
+  fail(2, "--max-parallel-worktrees must be a positive integer")
+}
 
 const promptFile = resolve(promptFileArg)
 if (!existsSync(promptFile)) fail(2, `prompt file not found: ${promptFile}`)
@@ -517,6 +628,9 @@ try {
 } catch (error) {
   fail(2, error.message)
 }
+const maxParallelWorktrees = maxParallelOverride === null
+  ? config.maxParallelWorktrees
+  : Number(maxParallelOverride)
 const engineName = config.worker
 const engine = config.workers?.[engineName]
 if (!engine?.command) fail(2, `.claude/orchestrator.json names worker "${engineName}" but carries no command for it`)
@@ -632,6 +746,28 @@ if (runPermissionIndex === -1) {
   fail(2, `worker "${engineName}" invocation "${command}" does not carry ${binary}'s required run-permitting policy "${profile.runPermissionTokens.join(" ")}"${mode}. A worker without that policy can stop for approval with nobody at the keyboard. Fix the command or args in .claude/orchestrator.json`)
 }
 
+if (!dryRun) acquireConcurrencyReservation(repoPath)
+const listedWorktrees = orca(["worktree", "list", "--repo", `path:${repoPath}`]).worktrees
+if (!Array.isArray(listedWorktrees)) {
+  fail(3, "orca worktree list returned no worktrees array")
+}
+/** WHY: Measured on 2026-07-28, Orca's live JSON carries both canonical flat fields and
+ * mirrored `git.path` / `git.isMainWorktree` fields. Accept either shape so a wrapper that
+ * omits the flat mirror cannot count main as a child or hide an occupying path. */
+const occupyingWorktrees = listedWorktrees.filter(
+  (worktree) =>
+    worktree.isMainWorktree !== true
+    && worktree.git?.isMainWorktree !== true
+    && worktree.isArchived !== true,
+)
+if (occupyingWorktrees.length >= maxParallelWorktrees) {
+  const paths = occupyingWorktrees.map((worktree) => worktree.path ?? worktree.git?.path ?? worktree.id)
+  fail(
+    1,
+    `maxParallelWorktrees cap ${maxParallelWorktrees} reached for ${repoKey}; current count ${occupyingWorktrees.length}. Occupying worktrees:\n${paths.map((path) => `- ${path}`).join("\n")}`,
+  )
+}
+
 /** Reported in the plan so a dry run shows whether this launch would inject the contract, and a
  * relaunch against an already-injected file is visibly a no-op rather than a silent second copy. */
 const workerContract = readFileSync(promptFile, "utf8").includes(WORKER_CONTRACT_MARKER) ? "already present" : "appended"
@@ -643,6 +779,8 @@ const plan = {
   worktreeName,
   branch,
   baseBranch,
+  maxParallelWorktrees,
+  occupiedWorktrees: occupyingWorktrees.length,
   engine: engineName,
   command,
   automationBudget: {
@@ -688,6 +826,7 @@ const created = orca([
   "--no-parent",
   "--comment", comment,
 ])
+releaseConcurrencyReservation()
 const worktreePath = created.worktree?.path
 if (!worktreePath) fail(3, `orca worktree create returned no path: ${JSON.stringify(created).slice(0, 400)}`)
 const worktreeSelector = `path:${worktreePath}`

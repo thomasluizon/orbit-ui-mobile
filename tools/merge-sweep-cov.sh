@@ -335,10 +335,10 @@ review_safety_gate() { # <pr> <pre|post>; prints the fail-closed reason
     fi
     return 1
   fi
-  if ! lookup_review_activity "$pr" reviews "$phase" gh api graphql --paginate --slurp \
+  if ! lookup_review_activity "$pr" reviews "$phase" gh api graphql --paginate \
     -f query='query($o:String!,$r:String!,$n:Int!,$endCursor:String){repository(owner:$o,name:$r){pullRequest(number:$n){reviews(first:100,after:$endCursor){nodes{author{login} submittedAt updatedAt lastEditedAt url} pageInfo{hasNextPage endCursor}}}}}' \
     -F o="${repo%%/*}" -F r="${repo##*/}" -F n="$pr" \
-    --jq '.[] | .data.repository.pullRequest.reviews.nodes[] | ([.author.login, .submittedAt, .url], [.author.login, .updatedAt, .url], [.author.login, .lastEditedAt, .url]) | select(.[1] != null) | @tsv'; then
+    --jq '.data.repository.pullRequest.reviews.nodes[] | ([.author.login, .submittedAt, .url], [.author.login, .updatedAt, .url], [.author.login, .lastEditedAt, .url]) | select(.[1] != null) | @tsv'; then
     return 1
   fi
   review_items="$REVIEW_LOOKUP_RESULT"
