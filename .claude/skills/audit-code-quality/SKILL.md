@@ -1,7 +1,7 @@
 ---
 name: audit-code-quality
 description: >-
-  Repo-wide code-quality audit across both Orbit repos, opening one Linear ticket per verified debt after a human approval gate (D10). Finds the judgement-level debt no gate can see (D11): dead/stale code, SOLID/clean-arch violations, DRY-at-the-wrong-level, naming, function size, and non-gated DESIGN.md drift, each evidence-backed with file:line. EXCLUDES the mechanical layer (comment policy, spacing scale, react-doctor, dashes, and every ESLint local/Roslyn rule). Use when the user asks to audit code quality, find tech debt, or check the codebase against the standards. Not for a single diff (use /pr-review).
+  Repo-wide code-quality audit across both Orbit repos, opening one Linear ticket per verified debt after a human approval gate (D10). Finds the judgement-level debt no gate can see (D11): dead/stale code; SOLID/clean-arch debt including branch-heavy state models, thin abstractions, giant files, cast/optionality churn, and wrong-layer logic; DRY-at-the-wrong-level; naming; and non-gated DESIGN.md drift, each evidence-backed with file:line. EXCLUDES the mechanical layer (comment policy, spacing scale, react-doctor, dashes, and every ESLint local/Roslyn rule). Use when the user asks to audit code quality, find tech debt, or check the codebase against the standards. Not for a single diff (use /pr-review).
 argument-hint: <path | workspace | repo | blank=both repos>
 ---
 
@@ -72,9 +72,13 @@ gate enforces. It does NOT re-flag: comment policy (ESLint `local/no-comments` +
 `ORBIT0001`), the enumerated spacing scale (`local/spacing-scale`), `console` / `any` bans,
 dashes, copy register, React correctness (`react-doctor.yml`), or any other `local/*` /
 `guards.yml` / `ORBIT0001..0005` concern. It DOES own: dead/stale code, SOLID/clean-arch
-(function size over the ~50/~100-line caps, nesting past ~3, premature abstraction), DRY-at-
-the-wrong-level, naming judgement, and the DESIGN.md drift no lint rule covers (visual
-hierarchy, semantic-token misuse beyond spacing/dash/copy).
+(state or data models that cause branch proliferation, function size over the ~50/~100-line
+caps, nesting past ~3, pass-through or magical abstractions, giant multi-responsibility
+files, premature abstraction, and logic in the wrong layer), judgement-level cast or
+optionality churn, DRY-at-the-wrong-level, naming judgement, and the DESIGN.md drift no
+lint rule covers (visual hierarchy, semantic-token misuse beyond spacing/dash/copy).
+An isolated banned cast remains gate-owned; repeated conversions or `?`-juggling that expose
+a malformed type model or missing boundary parse are structural debt this audit owns.
 
 ---
 
@@ -125,11 +129,11 @@ The rubric was written for a diff; the workflow's finders already recalibrate tw
 - **"Focus on changed code":** there is no diff — every source line is fair game, ranked by
   blast radius × churn (a smell in a hot handler outranks the same in a stable leaf).
 
-High-value dimensions for a standing codebase (the finders lead with these): **dead/stale
-code (#2)** proven by a zero-reference grep · **SOLID/clean-arch (#3)** (functions over the
-~50/~100-line caps, nesting past ~3, premature abstraction, DRY-at-the-wrong-level) ·
-**naming** (`data`/`info`/`temp`/`helper`/`util` finals, abbreviations) · **DESIGN.md drift
-(#8)** on `apps/*` UI, but only the drift no lint rule covers.
+The finder contract is the shared rubric, especially **dead/stale code (#2)**,
+**SOLID/clean-arch (#3)**, and **DESIGN.md drift (#8)**. Dimension 3 is the canonical
+source for the harvested structural patterns and remedies; this skill only recalibrates
+them for whole-repo scope. Naming judgement remains in scope, and dead-code claims still
+require the zero-reference proof.
 
 ---
 
@@ -147,8 +151,12 @@ Code-quality-specific mapping into the 6.2 body:
 - **Technical details** carries the `evidence`; a dead-code ticket carries the zero-reference
   grep command and its empty result that PROVES the code is dead (drop any dead-code finding
   that lacks it).
-- **Scope** is the concrete `fix`: delete the dead export, split the oversized function,
-  collapse the premature abstraction, rename the `data`/`temp` symbol.
+- **Scope** is the concrete `fix`: delete the dead export or needless indirection, reframe
+  the state/data model so branches collapse, extract a well-named pure helper, split by
+  responsibility, lift cross-app duplication to `packages/shared`, move logic to its
+  canonical layer, replace cast/optionality churn with one boundary parse, or rename the
+  `data`/`temp` symbol. For a giant-file finding, state whether the remedy reduces tangle;
+  a ticket that only moves the same tangle between files is not a simplification ticket.
 - Fold Low/Info nits that share a cleanup and PR into one ticket rather than minting a ticket
   per trivial nit; a systemic Low pattern (e.g. one naming smell across a folder) is one
   ticket, not twenty. `repo:*` from `location`; ui tickets carry `parity:yes|no`.
