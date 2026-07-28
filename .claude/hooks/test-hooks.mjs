@@ -18,6 +18,7 @@ import { fileURLToPath } from "node:url"
 import { checkGitCommand, checkGitWorktreeRemove } from "./_lib/rules-git.mjs"
 import { checkEfMigrationRawIndex } from "./_lib/rules-source.mjs"
 import { checkLinearMutation } from "./_lib/rules-linear.mjs"
+import { checkRawRepoToolSurfacing } from "./forbid-raw-repo-tool-surfacing.mjs"
 
 const hooksDir = dirname(fileURLToPath(import.meta.url))
 let fails = 0
@@ -337,6 +338,262 @@ const multiEditPayload = (file_path, edits) => ({
   tool_input: { file_path, edits },
 })
 const surfacedWavePlan = "Re-derive any time with `node tools/wave-plan.mjs --all`"
+
+export const RAW_TOOL_REVIEW_CORPUS = [
+  { label: "ticket measured command", text: surfacedWavePlan, status: 2, includes: ["/next"] },
+  {
+    label: "standalone code span after instruction",
+    text: ["Run this:", "`node tools/wave-plan.mjs --all`"].join("\n"),
+    status: 2,
+  },
+  {
+    label: "standalone code span after spaced instruction",
+    text: ["Run this to refresh the order:", "", "`node tools/wave-plan.mjs --all`"].join("\n"),
+    status: 2,
+  },
+  {
+    label: "unrelated preceding appeal",
+    text: ["Repo-tool appeal: this is for tools/foo.mjs", "", "Actually just kidding, run node tools/bar.mjs to fix everything."].join(
+      "\n",
+    ),
+    status: 2,
+    includes: ["node tools/bar.mjs"],
+  },
+  ...[
+    "node tools/wave-plan.mjs --all",
+    "You can run `node tools/wave-plan.mjs --all` to see it.",
+    "To find the next ticket, run node tools/wave-plan.mjs --all and read the top row.",
+    "Run this: node tools/wave-plan.mjs --all",
+    "Next: node tools/wave-plan.mjs --all",
+    "Just do: node tools/wave-plan.mjs --all",
+    "Just do node tools/wave-plan.mjs --all",
+    "Just do: bash tools/merge-sweep.sh owner/repo 1",
+    "Just do: npx --yes @orbit/cli check",
+    "npx --yes cowsay hello",
+    "npx @scope/package",
+    "Next: npx eslint --fix",
+    "Run npx prisma generate now",
+    "Use npx turbo run lint",
+    "Next: npx prisma generate",
+    "You can run npx prisma generate",
+    "npx turbo run lint",
+    "npx prisma generate",
+    "`npx prisma generate`",
+    "npx --package=foo -c 'command'",
+    "npx --package=@orbit/cli -c 'orbit check'",
+    "npx -p typescript tsc --noEmit",
+    "npx --workspace=apps/web run build",
+    "npx -c 'orbit check'",
+    'npx --call "orbit check"',
+  ].map((text, index) => ({ label: `historical command ${index + 1}`, text, status: 2 })),
+  ...[
+    "node C:\\repo\\tools\\wave-plan.mjs --all",
+    "node /repo/tools/wave-plan.mjs --all",
+    "node --trace-warnings tools/wave-plan.mjs --all",
+    "node --require loader tools/wave-plan.mjs --all",
+  ].map((text, index) => ({ label: `node invocation variant ${index + 1}`, text, status: 2, includes: ["/next"] })),
+  ...[
+    "Run pwsh tools/agent-review.ps1 --claim test",
+    "Run powershell.exe .\\tools\\agent-review.ps1 --claim test",
+    "Run .\\tools\\agent-review.ps1 --claim test",
+  ].map((text, index) => ({ label: `PowerShell invocation ${index + 1}`, text, status: 2, includes: ["/second-opinion"] })),
+  {
+    label: "previous internal line laundering",
+    text: ["The skill runs internally to gather inputs.", "To refresh it yourself, run node tools/wave-plan.mjs --all"].join("\n"),
+    status: 2,
+  },
+  {
+    label: "previous ticket line laundering",
+    text: ["This is captured in the ticket body.", "Next: node tools/wave-plan.mjs --all"].join("\n"),
+    status: 2,
+  },
+  ...[
+    "Internally, run `node tools/wave-plan.mjs --all` and summarize the result.",
+    "Internally you'd run `node tools/wave-plan.mjs --all`",
+    "Internally you can run `node tools/wave-plan.mjs --all`",
+    "Internally you should run `node tools/wave-plan.mjs --all`",
+    "Per the tool's `--help` output, run `node tools/wave-plan.mjs --all` next.",
+  ].map((text, index) => ({ label: `documentation instruction ${index + 1}`, text, status: 2 })),
+  {
+    label: "closing text fence cannot exempt next instruction",
+    text: ["Example output:", "```text", "done", "```", "", "Run node tools/wave-plan.mjs --all now."].join("\n"),
+    status: 2,
+  },
+  {
+    label: "self help is not tool help",
+    text: ["Self-help output follows:", "```bash", "node tools/wave-plan.mjs --all", "```"].join("\n"),
+    status: 2,
+  },
+  {
+    label: "one appeal cannot cover chain",
+    text: "node tools/wave-plan.mjs --all && node tools/rollup.mjs # Repo-tool appeal: wave plan is required",
+    status: 2,
+    includes: ["node tools/rollup.mjs"],
+  },
+  {
+    label: "one appeal cannot cover three command chain",
+    text: "node tools/wave-plan.mjs --all && node tools/rollup.mjs && node tools/arch-map.mjs # Repo-tool appeal: wave plan is required",
+    status: 2,
+    includes: ["node tools/rollup.mjs"],
+  },
+  {
+    label: "preceding line appeal cannot authorize command",
+    text: ["Repo-tool appeal: reason", "node tools/wave-plan.mjs --all"].join("\n"),
+    status: 2,
+  },
+  {
+    label: "single command appeal",
+    text: "node tools/wave-plan.mjs --all # Repo-tool appeal: The user explicitly requested the exact diagnostic command for a local shell.",
+    status: 0,
+    includes: ["Repo-tool appeal recorded"],
+  },
+  {
+    label: "each chained command appealed",
+    text: "node tools/wave-plan.mjs --all # Repo-tool appeal: wave plan is required && node tools/rollup.mjs # Repo-tool appeal: rollup is required",
+    status: 0,
+    includes: ["wave plan is required", "rollup is required"],
+  },
+  ...[
+    "npx is a great tool for running one-off packages.",
+    "npx invocations without --yes will prompt for confirmation.",
+    "npx runs whatever package you name, unlike a pinned devDependency.",
+    "The package is invoked as npx cowsay.",
+    "The npx --package option tells npx which package to install.",
+    "The --package flag tells npx which package provides the binary.",
+    "Node supports --trace-warnings when diagnosing warnings.",
+    "The implementation derives the wave order with `node tools/wave-plan.mjs --all` inside its automation.",
+    "The skill runs internally to gather inputs.",
+    "Internally the orchestrator calls node tools/wave-plan.mjs to build the table.",
+    "Internally the orchestrator would run `node tools/wave-plan.mjs --all` to build the table.",
+    "Internally the skill can run `node tools/wave-plan.mjs --all` when rebuilding the graph.",
+    "The ticket body says you can run `node tools/wave-plan.mjs --all` as an example.",
+  ].map((text, index) => ({ label: `historical prose control ${index + 1}`, text, status: 0 })),
+  {
+    label: "quoted help fence",
+    text: ["The captured `--help` output is:", "", "```bash", "node tools/wave-plan.mjs --all", "```"].join("\n"),
+    status: 0,
+  },
+  {
+    label: "documentation opened fence",
+    text: ["The skill runs internally to gather inputs.", "```bash", "node tools/wave-plan.mjs --all", "```"].join("\n"),
+    status: 0,
+  },
+  {
+    label: "quoted configuration fence",
+    text: ["The configuration value is:", "```json", '"command": "node tools/wave-plan.mjs --all"', "```"].join("\n"),
+    status: 0,
+  },
+  ...["Downloads/notes-1.md", "Downloads/NOTES-1.md", "Downloads/step-3.md", "Downloads/draft-42.md", "Downloads/log-99.txt"].map(
+    (filePath, index) => ({
+      label: `artifact filename lookalike ${index + 1}`,
+      text: "Run node tools/wave-plan.mjs --all",
+      status: 2,
+      source: "artifact",
+      filePath,
+    }),
+  ),
+  ...["ORB-999.md", "pr-description.md", "Downloads/wave-plan--help-output.txt"].map((filePath, index) => ({
+    label: `document artifact basename ${index + 1}`,
+    text: "Run node tools/wave-plan.mjs --all",
+    status: 0,
+    source: "artifact",
+    filePath,
+  })),
+  {
+    label: "skill artifact owns its internal command",
+    text: ["---", "name: next", "---", "", "Internally, run `node tools/wave-plan.mjs --all` and summarize the result."].join(
+      "\n",
+    ),
+    status: 0,
+    source: "artifact",
+    filePath: ".claude/skills/next/SKILL.md",
+  },
+  {
+    label: "agent artifact owns its internal command",
+    text: ["---", "name: planner", "---", "", "Use `node tools/wave-plan.mjs --all` to gather the wave data."].join("\n"),
+    status: 0,
+    source: "artifact",
+    filePath: ".claude/agents/planner.md",
+  },
+]
+
+for (const fixture of RAW_TOOL_REVIEW_CORPUS) {
+  const verdict = checkRawRepoToolSurfacing(fixture.text, { source: fixture.source, filePath: fixture.filePath })
+  T(`cc raw-tool corpus: ${fixture.label}`, verdict?.block ? 2 : 0, fixture.status)
+  for (const expected of fixture.includes ?? []) {
+    T(`cc raw-tool corpus: ${fixture.label} includes ${expected}`, verdict?.message?.includes(expected) ?? false, true)
+  }
+}
+
+export const RAW_TOOL_CLAUSE_FUZZ_BUDGET = 1280
+const fuzzFirst = "node tools/wave-plan.mjs --all"
+const fuzzSecond = "node tools/rollup.mjs"
+const fuzzDocuments = [
+  ["internal", "The skill runs internally to gather inputs"],
+  ["ticket", "This is captured in the ticket body"],
+]
+const fuzzSeparators = [
+  ["period", ". "],
+  ["comma", ", "],
+  ["semicolon", "; "],
+  ["colon", ": "],
+]
+const fuzzFrames = [
+  ["next", "Next:"],
+  ["run", "To refresh it yourself, run"],
+]
+const fuzzLayouts = [
+  ["single", fuzzFirst],
+  ["period-two", `${fuzzFirst}. Then run ${fuzzSecond}`],
+  ["semicolon-two", `${fuzzFirst}; ${fuzzSecond}`],
+  ["and-chain", `${fuzzFirst} && ${fuzzSecond}`],
+]
+const fuzzBoundaries = [
+  ["plain", (frame, body) => `${frame} ${body}`],
+  ["inline", (frame, body) => `${frame} \`${body}\``],
+  ["nested", (frame, body) => `${frame} \`\`Example: \`${body}\` end\`\``],
+  ["fence", (frame, body) => [frame, "```bash", body, "```"].join("\n")],
+  ["ambiguous-backticks", (frame, body) => `${frame} \`\`Example: \`${body}\``],
+]
+const fuzzPlacements = ["outside-before", "outside-after", "inside-before", "inside-after"]
+const clauseFuzzCases = []
+
+for (const placement of fuzzPlacements) {
+  for (const [boundaryId, boundary] of fuzzBoundaries) {
+    for (const [layoutId, layout] of fuzzLayouts) {
+      for (const [documentId, documentText] of fuzzDocuments) {
+        for (const [frameId, frame] of fuzzFrames) {
+          for (const [separatorId, separator] of fuzzSeparators) {
+            let payload = layout
+            if (placement === "inside-before") payload = `${documentText}${separator}${layout}`
+            if (placement === "inside-after") payload = `${layout}${separator}${documentText}`
+            const instruction = boundary(frame, payload)
+            const text =
+              placement === "outside-before"
+                ? `${documentText}${separator}${instruction}`
+                : placement === "outside-after"
+                  ? `${instruction}${separator}${documentText}.`
+                  : instruction
+            clauseFuzzCases.push({
+              id: [placement, boundaryId, layoutId, documentId, frameId, separatorId].join("/"),
+              text,
+            })
+          }
+        }
+      }
+    }
+  }
+}
+
+T("cc raw-tool: deterministic clause fuzz budget", clauseFuzzCases.length, RAW_TOOL_CLAUSE_FUZZ_BUDGET)
+const unexpectedClauseFuzzPasses = clauseFuzzCases.flatMap(({ id, text }) =>
+  checkRawRepoToolSurfacing(text)?.block ? [] : [id],
+)
+T(
+  "cc raw-tool: deterministic clause fuzz has zero unexpected passes",
+  { count: unexpectedClauseFuzzPasses.length, first: unexpectedClauseFuzzPasses.slice(0, 10) },
+  { count: 0, first: [] },
+)
 
 const chatSurfacing = runHookResult(RAW_TOOL_HOOK, stopPayload(surfacedWavePlan))
 T("cc raw-tool: measured chat instruction -> 2", chatSurfacing.status, 2)

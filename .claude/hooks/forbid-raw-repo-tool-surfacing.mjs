@@ -6,6 +6,8 @@
 // repos, where source and documentation references are owned by CI.
 // Appeals are command-scoped: the marker must share the command's line, and
 // every surfaced command needs its own reason.
+// Chat exemptions are bounded to punctuation clauses and adjacent inline-code
+// atoms. An ambiguous quote, fence, or backtick parse fails closed.
 
 import { existsSync, readFileSync } from "node:fs"
 import { dirname, posix, resolve, win32 } from "node:path"
@@ -15,11 +17,12 @@ import { filePathFrom, readStdinJson } from "./_lib/io.mjs"
 
 const APPEAL_SUFFIX = /\s+(?:#\s*)?Repo-tool appeal:\s*(\S.*)\s*$/i
 const NODE_TOOL_COMMAND =
-  /\bnode(?:\.exe)?(?:[ \t]+-{1,2}[a-z0-9][a-z0-9-]*(?:=[^`\s]+|[ \t]+[^`\s]+)?)*[ \t]+(?:"(?:(?:[a-z]:)?[\\/]*(?:[^"`\r\n]+[\\/])*)?tools[\\/][a-z0-9_./\\-]+\.(?:mjs|cjs|js|ts)"|'(?:(?:[a-z]:)?[\\/]*(?:[^'`\r\n]+[\\/])*)?tools[\\/][a-z0-9_./\\-]+\.(?:mjs|cjs|js|ts)'|(?:(?:[a-z]:)?[\\/]*(?:[a-z0-9_.-]+[\\/])*)?tools[\\/][a-z0-9_./\\-]+\.(?:mjs|cjs|js|ts))(?:[ \t]+[^`\r\n]*)?/i
+  /\bnode(?:\.exe)?(?:[ \t]+-{1,2}[a-z0-9][a-z0-9-]*(?:=[^`\s]+|[ \t]+[^`\s]+)?)*[ \t]+(?:"(?:(?:[a-z]:)?[\\/]*(?:[^"`\r\n]+[\\/])*)?tools[\\/][a-z0-9_./\\-]+\.(?:mjs|cjs|js|ts)"|'(?:(?:[a-z]:)?[\\/]*(?:[^'`\r\n]+[\\/])*)?tools[\\/][a-z0-9_./\\-]+\.(?:mjs|cjs|js|ts)'|(?:(?:[a-z]:)?[\\/]*(?:[a-z0-9_.-]+[\\/])*)?tools[\\/][a-z0-9_./\\-]+\.(?:mjs|cjs|js|ts))/gi
 const TOOL_SCRIPT_COMMAND =
-  /(?:(?:(?:pwsh|powershell)(?:\.exe)?[ \t]+)?["']?(?:\.?[\\/])?tools[\\/][a-z0-9_./\\-]+\.ps1["']?|(?:\.?[\\/])?tools[\\/][a-z0-9_./\\-]+\.sh)(?:[ \t]+[^`\r\n]*)?/i
-const NPX_COMMAND = /\bnpx(?:\.cmd)?[ \t]+\S[^`\r\n]*/i
+  /(?:(?:(?:pwsh|powershell)(?:\.exe)?[ \t]+)?["']?(?:\.?[\\/])?tools[\\/][a-z0-9_./\\-]+\.ps1["']?|(?:\.?[\\/])?tools[\\/][a-z0-9_./\\-]+\.sh)/gi
+const NPX_COMMAND = /\bnpx(?:\.cmd)?\b/gi
 const SHELL_FENCE = /^(?:bash|sh|shell|zsh|powershell|pwsh|cmd|console)?$/i
+const QUOTED_FENCE = /^(?:json|jsonc|yaml|yml|text|markdown|md|toml|xml)$/i
 const DOCUMENTATION =
   /\b(?:skill body|agent body|ticket body|linear ticket|PR description|pull request description|tool help|internally|under the hood|inside (?:its|the) automation)\b|(?<![\p{L}\p{N}_-])(?:--help|help)[^\p{L}\p{N}_\r\n]+(?:output|text)\b/iu
 const INTERNAL_DOCUMENTATION = /\b(?:internally|under the hood|inside (?:its|the) automation)\b/i
@@ -45,12 +48,15 @@ function declaredRepoRoots() {
 
 const REPO_ROOTS = declaredRepoRoots()
 
-function commandMatch(line) {
-  const match = [NODE_TOOL_COMMAND.exec(line), TOOL_SCRIPT_COMMAND.exec(line), NPX_COMMAND.exec(line)]
-    .filter(Boolean)
-    .sort((left, right) => left.index - right.index)[0]
-  if (!match) return null
-  return { command: match[0].trim().replace(/[.,;:]+$/, ""), index: match.index }
+function commandMatches(text) {
+  const matches = []
+  for (const pattern of [NODE_TOOL_COMMAND, TOOL_SCRIPT_COMMAND, NPX_COMMAND]) {
+    pattern.lastIndex = 0
+    for (const match of text.matchAll(pattern)) matches.push({ index: match.index, end: match.index + match[0].length })
+  }
+  matches.sort((left, right) => left.index - right.index || right.end - left.end)
+
+  return matches.filter((match, index) => index === 0 || match.index >= matches[index - 1].end)
 }
 
 function previousNonemptyLine(lines, index) {
@@ -66,10 +72,15 @@ function splitAppeal(line) {
   return { line: line.slice(0, appeal.index).trimEnd(), reason: appeal[1].trim() }
 }
 
+function isContractionQuote(text, index) {
+  return text[index] === "'" && /[\p{L}\p{N}]/u.test(text[index - 1] ?? "") && /[\p{L}\p{N}]/u.test(text[index + 1] ?? "")
+}
+
 function splitShellSegments(line) {
   const segments = []
   let start = 0
   let quote = null
+  let ambiguous = false
 
   for (let index = 0; index < line.length; index++) {
     const character = line[index]
@@ -78,7 +89,7 @@ function splitShellSegments(line) {
       else if (character === quote) quote = null
       continue
     }
-    if (character === "'" || character === '"') {
+    if ((character === "'" && !isContractionQuote(line, index)) || character === '"') {
       quote = character
       continue
     }
@@ -92,7 +103,74 @@ function splitShellSegments(line) {
   }
 
   segments.push(line.slice(start))
-  return segments
+  if (quote) ambiguous = true
+  return { segments, ambiguous }
+}
+
+function isClauseBoundary(text, index) {
+  const character = text[index]
+  if (!/[.,;:]/.test(character)) return false
+  if (character === ":" && /[a-z]/i.test(text[index - 1] ?? "") && /[\\/]/.test(text[index + 1] ?? "")) return false
+  if (character === "." && text[index + 1] !== undefined && !/\s/.test(text[index + 1])) return false
+  return true
+}
+
+function splitClauseAtoms(text) {
+  const clauses = []
+  let atoms = []
+  let atomStart = 0
+  let atomKind = "prose"
+  let quote = null
+  let codeTicks = 0
+  let ambiguous = false
+
+  const pushAtom = (end) => {
+    if (end > atomStart) atoms.push({ text: text.slice(atomStart, end), start: atomStart, end, kind: atomKind })
+  }
+  const pushClause = () => {
+    if (atoms.some(({ text: atomText }) => atomText.trim())) clauses.push({ atoms })
+    atoms = []
+  }
+
+  for (let index = 0; index < text.length; index++) {
+    const character = text[index]
+    if (!quote && character === "`") {
+      let runLength = 1
+      while (text[index + runLength] === "`") runLength++
+      pushAtom(index)
+      if (!codeTicks) {
+        codeTicks = runLength
+        atomKind = "code"
+      } else if (codeTicks === runLength) {
+        codeTicks = 0
+        atomKind = "prose"
+      } else {
+        ambiguous = true
+      }
+      index += runLength - 1
+      atomStart = index + 1
+      continue
+    }
+    if (codeTicks) continue
+    if (quote) {
+      if (character === "\\" && quote === '"') index++
+      else if (character === quote) quote = null
+      continue
+    }
+    if ((character === "'" && !isContractionQuote(text, index)) || character === '"') {
+      quote = character
+      continue
+    }
+    if (!isClauseBoundary(text, index)) continue
+    pushAtom(index + 1)
+    pushClause()
+    atomStart = index + 1
+  }
+
+  pushAtom(text.length)
+  pushClause()
+  if (quote || codeTicks) ambiguous = true
+  return { clauses, ambiguous }
 }
 
 function npxTokens(command) {
@@ -135,10 +213,14 @@ function npxOptionStates(tokens) {
   return states
 }
 
-function isAmbiguousNpxName(command, insideFence, hasPrefix, standaloneCommand) {
-  if (insideFence === "shell") return false
+function isClearlyDescriptiveNpxMention(command, { insideFence, insideCode, prefix, clauseText }) {
+  if (insideFence === "shell" || insideCode) return false
+  if (/\b(?:as|about|regarding|describes?|explains?|tells?|mentions?)\s*$/i.test(prefix)) return true
+  if (/\b(?:option|flag)\b[^.!?]*\b(?:tells?|describes?|explains?)\b/i.test(clauseText)) return true
   const tokens = npxTokens(command)
   if (!/^npx(?:\.cmd)?$/i.test(tokens[0] ?? "")) return false
+  const hasPrefix = prefix.trim().length > 0
+  const standaloneCommand = !hasPrefix && !/[.,;!?:]\s*$/.test(clauseText)
   const positionalInvocation = (hasPrefix || standaloneCommand) && !/^-{1,2}[^-]/.test(tokens[1] ?? "")
 
   return !npxOptionStates(tokens).some((state) => {
@@ -172,35 +254,94 @@ function isDocumentationArtifact(filePath) {
   )
 }
 
+function fencePairs(lines) {
+  const pairs = new Map()
+  let opening = null
+  for (let index = 0; index < lines.length; index++) {
+    if (!/^\s*```[a-z0-9_-]*\s*$/i.test(lines[index])) continue
+    if (opening === null) opening = index
+    else {
+      pairs.set(opening, index)
+      pairs.set(index, opening)
+      opening = null
+    }
+  }
+  return { pairs, unclosed: opening }
+}
+
+function isDocumentationFenceIntroduction(line) {
+  const { clauses, ambiguous } = splitClauseAtoms(line)
+  if (ambiguous) return false
+  const lastClause = clauses.at(-1)
+  if (!lastClause) return false
+  const clauseText = lastClause.atoms.map(({ text: atomText }) => atomText).join("")
+  return DOCUMENTATION.test(clauseText) && !hasInstructionFraming(clauseText)
+}
+
+function commandContexts(segmentText, insideFence, inheritedAmbiguity) {
+  const { clauses, ambiguous: clauseAmbiguity } = splitClauseAtoms(segmentText)
+  const contexts = []
+
+  for (const { atoms } of clauses) {
+    for (let atomIndex = 0; atomIndex < atoms.length; atomIndex++) {
+      const atom = atoms[atomIndex]
+      const matches = commandMatches(atom.text)
+      for (let matchIndex = 0; matchIndex < matches.length; matchIndex++) {
+        const match = matches[matchIndex]
+        const end = matches[matchIndex + 1]?.index ?? atom.text.length
+        const command = atom.text.slice(match.index, end).trim().replace(/[.,;:]+$/, "")
+        const previous = atom.kind === "code" && atoms[atomIndex - 1]?.kind === "prose" ? atoms[atomIndex - 1].text : ""
+        const following = atom.kind === "code" && atoms[atomIndex + 1]?.kind === "prose" ? atoms[atomIndex + 1].text : ""
+        contexts.push({
+          ambiguous: inheritedAmbiguity || clauseAmbiguity,
+          clauseText: `${previous}${atom.text}${following}`,
+          command,
+          documentationText: atom.kind === "code" ? `${previous}${following}` : atom.text,
+          insideCode: atom.kind === "code",
+          insideFence,
+          prefix: `${previous}${atom.text.slice(0, match.index)}`,
+        })
+      }
+    }
+  }
+  return contexts
+}
+
 function surfacedCommands(text) {
   const lines = text.split(/\r?\n/)
   const surfaced = []
   let insideFence = null
+  const { pairs, unclosed } = fencePairs(lines)
 
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index]
     const fence = /^\s*```([a-z0-9_-]*)\s*$/i.exec(line)
     if (fence) {
       if (insideFence) insideFence = null
-      else if (DOCUMENTATION.test(previousNonemptyLine(lines, index))) insideFence = "documentation"
-      else insideFence = SHELL_FENCE.test(fence[1]) ? "shell" : "other"
+      else if (!pairs.has(index) || unclosed === index) insideFence = "ambiguous"
+      else if (isDocumentationFenceIntroduction(previousNonemptyLine(lines, index))) insideFence = "documentation"
+      else if (SHELL_FENCE.test(fence[1])) insideFence = "shell"
+      else insideFence = QUOTED_FENCE.test(fence[1]) ? "quoted" : "ambiguous"
       continue
     }
     if (insideFence === "documentation") continue
-    if (insideFence === "other") continue
+    if (insideFence === "quoted") continue
 
     const lineCommands = []
-    for (const rawSegment of splitShellSegments(lines[index])) {
+    const { segments: rawSegments, ambiguous: shellAmbiguity } = splitShellSegments(lines[index])
+    for (const rawSegment of rawSegments) {
       const segment = splitAppeal(rawSegment)
-      const match = commandMatch(segment.line)
-      if (!match) continue
-      const prefix = segment.line.slice(0, match.index)
-      const instructionFramed = hasInstructionFraming(prefix)
-      if (DOCUMENTATION.test(segment.line) && !instructionFramed) continue
-      const hasPrefix = prefix.trim().length > 0
-      const standaloneCommand = !hasPrefix && !/[.!?:]\s*$/.test(segment.line)
-      if (isAmbiguousNpxName(match.command, insideFence, hasPrefix, standaloneCommand)) continue
-      lineCommands.push({ command: match.command, reason: segment.reason })
+      const contexts = commandContexts(segment.line, insideFence, shellAmbiguity || insideFence === "ambiguous")
+      const segmentCommands = []
+      for (const context of contexts) {
+        const instructionFramed = hasInstructionFraming(context.prefix)
+        const documented = DOCUMENTATION.test(context.documentationText) && !instructionFramed
+        const descriptiveNpx = isClearlyDescriptiveNpxMention(context.command, context)
+        if (!context.ambiguous && (documented || descriptiveNpx)) continue
+        segmentCommands.push({ command: context.command, reason: null })
+      }
+      if (segment.reason && segmentCommands.length) segmentCommands.at(-1).reason = segment.reason
+      lineCommands.push(...segmentCommands)
     }
 
     const appealed = lineCommands.filter(({ reason: commandReason }) => commandReason)
@@ -263,6 +404,7 @@ export function checkRawRepoToolSurfacing(text, { source = "chat", filePath = ""
     message: [
       `Raw repo-tool command surfaced for Thomas: ${unappealed.command}`,
       alternativeFor(unappealed.command),
+      "Ambiguous command context is blocked by design: a false block can be appealed, while a false pass disables the gate.",
       'Remove the raw command, or put "Repo-tool appeal: <reason>" on the same line when it genuinely must be shown. Every surfaced command needs its own recorded reason.',
     ].join("\n"),
   }
