@@ -1,13 +1,14 @@
 #!/usr/bin/env node
-// Stop and PostToolUse adapter for the raw repo-tool surfacing gate. It judges
-// only commands framed as something Thomas should run. Skill internals, agent
-// bodies, ticket bodies, PR descriptions, and help output are documentation,
-// not user instructions.
+// Stop and PostToolUse adapter for the raw repo-tool surfacing gate. Skill
+// internals, agent bodies, ticket bodies, PR descriptions, and help output are
+// documentation, not user instructions.
+// Artifact checks inspect only new tool-input text and skip files under declared
+// repos, where source and documentation references are owned by CI.
 // Appeals are command-scoped: the marker must share the command's line, and
 // every surfaced command needs its own reason.
 
 import { existsSync, readFileSync } from "node:fs"
-import { resolve } from "node:path"
+import { dirname, posix, resolve, win32 } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { filePathFrom, readStdinJson } from "./_lib/io.mjs"
@@ -21,13 +22,27 @@ const DOCUMENTATION =
 const DOCUMENT_PATH =
   /(?:^|[/\\])(?:\.claude[/\\](?:skills|agents|hooks)[/\\]|(?:ticket(?:-body)?|pr(?:-body|-description)?|pull-request-description|[A-Z][A-Z0-9]+-\d+)\.(?:md|txt)$)/i
 const HELP_PATH = /(?:^|[/\\])(?:help|.+--help)(?:[-_.].*)?\.(?:md|txt|log)$/i
+const HOOK_REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..")
+const WINDOWS_PATH = /^(?:[a-z]:[\\/]|\\\\)/i
 
-function commandFrom(line) {
-  return (
-    COMMAND.exec(line)?.[0]
-      ?.trim()
-      .replace(/[.,;:]+$/, "") ?? null
-  )
+function declaredRepoRoots() {
+  try {
+    const config = JSON.parse(readFileSync(resolve(HOOK_REPO_ROOT, ".claude", "orchestrator.json"), "utf8"))
+    const configured = Object.values(config?.repos ?? {}).filter(
+      (repoPath) => typeof repoPath === "string" && (win32.isAbsolute(repoPath) || posix.isAbsolute(repoPath)),
+    )
+    return [HOOK_REPO_ROOT, ...configured]
+  } catch {
+    return [HOOK_REPO_ROOT]
+  }
+}
+
+const REPO_ROOTS = declaredRepoRoots()
+
+function commandMatch(line) {
+  const match = COMMAND.exec(line)
+  if (!match) return null
+  return { command: match[0].trim().replace(/[.,;:]+$/, ""), index: match.index }
 }
 
 function previousNonemptyLine(lines, index) {
@@ -41,6 +56,35 @@ function splitAppeal(line) {
   const appeal = APPEAL_SUFFIX.exec(line)
   if (!appeal) return { line, reason: null }
   return { line: line.slice(0, appeal.index).trimEnd(), reason: appeal[1].trim() }
+}
+
+function splitShellSegments(line) {
+  const segments = []
+  let start = 0
+  let quote = null
+
+  for (let index = 0; index < line.length; index++) {
+    const character = line[index]
+    if (quote) {
+      if (character === "\\" && quote === '"') index++
+      else if (character === quote) quote = null
+      continue
+    }
+    if (character === "'" || character === '"') {
+      quote = character
+      continue
+    }
+
+    const pair = line.slice(index, index + 2)
+    const separatorLength = pair === "&&" || pair === "||" ? 2 : character === ";" || character === "|" ? 1 : 0
+    if (!separatorLength) continue
+    segments.push(line.slice(start, index))
+    start = index + separatorLength
+    index += separatorLength - 1
+  }
+
+  segments.push(line.slice(start))
+  return segments
 }
 
 function isAmbiguousNpxName(command, insideFence) {
@@ -57,7 +101,7 @@ function surfacedCommands(text) {
   let insideFence = null
 
   for (let index = 0; index < lines.length; index++) {
-    const { line, reason } = splitAppeal(lines[index])
+    const line = lines[index]
     const fence = /^\s*```([a-z0-9_-]*)\s*$/i.exec(line)
     if (fence) {
       if (insideFence) insideFence = null
@@ -68,13 +112,25 @@ function surfacedCommands(text) {
     if (insideFence === "documentation") continue
     if (insideFence === "other") continue
 
-    const command = commandFrom(line)
-    if (!command) continue
     const previousLine = previousNonemptyLine(lines, index)
-    const framing = `${previousLine} ${line}`
-    if (DOCUMENTATION.test(framing)) continue
-    if (isAmbiguousNpxName(command, insideFence)) continue
-    surfaced.push({ command, reason })
+    const lineCommands = []
+    for (const rawSegment of splitShellSegments(lines[index])) {
+      const segment = splitAppeal(rawSegment)
+      const match = commandMatch(segment.line)
+      if (!match) continue
+      const framing = `${previousLine} ${segment.line}`
+      if (DOCUMENTATION.test(framing)) continue
+      const imperativeRun = /^\s*(?:(?:[-*+]|\d+[.)])\s+)?(?:please\s+)?run\b/i.test(segment.line.slice(0, match.index))
+      if (isAmbiguousNpxName(match.command, insideFence) && !imperativeRun) continue
+      lineCommands.push({ command: match.command, reason: segment.reason })
+    }
+
+    const appealed = lineCommands.filter(({ reason: commandReason }) => commandReason)
+    if (lineCommands.length > 1 && appealed.length === 1 && lineCommands.at(-1) === appealed[0]) {
+      lineCommands[0].reason = appealed[0].reason
+      appealed[0].reason = null
+    }
+    surfaced.push(...lineCommands)
   }
   return surfaced
 }
@@ -145,17 +201,43 @@ function transcriptAssistantMessage(transcriptPath) {
   return ""
 }
 
+function isRepoArtifact(filePath) {
+  if (!filePath) return false
+  const target = win32.isAbsolute(filePath) || posix.isAbsolute(filePath) ? filePath : resolve(filePath)
+  return REPO_ROOTS.some((repoRoot) => {
+    const rootIsWindows = WINDOWS_PATH.test(repoRoot)
+    if (rootIsWindows !== WINDOWS_PATH.test(target)) return false
+    const pathApi = rootIsWindows ? win32 : posix
+    const relation = pathApi.relative(pathApi.normalize(repoRoot), pathApi.normalize(target))
+    return relation === "" || (relation !== ".." && !relation.startsWith(`..${pathApi.sep}`) && !pathApi.isAbsolute(relation))
+  })
+}
+
 function writtenArtifact(input) {
   const filePath = filePathFrom(input) ?? ""
-  if (filePath && existsSync(filePath)) {
-    return { filePath, text: readFileSync(filePath, "utf8") }
+  const chunks =
+    input.tool_name === "Write"
+      ? [input?.tool_input?.content]
+      : input.tool_name === "Edit"
+        ? [input?.tool_input?.new_string]
+        : Array.isArray(input?.tool_input?.edits)
+          ? input.tool_input.edits.map((edit) => edit?.new_string)
+          : []
+  return { filePath, chunks: chunks.filter((value) => typeof value === "string") }
+}
+
+function artifactVerdict(input) {
+  const { filePath, chunks } = writtenArtifact(input)
+  if (isRepoArtifact(filePath)) return null
+
+  const appeals = []
+  for (const text of chunks) {
+    const verdict = checkRawRepoToolSurfacing(text, { source: "artifact", filePath })
+    if (verdict?.block) return verdict
+    if (verdict?.appeal) appeals.push(verdict)
   }
-  const candidates = [
-    input?.tool_input?.content,
-    input?.tool_input?.new_string,
-    ...(Array.isArray(input?.tool_input?.edits) ? input.tool_input.edits.map((edit) => edit?.new_string) : []),
-  ].filter((value) => typeof value === "string")
-  return { filePath, text: candidates.join("\n") }
+  if (!appeals.length) return null
+  return { appeal: true, message: appeals.map(({ message }) => message).join("\n") }
 }
 
 function emit(verdict) {
@@ -180,8 +262,7 @@ function runHook() {
       emit(checkRawRepoToolSurfacing(text))
     }
 
-    const { filePath, text } = writtenArtifact(input)
-    emit(checkRawRepoToolSurfacing(text, { source: "artifact", filePath }))
+    emit(artifactVerdict(input))
   } catch {
     process.exit(0)
   }

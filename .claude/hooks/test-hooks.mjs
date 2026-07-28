@@ -326,6 +326,16 @@ const writePayload = (file_path, content) => ({
   tool_name: "Write",
   tool_input: { file_path, content },
 })
+const editPayload = (file_path, new_string, old_string = "") => ({
+  hook_event_name: "PostToolUse",
+  tool_name: "Edit",
+  tool_input: { file_path, old_string, new_string },
+})
+const multiEditPayload = (file_path, edits) => ({
+  hook_event_name: "PostToolUse",
+  tool_name: "MultiEdit",
+  tool_input: { file_path, edits },
+})
 const surfacedWavePlan = "Re-derive any time with `node tools/wave-plan.mjs --all`"
 
 const chatSurfacing = runHookResult(RAW_TOOL_HOOK, stopPayload(surfacedWavePlan))
@@ -387,6 +397,7 @@ for (const prose of [
 }
 T("cc raw-tool: ambiguous bare npx name -> 0", runHook(RAW_TOOL_HOOK, stopPayload("The package is invoked as npx cowsay.")), 0)
 T("cc raw-tool: npx package followed by a flag -> 2", runHook(RAW_TOOL_HOOK, stopPayload("Next: npx eslint --fix")), 2)
+T("cc raw-tool: imperative npx with positional arguments -> 2", runHook(RAW_TOOL_HOOK, stopPayload("Run npx prisma generate now")), 2)
 
 const bareToolSurfacing = runHookResult(
   RAW_TOOL_HOOK,
@@ -398,10 +409,66 @@ const outsideRepoArtifactBody = ["# Instructions", "", "Run this to refresh the 
 const outsideRepoArtifact = write("Downloads/order.md", outsideRepoArtifactBody)
 const artifactSurfacing = runHookResult(
   RAW_TOOL_HOOK,
-  writePayload(outsideRepoArtifact),
+  writePayload(outsideRepoArtifact, outsideRepoArtifactBody),
 )
 T("cc raw-tool: outside-repo instruction artifact -> 2", artifactSurfacing.status, 2)
 T("cc raw-tool: artifact block names /next", artifactSurfacing.stderr.includes("/next"), true)
+
+const rawToolRepoRoot = join(hooksDir, "..", "..")
+for (const [name, filePath, newString] of [
+  ["repo CLAUDE edit ignores pre-existing commands", join(rawToolRepoRoot, "CLAUDE.md"), "A harmless wording update."],
+  ["repo tool edit ignores pre-existing commands", join(rawToolRepoRoot, "tools", "check-dashes.mjs"), "const harmless = true"],
+  [
+    "repo doc new raw command remains artifact-out-of-scope",
+    join(rawToolRepoRoot, "README.md"),
+    "Run node tools/wave-plan.mjs --all",
+  ],
+]) {
+  const result = runHookResult(RAW_TOOL_HOOK, editPayload(filePath, newString))
+  T(`cc raw-tool: ${name} -> 0`, result.status, 0)
+  T(`cc raw-tool: ${name} emits no verdict`, result.stdout === "" && result.stderr === "", true)
+}
+
+const declaredRepos = JSON.parse(readFileSync(join(rawToolRepoRoot, ".claude", "orchestrator.json"), "utf8")).repos
+for (const [repoName, repoPath] of Object.entries(declaredRepos)) {
+  T(
+    `cc raw-tool: declared ${repoName} repo source is artifact-out-of-scope -> 0`,
+    runHook(RAW_TOOL_HOOK, editPayload(`${repoPath}\\internal.md`, "Run node tools/wave-plan.mjs --all")),
+    0,
+  )
+}
+
+const existingOutsideArtifact = write("Downloads/existing-order.md", outsideRepoArtifactBody)
+const safeOutsideEdit = runHookResult(RAW_TOOL_HOOK, editPayload(existingOutsideArtifact, "Updated heading only."))
+T("cc raw-tool: outside edit scans only its safe new string -> 0", safeOutsideEdit.status, 0)
+T("cc raw-tool: outside safe edit emits no verdict", safeOutsideEdit.stdout === "" && safeOutsideEdit.stderr === "", true)
+T(
+  "cc raw-tool: outside edit blocks a raw command in its new string -> 2",
+  runHook(RAW_TOOL_HOOK, editPayload(existingOutsideArtifact, "Run node tools/wave-plan.mjs --all")),
+  2,
+)
+T(
+  "cc raw-tool: outside MultiEdit checks new strings independently -> 2",
+  runHook(
+    RAW_TOOL_HOOK,
+    multiEditPayload(existingOutsideArtifact, [
+      { old_string: "old", new_string: "The captured `--help` output is:" },
+      { old_string: "older", new_string: "node tools/wave-plan.mjs --all" },
+    ]),
+  ),
+  2,
+)
+T(
+  "cc raw-tool: outside MultiEdit ignores pre-existing commands -> 0",
+  runHook(
+    RAW_TOOL_HOOK,
+    multiEditPayload(existingOutsideArtifact, [
+      { old_string: "node tools/wave-plan.mjs --all", new_string: "Updated heading." },
+      { old_string: "old details", new_string: "Updated details." },
+    ]),
+  ),
+  0,
+)
 
 // These are machine-to-machine bodies or quoted reference material, not steps
 // presented to Thomas. Each is a distinct correct use of the same command.
@@ -512,6 +579,23 @@ const separatelyAppealed = runHookResult(
 T("cc raw-tool: every command has its own appeal -> 0", separatelyAppealed.status, 0)
 T("cc raw-tool: first command reason is recorded", separatelyAppealed.stdout.includes("first command is required"), true)
 T("cc raw-tool: second command reason is recorded", separatelyAppealed.stdout.includes("second command is required"), true)
+
+const oneAppealForChain = runHookResult(
+  RAW_TOOL_HOOK,
+  stopPayload("node tools/wave-plan.mjs --all && node tools/rollup.mjs # Repo-tool appeal: wave plan is required"),
+)
+T("cc raw-tool: one appeal cannot cover a chained command -> 2", oneAppealForChain.status, 2)
+T("cc raw-tool: chained appeal reports the second command", oneAppealForChain.stderr.includes("node tools/rollup.mjs"), true)
+
+const appealedChain = runHookResult(
+  RAW_TOOL_HOOK,
+  stopPayload(
+    "node tools/wave-plan.mjs --all # Repo-tool appeal: wave plan is required && node tools/rollup.mjs # Repo-tool appeal: rollup is required",
+  ),
+)
+T("cc raw-tool: every chained command has its own appeal -> 0", appealedChain.status, 0)
+T("cc raw-tool: chained wave-plan reason is recorded", appealedChain.stdout.includes("wave plan is required"), true)
+T("cc raw-tool: chained rollup reason is recorded", appealedChain.stdout.includes("rollup is required"), true)
 
 // ---------------------------------------------------------------------------
 // 3. Agent frontmatter: the fails-open `Bash(...)` trap
