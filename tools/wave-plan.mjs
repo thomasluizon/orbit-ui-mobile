@@ -41,7 +41,7 @@ try {
   process.exit(2)
 }
 const ATTEMPTS_BEFORE_REWRITE = orchestratorConfig.attemptsBeforeRewrite
-const RELATION_FETCH_CONCURRENCY = 10
+const RELATION_FETCH_CONCURRENCY = 8
 const execFileAsync = promisify(execFile)
 
 const failureReason = (error) => {
