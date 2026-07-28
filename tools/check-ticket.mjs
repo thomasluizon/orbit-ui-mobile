@@ -58,8 +58,12 @@ const validateBody = (body) => {
   const visibleEffect = /\b(screen|page|component|modal|sheet|button|copy|string|animation|style|design)\b/i.test(body)
   if (visibleEffect) {
     require_(
-      /visible-effect|screenshot|pixel evidence/i.test(body),
-      "body smells user-visible but does not carry the visible-effect evidence contract (D7): state that a screenshot is required to reach In Review",
+      /screenshot|pixel evidence/i.test(body),
+      "body smells user-visible but does not carry the visible-effect evidence contract (D7): state that final screenshots are attached before In Review",
+    )
+    require_(
+      /\bcritique\b/i.test(body),
+      "body smells user-visible but does not carry the visible-effect evidence contract (D7): state that the critique artifact is attached before In Review",
     )
   }
 }
