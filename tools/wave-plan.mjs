@@ -12,7 +12,8 @@
 
 import { execFile } from "node:child_process"
 import { promisify } from "node:util"
-import { readFileSync } from "node:fs"
+
+import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
 const USAGE = `usage: wave-plan.mjs --project "<name>" | --label "<label>" | --all | --issues "ORB-a,ORB-b" [--json]
 
@@ -32,11 +33,15 @@ if (process.argv.includes("--help") || process.argv.includes("-h")) {
 
 const ORCA = process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs\\orca\\resources\\bin\\orca"
 const TEAM = "ORB"
-const orchestratorConfig = JSON.parse(
-  readFileSync(new URL("../.claude/orchestrator.json", import.meta.url), "utf8"),
-)
+let orchestratorConfig
+try {
+  orchestratorConfig = readOrchestratorConfig()
+} catch (error) {
+  console.error(error.message)
+  process.exit(2)
+}
 const ATTEMPTS_BEFORE_REWRITE = orchestratorConfig.attemptsBeforeRewrite
-const RELATION_FETCH_CONCURRENCY = 8
+const RELATION_FETCH_CONCURRENCY = 10
 const execFileAsync = promisify(execFile)
 
 const failureReason = (error) => {

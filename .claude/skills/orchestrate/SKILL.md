@@ -186,9 +186,12 @@ fatal to an unattended worker:
   TUI is never sent to twice: it settles and re-reads instead, because a second send into a busy
   worker is the ORB-75 corruption.
 
-It also applies the model routing orchestrator.json's notes name: a ticket labelled
-`worker:sonnet` swaps `--model opus` for `--model sonnet`; every other ticket uses the
-configured args verbatim.
+It also resolves model routing from the selected engine's `models` map in
+orchestrator.json. No tier label selects `default`; `tier:cheap` and `tier:deep` select
+the corresponding engine-specific entries. A tier must change the resolved invocation.
+Unknown or conflicting tier labels, missing mappings, and identical tier invocations
+fail the launch loudly. The legacy `worker:sonnet` label is rejected with remediation to
+use `tier:cheap`; it is never silently translated or ignored.
 
 **Why not `claude -p`.** Headless mode is invisible to Orca: it is not a TUI, so the
 worktree card shows no Agents row and clicking the card reveals only a bare shell.
@@ -227,8 +230,12 @@ sandbox... Input disabled until setup completes" forever in a PTY with no deskto
 UAC on, while `orca terminal wait` reports `satisfied: true` throughout. The prerequisite
 the harness cannot supply is the account: a paid ChatGPT plan and `codex login`
 (`codex login --device-auth` works from a headless session, printing a URL and a one-time
-code). Making codex the DEFAULT is still a separate decision (D5) and Thomas's call; this
-only makes selecting it work.
+code). Its model map defaults to gpt-5.6-terra at medium reasoning, maps `tier:cheap` to
+gpt-5.6-luna at low reasoning, and maps `tier:deep` to gpt-5.6-sol at high reasoning.
+Terra is the routine default because D2 supplies a complete, validated ticket and the
+delivery gates plus D9 bound executor risk; Sol stays available when deeper reasoning is
+needed. Model routing does not change the top-level `worker` selection; D5 keeps that as
+an explicit configuration decision.
 
 Two consequences of dropping `-p`. The process does NOT exit when the work is done, so
 wait with `--for tui-idle`, never `--for exit`. And the permission mode must still come

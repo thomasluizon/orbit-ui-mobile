@@ -15,6 +15,7 @@ import { execFileSync, spawnSync } from "node:child_process"
 import { appendFileSync, existsSync, readFileSync } from "node:fs"
 import { resolve } from "node:path"
 
+import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { SETTLE_MS, isRepainting, pause } from "./lib/tui-repaint.mjs"
 
 const USAGE = `usage: nudge-worker.mjs --terminal <handle> (--text "<one line>" | --prompt-file <path> < update.md)
@@ -73,14 +74,6 @@ const fail = (code, message) => {
 const argOf = (flag) => {
   const index = process.argv.indexOf(flag)
   return index === -1 ? null : process.argv[index + 1]
-}
-
-const readOrchestratorConfig = () => {
-  try {
-    return { config: JSON.parse(readFileSync(new URL("../.claude/orchestrator.json", import.meta.url), "utf8")), error: null }
-  } catch (error) {
-    return { config: null, error: error.message }
-  }
 }
 
 /** orca prints its `ok: false` payload on STDOUT and leaves stderr empty, so a failed call whose
@@ -172,7 +165,12 @@ if (promptFileArg && textArg) fail(2, "--prompt-file and --text are alternatives
 if (!Number.isInteger(waitAttemptsAllowed) || waitAttemptsAllowed < 1) fail(2, "--wait-attempts must be a positive integer")
 if (textArg && /[\r\n]/.test(textArg)) fail(2, "--text must be a single line; append the long form to the prompt file instead")
 
-const orchestrator = readOrchestratorConfig()
+let orchestrator
+try {
+  orchestrator = { config: readOrchestratorConfig(), error: null }
+} catch (error) {
+  orchestrator = { config: null, error: error.message }
+}
 const engineSource = engineOverridePresent ? "--engine" : ".claude/orchestrator.json worker"
 const engineValue = engineOverridePresent ? engineOverride : orchestrator.config?.worker
 const normalizedEngine = typeof engineValue === "string" ? engineValue.trim().toLowerCase() : ""
@@ -236,7 +234,7 @@ let update = ""
 if (promptFileArg) {
   promptFile = resolve(promptFileArg)
   if (!existsSync(promptFile)) fail(2, `prompt file not found: ${promptFile}`)
-  if (!orchestrator.config) fail(2, `.claude/orchestrator.json could not be read as JSON: ${orchestrator.error}`)
+  if (!orchestrator.config) fail(2, orchestrator.error)
   const repos = orchestrator.config.repos
   const normalize = (path) => path.replaceAll("\\", "/").replace(/\/+$/, "").toLowerCase()
   for (const [key, path] of Object.entries(repos ?? {})) {
