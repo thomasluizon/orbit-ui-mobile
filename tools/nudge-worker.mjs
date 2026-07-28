@@ -45,19 +45,17 @@ const ORCA = process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs
 /** One wait is a full minute; three of them is a worker that is genuinely working, not one that is stuck. */
 const WAIT_TIMEOUT_MS = 60000
 const STALE_BLOCKED_REASON = "codex-trust-workspace"
-// WHY: ORB-129 measured Codex's rotating composer copy and current status layout; prompt/status structure without a live working indicator proves readiness. https://github.com/thomasluizon/orbit-ui-mobile/pull/629
+// WHY: ORB-129 measured rotating Codex placeholders, unstable status-line placement, and this marker/no-working predicate against three live terminals plus the repaint oracle. https://github.com/thomasluizon/orbit-ui-mobile/pull/629
 const ENGINE_PROFILES = {
   claude: {
-    // WHY: No Claude worker ran during ORB-129, so this analogous composer/status profile remains explicitly unverified pending a captured screen. https://github.com/thomasluizon/orbit-ui-mobile/pull/629
+    // WHY: No Claude worker ran during ORB-129, so this analogous composer/working profile remains explicitly unverified pending a captured screen. https://github.com/thomasluizon/orbit-ui-mobile/pull/629
     trustOnScreen: /isthisaprojectyoucreatedoroneyoutrust|doyoutrustthefiles|trustthisfolder/,
     composerMarker: ">",
-    statusOnScreen: /(?:opus|sonnet)[\d.]+@(?:low|medium|high|xhigh|max|ultra)ctx\[[^\]]*\](?:--|\d+)%/,
     workingOnScreen: /esctointerrupt/,
   },
   codex: {
     trustOnScreen: /doyoutrustthecontentsofthisdirectory/,
     composerMarker: "›",
-    statusOnScreen: /gpt-[\w.-]+?(?:low|medium|high|xhigh|max|ultra)·[^·]+·[^·]+\[[^\]]+\]/,
     workingOnScreen: /esctointerrupt/,
   },
 }
@@ -141,7 +139,7 @@ const screenSignals = (handle) => {
     const composerIndex = screen.lastIndexOf(profile.composerMarker)
     if (composerIndex === -1) return false
     const currentComposer = screen.slice(composerIndex)
-    return profile.statusOnScreen.test(currentComposer) && !profile.workingOnScreen.test(currentComposer)
+    return !profile.workingOnScreen.test(currentComposer)
   })?.[0] ?? null
   return { trustEngine, readyEngine }
 }
