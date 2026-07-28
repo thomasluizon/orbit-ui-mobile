@@ -145,13 +145,14 @@ const busy = (handle) => isRepainting(orca, handle)
 const screenSignals = (handle, resolvedEngine) => {
   const tail = (orca(["terminal", "read", "--terminal", handle, "--limit", "60"]).terminal?.tail ?? []).join("\n")
   const screen = flatten(tail)
-  const trustEngine = Object.entries(ENGINE_PROFILES).find(([, profile]) => profile.trustOnScreen.test(screen))?.[0] ?? null
   const profile = resolvedEngine ? ENGINE_PROFILES[resolvedEngine] : null
   const hasVerifiedReadiness = Boolean(profile?.composerMarker && profile?.workingOnScreen)
   const composerIndex = hasVerifiedReadiness ? screen.lastIndexOf(profile.composerMarker) : -1
-  const currentComposer = composerIndex === -1 ? null : screen.slice(composerIndex)
-  const readyEngine = currentComposer && !profile.workingOnScreen.test(currentComposer) ? resolvedEngine : null
-  return { trustEngine, readyEngine }
+  const currentScreen = composerIndex === -1 ? null : screen.slice(composerIndex)
+  const trustScreen = currentScreen ?? screen
+  const trustEngine = Object.entries(ENGINE_PROFILES).find(([, candidate]) => candidate.trustOnScreen.test(trustScreen))?.[0] ?? null
+  const readyEngine = currentScreen && !profile.workingOnScreen.test(currentScreen) ? resolvedEngine : null
+  return { trustEngine, readyEngine, hasVerifiedReadiness, currentScreenLocated: currentScreen !== null }
 }
 
 const terminal = argOf("--terminal")
@@ -224,15 +225,28 @@ while (waitAttempts < waitAttemptsAllowed && !idle) {
   }
   if (wait.blockedReason === STALE_BLOCKED_REASON) {
     if (!busy(terminal)) {
-      const { trustEngine, readyEngine } = screenSignals(terminal, resolvedEngine)
+      const { trustEngine, readyEngine, hasVerifiedReadiness, currentScreenLocated } = screenSignals(terminal, resolvedEngine)
+      if (!hasVerifiedReadiness) {
+        const engineReason = readinessRefusalReason()
+        console.error(`attempt ${waitAttempts}: orca reports ${wait.blockedReason}, the TUI is not repainting, but ${engineReason}, so the worker remains blocked`)
+        if (waitAttempts < waitAttemptsAllowed) pause(SETTLE_MS)
+        continue
+      }
+      if (!currentScreenLocated) {
+        const trustReason = trustEngine
+          ? `the ${trustEngine} trust prompt is still on screen in retained tail`
+          : "no known trust prompt is on screen"
+        console.error(`attempt ${waitAttempts}: orca reports ${wait.blockedReason}, the TUI is not repainting, but the current screen region could not be located because no ${resolvedEngine} composer marker is on screen, ${trustReason}, and no known ready composer is on screen, so the worker remains blocked`)
+        if (waitAttempts < waitAttemptsAllowed) pause(SETTLE_MS)
+        continue
+      }
       if (trustEngine) {
         console.error(`attempt ${waitAttempts}: orca reports ${wait.blockedReason}, the TUI is not repainting, and the ${trustEngine} trust prompt is still on screen, so the worker remains blocked`)
         if (waitAttempts < waitAttemptsAllowed) pause(SETTLE_MS)
         continue
       }
       if (!readyEngine) {
-        const engineReason = readinessRefusalReason()
-        console.error(`attempt ${waitAttempts}: orca reports ${wait.blockedReason}, the TUI is not repainting, and no known trust prompt is on screen, but ${engineReason}, so the worker remains blocked`)
+        console.error(`attempt ${waitAttempts}: orca reports ${wait.blockedReason}, the TUI is not repainting, and no known trust prompt is on screen, but no known ready composer is on screen for the ${resolvedEngine} profile, so the worker remains blocked`)
         if (waitAttempts < waitAttemptsAllowed) pause(SETTLE_MS)
         continue
       }

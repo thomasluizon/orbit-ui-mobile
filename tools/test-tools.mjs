@@ -720,6 +720,15 @@ const LIVE_BLOCKED_IDLE_STUB = [
   { match: "terminal read", stdout: JSON.stringify({ ok: true, result: { terminal: { tail: ["Doyoutrustthecontents", "ofthisdirectory?"] } } }), exit: 0 },
   { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }), exit: 0 },
 ]
+const ANSWERED_TRUST_BEFORE_READY_TAIL = [
+  "Do you trust the contents of this directory?",
+  "Trust once and continue",
+  "› Explain this codebase",
+]
+const LIVE_TRUST_AFTER_COMPOSER_TAIL = [
+  "› Explain this codebase",
+  "Do you trust the contents of this directory?",
+]
 const UNRECOGNIZED_BLOCKED_IDLE_STUB = [
   { match: "terminal wait", stdout: STALE_BLOCKED_WAIT, exit: 0 },
   { match: "terminal show", stdout: JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1785168487585 } } }), exit: 0 },
@@ -773,6 +782,9 @@ const nudgeWorkerCases = () => {
       : { status: 1, stderr: /no known ready composer is on screen[\s\S]*NOTHING was sent/ }
     runNudgeSignalCase(label, name, staleBlockedIdleStub(tail), expect, ready ? 1 : 0)
   }
+  runNudgeSignalCase("answered-trust-before-ready", "ignores answered trust text before the current codex composer", staleBlockedIdleStub(ANSWERED_TRUST_BEFORE_READY_TAIL), { status: 0, stdout: /"sent": "hi"/, stderr: /codex ready composer is on screen[\s\S]*blocked reason is stale/ }, 1)
+  runNudgeSignalCase("live-trust-after-composer", "refuses a live trust prompt after the current codex composer", staleBlockedIdleStub(LIVE_TRUST_AFTER_COMPOSER_TAIL), { status: 1, stderr: /codex trust prompt is still on screen[\s\S]*worker remains blocked[\s\S]*NOTHING was sent/ }, 0)
+  runNudgeSignalCase("trust-without-composer", "fails closed when a trust prompt has no current composer region", LIVE_BLOCKED_IDLE_STUB, { status: 1, stderr: /current screen region could not be located[\s\S]*no codex composer marker[\s\S]*codex trust prompt is still on screen in retained tail[\s\S]*NOTHING was sent/ }, 0)
   const codexProfile = stageNudgeWorker("codex-profile", "codex")
   const incidentalGreaterThanTail = [
     "› Working on the nudge predicate",
