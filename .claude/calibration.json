@@ -1,0 +1,181 @@
+{
+  "model": "gpt-5.6-sol",
+  "date": "2026-07-28",
+  "entries": [
+    {
+      "file": ".claude/agents/Explore.md",
+      "verdict": "kept",
+      "reason": "Haiku fits bounded code search; omitted effort preserves the pinned cheap tier."
+    },
+    {
+      "file": ".claude/agents/audit-readonly.md",
+      "verdict": "kept",
+      "reason": "Schema-bound fan-out is pinned to Haiku at call sites; omitted effort preserves that tier."
+    },
+    {
+      "file": ".claude/agents/completeness-critic.md",
+      "verdict": "kept",
+      "reason": "Sonnet with high effort fits adversarial whole-surface completeness judgment."
+    },
+    {
+      "file": ".claude/agents/contract-aligner.md",
+      "verdict": "kept",
+      "reason": "Sonnet with medium effort fits structured cross-repo contract comparison."
+    },
+    {
+      "file": ".claude/agents/design-reviewer.md",
+      "verdict": "kept",
+      "reason": "Sonnet with medium effort fits rubric-driven visual review."
+    },
+    {
+      "file": ".claude/agents/design-specialist.md",
+      "verdict": "changed",
+      "reason": "Explicit inherited model with high effort fits load-bearing design-system judgment."
+    },
+    {
+      "file": ".claude/agents/i18n-syncer.md",
+      "verdict": "kept",
+      "reason": "Haiku fits deterministic locale parity edits; omitted effort preserves the cheap tier."
+    },
+    {
+      "file": ".claude/agents/parity-checker.md",
+      "verdict": "kept",
+      "reason": "Haiku fits deterministic mirror checks; omitted effort preserves the cheap tier."
+    },
+    {
+      "file": ".claude/agents/product-manager.md",
+      "verdict": "changed",
+      "reason": "Explicit inherited model with high effort fits contract-bound ticket and DAG shaping."
+    },
+    {
+      "file": ".claude/agents/security-reviewer.md",
+      "verdict": "kept",
+      "reason": "Sonnet with medium effort fits a bounded, evidence-led security rubric."
+    },
+    {
+      "file": ".claude/agents/web-researcher.md",
+      "verdict": "kept",
+      "reason": "Sonnet with medium effort fits narrow source verification and synthesis."
+    },
+    {
+      "file": ".claude/skills/android-generate/SKILL.md",
+      "verdict": "changed",
+      "reason": "Low effort now matches its single fixed build command."
+    },
+    {
+      "file": ".claude/skills/audit-code-quality/SKILL.md",
+      "verdict": "kept",
+      "reason": "Omitted effort intentionally inherits high reasoning for repo-wide judgment."
+    },
+    {
+      "file": ".claude/skills/audit-performance/SKILL.md",
+      "verdict": "kept",
+      "reason": "Omitted effort intentionally inherits high reasoning for cross-stack risk analysis."
+    },
+    {
+      "file": ".claude/skills/audit-security/SKILL.md",
+      "verdict": "kept",
+      "reason": "Omitted effort intentionally inherits high reasoning for threat and severity judgment."
+    },
+    {
+      "file": ".claude/skills/audit-tests/SKILL.md",
+      "verdict": "kept",
+      "reason": "Omitted effort intentionally inherits high reasoning for behavioral coverage judgment."
+    },
+    {
+      "file": ".claude/skills/commit-sweep/SKILL.md",
+      "verdict": "kept",
+      "reason": "Omitted effort intentionally inherits high reasoning for cross-commit reconciliation."
+    },
+    {
+      "file": ".claude/skills/deep-research/SKILL.md",
+      "verdict": "kept",
+      "reason": "Omitted effort intentionally inherits high reasoning for evidence synthesis."
+    },
+    {
+      "file": ".claude/skills/dep-sweep/SKILL.md",
+      "verdict": "changed",
+      "reason": "Medium effort fits constrained version selection and verification."
+    },
+    {
+      "file": ".claude/skills/dev-server/SKILL.md",
+      "verdict": "changed",
+      "reason": "Low effort fits its fixed dependency-ordered readiness procedure."
+    },
+    {
+      "file": ".claude/skills/feature/SKILL.md",
+      "verdict": "kept",
+      "reason": "High effort fits multi-ticket decomposition, contracts, and DAG shaping."
+    },
+    {
+      "file": ".claude/skills/investigate/SKILL.md",
+      "verdict": "kept",
+      "reason": "Omitted effort intentionally inherits high reasoning for incident correlation."
+    },
+    {
+      "file": ".claude/skills/lesson/SKILL.md",
+      "verdict": "kept",
+      "reason": "Omitted effort intentionally inherits high reasoning because promotion changes standing context."
+    },
+    {
+      "file": ".claude/skills/llm-council/SKILL.md",
+      "verdict": "kept",
+      "reason": "Omitted effort intentionally inherits high reasoning for competing-lens synthesis."
+    },
+    {
+      "file": ".claude/skills/make-tool/SKILL.md",
+      "verdict": "kept",
+      "reason": "Omitted effort intentionally inherits high reasoning for reusable interface design."
+    },
+    {
+      "file": ".claude/skills/next/SKILL.md",
+      "verdict": "kept",
+      "reason": "Low effort fits deterministic DAG ranking and one recommendation."
+    },
+    {
+      "file": ".claude/skills/orchestrate/SKILL.md",
+      "verdict": "kept",
+      "reason": "High effort fits merge-gated multi-worker coordination and reconciliation."
+    },
+    {
+      "file": ".claude/skills/pr-review/SKILL.md",
+      "verdict": "kept",
+      "reason": "Omitted effort intentionally inherits high reasoning for adversarial diff review."
+    },
+    {
+      "file": ".claude/skills/prod-readiness/SKILL.md",
+      "verdict": "kept",
+      "reason": "Omitted effort intentionally inherits high reasoning for launch-risk consolidation."
+    },
+    {
+      "file": ".claude/skills/profile/SKILL.md",
+      "verdict": "kept",
+      "reason": "Omitted effort intentionally inherits high reasoning for trace diagnosis and iteration."
+    },
+    {
+      "file": ".claude/skills/rollup/SKILL.md",
+      "verdict": "kept",
+      "reason": "Low effort fits reading and presenting scripted gate conclusions."
+    },
+    {
+      "file": ".claude/skills/second-opinion/SKILL.md",
+      "verdict": "kept",
+      "reason": "Omitted effort intentionally inherits high reasoning for load-bearing claim reconciliation."
+    },
+    {
+      "file": ".claude/skills/ticket/SKILL.md",
+      "verdict": "kept",
+      "reason": "Medium effort fits one-ticket reproduction, reconciliation, and scope shaping."
+    },
+    {
+      "file": ".claude/skills/validate/SKILL.md",
+      "verdict": "kept",
+      "reason": "Low effort fits deterministic command selection and result reporting."
+    },
+    {
+      "file": ".claude/skills/watch/SKILL.md",
+      "verdict": "kept",
+      "reason": "Low effort fits scripted fleet-status interpretation."
+    }
+  ]
+}

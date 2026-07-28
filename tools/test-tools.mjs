@@ -1469,6 +1469,104 @@ const composePromptCases = () => {
   T("compose-prompt.mjs: zero comments add no empty heading", !/Comments on this issue/.test(readFileSync(noComments, "utf8")))
 }
 
+const calibrationDate = (daysAgo) => {
+  const date = new Date()
+  date.setUTCHours(0, 0, 0, 0)
+  date.setUTCDate(date.getUTCDate() - daysAgo)
+  return date.toISOString().slice(0, 10)
+}
+
+const stageCalibration = (label, options = {}) => {
+  const base = join(root, "calibration", label)
+  mkdirSync(join(base, "tools"), { recursive: true })
+  mkdirSync(join(base, ".claude", "agents"), { recursive: true })
+  mkdirSync(join(base, ".claude", "skills", "sample"), { recursive: true })
+  cpSync(join(TOOLS_DIR, "check-calibration.mjs"), join(base, "tools", "check-calibration.mjs"))
+  writeFileSync(join(base, ".claude", "agents", "sample.md"), "---\nname: sample\n---\n")
+  writeFileSync(join(base, ".claude", "skills", "sample", "SKILL.md"), "---\nname: sample\n---\n")
+  writeFileSync(
+    join(base, ".claude", "orchestrator.json"),
+    JSON.stringify({
+      worker: "codex",
+      workers: { codex: { args: ["-m", options.currentModel ?? "gpt-current"] } },
+    }),
+  )
+  if (!options.missingArtifact) {
+    const artifact = options.artifact ?? {
+      model: options.stampedModel ?? "gpt-current",
+      date: options.date ?? calibrationDate(0),
+      entries: options.entries ?? [
+        { file: ".claude/agents/sample.md", verdict: "kept", reason: "The bounded role still fits." },
+        { file: ".claude/skills/sample/SKILL.md", verdict: "kept", reason: "The bounded procedure still fits." },
+      ],
+    }
+    writeFileSync(
+      join(base, ".claude", "calibration.json"),
+      options.malformed ? "{ nope" : `${JSON.stringify(artifact, null, 2)}\n`,
+    )
+  }
+  return join(base, "tools", "check-calibration.mjs")
+}
+
+const calibrationCases = () => {
+  const valid = stageCalibration("valid")
+  check("check-calibration.mjs", "accepts total coverage", [], { status: 0, stdout: /PASS: 2\/2/ }, { path: valid })
+
+  const missing = stageCalibration("missing-entry", {
+    entries: [{ file: ".claude/skills/sample/SKILL.md", verdict: "kept", reason: "Still fits." }],
+  })
+  check("check-calibration.mjs", "names an uncovered agent", [], { status: 1, stdout: /missing entry: \.claude\/agents\/sample\.md/ }, { path: missing })
+
+  const staleEntry = stageCalibration("stale-entry", {
+    entries: [
+      { file: ".claude/agents/sample.md", verdict: "kept", reason: "Still fits." },
+      { file: ".claude/skills/sample/SKILL.md", verdict: "kept", reason: "Still fits." },
+      { file: ".claude/agents/removed.md", verdict: "kept", reason: "No longer exists." },
+    ],
+  })
+  check("check-calibration.mjs", "rejects an entry with no input file", [], { status: 1, stdout: /entry has no input file: \.claude\/agents\/removed\.md/ }, { path: staleEntry })
+
+  const mismatch = stageCalibration("model-mismatch", { stampedModel: "gpt-old" })
+  check("check-calibration.mjs", "rejects a model mismatch", [], { status: 1, stdout: /model mismatch/ }, { path: mismatch })
+  const refreshable = stageCalibration("refresh", { stampedModel: "gpt-old", date: calibrationDate(91) })
+  check("check-calibration.mjs", "refresh stamps the selected model and current date", ["--refresh"], { status: 0, stdout: /PASS/ }, { path: refreshable })
+  const refreshedArtifact = JSON.parse(readFileSync(join(dirname(dirname(refreshable)), ".claude", "calibration.json"), "utf8"))
+  T(
+    "check-calibration.mjs: refresh wrote the live header",
+    refreshedArtifact.model === "gpt-current" && refreshedArtifact.date === calibrationDate(0),
+    JSON.stringify(refreshedArtifact),
+  )
+
+  const tooOld = stageCalibration("too-old", { date: calibrationDate(91) })
+  check("check-calibration.mjs", "rejects a 91-day-old stamp", [], { status: 1, stdout: /91 days old/ }, { path: tooOld })
+
+  const recent = stageCalibration("recent", { date: calibrationDate(89) })
+  check("check-calibration.mjs", "accepts an 89-day-old stamp", [], { status: 0, stdout: /PASS/ }, { path: recent })
+
+  const malformed = stageCalibration("malformed", { malformed: true })
+  check("check-calibration.mjs", "malformed calibration is an operational error", [], { status: 2, stderr: /not valid JSON/ }, { path: malformed })
+  const absent = stageCalibration("absent", { missingArtifact: true })
+  check("check-calibration.mjs", "missing calibration is an operational error", [], { status: 2, stderr: /could not be read/ }, { path: absent })
+
+  for (const [label, path] of [
+    ["missing entry", missing],
+    ["stale entry", staleEntry],
+    ["model mismatch", mismatch],
+    ["old stamp", tooOld],
+    ["malformed artifact", malformed],
+    ["missing artifact", absent],
+  ]) {
+    check("check-calibration.mjs", `report-only neutralizes ${label}`, ["--report-only"], { status: 0, stdout: /report-only/ }, { path })
+  }
+
+  check(
+    "check-calibration.mjs",
+    "help names every flag and exit code",
+    ["--help"],
+    { status: 0, stdout: /--report-only[\s\S]*--refresh[\s\S]*--help[\s\S]*exit codes: 0[\s\S]*1 calibration failed[\s\S]*2 usage/ },
+  )
+}
+
 // new-ticket.mjs shells out to check-ticket.mjs, which makes its OWN orca call,
 // so both legs are stubbed in one plan: `linear create` for the creation and
 // `linear issue` for the validation the wrapper exists to perform. The shim
@@ -2015,6 +2113,7 @@ const gateCases = {
     const noFrontmatterRoot = dirname(stage("frontmatter-absent/README.md", "# No frontmatter\n"))
     check("check-frontmatter.mjs", "rejects a custom root that proves nothing", ["--root", noFrontmatterRoot], { status: 1, stderr: /No frontmatter found/ })
   },
+  "check-calibration.mjs": calibrationCases,
 }
 
 /** argv that must be refused before the tool does any work. */
@@ -2024,6 +2123,7 @@ const INVALID_INPUT = {
   "arch-map.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "capture-surfaces.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-context-budget.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "check-calibration.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-copy.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-dashes.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-frontmatter.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
