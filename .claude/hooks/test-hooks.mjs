@@ -384,6 +384,44 @@ const blockedDocs = docPaths.filter((path) => checkLinearMutation(readFileSync(p
 T("linear gate: blocks none of this repo's tracked docs", blockedDocs.map((p) => p.slice(repoRoot.length + 1)), [])
 T("linear gate: the doc scan actually read files", docPaths.length > 0, true)
 
+function scanHookPathReferences(bodies) {
+  const references = bodies.flatMap((body) =>
+    [...body.matchAll(/(?<!~\/)\.claude\/hooks\/[A-Za-z0-9._/-]+\.mjs/g)].map((match) => match[0]),
+  )
+  return {
+    references,
+    missing: [...new Set(references)].filter((relative) => !existsSync(join(repoRoot, relative))),
+  }
+}
+
+const hookPathScan = scanHookPathReferences(docPaths.map((path) => readFileSync(path, "utf8")))
+const hookPathReferences = hookPathScan.references
+const missingHookPathReferences = hookPathScan.missing
+T("docs: every named .claude/hooks/*.mjs path resolves", missingHookPathReferences, [])
+T("docs: the hook path guard actually found references", hookPathReferences.length > 0, true)
+const settingsHookPathReferences = scanHookPathReferences([
+  readFileSync(join(repoRoot, ".claude", "settings.json"), "utf8"),
+]).references
+T(
+  "docs: settings contributes all four hook path occurrences",
+  settingsHookPathReferences,
+  [
+    ".claude/hooks/git-guardrails.mjs",
+    ".claude/hooks/forbid-raw-linear-mutation.mjs",
+    ".claude/hooks/forbid-ef-migration-raw-index.mjs",
+    ".claude/hooks/forbid-raw-linear-mutation.mjs",
+  ],
+)
+const hookPathDecisionFixture = [
+  "The repo hook is .claude/hooks/does-not-exist.mjs.",
+  "The user hook is ~/.claude/hooks/user-level.mjs.",
+].join("\n")
+T(
+  "docs: hook path scan reports only a missing repo-relative path",
+  scanHookPathReferences([hookPathDecisionFixture]).missing,
+  [".claude/hooks/does-not-exist.mjs"],
+)
+
 // A DOCUMENT is judged per chunk, so a mutation against another service does not
 // inherit a Linear endpoint documented elsewhere in the same file. Measured
 // 2026-07-27 on `.claude/skills/orchestrate/SKILL.md`, which has documented the
