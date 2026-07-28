@@ -123,13 +123,13 @@ const parseCodexQuota = (message) => {
   const usedPercent = rateLimits?.primary?.usedPercent
   const windowDurationMins = rateLimits?.primary?.windowDurationMins
   const resetsAt = rateLimits?.primary?.resetsAt
-  const hasCredits = rateLimits?.credits?.hasCredits
+  const hasCredits = rateLimits?.credits?.hasCredits ?? null
   const planType = rateLimits?.planType
   if (
     !Number.isFinite(usedPercent) ||
     !Number.isFinite(windowDurationMins) ||
     !Number.isFinite(resetsAt) ||
-    typeof hasCredits !== "boolean" ||
+    (hasCredits !== null && typeof hasCredits !== "boolean") ||
     typeof planType !== "string"
   ) {
     throw new Error("Codex returned incomplete rate limits")

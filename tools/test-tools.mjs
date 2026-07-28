@@ -887,6 +887,12 @@ const pointerDeliveryCases = () => {
     `exit ${busyThroughout.result.status}\n     stderr: ${busyThroughout.result.stderr.trim().split("\n").slice(-4).join("\n     ")}`,
   )
   T(
+    "launch-worker.mjs: an ambiguous prompt send keeps its reservation pending",
+    busyThroughout.records.length === 1 &&
+      busyThroughout.records[0]?.cancelled !== true,
+    JSON.stringify(busyThroughout.records),
+  )
+  T(
     "launch-worker.mjs: the undelivered launch leaves no orphaned worktree",
     never.calls.some((argv) => argv[0].split(/[\\/]/).pop() === "worktree" && argv[1] === "rm"),
     `no worktree rm in: ${never.calls.map((argv) => argv.slice(0, 2).join(" ")).join(" | ")}`,
@@ -3830,12 +3836,32 @@ const CODEX_QUOTA_RESPONSES = [
     },
   }),
 ]
+const CODEX_QUOTA_NULL_CREDITS_RESPONSES = [
+  CODEX_QUOTA_RESPONSES[0],
+  JSON.stringify({
+    jsonrpc: "2.0",
+    id: 2,
+    result: {
+      rateLimits: {
+        primary: {
+          usedPercent: 42,
+          windowDurationMins: 10080,
+          resetsAt: 1785456000,
+        },
+        credits: null,
+        planType: "pro",
+      },
+    },
+  }),
+]
 const CODEX_APP_SERVER_DIR = join(root, "quota-codex")
 stage(
   "quota-codex/app-server",
   `let buffer = ""
 let responseIndex = 0
-const responses = ${JSON.stringify(CODEX_QUOTA_RESPONSES)}
+const responses = process.env.AI_QUOTA_TEST_CODEX_RESPONSES
+  ? JSON.parse(process.env.AI_QUOTA_TEST_CODEX_RESPONSES)
+  : ${JSON.stringify(CODEX_QUOTA_RESPONSES)}
 process.stdin.setEncoding("utf8")
 process.stdin.on("data", (chunk) => {
   buffer += chunk
@@ -3936,6 +3962,28 @@ const aiQuotaCases = () => {
           exit: 1,
         },
       ]),
+    },
+  )
+  check(
+    "ai-quota.mjs",
+    "accepts a subscription-only Codex quota response with no credits balance",
+    ["--json"],
+    {
+      status: 0,
+      stdout: /"codex":\s*\{[\s\S]*"status":\s*"OK"[\s\S]*"usedPercent":\s*42[\s\S]*"windowDays":\s*7[\s\S]*"hasCredits":\s*null[\s\S]*"planType":\s*"pro"/,
+    },
+    {
+      cwd: CODEX_APP_SERVER_DIR,
+      env: {
+        ...aiQuotaEnv([
+          {
+            match: "computer get-app-state",
+            stdout: JSON.stringify({ ok: false, error: { message: "Orca is not running" } }),
+            exit: 1,
+          },
+        ]),
+        AI_QUOTA_TEST_CODEX_RESPONSES: JSON.stringify(CODEX_QUOTA_NULL_CREDITS_RESPONSES),
+      },
     },
   )
   check(

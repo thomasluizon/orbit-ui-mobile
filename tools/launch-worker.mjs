@@ -912,6 +912,7 @@ while (pointerSends < MAX_POINTER_SENDS && !pointerDelivered) {
   pointerSends += 1
   console.error(`sending the prompt pointer (send ${pointerSends} of ${MAX_POINTER_SENDS})`)
   orca(["terminal", "send", "--terminal", terminal, "--text", pointer, "--enter"])
+  reservationMaySpend = true
   pause(POINTER_PAINT_MS)
   pointerDelivered = pointerOnScreen()
   /**
@@ -938,13 +939,12 @@ while (pointerSends < MAX_POINTER_SENDS && !pointerDelivered) {
   if (painting) break
 }
 if (!pointerDelivered) {
+  if (!painting) reservationMaySpend = false
   fail(
     1,
     `${terminal} never showed the prompt pointer as a user turn after ${pointerSends} send(s)${painting ? ", and the TUI never went quiet, so re-sending would have queued into a running turn" : ", and the worker is alive, idle and has NO work"}. This is the 2026-07-27 ORB-88 failure: orca accepts the send, the TUI's composer swallows it, and an exit 0 here would report a launch that delivered nothing. Inspect it with: orca terminal read --terminal ${terminal}`,
   )
 }
-
-reservationMaySpend = true
 
 rollback = null
 orca(["terminal", "switch", "--terminal", terminal])
