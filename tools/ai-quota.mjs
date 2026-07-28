@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { execFile, spawn } from "node:child_process"
+import { execFile, spawn, spawnSync } from "node:child_process"
 import { promisify } from "node:util"
 
 const USAGE = `usage: ai-quota.mjs --json
@@ -28,6 +28,10 @@ const ORCA = process.env.ORCA_BIN || "orca"
 const configuredTimeout = Number(process.env.AI_QUOTA_TIMEOUT_MS)
 const PROVIDER_TIMEOUT_MS =
   Number.isInteger(configuredTimeout) && configuredTimeout > 0 ? configuredTimeout : 30_000
+const testOverrides = process.env.AI_QUOTA_TEST_MODE === "1"
+const runtimePlatform = testOverrides && process.env.AI_QUOTA_TEST_PLATFORM
+  ? process.env.AI_QUOTA_TEST_PLATFORM
+  : process.platform
 
 const unavailableClaude = () => ({
   status: "UNAVAILABLE",
@@ -141,14 +145,51 @@ const parseCodexQuota = (message) => {
 }
 
 const spawnCodexServer = () => {
-  const options = { stdio: ["pipe", "pipe", "pipe"] }
+  const options = {
+    stdio: ["pipe", "pipe", "pipe"],
+    detached: runtimePlatform !== "win32",
+    windowsHide: true,
+  }
   if (process.env.CODEX_BIN) {
     return spawn(process.env.CODEX_BIN, ["app-server"], options)
   }
-  if (process.platform === "win32") {
-    return spawn(process.env.ComSpec || "cmd.exe", ["/d", "/s", "/c", "codex app-server"], options)
+  if (runtimePlatform === "win32") {
+    const comSpec = testOverrides && process.env.AI_QUOTA_TEST_COMSPEC
+      ? process.env.AI_QUOTA_TEST_COMSPEC
+      : process.env.ComSpec || "cmd.exe"
+    const comSpecArguments = testOverrides && process.env.AI_QUOTA_TEST_COMSPEC_SCRIPT
+      ? [process.env.AI_QUOTA_TEST_COMSPEC_SCRIPT]
+      : []
+    return spawn(comSpec, [...comSpecArguments, "/d", "/s", "/c", "codex app-server"], options)
   }
   return spawn("codex", ["app-server"], options)
+}
+
+const terminateCodexServer = (child) => {
+  child.stdin.end()
+  if (!Number.isSafeInteger(child.pid) || child.pid <= 0) {
+    child.kill()
+    return
+  }
+  if (runtimePlatform === "win32") {
+    const taskkill = testOverrides && process.env.AI_QUOTA_TEST_TASKKILL
+      ? process.env.AI_QUOTA_TEST_TASKKILL
+      : "taskkill.exe"
+    const taskkillArguments = testOverrides && process.env.AI_QUOTA_TEST_TASKKILL_SCRIPT
+      ? [process.env.AI_QUOTA_TEST_TASKKILL_SCRIPT]
+      : []
+    const result = spawnSync(taskkill, [...taskkillArguments, "/PID", String(child.pid), "/T", "/F"], {
+      encoding: "utf8",
+      windowsHide: true,
+    })
+    if (result.error && child.exitCode === null) child.kill()
+    return
+  }
+  try {
+    process.kill(-child.pid, "SIGTERM")
+  } catch {
+    child.kill()
+  }
 }
 
 const readCodexQuota = async () => {
@@ -166,8 +207,7 @@ const readCodexQuota = async () => {
       if (settled) return
       settled = true
       clearTimeout(timer)
-      child.stdin.end()
-      child.kill()
+      terminateCodexServer(child)
       resolve(quota)
     }
     const fail = () => finish(unavailableCodex())

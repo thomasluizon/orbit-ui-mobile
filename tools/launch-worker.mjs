@@ -203,9 +203,13 @@ conflict with anything above, these win.
  * operator to run compounds the mess instead of clearing it. Measured on this branch.
  */
 let rollback = null
+let budgetReservation = null
+let reservationMaySpend = false
+let cancelBudgetReservation = null
 
 const fail = (code, message) => {
   console.error(message)
+  let cleanupConfirmed = rollback === null
   if (rollback) {
     const { selector, contractBranch, orcaBranch, repoPath: rollbackRepo } = rollback
     rollback = null
@@ -227,6 +231,8 @@ const fail = (code, message) => {
     if (removal.status !== 0) {
       console.error(`could not remove the worktree: ${(removal.stdout || removal.stderr || "").trim().slice(0, 300)}`)
       console.error(`remove it by hand before relaunching: orca worktree rm --worktree ${selector} --force`)
+    } else {
+      cleanupConfirmed = true
     }
     for (const branchToDrop of [contractBranch, orcaBranch].filter(Boolean)) {
       const stillThere = spawnSync("git", ["-C", rollbackRepo, "rev-parse", "--verify", "--quiet", `refs/heads/${branchToDrop}`], { encoding: "utf8" })
@@ -234,6 +240,13 @@ const fail = (code, message) => {
       const dropped = spawnSync("git", ["-C", rollbackRepo, "branch", "-D", branchToDrop], { encoding: "utf8" })
       if (dropped.status !== 0) console.error(`left the branch ${branchToDrop} behind: ${(dropped.stderr || "").trim().slice(0, 200)}`)
     }
+  }
+  if (budgetReservation && !reservationMaySpend && cleanupConfirmed && cancelBudgetReservation) {
+    const cancelled = cancelBudgetReservation(budgetReservation)
+    if (!cancelled) {
+      console.error(`left budget reservation "${budgetReservation.identity}" pending because its cancellation could not be recorded`)
+    }
+    budgetReservation = null
   }
   process.exit(code)
 }
@@ -388,10 +401,11 @@ const runBudgetCommand = (argumentsList, blockedExit = false) => {
   fail(blockedExit && budgetResult.status === 4 ? 4 : 3, reason)
 }
 
-const checkAutomationBudget = (
+const reserveAutomationBudget = (
   engineName,
   identity,
   tier,
+  startedAt,
   warningTokens,
   tokenBudget,
   projectedTokens,
@@ -419,14 +433,18 @@ const checkAutomationBudget = (
   const resetAt = engineName === "claude"
     ? parseClaudeResetAt(selectedQuota.resetsIn)
     : parseCodexResetAt(selectedQuota.resetsAt)
-  runBudgetCommand([
-    "check",
+  const argumentsList = [
+    "reserve",
     "--engine",
     engineName,
     "--identity",
     identity,
     "--tier",
     tier,
+    "--started-at",
+    startedAt,
+    "--ended-at",
+    accountObservedAt,
     "--reset-at",
     resetAt,
     "--warning-tokens",
@@ -435,35 +453,6 @@ const checkAutomationBudget = (
     String(tokenBudget),
     "--invocation-tokens",
     String(projectedTokens),
-    "--ledger",
-    ledgerPath,
-    "--json",
-  ], true)
-  return { accountObservedAt, accountUsedPercent }
-}
-
-const recordAutomationBudget = ({
-  engineName,
-  identity,
-  tier,
-  startedAt,
-  endedAt,
-  accountUsedPercent,
-  accountObservedAt,
-  ledgerPath,
-}) => {
-  const argumentsList = [
-    "record",
-    "--identity",
-    identity,
-    "--engine",
-    engineName,
-    "--tier",
-    tier,
-    "--started-at",
-    startedAt,
-    "--ended-at",
-    endedAt,
     "--ledger",
     ledgerPath,
   ]
@@ -476,7 +465,34 @@ const recordAutomationBudget = ({
     )
   }
   argumentsList.push("--json")
-  runBudgetCommand(argumentsList)
+  runBudgetCommand(argumentsList, true)
+  return { identity, engineName, tier, startedAt, ledgerPath }
+}
+
+cancelBudgetReservation = ({ identity, engineName, tier, startedAt, ledgerPath }) => {
+  const result = spawnSync(process.execPath, [
+    budgetToolPath,
+    "cancel",
+    "--identity",
+    identity,
+    "--engine",
+    engineName,
+    "--tier",
+    tier,
+    "--started-at",
+    startedAt,
+    "--ended-at",
+    new Date().toISOString(),
+    "--ledger",
+    ledgerPath,
+    "--json",
+  ], {
+    encoding: "utf8",
+    maxBuffer: 32 * 1024 * 1024,
+  })
+  if (!result.error && result.status === 0) return true
+  console.error(`automation-budget cancellation failed: ${(result.stderr || result.stdout || result.error?.message || "unknown error").trim()}`)
+  return false
 }
 
 const issue = argOf("--issue")
@@ -647,10 +663,11 @@ if (dryRun) {
   process.exit(0)
 }
 
-const quotaContext = checkAutomationBudget(
+budgetReservation = reserveAutomationBudget(
   engineName,
   invocationIdentity,
   budgetTier,
+  invocationStartedAt,
   automationBudget.warningTokens,
   automationBudget.tokenBudget,
   projectedTokens,
@@ -788,15 +805,7 @@ if (!pointerDelivered) {
   )
 }
 
-recordAutomationBudget({
-  engineName,
-  identity: invocationIdentity,
-  tier: budgetTier,
-  startedAt: invocationStartedAt,
-  endedAt: new Date().toISOString(),
-  ledgerPath: automationLedgerPath,
-  ...quotaContext,
-})
+reservationMaySpend = true
 
 rollback = null
 orca(["terminal", "switch", "--terminal", terminal])

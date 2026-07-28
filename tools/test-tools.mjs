@@ -776,7 +776,7 @@ const pointerDeliveryCases = () => {
   )
   const firstRecord = first.records[0]
   T(
-    "launch-worker.mjs: a delivered invocation appends a pending token record with account context",
+    "launch-worker.mjs: an invocation reserves a pending token record before worktree mutation",
     first.records.length === 1 &&
       /^ORB-75:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(firstRecord?.identity ?? "") &&
       firstRecord?.engine === "claude" &&
@@ -803,6 +803,13 @@ const pointerDeliveryCases = () => {
     `exit ${never.result.status}, expected 1\n     stderr: ${never.result.stderr.trim().split("\n").slice(-4).join("\n     ")}`,
   )
   T("launch-worker.mjs: the undelivered launch is bounded, not retried forever", never.sends === 3, `sent ${never.sends} time(s), expected the 3-send bound`)
+  T(
+    "launch-worker.mjs: verified rollback appends a cancellation for the pre-worktree reservation",
+    never.records.length === 2 &&
+      never.records[0]?.identity === never.records[1]?.identity &&
+      never.records[1]?.cancelled === true,
+    JSON.stringify(never.records),
+  )
 
   /**
    * The branch every other case misses, because they all freeze lastOutputAt: a TUI that keeps
@@ -1172,6 +1179,115 @@ const launchWorkerCases = () => {
       !pendingCalls.includes("worktree create"),
     `exit ${pendingResult.status}\n     ${pendingResult.stderr}\n     ${pendingCalls}`,
   )
+
+  const concurrentWorker = {
+    ...INTERACTIVE_WORKER,
+    automationBudget: {
+      tier: "routine",
+      tokenBudget: 1_000,
+      warningTokens: 800,
+      invocationTokens: { default: 600, cheap: 500, deep: 900 },
+    },
+  }
+  const concurrentLaunch = stageLaunchWorker("budget-concurrent-launch", concurrentWorker)
+  const concurrentCheckout = stageCheckout(concurrentLaunch.base)
+  if (!concurrentCheckout) {
+    T("launch-worker.mjs: concurrent launchers share one atomic pre-worktree reservation", false, "could not stage the concurrent launch checkout")
+  } else {
+    const concurrentLedger = join(concurrentLaunch.base, "automation-budget.jsonl")
+    const concurrentMarker = join(concurrentLaunch.base, "budget-lock-acquired")
+    const concurrentRelease = join(concurrentLaunch.base, "budget-lock-release")
+    const concurrentPrompt = stage("budget-concurrent-launch-prompt.md", "the ticket body verbatim\n")
+    const concurrentPainted = `> Read ${concurrentPrompt} and execute it in full. That file is your complete work order for ORB-75:`
+    const concurrentPlan = [
+      ...linearIssueStub(["repo:ui"]),
+      { match: "worktree create", stdout: JSON.stringify({ ok: true, result: { worktree: { path: concurrentCheckout, branch: "refs/heads/thomasluizon/orb-75" } } }) },
+      { match: "terminal create", stdout: JSON.stringify({ ok: true, result: { terminal: { handle: "t1" } } }) },
+      { match: "terminal wait", stdout: JSON.stringify({ ok: true, result: { wait: { satisfied: true } } }) },
+      { match: "terminal show", stdout: JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1785168487585 } } }) },
+      { match: "terminal read", stdout: JSON.stringify({ ok: true, result: { terminal: { tail: [concurrentPainted] } } }) },
+      { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }) },
+      { match: "terminal switch", stdout: JSON.stringify({ ok: true, result: {} }) },
+      { match: "worktree set", stdout: JSON.stringify({ ok: true, result: {} }) },
+      { match: "terminal stop", stdout: JSON.stringify({ ok: true, result: {} }) },
+      { match: "worktree rm", stdout: JSON.stringify({ ok: true, result: {} }) },
+    ]
+    const concurrentRunner = stage(
+      "budget-concurrent-launch-runner.mjs",
+      `import { spawn } from "node:child_process"
+import { existsSync, writeFileSync } from "node:fs"
+const [tool, prompt, ledger, marker, release, firstLog, secondLog] = process.argv.slice(2)
+const baseEnv = JSON.parse(process.env.CONCURRENT_LAUNCH_ENV)
+const run = (extraEnv) => {
+  const child = spawn(process.execPath, [tool, "--issue", "ORB-75", "--prompt-file", prompt], {
+    env: { ...process.env, ...baseEnv, ORBIT_AUTOMATION_BUDGET_LEDGER: ledger, ...extraEnv },
+    stdio: ["ignore", "pipe", "pipe"],
+  })
+  let stderr = ""
+  child.stderr.setEncoding("utf8")
+  child.stderr.on("data", (chunk) => { stderr += chunk })
+  return new Promise((resolve) => child.on("exit", (status) => resolve({ status, stderr })))
+}
+const first = run({
+  AUTOMATION_BUDGET_TEST_LOCK_MARKER: marker,
+  AUTOMATION_BUDGET_TEST_LOCK_RELEASE: release,
+  ORBIT_ORCA_LOG: firstLog,
+})
+const deadline = Date.now() + 5000
+while (!existsSync(marker) && Date.now() < deadline) {
+  await new Promise((resolve) => setTimeout(resolve, 10))
+}
+if (!existsSync(marker)) process.exit(9)
+const second = run({ ORBIT_ORCA_LOG: secondLog })
+await new Promise((resolve) => setTimeout(resolve, 100))
+writeFileSync(release, "release\\n")
+process.stdout.write(JSON.stringify(await Promise.all([first, second])))
+`,
+    )
+    const firstLog = join(concurrentLaunch.base, "first-orca.jsonl")
+    const secondLog = join(concurrentLaunch.base, "second-orca.jsonl")
+    const concurrentResult = spawnSync(
+      process.execPath,
+      [
+        concurrentRunner,
+        join(concurrentLaunch.base, "tools", "launch-worker.mjs"),
+        concurrentPrompt,
+        concurrentLedger,
+        concurrentMarker,
+        concurrentRelease,
+        firstLog,
+        secondLog,
+      ],
+      {
+        encoding: "utf8",
+        timeout: 30_000,
+        env: { ...process.env, CONCURRENT_LAUNCH_ENV: JSON.stringify(orcaEnv(concurrentPlan)) },
+      },
+    )
+    const concurrentOutcomes = concurrentResult.status === 0 ? JSON.parse(concurrentResult.stdout) : []
+    const concurrentRecords = existsSync(concurrentLedger)
+      ? readFileSync(concurrentLedger, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
+      : []
+    const readCalls = (path) => existsSync(path)
+      ? readFileSync(path, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
+      : []
+    const firstCalls = readCalls(firstLog)
+    const secondCalls = readCalls(secondLog)
+    const createdWorktree = (calls) => calls.some((argumentsList) =>
+      argumentsList[0].split(/[\\/]/).pop() === "worktree" && argumentsList[1] === "create")
+    T(
+      "launch-worker.mjs: concurrent launchers share one atomic pre-worktree reservation",
+      concurrentResult.status === 0 &&
+        concurrentOutcomes[0]?.status === 0 &&
+        concurrentOutcomes[1]?.status === 3 &&
+        /lack input or output tokens/.test(concurrentOutcomes[1]?.stderr ?? "") &&
+        createdWorktree(firstCalls) &&
+        !createdWorktree(secondCalls) &&
+        concurrentRecords.length === 1 &&
+        !Object.hasOwn(concurrentRecords[0] ?? {}, "inputTokens"),
+      `exit ${concurrentResult.status}\n     stdout: ${concurrentResult.stdout}\n     stderr: ${concurrentResult.stderr}\n     ledger: ${JSON.stringify(concurrentRecords)}\n     first calls: ${JSON.stringify(firstCalls)}\n     second calls: ${JSON.stringify(secondCalls)}`,
+    )
+  }
 
   const reservedLog = join(root, "launch", "budget-reserved-calls.jsonl")
   const reservedResult = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile], {
@@ -3088,6 +3204,39 @@ process.stdin.on("data", (chunk) => {
 })
 `,
 )
+const CODEX_COMSPEC_FIXTURE = stage(
+  "quota-codex/comspec-fixture.mjs",
+  `import { appendFileSync } from "node:fs"
+appendFileSync(process.env.AI_QUOTA_TEST_COMSPEC_LOG, JSON.stringify(process.argv.slice(2)) + "\\n")
+let buffer = ""
+let responseIndex = 0
+const responses = ${JSON.stringify(CODEX_QUOTA_RESPONSES)}
+process.stdin.setEncoding("utf8")
+process.stdin.on("data", (chunk) => {
+  buffer += chunk
+  const lines = buffer.split("\\n")
+  buffer = lines.pop()
+  for (const line of lines.filter(Boolean)) {
+    JSON.parse(line)
+    process.stdout.write(responses[Math.min(responseIndex, responses.length - 1)] + "\\n")
+    responseIndex += 1
+  }
+})
+`,
+)
+const CODEX_TASKKILL_FIXTURE = stage(
+  "quota-codex/taskkill-fixture.mjs",
+  `import { appendFileSync } from "node:fs"
+const argumentsList = process.argv.slice(2)
+appendFileSync(process.env.AI_QUOTA_TEST_TASKKILL_LOG, JSON.stringify(argumentsList) + "\\n")
+const pid = Number(argumentsList[argumentsList.indexOf("/PID") + 1])
+if (Number.isSafeInteger(pid) && pid > 0) {
+  try {
+    process.kill(pid, "SIGTERM")
+  } catch {}
+}
+`,
+)
 const ORCA_QUOTA_OK = [
   {
     match: "computer get-app-state",
@@ -3201,6 +3350,32 @@ const aiQuotaCases = () => {
       indexCalls.includes('"--element-index","41"') &&
       indexCalls.includes('"--element-index","73"'),
     `exit ${retry.status}\n     ${retry.stderr}\n     ${indexCalls}`,
+  )
+
+  const comSpecLog = join(root, "ai-quota-comspec.jsonl")
+  const taskkillLog = join(root, "ai-quota-taskkill.jsonl")
+  const windowsTreeEnv = {
+    ...aiQuotaEnv(ORCA_QUOTA_OK),
+    AI_QUOTA_TEST_MODE: "1",
+    AI_QUOTA_TEST_PLATFORM: "win32",
+    AI_QUOTA_TEST_COMSPEC: process.execPath,
+    AI_QUOTA_TEST_COMSPEC_SCRIPT: CODEX_COMSPEC_FIXTURE,
+    AI_QUOTA_TEST_COMSPEC_LOG: comSpecLog,
+    AI_QUOTA_TEST_TASKKILL: process.execPath,
+    AI_QUOTA_TEST_TASKKILL_SCRIPT: CODEX_TASKKILL_FIXTURE,
+    AI_QUOTA_TEST_TASKKILL_LOG: taskkillLog,
+  }
+  delete windowsTreeEnv.CODEX_BIN
+  const windowsTree = run("ai-quota.mjs", ["--json"], { env: windowsTreeEnv })
+  const comSpecCalls = existsSync(comSpecLog) ? readFileSync(comSpecLog, "utf8") : ""
+  const taskkillCalls = existsSync(taskkillLog) ? readFileSync(taskkillLog, "utf8") : ""
+  T(
+    "ai-quota.mjs: the Windows production spawn path terminates the whole app-server process tree",
+    windowsTree.status === 0 &&
+      /"codex":\s*\{[\s\S]*"status":\s*"OK"/.test(windowsTree.stdout) &&
+      comSpecCalls.includes('["/d","/s","/c","codex app-server"]') &&
+      /\["\/PID","\d+","\/T","\/F"\]/.test(taskkillCalls),
+    `exit ${windowsTree.status}\n     stderr: ${windowsTree.stderr}\n     comspec: ${comSpecCalls}\n     taskkill: ${taskkillCalls}`,
   )
 }
 
@@ -3318,6 +3493,90 @@ const automationBudgetCases = () => {
     "a later authoritative append for the same identity closes its pending measurement",
     checkArgs("after-correction", correctedLedger, 100, ["--json"]),
     { status: 0, stdout: /"projectedTokens":600[\s\S]*"totalTokens":500[\s\S]*"missingIdentities":\[\]/ },
+  )
+
+  const atomicLedger = join(root, "budget", "atomic-reservations.jsonl")
+  const lockMarker = join(root, "budget", "atomic-lock-acquired")
+  const lockRelease = join(root, "budget", "atomic-lock-release")
+  const atomicRunner = stage(
+    "budget/atomic-reservations.mjs",
+    `import { spawn } from "node:child_process"
+import { existsSync, writeFileSync } from "node:fs"
+const [tool, ledger, marker, release] = process.argv.slice(2)
+const common = (identity) => [
+  tool, "reserve", "--engine", "claude", "--identity", identity, "--tier", "routine",
+  "--started-at", "2030-01-02T09:00:00.000Z", "--ended-at", "2030-01-02T10:00:00.000Z",
+  "--reset-at", "2030-01-08T00:00:00Z", "--warning-tokens", "800",
+  "--budget-tokens", "1000", "--invocation-tokens", "600", "--ledger", ledger,
+]
+const run = (identity, env = {}) => {
+  const child = spawn(process.execPath, common(identity), {
+    env: { ...process.env, ...env },
+    stdio: ["ignore", "pipe", "pipe"],
+  })
+  let stderr = ""
+  child.stderr.setEncoding("utf8")
+  child.stderr.on("data", (chunk) => { stderr += chunk })
+  return new Promise((resolve) => child.on("exit", (status) => resolve({ status, stderr })))
+}
+const first = run("atomic-a", {
+  AUTOMATION_BUDGET_TEST_LOCK_MARKER: marker,
+  AUTOMATION_BUDGET_TEST_LOCK_RELEASE: release,
+})
+const deadline = Date.now() + 5000
+while (!existsSync(marker) && Date.now() < deadline) {
+  await new Promise((resolve) => setTimeout(resolve, 10))
+}
+if (!existsSync(marker)) process.exit(9)
+const second = run("atomic-b")
+await new Promise((resolve) => setTimeout(resolve, 100))
+writeFileSync(release, "release\\n")
+const results = await Promise.all([first, second])
+process.stdout.write(JSON.stringify(results))
+`,
+  )
+  const atomic = spawnSync(
+    process.execPath,
+    [atomicRunner, join(TOOLS_DIR, "automation-budget.mjs"), atomicLedger, lockMarker, lockRelease],
+    { encoding: "utf8", timeout: 20_000 },
+  )
+  const atomicResults = atomic.status === 0 ? JSON.parse(atomic.stdout) : []
+  const atomicRecords = existsSync(atomicLedger)
+    ? readFileSync(atomicLedger, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
+    : []
+  T(
+    "automation-budget.mjs: concurrent checks atomically reserve before another process can pass",
+    atomic.status === 0 &&
+      atomicResults[0]?.status === 0 &&
+      atomicResults[1]?.status === 3 &&
+      /lack input or output tokens[\s\S]*atomic-a/.test(atomicResults[1]?.stderr ?? "") &&
+      atomicRecords.length === 1 &&
+      atomicRecords[0]?.identity === "atomic-a" &&
+      !existsSync(`${atomicLedger}.lock`),
+    `exit ${atomic.status}\n     stdout: ${atomic.stdout}\n     stderr: ${atomic.stderr}\n     ledger: ${JSON.stringify(atomicRecords)}`,
+  )
+  const cancelAtomic = run("automation-budget.mjs", [
+    "cancel",
+    "--identity",
+    "atomic-a",
+    "--engine",
+    "claude",
+    "--tier",
+    "routine",
+    "--started-at",
+    "2030-01-02T09:00:00.000Z",
+    "--ended-at",
+    "2030-01-02T10:01:00.000Z",
+    "--ledger",
+    atomicLedger,
+  ])
+  const afterCancel = run("automation-budget.mjs", checkArgs("atomic-after-cancel", atomicLedger, 600, ["--json"]))
+  T(
+    "automation-budget.mjs: append-only cancellation releases a reservation that never started",
+    cancelAtomic.status === 0 &&
+      afterCancel.status === 0 &&
+      /"projectedTokens":600[\s\S]*"missingIdentities":\[\]/.test(afterCancel.stdout),
+    `cancel exit ${cancelAtomic.status}: ${cancelAtomic.stderr}\n     check exit ${afterCancel.status}: ${afterCancel.stderr}\n     ${afterCancel.stdout}`,
   )
 
   check(

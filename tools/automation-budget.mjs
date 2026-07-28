@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { appendFileSync, mkdirSync, readFileSync } from "node:fs"
+import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, unlinkSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, resolve } from "node:path"
 
@@ -9,11 +9,15 @@ const TIERS = new Set(["routine", "reserved"])
 const DEFAULT_LEDGER_PATH = resolve(homedir(), ".orbit", "automation-budget.jsonl")
 const USAGE = `usage:
   automation-budget.mjs check --engine <claude|codex> --identity <id> --tier <routine|reserved> --reset-at <timestamp> --warning-tokens <count> --budget-tokens <count> --invocation-tokens <count> [--ledger <path>] [--json]
+  automation-budget.mjs reserve --engine <claude|codex> --identity <id> --tier <routine|reserved> --started-at <timestamp> --ended-at <timestamp> --reset-at <timestamp> --warning-tokens <count> --budget-tokens <count> --invocation-tokens <count> [--account-used-percent <percent> --account-observed-at <timestamp>] [--ledger <path>] [--json]
   automation-budget.mjs record --identity <id> --engine <claude|codex> --tier <routine|reserved> --started-at <timestamp> --ended-at <timestamp> [--input-tokens <count>] [--output-tokens <count>] [--provider-estimated-cost <amount>] [--account-used-percent <percent> --account-observed-at <timestamp>] [--ledger <path>] [--json]
+  automation-budget.mjs cancel --identity <id> --engine <claude|codex> --tier <routine|reserved> --started-at <timestamp> --ended-at <timestamp> [--ledger <path>] [--json]
   automation-budget.mjs report --engine <claude|codex> --reset-at <timestamp> [--ledger <path>] [--json]
 
   check          evaluate an invocation against the current engine's token budget
+  reserve        atomically evaluate and append a pending invocation before launch mutation
   record         append one invocation observation to the ledger
+  cancel         append a tombstone for a pending invocation proven not to have started
   report         print one engine's current seven-day token totals and missing identities
   --identity     stable identity for the invocation
   --engine       quota pool charged by the invocation; engines are never combined
@@ -44,18 +48,26 @@ The fuse blocks routine automation when measured input plus output tokens and th
 reservation would exceed the token budget. Explicitly reserved deep work proceeds beyond the
 routine budget with RESERVED status and a warning carrying the budget figures. The fuse fails
 closed when the latest in-window record for any identity lacks either token measurement.
-Duplicate identities are append-only; the latest in-window record is authoritative. Account
-usage percentage and estimated cost are context only and never affect token totals. Records are
-attributed to the seven-day window containing their end timestamp.
+Duplicate identities are append-only; the latest in-window record is authoritative. A cancelled
+pending invocation contributes no tokens. Account usage percentage and estimated cost are context
+only and never affect token totals. Records are attributed to the seven-day window containing
+their end timestamp. Mutations share an adjacent lock file and fail closed on lock contention.
 
 exit codes:
   0  success or permitted invocation
   2  invalid command-line input
-  3  ledger read, validation, append, or incomplete-measurement failure
+  3  ledger read, validation, lock, append, or incomplete-measurement failure
   4  routine invocation blocked because its token reservation would exceed the budget`
+
+let releaseActiveLock = null
 
 const fail = (message, code) => {
   console.error(`automation-budget: ${message}`)
+  if (releaseActiveLock) {
+    const release = releaseActiveLock
+    releaseActiveLock = null
+    release()
+  }
   process.exit(code)
 }
 
@@ -65,7 +77,7 @@ const parseArguments = (argumentsList) => {
     process.exit(0)
   }
   const command = argumentsList[0]
-  if (!["check", "record", "report"].includes(command)) fail(`expected check, record, or report\n\n${USAGE}`, 2)
+  if (!["check", "reserve", "record", "cancel", "report"].includes(command)) fail(`expected check, reserve, record, cancel, or report\n\n${USAGE}`, 2)
   const values = new Map()
   const switches = new Set()
   for (let index = 1; index < argumentsList.length; index++) {
@@ -193,6 +205,59 @@ const ledgerPath = (values) => {
 }
 
 const hasOwn = (value, property) => Object.prototype.hasOwnProperty.call(value, property)
+const sleep = (milliseconds) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds)
+
+const withLedgerLock = (path, action) => {
+  const lockPath = `${path}.lock`
+  const deadline = Date.now() + 10_000
+  mkdirSync(dirname(path), { recursive: true })
+  let descriptor
+  while (descriptor === undefined) {
+    try {
+      descriptor = openSync(lockPath, "wx", 0o600)
+    } catch (error) {
+      if (error?.code !== "EEXIST") fail(`could not acquire ledger lock ${lockPath}: ${error.message}`, 3)
+      if (Date.now() >= deadline) {
+        fail(`timed out waiting for ledger lock ${lockPath}; refusing to mutate the budget without an exclusive reservation`, 3)
+      }
+      sleep(25)
+    }
+  }
+  try {
+    writeFileSync(descriptor, `${JSON.stringify({ pid: process.pid, acquiredAt: new Date().toISOString() })}\n`, "utf8")
+  } catch (error) {
+    closeSync(descriptor)
+    try {
+      unlinkSync(lockPath)
+    } catch {}
+    fail(`could not initialize ledger lock ${lockPath}: ${error.message}`, 3)
+  }
+  const release = () => {
+    try {
+      closeSync(descriptor)
+    } catch {}
+    try {
+      unlinkSync(lockPath)
+    } catch (error) {
+      if (error?.code !== "ENOENT") console.error(`automation-budget: could not release ledger lock ${lockPath}: ${error.message}`)
+    }
+  }
+  releaseActiveLock = release
+  try {
+    const marker = process.env.AUTOMATION_BUDGET_TEST_LOCK_MARKER
+    const releaseMarker = process.env.AUTOMATION_BUDGET_TEST_LOCK_RELEASE
+    if (marker && releaseMarker) {
+      writeFileSync(marker, "locked\n", "utf8")
+      const testDeadline = Date.now() + 10_000
+      while (!existsSync(releaseMarker) && Date.now() < testDeadline) sleep(10)
+      if (!existsSync(releaseMarker)) fail(`test lock release marker was not created`, 3)
+    }
+    return action()
+  } finally {
+    releaseActiveLock = null
+    release()
+  }
+}
 
 const validateRecord = (record, lineNumber) => {
   const prefix = `ledger line ${lineNumber}`
@@ -209,6 +274,19 @@ const validateRecord = (record, lineNumber) => {
     tier: record.tier,
     startedAt: startedAt.toISOString(),
     endedAt: endedAt.toISOString(),
+  }
+  if (hasOwn(record, "cancelled")) {
+    if (record.cancelled !== true) fail(`${prefix} cancelled must be true when present`, 3)
+    if (
+      hasOwn(record, "inputTokens") ||
+      hasOwn(record, "outputTokens") ||
+      hasOwn(record, "providerEstimatedCost") ||
+      hasOwn(record, "accountContext")
+    ) {
+      fail(`${prefix} cancelled record must not carry measurements or context`, 3)
+    }
+    validated.cancelled = true
+    return validated
   }
   if (hasOwn(record, "inputTokens")) {
     validated.inputTokens = parseTokenCount(record.inputTokens, `${prefix} inputTokens`, 3)
@@ -277,6 +355,7 @@ const summarize = (records, engine, resetAt) => {
   let reservedTokens = 0
   const missingIdentities = []
   for (const record of latestByIdentity.values()) {
+    if (record.cancelled === true) continue
     if (!hasOwn(record, "inputTokens") || !hasOwn(record, "outputTokens")) {
       missingIdentities.push(record.identity)
       continue
@@ -304,17 +383,8 @@ const emitJson = (result, json) => {
   if (json) console.log(JSON.stringify(result))
 }
 
-const runCheck = (values, json) => {
-  rejectUnexpected(values, new Set([
-    "--engine",
-    "--identity",
-    "--tier",
-    "--reset-at",
-    "--warning-tokens",
-    "--budget-tokens",
-    "--invocation-tokens",
-    "--ledger",
-  ]))
+const parseBudgetRequest = (values, allowedFlags) => {
+  rejectUnexpected(values, allowedFlags)
   const engine = parseEngine(requireValue(values, "--engine"))
   const identity = parseIdentity(requireValue(values, "--identity"))
   const tier = parseTier(requireValue(values, "--tier"))
@@ -323,7 +393,12 @@ const runCheck = (values, json) => {
   const budgetTokens = parseTokenCount(requireValue(values, "--budget-tokens"), "--budget-tokens", 2, true)
   if (warningTokens >= budgetTokens) fail(`--warning-tokens must be below --budget-tokens`, 2)
   const invocationTokens = parseTokenCount(requireValue(values, "--invocation-tokens"), "--invocation-tokens")
-  const summary = summarize(readLedger(ledgerPath(values)).records, engine, resetAt)
+  return { engine, identity, tier, resetAt, warningTokens, budgetTokens, invocationTokens }
+}
+
+const evaluateBudget = (request, records, json) => {
+  const { engine, identity, tier, resetAt, warningTokens, budgetTokens, invocationTokens } = request
+  const summary = summarize(records, engine, resetAt)
   if (summary.missingIdentities.length > 0) {
     emitJson({ status: "INCOMPLETE", identity, tier, warningTokens, budgetTokens, invocationTokens, ...summary }, json)
     fail(`cannot check invocation "${identity}": latest in-window records lack input or output tokens for identities ${summary.missingIdentities.join(", ")}`, 3)
@@ -337,16 +412,89 @@ const runCheck = (values, json) => {
         ? "WARN"
         : "PROCEED"
   const result = { status, identity, tier, warningTokens, budgetTokens, invocationTokens, projectedTokens, ...summary }
-  emitJson(result, json)
   if (status === "BLOCK") {
+    emitJson(result, json)
     fail(`invocation "${identity}" blocked: budget ${budgetTokens} tokens, observed spend ${summary.totalTokens} tokens, reservation ${invocationTokens} tokens, projected spend ${projectedTokens} tokens; resets at ${summary.resetsAt}`, 4)
   }
+  return result
+}
+
+const emitBudgetResult = (result, json) => {
+  emitJson(result, json)
+  const { status, identity, warningTokens, budgetTokens, invocationTokens, projectedTokens, totalTokens } = result
   if (status === "WARN") {
-    console.error(`automation-budget: warning: invocation "${identity}" projects ${projectedTokens} tokens; warning ${warningTokens} tokens, budget ${budgetTokens} tokens, observed spend ${summary.totalTokens} tokens`)
+    console.error(`automation-budget: warning: invocation "${identity}" projects ${projectedTokens} tokens; warning ${warningTokens} tokens, budget ${budgetTokens} tokens, observed spend ${totalTokens} tokens`)
   }
   if (status === "RESERVED" && projectedTokens >= warningTokens) {
-    console.error(`automation-budget: warning: reserved invocation "${identity}" proceeds with ${projectedTokens} projected tokens; warning ${warningTokens} tokens, budget ${budgetTokens} tokens, observed spend ${summary.totalTokens} tokens, reservation ${invocationTokens} tokens`)
+    console.error(`automation-budget: warning: reserved invocation "${identity}" proceeds with ${projectedTokens} projected tokens; warning ${warningTokens} tokens, budget ${budgetTokens} tokens, observed spend ${totalTokens} tokens, reservation ${invocationTokens} tokens`)
   }
+}
+
+const budgetFlags = new Set([
+  "--engine",
+  "--identity",
+  "--tier",
+  "--reset-at",
+  "--warning-tokens",
+  "--budget-tokens",
+  "--invocation-tokens",
+  "--ledger",
+])
+
+const appendRecord = (path, existingLedger, record) => {
+  try {
+    const separator = existingLedger.needsSeparator ? "\n" : ""
+    appendFileSync(path, `${separator}${JSON.stringify(record)}\n`, { encoding: "utf8", flag: "a", mode: 0o600 })
+  } catch (error) {
+    fail(`could not append ledger ${path}: ${error.message}`, 3)
+  }
+}
+
+const runCheck = (values, json) => {
+  const request = parseBudgetRequest(values, budgetFlags)
+  const result = evaluateBudget(request, readLedger(ledgerPath(values)).records, json)
+  emitBudgetResult(result, json)
+}
+
+const runReserve = (values, json) => {
+  const request = parseBudgetRequest(values, new Set([
+    ...budgetFlags,
+    "--started-at",
+    "--ended-at",
+    "--account-used-percent",
+    "--account-observed-at",
+  ]))
+  const startedAt = parseTimestamp(requireValue(values, "--started-at"), "--started-at")
+  const endedAt = parseTimestamp(requireValue(values, "--ended-at"), "--ended-at")
+  if (startedAt.getTime() > endedAt.getTime()) fail(`--started-at must not be after --ended-at`, 2)
+  const pending = {
+    identity: request.identity,
+    engine: request.engine,
+    tier: request.tier,
+    startedAt: startedAt.toISOString(),
+    endedAt: endedAt.toISOString(),
+  }
+  const hasAccountPercent = values.has("--account-used-percent")
+  const hasAccountTimestamp = values.has("--account-observed-at")
+  if (hasAccountPercent !== hasAccountTimestamp) {
+    fail(`--account-used-percent and --account-observed-at must be provided together`, 2)
+  }
+  if (hasAccountPercent) {
+    pending.accountContext = {
+      scope: "account",
+      attributed: false,
+      usedPercent: parsePercent(values.get("--account-used-percent"), "--account-used-percent"),
+      observedAt: parseTimestamp(values.get("--account-observed-at"), "--account-observed-at").toISOString(),
+    }
+  }
+  const path = ledgerPath(values)
+  const result = withLedgerLock(path, () => {
+    const existingLedger = readLedger(path)
+    const evaluated = evaluateBudget(request, existingLedger.records, json)
+    appendRecord(path, existingLedger, pending)
+    return evaluated
+  })
+  emitBudgetResult({ ...result, reservation: pending }, json)
 }
 
 const runRecord = (values, json) => {
@@ -396,15 +544,52 @@ const runRecord = (values, json) => {
     }
   }
   const path = ledgerPath(values)
-  const existingLedger = readLedger(path)
-  try {
-    mkdirSync(dirname(path), { recursive: true })
-    const separator = existingLedger.needsSeparator ? "\n" : ""
-    appendFileSync(path, `${separator}${JSON.stringify(record)}\n`, { encoding: "utf8", flag: "a", mode: 0o600 })
-  } catch (error) {
-    fail(`could not append ledger ${path}: ${error.message}`, 3)
-  }
+  withLedgerLock(path, () => {
+    const existingLedger = readLedger(path)
+    appendRecord(path, existingLedger, record)
+  })
   emitJson({ status: "RECORDED", record }, json)
+}
+
+const runCancel = (values, json) => {
+  rejectUnexpected(values, new Set([
+    "--identity",
+    "--engine",
+    "--tier",
+    "--started-at",
+    "--ended-at",
+    "--ledger",
+  ]))
+  const identity = parseIdentity(requireValue(values, "--identity"))
+  const engine = parseEngine(requireValue(values, "--engine"))
+  const tier = parseTier(requireValue(values, "--tier"))
+  const startedAt = parseTimestamp(requireValue(values, "--started-at"), "--started-at")
+  const endedAt = parseTimestamp(requireValue(values, "--ended-at"), "--ended-at")
+  if (startedAt.getTime() > endedAt.getTime()) fail(`--started-at must not be after --ended-at`, 2)
+  const path = ledgerPath(values)
+  const cancelled = withLedgerLock(path, () => {
+    const existingLedger = readLedger(path)
+    const latest = [...existingLedger.records].reverse().find((record) => record.identity === identity)
+    if (!latest) fail(`cannot cancel invocation "${identity}": no ledger record exists`, 3)
+    if (latest.engine !== engine || latest.tier !== tier || latest.startedAt !== startedAt.toISOString()) {
+      fail(`cannot cancel invocation "${identity}": engine, tier, or start timestamp does not match its latest record`, 3)
+    }
+    if (latest.cancelled === true) return latest
+    if (hasOwn(latest, "inputTokens") || hasOwn(latest, "outputTokens")) {
+      fail(`cannot cancel invocation "${identity}": its latest record already carries a provider measurement`, 3)
+    }
+    const tombstone = {
+      identity,
+      engine,
+      tier,
+      startedAt: startedAt.toISOString(),
+      endedAt: endedAt.toISOString(),
+      cancelled: true,
+    }
+    appendRecord(path, existingLedger, tombstone)
+    return tombstone
+  })
+  emitJson({ status: "CANCELLED", record: cancelled }, json)
 }
 
 const runReport = (values, json) => {
@@ -421,5 +606,7 @@ const runReport = (values, json) => {
 
 const options = parseArguments(process.argv.slice(2))
 if (options.command === "check") runCheck(options.values, options.json)
+else if (options.command === "reserve") runReserve(options.values, options.json)
 else if (options.command === "record") runRecord(options.values, options.json)
+else if (options.command === "cancel") runCancel(options.values, options.json)
 else runReport(options.values, options.json)
