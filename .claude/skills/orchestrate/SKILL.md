@@ -230,12 +230,12 @@ sandbox... Input disabled until setup completes" forever in a PTY with no deskto
 UAC on, while `orca terminal wait` reports `satisfied: true` throughout. The prerequisite
 the harness cannot supply is the account: a paid ChatGPT plan and `codex login`
 (`codex login --device-auth` works from a headless session, printing a URL and a one-time
-code). Its model map defaults to gpt-5.6-terra at medium reasoning, maps `tier:cheap` to
-gpt-5.6-luna at low reasoning, and maps `tier:deep` to gpt-5.6-sol at high reasoning.
-Terra is the routine default because D2 supplies a complete, validated ticket and the
-delivery gates plus D9 bound executor risk; Sol stays available when deeper reasoning is
-needed. Model routing does not change the top-level `worker` selection; D5 keeps that as
-an explicit configuration decision.
+code). Its model map defaults to gpt-5.6-sol at high reasoning, maps `tier:cheap` to
+gpt-5.6-luna at low reasoning, and maps `tier:deep` to gpt-5.6-sol at max reasoning.
+Sol-high is the routine default because Terra-medium lost two review rounds on ORB-124 /
+PR #619 to care failures. The ADR reserves xhigh and max for per-ticket routing, so
+`tier:deep` spends max while the no-label invocation remains high. Model routing does not
+change the top-level `worker` selection; D5 keeps that as an explicit configuration decision.
 
 Two consequences of dropping `-p`. The process does NOT exit when the work is done, so
 wait with `--for tui-idle`, never `--for exit`. And the permission mode must still come

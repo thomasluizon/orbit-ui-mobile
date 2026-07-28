@@ -423,9 +423,9 @@ const CLAUDE_MODELS = {
   deep: { model: "opus", args: ["--effort", "max"] },
 }
 const CODEX_MODELS = {
-  default: { model: "gpt-5.6-terra", args: ["-c", 'model_reasoning_effort="medium"'] },
+  default: { model: "gpt-5.6-sol", args: ["-c", 'model_reasoning_effort="high"'] },
   cheap: { model: "gpt-5.6-luna", args: ["-c", 'model_reasoning_effort="low"'] },
-  deep: { model: "gpt-5.6-sol", args: ["-c", 'model_reasoning_effort="high"'] },
+  deep: { model: "gpt-5.6-sol", args: ["-c", 'model_reasoning_effort="max"'] },
 }
 const INTERACTIVE_WORKER = { command: "claude", args: ["--permission-mode", "bypassPermissions"], models: CLAUDE_MODELS, interactive: true }
 const INTERACTIVE_CODEX = {
@@ -901,9 +901,9 @@ const launchWorkerCases = () => {
   const codex = stageLaunchWorker("codex-interactive", INTERACTIVE_CODEX, "codex")
   const codexPlan = check(
     "launch-worker.mjs",
-    "Codex defaults to Terra at medium effort",
+    "Codex defaults to Sol at high effort",
     ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
-    { status: 0, stdout: /codex[\s\S]*model_reasoning_effort[\s\S]*medium[\s\S]*--model gpt-5\.6-terra/ },
+    { status: 0, stdout: /codex[\s\S]*model_reasoning_effort[\s\S]*high[\s\S]*--model gpt-5\.6-sol/ },
     { path: codex.path, env: orcaEnv(linearIssueStub(["repo:ui"])) },
   )
   const codexCheap = check(
@@ -915,9 +915,9 @@ const launchWorkerCases = () => {
   )
   const codexDeep = check(
     "launch-worker.mjs",
-    "tier:deep selects Sol at high effort on Codex",
+    "tier:deep selects Sol at max effort on Codex",
     ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
-    { status: 0, stdout: /codex[\s\S]*model_reasoning_effort[\s\S]*high[\s\S]*--model gpt-5\.6-sol/ },
+    { status: 0, stdout: /codex[\s\S]*model_reasoning_effort[\s\S]*max[\s\S]*--model gpt-5\.6-sol/ },
     { path: codex.path, env: orcaEnv(linearIssueStub(["repo:ui", "tier:deep"])) },
   )
   const codexDefaultCommand = codexPlan.status === 0 ? JSON.parse(codexPlan.stdout).command : ""
