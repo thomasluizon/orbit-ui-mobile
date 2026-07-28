@@ -5,6 +5,7 @@ name: Guards
 # is the one layer nothing bypasses. Jobs:
 #   dashes  - the cross-repo dash ban: changed files, the shrink-only baseline, and the PR title/body
 #   copy    - AI-cliche / placeholder / typed-uppercase locale values + hardcoded brand colors
+#   context-budget - the shrink-only always-loaded context budget and structural allowlists
 #   ratchet - the eslint-suppressions.json baselines may only shrink
 #   parity  - a web-scope code change with zero mobile-scope change (or inverse) fails without the parity:exempt label
 #   expo-pin - apps/mobile/package.json changes must keep the Expo SDK pin resolution intact
@@ -63,6 +64,21 @@ jobs:
         with:
           node-version: 22
       - run: node tools/check-copy.mjs --check
+
+  context-budget:
+    name: Context Budget
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'context:reseed')
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: node tools/check-context-budget.mjs --check
+        env:
+          CONTEXT_BUDGET_BASE_REF: ${{ github.event.pull_request.base.sha || 'origin/main' }}
 
   frontmatter:
     name: Skill and Agent Frontmatter

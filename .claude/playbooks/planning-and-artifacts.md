@@ -28,7 +28,7 @@ Reinforces the standing "do all in-scope work, questions only for true forks" co
 ### 4. The ticket-vs-fog test is precision *now*, not answerability now
 Ticket a sharp question **even when it is blocked**. Anything you cannot phrase sharply stays as coarse **"not yet specified" fog** — do not pre-slice fog into speculative tickets.
 
-`/drive`'s living spec survives `/clear` but carries no rule for what earns a ticket versus what stays unspecified.
+A living spec can preserve planning context across sessions but carries no rule for what earns a ticket versus what stays unspecified.
 
 ### 5. A wide refactor is the exception to vertical slicing
 One mechanical change whose blast radius fans across the codebase gets sequenced **expand → migrate in blast-radius-sized batches → contract.** Each batch is its own ticket, blocked by the expand, so **CI stays green batch to batch**.
