@@ -18,6 +18,7 @@ import { fileURLToPath } from "node:url"
 import { checkGitCommand, checkGitWorktreeRemove } from "./_lib/rules-git.mjs"
 import { checkEfMigrationRawIndex } from "./_lib/rules-source.mjs"
 import { checkLinearMutation } from "./_lib/rules-linear.mjs"
+import { checkRawRepoToolSurfacing } from "./forbid-raw-repo-tool-surfacing.mjs"
 
 const hooksDir = dirname(fileURLToPath(import.meta.url))
 let fails = 0
@@ -270,9 +271,12 @@ const write = (rel, body) => {
   writeFileSync(p, body)
   return p
 }
+function runHookResult(file, payload) {
+  return spawnSync(process.execPath, [join(hooksDir, file)], { input: JSON.stringify(payload), encoding: "utf8" })
+}
+
 function runHook(file, payload) {
-  const res = spawnSync(process.execPath, [join(hooksDir, file)], { input: JSON.stringify(payload), encoding: "utf8" })
-  return res.status
+  return runHookResult(file, payload).status
 }
 
 T("cc git-guardrails: push main -> 2", runHook("git-guardrails.mjs", { tool_name: "Bash", tool_input: { command: "git push origin main" } }), 2)
@@ -308,6 +312,831 @@ T(
   0,
 )
 T("cc linear: unrelated command -> 0", runHook(LINEAR_HOOK, { tool_name: "Bash", tool_input: { command: "npm test" } }), 0)
+
+// Raw repo-tool commands belong behind skills and agents. The Stop half catches
+// commands surfaced in chat, while the PostToolUse half catches instructions
+// written to artifacts that Thomas will read, including files outside a repo.
+const RAW_TOOL_HOOK = "forbid-raw-repo-tool-surfacing.mjs"
+const stopPayload = (last_assistant_message) => ({
+  hook_event_name: "Stop",
+  stop_hook_active: false,
+  last_assistant_message,
+})
+const writePayload = (file_path, content) => ({
+  hook_event_name: "PostToolUse",
+  tool_name: "Write",
+  tool_input: { file_path, content },
+})
+const editPayload = (file_path, new_string, old_string = "") => ({
+  hook_event_name: "PostToolUse",
+  tool_name: "Edit",
+  tool_input: { file_path, old_string, new_string },
+})
+const multiEditPayload = (file_path, edits) => ({
+  hook_event_name: "PostToolUse",
+  tool_name: "MultiEdit",
+  tool_input: { file_path, edits },
+})
+const surfacedWavePlan = "Re-derive any time with `node tools/wave-plan.mjs --all`"
+
+export const RAW_TOOL_REVIEW_CORPUS = [
+  { label: "ticket measured command", text: surfacedWavePlan, status: 2, includes: ["/next"] },
+  ...["surfaces:manifest", "surfaces:capture", "redesign:coverage"].map((script) => ({
+    label: `root npm repo-tool alias ${script}`,
+    text: `npm run ${script}`,
+    status: 2,
+  })),
+  { label: "ordinary root npm alias", text: "npm run lint", status: 0 },
+  {
+    label: "standalone code span after instruction",
+    text: ["Run this:", "`node tools/wave-plan.mjs --all`"].join("\n"),
+    status: 2,
+  },
+  {
+    label: "standalone code span after spaced instruction",
+    text: ["Run this to refresh the order:", "", "`node tools/wave-plan.mjs --all`"].join("\n"),
+    status: 2,
+  },
+  {
+    label: "unrelated preceding appeal",
+    text: ["Repo-tool appeal: this is for tools/foo.mjs", "", "Actually just kidding, run node tools/bar.mjs to fix everything."].join(
+      "\n",
+    ),
+    status: 2,
+    includes: ["node tools/bar.mjs"],
+  },
+  ...[
+    "node tools/wave-plan.mjs --all",
+    "You can run `node tools/wave-plan.mjs --all` to see it.",
+    "To find the next ticket, run node tools/wave-plan.mjs --all and read the top row.",
+    "Run this: node tools/wave-plan.mjs --all",
+    "Next: node tools/wave-plan.mjs --all",
+    "Just do: node tools/wave-plan.mjs --all",
+    "Just do node tools/wave-plan.mjs --all",
+    "Just do: bash tools/merge-sweep.sh owner/repo 1",
+    "Just do: npx --yes @orbit/cli check",
+    "npx --yes cowsay hello",
+    "npx @scope/package",
+    "Next: npx eslint --fix",
+    "Run npx prisma generate now",
+    "Use npx turbo run lint",
+    "Next: npx prisma generate",
+    "You can run npx prisma generate",
+    "npx turbo run lint",
+    "npx prisma generate",
+    "`npx prisma generate`",
+    "npx serve",
+    "npx serve.",
+    "npx nodemon",
+    "`npx cowsay.`",
+    "Just run npx tsc",
+    "Next: npx serve",
+    "npx --package=foo -c 'command'",
+    "npx --package=@orbit/cli -c 'orbit check'",
+    "npx -p typescript tsc --noEmit",
+    "npx --workspace=apps/web run build",
+    "npx -c 'orbit check'",
+    'npx --call "orbit check"',
+  ].map((text, index) => ({ label: `historical command ${index + 1}`, text, status: 2 })),
+  ...[
+    "node C:\\repo\\tools\\wave-plan.mjs --all",
+    "node /repo/tools/wave-plan.mjs --all",
+    "node --trace-warnings tools/wave-plan.mjs --all",
+    "node --require loader tools/wave-plan.mjs --all",
+  ].map((text, index) => ({ label: `node invocation variant ${index + 1}`, text, status: 2, includes: ["/next"] })),
+  ...[
+    "Run pwsh tools/agent-review.ps1 --claim test",
+    "Run powershell.exe .\\tools\\agent-review.ps1 --claim test",
+    "Run .\\tools\\agent-review.ps1 --claim test",
+  ].map((text, index) => ({ label: `PowerShell invocation ${index + 1}`, text, status: 2, includes: ["/second-opinion"] })),
+  {
+    label: "previous internal line laundering",
+    text: ["The skill runs internally to gather inputs.", "To refresh it yourself, run node tools/wave-plan.mjs --all"].join("\n"),
+    status: 2,
+  },
+  {
+    label: "previous ticket line laundering",
+    text: ["This is captured in the ticket body.", "Next: node tools/wave-plan.mjs --all"].join("\n"),
+    status: 2,
+  },
+  ...[
+    "Internally, run `node tools/wave-plan.mjs --all` and summarize the result.",
+    "Internally you'd run `node tools/wave-plan.mjs --all`",
+    "Internally you can run `node tools/wave-plan.mjs --all`",
+    "Internally you should run `node tools/wave-plan.mjs --all`",
+    "Per the tool's `--help` output, run `node tools/wave-plan.mjs --all` next.",
+    "Please execute node tools/wave-plan.mjs --all as documented in the PR description.",
+    "Please execute `node tools/wave-plan.mjs --all` as documented in the PR description.",
+  ].map((text, index) => ({ label: `documentation instruction ${index + 1}`, text, status: 2 })),
+  {
+    label: "closing text fence cannot exempt next instruction",
+    text: ["Example output:", "```text", "done", "```", "", "Run node tools/wave-plan.mjs --all now."].join("\n"),
+    status: 2,
+  },
+  {
+    label: "unintroduced text fence is executable",
+    text: ["Run this command:", "```text", "node tools/wave-plan.mjs --all", "```"].join("\n"),
+    status: 2,
+  },
+  {
+    label: "unintroduced JSON fence is executable",
+    text: ["Run this command:", "```json", '"command": "node tools/wave-plan.mjs --all"', "```"].join("\n"),
+    status: 2,
+  },
+  ...["markdown", "yaml"].map((language) => ({
+    label: `unintroduced ${language} fence is executable`,
+    text: ["Run this command:", `\`\`\`${language}`, "node tools/wave-plan.mjs --all", "```"].join("\n"),
+    status: 2,
+  })),
+  {
+    label: "instruction wins over tool-help fence wording",
+    text: ["Tool help: run this command:", "```text", "node tools/wave-plan.mjs --all", "```"].join("\n"),
+    status: 2,
+  },
+  {
+    label: "unclosed data fence fails closed",
+    text: ["The configuration value is:", "```json", '"command": "node tools/wave-plan.mjs --all"'].join("\n"),
+    status: 2,
+  },
+  {
+    label: "self help is not tool help",
+    text: ["Self-help output follows:", "```bash", "node tools/wave-plan.mjs --all", "```"].join("\n"),
+    status: 2,
+  },
+  {
+    label: "one appeal cannot cover chain",
+    text: "node tools/wave-plan.mjs --all && node tools/rollup.mjs # Repo-tool appeal: wave plan is required",
+    status: 2,
+    includes: ["node tools/rollup.mjs"],
+  },
+  {
+    label: "one appeal cannot cover three command chain",
+    text: "node tools/wave-plan.mjs --all && node tools/rollup.mjs && node tools/arch-map.mjs # Repo-tool appeal: wave plan is required",
+    status: 2,
+    includes: ["node tools/rollup.mjs"],
+  },
+  {
+    label: "preceding line appeal cannot authorize command",
+    text: ["Repo-tool appeal: reason", "node tools/wave-plan.mjs --all"].join("\n"),
+    status: 2,
+  },
+  {
+    label: "single command appeal",
+    text: "node tools/wave-plan.mjs --all # Repo-tool appeal: The user explicitly requested the exact diagnostic command for a local shell.",
+    status: 0,
+    includes: ["Repo-tool appeal recorded"],
+  },
+  {
+    label: "each chained command appealed",
+    text: "node tools/wave-plan.mjs --all # Repo-tool appeal: wave plan is required && node tools/rollup.mjs # Repo-tool appeal: rollup is required",
+    status: 0,
+    includes: ["wave plan is required", "rollup is required"],
+  },
+  ...[
+    "npx is a great tool for running one-off packages.",
+    "npx invocations without --yes will prompt for confirmation.",
+    "npx runs whatever package you name, unlike a pinned devDependency.",
+    "The package is invoked as npx cowsay.",
+    "The npx --package option tells npx which package to install.",
+    "The --package flag tells npx which package provides the binary.",
+    "Node supports --trace-warnings when diagnosing warnings.",
+    "The implementation derives the wave order with `node tools/wave-plan.mjs --all` inside its automation.",
+    "The skill runs internally to gather inputs.",
+    "Internally the orchestrator calls node tools/wave-plan.mjs to build the table.",
+    "Internally the orchestrator would run `node tools/wave-plan.mjs --all` to build the table.",
+    "Internally the skill can run `node tools/wave-plan.mjs --all` when rebuilding the graph.",
+    "The ticket body says you can run `node tools/wave-plan.mjs --all` as an example.",
+  ].map((text, index) => ({ label: `historical prose control ${index + 1}`, text, status: 0 })),
+  {
+    label: "imperative as npx remains executable",
+    text: "You should run this as npx --yes @orbit/cli deploy.",
+    status: 2,
+  },
+  ...[
+    "Run this as npx --yes @orbit/cli deploy.",
+    "Please run it as npx --yes @orbit/cli deploy.",
+    "Internally you should run this as npx --yes @orbit/cli deploy.",
+    "You should run this as `npx --yes @orbit/cli deploy`.",
+  ].map((text, index) => ({ label: `imperative npx connector ${index + 1}`, text, status: 2 })),
+  ...[
+    "The command is documented as npx --yes @orbit/cli deploy.",
+    "The package is described as npx --yes @orbit/cli deploy.",
+    "The tool described as npx serve is deprecated.",
+  ].map((text, index) => ({ label: `descriptive npx connector ${index + 1}`, text, status: 0 })),
+  ...[
+    "The tool described as node tools/wave-plan.mjs --all is deprecated.",
+    "The command mentioned as tools/rollup.sh runs nightly.",
+  ].map((text, index) => ({ label: `npx description cannot exempt repo tool ${index + 1}`, text, status: 2 })),
+  {
+    label: "overlap resolution keeps the accepted outer command",
+    text: "node --require tools/npx-a.mjs --loader tools/npx-b.mjs tools/wave-plan.mjs",
+    status: 2,
+    includes: ["node --require tools/npx-a.mjs --loader tools/npx-b.mjs tools/wave-plan.mjs"],
+  },
+  {
+    label: "quoted help fence",
+    text: ["The captured `--help` output is:", "", "```bash", "node tools/wave-plan.mjs --all", "```"].join("\n"),
+    status: 0,
+  },
+  {
+    label: "documentation opened fence",
+    text: ["The skill runs internally to gather inputs.", "```bash", "node tools/wave-plan.mjs --all", "```"].join("\n"),
+    status: 0,
+  },
+  {
+    label: "quoted configuration fence",
+    text: ["The configuration value is:", "```json", '"command": "node tools/wave-plan.mjs --all"', "```"].join("\n"),
+    status: 0,
+  },
+  {
+    label: "quoted YAML configuration fence",
+    text: ["The YAML configuration is:", "```yaml", "command: node tools/wave-plan.mjs --all", "```"].join("\n"),
+    status: 0,
+  },
+  ...["Downloads/notes-1.md", "Downloads/NOTES-1.md", "Downloads/step-3.md", "Downloads/draft-42.md", "Downloads/log-99.txt"].map(
+    (filePath, index) => ({
+      label: `artifact filename lookalike ${index + 1}`,
+      text: "Run node tools/wave-plan.mjs --all",
+      status: 2,
+      source: "artifact",
+      filePath,
+    }),
+  ),
+  ...["ORB-999.md", "pr-description.md", "Downloads/wave-plan--help-output.txt"].map((filePath, index) => ({
+    label: `document artifact basename ${index + 1}`,
+    text: "Run node tools/wave-plan.mjs --all",
+    status: 0,
+    source: "artifact",
+    filePath,
+  })),
+  {
+    label: "skill artifact owns its internal command",
+    text: ["---", "name: next", "---", "", "Internally, run `node tools/wave-plan.mjs --all` and summarize the result."].join(
+      "\n",
+    ),
+    status: 0,
+    source: "artifact",
+    filePath: ".claude/skills/next/SKILL.md",
+  },
+  {
+    label: "agent artifact owns its internal command",
+    text: ["---", "name: planner", "---", "", "Use `node tools/wave-plan.mjs --all` to gather the wave data."].join("\n"),
+    status: 0,
+    source: "artifact",
+    filePath: ".claude/agents/planner.md",
+  },
+]
+
+for (const fixture of RAW_TOOL_REVIEW_CORPUS) {
+  const verdict = checkRawRepoToolSurfacing(fixture.text, { source: fixture.source, filePath: fixture.filePath })
+  T(`cc raw-tool corpus: ${fixture.label}`, verdict?.block ? 2 : 0, fixture.status)
+  for (const expected of fixture.includes ?? []) {
+    T(`cc raw-tool corpus: ${fixture.label} includes ${expected}`, verdict?.message?.includes(expected) ?? false, true)
+  }
+}
+
+const overlapReason = "the exact node diagnostic was requested"
+const appealedOverlap = checkRawRepoToolSurfacing(
+  `node --require tools/npx-a.mjs --loader tools/npx-b.mjs tools/wave-plan.mjs # Repo-tool appeal: ${overlapReason}`,
+)
+T("cc raw-tool: one overlapping node invocation needs one appeal", appealedOverlap?.appeal, true)
+T("cc raw-tool: overlapping node invocation yields one command", appealedOverlap?.commands?.length, 1)
+
+const slashHeavyQuotedPathProbe = spawnSync(
+  process.execPath,
+  [
+    "--input-type=module",
+    "--eval",
+    `
+      import { checkRawRepoToolSurfacing } from ${JSON.stringify(new URL("./forbid-raw-repo-tool-surfacing.mjs", import.meta.url).href)}
+      for (const quote of ['"', "'"]) {
+        const text = "node " + quote + "segment/".repeat(2048) + "not-a-tool.js" + quote
+        if (checkRawRepoToolSurfacing(text) !== null) process.exit(1)
+      }
+    `,
+  ],
+  { encoding: "utf8", timeout: 5000 },
+)
+T(
+  "cc raw-tool: slash-heavy quoted nonmatch completes within the fixed probe timeout",
+  { error: slashHeavyQuotedPathProbe.error?.code ?? null, status: slashHeavyQuotedPathProbe.status },
+  { error: null, status: 0 },
+)
+
+export const RAW_TOOL_CLAUSE_FUZZ_BUDGET = 1600
+const fuzzFirst = "node tools/wave-plan.mjs --all"
+const fuzzSecond = "node tools/rollup.mjs"
+const fuzzDocuments = [
+  ["internal", "The skill runs internally to gather inputs"],
+  ["ticket", "This is captured in the ticket body"],
+]
+const fuzzSeparators = [
+  ["period", ". "],
+  ["comma", ", "],
+  ["semicolon", "; "],
+  ["colon", ": "],
+]
+const fuzzFrames = [
+  ["next", "Next:"],
+  ["run", "To refresh it yourself, run"],
+]
+const fuzzLayouts = [
+  ["single", fuzzFirst],
+  ["period-two", `${fuzzFirst}. Then run ${fuzzSecond}`],
+  ["semicolon-two", `${fuzzFirst}; ${fuzzSecond}`],
+  ["and-chain", `${fuzzFirst} && ${fuzzSecond}`],
+  ["imperative-as-npx", "this as npx --yes @orbit/cli deploy"],
+]
+const fuzzBoundaries = [
+  ["plain", (frame, body) => `${frame} ${body}`],
+  ["inline", (frame, body) => `${frame} \`${body}\``],
+  ["nested", (frame, body) => `${frame} \`\`Example: \`${body}\` end\`\``],
+  ["fence", (frame, body) => [frame, "```bash", body, "```"].join("\n")],
+  ["ambiguous-backticks", (frame, body) => `${frame} \`\`Example: \`${body}\``],
+]
+const fuzzPlacements = ["outside-before", "outside-after", "inside-before", "inside-after"]
+const clauseFuzzCases = []
+
+for (const placement of fuzzPlacements) {
+  for (const [boundaryId, boundary] of fuzzBoundaries) {
+    for (const [layoutId, layout] of fuzzLayouts) {
+      for (const [documentId, documentText] of fuzzDocuments) {
+        for (const [frameId, frame] of fuzzFrames) {
+          for (const [separatorId, separator] of fuzzSeparators) {
+            let payload = layout
+            if (placement === "inside-before") payload = `${documentText}${separator}${layout}`
+            if (placement === "inside-after") payload = `${layout}${separator}${documentText}`
+            const instruction = boundary(frame, payload)
+            const text =
+              placement === "outside-before"
+                ? `${documentText}${separator}${instruction}`
+                : placement === "outside-after"
+                  ? `${instruction}${separator}${documentText}.`
+                  : instruction
+            clauseFuzzCases.push({
+              id: [placement, boundaryId, layoutId, documentId, frameId, separatorId].join("/"),
+              text,
+            })
+          }
+        }
+      }
+    }
+  }
+}
+
+T("cc raw-tool: deterministic clause fuzz budget", clauseFuzzCases.length, RAW_TOOL_CLAUSE_FUZZ_BUDGET)
+const unexpectedClauseFuzzPasses = clauseFuzzCases.flatMap(({ id, text }) =>
+  checkRawRepoToolSurfacing(text)?.block ? [] : [id],
+)
+T(
+  "cc raw-tool: deterministic clause fuzz has zero unexpected passes",
+  { count: unexpectedClauseFuzzPasses.length, first: unexpectedClauseFuzzPasses.slice(0, 10) },
+  { count: 0, first: [] },
+)
+
+const chatSurfacing = runHookResult(RAW_TOOL_HOOK, stopPayload(surfacedWavePlan))
+T("cc raw-tool: measured chat instruction -> 2", chatSurfacing.status, 2)
+T("cc raw-tool: measured chat instruction names /next", chatSurfacing.stderr.includes("/next"), true)
+
+const stringTranscript = write(
+  "transcripts/string-content.jsonl",
+  [
+    JSON.stringify({ type: "user", message: { content: "What should I do next?" } }),
+    JSON.stringify({ type: "assistant", message: { content: "Next: node tools/wave-plan.mjs --all" } }),
+  ].join("\n"),
+)
+const stringTranscriptFallback = runHookResult(RAW_TOOL_HOOK, {
+  hook_event_name: "Stop",
+  stop_hook_active: false,
+  transcript_path: stringTranscript,
+})
+T("cc raw-tool: transcript fallback reads trailing string assistant content -> 2", stringTranscriptFallback.status, 2)
+T("cc raw-tool: string transcript fallback names /next", stringTranscriptFallback.stderr.includes("/next"), true)
+
+const blockTranscript = write(
+  "transcripts/block-content.jsonl",
+  [
+    JSON.stringify({ type: "user", message: { content: "Give me the command." } }),
+    JSON.stringify({
+      type: "assistant",
+      message: { content: [{ type: "text", text: "Next: node tools/rollup.mjs" }] },
+    }),
+  ].join("\n"),
+)
+const blockTranscriptFallback = runHookResult(RAW_TOOL_HOOK, {
+  hook_event_name: "Stop",
+  stop_hook_active: false,
+  transcript_path: blockTranscript,
+})
+T("cc raw-tool: transcript fallback reads trailing text block content -> 2", blockTranscriptFallback.status, 2)
+T(
+  "cc raw-tool: block transcript fallback reports the extracted command",
+  blockTranscriptFallback.stderr.includes("node tools/rollup.mjs"),
+  true,
+)
+
+for (const [label, text] of [
+  ["bare command", "node tools/wave-plan.mjs --all"],
+  ["absolute Windows path", "node C:\\repo\\tools\\wave-plan.mjs --all"],
+  ["absolute POSIX path", "node /repo/tools/wave-plan.mjs --all"],
+  ["Node option before the script", "node --trace-warnings tools/wave-plan.mjs --all"],
+  ["Node option with a value", "node --require loader tools/wave-plan.mjs --all"],
+  ["inline command", "You can run `node tools/wave-plan.mjs --all` to see it."],
+  ["prose-prefixed run", "To find the next ticket, run node tools/wave-plan.mjs --all and read the top row."],
+  ["colon-prefixed run", "Run this: node tools/wave-plan.mjs --all"],
+  ["next prefix", "Next: node tools/wave-plan.mjs --all"],
+  ["just-do colon prefix", "Just do: node tools/wave-plan.mjs --all"],
+  ["just-do prefix", "Just do node tools/wave-plan.mjs --all"],
+  ["bash script prefix", "Just do: bash tools/merge-sweep.sh owner/repo 1"],
+  ["npx prefix", "Just do: npx --yes @orbit/cli check"],
+]) {
+  T(`cc raw-tool: round 3 ${label} -> 2`, runHook(RAW_TOOL_HOOK, stopPayload(text)), 2)
+}
+
+const standaloneCodeSpan = runHookResult(
+  RAW_TOOL_HOOK,
+  stopPayload(["Run this to refresh the order:", "", "`node tools/wave-plan.mjs --all`"].join("\n")),
+)
+T("cc raw-tool: instructed standalone code span -> 2", standaloneCodeSpan.status, 2)
+T("cc raw-tool: instructed standalone code span names /next", standaloneCodeSpan.stderr.includes("/next"), true)
+T(
+  "cc raw-tool: inline code span in explanatory prose -> 0",
+  runHook(
+    RAW_TOOL_HOOK,
+    stopPayload("The implementation derives the wave order with `node tools/wave-plan.mjs --all` inside its automation."),
+  ),
+  0,
+)
+T(
+  "cc raw-tool: option-bearing Node prose without a tool path -> 0",
+  runHook(RAW_TOOL_HOOK, stopPayload("Node supports --trace-warnings when diagnosing warnings.")),
+  0,
+)
+
+const npxSurfacing = runHookResult(
+  RAW_TOOL_HOOK,
+  stopPayload(["Run this command:", "", "```bash", "npx turbo run lint", "```"].join("\n")),
+)
+T("cc raw-tool: npx instruction -> 2", npxSurfacing.status, 2)
+T("cc raw-tool: npx gap says no skill exists", npxSurfacing.stderr.toLowerCase().includes("no skill"), true)
+T("cc raw-tool: npx gap says to build a skill", npxSurfacing.stderr.toLowerCase().includes("build"), true)
+T(
+  "cc raw-tool: explicit npx confirmation instruction -> 2",
+  runHook(RAW_TOOL_HOOK, stopPayload("npx --yes cowsay hello")),
+  2,
+)
+T(
+  "cc raw-tool: scoped npx instruction -> 2",
+  runHook(RAW_TOOL_HOOK, stopPayload("npx @scope/package")),
+  2,
+)
+for (const prose of [
+  "npx is a great tool for running one-off packages.",
+  "npx invocations without --yes will prompt for confirmation.",
+  "npx runs whatever package you name, unlike a pinned devDependency.",
+]) {
+  T(`cc raw-tool: npx prose "${prose}" -> 0`, runHook(RAW_TOOL_HOOK, stopPayload(prose)), 0)
+}
+T("cc raw-tool: ambiguous bare npx name -> 0", runHook(RAW_TOOL_HOOK, stopPayload("The package is invoked as npx cowsay.")), 0)
+for (const [label, command] of [
+  ["standalone turbo", "npx turbo run lint"],
+  ["standalone prisma", "npx prisma generate"],
+  ["inline-code prisma", "`npx prisma generate`"],
+]) {
+  T(`cc raw-tool: ${label} npx instruction -> 2`, runHook(RAW_TOOL_HOOK, stopPayload(command)), 2)
+}
+T("cc raw-tool: npx package followed by a flag -> 2", runHook(RAW_TOOL_HOOK, stopPayload("Next: npx eslint --fix")), 2)
+T("cc raw-tool: imperative npx with positional arguments -> 2", runHook(RAW_TOOL_HOOK, stopPayload("Run npx prisma generate now")), 2)
+for (const [label, command] of [
+  ["use prefix", "Use npx turbo run lint"],
+  ["next prefix", "Next: npx prisma generate"],
+  ["modal run prefix", "You can run npx prisma generate"],
+]) {
+  T(`cc raw-tool: prefixed bare npx ${label} -> 2`, runHook(RAW_TOOL_HOOK, stopPayload(command)), 2)
+}
+for (const [label, command] of [
+  ["assigned package and call options", "npx --package=@orbit/cli -c 'orbit check'"],
+  ["separate package option value", "npx -p typescript tsc --noEmit"],
+  ["assigned workspace option", "npx --workspace=apps/web run build"],
+  ["short quoted call option", "npx -c 'orbit check'"],
+  ["long quoted call option", 'npx --call "orbit check"'],
+]) {
+  T(`cc raw-tool: flag-first ${label} -> 2`, runHook(RAW_TOOL_HOOK, stopPayload(command)), 2)
+}
+T(
+  "cc raw-tool: explanatory npx option mention -> 0",
+  runHook(RAW_TOOL_HOOK, stopPayload("The npx --package option tells npx which package to install.")),
+  0,
+)
+
+const bareToolSurfacing = runHookResult(
+  RAW_TOOL_HOOK,
+  stopPayload(["Run this command:", "", "```bash", "tools/rollup.sh", "```"].join("\n")),
+)
+T("cc raw-tool: bare tools script instruction -> 2", bareToolSurfacing.status, 2)
+for (const [label, command, skills] of [
+  ["rollup", "tools/rollup.sh", ["/rollup"]],
+  ["worker watch", "node tools/worker-watch.mjs", ["/watch"]],
+  ["PR watch", "node tools/pr-watch.mjs --repo owner/repo --pr 1", ["/orchestrate"]],
+  ["ticket creation", "node tools/new-ticket.mjs --help", ["/ticket", "/feature"]],
+  ["web port", "node tools/orca-web-port.mjs", ["/dev-server"]],
+  ["second opinion", "tools/agent-review.sh --claim test", ["/second-opinion"]],
+  ["PowerShell second opinion", "pwsh tools/agent-review.ps1 --claim test", ["/second-opinion"]],
+  ["Windows PowerShell second opinion", "powershell.exe .\\tools\\agent-review.ps1 --claim test", ["/second-opinion"]],
+  ["direct PowerShell second opinion", ".\\tools\\agent-review.ps1 --claim test", ["/second-opinion"]],
+]) {
+  const result = runHookResult(RAW_TOOL_HOOK, stopPayload(`Run ${command}`))
+  T(`cc raw-tool: ${label} wrapper instruction -> 2`, result.status, 2)
+  for (const skill of skills) T(`cc raw-tool: ${label} names ${skill}`, result.stderr.includes(skill), true)
+  T(`cc raw-tool: ${label} does not claim a missing skill`, result.stderr.includes("No skill currently"), false)
+}
+const missingSkillSurfacing = runHookResult(RAW_TOOL_HOOK, stopPayload("Run node tools/arch-map.mjs"))
+T("cc raw-tool: unmapped tool instruction -> 2", missingSkillSurfacing.status, 2)
+T(
+  "cc raw-tool: unmapped tool says no skill currently exposes it",
+  missingSkillSurfacing.stderr.includes("No skill currently exposes this capability"),
+  true,
+)
+
+const outsideRepoArtifactBody = ["# Instructions", "", "Run this to refresh the order:", "", "```bash", "node tools/wave-plan.mjs --all", "```"].join("\n")
+const outsideRepoArtifact = write("Downloads/order.md", outsideRepoArtifactBody)
+const artifactSurfacing = runHookResult(
+  RAW_TOOL_HOOK,
+  writePayload(outsideRepoArtifact, outsideRepoArtifactBody),
+)
+T("cc raw-tool: outside-repo instruction artifact -> 2", artifactSurfacing.status, 2)
+T("cc raw-tool: artifact block names /next", artifactSurfacing.stderr.includes("/next"), true)
+for (const [label, relativePath] of [
+  ["ordinary numbered note", "Downloads/notes-1.md"],
+  ["uppercase ticket lookalike", "Downloads/NOTES-1.md"],
+  ["help-like parent directory", "Downloads/wave--help-output/notes.md"],
+]) {
+  T(
+    `cc raw-tool: ${label} remains a scanned artifact -> 2`,
+    runHook(RAW_TOOL_HOOK, writePayload(write(relativePath, outsideRepoArtifactBody), outsideRepoArtifactBody)),
+    2,
+  )
+}
+
+const rawToolRepoRoot = join(hooksDir, "..", "..")
+for (const [name, filePath, newString] of [
+  ["repo CLAUDE edit ignores pre-existing commands", join(rawToolRepoRoot, "CLAUDE.md"), "A harmless wording update."],
+  ["repo tool edit ignores pre-existing commands", join(rawToolRepoRoot, "tools", "check-dashes.mjs"), "const harmless = true"],
+  [
+    "repo doc new raw command remains artifact-out-of-scope",
+    join(rawToolRepoRoot, "README.md"),
+    "Run node tools/wave-plan.mjs --all",
+  ],
+]) {
+  const result = runHookResult(RAW_TOOL_HOOK, editPayload(filePath, newString))
+  T(`cc raw-tool: ${name} -> 0`, result.status, 0)
+  T(`cc raw-tool: ${name} emits no verdict`, result.stdout === "" && result.stderr === "", true)
+}
+
+const declaredRepos = JSON.parse(readFileSync(join(rawToolRepoRoot, ".claude", "orchestrator.json"), "utf8")).repos
+for (const [repoName, repoPath] of Object.entries(declaredRepos)) {
+  T(
+    `cc raw-tool: declared ${repoName} repo source is artifact-out-of-scope -> 0`,
+    runHook(RAW_TOOL_HOOK, editPayload(`${repoPath}\\internal.md`, "Run node tools/wave-plan.mjs --all")),
+    0,
+  )
+}
+
+const existingOutsideArtifact = write("Downloads/existing-order.md", outsideRepoArtifactBody)
+const safeOutsideEdit = runHookResult(RAW_TOOL_HOOK, editPayload(existingOutsideArtifact, "Updated heading only."))
+T("cc raw-tool: outside edit scans only its safe new string -> 0", safeOutsideEdit.status, 0)
+T("cc raw-tool: outside safe edit emits no verdict", safeOutsideEdit.stdout === "" && safeOutsideEdit.stderr === "", true)
+T(
+  "cc raw-tool: outside edit blocks a raw command in its new string -> 2",
+  runHook(RAW_TOOL_HOOK, editPayload(existingOutsideArtifact, "Run node tools/wave-plan.mjs --all")),
+  2,
+)
+T(
+  "cc raw-tool: outside MultiEdit checks new strings independently -> 2",
+  runHook(
+    RAW_TOOL_HOOK,
+    multiEditPayload(existingOutsideArtifact, [
+      { old_string: "old", new_string: "The captured `--help` output is:" },
+      { old_string: "older", new_string: "node tools/wave-plan.mjs --all" },
+    ]),
+  ),
+  2,
+)
+T(
+  "cc raw-tool: outside MultiEdit ignores pre-existing commands -> 0",
+  runHook(
+    RAW_TOOL_HOOK,
+    multiEditPayload(existingOutsideArtifact, [
+      { old_string: "node tools/wave-plan.mjs --all", new_string: "Updated heading." },
+      { old_string: "old details", new_string: "Updated details." },
+    ]),
+  ),
+  0,
+)
+
+// These are machine-to-machine bodies or quoted reference material, not steps
+// presented to Thomas. Each is a distinct correct use of the same command.
+const skillBody = [
+  "---",
+  "name: next",
+  "---",
+  "",
+  "Internally, run `node tools/wave-plan.mjs --all` and summarize the result.",
+].join("\n")
+T(
+  "cc raw-tool: skill body -> 0",
+  runHook(RAW_TOOL_HOOK, writePayload(join(root, ".claude", "skills", "next", "SKILL.md"), skillBody)),
+  0,
+)
+
+const agentBody = [
+  "---",
+  "name: planner",
+  "---",
+  "",
+  "Use `node tools/wave-plan.mjs --all` to gather the wave data.",
+].join("\n")
+T(
+  "cc raw-tool: agent body -> 0",
+  runHook(RAW_TOOL_HOOK, writePayload(join(root, ".claude", "agents", "planner.md"), agentBody)),
+  0,
+)
+
+const ticketBodyPath = write("ORB-999.md", outsideRepoArtifactBody)
+T("cc raw-tool: ticket body -> 0", runHook(RAW_TOOL_HOOK, writePayload(ticketBodyPath, outsideRepoArtifactBody)), 0)
+
+const prDescriptionPath = write("pr-description.md", outsideRepoArtifactBody)
+T("cc raw-tool: PR description -> 0", runHook(RAW_TOOL_HOOK, writePayload(prDescriptionPath, outsideRepoArtifactBody)), 0)
+const helpOutputPath = write("Downloads/wave-plan--help-output.txt", outsideRepoArtifactBody)
+T("cc raw-tool: help output basename -> 0", runHook(RAW_TOOL_HOOK, writePayload(helpOutputPath, outsideRepoArtifactBody)), 0)
+T(
+  "cc raw-tool: quoted --help output -> 0",
+  runHook(
+    RAW_TOOL_HOOK,
+    stopPayload(["The captured `--help` output is:", "", "```bash", "node tools/wave-plan.mjs --all", "```"].join("\n")),
+  ),
+  0,
+)
+for (const [label, text] of [
+  [
+    "previous skill context cannot exempt an instruction",
+    ["The skill runs internally to gather inputs.", "To refresh it yourself, run node tools/wave-plan.mjs --all"].join("\n"),
+  ],
+  [
+    "previous ticket context cannot exempt an instruction",
+    ["This is captured in the ticket body.", "Next: node tools/wave-plan.mjs --all"].join("\n"),
+  ],
+]) {
+  const result = runHookResult(RAW_TOOL_HOOK, stopPayload(text))
+  T(`cc raw-tool: ${label} -> 2`, result.status, 2)
+  T(`cc raw-tool: ${label} names the command`, result.stderr.includes("node tools/wave-plan.mjs --all"), true)
+}
+T(
+  "cc raw-tool: documentation prose without a command -> 0",
+  runHook(RAW_TOOL_HOOK, stopPayload("The skill runs internally to gather inputs.")),
+  0,
+)
+T(
+  "cc raw-tool: same-line internal command remains documentation -> 0",
+  runHook(
+    RAW_TOOL_HOOK,
+    stopPayload("Internally the orchestrator calls node tools/wave-plan.mjs to build the table."),
+  ),
+  0,
+)
+const sameLineDocumentedInstruction = runHookResult(
+  RAW_TOOL_HOOK,
+  stopPayload("Internally, run `node tools/wave-plan.mjs --all` and summarize the result."),
+)
+T("cc raw-tool: same-line documentation cannot exempt an instruction -> 2", sameLineDocumentedInstruction.status, 2)
+T(
+  "cc raw-tool: same-line documented instruction names the command",
+  sameLineDocumentedInstruction.stderr.includes("node tools/wave-plan.mjs --all"),
+  true,
+)
+for (const [label, text] of [
+  ["contracted modal", "Internally you'd run `node tools/wave-plan.mjs --all`"],
+  ["explicit modal", "Internally you can run `node tools/wave-plan.mjs --all`"],
+]) {
+  const result = runHookResult(RAW_TOOL_HOOK, stopPayload(text))
+  T(`cc raw-tool: internal ${label} user framing -> 2`, result.status, 2)
+  T(`cc raw-tool: internal ${label} names the command`, result.stderr.includes("node tools/wave-plan.mjs --all"), true)
+}
+for (const [label, text] of [
+  ["orchestrator modal", "Internally the orchestrator would run `node tools/wave-plan.mjs --all` to build the table."],
+  ["skill modal", "Internally the skill can run `node tools/wave-plan.mjs --all` when rebuilding the graph."],
+  ["quoted ticket instruction", "The ticket body says you can run `node tools/wave-plan.mjs --all` as an example."],
+]) {
+  T(`cc raw-tool: ${label} remains documentation -> 0`, runHook(RAW_TOOL_HOOK, stopPayload(text)), 0)
+}
+T(
+  "cc raw-tool: documentation line opens a fenced command block -> 0",
+  runHook(
+    RAW_TOOL_HOOK,
+    stopPayload(
+      ["The skill runs internally to gather inputs.", "```bash", "node tools/wave-plan.mjs --all", "```"].join("\n"),
+    ),
+  ),
+  0,
+)
+T(
+  "cc raw-tool: command quoted in a non-shell fence -> 0",
+  runHook(
+    RAW_TOOL_HOOK,
+    stopPayload(["The configuration value is:", "```json", "\"command\": \"node tools/wave-plan.mjs --all\"", "```"].join("\n")),
+  ),
+  0,
+)
+T(
+  "cc raw-tool: closing fence does not scan following prose -> 0",
+  runHook(
+    RAW_TOOL_HOOK,
+    stopPayload(["Example output:", "```text", "done", "```", "", "node tools/wave-plan.mjs --all runs internally inside the skill."].join("\n")),
+  ),
+  0,
+)
+T(
+  "cc raw-tool: self-help is not help documentation -> 2",
+  runHook(RAW_TOOL_HOOK, stopPayload(["Self-help output follows:", "```bash", "node tools/wave-plan.mjs --all", "```"].join("\n"))),
+  2,
+)
+
+for (const command of ["git status", "gh pr checks", "dotnet test", "npm run lint"]) {
+  T(
+    `cc raw-tool: ordinary instruction "${command}" -> 0`,
+    runHook(RAW_TOOL_HOOK, stopPayload(["Run this command:", "", "```bash", command, "```"].join("\n"))),
+    0,
+  )
+}
+
+const appealReason = "The user explicitly requested the exact diagnostic command for a local shell."
+const appealedSurfacing = runHookResult(
+  RAW_TOOL_HOOK,
+  stopPayload(["Run this command:", "", "```bash", `node tools/wave-plan.mjs --all # Repo-tool appeal: ${appealReason}`, "```"].join("\n")),
+)
+T("cc raw-tool: explicit reason appeal -> 0", appealedSurfacing.status, 0)
+T("cc raw-tool: explicit reason appeal is recorded", appealedSurfacing.stdout.includes(`Repo-tool appeal recorded: ${appealReason}`), true)
+
+const mixedAppeals = runHookResult(
+  RAW_TOOL_HOOK,
+  stopPayload(
+    [
+      "Run these commands:",
+      "```bash",
+      "node tools/wave-plan.mjs --all # Repo-tool appeal: first command is required",
+      "node tools/rollup.mjs",
+      "```",
+    ].join("\n"),
+  ),
+)
+T("cc raw-tool: one appeal cannot cover another command -> 2", mixedAppeals.status, 2)
+T("cc raw-tool: unappealed command is reported", mixedAppeals.stderr.includes("node tools/rollup.mjs"), true)
+
+const separatelyAppealed = runHookResult(
+  RAW_TOOL_HOOK,
+  stopPayload(
+    [
+      "Run these commands:",
+      "```bash",
+      "node tools/wave-plan.mjs --all # Repo-tool appeal: first command is required",
+      "node tools/rollup.mjs # Repo-tool appeal: second command is required",
+      "```",
+    ].join("\n"),
+  ),
+)
+T("cc raw-tool: every command has its own appeal -> 0", separatelyAppealed.status, 0)
+T("cc raw-tool: first command reason is recorded", separatelyAppealed.stdout.includes("first command is required"), true)
+T("cc raw-tool: second command reason is recorded", separatelyAppealed.stdout.includes("second command is required"), true)
+
+const oneAppealForChain = runHookResult(
+  RAW_TOOL_HOOK,
+  stopPayload("node tools/wave-plan.mjs --all && node tools/rollup.mjs # Repo-tool appeal: wave plan is required"),
+)
+T("cc raw-tool: one appeal cannot cover a chained command -> 2", oneAppealForChain.status, 2)
+T("cc raw-tool: chained appeal reports the second command", oneAppealForChain.stderr.includes("node tools/rollup.mjs"), true)
+
+const oneAppealForThreeCommandChain = runHookResult(
+  RAW_TOOL_HOOK,
+  stopPayload(
+    "node tools/wave-plan.mjs --all && node tools/rollup.mjs && node tools/arch-map.mjs # Repo-tool appeal: wave plan is required",
+  ),
+)
+T("cc raw-tool: one appeal cannot cover a three-command chain -> 2", oneAppealForThreeCommandChain.status, 2)
+T(
+  "cc raw-tool: three-command appeal reports the earliest remaining command",
+  oneAppealForThreeCommandChain.stderr.split("\n")[0],
+  "Raw repo-tool command surfaced for Thomas: node tools/rollup.mjs",
+)
+
+const appealedChain = runHookResult(
+  RAW_TOOL_HOOK,
+  stopPayload(
+    "node tools/wave-plan.mjs --all # Repo-tool appeal: wave plan is required && node tools/rollup.mjs # Repo-tool appeal: rollup is required",
+  ),
+)
+T("cc raw-tool: every chained command has its own appeal -> 0", appealedChain.status, 0)
+T("cc raw-tool: chained wave-plan reason is recorded", appealedChain.stdout.includes("wave plan is required"), true)
+T("cc raw-tool: chained rollup reason is recorded", appealedChain.stdout.includes("rollup is required"), true)
 
 // ---------------------------------------------------------------------------
 // 3. Agent frontmatter: the fails-open `Bash(...)` trap
@@ -399,19 +1228,31 @@ const hookPathReferences = hookPathScan.references
 const missingHookPathReferences = hookPathScan.missing
 T("docs: every named .claude/hooks/*.mjs path resolves", missingHookPathReferences, [])
 T("docs: the hook path guard actually found references", hookPathReferences.length > 0, true)
-const settingsHookPathReferences = scanHookPathReferences([
-  readFileSync(join(repoRoot, ".claude", "settings.json"), "utf8"),
-]).references
+
+function configuredHookPathScan(settings) {
+  const eventEntries = settings?.hooks && typeof settings.hooks === "object" ? Object.values(settings.hooks) : []
+  const commands = eventEntries
+    .flatMap((entries) => (Array.isArray(entries) ? entries : []))
+    .flatMap((entry) => (Array.isArray(entry?.hooks) ? entry.hooks : []))
+    .filter((hook) => hook?.type === "command" && typeof hook.command === "string")
+    .map((hook) => hook.command)
+  return scanHookPathReferences(commands)
+}
+
+const settings = JSON.parse(readFileSync(join(repoRoot, ".claude", "settings.json"), "utf8"))
+const configuredHookPathReferences = configuredHookPathScan(settings)
+T("settings: every configured hook path resolves", configuredHookPathReferences.missing, [])
+T("settings: configured hook path scan is nonempty", configuredHookPathReferences.references.length > 0, true)
+
+const renamedHookSettingsFixture = JSON.parse(JSON.stringify(settings))
+renamedHookSettingsFixture.hooks.Stop[0].hooks[0].command =
+  'node "$CLAUDE_PROJECT_DIR/.claude/hooks/forbid-raw-repo-tool-surfacing-renamed.mjs"'
 T(
-  "docs: settings contributes all four hook path occurrences",
-  settingsHookPathReferences,
-  [
-    ".claude/hooks/git-guardrails.mjs",
-    ".claude/hooks/forbid-raw-linear-mutation.mjs",
-    ".claude/hooks/forbid-ef-migration-raw-index.mjs",
-    ".claude/hooks/forbid-raw-linear-mutation.mjs",
-  ],
+  "settings: renamed configured hook fixture reports the missing file",
+  configuredHookPathScan(renamedHookSettingsFixture).missing,
+  [".claude/hooks/forbid-raw-repo-tool-surfacing-renamed.mjs"],
 )
+
 const hookPathDecisionFixture = [
   "The repo hook is .claude/hooks/does-not-exist.mjs.",
   "The user hook is ~/.claude/hooks/user-level.mjs.",
