@@ -1513,7 +1513,12 @@ const mergeSweepCases = (file) => {
     `exit ${bare.status}\n     stdout: ${bare.stdout.trim()}\n     stderr: ${bare.stderr.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(bareLog))}`,
   )
 
-  check(file, "help documents the reviewed-through cutoff", ["--help"], { status: 0, stdout: /--reviewed-through/ })
+  check(
+    file,
+    "help documents the exclusive reviewed-through cutoff",
+    ["--help"],
+    { status: 0, stdout: /--reviewed-through[\s\S]*cutoff is exclusive: activity at or after that timestamp counts as new\./ },
+  )
 
   const reviewSkip = (label, envOptions, outputPattern) => {
     const log = join(root, `${file}-${label}.log`)
@@ -1581,6 +1586,62 @@ const mergeSweepCases = (file) => {
     },
     inlineOutput("page-two-reviewer", newerReviewTime),
   )
+
+  const olderBoundaryTime = "2026-07-27T23:59:59Z"
+  const genericActivityOutput = (author, timestamp) =>
+    new RegExp(`SKIP #615 NEW-REVIEW-SINCE ${reviewedThrough} by ${author} at ${timestamp}`)
+  const activityBoundaries = [
+    {
+      author: "boundary-reviewer",
+      envKey: "reviewTimes",
+      items: (timestamp) => `boundary-reviewer\t${timestamp}`,
+      label: "reviews",
+      output: genericActivityOutput,
+    },
+    {
+      author: "boundary-inline-reviewer",
+      envKey: "inlineItems",
+      items: (timestamp) => `boundary-inline-reviewer\t${timestamp}\nboundary-inline-reviewer\t${timestamp}`,
+      label: "inline comments",
+      output: inlineOutput,
+    },
+    {
+      author: "boundary-conversation-reviewer",
+      envKey: "commentTimes",
+      items: (timestamp) => `boundary-conversation-reviewer\t${timestamp}\nboundary-conversation-reviewer\t${timestamp}`,
+      label: "conversation comments",
+      output: genericActivityOutput,
+    },
+  ]
+  for (const boundary of activityBoundaries) {
+    reviewSkip(
+      `${boundary.label} exactly at reviewed-through skip without merging`,
+      { [boundary.envKey]: boundary.items(reviewedThrough) },
+      boundary.output(boundary.author, reviewedThrough),
+    )
+    reviewSkip(
+      `${boundary.label} strictly after reviewed-through skip without merging`,
+      { [boundary.envKey]: boundary.items(newerReviewTime) },
+      boundary.output(boundary.author, newerReviewTime),
+    )
+
+    const beforeLog = join(root, `${file}-${boundary.label}-strictly-before.log`)
+    const before = run(file, reviewedArgs, {
+      env: mergeSweepEnv({
+        [boundary.envKey]: boundary.items(olderBoundaryTime),
+        head: expectedHead,
+        log: beforeLog,
+        sonar: coverageAware ? "coverage-failure" : "success",
+        state: coverageAware ? "BLOCKED" : "CLEAN",
+      }),
+    })
+    const beforeMerges = mergeSweepCalls(beforeLog).filter(([group, command]) => group === "pr" && command === "merge")
+    T(
+      `${file}: ${boundary.label} strictly before reviewed-through still merge`,
+      before.status === 0 && /MERGED #615/.test(before.stdout) && beforeMerges.length === 1,
+      `exit ${before.status}\n     stdout: ${before.stdout.trim()}\n     stderr: ${before.stderr.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(beforeLog))}`,
+    )
+  }
 
   const missingCutoffLog = join(root, `${file}-missing-reviewed-through.log`)
   const missingCutoff = run(file, ["--expected-head", `615=${expectedHead}`, "thomasluizon/orbit-ui-mobile", "615"], {

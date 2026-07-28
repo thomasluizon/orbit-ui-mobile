@@ -41,7 +41,7 @@ API atomically matches the expected SHA.
 Before any merge, --reviewed-through must name the latest instant through which that PR's
 reviews, inline review comments, and issue comments were inspected. A newer or edited item,
 an unresolved review thread, a missing mapping, or a failed lookup skips the PR. Repeat the
-flag once per PR.
+flag once per PR. The cutoff is exclusive: activity at or after that timestamp counts as new.
 
 It refuses to merge while the \`$REVIEW_CHECK_NAME\` check for the CURRENT head SHA is still
 running, and re-reads reviewDecision after that check settles, so a pre-update APPROVED can
@@ -240,7 +240,7 @@ newest_review_item_after() { # <cutoff>; author/timestamp TSV on stdin; exit 1 w
         if(!Number.isFinite(instant)){process.exitCode=2;return}
         if(!newest||instant>newest.instant)newest={author:fields[0],timestamp:fields[1],instant};
       }
-      if(newest&&newest.instant>cutoff){
+      if(newest&&newest.instant>=cutoff){
         process.stdout.write(`${newest.author}\t${newest.timestamp}`);
         process.exitCode=1;
       }
