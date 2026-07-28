@@ -134,11 +134,11 @@ function npxOptionStates(tokens) {
   return states
 }
 
-function isAmbiguousNpxName(command, insideFence, hasPrefix) {
+function isAmbiguousNpxName(command, insideFence, hasPrefix, standaloneCommand) {
   if (insideFence === "shell") return false
   const tokens = npxTokens(command)
   if (!/^npx(?:\.cmd)?$/i.test(tokens[0] ?? "")) return false
-  const prefixedBareInvocation = hasPrefix && !/^-{1,2}[^-]/.test(tokens[1] ?? "")
+  const positionalInvocation = (hasPrefix || standaloneCommand) && !/^-{1,2}[^-]/.test(tokens[1] ?? "")
 
   return !npxOptionStates(tokens).some((state) => {
     if (state.assigned || state.confirmed || state.quoted) return true
@@ -148,7 +148,7 @@ function isAmbiguousNpxName(command, insideFence, hasPrefix) {
     const argumentsAfterPackage = tokens.slice(state.index + 1)
     return (
       argumentsAfterPackage[0]?.startsWith("-") ||
-      (prefixedBareInvocation && argumentsAfterPackage.length > 0) ||
+      (positionalInvocation && argumentsAfterPackage.length > 0) ||
       (state.consumed && argumentsAfterPackage.length === 0)
     )
   })
@@ -196,7 +196,9 @@ function surfacedCommands(text) {
       const prefix = segment.line.slice(0, match.index)
       const instructionFramed = hasInstructionFraming(prefix)
       if (DOCUMENTATION.test(segment.line) && !instructionFramed) continue
-      if (isAmbiguousNpxName(match.command, insideFence, prefix.trim().length > 0)) continue
+      const hasPrefix = prefix.trim().length > 0
+      const standaloneCommand = !hasPrefix && !/[.!?:]\s*$/.test(segment.line)
+      if (isAmbiguousNpxName(match.command, insideFence, hasPrefix, standaloneCommand)) continue
       lineCommands.push({ command: match.command, reason: segment.reason })
     }
 

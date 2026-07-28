@@ -442,6 +442,13 @@ for (const prose of [
   T(`cc raw-tool: npx prose "${prose}" -> 0`, runHook(RAW_TOOL_HOOK, stopPayload(prose)), 0)
 }
 T("cc raw-tool: ambiguous bare npx name -> 0", runHook(RAW_TOOL_HOOK, stopPayload("The package is invoked as npx cowsay.")), 0)
+for (const [label, command] of [
+  ["standalone turbo", "npx turbo run lint"],
+  ["standalone prisma", "npx prisma generate"],
+  ["inline-code prisma", "`npx prisma generate`"],
+]) {
+  T(`cc raw-tool: ${label} npx instruction -> 2`, runHook(RAW_TOOL_HOOK, stopPayload(command)), 2)
+}
 T("cc raw-tool: npx package followed by a flag -> 2", runHook(RAW_TOOL_HOOK, stopPayload("Next: npx eslint --fix")), 2)
 T("cc raw-tool: imperative npx with positional arguments -> 2", runHook(RAW_TOOL_HOOK, stopPayload("Run npx prisma generate now")), 2)
 for (const [label, command] of [
