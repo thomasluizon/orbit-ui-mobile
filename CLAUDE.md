@@ -54,9 +54,9 @@ Auth: web cookie is httpOnly + sameSite strict + secure; mobile tokens live in S
 
 - `orbit-api` is a sibling at `C:\Users\thoma\Documents\Programming\Projects\orbit-api`; update it in the same task when a feature needs backend support. Separate git histories, branches, and PRs.
 - C# LSP for orbit-api is wired via `.mcp.json`: the Roslyn-backed CWM.RoslynNavigator MCP server (install once: `dotnet tool install -g CWM.RoslynNavigator`) pointed at orbit-api's `Orbit.slnx`; copy from `.claude/mcp.json.example`.
-- Reusable agent scripts live in `tools/` under the `tools/CONVENTIONS.md` contract (catalog: `tools/README.md`); build a new one with `/make-tool` once you have run the same incantation twice; a one-off stays in the scratchpad.
+- Tools follow `tools/CONVENTIONS.md`; catalog and lockstep contract: `tools/README.md`. Lockstep runs `node tools/check-lockstep.mjs` over `pr-review/{SKILL,rubric}.md`, `_shared/verification-protocol.md`, `agents/{contract-aligner,security-reviewer}.md`, and `second-opinion/second-opinion.mjs`; only justified manifest fingerprints may differ, unreadable twins fail, and the JavaScript twin is byte-exact.
 - Always-loaded context is budgeted by `tools/context-budget.json`; run `node tools/check-context-budget.mjs --check` after editing this file or `.claude/rules/`, with `context:reseed` reserved for deliberate growth.
-- **The harness is EXECUTED before it merges, never only read.** `node tools/test-tools.mjs` runs every script in `tools/` (the CLI contract plus each tool's decision paths, orca stubbed, hermetic) and fails on a new tool with no coverage; `node .claude/hooks/test-hooks.mjs` runs the hooks and the agent-frontmatter guard. The `Harness Execution` job in `guards.yml` runs both on any PR touching `tools/**` or `.claude/**`. A claim that a harness change works, without a command that ran, is a review finding (rubric dimension 15), because a harness cannot certify itself by review: `claude-review.yml` reads the diff, this runs the code.
+- Harnesses must execute: `node tools/test-tools.mjs` covers every tool and `node .claude/hooks/test-hooks.mjs` covers hooks and agent frontmatter; `Harness Execution` runs both for `tools/**` or `.claude/**` changes. Review-only evidence is insufficient (rubric dimension 15).
 - Git: one feature/fix per PR (cross-repo work opens paired PRs, cross-linked); branches `feature/`|`fix/`|`chore/`; `main` is protected (no direct or force push, enforced by the `git-guardrails` hook); squash-merge only; never `--no-verify`/`--no-gpg-sign`; never reuse a squash-merged branch.
 - Session act-time hooks live in `.claude/settings.json`; `node .claude/hooks/test-hooks.mjs` is their proof (D6, D22).
 - A real git-level `pre-commit` hook (lefthook, root `lefthook.yml`) lints staged files and re-stages autofixes; it self-installs via the root `prepare` script on `npm install`/`npm ci` (resilient `lefthook install || true`, a no-op in CI/Vercel), so a fresh clone needs no extra step.
@@ -90,6 +90,7 @@ Grep a doc's `At a glance` header before loading the whole file.
 | `.claude/rules/core.md` | The ~50 lines of judgement that auto-load on EVERY turn. A rule earns a place only if it applies in any turn AND no skill invocation reliably precedes it. Everything in `.claude/rules/` is paid for on every turn of every session, so treat additions here as expensive. |
 | `.claude/playbooks/` | On-demand judgement that no gate can check. Read `context-engineering.md` before authoring agent context or configuring agent tool scoping. |
 | `.claude/manifests/surfaces.json` | Generated visual-surface inventory; owned by `tools/surface-manifest.mjs`. |
+| `tools/README.md` | Tool catalog and six-file lockstep contract. |
 
 When you change a doc, update its `At a glance` header and this registry in the same edit.
 
