@@ -440,6 +440,26 @@ const stageLaunchWorker = (label, worker, engineName = "claude") => {
   return { path: join(base, "tools", "launch-worker.mjs"), repoPath, base }
 }
 
+const stageNudgeWorker = (label, worker, instrumentPause = false) => {
+  const base = join(root, "nudge", label)
+  mkdirSync(join(base, "tools"), { recursive: true })
+  mkdirSync(join(base, ".claude"), { recursive: true })
+  writeFileSync(join(base, ".claude", "orchestrator.json"), JSON.stringify({ worker, repos: {} }))
+  cpSync(join(TOOLS_DIR, "nudge-worker.mjs"), join(base, "tools", "nudge-worker.mjs"))
+  cpSync(join(TOOLS_DIR, "lib"), join(base, "tools", "lib"), { recursive: true })
+  if (instrumentPause) {
+    cpSync(join(TOOLS_DIR, "lib", "tui-repaint.mjs"), join(base, "tools", "lib", "tui-repaint-real.mjs"))
+    writeFileSync(
+      join(base, "tools", "lib", "tui-repaint.mjs"),
+      `import { appendFileSync } from "node:fs"
+export { SETTLE_MS, isRepainting } from "./tui-repaint-real.mjs"
+export const pause = (ms) => appendFileSync(process.env.ORBIT_PAUSE_LOG, String(ms) + "\\n")
+`,
+    )
+  }
+  return { path: join(base, "tools", "nudge-worker.mjs"), base }
+}
+
 const linearIssueStub = (labels) => [
   {
     match: "linear issue ORB-75",
@@ -824,10 +844,112 @@ const launchWorkerCases = () => {
 const TIMEOUT_PAYLOAD = JSON.stringify({ ok: false, error: { code: "timeout", message: "condition not met in time" } })
 const BUSY_STUB = [{ match: "terminal wait", stdout: TIMEOUT_PAYLOAD, exit: 1 }]
 const BROKEN_STUB = [{ match: "terminal wait", stdout: JSON.stringify({ ok: false, error: { code: "no-such-terminal", message: "unknown handle" } }), exit: 1 }]
+const STALE_BLOCKED_WAIT = JSON.stringify({ ok: true, result: { wait: { satisfied: false, status: "running", blockedReason: "codex-trust-workspace" } } })
+const DOCUMENTED_CODEX_BLOCKED_WAIT = JSON.stringify({ ok: true, result: { wait: { satisfied: false, status: "running", blockedReason: "codex-interactive-prompt" } } })
+const CODEX_READY_PLACEHOLDER_CASES = [
+  ["explain-codebase", "› Explain this codebase"],
+  ["review-changes", "› Run /review on my current changes"],
+  ["write-tests", "› Write tests for @filename"],
+  ["list-skills", "› Use /skills to list available skills"],
+]
+/**
+ * WHY: Captured 2026-07-28 from three live Codex composers. Placeholder text rotates, while
+ * every ready region carries model, effort, separator and working-directory structure.
+ * https://github.com/thomasluizon/orbit-ui-mobile/pull/629
+ *
+ * › Run /review on my current changes gpt-5.6-sol high · ~\orca\workspaces\orbit-ui-mobile\orb-106-... · Main [default]
+ * › Improve documentation in @filename gpt-5.6-sol high · ~\orca\workspaces\orbit-ui-mobile\orb-113-...
+ * › Explain this codebase gpt-5.6-sol high · ~\orca\workspaces\orbit-ui-mobile\orb-122-... · Main [default]
+ */
+const CODEX_STATUS_STRUCTURE = "gpt-5.6-sol high · ~\\orca\\workspaces\\orbit-ui-mobile\\orb-129-nudge-worker-is-unreachable-when-orca · Main [default]"
+const MEASURED_CODEX_READY_TAIL = [
+  "Working (52s · esc to interrupt)",
+  "a · Main [default]",
+  "",
+  "─ Worked for 11m 02s ─────────────────────────────────────────────────────────── › Explain this codebase gpt-5.6-sol high · ~\\orca\\workspaces\\orbit-ui-mobile\\orb-129-nudge-worker-is-unreachable-when-orca · Main [default]",
+]
+const MEASURED_CODEX_WORKING_TAIL = [
+  ...MEASURED_CODEX_READY_TAIL,
+  "(7s • esc to interrupt)",
+]
+const LIVE_CODEX_SAMPLE_CASES = [
+  ["term-0c6e56a7-idle", "recognizes the first live idle composer shape", [
+    "a · Main [default]",
+    "› Improve documentation in @filename",
+    "gpt-5.6-sol high · ~\\orca\\workspaces\\orbit-ui-mobile\\orb-129-nudge-worker-is-unreachable-when-orca",
+    "─ Worked for 10m 03s ───────────────────────────────────────────────────────────",
+  ], true],
+  ["term-65aa37cd-busy", "refuses the live busy composer shape", [
+    "a · Main [default]",
+    "› Improve documentation in @filename",
+    CODEX_STATUS_STRUCTURE,
+    "(7s • esc to interrupt)",
+  ], false],
+  ["term-652dd931-idle", "recognizes the second live idle composer shape", [
+    "› Use /skills to list available skills",
+    CODEX_STATUS_STRUCTURE,
+  ], true],
+]
 /** A settled TUI emits nothing, so lastOutputAt is the SAME on both samples. */
 const IDLE_STUB = [
   { match: "terminal wait", stdout: JSON.stringify({ ok: true, result: { wait: { satisfied: true } } }), exit: 0 },
   { match: "terminal show", stdout: JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1785168487585 } } }), exit: 0 },
+  { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }), exit: 0 },
+]
+const staleBlockedIdleStub = (tail) => [
+  { match: "terminal wait", stdout: STALE_BLOCKED_WAIT, exit: 0 },
+  { match: "terminal show", stdout: JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1785168487585 } } }), exit: 0 },
+  { match: "terminal read", stdout: JSON.stringify({ ok: true, result: { terminal: { tail } } }), exit: 0 },
+  { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }), exit: 0 },
+]
+const WORKING_COMPOSER_IDLE_STUB = staleBlockedIdleStub([
+  "› Explain this codebase",
+  CODEX_STATUS_STRUCTURE,
+  "Working (52s · esc to interrupt)",
+])
+const MISSPELLED_WORKING_COMPOSER_IDLE_STUB = staleBlockedIdleStub([
+  "› Explain this codebase",
+  CODEX_STATUS_STRUCTURE,
+  "Working (52s · esc to interupt)",
+])
+const LIVE_BLOCKED_IDLE_STUB = [
+  { match: "terminal wait", stdout: STALE_BLOCKED_WAIT, exit: 0 },
+  { match: "terminal show", stdout: JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1785168487585 } } }), exit: 0 },
+  { match: "terminal read", stdout: JSON.stringify({ ok: true, result: { terminal: { tail: ["Doyoutrustthecontents", "ofthisdirectory?"] } } }), exit: 0 },
+  { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }), exit: 0 },
+]
+const ANSWERED_TRUST_BEFORE_READY_TAIL = [
+  "Do you trust the contents of this directory?",
+  "Trust once and continue",
+  "› Explain this codebase",
+  CODEX_STATUS_STRUCTURE,
+]
+const LIVE_TRUST_AFTER_COMPOSER_TAIL = [
+  "› Explain this codebase",
+  CODEX_STATUS_STRUCTURE,
+  "Do you trust the contents of this directory?",
+]
+const RETAINED_COMPOSER_STATIC_SCREEN_TAIL = [
+  "› Run /review on my current changes",
+  "Permission required",
+  "Allow this command?",
+  "[y] Yes  [n] No",
+]
+const RETAINED_READY_STATIC_SCREEN_TAIL = [
+  "› Run /review on my current changes",
+  CODEX_STATUS_STRUCTURE,
+  "Permission required",
+  "Allow this command?",
+  "[y] Yes  [n] No",
+]
+const ALTERNATE_MODEL_READY_TAIL = [
+  "› Explain this codebase",
+  "orbit-coder.v2 ultra · C:\\worktrees\\orbit-ui-mobile\\orb-129 · Main [default]",
+]
+const UNRECOGNIZED_BLOCKED_IDLE_STUB = [
+  { match: "terminal wait", stdout: STALE_BLOCKED_WAIT, exit: 0 },
+  { match: "terminal show", stdout: JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1785168487585 } } }), exit: 0 },
+  { match: "terminal read", stdout: JSON.stringify({ ok: true, result: { terminal: { tail: ["Allow this command?", "[y] Yes  [n] No"] } } }), exit: 0 },
   { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }), exit: 0 },
 ]
 /**
@@ -840,15 +962,87 @@ const FALSE_IDLE_STUB = [
   { match: "terminal show", stdout: '{"ok":true,"result":{"terminal":{"lastOutputAt":__NOW__}}}', exit: 0 },
   { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }), exit: 0 },
 ]
+const BLOCKED_BUSY_STUB = [
+  { match: "terminal wait", stdout: STALE_BLOCKED_WAIT, exit: 0 },
+  { match: "terminal show", stdout: '{"ok":true,"result":{"terminal":{"lastOutputAt":__NOW__}}}', exit: 0 },
+  { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }), exit: 0 },
+]
+const DOCUMENTED_CODEX_BLOCKED_IDLE_STUB = [
+  { match: "terminal wait", stdout: DOCUMENTED_CODEX_BLOCKED_WAIT, exit: 0 },
+  { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }), exit: 0 },
+]
+
+const runNudgeSignalCase = (label, name, plan, expect, expectedSends, options = {}) => {
+  const log = join(root, `nudge-${label}.log`)
+  check("nudge-worker.mjs", name, ["--terminal", "t1", "--text", "hi", "--wait-attempts", String(options.waitAttempts ?? 1), ...(options.argv ?? [])], expect, {
+    path: options.path,
+    env: { ...orcaEnv(plan), ...(options.env ?? {}), ORBIT_ORCA_LOG: log },
+  })
+  const calls = existsSync(log) ? readFileSync(log, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line)) : []
+  const sends = calls.filter((argv) => argv[0].split(/[\\/]/).pop() === "terminal" && argv[1] === "send").length
+  T(`nudge-worker.mjs: ${name} sends ${expectedSends} time(s)`, sends === expectedSends, `sent ${sends} time(s)`)
+}
 
 const nudgeWorkerCases = () => {
+  check("nudge-worker.mjs", "--help documents the engine override and fail-closed rule", ["--help"], { status: 0, stdout: /--engine <name>[\s\S]*Claude has no verified readiness profile[\s\S]*Missing, auto or unknown values[\s\S]*fail closed/ })
   check("nudge-worker.mjs", "rejects multi-line text", ["--terminal", "t1", "--text", "first line\nsecond line"], { status: 2, stderr: /single line/ })
   check("nudge-worker.mjs", "rejects --text together with --prompt-file", ["--terminal", "t1", "--text", "hi", "--prompt-file", stage("nudge-prompt.md", "body\n")], { status: 2, stderr: /alternatives/ })
   check("nudge-worker.mjs", "rejects a non-positive --wait-attempts", ["--terminal", "t1", "--text", "hi", "--wait-attempts", "0"], { status: 2, stderr: /positive integer/ })
   check("nudge-worker.mjs", "refuses to send while the worker is busy", ["--terminal", "t1", "--text", "hi", "--wait-attempts", "1"], { status: 1, stderr: /NOTHING was sent/ }, { env: orcaEnv(BUSY_STUB) })
   check("nudge-worker.mjs", "an orca failure that is not a timeout is a tool error", ["--terminal", "t1", "--text", "hi", "--wait-attempts", "1"], { status: 3, stderr: /unknown handle/ }, { env: orcaEnv(BROKEN_STUB) })
-  check("nudge-worker.mjs", "sends once the worker is idle", ["--terminal", "t1", "--text", "hi", "--wait-attempts", "1"], { status: 0, stdout: /"sent": "hi"/ }, { env: orcaEnv(IDLE_STUB) })
-  check("nudge-worker.mjs", "refuses a tui-idle that is still repainting, which is a worker mid-turn", ["--terminal", "t1", "--text", "hi", "--wait-attempts", "1"], { status: 1, stderr: /still repainting[\s\S]*NOTHING was sent/ }, { env: orcaEnv(FALSE_IDLE_STUB) })
+  runNudgeSignalCase("both-idle", "sends once both signals say the worker is idle", IDLE_STUB, { status: 0, stdout: /"sent": "hi"/ }, 1, { path: stageNudgeWorker("both-idle", "codex").path })
+  for (const [label, placeholder] of CODEX_READY_PLACEHOLDER_CASES) {
+    const readyTail = ["Worked for 13m 01s", "PR opened and issue moved to In Review", placeholder, CODEX_STATUS_STRUCTURE]
+    runNudgeSignalCase(`stale-block-${label}`, `trusts the codex ready composer structure with ${placeholder}`, staleBlockedIdleStub(readyTail), { status: 0, stdout: /"sent": "hi"/, stderr: /codex-trust-workspace[\s\S]*not repainting[\s\S]*no known trust prompt[\s\S]*codex ready composer is on screen[\s\S]*blocked reason is stale[\s\S]*screen and repaint signals win/ }, 1, { path: stageNudgeWorker(`stale-block-${label}`, "codex").path })
+  }
+  runNudgeSignalCase("retained-composer-static-screen", "refuses a retained composer marker followed by a static permission screen", staleBlockedIdleStub(RETAINED_COMPOSER_STATIC_SCREEN_TAIL), { status: 1, stderr: /no known ready composer is on screen[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("retained-composer-static-screen", "codex").path })
+  runNudgeSignalCase("retained-ready-static-screen", "refuses a retained composer and status followed by a static permission screen", staleBlockedIdleStub(RETAINED_READY_STATIC_SCREEN_TAIL), { status: 1, stderr: /no known ready composer is on screen[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("retained-ready-static-screen", "codex").path })
+  runNudgeSignalCase("measured-ready-composer", "trusts the measured idle codex tail despite a historical working indicator", staleBlockedIdleStub(MEASURED_CODEX_READY_TAIL), { status: 0, stdout: /"sent": "hi"/, stderr: /codex ready composer is on screen/ }, 1, { path: stageNudgeWorker("measured-ready-composer", "codex").path })
+  runNudgeSignalCase("measured-working-composer", "refuses the measured codex tail with a live working indicator after the composer", staleBlockedIdleStub(MEASURED_CODEX_WORKING_TAIL), { status: 1, stderr: /no known ready composer is on screen[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("measured-working-composer", "codex").path })
+  runNudgeSignalCase("alternate-model-ready-composer", "recognizes structural status with a different codex model and effort", staleBlockedIdleStub(ALTERNATE_MODEL_READY_TAIL), { status: 0, stdout: /"sent": "hi"/, stderr: /codex ready composer is on screen/ }, 1, { path: stageNudgeWorker("alternate-model-ready-composer", "codex").path })
+  for (const [label, name, tail, ready] of LIVE_CODEX_SAMPLE_CASES) {
+    const expect = ready
+      ? { status: 0, stdout: /"sent": "hi"/, stderr: /codex ready composer is on screen/ }
+      : { status: 1, stderr: /no known ready composer is on screen[\s\S]*NOTHING was sent/ }
+    runNudgeSignalCase(label, name, staleBlockedIdleStub(tail), expect, ready ? 1 : 0, { path: stageNudgeWorker(label, "codex").path })
+  }
+  runNudgeSignalCase("answered-trust-before-ready", "ignores answered trust text before the current codex composer", staleBlockedIdleStub(ANSWERED_TRUST_BEFORE_READY_TAIL), { status: 0, stdout: /"sent": "hi"/, stderr: /codex ready composer is on screen[\s\S]*blocked reason is stale/ }, 1, { path: stageNudgeWorker("answered-trust-before-ready", "codex").path })
+  runNudgeSignalCase("live-trust-after-composer", "refuses a live trust prompt after the current codex composer", staleBlockedIdleStub(LIVE_TRUST_AFTER_COMPOSER_TAIL), { status: 1, stderr: /codex trust prompt is still on screen[\s\S]*worker remains blocked[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("live-trust-after-composer", "codex").path })
+  runNudgeSignalCase("trust-without-composer", "fails closed when a trust prompt has no current composer region", LIVE_BLOCKED_IDLE_STUB, { status: 1, stderr: /current screen region could not be located[\s\S]*no codex composer marker[\s\S]*codex trust prompt is still on screen in retained tail[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("trust-without-composer", "codex").path })
+  const codexProfile = stageNudgeWorker("codex-profile", "codex")
+  const incidentalGreaterThanTail = [
+    "› Working on the nudge predicate",
+    "(8s • esc to interrupt)",
+    "> quoted output painted after the working indicator",
+  ]
+  runNudgeSignalCase("codex-incidental-greater-than", "does not let incidental greater-than output select the claude profile for a codex worker", staleBlockedIdleStub(incidentalGreaterThanTail), { status: 1, stderr: /no known ready composer is on screen for the codex profile[\s\S]*NOTHING was sent/ }, 0, { path: codexProfile.path })
+  runNudgeSignalCase("explicit-claude-profile", "fails closed for the explicitly selected unverified claude profile", staleBlockedIdleStub(incidentalGreaterThanTail), { status: 1, stderr: /claude readiness profile is unverified[\s\S]*captured Claude Code composer screen with and without a live working indicator[\s\S]*pull\/629[\s\S]*NOTHING was sent/ }, 0, { path: codexProfile.path, argv: ["--engine", "claude"] })
+  const autoProfile = stageNudgeWorker("auto-profile", "auto")
+  runNudgeSignalCase("auto-profile", "fails closed when the orchestrator worker is auto", staleBlockedIdleStub(["› Explain this codebase"]), { status: 1, stderr: /engine "auto" from \.claude\/orchestrator\.json worker does not resolve[\s\S]*NOTHING was sent/ }, 0, { path: autoProfile.path })
+  const unknownProfile = stageNudgeWorker("unknown-profile", "future-engine")
+  runNudgeSignalCase("unknown-profile", "fails closed when the orchestrator worker is unknown", staleBlockedIdleStub(["› Explain this codebase"]), { status: 1, stderr: /engine "future-engine" from \.claude\/orchestrator\.json worker does not resolve[\s\S]*NOTHING was sent/ }, 0, { path: unknownProfile.path })
+  runNudgeSignalCase("unknown-engine-override", "fails closed when the engine override is unknown", staleBlockedIdleStub(["› Explain this codebase"]), { status: 1, stderr: /engine "future-engine" from --engine does not resolve[\s\S]*NOTHING was sent/ }, 0, { path: unknownProfile.path, argv: ["--engine", "future-engine"] })
+  const missingProfile = stageNudgeWorker("missing-profile", undefined)
+  runNudgeSignalCase("missing-profile", "fails closed when the orchestrator worker is missing", staleBlockedIdleStub(["› Explain this codebase"]), { status: 1, stderr: /engine "<missing>" from \.claude\/orchestrator\.json worker does not resolve[\s\S]*NOTHING was sent/ }, 0, { path: missingProfile.path })
+  const claudeProfile = stageNudgeWorker("claude-profile", "claude")
+  runNudgeSignalCase("configured-claude-profile", "fails closed for the configured unverified claude profile", staleBlockedIdleStub(incidentalGreaterThanTail), { status: 1, stderr: /claude readiness profile is unverified[\s\S]*captured Claude Code composer screen with and without a live working indicator[\s\S]*pull\/629[\s\S]*NOTHING was sent/ }, 0, { path: claudeProfile.path })
+  runNudgeSignalCase("engine-override", "--engine overrides a disagreeing orchestrator worker", staleBlockedIdleStub(["› Explain this codebase", CODEX_STATUS_STRUCTURE]), { status: 0, stdout: /"engine": "codex"[\s\S]*"engineSource": "--engine"/ }, 1, { path: claudeProfile.path, argv: ["--engine", "codex"] })
+  const pauseProbe = stageNudgeWorker("pause-probe", "codex", true)
+  const pauseLog = join(pauseProbe.base, "pause.log")
+  runNudgeSignalCase("trust-prompt-pause", "settles before retrying a trust prompt that remains on screen", LIVE_BLOCKED_IDLE_STUB, { status: 1, stderr: /attempt 1:[\s\S]*trust prompt is still on screen[\s\S]*attempt 2:[\s\S]*trust prompt is still on screen[\s\S]*NOTHING was sent/ }, 0, {
+    path: pauseProbe.path,
+    waitAttempts: 2,
+    env: { ORBIT_PAUSE_LOG: pauseLog },
+  })
+  const pauses = existsSync(pauseLog) ? readFileSync(pauseLog, "utf8").trim().split("\n") : []
+  T("nudge-worker.mjs: trust prompt retry applies one settle pause", pauses.length === 1 && pauses[0] === "10000", `pause log: ${JSON.stringify(pauses)}`)
+  runNudgeSignalCase("working-composer", "refuses a ready-looking codex composer carrying esc to interrupt", WORKING_COMPOSER_IDLE_STUB, { status: 1, stderr: /no known ready composer is on screen[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("working-composer", "codex").path })
+  runNudgeSignalCase("misspelled-working-composer", "refuses a ready-looking codex composer carrying esc to interupt", MISSPELLED_WORKING_COMPOSER_IDLE_STUB, { status: 1, stderr: /no known ready composer is on screen[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("misspelled-working-composer", "codex").path })
+  runNudgeSignalCase("live-block", "refuses a static trust prompt that is still on screen", LIVE_BLOCKED_IDLE_STUB, { status: 1, stderr: /codex-trust-workspace[\s\S]*not repainting[\s\S]*codex trust prompt is still on screen[\s\S]*remains blocked[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("live-block", "codex").path })
+  runNudgeSignalCase("unrecognized-block", "refuses an unrecognized static screen with no ready composer signal", UNRECOGNIZED_BLOCKED_IDLE_STUB, { status: 1, stderr: /codex-trust-workspace[\s\S]*not repainting[\s\S]*no known trust prompt[\s\S]*no known ready composer is on screen[\s\S]*worker remains blocked[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("unrecognized-block", "codex").path })
+  runNudgeSignalCase("false-idle", "refuses a tui-idle that is still repainting, which is a worker mid-turn", FALSE_IDLE_STUB, { status: 1, stderr: /tui-idle[\s\S]*still repainting[\s\S]*repaint signal wins[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("false-idle", "codex").path })
+  runNudgeSignalCase("both-busy", "refuses when both signals say the worker is busy", BLOCKED_BUSY_STUB, { status: 1, stderr: /codex-trust-workspace[\s\S]*TUI is repainting[\s\S]*both signals[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("both-busy", "codex").path })
+  runNudgeSignalCase("documented-codex-reason", "does not treat codex-interactive-prompt as the measured stale reason", DOCUMENTED_CODEX_BLOCKED_IDLE_STUB, { status: 1, stderr: /worker is busy \(codex-interactive-prompt\)[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("documented-codex-reason", "codex").path })
   check("nudge-worker.mjs", "--dry-run calls orca not at all", ["--terminal", "t1", "--text", "hi", "--dry-run"], { status: 0, stdout: /"dryRun": true/ }, { env: orcaEnv([]) })
 }
 
@@ -2276,6 +2470,32 @@ const gateCases = {
   "check-ticket.mjs": () => {
     check("check-ticket.mjs", "an incomplete body is rejected", ["--file", stage("ticket.md", "# A ticket\n\nno template sections here\n")], { nonZero: true })
     check("check-ticket.mjs", "a missing body file is a usage error", ["--file", join(root, "absent.md")], { status: 2 })
+    const criteriaTicket = (...items) =>
+      VALID_TICKET_BODY.replace("- the created identifier is the one validated\n\n- a defective ticket exits 1", items.join("\n\n"))
+    check(
+      "check-ticket.mjs",
+      "an acceptance criterion quantifying over an open set is rejected",
+      ["--file", stage("ticket-open-set.md", criteriaTicket("- every phrasing a worker could emit is blocked", "- a defective ticket exits 1"))],
+      { status: 1, stderr: /quantifies over an open set/ },
+    )
+    check(
+      "check-ticket.mjs",
+      "the same criterion passes once it names the command that decides it",
+      ["--file", stage("ticket-bounded-set.md", criteriaTicket("- every phrasing rejected by `node tools/check-ticket.mjs` is blocked", "- a defective ticket exits 1"))],
+      { status: 0, stdout: /ticket ok/ },
+    )
+    check(
+      "check-ticket.mjs",
+      "a bound outside the quantified clause does not rescue an open set",
+      ["--file", stage("ticket-stray-bound.md", criteriaTicket("- every phrasing a worker could emit is blocked and the command exits 1", "- a defective ticket exits 1"))],
+      { status: 1, stderr: /quantifies over an open set/ },
+    )
+    check(
+      "check-ticket.mjs",
+      "an acceptance criterion trailing off into an unnamed remainder is rejected",
+      ["--file", stage("ticket-open-tail.md", criteriaTicket("- the two documented reasons are covered, etc.", "- a defective ticket exits 1"))],
+      { status: 1, stderr: /trails off into an unnamed remainder/ },
+    )
     const visibleTicket = (evidence = "") => [
       "# Validate visible effect evidence",
       "",

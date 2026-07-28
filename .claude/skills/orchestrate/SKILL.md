@@ -153,11 +153,14 @@ fatal to an unattended worker:
   at the keyboard, so the worker hangs there forever. The tool detects it on the terminal
   text, answers it once and waits again, bounded. The screen text, the blockedReason AND
   the answering keystroke all differ per engine, so they live in `ENGINE_PROFILES`:
-  Claude Code paints "Is this a project you created or one you trust?", reports
+  Claude Code paints "Is this a project you created or one you trust?", commonly reports
   `codex-trust-workspace`, and takes `1` + Enter; codex paints "Do you trust the contents
-  of this directory?", reports `codex-interactive-prompt`, and takes **Enter alone**,
+  of this directory?", normally reports `codex-interactive-prompt`, and takes **Enter alone**,
   because its list preselects option 1 and says so ("Press enter to continue"). Sending
   codex the digit was measured leaving its process exited (-1). Two matching subtleties:
+  Orca 1.4.156 was also measured retaining `codex-trust-workspace` on an idle codex terminal
+  that never saw a trust gate. WHY: PR #629 owner adjudication makes that live capture
+  authoritative over the older one-reason-per-engine mapping.
   the tool checks `satisfied` BEFORE the screen text, because a TUI repaint has no
   scrollback and the answered trust screen stays in the tail forever, and it matches that
   tail with all whitespace stripped, because `orca terminal read` swallows spacing

@@ -96,9 +96,11 @@ const ENGINE_PROFILES = {
   },
 }
 
-/** Orca's own signal for the same gate, and it is not one string: Claude Code's surfaces as
- * `codex-trust-workspace`, codex's as `codex-interactive-prompt`. Only the screen text is
- * precise, so this stays a corroborating signal and never the sole trigger for a keystroke. */
+/** Orca's own signal is not reliably one string: a genuine codex trust gate normally reports
+ * `codex-interactive-prompt`, but Orca 1.4.156 retained `codex-trust-workspace` on an idle codex
+ * terminal that never saw a trust gate. Only the screen text is precise, so this stays a
+ * corroborating signal and never the sole trigger for a keystroke.
+ * WHY: PR #629 owner adjudication makes the live capture authoritative over the older reason mapping. https://github.com/thomasluizon/orbit-ui-mobile/pull/629 */
 const TRUST_BLOCKED_REASON = /trust/i
 const flatten = (text) => text.replace(/\s+/g, "").toLowerCase()
 
