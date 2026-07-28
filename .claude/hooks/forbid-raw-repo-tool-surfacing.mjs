@@ -130,10 +130,11 @@ function npxOptionStates(tokens) {
   return states
 }
 
-function isAmbiguousNpxName(command, insideFence) {
+function isAmbiguousNpxName(command, insideFence, hasPrefix) {
   if (insideFence === "shell") return false
   const tokens = npxTokens(command)
   if (!/^npx(?:\.cmd)?$/i.test(tokens[0] ?? "")) return false
+  const prefixedBareInvocation = hasPrefix && !/^-{1,2}[^-]/.test(tokens[1] ?? "")
 
   return !npxOptionStates(tokens).some((state) => {
     if (state.assigned || state.confirmed || state.quoted) return true
@@ -141,8 +142,17 @@ function isAmbiguousNpxName(command, insideFence) {
     if (!packageName) return state.consumed
     if (/[./@-]/.test(packageName)) return true
     const argumentsAfterPackage = tokens.slice(state.index + 1)
-    return argumentsAfterPackage[0]?.startsWith("-") || (state.consumed && argumentsAfterPackage.length === 0)
+    return (
+      argumentsAfterPackage[0]?.startsWith("-") ||
+      (prefixedBareInvocation && argumentsAfterPackage.length > 0) ||
+      (state.consumed && argumentsAfterPackage.length === 0)
+    )
   })
+}
+
+function hasInstructionFraming(prefix) {
+  const framing = prefix.replace(/[`*_]+\s*$/, "").trimEnd()
+  return /(?:^|[,:;]\s*)(?:please\s+)?run(?:\s+(?:this|it|the command))?\s*$/i.test(framing)
 }
 
 function surfacedCommands(text) {
@@ -167,9 +177,10 @@ function surfacedCommands(text) {
       const segment = splitAppeal(rawSegment)
       const match = commandMatch(segment.line)
       if (!match) continue
-      if (DOCUMENTATION.test(segment.line)) continue
-      const imperativeRun = /^\s*(?:(?:[-*+]|\d+[.)])\s+)?(?:please\s+)?run\b/i.test(segment.line.slice(0, match.index))
-      if (isAmbiguousNpxName(match.command, insideFence) && !imperativeRun) continue
+      const prefix = segment.line.slice(0, match.index)
+      const instructionFramed = hasInstructionFraming(prefix)
+      if (DOCUMENTATION.test(segment.line) && !instructionFramed) continue
+      if (isAmbiguousNpxName(match.command, insideFence, prefix.trim().length > 0)) continue
       lineCommands.push({ command: match.command, reason: segment.reason })
     }
 

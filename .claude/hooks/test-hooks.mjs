@@ -342,6 +342,43 @@ const chatSurfacing = runHookResult(RAW_TOOL_HOOK, stopPayload(surfacedWavePlan)
 T("cc raw-tool: measured chat instruction -> 2", chatSurfacing.status, 2)
 T("cc raw-tool: measured chat instruction names /next", chatSurfacing.stderr.includes("/next"), true)
 
+const stringTranscript = write(
+  "transcripts/string-content.jsonl",
+  [
+    JSON.stringify({ type: "user", message: { content: "What should I do next?" } }),
+    JSON.stringify({ type: "assistant", message: { content: "Next: node tools/wave-plan.mjs --all" } }),
+  ].join("\n"),
+)
+const stringTranscriptFallback = runHookResult(RAW_TOOL_HOOK, {
+  hook_event_name: "Stop",
+  stop_hook_active: false,
+  transcript_path: stringTranscript,
+})
+T("cc raw-tool: transcript fallback reads trailing string assistant content -> 2", stringTranscriptFallback.status, 2)
+T("cc raw-tool: string transcript fallback names /next", stringTranscriptFallback.stderr.includes("/next"), true)
+
+const blockTranscript = write(
+  "transcripts/block-content.jsonl",
+  [
+    JSON.stringify({ type: "user", message: { content: "Give me the command." } }),
+    JSON.stringify({
+      type: "assistant",
+      message: { content: [{ type: "text", text: "Next: node tools/rollup.mjs" }] },
+    }),
+  ].join("\n"),
+)
+const blockTranscriptFallback = runHookResult(RAW_TOOL_HOOK, {
+  hook_event_name: "Stop",
+  stop_hook_active: false,
+  transcript_path: blockTranscript,
+})
+T("cc raw-tool: transcript fallback reads trailing text block content -> 2", blockTranscriptFallback.status, 2)
+T(
+  "cc raw-tool: block transcript fallback reports the extracted command",
+  blockTranscriptFallback.stderr.includes("node tools/rollup.mjs"),
+  true,
+)
+
 for (const [label, text] of [
   ["bare command", "node tools/wave-plan.mjs --all"],
   ["inline command", "You can run `node tools/wave-plan.mjs --all` to see it."],
@@ -398,6 +435,13 @@ for (const prose of [
 T("cc raw-tool: ambiguous bare npx name -> 0", runHook(RAW_TOOL_HOOK, stopPayload("The package is invoked as npx cowsay.")), 0)
 T("cc raw-tool: npx package followed by a flag -> 2", runHook(RAW_TOOL_HOOK, stopPayload("Next: npx eslint --fix")), 2)
 T("cc raw-tool: imperative npx with positional arguments -> 2", runHook(RAW_TOOL_HOOK, stopPayload("Run npx prisma generate now")), 2)
+for (const [label, command] of [
+  ["use prefix", "Use npx turbo run lint"],
+  ["next prefix", "Next: npx prisma generate"],
+  ["modal run prefix", "You can run npx prisma generate"],
+]) {
+  T(`cc raw-tool: prefixed bare npx ${label} -> 2`, runHook(RAW_TOOL_HOOK, stopPayload(command)), 2)
+}
 for (const [label, command] of [
   ["assigned package and call options", "npx --package=@orbit/cli -c 'orbit check'"],
   ["separate package option value", "npx -p typescript tsc --noEmit"],
@@ -552,6 +596,16 @@ T(
   ),
   0,
 )
+const sameLineDocumentedInstruction = runHookResult(
+  RAW_TOOL_HOOK,
+  stopPayload("Internally, run `node tools/wave-plan.mjs --all` and summarize the result."),
+)
+T("cc raw-tool: same-line documentation cannot exempt an instruction -> 2", sameLineDocumentedInstruction.status, 2)
+T(
+  "cc raw-tool: same-line documented instruction names the command",
+  sameLineDocumentedInstruction.stderr.includes("node tools/wave-plan.mjs --all"),
+  true,
+)
 T(
   "cc raw-tool: documentation line opens a fenced command block -> 0",
   runHook(
@@ -637,6 +691,19 @@ const oneAppealForChain = runHookResult(
 )
 T("cc raw-tool: one appeal cannot cover a chained command -> 2", oneAppealForChain.status, 2)
 T("cc raw-tool: chained appeal reports the second command", oneAppealForChain.stderr.includes("node tools/rollup.mjs"), true)
+
+const oneAppealForThreeCommandChain = runHookResult(
+  RAW_TOOL_HOOK,
+  stopPayload(
+    "node tools/wave-plan.mjs --all && node tools/rollup.mjs && node tools/arch-map.mjs # Repo-tool appeal: wave plan is required",
+  ),
+)
+T("cc raw-tool: one appeal cannot cover a three-command chain -> 2", oneAppealForThreeCommandChain.status, 2)
+T(
+  "cc raw-tool: three-command appeal reports the earliest remaining command",
+  oneAppealForThreeCommandChain.stderr.split("\n")[0],
+  "Raw repo-tool command surfaced for Thomas: node tools/rollup.mjs",
+)
 
 const appealedChain = runHookResult(
   RAW_TOOL_HOOK,
