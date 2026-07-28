@@ -144,7 +144,7 @@ const DONE_TYPES = new Set(["completed", "canceled", "duplicate"])
  * inverse mistake is worse. This reports the overlap; it never reorders a wave, because a set
  * intersection cannot tell an append-only test file from a rewrite of the same function.
  */
-const AFFECTED_PATH = /\.?[\w@][\w./\\@-]*\.(?:mjs|cjs|js|jsx|ts|tsx|json|md|cs|yml|yaml|sh|ps1|css)\b/g
+const AFFECTED_PATH = /\.?[\w@][\w./\\@()[\]{}+-]*\.[a-z0-9][a-z0-9-]*/gi
 
 const affectedFilesOf = (description) => {
   const section = (description ?? "")
