@@ -1,6 +1,6 @@
 ---
 name: orchestrate
-description: Linear project, single ticket, or explicit ticket set in, reviewed PRs out, wave by wave. Computes the merge-gated DAG with tools/wave-plan.mjs, preflights every target repo before worktree creation, reconciles each ticket against the code (D8), launches one Orca worktree + worker per ticket (engine from .claude/orchestrator.json, claude or codex), babysits CI and review, enforces the evidence gate (D7) and two-strikes (D9), then tears down each worktree immediately after verified Done. A human merge is the only thing that advances a wave (D3), unless --sleep is passed. Scope is the whole project for a name or one ticket argument, one ticket under --only, or exactly the named tickets when two or more are supplied; --single runs that resolved scope serially. Use after /feature or /ticket created the tickets.
+description: Linear project, single ticket, or explicit ticket set in, reviewed PRs out, wave by wave. Computes the merge-gated DAG with tools/wave-plan.mjs, preflights every target repo before worktree creation, reconciles each ticket against the code (D8), launches one Orca worktree + worker per ticket (engine from .claude/orchestrator.json, claude or codex), lets workers own automated review, adjudicates escalations, performs one pre-merge verification per ticket, enforces the evidence gate (D7) and two-strikes (D9), then tears down each worktree immediately after verified Done. A human merge is the only thing that advances a wave (D3), unless --sleep is passed. Scope is the whole project for a name or one ticket argument, one ticket under --only, or exactly the named tickets when two or more are supplied; --single runs that resolved scope serially. Use after /feature or /ticket created the tickets.
 argument-hint: <Linear project name | ORB-N [ORB-N ...]> [--only] [--single] [--sleep]
 effort: high
 ---
@@ -145,18 +145,19 @@ eligible ticket. Do not reorder waves or explicit-set members.
    iterations because an unbounded subjective loop burns the worker budget. At the cap, stop
    revising and state every unresolved finding honestly in the critique. For `parity:yes`,
    cover web and mobile, or name the platform gap and its reason. Attach the final screenshots
-   and the critique to the issue, then set the issue to In Review and STOP. The branch is NOT
-   the worker's job; step 3 hands it the contract branch already checked out.
+   and the critique to the issue, then set the issue to In Review and own the automated review
+   cycle until the worker reports approved with zero unresolved threads or sends one escalation.
+   The branch is NOT the worker's job; step 3 hands it the contract branch already checked out.
 
    **Do NOT hand-write the STANDING clauses here.** Never ask a question, state a blocked
-   criterion as UNMET instead of stalling, never watch your own PR's CI or another
-   ticket, never arm a monitor that outlives the contract, never merge: all of that is
-   `WORKER_CONTRACT` in `tools/launch-worker.mjs`, which APPENDS it to your prompt file
-   at launch (idempotently). The guarantee is structural precisely because it used to be
-   prose in this list: on the ORB-88 run a worker whose hand-composed prompt omitted the
-   clauses ended a turn on a question and stalled until a human noticed the terminal, and
-   then armed a monitor on another ticket's PR. `tools/test-tools.mjs` fails if a clause
-   is dropped, so the Harness Execution job is what keeps it true, not this paragraph.
+   criterion as UNMET instead of stalling, own only this PR's automated review, escalate on
+   the three contract conditions, never arm a monitor that outlives the contract, never merge:
+   all of that is `WORKER_CONTRACT` in `tools/launch-worker.mjs`, which APPENDS it to your
+   prompt file at launch (idempotently). The guarantee is structural precisely because it
+   used to be prose in this list: on the ORB-88 run a worker whose hand-composed prompt omitted
+   the clauses ended a turn on a question and stalled until a human noticed the terminal, and
+   then armed a monitor on another ticket's PR. `tools/test-tools.mjs` fails if a clause is
+   dropped, so the Harness Execution job is what keeps it true, not this paragraph.
 3. `node tools/launch-worker.mjs --issue ORB-N --prompt-file "<absolute path>"`
    (`--base-branch <target>` when the target is not `main`, `--branch-prefix fix` for a
    bug ticket, `--repo ui|api|landing` only to override the `repo:*` label, and
@@ -294,11 +295,11 @@ node tools/worker-status.mjs --worktree <worktreePath> --issue ORB-N [--base <ta
 
 It derives the verdict from artifacts (commits above the freshly fetched `origin/<target>`,
 never a stale local ref, a clean worktree, the branch pushed, a PR open against the target,
-the issue In Review with the PR attached, and an image attached when the ticket is
-`visible-effect`, D7) and exits non-zero listing exactly what is unmet. For a `visible-effect`
-ticket, also inspect the issue evidence and require the attached critique paired with the final
-screenshots before treating the contract as met. That list plus this critique check is what you
-nudge with. Nothing else counts as "done".
+the issue In Review with the PR attached, an approved review decision, zero unresolved threads,
+and an image attached when the ticket is `visible-effect`, D7) and exits non-zero listing exactly
+what is unmet. For a `visible-effect` ticket, also inspect the issue evidence and require the
+attached critique paired with the final screenshots before treating the contract as met. That
+list plus this critique check is what you nudge with. Nothing else counts as "done".
 
 **Never `terminal send` to a worker that is not idle.** Measured on the same run: a send
 issued mid-turn never became a user turn at all. It appears in the worker's session
@@ -321,50 +322,45 @@ lines, and the contract verdict above. Liveness and delivery answer different qu
 at the keyboard. Read it instead of hand-running `orca terminal read`, which returns a busy
 worker's tail as thousands of characters of concatenated `Working` fragments.
 
-Then watch the launched tickets' PRs as one fleet with the tool, never a hand-written poll
-loop:
+After the PR opens, the worker owns its automated review cycle. The orchestrator does not read
+review bodies, author review-round files, or relay findings back to the worker. It waits for one
+worker report:
+
+- **Done:** the current head is approved with zero unresolved threads.
+- **Escalated:** the worker disagrees with a finding, is blocked on a decision it may not make,
+  or has failed the same finding in two consecutive cycles. Only then may the orchestrator read
+  that finding's review body and the worker's reasoning, reconcile it against the diff (D8), and
+  adjudicate it. Do not load unrelated review bodies.
+
+The worker may use `pr-watch.mjs` only as a low-level review and check transition wake-up. After
+every call and before waiting or reporting Done, it runs `worker-status.mjs --json` as the
+full-surface completion poll. That poll inventories review submissions, review threads and their
+nested comments, and PR conversation comments, and fails closed on an incomplete inventory.
+
+An informational automated finding that needs no code change is handled by the worker replying
+`No code change required: <reason>. Evidence: <PR commit>`, naming a commit on the PR that
+changed the reviewed path, and resolving it. It is neither a disagreement nor an escalation.
+
+The worker's two failed cycles on one review finding trigger escalation, not D9. D9 still counts
+failed ticket-body implementation cycles and is unchanged.
+
+Once the worker reports Done, run exactly ONE pre-merge verification for that ticket:
 
 ```
-node tools/pr-watch.mjs --repo <owner/name> --pr <n>[,<n>...] --acted <n>=<sha>:CHANGES_REQUESTED --acted <n>=<sha>:COMMENTED
+node tools/worker-status.mjs --worktree <worktreePath> --issue ORB-N [--base <target>] --verify-review
 ```
 
-It exits on the first actionable transition you have NOT already acted on and names which one:
-`gone` (merged or closed, exit 5), `checks-failed` (exit 1), `changes-requested` or
-`review-comment` (exit 1), `approved` / `ready-to-merge` (exit 0), `head-changed` (exit 1),
-`review-decision` (exit 0 for `APPROVED`, otherwise 1), `merge-clean` (exit 0), `timeout`
-(exit 4). Actionable means the head SHA changed, the review decision changed, the merge state
-became `CLEAN`, a required check concluded as failed, or the PR merged or closed. `UNKNOWN` and
-churn between other non-terminal merge states never fire. The first poll establishes the
-baseline for state transitions, but fresh unacted verdicts and unhandled readiness still fire
-immediately. `--acted` is what you have already handled on that PR, as the head SHA plus the
-verdict or `READY_TO_MERGE`; entries accumulate by PR and head. Repeat the flag for every
-handled verdict, including two verdicts on the same head, and add `READY_TO_MERGE` after acting
-on readiness so that PR does not starve later fleet entries. `APPROVED` suppresses only the
-approval verdict, not readiness that may appear between watcher runs. Pass the handled signals
-after every fix cycle so the same event is never replayed, and pass none on the first watch. A
-verdict counts only when it sits on the CURRENT head, so a stale `CHANGES_REQUESTED` carried on
-an older commit does not satisfy it.
-
-Write no loop of your own. Both hand-rolled loops on the ORB-88 run were wrong and both failed
-silently: the first fired instantly on a stale verdict from an earlier commit, the second could
-only exit on approval or a failing check, so a fresh CHANGES_REQUESTED left it spinning for
-90 minutes with the answer in its own output and nobody reading it. The terminal condition is
-one of the actionable transitions enumerated above; `UNKNOWN` and other non-terminal
-merge-state churn never terminate the watcher.
-
-- CI red or CHANGES_REQUESTED: ONE fix cycle per strike; send the failure text + review
-  comments to a fresh worker in the same worktree. Resolve addressed review threads.
-- **A non-blocking review is still work.** `pr-watch.mjs` reports `review-comment` as its own
-  transition for exactly this reason. Sweep both endpoints (`gh api .../pulls/<n>/comments`
-  for inline threads and `gh pr view <n> --json reviews` for `COMMENTED` bodies) on every
-  head, not only when the verdict moves. Each finding is reconciled against the code (D8),
-  then fixed and its thread resolved, or disputed with a written reply. Never merge over an
-  untouched comment: `reviewDecision` cannot see it. This is condition 6 in 4a, and it binds
-  the awake path too, where it is Thomas's merge that it gates rather than the run's.
+This is one pass for the whole ticket, never one pass per review round. It verifies the final
+diff and thread metadata without printing review bodies. A resolved automated thread whose
+named fix commit did not follow the reviewed commit or change the reviewed path, a human-authored
+thread resolved by the worker account, a head without its own approving review, or any unresolved
+thread is a hard failure. Stop for human adjudication on failure; do not run a second verification
+pass.
 - D7: an issue may sit In Review only with its PR attached. When labelled `visible-effect`,
   it also needs final screenshots and the worker's critique attached; otherwise demote to In
   Progress and finish.
-- D9 two strikes: a second failed cycle sets the `attempts:2` label and the ticket is
+- D9 two strikes: a second failed ticket-body implementation cycle sets the `attempts:2`
+  label and the ticket is
   REFUSED further launches until its body is rewritten (two failures mean the spec is
   wrong, not the agent). wave-plan.mjs surfaces this.
   **Under `--sleep`, the run performs that rewrite itself rather than stalling until
@@ -380,12 +376,14 @@ merge-state churn never terminate the watcher.
   original body all go in the closing report, because an agent editing its own work order
   unsupervised is exactly the thing that must be auditable afterwards. Without `--sleep`
   this does not apply: a human is awake, and the rewrite is theirs.
-- "All PRs green" requires reviewDecision APPROVED, not just checks passing.
+- "All PRs green" requires reviewDecision APPROVED, zero unresolved threads, and a passing
+  one-time pre-merge verification, not just checks passing.
 
 ## 4. Advance
 
-**Project scope, the default.** Thomas merges. On his word (or on observing merges),
-fetch, verify the Linear issue is Done, then immediately run
+**Project scope, the default.** Thomas merges, and the run never asks him to merge a ticket
+until its one pre-merge verification has passed. On his word (or on observing merges), fetch,
+verify the Linear issue is Done, then immediately run
 `node tools/teardown-worktree.mjs --issue ORB-N` for that ticket. It is evidence-gated:
 if it refuses, leave the tree untouched, record the failed check, and do not call the
 ticket cleaned up. On confirmed removal, record the removed worktree path in that
@@ -395,19 +393,20 @@ merge SHA, evidence link, removed worktree. This holds whether the run was invok
 a project name or with a single `ORB-N`, because without `--only` a ticket argument
 names where to start, not where to stop.
 
-**`--only` ends here instead.** The run is complete once that one ticket's PR is open and
-its issue is In Review with the PR attached, plus the final screenshots and critique when it
-carries `visible-effect`. Print that ticket's ledger row and STOP. A merge of that ticket is
-not a trigger to launch anything: observing it may have opened a wave, but the run was
-explicitly bounded. Name the tickets that became launchable so Thomas can start them, and do
-not start them.
+**`--only` ends here instead.** The run is complete once that one ticket's worker reports
+approved with zero unresolved threads, its one pre-merge verification passes, and its issue is
+In Review with the PR attached, plus the final screenshots and critique when it carries
+`visible-effect`. Print that ticket's ledger row and STOP. A merge of that ticket is not a
+trigger to launch anything: observing it may have opened a wave, but the run was explicitly
+bounded. Name the tickets that became launchable so Thomas can start them, and do not start them.
 
 **Explicit-set scope also ends here.** It never advances a wave, including when a
 member merge makes a successor launchable. Finish after every launchable member has
-an open PR and is In Review with its PR attached (plus D7 evidence when required),
-and every refused member has its blocker or strike reason recorded. Print one ledger
-covering every requested member, then re-read the full DAG, name the tickets that
-became launchable, and STOP without starting them.
+an approved PR with zero unresolved threads, its one pre-merge verification passed,
+and its issue is In Review with the PR attached (plus D7 evidence when required), and
+every refused member has its blocker or strike reason recorded. Print one ledger covering
+every requested member, then re-read the full DAG, name the tickets that became launchable,
+and STOP without starting them.
 
 ## 4a. `--sleep`: no questions, and the run merges its own PRs
 
@@ -437,109 +436,36 @@ cannot decide for one PR, all against that recorded head:
    `unresolved findings` at the iteration cap stops that ticket for human review.
    The cap permits an honest handoff; it never permits an unattended merge.
 5. The ticket carries no `attempts:2` label (D9 refuses it regardless of colour).
-6. **Every comment from every reviewer is addressed, whatever its review state.**
-   `reviewDecision` only reflects reviews that BLOCK. A `COMMENTED` review and an inline
-   comment thread do not move it, so a PR can read `APPROVED` while carrying unaddressed
-   findings. Measured on PR #621, 2026-07-27: the Codex connector posted two P1 inline
-   comments, `reviewDecision` stayed `APPROVED`, and conditions 1 to 5 alone would have
-   merged both defects. One of the two was a real mechanical break that the blocking
-   reviewer had missed entirely.
+6. **The ticket's one pre-merge verification passed.** The worker, not the orchestrator,
+   handled review bodies and review rounds. Run `worker-status.mjs --verify-review` exactly
+   once after the worker reports approved with zero unresolved threads. A resolved automated
+   thread whose named fix commit did not change the reviewed path, a human-authored thread
+   resolved by the worker account, or any unresolved thread is a hard failure. Stop that ticket
+   rather than reading review bodies or repeating the pass.
 
-   Do not record `reviewed-through` yet. First enumerate them yourself from all THREE
-   activity sources, because they are different objects:
-   `gh api --paginate repos/<owner>/<repo>/pulls/<n>/comments` (inline comments and replies),
-   the paginated GraphQL `pullRequest.reviews` connection (all review submissions and their
-   edit timestamps, including `COMMENTED` review bodies), plus
-   `gh api --paginate repos/<owner>/<repo>/issues/<n>/comments` (conversation comments). Then
-   enumerate the reviews with:
+Immediately before the one verification pass, read `headRefOid` and `mergeStateStatus`. If the
+state is `BEHIND`, update the branch and wait for the new head before starting the pass. Verify
+only a `CLEAN` recorded head. If the head moves after verification, stop that ticket for human
+review rather than running a second pass.
 
-   ```bash
-   gh api graphql --paginate \
-     -f query='query($endCursor:String){repository(owner:"<owner>",name:"<repo>"){pullRequest(number:<n>){reviews(first:100,after:$endCursor){nodes{author{login} body submittedAt updatedAt lastEditedAt} pageInfo{hasNextPage endCursor}}}}}'
-   ```
+Record the verified `headRefOid` as the expected head. Retain a metadata-only review activity
+snapshot: item identifiers plus every review `submittedAt` and non-null `updatedAt` and
+`lastEditedAt`, every inline-comment creation and edit, and every conversation-comment creation
+and edit. Select only identifiers and timestamps before command output reaches the orchestrator;
+review bodies remain unread unless the worker escalated one. Find the latest timestamp. GitHub
+timestamps have second precision and the sweep treats activity equal to the cutoff as new, so
+wait for the next second when necessary, then capture a current UTC ISO-8601 instant strictly
+later than the latest activity as `reviewed-through`.
 
-   Each finding-bearing item ends in exactly one of two states. Include activity from every author,
-   including the PR author, the orchestrator account, bots, and reviewer accounts. Never
-   filter or exempt activity by author: identity does not prove that an item was part of
-   this reconciliation, and an exclusion would hide a late review, reply, or edit from
-   the final safety gate. An edited review body is observable through `updatedAt` and
-   `lastEditedAt`; it is not a documented limitation or a reason to waive the gate.
-   Treat `submittedAt` and every non-null `updatedAt` and `lastEditedAt` as review
-   activity.
+Immediately re-read the same metadata-only sources and unresolved-thread count. The snapshot
+must be unchanged, no activity may be at or after `reviewed-through`, and the unresolved count
+must be zero. New activity stops the ticket for human review; it does not start another
+verification pass. Do not filter by author.
 
-   - **Addressed.** The finding is real: fix it through a worker in that ticket's worktree,
-     PUSH the fix, then reply on the thread naming the commit that fixed it, then RESOLVE
-     the thread. That order matters: resolving before the fix is pushed marks a defect
-     handled that is not yet in the branch. Re-read the checks and `reviewDecision`
-     afterwards, because the fix pushed a new head.
-   - **Disagreed.** Reconcile the finding against the code first (D8): a reviewer can be
-     wrong, and a finding that does not reproduce is not work. Post a reply saying plainly
-     why you disagree, with the evidence you checked. Then **STOP that ticket**: leave the
-     PR open, do not merge it, and put the disagreement in the closing report. A reviewer
-     and the run disagreeing is precisely a case the run cannot decide alone. Leave that
-     thread UNRESOLVED: it is the one case where an open thread is the correct end state,
-     because Thomas has to settle it.
-
-   A comment that is purely informational, with nothing to fix and nothing to dispute, is
-   addressed by a reply saying so, and then resolved. Silence is never "addressed".
-
-   **Check this mechanically, never by memory.** A thread is resolved only when GitHub says
-   so, and "I replied to it" is not resolution: an unresolved thread is what Thomas actually
-   sees when he opens the PR, which is the entire point of this condition.
-
-   ```bash
-   gh api graphql -f query='query{repository(owner:"<owner>",name:"<repo>"){pullRequest(number:<n>){reviewThreads(first:100){nodes{id isResolved comments(first:1){nodes{author{login} body}}}}}}}' \
-     --jq '[.data.repository.pullRequest.reviewThreads.nodes[]|select(.isResolved==false)]|length'
-   ```
-
-   That number must be `0` before a `--sleep` merge, with the single exception of a thread
-   deliberately left open by the disagreement path above, and that ticket is not being
-   merged anyway. Resolve with:
-
-   ```bash
-   gh api graphql -f query='mutation{resolveReviewThread(input:{threadId:"<PRRT_...>"}){thread{isResolved}}}' \
-     --jq '.data.resolveReviewThread.thread.isResolved'
-   ```
-
-   Read that mutation's `true` back rather than assuming it worked. Thomas must never wake
-   up to a merged PR carrying open threads whose findings were in fact fixed hours earlier;
-   from the outside those two states look identical, and one of them is a lie.
-
-Immediately before handoff, re-read `headRefOid` and `mergeStateStatus`. Hand off only
-when the state is `CLEAN`. If it is `BEHIND`, do not invoke the script: update the branch,
-wait for the new head, and repeat conditions 1 to 6 against it. If the head moved at any
-point after the conditions ran, discard their results and repeat the same update-first
-sequence. Every repeat includes re-enumerating review submissions and their edit
-timestamps through GraphQL, inline comments, and conversation comments, posting every
-required reconciliation reply, and resolving and mechanically verifying every
-addressed thread.
-
-Record the final `headRefOid` as the expected head. After every required reply has
-been posted and every addressed thread resolved, retain the complete reconciled
-activity snapshot: item identifiers plus every review `submittedAt` and non-null
-`updatedAt` and `lastEditedAt`, every inline-comment creation and edit, and every
-conversation-comment creation and edit. Find its latest timestamp. GitHub timestamps have second precision
-and the sweep deliberately treats activity equal to the cutoff as new, so wait for the
-next second when necessary, then capture a current UTC ISO-8601 instant strictly later
-than that latest reconciled timestamp as `reviewed-through`.
-
-Capturing the boundary is the LAST reconciliation mutation and happens BEFORE the
-final validation reads. Immediately re-read all three activity sources and the
-unresolved-thread count. The activity snapshot must be byte-for-byte unchanged from
-the reconciled snapshot, no activity may be at or after `reviewed-through`, and the
-unresolved count must be zero. Any new item, edit, or unresolved thread restarts
-reconciliation and requires a new boundary. The snapshot comparison is load-bearing:
-it catches activity that lands while waiting for GitHub's next timestamp second but
-still sorts before the boundary. The cutoff then lets the sweep catch activity that
-lands after these validation reads. Do not filter by author.
-
-Invoke the strict sweep immediately after the final reads pass, for ONE PR at a time
-from the repository root. Capturing the boundary before posting reconciliation
-replies makes those replies appear new; capturing it after the final reads makes
-activity in the read-to-cutoff interval look already reconciled. The required order
-is: reconciliation mutations, boundary, validation reads, sweep. Do not post, edit,
-resolve, or otherwise mutate review activity between capturing the timestamp and
-invoking the sweep.
+Invoke the strict sweep immediately after those reads pass, for ONE PR at a time from the
+repository root. The required order is: one diff-and-thread verification, boundary, metadata
+validation reads, sweep. Do not post, edit, resolve, or otherwise mutate review activity between
+capturing the timestamp and invoking the sweep.
 
 ```bash
 bash tools/merge-sweep.sh \
