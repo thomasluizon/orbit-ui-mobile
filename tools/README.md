@@ -9,6 +9,7 @@
 > - `ai-quota.mjs` reads both AI pools; `automation-budget.mjs` keeps their per-invocation costs separate and protects the routine automation allowance.
 > - `check-lockstep.mjs` gates the six load-bearing harness twins shared with orbit-api.
 > - `agent-review` gets its cross-model verdict from GPT-5.6 Sol through Codex.
+> - `check-calibration.mjs` verifies the model-stamped calibration artifact covers every skill and agent and is under 90 days old.
 > - `preflight.mjs` verifies an autonomous run's environment before any worktree is created and never repairs a failed precondition.
 > - `teardown-worktree.mjs` removes a completed ticket's Orca worktree immediately after verified Done, only when its evidence checks pass.
 
@@ -36,6 +37,7 @@ Read `CONVENTIONS.md` before adding one. Use the `/make-tool` skill to scaffold 
 | `check-suppressions-ratchet.mjs` | Asserts the ESLint suppression baselines only shrink (escape hatch: the `ratchet:reseed` label). Backs the Suppressions Ratchet CI job. | `node tools/check-suppressions-ratchet.mjs` |
 | `check-frontmatter.mjs` | Asserts every skill and agent `.md` has parseable YAML frontmatter (an unquoted `": "` silently drops the file's description, or the whole file). Backs the Skill and Agent Frontmatter CI job. | `node tools/check-frontmatter.mjs` (`--root <directory>`, `--fix`) |
 | `check-lockstep.mjs` | Compares the six load-bearing harness twins with orbit-api, fails closed on unreadable input or undeclared drift, and permits only justified diff-hunk fingerprints. | `node tools/check-lockstep.mjs` (`--ui-root`, `--api-root`, `--manifest`) |
+| `check-calibration.mjs` | Validates `.claude/calibration.json`: exactly one verdict per skill and agent, a model stamp matching the orchestrator, and a date under 90 days old. Backs the report-only Harness Calibration CI job through 2026-08-11 (escape hatch: the `calibration:reseed` label). | `node tools/check-calibration.mjs` (`--report-only`, `--refresh`, `--help`) |
 | `check-push-target.mjs` | The lefthook `pre-push` guard: reads git's pre-push stdin and rejects a push whose remote ref is a protected branch. | `node tools/check-push-target.mjs < <pre-push stdin>` |
 | `test-tools.mjs` | The harness execution gate: runs every script in this directory and asserts the `CONVENTIONS.md` CLI contract plus each tool's real decision paths, with orca stubbed and every side effect staged in a temp dir. Fails when a script here has no coverage entry. Backs the Harness Execution CI job. | `node tools/test-tools.mjs` |
 | `check-ticket.mjs` | Validates a Linear ticket body against the ticket template (D2); rejects an incomplete ticket rather than letting a worker guess. | `node tools/check-ticket.mjs --help` |
