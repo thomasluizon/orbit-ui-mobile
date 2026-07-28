@@ -19,11 +19,16 @@ usage() {
 Require-up-to-date merge sweep: squash-merge each APPROVED, green PR server-side.
 
 Usage: merge-sweep.sh <owner/repo> <pr-number>...
+       merge-sweep.sh [--expected-head <pr-number>=<sha>]... <owner/repo> <pr-number>...
        merge-sweep.sh --help
 
 Per PR it update-branches and polls until the merge state is decidable, then squash-merges.
 A SonarCloud failure counts as a failed check here and SKIPs; use merge-sweep-cov.sh when a
 new-code-coverage-only Sonar failure should be admin-overridden instead.
+
+The expected head defaults to the PR's head SHA at entry. Pass --expected-head once per PR to
+pin an earlier observed SHA. If update-branch or any later poll sees a different head, that PR
+prints HEAD-MOVED and is never merged. The merge API also atomically matches the expected SHA.
 
 It refuses to merge while the \`$REVIEW_CHECK_NAME\` check for the CURRENT head SHA is still
 running, and re-reads reviewDecision after that check settles, so a pre-update APPROVED can
@@ -46,6 +51,46 @@ case "${1:-}" in
     exit 0
     ;;
 esac
+
+expected_head_mappings=""
+while [ "${1:-}" = "--expected-head" ]; do
+  if [ "$#" -lt 2 ]; then
+    printf 'merge-sweep.sh: --expected-head requires <pr-number>=<sha>\n\n' >&2
+    usage >&2
+    exit 2
+  fi
+  mapping="$2"
+  mapping_pr="${mapping%%=*}"
+  mapping_sha="${mapping#*=}"
+  if [ "$mapping_pr" = "$mapping" ] || [ -z "$mapping_pr" ] || [ -z "$mapping_sha" ]; then
+    printf 'merge-sweep.sh: expected-head mappings must be <pr-number>=<sha>, got: %s\n\n' "$mapping" >&2
+    usage >&2
+    exit 2
+  fi
+  case "$mapping_pr" in
+    *[!0-9]*) printf 'merge-sweep.sh: expected-head PR must be a number, got: %s\n\n' "$mapping_pr" >&2; usage >&2; exit 2 ;;
+  esac
+  case "$mapping_sha" in
+    *[!0-9a-fA-F]*) printf 'merge-sweep.sh: expected-head SHA must be hexadecimal, got: %s\n\n' "$mapping_sha" >&2; usage >&2; exit 2 ;;
+  esac
+  if [ "${#mapping_sha}" -ne 40 ] && [ "${#mapping_sha}" -ne 64 ]; then
+    printf 'merge-sweep.sh: expected-head SHA must be a full 40- or 64-character commit SHA, got: %s\n\n' "$mapping_sha" >&2
+    usage >&2
+    exit 2
+  fi
+  mapping_sha="$(printf '%s' "$mapping_sha" | tr 'A-F' 'a-f')"
+  mapping="$mapping_pr=$mapping_sha"
+  for existing_mapping in $expected_head_mappings; do
+    if [ "${existing_mapping%%=*}" = "$mapping_pr" ]; then
+      printf 'merge-sweep.sh: duplicate expected-head mapping for PR %s\n\n' "$mapping_pr" >&2
+      usage >&2
+      exit 2
+    fi
+  done
+  expected_head_mappings="$expected_head_mappings $mapping"
+  shift 2
+done
+
 if [ "$#" -lt 2 ]; then
   usage >&2
   exit 2
@@ -63,6 +108,18 @@ for pr in "$@"; do
     '' | *[!0-9]*) printf 'merge-sweep.sh: PR arguments must be numbers, got: %s\n\n' "$pr" >&2; usage >&2; exit 2 ;;
   esac
 done
+for mapping in $expected_head_mappings; do
+  mapping_pr="${mapping%%=*}"
+  mapping_has_pr=""
+  for pr in "$@"; do
+    [ "$pr" = "$mapping_pr" ] && mapping_has_pr=1
+  done
+  if [ -z "$mapping_has_pr" ]; then
+    printf 'merge-sweep.sh: expected-head mapping names PR %s, which is not in the sweep\n\n' "$mapping_pr" >&2
+    usage >&2
+    exit 2
+  fi
+done
 
 # Fails CLOSED: only a lookup that SUCCEEDS and positively shows no review workflow turns the wait
 # off, so an auth/rate-limit/network hiccup costs a slower sweep rather than the guard itself.
@@ -74,6 +131,20 @@ else
 fi
 
 merged_heads=""
+
+expected_head_for() { # <pr>; stdout: supplied SHA, or empty when the entry SHA must be captured
+  local sought_pr="$1" mapping
+  for mapping in $expected_head_mappings; do
+    if [ "${mapping%%=*}" = "$sought_pr" ]; then
+      printf '%s' "${mapping#*=}"
+      return
+    fi
+  done
+}
+
+head_oid() { # <pr>; stdout: current head SHA
+  gh pr view "$1" --repo "$repo" --json headRefOid --jq .headRefOid 2>/dev/null
+}
 
 mstate() { # prints  MS | REVIEW | FAILEDCHECKS | REVIEWCHECK | SHA
   gh pr view "$1" --repo "$repo" --json mergeStateStatus,reviewDecision,statusCheckRollup,headRefOid 2>/dev/null | node -e "
@@ -92,11 +163,29 @@ mstate() { # prints  MS | REVIEW | FAILEDCHECKS | REVIEWCHECK | SHA
 }
 
 for n in "$@"; do
+  expected="$(expected_head_for "$n")"
+  if [ -z "$expected" ]; then
+    expected="$(head_oid "$n")"
+  fi
+  if [ -z "$expected" ]; then
+    echo "SKIP #$n HEAD-MOVED expected=<unavailable> actual=<unavailable>"
+    continue
+  fi
   gh pr update-branch "$n" --repo "$repo" >/dev/null 2>&1
+  actual="$(head_oid "$n")"
+  if [ "$actual" != "$expected" ]; then
+    echo "SKIP #$n HEAD-MOVED expected=$expected actual=$actual"
+    continue
+  fi
   done_pr=""
   block_reason="never reached a mergeable state"
   for i in $(seq 1 50); do # up to ~17min per PR
     IFS='|' read -r ms rev failed reviewcheck sha <<<"$(mstate "$n")"
+    if [ "$sha" != "$expected" ]; then
+      echo "SKIP #$n HEAD-MOVED expected=$expected actual=$sha"
+      done_pr=1
+      break
+    fi
     if [ "$failed" != "none" ]; then
       echo "SKIP #$n ms=$ms FAILED=$failed"
       done_pr=1
@@ -118,17 +207,30 @@ for n in "$@"; do
     fi
     if [ -z "$review_stale" ] && { [ "$ms" = "CLEAN" ] || [ "$ms" = "UNSTABLE" ]; } && [ "$rev" = "APPROVED" ]; then
       branch=$(gh pr view "$n" --repo "$repo" --json headRefName --jq .headRefName 2>/dev/null)
-      if gh pr merge "$n" --repo "$repo" --squash --delete-branch >/dev/null 2>&1; then
+      if gh pr merge "$n" --repo "$repo" --squash --delete-branch --match-head-commit "$expected" >/dev/null 2>&1; then
         echo "MERGED #$n"
         # `^` is illegal in a refname, so it cannot collide with a branch name.
-        merged_heads="$merged_heads $n^$branch^$sha"
+        merged_heads="$merged_heads $n^$branch^$expected"
       else
-        echo "MERGE-REFUSED #$n ms=$ms rev=$rev"
+        actual="$(head_oid "$n")"
+        if [ "$actual" != "$expected" ]; then
+          echo "SKIP #$n HEAD-MOVED expected=$expected actual=$actual"
+        else
+          echo "MERGE-REFUSED #$n ms=$ms rev=$rev"
+        fi
       fi
       done_pr=1
       break
     fi
-    if [ "$ms" = "BEHIND" ]; then gh pr update-branch "$n" --repo "$repo" >/dev/null 2>&1; fi
+    if [ "$ms" = "BEHIND" ]; then
+      gh pr update-branch "$n" --repo "$repo" >/dev/null 2>&1
+      actual="$(head_oid "$n")"
+      if [ "$actual" != "$expected" ]; then
+        echo "SKIP #$n HEAD-MOVED expected=$expected actual=$actual"
+        done_pr=1
+        break
+      fi
+    fi
     sleep 20
   done
   [ -z "$done_pr" ] && echo "SKIP #$n (timeout: $block_reason)"

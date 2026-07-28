@@ -26,7 +26,7 @@
 import { spawnSync } from "node:child_process"
 import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
-import { dirname, join, resolve } from "node:path"
+import { delimiter, dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const USAGE = `usage: test-tools.mjs
@@ -151,6 +151,76 @@ const orcaEnv = (plan) => ({
   NODE_OPTIONS: `--require "${ORCA_SHIM.replaceAll("\\", "/")}"`,
   ORBIT_ORCA_STUB: JSON.stringify(plan),
 })
+
+const MERGE_SWEEP_GH_DIR = join(root, "merge-sweep-bin")
+const MERGE_SWEEP_GH = stage(
+  "merge-sweep-bin/gh",
+  `#!/usr/bin/env node
+const { appendFileSync, existsSync, writeFileSync } = require("node:fs")
+const argv = process.argv.slice(2)
+const line = argv.join(" ")
+appendFileSync(process.env.ORBIT_MERGE_SWEEP_LOG, JSON.stringify(argv) + "\\n")
+if (line.includes("/actions/workflows")) process.exit(0)
+if (argv[0] === "pr" && argv[1] === "update-branch") process.exit(0)
+if (argv[0] === "pr" && argv[1] === "view") {
+  if (line.includes("--json headRefOid")) {
+    const moved = process.env.ORBIT_MERGE_SWEEP_MOVE_MARKER && existsSync(process.env.ORBIT_MERGE_SWEEP_MOVE_MARKER)
+    process.stdout.write(moved ? process.env.ORBIT_MERGE_SWEEP_CHANGED_HEAD : process.env.ORBIT_MERGE_SWEEP_HEAD)
+  } else if (line.includes("headRefName")) {
+    process.stdout.write(process.env.ORBIT_MERGE_SWEEP_BRANCH)
+  } else {
+    const checks = [{ name: "review", status: "COMPLETED", conclusion: "SUCCESS" }]
+    if (process.env.ORBIT_MERGE_SWEEP_SONAR === "success") {
+      checks.push({ name: "SonarCloud Code Analysis", status: "COMPLETED", conclusion: "SUCCESS" })
+    }
+    if (process.env.ORBIT_MERGE_SWEEP_SONAR === "coverage-failure") {
+      checks.push({ name: "SonarCloud Code Analysis", status: "COMPLETED", conclusion: "FAILURE" })
+    }
+    process.stdout.write(JSON.stringify({
+      mergeStateStatus: process.env.ORBIT_MERGE_SWEEP_STATE,
+      reviewDecision: "APPROVED",
+      statusCheckRollup: checks,
+      headRefOid: process.env.ORBIT_MERGE_SWEEP_HEAD,
+    }))
+  }
+  process.exit(0)
+}
+if (argv[0] === "pr" && argv[1] === "merge") {
+  if (process.env.ORBIT_MERGE_SWEEP_MOVE_MARKER) {
+    writeFileSync(process.env.ORBIT_MERGE_SWEEP_MOVE_MARKER, "")
+    process.exit(1)
+  }
+  process.exit(0)
+}
+if (line.includes("/check-runs")) {
+  process.stdout.write("Coverage on New Code is below the required threshold")
+  process.exit(0)
+}
+if (argv[0] === "api" && argv[1] === "graphql") process.exit(0)
+process.stderr.write("unstubbed gh call: " + line)
+process.exit(9)
+`,
+)
+chmodSync(MERGE_SWEEP_GH, 0o755)
+
+const mergeSweepEnv = ({ changedHead = "", head, moveAtMerge = false, sonar = "success", state = "CLEAN", log }) => ({
+  PATH: `${MERGE_SWEEP_GH_DIR}${delimiter}${process.env.PATH}`,
+  ORBIT_MERGE_SWEEP_BRANCH: "feature/orb-106",
+  ORBIT_MERGE_SWEEP_CHANGED_HEAD: changedHead,
+  ORBIT_MERGE_SWEEP_HEAD: head,
+  ORBIT_MERGE_SWEEP_LOG: log,
+  ORBIT_MERGE_SWEEP_MOVE_MARKER: moveAtMerge ? `${log}.moved` : "",
+  ORBIT_MERGE_SWEEP_SONAR: sonar,
+  ORBIT_MERGE_SWEEP_STATE: state,
+})
+
+const mergeSweepCalls = (log) =>
+  existsSync(log)
+    ? readFileSync(log, "utf8")
+        .split("\n")
+        .filter(Boolean)
+        .map((line) => JSON.parse(line))
+    : []
 
 const run = (file, argv, options = {}) => {
   const target = options.path ?? join(TOOLS_DIR, file)
@@ -1214,7 +1284,94 @@ const newTicketStub = (created, issue, options = {}) => [
 const CREATED_OK = { ok: true, result: { issue: { identifier: "ORB-99" } } }
 const VALID_ISSUE = { identifier: "ORB-99", title: "Cover the create and validate round trip", description: VALID_TICKET_BODY, labels: [{ name: "repo:api" }] }
 
+const mergeSweepCases = (file) => {
+  const expectedHead = "1111111111111111111111111111111111111111"
+  const changedHead = "2222222222222222222222222222222222222222"
+  const coverageAware = file === "merge-sweep-cov.sh"
+  const matchedLog = join(root, `${file}-matched.log`)
+  const matched = run(file, ["--expected-head", `615=${expectedHead}`, "thomasluizon/orbit-ui-mobile", "615"], {
+    env: mergeSweepEnv({
+      head: expectedHead,
+      log: matchedLog,
+      sonar: coverageAware ? "coverage-failure" : "success",
+      state: coverageAware ? "BLOCKED" : "CLEAN",
+    }),
+  })
+  const matchedMerges = mergeSweepCalls(matchedLog).filter(([group, command]) => group === "pr" && command === "merge")
+  const matchedMerge = matchedMerges[0] ?? []
+  const matchedHeadFlag = matchedMerge.indexOf("--match-head-commit")
+  T(
+    `${file}: matching expected head merges`,
+    matched.status === 0 &&
+      /MERGED #615/.test(matched.stdout) &&
+      matchedMerges.length === 1 &&
+      matchedHeadFlag !== -1 &&
+      matchedMerge[matchedHeadFlag + 1] === expectedHead &&
+      (!coverageAware || matchedMerge.includes("--admin")),
+    `exit ${matched.status}\n     stdout: ${matched.stdout.trim()}\n     stderr: ${matched.stderr.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(matchedLog))}`,
+  )
+
+  const changedLog = join(root, `${file}-changed.log`)
+  const changed = run(file, ["--expected-head", `615=${expectedHead}`, "thomasluizon/orbit-ui-mobile", "615"], {
+    env: mergeSweepEnv({
+      head: changedHead,
+      log: changedLog,
+      sonar: coverageAware ? "coverage-failure" : "success",
+      state: coverageAware ? "BLOCKED" : "CLEAN",
+    }),
+  })
+  const changedCalls = mergeSweepCalls(changedLog)
+  const changedMerges = changedCalls.filter(([group, command]) => group === "pr" && command === "merge")
+  T(
+    `${file}: changed head skips and names both SHAs`,
+    changed.status === 0 &&
+      /SKIP #615/.test(changed.stdout) &&
+      changed.stdout.includes(expectedHead) &&
+      changed.stdout.includes(changedHead) &&
+      changedMerges.length === 0 &&
+      (!coverageAware || !changedCalls.some((argv) => argv.includes("--admin"))),
+    `exit ${changed.status}\n     stdout: ${changed.stdout.trim()}\n     stderr: ${changed.stderr.trim()}\n     calls: ${JSON.stringify(changedCalls)}`,
+  )
+
+  const mergeRaceLog = join(root, `${file}-merge-race.log`)
+  const mergeRace = run(file, ["--expected-head", `615=${expectedHead}`, "thomasluizon/orbit-ui-mobile", "615"], {
+    env: mergeSweepEnv({
+      changedHead,
+      head: expectedHead,
+      log: mergeRaceLog,
+      moveAtMerge: true,
+      sonar: coverageAware ? "coverage-failure" : "success",
+      state: coverageAware ? "BLOCKED" : "CLEAN",
+    }),
+  })
+  const mergeRaceCalls = mergeSweepCalls(mergeRaceLog)
+  const mergeRaceMerges = mergeRaceCalls.filter(([group, command]) => group === "pr" && command === "merge")
+  T(
+    `${file}: atomic merge refusal reports a last-moment head change`,
+    mergeRace.status === 0 &&
+      /SKIP #615 HEAD-MOVED/.test(mergeRace.stdout) &&
+      mergeRace.stdout.includes(expectedHead) &&
+      mergeRace.stdout.includes(changedHead) &&
+      mergeRaceMerges.length === 1 &&
+      (!coverageAware || mergeRaceMerges[0].includes("--admin")),
+    `exit ${mergeRace.status}\n     stdout: ${mergeRace.stdout.trim()}\n     stderr: ${mergeRace.stderr.trim()}\n     calls: ${JSON.stringify(mergeRaceCalls)}`,
+  )
+
+  const bareLog = join(root, `${file}-bare.log`)
+  const bare = run(file, ["thomasluizon/orbit-ui-mobile", "615"], {
+    env: mergeSweepEnv({ head: changedHead, log: bareLog }),
+  })
+  const bareMerges = mergeSweepCalls(bareLog).filter(([group, command]) => group === "pr" && command === "merge")
+  T(
+    `${file}: invocation without expected head still merges`,
+    bare.status === 0 && /MERGED #615/.test(bare.stdout) && bareMerges.length === 1,
+    `exit ${bare.status}\n     stdout: ${bare.stdout.trim()}\n     stderr: ${bare.stderr.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(bareLog))}`,
+  )
+}
+
 const gateCases = {
+  "merge-sweep.sh": () => mergeSweepCases("merge-sweep.sh"),
+  "merge-sweep-cov.sh": () => mergeSweepCases("merge-sweep-cov.sh"),
   "new-ticket.mjs": () => {
     const argv = ["--title", "Cover the create and validate round trip", "--project", "Backlog"]
     check("new-ticket.mjs", "validates the identifier orca reported", argv, { status: 0, stdout: /ticket ok/ }, { env: orcaEnv(newTicketStub(CREATED_OK, VALID_ISSUE)) })

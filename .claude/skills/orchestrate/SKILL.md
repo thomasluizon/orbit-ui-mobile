@@ -390,7 +390,7 @@ Record this final `headRefOid` as the expected head, then invoke the strict swee
 ONE PR at a time from the repository root:
 
 ```bash
-bash tools/merge-sweep.sh <owner/repo> <pr-number>
+bash tools/merge-sweep.sh --expected-head <pr-number>=<expected-head-sha> <owner/repo> <pr-number>
 ```
 
 One PR at a time is load-bearing, not a style choice. Serialising each preflight and
@@ -400,14 +400,11 @@ merged. It does not control independent merge actors:
 `.github/workflows/dependabot-auto-merge.yml` can advance the base through a
 repository-level auto-merge.
 
-That independent actor leaves a residual race. Between the final `CLEAN` read and the
-script's own `gh pr update-branch`, a Dependabot auto-merge can advance the base. The
-script will then update the candidate and can merge a head the skill-owned gates never
-saw. The post-hoc expected-head comparison detects this outcome but cannot prevent it.
-Closing the gap requires `tools/merge-sweep.sh` to accept an expected head SHA and
-refuse to merge if updating or polling changes it. Thomas's decision for this ticket
-puts that script change out of scope, so this PR documents the gap and the closing
-report carries it to Thomas as a decision.
+That independent actor can advance the base between the final `CLEAN` read and the
+script's own `gh pr update-branch`. Passing the expected head closes that race: the
+script re-reads the head after updating and during every poll, skips with both SHAs if
+it changed, and supplies `--match-head-commit` to GitHub at the merge call so the
+server refuses a last-moment change.
 
 The script owns the remaining mechanical merge decision. It repeats the branch update
 as a safety check, polls `mergeStateStatus`, rejects failed checks, requires

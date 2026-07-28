@@ -24,13 +24,17 @@ usage() {
   cat <<EOF
 Coverage-aware merge sweep: squash-merge each APPROVED, green PR server-side.
 
-Usage: merge-sweep-cov.sh <owner/repo> <pr-number>...
+Usage: merge-sweep-cov.sh [--expected-head <pr-number>=<sha>]... <owner/repo> <pr-number>...
        merge-sweep-cov.sh --help
 
 Per PR it update-branches, polls until the merge state is decidable, then merges:
   Sonar SUCCESS or absent           -> squash merge
   Sonar FAILURE, new-code coverage  -> admin squash merge (coverage-only override)
   Sonar FAILURE, anything else      -> SKIP
+
+An --expected-head mapping pins that PR to the supplied head SHA. Without one, the current
+head SHA is captured before update-branch. Any later head change skips the PR, and the merge
+API atomically matches the expected SHA.
 
 It refuses to merge while the \`$REVIEW_CHECK_NAME\` check for the CURRENT head SHA is still
 running, and re-reads reviewDecision after that check settles, so a pre-update APPROVED can
@@ -47,12 +51,59 @@ Exit codes: 0 every merged head verified clean; 1 at least one orphaned head bra
 EOF
 }
 
-case "${1:-}" in
-  -h | --help)
-    usage
-    exit 0
-    ;;
-esac
+expected_head_mappings=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -h | --help)
+      usage
+      exit 0
+      ;;
+    --expected-head)
+      if [ "$#" -lt 2 ]; then
+        printf 'merge-sweep-cov.sh: --expected-head requires <pr-number>=<sha>\n\n' >&2
+        usage >&2
+        exit 2
+      fi
+      mapping="$2"
+      mapping_pr="${mapping%%=*}"
+      mapping_sha="${mapping#*=}"
+      if [ "$mapping" = "$mapping_pr" ] || [ -z "$mapping_pr" ] || [ -z "$mapping_sha" ]; then
+        printf 'merge-sweep-cov.sh: --expected-head must be <pr-number>=<sha>, got: %s\n\n' "$mapping" >&2
+        usage >&2
+        exit 2
+      fi
+      case "$mapping_pr" in
+        *[!0-9]*) printf 'merge-sweep-cov.sh: expected-head PR must be a number, got: %s\n\n' "$mapping_pr" >&2; usage >&2; exit 2 ;;
+      esac
+      case "$mapping_sha" in
+        *[!0-9a-fA-F]*) printf 'merge-sweep-cov.sh: expected-head SHA must be hexadecimal, got: %s\n\n' "$mapping_sha" >&2; usage >&2; exit 2 ;;
+      esac
+      if [ "${#mapping_sha}" -ne 40 ] && [ "${#mapping_sha}" -ne 64 ]; then
+        printf 'merge-sweep-cov.sh: expected-head SHA must be a full 40- or 64-character commit SHA, got: %s\n\n' "$mapping_sha" >&2
+        usage >&2
+        exit 2
+      fi
+      mapping_sha=$(printf '%s' "$mapping_sha" | tr 'A-F' 'a-f')
+      for existing_mapping in $expected_head_mappings; do
+        if [ "${existing_mapping%%=*}" = "$mapping_pr" ]; then
+          printf 'merge-sweep-cov.sh: duplicate --expected-head mapping for PR %s\n\n' "$mapping_pr" >&2
+          usage >&2
+          exit 2
+        fi
+      done
+      expected_head_mappings="$expected_head_mappings $mapping_pr=$mapping_sha"
+      shift 2
+      ;;
+    --*)
+      printf 'merge-sweep-cov.sh: unknown argument: %s\n\n' "$1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
 if [ "$#" -lt 2 ]; then
   usage >&2
   exit 2
@@ -69,6 +120,18 @@ for pr in "$@"; do
   case "$pr" in
     '' | *[!0-9]*) printf 'merge-sweep-cov.sh: PR arguments must be numbers, got: %s\n\n' "$pr" >&2; usage >&2; exit 2 ;;
   esac
+done
+for mapping in $expected_head_mappings; do
+  mapping_pr="${mapping%%=*}"
+  mapping_requested=""
+  for pr in "$@"; do
+    [ "$pr" = "$mapping_pr" ] && mapping_requested=1
+  done
+  if [ -z "$mapping_requested" ]; then
+    printf 'merge-sweep-cov.sh: expected-head mapping names unrequested PR %s\n\n' "$mapping_pr" >&2
+    usage >&2
+    exit 2
+  fi
 done
 
 # Fails CLOSED: only a lookup that SUCCEEDS and positively shows no review workflow turns the wait
@@ -101,26 +164,63 @@ gate() { # prints  MS \t REVIEW \t NONSONAR_FAILED \t SONARSTATE \t SHA \t REVIE
     })"
 }
 
-squash_merge() { # <pr> <head-sha> <label> [extra gh pr merge flags...]
-  local pr="$1" head_sha="$2" label="$3"
+squash_merge() { # <pr> <expected-head-sha> <label> [extra gh pr merge flags...]
+  local pr="$1" expected="$2" label="$3"
   shift 3
   local branch
   branch=$(gh pr view "$pr" --repo "$repo" --json headRefName --jq .headRefName 2>/dev/null)
-  if gh pr merge "$pr" --repo "$repo" --squash --delete-branch "$@" >/dev/null 2>&1; then
+  if gh pr merge "$pr" --repo "$repo" --squash --delete-branch --match-head-commit "$expected" "$@" >/dev/null 2>&1; then
     echo "MERGED #$pr ($label)"
     # `^` is illegal in a refname, so it cannot collide with a branch name.
-    merged_heads="$merged_heads $pr^$branch^$head_sha"
+    merged_heads="$merged_heads $pr^$branch^$expected"
     return 0
+  fi
+  actual=$(head_oid "$pr")
+  if [ "$actual" != "$expected" ]; then
+    echo "SKIP #$pr HEAD-MOVED expected=$expected actual=$actual"
+    return 2
   fi
   return 1
 }
 
+head_oid() {
+  gh pr view "$1" --repo "$repo" --json headRefOid --jq .headRefOid 2>/dev/null
+}
+
+expected_head_for() {
+  local requested_pr="$1"
+  for mapping in $expected_head_mappings; do
+    if [ "${mapping%%=*}" = "$requested_pr" ]; then
+      printf '%s' "${mapping#*=}"
+      return
+    fi
+  done
+}
+
 for n in "$@"; do
+  expected=$(expected_head_for "$n")
+  if [ -z "$expected" ]; then
+    expected=$(head_oid "$n")
+  fi
+  if [ -z "$expected" ]; then
+    echo "SKIP #$n HEAD-MOVED expected=<unavailable> actual=<unavailable>"
+    continue
+  fi
   gh pr update-branch "$n" --repo "$repo" >/dev/null 2>&1
+  actual=$(head_oid "$n")
+  if [ "$actual" != "$expected" ]; then
+    echo "SKIP #$n HEAD-MOVED expected=$expected actual=$actual"
+    continue
+  fi
   done_pr=""
   block_reason="no decidable merge state"
   for i in $(seq 1 45); do # ~15 min per PR
     IFS=$'\t' read -r ms rev nonsonar sonar sha reviewcheck < <(gate "$n")
+    if [ "$sha" != "$expected" ]; then
+      echo "SKIP #$n HEAD-MOVED expected=$expected actual=$sha"
+      done_pr=1
+      break
+    fi
     if [ "$rev" != "APPROVED" ]; then
       echo "SKIP #$n review=$rev"
       done_pr=1
@@ -139,6 +239,12 @@ for n in "$@"; do
     if [ "$ms" = "BEHIND" ]; then
       block_reason="still BEHIND main after update-branch"
       gh pr update-branch "$n" --repo "$repo" >/dev/null 2>&1
+      actual=$(head_oid "$n")
+      if [ "$actual" != "$expected" ]; then
+        echo "SKIP #$n HEAD-MOVED expected=$expected actual=$actual"
+        done_pr=1
+        break
+      fi
       sleep 20
       continue
     fi
@@ -155,7 +261,9 @@ for n in "$@"; do
     if [ "$sonar" = "FAILURE" ]; then
       summary=$(gh api "repos/$repo/commits/$sha/check-runs" --jq '.check_runs[] | select(.name=="SonarCloud Code Analysis") | .output.summary' 2>/dev/null)
       if printf '%s' "$summary" | grep -qi "Coverage on New Code" && ! printf '%s' "$summary" | grep -qiE "New Bugs|Bugs |Vulnerabilit|Security Hotspots|Security Rating|Code Smell|Duplicat|Maintainability Rating|Reliability Rating"; then
-        squash_merge "$n" "$sha" "admin: coverage-only override" --admin || echo "FAIL-ADMIN #$n"
+        squash_merge "$n" "$expected" "admin: coverage-only override" --admin
+        merge_status=$?
+        [ "$merge_status" -eq 0 ] || [ "$merge_status" -eq 2 ] || echo "FAIL-ADMIN #$n"
       else
         echo "SKIP #$n Sonar fails on MORE than coverage, needs a real fix"
       fi
@@ -163,7 +271,12 @@ for n in "$@"; do
       break
     fi
     if { [ "$ms" = "CLEAN" ] || [ "$ms" = "UNSTABLE" ]; } && { [ "$sonar" = "SUCCESS" ] || [ "$sonar" = "NONE" ]; }; then
-      if squash_merge "$n" "$sha" "clean"; then
+      squash_merge "$n" "$expected" "clean"
+      merge_status=$?
+      if [ "$merge_status" -eq 0 ]; then
+        done_pr=1
+        break
+      elif [ "$merge_status" -eq 2 ]; then
         done_pr=1
         break
       fi
