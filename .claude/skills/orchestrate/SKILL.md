@@ -1,6 +1,6 @@
 ---
 name: orchestrate
-description: Linear project, single ticket, or explicit ticket set in, reviewed PRs out, wave by wave. Computes the merge-gated DAG with tools/wave-plan.mjs, reconciles each ticket against the code (D8), launches one Orca worktree + worker per ticket (engine from .claude/orchestrator.json, claude or codex), babysits CI and review, enforces the evidence gate (D7) and two-strikes (D9), then tears down each worktree immediately after verified Done. A human merge is the only thing that advances a wave (D3), unless --sleep is passed. Scope is the whole project for a name or one ticket argument, one ticket under --single, or exactly the named tickets when two or more are supplied. Use after /feature or /bug created the tickets.
+description: Linear project, single ticket, or explicit ticket set in, reviewed PRs out, wave by wave. Computes the merge-gated DAG with tools/wave-plan.mjs, reconciles each ticket against the code (D8), launches one Orca worktree + worker per ticket (engine from .claude/orchestrator.json, claude or codex), babysits CI and review, enforces the evidence gate (D7) and two-strikes (D9), then tears down each worktree immediately after verified Done. A human merge is the only thing that advances a wave (D3), unless --sleep is passed. Scope is the whole project for a name or one ticket argument, one ticket under --single, or exactly the named tickets when two or more are supplied. Use after /feature or /ticket created the tickets.
 argument-hint: <Linear project name | ORB-N [ORB-N ...]> [--single] [--sleep]
 effort: high
 ---
@@ -66,6 +66,17 @@ against the full team DAG while displaying only the requested members. Refuse ea
 blocked member with every unmerged blocker named, and continue with the other
 launchable members. Apply sections 1 through 3 and every D7, D8, D9 and
 `check-ticket.mjs` gate independently to each member that proceeds.
+
+## 0a. Prove scope completeness before any worker starts
+
+For every ticket this run may launch, read and execute
+`.claude/skills/_shared/scope-completeness.md` against its target repo and the brain vault.
+Print that ticket's list before any worker starts and append it verbatim to the worker
+prompt. Before dispatch, every affected occurrence must be identified as a checkbox entry,
+and every entry must be accounted for by assigning it to a specific ticket in this run or
+explicitly marking it out of scope with a reason. An unchecked box is the normal
+pre-dispatch state: it tracks completion and is checked by the implementation worker as the
+work lands. No ticket reaches dispatch with an omitted category or an unaccounted entry.
 
 ## 1. Reconcile before dispatch (D8)
 

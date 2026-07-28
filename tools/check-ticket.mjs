@@ -38,6 +38,7 @@ const REQUIRED_SECTIONS = [
 
 /** D4: one ticket = one repo. repo:both is a defect, not a label. */
 const REPO_LABELS = ["repo:ui", "repo:api", "repo:landing"]
+const TYPE_LABELS = ["Feature", "Bug", "Improvement"]
 
 const problems = []
 const require_ = (condition, message) => {
@@ -68,6 +69,16 @@ const validateBody = (body) => {
   }
 }
 
+const mentionsIssueDependency = (body) => {
+  const dependencySection = body
+    .split(/(?=^#+[ \t]+)/m)
+    .find((section) => /^#+\s*dependencies\b/im.test(section))
+  const dependencyProse = dependencySection?.replace(/^#+[^\n]*(?:\n|$)/, "") ?? ""
+  const issueIdentifier = /\b[A-Z][A-Z0-9]+-\d+\b/
+  const signalNamingIssue = /\b(after|once|depends on|blocked by)\b[^\n.!?]{0,80}\b[A-Z][A-Z0-9]+-\d+\b/i
+  return issueIdentifier.test(dependencyProse) || signalNamingIssue.test(body)
+}
+
 const validateTitle = (title) => {
   require_(title.length >= 12, "title too short to be executable")
   require_(!/\b(maybe|somehow|stuff|things|misc)\b/i.test(title), "title is vague")
@@ -76,7 +87,9 @@ const validateTitle = (title) => {
 
 const validateLabels = (labels) => {
   const repoLabels = labels.filter((label) => REPO_LABELS.includes(label))
+  const typeLabels = labels.filter((label) => TYPE_LABELS.includes(label))
   require_(repoLabels.length === 1, `exactly ONE repo label required (${REPO_LABELS.join(", ")}); found: ${repoLabels.join(", ") || "none"}. Cross-repo work is TWO tickets, api blocks ui (D4)`)
+  require_(typeLabels.length === 1, `exactly ONE type label required (${TYPE_LABELS.join(", ")}); found: ${typeLabels.join(", ") || "none"}. Type is explicit, never guessed`)
   require_(!labels.includes("repo:both"), "repo:both is banned (D4): split into an api ticket that blocks a ui ticket")
   if (repoLabels[0] === "repo:ui") {
     require_(
@@ -115,9 +128,7 @@ if (mode === "--file") {
   validateLabels(labels)
   const relations = parsedResult.relations ?? issue.relations ?? []
   const blockedBy = relations.filter((r) => r.relationship === "blockedBy" || r.type === "blockedBy")
-  const namesIssueDependency =
-    /\b(?:after|once|depends on|blocked by)\s+(?:issue\s+)?(?:`|\[)?[A-Z]+-\d+\b/i.test(body)
-  if (namesIssueDependency && blockedBy.length === 0) {
+  if (mentionsIssueDependency(body) && blockedBy.length === 0) {
     problems.push("body PROSE mentions a dependency but the issue has no blockedBy relation; the DAG is explicit, never inferred from titles (6.2)")
   }
 } else {
