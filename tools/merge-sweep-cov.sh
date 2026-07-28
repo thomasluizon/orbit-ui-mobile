@@ -24,7 +24,9 @@ usage() {
   cat <<EOF
 Coverage-aware merge sweep: squash-merge each APPROVED, green PR server-side.
 
-Usage: merge-sweep-cov.sh [--expected-head <pr-number>=<sha>]... <owner/repo> <pr-number>...
+Usage: merge-sweep-cov.sh [--expected-head <pr-number>=<sha>]...
+                          [--reviewed-through <pr-number>=<iso-timestamp>]...
+                          <owner/repo> <pr-number>...
        merge-sweep-cov.sh --help
 
 Per PR it update-branches, polls until the merge state is decidable, then merges:
@@ -35,6 +37,10 @@ Per PR it update-branches, polls until the merge state is decidable, then merges
 An --expected-head mapping pins that PR to the supplied head SHA. Without one, the current
 head SHA is captured before update-branch. Any later head change skips the PR, and the merge
 API atomically matches the expected SHA.
+
+Before any merge, --reviewed-through must name the latest instant through which that PR's
+reviews and issue comments were inspected. A newer item, an unresolved review thread, a missing
+mapping, or a failed lookup skips the PR. Repeat the flag once per PR.
 
 It refuses to merge while the \`$REVIEW_CHECK_NAME\` check for the CURRENT head SHA is still
 running, and re-reads reviewDecision after that check settles, so a pre-update APPROVED can
@@ -52,6 +58,7 @@ EOF
 }
 
 expected_head_mappings=""
+reviewed_through_mappings=""
 while [ "$#" -gt 0 ]; do
   case "$1" in
     -h | --help)
@@ -94,6 +101,38 @@ while [ "$#" -gt 0 ]; do
       expected_head_mappings="$expected_head_mappings $mapping_pr=$mapping_sha"
       shift 2
       ;;
+    --reviewed-through)
+      if [ "$#" -lt 2 ]; then
+        printf 'merge-sweep-cov.sh: --reviewed-through requires <pr-number>=<iso-timestamp>\n\n' >&2
+        usage >&2
+        exit 2
+      fi
+      mapping="$2"
+      mapping_pr="${mapping%%=*}"
+      mapping_timestamp="${mapping#*=}"
+      if [ "$mapping" = "$mapping_pr" ] || [ -z "$mapping_pr" ] || [ -z "$mapping_timestamp" ]; then
+        printf 'merge-sweep-cov.sh: --reviewed-through must be <pr-number>=<iso-timestamp>, got: %s\n\n' "$mapping" >&2
+        usage >&2
+        exit 2
+      fi
+      case "$mapping_pr" in
+        *[!0-9]*) printf 'merge-sweep-cov.sh: reviewed-through PR must be a number, got: %s\n\n' "$mapping_pr" >&2; usage >&2; exit 2 ;;
+      esac
+      if ! node -e 'const value=process.argv[1];if(!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)$/.test(value)||!Number.isFinite(Date.parse(value)))process.exit(1)' "$mapping_timestamp"; then
+        printf 'merge-sweep-cov.sh: reviewed-through must be an ISO timestamp, got: %s\n\n' "$mapping_timestamp" >&2
+        usage >&2
+        exit 2
+      fi
+      for existing_mapping in $reviewed_through_mappings; do
+        if [ "${existing_mapping%%=*}" = "$mapping_pr" ]; then
+          printf 'merge-sweep-cov.sh: duplicate --reviewed-through mapping for PR %s\n\n' "$mapping_pr" >&2
+          usage >&2
+          exit 2
+        fi
+      done
+      reviewed_through_mappings="$reviewed_through_mappings $mapping_pr=$mapping_timestamp"
+      shift 2
+      ;;
     --*)
       printf 'merge-sweep-cov.sh: unknown argument: %s\n\n' "$1" >&2
       usage >&2
@@ -133,6 +172,18 @@ for mapping in $expected_head_mappings; do
     exit 2
   fi
 done
+for mapping in $reviewed_through_mappings; do
+  mapping_pr="${mapping%%=*}"
+  mapping_requested=""
+  for pr in "$@"; do
+    [ "$pr" = "$mapping_pr" ] && mapping_requested=1
+  done
+  if [ -z "$mapping_requested" ]; then
+    printf 'merge-sweep-cov.sh: reviewed-through mapping names unrequested PR %s\n\n' "$mapping_pr" >&2
+    usage >&2
+    exit 2
+  fi
+done
 
 # Fails CLOSED: only a lookup that SUCCEEDS and positively shows no review workflow turns the wait
 # off, so an auth/rate-limit/network hiccup costs a slower sweep rather than the guard itself.
@@ -164,11 +215,104 @@ gate() { # prints  MS \t REVIEW \t NONSONAR_FAILED \t SONARSTATE \t SHA \t REVIE
     })"
 }
 
+reviewed_through_for() { # <pr>; stdout: supplied review cutoff
+  local sought_pr="$1" mapping
+  for mapping in $reviewed_through_mappings; do
+    if [ "${mapping%%=*}" = "$sought_pr" ]; then
+      printf '%s' "${mapping#*=}"
+      return
+    fi
+  done
+}
+
+newest_review_item_after() { # <cutoff>; author/timestamp TSV on stdin; exit 1 with newest item, 2 if malformed
+  node -e '
+    const cutoff=Date.parse(process.argv[1]);
+    let input="";
+    process.stdin.on("data",chunk=>input+=chunk).on("end",()=>{
+      if(!Number.isFinite(cutoff)){process.exitCode=2;return}
+      let newest;
+      for(const line of input.split(/\r?\n/).filter(Boolean)){
+        const fields=line.split("\t");
+        if(fields.length!==2||!fields[0]||!fields[1]){process.exitCode=2;return}
+        const instant=Date.parse(fields[1]);
+        if(!Number.isFinite(instant)){process.exitCode=2;return}
+        if(!newest||instant>newest.instant)newest={author:fields[0],timestamp:fields[1],instant};
+      }
+      if(newest&&newest.instant>cutoff){
+        process.stdout.write(`${newest.author}\t${newest.timestamp}`);
+        process.exitCode=1;
+      }
+    })' "$1"
+}
+
+check_review_items() { # <pr> <source> <cutoff>; author/timestamp TSV on stdin
+  local pr="$1" source="$2" cutoff="$3" newest_item item_status author item_timestamp
+  newest_item="$(newest_review_item_after "$cutoff")"
+  item_status=$?
+  case "$item_status" in
+    0) return 0 ;;
+    1)
+      author="${newest_item%%$'\t'*}"
+      item_timestamp="${newest_item#*$'\t'}"
+      echo "SKIP #$pr NEW-REVIEW-SINCE $cutoff by $author at $item_timestamp"
+      return 1
+      ;;
+    *)
+      echo "SKIP #$pr REVIEW-LOOKUP-FAILED source=$source"
+      return 1
+      ;;
+  esac
+}
+
+review_safety_gate() { # <pr>; prints the fail-closed SKIP reason
+  local pr="$1" reviewed_through unresolved review_items comment_items
+  reviewed_through="$(reviewed_through_for "$pr")"
+  if [ -z "$reviewed_through" ]; then
+    echo "SKIP #$pr REVIEW-LOOKUP-FAILED source=reviewed-through"
+    return 1
+  fi
+  if ! unresolved=$(gh api graphql \
+    -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){reviewThreads(first:100){nodes{isResolved} pageInfo{hasNextPage}}}}}' \
+    -F o="${repo%%/*}" -F r="${repo##*/}" -F n="$pr" \
+    --jq '.data.repository.pullRequest.reviewThreads | if .pageInfo.hasNextPage then "PAGINATED" else ([.nodes[] | select(.isResolved == false)] | length) end' 2>/dev/null); then
+    echo "SKIP #$pr REVIEW-LOOKUP-FAILED source=reviewThreads"
+    return 1
+  fi
+  case "$unresolved" in
+    '' | *[!0-9]*)
+      echo "SKIP #$pr REVIEW-LOOKUP-FAILED source=reviewThreads"
+      return 1
+      ;;
+  esac
+  if [ "$unresolved" -ne 0 ]; then
+    echo "SKIP #$pr UNRESOLVED-THREADS=$unresolved"
+    return 1
+  fi
+  if ! review_items=$(gh pr view "$pr" --repo "$repo" --json reviews --jq '.reviews[] | [.author.login, .submittedAt] | @tsv' 2>/dev/null); then
+    echo "SKIP #$pr REVIEW-LOOKUP-FAILED source=reviews"
+    return 1
+  fi
+  if ! printf '%s\n' "$review_items" | check_review_items "$pr" reviews "$reviewed_through"; then
+    return 1
+  fi
+  if ! comment_items=$(gh api "repos/$repo/issues/$pr/comments" --paginate --jq '.[] | [.user.login, .created_at] | @tsv' 2>/dev/null); then
+    echo "SKIP #$pr REVIEW-LOOKUP-FAILED source=issue-comments"
+    return 1
+  fi
+  if ! printf '%s\n' "$comment_items" | check_review_items "$pr" issue-comments "$reviewed_through"; then
+    return 1
+  fi
+}
+
 squash_merge() { # <pr> <expected-head-sha> <label> [extra gh pr merge flags...]
   local pr="$1" expected="$2" label="$3"
   shift 3
   local branch
   branch=$(gh pr view "$pr" --repo "$repo" --json headRefName --jq .headRefName 2>/dev/null)
+  if ! review_safety_gate "$pr"; then
+    return 2
+  fi
   if gh pr merge "$pr" --repo "$repo" --squash --delete-branch --match-head-commit "$expected" "$@" >/dev/null 2>&1; then
     echo "MERGED #$pr ($label)"
     # `^` is illegal in a refname, so it cannot collide with a branch name.

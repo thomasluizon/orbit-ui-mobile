@@ -364,7 +364,13 @@ cannot decide for one PR, all against that recorded head:
    merged both defects. One of the two was a real mechanical break that the blocking
    reviewer had missed entirely.
 
-   So enumerate them yourself, from BOTH endpoints, because they are different objects:
+   Immediately before this enumeration, record the current UTC time in ISO-8601
+   format as the reconciliation timestamp. Taking it before the lookups is
+   deliberate: a review or comment that races the enumeration is newer than this
+   boundary, so the merge tool can refuse it rather than treating the lookup as a
+   clean snapshot.
+
+   Then enumerate them yourself, from BOTH endpoints, because they are different objects:
    `gh api repos/<owner>/<repo>/pulls/<n>/comments` (inline threads) and
    `gh pr view <n> --json reviews` (review bodies, including `COMMENTED` ones). Then each
    comment ends in exactly one of two states:
@@ -412,13 +418,19 @@ when the state is `CLEAN`. If it is `BEHIND`, do not invoke the script: update t
 wait for the new head, and repeat conditions 1 to 6 against it. If the head moved at any
 point after the conditions ran, discard their results and repeat the same update-first
 sequence. Every repeat includes re-enumerating review bodies, inline comments and
-unresolved review threads; the merge script cannot do that.
+unresolved review threads, and records a fresh reconciliation timestamp only after
+starting that new enumeration. The merge script independently checks the thread and
+activity boundaries again immediately before merging.
 
-Record this final `headRefOid` as the expected head, then invoke the strict sweep for
-ONE PR at a time from the repository root:
+Record this final `headRefOid` as the expected head and keep the reconciliation
+timestamp beside it as `reviewed-through`. Then invoke the strict sweep for ONE PR
+at a time from the repository root:
 
 ```bash
-bash tools/merge-sweep.sh --expected-head <pr-number>=<expected-head-sha> <owner/repo> <pr-number>
+bash tools/merge-sweep.sh \
+  --expected-head <pr-number>=<expected-head-sha> \
+  --reviewed-through <pr-number>=<ISO-8601-timestamp> \
+  <owner/repo> <pr-number>
 ```
 
 One PR at a time is load-bearing, not a style choice. Serialising each preflight and
@@ -437,10 +449,12 @@ server refuses a last-moment change.
 The script owns the remaining mechanical merge decision. It repeats the branch update
 as a safety check, polls `mergeStateStatus`, rejects failed checks, requires
 `reviewDecision=APPROVED`, waits for the `review` check on the current head SHA to
-settle, re-reads the decision after updates, squash-merges without `--admin`, deletes
-the branch, and checks that a merged head did not move afterwards. Its workflow lookup
-fails closed: if it cannot prove the repository has no review workflow, the
-current-head review wait stays enabled.
+settle, re-reads the decision after updates, and immediately before merging re-checks
+that every review thread is resolved and that no review or issue comment is newer
+than `reviewed-through`. Both review lookups fail closed. It then squash-merges
+without `--admin`, deletes the branch, and checks that a merged head did not move
+afterwards. Its workflow lookup also fails closed: if it cannot prove the repository
+has no review workflow, the current-head review wait stays enabled.
 
 `--sleep` always invokes `tools/merge-sweep.sh`. It never invokes
 `tools/merge-sweep-cov.sh`: that variant can use `--admin` to override a SonarCloud
@@ -450,14 +464,19 @@ closing report. The coverage variant is an attended choice outside `--sleep`, ma
 only by a human deliberately invoking:
 
 ```bash
-bash tools/merge-sweep-cov.sh <owner/repo> <pr-number>...
+bash tools/merge-sweep-cov.sh \
+  --reviewed-through <pr-number>=<ISO-8601-timestamp> \
+  <owner/repo> <pr-number>
 ```
 
 Read the script's per-PR output, not only its process exit code. `MERGED #<n>` is the
-merge result; `SKIP` or `MERGE-REFUSED` leaves that PR open and supplies its stopped
-reason. Exit `0` also covers a completed sweep that skipped a PR. A non-zero exit
-reports an orphaned or unverifiable merged head, so re-read the affected PR state and
-record it as a harness defect rather than claiming the PR remained unmerged.
+merge result. `SKIP #<n> UNRESOLVED-THREADS=<count>`,
+`SKIP #<n> NEW-REVIEW-SINCE ...`, either named review-lookup failure, any other
+`SKIP`, or `MERGE-REFUSED` leaves that PR open and supplies its stopped reason.
+Exit `0` also covers a completed sweep that skipped a PR. Exit `1` reports an
+orphaned merged head, exit `2` bad usage, and exit `3` an unverifiable merged head;
+for a non-zero exit, re-read the affected PR state and record it as a harness defect
+rather than claiming the PR remained unmerged.
 
 After the script returns, read the PR's `headRefOid` and merge commit. For a `MERGED`
 result, the merged `headRefOid` must equal the expected head that passed conditions 1
