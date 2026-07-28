@@ -384,5 +384,62 @@ const blockedDocs = docPaths.filter((path) => checkLinearMutation(readFileSync(p
 T("linear gate: blocks none of this repo's tracked docs", blockedDocs.map((p) => p.slice(repoRoot.length + 1)), [])
 T("linear gate: the doc scan actually read files", docPaths.length > 0, true)
 
+// A DOCUMENT is judged per chunk, so a mutation against another service does not
+// inherit a Linear endpoint documented elsewhere in the same file. Measured
+// 2026-07-27 on `.claude/skills/orchestrate/SKILL.md`, which has documented the
+// Linear project-overview READ since D36: adding a GitHub `resolveReviewThread`
+// mutation turned the whole file red even though `gh api graphql` cannot reach
+// Linear. The three cases below are that regression, its fail-closed twin, and
+// the single-command form that must not change.
+const otherServiceMutation = [
+  "Read the project overview by POSTing to https://api.linear.app/graphql with",
+  "query \\`project(id: \"<id>\") { name content }\\`.",
+  "",
+  "Resolve the review thread:",
+  "",
+  "```bash",
+  "gh api graphql -f query='mutation{resolveReviewThread(input:{threadId:\"X\"}){thread{isResolved}}}'",
+  "```",
+].join("\n")
+T("linear gate: a GitHub mutation does not inherit a Linear endpoint elsewhere in the doc", checkLinearMutation(otherServiceMutation), null)
+
+const linearMutationInDoc = [
+  "Some prose about tickets that mentions nothing in particular.",
+  "",
+  "```bash",
+  "curl https://api.linear.app/graphql -d '{\"query\":\"mutation{issueUpdate(id:\\\"x\\\"){success}}\"}'",
+  "```",
+].join("\n")
+T("linear gate: still blocks a real Linear mutation inside one chunk of a doc", checkLinearMutation(linearMutationInDoc)?.block, true)
+
+T(
+  "linear gate: a single-command string is still judged whole",
+  checkLinearMutation("curl https://api.linear.app/graphql -d '{\"query\":\"mutation{issueDelete(id:\\\"x\\\"){success}}\"}'")?.block,
+  true,
+)
+
+// The regression a reviewer caught on the FIRST version of the per-chunk scan,
+// which kept only the chunks carrying the endpoint. A Bash tool_input.command can
+// contain a blank line, so the URL landed in one chunk and the mutation field in
+// the next, and dropping the second let a genuine Linear write through as null.
+// This is the case that must stay blocked forever: it is the call site that
+// matters most, an actual command about to run.
+const splitCommand = [
+  'curl -s https://api.linear.app/graphql -d \'{"query":"mutation {',
+  "",
+  'issueCreate(input:{title:"x"}) { success }',
+  '}"}\'',
+].join("\n")
+T("linear gate: a mutation split from its endpoint by a blank line still blocks", checkLinearMutation(splitCommand)?.block, true)
+
+const splitAcrossFence = [
+  "Post to https://api.linear.app/graphql:",
+  "",
+  "```bash",
+  'curl -d \'{"query":"mutation{issueArchive(id:\\"x\\"){success}}"}\'',
+  "```",
+].join("\n")
+T("linear gate: a mutation in a different chunk from the endpoint still blocks", checkLinearMutation(splitAcrossFence)?.block, true)
+
 console.log(`\n${fails === 0 ? "ORBIT HOOK PARITY OK" : `ORBIT HOOK PARITY FAILED (${fails})`}`)
 process.exit(fails === 0 ? 0 : 1)

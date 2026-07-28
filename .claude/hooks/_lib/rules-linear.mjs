@@ -177,10 +177,86 @@ project overview document, which orca also cannot do.
 `
 }
 
+// A COMMAND is one string and judging it whole is right. A DOCUMENT is not: this
+// same gate scans every tracked `.md`, and there it was asking "does this file
+// mention api.linear.app anywhere?" and then scanning the ENTIRE file for
+// mutation fields. Any mutation against any other service, anywhere in a document
+// that also documents a Linear read, was reported as a raw Linear write.
+//
+// Measured 2026-07-27: `.claude/skills/orchestrate/SKILL.md` has documented the
+// Linear project-overview READ (`POST https://api.linear.app/graphql`) since D36.
+// Adding a GitHub `gh api graphql -f query='mutation{resolveReviewThread(...)}'`
+// elsewhere in the same file turned the whole doc red, and `gh api graphql`
+// cannot target Linear at all.
+//
+// The fix is subtractive, never selective, and that distinction is the whole
+// rule. The first attempt scanned ONLY the chunks carrying the endpoint, and a
+// reviewer caught it opening a real hole: `tool_input.command` for a Bash call
+// CAN contain a blank line (a multi-line curl, an inline JSON payload split for
+// readability), so the URL landed in one chunk and `issueCreate` in the next, and
+// dropping the second chunk let a genuine Linear write through as `null`.
+// Reproduced by hand before this rewrite:
+//
+//   curl -s https://api.linear.app/graphql -d '{"query":"mutation {
+//   <blank>
+//   issueCreate(input:{title:"x"}) { success }
+//   }"}'                                        -> ALLOWED, pre-fix behaviour BLOCKED
+//
+// So the default is unchanged and total: scan the whole text. A chunk is removed
+// only on POSITIVE evidence that it targets something else, which today means it
+// invokes `gh api graphql` and does not itself name the Linear host. The GitHub
+// CLI cannot reach Linear, so that pairing is proof rather than a heuristic, and
+// anything unrecognised keeps being scanned. Chunks are fenced code blocks (kept
+// whole, blank lines inside a fence do NOT split them) and, outside fences,
+// blank-line-separated prose.
+const OTHER_CLIENT = /\bgh\s+api\s+graphql\b/
+function endpointChunks(text) {
+  if (!text.includes("\n")) return [text]
+  const chunks = []
+  let fence = null
+  let current = []
+  const flush = () => {
+    if (current.length) chunks.push(current.join("\n"))
+    current = []
+  }
+  for (const line of text.split(/\r?\n/)) {
+    const marker = /^\s*(`{3,}|~{3,})/.exec(line)
+    if (fence) {
+      current.push(line)
+      if (marker && line.trim().startsWith(fence)) {
+        fence = null
+        flush()
+      }
+      continue
+    }
+    if (marker) {
+      flush()
+      fence = marker[1]
+      current.push(line)
+      continue
+    }
+    if (line.trim() === "") flush()
+    else current.push(line)
+  }
+  flush()
+  // An unterminated fence leaves its lines in the final chunk, which is still
+  // scanned. Nothing is dropped: every line reaches exactly one chunk.
+  return chunks
+}
+
+// A no-newline string is one chunk, so a single-line command is untouched by any
+// of this. A MULTI-line command is chunked like a document, which is safe only
+// because the filter subtracts on positive evidence: a curl split across a blank
+// line keeps every chunk, since none of them invokes another client.
+
 /** Verdict for a shell command about to run, or null to allow. */
 export function checkLinearMutation(text) {
   if (typeof text !== "string" || !ENDPOINT.test(text)) return null
-  const fields = OPAQUE_PAYLOAD.test(text) ? null : mutationFields(text)
+  // Subtract only what is PROVABLY another service. Everything else, including
+  // every chunk this function does not recognise, stays in the scan.
+  const kept = endpointChunks(text).filter((chunk) => !(OTHER_CLIENT.test(chunk) && !ENDPOINT.test(chunk)))
+  const scanned = kept.join("\n")
+  const fields = OPAQUE_PAYLOAD.test(scanned) ? null : mutationFields(scanned)
   if (fields === null) {
     return {
       block: true,
