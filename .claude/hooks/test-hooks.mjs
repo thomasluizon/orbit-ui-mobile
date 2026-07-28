@@ -398,6 +398,20 @@ for (const prose of [
 T("cc raw-tool: ambiguous bare npx name -> 0", runHook(RAW_TOOL_HOOK, stopPayload("The package is invoked as npx cowsay.")), 0)
 T("cc raw-tool: npx package followed by a flag -> 2", runHook(RAW_TOOL_HOOK, stopPayload("Next: npx eslint --fix")), 2)
 T("cc raw-tool: imperative npx with positional arguments -> 2", runHook(RAW_TOOL_HOOK, stopPayload("Run npx prisma generate now")), 2)
+for (const [label, command] of [
+  ["assigned package and call options", "npx --package=@orbit/cli -c 'orbit check'"],
+  ["separate package option value", "npx -p typescript tsc --noEmit"],
+  ["assigned workspace option", "npx --workspace=apps/web run build"],
+  ["short quoted call option", "npx -c 'orbit check'"],
+  ["long quoted call option", 'npx --call "orbit check"'],
+]) {
+  T(`cc raw-tool: flag-first ${label} -> 2`, runHook(RAW_TOOL_HOOK, stopPayload(command)), 2)
+}
+T(
+  "cc raw-tool: explanatory npx option mention -> 0",
+  runHook(RAW_TOOL_HOOK, stopPayload("The npx --package option tells npx which package to install.")),
+  0,
+)
 
 const bareToolSurfacing = runHookResult(
   RAW_TOOL_HOOK,

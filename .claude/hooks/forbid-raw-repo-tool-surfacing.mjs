@@ -15,7 +15,8 @@ import { filePathFrom, readStdinJson } from "./_lib/io.mjs"
 
 const APPEAL_SUFFIX = /\s+(?:#\s*)?Repo-tool appeal:\s*(\S.*)\s*$/i
 const COMMAND =
-  /(?:node(?:\.exe)?\s+(?:\.?[\\/])?tools[\\/][a-z0-9_./\\-]+\.(?:mjs|cjs|js|ts)|npx(?:\.cmd)?\s+(?:(?:--yes|-y)\s+)?(?:@?[a-z0-9_][a-z0-9_./@-]*)|(?:\.?[\\/])?tools[\\/][a-z0-9_./\\-]+\.sh)(?:[ \t]+[^`\r\n]*)?/i
+  /(?:node(?:\.exe)?\s+(?:\.?[\\/])?tools[\\/][a-z0-9_./\\-]+\.(?:mjs|cjs|js|ts)|(?:\.?[\\/])?tools[\\/][a-z0-9_./\\-]+\.sh)(?:[ \t]+[^`\r\n]*)?/i
+const NPX_COMMAND = /\bnpx(?:\.cmd)?[ \t]+\S[^`\r\n]*/i
 const SHELL_FENCE = /^(?:bash|sh|shell|zsh|powershell|pwsh|cmd|console)?$/i
 const DOCUMENTATION =
   /\b(?:skill body|agent body|ticket body|linear ticket|PR description|pull request description|tool help|internally|under the hood|inside (?:its|the) automation)\b|(?<![\p{L}\p{N}_-])(?:--help|help)[^\p{L}\p{N}_\r\n]+(?:output|text)\b/iu
@@ -40,7 +41,9 @@ function declaredRepoRoots() {
 const REPO_ROOTS = declaredRepoRoots()
 
 function commandMatch(line) {
-  const match = COMMAND.exec(line)
+  const match = [COMMAND.exec(line), NPX_COMMAND.exec(line)]
+    .filter(Boolean)
+    .sort((left, right) => left.index - right.index)[0]
   if (!match) return null
   return { command: match[0].trim().replace(/[.,;:]+$/, ""), index: match.index }
 }
@@ -87,12 +90,59 @@ function splitShellSegments(line) {
   return segments
 }
 
+function npxTokens(command) {
+  return command.match(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[^\s]+/g) ?? []
+}
+
+function npxOptionStates(tokens) {
+  const pending = [{ index: 1, assigned: false, confirmed: false, consumed: false, quoted: false }]
+  const states = []
+  const seen = new Set()
+
+  while (pending.length) {
+    const state = pending.pop()
+    const key = `${state.index}:${state.assigned}:${state.confirmed}:${state.consumed}:${state.quoted}`
+    if (seen.has(key)) continue
+    seen.add(key)
+
+    const option = tokens[state.index]
+    if (!/^-{1,2}[^-]/.test(option ?? "")) {
+      states.push(state)
+      continue
+    }
+
+    pending.push({
+      ...state,
+      index: state.index + 1,
+      assigned: state.assigned || option.includes("="),
+      confirmed: state.confirmed || /^(?:--yes|-y)$/i.test(option),
+    })
+    const value = tokens[state.index + 1]
+    if (option.includes("=") || !value || /^-{1,2}[^-]/.test(value)) continue
+    pending.push({
+      ...state,
+      index: state.index + 2,
+      consumed: true,
+      quoted: state.quoted || /^(['"]).*\1$/.test(value),
+    })
+  }
+
+  return states
+}
+
 function isAmbiguousNpxName(command, insideFence) {
   if (insideFence === "shell") return false
-  const invocation = /^npx(?:\.cmd)?\s+([^\s]+)(?:\s+(.*))?$/i.exec(command)
-  if (!invocation || /^(?:--yes|-y)$/i.test(invocation[1])) return false
-  if (/[./@-]/.test(invocation[1])) return false
-  return !invocation[2]?.trimStart().startsWith("-")
+  const tokens = npxTokens(command)
+  if (!/^npx(?:\.cmd)?$/i.test(tokens[0] ?? "")) return false
+
+  return !npxOptionStates(tokens).some((state) => {
+    if (state.assigned || state.confirmed || state.quoted) return true
+    const packageName = tokens[state.index]
+    if (!packageName) return state.consumed
+    if (/[./@-]/.test(packageName)) return true
+    const argumentsAfterPackage = tokens.slice(state.index + 1)
+    return argumentsAfterPackage[0]?.startsWith("-") || (state.consumed && argumentsAfterPackage.length === 0)
+  })
 }
 
 function surfacedCommands(text) {
