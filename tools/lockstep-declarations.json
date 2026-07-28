@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "files": {
+    ".claude/skills/pr-review/SKILL.md": {
+      "declarations": [
+        {
+          "id": "repository-review-adapters",
+          "justification": "Each repository resolves its own default target, specialist set, validation commands, and report adapters while preserving the shared review contract.",
+          "fingerprints": [
+            "eee5b4a66495589846e797c71466365c926bff790d931e8379f65900b20c89c5", "eb1901bcb39cf6c98e1a34e1aa7c474173de4d23b9fd9662816ec3235812e5f9", "50d9f11d57d9c131770f877617ebf8b18a4120de75ed7275b35b0c6ff3a9d3aa", "f7317801191b06e5c3f5e3f35a9ff9349a0410a612d7e8ca13cfe51eab7cea58",
+            "761832b862ca9c03a415f62e98f9f6c7581af6935d66641c898d17682ea901a7", "81eee9da71bdbbef88fe099a6f24542f7fbb96950c7988661163846223ee45e5", "04d891432c5034401fee51bc9b9a4c4b62f8876e1cba7db5e9b9dbcca2e74a8c", "5e8eb438e74203b5bca8c9a78654e862afe9dad0151583d097656ca3f54460b5",
+            "73a1f7195af714fd0cf9a9856e7a30c2a66f74367601018f86c53d699227db9b", "d452c23dd53eecd7695a36c9848a6d4de178722e05cad8f643e9acc33081ed33", "be57e446b6f2487bdc2dc9c79364de6469d3a2d887925bb70ae04b15635366b7", "a8418f0112b9c4d7b13c09fac6ddfe37a287bcf3607ad9ccee342f19fbd506fb",
+            "81291dc791347ef121e99b91ef389211eb18032568189a1cab97d819aec0bcd4", "ab99e0f5e11b13b3e02ecf1b46a34381f00a8583078d60876ecf6ff85eefe565", "d4d2bd8707a480c909aad0275c80b5d371ab566f9fc7ad918995b8ed212a2aaa", "83424c59a2006a9002fd23717f9b2ed3bd15cc56eac26a75317b53df25527196",
+            "58cd6a6259a8dd639324589da32746bbda2aa99a2f1bb3f1d6d2f8e992c1e2ac", "02c0366a1c7d59c0a02b47f8a6b0ee49b9f9ea21887c1f72f82295c0dbc15e3d", "ade1a26b26f40f2581e05f74653317cdb37b52d62414e0593e58ffb41114154c", "f87120c2db8beda694529ee052a65bcf6421c24ff2249612ac861c2a23d18e2d",
+            "c990e9fab0558526c79c0eab933405d0f4527adb35921e12fd3c54d9e5a488b4", "5435fe2cca38b17bb55457aa66cede43c2ce62bc0dac46cc4e9eceb3de4029f3", "7f8ef749bbb07fed8235e73c8018e1b3fa1514cf66625ee8d386d52312c1ec97", "aedd430953918d80db12adaa7516197a1b44f12edf012b019b170792ee81abb8",
+            "82f6e920a21f70b27e93e80eaa3542d97a32b667758559a63f4a6e10d8782aab"
+          ]
+        }
+      ]
+    },
+    ".claude/skills/pr-review/rubric.md": {
+      "declarations": [
+        {
+          "id": "repository-rubric-dimensions",
+          "justification": "The UI rubric carries frontend design and harness dimensions while the API rubric carries backend-only transaction guidance and local consumer context.",
+          "fingerprints": [
+            "2b726f91e5dcda6db1eba5a162981905875e6e63d57849457a83defa0195a5ba", "775306439e6ac6b29368e6d372c1ea592906c8c1ef3c791e924c5690b547230a", "daac12c9e4c50313ef28df407a2cc328f8477aab6835e2f3d433886f152f0277", "e78a13879cae66878fc0dadd7be7a23d1606f13ac532b9f223f63aa8427201c2",
+            "1a11ad4c67802c490ff24f9ddb9a7f1ecfe9eca16b6b464f18c58b6ec7157544", "03e41bb3125b63f477ac511e5c3cb27999286087616b84417245744168255134", "76221bc847771f82da20ec53eb89bca8057d6733f7379682105a8af3371ffc52", "e7f89bd1bfe6f0c91211b9b8a0a861a35378f2c8ac338c524a2080956fe89c9a",
+            "adb9bb4f553259b191382509c94e397fcbd5f73013eec3e7a5b960f793316b1b", "becd7aa66cfcceb35a0ebe0cc954826df5dfa0cb9db3043d9ac250b081a27827", "ee513c495b46a7afda1628dce96dd07110cdb828a377289bc91d27aae9dc9ff9", "7d034b64b3ea20b362a9f997f21ade736b9ae08f636c326d40093b8e416771dc",
+            "1ba7595dce76d07d5fae2ba5adcb20d71418f9979f6acfbfc0cadf3197af9fee", "69f09422e83fedb03ae9f41570f85cf71d093cb1b49fa070a9b333f3e98afe60", "d9c02c79845b2fcf6897ee916166f0ead818dd95045725052a757a94f964411d", "04a771464204f4f33f213c0fac476376860253f9ca841550fa899fb60da4a849"
+          ]
+        }
+      ]
+    },
+    ".claude/skills/_shared/verification-protocol.md": {
+      "declarations": [
+        {
+          "id": "consumer-specific-verification-delivery",
+          "justification": "The UI protocol serves the audit family and ticket delivery pipeline while the API copy serves PR review only; shared unchanged lines remain compared.",
+          "fingerprints": [
+            "d2486e0be8989033920faaa8b79ceb3ffd5829196acf67d847246b1e9da3957f", "3467a1f872bcade585b7cf2014bbd00ce7e3f2ec6038252213e149f9fe567853", "e5ba63fdeb72c12fc7127c54c5cd3034e7d9455b4c973e78c090e16109fc4106", "73ece072fd4e2434666a2a2276f8359ad04d7e5168779c9a157aa29a0915f2ac",
+            "9e60f9c093153d4f7bfac069b8d302e283d1f6fe6c1c242f24061acf1715dfd1", "e1b3f8c7507e23eb8b88ac70963d89f7f388b9b24dd5809e530d94e5340d5bfa", "44c6bf33096003569256e0c892b4d0b9a19147f0173bafd2b3e20eedf6437a59", "2b46b9d52001319ca8d0698f7f3c0b49e5cb08985a5430af14edb5d9d7d4b349",
+            "aec45caef4c41c45f9ee992aab911a4bd1547812e0d505f92b558c5d7b009e51", "50284b61169469f5564fa817d9320b52d21f6fec3af6146ca0a7c7dd3dbbed45", "98d57d4b85a5252e95fdc55f89e7999da8a9aea5de06d668f1605e0b5cd69d41", "cb8a71194dd085e15b81e4708a0179d600dfa8413c046357f8dc30d57dbb13e6",
+            "7abd32124149f5691d5bb17b82a2ea3acd5b7b7c293afa500f53cb0228f114b9", "0d267f2d4bbd4e30874983f312d23f6d268d6b56e73ca264a82da2bae2e9e402", "99ce0eef7f1b43be0925acefbaf41ccf20efee2127f29fd081d46f074b6a964f", "4296b39881896a87e92391fff9d33068abc0a67048c7715341c62e85f41fb435",
+            "9ff6520e17efb4708aabcb7627779d349805b0187c6ebf3c47606cefbf26ac1b", "3bf0ea6e8fa331176456d13b3c5d66a32c5f2528628cb912593691c41e25997e", "cf86d95bfe8c4cef0b6cbcd3239737212c8b54a2fc22a52505ae02ec14cf7752", "a2f062a05930ec26ce4b47d9a0d624d7f82a2c1dc58494db67517e7274542d5a",
+            "7dd7d902f119567b43c66c764e1fa3fc6ae5b74229aa1bdeb8b846578a116641", "5a2c2c657932b4f36225ddcdfd97badb8504d93288957d6f4adad365c48e7d5b", "44dc1e19a47fc5675b47739b8e1aeca955d2bf540d5e708eec98cb78aec8600c", "1b9b3c6cba6916cf67ccaa3f34a5b29a4ca17c27316960633bbb9e086e0ab1c9",
+            "78631686ace1f11b3c6279f390d27c0b48a4f474f315c0277e292ef2b8c397d4", "8c8eb0fc2967ef887aa3b201eb8c1bcaa5dc58f8e33e2ffd7798caacd0544c4b", "24bf7421d89d09f9bf74b10fe5127221337fd07f3a8b4c650e951b2f35bbdea8", "f2a90145e8f750c0b3110a72564fdeb658ebe3e18c6e15d2dab28f1e2b11bebe"
+          ]
+        }
+      ]
+    },
+    ".claude/agents/contract-aligner.md": {
+      "declarations": [
+        {
+          "id": "repository-path-adapter",
+          "justification": "The UI copy uses sibling-relative paths while the API copy uses absolute UI paths and a CI-only not-verifiable fallback.",
+          "fingerprints": [
+            "ef7bef641d5f7d815ebed0737b789aa71e64a976946f826315653282c9a04892", "1f9d0cb655ee94e71473e107bcb31daf77da4fd8e9625d95cb030cd970c7ebe2", "6068351153e9dee7ae1de84de07d96f088385b148c4014619f8e3396c2c53de2", "cfdf066f29a43cc50fada8279ac409198bf15fcc4393d65bac70aa1116589c6c"
+          ]
+        }
+      ]
+    },
+    ".claude/agents/security-reviewer.md": {
+      "declarations": [
+        {
+          "id": "reciprocal-copy-note",
+          "justification": "Each otherwise-identical agent copy names the other repository as its twin in the provenance note.",
+          "fingerprints": [
+            "3f3ec3594bf7fde8ac7b25cb4df08b831d422dfe759bb819f1f4abef3ad6bc44"
+          ]
+        }
+      ]
+    },
+    ".claude/skills/second-opinion/second-opinion.mjs": {
+      "declarations": []
+    }
+  }
+}

@@ -10,6 +10,7 @@ name: Guards
 #   expo-pin - apps/mobile/package.json changes must keep the Expo SDK pin resolution intact
 #   frontmatter - every skill and agent .md has parseable YAML frontmatter (an unquoted ": " drops it silently)
 #   harness - the harness is EXECUTED, not read: every tools/ script and both session hooks run
+#   lockstep - the six load-bearing harness twins stay aligned with orbit-api
 
 on:
   pull_request:
@@ -102,6 +103,41 @@ jobs:
       - name: Both session hooks block and allow as specified
         if: steps.scope.outputs.changed == 'true'
         run: node .claude/hooks/test-hooks.mjs
+
+  lockstep:
+    name: Harness Lockstep
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Detect a lockstep change
+        id: scope
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          elif git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD \
+            | grep -Eq '^(\.claude/skills/pr-review/(SKILL\.md|rubric\.md)|\.claude/skills/_shared/verification-protocol\.md|\.claude/agents/(contract-aligner|security-reviewer)\.md|\.claude/skills/second-opinion/second-opinion\.mjs|tools/(check-lockstep\.mjs|lockstep-declarations\.json)|\.github/workflows/guards\.yml)$'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Check out orbit-api at main
+        if: steps.scope.outputs.changed == 'true'
+        uses: actions/checkout@v7
+        with:
+          repository: thomasluizon/orbit-api
+          ref: main
+          path: orbit-api
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        if: steps.scope.outputs.changed == 'true'
+        with:
+          node-version: 22
+      - name: Six harness twins stay in lockstep
+        if: steps.scope.outputs.changed == 'true'
+        run: node tools/check-lockstep.mjs --ui-root "$GITHUB_WORKSPACE" --api-root "$GITHUB_WORKSPACE/orbit-api"
 
   ratchet:
     name: Suppressions Ratchet

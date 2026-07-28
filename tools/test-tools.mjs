@@ -24,6 +24,7 @@
  */
 
 import { spawnSync } from "node:child_process"
+import { createHash } from "node:crypto"
 import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
@@ -73,6 +74,29 @@ const stage = (relativePath, body) => {
   mkdirSync(dirname(path), { recursive: true })
   writeFileSync(path, body)
   return path
+}
+
+const LOCKSTEP_PATHS = [
+  ".claude/skills/pr-review/SKILL.md",
+  ".claude/skills/pr-review/rubric.md",
+  ".claude/skills/_shared/verification-protocol.md",
+  ".claude/agents/contract-aligner.md",
+  ".claude/agents/security-reviewer.md",
+  ".claude/skills/second-opinion/second-opinion.mjs",
+]
+const lockstepFingerprint = (ui, api) =>
+  createHash("sha256").update(JSON.stringify({ ui: [ui], api: [api] })).digest("hex")
+const lockstepFixture = (label, uiBody = "shared\n", apiBody = uiBody, declarations = []) => {
+  const uiRoot = join(root, "lockstep", label, "ui")
+  const apiRoot = join(root, "lockstep", label, "api")
+  const files = {}
+  for (const path of LOCKSTEP_PATHS) {
+    stage(join("lockstep", label, "ui", path), path === LOCKSTEP_PATHS[0] ? uiBody : "shared\n")
+    stage(join("lockstep", label, "api", path), path === LOCKSTEP_PATHS[0] ? apiBody : "shared\n")
+    files[path] = { declarations: path === LOCKSTEP_PATHS[0] ? declarations : [] }
+  }
+  const manifest = stage(join("lockstep", label, "manifest.json"), JSON.stringify({ version: 1, files }))
+  return { uiRoot, apiRoot, manifest }
 }
 
 /**
@@ -1208,6 +1232,25 @@ const gateCases = {
     check("check-dashes.mjs", "an em dash in text is rejected", ["--text", `a${EM_DASH}b`], { status: 1, stderr: /Banned dash/ })
     check("check-dashes.mjs", "clean text passes", ["--text", "a plain hyphen - is fine"], { status: 0 })
   },
+  "check-lockstep.mjs": () => {
+    const matching = lockstepFixture("matching")
+    check("check-lockstep.mjs", "six matching pairs pass", ["--ui-root", matching.uiRoot, "--api-root", matching.apiRoot, "--manifest", matching.manifest], { status: 0, stdout: /HARNESS LOCKSTEP OK/ })
+
+    const divergent = lockstepFixture("divergent", "shared\nui-only\nshared-tail\n", "shared\napi-only\nshared-tail\n")
+    check("check-lockstep.mjs", "an undeclared divergence fails with its file and region", ["--ui-root", divergent.uiRoot, "--api-root", divergent.apiRoot, "--manifest", divergent.manifest], { status: 1, stderr: /pr-review\/SKILL\.md: undeclared region/ })
+
+    const declaration = [{ id: "platform-wording", justification: "The repository names its own platform.", fingerprints: [lockstepFingerprint("ui-only", "api-only")] }]
+    const declared = lockstepFixture("declared", "shared\nui-only\nshared-tail\n", "shared\napi-only\nshared-tail\n", declaration)
+    check("check-lockstep.mjs", "a justified declared divergence passes", ["--ui-root", declared.uiRoot, "--api-root", declared.apiRoot, "--manifest", declared.manifest], { status: 0 })
+    writeFileSync(join(declared.uiRoot, LOCKSTEP_PATHS[0]), "changed-shared\nui-only\nshared-tail\n")
+    check("check-lockstep.mjs", "a change in the shared region still fails", ["--ui-root", declared.uiRoot, "--api-root", declared.apiRoot, "--manifest", declared.manifest], { status: 1, stderr: /undeclared region/ })
+
+    const byteExact = lockstepFixture("byte-exact")
+    writeFileSync(join(byteExact.uiRoot, LOCKSTEP_PATHS.at(-1)), "shared!\n")
+    check("check-lockstep.mjs", "second-opinion drift fails byte for byte", ["--ui-root", byteExact.uiRoot, "--api-root", byteExact.apiRoot, "--manifest", byteExact.manifest], { status: 1, stderr: /second-opinion\/second-opinion\.mjs: whole file differs/ })
+
+    check("check-lockstep.mjs", "an unreachable sibling fails loudly", ["--ui-root", matching.uiRoot, "--api-root", join(root, "missing-api"), "--manifest", matching.manifest], { status: 1, stderr: /unreadable comparison input/ })
+  },
   "capture-surfaces.mjs": captureSurfacesCases,
   "check-ticket.mjs": () => {
     check("check-ticket.mjs", "an incomplete body is rejected", ["--file", stage("ticket.md", "# A ticket\n\nno template sections here\n")], { nonZero: true })
@@ -1231,6 +1274,7 @@ const INVALID_INPUT = {
   "check-copy.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-dashes.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-frontmatter.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "check-lockstep.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-push-target.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-suppressions-ratchet.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-ticket.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
