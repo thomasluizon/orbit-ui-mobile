@@ -2374,6 +2374,7 @@ const gateCases = {
     check("wave-plan.mjs", "a ticket with no affected section is reported as unknown", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /unknown \(no parseable path in Affected modules \/ files\): ORB-201/ }, { env: stubDescriptions("## Summary\n\nno affected section here\n", body("`tools/b.mjs`")) })
     check("wave-plan.mjs", "a ticket with no parseable affected path is reported as unknown", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /unknown \(no parseable path/ }, { env: stub("nothing recognisable here", "`tools/b.mjs`") })
     check("wave-plan.mjs", "the json output carries the same collision pair", ["--issues", "ORB-201,ORB-202", "--json"], { status: 0, stdout: /"files": \[\s*"tools\/test-tools\.mjs"/ }, { env: stub("`tools/test-tools.mjs`", "`tools/test-tools.mjs`") })
+    check("wave-plan.mjs", "the json output carries unknown affected identifiers", ["--issues", "ORB-201,ORB-202", "--json"], { status: 0, stdout: /"unknownAffected": \[\s*"ORB-201"/ }, { env: stub("nothing recognisable here", "`tools/b.mjs`") })
 
     check("wave-plan.mjs", "plans one explicitly requested identifier and counts out-of-set dependents in reach", ["--issues", "ORB-1", "--json"], { status: 0, stdout: /"identifier": "ORB-1"[\s\S]*?"reach": 1[\s\S]*?"launchable": true/ }, { env: orcaEnv(ISSUES_WAVE_STUB) })
     const duplicateLog = stage("wave-plan-duplicate.log", "")
