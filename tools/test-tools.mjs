@@ -1881,6 +1881,32 @@ const gateCases = {
   "check-ticket.mjs": () => {
     check("check-ticket.mjs", "an incomplete body is rejected", ["--file", stage("ticket.md", "# A ticket\n\nno template sections here\n")], { nonZero: true })
     check("check-ticket.mjs", "a missing body file is a usage error", ["--file", join(root, "absent.md")], { status: 2 })
+    const criteriaTicket = (...items) =>
+      VALID_TICKET_BODY.replace("- the created identifier is the one validated\n\n- a defective ticket exits 1", items.join("\n\n"))
+    check(
+      "check-ticket.mjs",
+      "an acceptance criterion quantifying over an open set is rejected",
+      ["--file", stage("ticket-open-set.md", criteriaTicket("- every phrasing a worker could emit is blocked", "- a defective ticket exits 1"))],
+      { status: 1, stderr: /quantifies over an open set/ },
+    )
+    check(
+      "check-ticket.mjs",
+      "the same criterion passes once it names the command that decides it",
+      ["--file", stage("ticket-bounded-set.md", criteriaTicket("- every phrasing rejected by `node tools/check-ticket.mjs` is blocked", "- a defective ticket exits 1"))],
+      { status: 0, stdout: /ticket ok/ },
+    )
+    check(
+      "check-ticket.mjs",
+      "a bound outside the quantified clause does not rescue an open set",
+      ["--file", stage("ticket-stray-bound.md", criteriaTicket("- every phrasing a worker could emit is blocked and the command exits 1", "- a defective ticket exits 1"))],
+      { status: 1, stderr: /quantifies over an open set/ },
+    )
+    check(
+      "check-ticket.mjs",
+      "an acceptance criterion trailing off into an unnamed remainder is rejected",
+      ["--file", stage("ticket-open-tail.md", criteriaTicket("- the two documented reasons are covered, etc.", "- a defective ticket exits 1"))],
+      { status: 1, stderr: /trails off into an unnamed remainder/ },
+    )
     const visibleTicket = (evidence = "") => [
       "# Validate visible effect evidence",
       "",
