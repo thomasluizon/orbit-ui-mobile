@@ -26,8 +26,8 @@ const USAGE = `usage: worker-status.mjs --worktree <path> --issue ORB-N [--base 
 
 Checks, all from artifacts: commits exist on the branch, the worktree carries no uncommitted
 work, the branch is pushed, a PR is open against <ref> with an approving review on its current
-head and zero unresolved threads, every resolved automated thread names a later fix commit that
-changed its reviewed path,
+head and zero unresolved threads, every resolved automated thread has reconciliation evidence
+after its latest finding-bearing nested activity and names a later fix commit that changed its reviewed path,
 every standalone automated review item has a worker acknowledgement naming a PR commit,
 no human-authored thread was resolved by the worker account, the local head matches the PR
 head, the Linear issue is In Review with the PR attached, and both a screenshot and critique
@@ -139,7 +139,7 @@ const reviewPayload = pullRequest
         "api",
         "graphql",
         "-f",
-        "query=query($owner:String!,$name:String!,$number:Int!){viewer{login}repository(owner:$owner,name:$name){pullRequest(number:$number){headRefOid reviewDecision reviews(first:100){pageInfo{hasNextPage}nodes{id author{login __typename}state body submittedAt updatedAt commit{oid}}}comments(first:100){pageInfo{hasNextPage}nodes{id author{login __typename}body createdAt updatedAt}}reviewThreads(first:100){pageInfo{hasNextPage}nodes{id isResolved path resolvedBy{login}comments(first:100){pageInfo{hasNextPage}nodes{author{login __typename}body createdAt pullRequestReview{id commit{oid}}}}}}}}}",
+        "query=query($owner:String!,$name:String!,$number:Int!){viewer{login}repository(owner:$owner,name:$name){pullRequest(number:$number){headRefOid reviewDecision reviews(first:100){pageInfo{hasNextPage}nodes{id author{login __typename}state body submittedAt updatedAt commit{oid}}}comments(first:100){pageInfo{hasNextPage}nodes{id author{login __typename}body createdAt updatedAt}}reviewThreads(first:100){pageInfo{hasNextPage}nodes{id isResolved path resolvedBy{login}comments(first:100){pageInfo{hasNextPage}nodes{id author{login __typename}body createdAt updatedAt pullRequestReview{id commit{oid}}}}}}}}}",
         "-F",
         `owner=${slug.split("/")[0]}`,
         "-F",
@@ -174,11 +174,17 @@ const reviewBodyHasFindings = (body) => {
       return Boolean(content && !/^none(?:\.| posted \(signal gate\)\.)?$/i.test(content))
     })
 }
+const reviewCommentTime = (comment) => Date.parse(comment.updatedAt ?? comment.createdAt ?? "")
 const threadHasFix = (thread) => {
   const resolver = thread.resolvedBy?.login
-  const reviewedCommit = thread.comments?.nodes?.[0]?.pullRequestReview?.commit?.oid
-  if (!resolver || !thread.path || !reviewedCommit) return false
-  const replies = (thread.comments?.nodes ?? []).filter((comment) => comment.author?.login === resolver)
+  const comments = thread.comments?.nodes ?? []
+  const findingActivity = comments.filter((comment) => comment.author?.login !== resolver)
+  const latestFindingTime = Math.max(...findingActivity.map(reviewCommentTime))
+  const reviewedCommit = [...findingActivity].reverse().find((comment) => comment.pullRequestReview?.commit?.oid)?.pullRequestReview.commit.oid
+  if (!resolver || !thread.path || !reviewedCommit || !Number.isFinite(latestFindingTime)) return false
+  const replies = comments.filter(
+    (comment) => comment.author?.login === resolver && reviewCommentTime(comment) > latestFindingTime,
+  )
   for (const reply of replies) {
     for (const match of (reply.body ?? "").matchAll(/\b[0-9a-f]{7,40}\b/gi)) {
       const commit = resolveCommit(match[0])

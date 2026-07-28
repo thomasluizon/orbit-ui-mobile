@@ -2209,7 +2209,20 @@ const workerStatusPlan = (
   },
 ]
 
-const reviewThread = ({ author, authorType, id, isResolved, path = "reviewed.txt", reply, resolvedBy, reviewedCommit }) => ({
+const reviewThread = ({
+  author,
+  authorType,
+  findingCreatedAt = "2026-07-28T10:00:00Z",
+  findingUpdatedAt = findingCreatedAt,
+  followUps = [],
+  id,
+  isResolved,
+  path = "reviewed.txt",
+  reply,
+  replyCreatedAt = "2026-07-28T10:00:02Z",
+  resolvedBy,
+  reviewedCommit,
+}) => ({
   id,
   isResolved,
   path,
@@ -2218,12 +2231,24 @@ const reviewThread = ({ author, authorType, id, isResolved, path = "reviewed.txt
     pageInfo: { hasNextPage: false },
     nodes: [
       {
+        id: `PRRC_${id}_finding`,
         author: { login: author, __typename: authorType },
         body: "review finding",
-        createdAt: "2026-07-28T10:00:00Z",
+        createdAt: findingCreatedAt,
+        updatedAt: findingUpdatedAt,
         pullRequestReview: reviewedCommit ? { id: `PRR_${id}`, commit: { oid: reviewedCommit } } : null,
       },
-      ...(reply ? [{ author: { login: resolvedBy, __typename: "User" }, body: reply }] : []),
+      ...(reply
+        ? [{
+            id: `PRRC_${id}_reply`,
+            author: { login: resolvedBy, __typename: "User" },
+            body: reply,
+            createdAt: replyCreatedAt,
+            updatedAt: replyCreatedAt,
+            pullRequestReview: null,
+          }]
+        : []),
+      ...followUps,
     ],
   },
 })
@@ -3741,6 +3766,72 @@ All required checks passed.`,
         fixed.verdict?.ok === true &&
         fixed.verdict.checks.find((entry) => entry.name === "pr-head-match")?.ok === true,
       `exit ${fixed.status}\n     ${(fixed.stderr || fixed.stdout).slice(0, 600)}`,
+    )
+    const editedAfterReplyThread = reviewThread({
+      author: "claude[bot]",
+      authorType: "Bot",
+      findingUpdatedAt: "2026-07-28T10:00:03Z",
+      id: "PRRT_edited_after_reply",
+      isResolved: true,
+      resolvedBy: "worker",
+      reply: `Fixed in ${fixture.fixCommit}`,
+      reviewedCommit: fixture.reviewedCommit,
+    })
+    const editedAfterReply = runWorkerStatusCase(fixture, [screenshot, critique], {
+      reviewThreads: [editedAfterReplyThread],
+      verifyReview: true,
+    })
+    T(
+      "worker-status.mjs: an automated finding edited after its resolver reply needs fresh evidence",
+      editedAfterReply.status === 1 &&
+        editedAfterReply.verdict?.checks.find((entry) => entry.name === "resolved-thread-fixes")?.ok === false,
+      `exit ${editedAfterReply.status}\n     ${(editedAfterReply.stderr || editedAfterReply.stdout).slice(0, 600)}`,
+    )
+    const followUp = {
+      id: "PRRC_follow_up",
+      author: { login: "claude[bot]", __typename: "Bot" },
+      body: "follow-up finding",
+      createdAt: "2026-07-28T10:00:03Z",
+      updatedAt: "2026-07-28T10:00:03Z",
+      pullRequestReview: null,
+    }
+    const followUpAfterReplyThread = reviewThread({
+      author: "claude[bot]",
+      authorType: "Bot",
+      followUps: [followUp],
+      id: "PRRT_follow_up_after_reply",
+      isResolved: true,
+      resolvedBy: "worker",
+      reply: `Fixed in ${fixture.fixCommit}`,
+      reviewedCommit: fixture.reviewedCommit,
+    })
+    const followUpAfterReply = runWorkerStatusCase(fixture, [screenshot, critique], {
+      reviewThreads: [followUpAfterReplyThread],
+      verifyReview: true,
+    })
+    T(
+      "worker-status.mjs: an automated follow-up after the resolver reply needs fresh evidence",
+      followUpAfterReply.status === 1 &&
+        followUpAfterReply.verdict?.checks.find((entry) => entry.name === "resolved-thread-fixes")?.ok === false,
+      `exit ${followUpAfterReply.status}\n     ${(followUpAfterReply.stderr || followUpAfterReply.stdout).slice(0, 600)}`,
+    )
+    followUpAfterReplyThread.comments.nodes.push({
+      id: "PRRC_follow_up_reply",
+      author: { login: "worker", __typename: "User" },
+      body: `Fixed in ${fixture.fixCommit}`,
+      createdAt: "2026-07-28T10:00:04Z",
+      updatedAt: "2026-07-28T10:00:04Z",
+      pullRequestReview: null,
+    })
+    const reconciledFollowUp = runWorkerStatusCase(fixture, [screenshot, critique], {
+      reviewThreads: [followUpAfterReplyThread],
+      verifyReview: true,
+    })
+    T(
+      "worker-status.mjs: a fresh resolver reply after the automated follow-up restores verification",
+      reconciledFollowUp.status === 0 &&
+        reconciledFollowUp.verdict?.checks.find((entry) => entry.name === "resolved-thread-fixes")?.ok === true,
+      `exit ${reconciledFollowUp.status}\n     ${(reconciledFollowUp.stderr || reconciledFollowUp.stdout).slice(0, 600)}`,
     )
     const preexistingChangeThread = reviewThread({
       author: "claude[bot]",
