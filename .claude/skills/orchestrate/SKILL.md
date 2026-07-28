@@ -316,7 +316,9 @@ It exits on the first actionable transition you have NOT already acted on and na
 `review-decision` (exit 0 for `APPROVED`, otherwise 1), `merge-clean` (exit 0), `timeout`
 (exit 4). Actionable means the head SHA changed, the review decision changed, the merge state
 became `CLEAN`, a required check concluded as failed, or the PR merged or closed. `UNKNOWN` and
-churn between other non-terminal merge states never fire. `--acted` is what you have already
+churn between other non-terminal merge states never fire. The first poll establishes the
+baseline for state transitions, so an already clean PR does not repeatedly starve later fleet
+entries; fresh unacted verdicts still fire immediately. `--acted` is what you have already
 handled on that PR, as the head SHA the verdict sat on plus the verdict; entries accumulate by
 PR and head, so repeat the flag for every handled verdict, including two verdicts on the same
 head. Pass them after every fix cycle so the same feedback is never replayed, and pass none on

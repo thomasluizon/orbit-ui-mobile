@@ -1409,9 +1409,9 @@ const prWatchCases = () => {
   check("pr-watch.mjs", "a fresh approval fires", argv, { status: 0, stdout: /"transition": "approved"/ }, { env: orcaEnv([approved]) })
   check(
     "pr-watch.mjs",
-    "an approval the caller already acted on reports mergeable-and-approved instead of repeating itself",
+    "an acted approval on an already clean PR does not repeat as readiness",
     [...argv, "--acted", `615=${HEAD_SHA.slice(0, 7)}:APPROVED`],
-    { status: 0, stdout: /"transition": "ready-to-merge"/ },
+    { status: 4, stdout: /"transition": "none"/ },
     { env: orcaEnv([approved]) },
   )
   const twoVerdicts = {
@@ -1509,6 +1509,15 @@ const prWatchCases = () => {
     { status: 0, stdout: /"transition": "merge-clean"/ },
   )
   checkSequence(
+    "an acted approval emits readiness when the PR later becomes clean",
+    [
+      { reviewDecision: "APPROVED", mergeStateStatus: "BLOCKED", latestReviews: { nodes: [reviewOn("APPROVED", HEAD_SHA)] } },
+      { reviewDecision: "APPROVED", mergeStateStatus: "CLEAN", latestReviews: { nodes: [reviewOn("APPROVED", HEAD_SHA)] } },
+    ],
+    ["--acted", `615=${HEAD_SHA}:APPROVED`],
+    { status: 0, stdout: /"transition": "ready-to-merge"/ },
+  )
+  checkSequence(
     "non-terminal merge state churn emits nothing",
     [{ mergeStateStatus: "BLOCKED" }, { mergeStateStatus: "UNKNOWN" }, { mergeStateStatus: "BEHIND" }],
     [],
@@ -1522,6 +1531,18 @@ const prWatchCases = () => {
     {
       env: orcaEnv([
         pullRequestStub(615, {}),
+        pullRequestStub(616, { reviewDecision: "CHANGES_REQUESTED", latestReviews: { nodes: [reviewOn("CHANGES_REQUESTED", HEAD_SHA)] } }),
+      ]),
+    },
+  )
+  check(
+    "pr-watch.mjs",
+    "an acted ready PR does not starve a later fleet transition",
+    ["--repo", "thomasluizon/orbit-ui-mobile", "--pr", "615,616", "--once", "--acted", `615=${HEAD_SHA}:APPROVED`],
+    { status: 1, stdout: /"pr": 616[\s\S]*"transition": "changes-requested"/ },
+    {
+      env: orcaEnv([
+        approved,
         pullRequestStub(616, { reviewDecision: "CHANGES_REQUESTED", latestReviews: { nodes: [reviewOn("CHANGES_REQUESTED", HEAD_SHA)] } }),
       ]),
     },

@@ -43,9 +43,10 @@ reviewDecision, mergeStateStatus, failingChecks, polls, watched. Progress goes t
 
 The transitions, in the order they are checked, so a PR in several at once reports the one
 that matters most: gone (merged or closed), checks-failed, changes-requested, review-comment,
-approved (a fresh verdict on the current head), ready-to-merge (approved and mergeable),
+approved (a fresh verdict on the current head), ready-to-merge (an approved PR becomes mergeable),
 head-changed, review-decision, merge-clean. UNKNOWN and changes among other merge states
-never emit.
+never emit. The first poll establishes the baseline for state transitions; fresh verdicts
+that are not listed in --acted still emit immediately.
 
 exit codes: 0 an actionable non-error state, 1 the PR needs work or has a new head (a failing
             check, a fresh non-approving verdict or decision, or a head change), 2 usage error,
@@ -213,7 +214,7 @@ const transitionOf = (pullRequest, previous) => {
   }
   const becameClean = Boolean(previous && pullRequest.mergeStateStatus === "CLEAN" && previous.mergeStateStatus !== "CLEAN")
   const decisionChanged = previous && pullRequest.reviewDecision !== previous.reviewDecision
-  if (pullRequest.reviewDecision === "APPROVED" && pullRequest.mergeStateStatus === "CLEAN" && (!previous || becameClean || decisionChanged)) {
+  if (previous && pullRequest.reviewDecision === "APPROVED" && pullRequest.mergeStateStatus === "CLEAN" && (becameClean || decisionChanged)) {
     return { ...state, transition: "ready-to-merge", reason: "approved and mergeable", code: 0 }
   }
   if (previous && head !== previous.headSha) {
