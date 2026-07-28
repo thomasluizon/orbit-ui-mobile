@@ -79,9 +79,12 @@ function surfacedCommand(text, source) {
 
     const command = commandFrom(line)
     if (!command) continue
-    const framing = `${previousNonemptyLine(lines, index)} ${line}`
+    const previousLine = previousNonemptyLine(lines, index)
+    const framing = `${previousLine} ${line}`
     if (DOCUMENTATION.test(framing)) continue
     if (DIRECT_COMMAND.test(line)) return command
+    const standaloneCodeSpan = /^\s*(?:(?:[-*+]|\d+[.)])\s+)?`[^`]+`\s*[.,;:]?\s*$/.test(line)
+    if (standaloneCodeSpan && INSTRUCTION.test(previousLine)) return command
     if (INSTRUCTION.test(line.slice(0, line.search(COMMAND)))) return command
     if (source === "artifact" && underInstructionHeading) return command
   }

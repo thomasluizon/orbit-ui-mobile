@@ -332,6 +332,21 @@ const chatSurfacing = runHookResult(RAW_TOOL_HOOK, stopPayload(surfacedWavePlan)
 T("cc raw-tool: measured chat instruction -> 2", chatSurfacing.status, 2)
 T("cc raw-tool: measured chat instruction names /next", chatSurfacing.stderr.includes("/next"), true)
 
+const standaloneCodeSpan = runHookResult(
+  RAW_TOOL_HOOK,
+  stopPayload(["Run this to refresh the order:", "", "`node tools/wave-plan.mjs --all`"].join("\n")),
+)
+T("cc raw-tool: instructed standalone code span -> 2", standaloneCodeSpan.status, 2)
+T("cc raw-tool: instructed standalone code span names /next", standaloneCodeSpan.stderr.includes("/next"), true)
+T(
+  "cc raw-tool: inline code span in explanatory prose -> 0",
+  runHook(
+    RAW_TOOL_HOOK,
+    stopPayload("The implementation derives the wave order with `node tools/wave-plan.mjs --all` inside its automation."),
+  ),
+  0,
+)
+
 const npxSurfacing = runHookResult(
   RAW_TOOL_HOOK,
   stopPayload(["Run this command:", "", "```bash", "npx turbo run lint", "```"].join("\n")),
@@ -505,19 +520,31 @@ const hookPathReferences = hookPathScan.references
 const missingHookPathReferences = hookPathScan.missing
 T("docs: every named .claude/hooks/*.mjs path resolves", missingHookPathReferences, [])
 T("docs: the hook path guard actually found references", hookPathReferences.length > 0, true)
-const settingsHookPathReferences = scanHookPathReferences([
-  readFileSync(join(repoRoot, ".claude", "settings.json"), "utf8"),
-]).references
+
+function configuredHookPathScan(settings) {
+  const eventEntries = settings?.hooks && typeof settings.hooks === "object" ? Object.values(settings.hooks) : []
+  const commands = eventEntries
+    .flatMap((entries) => (Array.isArray(entries) ? entries : []))
+    .flatMap((entry) => (Array.isArray(entry?.hooks) ? entry.hooks : []))
+    .filter((hook) => hook?.type === "command" && typeof hook.command === "string")
+    .map((hook) => hook.command)
+  return scanHookPathReferences(commands)
+}
+
+const settings = JSON.parse(readFileSync(join(repoRoot, ".claude", "settings.json"), "utf8"))
+const configuredHookPathReferences = configuredHookPathScan(settings)
+T("settings: every configured hook path resolves", configuredHookPathReferences.missing, [])
+T("settings: configured hook path scan is nonempty", configuredHookPathReferences.references.length > 0, true)
+
+const renamedHookSettingsFixture = JSON.parse(JSON.stringify(settings))
+renamedHookSettingsFixture.hooks.Stop[0].hooks[0].command =
+  'node "$CLAUDE_PROJECT_DIR/.claude/hooks/forbid-raw-repo-tool-surfacing-renamed.mjs"'
 T(
-  "docs: settings contributes all four hook path occurrences",
-  settingsHookPathReferences,
-  [
-    ".claude/hooks/git-guardrails.mjs",
-    ".claude/hooks/forbid-raw-linear-mutation.mjs",
-    ".claude/hooks/forbid-ef-migration-raw-index.mjs",
-    ".claude/hooks/forbid-raw-linear-mutation.mjs",
-  ],
+  "settings: renamed configured hook fixture reports the missing file",
+  configuredHookPathScan(renamedHookSettingsFixture).missing,
+  [".claude/hooks/forbid-raw-repo-tool-surfacing-renamed.mjs"],
 )
+
 const hookPathDecisionFixture = [
   "The repo hook is .claude/hooks/does-not-exist.mjs.",
   "The user hook is ~/.claude/hooks/user-level.mjs.",
