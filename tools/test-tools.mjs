@@ -1391,9 +1391,6 @@ const VALID_ISSUE = { identifier: "ORB-99", title: "Cover the create and validat
 const CONTEXT_CLAUDE = [
   "# Orbit fixture",
   "",
-  "@../orbit-api/CLAUDE.md",
-  "@../orbit-landing-page/CLAUDE.md",
-  "",
 ].join("\n")
 const CONTEXT_CORE = "# Core fixture\n\nAlways applies.\n"
 const contextBytes = (body) => Buffer.byteLength(body, "utf8")
@@ -1475,8 +1472,8 @@ const contextBudgetCases = () => {
   const unfetched = stageContextBudget("unfetched")
   check("check-context-budget.mjs", "an unfetched target branch fails closed", ["--check"], { status: 2, stderr: /target branch missing-base is unavailable.*fetch its history/i }, { path: unfetched.path, cwd: unfetched.repo, env: { CONTEXT_BUDGET_BASE_REF: "missing-base" } })
 
-  const importAddition = stageContextBudget("import-addition", { claude: `${CONTEXT_CLAUDE}@../new-sibling/CLAUDE.md\n` })
-  check("check-context-budget.mjs", "an unallowlisted import fails even when its target is absent", ["--check"], { status: 1, stderr: /@..\/new-sibling\/CLAUDE\.md|import/i }, { path: importAddition.path, cwd: importAddition.repo })
+  const importAddition = stageContextBudget("import-addition", { claude: `${CONTEXT_CLAUDE}@../orbit-api/CLAUDE.md\n` })
+  check("check-context-budget.mjs", "a removed sibling import fails even when its target is absent", ["--check"], { status: 1, stderr: /@..\/orbit-api\/CLAUDE\.md|import/i }, { path: importAddition.path, cwd: importAddition.repo })
 
   const unconditional = stageContextBudget("unconditional-rule", { rules: { "foo.md": "# Always loaded\n" } })
   check("check-context-budget.mjs", "a new unconditional rules file exits 1", ["--check"], { status: 1, stderr: /foo\.md/ }, { path: unconditional.path, cwd: unconditional.repo })
@@ -1498,10 +1495,10 @@ const contextBudgetCases = () => {
       "orbit-landing-page": "# Landing fixture\n",
     },
   })
-  const presentResult = check("check-context-budget.mjs", "present sibling files do not change the enforced verdict", ["--check"], { status: 0 }, { path: siblingsPresent.path, cwd: siblingsPresent.repo })
+  const presentResult = check("check-context-budget.mjs", "present sibling files without imports do not change the enforced verdict", ["--check"], { status: 0 }, { path: siblingsPresent.path, cwd: siblingsPresent.repo })
   T(
-    "check-context-budget.mjs: present sibling files are included in the printed full-session table",
-    presentResult.status === 0 && /orbit-api\/CLAUDE\.md:\s+\d+ bytes/.test(presentResult.stdout.replaceAll("\\", "/")) && /orbit-landing-page\/CLAUDE\.md:\s+\d+ bytes/.test(presentResult.stdout.replaceAll("\\", "/")),
+    "check-context-budget.mjs: present sibling files without imports stay outside the printed full-session table",
+    presentResult.status === 0 && !/(?:orbit-api|orbit-landing-page)\/CLAUDE\.md:\s+\d+ bytes/.test(presentResult.stdout.replaceAll("\\", "/")),
     presentResult.stdout,
   )
 
