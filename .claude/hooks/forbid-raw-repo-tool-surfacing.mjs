@@ -29,6 +29,11 @@ const INTERNAL_DOCUMENTATION = /\b(?:internally|under the hood|inside (?:its|the
 const SECOND_PERSON_RUN =
   /\b(?:you|you['’](?:d|ll)|you\s+(?:can|could|may|might|must|should|will|would)|you\s+(?:have|need|ought)\s+to)\s+(?:(?:just|simply)\s+)?run(?:\s+(?:this|it|the command))?\s*$/i
 const DESCRIPTIVE_OWNER = /^\s*(?:the|this)\s+(?:implementation|orchestrator|skill|agent)\b/i
+const DESCRIPTIVE_NPX_PREFIX =
+  /^\s*(?:the|this|that)\s+(?:(?:--?[a-z0-9-]+)\s+)?(?:package|command|tool|option|flag|example|implementation)\b.*\b(?:as|about|regarding|describes?|explains?|tells?|mentions?)\s*$/i
+const DESCRIPTIVE_NPX_CLAUSE =
+  /^\s*(?:the|this|that)\b[^.!?]*\b(?:option|flag)\b[^.!?]*\b(?:tells?|describes?|explains?)\b/i
+const DESCRIPTIVE_NPX_LINK = /\b(?:as|about|regarding|describes?|explains?|tells?|mentions?)\s*$/i
 const DOCUMENT_BASENAME = /^(?:ticket(?:-body)?|pr(?:-body|-description)?|pull-request-description)\.(?:md|txt)$/i
 const TICKET_BASENAME = /^ORB-\d+\.(?:md|txt)$/
 const HELP_BASENAME = /^(?:help|.+--help)(?:[-_.].*)?\.(?:md|txt|log)$/i
@@ -57,7 +62,11 @@ function commandMatches(text) {
   }
   matches.sort((left, right) => left.index - right.index || right.end - left.end)
 
-  return matches.filter((match, index) => index === 0 || match.index >= matches[index - 1].end)
+  const accepted = []
+  for (const match of matches) {
+    if (!accepted.length || match.index >= accepted.at(-1).end) accepted.push(match)
+  }
+  return accepted
 }
 
 function previousNonemptyLine(lines, index) {
@@ -216,8 +225,8 @@ function npxOptionStates(tokens) {
 
 function isClearlyDescriptiveNpxMention(command, { insideFence, insideCode, prefix, clauseText }) {
   if (insideFence === "shell" || insideCode) return false
-  if (/\b(?:as|about|regarding|describes?|explains?|tells?|mentions?)\s*$/i.test(prefix)) return true
-  if (/\b(?:option|flag)\b[^.!?]*\b(?:tells?|describes?|explains?)\b/i.test(clauseText)) return true
+  if (DESCRIPTIVE_NPX_PREFIX.test(prefix)) return true
+  if (DESCRIPTIVE_NPX_CLAUSE.test(clauseText)) return true
   const tokens = npxTokens(command)
   if (!/^npx(?:\.cmd)?$/i.test(tokens[0] ?? "")) return false
   const hasPrefix = prefix.trim().length > 0
@@ -242,6 +251,13 @@ function hasInstructionFraming(prefix) {
   const framing = prefix.replace(/[`*_]+\s*$/, "").trimEnd()
   const directInstruction = /(?:^|[,:;]\s*)(?:please\s+)?run(?:\s+(?:this|it|the command))?\s*$/i.test(framing)
   return directInstruction || (INTERNAL_DOCUMENTATION.test(framing) && SECOND_PERSON_RUN.test(framing))
+}
+
+function hasNpxInstructionFraming(prefix) {
+  const stem = prefix.replace(DESCRIPTIVE_NPX_LINK, "").trimEnd()
+  if (hasInstructionFraming(prefix) || hasInstructionFraming(stem)) return true
+  if (DOCUMENTATION.test(stem) && !INTERNAL_DOCUMENTATION.test(stem)) return false
+  return SECOND_PERSON_RUN.test(stem)
 }
 
 function isDocumentationArtifact(filePath) {
@@ -277,6 +293,17 @@ function isDocumentationFenceIntroduction(line) {
   if (!lastClause) return false
   const clauseText = lastClause.atoms.map(({ text: atomText }) => atomText).join("")
   return DOCUMENTATION.test(clauseText) && !hasInstructionFraming(clauseText)
+}
+
+function isQuotedFenceIntroduction(line) {
+  const { clauses, ambiguous } = splitClauseAtoms(line)
+  if (ambiguous) return false
+  const lastClause = clauses.at(-1)
+  if (!lastClause) return false
+  const clauseText = lastClause.atoms.map(({ text: atomText }) => atomText).join("")
+  return /\b(?:(?:configuration|config)\s+(?:value|payload)|(?:example|sample|captured)\s+output|quoted material|(?:json|yaml|toml|xml|markdown|text)\s+(?:configuration|payload|value))(?:\s+(?:is|follows))?\s*:?\s*$/i.test(
+    clauseText,
+  )
 }
 
 function commandContexts(segmentText, insideFence, inheritedAmbiguity) {
@@ -324,7 +351,11 @@ function surfacedCommands(text) {
       else if (!pairs.has(index) || unclosed === index) insideFence = "ambiguous"
       else if (isDocumentationFenceIntroduction(previousNonemptyLine(lines, index))) insideFence = "documentation"
       else if (SHELL_FENCE.test(fence[1])) insideFence = "shell"
-      else insideFence = QUOTED_FENCE.test(fence[1]) ? "quoted" : "ambiguous"
+      else if (QUOTED_FENCE.test(fence[1]) && isQuotedFenceIntroduction(previousNonemptyLine(lines, index))) {
+        insideFence = "quoted"
+      } else {
+        insideFence = "ambiguous"
+      }
       continue
     }
     if (insideFence === "documentation") continue
@@ -337,7 +368,9 @@ function surfacedCommands(text) {
       const contexts = commandContexts(segment.line, insideFence, shellAmbiguity || insideFence === "ambiguous")
       const segmentCommands = []
       for (const context of contexts) {
-        const instructionFramed = hasInstructionFraming(context.prefix)
+        const instructionFramed =
+          hasInstructionFraming(context.prefix) ||
+          (/^npx(?:\.cmd)?\b/i.test(context.command) && hasNpxInstructionFraming(context.prefix))
         const documentedPrefix = DOCUMENTATION.test(context.documentationPrefix)
         const documentedSuffix =
           DOCUMENTATION.test(context.documentationSuffix) &&

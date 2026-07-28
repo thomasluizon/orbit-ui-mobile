@@ -422,6 +422,31 @@ export const RAW_TOOL_REVIEW_CORPUS = [
     status: 2,
   },
   {
+    label: "unintroduced text fence is executable",
+    text: ["Run this command:", "```text", "node tools/wave-plan.mjs --all", "```"].join("\n"),
+    status: 2,
+  },
+  {
+    label: "unintroduced JSON fence is executable",
+    text: ["Run this command:", "```json", '"command": "node tools/wave-plan.mjs --all"', "```"].join("\n"),
+    status: 2,
+  },
+  ...["markdown", "yaml"].map((language) => ({
+    label: `unintroduced ${language} fence is executable`,
+    text: ["Run this command:", `\`\`\`${language}`, "node tools/wave-plan.mjs --all", "```"].join("\n"),
+    status: 2,
+  })),
+  {
+    label: "instruction wins over tool-help fence wording",
+    text: ["Tool help: run this command:", "```text", "node tools/wave-plan.mjs --all", "```"].join("\n"),
+    status: 2,
+  },
+  {
+    label: "unclosed data fence fails closed",
+    text: ["The configuration value is:", "```json", '"command": "node tools/wave-plan.mjs --all"'].join("\n"),
+    status: 2,
+  },
+  {
     label: "self help is not tool help",
     text: ["Self-help output follows:", "```bash", "node tools/wave-plan.mjs --all", "```"].join("\n"),
     status: 2,
@@ -471,6 +496,27 @@ export const RAW_TOOL_REVIEW_CORPUS = [
     "The ticket body says you can run `node tools/wave-plan.mjs --all` as an example.",
   ].map((text, index) => ({ label: `historical prose control ${index + 1}`, text, status: 0 })),
   {
+    label: "imperative as npx remains executable",
+    text: "You should run this as npx --yes @orbit/cli deploy.",
+    status: 2,
+  },
+  ...[
+    "Run this as npx --yes @orbit/cli deploy.",
+    "Please run it as npx --yes @orbit/cli deploy.",
+    "Internally you should run this as npx --yes @orbit/cli deploy.",
+    "You should run this as `npx --yes @orbit/cli deploy`.",
+  ].map((text, index) => ({ label: `imperative npx connector ${index + 1}`, text, status: 2 })),
+  ...[
+    "The command is documented as npx --yes @orbit/cli deploy.",
+    "The package is described as npx --yes @orbit/cli deploy.",
+  ].map((text, index) => ({ label: `descriptive npx connector ${index + 1}`, text, status: 0 })),
+  {
+    label: "overlap resolution keeps the accepted outer command",
+    text: "node --require tools/npx-a.mjs --loader tools/npx-b.mjs tools/wave-plan.mjs",
+    status: 2,
+    includes: ["node --require tools/npx-a.mjs --loader tools/npx-b.mjs tools/wave-plan.mjs"],
+  },
+  {
     label: "quoted help fence",
     text: ["The captured `--help` output is:", "", "```bash", "node tools/wave-plan.mjs --all", "```"].join("\n"),
     status: 0,
@@ -483,6 +529,11 @@ export const RAW_TOOL_REVIEW_CORPUS = [
   {
     label: "quoted configuration fence",
     text: ["The configuration value is:", "```json", '"command": "node tools/wave-plan.mjs --all"', "```"].join("\n"),
+    status: 0,
+  },
+  {
+    label: "quoted YAML configuration fence",
+    text: ["The YAML configuration is:", "```yaml", "command: node tools/wave-plan.mjs --all", "```"].join("\n"),
     status: 0,
   },
   ...["Downloads/notes-1.md", "Downloads/NOTES-1.md", "Downloads/step-3.md", "Downloads/draft-42.md", "Downloads/log-99.txt"].map(
@@ -527,7 +578,14 @@ for (const fixture of RAW_TOOL_REVIEW_CORPUS) {
   }
 }
 
-export const RAW_TOOL_CLAUSE_FUZZ_BUDGET = 1280
+const overlapReason = "the exact node diagnostic was requested"
+const appealedOverlap = checkRawRepoToolSurfacing(
+  `node --require tools/npx-a.mjs --loader tools/npx-b.mjs tools/wave-plan.mjs # Repo-tool appeal: ${overlapReason}`,
+)
+T("cc raw-tool: one overlapping node invocation needs one appeal", appealedOverlap?.appeal, true)
+T("cc raw-tool: overlapping node invocation yields one command", appealedOverlap?.commands?.length, 1)
+
+export const RAW_TOOL_CLAUSE_FUZZ_BUDGET = 1600
 const fuzzFirst = "node tools/wave-plan.mjs --all"
 const fuzzSecond = "node tools/rollup.mjs"
 const fuzzDocuments = [
@@ -549,6 +607,7 @@ const fuzzLayouts = [
   ["period-two", `${fuzzFirst}. Then run ${fuzzSecond}`],
   ["semicolon-two", `${fuzzFirst}; ${fuzzSecond}`],
   ["and-chain", `${fuzzFirst} && ${fuzzSecond}`],
+  ["imperative-as-npx", "this as npx --yes @orbit/cli deploy"],
 ]
 const fuzzBoundaries = [
   ["plain", (frame, body) => `${frame} ${body}`],
