@@ -10,6 +10,12 @@ effort: medium
 The split between `/ticket` and `/feature` is cardinality: this skill produces one
 ticket, while `/feature` decomposes a larger idea into a project of tickets.
 
+This skill takes the narrower D1 path: it creates Linear tickets only for work owned
+by orbit-ui-mobile (`repo:ui`) or orbit-api (`repo:api`). For orbit-landing-page,
+infrastructure, or Dependabot work, stop before drafting and state that GitHub Issues
+is the source of truth. A GitHub Issues creation path is intentionally not added here
+because that would widen this single-Linear-ticket workflow beyond its scope.
+
 ## Phase A: classify and gather evidence
 
 1. Classify the work and choose exactly one Linear type label:
@@ -30,13 +36,26 @@ ticket, while `/feature` decomposes a larger idea into a project of tickets.
    requested new or changed behaviour, but no fabricated red case or unreproduced
    statement belongs in the ticket.
 
-## Phase B: prove scope completeness
+## Phase B: interrogate
+
+1. Spawn the `product-manager` agent for every ticket with the work item and
+   `architecture.json`. It returns the sharpened problem statement, affected
+   surfaces and endpoints, open questions, and whether one ticket remains the right
+   shape.
+2. When the work touches a UI surface, spawn `design-specialist` in parallel. It
+   returns the binding DESIGN.md constraints and whether the request needs a token
+   or pattern DESIGN.md lacks. For a pure chore or harness ticket with no UI surface,
+   explicitly state that `design-specialist` was skipped and why.
+3. Batch every genuine fork into one AskUserQuestion call. Do not ask what the
+   codebase, `architecture.json`, or DESIGN.md already answers.
+
+## Phase C: prove scope completeness
 
 Before drafting or editing anything, read and execute
 `.claude/skills/_shared/scope-completeness.md`. Carry every required entry into the
 ticket's Scope and Affected modules / files.
 
-## Phase C: draft and create
+## Phase D: draft and create
 
 1. Draft ONE ticket with the 6.2 sections. Severity and blast radius go in Problem
    for defects. Root-cause hypotheses go in Technical details, labelled as
