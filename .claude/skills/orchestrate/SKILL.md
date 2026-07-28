@@ -163,10 +163,12 @@ eligible ticket. Do not reorder waves or explicit-set members.
    `--max-parallel-worktrees 1` when the run has `--single`). It prints
    the terminal handle, worktree path and branch as JSON: keep that, it is what you
    babysit with. Exit 0 means the worker ACCEPTED the prompt as a user turn, read back off
-   the TUI, not merely that orca accepted the send. On a non-zero exit (1 the worker never
-   reached tui-idle or never took the pointer, 2 usage or
-   config, 3 an orca or git command failed) the tool rolls its own worktree and branches
-   back out, so relaunching after fixing the cause starts clean rather than piling up
+   the TUI, not merely that orca accepted the send. Exit 1 means the concurrency cap was
+   reached before anything was created, or the worker never reached tui-idle or took the
+   pointer. Exit 2 is usage or config; exit 3 is an orca or git failure. A cap refusal
+   creates nothing to roll back. After any later non-zero exit, the tool rolls its own
+   worktree and branches back out, so relaunching after fixing the cause starts clean
+   rather than piling up
    `orb-N-slug-2` with a surviving contract branch that fails `git switch -c` all over
    again. If it could not remove the worktree (a wedged setup PTY), it prints the exact
    removal command on stderr; run that BEFORE relaunching. Read stderr, fix the cause,

@@ -555,6 +555,9 @@ const listedWorktrees = orca(["worktree", "list", "--repo", `path:${repoPath}`])
 if (!Array.isArray(listedWorktrees)) {
   fail(3, "orca worktree list returned no worktrees array")
 }
+/** WHY: Measured on 2026-07-28, Orca's live JSON carries both canonical flat fields and
+ * mirrored `git.path` / `git.isMainWorktree` fields. Accept either shape so a wrapper that
+ * omits the flat mirror cannot count main as a child or hide an occupying path. */
 const occupyingWorktrees = listedWorktrees.filter(
   (worktree) =>
     worktree.isMainWorktree !== true
