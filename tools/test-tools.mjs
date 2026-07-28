@@ -1798,11 +1798,16 @@ const calibrationDate = (daysAgo) => {
   return date.toISOString().slice(0, 10)
 }
 
+const calibrationFingerprint = (source) =>
+  `sha256:${createHash("sha256").update(source.replaceAll("\r\n", "\n")).digest("hex")}`
+
 const stageCalibration = (label, options = {}) => {
   const base = join(root, "calibration", label)
   const currentModel = options.currentModel ?? "gpt-current"
   const currentDefaultArgs = options.currentDefaultArgs ?? ["-c", 'model_reasoning_effort="high"']
   const stampedModel = options.stampedModel ?? "gpt-current"
+  const agentSource = "---\nname: sample\n---\n"
+  const skillSource = "---\nname: sample\n---\n"
   mkdirSync(join(base, "tools", "lib"), { recursive: true })
   mkdirSync(join(base, ".claude", "agents"), { recursive: true })
   mkdirSync(join(base, ".claude", "skills", "sample"), { recursive: true })
@@ -1811,8 +1816,8 @@ const stageCalibration = (label, options = {}) => {
     join(TOOLS_DIR, "lib", "orchestrator-config.mjs"),
     join(base, "tools", "lib", "orchestrator-config.mjs"),
   )
-  writeFileSync(join(base, ".claude", "agents", "sample.md"), "---\nname: sample\n---\n")
-  writeFileSync(join(base, ".claude", "skills", "sample", "SKILL.md"), "---\nname: sample\n---\n")
+  writeFileSync(join(base, ".claude", "agents", "sample.md"), agentSource)
+  writeFileSync(join(base, ".claude", "skills", "sample", "SKILL.md"), skillSource)
   writeFileSync(
     join(base, ".claude", "orchestrator.json"),
     JSON.stringify(options.orchestrator ?? {
@@ -1830,6 +1835,10 @@ const stageCalibration = (label, options = {}) => {
     }),
   )
   if (!options.missingArtifact) {
+    const entries = options.entries ?? [
+      { file: ".claude/agents/sample.md", verdict: "kept", reason: "The bounded role still fits." },
+      { file: ".claude/skills/sample/SKILL.md", verdict: "kept", reason: "The bounded procedure still fits." },
+    ]
     const artifact = options.artifact ?? {
       model: stampedModel,
       invocation: options.stampedInvocation ?? [
@@ -1838,10 +1847,16 @@ const stageCalibration = (label, options = {}) => {
         stampedModel,
       ],
       date: options.date ?? calibrationDate(0),
-      entries: options.entries ?? [
-        { file: ".claude/agents/sample.md", verdict: "kept", reason: "The bounded role still fits." },
-        { file: ".claude/skills/sample/SKILL.md", verdict: "kept", reason: "The bounded procedure still fits." },
-      ],
+      entries: entries.map((entry) => ({
+        fingerprint: calibrationFingerprint(
+          entry.file === ".claude/agents/sample.md"
+            ? agentSource
+            : entry.file === ".claude/skills/sample/SKILL.md"
+              ? skillSource
+              : "",
+        ),
+        ...entry,
+      })),
     }
     writeFileSync(
       join(base, ".claude", "calibration.json"),
@@ -1881,6 +1896,39 @@ const calibrationCases = () => {
     { status: 1, stdout: /invocation mismatch/ },
     { path: invocationMismatch },
   )
+  const contentDrift = stageCalibration("content-drift")
+  const contentDriftRoot = dirname(dirname(contentDrift))
+  const changedAgentSource = "---\nname: sample\neffort: low\n---\n"
+  writeFileSync(join(contentDriftRoot, ".claude", "agents", "sample.md"), changedAgentSource)
+  check(
+    "check-calibration.mjs",
+    "rejects same-path calibrated input drift",
+    [],
+    { status: 1, stdout: /content fingerprint mismatch: \.claude\/agents\/sample\.md/ },
+    { path: contentDrift },
+  )
+  check(
+    "check-calibration.mjs",
+    "report-only neutralizes calibrated input drift",
+    ["--report-only"],
+    { status: 0, stdout: /report-only[\s\S]*content fingerprint mismatch: \.claude\/agents\/sample\.md/ },
+    { path: contentDrift },
+  )
+  check(
+    "check-calibration.mjs",
+    "refresh stamps changed input content",
+    ["--refresh"],
+    { status: 0, stdout: /PASS/ },
+    { path: contentDrift },
+  )
+  const contentRefreshedArtifact = JSON.parse(
+    readFileSync(join(contentDriftRoot, ".claude", "calibration.json"), "utf8"),
+  )
+  T(
+    "check-calibration.mjs: refresh wrote the changed input fingerprint",
+    contentRefreshedArtifact.entries[0].fingerprint === calibrationFingerprint(changedAgentSource),
+    JSON.stringify(contentRefreshedArtifact.entries[0]),
+  )
   const refreshable = stageCalibration("refresh", { stampedModel: "gpt-old", date: calibrationDate(91) })
   check("check-calibration.mjs", "refresh stamps the selected invocation and current date", ["--refresh"], { status: 0, stdout: /PASS/ }, { path: refreshable })
   const refreshedArtifact = JSON.parse(readFileSync(join(dirname(dirname(refreshable)), ".claude", "calibration.json"), "utf8"))
@@ -1903,6 +1951,31 @@ const calibrationCases = () => {
   check("check-calibration.mjs", "malformed calibration is an operational error", [], { status: 2, stderr: /not valid JSON/ }, { path: malformed })
   const absent = stageCalibration("absent", { missingArtifact: true })
   check("check-calibration.mjs", "missing calibration is an operational error", [], { status: 2, stderr: /could not be read/ }, { path: absent })
+  const malformedFingerprint = stageCalibration("malformed-fingerprint", {
+    entries: [
+      {
+        file: ".claude/agents/sample.md",
+        verdict: "kept",
+        reason: "Still fits.",
+        fingerprint: "sha256:not-a-hash",
+      },
+      { file: ".claude/skills/sample/SKILL.md", verdict: "kept", reason: "Still fits." },
+    ],
+  })
+  check(
+    "check-calibration.mjs",
+    "malformed input fingerprint is an operational error",
+    [],
+    { status: 2, stderr: /entries\[0\]\.fingerprint must be a sha256 fingerprint/ },
+    { path: malformedFingerprint },
+  )
+  check(
+    "check-calibration.mjs",
+    "report-only neutralizes a malformed input fingerprint",
+    ["--report-only"],
+    { status: 0, stdout: /report-only[\s\S]*entries\[0\]\.fingerprint/ },
+    { path: malformedFingerprint },
+  )
 
   const missingWorker = stageCalibration("missing-worker", {
     orchestrator: { worker: "codex", workers: {} },

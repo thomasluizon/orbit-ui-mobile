@@ -14,177 +14,212 @@
     {
       "file": ".claude/agents/Explore.md",
       "verdict": "kept",
-      "reason": "Haiku fits bounded code search; omitted effort preserves the pinned cheap tier."
+      "reason": "Haiku fits bounded code search; omitted effort preserves the pinned cheap tier.",
+      "fingerprint": "sha256:74e69f2e9ecb53a73398c515d8e3ec1ed505704d6cd6025653acfab376ac7862"
     },
     {
       "file": ".claude/agents/audit-readonly.md",
       "verdict": "kept",
-      "reason": "Schema-bound fan-out is pinned to Haiku at call sites; omitted effort preserves that tier."
+      "reason": "Schema-bound fan-out is pinned to Haiku at call sites; omitted effort preserves that tier.",
+      "fingerprint": "sha256:ccf83adcaf2a327b18a95db41deccaae0b54f577fe2f21c9cb6a4fe157700e77"
     },
     {
       "file": ".claude/agents/completeness-critic.md",
       "verdict": "kept",
-      "reason": "Sonnet with high effort fits adversarial whole-surface completeness judgment."
+      "reason": "Sonnet with high effort fits adversarial whole-surface completeness judgment.",
+      "fingerprint": "sha256:d1dcd7b3455a0d40123fa6a04d2d1ad02bee38f9115e35d1dd28fed5ec0d6ff4"
     },
     {
       "file": ".claude/agents/contract-aligner.md",
       "verdict": "kept",
-      "reason": "Sonnet with medium effort fits structured cross-repo contract comparison."
+      "reason": "Sonnet with medium effort fits structured cross-repo contract comparison.",
+      "fingerprint": "sha256:245024a497d6077c8a9258c32163b5f973534374a93392d6b7e2cb569e7c4f90"
     },
     {
       "file": ".claude/agents/design-reviewer.md",
       "verdict": "kept",
-      "reason": "Sonnet with medium effort fits rubric-driven visual review."
+      "reason": "Sonnet with medium effort fits rubric-driven visual review.",
+      "fingerprint": "sha256:8c9e5d657c7713a9296812b685944921a35c1a9c961104e2965dc768f0c99566"
     },
     {
       "file": ".claude/agents/design-specialist.md",
       "verdict": "changed",
-      "reason": "Explicit inherited model with high effort fits load-bearing design-system judgment."
+      "reason": "Explicit inherited model with high effort fits load-bearing design-system judgment.",
+      "fingerprint": "sha256:ec6415e053b6211ff64de49476979af9f70fdd9f4516c10b59e80c8e6e43245b"
     },
     {
       "file": ".claude/agents/i18n-syncer.md",
       "verdict": "kept",
-      "reason": "Haiku fits deterministic locale parity edits; omitted effort preserves the cheap tier."
+      "reason": "Haiku fits deterministic locale parity edits; omitted effort preserves the cheap tier.",
+      "fingerprint": "sha256:966868fb1ce21557f9c1b67f416373871213b959b4d651db6a3a6d6b4d314a96"
     },
     {
       "file": ".claude/agents/parity-checker.md",
       "verdict": "kept",
-      "reason": "Haiku fits deterministic mirror checks; omitted effort preserves the cheap tier."
+      "reason": "Haiku fits deterministic mirror checks; omitted effort preserves the cheap tier.",
+      "fingerprint": "sha256:2dbdd4574897cffd06293993d3b1b6d92f4241351c059f2cd9607346fa2e08ce"
     },
     {
       "file": ".claude/agents/product-manager.md",
       "verdict": "changed",
-      "reason": "Explicit inherited model with high effort fits contract-bound ticket and DAG shaping."
+      "reason": "Explicit inherited model with high effort fits contract-bound ticket and DAG shaping.",
+      "fingerprint": "sha256:8970b34442f9b35f1244d53f9cbef48d7be0faf26cee3b10acd93cff1c0898c6"
     },
     {
       "file": ".claude/agents/security-reviewer.md",
       "verdict": "kept",
-      "reason": "Sonnet with medium effort fits a bounded, evidence-led security rubric."
+      "reason": "Sonnet with medium effort fits a bounded, evidence-led security rubric.",
+      "fingerprint": "sha256:9054b6aa7e63f93c668a1a03793f166ee3a225b540f8f42799874f34a2eba89b"
     },
     {
       "file": ".claude/agents/web-researcher.md",
       "verdict": "kept",
-      "reason": "Sonnet with medium effort fits narrow source verification and synthesis."
+      "reason": "Sonnet with medium effort fits narrow source verification and synthesis.",
+      "fingerprint": "sha256:b0eba80af5cdd41f0d4bc8f42bd28a9fa7a1881ff13a1db542a41a92b37da1ee"
     },
     {
       "file": ".claude/skills/android-generate/SKILL.md",
       "verdict": "changed",
-      "reason": "Low effort now matches its single fixed build command."
+      "reason": "Low effort now matches its single fixed build command.",
+      "fingerprint": "sha256:e9b2058a50efb93914558e8ab9dd3eedc183326832925249f5462be3e857792a"
     },
     {
       "file": ".claude/skills/audit-code-quality/SKILL.md",
       "verdict": "kept",
-      "reason": "Omitted effort intentionally inherits high reasoning for repo-wide judgment."
+      "reason": "Omitted effort intentionally inherits high reasoning for repo-wide judgment.",
+      "fingerprint": "sha256:a2870a0d4e0a0b59613c402e1cb82b2610f4002c4a1c27bb2f0cb33e7e49766f"
     },
     {
       "file": ".claude/skills/audit-performance/SKILL.md",
       "verdict": "kept",
-      "reason": "Omitted effort intentionally inherits high reasoning for cross-stack risk analysis."
+      "reason": "Omitted effort intentionally inherits high reasoning for cross-stack risk analysis.",
+      "fingerprint": "sha256:78f12954519419edaa321c4db153c83147953f966d3776accf9bdd338ba52a6b"
     },
     {
       "file": ".claude/skills/audit-security/SKILL.md",
       "verdict": "kept",
-      "reason": "Omitted effort intentionally inherits high reasoning for threat and severity judgment."
+      "reason": "Omitted effort intentionally inherits high reasoning for threat and severity judgment.",
+      "fingerprint": "sha256:8cca236aeabe22b277e5a24c4e75684a809ae4274dec5c053103ec2497a4fa7f"
     },
     {
       "file": ".claude/skills/audit-tests/SKILL.md",
       "verdict": "kept",
-      "reason": "Omitted effort intentionally inherits high reasoning for behavioral coverage judgment."
+      "reason": "Omitted effort intentionally inherits high reasoning for behavioral coverage judgment.",
+      "fingerprint": "sha256:e192e96fa6046f1884a9127142f0fe2cbff8df6d67665f9342d57a0f78426757"
     },
     {
       "file": ".claude/skills/commit-sweep/SKILL.md",
       "verdict": "kept",
-      "reason": "Omitted effort intentionally inherits high reasoning for cross-commit reconciliation."
+      "reason": "Omitted effort intentionally inherits high reasoning for cross-commit reconciliation.",
+      "fingerprint": "sha256:2078f01eb4d1e07470013ebae2abeec82706dd410d979fcc0313012a78765b45"
     },
     {
       "file": ".claude/skills/deep-research/SKILL.md",
       "verdict": "kept",
-      "reason": "Omitted effort intentionally inherits high reasoning for evidence synthesis."
+      "reason": "Omitted effort intentionally inherits high reasoning for evidence synthesis.",
+      "fingerprint": "sha256:a7bbf3c505b096e82f186135d736d85615802fd0b45d5fa2ee0514e8d277c014"
     },
     {
       "file": ".claude/skills/dep-sweep/SKILL.md",
       "verdict": "changed",
-      "reason": "Medium effort fits constrained version selection and verification."
+      "reason": "Medium effort fits constrained version selection and verification.",
+      "fingerprint": "sha256:6cfb52858408f0fbd59da3b51e93c099505b5cd67880131098ffbe762190a531"
     },
     {
       "file": ".claude/skills/dev-server/SKILL.md",
       "verdict": "changed",
-      "reason": "Low effort fits its fixed dependency-ordered readiness procedure."
+      "reason": "Low effort fits its fixed dependency-ordered readiness procedure.",
+      "fingerprint": "sha256:b95013bea459e4fca7b76b8238a06f7eddd165e80504c687e4ce2325557fa03f"
     },
     {
       "file": ".claude/skills/feature/SKILL.md",
       "verdict": "kept",
-      "reason": "High effort fits multi-ticket decomposition, contracts, and DAG shaping."
+      "reason": "High effort fits multi-ticket decomposition, contracts, and DAG shaping.",
+      "fingerprint": "sha256:714311c30bacebab33bd87c552233132c71595d2c91b4a9aa778a28d788bbcbc"
     },
     {
       "file": ".claude/skills/investigate/SKILL.md",
       "verdict": "kept",
-      "reason": "Omitted effort intentionally inherits high reasoning for incident correlation."
+      "reason": "Omitted effort intentionally inherits high reasoning for incident correlation.",
+      "fingerprint": "sha256:9aa3a2e191266bea6b1e63bac2a6fcce56ddc9052a335298ff8da08c16592023"
     },
     {
       "file": ".claude/skills/lesson/SKILL.md",
       "verdict": "kept",
-      "reason": "Omitted effort intentionally inherits high reasoning because promotion changes standing context."
+      "reason": "Omitted effort intentionally inherits high reasoning because promotion changes standing context.",
+      "fingerprint": "sha256:f3af59784bce45575feb54e72e0685fc2dc55f0f49ad3705e1319b1eef3c73ae"
     },
     {
       "file": ".claude/skills/llm-council/SKILL.md",
       "verdict": "kept",
-      "reason": "Omitted effort intentionally inherits high reasoning for competing-lens synthesis."
+      "reason": "Omitted effort intentionally inherits high reasoning for competing-lens synthesis.",
+      "fingerprint": "sha256:958bfd50fafe1dd72927c919b13eb4b071f5debac8b1feb745c064806ddac459"
     },
     {
       "file": ".claude/skills/make-tool/SKILL.md",
       "verdict": "kept",
-      "reason": "Omitted effort intentionally inherits high reasoning for reusable interface design."
+      "reason": "Omitted effort intentionally inherits high reasoning for reusable interface design.",
+      "fingerprint": "sha256:58228b60ba2fc520e2ca33f64fa7e1c9365e382c221c0d52a34b0f86764b93d0"
     },
     {
       "file": ".claude/skills/next/SKILL.md",
       "verdict": "kept",
-      "reason": "Low effort fits deterministic DAG ranking and one recommendation."
+      "reason": "Low effort fits deterministic DAG ranking and one recommendation.",
+      "fingerprint": "sha256:4e330aa8797429b58da46f151a5472ae0e578623778516a0cfccdd64421de7f1"
     },
     {
       "file": ".claude/skills/orchestrate/SKILL.md",
       "verdict": "kept",
-      "reason": "High effort fits merge-gated multi-worker coordination and reconciliation."
+      "reason": "High effort fits merge-gated multi-worker coordination and reconciliation.",
+      "fingerprint": "sha256:eb5c13d348140a4983dcddb8125a838b2b1c355880c57af041d8e52c9e9dbc54"
     },
     {
       "file": ".claude/skills/pr-review/SKILL.md",
       "verdict": "kept",
-      "reason": "Omitted effort intentionally inherits high reasoning for adversarial diff review."
+      "reason": "Omitted effort intentionally inherits high reasoning for adversarial diff review.",
+      "fingerprint": "sha256:b64b3b5ada82699858a5d78916d8b6f0c04c9b1eacdeba94c7898264973be8b3"
     },
     {
       "file": ".claude/skills/prod-readiness/SKILL.md",
       "verdict": "kept",
-      "reason": "Omitted effort intentionally inherits high reasoning for launch-risk consolidation."
+      "reason": "Omitted effort intentionally inherits high reasoning for launch-risk consolidation.",
+      "fingerprint": "sha256:c0ba60efade3f44fd63c3f1db60981f2b11fadeb270530f66d0ba122a99b4aed"
     },
     {
       "file": ".claude/skills/profile/SKILL.md",
       "verdict": "kept",
-      "reason": "Omitted effort intentionally inherits high reasoning for trace diagnosis and iteration."
+      "reason": "Omitted effort intentionally inherits high reasoning for trace diagnosis and iteration.",
+      "fingerprint": "sha256:7b01b4a52e5753e77d5fd77b3dda8cbddf0fa4264a95556a91c12926efeab6a5"
     },
     {
       "file": ".claude/skills/rollup/SKILL.md",
       "verdict": "kept",
-      "reason": "Low effort fits reading and presenting scripted gate conclusions."
+      "reason": "Low effort fits reading and presenting scripted gate conclusions.",
+      "fingerprint": "sha256:8988e78dabf46a559a938de5bafb15c216beb5da072747c2bfa17f84c0fb3003"
     },
     {
       "file": ".claude/skills/second-opinion/SKILL.md",
       "verdict": "kept",
-      "reason": "Omitted effort intentionally inherits high reasoning for load-bearing claim reconciliation."
+      "reason": "Omitted effort intentionally inherits high reasoning for load-bearing claim reconciliation.",
+      "fingerprint": "sha256:4e8f79b5f3177f502bdefd6010a0e921a4fe4d2f25a3506abc4fd955a73867c7"
     },
     {
       "file": ".claude/skills/ticket/SKILL.md",
       "verdict": "kept",
-      "reason": "Medium effort fits one-ticket reproduction, reconciliation, and scope shaping."
+      "reason": "Medium effort fits one-ticket reproduction, reconciliation, and scope shaping.",
+      "fingerprint": "sha256:3e165a6e644ef4136f83c8af579b08e34e390f822bc1d4a97a2d57656863e826"
     },
     {
       "file": ".claude/skills/validate/SKILL.md",
       "verdict": "kept",
-      "reason": "Low effort fits deterministic command selection and result reporting."
+      "reason": "Low effort fits deterministic command selection and result reporting.",
+      "fingerprint": "sha256:e1ef5a36050d37f1434ba650a72cdf0125f331a311faf9b1e47377d59102e75e"
     },
     {
       "file": ".claude/skills/watch/SKILL.md",
       "verdict": "kept",
-      "reason": "Low effort fits scripted fleet-status interpretation."
+      "reason": "Low effort fits scripted fleet-status interpretation.",
+      "fingerprint": "sha256:e687009f5b21bf49c26cea001a9eb48afa3fde509601f33f6fc4d86c67eb0f40"
     }
   ]
 }

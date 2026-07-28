@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { createHash } from "node:crypto"
 import { readFileSync, readdirSync, writeFileSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -11,7 +12,7 @@ import {
 const USAGE = `usage: check-calibration.mjs [--report-only] [--refresh]
 
   --report-only  print failures but exit 0 during the rollout window
-  --refresh      validate entries, then stamp the current model and UTC date
+  --refresh      validate entries, then stamp current config, content, and UTC date
   --help, -h     print this usage and exit 0
 
 exit codes: 0 valid or report-only verdict, 1 calibration failed, 2 usage or malformed/missing artifact`
@@ -63,7 +64,7 @@ function validIsoDate(value) {
   return Number.isFinite(milliseconds) && new Date(milliseconds).toISOString().slice(0, 10) === value
 }
 
-function validateArtifactShape(artifact) {
+function validateArtifactShape(artifact, requireFingerprints) {
   const problems = []
   if (!artifact || typeof artifact !== "object" || Array.isArray(artifact)) {
     return ["root must be an object"]
@@ -95,6 +96,12 @@ function validateArtifactShape(artifact) {
     }
     if (typeof entry.reason !== "string" || entry.reason.trim() === "") {
       problems.push(`entries[${index}].reason must be a non-empty string`)
+    }
+    if (
+      requireFingerprints &&
+      (typeof entry.fingerprint !== "string" || !/^sha256:[0-9a-f]{64}$/.test(entry.fingerprint))
+    ) {
+      problems.push(`entries[${index}].fingerprint must be a sha256 fingerprint`)
     }
   }
   return problems
@@ -138,6 +145,16 @@ function declaredInvocation() {
   }
 }
 
+function fingerprint(file) {
+  let source
+  try {
+    source = readFileSync(join(REPO_ROOT, ...file.split("/")), "utf8")
+  } catch (error) {
+    finishOperational(`calibration input could not be read: ${file}: ${error.message}`)
+  }
+  return `sha256:${createHash("sha256").update(source.replaceAll("\r\n", "\n")).digest("hex")}`
+}
+
 function coverageProblems(expectedFiles, entries) {
   const expected = new Set(expectedFiles)
   const counts = new Map()
@@ -167,7 +184,7 @@ function printVerdict(problems, expectedCount, entryCount, model, date) {
 }
 
 const artifact = readJson(CALIBRATION_PATH, ".claude/calibration.json")
-const shapeProblems = validateArtifactShape(artifact)
+const shapeProblems = validateArtifactShape(artifact, !refresh)
 if (shapeProblems.length > 0) finishOperational(`.claude/calibration.json is malformed: ${shapeProblems.join("; ")}`)
 
 const expectedFiles = inventory()
@@ -178,6 +195,7 @@ if (refresh && problems.length === 0) {
   artifact.model = current.model
   artifact.invocation = current.invocation
   artifact.date = new Date().toISOString().slice(0, 10)
+  for (const entry of artifact.entries) entry.fingerprint = fingerprint(entry.file)
   try {
     writeFileSync(CALIBRATION_PATH, `${JSON.stringify(artifact, null, 2)}\n`)
   } catch (error) {
@@ -186,6 +204,12 @@ if (refresh && problems.length === 0) {
 }
 
 if (problems.length === 0) {
+  for (const entry of artifact.entries) {
+    const currentFingerprint = fingerprint(entry.file)
+    if (entry.fingerprint !== currentFingerprint) {
+      problems.push(`content fingerprint mismatch: ${entry.file}`)
+    }
+  }
   if (artifact.model !== current.model) {
     problems.push(`model mismatch: stamp ${JSON.stringify(artifact.model)}, orchestrator ${JSON.stringify(current.model)}`)
   }
