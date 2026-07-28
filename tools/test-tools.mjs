@@ -528,6 +528,7 @@ const REQUIRED_CONTRACT_CLAUSES = {
   "dropping a blocked criterion": /A blocked sub-step never blocks the PR/,
   "owning its automated review cycle": /Own the automated review cycle[\s\S]*approved with zero unresolved threads/,
   "replying with the fix commit before resolving": /reply on that thread naming[\s\S]*the fix commit, then resolve it/,
+  "acknowledging non-thread review activity": /review body or PR conversation[\s\S]*activity ID[\s\S]*PR commit/,
   "escalating a disagreement": /Escalate when you disagree with a finding/,
   "escalating a blocked decision": /when you are[\s\S]*blocked on a decision you may not make/,
   "escalating after two failed cycles": /when two consecutive cycles fail on the same[\s\S]*finding/,
@@ -1610,10 +1611,10 @@ const stageWorkerStatusWorktree = () => {
   if (git(worktree, ["add", "other.txt"]).status !== 0 || git(worktree, ["commit", "-q", "-m", "fix other path"]).status !== 0) return null
   const unrelatedCommit = git(worktree, ["rev-parse", "HEAD"]).stdout.trim()
   if (git(worktree, ["push", "-q", "-u", "origin", "feature/orb-75-worker-status"]).status !== 0) return null
-  return { fixCommit, unrelatedCommit, worktree }
+  return { fixCommit, unrelatedCommit, prHead: unrelatedCommit, worktree }
 }
 
-const workerStatusPlan = (attachments, reviewThreads = []) => [
+const workerStatusPlan = (attachments, { comments = [], prHead, reviews = [], reviewThreads = [] } = {}) => [
   {
     match: "pr list",
     stdout: JSON.stringify([{ number: 75, url: "https://github.com/orbit/orbit/pull/75", state: "OPEN", baseRefName: "main", isDraft: false }]),
@@ -1625,7 +1626,10 @@ const workerStatusPlan = (attachments, reviewThreads = []) => [
         viewer: { login: "worker" },
         repository: {
           pullRequest: {
+            headRefOid: prHead,
             reviewDecision: "APPROVED",
+            reviews: { pageInfo: { hasNextPage: false }, nodes: reviews },
+            comments: { pageInfo: { hasNextPage: false }, nodes: comments },
             reviewThreads: { pageInfo: { hasNextPage: false }, nodes: reviewThreads },
           },
         },
@@ -1650,8 +1654,9 @@ const reviewThread = ({ author, authorType, id, isResolved, path = "reviewed.txt
   path,
   resolvedBy: resolvedBy ? { login: resolvedBy } : null,
   comments: {
+    pageInfo: { hasNextPage: false },
     nodes: [
-      { author: { login: author, __typename: authorType }, body: "review finding" },
+      { author: { login: author, __typename: authorType }, body: "review finding", createdAt: "2026-07-28T10:00:00Z", pullRequestReview: null },
       ...(reply ? [{ author: { login: resolvedBy, __typename: "User" }, body: reply }] : []),
     ],
   },
@@ -1661,7 +1666,19 @@ const runWorkerStatusCase = (fixture, attachments, options = {}) => {
   const result = run(
     "worker-status.mjs",
     ["--worktree", fixture.worktree, "--issue", "ORB-75", ...(options.verifyReview ? ["--verify-review"] : []), "--json"],
-    { env: { ...orcaEnv(workerStatusPlan(attachments, options.reviewThreads)), ...(options.log ? { ORBIT_ORCA_LOG: options.log } : {}) } },
+    {
+      env: {
+        ...orcaEnv(
+          workerStatusPlan(attachments, {
+            comments: options.comments,
+            prHead: options.prHead ?? fixture.prHead,
+            reviews: options.reviews,
+            reviewThreads: options.reviewThreads,
+          }),
+        ),
+        ...(options.log ? { ORBIT_ORCA_LOG: options.log } : {}),
+      },
+    },
   )
   try {
     return { ...result, verdict: JSON.parse(result.stdout) }
@@ -2682,8 +2699,73 @@ const gateCases = {
     const fixed = runWorkerStatusCase(fixture, [screenshot, critique], { reviewThreads: [fixedAutomatedThread], verifyReview: true })
     T(
       "worker-status.mjs: a resolved automated finding passes when its named fix commit changed the reviewed path",
-      fixed.status === 0 && fixed.verdict?.ok === true,
+      fixed.status === 0 &&
+        fixed.verdict?.ok === true &&
+        fixed.verdict.checks.find((entry) => entry.name === "pr-head-match")?.ok === true,
       `exit ${fixed.status}\n     ${(fixed.stderr || fixed.stdout).slice(0, 600)}`,
+    )
+    const standaloneReview = {
+      id: "PRR_standalone",
+      author: { login: "claude[bot]", __typename: "Bot" },
+      body: "standalone automated finding",
+      submittedAt: "2026-07-28T10:00:00Z",
+      updatedAt: "2026-07-28T10:00:01Z",
+    }
+    const unacknowledgedReview = runWorkerStatusCase(fixture, [screenshot, critique], { reviews: [standaloneReview] })
+    T(
+      "worker-status.mjs: a standalone automated review body needs an auditable worker acknowledgement",
+      unacknowledgedReview.status === 1 &&
+        unacknowledgedReview.verdict?.checks.find((entry) => entry.name === "review-activity")?.ok === false,
+      `exit ${unacknowledgedReview.status}\n     ${(unacknowledgedReview.stderr || unacknowledgedReview.stdout).slice(0, 600)}`,
+    )
+    const reviewAcknowledgement = {
+      id: "IC_review_ack",
+      author: { login: "worker", __typename: "User" },
+      body: `Acknowledged PRR_standalone in ${fixture.prHead}`,
+      createdAt: "2026-07-28T10:00:02Z",
+      updatedAt: "2026-07-28T10:00:02Z",
+    }
+    const acknowledgedReview = runWorkerStatusCase(fixture, [screenshot, critique], {
+      comments: [reviewAcknowledgement],
+      reviews: [standaloneReview],
+    })
+    T(
+      "worker-status.mjs: a later worker acknowledgement naming a PR commit covers a standalone review body",
+      acknowledgedReview.status === 0 &&
+        acknowledgedReview.verdict?.checks.find((entry) => entry.name === "review-activity")?.ok === true,
+      `exit ${acknowledgedReview.status}\n     ${(acknowledgedReview.stderr || acknowledgedReview.stdout).slice(0, 600)}`,
+    )
+    const standaloneConversation = {
+      id: "IC_standalone_bot",
+      author: { login: "claude[bot]", __typename: "Bot" },
+      body: "standalone conversation finding",
+      createdAt: "2026-07-28T10:00:00Z",
+      updatedAt: "2026-07-28T10:00:00Z",
+    }
+    const unacknowledgedConversation = runWorkerStatusCase(fixture, [screenshot, critique], {
+      comments: [standaloneConversation],
+    })
+    T(
+      "worker-status.mjs: a standalone automated conversation finding needs an auditable worker acknowledgement",
+      unacknowledgedConversation.status === 1 &&
+        unacknowledgedConversation.verdict?.checks.find((entry) => entry.name === "review-activity")?.ok === false,
+      `exit ${unacknowledgedConversation.status}\n     ${(unacknowledgedConversation.stderr || unacknowledgedConversation.stdout).slice(0, 600)}`,
+    )
+    const conversationAcknowledgement = {
+      id: "IC_conversation_ack",
+      author: { login: "worker", __typename: "User" },
+      body: `Acknowledged IC_standalone_bot in ${fixture.prHead}`,
+      createdAt: "2026-07-28T10:00:02Z",
+      updatedAt: "2026-07-28T10:00:02Z",
+    }
+    const acknowledgedConversation = runWorkerStatusCase(fixture, [screenshot, critique], {
+      comments: [standaloneConversation, conversationAcknowledgement],
+    })
+    T(
+      "worker-status.mjs: a later worker acknowledgement naming a PR commit covers a conversation finding",
+      acknowledgedConversation.status === 0 &&
+        acknowledgedConversation.verdict?.checks.find((entry) => entry.name === "review-activity")?.ok === true,
+      `exit ${acknowledgedConversation.status}\n     ${(acknowledgedConversation.stderr || acknowledgedConversation.stdout).slice(0, 600)}`,
     )
     const unfixedAutomatedThread = reviewThread({
       author: "claude[bot]",
@@ -2733,6 +2815,30 @@ const gateCases = {
       resolvedHuman.status === 1 &&
         resolvedHuman.verdict?.checks.find((entry) => entry.name === "human-thread-resolution")?.ok === false,
       `exit ${resolvedHuman.status}\n     ${(resolvedHuman.stderr || resolvedHuman.stdout).slice(0, 600)}`,
+    )
+    writeFileSync(join(fixture.worktree, "reviewed.txt"), "review fix\nlocal only fix\n")
+    const localGit = (args) => spawnSync("git", ["-C", fixture.worktree, ...args], { encoding: "utf8" })
+    localGit(["add", "reviewed.txt"])
+    localGit(["commit", "-q", "-m", "local only review fix"])
+    const localOnlyCommit = localGit(["rev-parse", "HEAD"]).stdout.trim()
+    const localOnlyThread = reviewThread({
+      author: "claude[bot]",
+      authorType: "Bot",
+      id: "PRRT_local_only",
+      isResolved: true,
+      resolvedBy: "worker",
+      reply: `Fixed in ${localOnlyCommit}`,
+    })
+    const localOnly = runWorkerStatusCase(fixture, [screenshot, critique], {
+      reviewThreads: [localOnlyThread],
+      verifyReview: true,
+    })
+    T(
+      "worker-status.mjs: an unpushed local fix cannot satisfy remote PR verification",
+      localOnly.status === 1 &&
+        localOnly.verdict?.checks.find((entry) => entry.name === "pr-head-match")?.ok === false &&
+        localOnly.verdict?.checks.find((entry) => entry.name === "resolved-thread-fixes")?.ok === false,
+      `exit ${localOnly.status}\n     ${(localOnly.stderr || localOnly.stdout).slice(0, 600)}`,
     )
   },
   "compose-prompt.mjs": composePromptCases,

@@ -172,7 +172,9 @@ conflict with anything above, these win.
    valid finding, fix it, run the affected gates, commit and push, reply on that thread naming
    the fix commit, then resolve it. Never resolve a thread opened by a human account. Repeat
    until the review decision is approved with zero unresolved threads; approval with an
-   unresolved thread is not done.
+   unresolved thread is not done. For an automated finding in a review body or PR conversation
+   comment with no thread, post a PR comment naming that activity ID and the PR commit that
+   addresses it.
 4. **Escalate instead of guessing.** Escalate when you disagree with a finding, when you are
    blocked on a decision you may not make, or when two consecutive cycles fail on the same
    finding. Do not try that finding a third time. Send one escalation carrying the disputed

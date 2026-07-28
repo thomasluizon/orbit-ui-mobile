@@ -18,6 +18,9 @@ before writing code.
   naming the fix commit, resolve the thread, and repeat until the review decision is
   approved with zero unresolved threads. Never resolve a thread opened by a human,
   and never report completion while any thread remains unresolved.
+- For an automated finding in a review body or PR conversation comment with no
+  thread, post a PR comment naming that activity ID and the PR commit that addresses
+  it so the pre-merge verification can prove it was handled.
 - Escalate when you disagree with a finding, when you are blocked on a decision you
   may not make, or when two consecutive cycles fail on the same finding. Report one
   escalation carrying the finding and your reasoning; otherwise report once when the

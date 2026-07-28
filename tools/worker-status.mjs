@@ -27,9 +27,10 @@ const USAGE = `usage: worker-status.mjs --worktree <path> --issue ORB-N [--base 
 Checks, all from artifacts: commits exist on the branch, the worktree carries no uncommitted
 work, the branch is pushed, a PR is open and approved against <ref> with zero unresolved
 threads, every resolved automated thread names a fix commit that changed its reviewed path,
-no human-authored thread was resolved by the worker account, the Linear issue is In Review
-with the PR attached, and both a screenshot and critique artifact are attached when the ticket
-carries visible-effect (D7).
+every standalone automated review item has a worker acknowledgement naming a PR commit,
+no human-authored thread was resolved by the worker account, the local head matches the PR
+head, the Linear issue is In Review with the PR attached, and both a screenshot and critique
+artifact are attached when the ticket carries visible-effect (D7).
 
 exit codes: 0 the contract is met, 1 unmet items (listed), 2 usage error,
             3 a git, gh or orca command failed`
@@ -137,7 +138,7 @@ const reviewPayload = pullRequest
         "api",
         "graphql",
         "-f",
-        "query=query($owner:String!,$name:String!,$number:Int!){viewer{login}repository(owner:$owner,name:$name){pullRequest(number:$number){reviewDecision reviewThreads(first:100){pageInfo{hasNextPage}nodes{id isResolved path resolvedBy{login} comments(first:100){nodes{author{login __typename} body}}}}}}}",
+        "query=query($owner:String!,$name:String!,$number:Int!){viewer{login}repository(owner:$owner,name:$name){pullRequest(number:$number){headRefOid reviewDecision reviews(first:100){pageInfo{hasNextPage}nodes{id author{login __typename}body submittedAt updatedAt}}comments(first:100){pageInfo{hasNextPage}nodes{id author{login __typename}body createdAt updatedAt}}reviewThreads(first:100){pageInfo{hasNextPage}nodes{id isResolved path resolvedBy{login}comments(first:100){pageInfo{hasNextPage}nodes{author{login __typename}body createdAt pullRequestReview{id}}}}}}}}",
         "-F",
         `owner=${slug.split("/")[0]}`,
         "-F",
@@ -150,7 +151,10 @@ const reviewPayload = pullRequest
 const review = reviewPayload?.repository?.pullRequest
 const reviewThreads = review?.reviewThreads?.nodes ?? []
 const workerLogin = reviewPayload?.viewer?.login
-const prCommits = new Set(git(["rev-list", `${baseRef}..HEAD`]).split("\n").filter(Boolean))
+const localHead = git(["rev-parse", "HEAD"])
+const prHead = review?.headRefOid ?? null
+const prHeadPresent = Boolean(prHead && git(["cat-file", "-e", `${prHead}^{commit}`], { allowFailure: true }) !== null)
+const prCommits = new Set(prHeadPresent ? git(["rev-list", `${baseRef}..${prHead}`]).split("\n").filter(Boolean) : [])
 const resolveCommit = (reference) => git(["rev-parse", "--verify", `${reference}^{commit}`], { allowFailure: true })
 const automatedAuthor = (author) => author?.__typename === "Bot" || author?.login?.endsWith("[bot]")
 const threadHasFix = (thread) => {
@@ -170,6 +174,28 @@ const workerResolvedHumanThreads = reviewThreads.filter(
   (thread) => !automatedAuthor(thread.comments?.nodes?.[0]?.author) && thread.isResolved && thread.resolvedBy?.login === workerLogin,
 )
 const unresolvedThreads = reviewThreads.filter((thread) => !thread.isResolved)
+const standaloneAutomatedActivity = [
+  ...(review?.reviews?.nodes ?? []).filter((item) => automatedAuthor(item.author) && item.body?.trim()),
+  ...(review?.comments?.nodes ?? []).filter((item) => automatedAuthor(item.author) && item.body?.trim()),
+]
+const workerComments = (review?.comments?.nodes ?? []).filter((item) => item.author?.login === workerLogin)
+const activityAcknowledged = (item) => {
+  const activityTime = Date.parse(item.updatedAt ?? item.submittedAt ?? item.createdAt ?? "")
+  return workerComments.some((comment) => {
+    if (!comment.body?.includes(item.id) || Date.parse(comment.updatedAt ?? comment.createdAt ?? "") < activityTime) return false
+    for (const match of comment.body.matchAll(/\b[0-9a-f]{7,40}\b/gi)) {
+      const commit = resolveCommit(match[0])
+      if (commit && prCommits.has(commit)) return true
+    }
+    return false
+  })
+}
+const unacknowledgedAutomatedActivity = standaloneAutomatedActivity.filter((item) => !activityAcknowledged(item))
+const reviewInventoryComplete =
+  review?.reviewThreads?.pageInfo?.hasNextPage === false &&
+  review?.reviews?.pageInfo?.hasNextPage === false &&
+  review?.comments?.pageInfo?.hasNextPage === false &&
+  reviewThreads.every((thread) => thread.comments?.pageInfo?.hasNextPage === false)
 
 const detail = orca(["linear", "issue", issue, "--attachments"])
 const linearIssue = detail.issue ?? detail
@@ -195,6 +221,13 @@ const checks = [
   { name: "worktree-clean", ok: dirty.length === 0, detail: dirty.length ? `${dirty.length} uncommitted path(s), work is not captured` : "no uncommitted work" },
   { name: "pushed", ok: pushed, detail: pushed ? `origin has ${branch}` : `origin has no ${branch}` },
   {
+    name: "pr-head-match",
+    ok: Boolean(prHead && prHeadPresent && localHead === prHead),
+    detail: prHead
+      ? `local HEAD ${localHead} ${localHead === prHead ? "matches" : "does not match"} PR head ${prHead}${prHeadPresent ? "" : " (object unavailable locally)"}`
+      : "no PR head is available",
+  },
+  {
     name: "pr-open",
     ok: Boolean(pullRequest && pullRequest.state === "OPEN" && pullRequest.baseRefName === base && !pullRequest.isDraft),
     detail: pullRequest ? `${pullRequest.url} ${pullRequest.state} -> ${pullRequest.baseRefName}${pullRequest.isDraft ? " (draft)" : ""}` : `no PR from ${branch} in ${slug}`,
@@ -206,13 +239,20 @@ const checks = [
   },
   {
     name: "review-thread-inventory",
-    ok: review?.reviewThreads?.pageInfo?.hasNextPage === false,
-    detail: review?.reviewThreads?.pageInfo?.hasNextPage ? "more than 100 review threads, verification is incomplete" : "complete review thread inventory",
+    ok: reviewInventoryComplete,
+    detail: reviewInventoryComplete ? "complete review activity inventory" : "more than 100 review items in at least one connection, verification is incomplete",
   },
   {
     name: "review-threads",
     ok: unresolvedThreads.length === 0,
     detail: unresolvedThreads.length ? `${unresolvedThreads.length} unresolved review thread(s)` : "zero unresolved review threads",
+  },
+  {
+    name: "review-activity",
+    ok: unacknowledgedAutomatedActivity.length === 0,
+    detail: unacknowledgedAutomatedActivity.length
+      ? `standalone automated review item(s) without a later worker acknowledgement naming a PR commit: ${unacknowledgedAutomatedActivity.map((item) => item.id).join(", ")}`
+      : "every standalone automated review item has a worker acknowledgement naming a PR commit",
   },
   { name: "linear-in-review", ok: (linearIssue.state?.name ?? linearIssue.state) === reviewState, detail: `issue is ${linearIssue.state?.name ?? linearIssue.state}, contract wants ${reviewState}` },
   {
