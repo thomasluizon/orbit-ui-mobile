@@ -175,6 +175,7 @@ const affectedSectionOf = (description) => {
 
 const isDeclaredPath = (section, path, index) => {
   if (/[a-z][a-z0-9+.-]*:\/\/$/i.test(section.slice(Math.max(0, index - 24), index))) return false
+  if (/^[\w-]+(?:\.[\w-]+)*\.[a-z]{2,63}\//i.test(path)) return false
   if (/[\\/]/.test(path)) return true
   if (section[index - 1] === "`" && section[index + path.length] === "`") return true
   const lineStart = section.lastIndexOf("\n", index) + 1
@@ -197,8 +198,13 @@ const collisionsIn = (waveIssues, byIdentifier) => {
   const pairs = []
   for (let a = 0; a < waveIssues.length; a++) {
     for (let b = a + 1; b < waveIssues.length; b++) {
-      const left = byIdentifier.get(waveIssues[a])?.affectedFiles ?? []
-      const right = new Set(byIdentifier.get(waveIssues[b])?.affectedFiles ?? [])
+      const leftIssue = byIdentifier.get(waveIssues[a])
+      const rightIssue = byIdentifier.get(waveIssues[b])
+      const leftRepo = leftIssue?.labels.find((label) => label.startsWith("repo:"))
+      const rightRepo = rightIssue?.labels.find((label) => label.startsWith("repo:"))
+      if (leftRepo && rightRepo && leftRepo !== rightRepo) continue
+      const left = leftIssue?.affectedFiles ?? []
+      const right = new Set(rightIssue?.affectedFiles ?? [])
       const shared = left.filter((path) => right.has(path))
       if (shared.length) pairs.push({ a: waveIssues[a], b: waveIssues[b], files: shared })
     }

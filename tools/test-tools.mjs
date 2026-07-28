@@ -2483,21 +2483,23 @@ const gateCases = {
   "wave-plan.mjs": () => {
     check("wave-plan.mjs", "documents the explicit issue selection mode", ["--help"], { status: 0, stdout: /--issues "ORB-a,\.\.\."/ })
     const body = (files) => `## Affected modules / files\n\n${files}\n`
-    const stubDescriptions = (aDescription, bDescription) =>
+    const stubDescriptions = (aDescription, bDescription, aLabels = [], bLabels = []) =>
       orcaEnv([
         { match: "linear list-issues", stdout: JSON.stringify({ ok: true, result: { issues: [{ identifier: "ORB-201" }, { identifier: "ORB-202" }] } }) },
-        { match: "linear issue ORB-201", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-201", title: "first collision probe", description: aDescription, state: { name: "Todo", type: "unstarted" }, labels: [] }, relations: [] } }) },
-        { match: "linear issue ORB-202", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-202", title: "second collision probe", description: bDescription, state: { name: "Todo", type: "unstarted" }, labels: [] }, relations: [] } }) },
+        { match: "linear issue ORB-201", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-201", title: "first collision probe", description: aDescription, state: { name: "Todo", type: "unstarted" }, labels: aLabels }, relations: [] } }) },
+        { match: "linear issue ORB-202", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-202", title: "second collision probe", description: bDescription, state: { name: "Todo", type: "unstarted" }, labels: bLabels }, relations: [] } }) },
       ])
     const stub = (aFiles, bFiles) => stubDescriptions(body(aFiles), body(bFiles))
     check("wave-plan.mjs", "two tickets naming a common path are reported as a collision pair", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /ORB-201 \+ ORB-202: tools\/test-tools\.mjs/ }, { env: stub("`tools/test-tools.mjs`", "`tools/test-tools.mjs`") })
     check("wave-plan.mjs", "a backticked root file is reported as a collision", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /ORB-201 \+ ORB-202: README\.md/ }, { env: stub("`README.md`", "`README.md`") })
     check("wave-plan.mjs", "a bare root file list item is reported as a collision", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /ORB-201 \+ ORB-202: README\.md/ }, { env: stub("- README.md", "- README.md") })
+    check("wave-plan.mjs", "the same relative path in different repositories is not a collision", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /collisions: none/ }, { env: stubDescriptions(body("`CLAUDE.md`"), body("`CLAUDE.md`"), ["repo:ui"], ["repo:api"]) })
     check("wave-plan.mjs", "two tickets naming disjoint paths report no collision", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /collisions: none/ }, { env: stub("`tools/a.mjs`", "`tools/b.mjs`") })
     check("wave-plan.mjs", "dynamic route segments stay part of disjoint paths", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /collisions: none/ }, { env: stub("`apps/web/app/r/[code]/page.tsx`", "`apps/web/app/(app)/social/challenges/[id]/page.tsx`") })
     check("wave-plan.mjs", "native paths collide even when each ticket also names a recognised tool path", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /ORB-201 \+ ORB-202: apps\/mobile\/android\/app\/src\/main\/java\/com\/orbit\/MainActivity\.kt/ }, { env: stub("`tools/a.mjs`\n`apps/mobile/android/app/src/main/java/com/orbit/MainActivity.kt`", "`tools/b.mjs`\n`apps/mobile/android/app/src/main/java/com/orbit/MainActivity.kt`") })
     check("wave-plan.mjs", "ordinary dotted prose is not reported as a collision", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /collisions: none/ }, { env: stub("e.g. `tools/a.mjs` with Node.js v20.5", "e.g. `tools/b.mjs` with Node.js v20.5") })
     check("wave-plan.mjs", "a shared URL is not reported as a file collision", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /collisions: none/ }, { env: stub("See https://github.com/org/repo/blob/main/docs/collisions.md and `tools/a.mjs`", "See https://github.com/org/repo/blob/main/docs/collisions.md and `tools/b.mjs`") })
+    check("wave-plan.mjs", "a shared bare-domain URL is not reported as a file collision", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /collisions: none/ }, { env: stub("See github.com/org/repo/blob/main/docs/collisions.md and `tools/a.mjs`", "See github.com/org/repo/blob/main/docs/collisions.md and `tools/b.mjs`") })
     const fencedDescription = ["## Technical details", "```sh", "# Files affected: `scripts/deploy.sh`", "```", "## Affected modules / files", "`tools/test-tools.mjs`"].join("\n")
     check("wave-plan.mjs", "a heading-shaped line inside a fence cannot shadow the affected section", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /ORB-201 \+ ORB-202: tools\/test-tools\.mjs/ }, { env: stubDescriptions(fencedDescription, body("`tools/test-tools.mjs`")) })
     const boundedBody = (file) => `${body(file)}\n## Test scenarios\n\n\`tools/shared-after-section.mjs\`\n`
