@@ -379,16 +379,24 @@ cannot decide for one PR, all against that recorded head:
    up to a merged PR carrying open threads whose findings were in fact fixed hours earlier;
    from the outside those two states look identical, and one of them is a lie.
 
-Immediately before handoff, re-read `headRefOid` and `mergeStateStatus`. If the head
-moved at any point after the conditions ran, discard their results and repeat the
-update-first sequence and conditions 1 to 6 against the new head. That repeat includes
-re-enumerating review bodies, inline comments and unresolved review threads; the merge
-script cannot do that. Invoke the strict sweep for ONE PR at a time from the repository
-root, immediately after its final-head preflight:
+Immediately before handoff, re-read `headRefOid` and `mergeStateStatus`. Hand off only
+when the state is `CLEAN`. If it is `BEHIND`, do not invoke the script: update the branch,
+wait for the new head, and repeat conditions 1 to 6 against it. If the head moved at any
+point after the conditions ran, discard their results and repeat the same update-first
+sequence. Every repeat includes re-enumerating review bodies, inline comments and
+unresolved review threads; the merge script cannot do that.
+
+Record this final `headRefOid` as the expected head, then invoke the strict sweep for
+ONE PR at a time from the repository root:
 
 ```bash
 bash tools/merge-sweep.sh <owner/repo> <pr-number>
 ```
+
+One PR at a time is load-bearing, not a style choice. Under `--sleep`, this run is the
+only merge actor in the repository, so serialising each preflight and sweep is what
+keeps the base from advancing between the final `CLEAN` read and handoff. Re-batching
+PR numbers would reopen the stale-head window whenever an earlier PR merged.
 
 The script owns the remaining mechanical merge decision. It repeats the branch update
 as a safety check, polls `mergeStateStatus`, rejects failed checks, requires
@@ -414,6 +422,12 @@ merge result; `SKIP` or `MERGE-REFUSED` leaves that PR open and supplies its sto
 reason. Exit `0` also covers a completed sweep that skipped a PR. A non-zero exit
 reports an orphaned or unverifiable merged head, so re-read the affected PR state and
 record it as a harness defect rather than claiming the PR remained unmerged.
+
+After the script returns, read the PR's `headRefOid` and merge commit. For a `MERGED`
+result, the merged `headRefOid` must equal the expected head that passed conditions 1
+to 6. If it differs, say loudly in the closing report that the PR merged on an
+ungated head, include both head SHAs and the merge commit, and stop all further merges
+in that repository until Thomas has looked.
 
 On anything the skill-only gates or the strict script cannot decide, do NOT guess and
 do NOT pick a middle path. Stop that ticket, leave its PR open, record the reason, and
