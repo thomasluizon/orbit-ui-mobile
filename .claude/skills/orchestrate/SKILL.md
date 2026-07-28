@@ -307,8 +307,8 @@ Write no loop of your own. Both hand-rolled loops on the ORB-88 run were wrong a
 silently: the first fired instantly on a stale verdict from an earlier commit, the second could
 only exit on approval or a failing check, so a fresh CHANGES_REQUESTED left it spinning for
 90 minutes with the answer in its own output and nobody reading it. The terminal condition is
-"anything other than the state I have already acted on", never an allowlist of the states
-somebody remembered.
+one of the actionable transitions enumerated above; `UNKNOWN` and other non-terminal
+merge-state churn never terminate the watcher.
 
 - CI red or CHANGES_REQUESTED: ONE fix cycle per strike; send the failure text + review
   comments to a fresh worker in the same worktree. Resolve addressed review threads.
