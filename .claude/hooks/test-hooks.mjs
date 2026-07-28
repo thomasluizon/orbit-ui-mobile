@@ -418,5 +418,28 @@ T(
   true,
 )
 
+// The regression a reviewer caught on the FIRST version of the per-chunk scan,
+// which kept only the chunks carrying the endpoint. A Bash tool_input.command can
+// contain a blank line, so the URL landed in one chunk and the mutation field in
+// the next, and dropping the second let a genuine Linear write through as null.
+// This is the case that must stay blocked forever: it is the call site that
+// matters most, an actual command about to run.
+const splitCommand = [
+  'curl -s https://api.linear.app/graphql -d \'{"query":"mutation {',
+  "",
+  'issueCreate(input:{title:"x"}) { success }',
+  '}"}\'',
+].join("\n")
+T("linear gate: a mutation split from its endpoint by a blank line still blocks", checkLinearMutation(splitCommand)?.block, true)
+
+const splitAcrossFence = [
+  "Post to https://api.linear.app/graphql:",
+  "",
+  "```bash",
+  'curl -d \'{"query":"mutation{issueArchive(id:\\"x\\"){success}}"}\'',
+  "```",
+].join("\n")
+T("linear gate: a mutation in a different chunk from the endpoint still blocks", checkLinearMutation(splitAcrossFence)?.block, true)
+
 console.log(`\n${fails === 0 ? "ORBIT HOOK PARITY OK" : `ORBIT HOOK PARITY FAILED (${fails})`}`)
 process.exit(fails === 0 ? 0 : 1)

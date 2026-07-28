@@ -189,12 +189,27 @@ project overview document, which orca also cannot do.
 // elsewhere in the same file turned the whole doc red, and `gh api graphql`
 // cannot target Linear at all.
 //
-// So a document is judged in chunks, and only a chunk that itself carries the
-// Linear endpoint is scanned. Chunks are fenced code blocks (kept whole, blank
-// lines inside a fence do NOT split it, because a real multi-line curl payload
-// lives in one fence) and, outside fences, blank-line-separated prose. A command
-// string has no fences and no blank line, so it is one chunk and behaves exactly
-// as before: this narrows the DOCUMENT case only.
+// The fix is subtractive, never selective, and that distinction is the whole
+// rule. The first attempt scanned ONLY the chunks carrying the endpoint, and a
+// reviewer caught it opening a real hole: `tool_input.command` for a Bash call
+// CAN contain a blank line (a multi-line curl, an inline JSON payload split for
+// readability), so the URL landed in one chunk and `issueCreate` in the next, and
+// dropping the second chunk let a genuine Linear write through as `null`.
+// Reproduced by hand before this rewrite:
+//
+//   curl -s https://api.linear.app/graphql -d '{"query":"mutation {
+//   <blank>
+//   issueCreate(input:{title:"x"}) { success }
+//   }"}'                                        -> ALLOWED, pre-fix behaviour BLOCKED
+//
+// So the default is unchanged and total: scan the whole text. A chunk is removed
+// only on POSITIVE evidence that it targets something else, which today means it
+// invokes `gh api graphql` and does not itself name the Linear host. The GitHub
+// CLI cannot reach Linear, so that pairing is proof rather than a heuristic, and
+// anything unrecognised keeps being scanned. Chunks are fenced code blocks (kept
+// whole, blank lines inside a fence do NOT split them) and, outside fences,
+// blank-line-separated prose.
+const OTHER_CLIENT = /\bgh\s+api\s+graphql\b/
 function endpointChunks(text) {
   if (!text.includes("\n")) return [text]
   const chunks = []
@@ -229,11 +244,18 @@ function endpointChunks(text) {
   return chunks
 }
 
+// A no-newline string is one chunk, so a single-line command is untouched by any
+// of this. A MULTI-line command is chunked like a document, which is safe only
+// because the filter subtracts on positive evidence: a curl split across a blank
+// line keeps every chunk, since none of them invokes another client.
+
 /** Verdict for a shell command about to run, or null to allow. */
 export function checkLinearMutation(text) {
   if (typeof text !== "string" || !ENDPOINT.test(text)) return null
-  const targeted = endpointChunks(text).filter((chunk) => ENDPOINT.test(chunk))
-  const scanned = targeted.length ? targeted.join("\n") : text
+  // Subtract only what is PROVABLY another service. Everything else, including
+  // every chunk this function does not recognise, stays in the scan.
+  const kept = endpointChunks(text).filter((chunk) => !(OTHER_CLIENT.test(chunk) && !ENDPOINT.test(chunk)))
+  const scanned = kept.join("\n")
   const fields = OPAQUE_PAYLOAD.test(scanned) ? null : mutationFields(scanned)
   if (fields === null) {
     return {
