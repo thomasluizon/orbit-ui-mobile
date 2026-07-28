@@ -317,13 +317,15 @@ It exits on the first actionable transition you have NOT already acted on and na
 (exit 4). Actionable means the head SHA changed, the review decision changed, the merge state
 became `CLEAN`, a required check concluded as failed, or the PR merged or closed. `UNKNOWN` and
 churn between other non-terminal merge states never fire. The first poll establishes the
-baseline for state transitions, so an already clean PR does not repeatedly starve later fleet
-entries; fresh unacted verdicts still fire immediately. `--acted` is what you have already
-handled on that PR, as the head SHA the verdict sat on plus the verdict; entries accumulate by
-PR and head, so repeat the flag for every handled verdict, including two verdicts on the same
-head. Pass them after every fix cycle so the same feedback is never replayed, and pass none on
-the first watch. A verdict counts only when it sits on the CURRENT head, so a stale
-`CHANGES_REQUESTED` carried on an older commit does not satisfy it.
+baseline for state transitions, but fresh unacted verdicts and unhandled readiness still fire
+immediately. `--acted` is what you have already handled on that PR, as the head SHA plus the
+verdict or `READY_TO_MERGE`; entries accumulate by PR and head. Repeat the flag for every
+handled verdict, including two verdicts on the same head, and add `READY_TO_MERGE` after acting
+on readiness so that PR does not starve later fleet entries. `APPROVED` suppresses only the
+approval verdict, not readiness that may appear between watcher runs. Pass the handled signals
+after every fix cycle so the same event is never replayed, and pass none on the first watch. A
+verdict counts only when it sits on the CURRENT head, so a stale `CHANGES_REQUESTED` carried on
+an older commit does not satisfy it.
 
 Write no loop of your own. Both hand-rolled loops on the ORB-88 run were wrong and both failed
 silently: the first fired instantly on a stale verdict from an earlier commit, the second could

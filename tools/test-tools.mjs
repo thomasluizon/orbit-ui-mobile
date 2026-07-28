@@ -1366,9 +1366,9 @@ const prWatchCases = () => {
   const argv = ["--repo", "thomasluizon/orbit-ui-mobile", "--pr", "615", "--once"]
   check(
     "pr-watch.mjs",
-    "--help says repeated acted verdicts on one PR and head accumulate",
+    "--help says repeated acted signals on one PR and head accumulate",
     ["--help"],
-    { status: 0, stdout: /same PR and head accumulate/ },
+    { status: 0, stdout: /same PR and head accumulate[\s\S]*READY_TO_MERGE independently/ },
   )
   let sequenceNumber = 0
   const checkSequence = (name, states, extraArgv, expect) => {
@@ -1409,8 +1409,15 @@ const prWatchCases = () => {
   check("pr-watch.mjs", "a fresh approval fires", argv, { status: 0, stdout: /"transition": "approved"/ }, { env: orcaEnv([approved]) })
   check(
     "pr-watch.mjs",
-    "an acted approval on an already clean PR does not repeat as readiness",
+    "an acted approval that became clean between watches reports readiness",
     [...argv, "--acted", `615=${HEAD_SHA.slice(0, 7)}:APPROVED`],
+    { status: 0, stdout: /"transition": "ready-to-merge"/ },
+    { env: orcaEnv([approved]) },
+  )
+  check(
+    "pr-watch.mjs",
+    "an acted readiness on an already clean PR does not repeat",
+    [...argv, "--acted", `615=${HEAD_SHA.slice(0, 7)}:APPROVED`, "--acted", `615=${HEAD_SHA}:READY_TO_MERGE`],
     { status: 4, stdout: /"transition": "none"/ },
     { env: orcaEnv([approved]) },
   )
@@ -1538,7 +1545,17 @@ const prWatchCases = () => {
   check(
     "pr-watch.mjs",
     "an acted ready PR does not starve a later fleet transition",
-    ["--repo", "thomasluizon/orbit-ui-mobile", "--pr", "615,616", "--once", "--acted", `615=${HEAD_SHA}:APPROVED`],
+    [
+      "--repo",
+      "thomasluizon/orbit-ui-mobile",
+      "--pr",
+      "615,616",
+      "--once",
+      "--acted",
+      `615=${HEAD_SHA}:APPROVED`,
+      "--acted",
+      `615=${HEAD_SHA}:READY_TO_MERGE`,
+    ],
     { status: 1, stdout: /"pr": 616[\s\S]*"transition": "changes-requested"/ },
     {
       env: orcaEnv([
@@ -1568,6 +1585,7 @@ const prWatchCases = () => {
 
   check("pr-watch.mjs", "refuses a baseline for a PR it is not watching", [...argv, "--acted", `616=${HEAD_SHA}:APPROVED`], { status: 2, stderr: /--pr does not watch/ })
   check("pr-watch.mjs", "refuses a malformed baseline rather than ignoring it", [...argv, "--acted", "615=APPROVED"], { status: 2, stderr: /--acted must look like/ })
+  check("pr-watch.mjs", "refuses an unknown acted signal", [...argv, "--acted", `615=${HEAD_SHA}:MERGEABLE`], { status: 2, stderr: /--acted signal must be/ })
   check("pr-watch.mjs", "refuses a repo that is not an owner\\/name slug", ["--repo", "orbit-ui-mobile", "--pr", "615", "--once"], { status: 2, stderr: /owner\/name slug/ })
 }
 

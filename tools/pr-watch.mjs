@@ -26,13 +26,13 @@ const USAGE = `usage: pr-watch.mjs --repo <owner/name> --pr <n>[,<n>...] [option
   --repo <owner/name>   the GitHub repository the PRs live in (required)
   --pr <n>[,<n>...]     PR numbers to watch; repeatable and comma-separated (required).
                         The FIRST one to transition ends the run
-  --acted <n>=<sha>:<verdict>
+  --acted <n>=<sha>:<signal>
                         what the caller has ALREADY handled on PR <n>: the head SHA the
-                        verdict was given on (a prefix is enough) and the verdict itself
-                        (APPROVED, CHANGES_REQUESTED, COMMENTED). Repeatable entries for the
-                        same PR and head accumulate, suppressing every listed verdict. Omit
-                        it and any verdict on the current head is news. This is the ONLY
-                        thing that suppresses a verdict, so an unlisted verdict is reported
+                        signal belongs to (a prefix is enough) and APPROVED,
+                        CHANGES_REQUESTED, COMMENTED, or READY_TO_MERGE. Repeatable entries
+                        for the same PR and head accumulate, suppressing every listed signal.
+                        APPROVED suppresses only that verdict; READY_TO_MERGE independently
+                        suppresses readiness already handled on that head
   --interval <seconds>  seconds between polls (default: 60)
   --timeout <seconds>   stop waiting after this long (default: 5400, 90 minutes)
   --once                read the state once and report it; wait for nothing
@@ -45,8 +45,8 @@ The transitions, in the order they are checked, so a PR in several at once repor
 that matters most: gone (merged or closed), checks-failed, changes-requested, review-comment,
 approved (a fresh verdict on the current head), ready-to-merge (an approved PR becomes mergeable),
 head-changed, review-decision, merge-clean. UNKNOWN and changes among other merge states
-never emit. The first poll establishes the baseline for state transitions; fresh verdicts
-that are not listed in --acted still emit immediately.
+never emit. The first poll establishes the baseline for state transitions, except unhandled
+verdicts and unhandled readiness still emit immediately.
 
 exit codes: 0 an actionable non-error state, 1 the PR needs work or has a new head (a failing
             check, a fresh non-approving verdict or decision, or a head change), 2 usage error,
@@ -71,6 +71,7 @@ const FAILED_STATUS_STATES = new Set(["FAILURE", "ERROR"])
 
 /** CHANGES_REQUESTED outranks APPROVED on the same head: two reviewers disagreeing is work, not a merge. */
 const VERDICT_RANK = { CHANGES_REQUESTED: 3, COMMENTED: 2, APPROVED: 1 }
+const ACTED_SIGNALS = new Set([...Object.keys(VERDICT_RANK), "READY_TO_MERGE"])
 
 const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
 
@@ -102,15 +103,16 @@ if (prNumbers.some((value) => !/^\d+$/.test(value))) fail(2, `--pr takes PR numb
 if (!Number.isFinite(interval) || interval <= 0) fail(2, "--interval must be a positive number of seconds")
 if (!Number.isFinite(timeout) || timeout <= 0) fail(2, "--timeout must be a positive number of seconds")
 
-/** The baseline is per PR and head, with every handled verdict retained for that pair. */
+/** The baseline is per PR and head, with every handled verdict or readiness signal retained. */
 const acted = new Map()
 for (const entry of argsOf("--acted")) {
   const parsed = /^(\d+)=([0-9a-fA-F]{7,40}):([A-Z_]+)$/.exec(entry)
   if (!parsed) fail(2, `--acted must look like 615=d9a3f1c:CHANGES_REQUESTED, got: ${entry}`)
+  if (!ACTED_SIGNALS.has(parsed[3])) fail(2, `--acted signal must be ${[...ACTED_SIGNALS].join(", ")}, got: ${parsed[3]}`)
   const key = `${parsed[1]}:${parsed[2].toLowerCase()}`
-  const verdicts = acted.get(key) ?? new Set()
-  verdicts.add(parsed[3])
-  acted.set(key, verdicts)
+  const signals = acted.get(key) ?? new Set()
+  signals.add(parsed[3])
+  acted.set(key, signals)
 }
 const unwatched = [...new Set([...acted.keys()].map((key) => key.split(":")[0]).filter((number) => !prNumbers.includes(number)))]
 if (unwatched.length > 0) fail(2, `--acted names PR(s) that --pr does not watch: ${unwatched.join(", ")}`)
@@ -167,12 +169,12 @@ const verdictsOn = (pullRequest) => {
   return [...new Set(onHead.map((review) => review.state))].sort((left, right) => VERDICT_RANK[right] - VERDICT_RANK[left])
 }
 
-const handledVerdictsOn = (number, head) => {
+const handledSignalsOn = (number, head) => {
   const handled = new Set()
-  for (const [key, verdicts] of acted) {
+  for (const [key, signals] of acted) {
     const [actedNumber, actedSha] = key.split(":")
     if (actedNumber === number && head.toLowerCase().startsWith(actedSha)) {
-      for (const verdict of verdicts) handled.add(verdict)
+      for (const signal of signals) handled.add(signal)
     }
   }
   return handled
@@ -189,7 +191,7 @@ const transitionOf = (pullRequest, previous) => {
   const number = String(pullRequest.number)
   const head = pullRequest.headRefOid
   const failingChecks = failingChecksOf(pullRequest)
-  const handled = handledVerdictsOn(number, head)
+  const handled = handledSignalsOn(number, head)
   const verdicts = verdictsOn(pullRequest)
   const verdict = verdicts.find((candidate) => !handled.has(candidate)) ?? verdicts[0] ?? null
   const state = {
@@ -214,7 +216,12 @@ const transitionOf = (pullRequest, previous) => {
   }
   const becameClean = Boolean(previous && pullRequest.mergeStateStatus === "CLEAN" && previous.mergeStateStatus !== "CLEAN")
   const decisionChanged = previous && pullRequest.reviewDecision !== previous.reviewDecision
-  if (previous && pullRequest.reviewDecision === "APPROVED" && pullRequest.mergeStateStatus === "CLEAN" && (becameClean || decisionChanged)) {
+  if (
+    handled.has("READY_TO_MERGE") === false &&
+    pullRequest.reviewDecision === "APPROVED" &&
+    pullRequest.mergeStateStatus === "CLEAN" &&
+    (!previous || becameClean || decisionChanged)
+  ) {
     return { ...state, transition: "ready-to-merge", reason: "approved and mergeable", code: 0 }
   }
   if (previous && head !== previous.headSha) {
