@@ -19,8 +19,14 @@ before writing code.
   approved with zero unresolved threads. Never resolve a thread opened by a human,
   and never report completion while any thread remains unresolved.
 - Use `node tools/pr-watch.mjs --repo <owner/name> --pr <number> --once` for each
-  transition poll. An informational automated finding that needs no code change may
-  be resolved after replying with
+  low-level transition wake-up only. After every call and before waiting or
+  reporting completion, run
+  `node tools/worker-status.mjs --worktree <path> --issue ORB-N --json`. That
+  full-surface completion poll inventories review submissions, review threads and
+  their nested comments, and PR conversation comments, and fails closed on an
+  incomplete inventory. Read unmet item bodies through GitHub's read APIs,
+  reconcile them, then poll again. An informational automated finding that needs
+  no code change may be resolved after replying with
   `No code change required: <reason>. Evidence: <PR commit>`. The named commit must
   be on the PR and change the reviewed path.
 - For an automated finding in a review body or PR conversation comment with no

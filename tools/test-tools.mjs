@@ -523,18 +523,20 @@ const linearIssueStub = (labels) => [
  * shipping a worker that stalls on a question or babysits someone else's PR.
  */
 const WORKER_CONTRACT_MARKER = "## Standing worker contract (injected by tools/launch-worker.mjs)"
+const FULL_SURFACE_POLL = /worker-status\.mjs[\s\S]*full-surface completion poll[\s\S]*review submissions[\s\S]*review threads[\s\S]*nested comments[\s\S]*PR conversation comments[\s\S]*fails closed/
 const REQUIRED_CONTRACT_CLAUSES = {
   "asking a question": /Never ask a question/,
   "dropping a blocked criterion": /A blocked sub-step never blocks the PR/,
   "owning its automated review cycle": /Own the automated review cycle[\s\S]*approved with zero unresolved threads/,
-  "replying with the fix commit before resolving": /reply on that thread naming[\s\S]*the fix commit, then[\s\S]*resolve it/,
+  "polling every review activity surface": FULL_SURFACE_POLL,
+  "replying with the fix commit before resolving": /reply on that[\s\S]*thread naming[\s\S]*the fix commit, then[\s\S]*resolve it/,
   "acknowledging non-thread review activity": /review body or PR conversation[\s\S]*activity ID[\s\S]*PR commit/,
   "resolving informational findings with audited evidence": /informational automated finding[\s\S]*No code change required: <reason>\. Evidence: <PR commit>[\s\S]*change the reviewed path/,
   "escalating a disagreement": /Escalate when you disagree with a finding/,
   "escalating a blocked decision": /when you are[\s\S]*blocked on a decision you may not make/,
   "escalating after two failed cycles": /when two consecutive cycles fail on the same[\s\S]*finding/,
   "leaving human threads unresolved": /Never resolve a thread opened by a human account/,
-  "refusing completion with unresolved threads": /approval with an[\s\S]*unresolved thread is not done/,
+  "refusing completion with unresolved threads": /approval with an[\s\S]*unresolved[\s\S]*thread is not done/,
   "watching only its own ticket": /Never watch another[\s\S]*ticket, worktree, or PR/,
   "arming a monitor that outlives the contract": /Never arm a background monitor/,
   "merging or pushing to main": /Never merge any PR, never push to/,
@@ -1011,6 +1013,12 @@ const launchWorkerCases = () => {
   for (const [clause, pattern] of Object.entries(REQUIRED_CONTRACT_CLAUSES)) {
     T(`launch-worker.mjs: the injected contract still enforces ${clause}`, pattern.test(launcherSource), `WORKER_CONTRACT no longer matches ${pattern}. A worker without this clause repeats the failure it was written for; restore it rather than relaxing this check.`)
   }
+  const agentsSource = readFileSync(join(REPO_ROOT, "AGENTS.md"), "utf8")
+  T(
+    "launch-worker.mjs: AGENTS.md requires the same full-surface completion poll",
+    FULL_SURFACE_POLL.test(agentsSource),
+    "AGENTS.md no longer requires worker-status to inventory every review activity surface and fail closed.",
+  )
 }
 
 const preflightCases = () => {

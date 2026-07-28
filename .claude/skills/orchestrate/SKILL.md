@@ -314,6 +314,11 @@ worker report:
   that finding's review body and the worker's reasoning, reconcile it against the diff (D8), and
   adjudicate it. Do not load unrelated review bodies.
 
+The worker may use `pr-watch.mjs` only as a low-level review and check transition wake-up. After
+every call and before waiting or reporting Done, it runs `worker-status.mjs --json` as the
+full-surface completion poll. That poll inventories review submissions, review threads and their
+nested comments, and PR conversation comments, and fails closed on an incomplete inventory.
+
 An informational automated finding that needs no code change is handled by the worker replying
 `No code change required: <reason>. Evidence: <PR commit>`, naming a commit on the PR that
 changed the reviewed path, and resolving it. It is neither a disagreement nor an escalation.
