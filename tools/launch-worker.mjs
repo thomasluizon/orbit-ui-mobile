@@ -21,6 +21,7 @@ import { execFileSync, spawnSync } from "node:child_process"
 import { appendFileSync, existsSync, readFileSync, statSync } from "node:fs"
 import { basename, resolve } from "node:path"
 
+import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
 import { SETTLE_MS, isRepainting, pause } from "./lib/tui-repaint.mjs"
 
 const USAGE = `usage: launch-worker.mjs --issue ORB-N --prompt-file <path> [options]
@@ -348,9 +349,9 @@ if (statSync(promptFile).size === 0) fail(2, `prompt file is empty: ${promptFile
 
 let config
 try {
-  config = JSON.parse(readFileSync(new URL("../.claude/orchestrator.json", import.meta.url), "utf8"))
+  config = readOrchestratorConfig()
 } catch (error) {
-  fail(2, `.claude/orchestrator.json could not be read as JSON: ${error.message}`)
+  fail(2, error.message)
 }
 const engineName = config.worker
 const engine = config.workers?.[engineName]
@@ -399,9 +400,12 @@ const worktreeName = `${issue.toLowerCase()}-${slug}`
 const branch = `${branchPrefix}/${worktreeName}`
 const comment = argOf("--comment") ?? `${issue} launched: worker running`
 
-/** Model routing: a worker:sonnet ticket swaps the configured opus for sonnet, nothing else. */
-const wantsSonnet = labels.includes("worker:sonnet")
-const engineArgs = engine.args.map((arg, index) => (wantsSonnet && engine.args[index - 1] === "--model" && arg === "opus" ? "sonnet" : arg))
+let engineArgs
+try {
+  engineArgs = resolveWorkerInvocation(engineName, engine, labels).args
+} catch (error) {
+  fail(2, error.message)
+}
 const command = [engine.command, ...engineArgs].join(" ")
 
 /**

@@ -422,8 +422,23 @@ const orchestratorConfig = (repoPath, worker, engineName) =>
     repos: { ui: repoPath },
   })
 
-const INTERACTIVE_WORKER = { command: "claude", args: ["--permission-mode", "bypassPermissions", "--model", "opus"], interactive: true }
-const INTERACTIVE_CODEX = { command: "codex", args: ["-c", 'windows.sandbox="unelevated"', "--dangerously-bypass-approvals-and-sandbox"], interactive: true }
+const CLAUDE_MODELS = {
+  default: { model: "opus" },
+  cheap: { model: "sonnet" },
+  deep: { model: "opus", args: ["--effort", "max"] },
+}
+const CODEX_MODELS = {
+  default: { model: "gpt-5.6-sol", args: ["-c", 'model_reasoning_effort="high"'] },
+  cheap: { model: "gpt-5.6-luna", args: ["-c", 'model_reasoning_effort="low"'] },
+  deep: { model: "gpt-5.6-sol", args: ["-c", 'model_reasoning_effort="max"'] },
+}
+const INTERACTIVE_WORKER = { command: "claude", args: ["--permission-mode", "bypassPermissions"], models: CLAUDE_MODELS, interactive: true }
+const INTERACTIVE_CODEX = {
+  command: "codex",
+  args: ["-c", 'windows.sandbox="unelevated"', "--dangerously-bypass-approvals-and-sandbox"],
+  models: CODEX_MODELS,
+  interactive: true,
+}
 
 /**
  * Stages a private copy of launch-worker.mjs beside a hand-written
@@ -503,7 +518,7 @@ const REQUIRED_CONTRACT_CLAUSES = {
  */
 const TRUST_SCREENS = {
   claude: {
-    engine: { command: "claude", args: ["--permission-mode", "bypassPermissions"], interactive: true },
+    engine: INTERACTIVE_WORKER,
     answer: "1",
     /**
      * ONE screen per alternative the profile claims to recognise, each phrased so that only
@@ -519,7 +534,7 @@ const TRUST_SCREENS = {
     ],
   },
   codex: {
-    engine: { command: "codex", args: ["--dangerously-bypass-approvals-and-sandbox"], interactive: true },
+    engine: INTERACTIVE_CODEX,
     answer: "",
     screens: [{ label: "the trust-the-contents wording", tail: "You are in C:\\wt\nDoyoutrustthecontentsofthisdirectory?\n> 1. Yes, continue2.No,quitPress enter to continue" }],
   },
@@ -777,9 +792,62 @@ const launchWorkerCases = () => {
   const promptFile = stage("prompt.md", "the ticket body verbatim\n")
 
   const good = stageLaunchWorker("interactive", INTERACTIVE_WORKER)
+  const claudeDefault = check(
+    "launch-worker.mjs",
+    "Claude defaults to opus",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 0, stdout: /claude[\s\S]*--model opus/ },
+    { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui"])) },
+  )
+  const claudeCheap = check(
+    "launch-worker.mjs",
+    "tier:cheap selects sonnet on Claude",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 0, stdout: /claude[\s\S]*--model sonnet/ },
+    { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui", "tier:cheap"])) },
+  )
+  const claudeDeep = check(
+    "launch-worker.mjs",
+    "tier:deep selects a distinct max-effort opus invocation on Claude",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 0, stdout: /claude[\s\S]*--effort max[\s\S]*--model opus/ },
+    { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui", "tier:deep"])) },
+  )
+  const claudeDefaultCommand = claudeDefault.status === 0 ? JSON.parse(claudeDefault.stdout).command : ""
+  const claudeCheapCommand = claudeCheap.status === 0 ? JSON.parse(claudeCheap.stdout).command : ""
+  const claudeDeepCommand = claudeDeep.status === 0 ? JSON.parse(claudeDeep.stdout).command : ""
+  T("launch-worker.mjs: Claude cheap tier cannot resolve to the unchanged default invocation", claudeCheapCommand !== claudeDefaultCommand, `default and cheap both resolved to: ${claudeDefaultCommand}`)
+  T("launch-worker.mjs: Claude deep tier cannot resolve to the unchanged default invocation", claudeDeepCommand !== claudeDefaultCommand, `default and deep both resolved to: ${claudeDefaultCommand}`)
+  check(
+    "launch-worker.mjs",
+    "an unknown tier lists the engine's declared cheap and deep tiers",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 2, stderr: /fast[\s\S]*cheap[\s\S]*deep/ },
+    { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui", "tier:fast"])) },
+  )
+  check(
+    "launch-worker.mjs",
+    "a codex-only or unknown tier is rejected on Claude",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 2, stderr: /codex-only[\s\S]*cheap[\s\S]*deep/ },
+    { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui", "tier:codex-only"])) },
+  )
+  check(
+    "launch-worker.mjs",
+    "rejects the legacy worker:sonnet label with tier:cheap remediation",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 2, stderr: /worker:sonnet[\s\S]*tier:cheap/ },
+    { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui", "worker:sonnet"])) },
+  )
+  check(
+    "launch-worker.mjs",
+    "rejects conflicting tier labels",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 2, stderr: /conflict|multiple[\s\S]*tier/i },
+    { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui", "tier:cheap", "tier:deep"])) },
+  )
   check("launch-worker.mjs", "resolves the repo from the repo:* label", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 0, stdout: /"repo": "ui"/ }, { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
   check("launch-worker.mjs", "derives the contract branch from the title", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 0, stdout: /"branch": "feature\/orb-75-prove-the-harness-gate/ }, { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
-  check("launch-worker.mjs", "worker:sonnet swaps the configured opus", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 0, stdout: /--model sonnet/ }, { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui", "worker:sonnet"])) })
   check("launch-worker.mjs", "refuses a repo:* label with no repos entry", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /no repo path for "zzz"/ }, { path: good.path, env: orcaEnv(linearIssueStub(["repo:zzz"])) })
   check("launch-worker.mjs", "refuses a ticket with no repo:* label and no --repo", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /carries no repo:\* label/ }, { path: good.path, env: orcaEnv(linearIssueStub([])) })
 
@@ -787,23 +855,81 @@ const launchWorkerCases = () => {
   writeFileSync(insidePrompt, "the ticket body verbatim\n")
   check("launch-worker.mjs", "refuses a prompt file inside a repo", ["--issue", "ORB-75", "--prompt-file", insidePrompt, "--dry-run"], { status: 2, stderr: /would be committed/ }, { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
+  const noModels = stageLaunchWorker("no-models", { command: "claude", args: ["--permission-mode", "bypassPermissions"], interactive: true })
+  check("launch-worker.mjs", "refuses an engine with no models map", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /claude[\s\S]*models/ }, { path: noModels.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+
+  const noDefault = stageLaunchWorker("no-default-model", { ...INTERACTIVE_WORKER, models: { cheap: CLAUDE_MODELS.cheap, deep: CLAUDE_MODELS.deep } })
+  check("launch-worker.mjs", "refuses an engine model map with no default", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /claude[\s\S]*default/ }, { path: noDefault.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+
+  const modelInBaseArgs = stageLaunchWorker("model-in-base-args", { ...INTERACTIVE_WORKER, args: ["--model", "opus"] })
+  check("launch-worker.mjs", "refuses a model flag in the engine's base args", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /non-model strings/ }, { path: modelInBaseArgs.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+
+  const noCheap = stageLaunchWorker("no-cheap-model", { ...INTERACTIVE_WORKER, models: { default: CLAUDE_MODELS.default, deep: CLAUDE_MODELS.deep } })
+  check("launch-worker.mjs", "refuses an engine model map with no cheap tier", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /claude[\s\S]*cheap/ }, { path: noCheap.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+
+  const noDeep = stageLaunchWorker("no-deep-model", { ...INTERACTIVE_WORKER, models: { default: CLAUDE_MODELS.default, cheap: CLAUDE_MODELS.cheap } })
+  check("launch-worker.mjs", "refuses an engine model map with no deep tier", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /claude[\s\S]*deep/ }, { path: noDeep.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+
+  const identicalTiers = stageLaunchWorker("identical-tiers", {
+    ...INTERACTIVE_WORKER,
+    models: { ...CLAUDE_MODELS, cheap: { model: "sonnet" }, deep: { model: "sonnet" } },
+  })
+  check("launch-worker.mjs", "refuses identical cheap and deep mappings", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /cheap[\s\S]*deep|deep[\s\S]*cheap/ }, { path: identicalTiers.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+
+  const unchangedCheap = stageLaunchWorker("unchanged-cheap", {
+    ...INTERACTIVE_WORKER,
+    models: { ...CLAUDE_MODELS, cheap: { model: "opus" } },
+  })
+  check(
+    "launch-worker.mjs",
+    "refuses a selected non-default tier identical to the default",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 2, stderr: /cheap[\s\S]*default|default[\s\S]*cheap/ },
+    { path: unchangedCheap.path, env: orcaEnv(linearIssueStub(["repo:ui", "tier:cheap"])) },
+  )
+
   const notInteractive = stageLaunchWorker("not-interactive", { ...INTERACTIVE_WORKER, interactive: false })
   check("launch-worker.mjs", "refuses an engine declaring interactive: false", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /does not declare interactive: true/ }, { path: notInteractive.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
-  const omitted = stageLaunchWorker("omits-interactive", { command: "claude", args: ["--model", "opus"] })
+  const omitted = stageLaunchWorker("omits-interactive", { command: "claude", args: [], models: CLAUDE_MODELS })
   check("launch-worker.mjs", "refuses an engine that omits interactive entirely", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /does not declare interactive: true/ }, { path: omitted.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
-  const headless = stageLaunchWorker("headless-args", { command: "claude", args: ["-p", "--model", "opus"], interactive: true })
+  const headless = stageLaunchWorker("headless-args", { ...INTERACTIVE_WORKER, args: ["-p"] })
   check("launch-worker.mjs", "refuses headless args behind an interactive declaration", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /headless invocation/ }, { path: headless.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
-  const headlessCommand = stageLaunchWorker("headless-command", { command: "claude --print", args: [], interactive: true })
+  const headlessCommand = stageLaunchWorker("headless-command", { ...INTERACTIVE_WORKER, command: "claude --print", args: [] })
   check("launch-worker.mjs", "refuses a headless token hidden in the command field", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /headless invocation/ }, { path: headlessCommand.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
   // Headless is a property of the CLI, not of the harness: codex's -p is --profile, an
   // interactive flag, while claude's -p is --print. One shared token list cannot tell them
   // apart, so these five cases pin both halves of the per-engine split.
   const codex = stageLaunchWorker("codex-interactive", INTERACTIVE_CODEX, "codex")
-  const codexPlan = check("launch-worker.mjs", "an interactive codex entry launches", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 0, stdout: /"engine": "codex"/ }, { path: codex.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+  const codexPlan = check(
+    "launch-worker.mjs",
+    "Codex defaults to Sol at high effort",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 0, stdout: /codex[\s\S]*model_reasoning_effort[\s\S]*high[\s\S]*--model gpt-5\.6-sol/ },
+    { path: codex.path, env: orcaEnv(linearIssueStub(["repo:ui"])) },
+  )
+  const codexCheap = check(
+    "launch-worker.mjs",
+    "tier:cheap selects Luna at low effort on Codex",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 0, stdout: /codex[\s\S]*model_reasoning_effort[\s\S]*low[\s\S]*--model gpt-5\.6-luna/ },
+    { path: codex.path, env: orcaEnv(linearIssueStub(["repo:ui", "tier:cheap"])) },
+  )
+  const codexDeep = check(
+    "launch-worker.mjs",
+    "tier:deep selects Sol at max effort on Codex",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 0, stdout: /codex[\s\S]*model_reasoning_effort[\s\S]*max[\s\S]*--model gpt-5\.6-sol/ },
+    { path: codex.path, env: orcaEnv(linearIssueStub(["repo:ui", "tier:deep"])) },
+  )
+  const codexDefaultCommand = codexPlan.status === 0 ? JSON.parse(codexPlan.stdout).command : ""
+  const codexCheapCommand = codexCheap.status === 0 ? JSON.parse(codexCheap.stdout).command : ""
+  const codexDeepCommand = codexDeep.status === 0 ? JSON.parse(codexDeep.stdout).command : ""
+  T("launch-worker.mjs: Codex cheap tier cannot resolve to the unchanged default invocation", codexCheapCommand !== codexDefaultCommand, `default and cheap both resolved to: ${codexDefaultCommand}`)
+  T("launch-worker.mjs: Codex deep tier cannot resolve to the unchanged default invocation", codexDeepCommand !== codexDefaultCommand, `default and deep both resolved to: ${codexDefaultCommand}`)
   T(
     "launch-worker.mjs: the codex plan's command carries no headless token",
     codexPlan.status === 0 && !/(^|\s)(-p|--print|exec|e)(\s|"|$)/.test(JSON.parse(codexPlan.stdout).command),
@@ -813,13 +939,13 @@ const launchWorkerCases = () => {
   const codexProfile = stageLaunchWorker("codex-profile", { ...INTERACTIVE_CODEX, args: ["-p", "my-profile"] }, "codex")
   check("launch-worker.mjs", "accepts codex -p, which is --profile and not --print", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 0, stdout: /codex -p my-profile/ }, { path: codexProfile.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
-  const codexExec = stageLaunchWorker("codex-exec", { command: "codex", args: ["exec", "--full-auto"], interactive: true }, "codex")
+  const codexExec = stageLaunchWorker("codex-exec", { ...INTERACTIVE_CODEX, args: ["exec", "--full-auto"] }, "codex")
   check("launch-worker.mjs", "still refuses codex exec behind an interactive declaration", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /carries "exec", which is a headless invocation of codex/ }, { path: codexExec.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
-  const codexExecAlias = stageLaunchWorker("codex-exec-alias", { command: "codex", args: ["e"], interactive: true }, "codex")
+  const codexExecAlias = stageLaunchWorker("codex-exec-alias", { ...INTERACTIVE_CODEX, args: ["e"] }, "codex")
   check("launch-worker.mjs", "refuses codex e, the documented alias for exec", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /headless invocation of codex/ }, { path: codexExecAlias.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
-  const unknownEngine = stageLaunchWorker("unknown-engine", { command: "aider", args: [], interactive: true }, "aider")
+  const unknownEngine = stageLaunchWorker("unknown-engine", { command: "aider", args: [], models: CLAUDE_MODELS, interactive: true }, "aider")
   check("launch-worker.mjs", "refuses an engine binary with no profile rather than waving it through", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /no engine profile for/ }, { path: unknownEngine.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
   check("launch-worker.mjs", "refuses a missing prompt file", ["--issue", "ORB-75", "--prompt-file", join(root, "absent.md"), "--dry-run"], { status: 2, stderr: /prompt file not found/ }, { path: good.path })
