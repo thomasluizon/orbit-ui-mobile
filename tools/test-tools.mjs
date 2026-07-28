@@ -199,10 +199,7 @@ if (argv[0] === "api" && argv[1] === "graphql" && line.includes("reviewThreads(f
   process.exit(0)
 }
 if (argv[0] === "pr" && argv[1] === "view") {
-  if (line.includes("--json reviews")) {
-    if (process.env.ORBIT_MERGE_SWEEP_REVIEWS_LOOKUP_FAILURE) process.exit(7)
-    process.stdout.write(process.env.ORBIT_MERGE_SWEEP_REVIEW_TIMES)
-  } else if (line.includes("--json headRefOid")) {
+  if (line.includes("--json headRefOid")) {
     const moved = process.env.ORBIT_MERGE_SWEEP_MOVE_MARKER && existsSync(process.env.ORBIT_MERGE_SWEEP_MOVE_MARKER)
     process.stdout.write(moved ? process.env.ORBIT_MERGE_SWEEP_CHANGED_HEAD : process.env.ORBIT_MERGE_SWEEP_HEAD)
   } else if (line.includes("headRefName")) {
@@ -231,6 +228,20 @@ if (argv[0] === "pr" && argv[1] === "merge") {
   }
   process.exit(0)
 }
+if (line.includes("/pulls/") && line.includes("/reviews")) {
+  if (process.env.ORBIT_MERGE_SWEEP_REVIEWS_LOOKUP_FAILURE) process.exit(7)
+  process.stdout.write(process.env.ORBIT_MERGE_SWEEP_REVIEW_TIMES)
+  process.exit(0)
+}
+if (line.includes("/pulls/") && line.includes("/comments")) {
+  if (process.env.ORBIT_MERGE_SWEEP_INLINE_LOOKUP_FAILURE) process.exit(7)
+  let items = process.env.ORBIT_MERGE_SWEEP_INLINE_ITEMS
+  if (process.env.ORBIT_MERGE_SWEEP_INLINE_PAGE_TWO && argv.includes("--paginate")) {
+    items += "\\n" + process.env.ORBIT_MERGE_SWEEP_INLINE_PAGE_TWO
+  }
+  process.stdout.write(items)
+  process.exit(0)
+}
 if (line.includes("/issues/") && line.includes("/comments")) {
   if (process.env.ORBIT_MERGE_SWEEP_COMMENTS_LOOKUP_FAILURE) process.exit(7)
   process.stdout.write(process.env.ORBIT_MERGE_SWEEP_COMMENT_TIMES)
@@ -252,6 +263,9 @@ const mergeSweepEnv = ({
   commentTimes = "issue-commenter\t2026-07-27T22:00:00Z",
   commentsLookupFailure = false,
   head,
+  inlineItems = "inline-reviewer\t2026-07-27T22:00:00Z\ninline-reviewer\t2026-07-27T22:00:00Z",
+  inlineLookupFailure = false,
+  inlinePageTwo = "",
   moveAtMerge = false,
   reviewTimes = "reviewer\t2026-07-27T22:00:00Z",
   reviewsLookupFailure = false,
@@ -267,6 +281,9 @@ const mergeSweepEnv = ({
   ORBIT_MERGE_SWEEP_COMMENTS_LOOKUP_FAILURE: commentsLookupFailure ? "1" : "",
   ORBIT_MERGE_SWEEP_COMMENT_TIMES: commentTimes,
   ORBIT_MERGE_SWEEP_HEAD: head,
+  ORBIT_MERGE_SWEEP_INLINE_ITEMS: inlineItems,
+  ORBIT_MERGE_SWEEP_INLINE_LOOKUP_FAILURE: inlineLookupFailure ? "1" : "",
+  ORBIT_MERGE_SWEEP_INLINE_PAGE_TWO: inlinePageTwo,
   ORBIT_MERGE_SWEEP_LOG: log,
   ORBIT_MERGE_SWEEP_MOVE_MARKER: moveAtMerge ? `${log}.moved` : "",
   ORBIT_MERGE_SWEEP_REVIEWS_LOOKUP_FAILURE: reviewsLookupFailure ? "1" : "",
@@ -1469,6 +1486,47 @@ const mergeSweepCases = (file) => {
   reviewSkip("review-thread lookup failure fails closed by name", { threadsLookupFailure: true }, /SKIP #615 REVIEW-LOOKUP-FAILED source=reviewThreads/)
   reviewSkip("reviews lookup failure fails closed by name", { reviewsLookupFailure: true }, /SKIP #615 REVIEW-LOOKUP-FAILED source=reviews/)
   reviewSkip("issue-comments lookup failure fails closed by name", { commentsLookupFailure: true }, /SKIP #615 REVIEW-LOOKUP-FAILED source=issue-comments/)
+
+  const inlineOutput = (author, timestamp) =>
+    new RegExp(`SKIP #615 NEW-REVIEW-SINCE ${reviewedThrough} \\(inline comment by ${author} at ${timestamp}\\)`)
+
+  reviewSkip(
+    "a newer inline comment on a resolved thread skips without merging",
+    { inlineItems: `inline-reviewer\t${newerReviewTime}\ninline-reviewer\t${newerReviewTime}` },
+    inlineOutput("inline-reviewer", newerReviewTime),
+  )
+
+  const olderInlineLog = join(root, `${file}-older-inline-comment.log`)
+  const olderInline = run(file, reviewedArgs, {
+    env: mergeSweepEnv({
+      head: expectedHead,
+      inlineItems: "inline-reviewer\t2026-07-27T23:00:00Z\ninline-reviewer\t2026-07-27T23:30:00Z",
+      log: olderInlineLog,
+      sonar: coverageAware ? "coverage-failure" : "success",
+      state: coverageAware ? "BLOCKED" : "CLEAN",
+    }),
+  })
+  const olderInlineMerges = mergeSweepCalls(olderInlineLog).filter(([group, command]) => group === "pr" && command === "merge")
+  T(
+    `${file}: an older inline comment still merges`,
+    olderInline.status === 0 && /MERGED #615/.test(olderInline.stdout) && olderInlineMerges.length === 1,
+    `exit ${olderInline.status}\n     stdout: ${olderInline.stdout.trim()}\n     stderr: ${olderInline.stderr.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(olderInlineLog))}`,
+  )
+
+  reviewSkip(
+    "an inline comment edited after the cutoff skips by updated time",
+    { inlineItems: `inline-editor\t2026-07-27T23:00:00Z\ninline-editor\t${newerReviewTime}` },
+    inlineOutput("inline-editor", newerReviewTime),
+  )
+  reviewSkip("inline-comment lookup failure fails closed by name", { inlineLookupFailure: true }, /SKIP #615 REVIEW-LOOKUP-FAILED source=inline-comments/)
+  reviewSkip(
+    "pagination sees a newer inline comment on page two",
+    {
+      inlineItems: "page-one-reviewer\t2026-07-27T23:00:00Z\npage-one-reviewer\t2026-07-27T23:00:00Z",
+      inlinePageTwo: `page-two-reviewer\t${newerReviewTime}\npage-two-reviewer\t${newerReviewTime}`,
+    },
+    inlineOutput("page-two-reviewer", newerReviewTime),
+  )
 
   const missingCutoffLog = join(root, `${file}-missing-reviewed-through.log`)
   const missingCutoff = run(file, ["--expected-head", `615=${expectedHead}`, "thomasluizon/orbit-ui-mobile", "615"], {

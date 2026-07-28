@@ -39,8 +39,9 @@ head SHA is captured before update-branch. Any later head change skips the PR, a
 API atomically matches the expected SHA.
 
 Before any merge, --reviewed-through must name the latest instant through which that PR's
-reviews and issue comments were inspected. A newer item, an unresolved review thread, a missing
-mapping, or a failed lookup skips the PR. Repeat the flag once per PR.
+reviews, inline review comments, and issue comments were inspected. A newer or edited item,
+an unresolved review thread, a missing mapping, or a failed lookup skips the PR. Repeat the
+flag once per PR.
 
 It refuses to merge while the \`$REVIEW_CHECK_NAME\` check for the CURRENT head SHA is still
 running, and re-reads reviewDecision after that check settles, so a pre-update APPROVED can
@@ -255,7 +256,11 @@ check_review_items() { # <pr> <source> <cutoff>; author/timestamp TSV on stdin
     1)
       author="${newest_item%%$'\t'*}"
       item_timestamp="${newest_item#*$'\t'}"
-      echo "SKIP #$pr NEW-REVIEW-SINCE $cutoff by $author at $item_timestamp"
+      if [ "$source" = "inline-comments" ]; then
+        echo "SKIP #$pr NEW-REVIEW-SINCE $cutoff (inline comment by $author at $item_timestamp)"
+      else
+        echo "SKIP #$pr NEW-REVIEW-SINCE $cutoff by $author at $item_timestamp"
+      fi
       return 1
       ;;
     *)
@@ -266,7 +271,7 @@ check_review_items() { # <pr> <source> <cutoff>; author/timestamp TSV on stdin
 }
 
 review_safety_gate() { # <pr>; prints the fail-closed SKIP reason
-  local pr="$1" reviewed_through unresolved review_items comment_items
+  local pr="$1" reviewed_through unresolved review_items inline_items comment_items
   reviewed_through="$(reviewed_through_for "$pr")"
   if [ -z "$reviewed_through" ]; then
     echo "SKIP #$pr REVIEW-LOOKUP-FAILED source=reviewed-through"
@@ -289,14 +294,21 @@ review_safety_gate() { # <pr>; prints the fail-closed SKIP reason
     echo "SKIP #$pr UNRESOLVED-THREADS=$unresolved"
     return 1
   fi
-  if ! review_items=$(gh pr view "$pr" --repo "$repo" --json reviews --jq '.reviews[] | [.author.login, .submittedAt] | @tsv' 2>/dev/null); then
+  if ! review_items=$(gh api "repos/$repo/pulls/$pr/reviews" --paginate --jq '.[] | [.user.login, .submitted_at] | @tsv' 2>/dev/null); then
     echo "SKIP #$pr REVIEW-LOOKUP-FAILED source=reviews"
     return 1
   fi
   if ! printf '%s\n' "$review_items" | check_review_items "$pr" reviews "$reviewed_through"; then
     return 1
   fi
-  if ! comment_items=$(gh api "repos/$repo/issues/$pr/comments" --paginate --jq '.[] | [.user.login, .created_at] | @tsv' 2>/dev/null); then
+  if ! inline_items=$(gh api "repos/$repo/pulls/$pr/comments" --paginate --jq '.[] | ([.user.login, .created_at], [.user.login, .updated_at]) | @tsv' 2>/dev/null); then
+    echo "SKIP #$pr REVIEW-LOOKUP-FAILED source=inline-comments"
+    return 1
+  fi
+  if ! printf '%s\n' "$inline_items" | check_review_items "$pr" inline-comments "$reviewed_through"; then
+    return 1
+  fi
+  if ! comment_items=$(gh api "repos/$repo/issues/$pr/comments" --paginate --jq '.[] | ([.user.login, .created_at], [.user.login, .updated_at]) | @tsv' 2>/dev/null); then
     echo "SKIP #$pr REVIEW-LOOKUP-FAILED source=issue-comments"
     return 1
   fi

@@ -370,10 +370,12 @@ cannot decide for one PR, all against that recorded head:
    boundary, so the merge tool can refuse it rather than treating the lookup as a
    clean snapshot.
 
-   Then enumerate them yourself, from BOTH endpoints, because they are different objects:
-   `gh api repos/<owner>/<repo>/pulls/<n>/comments` (inline threads) and
-   `gh pr view <n> --json reviews` (review bodies, including `COMMENTED` ones). Then each
-   comment ends in exactly one of two states:
+   Then enumerate them yourself from all THREE endpoints, because they are different objects:
+   `gh api --paginate repos/<owner>/<repo>/pulls/<n>/comments` (inline comments and replies),
+   `gh api --paginate repos/<owner>/<repo>/pulls/<n>/reviews` (review bodies, including
+   `COMMENTED` ones), plus
+   `gh api --paginate repos/<owner>/<repo>/issues/<n>/comments` (conversation comments). Then
+   each comment ends in exactly one of two states:
 
    - **Addressed.** The finding is real: fix it through a worker in that ticket's worktree,
      PUSH the fix, then reply on the thread naming the commit that fixed it, then RESOLVE
@@ -418,9 +420,10 @@ when the state is `CLEAN`. If it is `BEHIND`, do not invoke the script: update t
 wait for the new head, and repeat conditions 1 to 6 against it. If the head moved at any
 point after the conditions ran, discard their results and repeat the same update-first
 sequence. Every repeat includes re-enumerating review bodies, inline comments and
-unresolved review threads, and records a fresh reconciliation timestamp only after
-starting that new enumeration. The merge script independently checks the thread and
-activity boundaries again immediately before merging.
+conversation comments, plus unresolved review threads, and records a fresh
+reconciliation timestamp only after starting that new enumeration. The merge script
+independently checks the thread and activity boundaries again immediately before
+merging.
 
 Record this final `headRefOid` as the expected head and keep the reconciliation
 timestamp beside it as `reviewed-through`. Then invoke the strict sweep for ONE PR
@@ -450,11 +453,13 @@ The script owns the remaining mechanical merge decision. It repeats the branch u
 as a safety check, polls `mergeStateStatus`, rejects failed checks, requires
 `reviewDecision=APPROVED`, waits for the `review` check on the current head SHA to
 settle, re-reads the decision after updates, and immediately before merging re-checks
-that every review thread is resolved and that no review or issue comment is newer
-than `reviewed-through`. Both review lookups fail closed. It then squash-merges
-without `--admin`, deletes the branch, and checks that a merged head did not move
-afterwards. Its workflow lookup also fails closed: if it cannot prove the repository
-has no review workflow, the current-head review wait stays enabled.
+that every review thread is resolved and that no review submission, inline review
+comment, or conversation comment is newer than `reviewed-through`. It compares both
+creation and edit times for comments, paginates all three activity endpoints, and
+fails closed on every thread or activity lookup. It then squash-merges without
+`--admin`, deletes the branch, and checks that a merged head did not move afterwards.
+Its workflow lookup also fails closed: if it cannot prove the repository has no
+review workflow, the current-head review wait stays enabled.
 
 `--sleep` always invokes `tools/merge-sweep.sh`. It never invokes
 `tools/merge-sweep-cov.sh`: that variant can use `--admin` to override a SonarCloud
@@ -471,8 +476,9 @@ bash tools/merge-sweep-cov.sh \
 
 Read the script's per-PR output, not only its process exit code. `MERGED #<n>` is the
 merge result. `SKIP #<n> UNRESOLVED-THREADS=<count>`,
-`SKIP #<n> NEW-REVIEW-SINCE ...`, either named review-lookup failure, any other
-`SKIP`, or `MERGE-REFUSED` leaves that PR open and supplies its stopped reason.
+`SKIP #<n> NEW-REVIEW-SINCE ...`, including the endpoint-specific inline-comment
+form, either named review-lookup failure, any other `SKIP`, or `MERGE-REFUSED`
+leaves that PR open and supplies its stopped reason.
 Exit `0` also covers a completed sweep that skipped a PR. Exit `1` reports an
 orphaned merged head, exit `2` bad usage, and exit `3` an unverifiable merged head;
 for a non-zero exit, re-read the affected PR state and record it as a harness defect
