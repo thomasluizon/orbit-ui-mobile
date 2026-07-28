@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { spawnSync } from "node:child_process"
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs"
 import { dirname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -8,12 +9,13 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const CLAUDE_PATH = join(REPO_ROOT, "CLAUDE.md")
 const RULES_PATH = join(REPO_ROOT, ".claude", "rules")
 const BASELINE_PATH = join(REPO_ROOT, "tools", "context-budget.json")
+const BASELINE_REPO_PATH = "tools/context-budget.json"
 const EXPECTED_IMPORTS = new Set(["@../orbit-api/CLAUDE.md", "@../orbit-landing-page/CLAUDE.md"])
 const EXPECTED_UNCONDITIONAL_RULES = new Set([".claude/rules/core.md"])
 
 const USAGE = `usage: check-context-budget.mjs [--check | --write-baseline] [--json]
 
-  --check           measure and compare with tools/context-budget.json (default)
+  --check           compare with the target branch's tools/context-budget.json (default)
   --write-baseline  write the current enforced byte total and per-file counts
   --json            print the result as machine-readable JSON
   --help, -h        print this usage and exit 0
@@ -111,16 +113,12 @@ function measureRepository() {
   }
 }
 
-function readBaseline() {
-  if (!existsSync(BASELINE_PATH) || !statSync(BASELINE_PATH).isFile()) {
-    throw new Error("tools/context-budget.json is missing")
-  }
-
+function parseBaseline(text, source) {
   let baseline
   try {
-    baseline = JSON.parse(readFileSync(BASELINE_PATH, "utf8"))
+    baseline = JSON.parse(text)
   } catch {
-    throw new Error("tools/context-budget.json is not valid JSON")
+    throw new Error(`${source} is not valid JSON`)
   }
 
   const validFiles =
@@ -136,9 +134,65 @@ function readBaseline() {
     ? Object.values(baseline.files).reduce((total, bytes) => total + bytes, 0)
     : -1
   if (!validFiles || !Number.isInteger(baseline.bytes) || baseline.bytes < 0 || baseline.bytes !== filesTotal) {
-    throw new Error("tools/context-budget.json must contain matching non-negative integer bytes and files values")
+    throw new Error(`${source} must contain matching non-negative integer bytes and files values`)
   }
   return baseline
+}
+
+function readWorkingBaseline() {
+  if (!existsSync(BASELINE_PATH) || !statSync(BASELINE_PATH).isFile()) {
+    throw new Error("tools/context-budget.json is missing")
+  }
+  return parseBaseline(readFileSync(BASELINE_PATH, "utf8"), "tools/context-budget.json")
+}
+
+function runGit(argumentsList) {
+  return spawnSync("git", argumentsList, {
+    cwd: REPO_ROOT,
+    encoding: "utf8",
+    windowsHide: true,
+  })
+}
+
+function resolveTargetRef() {
+  const configured = process.env.CONTEXT_BUDGET_BASE_REF?.trim()
+  const githubBase = process.env.GITHUB_BASE_REF?.trim()
+  const candidates = configured
+    ? [configured]
+    : githubBase
+      ? [`refs/remotes/origin/${githubBase}`, githubBase]
+      : ["refs/remotes/origin/main", "main"]
+
+  for (const candidate of candidates) {
+    const result = runGit(["rev-parse", "--verify", "--quiet", `${candidate}^{commit}`])
+    if (result.status === 0) return candidate
+  }
+
+  const requested = configured ?? githubBase ?? "origin/main or main"
+  throw new Error(`target branch ${requested} is unavailable; fetch its history before checking`)
+}
+
+function readComparisonBaseline() {
+  const targetRef = resolveTargetRef()
+  const listing = runGit(["ls-tree", "--name-only", targetRef, "--", BASELINE_REPO_PATH])
+  if (listing.status !== 0) {
+    throw new Error(`could not inspect ${BASELINE_REPO_PATH} on target branch ${targetRef}`)
+  }
+  if (listing.stdout.trim() === "") {
+    return {
+      ...readWorkingBaseline(),
+      source: `${targetRef} (working tree bootstrap)`,
+    }
+  }
+
+  const blob = runGit(["show", `${targetRef}:${BASELINE_REPO_PATH}`])
+  if (blob.status !== 0) {
+    throw new Error(`could not read ${BASELINE_REPO_PATH} from target branch ${targetRef}`)
+  }
+  return {
+    ...parseBaseline(blob.stdout, `${BASELINE_REPO_PATH} on target branch ${targetRef}`),
+    source: targetRef,
+  }
 }
 
 function structuralFindings(measurement) {
@@ -159,6 +213,7 @@ function outputHuman(result) {
   console.log(`enforced total: ${result.enforcedBytes} bytes (~${result.estimatedTokens} tokens, estimate)`)
   if (result.baselineBytes !== null) {
     console.log(`baseline:       ${result.baselineBytes} bytes`)
+    console.log(`baseline source: ${result.baselineSource}`)
     console.log(`delta:          ${signed(result.deltaBytes)} bytes`)
   }
   if (result.siblingFiles.length > 0) {
@@ -188,7 +243,7 @@ function main() {
     const measurement = measureRepository()
     const findings = structuralFindings(measurement)
     let baseline = null
-    if (argumentsParsed.mode === "check") baseline = readBaseline()
+    if (argumentsParsed.mode === "check") baseline = readComparisonBaseline()
 
     const baselineBytes = baseline?.bytes ?? (argumentsParsed.mode === "write" ? measurement.enforcedBytes : null)
     const deltaBytes = baselineBytes === null ? null : measurement.enforcedBytes - baselineBytes
@@ -200,6 +255,7 @@ function main() {
     const result = {
       ...measurement,
       baselineBytes,
+      baselineSource: baseline?.source ?? null,
       deltaBytes,
       fileGrowth,
       structuralFindings: findings,

@@ -1144,6 +1144,10 @@ const CONTEXT_CLAUDE = [
 ].join("\n")
 const CONTEXT_CORE = "# Core fixture\n\nAlways applies.\n"
 const contextBytes = (body) => Buffer.byteLength(body, "utf8")
+const contextGit = (repo, argumentsList) => {
+  const result = spawnSync("git", argumentsList, { cwd: repo, encoding: "utf8" })
+  if (result.status !== 0) throw new Error(`context budget git fixture failed: git ${argumentsList.join(" ")}\n${result.stderr}`)
+}
 const stageContextBudget = (label, options = {}) => {
   const parent = join(root, "context-budget", label)
   const repo = join(parent, "orbit-ui-mobile")
@@ -1166,40 +1170,39 @@ const stageContextBudget = (label, options = {}) => {
     "CLAUDE.md": contextBytes(claude),
     ".claude/rules/core.md": contextBytes(core),
   }
+  const baselineAdjustment = options.baselineAdjustment ?? 0
   const baseline = options.baseline ?? {
-    bytes: Object.values(measuredFiles).reduce((sum, bytes) => sum + bytes, 0),
-    files: measuredFiles,
+    bytes: Object.values(measuredFiles).reduce((sum, bytes) => sum + bytes, 0) + baselineAdjustment,
+    files: {
+      ...measuredFiles,
+      "CLAUDE.md": measuredFiles["CLAUDE.md"] + baselineAdjustment,
+    },
   }
   const baselinePath = join(tools, "context-budget.json")
-  writeFileSync(baselinePath, typeof baseline === "string" ? baseline : `${JSON.stringify(baseline, null, 2)}\n`)
+  const baselineBody = typeof baseline === "string" ? baseline : `${JSON.stringify(baseline, null, 2)}\n`
+  if (options.baselineOnBase !== false) writeFileSync(baselinePath, baselineBody)
+  contextGit(repo, ["init", "-b", "main"])
+  contextGit(repo, ["config", "user.email", "context-budget@example.test"])
+  contextGit(repo, ["config", "user.name", "Context Budget Fixture"])
+  const trackedPaths = [
+    "CLAUDE.md",
+    ".claude/rules/core.md",
+    ...Object.keys(options.rules ?? {}).map((file) => `.claude/rules/${file}`),
+    "tools/check-context-budget.mjs",
+  ]
+  if (options.baselineOnBase !== false) trackedPaths.push("tools/context-budget.json")
+  contextGit(repo, ["add", "--", ...trackedPaths])
+  contextGit(repo, ["commit", "-m", "Seed context budget fixture"])
+  contextGit(repo, ["switch", "-c", "feature"])
+  if (options.baselineOnBase === false) writeFileSync(baselinePath, baselineBody)
   return { path: join(tools, "check-context-budget.mjs"), repo, baselinePath, measuredFiles }
 }
 
 const contextBudgetCases = () => {
-  const over = stageContextBudget("over")
-  writeFileSync(
-    over.baselinePath,
-    `${JSON.stringify({
-      bytes: over.measuredFiles["CLAUDE.md"] + over.measuredFiles[".claude/rules/core.md"] - 1,
-      files: {
-        "CLAUDE.md": over.measuredFiles["CLAUDE.md"] - 1,
-        ".claude/rules/core.md": over.measuredFiles[".claude/rules/core.md"],
-      },
-    }, null, 2)}\n`,
-  )
+  const over = stageContextBudget("over", { baselineAdjustment: -1 })
   check("check-context-budget.mjs", "total over baseline exits 1 and names the offending file", ["--check"], { status: 1, stderr: /grew by 1 byte[\s\S]*CLAUDE\.md: \+1 byte/i }, { path: over.path, cwd: over.repo })
 
-  const under = stageContextBudget("under")
-  writeFileSync(
-    under.baselinePath,
-    `${JSON.stringify({
-      bytes: under.measuredFiles["CLAUDE.md"] + under.measuredFiles[".claude/rules/core.md"] + 1,
-      files: {
-        "CLAUDE.md": under.measuredFiles["CLAUDE.md"] + 1,
-        ".claude/rules/core.md": under.measuredFiles[".claude/rules/core.md"],
-      },
-    }, null, 2)}\n`,
-  )
+  const under = stageContextBudget("under", { baselineAdjustment: 1 })
   const underBaselineBefore = readFileSync(under.baselinePath, "utf8")
   const underResult = check("check-context-budget.mjs", "total under baseline exits 0", ["--check"], { status: 0 }, { path: under.path, cwd: under.repo })
   T(
@@ -1207,6 +1210,17 @@ const contextBudgetCases = () => {
     underResult.status === 0 && readFileSync(under.baselinePath, "utf8") === underBaselineBefore,
     readFileSync(under.baselinePath, "utf8"),
   )
+
+  const regenerated = stageContextBudget("regenerated")
+  writeFileSync(join(regenerated.repo, "CLAUDE.md"), `${CONTEXT_CLAUDE}x`)
+  check("check-context-budget.mjs", "a grown branch can regenerate its working baseline", ["--write-baseline"], { status: 0 }, { path: regenerated.path, cwd: regenerated.repo })
+  check("check-context-budget.mjs", "a regenerated working baseline cannot hide growth from the target branch", ["--check"], { status: 1, stderr: /grew by 1 byte[\s\S]*CLAUDE\.md: \+1 byte/i }, { path: regenerated.path, cwd: regenerated.repo })
+
+  const bootstrap = stageContextBudget("bootstrap", { baselineOnBase: false })
+  check("check-context-budget.mjs", "a first-run baseline bootstraps only when absent from the target branch", ["--check"], { status: 0, stdout: /working tree bootstrap/ }, { path: bootstrap.path, cwd: bootstrap.repo })
+
+  const unfetched = stageContextBudget("unfetched")
+  check("check-context-budget.mjs", "an unfetched target branch fails closed", ["--check"], { status: 2, stderr: /target branch missing-base is unavailable.*fetch its history/i }, { path: unfetched.path, cwd: unfetched.repo, env: { CONTEXT_BUDGET_BASE_REF: "missing-base" } })
 
   const importAddition = stageContextBudget("import-addition", { claude: `${CONTEXT_CLAUDE}@../new-sibling/CLAUDE.md\n` })
   check("check-context-budget.mjs", "an unallowlisted import fails even when its target is absent", ["--check"], { status: 1, stderr: /@..\/new-sibling\/CLAUDE\.md|import/i }, { path: importAddition.path, cwd: importAddition.repo })
