@@ -23,9 +23,9 @@
  * Run: node tools/test-tools.mjs   (exits non-zero on any failure)
  */
 
-import { spawnSync } from "node:child_process"
+import { spawn, spawnSync } from "node:child_process"
 import { createHash } from "node:crypto"
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, utimesSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { delimiter, dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -389,6 +389,34 @@ const run = (file, argv, options = {}) => {
   }
 }
 
+const runAsync = (file, argv, options = {}) => {
+  const target = options.path ?? join(TOOLS_DIR, file)
+  const child = spawn(process.execPath, [target, ...argv], {
+    cwd: options.cwd ?? REPO_ROOT,
+    env: { ...process.env, ...(options.env ?? {}) },
+    stdio: ["ignore", "pipe", "pipe"],
+  })
+  let stdout = ""
+  let stderr = ""
+  child.stdout.on("data", (chunk) => {
+    stdout += chunk
+  })
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk
+  })
+  return new Promise((resolveResult) => {
+    const timeout = setTimeout(() => child.kill(), 30000)
+    child.on("error", (error) => {
+      clearTimeout(timeout)
+      resolveResult({ status: `spawn error: ${error.message}`, stdout, stderr })
+    })
+    child.on("close", (status) => {
+      clearTimeout(timeout)
+      resolveResult({ status, stdout, stderr })
+    })
+  })
+}
+
 const check = (file, name, argv, expect, options = {}) => {
   const result = run(file, argv, options)
   const where = `${file} ${argv.join(" ")}`
@@ -413,10 +441,11 @@ const check = (file, name, argv, expect, options = {}) => {
   return result
 }
 
-const orchestratorConfig = (repoPath, worker, engineName) =>
+const orchestratorConfig = (repoPath, worker, engineName, maxParallelWorktrees = 8) =>
   JSON.stringify({
     worker: engineName,
     workers: { [engineName]: worker },
+    maxParallelWorktrees,
     attemptsBeforeRewrite: 2,
     linear: { team: "ORB", states: { working: "In Progress", review: "In Review", done: "Done" } },
     repos: { ui: repoPath },
@@ -447,13 +476,16 @@ const INTERACTIVE_CODEX = {
  * The engine name is what the top-level `worker` key selects, which is the only way to
  * exercise a non-default engine: the tool has no engine-override flag by design.
  */
-const stageLaunchWorker = (label, worker, engineName = "claude") => {
+const stageLaunchWorker = (label, worker, engineName = "claude", maxParallelWorktrees = 8) => {
   const base = join(root, "launch", label)
   const repoPath = join(base, "repos", "ui")
   mkdirSync(repoPath, { recursive: true })
   mkdirSync(join(base, "tools"), { recursive: true })
   mkdirSync(join(base, ".claude"), { recursive: true })
-  writeFileSync(join(base, ".claude", "orchestrator.json"), orchestratorConfig(repoPath, worker, engineName))
+  writeFileSync(
+    join(base, ".claude", "orchestrator.json"),
+    orchestratorConfig(repoPath, worker, engineName, maxParallelWorktrees),
+  )
   cpSync(join(TOOLS_DIR, "launch-worker.mjs"), join(base, "tools", "launch-worker.mjs"))
   /** The copy imports tools/lib/tui-repaint.mjs by relative path, so the staged tree carries it too. */
   cpSync(join(TOOLS_DIR, "lib"), join(base, "tools", "lib"), { recursive: true })
@@ -491,7 +523,10 @@ const stageNudgeWorker = (label, worker, instrumentPause = false) => {
   const base = join(root, "nudge", label)
   mkdirSync(join(base, "tools"), { recursive: true })
   mkdirSync(join(base, ".claude"), { recursive: true })
-  writeFileSync(join(base, ".claude", "orchestrator.json"), JSON.stringify({ worker, repos: {} }))
+  writeFileSync(
+    join(base, ".claude", "orchestrator.json"),
+    JSON.stringify({ worker, maxParallelWorktrees: 8, repos: {} }),
+  )
   cpSync(join(TOOLS_DIR, "nudge-worker.mjs"), join(base, "tools", "nudge-worker.mjs"))
   cpSync(join(TOOLS_DIR, "lib"), join(base, "tools", "lib"), { recursive: true })
   if (instrumentPause) {
@@ -507,13 +542,24 @@ export const pause = (ms) => appendFileSync(process.env.ORBIT_PAUSE_LOG, String(
   return { path: join(base, "tools", "nudge-worker.mjs"), base }
 }
 
-const linearIssueStub = (labels) => [
+const launchWorktreeStub = (path, isMainWorktree = false) => ({
+  id: path,
+  path,
+  isMainWorktree,
+  git: { path, isMainWorktree },
+})
+
+const linearIssueStub = (labels, worktrees = []) => [
   {
     match: "linear issue ORB-75",
     stdout: JSON.stringify({
       ok: true,
       result: { issue: { identifier: "ORB-75", title: "Prove the harness gate runs", labels: labels.map((name) => ({ name })) } },
     }),
+  },
+  {
+    match: "worktree list",
+    stdout: JSON.stringify({ ok: true, result: { worktrees } }),
   },
 ]
 
@@ -582,10 +628,16 @@ const TRUST_SCREENS = {
  * Everything else the launch touches is orca, which is.
  */
 const stageCheckout = (base) => {
+  const repoPath = join(base, "repos", "ui")
   const path = join(base, "checkout")
-  mkdirSync(path, { recursive: true })
-  for (const argv of [["init", "-q"], ["config", "user.email", "gate@orbit.test"], ["config", "user.name", "Orbit Gate"], ["commit", "-q", "--allow-empty", "-m", "base"]]) {
-    const result = spawnSync("git", ["-C", path, ...argv], { encoding: "utf8" })
+  for (const argv of [
+    ["init", "-q", "--initial-branch=main"],
+    ["config", "user.email", "gate@orbit.test"],
+    ["config", "user.name", "Orbit Gate"],
+    ["commit", "-q", "--allow-empty", "-m", "base"],
+    ["worktree", "add", "-q", "--detach", path, "HEAD"],
+  ]) {
+    const result = spawnSync("git", ["-C", repoPath, ...argv], { encoding: "utf8" })
     if (result.status !== 0) return null
   }
   return path
@@ -825,7 +877,331 @@ const terminalCreateRetryCases = () => {
   )
 }
 
-const launchWorkerCases = () => {
+const launchConcurrencyCases = async (promptFile) => {
+  const atCap = stageLaunchWorker("concurrency-at-cap", INTERACTIVE_WORKER, "claude", 2)
+  const firstPath = join(atCap.base, "workspaces", "orb-1")
+  const secondPath = join(atCap.base, "workspaces", "orb-2")
+  const refusalLog = stage("concurrency-at-cap.log", "")
+  const refusal = run(
+    "launch-worker.mjs",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    {
+      path: atCap.path,
+      env: {
+        ...orcaEnv(linearIssueStub(
+          ["repo:ui"],
+          [launchWorktreeStub(firstPath), launchWorktreeStub(secondPath)],
+        )),
+        ORBIT_ORCA_LOG: refusalLog,
+      },
+    },
+  )
+  T(
+    "launch-worker.mjs: refuses at the configured cap with the cap, current count, and every occupying path",
+    refusal.status === 1
+      && /maxParallelWorktrees cap 2/.test(refusal.stderr)
+      && /current count 2/.test(refusal.stderr)
+      && refusal.stderr.includes(firstPath)
+      && refusal.stderr.includes(secondPath),
+    `exit ${refusal.status}\n     ${refusal.stderr.trim()}`,
+  )
+  const refusalCalls = readFileSync(refusalLog, "utf8").split("\n").filter(Boolean).map(JSON.parse)
+  T(
+    "launch-worker.mjs: cap refusal happens before any worktree or branch creation",
+    !refusalCalls.some((argv) => argv.join(" ").includes("worktree create")),
+    refusalCalls.map((argv) => argv.join(" ")).join("\n"),
+  )
+
+  const boundary = stageLaunchWorker("concurrency-boundary", INTERACTIVE_WORKER, "claude", 2)
+  const boundaryResult = check(
+    "launch-worker.mjs",
+    "allows a dry run with one slot remaining",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 0, stdout: /"maxParallelWorktrees": 2[\s\S]*"occupiedWorktrees": 1/ },
+    {
+      path: boundary.path,
+      env: orcaEnv(linearIssueStub(
+        ["repo:ui"],
+        [launchWorktreeStub(join(boundary.base, "workspaces", "orb-1"))],
+      )),
+    },
+  )
+  T(
+    "launch-worker.mjs: below-cap dry run creates nothing",
+    boundaryResult.status === 0 && !existsSync(join(boundary.base, "workspaces")),
+    `exit ${boundaryResult.status}; workspaces directory exists: ${existsSync(join(boundary.base, "workspaces"))}`,
+  )
+
+  const serial = stageLaunchWorker("concurrency-serial", INTERACTIVE_WORKER, "claude", 1)
+  const serialPath = join(serial.base, "workspaces", "orb-1")
+  const serialLog = stage("concurrency-serial.log", "")
+  const [serialIssue] = linearIssueStub(["repo:ui"])
+  const serialPlan = [
+    serialIssue,
+    {
+      match: "worktree list",
+      sequence: [
+        JSON.stringify({ ok: true, result: { worktrees: [] } }),
+        JSON.stringify({ ok: true, result: { worktrees: [launchWorktreeStub(serialPath)] } }),
+      ],
+    },
+  ]
+  const serialOptions = {
+    path: serial.path,
+    env: { ...orcaEnv(serialPlan), ORBIT_ORCA_LOG: serialLog },
+  }
+  const firstSerial = run(
+    "launch-worker.mjs",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    serialOptions,
+  )
+  const secondSerial = run(
+    "launch-worker.mjs",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    serialOptions,
+  )
+  T(
+    "launch-worker.mjs: cap 1 accepts the first launch and refuses the second concurrent launch",
+    firstSerial.status === 0
+      && secondSerial.status === 1
+      && /maxParallelWorktrees cap 1/.test(secondSerial.stderr)
+      && /current count 1/.test(secondSerial.stderr)
+      && secondSerial.stderr.includes(serialPath),
+    `first exit ${firstSerial.status}; second exit ${secondSerial.status}\n     ${secondSerial.stderr.trim()}`,
+  )
+
+  const mainOnly = stageLaunchWorker("concurrency-main-only", INTERACTIVE_WORKER, "claude", 1)
+  check(
+    "launch-worker.mjs",
+    "does not count the repository main worktree toward cap 1",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 0, stdout: /"occupiedWorktrees": 0/ },
+    {
+      path: mainOnly.path,
+      env: orcaEnv(linearIssueStub(
+        ["repo:ui"],
+        [launchWorktreeStub(mainOnly.repoPath, true)],
+      )),
+    },
+  )
+
+  const archivedOnly = stageLaunchWorker("concurrency-archived-only", INTERACTIVE_WORKER, "claude", 1)
+  check(
+    "launch-worker.mjs",
+    "does not count an archived child worktree toward cap 1",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 0, stdout: /"occupiedWorktrees": 0/ },
+    {
+      path: archivedOnly.path,
+      env: orcaEnv(linearIssueStub(
+        ["repo:ui"],
+        [{ ...launchWorktreeStub(join(archivedOnly.base, "workspaces", "archived")), isArchived: true }],
+      )),
+    },
+  )
+
+  const gone = stageLaunchWorker("concurrency-orca-authority", INTERACTIVE_WORKER, "claude", 1)
+  const residuePath = join(gone.base, "workspaces", "removed-but-on-disk")
+  mkdirSync(residuePath, { recursive: true })
+  check(
+    "launch-worker.mjs",
+    "does not count disk residue that Orca no longer reports",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 0, stdout: /"occupiedWorktrees": 0/ },
+    { path: gone.path, env: orcaEnv(linearIssueStub(["repo:ui"], [])) },
+  )
+
+  const override = stageLaunchWorker("concurrency-override", INTERACTIVE_WORKER, "claude", 8)
+  check(
+    "launch-worker.mjs",
+    "uses the invocation cap override for serial orchestration",
+    [
+      "--issue", "ORB-75",
+      "--prompt-file", promptFile,
+      "--max-parallel-worktrees", "1",
+      "--dry-run",
+    ],
+    { status: 1, stderr: /maxParallelWorktrees cap 1[\s\S]*current count 1/ },
+    {
+      path: override.path,
+      env: orcaEnv(linearIssueStub(
+        ["repo:ui"],
+        [launchWorktreeStub(join(override.base, "workspaces", "orb-1"))],
+      )),
+    },
+  )
+  check(
+    "launch-worker.mjs",
+    "refuses a non-positive invocation cap",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--max-parallel-worktrees", "0", "--dry-run"],
+    { status: 2, stderr: /positive integer/ },
+    { path: override.path },
+  )
+
+  const invalidConfig = stageLaunchWorker("concurrency-invalid-config", INTERACTIVE_WORKER, "claude", 0)
+  check(
+    "launch-worker.mjs",
+    "refuses a non-positive configured cap",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 2, stderr: /maxParallelWorktrees must be a positive integer/ },
+    { path: invalidConfig.path },
+  )
+
+  const reservationRecoveryCase = (label, lockBody, lockAgeMs) => {
+    const fixture = stageLaunchWorker(`concurrency-reservation-${label}`, INTERACTIVE_WORKER, "claude", 1)
+    const checkout = stageCheckout(fixture.base)
+    if (!checkout) {
+      T(`launch-worker.mjs: reclaims a ${label} reservation`, false, "could not stage a linked Git worktree")
+      return
+    }
+    const lockPath = join(fixture.repoPath, ".git", "orbit-launch-worker.lock")
+    writeFileSync(lockPath, lockBody)
+    if (lockAgeMs) {
+      const staleAt = new Date(Date.now() - lockAgeMs)
+      utimesSync(lockPath, staleAt, staleAt)
+    }
+    const result = run(
+      "launch-worker.mjs",
+      ["--issue", "ORB-75", "--prompt-file", promptFile],
+      {
+        path: fixture.path,
+        env: orcaEnv(linearIssueStub(["repo:ui"], [launchWorktreeStub(checkout)])),
+      },
+    )
+    T(
+      `launch-worker.mjs: reclaims a ${label} reservation`,
+      result.status === 1
+        && /maxParallelWorktrees cap 1[\s\S]*current count 1/.test(result.stderr)
+        && !existsSync(lockPath),
+      `exit ${result.status}; lock exists: ${existsSync(lockPath)}\n     ${result.stderr.trim()}`,
+    )
+  }
+  reservationRecoveryCase(
+    "dead-owner",
+    JSON.stringify({ pid: 2147483647, startedAt: Date.now() - 1000 }),
+    0,
+  )
+  reservationRecoveryCase("stale-corrupt", "{not-json", 10000)
+
+  const timeout = stageLaunchWorker("concurrency-reservation-timeout", INTERACTIVE_WORKER, "claude", 1)
+  const timeoutCheckout = stageCheckout(timeout.base)
+  if (!timeoutCheckout) {
+    T("launch-worker.mjs: times out on a live reservation owner", false, "could not stage a linked Git worktree")
+  } else {
+    const timeoutLock = join(timeout.repoPath, ".git", "orbit-launch-worker.lock")
+    writeFileSync(timeoutLock, JSON.stringify({ pid: process.pid, startedAt: Date.now() }))
+    const timeoutSource = readFileSync(timeout.path, "utf8")
+    const productionDeadline = "const deadline = Date.now() + 5 * 60 * 1000"
+    if (!timeoutSource.includes(productionDeadline)) {
+      T(
+        "launch-worker.mjs: stages a bounded reservation timeout",
+        false,
+        "production reservation deadline expression drifted",
+      )
+    } else {
+      writeFileSync(
+        timeout.path,
+        timeoutSource.replace(productionDeadline, "const deadline = Date.now() + 200"),
+      )
+      const timeoutLog = stage("concurrency-reservation-timeout.log", "")
+      const timeoutResult = run(
+        "launch-worker.mjs",
+        ["--issue", "ORB-75", "--prompt-file", promptFile],
+        {
+          path: timeout.path,
+          env: {
+            ...orcaEnv(linearIssueStub(["repo:ui"], [])),
+            ORBIT_ORCA_LOG: timeoutLog,
+          },
+        },
+      )
+      const timeoutCalls = readFileSync(timeoutLog, "utf8").split("\n").filter(Boolean).map(JSON.parse)
+      T(
+        "launch-worker.mjs: times out on a live reservation owner before listing or creating worktrees",
+        timeoutResult.status === 1
+          && /timed out waiting for another launch reservation/.test(timeoutResult.stderr)
+          && !timeoutCalls.some((argv) => argv.join(" ").includes("worktree list"))
+          && !timeoutCalls.some((argv) => argv.join(" ").includes("worktree create")),
+        `exit ${timeoutResult.status}\n     ${timeoutResult.stderr.trim()}\n     ${timeoutCalls.map((argv) => argv.join(" ")).join("\n     ")}`,
+      )
+    }
+    rmSync(timeoutLock, { force: true })
+  }
+
+  const concurrent = stageLaunchWorker("concurrency-atomic-last-slot", INTERACTIVE_WORKER, "claude", 1)
+  const concurrentCheckout = stageCheckout(concurrent.base)
+  if (!concurrentCheckout) {
+    T(
+      "launch-worker.mjs: concurrent launch reservation can be staged",
+      false,
+      "could not stage a linked Git worktree",
+    )
+    return
+  }
+  const concurrentLog = stage("concurrency-atomic-last-slot.log", "")
+  const concurrentTimingLog = stage("concurrency-atomic-last-slot-timing.log", "")
+  const concurrentPrompt = stage("concurrency-atomic-last-slot-prompt.md", "the ticket body verbatim\n")
+  const painted = `> Read ${concurrentPrompt} and execute it in full. That file is your complete work order for ORB-75:`
+  const [concurrentIssue] = linearIssueStub(["repo:ui"])
+  const concurrentPlan = [
+    concurrentIssue,
+    {
+      match: "worktree list",
+      sequence: [
+        JSON.stringify({ ok: true, result: { worktrees: [] } }),
+        JSON.stringify({ ok: true, result: { worktrees: [launchWorktreeStub(concurrentCheckout)] } }),
+      ],
+    },
+    {
+      match: "worktree create",
+      delayMs: 750,
+      stdout: JSON.stringify({
+        ok: true,
+        result: { worktree: { path: concurrentCheckout, branch: "refs/heads/thomasluizon/orb-75" } },
+      }),
+    },
+    { match: "terminal create", stdout: JSON.stringify({ ok: true, result: { terminal: { handle: "t1" } } }) },
+    { match: "terminal wait", stdout: JSON.stringify({ ok: true, result: { wait: { satisfied: true } } }) },
+    { match: "terminal show", stdout: JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1785168487585 } } }) },
+    { match: "terminal read", stdout: JSON.stringify({ ok: true, result: { terminal: { tail: [painted] } } }) },
+    { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }) },
+    { match: "terminal switch", stdout: JSON.stringify({ ok: true, result: {} }) },
+    { match: "worktree set", stdout: JSON.stringify({ ok: true, result: {} }) },
+  ]
+  const concurrentOptions = {
+    path: concurrent.path,
+    env: {
+      ...orcaEnv(concurrentPlan),
+      ORBIT_ORCA_LOG: concurrentLog,
+      ORBIT_ORCA_TIMING_LOG: concurrentTimingLog,
+    },
+  }
+  const concurrentArguments = ["--issue", "ORB-75", "--prompt-file", concurrentPrompt]
+  const concurrentResults = await Promise.all([
+    runAsync("launch-worker.mjs", concurrentArguments, concurrentOptions),
+    runAsync("launch-worker.mjs", concurrentArguments, concurrentOptions),
+  ])
+  const concurrentCalls = readFileSync(concurrentLog, "utf8")
+    .split("\n")
+    .filter(Boolean)
+    .map(JSON.parse)
+  const createCalls = concurrentCalls.filter(
+    (argv) => argv[0].split(/[\\/]/).pop() === "worktree" && argv[1] === "create",
+  )
+  const statuses = concurrentResults.map((result) => result.status).sort()
+  const concurrentRefusal = concurrentResults.find((result) => result.status === 1)
+  T(
+    "launch-worker.mjs: two concurrent launchers cannot both claim the last slot",
+    statuses.length === 2
+      && statuses[0] === 0
+      && statuses[1] === 1
+      && createCalls.length === 1
+      && /maxParallelWorktrees cap 1[\s\S]*current count 1/.test(concurrentRefusal?.stderr ?? ""),
+    `statuses ${JSON.stringify(statuses)}, worktree creates ${createCalls.length}\n     ${concurrentResults.map((result) => result.stderr.trim()).join("\n     ")}`,
+  )
+}
+
+const launchWorkerCases = async () => {
   const promptFile = stage("prompt.md", "the ticket body verbatim\n")
 
   const good = stageLaunchWorker("interactive", INTERACTIVE_WORKER)
@@ -1008,6 +1384,7 @@ const launchWorkerCases = () => {
   trustScreenCases()
   pointerDeliveryCases()
   terminalCreateRetryCases()
+  await launchConcurrencyCases(promptFile)
 
   const launcherSource = readFileSync(join(TOOLS_DIR, "launch-worker.mjs"), "utf8")
   for (const [clause, pattern] of Object.entries(REQUIRED_CONTRACT_CLAUSES)) {
@@ -2105,6 +2482,98 @@ const ISSUES_WAVE_STUB = [
   { match: "linear issue ORB-99", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-99", title: "external blocker", state: { name: "In Progress", type: "started" }, labels: [] }, relations: [] } }) },
 ]
 
+const orchestrateFlagCases = () => {
+  const skillPath = join(REPO_ROOT, ".claude", "skills", "orchestrate", "SKILL.md")
+  const skill = readFileSync(skillPath, "utf8")
+  const scopeSection = skill.slice(skill.indexOf("## 0."), skill.indexOf("## 0a."))
+  T(
+    "orchestrate flags: --single accepts project scope without changing it",
+    /`--single` is valid with every resolved scope/.test(scopeSection)
+      && /does not change which tickets belong to it/.test(scopeSection),
+    scopeSection,
+  )
+  T(
+    "orchestrate flags: --only on a project is a usage error naming both flags",
+    /`--only` on a project name is also a usage error/.test(scopeSection)
+      && /`--only` requires one `ORB-N` identifier and `--single` serialises a project run/.test(scopeSection),
+    scopeSection,
+  )
+  T(
+    "orchestrate flags: --only ORB-N preserves the former one-ticket boundary",
+    /With `--only`, reconcile and launch THAT TICKET[\s\S]*ONLY/.test(scopeSection),
+    scopeSection,
+  )
+  T(
+    "orchestrate flags: --only rejects two or more identifiers",
+    /`--only` with an explicit set is a usage error/.test(scopeSection),
+    scopeSection,
+  )
+  T(
+    "orchestrate flags: --single accepts an explicit set and runs it serially",
+    /including an explicit set/.test(scopeSection)
+      && /effective[\s\S]*`maxParallelWorktrees` to 1/.test(scopeSection)
+      && /Wait for each ticket to reach a terminal state before launching the next/.test(scopeSection),
+    scopeSection,
+  )
+  T(
+    "orchestrate flags: --single passes cap 1 to the shared launcher enforcement",
+    /--max-parallel-worktrees 1` when the run has `--single`/.test(skill),
+    skill,
+  )
+
+  const recordedMainSinglePlan = {
+    identifiers: ["ORB-1"],
+    launchable: ["ORB-1"],
+  }
+  const onlyResult = run(
+    "wave-plan.mjs",
+    ["--issues", "ORB-1", "--json"],
+    { env: orcaEnv(ISSUES_WAVE_STUB) },
+  )
+  let onlyPlan = null
+  try {
+    const parsed = JSON.parse(onlyResult.stdout)
+    onlyPlan = {
+      identifiers: parsed.waves.flatMap((wave) => wave.issues.map((issue) => issue.identifier)),
+      launchable: parsed.launchable,
+    }
+  } catch {
+    onlyPlan = null
+  }
+  T(
+    "orchestrate flags: --only ORB-N resolves the recorded former --single plan",
+    onlyResult.status === 0
+      && JSON.stringify(onlyPlan) === JSON.stringify(recordedMainSinglePlan),
+    `exit ${onlyResult.status}; expected ${JSON.stringify(recordedMainSinglePlan)}; got ${JSON.stringify(onlyPlan)}\n     ${onlyResult.stderr}`,
+  )
+
+  const tracked = spawnSync("git", ["ls-files", "-z"], {
+    cwd: REPO_ROOT,
+    encoding: "utf8",
+  })
+  const textFiles = tracked.status === 0
+    ? tracked.stdout
+      .split("\0")
+      .filter((path) => /\.(md|mjs|json|ya?ml|txt)$/i.test(path))
+      .filter((path) => path.replaceAll("\\", "/") !== `tools/${SELF}`)
+    : []
+  const oneTicketSingle = [
+    /\/orchestrate\s+ORB-(?:N|\d+)\s+--single/,
+    /one ticket.{0,80}`--single`/i,
+    /`--single`.{0,80}(?:one-ticket scope|THAT TICKET ONLY)/i,
+  ]
+  const staleUses = []
+  for (const relativePath of textFiles) {
+    const contents = readFileSync(join(REPO_ROOT, relativePath), "utf8")
+    if (oneTicketSingle.some((pattern) => pattern.test(contents))) staleUses.push(relativePath)
+  }
+  T(
+    "orchestrate flags: tracked-doc guard reads files and finds no one-ticket-only --single use",
+    textFiles.length > 0 && staleUses.length === 0,
+    `scanned ${textFiles.length} tracked text files; stale uses: ${staleUses.join(", ") || "none"}`,
+  )
+}
+
 const WAVE_STUB = [
   {
     match: "linear list-issues",
@@ -2223,18 +2692,21 @@ const stageCalibration = (label, options = {}) => {
   writeFileSync(join(base, ".claude", "skills", "sample", "SKILL.md"), skillSource)
   writeFileSync(
     join(base, ".claude", "orchestrator.json"),
-    JSON.stringify(options.orchestrator ?? {
-      worker: "codex",
-      workers: {
-        codex: {
-          args: [],
-          models: {
-            default: { model: currentModel, args: currentDefaultArgs },
-            cheap: { model: "gpt-cheap" },
-            deep: { model: "gpt-deep" },
+    JSON.stringify({
+      maxParallelWorktrees: 8,
+      ...(options.orchestrator ?? {
+        worker: "codex",
+        workers: {
+          codex: {
+            args: [],
+            models: {
+              default: { model: currentModel, args: currentDefaultArgs },
+              cheap: { model: "gpt-cheap" },
+              deep: { model: "gpt-deep" },
+            },
           },
         },
-      },
+      }),
     }),
   )
   if (!options.missingArtifact) {
@@ -3524,6 +3996,7 @@ Not run.`,
   },
   "compose-prompt.mjs": composePromptCases,
   "wave-plan.mjs": () => {
+    orchestrateFlagCases()
     check("wave-plan.mjs", "documents the explicit issue selection mode", ["--help"], { status: 0, stdout: /--issues "ORB-a,\.\.\."/ })
     check("wave-plan.mjs", "plans one explicitly requested identifier and counts out-of-set dependents in reach", ["--issues", "ORB-1", "--json"], { status: 0, stdout: /"identifier": "ORB-1"[\s\S]*?"reach": 1[\s\S]*?"launchable": true/ }, { env: orcaEnv(ISSUES_WAVE_STUB) })
     const duplicateLog = stage("wave-plan-duplicate.log", "")
@@ -3917,7 +4390,7 @@ for (const file of scripts) {
 console.log("\n# decision paths")
 for (const [file, cases] of Object.entries(gateCases)) {
   if (!existsSync(join(TOOLS_DIR, file))) continue
-  cases()
+  await cases()
 }
 
 console.log(`\n${fails === 0 ? "ORBIT TOOLS GATE OK" : `ORBIT TOOLS GATE FAILED (${fails})`}`)
