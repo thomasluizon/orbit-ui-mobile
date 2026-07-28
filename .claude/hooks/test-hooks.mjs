@@ -384,6 +384,13 @@ const blockedDocs = docPaths.filter((path) => checkLinearMutation(readFileSync(p
 T("linear gate: blocks none of this repo's tracked docs", blockedDocs.map((p) => p.slice(repoRoot.length + 1)), [])
 T("linear gate: the doc scan actually read files", docPaths.length > 0, true)
 
+const hookPathReferences = docPaths.flatMap((path) =>
+  [...readFileSync(path, "utf8").matchAll(/(?<![~/])\.claude\/hooks\/[A-Za-z0-9._/-]+\.mjs/g)].map((match) => match[0]),
+)
+const missingHookPathReferences = [...new Set(hookPathReferences)].filter((relative) => !existsSync(join(repoRoot, relative)))
+T("docs: every named .claude/hooks/*.mjs path resolves", missingHookPathReferences, [])
+T("docs: the hook path guard actually found references", hookPathReferences.length > 0, true)
+
 // A DOCUMENT is judged per chunk, so a mutation against another service does not
 // inherit a Linear endpoint documented elsewhere in the same file. Measured
 // 2026-07-27 on `.claude/skills/orchestrate/SKILL.md`, which has documented the
