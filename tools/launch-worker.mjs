@@ -183,24 +183,42 @@ conflict with anything above, these win.
    other part in full, mark that criterion explicitly UNMET in the PR body with the evidence,
    and still complete the contract: gates, commit, push, PR, attach, In Review. Unmet and stated
    is acceptable; unmentioned is not. Never silently drop a criterion.
-3. **Your job ENDS when your own ticket's PR is open, attached, and the issue is In Review.**
-   Never poll your own PR's CI, never poll its review verdict, and never watch another ticket,
-   another worktree or another PR. The orchestrator owns all of that and already has it in view.
-4. **Never arm a background monitor, watcher or wait loop that outlives this contract.**
-5. **If your work order tells you both to watch something and to stop, STOP wins.** Record the
-   conflict in your PR body rather than silently doing both.
-6. **Never merge any PR, never push to \`main\`, never use \`--no-verify\`, never edit a gate
+3. **Own the automated review cycle.** After the PR is open, attached, and In Review, poll its
+   review transitions with \`node tools/pr-watch.mjs --repo <owner/name> --pr <number>
+   --once\` only as a low-level wake-up. After every call and before waiting or reporting
+   completion, run \`node tools/worker-status.mjs --worktree <path> --issue ORB-N --json\`.
+   That full-surface completion poll inventories review submissions, review threads and their
+   nested comments, and PR conversation comments, and fails closed on an incomplete inventory.
+   Read unmet item bodies through GitHub's read APIs, reconcile them against the diff, then poll
+   again. For each valid finding, fix it, run the affected gates, commit and push, reply on that
+   thread naming the fix commit, then resolve it.
+   An informational automated finding that needs no code change may be resolved after replying
+   \`No code change required: <reason>. Evidence: <PR commit>\`; the named commit must be on the
+   PR and change the reviewed path. Never resolve a thread opened by a human account. Repeat until
+   the review decision is approved with zero unresolved threads; approval with an unresolved
+   thread is not done. For an automated finding in a review body or PR conversation comment with
+   no thread, post a PR comment naming that activity ID and the PR commit that addresses it.
+4. **Escalate instead of guessing.** Escalate when you disagree with a finding, when you are
+   blocked on a decision you may not make, or when two consecutive cycles fail on the same
+   finding. Do not try that finding a third time. Send one escalation carrying the disputed
+   finding and your reasoning.
+5. **Your job ends on one report.** Report completion once the PR is approved with zero
+   unresolved threads, or send the escalation from clause 4. An earlier instruction to stop
+   after opening or attaching the PR does not replace this endpoint. Never watch another
+   ticket, worktree, or PR.
+6. **Never arm a background monitor, watcher or wait loop that outlives this contract.**
+7. **Never merge any PR, never push to \`main\`, never use \`--no-verify\`, never edit a gate
    baseline.**
-7. **Stage explicitly.** Commit only the paths you edited yourself. \`git add -A\`, \`git add .\`
+8. **Stage explicitly.** Commit only the paths you edited yourself. \`git add -A\`, \`git add .\`
    and \`git commit -a\` are forbidden. A worktree is a shared filesystem that sibling workers,
    dev servers and tooling all write into, so a blanket stage turns any of their runtime
    artifacts into your diff.
-8. **Verify before pushing.** Run \`git show --stat HEAD\` and confirm every path in it is one
+9. **Verify before pushing.** Run \`git show --stat HEAD\` and confirm every path in it is one
    you meant to change. A path you cannot explain is a defect to resolve, never a file to push.
-9. **Never write into another worktree.** A live sibling worktree is another worker's working
-   tree, and a file you leave there can land in that worker's PR. If your proof genuinely needs
-   a second worktree, create a disposable one for it and remove it afterwards.
-10. **Delegate independent slices.** A work order spanning more than one independent file or
+10. **Never write into another worktree.** A live sibling worktree is another worker's working
+    tree, and a file you leave there can land in that worker's PR. If your proof genuinely needs
+    a second worktree, create a disposable one for it and remove it afterwards.
+11. **Delegate independent slices.** A work order spanning more than one independent file or
     slice is executed by spawning parallel subagents, one per slice, each with an explicit output
     contract, then reconciling their output. Keep edits landing in the SAME file inline, and keep
     the final gate run inline because its raw output ships in the PR body. A review round with
