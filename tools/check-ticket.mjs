@@ -111,7 +111,9 @@ if (mode === "--file") {
   validateLabels(labels)
   const relations = parsedResult.relations ?? issue.relations ?? []
   const blockedBy = relations.filter((r) => r.relationship === "blockedBy" || r.type === "blockedBy")
-  if (/\b(after|once|depends on|blocked by)\b/i.test(body) && blockedBy.length === 0) {
+  const namesIssueDependency =
+    /\b(?:after|once|depends on|blocked by)\s+(?:issue\s+)?(?:`|\[)?[A-Z]+-\d+\b/i.test(body)
+  if (namesIssueDependency && blockedBy.length === 0) {
     problems.push("body PROSE mentions a dependency but the issue has no blockedBy relation; the DAG is explicit, never inferred from titles (6.2)")
   }
 } else {
