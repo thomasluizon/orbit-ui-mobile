@@ -42,6 +42,7 @@ const GH = process.env.GH_BIN || "gh"
 const IMAGE_ARTIFACT = /\.(png|jpe?g|gif|webp)(\?|$)/i
 const CRITIQUE_ARTIFACT = /\.(md|markdown|txt)(\?|$)/i
 const CRITIQUE_TITLE = /\bcritique\b/i
+const LINEAR_UPLOAD = /^https?:\/\/uploads\.linear\.app(?:[/?#]|$)/i
 
 const fail = (code, message) => {
   console.error(message)
@@ -132,7 +133,8 @@ const attachmentUrls = attachments.map((entry) => entry.url ?? entry.href ?? "")
 const screenshotAttachments = attachments.filter((entry) => {
   const url = entry.url ?? entry.href ?? ""
   const title = entry.title ?? entry.name ?? ""
-  return IMAGE_ARTIFACT.test(url) || IMAGE_ARTIFACT.test(title)
+  const critique = CRITIQUE_ARTIFACT.test(url) || CRITIQUE_ARTIFACT.test(title) || CRITIQUE_TITLE.test(title)
+  return IMAGE_ARTIFACT.test(url) || IMAGE_ARTIFACT.test(title) || (LINEAR_UPLOAD.test(url) && !critique)
 })
 const critiqueAttachments = attachments.filter((entry) => {
   const url = entry.url ?? entry.href ?? ""

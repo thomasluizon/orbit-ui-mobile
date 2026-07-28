@@ -1489,6 +1489,28 @@ const gateCases = {
         complete.verdict.checks.find((entry) => entry.name === "critique-attached")?.ok === true,
       `exit ${complete.status}\n     ${(complete.stderr || complete.stdout).slice(0, 600)}`,
     )
+    const linearUpload = {
+      title: "about capture",
+      url: "https://uploads.linear.app/8c329d15-b91e-47ac-9389-1b230452249d",
+    }
+    const extensionlessComplete = runWorkerStatusCase(worktree, [linearUpload, critique])
+    T(
+      "worker-status.mjs: extensionless Linear upload and separate critique is OK",
+      extensionlessComplete.status === 0 &&
+        extensionlessComplete.verdict?.ok === true &&
+        extensionlessComplete.verdict.checks.find((entry) => entry.name === "screenshot-attached")?.ok === true &&
+        extensionlessComplete.verdict.checks.find((entry) => entry.name === "critique-attached")?.ok === true,
+      `exit ${extensionlessComplete.status}\n     ${(extensionlessComplete.stderr || extensionlessComplete.stdout).slice(0, 600)}`,
+    )
+    const extensionlessOnly = runWorkerStatusCase(worktree, [linearUpload])
+    T(
+      "worker-status.mjs: extensionless Linear upload alone is not a critique",
+      extensionlessOnly.status === 1 &&
+        extensionlessOnly.verdict?.unmet.length === 1 &&
+        extensionlessOnly.verdict.unmet[0] === "critique-attached" &&
+        extensionlessOnly.verdict.checks.find((entry) => entry.name === "screenshot-attached")?.ok === true,
+      `exit ${extensionlessOnly.status}\n     ${(extensionlessOnly.stderr || extensionlessOnly.stdout).slice(0, 600)}`,
+    )
     const critiqueMissing = runWorkerStatusCase(worktree, [screenshot])
     T(
       "worker-status.mjs: screenshot present and critique missing is UNMET",
@@ -1640,6 +1662,32 @@ const gateCases = {
   "check-ticket.mjs": () => {
     check("check-ticket.mjs", "an incomplete body is rejected", ["--file", stage("ticket.md", "# A ticket\n\nno template sections here\n")], { nonZero: true })
     check("check-ticket.mjs", "a missing body file is a usage error", ["--file", join(root, "absent.md")], { status: 2 })
+    const visibleTicket = (evidence = "") => [
+      "# Validate visible effect evidence",
+      "",
+      VALID_TICKET_BODY,
+      "",
+      "The component behavior is user-visible.",
+      evidence,
+    ].join("\n")
+    check(
+      "check-ticket.mjs",
+      "a visible-effect body with screenshots and critique passes",
+      ["--file", stage("ticket-visible-complete.md", visibleTicket("Final screenshots and the critique artifact are attached before In Review."))],
+      { status: 0, stdout: /ticket ok/ },
+    )
+    check(
+      "check-ticket.mjs",
+      "a visible-effect body with screenshots but no critique names the missing critique",
+      ["--file", stage("ticket-visible-no-critique.md", visibleTicket("Final screenshots are attached before In Review."))],
+      { status: 1, stderr: /DEFECTIVE TICKET \(1 problems\)[\s\S]*critique artifact is attached before In Review/ },
+    )
+    check(
+      "check-ticket.mjs",
+      "a visible-effect body with neither screenshots nor critique fails both requirements",
+      ["--file", stage("ticket-visible-no-evidence.md", visibleTicket())],
+      { status: 1, stderr: /DEFECTIVE TICKET \(2 problems\)[\s\S]*final screenshots are attached before In Review[\s\S]*critique artifact is attached before In Review/ },
+    )
     const issue = (sentence) => ({
       match: "linear issue ORB-99",
       stdout: JSON.stringify({

@@ -24,6 +24,7 @@
 ## Unresolved findings
 
 - The Portuguese clipping remains unresolved. ORB-116 changes the worker evidence contract and checklist only, so changing the `/about` product surface would exceed this ticket's binding scope. The finding is preserved here for reviewer attention.
+- Follow-up: [ORB-130](https://linear.app/useorbitai/issue/ORB-130/fix-pt-br-clipping-on-the-web-about-surface-at-412px).
 
 ## Result
 
