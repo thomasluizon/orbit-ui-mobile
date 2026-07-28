@@ -338,7 +338,6 @@ named fix commit did not follow the reviewed commit or change the reviewed path,
 thread resolved by the worker account, a head without its own approving review, or any unresolved
 thread is a hard failure. Stop for human adjudication on failure; do not run a second verification
 pass.
-
 - D7: an issue may sit In Review only with its PR attached. When labelled `visible-effect`,
   it also needs final screenshots and the worker's critique attached; otherwise demote to In
   Progress and finish.
