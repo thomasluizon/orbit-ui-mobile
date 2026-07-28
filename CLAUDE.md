@@ -15,7 +15,7 @@ While building or fixing, see something broken, stale, or wrong? Fix it immediat
 Linear is the source of truth for product work in this repo and orbit-api; GitHub Issues holds orbit-landing-page, infra chores, and Dependabot (D1). The ticket is the prompt (D2); one ticket = one repo = one reviewable PR, target under 400 lines (D4), and cross-repo work uses an API ticket blocking a UI ticket. The worker engine lives in `.claude/orchestrator.json` (D5); a `visible-effect` ticket needs final screenshots, a critique artifact, and test output before In Review (D7). `RENDER-CORRECTNESS.md` defines the bounded self-critique after capture. Invoke `tools/` scripts through their skills or agents; after `/next`, run `/orchestrate ORB-N --single`.
 
 - `/feature`
-- `/bug`
+- `/ticket`
 - `/orchestrate`
 - `/next`
 
