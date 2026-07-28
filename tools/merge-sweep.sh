@@ -488,6 +488,7 @@ for n in "$@"; do
     sleep 20
   done
   [ -z "$done_pr" ] && echo "SKIP #$n (timeout: $block_reason)"
+  [ "$post_merge_review_failures" -eq 0 ] || break
 done
 
 # A head branch that merely survived --delete-branch is benign; only a tip that MOVED past the SHA

@@ -195,6 +195,8 @@ const updateMarker = process.env.ORBIT_MERGE_SWEEP_LOG + ".updated"
 const postMergeMarker = process.env.ORBIT_MERGE_SWEEP_LOG + ".post-merge"
 const currentHead = () => existsSync(updateMarker) && process.env.ORBIT_MERGE_SWEEP_UPDATED_HEAD ? process.env.ORBIT_MERGE_SWEEP_UPDATED_HEAD : process.env.ORBIT_MERGE_SWEEP_HEAD
 const withUrls = (value, source) => value.split("\\n").filter(Boolean).map((item, index) => item.split("\\t").length === 2 ? item + "\\thttps://example.test/" + source + "/" + index : item).join("\\n")
+const postMergeFailurePr = process.env.ORBIT_MERGE_SWEEP_POST_MERGE_FAILURE_PR
+const targetsPostMergeFailure = () => line.includes("n=" + postMergeFailurePr) || line.includes("/" + postMergeFailurePr + "/")
 if (line.includes("/actions/workflows")) process.exit(0)
 if (argv[0] === "pr" && argv[1] === "update-branch") {
   if (process.env.ORBIT_MERGE_SWEEP_UPDATED_HEAD) writeFileSync(updateMarker, "")
@@ -203,7 +205,7 @@ if (argv[0] === "pr" && argv[1] === "update-branch") {
 if (argv[0] === "api" && argv[1] === "graphql" && line.includes("reviews(first:100")) {
   if (
     process.env.ORBIT_MERGE_SWEEP_REVIEWS_LOOKUP_FAILURE ||
-    (existsSync(postMergeMarker) && process.env.ORBIT_MERGE_SWEEP_POST_MERGE_REVIEWS_LOOKUP_FAILURE)
+    (existsSync(postMergeMarker) && targetsPostMergeFailure() && process.env.ORBIT_MERGE_SWEEP_POST_MERGE_REVIEWS_LOOKUP_FAILURE)
   ) process.exit(7)
   let items = process.env.ORBIT_MERGE_SWEEP_REVIEW_TIMES
   if (process.env.ORBIT_MERGE_SWEEP_REVIEWS_PAGE_TWO && argv.includes("--paginate")) {
@@ -215,10 +217,10 @@ if (argv[0] === "api" && argv[1] === "graphql" && line.includes("reviews(first:1
 if (argv[0] === "api" && argv[1] === "graphql" && line.includes("reviewThreads(first:100)")) {
   if (
     process.env.ORBIT_MERGE_SWEEP_THREADS_LOOKUP_FAILURE ||
-    (existsSync(postMergeMarker) && process.env.ORBIT_MERGE_SWEEP_POST_MERGE_THREADS_LOOKUP_FAILURE)
+    (existsSync(postMergeMarker) && targetsPostMergeFailure() && process.env.ORBIT_MERGE_SWEEP_POST_MERGE_THREADS_LOOKUP_FAILURE)
   ) process.exit(7)
   process.stdout.write(
-    existsSync(postMergeMarker) && process.env.ORBIT_MERGE_SWEEP_POST_MERGE_UNRESOLVED_THREADS
+    existsSync(postMergeMarker) && targetsPostMergeFailure() && process.env.ORBIT_MERGE_SWEEP_POST_MERGE_UNRESOLVED_THREADS
       ? process.env.ORBIT_MERGE_SWEEP_POST_MERGE_UNRESOLVED_THREADS
       : process.env.ORBIT_MERGE_SWEEP_UNRESOLVED_THREADS,
   )
@@ -255,12 +257,12 @@ if (argv[0] === "pr" && argv[1] === "merge") {
     writeFileSync(process.env.ORBIT_MERGE_SWEEP_MOVE_MARKER, "")
     process.exit(1)
   }
-  if (
+  if (argv[2] === postMergeFailurePr && (
     process.env.ORBIT_MERGE_SWEEP_POST_MERGE_ACTIVITY ||
     process.env.ORBIT_MERGE_SWEEP_POST_MERGE_REVIEWS_LOOKUP_FAILURE ||
     process.env.ORBIT_MERGE_SWEEP_POST_MERGE_THREADS_LOOKUP_FAILURE ||
     process.env.ORBIT_MERGE_SWEEP_POST_MERGE_UNRESOLVED_THREADS
-  ) writeFileSync(postMergeMarker, "")
+  )) writeFileSync(postMergeMarker, "")
   process.exit(0)
 }
 if (line.includes("/pulls/") && line.includes("/comments")) {
@@ -275,7 +277,7 @@ if (line.includes("/pulls/") && line.includes("/comments")) {
 if (line.includes("/issues/") && line.includes("/comments")) {
   if (process.env.ORBIT_MERGE_SWEEP_COMMENTS_LOOKUP_FAILURE) process.exit(7)
   let items = process.env.ORBIT_MERGE_SWEEP_COMMENT_TIMES
-  if (existsSync(postMergeMarker) && process.env.ORBIT_MERGE_SWEEP_POST_MERGE_ACTIVITY) items += "\\n" + process.env.ORBIT_MERGE_SWEEP_POST_MERGE_ACTIVITY
+  if (existsSync(postMergeMarker) && targetsPostMergeFailure() && process.env.ORBIT_MERGE_SWEEP_POST_MERGE_ACTIVITY) items += "\\n" + process.env.ORBIT_MERGE_SWEEP_POST_MERGE_ACTIVITY
   process.stdout.write(withUrls(items, "conversation"))
   process.exit(0)
 }
@@ -337,6 +339,7 @@ const mergeSweepEnv = ({
   ORBIT_MERGE_SWEEP_LOG: log,
   ORBIT_MERGE_SWEEP_MOVE_MARKER: moveAtMerge ? `${log}.moved` : "",
   ORBIT_MERGE_SWEEP_POST_MERGE_ACTIVITY: postMergeActivity,
+  ORBIT_MERGE_SWEEP_POST_MERGE_FAILURE_PR: "615",
   ORBIT_MERGE_SWEEP_POST_MERGE_REVIEWS_LOOKUP_FAILURE: postMergeReviewsLookupFailure ? "1" : "",
   ORBIT_MERGE_SWEEP_POST_MERGE_THREADS_LOOKUP_FAILURE: postMergeThreadsLookupFailure ? "1" : "",
   ORBIT_MERGE_SWEEP_POST_MERGE_UNRESOLVED_THREADS: postMergeUnresolvedThreads,
@@ -1697,6 +1700,45 @@ const mergeSweepCases = (file) => {
     "a review lookup failure after the merge is reported by source",
     { postMergeReviewsLookupFailure: true },
     /POST-MERGE-REVIEW-LOOKUP-FAILED #615 source=reviews/,
+  )
+
+  const stopAfterPostMergeFailureLog = join(root, `${file}-stop-after-post-merge-failure.log`)
+  const stopAfterPostMergeFailure = run(
+    file,
+    [
+      "--expected-head",
+      `615=${expectedHead}`,
+      "--expected-head",
+      `616=${expectedHead}`,
+      "--reviewed-through",
+      `615=${reviewedThrough}`,
+      "--reviewed-through",
+      `616=${reviewedThrough}`,
+      "thomasluizon/orbit-ui-mobile",
+      "615",
+      "616",
+    ],
+    {
+      env: mergeSweepEnv({
+        head: expectedHead,
+        log: stopAfterPostMergeFailureLog,
+        postMergeReviewsLookupFailure: true,
+        sonar: coverageAware ? "coverage-failure" : "success",
+        state: coverageAware ? "BLOCKED" : "CLEAN",
+      }),
+    },
+  )
+  const stopAfterPostMergeFailureCalls = mergeSweepCalls(stopAfterPostMergeFailureLog)
+  const stopAfterPostMergeFailureMerges = stopAfterPostMergeFailureCalls.filter(
+    ([group, command]) => group === "pr" && command === "merge",
+  )
+  T(
+    `${file}: a post-merge review failure stops the multi-PR sweep`,
+    stopAfterPostMergeFailure.status === 4 &&
+      stopAfterPostMergeFailureMerges.length === 1 &&
+      stopAfterPostMergeFailureMerges[0][2] === "615" &&
+      !stopAfterPostMergeFailureCalls.some((argv) => argv.includes("616")),
+    `exit ${stopAfterPostMergeFailure.status}\n     stdout: ${stopAfterPostMergeFailure.stdout.trim()}\n     stderr: ${stopAfterPostMergeFailure.stderr.trim()}\n     calls: ${JSON.stringify(stopAfterPostMergeFailureCalls)}`,
   )
 
   const reviewSkip = (label, envOptions, outputPattern) => {
