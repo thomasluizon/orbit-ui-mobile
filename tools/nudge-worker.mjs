@@ -48,9 +48,11 @@ const STALE_BLOCKED_REASON = "codex-trust-workspace"
 const ENGINE_PROFILES = {
   claude: {
     trustOnScreen: /isthisaprojectyoucreatedoroneyoutrust|doyoutrustthefiles|trustthisfolder/,
+    readyOnScreen: />try"howdoiloganerror\?"/,
   },
   codex: {
     trustOnScreen: /doyoutrustthecontentsofthisdirectory/,
+    readyOnScreen: /›writetestsfor@filename/,
   },
 }
 const flatten = (text) => text.replace(/\s+/g, "").toLowerCase()
@@ -125,10 +127,12 @@ const waitForIdle = (handle) => {
  * exist failed open without it. */
 const busy = (handle) => isRepainting(orca, handle)
 
-const trustPromptOnScreen = (handle) => {
+const screenSignals = (handle) => {
   const tail = (orca(["terminal", "read", "--terminal", handle, "--limit", "60"]).terminal?.tail ?? []).join("\n")
   const screen = flatten(tail)
-  return Object.entries(ENGINE_PROFILES).find(([, profile]) => profile.trustOnScreen.test(screen))?.[0] ?? null
+  const trustEngine = Object.entries(ENGINE_PROFILES).find(([, profile]) => profile.trustOnScreen.test(screen))?.[0] ?? null
+  const readyEngine = Object.entries(ENGINE_PROFILES).find(([, profile]) => profile.readyOnScreen.test(screen))?.[0] ?? null
+  return { trustEngine, readyEngine }
 }
 
 const terminal = argOf("--terminal")
@@ -188,12 +192,16 @@ while (waitAttempts < waitAttemptsAllowed && !idle) {
   }
   if (wait.blockedReason === STALE_BLOCKED_REASON) {
     if (!busy(terminal)) {
-      const blockedEngine = trustPromptOnScreen(terminal)
-      if (blockedEngine) {
-        console.error(`attempt ${waitAttempts}: orca reports ${wait.blockedReason}, the TUI is not repainting, and the ${blockedEngine} trust prompt is still on screen, so the worker remains blocked`)
+      const { trustEngine, readyEngine } = screenSignals(terminal)
+      if (trustEngine) {
+        console.error(`attempt ${waitAttempts}: orca reports ${wait.blockedReason}, the TUI is not repainting, and the ${trustEngine} trust prompt is still on screen, so the worker remains blocked`)
         continue
       }
-      console.error(`attempt ${waitAttempts}: orca reports ${wait.blockedReason}, but the TUI is not repainting and no known trust prompt is on screen, so the retained blocked reason is stale and the current screen and repaint signals win`)
+      if (!readyEngine) {
+        console.error(`attempt ${waitAttempts}: orca reports ${wait.blockedReason}, the TUI is not repainting, and no known trust prompt is on screen, but no known ready composer is on screen, so the worker remains blocked`)
+        continue
+      }
+      console.error(`attempt ${waitAttempts}: orca reports ${wait.blockedReason}, but the TUI is not repainting, no known trust prompt is on screen, and the ${readyEngine} ready composer is on screen, so the retained blocked reason is stale and the current screen and repaint signals win`)
       idle = true
       break
     }
