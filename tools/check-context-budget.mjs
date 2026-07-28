@@ -10,7 +10,7 @@ const CLAUDE_PATH = join(REPO_ROOT, "CLAUDE.md")
 const RULES_PATH = join(REPO_ROOT, ".claude", "rules")
 const BASELINE_PATH = join(REPO_ROOT, "tools", "context-budget.json")
 const BASELINE_REPO_PATH = "tools/context-budget.json"
-const EXPECTED_IMPORTS = new Set(["@../orbit-api/CLAUDE.md", "@../orbit-landing-page/CLAUDE.md"])
+const EXPECTED_IMPORTS = new Set()
 const EXPECTED_UNCONDITIONAL_RULES = new Set([".claude/rules/core.md"])
 
 const USAGE = `usage: check-context-budget.mjs [--check | --write-baseline] [--json]
