@@ -1364,6 +1364,32 @@ const rollup = (...contexts) => ({ nodes: [{ commit: { statusCheckRollup: { stat
 
 const prWatchCases = () => {
   const argv = ["--repo", "thomasluizon/orbit-ui-mobile", "--pr", "615", "--once"]
+  check(
+    "pr-watch.mjs",
+    "--help says repeated acted signals on one PR and head accumulate",
+    ["--help"],
+    { status: 0, stdout: /same PR and head accumulate[\s\S]*READY_TO_MERGE independently/ },
+  )
+  let sequenceNumber = 0
+  const checkSequence = (name, states, extraArgv, expect) => {
+    sequenceNumber += 1
+    const log = join(root, `pr-watch-sequence-${sequenceNumber}.log`)
+    const result = check(
+      "pr-watch.mjs",
+      name,
+      ["--repo", "thomasluizon/orbit-ui-mobile", "--pr", "615", "--interval", "0.05", "--timeout", "2", ...extraArgv],
+      expect,
+      {
+        env: {
+          ...orcaEnv([{ match: "number=615", sequence: states.map((state) => pullRequestStub(615, state).stdout) }]),
+          ORBIT_ORCA_LOG: log,
+        },
+      },
+    )
+    const polls = existsSync(log) ? readFileSync(log, "utf8").trim().split("\n").filter(Boolean).length : 0
+    T(`pr-watch.mjs: ${name} consumed the state sequence`, polls >= states.length, `polled ${polls} time(s), expected at least ${states.length}`)
+    return result
+  }
 
   check(
     "pr-watch.mjs",
@@ -1383,10 +1409,42 @@ const prWatchCases = () => {
   check("pr-watch.mjs", "a fresh approval fires", argv, { status: 0, stdout: /"transition": "approved"/ }, { env: orcaEnv([approved]) })
   check(
     "pr-watch.mjs",
-    "an approval the caller already acted on reports mergeable-and-approved instead of repeating itself",
+    "an acted approval that became clean between watches reports readiness",
     [...argv, "--acted", `615=${HEAD_SHA.slice(0, 7)}:APPROVED`],
     { status: 0, stdout: /"transition": "ready-to-merge"/ },
     { env: orcaEnv([approved]) },
+  )
+  check(
+    "pr-watch.mjs",
+    "an acted readiness on an already clean PR does not repeat",
+    [...argv, "--acted", `615=${HEAD_SHA.slice(0, 7)}:APPROVED`, "--acted", `615=${HEAD_SHA}:READY_TO_MERGE`],
+    { status: 4, stdout: /"transition": "none"/ },
+    { env: orcaEnv([approved]) },
+  )
+  const twoVerdicts = {
+    reviewDecision: "CHANGES_REQUESTED",
+    latestReviews: { nodes: [reviewOn("CHANGES_REQUESTED", HEAD_SHA), reviewOn("COMMENTED", HEAD_SHA)] },
+  }
+  check(
+    "pr-watch.mjs",
+    "two acted verdicts on the same PR and head both remain suppressed",
+    [...argv, "--acted", `615=${HEAD_SHA}:CHANGES_REQUESTED`, "--acted", `615=${HEAD_SHA}:COMMENTED`],
+    { status: 4, stdout: /"transition": "none"/ },
+    { env: orcaEnv([pullRequestStub(615, twoVerdicts)]) },
+  )
+  check(
+    "pr-watch.mjs",
+    "acting only on the comment leaves changes requested actionable",
+    [...argv, "--acted", `615=${HEAD_SHA}:COMMENTED`],
+    { status: 1, stdout: /"transition": "changes-requested"/ },
+    { env: orcaEnv([pullRequestStub(615, twoVerdicts)]) },
+  )
+  check(
+    "pr-watch.mjs",
+    "acting only on changes requested leaves the comment actionable",
+    [...argv, "--acted", `615=${HEAD_SHA}:CHANGES_REQUESTED`],
+    { status: 1, stdout: /"transition": "review-comment"/ },
+    { env: orcaEnv([pullRequestStub(615, twoVerdicts)]) },
   )
   check(
     "pr-watch.mjs",
@@ -1413,12 +1471,95 @@ const prWatchCases = () => {
   )
   check(
     "pr-watch.mjs",
+    "a closed PR ends the watch",
+    argv,
+    { status: 5, stdout: /"transition": "gone"[\s\S]*"reason": "the PR is closed unmerged"/ },
+    { env: orcaEnv([pullRequestStub(615, { state: "CLOSED" })]) },
+  )
+  checkSequence(
+    "a review decision changing on the current head fires",
+    [{ reviewDecision: null }, { reviewDecision: "APPROVED" }],
+    [],
+    { status: 0, stdout: /"transition": "review-decision"/ },
+  )
+  checkSequence(
+    "a non-approving review decision change needs work",
+    [{ reviewDecision: "APPROVED" }, { reviewDecision: "CHANGES_REQUESTED" }],
+    [],
+    { status: 1, stdout: /"transition": "review-decision"/ },
+  )
+  checkSequence(
+    "a required check concluding as failed fires",
+    [
+      { commits: { nodes: [{ commit: { statusCheckRollup: { state: "PENDING", contexts: { nodes: [{ ...checkRun("Lint", null), status: "IN_PROGRESS" }] } } } }] } },
+      { commits: rollup(checkRun("Lint", "FAILURE")) },
+    ],
+    [],
+    { status: 1, stdout: /"transition": "checks-failed"[\s\S]*Lint: FAILURE/ },
+  )
+  checkSequence(
+    "a head change wins when merge state becomes clean in the same poll",
+    [{ headRefOid: OLD_SHA, mergeStateStatus: "BLOCKED" }, { headRefOid: HEAD_SHA, mergeStateStatus: "CLEAN" }],
+    [],
+    { status: 1, stdout: /"transition": "head-changed"/ },
+  )
+  checkSequence(
+    "clean through unknown and back to clean emits nothing",
+    [{ mergeStateStatus: "CLEAN" }, { mergeStateStatus: "UNKNOWN" }, { mergeStateStatus: "CLEAN" }],
+    [],
+    { status: 4, stdout: /"transition": "timeout"/ },
+  )
+  checkSequence(
+    "blocked through unknown to clean emits once for clean",
+    [{ mergeStateStatus: "BLOCKED" }, { mergeStateStatus: "UNKNOWN" }, { mergeStateStatus: "CLEAN" }],
+    [],
+    { status: 0, stdout: /"transition": "merge-clean"/ },
+  )
+  checkSequence(
+    "an acted approval emits readiness when the PR later becomes clean",
+    [
+      { reviewDecision: "APPROVED", mergeStateStatus: "BLOCKED", latestReviews: { nodes: [reviewOn("APPROVED", HEAD_SHA)] } },
+      { reviewDecision: "APPROVED", mergeStateStatus: "CLEAN", latestReviews: { nodes: [reviewOn("APPROVED", HEAD_SHA)] } },
+    ],
+    ["--acted", `615=${HEAD_SHA}:APPROVED`],
+    { status: 0, stdout: /"transition": "ready-to-merge"/ },
+  )
+  checkSequence(
+    "non-terminal merge state churn emits nothing",
+    [{ mergeStateStatus: "BLOCKED" }, { mergeStateStatus: "UNKNOWN" }, { mergeStateStatus: "BEHIND" }],
+    [],
+    { status: 4, stdout: /"transition": "timeout"/ },
+  )
+  check(
+    "pr-watch.mjs",
     "watching several PRs reports whichever one transitioned",
     ["--repo", "thomasluizon/orbit-ui-mobile", "--pr", "615,616", "--once"],
     { status: 1, stdout: /"pr": 616[\s\S]*"transition": "changes-requested"/ },
     {
       env: orcaEnv([
         pullRequestStub(615, {}),
+        pullRequestStub(616, { reviewDecision: "CHANGES_REQUESTED", latestReviews: { nodes: [reviewOn("CHANGES_REQUESTED", HEAD_SHA)] } }),
+      ]),
+    },
+  )
+  check(
+    "pr-watch.mjs",
+    "an acted ready PR does not starve a later fleet transition",
+    [
+      "--repo",
+      "thomasluizon/orbit-ui-mobile",
+      "--pr",
+      "615,616",
+      "--once",
+      "--acted",
+      `615=${HEAD_SHA}:APPROVED`,
+      "--acted",
+      `615=${HEAD_SHA}:READY_TO_MERGE`,
+    ],
+    { status: 1, stdout: /"pr": 616[\s\S]*"transition": "changes-requested"/ },
+    {
+      env: orcaEnv([
+        approved,
         pullRequestStub(616, { reviewDecision: "CHANGES_REQUESTED", latestReviews: { nodes: [reviewOn("CHANGES_REQUESTED", HEAD_SHA)] } }),
       ]),
     },
@@ -1444,6 +1585,7 @@ const prWatchCases = () => {
 
   check("pr-watch.mjs", "refuses a baseline for a PR it is not watching", [...argv, "--acted", `616=${HEAD_SHA}:APPROVED`], { status: 2, stderr: /--pr does not watch/ })
   check("pr-watch.mjs", "refuses a malformed baseline rather than ignoring it", [...argv, "--acted", "615=APPROVED"], { status: 2, stderr: /--acted must look like/ })
+  check("pr-watch.mjs", "refuses an unknown acted signal", [...argv, "--acted", `615=${HEAD_SHA}:MERGEABLE`], { status: 2, stderr: /--acted signal must be/ })
   check("pr-watch.mjs", "refuses a repo that is not an owner\\/name slug", ["--repo", "orbit-ui-mobile", "--pr", "615", "--once"], { status: 2, stderr: /owner\/name slug/ })
 }
 
@@ -2217,6 +2359,32 @@ const newTicketStub = (created, issue, options = {}) => [
 const CREATED_OK = { ok: true, result: { issue: { identifier: "ORB-99" } } }
 const VALID_ISSUE = { identifier: "ORB-99", title: "Cover the create and validate round trip", description: VALID_TICKET_BODY, labels: [{ name: "repo:api" }, { name: "Improvement" }] }
 
+const mergeSweepCliFlagCases = () => {
+  const filenames = ["merge-sweep.sh", "merge-sweep-cov.sh"]
+  const scanned = filenames
+    .filter((filename) => existsSync(join(TOOLS_DIR, filename)))
+    .map((filename) => ({ filename, source: readFileSync(join(TOOLS_DIR, filename), "utf8") }))
+  T(
+    "merge sweep CLI flag guard scans both real script filenames",
+    scanned.length === filenames.length,
+    `scanned ${scanned.length} files; missing: ${filenames.filter((filename) => !scanned.some((entry) => entry.filename === filename)).join(", ")}`,
+  )
+  for (const { filename, source } of scanned) {
+    const ghApiInvocations = source
+      .replace(/\\\r?\n/g, " ")
+      .split(/\r?\n/)
+      .filter((line) => /\bgh api\b/.test(line))
+    const unsupported = ghApiInvocations.filter(
+      (invocation) => /(?:^|\s)--slurp(?:[=\s]|$)/.test(invocation) && /(?:^|\s)--(?:jq|template)(?:[=\s]|$)/.test(invocation),
+    )
+    T(
+      `${filename}: never combines --slurp with --jq or --template`,
+      unsupported.length === 0,
+      `unsupported gh api invocation:\n     ${unsupported.join("\n     ")}`,
+    )
+  }
+}
+
 const mergeSweepCases = (file) => {
   const expectedHead = "1111111111111111111111111111111111111111"
   const changedHead = "2222222222222222222222222222222222222222"
@@ -2534,7 +2702,7 @@ const mergeSweepCases = (file) => {
     olderEditedReview.status === 0 &&
       olderEditedReviewMerges.length === 1 &&
       paginatedReviewLookup?.includes("--paginate") &&
-      paginatedReviewLookup.includes("--slurp"),
+      !paginatedReviewLookup.includes("--slurp"),
     `exit ${olderEditedReview.status}\n     stdout: ${olderEditedReview.stdout.trim()}\n     stderr: ${olderEditedReview.stderr.trim()}\n     calls: ${JSON.stringify(olderEditedReviewCalls)}`,
   )
 
@@ -2780,7 +2948,10 @@ const contextBudgetCases = () => {
 }
 
 const gateCases = {
-  "merge-sweep.sh": () => mergeSweepCases("merge-sweep.sh"),
+  "merge-sweep.sh": () => {
+    mergeSweepCliFlagCases()
+    mergeSweepCases("merge-sweep.sh")
+  },
   "merge-sweep-cov.sh": () => mergeSweepCases("merge-sweep-cov.sh"),
   "new-ticket.mjs": () => {
     const argv = ["--title", "Cover the create and validate round trip", "--project", "Backlog"]
