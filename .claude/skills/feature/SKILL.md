@@ -27,20 +27,10 @@ team `ORB`.
 
 ## Phase B: prove scope completeness
 
-Before decomposing tickets or editing any draft, search for every named symbol, command,
-config, and workflow and produce one checkable `Scope completeness` list for the feature.
-The list must cover:
-
-- every code call site and integration point;
-- product and engineering docs;
-- ADRs and brain notes;
-- runbooks;
-- every `.claude/` rule, playbook, skill, agent, hook, and settings reference.
-
-Record every affected path. For a category with no affected path, record `none` only after
-searching it. Assign every required change to exactly one ticket, copy the relevant entries
-into that ticket's Scope and Affected modules / files, and make the entries checkboxes the
-implementation worker checks off as the work lands.
+Before decomposing tickets or editing any draft, read and execute
+`.claude/skills/_shared/scope-completeness.md`. Produce one list for the feature, assign
+every required change to exactly one ticket, and copy that ticket's entries into its Scope
+and Affected modules / files.
 
 ## Phase C: decompose and validate
 

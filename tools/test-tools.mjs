@@ -1387,6 +1387,31 @@ const gateCases = {
       { status: 0, stdout: /ticket ok/ },
       { env: issueStub(["repo:api", "Improvement"], `${VALID_TICKET_BODY}\n\n## Dependencies\n\nNo cross-ticket relation is required.`) },
     )
+    check(
+      "check-ticket.mjs",
+      "a dependency-free Dependencies section may use ordinary signal words",
+      ["--issue", "ORB-113"],
+      { status: 0, stdout: /ticket ok/ },
+      {
+        env: issueStub(
+          ["repo:api", "Improvement"],
+          `${VALID_TICKET_BODY}\n\nNo visible effect is expected; a screenshot is required if that changes.\n\n## Dependencies\n\nNone. This can proceed once the design review completes.`,
+        ),
+      },
+    )
+    check(
+      "check-ticket.mjs",
+      "a named dependency with its blockedBy relation is accepted",
+      ["--issue", "ORB-113"],
+      { status: 0, stdout: /ticket ok/ },
+      {
+        env: issueStub(
+          ["repo:api", "Improvement"],
+          `${VALID_TICKET_BODY}\n\n## Dependencies\n\nRequires ORB-112.`,
+          [{ relationship: "blockedBy", relatedIssue: { identifier: "ORB-112" } }],
+        ),
+      },
+    )
   },
   "check-push-target.mjs": () => {
     check("check-push-target.mjs", "a push to main is blocked", [], { status: 1, stderr: /BLOCKED/ }, { input: "refs/heads/main abc refs/heads/main def\n" })

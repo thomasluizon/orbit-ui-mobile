@@ -54,24 +54,10 @@ was the RIGHT default and stays the default; what was missing was a way to say n
 
 ## 0a. Prove scope completeness before any worker starts
 
-For every ticket that this run may launch, search the target repo and the brain vault
-before dispatch. Produce a checkable scope list with exact paths and occurrences in
-each of these categories:
-
-- every implementation call site;
-- docs;
-- ADRs;
-- brain notes;
-- runbooks;
-- `.claude/` references.
-
-Write `none found` under a category when the search is empty; an omitted category is
-not a completed search. Include the search terms used, especially renamed commands,
-symbols, paths and user-facing concepts, so another reader can reproduce the list.
-Print the list before any worker starts and append it verbatim to that ticket's worker
-prompt. The worker checks off each entry as it lands and adds any newly discovered
-reference before editing it. No ticket reaches dispatch with an unchecked or
-unaccounted entry.
+For every ticket this run may launch, read and execute
+`.claude/skills/_shared/scope-completeness.md` against its target repo and the brain vault.
+Print that ticket's list before any worker starts and append it verbatim to the worker
+prompt. No ticket reaches dispatch with an unchecked or unaccounted entry.
 
 ## 1. Reconcile before dispatch (D8)
 

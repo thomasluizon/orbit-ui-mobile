@@ -32,18 +32,9 @@ ticket, while `/feature` decomposes a larger idea into a project of tickets.
 
 ## Phase B: prove scope completeness
 
-Before drafting or editing anything, search for the named symbols, commands, configs,
-and workflows and produce a checkable `Scope completeness` list. The list must cover:
-
-- every code call site and integration point;
-- product and engineering docs;
-- ADRs and brain notes;
-- runbooks;
-- every `.claude/` rule, playbook, skill, agent, hook, and settings reference.
-
-Record every affected path in the list. For a category with no affected path, record
-`none` only after searching it. Carry required changes into Scope and Affected modules
-/ files so the implementation worker can check off each item as it lands.
+Before drafting or editing anything, read and execute
+`.claude/skills/_shared/scope-completeness.md`. Carry every required entry into the
+ticket's Scope and Affected modules / files.
 
 ## Phase C: draft and create
 
