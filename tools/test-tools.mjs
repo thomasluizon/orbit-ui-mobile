@@ -1135,6 +1135,122 @@ const newTicketStub = (created, issue, options = {}) => [
 const CREATED_OK = { ok: true, result: { issue: { identifier: "ORB-99" } } }
 const VALID_ISSUE = { identifier: "ORB-99", title: "Cover the create and validate round trip", description: VALID_TICKET_BODY, labels: [{ name: "repo:api" }] }
 
+const CONTEXT_CLAUDE = [
+  "# Orbit fixture",
+  "",
+  "@../orbit-api/CLAUDE.md",
+  "@../orbit-landing-page/CLAUDE.md",
+  "",
+].join("\n")
+const CONTEXT_CORE = "# Core fixture\n\nAlways applies.\n"
+const contextBytes = (body) => Buffer.byteLength(body, "utf8")
+const stageContextBudget = (label, options = {}) => {
+  const parent = join(root, "context-budget", label)
+  const repo = join(parent, "orbit-ui-mobile")
+  const tools = join(repo, "tools")
+  const rules = join(repo, ".claude", "rules")
+  const claude = options.claude ?? CONTEXT_CLAUDE
+  const core = options.core ?? CONTEXT_CORE
+  mkdirSync(tools, { recursive: true })
+  mkdirSync(rules, { recursive: true })
+  cpSync(join(TOOLS_DIR, "check-context-budget.mjs"), join(tools, "check-context-budget.mjs"))
+  writeFileSync(join(repo, "CLAUDE.md"), claude)
+  writeFileSync(join(rules, "core.md"), core)
+  for (const [file, body] of Object.entries(options.rules ?? {})) writeFileSync(join(rules, file), body)
+  for (const [repoName, body] of Object.entries(options.siblings ?? {})) {
+    const sibling = join(parent, repoName, "CLAUDE.md")
+    mkdirSync(dirname(sibling), { recursive: true })
+    writeFileSync(sibling, body)
+  }
+  const measuredFiles = {
+    "CLAUDE.md": contextBytes(claude),
+    ".claude/rules/core.md": contextBytes(core),
+  }
+  const baseline = options.baseline ?? {
+    bytes: Object.values(measuredFiles).reduce((sum, bytes) => sum + bytes, 0),
+    files: measuredFiles,
+  }
+  const baselinePath = join(tools, "context-budget.json")
+  writeFileSync(baselinePath, typeof baseline === "string" ? baseline : `${JSON.stringify(baseline, null, 2)}\n`)
+  return { path: join(tools, "check-context-budget.mjs"), repo, baselinePath, measuredFiles }
+}
+
+const contextBudgetCases = () => {
+  const over = stageContextBudget("over")
+  writeFileSync(
+    over.baselinePath,
+    `${JSON.stringify({
+      bytes: over.measuredFiles["CLAUDE.md"] + over.measuredFiles[".claude/rules/core.md"] - 1,
+      files: {
+        "CLAUDE.md": over.measuredFiles["CLAUDE.md"] - 1,
+        ".claude/rules/core.md": over.measuredFiles[".claude/rules/core.md"],
+      },
+    }, null, 2)}\n`,
+  )
+  check("check-context-budget.mjs", "total over baseline exits 1 and names the offending file", ["--check"], { status: 1, stderr: /grew by 1 byte[\s\S]*CLAUDE\.md: \+1 byte/i }, { path: over.path, cwd: over.repo })
+
+  const under = stageContextBudget("under")
+  writeFileSync(
+    under.baselinePath,
+    `${JSON.stringify({
+      bytes: under.measuredFiles["CLAUDE.md"] + under.measuredFiles[".claude/rules/core.md"] + 1,
+      files: {
+        "CLAUDE.md": under.measuredFiles["CLAUDE.md"] + 1,
+        ".claude/rules/core.md": under.measuredFiles[".claude/rules/core.md"],
+      },
+    }, null, 2)}\n`,
+  )
+  const underBaselineBefore = readFileSync(under.baselinePath, "utf8")
+  const underResult = check("check-context-budget.mjs", "total under baseline exits 0", ["--check"], { status: 0 }, { path: under.path, cwd: under.repo })
+  T(
+    "check-context-budget.mjs: an under-budget check does not rewrite context-budget.json",
+    underResult.status === 0 && readFileSync(under.baselinePath, "utf8") === underBaselineBefore,
+    readFileSync(under.baselinePath, "utf8"),
+  )
+
+  const importAddition = stageContextBudget("import-addition", { claude: `${CONTEXT_CLAUDE}@../new-sibling/CLAUDE.md\n` })
+  check("check-context-budget.mjs", "an unallowlisted import fails even when its target is absent", ["--check"], { status: 1, stderr: /@..\/new-sibling\/CLAUDE\.md|import/i }, { path: importAddition.path, cwd: importAddition.repo })
+
+  const unconditional = stageContextBudget("unconditional-rule", { rules: { "foo.md": "# Always loaded\n" } })
+  check("check-context-budget.mjs", "a new unconditional rules file exits 1", ["--check"], { status: 1, stderr: /foo\.md/ }, { path: unconditional.path, cwd: unconditional.repo })
+
+  const scoped = stageContextBudget("scoped-rule", { rules: { "foo.md": "---\npaths:\n  - apps/web/**\n---\n# Scoped\n" } })
+  check("check-context-budget.mjs", "a rules file with paths frontmatter stays outside the budget", ["--check"], { status: 0 }, { path: scoped.path, cwd: scoped.repo })
+
+  const siblingsAbsent = stageContextBudget("siblings-absent")
+  const absentResult = check("check-context-budget.mjs", "missing sibling repos do not fail the check", ["--check"], { status: 0, stdout: /full.session/i }, { path: siblingsAbsent.path, cwd: siblingsAbsent.repo })
+  T(
+    "check-context-budget.mjs: missing sibling files are omitted from the printed full-session table",
+    absentResult.status === 0 && !/(?:orbit-api|orbit-landing-page)\/CLAUDE\.md\s+\d/.test(absentResult.stdout.replaceAll("\\", "/")),
+    absentResult.stdout,
+  )
+
+  const siblingsPresent = stageContextBudget("siblings-present", {
+    siblings: {
+      "orbit-api": "# API fixture\n",
+      "orbit-landing-page": "# Landing fixture\n",
+    },
+  })
+  const presentResult = check("check-context-budget.mjs", "present sibling files do not change the enforced verdict", ["--check"], { status: 0 }, { path: siblingsPresent.path, cwd: siblingsPresent.repo })
+  T(
+    "check-context-budget.mjs: present sibling files are included in the printed full-session table",
+    presentResult.status === 0 && /orbit-api\/CLAUDE\.md:\s+\d+ bytes/.test(presentResult.stdout.replaceAll("\\", "/")) && /orbit-landing-page\/CLAUDE\.md:\s+\d+ bytes/.test(presentResult.stdout.replaceAll("\\", "/")),
+    presentResult.stdout,
+  )
+
+  const malformed = stageContextBudget("malformed", { baseline: "{not-json\n" })
+  check("check-context-budget.mjs", "a malformed baseline is a tool error", ["--check"], { status: 2 }, { path: malformed.path, cwd: malformed.repo })
+
+  const help = stageContextBudget("help")
+  check(
+    "check-context-budget.mjs",
+    "help names every flag and every exit code",
+    ["--help"],
+    { status: 0, stdout: /(?=[\s\S]*--check)(?=[\s\S]*--write-baseline)(?=[\s\S]*--json)(?=[\s\S]*--help)(?=[\s\S]*-h)(?=[\s\S]*0)(?=[\s\S]*1)(?=[\s\S]*2)/ },
+    { path: help.path, cwd: help.repo },
+  )
+}
+
 const gateCases = {
   "new-ticket.mjs": () => {
     const argv = ["--title", "Cover the create and validate round trip", "--project", "Backlog"]
@@ -1208,6 +1324,7 @@ const gateCases = {
     check("check-dashes.mjs", "an em dash in text is rejected", ["--text", `a${EM_DASH}b`], { status: 1, stderr: /Banned dash/ })
     check("check-dashes.mjs", "clean text passes", ["--text", "a plain hyphen - is fine"], { status: 0 })
   },
+  "check-context-budget.mjs": contextBudgetCases,
   "capture-surfaces.mjs": captureSurfacesCases,
   "check-ticket.mjs": () => {
     check("check-ticket.mjs", "an incomplete body is rejected", ["--file", stage("ticket.md", "# A ticket\n\nno template sections here\n")], { nonZero: true })
@@ -1228,6 +1345,7 @@ const INVALID_INPUT = {
   "agent-review.sh": { argv: ["--orbit-not-a-flag"], status: 1 },
   "arch-map.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "capture-surfaces.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "check-context-budget.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-copy.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-dashes.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-frontmatter.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
