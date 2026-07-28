@@ -557,7 +557,7 @@ Describe the rendered screen in one sentence as if narrating a film scene. If th
 | No full-bleed pill CTA (Buttons) | `local/no-fullbleed-button` | **Already shipping**, web only. Mobile StyleSheet width is not statically linkable, so mobile stays reviewer-judgment. |
 | Icons only through the barrel (Icons) | `no-restricted-imports` bans `lucide-react(-native)` + `@tabler/icons-react(-native)` outside `components/ui/icons.tsx` | #539 b6. The barrel is the only file allowed to import the icon set directly. **Pending on `main`**: the barrel ships with the redesign's primitive tickets; the restriction lands in the same PR (banning today would fail every existing direct import). |
 | AI-cliché copy words | `tools/check-copy.mjs --check` | **Already shipping.** Wordlist over `en.json` + `pt-BR.json` string values only, never keys, against the committed `tools/copy-baseline.json` ratchet; it blocks growth rather than proving the existing set is clean. |
-| No UPPERCASE typed into a string (Copy) | wordlist/shape check over i18n **values** in the same hook family | Must not fire on keys or on acronyms. |
+| No UPPERCASE typed into a string (Copy) | `tools/check-copy.mjs --check` | **Already shipping.** Shape check over i18n string values only, never keys. It flags all-uppercase prose only when it has at least two tokens and a 3+ letter uppercase run, so single-token acronyms are exempt; findings are checked against the committed `tools/copy-baseline.json` ratchet, which blocks growth rather than proving the existing set is clean. |
 
 ### Reviewer-judgment (the `design-reviewer` agent enforces these per diff)
 
