@@ -23,7 +23,7 @@
  * Run: node tools/test-tools.mjs   (exits non-zero on any failure)
  */
 
-import { spawnSync } from "node:child_process"
+import { spawn, spawnSync } from "node:child_process"
 import { createHash } from "node:crypto"
 import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
@@ -389,6 +389,34 @@ const run = (file, argv, options = {}) => {
   }
 }
 
+const runAsync = (file, argv, options = {}) => {
+  const target = options.path ?? join(TOOLS_DIR, file)
+  const child = spawn(process.execPath, [target, ...argv], {
+    cwd: options.cwd ?? REPO_ROOT,
+    env: { ...process.env, ...(options.env ?? {}) },
+    stdio: ["ignore", "pipe", "pipe"],
+  })
+  let stdout = ""
+  let stderr = ""
+  child.stdout.on("data", (chunk) => {
+    stdout += chunk
+  })
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk
+  })
+  return new Promise((resolveResult) => {
+    const timeout = setTimeout(() => child.kill(), 30000)
+    child.on("error", (error) => {
+      clearTimeout(timeout)
+      resolveResult({ status: `spawn error: ${error.message}`, stdout, stderr })
+    })
+    child.on("close", (status) => {
+      clearTimeout(timeout)
+      resolveResult({ status, stdout, stderr })
+    })
+  })
+}
+
 const check = (file, name, argv, expect, options = {}) => {
   const result = run(file, argv, options)
   const where = `${file} ${argv.join(" ")}`
@@ -590,10 +618,16 @@ const TRUST_SCREENS = {
  * Everything else the launch touches is orca, which is.
  */
 const stageCheckout = (base) => {
+  const repoPath = join(base, "repos", "ui")
   const path = join(base, "checkout")
-  mkdirSync(path, { recursive: true })
-  for (const argv of [["init", "-q"], ["config", "user.email", "gate@orbit.test"], ["config", "user.name", "Orbit Gate"], ["commit", "-q", "--allow-empty", "-m", "base"]]) {
-    const result = spawnSync("git", ["-C", path, ...argv], { encoding: "utf8" })
+  for (const argv of [
+    ["init", "-q", "--initial-branch=main"],
+    ["config", "user.email", "gate@orbit.test"],
+    ["config", "user.name", "Orbit Gate"],
+    ["commit", "-q", "--allow-empty", "-m", "base"],
+    ["worktree", "add", "-q", "--detach", path, "HEAD"],
+  ]) {
+    const result = spawnSync("git", ["-C", repoPath, ...argv], { encoding: "utf8" })
     if (result.status !== 0) return null
   }
   return path
@@ -833,7 +867,7 @@ const terminalCreateRetryCases = () => {
   )
 }
 
-const launchConcurrencyCases = (promptFile) => {
+const launchConcurrencyCases = async (promptFile) => {
   const atCap = stageLaunchWorker("concurrency-at-cap", INTERACTIVE_WORKER, "claude", 2)
   const firstPath = join(atCap.base, "workspaces", "orb-1")
   const secondPath = join(atCap.base, "workspaces", "orb-2")
@@ -941,6 +975,21 @@ const launchConcurrencyCases = (promptFile) => {
     },
   )
 
+  const archivedOnly = stageLaunchWorker("concurrency-archived-only", INTERACTIVE_WORKER, "claude", 1)
+  check(
+    "launch-worker.mjs",
+    "does not count an archived child worktree toward cap 1",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 0, stdout: /"occupiedWorktrees": 0/ },
+    {
+      path: archivedOnly.path,
+      env: orcaEnv(linearIssueStub(
+        ["repo:ui"],
+        [{ ...launchWorktreeStub(join(archivedOnly.base, "workspaces", "archived")), isArchived: true }],
+      )),
+    },
+  )
+
   const gone = stageLaunchWorker("concurrency-orca-authority", INTERACTIVE_WORKER, "claude", 1)
   const residuePath = join(gone.base, "workspaces", "removed-but-on-disk")
   mkdirSync(residuePath, { recursive: true })
@@ -987,9 +1036,81 @@ const launchConcurrencyCases = (promptFile) => {
     { status: 2, stderr: /maxParallelWorktrees must be a positive integer/ },
     { path: invalidConfig.path },
   )
+
+  const concurrent = stageLaunchWorker("concurrency-atomic-last-slot", INTERACTIVE_WORKER, "claude", 1)
+  const concurrentCheckout = stageCheckout(concurrent.base)
+  if (!concurrentCheckout) {
+    T(
+      "launch-worker.mjs: concurrent launch reservation can be staged",
+      false,
+      "could not stage a linked Git worktree",
+    )
+    return
+  }
+  const concurrentLog = stage("concurrency-atomic-last-slot.log", "")
+  const concurrentTimingLog = stage("concurrency-atomic-last-slot-timing.log", "")
+  const concurrentPrompt = stage("concurrency-atomic-last-slot-prompt.md", "the ticket body verbatim\n")
+  const painted = `> Read ${concurrentPrompt} and execute it in full. That file is your complete work order for ORB-75:`
+  const [concurrentIssue] = linearIssueStub(["repo:ui"])
+  const concurrentPlan = [
+    concurrentIssue,
+    {
+      match: "worktree list",
+      sequence: [
+        JSON.stringify({ ok: true, result: { worktrees: [] } }),
+        JSON.stringify({ ok: true, result: { worktrees: [launchWorktreeStub(concurrentCheckout)] } }),
+      ],
+    },
+    {
+      match: "worktree create",
+      delayMs: 750,
+      stdout: JSON.stringify({
+        ok: true,
+        result: { worktree: { path: concurrentCheckout, branch: "refs/heads/thomasluizon/orb-75" } },
+      }),
+    },
+    { match: "terminal create", stdout: JSON.stringify({ ok: true, result: { terminal: { handle: "t1" } } }) },
+    { match: "terminal wait", stdout: JSON.stringify({ ok: true, result: { wait: { satisfied: true } } }) },
+    { match: "terminal show", stdout: JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1785168487585 } } }) },
+    { match: "terminal read", stdout: JSON.stringify({ ok: true, result: { terminal: { tail: [painted] } } }) },
+    { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }) },
+    { match: "terminal switch", stdout: JSON.stringify({ ok: true, result: {} }) },
+    { match: "worktree set", stdout: JSON.stringify({ ok: true, result: {} }) },
+  ]
+  const concurrentOptions = {
+    path: concurrent.path,
+    env: {
+      ...orcaEnv(concurrentPlan),
+      ORBIT_ORCA_LOG: concurrentLog,
+      ORBIT_ORCA_TIMING_LOG: concurrentTimingLog,
+    },
+  }
+  const concurrentArguments = ["--issue", "ORB-75", "--prompt-file", concurrentPrompt]
+  const concurrentResults = await Promise.all([
+    runAsync("launch-worker.mjs", concurrentArguments, concurrentOptions),
+    runAsync("launch-worker.mjs", concurrentArguments, concurrentOptions),
+  ])
+  const concurrentCalls = readFileSync(concurrentLog, "utf8")
+    .split("\n")
+    .filter(Boolean)
+    .map(JSON.parse)
+  const createCalls = concurrentCalls.filter(
+    (argv) => argv[0].split(/[\\/]/).pop() === "worktree" && argv[1] === "create",
+  )
+  const statuses = concurrentResults.map((result) => result.status).sort()
+  const concurrentRefusal = concurrentResults.find((result) => result.status === 1)
+  T(
+    "launch-worker.mjs: two concurrent launchers cannot both claim the last slot",
+    statuses.length === 2
+      && statuses[0] === 0
+      && statuses[1] === 1
+      && createCalls.length === 1
+      && /maxParallelWorktrees cap 1[\s\S]*current count 1/.test(concurrentRefusal?.stderr ?? ""),
+    `statuses ${JSON.stringify(statuses)}, worktree creates ${createCalls.length}\n     ${concurrentResults.map((result) => result.stderr.trim()).join("\n     ")}`,
+  )
 }
 
-const launchWorkerCases = () => {
+const launchWorkerCases = async () => {
   const promptFile = stage("prompt.md", "the ticket body verbatim\n")
 
   const good = stageLaunchWorker("interactive", INTERACTIVE_WORKER)
@@ -1172,7 +1293,7 @@ const launchWorkerCases = () => {
   trustScreenCases()
   pointerDeliveryCases()
   terminalCreateRetryCases()
-  launchConcurrencyCases(promptFile)
+  await launchConcurrencyCases(promptFile)
 
   const launcherSource = readFileSync(join(TOOLS_DIR, "launch-worker.mjs"), "utf8")
   for (const [clause, pattern] of Object.entries(REQUIRED_CONTRACT_CLAUSES)) {
@@ -2240,18 +2361,21 @@ const stageCalibration = (label, options = {}) => {
   writeFileSync(join(base, ".claude", "skills", "sample", "SKILL.md"), skillSource)
   writeFileSync(
     join(base, ".claude", "orchestrator.json"),
-    JSON.stringify(options.orchestrator ?? {
-      worker: "codex",
-      workers: {
-        codex: {
-          args: [],
-          models: {
-            default: { model: currentModel, args: currentDefaultArgs },
-            cheap: { model: "gpt-cheap" },
-            deep: { model: "gpt-deep" },
+    JSON.stringify({
+      maxParallelWorktrees: 8,
+      ...(options.orchestrator ?? {
+        worker: "codex",
+        workers: {
+          codex: {
+            args: [],
+            models: {
+              default: { model: currentModel, args: currentDefaultArgs },
+              cheap: { model: "gpt-cheap" },
+              deep: { model: "gpt-deep" },
+            },
           },
         },
-      },
+      }),
     }),
   )
   if (!options.missingArtifact) {
@@ -3537,7 +3661,7 @@ for (const file of scripts) {
 console.log("\n# decision paths")
 for (const [file, cases] of Object.entries(gateCases)) {
   if (!existsSync(join(TOOLS_DIR, file))) continue
-  cases()
+  await cases()
 }
 
 console.log(`\n${fails === 0 ? "ORBIT TOOLS GATE OK" : `ORBIT TOOLS GATE FAILED (${fails})`}`)

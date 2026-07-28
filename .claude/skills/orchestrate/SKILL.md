@@ -115,8 +115,10 @@ worker. This applies equally to tickets written by humans, agents, or reviewers.
 Per launchable ticket, up to the effective `maxParallelWorktrees`: the configured
 cap for a normal run, or 1 when `--single` is present. `tools/launch-worker.mjs`
 enforces that cap against the target repo's live Orca worktrees before creating a
-worktree or branch. A refusal names the cap, observed count, and every worktree
-holding a slot. The repository's main worktree does not consume a slot.
+worktree or branch. It serialises the live inventory and worktree creation per
+target repo, so concurrent launch processes cannot claim the same final slot. A
+refusal names the cap, observed count, and every worktree holding a slot. The
+repository's main worktree and archived child worktrees do not consume slots.
 
 For an explicit set larger than the cap, keep the remaining members in first-seen
 order. Launch the next member only when `tools/worker-status.mjs` reports that a

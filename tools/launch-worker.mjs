@@ -18,8 +18,17 @@
  */
 
 import { execFileSync, spawnSync } from "node:child_process"
-import { appendFileSync, existsSync, readFileSync, statSync } from "node:fs"
-import { basename, resolve } from "node:path"
+import {
+  appendFileSync,
+  closeSync,
+  existsSync,
+  openSync,
+  readFileSync,
+  statSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs"
+import { basename, join, resolve } from "node:path"
 
 import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
 import { SETTLE_MS, isRepainting, pause } from "./lib/tui-repaint.mjs"
@@ -201,9 +210,26 @@ conflict with anything above, these win.
  * operator to run compounds the mess instead of clearing it. Measured on this branch.
  */
 let rollback = null
+let concurrencyReservation = null
+
+const releaseConcurrencyReservation = () => {
+  if (!concurrencyReservation) return
+  const { path, token } = concurrencyReservation
+  concurrencyReservation = null
+  try {
+    if (readFileSync(path, "utf8") === token) unlinkSync(path)
+  } catch (error) {
+    if (error.code !== "ENOENT") {
+      console.error(`could not release launch reservation ${path}: ${error.message}`)
+    }
+  }
+}
+
+process.on("exit", releaseConcurrencyReservation)
 
 const fail = (code, message) => {
   console.error(message)
+  releaseConcurrencyReservation()
   if (rollback) {
     const { selector, contractBranch, orcaBranch, repoPath: rollbackRepo } = rollback
     rollback = null
@@ -336,6 +362,84 @@ const git = (args) => {
   }
 }
 
+const processIsAlive = (pid) => {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return error.code !== "ESRCH"
+  }
+}
+
+const unlinkReservation = (path) => {
+  try {
+    unlinkSync(path)
+    return true
+  } catch (error) {
+    if (error.code === "ENOENT") return false
+    throw error
+  }
+}
+
+const acquireConcurrencyReservation = (repoPath) => {
+  const gitCommonDirectory = resolve(
+    repoPath,
+    git(["-C", repoPath, "rev-parse", "--git-common-dir"]),
+  )
+  const path = join(gitCommonDirectory, "orbit-launch-worker.lock")
+  const token = JSON.stringify({ pid: process.pid, startedAt: Date.now() })
+  const deadline = Date.now() + 5 * 60 * 1000
+
+  while (true) {
+    let descriptor
+    try {
+      descriptor = openSync(path, "wx")
+      writeFileSync(descriptor, token, "utf8")
+      closeSync(descriptor)
+      concurrencyReservation = { path, token }
+      return
+    } catch (error) {
+      if (descriptor !== undefined) {
+        try {
+          closeSync(descriptor)
+        } catch {
+          // The descriptor may already have closed before a later setup step failed.
+        }
+        unlinkReservation(path)
+      }
+      if (error.code !== "EEXIST") {
+        fail(3, `could not reserve a concurrency slot for ${repoPath}: ${error.message}`)
+      }
+    }
+
+    try {
+      const owner = JSON.parse(readFileSync(path, "utf8"))
+      if (Number.isInteger(owner.pid) && !processIsAlive(owner.pid)) {
+        unlinkReservation(path)
+        continue
+      }
+    } catch (error) {
+      if (error.code === "ENOENT") continue
+      let stale = false
+      try {
+        stale = Date.now() - statSync(path).mtimeMs > 5000
+      } catch (statError) {
+        if (statError.code === "ENOENT") continue
+        fail(3, `could not inspect launch reservation ${path}: ${statError.message}`)
+      }
+      if (stale) {
+        unlinkReservation(path)
+        continue
+      }
+    }
+
+    if (Date.now() >= deadline) {
+      fail(1, `timed out waiting for another launch reservation in ${repoPath}`)
+    }
+    pause(100)
+  }
+}
+
 const issue = argOf("--issue")
 const promptFileArg = argOf("--prompt-file")
 const repoOverride = argOf("--repo")
@@ -446,12 +550,16 @@ if (runPermissionIndex === -1) {
   fail(2, `worker "${engineName}" invocation "${command}" does not carry ${binary}'s required run-permitting policy "${profile.runPermissionTokens.join(" ")}"${mode}. A worker without that policy can stop for approval with nobody at the keyboard. Fix the command or args in .claude/orchestrator.json`)
 }
 
+if (!dryRun) acquireConcurrencyReservation(repoPath)
 const listedWorktrees = orca(["worktree", "list", "--repo", `path:${repoPath}`]).worktrees
 if (!Array.isArray(listedWorktrees)) {
   fail(3, "orca worktree list returned no worktrees array")
 }
 const occupyingWorktrees = listedWorktrees.filter(
-  (worktree) => worktree.isMainWorktree !== true && worktree.git?.isMainWorktree !== true,
+  (worktree) =>
+    worktree.isMainWorktree !== true
+    && worktree.git?.isMainWorktree !== true
+    && worktree.isArchived !== true,
 )
 if (occupyingWorktrees.length >= maxParallelWorktrees) {
   const paths = occupyingWorktrees.map((worktree) => worktree.path ?? worktree.git?.path ?? worktree.id)
@@ -500,6 +608,7 @@ const created = orca([
   "--no-parent",
   "--comment", comment,
 ])
+releaseConcurrencyReservation()
 const worktreePath = created.worktree?.path
 if (!worktreePath) fail(3, `orca worktree create returned no path: ${JSON.stringify(created).slice(0, 400)}`)
 const worktreeSelector = `path:${worktreePath}`
