@@ -45,7 +45,7 @@ const REPO_LABELS = ["repo:ui", "repo:api", "repo:landing"]
  * Measured on ORB-122 ("block raw command surfacing"), which took 24 review rounds over 12 hours
  * because "every phrasing" is not a set anyone can enumerate. See PR #633.
  */
-const UNBOUNDED_QUANTIFIER = /\b(?:every|all|any|each)\b/i
+const UNBOUNDED_QUANTIFIER = /\b(?:every|all|any|each)\b(?!-)/i
 /** Evidence in the SAME criterion that the quantifier ranges over an enumerated set. */
 const BOUNDED_BY =
   /\b\d+\b|\b(?:one|two|three|four|five|six|seven|eight|nine|ten|both)\b|`[^`]+`|\.(?:mjs|cjs|js|ts|tsx|json|md|cs|yml|yaml|sh)\b|\b(?:listed|enumerated|named|above|below)\b|\bin (?:the )?(?:table|list|fixture|corpus|manifest)\b/i
@@ -57,12 +57,15 @@ const OPEN_ENDED_TAIL = /\b(?:etc\.?|and so on|and similar|or similar|among othe
  * could emit is blocked and the command exits 1" (PR #638 review). Scoping to the clause is the
  * same fix this gate prescribes for the tickets it rejects.
  */
-const quantifierClauses = (text) =>
-  text
+const isBounded = (text) => {
+  const clauses = text
     .replace(/`[^`]+`/g, "`x`")
     .replace(/[\w./\\-]+\.(?:mjs|cjs|js|ts|tsx|json|md|cs|yml|yaml|sh)\b/g, "`x`")
     .split(/[.;:,]|\band\b|\bor\b/i)
-    .filter((clause) => UNBOUNDED_QUANTIFIER.test(clause))
+  return clauses.every(
+    (clause, index) => !UNBOUNDED_QUANTIFIER.test(clause) || clauses.slice(0, index + 1).some((c) => BOUNDED_BY.test(c)),
+  )
+}
 const TYPE_LABELS = ["Feature", "Bug", "Improvement"]
 
 const problems = []
@@ -84,7 +87,7 @@ const validateBody = (body) => {
       `acceptance criterion has no finish line, it trails off into an unnamed remainder: "${text.trim().slice(0, 90)}". Enumerate the remainder or delete it`,
     )
     require_(
-      !UNBOUNDED_QUANTIFIER.test(text) || quantifierClauses(text).every((clause) => BOUNDED_BY.test(clause)),
+      !UNBOUNDED_QUANTIFIER.test(text) || isBounded(text),
       `acceptance criterion quantifies over an open set, so it can never be proven done: "${text.trim().slice(0, 90)}". Bound it: give a count, a named list, a file, or a backticked command that decides it`,
     )
   }
