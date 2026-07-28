@@ -37,9 +37,11 @@ const USAGE = `usage: launch-worker.mjs --issue ORB-N --prompt-file <path> [opti
   --repo ui|api|landing  override the repo the ticket's repo:* label names
   --base-branch <ref>    base branch for the worktree (default: main)
   --branch-prefix <p>    contract branch prefix, feature or fix (default: feature)
+  --max-parallel-worktrees <n>
+                         override the configured concurrency cap for this invocation
   --comment "<text>"     worktree card comment (default: "<ORB-N> launched: worker running")
   --workspace-status <s> Orca board status id (default: in-progress)
-  --dry-run              resolve everything and print the plan; run no orca or git command
+  --dry-run              resolve everything and print the plan; run no mutating orca or git command
   --help, -h             print this usage and exit 0
 
 Prints one JSON object on stdout: issue, repo, repoPath, worktreePath, worktreeSelector,
@@ -50,8 +52,8 @@ Progress goes to stderr, so stdout stays pipeable.
 exit 0 means the worker ACCEPTED the prompt as a user turn, verified by reading the pointer back
 off the TUI, never merely that orca accepted the send.
 
-exit codes: 0 worker launched and holding the work order, 1 the worker never reached tui-idle or
-            never took the prompt pointer as a turn, 2 usage or config error,
+exit codes: 0 worker launched and holding the work order, 1 concurrency cap reached, the worker
+            never reached tui-idle, or never took the prompt pointer as a turn, 2 usage or config error,
             3 an orca or git command failed
 
 Any non-zero exit after the worktree exists stops its terminals and removes that worktree and
@@ -339,12 +341,16 @@ const promptFileArg = argOf("--prompt-file")
 const repoOverride = argOf("--repo")
 const baseBranch = argOf("--base-branch") ?? "main"
 const branchPrefix = argOf("--branch-prefix") ?? "feature"
+const maxParallelOverride = argOf("--max-parallel-worktrees")
 const workspaceStatus = argOf("--workspace-status") ?? "in-progress"
 const dryRun = process.argv.includes("--dry-run")
 
 if (!issue || !/^[A-Z]+-\d+$/.test(issue)) fail(2, `${USAGE}\n\n--issue must be a Linear identifier such as ORB-75`)
 if (!promptFileArg) fail(2, `${USAGE}\n\n--prompt-file is required`)
 if (branchPrefix !== "feature" && branchPrefix !== "fix") fail(2, "--branch-prefix must be feature or fix")
+if (maxParallelOverride !== null && !/^[1-9]\d*$/.test(maxParallelOverride)) {
+  fail(2, "--max-parallel-worktrees must be a positive integer")
+}
 
 const promptFile = resolve(promptFileArg)
 if (!existsSync(promptFile)) fail(2, `prompt file not found: ${promptFile}`)
@@ -356,6 +362,9 @@ try {
 } catch (error) {
   fail(2, error.message)
 }
+const maxParallelWorktrees = maxParallelOverride === null
+  ? config.maxParallelWorktrees
+  : Number(maxParallelOverride)
 const engineName = config.worker
 const engine = config.workers?.[engineName]
 if (!engine?.command) fail(2, `.claude/orchestrator.json names worker "${engineName}" but carries no command for it`)
@@ -437,6 +446,21 @@ if (runPermissionIndex === -1) {
   fail(2, `worker "${engineName}" invocation "${command}" does not carry ${binary}'s required run-permitting policy "${profile.runPermissionTokens.join(" ")}"${mode}. A worker without that policy can stop for approval with nobody at the keyboard. Fix the command or args in .claude/orchestrator.json`)
 }
 
+const listedWorktrees = orca(["worktree", "list", "--repo", `path:${repoPath}`]).worktrees
+if (!Array.isArray(listedWorktrees)) {
+  fail(3, "orca worktree list returned no worktrees array")
+}
+const occupyingWorktrees = listedWorktrees.filter(
+  (worktree) => worktree.isMainWorktree !== true && worktree.git?.isMainWorktree !== true,
+)
+if (occupyingWorktrees.length >= maxParallelWorktrees) {
+  const paths = occupyingWorktrees.map((worktree) => worktree.path ?? worktree.git?.path ?? worktree.id)
+  fail(
+    1,
+    `maxParallelWorktrees cap ${maxParallelWorktrees} reached for ${repoKey}; current count ${occupyingWorktrees.length}. Occupying worktrees:\n${paths.map((path) => `- ${path}`).join("\n")}`,
+  )
+}
+
 /** Reported in the plan so a dry run shows whether this launch would inject the contract, and a
  * relaunch against an already-injected file is visibly a no-op rather than a silent second copy. */
 const workerContract = readFileSync(promptFile, "utf8").includes(WORKER_CONTRACT_MARKER) ? "already present" : "appended"
@@ -448,6 +472,8 @@ const plan = {
   worktreeName,
   branch,
   baseBranch,
+  maxParallelWorktrees,
+  occupiedWorktrees: occupyingWorktrees.length,
   engine: engineName,
   command,
   promptFile,
