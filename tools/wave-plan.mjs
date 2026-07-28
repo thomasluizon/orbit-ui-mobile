@@ -150,6 +150,7 @@ const DONE_TYPES = new Set(["completed", "canceled", "duplicate"])
  * intersection cannot tell an append-only test file from a rewrite of the same function.
  */
 const AFFECTED_PATH = /\.?[\w@][\w./\\@()[\]{}+-]*\.[a-z0-9][a-z0-9-]*/gi
+const BARE_AFFECTED_PATH = /^\.?[\w@][\w./\\@()[\]{}+-]*\.[a-z0-9][a-z0-9-]*$/i
 
 const affectedSectionOf = (description) => {
   const lines = (description ?? "").split(/\r?\n/)
@@ -181,8 +182,11 @@ const isDeclaredPath = (section, path, index) => {
   const lineStart = section.lastIndexOf("\n", index) + 1
   const nextBreak = section.indexOf("\n", index + path.length)
   const lineEnd = nextBreak === -1 ? section.length : nextBreak
-  const item = section.slice(lineStart, lineEnd).trim().replace(/^(?:[-*]|\d+\.)\s+/, "").replace(/^`|`$/g, "")
-  return item === path
+  const item = section.slice(lineStart, lineEnd).trim().replace(/^(?:[-*]|\d+\.)\s+/, "")
+  const itemPaths = item
+    .split(/\s*,\s*|\s+and\s+/i)
+    .map((candidate) => candidate.replace(/^`|`$/g, ""))
+  return itemPaths.includes(path) && itemPaths.every((candidate) => BARE_AFFECTED_PATH.test(candidate))
 }
 
 const affectedFilesOf = (description) => {
