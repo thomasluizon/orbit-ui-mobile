@@ -6,9 +6,9 @@
  * session transcript only as four `type: "queue-operation"` records, the running
  * turn ended on a mid-flow sentence, and the worktree was left with 14 modified
  * and 7 untracked files, zero commits, zero gates and no PR. So the sanctioned
- * path requires a stopped repaint signal before sending, and the way to hand a
- * worker new information is to APPEND it to the prompt file it already has and
- * send a one-line pointer telling it to re-read that file.
+ * path requires a stopped repaint signal and no live trust prompt before sending,
+ * and the way to hand a worker new information is to APPEND it to the prompt file
+ * it already has and send a one-line pointer telling it to re-read that file.
  */
 
 import { execFileSync, spawnSync } from "node:child_process"
@@ -44,6 +44,16 @@ const ORCA = process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs
 
 /** One wait is a full minute; three of them is a worker that is genuinely working, not one that is stuck. */
 const WAIT_TIMEOUT_MS = 60000
+const STALE_BLOCKED_REASON = "codex-trust-workspace"
+const ENGINE_PROFILES = {
+  claude: {
+    trustOnScreen: /isthisaprojectyoucreatedoroneyoutrust|doyoutrustthefiles|trustthisfolder/,
+  },
+  codex: {
+    trustOnScreen: /doyoutrustthecontentsofthisdirectory/,
+  },
+}
+const flatten = (text) => text.replace(/\s+/g, "").toLowerCase()
 
 const fail = (code, message) => {
   console.error(message)
@@ -115,6 +125,12 @@ const waitForIdle = (handle) => {
  * exist failed open without it. */
 const busy = (handle) => isRepainting(orca, handle)
 
+const trustPromptOnScreen = (handle) => {
+  const tail = (orca(["terminal", "read", "--terminal", handle, "--limit", "60"]).terminal?.tail ?? []).join("\n")
+  const screen = flatten(tail)
+  return Object.entries(ENGINE_PROFILES).find(([, profile]) => profile.trustOnScreen.test(screen))?.[0] ?? null
+}
+
 const terminal = argOf("--terminal")
 const promptFileArg = argOf("--prompt-file")
 const textArg = argOf("--text")
@@ -170,9 +186,14 @@ while (waitAttempts < waitAttemptsAllowed && !idle) {
     if (waitAttempts < waitAttemptsAllowed) pause(SETTLE_MS)
     continue
   }
-  if (wait.blockedReason) {
+  if (wait.blockedReason === STALE_BLOCKED_REASON) {
     if (!busy(terminal)) {
-      console.error(`attempt ${waitAttempts}: orca reports ${wait.blockedReason} but the TUI is not repainting, so the retained blocked reason is stale and the current repaint signal wins`)
+      const blockedEngine = trustPromptOnScreen(terminal)
+      if (blockedEngine) {
+        console.error(`attempt ${waitAttempts}: orca reports ${wait.blockedReason}, the TUI is not repainting, and the ${blockedEngine} trust prompt is still on screen, so the worker remains blocked`)
+        continue
+      }
+      console.error(`attempt ${waitAttempts}: orca reports ${wait.blockedReason}, but the TUI is not repainting and no known trust prompt is on screen, so the retained blocked reason is stale and the current screen and repaint signals win`)
       idle = true
       break
     }
