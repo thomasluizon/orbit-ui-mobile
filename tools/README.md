@@ -6,6 +6,7 @@
 > - POSIX `.sh` is the baseline; add a `.ps1` twin only when it must run in the user's PowerShell shell.
 > - Add a new tool with `/make-tool`; add its row to the catalog below in the same change.
 > - `test-tools.mjs` EXECUTES every script here (Harness Execution CI job). A new tool with no coverage entry fails it, so coverage lands in the same PR as the tool.
+> - `agent-review` gets its cross-model verdict from GPT-5.6 Sol through Codex.
 > - `teardown-worktree.mjs` removes a completed ticket's Orca worktree immediately after verified Done, only when its evidence checks pass.
 
 Reusable scripts an agent (or a human) invokes from the CLI. The bar for landing a file here: it has a single clear purpose and you will run it again. One-off commands stay in your shell history or the scratchpad.
@@ -16,7 +17,7 @@ Read `CONVENTIONS.md` before adding one. Use the `/make-tool` skill to scaffold 
 
 | Tool | What it does | Usage |
 |---|---|---|
-| `agent-review.sh` / `agent-review.ps1` | Cross-model second opinion (GLM-5.2 via opencode) on one claim or review finding. Thin wrapper over `.claude/skills/second-opinion/second-opinion.mjs`; prints one line of JSON (`AGREE` / `DISAGREE` / `UNSURE`, or a graceful `UNAVAILABLE`). | `agent-review --claim "<claim>"` or `agent-review < dossier.txt`; `--help` for options |
+| `agent-review.sh` / `agent-review.ps1` | Cross-model second opinion (GPT-5.6 Sol through Codex) on one claim or review finding. Thin wrapper over `.claude/skills/second-opinion/second-opinion.mjs`; prints one line of JSON (`AGREE` / `DISAGREE` / `UNSURE`, or a graceful `UNAVAILABLE`). | `agent-review --claim "<claim>"` or `agent-review < dossier.txt`; `--help` for options |
 | `merge-sweep.sh` | Require-up-to-date server-side merge sweep: per PR, update-branch then poll `mergeStateStatus` until it is decidable and squash-merge. Skips on a failed required check or timeout. Blocks every merge until the `review` check on the CURRENT head SHA settles (fail-closed: an unreadable workflow list keeps the wait on), so an update-branch cannot merge on a stale APPROVED, and exits 1 on a merged PR whose head branch tip moved past the merged SHA. | `bash merge-sweep.sh <repo> <pr...>` (or `--help`) |
 | `merge-sweep-cov.sh` | Coverage-aware merge sweep: like `merge-sweep.sh` (same review-staleness guard and orphaned-head scan), but admin-overrides a SonarCloud failure that is solely new-code coverage (verified from the check-run summary), and skips anything more. | `bash merge-sweep-cov.sh <repo> <pr...>` (or `--help`) |
 | `rollup.sh` | Thin cross-repo CI/nightly health roll-up: reads the latest `main` run of each tracked quality gate across all three Orbit repos and prints ONE consolidated verdict (exit `0` green / `1` red / `2` tool-error). Reads run conclusions only; runs and audits nothing. Backs the `/rollup` skill and `.github/workflows/rollup.yml`. | `bash rollup.sh` (or `--help`) |
@@ -26,6 +27,7 @@ Read `CONVENTIONS.md` before adding one. Use the `/make-tool` skill to scaffold 
 | `arch-map.mjs` | Generates `architecture.json` + `architecture.html` (routes, parity pairs, endpoints, i18n ownership); the drift CI job (`arch-map.yml`) regenerates and fails on drift. | `node tools/arch-map.mjs` |
 | `check-dashes.mjs` | The cross-repo dash ban: em dashes banned everywhere, en dashes only in numeric ranges. Backs the Dash Ban CI job, lefthook, and the shrink-only `dash-baseline.json`. | `--files <f>...` \| `--check-baseline` \| `--write-baseline` \| `--text "<s>"` |
 | `check-copy.mjs` | The copy register: whole-file, values-only scan of locale copy for AI cliches, placeholder content, typed uppercase, and hardcoded brand colors. Backs the Copy Register CI job. | `node tools/check-copy.mjs --check` \| `--write-baseline` |
+| `check-context-budget.mjs` | Enforces the shrink-only byte budget for repo-visible always-loaded context and the structural allowlists for sibling `@` imports and unconditional rule files. Reports resolvable sibling context without enforcing it. Backs the Context Budget CI job. | `node tools/check-context-budget.mjs --check` \| `--write-baseline` \| `--json` |
 | `check-suppressions-ratchet.mjs` | Asserts the ESLint suppression baselines only shrink (escape hatch: the `ratchet:reseed` label). Backs the Suppressions Ratchet CI job. | `node tools/check-suppressions-ratchet.mjs` |
 | `check-frontmatter.mjs` | Asserts every skill and agent `.md` has parseable YAML frontmatter (an unquoted `": "` silently drops the file's description, or the whole file). Backs the Skill and Agent Frontmatter CI job. | `node tools/check-frontmatter.mjs` (`--root <directory>`, `--fix`) |
 | `check-push-target.mjs` | The lefthook `pre-push` guard: reads git's pre-push stdin and rejects a push whose remote ref is a protected branch. | `node tools/check-push-target.mjs < <pre-push stdin>` |
