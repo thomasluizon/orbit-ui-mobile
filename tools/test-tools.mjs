@@ -492,7 +492,18 @@ const stageLaunchWorker = (label, worker, engineName = "claude", maxParallelWork
   return { path: join(base, "tools", "launch-worker.mjs"), repoPath, base }
 }
 
-const stageTierLabels = (label, models = CODEX_MODELS) => {
+const freshTierLabelSnapshot = (labels = PRESENT_TIER_LABELS) => ({
+  schemaVersion: 1,
+  team: "ORB",
+  capturedAt: new Date().toISOString(),
+  labels: [...new Set(labels)].sort(),
+})
+
+const stageTierLabels = (
+  label,
+  models = CODEX_MODELS,
+  snapshot = freshTierLabelSnapshot(),
+) => {
   const base = join(root, "tier-labels", label)
   mkdirSync(join(base, "tools"), { recursive: true })
   mkdirSync(join(base, ".claude"), { recursive: true })
@@ -506,9 +517,46 @@ const stageTierLabels = (label, models = CODEX_MODELS) => {
       repos: {},
     }),
   )
+  writeFileSync(
+    join(base, ".claude", "linear-team-labels.json"),
+    typeof snapshot === "string" ? snapshot : `${JSON.stringify(snapshot, null, 2)}\n`,
+  )
   cpSync(join(TOOLS_DIR, "check-tier-labels.mjs"), join(base, "tools", "check-tier-labels.mjs"))
   cpSync(join(TOOLS_DIR, "lib"), join(base, "tools", "lib"), { recursive: true })
-  return { path: join(base, "tools", "check-tier-labels.mjs") }
+  return {
+    path: join(base, "tools", "check-tier-labels.mjs"),
+    snapshotPath: join(base, ".claude", "linear-team-labels.json"),
+  }
+}
+
+const stageTierLabelRefresh = (label) => {
+  const base = join(root, "tier-label-refresh", label)
+  mkdirSync(join(base, "tools"), { recursive: true })
+  mkdirSync(join(base, ".claude"), { recursive: true })
+  writeFileSync(
+    join(base, ".claude", "orchestrator.json"),
+    JSON.stringify({
+      worker: "codex",
+      workers: { codex: { ...INTERACTIVE_CODEX, models: CODEX_MODELS } },
+      maxParallelWorktrees: 8,
+      linear: { team: "ORB" },
+      repos: {},
+    }),
+  )
+  writeFileSync(
+    join(base, ".claude", "linear-team-labels.json"),
+    `${JSON.stringify(freshTierLabelSnapshot(["old-label"]), null, 2)}\n`,
+  )
+  cpSync(
+    join(TOOLS_DIR, "refresh-tier-labels.mjs"),
+    join(base, "tools", "refresh-tier-labels.mjs"),
+  )
+  cpSync(join(TOOLS_DIR, "lib"), join(base, "tools", "lib"), { recursive: true })
+  return {
+    path: join(base, "tools", "refresh-tier-labels.mjs"),
+    snapshotPath: join(base, ".claude", "linear-team-labels.json"),
+    snapshotDirectory: join(base, ".claude"),
+  }
 }
 
 const stagePreflight = (label, worker = { ...INTERACTIVE_CODEX, command: `"${process.execPath}"` }, engineName = "codex") => {
@@ -523,9 +571,15 @@ const stagePreflight = (label, worker = { ...INTERACTIVE_CODEX, command: `"${pro
   return { path: join(base, "tools", "preflight.mjs"), repoPath }
 }
 
+const LINEAR_LABELS_COMMAND = "linear team labels --team ORB --json"
+const linearLabelsResult = (labels) =>
+  JSON.stringify({ ok: true, result: { labels: labels.map((name) => ({ name })) } })
+const PRESENT_TIER_LABELS = ["worker:sonnet", "tier:deep", "tier:cheap"]
+
 const PREFLIGHT_PASS_PLAN = [
   { match: "auth status", stdout: "logged in", exit: 0 },
   { match: "status --json", stdout: JSON.stringify({ ok: true, result: { runtime: { reachable: true } } }), exit: 0 },
+  { match: LINEAR_LABELS_COMMAND, stdout: linearLabelsResult(PRESENT_TIER_LABELS), exit: 0 },
   { match: "branch --show-current", stdout: "main\n", exit: 0 },
   { match: "status --porcelain", stdout: "", exit: 0 },
 ]
@@ -1409,77 +1463,64 @@ const launchWorkerCases = async () => {
 }
 
 const tierLabelCases = () => {
-  const labelsCommand = "linear team labels --team ORB --json"
-  const labelsResult = (labels) =>
-    JSON.stringify({ ok: true, result: { labels: labels.map((name) => ({ name })) } })
-  const declared = stageTierLabels("declared")
-
-  check(
-    "check-tier-labels.mjs",
-    "missing labels name the expected selectors, actual team labels, and shortfall",
-    [],
-    {
-      status: 1,
-      stdout: /looked for: tier:cheap, tier:deep[\s\S]*team labels: worker:sonnet[\s\S]*missing: tier:cheap, tier:deep/,
-    },
-    {
-      path: declared.path,
-      env: orcaEnv([{ match: labelsCommand, stdout: labelsResult(["worker:sonnet"]) }]),
-    },
+  const missing = stageTierLabels(
+    "missing",
+    CODEX_MODELS,
+    freshTierLabelSnapshot(["worker:sonnet"]),
   )
   check(
     "check-tier-labels.mjs",
-    "passes when every declared tier label exists",
+    "a missing snapshotted label names the expected selectors, snapshot inventory, and shortfall",
+    [],
+    {
+      status: 1,
+      stdout: /tier-labels FAIL[\s\S]*looked for: tier:cheap, tier:deep[\s\S]*snapshot labels: worker:sonnet[\s\S]*missing: tier:cheap, tier:deep[\s\S]*problem: declared tier labels are missing/,
+    },
+    { path: missing.path },
+  )
+
+  const declared = stageTierLabels("declared")
+  check(
+    "check-tier-labels.mjs",
+    "passes when a fresh canonical snapshot contains every declared tier label",
     [],
     {
       status: 0,
-      stdout: /tier-labels PASS[\s\S]*looked for: tier:cheap, tier:deep[\s\S]*team labels: tier:cheap, tier:deep, worker:sonnet/,
+      stdout: /tier-labels PASS[\s\S]*looked for: tier:cheap, tier:deep[\s\S]*snapshot labels: tier:cheap, tier:deep, worker:sonnet[\s\S]*missing: \(none\)/,
     },
-    {
-      path: declared.path,
-      env: orcaEnv([
-        { match: labelsCommand, stdout: labelsResult(["worker:sonnet", "tier:deep", "tier:cheap"]) },
-      ]),
-    },
+    { path: declared.path },
   )
+
+  const staleSnapshot = freshTierLabelSnapshot(PRESENT_TIER_LABELS)
+  staleSnapshot.capturedAt = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString()
+  const stale = stageTierLabels("stale", CODEX_MODELS, staleSnapshot)
   check(
     "check-tier-labels.mjs",
-    "a Linear lookup error fails closed",
+    "a snapshot older than 30 days fails closed",
     [],
-    { status: 3, stderr: /tier-labels ERROR[\s\S]*unavailable/i },
-    {
-      path: declared.path,
-      env: orcaEnv([
-        {
-          match: labelsCommand,
-          stdout: JSON.stringify({ ok: false, error: { message: "Linear labels unavailable" } }),
-          exit: 1,
-        },
-      ]),
-    },
+    { status: 1, stdout: /tier-labels FAIL[\s\S]*problem: snapshot is 31 days old; refresh it before 30 days/ },
+    { path: stale.path },
   )
+
+  const nonCanonical = stageTierLabels("non-canonical", CODEX_MODELS, {
+    ...freshTierLabelSnapshot(),
+    editedByHand: true,
+  })
   check(
     "check-tier-labels.mjs",
-    "an empty Linear label set fails closed",
+    "a snapshot whose shape cannot be produced by the refresh tool fails closed",
     [],
-    {
-      status: 1,
-      stdout: /Linear returned an empty label set[\s\S]*looked for: tier:cheap, tier:deep[\s\S]*team labels: \(none\)[\s\S]*missing: tier:cheap, tier:deep/,
-    },
-    {
-      path: declared.path,
-      env: orcaEnv([{ match: labelsCommand, stdout: labelsResult([]) }]),
-    },
+    { status: 3, stderr: /tier-labels ERROR[\s\S]*must have exactly schemaVersion 1, team, capturedAt, and labels/ },
+    { path: nonCanonical.path },
   )
+
+  const unparseable = stageTierLabels("unparseable-snapshot", CODEX_MODELS, "not-json")
   check(
     "check-tier-labels.mjs",
-    "unparseable Linear output fails closed",
+    "an unparseable snapshot fails closed",
     [],
-    { status: 3, stderr: /tier-labels ERROR[\s\S]*(parse|JSON)/i },
-    {
-      path: declared.path,
-      env: orcaEnv([{ match: labelsCommand, stdout: "not-json" }]),
-    },
+    { status: 3, stderr: /tier-labels ERROR[\s\S]*could not be read as JSON/ },
+    { path: unparseable.path },
   )
 
   const noDeclaredTiers = stageTierLabels("no-declared-tiers", {
@@ -1490,7 +1531,92 @@ const tierLabelCases = () => {
     "zero declared tiers fail so a config path typo cannot report a clean run",
     [],
     { status: 1, stdout: /no non-default worker tiers are declared/ },
-    { path: noDeclaredTiers.path, env: orcaEnv([]) },
+    { path: noDeclaredTiers.path },
+  )
+}
+
+const refreshTierLabelCases = () => {
+  const refreshed = stageTierLabelRefresh("success")
+  const refreshResult = check(
+    "refresh-tier-labels.mjs",
+    "a live lookup rewrites the snapshot in canonical sorted form",
+    [],
+    { status: 0, stdout: /tier-labels snapshot refreshed[\s\S]*team labels: tier:cheap, tier:deep, worker:sonnet/ },
+    {
+      path: refreshed.path,
+      env: orcaEnv([
+        { match: LINEAR_LABELS_COMMAND, stdout: linearLabelsResult(PRESENT_TIER_LABELS) },
+      ]),
+    },
+  )
+  let snapshot
+  try {
+    snapshot = JSON.parse(readFileSync(refreshed.snapshotPath, "utf8"))
+  } catch {
+    snapshot = null
+  }
+  T(
+    "refresh-tier-labels.mjs: writes exactly the canonical snapshot shape",
+    refreshResult.status === 0 &&
+      JSON.stringify(Object.keys(snapshot ?? {})) ===
+        JSON.stringify(["schemaVersion", "team", "capturedAt", "labels"]) &&
+      snapshot?.schemaVersion === 1 &&
+      snapshot?.team === "ORB" &&
+      new Date(snapshot?.capturedAt).toISOString() === snapshot?.capturedAt &&
+      JSON.stringify(snapshot?.labels) ===
+        JSON.stringify(["tier:cheap", "tier:deep", "worker:sonnet"]),
+    JSON.stringify(snapshot),
+  )
+  T(
+    "refresh-tier-labels.mjs: leaves no temporary snapshot behind",
+    readdirSync(refreshed.snapshotDirectory).every(
+      (name) => !name.startsWith(".linear-team-labels.") || !name.endsWith(".tmp"),
+    ),
+    readdirSync(refreshed.snapshotDirectory).join(", "),
+  )
+
+  const lookupFailure = stageTierLabelRefresh("lookup-failure")
+  check(
+    "refresh-tier-labels.mjs",
+    "a live lookup error fails closed",
+    [],
+    { status: 3, stderr: /refresh-tier-labels ERROR[\s\S]*unavailable/i },
+    {
+      path: lookupFailure.path,
+      env: orcaEnv([
+        {
+          match: LINEAR_LABELS_COMMAND,
+          stdout: JSON.stringify({ ok: false, error: { message: "Linear labels unavailable" } }),
+          exit: 1,
+        },
+      ]),
+    },
+  )
+
+  const empty = stageTierLabelRefresh("empty")
+  check(
+    "refresh-tier-labels.mjs",
+    "an empty live label result fails closed",
+    [],
+    { status: 3, stderr: /refresh-tier-labels ERROR[\s\S]*empty label set/i },
+    {
+      path: empty.path,
+      env: orcaEnv([
+        { match: LINEAR_LABELS_COMMAND, stdout: linearLabelsResult([]) },
+      ]),
+    },
+  )
+
+  const unparseable = stageTierLabelRefresh("unparseable")
+  check(
+    "refresh-tier-labels.mjs",
+    "unparseable live label output fails closed",
+    [],
+    { status: 3, stderr: /refresh-tier-labels ERROR[\s\S]*unparseable JSON/i },
+    {
+      path: unparseable.path,
+      env: orcaEnv([{ match: LINEAR_LABELS_COMMAND, stdout: "not-json" }]),
+    },
   )
 }
 
@@ -1562,6 +1688,68 @@ const preflightCases = () => {
     ["--repo", "ui"],
     { status: 1, stdout: /FAIL\s+Orca reachability\s+start or restart Orca/ },
     { path: good.path, env: preflightEnv(orcaFailurePlan) },
+  )
+
+  const missingTierLabelsPlan = PREFLIGHT_PASS_PLAN.map((entry) =>
+    entry.match === LINEAR_LABELS_COMMAND
+      ? { ...entry, stdout: linearLabelsResult(["worker:sonnet"]) }
+      : entry,
+  )
+  check(
+    "preflight.mjs",
+    "missing tier labels refuse launch with the expected, actual, and missing inventories",
+    ["--repo", "ui"],
+    {
+      status: 1,
+      stdout: /FAIL\s+Linear tier labels\s+looked for: tier:cheap, tier:deep; team labels: worker:sonnet; missing: tier:cheap, tier:deep/,
+    },
+    { path: good.path, env: preflightEnv(missingTierLabelsPlan) },
+  )
+
+  const tierLookupFailurePlan = PREFLIGHT_PASS_PLAN.map((entry) =>
+    entry.match === LINEAR_LABELS_COMMAND
+      ? {
+          ...entry,
+          stdout: JSON.stringify({ ok: false, error: { message: "Linear labels unavailable" } }),
+          exit: 1,
+        }
+      : entry,
+  )
+  check(
+    "preflight.mjs",
+    "a Linear tier-label lookup error fails closed",
+    ["--repo", "ui"],
+    { status: 1, stdout: /FAIL\s+Linear tier labels[\s\S]*Linear tier-label lookup failed[\s\S]*unavailable/i },
+    { path: good.path, env: preflightEnv(tierLookupFailurePlan) },
+  )
+
+  const emptyTierLabelsPlan = PREFLIGHT_PASS_PLAN.map((entry) =>
+    entry.match === LINEAR_LABELS_COMMAND
+      ? { ...entry, stdout: linearLabelsResult([]) }
+      : entry,
+  )
+  check(
+    "preflight.mjs",
+    "an empty Linear tier-label result fails closed",
+    ["--repo", "ui"],
+    {
+      status: 1,
+      stdout: /FAIL\s+Linear tier labels[\s\S]*team labels: \(none\)[\s\S]*Linear returned an empty label set/,
+    },
+    { path: good.path, env: preflightEnv(emptyTierLabelsPlan) },
+  )
+
+  const unparseableTierLabelsPlan = PREFLIGHT_PASS_PLAN.map((entry) =>
+    entry.match === LINEAR_LABELS_COMMAND
+      ? { ...entry, stdout: "not-json" }
+      : entry,
+  )
+  check(
+    "preflight.mjs",
+    "unparseable Linear tier-label output fails closed",
+    ["--repo", "ui"],
+    { status: 1, stdout: /FAIL\s+Linear tier labels[\s\S]*unparseable JSON/ },
+    { path: good.path, env: preflightEnv(unparseableTierLabelsPlan) },
   )
 
   const dirtyPlan = PREFLIGHT_PASS_PLAN.map((entry) =>
@@ -3564,6 +3752,7 @@ const gateCases = {
     check("new-ticket.mjs", "requires --project so the ticket cannot be orphaned", ["--title", "Cover the create and validate round trip"], { status: 2, stderr: /--project is required/ })
   },
   "check-tier-labels.mjs": tierLabelCases,
+  "refresh-tier-labels.mjs": refreshTierLabelCases,
   "launch-worker.mjs": launchWorkerCases,
   "preflight.mjs": preflightCases,
   "nudge-worker.mjs": nudgeWorkerCases,
@@ -3993,6 +4182,7 @@ const INVALID_INPUT = {
   "preflight.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "pr-watch.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "redesign-coverage.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "refresh-tier-labels.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "rollup.sh": { argv: ["--orbit-not-a-flag"], status: 2 },
   "surface-manifest.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "teardown-worktree.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
