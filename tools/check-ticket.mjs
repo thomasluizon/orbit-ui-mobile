@@ -38,6 +38,34 @@ const REQUIRED_SECTIONS = [
 
 /** D4: one ticket = one repo. repo:both is a defect, not a label. */
 const REPO_LABELS = ["repo:ui", "repo:api", "repo:landing"]
+
+/**
+ * A criterion that quantifies over an OPEN set has no provable finish line, so review can never
+ * converge: every round the reviewer legitimately finds one more member of the set and is right.
+ * Measured on ORB-122 ("block raw command surfacing"), which took 24 review rounds over 12 hours
+ * because "every phrasing" is not a set anyone can enumerate. See PR #633.
+ */
+const UNBOUNDED_QUANTIFIER = /\b(?:every|all|any|each)\b(?!-)/i
+/** Evidence in the SAME criterion that the quantifier ranges over an enumerated set. */
+const BOUNDED_BY =
+  /\b\d+\b|\b(?:one|two|three|four|five|six|seven|eight|nine|ten|both)\b|`[^`]+`|\.(?:mjs|cjs|js|ts|tsx|json|md|cs|yml|yaml|sh)\b|\b(?:listed|enumerated|named|above|below)\b|\bin (?:the )?(?:table|list|fixture|corpus|manifest)\b/i
+/** An explicit "and more of the same, unspecified" tail is unbounded however it is phrased. */
+const OPEN_ENDED_TAIL = /\b(?:etc\.?|and so on|and similar|or similar|among others)\b|…|\.\.\./i
+/**
+ * The bound must govern the quantifier, not merely share a line with it: searching the whole
+ * criterion lets an unrelated exit code rescue an unbounded claim, as in "every phrasing a worker
+ * could emit is blocked and the command exits 1" (PR #638 review). Scoping to the clause is the
+ * same fix this gate prescribes for the tickets it rejects.
+ */
+const isBounded = (text) => {
+  const clauses = text
+    .replace(/`[^`]+`/g, "`x`")
+    .replace(/[\w./\\-]+\.(?:mjs|cjs|js|ts|tsx|json|md|cs|yml|yaml|sh)\b/g, "`x`")
+    .split(/[.;:,]|\band\b|\bor\b/i)
+  return clauses.every(
+    (clause, index) => !UNBOUNDED_QUANTIFIER.test(clause) || clauses.slice(0, index + 1).some((c) => BOUNDED_BY.test(c)),
+  )
+}
 const TYPE_LABELS = ["Feature", "Bug", "Improvement"]
 
 const problems = []
@@ -50,10 +78,19 @@ const validateBody = (body) => {
     require_(section.pattern.test(body), `missing section: ${section.name}`)
   }
   const criteria = body.split(/^#+[ \t]+/m).find((chunk) => /^acceptance criteria/i.test(chunk)) ?? ""
-  require_(
-    (criteria.match(/^\s*[-*]\s+|^\s*\d+\.\s+/gm) || []).length >= 2,
-    "acceptance criteria needs at least 2 checkable items",
-  )
+  const criteriaItems = criteria.match(/^[ \t]*(?:[-*]|\d+\.)[ \t]+.*$/gm) || []
+  require_(criteriaItems.length >= 2, "acceptance criteria needs at least 2 checkable items")
+  for (const item of criteriaItems) {
+    const text = item.replace(/^[ \t]*(?:[-*]|\d+\.)[ \t]+/, "")
+    require_(
+      !OPEN_ENDED_TAIL.test(text),
+      `acceptance criterion has no finish line, it trails off into an unnamed remainder: "${text.trim().slice(0, 90)}". Enumerate the remainder or delete it`,
+    )
+    require_(
+      !UNBOUNDED_QUANTIFIER.test(text) || isBounded(text),
+      `acceptance criterion quantifies over an open set, so it can never be proven done: "${text.trim().slice(0, 90)}". Bound it: give a count, a named list, a file, or a backticked command that decides it`,
+    )
+  }
   require_(!/\b(TBD|TODO|FIXME|\?\?\?)\b/.test(body), "body carries TBD/TODO placeholders; resolve before dispatch")
   require_(!/\u2014/.test(body), "body carries an em dash (banned everywhere)")
   const visibleEffect = /\b(screen|page|component|modal|sheet|button|copy|string|animation|style|design)\b/i.test(body)
