@@ -1723,6 +1723,18 @@ const gateCases = {
   "compose-prompt.mjs": composePromptCases,
   "wave-plan.mjs": () => {
     check("wave-plan.mjs", "documents the explicit issue selection mode", ["--help"], { status: 0, stdout: /--issues "ORB-a,\.\.\."/ })
+    const body = (files) => `## Affected modules / files\n\n${files}\n`
+    const stub = (aFiles, bFiles) =>
+      orcaEnv([
+        { match: "linear list-issues", stdout: JSON.stringify({ ok: true, result: { issues: [{ identifier: "ORB-201" }, { identifier: "ORB-202" }] } }) },
+        { match: "linear issue ORB-201", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-201", title: "first collision probe", description: body(aFiles), state: { name: "Todo", type: "unstarted" }, labels: [] }, relations: [] } }) },
+        { match: "linear issue ORB-202", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-202", title: "second collision probe", description: body(bFiles), state: { name: "Todo", type: "unstarted" }, labels: [] }, relations: [] } }) },
+      ])
+    check("wave-plan.mjs", "two tickets naming a common path are reported as a collision pair", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /ORB-201 \+ ORB-202: tools\/test-tools\.mjs/ }, { env: stub("`tools/test-tools.mjs`", "`tools/test-tools.mjs`") })
+    check("wave-plan.mjs", "two tickets naming disjoint paths report no collision", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /collisions: none/ }, { env: stub("`tools/a.mjs`", "`tools/b.mjs`") })
+    check("wave-plan.mjs", "a ticket with no parseable affected path is reported as unknown", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /unknown \(no parseable path/ }, { env: stub("nothing recognisable here", "`tools/b.mjs`") })
+    check("wave-plan.mjs", "the json output carries the same collision pair", ["--issues", "ORB-201,ORB-202", "--json"], { status: 0, stdout: /"files": \[\s*"tools\/test-tools\.mjs"/ }, { env: stub("`tools/test-tools.mjs`", "`tools/test-tools.mjs`") })
+
     check("wave-plan.mjs", "plans one explicitly requested identifier and counts out-of-set dependents in reach", ["--issues", "ORB-1", "--json"], { status: 0, stdout: /"identifier": "ORB-1"[\s\S]*?"reach": 1[\s\S]*?"launchable": true/ }, { env: orcaEnv(ISSUES_WAVE_STUB) })
     const duplicateLog = stage("wave-plan-duplicate.log", "")
     const duplicate = run("wave-plan.mjs", ["--issues", "ORB-1,ORB-1", "--json"], { env: { ...orcaEnv(ISSUES_WAVE_STUB), ORBIT_ORCA_LOG: duplicateLog } })

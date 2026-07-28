@@ -23,6 +23,12 @@ const USAGE = `usage: wave-plan.mjs --project "<name>" | --label "<label>" | --a
   --json               emit the wave table as JSON instead of text
   --help, -h           print this usage and exit 0
 
+Each wave also reports "collisions": every pair of tickets in it whose "Affected modules / files"
+sections name a common path, with the shared paths. It REPORTS only, and never reorders a wave:
+two tickets appending to the same test file and two rewriting the same function are identical to
+a set intersection, so the call to serialise stays with the operator. A ticket with no parseable
+path is listed as unknown, because silence is the thing this output exists to remove.
+
 exit codes: 0 wave table printed, 1 nothing to plan or a cycle, 2 usage/orca error`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
@@ -131,6 +137,36 @@ if (issuesMode) {
 
 const DONE_TYPES = new Set(["completed", "canceled", "duplicate"])
 
+/**
+ * Two tickets in the same wave that edit the same file collide. Nothing in the harness knew that,
+ * so serialisation was decided from memory each run: on 2026-07-28 ORB-120 was held behind two
+ * tickets it shared two files with, in different regions, costing hours with a worker idle. The
+ * inverse mistake is worse. This reports the overlap; it never reorders a wave, because a set
+ * intersection cannot tell an append-only test file from a rewrite of the same function.
+ */
+const AFFECTED_PATH = /\.?[\w@][\w./\\@-]*\.(?:mjs|cjs|js|jsx|ts|tsx|json|md|cs|yml|yaml|sh|ps1|css)\b/g
+
+const affectedFilesOf = (description) => {
+  const section = (description ?? "")
+    .split(/(?=^#+[ \t]+)/m)
+    .find((chunk) => /^#+\s*(affected|files|modules)\b/im.test(chunk))
+  if (!section) return []
+  return [...new Set((section.match(AFFECTED_PATH) ?? []).map((path) => path.replace(/\\/g, "/")))]
+}
+
+const collisionsIn = (waveIssues, byIdentifier) => {
+  const pairs = []
+  for (let a = 0; a < waveIssues.length; a++) {
+    for (let b = a + 1; b < waveIssues.length; b++) {
+      const left = byIdentifier.get(waveIssues[a])?.affectedFiles ?? []
+      const right = new Set(byIdentifier.get(waveIssues[b])?.affectedFiles ?? [])
+      const shared = left.filter((path) => right.has(path))
+      if (shared.length) pairs.push({ a: waveIssues[a], b: waveIssues[b], files: shared })
+    }
+  }
+  return pairs
+}
+
 const toPlanIssue = (detail) => {
   const full = detail.issue ?? detail
   const relations = detail.relations ?? full.relations ?? []
@@ -138,6 +174,7 @@ const toPlanIssue = (detail) => {
   return {
     identifier: full.identifier,
     title: full.title,
+    affectedFiles: affectedFilesOf(full.description),
     state: full.state?.name ?? full.state,
     stateType: full.state?.type ?? null,
     labels: labelNames,
@@ -302,6 +339,8 @@ if (process.argv.includes("--json")) {
         waves: visibleWaves.map(({ wave, issues: waveIssues }) => ({
           wave,
           issues: waveIssues.map(visibleIssue),
+          collisions: collisionsIn(waveIssues, byIdentifier),
+          unknownAffected: waveIssues.filter((identifier) => (byIdentifier.get(identifier)?.affectedFiles ?? []).length === 0),
         })),
         launchable: visibleLaunchable,
         twoStrikes: visibleTwoStrikes,
@@ -321,6 +360,11 @@ if (process.argv.includes("--json")) {
       const restriction = issuesMode ? `  blockerState: ${blockerStateOf(issue)}  launchable: ${visibleLaunchable.includes(identifier) ? "yes" : "no"}` : ""
       console.log(`  ${identifier}  [${issue.state}]${external}  ${issue.title}${blockers}${restriction}${strikes}`)
     }
+    const collisions = collisionsIn(waveIssues, byIdentifier)
+    const unknown = waveIssues.filter((identifier) => (byIdentifier.get(identifier)?.affectedFiles ?? []).length === 0)
+    console.log(`  collisions: ${collisions.length ? "" : "none"}`)
+    for (const { a, b, files } of collisions) console.log(`    ${a} + ${b}: ${files.join(", ")}`)
+    if (unknown.length) console.log(`    unknown (no parseable path in Affected modules / files): ${unknown.join(", ")}`)
   }
   console.log(`\nLAUNCHABLE NOW (all blockers merged, not started, under the strike limit): ${visibleLaunchable?.join(", ") || "none"}`)
 }
