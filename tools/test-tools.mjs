@@ -201,13 +201,27 @@ if (argv[0] === "pr" && argv[1] === "update-branch") {
   process.exit(0)
 }
 if (argv[0] === "api" && argv[1] === "graphql" && line.includes("reviews(first:100")) {
-  if (process.env.ORBIT_MERGE_SWEEP_REVIEWS_LOOKUP_FAILURE) process.exit(7)
-  process.stdout.write(withUrls(process.env.ORBIT_MERGE_SWEEP_REVIEW_TIMES, "reviews"))
+  if (
+    process.env.ORBIT_MERGE_SWEEP_REVIEWS_LOOKUP_FAILURE ||
+    (existsSync(postMergeMarker) && process.env.ORBIT_MERGE_SWEEP_POST_MERGE_REVIEWS_LOOKUP_FAILURE)
+  ) process.exit(7)
+  let items = process.env.ORBIT_MERGE_SWEEP_REVIEW_TIMES
+  if (process.env.ORBIT_MERGE_SWEEP_REVIEWS_PAGE_TWO && argv.includes("--paginate")) {
+    items += "\\n" + process.env.ORBIT_MERGE_SWEEP_REVIEWS_PAGE_TWO
+  }
+  process.stdout.write(withUrls(items, "reviews"))
   process.exit(0)
 }
 if (argv[0] === "api" && argv[1] === "graphql" && line.includes("reviewThreads(first:100)")) {
-  if (process.env.ORBIT_MERGE_SWEEP_THREADS_LOOKUP_FAILURE) process.exit(7)
-  process.stdout.write(process.env.ORBIT_MERGE_SWEEP_UNRESOLVED_THREADS)
+  if (
+    process.env.ORBIT_MERGE_SWEEP_THREADS_LOOKUP_FAILURE ||
+    (existsSync(postMergeMarker) && process.env.ORBIT_MERGE_SWEEP_POST_MERGE_THREADS_LOOKUP_FAILURE)
+  ) process.exit(7)
+  process.stdout.write(
+    existsSync(postMergeMarker) && process.env.ORBIT_MERGE_SWEEP_POST_MERGE_UNRESOLVED_THREADS
+      ? process.env.ORBIT_MERGE_SWEEP_POST_MERGE_UNRESOLVED_THREADS
+      : process.env.ORBIT_MERGE_SWEEP_UNRESOLVED_THREADS,
+  )
   process.exit(0)
 }
 if (argv[0] === "pr" && argv[1] === "view") {
@@ -241,7 +255,12 @@ if (argv[0] === "pr" && argv[1] === "merge") {
     writeFileSync(process.env.ORBIT_MERGE_SWEEP_MOVE_MARKER, "")
     process.exit(1)
   }
-  if (process.env.ORBIT_MERGE_SWEEP_POST_MERGE_ACTIVITY) writeFileSync(postMergeMarker, "")
+  if (
+    process.env.ORBIT_MERGE_SWEEP_POST_MERGE_ACTIVITY ||
+    process.env.ORBIT_MERGE_SWEEP_POST_MERGE_REVIEWS_LOOKUP_FAILURE ||
+    process.env.ORBIT_MERGE_SWEEP_POST_MERGE_THREADS_LOOKUP_FAILURE ||
+    process.env.ORBIT_MERGE_SWEEP_POST_MERGE_UNRESOLVED_THREADS
+  ) writeFileSync(postMergeMarker, "")
   process.exit(0)
 }
 if (line.includes("/pulls/") && line.includes("/comments")) {
@@ -274,8 +293,6 @@ process.exit(9)
 `,
 )
 chmodSync(MERGE_SWEEP_GH, 0o755)
-const MERGE_SWEEP_SLEEP = stage("merge-sweep-bin/sleep", "#!/usr/bin/env node\\nprocess.exit(0)\\n")
-chmodSync(MERGE_SWEEP_SLEEP, 0o755)
 const MERGE_SWEEP_BASH_ENV = stage("merge-sweep-bin/bash-env", "sleep() { :; }\n")
 
 const mergeSweepEnv = ({
@@ -290,8 +307,12 @@ const mergeSweepEnv = ({
   inlinePageTwo = "",
   moveAtMerge = false,
   postMergeActivity = "",
+  postMergeReviewsLookupFailure = false,
+  postMergeThreadsLookupFailure = false,
+  postMergeUnresolvedThreads = "",
   reviewTimes = "reviewer\t2026-07-27T22:00:00Z",
   reviewsLookupFailure = false,
+  reviewsPageTwo = "",
   sonar = "success",
   state = "CLEAN",
   reviewRunning = false,
@@ -316,8 +337,12 @@ const mergeSweepEnv = ({
   ORBIT_MERGE_SWEEP_LOG: log,
   ORBIT_MERGE_SWEEP_MOVE_MARKER: moveAtMerge ? `${log}.moved` : "",
   ORBIT_MERGE_SWEEP_POST_MERGE_ACTIVITY: postMergeActivity,
+  ORBIT_MERGE_SWEEP_POST_MERGE_REVIEWS_LOOKUP_FAILURE: postMergeReviewsLookupFailure ? "1" : "",
+  ORBIT_MERGE_SWEEP_POST_MERGE_THREADS_LOOKUP_FAILURE: postMergeThreadsLookupFailure ? "1" : "",
+  ORBIT_MERGE_SWEEP_POST_MERGE_UNRESOLVED_THREADS: postMergeUnresolvedThreads,
   ORBIT_MERGE_SWEEP_REVIEW_RUNNING: reviewRunning ? "1" : "",
   ORBIT_MERGE_SWEEP_REVIEWS_LOOKUP_FAILURE: reviewsLookupFailure ? "1" : "",
+  ORBIT_MERGE_SWEEP_REVIEWS_PAGE_TWO: reviewsPageTwo,
   ORBIT_MERGE_SWEEP_REVIEW_TIMES: reviewTimes,
   ORBIT_MERGE_SWEEP_SONAR: sonar,
   ORBIT_MERGE_SWEEP_STATE: state,
@@ -1644,6 +1669,36 @@ const mergeSweepCases = (file) => {
     `exit ${postMergeActivity.status}\n     stdout: ${postMergeActivity.stdout.trim()}\n     stderr: ${postMergeActivity.stderr.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(postMergeLog))}`,
   )
 
+  const postMergeFailure = (label, envOptions, outputPattern) => {
+    const log = join(root, `${file}-${label}.log`)
+    const result = run(file, reviewedArgs, {
+      env: mergeSweepEnv({
+        head: expectedHead,
+        log,
+        sonar: coverageAware ? "coverage-failure" : "success",
+        state: coverageAware ? "BLOCKED" : "CLEAN",
+        ...envOptions,
+      }),
+    })
+    const merges = mergeSweepCalls(log).filter(([group, command]) => group === "pr" && command === "merge")
+    T(
+      `${file}: ${label}`,
+      result.status === 4 && outputPattern.test(result.stdout) && merges.length === 1,
+      `exit ${result.status}\n     stdout: ${result.stdout.trim()}\n     stderr: ${result.stderr.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(log))}`,
+    )
+  }
+
+  postMergeFailure(
+    "unresolved threads in the residual merge window are reported after the merge",
+    { postMergeUnresolvedThreads: "2" },
+    /POST-MERGE-UNRESOLVED-THREADS #615 count=2/,
+  )
+  postMergeFailure(
+    "a review lookup failure after the merge is reported by source",
+    { postMergeReviewsLookupFailure: true },
+    /POST-MERGE-REVIEW-LOOKUP-FAILED #615 source=reviews/,
+  )
+
   const reviewSkip = (label, envOptions, outputPattern) => {
     const log = join(root, `${file}-${label}.log`)
     const result = run(file, reviewedArgs, {
@@ -1675,6 +1730,14 @@ const mergeSweepCases = (file) => {
     "an already-submitted COMMENTED review edited after the cutoff skips without merging",
     { reviewTimes: `commented-reviewer\t2026-07-27T22:00:00Z\ncommented-reviewer\t2026-07-27T22:00:00Z\ncommented-reviewer\t${newerReviewTime}` },
     new RegExp(`SKIP #615 NEW-REVIEW-SINCE ${reviewedThrough} by commented-reviewer at ${newerReviewTime}`),
+  )
+  reviewSkip(
+    "pagination sees a newer review timestamp on page two",
+    {
+      reviewTimes: "page-one-reviewer\t2026-07-27T23:00:00Z",
+      reviewsPageTwo: `page-two-reviewer\t${newerReviewTime}`,
+    },
+    new RegExp(`SKIP #615 NEW-REVIEW-SINCE ${reviewedThrough} by page-two-reviewer at ${newerReviewTime}`),
   )
   reviewSkip("a newer issue comment skips without merging", { commentTimes: `issue-commenter\t${newerReviewTime}` }, new RegExp(`SKIP #615 NEW-REVIEW-SINCE ${reviewedThrough} by issue-commenter at ${newerReviewTime}`))
   reviewSkip("review-thread lookup failure fails closed by name", { threadsLookupFailure: true }, /SKIP #615 REVIEW-LOOKUP-FAILED source=reviewThreads/)

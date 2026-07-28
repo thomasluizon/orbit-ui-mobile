@@ -397,16 +397,17 @@ cannot decide for one PR, all against that recorded head:
 
    ```bash
    gh api graphql --paginate \
-     -f query='query($endCursor:String){repository(owner:"<owner>",name:"<repo>"){pullRequest(number:<n>){reviews(first:100,after:$endCursor){nodes{author{login} body submittedAt lastEditedAt} pageInfo{hasNextPage endCursor}}}}}'
+     -f query='query($endCursor:String){repository(owner:"<owner>",name:"<repo>"){pullRequest(number:<n>){reviews(first:100,after:$endCursor){nodes{author{login} body submittedAt updatedAt lastEditedAt} pageInfo{hasNextPage endCursor}}}}}'
    ```
 
    Each finding-bearing item ends in exactly one of two states. Include activity from every author,
    including the PR author, the orchestrator account, bots, and reviewer accounts. Never
    filter or exempt activity by author: identity does not prove that an item was part of
    this reconciliation, and an exclusion would hide a late review, reply, or edit from
-   the final safety gate. An edited review body is observable through `lastEditedAt`; it
-   is not a documented limitation or a reason to waive the gate. Treat both `submittedAt`
-   and every non-null `lastEditedAt` as review activity.
+   the final safety gate. An edited review body is observable through `updatedAt` and
+   `lastEditedAt`; it is not a documented limitation or a reason to waive the gate.
+   Treat `submittedAt` and every non-null `updatedAt` and `lastEditedAt` as review
+   activity.
 
    - **Addressed.** The finding is real: fix it through a worker in that ticket's worktree,
      PUSH the fix, then reply on the thread naming the commit that fixed it, then RESOLVE
@@ -458,8 +459,8 @@ addressed thread.
 Record the final `headRefOid` as the expected head. After every required reply has
 been posted and every addressed thread resolved, retain the complete reconciled
 activity snapshot: item identifiers plus every review `submittedAt` and non-null
-`lastEditedAt`, every inline-comment creation and edit, and every conversation-comment
-creation and edit. Find its latest timestamp. GitHub timestamps have second precision
+`updatedAt` and `lastEditedAt`, every inline-comment creation and edit, and every
+conversation-comment creation and edit. Find its latest timestamp. GitHub timestamps have second precision
 and the sweep deliberately treats activity equal to the cutoff as new, so wait for the
 next second when necessary, then capture a current UTC ISO-8601 instant strictly later
 than that latest reconciled timestamp as `reviewed-through`.
@@ -509,19 +510,22 @@ settle, and re-reads the decision after updates. Its review-safety query is the 
 API read before the merge call: it requires every review thread to be resolved and no
 review submission or edit, inline review comment or edit, or conversation comment or
 edit at or after `reviewed-through`. It paginates review submissions through GraphQL
-and checks both `submittedAt` and `lastEditedAt`, checks both creation and edit times
+and checks `submittedAt`, `updatedAt`, and `lastEditedAt`, checks both creation and edit times
 for comments, admits no author exclusions, and fails closed on every thread or activity
 lookup.
 
 There is still an unavoidable final API race between the response to that safety query
 and the merge request. The sweep makes the safety query last, but it cannot prevent new
 activity from arriving after that response. It squash-merges without `--admin`, then
-rechecks review activity after every successful merge. Activity found by that recheck
-was detected and reported, not prevented: the script prints
-`POST-MERGE-ACTIVITY`, exits `4`, and the run stops all further unattended merges and
-copies that result into the closing report. It also checks that a merged head did not
-move afterwards. Its workflow lookup fails closed: if it cannot prove the repository
-has no review workflow, the current-head review wait stays enabled.
+rechecks review activity after every successful merge. New activity, unresolved
+threads, or an unverifiable review lookup found by that recheck were detected and
+reported, not prevented: the script prints the corresponding
+`POST-MERGE-ACTIVITY`, `POST-MERGE-UNRESOLVED-THREADS`, or
+`POST-MERGE-REVIEW-LOOKUP-FAILED` marker, exits `4`, and the run stops all further
+unattended merges and copies that result into the closing report. It also checks that
+a merged head did not move afterwards. Its workflow lookup fails closed: if it cannot
+prove the repository has no review workflow, the current-head review wait stays
+enabled.
 
 `--sleep` always invokes `tools/merge-sweep.sh`. It never invokes
 `tools/merge-sweep-cov.sh`: that variant can use `--admin` to override a SonarCloud
@@ -543,19 +547,20 @@ form, either named review-lookup failure, any other `SKIP`, or `MERGE-REFUSED`
 leaves that PR open and supplies its stopped reason.
 Exit `0` also covers a completed sweep that skipped a PR. Exit `1` reports an
 orphaned merged head, exit `2` bad usage, exit `3` an unverifiable merged head, and
-exit `4` post-merge review activity. Exit `4` is not proof that the merge was unsafe,
-but the activity missed the pre-merge decision boundary: stop further unattended
-merges and report the exact `POST-MERGE-ACTIVITY` line. For exits `1` or `3`, re-read
-the affected PR state and record it as a harness defect rather than claiming the PR
-remained unmerged.
+exit `4` post-merge review activity or an unverifiable post-merge review state. Exit
+`4` is not proof that the merge was unsafe, but the result missed or could not verify
+the pre-merge decision boundary: stop further unattended merges and report the exact
+`POST-MERGE-*` line, including its activity, count, or lookup source detail. For exits
+`1` or `3`, re-read the affected PR state and record it as a harness defect rather
+than claiming the PR remained unmerged.
 
 After the script returns, read the PR's `headRefOid` and merge commit. For a `MERGED`
 result, the merged `headRefOid` must equal the expected head that passed conditions 1
 to 6. If it differs, say loudly in the closing report that the PR merged on an
 ungated head, include both head SHAs and the merge commit, and stop all further merges
-in that repository until Thomas has looked. A PR named by `POST-MERGE-ACTIVITY` is
-already merged: keep it in the Merged section, copy the marker and its activity detail
-into that entry, and stop all further unattended merges.
+in that repository until Thomas has looked. A PR named by any `POST-MERGE-*` marker is
+already merged: keep it in the Merged section, copy the exact marker and its activity,
+count, or lookup source detail into that entry, and stop all further unattended merges.
 
 On anything the skill-only gates or the strict script cannot decide, do NOT guess and
 do NOT pick a middle path. Stop that ticket, leave its PR open, record the reason, and
