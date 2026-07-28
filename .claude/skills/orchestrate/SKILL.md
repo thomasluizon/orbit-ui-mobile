@@ -332,7 +332,10 @@ Merge a PR under `--sleep` only when ALL of these hold, checked in this order:
 3. `mergeStateStatus` is `CLEAN`. `BEHIND` means update the branch and re-read BOTH
    the checks and `reviewDecision` afterwards, because updating invalidates them.
 4. The D7 evidence gate is satisfied: the PR is attached to the issue, and a
-   `visible-effect` ticket has its final screenshots and critique attached.
+   `visible-effect` ticket has its final screenshots and critique attached, with
+   the critique's final result recorded as `clean`. A critique that ends with
+   `unresolved findings` at the iteration cap stops that ticket for human review.
+   The cap permits an honest handoff; it never permits an unattended merge.
 5. The ticket carries no `attempts:2` label (D9 refuses it regardless of colour).
 6. **Every comment from every reviewer is addressed, whatever its review state.**
    `reviewDecision` only reflects reviews that BLOCK. A `COMMENTED` review and an inline

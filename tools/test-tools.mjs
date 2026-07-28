@@ -809,6 +809,60 @@ const stageTeardownWorktree = (label, { dirty = false, changed = false, squashMe
   return { primary, child, branch: "feature/orb-124-teardown" }
 }
 
+const stageWorkerStatusWorktree = () => {
+  const base = join(root, "worker-status")
+  const worktree = join(base, "worktree")
+  const remote = join(base, "remote.git")
+  mkdirSync(base, { recursive: true })
+  const git = (cwd, args) => spawnSync("git", ["-C", cwd, ...args], { encoding: "utf8" })
+  if (git(base, ["init", "-q", "--bare", remote]).status !== 0) return null
+  mkdirSync(worktree, { recursive: true })
+  for (const args of [
+    ["init", "-q", "--initial-branch=main"],
+    ["config", "user.email", "gate@orbit.test"],
+    ["config", "user.name", "Orbit Gate"],
+    ["commit", "-q", "--allow-empty", "-m", "base"],
+    ["remote", "add", "origin", remote],
+    ["push", "-q", "-u", "origin", "main"],
+    ["switch", "-q", "-c", "feature/orb-75-worker-status"],
+    ["commit", "-q", "--allow-empty", "-m", "worker change"],
+    ["push", "-q", "-u", "origin", "feature/orb-75-worker-status"],
+  ]) {
+    if (git(worktree, args).status !== 0) return null
+  }
+  return worktree
+}
+
+const workerStatusPlan = (attachments) => [
+  {
+    match: "pr list",
+    stdout: JSON.stringify([{ url: "https://github.com/orbit/orbit/pull/75", state: "OPEN", baseRefName: "main", isDraft: false }]),
+  },
+  {
+    match: "linear issue ORB-75 --attachments",
+    stdout: JSON.stringify({
+      ok: true,
+      result: {
+        issue: { identifier: "ORB-75", state: { name: "In Review" }, labels: [{ name: "visible-effect" }] },
+        attachments: [{ title: "PR", url: "https://github.com/orbit/orbit/pull/75" }, ...attachments],
+      },
+    }),
+  },
+]
+
+const runWorkerStatusCase = (worktree, attachments) => {
+  const result = run(
+    "worker-status.mjs",
+    ["--worktree", worktree, "--issue", "ORB-75", "--json"],
+    { env: orcaEnv(workerStatusPlan(attachments)) },
+  )
+  try {
+    return { ...result, verdict: JSON.parse(result.stdout) }
+  } catch {
+    return { ...result, verdict: null }
+  }
+}
+
 const teardownWorktreeRecord = (fixture) => ({
   path: fixture.child,
   isMainWorktree: false,
@@ -1171,6 +1225,39 @@ const gateCases = {
   "worker-status.mjs": () => {
     check("worker-status.mjs", "requires --worktree", ["--issue", "ORB-75"], { status: 2, stderr: /--worktree is required/ })
     check("worker-status.mjs", "requires a Linear issue identifier", ["--worktree", root, "--issue", "nope"], { status: 2, stderr: /Linear identifier/ })
+    const worktree = stageWorkerStatusWorktree()
+    if (!worktree) {
+      T("worker-status.mjs: real git fixture is available", false, "could not create and push the worker-status Git fixture")
+      return
+    }
+    const screenshot = { title: "about-en.png", url: "https://raw.githubusercontent.com/orbit/orbit/evidence/about-en.png" }
+    const critique = { title: "render critique", url: "https://raw.githubusercontent.com/orbit/orbit/evidence/render-critique.md" }
+    const complete = runWorkerStatusCase(worktree, [screenshot, critique])
+    T(
+      "worker-status.mjs: screenshot and critique present is OK",
+      complete.status === 0 &&
+        complete.verdict?.ok === true &&
+        complete.verdict.checks.find((entry) => entry.name === "screenshot-attached")?.ok === true &&
+        complete.verdict.checks.find((entry) => entry.name === "critique-attached")?.ok === true,
+      `exit ${complete.status}\n     ${(complete.stderr || complete.stdout).slice(0, 600)}`,
+    )
+    const critiqueMissing = runWorkerStatusCase(worktree, [screenshot])
+    T(
+      "worker-status.mjs: screenshot present and critique missing is UNMET",
+      critiqueMissing.status === 1 &&
+        critiqueMissing.verdict?.unmet.length === 1 &&
+        critiqueMissing.verdict.unmet[0] === "critique-attached",
+      `exit ${critiqueMissing.status}\n     ${(critiqueMissing.stderr || critiqueMissing.stdout).slice(0, 600)}`,
+    )
+    const neither = runWorkerStatusCase(worktree, [])
+    T(
+      "worker-status.mjs: neither screenshot nor critique present is UNMET",
+      neither.status === 1 &&
+        neither.verdict?.unmet.length === 2 &&
+        neither.verdict.unmet.includes("screenshot-attached") &&
+        neither.verdict.unmet.includes("critique-attached"),
+      `exit ${neither.status}\n     ${(neither.stderr || neither.stdout).slice(0, 600)}`,
+    )
   },
   "compose-prompt.mjs": composePromptCases,
   "wave-plan.mjs": () => {
