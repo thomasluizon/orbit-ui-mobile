@@ -51,6 +51,18 @@ const BOUNDED_BY =
   /\b\d+\b|\b(?:one|two|three|four|five|six|seven|eight|nine|ten|both)\b|`[^`]+`|\.(?:mjs|cjs|js|ts|tsx|json|md|cs|yml|yaml|sh)\b|\b(?:listed|enumerated|named|above|below)\b|\bin (?:the )?(?:table|list|fixture|corpus|manifest)\b/i
 /** An explicit "and more of the same, unspecified" tail is unbounded however it is phrased. */
 const OPEN_ENDED_TAIL = /\b(?:etc\.?|and so on|and similar|or similar|among others)\b|…|\.\.\./i
+/**
+ * The bound must govern the quantifier, not merely share a line with it: searching the whole
+ * criterion lets an unrelated exit code rescue an unbounded claim, as in "every phrasing a worker
+ * could emit is blocked and the command exits 1" (PR #638 review). Scoping to the clause is the
+ * same fix this gate prescribes for the tickets it rejects.
+ */
+const quantifierClauses = (text) =>
+  text
+    .replace(/`[^`]+`/g, "`x`")
+    .replace(/[\w./\\-]+\.(?:mjs|cjs|js|ts|tsx|json|md|cs|yml|yaml|sh)\b/g, "`x`")
+    .split(/[.;:,]|\band\b|\bor\b/i)
+    .filter((clause) => UNBOUNDED_QUANTIFIER.test(clause))
 const TYPE_LABELS = ["Feature", "Bug", "Improvement"]
 
 const problems = []
@@ -72,7 +84,7 @@ const validateBody = (body) => {
       `acceptance criterion has no finish line, it trails off into an unnamed remainder: "${text.trim().slice(0, 90)}". Enumerate the remainder or delete it`,
     )
     require_(
-      !UNBOUNDED_QUANTIFIER.test(text) || BOUNDED_BY.test(text),
+      !UNBOUNDED_QUANTIFIER.test(text) || quantifierClauses(text).every((clause) => BOUNDED_BY.test(clause)),
       `acceptance criterion quantifies over an open set, so it can never be proven done: "${text.trim().slice(0, 90)}". Bound it: give a count, a named list, a file, or a backticked command that decides it`,
     )
   }

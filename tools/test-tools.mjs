@@ -1869,6 +1869,12 @@ const gateCases = {
     )
     check(
       "check-ticket.mjs",
+      "a bound outside the quantified clause does not rescue an open set",
+      ["--file", stage("ticket-stray-bound.md", criteriaTicket("- every phrasing a worker could emit is blocked and the command exits 1", "- a defective ticket exits 1"))],
+      { status: 1, stderr: /quantifies over an open set/ },
+    )
+    check(
+      "check-ticket.mjs",
       "an acceptance criterion trailing off into an unnamed remainder is rejected",
       ["--file", stage("ticket-open-tail.md", criteriaTicket("- the two documented reasons are covered, etc.", "- a defective ticket exits 1"))],
       { status: 1, stderr: /trails off into an unnamed remainder/ },
