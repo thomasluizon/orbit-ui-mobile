@@ -161,7 +161,6 @@ const affectedSectionOf = (description) => {
     if (marker) {
       if (!fence) fence = marker
       else if (fence === marker) fence = null
-      if (section) section.push(line)
       continue
     }
     if (!fence && /^#+[ \t]+/.test(line)) {
@@ -169,7 +168,7 @@ const affectedSectionOf = (description) => {
       if (/^#+\s*(affected|files|modules)\b/i.test(line)) section = [line]
       continue
     }
-    if (section) section.push(line)
+    if (section && !fence) section.push(line)
   }
   return section?.join("\n") ?? null
 }
@@ -182,7 +181,13 @@ const isDeclaredPath = (section, path, index) => {
   const lineStart = section.lastIndexOf("\n", index) + 1
   const nextBreak = section.indexOf("\n", index + path.length)
   const lineEnd = nextBreak === -1 ? section.length : nextBreak
-  const item = section.slice(lineStart, lineEnd).trim().replace(/^(?:[-*]|\d+\.)\s+/, "")
+  const item = section
+    .slice(lineStart, lineEnd)
+    .trim()
+    .replace(/^(?:[-*]|\d+\.)\s+/, "")
+    .replace(/^\[[ xX]\]\s+/, "")
+  const annotation = item.startsWith(path) ? item.slice(path.length) : ""
+  if (/^(?::|\s+-\s+)/.test(annotation)) return true
   const itemPaths = item
     .split(/\s*,\s*|\s+and\s+/i)
     .map((candidate) => candidate.replace(/^`|`$/g, ""))
