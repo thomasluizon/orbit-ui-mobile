@@ -381,6 +381,10 @@ T(
 
 for (const [label, text] of [
   ["bare command", "node tools/wave-plan.mjs --all"],
+  ["absolute Windows path", "node C:\\repo\\tools\\wave-plan.mjs --all"],
+  ["absolute POSIX path", "node /repo/tools/wave-plan.mjs --all"],
+  ["Node option before the script", "node --trace-warnings tools/wave-plan.mjs --all"],
+  ["Node option with a value", "node --require loader tools/wave-plan.mjs --all"],
   ["inline command", "You can run `node tools/wave-plan.mjs --all` to see it."],
   ["prose-prefixed run", "To find the next ticket, run node tools/wave-plan.mjs --all and read the top row."],
   ["colon-prefixed run", "Run this: node tools/wave-plan.mjs --all"],
@@ -405,6 +409,11 @@ T(
     RAW_TOOL_HOOK,
     stopPayload("The implementation derives the wave order with `node tools/wave-plan.mjs --all` inside its automation."),
   ),
+  0,
+)
+T(
+  "cc raw-tool: option-bearing Node prose without a tool path -> 0",
+  runHook(RAW_TOOL_HOOK, stopPayload("Node supports --trace-warnings when diagnosing warnings.")),
   0,
 )
 

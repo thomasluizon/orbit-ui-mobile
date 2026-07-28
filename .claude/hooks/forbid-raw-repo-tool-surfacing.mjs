@@ -14,8 +14,9 @@ import { fileURLToPath } from "node:url"
 import { filePathFrom, readStdinJson } from "./_lib/io.mjs"
 
 const APPEAL_SUFFIX = /\s+(?:#\s*)?Repo-tool appeal:\s*(\S.*)\s*$/i
-const COMMAND =
-  /(?:node(?:\.exe)?\s+(?:\.?[\\/])?tools[\\/][a-z0-9_./\\-]+\.(?:mjs|cjs|js|ts)|(?:\.?[\\/])?tools[\\/][a-z0-9_./\\-]+\.sh)(?:[ \t]+[^`\r\n]*)?/i
+const NODE_TOOL_COMMAND =
+  /\bnode(?:\.exe)?(?:[ \t]+-{1,2}[a-z0-9][a-z0-9-]*(?:=[^`\s]+|[ \t]+[^`\s]+)?)*[ \t]+(?:"(?:(?:[a-z]:)?[\\/]*(?:[^"`\r\n]+[\\/])*)?tools[\\/][a-z0-9_./\\-]+\.(?:mjs|cjs|js|ts)"|'(?:(?:[a-z]:)?[\\/]*(?:[^'`\r\n]+[\\/])*)?tools[\\/][a-z0-9_./\\-]+\.(?:mjs|cjs|js|ts)'|(?:(?:[a-z]:)?[\\/]*(?:[a-z0-9_.-]+[\\/])*)?tools[\\/][a-z0-9_./\\-]+\.(?:mjs|cjs|js|ts))(?:[ \t]+[^`\r\n]*)?/i
+const TOOL_SCRIPT_COMMAND = /(?:\.?[\\/])?tools[\\/][a-z0-9_./\\-]+\.sh(?:[ \t]+[^`\r\n]*)?/i
 const NPX_COMMAND = /\bnpx(?:\.cmd)?[ \t]+\S[^`\r\n]*/i
 const SHELL_FENCE = /^(?:bash|sh|shell|zsh|powershell|pwsh|cmd|console)?$/i
 const DOCUMENTATION =
@@ -41,7 +42,7 @@ function declaredRepoRoots() {
 const REPO_ROOTS = declaredRepoRoots()
 
 function commandMatch(line) {
-  const match = [COMMAND.exec(line), NPX_COMMAND.exec(line)]
+  const match = [NODE_TOOL_COMMAND.exec(line), TOOL_SCRIPT_COMMAND.exec(line), NPX_COMMAND.exec(line)]
     .filter(Boolean)
     .sort((left, right) => left.index - right.index)[0]
   if (!match) return null
