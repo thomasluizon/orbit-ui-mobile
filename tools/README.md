@@ -6,6 +6,7 @@
 > - POSIX `.sh` is the baseline; add a `.ps1` twin only when it must run in the user's PowerShell shell.
 > - Add a new tool with `/make-tool`; add its row to the catalog below in the same change.
 > - `test-tools.mjs` EXECUTES every script here (Harness Execution CI job). A new tool with no coverage entry fails it, so coverage lands in the same PR as the tool.
+> - `ai-quota.mjs` reads both AI pools; `automation-budget.mjs` keeps their per-invocation costs separate and protects the routine automation allowance.
 > - `teardown-worktree.mjs` removes a completed ticket's Orca worktree immediately after verified Done, only when its evidence checks pass.
 
 Reusable scripts an agent (or a human) invokes from the CLI. The bar for landing a file here: it has a single clear purpose and you will run it again. One-off commands stay in your shell history or the scratchpad.
@@ -24,6 +25,8 @@ Read `CONVENTIONS.md` before adding one. Use the `/make-tool` skill to scaffold 
 | `capture-surfaces.mjs` | Playwright capture of one screenshot per manifest cell into `.artifacts/surfaces/`, against a running local stack. Reports every surface it cannot reach generically instead of skipping it. The evidence-gate screenshot mechanism (D7). | `ORBIT_AUTH_TOKEN=... npm run surfaces:capture` |
 | `redesign-coverage.mjs` | Asserts the redesign denominator twice: every surface in `surfaces.json` is claimed by exactly one #539 redesign ticket (D35), and every `.tsx` under `apps/*/app` + `apps/*/components` maps to exactly one ticket by directory rule (D38); exits 1 on any unclaimed surface or orphaned file. Survives until #539 completes (D39). | `npm run redesign:coverage` (`--json`) |
 | `arch-map.mjs` | Generates `architecture.json` + `architecture.html` (routes, parity pairs, endpoints, i18n ownership); the drift CI job (`arch-map.yml`) regenerates and fails on drift. | `node tools/arch-map.mjs` |
+| `ai-quota.mjs` | Reads the current Claude and Codex quota windows from Orca's labeled Usage control and the Codex app-server JSON-RPC API, returning both engines in one object while preserving a healthy side when the other is unavailable. Backs `/quota`. | `node tools/ai-quota.mjs --json` (`--help`) |
+| `automation-budget.mjs` | Maintains the append-only per-invocation automation ledger and applies the engine-local weekly routing fuse: routine work warns at 20 percent and blocks at 25 percent, while explicitly reserved deep work remains available. | `node tools/automation-budget.mjs check|record|report --help` |
 | `check-dashes.mjs` | The cross-repo dash ban: em dashes banned everywhere, en dashes only in numeric ranges. Backs the Dash Ban CI job, lefthook, and the shrink-only `dash-baseline.json`. | `--files <f>...` \| `--check-baseline` \| `--write-baseline` \| `--text "<s>"` |
 | `check-copy.mjs` | The copy register: whole-file, values-only scan of locale copy for AI cliches, placeholder content, typed uppercase, and hardcoded brand colors. Backs the Copy Register CI job. | `node tools/check-copy.mjs --check` \| `--write-baseline` |
 | `check-suppressions-ratchet.mjs` | Asserts the ESLint suppression baselines only shrink (escape hatch: the `ratchet:reseed` label). Backs the Suppressions Ratchet CI job. | `node tools/check-suppressions-ratchet.mjs` |

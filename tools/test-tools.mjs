@@ -158,7 +158,11 @@ const run = (file, argv, options = {}) => {
     encoding: "utf8",
     cwd: options.cwd ?? REPO_ROOT,
     input: options.input ?? "",
-    env: { ...process.env, ...(options.env ?? {}) },
+    env: {
+      ...process.env,
+      ORBIT_AUTOMATION_BUDGET_LEDGER: join(root, "default-automation-budget.jsonl"),
+      ...(options.env ?? {}),
+    },
     timeout: 180000,
   })
   return {
@@ -195,14 +199,29 @@ const check = (file, name, argv, expect, options = {}) => {
 const orchestratorConfig = (repoPath, worker, engineName) =>
   JSON.stringify({
     worker: engineName,
-    workers: { [engineName]: worker },
+    workers: {
+      [engineName]: {
+        ...worker,
+        automationBudget: worker.automationBudget ?? { tier: "routine" },
+      },
+    },
     attemptsBeforeRewrite: 2,
     linear: { team: "ORB", states: { working: "In Progress", review: "In Review", done: "Done" } },
     repos: { ui: repoPath },
   })
 
-const INTERACTIVE_WORKER = { command: "claude", args: ["--permission-mode", "bypassPermissions", "--model", "opus"], interactive: true }
-const INTERACTIVE_CODEX = { command: "codex", args: ["-c", 'windows.sandbox="unelevated"', "--dangerously-bypass-approvals-and-sandbox"], interactive: true }
+const INTERACTIVE_WORKER = {
+  command: "claude",
+  args: ["--permission-mode", "bypassPermissions", "--model", "opus"],
+  interactive: true,
+  automationBudget: { tier: "routine" },
+}
+const INTERACTIVE_CODEX = {
+  command: "codex",
+  args: ["-c", 'windows.sandbox="unelevated"', "--dangerously-bypass-approvals-and-sandbox"],
+  interactive: true,
+  automationBudget: { tier: "routine" },
+}
 
 /**
  * Stages a private copy of launch-worker.mjs beside a hand-written
@@ -219,6 +238,19 @@ const stageLaunchWorker = (label, worker, engineName = "claude") => {
   mkdirSync(join(base, ".claude"), { recursive: true })
   writeFileSync(join(base, ".claude", "orchestrator.json"), orchestratorConfig(repoPath, worker, engineName))
   cpSync(join(TOOLS_DIR, "launch-worker.mjs"), join(base, "tools", "launch-worker.mjs"))
+  cpSync(join(TOOLS_DIR, "automation-budget.mjs"), join(base, "tools", "automation-budget.mjs"))
+  writeFileSync(
+    join(base, "tools", "ai-quota.mjs"),
+    `#!/usr/bin/env node
+const fallback = {
+  claude: { status: "OK", weeklyPercent: 10, sessionPercent: 5, resetsIn: "4h 7m" },
+  codex: { status: "OK", usedPercent: 10, windowDays: 7, resetsAt: 1894060800, hasCredits: false, planType: "pro" },
+}
+const result = process.env.ORBIT_TEST_AI_QUOTA ? JSON.parse(process.env.ORBIT_TEST_AI_QUOTA) : fallback
+console.log(JSON.stringify(result))
+process.exit(result.claude?.status === "OK" || result.codex?.status === "OK" ? 0 : 1)
+`,
+  )
   /** The copy imports tools/lib/tui-repaint.mjs by relative path, so the staged tree carries it too. */
   cpSync(join(TOOLS_DIR, "lib"), join(base, "tools", "lib"), { recursive: true })
   return { path: join(base, "tools", "launch-worker.mjs"), repoPath, base }
@@ -485,6 +517,15 @@ const launchWorkerCases = () => {
   const omitted = stageLaunchWorker("omits-interactive", { command: "claude", args: ["--model", "opus"] })
   check("launch-worker.mjs", "refuses an engine that omits interactive entirely", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /does not declare interactive: true/ }, { path: omitted.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
+  const missingBudgetTier = stageLaunchWorker("missing-budget-tier", { ...INTERACTIVE_WORKER, automationBudget: {} })
+  check(
+    "launch-worker.mjs",
+    "refuses a worker with no explicit routine or reserved budget tier",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 2, stderr: /automationBudget\.tier as routine or reserved/ },
+    { path: missingBudgetTier.path, env: orcaEnv(linearIssueStub(["repo:ui"])) },
+  )
+
   const headless = stageLaunchWorker("headless-args", { command: "claude", args: ["-p", "--model", "opus"], interactive: true })
   check("launch-worker.mjs", "refuses headless args behind an interactive declaration", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /headless invocation/ }, { path: headless.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
@@ -512,7 +553,7 @@ const launchWorkerCases = () => {
   check("launch-worker.mjs", "refuses codex e, the documented alias for exec", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /headless invocation of codex/ }, { path: codexExecAlias.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
   const unknownEngine = stageLaunchWorker("unknown-engine", { command: "aider", args: [], interactive: true }, "aider")
-  check("launch-worker.mjs", "refuses an engine binary with no profile rather than waving it through", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /no engine profile for/ }, { path: unknownEngine.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+  check("launch-worker.mjs", "refuses an engine with no quota reader rather than waving it through", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /has no quota reader/ }, { path: unknownEngine.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
   check("launch-worker.mjs", "refuses a missing prompt file", ["--issue", "ORB-75", "--prompt-file", join(root, "absent.md"), "--dry-run"], { status: 2, stderr: /prompt file not found/ }, { path: good.path })
   check("launch-worker.mjs", "refuses a non-Linear issue identifier", ["--issue", "nope", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /Linear identifier/ }, { path: good.path })
@@ -527,6 +568,85 @@ const launchWorkerCases = () => {
 
   const alreadyContracted = stage("prompt-with-contract.md", `the ticket body verbatim\n\n${WORKER_CONTRACT_MARKER}\n\nclauses already here\n`)
   check("launch-worker.mjs", "does not stack a second copy on relaunch", ["--issue", "ORB-75", "--prompt-file", alreadyContracted, "--dry-run"], { status: 0, stdout: /"workerContract": "already present"/ }, { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+
+  const blocked = stageLaunchWorker("budget-blocked", INTERACTIVE_CODEX, "codex")
+  const blockedLedger = stage("launch/budget-blocked.jsonl", `${budgetRecord("prior-routine", 26, "routine", "codex")}\n`)
+  const blockedLog = join(root, "launch", "budget-blocked-calls.jsonl")
+  const blockedResult = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile], {
+    path: blocked.path,
+    env: {
+      ...orcaEnv(linearIssueStub(["repo:ui"])),
+      ORBIT_AUTOMATION_BUDGET_LEDGER: blockedLedger,
+      ORBIT_ORCA_LOG: blockedLog,
+    },
+  })
+  const blockedCalls = existsSync(blockedLog) ? readFileSync(blockedLog, "utf8") : ""
+  T(
+    "launch-worker.mjs: the routine fuse blocks before any worktree is created",
+    blockedResult.status === 4 && /blocked at 26 percent/.test(blockedResult.stderr) && !blockedCalls.includes("worktree create"),
+    `exit ${blockedResult.status}\n     ${blockedResult.stderr}\n     ${blockedCalls}`,
+  )
+
+  const selectedUnavailable = stageLaunchWorker("budget-selected-unavailable", INTERACTIVE_CODEX, "codex")
+  const selectedUnavailableResult = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile], {
+    path: selectedUnavailable.path,
+    env: {
+      ...orcaEnv(linearIssueStub(["repo:ui"])),
+      ORBIT_TEST_AI_QUOTA: JSON.stringify({
+        claude: { status: "OK", weeklyPercent: 10, sessionPercent: 5, resetsIn: "4h 7m" },
+        codex: { status: "UNAVAILABLE", usedPercent: null, windowDays: null, resetsAt: null, hasCredits: null, planType: null },
+      }),
+    },
+  })
+  T(
+    "launch-worker.mjs: an unavailable selected provider fails closed",
+    selectedUnavailableResult.status === 3 && /could not read codex quota/.test(selectedUnavailableResult.stderr),
+    `exit ${selectedUnavailableResult.status}\n     ${selectedUnavailableResult.stderr}`,
+  )
+
+  const malformedClaudeReset = stageLaunchWorker("budget-malformed-claude-reset", INTERACTIVE_WORKER)
+  const malformedClaudeResult = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile], {
+    path: malformedClaudeReset.path,
+    env: {
+      ...orcaEnv(linearIssueStub(["repo:ui"])),
+      ORBIT_TEST_AI_QUOTA: JSON.stringify({
+        claude: { status: "OK", weeklyPercent: 10, sessionPercent: 5, resetsIn: "later" },
+        codex: { status: "OK", usedPercent: 10, windowDays: 7, resetsAt: 1894060800, hasCredits: false, planType: "pro" },
+      }),
+    },
+  })
+  T(
+    "launch-worker.mjs: a malformed Claude reset duration fails closed",
+    malformedClaudeResult.status === 3 && /unsupported Claude reset duration/.test(malformedClaudeResult.stderr),
+    `exit ${malformedClaudeResult.status}\n     ${malformedClaudeResult.stderr}`,
+  )
+
+  const compactClaudeReset = stageLaunchWorker("budget-compact-claude-reset", INTERACTIVE_WORKER)
+  const compactLog = join(root, "launch", "budget-compact-calls.jsonl")
+  const compactClaudeResult = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile], {
+    path: compactClaudeReset.path,
+    env: {
+      ...orcaEnv([
+        ...linearIssueStub(["repo:ui"]),
+        {
+          match: "worktree create",
+          stdout: JSON.stringify({ ok: false, error: { message: "stop after budget" } }),
+          exit: 1,
+        },
+      ]),
+      ORBIT_ORCA_LOG: compactLog,
+    },
+  })
+  const compactCalls = existsSync(compactLog)
+    ? readFileSync(compactLog, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
+    : []
+  T(
+    "launch-worker.mjs: a compact Claude reset duration reaches worktree creation after the fuse passes",
+    compactClaudeResult.status === 3 &&
+      /worktree create[\s\S]*failed: stop after budget/.test(compactClaudeResult.stderr) &&
+      compactCalls.some((argumentsList) => argumentsList[0].split(/[\\/]/).pop() === "worktree" && argumentsList[1] === "create"),
+    `exit ${compactClaudeResult.status}\n     ${compactClaudeResult.stderr}\n     ${JSON.stringify(compactCalls)}`,
+  )
 
   trustScreenCases()
   pointerDeliveryCases()
@@ -1135,7 +1255,289 @@ const newTicketStub = (created, issue, options = {}) => [
 const CREATED_OK = { ok: true, result: { issue: { identifier: "ORB-99" } } }
 const VALID_ISSUE = { identifier: "ORB-99", title: "Cover the create and validate round trip", description: VALID_TICKET_BODY, labels: [{ name: "repo:api" }] }
 
+const CODEX_QUOTA_RESPONSES = [
+  JSON.stringify({ jsonrpc: "2.0", id: 1, result: { userAgent: "quota-test" } }),
+  JSON.stringify({
+    jsonrpc: "2.0",
+    id: 2,
+    result: {
+      rateLimits: {
+        primary: {
+          usedPercent: 42,
+          windowDurationMins: 10080,
+          resetsAt: 1785456000,
+        },
+        credits: { hasCredits: false, balance: "0" },
+        planType: "pro",
+      },
+    },
+  }),
+]
+const CODEX_APP_SERVER_DIR = join(root, "quota-codex")
+stage(
+  "quota-codex/app-server",
+  `let buffer = ""
+let responseIndex = 0
+const responses = ${JSON.stringify(CODEX_QUOTA_RESPONSES)}
+process.stdin.setEncoding("utf8")
+process.stdin.on("data", (chunk) => {
+  buffer += chunk
+  const lines = buffer.split("\\n")
+  buffer = lines.pop()
+  for (const line of lines.filter(Boolean)) {
+    const request = JSON.parse(line)
+    if (responseIndex === 0 && (request.id !== 1 || request.method !== "initialize")) process.exit(5)
+    if (responseIndex === 1 && (request.id !== 2 || request.method !== "account/rateLimits/read")) process.exit(6)
+    process.stdout.write(responses[Math.min(responseIndex, responses.length - 1)] + "\\n")
+    responseIndex += 1
+  }
+})
+`,
+)
+const ORCA_QUOTA_OK = [
+  {
+    match: "computer get-app-state",
+    stdout: JSON.stringify({
+      ok: true,
+      result: { snapshot: { treeText: "1 window Orca\n41 button Usage" } },
+    }),
+  },
+  {
+    match: "computer click",
+    stdout: JSON.stringify({
+      ok: true,
+      result: {
+        snapshot: {
+          treeText: "1 window Orca\n52 staticText Claude Resets in 5d 4h 5h 12% wk 34%",
+        },
+      },
+    }),
+  },
+]
+const aiQuotaEnv = (plan, codexBin = process.execPath) => ({
+  ...orcaEnv(plan),
+  CODEX_BIN: codexBin,
+  AI_QUOTA_TIMEOUT_MS: "2000",
+})
+
+const aiQuotaCases = () => {
+  check(
+    "ai-quota.mjs",
+    "returns both populated engines when both sources are reachable",
+    ["--json"],
+    {
+      status: 0,
+      stdout:
+        /"claude":\s*\{[\s\S]*"status":\s*"OK"[\s\S]*"weeklyPercent":\s*34[\s\S]*"sessionPercent":\s*12[\s\S]*"codex":\s*\{[\s\S]*"status":\s*"OK"[\s\S]*"usedPercent":\s*42[\s\S]*"windowDays":\s*7[\s\S]*"hasCredits":\s*false[\s\S]*"planType":\s*"pro"/,
+    },
+    { cwd: CODEX_APP_SERVER_DIR, env: aiQuotaEnv(ORCA_QUOTA_OK) },
+  )
+  check(
+    "ai-quota.mjs",
+    "keeps Codex when Orca is unavailable",
+    ["--json"],
+    { status: 0, stdout: /"claude":\s*\{[\s\S]*"status":\s*"UNAVAILABLE"[\s\S]*"codex":\s*\{[\s\S]*"status":\s*"OK"/ },
+    {
+      cwd: CODEX_APP_SERVER_DIR,
+      env: aiQuotaEnv([
+        {
+          match: "computer get-app-state",
+          stdout: JSON.stringify({ ok: false, error: { message: "Orca is not running" } }),
+          exit: 1,
+        },
+      ]),
+    },
+  )
+  check(
+    "ai-quota.mjs",
+    "keeps Claude when codex app-server is unavailable",
+    ["--json"],
+    { status: 0, stdout: /"claude":\s*\{[\s\S]*"status":\s*"OK"[\s\S]*"codex":\s*\{[\s\S]*"status":\s*"UNAVAILABLE"/ },
+    { env: aiQuotaEnv(ORCA_QUOTA_OK, join(root, "missing-codex")) },
+  )
+  check(
+    "ai-quota.mjs",
+    "returns both unavailable engines and a non-zero exit when neither source is reachable",
+    ["--json"],
+    { status: 1, stdout: /"claude":\s*\{[\s\S]*"status":\s*"UNAVAILABLE"[\s\S]*"codex":\s*\{[\s\S]*"status":\s*"UNAVAILABLE"/ },
+    {
+      env: aiQuotaEnv([
+        {
+          match: "computer get-app-state",
+          stdout: JSON.stringify({ ok: false, error: { message: "Orca is not running" } }),
+          exit: 1,
+        },
+      ], join(root, "missing-codex")),
+    },
+  )
+
+  const indexLog = join(root, "ai-quota-indexes.jsonl")
+  const retry = run("ai-quota.mjs", ["--json"], {
+    env: {
+      ...aiQuotaEnv([
+        {
+          match: "computer get-app-state",
+          sequence: [
+            JSON.stringify({ ok: true, result: { snapshot: { treeText: "1 window Orca\n41 button Usage" } } }),
+            JSON.stringify({ ok: true, result: { snapshot: { treeText: "1 window Orca\n73 button Usage" } } }),
+          ],
+        },
+        {
+          match: "computer click",
+          sequence: [
+            JSON.stringify({ ok: true, result: { snapshot: { treeText: "1 window Orca\n10 staticText Loading" } } }),
+            JSON.stringify({
+              ok: true,
+              result: {
+                snapshot: {
+                  treeText: "1 window Orca\n52 staticText Claude Resets in 5d 4h 5h 12% wk 34%",
+                },
+              },
+            }),
+          ],
+        },
+      ], join(root, "missing-codex")),
+      ORBIT_ORCA_LOG: indexLog,
+    },
+  })
+  const indexCalls = existsSync(indexLog) ? readFileSync(indexLog, "utf8") : ""
+  T(
+    "ai-quota.mjs: a retry locates Usage again and never reuses the stale element index",
+    retry.status === 0 &&
+      indexCalls.includes('"--element-index","41"') &&
+      indexCalls.includes('"--element-index","73"'),
+    `exit ${retry.status}\n     ${retry.stderr}\n     ${indexCalls}`,
+  )
+}
+
+const budgetRecord = (identity, measuredCost, tier = "routine", engine = "claude") =>
+  JSON.stringify({
+    identity,
+    engine,
+    tier,
+    startedAt: "2030-01-02T09:00:00.000Z",
+    endedAt: "2030-01-02T10:00:00.000Z",
+    measuredCost,
+  })
+
+const automationBudgetCases = () => {
+  const resetAt = "2030-01-08T00:00:00Z"
+  const ledger19 = stage("budget/19.jsonl", `${budgetRecord("fixture-19", 19)}\n`)
+  const ledger21 = stage("budget/21.jsonl", `${budgetRecord("fixture-21", 21)}\n`)
+  const ledger26 = stage("budget/26.jsonl", `${budgetRecord("fixture-26", 26)}\n`)
+
+  const belowWarning = run("automation-budget.mjs", [
+    "check",
+    "--engine",
+    "claude",
+    "--tier",
+    "routine",
+    "--reset-at",
+    resetAt,
+    "--ledger",
+    ledger19,
+  ])
+  T(
+    "automation-budget.mjs: a 19 percent routine fixture proceeds silently",
+    belowWarning.status === 0 && belowWarning.stdout === "" && belowWarning.stderr === "",
+    `exit ${belowWarning.status}\n     stdout: ${belowWarning.stdout}\n     stderr: ${belowWarning.stderr}`,
+  )
+  check(
+    "automation-budget.mjs",
+    "a 21 percent routine fixture proceeds with a warning",
+    ["check", "--engine", "claude", "--tier", "routine", "--reset-at", resetAt, "--ledger", ledger21],
+    { status: 0, stderr: /warning[\s\S]*21 percent[\s\S]*20 percent[\s\S]*25 percent[\s\S]*2030-01-08T00:00:00.000Z/ },
+  )
+  check(
+    "automation-budget.mjs",
+    "a 26 percent routine fixture is blocked with the figure, threshold, and reset",
+    ["check", "--engine", "claude", "--tier", "routine", "--reset-at", resetAt, "--ledger", ledger26],
+    { status: 4, stderr: /blocked at 26 percent[\s\S]*threshold 25 percent[\s\S]*resets at 2030-01-08T00:00:00.000Z/ },
+  )
+  const reserved = run("automation-budget.mjs", [
+    "check",
+    "--engine",
+    "claude",
+    "--tier",
+    "reserved",
+    "--reset-at",
+    resetAt,
+    "--ledger",
+    ledger26,
+  ])
+  T(
+    "automation-budget.mjs: reserved deep work is permitted at 26 percent without a routine warning",
+    reserved.status === 0 && reserved.stdout === "" && reserved.stderr === "",
+    `exit ${reserved.status}\n     stdout: ${reserved.stdout}\n     stderr: ${reserved.stderr}`,
+  )
+
+  check(
+    "automation-budget.mjs",
+    "a malformed ledger is rejected instead of silently changing the fuse total",
+    ["check", "--engine", "claude", "--tier", "routine", "--reset-at", resetAt, "--ledger", stage("budget/broken.jsonl", "{nope}\n")],
+    { status: 3, stderr: /ledger line 1 is not valid JSON/ },
+  )
+  check(
+    "automation-budget.mjs",
+    "record appends the complete invocation identity and measured cost",
+    [
+      "record",
+      "--identity",
+      "workflow:123",
+      "--engine",
+      "codex",
+      "--tier",
+      "routine",
+      "--started-at",
+      "2030-01-03T09:00:00Z",
+      "--ended-at",
+      "2030-01-03T09:05:00Z",
+      "--measured-cost",
+      "1.25",
+      "--ledger",
+      stage("budget/record.jsonl", ""),
+      "--json",
+    ],
+    {
+      status: 0,
+      stdout:
+        /"status":"RECORDED"[\s\S]*"identity":"workflow:123"[\s\S]*"engine":"codex"[\s\S]*"tier":"routine"[\s\S]*"startedAt":"2030-01-03T09:00:00.000Z"[\s\S]*"endedAt":"2030-01-03T09:05:00.000Z"[\s\S]*"measuredCost":1.25/,
+    },
+  )
+
+  const concurrentLedger = join(root, "budget", "concurrent.jsonl")
+  const concurrentRunner = stage(
+    "budget/concurrent-records.mjs",
+    `import { spawn } from "node:child_process"
+const [tool, ledger] = process.argv.slice(2)
+const base = ["--engine", "claude", "--tier", "routine", "--started-at", "2030-01-04T09:00:00Z", "--ended-at", "2030-01-04T09:01:00Z", "--measured-cost", "1", "--ledger", ledger]
+const run = (identity) => new Promise((resolve) => {
+  const child = spawn(process.execPath, [tool, "record", "--identity", identity, ...base], { stdio: "inherit" })
+  child.on("exit", (status) => resolve(status))
+})
+const statuses = await Promise.all([run("concurrent-a"), run("concurrent-b")])
+process.exit(statuses.every((status) => status === 0) ? 0 : 1)
+`,
+  )
+  const concurrent = spawnSync(process.execPath, [concurrentRunner, join(TOOLS_DIR, "automation-budget.mjs"), concurrentLedger], {
+    encoding: "utf8",
+    timeout: 10000,
+  })
+  const concurrentRecords = existsSync(concurrentLedger)
+    ? readFileSync(concurrentLedger, "utf8").trim().split(/\r?\n/).map((line) => JSON.parse(line))
+    : []
+  T(
+    "automation-budget.mjs: two concurrent invocations append without losing a record",
+    concurrent.status === 0 &&
+      concurrentRecords.length === 2 &&
+      new Set(concurrentRecords.map((record) => record.identity)).size === 2,
+    `exit ${concurrent.status}\n     ${concurrent.stderr ?? ""}\n     ${JSON.stringify(concurrentRecords)}`,
+  )
+}
+
 const gateCases = {
+  "ai-quota.mjs": aiQuotaCases,
+  "automation-budget.mjs": automationBudgetCases,
   "new-ticket.mjs": () => {
     const argv = ["--title", "Cover the create and validate round trip", "--project", "Backlog"]
     check("new-ticket.mjs", "validates the identifier orca reported", argv, { status: 0, stdout: /ticket ok/ }, { env: orcaEnv(newTicketStub(CREATED_OK, VALID_ISSUE)) })
@@ -1226,7 +1628,9 @@ const gateCases = {
 const INVALID_INPUT = {
   "agent-review.ps1": { argv: ["--orbit-not-a-flag"], status: 1 },
   "agent-review.sh": { argv: ["--orbit-not-a-flag"], status: 1 },
+  "ai-quota.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "arch-map.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "automation-budget.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "capture-surfaces.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-copy.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-dashes.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },

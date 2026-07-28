@@ -20,6 +20,7 @@
 import { execFileSync, spawnSync } from "node:child_process"
 import { appendFileSync, existsSync, readFileSync, statSync } from "node:fs"
 import { basename, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
 
 import { SETTLE_MS, isRepainting, pause } from "./lib/tui-repaint.mjs"
 
@@ -51,7 +52,8 @@ off the TUI, never merely that orca accepted the send.
 
 exit codes: 0 worker launched and holding the work order, 1 the worker never reached tui-idle or
             never took the prompt pointer as a turn, 2 usage or config error,
-            3 an orca or git command failed
+            3 an orca, git, quota reader or budget command failed,
+            4 routine automation blocked by the quota fuse
 
 Any non-zero exit after the worktree exists stops its terminals and removes that worktree and
 the branches this run created, so a relaunch starts clean instead of piling up orb-N-slug-2.
@@ -295,6 +297,68 @@ const git = (args) => {
   }
 }
 
+const quotaToolPath = fileURLToPath(new URL("./ai-quota.mjs", import.meta.url))
+const budgetToolPath = fileURLToPath(new URL("./automation-budget.mjs", import.meta.url))
+
+const parseClaudeResetAt = (resetsIn) => {
+  if (typeof resetsIn !== "string") {
+    fail(3, "ai-quota returned no Claude weekly reset duration; refusing to launch unattended automation")
+  }
+  const match = resetsIn.match(/^(?:(\d+)d(?: (\d+)h)?(?: (\d+)m)?|(\d+)h(?: (\d+)m)?|(\d+)m)$/)
+  if (!match) {
+    fail(3, `ai-quota returned unsupported Claude reset duration "${resetsIn}"; expected compact d/h/m units such as "6d 4h"`)
+  }
+  const days = Number(match[1] ?? 0)
+  const hours = Number(match[2] ?? match[4] ?? 0)
+  const minutes = Number(match[3] ?? match[5] ?? match[6] ?? 0)
+  const durationMilliseconds = ((days * 24 + hours) * 60 + minutes) * 60 * 1000
+  if (!Number.isSafeInteger(durationMilliseconds) || durationMilliseconds <= 0) {
+    fail(3, `ai-quota returned invalid Claude reset duration "${resetsIn}"; refusing to launch unattended automation`)
+  }
+  return new Date(Date.now() + durationMilliseconds).toISOString()
+}
+
+const parseCodexResetAt = (resetsAt) => {
+  const milliseconds = typeof resetsAt === "number" ? resetsAt * 1000 : Date.parse(resetsAt)
+  if (!Number.isFinite(milliseconds) || milliseconds <= Date.now()) {
+    fail(3, `ai-quota returned invalid Codex reset timestamp "${resetsAt}"; refusing to launch unattended automation`)
+  }
+  return new Date(milliseconds).toISOString()
+}
+
+const checkAutomationBudget = (engineName, tier) => {
+  const quotaResult = spawnSync(process.execPath, [quotaToolPath, "--json"], {
+    encoding: "utf8",
+    maxBuffer: 32 * 1024 * 1024,
+  })
+  if (quotaResult.error) fail(3, `ai-quota could not start: ${quotaResult.error.message}`)
+  let quota
+  try {
+    quota = JSON.parse(quotaResult.stdout)
+  } catch {
+    fail(3, `ai-quota returned unparseable output: ${(quotaResult.stdout || quotaResult.stderr || "").slice(0, 400)}`)
+  }
+  const selectedQuota = quota?.[engineName]
+  if (selectedQuota?.status !== "OK") {
+    fail(3, `ai-quota could not read ${engineName} quota; refusing to launch unattended automation`)
+  }
+  const resetAt = engineName === "claude"
+    ? parseClaudeResetAt(selectedQuota.resetsIn)
+    : parseCodexResetAt(selectedQuota.resetsAt)
+  const budgetResult = spawnSync(
+    process.execPath,
+    [budgetToolPath, "check", "--engine", engineName, "--tier", tier, "--reset-at", resetAt, "--json"],
+    { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 },
+  )
+  if (budgetResult.error) fail(3, `automation-budget could not start: ${budgetResult.error.message}`)
+  if (budgetResult.status === 0) {
+    if (budgetResult.stderr) process.stderr.write(budgetResult.stderr)
+    return
+  }
+  const reason = (budgetResult.stderr || budgetResult.stdout || "automation-budget failed").trim()
+  fail(budgetResult.status === 4 ? 4 : 3, reason)
+}
+
 const issue = argOf("--issue")
 const promptFileArg = argOf("--prompt-file")
 const repoOverride = argOf("--repo")
@@ -321,6 +385,13 @@ const engineName = config.worker
 const engine = config.workers?.[engineName]
 if (!engine?.command) fail(2, `.claude/orchestrator.json names worker "${engineName}" but carries no command for it`)
 if (!Array.isArray(engine.args)) fail(2, `.claude/orchestrator.json worker "${engineName}" carries no args array; give it one (use [] for none)`)
+if (!["claude", "codex"].includes(engineName)) {
+  fail(2, `.claude/orchestrator.json worker "${engineName}" has no quota reader; expected claude or codex`)
+}
+const automationBudget = engine.automationBudget
+if (!automationBudget || !["routine", "reserved"].includes(automationBudget.tier)) {
+  fail(2, `.claude/orchestrator.json worker "${engineName}" must declare automationBudget.tier as routine or reserved`)
+}
 if (engine.interactive !== true) {
   fail(
     2,
@@ -402,6 +473,7 @@ const plan = {
   baseBranch,
   engine: engineName,
   command,
+  automationBudget,
   promptFile,
   workerContract,
   labels,
@@ -411,6 +483,8 @@ if (dryRun) {
   console.log(JSON.stringify({ ...plan, dryRun: true }, null, 2))
   process.exit(0)
 }
+
+checkAutomationBudget(engineName, automationBudget.tier)
 
 /** Before anything is created, so a launch that fails later still leaves the work order complete
  * for the relaunch. A dry run resolves this decision but writes nothing. */
