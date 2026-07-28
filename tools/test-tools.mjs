@@ -24,6 +24,7 @@
  */
 
 import { spawnSync } from "node:child_process"
+import { createHash } from "node:crypto"
 import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
@@ -75,6 +76,36 @@ const stage = (relativePath, body) => {
   return path
 }
 
+const LOCKSTEP_PATHS = [
+  ".claude/skills/pr-review/SKILL.md",
+  ".claude/skills/pr-review/rubric.md",
+  ".claude/skills/_shared/verification-protocol.md",
+  ".claude/agents/contract-aligner.md",
+  ".claude/agents/security-reviewer.md",
+  ".claude/skills/second-opinion/second-opinion.mjs",
+]
+const lockstepFingerprint = (ui, api) =>
+  createHash("sha256").update(JSON.stringify({ ui: [ui], api: [api] })).digest("hex")
+const lockstepFixture = (label, uiBody = "shared\n", apiBody = uiBody, declarations = []) => {
+  const uiRoot = join(root, "lockstep", label, "ui")
+  const apiRoot = join(root, "lockstep", label, "api")
+  const files = {}
+  for (const path of LOCKSTEP_PATHS) {
+    stage(join("lockstep", label, "ui", path), path === LOCKSTEP_PATHS[0] ? uiBody : "shared\n")
+    stage(join("lockstep", label, "api", path), path === LOCKSTEP_PATHS[0] ? apiBody : "shared\n")
+    files[path] = { declarations: path === LOCKSTEP_PATHS[0] ? declarations : [] }
+  }
+  const manifest = stage(join("lockstep", label, "manifest.json"), JSON.stringify({ version: 1, files }))
+  return { uiRoot, apiRoot, manifest }
+}
+const lockstepDefaultApiFixture = (label) => {
+  const fixture = lockstepFixture(label)
+  const apiRoot = resolve(fixture.uiRoot, "..", "orbit-api")
+  cpSync(fixture.apiRoot, apiRoot, { recursive: true })
+  rmSync(fixture.apiRoot, { recursive: true, force: true })
+  return { ...fixture, apiRoot }
+}
+
 /**
  * The PATH `bash` on Windows is the WSL stub, which fails with no such file. Resolve
  * a real one and fail loudly rather than skipping every .sh tool.
@@ -109,7 +140,8 @@ const BASH = resolveBash()
  */
 const ORCA_SHIM = stage(
   "orca-shim.cjs",
-  `const { appendFileSync, existsSync, readFileSync, rmSync } = require("node:fs")
+  `const { spawnSync } = require("node:child_process")
+const { appendFileSync, existsSync, readFileSync, rmSync } = require("node:fs")
 const argv = process.argv.slice(1)
 if (argv[0] && existsSync(argv[0])) return
 const line = argv.join(" ")
@@ -121,17 +153,21 @@ if (!match) {
 }
 if (match.delayMs) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, match.delayMs)
 if (match.removePath) rmSync(match.removePath, { recursive: true, force: true })
+if (match.pruneRepo) spawnSync("git", ["-C", match.pruneRepo, "worktree", "prune"])
 let out = match.stdout
+let exit = match.exit ?? 0
 if (Array.isArray(match.sequence)) {
   const log = process.env.ORBIT_ORCA_LOG
   const previous = log && existsSync(log)
     ? readFileSync(log, "utf8").split("\\n").filter(Boolean).filter((entry) => JSON.parse(entry).join(" ").includes(match.match)).length
     : 0
-  out = match.sequence[Math.min(previous, match.sequence.length - 1)]
+  const selected = match.sequence[Math.min(previous, match.sequence.length - 1)]
+  out = typeof selected === "string" ? selected : selected.stdout
+  if (typeof selected !== "string") exit = selected.exit ?? exit
 }
 if (process.env.ORBIT_ORCA_LOG) appendFileSync(process.env.ORBIT_ORCA_LOG, JSON.stringify(argv) + "\\n")
 process.stdout.write(out.replaceAll("__NOW__", String(Date.now())))
-process.exit(match.exit ?? 0)
+process.exit(exit)
 `,
 )
 
@@ -465,6 +501,73 @@ const pointerDeliveryCases = () => {
   )
 }
 
+const runTerminalCreateLaunch = (label, terminalCreateSequence) => {
+  const staged = stageLaunchWorker(label, INTERACTIVE_WORKER)
+  const checkout = join(staged.base, "checkout")
+  const git = (args) => spawnSync("git", ["-C", staged.repoPath, ...args], { encoding: "utf8" })
+  for (const args of [
+    ["init", "-q", "--initial-branch=main"],
+    ["config", "user.email", "gate@orbit.test"],
+    ["config", "user.name", "Orbit Gate"],
+    ["commit", "-q", "--allow-empty", "-m", "base"],
+    ["worktree", "add", "-q", "-b", "thomasluizon/orb-75", checkout],
+  ]) {
+    if (git(args).status !== 0) return null
+  }
+
+  const log = join(staged.base, "orca-calls.log")
+  const promptFile = stage(`${label}-prompt.md`, "the ticket body verbatim\n")
+  const painted = `> Read ${promptFile} and execute it in full. That file is your complete work order for ORB-75:`
+  const plan = [
+    ...linearIssueStub(["repo:ui"]),
+    { match: "worktree create", stdout: JSON.stringify({ ok: true, result: { worktree: { path: checkout, branch: "refs/heads/thomasluizon/orb-75" } } }) },
+    { match: "terminal create", sequence: terminalCreateSequence },
+    { match: "terminal wait", stdout: JSON.stringify({ ok: true, result: { wait: { satisfied: true } } }) },
+    { match: "terminal show", stdout: JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1785168487585 } } }) },
+    { match: "terminal read", stdout: JSON.stringify({ ok: true, result: { terminal: { tail: [painted] } } }) },
+    { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }) },
+    { match: "terminal switch", stdout: JSON.stringify({ ok: true, result: {} }) },
+    { match: "worktree set", stdout: JSON.stringify({ ok: true, result: {} }) },
+    { match: "terminal stop", stdout: JSON.stringify({ ok: true, result: {} }) },
+    { match: "worktree rm", stdout: JSON.stringify({ ok: true, result: {} }), removePath: checkout, pruneRepo: staged.repoPath },
+  ]
+  const result = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile], {
+    path: staged.path,
+    env: { ...orcaEnv(plan), ORBIT_ORCA_LOG: log },
+  })
+  const calls = existsSync(log) ? readFileSync(log, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line)) : []
+  const count = (first, second) => calls.filter((argv) => argv[0].split(/[\\/]/).pop() === first && argv[1] === second).length
+  const branches = git(["branch", "--list", "feature/orb-75-prove-the-harness-gate", "thomasluizon/orb-75"]).stdout.trim()
+  return { result, terminalCreates: count("terminal", "create"), worktreeCreates: count("worktree", "create"), checkout, branches }
+}
+
+const terminalCreateRetryCases = () => {
+  const timeout = { stdout: JSON.stringify({ ok: false, error: { code: "timeout", message: "Terminal creation timed out" } }), exit: 1 }
+  const success = { stdout: JSON.stringify({ ok: true, result: { terminal: { handle: "t1" } } }), exit: 0 }
+  const recovered = runTerminalCreateLaunch("terminal-create-recovers", [timeout, success])
+  if (!recovered) {
+    T("launch-worker.mjs: terminal create retries can be staged", false, "could not stage a linked git worktree")
+    return
+  }
+  T(
+    "launch-worker.mjs: a terminal create timeout retries inside the same worktree and then succeeds",
+    recovered.result.status === 0 && recovered.terminalCreates === 2 && recovered.worktreeCreates === 1 && /"terminal": "t1"/.test(recovered.result.stdout),
+    `exit ${recovered.result.status}, terminal creates ${recovered.terminalCreates}, worktree creates ${recovered.worktreeCreates}\n     ${recovered.result.stderr.trim().split("\n").slice(-5).join("\n     ")}`,
+  )
+
+  const exhausted = runTerminalCreateLaunch("terminal-create-exhausted", [timeout, timeout, timeout])
+  T(
+    "launch-worker.mjs: terminal create timeout retries are bounded and preserve the timeout cause",
+    exhausted.result.status === 3 && exhausted.terminalCreates === 3 && /failed after 3 attempts: Terminal creation timed out/.test(exhausted.result.stderr),
+    `exit ${exhausted.result.status}, terminal creates ${exhausted.terminalCreates}\n     ${exhausted.result.stderr.trim().split("\n").slice(-6).join("\n     ")}`,
+  )
+  T(
+    "launch-worker.mjs: exhausting terminal create retries rolls back the one worktree and both branches",
+    exhausted.worktreeCreates === 1 && !existsSync(exhausted.checkout) && exhausted.branches === "",
+    `worktree creates ${exhausted.worktreeCreates}, checkout exists ${existsSync(exhausted.checkout)}, branches ${JSON.stringify(exhausted.branches)}`,
+  )
+}
+
 const launchWorkerCases = () => {
   const promptFile = stage("prompt.md", "the ticket body verbatim\n")
 
@@ -530,6 +633,7 @@ const launchWorkerCases = () => {
 
   trustScreenCases()
   pointerDeliveryCases()
+  terminalCreateRetryCases()
 
   const launcherSource = readFileSync(join(TOOLS_DIR, "launch-worker.mjs"), "utf8")
   for (const [clause, pattern] of Object.entries(REQUIRED_CONTRACT_CLAUSES)) {
@@ -691,6 +795,7 @@ const prWatchCases = () => {
  * concatenated repaint fragments that hide whatever it last really said.
  */
 const workerWatchCases = () => {
+  const terminalHandle = "term_ca852374-175d-42cd-8407-b579a03cc13a"
   const childWorktree = (path) => ({
     path,
     repoId: "r-ui",
@@ -710,7 +815,7 @@ const workerWatchCases = () => {
     { match: "worktree list", stdout: JSON.stringify({ ok: true, result: { worktrees: [childWorktree(path)] } }) },
     {
       match: "terminal list",
-      stdout: JSON.stringify({ ok: true, result: { terminals: [{ handle: "term_abc123def4567", worktreePath: path, title: "Claude Code", lastOutputAt: 0 }] } }).replace(
+      stdout: JSON.stringify({ ok: true, result: { terminals: [{ handle: terminalHandle, worktreePath: path, title: "Claude Code", lastOutputAt: 0 }] } }).replace(
         '"lastOutputAt":0',
         `"lastOutputAt":${lastOutputAt}`,
       ),
@@ -744,6 +849,11 @@ const workerWatchCases = () => {
   )
   T("worker-watch.mjs: the repaint tail is stripped to nothing rather than printed raw", /nothing but repaint noise/.test(busy.stdout), busy.stdout.slice(0, 400))
   T("worker-watch.mjs: the ticket's Linear state is reported alongside liveness", /In Progress/.test(busy.stdout), busy.stdout.slice(0, 400))
+  T(
+    "worker-watch.mjs: the rendered terminal handle is complete and directly reusable",
+    busy.stdout.includes(`${terminalHandle} BUSY`) && !/term_ca852374\s+BUSY/.test(busy.stdout),
+    busy.stdout.slice(0, 400),
+  )
 
   /** A frozen lastOutputAt is a settled TUI: identical samples, so IDLE. */
   const idle = check(
@@ -1143,6 +1253,136 @@ const newTicketStub = (created, issue, options = {}) => [
 const CREATED_OK = { ok: true, result: { issue: { identifier: "ORB-99" } } }
 const VALID_ISSUE = { identifier: "ORB-99", title: "Cover the create and validate round trip", description: VALID_TICKET_BODY, labels: [{ name: "repo:api" }] }
 
+const CONTEXT_CLAUDE = [
+  "# Orbit fixture",
+  "",
+  "@../orbit-api/CLAUDE.md",
+  "@../orbit-landing-page/CLAUDE.md",
+  "",
+].join("\n")
+const CONTEXT_CORE = "# Core fixture\n\nAlways applies.\n"
+const contextBytes = (body) => Buffer.byteLength(body, "utf8")
+const contextGit = (repo, argumentsList) => {
+  const result = spawnSync("git", argumentsList, { cwd: repo, encoding: "utf8" })
+  if (result.status !== 0) throw new Error(`context budget git fixture failed: git ${argumentsList.join(" ")}\n${result.stderr}`)
+}
+const stageContextBudget = (label, options = {}) => {
+  const parent = join(root, "context-budget", label)
+  const repo = join(parent, "orbit-ui-mobile")
+  const tools = join(repo, "tools")
+  const rules = join(repo, ".claude", "rules")
+  const claude = options.claude ?? CONTEXT_CLAUDE
+  const core = options.core ?? CONTEXT_CORE
+  mkdirSync(tools, { recursive: true })
+  mkdirSync(rules, { recursive: true })
+  cpSync(join(TOOLS_DIR, "check-context-budget.mjs"), join(tools, "check-context-budget.mjs"))
+  writeFileSync(join(repo, "CLAUDE.md"), claude)
+  writeFileSync(join(rules, "core.md"), core)
+  for (const [file, body] of Object.entries(options.rules ?? {})) writeFileSync(join(rules, file), body)
+  for (const [repoName, body] of Object.entries(options.siblings ?? {})) {
+    const sibling = join(parent, repoName, "CLAUDE.md")
+    mkdirSync(dirname(sibling), { recursive: true })
+    writeFileSync(sibling, body)
+  }
+  const measuredFiles = {
+    "CLAUDE.md": contextBytes(claude),
+    ".claude/rules/core.md": contextBytes(core),
+  }
+  const baselineAdjustment = options.baselineAdjustment ?? 0
+  const baseline = options.baseline ?? {
+    bytes: Object.values(measuredFiles).reduce((sum, bytes) => sum + bytes, 0) + baselineAdjustment,
+    files: {
+      ...measuredFiles,
+      "CLAUDE.md": measuredFiles["CLAUDE.md"] + baselineAdjustment,
+    },
+  }
+  const baselinePath = join(tools, "context-budget.json")
+  const baselineBody = typeof baseline === "string" ? baseline : `${JSON.stringify(baseline, null, 2)}\n`
+  if (options.baselineOnBase !== false) writeFileSync(baselinePath, baselineBody)
+  contextGit(repo, ["init", "-b", "main"])
+  contextGit(repo, ["config", "user.email", "context-budget@example.test"])
+  contextGit(repo, ["config", "user.name", "Context Budget Fixture"])
+  const trackedPaths = [
+    "CLAUDE.md",
+    ".claude/rules/core.md",
+    ...Object.keys(options.rules ?? {}).map((file) => `.claude/rules/${file}`),
+    "tools/check-context-budget.mjs",
+  ]
+  if (options.baselineOnBase !== false) trackedPaths.push("tools/context-budget.json")
+  contextGit(repo, ["add", "--", ...trackedPaths])
+  contextGit(repo, ["commit", "-m", "Seed context budget fixture"])
+  contextGit(repo, ["switch", "-c", "feature"])
+  if (options.baselineOnBase === false) writeFileSync(baselinePath, baselineBody)
+  return { path: join(tools, "check-context-budget.mjs"), repo, baselinePath, measuredFiles }
+}
+
+const contextBudgetCases = () => {
+  const over = stageContextBudget("over", { baselineAdjustment: -1 })
+  check("check-context-budget.mjs", "total over baseline exits 1 and names the offending file", ["--check"], { status: 1, stderr: /grew by 1 byte[\s\S]*CLAUDE\.md: \+1 byte/i }, { path: over.path, cwd: over.repo })
+
+  const under = stageContextBudget("under", { baselineAdjustment: 1 })
+  const underBaselineBefore = readFileSync(under.baselinePath, "utf8")
+  const underResult = check("check-context-budget.mjs", "total under baseline exits 0", ["--check"], { status: 0 }, { path: under.path, cwd: under.repo })
+  T(
+    "check-context-budget.mjs: an under-budget check does not rewrite context-budget.json",
+    underResult.status === 0 && readFileSync(under.baselinePath, "utf8") === underBaselineBefore,
+    readFileSync(under.baselinePath, "utf8"),
+  )
+
+  const regenerated = stageContextBudget("regenerated")
+  writeFileSync(join(regenerated.repo, "CLAUDE.md"), `${CONTEXT_CLAUDE}x`)
+  check("check-context-budget.mjs", "a grown branch can regenerate its working baseline", ["--write-baseline"], { status: 0 }, { path: regenerated.path, cwd: regenerated.repo })
+  check("check-context-budget.mjs", "a regenerated working baseline cannot hide growth from the target branch", ["--check"], { status: 1, stderr: /grew by 1 byte[\s\S]*CLAUDE\.md: \+1 byte/i }, { path: regenerated.path, cwd: regenerated.repo })
+
+  const bootstrap = stageContextBudget("bootstrap", { baselineOnBase: false })
+  check("check-context-budget.mjs", "a first-run baseline bootstraps only when absent from the target branch", ["--check"], { status: 0, stdout: /working tree bootstrap/ }, { path: bootstrap.path, cwd: bootstrap.repo })
+
+  const unfetched = stageContextBudget("unfetched")
+  check("check-context-budget.mjs", "an unfetched target branch fails closed", ["--check"], { status: 2, stderr: /target branch missing-base is unavailable.*fetch its history/i }, { path: unfetched.path, cwd: unfetched.repo, env: { CONTEXT_BUDGET_BASE_REF: "missing-base" } })
+
+  const importAddition = stageContextBudget("import-addition", { claude: `${CONTEXT_CLAUDE}@../new-sibling/CLAUDE.md\n` })
+  check("check-context-budget.mjs", "an unallowlisted import fails even when its target is absent", ["--check"], { status: 1, stderr: /@..\/new-sibling\/CLAUDE\.md|import/i }, { path: importAddition.path, cwd: importAddition.repo })
+
+  const unconditional = stageContextBudget("unconditional-rule", { rules: { "foo.md": "# Always loaded\n" } })
+  check("check-context-budget.mjs", "a new unconditional rules file exits 1", ["--check"], { status: 1, stderr: /foo\.md/ }, { path: unconditional.path, cwd: unconditional.repo })
+
+  const scoped = stageContextBudget("scoped-rule", { rules: { "foo.md": "---\npaths:\n  - apps/web/**\n---\n# Scoped\n" } })
+  check("check-context-budget.mjs", "a rules file with paths frontmatter stays outside the budget", ["--check"], { status: 0 }, { path: scoped.path, cwd: scoped.repo })
+
+  const siblingsAbsent = stageContextBudget("siblings-absent")
+  const absentResult = check("check-context-budget.mjs", "missing sibling repos do not fail the check", ["--check"], { status: 0, stdout: /full.session/i }, { path: siblingsAbsent.path, cwd: siblingsAbsent.repo })
+  T(
+    "check-context-budget.mjs: missing sibling files are omitted from the printed full-session table",
+    absentResult.status === 0 && !/(?:orbit-api|orbit-landing-page)\/CLAUDE\.md\s+\d/.test(absentResult.stdout.replaceAll("\\", "/")),
+    absentResult.stdout,
+  )
+
+  const siblingsPresent = stageContextBudget("siblings-present", {
+    siblings: {
+      "orbit-api": "# API fixture\n",
+      "orbit-landing-page": "# Landing fixture\n",
+    },
+  })
+  const presentResult = check("check-context-budget.mjs", "present sibling files do not change the enforced verdict", ["--check"], { status: 0 }, { path: siblingsPresent.path, cwd: siblingsPresent.repo })
+  T(
+    "check-context-budget.mjs: present sibling files are included in the printed full-session table",
+    presentResult.status === 0 && /orbit-api\/CLAUDE\.md:\s+\d+ bytes/.test(presentResult.stdout.replaceAll("\\", "/")) && /orbit-landing-page\/CLAUDE\.md:\s+\d+ bytes/.test(presentResult.stdout.replaceAll("\\", "/")),
+    presentResult.stdout,
+  )
+
+  const malformed = stageContextBudget("malformed", { baseline: "{not-json\n" })
+  check("check-context-budget.mjs", "a malformed baseline is a tool error", ["--check"], { status: 2 }, { path: malformed.path, cwd: malformed.repo })
+
+  const help = stageContextBudget("help")
+  check(
+    "check-context-budget.mjs",
+    "help names every flag and every exit code",
+    ["--help"],
+    { status: 0, stdout: /(?=[\s\S]*--check)(?=[\s\S]*--write-baseline)(?=[\s\S]*--json)(?=[\s\S]*--help)(?=[\s\S]*-h)(?=[\s\S]*0)(?=[\s\S]*1)(?=[\s\S]*2)/ },
+    { path: help.path, cwd: help.repo },
+  )
+}
+
 const gateCases = {
   "new-ticket.mjs": () => {
     const argv = ["--title", "Cover the create and validate round trip", "--project", "Backlog"]
@@ -1231,10 +1471,112 @@ const gateCases = {
     check("check-dashes.mjs", "an em dash in text is rejected", ["--text", `a${EM_DASH}b`], { status: 1, stderr: /Banned dash/ })
     check("check-dashes.mjs", "clean text passes", ["--text", "a plain hyphen - is fine"], { status: 0 })
   },
+  "check-lockstep.mjs": () => {
+    const matching = lockstepFixture("matching")
+    check("check-lockstep.mjs", "six matching pairs pass", ["--ui-root", matching.uiRoot, "--api-root", matching.apiRoot, "--manifest", matching.manifest], { status: 0, stdout: /HARNESS LOCKSTEP OK/ })
+
+    const malformedManifest = lockstepFixture("malformed-manifest")
+    writeFileSync(malformedManifest.manifest, JSON.stringify({ version: 1, files: {} }))
+    check(
+      "check-lockstep.mjs",
+      "a malformed declaration manifest fails loudly",
+      ["--ui-root", malformedManifest.uiRoot, "--api-root", malformedManifest.apiRoot, "--manifest", malformedManifest.manifest],
+      { status: 1, stderr: /check-lockstep: unreadable comparison input: manifest must declare exactly the six lockstep paths/ },
+    )
+
+    const configuredDefault = lockstepFixture("default-configured")
+    writeFileSync(join(configuredDefault.uiRoot, ".claude", "orchestrator.json"), JSON.stringify({ repos: { api: configuredDefault.apiRoot } }))
+    check(
+      "check-lockstep.mjs",
+      "uses orchestrator repos.api when --api-root is omitted",
+      ["--ui-root", configuredDefault.uiRoot, "--manifest", configuredDefault.manifest],
+      { status: 0, stdout: /^HARNESS LOCKSTEP OK: 6 pairs checked\s*$/, stderr: /^$/ },
+      { cwd: root },
+    )
+
+    const missingConfiguredApi = lockstepDefaultApiFixture("default-missing-api")
+    writeFileSync(join(missingConfiguredApi.uiRoot, ".claude", "orchestrator.json"), JSON.stringify({ repos: {} }))
+    check(
+      "check-lockstep.mjs",
+      "falls back to the sibling when orchestrator repos.api is missing",
+      ["--ui-root", missingConfiguredApi.uiRoot, "--manifest", missingConfiguredApi.manifest],
+      { status: 0, stdout: /^HARNESS LOCKSTEP OK: 6 pairs checked\s*$/, stderr: /^$/ },
+      { cwd: root },
+    )
+
+    const malformedConfig = lockstepDefaultApiFixture("default-malformed-config")
+    writeFileSync(join(malformedConfig.uiRoot, ".claude", "orchestrator.json"), "{not-json")
+    check(
+      "check-lockstep.mjs",
+      "falls back to the sibling when orchestrator config is unparsable",
+      ["--ui-root", malformedConfig.uiRoot, "--manifest", malformedConfig.manifest],
+      { status: 0, stdout: /^HARNESS LOCKSTEP OK: 6 pairs checked\s*$/, stderr: /^$/ },
+      { cwd: root },
+    )
+
+    const absentConfig = lockstepDefaultApiFixture("default-no-config")
+    check(
+      "check-lockstep.mjs",
+      "falls back to the sibling when orchestrator config is absent",
+      ["--ui-root", absentConfig.uiRoot, "--manifest", absentConfig.manifest],
+      { status: 0, stdout: /^HARNESS LOCKSTEP OK: 6 pairs checked\s*$/, stderr: /^$/ },
+      { cwd: root },
+    )
+
+    const divergent = lockstepFixture("divergent", "shared\nui-only\nshared-tail\n", "shared\napi-only\nshared-tail\n")
+    check("check-lockstep.mjs", "an undeclared divergence fails with its file and region", ["--ui-root", divergent.uiRoot, "--api-root", divergent.apiRoot, "--manifest", divergent.manifest], { status: 1, stderr: /pr-review\/SKILL\.md: undeclared region/ })
+
+    const staleFingerprint = lockstepFingerprint("old-ui-only", "old-api-only")
+    const staleDeclaration = [{ id: "obsolete-platform-wording", justification: "The old repository wording was intentionally different.", fingerprints: [staleFingerprint] }]
+    const stale = lockstepFixture("stale-declaration", "shared\ncurrent-ui\nshared-tail\n", "shared\ncurrent-api\nshared-tail\n", staleDeclaration)
+    check(
+      "check-lockstep.mjs",
+      "a declaration that matches no current diff is stale",
+      ["--ui-root", stale.uiRoot, "--api-root", stale.apiRoot, "--manifest", stale.manifest],
+      { status: 1, stderr: new RegExp(`stale declaration obsolete-platform-wording \\(${staleFingerprint}\\); remove it or update the justified region`) },
+    )
+
+    const declaration = [{ id: "platform-wording", justification: "The repository names its own platform.", fingerprints: [lockstepFingerprint("ui-only", "api-only")] }]
+    const declared = lockstepFixture("declared", "shared\nui-only\nshared-tail\n", "shared\napi-only\nshared-tail\n", declaration)
+    check("check-lockstep.mjs", "a justified declared divergence passes", ["--ui-root", declared.uiRoot, "--api-root", declared.apiRoot, "--manifest", declared.manifest], { status: 0 })
+    writeFileSync(join(declared.uiRoot, LOCKSTEP_PATHS[0]), "changed-shared\nui-only\nshared-tail\n")
+    check("check-lockstep.mjs", "a change in the shared region still fails", ["--ui-root", declared.uiRoot, "--api-root", declared.apiRoot, "--manifest", declared.manifest], { status: 1, stderr: /undeclared region/ })
+
+    const byteExact = lockstepFixture("byte-exact")
+    writeFileSync(join(byteExact.uiRoot, LOCKSTEP_PATHS.at(-1)), "shared!\n")
+    check("check-lockstep.mjs", "second-opinion drift fails byte for byte", ["--ui-root", byteExact.uiRoot, "--api-root", byteExact.apiRoot, "--manifest", byteExact.manifest], { status: 1, stderr: /second-opinion\/second-opinion\.mjs: whole file differs/ })
+
+    check("check-lockstep.mjs", "an unreachable sibling fails loudly", ["--ui-root", matching.uiRoot, "--api-root", join(root, "missing-api"), "--manifest", matching.manifest], { status: 1, stderr: /unreadable comparison input/ })
+  },
+  "check-context-budget.mjs": contextBudgetCases,
   "capture-surfaces.mjs": captureSurfacesCases,
   "check-ticket.mjs": () => {
     check("check-ticket.mjs", "an incomplete body is rejected", ["--file", stage("ticket.md", "# A ticket\n\nno template sections here\n")], { nonZero: true })
     check("check-ticket.mjs", "a missing body file is a usage error", ["--file", join(root, "absent.md")], { status: 2 })
+    const issue = (sentence) => ({
+      match: "linear issue ORB-99",
+      stdout: JSON.stringify({
+        ok: true,
+        result: {
+          issue: { identifier: "ORB-99", title: "Keep explicit issue dependencies precise", description: `${VALID_TICKET_BODY}\n\n${sentence}`, labels: [{ name: "repo:api" }] },
+          relations: [],
+        },
+      }),
+    })
+    for (const sentence of [
+      "Cleanup runs after the terminal exits.",
+      "The launcher retries once the daemon is responsive.",
+      "The branch name depends on configuration, and startup can be blocked by a trust prompt.",
+    ]) {
+      check("check-ticket.mjs", `ordinary prose does not imply a dependency: ${sentence}`, ["--issue", "ORB-99"], { status: 0, stdout: /ticket ok/ }, { env: orcaEnv([issue(sentence)]) })
+    }
+    check(
+      "check-ticket.mjs",
+      "a named issue blocker still requires a blockedBy relation",
+      ["--issue", "ORB-99"],
+      { status: 1, stderr: /body PROSE mentions a dependency/ },
+      { env: orcaEnv([issue("This change is blocked by ORB-1.")]) },
+    )
   },
   "check-push-target.mjs": () => {
     check("check-push-target.mjs", "a push to main is blocked", [], { status: 1, stderr: /BLOCKED/ }, { input: "refs/heads/main abc refs/heads/main def\n" })
@@ -1242,6 +1584,13 @@ const gateCases = {
   },
   "check-frontmatter.mjs": () => {
     check("check-frontmatter.mjs", "runs from any cwd", [], { status: 0, stdout: /frontmatter ok/ }, { cwd: root })
+    stage("frontmatter-valid/SKILL.md", "---\nname: valid\ndescription: A parseable skill.\n---\n")
+    check("check-frontmatter.mjs", "accepts a custom root relative to the caller", ["--root", "frontmatter-valid"], { status: 0, stdout: /frontmatter ok: 1/ }, { cwd: root })
+    const malformedRoot = dirname(stage("frontmatter-malformed/SKILL.md", "---\nname: malformed\ndescription: This breaks: the description will not parse.\n---\n"))
+    check("check-frontmatter.mjs", "rejects an unquoted colon-space scalar in a custom root", ["--root", malformedRoot], { status: 1, stderr: /SKILL\.md  \[description\]/ })
+    check("check-frontmatter.mjs", "rejects a missing custom root", ["--root", join(root, "frontmatter-missing")], { status: 2, stderr: /root does not exist/ })
+    const noFrontmatterRoot = dirname(stage("frontmatter-absent/README.md", "# No frontmatter\n"))
+    check("check-frontmatter.mjs", "rejects a custom root that proves nothing", ["--root", noFrontmatterRoot], { status: 1, stderr: /No frontmatter found/ })
   },
 }
 
@@ -1251,9 +1600,11 @@ const INVALID_INPUT = {
   "agent-review.sh": { argv: ["--orbit-not-a-flag"], status: 1 },
   "arch-map.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "capture-surfaces.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "check-context-budget.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-copy.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-dashes.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-frontmatter.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "check-lockstep.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-push-target.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-suppressions-ratchet.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-ticket.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
