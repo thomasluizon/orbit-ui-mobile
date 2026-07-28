@@ -181,7 +181,6 @@ const snapshotOf = (pullRequest, previous) => ({
   headSha: pullRequest.headRefOid,
   reviewDecision: pullRequest.reviewDecision,
   mergeStateStatus: pullRequest.mergeStateStatus === "UNKNOWN" ? (previous?.mergeStateStatus ?? null) : pullRequest.mergeStateStatus,
-  failingChecks: new Set(failingChecksOf(pullRequest).map((check) => check.split(": ")[0])),
 })
 
 /** The one decision in this tool: did this PR enter a state the orchestrator can act on? */
@@ -192,9 +191,6 @@ const transitionOf = (pullRequest, previous) => {
   const handled = handledVerdictsOn(number, head)
   const verdicts = verdictsOn(pullRequest)
   const verdict = verdicts.find((candidate) => !handled.has(candidate)) ?? verdicts[0] ?? null
-  const newFailingChecks = previous
-    ? failingChecks.filter((check) => !previous.failingChecks.has(check.split(": ")[0]))
-    : failingChecks
   const state = {
     repo,
     pr: pullRequest.number,
@@ -209,7 +205,7 @@ const transitionOf = (pullRequest, previous) => {
 
   if (pullRequest.merged) return { ...state, transition: "gone", reason: "the PR is merged", code: 5 }
   if (pullRequest.state === "CLOSED") return { ...state, transition: "gone", reason: "the PR is closed unmerged", code: 5 }
-  if (newFailingChecks.length > 0) return { ...state, transition: "checks-failed", reason: `failing check(s): ${newFailingChecks.join(", ")}`, code: 1 }
+  if (failingChecks.length > 0) return { ...state, transition: "checks-failed", reason: `failing check(s): ${failingChecks.join(", ")}`, code: 1 }
   if (verdict && !handled.has(verdict)) {
     if (verdict === "CHANGES_REQUESTED") return { ...state, transition: "changes-requested", reason: `a fresh CHANGES_REQUESTED on ${head.slice(0, 7)}`, code: 1 }
     if (verdict === "COMMENTED") return { ...state, transition: "review-comment", reason: `a fresh review comment on ${head.slice(0, 7)}`, code: 1 }
