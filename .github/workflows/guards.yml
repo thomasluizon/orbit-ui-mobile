@@ -13,6 +13,7 @@ name: Guards
 #   harness - the harness is EXECUTED, not read: every tools/ script and both session hooks run
 #   lockstep - the six load-bearing harness twins stay aligned with orbit-api
 #   calibration - the model stamp covers every skill and agent and is current
+#   tier-labels - every configured worker tier has a selector label in Linear
 
 on:
   pull_request:
@@ -104,6 +105,30 @@ jobs:
         # Report-only through 2026-08-11. Remove --report-only to make this blocking.
         shell: bash
         run: node tools/check-calibration.mjs --report-only | tee -a "$GITHUB_STEP_SUMMARY"
+
+  tier-labels:
+    name: Worker Tier Labels
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Detect an orchestrator config change
+        id: scope
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          elif git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -q '^\.claude/orchestrator\.json$'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Every configured tier has a Linear selector label
+        if: steps.scope.outputs.changed == 'true'
+        run: node tools/check-tier-labels.mjs
 
   harness:
     name: Harness Execution

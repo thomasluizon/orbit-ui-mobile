@@ -428,9 +428,9 @@ const CLAUDE_MODELS = {
   deep: { model: "opus", args: ["--effort", "max"] },
 }
 const CODEX_MODELS = {
-  default: { model: "gpt-5.6-sol", args: ["-c", 'model_reasoning_effort="high"'] },
+  default: { model: "gpt-5.6-terra", args: ["-c", 'model_reasoning_effort="medium"'] },
   cheap: { model: "gpt-5.6-luna", args: ["-c", 'model_reasoning_effort="low"'] },
-  deep: { model: "gpt-5.6-sol", args: ["-c", 'model_reasoning_effort="max"'] },
+  deep: { model: "gpt-5.6-sol", args: ["-c", 'model_reasoning_effort="high"'] },
 }
 const INTERACTIVE_WORKER = { command: "claude", args: ["--permission-mode", "bypassPermissions"], models: CLAUDE_MODELS, interactive: true }
 const INTERACTIVE_CODEX = {
@@ -458,6 +458,24 @@ const stageLaunchWorker = (label, worker, engineName = "claude") => {
   /** The copy imports tools/lib/tui-repaint.mjs by relative path, so the staged tree carries it too. */
   cpSync(join(TOOLS_DIR, "lib"), join(base, "tools", "lib"), { recursive: true })
   return { path: join(base, "tools", "launch-worker.mjs"), repoPath, base }
+}
+
+const stageTierLabels = (label, models = CODEX_MODELS) => {
+  const base = join(root, "tier-labels", label)
+  mkdirSync(join(base, "tools"), { recursive: true })
+  mkdirSync(join(base, ".claude"), { recursive: true })
+  writeFileSync(
+    join(base, ".claude", "orchestrator.json"),
+    JSON.stringify({
+      worker: "codex",
+      workers: { codex: { ...INTERACTIVE_CODEX, models } },
+      linear: { team: "ORB" },
+      repos: {},
+    }),
+  )
+  cpSync(join(TOOLS_DIR, "check-tier-labels.mjs"), join(base, "tools", "check-tier-labels.mjs"))
+  cpSync(join(TOOLS_DIR, "lib"), join(base, "tools", "lib"), { recursive: true })
+  return { path: join(base, "tools", "check-tier-labels.mjs") }
 }
 
 const stagePreflight = (label, worker = { ...INTERACTIVE_CODEX, command: `"${process.execPath}"` }, engineName = "codex") => {
@@ -939,9 +957,9 @@ const launchWorkerCases = () => {
   const codex = stageLaunchWorker("codex-interactive", INTERACTIVE_CODEX, "codex")
   const codexPlan = check(
     "launch-worker.mjs",
-    "Codex defaults to Sol at high effort",
+    "Codex defaults to Terra at medium effort",
     ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
-    { status: 0, stdout: /codex[\s\S]*model_reasoning_effort[\s\S]*high[\s\S]*--model gpt-5\.6-sol/ },
+    { status: 0, stdout: /codex[\s\S]*model_reasoning_effort[\s\S]*medium[\s\S]*--model gpt-5\.6-terra/ },
     { path: codex.path, env: orcaEnv(linearIssueStub(["repo:ui"])) },
   )
   const codexCheap = check(
@@ -953,9 +971,9 @@ const launchWorkerCases = () => {
   )
   const codexDeep = check(
     "launch-worker.mjs",
-    "tier:deep selects Sol at max effort on Codex",
+    "tier:deep selects Sol at high effort on Codex",
     ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
-    { status: 0, stdout: /codex[\s\S]*model_reasoning_effort[\s\S]*max[\s\S]*--model gpt-5\.6-sol/ },
+    { status: 0, stdout: /codex[\s\S]*model_reasoning_effort[\s\S]*high[\s\S]*--model gpt-5\.6-sol/ },
     { path: codex.path, env: orcaEnv(linearIssueStub(["repo:ui", "tier:deep"])) },
   )
   const codexDefaultCommand = codexPlan.status === 0 ? JSON.parse(codexPlan.stdout).command : ""
@@ -963,6 +981,13 @@ const launchWorkerCases = () => {
   const codexDeepCommand = codexDeep.status === 0 ? JSON.parse(codexDeep.stdout).command : ""
   T("launch-worker.mjs: Codex cheap tier cannot resolve to the unchanged default invocation", codexCheapCommand !== codexDefaultCommand, `default and cheap both resolved to: ${codexDefaultCommand}`)
   T("launch-worker.mjs: Codex deep tier cannot resolve to the unchanged default invocation", codexDeepCommand !== codexDefaultCommand, `default and deep both resolved to: ${codexDefaultCommand}`)
+  T(
+    "launch-worker.mjs: no Codex tier resolves at max reasoning",
+    ![codexDefaultCommand, codexCheapCommand, codexDeepCommand].some(
+      (command) => command.includes('model_reasoning_effort="max"'),
+    ),
+    `resolved commands: ${[codexDefaultCommand, codexCheapCommand, codexDeepCommand].join(" | ")}`,
+  )
   T(
     "launch-worker.mjs: the codex plan's command carries no headless token",
     codexPlan.status === 0 && !/(^|\s)(-p|--print|exec|e)(\s|"|$)/.test(JSON.parse(codexPlan.stdout).command),
@@ -1003,6 +1028,92 @@ const launchWorkerCases = () => {
   for (const [clause, pattern] of Object.entries(REQUIRED_CONTRACT_CLAUSES)) {
     T(`launch-worker.mjs: the injected contract still forbids ${clause}`, pattern.test(launcherSource), `WORKER_CONTRACT no longer matches ${pattern}. A worker without this clause repeats the failure it was written for; restore it rather than relaxing this check.`)
   }
+}
+
+const tierLabelCases = () => {
+  const labelsCommand = "linear team labels --team ORB --json"
+  const labelsResult = (labels) =>
+    JSON.stringify({ ok: true, result: { labels: labels.map((name) => ({ name })) } })
+  const declared = stageTierLabels("declared")
+
+  check(
+    "check-tier-labels.mjs",
+    "missing labels name the expected selectors, actual team labels, and shortfall",
+    [],
+    {
+      status: 1,
+      stdout: /looked for: tier:cheap, tier:deep[\s\S]*team labels: worker:sonnet[\s\S]*missing: tier:cheap, tier:deep/,
+    },
+    {
+      path: declared.path,
+      env: orcaEnv([{ match: labelsCommand, stdout: labelsResult(["worker:sonnet"]) }]),
+    },
+  )
+  check(
+    "check-tier-labels.mjs",
+    "passes when every declared tier label exists",
+    [],
+    {
+      status: 0,
+      stdout: /tier-labels PASS[\s\S]*looked for: tier:cheap, tier:deep[\s\S]*team labels: tier:cheap, tier:deep, worker:sonnet/,
+    },
+    {
+      path: declared.path,
+      env: orcaEnv([
+        { match: labelsCommand, stdout: labelsResult(["worker:sonnet", "tier:deep", "tier:cheap"]) },
+      ]),
+    },
+  )
+  check(
+    "check-tier-labels.mjs",
+    "a Linear lookup error fails closed",
+    [],
+    { status: 3, stderr: /tier-labels ERROR[\s\S]*unavailable/i },
+    {
+      path: declared.path,
+      env: orcaEnv([
+        {
+          match: labelsCommand,
+          stdout: JSON.stringify({ ok: false, error: { message: "Linear labels unavailable" } }),
+          exit: 1,
+        },
+      ]),
+    },
+  )
+  check(
+    "check-tier-labels.mjs",
+    "an empty Linear label set fails closed",
+    [],
+    {
+      status: 1,
+      stdout: /Linear returned an empty label set[\s\S]*looked for: tier:cheap, tier:deep[\s\S]*team labels: \(none\)[\s\S]*missing: tier:cheap, tier:deep/,
+    },
+    {
+      path: declared.path,
+      env: orcaEnv([{ match: labelsCommand, stdout: labelsResult([]) }]),
+    },
+  )
+  check(
+    "check-tier-labels.mjs",
+    "unparseable Linear output fails closed",
+    [],
+    { status: 3, stderr: /tier-labels ERROR[\s\S]*(parse|JSON)/i },
+    {
+      path: declared.path,
+      env: orcaEnv([{ match: labelsCommand, stdout: "not-json" }]),
+    },
+  )
+
+  const noDeclaredTiers = stageTierLabels("no-declared-tiers", {
+    default: CODEX_MODELS.default,
+  })
+  check(
+    "check-tier-labels.mjs",
+    "zero declared tiers fail so a config path typo cannot report a clean run",
+    [],
+    { status: 1, stdout: /no non-default worker tiers are declared/ },
+    { path: noDeclaredTiers.path, env: orcaEnv([]) },
+  )
 }
 
 const preflightCases = () => {
@@ -2837,6 +2948,7 @@ const gateCases = {
     )
     check("new-ticket.mjs", "requires --project so the ticket cannot be orphaned", ["--title", "Cover the create and validate round trip"], { status: 2, stderr: /--project is required/ })
   },
+  "check-tier-labels.mjs": tierLabelCases,
   "launch-worker.mjs": launchWorkerCases,
   "preflight.mjs": preflightCases,
   "nudge-worker.mjs": nudgeWorkerCases,
@@ -3253,6 +3365,7 @@ const INVALID_INPUT = {
   "check-lockstep.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-push-target.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-suppressions-ratchet.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "check-tier-labels.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-ticket.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "compose-prompt.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "launch-worker.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
