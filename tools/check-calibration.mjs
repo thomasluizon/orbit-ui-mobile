@@ -3,6 +3,10 @@
 import { readFileSync, readdirSync, writeFileSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
+import {
+  readOrchestratorConfig,
+  resolveWorkerInvocation,
+} from "./lib/orchestrator-config.mjs"
 
 const USAGE = `usage: check-calibration.mjs [--report-only] [--refresh]
 
@@ -29,7 +33,6 @@ const reportOnly = process.argv.includes("--report-only")
 const refresh = process.argv.includes("--refresh")
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const CALIBRATION_PATH = join(REPO_ROOT, ".claude", "calibration.json")
-const ORCHESTRATOR_PATH = join(REPO_ROOT, ".claude", "orchestrator.json")
 const DAY_MILLISECONDS = 24 * 60 * 60 * 1000
 const MAX_AGE_DAYS = 90
 
@@ -117,40 +120,16 @@ function inventory() {
   return [...agentFiles, ...skillFiles].sort()
 }
 
-function modelFromArguments(args) {
-  if (!Array.isArray(args)) return null
-  for (let index = 0; index < args.length; index++) {
-    const argument = args[index]
-    if ((argument === "--model" || argument === "-m") && typeof args[index + 1] === "string") {
-      return args[index + 1]
-    }
-    if (typeof argument === "string" && argument.startsWith("--model=")) {
-      return argument.slice("--model=".length)
-    }
+function declaredModel() {
+  try {
+    const config = readOrchestratorConfig()
+    const workerName = config.worker
+    const worker = config.workers?.[workerName]
+    resolveWorkerInvocation(workerName, worker, [])
+    return worker.models.default.model
+  } catch (error) {
+    finishOperational(error.message)
   }
-  return null
-}
-
-function modelFromDeclaration(declaration) {
-  if (typeof declaration === "string" && declaration.trim() !== "") return declaration
-  if (!declaration || typeof declaration !== "object" || Array.isArray(declaration)) return null
-  if (typeof declaration.model === "string" && declaration.model.trim() !== "") {
-    return declaration.model
-  }
-  return modelFromArguments(declaration.args)
-}
-
-function declaredModel(config) {
-  if (!config || typeof config !== "object" || Array.isArray(config)) return null
-  const workerName = config.worker
-  const worker = typeof workerName === "string" ? config.workers?.[workerName] : null
-  if (!worker || typeof worker !== "object" || Array.isArray(worker)) return null
-  return (
-    modelFromDeclaration(worker.models?.default) ??
-    modelFromDeclaration(worker.defaultModel) ??
-    modelFromDeclaration(worker.model) ??
-    modelFromArguments(worker.args)
-  )
 }
 
 function coverageProblems(expectedFiles, entries) {
@@ -186,11 +165,7 @@ const shapeProblems = validateArtifactShape(artifact)
 if (shapeProblems.length > 0) finishOperational(`.claude/calibration.json is malformed: ${shapeProblems.join("; ")}`)
 
 const expectedFiles = inventory()
-const config = readJson(ORCHESTRATOR_PATH, ".claude/orchestrator.json")
-const currentModel = declaredModel(config)
-if (!currentModel) {
-  finishOperational(".claude/orchestrator.json does not declare the selected worker's model")
-}
+const currentModel = declaredModel()
 
 let problems = coverageProblems(expectedFiles, artifact.entries)
 if (refresh && problems.length === 0) {

@@ -1800,17 +1800,30 @@ const calibrationDate = (daysAgo) => {
 
 const stageCalibration = (label, options = {}) => {
   const base = join(root, "calibration", label)
-  mkdirSync(join(base, "tools"), { recursive: true })
+  mkdirSync(join(base, "tools", "lib"), { recursive: true })
   mkdirSync(join(base, ".claude", "agents"), { recursive: true })
   mkdirSync(join(base, ".claude", "skills", "sample"), { recursive: true })
   cpSync(join(TOOLS_DIR, "check-calibration.mjs"), join(base, "tools", "check-calibration.mjs"))
+  cpSync(
+    join(TOOLS_DIR, "lib", "orchestrator-config.mjs"),
+    join(base, "tools", "lib", "orchestrator-config.mjs"),
+  )
   writeFileSync(join(base, ".claude", "agents", "sample.md"), "---\nname: sample\n---\n")
   writeFileSync(join(base, ".claude", "skills", "sample", "SKILL.md"), "---\nname: sample\n---\n")
   writeFileSync(
     join(base, ".claude", "orchestrator.json"),
     JSON.stringify({
       worker: "codex",
-      workers: { codex: { args: ["-m", options.currentModel ?? "gpt-current"] } },
+      workers: {
+        codex: {
+          args: [],
+          models: {
+            default: { model: options.currentModel ?? "gpt-current" },
+            cheap: { model: "gpt-cheap" },
+            deep: { model: "gpt-deep" },
+          },
+        },
+      },
     }),
   )
   if (!options.missingArtifact) {
