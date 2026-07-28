@@ -1605,14 +1605,20 @@ const stageWorkerStatusWorktree = () => {
   ]) {
     if (git(worktree, args).status !== 0) return null
   }
-  writeFileSync(join(worktree, "reviewed.txt"), "review fix\n")
+  writeFileSync(join(worktree, "reviewed.txt"), "implementation\n")
+  if (git(worktree, ["add", "reviewed.txt"]).status !== 0 || git(worktree, ["commit", "-q", "-m", "implement reviewed path"]).status !== 0) return null
+  const implementationCommit = git(worktree, ["rev-parse", "HEAD"]).stdout.trim()
+  writeFileSync(join(worktree, "reviewed.txt"), "implementation\nreviewed state\n")
+  if (git(worktree, ["add", "reviewed.txt"]).status !== 0 || git(worktree, ["commit", "-q", "-m", "reviewed state"]).status !== 0) return null
+  const reviewedCommit = git(worktree, ["rev-parse", "HEAD"]).stdout.trim()
+  writeFileSync(join(worktree, "reviewed.txt"), "implementation\nreviewed state\nreview fix\n")
   if (git(worktree, ["add", "reviewed.txt"]).status !== 0 || git(worktree, ["commit", "-q", "-m", "fix reviewed path"]).status !== 0) return null
   const fixCommit = git(worktree, ["rev-parse", "HEAD"]).stdout.trim()
   writeFileSync(join(worktree, "other.txt"), "unrelated fix\n")
   if (git(worktree, ["add", "other.txt"]).status !== 0 || git(worktree, ["commit", "-q", "-m", "fix other path"]).status !== 0) return null
   const unrelatedCommit = git(worktree, ["rev-parse", "HEAD"]).stdout.trim()
   if (git(worktree, ["push", "-q", "-u", "origin", "feature/orb-75-worker-status"]).status !== 0) return null
-  return { fixCommit, unrelatedCommit, prHead: unrelatedCommit, worktree }
+  return { fixCommit, implementationCommit, unrelatedCommit, prHead: unrelatedCommit, reviewedCommit, worktree }
 }
 
 const workerStatusPlan = (
@@ -1620,6 +1626,7 @@ const workerStatusPlan = (
   {
     comments = [],
     commentsHasNextPage = false,
+    approvalHead,
     prHead,
     reviewDecision = "APPROVED",
     reviews = [],
@@ -1641,7 +1648,21 @@ const workerStatusPlan = (
           pullRequest: {
             headRefOid: prHead,
             reviewDecision,
-            reviews: { pageInfo: { hasNextPage: reviewsHasNextPage }, nodes: reviews },
+            reviews: {
+              pageInfo: { hasNextPage: reviewsHasNextPage },
+              nodes: [
+                ...reviews,
+                {
+                  id: "PRR_current_approval",
+                  author: { login: "human-approver", __typename: "User" },
+                  state: "APPROVED",
+                  body: "",
+                  submittedAt: "2026-07-28T10:00:00Z",
+                  updatedAt: "2026-07-28T10:00:00Z",
+                  commit: { oid: approvalHead ?? prHead },
+                },
+              ],
+            },
             comments: { pageInfo: { hasNextPage: commentsHasNextPage }, nodes: comments },
             reviewThreads: { pageInfo: { hasNextPage: reviewThreadsHasNextPage }, nodes: reviewThreads },
           },
@@ -1661,7 +1682,7 @@ const workerStatusPlan = (
   },
 ]
 
-const reviewThread = ({ author, authorType, id, isResolved, path = "reviewed.txt", reply, resolvedBy }) => ({
+const reviewThread = ({ author, authorType, id, isResolved, path = "reviewed.txt", reply, resolvedBy, reviewedCommit }) => ({
   id,
   isResolved,
   path,
@@ -1669,7 +1690,12 @@ const reviewThread = ({ author, authorType, id, isResolved, path = "reviewed.txt
   comments: {
     pageInfo: { hasNextPage: false },
     nodes: [
-      { author: { login: author, __typename: authorType }, body: "review finding", createdAt: "2026-07-28T10:00:00Z", pullRequestReview: null },
+      {
+        author: { login: author, __typename: authorType },
+        body: "review finding",
+        createdAt: "2026-07-28T10:00:00Z",
+        pullRequestReview: reviewedCommit ? { id: `PRR_${id}`, commit: { oid: reviewedCommit } } : null,
+      },
       ...(reply ? [{ author: { login: resolvedBy, __typename: "User" }, body: reply }] : []),
     ],
   },
@@ -1683,6 +1709,7 @@ const runWorkerStatusCase = (fixture, attachments, options = {}) => {
       env: {
         ...orcaEnv(
           workerStatusPlan(attachments, {
+            approvalHead: options.approvalHead,
             comments: options.comments,
             commentsHasNextPage: options.commentsHasNextPage,
             prHead: options.prHead ?? fixture.prHead,
@@ -2903,6 +2930,8 @@ const gateCases = {
       "worker-status.mjs: screenshot and critique present is OK",
       complete.status === 0 &&
         complete.verdict?.ok === true &&
+        complete.verdict.checks.find((entry) => entry.name === "review-approved")?.ok === true &&
+        complete.verdict.checks.find((entry) => entry.name === "review-head-approved")?.ok === true &&
         complete.verdict.checks.find((entry) => entry.name === "screenshot-attached")?.ok === true &&
         complete.verdict.checks.find((entry) => entry.name === "critique-attached")?.ok === true,
       `exit ${complete.status}\n     ${(complete.stderr || complete.stdout).slice(0, 600)}`,
@@ -2915,6 +2944,72 @@ const gateCases = {
         changesRequested.verdict.unmet[0] === "review-approved",
       `exit ${changesRequested.status}\n     ${(changesRequested.stderr || changesRequested.stdout).slice(0, 600)}`,
     )
+    const staleApproval = runWorkerStatusCase(fixture, [screenshot, critique], {
+      approvalHead: fixture.reviewedCommit,
+    })
+    T(
+      "worker-status.mjs: an approval from an older commit does not approve the current PR head",
+      staleApproval.status === 1 &&
+        staleApproval.verdict?.unmet.length === 1 &&
+        staleApproval.verdict.unmet[0] === "review-head-approved" &&
+        staleApproval.verdict.checks.find((entry) => entry.name === "review-approved")?.ok === true,
+      `exit ${staleApproval.status}\n     ${(staleApproval.stderr || staleApproval.stdout).slice(0, 600)}`,
+    )
+    const cleanAutomatedApproval = {
+      id: "PRR_clean_approval",
+      author: { login: "claude[bot]", __typename: "Bot" },
+      state: "APPROVED",
+      body: `# Code Review
+
+**Recommendation**: APPROVE
+
+## Findings
+
+### Critical
+None
+
+### High
+None.
+
+### Medium
+None posted (signal gate).
+
+### Low / Info
+None
+
+## Validation
+All required checks passed.`,
+      submittedAt: "2026-07-28T10:00:00Z",
+      updatedAt: "2026-07-28T10:00:00Z",
+      commit: { oid: fixture.prHead },
+    }
+    const cleanApproval = runWorkerStatusCase(fixture, [screenshot, critique], {
+      reviews: [cleanAutomatedApproval],
+    })
+    T(
+      "worker-status.mjs: a clean automated approval body is not classified as finding activity",
+      cleanApproval.status === 0 &&
+        cleanApproval.verdict?.checks.find((entry) => entry.name === "review-activity")?.ok === true,
+      `exit ${cleanApproval.status}\n     ${(cleanApproval.stderr || cleanApproval.stdout).slice(0, 600)}`,
+    )
+    const commentedUmbrella = {
+      id: "PRR_commented_umbrella",
+      author: { login: "chatgpt-codex-connector", __typename: "Bot" },
+      state: "COMMENTED",
+      body: "Codex Review. Inline suggestions, when present, are attached as review threads.",
+      submittedAt: "2026-07-28T10:00:00Z",
+      updatedAt: "2026-07-28T10:00:00Z",
+      commit: { oid: fixture.prHead },
+    }
+    const cleanCommented = runWorkerStatusCase(fixture, [screenshot, critique], {
+      reviews: [commentedUmbrella],
+    })
+    T(
+      "worker-status.mjs: a COMMENTED umbrella body with no report finding is not finding activity",
+      cleanCommented.status === 0 &&
+        cleanCommented.verdict?.checks.find((entry) => entry.name === "review-activity")?.ok === true,
+      `exit ${cleanCommented.status}\n     ${(cleanCommented.stderr || cleanCommented.stdout).slice(0, 600)}`,
+    )
     const nestedPaginatedThread = reviewThread({
       author: "claude[bot]",
       authorType: "Bot",
@@ -2922,6 +3017,7 @@ const gateCases = {
       isResolved: true,
       resolvedBy: "worker",
       reply: "No code change required: informational note only",
+      reviewedCommit: fixture.reviewedCommit,
     })
     nestedPaginatedThread.comments.pageInfo.hasNextPage = true
     for (const [label, options] of [
@@ -2985,6 +3081,7 @@ const gateCases = {
       isResolved: true,
       resolvedBy: "worker",
       reply: `Fixed in ${fixture.fixCommit}`,
+      reviewedCommit: fixture.reviewedCommit,
     })
     const fixed = runWorkerStatusCase(fixture, [screenshot, critique], { reviewThreads: [fixedAutomatedThread], verifyReview: true })
     T(
@@ -2994,6 +3091,62 @@ const gateCases = {
         fixed.verdict.checks.find((entry) => entry.name === "pr-head-match")?.ok === true,
       `exit ${fixed.status}\n     ${(fixed.stderr || fixed.stdout).slice(0, 600)}`,
     )
+    const preexistingChangeThread = reviewThread({
+      author: "claude[bot]",
+      authorType: "Bot",
+      id: "PRRT_preexisting_change",
+      isResolved: true,
+      resolvedBy: "worker",
+      reply: `Fixed in ${fixture.fixCommit}`,
+      reviewedCommit: fixture.fixCommit,
+    })
+    const preexistingChange = runWorkerStatusCase(fixture, [screenshot, critique], {
+      reviewThreads: [preexistingChangeThread],
+      verifyReview: true,
+    })
+    T(
+      "worker-status.mjs: a commit at the reviewed revision cannot masquerade as a later fix",
+      preexistingChange.status === 1 &&
+        preexistingChange.verdict?.checks.find((entry) => entry.name === "resolved-thread-fixes")?.ok === false,
+      `exit ${preexistingChange.status}\n     ${(preexistingChange.stderr || preexistingChange.stdout).slice(0, 600)}`,
+    )
+    const earlierImplementationThread = reviewThread({
+      author: "claude[bot]",
+      authorType: "Bot",
+      id: "PRRT_earlier_implementation",
+      isResolved: true,
+      resolvedBy: "worker",
+      reply: `Fixed in ${fixture.implementationCommit}`,
+      reviewedCommit: fixture.reviewedCommit,
+    })
+    const earlierImplementation = runWorkerStatusCase(fixture, [screenshot, critique], {
+      reviewThreads: [earlierImplementationThread],
+      verifyReview: true,
+    })
+    T(
+      "worker-status.mjs: an implementation commit before the review cannot masquerade as its fix",
+      earlierImplementation.status === 1 &&
+        earlierImplementation.verdict?.checks.find((entry) => entry.name === "resolved-thread-fixes")?.ok === false,
+      `exit ${earlierImplementation.status}\n     ${(earlierImplementation.stderr || earlierImplementation.stdout).slice(0, 600)}`,
+    )
+    const missingReviewCommitThread = reviewThread({
+      author: "claude[bot]",
+      authorType: "Bot",
+      id: "PRRT_missing_review_commit",
+      isResolved: true,
+      resolvedBy: "worker",
+      reply: `Fixed in ${fixture.fixCommit}`,
+    })
+    const missingReviewCommit = runWorkerStatusCase(fixture, [screenshot, critique], {
+      reviewThreads: [missingReviewCommitThread],
+      verifyReview: true,
+    })
+    T(
+      "worker-status.mjs: a missing reviewed commit fails thread verification closed",
+      missingReviewCommit.status === 1 &&
+        missingReviewCommit.verdict?.checks.find((entry) => entry.name === "resolved-thread-fixes")?.ok === false,
+      `exit ${missingReviewCommit.status}\n     ${(missingReviewCommit.stderr || missingReviewCommit.stdout).slice(0, 600)}`,
+    )
     const informationalThread = reviewThread({
       author: "claude[bot]",
       authorType: "Bot",
@@ -3001,6 +3154,7 @@ const gateCases = {
       isResolved: true,
       resolvedBy: "worker",
       reply: `No code change required: the reviewer only confirmed the expected behavior. Evidence: ${fixture.fixCommit}`,
+      reviewedCommit: fixture.reviewedCommit,
     })
     const informational = runWorkerStatusCase(fixture, [screenshot, critique], {
       reviewThreads: [informationalThread],
@@ -3019,6 +3173,7 @@ const gateCases = {
       isResolved: true,
       resolvedBy: "worker",
       reply: "No code change required: the reviewer only confirmed the expected behavior",
+      reviewedCommit: fixture.reviewedCommit,
     })
     const unauditedInformational = runWorkerStatusCase(fixture, [screenshot, critique], {
       reviewThreads: [unauditedInformationalThread],
@@ -3033,9 +3188,28 @@ const gateCases = {
     const standaloneReview = {
       id: "PRR_standalone",
       author: { login: "claude[bot]", __typename: "Bot" },
-      body: "standalone automated finding",
+      state: "APPROVED",
+      body: `# Code Review
+
+## Findings
+
+### Critical
+None
+
+### High
+None
+
+### Medium
+Missing a concrete edge-case test.
+
+### Low / Info
+None
+
+## Validation
+Not run.`,
       submittedAt: "2026-07-28T10:00:00Z",
       updatedAt: "2026-07-28T10:00:01Z",
+      commit: { oid: fixture.reviewedCommit },
     }
     const unacknowledgedReview = runWorkerStatusCase(fixture, [screenshot, critique], { reviews: [standaloneReview] })
     T(
@@ -3100,6 +3274,7 @@ const gateCases = {
       isResolved: true,
       resolvedBy: "worker",
       reply: `Fixed in ${fixture.unrelatedCommit}`,
+      reviewedCommit: fixture.reviewedCommit,
     })
     const unfixed = runWorkerStatusCase(fixture, [screenshot, critique], { reviewThreads: [unfixedAutomatedThread], verifyReview: true })
     T(
@@ -3154,6 +3329,7 @@ const gateCases = {
       isResolved: true,
       resolvedBy: "worker",
       reply: `Fixed in ${localOnlyCommit}`,
+      reviewedCommit: fixture.reviewedCommit,
     })
     const localOnly = runWorkerStatusCase(fixture, [screenshot, critique], {
       reviewThreads: [localOnlyThread],

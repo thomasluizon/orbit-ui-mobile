@@ -329,9 +329,10 @@ node tools/worker-status.mjs --worktree <worktreePath> --issue ORB-N [--base <ta
 
 This is one pass for the whole ticket, never one pass per review round. It verifies the final
 diff and thread metadata without printing review bodies. A resolved automated thread whose
-named fix commit did not change the reviewed path, a human-authored thread resolved by the worker
-account, a non-approved head, or any unresolved thread is a hard failure. Stop for human
-adjudication on failure; do not run a second verification pass.
+named fix commit did not follow the reviewed commit or change the reviewed path, a human-authored
+thread resolved by the worker account, a head without its own approving review, or any unresolved
+thread is a hard failure. Stop for human adjudication on failure; do not run a second verification
+pass.
 
 - D7: an issue may sit In Review only with its PR attached. When labelled `visible-effect`,
   it also needs final screenshots and the worker's critique attached; otherwise demote to In

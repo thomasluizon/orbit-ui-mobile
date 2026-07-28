@@ -25,8 +25,9 @@ const USAGE = `usage: worker-status.mjs --worktree <path> --issue ORB-N [--base 
   --help, -h         print this usage and exit 0
 
 Checks, all from artifacts: commits exist on the branch, the worktree carries no uncommitted
-work, the branch is pushed, a PR is open and approved against <ref> with zero unresolved
-threads, every resolved automated thread names a fix commit that changed its reviewed path,
+work, the branch is pushed, a PR is open against <ref> with an approving review on its current
+head and zero unresolved threads, every resolved automated thread names a later fix commit that
+changed its reviewed path,
 every standalone automated review item has a worker acknowledgement naming a PR commit,
 no human-authored thread was resolved by the worker account, the local head matches the PR
 head, the Linear issue is In Review with the PR attached, and both a screenshot and critique
@@ -138,7 +139,7 @@ const reviewPayload = pullRequest
         "api",
         "graphql",
         "-f",
-        "query=query($owner:String!,$name:String!,$number:Int!){viewer{login}repository(owner:$owner,name:$name){pullRequest(number:$number){headRefOid reviewDecision reviews(first:100){pageInfo{hasNextPage}nodes{id author{login __typename}body submittedAt updatedAt}}comments(first:100){pageInfo{hasNextPage}nodes{id author{login __typename}body createdAt updatedAt}}reviewThreads(first:100){pageInfo{hasNextPage}nodes{id isResolved path resolvedBy{login}comments(first:100){pageInfo{hasNextPage}nodes{author{login __typename}body createdAt pullRequestReview{id}}}}}}}}",
+        "query=query($owner:String!,$name:String!,$number:Int!){viewer{login}repository(owner:$owner,name:$name){pullRequest(number:$number){headRefOid reviewDecision reviews(first:100){pageInfo{hasNextPage}nodes{id author{login __typename}state body submittedAt updatedAt commit{oid}}}comments(first:100){pageInfo{hasNextPage}nodes{id author{login __typename}body createdAt updatedAt}}reviewThreads(first:100){pageInfo{hasNextPage}nodes{id isResolved path resolvedBy{login}comments(first:100){pageInfo{hasNextPage}nodes{author{login __typename}body createdAt pullRequestReview{id commit{oid}}}}}}}}}",
         "-F",
         `owner=${slug.split("/")[0]}`,
         "-F",
@@ -157,14 +158,35 @@ const prHeadPresent = Boolean(prHead && git(["cat-file", "-e", `${prHead}^{commi
 const prCommits = new Set(prHeadPresent ? git(["rev-list", `${baseRef}..${prHead}`]).split("\n").filter(Boolean) : [])
 const resolveCommit = (reference) => git(["rev-parse", "--verify", `${reference}^{commit}`], { allowFailure: true })
 const automatedAuthor = (author) => author?.__typename === "Bot" || author?.login?.endsWith("[bot]")
+const reviewBodyHasFindings = (body) => {
+  const text = body ?? ""
+  const heading = text.search(/^## Findings[ \t]*\r?$/m)
+  if (heading === -1) return false
+  const afterHeading = text.slice(heading).replace(/^## Findings[ \t]*\r?\n?/, "")
+  const nextSection = afterHeading.search(/^## [^#]/m)
+  const findings = nextSection === -1 ? afterHeading : afterHeading.slice(0, nextSection)
+  return findings
+    .split(/^### /m)
+    .slice(1)
+    .some((section) => {
+      const newline = section.indexOf("\n")
+      const content = (newline === -1 ? "" : section.slice(newline + 1)).trim()
+      return Boolean(content && !/^none(?:\.| posted \(signal gate\)\.)?$/i.test(content))
+    })
+}
 const threadHasFix = (thread) => {
   const resolver = thread.resolvedBy?.login
-  if (!resolver || !thread.path) return false
+  const reviewedCommit = thread.comments?.nodes?.[0]?.pullRequestReview?.commit?.oid
+  if (!resolver || !thread.path || !reviewedCommit) return false
   const replies = (thread.comments?.nodes ?? []).filter((comment) => comment.author?.login === resolver)
   for (const reply of replies) {
     for (const match of (reply.body ?? "").matchAll(/\b[0-9a-f]{7,40}\b/gi)) {
       const commit = resolveCommit(match[0])
-      if (commit && prCommits.has(commit) && git(["diff-tree", "--no-commit-id", "--name-only", "-r", commit, "--", thread.path])) return true
+      const followsReview =
+        commit &&
+        commit !== reviewedCommit &&
+        git(["merge-base", "--is-ancestor", reviewedCommit, commit], { allowFailure: true }) !== null
+      if (followsReview && prCommits.has(commit) && git(["diff-tree", "--no-commit-id", "--name-only", "-r", commit, "--", thread.path])) return true
     }
   }
   return false
@@ -177,7 +199,7 @@ const workerResolvedHumanThreads = reviewThreads.filter(
 )
 const unresolvedThreads = reviewThreads.filter((thread) => !thread.isResolved)
 const standaloneAutomatedActivity = [
-  ...(review?.reviews?.nodes ?? []).filter((item) => automatedAuthor(item.author) && item.body?.trim()),
+  ...(review?.reviews?.nodes ?? []).filter((item) => automatedAuthor(item.author) && reviewBodyHasFindings(item.body)),
   ...(review?.comments?.nodes ?? []).filter((item) => automatedAuthor(item.author) && item.body?.trim()),
 ]
 const workerComments = (review?.comments?.nodes ?? []).filter((item) => item.author?.login === workerLogin)
@@ -198,6 +220,9 @@ const reviewInventoryComplete =
   review?.reviews?.pageInfo?.hasNextPage === false &&
   review?.comments?.pageInfo?.hasNextPage === false &&
   reviewThreads.every((thread) => thread.comments?.pageInfo?.hasNextPage === false)
+const currentHeadApproved = (review?.reviews?.nodes ?? []).some(
+  (item) => item.state === "APPROVED" && item.commit?.oid === prHead,
+)
 
 const detail = orca(["linear", "issue", issue, "--attachments"])
 const linearIssue = detail.issue ?? detail
@@ -238,6 +263,13 @@ const checks = [
     name: "review-approved",
     ok: review?.reviewDecision === "APPROVED",
     detail: review ? `review decision is ${review.reviewDecision ?? "absent"}, contract wants APPROVED` : "no pull request review state is available",
+  },
+  {
+    name: "review-head-approved",
+    ok: Boolean(prHead && currentHeadApproved),
+    detail: prHead
+      ? `PR head ${prHead} ${currentHeadApproved ? "has" : "does not have"} an approving review`
+      : "no PR head is available for approval verification",
   },
   {
     name: "review-thread-inventory",
