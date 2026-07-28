@@ -22,6 +22,7 @@ import { appendFileSync, existsSync, readFileSync, statSync } from "node:fs"
 import { basename, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
+import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
 import { SETTLE_MS, isRepainting, pause } from "./lib/tui-repaint.mjs"
 
 const USAGE = `usage: launch-worker.mjs --issue ORB-N --prompt-file <path> [options]
@@ -73,7 +74,7 @@ const MAX_WAIT_ATTEMPTS = 6
 
 /**
  * What each worker CLI does that this script has to know, keyed by the binary it runs.
- * All three facts are properties of the CLI, not of the harness, so a shared list cannot
+ * All four facts are properties of the CLI, not of the harness, so a shared list cannot
  * hold them: codex's `-p` is `--profile`, a legitimate interactive flag, while claude's
  * `-p` is `--print`, the headless mode this guard exists for. One flat token list
  * rejected every valid `codex --profile` invocation as headless.
@@ -88,19 +89,24 @@ const MAX_WAIT_ATTEMPTS = 6
 const ENGINE_PROFILES = {
   claude: {
     headlessTokens: ["-p", "--print"],
+    runPermissionTokens: ["--permission-mode", "bypassPermissions"],
+    permissionModeToken: "--permission-mode",
     trustOnScreen: /isthisaprojectyoucreatedoroneyoutrust|doyoutrustthefiles|trustthisfolder/,
     trustAnswer: "1",
   },
   codex: {
     headlessTokens: ["exec", "e"],
+    runPermissionTokens: ["--dangerously-bypass-approvals-and-sandbox"],
     trustOnScreen: /doyoutrustthecontentsofthisdirectory/,
     trustAnswer: "",
   },
 }
 
-/** Orca's own signal for the same gate, and it is not one string: Claude Code's surfaces as
- * `codex-trust-workspace`, codex's as `codex-interactive-prompt`. Only the screen text is
- * precise, so this stays a corroborating signal and never the sole trigger for a keystroke. */
+/** Orca's own signal is not reliably one string: a genuine codex trust gate normally reports
+ * `codex-interactive-prompt`, but Orca 1.4.156 retained `codex-trust-workspace` on an idle codex
+ * terminal that never saw a trust gate. Only the screen text is precise, so this stays a
+ * corroborating signal and never the sole trigger for a keystroke.
+ * WHY: PR #629 owner adjudication makes the live capture authoritative over the older reason mapping. https://github.com/thomasluizon/orbit-ui-mobile/pull/629 */
 const TRUST_BLOCKED_REASON = /trust/i
 const flatten = (text) => text.replace(/\s+/g, "").toLowerCase()
 
@@ -122,6 +128,8 @@ const busy = (handle) => isRepainting(orca, handle)
  */
 const MAX_POINTER_SENDS = 3
 const POINTER_PAINT_MS = 4000
+const MAX_TERMINAL_CREATE_ATTEMPTS = 3
+const TERMINAL_CREATE_BACKOFF_MS = 1000
 /** How many settle windows a painting TUI gets before the launch gives up. A TUI that is still
  * repainting after all of them is never re-sent to: there is no safe moment, and a queued send
  * would cut its running turn short. */
@@ -263,6 +271,37 @@ const orca = (args) => {
   return parsed.result ?? parsed
 }
 
+const createTerminal = (worktreeSelector, command) => {
+  const args = ["terminal", "create", "--worktree", worktreeSelector, "--command", command]
+  for (let attempt = 1; attempt <= MAX_TERMINAL_CREATE_ATTEMPTS; attempt += 1) {
+    const result = spawnSync(ORCA, [...args, "--json"], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
+    if (result.error) fail(3, `orca terminal create failed: ${result.error.message}`)
+
+    let parsed
+    try {
+      parsed = JSON.parse(result.stdout)
+    } catch {
+      fail(3, `orca ${args.join(" ")} returned unparseable output: ${(result.stdout || result.stderr || "").slice(0, 400)}`)
+    }
+
+    const failureMessage = parsed.error?.message || result.stderr?.trim() || "unknown orca error"
+    const timedOut = parsed.error?.code === "timeout" || /terminal creation timed out/i.test(failureMessage)
+    if (parsed.ok !== false && result.status === 0) {
+      const handle = (parsed.result ?? parsed).terminal?.handle
+      if (!handle) fail(3, "orca terminal create returned no handle")
+      return handle
+    }
+    if (!timedOut) fail(3, `orca ${args.join(" ")} failed: ${failureMessage}`)
+    if (attempt === MAX_TERMINAL_CREATE_ATTEMPTS) {
+      fail(3, `orca ${args.join(" ")} failed after ${attempt} attempts: ${failureMessage}`)
+    }
+
+    const backoff = TERMINAL_CREATE_BACKOFF_MS * attempt
+    console.error(`orca terminal create timed out (attempt ${attempt} of ${MAX_TERMINAL_CREATE_ATTEMPTS}); retrying in ${backoff}ms`)
+    pause(backoff)
+  }
+}
+
 /**
  * `orca terminal wait` reports "not yet" two different ways, and neither is a tool failure:
  * a condition it cannot meet in time exits 1 with ok:false and error.code timeout, while a
@@ -377,9 +416,9 @@ if (statSync(promptFile).size === 0) fail(2, `prompt file is empty: ${promptFile
 
 let config
 try {
-  config = JSON.parse(readFileSync(new URL("../.claude/orchestrator.json", import.meta.url), "utf8"))
+  config = readOrchestratorConfig()
 } catch (error) {
-  fail(2, `.claude/orchestrator.json could not be read as JSON: ${error.message}`)
+  fail(2, error.message)
 }
 const engineName = config.worker
 const engine = config.workers?.[engineName]
@@ -435,9 +474,14 @@ const worktreeName = `${issue.toLowerCase()}-${slug}`
 const branch = `${branchPrefix}/${worktreeName}`
 const comment = argOf("--comment") ?? `${issue} launched: worker running`
 
-/** Model routing: a worker:sonnet ticket swaps the configured opus for sonnet, nothing else. */
-const wantsSonnet = labels.includes("worker:sonnet")
-const engineArgs = engine.args.map((arg, index) => (wantsSonnet && engine.args[index - 1] === "--model" && arg === "opus" ? "sonnet" : arg))
+let resolvedInvocation
+try {
+  resolvedInvocation = resolveWorkerInvocation(engineName, engine, labels)
+} catch (error) {
+  fail(2, error.message)
+}
+const engineArgs = resolvedInvocation.args
+const budgetTier = resolvedInvocation.tier === "deep" ? "reserved" : automationBudget.tier
 const command = [engine.command, ...engineArgs].join(" ")
 
 /**
@@ -459,6 +503,12 @@ const headless = invocationTokens.slice(1).find((token) => profile.headlessToken
 if (headless) {
   fail(2, `worker "${engineName}" declares interactive: true but its invocation "${command}" carries "${headless}", which is a headless invocation of ${binary}. Fix the command or args, or the declaration, in .claude/orchestrator.json`)
 }
+const runPermissionIndex = invocationTokens.findIndex((token, index) => token === profile.runPermissionTokens[0] && profile.runPermissionTokens.every((expected, offset) => invocationTokens[index + offset] === expected))
+if (runPermissionIndex === -1) {
+  const modeIndex = profile.permissionModeToken ? invocationTokens.indexOf(profile.permissionModeToken) : -1
+  const mode = modeIndex === -1 ? "" : `; resolved permission mode is "${invocationTokens[modeIndex + 1] ?? "missing"}"`
+  fail(2, `worker "${engineName}" invocation "${command}" does not carry ${binary}'s required run-permitting policy "${profile.runPermissionTokens.join(" ")}"${mode}. A worker without that policy can stop for approval with nobody at the keyboard. Fix the command or args in .claude/orchestrator.json`)
+}
 
 /** Reported in the plan so a dry run shows whether this launch would inject the contract, and a
  * relaunch against an already-injected file is visibly a no-op rather than a silent second copy. */
@@ -473,7 +523,7 @@ const plan = {
   baseBranch,
   engine: engineName,
   command,
-  automationBudget,
+  automationBudget: { tier: budgetTier },
   promptFile,
   workerContract,
   labels,
@@ -484,7 +534,7 @@ if (dryRun) {
   process.exit(0)
 }
 
-checkAutomationBudget(engineName, automationBudget.tier)
+checkAutomationBudget(engineName, budgetTier)
 
 /** Before anything is created, so a launch that fails later still leaves the work order complete
  * for the relaunch. A dry run resolves this decision but writes nothing. */
@@ -521,8 +571,7 @@ const actualBranch = git(["-C", worktreePath, "rev-parse", "--abbrev-ref", "HEAD
 if (actualBranch !== branch) fail(3, `expected the worktree on ${branch}, found ${actualBranch}`)
 
 console.error(`starting the ${engineName} TUI: ${command}`)
-const terminal = orca(["terminal", "create", "--worktree", worktreeSelector, "--command", command]).terminal?.handle
-if (!terminal) fail(3, "orca terminal create returned no handle")
+const terminal = createTerminal(worktreeSelector, command)
 
 let trustPromptAnswered = false
 let waitAttempts = 0

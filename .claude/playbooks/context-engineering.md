@@ -1,7 +1,8 @@
 # Context engineering: writing anything the agent will read
 
 **At a glance:** the standing rules for authoring a `CLAUDE.md`, a rule, a playbook, a skill, an
-agent, or a ticket body. Read it before you write or edit one. Source: Anthropic's 2026-07-24
+agent, or a ticket body, including agent tool scoping. Read it before you write or edit one.
+Source: Anthropic's 2026-07-24
 "The new rules of context engineering for Claude 5 generation models", which removed over 80% of
 Claude Code's own system prompt for Opus 5 and Fable 5 with no measurable loss on coding evals.
 Everything here is the delta between what a 4-generation model needed and what a 5-generation
@@ -54,6 +55,11 @@ than growing the top.
 The failure this prevents: a `CLAUDE.md` or `SKILL.md` grown into the central repository of
 everything the author feared the agent would not find otherwise. That file is paid for on every
 turn of every session, and most of it is inert on any given one.
+
+## Agent tool scoping
+
+- **An agent-scoped blocking hook MUST live in that agent's own frontmatter `hooks:` field.** `PreToolUse` input carries no `agent_type`, so a hook wired in `settings.json` cannot tell which agent is calling and would police the whole session; `SubagentStart` knows the agent but cannot block. **Scoping is by placement, not by matcher.**
+- **Prefer deleting `Bash` outright** when Glob/Grep/Read cover the job; structural beats any allowlist. If an agent genuinely needs a scoped shell, an allowlist has TWO levels and either one alone is not a fence: (1) reject metacharacters (`&` `|` `;` `$` backtick `>` `<` newline) before matching, because a prefix check alone lets `git log && echo pwned > x.ts` through; (2) allowlist the ARGUMENTS, not just the command prefix, because a subcommand's own flags write files with no metacharacter at all (`git log --format=format:<text> --output=<path>` creates an arbitrary file and is pure `git log`; that exact hole shipped once and was caught in review, #546). Never blocklist single flags; that is the whack-a-mole the allowlist exists to avoid. And do not oversell the fence: it stops accidents and casual injection, not a determined adversarial payload (`git -C` into a repo with a hostile `.git/config` still reaches a shell).
 
 ## 5. A `CLAUDE.md` holds gotchas, not the obvious
 

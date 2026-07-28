@@ -1,6 +1,6 @@
 # Planning, specs & artifacts
 
-**At a glance:** 11 standing rules for planning and ticket-writing work (`/feature`, `/bug`, `/orchestrate`), prototyping, ADRs, and session handoff. Judgement-bound; none is gate-checkable. Some rules cite the deleted pre-rebuild skills as the incidents that produced them; the lessons stand. See `README.md` for the tier's contract.
+**At a glance:** 11 standing rules for planning and ticket-writing work (`/feature`, `/ticket`, `/orchestrate`), prototyping, ADRs, and session handoff. Judgement-bound; none is gate-checkable. Some rules cite the deleted pre-rebuild skills as the incidents that produced them; the lessons stand. See `README.md` for the tier's contract.
 
 ## What goes in a document
 
@@ -28,7 +28,7 @@ Reinforces the standing "do all in-scope work, questions only for true forks" co
 ### 4. The ticket-vs-fog test is precision *now*, not answerability now
 Ticket a sharp question **even when it is blocked**. Anything you cannot phrase sharply stays as coarse **"not yet specified" fog** — do not pre-slice fog into speculative tickets.
 
-`/drive`'s living spec survives `/clear` but carries no rule for what earns a ticket versus what stays unspecified.
+A living spec can preserve planning context across sessions but carries no rule for what earns a ticket versus what stays unspecified.
 
 ### 5. A wide refactor is the exception to vertical slicing
 One mechanical change whose blast radius fans across the codebase gets sequenced **expand → migrate in blast-radius-sized batches → contract.** Each batch is its own ticket, blocked by the expand, so **CI stays green batch to batch**.
@@ -38,7 +38,8 @@ One mechanical change whose blast radius fans across the codebase gets sequenced
 ### 6. Scope an architecture pass by recent change
 Weight the codebase's hot spots before scanning — walk `git log --oneline` for the files that keep coming up. Deepening only pays off where future changes will land.
 
-A YAGNI gate on refactor scope, directly relevant to `/thermo-nuclear-code-quality-review` and `/audit-code-quality`, which scan whole repos with no recency weighting.
+A YAGNI gate on refactor scope, directly relevant to `/audit-code-quality`, which scans the
+whole repo with no recency weighting.
 
 ## ADRs
 
@@ -63,7 +64,7 @@ Name the question **before writing it**. The question decides the shape:
 
 If you had to guess at anything, **state the assumption at the top**.
 
-Stack-neutral, and absent from the execution workflow (`/feature`, `/bug`, `/orchestrate`), whose paths all assume the diff is known. This is the path for when it is not.
+Stack-neutral, and absent from the execution workflow (`/feature`, `/ticket`, `/orchestrate`), whose paths all assume the diff is known. This is the path for when it is not.
 
 ### 9. Prototype code is throwaway from day one
 Located next to what it prototypes. Named so a reader sees it is a prototype. **No persistence, no tests, no error handling beyond runnability, no abstractions, one command to run.**
