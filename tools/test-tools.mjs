@@ -2317,6 +2317,32 @@ const newTicketStub = (created, issue, options = {}) => [
 const CREATED_OK = { ok: true, result: { issue: { identifier: "ORB-99" } } }
 const VALID_ISSUE = { identifier: "ORB-99", title: "Cover the create and validate round trip", description: VALID_TICKET_BODY, labels: [{ name: "repo:api" }, { name: "Improvement" }] }
 
+const mergeSweepCliFlagCases = () => {
+  const filenames = ["merge-sweep.sh", "merge-sweep-cov.sh"]
+  const scanned = filenames
+    .filter((filename) => existsSync(join(TOOLS_DIR, filename)))
+    .map((filename) => ({ filename, source: readFileSync(join(TOOLS_DIR, filename), "utf8") }))
+  T(
+    "merge sweep CLI flag guard scans both real script filenames",
+    scanned.length === filenames.length,
+    `scanned ${scanned.length} files; missing: ${filenames.filter((filename) => !scanned.some((entry) => entry.filename === filename)).join(", ")}`,
+  )
+  for (const { filename, source } of scanned) {
+    const ghApiInvocations = source
+      .replace(/\\\r?\n/g, " ")
+      .split(/\r?\n/)
+      .filter((line) => /\bgh api\b/.test(line))
+    const unsupported = ghApiInvocations.filter(
+      (invocation) => /(?:^|\s)--slurp(?:[=\s]|$)/.test(invocation) && /(?:^|\s)--(?:jq|template)(?:[=\s]|$)/.test(invocation),
+    )
+    T(
+      `${filename}: never combines --slurp with --jq or --template`,
+      unsupported.length === 0,
+      `unsupported gh api invocation:\n     ${unsupported.join("\n     ")}`,
+    )
+  }
+}
+
 const mergeSweepCases = (file) => {
   const expectedHead = "1111111111111111111111111111111111111111"
   const changedHead = "2222222222222222222222222222222222222222"
@@ -2634,7 +2660,7 @@ const mergeSweepCases = (file) => {
     olderEditedReview.status === 0 &&
       olderEditedReviewMerges.length === 1 &&
       paginatedReviewLookup?.includes("--paginate") &&
-      paginatedReviewLookup.includes("--slurp"),
+      !paginatedReviewLookup.includes("--slurp"),
     `exit ${olderEditedReview.status}\n     stdout: ${olderEditedReview.stdout.trim()}\n     stderr: ${olderEditedReview.stderr.trim()}\n     calls: ${JSON.stringify(olderEditedReviewCalls)}`,
   )
 
@@ -2880,7 +2906,10 @@ const contextBudgetCases = () => {
 }
 
 const gateCases = {
-  "merge-sweep.sh": () => mergeSweepCases("merge-sweep.sh"),
+  "merge-sweep.sh": () => {
+    mergeSweepCliFlagCases()
+    mergeSweepCases("merge-sweep.sh")
+  },
   "merge-sweep-cov.sh": () => mergeSweepCases("merge-sweep-cov.sh"),
   "new-ticket.mjs": () => {
     const argv = ["--title", "Cover the create and validate round trip", "--project", "Backlog"]
