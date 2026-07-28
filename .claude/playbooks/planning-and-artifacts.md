@@ -38,7 +38,8 @@ One mechanical change whose blast radius fans across the codebase gets sequenced
 ### 6. Scope an architecture pass by recent change
 Weight the codebase's hot spots before scanning — walk `git log --oneline` for the files that keep coming up. Deepening only pays off where future changes will land.
 
-A YAGNI gate on refactor scope, directly relevant to `/thermo-nuclear-code-quality-review` and `/audit-code-quality`, which scan whole repos with no recency weighting.
+A YAGNI gate on refactor scope, directly relevant to `/audit-code-quality`, which scans the
+whole repo with no recency weighting.
 
 ## ADRs
 
