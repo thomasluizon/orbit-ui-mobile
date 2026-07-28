@@ -168,10 +168,23 @@ const affectedSectionOf = (description) => {
   return section?.join("\n") ?? null
 }
 
+const isDeclaredPath = (section, path, index) => {
+  if (/[\\/]/.test(path)) return true
+  if (section[index - 1] === "`" && section[index + path.length] === "`") return true
+  const lineStart = section.lastIndexOf("\n", index) + 1
+  const nextBreak = section.indexOf("\n", index + path.length)
+  const lineEnd = nextBreak === -1 ? section.length : nextBreak
+  const item = section.slice(lineStart, lineEnd).trim().replace(/^(?:[-*]|\d+\.)\s+/, "").replace(/^`|`$/g, "")
+  return item === path
+}
+
 const affectedFilesOf = (description) => {
   const section = affectedSectionOf(description)
   if (!section) return []
-  return [...new Set((section.match(AFFECTED_PATH) ?? []).map((path) => path.replace(/\\/g, "/")))]
+  const paths = [...section.matchAll(AFFECTED_PATH)]
+    .filter((match) => isDeclaredPath(section, match[0], match.index))
+    .map(([path]) => path.replace(/\\/g, "/"))
+  return [...new Set(paths)]
 }
 
 const collisionsIn = (waveIssues, byIdentifier) => {
