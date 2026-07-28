@@ -8,6 +8,7 @@
 > - `test-tools.mjs` EXECUTES every script here (Harness Execution CI job). A new tool with no coverage entry fails it, so coverage lands in the same PR as the tool.
 > - `check-lockstep.mjs` gates the six load-bearing harness twins shared with orbit-api.
 > - `agent-review` gets its cross-model verdict from GPT-5.6 Sol through Codex.
+> - `preflight.mjs` verifies an autonomous run's environment before any worktree is created and never repairs a failed precondition.
 > - `teardown-worktree.mjs` removes a completed ticket's Orca worktree immediately after verified Done, only when its evidence checks pass.
 
 Reusable scripts an agent (or a human) invokes from the CLI. The bar for landing a file here: it has a single clear purpose and you will run it again. One-off commands stay in your shell history or the scratchpad.
@@ -35,6 +36,7 @@ Read `CONVENTIONS.md` before adding one. Use the `/make-tool` skill to scaffold 
 | `check-push-target.mjs` | The lefthook `pre-push` guard: reads git's pre-push stdin and rejects a push whose remote ref is a protected branch. | `node tools/check-push-target.mjs < <pre-push stdin>` |
 | `test-tools.mjs` | The harness execution gate: runs every script in this directory and asserts the `CONVENTIONS.md` CLI contract plus each tool's real decision paths, with orca stubbed and every side effect staged in a temp dir. Fails when a script here has no coverage entry. Backs the Harness Execution CI job. | `node tools/test-tools.mjs` |
 | `check-ticket.mjs` | Validates a Linear ticket body against the ticket template (D2); rejects an incomplete ticket rather than letting a worker guess. | `node tools/check-ticket.mjs --help` |
+| `preflight.mjs` | Fast, fail-loud environment gate for autonomous runs: prints a PASS/FAIL table for the selected worker invocation, GitHub CLI installation and authentication, Orca reachability, target repo branch and cleanliness, repo defaults, and every repeated ticket-specific `--require <cli>`. Reports remedies and exits non-zero without repairing any failure. | `node tools/preflight.mjs --repo <ui\|api\|landing> [--base-branch <ref>] [--require <cli> ...]` (`--json`, `--help`) |
 | `new-ticket.mjs` | Thin wrapper over `orca linear create` that validates the issue it just created, using the identifier orca REPORTED rather than one typed by hand. Use it instead of calling `orca linear create` directly whenever the result must be a valid ticket. | `node tools/new-ticket.mjs --help` |
 | `wave-plan.mjs` | Builds a merge-gated wave table for a Linear project, label, all non-done team issues, or an explicit `--issues` list. Backs `/orchestrate` (which then launches workers) and `/next` (which stops at the answer). Relation reads run in a bounded pool while the table ordering stays unchanged. | `node tools/wave-plan.mjs --help` |
 | `compose-prompt.mjs` | Composes the worker prompt from a Linear issue's verbatim body plus every chronological comment, preserving comment Markdown. Write outside an Orbit repository so the prompt cannot be committed. | `node tools/compose-prompt.mjs --issue ORB-N --output <absolute path>` |

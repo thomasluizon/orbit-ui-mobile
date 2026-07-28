@@ -460,6 +460,33 @@ const stageLaunchWorker = (label, worker, engineName = "claude") => {
   return { path: join(base, "tools", "launch-worker.mjs"), repoPath, base }
 }
 
+const stagePreflight = (label, worker = { ...INTERACTIVE_CODEX, command: `"${process.execPath}"` }, engineName = "codex") => {
+  const base = join(root, "preflight", label)
+  const repoPath = join(base, "repos", "ui")
+  mkdirSync(repoPath, { recursive: true })
+  mkdirSync(join(base, "tools"), { recursive: true })
+  mkdirSync(join(base, ".claude"), { recursive: true })
+  writeFileSync(join(base, ".claude", "orchestrator.json"), orchestratorConfig(repoPath, worker, engineName))
+  cpSync(join(TOOLS_DIR, "preflight.mjs"), join(base, "tools", "preflight.mjs"))
+  cpSync(join(TOOLS_DIR, "lib"), join(base, "tools", "lib"), { recursive: true })
+  return { path: join(base, "tools", "preflight.mjs"), repoPath }
+}
+
+const PREFLIGHT_PASS_PLAN = [
+  { match: "auth status", stdout: "logged in", exit: 0 },
+  { match: "status --json", stdout: JSON.stringify({ ok: true, result: { runtime: { reachable: true } } }), exit: 0 },
+  { match: "branch --show-current", stdout: "main\n", exit: 0 },
+  { match: "status --porcelain", stdout: "", exit: 0 },
+]
+
+const preflightEnv = (plan) => ({
+  ...orcaEnv(plan),
+  GIT_BIN: process.execPath,
+  NODE_BIN: process.execPath,
+  NPM_BIN: process.execPath,
+  DOTNET_BIN: process.execPath,
+})
+
 const stageNudgeWorker = (label, worker, instrumentPause = false) => {
   const base = join(root, "nudge", label)
   mkdirSync(join(base, "tools"), { recursive: true })
@@ -900,6 +927,12 @@ const launchWorkerCases = () => {
   const headlessCommand = stageLaunchWorker("headless-command", { ...INTERACTIVE_WORKER, command: "claude --print", args: [] })
   check("launch-worker.mjs", "refuses a headless token hidden in the command field", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /headless invocation/ }, { path: headlessCommand.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
+  const acceptEdits = stageLaunchWorker("accept-edits", { command: "claude", args: ["--permission-mode", "acceptEdits"], models: CLAUDE_MODELS, interactive: true })
+  check("launch-worker.mjs", "refuses a claude permission mode that cannot run unattended shell commands", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /permission mode is "acceptEdits"/ }, { path: acceptEdits.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+
+  const permissionInCommand = stageLaunchWorker("permission-in-command", { command: "claude --permission-mode bypassPermissions", args: [], models: CLAUDE_MODELS, interactive: true })
+  check("launch-worker.mjs", "accepts the required claude permission mode from the whole resolved invocation", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 0, stdout: /claude --permission-mode bypassPermissions/ }, { path: permissionInCommand.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+
   // Headless is a property of the CLI, not of the harness: codex's -p is --profile, an
   // interactive flag, while claude's -p is --print. One shared token list cannot tell them
   // apart, so these five cases pin both halves of the per-engine split.
@@ -936,7 +969,7 @@ const launchWorkerCases = () => {
     `command was: ${codexPlan.stdout.trim().slice(0, 200)}`,
   )
 
-  const codexProfile = stageLaunchWorker("codex-profile", { ...INTERACTIVE_CODEX, args: ["-p", "my-profile"] }, "codex")
+  const codexProfile = stageLaunchWorker("codex-profile", { ...INTERACTIVE_CODEX, args: ["-p", "my-profile", "--dangerously-bypass-approvals-and-sandbox"] }, "codex")
   check("launch-worker.mjs", "accepts codex -p, which is --profile and not --print", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 0, stdout: /codex -p my-profile/ }, { path: codexProfile.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
   const codexExec = stageLaunchWorker("codex-exec", { ...INTERACTIVE_CODEX, args: ["exec", "--full-auto"] }, "codex")
@@ -970,6 +1003,126 @@ const launchWorkerCases = () => {
   for (const [clause, pattern] of Object.entries(REQUIRED_CONTRACT_CLAUSES)) {
     T(`launch-worker.mjs: the injected contract still forbids ${clause}`, pattern.test(launcherSource), `WORKER_CONTRACT no longer matches ${pattern}. A worker without this clause repeats the failure it was written for; restore it rather than relaxing this check.`)
   }
+}
+
+const preflightCases = () => {
+  const good = stagePreflight("all-pass")
+  check(
+    "preflight.mjs",
+    "a clean base-branch environment prints an all-PASS table",
+    ["--repo", "ui"],
+    { status: 0, stdout: /PASS\s+Worker shell policy[\s\S]*PASS\s+GitHub authentication[\s\S]*PASS\s+Repository working tree/ },
+    { path: good.path, env: preflightEnv(PREFLIGHT_PASS_PLAN) },
+  )
+
+  const claude = stagePreflight(
+    "claude-command-policy",
+    {
+      command: `"${process.execPath}" --permission-mode bypassPermissions`,
+      args: [],
+      models: CLAUDE_MODELS,
+      interactive: true,
+    },
+    "claude",
+  )
+  check(
+    "preflight.mjs",
+    "the known-good Claude policy is accepted from the whole resolved invocation",
+    ["--repo", "ui"],
+    { status: 0, stdout: /PASS\s+Worker shell policy/ },
+    { path: claude.path, env: preflightEnv(PREFLIGHT_PASS_PLAN) },
+  )
+
+  const acceptEdits = stagePreflight(
+    "claude-accept-edits",
+    {
+      command: `"${process.execPath}"`,
+      args: ["--permission-mode", "acceptEdits"],
+      models: CLAUDE_MODELS,
+      interactive: true,
+    },
+    "claude",
+  )
+  check(
+    "preflight.mjs",
+    "a Claude acceptEdits invocation fails with the known-good remedy",
+    ["--repo", "ui"],
+    { status: 1, stdout: /FAIL\s+Worker shell policy\s+set workers\.claude[\s\S]*--permission-mode bypassPermissions/ },
+    { path: acceptEdits.path, env: preflightEnv(PREFLIGHT_PASS_PLAN) },
+  )
+
+  const ghFailurePlan = PREFLIGHT_PASS_PLAN.map((entry) =>
+    entry.match === "auth status" ? { ...entry, stdout: "not logged in", exit: 1 } : entry,
+  )
+  check(
+    "preflight.mjs",
+    "an unauthenticated GitHub CLI fails and names the login remedy",
+    ["--repo", "ui"],
+    { status: 1, stdout: /FAIL\s+GitHub authentication\s+run gh auth login/ },
+    { path: good.path, env: preflightEnv(ghFailurePlan) },
+  )
+
+  const orcaFailurePlan = PREFLIGHT_PASS_PLAN.map((entry) =>
+    entry.match === "status --json"
+      ? { ...entry, stdout: JSON.stringify({ ok: false, error: { message: "runtime unavailable" } }), exit: 1 }
+      : entry,
+  )
+  check(
+    "preflight.mjs",
+    "an unreachable Orca runtime fails and names the restart remedy",
+    ["--repo", "ui"],
+    { status: 1, stdout: /FAIL\s+Orca reachability\s+start or restart Orca/ },
+    { path: good.path, env: preflightEnv(orcaFailurePlan) },
+  )
+
+  const dirtyPlan = PREFLIGHT_PASS_PLAN.map((entry) =>
+    entry.match === "status --porcelain" ? { ...entry, stdout: " M tracked-file\n" } : entry,
+  )
+  check(
+    "preflight.mjs",
+    "a dirty target working tree fails and names the cleanup remedy",
+    ["--repo", "ui"],
+    { status: 1, stdout: /FAIL\s+Repository working tree\s+commit, stash, or remove changes/ },
+    { path: good.path, env: preflightEnv(dirtyPlan) },
+  )
+
+  const wrongBranchPlan = PREFLIGHT_PASS_PLAN.map((entry) =>
+    entry.match === "branch --show-current" ? { ...entry, stdout: "feature/not-main\n" } : entry,
+  )
+  check(
+    "preflight.mjs",
+    "a target repo off its base branch fails and names both branches",
+    ["--repo", "ui"],
+    { status: 1, stdout: /FAIL\s+Repository branch\s+switch ui from feature\/not-main to main/ },
+    { path: good.path, env: preflightEnv(wrongBranchPlan) },
+  )
+
+  check(
+    "preflight.mjs",
+    "a missing ticket-specific CLI fails and names its install remedy",
+    ["--repo", "ui", "--require", "orbit-cli-that-does-not-exist"],
+    { status: 1, stdout: /FAIL\s+CLI orbit-cli-that-does-not-exist\s+install orbit-cli-that-does-not-exist/ },
+    { path: good.path, env: preflightEnv(PREFLIGHT_PASS_PLAN) },
+  )
+
+  const jsonResult = run("preflight.mjs", ["--repo", "ui", "--json"], {
+    path: good.path,
+    env: preflightEnv(PREFLIGHT_PASS_PLAN),
+  })
+  let report
+  try {
+    report = JSON.parse(jsonResult.stdout)
+  } catch {
+    report = null
+  }
+  T(
+    "preflight.mjs: machine-readable output carries stable check ids and the verdict",
+    jsonResult.status === 0 &&
+      report?.ok === true &&
+      report?.checks?.some((entry) => entry.id === "worker-shell-policy" && entry.status === "PASS") &&
+      report?.checks?.some((entry) => entry.id === "repo-clean" && entry.status === "PASS"),
+    `exit ${jsonResult.status}\n     ${(jsonResult.stderr || jsonResult.stdout).slice(0, 500)}`,
+  )
 }
 
 const TIMEOUT_PAYLOAD = JSON.stringify({ ok: false, error: { code: "timeout", message: "condition not met in time" } })
@@ -2512,6 +2665,7 @@ const gateCases = {
     check("new-ticket.mjs", "requires --project so the ticket cannot be orphaned", ["--title", "Cover the create and validate round trip"], { status: 2, stderr: /--project is required/ })
   },
   "launch-worker.mjs": launchWorkerCases,
+  "preflight.mjs": preflightCases,
   "nudge-worker.mjs": nudgeWorkerCases,
   "pr-watch.mjs": prWatchCases,
   "worker-watch.mjs": workerWatchCases,
@@ -2932,6 +3086,7 @@ const INVALID_INPUT = {
   "new-ticket.mjs": { argv: [], status: 2 },
   "nudge-worker.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "orca-web-port.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "preflight.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "pr-watch.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "redesign-coverage.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "rollup.sh": { argv: ["--orbit-not-a-flag"], status: 2 },
