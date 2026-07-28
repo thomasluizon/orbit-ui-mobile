@@ -726,6 +726,11 @@ const WORKING_COMPOSER_IDLE_STUB = staleBlockedIdleStub([
   CODEX_STATUS_STRUCTURE,
   "Working (52s · esc to interrupt)",
 ])
+const MISSPELLED_WORKING_COMPOSER_IDLE_STUB = staleBlockedIdleStub([
+  "› Explain this codebase",
+  CODEX_STATUS_STRUCTURE,
+  "Working (52s · esc to interupt)",
+])
 const LIVE_BLOCKED_IDLE_STUB = [
   { match: "terminal wait", stdout: STALE_BLOCKED_WAIT, exit: 0 },
   { match: "terminal show", stdout: JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1785168487585 } } }), exit: 0 },
@@ -745,6 +750,13 @@ const LIVE_TRUST_AFTER_COMPOSER_TAIL = [
 ]
 const RETAINED_COMPOSER_STATIC_SCREEN_TAIL = [
   "› Run /review on my current changes",
+  "Permission required",
+  "Allow this command?",
+  "[y] Yes  [n] No",
+]
+const RETAINED_READY_STATIC_SCREEN_TAIL = [
+  "› Run /review on my current changes",
+  CODEX_STATUS_STRUCTURE,
   "Permission required",
   "Allow this command?",
   "[y] Yes  [n] No",
@@ -799,6 +811,7 @@ const nudgeWorkerCases = () => {
     runNudgeSignalCase(`stale-block-${label}`, `trusts the codex ready composer structure with ${placeholder}`, staleBlockedIdleStub(readyTail), { status: 0, stdout: /"sent": "hi"/, stderr: /codex-trust-workspace[\s\S]*not repainting[\s\S]*no known trust prompt[\s\S]*codex ready composer is on screen[\s\S]*blocked reason is stale[\s\S]*screen and repaint signals win/ }, 1, { path: stageNudgeWorker(`stale-block-${label}`, "codex").path })
   }
   runNudgeSignalCase("retained-composer-static-screen", "refuses a retained composer marker followed by a static permission screen", staleBlockedIdleStub(RETAINED_COMPOSER_STATIC_SCREEN_TAIL), { status: 1, stderr: /no known ready composer is on screen[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("retained-composer-static-screen", "codex").path })
+  runNudgeSignalCase("retained-ready-static-screen", "refuses a retained composer and status followed by a static permission screen", staleBlockedIdleStub(RETAINED_READY_STATIC_SCREEN_TAIL), { status: 1, stderr: /no known ready composer is on screen[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("retained-ready-static-screen", "codex").path })
   runNudgeSignalCase("measured-ready-composer", "trusts the measured idle codex tail despite a historical working indicator", staleBlockedIdleStub(MEASURED_CODEX_READY_TAIL), { status: 0, stdout: /"sent": "hi"/, stderr: /codex ready composer is on screen/ }, 1, { path: stageNudgeWorker("measured-ready-composer", "codex").path })
   runNudgeSignalCase("measured-working-composer", "refuses the measured codex tail with a live working indicator after the composer", staleBlockedIdleStub(MEASURED_CODEX_WORKING_TAIL), { status: 1, stderr: /no known ready composer is on screen[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("measured-working-composer", "codex").path })
   runNudgeSignalCase("alternate-model-ready-composer", "recognizes structural status with a different codex model and effort", staleBlockedIdleStub(ALTERNATE_MODEL_READY_TAIL), { status: 0, stdout: /"sent": "hi"/, stderr: /codex ready composer is on screen/ }, 1, { path: stageNudgeWorker("alternate-model-ready-composer", "codex").path })
@@ -823,6 +836,7 @@ const nudgeWorkerCases = () => {
   runNudgeSignalCase("auto-profile", "fails closed when the orchestrator worker is auto", staleBlockedIdleStub(["› Explain this codebase"]), { status: 1, stderr: /engine "auto" from \.claude\/orchestrator\.json worker does not resolve[\s\S]*NOTHING was sent/ }, 0, { path: autoProfile.path })
   const unknownProfile = stageNudgeWorker("unknown-profile", "future-engine")
   runNudgeSignalCase("unknown-profile", "fails closed when the orchestrator worker is unknown", staleBlockedIdleStub(["› Explain this codebase"]), { status: 1, stderr: /engine "future-engine" from \.claude\/orchestrator\.json worker does not resolve[\s\S]*NOTHING was sent/ }, 0, { path: unknownProfile.path })
+  runNudgeSignalCase("unknown-engine-override", "fails closed when the engine override is unknown", staleBlockedIdleStub(["› Explain this codebase"]), { status: 1, stderr: /engine "future-engine" from --engine does not resolve[\s\S]*NOTHING was sent/ }, 0, { path: unknownProfile.path, argv: ["--engine", "future-engine"] })
   const missingProfile = stageNudgeWorker("missing-profile", undefined)
   runNudgeSignalCase("missing-profile", "fails closed when the orchestrator worker is missing", staleBlockedIdleStub(["› Explain this codebase"]), { status: 1, stderr: /engine "<missing>" from \.claude\/orchestrator\.json worker does not resolve[\s\S]*NOTHING was sent/ }, 0, { path: missingProfile.path })
   const claudeProfile = stageNudgeWorker("claude-profile", "claude")
@@ -838,6 +852,7 @@ const nudgeWorkerCases = () => {
   const pauses = existsSync(pauseLog) ? readFileSync(pauseLog, "utf8").trim().split("\n") : []
   T("nudge-worker.mjs: trust prompt retry applies one settle pause", pauses.length === 1 && pauses[0] === "10000", `pause log: ${JSON.stringify(pauses)}`)
   runNudgeSignalCase("working-composer", "refuses a ready-looking codex composer carrying esc to interrupt", WORKING_COMPOSER_IDLE_STUB, { status: 1, stderr: /no known ready composer is on screen[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("working-composer", "codex").path })
+  runNudgeSignalCase("misspelled-working-composer", "refuses a ready-looking codex composer carrying esc to interupt", MISSPELLED_WORKING_COMPOSER_IDLE_STUB, { status: 1, stderr: /no known ready composer is on screen[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("misspelled-working-composer", "codex").path })
   runNudgeSignalCase("live-block", "refuses a static trust prompt that is still on screen", LIVE_BLOCKED_IDLE_STUB, { status: 1, stderr: /codex-trust-workspace[\s\S]*not repainting[\s\S]*codex trust prompt is still on screen[\s\S]*remains blocked[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("live-block", "codex").path })
   runNudgeSignalCase("unrecognized-block", "refuses an unrecognized static screen with no ready composer signal", UNRECOGNIZED_BLOCKED_IDLE_STUB, { status: 1, stderr: /codex-trust-workspace[\s\S]*not repainting[\s\S]*no known trust prompt[\s\S]*no known ready composer is on screen[\s\S]*worker remains blocked[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("unrecognized-block", "codex").path })
   runNudgeSignalCase("false-idle", "refuses a tui-idle that is still repainting, which is a worker mid-turn", FALSE_IDLE_STUB, { status: 1, stderr: /tui-idle[\s\S]*still repainting[\s\S]*repaint signal wins[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("false-idle", "codex").path })

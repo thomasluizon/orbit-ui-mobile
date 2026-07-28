@@ -59,8 +59,8 @@ const ENGINE_PROFILES = {
   codex: {
     trustOnScreen: /doyoutrustthecontentsofthisdirectory/,
     composerMarker: "›",
-    statusOnScreen: /(?:^| )[a-z0-9][a-z0-9._/-]* (?:low|medium|high|xhigh|max|ultra) · (?:~[\\/]|[a-z]:[\\/]|\/)[^·]+/,
-    workingOnScreen: /esctointerrupt/,
+    statusOnScreen: /(?:^| )[a-z0-9][a-z0-9._/-]* (?:low|medium|high|xhigh|max|ultra) · (?:~[\\/]|[a-z]:[\\/]|\/)[^\s·]+(?: · main \[default\])?(?: ─ worked for \d+m \d+s ─+)?\s*$/,
+    workingOnScreen: /esctointer\w*/,
   },
 }
 const flatten = (text) => text.replace(/\s+/g, "").toLowerCase()
@@ -217,12 +217,12 @@ const staleBlockVerdict = (handle, blockedReason) => {
     }
   }
   if (!readyEngine) {
-    const missingSignal = workingOnScreen
-      ? "the live working indicator follows the composer marker"
-      : "the live model, effort, separator and working-directory status structure is absent"
+    const missingSignal = !statusStructureOnScreen
+      ? "the live model, effort, separator and working-directory status structure is absent"
+      : "the live working indicator follows the composer marker"
     return {
       verdict: "blocked",
-      message: `orca reports ${blockedReason}, the TUI is not repainting, and no known trust prompt is on screen, but no known ready composer is on screen for the ${resolvedEngine} profile because ${statusStructureOnScreen ? missingSignal : "the live model, effort, separator and working-directory status structure is absent"}, so the worker remains blocked`,
+      message: `orca reports ${blockedReason}, the TUI is not repainting, and no known trust prompt is on screen, but no known ready composer is on screen for the ${resolvedEngine} profile because ${missingSignal}, so the worker remains blocked`,
     }
   }
   return {
