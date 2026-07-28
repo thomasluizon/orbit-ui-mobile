@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Thin CLI over second-opinion.mjs: pipe one claim or dossier, get GLM-5.2's AGREE/DISAGREE/UNSURE verdict as one line of JSON.
+# Thin CLI over second-opinion.mjs: pipe one claim or dossier, get GPT-5.6 Sol's AGREE/DISAGREE/UNSURE verdict as one line of JSON.
 root="$(cd "$(dirname "$0")/.." && pwd)"
 helper="$root/.claude/skills/second-opinion/second-opinion.mjs"
 
 usage() {
   cat <<'EOF'
-agent-review - cross-model second opinion (GLM-5.2 via opencode) on one claim.
+agent-review - cross-model second opinion (GPT-5.6 Sol through Codex) on one claim.
 
 Usage:
   agent-review --claim "<one-line claim>"        # claim as arg, dossier built for you
@@ -19,7 +19,7 @@ Behavior:
   Delegates to second-opinion.mjs, prints its single-line JSON, and passes the exit code through.
 
 Exit codes:
-  0  a JSON verdict was printed (OK) or opencode was UNAVAILABLE (graceful, still JSON)
+  0  a JSON verdict was printed (OK) or Codex was UNAVAILABLE (graceful, still JSON)
   1  usage error: no --claim and empty stdin, or an unknown flag
 EOF
 }
