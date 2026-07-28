@@ -471,6 +471,26 @@ const bareToolSurfacing = runHookResult(
   stopPayload(["Run this command:", "", "```bash", "tools/rollup.sh", "```"].join("\n")),
 )
 T("cc raw-tool: bare tools script instruction -> 2", bareToolSurfacing.status, 2)
+for (const [label, command, skills] of [
+  ["rollup", "tools/rollup.sh", ["/rollup"]],
+  ["worker watch", "node tools/worker-watch.mjs", ["/watch"]],
+  ["PR watch", "node tools/pr-watch.mjs --repo owner/repo --pr 1", ["/orchestrate"]],
+  ["ticket creation", "node tools/new-ticket.mjs --help", ["/ticket", "/feature"]],
+  ["web port", "node tools/orca-web-port.mjs", ["/dev-server"]],
+  ["second opinion", "tools/agent-review.sh --claim test", ["/second-opinion"]],
+]) {
+  const result = runHookResult(RAW_TOOL_HOOK, stopPayload(`Run ${command}`))
+  T(`cc raw-tool: ${label} wrapper instruction -> 2`, result.status, 2)
+  for (const skill of skills) T(`cc raw-tool: ${label} names ${skill}`, result.stderr.includes(skill), true)
+  T(`cc raw-tool: ${label} does not claim a missing skill`, result.stderr.includes("No skill currently"), false)
+}
+const missingSkillSurfacing = runHookResult(RAW_TOOL_HOOK, stopPayload("Run node tools/arch-map.mjs"))
+T("cc raw-tool: unmapped tool instruction -> 2", missingSkillSurfacing.status, 2)
+T(
+  "cc raw-tool: unmapped tool says no skill currently exposes it",
+  missingSkillSurfacing.stderr.includes("No skill currently exposes this capability"),
+  true,
+)
 
 const outsideRepoArtifactBody = ["# Instructions", "", "Run this to refresh the order:", "", "```bash", "node tools/wave-plan.mjs --all", "```"].join("\n")
 const outsideRepoArtifact = write("Downloads/order.md", outsideRepoArtifactBody)
@@ -480,6 +500,17 @@ const artifactSurfacing = runHookResult(
 )
 T("cc raw-tool: outside-repo instruction artifact -> 2", artifactSurfacing.status, 2)
 T("cc raw-tool: artifact block names /next", artifactSurfacing.stderr.includes("/next"), true)
+for (const [label, relativePath] of [
+  ["ordinary numbered note", "Downloads/notes-1.md"],
+  ["uppercase ticket lookalike", "Downloads/NOTES-1.md"],
+  ["help-like parent directory", "Downloads/wave--help-output/notes.md"],
+]) {
+  T(
+    `cc raw-tool: ${label} remains a scanned artifact -> 2`,
+    runHook(RAW_TOOL_HOOK, writePayload(write(relativePath, outsideRepoArtifactBody), outsideRepoArtifactBody)),
+    2,
+  )
+}
 
 const rawToolRepoRoot = join(hooksDir, "..", "..")
 for (const [name, filePath, newString] of [
@@ -565,11 +596,13 @@ T(
   0,
 )
 
-const ticketBodyPath = write("ORB-999.md", "## Technical details\n\nThe skill internally runs `node tools/wave-plan.mjs --all`.")
-T("cc raw-tool: ticket body -> 0", runHook(RAW_TOOL_HOOK, writePayload(ticketBodyPath)), 0)
+const ticketBodyPath = write("ORB-999.md", outsideRepoArtifactBody)
+T("cc raw-tool: ticket body -> 0", runHook(RAW_TOOL_HOOK, writePayload(ticketBodyPath, outsideRepoArtifactBody)), 0)
 
-const prDescriptionPath = write("pr-description.md", "## Implementation\n\nValidation uses `node tools/wave-plan.mjs --all` inside the skill.")
-T("cc raw-tool: PR description -> 0", runHook(RAW_TOOL_HOOK, writePayload(prDescriptionPath)), 0)
+const prDescriptionPath = write("pr-description.md", outsideRepoArtifactBody)
+T("cc raw-tool: PR description -> 0", runHook(RAW_TOOL_HOOK, writePayload(prDescriptionPath, outsideRepoArtifactBody)), 0)
+const helpOutputPath = write("Downloads/wave-plan--help-output.txt", outsideRepoArtifactBody)
+T("cc raw-tool: help output basename -> 0", runHook(RAW_TOOL_HOOK, writePayload(helpOutputPath, outsideRepoArtifactBody)), 0)
 T(
   "cc raw-tool: quoted --help output -> 0",
   runHook(
@@ -615,6 +648,21 @@ T(
   sameLineDocumentedInstruction.stderr.includes("node tools/wave-plan.mjs --all"),
   true,
 )
+for (const [label, text] of [
+  ["contracted modal", "Internally you'd run `node tools/wave-plan.mjs --all`"],
+  ["explicit modal", "Internally you can run `node tools/wave-plan.mjs --all`"],
+]) {
+  const result = runHookResult(RAW_TOOL_HOOK, stopPayload(text))
+  T(`cc raw-tool: internal ${label} user framing -> 2`, result.status, 2)
+  T(`cc raw-tool: internal ${label} names the command`, result.stderr.includes("node tools/wave-plan.mjs --all"), true)
+}
+for (const [label, text] of [
+  ["orchestrator modal", "Internally the orchestrator would run `node tools/wave-plan.mjs --all` to build the table."],
+  ["skill modal", "Internally the skill can run `node tools/wave-plan.mjs --all` when rebuilding the graph."],
+  ["quoted ticket instruction", "The ticket body says you can run `node tools/wave-plan.mjs --all` as an example."],
+]) {
+  T(`cc raw-tool: ${label} remains documentation -> 0`, runHook(RAW_TOOL_HOOK, stopPayload(text)), 0)
+}
 T(
   "cc raw-tool: documentation line opens a fenced command block -> 0",
   runHook(

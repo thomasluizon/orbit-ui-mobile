@@ -21,9 +21,12 @@ const NPX_COMMAND = /\bnpx(?:\.cmd)?[ \t]+\S[^`\r\n]*/i
 const SHELL_FENCE = /^(?:bash|sh|shell|zsh|powershell|pwsh|cmd|console)?$/i
 const DOCUMENTATION =
   /\b(?:skill body|agent body|ticket body|linear ticket|PR description|pull request description|tool help|internally|under the hood|inside (?:its|the) automation)\b|(?<![\p{L}\p{N}_-])(?:--help|help)[^\p{L}\p{N}_\r\n]+(?:output|text)\b/iu
-const DOCUMENT_PATH =
-  /(?:^|[/\\])(?:\.claude[/\\](?:skills|agents|hooks)[/\\]|(?:ticket(?:-body)?|pr(?:-body|-description)?|pull-request-description|[A-Z][A-Z0-9]+-\d+)\.(?:md|txt)$)/i
-const HELP_PATH = /(?:^|[/\\])(?:help|.+--help)(?:[-_.].*)?\.(?:md|txt|log)$/i
+const INTERNAL_DOCUMENTATION = /\b(?:internally|under the hood|inside (?:its|the) automation)\b/i
+const SECOND_PERSON_RUN =
+  /\b(?:you|you['’](?:d|ll)|you\s+(?:can|could|may|might|must|should|will|would)|you\s+(?:have|need|ought)\s+to)\s+(?:(?:just|simply)\s+)?run(?:\s+(?:this|it|the command))?\s*$/i
+const DOCUMENT_BASENAME = /^(?:ticket(?:-body)?|pr(?:-body|-description)?|pull-request-description)\.(?:md|txt)$/i
+const TICKET_BASENAME = /^ORB-\d+\.(?:md|txt)$/
+const HELP_BASENAME = /^(?:help|.+--help)(?:[-_.].*)?\.(?:md|txt|log)$/i
 const HOOK_REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..")
 const WINDOWS_PATH = /^(?:[a-z]:[\\/]|\\\\)/i
 
@@ -153,7 +156,19 @@ function isAmbiguousNpxName(command, insideFence, hasPrefix) {
 
 function hasInstructionFraming(prefix) {
   const framing = prefix.replace(/[`*_]+\s*$/, "").trimEnd()
-  return /(?:^|[,:;]\s*)(?:please\s+)?run(?:\s+(?:this|it|the command))?\s*$/i.test(framing)
+  const directInstruction = /(?:^|[,:;]\s*)(?:please\s+)?run(?:\s+(?:this|it|the command))?\s*$/i.test(framing)
+  return directInstruction || (INTERNAL_DOCUMENTATION.test(framing) && SECOND_PERSON_RUN.test(framing))
+}
+
+function isDocumentationArtifact(filePath) {
+  const normalizedPath = filePath.replaceAll("\\", "/")
+  const basename = normalizedPath.slice(normalizedPath.lastIndexOf("/") + 1)
+  return (
+    /(?:^|\/)\.claude\/(?:skills|agents|hooks)\//i.test(normalizedPath) ||
+    DOCUMENT_BASENAME.test(basename) ||
+    TICKET_BASENAME.test(basename) ||
+    HELP_BASENAME.test(basename)
+  )
 }
 
 function surfacedCommands(text) {
@@ -203,12 +218,27 @@ function alternativeFor(command) {
   ) {
     return "Use /next for the supported read-only recommendation."
   }
+  const basename = /(?:^|[\s"'\\/])tools[\\/]([a-z0-9_.-]+)/i.exec(command)?.[1]?.toLowerCase()
+  if (basename === "rollup.sh") return "Use /rollup for the supported cross-repo health report."
+  if (basename === "worker-watch.mjs") return "Use /watch for the supported worker status report."
+  if (
+    ["compose-prompt.mjs", "launch-worker.mjs", "teardown-worktree.mjs", "nudge-worker.mjs", "worker-status.mjs", "pr-watch.mjs"].includes(
+      basename,
+    )
+  ) {
+    return "Use /orchestrate for the supported worker workflow."
+  }
+  if (basename === "check-ticket.mjs" || basename === "new-ticket.mjs") {
+    return "Use /ticket for one work item or /feature for a multi-ticket feature."
+  }
+  if (basename === "orca-web-port.mjs") return "Use /dev-server for the supported local server workflow."
+  if (basename === "agent-review.sh") return "Use /second-opinion for the supported cross-model verdict."
   return "No skill currently exposes this capability. Say that plainly and describe the skill to build instead of giving Thomas the raw command."
 }
 
 export function checkRawRepoToolSurfacing(text, { source = "chat", filePath = "" } = {}) {
   if (typeof text !== "string" || !text.trim()) return null
-  if (source === "artifact" && (DOCUMENT_PATH.test(filePath) || HELP_PATH.test(filePath))) return null
+  if (source === "artifact" && isDocumentationArtifact(filePath)) return null
 
   const commands = surfacedCommands(text)
   if (!commands.length) return null
