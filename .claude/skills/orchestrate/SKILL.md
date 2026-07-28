@@ -314,18 +314,21 @@ only thing that advances a wave"), and to the `Never: merge a PR` line below. Sa
 in the run's opening line, so a reader of the transcript is never left wondering
 whether the run went rogue.
 
-Before invoking the merge tool, enforce the run-scope conditions that it cannot
-decide for one PR:
+For each candidate PR, read `mergeStateStatus` and `headRefOid` first. If it is
+`BEHIND`, run `gh pr update-branch <n> --repo <owner/repo>` and wait for GitHub to
+expose the resulting head SHA. Only then enforce the conditions the merge tool
+cannot decide for one PR, all against that recorded head:
 
 1. `--sleep` was passed, every wave blocker is merged, and Phase 1's gates are green
    on the target branch.
 2. Every status check has concluded. The tool rejects failed conclusions and waits
    on merge-blocking checks, but it does not keep a non-required pending check from
    being merged past.
-3. The D7 evidence gate is satisfied: the PR is attached to the issue, and a
+3. `mergeStateStatus` is `CLEAN` and `headRefOid` still matches the recorded head.
+4. The D7 evidence gate is satisfied: the PR is attached to the issue, and a
    `visible-effect` ticket has its screenshot attached.
-4. The ticket carries no `attempts:2` label (D9 refuses it regardless of colour).
-5. **Every comment from every reviewer is addressed, whatever its review state.**
+5. The ticket carries no `attempts:2` label (D9 refuses it regardless of colour).
+6. **Every comment from every reviewer is addressed, whatever its review state.**
    `reviewDecision` only reflects reviews that BLOCK. A `COMMENTED` review and an inline
    comment thread do not move it, so a PR can read `APPROVED` while carrying unaddressed
    findings. Measured on PR #621, 2026-07-27: the Codex connector posted two P1 inline
@@ -376,19 +379,24 @@ decide for one PR:
    up to a merged PR carrying open threads whose findings were in fact fixed hours earlier;
    from the outside those two states look identical, and one of them is a lie.
 
-After every skill-only condition holds, group eligible PR numbers by repository and
-invoke the strict sweep from the repository root:
+Immediately before handoff, re-read `headRefOid` and `mergeStateStatus`. If the head
+moved at any point after the conditions ran, discard their results and repeat the
+update-first sequence and conditions 1 to 6 against the new head. That repeat includes
+re-enumerating review bodies, inline comments and unresolved review threads; the merge
+script cannot do that. Invoke the strict sweep for ONE PR at a time from the repository
+root, immediately after its final-head preflight:
 
 ```bash
-bash tools/merge-sweep.sh <owner/repo> <pr-number>...
+bash tools/merge-sweep.sh <owner/repo> <pr-number>
 ```
 
-The script owns the mechanical merge decision. It updates the branch, polls
-`mergeStateStatus`, rejects failed checks, requires `reviewDecision=APPROVED`, waits
-for the `review` check on the current head SHA to settle, re-reads the decision after
-updates, squash-merges without `--admin`, deletes the branch, and checks that a merged
-head did not move afterwards. Its workflow lookup fails closed: if it cannot prove
-the repository has no review workflow, the current-head review wait stays enabled.
+The script owns the remaining mechanical merge decision. It repeats the branch update
+as a safety check, polls `mergeStateStatus`, rejects failed checks, requires
+`reviewDecision=APPROVED`, waits for the `review` check on the current head SHA to
+settle, re-reads the decision after updates, squash-merges without `--admin`, deletes
+the branch, and checks that a merged head did not move afterwards. Its workflow lookup
+fails closed: if it cannot prove the repository has no review workflow, the
+current-head review wait stays enabled.
 
 `--sleep` always invokes `tools/merge-sweep.sh`. It never invokes
 `tools/merge-sweep-cov.sh`: that variant can use `--admin` to override a SonarCloud
