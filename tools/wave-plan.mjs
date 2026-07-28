@@ -24,6 +24,12 @@ const USAGE = `usage: wave-plan.mjs --project "<name>" | --label "<label>" | --a
   --json               emit the wave table as JSON instead of text
   --help, -h           print this usage and exit 0
 
+Each wave also reports "collisions": every pair of tickets in it whose "Affected modules / files"
+sections name a common path, with the shared paths. It REPORTS only, and never reorders a wave:
+two tickets appending to the same test file and two rewriting the same function are identical to
+a set intersection, so the call to serialise stays with the operator. A ticket with no parseable
+path is listed as unknown, because silence is the thing this output exists to remove.
+
 exit codes: 0 wave table printed, 1 nothing to plan or a cycle, 2 usage/orca error`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
@@ -136,6 +142,85 @@ if (issuesMode) {
 
 const DONE_TYPES = new Set(["completed", "canceled", "duplicate"])
 
+/**
+ * Two tickets in the same wave that edit the same file collide. Nothing in the harness knew that,
+ * so serialisation was decided from memory each run: on 2026-07-28 ORB-120 was held behind two
+ * tickets it shared two files with, in different regions, costing hours with a worker idle. The
+ * inverse mistake is worse. This reports the overlap; it never reorders a wave, because a set
+ * intersection cannot tell an append-only test file from a rewrite of the same function.
+ */
+const AFFECTED_PATH = /\.?[\w@][\w./\\@()[\]{}+-]*\.[a-z0-9][a-z0-9-]*/gi
+const BARE_AFFECTED_PATH = /^\.?[\w@][\w./\\@()[\]{}+-]*\.[a-z0-9][a-z0-9-]*$/i
+
+const affectedSectionOf = (description) => {
+  const lines = (description ?? "").split(/\r?\n/)
+  let fence = null
+  let section = null
+  for (const line of lines) {
+    const marker = line.match(/^\s*(`{3,}|~{3,})/)?.[1][0] ?? null
+    if (marker) {
+      if (!fence) fence = marker
+      else if (fence === marker) fence = null
+      continue
+    }
+    if (!fence && /^#+[ \t]+/.test(line)) {
+      if (section) break
+      if (/^#+\s*(affected|files|modules)\b/i.test(line)) section = [line]
+      continue
+    }
+    if (section && !fence) section.push(line)
+  }
+  return section?.join("\n") ?? null
+}
+
+const isDeclaredPath = (section, path, index) => {
+  if (/[a-z][a-z0-9+.-]*:\/\/$/i.test(section.slice(Math.max(0, index - 24), index))) return false
+  if (/^[\w-]+(?:\.[\w-]+)*\.[a-z]{2,63}\//i.test(path)) return false
+  if (/[\\/]/.test(path)) return true
+  if (section[index - 1] === "`" && section[index + path.length] === "`") return true
+  const lineStart = section.lastIndexOf("\n", index) + 1
+  const nextBreak = section.indexOf("\n", index + path.length)
+  const lineEnd = nextBreak === -1 ? section.length : nextBreak
+  const item = section
+    .slice(lineStart, lineEnd)
+    .trim()
+    .replace(/^(?:[-*]|\d+\.)\s+/, "")
+    .replace(/^\[[ xX]\]\s+/, "")
+  const annotation = item.startsWith(path) ? item.slice(path.length) : ""
+  if (/^(?::|\s+-\s+)/.test(annotation)) return true
+  const itemPaths = item
+    .split(/\s*,\s*|\s+and\s+/i)
+    .map((candidate) => candidate.replace(/^`|`$/g, ""))
+  return itemPaths.includes(path) && itemPaths.every((candidate) => BARE_AFFECTED_PATH.test(candidate))
+}
+
+const affectedFilesOf = (description) => {
+  const section = affectedSectionOf(description)
+  if (!section) return []
+  const paths = [...section.matchAll(AFFECTED_PATH)]
+    .filter((match) => isDeclaredPath(section, match[0], match.index))
+    .map(([path]) => path.replace(/\\/g, "/"))
+  return [...new Set(paths)]
+}
+
+const collisionsIn = (waveIssues, byIdentifier) => {
+  const pairs = []
+  for (let a = 0; a < waveIssues.length; a++) {
+    for (let b = a + 1; b < waveIssues.length; b++) {
+      const leftIssue = byIdentifier.get(waveIssues[a])
+      const rightIssue = byIdentifier.get(waveIssues[b])
+      const leftRepo = leftIssue?.labels.find((label) => label.startsWith("repo:"))
+      const rightRepo = rightIssue?.labels.find((label) => label.startsWith("repo:"))
+      if (leftRepo && rightRepo && leftRepo !== rightRepo) continue
+      const left = leftIssue?.affectedFiles ?? []
+      const right = new Set(rightIssue?.affectedFiles ?? [])
+      const shared = left.filter((path) => right.has(path))
+      if (shared.length) pairs.push({ a: waveIssues[a], b: waveIssues[b], files: shared })
+    }
+  }
+  return pairs
+}
+
 const toPlanIssue = (detail) => {
   const full = detail.issue ?? detail
   const relations = detail.relations ?? full.relations ?? []
@@ -143,6 +228,7 @@ const toPlanIssue = (detail) => {
   return {
     identifier: full.identifier,
     title: full.title,
+    affectedFiles: affectedFilesOf(full.description),
     state: full.state?.name ?? full.state,
     stateType: full.state?.type ?? null,
     labels: labelNames,
@@ -307,6 +393,8 @@ if (process.argv.includes("--json")) {
         waves: visibleWaves.map(({ wave, issues: waveIssues }) => ({
           wave,
           issues: waveIssues.map(visibleIssue),
+          collisions: collisionsIn(waveIssues, byIdentifier),
+          unknownAffected: waveIssues.filter((identifier) => (byIdentifier.get(identifier)?.affectedFiles ?? []).length === 0),
         })),
         launchable: visibleLaunchable,
         twoStrikes: visibleTwoStrikes,
@@ -326,6 +414,11 @@ if (process.argv.includes("--json")) {
       const restriction = issuesMode ? `  blockerState: ${blockerStateOf(issue)}  launchable: ${visibleLaunchable.includes(identifier) ? "yes" : "no"}` : ""
       console.log(`  ${identifier}  [${issue.state}]${external}  ${issue.title}${blockers}${restriction}${strikes}`)
     }
+    const collisions = collisionsIn(waveIssues, byIdentifier)
+    const unknown = waveIssues.filter((identifier) => (byIdentifier.get(identifier)?.affectedFiles ?? []).length === 0)
+    console.log(`  collisions: ${collisions.length ? "" : "none"}`)
+    for (const { a, b, files } of collisions) console.log(`    ${a} + ${b}: ${files.join(", ")}`)
+    if (unknown.length) console.log(`    unknown (no parseable path in Affected modules / files): ${unknown.join(", ")}`)
   }
   console.log(`\nLAUNCHABLE NOW (all blockers merged, not started, under the strike limit): ${visibleLaunchable?.join(", ") || "none"}`)
 }
