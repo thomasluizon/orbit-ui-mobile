@@ -45,14 +45,19 @@ const ORCA = process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs
 /** One wait is a full minute; three of them is a worker that is genuinely working, not one that is stuck. */
 const WAIT_TIMEOUT_MS = 60000
 const STALE_BLOCKED_REASON = "codex-trust-workspace"
+// WHY: ORB-129 measured rotating composer copy; the stable prompt/status structure plus no working indicator proves readiness. https://github.com/thomasluizon/orbit-ui-mobile/pull/629
 const ENGINE_PROFILES = {
   claude: {
     trustOnScreen: /isthisaprojectyoucreatedoroneyoutrust|doyoutrustthefiles|trustthisfolder/,
-    readyOnScreen: />try"howdoiloganerror\?"/,
+    composerOnScreen: />/,
+    statusOnScreen: /(?:opus|sonnet)[\d.]+@(?:low|medium|high|xhigh|max|ultra)ctx\[[^\]]*\](?:--|\d+)%/,
+    workingOnScreen: /esctointerrupt/,
   },
   codex: {
     trustOnScreen: /doyoutrustthecontentsofthisdirectory/,
-    readyOnScreen: /›writetestsfor@filename/,
+    composerOnScreen: /›/,
+    statusOnScreen: /gpt-[\w.-]+(?:low|medium|high|xhigh|max|ultra)·\d+%left·[a-z]:[\\/]/,
+    workingOnScreen: /esctointerrupt/,
   },
 }
 const flatten = (text) => text.replace(/\s+/g, "").toLowerCase()
@@ -131,7 +136,11 @@ const screenSignals = (handle) => {
   const tail = (orca(["terminal", "read", "--terminal", handle, "--limit", "60"]).terminal?.tail ?? []).join("\n")
   const screen = flatten(tail)
   const trustEngine = Object.entries(ENGINE_PROFILES).find(([, profile]) => profile.trustOnScreen.test(screen))?.[0] ?? null
-  const readyEngine = Object.entries(ENGINE_PROFILES).find(([, profile]) => profile.readyOnScreen.test(screen))?.[0] ?? null
+  const readyEngine = Object.entries(ENGINE_PROFILES).find(([, profile]) => (
+    profile.composerOnScreen.test(screen)
+    && profile.statusOnScreen.test(screen)
+    && !profile.workingOnScreen.test(screen)
+  ))?.[0] ?? null
   return { trustEngine, readyEngine }
 }
 
