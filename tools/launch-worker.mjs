@@ -72,7 +72,7 @@ const MAX_WAIT_ATTEMPTS = 6
 
 /**
  * What each worker CLI does that this script has to know, keyed by the binary it runs.
- * All three facts are properties of the CLI, not of the harness, so a shared list cannot
+ * All four facts are properties of the CLI, not of the harness, so a shared list cannot
  * hold them: codex's `-p` is `--profile`, a legitimate interactive flag, while claude's
  * `-p` is `--print`, the headless mode this guard exists for. One flat token list
  * rejected every valid `codex --profile` invocation as headless.
@@ -87,11 +87,14 @@ const MAX_WAIT_ATTEMPTS = 6
 const ENGINE_PROFILES = {
   claude: {
     headlessTokens: ["-p", "--print"],
+    runPermissionTokens: ["--permission-mode", "bypassPermissions"],
+    permissionModeToken: "--permission-mode",
     trustOnScreen: /isthisaprojectyoucreatedoroneyoutrust|doyoutrustthefiles|trustthisfolder/,
     trustAnswer: "1",
   },
   codex: {
     headlessTokens: ["exec", "e"],
+    runPermissionTokens: ["--dangerously-bypass-approvals-and-sandbox"],
     trustOnScreen: /doyoutrustthecontentsofthisdirectory/,
     trustAnswer: "",
   },
@@ -426,6 +429,12 @@ if (!profile) {
 const headless = invocationTokens.slice(1).find((token) => profile.headlessTokens.includes(token))
 if (headless) {
   fail(2, `worker "${engineName}" declares interactive: true but its invocation "${command}" carries "${headless}", which is a headless invocation of ${binary}. Fix the command or args, or the declaration, in .claude/orchestrator.json`)
+}
+const runPermissionIndex = invocationTokens.findIndex((token, index) => token === profile.runPermissionTokens[0] && profile.runPermissionTokens.every((expected, offset) => invocationTokens[index + offset] === expected))
+if (runPermissionIndex === -1) {
+  const modeIndex = profile.permissionModeToken ? invocationTokens.indexOf(profile.permissionModeToken) : -1
+  const mode = modeIndex === -1 ? "" : `; resolved permission mode is "${invocationTokens[modeIndex + 1] ?? "missing"}"`
+  fail(2, `worker "${engineName}" invocation "${command}" does not carry ${binary}'s required run-permitting policy "${profile.runPermissionTokens.join(" ")}"${mode}. A worker without that policy can stop for approval with nobody at the keyboard. Fix the command or args in .claude/orchestrator.json`)
 }
 
 /** Reported in the plan so a dry run shows whether this launch would inject the contract, and a
