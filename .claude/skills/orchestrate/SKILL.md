@@ -72,7 +72,11 @@ launchable members. Apply sections 1 through 3 and every D7, D8, D9 and
 For every ticket this run may launch, read and execute
 `.claude/skills/_shared/scope-completeness.md` against its target repo and the brain vault.
 Print that ticket's list before any worker starts and append it verbatim to the worker
-prompt. No ticket reaches dispatch with an unchecked or unaccounted entry.
+prompt. Before dispatch, every affected occurrence must be identified as a checkbox entry,
+and every entry must be accounted for by assigning it to a specific ticket in this run or
+explicitly marking it out of scope with a reason. An unchecked box is the normal
+pre-dispatch state: it tracks completion and is checked by the implementation worker as the
+work lands. No ticket reaches dispatch with an omitted category or an unaccounted entry.
 
 ## 1. Reconcile before dispatch (D8)
 

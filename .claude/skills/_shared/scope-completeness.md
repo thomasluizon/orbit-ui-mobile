@@ -17,7 +17,10 @@ categories:
 - every `.claude/` rule, playbook, skill, agent, hook, and settings reference.
 
 Record `none found` under a category only after searching it. An omitted category is an
-incomplete search. Make every affected occurrence a checkbox, check it off as the work
-lands, and add any affected reference discovered during implementation so the list stays
-complete. The invoking skill determines how the list is assigned to tickets and handed to
-the implementation worker.
+incomplete search. An occurrence is identified once it is recorded as a checkbox entry. An
+entry is accounted for once it is assigned to a specific ticket in the run or explicitly
+marked out of scope with a reason. Unchecked boxes are the normal pre-dispatch state: they
+track completion, and the implementation worker checks them off as the work lands. Add any
+affected reference discovered during implementation so the list stays complete. The
+invoking skill determines how the list is assigned to tickets and handed to the
+implementation worker.
