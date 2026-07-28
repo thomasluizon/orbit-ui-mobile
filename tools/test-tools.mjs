@@ -1321,7 +1321,7 @@ const newTicketStub = (created, issue, options = {}) => [
   { match: "linear issue", stdout: JSON.stringify({ ok: true, result: { issue, relations: [] } }) },
 ]
 const CREATED_OK = { ok: true, result: { issue: { identifier: "ORB-99" } } }
-const VALID_ISSUE = { identifier: "ORB-99", title: "Cover the create and validate round trip", description: VALID_TICKET_BODY, labels: [{ name: "repo:api" }] }
+const VALID_ISSUE = { identifier: "ORB-99", title: "Cover the create and validate round trip", description: VALID_TICKET_BODY, labels: [{ name: "repo:api" }, { name: "Improvement" }] }
 
 const CONTEXT_CLAUDE = [
   "# Orbit fixture",
@@ -1713,29 +1713,126 @@ const gateCases = {
       ["--file", stage("ticket-visible-no-evidence.md", visibleTicket())],
       { status: 1, stderr: /DEFECTIVE TICKET \(2 problems\)[\s\S]*final screenshots are attached before In Review[\s\S]*critique artifact is attached before In Review/ },
     )
-    const issue = (sentence) => ({
-      match: "linear issue ORB-99",
-      stdout: JSON.stringify({
-        ok: true,
-        result: {
-          issue: { identifier: "ORB-99", title: "Keep explicit issue dependencies precise", description: `${VALID_TICKET_BODY}\n\n${sentence}`, labels: [{ name: "repo:api" }] },
-          relations: [],
+    const issueStub = (labels, description = VALID_TICKET_BODY, relations = []) =>
+      orcaEnv([
+        {
+          match: "linear issue ORB-113",
+          stdout: JSON.stringify({
+            ok: true,
+            result: {
+              issue: {
+                identifier: "ORB-113",
+                title: "Gate the Linear ticket type taxonomy",
+                description,
+                labels: labels.map((name) => ({ name })),
+              },
+              relations,
+            },
+          }),
         },
-      }),
-    })
-    for (const sentence of [
-      "Cleanup runs after the terminal exits.",
-      "The launcher retries once the daemon is responsive.",
-      "The branch name depends on configuration, and startup can be blocked by a trust prompt.",
+      ])
+    check(
+      "check-ticket.mjs",
+      "issue mode rejects zero type labels and names every valid value",
+      ["--issue", "ORB-113"],
+      { status: 1, stderr: /exactly ONE type label required \(Feature, Bug, Improvement\); found: none/ },
+      { env: issueStub(["repo:api"]) },
+    )
+    check(
+      "check-ticket.mjs",
+      "issue mode accepts exactly one type label",
+      ["--issue", "ORB-113"],
+      { status: 0, stdout: /ticket ok/ },
+      { env: issueStub(["repo:api", "Improvement"]) },
+    )
+    check(
+      "check-ticket.mjs",
+      "issue mode rejects two type labels",
+      ["--issue", "ORB-113"],
+      { status: 1, stderr: /exactly ONE type label required \(Feature, Bug, Improvement\); found: Feature, Bug/ },
+      { env: issueStub(["repo:api", "Feature", "Bug"]) },
+    )
+    check(
+      "check-ticket.mjs",
+      "the repo label rule still rejects two repo labels alongside one type",
+      ["--issue", "ORB-113"],
+      { status: 1, stderr: /exactly ONE repo label required/ },
+      { env: issueStub(["repo:api", "repo:ui", "parity:no", "Feature"]) },
+    )
+    check(
+      "check-ticket.mjs",
+      "file mode remains unaffected by issue-only label validation",
+      ["--file", stage("valid-ticket.md", `# Gate the Linear ticket type taxonomy\n\n${VALID_TICKET_BODY}\n`)],
+      { status: 0, stdout: /ticket ok/ },
+    )
+    for (const [name, prose] of [
+      ["once used as a measured frequency", "The callback fires once for each matching label."],
+      ["depends on used for ordinary logic", "The exact message depends on which labels are present."],
+      ["after used as an ordinary sequence", "After validation, the checker prints ticket ok."],
+      ["after used for process order", "Cleanup runs after the terminal exits."],
+      ["once used for retry timing", "The launcher retries once the daemon is responsive."],
+      ["depends on and blocked by used for ordinary behavior", "The branch name depends on configuration, and startup can be blocked by a trust prompt."],
     ]) {
-      check("check-ticket.mjs", `ordinary prose does not imply a dependency: ${sentence}`, ["--issue", "ORB-99"], { status: 0, stdout: /ticket ok/ }, { env: orcaEnv([issue(sentence)]) })
+      check(
+        "check-ticket.mjs",
+        `dependency prose ignores ${name}`,
+        ["--issue", "ORB-113"],
+        { status: 0, stdout: /ticket ok/ },
+        { env: issueStub(["repo:api", "Improvement"], `${VALID_TICKET_BODY}\n\n${prose}`) },
+      )
     }
     check(
       "check-ticket.mjs",
+      "a genuine named dependency without a relation is rejected",
+      ["--issue", "ORB-113"],
+      { status: 1, stderr: /body PROSE mentions a dependency but the issue has no blockedBy relation/ },
+      { env: issueStub(["repo:api", "Improvement"], `${VALID_TICKET_BODY}\n\n## Dependencies (blockedBy)\n\nThis work depends on ORB-112.`) },
+    )
+    check(
+      "check-ticket.mjs",
       "a named issue blocker still requires a blockedBy relation",
-      ["--issue", "ORB-99"],
+      ["--issue", "ORB-113"],
       { status: 1, stderr: /body PROSE mentions a dependency/ },
-      { env: orcaEnv([issue("This change is blocked by ORB-1.")]) },
+      { env: issueStub(["repo:api", "Improvement"], `${VALID_TICKET_BODY}\n\nThis change is blocked by ORB-1.`) },
+    )
+    check(
+      "check-ticket.mjs",
+      "an issue named anywhere in Dependencies requires a blockedBy relation",
+      ["--issue", "ORB-113"],
+      { status: 1, stderr: /body PROSE mentions a dependency/ },
+      { env: issueStub(["repo:api", "Improvement"], `${VALID_TICKET_BODY}\n\n## Dependencies\n\nRequires ORB-112.`) },
+    )
+    check(
+      "check-ticket.mjs",
+      "a Dependencies section with no issue and no dependency phrase is accepted",
+      ["--issue", "ORB-113"],
+      { status: 0, stdout: /ticket ok/ },
+      { env: issueStub(["repo:api", "Improvement"], `${VALID_TICKET_BODY}\n\n## Dependencies\n\nNo cross-ticket relation is required.`) },
+    )
+    check(
+      "check-ticket.mjs",
+      "a dependency-free Dependencies section may use ordinary signal words",
+      ["--issue", "ORB-113"],
+      { status: 0, stdout: /ticket ok/ },
+      {
+        env: issueStub(
+          ["repo:api", "Improvement"],
+          `${VALID_TICKET_BODY}\n\nNo server restart is expected; a cache flush is required if that changes.\n\n## Dependencies\n\nNone. This can proceed once the security review completes.`,
+        ),
+      },
+    )
+    check(
+      "check-ticket.mjs",
+      "a named dependency with its blockedBy relation is accepted",
+      ["--issue", "ORB-113"],
+      { status: 0, stdout: /ticket ok/ },
+      {
+        env: issueStub(
+          ["repo:api", "Improvement"],
+          `${VALID_TICKET_BODY}\n\n## Dependencies\n\nRequires ORB-112.`,
+          [{ relationship: "blockedBy", relatedIssue: { identifier: "ORB-112" } }],
+        ),
+      },
     )
   },
   "check-push-target.mjs": () => {
