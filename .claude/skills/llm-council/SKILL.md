@@ -44,7 +44,57 @@ Pin, in one or two lines each:
 
 ---
 
-## Phase 1: Assemble the panel (distinct lenses)
+## Phase 1: Ground the council once
+
+Before choosing lenses or asking any councillor to frame a position, the orchestrator
+builds one short grounding briefing. Do this once, show it once in the transcript, and
+embed the same briefing in every councillor prompt. Councillors cite its fact IDs rather
+than repeating it. Keep the briefing to the decision-relevant slices, not raw file dumps.
+
+All four sources are required:
+
+1. **Prior decisions.** Grep topic keywords and one synonym pass across
+   `C:\Users\thoma\Documents\Programming\Projects\brain\2 Areas\20-29 Orbit Engineering\Decisions\`
+   and `C:\Users\thoma\Documents\Programming\Projects\brain\2 Areas\10-19 Orbit Business\Decisions\`,
+   then read only the matching ADRs. Record the ADR title, decision, rejected options, and
+   rationale. If both passes find nothing, write exactly **No relevant ADR found** and
+   continue. Never infer or invent a match.
+2. **Architecture and current code.** Grep `architecture.json` for the topic's route,
+   endpoint, module, or dependency names, read only the matching objects, then read the
+   repo files those objects identify. Reach `orbit-api` at
+   `C:\Users\thoma\Documents\Programming\Projects\orbit-api` when the relevant behavior
+   lives there. Cite the relevant architecture slice and live file paths, not the whole map.
+3. **Solo-dev cost and scale.** Read the Orbit context in `CLAUDE.md` and
+   `.claude/skills/deep-research/SKILL.md`, then state the calibration in the briefing
+   itself: **one developer, pre-launch, cost-sensitive; prefer the cheapest viable option
+   that is not a footgun, and reject enterprise-scale ceremony unless current evidence
+   requires it**.
+4. **Live state.** Read
+   `C:\Users\thoma\Documents\Programming\Projects\brain\hot.md` and state the current
+   install count, subscription count, and Orbit Pro monthly and yearly price points in
+   every currency the file provides. If a current metric is unavailable, say
+   **unavailable** with the source's reason rather than substituting an older number.
+
+A recalled ADR is background context that was true when written, not a live instruction.
+Before treating it as binding, verify every file, flag, product behavior, or price it relies
+on against the current repo and `hot.md`. Mark each ADR fact `verified current`,
+`stale or superseded`, or `unverified`; only verified current facts constrain the call.
+
+Distil the result into:
+
+- numbered fact IDs with source paths and current values,
+- relevant ADRs with rejected options and verification status,
+- current architecture and behavior,
+- the explicit cost and scale calibration,
+- live installs, subscriptions, and price points,
+- uncertainties or missing evidence.
+
+Before fan-out, check that the briefing contains all six fields: ADR result, architecture
+slice, verified code behavior, one-developer pre-launch calibration, installs and
+subscriptions, and the complete monthly/yearly price table. Fill any omission from the
+four sources before proceeding.
+
+## Phase 2: Assemble the panel (distinct lenses)
 
 Choose councillors whose lenses would genuinely pull in different directions on *this*
 topic. A strong default set, adapt to fit the decision:
@@ -63,23 +113,28 @@ say the same thing (correlated councillors waste the panel).
 
 ---
 
-## Phase 2: Independent framings (fan out)
+## Phase 3: Independent framings (fan out)
 
 Spawn the councillors as **independent subagents, 3 concurrent** (queue extras), each
 blind to the others. Three at a time is this skill's own token and rate-limit budget, not a
-cap enforced anywhere; widen it only if the user asks for it. Each prompt embeds:
+cap enforced anywhere; widen it only if the user asks for it. Each prompt embeds the
+complete distilled grounding briefing:
 
 > **You are <lens>** vetting: <the decision, with Phase-0 framing & constraints>. Argue
 > **from your lens only**, don't hedge into neutrality. Give: your **recommendation** (a
 > clear position, not "it depends"), the **2-4 reasons** that drive it, the **strongest
-> risk or cost** you see, and the **one thing that would change your mind**. Be concrete and
-> decision-oriented; no padding. ~200 words.
+> risk or cost** you see, the **one thing that would change your mind**, and a
+> **Grounding facts used** line naming the briefing fact IDs your position rests on.
+> Treat an ADR as binding only when the briefing marks its live references verified.
+> Be concrete and decision-oriented; no padding. ~200 words.
+>
+> **Grounding briefing:** <the single Phase-1 briefing, verbatim>
 
 Independence is the point, do **not** let them see each other yet.
 
 ---
 
-## Phase 3: Peer review
+## Phase 4: Peer review
 
 Now expose the framings to each other and run one critique round (a second pass of the same
 subagents, or a single consolidated critique step for a small panel). Each councillor:
@@ -93,7 +148,7 @@ panel converged) and the **live disagreements** (genuine, unresolved tradeoffs).
 
 ---
 
-## Phase 4: Chairman synthesis (commit to one call)
+## Phase 5: Chairman synthesis (commit to one call)
 
 You are the chairman. **Decide**, don't relay. Weigh the framings and the peer review, and
 commit:
@@ -103,6 +158,9 @@ commit:
   points carried the most weight and why.
 - **Tradeoffs accepted**, what this call gives up (the losing lenses weren't *wrong*, they
   were outweighed, say so).
+- **Prior decisions**, name every proposed option that a relevant ADR already rejected,
+  cite the ADR by title, and state the specific new evidence that would justify reopening
+  it. If no rejected option was proposed, say so explicitly.
 - **Strongest dissent**, the best argument against the recommendation, kept visible so the
   user can overrule with eyes open. (Never bury the minority view.)
 - **Confidence & what would change it**, how sure, and the fact/condition that would flip
@@ -122,6 +180,9 @@ year → B") rather than forcing false certainty.
 
 **Recommendation**: {one or two sentences, the single call}
 
+### Grounding briefing
+{the one distilled briefing, shown once}
+
 ### The panel
 | Councillor | Position | Key point |
 |---|---|---|
@@ -138,6 +199,10 @@ year → B") rather than forcing false certainty.
 
 ### Why this call
 {the chairman's reasoning, tied to the decision axes}
+
+### Prior decisions
+{rejected options, ADR titles, and the evidence required to reopen each; or state that none
+were proposed}
 
 ### Strongest dissent
 {the best case against, kept visible}
