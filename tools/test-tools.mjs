@@ -743,7 +743,7 @@ const runPointerLaunch = (label, tails, { repainting = false } = {}) => {
   const records = existsSync(ledger)
     ? readFileSync(ledger, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
     : []
-  return { result, calls, sends, records }
+  return { staged, result, calls, sends, records }
 }
 
 /**
@@ -767,8 +767,10 @@ const pointerDeliveryCases = () => {
   const firstPointer = firstSend?.[firstSend.indexOf("--text") + 1] ?? ""
   const firstPlan = first.result.status === 0 ? JSON.parse(first.result.stdout) : null
   T(
-    "launch-worker.mjs: the worker receives its exact authoritative completion-record command",
-    /automation-budget\.mjs record[\s\S]*--identity "ORB-75:[^"]+"[\s\S]*--input-tokens <provider-input-tokens>[\s\S]*--ledger "[^"]+"[\s\S]*never record zero or infer tokens from account usedPercent/.test(firstPointer) &&
+    "launch-worker.mjs: the worker receives its launcher-owned authoritative completion-record command",
+    firstPointer.includes(`node "${join(first.staged.base, "tools", "automation-budget.mjs")}" record`) &&
+      !firstPointer.includes("node tools/automation-budget.mjs record") &&
+      /automation-budget\.mjs" record[\s\S]*--identity "ORB-75:[^"]+"[\s\S]*--input-tokens <provider-input-tokens>[\s\S]*--ledger "[^"]+"[\s\S]*never record zero or infer tokens from account usedPercent/.test(firstPointer) &&
       firstPointer.includes(`--ledger "${firstPlan?.automationBudget?.ledgerPath}"`),
     firstPointer,
   )
