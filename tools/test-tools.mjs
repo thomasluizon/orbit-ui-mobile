@@ -507,6 +507,12 @@ const stageLaunchWorker = (label, worker, engineName = "claude", maxParallelWork
   const base = join(root, "launch", label)
   const repoPath = join(base, "repos", "ui")
   mkdirSync(repoPath, { recursive: true })
+  const initialized = spawnSync("git", ["-C", repoPath, "init", "-q", "--initial-branch=main"], {
+    encoding: "utf8",
+  })
+  if (initialized.status !== 0) {
+    throw new Error(`could not initialize launcher fixture ${repoPath}: ${initialized.stderr}`)
+  }
   mkdirSync(join(base, "tools"), { recursive: true })
   mkdirSync(join(base, ".claude"), { recursive: true })
   writeFileSync(
@@ -1253,6 +1259,7 @@ const launchConcurrencyCases = async (promptFile) => {
     path: concurrent.path,
     env: {
       ...orcaEnv(concurrentPlan),
+      ORBIT_AUTOMATION_BUDGET_LEDGER: join(concurrent.base, "automation-budget.jsonl"),
       ORBIT_ORCA_LOG: concurrentLog,
       ORBIT_ORCA_TIMING_LOG: concurrentTimingLog,
     },
