@@ -229,6 +229,26 @@ const stageLaunchWorker = (label, worker, engineName = "claude") => {
   return { path: join(base, "tools", "launch-worker.mjs"), repoPath, base }
 }
 
+const stageNudgeWorker = (label, worker, instrumentPause = false) => {
+  const base = join(root, "nudge", label)
+  mkdirSync(join(base, "tools"), { recursive: true })
+  mkdirSync(join(base, ".claude"), { recursive: true })
+  writeFileSync(join(base, ".claude", "orchestrator.json"), JSON.stringify({ worker, repos: {} }))
+  cpSync(join(TOOLS_DIR, "nudge-worker.mjs"), join(base, "tools", "nudge-worker.mjs"))
+  cpSync(join(TOOLS_DIR, "lib"), join(base, "tools", "lib"), { recursive: true })
+  if (instrumentPause) {
+    cpSync(join(TOOLS_DIR, "lib", "tui-repaint.mjs"), join(base, "tools", "lib", "tui-repaint-real.mjs"))
+    writeFileSync(
+      join(base, "tools", "lib", "tui-repaint.mjs"),
+      `import { appendFileSync } from "node:fs"
+export { SETTLE_MS, isRepainting } from "./tui-repaint-real.mjs"
+export const pause = (ms) => appendFileSync(process.env.ORBIT_PAUSE_LOG, String(ms) + "\\n")
+`,
+    )
+  }
+  return { path: join(base, "tools", "nudge-worker.mjs"), base }
+}
+
 const linearIssueStub = (labels) => [
   {
     match: "linear issue ORB-75",
@@ -691,10 +711,11 @@ const BLOCKED_BUSY_STUB = [
   { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }), exit: 0 },
 ]
 
-const runNudgeSignalCase = (label, name, plan, expect, expectedSends) => {
+const runNudgeSignalCase = (label, name, plan, expect, expectedSends, options = {}) => {
   const log = join(root, `nudge-${label}.log`)
-  check("nudge-worker.mjs", name, ["--terminal", "t1", "--text", "hi", "--wait-attempts", "1"], expect, {
-    env: { ...orcaEnv(plan), ORBIT_ORCA_LOG: log },
+  check("nudge-worker.mjs", name, ["--terminal", "t1", "--text", "hi", "--wait-attempts", String(options.waitAttempts ?? 1), ...(options.argv ?? [])], expect, {
+    path: options.path,
+    env: { ...orcaEnv(plan), ...(options.env ?? {}), ORBIT_ORCA_LOG: log },
   })
   const calls = existsSync(log) ? readFileSync(log, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line)) : []
   const sends = calls.filter((argv) => argv[0].split(/[\\/]/).pop() === "terminal" && argv[1] === "send").length
@@ -702,6 +723,7 @@ const runNudgeSignalCase = (label, name, plan, expect, expectedSends) => {
 }
 
 const nudgeWorkerCases = () => {
+  check("nudge-worker.mjs", "--help documents the engine override and fail-closed rule", ["--help"], { status: 0, stdout: /--engine <name>[\s\S]*Missing, auto or unknown values fail closed/ })
   check("nudge-worker.mjs", "rejects multi-line text", ["--terminal", "t1", "--text", "first line\nsecond line"], { status: 2, stderr: /single line/ })
   check("nudge-worker.mjs", "rejects --text together with --prompt-file", ["--terminal", "t1", "--text", "hi", "--prompt-file", stage("nudge-prompt.md", "body\n")], { status: 2, stderr: /alternatives/ })
   check("nudge-worker.mjs", "rejects a non-positive --wait-attempts", ["--terminal", "t1", "--text", "hi", "--wait-attempts", "0"], { status: 2, stderr: /positive integer/ })
@@ -720,6 +742,31 @@ const nudgeWorkerCases = () => {
       : { status: 1, stderr: /no known ready composer is on screen[\s\S]*NOTHING was sent/ }
     runNudgeSignalCase(label, name, staleBlockedIdleStub(tail), expect, ready ? 1 : 0)
   }
+  const codexProfile = stageNudgeWorker("codex-profile", "codex")
+  const incidentalGreaterThanTail = [
+    "› Working on the nudge predicate",
+    "(8s • esc to interrupt)",
+    "> quoted output painted after the working indicator",
+  ]
+  runNudgeSignalCase("codex-incidental-greater-than", "does not let incidental greater-than output select the claude profile for a codex worker", staleBlockedIdleStub(incidentalGreaterThanTail), { status: 1, stderr: /no known ready composer is on screen for the codex profile[\s\S]*NOTHING was sent/ }, 0, { path: codexProfile.path })
+  runNudgeSignalCase("explicit-claude-profile", "uses the explicitly selected claude profile on the same tail", staleBlockedIdleStub(incidentalGreaterThanTail), { status: 0, stdout: /"engine": "claude"[\s\S]*"engineSource": "--engine"/ }, 1, { path: codexProfile.path, argv: ["--engine", "claude"] })
+  const autoProfile = stageNudgeWorker("auto-profile", "auto")
+  runNudgeSignalCase("auto-profile", "fails closed when the orchestrator worker is auto", staleBlockedIdleStub(["› Explain this codebase"]), { status: 1, stderr: /engine "auto" from \.claude\/orchestrator\.json worker does not resolve[\s\S]*NOTHING was sent/ }, 0, { path: autoProfile.path })
+  const unknownProfile = stageNudgeWorker("unknown-profile", "future-engine")
+  runNudgeSignalCase("unknown-profile", "fails closed when the orchestrator worker is unknown", staleBlockedIdleStub(["› Explain this codebase"]), { status: 1, stderr: /engine "future-engine" from \.claude\/orchestrator\.json worker does not resolve[\s\S]*NOTHING was sent/ }, 0, { path: unknownProfile.path })
+  const missingProfile = stageNudgeWorker("missing-profile", undefined)
+  runNudgeSignalCase("missing-profile", "fails closed when the orchestrator worker is missing", staleBlockedIdleStub(["› Explain this codebase"]), { status: 1, stderr: /engine "<missing>" from \.claude\/orchestrator\.json worker does not resolve[\s\S]*NOTHING was sent/ }, 0, { path: missingProfile.path })
+  const claudeProfile = stageNudgeWorker("claude-profile", "claude")
+  runNudgeSignalCase("engine-override", "--engine overrides a disagreeing orchestrator worker", staleBlockedIdleStub(["› Explain this codebase"]), { status: 0, stdout: /"engine": "codex"[\s\S]*"engineSource": "--engine"/ }, 1, { path: claudeProfile.path, argv: ["--engine", "codex"] })
+  const pauseProbe = stageNudgeWorker("pause-probe", "codex", true)
+  const pauseLog = join(pauseProbe.base, "pause.log")
+  runNudgeSignalCase("trust-prompt-pause", "settles before retrying a trust prompt that remains on screen", LIVE_BLOCKED_IDLE_STUB, { status: 1, stderr: /attempt 1:[\s\S]*trust prompt is still on screen[\s\S]*attempt 2:[\s\S]*trust prompt is still on screen[\s\S]*NOTHING was sent/ }, 0, {
+    path: pauseProbe.path,
+    waitAttempts: 2,
+    env: { ORBIT_PAUSE_LOG: pauseLog },
+  })
+  const pauses = existsSync(pauseLog) ? readFileSync(pauseLog, "utf8").trim().split("\n") : []
+  T("nudge-worker.mjs: trust prompt retry applies one settle pause", pauses.length === 1 && pauses[0] === "10000", `pause log: ${JSON.stringify(pauses)}`)
   runNudgeSignalCase("working-composer", "refuses a ready-looking codex composer carrying esc to interrupt", WORKING_COMPOSER_IDLE_STUB, { status: 1, stderr: /no known ready composer is on screen[\s\S]*NOTHING was sent/ }, 0)
   runNudgeSignalCase("live-block", "refuses a static trust prompt that is still on screen", LIVE_BLOCKED_IDLE_STUB, { status: 1, stderr: /codex-trust-workspace[\s\S]*not repainting[\s\S]*codex trust prompt is still on screen[\s\S]*remains blocked[\s\S]*NOTHING was sent/ }, 0)
   runNudgeSignalCase("unrecognized-block", "refuses an unrecognized static screen with no ready composer signal", UNRECOGNIZED_BLOCKED_IDLE_STUB, { status: 1, stderr: /codex-trust-workspace[\s\S]*not repainting[\s\S]*no known trust prompt[\s\S]*no known ready composer is on screen[\s\S]*worker remains blocked[\s\S]*NOTHING was sent/ }, 0)

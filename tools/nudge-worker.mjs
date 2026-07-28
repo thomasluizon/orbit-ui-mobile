@@ -26,11 +26,15 @@ const USAGE = `usage: nudge-worker.mjs --terminal <handle> (--text "<one line>" 
                         MUST live outside every Orbit repo, exactly as at launch
   --text "<one line>"   send this exact one-liner instead. Newlines are rejected: a multi-line
                         payload through a TUI submits early and arrives quoting-damaged
+  --engine <name>       readiness profile override: claude or codex. Otherwise uses the
+                        orchestrator worker. Missing, auto or unknown values fail closed
+                        by disabling stale-block recovery
   --wait-attempts <n>   how many 60s tui-idle waits to allow before refusing (default: 3)
   --dry-run             resolve and print what would be sent; append nothing, send nothing
   --help, -h            print this usage and exit 0
 
-Prints one JSON object on stdout: terminal, sent, promptFile, appendedBytes, waitAttempts.
+Prints one JSON object on stdout: terminal, sent, promptFile, appendedBytes, waitAttempts,
+resolved engine and engine source.
 
 exit codes: 0 delivered, 1 the worker was busy so NOTHING was sent, 2 usage error,
             3 an orca command failed`
@@ -45,7 +49,7 @@ const ORCA = process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs
 /** One wait is a full minute; three of them is a worker that is genuinely working, not one that is stuck. */
 const WAIT_TIMEOUT_MS = 60000
 const STALE_BLOCKED_REASON = "codex-trust-workspace"
-// WHY: ORB-129 measured rotating Codex placeholders, unstable status-line placement, and this marker/no-working predicate against three live terminals plus the repaint oracle. https://github.com/thomasluizon/orbit-ui-mobile/pull/629
+// WHY: ORB-129 measured rotating Codex placeholders, unstable status placement, and the selected-engine marker/no-working predicate against three live terminals plus the repaint oracle. https://github.com/thomasluizon/orbit-ui-mobile/pull/629
 const ENGINE_PROFILES = {
   claude: {
     // WHY: No Claude worker ran during ORB-129, so this analogous composer/working profile remains explicitly unverified pending a captured screen. https://github.com/thomasluizon/orbit-ui-mobile/pull/629
@@ -69,6 +73,14 @@ const fail = (code, message) => {
 const argOf = (flag) => {
   const index = process.argv.indexOf(flag)
   return index === -1 ? null : process.argv[index + 1]
+}
+
+const readOrchestratorConfig = () => {
+  try {
+    return { config: JSON.parse(readFileSync(new URL("../.claude/orchestrator.json", import.meta.url), "utf8")), error: null }
+  } catch (error) {
+    return { config: null, error: error.message }
+  }
 }
 
 /** orca prints its `ok: false` payload on STDOUT and leaves stderr empty, so a failed call whose
@@ -131,22 +143,22 @@ const waitForIdle = (handle) => {
  * exist failed open without it. */
 const busy = (handle) => isRepainting(orca, handle)
 
-const screenSignals = (handle) => {
+const screenSignals = (handle, resolvedEngine) => {
   const tail = (orca(["terminal", "read", "--terminal", handle, "--limit", "60"]).terminal?.tail ?? []).join("\n")
   const screen = flatten(tail)
   const trustEngine = Object.entries(ENGINE_PROFILES).find(([, profile]) => profile.trustOnScreen.test(screen))?.[0] ?? null
-  const readyEngine = Object.entries(ENGINE_PROFILES).find(([, profile]) => {
-    const composerIndex = screen.lastIndexOf(profile.composerMarker)
-    if (composerIndex === -1) return false
-    const currentComposer = screen.slice(composerIndex)
-    return !profile.workingOnScreen.test(currentComposer)
-  })?.[0] ?? null
+  const profile = resolvedEngine ? ENGINE_PROFILES[resolvedEngine] : null
+  const composerIndex = profile ? screen.lastIndexOf(profile.composerMarker) : -1
+  const currentComposer = composerIndex === -1 ? null : screen.slice(composerIndex)
+  const readyEngine = currentComposer && !profile.workingOnScreen.test(currentComposer) ? resolvedEngine : null
   return { trustEngine, readyEngine }
 }
 
 const terminal = argOf("--terminal")
 const promptFileArg = argOf("--prompt-file")
 const textArg = argOf("--text")
+const engineOverridePresent = process.argv.includes("--engine")
+const engineOverride = engineOverridePresent ? argOf("--engine") : null
 const waitAttemptsAllowed = Number(argOf("--wait-attempts") ?? 3)
 const dryRun = process.argv.includes("--dry-run")
 
@@ -156,17 +168,20 @@ if (promptFileArg && textArg) fail(2, "--prompt-file and --text are alternatives
 if (!Number.isInteger(waitAttemptsAllowed) || waitAttemptsAllowed < 1) fail(2, "--wait-attempts must be a positive integer")
 if (textArg && /[\r\n]/.test(textArg)) fail(2, "--text must be a single line; append the long form to the prompt file instead")
 
+const orchestrator = readOrchestratorConfig()
+const engineSource = engineOverridePresent ? "--engine" : ".claude/orchestrator.json worker"
+const engineValue = engineOverridePresent ? engineOverride : orchestrator.config?.worker
+const normalizedEngine = typeof engineValue === "string" ? engineValue.trim().toLowerCase() : ""
+const resolvedEngine = Object.hasOwn(ENGINE_PROFILES, normalizedEngine) ? normalizedEngine : null
+const displayedEngine = normalizedEngine || "<missing>"
+
 let promptFile = null
 let update = ""
 if (promptFileArg) {
   promptFile = resolve(promptFileArg)
   if (!existsSync(promptFile)) fail(2, `prompt file not found: ${promptFile}`)
-  let repos
-  try {
-    repos = JSON.parse(readFileSync(new URL("../.claude/orchestrator.json", import.meta.url), "utf8")).repos
-  } catch (error) {
-    fail(2, `.claude/orchestrator.json could not be read as JSON: ${error.message}`)
-  }
+  if (!orchestrator.config) fail(2, `.claude/orchestrator.json could not be read as JSON: ${orchestrator.error}`)
+  const repos = orchestrator.config.repos
   const normalize = (path) => path.replaceAll("\\", "/").replace(/\/+$/, "").toLowerCase()
   for (const [key, path] of Object.entries(repos ?? {})) {
     if (normalize(promptFile) === normalize(path) || normalize(promptFile).startsWith(`${normalize(path)}/`)) {
@@ -201,13 +216,18 @@ while (waitAttempts < waitAttemptsAllowed && !idle) {
   }
   if (wait.blockedReason === STALE_BLOCKED_REASON) {
     if (!busy(terminal)) {
-      const { trustEngine, readyEngine } = screenSignals(terminal)
+      const { trustEngine, readyEngine } = screenSignals(terminal, resolvedEngine)
       if (trustEngine) {
         console.error(`attempt ${waitAttempts}: orca reports ${wait.blockedReason}, the TUI is not repainting, and the ${trustEngine} trust prompt is still on screen, so the worker remains blocked`)
+        if (waitAttempts < waitAttemptsAllowed) pause(SETTLE_MS)
         continue
       }
       if (!readyEngine) {
-        console.error(`attempt ${waitAttempts}: orca reports ${wait.blockedReason}, the TUI is not repainting, and no known trust prompt is on screen, but no known ready composer is on screen, so the worker remains blocked`)
+        const engineReason = resolvedEngine
+          ? `no known ready composer is on screen for the ${resolvedEngine} profile`
+          : `engine "${displayedEngine}" from ${engineSource} does not resolve to a known readiness profile`
+        console.error(`attempt ${waitAttempts}: orca reports ${wait.blockedReason}, the TUI is not repainting, and no known trust prompt is on screen, but ${engineReason}, so the worker remains blocked`)
+        if (waitAttempts < waitAttemptsAllowed) pause(SETTLE_MS)
         continue
       }
       console.error(`attempt ${waitAttempts}: orca reports ${wait.blockedReason}, but the TUI is not repainting, no known trust prompt is on screen, and the ${readyEngine} ready composer is on screen, so the retained blocked reason is stale and the current screen and repaint signals win`)
@@ -236,4 +256,4 @@ if (promptFile && update) {
 
 if (!dryRun) orca(["terminal", "send", "--terminal", terminal, "--text", text, "--enter"])
 
-console.log(JSON.stringify({ terminal, sent: text, promptFile, appendedBytes, waitAttempts, dryRun }, null, 2))
+console.log(JSON.stringify({ terminal, sent: text, promptFile, appendedBytes, waitAttempts, engine: resolvedEngine, engineSource, dryRun }, null, 2))
