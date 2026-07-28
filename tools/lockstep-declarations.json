@@ -36,15 +36,9 @@
       "declarations": [
         {
           "id": "consumer-specific-verification-delivery",
-          "justification": "The UI protocol serves the audit family and ticket delivery pipeline while the API copy serves PR review only; shared unchanged lines remain compared.",
+          "justification": "The API copy adds a provenance note identifying /pr-review as its only local consumer; the shared protocol body remains verbatim.",
           "fingerprints": [
-            "d2486e0be8989033920faaa8b79ceb3ffd5829196acf67d847246b1e9da3957f", "3467a1f872bcade585b7cf2014bbd00ce7e3f2ec6038252213e149f9fe567853", "e5ba63fdeb72c12fc7127c54c5cd3034e7d9455b4c973e78c090e16109fc4106", "73ece072fd4e2434666a2a2276f8359ad04d7e5168779c9a157aa29a0915f2ac",
-            "9e60f9c093153d4f7bfac069b8d302e283d1f6fe6c1c242f24061acf1715dfd1", "e1b3f8c7507e23eb8b88ac70963d89f7f388b9b24dd5809e530d94e5340d5bfa", "44c6bf33096003569256e0c892b4d0b9a19147f0173bafd2b3e20eedf6437a59", "2b46b9d52001319ca8d0698f7f3c0b49e5cb08985a5430af14edb5d9d7d4b349",
-            "aec45caef4c41c45f9ee992aab911a4bd1547812e0d505f92b558c5d7b009e51", "50284b61169469f5564fa817d9320b52d21f6fec3af6146ca0a7c7dd3dbbed45", "98d57d4b85a5252e95fdc55f89e7999da8a9aea5de06d668f1605e0b5cd69d41", "cb8a71194dd085e15b81e4708a0179d600dfa8413c046357f8dc30d57dbb13e6",
-            "7abd32124149f5691d5bb17b82a2ea3acd5b7b7c293afa500f53cb0228f114b9", "0d267f2d4bbd4e30874983f312d23f6d268d6b56e73ca264a82da2bae2e9e402", "99ce0eef7f1b43be0925acefbaf41ccf20efee2127f29fd081d46f074b6a964f", "4296b39881896a87e92391fff9d33068abc0a67048c7715341c62e85f41fb435",
-            "9ff6520e17efb4708aabcb7627779d349805b0187c6ebf3c47606cefbf26ac1b", "3bf0ea6e8fa331176456d13b3c5d66a32c5f2528628cb912593691c41e25997e", "cf86d95bfe8c4cef0b6cbcd3239737212c8b54a2fc22a52505ae02ec14cf7752", "a2f062a05930ec26ce4b47d9a0d624d7f82a2c1dc58494db67517e7274542d5a",
-            "7dd7d902f119567b43c66c764e1fa3fc6ae5b74229aa1bdeb8b846578a116641", "5a2c2c657932b4f36225ddcdfd97badb8504d93288957d6f4adad365c48e7d5b", "44dc1e19a47fc5675b47739b8e1aeca955d2bf540d5e708eec98cb78aec8600c", "1b9b3c6cba6916cf67ccaa3f34a5b29a4ca17c27316960633bbb9e086e0ab1c9",
-            "78631686ace1f11b3c6279f390d27c0b48a4f474f315c0277e292ef2b8c397d4", "8c8eb0fc2967ef887aa3b201eb8c1bcaa5dc58f8e33e2ffd7798caacd0544c4b", "24bf7421d89d09f9bf74b10fe5127221337fd07f3a8b4c650e951b2f35bbdea8", "f2a90145e8f750c0b3110a72564fdeb658ebe3e18c6e15d2dab28f1e2b11bebe"
+            "499a8d497bc303e77c0913cfc30b0420018d3d79c56ea98a1123bfd2eae97eb6"
           ]
         }
       ]
