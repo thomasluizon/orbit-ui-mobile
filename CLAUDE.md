@@ -17,7 +17,7 @@ Linear is the source of truth for product work in this repo and orbit-api; GitHu
 - `/feature`
 - `/ticket`
 - `/orchestrate`
-- `/next`
+- `/next` (repo-tool gate: `.claude/hooks/forbid-raw-repo-tool-surfacing.mjs`; appeals stay inline, one per command)
 
 The session always opens in orbit-ui-mobile (D17); the orchestrator spawns worktrees into whichever repo the ticket targets. `AGENTS.md` (repo root) is Codex's entry doc: the worker contract plus `## Code Review Rules` (D26/D27). It DEFERS to this CLAUDE.md for conventions; change behaviour here, never there.
 
