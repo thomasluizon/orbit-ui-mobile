@@ -1133,7 +1133,7 @@ const newTicketStub = (created, issue, options = {}) => [
   { match: "linear issue", stdout: JSON.stringify({ ok: true, result: { issue, relations: [] } }) },
 ]
 const CREATED_OK = { ok: true, result: { issue: { identifier: "ORB-99" } } }
-const VALID_ISSUE = { identifier: "ORB-99", title: "Cover the create and validate round trip", description: VALID_TICKET_BODY, labels: [{ name: "repo:api" }] }
+const VALID_ISSUE = { identifier: "ORB-99", title: "Cover the create and validate round trip", description: VALID_TICKET_BODY, labels: [{ name: "repo:api" }, { name: "Improvement" }] }
 
 const gateCases = {
   "new-ticket.mjs": () => {
@@ -1212,6 +1212,78 @@ const gateCases = {
   "check-ticket.mjs": () => {
     check("check-ticket.mjs", "an incomplete body is rejected", ["--file", stage("ticket.md", "# A ticket\n\nno template sections here\n")], { nonZero: true })
     check("check-ticket.mjs", "a missing body file is a usage error", ["--file", join(root, "absent.md")], { status: 2 })
+    const issueStub = (labels, description = VALID_TICKET_BODY, relations = []) =>
+      orcaEnv([
+        {
+          match: "linear issue ORB-113",
+          stdout: JSON.stringify({
+            ok: true,
+            result: {
+              issue: {
+                identifier: "ORB-113",
+                title: "Gate the Linear ticket type taxonomy",
+                description,
+                labels: labels.map((name) => ({ name })),
+              },
+              relations,
+            },
+          }),
+        },
+      ])
+    check(
+      "check-ticket.mjs",
+      "issue mode rejects zero type labels and names every valid value",
+      ["--issue", "ORB-113"],
+      { status: 1, stderr: /exactly ONE type label required \(Feature, Bug, Improvement\); found: none/ },
+      { env: issueStub(["repo:api"]) },
+    )
+    check(
+      "check-ticket.mjs",
+      "issue mode accepts exactly one type label",
+      ["--issue", "ORB-113"],
+      { status: 0, stdout: /ticket ok/ },
+      { env: issueStub(["repo:api", "Improvement"]) },
+    )
+    check(
+      "check-ticket.mjs",
+      "issue mode rejects two type labels",
+      ["--issue", "ORB-113"],
+      { status: 1, stderr: /exactly ONE type label required \(Feature, Bug, Improvement\); found: Feature, Bug/ },
+      { env: issueStub(["repo:api", "Feature", "Bug"]) },
+    )
+    check(
+      "check-ticket.mjs",
+      "the repo label rule still rejects two repo labels alongside one type",
+      ["--issue", "ORB-113"],
+      { status: 1, stderr: /exactly ONE repo label required/ },
+      { env: issueStub(["repo:api", "repo:ui", "parity:no", "Feature"]) },
+    )
+    check(
+      "check-ticket.mjs",
+      "file mode remains unaffected by issue-only label validation",
+      ["--file", stage("valid-ticket.md", `# Gate the Linear ticket type taxonomy\n\n${VALID_TICKET_BODY}\n`)],
+      { status: 0, stdout: /ticket ok/ },
+    )
+    for (const [name, prose] of [
+      ["once used as a measured frequency", "The callback fires once for each matching label."],
+      ["depends on used for ordinary logic", "The exact message depends on which labels are present."],
+      ["after used as an ordinary sequence", "After validation, the checker prints ticket ok."],
+    ]) {
+      check(
+        "check-ticket.mjs",
+        `dependency prose ignores ${name}`,
+        ["--issue", "ORB-113"],
+        { status: 0, stdout: /ticket ok/ },
+        { env: issueStub(["repo:api", "Improvement"], `${VALID_TICKET_BODY}\n\n${prose}`) },
+      )
+    }
+    check(
+      "check-ticket.mjs",
+      "a genuine named dependency without a relation is rejected",
+      ["--issue", "ORB-113"],
+      { status: 1, stderr: /body PROSE mentions a dependency but the issue has no blockedBy relation/ },
+      { env: issueStub(["repo:api", "Improvement"], `${VALID_TICKET_BODY}\n\n## Dependencies (blockedBy)\n\nThis work depends on ORB-112.`) },
+    )
   },
   "check-push-target.mjs": () => {
     check("check-push-target.mjs", "a push to main is blocked", [], { status: 1, stderr: /BLOCKED/ }, { input: "refs/heads/main abc refs/heads/main def\n" })

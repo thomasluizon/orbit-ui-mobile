@@ -1,6 +1,6 @@
 ---
 name: orchestrate
-description: Linear project (or single ticket) in, reviewed PRs out, wave by wave. Computes the merge-gated DAG with tools/wave-plan.mjs, reconciles each ticket against the code (D8), launches one Orca worktree + worker per ticket (engine from .claude/orchestrator.json, claude or codex), babysits CI and review, enforces the evidence gate (D7) and two-strikes (D9), then tears down each worktree immediately after verified Done. A human merge is the only thing that advances a wave (D3), unless --sleep is passed. Scope is the whole project unless --single bounds it to one ticket. Use after /feature or /bug created the tickets.
+description: Linear project (or single ticket) in, reviewed PRs out, wave by wave. Computes the merge-gated DAG with tools/wave-plan.mjs, reconciles each ticket against the code (D8), launches one Orca worktree + worker per ticket (engine from .claude/orchestrator.json, claude or codex), babysits CI and review, enforces the evidence gate (D7) and two-strikes (D9), then tears down each worktree immediately after verified Done. A human merge is the only thing that advances a wave (D3), unless --sleep is passed. Scope is the whole project unless --single bounds it to one ticket. Use after /feature or /ticket created the tickets.
 argument-hint: <Linear project name or ORB-N> [--single] [--sleep]
 effort: high
 ---
@@ -51,6 +51,27 @@ was the RIGHT default and stays the default; what was missing was a way to say n
    query `project(id: "<id>") { name description content }`. Default target is `main`;
    orbit-api tickets always target `main` (D37).
 2. `node tools/wave-plan.mjs --project "<name>"` prints the wave table. Show it.
+
+## 0a. Prove scope completeness before any worker starts
+
+For every ticket that this run may launch, search the target repo and the brain vault
+before dispatch. Produce a checkable scope list with exact paths and occurrences in
+each of these categories:
+
+- every implementation call site;
+- docs;
+- ADRs;
+- brain notes;
+- runbooks;
+- `.claude/` references.
+
+Write `none found` under a category when the search is empty; an omitted category is
+not a completed search. Include the search terms used, especially renamed commands,
+symbols, paths and user-facing concepts, so another reader can reproduce the list.
+Print the list before any worker starts and append it verbatim to that ticket's worker
+prompt. The worker checks off each entry as it lands and adds any newly discovered
+reference before editing it. No ticket reaches dispatch with an unchecked or
+unaccounted entry.
 
 ## 1. Reconcile before dispatch (D8)
 

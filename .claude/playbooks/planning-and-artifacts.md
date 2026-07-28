@@ -1,6 +1,6 @@
 # Planning, specs & artifacts
 
-**At a glance:** 11 standing rules for planning and ticket-writing work (`/feature`, `/bug`, `/orchestrate`), prototyping, ADRs, and session handoff. Judgement-bound; none is gate-checkable. Some rules cite the deleted pre-rebuild skills as the incidents that produced them; the lessons stand. See `README.md` for the tier's contract.
+**At a glance:** 11 standing rules for planning and ticket-writing work (`/feature`, `/ticket`, `/orchestrate`), prototyping, ADRs, and session handoff. Judgement-bound; none is gate-checkable. Some rules cite the deleted pre-rebuild skills as the incidents that produced them; the lessons stand. See `README.md` for the tier's contract.
 
 ## What goes in a document
 
@@ -63,7 +63,7 @@ Name the question **before writing it**. The question decides the shape:
 
 If you had to guess at anything, **state the assumption at the top**.
 
-Stack-neutral, and absent from the execution workflow (`/feature`, `/bug`, `/orchestrate`), whose paths all assume the diff is known. This is the path for when it is not.
+Stack-neutral, and absent from the execution workflow (`/feature`, `/ticket`, `/orchestrate`), whose paths all assume the diff is known. This is the path for when it is not.
 
 ### 9. Prototype code is throwaway from day one
 Located next to what it prototypes. Named so a reader sees it is a prototype. **No persistence, no tests, no error handling beyond runnability, no abstractions, one command to run.**
