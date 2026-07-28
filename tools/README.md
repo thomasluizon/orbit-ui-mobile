@@ -6,6 +6,8 @@
 > - POSIX `.sh` is the baseline; add a `.ps1` twin only when it must run in the user's PowerShell shell.
 > - Add a new tool with `/make-tool`; add its row to the catalog below in the same change.
 > - `test-tools.mjs` EXECUTES every script here (Harness Execution CI job). A new tool with no coverage entry fails it, so coverage lands in the same PR as the tool.
+> - `check-lockstep.mjs` gates the six load-bearing harness twins shared with orbit-api.
+> - `agent-review` gets its cross-model verdict from GPT-5.6 Sol through Codex.
 > - `teardown-worktree.mjs` removes a completed ticket's Orca worktree immediately after verified Done, only when its evidence checks pass.
 
 Reusable scripts an agent (or a human) invokes from the CLI. The bar for landing a file here: it has a single clear purpose and you will run it again. One-off commands stay in your shell history or the scratchpad.
@@ -16,7 +18,7 @@ Read `CONVENTIONS.md` before adding one. Use the `/make-tool` skill to scaffold 
 
 | Tool | What it does | Usage |
 |---|---|---|
-| `agent-review.sh` / `agent-review.ps1` | Cross-model second opinion (GLM-5.2 via opencode) on one claim or review finding. Thin wrapper over `.claude/skills/second-opinion/second-opinion.mjs`; prints one line of JSON (`AGREE` / `DISAGREE` / `UNSURE`, or a graceful `UNAVAILABLE`). | `agent-review --claim "<claim>"` or `agent-review < dossier.txt`; `--help` for options |
+| `agent-review.sh` / `agent-review.ps1` | Cross-model second opinion (GPT-5.6 Sol through Codex) on one claim or review finding. Thin wrapper over `.claude/skills/second-opinion/second-opinion.mjs`; prints one line of JSON (`AGREE` / `DISAGREE` / `UNSURE`, or a graceful `UNAVAILABLE`). | `agent-review --claim "<claim>"` or `agent-review < dossier.txt`; `--help` for options |
 | `merge-sweep.sh` | Require-up-to-date server-side merge sweep: per PR, update-branch then poll `mergeStateStatus` until it is decidable and squash-merge. Skips on a failed required check or timeout. Blocks every merge until the `review` check on the CURRENT head SHA settles (fail-closed: an unreadable workflow list keeps the wait on), so an update-branch cannot merge on a stale APPROVED, and exits 1 on a merged PR whose head branch tip moved past the merged SHA. | `bash merge-sweep.sh <repo> <pr...>` (or `--help`) |
 | `merge-sweep-cov.sh` | Coverage-aware merge sweep: like `merge-sweep.sh` (same review-staleness guard and orphaned-head scan), but admin-overrides a SonarCloud failure that is solely new-code coverage (verified from the check-run summary), and skips anything more. | `bash merge-sweep-cov.sh <repo> <pr...>` (or `--help`) |
 | `rollup.sh` | Thin cross-repo CI/nightly health roll-up: reads the latest `main` run of each tracked quality gate across all three Orbit repos and prints ONE consolidated verdict (exit `0` green / `1` red / `2` tool-error). Reads run conclusions only; runs and audits nothing. Backs the `/rollup` skill and `.github/workflows/rollup.yml`. | `bash rollup.sh` (or `--help`) |
@@ -28,12 +30,13 @@ Read `CONVENTIONS.md` before adding one. Use the `/make-tool` skill to scaffold 
 | `check-copy.mjs` | The copy register: whole-file, values-only scan of locale copy for AI cliches, placeholder content, typed uppercase, and hardcoded brand colors. Backs the Copy Register CI job. | `node tools/check-copy.mjs --check` \| `--write-baseline` |
 | `check-context-budget.mjs` | Enforces the shrink-only byte budget for repo-visible always-loaded context and the structural allowlists for sibling `@` imports and unconditional rule files. Reports resolvable sibling context without enforcing it. Backs the Context Budget CI job. | `node tools/check-context-budget.mjs --check` \| `--write-baseline` \| `--json` |
 | `check-suppressions-ratchet.mjs` | Asserts the ESLint suppression baselines only shrink (escape hatch: the `ratchet:reseed` label). Backs the Suppressions Ratchet CI job. | `node tools/check-suppressions-ratchet.mjs` |
-| `check-frontmatter.mjs` | Asserts every skill and agent `.md` has parseable YAML frontmatter (an unquoted `": "` silently drops the file's description, or the whole file). Backs the Skill and Agent Frontmatter CI job. | `node tools/check-frontmatter.mjs` (`--fix`) |
+| `check-frontmatter.mjs` | Asserts every skill and agent `.md` has parseable YAML frontmatter (an unquoted `": "` silently drops the file's description, or the whole file). Backs the Skill and Agent Frontmatter CI job. | `node tools/check-frontmatter.mjs` (`--root <directory>`, `--fix`) |
+| `check-lockstep.mjs` | Compares the six load-bearing harness twins with orbit-api, fails closed on unreadable input or undeclared drift, and permits only justified diff-hunk fingerprints. | `node tools/check-lockstep.mjs` (`--ui-root`, `--api-root`, `--manifest`) |
 | `check-push-target.mjs` | The lefthook `pre-push` guard: reads git's pre-push stdin and rejects a push whose remote ref is a protected branch. | `node tools/check-push-target.mjs < <pre-push stdin>` |
 | `test-tools.mjs` | The harness execution gate: runs every script in this directory and asserts the `CONVENTIONS.md` CLI contract plus each tool's real decision paths, with orca stubbed and every side effect staged in a temp dir. Fails when a script here has no coverage entry. Backs the Harness Execution CI job. | `node tools/test-tools.mjs` |
 | `check-ticket.mjs` | Validates a Linear ticket body against the ticket template (D2); rejects an incomplete ticket rather than letting a worker guess. | `node tools/check-ticket.mjs --help` |
 | `new-ticket.mjs` | Thin wrapper over `orca linear create` that validates the issue it just created, using the identifier orca REPORTED rather than one typed by hand. Use it instead of calling `orca linear create` directly whenever the result must be a valid ticket. | `node tools/new-ticket.mjs --help` |
-| `wave-plan.mjs` | Reads a Linear project's tickets + `blockedBy` relations via the orca CLI and prints the merge-gated wave table. Backs `/orchestrate` (which then launches workers) and `/next` (which stops at the answer). Relation reads run in a bounded pool while the table ordering stays unchanged. | `node tools/wave-plan.mjs --help` |
+| `wave-plan.mjs` | Builds a merge-gated wave table for a Linear project, label, all non-done team issues, or an explicit `--issues` list. Backs `/orchestrate` (which then launches workers) and `/next` (which stops at the answer). Relation reads run in a bounded pool while the table ordering stays unchanged. | `node tools/wave-plan.mjs --help` |
 | `compose-prompt.mjs` | Composes the worker prompt from a Linear issue's verbatim body plus every chronological comment, preserving comment Markdown. Write outside an Orbit repository so the prompt cannot be committed. | `node tools/compose-prompt.mjs --issue ORB-N --output <absolute path>` |
 | `launch-worker.mjs` | Launches one ticket's Orca worktree + TUI worker end to end (`/orchestrate` step 2), and is the single place the four measured launch gotchas are handled: `worktree create` needs `--name`, a fresh checkout blocks on the workspace-trust prompt, Orca's `<gituser>/<name>` branch is not the contract branch, and a multi-line prompt through `terminal send` arrives mangled. Reads the engine, model routing and repo paths from `.claude/orchestrator.json`, and refuses any engine that does not declare `interactive: true` (a headless worker cannot be supervised) or whose command or args carry a headless token; prints handle + worktree path + branch as JSON. Exit 0 means the worker ACCEPTED the prompt as a user turn, read back off the TUI after the send, because orca accepting a `terminal send` is not delivery: measured on ORB-88, the composer swallowed the pointer and the launch reported success on a worker sitting idle with no work. Any non-zero exit rolls the worktree and its new branches back out, so a relaunch starts clean. | `node tools/launch-worker.mjs --issue ORB-N --prompt-file <path>` (`--dry-run`, `--help`) |
 | `teardown-worktree.mjs` | Removes one completed ticket's Orca worktree, terminals, and local branch immediately after the Linear issue is verified Done. Refuses unless the worktree is clean, its branch tree is present in the target branch, the live issue is Done, and no terminal is repainting. Verifies removal from the filesystem and `git worktree list`, rather than trusting Orca's removal response. | `node tools/teardown-worktree.mjs --issue ORB-N` (or a worktree selector; `--help`) |
@@ -43,3 +46,21 @@ Read `CONVENTIONS.md` before adding one. Use the `/make-tool` skill to scaffold 
 | `pr-watch.mjs` | Polls one or more PRs until a state the caller has NOT already acted on and exits naming which transition fired (`gone`, `checks-failed`, `changes-requested`, `review-comment`, `approved`, `ready-to-merge`, `timeout`). A verdict counts only on the CURRENT head, so a stale review does not satisfy it, and `--acted` is the only thing that suppresses one: the terminal condition is "anything I have not handled", never an allowlist of remembered good states. Backs `/orchestrate` section 3. | `node tools/pr-watch.mjs --repo <owner/name> --pr <n> [--acted <n>=<sha>:<verdict>]` (`--once`, `--help`) |
 | `lib/tui-repaint.mjs` | Not a tool, the one shared module: is this TUI mid-turn? Two `lastOutputAt` samples a window apart, since `--for tui-idle` reports satisfied on a working codex and the terminal text keeps stale output. Imported by `launch-worker.mjs`, `nudge-worker.mjs` and `worker-watch.mjs`; exercised through them. | imported, never invoked |
 | `orca-web-port.mjs` | Assigns each linked Orca worktree a deterministic web port in the 3100-4099 window, detects a collision before persisting it, reports the assigned port, and starts Next on that port. The root checkout reports the unchanged default 3000. | `node tools/orca-web-port.mjs --setup` on worktree creation; `node tools/orca-web-port.mjs` to report; `npm run web` to start Next |
+
+## Cross-repository harness lockstep
+
+`check-lockstep.mjs` compares these paths between orbit-ui-mobile and orbit-api:
+
+- `.claude/skills/pr-review/SKILL.md`
+- `.claude/skills/pr-review/rubric.md`
+- `.claude/skills/_shared/verification-protocol.md`
+- `.claude/agents/contract-aligner.md`
+- `.claude/agents/security-reviewer.md`
+- `.claude/skills/second-opinion/second-opinion.mjs`
+
+Markdown twins compare line by line after line-ending normalization. Each intentional
+repository-specific hunk must have its exact fingerprint, a stable id, and a nonempty
+justification in `lockstep-declarations.json`; the checker prints the fingerprint for an
+undeclared hunk. Stale declarations fail so the exception set shrinks when twins converge.
+The JavaScript twin accepts no declarations and compares byte for byte. Missing roots,
+files, or malformed declarations are failures, never skips.

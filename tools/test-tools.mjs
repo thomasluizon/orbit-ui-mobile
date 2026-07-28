@@ -24,6 +24,7 @@
  */
 
 import { spawnSync } from "node:child_process"
+import { createHash } from "node:crypto"
 import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
@@ -73,6 +74,36 @@ const stage = (relativePath, body) => {
   mkdirSync(dirname(path), { recursive: true })
   writeFileSync(path, body)
   return path
+}
+
+const LOCKSTEP_PATHS = [
+  ".claude/skills/pr-review/SKILL.md",
+  ".claude/skills/pr-review/rubric.md",
+  ".claude/skills/_shared/verification-protocol.md",
+  ".claude/agents/contract-aligner.md",
+  ".claude/agents/security-reviewer.md",
+  ".claude/skills/second-opinion/second-opinion.mjs",
+]
+const lockstepFingerprint = (ui, api) =>
+  createHash("sha256").update(JSON.stringify({ ui: [ui], api: [api] })).digest("hex")
+const lockstepFixture = (label, uiBody = "shared\n", apiBody = uiBody, declarations = []) => {
+  const uiRoot = join(root, "lockstep", label, "ui")
+  const apiRoot = join(root, "lockstep", label, "api")
+  const files = {}
+  for (const path of LOCKSTEP_PATHS) {
+    stage(join("lockstep", label, "ui", path), path === LOCKSTEP_PATHS[0] ? uiBody : "shared\n")
+    stage(join("lockstep", label, "api", path), path === LOCKSTEP_PATHS[0] ? apiBody : "shared\n")
+    files[path] = { declarations: path === LOCKSTEP_PATHS[0] ? declarations : [] }
+  }
+  const manifest = stage(join("lockstep", label, "manifest.json"), JSON.stringify({ version: 1, files }))
+  return { uiRoot, apiRoot, manifest }
+}
+const lockstepDefaultApiFixture = (label) => {
+  const fixture = lockstepFixture(label)
+  const apiRoot = resolve(fixture.uiRoot, "..", "orbit-api")
+  cpSync(fixture.apiRoot, apiRoot, { recursive: true })
+  rmSync(fixture.apiRoot, { recursive: true, force: true })
+  return { ...fixture, apiRoot }
 }
 
 /**
@@ -1109,6 +1140,14 @@ const captureSurfacesCases = () => {
 // the count is transitive. ORB-4 is unblocked but at the strike limit: it lands
 // in wave 1, is excluded from `launchable` by design, and must still surface in
 // `twoStrikes` (PR #613 review, D9).
+const ISSUES_WAVE_STUB = [
+  { match: "linear list-issues", stdout: JSON.stringify({ ok: true, result: { issues: [{ identifier: "ORB-1" }, { identifier: "ORB-2" }, { identifier: "ORB-3" }, { identifier: "ORB-99" }] } }) },
+  { match: "linear issue ORB-1", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-1", title: "requested first", state: { name: "Todo", type: "unstarted" }, labels: [] }, relations: [] } }) },
+  { match: "linear issue ORB-2", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-2", title: "requested second", state: { name: "Todo", type: "unstarted" }, labels: [{ name: "attempts:2" }] }, relations: [{ relationship: "blockedBy", relatedIssue: { identifier: "ORB-99" } }] } }) },
+  { match: "linear issue ORB-3", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-3", title: "out-of-set dependent", state: { name: "Todo", type: "unstarted" }, labels: [] }, relations: [{ relationship: "blockedBy", relatedIssue: { identifier: "ORB-1" } }] } }) },
+  { match: "linear issue ORB-99", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-99", title: "external blocker", state: { name: "In Progress", type: "started" }, labels: [] }, relations: [] } }) },
+]
+
 const WAVE_STUB = [
   {
     match: "linear list-issues",
@@ -1399,6 +1438,21 @@ const gateCases = {
   },
   "compose-prompt.mjs": composePromptCases,
   "wave-plan.mjs": () => {
+    check("wave-plan.mjs", "documents the explicit issue selection mode", ["--help"], { status: 0, stdout: /--issues "ORB-a,\.\.\."/ })
+    check("wave-plan.mjs", "plans one explicitly requested identifier and counts out-of-set dependents in reach", ["--issues", "ORB-1", "--json"], { status: 0, stdout: /"identifier": "ORB-1"[\s\S]*?"reach": 1[\s\S]*?"launchable": true/ }, { env: orcaEnv(ISSUES_WAVE_STUB) })
+    const duplicateLog = stage("wave-plan-duplicate.log", "")
+    const duplicate = run("wave-plan.mjs", ["--issues", "ORB-1,ORB-1", "--json"], { env: { ...orcaEnv(ISSUES_WAVE_STUB), ORBIT_ORCA_LOG: duplicateLog } })
+    const duplicateFetches = readFileSync(duplicateLog, "utf8").split("\n").filter(Boolean).map(JSON.parse).filter((argv) => argv[0].split(/[\\/]/).pop() === "linear" && argv[1] === "issue" && argv[2] === "ORB-1")
+    T("wave-plan.mjs: deduplicates explicitly requested identifiers before fetching", duplicate.status === 0 && duplicateFetches.length === 1, duplicate.stderr || duplicate.stdout)
+    check("wave-plan.mjs", "renders both members of an explicit two-ticket selection", ["--issues", "ORB-1,ORB-2", "--json"], { status: 0, stdout: /"identifier": "ORB-1"[\s\S]*?"identifier": "ORB-2"/ }, { env: orcaEnv(ISSUES_WAVE_STUB) })
+    check("wave-plan.mjs", "refuses explicit issues combined with another mode", ["--issues", "ORB-1", "--project", "Redesign"], { status: 2, stderr: /cannot be combined/ })
+    check("wave-plan.mjs", "refuses explicit issues combined with a label", ["--issues", "ORB-1", "--label", "bug"], { status: 2, stderr: /cannot be combined/ })
+    check("wave-plan.mjs", "refuses explicit issues combined with all", ["--issues", "ORB-1", "--all"], { status: 2, stderr: /cannot be combined/ })
+    check("wave-plan.mjs", "requires a value for explicit issues", ["--issues"], { status: 2, stderr: /requires at least one identifier/ })
+    check("wave-plan.mjs", "names an unresolved requested identifier", ["--issues", "ORB-404"], { status: 1, stderr: /unresolved requested identifier\(s\): ORB-404/ }, { env: orcaEnv([{ match: "linear issue ORB-404", stdout: JSON.stringify({ ok: false, error: { message: "not found" } }) }]) })
+    check("wave-plan.mjs", "refuses a requested Done identifier", ["--issues", "ORB-3"], { status: 1, stderr: /Done requested identifier\(s\): ORB-3/ }, { env: orcaEnv([{ match: "linear issue ORB-3", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-3", title: "done", state: { name: "Done", type: "completed" }, labels: [] }, relations: [] } }) }]) })
+    check("wave-plan.mjs", "uses an out-of-set team blocker while displaying only requested issues", ["--issues", "ORB-2", "--json"], { status: 0, stdout: /"blockedBy": \[\s*"ORB-99"\s*\][\s\S]*?"blockerState": "blocked by ORB-99"[\s\S]*?"launchable": false[\s\S]*?"twoStrikes": \[\s*"ORB-2"\s*\]/ }, { env: orcaEnv(ISSUES_WAVE_STUB) })
+    check("wave-plan.mjs", "restricts text output to requested identifiers with their blocker state", ["--issues", "ORB-2"], { status: 0, stdout: /ORB-2[\s\S]*?blockerState: blocked by ORB-99[\s\S]*?launchable: no/, stderr: /^$/ }, { env: orcaEnv(ISSUES_WAVE_STUB) })
     check("wave-plan.mjs", "orders a blockedBy pair into two waves", ["--project", "Redesign", "--json"], { status: 0, stdout: /"wave": 2[\s\S]*ORB-2/ }, { env: orcaEnv(WAVE_STUB) })
     check("wave-plan.mjs", "wave 1 is the unblocked ticket", ["--project", "Redesign", "--json"], { status: 0, stdout: /"launchable": \[\s*"ORB-1"\s*\]/ }, { env: orcaEnv(WAVE_STUB) })
     check("wave-plan.mjs", "reach counts the whole downstream chain, not just direct blockers", ["--project", "Redesign", "--json"], { status: 0, stdout: /"identifier": "ORB-1"[\s\S]*?"reach": 2/ }, { env: orcaEnv(WAVE_STUB) })
@@ -1445,6 +1499,83 @@ const gateCases = {
     check("check-dashes.mjs", "an em dash in text is rejected", ["--text", `a${EM_DASH}b`], { status: 1, stderr: /Banned dash/ })
     check("check-dashes.mjs", "clean text passes", ["--text", "a plain hyphen - is fine"], { status: 0 })
   },
+  "check-lockstep.mjs": () => {
+    const matching = lockstepFixture("matching")
+    check("check-lockstep.mjs", "six matching pairs pass", ["--ui-root", matching.uiRoot, "--api-root", matching.apiRoot, "--manifest", matching.manifest], { status: 0, stdout: /HARNESS LOCKSTEP OK/ })
+
+    const malformedManifest = lockstepFixture("malformed-manifest")
+    writeFileSync(malformedManifest.manifest, JSON.stringify({ version: 1, files: {} }))
+    check(
+      "check-lockstep.mjs",
+      "a malformed declaration manifest fails loudly",
+      ["--ui-root", malformedManifest.uiRoot, "--api-root", malformedManifest.apiRoot, "--manifest", malformedManifest.manifest],
+      { status: 1, stderr: /check-lockstep: unreadable comparison input: manifest must declare exactly the six lockstep paths/ },
+    )
+
+    const configuredDefault = lockstepFixture("default-configured")
+    writeFileSync(join(configuredDefault.uiRoot, ".claude", "orchestrator.json"), JSON.stringify({ repos: { api: configuredDefault.apiRoot } }))
+    check(
+      "check-lockstep.mjs",
+      "uses orchestrator repos.api when --api-root is omitted",
+      ["--ui-root", configuredDefault.uiRoot, "--manifest", configuredDefault.manifest],
+      { status: 0, stdout: /^HARNESS LOCKSTEP OK: 6 pairs checked\s*$/, stderr: /^$/ },
+      { cwd: root },
+    )
+
+    const missingConfiguredApi = lockstepDefaultApiFixture("default-missing-api")
+    writeFileSync(join(missingConfiguredApi.uiRoot, ".claude", "orchestrator.json"), JSON.stringify({ repos: {} }))
+    check(
+      "check-lockstep.mjs",
+      "falls back to the sibling when orchestrator repos.api is missing",
+      ["--ui-root", missingConfiguredApi.uiRoot, "--manifest", missingConfiguredApi.manifest],
+      { status: 0, stdout: /^HARNESS LOCKSTEP OK: 6 pairs checked\s*$/, stderr: /^$/ },
+      { cwd: root },
+    )
+
+    const malformedConfig = lockstepDefaultApiFixture("default-malformed-config")
+    writeFileSync(join(malformedConfig.uiRoot, ".claude", "orchestrator.json"), "{not-json")
+    check(
+      "check-lockstep.mjs",
+      "falls back to the sibling when orchestrator config is unparsable",
+      ["--ui-root", malformedConfig.uiRoot, "--manifest", malformedConfig.manifest],
+      { status: 0, stdout: /^HARNESS LOCKSTEP OK: 6 pairs checked\s*$/, stderr: /^$/ },
+      { cwd: root },
+    )
+
+    const absentConfig = lockstepDefaultApiFixture("default-no-config")
+    check(
+      "check-lockstep.mjs",
+      "falls back to the sibling when orchestrator config is absent",
+      ["--ui-root", absentConfig.uiRoot, "--manifest", absentConfig.manifest],
+      { status: 0, stdout: /^HARNESS LOCKSTEP OK: 6 pairs checked\s*$/, stderr: /^$/ },
+      { cwd: root },
+    )
+
+    const divergent = lockstepFixture("divergent", "shared\nui-only\nshared-tail\n", "shared\napi-only\nshared-tail\n")
+    check("check-lockstep.mjs", "an undeclared divergence fails with its file and region", ["--ui-root", divergent.uiRoot, "--api-root", divergent.apiRoot, "--manifest", divergent.manifest], { status: 1, stderr: /pr-review\/SKILL\.md: undeclared region/ })
+
+    const staleFingerprint = lockstepFingerprint("old-ui-only", "old-api-only")
+    const staleDeclaration = [{ id: "obsolete-platform-wording", justification: "The old repository wording was intentionally different.", fingerprints: [staleFingerprint] }]
+    const stale = lockstepFixture("stale-declaration", "shared\ncurrent-ui\nshared-tail\n", "shared\ncurrent-api\nshared-tail\n", staleDeclaration)
+    check(
+      "check-lockstep.mjs",
+      "a declaration that matches no current diff is stale",
+      ["--ui-root", stale.uiRoot, "--api-root", stale.apiRoot, "--manifest", stale.manifest],
+      { status: 1, stderr: new RegExp(`stale declaration obsolete-platform-wording \\(${staleFingerprint}\\); remove it or update the justified region`) },
+    )
+
+    const declaration = [{ id: "platform-wording", justification: "The repository names its own platform.", fingerprints: [lockstepFingerprint("ui-only", "api-only")] }]
+    const declared = lockstepFixture("declared", "shared\nui-only\nshared-tail\n", "shared\napi-only\nshared-tail\n", declaration)
+    check("check-lockstep.mjs", "a justified declared divergence passes", ["--ui-root", declared.uiRoot, "--api-root", declared.apiRoot, "--manifest", declared.manifest], { status: 0 })
+    writeFileSync(join(declared.uiRoot, LOCKSTEP_PATHS[0]), "changed-shared\nui-only\nshared-tail\n")
+    check("check-lockstep.mjs", "a change in the shared region still fails", ["--ui-root", declared.uiRoot, "--api-root", declared.apiRoot, "--manifest", declared.manifest], { status: 1, stderr: /undeclared region/ })
+
+    const byteExact = lockstepFixture("byte-exact")
+    writeFileSync(join(byteExact.uiRoot, LOCKSTEP_PATHS.at(-1)), "shared!\n")
+    check("check-lockstep.mjs", "second-opinion drift fails byte for byte", ["--ui-root", byteExact.uiRoot, "--api-root", byteExact.apiRoot, "--manifest", byteExact.manifest], { status: 1, stderr: /second-opinion\/second-opinion\.mjs: whole file differs/ })
+
+    check("check-lockstep.mjs", "an unreachable sibling fails loudly", ["--ui-root", matching.uiRoot, "--api-root", join(root, "missing-api"), "--manifest", matching.manifest], { status: 1, stderr: /unreadable comparison input/ })
+  },
   "check-context-budget.mjs": contextBudgetCases,
   "capture-surfaces.mjs": captureSurfacesCases,
   "check-ticket.mjs": () => {
@@ -1481,6 +1612,13 @@ const gateCases = {
   },
   "check-frontmatter.mjs": () => {
     check("check-frontmatter.mjs", "runs from any cwd", [], { status: 0, stdout: /frontmatter ok/ }, { cwd: root })
+    stage("frontmatter-valid/SKILL.md", "---\nname: valid\ndescription: A parseable skill.\n---\n")
+    check("check-frontmatter.mjs", "accepts a custom root relative to the caller", ["--root", "frontmatter-valid"], { status: 0, stdout: /frontmatter ok: 1/ }, { cwd: root })
+    const malformedRoot = dirname(stage("frontmatter-malformed/SKILL.md", "---\nname: malformed\ndescription: This breaks: the description will not parse.\n---\n"))
+    check("check-frontmatter.mjs", "rejects an unquoted colon-space scalar in a custom root", ["--root", malformedRoot], { status: 1, stderr: /SKILL\.md  \[description\]/ })
+    check("check-frontmatter.mjs", "rejects a missing custom root", ["--root", join(root, "frontmatter-missing")], { status: 2, stderr: /root does not exist/ })
+    const noFrontmatterRoot = dirname(stage("frontmatter-absent/README.md", "# No frontmatter\n"))
+    check("check-frontmatter.mjs", "rejects a custom root that proves nothing", ["--root", noFrontmatterRoot], { status: 1, stderr: /No frontmatter found/ })
   },
 }
 
@@ -1494,6 +1632,7 @@ const INVALID_INPUT = {
   "check-copy.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-dashes.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-frontmatter.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "check-lockstep.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-push-target.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-suppressions-ratchet.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-ticket.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
