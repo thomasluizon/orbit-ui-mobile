@@ -6,7 +6,7 @@
  * session transcript only as four `type: "queue-operation"` records, the running
  * turn ended on a mid-flow sentence, and the worktree was left with 14 modified
  * and 7 untracked files, zero commits, zero gates and no PR. So the sanctioned
- * path refuses to send to anything that is not tui-idle, and the way to hand a
+ * path requires a stopped repaint signal before sending, and the way to hand a
  * worker new information is to APPEND it to the prompt file it already has and
  * send a one-line pointer telling it to re-read that file.
  */
@@ -161,12 +161,22 @@ while (waitAttempts < waitAttemptsAllowed && !idle) {
   }
   const wait = waitForIdle(terminal)
   if (wait.status === "exited") fail(1, `${terminal} has exited; there is no worker to nudge`)
-  if (wait.satisfied && !busy(terminal)) {
-    idle = true
-    break
-  }
   if (wait.satisfied) {
-    console.error(`attempt ${waitAttempts}: orca reports tui-idle but the TUI is still repainting, so the worker is mid-turn`)
+    if (!busy(terminal)) {
+      idle = true
+      break
+    }
+    console.error(`attempt ${waitAttempts}: orca reports tui-idle but the TUI is still repainting, so the repaint signal wins and the worker is mid-turn`)
+    if (waitAttempts < waitAttemptsAllowed) pause(SETTLE_MS)
+    continue
+  }
+  if (wait.blockedReason) {
+    if (!busy(terminal)) {
+      console.error(`attempt ${waitAttempts}: orca reports ${wait.blockedReason} but the TUI is not repainting, so the retained blocked reason is stale and the current repaint signal wins`)
+      idle = true
+      break
+    }
+    console.error(`attempt ${waitAttempts}: orca reports ${wait.blockedReason} and the TUI is repainting, so both signals say the worker is mid-turn`)
     if (waitAttempts < waitAttemptsAllowed) pause(SETTLE_MS)
     continue
   }

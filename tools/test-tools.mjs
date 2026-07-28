@@ -540,9 +540,15 @@ const launchWorkerCases = () => {
 const TIMEOUT_PAYLOAD = JSON.stringify({ ok: false, error: { code: "timeout", message: "condition not met in time" } })
 const BUSY_STUB = [{ match: "terminal wait", stdout: TIMEOUT_PAYLOAD, exit: 1 }]
 const BROKEN_STUB = [{ match: "terminal wait", stdout: JSON.stringify({ ok: false, error: { code: "no-such-terminal", message: "unknown handle" } }), exit: 1 }]
+const STALE_BLOCKED_WAIT = JSON.stringify({ ok: true, result: { wait: { satisfied: false, status: "running", blockedReason: "codex-trust-workspace" } } })
 /** A settled TUI emits nothing, so lastOutputAt is the SAME on both samples. */
 const IDLE_STUB = [
   { match: "terminal wait", stdout: JSON.stringify({ ok: true, result: { wait: { satisfied: true } } }), exit: 0 },
+  { match: "terminal show", stdout: JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1785168487585 } } }), exit: 0 },
+  { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }), exit: 0 },
+]
+const STALE_BLOCKED_IDLE_STUB = [
+  { match: "terminal wait", stdout: STALE_BLOCKED_WAIT, exit: 0 },
   { match: "terminal show", stdout: JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1785168487585 } } }), exit: 0 },
   { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }), exit: 0 },
 ]
@@ -556,6 +562,21 @@ const FALSE_IDLE_STUB = [
   { match: "terminal show", stdout: '{"ok":true,"result":{"terminal":{"lastOutputAt":__NOW__}}}', exit: 0 },
   { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }), exit: 0 },
 ]
+const BLOCKED_BUSY_STUB = [
+  { match: "terminal wait", stdout: STALE_BLOCKED_WAIT, exit: 0 },
+  { match: "terminal show", stdout: '{"ok":true,"result":{"terminal":{"lastOutputAt":__NOW__}}}', exit: 0 },
+  { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }), exit: 0 },
+]
+
+const runNudgeSignalCase = (label, name, plan, expect, expectedSends) => {
+  const log = join(root, `nudge-${label}.log`)
+  check("nudge-worker.mjs", name, ["--terminal", "t1", "--text", "hi", "--wait-attempts", "1"], expect, {
+    env: { ...orcaEnv(plan), ORBIT_ORCA_LOG: log },
+  })
+  const calls = existsSync(log) ? readFileSync(log, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line)) : []
+  const sends = calls.filter((argv) => argv[0].split(/[\\/]/).pop() === "terminal" && argv[1] === "send").length
+  T(`nudge-worker.mjs: ${name} sends ${expectedSends} time(s)`, sends === expectedSends, `sent ${sends} time(s)`)
+}
 
 const nudgeWorkerCases = () => {
   check("nudge-worker.mjs", "rejects multi-line text", ["--terminal", "t1", "--text", "first line\nsecond line"], { status: 2, stderr: /single line/ })
@@ -563,8 +584,10 @@ const nudgeWorkerCases = () => {
   check("nudge-worker.mjs", "rejects a non-positive --wait-attempts", ["--terminal", "t1", "--text", "hi", "--wait-attempts", "0"], { status: 2, stderr: /positive integer/ })
   check("nudge-worker.mjs", "refuses to send while the worker is busy", ["--terminal", "t1", "--text", "hi", "--wait-attempts", "1"], { status: 1, stderr: /NOTHING was sent/ }, { env: orcaEnv(BUSY_STUB) })
   check("nudge-worker.mjs", "an orca failure that is not a timeout is a tool error", ["--terminal", "t1", "--text", "hi", "--wait-attempts", "1"], { status: 3, stderr: /unknown handle/ }, { env: orcaEnv(BROKEN_STUB) })
-  check("nudge-worker.mjs", "sends once the worker is idle", ["--terminal", "t1", "--text", "hi", "--wait-attempts", "1"], { status: 0, stdout: /"sent": "hi"/ }, { env: orcaEnv(IDLE_STUB) })
-  check("nudge-worker.mjs", "refuses a tui-idle that is still repainting, which is a worker mid-turn", ["--terminal", "t1", "--text", "hi", "--wait-attempts", "1"], { status: 1, stderr: /still repainting[\s\S]*NOTHING was sent/ }, { env: orcaEnv(FALSE_IDLE_STUB) })
+  runNudgeSignalCase("both-idle", "sends once both signals say the worker is idle", IDLE_STUB, { status: 0, stdout: /"sent": "hi"/ }, 1)
+  runNudgeSignalCase("stale-block", "trusts a stopped repaint signal over a stale blocked reason", STALE_BLOCKED_IDLE_STUB, { status: 0, stdout: /"sent": "hi"/, stderr: /codex-trust-workspace[\s\S]*not repainting[\s\S]*blocked reason is stale[\s\S]*repaint signal wins/ }, 1)
+  runNudgeSignalCase("false-idle", "refuses a tui-idle that is still repainting, which is a worker mid-turn", FALSE_IDLE_STUB, { status: 1, stderr: /tui-idle[\s\S]*still repainting[\s\S]*repaint signal wins[\s\S]*NOTHING was sent/ }, 0)
+  runNudgeSignalCase("both-busy", "refuses when both signals say the worker is busy", BLOCKED_BUSY_STUB, { status: 1, stderr: /codex-trust-workspace[\s\S]*TUI is repainting[\s\S]*both signals[\s\S]*NOTHING was sent/ }, 0)
   check("nudge-worker.mjs", "--dry-run calls orca not at all", ["--terminal", "t1", "--text", "hi", "--dry-run"], { status: 0, stdout: /"dryRun": true/ }, { env: orcaEnv([]) })
 }
 
