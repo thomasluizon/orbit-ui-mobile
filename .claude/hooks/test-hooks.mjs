@@ -270,9 +270,12 @@ const write = (rel, body) => {
   writeFileSync(p, body)
   return p
 }
+function runHookResult(file, payload) {
+  return spawnSync(process.execPath, [join(hooksDir, file)], { input: JSON.stringify(payload), encoding: "utf8" })
+}
+
 function runHook(file, payload) {
-  const res = spawnSync(process.execPath, [join(hooksDir, file)], { input: JSON.stringify(payload), encoding: "utf8" })
-  return res.status
+  return runHookResult(file, payload).status
 }
 
 T("cc git-guardrails: push main -> 2", runHook("git-guardrails.mjs", { tool_name: "Bash", tool_input: { command: "git push origin main" } }), 2)
@@ -308,6 +311,109 @@ T(
   0,
 )
 T("cc linear: unrelated command -> 0", runHook(LINEAR_HOOK, { tool_name: "Bash", tool_input: { command: "npm test" } }), 0)
+
+// Raw repo-tool commands belong behind skills and agents. The Stop half catches
+// commands surfaced in chat, while the PostToolUse half catches instructions
+// written to artifacts that Thomas will read, including files outside a repo.
+const RAW_TOOL_HOOK = "forbid-raw-repo-tool-surfacing.mjs"
+const stopPayload = (last_assistant_message) => ({
+  hook_event_name: "Stop",
+  stop_hook_active: false,
+  last_assistant_message,
+})
+const writePayload = (file_path, content) => ({
+  hook_event_name: "PostToolUse",
+  tool_name: "Write",
+  tool_input: { file_path, content },
+})
+const surfacedWavePlan = "Re-derive any time with `node tools/wave-plan.mjs --all`"
+
+const chatSurfacing = runHookResult(RAW_TOOL_HOOK, stopPayload(surfacedWavePlan))
+T("cc raw-tool: measured chat instruction -> 2", chatSurfacing.status, 2)
+T("cc raw-tool: measured chat instruction names /next", chatSurfacing.stderr.includes("/next"), true)
+
+const npxSurfacing = runHookResult(
+  RAW_TOOL_HOOK,
+  stopPayload(["Run this command:", "", "```bash", "npx turbo run lint", "```"].join("\n")),
+)
+T("cc raw-tool: npx instruction -> 2", npxSurfacing.status, 2)
+T("cc raw-tool: npx gap says no skill exists", npxSurfacing.stderr.toLowerCase().includes("no skill"), true)
+T("cc raw-tool: npx gap says to build a skill", npxSurfacing.stderr.toLowerCase().includes("build"), true)
+
+const bareToolSurfacing = runHookResult(
+  RAW_TOOL_HOOK,
+  stopPayload(["Run this command:", "", "```bash", "tools/rollup.sh", "```"].join("\n")),
+)
+T("cc raw-tool: bare tools script instruction -> 2", bareToolSurfacing.status, 2)
+
+const outsideRepoArtifactBody = ["# Instructions", "", "Run this to refresh the order:", "", "```bash", "node tools/wave-plan.mjs --all", "```"].join("\n")
+const outsideRepoArtifact = write("Downloads/order.md", outsideRepoArtifactBody)
+const artifactSurfacing = runHookResult(
+  RAW_TOOL_HOOK,
+  writePayload(outsideRepoArtifact),
+)
+T("cc raw-tool: outside-repo instruction artifact -> 2", artifactSurfacing.status, 2)
+T("cc raw-tool: artifact block names /next", artifactSurfacing.stderr.includes("/next"), true)
+
+// These are machine-to-machine bodies or quoted reference material, not steps
+// presented to Thomas. Each is a distinct correct use of the same command.
+const skillBody = [
+  "---",
+  "name: next",
+  "---",
+  "",
+  "Internally, run `node tools/wave-plan.mjs --all` and summarize the result.",
+].join("\n")
+T(
+  "cc raw-tool: skill body -> 0",
+  runHook(RAW_TOOL_HOOK, writePayload(join(root, ".claude", "skills", "next", "SKILL.md"), skillBody)),
+  0,
+)
+
+const agentBody = [
+  "---",
+  "name: planner",
+  "---",
+  "",
+  "Use `node tools/wave-plan.mjs --all` to gather the wave data.",
+].join("\n")
+T(
+  "cc raw-tool: agent body -> 0",
+  runHook(RAW_TOOL_HOOK, writePayload(join(root, ".claude", "agents", "planner.md"), agentBody)),
+  0,
+)
+
+const ticketBodyPath = write("ORB-999.md", "## Technical details\n\nThe skill internally runs `node tools/wave-plan.mjs --all`.")
+T("cc raw-tool: ticket body -> 0", runHook(RAW_TOOL_HOOK, writePayload(ticketBodyPath)), 0)
+
+const prDescriptionPath = write("pr-description.md", "## Implementation\n\nValidation uses `node tools/wave-plan.mjs --all` inside the skill.")
+T("cc raw-tool: PR description -> 0", runHook(RAW_TOOL_HOOK, writePayload(prDescriptionPath)), 0)
+T(
+  "cc raw-tool: quoted --help output -> 0",
+  runHook(
+    RAW_TOOL_HOOK,
+    stopPayload(["The captured `--help` output is:", "", "```text", "Usage: node tools/wave-plan.mjs --all", "```", "", "This is quoted output, not an instruction."].join("\n")),
+  ),
+  0,
+)
+
+for (const command of ["git status", "gh pr checks", "dotnet test", "npm run lint"]) {
+  T(
+    `cc raw-tool: ordinary instruction "${command}" -> 0`,
+    runHook(RAW_TOOL_HOOK, stopPayload(["Run this command:", "", "```bash", command, "```"].join("\n"))),
+    0,
+  )
+}
+
+const appealReason = "The user explicitly requested the exact diagnostic command for a local shell."
+const appealedSurfacing = runHookResult(
+  RAW_TOOL_HOOK,
+  stopPayload(
+    ["Run this command:", "", "```bash", "node tools/wave-plan.mjs --all", "```", "", `Repo-tool appeal: ${appealReason}`].join("\n"),
+  ),
+)
+T("cc raw-tool: explicit reason appeal -> 0", appealedSurfacing.status, 0)
+T("cc raw-tool: explicit reason appeal is recorded", appealedSurfacing.stdout.includes(`Repo-tool appeal recorded: ${appealReason}`), true)
 
 // ---------------------------------------------------------------------------
 // 3. Agent frontmatter: the fails-open `Bash(...)` trap
