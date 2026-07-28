@@ -200,6 +200,11 @@ if (argv[0] === "pr" && argv[1] === "update-branch") {
   if (process.env.ORBIT_MERGE_SWEEP_UPDATED_HEAD) writeFileSync(updateMarker, "")
   process.exit(0)
 }
+if (argv[0] === "api" && argv[1] === "graphql" && line.includes("reviews(first:100")) {
+  if (process.env.ORBIT_MERGE_SWEEP_REVIEWS_LOOKUP_FAILURE) process.exit(7)
+  process.stdout.write(withUrls(process.env.ORBIT_MERGE_SWEEP_REVIEW_TIMES, "reviews"))
+  process.exit(0)
+}
 if (argv[0] === "api" && argv[1] === "graphql" && line.includes("reviewThreads(first:100)")) {
   if (process.env.ORBIT_MERGE_SWEEP_THREADS_LOOKUP_FAILURE) process.exit(7)
   process.stdout.write(process.env.ORBIT_MERGE_SWEEP_UNRESOLVED_THREADS)
@@ -237,11 +242,6 @@ if (argv[0] === "pr" && argv[1] === "merge") {
     process.exit(1)
   }
   if (process.env.ORBIT_MERGE_SWEEP_POST_MERGE_ACTIVITY) writeFileSync(postMergeMarker, "")
-  process.exit(0)
-}
-if (line.includes("/pulls/") && line.includes("/reviews")) {
-  if (process.env.ORBIT_MERGE_SWEEP_REVIEWS_LOOKUP_FAILURE) process.exit(7)
-  process.stdout.write(withUrls(process.env.ORBIT_MERGE_SWEEP_REVIEW_TIMES, "reviews"))
   process.exit(0)
 }
 if (line.includes("/pulls/") && line.includes("/comments")) {
@@ -1550,7 +1550,7 @@ const mergeSweepCases = (file) => {
     file,
     "help documents the exclusive cutoff and residual post-merge window",
     ["--help"],
-    { status: 0, stdout: /(?=[\s\S]*--reviewed-through)(?=[\s\S]*cutoff is exclusive: activity at or after that timestamp counts as new\.)(?=[\s\S]*residual response-to-merge race)(?=[\s\S]*exits 4)/ },
+    { status: 0, stdout: /(?=[\s\S]*--reviewed-through)(?=[\s\S]*cutoff is exclusive: activity at or after that timestamp counts as new\.)(?=[\s\S]*Every status check, required or not, must reach a terminal successful conclusion before merge\.)(?=[\s\S]*residual response-to-merge race)(?=[\s\S]*exits 4)/ },
   )
 
   const updatedHead = "3333333333333333333333333333333333333333"
@@ -1671,10 +1671,37 @@ const mergeSweepCases = (file) => {
 
   reviewSkip("unresolved review threads skip without merging", { unresolvedThreads: "2" }, /SKIP #615 UNRESOLVED-THREADS=2/)
   reviewSkip("a newer review skips without merging", { reviewTimes: `reviewer\t${newerReviewTime}` }, new RegExp(`SKIP #615 NEW-REVIEW-SINCE ${reviewedThrough} by reviewer at ${newerReviewTime}`))
+  reviewSkip(
+    "an already-submitted COMMENTED review edited after the cutoff skips without merging",
+    { reviewTimes: `commented-reviewer\t2026-07-27T22:00:00Z\ncommented-reviewer\t2026-07-27T22:00:00Z\ncommented-reviewer\t${newerReviewTime}` },
+    new RegExp(`SKIP #615 NEW-REVIEW-SINCE ${reviewedThrough} by commented-reviewer at ${newerReviewTime}`),
+  )
   reviewSkip("a newer issue comment skips without merging", { commentTimes: `issue-commenter\t${newerReviewTime}` }, new RegExp(`SKIP #615 NEW-REVIEW-SINCE ${reviewedThrough} by issue-commenter at ${newerReviewTime}`))
   reviewSkip("review-thread lookup failure fails closed by name", { threadsLookupFailure: true }, /SKIP #615 REVIEW-LOOKUP-FAILED source=reviewThreads/)
   reviewSkip("reviews lookup failure fails closed by name", { reviewsLookupFailure: true }, /SKIP #615 REVIEW-LOOKUP-FAILED source=reviews/)
   reviewSkip("issue-comments lookup failure fails closed by name", { commentsLookupFailure: true }, /SKIP #615 REVIEW-LOOKUP-FAILED source=issue-comments/)
+
+  const olderEditedReviewLog = join(root, `${file}-older-edited-commented-review.log`)
+  const olderEditedReview = run(file, reviewedArgs, {
+    env: mergeSweepEnv({
+      head: expectedHead,
+      log: olderEditedReviewLog,
+      reviewTimes: "commented-reviewer\t2026-07-27T21:00:00Z\ncommented-reviewer\t2026-07-27T22:00:00Z\ncommented-reviewer\t2026-07-27T23:59:59Z",
+      sonar: coverageAware ? "coverage-failure" : "success",
+      state: coverageAware ? "BLOCKED" : "CLEAN",
+    }),
+  })
+  const olderEditedReviewCalls = mergeSweepCalls(olderEditedReviewLog)
+  const olderEditedReviewMerges = olderEditedReviewCalls.filter(([group, command]) => group === "pr" && command === "merge")
+  const paginatedReviewLookup = olderEditedReviewCalls.find((argv) => argv[0] === "api" && argv[1] === "graphql" && argv.some((value) => value.includes("reviews(first:100")))
+  T(
+    `${file}: a COMMENTED review edited strictly before the cutoff still merges`,
+    olderEditedReview.status === 0 &&
+      olderEditedReviewMerges.length === 1 &&
+      paginatedReviewLookup?.includes("--paginate") &&
+      paginatedReviewLookup.includes("--slurp"),
+    `exit ${olderEditedReview.status}\n     stdout: ${olderEditedReview.stdout.trim()}\n     stderr: ${olderEditedReview.stderr.trim()}\n     calls: ${JSON.stringify(olderEditedReviewCalls)}`,
+  )
 
   const inlineOutput = (author, timestamp) =>
     new RegExp(`SKIP #615 NEW-REVIEW-SINCE ${reviewedThrough} \\(inline comment by ${author} at ${timestamp}\\)`)

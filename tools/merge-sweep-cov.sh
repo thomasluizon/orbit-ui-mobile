@@ -51,6 +51,7 @@ It refuses to merge while the \`$REVIEW_CHECK_NAME\` check for the CURRENT head 
 running, and re-reads reviewDecision after that check settles, so a pre-update APPROVED can
 never carry a merge. Only a workflow lookup that succeeds and shows no $REVIEW_WORKFLOW_PATH
 skips that wait; a failed lookup keeps the guard on.
+Every status check, required or not, must reach a terminal successful conclusion before merge.
 
 After the sweep it re-checks every merged PR's head branch. A branch whose tip moved past the
 SHA that was merged carries a post-merge commit that never reached main.
@@ -260,6 +261,25 @@ newest_review_item_after() { # <cutoff>; author/timestamp/url TSV on stdin; exit
     })' "$1"
 }
 
+report_review_lookup_failure() { # <pr> <source> <pre|post>
+  if [ "$3" = "post" ]; then
+    echo "POST-MERGE-REVIEW-LOOKUP-FAILED #$1 source=$2"
+  else
+    echo "SKIP #$1 REVIEW-LOOKUP-FAILED source=$2"
+  fi
+}
+
+REVIEW_LOOKUP_RESULT=""
+lookup_review_activity() { # <pr> <source> <pre|post> <command...>; sets REVIEW_LOOKUP_RESULT
+  local pr="$1" source="$2" phase="$3"
+  shift 3
+  REVIEW_LOOKUP_RESULT=""
+  if ! REVIEW_LOOKUP_RESULT=$("$@" 2>/dev/null); then
+    report_review_lookup_failure "$pr" "$source" "$phase"
+    return 1
+  fi
+}
+
 check_review_items() { # <pr> <source> <cutoff> <pre|post>; author/timestamp/url TSV on stdin
   local pr="$1" source="$2" cutoff="$3" phase="$4" newest_item item_status author item_timestamp item_url remainder
   newest_item="$(newest_review_item_after "$cutoff")"
@@ -281,11 +301,7 @@ check_review_items() { # <pr> <source> <cutoff> <pre|post>; author/timestamp/url
       return 1
       ;;
     *)
-      if [ "$phase" = "post" ]; then
-        echo "POST-MERGE-REVIEW-LOOKUP-FAILED #$pr source=$source"
-      else
-        echo "SKIP #$pr REVIEW-LOOKUP-FAILED source=$source"
-      fi
+      report_review_lookup_failure "$pr" "$source" "$phase"
       return 1
       ;;
   esac
@@ -295,31 +311,19 @@ review_safety_gate() { # <pr> <pre|post>; prints the fail-closed reason
   local pr="$1" phase="$2" reviewed_through unresolved review_items inline_items comment_items
   reviewed_through="$(reviewed_through_for "$pr")"
   if [ -z "$reviewed_through" ]; then
-    if [ "$phase" = "post" ]; then
-      echo "POST-MERGE-REVIEW-LOOKUP-FAILED #$pr source=reviewed-through"
-    else
-      echo "SKIP #$pr REVIEW-LOOKUP-FAILED source=reviewed-through"
-    fi
+    report_review_lookup_failure "$pr" reviewed-through "$phase"
     return 1
   fi
-  if ! unresolved=$(gh api graphql \
+  if ! lookup_review_activity "$pr" reviewThreads "$phase" gh api graphql \
     -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){reviewThreads(first:100){nodes{isResolved} pageInfo{hasNextPage}}}}}' \
     -F o="${repo%%/*}" -F r="${repo##*/}" -F n="$pr" \
-    --jq '.data.repository.pullRequest.reviewThreads | if .pageInfo.hasNextPage then "PAGINATED" else ([.nodes[] | select(.isResolved == false)] | length) end' 2>/dev/null); then
-    if [ "$phase" = "post" ]; then
-      echo "POST-MERGE-REVIEW-LOOKUP-FAILED #$pr source=reviewThreads"
-    else
-      echo "SKIP #$pr REVIEW-LOOKUP-FAILED source=reviewThreads"
-    fi
+    --jq '.data.repository.pullRequest.reviewThreads | if .pageInfo.hasNextPage then "PAGINATED" else ([.nodes[] | select(.isResolved == false)] | length) end'; then
     return 1
   fi
+  unresolved="$REVIEW_LOOKUP_RESULT"
   case "$unresolved" in
     '' | *[!0-9]*)
-      if [ "$phase" = "post" ]; then
-        echo "POST-MERGE-REVIEW-LOOKUP-FAILED #$pr source=reviewThreads"
-      else
-        echo "SKIP #$pr REVIEW-LOOKUP-FAILED source=reviewThreads"
-      fi
+      report_review_lookup_failure "$pr" reviewThreads "$phase"
       return 1
       ;;
   esac
@@ -331,36 +335,29 @@ review_safety_gate() { # <pr> <pre|post>; prints the fail-closed reason
     fi
     return 1
   fi
-  if ! review_items=$(gh api "repos/$repo/pulls/$pr/reviews" --paginate --jq '.[] | [.user.login, .submitted_at, .html_url] | @tsv' 2>/dev/null); then
-    if [ "$phase" = "post" ]; then
-      echo "POST-MERGE-REVIEW-LOOKUP-FAILED #$pr source=reviews"
-    else
-      echo "SKIP #$pr REVIEW-LOOKUP-FAILED source=reviews"
-    fi
+  if ! lookup_review_activity "$pr" reviews "$phase" gh api graphql --paginate --slurp \
+    -f query='query($o:String!,$r:String!,$n:Int!,$endCursor:String){repository(owner:$o,name:$r){pullRequest(number:$n){reviews(first:100,after:$endCursor){nodes{author{login} submittedAt updatedAt lastEditedAt url} pageInfo{hasNextPage endCursor}}}}}' \
+    -F o="${repo%%/*}" -F r="${repo##*/}" -F n="$pr" \
+    --jq '.[] | .data.repository.pullRequest.reviews.nodes[] | ([.author.login, .submittedAt, .url], [.author.login, .updatedAt, .url], [.author.login, .lastEditedAt, .url]) | select(.[1] != null) | @tsv'; then
     return 1
   fi
+  review_items="$REVIEW_LOOKUP_RESULT"
   if ! printf '%s\n' "$review_items" | check_review_items "$pr" reviews "$reviewed_through" "$phase"; then
     return 1
   fi
-  if ! inline_items=$(gh api "repos/$repo/pulls/$pr/comments" --paginate --jq '.[] | ([.user.login, .created_at, .html_url], [.user.login, .updated_at, .html_url]) | @tsv' 2>/dev/null); then
-    if [ "$phase" = "post" ]; then
-      echo "POST-MERGE-REVIEW-LOOKUP-FAILED #$pr source=inline-comments"
-    else
-      echo "SKIP #$pr REVIEW-LOOKUP-FAILED source=inline-comments"
-    fi
+  if ! lookup_review_activity "$pr" inline-comments "$phase" gh api "repos/$repo/pulls/$pr/comments" --paginate \
+    --jq '.[] | ([.user.login, .created_at, .html_url], [.user.login, .updated_at, .html_url]) | @tsv'; then
     return 1
   fi
+  inline_items="$REVIEW_LOOKUP_RESULT"
   if ! printf '%s\n' "$inline_items" | check_review_items "$pr" inline-comments "$reviewed_through" "$phase"; then
     return 1
   fi
-  if ! comment_items=$(gh api "repos/$repo/issues/$pr/comments" --paginate --jq '.[] | ([.user.login, .created_at, .html_url], [.user.login, .updated_at, .html_url]) | @tsv' 2>/dev/null); then
-    if [ "$phase" = "post" ]; then
-      echo "POST-MERGE-REVIEW-LOOKUP-FAILED #$pr source=issue-comments"
-    else
-      echo "SKIP #$pr REVIEW-LOOKUP-FAILED source=issue-comments"
-    fi
+  if ! lookup_review_activity "$pr" issue-comments "$phase" gh api "repos/$repo/issues/$pr/comments" --paginate \
+    --jq '.[] | ([.user.login, .created_at, .html_url], [.user.login, .updated_at, .html_url]) | @tsv'; then
     return 1
   fi
+  comment_items="$REVIEW_LOOKUP_RESULT"
   if ! printf '%s\n' "$comment_items" | check_review_items "$pr" issue-comments "$reviewed_through" "$phase"; then
     return 1
   fi

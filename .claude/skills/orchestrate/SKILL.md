@@ -358,9 +358,9 @@ cannot decide for one PR, all against that recorded head:
 
 1. `--sleep` was passed, every wave blocker is merged, and Phase 1's gates are green
    on the target branch.
-2. Every status check has concluded. The tool rejects failed conclusions and waits
-   on merge-blocking checks, but it does not keep a non-required pending check from
-   being merged past.
+2. Every status check has concluded. The tool rejects failed conclusions and keeps
+   every pending check from being merged past, including non-required checks. This
+   is intentionally stricter than GitHub's mergeability state.
 3. `mergeStateStatus` is `CLEAN` and `headRefOid` still matches the recorded head.
 4. The D7 evidence gate is satisfied: the PR is attached to the issue, and a
    `visible-effect` ticket has its final screenshots and critique attached, with
@@ -377,16 +377,25 @@ cannot decide for one PR, all against that recorded head:
    reviewer had missed entirely.
 
    Do not record `reviewed-through` yet. First enumerate them yourself from all THREE
-   endpoints, because they are different objects:
+   activity sources, because they are different objects:
    `gh api --paginate repos/<owner>/<repo>/pulls/<n>/comments` (inline comments and replies),
-   `gh api --paginate repos/<owner>/<repo>/pulls/<n>/reviews` (review bodies, including
-   `COMMENTED` ones), plus
+   the paginated GraphQL `pullRequest.reviews` connection (all review submissions and their
+   edit timestamps, including `COMMENTED` review bodies), plus
    `gh api --paginate repos/<owner>/<repo>/issues/<n>/comments` (conversation comments). Then
-   each comment ends in exactly one of two states. Include activity from every author,
+   enumerate the reviews with:
+
+   ```bash
+   gh api graphql --paginate \
+     -f query='query($endCursor:String){repository(owner:"<owner>",name:"<repo>"){pullRequest(number:<n>){reviews(first:100,after:$endCursor){nodes{author{login} body submittedAt lastEditedAt} pageInfo{hasNextPage endCursor}}}}}'
+   ```
+
+   Each finding-bearing item ends in exactly one of two states. Include activity from every author,
    including the PR author, the orchestrator account, bots, and reviewer accounts. Never
    filter or exempt activity by author: identity does not prove that an item was part of
    this reconciliation, and an exclusion would hide a late review, reply, or edit from
-   the final safety gate.
+   the final safety gate. An edited review body is observable through `lastEditedAt`; it
+   is not a documented limitation or a reason to waive the gate. Treat both `submittedAt`
+   and every non-null `lastEditedAt` as review activity.
 
    - **Addressed.** The finding is real: fix it through a worker in that ticket's worktree,
      PUSH the fix, then reply on the thread naming the commit that fixed it, then RESOLVE
@@ -430,15 +439,18 @@ Immediately before handoff, re-read `headRefOid` and `mergeStateStatus`. Hand of
 when the state is `CLEAN`. If it is `BEHIND`, do not invoke the script: update the branch,
 wait for the new head, and repeat conditions 1 to 6 against it. If the head moved at any
 point after the conditions ran, discard their results and repeat the same update-first
-sequence. Every repeat includes re-enumerating review bodies, inline comments and
-conversation comments, posting every required reconciliation reply, and resolving and
-mechanically verifying every addressed thread.
+sequence. Every repeat includes re-enumerating review submissions and their edit
+timestamps through GraphQL, inline comments, and conversation comments, posting every
+required reconciliation reply, and resolving and mechanically verifying every
+addressed thread.
 
 Record the final `headRefOid` as the expected head. Then, as the LAST act of
 reconciliation, after every required reply has been posted and the final unresolved
-thread count has been verified as zero, re-read all three activity endpoints and find
-the latest reconciled creation, edit, or submission timestamp. Capture a current UTC
-ISO-8601 instant that is strictly later than that timestamp as `reviewed-through`.
+thread count has been verified as zero, re-read all three activity sources. Find the
+latest reconciled timestamp across every review `submittedAt` and non-null
+`lastEditedAt`, every inline-comment creation and edit, and every conversation-comment
+creation and edit. Capture a current UTC ISO-8601 instant that is strictly later than
+that timestamp as `reviewed-through`.
 GitHub timestamps have second precision and the sweep deliberately treats activity
 equal to the cutoff as new, so if the current UTC second is not later, wait for the
 next second before capturing the boundary. Invoke the strict sweep immediately after
@@ -475,10 +487,11 @@ as a safety check, polls `mergeStateStatus`, rejects failed checks, requires
 `reviewDecision=APPROVED`, waits for the `review` check on the current head SHA to
 settle, and re-reads the decision after updates. Its review-safety query is the last
 API read before the merge call: it requires every review thread to be resolved and no
-review submission, inline review comment, or conversation comment at or after
-`reviewed-through`. It compares both creation and edit times for comments, paginates
-all three activity endpoints, admits no author exclusions, and fails closed on every
-thread or activity lookup.
+review submission or edit, inline review comment or edit, or conversation comment or
+edit at or after `reviewed-through`. It paginates review submissions through GraphQL
+and checks both `submittedAt` and `lastEditedAt`, checks both creation and edit times
+for comments, admits no author exclusions, and fails closed on every thread or activity
+lookup.
 
 There is still an unavoidable final API race between the response to that safety query
 and the merge request. The sweep makes the safety query last, but it cannot prevent new
