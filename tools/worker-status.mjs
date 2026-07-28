@@ -15,18 +15,21 @@ import { execFileSync } from "node:child_process"
 
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
-const USAGE = `usage: worker-status.mjs --worktree <path> --issue ORB-N [--base <ref>] [--json]
+const USAGE = `usage: worker-status.mjs --worktree <path> --issue ORB-N [--base <ref>] [--verify-review] [--json]
 
   --worktree <path>  the worker's worktree path, as printed by launch-worker.mjs (required)
   --issue ORB-N      the Linear issue the worker is finishing (required)
   --base <ref>       the branch the PR must target (default: main)
+  --verify-review    run the one-time pre-merge review-thread verification
   --json             emit the verdict as JSON instead of text
   --help, -h         print this usage and exit 0
 
 Checks, all from artifacts: commits exist on the branch, the worktree carries no uncommitted
-work, the branch is pushed, a PR is open against <ref>, the Linear issue is In Review with the
-PR attached, and both a screenshot and critique artifact are attached when the ticket carries
-visible-effect (D7).
+work, the branch is pushed, a PR is open and approved against <ref> with zero unresolved
+threads, every resolved automated thread names a fix commit that changed its reviewed path,
+no human-authored thread was resolved by the worker account, the Linear issue is In Review
+with the PR attached, and both a screenshot and critique artifact are attached when the ticket
+carries visible-effect (D7).
 
 exit codes: 0 the contract is met, 1 unmet items (listed), 2 usage error,
             3 a git, gh or orca command failed`
@@ -91,6 +94,7 @@ const orca = (args) => {
 const worktree = argOf("--worktree")
 const issue = argOf("--issue")
 const base = argOf("--base") ?? "main"
+const verifyReview = process.argv.includes("--verify-review")
 const asJson = process.argv.includes("--json")
 
 if (!worktree) fail(2, `${USAGE}\n\n--worktree is required`)
@@ -123,9 +127,49 @@ const pushed = (git(["ls-remote", "--heads", "origin", branch]) || "").length > 
 const remoteUrl = git(["remote", "get-url", "origin"])
 const slug = remoteUrl.replace(/\.git$/, "").split(/[:/]/).slice(-2).join("/")
 const pullRequests = JSON.parse(
-  run(GH, ["pr", "list", "--repo", slug, "--head", branch, "--state", "all", "--json", "url,state,baseRefName,isDraft"]) || "[]",
+  run(GH, ["pr", "list", "--repo", slug, "--head", branch, "--state", "all", "--json", "number,url,state,baseRefName,isDraft"]) || "[]",
 )
 const pullRequest = pullRequests.find((entry) => entry.state === "OPEN") ?? pullRequests[0] ?? null
+
+const reviewPayload = pullRequest
+  ? JSON.parse(
+      run(GH, [
+        "api",
+        "graphql",
+        "-f",
+        "query=query($owner:String!,$name:String!,$number:Int!){viewer{login}repository(owner:$owner,name:$name){pullRequest(number:$number){reviewDecision reviewThreads(first:100){pageInfo{hasNextPage}nodes{id isResolved path resolvedBy{login} comments(first:100){nodes{author{login __typename} body}}}}}}}",
+        "-F",
+        `owner=${slug.split("/")[0]}`,
+        "-F",
+        `name=${slug.split("/")[1]}`,
+        "-F",
+        `number=${pullRequest.number}`,
+      ]),
+    ).data
+  : null
+const review = reviewPayload?.repository?.pullRequest
+const reviewThreads = review?.reviewThreads?.nodes ?? []
+const workerLogin = reviewPayload?.viewer?.login
+const prCommits = new Set(git(["rev-list", `${baseRef}..HEAD`]).split("\n").filter(Boolean))
+const resolveCommit = (reference) => git(["rev-parse", "--verify", `${reference}^{commit}`], { allowFailure: true })
+const automatedAuthor = (author) => author?.__typename === "Bot" || author?.login?.endsWith("[bot]")
+const threadHasFix = (thread) => {
+  const resolver = thread.resolvedBy?.login
+  if (!resolver || !thread.path) return false
+  const replies = (thread.comments?.nodes ?? []).filter((comment) => comment.author?.login === resolver)
+  for (const reply of replies) {
+    for (const match of (reply.body ?? "").matchAll(/\b[0-9a-f]{7,40}\b/gi)) {
+      const commit = resolveCommit(match[0])
+      if (commit && prCommits.has(commit) && git(["diff-tree", "--no-commit-id", "--name-only", "-r", commit, "--", thread.path])) return true
+    }
+  }
+  return false
+}
+const automatedResolvedWithoutFix = reviewThreads.filter((thread) => automatedAuthor(thread.comments?.nodes?.[0]?.author) && thread.isResolved && !threadHasFix(thread))
+const workerResolvedHumanThreads = reviewThreads.filter(
+  (thread) => !automatedAuthor(thread.comments?.nodes?.[0]?.author) && thread.isResolved && thread.resolvedBy?.login === workerLogin,
+)
+const unresolvedThreads = reviewThreads.filter((thread) => !thread.isResolved)
 
 const detail = orca(["linear", "issue", issue, "--attachments"])
 const linearIssue = detail.issue ?? detail
@@ -155,6 +199,21 @@ const checks = [
     ok: Boolean(pullRequest && pullRequest.state === "OPEN" && pullRequest.baseRefName === base && !pullRequest.isDraft),
     detail: pullRequest ? `${pullRequest.url} ${pullRequest.state} -> ${pullRequest.baseRefName}${pullRequest.isDraft ? " (draft)" : ""}` : `no PR from ${branch} in ${slug}`,
   },
+  {
+    name: "review-approved",
+    ok: review?.reviewDecision === "APPROVED",
+    detail: review ? `review decision is ${review.reviewDecision ?? "absent"}, contract wants APPROVED` : "no pull request review state is available",
+  },
+  {
+    name: "review-thread-inventory",
+    ok: review?.reviewThreads?.pageInfo?.hasNextPage === false,
+    detail: review?.reviewThreads?.pageInfo?.hasNextPage ? "more than 100 review threads, verification is incomplete" : "complete review thread inventory",
+  },
+  {
+    name: "review-threads",
+    ok: unresolvedThreads.length === 0,
+    detail: unresolvedThreads.length ? `${unresolvedThreads.length} unresolved review thread(s)` : "zero unresolved review threads",
+  },
   { name: "linear-in-review", ok: (linearIssue.state?.name ?? linearIssue.state) === reviewState, detail: `issue is ${linearIssue.state?.name ?? linearIssue.state}, contract wants ${reviewState}` },
   {
     name: "pr-attached",
@@ -162,6 +221,22 @@ const checks = [
     detail: attachmentUrls.length ? `attachments: ${attachmentUrls.join(", ")}` : "the issue carries no attachments",
   },
 ]
+if (verifyReview) {
+  checks.push({
+    name: "resolved-thread-fixes",
+    ok: automatedResolvedWithoutFix.length === 0,
+    detail: automatedResolvedWithoutFix.length
+      ? `resolved automated thread(s) without a fix commit changing the reviewed path: ${automatedResolvedWithoutFix.map((thread) => `${thread.id}:${thread.path}`).join(", ")}`
+      : "every resolved automated thread names a fix commit changing the reviewed path",
+  })
+  checks.push({
+    name: "human-thread-resolution",
+    ok: workerResolvedHumanThreads.length === 0,
+    detail: workerResolvedHumanThreads.length
+      ? `human-authored thread(s) resolved by the worker account: ${workerResolvedHumanThreads.map((thread) => thread.id).join(", ")}`
+      : "the worker account did not resolve a human-authored thread",
+  })
+}
 if (visibleEffect) {
   checks.push({
     name: "screenshot-attached",
@@ -176,7 +251,7 @@ if (visibleEffect) {
 }
 
 const unmet = checks.filter((check) => !check.ok).map((check) => check.name)
-const verdict = { issue, branch, base, worktree, repo: slug, pullRequest: pullRequest?.url ?? null, checks, unmet, ok: unmet.length === 0 }
+const verdict = { issue, branch, base, worktree, repo: slug, pullRequest: pullRequest?.url ?? null, verifyReview, checks, unmet, ok: unmet.length === 0 }
 
 if (asJson) {
   console.log(JSON.stringify(verdict, null, 2))

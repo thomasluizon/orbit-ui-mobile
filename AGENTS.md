@@ -10,8 +10,18 @@ before writing code.
 - Your prompt is a Linear ticket body. Execute exactly it: scope and out-of-scope are
   binding; an impossible or contradictory ticket means STOP and report, never improvise.
 - Finish = lint + type-check + tests green for the touched workspaces, commit, push,
-  one PR to the ticket's target branch linking `ORB-N`, then stop. Never merge. Never
-  push to `main` or `redesign/main` directly.
+  one PR to the ticket's target branch linking `ORB-N`, then own its review cycle
+  through approval with zero unresolved threads. Never merge. Never push to `main`
+  or `redesign/main` directly.
+- After pushing, poll your pull request. Reconcile each automated review finding
+  against the diff, fix valid findings, commit and push the fix, reply on the thread
+  naming the fix commit, resolve the thread, and repeat until the review decision is
+  approved with zero unresolved threads. Never resolve a thread opened by a human,
+  and never report completion while any thread remains unresolved.
+- Escalate when you disagree with a finding, when you are blocked on a decision you
+  may not make, or when two consecutive cycles fail on the same finding. Report one
+  escalation carrying the finding and your reasoning; otherwise report once when the
+  pull request is approved with zero unresolved threads.
 - Parity is mandatory for `parity:yes` tickets: `apps/web` and `apps/mobile` change in
   the SAME PR, logic and behaviour identical; i18n keys land in `en.json` AND
   `pt-BR.json` in the same edit.

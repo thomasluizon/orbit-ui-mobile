@@ -526,9 +526,15 @@ const WORKER_CONTRACT_MARKER = "## Standing worker contract (injected by tools/l
 const REQUIRED_CONTRACT_CLAUSES = {
   "asking a question": /Never ask a question/,
   "dropping a blocked criterion": /A blocked sub-step never blocks the PR/,
-  "watching its own PR or another ticket": /Never poll your own PR's CI[\s\S]*never watch another ticket/,
+  "owning its automated review cycle": /Own the automated review cycle[\s\S]*approved with zero unresolved threads/,
+  "replying with the fix commit before resolving": /reply on that thread naming[\s\S]*the fix commit, then resolve it/,
+  "escalating a disagreement": /Escalate when you disagree with a finding/,
+  "escalating a blocked decision": /when you are[\s\S]*blocked on a decision you may not make/,
+  "escalating after two failed cycles": /when two consecutive cycles fail on the same[\s\S]*finding/,
+  "leaving human threads unresolved": /Never resolve a thread opened by a human account/,
+  "refusing completion with unresolved threads": /approval with an[\s\S]*unresolved thread is not done/,
+  "watching only its own ticket": /Never watch another[\s\S]*ticket, worktree, or PR/,
   "arming a monitor that outlives the contract": /Never arm a background monitor/,
-  "resolving a watch-and-stop conflict by doing both": /STOP wins/,
   "merging or pushing to main": /Never merge any PR, never push to/,
   "blanket staging that sweeps in a sibling's artifacts": /Stage explicitly[\s\S]*git add -A/,
   "pushing a commit it has not read back": /Verify before pushing[\s\S]*git show --stat HEAD/,
@@ -1001,7 +1007,7 @@ const launchWorkerCases = () => {
 
   const launcherSource = readFileSync(join(TOOLS_DIR, "launch-worker.mjs"), "utf8")
   for (const [clause, pattern] of Object.entries(REQUIRED_CONTRACT_CLAUSES)) {
-    T(`launch-worker.mjs: the injected contract still forbids ${clause}`, pattern.test(launcherSource), `WORKER_CONTRACT no longer matches ${pattern}. A worker without this clause repeats the failure it was written for; restore it rather than relaxing this check.`)
+    T(`launch-worker.mjs: the injected contract still enforces ${clause}`, pattern.test(launcherSource), `WORKER_CONTRACT no longer matches ${pattern}. A worker without this clause repeats the failure it was written for; restore it rather than relaxing this check.`)
   }
 }
 
@@ -1594,17 +1600,37 @@ const stageWorkerStatusWorktree = () => {
     ["push", "-q", "-u", "origin", "main"],
     ["switch", "-q", "-c", "feature/orb-75-worker-status"],
     ["commit", "-q", "--allow-empty", "-m", "worker change"],
-    ["push", "-q", "-u", "origin", "feature/orb-75-worker-status"],
   ]) {
     if (git(worktree, args).status !== 0) return null
   }
-  return worktree
+  writeFileSync(join(worktree, "reviewed.txt"), "review fix\n")
+  if (git(worktree, ["add", "reviewed.txt"]).status !== 0 || git(worktree, ["commit", "-q", "-m", "fix reviewed path"]).status !== 0) return null
+  const fixCommit = git(worktree, ["rev-parse", "HEAD"]).stdout.trim()
+  writeFileSync(join(worktree, "other.txt"), "unrelated fix\n")
+  if (git(worktree, ["add", "other.txt"]).status !== 0 || git(worktree, ["commit", "-q", "-m", "fix other path"]).status !== 0) return null
+  const unrelatedCommit = git(worktree, ["rev-parse", "HEAD"]).stdout.trim()
+  if (git(worktree, ["push", "-q", "-u", "origin", "feature/orb-75-worker-status"]).status !== 0) return null
+  return { fixCommit, unrelatedCommit, worktree }
 }
 
-const workerStatusPlan = (attachments) => [
+const workerStatusPlan = (attachments, reviewThreads = []) => [
   {
     match: "pr list",
-    stdout: JSON.stringify([{ url: "https://github.com/orbit/orbit/pull/75", state: "OPEN", baseRefName: "main", isDraft: false }]),
+    stdout: JSON.stringify([{ number: 75, url: "https://github.com/orbit/orbit/pull/75", state: "OPEN", baseRefName: "main", isDraft: false }]),
+  },
+  {
+    match: "api graphql",
+    stdout: JSON.stringify({
+      data: {
+        viewer: { login: "worker" },
+        repository: {
+          pullRequest: {
+            reviewDecision: "APPROVED",
+            reviewThreads: { pageInfo: { hasNextPage: false }, nodes: reviewThreads },
+          },
+        },
+      },
+    }),
   },
   {
     match: "linear issue ORB-75 --attachments",
@@ -1618,11 +1644,24 @@ const workerStatusPlan = (attachments) => [
   },
 ]
 
-const runWorkerStatusCase = (worktree, attachments) => {
+const reviewThread = ({ author, authorType, id, isResolved, path = "reviewed.txt", reply, resolvedBy }) => ({
+  id,
+  isResolved,
+  path,
+  resolvedBy: resolvedBy ? { login: resolvedBy } : null,
+  comments: {
+    nodes: [
+      { author: { login: author, __typename: authorType }, body: "review finding" },
+      ...(reply ? [{ author: { login: resolvedBy, __typename: "User" }, body: reply }] : []),
+    ],
+  },
+})
+
+const runWorkerStatusCase = (fixture, attachments, options = {}) => {
   const result = run(
     "worker-status.mjs",
-    ["--worktree", worktree, "--issue", "ORB-75", "--json"],
-    { env: orcaEnv(workerStatusPlan(attachments)) },
+    ["--worktree", fixture.worktree, "--issue", "ORB-75", ...(options.verifyReview ? ["--verify-review"] : []), "--json"],
+    { env: { ...orcaEnv(workerStatusPlan(attachments, options.reviewThreads)), ...(options.log ? { ORBIT_ORCA_LOG: options.log } : {}) } },
   )
   try {
     return { ...result, verdict: JSON.parse(result.stdout) }
@@ -2577,14 +2616,14 @@ const gateCases = {
   "worker-status.mjs": () => {
     check("worker-status.mjs", "requires --worktree", ["--issue", "ORB-75"], { status: 2, stderr: /--worktree is required/ })
     check("worker-status.mjs", "requires a Linear issue identifier", ["--worktree", root, "--issue", "nope"], { status: 2, stderr: /Linear identifier/ })
-    const worktree = stageWorkerStatusWorktree()
-    if (!worktree) {
+    const fixture = stageWorkerStatusWorktree()
+    if (!fixture) {
       T("worker-status.mjs: real git fixture is available", false, "could not create and push the worker-status Git fixture")
       return
     }
     const screenshot = { title: "about-en.png", url: "https://raw.githubusercontent.com/orbit/orbit/evidence/about-en.png" }
     const critique = { title: "render critique", url: "https://raw.githubusercontent.com/orbit/orbit/evidence/render-critique.md" }
-    const complete = runWorkerStatusCase(worktree, [screenshot, critique])
+    const complete = runWorkerStatusCase(fixture, [screenshot, critique])
     T(
       "worker-status.mjs: screenshot and critique present is OK",
       complete.status === 0 &&
@@ -2597,7 +2636,7 @@ const gateCases = {
       title: "about capture",
       url: "https://uploads.linear.app/8c329d15-b91e-47ac-9389-1b230452249d",
     }
-    const extensionlessComplete = runWorkerStatusCase(worktree, [linearUpload, critique])
+    const extensionlessComplete = runWorkerStatusCase(fixture, [linearUpload, critique])
     T(
       "worker-status.mjs: extensionless Linear upload and separate critique is OK",
       extensionlessComplete.status === 0 &&
@@ -2606,7 +2645,7 @@ const gateCases = {
         extensionlessComplete.verdict.checks.find((entry) => entry.name === "critique-attached")?.ok === true,
       `exit ${extensionlessComplete.status}\n     ${(extensionlessComplete.stderr || extensionlessComplete.stdout).slice(0, 600)}`,
     )
-    const extensionlessOnly = runWorkerStatusCase(worktree, [linearUpload])
+    const extensionlessOnly = runWorkerStatusCase(fixture, [linearUpload])
     T(
       "worker-status.mjs: extensionless Linear upload alone is not a critique",
       extensionlessOnly.status === 1 &&
@@ -2615,7 +2654,7 @@ const gateCases = {
         extensionlessOnly.verdict.checks.find((entry) => entry.name === "screenshot-attached")?.ok === true,
       `exit ${extensionlessOnly.status}\n     ${(extensionlessOnly.stderr || extensionlessOnly.stdout).slice(0, 600)}`,
     )
-    const critiqueMissing = runWorkerStatusCase(worktree, [screenshot])
+    const critiqueMissing = runWorkerStatusCase(fixture, [screenshot])
     T(
       "worker-status.mjs: screenshot present and critique missing is UNMET",
       critiqueMissing.status === 1 &&
@@ -2623,7 +2662,7 @@ const gateCases = {
         critiqueMissing.verdict.unmet[0] === "critique-attached",
       `exit ${critiqueMissing.status}\n     ${(critiqueMissing.stderr || critiqueMissing.stdout).slice(0, 600)}`,
     )
-    const neither = runWorkerStatusCase(worktree, [])
+    const neither = runWorkerStatusCase(fixture, [])
     T(
       "worker-status.mjs: neither screenshot nor critique present is UNMET",
       neither.status === 1 &&
@@ -2631,6 +2670,69 @@ const gateCases = {
         neither.verdict.unmet.includes("screenshot-attached") &&
         neither.verdict.unmet.includes("critique-attached"),
       `exit ${neither.status}\n     ${(neither.stderr || neither.stdout).slice(0, 600)}`,
+    )
+    const fixedAutomatedThread = reviewThread({
+      author: "claude[bot]",
+      authorType: "Bot",
+      id: "PRRT_fixed",
+      isResolved: true,
+      resolvedBy: "worker",
+      reply: `Fixed in ${fixture.fixCommit}`,
+    })
+    const fixed = runWorkerStatusCase(fixture, [screenshot, critique], { reviewThreads: [fixedAutomatedThread], verifyReview: true })
+    T(
+      "worker-status.mjs: a resolved automated finding passes when its named fix commit changed the reviewed path",
+      fixed.status === 0 && fixed.verdict?.ok === true,
+      `exit ${fixed.status}\n     ${(fixed.stderr || fixed.stdout).slice(0, 600)}`,
+    )
+    const unfixedAutomatedThread = reviewThread({
+      author: "claude[bot]",
+      authorType: "Bot",
+      id: "PRRT_unfixed",
+      isResolved: true,
+      resolvedBy: "worker",
+      reply: `Fixed in ${fixture.unrelatedCommit}`,
+    })
+    const unfixed = runWorkerStatusCase(fixture, [screenshot, critique], { reviewThreads: [unfixedAutomatedThread], verifyReview: true })
+    T(
+      "worker-status.mjs: a worker-resolved automated finding with no matching diff change is UNMET",
+      unfixed.status === 1 &&
+        unfixed.verdict?.checks.find((entry) => entry.name === "resolved-thread-fixes")?.ok === false,
+      `exit ${unfixed.status}\n     ${(unfixed.stderr || unfixed.stdout).slice(0, 600)}`,
+    )
+    const humanThread = reviewThread({
+      author: "human-reviewer",
+      authorType: "User",
+      id: "PRRT_human",
+      isResolved: false,
+    })
+    const humanLog = stage("worker-status-human.log", "")
+    const human = runWorkerStatusCase(fixture, [screenshot, critique], { log: humanLog, reviewThreads: [humanThread] })
+    const humanCalls = readFileSync(humanLog, "utf8")
+    T(
+      "worker-status.mjs: an approved pull request with an unresolved human thread does not report done",
+      human.status === 1 && human.verdict?.checks.find((entry) => entry.name === "review-threads")?.ok === false,
+      `exit ${human.status}\n     ${(human.stderr || human.stdout).slice(0, 600)}`,
+    )
+    T(
+      "worker-status.mjs: verification never auto-resolves a human-authored thread",
+      !humanCalls.includes("resolveReviewThread"),
+      humanCalls.slice(0, 600),
+    )
+    const workerResolvedHumanThread = reviewThread({
+      author: "human-reviewer",
+      authorType: "User",
+      id: "PRRT_human_resolved",
+      isResolved: true,
+      resolvedBy: "worker",
+      reply: `Fixed in ${fixture.fixCommit}`,
+    })
+    const resolvedHuman = runWorkerStatusCase(fixture, [screenshot, critique], { reviewThreads: [workerResolvedHumanThread], verifyReview: true })
+    T(
+      "worker-status.mjs: a human-authored thread resolved by the worker account is UNMET",
+      resolvedHuman.status === 1 &&
+        resolvedHuman.verdict?.checks.find((entry) => entry.name === "human-thread-resolution")?.ok === false,
+      `exit ${resolvedHuman.status}\n     ${(resolvedHuman.stderr || resolvedHuman.stdout).slice(0, 600)}`,
     )
   },
   "compose-prompt.mjs": composePromptCases,
