@@ -18,7 +18,9 @@
  */
 
 import { execFileSync, spawnSync } from "node:child_process"
+import { randomUUID } from "node:crypto"
 import { appendFileSync, existsSync, readFileSync, statSync } from "node:fs"
+import { homedir } from "node:os"
 import { basename, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -54,7 +56,7 @@ off the TUI, never merely that orca accepted the send.
 exit codes: 0 worker launched and holding the work order, 1 the worker never reached tui-idle or
             never took the prompt pointer as a turn, 2 usage or config error,
             3 an orca, git, quota reader or budget command failed,
-            4 routine automation blocked by the quota fuse
+            4 the proposed invocation would cross the engine token budget
 
 Any non-zero exit after the worktree exists stops its terminals and removes that worktree and
 the branches this run created, so a relaunch starts clean instead of piling up orb-N-slug-2.
@@ -338,6 +340,13 @@ const git = (args) => {
 
 const quotaToolPath = fileURLToPath(new URL("./ai-quota.mjs", import.meta.url))
 const budgetToolPath = fileURLToPath(new URL("./automation-budget.mjs", import.meta.url))
+const automationLedgerOverride = process.env.ORBIT_AUTOMATION_BUDGET_LEDGER
+if (automationLedgerOverride !== undefined && automationLedgerOverride.trim().length === 0) {
+  fail(2, "ORBIT_AUTOMATION_BUDGET_LEDGER must not be empty")
+}
+const automationLedgerPath = resolve(
+  automationLedgerOverride ?? resolve(homedir(), ".orbit", "automation-budget.jsonl"),
+)
 
 const parseClaudeResetAt = (resetsIn) => {
   if (typeof resetsIn !== "string") {
@@ -365,7 +374,29 @@ const parseCodexResetAt = (resetsAt) => {
   return new Date(milliseconds).toISOString()
 }
 
-const checkAutomationBudget = (engineName, tier) => {
+const runBudgetCommand = (argumentsList, blockedExit = false) => {
+  const budgetResult = spawnSync(process.execPath, [budgetToolPath, ...argumentsList], {
+    encoding: "utf8",
+    maxBuffer: 32 * 1024 * 1024,
+  })
+  if (budgetResult.error) fail(3, `automation-budget could not start: ${budgetResult.error.message}`)
+  if (budgetResult.status === 0) {
+    if (budgetResult.stderr) process.stderr.write(budgetResult.stderr)
+    return
+  }
+  const reason = (budgetResult.stderr || budgetResult.stdout || "automation-budget failed").trim()
+  fail(blockedExit && budgetResult.status === 4 ? 4 : 3, reason)
+}
+
+const checkAutomationBudget = (
+  engineName,
+  identity,
+  tier,
+  warningTokens,
+  tokenBudget,
+  projectedTokens,
+  ledgerPath,
+) => {
   const quotaResult = spawnSync(process.execPath, [quotaToolPath, "--json"], {
     encoding: "utf8",
     maxBuffer: 32 * 1024 * 1024,
@@ -381,21 +412,71 @@ const checkAutomationBudget = (engineName, tier) => {
   if (selectedQuota?.status !== "OK") {
     fail(3, `ai-quota could not read ${engineName} quota; refusing to launch unattended automation`)
   }
+  const accountObservedAt = new Date().toISOString()
+  const accountUsedPercent = engineName === "claude"
+    ? selectedQuota.weeklyPercent
+    : selectedQuota.usedPercent
   const resetAt = engineName === "claude"
     ? parseClaudeResetAt(selectedQuota.resetsIn)
     : parseCodexResetAt(selectedQuota.resetsAt)
-  const budgetResult = spawnSync(
-    process.execPath,
-    [budgetToolPath, "check", "--engine", engineName, "--tier", tier, "--reset-at", resetAt, "--json"],
-    { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 },
-  )
-  if (budgetResult.error) fail(3, `automation-budget could not start: ${budgetResult.error.message}`)
-  if (budgetResult.status === 0) {
-    if (budgetResult.stderr) process.stderr.write(budgetResult.stderr)
-    return
+  runBudgetCommand([
+    "check",
+    "--engine",
+    engineName,
+    "--identity",
+    identity,
+    "--tier",
+    tier,
+    "--reset-at",
+    resetAt,
+    "--warning-tokens",
+    String(warningTokens),
+    "--budget-tokens",
+    String(tokenBudget),
+    "--invocation-tokens",
+    String(projectedTokens),
+    "--ledger",
+    ledgerPath,
+    "--json",
+  ], true)
+  return { accountObservedAt, accountUsedPercent }
+}
+
+const recordAutomationBudget = ({
+  engineName,
+  identity,
+  tier,
+  startedAt,
+  endedAt,
+  accountUsedPercent,
+  accountObservedAt,
+  ledgerPath,
+}) => {
+  const argumentsList = [
+    "record",
+    "--identity",
+    identity,
+    "--engine",
+    engineName,
+    "--tier",
+    tier,
+    "--started-at",
+    startedAt,
+    "--ended-at",
+    endedAt,
+    "--ledger",
+    ledgerPath,
+  ]
+  if (Number.isFinite(accountUsedPercent) && typeof accountObservedAt === "string") {
+    argumentsList.push(
+      "--account-used-percent",
+      String(accountUsedPercent),
+      "--account-observed-at",
+      accountObservedAt,
+    )
   }
-  const reason = (budgetResult.stderr || budgetResult.stdout || "automation-budget failed").trim()
-  fail(budgetResult.status === 4 ? 4 : 3, reason)
+  argumentsList.push("--json")
+  runBudgetCommand(argumentsList)
 }
 
 const issue = argOf("--issue")
@@ -430,6 +511,28 @@ if (!["claude", "codex"].includes(engineName)) {
 const automationBudget = engine.automationBudget
 if (!automationBudget || !["routine", "reserved"].includes(automationBudget.tier)) {
   fail(2, `.claude/orchestrator.json worker "${engineName}" must declare automationBudget.tier as routine or reserved`)
+}
+if (!Number.isSafeInteger(automationBudget.tokenBudget) || automationBudget.tokenBudget <= 0) {
+  fail(2, `.claude/orchestrator.json worker "${engineName}" must declare automationBudget.tokenBudget as a positive integer`)
+}
+if (
+  !Number.isSafeInteger(automationBudget.warningTokens) ||
+  automationBudget.warningTokens < 0 ||
+  automationBudget.warningTokens >= automationBudget.tokenBudget
+) {
+  fail(2, `.claude/orchestrator.json worker "${engineName}" must declare automationBudget.warningTokens as a nonnegative integer below tokenBudget`)
+}
+const invocationTokenTiers = ["default", "cheap", "deep"]
+if (
+  !automationBudget.invocationTokens ||
+  typeof automationBudget.invocationTokens !== "object" ||
+  invocationTokenTiers.some(
+    (tier) =>
+      !Number.isSafeInteger(automationBudget.invocationTokens[tier]) ||
+      automationBudget.invocationTokens[tier] <= 0,
+  )
+) {
+  fail(2, `.claude/orchestrator.json worker "${engineName}" must declare positive integer automationBudget.invocationTokens for default, cheap and deep`)
 }
 if (engine.interactive !== true) {
   fail(
@@ -482,6 +585,9 @@ try {
 }
 const engineArgs = resolvedInvocation.args
 const budgetTier = resolvedInvocation.tier === "deep" ? "reserved" : automationBudget.tier
+const projectedTokens = automationBudget.invocationTokens[resolvedInvocation.tier]
+const invocationStartedAt = new Date().toISOString()
+const invocationIdentity = `${issue}:${invocationStartedAt}:${randomUUID()}`
 const command = [engine.command, ...engineArgs].join(" ")
 
 /**
@@ -523,7 +629,14 @@ const plan = {
   baseBranch,
   engine: engineName,
   command,
-  automationBudget: { tier: budgetTier },
+  automationBudget: {
+    tier: budgetTier,
+    identity: invocationIdentity,
+    tokenBudget: automationBudget.tokenBudget,
+    warningTokens: automationBudget.warningTokens,
+    projectedTokens,
+    ledgerPath: automationLedgerPath,
+  },
   promptFile,
   workerContract,
   labels,
@@ -534,7 +647,15 @@ if (dryRun) {
   process.exit(0)
 }
 
-checkAutomationBudget(engineName, budgetTier)
+const quotaContext = checkAutomationBudget(
+  engineName,
+  invocationIdentity,
+  budgetTier,
+  automationBudget.warningTokens,
+  automationBudget.tokenBudget,
+  projectedTokens,
+  automationLedgerPath,
+)
 
 /** Before anything is created, so a launch that fails later still leaves the work order complete
  * for the relaunch. A dry run resolves this decision but writes nothing. */
@@ -610,7 +731,8 @@ if (!idle) {
   fail(1, `${terminal} never reached tui-idle after ${waitAttempts} waits; the worker is not running. Inspect it with: orca terminal read --terminal ${terminal}`)
 }
 
-const pointer = `Read ${promptFile} and execute it in full. That file is your complete work order for ${issue}: the ticket body verbatim, then the finishing contract. You are on branch ${branch} in ${worktreePath}. Do not summarise the file back to me, start the work now.`
+const measurementCommand = `node tools/automation-budget.mjs record --identity "${invocationIdentity}" --engine ${engineName} --tier ${budgetTier} --started-at "${invocationStartedAt}" --ended-at <provider-observation-time> --input-tokens <provider-input-tokens> --output-tokens <provider-output-tokens> --ledger "${automationLedgerPath}"`
+const pointer = `Read ${promptFile} and execute it in full. That file is your complete work order for ${issue}: the ticket body verbatim, then the finishing contract. You are on branch ${branch} in ${worktreePath}. Do not summarise the file back to me, start the work now. Before finishing, replace this launch's pending ledger record with an append carrying provider-authoritative token totals: ${measurementCommand}. Add --provider-estimated-cost only when the provider supplies its own estimate. If the token measurement is unavailable, leave the pending record unchanged so the next launch fails closed; never record zero or infer tokens from account usedPercent.`
 
 /**
  * What a DELIVERED pointer looks like on screen: a send that became a user turn makes the TUI
@@ -665,6 +787,16 @@ if (!pointerDelivered) {
     `${terminal} never showed the prompt pointer as a user turn after ${pointerSends} send(s)${painting ? ", and the TUI never went quiet, so re-sending would have queued into a running turn" : ", and the worker is alive, idle and has NO work"}. This is the 2026-07-27 ORB-88 failure: orca accepts the send, the TUI's composer swallows it, and an exit 0 here would report a launch that delivered nothing. Inspect it with: orca terminal read --terminal ${terminal}`,
   )
 }
+
+recordAutomationBudget({
+  engineName,
+  identity: invocationIdentity,
+  tier: budgetTier,
+  startedAt: invocationStartedAt,
+  endedAt: new Date().toISOString(),
+  ledgerPath: automationLedgerPath,
+  ...quotaContext,
+})
 
 rollback = null
 orca(["terminal", "switch", "--terminal", terminal])

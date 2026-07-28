@@ -3,41 +3,56 @@ import { appendFileSync, mkdirSync, readFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, resolve } from "node:path"
 
-const WARNING_PERCENT = 20
-const BLOCK_PERCENT = 25
 const WINDOW_MILLISECONDS = 7 * 24 * 60 * 60 * 1000
 const ENGINES = new Set(["claude", "codex"])
 const TIERS = new Set(["routine", "reserved"])
 const DEFAULT_LEDGER_PATH = resolve(homedir(), ".orbit", "automation-budget.jsonl")
 const USAGE = `usage:
-  automation-budget.mjs check --engine <claude|codex> --tier <routine|reserved> --reset-at <timestamp> [--ledger <path>] [--json]
-  automation-budget.mjs record --identity <id> --engine <claude|codex> --tier <routine|reserved> --started-at <timestamp> --ended-at <timestamp> --measured-cost <percent> [--ledger <path>] [--json]
+  automation-budget.mjs check --engine <claude|codex> --identity <id> --tier <routine|reserved> --reset-at <timestamp> --warning-tokens <count> --budget-tokens <count> --invocation-tokens <count> [--ledger <path>] [--json]
+  automation-budget.mjs record --identity <id> --engine <claude|codex> --tier <routine|reserved> --started-at <timestamp> --ended-at <timestamp> [--input-tokens <count>] [--output-tokens <count>] [--provider-estimated-cost <amount>] [--account-used-percent <percent> --account-observed-at <timestamp>] [--ledger <path>] [--json]
   automation-budget.mjs report --engine <claude|codex> --reset-at <timestamp> [--ledger <path>] [--json]
 
-  check          apply the current engine's weekly fuse before an invocation
-  record         append one completed invocation to the ledger
-  report         print one engine's current seven-day ledger totals and reset time
+  check          evaluate an invocation against the current engine's token budget
+  record         append one invocation observation to the ledger
+  report         print one engine's current seven-day token totals and missing identities
   --identity     stable identity for the invocation
   --engine       quota pool charged by the invocation; engines are never combined
   --tier         routine automation or explicitly reserved deep work
   --started-at   invocation start as ISO-8601 with a timezone, or Unix seconds
   --ended-at     invocation end as ISO-8601 with a timezone, or Unix seconds
-  --measured-cost
-                  measured percentage points charged to this engine, from 0 to 100
+  --input-tokens measured provider input tokens; omitted while measurement is unavailable
+  --output-tokens
+                  measured provider output tokens; omitted while measurement is unavailable
+  --provider-estimated-cost
+                  optional provider-estimated monetary cost; reporting context only
+  --account-used-percent
+                  optional account usage observation from 0 to 100; reporting context only
+  --account-observed-at
+                  timestamp paired with --account-used-percent
   --reset-at     end of the current weekly window as ISO-8601 with a timezone, or Unix seconds
+  --budget-tokens
+                  positive token budget for the current engine and window
+  --warning-tokens
+                  non-negative token warning level below the engine budget
+  --invocation-tokens
+                  non-negative token reservation for the proposed invocation
   --ledger       JSONL ledger path; defaults to ORBIT_AUTOMATION_BUDGET_LEDGER or ${DEFAULT_LEDGER_PATH}
   --json         emit the command result as JSON; without it check and record are quiet on success
   --help, -h     print this usage and exit 0
 
-The fuse warns for routine automation at ${WARNING_PERCENT} percent and blocks it at ${BLOCK_PERCENT} percent.
-Explicitly reserved deep work is permitted at every routine-automation usage level.
-Records are attributed to the seven-day window containing their end timestamp.
+The fuse blocks routine automation when measured input plus output tokens and the proposed
+reservation would exceed the token budget. Explicitly reserved deep work proceeds beyond the
+routine budget with RESERVED status and a warning carrying the budget figures. The fuse fails
+closed when the latest in-window record for any identity lacks either token measurement.
+Duplicate identities are append-only; the latest in-window record is authoritative. Account
+usage percentage and estimated cost are context only and never affect token totals. Records are
+attributed to the seven-day window containing their end timestamp.
 
 exit codes:
   0  success or permitted invocation
   2  invalid command-line input
-  3  ledger read, validation, or append failure
-  4  routine automation blocked by the ${BLOCK_PERCENT} percent fuse`
+  3  ledger read, validation, append, or incomplete-measurement failure
+  4  routine invocation blocked because its token reservation would exceed the budget`
 
 const fail = (message, code) => {
   console.error(`automation-budget: ${message}`)
@@ -60,7 +75,23 @@ const parseArguments = (argumentsList) => {
       switches.add(argument)
       continue
     }
-    if (!["--identity", "--engine", "--tier", "--started-at", "--ended-at", "--measured-cost", "--reset-at", "--ledger"].includes(argument)) {
+    if (![
+      "--identity",
+      "--engine",
+      "--tier",
+      "--started-at",
+      "--ended-at",
+      "--input-tokens",
+      "--output-tokens",
+      "--provider-estimated-cost",
+      "--account-used-percent",
+      "--account-observed-at",
+      "--reset-at",
+      "--warning-tokens",
+      "--budget-tokens",
+      "--invocation-tokens",
+      "--ledger",
+    ].includes(argument)) {
       fail(`unknown argument ${argument}\n\n${USAGE}`, 2)
     }
     if (values.has(argument)) fail(`duplicate argument ${argument}`, 2)
@@ -126,11 +157,26 @@ const parseTimestamp = (value, flag, failureCode = 2) => {
   return timestamp
 }
 
-const parseCost = (value, flag = "--measured-cost", failureCode = 2) => {
-  if (!/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(String(value))) fail(`${flag} must be a number from 0 to 100`, failureCode)
-  const cost = Number(value)
-  if (!Number.isFinite(cost) || cost < 0 || cost > 100) fail(`${flag} must be a number from 0 to 100`, failureCode)
-  return cost
+const parseTokenCount = (value, flag, failureCode = 2, positive = false) => {
+  if (!/^(?:0|[1-9]\d*)$/.test(String(value))) fail(`${flag} must be a ${positive ? "positive" : "non-negative"} integer`, failureCode)
+  const count = Number(value)
+  if (!Number.isSafeInteger(count) || count < (positive ? 1 : 0)) {
+    fail(`${flag} must be a ${positive ? "positive" : "non-negative"} safe integer`, failureCode)
+  }
+  return count
+}
+
+const parseNonNegativeNumber = (value, flag, failureCode = 2) => {
+  if (!/^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(String(value))) fail(`${flag} must be a non-negative number`, failureCode)
+  const number = Number(value)
+  if (!Number.isFinite(number)) fail(`${flag} must be a finite non-negative number`, failureCode)
+  return number
+}
+
+const parsePercent = (value, flag, failureCode = 2) => {
+  const percent = parseNonNegativeNumber(value, flag, failureCode)
+  if (percent > 100) fail(`${flag} must be a number from 0 to 100`, failureCode)
+  return percent
 }
 
 const parseIdentity = (value, failureCode = 2, label = "--identity") => {
@@ -146,6 +192,8 @@ const ledgerPath = (values) => {
   return resolve(configuredPath)
 }
 
+const hasOwn = (value, property) => Object.prototype.hasOwnProperty.call(value, property)
+
 const validateRecord = (record, lineNumber) => {
   const prefix = `ledger line ${lineNumber}`
   if (record === null || Array.isArray(record) || typeof record !== "object") fail(`${prefix} must be a JSON object`, 3)
@@ -154,16 +202,39 @@ const validateRecord = (record, lineNumber) => {
   if (!TIERS.has(record.tier)) fail(`${prefix} has an invalid tier`, 3)
   const startedAt = parseTimestamp(record.startedAt, `${prefix} startedAt`, 3)
   const endedAt = parseTimestamp(record.endedAt, `${prefix} endedAt`, 3)
-  const measuredCost = parseCost(record.measuredCost, `${prefix} measuredCost`, 3)
   if (startedAt.getTime() > endedAt.getTime()) fail(`${prefix} starts after it ends`, 3)
-  return {
+  const validated = {
     identity,
     engine: record.engine,
     tier: record.tier,
     startedAt: startedAt.toISOString(),
     endedAt: endedAt.toISOString(),
-    measuredCost,
   }
+  if (hasOwn(record, "inputTokens")) {
+    validated.inputTokens = parseTokenCount(record.inputTokens, `${prefix} inputTokens`, 3)
+  }
+  if (hasOwn(record, "outputTokens")) {
+    validated.outputTokens = parseTokenCount(record.outputTokens, `${prefix} outputTokens`, 3)
+  }
+  if (hasOwn(record, "providerEstimatedCost")) {
+    validated.providerEstimatedCost = parseNonNegativeNumber(record.providerEstimatedCost, `${prefix} providerEstimatedCost`, 3)
+  }
+  if (hasOwn(record, "accountContext")) {
+    const context = record.accountContext
+    if (context === null || Array.isArray(context) || typeof context !== "object") {
+      fail(`${prefix} accountContext must be an object`, 3)
+    }
+    if (context.scope !== "account" || context.attributed !== false) {
+      fail(`${prefix} accountContext must declare scope account and attributed false`, 3)
+    }
+    validated.accountContext = {
+      scope: "account",
+      attributed: false,
+      usedPercent: parsePercent(context.usedPercent, `${prefix} accountContext usedPercent`, 3),
+      observedAt: parseTimestamp(context.observedAt, `${prefix} accountContext observedAt`, 3).toISOString(),
+    }
+  }
+  return validated
 }
 
 const readLedger = (path) => {
@@ -191,24 +262,39 @@ const readLedger = (path) => {
   return { records, needsSeparator }
 }
 
-const rounded = (value) => Number(value.toFixed(6))
-
 const summarize = (records, engine, resetAt) => {
   const resetMilliseconds = resetAt.getTime()
   const windowStart = new Date(resetMilliseconds - WINDOW_MILLISECONDS)
-  let routinePercent = 0
-  let reservedPercent = 0
+  const latestByIdentity = new Map()
   for (const record of records) {
     const endedMilliseconds = Date.parse(record.endedAt)
     if (record.engine !== engine || endedMilliseconds < windowStart.getTime() || endedMilliseconds >= resetMilliseconds) continue
-    if (record.tier === "routine") routinePercent += record.measuredCost
-    else reservedPercent += record.measuredCost
+    latestByIdentity.set(record.identity, record)
   }
+  let inputTokens = 0
+  let outputTokens = 0
+  let routineTokens = 0
+  let reservedTokens = 0
+  const missingIdentities = []
+  for (const record of latestByIdentity.values()) {
+    if (!hasOwn(record, "inputTokens") || !hasOwn(record, "outputTokens")) {
+      missingIdentities.push(record.identity)
+      continue
+    }
+    inputTokens += record.inputTokens
+    outputTokens += record.outputTokens
+    if (record.tier === "routine") routineTokens += record.inputTokens + record.outputTokens
+    else reservedTokens += record.inputTokens + record.outputTokens
+  }
+  missingIdentities.sort()
   return {
     engine,
-    weeklyPercent: rounded(routinePercent + reservedPercent),
-    routinePercent: rounded(routinePercent),
-    reservedPercent: rounded(reservedPercent),
+    inputTokens,
+    outputTokens,
+    totalTokens: inputTokens + outputTokens,
+    routineTokens,
+    reservedTokens,
+    missingIdentities,
     windowStart: windowStart.toISOString(),
     resetsAt: resetAt.toISOString(),
   }
@@ -219,28 +305,64 @@ const emitJson = (result, json) => {
 }
 
 const runCheck = (values, json) => {
-  rejectUnexpected(values, new Set(["--engine", "--tier", "--reset-at", "--ledger"]))
+  rejectUnexpected(values, new Set([
+    "--engine",
+    "--identity",
+    "--tier",
+    "--reset-at",
+    "--warning-tokens",
+    "--budget-tokens",
+    "--invocation-tokens",
+    "--ledger",
+  ]))
   const engine = parseEngine(requireValue(values, "--engine"))
+  const identity = parseIdentity(requireValue(values, "--identity"))
   const tier = parseTier(requireValue(values, "--tier"))
   const resetAt = parseTimestamp(requireValue(values, "--reset-at"), "--reset-at")
+  const warningTokens = parseTokenCount(requireValue(values, "--warning-tokens"), "--warning-tokens")
+  const budgetTokens = parseTokenCount(requireValue(values, "--budget-tokens"), "--budget-tokens", 2, true)
+  if (warningTokens >= budgetTokens) fail(`--warning-tokens must be below --budget-tokens`, 2)
+  const invocationTokens = parseTokenCount(requireValue(values, "--invocation-tokens"), "--invocation-tokens")
   const summary = summarize(readLedger(ledgerPath(values)).records, engine, resetAt)
-  const status = tier === "routine" && summary.weeklyPercent >= BLOCK_PERCENT
-    ? "BLOCK"
-    : tier === "routine" && summary.weeklyPercent >= WARNING_PERCENT
-      ? "WARN"
-      : "PROCEED"
-  const result = { status, tier, ...summary, warningPercent: WARNING_PERCENT, blockPercent: BLOCK_PERCENT }
+  if (summary.missingIdentities.length > 0) {
+    emitJson({ status: "INCOMPLETE", identity, tier, warningTokens, budgetTokens, invocationTokens, ...summary }, json)
+    fail(`cannot check invocation "${identity}": latest in-window records lack input or output tokens for identities ${summary.missingIdentities.join(", ")}`, 3)
+  }
+  const projectedTokens = summary.totalTokens + invocationTokens
+  const status = tier === "reserved"
+    ? "RESERVED"
+    : projectedTokens > budgetTokens
+      ? "BLOCK"
+      : projectedTokens >= warningTokens
+        ? "WARN"
+        : "PROCEED"
+  const result = { status, identity, tier, warningTokens, budgetTokens, invocationTokens, projectedTokens, ...summary }
   emitJson(result, json)
   if (status === "BLOCK") {
-    fail(`routine ${engine} automation blocked at ${summary.weeklyPercent} percent; threshold ${BLOCK_PERCENT} percent; resets at ${summary.resetsAt}`, 4)
+    fail(`invocation "${identity}" blocked: budget ${budgetTokens} tokens, observed spend ${summary.totalTokens} tokens, reservation ${invocationTokens} tokens, projected spend ${projectedTokens} tokens; resets at ${summary.resetsAt}`, 4)
   }
   if (status === "WARN") {
-    console.error(`automation-budget: warning: routine ${engine} automation is at ${summary.weeklyPercent} percent; warning threshold ${WARNING_PERCENT} percent; block threshold ${BLOCK_PERCENT} percent; resets at ${summary.resetsAt}`)
+    console.error(`automation-budget: warning: invocation "${identity}" projects ${projectedTokens} tokens; warning ${warningTokens} tokens, budget ${budgetTokens} tokens, observed spend ${summary.totalTokens} tokens`)
+  }
+  if (status === "RESERVED" && projectedTokens >= warningTokens) {
+    console.error(`automation-budget: warning: reserved invocation "${identity}" proceeds with ${projectedTokens} projected tokens; warning ${warningTokens} tokens, budget ${budgetTokens} tokens, observed spend ${summary.totalTokens} tokens, reservation ${invocationTokens} tokens`)
   }
 }
 
 const runRecord = (values, json) => {
-  rejectUnexpected(values, new Set(["--identity", "--engine", "--tier", "--started-at", "--ended-at", "--measured-cost", "--ledger"]))
+  rejectUnexpected(values, new Set([
+    "--identity",
+    "--engine",
+    "--tier",
+    "--started-at",
+    "--ended-at",
+    "--input-tokens",
+    "--output-tokens",
+    "--provider-estimated-cost",
+    "--account-used-percent",
+    "--account-observed-at",
+    "--ledger",
+  ]))
   const startedAt = parseTimestamp(requireValue(values, "--started-at"), "--started-at")
   const endedAt = parseTimestamp(requireValue(values, "--ended-at"), "--ended-at")
   if (startedAt.getTime() > endedAt.getTime()) fail(`--started-at must not be after --ended-at`, 2)
@@ -250,7 +372,28 @@ const runRecord = (values, json) => {
     tier: parseTier(requireValue(values, "--tier")),
     startedAt: startedAt.toISOString(),
     endedAt: endedAt.toISOString(),
-    measuredCost: parseCost(requireValue(values, "--measured-cost")),
+  }
+  if (values.has("--input-tokens")) {
+    record.inputTokens = parseTokenCount(values.get("--input-tokens"), "--input-tokens")
+  }
+  if (values.has("--output-tokens")) {
+    record.outputTokens = parseTokenCount(values.get("--output-tokens"), "--output-tokens")
+  }
+  if (values.has("--provider-estimated-cost")) {
+    record.providerEstimatedCost = parseNonNegativeNumber(values.get("--provider-estimated-cost"), "--provider-estimated-cost")
+  }
+  const hasAccountPercent = values.has("--account-used-percent")
+  const hasAccountTimestamp = values.has("--account-observed-at")
+  if (hasAccountPercent !== hasAccountTimestamp) {
+    fail(`--account-used-percent and --account-observed-at must be provided together`, 2)
+  }
+  if (hasAccountPercent) {
+    record.accountContext = {
+      scope: "account",
+      attributed: false,
+      usedPercent: parsePercent(values.get("--account-used-percent"), "--account-used-percent"),
+      observedAt: parseTimestamp(values.get("--account-observed-at"), "--account-observed-at").toISOString(),
+    }
   }
   const path = ledgerPath(values)
   const existingLedger = readLedger(path)
@@ -271,7 +414,8 @@ const runReport = (values, json) => {
   const result = summarize(readLedger(ledgerPath(values)).records, engine, resetAt)
   if (json) console.log(JSON.stringify(result))
   else {
-    console.log(`${result.engine}: ${result.weeklyPercent} percent (${result.routinePercent} routine, ${result.reservedPercent} reserved); resets at ${result.resetsAt}`)
+    const missing = result.missingIdentities.length > 0 ? result.missingIdentities.join(", ") : "none"
+    console.log(`${result.engine}: ${result.totalTokens} tokens (${result.inputTokens} input, ${result.outputTokens} output; ${result.routineTokens} routine, ${result.reservedTokens} reserved); missing identities: ${missing}; resets at ${result.resetsAt}`)
   }
 }
 
