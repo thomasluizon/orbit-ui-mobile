@@ -1,7 +1,7 @@
 ---
 name: audit-code-quality
 description: >-
-  Repo-wide code-quality audit across both Orbit repos, opening one Linear ticket per verified debt after a human approval gate (D10). Finds the judgement-level debt no gate can see (D11): dead/stale code, SOLID/clean-arch violations, DRY-at-the-wrong-level, naming, function size, and non-gated DESIGN.md drift, each evidence-backed with file:line. EXCLUDES the mechanical layer (comment policy, spacing scale, react-doctor, dashes, and every ESLint local/Roslyn rule). Use when the user asks to audit code quality, find tech debt, or check the codebase against the standards. Not for a single diff (use /pr-review).
+  Repo-wide code-quality audit across both Orbit repos, opening one Linear ticket per verified debt after a human approval gate (D10). Finds the judgement-level debt no gate can see (D11): dead/stale code; SOLID/clean-arch debt including branch-heavy state models, thin abstractions, giant files, cast/optionality churn, and wrong-layer logic; DRY-at-the-wrong-level; naming; and non-gated DESIGN.md drift, each evidence-backed with file:line. EXCLUDES the mechanical layer (comment policy, spacing scale, react-doctor, dashes, and every ESLint local/Roslyn rule). Use when the user asks to audit code quality, find tech debt, or check the codebase against the standards. Not for a single diff (use /pr-review).
 argument-hint: <path | workspace | repo | blank=both repos>
 ---
 
@@ -129,38 +129,11 @@ The rubric was written for a diff; the workflow's finders already recalibrate tw
 - **"Focus on changed code":** there is no diff — every source line is fair game, ranked by
   blast radius × churn (a smell in a hot handler outranks the same in a stable leaf).
 
-High-value dimensions for a standing codebase (the finders lead with these, merging
-overlapping evidence under the shared rubric rather than inventing a second rubric):
-
-- **Dead/stale code (#2)** is proven by a zero-reference grep.
-- **SOLID/clean-arch (#3)** includes functions over the ~50/~100-line caps, nesting past
-  ~3, premature abstraction, and these structural forms:
-  - Prefer the **code-judo move** for branch-heavy code: identify when reframing the state
-    model or data shape would delete whole branches, and make that reframing the concrete
-    fix instead of proposing more conditionals.
-  - Flag special-case `if/else` ladders and flag soup that grow per case. Prefer the
-    smallest fit among early returns, a lookup table, or polymorphism that makes the
-    existing variants explicit.
-  - Apply the **deletion test** to thin wrappers: if removing the module makes its
-    complexity vanish rather than exposing useful behavior, it is pass-through
-    indirection. Also flag magical abstractions that hide control flow. Delete needless
-    indirection; deepen abstractions that earn their boundary.
-  - Treat a file past roughly 1,000 lines, or one doing many jobs, as a cohesion finding
-    when the evidence supports it. Extract well-named pure helpers or split by
-    responsibility. A split that does not reduce the tangle is **relocation, not
-    simplification**; report the residual debt honestly rather than counting file movement
-    as a structural win.
-  - Flag repeated casts and needless optionality juggling when a better type or one parse
-    at the trust boundary removes the churn. Do not re-report the mechanically gate-owned
-    `as any`, `as unknown as X`, or `null!` violation itself; the finding must be the
-    non-gated structural cause visible across the flow.
-  - Keep DRY at the right level: duplicated web/mobile logic moves to `packages/shared`;
-    repeated handler logic moves behind one well-named helper. Do not create an abstraction
-    for a single caller.
-  - Flag business logic in a controller, component, or DTO instead of its canonical domain,
-    CQRS, or shared-logic layer; the concrete fix moves it to that layer.
-- **Naming** covers `data`/`info`/`temp`/`helper`/`util` finals and abbreviations.
-- **DESIGN.md drift (#8)** applies on `apps/*` UI, but only to drift no lint rule covers.
+The finder contract is the shared rubric, especially **dead/stale code (#2)**,
+**SOLID/clean-arch (#3)**, and **DESIGN.md drift (#8)**. Dimension 3 is the canonical
+source for the harvested structural patterns and remedies; this skill only recalibrates
+them for whole-repo scope. Naming judgement remains in scope, and dead-code claims still
+require the zero-reference proof.
 
 ---
 
