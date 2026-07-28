@@ -3,6 +3,8 @@
 // only commands framed as something Thomas should run. Skill internals, agent
 // bodies, ticket bodies, PR descriptions, and help output are documentation,
 // not user instructions.
+// Appeals are command-scoped: the marker must share the command's line, and
+// every surfaced command needs its own reason.
 
 import { existsSync, readFileSync } from "node:fs"
 import { resolve } from "node:path"
@@ -10,15 +12,17 @@ import { fileURLToPath } from "node:url"
 
 import { filePathFrom, readStdinJson } from "./_lib/io.mjs"
 
-const APPEAL = /^\s*Repo-tool appeal:\s*(\S.*)$/im
+const APPEAL_SUFFIX = /\s+(?:#\s*)?Repo-tool appeal:\s*(\S.*)\s*$/i
 const COMMAND =
   /(?:node(?:\.exe)?\s+(?:\.?[\\/])?tools[\\/][a-z0-9_./\\-]+\.(?:mjs|cjs|js|ts)|npx(?:\.cmd)?\s+(?:(?:--yes|-y)\s+)?(?:@?[a-z0-9_][a-z0-9_./@-]*)|(?:\.?[\\/])?tools[\\/][a-z0-9_./\\-]+\.sh)(?:[ \t]+[^`\r\n]*)?/i
 const DIRECT_COMMAND =
-  /^\s*(?:(?:[-*+]|\d+[.)])\s+)?(?:[$>]\s*)?(?:node(?:\.exe)?\s+(?:\.?[\\/])?tools[\\/][a-z0-9_./\\-]+\.(?:mjs|cjs|js|ts)|npx(?:\.cmd)?\s+(?:(?:--yes|-y)\s+)?(?:@?[a-z0-9_][a-z0-9_./@-]*)|(?:\.?[\\/])?tools[\\/][a-z0-9_./\\-]+\.sh)\b/i
+  /^\s*(?:(?:[-*+]|\d+[.)])\s+)?(?:[$>]\s*)?(?:node(?:\.exe)?\s+(?:\.?[\\/])?tools[\\/][a-z0-9_./\\-]+\.(?:mjs|cjs|js|ts)|npx(?:\.cmd)?\s+(?:(?:--yes|-y)\s+@?[a-z0-9_][a-z0-9_./@-]*|@[a-z0-9_][a-z0-9_.-]*\/[a-z0-9_][a-z0-9_.-]*|[a-z0-9_][a-z0-9_]*[./-][a-z0-9_./@-]*|[a-z0-9_][a-z0-9_.-]*@[^\s`]+|[a-z0-9_][a-z0-9_.-]*\s+--?[a-z0-9][a-z0-9-]*(?:=[^\s`]+)?)|(?:\.?[\\/])?tools[\\/][a-z0-9_./\\-]+\.sh)\b/i
+const NPX_COMMAND = /npx(?:\.cmd)?\s+/i
+const SHELL_FENCE = /^(?:bash|sh|shell|zsh|powershell|pwsh|cmd|console)?$/i
 const INSTRUCTION =
   /\b(?:run|execute|invoke|use|type|enter|try|rerun|re-run|re-derive|regenerate|recreate|repeat|command|shell|terminal)\b/i
 const DOCUMENTATION =
-  /\b(?:skill body|agent body|ticket body|linear ticket|PR description|pull request description|help output|help text|--help output|--help text|tool help|internally|under the hood)\b/i
+  /\b(?:skill body|agent body|ticket body|linear ticket|PR description|pull request description|tool help|internally|under the hood)\b|(?<![\p{L}\p{N}_-])(?:--help|help)[^\p{L}\p{N}_\r\n]+(?:output|text)\b/iu
 const DOCUMENT_PATH =
   /(?:^|[/\\])(?:\.claude[/\\](?:skills|agents|hooks)[/\\]|(?:ticket(?:-body)?|pr(?:-body|-description)?|pull-request-description|[A-Z][A-Z0-9]+-\d+)\.(?:md|txt)$)/i
 const HELP_PATH = /(?:^|[/\\])(?:help|.+--help)(?:[-_.].*)?\.(?:md|txt|log)$/i
@@ -39,56 +43,51 @@ function previousNonemptyLine(lines, index) {
   return ""
 }
 
-function commandInShellFence(lines, start) {
-  const opening = /^\s*```(?:bash|sh|shell|zsh|powershell|pwsh|cmd|console)?\s*$/i
-  if (!opening.test(lines[start])) return null
-  if (DOCUMENTATION.test(previousNonemptyLine(lines, start))) return null
-
-  for (let cursor = start + 1; cursor < lines.length; cursor++) {
-    if (/^\s*```/.test(lines[cursor])) return null
-    if (!lines[cursor].trim()) continue
-    return DIRECT_COMMAND.test(lines[cursor]) ? commandFrom(lines[cursor]) : null
-  }
-  return null
+function splitAppeal(line) {
+  const appeal = APPEAL_SUFFIX.exec(line)
+  if (!appeal) return { line, reason: null }
+  return { line: line.slice(0, appeal.index).trimEnd(), reason: appeal[1].trim() }
 }
 
-function surfacedCommand(text, source) {
+function surfacedCommands(text, source) {
   const lines = text.split(/\r?\n/)
+  const surfaced = []
   let underInstructionHeading = false
-  let insideDocumentationFence = false
+  let insideFence = null
 
   for (let index = 0; index < lines.length; index++) {
-    const line = lines[index]
-    if (/^\s*```/.test(line)) {
-      if (insideDocumentationFence) {
-        insideDocumentationFence = false
-        continue
-      }
-      if (DOCUMENTATION.test(previousNonemptyLine(lines, index))) {
-        insideDocumentationFence = true
-        continue
-      }
+    const { line, reason } = splitAppeal(lines[index])
+    const fence = /^\s*```([a-z0-9_-]*)\s*$/i.exec(line)
+    if (fence) {
+      if (insideFence) insideFence = null
+      else if (DOCUMENTATION.test(previousNonemptyLine(lines, index))) insideFence = "documentation"
+      else insideFence = SHELL_FENCE.test(fence[1]) ? "shell" : "other"
+      continue
     }
-    if (insideDocumentationFence) continue
+    if (insideFence === "documentation") continue
 
     const heading = /^#{1,6}\s+/.test(line)
     if (heading) underInstructionHeading = INSTRUCTION_HEADING.test(line)
-
-    const fencedCommand = commandInShellFence(lines, index)
-    if (fencedCommand) return fencedCommand
 
     const command = commandFrom(line)
     if (!command) continue
     const previousLine = previousNonemptyLine(lines, index)
     const framing = `${previousLine} ${line}`
     if (DOCUMENTATION.test(framing)) continue
-    if (DIRECT_COMMAND.test(line)) return command
     const standaloneCodeSpan = /^\s*(?:(?:[-*+]|\d+[.)])\s+)?`[^`]+`\s*[.,;:]?\s*$/.test(line)
-    if (standaloneCodeSpan && INSTRUCTION.test(previousLine)) return command
-    if (INSTRUCTION.test(line.slice(0, line.search(COMMAND)))) return command
-    if (source === "artifact" && underInstructionHeading) return command
+    const imperative = INSTRUCTION.test(line.slice(0, line.search(COMMAND)))
+    const promptedNpx = NPX_COMMAND.test(command) && insideFence === "shell"
+    if (
+      DIRECT_COMMAND.test(line) ||
+      (standaloneCodeSpan && INSTRUCTION.test(previousLine)) ||
+      imperative ||
+      promptedNpx ||
+      (source === "artifact" && underInstructionHeading)
+    ) {
+      surfaced.push({ command, reason })
+    }
   }
-  return null
+  return surfaced
 }
 
 function alternativeFor(command) {
@@ -106,27 +105,25 @@ export function checkRawRepoToolSurfacing(text, { source = "chat", filePath = ""
   if (typeof text !== "string" || !text.trim()) return null
   if (source === "artifact" && (DOCUMENT_PATH.test(filePath) || HELP_PATH.test(filePath))) return null
 
-  const command = surfacedCommand(text, source)
-  if (!command) return null
+  const commands = surfacedCommands(text, source)
+  if (!commands.length) return null
 
-  const appeal = APPEAL.exec(text)
-  if (appeal) {
-    const reason = appeal[1].trim()
+  const unappealed = commands.find(({ reason }) => !reason)
+  if (!unappealed) {
     return {
       appeal: true,
-      reason,
-      command,
-      message: `Repo-tool appeal recorded: ${reason}`,
+      commands,
+      message: commands.map(({ command, reason }) => `Repo-tool appeal recorded: ${reason} (${command})`).join("\n"),
     }
   }
 
   return {
     block: true,
-    command,
+    command: unappealed.command,
     message: [
-      `Raw repo-tool command surfaced for Thomas: ${command}`,
-      alternativeFor(command),
-      'Remove the raw command, or state "Repo-tool appeal: <reason>" when it genuinely must be shown. The hook records the reason.',
+      `Raw repo-tool command surfaced for Thomas: ${unappealed.command}`,
+      alternativeFor(unappealed.command),
+      'Remove the raw command, or put "Repo-tool appeal: <reason>" on the same line when it genuinely must be shown. Every surfaced command needs its own recorded reason.',
     ].join("\n"),
   }
 }

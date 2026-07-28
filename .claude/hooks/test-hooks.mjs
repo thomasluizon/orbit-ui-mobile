@@ -354,6 +354,23 @@ const npxSurfacing = runHookResult(
 T("cc raw-tool: npx instruction -> 2", npxSurfacing.status, 2)
 T("cc raw-tool: npx gap says no skill exists", npxSurfacing.stderr.toLowerCase().includes("no skill"), true)
 T("cc raw-tool: npx gap says to build a skill", npxSurfacing.stderr.toLowerCase().includes("build"), true)
+T(
+  "cc raw-tool: explicit npx confirmation instruction -> 2",
+  runHook(RAW_TOOL_HOOK, stopPayload("npx --yes cowsay hello")),
+  2,
+)
+T(
+  "cc raw-tool: scoped npx instruction -> 2",
+  runHook(RAW_TOOL_HOOK, stopPayload("npx @scope/package")),
+  2,
+)
+for (const prose of [
+  "npx is a great tool for running one-off packages.",
+  "npx invocations without --yes will prompt for confirmation.",
+  "npx runs whatever package you name, unlike a pinned devDependency.",
+]) {
+  T(`cc raw-tool: npx prose "${prose}" -> 0`, runHook(RAW_TOOL_HOOK, stopPayload(prose)), 0)
+}
 
 const bareToolSurfacing = runHookResult(
   RAW_TOOL_HOOK,
@@ -407,9 +424,22 @@ T(
   "cc raw-tool: quoted --help output -> 0",
   runHook(
     RAW_TOOL_HOOK,
-    stopPayload(["The captured `--help` output is:", "", "```text", "Usage: node tools/wave-plan.mjs --all", "```", "", "This is quoted output, not an instruction."].join("\n")),
+    stopPayload(["The captured `--help` output is:", "", "```bash", "node tools/wave-plan.mjs --all", "```"].join("\n")),
   ),
   0,
+)
+T(
+  "cc raw-tool: closing fence does not scan following prose -> 0",
+  runHook(
+    RAW_TOOL_HOOK,
+    stopPayload(["Example output:", "```text", "done", "```", "", "node tools/wave-plan.mjs --all runs internally inside the skill."].join("\n")),
+  ),
+  0,
+)
+T(
+  "cc raw-tool: self-help is not help documentation -> 2",
+  runHook(RAW_TOOL_HOOK, stopPayload(["Self-help output follows:", "```bash", "node tools/wave-plan.mjs --all", "```"].join("\n"))),
+  2,
 )
 
 for (const command of ["git status", "gh pr checks", "dotnet test", "npm run lint"]) {
@@ -423,12 +453,41 @@ for (const command of ["git status", "gh pr checks", "dotnet test", "npm run lin
 const appealReason = "The user explicitly requested the exact diagnostic command for a local shell."
 const appealedSurfacing = runHookResult(
   RAW_TOOL_HOOK,
-  stopPayload(
-    ["Run this command:", "", "```bash", "node tools/wave-plan.mjs --all", "```", "", `Repo-tool appeal: ${appealReason}`].join("\n"),
-  ),
+  stopPayload(["Run this command:", "", "```bash", `node tools/wave-plan.mjs --all # Repo-tool appeal: ${appealReason}`, "```"].join("\n")),
 )
 T("cc raw-tool: explicit reason appeal -> 0", appealedSurfacing.status, 0)
 T("cc raw-tool: explicit reason appeal is recorded", appealedSurfacing.stdout.includes(`Repo-tool appeal recorded: ${appealReason}`), true)
+
+const mixedAppeals = runHookResult(
+  RAW_TOOL_HOOK,
+  stopPayload(
+    [
+      "Run these commands:",
+      "```bash",
+      "node tools/wave-plan.mjs --all # Repo-tool appeal: first command is required",
+      "node tools/rollup.mjs",
+      "```",
+    ].join("\n"),
+  ),
+)
+T("cc raw-tool: one appeal cannot cover another command -> 2", mixedAppeals.status, 2)
+T("cc raw-tool: unappealed command is reported", mixedAppeals.stderr.includes("node tools/rollup.mjs"), true)
+
+const separatelyAppealed = runHookResult(
+  RAW_TOOL_HOOK,
+  stopPayload(
+    [
+      "Run these commands:",
+      "```bash",
+      "node tools/wave-plan.mjs --all # Repo-tool appeal: first command is required",
+      "node tools/rollup.mjs # Repo-tool appeal: second command is required",
+      "```",
+    ].join("\n"),
+  ),
+)
+T("cc raw-tool: every command has its own appeal -> 0", separatelyAppealed.status, 0)
+T("cc raw-tool: first command reason is recorded", separatelyAppealed.stdout.includes("first command is required"), true)
+T("cc raw-tool: second command reason is recorded", separatelyAppealed.stdout.includes("second command is required"), true)
 
 // ---------------------------------------------------------------------------
 // 3. Agent frontmatter: the fails-open `Bash(...)` trap
