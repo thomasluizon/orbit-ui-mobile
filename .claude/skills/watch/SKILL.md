@@ -41,8 +41,8 @@ whether a turn is running. It says nothing about whether the work is any good or
 
 **CONTRACT MET or NOT MET is DELIVERY**, from `worker-status.mjs`, derived from artifacts
 (commits above the fetched base, a clean worktree, the branch pushed, a PR open, the issue In
-Review with its PR attached, a screenshot when `visible-effect`). This is the one that decides
-whether a ticket is done.
+Review with its PR attached, final screenshots and the critique artifact when
+`visible-effect`). This is the one that decides whether a ticket is done.
 
 The pairs mean different things, and the diagnosis is in the combination:
 

@@ -12,7 +12,7 @@ While building or fixing, see something broken, stale, or wrong? Fix it immediat
 
 ## The workflow (D1-D9)
 
-Linear is the source of truth for product work in this repo and orbit-api; GitHub Issues holds orbit-landing-page, infra chores, and Dependabot (D1). The ticket is the prompt (D2); one ticket = one repo = one reviewable PR, target under 400 lines (D4), and cross-repo work uses an API ticket blocking a UI ticket. The worker engine lives in `.claude/orchestrator.json` (D5); a `visible-effect` ticket needs a screenshot and test output before In Review (D7). Invoke `tools/` scripts through their skills or agents; after `/next`, run `/orchestrate ORB-N --single`.
+Linear is the source of truth for product work in this repo and orbit-api; GitHub Issues holds orbit-landing-page, infra chores, and Dependabot (D1). The ticket is the prompt (D2); one ticket = one repo = one reviewable PR, target under 400 lines (D4), and cross-repo work uses an API ticket blocking a UI ticket. The worker engine lives in `.claude/orchestrator.json` (D5); a `visible-effect` ticket needs final screenshots, a critique artifact, and test output before In Review (D7). `RENDER-CORRECTNESS.md` defines the bounded self-critique after capture. Invoke `tools/` scripts through their skills or agents; after `/next`, run `/orchestrate ORB-N --single`.
 
 - `/feature`
 - `/bug`
@@ -79,6 +79,7 @@ Grep a doc's `At a glance` header before loading the whole file.
 | Doc | Purpose |
 |---|---|
 | `DESIGN.md` | Authoritative UI spec; read before frontend work. |
+| `RENDER-CORRECTNESS.md` | Single authority for the bounded screenshot self-critique on `visible-effect` tickets, including capture limits, the three-iteration cap, parity coverage, and the critique artifact. |
 | **The D1..D42 decision register** | Canonical decision register in the brain vault: `2 Areas/20-29 Orbit Engineering/Decisions/The Orbit workflow decision register (D1 to D42).md`. |
 | `AGENTS.md` | Codex's entry doc: the worker contract + `## Code Review Rules`. Defers to this CLAUDE.md for conventions. |
 | `FEATURES.md` | Hand-maintained, gating- and platform-aware capability catalogue (the source the Play listing, landing, and QA copy derive from). Kept honest by the `/pr-review` feature-inventory parity gate (rubric #14), not by generation; it holds the Free/Trial/Pro/Yearly gating the generated arch map does not. |
