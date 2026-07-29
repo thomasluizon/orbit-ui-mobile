@@ -29,8 +29,9 @@ new-code-coverage-only Sonar failure should be admin-overridden instead.
 
 The expected head defaults to the PR's head SHA at entry. Pass --expected-head once per PR to
 pin an earlier observed SHA. A routine update-branch merge is adopted only when its parents
-include both the prior expected SHA and the current base tip; any other change prints HEAD-MOVED.
-The merge API also atomically matches the final expected SHA.
+include the prior expected SHA and a parent equal to or behind the freshly resolved base branch
+tip; any other change prints HEAD-MOVED. The merge API also atomically matches the final expected
+SHA.
 
 Before any merge, --reviewed-through must name the latest instant through which that PR's
 reviews, inline review comments, and issue comments were inspected. A newer or edited item,
@@ -348,24 +349,55 @@ head_oid() { # <pr>; stdout: current head SHA
 UPDATED_EXPECTED=""
 UPDATED_ACTUAL=""
 adopt_routine_update() { # <pr> <old-expected>; sets UPDATED_EXPECTED and UPDATED_ACTUAL
-  local pr="$1" old_expected="$2" state base_tip parents
+  local pr="$1" old_expected="$2" state base_ref head_ref base_tip commit_state
+  local committer_name committer_email verified verification_reason commit_message parents parent relationship
   UPDATED_EXPECTED=""
   UPDATED_ACTUAL=""
-  if ! state=$(gh pr view "$pr" --repo "$repo" --json headRefOid,baseRefOid --jq '[.headRefOid, .baseRefOid] | @tsv' 2>/dev/null); then
+  if ! state=$(gh pr view "$pr" --repo "$repo" --json headRefOid,baseRefName,headRefName --jq '[.headRefOid, .baseRefName, .headRefName] | @tsv' 2>/dev/null); then
     return 1
   fi
-  IFS=$'\t' read -r UPDATED_ACTUAL base_tip <<<"$state"
-  [ -n "$UPDATED_ACTUAL" ] && [ -n "$base_tip" ] || return 1
+  IFS=$'\t' read -r UPDATED_ACTUAL base_ref head_ref <<<"$state"
+  [ -n "$UPDATED_ACTUAL" ] && [ -n "$base_ref" ] && [ -n "$head_ref" ] || return 1
   if [ "$UPDATED_ACTUAL" = "$old_expected" ]; then
     UPDATED_EXPECTED="$old_expected"
     return 0
   fi
-  if ! parents=$(gh api "repos/$repo/commits/$UPDATED_ACTUAL" --jq '.parents[].sha' 2>/dev/null); then
+  if ! base_tip=$(gh api "repos/$repo/git/ref/heads/$base_ref" --jq '.object.sha' 2>/dev/null); then
     return 1
   fi
-  printf '%s\n' "$parents" | grep -Fxq "$old_expected" || return 1
-  printf '%s\n' "$parents" | grep -Fxq "$base_tip" || return 1
-  UPDATED_EXPECTED="$UPDATED_ACTUAL"
+  [ -n "$base_tip" ] || return 1
+  if ! commit_state=$(gh api "repos/$repo/git/commits/$UPDATED_ACTUAL" \
+    --jq '[.committer.name, .committer.email, (.verification.verified | tostring), .verification.reason, .message, (.parents | map(.sha) | join(" "))] | @tsv' 2>/dev/null); then
+    return 1
+  fi
+  IFS=$'\t' read -r committer_name committer_email verified verification_reason commit_message parents <<<"$commit_state"
+  [ "$committer_name" = "GitHub" ] &&
+    [ "$committer_email" = "noreply@github.com" ] &&
+    [ "$verified" = "true" ] &&
+    [ "$verification_reason" = "valid" ] &&
+    [ "$commit_message" = "Merge branch '$base_ref' into $head_ref" ] &&
+    [ -n "$parents" ] || return 1
+  case " $parents " in
+    *" $old_expected "*) ;;
+    *) return 1 ;;
+  esac
+  for parent in $parents; do
+    [ "$parent" = "$old_expected" ] && continue
+    if [ "$parent" = "$base_tip" ]; then
+      UPDATED_EXPECTED="$UPDATED_ACTUAL"
+      return 0
+    fi
+    if ! relationship=$(gh api "repos/$repo/compare/$parent...$base_tip" --jq '.status' 2>/dev/null); then
+      return 1
+    fi
+    case "$relationship" in
+      ahead | identical)
+        UPDATED_EXPECTED="$UPDATED_ACTUAL"
+        return 0
+        ;;
+    esac
+  done
+  return 1
 }
 
 mstate() { # prints  MS | REVIEW | FAILEDCHECKS | PENDINGCHECKS | REVIEWCHECK | SHA
