@@ -264,14 +264,33 @@ const threadHasFix = (thread) => {
   if (!resolver || !thread.path || !reviewedCommit || !Number.isFinite(latestFindingTime)) return false
   const reviewedCommitStillInHistory =
     git(["merge-base", "--is-ancestor", reviewedCommit, prHead], { allowFailure: true }) !== null
-  const reviewedPathObject = git(["rev-parse", "--verify", `${reviewedCommit}:${thread.path}`], { allowFailure: true })
-  const rewrittenReviewCommits =
-    !reviewedCommitStillInHistory && reviewedPathObject
-      ? [...prCommits].filter(
-          (commit) =>
-            git(["rev-parse", "--verify", `${commit}:${thread.path}`], { allowFailure: true }) === reviewedPathObject,
-        )
-      : []
+  const rewrittenReviewBoundary = (() => {
+    if (reviewedCommitStillInHistory) return null
+    const priorBase = git(["merge-base", reviewedCommit, prHead], { allowFailure: true })
+    const currentBase = git(["merge-base", baseRef, prHead], { allowFailure: true })
+    if (!priorBase || !currentBase) return null
+    const priorCommitCount = Number.parseInt(
+      git(["rev-list", "--count", "--no-merges", `${priorBase}..${reviewedCommit}`], { allowFailure: true }) ?? "",
+      10,
+    )
+    const rangeDiff = git(
+      [
+        "range-diff",
+        "--no-color",
+        "--no-dual-color",
+        "--abbrev=40",
+        `${priorBase}..${reviewedCommit}`,
+        `${currentBase}..${prHead}`,
+      ],
+      { allowFailure: true },
+    )
+    if (!Number.isInteger(priorCommitCount) || priorCommitCount < 1 || rangeDiff === null) return null
+    for (const line of rangeDiff.split("\n")) {
+      const mapping = line.match(/^\s*(\d+):\s+[0-9a-f]{40}\s+[=!]\s+\d+:\s+([0-9a-f]{40})\b/i)
+      if (mapping && Number.parseInt(mapping[1], 10) === priorCommitCount && prCommits.has(mapping[2])) return mapping[2]
+    }
+    return null
+  })()
   const replies = comments.filter(
     (comment) => comment.author?.login === resolver && reviewCommentTime(comment) > latestFindingTime,
   )
@@ -282,11 +301,9 @@ const threadHasFix = (thread) => {
         commit &&
         commit !== reviewedCommit &&
         (git(["merge-base", "--is-ancestor", reviewedCommit, commit], { allowFailure: true }) !== null ||
-          rewrittenReviewCommits.some(
-            (rewrittenReviewCommit) =>
-              rewrittenReviewCommit !== commit &&
-              git(["merge-base", "--is-ancestor", rewrittenReviewCommit, commit], { allowFailure: true }) !== null,
-          ))
+          (rewrittenReviewBoundary &&
+            rewrittenReviewBoundary !== commit &&
+            git(["merge-base", "--is-ancestor", rewrittenReviewBoundary, commit], { allowFailure: true }) !== null))
       if (followsReview && prCommits.has(commit) && git(["diff-tree", "--no-commit-id", "--name-only", "-r", commit, "--", thread.path])) return true
     }
   }
