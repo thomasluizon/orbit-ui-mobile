@@ -166,6 +166,7 @@ const pushed = Boolean(remoteHead)
 let latestReport = null
 let reportAgeMinutes = null
 let reportFresh = null
+let unparseableReportLines = 0
 if (reportsFile) {
   let lines = []
   try {
@@ -173,17 +174,18 @@ if (reportsFile) {
   } catch (error) {
     fail(3, `reports file could not be read: ${error.message}`)
   }
-  const reports = lines.map((line, index) => {
+  const reports = []
+  for (const line of lines) {
     try {
-      return JSON.parse(line)
+      reports.push(JSON.parse(line))
     } catch {
-      fail(3, `reports file line ${index + 1} is not valid JSON`)
+      unparseableReportLines += 1
     }
-  })
+  }
   latestReport = reports.filter((report) => report.ticket === issue).at(-1) ?? null
   const reportedAt = latestReport ? Date.parse(latestReport.reportedAt) : statSync(worktree).birthtimeMs
   reportAgeMinutes = Number.isFinite(reportedAt) ? (Date.now() - reportedAt) / 60_000 : Number.POSITIVE_INFINITY
-  reportFresh = reportAgeMinutes <= expectedWindowMinutes
+  reportFresh = Boolean(latestReport && reportAgeMinutes <= expectedWindowMinutes)
 }
 
 const remoteUrl = git(["remote", "get-url", "origin"])
@@ -464,7 +466,11 @@ if (reportsFile) {
     {
       name: "report-fresh",
       ok: reportFresh,
-      detail: latestReport ? `latest report is ${Number.isFinite(reportAgeMinutes) ? reportAgeMinutes.toFixed(1) : "invalid"} minute(s) old; expected within ${expectedWindowMinutes}` : `no report for ${issue}; worktree is ${reportAgeMinutes.toFixed(1)} minute(s) old and expected within ${expectedWindowMinutes}`,
+      detail: `${
+        latestReport
+          ? `latest report is ${Number.isFinite(reportAgeMinutes) ? reportAgeMinutes.toFixed(1) : "invalid"} minute(s) old; expected within ${expectedWindowMinutes}`
+          : `no report for ${issue}; worktree is ${reportAgeMinutes.toFixed(1)} minute(s) old and expected within ${expectedWindowMinutes}`
+      }; skipped ${unparseableReportLines} unparseable report line(s)`,
     },
     {
       name: "report-accepted",
@@ -507,6 +513,7 @@ if (asJson) {
 } else {
   console.log(`${issue} on ${branch} (${slug})`)
   if (reportsFile) console.log(`  ${reportFresh ? "REPORTED" : "SUSPECT "} liveness: ${checks[0].detail}`)
+  else console.log("  NOT-CHECKED liveness: no reports file supplied; completion is artifact-only")
   for (const check of checks) console.log(`  ${check.ok ? "OK  " : "UNMET"} ${check.name}: ${check.detail}`)
   console.log(unmet.length === 0 ? "\nCONTRACT MET" : `\nCONTRACT NOT MET: ${unmet.join(", ")}. Idle is not done; nudge the worker with this list.`)
 }

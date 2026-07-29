@@ -929,8 +929,13 @@ if (!gitTracksPath(worktreePath, hookRelativePath)) {
   generatedWorktreePaths.push(`/${hookRelativePath}`)
 }
 try {
-  const reportedExcludePath = git(["-C", worktreePath, "rev-parse", "--git-path", "info/exclude"])
-  const excludePath = isAbsolute(reportedExcludePath) ? reportedExcludePath : resolve(worktreePath, reportedExcludePath)
+  git(["-C", repoPath, "config", "extensions.worktreeConfig", "true"])
+  const reportedGitDirectory = git(["-C", worktreePath, "rev-parse", "--git-dir"])
+  const worktreeGitDirectory = isAbsolute(reportedGitDirectory)
+    ? reportedGitDirectory
+    : resolve(worktreePath, reportedGitDirectory)
+  const excludePath = join(worktreeGitDirectory, "info", "orbit-worker-exclude")
+  mkdirSync(dirname(excludePath), { recursive: true })
   const currentExcludes = existsSync(excludePath) ? readFileSync(excludePath, "utf8") : ""
   const excludeLines = new Set(currentExcludes.split(/\r?\n/))
   const missingExcludes = generatedWorktreePaths.filter((path) => !excludeLines.has(path))
@@ -938,6 +943,7 @@ try {
     const separator = currentExcludes.length > 0 && !currentExcludes.endsWith("\n") ? "\n" : ""
     appendFileSync(excludePath, `${separator}${missingExcludes.join("\n")}\n`, "utf8")
   }
+  git(["-C", worktreePath, "config", "--worktree", "core.excludesFile", excludePath])
 } catch (error) {
   fail(3, `generated worktree hook files could not be excluded from git: ${error.message}`)
 }

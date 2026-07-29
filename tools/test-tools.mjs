@@ -27,7 +27,7 @@ import { spawn, spawnSync } from "node:child_process"
 import { createHash } from "node:crypto"
 import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, utimesSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
-import { delimiter, dirname, join, resolve } from "node:path"
+import { delimiter, dirname, isAbsolute, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const USAGE = `usage: test-tools.mjs
@@ -143,6 +143,23 @@ const ORCA_SHIM = stage(
   `const { spawnSync } = require("node:child_process")
 const { EventEmitter } = require("node:events")
 const { appendFileSync, existsSync, readFileSync, rmSync } = require("node:fs")
+if (process.env.ORBIT_GIT_LS_FILES_EXIT) {
+  const childProcess = require("node:child_process")
+  const { syncBuiltinESMExports } = require("node:module")
+  const originalSpawnSync = childProcess.spawnSync
+  childProcess.spawnSync = (command, args, options) => {
+    const binary = String(command).split(/[\\\\/]/).pop().replace(/\\.exe$/i, "")
+    if (binary === "git" && args?.includes("ls-files")) {
+      return {
+        status: Number(process.env.ORBIT_GIT_LS_FILES_EXIT),
+        stdout: "",
+        stderr: "forced git ls-files inspection failure",
+      }
+    }
+    return originalSpawnSync(command, args, options)
+  }
+  syncBuiltinESMExports()
+}
 if (process.env.ORBIT_LINEAR_PARENT_STUB) {
   const https = require("node:https")
   const { syncBuiltinESMExports } = require("node:module")
@@ -817,12 +834,15 @@ const TRUST_SCREENS = {
 const stageCheckout = (base, { trackReportHook = true } = {}) => {
   const repoPath = join(base, "repos", "ui")
   const path = join(base, "checkout")
+  const emptyGlobalExcludes = join(base, "empty-global-excludes")
   mkdirSync(repoPath, { recursive: true })
   writeFileSync(join(repoPath, "fixture.txt"), "fixture\n")
+  writeFileSync(emptyGlobalExcludes, "")
   const setup = [
     ["init", "-q", "--initial-branch=main"],
     ["config", "user.email", "gate@orbit.test"],
     ["config", "user.name", "Orbit Gate"],
+    ["config", "core.excludesFile", emptyGlobalExcludes],
   ]
   for (const argv of setup) {
     const result = spawnSync("git", ["-C", repoPath, ...argv], { encoding: "utf8" })
@@ -912,10 +932,30 @@ const EMPTY_COMPOSER = ' (logo)   Claude Code v2.1.220\n> Try "how do I log an e
  * "delivered" is a tail carrying the pointer as a user line, anything else is a tail without it.
  * Returns the orca calls, because the assertion that matters is how many sends really happened.
  */
-const runPointerLaunch = (label, tails, { repainting = false, trackReportHook = true } = {}) => {
+const runPointerLaunch = (
+  label,
+  tails,
+  {
+    extraEnv = {},
+    prepareCheckout,
+    repainting = false,
+    trackReportHook = true,
+  } = {},
+) => {
   const staged = stageLaunchWorker(label, INTERACTIVE_WORKER)
   const checkout = stageCheckout(staged.base, { trackReportHook })
   if (!checkout) return null
+  const commonDirectoryRaw = spawnSync(
+    "git",
+    ["-C", checkout, "rev-parse", "--git-common-dir"],
+    { encoding: "utf8" },
+  ).stdout.trim()
+  const commonDirectory = resolve(checkout, commonDirectoryRaw)
+  const sharedExcludePath = join(commonDirectory, "info", "exclude")
+  const sharedExcludeBefore = existsSync(sharedExcludePath)
+    ? readFileSync(sharedExcludePath, "utf8")
+    : null
+  prepareCheckout?.(checkout)
   const log = join(staged.base, "orca-calls.log")
   const ledger = join(staged.base, "automation-budget.jsonl")
   const promptFile = stage(`${label}-prompt.md`, "the ticket body verbatim\n")
@@ -961,6 +1001,7 @@ const runPointerLaunch = (label, tails, { repainting = false, trackReportHook = 
       ...orcaEnv(plan),
       ORBIT_AUTOMATION_BUDGET_LEDGER: ledger,
       ORBIT_ORCA_LOG: log,
+      ...extraEnv,
     },
   })
   const calls = existsSync(log) ? readFileSync(log, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line)) : []
@@ -968,7 +1009,71 @@ const runPointerLaunch = (label, tails, { repainting = false, trackReportHook = 
   const records = existsSync(ledger)
     ? readFileSync(ledger, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
     : []
-  return { staged, result, calls, sends, records, checkout }
+  return {
+    staged,
+    result,
+    calls,
+    sends,
+    records,
+    checkout,
+    sharedExcludeBefore,
+    sharedExcludePath,
+  }
+}
+
+const runCreatedWorktreeFailure = (
+  label,
+  {
+    extraEnv = {},
+    prepareCheckout,
+    reportsInCheckout = false,
+  } = {},
+) => {
+  const staged = stageLaunchWorker(label, INTERACTIVE_WORKER)
+  const checkout = stageCheckout(staged.base)
+  if (!checkout) return null
+  prepareCheckout?.(checkout)
+  const promptFile = stage(`${label}-prompt.md`, "the ticket body verbatim\n")
+  const reportsFile = reportsInCheckout
+    ? join(checkout, "runtime", "reports.jsonl")
+    : join(staged.base, "reports.jsonl")
+  const plan = [
+    ...linearIssueStub(["repo:ui"]),
+    {
+      match: "worktree create",
+      stdout: JSON.stringify({
+        ok: true,
+        result: {
+          worktree: {
+            path: checkout,
+            branch: "refs/heads/thomasluizon/orb-75",
+          },
+        },
+      }),
+    },
+    { match: "terminal stop", stdout: JSON.stringify({ ok: true, result: {} }) },
+    { match: "worktree rm", stdout: JSON.stringify({ ok: true, result: {} }) },
+  ]
+  const result = run(
+    "launch-worker.mjs",
+    [
+      "--issue",
+      "ORB-75",
+      "--prompt-file",
+      promptFile,
+      "--reports-file",
+      reportsFile,
+    ],
+    {
+      path: staged.path,
+      env: {
+        ...orcaEnv(plan),
+        ORBIT_AUTOMATION_BUDGET_LEDGER: join(staged.base, "automation-budget.jsonl"),
+        ...extraEnv,
+      },
+    },
+  )
+  return { checkout, reportsFile, result, staged }
 }
 
 /**
@@ -1040,6 +1145,38 @@ const pointerDeliveryCases = () => {
       `git check-ignore exited ${ignored.status}`,
     )
   }
+  const scopedExclude = spawnSync(
+    "git",
+    ["-C", first.checkout, "config", "--worktree", "--get", "core.excludesFile"],
+    { encoding: "utf8" },
+  )
+  const scopedExcludePath = scopedExclude.stdout.trim()
+  const sharedExcludeAfter = existsSync(first.sharedExcludePath)
+    ? readFileSync(first.sharedExcludePath, "utf8")
+    : null
+  T(
+    "launch-worker.mjs: generated exclusions leave the shared info/exclude untouched",
+    scopedExclude.status === 0 &&
+      isAbsolute(scopedExcludePath) &&
+      existsSync(scopedExcludePath) &&
+      sharedExcludeAfter === first.sharedExcludeBefore,
+    `scoped exclude: ${JSON.stringify(scopedExcludePath)}\n     shared before: ${JSON.stringify(first.sharedExcludeBefore)}\n     shared after: ${JSON.stringify(sharedExcludeAfter)}`,
+  )
+  const primaryGeneratedPath = join(
+    first.staged.repoPath,
+    ".claude",
+    "settings.local.json",
+  )
+  const primaryIgnored = spawnSync(
+    "git",
+    ["-C", first.staged.repoPath, "check-ignore", "-q", primaryGeneratedPath],
+    { encoding: "utf8" },
+  )
+  T(
+    "launch-worker.mjs: generated paths are ignored only in the linked worktree",
+    primaryIgnored.status === 1,
+    `primary git check-ignore exited ${primaryIgnored.status}: ${primaryIgnored.stderr}`,
+  )
 
   const untracked = runPointerLaunch(
     "pointer-untracked-report-hook",
@@ -1068,6 +1205,78 @@ const pointerDeliveryCases = () => {
       untrackedStatus.stdout.trim() === "" &&
       untrackedIgnored?.status === 0,
     `status: ${JSON.stringify(untrackedStatus?.stdout?.trim())}, check-ignore exit ${untrackedIgnored?.status}`,
+  )
+
+  const reportsInside = runCreatedWorktreeFailure(
+    "reports-inside-created-worktree",
+    { reportsInCheckout: true },
+  )
+  T(
+    "launch-worker.mjs: refuses a reports path inside the newly created worktree",
+    reportsInside?.result.status === 3 &&
+      /reports file lives inside the new worktree/.test(reportsInside.result.stderr),
+    reportsInside
+      ? `exit ${reportsInside.result.status}\n     ${reportsInside.result.stderr}`
+      : "could not stage a linked git worktree",
+  )
+
+  const excludeSetupFailure = runCreatedWorktreeFailure(
+    "worktree-exclude-setup-failure",
+    {
+      prepareCheckout: (checkout) => {
+        const gitDirectory = resolve(
+          checkout,
+          spawnSync(
+            "git",
+            ["-C", checkout, "rev-parse", "--git-dir"],
+            { encoding: "utf8" },
+          ).stdout.trim(),
+        )
+        writeFileSync(join(gitDirectory, "info"), "blocks the required directory\n")
+      },
+    },
+  )
+  T(
+    "launch-worker.mjs: reports worktree-scoped exclude setup failures",
+    excludeSetupFailure?.result.status === 3 &&
+      /generated worktree hook files could not be excluded from git/.test(
+        excludeSetupFailure.result.stderr,
+      ),
+    excludeSetupFailure
+      ? `exit ${excludeSetupFailure.result.status}\n     ${excludeSetupFailure.result.stderr}`
+      : "could not stage a linked git worktree",
+  )
+
+  const stopHookFailure = runCreatedWorktreeFailure(
+    "stop-hook-install-failure",
+    {
+      prepareCheckout: (checkout) => {
+        writeFileSync(join(checkout, ".codex"), "blocks the required directory\n")
+      },
+    },
+  )
+  T(
+    "launch-worker.mjs: reports Stop hook installation failures",
+    stopHookFailure?.result.status === 3 &&
+      /worktree Stop hook could not be installed/.test(stopHookFailure.result.stderr),
+    stopHookFailure
+      ? `exit ${stopHookFailure.result.status}\n     ${stopHookFailure.result.stderr}`
+      : "could not stage a linked git worktree",
+  )
+
+  const gitInspectionFailure = runCreatedWorktreeFailure(
+    "git-tracks-path-failure",
+    { extraEnv: { ORBIT_GIT_LS_FILES_EXIT: "2" } },
+  )
+  T(
+    "launch-worker.mjs: gitTracksPath rejects git ls-files exits above one",
+    gitInspectionFailure?.result.status === 3 &&
+      /git could not inspect \.claude\/hooks\/report-worker-turn\.mjs[\s\S]*forced git ls-files inspection failure/.test(
+        gitInspectionFailure.result.stderr,
+      ),
+    gitInspectionFailure
+      ? `exit ${gitInspectionFailure.result.status}\n     ${gitInspectionFailure.result.stderr}`
+      : "could not stage a linked git worktree",
   )
 
   const second = runPointerLaunch("pointer-second", [EMPTY_COMPOSER, "delivered"])
@@ -1596,6 +1805,35 @@ const launchWorkerCases = async () => {
     { status: 2, stderr: /absolute path/ },
     { path: good.path },
   )
+  const reportsProvisioningBlocker = join(
+    root,
+    "reports-provisioning-blocker",
+  )
+  writeFileSync(reportsProvisioningBlocker, "not a directory\n")
+  const reportsProvisioningTarget = join(
+    reportsProvisioningBlocker,
+    "reports.jsonl",
+  )
+  check(
+    "launch-worker.mjs",
+    "reports a reports-file provisioning failure before worktree creation",
+    [
+      "--issue",
+      "ORB-75",
+      "--prompt-file",
+      promptFile,
+      "--reports-file",
+      reportsProvisioningTarget,
+    ],
+    {
+      status: 3,
+      stderr: /reports file could not be provisioned/,
+    },
+    {
+      path: good.path,
+      env: orcaEnv(linearIssueStub(["repo:ui"])),
+    },
+  )
   check("launch-worker.mjs", "resolves the repo from the repo:* label", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 0, stdout: /"repo": "ui"/ }, { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
   check("launch-worker.mjs", "derives the contract branch from the title", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 0, stdout: /"branch": "feature\/orb-75-prove-the-harness-gate/ }, { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
   check("launch-worker.mjs", "refuses a repo:* label with no repos entry", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /no repo path for "zzz"/ }, { path: good.path, env: orcaEnv(linearIssueStub(["repo:zzz"])) })
@@ -1737,6 +1975,37 @@ const launchWorkerCases = async () => {
     ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
     { status: 0, stdout: /codex[\s\S]*model_reasoning_effort[\s\S]*medium[\s\S]*--model gpt-5\.6-terra/ },
     { path: codex.path, env: orcaEnv(linearIssueStub(["repo:ui"])) },
+  )
+  const codexWithHookTrust = stageLaunchWorker(
+    "codex-preconfigured-hook-trust",
+    {
+      ...INTERACTIVE_CODEX,
+      args: [
+        ...INTERACTIVE_CODEX.args,
+        "--dangerously-bypass-hook-trust",
+      ],
+    },
+    "codex",
+  )
+  const preconfiguredHookTrust = check(
+    "launch-worker.mjs",
+    "deduplicates a preconfigured Codex hook-trust bypass",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 0 },
+    {
+      path: codexWithHookTrust.path,
+      env: orcaEnv(linearIssueStub(["repo:ui"])),
+    },
+  )
+  const preconfiguredHookTrustCommand =
+    preconfiguredHookTrust.status === 0
+      ? JSON.parse(preconfiguredHookTrust.stdout).command
+      : ""
+  T(
+    "launch-worker.mjs: the Codex hook-trust bypass appears exactly once",
+    preconfiguredHookTrustCommand
+      .split("--dangerously-bypass-hook-trust").length - 1 === 1,
+    preconfiguredHookTrustCommand,
   )
   const codexCheap = check(
     "launch-worker.mjs",
@@ -3174,6 +3443,12 @@ const workerStatusCases = () => {
   check("worker-status.mjs", "requires a Linear issue identifier", ["--worktree", root, "--issue", "nope"], { status: 2, stderr: /Linear identifier/ })
   check(
     "worker-status.mjs",
+    "requires a value after --reports-file",
+    ["--worktree", root, "--issue", "ORB-75", "--reports-file"],
+    { status: 2, stderr: /--reports-file needs a path/ },
+  )
+  check(
+    "worker-status.mjs",
     "requires a positive expected report window",
     ["--worktree", root, "--issue", "ORB-75", "--expected-window-minutes", "0"],
     { status: 2, stderr: /positive number/ },
@@ -3235,12 +3510,109 @@ const workerStatusCases = () => {
       { status: 0, stdout: /"name": "report-fresh"[\s\S]*"ok": true[\s\S]*"name": "report-accepted"[\s\S]*"ok": true/ },
       { path: accepted.tool, env: orcaEnv(workerStatusStubs(accepted.headSha)) },
     )
+    check(
+      "worker-status.mjs",
+      "text mode without a reports file labels liveness NOT-CHECKED",
+      ["--worktree", accepted.repo, "--issue", "ORB-75"],
+      { status: 0, stdout: /NOT-CHECKED liveness: no reports file supplied/ },
+      { path: accepted.tool, env: orcaEnv(workerStatusStubs(accepted.headSha)) },
+    )
+
+    const unreadableReports = join(
+      dirname(accepted.reportsFile),
+      "unreadable-reports",
+    )
+    mkdirSync(unreadableReports, { recursive: true })
+    check(
+      "worker-status.mjs",
+      "an unreadable reports path exits three",
+      [
+        "--worktree",
+        accepted.repo,
+        "--issue",
+        "ORB-75",
+        "--reports-file",
+        unreadableReports,
+        "--json",
+      ],
+      { status: 3, stderr: /reports file could not be read/ },
+      { path: accepted.tool },
+    )
+
+    writeFileSync(
+      accepted.reportsFile,
+      `${readFileSync(accepted.reportsFile, "utf8")}not valid json\n`,
+    )
+    check(
+      "worker-status.mjs",
+      "a valid target report survives a corrupt JSONL line",
+      [
+        "--worktree",
+        accepted.repo,
+        "--issue",
+        "ORB-75",
+        "--reports-file",
+        accepted.reportsFile,
+        "--json",
+      ],
+      {
+        status: 0,
+        stdout: /"liveness": "reported"[\s\S]*"report-fresh"[\s\S]*"ok": true[\s\S]*skipped 1 unparseable report line/,
+      },
+      { path: accepted.tool, env: orcaEnv(workerStatusStubs(accepted.headSha)) },
+    )
+  }
+
+  const corruptOnly = stageWorkerStatus(
+    "corrupt-only",
+    { matchingReport: false },
+  )
+  T(
+    "worker-status.mjs: corrupt-only fixture is valid",
+    !corruptOnly.error,
+    corruptOnly.error ?? "",
+  )
+  if (!corruptOnly.error) {
+    writeFileSync(corruptOnly.reportsFile, "not valid json\n")
+    check(
+      "worker-status.mjs",
+      "a corrupt-only file with no target report is suspect",
+      [
+        "--worktree",
+        corruptOnly.repo,
+        "--issue",
+        "ORB-75",
+        "--reports-file",
+        corruptOnly.reportsFile,
+        "--json",
+      ],
+      {
+        status: 1,
+        stdout: /"liveness": "suspect"[\s\S]*"report-fresh"[\s\S]*"ok": false[\s\S]*no report for ORB-75[\s\S]*skipped 1 unparseable report line/,
+      },
+      {
+        path: corruptOnly.tool,
+        env: orcaEnv(workerStatusStubs(corruptOnly.headSha)),
+      },
+    )
   }
 
   const rejectedReports = [
     ["report-needs-human", { needsHuman: true }, /latest report rejected: needs human/],
     ["report-blocked", { blockedOn: "waiting for owner" }, /latest report rejected: blocked on \\"waiting for owner\\"/],
     ["report-empty-gates", { gates: {} }, /latest report rejected: no gate results reported/],
+    ["report-invalid-gates-payload", { gates: "passed" }, /latest report rejected: gates payload is invalid/],
+    [
+      "report-invalid-gate-value",
+      {
+        gates: {
+          lint: "passed",
+          "type-check": "unknown",
+          test: "passed",
+        },
+      },
+      /latest report rejected: gate results are invalid: type-check/,
+    ],
     ["report-missing-gates", { gates: { lint: "passed" } }, /latest report rejected: gates not run: type-check, test/],
     ["report-unrun-gate", { gates: { lint: "passed", "type-check": "passed", test: "not-run" } }, /latest report rejected: gates not run: test/],
     ["report-failed-gate", { gates: { lint: "failed" } }, /latest report rejected: failed gates: lint/],
@@ -3293,6 +3665,42 @@ const stageTeardownWorktree = (label, { dirty = false, changed = false, squashMe
     chmodSync(hook, 0o755)
   }
   return { primary, child, branch: "feature/orb-124-teardown" }
+}
+
+const stageGeneratedWorktreeExcludes = (fixture) => {
+  const git = (args) =>
+    spawnSync("git", ["-C", fixture.child, ...args], { encoding: "utf8" })
+  if (
+    spawnSync(
+      "git",
+      [
+        "-C",
+        fixture.primary,
+        "config",
+        "extensions.worktreeConfig",
+        "true",
+      ],
+      { encoding: "utf8" },
+    ).status !== 0
+  ) return null
+  const gitDirectory = git(["rev-parse", "--git-dir"])
+  if (gitDirectory.status !== 0) return null
+  const excludePath = join(
+    resolve(fixture.child, gitDirectory.stdout.trim()),
+    "info",
+    "orbit-worker-exclude",
+  )
+  mkdirSync(dirname(excludePath), { recursive: true })
+  writeFileSync(excludePath, "/.claude/settings.local.json\n")
+  if (
+    git([
+      "config",
+      "--worktree",
+      "core.excludesFile",
+      excludePath,
+    ]).status !== 0
+  ) return null
+  return excludePath
 }
 
 const stageWorkerStatusWorktree = () => {
@@ -3523,6 +3931,12 @@ const teardownWorktreeCases = () => {
     T("teardown-worktree.mjs: real git fixture is available", false, "could not create a linked Git worktree")
     return
   }
+  const generatedExcludes = stageGeneratedWorktreeExcludes(allGood)
+  T(
+    "teardown-worktree.mjs: generated worktree excludes fixture is available",
+    Boolean(generatedExcludes && existsSync(generatedExcludes)),
+    generatedExcludes ?? "could not configure a worktree-scoped excludes file",
+  )
   const primaryRefusal = stageTeardownWorktree("primary-refusal")
   const primaryRecord = { ...teardownWorktreeRecord(primaryRefusal), path: primaryRefusal.primary, isMainWorktree: true }
   check(
@@ -3558,6 +3972,11 @@ const teardownWorktreeCases = () => {
     },
   )
   T("teardown-worktree.mjs: verified removal actually deleted the fixture", !existsSync(allGood.child), unavailable.stderr)
+  T(
+    "teardown-worktree.mjs: teardown removes the generated worktree excludes",
+    Boolean(generatedExcludes) && !existsSync(generatedExcludes),
+    generatedExcludes ?? "the generated excludes fixture was unavailable",
+  )
 
   const missingTerminalPath = stageTeardownWorktree("missing-terminal-path")
   check(

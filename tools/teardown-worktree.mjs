@@ -6,8 +6,8 @@
  */
 
 import { execFileSync, spawnSync } from "node:child_process"
-import { existsSync } from "node:fs"
-import { resolve } from "node:path"
+import { existsSync, unlinkSync } from "node:fs"
+import { isAbsolute, join, resolve } from "node:path"
 
 import { isRepainting } from "./lib/tui-repaint.mjs"
 
@@ -91,6 +91,11 @@ const selector = `path:${path}`
 const issue = worktree.linkedLinearIssue
 const branch = (worktree.branch ?? git(path, ["rev-parse", "--abbrev-ref", "HEAD"])).replace(/^refs\/heads\//, "")
 const base = requestedBase ?? worktree.baseRef ?? "main"
+const reportedGitDirectory = git(path, ["rev-parse", "--git-dir"])
+const worktreeGitDirectory = isAbsolute(reportedGitDirectory)
+  ? reportedGitDirectory
+  : resolve(path, reportedGitDirectory)
+const generatedExcludesPath = join(worktreeGitDirectory, "info", "orbit-worker-exclude")
 const dirty = git(path, ["status", "--short"]).split("\n").filter(Boolean)
 const terminals = (orca(["terminal", "list"]).terminals ?? []).filter((terminal) => normalize(terminal.worktreePath) === normalize(path))
 const busy = terminals.filter((terminal) => isRepainting(orca, terminal.handle))
@@ -134,6 +139,12 @@ const gitWorktrees = gitCommon(["worktree", "list", "--porcelain"])
 const stillListed = gitWorktrees.split("\n").some((line) => line === `worktree ${path}` || normalize(line.replace(/^worktree /, "")) === normalize(path))
 const pathGone = !existsSync(path)
 if (!pathGone || stillListed) fail(1, `removal verification failed: filesystem=${pathGone ? "gone" : "present"}, git-worktree-list=${stillListed ? "present" : "gone"}`)
+try {
+  if (existsSync(generatedExcludesPath)) unlinkSync(generatedExcludesPath)
+} catch (error) {
+  fail(1, `removed worktree but could not remove its generated excludes at ${generatedExcludesPath}: ${error.message}`)
+}
+if (existsSync(generatedExcludesPath)) fail(1, `removed worktree but its generated excludes remain at ${generatedExcludesPath}`)
 
 const branchExists = gitCommon(["show-ref", "--verify", "--quiet", `refs/heads/${branch}`], { allowFailure: true }) !== null
 if (branchExists) {
