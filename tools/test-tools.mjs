@@ -141,7 +141,31 @@ const BASH = resolveBash()
 const ORCA_SHIM = stage(
   "orca-shim.cjs",
   `const { spawnSync } = require("node:child_process")
+const { EventEmitter } = require("node:events")
 const { appendFileSync, existsSync, readFileSync, rmSync } = require("node:fs")
+if (process.env.ORBIT_LINEAR_PARENT_STUB) {
+  const https = require("node:https")
+  const { syncBuiltinESMExports } = require("node:module")
+  const stub = JSON.parse(process.env.ORBIT_LINEAR_PARENT_STUB)
+  https.request = (_url, options, callback) => {
+    const linearRequest = new EventEmitter()
+    linearRequest.end = () => {
+      process.nextTick(() => {
+        const linearResponse = new EventEmitter()
+        linearResponse.statusCode = stub.status ?? 200
+        callback(linearResponse)
+        linearResponse.emit("data", Buffer.from(JSON.stringify(stub.body)))
+        linearResponse.emit("end")
+      })
+    }
+    linearRequest.destroy = (error) => process.nextTick(() => linearRequest.emit("error", error))
+    if (stub.requireTimeout && options.timeout !== 5000) {
+      process.nextTick(() => linearRequest.emit("error", new Error("missing Linear parent timeout")))
+    }
+    return linearRequest
+  }
+  syncBuiltinESMExports()
+}
 const argv = process.argv.slice(1)
 if (argv[0] && existsSync(argv[0])) return
 const line = argv.join(" ")
@@ -4769,7 +4793,7 @@ Not run.`,
       checkIssue(
         `a non-blocking ${alias} alias cannot bypass the threshold`,
         ledgerIssue(`Ledger occurrence: 2; blocked: ${alias}`),
-        { status: 1, stderr: /2[\s\S]*threshold of 3/i },
+        { status: 1, stderr: /literal no or an affirmative claim naming what it blocked/i },
       )
     }
     checkIssue(
@@ -4780,7 +4804,12 @@ Not run.`,
     checkIssue(
       "a bare blocking claim does not bypass the threshold",
       ledgerIssue("Ledger occurrence: 2; blocked: yes"),
-      { status: 1, stderr: /affirmative blocking claim naming what it blocked/i },
+      { status: 1, stderr: /literal no or an affirmative claim naming what it blocked/i },
+    )
+    checkIssue(
+      "a bare blocking claim is rejected above the occurrence threshold",
+      ledgerIssue("Ledger occurrence: 5; blocked: true"),
+      { status: 1, stderr: /literal no or an affirmative claim naming what it blocked/i },
     )
     for (const claim of [
       "blocked the merge sweep",
@@ -4837,6 +4866,49 @@ Not run.`,
       { status: 0, stdout: /ticket ok/ },
       [],
       { USERPROFILE: noLinearKeyHome },
+    )
+    const linearKeyHome = join(root, "check-ticket-linear-key")
+    mkdirSync(linearKeyHome, { recursive: true })
+    writeFileSync(join(linearKeyHome, ".linear-api-key"), "fixture-key")
+    const partialParentRelation = [{
+      relationship: "parent",
+      relatedIssue: { identifier: "ORB-140" },
+    }]
+    checkIssue(
+      "a partial Orca parent relation uses the bounded Linear fallback",
+      {
+        ...VALID_ISSUE,
+        id: "linear-partial-parent",
+        description: `${VALID_TICKET_BODY}\n\nLedger occurrence: 3; blocked: no`,
+      },
+      { status: 0, stdout: /ticket ok/ },
+      partialParentRelation,
+      {
+        USERPROFILE: linearKeyHome,
+        ORBIT_LINEAR_PARENT_STUB: JSON.stringify({
+          requireTimeout: true,
+          body: {
+            data: {
+              issue: {
+                parent: { identifier: "ORB-140", title: "Harness defect ledger from the recorded run" },
+              },
+            },
+          },
+        }),
+      },
+    )
+    checkIssue(
+      "a Linear parent GraphQL error exits with a tool error",
+      { ...VALID_ISSUE, id: "linear-parent-error" },
+      { status: 2, stderr: /could not read the Linear parent relation[\s\S]*fixture GraphQL failure/i },
+      partialParentRelation,
+      {
+        USERPROFILE: linearKeyHome,
+        ORBIT_LINEAR_PARENT_STUB: JSON.stringify({
+          status: 200,
+          body: { errors: [{ message: "fixture GraphQL failure" }] },
+        }),
+      },
     )
   },
   "check-push-target.mjs": () => {

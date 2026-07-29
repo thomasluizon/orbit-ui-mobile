@@ -44,6 +44,7 @@ const REPO_LABELS = ["repo:ui", "repo:api", "repo:landing"]
 const LEDGER_OCCURRENCE_THRESHOLD = 3
 const LEDGER_OCCURRENCE_FORMAT = "Ledger occurrence: <count>; blocked: no|<what it blocked>"
 const LEDGER_PARENT_MARKER = /\bHarness defect ledger\b/i
+const LINEAR_PARENT_TIMEOUT_MS = 5_000
 const AFFIRMATIVE_BLOCKING_CLAIM =
   /\b(?:could not|couldn't|cannot|can't|failed to|(?:was|were) unable to)\s+\S+|\b(?:blocked|halted|stopped|prevented)\s+(?:the|a|an)\s+\S+|\b(?:the|a|an)\s+\S+(?:\s+\S+){0,6}\s+(?:was|were)\s+(?:blocked|halted|stopped|prevented)\b/i
 
@@ -152,7 +153,7 @@ const parentFromOrca = (issue, relations) => {
   })
   return parentRelation
     ? parentRelation.relatedIssue ?? parentRelation.issue ?? parentRelation
-    : undefined
+    : null
 }
 
 const isLedgerParent = (parent) => {
@@ -162,9 +163,9 @@ const isLedgerParent = (parent) => {
 const readLinearParent = async (issue) => {
   if (!issue.id) return null
   const keyPath = join(process.env.USERPROFILE || homedir(), ".linear-api-key")
-  if (!existsSync(keyPath)) return null
+  if (!existsSync(keyPath)) throw new Error(`missing ${keyPath}`)
   const apiKey = readFileSync(keyPath, "utf8").trim()
-  if (!apiKey) return null
+  if (!apiKey) throw new Error(`${keyPath} is empty`)
   const requestBody = JSON.stringify({
     query: "query($id: String!) { issue(id: $id) { parent { id identifier title description } } }",
     variables: { id: issue.id },
@@ -178,6 +179,7 @@ const readLinearParent = async (issue) => {
         "Content-Type": "application/json",
         "Content-Length": Buffer.byteLength(requestBody),
       },
+      timeout: LINEAR_PARENT_TIMEOUT_MS,
     }, (linearResponse) => {
       const chunks = []
       linearResponse.on("data", (chunk) => chunks.push(chunk))
@@ -187,6 +189,9 @@ const readLinearParent = async (issue) => {
       }))
     })
     linearRequest.on("error", reject)
+    linearRequest.on("timeout", () => {
+      linearRequest.destroy(new Error(`Linear parent lookup timed out after ${LINEAR_PARENT_TIMEOUT_MS}ms`))
+    })
     linearRequest.end(requestBody)
   })
   const payload = JSON.parse(response.body)
@@ -208,10 +213,15 @@ const validateLedgerOccurrence = (body) => {
     return
   }
   const occurrenceCount = Number(parsedLine[1])
-  if (occurrenceCount >= LEDGER_OCCURRENCE_THRESHOLD) return
   const blockingClaim = parsedLine[2].trim()
+  if (blockingClaim === "no") {
+    if (occurrenceCount < LEDGER_OCCURRENCE_THRESHOLD) {
+      problems.push(`ledger child states ${occurrenceCount} occurrences, below the threshold of ${LEDGER_OCCURRENCE_THRESHOLD}, without an affirmative blocking claim naming what it blocked`)
+    }
+    return
+  }
   if (!AFFIRMATIVE_BLOCKING_CLAIM.test(blockingClaim)) {
-    problems.push(`ledger child states ${occurrenceCount} occurrences, below the threshold of ${LEDGER_OCCURRENCE_THRESHOLD}, without an affirmative blocking claim naming what it blocked`)
+    problems.push(`ledger child blocking value must be literal no or an affirmative claim naming what it blocked`)
   }
 }
 
