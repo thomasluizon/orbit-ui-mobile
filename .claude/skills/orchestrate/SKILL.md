@@ -117,6 +117,11 @@ ticket. Reuse that absolute path for every worker in every wave of this run. The
 launcher call provisions the file. A run gets a fresh path, so records from an earlier
 run can never surface as current worker activity.
 
+Before the first worker launch, record the file's current end and start ONE monitor
+from that offset. Keep this one tail alive across waves. Starting it before any worker
+can append is what guarantees that a fast worker's first completion or escalation
+record is observed.
+
 Per launchable ticket, up to the effective `maxParallelWorktrees`: the configured
 cap for a normal run, or 1 when `--single` is present. `tools/launch-worker.mjs`
 enforces that cap against the target repo's live Orca worktrees before creating a
@@ -296,9 +301,8 @@ at the keyboard is just as stuck as a headless one.
 
 ## 3. Babysit
 
-Start ONE monitor for the run and keep it on the shared reports file. Start its read
-offset at the file's current end, then surface each complete line appended after that
-offset. Keep this one tail alive across waves.
+Use the monitor that was started before the first worker launch and surface each
+complete line appended after its captured offset.
 
 Each line is one worker turn: ticket, head SHA, push state, gates, contract items,
 blocker and whether a human is needed. Treat these records as the normal status path.
