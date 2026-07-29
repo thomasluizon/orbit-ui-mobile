@@ -90,7 +90,7 @@ Grep a doc's `At a glance` header before loading the whole file.
 | `.claude/rules/core.md` | The ~50 lines of judgement that auto-load on EVERY turn. A rule earns a place only if it applies in any turn AND no skill invocation reliably precedes it. Everything in `.claude/rules/` is paid for on every turn of every session, so treat additions here as expensive. |
 | `.claude/playbooks/` | On-demand judgement that no gate can check. Read `context-engineering.md` before authoring agent context or configuring agent tool scoping. |
 | `.claude/manifests/surfaces.json` | Generated visual-surface inventory; owned by `tools/surface-manifest.mjs`. |
-| `tools/README.md` | Tool catalog and six-file lockstep contract. |
+| `tools/README.md` | Tool catalog, collisions, lockstep contract. |
 
 When you change a doc, update its `At a glance` header and this registry in the same edit.
 

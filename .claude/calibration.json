@@ -1,15 +1,15 @@
 {
-  "model": "gpt-5.6-sol",
+  "model": "gpt-5.6-terra",
   "invocation": [
     "-c",
     "windows.sandbox=\"unelevated\"",
     "--dangerously-bypass-approvals-and-sandbox",
     "-c",
-    "model_reasoning_effort=\"high\"",
+    "model_reasoning_effort=\"medium\"",
     "--model",
-    "gpt-5.6-sol"
+    "gpt-5.6-terra"
   ],
-  "date": "2026-07-28",
+  "date": "2026-07-29",
   "entries": [
     {
       "file": ".claude/agents/Explore.md",
@@ -165,13 +165,13 @@
       "file": ".claude/skills/next/SKILL.md",
       "verdict": "kept",
       "reason": "Low effort fits deterministic DAG ranking and one recommendation.",
-      "fingerprint": "sha256:4e330aa8797429b58da46f151a5472ae0e578623778516a0cfccdd64421de7f1"
+      "fingerprint": "sha256:f930a4d98f80833697097be62047470923a98e799996f7a8405f26758119fb03"
     },
     {
       "file": ".claude/skills/orchestrate/SKILL.md",
       "verdict": "kept",
       "reason": "High effort fits merge-gated multi-worker coordination and reconciliation.",
-      "fingerprint": "sha256:afefc0a5713c059305cf28be95abbb1974f60a517b3e1905d36b1b7816cc54e0"
+      "fingerprint": "sha256:b9e28b2d489ae3ad23f3d99c9eb6514993b751786a40d17325ac1ed878b5c66d"
     },
     {
       "file": ".claude/skills/pr-review/SKILL.md",
