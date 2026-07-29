@@ -3907,7 +3907,7 @@ const mergeSweepCases = (file) => {
   })
   const regressedCalls = linearCalls(regressedLog)
   T(
-    `${file}: a regressed issue is reasserted and recorded before merging`,
+    `${file}: a regressed issue is reasserted and recorded after merging`,
     regressed.status === 0 && /LINEAR-STATE-REASSERTED issue=ORB-150 observed=In Progress at=\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ/.test(regressed.stdout) &&
       regressedCalls.filter(([, linear, command]) => linear === "linear" && command === "issue").length === 1 &&
       regressedCalls.some(([, linear, command, action, issue, to, stateName]) => linear === "linear" && command === "status" && action === "set" && issue === "ORB-150" && to === "--to" && stateName === "In Review") &&
@@ -3928,7 +3928,15 @@ const mergeSweepCases = (file) => {
     )
   }
   linearRefusal("a failing Linear lookup", { linearLookupFailure: true }, /LINEAR-STATE-REFUSED issue=ORB-150 reason=lookup-failed/)
-  linearRefusal("a failed Linear reassert", { linearReassertFailure: true, linearState: "In Progress" }, /LINEAR-STATE-REFUSED issue=ORB-150 observed=In Progress reason=reassert-failed/)
+  const reassertFailureLog = join(root, `${file}-failed-Linear-reassert.log`)
+  const reassertFailure = run(file, reviewedArgs, {
+    env: mergeSweepEnv({ head: expectedHead, linearReassertFailure: true, linearState: "In Progress", log: reassertFailureLog, sonar: coverageAware ? "coverage-failure" : "success", state: coverageAware ? "BLOCKED" : "CLEAN" }),
+  })
+  T(
+    `${file}: a failed post-merge Linear reassert reports the failure`,
+    reassertFailure.status === 4 && /POST-MERGE-LINEAR-STATE-REASSERT-FAILED issue=ORB-150 observed=In Progress at=\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ/.test(reassertFailure.stdout),
+    `exit ${reassertFailure.status}\n     stdout: ${reassertFailure.stdout.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(reassertFailureLog))}`,
+  )
   linearRefusal("an unknown Linear state", { linearState: "Done" }, /LINEAR-STATE-REFUSED issue=ORB-150 observed=Done reason=unknown-state/)
 
   const finalReadLog = join(root, `${file}-linear-final-read.log`)
@@ -3992,6 +4000,18 @@ const mergeSweepCases = (file) => {
       mergeRaceMerges.length === 1 &&
       (!coverageAware || mergeRaceMerges[0].includes("--admin")),
     `exit ${mergeRace.status}\n     stdout: ${mergeRace.stdout.trim()}\n     stderr: ${mergeRace.stderr.trim()}\n     calls: ${JSON.stringify(mergeRaceCalls)}`,
+  )
+
+  const regressedMergeRaceLog = join(root, `${file}-regressed-merge-race.log`)
+  const regressedMergeRace = run(file, reviewedArgs, {
+    env: mergeSweepEnv({ changedHead, head: expectedHead, linearState: "In Progress", log: regressedMergeRaceLog, moveAtMerge: true, sonar: coverageAware ? "coverage-failure" : "success", state: coverageAware ? "BLOCKED" : "CLEAN" }),
+  })
+  const regressedMergeRaceCalls = linearCalls(regressedMergeRaceLog)
+  T(
+    `${file}: a refused merge never rewrites a regressed Linear issue`,
+    regressedMergeRace.status === 0 && /SKIP #615 HEAD-MOVED/.test(regressedMergeRace.stdout) &&
+      !regressedMergeRaceCalls.some(([, linear, command, action]) => linear === "linear" && command === "status" && action === "set"),
+    `exit ${regressedMergeRace.status}\n     stdout: ${regressedMergeRace.stdout.trim()}\n     calls: ${JSON.stringify(regressedMergeRaceCalls)}`,
   )
 
   const bareLog = join(root, `${file}-bare.log`)

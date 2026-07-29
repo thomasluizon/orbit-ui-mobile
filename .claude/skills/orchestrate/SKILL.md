@@ -439,7 +439,8 @@ cannot decide for one PR, all against that recorded head:
    The merge decision reads the Linear issue state as its own fresh, last evidence
    input immediately before deciding. Never reuse a state read from preflight,
    verification, or an earlier part of the run. `In Review` passes without a write.
-   A regressed `In Progress` state is re-set to `In Review` and records
+   A regressed `In Progress` state records the decision-time instant, then only after GitHub
+   confirms the merge is re-set to `In Review`, printing
    `LINEAR-STATE-REASSERTED issue=ORB-N observed=In Progress at=<ISO-8601 instant>`.
    A failed lookup, an unknown state, or any state other than `In Review` or
    `In Progress` refuses the decision rather than assuming the evidence passed.

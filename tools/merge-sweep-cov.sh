@@ -52,9 +52,9 @@ exits 4; this detects but cannot prevent the residual response-to-merge race.
 
 --issue must map every swept PR to its Linear identifier (\`<pr-number>=<ORB-N>\`). Immediately
 before merging, the sweep freshly reads that issue: \`In Review\` proceeds unchanged, while
-\`In Progress\` is reasserted to \`In Review\` and prints \`LINEAR-STATE-REASSERTED\` with the observed
-state and UTC instant. A lookup failure, failed reassertion, or unknown state prints
-\`LINEAR-STATE-REFUSED\` and skips the merge.
+\`In Progress\` marks a reassertion with the observed state and UTC instant. Only after GitHub
+confirms the merge does it reassert \`In Review\` and print \`LINEAR-STATE-REASSERTED\`. A lookup
+failure or unknown state prints \`LINEAR-STATE-REFUSED\` and skips the merge.
 
 It refuses to merge while the \`$REVIEW_CHECK_NAME\` check for the CURRENT head SHA is still
 running, and re-reads reviewDecision after that check settles, so a pre-update APPROVED can
@@ -251,6 +251,10 @@ fi
 
 merged_heads=""
 post_merge_review_failures=0
+post_merge_linear_reassert_failures=0
+pending_linear_reassert_issue=""
+pending_linear_reassert_observed=""
+pending_linear_reassert_at=""
 
 gate() { # prints  MS \t REVIEW \t NONSONAR_FAILED \t SONARSTATE \t SHA \t PENDING \t REVIEWCHECK
   gh pr view "$1" --repo "$repo" --json mergeStateStatus,reviewDecision,statusCheckRollup,headRefOid 2>/dev/null | node -e "
@@ -299,7 +303,10 @@ issue_for() { # <pr>; stdout: Linear identifier
 }
 
 ensure_issue_in_review() { # <pr>; the final operation before the merge decision
-  local pr="$1" issue state observed_at
+  local pr="$1" issue state
+  pending_linear_reassert_issue=""
+  pending_linear_reassert_observed=""
+  pending_linear_reassert_at=""
   issue="$(issue_for "$pr")"
   if ! state="$("$ORCA_BIN" linear issue "$issue" --json 2>/dev/null | node -e 'let input="";process.stdin.on("data",chunk=>input+=chunk).on("end",()=>{try{const parsed=JSON.parse(input);const state=parsed?.result?.issue?.state?.name;if(typeof state!=="string"||!state)process.exit(1);process.stdout.write(state)}catch{process.exit(1)}})')"; then
     printf 'LINEAR-STATE-REFUSED issue=%s reason=lookup-failed\n' "$issue"
@@ -308,18 +315,24 @@ ensure_issue_in_review() { # <pr>; the final operation before the merge decision
   case "$state" in
     "In Review") return 0 ;;
     "In Progress")
-      observed_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-      if ! "$ORCA_BIN" linear status set "$issue" --to "In Review" >/dev/null 2>&1; then
-        printf 'LINEAR-STATE-REFUSED issue=%s observed=%s reason=reassert-failed\n' "$issue" "$state"
-        return 1
-      fi
-      printf 'LINEAR-STATE-REASSERTED issue=%s observed=%s at=%s\n' "$issue" "$state" "$observed_at"
+      pending_linear_reassert_issue="$issue"
+      pending_linear_reassert_observed="$state"
+      pending_linear_reassert_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
       ;;
     *)
       printf 'LINEAR-STATE-REFUSED issue=%s observed=%s reason=unknown-state\n' "$issue" "$state"
       return 1
       ;;
   esac
+}
+
+commit_linear_reassertion() {
+  [ -n "$pending_linear_reassert_issue" ] || return 0
+  if ! "$ORCA_BIN" linear status set "$pending_linear_reassert_issue" --to "In Review" >/dev/null 2>&1; then
+    printf 'POST-MERGE-LINEAR-STATE-REASSERT-FAILED issue=%s observed=%s at=%s\n' "$pending_linear_reassert_issue" "$pending_linear_reassert_observed" "$pending_linear_reassert_at"
+    return 1
+  fi
+  printf 'LINEAR-STATE-REASSERTED issue=%s observed=%s at=%s\n' "$pending_linear_reassert_issue" "$pending_linear_reassert_observed" "$pending_linear_reassert_at"
 }
 
 newest_review_item_after() { # <cutoff>; author/timestamp/url TSV on stdin; exit 1 with newest item, 2 if malformed
@@ -461,6 +474,9 @@ squash_merge() { # <pr> <expected-head-sha> <label> [extra gh pr merge flags...]
     echo "MERGED #$pr ($label)"
     # `^` is illegal in a refname, so it cannot collide with a branch name.
     merged_heads="$merged_heads $pr^$branch^$expected"
+    if ! commit_linear_reassertion; then
+      post_merge_linear_reassert_failures=1
+    fi
     if ! review_safety_gate "$pr" post; then
       post_merge_review_failures=1
     fi
@@ -649,7 +665,7 @@ for n in "$@"; do
     sleep 20
   done
   [ -z "$done_pr" ] && echo "SKIP #$n (timeout: $block_reason)"
-  [ "$post_merge_review_failures" -eq 0 ] || break
+  [ "$post_merge_review_failures" -eq 0 ] && [ "$post_merge_linear_reassert_failures" -eq 0 ] || break
 done
 
 # A head branch that merely survived --delete-branch is benign; only a tip that MOVED past the SHA
@@ -683,6 +699,6 @@ for entry in $merged_heads; do
 done
 
 echo "COV-SWEEP-DONE"
-[ "$post_merge_review_failures" -eq 0 ] || exit 4
+[ "$post_merge_review_failures" -eq 0 ] && [ "$post_merge_linear_reassert_failures" -eq 0 ] || exit 4
 [ "$orphans" -eq 0 ] || exit 1
 [ "$unverified" -eq 0 ] || exit 3
