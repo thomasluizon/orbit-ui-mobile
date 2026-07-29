@@ -232,8 +232,8 @@ if (argv[0] === "api" && argv[1] === "graphql" && line.includes("reviewThreads(f
   process.exit(0)
 }
 if (argv[0] === "pr" && argv[1] === "view") {
-  if (line.includes("--json headRefOid,baseRefOid")) {
-    process.stdout.write(currentHead() + "\\t" + process.env.ORBIT_MERGE_SWEEP_BASE_TIP)
+  if (line.includes("--json headRefOid,baseRefName,headRefName")) {
+    process.stdout.write(currentHead() + "\\t" + process.env.ORBIT_MERGE_SWEEP_BASE_REF + "\\t" + process.env.ORBIT_MERGE_SWEEP_BRANCH)
   } else if (line.includes("--json headRefOid")) {
     const moved = process.env.ORBIT_MERGE_SWEEP_MOVE_MARKER && existsSync(process.env.ORBIT_MERGE_SWEEP_MOVE_MARKER)
     process.stdout.write(moved ? process.env.ORBIT_MERGE_SWEEP_CHANGED_HEAD : currentHead())
@@ -286,8 +286,30 @@ if (line.includes("/issues/") && line.includes("/comments")) {
   process.stdout.write(withUrls(items, "conversation"))
   process.exit(0)
 }
-if (line.includes("/commits/") && !line.includes("/check-runs") && process.env.ORBIT_MERGE_SWEEP_UPDATE_PARENTS) {
-  process.stdout.write(process.env.ORBIT_MERGE_SWEEP_UPDATE_PARENTS)
+if (line.includes("/git/ref/heads/")) {
+  if (process.env.ORBIT_MERGE_SWEEP_BASE_REF_LOOKUP_FAILURE) process.exit(7)
+  process.stdout.write(process.env.ORBIT_MERGE_SWEEP_BASE_TIP)
+  process.exit(0)
+}
+if (line.includes("/compare/")) {
+  if (process.env.ORBIT_MERGE_SWEEP_COMPARE_LOOKUP_FAILURE) process.exit(7)
+  const ancestor = process.env.ORBIT_MERGE_SWEEP_BASE_ANCESTOR
+  const baseTip = process.env.ORBIT_MERGE_SWEEP_BASE_TIP
+  process.stdout.write(ancestor && line.includes("/compare/" + ancestor + "..." + baseTip) ? "ahead" : "diverged")
+  process.exit(0)
+}
+if (line.includes("/git/commits/")) {
+  if (process.env.ORBIT_MERGE_SWEEP_COMMITS_LOOKUP_FAILURE) process.exit(7)
+  if (process.env.ORBIT_MERGE_SWEEP_COMMITS_LOOKUP_EMPTY) process.exit(0)
+  const authentic = process.env.ORBIT_MERGE_SWEEP_AUTHENTIC_UPDATE === "1"
+  process.stdout.write([
+    authentic ? "GitHub" : "Collaborator",
+    authentic ? "noreply@github.com" : "collaborator@example.test",
+    authentic ? "true" : "false",
+    authentic ? "valid" : "unsigned",
+    "Merge branch '" + process.env.ORBIT_MERGE_SWEEP_BASE_REF + "' into " + process.env.ORBIT_MERGE_SWEEP_BRANCH,
+    process.env.ORBIT_MERGE_SWEEP_UPDATE_PARENTS.replaceAll("\\n", " "),
+  ].join("\\t"))
   process.exit(0)
 }
 if (line.includes("/check-runs")) {
@@ -303,10 +325,17 @@ chmodSync(MERGE_SWEEP_GH, 0o755)
 const MERGE_SWEEP_BASH_ENV = stage("merge-sweep-bin/bash-env", "sleep() { :; }\n")
 
 const mergeSweepEnv = ({
+  authenticUpdate = true,
+  baseAncestor = "",
+  baseRef = "main",
+  baseRefLookupFailure = false,
   changedHead = "",
   commentTimes = "issue-commenter\t2026-07-27T22:00:00Z",
   commentsLookupFailure = false,
   baseTip = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  commitsLookupEmpty = false,
+  commitsLookupFailure = false,
+  compareLookupFailure = false,
   failNewHead = false,
   head,
   inlineItems = "inline-reviewer\t2026-07-27T22:00:00Z\ninline-reviewer\t2026-07-27T22:00:00Z",
@@ -331,11 +360,18 @@ const mergeSweepEnv = ({
 }) => ({
   BASH_ENV: MERGE_SWEEP_BASH_ENV,
   PATH: `${MERGE_SWEEP_GH_DIR}${delimiter}${process.env.PATH}`,
+  ORBIT_MERGE_SWEEP_AUTHENTIC_UPDATE: authenticUpdate ? "1" : "",
   ORBIT_MERGE_SWEEP_BRANCH: "feature/orb-106",
+  ORBIT_MERGE_SWEEP_BASE_ANCESTOR: baseAncestor,
+  ORBIT_MERGE_SWEEP_BASE_REF: baseRef,
+  ORBIT_MERGE_SWEEP_BASE_REF_LOOKUP_FAILURE: baseRefLookupFailure ? "1" : "",
   ORBIT_MERGE_SWEEP_BASE_TIP: baseTip,
   ORBIT_MERGE_SWEEP_CHANGED_HEAD: changedHead,
+  ORBIT_MERGE_SWEEP_COMMITS_LOOKUP_EMPTY: commitsLookupEmpty ? "1" : "",
+  ORBIT_MERGE_SWEEP_COMMITS_LOOKUP_FAILURE: commitsLookupFailure ? "1" : "",
   ORBIT_MERGE_SWEEP_COMMENTS_LOOKUP_FAILURE: commentsLookupFailure ? "1" : "",
   ORBIT_MERGE_SWEEP_COMMENT_TIMES: commentTimes,
+  ORBIT_MERGE_SWEEP_COMPARE_LOOKUP_FAILURE: compareLookupFailure ? "1" : "",
   ORBIT_MERGE_SWEEP_HEAD: head,
   ORBIT_MERGE_SWEEP_FAIL_NEW_HEAD: failNewHead ? "1" : "",
   ORBIT_MERGE_SWEEP_INLINE_ITEMS: inlineItems,
@@ -3738,6 +3774,17 @@ const mergeSweepCliFlagCases = () => {
       `unsupported gh api invocation:\n     ${unsupported.join("\n     ")}`,
     )
   }
+  const adoptionHelpers = scanned.map(({ filename, source }) => ({
+    filename,
+    helper: source.match(/^adopt_routine_update\(\).*?^}\r?$/ms)?.[0] ?? "",
+  }))
+  T(
+    "merge sweep routine-update helpers stay in lockstep",
+    adoptionHelpers.length === filenames.length &&
+      adoptionHelpers.every(({ helper }) => helper.length > 0) &&
+      adoptionHelpers.every(({ helper }) => helper === adoptionHelpers[0].helper),
+    adoptionHelpers.map(({ filename, helper }) => `${filename}: ${helper.length} bytes`).join("\n     "),
+  )
 }
 
 const mergeSweepCases = (file) => {
@@ -3836,6 +3883,7 @@ const mergeSweepCases = (file) => {
 
   const updatedHead = "3333333333333333333333333333333333333333"
   const baseTip = "4444444444444444444444444444444444444444"
+  const baseAncestor = "5555555555555555555555555555555555555555"
   const routineParents = `${expectedHead}\n${baseTip}`
   const updateCase = (label, envOptions, expect) => {
     const log = join(root, `${file}-${label}.log`)
@@ -3861,23 +3909,140 @@ const mergeSweepCases = (file) => {
   }
 
   updateCase(
-    "a routine update adopts and rechecks the new head before merging",
+    "a routine update whose second parent equals the fresh base tip adopts",
     {},
     (result, calls, merges) =>
       result.status === 0 &&
       /MERGED #615/.test(result.stdout) &&
       calls.some(([group, command]) => group === "pr" && command === "update-branch") &&
-      calls.some((argv) => argv.includes("headRefOid,baseRefOid")) &&
+      calls.some((argv) => argv.includes("headRefOid,baseRefName,headRefName")) &&
+      !calls.some((argv) => argv.includes("headRefOid,baseRefOid")) &&
+      calls.some((argv) => argv.some((value) => value.includes("/git/ref/heads/main"))) &&
+      calls.findIndex(([group, command]) => group === "pr" && command === "update-branch") <
+        calls.findIndex((argv) => argv.some((value) => value.includes("/git/ref/heads/main"))) &&
       calls.some((argv) => argv.some((value) => value.includes(`/commits/${updatedHead}`))) &&
+      !calls.some((argv) => argv.some((value) => value.includes("/compare/"))) &&
       merges.length === 1 &&
       merges[0][merges[0].indexOf("--match-head-commit") + 1] === updatedHead,
   )
   updateCase(
-    "an adversarial update without the expected parents is rejected",
-    { updateParents: `${baseTip}\n5555555555555555555555555555555555555555` },
+    "a sibling race adopts when the update parent is an ancestor of the fresh base tip",
+    { baseAncestor, updateParents: `${expectedHead}\n${baseAncestor}` },
+    (result, calls, merges) =>
+      result.status === 0 &&
+      /MERGED #615/.test(result.stdout) &&
+      calls.some((argv) => argv.some((value) => value.includes(`/compare/${baseAncestor}...${baseTip}`))) &&
+      merges.length === 1 &&
+      merges[0][merges[0].indexOf("--match-head-commit") + 1] === updatedHead,
+  )
+  updateCase(
+    "a pushed commit with only the prior head as its parent is refused",
+    { authenticUpdate: false, updateParents: expectedHead },
     (result, _calls, merges) =>
       result.status === 0 && result.stdout.includes(`SKIP #615 HEAD-MOVED expected=${expectedHead} actual=${updatedHead}`) && merges.length === 0,
   )
+  updateCase(
+    "an externally pushed merge with routine parents is refused",
+    { authenticUpdate: false },
+    (result, calls, merges) =>
+      result.status === 0 &&
+      result.stdout.includes(`SKIP #615 HEAD-MOVED expected=${expectedHead} actual=${updatedHead}`) &&
+      calls.some((argv) => argv.some((value) => value.includes(`/git/commits/${updatedHead}`))) &&
+      !calls.some((argv) => argv.some((value) => value.includes("/compare/"))) &&
+      merges.length === 0,
+  )
+  updateCase(
+    "a rewritten head without the prior expected commit is refused",
+    { updateParents: `${baseTip}\n6666666666666666666666666666666666666666` },
+    (result, _calls, merges) =>
+      result.status === 0 && result.stdout.includes(`SKIP #615 HEAD-MOVED expected=${expectedHead} actual=${updatedHead}`) && merges.length === 0,
+  )
+  updateCase(
+    "a failing fresh base ref lookup refuses adoption",
+    { baseRefLookupFailure: true },
+    (result, calls, merges) =>
+      result.status === 0 &&
+      result.stdout.includes(`SKIP #615 HEAD-MOVED expected=${expectedHead} actual=${updatedHead}`) &&
+      calls.some((argv) => argv.some((value) => value.includes("/git/ref/heads/main"))) &&
+      !calls.some((argv) => argv.some((value) => value.includes(`/commits/${updatedHead}`))) &&
+      merges.length === 0,
+  )
+  updateCase(
+    "an empty fresh base ref lookup refuses adoption",
+    { baseTip: "" },
+    (result, calls, merges) =>
+      result.status === 0 &&
+      result.stdout.includes(`SKIP #615 HEAD-MOVED expected=${expectedHead} actual=${updatedHead}`) &&
+      calls.some((argv) => argv.some((value) => value.includes("/git/ref/heads/main"))) &&
+      !calls.some((argv) => argv.some((value) => value.includes(`/commits/${updatedHead}`))) &&
+      merges.length === 0,
+  )
+  updateCase(
+    "an empty commits lookup refuses adoption",
+    { commitsLookupEmpty: true },
+    (result, calls, merges) =>
+      result.status === 0 &&
+      result.stdout.includes(`SKIP #615 HEAD-MOVED expected=${expectedHead} actual=${updatedHead}`) &&
+      calls.some((argv) => argv.some((value) => value.includes(`/commits/${updatedHead}`))) &&
+      merges.length === 0,
+  )
+  updateCase(
+    "a failing commits lookup refuses adoption",
+    { commitsLookupFailure: true },
+    (result, calls, merges) =>
+      result.status === 0 &&
+      result.stdout.includes(`SKIP #615 HEAD-MOVED expected=${expectedHead} actual=${updatedHead}`) &&
+      calls.some((argv) => argv.some((value) => value.includes(`/commits/${updatedHead}`))) &&
+      merges.length === 0,
+  )
+  updateCase(
+    "a failing ancestry lookup refuses adoption",
+    { baseAncestor, compareLookupFailure: true, updateParents: `${expectedHead}\n${baseAncestor}` },
+    (result, calls, merges) =>
+      result.status === 0 &&
+      result.stdout.includes(`SKIP #615 HEAD-MOVED expected=${expectedHead} actual=${updatedHead}`) &&
+      calls.some((argv) => argv.some((value) => value.includes(`/compare/${baseAncestor}...${baseTip}`))) &&
+      merges.length === 0,
+  )
+  const divergentBaseParent = "6666666666666666666666666666666666666666"
+  updateCase(
+    "a divergent ancestry result refuses adoption",
+    { updateParents: `${expectedHead}\n${divergentBaseParent}` },
+    (result, calls, merges) =>
+      result.status === 0 &&
+      result.stdout.includes(`SKIP #615 HEAD-MOVED expected=${expectedHead} actual=${updatedHead}`) &&
+      calls.some((argv) => argv.some((value) => value.includes(`/compare/${divergentBaseParent}...${baseTip}`))) &&
+      merges.length === 0,
+  )
+
+  const recordedPr641Updates = [
+    {
+      actual: "2f61618d4363acad223162bf29d1664d62952852",
+      base: "9556f1b5ecf4bc6212c8d4e9b58fc5147a503fef",
+      expected: "a76e984548a6824f328998d194094d14710b93cf",
+    },
+    {
+      actual: "1e1e0e8029ca0089d52f8f6e5faf909367bc3c5d",
+      base: "c737f8e8f506f35371e4a5e6586d7f5054231e88",
+      expected: "2f61618d4363acad223162bf29d1664d62952852",
+    },
+  ]
+  for (const [index, fixture] of recordedPr641Updates.entries()) {
+    updateCase(
+      `recorded #641 update ${index + 1} adopts`,
+      {
+        baseTip: fixture.base,
+        head: fixture.expected,
+        updatedHead: fixture.actual,
+        updateParents: `${fixture.expected}\n${fixture.base}`,
+      },
+      (result, _calls, merges) =>
+        result.status === 0 &&
+        /MERGED #615/.test(result.stdout) &&
+        merges.length === 1 &&
+        merges[0][merges[0].indexOf("--match-head-commit") + 1] === fixture.actual,
+    )
+  }
   updateCase(
     "a failing check on the adopted head skips without merging",
     { failNewHead: true },
