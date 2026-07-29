@@ -9,6 +9,7 @@ import { execFileSync, spawnSync } from "node:child_process"
 import { existsSync, unlinkSync } from "node:fs"
 import { isAbsolute, join, resolve } from "node:path"
 
+import { deregisterCodexWorker } from "./lib/codex-worker-dispatcher.mjs"
 import { isRepainting } from "./lib/tui-repaint.mjs"
 
 const USAGE = `usage: teardown-worktree.mjs (--issue ORB-N | --worktree <path>) [--base <ref>]
@@ -139,12 +140,23 @@ const gitWorktrees = gitCommon(["worktree", "list", "--porcelain"])
 const stillListed = gitWorktrees.split("\n").some((line) => line === `worktree ${path}` || normalize(line.replace(/^worktree /, "")) === normalize(path))
 const pathGone = !existsSync(path)
 if (!pathGone || stillListed) fail(1, `removal verification failed: filesystem=${pathGone ? "gone" : "present"}, git-worktree-list=${stillListed ? "present" : "gone"}`)
+const cleanupFailures = []
 try {
   if (existsSync(generatedExcludesPath)) unlinkSync(generatedExcludesPath)
 } catch (error) {
-  fail(1, `removed worktree but could not remove its generated excludes at ${generatedExcludesPath}: ${error.message}`)
+  cleanupFailures.push(`could not remove generated excludes at ${generatedExcludesPath}: ${error.message}`)
 }
-if (existsSync(generatedExcludesPath)) fail(1, `removed worktree but its generated excludes remain at ${generatedExcludesPath}`)
+if (existsSync(generatedExcludesPath)) {
+  cleanupFailures.push(`generated excludes remain at ${generatedExcludesPath}`)
+}
+try {
+  deregisterCodexWorker({ commonGitDirectory: commonDir, worktreePath: path })
+} catch (error) {
+  cleanupFailures.push(`could not deregister its Codex worker hook: ${error.message}`)
+}
+if (cleanupFailures.length > 0) {
+  fail(1, `removed worktree but cleanup failed: ${cleanupFailures.join("; ")}`)
+}
 
 const branchExists = gitCommon(["show-ref", "--verify", "--quiet", `refs/heads/${branch}`], { allowFailure: true }) !== null
 if (branchExists) {

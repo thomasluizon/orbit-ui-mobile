@@ -35,6 +35,10 @@ import { homedir } from "node:os"
 import { basename, dirname, isAbsolute, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
+import {
+  deregisterCodexWorker,
+  registerCodexWorker,
+} from "./lib/codex-worker-dispatcher.mjs"
 import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
 import { SETTLE_MS, isRepainting, pause } from "./lib/tui-repaint.mjs"
 
@@ -271,7 +275,13 @@ const fail = (code, message) => {
   releaseConcurrencyReservation()
   let cleanupConfirmed = rollback === null
   if (rollback) {
-    const { selector, contractBranch, orcaBranch, repoPath: rollbackRepo } = rollback
+    const {
+      codexRegistration,
+      selector,
+      contractBranch,
+      orcaBranch,
+      repoPath: rollbackRepo,
+    } = rollback
     rollback = null
     console.error(`rolling back ${selector} so a relaunch starts clean`)
     /**
@@ -299,6 +309,14 @@ const fail = (code, message) => {
       if (stillThere.status !== 0) continue
       const dropped = spawnSync("git", ["-C", rollbackRepo, "branch", "-D", branchToDrop], { encoding: "utf8" })
       if (dropped.status !== 0) console.error(`left the branch ${branchToDrop} behind: ${(dropped.stderr || "").trim().slice(0, 200)}`)
+    }
+    if (codexRegistration) {
+      try {
+        deregisterCodexWorker(codexRegistration)
+      } catch (error) {
+        cleanupConfirmed = false
+        console.error(`could not roll back the Codex worker dispatcher: ${error.message}`)
+      }
     }
   }
   if (budgetReservation && !reservationMaySpend && cleanupConfirmed && cancelBudgetReservation) {
@@ -905,6 +923,7 @@ rollback = {
   repoPath,
   orcaBranch: (created.worktree?.branch ?? "").replace(/^refs\/heads\//, "") || null,
   contractBranch: null,
+  codexRegistration: null,
 }
 
 if (isInside(promptFile, worktreePath)) {
@@ -923,7 +942,6 @@ if (actualBranch !== branch) fail(3, `expected the worktree on ${branch}, found 
 const hookRelativePath = ".claude/hooks/report-worker-turn.mjs"
 const generatedWorktreePaths = [
   "/.claude/settings.local.json",
-  "/.codex/hooks.json",
 ]
 if (!gitTracksPath(worktreePath, hookRelativePath)) {
   generatedWorktreePaths.push(`/${hookRelativePath}`)
@@ -949,16 +967,15 @@ try {
 }
 
 const hookSource = new URL("../.claude/hooks/report-worker-turn.mjs", import.meta.url)
+const codexDispatcherSource = fileURLToPath(
+  new URL("./lib/dispatch-worker-report.mjs", import.meta.url),
+)
 const hookDirectory = join(worktreePath, ".claude", "hooks")
 const hookTarget = join(worktreePath, hookRelativePath)
 const localSettingsPath = join(worktreePath, ".claude", "settings.local.json")
-const codexHooksDirectory = join(worktreePath, ".codex")
-const codexHooksPath = join(codexHooksDirectory, "hooks.json")
 const claudeReportCommand = `node "$CLAUDE_PROJECT_DIR/.claude/hooks/report-worker-turn.mjs" --reports-file "${reportsFile}" --ticket ${issue}`
-const codexReportCommand = `node "${hookTarget}" --reports-file "${reportsFile}" --ticket ${issue}`
 try {
   mkdirSync(hookDirectory, { recursive: true })
-  mkdirSync(codexHooksDirectory, { recursive: true })
   copyFileSync(hookSource, hookTarget)
   const localSettings = existsSync(localSettingsPath)
     ? JSON.parse(readFileSync(localSettingsPath, "utf8"))
@@ -967,13 +984,25 @@ try {
   const stopHooks = Array.isArray(hooks.Stop) ? hooks.Stop : []
   stopHooks.push({ hooks: [{ type: "command", command: claudeReportCommand }] })
   writeFileSync(localSettingsPath, `${JSON.stringify({ ...localSettings, hooks: { ...hooks, Stop: stopHooks } }, null, 2)}\n`, "utf8")
-  const codexHooks = existsSync(codexHooksPath)
-    ? JSON.parse(readFileSync(codexHooksPath, "utf8"))
-    : {}
-  const codexEvents = codexHooks.hooks ?? {}
-  const codexStopHooks = Array.isArray(codexEvents.Stop) ? codexEvents.Stop : []
-  codexStopHooks.push({ hooks: [{ type: "command", command: codexReportCommand }] })
-  writeFileSync(codexHooksPath, `${JSON.stringify({ ...codexHooks, hooks: { ...codexEvents, Stop: codexStopHooks } }, null, 2)}\n`, "utf8")
+  const reportedCommonGitDirectory = git([
+    "-C",
+    worktreePath,
+    "rev-parse",
+    "--git-common-dir",
+  ])
+  const commonGitDirectory = isAbsolute(reportedCommonGitDirectory)
+    ? reportedCommonGitDirectory
+    : resolve(worktreePath, reportedCommonGitDirectory)
+  registerCodexWorker({
+    commonGitDirectory,
+    hookPath: hookTarget,
+    primaryRoot: repoPath,
+    reportsFile,
+    runtimeSource: codexDispatcherSource,
+    ticket: issue,
+    worktreePath,
+  })
+  rollback.codexRegistration = { commonGitDirectory, worktreePath }
 } catch (error) {
   fail(3, `worktree Stop hook could not be installed: ${error.message}`)
 }

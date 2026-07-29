@@ -30,6 +30,12 @@ import { tmpdir } from "node:os"
 import { delimiter, dirname, isAbsolute, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
+import {
+  deregisterCodexWorker,
+  dispatcherPaths,
+  registerCodexWorker,
+} from "./lib/codex-worker-dispatcher.mjs"
+
 const USAGE = `usage: test-tools.mjs
 
   Executes every script in tools/ and asserts its CLI contract and decision paths.
@@ -1120,23 +1126,85 @@ const pointerDeliveryCases = () => {
   )
   const installedHook = join(first.checkout, ".claude", "hooks", "report-worker-turn.mjs")
   const claudeSettings = JSON.parse(readFileSync(join(first.checkout, ".claude", "settings.local.json"), "utf8"))
-  const codexHooks = JSON.parse(readFileSync(join(first.checkout, ".codex", "hooks.json"), "utf8"))
-  const reportCommands = [
-    claudeSettings.hooks.Stop[0].hooks[0].command,
-    codexHooks.hooks.Stop[0].hooks[0].command,
-  ]
+  const localCodexHooksPath = join(first.checkout, ".codex", "hooks.json")
+  const primaryCodexHooksPath = join(first.staged.repoPath, ".codex", "hooks.json")
+  const primaryCodexHooks = JSON.parse(readFileSync(primaryCodexHooksPath, "utf8"))
+  const commonGitDirectory = resolve(
+    first.checkout,
+    spawnSync(
+      "git",
+      ["-C", first.checkout, "rev-parse", "--git-common-dir"],
+      { encoding: "utf8" },
+    ).stdout.trim(),
+  )
+  const primaryDispatcher = dispatcherPaths(commonGitDirectory)
+  const reportCommand = claudeSettings.hooks.Stop[0].hooks[0].command
   T("launch-worker.mjs: a real launch copies the report hook into the worktree", existsSync(installedHook), true)
-  T("launch-worker.mjs: Claude and Codex each receive one worktree-local Stop hook", reportCommands.length, 2)
   T(
-    "launch-worker.mjs: both Stop hooks carry the shared reports path and ticket",
-    reportCommands.every((command) => command.includes(join(root, "reports.jsonl")) && command.includes("--ticket ORB-75")),
-    true,
+    "launch-worker.mjs: Claude receives the worktree-local Stop hook",
+    reportCommand.includes(join(root, "reports.jsonl")) &&
+      reportCommand.includes("--ticket ORB-75"),
+    reportCommand,
+  )
+  T(
+    "launch-worker.mjs: Codex receives no worktree-local direct hook that could duplicate the dispatcher",
+    !existsSync(localCodexHooksPath),
+    localCodexHooksPath,
+  )
+  T(
+    "launch-worker.mjs: the primary Codex project receives one stable dispatcher hook",
+    primaryCodexHooks.hooks.Stop.length === 1 &&
+      primaryCodexHooks.hooks.Stop[0].hooks[0].command ===
+        `node "${primaryDispatcher.runtime}"` &&
+      existsSync(primaryDispatcher.runtime) &&
+      existsSync(primaryDispatcher.state),
+    JSON.stringify(primaryCodexHooks),
+  )
+  const dispatcherInput = JSON.stringify({
+    cwd: first.checkout,
+    last_assistant_message:
+      'WORKER_REPORT: {"gates":{"lint":"passed","type-check":"passed","test":"passed"},"contractItems":["dispatcher route"],"blockedOn":null,"needsHuman":false}',
+  })
+  const dispatched = spawnSync(process.execPath, [primaryDispatcher.runtime], {
+    encoding: "utf8",
+    input: dispatcherInput,
+  })
+  const dispatchedReports = existsSync(join(root, "reports.jsonl"))
+    ? readFileSync(join(root, "reports.jsonl"), "utf8")
+        .trim()
+        .split(/\r?\n/)
+        .filter(Boolean)
+        .map((line) => JSON.parse(line))
+    : []
+  T(
+    "launch-worker.mjs: the primary dispatcher routes a Stop payload by its worktree cwd",
+    dispatched.status === 0 &&
+      dispatchedReports.some(
+        (record) =>
+          record.ticket === "ORB-75" &&
+          record.contractItems.includes("dispatcher route"),
+      ),
+    `exit ${dispatched.status}, stderr: ${dispatched.stderr}, reports: ${JSON.stringify(dispatchedReports)}`,
+  )
+  const reportsBeforeUnregisteredDispatch = readFileSync(join(root, "reports.jsonl"), "utf8")
+  const unregisteredDispatch = spawnSync(process.execPath, [primaryDispatcher.runtime], {
+    encoding: "utf8",
+    input: JSON.stringify({
+      cwd: join(first.staged.base, "unrelated-codex-session"),
+      last_assistant_message:
+        'WORKER_REPORT: {"gates":{"lint":"passed","type-check":"passed","test":"passed"},"contractItems":["must not dispatch"],"blockedOn":null,"needsHuman":false}',
+    }),
+  })
+  T(
+    "launch-worker.mjs: an unrelated Codex cwd passes through the generic dispatcher without a report",
+    unregisteredDispatch.status === 0 &&
+      readFileSync(join(root, "reports.jsonl"), "utf8") === reportsBeforeUnregisteredDispatch,
+    `exit ${unregisteredDispatch.status}, stderr: ${unregisteredDispatch.stderr}`,
   )
   const trackedHook = spawnSync("git", ["-C", first.checkout, "ls-files", "--error-unmatch", installedHook])
   T("launch-worker.mjs: the report hook remains a tracked worktree file", trackedHook.status === 0, `git ls-files exited ${trackedHook.status}`)
   for (const generatedPath of [
     join(first.checkout, ".claude", "settings.local.json"),
-    join(first.checkout, ".codex", "hooks.json"),
   ]) {
     const ignored = spawnSync("git", ["-C", first.checkout, "check-ignore", "-q", generatedPath])
     T(
@@ -1176,6 +1244,229 @@ const pointerDeliveryCases = () => {
     "launch-worker.mjs: generated paths are ignored only in the linked worktree",
     primaryIgnored.status === 1,
     `primary git check-ignore exited ${primaryIgnored.status}: ${primaryIgnored.stderr}`,
+  )
+  const primaryScopedExclude = spawnSync(
+    "git",
+    [
+      "-C",
+      first.staged.repoPath,
+      "config",
+      "--worktree",
+      "--get",
+      "core.excludesFile",
+    ],
+    { encoding: "utf8" },
+  )
+  const primaryScopedExcludePath = primaryScopedExclude.stdout.trim()
+  const primaryStatus = spawnSync(
+    "git",
+    ["-C", first.staged.repoPath, "status", "--porcelain"],
+    { encoding: "utf8" },
+  )
+  T(
+    "launch-worker.mjs: the primary dispatcher uses a primary-worktree-scoped excludes file",
+    primaryScopedExclude.status === 0 &&
+      isAbsolute(primaryScopedExcludePath) &&
+      existsSync(primaryScopedExcludePath) &&
+      readFileSync(primaryScopedExcludePath, "utf8").includes("/.codex/hooks.json"),
+    `config exit ${primaryScopedExclude.status}, path ${primaryScopedExcludePath}`,
+  )
+  T(
+    "launch-worker.mjs: installing the primary dispatcher leaves the primary checkout clean",
+    primaryStatus.status === 0 && primaryStatus.stdout === "",
+    `status exit ${primaryStatus.status}: ${primaryStatus.stdout}${primaryStatus.stderr}`,
+  )
+
+  const concurrentRoot = join(root, "dispatcher", "concurrent")
+  const concurrentCommonGit = join(concurrentRoot, ".git")
+  const concurrentHooksPath = join(concurrentRoot, ".codex", "hooks.json")
+  const originalPrimaryHooks =
+    '{\r\n  "hooks": {\r\n    "Stop": [\r\n      {\r\n        "hooks": [{ "type": "command", "command": "node existing.mjs" }]\r\n      }\r\n    ]\r\n  },\r\n  "preserved": true\r\n}\r\n'
+  mkdirSync(dirname(concurrentHooksPath), { recursive: true })
+  const concurrentGitSetup = [
+    ["init", "-q", "--initial-branch=main"],
+    ["config", "user.email", "gate@orbit.test"],
+    ["config", "user.name", "Orbit Gate"],
+    ["commit", "-q", "--allow-empty", "-m", "base"],
+    ["config", "extensions.worktreeConfig", "true"],
+  ]
+  for (const args of concurrentGitSetup) {
+    const result = spawnSync("git", ["-C", concurrentRoot, ...args], {
+      encoding: "utf8",
+    })
+    if (result.status !== 0) {
+      throw new Error(`could not stage concurrent dispatcher git fixture: ${result.stderr}`)
+    }
+  }
+  const priorPrimaryExcludes = join(concurrentRoot, "prior-primary-excludes")
+  writeFileSync(priorPrimaryExcludes, "/preserved-runtime-path\n")
+  const priorGeneratedPrimaryExcludes = join(
+    concurrentCommonGit,
+    "info",
+    "orbit-worker-primary-exclude",
+  )
+  mkdirSync(dirname(priorGeneratedPrimaryExcludes), { recursive: true })
+  writeFileSync(priorGeneratedPrimaryExcludes, "/pre-existing-generated-path\n")
+  spawnSync(
+    "git",
+    [
+      "-C",
+      concurrentRoot,
+      "config",
+      "--worktree",
+      "core.excludesFile",
+      priorPrimaryExcludes,
+    ],
+    { encoding: "utf8" },
+  )
+  writeFileSync(concurrentHooksPath, originalPrimaryHooks)
+  const concurrentFirstWorktree = join(concurrentRoot, "worker-one")
+  const concurrentSecondWorktree = join(concurrentRoot, "worker-two")
+  const concurrentHook = join(
+    REPO_ROOT,
+    ".claude",
+    "hooks",
+    "report-worker-turn.mjs",
+  )
+  const concurrentFirstReports = join(concurrentRoot, "first.jsonl")
+  const concurrentSecondReports = join(concurrentRoot, "second.jsonl")
+  const dispatcherSource = join(TOOLS_DIR, "lib", "dispatch-worker-report.mjs")
+  registerCodexWorker({
+    commonGitDirectory: concurrentCommonGit,
+    hookPath: concurrentHook,
+    primaryRoot: concurrentRoot,
+    reportsFile: concurrentFirstReports,
+    runtimeSource: dispatcherSource,
+    ticket: "ORB-75",
+    worktreePath: concurrentFirstWorktree,
+  })
+  registerCodexWorker({
+    commonGitDirectory: concurrentCommonGit,
+    hookPath: concurrentHook,
+    primaryRoot: concurrentRoot,
+    reportsFile: concurrentSecondReports,
+    runtimeSource: dispatcherSource,
+    ticket: "ORB-76",
+    worktreePath: concurrentSecondWorktree,
+  })
+  const concurrentPaths = dispatcherPaths(concurrentCommonGit)
+  const concurrentState = JSON.parse(readFileSync(concurrentPaths.state, "utf8"))
+  const concurrentHooks = JSON.parse(readFileSync(concurrentHooksPath, "utf8"))
+  T(
+    "launch-worker.mjs: simultaneous worktrees retain two routes behind one primary dispatcher",
+    Object.keys(concurrentState.registrations).length === 2 &&
+      concurrentHooks.hooks.Stop.length === 2 &&
+      concurrentHooks.hooks.Stop.filter(
+        (entry) =>
+          entry.hooks?.[0]?.command === `node "${concurrentPaths.runtime}"`,
+      ).length === 1,
+    `state: ${JSON.stringify(concurrentState)}, hooks: ${JSON.stringify(concurrentHooks)}`,
+  )
+  T(
+    "launch-worker.mjs: the generated primary excludes preserve the prior effective contents",
+    readFileSync(concurrentState.primaryExcludes.path, "utf8") ===
+      "/preserved-runtime-path\n/.codex/hooks.json\n",
+    readFileSync(concurrentState.primaryExcludes.path, "utf8"),
+  )
+  const concurrentReportMarker =
+    'WORKER_REPORT: {"gates":{"lint":"passed","type-check":"passed","test":"passed"},"contractItems":["concurrent route"],"blockedOn":null,"needsHuman":false}'
+  const firstConcurrentDispatch = spawnSync(
+    process.execPath,
+    [concurrentPaths.runtime],
+    {
+      encoding: "utf8",
+      input: JSON.stringify({
+        cwd: concurrentFirstWorktree,
+        last_assistant_message: concurrentReportMarker,
+      }),
+    },
+  )
+  const secondConcurrentDispatch = spawnSync(
+    process.execPath,
+    [concurrentPaths.runtime],
+    {
+      encoding: "utf8",
+      input: JSON.stringify({
+        cwd: concurrentSecondWorktree,
+        last_assistant_message: concurrentReportMarker,
+      }),
+    },
+  )
+  T(
+    "launch-worker.mjs: simultaneous Codex Stop payloads reach only their registered report files",
+    firstConcurrentDispatch.status === 0 &&
+      secondConcurrentDispatch.status === 0 &&
+      JSON.parse(readFileSync(concurrentFirstReports, "utf8")).ticket === "ORB-75" &&
+      JSON.parse(readFileSync(concurrentSecondReports, "utf8")).ticket === "ORB-76",
+    `first exit ${firstConcurrentDispatch.status}, second exit ${secondConcurrentDispatch.status}`,
+  )
+  deregisterCodexWorker({
+    commonGitDirectory: concurrentCommonGit,
+    worktreePath: concurrentFirstWorktree,
+  })
+  const hooksWithOneWorker = readFileSync(concurrentHooksPath, "utf8")
+  const parsedHooksWithOneWorker = JSON.parse(hooksWithOneWorker)
+  const stateWithOneWorker = JSON.parse(readFileSync(concurrentPaths.state, "utf8"))
+  T(
+    "launch-worker.mjs: deregistering one worktree preserves the other route and dispatcher",
+    Object.keys(stateWithOneWorker.registrations).length === 1 &&
+      parsedHooksWithOneWorker.hooks.Stop.some((entry) =>
+        entry.hooks?.some(
+          (hook) => hook.command === `node "${concurrentPaths.runtime}"`,
+        ),
+      ) &&
+      existsSync(concurrentPaths.runtime),
+    `state: ${JSON.stringify(stateWithOneWorker)}, hooks: ${hooksWithOneWorker}`,
+  )
+  deregisterCodexWorker({
+    commonGitDirectory: concurrentCommonGit,
+    worktreePath: concurrentSecondWorktree,
+  })
+  T(
+    "launch-worker.mjs: the last deregistration restores primary hooks, config, and excludes file",
+    readFileSync(concurrentHooksPath, "utf8") === originalPrimaryHooks &&
+      spawnSync(
+        "git",
+        [
+          "-C",
+          concurrentRoot,
+          "config",
+          "--worktree",
+          "--get",
+          "core.excludesFile",
+        ],
+        { encoding: "utf8" },
+      ).stdout.trim() === priorPrimaryExcludes &&
+      readFileSync(concurrentState.primaryExcludes.path, "utf8") ===
+        "/pre-existing-generated-path\n" &&
+      !existsSync(concurrentPaths.state) &&
+      !existsSync(concurrentPaths.runtime),
+    readFileSync(concurrentHooksPath, "utf8"),
+  )
+
+  const preservedLocalCodexHooks =
+    '{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"node local-existing.mjs"}]}]},"local":true}\n'
+  const localCodex = runPointerLaunch(
+    "pointer-preserve-local-codex-hooks",
+    ["delivered"],
+    {
+      prepareCheckout: (checkout) => {
+        const path = join(checkout, ".codex", "hooks.json")
+        mkdirSync(dirname(path), { recursive: true })
+        writeFileSync(path, preservedLocalCodexHooks)
+      },
+    },
+  )
+  T(
+    "launch-worker.mjs: an unrelated worktree-local Codex hooks file is preserved byte for byte",
+    localCodex?.result.status === 0 &&
+      readFileSync(
+        join(localCodex.checkout, ".codex", "hooks.json"),
+        "utf8",
+      ) === preservedLocalCodexHooks,
+    localCodex
+      ? `exit ${localCodex.result.status}`
+      : "could not stage a linked git worktree",
   )
 
   const untracked = runPointerLaunch(
@@ -1251,7 +1542,7 @@ const pointerDeliveryCases = () => {
     "stop-hook-install-failure",
     {
       prepareCheckout: (checkout) => {
-        writeFileSync(join(checkout, ".codex"), "blocks the required directory\n")
+        mkdirSync(join(checkout, ".claude", "settings.local.json"))
       },
     },
   )
@@ -1261,6 +1552,46 @@ const pointerDeliveryCases = () => {
       /worktree Stop hook could not be installed/.test(stopHookFailure.result.stderr),
     stopHookFailure
       ? `exit ${stopHookFailure.result.status}\n     ${stopHookFailure.result.stderr}`
+      : "could not stage a linked git worktree",
+  )
+
+  const lateLaunchFailure = runCreatedWorktreeFailure(
+    "dispatcher-late-launch-failure",
+  )
+  const lateCommonGit = lateLaunchFailure
+    ? join(lateLaunchFailure.staged.repoPath, ".git")
+    : ""
+  const lateDispatcher = lateCommonGit
+    ? dispatcherPaths(lateCommonGit)
+    : null
+  T(
+    "launch-worker.mjs: a launch failure after registration removes the dispatcher route",
+    lateLaunchFailure?.result.status === 3 &&
+      !existsSync(join(lateLaunchFailure.staged.repoPath, ".codex", "hooks.json")) &&
+      spawnSync(
+        "git",
+        [
+          "-C",
+          lateLaunchFailure.staged.repoPath,
+          "config",
+          "--worktree",
+          "--get",
+          "core.excludesFile",
+        ],
+        { encoding: "utf8" },
+      ).status === 1 &&
+      !existsSync(
+        join(
+          lateLaunchFailure.staged.repoPath,
+          ".git",
+          "info",
+          "orbit-worker-primary-exclude",
+        ),
+      ) &&
+      !existsSync(lateDispatcher?.state ?? "") &&
+      !existsSync(lateDispatcher?.runtime ?? ""),
+    lateLaunchFailure
+      ? `exit ${lateLaunchFailure.result.status}\n     ${lateLaunchFailure.result.stderr}`
       : "could not stage a linked git worktree",
   )
 
@@ -3932,6 +4263,21 @@ const teardownWorktreeCases = () => {
     return
   }
   const generatedExcludes = stageGeneratedWorktreeExcludes(allGood)
+  const teardownPrimaryHooksPath = join(allGood.primary, ".codex", "hooks.json")
+  const teardownOriginalHooks =
+    '{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"node preserved.mjs"}]}]},"preserved":true}\n'
+  mkdirSync(dirname(teardownPrimaryHooksPath), { recursive: true })
+  writeFileSync(teardownPrimaryHooksPath, teardownOriginalHooks)
+  registerCodexWorker({
+    commonGitDirectory: join(allGood.primary, ".git"),
+    hookPath: join(allGood.child, ".claude", "hooks", "report-worker-turn.mjs"),
+    primaryRoot: allGood.primary,
+    reportsFile: join(root, "teardown", "reports.jsonl"),
+    runtimeSource: join(TOOLS_DIR, "lib", "dispatch-worker-report.mjs"),
+    ticket: "ORB-124",
+    worktreePath: allGood.child,
+  })
+  const teardownDispatcher = dispatcherPaths(join(allGood.primary, ".git"))
   T(
     "teardown-worktree.mjs: generated worktree excludes fixture is available",
     Boolean(generatedExcludes && existsSync(generatedExcludes)),
@@ -3976,6 +4322,15 @@ const teardownWorktreeCases = () => {
     "teardown-worktree.mjs: teardown removes the generated worktree excludes",
     Boolean(generatedExcludes) && !existsSync(generatedExcludes),
     generatedExcludes ?? "the generated excludes fixture was unavailable",
+  )
+  T(
+    "teardown-worktree.mjs: verified removal deregisters Codex and restores primary hooks",
+    readFileSync(teardownPrimaryHooksPath, "utf8") === teardownOriginalHooks &&
+      !existsSync(teardownDispatcher.state) &&
+      !existsSync(teardownDispatcher.runtime),
+    existsSync(teardownPrimaryHooksPath)
+      ? readFileSync(teardownPrimaryHooksPath, "utf8")
+      : "primary hooks were removed",
   )
 
   const missingTerminalPath = stageTeardownWorktree("missing-terminal-path")
