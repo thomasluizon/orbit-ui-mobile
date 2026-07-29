@@ -976,18 +976,23 @@ const pointerDeliveryCases = () => {
       firstPointer.includes(`--ledger "${firstPlan?.automationBudget?.ledgerPath}"`),
     firstPointer,
   )
-  const firstRecord = first.records[0]
+  const [firstRecord, completedRecord] = first.records
   T(
-    "launch-worker.mjs: an invocation reserves a pending token record before worktree mutation",
-    first.records.length === 1 &&
+    "launch-worker.mjs: a delivered pointer closes its pending token record as unknown",
+    first.records.length === 2 &&
       /^ORB-75:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(firstRecord?.identity ?? "") &&
       firstRecord?.engine === "claude" &&
       firstRecord?.tier === "routine" &&
+      firstRecord?.pending === true &&
       !Object.hasOwn(firstRecord ?? {}, "inputTokens") &&
       !Object.hasOwn(firstRecord ?? {}, "outputTokens") &&
       firstRecord?.accountContext?.scope === "account" &&
       firstRecord?.accountContext?.attributed === false &&
-      firstRecord?.accountContext?.usedPercent === 10,
+      firstRecord?.accountContext?.usedPercent === 10 &&
+      completedRecord?.identity === firstRecord?.identity &&
+      !Object.hasOwn(completedRecord ?? {}, "pending") &&
+      !Object.hasOwn(completedRecord ?? {}, "inputTokens") &&
+      !Object.hasOwn(completedRecord ?? {}, "outputTokens"),
     JSON.stringify(first.records),
   )
 
@@ -1752,7 +1757,7 @@ const launchWorkerCases = async () => {
     `exit ${blockedResult.status}\n     ${blockedResult.stderr}\n     ${blockedCalls}`,
   )
 
-  const pendingLedger = stage("launch/budget-pending.jsonl", `${budgetRecord("prior-pending", undefined, undefined, "routine", "codex")}\n`)
+  const pendingLedger = stage("launch/budget-pending.jsonl", `${budgetRecord("prior-pending", undefined, undefined, "routine", "codex", { pending: true })}\n`)
   const pendingLog = join(root, "launch", "budget-pending-calls.jsonl")
   const pendingResult = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile], {
     path: blocked.path,
@@ -1764,9 +1769,9 @@ const launchWorkerCases = async () => {
   })
   const pendingCalls = existsSync(pendingLog) ? readFileSync(pendingLog, "utf8") : ""
   T(
-    "launch-worker.mjs: an absent prior token measurement fails closed before worktree creation",
+    "launch-worker.mjs: a pending prior token measurement fails closed before worktree creation",
     pendingResult.status === 3 &&
-      /lack input or output tokens[\s\S]*prior-pending/.test(pendingResult.stderr) &&
+      /pending reservations lack input or output tokens[\s\S]*prior-pending[\s\S]*automation-budget\.mjs record/.test(pendingResult.stderr) &&
       !pendingCalls.includes("worktree create"),
     `exit ${pendingResult.status}\n     ${pendingResult.stderr}\n     ${pendingCalls}`,
   )
@@ -1871,11 +1876,14 @@ process.stdout.write(JSON.stringify(await Promise.all([first, second])))
       concurrentResult.status === 0 &&
         concurrentOutcomes[0]?.status === 0 &&
         concurrentOutcomes[1]?.status === 3 &&
-        /lack input or output tokens/.test(concurrentOutcomes[1]?.stderr ?? "") &&
+        /pending reservations lack input or output tokens/.test(concurrentOutcomes[1]?.stderr ?? "") &&
         createdWorktree(firstCalls) &&
         !createdWorktree(secondCalls) &&
-        concurrentRecords.length === 1 &&
-        !Object.hasOwn(concurrentRecords[0] ?? {}, "inputTokens"),
+        concurrentRecords.length === 2 &&
+        concurrentRecords[0]?.pending === true &&
+        concurrentRecords[1]?.identity === concurrentRecords[0]?.identity &&
+        !Object.hasOwn(concurrentRecords[1] ?? {}, "pending") &&
+        !Object.hasOwn(concurrentRecords[1] ?? {}, "inputTokens"),
       `exit ${concurrentResult.status}\n     stdout: ${concurrentResult.stdout}\n     stderr: ${concurrentResult.stderr}\n     ledger: ${JSON.stringify(concurrentRecords)}\n     first calls: ${JSON.stringify(firstCalls)}\n     second calls: ${JSON.stringify(secondCalls)}`,
     )
   }
@@ -5020,12 +5028,29 @@ const automationBudgetCases = () => {
     { status: 0, stdout: /"status":"PROCEED"[\s\S]*"projectedTokens":3[\s\S]*"totalTokens":2/ },
   )
 
-  const pendingLedger = stage("budget/pending.jsonl", `${budgetRecord("pending-invocation", undefined, undefined)}\n`)
+  const recordedLedger = stage(
+    "budget/recorded-2026-07-29.jsonl",
+    `${budgetRecord("ORB-157:2026-07-29T05:16:00.000Z:recorded", undefined, undefined, "routine", "claude", {
+      accountContext: {
+        scope: "account",
+        attributed: false,
+        usedPercent: 42,
+        observedAt: "2026-07-29T05:16:00.000Z",
+      },
+    })}\n`,
+  )
   check(
     "automation-budget.mjs",
-    "an absent token measurement fails closed instead of becoming zero",
+    "the recorded completed unmeasured invocation admits the next routine launch",
+    checkArgs("after-recorded-unmeasured", recordedLedger, 100, ["--json"]),
+    { status: 0, stdout: /"status":"PROCEED"[\s\S]*"totalTokens":0[\s\S]*"unknownIdentities":\["ORB-157:2026-07-29T05:16:00.000Z:recorded"\]/ },
+  )
+  const pendingLedger = stage("budget/pending.jsonl", `${budgetRecord("pending-invocation", undefined, undefined, "routine", "claude", { pending: true })}\n`)
+  check(
+    "automation-budget.mjs",
+    "a pending unmeasured reservation fails closed instead of becoming zero and names its clearing command",
     checkArgs("after-pending", pendingLedger),
-    { status: 3, stderr: /after-pending[\s\S]*lack input or output tokens[\s\S]*pending-invocation/ },
+    { status: 3, stderr: /after-pending[\s\S]*pending reservations lack input or output tokens[\s\S]*pending-invocation[\s\S]*automation-budget\.mjs record/ },
   )
   check(
     "automation-budget.mjs",
@@ -5034,13 +5059,13 @@ const automationBudgetCases = () => {
       .map((value) => value === "routine" ? "reserved" : value),
     {
       status: 0,
-      stdout: /"status":"RESERVED"[\s\S]*"missingIdentities":\["pending-invocation"\]/,
+      stdout: /"status":"RESERVED"[\s\S]*"pendingIdentities":\["pending-invocation"\]/,
       stderr: /warning: reserved invocation "reserved-after-pending" proceeds[\s\S]*missing measurements for identities pending-invocation/,
     },
   )
   const correctedLedger = stage(
     "budget/corrected.jsonl",
-    `${budgetRecord("corrected-invocation", undefined, undefined)}\n${budgetRecord("corrected-invocation", 300, 200)}\n`,
+    `${budgetRecord("corrected-invocation", undefined, undefined, "routine", "claude", { pending: true })}\n${budgetRecord("corrected-invocation", 300, 200)}\n`,
   )
   check(
     "automation-budget.mjs",
@@ -5054,7 +5079,8 @@ const automationBudgetCases = () => {
     [
       budgetRecord("report-routine", 300, 200),
       budgetRecord("report-reserved", 100, 50, "reserved"),
-      budgetRecord("report-pending", undefined, undefined),
+      budgetRecord("report-pending", undefined, undefined, "routine", "claude", { pending: true }),
+      budgetRecord("report-unknown", undefined, undefined),
       "",
     ].join("\n"),
   )
@@ -5065,7 +5091,7 @@ const automationBudgetCases = () => {
     {
       status: 0,
       stdout:
-        /"engine":"claude","inputTokens":400,"outputTokens":250,"totalTokens":650,"routineTokens":500,"reservedTokens":150,"missingIdentities":\["report-pending"\],"windowStart":"2030-01-01T00:00:00.000Z","resetsAt":"2030-01-08T00:00:00.000Z"/,
+        /"engine":"claude","inputTokens":400,"outputTokens":250,"totalTokens":650,"routineTokens":500,"reservedTokens":150,"pendingIdentities":\["report-pending"\],"unknownIdentities":\["report-unknown"\],"missingIdentities":\["report-pending","report-unknown"\],"windowStart":"2030-01-01T00:00:00.000Z","resetsAt":"2030-01-08T00:00:00.000Z"/,
     },
   )
   check(
@@ -5075,7 +5101,7 @@ const automationBudgetCases = () => {
     {
       status: 0,
       stdout:
-        /^claude: 650 tokens \(400 input, 250 output; 500 routine, 150 reserved\); missing identities: report-pending; resets at 2030-01-08T00:00:00.000Z\r?\n$/,
+        /^claude: 650 tokens \(400 input, 250 output; 500 routine, 150 reserved\); pending identities: report-pending; unknown identities: report-unknown; resets at 2030-01-08T00:00:00.000Z\r?\n$/,
     },
   )
 
@@ -5133,7 +5159,7 @@ process.stdout.write(JSON.stringify(results))
     atomic.status === 0 &&
       atomicResults[0]?.status === 0 &&
       atomicResults[1]?.status === 3 &&
-      /lack input or output tokens[\s\S]*atomic-a/.test(atomicResults[1]?.stderr ?? "") &&
+      /pending reservations lack input or output tokens[\s\S]*atomic-a/.test(atomicResults[1]?.stderr ?? "") &&
       atomicRecords.length === 1 &&
       atomicRecords[0]?.identity === "atomic-a" &&
       !existsSync(`${atomicLedger}.lock`),

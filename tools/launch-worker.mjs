@@ -974,6 +974,22 @@ if (!pointerDelivered) {
   )
 }
 
+runBudgetCommand([
+  "record",
+  "--identity",
+  invocationIdentity,
+  "--engine",
+  engineName,
+  "--tier",
+  budgetTier,
+  "--started-at",
+  invocationStartedAt,
+  "--ended-at",
+  new Date().toISOString(),
+  "--ledger",
+  automationLedgerPath,
+])
+
 rollback = null
 orca(["terminal", "switch", "--terminal", terminal])
 orca(["worktree", "set", "--worktree", worktreeSelector, "--comment", comment, "--workspace-status", workspaceStatus])

@@ -18,7 +18,7 @@ const USAGE = `usage:
   reserve        atomically evaluate and append a pending invocation before launch mutation
   record         append one invocation observation to the ledger
   cancel         append a tombstone for a pending invocation proven not to have started
-  report         print one engine's current seven-day token totals and missing identities
+  report         print one engine's current seven-day token totals plus pending and unknown identities
   --identity     stable identity for the invocation
   --engine       quota pool charged by the invocation; engines are never combined
   --tier         routine automation or explicitly reserved deep work
@@ -47,7 +47,8 @@ const USAGE = `usage:
 The fuse blocks routine automation when measured input plus output tokens and the proposed
 reservation would exceed the token budget. Explicitly reserved deep work proceeds beyond the
 routine budget with RESERVED status and a warning carrying the budget figures. The fuse fails
-closed when the latest in-window record for any identity lacks either token measurement.
+closed when an explicit pending reservation lacks either token measurement. A completed
+unmeasured invocation remains unknown and excluded from totals without blocking a later launch.
 Duplicate identities are append-only; the latest in-window record is authoritative. A cancelled
 pending invocation contributes no tokens. Account usage percentage and estimated cost are context
 only and never affect token totals. Records are attributed to the seven-day window containing
@@ -341,6 +342,13 @@ const validateRecord = (record, lineNumber) => {
     validated.cancelled = true
     return validated
   }
+  if (hasOwn(record, "pending")) {
+    if (record.pending !== true) fail(`${prefix} pending must be true when present`, 3)
+    if (hasOwn(record, "inputTokens") || hasOwn(record, "outputTokens")) {
+      fail(`${prefix} pending record must not carry token measurements`, 3)
+    }
+    validated.pending = true
+  }
   if (hasOwn(record, "inputTokens")) {
     validated.inputTokens = parseTokenCount(record.inputTokens, `${prefix} inputTokens`, 3)
   }
@@ -406,11 +414,13 @@ const summarize = (records, engine, resetAt) => {
   let outputTokens = 0
   let routineTokens = 0
   let reservedTokens = 0
-  const missingIdentities = []
+  const pendingIdentities = []
+  const unknownIdentities = []
   for (const record of latestByIdentity.values()) {
     if (record.cancelled === true) continue
     if (!hasOwn(record, "inputTokens") || !hasOwn(record, "outputTokens")) {
-      missingIdentities.push(record.identity)
+      if (record.pending === true) pendingIdentities.push(record.identity)
+      else unknownIdentities.push(record.identity)
       continue
     }
     inputTokens += record.inputTokens
@@ -418,7 +428,8 @@ const summarize = (records, engine, resetAt) => {
     if (record.tier === "routine") routineTokens += record.inputTokens + record.outputTokens
     else reservedTokens += record.inputTokens + record.outputTokens
   }
-  missingIdentities.sort()
+  pendingIdentities.sort()
+  unknownIdentities.sort()
   return {
     engine,
     inputTokens,
@@ -426,7 +437,9 @@ const summarize = (records, engine, resetAt) => {
     totalTokens: inputTokens + outputTokens,
     routineTokens,
     reservedTokens,
-    missingIdentities,
+    pendingIdentities,
+    unknownIdentities,
+    missingIdentities: [...pendingIdentities, ...unknownIdentities].sort(),
     windowStart: windowStart.toISOString(),
     resetsAt: resetAt.toISOString(),
   }
@@ -453,9 +466,9 @@ const evaluateBudget = (request, records, json) => {
   const { engine, identity, tier, resetAt, warningTokens, budgetTokens, invocationTokens } = request
   const summary = summarize(records, engine, resetAt)
   const projectedTokens = summary.totalTokens + invocationTokens
-  if (tier !== "reserved" && summary.missingIdentities.length > 0) {
+  if (tier !== "reserved" && summary.pendingIdentities.length > 0) {
     emitJson({ status: "INCOMPLETE", identity, tier, warningTokens, budgetTokens, invocationTokens, ...summary }, json)
-    fail(`cannot check invocation "${identity}": latest in-window records lack input or output tokens for identities ${summary.missingIdentities.join(", ")}`, 3)
+    fail(`cannot check invocation "${identity}": pending reservations lack input or output tokens for identities ${summary.pendingIdentities.join(", ")}; clear each started invocation with automation-budget.mjs record`, 3)
   }
   const status = tier === "reserved"
     ? "RESERVED"
@@ -529,6 +542,7 @@ const runReserve = (values, json) => {
     tier: request.tier,
     startedAt: startedAt.toISOString(),
     endedAt: endedAt.toISOString(),
+    pending: true,
   }
   const hasAccountPercent = values.has("--account-used-percent")
   const hasAccountTimestamp = values.has("--account-observed-at")
@@ -655,8 +669,9 @@ const runReport = (values, json) => {
   const result = summarize(readLedger(ledgerPath(values)).records, engine, resetAt)
   if (json) console.log(JSON.stringify(result))
   else {
-    const missing = result.missingIdentities.length > 0 ? result.missingIdentities.join(", ") : "none"
-    console.log(`${result.engine}: ${result.totalTokens} tokens (${result.inputTokens} input, ${result.outputTokens} output; ${result.routineTokens} routine, ${result.reservedTokens} reserved); missing identities: ${missing}; resets at ${result.resetsAt}`)
+    const pending = result.pendingIdentities.length > 0 ? result.pendingIdentities.join(", ") : "none"
+    const unknown = result.unknownIdentities.length > 0 ? result.unknownIdentities.join(", ") : "none"
+    console.log(`${result.engine}: ${result.totalTokens} tokens (${result.inputTokens} input, ${result.outputTokens} output; ${result.routineTokens} routine, ${result.reservedTokens} reserved); pending identities: ${pending}; unknown identities: ${unknown}; resets at ${result.resetsAt}`)
   }
 }
 
