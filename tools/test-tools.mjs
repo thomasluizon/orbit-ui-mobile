@@ -3428,6 +3428,7 @@ const mergeSweepCases = (file) => {
     )
   }
   linearRefusal("a failing Linear lookup", { linearLookupFailure: true }, /LINEAR-STATE-REFUSED issue=ORB-150 reason=lookup-failed/)
+  linearRefusal("a failed Linear reassert", { linearReassertFailure: true, linearState: "In Progress" }, /LINEAR-STATE-REFUSED issue=ORB-150 observed=In Progress reason=reassert-failed/)
   linearRefusal("an unknown Linear state", { linearState: "Done" }, /LINEAR-STATE-REFUSED issue=ORB-150 observed=Done reason=unknown-state/)
 
   const finalReadLog = join(root, `${file}-linear-final-read.log`)
@@ -3437,7 +3438,10 @@ const mergeSweepCases = (file) => {
   const finalReadCalls = mergeSweepCalls(finalReadLog)
   const issueReadIndex = finalReadCalls.findIndex(([group, linear, command]) => group === "orca" && linear === "linear" && command === "issue")
   const mergeIndex = finalReadCalls.findIndex(([group, command]) => group === "pr" && command === "merge")
-  const lastReviewReadIndex = finalReadCalls.reduce((last, [group, ...argv], index) => group === "api" && argv.some((value) => String(value).includes("/comments")) ? index : last, -1)
+  const lastReviewReadIndex = finalReadCalls.slice(0, mergeIndex).reduce(
+    (last, [group, ...argv], index) => group === "api" && argv.some((value) => String(value).includes("/comments")) ? index : last,
+    -1,
+  )
   T(
     `${file}: Linear state is freshly read at the decision boundary rather than reused`,
     finalRead.status === 0 && lastReviewReadIndex !== -1 && issueReadIndex === lastReviewReadIndex + 1 && mergeIndex === issueReadIndex + 1,
