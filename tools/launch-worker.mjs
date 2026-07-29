@@ -182,7 +182,8 @@ conflict with anything above, these win.
 2. **A blocked sub-step never blocks the PR.** If one step is genuinely impossible, finish every
    other part in full, mark that criterion explicitly UNMET in the PR body with the evidence,
    and still complete the contract: gates, commit, push, PR, attach, In Review. Unmet and stated
-   is acceptable; unmentioned is not. Never silently drop a criterion.
+   is acceptable; unmentioned is not. The pull request must be ready for review, never a draft.
+   Never silently drop a criterion.
 3. **Own the automated review cycle.** After the PR is open, attached, and In Review, poll its
    review transitions with \`node tools/pr-watch.mjs --repo <owner/name> --pr <number>
    --once\` only as a low-level wake-up. After every call and before waiting or reporting
