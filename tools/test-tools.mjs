@@ -141,7 +141,31 @@ const BASH = resolveBash()
 const ORCA_SHIM = stage(
   "orca-shim.cjs",
   `const { spawnSync } = require("node:child_process")
+const { EventEmitter } = require("node:events")
 const { appendFileSync, existsSync, readFileSync, rmSync } = require("node:fs")
+if (process.env.ORBIT_LINEAR_PARENT_STUB) {
+  const https = require("node:https")
+  const { syncBuiltinESMExports } = require("node:module")
+  const stub = JSON.parse(process.env.ORBIT_LINEAR_PARENT_STUB)
+  https.request = (_url, options, callback) => {
+    const linearRequest = new EventEmitter()
+    linearRequest.end = () => {
+      process.nextTick(() => {
+        const linearResponse = new EventEmitter()
+        linearResponse.statusCode = stub.status ?? 200
+        callback(linearResponse)
+        linearResponse.emit("data", Buffer.from(JSON.stringify(stub.body)))
+        linearResponse.emit("end")
+      })
+    }
+    linearRequest.destroy = (error) => process.nextTick(() => linearRequest.emit("error", error))
+    if (stub.requireTimeout && options.timeout !== 5000) {
+      process.nextTick(() => linearRequest.emit("error", new Error("missing Linear parent timeout")))
+    }
+    return linearRequest
+  }
+  syncBuiltinESMExports()
+}
 const argv = process.argv.slice(1)
 if (argv[0] && existsSync(argv[0])) return
 const line = argv.join(" ")
@@ -6072,6 +6096,164 @@ Not run.`,
           `${VALID_TICKET_BODY}\n\n## Dependencies\n\nRequires ORB-112.`,
           [{ relationship: "blockedBy", relatedIssue: { identifier: "ORB-112" } }],
         ),
+      },
+    )
+    const ledgerIssue = (line) => ({
+      ...VALID_ISSUE,
+      description: `${VALID_TICKET_BODY}\n\n${line}`,
+      parent: { identifier: "ORB-140", title: "Harness defect ledger from the recorded run" },
+    })
+    const checkIssue = (name, issue, expect, relations = [], env = {}) =>
+      check(
+        "check-ticket.mjs",
+        name,
+        ["--issue", issue.identifier],
+        expect,
+        {
+          env: {
+            ...orcaEnv([{ match: `linear issue ${issue.identifier}`, stdout: JSON.stringify({ ok: true, result: { issue, relations } }) }]),
+            ...env,
+          },
+        },
+      )
+
+    checkIssue("a ledger child with 7 occurrences passes", ledgerIssue("Ledger occurrence: 7; blocked: no"), { status: 0, stdout: /ticket ok/ })
+    checkIssue("a ledger child at the threshold of 3 occurrences passes", ledgerIssue("Ledger occurrence: 3; blocked: no"), { status: 0, stdout: /ticket ok/ })
+    checkIssue(
+      "a non-blocking ledger child below the threshold fails with the count and threshold",
+      ledgerIssue("Ledger occurrence: 2; blocked: no"),
+      { status: 1, stderr: /2[\s\S]*threshold of 3/i },
+    )
+    for (const alias of [
+      "false",
+      "none",
+      "n/a",
+      "no.",
+      "nothing",
+      "did not block the run",
+      "the defect could not block the run",
+      "the defect could not have blocked the run",
+      "the merge sweep was blocked by nothing",
+      "prevented the merge sweep from being blocked",
+    ]) {
+      checkIssue(
+        `a non-blocking ${alias} alias cannot bypass the threshold`,
+        ledgerIssue(`Ledger occurrence: 2; blocked: ${alias}`),
+        { status: 1, stderr: /literal no or an affirmative claim naming what it blocked/i },
+      )
+    }
+    checkIssue(
+      "a below-threshold ledger child passes when it names what blocked the run",
+      ledgerIssue("Ledger occurrence: 2; blocked: the merge sweep was blocked"),
+      { status: 0, stdout: /ticket ok/ },
+    )
+    checkIssue(
+      "a bare blocking claim does not bypass the threshold",
+      ledgerIssue("Ledger occurrence: 2; blocked: yes"),
+      { status: 1, stderr: /literal no or an affirmative claim naming what it blocked/i },
+    )
+    checkIssue(
+      "a bare blocking claim is rejected above the occurrence threshold",
+      ledgerIssue("Ledger occurrence: 5; blocked: true"),
+      { status: 1, stderr: /literal no or an affirmative claim naming what it blocked/i },
+    )
+    for (const claim of [
+      "blocked the merge sweep",
+      "the merge sweep was blocked",
+    ]) {
+      checkIssue(
+        `an affirmative ${claim} claim passes below the threshold`,
+        ledgerIssue(`Ledger occurrence: 2; blocked: ${claim}`),
+        { status: 0, stdout: /ticket ok/ },
+      )
+    }
+    checkIssue(
+      "a ledger child with no occurrence line fails",
+      { ...VALID_ISSUE, parent: { identifier: "ORB-140", title: "Harness defect ledger from the recorded run" } },
+      { status: 1, stderr: /missing[\s\S]*Ledger occurrence/i },
+    )
+    checkIssue(
+      "a recorded non-ledger child ticket is unaffected",
+      { ...VALID_ISSUE, parent: { identifier: "ORB-88", title: "Ordinary project parent" } },
+      { status: 0, stdout: /ticket ok/ },
+    )
+    checkIssue(
+      "an unparseable ledger occurrence line fails",
+      ledgerIssue("Ledger occurrence: several; blocked: no"),
+      { status: 1, stderr: /ledger occurrence line is unparseable/i },
+    )
+    const noLinearKeyHome = join(root, "check-ticket-no-linear-key")
+    mkdirSync(noLinearKeyHome, { recursive: true })
+    const ledgerParentRelation = [{
+      relationship: "parent",
+      relatedIssue: { identifier: "ORB-140", title: "Harness defect ledger from the recorded run" },
+    }]
+    checkIssue(
+      "an Orca parent relation validates without a separate Linear key",
+      {
+        ...VALID_ISSUE,
+        id: "linear-child-id",
+        description: `${VALID_TICKET_BODY}\n\nLedger occurrence: 3; blocked: no`,
+      },
+      { status: 0, stdout: /ticket ok/ },
+      ledgerParentRelation,
+      { USERPROFILE: noLinearKeyHome },
+    )
+    checkIssue(
+      "an Orca ledger parent relation still requires the occurrence line",
+      { ...VALID_ISSUE, id: "linear-child-without-line" },
+      { status: 1, stderr: /missing[\s\S]*Ledger occurrence/i },
+      ledgerParentRelation,
+      { USERPROFILE: noLinearKeyHome },
+    )
+    checkIssue(
+      "a standalone Orca issue validates without a separate Linear key",
+      { ...VALID_ISSUE, id: "linear-standalone-id" },
+      { status: 0, stdout: /ticket ok/ },
+      [],
+      { USERPROFILE: noLinearKeyHome },
+    )
+    const linearKeyHome = join(root, "check-ticket-linear-key")
+    mkdirSync(linearKeyHome, { recursive: true })
+    writeFileSync(join(linearKeyHome, ".linear-api-key"), "fixture-key")
+    const partialParentRelation = [{
+      relationship: "parent",
+      relatedIssue: { identifier: "ORB-140" },
+    }]
+    checkIssue(
+      "a partial Orca parent relation uses the bounded Linear fallback",
+      {
+        ...VALID_ISSUE,
+        id: "linear-partial-parent",
+        description: `${VALID_TICKET_BODY}\n\nLedger occurrence: 3; blocked: no`,
+      },
+      { status: 0, stdout: /ticket ok/ },
+      partialParentRelation,
+      {
+        USERPROFILE: linearKeyHome,
+        ORBIT_LINEAR_PARENT_STUB: JSON.stringify({
+          requireTimeout: true,
+          body: {
+            data: {
+              issue: {
+                parent: { identifier: "ORB-140", title: "Harness defect ledger from the recorded run" },
+              },
+            },
+          },
+        }),
+      },
+    )
+    checkIssue(
+      "a Linear parent GraphQL error exits with a tool error",
+      { ...VALID_ISSUE, id: "linear-parent-error" },
+      { status: 2, stderr: /could not read the Linear parent relation[\s\S]*fixture GraphQL failure/i },
+      partialParentRelation,
+      {
+        USERPROFILE: linearKeyHome,
+        ORBIT_LINEAR_PARENT_STUB: JSON.stringify({
+          status: 200,
+          body: { errors: [{ message: "fixture GraphQL failure" }] },
+        }),
       },
     )
   },
