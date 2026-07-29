@@ -4765,7 +4765,7 @@ Not run.`,
       ledgerIssue("Ledger occurrence: 2; blocked: no"),
       { status: 1, stderr: /2[\s\S]*threshold of 3/i },
     )
-    for (const alias of ["false", "none", "n/a", "no."]) {
+    for (const alias of ["false", "none", "n/a", "no.", "nothing", "did not block the run"]) {
       checkIssue(
         `a non-blocking ${alias} alias cannot bypass the threshold`,
         ledgerIssue(`Ledger occurrence: 2; blocked: ${alias}`),
@@ -4780,8 +4780,18 @@ Not run.`,
     checkIssue(
       "a bare blocking claim does not bypass the threshold",
       ledgerIssue("Ledger occurrence: 2; blocked: yes"),
-      { status: 1, stderr: /bare blocking claim; name what it blocked/i },
+      { status: 1, stderr: /affirmative blocking claim naming what it blocked/i },
     )
+    for (const claim of [
+      "blocked the merge sweep",
+      "the merge sweep was blocked by unavailable authentication",
+    ]) {
+      checkIssue(
+        `an affirmative ${claim} claim passes below the threshold`,
+        ledgerIssue(`Ledger occurrence: 2; blocked: ${claim}`),
+        { status: 0, stdout: /ticket ok/ },
+      )
+    }
     checkIssue(
       "a ledger child with no occurrence line fails",
       { ...VALID_ISSUE, parent: { identifier: "ORB-140", title: "Harness defect ledger from the recorded run" } },

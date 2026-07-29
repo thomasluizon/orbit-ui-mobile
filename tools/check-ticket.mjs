@@ -44,6 +44,8 @@ const REPO_LABELS = ["repo:ui", "repo:api", "repo:landing"]
 const LEDGER_OCCURRENCE_THRESHOLD = 3
 const LEDGER_OCCURRENCE_FORMAT = "Ledger occurrence: <count>; blocked: no|<what it blocked>"
 const LEDGER_PARENT_MARKER = /\bHarness defect ledger\b/i
+const AFFIRMATIVE_BLOCKING_CLAIM =
+  /\b(?:could not|couldn't|cannot|can't|failed to|(?:was|were) unable to)\s+\S+|\b(?:blocked|halted|stopped|prevented)\s+(?:the|a|an)\s+\S+|\b(?:the|a|an)\s+\S+(?:\s+\S+){0,6}\s+(?:was|were)\s+(?:blocked|halted|stopped|prevented)\b/i
 
 /**
  * A criterion that quantifies over an OPEN set has no provable finish line, so review can never
@@ -208,13 +210,8 @@ const validateLedgerOccurrence = (body) => {
   const occurrenceCount = Number(parsedLine[1])
   if (occurrenceCount >= LEDGER_OCCURRENCE_THRESHOLD) return
   const blockingClaim = parsedLine[2].trim()
-  const normalizedClaim = blockingClaim.toLowerCase().replace(/[.!?]+$/, "").trim()
-  if (/^(no|false|none|n\/?a|not applicable|not blocked)$/.test(normalizedClaim)) {
-    problems.push(`ledger child states ${occurrenceCount} occurrences, below the threshold of ${LEDGER_OCCURRENCE_THRESHOLD}, without a blocking claim naming what it blocked`)
-    return
-  }
-  if (!blockingClaim || /^(yes|true|blocked)$/.test(normalizedClaim)) {
-    problems.push(`ledger child carries a bare blocking claim; name what it blocked`)
+  if (!AFFIRMATIVE_BLOCKING_CLAIM.test(blockingClaim)) {
+    problems.push(`ledger child states ${occurrenceCount} occurrences, below the threshold of ${LEDGER_OCCURRENCE_THRESHOLD}, without an affirmative blocking claim naming what it blocked`)
   }
 }
 
