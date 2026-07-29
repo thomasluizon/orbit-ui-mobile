@@ -2962,7 +2962,7 @@ const stageTeardownWorktree = (label, { dirty = false, changed = false, squashMe
     writeFileSync(hook, body)
     chmodSync(hook, 0o755)
   }
-  return { primary, child, branch: "feature/orb-124-teardown", headCommit, mergeCommit: mergeCommit ?? git(primary, ["rev-parse", "HEAD"]).stdout.trim() }
+  return { primary, child, branch: "feature/orb-124-teardown", headCommit, mergeCommit: mergeCommit ?? git(primary, ["rev-parse", "HEAD"]).stdout.trim(), targetTip: git(primary, ["rev-parse", "HEAD"]).stdout.trim() }
 }
 
 const stageWorkerStatusWorktree = () => {
@@ -3294,7 +3294,7 @@ const teardownWorktreeCases = () => {
   check("teardown-worktree.mjs", "a local follow-up after the merged pull request is refused", ["--issue", "ORB-124"], { status: 1, stderr: /tree-present-in-target/ }, { env: orcaEnv(teardownPlan(localFollowUp)) })
 
   const mergedLocalFollowUp = stageTeardownWorktree("merged-local-follow-up", { changed: true, serverMerged: true, localFollowUp: true, localFollowUpMerged: true })
-  check("teardown-worktree.mjs", "a local tip differing from the pull request head tears down once it is already in the target", ["--issue", "ORB-124"], { status: 0, stdout: /REMOVED worktree/ }, { env: orcaEnv(teardownPlan(mergedLocalFollowUp, { removePath: mergedLocalFollowUp.child })) })
+  check("teardown-worktree.mjs", "a local tip behind the forge pull request head tears down", ["--issue", "ORB-124"], { status: 0, stdout: /REMOVED worktree/ }, { env: orcaEnv(teardownPlan(mergedLocalFollowUp, { pullRequest: { ...mergedPullRequest(mergedLocalFollowUp), headRefOid: mergedLocalFollowUp.targetTip }, removePath: mergedLocalFollowUp.child })) })
 
   const notDone = stageTeardownWorktree("not-done")
   check("teardown-worktree.mjs", "a closed-looking but non-Done Linear issue is refused", ["--issue", "ORB-124"], { status: 1, stderr: /linear-done[\s\S]*In Review/ }, { env: orcaEnv(teardownPlan(notDone, { state: "In Review", removePath: notDone.child })) })
