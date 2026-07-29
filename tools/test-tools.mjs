@@ -234,8 +234,6 @@ if (argv[0] === "api" && argv[1] === "graphql" && line.includes("reviewThreads(f
 if (argv[0] === "pr" && argv[1] === "view") {
   if (line.includes("--json headRefOid,baseRefName")) {
     process.stdout.write(currentHead() + "\\t" + process.env.ORBIT_MERGE_SWEEP_BASE_REF)
-  } else if (line.includes("--json headRefOid,baseRefOid")) {
-    process.stdout.write(currentHead() + "\\t" + process.env.ORBIT_MERGE_SWEEP_BASE_TIP)
   } else if (line.includes("--json headRefOid")) {
     const moved = process.env.ORBIT_MERGE_SWEEP_MOVE_MARKER && existsSync(process.env.ORBIT_MERGE_SWEEP_MOVE_MARKER)
     process.stdout.write(moved ? process.env.ORBIT_MERGE_SWEEP_CHANGED_HEAD : currentHead())
