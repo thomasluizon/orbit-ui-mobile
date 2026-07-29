@@ -18,6 +18,7 @@
  */
 
 import { execFileSync, spawnSync } from "node:child_process"
+import { randomUUID } from "node:crypto"
 import {
   appendFileSync,
   closeSync,
@@ -28,7 +29,9 @@ import {
   unlinkSync,
   writeFileSync,
 } from "node:fs"
+import { homedir } from "node:os"
 import { basename, join, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
 
 import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
 import { SETTLE_MS, isRepainting, pause } from "./lib/tui-repaint.mjs"
@@ -61,9 +64,11 @@ Progress goes to stderr, so stdout stays pipeable.
 exit 0 means the worker ACCEPTED the prompt as a user turn, verified by reading the pointer back
 off the TUI, never merely that orca accepted the send.
 
-exit codes: 0 worker launched and holding the work order, 1 concurrency cap reached, the worker
-            never reached tui-idle, or never took the prompt pointer as a turn, 2 usage or config error,
-            3 an orca or git command failed
+exit codes: 0 worker launched and holding the work order, 1 the worker never reached tui-idle or
+            never took the prompt pointer as a turn, or the concurrency cap was reached,
+            2 usage or config error,
+            3 an orca, git, quota reader or budget command failed,
+            4 the proposed invocation would cross the engine token budget
 
 Any non-zero exit after the worktree exists stops its terminals and removes that worktree and
 the branches this run created, so a relaunch starts clean instead of piling up orb-N-slug-2.
@@ -228,6 +233,9 @@ conflict with anything above, these win.
  * operator to run compounds the mess instead of clearing it. Measured on this branch.
  */
 let rollback = null
+let budgetReservation = null
+let reservationMaySpend = false
+let cancelBudgetReservation = null
 let concurrencyReservation = null
 
 const releaseConcurrencyReservation = () => {
@@ -248,6 +256,7 @@ process.on("exit", releaseConcurrencyReservation)
 const fail = (code, message) => {
   console.error(message)
   releaseConcurrencyReservation()
+  let cleanupConfirmed = rollback === null
   if (rollback) {
     const { selector, contractBranch, orcaBranch, repoPath: rollbackRepo } = rollback
     rollback = null
@@ -269,6 +278,8 @@ const fail = (code, message) => {
     if (removal.status !== 0) {
       console.error(`could not remove the worktree: ${(removal.stdout || removal.stderr || "").trim().slice(0, 300)}`)
       console.error(`remove it by hand before relaunching: orca worktree rm --worktree ${selector} --force`)
+    } else {
+      cleanupConfirmed = true
     }
     for (const branchToDrop of [contractBranch, orcaBranch].filter(Boolean)) {
       const stillThere = spawnSync("git", ["-C", rollbackRepo, "rev-parse", "--verify", "--quiet", `refs/heads/${branchToDrop}`], { encoding: "utf8" })
@@ -276,6 +287,13 @@ const fail = (code, message) => {
       const dropped = spawnSync("git", ["-C", rollbackRepo, "branch", "-D", branchToDrop], { encoding: "utf8" })
       if (dropped.status !== 0) console.error(`left the branch ${branchToDrop} behind: ${(dropped.stderr || "").trim().slice(0, 200)}`)
     }
+  }
+  if (budgetReservation && !reservationMaySpend && cleanupConfirmed && cancelBudgetReservation) {
+    const cancelled = cancelBudgetReservation(budgetReservation)
+    if (!cancelled) {
+      console.error(`left budget reservation "${budgetReservation.identity}" pending because its cancellation could not be recorded`)
+    }
+    budgetReservation = null
   }
   process.exit(code)
 }
@@ -378,6 +396,150 @@ const git = (args) => {
   } catch (error) {
     fail(3, `git ${args.join(" ")} failed: ${error.stderr?.toString().trim() || error.message}`)
   }
+}
+
+const quotaToolPath = fileURLToPath(new URL("./ai-quota.mjs", import.meta.url))
+const budgetToolPath = fileURLToPath(new URL("./automation-budget.mjs", import.meta.url))
+const automationLedgerOverride = process.env.ORBIT_AUTOMATION_BUDGET_LEDGER
+if (automationLedgerOverride !== undefined && automationLedgerOverride.trim().length === 0) {
+  fail(2, "ORBIT_AUTOMATION_BUDGET_LEDGER must not be empty")
+}
+const automationLedgerPath = resolve(
+  automationLedgerOverride ?? resolve(homedir(), ".orbit", "automation-budget.jsonl"),
+)
+
+const parseClaudeResetAt = (resetsIn) => {
+  if (typeof resetsIn !== "string") {
+    fail(3, "ai-quota returned no Claude weekly reset duration; refusing to launch unattended automation")
+  }
+  const match = resetsIn.match(/^(?:(\d+)d(?: (\d+)h)?(?: (\d+)m)?|(\d+)h(?: (\d+)m)?|(\d+)m)$/)
+  if (!match) {
+    fail(3, `ai-quota returned unsupported Claude reset duration "${resetsIn}"; expected compact d/h/m units such as "6d 4h"`)
+  }
+  const days = Number(match[1] ?? 0)
+  const hours = Number(match[2] ?? match[4] ?? 0)
+  const minutes = Number(match[3] ?? match[5] ?? match[6] ?? 0)
+  const durationMilliseconds = ((days * 24 + hours) * 60 + minutes) * 60 * 1000
+  if (!Number.isSafeInteger(durationMilliseconds) || durationMilliseconds <= 0) {
+    fail(3, `ai-quota returned invalid Claude reset duration "${resetsIn}"; refusing to launch unattended automation`)
+  }
+  return new Date(Date.now() + durationMilliseconds).toISOString()
+}
+
+const parseCodexResetAt = (resetsAt) => {
+  const milliseconds = typeof resetsAt === "number" ? resetsAt * 1000 : Date.parse(resetsAt)
+  if (!Number.isFinite(milliseconds) || milliseconds <= Date.now()) {
+    fail(3, `ai-quota returned invalid Codex reset timestamp "${resetsAt}"; refusing to launch unattended automation`)
+  }
+  return new Date(milliseconds).toISOString()
+}
+
+const runBudgetCommand = (argumentsList, blockedExit = false) => {
+  const budgetResult = spawnSync(process.execPath, [budgetToolPath, ...argumentsList], {
+    encoding: "utf8",
+    maxBuffer: 32 * 1024 * 1024,
+  })
+  if (budgetResult.error) fail(3, `automation-budget could not start: ${budgetResult.error.message}`)
+  if (budgetResult.status === 0) {
+    if (budgetResult.stderr) process.stderr.write(budgetResult.stderr)
+    return
+  }
+  const reason = (budgetResult.stderr || budgetResult.stdout || "automation-budget failed").trim()
+  fail(blockedExit && budgetResult.status === 4 ? 4 : 3, reason)
+}
+
+const reserveAutomationBudget = (
+  engineName,
+  identity,
+  tier,
+  startedAt,
+  warningTokens,
+  tokenBudget,
+  projectedTokens,
+  ledgerPath,
+) => {
+  const quotaResult = spawnSync(process.execPath, [quotaToolPath, "--json"], {
+    encoding: "utf8",
+    maxBuffer: 32 * 1024 * 1024,
+  })
+  if (quotaResult.error) fail(3, `ai-quota could not start: ${quotaResult.error.message}`)
+  let quota
+  try {
+    quota = JSON.parse(quotaResult.stdout)
+  } catch {
+    fail(3, `ai-quota returned unparseable output: ${(quotaResult.stdout || quotaResult.stderr || "").slice(0, 400)}`)
+  }
+  const selectedQuota = quota?.[engineName]
+  if (selectedQuota?.status !== "OK") {
+    fail(3, `ai-quota could not read ${engineName} quota; refusing to launch unattended automation`)
+  }
+  const accountObservedAt = new Date().toISOString()
+  const accountUsedPercent = engineName === "claude"
+    ? selectedQuota.weeklyPercent
+    : selectedQuota.usedPercent
+  const resetAt = engineName === "claude"
+    ? parseClaudeResetAt(selectedQuota.resetsIn)
+    : parseCodexResetAt(selectedQuota.resetsAt)
+  const argumentsList = [
+    "reserve",
+    "--engine",
+    engineName,
+    "--identity",
+    identity,
+    "--tier",
+    tier,
+    "--started-at",
+    startedAt,
+    "--ended-at",
+    accountObservedAt,
+    "--reset-at",
+    resetAt,
+    "--warning-tokens",
+    String(warningTokens),
+    "--budget-tokens",
+    String(tokenBudget),
+    "--invocation-tokens",
+    String(projectedTokens),
+    "--ledger",
+    ledgerPath,
+  ]
+  if (Number.isFinite(accountUsedPercent) && typeof accountObservedAt === "string") {
+    argumentsList.push(
+      "--account-used-percent",
+      String(accountUsedPercent),
+      "--account-observed-at",
+      accountObservedAt,
+    )
+  }
+  argumentsList.push("--json")
+  runBudgetCommand(argumentsList, true)
+  return { identity, engineName, tier, startedAt, ledgerPath }
+}
+
+cancelBudgetReservation = ({ identity, engineName, tier, startedAt, ledgerPath }) => {
+  const result = spawnSync(process.execPath, [
+    budgetToolPath,
+    "cancel",
+    "--identity",
+    identity,
+    "--engine",
+    engineName,
+    "--tier",
+    tier,
+    "--started-at",
+    startedAt,
+    "--ended-at",
+    new Date().toISOString(),
+    "--ledger",
+    ledgerPath,
+    "--json",
+  ], {
+    encoding: "utf8",
+    maxBuffer: 32 * 1024 * 1024,
+  })
+  if (!result.error && result.status === 0) return true
+  console.error(`automation-budget cancellation failed: ${(result.stderr || result.stdout || result.error?.message || "unknown error").trim()}`)
+  return false
 }
 
 const processIsAlive = (pid) => {
@@ -491,6 +653,39 @@ const engineName = config.worker
 const engine = config.workers?.[engineName]
 if (!engine?.command) fail(2, `.claude/orchestrator.json names worker "${engineName}" but carries no command for it`)
 if (!Array.isArray(engine.args)) fail(2, `.claude/orchestrator.json worker "${engineName}" carries no args array; give it one (use [] for none)`)
+if (!["claude", "codex"].includes(engineName)) {
+  fail(2, `.claude/orchestrator.json worker "${engineName}" has no quota reader; expected claude or codex`)
+}
+const automationBudget = engine.automationBudget
+if (!automationBudget || !["routine", "reserved"].includes(automationBudget.tier)) {
+  fail(2, `.claude/orchestrator.json worker "${engineName}" must declare automationBudget.tier as routine or reserved`)
+}
+if (!Number.isSafeInteger(automationBudget.tokenBudget) || automationBudget.tokenBudget <= 0) {
+  fail(2, `.claude/orchestrator.json worker "${engineName}" must declare automationBudget.tokenBudget as a positive integer`)
+}
+if (
+  !Number.isSafeInteger(automationBudget.warningTokens) ||
+  automationBudget.warningTokens < 0 ||
+  automationBudget.warningTokens >= automationBudget.tokenBudget
+) {
+  fail(2, `.claude/orchestrator.json worker "${engineName}" must declare automationBudget.warningTokens as a nonnegative integer below tokenBudget`)
+}
+const invocationTokenTiers =
+  engine.models && typeof engine.models === "object" && !Array.isArray(engine.models)
+    ? Object.keys(engine.models)
+    : []
+if (
+  !automationBudget.invocationTokens ||
+  typeof automationBudget.invocationTokens !== "object" ||
+  Array.isArray(automationBudget.invocationTokens) ||
+  invocationTokenTiers.some(
+    (tier) =>
+      !Number.isSafeInteger(automationBudget.invocationTokens[tier]) ||
+      automationBudget.invocationTokens[tier] <= 0,
+  )
+) {
+  fail(2, `.claude/orchestrator.json worker "${engineName}" must declare positive integer automationBudget.invocationTokens for every declared model tier: ${invocationTokenTiers.join(", ")}`)
+}
 if (engine.interactive !== true) {
   fail(
     2,
@@ -534,12 +729,17 @@ const worktreeName = `${issue.toLowerCase()}-${slug}`
 const branch = `${branchPrefix}/${worktreeName}`
 const comment = argOf("--comment") ?? `${issue} launched: worker running`
 
-let engineArgs
+let resolvedInvocation
 try {
-  engineArgs = resolveWorkerInvocation(engineName, engine, labels).args
+  resolvedInvocation = resolveWorkerInvocation(engineName, engine, labels)
 } catch (error) {
   fail(2, error.message)
 }
+const engineArgs = resolvedInvocation.args
+const budgetTier = resolvedInvocation.tier === "deep" ? "reserved" : automationBudget.tier
+const projectedTokens = automationBudget.invocationTokens[resolvedInvocation.tier]
+const invocationStartedAt = new Date().toISOString()
+const invocationIdentity = `${issue}:${invocationStartedAt}:${randomUUID()}`
 const command = [engine.command, ...engineArgs].join(" ")
 
 /**
@@ -605,6 +805,14 @@ const plan = {
   occupiedWorktrees: occupyingWorktrees.length,
   engine: engineName,
   command,
+  automationBudget: {
+    tier: budgetTier,
+    identity: invocationIdentity,
+    tokenBudget: automationBudget.tokenBudget,
+    warningTokens: automationBudget.warningTokens,
+    projectedTokens,
+    ledgerPath: automationLedgerPath,
+  },
   promptFile,
   workerContract,
   labels,
@@ -615,9 +823,26 @@ if (dryRun) {
   process.exit(0)
 }
 
+budgetReservation = reserveAutomationBudget(
+  engineName,
+  invocationIdentity,
+  budgetTier,
+  invocationStartedAt,
+  automationBudget.warningTokens,
+  automationBudget.tokenBudget,
+  projectedTokens,
+  automationLedgerPath,
+)
+
 /** Before anything is created, so a launch that fails later still leaves the work order complete
  * for the relaunch. A dry run resolves this decision but writes nothing. */
-if (workerContract === "appended") appendFileSync(promptFile, WORKER_CONTRACT, "utf8")
+if (workerContract === "appended") {
+  try {
+    appendFileSync(promptFile, WORKER_CONTRACT, "utf8")
+  } catch (error) {
+    fail(3, `could not append the worker contract to ${promptFile}: ${error.message}`)
+  }
+}
 
 console.error(`creating worktree ${worktreeName} in ${repoKey} from ${baseBranch}`)
 const created = orca([
@@ -690,7 +915,8 @@ if (!idle) {
   fail(1, `${terminal} never reached tui-idle after ${waitAttempts} waits; the worker is not running. Inspect it with: orca terminal read --terminal ${terminal}`)
 }
 
-const pointer = `Read ${promptFile} and execute it in full. That file is your complete work order for ${issue}: the ticket body verbatim, then the finishing contract. You are on branch ${branch} in ${worktreePath}. Do not summarise the file back to me, start the work now.`
+const measurementCommand = `node "${budgetToolPath}" record --identity "${invocationIdentity}" --engine ${engineName} --tier ${budgetTier} --started-at "${invocationStartedAt}" --ended-at <provider-observation-time> --input-tokens <provider-input-tokens> --output-tokens <provider-output-tokens> --ledger "${automationLedgerPath}"`
+const pointer = `Read ${promptFile} and execute it in full. That file is your complete work order for ${issue}: the ticket body verbatim, then the finishing contract. You are on branch ${branch} in ${worktreePath}. Do not summarise the file back to me, start the work now. Before finishing, replace this launch's pending ledger record with an append carrying provider-authoritative token totals: ${measurementCommand}. Add --provider-estimated-cost only when the provider supplies its own estimate. If the token measurement is unavailable, leave the pending record unchanged so the next launch fails closed; never record zero or infer tokens from account usedPercent.`
 
 /**
  * What a DELIVERED pointer looks like on screen: a send that became a user turn makes the TUI
@@ -714,6 +940,7 @@ while (pointerSends < MAX_POINTER_SENDS && !pointerDelivered) {
   pointerSends += 1
   console.error(`sending the prompt pointer (send ${pointerSends} of ${MAX_POINTER_SENDS})`)
   orca(["terminal", "send", "--terminal", terminal, "--text", pointer, "--enter"])
+  reservationMaySpend = true
   pause(POINTER_PAINT_MS)
   pointerDelivered = pointerOnScreen()
   /**

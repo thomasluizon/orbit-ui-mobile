@@ -37,7 +37,7 @@ const DESCRIPTIVE_NPX_CLAUSE =
 const DESCRIPTIVE_NPX_SUBJECT =
   /^\s*npx(?:\.cmd)?\s+(?:is\b|invocations?\b|runs\b)[^`]*[.,;:!?]\s*$/i
 const DESCRIPTIVE_NPX_LINK = /\b(?:as|about|regarding|describes?|explains?|tells?|mentions?)\s*$/i
-const DOCUMENT_BASENAME = /^(?:ticket(?:-body)?|pr(?:-body|-description)?|pull-request-description)\.(?:md|txt)$/i
+const DOCUMENT_BASENAME = /^(?:ticket(?:-body)?|pr(?:-body|-description|-?\d+-review)?|pull-request-description)\.(?:md|txt)$/i
 const TICKET_BASENAME = /^ORB-\d+\.(?:md|txt)$/
 const HELP_BASENAME = /^(?:help|.+--help)(?:[-_.].*)?\.(?:md|txt|log)$/i
 const HOOK_REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..")
