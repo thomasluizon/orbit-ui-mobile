@@ -50,6 +50,12 @@ The safety query is the last operation before merge and runs again after success
 activity or an unverifiable post-merge review state is reported with a URL when available and
 exits 4; this detects but cannot prevent the residual response-to-merge race.
 
+--issue must map every swept PR to its Linear identifier (\`<pr-number>=<ORB-N>\`). Immediately
+before merging, the sweep freshly reads that issue: \`In Review\` proceeds unchanged, while
+\`In Progress\` is reasserted to \`In Review\` and prints \`LINEAR-STATE-REASSERTED\` with the observed
+state and UTC instant. A lookup failure, failed reassertion, or unknown state prints
+\`LINEAR-STATE-REFUSED\` and skips the merge.
+
 It refuses to merge while the \`$REVIEW_CHECK_NAME\` check for the CURRENT head SHA is still
 running, and re-reads reviewDecision after that check settles, so a pre-update APPROVED can
 never carry a merge. Only a workflow lookup that succeeds and shows no $REVIEW_WORKFLOW_PATH
