@@ -18,8 +18,9 @@ const USAGE = `usage: teardown-worktree.mjs (--issue ORB-N | --worktree <path>) 
   --base <ref>        target branch that must contain the pull request merge commit (default: worktree base or main)
   --help, -h          print this usage and exit 0
 
-All four checks must pass before anything is removed: the tree is clean, the pull request merge
-commit and local branch tip are present in the target branch, the linked Linear issue is Done,
+All five checks must pass before anything is removed: the tree is clean, the pull request merge
+commit is present in the target branch, the local branch tip is contained in the pull request
+head, the linked Linear issue is Done,
 and no terminal is mid-turn.
 Removal is successful only when the path is gone and git worktree list no longer names it.
 
@@ -122,21 +123,38 @@ git(path, ["fetch", "--quiet", "origin", base], { allowFailure: true })
 const baseRef = git(path, ["rev-parse", "--verify", "--quiet", `origin/${base}`], { allowFailure: true }) ? `origin/${base}` : base
 const pullRequestResult = pullRequestFor(path, branch, base)
 const pullRequest = pullRequestResult.pullRequest
-const treePresent = pullRequest
+const pullRequestChecks = pullRequest
   ? (() => {
-      git(path, ["fetch", "--quiet", "origin", pullRequest.mergeCommit.oid])
-      const mergeCommitPresent = git(path, ["merge-base", "--is-ancestor", pullRequest.mergeCommit.oid, baseRef], { allowFailure: true }) !== null
+      const mergeCommitFetched = git(path, ["fetch", "--quiet", "origin", pullRequest.mergeCommit.oid], { allowFailure: true }) !== null
+      const mergeCommitReadable = mergeCommitFetched && git(path, ["cat-file", "-e", `${pullRequest.mergeCommit.oid}^{commit}`], { allowFailure: true }) !== null
+      const mergeCommitPresent = mergeCommitReadable && git(path, ["merge-base", "--is-ancestor", pullRequest.mergeCommit.oid, baseRef], { allowFailure: true }) !== null
       const localTip = git(path, ["rev-parse", branch])
-      git(path, ["fetch", "--quiet", "origin", pullRequest.headRefOid], { allowFailure: true })
-      const localTipPresent = git(path, ["merge-base", "--is-ancestor", localTip, pullRequest.headRefOid], { allowFailure: true }) !== null
-      return mergeCommitPresent && localTipPresent
+      const pullRequestHeadFetched = git(path, ["fetch", "--quiet", "origin", pullRequest.headRefOid], { allowFailure: true }) !== null
+      const pullRequestHeadReadable = pullRequestHeadFetched && git(path, ["cat-file", "-e", `${pullRequest.headRefOid}^{commit}`], { allowFailure: true }) !== null
+      const localTipPresent = pullRequestHeadReadable && git(path, ["merge-base", "--is-ancestor", localTip, pullRequest.headRefOid], { allowFailure: true }) !== null
+      return [
+        {
+          name: "merge-commit-in-target",
+          ok: mergeCommitPresent,
+          detail: mergeCommitReadable
+            ? `pull request #${pullRequest.number}'s merge commit ${pullRequest.mergeCommit.oid} is not an ancestor of ${baseRef}`
+            : `could not read pull request #${pullRequest.number}'s merge commit ${pullRequest.mergeCommit.oid}`,
+          exitCode: mergeCommitReadable ? undefined : 3,
+        },
+        {
+          name: "local-tip-in-pull-request-head",
+          ok: localTipPresent,
+          detail: pullRequestHeadReadable
+            ? `local tip ${localTip} is not contained in pull request #${pullRequest.number}'s head ${pullRequest.headRefOid}; local commits would be lost`
+            : `could not read pull request #${pullRequest.number}'s head ${pullRequest.headRefOid}`,
+          exitCode: pullRequestHeadReadable ? undefined : 3,
+        },
+      ]
     })()
-  : false
+  : [{ name: "pull-request-merged", ok: false, detail: pullRequestResult.error.detail, exitCode: pullRequestResult.error.exitCode }]
 const checks = [
   { name: "worktree-clean", ok: dirty.length === 0, detail: dirty.length ? `uncommitted paths: ${dirty.join(", ")}` : "no uncommitted work" },
-  pullRequest
-    ? { name: "tree-present-in-target", ok: treePresent, detail: treePresent ? `pull request #${pullRequest.number}'s merged content is present in ${baseRef}` : `pull request #${pullRequest.number}'s merged content is not present in ${baseRef}` }
-    : { name: "pull-request-merged", ok: false, detail: pullRequestResult.error.detail, exitCode: pullRequestResult.error.exitCode },
+  ...pullRequestChecks,
   { name: "linear-done", ok: state === "Done", detail: `issue is ${state ?? "unknown"}, expected Done` },
   { name: "terminals-idle", ok: busy.length === 0, detail: busy.length ? `worker is still working: ${busy.map((terminal) => terminal.handle).join(", ")}` : `${terminals.length} terminal(s) idle` },
 ]

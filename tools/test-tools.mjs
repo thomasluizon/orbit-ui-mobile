@@ -2924,6 +2924,7 @@ const stageTeardownWorktree = (label, { dirty = false, changed = false, squashMe
     if (squashMerged) {
       writeFileSync(join(primary, "captured.txt"), "not in main\n")
       if (git(primary, ["add", "captured.txt"]).status !== 0 || git(primary, ["commit", "-q", "-m", "squashed capture"]).status !== 0) return null
+      mergeCommit = git(primary, ["rev-parse", "HEAD"]).stdout.trim()
     }
     if (fastForwardMerged) {
       if (git(primary, ["merge", "--ff-only", "feature/orb-124-teardown"]).status !== 0) return null
@@ -3237,10 +3238,13 @@ const teardownWorktreeCases = () => {
   T("teardown-worktree.mjs: dirty refusal leaves the tree untouched", existsSync(dirty.child), "the dirty fixture was removed")
 
   const unmerged = stageTeardownWorktree("unmerged", { changed: true })
-  check("teardown-worktree.mjs", "content absent from the target branch is refused", ["--issue", "ORB-124"], { status: 1, stderr: /tree-present-in-target/ }, { env: orcaEnv(teardownPlan(unmerged, { pullRequest: missingTargetPullRequest(unmerged), removePath: unmerged.child })) })
+  check("teardown-worktree.mjs", "content absent from the target branch is refused", ["--issue", "ORB-124"], { status: 1, stderr: /merge-commit-in-target/ }, { env: orcaEnv(teardownPlan(unmerged, { pullRequest: missingTargetPullRequest(unmerged), removePath: unmerged.child })) })
 
   const missingTarget = stageTeardownWorktree("missing-target", { changed: true })
-  check("teardown-worktree.mjs", "a merged pull request whose content is absent from the target keeps the refusal message", ["--issue", "ORB-124"], { status: 1, stderr: /UNMET tree-present-in-target: pull request #124's merged content is not present/ }, { env: orcaEnv(teardownPlan(missingTarget, { pullRequest: missingTargetPullRequest(missingTarget) })) })
+  check("teardown-worktree.mjs", "a merged pull request whose content is absent from the target names its missing merge commit", ["--issue", "ORB-124"], { status: 1, stderr: /UNMET merge-commit-in-target: pull request #124's merge commit .* is not an ancestor of origin\/main/ }, { env: orcaEnv(teardownPlan(missingTarget, { pullRequest: missingTargetPullRequest(missingTarget) })) })
+
+  const unreadableMergeCommit = stageTeardownWorktree("unreadable-merge-commit")
+  check("teardown-worktree.mjs", "an unreadable merge commit refuses with exit 3", ["--issue", "ORB-124"], { status: 3, stderr: /UNMET merge-commit-in-target: could not read pull request #124's merge commit/ }, { env: orcaEnv(teardownPlan(unreadableMergeCommit, { pullRequest: { ...mergedPullRequest(unreadableMergeCommit), mergeCommit: { oid: "0000000000000000000000000000000000000001" } } })) })
 
   const lookupFailure = stageTeardownWorktree("lookup-failure", { dirty: true })
   const lookupFailureLog = join(root, "teardown", "lookup-failure.log")
@@ -3291,7 +3295,7 @@ const teardownWorktreeCases = () => {
   check("teardown-worktree.mjs", "a server-side merged commit absent from the local branch tears down", ["--issue", "ORB-124"], { status: 0, stdout: /REMOVED worktree/ }, { env: orcaEnv(teardownPlan(serverSideMerge, { removePath: serverSideMerge.child })) })
 
   const localFollowUp = stageTeardownWorktree("local-follow-up", { changed: true, serverMerged: true, localFollowUp: true })
-  check("teardown-worktree.mjs", "a local follow-up after the merged pull request is refused", ["--issue", "ORB-124"], { status: 1, stderr: /tree-present-in-target/ }, { env: orcaEnv(teardownPlan(localFollowUp)) })
+  check("teardown-worktree.mjs", "a local follow-up after the merged pull request is refused without suggesting a forceful merge check", ["--issue", "ORB-124"], { status: 1, stderr: /UNMET local-tip-in-pull-request-head: local tip .* is not contained in pull request #124's head .*; local commits would be lost/ }, { env: orcaEnv(teardownPlan(localFollowUp)) })
 
   const mergedLocalFollowUp = stageTeardownWorktree("merged-local-follow-up", { changed: true, serverMerged: true, localFollowUp: true, localFollowUpMerged: true })
   check("teardown-worktree.mjs", "a local tip behind the forge pull request head tears down", ["--issue", "ORB-124"], { status: 0, stdout: /REMOVED worktree/ }, { env: orcaEnv(teardownPlan(mergedLocalFollowUp, { pullRequest: { ...mergedPullRequest(mergedLocalFollowUp), headRefOid: mergedLocalFollowUp.targetTip }, removePath: mergedLocalFollowUp.child })) })
