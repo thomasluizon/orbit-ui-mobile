@@ -1452,8 +1452,19 @@ const launchWorkerCases = async () => {
     "launch-worker.mjs",
     "refuses a worker missing a projected token count for one model tier",
     ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
-    { status: 2, stderr: /automationBudget\.invocationTokens for default, cheap and deep/ },
+    { status: 2, stderr: /automationBudget\.invocationTokens for every declared model tier: default, cheap, deep/ },
     { path: missingProjection.path, env: orcaEnv(linearIssueStub(["repo:ui"])) },
+  )
+  const missingAddedTierProjection = stageLaunchWorker("missing-added-tier-projection", {
+    ...INTERACTIVE_WORKER,
+    models: { ...CLAUDE_MODELS, burst: { model: "haiku" } },
+  })
+  check(
+    "launch-worker.mjs",
+    "requires a projected token count for every tier declared by the selected engine",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 2, stderr: /automationBudget\.invocationTokens for every declared model tier: default, cheap, deep, burst/ },
+    { path: missingAddedTierProjection.path, env: orcaEnv(linearIssueStub(["repo:ui"])) },
   )
   check(
     "launch-worker.mjs",
@@ -4000,6 +4011,11 @@ const CODEX_QUOTA_RESPONSES = [
     result: {
       rateLimits: {
         primary: {
+          usedPercent: 7,
+          windowDurationMins: 300,
+          resetsAt: 1784851200,
+        },
+        secondary: {
           usedPercent: 42,
           windowDurationMins: 10080,
           resetsAt: 1785456000,
@@ -4018,11 +4034,34 @@ const CODEX_QUOTA_NULL_CREDITS_RESPONSES = [
     result: {
       rateLimits: {
         primary: {
+          usedPercent: 7,
+          windowDurationMins: 300,
+          resetsAt: 1784851200,
+        },
+        secondary: {
           usedPercent: 42,
           windowDurationMins: 10080,
           resetsAt: 1785456000,
         },
         credits: null,
+        planType: "pro",
+      },
+    },
+  }),
+]
+const CODEX_QUOTA_SHORT_ONLY_RESPONSES = [
+  CODEX_QUOTA_RESPONSES[0],
+  JSON.stringify({
+    jsonrpc: "2.0",
+    id: 2,
+    result: {
+      rateLimits: {
+        primary: {
+          usedPercent: 7,
+          windowDurationMins: 300,
+          resetsAt: 1784851200,
+        },
+        credits: { hasCredits: false, balance: "0" },
         planType: "pro",
       },
     },
@@ -4136,6 +4175,33 @@ const aiQuotaCases = () => {
           exit: 1,
         },
       ]),
+    },
+  )
+  check(
+    "ai-quota.mjs",
+    "selects Codex's seven-day secondary window instead of the five-hour primary",
+    ["--json"],
+    {
+      status: 0,
+      stdout:
+        /"codex":\s*\{[\s\S]*"status":\s*"OK"[\s\S]*"usedPercent":\s*42[\s\S]*"windowDays":\s*7[\s\S]*"resetsAt":\s*1785456000/,
+    },
+    { cwd: CODEX_APP_SERVER_DIR, env: aiQuotaEnv(ORCA_QUOTA_OK) },
+  )
+  check(
+    "ai-quota.mjs",
+    "fails the Codex side closed when no authoritative seven-day window exists",
+    ["--json"],
+    {
+      status: 0,
+      stdout: /"claude":\s*\{[\s\S]*"status":\s*"OK"[\s\S]*"codex":\s*\{[\s\S]*"status":\s*"UNAVAILABLE"/,
+    },
+    {
+      cwd: CODEX_APP_SERVER_DIR,
+      env: {
+        ...aiQuotaEnv(ORCA_QUOTA_OK),
+        AI_QUOTA_TEST_CODEX_RESPONSES: JSON.stringify(CODEX_QUOTA_SHORT_ONLY_RESPONSES),
+      },
     },
   )
   check(

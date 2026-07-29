@@ -670,17 +670,21 @@ if (
 ) {
   fail(2, `.claude/orchestrator.json worker "${engineName}" must declare automationBudget.warningTokens as a nonnegative integer below tokenBudget`)
 }
-const invocationTokenTiers = ["default", "cheap", "deep"]
+const invocationTokenTiers =
+  engine.models && typeof engine.models === "object" && !Array.isArray(engine.models)
+    ? Object.keys(engine.models)
+    : []
 if (
   !automationBudget.invocationTokens ||
   typeof automationBudget.invocationTokens !== "object" ||
+  Array.isArray(automationBudget.invocationTokens) ||
   invocationTokenTiers.some(
     (tier) =>
       !Number.isSafeInteger(automationBudget.invocationTokens[tier]) ||
       automationBudget.invocationTokens[tier] <= 0,
   )
 ) {
-  fail(2, `.claude/orchestrator.json worker "${engineName}" must declare positive integer automationBudget.invocationTokens for default, cheap and deep`)
+  fail(2, `.claude/orchestrator.json worker "${engineName}" must declare positive integer automationBudget.invocationTokens for every declared model tier: ${invocationTokenTiers.join(", ")}`)
 }
 if (engine.interactive !== true) {
   fail(

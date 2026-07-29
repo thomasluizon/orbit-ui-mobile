@@ -120,9 +120,12 @@ const readClaudeQuota = async () => {
 
 const parseCodexQuota = (message) => {
   const rateLimits = message?.result?.rateLimits
-  const usedPercent = rateLimits?.primary?.usedPercent
-  const windowDurationMins = rateLimits?.primary?.windowDurationMins
-  const resetsAt = rateLimits?.primary?.resetsAt
+  const weeklyWindow = Object.values(rateLimits ?? {}).find(
+    (window) => window?.windowDurationMins === 7 * 24 * 60,
+  )
+  const usedPercent = weeklyWindow?.usedPercent
+  const windowDurationMins = weeklyWindow?.windowDurationMins
+  const resetsAt = weeklyWindow?.resetsAt
   const hasCredits = rateLimits?.credits?.hasCredits ?? null
   const planType = rateLimits?.planType
   if (
