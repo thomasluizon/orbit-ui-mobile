@@ -46,7 +46,7 @@ const LEDGER_OCCURRENCE_FORMAT = "Ledger occurrence: <count>; blocked: no|<what 
 const LEDGER_PARENT_MARKER = /\bHarness defect ledger\b/i
 const LINEAR_PARENT_TIMEOUT_MS = 5_000
 const AFFIRMATIVE_BLOCKING_CLAIM =
-  /\b(?:could not|couldn't|cannot|can't|failed to|(?:was|were) unable to)\s+\S+|\b(?:blocked|halted|stopped|prevented)\s+(?:the|a|an)\s+\S+|\b(?:the|a|an)\s+\S+(?:\s+\S+){0,6}\s+(?:was|were)\s+(?:blocked|halted|stopped|prevented)\b/i
+  /^(?:blocked|halted|stopped|prevented)\s+(?:the|a|an)\s+\S(?:.*\S)?$|^(?:the|a|an)\s+\S(?:.*\S)?\s+(?:was|were)\s+(?:blocked|halted|stopped|prevented)(?:\s+.*\S)?$/i
 
 /**
  * A criterion that quantifies over an OPEN set has no provable finish line, so review can never
