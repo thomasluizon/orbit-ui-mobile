@@ -2651,6 +2651,7 @@ const teardownWorktreeRecord = (fixture) => ({
 })
 
 const mergedPullRequest = (fixture, number = 124) => ({ number, mergedAt: "2026-07-28T12:00:00Z", mergeCommit: { oid: fixture.mergeCommit }, headRefOid: fixture.headCommit })
+const missingTargetPullRequest = (fixture) => ({ ...mergedPullRequest(fixture), mergeCommit: { oid: fixture.headCommit } })
 
 const teardownPlan = (fixture, { state = "Done", terminals = [], pullRequest = mergedPullRequest(fixture), pullRequestExit = 0, removePath, removal = JSON.stringify({ ok: true, result: {} }), removalExit = 0 } = {}) => [
   { match: "worktree list", stdout: JSON.stringify({ ok: true, result: { worktrees: [teardownWorktreeRecord(fixture)] } }) },
@@ -2739,10 +2740,10 @@ const teardownWorktreeCases = () => {
   T("teardown-worktree.mjs: dirty refusal leaves the tree untouched", existsSync(dirty.child), "the dirty fixture was removed")
 
   const unmerged = stageTeardownWorktree("unmerged", { changed: true })
-  check("teardown-worktree.mjs", "content absent from the target branch is refused", ["--issue", "ORB-124"], { status: 1, stderr: /tree-present-in-target/ }, { env: orcaEnv(teardownPlan(unmerged, { removePath: unmerged.child })) })
+  check("teardown-worktree.mjs", "content absent from the target branch is refused", ["--issue", "ORB-124"], { status: 1, stderr: /tree-present-in-target/ }, { env: orcaEnv(teardownPlan(unmerged, { pullRequest: missingTargetPullRequest(unmerged), removePath: unmerged.child })) })
 
   const missingTarget = stageTeardownWorktree("missing-target", { changed: true })
-  check("teardown-worktree.mjs", "a merged pull request whose content is absent from the target keeps the refusal message", ["--issue", "ORB-124"], { status: 1, stderr: /UNMET tree-present-in-target: pull request #124's merged content is not present/ }, { env: orcaEnv(teardownPlan(missingTarget)) })
+  check("teardown-worktree.mjs", "a merged pull request whose content is absent from the target keeps the refusal message", ["--issue", "ORB-124"], { status: 1, stderr: /UNMET tree-present-in-target: pull request #124's merged content is not present/ }, { env: orcaEnv(teardownPlan(missingTarget, { pullRequest: missingTargetPullRequest(missingTarget) })) })
 
   const lookupFailure = stageTeardownWorktree("lookup-failure")
   check("teardown-worktree.mjs", "a nonzero merged-commit lookup refuses instead of removing", ["--issue", "ORB-124"], { status: 3, stderr: /gh pr list for feature\/orb-124-teardown failed/ }, { env: orcaEnv(teardownPlan(lookupFailure, { pullRequest: null, pullRequestExit: 1, removePath: lookupFailure.child })) })
