@@ -45,8 +45,10 @@ const LEDGER_OCCURRENCE_THRESHOLD = 3
 const LEDGER_OCCURRENCE_FORMAT = "Ledger occurrence: <count>; blocked: no|<what it blocked>"
 const LEDGER_PARENT_MARKER = /\bHarness defect ledger\b/i
 const LINEAR_PARENT_TIMEOUT_MS = 5_000
+const NEGATED_BLOCKING_CLAIM =
+  /\b(?:cannot|neither|never|no|nobody|none|nor|not|nothing|nowhere|without)\b|\b\w+n['’]t\b|\bfrom\s+(?:being|getting)\s+blocked\b/i
 const AFFIRMATIVE_BLOCKING_CLAIM =
-  /^(?:blocked|halted|stopped|prevented)\s+(?:the|a|an)\s+\S(?:.*\S)?$|^(?:the|a|an)\s+\S(?:.*\S)?\s+(?:was|were)\s+(?:blocked|halted|stopped|prevented)(?:\s+.*\S)?$/i
+  /^blocked\s+(?:the|a|an)\s+\S(?:.*\S)?$|^(?:the|a|an)\s+\S(?:.*\S)?\s+(?:was|were)\s+blocked$/i
 
 /**
  * A criterion that quantifies over an OPEN set has no provable finish line, so review can never
@@ -220,7 +222,7 @@ const validateLedgerOccurrence = (body) => {
     }
     return
   }
-  if (!AFFIRMATIVE_BLOCKING_CLAIM.test(blockingClaim)) {
+  if (NEGATED_BLOCKING_CLAIM.test(blockingClaim) || !AFFIRMATIVE_BLOCKING_CLAIM.test(blockingClaim)) {
     problems.push(`ledger child blocking value must be literal no or an affirmative claim naming what it blocked`)
   }
 }

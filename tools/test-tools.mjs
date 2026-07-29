@@ -4798,6 +4798,8 @@ Not run.`,
       "did not block the run",
       "the defect could not block the run",
       "the defect could not have blocked the run",
+      "the merge sweep was blocked by nothing",
+      "prevented the merge sweep from being blocked",
     ]) {
       checkIssue(
         `a non-blocking ${alias} alias cannot bypass the threshold`,
@@ -4807,7 +4809,7 @@ Not run.`,
     }
     checkIssue(
       "a below-threshold ledger child passes when it names what blocked the run",
-      ledgerIssue("Ledger occurrence: 2; blocked: the merge sweep was blocked from merging qualifying PRs"),
+      ledgerIssue("Ledger occurrence: 2; blocked: the merge sweep was blocked"),
       { status: 0, stdout: /ticket ok/ },
     )
     checkIssue(
@@ -4822,7 +4824,7 @@ Not run.`,
     )
     for (const claim of [
       "blocked the merge sweep",
-      "the merge sweep was blocked by unavailable authentication",
+      "the merge sweep was blocked",
     ]) {
       checkIssue(
         `an affirmative ${claim} claim passes below the threshold`,

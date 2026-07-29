@@ -628,7 +628,8 @@ So once every ticket in the run is merged or stopped, and NOTHING is still execu
    Each child describes ONE defect, passes `check-ticket.mjs`, and contains this fixed line:
    `Ledger occurrence: <count>; blocked: no|<what it blocked>`. Use `no` only for a
    non-blocking defect; a blocking value must affirmatively name the outcome using
-   `blocked the <operation>` or `the <operation> was blocked`. The aggregate ticket above
+   exactly `blocked the <operation>` or `the <operation> was blocked`, with no negative
+   qualifier. Put supporting evidence elsewhere in the child body. The aggregate ticket above
    cannot carry N repair PRs: it would close on the first merge, leaving the rest with no live
    issue to launch from, attach to or close, and `launch-worker.mjs` derives the worktree name
    and branch from the issue, so two PRs off one issue collide before that even matters.
