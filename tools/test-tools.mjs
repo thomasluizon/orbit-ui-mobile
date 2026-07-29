@@ -3204,7 +3204,7 @@ const teardownWorktreeCases = () => {
     "teardown-worktree.mjs",
     "a failed merged-commit lookup reports every independent refusal",
     ["--issue", "ORB-124"],
-    { status: 3, stderr: /UNMET worktree-clean: uncommitted paths: dirty\.txt[\s\S]*UNMET pull-request-merged: gh pr list for feature\/orb-124-teardown failed[\s\S]*UNMET linear-done: issue is In Review, expected Done[\s\S]*UNMET terminals-idle: worker is still working/ },
+    { status: 3, stderr: /UNMET worktree-clean: uncommitted paths: (?:\?\? )?dirty\.txt[\s\S]*UNMET pull-request-merged: gh pr list for feature\/orb-124-teardown failed[\s\S]*UNMET linear-done: issue is In Review, expected Done[\s\S]*UNMET terminals-idle: worker is still working/ },
     {
       env: {
         ...orcaEnv([
@@ -3228,7 +3228,7 @@ const teardownWorktreeCases = () => {
     "teardown-worktree.mjs",
     "an unmerged pull request reports every independent refusal",
     ["--issue", "ORB-124"],
-    { status: 1, stderr: /UNMET worktree-clean: uncommitted paths: dirty\.txt[\s\S]*UNMET pull-request-merged: pull request for feature\/orb-124-teardown is not a merged pull request with merge and head commits[\s\S]*UNMET linear-done: issue is In Review, expected Done[\s\S]*UNMET terminals-idle: worker is still working/ },
+    { status: 1, stderr: /UNMET worktree-clean: uncommitted paths: (?:\?\? )?dirty\.txt[\s\S]*UNMET pull-request-merged: pull request for feature\/orb-124-teardown is not a merged pull request with merge and head commits[\s\S]*UNMET linear-done: issue is In Review, expected Done[\s\S]*UNMET terminals-idle: worker is still working/ },
     {
       env: {
         ...orcaEnv([
