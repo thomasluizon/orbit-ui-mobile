@@ -202,12 +202,13 @@ const validateLedgerOccurrence = (body) => {
   const occurrenceCount = Number(parsedLine[1])
   if (occurrenceCount >= LEDGER_OCCURRENCE_THRESHOLD) return
   const blockingClaim = parsedLine[2].trim()
-  if (!blockingClaim || /^(yes|true|blocked)[.!]?$/i.test(blockingClaim)) {
-    problems.push(`ledger child carries a bare blocking claim; name what it blocked`)
+  const normalizedClaim = blockingClaim.toLowerCase().replace(/[.!?]+$/, "").trim()
+  if (/^(no|false|none|n\/?a|not applicable|not blocked)$/.test(normalizedClaim)) {
+    problems.push(`ledger child states ${occurrenceCount} occurrences, below the threshold of ${LEDGER_OCCURRENCE_THRESHOLD}, without a blocking claim naming what it blocked`)
     return
   }
-  if (blockingClaim.toLowerCase() === "no") {
-    problems.push(`ledger child states ${occurrenceCount} occurrences, below the threshold of ${LEDGER_OCCURRENCE_THRESHOLD}, without a blocking claim naming what it blocked`)
+  if (!blockingClaim || /^(yes|true|blocked)$/.test(normalizedClaim)) {
+    problems.push(`ledger child carries a bare blocking claim; name what it blocked`)
   }
 }
 

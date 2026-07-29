@@ -4760,6 +4760,13 @@ Not run.`,
       ledgerIssue("Ledger occurrence: 2; blocked: no"),
       { status: 1, stderr: /2[\s\S]*threshold of 3/i },
     )
+    for (const alias of ["false", "none", "n/a", "no."]) {
+      checkIssue(
+        `a non-blocking ${alias} alias cannot bypass the threshold`,
+        ledgerIssue(`Ledger occurrence: 2; blocked: ${alias}`),
+        { status: 1, stderr: /2[\s\S]*threshold of 3/i },
+      )
+    }
     checkIssue(
       "a below-threshold ledger child passes when it names what blocked the run",
       ledgerIssue("Ledger occurrence: 2; blocked: the merge sweep could not merge qualifying PRs"),
