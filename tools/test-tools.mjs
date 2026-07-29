@@ -232,8 +232,8 @@ if (argv[0] === "api" && argv[1] === "graphql" && line.includes("reviewThreads(f
   process.exit(0)
 }
 if (argv[0] === "pr" && argv[1] === "view") {
-  if (line.includes("--json headRefOid,baseRefName")) {
-    process.stdout.write(currentHead() + "\\t" + process.env.ORBIT_MERGE_SWEEP_BASE_REF)
+  if (line.includes("--json headRefOid,baseRefName,headRefName")) {
+    process.stdout.write(currentHead() + "\\t" + process.env.ORBIT_MERGE_SWEEP_BASE_REF + "\\t" + process.env.ORBIT_MERGE_SWEEP_BRANCH)
   } else if (line.includes("--json headRefOid")) {
     const moved = process.env.ORBIT_MERGE_SWEEP_MOVE_MARKER && existsSync(process.env.ORBIT_MERGE_SWEEP_MOVE_MARKER)
     process.stdout.write(moved ? process.env.ORBIT_MERGE_SWEEP_CHANGED_HEAD : currentHead())
@@ -298,10 +298,18 @@ if (line.includes("/compare/")) {
   process.stdout.write(ancestor && line.includes("/compare/" + ancestor + "..." + baseTip) ? "ahead" : "diverged")
   process.exit(0)
 }
-if (line.includes("/commits/") && !line.includes("/check-runs")) {
+if (line.includes("/git/commits/")) {
   if (process.env.ORBIT_MERGE_SWEEP_COMMITS_LOOKUP_FAILURE) process.exit(7)
   if (process.env.ORBIT_MERGE_SWEEP_COMMITS_LOOKUP_EMPTY) process.exit(0)
-  process.stdout.write(process.env.ORBIT_MERGE_SWEEP_UPDATE_PARENTS)
+  const authentic = process.env.ORBIT_MERGE_SWEEP_AUTHENTIC_UPDATE === "1"
+  process.stdout.write([
+    authentic ? "GitHub" : "Collaborator",
+    authentic ? "noreply@github.com" : "collaborator@example.test",
+    authentic ? "true" : "false",
+    authentic ? "valid" : "unsigned",
+    "Merge branch '" + process.env.ORBIT_MERGE_SWEEP_BASE_REF + "' into " + process.env.ORBIT_MERGE_SWEEP_BRANCH,
+    process.env.ORBIT_MERGE_SWEEP_UPDATE_PARENTS.replaceAll("\\n", " "),
+  ].join("\\t"))
   process.exit(0)
 }
 if (line.includes("/check-runs")) {
@@ -317,6 +325,7 @@ chmodSync(MERGE_SWEEP_GH, 0o755)
 const MERGE_SWEEP_BASH_ENV = stage("merge-sweep-bin/bash-env", "sleep() { :; }\n")
 
 const mergeSweepEnv = ({
+  authenticUpdate = true,
   baseAncestor = "",
   baseRef = "main",
   baseRefLookupFailure = false,
@@ -351,6 +360,7 @@ const mergeSweepEnv = ({
 }) => ({
   BASH_ENV: MERGE_SWEEP_BASH_ENV,
   PATH: `${MERGE_SWEEP_GH_DIR}${delimiter}${process.env.PATH}`,
+  ORBIT_MERGE_SWEEP_AUTHENTIC_UPDATE: authenticUpdate ? "1" : "",
   ORBIT_MERGE_SWEEP_BRANCH: "feature/orb-106",
   ORBIT_MERGE_SWEEP_BASE_ANCESTOR: baseAncestor,
   ORBIT_MERGE_SWEEP_BASE_REF: baseRef,
@@ -3155,7 +3165,7 @@ const mergeSweepCases = (file) => {
       result.status === 0 &&
       /MERGED #615/.test(result.stdout) &&
       calls.some(([group, command]) => group === "pr" && command === "update-branch") &&
-      calls.some((argv) => argv.includes("headRefOid,baseRefName")) &&
+      calls.some((argv) => argv.includes("headRefOid,baseRefName,headRefName")) &&
       !calls.some((argv) => argv.includes("headRefOid,baseRefOid")) &&
       calls.some((argv) => argv.some((value) => value.includes("/git/ref/heads/main"))) &&
       calls.findIndex(([group, command]) => group === "pr" && command === "update-branch") <
@@ -3177,9 +3187,19 @@ const mergeSweepCases = (file) => {
   )
   updateCase(
     "a pushed commit with only the prior head as its parent is refused",
-    { updateParents: expectedHead },
+    { authenticUpdate: false, updateParents: expectedHead },
     (result, _calls, merges) =>
       result.status === 0 && result.stdout.includes(`SKIP #615 HEAD-MOVED expected=${expectedHead} actual=${updatedHead}`) && merges.length === 0,
+  )
+  updateCase(
+    "an externally pushed merge with routine parents is refused",
+    { authenticUpdate: false },
+    (result, calls, merges) =>
+      result.status === 0 &&
+      result.stdout.includes(`SKIP #615 HEAD-MOVED expected=${expectedHead} actual=${updatedHead}`) &&
+      calls.some((argv) => argv.some((value) => value.includes(`/git/commits/${updatedHead}`))) &&
+      !calls.some((argv) => argv.some((value) => value.includes("/compare/"))) &&
+      merges.length === 0,
   )
   updateCase(
     "a rewritten head without the prior expected commit is refused",

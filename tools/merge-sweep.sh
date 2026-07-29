@@ -349,14 +349,15 @@ head_oid() { # <pr>; stdout: current head SHA
 UPDATED_EXPECTED=""
 UPDATED_ACTUAL=""
 adopt_routine_update() { # <pr> <old-expected>; sets UPDATED_EXPECTED and UPDATED_ACTUAL
-  local pr="$1" old_expected="$2" state base_ref base_tip parents parent relationship
+  local pr="$1" old_expected="$2" state base_ref head_ref base_tip commit_state
+  local committer_name committer_email verified verification_reason commit_message parents parent relationship
   UPDATED_EXPECTED=""
   UPDATED_ACTUAL=""
-  if ! state=$(gh pr view "$pr" --repo "$repo" --json headRefOid,baseRefName --jq '[.headRefOid, .baseRefName] | @tsv' 2>/dev/null); then
+  if ! state=$(gh pr view "$pr" --repo "$repo" --json headRefOid,baseRefName,headRefName --jq '[.headRefOid, .baseRefName, .headRefName] | @tsv' 2>/dev/null); then
     return 1
   fi
-  IFS=$'\t' read -r UPDATED_ACTUAL base_ref <<<"$state"
-  [ -n "$UPDATED_ACTUAL" ] && [ -n "$base_ref" ] || return 1
+  IFS=$'\t' read -r UPDATED_ACTUAL base_ref head_ref <<<"$state"
+  [ -n "$UPDATED_ACTUAL" ] && [ -n "$base_ref" ] && [ -n "$head_ref" ] || return 1
   if [ "$UPDATED_ACTUAL" = "$old_expected" ]; then
     UPDATED_EXPECTED="$old_expected"
     return 0
@@ -365,10 +366,21 @@ adopt_routine_update() { # <pr> <old-expected>; sets UPDATED_EXPECTED and UPDATE
     return 1
   fi
   [ -n "$base_tip" ] || return 1
-  if ! parents=$(gh api "repos/$repo/commits/$UPDATED_ACTUAL" --jq '.parents[].sha' 2>/dev/null); then
+  if ! commit_state=$(gh api "repos/$repo/git/commits/$UPDATED_ACTUAL" \
+    --jq '[.committer.name, .committer.email, (.verification.verified | tostring), .verification.reason, .message, (.parents | map(.sha) | join(" "))] | @tsv' 2>/dev/null); then
     return 1
   fi
-  printf '%s\n' "$parents" | grep -Fxq "$old_expected" || return 1
+  IFS=$'\t' read -r committer_name committer_email verified verification_reason commit_message parents <<<"$commit_state"
+  [ "$committer_name" = "GitHub" ] &&
+    [ "$committer_email" = "noreply@github.com" ] &&
+    [ "$verified" = "true" ] &&
+    [ "$verification_reason" = "valid" ] &&
+    [ "$commit_message" = "Merge branch '$base_ref' into $head_ref" ] &&
+    [ -n "$parents" ] || return 1
+  case " $parents " in
+    *" $old_expected "*) ;;
+    *) return 1 ;;
+  esac
   for parent in $parents; do
     [ "$parent" = "$old_expected" ] && continue
     if [ "$parent" = "$base_tip" ]; then
