@@ -4625,6 +4625,23 @@ const aiQuotaCases = () => {
     },
     { cwd: CODEX_APP_SERVER_DIR, env: aiQuotaEnv(ORCA_QUOTA_OK) },
   )
+  const defaultOrcaEnv = {
+    ...aiQuotaEnv(ORCA_QUOTA_OK),
+    AI_QUOTA_TEST_MODE: "1",
+    AI_QUOTA_TEST_DEFAULT_ORCA: process.execPath,
+  }
+  delete defaultOrcaEnv.ORCA_BIN
+  check(
+    "ai-quota.mjs",
+    "uses the configured Windows Orca executable when ORCA_BIN is unset",
+    ["--json"],
+    {
+      status: 0,
+      stdout:
+        /"claude":\s*\{[\s\S]*"status":\s*"OK"[\s\S]*"weeklyPercent":\s*34[\s\S]*"codex":\s*\{[\s\S]*"status":\s*"OK"/,
+    },
+    { cwd: CODEX_APP_SERVER_DIR, env: defaultOrcaEnv },
+  )
   check(
     "ai-quota.mjs",
     "keeps Codex when Orca is unavailable",

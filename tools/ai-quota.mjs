@@ -24,11 +24,14 @@ if (argv.length !== 1 || argv[0] !== "--json") {
 }
 
 const execFileAsync = promisify(execFile)
-const ORCA = process.env.ORCA_BIN || "orca"
+const testOverrides = process.env.AI_QUOTA_TEST_MODE === "1"
+const defaultOrca = testOverrides && process.env.AI_QUOTA_TEST_DEFAULT_ORCA
+  ? process.env.AI_QUOTA_TEST_DEFAULT_ORCA
+  : "C:\\Users\\thoma\\AppData\\Local\\Programs\\orca\\resources\\bin\\orca"
+const ORCA = process.env.ORCA_BIN || defaultOrca
 const configuredTimeout = Number(process.env.AI_QUOTA_TIMEOUT_MS)
 const PROVIDER_TIMEOUT_MS =
   Number.isInteger(configuredTimeout) && configuredTimeout > 0 ? configuredTimeout : 30_000
-const testOverrides = process.env.AI_QUOTA_TEST_MODE === "1"
 const runtimePlatform = testOverrides && process.env.AI_QUOTA_TEST_PLATFORM
   ? process.env.AI_QUOTA_TEST_PLATFORM
   : process.platform
