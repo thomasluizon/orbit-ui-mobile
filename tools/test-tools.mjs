@@ -4744,13 +4744,18 @@ Not run.`,
       description: `${VALID_TICKET_BODY}\n\n${line}`,
       parent: { identifier: "ORB-140", title: "Harness defect ledger from the recorded run" },
     })
-    const checkIssue = (name, issue, expect) =>
+    const checkIssue = (name, issue, expect, relations = [], env = {}) =>
       check(
         "check-ticket.mjs",
         name,
         ["--issue", issue.identifier],
         expect,
-        { env: orcaEnv([{ match: `linear issue ${issue.identifier}`, stdout: JSON.stringify({ ok: true, result: { issue, relations: [] } }) }]) },
+        {
+          env: {
+            ...orcaEnv([{ match: `linear issue ${issue.identifier}`, stdout: JSON.stringify({ ok: true, result: { issue, relations } }) }]),
+            ...env,
+          },
+        },
       )
 
     checkIssue("a ledger child with 7 occurrences passes", ledgerIssue("Ledger occurrence: 7; blocked: no"), { status: 0, stdout: /ticket ok/ })
@@ -4791,6 +4796,37 @@ Not run.`,
       "an unparseable ledger occurrence line fails",
       ledgerIssue("Ledger occurrence: several; blocked: no"),
       { status: 1, stderr: /ledger occurrence line is unparseable/i },
+    )
+    const noLinearKeyHome = join(root, "check-ticket-no-linear-key")
+    mkdirSync(noLinearKeyHome, { recursive: true })
+    const ledgerParentRelation = [{
+      relationship: "parent",
+      relatedIssue: { identifier: "ORB-140", title: "Harness defect ledger from the recorded run" },
+    }]
+    checkIssue(
+      "an Orca parent relation validates without a separate Linear key",
+      {
+        ...VALID_ISSUE,
+        id: "linear-child-id",
+        description: `${VALID_TICKET_BODY}\n\nLedger occurrence: 3; blocked: no`,
+      },
+      { status: 0, stdout: /ticket ok/ },
+      ledgerParentRelation,
+      { USERPROFILE: noLinearKeyHome },
+    )
+    checkIssue(
+      "an Orca ledger parent relation still requires the occurrence line",
+      { ...VALID_ISSUE, id: "linear-child-without-line" },
+      { status: 1, stderr: /missing[\s\S]*Ledger occurrence/i },
+      ledgerParentRelation,
+      { USERPROFILE: noLinearKeyHome },
+    )
+    checkIssue(
+      "a standalone Orca issue validates without a separate Linear key",
+      { ...VALID_ISSUE, id: "linear-standalone-id" },
+      { status: 0, stdout: /ticket ok/ },
+      [],
+      { USERPROFILE: noLinearKeyHome },
     )
   },
   "check-push-target.mjs": () => {

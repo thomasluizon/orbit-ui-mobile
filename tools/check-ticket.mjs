@@ -142,21 +142,27 @@ const validateLabels = (labels) => {
   }
 }
 
-const isLedgerChild = (issue, relations) => {
+const parentFromOrca = (issue, relations) => {
+  if (Object.hasOwn(issue, "parent")) return issue.parent
   const parentRelation = relations.find((relation) => {
     const relationship = relation.relationship ?? relation.type
     return relationship === "parent" || relationship === "childOf"
   })
-  const parent = issue.parent ?? parentRelation?.relatedIssue ?? parentRelation?.issue ?? parentRelation
+  return parentRelation
+    ? parentRelation.relatedIssue ?? parentRelation.issue ?? parentRelation
+    : undefined
+}
+
+const isLedgerParent = (parent) => {
   return LEDGER_PARENT_MARKER.test(`${parent?.title ?? ""}\n${parent?.description ?? ""}`)
 }
 
 const readLinearParent = async (issue) => {
-  if (!issue.id || Object.hasOwn(issue, "parent")) return issue.parent ?? null
+  if (!issue.id) return null
   const keyPath = join(process.env.USERPROFILE || homedir(), ".linear-api-key")
-  if (!existsSync(keyPath)) throw new Error(`missing ${keyPath}`)
+  if (!existsSync(keyPath)) return null
   const apiKey = readFileSync(keyPath, "utf8").trim()
-  if (!apiKey) throw new Error(`${keyPath} is empty`)
+  if (!apiKey) return null
   const requestBody = JSON.stringify({
     query: "query($id: String!) { issue(id: $id) { parent { id identifier title description } } }",
     variables: { id: issue.id },
@@ -240,13 +246,19 @@ if (mode === "--file") {
   validateBody(body)
   validateLabels(labels)
   const relations = parsedResult.relations ?? issue.relations ?? []
-  try {
-    issue.parent ??= await readLinearParent(issue)
-  } catch (error) {
-    console.error(`check-ticket: could not read the Linear parent relation: ${error instanceof Error ? error.message : String(error)}`)
-    process.exit(2)
+  let parent = parentFromOrca(issue, relations)
+  const parentIsClassifiable = parent === null ||
+    typeof parent?.title === "string" ||
+    typeof parent?.description === "string"
+  if (!parentIsClassifiable) {
+    try {
+      parent = await readLinearParent(issue)
+    } catch (error) {
+      console.error(`check-ticket: could not read the Linear parent relation: ${error instanceof Error ? error.message : String(error)}`)
+      process.exit(2)
+    }
   }
-  if (isLedgerChild(issue, relations)) validateLedgerOccurrence(body)
+  if (isLedgerParent(parent)) validateLedgerOccurrence(body)
   const blockedBy = relations.filter((r) => r.relationship === "blockedBy" || r.type === "blockedBy")
   if (mentionsIssueDependency(body) && blockedBy.length === 0) {
     problems.push("body PROSE mentions a dependency but the issue has no blockedBy relation; the DAG is explicit, never inferred from titles (6.2)")
