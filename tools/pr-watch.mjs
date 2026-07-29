@@ -42,7 +42,7 @@ Prints one JSON object on stdout: repo, pr, url, transition, headSha, verdict, v
 reviewDecision, mergeStateStatus, failingChecks, polls, watched. Progress goes to stderr.
 
 The transitions, in the order they are checked, so a PR in several at once reports the one
-that matters most: gone (merged or closed), checks-failed, changes-requested, review-comment,
+that matters most: gone (merged or closed), draft, checks-failed, changes-requested, review-comment,
 approved (a fresh verdict on the current head), ready-to-merge (an approved PR becomes mergeable),
 head-changed, review-decision, merge-clean. UNKNOWN and changes among other merge states
 never emit. The first poll establishes the baseline for state transitions, except unhandled
@@ -208,6 +208,7 @@ const transitionOf = (pullRequest, previous) => {
 
   if (pullRequest.merged) return { ...state, transition: "gone", reason: "the PR is merged", code: 5 }
   if (pullRequest.state === "CLOSED") return { ...state, transition: "gone", reason: "the PR is closed unmerged", code: 5 }
+  if (pullRequest.isDraft) return { ...state, transition: "draft", reason: "the PR is a draft and cannot be merged", code: 1 }
   if (failingChecks.length > 0) return { ...state, transition: "checks-failed", reason: `failing check(s): ${failingChecks.join(", ")}`, code: 1 }
   if (verdict && !handled.has(verdict)) {
     if (verdict === "CHANGES_REQUESTED") return { ...state, transition: "changes-requested", reason: `a fresh CHANGES_REQUESTED on ${head.slice(0, 7)}`, code: 1 }
