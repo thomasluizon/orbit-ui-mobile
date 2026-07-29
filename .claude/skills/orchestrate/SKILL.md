@@ -500,23 +500,28 @@ server refuses a last-moment change.
 The script owns the remaining mechanical merge decision. It repeats the branch update
 as a safety check, polls `mergeStateStatus`, rejects failed checks, requires
 `reviewDecision=APPROVED`, waits for the `review` check on the current head SHA to
-settle, and re-reads the decision after updates. Its review-safety query is the last
-API read before the merge call: it requires every review thread to be resolved and no
+settle, and re-reads the decision after updates. Its review-safety query requires
+every review thread to be resolved and no
 review submission or edit, inline review comment or edit, or conversation comment or
 edit at or after `reviewed-through`. It paginates review submissions through GraphQL
 and checks `submittedAt`, `updatedAt`, and `lastEditedAt`, checks both creation and edit times
 for comments, admits no author exclusions, and fails closed on every thread or activity
-lookup.
+lookup. Immediately after that review-safety query, the sweep freshly reads the mapped
+Linear issue state as the final operation before its merge decision. The Linear read
+therefore cannot inherit an earlier state, but the review-safety query is not the last
+API read before the merge call.
 
 There is still an unavoidable final API race between the response to that safety query
-and the merge request. The sweep makes the safety query last, but it cannot prevent new
-activity from arriving after that response. It squash-merges without `--admin`, then
+and the merge request. The sweep makes its Linear decision-time read after the safety
+query, but it cannot prevent new activity from arriving after the safety response. It
+squash-merges without `--admin`, then
 rechecks review activity after every successful merge. New activity, unresolved
-threads, or an unverifiable review lookup found by that recheck were detected and
-reported, not prevented: the script prints the corresponding
+threads, an unverifiable review lookup found by that recheck, or a failed post-merge
+Linear reassertion were detected and reported, not prevented: the script prints the corresponding
 `POST-MERGE-ACTIVITY`, `POST-MERGE-UNRESOLVED-THREADS`, or
-`POST-MERGE-REVIEW-LOOKUP-FAILED` marker, exits `4`, and the run stops all further
-unattended merges and copies that result into the closing report. It also checks that
+`POST-MERGE-REVIEW-LOOKUP-FAILED`, or
+`POST-MERGE-LINEAR-STATE-REASSERT-FAILED` marker, exits `4`, and the run stops all
+further unattended merges and copies that result into the closing report. It also checks that
 a merged head did not move afterwards. Its workflow lookup fails closed: if it cannot
 prove the repository has no review workflow, the current-head review wait stays
 enabled.
@@ -542,10 +547,11 @@ form, either named review-lookup failure, any other `SKIP`, or `MERGE-REFUSED`
 leaves that PR open and supplies its stopped reason.
 Exit `0` also covers a completed sweep that skipped a PR. Exit `1` reports an
 orphaned merged head, exit `2` bad usage, exit `3` an unverifiable merged head, and
-exit `4` post-merge review activity or an unverifiable post-merge review state. Exit
-`4` is not proof that the merge was unsafe, but the result missed or could not verify
-the pre-merge decision boundary: stop further unattended merges and report the exact
-`POST-MERGE-*` line, including its activity, count, or lookup source detail. For exits
+exit `4` post-merge review activity, an unverifiable post-merge review state, or a
+failed post-merge Linear reassertion. Exit `4` is not proof that the merge was unsafe,
+but the result missed or could not verify the pre-merge decision boundary: stop further
+unattended merges and report the exact `POST-MERGE-*` line, including its activity,
+count, lookup source detail, or Linear issue, observed state, and instant. For exits
 `1` or `3`, re-read the affected PR state and record it as a harness defect rather
 than claiming the PR remained unmerged.
 

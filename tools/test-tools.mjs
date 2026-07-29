@@ -3869,6 +3869,15 @@ const mergeSweepCases = (file) => {
   const reviewedThrough = "2026-07-28T00:00:00Z"
   const newerReviewTime = "2026-07-28T00:00:01Z"
   const coverageAware = file === "merge-sweep-cov.sh"
+  for (const [label, args, stderr] of [
+    ["requires a value for --issue", ["--issue"], /--issue requires <pr-number>=<ORB-N>/],
+    ["rejects a malformed issue mapping", ["--issue", "615=150", "thomasluizon/orbit-ui-mobile", "615"], /issue mappings must be <pr-number>=<ORB-N>, got: 615=150/],
+    ["rejects a non-numeric issue mapping PR", ["--issue", "not-615=ORB-150", "thomasluizon/orbit-ui-mobile", "615"], /issue mapping PR must be a number, got: not-615/],
+    ["rejects a duplicate issue mapping", ["--issue", "615=ORB-150", "--issue", "615=ORB-151", "thomasluizon/orbit-ui-mobile", "615"], /duplicate issue mapping for PR 615/],
+    ["requires an issue mapping for every swept PR", ["thomasluizon/orbit-ui-mobile", "615"], /issue mapping is required for PR 615/],
+  ]) {
+    check(file, label, args, { status: 2, stderr })
+  }
   const reviewedArgs = ["--expected-head", `615=${expectedHead}`, "--reviewed-through", `615=${reviewedThrough}`, "--issue", "615=ORB-150", "thomasluizon/orbit-ui-mobile", "615"]
   const matchedLog = join(root, `${file}-matched.log`)
   const matched = run(file, reviewedArgs, {
@@ -4029,7 +4038,7 @@ const mergeSweepCases = (file) => {
     file,
     "help documents the Linear issue gate, exclusive cutoff, and residual post-merge window",
     ["--help"],
-    { status: 0, stdout: /(?=[\s\S]*--reviewed-through)(?=[\s\S]*--issue must map every swept PR)(?=[\s\S]*LINEAR-STATE-REASSERTED)(?=[\s\S]*LINEAR-STATE-REFUSED)(?=[\s\S]*cutoff is exclusive: activity at or after that timestamp counts as new\.)(?=[\s\S]*Every status check, required or not, must reach a terminal successful conclusion before merge\.)(?=[\s\S]*residual response-to-merge race)(?=[\s\S]*exits 4)/ },
+    { status: 0, stdout: /(?=[\s\S]*--reviewed-through)(?=[\s\S]*--issue must map every swept PR)(?=[\s\S]*LINEAR-STATE-REASSERTED)(?=[\s\S]*LINEAR-STATE-REFUSED)(?=[\s\S]*POST-MERGE-LINEAR-STATE-REASSERT-FAILED)(?=[\s\S]*cutoff is exclusive: activity at or after that timestamp counts as new\.)(?=[\s\S]*Every status check, required or not, must reach a terminal successful conclusion before merge\.)(?=[\s\S]*residual response-to-merge race)(?=[\s\S]*exits 4)/ },
   )
 
   const updatedHead = "3333333333333333333333333333333333333333"

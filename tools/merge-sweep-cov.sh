@@ -46,9 +46,10 @@ Before any merge, --reviewed-through must name the latest instant through which 
 reviews, inline review comments, and issue comments were inspected. A newer or edited item,
 an unresolved review thread, a missing mapping, or a failed lookup skips the PR. Repeat the
 flag once per PR. The cutoff is exclusive: activity at or after that timestamp counts as new.
-The safety query is the last operation before merge and runs again after success. Post-merge
-activity or an unverifiable post-merge review state is reported with a URL when available and
-exits 4; this detects but cannot prevent the residual response-to-merge race.
+The review-safety query runs before the fresh Linear decision-time read and runs again after
+success. Post-merge activity, an unverifiable post-merge review state, or a failed post-merge
+Linear reassertion is reported with a URL when available and exits 4; this detects but cannot
+prevent the residual response-to-merge race.
 
 --issue must map every swept PR to its Linear identifier (\`<pr-number>=<ORB-N>\`). Immediately
 before merging, the sweep freshly reads that issue: \`In Review\` proceeds unchanged, while
@@ -68,8 +69,8 @@ SHA that was merged carries a post-merge commit that never reached main.
 Output (stdout): one MERGED/SKIP/FAIL-ADMIN line per PR, then any ORPHANED-HEAD lines, then
 COV-SWEEP-DONE.
 Exit codes: 0 every merged head verified clean; 1 at least one orphaned head branch; 2 bad usage;
-3 a head branch could not be verified; 4 post-merge review activity or an unverifiable review
-state (unknown is not a clean pass).
+3 a head branch could not be verified; 4 post-merge review activity, an unverifiable review
+state, or a failed post-merge Linear reassertion (unknown is not a clean pass).
 EOF
 }
 
