@@ -3154,7 +3154,7 @@ const teardownPlan = (fixture, { state = "Done", terminals = [], pullRequest = m
   { match: "worktree list", stdout: JSON.stringify({ ok: true, result: { worktrees: [teardownWorktreeRecord(fixture)] } }) },
   { match: "terminal list", stdout: JSON.stringify({ ok: true, result: { terminals } }) },
   { match: "linear issue ORB-124", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-124", state: { name: state } } } }) },
-  { match: "pr list", stdout: pullRequestOutput, exit: pullRequestExit },
+  { match: "pr list --head feature/orb-124-teardown --base main --state merged --limit 1 --json number,mergeCommit,headRefOid,mergedAt", stdout: pullRequestOutput, exit: pullRequestExit },
   { match: "terminal stop", stdout: JSON.stringify({ ok: true, result: {} }) },
   { match: "worktree rm", stdout: removal, exit: removalExit, ...(removePath ? { removePath } : {}) },
 ]

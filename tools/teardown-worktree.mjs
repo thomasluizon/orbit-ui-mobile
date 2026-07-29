@@ -127,7 +127,8 @@ const treePresent = pullRequest
       git(path, ["fetch", "--quiet", "origin", pullRequest.mergeCommit.oid])
       const mergeCommitPresent = git(path, ["merge-base", "--is-ancestor", pullRequest.mergeCommit.oid, baseRef], { allowFailure: true }) !== null
       const localTip = git(path, ["rev-parse", branch])
-      const localTipPresent = localTip === pullRequest.headRefOid || git(path, ["merge-base", "--is-ancestor", localTip, baseRef], { allowFailure: true }) !== null
+      git(path, ["fetch", "--quiet", "origin", pullRequest.headRefOid], { allowFailure: true })
+      const localTipPresent = git(path, ["merge-base", "--is-ancestor", localTip, pullRequest.headRefOid], { allowFailure: true }) !== null
       return mergeCommitPresent && localTipPresent
     })()
   : false
