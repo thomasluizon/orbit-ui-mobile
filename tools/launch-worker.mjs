@@ -408,6 +408,18 @@ const git = (args) => {
   }
 }
 
+const gitTracksPath = (worktreePath, path) => {
+  const result = spawnSync(
+    "git",
+    ["-C", worktreePath, "ls-files", "--error-unmatch", "--", path],
+    { encoding: "utf8" },
+  )
+  if (result.error) fail(3, `git could not inspect ${path}: ${result.error.message}`)
+  if (result.status === 0) return true
+  if (result.status === 1) return false
+  fail(3, `git could not inspect ${path}: ${(result.stderr || result.stdout || `exit ${result.status}`).trim()}`)
+}
+
 const quotaToolPath = fileURLToPath(new URL("./ai-quota.mjs", import.meta.url))
 const budgetToolPath = fileURLToPath(new URL("./automation-budget.mjs", import.meta.url))
 const automationLedgerOverride = process.env.ORBIT_AUTOMATION_BUDGET_LEDGER
@@ -905,10 +917,14 @@ rollback.contractBranch = branch
 const actualBranch = git(["-C", worktreePath, "rev-parse", "--abbrev-ref", "HEAD"])
 if (actualBranch !== branch) fail(3, `expected the worktree on ${branch}, found ${actualBranch}`)
 
+const hookRelativePath = ".claude/hooks/report-worker-turn.mjs"
 const generatedWorktreePaths = [
   "/.claude/settings.local.json",
   "/.codex/hooks.json",
 ]
+if (!gitTracksPath(worktreePath, hookRelativePath)) {
+  generatedWorktreePaths.push(`/${hookRelativePath}`)
+}
 try {
   const reportedExcludePath = git(["-C", worktreePath, "rev-parse", "--git-path", "info/exclude"])
   const excludePath = isAbsolute(reportedExcludePath) ? reportedExcludePath : resolve(worktreePath, reportedExcludePath)
@@ -925,7 +941,7 @@ try {
 
 const hookSource = new URL("../.claude/hooks/report-worker-turn.mjs", import.meta.url)
 const hookDirectory = join(worktreePath, ".claude", "hooks")
-const hookTarget = join(hookDirectory, "report-worker-turn.mjs")
+const hookTarget = join(worktreePath, hookRelativePath)
 const localSettingsPath = join(worktreePath, ".claude", "settings.local.json")
 const codexHooksDirectory = join(worktreePath, ".codex")
 const codexHooksPath = join(codexHooksDirectory, "hooks.json")

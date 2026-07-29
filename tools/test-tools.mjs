@@ -813,19 +813,29 @@ const TRUST_SCREENS = {
  * A real launch needs a real checkout to `git switch -c` into, since git is not stubbed here.
  * Everything else the launch touches is orca, which is.
  */
-const stageCheckout = (base) => {
+const stageCheckout = (base, { trackReportHook = true } = {}) => {
   const repoPath = join(base, "repos", "ui")
   const path = join(base, "checkout")
-  mkdirSync(join(repoPath, ".claude", "hooks"), { recursive: true })
-  cpSync(
-    join(base, ".claude", "hooks", "report-worker-turn.mjs"),
-    join(repoPath, ".claude", "hooks", "report-worker-turn.mjs"),
-  )
-  for (const argv of [
+  mkdirSync(repoPath, { recursive: true })
+  writeFileSync(join(repoPath, "fixture.txt"), "fixture\n")
+  const setup = [
     ["init", "-q", "--initial-branch=main"],
     ["config", "user.email", "gate@orbit.test"],
     ["config", "user.name", "Orbit Gate"],
-    ["add", ".claude/hooks/report-worker-turn.mjs"],
+  ]
+  for (const argv of setup) {
+    const result = spawnSync("git", ["-C", repoPath, ...argv], { encoding: "utf8" })
+    if (result.status !== 0) return null
+  }
+  if (trackReportHook) {
+    mkdirSync(join(repoPath, ".claude", "hooks"), { recursive: true })
+    cpSync(
+      join(base, ".claude", "hooks", "report-worker-turn.mjs"),
+      join(repoPath, ".claude", "hooks", "report-worker-turn.mjs"),
+    )
+  }
+  for (const argv of [
+    ["add", "fixture.txt", ...(trackReportHook ? [".claude/hooks/report-worker-turn.mjs"] : [])],
     ["commit", "-q", "-m", "base"],
     ["worktree", "add", "-q", "--detach", path, "HEAD"],
   ]) {
@@ -901,9 +911,9 @@ const EMPTY_COMPOSER = ' (logo)   Claude Code v2.1.220\n> Try "how do I log an e
  * "delivered" is a tail carrying the pointer as a user line, anything else is a tail without it.
  * Returns the orca calls, because the assertion that matters is how many sends really happened.
  */
-const runPointerLaunch = (label, tails, { repainting = false } = {}) => {
+const runPointerLaunch = (label, tails, { repainting = false, trackReportHook = true } = {}) => {
   const staged = stageLaunchWorker(label, INTERACTIVE_WORKER)
-  const checkout = stageCheckout(staged.base)
+  const checkout = stageCheckout(staged.base, { trackReportHook })
   if (!checkout) return null
   const log = join(staged.base, "orca-calls.log")
   const ledger = join(staged.base, "automation-budget.jsonl")
@@ -1029,6 +1039,35 @@ const pointerDeliveryCases = () => {
       `git check-ignore exited ${ignored.status}`,
     )
   }
+
+  const untracked = runPointerLaunch(
+    "pointer-untracked-report-hook",
+    ["delivered"],
+    { trackReportHook: false },
+  )
+  const untrackedHook = untracked
+    ? join(untracked.checkout, ".claude", "hooks", "report-worker-turn.mjs")
+    : ""
+  const untrackedStatus = untracked
+    ? spawnSync("git", ["-C", untracked.checkout, "status", "--porcelain"], { encoding: "utf8" })
+    : null
+  const untrackedIgnored = untracked
+    ? spawnSync("git", ["-C", untracked.checkout, "check-ignore", "-q", untrackedHook])
+    : null
+  T(
+    "launch-worker.mjs: a target repo that does not track the report hook receives the copied hook",
+    untracked?.result.status === 0 && existsSync(untrackedHook),
+    untracked
+      ? `exit ${untracked.result.status}, hook exists ${existsSync(untrackedHook)}`
+      : "could not stage a git checkout for the launch; git is required for this case",
+  )
+  T(
+    "launch-worker.mjs: an installed untracked report hook is excluded and leaves the target worktree clean",
+    untrackedStatus?.status === 0 &&
+      untrackedStatus.stdout.trim() === "" &&
+      untrackedIgnored?.status === 0,
+    `status: ${JSON.stringify(untrackedStatus?.stdout?.trim())}, check-ignore exit ${untrackedIgnored?.status}`,
+  )
 
   const second = runPointerLaunch("pointer-second", [EMPTY_COMPOSER, "delivered"])
   T(
