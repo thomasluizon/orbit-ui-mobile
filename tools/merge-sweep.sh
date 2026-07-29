@@ -40,8 +40,9 @@ reviews, inline review comments, and issue comments were inspected. A newer or e
 an unresolved review thread, a missing mapping, or a failed lookup skips the PR. Repeat the
 flag once per PR. The cutoff is exclusive: activity at or after that timestamp counts as new.
 The review-safety query runs before the fresh Linear decision-time read and runs again after
-success. Post-merge activity, an unverifiable post-merge review state, or a failed post-merge
-Linear reassertion is reported with a URL when available and exits 4; this detects but cannot
+success. Post-merge activity or an unverifiable post-merge review state is reported with a URL
+when available and exits 4. A failed post-merge Linear reassert emits
+POST-MERGE-LINEAR-STATE-REASSERT-FAILED and exits 4; this detects but cannot
 prevent the residual response-to-merge race.
 
 --issue must map every swept PR to its Linear identifier (\`<pr-number>=<ORB-N>\`). Immediately
