@@ -3200,6 +3200,16 @@ const mergeSweepCases = (file) => {
       merges.length === 0,
   )
   updateCase(
+    "an empty fresh base ref lookup refuses adoption",
+    { baseTip: "" },
+    (result, calls, merges) =>
+      result.status === 0 &&
+      result.stdout.includes(`SKIP #615 HEAD-MOVED expected=${expectedHead} actual=${updatedHead}`) &&
+      calls.some((argv) => argv.some((value) => value.includes("/git/ref/heads/main"))) &&
+      !calls.some((argv) => argv.some((value) => value.includes(`/commits/${updatedHead}`))) &&
+      merges.length === 0,
+  )
+  updateCase(
     "an empty commits lookup refuses adoption",
     { commitsLookupEmpty: true },
     (result, calls, merges) =>
@@ -3224,6 +3234,16 @@ const mergeSweepCases = (file) => {
       result.status === 0 &&
       result.stdout.includes(`SKIP #615 HEAD-MOVED expected=${expectedHead} actual=${updatedHead}`) &&
       calls.some((argv) => argv.some((value) => value.includes(`/compare/${baseAncestor}...${baseTip}`))) &&
+      merges.length === 0,
+  )
+  const divergentBaseParent = "6666666666666666666666666666666666666666"
+  updateCase(
+    "a divergent ancestry result refuses adoption",
+    { updateParents: `${expectedHead}\n${divergentBaseParent}` },
+    (result, calls, merges) =>
+      result.status === 0 &&
+      result.stdout.includes(`SKIP #615 HEAD-MOVED expected=${expectedHead} actual=${updatedHead}`) &&
+      calls.some((argv) => argv.some((value) => value.includes(`/compare/${divergentBaseParent}...${baseTip}`))) &&
       merges.length === 0,
   )
 
