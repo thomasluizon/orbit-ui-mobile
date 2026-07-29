@@ -1883,10 +1883,14 @@ import { existsSync, writeFileSync } from "node:fs"
 const [tool, prompt, ledger, marker, release, firstLog, secondLog] = process.argv.slice(2)
 const baseEnv = JSON.parse(process.env.CONCURRENT_LAUNCH_ENV)
 const run = (extraEnv) => {
-  const child = spawn(process.execPath, [tool, "--issue", "ORB-75", "--prompt-file", prompt], {
-    env: { ...process.env, ...baseEnv, ORBIT_AUTOMATION_BUDGET_LEDGER: ledger, ...extraEnv },
-    stdio: ["ignore", "pipe", "pipe"],
-  })
+  const child = spawn(
+    process.execPath,
+    [tool, "--issue", "ORB-75", "--prompt-file", prompt, "--reports-file", ledger + ".reports.jsonl"],
+    {
+      env: { ...process.env, ...baseEnv, ORBIT_AUTOMATION_BUDGET_LEDGER: ledger, ...extraEnv },
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  )
   let stderr = ""
   child.stderr.setEncoding("utf8")
   child.stderr.on("data", (chunk) => { stderr += chunk })
