@@ -1,6 +1,6 @@
 ---
 name: orchestrate
-description: Linear project, single ticket, or explicit ticket set in, reviewed PRs out, wave by wave. Computes the merge-gated DAG with tools/wave-plan.mjs, preflights every target repo before worktree creation, reconciles each ticket against the code (D8), launches one Orca worktree + worker per ticket (engine from .claude/orchestrator.json, claude or codex), lets workers own automated review, adjudicates escalations, performs one pre-merge verification per ticket, enforces the evidence gate (D7) and two-strikes (D9), then tears down each worktree immediately after verified Done. A human merge is the only thing that advances a wave (D3), unless --sleep is passed. Scope is the whole project for a name or one ticket argument, one ticket under --only, or exactly the named tickets when two or more are supplied; --single runs that resolved scope serially. Use after /feature or /ticket created the tickets.
+description: Linear project, single ticket, or explicit ticket set in, reviewed PRs out, wave by wave. Computes the merge-gated DAG with tools/wave-plan.mjs, preflights every target repo before worktree creation, reconciles each ticket against the code (D8), launches one Orca worktree + worker per ticket (engine from .claude/orchestrator.json, claude or codex), monitors structured worker reports while workers own automated review, adjudicates escalations, performs one pre-merge verification per ticket, enforces the evidence gate (D7) and two-strikes (D9), then tears down each worktree immediately after verified Done. A human merge is the only thing that advances a wave (D3), unless --sleep is passed. Scope is the whole project for a name or one ticket argument, one ticket under --only, or exactly the named tickets when two or more are supplied; --single runs that resolved scope serially. Use after /feature or /ticket created the tickets.
 argument-hint: <Linear project name | ORB-N [ORB-N ...]> [--only] [--single] [--sleep]
 effort: high
 ---
@@ -112,6 +112,11 @@ worker. This applies equally to tickets written by humans, agents, or reviewers.
 
 ## 2. Launch a wave
 
+Create ONE `reports.jsonl` path in the session scratchpad before launching the first
+ticket. Reuse that absolute path for every worker in every wave of this run. The first
+launcher call provisions the file. A run gets a fresh path, so records from an earlier
+run can never surface as current worker activity.
+
 Per launchable ticket, up to the effective `maxParallelWorktrees`: the configured
 cap for a normal run, or 1 when `--single` is present. `tools/launch-worker.mjs`
 enforces that cap against the target repo's live Orca worktrees before creating a
@@ -158,18 +163,24 @@ eligible ticket. Do not reorder waves or explicit-set members.
    the clauses ended a turn on a question and stalled until a human noticed the terminal, and
    then armed a monitor on another ticket's PR. `tools/test-tools.mjs` fails if a clause is
    dropped, so the Harness Execution job is what keeps it true, not this paragraph.
-3. `node tools/launch-worker.mjs --issue ORB-N --prompt-file "<absolute path>"`
+3. `node tools/launch-worker.mjs --issue ORB-N --prompt-file "<absolute path>"
+   --reports-file "<absolute reports.jsonl path>"`
    (`--base-branch <target>` when the target is not `main`, `--branch-prefix fix` for a
    bug ticket, `--repo ui|api|landing` only to override the `repo:*` label, and
-   `--max-parallel-worktrees 1` when the run has `--single`). It prints
-   the terminal handle, worktree path and branch as JSON: keep that, it is what you
-   babysit with. Exit 0 means the worker ACCEPTED the prompt as a user turn, read back off
-   the TUI, not merely that orca accepted the send. Exit 1 means the concurrency cap was
-   reached before anything was created, or the worker never reached tui-idle or took the
-   pointer. Exit 2 is usage or config; exit 3 is an orca or git failure. A cap refusal
-   creates nothing to roll back. After any later non-zero exit, the tool rolls its own
-   worktree and branches back out, so relaunching after fixing the cause starts clean
-   rather than piling up
+   `--max-parallel-worktrees 1` when the run has `--single`). It prints the terminal
+   handle, worktree path, branch and reports path as JSON: keep that, it is what you
+   babysit with. The launcher refuses a reports path inside any configured repo or the
+   new worktree, copies the reporting hook into the worktree and configures its
+   `.claude/settings.local.json` and `.codex/hooks.json` Stop hooks with the reports path
+   and ticket. A Codex launch also carries `--dangerously-bypass-hook-trust`, because
+   project-local hooks otherwise wait for an interactive trust approval. The launcher
+   excludes these generated runtime files from the target repo's local git status.
+   Exit 0 means the worker ACCEPTED the prompt as a user turn, read back off the TUI,
+   not merely that orca accepted the send. Exit 1 means the concurrency cap was reached
+   before anything was created, or the worker never reached tui-idle or took the pointer.
+   Exit 2 is usage or config; exit 3 is an orca or git failure. A cap refusal creates
+   nothing to roll back. After any later non-zero exit, the tool rolls its own worktree
+   and branches back out, so relaunching after fixing the cause starts clean rather than piling up
    `orb-N-slug-2` with a surviving contract branch that fails `git switch -c` all over
    again. If it could not remove the worktree (a wedged setup PTY), it prints the exact
    removal command on stderr; run that BEFORE relaunching. Read stderr, fix the cause,
@@ -230,7 +241,8 @@ orchestrator.json. No tier label selects `default`; `tier:cheap` and `tier:deep`
 the corresponding engine-specific entries. A tier must change the resolved invocation.
 Unknown or conflicting tier labels, missing mappings, and identical tier invocations
 fail the launch loudly. The legacy `worker:sonnet` label is rejected with remediation to
-use `tier:cheap`; it is never silently translated or ignored.
+use `tier:cheap`; it is never silently translated or ignored. Codex receives the
+hook-trust flag described above.
 
 **Why not `claude -p`.** Headless mode is invisible to Orca: it is not a TUI, so the
 worktree card shows no Agents row and clicking the card reveals only a bare shell.
@@ -284,23 +296,36 @@ at the keyboard is just as stuck as a headless one.
 
 ## 3. Babysit
 
-**tui-idle is not completion.** It cannot tell "finished the contract" apart from "stopped
-early" or "waiting on a prompt that will never come". Measured 2026-07-24 on ORB-75: the
-waiter returned `satisfied: true` and that was read as done, while the worktree held 14
-modified and 7 untracked files with zero commits, no push, no PR, and the issue still In
-Progress. So idle is a trigger to CHECK, never a report of success:
+Start ONE monitor for the run and keep it on the shared reports file. Start its read
+offset at the file's current end, then surface each complete line appended after that
+offset. Keep this one tail alive across waves.
+
+Each line is one worker turn: ticket, head SHA, push state, gates, contract items,
+blocker and whether a human is needed. Treat these records as the normal status path.
+Do not start one tail per worker and do not reread prior lines. On each new record, run
+the artifact check for that ticket:
 
 ```
-node tools/worker-status.mjs --worktree <worktreePath> --issue ORB-N [--base <target>]
+node tools/worker-status.mjs --worktree <worktreePath> --issue ORB-N --reports-file "<absolute reports.jsonl path>" [--base <target>]
 ```
 
-It derives the verdict from artifacts (commits above the freshly fetched `origin/<target>`,
-never a stale local ref, a clean worktree, the branch pushed, a PR open against the target,
-the issue In Review with the PR attached, an approved review decision, zero unresolved threads,
-and an image attached when the ticket is `visible-effect`, D7) and exits non-zero listing exactly
-what is unmet. For a `visible-effect` ticket, also inspect the issue evidence and require the
-attached critique paired with the final screenshots before treating the contract as met. That
-list plus this critique check is what you nudge with. Nothing else counts as "done".
+It derives the verdict from both liveness and artifacts: commits above the freshly
+fetched `origin/<target>`, never a stale local ref; no staged but uncommitted work; no
+merge in progress; no unpushed commits; a clean worktree; the branch pushed; a PR open
+against the target; the issue In Review with the PR attached; an approved review decision;
+zero unresolved threads; and an image attached when the ticket is `visible-effect`, D7.
+It exits non-zero listing exactly what is unmet. For a `visible-effect` ticket, also
+inspect the issue evidence and require the attached critique paired with the final
+screenshots before treating the contract as met. That list plus this critique check is
+what you nudge with. Nothing else counts as done. A healthy Linear state or pull request
+never overrides unsafe git state.
+
+**A missing report is the diagnostic trigger.** `worker-status.mjs` marks a worker
+suspect when it has not reported within the expected window. Only after that verdict may
+you inspect its terminal with `orca terminal read` or `/watch` to diagnose why reporting
+stopped. Terminal text is never the normal status source. This preserves the diagnostic
+path for a dead hook, crashed process or stuck TUI without paying thousands of tokens to
+scrape every healthy worker.
 
 **Never `terminal send` to a worker that is not idle.** Measured on the same run: a send
 issued mid-turn never became a user turn at all. It appears in the worker's session
@@ -316,12 +341,10 @@ node tools/nudge-worker.mjs --terminal <handle> --text "<one line>"
 Either form waits for tui-idle first and REFUSES with exit 1 (sending nothing) while the
 worker is busy, so a mid-turn send is not reachable through the sanctioned path.
 
-**What the fleet is doing right now** is `/watch` (`tools/worker-watch.mjs`): per worktree, the
-ticket, the branch, the Linear state, BUSY or IDLE by repaint delta, the last meaningful output
-lines, and the contract verdict above. Liveness and delivery answer different questions, and
-`IDLE + NOT MET` is the pair that costs a run: a worker that stopped on a question with nobody
-at the keyboard. Read it instead of hand-running `orca terminal read`, which returns a busy
-worker's tail as thousands of characters of concatenated `Working` fragments.
+When structured reporting has stopped, `/watch` (`tools/worker-watch.mjs`) is the
+diagnostic fleet view: per worktree, the ticket, branch, Linear state, repaint state,
+terminal tail and contract verdict. Stop using it as soon as the reporting fault is
+understood; the shared JSONL monitor remains the status source.
 
 After the PR opens, the worker owns its automated review cycle. The orchestrator does not read
 review bodies, author review-round files, or relay findings back to the worker. It waits for one

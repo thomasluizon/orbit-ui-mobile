@@ -10,7 +10,7 @@
 // Run: node .claude/hooks/test-hooks.mjs   (exits non-zero on any failure)
 
 import { mkdirSync, mkdtempSync, writeFileSync, rmSync, readFileSync, readdirSync, existsSync, statSync } from "node:fs"
-import { spawnSync } from "node:child_process"
+import { spawn, spawnSync } from "node:child_process"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -1141,6 +1141,96 @@ const appealedChain = runHookResult(
 T("cc raw-tool: every chained command has its own appeal -> 0", appealedChain.status, 0)
 T("cc raw-tool: chained wave-plan reason is recorded", appealedChain.stdout.includes("wave plan is required"), true)
 T("cc raw-tool: chained rollup reason is recorded", appealedChain.stdout.includes("rollup is required"), true)
+
+const reportRepo = join(root, "report-repo")
+const reportRemote = join(root, "report-remote.git")
+mkdirSync(reportRepo, { recursive: true })
+const reportGit = (cwd, args) => spawnSync("git", ["-C", cwd, ...args], { encoding: "utf8" })
+for (const args of [
+  ["init", "-q", "--bare", reportRemote],
+  ["init", "-q", "--initial-branch=feature/orb-136", reportRepo],
+  ["config", "user.email", "gate@orbit.test"],
+  ["config", "user.name", "Orbit Gate"],
+]) {
+  const cwd = args[0] === "init" && args.includes("--bare") ? root : reportRepo
+  const result = reportGit(cwd, args)
+  T(`worker-report setup: git ${args.join(" ")}`, result.status, 0)
+}
+writeFileSync(join(reportRepo, "proof.txt"), "reported\n")
+for (const args of [
+  ["add", "proof.txt"],
+  ["commit", "-q", "-m", "test report"],
+  ["remote", "add", "origin", reportRemote],
+  ["push", "-q", "-u", "origin", "feature/orb-136"],
+]) {
+  const result = reportGit(reportRepo, args)
+  T(`worker-report setup: git ${args.join(" ")}`, result.status, 0)
+}
+
+const reportHook = join(hooksDir, "report-worker-turn.mjs")
+const runReportHook = (reportsFile, payload) =>
+  spawnSync(process.execPath, [reportHook, "--reports-file", reportsFile, "--ticket", "ORB-136"], {
+    cwd: reportRepo,
+    input: JSON.stringify(payload),
+    encoding: "utf8",
+  })
+const completeReports = join(root, "complete-reports.jsonl")
+const completePayload = {
+  cwd: reportRepo,
+  last_assistant_message:
+    'Finished.\nWORKER_REPORT: {"gates":{"lint":"passed","type-check":"passed","test":"passed"},"contractItems":["committed","pushed","pr-open"],"blockedOn":null,"needsHuman":false}',
+}
+T("worker-report: complete turn appends successfully", runReportHook(completeReports, completePayload).status, 0)
+const completeRecords = readFileSync(completeReports, "utf8").trim().split(/\r?\n/).map((line) => JSON.parse(line))
+const completeRecord = completeRecords[0]
+T("worker-report: complete turn appends exactly one record", completeRecords.length, 1)
+T("worker-report: ticket is configured by the launcher", completeRecord.ticket, "ORB-136")
+T("worker-report: head SHA is derived from git", completeRecord.headSha, reportGit(reportRepo, ["rev-parse", "HEAD"]).stdout.trim())
+T("worker-report: pushed state is derived from the upstream", completeRecord.pushed, true)
+T("worker-report: gate results survive", completeRecord.gates, { lint: "passed", "type-check": "passed", test: "passed" })
+T("worker-report: contract items survive", completeRecord.contractItems, ["committed", "pushed", "pr-open"])
+T("worker-report: an unblocked completion stays unblocked", completeRecord.blockedOn, null)
+T("worker-report: an unattended completion does not ask for a human", completeRecord.needsHuman, false)
+T("worker-report: timestamp is well formed", Number.isNaN(Date.parse(completeRecord.reportedAt)), false)
+
+const fallbackReports = join(root, "fallback-reports.jsonl")
+T("worker-report: missing marker still appends", runReportHook(fallbackReports, { cwd: reportRepo, last_assistant_message: "Finished." }).status, 0)
+const fallbackRecord = JSON.parse(readFileSync(fallbackReports, "utf8").trim())
+T("worker-report: missing marker is explicit", fallbackRecord.blockedOn, "missing or malformed WORKER_REPORT marker")
+T("worker-report: missing marker asks for a human", fallbackRecord.needsHuman, true)
+
+const concurrentReports = join(root, "concurrent-reports.jsonl")
+const concurrentWrites = Array.from(
+  { length: 8 },
+  () =>
+    new Promise((resolveWrite) => {
+      const child = spawn(process.execPath, [reportHook, "--reports-file", concurrentReports, "--ticket", "ORB-136"], {
+        cwd: reportRepo,
+        stdio: ["pipe", "ignore", "pipe"],
+      })
+      let stderr = ""
+      child.stderr.on("data", (chunk) => {
+        stderr += chunk
+      })
+      child.on("close", (status) => resolveWrite({ status, stderr }))
+      child.stdin.end(JSON.stringify(completePayload))
+    }),
+)
+const concurrentResults = await Promise.all(concurrentWrites)
+T("worker-report: eight concurrent hooks all exit successfully", concurrentResults.map(({ status }) => status), Array(8).fill(0))
+const concurrentLines = readFileSync(concurrentReports, "utf8").trim().split(/\r?\n/)
+T("worker-report: eight concurrent appends lose no records", concurrentLines.length, 8)
+T(
+  "worker-report: every concurrent line is well formed",
+  concurrentLines.every((line) => {
+    try {
+      return JSON.parse(line).ticket === "ORB-136"
+    } catch {
+      return false
+    }
+  }),
+  true,
+)
 
 // ---------------------------------------------------------------------------
 // 3. Agent frontmatter: the fails-open `Bash(...)` trap

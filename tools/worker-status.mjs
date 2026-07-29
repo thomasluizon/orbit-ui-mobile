@@ -12,26 +12,32 @@
  */
 
 import { execFileSync } from "node:child_process"
+import { existsSync, readFileSync, statSync } from "node:fs"
 
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
-const USAGE = `usage: worker-status.mjs --worktree <path> --issue ORB-N [--base <ref>] [--verify-review] [--json]
+const USAGE = `usage: worker-status.mjs --worktree <path> --issue ORB-N [options]
 
   --worktree <path>  the worker's worktree path, as printed by launch-worker.mjs (required)
   --issue ORB-N      the Linear issue the worker is finishing (required)
   --base <ref>       the branch the PR must target (default: main)
   --verify-review    run the one-time pre-merge review-thread verification
+  --reports-file <path>
+                      shared reports.jsonl written by worker Stop hooks
+  --expected-window-minutes <n>
+                      mark a missing or older report suspect after this many minutes (default: 30)
   --json             emit the verdict as JSON instead of text
   --help, -h         print this usage and exit 0
 
 Checks, all from artifacts: commits exist on the branch, the worktree carries no uncommitted
-work, the branch is pushed, a PR is open against <ref> with an approving review on its current
+work, no merge is in progress, every commit is pushed, a PR is open against <ref> with an approving review on its current
 head and zero unresolved threads, every resolved automated thread has reconciliation evidence
 after its latest finding-bearing nested activity and names a later fix commit that changed its reviewed path,
 every standalone automated review item has a worker acknowledgement naming a PR commit,
 no human-authored thread was resolved by the worker account, the local head matches the PR
 head, the Linear issue is In Review with the PR attached, and both a screenshot and critique
-artifact are attached when the ticket carries visible-effect (D7).
+artifact are attached when the ticket carries visible-effect (D7). When --reports-file is
+supplied, a missing or stale worker report makes liveness suspect.
 
 exit codes: 0 the contract is met, 1 unmet items (listed), 2 usage error,
             3 a git, gh or orca command failed`
@@ -59,6 +65,10 @@ const argOf = (flag) => {
   const index = process.argv.indexOf(flag)
   return index === -1 ? null : process.argv[index + 1]
 }
+
+const KNOWN_FLAGS = new Set(["--worktree", "--issue", "--base", "--verify-review", "--reports-file", "--expected-window-minutes", "--json", "--help", "-h"])
+const unknown = process.argv.slice(2).filter((token) => token.startsWith("-") && !KNOWN_FLAGS.has(token))
+if (unknown.length > 0) fail(2, `${USAGE}\n\nunknown option(s): ${unknown.join(" ")}`)
 
 const run = (file, args, { allowFailure = false } = {}) => {
   try {
@@ -97,10 +107,19 @@ const worktree = argOf("--worktree")
 const issue = argOf("--issue")
 const base = argOf("--base") ?? "main"
 const verifyReview = process.argv.includes("--verify-review")
+const reportsFile = argOf("--reports-file")
+const expectedWindowMinutes = Number(argOf("--expected-window-minutes") ?? 30)
 const asJson = process.argv.includes("--json")
 
 if (!worktree) fail(2, `${USAGE}\n\n--worktree is required`)
 if (!issue || !/^[A-Z]+-\d+$/.test(issue)) fail(2, `${USAGE}\n\n--issue must be a Linear identifier such as ORB-75`)
+if (process.argv.includes("--reports-file") && !reportsFile) fail(2, `${USAGE}\n\n--reports-file needs a path`)
+if (process.argv.includes("--expected-window-minutes") && argOf("--expected-window-minutes") == null) {
+  fail(2, `${USAGE}\n\n--expected-window-minutes needs a value`)
+}
+if (!Number.isFinite(expectedWindowMinutes) || expectedWindowMinutes <= 0) {
+  fail(2, `${USAGE}\n\n--expected-window-minutes must be a positive number`)
+}
 
 let config
 try {
@@ -124,7 +143,47 @@ git(["fetch", "--quiet", "origin", base], { allowFailure: true })
 const baseRef = git(["rev-parse", "--verify", "--quiet", `origin/${base}`], { allowFailure: true }) ? `origin/${base}` : base
 const commits = git(["log", "--oneline", `${baseRef}..HEAD`]).split("\n").filter(Boolean)
 const dirty = git(["status", "--porcelain"]).split("\n").filter(Boolean)
-const pushed = (git(["ls-remote", "--heads", "origin", branch]) || "").length > 0
+const staged = git(["diff", "--cached", "--name-only"]).split("\n").filter(Boolean)
+const mergeInProgress = Boolean(
+  git(["rev-parse", "--verify", "--quiet", "MERGE_HEAD"], {
+    allowFailure: true,
+  }),
+)
+const remoteBranch = git(["ls-remote", "--heads", "origin", branch]) || ""
+const remoteHead = remoteBranch.split(/\s+/)[0] || null
+if (remoteHead)
+  git(["fetch", "--quiet", "origin", `refs/heads/${branch}`], {
+    allowFailure: true,
+  })
+const unpushedCommits = remoteHead
+  ? git(["log", "--oneline", `${remoteHead}..HEAD`])
+      .split("\n")
+      .filter(Boolean)
+  : commits
+const pushed = Boolean(remoteHead)
+
+let latestReport = null
+let reportAgeMinutes = null
+let reportFresh = null
+if (reportsFile) {
+  let lines = []
+  try {
+    lines = existsSync(reportsFile) ? readFileSync(reportsFile, "utf8").split(/\r?\n/).filter(Boolean) : []
+  } catch (error) {
+    fail(3, `reports file could not be read: ${error.message}`)
+  }
+  const reports = lines.map((line, index) => {
+    try {
+      return JSON.parse(line)
+    } catch {
+      fail(3, `reports file line ${index + 1} is not valid JSON`)
+    }
+  })
+  latestReport = reports.filter((report) => report.ticket === issue).at(-1) ?? null
+  const reportedAt = latestReport ? Date.parse(latestReport.reportedAt) : statSync(worktree).birthtimeMs
+  reportAgeMinutes = Number.isFinite(reportedAt) ? (Date.now() - reportedAt) / 60_000 : Number.POSITIVE_INFINITY
+  reportFresh = reportAgeMinutes <= expectedWindowMinutes
+}
 
 const remoteUrl = git(["remote", "get-url", "origin"])
 const slug = remoteUrl.replace(/\.git$/, "").split(/[:/]/).slice(-2).join("/")
@@ -252,7 +311,26 @@ const visibleEffect = labels.includes("visible-effect")
 const checks = [
   { name: "commits", ok: commits.length > 0, detail: commits.length ? `${commits.length} commit(s) on ${branch}` : `no commits on ${branch} above ${baseRef}` },
   { name: "worktree-clean", ok: dirty.length === 0, detail: dirty.length ? `${dirty.length} uncommitted path(s), work is not captured` : "no uncommitted work" },
-  { name: "pushed", ok: pushed, detail: pushed ? `origin has ${branch}` : `origin has no ${branch}` },
+  {
+    name: "staged-uncommitted",
+    ok: staged.length === 0,
+    detail: staged.length ? `${staged.length} staged path(s) are not committed` : "no staged-but-uncommitted work",
+  },
+  {
+    name: "merge-in-progress",
+    ok: !mergeInProgress,
+    detail: mergeInProgress ? "MERGE_HEAD exists, so a merge is in progress" : "no merge is in progress",
+  },
+  {
+    name: "pushed",
+    ok: pushed,
+    detail: pushed ? `origin has ${branch}` : `origin has no ${branch}`,
+  },
+  {
+    name: "unpushed-commits",
+    ok: unpushedCommits.length === 0,
+    detail: unpushedCommits.length ? `${unpushedCommits.length} commit(s) have not been pushed to origin/${branch}` : `HEAD has no commits beyond origin/${branch}`,
+  },
   {
     name: "pr-head-match",
     ok: Boolean(prHead && prHeadPresent && localHead === prHead),
@@ -317,6 +395,13 @@ if (verifyReview) {
       : "the worker account did not resolve a human-authored thread",
   })
 }
+if (reportsFile) {
+  checks.unshift({
+    name: "report-fresh",
+    ok: reportFresh,
+    detail: latestReport ? `latest report is ${Number.isFinite(reportAgeMinutes) ? reportAgeMinutes.toFixed(1) : "invalid"} minute(s) old; expected within ${expectedWindowMinutes}` : `no report for ${issue}; worktree is ${reportAgeMinutes.toFixed(1)} minute(s) old and expected within ${expectedWindowMinutes}`,
+  })
+}
 if (visibleEffect) {
   checks.push({
     name: "screenshot-attached",
@@ -331,12 +416,26 @@ if (visibleEffect) {
 }
 
 const unmet = checks.filter((check) => !check.ok).map((check) => check.name)
-const verdict = { issue, branch, base, worktree, repo: slug, pullRequest: pullRequest?.url ?? null, verifyReview, checks, unmet, ok: unmet.length === 0 }
+const verdict = {
+  issue,
+  branch,
+  base,
+  worktree,
+  repo: slug,
+  pullRequest: pullRequest?.url ?? null,
+  verifyReview,
+  liveness: reportsFile ? (reportFresh ? "reported" : "suspect") : "not-checked",
+  latestReport,
+  checks,
+  unmet,
+  ok: unmet.length === 0,
+}
 
 if (asJson) {
   console.log(JSON.stringify(verdict, null, 2))
 } else {
   console.log(`${issue} on ${branch} (${slug})`)
+  if (reportsFile) console.log(`  ${reportFresh ? "REPORTED" : "SUSPECT "} liveness: ${checks[0].detail}`)
   for (const check of checks) console.log(`  ${check.ok ? "OK  " : "UNMET"} ${check.name}: ${check.detail}`)
   console.log(unmet.length === 0 ? "\nCONTRACT MET" : `\nCONTRACT NOT MET: ${unmet.join(", ")}. Idle is not done; nudge the worker with this list.`)
 }

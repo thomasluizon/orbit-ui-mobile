@@ -430,11 +430,15 @@ const mergeSweepCalls = (log) =>
 
 const run = (file, argv, options = {}) => {
   const target = options.path ?? join(TOOLS_DIR, file)
+  const effectiveArgv =
+    file === "launch-worker.mjs" && !argv.includes("--reports-file") && !options.omitReportsFile
+      ? [...argv, "--reports-file", join(root, "reports.jsonl")]
+      : argv
   const invocation = file.endsWith(".mjs")
-    ? [process.execPath, [target, ...argv]]
+    ? [process.execPath, [target, ...effectiveArgv]]
     : file.endsWith(".sh")
-      ? [BASH, [target, ...argv]]
-      : ["pwsh", ["-NoProfile", "-File", target, ...argv]]
+      ? [BASH, [target, ...effectiveArgv]]
+      : ["pwsh", ["-NoProfile", "-File", target, ...effectiveArgv]]
   const result = spawnSync(invocation[0], invocation[1], {
     encoding: "utf8",
     cwd: options.cwd ?? REPO_ROOT,
@@ -593,6 +597,8 @@ console.log(JSON.stringify(result))
 process.exit(result.claude?.status === "OK" || result.codex?.status === "OK" ? 0 : 1)
 `,
   )
+  mkdirSync(join(base, ".claude", "hooks"), { recursive: true })
+  cpSync(join(REPO_ROOT, ".claude", "hooks", "report-worker-turn.mjs"), join(base, ".claude", "hooks", "report-worker-turn.mjs"))
   /** The copy imports tools/lib/tui-repaint.mjs by relative path, so the staged tree carries it too. */
   cpSync(join(TOOLS_DIR, "lib"), join(base, "tools", "lib"), { recursive: true })
   return { path: join(base, "tools", "launch-worker.mjs"), repoPath, base }
@@ -769,6 +775,7 @@ const REQUIRED_CONTRACT_CLAUSES = {
   "pushing a commit it has not read back": /Verify before pushing[\s\S]*git show --stat HEAD/,
   "writing into another worker's worktree": /Never write into another worktree/,
   "delegating independent slices while keeping conflicts and PR evidence inline": /Delegate independent slices[\s\S]*SAME file[\s\S]*final gate run[\s\S]*review round/,
+  "reporting every turn through the shared JSONL channel": /End every turn[\s\S]*WORKER_REPORT:[\s\S]*gates[\s\S]*contractItems[\s\S]*blockedOn[\s\S]*needsHuman/,
 }
 
 /**
@@ -944,7 +951,7 @@ const runPointerLaunch = (label, tails, { repainting = false } = {}) => {
   const records = existsSync(ledger)
     ? readFileSync(ledger, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
     : []
-  return { staged, result, calls, sends, records }
+  return { staged, result, calls, sends, records, checkout }
 }
 
 /**
@@ -989,6 +996,32 @@ const pointerDeliveryCases = () => {
       firstRecord?.accountContext?.usedPercent === 10,
     JSON.stringify(first.records),
   )
+  const installedHook = join(first.checkout, ".claude", "hooks", "report-worker-turn.mjs")
+  const claudeSettings = JSON.parse(readFileSync(join(first.checkout, ".claude", "settings.local.json"), "utf8"))
+  const codexHooks = JSON.parse(readFileSync(join(first.checkout, ".codex", "hooks.json"), "utf8"))
+  const reportCommands = [
+    claudeSettings.hooks.Stop[0].hooks[0].command,
+    codexHooks.hooks.Stop[0].hooks[0].command,
+  ]
+  T("launch-worker.mjs: a real launch copies the report hook into the worktree", existsSync(installedHook), true)
+  T("launch-worker.mjs: Claude and Codex each receive one worktree-local Stop hook", reportCommands.length, 2)
+  T(
+    "launch-worker.mjs: both Stop hooks carry the shared reports path and ticket",
+    reportCommands.every((command) => command.includes(join(root, "reports.jsonl")) && command.includes("--ticket ORB-75")),
+    true,
+  )
+  for (const generatedPath of [
+    installedHook,
+    join(first.checkout, ".claude", "settings.local.json"),
+    join(first.checkout, ".codex", "hooks.json"),
+  ]) {
+    const ignored = spawnSync("git", ["-C", first.checkout, "check-ignore", "-q", generatedPath])
+    T(
+      `launch-worker.mjs: generated runtime path is ignored (${generatedPath.slice(first.checkout.length + 1)})`,
+      ignored.status === 0,
+      `git check-ignore exited ${ignored.status}`,
+    )
+  }
 
   const second = runPointerLaunch("pointer-second", [EMPTY_COMPOSER, "delivered"])
   T(
@@ -1412,7 +1445,14 @@ const launchConcurrencyCases = async (promptFile) => {
       ORBIT_ORCA_TIMING_LOG: concurrentTimingLog,
     },
   }
-  const concurrentArguments = ["--issue", "ORB-75", "--prompt-file", concurrentPrompt]
+  const concurrentArguments = [
+    "--issue",
+    "ORB-75",
+    "--prompt-file",
+    concurrentPrompt,
+    "--reports-file",
+    join(root, "reports.jsonl"),
+  ]
   const concurrentResults = await Promise.all([
     runAsync("launch-worker.mjs", concurrentArguments, concurrentOptions),
     runAsync("launch-worker.mjs", concurrentArguments, concurrentOptions),
@@ -1495,6 +1535,20 @@ const launchWorkerCases = async () => {
     { status: 2, stderr: /conflict|multiple[\s\S]*tier/i },
     { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui", "tier:cheap", "tier:deep"])) },
   )
+  check(
+    "launch-worker.mjs",
+    "requires --reports-file",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 2, stderr: /--reports-file is required/ },
+    { path: good.path, omitReportsFile: true },
+  )
+  check(
+    "launch-worker.mjs",
+    "requires an absolute reports path",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--reports-file", "reports.jsonl", "--dry-run"],
+    { status: 2, stderr: /absolute path/ },
+    { path: good.path },
+  )
   check("launch-worker.mjs", "resolves the repo from the repo:* label", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 0, stdout: /"repo": "ui"/ }, { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
   check("launch-worker.mjs", "derives the contract branch from the title", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 0, stdout: /"branch": "feature\/orb-75-prove-the-harness-gate/ }, { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
   check("launch-worker.mjs", "refuses a repo:* label with no repos entry", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /no repo path for "zzz"/ }, { path: good.path, env: orcaEnv(linearIssueStub(["repo:zzz"])) })
@@ -1503,6 +1557,14 @@ const launchWorkerCases = async () => {
   const insidePrompt = join(good.repoPath, "prompt.md")
   writeFileSync(insidePrompt, "the ticket body verbatim\n")
   check("launch-worker.mjs", "refuses a prompt file inside a repo", ["--issue", "ORB-75", "--prompt-file", insidePrompt, "--dry-run"], { status: 2, stderr: /would be committed/ }, { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+  const insideReports = join(good.repoPath, "reports.jsonl")
+  check(
+    "launch-worker.mjs",
+    "refuses a reports file inside a configured repo",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--reports-file", insideReports, "--dry-run"],
+    { status: 2, stderr: /reports file lives inside[\s\S]*could be committed/ },
+    { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui"])) },
+  )
 
   const noModels = stageLaunchWorker("no-models", { command: "claude", args: ["--permission-mode", "bypassPermissions"], interactive: true })
   check("launch-worker.mjs", "refuses an engine with no models map", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /claude[\s\S]*models/ }, { path: noModels.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
@@ -1659,6 +1721,11 @@ const launchWorkerCases = async () => {
     "launch-worker.mjs: the codex plan's command carries no headless token",
     codexPlan.status === 0 && !/(^|\s)(-p|--print|exec|e)(\s|"|$)/.test(JSON.parse(codexPlan.stdout).command),
     `command was: ${codexPlan.stdout.trim().slice(0, 200)}`,
+  )
+  T(
+    "launch-worker.mjs: Codex bypasses hook trust exactly once for the vetted generated hook",
+    (JSON.parse(codexPlan.stdout).command.match(/--dangerously-bypass-hook-trust/g) ?? []).length,
+    1,
   )
 
   const codexProfile = stageLaunchWorker("codex-profile", { ...INTERACTIVE_CODEX, args: ["-p", "my-profile", "--dangerously-bypass-approvals-and-sandbox"] }, "codex")
@@ -2885,6 +2952,198 @@ const workerWatchCases = () => {
   )
   check("worker-watch.mjs", "refuses a repo outside orchestrator.json", ["--repo", "zzz"], { status: 2, stderr: /--repo must be one of/ })
   check("worker-watch.mjs", "refuses a non-positive --lines", ["--lines", "0"], { status: 2, stderr: /positive integer/ })
+}
+
+const workerStatusStubs = [
+  {
+    match: "pr list",
+    stdout: JSON.stringify([
+      {
+        number: 999,
+        url: "https://github.com/thomasluizon/orbit-ui-mobile/pull/999",
+        state: "OPEN",
+        baseRefName: "main",
+        isDraft: false,
+      },
+    ]),
+  },
+  {
+    match: "api graphql",
+    stdout: JSON.stringify({
+      data: {
+        viewer: { login: "worker" },
+        repository: {
+          pullRequest: {
+            headRefOid: null,
+            reviewDecision: "APPROVED",
+            reviews: { pageInfo: { hasNextPage: false }, nodes: [] },
+            comments: { pageInfo: { hasNextPage: false }, nodes: [] },
+            reviewThreads: { pageInfo: { hasNextPage: false }, nodes: [] },
+          },
+        },
+      },
+    }),
+  },
+  {
+    match: "linear issue ORB-75",
+    stdout: JSON.stringify({
+      ok: true,
+      result: {
+        issue: { identifier: "ORB-75", state: { name: "In Review" }, labels: [] },
+        attachments: [{ url: "https://github.com/thomasluizon/orbit-ui-mobile/pull/999" }],
+      },
+    }),
+  },
+]
+
+const stageWorkerStatus = (label, { mergeInProgress = false, unpushedCommit = false, matchingReport = true } = {}) => {
+  const base = join(root, "worker-status", label)
+  const repo = join(base, "repo")
+  const remote = join(base, "remote.git")
+  const toolBase = join(base, "tool")
+  mkdirSync(repo, { recursive: true })
+  mkdirSync(join(toolBase, "tools", "lib"), { recursive: true })
+  mkdirSync(join(toolBase, ".claude"), { recursive: true })
+  cpSync(join(TOOLS_DIR, "worker-status.mjs"), join(toolBase, "tools", "worker-status.mjs"))
+  cpSync(
+    join(TOOLS_DIR, "lib", "orchestrator-config.mjs"),
+    join(toolBase, "tools", "lib", "orchestrator-config.mjs"),
+  )
+  writeFileSync(
+    join(toolBase, ".claude", "orchestrator.json"),
+    JSON.stringify({ maxParallelWorktrees: 1, linear: { states: { review: "In Review" } } }),
+  )
+  const git = (cwd, args) => spawnSync("git", ["-C", cwd, ...args], { encoding: "utf8" })
+  const setup = [
+    [base, ["init", "-q", "--bare", remote]],
+    [repo, ["init", "-q", "--initial-branch=main"]],
+    [repo, ["config", "user.email", "gate@orbit.test"]],
+    [repo, ["config", "user.name", "Orbit Gate"]],
+  ]
+  for (const [cwd, args] of setup) {
+    const result = git(cwd, args)
+    if (result.status !== 0) return { error: `git ${args.join(" ")}: ${result.stderr}` }
+  }
+  writeFileSync(join(repo, "base.txt"), "base\n")
+  for (const args of [
+    ["add", "base.txt"],
+    ["commit", "-q", "-m", "base"],
+    ["remote", "add", "origin", remote],
+    ["push", "-q", "-u", "origin", "main"],
+    ["switch", "-q", "-c", "feature/orb-75-prove-the-harness-gate"],
+  ]) {
+    const result = git(repo, args)
+    if (result.status !== 0) return { error: `git ${args.join(" ")}: ${result.stderr}` }
+  }
+  writeFileSync(join(repo, "feature.txt"), "feature\n")
+  for (const args of [
+    ["add", "feature.txt"],
+    ["commit", "-q", "-m", "feature"],
+    ["push", "-q", "-u", "origin", "feature/orb-75-prove-the-harness-gate"],
+  ]) {
+    const result = git(repo, args)
+    if (result.status !== 0) return { error: `git ${args.join(" ")}: ${result.stderr}` }
+  }
+  if (mergeInProgress) {
+    for (const args of [
+      ["switch", "-q", "main"],
+      ["switch", "-q", "feature/orb-75-prove-the-harness-gate"],
+    ]) {
+      if (args.at(-1) === "main") {
+        const switched = git(repo, args)
+        if (switched.status !== 0) return { error: `git ${args.join(" ")}: ${switched.stderr}` }
+        writeFileSync(join(repo, "main.txt"), "main advanced\n")
+        for (const mainArgs of [
+          ["add", "main.txt"],
+          ["commit", "-q", "-m", "advance main"],
+          ["push", "-q", "origin", "main"],
+        ]) {
+          const result = git(repo, mainArgs)
+          if (result.status !== 0) return { error: `git ${mainArgs.join(" ")}: ${result.stderr}` }
+        }
+        continue
+      }
+      const result = git(repo, args)
+      if (result.status !== 0) return { error: `git ${args.join(" ")}: ${result.stderr}` }
+    }
+    const merge = git(repo, ["merge", "--no-commit", "main"])
+    if (merge.status !== 0) return { error: `git merge --no-commit main: ${merge.stderr}` }
+  }
+  if (unpushedCommit) {
+    writeFileSync(join(repo, "local-only.txt"), "not pushed\n")
+    for (const args of [
+      ["add", "local-only.txt"],
+      ["commit", "-q", "-m", "local only"],
+    ]) {
+      const result = git(repo, args)
+      if (result.status !== 0) return { error: `git ${args.join(" ")}: ${result.stderr}` }
+    }
+  }
+  const reportsFile = join(base, "reports.jsonl")
+  writeFileSync(
+    reportsFile,
+    matchingReport
+      ? `${JSON.stringify({ reportedAt: new Date().toISOString(), ticket: "ORB-75", headSha: "fixture", pushed: true, gates: {}, contractItems: [], blockedOn: null, needsHuman: false })}\n`
+      : `${JSON.stringify({ reportedAt: "2000-01-01T00:00:00.000Z", ticket: "ORB-999" })}\n`,
+  )
+  return { repo, reportsFile, tool: join(toolBase, "tools", "worker-status.mjs") }
+}
+
+const workerStatusCases = () => {
+  check("worker-status.mjs", "requires --worktree", ["--issue", "ORB-75"], { status: 2, stderr: /--worktree is required/ })
+  check("worker-status.mjs", "requires a Linear issue identifier", ["--worktree", root, "--issue", "nope"], { status: 2, stderr: /Linear identifier/ })
+  check(
+    "worker-status.mjs",
+    "requires a positive expected report window",
+    ["--worktree", root, "--issue", "ORB-75", "--expected-window-minutes", "0"],
+    { status: 2, stderr: /positive number/ },
+  )
+
+  const merged = stageWorkerStatus("staged-merge", { mergeInProgress: true })
+  T("worker-status.mjs: staged merge fixture is valid", !merged.error, merged.error ?? "")
+  if (!merged.error) {
+    check(
+      "worker-status.mjs",
+      "a staged uncommitted merge fails despite a healthy PR and Linear state",
+      ["--worktree", merged.repo, "--issue", "ORB-75", "--reports-file", merged.reportsFile, "--json"],
+      { status: 1, stdout: /"name": "staged-uncommitted"[\s\S]*"ok": false[\s\S]*"name": "merge-in-progress"[\s\S]*"ok": false/ },
+      { path: merged.tool, env: orcaEnv(workerStatusStubs) },
+    )
+  }
+
+  const unpushed = stageWorkerStatus("unpushed", { unpushedCommit: true })
+  T("worker-status.mjs: unpushed fixture is valid", !unpushed.error, unpushed.error ?? "")
+  if (!unpushed.error) {
+    check(
+      "worker-status.mjs",
+      "an unpushed commit fails despite a healthy PR and Linear state",
+      ["--worktree", unpushed.repo, "--issue", "ORB-75", "--reports-file", unpushed.reportsFile, "--json"],
+      { status: 1, stdout: /"name": "unpushed-commits"[\s\S]*"ok": false/ },
+      { path: unpushed.tool, env: orcaEnv(workerStatusStubs) },
+    )
+  }
+
+  const silent = stageWorkerStatus("silent", { matchingReport: false })
+  T("worker-status.mjs: silent fixture is valid", !silent.error, silent.error ?? "")
+  if (!silent.error) {
+    check(
+      "worker-status.mjs",
+      "a worker with no report inside its window is suspect rather than idle",
+      [
+        "--worktree",
+        silent.repo,
+        "--issue",
+        "ORB-75",
+        "--reports-file",
+        silent.reportsFile,
+        "--expected-window-minutes",
+        "0.000000001",
+        "--json",
+      ],
+      { status: 1, stdout: /"liveness": "suspect"[\s\S]*"report-fresh"/ },
+      { path: silent.tool, env: orcaEnv(workerStatusStubs) },
+    )
+  }
 }
 
 /** A linked child checkout is the smallest real Git fixture that can prove teardown verification. */
@@ -5253,6 +5512,7 @@ const gateCases = {
   "teardown-worktree.mjs": teardownWorktreeCases,
   "orca-web-port.mjs": orcaWebPortCases,
   "worker-status.mjs": () => {
+    workerStatusCases()
     check("worker-status.mjs", "requires --worktree", ["--issue", "ORB-75"], { status: 2, stderr: /--worktree is required/ })
     check("worker-status.mjs", "requires a Linear issue identifier", ["--worktree", root, "--issue", "nope"], { status: 2, stderr: /Linear identifier/ })
     const fixture = stageWorkerStatusWorktree()

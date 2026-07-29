@@ -22,7 +22,9 @@ import { randomUUID } from "node:crypto"
 import {
   appendFileSync,
   closeSync,
+  copyFileSync,
   existsSync,
+  mkdirSync,
   openSync,
   readFileSync,
   statSync,
@@ -30,13 +32,13 @@ import {
   writeFileSync,
 } from "node:fs"
 import { homedir } from "node:os"
-import { basename, join, resolve } from "node:path"
+import { basename, dirname, isAbsolute, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
 import { SETTLE_MS, isRepainting, pause } from "./lib/tui-repaint.mjs"
 
-const USAGE = `usage: launch-worker.mjs --issue ORB-N --prompt-file <path> [options]
+const USAGE = `usage: launch-worker.mjs --issue ORB-N --prompt-file <path> --reports-file <absolute path> [options]
 
   --issue ORB-N          Linear issue whose worker to launch (required)
   --prompt-file <path>   the composed worker prompt: ticket body verbatim (D2) then the
@@ -46,6 +48,10 @@ const USAGE = `usage: launch-worker.mjs --issue ORB-N --prompt-file <path> [opti
                          (never ask a question, never watch your own PR, stage explicitly,
                          never merge) is APPENDED to this file at launch, so it does not
                          depend on the caller having remembered it (required)
+  --reports-file <path>  shared append-only reports.jsonl for every worker in this run.
+                         MUST be absolute and outside every Orbit repo and worktree. The
+                         launcher creates it and configures this worktree's Stop hook to
+                         append one structured record per worker turn (required)
   --repo ui|api|landing  override the repo the ticket's repo:* label names
   --base-branch <ref>    base branch for the worktree (default: main)
   --branch-prefix <p>    contract branch prefix, feature or fix (default: feature)
@@ -57,8 +63,8 @@ const USAGE = `usage: launch-worker.mjs --issue ORB-N --prompt-file <path> [opti
   --help, -h             print this usage and exit 0
 
 Prints one JSON object on stdout: issue, repo, repoPath, worktreePath, worktreeSelector,
-branch, baseBranch, terminal, engine, command, promptFile, workerContract, trustPromptAnswered,
-waitAttempts, pointerSends.
+branch, baseBranch, terminal, engine, command, promptFile, reportsFile, workerContract,
+trustPromptAnswered, waitAttempts, pointerSends.
 Progress goes to stderr, so stdout stays pipeable.
 
 exit 0 means the worker ACCEPTED the prompt as a user turn, verified by reading the pointer back
@@ -223,6 +229,10 @@ conflict with anything above, these win.
     contract, then reconciling their output. Keep edits landing in the SAME file inline, and keep
     the final gate run inline because its raw output ships in the PR body. A review round with
     more than one independent finding is dispatched one subagent per finding, not fixed inline.
+12. **End every turn with exactly one single-line marker:** \`WORKER_REPORT: {"gates":{"<command>":"passed|failed|not-run"},"contractItems":["<met item>"],"blockedOn":null,"needsHuman":false}\`.
+    On a blocker, \`blockedOn\` is a short string and \`needsHuman\` says whether only a human can
+    resolve it. The worktree's Stop hook appends this report with its derived git state to the
+    shared reports file.
 `
 
 /**
@@ -622,6 +632,7 @@ const acquireConcurrencyReservation = (repoPath) => {
 
 const issue = argOf("--issue")
 const promptFileArg = argOf("--prompt-file")
+const reportsFileArg = argOf("--reports-file")
 const repoOverride = argOf("--repo")
 const baseBranch = argOf("--base-branch") ?? "main"
 const branchPrefix = argOf("--branch-prefix") ?? "feature"
@@ -631,12 +642,15 @@ const dryRun = process.argv.includes("--dry-run")
 
 if (!issue || !/^[A-Z]+-\d+$/.test(issue)) fail(2, `${USAGE}\n\n--issue must be a Linear identifier such as ORB-75`)
 if (!promptFileArg) fail(2, `${USAGE}\n\n--prompt-file is required`)
+if (!reportsFileArg) fail(2, `${USAGE}\n\n--reports-file is required`)
+if (!isAbsolute(reportsFileArg)) fail(2, "--reports-file must be an absolute path")
 if (branchPrefix !== "feature" && branchPrefix !== "fix") fail(2, "--branch-prefix must be feature or fix")
 if (maxParallelOverride !== null && !/^[1-9]\d*$/.test(maxParallelOverride)) {
   fail(2, "--max-parallel-worktrees must be a positive integer")
 }
 
 const promptFile = resolve(promptFileArg)
+const reportsFile = resolve(reportsFileArg)
 if (!existsSync(promptFile)) fail(2, `prompt file not found: ${promptFile}`)
 if (statSync(promptFile).size === 0) fail(2, `prompt file is empty: ${promptFile}`)
 
@@ -703,6 +717,9 @@ for (const [key, path] of Object.entries(config.repos)) {
   if (isInside(promptFile, path)) {
     fail(2, `prompt file lives inside the ${key} repo (${path}); it would be committed. Write it to the session scratchpad instead`)
   }
+  if (isInside(reportsFile, path)) {
+    fail(2, `reports file lives inside the ${key} repo (${path}); it could be committed. Write it to the session scratchpad instead`)
+  }
 }
 
 const detail = orca(["linear", "issue", issue])
@@ -740,7 +757,7 @@ const budgetTier = resolvedInvocation.tier === "deep" ? "reserved" : automationB
 const projectedTokens = automationBudget.invocationTokens[resolvedInvocation.tier]
 const invocationStartedAt = new Date().toISOString()
 const invocationIdentity = `${issue}:${invocationStartedAt}:${randomUUID()}`
-const command = [engine.command, ...engineArgs].join(" ")
+let command = [engine.command, ...engineArgs].join(" ")
 
 /**
  * Second level, for an entry that declares interactive: true while carrying a headless
@@ -789,6 +806,9 @@ if (occupyingWorktrees.length >= maxParallelWorktrees) {
     `maxParallelWorktrees cap ${maxParallelWorktrees} reached for ${repoKey}; current count ${occupyingWorktrees.length}. Occupying worktrees:\n${paths.map((path) => `- ${path}`).join("\n")}`,
   )
 }
+if (binary === "codex" && !invocationTokens.includes("--dangerously-bypass-hook-trust")) {
+  command = `${command} --dangerously-bypass-hook-trust`
+}
 
 /** Reported in the plan so a dry run shows whether this launch would inject the contract, and a
  * relaunch against an already-injected file is visibly a no-op rather than a silent second copy. */
@@ -814,6 +834,7 @@ const plan = {
     ledgerPath: automationLedgerPath,
   },
   promptFile,
+  reportsFile,
   workerContract,
   labels,
 }
@@ -833,6 +854,12 @@ budgetReservation = reserveAutomationBudget(
   projectedTokens,
   automationLedgerPath,
 )
+try {
+  mkdirSync(dirname(reportsFile), { recursive: true })
+  appendFileSync(reportsFile, "", "utf8")
+} catch (error) {
+  fail(3, `reports file could not be provisioned at ${reportsFile}: ${error.message}`)
+}
 
 /** Before anything is created, so a launch that fails later still leaves the work order complete
  * for the relaunch. A dry run resolves this decision but writes nothing. */
@@ -868,12 +895,64 @@ rollback = {
 if (isInside(promptFile, worktreePath)) {
   fail(3, `prompt file lives inside the new worktree (${worktreePath}); write the prompt to the session scratchpad instead`)
 }
+if (isInside(reportsFile, worktreePath)) {
+  fail(3, `reports file lives inside the new worktree (${worktreePath}); write it to the session scratchpad instead`)
+}
 
 console.error(`switching ${worktreePath} onto the contract branch ${branch}`)
 git(["-C", worktreePath, "switch", "-c", branch])
 rollback.contractBranch = branch
 const actualBranch = git(["-C", worktreePath, "rev-parse", "--abbrev-ref", "HEAD"])
 if (actualBranch !== branch) fail(3, `expected the worktree on ${branch}, found ${actualBranch}`)
+
+const generatedWorktreePaths = [
+  "/.claude/hooks/report-worker-turn.mjs",
+  "/.claude/settings.local.json",
+  "/.codex/hooks.json",
+]
+try {
+  const reportedExcludePath = git(["-C", worktreePath, "rev-parse", "--git-path", "info/exclude"])
+  const excludePath = isAbsolute(reportedExcludePath) ? reportedExcludePath : resolve(worktreePath, reportedExcludePath)
+  const currentExcludes = existsSync(excludePath) ? readFileSync(excludePath, "utf8") : ""
+  const excludeLines = new Set(currentExcludes.split(/\r?\n/))
+  const missingExcludes = generatedWorktreePaths.filter((path) => !excludeLines.has(path))
+  if (missingExcludes.length > 0) {
+    const separator = currentExcludes.length > 0 && !currentExcludes.endsWith("\n") ? "\n" : ""
+    appendFileSync(excludePath, `${separator}${missingExcludes.join("\n")}\n`, "utf8")
+  }
+} catch (error) {
+  fail(3, `generated worktree hook files could not be excluded from git: ${error.message}`)
+}
+
+const hookSource = new URL("../.claude/hooks/report-worker-turn.mjs", import.meta.url)
+const hookDirectory = join(worktreePath, ".claude", "hooks")
+const hookTarget = join(hookDirectory, "report-worker-turn.mjs")
+const localSettingsPath = join(worktreePath, ".claude", "settings.local.json")
+const codexHooksDirectory = join(worktreePath, ".codex")
+const codexHooksPath = join(codexHooksDirectory, "hooks.json")
+const claudeReportCommand = `node "$CLAUDE_PROJECT_DIR/.claude/hooks/report-worker-turn.mjs" --reports-file "${reportsFile}" --ticket ${issue}`
+const codexReportCommand = `node "${hookTarget}" --reports-file "${reportsFile}" --ticket ${issue}`
+try {
+  mkdirSync(hookDirectory, { recursive: true })
+  mkdirSync(codexHooksDirectory, { recursive: true })
+  copyFileSync(hookSource, hookTarget)
+  const localSettings = existsSync(localSettingsPath)
+    ? JSON.parse(readFileSync(localSettingsPath, "utf8"))
+    : {}
+  const hooks = localSettings.hooks ?? {}
+  const stopHooks = Array.isArray(hooks.Stop) ? hooks.Stop : []
+  stopHooks.push({ hooks: [{ type: "command", command: claudeReportCommand }] })
+  writeFileSync(localSettingsPath, `${JSON.stringify({ ...localSettings, hooks: { ...hooks, Stop: stopHooks } }, null, 2)}\n`, "utf8")
+  const codexHooks = existsSync(codexHooksPath)
+    ? JSON.parse(readFileSync(codexHooksPath, "utf8"))
+    : {}
+  const codexEvents = codexHooks.hooks ?? {}
+  const codexStopHooks = Array.isArray(codexEvents.Stop) ? codexEvents.Stop : []
+  codexStopHooks.push({ hooks: [{ type: "command", command: codexReportCommand }] })
+  writeFileSync(codexHooksPath, `${JSON.stringify({ ...codexHooks, hooks: { ...codexEvents, Stop: codexStopHooks } }, null, 2)}\n`, "utf8")
+} catch (error) {
+  fail(3, `worktree Stop hook could not be installed: ${error.message}`)
+}
 
 console.error(`starting the ${engineName} TUI: ${command}`)
 const terminal = createTerminal(worktreeSelector, command)
