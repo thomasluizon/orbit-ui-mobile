@@ -141,7 +141,31 @@ const BASH = resolveBash()
 const ORCA_SHIM = stage(
   "orca-shim.cjs",
   `const { spawnSync } = require("node:child_process")
+const { EventEmitter } = require("node:events")
 const { appendFileSync, existsSync, readFileSync, rmSync } = require("node:fs")
+if (process.env.ORBIT_LINEAR_PARENT_STUB) {
+  const https = require("node:https")
+  const { syncBuiltinESMExports } = require("node:module")
+  const stub = JSON.parse(process.env.ORBIT_LINEAR_PARENT_STUB)
+  https.request = (_url, options, callback) => {
+    const linearRequest = new EventEmitter()
+    linearRequest.end = () => {
+      process.nextTick(() => {
+        const linearResponse = new EventEmitter()
+        linearResponse.statusCode = stub.status ?? 200
+        callback(linearResponse)
+        linearResponse.emit("data", Buffer.from(JSON.stringify(stub.body)))
+        linearResponse.emit("end")
+      })
+    }
+    linearRequest.destroy = (error) => process.nextTick(() => linearRequest.emit("error", error))
+    if (stub.requireTimeout && options.timeout !== 5000) {
+      process.nextTick(() => linearRequest.emit("error", new Error("missing Linear parent timeout")))
+    }
+    return linearRequest
+  }
+  syncBuiltinESMExports()
+}
 const argv = process.argv.slice(1)
 if (argv[0] && existsSync(argv[0])) return
 const line = argv.join(" ")
@@ -441,7 +465,11 @@ const run = (file, argv, options = {}) => {
     encoding: "utf8",
     cwd: options.cwd ?? REPO_ROOT,
     input: options.input ?? "",
-    env: { ...process.env, ...(options.env ?? {}) },
+    env: {
+      ...process.env,
+      ORBIT_AUTOMATION_BUDGET_LEDGER: join(root, "default-automation-budget.jsonl"),
+      ...(options.env ?? {}),
+    },
     timeout: 180000,
   })
   return {
@@ -503,10 +531,26 @@ const check = (file, name, argv, expect, options = {}) => {
   return result
 }
 
+const DEFAULT_AUTOMATION_BUDGET = {
+  tier: "routine",
+  tokenBudget: 1_000_000,
+  warningTokens: 800_000,
+  invocationTokens: {
+    default: 100_000,
+    cheap: 50_000,
+    deep: 250_000,
+  },
+}
+
 const orchestratorConfig = (repoPath, worker, engineName, maxParallelWorktrees = 8) =>
   JSON.stringify({
     worker: engineName,
-    workers: { [engineName]: worker },
+    workers: {
+      [engineName]: {
+        ...worker,
+        automationBudget: worker.automationBudget ?? DEFAULT_AUTOMATION_BUDGET,
+      },
+    },
     maxParallelWorktrees,
     attemptsBeforeRewrite: 2,
     linear: { team: "ORB", states: { working: "In Progress", review: "In Review", done: "Done" } },
@@ -523,12 +567,19 @@ const CODEX_MODELS = {
   cheap: { model: "gpt-5.6-luna", args: ["-c", 'model_reasoning_effort="low"'] },
   deep: { model: "gpt-5.6-sol", args: ["-c", 'model_reasoning_effort="high"'] },
 }
-const INTERACTIVE_WORKER = { command: "claude", args: ["--permission-mode", "bypassPermissions"], models: CLAUDE_MODELS, interactive: true }
+const INTERACTIVE_WORKER = {
+  command: "claude",
+  args: ["--permission-mode", "bypassPermissions"],
+  models: CLAUDE_MODELS,
+  interactive: true,
+  automationBudget: DEFAULT_AUTOMATION_BUDGET,
+}
 const INTERACTIVE_CODEX = {
   command: "codex",
   args: ["-c", 'windows.sandbox="unelevated"', "--dangerously-bypass-approvals-and-sandbox"],
   models: CODEX_MODELS,
   interactive: true,
+  automationBudget: DEFAULT_AUTOMATION_BUDGET,
 }
 
 /**
@@ -542,6 +593,12 @@ const stageLaunchWorker = (label, worker, engineName = "claude", maxParallelWork
   const base = join(root, "launch", label)
   const repoPath = join(base, "repos", "ui")
   mkdirSync(repoPath, { recursive: true })
+  const initialized = spawnSync("git", ["-C", repoPath, "init", "-q", "--initial-branch=main"], {
+    encoding: "utf8",
+  })
+  if (initialized.status !== 0) {
+    throw new Error(`could not initialize launcher fixture ${repoPath}: ${initialized.stderr}`)
+  }
   mkdirSync(join(base, "tools"), { recursive: true })
   mkdirSync(join(base, ".claude"), { recursive: true })
   writeFileSync(
@@ -549,6 +606,19 @@ const stageLaunchWorker = (label, worker, engineName = "claude", maxParallelWork
     orchestratorConfig(repoPath, worker, engineName, maxParallelWorktrees),
   )
   cpSync(join(TOOLS_DIR, "launch-worker.mjs"), join(base, "tools", "launch-worker.mjs"))
+  cpSync(join(TOOLS_DIR, "automation-budget.mjs"), join(base, "tools", "automation-budget.mjs"))
+  writeFileSync(
+    join(base, "tools", "ai-quota.mjs"),
+    `#!/usr/bin/env node
+const fallback = {
+  claude: { status: "OK", weeklyPercent: 10, sessionPercent: 5, resetsIn: "4h 7m" },
+  codex: { status: "OK", usedPercent: 10, windowDays: 7, resetsAt: 1894060800, hasCredits: false, planType: "pro" },
+}
+const result = process.env.ORBIT_TEST_AI_QUOTA ? JSON.parse(process.env.ORBIT_TEST_AI_QUOTA) : fallback
+console.log(JSON.stringify(result))
+process.exit(result.claude?.status === "OK" || result.codex?.status === "OK" ? 0 : 1)
+`,
+  )
   /** The copy imports tools/lib/tui-repaint.mjs by relative path, so the staged tree carries it too. */
   cpSync(join(TOOLS_DIR, "lib"), join(base, "tools", "lib"), { recursive: true })
   return { path: join(base, "tools", "launch-worker.mjs"), repoPath, base }
@@ -800,7 +870,14 @@ const runTrustScreen = (label, engineName, tail) => {
     { match: "terminal stop", stdout: JSON.stringify({ ok: true, result: {} }) },
     { match: "worktree rm", stdout: JSON.stringify({ ok: true, result: {} }) },
   ]
-  const result = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile], { path: staged.path, env: { ...orcaEnv(plan), ORBIT_ORCA_LOG: log } })
+  const result = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile], {
+    path: staged.path,
+    env: {
+      ...orcaEnv(plan),
+      ORBIT_AUTOMATION_BUDGET_LEDGER: join(staged.base, "automation-budget.jsonl"),
+      ORBIT_ORCA_LOG: log,
+    },
+  })
   const calls = existsSync(log) ? readFileSync(log, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line)) : []
   return { calls, answer, result }
 }
@@ -842,6 +919,7 @@ const runPointerLaunch = (label, tails, { repainting = false } = {}) => {
   const checkout = stageCheckout(staged.base)
   if (!checkout) return null
   const log = join(staged.base, "orca-calls.log")
+  const ledger = join(staged.base, "automation-budget.jsonl")
   const promptFile = stage(`${label}-prompt.md`, "the ticket body verbatim\n")
   const painted = `> Read ${promptFile} and execute it in full. That file is your complete work order for ORB-75:`
   const plan = [
@@ -881,11 +959,18 @@ const runPointerLaunch = (label, tails, { repainting = false } = {}) => {
   ]
   const result = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile], {
     path: staged.path,
-    env: { ...orcaEnv(plan), ORBIT_ORCA_LOG: log },
+    env: {
+      ...orcaEnv(plan),
+      ORBIT_AUTOMATION_BUDGET_LEDGER: ledger,
+      ORBIT_ORCA_LOG: log,
+    },
   })
   const calls = existsSync(log) ? readFileSync(log, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line)) : []
   const sends = calls.filter((argv) => argv[0].split(/[\\/]/).pop() === "terminal" && argv[1] === "send").length
-  return { result, calls, sends }
+  const records = existsSync(ledger)
+    ? readFileSync(ledger, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
+    : []
+  return { staged, result, calls, sends, records }
 }
 
 /**
@@ -905,6 +990,31 @@ const pointerDeliveryCases = () => {
     `exit ${first.result.status}, ${first.sends} send(s)\n     stdout: ${first.result.stdout.trim().slice(0, 300)}\n     stderr: ${first.result.stderr.trim().split("\n").slice(-3).join("\n     ")}`,
   )
   T("launch-worker.mjs: a pointer that lands is sent exactly once", first.sends === 1, `sent ${first.sends} time(s)`)
+  const firstSend = first.calls.find((argv) => argv[0].split(/[\\/]/).pop() === "terminal" && argv[1] === "send")
+  const firstPointer = firstSend?.[firstSend.indexOf("--text") + 1] ?? ""
+  const firstPlan = first.result.status === 0 ? JSON.parse(first.result.stdout) : null
+  T(
+    "launch-worker.mjs: the worker receives its launcher-owned authoritative completion-record command",
+    firstPointer.includes(`node "${join(first.staged.base, "tools", "automation-budget.mjs")}" record`) &&
+      !firstPointer.includes("node tools/automation-budget.mjs record") &&
+      /automation-budget\.mjs" record[\s\S]*--identity "ORB-75:[^"]+"[\s\S]*--input-tokens <provider-input-tokens>[\s\S]*--ledger "[^"]+"[\s\S]*never record zero or infer tokens from account usedPercent/.test(firstPointer) &&
+      firstPointer.includes(`--ledger "${firstPlan?.automationBudget?.ledgerPath}"`),
+    firstPointer,
+  )
+  const firstRecord = first.records[0]
+  T(
+    "launch-worker.mjs: an invocation reserves a pending token record before worktree mutation",
+    first.records.length === 1 &&
+      /^ORB-75:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(firstRecord?.identity ?? "") &&
+      firstRecord?.engine === "claude" &&
+      firstRecord?.tier === "routine" &&
+      !Object.hasOwn(firstRecord ?? {}, "inputTokens") &&
+      !Object.hasOwn(firstRecord ?? {}, "outputTokens") &&
+      firstRecord?.accountContext?.scope === "account" &&
+      firstRecord?.accountContext?.attributed === false &&
+      firstRecord?.accountContext?.usedPercent === 10,
+    JSON.stringify(first.records),
+  )
 
   const second = runPointerLaunch("pointer-second", [EMPTY_COMPOSER, "delivered"])
   T(
@@ -920,6 +1030,12 @@ const pointerDeliveryCases = () => {
     `exit ${never.result.status}, expected 1\n     stderr: ${never.result.stderr.trim().split("\n").slice(-4).join("\n     ")}`,
   )
   T("launch-worker.mjs: the undelivered launch is bounded, not retried forever", never.sends === 3, `sent ${never.sends} time(s), expected the 3-send bound`)
+  T(
+    "launch-worker.mjs: any accepted send keeps its reservation pending even after a quiet read-back",
+    never.records.length === 1 &&
+      never.records[0]?.cancelled !== true,
+    JSON.stringify(never.records),
+  )
 
   /**
    * The branch every other case misses, because they all freeze lastOutputAt: a TUI that keeps
@@ -937,6 +1053,12 @@ const pointerDeliveryCases = () => {
     "launch-worker.mjs: a TUI that never goes quiet is a launch failure naming that cause",
     busyThroughout.result.status === 1 && /never went quiet/.test(busyThroughout.result.stderr),
     `exit ${busyThroughout.result.status}\n     stderr: ${busyThroughout.result.stderr.trim().split("\n").slice(-4).join("\n     ")}`,
+  )
+  T(
+    "launch-worker.mjs: an ambiguous prompt send keeps its reservation pending",
+    busyThroughout.records.length === 1 &&
+      busyThroughout.records[0]?.cancelled !== true,
+    JSON.stringify(busyThroughout.records),
   )
   T(
     "launch-worker.mjs: the undelivered launch leaves no orphaned worktree",
@@ -977,7 +1099,11 @@ const runTerminalCreateLaunch = (label, terminalCreateSequence) => {
   ]
   const result = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile], {
     path: staged.path,
-    env: { ...orcaEnv(plan), ORBIT_ORCA_LOG: log },
+    env: {
+      ...orcaEnv(plan),
+      ORBIT_AUTOMATION_BUDGET_LEDGER: join(staged.base, "automation-budget.jsonl"),
+      ORBIT_ORCA_LOG: log,
+    },
   })
   const calls = existsSync(log) ? readFileSync(log, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line)) : []
   const count = (first, second) => calls.filter((argv) => argv[0].split(/[\\/]/).pop() === first && argv[1] === second).length
@@ -1307,6 +1433,7 @@ const launchConcurrencyCases = async (promptFile) => {
     path: concurrent.path,
     env: {
       ...orcaEnv(concurrentPlan),
+      ORBIT_AUTOMATION_BUDGET_LEDGER: join(concurrent.base, "automation-budget.jsonl"),
       ORBIT_ORCA_LOG: concurrentLog,
       ORBIT_ORCA_TIMING_LOG: concurrentTimingLog,
     },
@@ -1442,6 +1569,69 @@ const launchWorkerCases = async () => {
   const omitted = stageLaunchWorker("omits-interactive", { command: "claude", args: [], models: CLAUDE_MODELS })
   check("launch-worker.mjs", "refuses an engine that omits interactive entirely", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /does not declare interactive: true/ }, { path: omitted.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
+  const missingBudgetTier = stageLaunchWorker("missing-budget-tier", { ...INTERACTIVE_WORKER, automationBudget: {} })
+  check(
+    "launch-worker.mjs",
+    "refuses a worker with no explicit routine or reserved budget tier",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 2, stderr: /automationBudget\.tier as routine or reserved/ },
+    { path: missingBudgetTier.path, env: orcaEnv(linearIssueStub(["repo:ui"])) },
+  )
+  const missingTokenBudget = stageLaunchWorker("missing-token-budget", {
+    ...INTERACTIVE_WORKER,
+    automationBudget: { ...DEFAULT_AUTOMATION_BUDGET, tokenBudget: undefined },
+  })
+  check(
+    "launch-worker.mjs",
+    "refuses a worker with no positive engine token budget",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 2, stderr: /automationBudget\.tokenBudget as a positive integer/ },
+    { path: missingTokenBudget.path, env: orcaEnv(linearIssueStub(["repo:ui"])) },
+  )
+  const invalidWarning = stageLaunchWorker("invalid-token-warning", {
+    ...INTERACTIVE_WORKER,
+    automationBudget: { ...DEFAULT_AUTOMATION_BUDGET, warningTokens: 1_000_000 },
+  })
+  check(
+    "launch-worker.mjs",
+    "refuses a warning level that is not below the engine token budget",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 2, stderr: /automationBudget\.warningTokens[\s\S]*below tokenBudget/ },
+    { path: invalidWarning.path, env: orcaEnv(linearIssueStub(["repo:ui"])) },
+  )
+  const missingProjection = stageLaunchWorker("missing-token-projection", {
+    ...INTERACTIVE_WORKER,
+    automationBudget: {
+      ...DEFAULT_AUTOMATION_BUDGET,
+      invocationTokens: { ...DEFAULT_AUTOMATION_BUDGET.invocationTokens, deep: undefined },
+    },
+  })
+  check(
+    "launch-worker.mjs",
+    "refuses a worker missing a projected token count for one model tier",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 2, stderr: /automationBudget\.invocationTokens for every declared model tier: default, cheap, deep/ },
+    { path: missingProjection.path, env: orcaEnv(linearIssueStub(["repo:ui"])) },
+  )
+  const missingAddedTierProjection = stageLaunchWorker("missing-added-tier-projection", {
+    ...INTERACTIVE_WORKER,
+    models: { ...CLAUDE_MODELS, burst: { model: "haiku" } },
+  })
+  check(
+    "launch-worker.mjs",
+    "requires a projected token count for every tier declared by the selected engine",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 2, stderr: /automationBudget\.invocationTokens for every declared model tier: default, cheap, deep, burst/ },
+    { path: missingAddedTierProjection.path, env: orcaEnv(linearIssueStub(["repo:ui"])) },
+  )
+  check(
+    "launch-worker.mjs",
+    "refuses an empty ledger override instead of writing an unknown default",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 2, stderr: /ORBIT_AUTOMATION_BUDGET_LEDGER must not be empty/ },
+    { path: good.path, env: { ...orcaEnv(linearIssueStub(["repo:ui"])), ORBIT_AUTOMATION_BUDGET_LEDGER: " " } },
+  )
+
   const headless = stageLaunchWorker("headless-args", { ...INTERACTIVE_WORKER, args: ["-p"] })
   check("launch-worker.mjs", "refuses headless args behind an interactive declaration", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /headless invocation/ }, { path: headless.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
@@ -1474,9 +1664,9 @@ const launchWorkerCases = async () => {
   )
   const codexDeep = check(
     "launch-worker.mjs",
-    "tier:deep selects Sol at high effort on Codex",
+    "tier:deep selects Sol at high effort and the reserved budget on Codex",
     ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
-    { status: 0, stdout: /codex[\s\S]*model_reasoning_effort[\s\S]*high[\s\S]*--model gpt-5\.6-sol/ },
+    { status: 0, stdout: /codex[\s\S]*model_reasoning_effort[\s\S]*high[\s\S]*--model gpt-5\.6-sol[\s\S]*"automationBudget":\s*\{[\s\S]*"tier":\s*"reserved"[\s\S]*"tokenBudget":\s*1000000[\s\S]*"warningTokens":\s*800000[\s\S]*"projectedTokens":\s*250000/ },
     { path: codex.path, env: orcaEnv(linearIssueStub(["repo:ui", "tier:deep"])) },
   )
   const codexDefaultCommand = codexPlan.status === 0 ? JSON.parse(codexPlan.stdout).command : ""
@@ -1507,7 +1697,10 @@ const launchWorkerCases = async () => {
   check("launch-worker.mjs", "refuses codex e, the documented alias for exec", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /headless invocation of codex/ }, { path: codexExecAlias.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
   const unknownEngine = stageLaunchWorker("unknown-engine", { command: "aider", args: [], models: CLAUDE_MODELS, interactive: true }, "aider")
-  check("launch-worker.mjs", "refuses an engine binary with no profile rather than waving it through", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /no engine profile for/ }, { path: unknownEngine.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+  check("launch-worker.mjs", "refuses an engine with no quota reader rather than waving it through", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /has no quota reader/ }, { path: unknownEngine.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+
+  const unknownProfile = stageLaunchWorker("unknown-profile", { ...INTERACTIVE_WORKER, command: "aider" })
+  check("launch-worker.mjs", "refuses an engine binary with no profile rather than waving it through", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /no engine profile for/ }, { path: unknownProfile.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
   check("launch-worker.mjs", "refuses a missing prompt file", ["--issue", "ORB-75", "--prompt-file", join(root, "absent.md"), "--dry-run"], { status: 2, stderr: /prompt file not found/ }, { path: good.path })
   check("launch-worker.mjs", "refuses a non-Linear issue identifier", ["--issue", "nope", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /Linear identifier/ }, { path: good.path })
@@ -1522,6 +1715,287 @@ const launchWorkerCases = async () => {
 
   const alreadyContracted = stage("prompt-with-contract.md", `the ticket body verbatim\n\n${WORKER_CONTRACT_MARKER}\n\nclauses already here\n`)
   check("launch-worker.mjs", "does not stack a second copy on relaunch", ["--issue", "ORB-75", "--prompt-file", alreadyContracted, "--dry-run"], { status: 0, stdout: /"workerContract": "already present"/ }, { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+
+  const appendFailure = stageLaunchWorker("contract-append-failure", INTERACTIVE_WORKER)
+  const appendFailureSource = readFileSync(appendFailure.path, "utf8")
+  const appendCall = 'appendFileSync(promptFile, WORKER_CONTRACT, "utf8")'
+  if (!appendFailureSource.includes(appendCall)) {
+    throw new Error("launch-worker fixture could not locate the worker-contract append")
+  }
+  writeFileSync(
+    appendFailure.path,
+    appendFailureSource.replace(appendCall, 'throw new Error("fixture append failure")'),
+  )
+  const appendFailurePrompt = stage("contract-append-failure-prompt.md", "the ticket body verbatim\n")
+  const appendFailureLedger = join(appendFailure.base, "automation-budget.jsonl")
+  const appendFailureLog = join(appendFailure.base, "orca-calls.log")
+  const appendFailureResult = run(
+    "launch-worker.mjs",
+    ["--issue", "ORB-75", "--prompt-file", appendFailurePrompt],
+    {
+      path: appendFailure.path,
+      env: {
+        ...orcaEnv(linearIssueStub(["repo:ui"])),
+        ORBIT_AUTOMATION_BUDGET_LEDGER: appendFailureLedger,
+        ORBIT_ORCA_LOG: appendFailureLog,
+      },
+    },
+  )
+  const appendFailureCalls = readFileSync(appendFailureLog, "utf8")
+  const appendFailureRecords = readFileSync(appendFailureLedger, "utf8")
+    .trim()
+    .split(/\r?\n/)
+    .map((line) => JSON.parse(line))
+  T(
+    "launch-worker.mjs: a worker-contract append failure cancels its pre-worktree reservation",
+    appendFailureResult.status === 3 &&
+      /could not append the worker contract[\s\S]*fixture append failure/.test(appendFailureResult.stderr) &&
+      !appendFailureCalls.includes("worktree create") &&
+      appendFailureRecords.length === 2 &&
+      appendFailureRecords[0]?.identity === appendFailureRecords[1]?.identity &&
+      appendFailureRecords[1]?.cancelled === true,
+    `exit ${appendFailureResult.status}\n     stderr: ${appendFailureResult.stderr}\n     calls: ${appendFailureCalls}\n     ledger: ${JSON.stringify(appendFailureRecords)}`,
+  )
+
+  const blocked = stageLaunchWorker("budget-blocked", INTERACTIVE_CODEX, "codex")
+  const blockedLedger = stage("launch/budget-blocked.jsonl", `${budgetRecord("prior-routine", 600_000, 350_000, "routine", "codex")}\n`)
+  const blockedLog = join(root, "launch", "budget-blocked-calls.jsonl")
+  const blockedResult = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile], {
+    path: blocked.path,
+    env: {
+      ...orcaEnv(linearIssueStub(["repo:ui"])),
+      ORBIT_AUTOMATION_BUDGET_LEDGER: blockedLedger,
+      ORBIT_ORCA_LOG: blockedLog,
+    },
+  })
+  const blockedCalls = existsSync(blockedLog) ? readFileSync(blockedLog, "utf8") : ""
+  T(
+    "launch-worker.mjs: the routine fuse blocks before any worktree is created",
+    blockedResult.status === 4 &&
+      /ORB-75:[\s\S]*budget 1000000 tokens[\s\S]*observed spend 950000 tokens[\s\S]*reservation 100000 tokens/.test(blockedResult.stderr) &&
+      !blockedCalls.includes("worktree create"),
+    `exit ${blockedResult.status}\n     ${blockedResult.stderr}\n     ${blockedCalls}`,
+  )
+
+  const pendingLedger = stage("launch/budget-pending.jsonl", `${budgetRecord("prior-pending", undefined, undefined, "routine", "codex")}\n`)
+  const pendingLog = join(root, "launch", "budget-pending-calls.jsonl")
+  const pendingResult = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile], {
+    path: blocked.path,
+    env: {
+      ...orcaEnv(linearIssueStub(["repo:ui"])),
+      ORBIT_AUTOMATION_BUDGET_LEDGER: pendingLedger,
+      ORBIT_ORCA_LOG: pendingLog,
+    },
+  })
+  const pendingCalls = existsSync(pendingLog) ? readFileSync(pendingLog, "utf8") : ""
+  T(
+    "launch-worker.mjs: an absent prior token measurement fails closed before worktree creation",
+    pendingResult.status === 3 &&
+      /lack input or output tokens[\s\S]*prior-pending/.test(pendingResult.stderr) &&
+      !pendingCalls.includes("worktree create"),
+    `exit ${pendingResult.status}\n     ${pendingResult.stderr}\n     ${pendingCalls}`,
+  )
+
+  const concurrentWorker = {
+    ...INTERACTIVE_WORKER,
+    automationBudget: {
+      tier: "routine",
+      tokenBudget: 1_000,
+      warningTokens: 800,
+      invocationTokens: { default: 600, cheap: 500, deep: 900 },
+    },
+  }
+  const concurrentLaunch = stageLaunchWorker("budget-concurrent-launch", concurrentWorker)
+  const concurrentCheckout = stageCheckout(concurrentLaunch.base)
+  if (!concurrentCheckout) {
+    T("launch-worker.mjs: concurrent launchers share one atomic pre-worktree reservation", false, "could not stage the concurrent launch checkout")
+  } else {
+    const concurrentLedger = join(concurrentLaunch.base, "automation-budget.jsonl")
+    const concurrentMarker = join(concurrentLaunch.base, "budget-lock-acquired")
+    const concurrentRelease = join(concurrentLaunch.base, "budget-lock-release")
+    const concurrentPrompt = stage("budget-concurrent-launch-prompt.md", "the ticket body verbatim\n")
+    const concurrentPainted = `> Read ${concurrentPrompt} and execute it in full. That file is your complete work order for ORB-75:`
+    const concurrentPlan = [
+      ...linearIssueStub(["repo:ui"]),
+      { match: "worktree create", stdout: JSON.stringify({ ok: true, result: { worktree: { path: concurrentCheckout, branch: "refs/heads/thomasluizon/orb-75" } } }) },
+      { match: "terminal create", stdout: JSON.stringify({ ok: true, result: { terminal: { handle: "t1" } } }) },
+      { match: "terminal wait", stdout: JSON.stringify({ ok: true, result: { wait: { satisfied: true } } }) },
+      { match: "terminal show", stdout: JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1785168487585 } } }) },
+      { match: "terminal read", stdout: JSON.stringify({ ok: true, result: { terminal: { tail: [concurrentPainted] } } }) },
+      { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }) },
+      { match: "terminal switch", stdout: JSON.stringify({ ok: true, result: {} }) },
+      { match: "worktree set", stdout: JSON.stringify({ ok: true, result: {} }) },
+      { match: "terminal stop", stdout: JSON.stringify({ ok: true, result: {} }) },
+      { match: "worktree rm", stdout: JSON.stringify({ ok: true, result: {} }) },
+    ]
+    const concurrentRunner = stage(
+      "budget-concurrent-launch-runner.mjs",
+      `import { spawn } from "node:child_process"
+import { existsSync, writeFileSync } from "node:fs"
+const [tool, prompt, ledger, marker, release, firstLog, secondLog] = process.argv.slice(2)
+const baseEnv = JSON.parse(process.env.CONCURRENT_LAUNCH_ENV)
+const run = (extraEnv) => {
+  const child = spawn(process.execPath, [tool, "--issue", "ORB-75", "--prompt-file", prompt], {
+    env: { ...process.env, ...baseEnv, ORBIT_AUTOMATION_BUDGET_LEDGER: ledger, ...extraEnv },
+    stdio: ["ignore", "pipe", "pipe"],
+  })
+  let stderr = ""
+  child.stderr.setEncoding("utf8")
+  child.stderr.on("data", (chunk) => { stderr += chunk })
+  return new Promise((resolve) => child.on("exit", (status) => resolve({ status, stderr })))
+}
+const first = run({
+  AUTOMATION_BUDGET_TEST_LOCK_MARKER: marker,
+  AUTOMATION_BUDGET_TEST_LOCK_RELEASE: release,
+  ORBIT_ORCA_LOG: firstLog,
+})
+const deadline = Date.now() + 5000
+while (!existsSync(marker) && Date.now() < deadline) {
+  await new Promise((resolve) => setTimeout(resolve, 10))
+}
+if (!existsSync(marker)) process.exit(9)
+const second = run({ ORBIT_ORCA_LOG: secondLog })
+await new Promise((resolve) => setTimeout(resolve, 100))
+writeFileSync(release, "release\\n")
+process.stdout.write(JSON.stringify(await Promise.all([first, second])))
+`,
+    )
+    const firstLog = join(concurrentLaunch.base, "first-orca.jsonl")
+    const secondLog = join(concurrentLaunch.base, "second-orca.jsonl")
+    const concurrentResult = spawnSync(
+      process.execPath,
+      [
+        concurrentRunner,
+        join(concurrentLaunch.base, "tools", "launch-worker.mjs"),
+        concurrentPrompt,
+        concurrentLedger,
+        concurrentMarker,
+        concurrentRelease,
+        firstLog,
+        secondLog,
+      ],
+      {
+        encoding: "utf8",
+        timeout: 30_000,
+        env: { ...process.env, CONCURRENT_LAUNCH_ENV: JSON.stringify(orcaEnv(concurrentPlan)) },
+      },
+    )
+    const concurrentOutcomes = concurrentResult.status === 0 ? JSON.parse(concurrentResult.stdout) : []
+    const concurrentRecords = existsSync(concurrentLedger)
+      ? readFileSync(concurrentLedger, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
+      : []
+    const readCalls = (path) => existsSync(path)
+      ? readFileSync(path, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
+      : []
+    const firstCalls = readCalls(firstLog)
+    const secondCalls = readCalls(secondLog)
+    const createdWorktree = (calls) => calls.some((argumentsList) =>
+      argumentsList[0].split(/[\\/]/).pop() === "worktree" && argumentsList[1] === "create")
+    T(
+      "launch-worker.mjs: concurrent launchers share one atomic pre-worktree reservation",
+      concurrentResult.status === 0 &&
+        concurrentOutcomes[0]?.status === 0 &&
+        concurrentOutcomes[1]?.status === 3 &&
+        /lack input or output tokens/.test(concurrentOutcomes[1]?.stderr ?? "") &&
+        createdWorktree(firstCalls) &&
+        !createdWorktree(secondCalls) &&
+        concurrentRecords.length === 1 &&
+        !Object.hasOwn(concurrentRecords[0] ?? {}, "inputTokens"),
+      `exit ${concurrentResult.status}\n     stdout: ${concurrentResult.stdout}\n     stderr: ${concurrentResult.stderr}\n     ledger: ${JSON.stringify(concurrentRecords)}\n     first calls: ${JSON.stringify(firstCalls)}\n     second calls: ${JSON.stringify(secondCalls)}`,
+    )
+  }
+
+  const reservedLog = join(root, "launch", "budget-reserved-calls.jsonl")
+  const reservedResult = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile], {
+    path: blocked.path,
+    env: {
+      ...orcaEnv([
+        ...linearIssueStub(["repo:ui", "tier:deep"]),
+        {
+          match: "worktree create",
+          stdout: JSON.stringify({ ok: false, error: { message: "stop after reserved budget" } }),
+          exit: 1,
+        },
+      ]),
+      ORBIT_AUTOMATION_BUDGET_LEDGER: blockedLedger,
+      ORBIT_ORCA_LOG: reservedLog,
+    },
+  })
+  const reservedCalls = existsSync(reservedLog)
+    ? readFileSync(reservedLog, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
+    : []
+  T(
+    "launch-worker.mjs: tier:deep uses its reserved tier and 250000-token projection",
+    reservedResult.status === 3 &&
+      /reserved invocation[\s\S]*proceeds with 1200000 projected tokens/.test(reservedResult.stderr) &&
+      /worktree create[\s\S]*failed: stop after reserved budget/.test(reservedResult.stderr) &&
+      reservedCalls.some((argumentsList) => argumentsList[0].split(/[\\/]/).pop() === "worktree" && argumentsList[1] === "create"),
+    `exit ${reservedResult.status}\n     ${reservedResult.stderr}\n     ${reservedCalls}`,
+  )
+
+  const selectedUnavailable = stageLaunchWorker("budget-selected-unavailable", INTERACTIVE_CODEX, "codex")
+  const selectedUnavailableResult = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile], {
+    path: selectedUnavailable.path,
+    env: {
+      ...orcaEnv(linearIssueStub(["repo:ui"])),
+      ORBIT_TEST_AI_QUOTA: JSON.stringify({
+        claude: { status: "OK", weeklyPercent: 10, sessionPercent: 5, resetsIn: "4h 7m" },
+        codex: { status: "UNAVAILABLE", usedPercent: null, windowDays: null, resetsAt: null, hasCredits: null, planType: null },
+      }),
+      ORBIT_AUTOMATION_BUDGET_LEDGER: join(selectedUnavailable.base, "automation-budget.jsonl"),
+    },
+  })
+  T(
+    "launch-worker.mjs: an unavailable selected provider fails closed",
+    selectedUnavailableResult.status === 3 && /could not read codex quota/.test(selectedUnavailableResult.stderr),
+    `exit ${selectedUnavailableResult.status}\n     ${selectedUnavailableResult.stderr}`,
+  )
+
+  const malformedClaudeReset = stageLaunchWorker("budget-malformed-claude-reset", INTERACTIVE_WORKER)
+  const malformedClaudeResult = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile], {
+    path: malformedClaudeReset.path,
+    env: {
+      ...orcaEnv(linearIssueStub(["repo:ui"])),
+      ORBIT_TEST_AI_QUOTA: JSON.stringify({
+        claude: { status: "OK", weeklyPercent: 10, sessionPercent: 5, resetsIn: "later" },
+        codex: { status: "OK", usedPercent: 10, windowDays: 7, resetsAt: 1894060800, hasCredits: false, planType: "pro" },
+      }),
+      ORBIT_AUTOMATION_BUDGET_LEDGER: join(malformedClaudeReset.base, "automation-budget.jsonl"),
+    },
+  })
+  T(
+    "launch-worker.mjs: a malformed Claude reset duration fails closed",
+    malformedClaudeResult.status === 3 && /unsupported Claude reset duration/.test(malformedClaudeResult.stderr),
+    `exit ${malformedClaudeResult.status}\n     ${malformedClaudeResult.stderr}`,
+  )
+
+  const compactClaudeReset = stageLaunchWorker("budget-compact-claude-reset", INTERACTIVE_WORKER)
+  const compactLog = join(root, "launch", "budget-compact-calls.jsonl")
+  const compactClaudeResult = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile], {
+    path: compactClaudeReset.path,
+    env: {
+      ...orcaEnv([
+        ...linearIssueStub(["repo:ui"]),
+        {
+          match: "worktree create",
+          stdout: JSON.stringify({ ok: false, error: { message: "stop after budget" } }),
+          exit: 1,
+        },
+      ]),
+      ORBIT_AUTOMATION_BUDGET_LEDGER: join(compactClaudeReset.base, "automation-budget.jsonl"),
+      ORBIT_ORCA_LOG: compactLog,
+    },
+  })
+  const compactCalls = existsSync(compactLog)
+    ? readFileSync(compactLog, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
+    : []
+  T(
+    "launch-worker.mjs: a compact Claude reset duration reaches worktree creation after the fuse passes",
+    compactClaudeResult.status === 3 &&
+      /worktree create[\s\S]*failed: stop after budget/.test(compactClaudeResult.stderr) &&
+      compactCalls.some((argumentsList) => argumentsList[0].split(/[\\/]/).pop() === "worktree" && argumentsList[1] === "create"),
+    `exit ${compactClaudeResult.status}\n     ${compactClaudeResult.stderr}\n     ${JSON.stringify(compactCalls)}`,
+  )
 
   trustScreenCases()
   pointerDeliveryCases()
@@ -4102,7 +4576,727 @@ const contextBudgetCases = () => {
   )
 }
 
+const CODEX_QUOTA_RESPONSES = [
+  JSON.stringify({ jsonrpc: "2.0", id: 1, result: { userAgent: "quota-test" } }),
+  JSON.stringify({
+    jsonrpc: "2.0",
+    id: 2,
+    result: {
+      rateLimits: {
+        primary: {
+          usedPercent: 7,
+          windowDurationMins: 300,
+          resetsAt: 1784851200,
+        },
+        secondary: {
+          usedPercent: 42,
+          windowDurationMins: 10080,
+          resetsAt: 1785456000,
+        },
+        credits: { hasCredits: false, balance: "0" },
+        planType: "pro",
+      },
+    },
+  }),
+]
+const CODEX_QUOTA_NULL_CREDITS_RESPONSES = [
+  CODEX_QUOTA_RESPONSES[0],
+  JSON.stringify({
+    jsonrpc: "2.0",
+    id: 2,
+    result: {
+      rateLimits: {
+        primary: {
+          usedPercent: 7,
+          windowDurationMins: 300,
+          resetsAt: 1784851200,
+        },
+        secondary: {
+          usedPercent: 42,
+          windowDurationMins: 10080,
+          resetsAt: 1785456000,
+        },
+        credits: null,
+        planType: "pro",
+      },
+    },
+  }),
+]
+const CODEX_QUOTA_SHORT_ONLY_RESPONSES = [
+  CODEX_QUOTA_RESPONSES[0],
+  JSON.stringify({
+    jsonrpc: "2.0",
+    id: 2,
+    result: {
+      rateLimits: {
+        primary: {
+          usedPercent: 7,
+          windowDurationMins: 300,
+          resetsAt: 1784851200,
+        },
+        credits: { hasCredits: false, balance: "0" },
+        planType: "pro",
+      },
+    },
+  }),
+]
+const CODEX_APP_SERVER_DIR = join(root, "quota-codex")
+stage(
+  "quota-codex/app-server",
+  `let buffer = ""
+let responseIndex = 0
+const responses = process.env.AI_QUOTA_TEST_CODEX_RESPONSES
+  ? JSON.parse(process.env.AI_QUOTA_TEST_CODEX_RESPONSES)
+  : ${JSON.stringify(CODEX_QUOTA_RESPONSES)}
+process.stdin.setEncoding("utf8")
+process.stdin.on("data", (chunk) => {
+  buffer += chunk
+  const lines = buffer.split("\\n")
+  buffer = lines.pop()
+  for (const line of lines.filter(Boolean)) {
+    const request = JSON.parse(line)
+    if (responseIndex === 0 && (request.id !== 1 || request.method !== "initialize")) process.exit(5)
+    if (responseIndex === 1 && (request.id !== 2 || request.method !== "account/rateLimits/read")) process.exit(6)
+    process.stdout.write(responses[Math.min(responseIndex, responses.length - 1)] + "\\n")
+    responseIndex += 1
+  }
+})
+`,
+)
+const CODEX_COMSPEC_FIXTURE = stage(
+  "quota-codex/comspec-fixture.mjs",
+  `import { appendFileSync } from "node:fs"
+appendFileSync(process.env.AI_QUOTA_TEST_COMSPEC_LOG, JSON.stringify(process.argv.slice(2)) + "\\n")
+let buffer = ""
+let responseIndex = 0
+const responses = ${JSON.stringify(CODEX_QUOTA_RESPONSES)}
+process.stdin.setEncoding("utf8")
+process.stdin.on("data", (chunk) => {
+  buffer += chunk
+  const lines = buffer.split("\\n")
+  buffer = lines.pop()
+  for (const line of lines.filter(Boolean)) {
+    JSON.parse(line)
+    process.stdout.write(responses[Math.min(responseIndex, responses.length - 1)] + "\\n")
+    responseIndex += 1
+  }
+})
+`,
+)
+const CODEX_TASKKILL_FIXTURE = stage(
+  "quota-codex/taskkill-fixture.mjs",
+  `import { appendFileSync } from "node:fs"
+const argumentsList = process.argv.slice(2)
+appendFileSync(process.env.AI_QUOTA_TEST_TASKKILL_LOG, JSON.stringify(argumentsList) + "\\n")
+const pid = Number(argumentsList[argumentsList.indexOf("/PID") + 1])
+if (Number.isSafeInteger(pid) && pid > 0) {
+  try {
+    process.kill(pid, "SIGTERM")
+  } catch {}
+}
+`,
+)
+const ORCA_QUOTA_OK = [
+  {
+    match: "computer get-app-state",
+    stdout: JSON.stringify({
+      ok: true,
+      result: { snapshot: { treeText: "1 window Orca\n41 button Usage" } },
+    }),
+  },
+  {
+    match: "computer click",
+    stdout: JSON.stringify({
+      ok: true,
+      result: {
+        snapshot: {
+          treeText: "1 window Orca\n52 staticText Claude Resets in 5d 4h 5h 12% wk 34%",
+        },
+      },
+    }),
+  },
+]
+const aiQuotaEnv = (plan, codexBin = process.execPath) => ({
+  ...orcaEnv(plan),
+  CODEX_BIN: codexBin,
+  AI_QUOTA_TIMEOUT_MS: "2000",
+})
+
+const aiQuotaCases = () => {
+  check(
+    "ai-quota.mjs",
+    "returns both populated engines when both sources are reachable",
+    ["--json"],
+    {
+      status: 0,
+      stdout:
+        /"claude":\s*\{[\s\S]*"status":\s*"OK"[\s\S]*"weeklyPercent":\s*34[\s\S]*"sessionPercent":\s*12[\s\S]*"codex":\s*\{[\s\S]*"status":\s*"OK"[\s\S]*"usedPercent":\s*42[\s\S]*"windowDays":\s*7[\s\S]*"hasCredits":\s*false[\s\S]*"planType":\s*"pro"/,
+    },
+    { cwd: CODEX_APP_SERVER_DIR, env: aiQuotaEnv(ORCA_QUOTA_OK) },
+  )
+  const defaultOrcaEnv = {
+    ...aiQuotaEnv(ORCA_QUOTA_OK),
+    AI_QUOTA_TEST_MODE: "1",
+    AI_QUOTA_TEST_DEFAULT_ORCA: process.execPath,
+  }
+  delete defaultOrcaEnv.ORCA_BIN
+  check(
+    "ai-quota.mjs",
+    "uses the configured Windows Orca executable when ORCA_BIN is unset",
+    ["--json"],
+    {
+      status: 0,
+      stdout:
+        /"claude":\s*\{[\s\S]*"status":\s*"OK"[\s\S]*"weeklyPercent":\s*34[\s\S]*"codex":\s*\{[\s\S]*"status":\s*"OK"/,
+    },
+    { cwd: CODEX_APP_SERVER_DIR, env: defaultOrcaEnv },
+  )
+  check(
+    "ai-quota.mjs",
+    "keeps Codex when Orca is unavailable",
+    ["--json"],
+    { status: 0, stdout: /"claude":\s*\{[\s\S]*"status":\s*"UNAVAILABLE"[\s\S]*"codex":\s*\{[\s\S]*"status":\s*"OK"/ },
+    {
+      cwd: CODEX_APP_SERVER_DIR,
+      env: aiQuotaEnv([
+        {
+          match: "computer get-app-state",
+          stdout: JSON.stringify({ ok: false, error: { message: "Orca is not running" } }),
+          exit: 1,
+        },
+      ]),
+    },
+  )
+  check(
+    "ai-quota.mjs",
+    "selects Codex's seven-day secondary window instead of the five-hour primary",
+    ["--json"],
+    {
+      status: 0,
+      stdout:
+        /"codex":\s*\{[\s\S]*"status":\s*"OK"[\s\S]*"usedPercent":\s*42[\s\S]*"windowDays":\s*7[\s\S]*"resetsAt":\s*1785456000/,
+    },
+    { cwd: CODEX_APP_SERVER_DIR, env: aiQuotaEnv(ORCA_QUOTA_OK) },
+  )
+  check(
+    "ai-quota.mjs",
+    "fails the Codex side closed when no authoritative seven-day window exists",
+    ["--json"],
+    {
+      status: 0,
+      stdout: /"claude":\s*\{[\s\S]*"status":\s*"OK"[\s\S]*"codex":\s*\{[\s\S]*"status":\s*"UNAVAILABLE"/,
+    },
+    {
+      cwd: CODEX_APP_SERVER_DIR,
+      env: {
+        ...aiQuotaEnv(ORCA_QUOTA_OK),
+        AI_QUOTA_TEST_CODEX_RESPONSES: JSON.stringify(CODEX_QUOTA_SHORT_ONLY_RESPONSES),
+      },
+    },
+  )
+  check(
+    "ai-quota.mjs",
+    "accepts a subscription-only Codex quota response with no credits balance",
+    ["--json"],
+    {
+      status: 0,
+      stdout: /"codex":\s*\{[\s\S]*"status":\s*"OK"[\s\S]*"usedPercent":\s*42[\s\S]*"windowDays":\s*7[\s\S]*"hasCredits":\s*null[\s\S]*"planType":\s*"pro"/,
+    },
+    {
+      cwd: CODEX_APP_SERVER_DIR,
+      env: {
+        ...aiQuotaEnv([
+          {
+            match: "computer get-app-state",
+            stdout: JSON.stringify({ ok: false, error: { message: "Orca is not running" } }),
+            exit: 1,
+          },
+        ]),
+        AI_QUOTA_TEST_CODEX_RESPONSES: JSON.stringify(CODEX_QUOTA_NULL_CREDITS_RESPONSES),
+      },
+    },
+  )
+  check(
+    "ai-quota.mjs",
+    "keeps Claude when codex app-server is unavailable",
+    ["--json"],
+    { status: 0, stdout: /"claude":\s*\{[\s\S]*"status":\s*"OK"[\s\S]*"codex":\s*\{[\s\S]*"status":\s*"UNAVAILABLE"/ },
+    { env: aiQuotaEnv(ORCA_QUOTA_OK, join(root, "missing-codex")) },
+  )
+  check(
+    "ai-quota.mjs",
+    "returns both unavailable engines and a non-zero exit when neither source is reachable",
+    ["--json"],
+    { status: 1, stdout: /"claude":\s*\{[\s\S]*"status":\s*"UNAVAILABLE"[\s\S]*"codex":\s*\{[\s\S]*"status":\s*"UNAVAILABLE"/ },
+    {
+      env: aiQuotaEnv([
+        {
+          match: "computer get-app-state",
+          stdout: JSON.stringify({ ok: false, error: { message: "Orca is not running" } }),
+          exit: 1,
+        },
+      ], join(root, "missing-codex")),
+    },
+  )
+
+  const indexLog = join(root, "ai-quota-indexes.jsonl")
+  const retry = run("ai-quota.mjs", ["--json"], {
+    env: {
+      ...aiQuotaEnv([
+        {
+          match: "computer get-app-state",
+          sequence: [
+            JSON.stringify({ ok: true, result: { snapshot: { treeText: "1 window Orca\n41 button Usage" } } }),
+            JSON.stringify({ ok: true, result: { snapshot: { treeText: "1 window Orca\n73 button Usage" } } }),
+          ],
+        },
+        {
+          match: "computer click",
+          sequence: [
+            JSON.stringify({ ok: true, result: { snapshot: { treeText: "1 window Orca\n10 staticText Loading" } } }),
+            JSON.stringify({
+              ok: true,
+              result: {
+                snapshot: {
+                  treeText: "1 window Orca\n52 staticText Claude Resets in 5d 4h 5h 12% wk 34%",
+                },
+              },
+            }),
+          ],
+        },
+      ], join(root, "missing-codex")),
+      ORBIT_ORCA_LOG: indexLog,
+    },
+  })
+  const indexCalls = existsSync(indexLog) ? readFileSync(indexLog, "utf8") : ""
+  T(
+    "ai-quota.mjs: a retry locates Usage again and never reuses the stale element index",
+    retry.status === 0 &&
+      indexCalls.includes('"--element-index","41"') &&
+      indexCalls.includes('"--element-index","73"'),
+    `exit ${retry.status}\n     ${retry.stderr}\n     ${indexCalls}`,
+  )
+
+  const comSpecLog = join(root, "ai-quota-comspec.jsonl")
+  const taskkillLog = join(root, "ai-quota-taskkill.jsonl")
+  const windowsTreeEnv = {
+    ...aiQuotaEnv(ORCA_QUOTA_OK),
+    AI_QUOTA_TEST_MODE: "1",
+    AI_QUOTA_TEST_PLATFORM: "win32",
+    AI_QUOTA_TEST_COMSPEC: process.execPath,
+    AI_QUOTA_TEST_COMSPEC_SCRIPT: CODEX_COMSPEC_FIXTURE,
+    AI_QUOTA_TEST_COMSPEC_LOG: comSpecLog,
+    AI_QUOTA_TEST_TASKKILL: process.execPath,
+    AI_QUOTA_TEST_TASKKILL_SCRIPT: CODEX_TASKKILL_FIXTURE,
+    AI_QUOTA_TEST_TASKKILL_LOG: taskkillLog,
+  }
+  delete windowsTreeEnv.CODEX_BIN
+  const windowsTree = run("ai-quota.mjs", ["--json"], { env: windowsTreeEnv })
+  const comSpecCalls = existsSync(comSpecLog) ? readFileSync(comSpecLog, "utf8") : ""
+  const taskkillCalls = existsSync(taskkillLog) ? readFileSync(taskkillLog, "utf8") : ""
+  T(
+    "ai-quota.mjs: the Windows production spawn path terminates the whole app-server process tree",
+    windowsTree.status === 0 &&
+      /"codex":\s*\{[\s\S]*"status":\s*"OK"/.test(windowsTree.stdout) &&
+      comSpecCalls.includes('["/d","/s","/c","codex app-server"]') &&
+      /\["\/PID","\d+","\/T","\/F"\]/.test(taskkillCalls),
+    `exit ${windowsTree.status}\n     stderr: ${windowsTree.stderr}\n     comspec: ${comSpecCalls}\n     taskkill: ${taskkillCalls}`,
+  )
+}
+
+const budgetRecord = (identity, inputTokens, outputTokens, tier = "routine", engine = "claude", context = {}) =>
+  JSON.stringify({
+    identity,
+    engine,
+    tier,
+    startedAt: "2030-01-02T09:00:00.000Z",
+    endedAt: "2030-01-02T10:00:00.000Z",
+    ...(inputTokens === undefined ? {} : { inputTokens }),
+    ...(outputTokens === undefined ? {} : { outputTokens }),
+    ...context,
+  })
+
+const automationBudgetCases = () => {
+  const resetAt = "2030-01-08T00:00:00Z"
+  const checkArgs = (identity, ledger, invocationTokens = 100, extra = []) => [
+    "check",
+    "--engine",
+    "claude",
+    "--identity",
+    identity,
+    "--tier",
+    "routine",
+    "--reset-at",
+    resetAt,
+    "--warning-tokens",
+    "800",
+    "--budget-tokens",
+    "1000",
+    "--invocation-tokens",
+    String(invocationTokens),
+    "--ledger",
+    ledger,
+    ...extra,
+  ]
+  const recordArgs = (identity, ledger) => [
+    "record",
+    "--identity",
+    identity,
+    "--engine",
+    "claude",
+    "--tier",
+    "routine",
+    "--started-at",
+    "2030-01-02T09:00:00Z",
+    "--ended-at",
+    "2030-01-02T10:00:00Z",
+    "--input-tokens",
+    "10",
+    "--output-tokens",
+    "5",
+    "--ledger",
+    ledger,
+  ]
+  const ledgerBelow = stage("budget/below-warning.jsonl", `${budgetRecord("fixture-below", 500, 199)}\n`)
+  const ledgerWarning = stage("budget/at-warning.jsonl", `${budgetRecord("fixture-warning", 500, 200)}\n`)
+  const ledgerBlock = stage("budget/cross-budget.jsonl", `${budgetRecord("fixture-block", 600, 301)}\n`)
+
+  const belowWarning = run("automation-budget.mjs", checkArgs("next-below", ledgerBelow))
+  T(
+    "automation-budget.mjs: a token projection below the configured warning proceeds silently",
+    belowWarning.status === 0 && belowWarning.stdout === "" && belowWarning.stderr === "",
+    `exit ${belowWarning.status}\n     stdout: ${belowWarning.stdout}\n     stderr: ${belowWarning.stderr}`,
+  )
+  check(
+    "automation-budget.mjs",
+    "a token projection at the configured warning proceeds with the budget figures",
+    checkArgs("next-warning", ledgerWarning),
+    { status: 0, stderr: /warning[\s\S]*next-warning[\s\S]*800 tokens[\s\S]*warning 800 tokens[\s\S]*budget 1000 tokens[\s\S]*observed spend 700 tokens/ },
+  )
+  check(
+    "automation-budget.mjs",
+    "a launch that would cross the token budget is blocked with budget, spend, and invocation",
+    checkArgs("next-blocked", ledgerBlock),
+    { status: 4, stderr: /next-blocked[\s\S]*budget 1000 tokens[\s\S]*observed spend 901 tokens[\s\S]*reservation 100 tokens[\s\S]*projected spend 1001 tokens/ },
+  )
+  const exactBudget = run(
+    "automation-budget.mjs",
+    checkArgs("deep-exact", stage("budget/exact.jsonl", `${budgetRecord("prior-deep", 500, 250)}\n`), 250)
+      .map((value) => value === "routine" ? "reserved" : value),
+  )
+  T(
+    "automation-budget.mjs: a reserved deep invocation may consume the exact remaining token budget",
+    exactBudget.status === 0 && /warning[\s\S]*1000 tokens/.test(exactBudget.stderr),
+    `exit ${exactBudget.status}\n     stdout: ${exactBudget.stdout}\n     stderr: ${exactBudget.stderr}`,
+  )
+  check(
+    "automation-budget.mjs",
+    "explicitly reserved deep work proceeds beyond the routine token budget",
+    checkArgs("deep-over-budget", ledgerBlock, 250, ["--json"]).map((value) => value === "routine" ? "reserved" : value),
+    { status: 0, stdout: /"status":"RESERVED"[\s\S]*"projectedTokens":1151/, stderr: /reserved invocation[\s\S]*proceeds with 1151 projected tokens[\s\S]*budget 1000 tokens/ },
+  )
+
+  check(
+    "automation-budget.mjs",
+    "a malformed ledger is rejected instead of silently changing the fuse total",
+    checkArgs("broken-check", stage("budget/broken.jsonl", "{nope}\n")),
+    { status: 3, stderr: /ledger line 1 is not valid JSON/ },
+  )
+
+  const deadOwnerLedger = stage("budget/dead-lock-owner.jsonl", "")
+  const deadOwnerLock = `${deadOwnerLedger}.lock`
+  const deadOwnerProbe = spawnSync(
+    process.execPath,
+    ["-e", "process.stdout.write(String(process.pid))"],
+    { encoding: "utf8" },
+  )
+  const deadOwnerPid = Number(deadOwnerProbe.stdout)
+  writeFileSync(
+    deadOwnerLock,
+    `${JSON.stringify({ pid: deadOwnerPid, acquiredAt: new Date().toISOString() })}\n`,
+  )
+  const deadOwnerRecovery = run(
+    "automation-budget.mjs",
+    recordArgs("after-dead-lock", deadOwnerLedger),
+  )
+  T(
+    "automation-budget.mjs: a lock whose owner PID is provably dead is reclaimed immediately",
+    deadOwnerProbe.status === 0 &&
+      Number.isSafeInteger(deadOwnerPid) &&
+      deadOwnerRecovery.status === 0 &&
+      !existsSync(deadOwnerLock),
+    `probe exit ${deadOwnerProbe.status}, pid ${deadOwnerPid}\n     record exit ${deadOwnerRecovery.status}\n     ${deadOwnerRecovery.stderr}`,
+  )
+
+  const corruptLockLedger = stage("budget/stale-corrupt-lock.jsonl", "")
+  const corruptLock = `${corruptLockLedger}.lock`
+  writeFileSync(corruptLock, "{not-json\n")
+  const staleLockTime = new Date(Date.now() - 10_000)
+  utimesSync(corruptLock, staleLockTime, staleLockTime)
+  const corruptLockRecovery = run(
+    "automation-budget.mjs",
+    recordArgs("after-corrupt-lock", corruptLockLedger),
+  )
+  T(
+    "automation-budget.mjs: an old malformed lock marker is reclaimed",
+    corruptLockRecovery.status === 0 && !existsSync(corruptLock),
+    `record exit ${corruptLockRecovery.status}\n     ${corruptLockRecovery.stderr}`,
+  )
+
+  const liveOwnerLedger = stage("budget/live-lock-owner.jsonl", "")
+  const liveOwnerLock = `${liveOwnerLedger}.lock`
+  const liveOwnerMarker = `${JSON.stringify({
+    pid: process.pid,
+    acquiredAt: "2000-01-01T00:00:00.000Z",
+  })}\n`
+  writeFileSync(liveOwnerLock, liveOwnerMarker)
+  utimesSync(liveOwnerLock, staleLockTime, staleLockTime)
+  const liveOwnerRefusal = run(
+    "automation-budget.mjs",
+    recordArgs("blocked-by-live-lock", liveOwnerLedger),
+    { env: { AUTOMATION_BUDGET_TEST_LOCK_TIMEOUT_MS: "100" } },
+  )
+  const liveOwnerPreserved =
+    existsSync(liveOwnerLock) && readFileSync(liveOwnerLock, "utf8") === liveOwnerMarker
+  rmSync(liveOwnerLock, { force: true })
+  T(
+    "automation-budget.mjs: an old lock owned by a live PID is never stolen",
+    liveOwnerRefusal.status === 3 &&
+      /timed out waiting for ledger lock/.test(liveOwnerRefusal.stderr) &&
+      liveOwnerPreserved,
+    `record exit ${liveOwnerRefusal.status}\n     preserved ${liveOwnerPreserved}\n     ${liveOwnerRefusal.stderr}`,
+  )
+
+  const contextOnlyLedger = stage(
+    "budget/account-context.jsonl",
+    `${budgetRecord("context-only", 1, 1, "routine", "claude", {
+      accountContext: {
+        scope: "account",
+        attributed: false,
+        usedPercent: 99,
+        observedAt: "2030-01-02T10:00:00.000Z",
+      },
+    })}\n`,
+  )
+  check(
+    "automation-budget.mjs",
+    "account usedPercent is context and cannot affect the token fuse",
+    checkArgs("context-next", contextOnlyLedger, 1, ["--json"]),
+    { status: 0, stdout: /"status":"PROCEED"[\s\S]*"projectedTokens":3[\s\S]*"totalTokens":2/ },
+  )
+
+  const pendingLedger = stage("budget/pending.jsonl", `${budgetRecord("pending-invocation", undefined, undefined)}\n`)
+  check(
+    "automation-budget.mjs",
+    "an absent token measurement fails closed instead of becoming zero",
+    checkArgs("after-pending", pendingLedger),
+    { status: 3, stderr: /after-pending[\s\S]*lack input or output tokens[\s\S]*pending-invocation/ },
+  )
+  check(
+    "automation-budget.mjs",
+    "explicitly reserved deep work proceeds with a warning while another measurement is absent",
+    checkArgs("reserved-after-pending", pendingLedger, 100, ["--json"])
+      .map((value) => value === "routine" ? "reserved" : value),
+    {
+      status: 0,
+      stdout: /"status":"RESERVED"[\s\S]*"missingIdentities":\["pending-invocation"\]/,
+      stderr: /warning: reserved invocation "reserved-after-pending" proceeds[\s\S]*missing measurements for identities pending-invocation/,
+    },
+  )
+  const correctedLedger = stage(
+    "budget/corrected.jsonl",
+    `${budgetRecord("corrected-invocation", undefined, undefined)}\n${budgetRecord("corrected-invocation", 300, 200)}\n`,
+  )
+  check(
+    "automation-budget.mjs",
+    "a later authoritative append for the same identity closes its pending measurement",
+    checkArgs("after-correction", correctedLedger, 100, ["--json"]),
+    { status: 0, stdout: /"projectedTokens":600[\s\S]*"totalTokens":500[\s\S]*"missingIdentities":\[\]/ },
+  )
+
+  const reportLedger = stage(
+    "budget/report.jsonl",
+    [
+      budgetRecord("report-routine", 300, 200),
+      budgetRecord("report-reserved", 100, 50, "reserved"),
+      budgetRecord("report-pending", undefined, undefined),
+      "",
+    ].join("\n"),
+  )
+  check(
+    "automation-budget.mjs",
+    "report emits deterministic token totals and missing identities as JSON",
+    ["report", "--engine", "claude", "--reset-at", resetAt, "--ledger", reportLedger, "--json"],
+    {
+      status: 0,
+      stdout:
+        /"engine":"claude","inputTokens":400,"outputTokens":250,"totalTokens":650,"routineTokens":500,"reservedTokens":150,"missingIdentities":\["report-pending"\],"windowStart":"2030-01-01T00:00:00.000Z","resetsAt":"2030-01-08T00:00:00.000Z"/,
+    },
+  )
+  check(
+    "automation-budget.mjs",
+    "report renders deterministic token totals and missing identities as plain text",
+    ["report", "--engine", "claude", "--reset-at", resetAt, "--ledger", reportLedger],
+    {
+      status: 0,
+      stdout:
+        /^claude: 650 tokens \(400 input, 250 output; 500 routine, 150 reserved\); missing identities: report-pending; resets at 2030-01-08T00:00:00.000Z\r?\n$/,
+    },
+  )
+
+  const atomicLedger = join(root, "budget", "atomic-reservations.jsonl")
+  const lockMarker = join(root, "budget", "atomic-lock-acquired")
+  const lockRelease = join(root, "budget", "atomic-lock-release")
+  const atomicRunner = stage(
+    "budget/atomic-reservations.mjs",
+    `import { spawn } from "node:child_process"
+import { existsSync, writeFileSync } from "node:fs"
+const [tool, ledger, marker, release] = process.argv.slice(2)
+const common = (identity) => [
+  tool, "reserve", "--engine", "claude", "--identity", identity, "--tier", "routine",
+  "--started-at", "2030-01-02T09:00:00.000Z", "--ended-at", "2030-01-02T10:00:00.000Z",
+  "--reset-at", "2030-01-08T00:00:00Z", "--warning-tokens", "800",
+  "--budget-tokens", "1000", "--invocation-tokens", "600", "--ledger", ledger,
+]
+const run = (identity, env = {}) => {
+  const child = spawn(process.execPath, common(identity), {
+    env: { ...process.env, ...env },
+    stdio: ["ignore", "pipe", "pipe"],
+  })
+  let stderr = ""
+  child.stderr.setEncoding("utf8")
+  child.stderr.on("data", (chunk) => { stderr += chunk })
+  return new Promise((resolve) => child.on("exit", (status) => resolve({ status, stderr })))
+}
+const first = run("atomic-a", {
+  AUTOMATION_BUDGET_TEST_LOCK_MARKER: marker,
+  AUTOMATION_BUDGET_TEST_LOCK_RELEASE: release,
+})
+const deadline = Date.now() + 5000
+while (!existsSync(marker) && Date.now() < deadline) {
+  await new Promise((resolve) => setTimeout(resolve, 10))
+}
+if (!existsSync(marker)) process.exit(9)
+const second = run("atomic-b")
+await new Promise((resolve) => setTimeout(resolve, 100))
+writeFileSync(release, "release\\n")
+const results = await Promise.all([first, second])
+process.stdout.write(JSON.stringify(results))
+`,
+  )
+  const atomic = spawnSync(
+    process.execPath,
+    [atomicRunner, join(TOOLS_DIR, "automation-budget.mjs"), atomicLedger, lockMarker, lockRelease],
+    { encoding: "utf8", timeout: 20_000 },
+  )
+  const atomicResults = atomic.status === 0 ? JSON.parse(atomic.stdout) : []
+  const atomicRecords = existsSync(atomicLedger)
+    ? readFileSync(atomicLedger, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
+    : []
+  T(
+    "automation-budget.mjs: concurrent checks atomically reserve before another process can pass",
+    atomic.status === 0 &&
+      atomicResults[0]?.status === 0 &&
+      atomicResults[1]?.status === 3 &&
+      /lack input or output tokens[\s\S]*atomic-a/.test(atomicResults[1]?.stderr ?? "") &&
+      atomicRecords.length === 1 &&
+      atomicRecords[0]?.identity === "atomic-a" &&
+      !existsSync(`${atomicLedger}.lock`),
+    `exit ${atomic.status}\n     stdout: ${atomic.stdout}\n     stderr: ${atomic.stderr}\n     ledger: ${JSON.stringify(atomicRecords)}`,
+  )
+  const cancelAtomic = run("automation-budget.mjs", [
+    "cancel",
+    "--identity",
+    "atomic-a",
+    "--engine",
+    "claude",
+    "--tier",
+    "routine",
+    "--started-at",
+    "2030-01-02T09:00:00.000Z",
+    "--ended-at",
+    "2030-01-02T10:01:00.000Z",
+    "--ledger",
+    atomicLedger,
+  ])
+  const afterCancel = run("automation-budget.mjs", checkArgs("atomic-after-cancel", atomicLedger, 600, ["--json"]))
+  T(
+    "automation-budget.mjs: append-only cancellation releases a reservation that never started",
+    cancelAtomic.status === 0 &&
+      afterCancel.status === 0 &&
+      /"projectedTokens":600[\s\S]*"missingIdentities":\[\]/.test(afterCancel.stdout),
+    `cancel exit ${cancelAtomic.status}: ${cancelAtomic.stderr}\n     check exit ${afterCancel.status}: ${afterCancel.stderr}\n     ${afterCancel.stdout}`,
+  )
+
+  check(
+    "automation-budget.mjs",
+    "record appends authoritative tokens, provider cost, and explicit non-attributed account context",
+    [
+      "record",
+      "--identity",
+      "workflow:123",
+      "--engine",
+      "codex",
+      "--tier",
+      "routine",
+      "--started-at",
+      "2030-01-03T09:00:00Z",
+      "--ended-at",
+      "2030-01-03T09:05:00Z",
+      "--input-tokens",
+      "1200",
+      "--output-tokens",
+      "300",
+      "--provider-estimated-cost",
+      "1.25",
+      "--account-used-percent",
+      "88",
+      "--account-observed-at",
+      "2030-01-03T09:05:01Z",
+      "--ledger",
+      stage("budget/record.jsonl", ""),
+      "--json",
+    ],
+    {
+      status: 0,
+      stdout:
+        /"status":"RECORDED"[\s\S]*"identity":"workflow:123"[\s\S]*"inputTokens":1200[\s\S]*"outputTokens":300[\s\S]*"providerEstimatedCost":1.25[\s\S]*"accountContext":\{"scope":"account","attributed":false,"usedPercent":88,"observedAt":"2030-01-03T09:05:01.000Z"/,
+    },
+  )
+
+  const concurrentLedger = join(root, "budget", "concurrent.jsonl")
+  const concurrentRunner = stage(
+    "budget/concurrent-records.mjs",
+    `import { spawn } from "node:child_process"
+const [tool, ledger] = process.argv.slice(2)
+const base = ["--engine", "claude", "--tier", "routine", "--started-at", "2030-01-04T09:00:00Z", "--ended-at", "2030-01-04T09:01:00Z", "--input-tokens", "10", "--output-tokens", "5", "--ledger", ledger]
+const run = (identity) => new Promise((resolve) => {
+  const child = spawn(process.execPath, [tool, "record", "--identity", identity, ...base], { stdio: "inherit" })
+  child.on("exit", (status) => resolve(status))
+})
+const statuses = await Promise.all([run("concurrent-a"), run("concurrent-b")])
+process.exit(statuses.every((status) => status === 0) ? 0 : 1)
+`,
+  )
+  const concurrent = spawnSync(process.execPath, [concurrentRunner, join(TOOLS_DIR, "automation-budget.mjs"), concurrentLedger], {
+    encoding: "utf8",
+    timeout: 10000,
+  })
+  const concurrentRecords = existsSync(concurrentLedger)
+    ? readFileSync(concurrentLedger, "utf8").trim().split(/\r?\n/).map((line) => JSON.parse(line))
+    : []
+  T(
+    "automation-budget.mjs: two concurrent invocations append without losing a record",
+    concurrent.status === 0 &&
+      concurrentRecords.length === 2 &&
+      new Set(concurrentRecords.map((record) => record.identity)).size === 2,
+    `exit ${concurrent.status}\n     ${concurrent.stderr ?? ""}\n     ${JSON.stringify(concurrentRecords)}`,
+  )
+}
+
 const gateCases = {
+  "ai-quota.mjs": aiQuotaCases,
+  "automation-budget.mjs": automationBudgetCases,
   "merge-sweep.sh": () => {
     mergeSweepCliFlagCases()
     mergeSweepCases("merge-sweep.sh")
@@ -4989,6 +6183,164 @@ Not run.`,
         ),
       },
     )
+    const ledgerIssue = (line) => ({
+      ...VALID_ISSUE,
+      description: `${VALID_TICKET_BODY}\n\n${line}`,
+      parent: { identifier: "ORB-140", title: "Harness defect ledger from the recorded run" },
+    })
+    const checkIssue = (name, issue, expect, relations = [], env = {}) =>
+      check(
+        "check-ticket.mjs",
+        name,
+        ["--issue", issue.identifier],
+        expect,
+        {
+          env: {
+            ...orcaEnv([{ match: `linear issue ${issue.identifier}`, stdout: JSON.stringify({ ok: true, result: { issue, relations } }) }]),
+            ...env,
+          },
+        },
+      )
+
+    checkIssue("a ledger child with 7 occurrences passes", ledgerIssue("Ledger occurrence: 7; blocked: no"), { status: 0, stdout: /ticket ok/ })
+    checkIssue("a ledger child at the threshold of 3 occurrences passes", ledgerIssue("Ledger occurrence: 3; blocked: no"), { status: 0, stdout: /ticket ok/ })
+    checkIssue(
+      "a non-blocking ledger child below the threshold fails with the count and threshold",
+      ledgerIssue("Ledger occurrence: 2; blocked: no"),
+      { status: 1, stderr: /2[\s\S]*threshold of 3/i },
+    )
+    for (const alias of [
+      "false",
+      "none",
+      "n/a",
+      "no.",
+      "nothing",
+      "did not block the run",
+      "the defect could not block the run",
+      "the defect could not have blocked the run",
+      "the merge sweep was blocked by nothing",
+      "prevented the merge sweep from being blocked",
+    ]) {
+      checkIssue(
+        `a non-blocking ${alias} alias cannot bypass the threshold`,
+        ledgerIssue(`Ledger occurrence: 2; blocked: ${alias}`),
+        { status: 1, stderr: /literal no or an affirmative claim naming what it blocked/i },
+      )
+    }
+    checkIssue(
+      "a below-threshold ledger child passes when it names what blocked the run",
+      ledgerIssue("Ledger occurrence: 2; blocked: the merge sweep was blocked"),
+      { status: 0, stdout: /ticket ok/ },
+    )
+    checkIssue(
+      "a bare blocking claim does not bypass the threshold",
+      ledgerIssue("Ledger occurrence: 2; blocked: yes"),
+      { status: 1, stderr: /literal no or an affirmative claim naming what it blocked/i },
+    )
+    checkIssue(
+      "a bare blocking claim is rejected above the occurrence threshold",
+      ledgerIssue("Ledger occurrence: 5; blocked: true"),
+      { status: 1, stderr: /literal no or an affirmative claim naming what it blocked/i },
+    )
+    for (const claim of [
+      "blocked the merge sweep",
+      "the merge sweep was blocked",
+    ]) {
+      checkIssue(
+        `an affirmative ${claim} claim passes below the threshold`,
+        ledgerIssue(`Ledger occurrence: 2; blocked: ${claim}`),
+        { status: 0, stdout: /ticket ok/ },
+      )
+    }
+    checkIssue(
+      "a ledger child with no occurrence line fails",
+      { ...VALID_ISSUE, parent: { identifier: "ORB-140", title: "Harness defect ledger from the recorded run" } },
+      { status: 1, stderr: /missing[\s\S]*Ledger occurrence/i },
+    )
+    checkIssue(
+      "a recorded non-ledger child ticket is unaffected",
+      { ...VALID_ISSUE, parent: { identifier: "ORB-88", title: "Ordinary project parent" } },
+      { status: 0, stdout: /ticket ok/ },
+    )
+    checkIssue(
+      "an unparseable ledger occurrence line fails",
+      ledgerIssue("Ledger occurrence: several; blocked: no"),
+      { status: 1, stderr: /ledger occurrence line is unparseable/i },
+    )
+    const noLinearKeyHome = join(root, "check-ticket-no-linear-key")
+    mkdirSync(noLinearKeyHome, { recursive: true })
+    const ledgerParentRelation = [{
+      relationship: "parent",
+      relatedIssue: { identifier: "ORB-140", title: "Harness defect ledger from the recorded run" },
+    }]
+    checkIssue(
+      "an Orca parent relation validates without a separate Linear key",
+      {
+        ...VALID_ISSUE,
+        id: "linear-child-id",
+        description: `${VALID_TICKET_BODY}\n\nLedger occurrence: 3; blocked: no`,
+      },
+      { status: 0, stdout: /ticket ok/ },
+      ledgerParentRelation,
+      { USERPROFILE: noLinearKeyHome },
+    )
+    checkIssue(
+      "an Orca ledger parent relation still requires the occurrence line",
+      { ...VALID_ISSUE, id: "linear-child-without-line" },
+      { status: 1, stderr: /missing[\s\S]*Ledger occurrence/i },
+      ledgerParentRelation,
+      { USERPROFILE: noLinearKeyHome },
+    )
+    checkIssue(
+      "a standalone Orca issue validates without a separate Linear key",
+      { ...VALID_ISSUE, id: "linear-standalone-id" },
+      { status: 0, stdout: /ticket ok/ },
+      [],
+      { USERPROFILE: noLinearKeyHome },
+    )
+    const linearKeyHome = join(root, "check-ticket-linear-key")
+    mkdirSync(linearKeyHome, { recursive: true })
+    writeFileSync(join(linearKeyHome, ".linear-api-key"), "fixture-key")
+    const partialParentRelation = [{
+      relationship: "parent",
+      relatedIssue: { identifier: "ORB-140" },
+    }]
+    checkIssue(
+      "a partial Orca parent relation uses the bounded Linear fallback",
+      {
+        ...VALID_ISSUE,
+        id: "linear-partial-parent",
+        description: `${VALID_TICKET_BODY}\n\nLedger occurrence: 3; blocked: no`,
+      },
+      { status: 0, stdout: /ticket ok/ },
+      partialParentRelation,
+      {
+        USERPROFILE: linearKeyHome,
+        ORBIT_LINEAR_PARENT_STUB: JSON.stringify({
+          requireTimeout: true,
+          body: {
+            data: {
+              issue: {
+                parent: { identifier: "ORB-140", title: "Harness defect ledger from the recorded run" },
+              },
+            },
+          },
+        }),
+      },
+    )
+    checkIssue(
+      "a Linear parent GraphQL error exits with a tool error",
+      { ...VALID_ISSUE, id: "linear-parent-error" },
+      { status: 2, stderr: /could not read the Linear parent relation[\s\S]*fixture GraphQL failure/i },
+      partialParentRelation,
+      {
+        USERPROFILE: linearKeyHome,
+        ORBIT_LINEAR_PARENT_STUB: JSON.stringify({
+          status: 200,
+          body: { errors: [{ message: "fixture GraphQL failure" }] },
+        }),
+      },
+    )
   },
   "check-push-target.mjs": () => {
     check("check-push-target.mjs", "a push to main is blocked", [], { status: 1, stderr: /BLOCKED/ }, { input: "refs/heads/main abc refs/heads/main def\n" })
@@ -5011,7 +6363,9 @@ Not run.`,
 const INVALID_INPUT = {
   "agent-review.ps1": { argv: ["--orbit-not-a-flag"], status: 1 },
   "agent-review.sh": { argv: ["--orbit-not-a-flag"], status: 1 },
+  "ai-quota.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "arch-map.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "automation-budget.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "capture-surfaces.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-context-budget.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-calibration.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
