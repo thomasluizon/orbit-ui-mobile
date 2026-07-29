@@ -8,6 +8,9 @@
 
 import { execFileSync } from "node:child_process"
 import { existsSync, readFileSync } from "node:fs"
+import { request } from "node:https"
+import { homedir } from "node:os"
+import { join } from "node:path"
 
 const USAGE = `usage: check-ticket.mjs --issue ORB-12 | --file body.md
 
@@ -38,6 +41,14 @@ const REQUIRED_SECTIONS = [
 
 /** D4: one ticket = one repo. repo:both is a defect, not a label. */
 const REPO_LABELS = ["repo:ui", "repo:api", "repo:landing"]
+const LEDGER_OCCURRENCE_THRESHOLD = 3
+const LEDGER_OCCURRENCE_FORMAT = "Ledger occurrence: <count>; blocked: no|<what it blocked>"
+const LEDGER_PARENT_MARKER = /\bHarness defect ledger\b/i
+const LINEAR_PARENT_TIMEOUT_MS = 5_000
+const NEGATED_BLOCKING_CLAIM =
+  /\b(?:cannot|neither|never|no|nobody|none|nor|not|nothing|nowhere|without)\b|\b\w+n['’]t\b|\bfrom\s+(?:being|getting)\s+blocked\b/i
+const AFFIRMATIVE_BLOCKING_CLAIM =
+  /^blocked\s+(?:the|a|an)\s+\S(?:.*\S)?$|^(?:the|a|an)\s+\S(?:.*\S)?\s+(?:was|were)\s+blocked$/i
 
 /**
  * A criterion that quantifies over an OPEN set has no provable finish line, so review can never
@@ -136,6 +147,86 @@ const validateLabels = (labels) => {
   }
 }
 
+const parentFromOrca = (issue, relations) => {
+  if (Object.hasOwn(issue, "parent")) return issue.parent
+  const parentRelation = relations.find((relation) => {
+    const relationship = relation.relationship ?? relation.type
+    return relationship === "parent" || relationship === "childOf"
+  })
+  return parentRelation
+    ? parentRelation.relatedIssue ?? parentRelation.issue ?? parentRelation
+    : null
+}
+
+const isLedgerParent = (parent) => {
+  return LEDGER_PARENT_MARKER.test(`${parent?.title ?? ""}\n${parent?.description ?? ""}`)
+}
+
+const readLinearParent = async (issue) => {
+  if (!issue.id) return null
+  const keyPath = join(process.env.USERPROFILE || homedir(), ".linear-api-key")
+  if (!existsSync(keyPath)) throw new Error(`missing ${keyPath}`)
+  const apiKey = readFileSync(keyPath, "utf8").trim()
+  if (!apiKey) throw new Error(`${keyPath} is empty`)
+  const requestBody = JSON.stringify({
+    query: "query($id: String!) { issue(id: $id) { parent { id identifier title description } } }",
+    variables: { id: issue.id },
+  })
+  const response = await new Promise((resolve, reject) => {
+    const linearRequest = request("https://api.linear.app/graphql", {
+      method: "POST",
+      agent: false,
+      headers: {
+        Authorization: apiKey,
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(requestBody),
+      },
+      timeout: LINEAR_PARENT_TIMEOUT_MS,
+    }, (linearResponse) => {
+      const chunks = []
+      linearResponse.on("data", (chunk) => chunks.push(chunk))
+      linearResponse.on("end", () => resolve({
+        status: linearResponse.statusCode ?? 0,
+        body: Buffer.concat(chunks).toString("utf8"),
+      }))
+    })
+    linearRequest.on("error", reject)
+    linearRequest.on("timeout", () => {
+      linearRequest.destroy(new Error(`Linear parent lookup timed out after ${LINEAR_PARENT_TIMEOUT_MS}ms`))
+    })
+    linearRequest.end(requestBody)
+  })
+  const payload = JSON.parse(response.body)
+  if (response.status < 200 || response.status >= 300 || payload.errors) {
+    throw new Error(payload.errors?.[0]?.message ?? `HTTP ${response.status}`)
+  }
+  return payload.data?.issue?.parent ?? null
+}
+
+const validateLedgerOccurrence = (body) => {
+  const occurrenceLine = body.split(/\r?\n/).find((line) => line.startsWith("Ledger occurrence:"))
+  if (!occurrenceLine) {
+    problems.push(`ledger child is missing the fixed line: ${LEDGER_OCCURRENCE_FORMAT}`)
+    return
+  }
+  const parsedLine = occurrenceLine.match(/^Ledger occurrence: (\d+); blocked: ([^\r\n]+)$/)
+  if (!parsedLine) {
+    problems.push(`ledger occurrence line is unparseable; expected: ${LEDGER_OCCURRENCE_FORMAT}`)
+    return
+  }
+  const occurrenceCount = Number(parsedLine[1])
+  const blockingClaim = parsedLine[2].trim()
+  if (blockingClaim === "no") {
+    if (occurrenceCount < LEDGER_OCCURRENCE_THRESHOLD) {
+      problems.push(`ledger child states ${occurrenceCount} occurrences, below the threshold of ${LEDGER_OCCURRENCE_THRESHOLD}, without an affirmative blocking claim naming what it blocked`)
+    }
+    return
+  }
+  if (NEGATED_BLOCKING_CLAIM.test(blockingClaim) || !AFFIRMATIVE_BLOCKING_CLAIM.test(blockingClaim)) {
+    problems.push(`ledger child blocking value must be literal no or an affirmative claim naming what it blocked`)
+  }
+}
+
 const mode = process.argv[2]
 const target = process.argv[3]
 
@@ -164,6 +255,19 @@ if (mode === "--file") {
   validateBody(body)
   validateLabels(labels)
   const relations = parsedResult.relations ?? issue.relations ?? []
+  let parent = parentFromOrca(issue, relations)
+  const parentIsClassifiable = parent === null ||
+    typeof parent?.title === "string" ||
+    typeof parent?.description === "string"
+  if (!parentIsClassifiable) {
+    try {
+      parent = await readLinearParent(issue)
+    } catch (error) {
+      console.error(`check-ticket: could not read the Linear parent relation: ${error instanceof Error ? error.message : String(error)}`)
+      process.exit(2)
+    }
+  }
+  if (isLedgerParent(parent)) validateLedgerOccurrence(body)
   const blockedBy = relations.filter((r) => r.relationship === "blockedBy" || r.type === "blockedBy")
   if (mentionsIssueDependency(body) && blockedBy.length === 0) {
     problems.push("body PROSE mentions a dependency but the issue has no blockedBy relation; the DAG is explicit, never inferred from titles (6.2)")

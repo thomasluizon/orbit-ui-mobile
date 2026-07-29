@@ -141,7 +141,31 @@ const BASH = resolveBash()
 const ORCA_SHIM = stage(
   "orca-shim.cjs",
   `const { spawnSync } = require("node:child_process")
+const { EventEmitter } = require("node:events")
 const { appendFileSync, existsSync, readFileSync, rmSync } = require("node:fs")
+if (process.env.ORBIT_LINEAR_PARENT_STUB) {
+  const https = require("node:https")
+  const { syncBuiltinESMExports } = require("node:module")
+  const stub = JSON.parse(process.env.ORBIT_LINEAR_PARENT_STUB)
+  https.request = (_url, options, callback) => {
+    const linearRequest = new EventEmitter()
+    linearRequest.end = () => {
+      process.nextTick(() => {
+        const linearResponse = new EventEmitter()
+        linearResponse.statusCode = stub.status ?? 200
+        callback(linearResponse)
+        linearResponse.emit("data", Buffer.from(JSON.stringify(stub.body)))
+        linearResponse.emit("end")
+      })
+    }
+    linearRequest.destroy = (error) => process.nextTick(() => linearRequest.emit("error", error))
+    if (stub.requireTimeout && options.timeout !== 5000) {
+      process.nextTick(() => linearRequest.emit("error", new Error("missing Linear parent timeout")))
+    }
+    return linearRequest
+  }
+  syncBuiltinESMExports()
+}
 const argv = process.argv.slice(1)
 if (argv[0] && existsSync(argv[0])) return
 const line = argv.join(" ")
@@ -725,6 +749,7 @@ const linearIssueStub = (labels, worktrees = []) => [
  */
 const WORKER_CONTRACT_MARKER = "## Standing worker contract (injected by tools/launch-worker.mjs)"
 const FULL_SURFACE_POLL = /worker-status\.mjs[\s\S]*full-surface completion poll[\s\S]*review submissions[\s\S]*review threads[\s\S]*nested comments[\s\S]*PR conversation comments[\s\S]*fails closed/
+const NO_DRAFT_PULL_REQUEST_CLAUSE = "The pull request must be ready for review, never a draft."
 const REQUIRED_CONTRACT_CLAUSES = {
   "asking a question": /Never ask a question/,
   "dropping a blocked criterion": /A blocked sub-step never blocks the PR/,
@@ -1958,6 +1983,16 @@ process.stdout.write(JSON.stringify(await Promise.all([first, second])))
   }
   const agentsSource = readFileSync(join(REPO_ROOT, "AGENTS.md"), "utf8")
   T(
+    "launch-worker.mjs: the injected contract forbids opening a draft pull request",
+    launcherSource.includes(NO_DRAFT_PULL_REQUEST_CLAUSE),
+    `WORKER_CONTRACT no longer contains ${NO_DRAFT_PULL_REQUEST_CLAUSE}`,
+  )
+  T(
+    "AGENTS.md: the standing worker contract forbids opening a draft pull request",
+    agentsSource.includes(NO_DRAFT_PULL_REQUEST_CLAUSE),
+    `AGENTS.md no longer contains ${NO_DRAFT_PULL_REQUEST_CLAUSE}`,
+  )
+  T(
     "launch-worker.mjs: AGENTS.md requires the same full-surface completion poll",
     FULL_SURFACE_POLL.test(agentsSource),
     "AGENTS.md no longer requires worker-status to inventory every review activity surface and fail closed.",
@@ -2588,6 +2623,13 @@ const prWatchCases = () => {
   check("pr-watch.mjs", "a fresh approval fires", argv, { status: 0, stdout: /"transition": "approved"/ }, { env: orcaEnv([approved]) })
   check(
     "pr-watch.mjs",
+    "a draft reading clean and approved is refused",
+    argv,
+    { status: 1, stdout: /"transition": "draft"[\s\S]*"reason": "the PR is a draft and cannot be merged"/ },
+    { env: orcaEnv([pullRequestStub(615, { isDraft: true, reviewDecision: "APPROVED", mergeStateStatus: "CLEAN", latestReviews: { nodes: [reviewOn("APPROVED", HEAD_SHA)] } })]) },
+  )
+  check(
+    "pr-watch.mjs",
     "an acted approval that became clean between watches reports readiness",
     [...argv, "--acted", `615=${HEAD_SHA.slice(0, 7)}:APPROVED`],
     { status: 0, stdout: /"transition": "ready-to-merge"/ },
@@ -2965,6 +3007,7 @@ const workerStatusPlan = (
     comments = [],
     commentsHasNextPage = false,
     approvalHead,
+    isDraft = false,
     prHead,
     reviewDecision = "APPROVED",
     reviews = [],
@@ -2975,7 +3018,7 @@ const workerStatusPlan = (
 ) => [
   {
     match: "pr list",
-    stdout: JSON.stringify([{ number: 75, url: "https://github.com/orbit/orbit/pull/75", state: "OPEN", baseRefName: "main", isDraft: false }]),
+    stdout: JSON.stringify([{ number: 75, url: "https://github.com/orbit/orbit/pull/75", state: "OPEN", baseRefName: "main", isDraft }]),
   },
   {
     match: "api graphql",
@@ -3073,6 +3116,7 @@ const runWorkerStatusCase = (fixture, attachments, options = {}) => {
         ...orcaEnv(
           workerStatusPlan(attachments, {
             approvalHead: options.approvalHead,
+            isDraft: options.isDraft,
             comments: options.comments,
             commentsHasNextPage: options.commentsHasNextPage,
             prHead: options.prHead ?? fixture.prHead,
@@ -5335,6 +5379,15 @@ const gateCases = {
         complete.verdict.checks.find((entry) => entry.name === "critique-attached")?.ok === true,
       `exit ${complete.status}\n     ${(complete.stderr || complete.stdout).slice(0, 600)}`,
     )
+    const draft = runWorkerStatusCase(fixture, [screenshot, critique], { isDraft: true })
+    T(
+      "worker-status.mjs: a draft pull request is explicitly not ready for review",
+      draft.status === 1 &&
+        draft.verdict?.unmet.length === 1 &&
+        draft.verdict.unmet[0] === "pr-ready-for-review" &&
+        draft.verdict.checks.find((entry) => entry.name === "pr-ready-for-review")?.detail.includes("draft pull request"),
+      `exit ${draft.status}\n     ${(draft.stderr || draft.stdout).slice(0, 600)}`,
+    )
     const changesRequested = runWorkerStatusCase(fixture, [screenshot, critique], { reviewDecision: "CHANGES_REQUESTED" })
     T(
       "worker-status.mjs: a non-approved pull request does not report done",
@@ -6158,6 +6211,164 @@ Not run.`,
           `${VALID_TICKET_BODY}\n\n## Dependencies\n\nRequires ORB-112.`,
           [{ relationship: "blockedBy", relatedIssue: { identifier: "ORB-112" } }],
         ),
+      },
+    )
+    const ledgerIssue = (line) => ({
+      ...VALID_ISSUE,
+      description: `${VALID_TICKET_BODY}\n\n${line}`,
+      parent: { identifier: "ORB-140", title: "Harness defect ledger from the recorded run" },
+    })
+    const checkIssue = (name, issue, expect, relations = [], env = {}) =>
+      check(
+        "check-ticket.mjs",
+        name,
+        ["--issue", issue.identifier],
+        expect,
+        {
+          env: {
+            ...orcaEnv([{ match: `linear issue ${issue.identifier}`, stdout: JSON.stringify({ ok: true, result: { issue, relations } }) }]),
+            ...env,
+          },
+        },
+      )
+
+    checkIssue("a ledger child with 7 occurrences passes", ledgerIssue("Ledger occurrence: 7; blocked: no"), { status: 0, stdout: /ticket ok/ })
+    checkIssue("a ledger child at the threshold of 3 occurrences passes", ledgerIssue("Ledger occurrence: 3; blocked: no"), { status: 0, stdout: /ticket ok/ })
+    checkIssue(
+      "a non-blocking ledger child below the threshold fails with the count and threshold",
+      ledgerIssue("Ledger occurrence: 2; blocked: no"),
+      { status: 1, stderr: /2[\s\S]*threshold of 3/i },
+    )
+    for (const alias of [
+      "false",
+      "none",
+      "n/a",
+      "no.",
+      "nothing",
+      "did not block the run",
+      "the defect could not block the run",
+      "the defect could not have blocked the run",
+      "the merge sweep was blocked by nothing",
+      "prevented the merge sweep from being blocked",
+    ]) {
+      checkIssue(
+        `a non-blocking ${alias} alias cannot bypass the threshold`,
+        ledgerIssue(`Ledger occurrence: 2; blocked: ${alias}`),
+        { status: 1, stderr: /literal no or an affirmative claim naming what it blocked/i },
+      )
+    }
+    checkIssue(
+      "a below-threshold ledger child passes when it names what blocked the run",
+      ledgerIssue("Ledger occurrence: 2; blocked: the merge sweep was blocked"),
+      { status: 0, stdout: /ticket ok/ },
+    )
+    checkIssue(
+      "a bare blocking claim does not bypass the threshold",
+      ledgerIssue("Ledger occurrence: 2; blocked: yes"),
+      { status: 1, stderr: /literal no or an affirmative claim naming what it blocked/i },
+    )
+    checkIssue(
+      "a bare blocking claim is rejected above the occurrence threshold",
+      ledgerIssue("Ledger occurrence: 5; blocked: true"),
+      { status: 1, stderr: /literal no or an affirmative claim naming what it blocked/i },
+    )
+    for (const claim of [
+      "blocked the merge sweep",
+      "the merge sweep was blocked",
+    ]) {
+      checkIssue(
+        `an affirmative ${claim} claim passes below the threshold`,
+        ledgerIssue(`Ledger occurrence: 2; blocked: ${claim}`),
+        { status: 0, stdout: /ticket ok/ },
+      )
+    }
+    checkIssue(
+      "a ledger child with no occurrence line fails",
+      { ...VALID_ISSUE, parent: { identifier: "ORB-140", title: "Harness defect ledger from the recorded run" } },
+      { status: 1, stderr: /missing[\s\S]*Ledger occurrence/i },
+    )
+    checkIssue(
+      "a recorded non-ledger child ticket is unaffected",
+      { ...VALID_ISSUE, parent: { identifier: "ORB-88", title: "Ordinary project parent" } },
+      { status: 0, stdout: /ticket ok/ },
+    )
+    checkIssue(
+      "an unparseable ledger occurrence line fails",
+      ledgerIssue("Ledger occurrence: several; blocked: no"),
+      { status: 1, stderr: /ledger occurrence line is unparseable/i },
+    )
+    const noLinearKeyHome = join(root, "check-ticket-no-linear-key")
+    mkdirSync(noLinearKeyHome, { recursive: true })
+    const ledgerParentRelation = [{
+      relationship: "parent",
+      relatedIssue: { identifier: "ORB-140", title: "Harness defect ledger from the recorded run" },
+    }]
+    checkIssue(
+      "an Orca parent relation validates without a separate Linear key",
+      {
+        ...VALID_ISSUE,
+        id: "linear-child-id",
+        description: `${VALID_TICKET_BODY}\n\nLedger occurrence: 3; blocked: no`,
+      },
+      { status: 0, stdout: /ticket ok/ },
+      ledgerParentRelation,
+      { USERPROFILE: noLinearKeyHome },
+    )
+    checkIssue(
+      "an Orca ledger parent relation still requires the occurrence line",
+      { ...VALID_ISSUE, id: "linear-child-without-line" },
+      { status: 1, stderr: /missing[\s\S]*Ledger occurrence/i },
+      ledgerParentRelation,
+      { USERPROFILE: noLinearKeyHome },
+    )
+    checkIssue(
+      "a standalone Orca issue validates without a separate Linear key",
+      { ...VALID_ISSUE, id: "linear-standalone-id" },
+      { status: 0, stdout: /ticket ok/ },
+      [],
+      { USERPROFILE: noLinearKeyHome },
+    )
+    const linearKeyHome = join(root, "check-ticket-linear-key")
+    mkdirSync(linearKeyHome, { recursive: true })
+    writeFileSync(join(linearKeyHome, ".linear-api-key"), "fixture-key")
+    const partialParentRelation = [{
+      relationship: "parent",
+      relatedIssue: { identifier: "ORB-140" },
+    }]
+    checkIssue(
+      "a partial Orca parent relation uses the bounded Linear fallback",
+      {
+        ...VALID_ISSUE,
+        id: "linear-partial-parent",
+        description: `${VALID_TICKET_BODY}\n\nLedger occurrence: 3; blocked: no`,
+      },
+      { status: 0, stdout: /ticket ok/ },
+      partialParentRelation,
+      {
+        USERPROFILE: linearKeyHome,
+        ORBIT_LINEAR_PARENT_STUB: JSON.stringify({
+          requireTimeout: true,
+          body: {
+            data: {
+              issue: {
+                parent: { identifier: "ORB-140", title: "Harness defect ledger from the recorded run" },
+              },
+            },
+          },
+        }),
+      },
+    )
+    checkIssue(
+      "a Linear parent GraphQL error exits with a tool error",
+      { ...VALID_ISSUE, id: "linear-parent-error" },
+      { status: 2, stderr: /could not read the Linear parent relation[\s\S]*fixture GraphQL failure/i },
+      partialParentRelation,
+      {
+        USERPROFILE: linearKeyHome,
+        ORBIT_LINEAR_PARENT_STUB: JSON.stringify({
+          status: 200,
+          body: { errors: [{ message: "fixture GraphQL failure" }] },
+        }),
       },
     )
   },

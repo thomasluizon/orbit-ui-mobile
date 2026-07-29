@@ -598,9 +598,11 @@ So, on hitting a harness defect mid-run:
    from inside a run.
 3. At the end of the run, if the ledger is non-empty, create ONE Linear ticket in the
    Backlog project (`757e1ced-43e9-4459-b7eb-3ade25dc1919`, team ORB) carrying EVERY harness
-   defect that run found, each with its evidence and its workaround. One ticket per RUN,
-   never one per defect; it must pass `node tools/check-ticket.mjs --issue ORB-N` like any
-   other ticket. An empty ledger creates nothing: silence is correct when nothing broke.
+   defect that run found, each with its evidence and its workaround. Its title must contain
+   the fixed marker `Harness defect ledger`, which lets `check-ticket.mjs` distinguish its
+   children from ordinary child tickets. One ticket per RUN, never one per defect; it must
+   pass `node tools/check-ticket.mjs --issue ORB-N` like any other ticket. An empty ledger
+   creates nothing: silence is correct when nothing broke.
 4. Name that ticket in the closing report alongside the per-ticket ledger, so a run ends as
    a work list rather than as silence.
 
@@ -617,14 +619,20 @@ the same defect then taxes every later run until somebody schedules it.
 
 So once every ticket in the run is merged or stopped, and NOTHING is still executing:
 
-1. **The run ticket stays the record; each defect gets its own CHILD ticket to be fixed
-   from.** The aggregate ticket above is one per RUN and cannot carry N repair PRs: it would
-   close on the first merge, leaving the rest with no live issue to launch from, attach to or
-   close, and `launch-worker.mjs` derives the worktree name and branch from the issue, so two
-   PRs off one issue collide before that even matters. So file one child ticket per ledger
-   entry (`orca linear create --parent <run ticket>`), each passing `check-ticket.mjs`, each
-   describing ONE defect. A ledger with exactly one entry needs no child: the run ticket is
-   already that shape.
+1. **The run ticket stays the durable record of every ledger entry; only recurring or blocking
+   defects get a CHILD ticket to be fixed from.** Create a child
+   (`orca linear create --parent <run ticket>`) when the defect occurred on at least three
+   tickets or blocked the run. Record every entry below that threshold in the parent ticket's
+   body with its evidence. If later evidence raises a recorded entry to three occurrences or
+   shows that it blocked a run, create its child then from the accumulated evidence.
+   Each child describes ONE defect, passes `check-ticket.mjs`, and contains this fixed line:
+   `Ledger occurrence: <count>; blocked: no|<what it blocked>`. Use `no` only for a
+   non-blocking defect; a blocking value must affirmatively name the outcome using
+   exactly `blocked the <operation>` or `the <operation> was blocked`, with no negative
+   qualifier. Put supporting evidence elsewhere in the child body. The aggregate ticket above
+   cannot carry N repair PRs: it would close on the first merge, leaving the rest with no live
+   issue to launch from, attach to or close, and `launch-worker.mjs` derives the worktree name
+   and branch from the issue, so two PRs off one issue collide before that even matters.
 2. Work the children one PR per ticket, through the same worker machinery as any ticket. The
    run is over, so editing `tools/`, this skill or `.claude/orchestrator.json` no longer
    changes a contract anything is executing.
