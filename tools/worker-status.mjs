@@ -225,10 +225,14 @@ if (reportsFile) {
     if (!gates || typeof gates !== "object" || Array.isArray(gates)) {
       reportRejectionReasons.push("gates payload is invalid")
     } else {
-      const invalidGates = Object.entries(gates).filter(([, result]) => !["passed", "failed", "not-run"].includes(result))
-      const failedGates = Object.entries(gates).filter(([, result]) => result === "failed").map(([name]) => name)
+      const gateEntries = Object.entries(gates)
+      const invalidGates = gateEntries.filter(([, result]) => !["passed", "failed", "not-run"].includes(result))
+      const failedGates = gateEntries.filter(([, result]) => result === "failed").map(([name]) => name)
+      const unrunGates = gateEntries.filter(([, result]) => result === "not-run").map(([name]) => name)
+      if (gateEntries.length === 0) reportRejectionReasons.push("no gate results reported")
       if (invalidGates.length > 0) reportRejectionReasons.push(`gate results are invalid: ${invalidGates.map(([name]) => name).join(", ")}`)
       if (failedGates.length > 0) reportRejectionReasons.push(`failed gates: ${failedGates.join(", ")}`)
+      if (unrunGates.length > 0) reportRejectionReasons.push(`gates not run: ${unrunGates.join(", ")}`)
     }
   }
 }

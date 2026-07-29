@@ -3163,7 +3163,7 @@ const stageWorkerStatus = (label, { mergeInProgress = false, unpushedCommit = fa
   writeFileSync(
     reportsFile,
     matchingReport
-      ? `${JSON.stringify({ reportedAt: new Date().toISOString(), ticket: "ORB-75", headSha, pushed: true, gates: {}, contractItems: [], blockedOn: null, needsHuman: false, ...reportOverrides })}\n`
+      ? `${JSON.stringify({ reportedAt: new Date().toISOString(), ticket: "ORB-75", headSha, pushed: true, gates: { lint: "passed", "type-check": "passed", test: "passed" }, contractItems: [], blockedOn: null, needsHuman: false, ...reportOverrides })}\n`
       : `${JSON.stringify({ reportedAt: "2000-01-01T00:00:00.000Z", ticket: "ORB-999" })}\n`,
   )
   return { headSha, repo, reportsFile, tool: join(toolBase, "tools", "worker-status.mjs") }
@@ -3240,6 +3240,8 @@ const workerStatusCases = () => {
   const rejectedReports = [
     ["report-needs-human", { needsHuman: true }, /latest report rejected: needs human/],
     ["report-blocked", { blockedOn: "waiting for owner" }, /latest report rejected: blocked on \\"waiting for owner\\"/],
+    ["report-empty-gates", { gates: {} }, /latest report rejected: no gate results reported/],
+    ["report-unrun-gate", { gates: { lint: "passed", "type-check": "passed", test: "not-run" } }, /latest report rejected: gates not run: test/],
     ["report-failed-gate", { gates: { lint: "failed" } }, /latest report rejected: failed gates: lint/],
     ["report-head-mismatch", { headSha: "0000000000000000000000000000000000000000" }, /latest report rejected: head SHA 0000000000000000000000000000000000000000 does not match/],
   ]
