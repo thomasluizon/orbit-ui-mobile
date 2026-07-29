@@ -264,9 +264,14 @@ const threadHasFix = (thread) => {
   if (!resolver || !thread.path || !reviewedCommit || !Number.isFinite(latestFindingTime)) return false
   const reviewedCommitStillInHistory =
     git(["merge-base", "--is-ancestor", reviewedCommit, prHead], { allowFailure: true }) !== null
-  const rewrittenReviewSharesHistory =
-    !reviewedCommitStillInHistory &&
-    git(["merge-base", reviewedCommit, prHead], { allowFailure: true }) !== null
+  const reviewedPathObject = git(["rev-parse", "--verify", `${reviewedCommit}:${thread.path}`], { allowFailure: true })
+  const rewrittenReviewCommits =
+    !reviewedCommitStillInHistory && reviewedPathObject
+      ? [...prCommits].filter(
+          (commit) =>
+            git(["rev-parse", "--verify", `${commit}:${thread.path}`], { allowFailure: true }) === reviewedPathObject,
+        )
+      : []
   const replies = comments.filter(
     (comment) => comment.author?.login === resolver && reviewCommentTime(comment) > latestFindingTime,
   )
@@ -276,8 +281,12 @@ const threadHasFix = (thread) => {
       const followsReview =
         commit &&
         commit !== reviewedCommit &&
-        (rewrittenReviewSharesHistory ||
-          git(["merge-base", "--is-ancestor", reviewedCommit, commit], { allowFailure: true }) !== null)
+        (git(["merge-base", "--is-ancestor", reviewedCommit, commit], { allowFailure: true }) !== null ||
+          rewrittenReviewCommits.some(
+            (rewrittenReviewCommit) =>
+              rewrittenReviewCommit !== commit &&
+              git(["merge-base", "--is-ancestor", rewrittenReviewCommit, commit], { allowFailure: true }) !== null,
+          ))
       if (followsReview && prCommits.has(commit) && git(["diff-tree", "--no-commit-id", "--name-only", "-r", commit, "--", thread.path])) return true
     }
   }

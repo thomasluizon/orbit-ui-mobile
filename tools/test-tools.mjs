@@ -3325,8 +3325,10 @@ const stageWorkerStatusWorktree = () => {
   if (git(worktree, ["add", "other.txt"]).status !== 0 || git(worktree, ["commit", "-q", "-m", "fix other path"]).status !== 0) return null
   const unrelatedCommit = git(worktree, ["rev-parse", "HEAD"]).stdout.trim()
   if (git(worktree, ["switch", "-q", "-c", "reviewed-before-rebase", "main"]).status !== 0) return null
-  writeFileSync(join(worktree, "reviewed.txt"), "reviewed before rebase\n")
-  if (git(worktree, ["add", "reviewed.txt"]).status !== 0 || git(worktree, ["commit", "-q", "-m", "reviewed before rebase"]).status !== 0) return null
+  writeFileSync(join(worktree, "reviewed.txt"), "implementation\n")
+  if (git(worktree, ["add", "reviewed.txt"]).status !== 0 || git(worktree, ["commit", "-q", "-m", "implementation before rebase"]).status !== 0) return null
+  writeFileSync(join(worktree, "reviewed.txt"), "implementation\nreviewed state\n")
+  if (git(worktree, ["add", "reviewed.txt"]).status !== 0 || git(worktree, ["commit", "-q", "-m", "reviewed state before rebase"]).status !== 0) return null
   const rewrittenReviewedCommit = git(worktree, ["rev-parse", "HEAD"]).stdout.trim()
   if (
     git(worktree, ["switch", "-q", "feature/orb-75-worker-status"]).status !== 0 ||
@@ -5845,6 +5847,25 @@ All required checks passed.`,
       rebased.status === 0 &&
         rebased.verdict?.checks.find((entry) => entry.name === "resolved-thread-fixes")?.ok === true,
       `exit ${rebased.status}\n     ${(rebased.stderr || rebased.stdout).slice(0, 600)}`,
+    )
+    const rebasedEarlierImplementationThread = reviewThread({
+      author: "claude[bot]",
+      authorType: "Bot",
+      id: "PRRT_rebased_earlier_implementation",
+      isResolved: true,
+      resolvedBy: "worker",
+      reply: `Fixed in ${fixture.implementationCommit}`,
+      reviewedCommit: fixture.rewrittenReviewedCommit,
+    })
+    const rebasedEarlierImplementation = runWorkerStatusCase(fixture, [screenshot, critique], {
+      reviewThreads: [rebasedEarlierImplementationThread],
+      verifyReview: true,
+    })
+    T(
+      "worker-status.mjs: a rewritten implementation commit before the review cannot masquerade as its fix",
+      rebasedEarlierImplementation.status === 1 &&
+        rebasedEarlierImplementation.verdict?.checks.find((entry) => entry.name === "resolved-thread-fixes")?.ok === false,
+      `exit ${rebasedEarlierImplementation.status}\n     ${(rebasedEarlierImplementation.stderr || rebasedEarlierImplementation.stdout).slice(0, 600)}`,
     )
     const editedAfterReplyThread = reviewThread({
       author: "claude[bot]",
