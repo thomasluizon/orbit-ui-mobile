@@ -3224,8 +3224,24 @@ const stageWorkerStatusWorktree = () => {
   writeFileSync(join(worktree, "other.txt"), "unrelated fix\n")
   if (git(worktree, ["add", "other.txt"]).status !== 0 || git(worktree, ["commit", "-q", "-m", "fix other path"]).status !== 0) return null
   const unrelatedCommit = git(worktree, ["rev-parse", "HEAD"]).stdout.trim()
+  if (git(worktree, ["switch", "-q", "-c", "reviewed-before-rebase", "main"]).status !== 0) return null
+  writeFileSync(join(worktree, "reviewed.txt"), "reviewed before rebase\n")
+  if (git(worktree, ["add", "reviewed.txt"]).status !== 0 || git(worktree, ["commit", "-q", "-m", "reviewed before rebase"]).status !== 0) return null
+  const rewrittenReviewedCommit = git(worktree, ["rev-parse", "HEAD"]).stdout.trim()
+  if (
+    git(worktree, ["switch", "-q", "feature/orb-75-worker-status"]).status !== 0 ||
+    git(worktree, ["branch", "-D", "reviewed-before-rebase"]).status !== 0
+  ) return null
   if (git(worktree, ["push", "-q", "-u", "origin", "feature/orb-75-worker-status"]).status !== 0) return null
-  return { fixCommit, implementationCommit, unrelatedCommit, prHead: unrelatedCommit, reviewedCommit, worktree }
+  return {
+    fixCommit,
+    implementationCommit,
+    unrelatedCommit,
+    prHead: unrelatedCommit,
+    reviewedCommit,
+    rewrittenReviewedCommit,
+    worktree,
+  }
 }
 
 const workerStatusPlan = (
@@ -5699,6 +5715,25 @@ All required checks passed.`,
         fixed.verdict?.ok === true &&
         fixed.verdict.checks.find((entry) => entry.name === "pr-head-match")?.ok === true,
       `exit ${fixed.status}\n     ${(fixed.stderr || fixed.stdout).slice(0, 600)}`,
+    )
+    const rebasedAutomatedThread = reviewThread({
+      author: "claude[bot]",
+      authorType: "Bot",
+      id: "PRRT_rebased",
+      isResolved: true,
+      resolvedBy: "worker",
+      reply: `Fixed in ${fixture.fixCommit}`,
+      reviewedCommit: fixture.rewrittenReviewedCommit,
+    })
+    const rebased = runWorkerStatusCase(fixture, [screenshot, critique], {
+      reviewThreads: [rebasedAutomatedThread],
+      verifyReview: true,
+    })
+    T(
+      "worker-status.mjs: a resolved finding survives a rebase when its named current PR commit changed the reviewed path",
+      rebased.status === 0 &&
+        rebased.verdict?.checks.find((entry) => entry.name === "resolved-thread-fixes")?.ok === true,
+      `exit ${rebased.status}\n     ${(rebased.stderr || rebased.stdout).slice(0, 600)}`,
     )
     const editedAfterReplyThread = reviewThread({
       author: "claude[bot]",

@@ -241,6 +241,11 @@ const threadHasFix = (thread) => {
   const latestFindingTime = Math.max(...findingActivity.map(reviewCommentTime))
   const reviewedCommit = [...findingActivity].reverse().find((comment) => comment.pullRequestReview?.commit?.oid)?.pullRequestReview.commit.oid
   if (!resolver || !thread.path || !reviewedCommit || !Number.isFinite(latestFindingTime)) return false
+  const reviewedCommitStillInHistory =
+    git(["merge-base", "--is-ancestor", reviewedCommit, prHead], { allowFailure: true }) !== null
+  const rewrittenReviewSharesHistory =
+    !reviewedCommitStillInHistory &&
+    git(["merge-base", reviewedCommit, prHead], { allowFailure: true }) !== null
   const replies = comments.filter(
     (comment) => comment.author?.login === resolver && reviewCommentTime(comment) > latestFindingTime,
   )
@@ -250,7 +255,8 @@ const threadHasFix = (thread) => {
       const followsReview =
         commit &&
         commit !== reviewedCommit &&
-        git(["merge-base", "--is-ancestor", reviewedCommit, commit], { allowFailure: true }) !== null
+        (rewrittenReviewSharesHistory ||
+          git(["merge-base", "--is-ancestor", reviewedCommit, commit], { allowFailure: true }) !== null)
       if (followsReview && prCommits.has(commit) && git(["diff-tree", "--no-commit-id", "--name-only", "-r", commit, "--", thread.path])) return true
     }
   }
