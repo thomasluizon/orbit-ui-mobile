@@ -19,10 +19,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const USAGE = `usage: check-frontmatter.mjs [--fix]
+const USAGE = `usage: check-frontmatter.mjs [--fix] [--root <directory>]
 
-  --fix       rewrite each offending value as a folded block scalar
-  --help, -h  print this usage and exit 0
+  --fix              rewrite each offending value as a folded block scalar
+  --root <directory> check one directory instead of the repository skill and agent roots
+  --help, -h         print this usage and exit 0
 
 exit codes: 0 every skill and agent file parses, 1 an unparseable file, 2 usage error`;
 
@@ -31,15 +32,41 @@ if (process.argv.includes('--help') || process.argv.includes('-h')) {
   process.exit(0);
 }
 
-const unknownArgument = process.argv.slice(2).find((argument) => argument !== '--fix');
-if (unknownArgument) {
-  console.error(`check-frontmatter: unknown argument: ${unknownArgument}\n`);
+const usageError = (message) => {
+  console.error(`check-frontmatter: ${message}\n`);
   console.error(USAGE);
   process.exit(2);
+};
+
+let customRoot;
+let fix = false;
+const argumentsList = process.argv.slice(2);
+for (let index = 0; index < argumentsList.length; index++) {
+  const argument = argumentsList[index];
+  if (argument === '--fix') {
+    fix = true;
+    continue;
+  }
+  if (argument === '--root') {
+    if (customRoot) usageError('--root may only be provided once');
+    const value = argumentsList[++index];
+    if (!value || value.startsWith('--')) usageError('--root requires a directory');
+    customRoot = path.resolve(value);
+    continue;
+  }
+  usageError(`unknown argument: ${argument}`);
 }
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const ROOTS = ['.claude/skills', '.claude/agents'].map((root) => path.join(REPO_ROOT, root));
+if (customRoot) {
+  if (!fs.existsSync(customRoot)) usageError(`root does not exist: ${customRoot}`);
+  if (!fs.statSync(customRoot).isDirectory()) usageError(`root is not a directory: ${customRoot}`);
+}
+
+const ROOTS = customRoot
+  ? [customRoot]
+  : ['.claude/skills', '.claude/agents'].map((root) => path.join(REPO_ROOT, root));
+const DISPLAY_ROOT = customRoot ?? REPO_ROOT;
 const BLOCK_SCALAR = /^[>|][-+]?\d*$/;
 
 const missingRoots = ROOTS.filter((root) => !fs.existsSync(root));
@@ -84,12 +111,17 @@ for (const file of targets) {
   });
 }
 
+if (customRoot && withFrontmatter === 0) {
+  console.error(`No frontmatter found under root: ${customRoot}`);
+  process.exit(1);
+}
+
 if (offenders.length === 0) {
   console.log(`frontmatter ok: ${withFrontmatter} skill and agent files parse`);
   process.exit(0);
 }
 
-if (process.argv.includes('--fix')) {
+if (fix) {
   const byFile = new Map();
   for (const o of offenders) byFile.set(o.file, [...(byFile.get(o.file) ?? []), o]);
   for (const [file, items] of byFile) {
@@ -100,7 +132,7 @@ if (process.argv.includes('--fix')) {
       lines.splice(lineIndex, 1, `${key}: >-`, `  ${value}`);
     }
     fs.writeFileSync(file, lines.join(eol));
-    console.log(`fixed ${path.relative(REPO_ROOT, file)}`);
+    console.log(`fixed ${path.relative(DISPLAY_ROOT, file)}`);
   }
   process.exit(0);
 }
@@ -108,7 +140,7 @@ if (process.argv.includes('--fix')) {
 console.error(`Unparseable frontmatter in ${offenders.length} file(s).`);
 console.error('A ": " inside an unquoted YAML value breaks the parse, so the skill or agent');
 console.error('loads with no description or does not load at all, silently.\n');
-for (const { file, key } of offenders) console.error(`  ${path.relative(REPO_ROOT, file)}  [${key}]`);
+for (const { file, key } of offenders) console.error(`  ${path.relative(DISPLAY_ROOT, file)}  [${key}]`);
 console.error('\nFix: make the value a folded block scalar, or run:');
-console.error('  node tools/check-frontmatter.mjs --fix');
+console.error(`  node tools/check-frontmatter.mjs${customRoot ? ` --root "${customRoot}"` : ''} --fix`);
 process.exit(1);

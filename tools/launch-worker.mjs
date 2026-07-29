@@ -18,9 +18,19 @@
  */
 
 import { execFileSync, spawnSync } from "node:child_process"
-import { appendFileSync, existsSync, readFileSync, statSync } from "node:fs"
-import { basename, resolve } from "node:path"
+import {
+  appendFileSync,
+  closeSync,
+  existsSync,
+  openSync,
+  readFileSync,
+  statSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs"
+import { basename, join, resolve } from "node:path"
 
+import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
 import { SETTLE_MS, isRepainting, pause } from "./lib/tui-repaint.mjs"
 
 const USAGE = `usage: launch-worker.mjs --issue ORB-N --prompt-file <path> [options]
@@ -36,9 +46,11 @@ const USAGE = `usage: launch-worker.mjs --issue ORB-N --prompt-file <path> [opti
   --repo ui|api|landing  override the repo the ticket's repo:* label names
   --base-branch <ref>    base branch for the worktree (default: main)
   --branch-prefix <p>    contract branch prefix, feature or fix (default: feature)
+  --max-parallel-worktrees <n>
+                         override the configured concurrency cap for this invocation
   --comment "<text>"     worktree card comment (default: "<ORB-N> launched: worker running")
   --workspace-status <s> Orca board status id (default: in-progress)
-  --dry-run              resolve everything and print the plan; run no orca or git command
+  --dry-run              resolve everything and print the plan; run no mutating orca or git command
   --help, -h             print this usage and exit 0
 
 Prints one JSON object on stdout: issue, repo, repoPath, worktreePath, worktreeSelector,
@@ -49,8 +61,8 @@ Progress goes to stderr, so stdout stays pipeable.
 exit 0 means the worker ACCEPTED the prompt as a user turn, verified by reading the pointer back
 off the TUI, never merely that orca accepted the send.
 
-exit codes: 0 worker launched and holding the work order, 1 the worker never reached tui-idle or
-            never took the prompt pointer as a turn, 2 usage or config error,
+exit codes: 0 worker launched and holding the work order, 1 concurrency cap reached, the worker
+            never reached tui-idle, or never took the prompt pointer as a turn, 2 usage or config error,
             3 an orca or git command failed
 
 Any non-zero exit after the worktree exists stops its terminals and removes that worktree and
@@ -71,7 +83,7 @@ const MAX_WAIT_ATTEMPTS = 6
 
 /**
  * What each worker CLI does that this script has to know, keyed by the binary it runs.
- * All three facts are properties of the CLI, not of the harness, so a shared list cannot
+ * All four facts are properties of the CLI, not of the harness, so a shared list cannot
  * hold them: codex's `-p` is `--profile`, a legitimate interactive flag, while claude's
  * `-p` is `--print`, the headless mode this guard exists for. One flat token list
  * rejected every valid `codex --profile` invocation as headless.
@@ -86,19 +98,24 @@ const MAX_WAIT_ATTEMPTS = 6
 const ENGINE_PROFILES = {
   claude: {
     headlessTokens: ["-p", "--print"],
+    runPermissionTokens: ["--permission-mode", "bypassPermissions"],
+    permissionModeToken: "--permission-mode",
     trustOnScreen: /isthisaprojectyoucreatedoroneyoutrust|doyoutrustthefiles|trustthisfolder/,
     trustAnswer: "1",
   },
   codex: {
     headlessTokens: ["exec", "e"],
+    runPermissionTokens: ["--dangerously-bypass-approvals-and-sandbox"],
     trustOnScreen: /doyoutrustthecontentsofthisdirectory/,
     trustAnswer: "",
   },
 }
 
-/** Orca's own signal for the same gate, and it is not one string: Claude Code's surfaces as
- * `codex-trust-workspace`, codex's as `codex-interactive-prompt`. Only the screen text is
- * precise, so this stays a corroborating signal and never the sole trigger for a keystroke. */
+/** Orca's own signal is not reliably one string: a genuine codex trust gate normally reports
+ * `codex-interactive-prompt`, but Orca 1.4.156 retained `codex-trust-workspace` on an idle codex
+ * terminal that never saw a trust gate. Only the screen text is precise, so this stays a
+ * corroborating signal and never the sole trigger for a keystroke.
+ * WHY: PR #629 owner adjudication makes the live capture authoritative over the older reason mapping. https://github.com/thomasluizon/orbit-ui-mobile/pull/629 */
 const TRUST_BLOCKED_REASON = /trust/i
 const flatten = (text) => text.replace(/\s+/g, "").toLowerCase()
 
@@ -120,6 +137,8 @@ const busy = (handle) => isRepainting(orca, handle)
  */
 const MAX_POINTER_SENDS = 3
 const POINTER_PAINT_MS = 4000
+const MAX_TERMINAL_CREATE_ATTEMPTS = 3
+const TERMINAL_CREATE_BACKOFF_MS = 1000
 /** How many settle windows a painting TUI gets before the launch gives up. A TUI that is still
  * repainting after all of them is never re-sent to: there is no safe moment, and a queued send
  * would cut its running turn short. */
@@ -159,24 +178,42 @@ conflict with anything above, these win.
    other part in full, mark that criterion explicitly UNMET in the PR body with the evidence,
    and still complete the contract: gates, commit, push, PR, attach, In Review. Unmet and stated
    is acceptable; unmentioned is not. Never silently drop a criterion.
-3. **Your job ENDS when your own ticket's PR is open, attached, and the issue is In Review.**
-   Never poll your own PR's CI, never poll its review verdict, and never watch another ticket,
-   another worktree or another PR. The orchestrator owns all of that and already has it in view.
-4. **Never arm a background monitor, watcher or wait loop that outlives this contract.**
-5. **If your work order tells you both to watch something and to stop, STOP wins.** Record the
-   conflict in your PR body rather than silently doing both.
-6. **Never merge any PR, never push to \`main\`, never use \`--no-verify\`, never edit a gate
+3. **Own the automated review cycle.** After the PR is open, attached, and In Review, poll its
+   review transitions with \`node tools/pr-watch.mjs --repo <owner/name> --pr <number>
+   --once\` only as a low-level wake-up. After every call and before waiting or reporting
+   completion, run \`node tools/worker-status.mjs --worktree <path> --issue ORB-N --json\`.
+   That full-surface completion poll inventories review submissions, review threads and their
+   nested comments, and PR conversation comments, and fails closed on an incomplete inventory.
+   Read unmet item bodies through GitHub's read APIs, reconcile them against the diff, then poll
+   again. For each valid finding, fix it, run the affected gates, commit and push, reply on that
+   thread naming the fix commit, then resolve it.
+   An informational automated finding that needs no code change may be resolved after replying
+   \`No code change required: <reason>. Evidence: <PR commit>\`; the named commit must be on the
+   PR and change the reviewed path. Never resolve a thread opened by a human account. Repeat until
+   the review decision is approved with zero unresolved threads; approval with an unresolved
+   thread is not done. For an automated finding in a review body or PR conversation comment with
+   no thread, post a PR comment naming that activity ID and the PR commit that addresses it.
+4. **Escalate instead of guessing.** Escalate when you disagree with a finding, when you are
+   blocked on a decision you may not make, or when two consecutive cycles fail on the same
+   finding. Do not try that finding a third time. Send one escalation carrying the disputed
+   finding and your reasoning.
+5. **Your job ends on one report.** Report completion once the PR is approved with zero
+   unresolved threads, or send the escalation from clause 4. An earlier instruction to stop
+   after opening or attaching the PR does not replace this endpoint. Never watch another
+   ticket, worktree, or PR.
+6. **Never arm a background monitor, watcher or wait loop that outlives this contract.**
+7. **Never merge any PR, never push to \`main\`, never use \`--no-verify\`, never edit a gate
    baseline.**
-7. **Stage explicitly.** Commit only the paths you edited yourself. \`git add -A\`, \`git add .\`
+8. **Stage explicitly.** Commit only the paths you edited yourself. \`git add -A\`, \`git add .\`
    and \`git commit -a\` are forbidden. A worktree is a shared filesystem that sibling workers,
    dev servers and tooling all write into, so a blanket stage turns any of their runtime
    artifacts into your diff.
-8. **Verify before pushing.** Run \`git show --stat HEAD\` and confirm every path in it is one
+9. **Verify before pushing.** Run \`git show --stat HEAD\` and confirm every path in it is one
    you meant to change. A path you cannot explain is a defect to resolve, never a file to push.
-9. **Never write into another worktree.** A live sibling worktree is another worker's working
-   tree, and a file you leave there can land in that worker's PR. If your proof genuinely needs
-   a second worktree, create a disposable one for it and remove it afterwards.
-10. **Delegate independent slices.** A work order spanning more than one independent file or
+10. **Never write into another worktree.** A live sibling worktree is another worker's working
+    tree, and a file you leave there can land in that worker's PR. If your proof genuinely needs
+    a second worktree, create a disposable one for it and remove it afterwards.
+11. **Delegate independent slices.** A work order spanning more than one independent file or
     slice is executed by spawning parallel subagents, one per slice, each with an explicit output
     contract, then reconciling their output. Keep edits landing in the SAME file inline, and keep
     the final gate run inline because its raw output ships in the PR body. A review round with
@@ -191,9 +228,26 @@ conflict with anything above, these win.
  * operator to run compounds the mess instead of clearing it. Measured on this branch.
  */
 let rollback = null
+let concurrencyReservation = null
+
+const releaseConcurrencyReservation = () => {
+  if (!concurrencyReservation) return
+  const { path, token } = concurrencyReservation
+  concurrencyReservation = null
+  try {
+    if (readFileSync(path, "utf8") === token) unlinkSync(path)
+  } catch (error) {
+    if (error.code !== "ENOENT") {
+      console.error(`could not release launch reservation ${path}: ${error.message}`)
+    }
+  }
+}
+
+process.on("exit", releaseConcurrencyReservation)
 
 const fail = (code, message) => {
   console.error(message)
+  releaseConcurrencyReservation()
   if (rollback) {
     const { selector, contractBranch, orcaBranch, repoPath: rollbackRepo } = rollback
     rollback = null
@@ -261,6 +315,37 @@ const orca = (args) => {
   return parsed.result ?? parsed
 }
 
+const createTerminal = (worktreeSelector, command) => {
+  const args = ["terminal", "create", "--worktree", worktreeSelector, "--command", command]
+  for (let attempt = 1; attempt <= MAX_TERMINAL_CREATE_ATTEMPTS; attempt += 1) {
+    const result = spawnSync(ORCA, [...args, "--json"], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
+    if (result.error) fail(3, `orca terminal create failed: ${result.error.message}`)
+
+    let parsed
+    try {
+      parsed = JSON.parse(result.stdout)
+    } catch {
+      fail(3, `orca ${args.join(" ")} returned unparseable output: ${(result.stdout || result.stderr || "").slice(0, 400)}`)
+    }
+
+    const failureMessage = parsed.error?.message || result.stderr?.trim() || "unknown orca error"
+    const timedOut = parsed.error?.code === "timeout" || /terminal creation timed out/i.test(failureMessage)
+    if (parsed.ok !== false && result.status === 0) {
+      const handle = (parsed.result ?? parsed).terminal?.handle
+      if (!handle) fail(3, "orca terminal create returned no handle")
+      return handle
+    }
+    if (!timedOut) fail(3, `orca ${args.join(" ")} failed: ${failureMessage}`)
+    if (attempt === MAX_TERMINAL_CREATE_ATTEMPTS) {
+      fail(3, `orca ${args.join(" ")} failed after ${attempt} attempts: ${failureMessage}`)
+    }
+
+    const backoff = TERMINAL_CREATE_BACKOFF_MS * attempt
+    console.error(`orca terminal create timed out (attempt ${attempt} of ${MAX_TERMINAL_CREATE_ATTEMPTS}); retrying in ${backoff}ms`)
+    pause(backoff)
+  }
+}
+
 /**
  * `orca terminal wait` reports "not yet" two different ways, and neither is a tool failure:
  * a condition it cannot meet in time exits 1 with ok:false and error.code timeout, while a
@@ -295,17 +380,99 @@ const git = (args) => {
   }
 }
 
+const processIsAlive = (pid) => {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return error.code !== "ESRCH"
+  }
+}
+
+const unlinkReservation = (path) => {
+  try {
+    unlinkSync(path)
+    return true
+  } catch (error) {
+    if (error.code === "ENOENT") return false
+    throw error
+  }
+}
+
+const acquireConcurrencyReservation = (repoPath) => {
+  const gitCommonDirectory = resolve(
+    repoPath,
+    git(["-C", repoPath, "rev-parse", "--git-common-dir"]),
+  )
+  const path = join(gitCommonDirectory, "orbit-launch-worker.lock")
+  const token = JSON.stringify({ pid: process.pid, startedAt: Date.now() })
+  const deadline = Date.now() + 5 * 60 * 1000
+
+  while (true) {
+    let descriptor
+    try {
+      descriptor = openSync(path, "wx")
+      writeFileSync(descriptor, token, "utf8")
+      closeSync(descriptor)
+      concurrencyReservation = { path, token }
+      return
+    } catch (error) {
+      if (descriptor !== undefined) {
+        try {
+          closeSync(descriptor)
+        } catch {
+          // The descriptor may already have closed before a later setup step failed.
+        }
+        unlinkReservation(path)
+      }
+      if (error.code !== "EEXIST") {
+        fail(3, `could not reserve a concurrency slot for ${repoPath}: ${error.message}`)
+      }
+    }
+
+    try {
+      const owner = JSON.parse(readFileSync(path, "utf8"))
+      if (Number.isInteger(owner.pid) && !processIsAlive(owner.pid)) {
+        unlinkReservation(path)
+        continue
+      }
+    } catch (error) {
+      if (error.code === "ENOENT") continue
+      let stale = false
+      try {
+        stale = Date.now() - statSync(path).mtimeMs > 5000
+      } catch (statError) {
+        if (statError.code === "ENOENT") continue
+        fail(3, `could not inspect launch reservation ${path}: ${statError.message}`)
+      }
+      if (stale) {
+        unlinkReservation(path)
+        continue
+      }
+    }
+
+    if (Date.now() >= deadline) {
+      fail(1, `timed out waiting for another launch reservation in ${repoPath}`)
+    }
+    pause(100)
+  }
+}
+
 const issue = argOf("--issue")
 const promptFileArg = argOf("--prompt-file")
 const repoOverride = argOf("--repo")
 const baseBranch = argOf("--base-branch") ?? "main"
 const branchPrefix = argOf("--branch-prefix") ?? "feature"
+const maxParallelOverride = argOf("--max-parallel-worktrees")
 const workspaceStatus = argOf("--workspace-status") ?? "in-progress"
 const dryRun = process.argv.includes("--dry-run")
 
 if (!issue || !/^[A-Z]+-\d+$/.test(issue)) fail(2, `${USAGE}\n\n--issue must be a Linear identifier such as ORB-75`)
 if (!promptFileArg) fail(2, `${USAGE}\n\n--prompt-file is required`)
 if (branchPrefix !== "feature" && branchPrefix !== "fix") fail(2, "--branch-prefix must be feature or fix")
+if (maxParallelOverride !== null && !/^[1-9]\d*$/.test(maxParallelOverride)) {
+  fail(2, "--max-parallel-worktrees must be a positive integer")
+}
 
 const promptFile = resolve(promptFileArg)
 if (!existsSync(promptFile)) fail(2, `prompt file not found: ${promptFile}`)
@@ -313,10 +480,13 @@ if (statSync(promptFile).size === 0) fail(2, `prompt file is empty: ${promptFile
 
 let config
 try {
-  config = JSON.parse(readFileSync(new URL("../.claude/orchestrator.json", import.meta.url), "utf8"))
+  config = readOrchestratorConfig()
 } catch (error) {
-  fail(2, `.claude/orchestrator.json could not be read as JSON: ${error.message}`)
+  fail(2, error.message)
 }
+const maxParallelWorktrees = maxParallelOverride === null
+  ? config.maxParallelWorktrees
+  : Number(maxParallelOverride)
 const engineName = config.worker
 const engine = config.workers?.[engineName]
 if (!engine?.command) fail(2, `.claude/orchestrator.json names worker "${engineName}" but carries no command for it`)
@@ -364,9 +534,12 @@ const worktreeName = `${issue.toLowerCase()}-${slug}`
 const branch = `${branchPrefix}/${worktreeName}`
 const comment = argOf("--comment") ?? `${issue} launched: worker running`
 
-/** Model routing: a worker:sonnet ticket swaps the configured opus for sonnet, nothing else. */
-const wantsSonnet = labels.includes("worker:sonnet")
-const engineArgs = engine.args.map((arg, index) => (wantsSonnet && engine.args[index - 1] === "--model" && arg === "opus" ? "sonnet" : arg))
+let engineArgs
+try {
+  engineArgs = resolveWorkerInvocation(engineName, engine, labels).args
+} catch (error) {
+  fail(2, error.message)
+}
 const command = [engine.command, ...engineArgs].join(" ")
 
 /**
@@ -388,6 +561,34 @@ const headless = invocationTokens.slice(1).find((token) => profile.headlessToken
 if (headless) {
   fail(2, `worker "${engineName}" declares interactive: true but its invocation "${command}" carries "${headless}", which is a headless invocation of ${binary}. Fix the command or args, or the declaration, in .claude/orchestrator.json`)
 }
+const runPermissionIndex = invocationTokens.findIndex((token, index) => token === profile.runPermissionTokens[0] && profile.runPermissionTokens.every((expected, offset) => invocationTokens[index + offset] === expected))
+if (runPermissionIndex === -1) {
+  const modeIndex = profile.permissionModeToken ? invocationTokens.indexOf(profile.permissionModeToken) : -1
+  const mode = modeIndex === -1 ? "" : `; resolved permission mode is "${invocationTokens[modeIndex + 1] ?? "missing"}"`
+  fail(2, `worker "${engineName}" invocation "${command}" does not carry ${binary}'s required run-permitting policy "${profile.runPermissionTokens.join(" ")}"${mode}. A worker without that policy can stop for approval with nobody at the keyboard. Fix the command or args in .claude/orchestrator.json`)
+}
+
+if (!dryRun) acquireConcurrencyReservation(repoPath)
+const listedWorktrees = orca(["worktree", "list", "--repo", `path:${repoPath}`]).worktrees
+if (!Array.isArray(listedWorktrees)) {
+  fail(3, "orca worktree list returned no worktrees array")
+}
+/** WHY: Measured on 2026-07-28, Orca's live JSON carries both canonical flat fields and
+ * mirrored `git.path` / `git.isMainWorktree` fields. Accept either shape so a wrapper that
+ * omits the flat mirror cannot count main as a child or hide an occupying path. */
+const occupyingWorktrees = listedWorktrees.filter(
+  (worktree) =>
+    worktree.isMainWorktree !== true
+    && worktree.git?.isMainWorktree !== true
+    && worktree.isArchived !== true,
+)
+if (occupyingWorktrees.length >= maxParallelWorktrees) {
+  const paths = occupyingWorktrees.map((worktree) => worktree.path ?? worktree.git?.path ?? worktree.id)
+  fail(
+    1,
+    `maxParallelWorktrees cap ${maxParallelWorktrees} reached for ${repoKey}; current count ${occupyingWorktrees.length}. Occupying worktrees:\n${paths.map((path) => `- ${path}`).join("\n")}`,
+  )
+}
 
 /** Reported in the plan so a dry run shows whether this launch would inject the contract, and a
  * relaunch against an already-injected file is visibly a no-op rather than a silent second copy. */
@@ -400,6 +601,8 @@ const plan = {
   worktreeName,
   branch,
   baseBranch,
+  maxParallelWorktrees,
+  occupiedWorktrees: occupyingWorktrees.length,
   engine: engineName,
   command,
   promptFile,
@@ -426,6 +629,7 @@ const created = orca([
   "--no-parent",
   "--comment", comment,
 ])
+releaseConcurrencyReservation()
 const worktreePath = created.worktree?.path
 if (!worktreePath) fail(3, `orca worktree create returned no path: ${JSON.stringify(created).slice(0, 400)}`)
 const worktreeSelector = `path:${worktreePath}`
@@ -447,8 +651,7 @@ const actualBranch = git(["-C", worktreePath, "rev-parse", "--abbrev-ref", "HEAD
 if (actualBranch !== branch) fail(3, `expected the worktree on ${branch}, found ${actualBranch}`)
 
 console.error(`starting the ${engineName} TUI: ${command}`)
-const terminal = orca(["terminal", "create", "--worktree", worktreeSelector, "--command", command]).terminal?.handle
-if (!terminal) fail(3, "orca terminal create returned no handle")
+const terminal = createTerminal(worktreeSelector, command)
 
 let trustPromptAnswered = false
 let waitAttempts = 0

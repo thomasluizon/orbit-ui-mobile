@@ -23,10 +23,11 @@
  * Run: node tools/test-tools.mjs   (exits non-zero on any failure)
  */
 
-import { spawnSync } from "node:child_process"
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
+import { spawn, spawnSync } from "node:child_process"
+import { createHash } from "node:crypto"
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, utimesSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
-import { dirname, join, resolve } from "node:path"
+import { delimiter, dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const USAGE = `usage: test-tools.mjs
@@ -75,6 +76,36 @@ const stage = (relativePath, body) => {
   return path
 }
 
+const LOCKSTEP_PATHS = [
+  ".claude/skills/pr-review/SKILL.md",
+  ".claude/skills/pr-review/rubric.md",
+  ".claude/skills/_shared/verification-protocol.md",
+  ".claude/agents/contract-aligner.md",
+  ".claude/agents/security-reviewer.md",
+  ".claude/skills/second-opinion/second-opinion.mjs",
+]
+const lockstepFingerprint = (ui, api) =>
+  createHash("sha256").update(JSON.stringify({ ui: [ui], api: [api] })).digest("hex")
+const lockstepFixture = (label, uiBody = "shared\n", apiBody = uiBody, declarations = []) => {
+  const uiRoot = join(root, "lockstep", label, "ui")
+  const apiRoot = join(root, "lockstep", label, "api")
+  const files = {}
+  for (const path of LOCKSTEP_PATHS) {
+    stage(join("lockstep", label, "ui", path), path === LOCKSTEP_PATHS[0] ? uiBody : "shared\n")
+    stage(join("lockstep", label, "api", path), path === LOCKSTEP_PATHS[0] ? apiBody : "shared\n")
+    files[path] = { declarations: path === LOCKSTEP_PATHS[0] ? declarations : [] }
+  }
+  const manifest = stage(join("lockstep", label, "manifest.json"), JSON.stringify({ version: 1, files }))
+  return { uiRoot, apiRoot, manifest }
+}
+const lockstepDefaultApiFixture = (label) => {
+  const fixture = lockstepFixture(label)
+  const apiRoot = resolve(fixture.uiRoot, "..", "orbit-api")
+  cpSync(fixture.apiRoot, apiRoot, { recursive: true })
+  rmSync(fixture.apiRoot, { recursive: true, force: true })
+  return { ...fixture, apiRoot }
+}
+
 /**
  * The PATH `bash` on Windows is the WSL stub, which fails with no such file. Resolve
  * a real one and fail loudly rather than skipping every .sh tool.
@@ -109,7 +140,8 @@ const BASH = resolveBash()
  */
 const ORCA_SHIM = stage(
   "orca-shim.cjs",
-  `const { appendFileSync, existsSync, readFileSync, rmSync } = require("node:fs")
+  `const { spawnSync } = require("node:child_process")
+const { appendFileSync, existsSync, readFileSync, rmSync } = require("node:fs")
 const argv = process.argv.slice(1)
 if (argv[0] && existsSync(argv[0])) return
 const line = argv.join(" ")
@@ -119,19 +151,28 @@ if (!match) {
   process.stdout.write(JSON.stringify({ ok: false, error: { code: "stub-miss", message: "unstubbed orca call: " + line } }))
   process.exit(9)
 }
-if (match.delayMs) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, match.delayMs)
+if (match.delayMs) {
+  const timingLog = process.env.ORBIT_ORCA_TIMING_LOG
+  if (timingLog) appendFileSync(timingLog, JSON.stringify({ event: "start", line, pid: process.pid }) + "\\n")
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, match.delayMs)
+  if (timingLog) appendFileSync(timingLog, JSON.stringify({ event: "end", line, pid: process.pid }) + "\\n")
+}
 if (match.removePath) rmSync(match.removePath, { recursive: true, force: true })
+if (match.pruneRepo) spawnSync("git", ["-C", match.pruneRepo, "worktree", "prune"])
 let out = match.stdout
+let exit = match.exit ?? 0
 if (Array.isArray(match.sequence)) {
   const log = process.env.ORBIT_ORCA_LOG
   const previous = log && existsSync(log)
     ? readFileSync(log, "utf8").split("\\n").filter(Boolean).filter((entry) => JSON.parse(entry).join(" ").includes(match.match)).length
     : 0
-  out = match.sequence[Math.min(previous, match.sequence.length - 1)]
+  const selected = match.sequence[Math.min(previous, match.sequence.length - 1)]
+  out = typeof selected === "string" ? selected : selected.stdout
+  if (typeof selected !== "string") exit = selected.exit ?? exit
 }
 if (process.env.ORBIT_ORCA_LOG) appendFileSync(process.env.ORBIT_ORCA_LOG, JSON.stringify(argv) + "\\n")
 process.stdout.write(out.replaceAll("__NOW__", String(Date.now())))
-process.exit(match.exit ?? 0)
+process.exit(exit)
 `,
 )
 
@@ -146,6 +187,186 @@ const orcaEnv = (plan) => ({
   NODE_OPTIONS: `--require "${ORCA_SHIM.replaceAll("\\", "/")}"`,
   ORBIT_ORCA_STUB: JSON.stringify(plan),
 })
+
+const MERGE_SWEEP_GH_DIR = join(root, "merge-sweep-bin")
+const MERGE_SWEEP_GH = stage(
+  "merge-sweep-bin/gh",
+  `#!/usr/bin/env node
+const { appendFileSync, existsSync, writeFileSync } = require("node:fs")
+const argv = process.argv.slice(2)
+const line = argv.join(" ")
+appendFileSync(process.env.ORBIT_MERGE_SWEEP_LOG, JSON.stringify(argv) + "\\n")
+const updateMarker = process.env.ORBIT_MERGE_SWEEP_LOG + ".updated"
+const postMergeMarker = process.env.ORBIT_MERGE_SWEEP_LOG + ".post-merge"
+const currentHead = () => existsSync(updateMarker) && process.env.ORBIT_MERGE_SWEEP_UPDATED_HEAD ? process.env.ORBIT_MERGE_SWEEP_UPDATED_HEAD : process.env.ORBIT_MERGE_SWEEP_HEAD
+const withUrls = (value, source) => value.split("\\n").filter(Boolean).map((item, index) => item.split("\\t").length === 2 ? item + "\\thttps://example.test/" + source + "/" + index : item).join("\\n")
+const postMergeFailurePr = process.env.ORBIT_MERGE_SWEEP_POST_MERGE_FAILURE_PR
+const targetsPostMergeFailure = () => line.includes("n=" + postMergeFailurePr) || line.includes("/" + postMergeFailurePr + "/")
+if (line.includes("/actions/workflows")) process.exit(0)
+if (argv[0] === "pr" && argv[1] === "update-branch") {
+  if (process.env.ORBIT_MERGE_SWEEP_UPDATED_HEAD) writeFileSync(updateMarker, "")
+  process.exit(0)
+}
+if (argv[0] === "api" && argv[1] === "graphql" && line.includes("reviews(first:100")) {
+  if (
+    process.env.ORBIT_MERGE_SWEEP_REVIEWS_LOOKUP_FAILURE ||
+    (existsSync(postMergeMarker) && targetsPostMergeFailure() && process.env.ORBIT_MERGE_SWEEP_POST_MERGE_REVIEWS_LOOKUP_FAILURE)
+  ) process.exit(7)
+  let items = process.env.ORBIT_MERGE_SWEEP_REVIEW_TIMES
+  if (process.env.ORBIT_MERGE_SWEEP_REVIEWS_PAGE_TWO && argv.includes("--paginate")) {
+    items += "\\n" + process.env.ORBIT_MERGE_SWEEP_REVIEWS_PAGE_TWO
+  }
+  process.stdout.write(withUrls(items, "reviews"))
+  process.exit(0)
+}
+if (argv[0] === "api" && argv[1] === "graphql" && line.includes("reviewThreads(first:100)")) {
+  if (
+    process.env.ORBIT_MERGE_SWEEP_THREADS_LOOKUP_FAILURE ||
+    (existsSync(postMergeMarker) && targetsPostMergeFailure() && process.env.ORBIT_MERGE_SWEEP_POST_MERGE_THREADS_LOOKUP_FAILURE)
+  ) process.exit(7)
+  process.stdout.write(
+    existsSync(postMergeMarker) && targetsPostMergeFailure() && process.env.ORBIT_MERGE_SWEEP_POST_MERGE_UNRESOLVED_THREADS
+      ? process.env.ORBIT_MERGE_SWEEP_POST_MERGE_UNRESOLVED_THREADS
+      : process.env.ORBIT_MERGE_SWEEP_UNRESOLVED_THREADS,
+  )
+  process.exit(0)
+}
+if (argv[0] === "pr" && argv[1] === "view") {
+  if (line.includes("--json headRefOid,baseRefOid")) {
+    process.stdout.write(currentHead() + "\\t" + process.env.ORBIT_MERGE_SWEEP_BASE_TIP)
+  } else if (line.includes("--json headRefOid")) {
+    const moved = process.env.ORBIT_MERGE_SWEEP_MOVE_MARKER && existsSync(process.env.ORBIT_MERGE_SWEEP_MOVE_MARKER)
+    process.stdout.write(moved ? process.env.ORBIT_MERGE_SWEEP_CHANGED_HEAD : currentHead())
+  } else if (line.includes("headRefName")) {
+    process.stdout.write(process.env.ORBIT_MERGE_SWEEP_BRANCH)
+  } else {
+    const checks = [{ name: "review", status: process.env.ORBIT_MERGE_SWEEP_REVIEW_RUNNING ? "IN_PROGRESS" : "COMPLETED", conclusion: process.env.ORBIT_MERGE_SWEEP_REVIEW_RUNNING ? "" : "SUCCESS" }]
+    if (process.env.ORBIT_MERGE_SWEEP_FAIL_NEW_HEAD) checks.push({ name: "new-head-gate", status: "COMPLETED", conclusion: "FAILURE" })
+    if (process.env.ORBIT_MERGE_SWEEP_SONAR === "success") {
+      checks.push({ name: "SonarCloud Code Analysis", status: "COMPLETED", conclusion: "SUCCESS" })
+    }
+    if (process.env.ORBIT_MERGE_SWEEP_SONAR === "coverage-failure") {
+      checks.push({ name: "SonarCloud Code Analysis", status: "COMPLETED", conclusion: "FAILURE" })
+    }
+    process.stdout.write(JSON.stringify({
+      mergeStateStatus: process.env.ORBIT_MERGE_SWEEP_STATE,
+      reviewDecision: "APPROVED",
+      statusCheckRollup: checks,
+      headRefOid: currentHead(),
+    }))
+  }
+  process.exit(0)
+}
+if (argv[0] === "pr" && argv[1] === "merge") {
+  if (process.env.ORBIT_MERGE_SWEEP_MOVE_MARKER) {
+    writeFileSync(process.env.ORBIT_MERGE_SWEEP_MOVE_MARKER, "")
+    process.exit(1)
+  }
+  if (argv[2] === postMergeFailurePr && (
+    process.env.ORBIT_MERGE_SWEEP_POST_MERGE_ACTIVITY ||
+    process.env.ORBIT_MERGE_SWEEP_POST_MERGE_REVIEWS_LOOKUP_FAILURE ||
+    process.env.ORBIT_MERGE_SWEEP_POST_MERGE_THREADS_LOOKUP_FAILURE ||
+    process.env.ORBIT_MERGE_SWEEP_POST_MERGE_UNRESOLVED_THREADS
+  )) writeFileSync(postMergeMarker, "")
+  process.exit(0)
+}
+if (line.includes("/pulls/") && line.includes("/comments")) {
+  if (process.env.ORBIT_MERGE_SWEEP_INLINE_LOOKUP_FAILURE) process.exit(7)
+  let items = process.env.ORBIT_MERGE_SWEEP_INLINE_ITEMS
+  if (process.env.ORBIT_MERGE_SWEEP_INLINE_PAGE_TWO && argv.includes("--paginate")) {
+    items += "\\n" + process.env.ORBIT_MERGE_SWEEP_INLINE_PAGE_TWO
+  }
+  process.stdout.write(withUrls(items, "inline"))
+  process.exit(0)
+}
+if (line.includes("/issues/") && line.includes("/comments")) {
+  if (process.env.ORBIT_MERGE_SWEEP_COMMENTS_LOOKUP_FAILURE) process.exit(7)
+  let items = process.env.ORBIT_MERGE_SWEEP_COMMENT_TIMES
+  if (existsSync(postMergeMarker) && targetsPostMergeFailure() && process.env.ORBIT_MERGE_SWEEP_POST_MERGE_ACTIVITY) items += "\\n" + process.env.ORBIT_MERGE_SWEEP_POST_MERGE_ACTIVITY
+  process.stdout.write(withUrls(items, "conversation"))
+  process.exit(0)
+}
+if (line.includes("/commits/") && !line.includes("/check-runs") && process.env.ORBIT_MERGE_SWEEP_UPDATE_PARENTS) {
+  process.stdout.write(process.env.ORBIT_MERGE_SWEEP_UPDATE_PARENTS)
+  process.exit(0)
+}
+if (line.includes("/check-runs")) {
+  process.stdout.write("Coverage on New Code is below the required threshold")
+  process.exit(0)
+}
+if (argv[0] === "api" && argv[1] === "graphql") process.exit(0)
+process.stderr.write("unstubbed gh call: " + line)
+process.exit(9)
+`,
+)
+chmodSync(MERGE_SWEEP_GH, 0o755)
+const MERGE_SWEEP_BASH_ENV = stage("merge-sweep-bin/bash-env", "sleep() { :; }\n")
+
+const mergeSweepEnv = ({
+  changedHead = "",
+  commentTimes = "issue-commenter\t2026-07-27T22:00:00Z",
+  commentsLookupFailure = false,
+  baseTip = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  failNewHead = false,
+  head,
+  inlineItems = "inline-reviewer\t2026-07-27T22:00:00Z\ninline-reviewer\t2026-07-27T22:00:00Z",
+  inlineLookupFailure = false,
+  inlinePageTwo = "",
+  moveAtMerge = false,
+  postMergeActivity = "",
+  postMergeReviewsLookupFailure = false,
+  postMergeThreadsLookupFailure = false,
+  postMergeUnresolvedThreads = "",
+  reviewTimes = "reviewer\t2026-07-27T22:00:00Z",
+  reviewsLookupFailure = false,
+  reviewsPageTwo = "",
+  sonar = "success",
+  state = "CLEAN",
+  reviewRunning = false,
+  threadsLookupFailure = false,
+  unresolvedThreads = "0",
+  updatedHead = "",
+  updateParents = "",
+  log,
+}) => ({
+  BASH_ENV: MERGE_SWEEP_BASH_ENV,
+  PATH: `${MERGE_SWEEP_GH_DIR}${delimiter}${process.env.PATH}`,
+  ORBIT_MERGE_SWEEP_BRANCH: "feature/orb-106",
+  ORBIT_MERGE_SWEEP_BASE_TIP: baseTip,
+  ORBIT_MERGE_SWEEP_CHANGED_HEAD: changedHead,
+  ORBIT_MERGE_SWEEP_COMMENTS_LOOKUP_FAILURE: commentsLookupFailure ? "1" : "",
+  ORBIT_MERGE_SWEEP_COMMENT_TIMES: commentTimes,
+  ORBIT_MERGE_SWEEP_HEAD: head,
+  ORBIT_MERGE_SWEEP_FAIL_NEW_HEAD: failNewHead ? "1" : "",
+  ORBIT_MERGE_SWEEP_INLINE_ITEMS: inlineItems,
+  ORBIT_MERGE_SWEEP_INLINE_LOOKUP_FAILURE: inlineLookupFailure ? "1" : "",
+  ORBIT_MERGE_SWEEP_INLINE_PAGE_TWO: inlinePageTwo,
+  ORBIT_MERGE_SWEEP_LOG: log,
+  ORBIT_MERGE_SWEEP_MOVE_MARKER: moveAtMerge ? `${log}.moved` : "",
+  ORBIT_MERGE_SWEEP_POST_MERGE_ACTIVITY: postMergeActivity,
+  ORBIT_MERGE_SWEEP_POST_MERGE_FAILURE_PR: "615",
+  ORBIT_MERGE_SWEEP_POST_MERGE_REVIEWS_LOOKUP_FAILURE: postMergeReviewsLookupFailure ? "1" : "",
+  ORBIT_MERGE_SWEEP_POST_MERGE_THREADS_LOOKUP_FAILURE: postMergeThreadsLookupFailure ? "1" : "",
+  ORBIT_MERGE_SWEEP_POST_MERGE_UNRESOLVED_THREADS: postMergeUnresolvedThreads,
+  ORBIT_MERGE_SWEEP_REVIEW_RUNNING: reviewRunning ? "1" : "",
+  ORBIT_MERGE_SWEEP_REVIEWS_LOOKUP_FAILURE: reviewsLookupFailure ? "1" : "",
+  ORBIT_MERGE_SWEEP_REVIEWS_PAGE_TWO: reviewsPageTwo,
+  ORBIT_MERGE_SWEEP_REVIEW_TIMES: reviewTimes,
+  ORBIT_MERGE_SWEEP_SONAR: sonar,
+  ORBIT_MERGE_SWEEP_STATE: state,
+  ORBIT_MERGE_SWEEP_THREADS_LOOKUP_FAILURE: threadsLookupFailure ? "1" : "",
+  ORBIT_MERGE_SWEEP_UNRESOLVED_THREADS: unresolvedThreads,
+  ORBIT_MERGE_SWEEP_UPDATED_HEAD: updatedHead,
+  ORBIT_MERGE_SWEEP_UPDATE_PARENTS: updateParents,
+})
+
+const mergeSweepCalls = (log) =>
+  existsSync(log)
+    ? readFileSync(log, "utf8")
+        .split("\n")
+        .filter(Boolean)
+        .map((line) => JSON.parse(line))
+    : []
 
 const run = (file, argv, options = {}) => {
   const target = options.path ?? join(TOOLS_DIR, file)
@@ -166,6 +387,34 @@ const run = (file, argv, options = {}) => {
     stdout: result.stdout ?? "",
     stderr: result.stderr ?? "",
   }
+}
+
+const runAsync = (file, argv, options = {}) => {
+  const target = options.path ?? join(TOOLS_DIR, file)
+  const child = spawn(process.execPath, [target, ...argv], {
+    cwd: options.cwd ?? REPO_ROOT,
+    env: { ...process.env, ...(options.env ?? {}) },
+    stdio: ["ignore", "pipe", "pipe"],
+  })
+  let stdout = ""
+  let stderr = ""
+  child.stdout.on("data", (chunk) => {
+    stdout += chunk
+  })
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk
+  })
+  return new Promise((resolveResult) => {
+    const timeout = setTimeout(() => child.kill(), 30000)
+    child.on("error", (error) => {
+      clearTimeout(timeout)
+      resolveResult({ status: `spawn error: ${error.message}`, stdout, stderr })
+    })
+    child.on("close", (status) => {
+      clearTimeout(timeout)
+      resolveResult({ status, stdout, stderr })
+    })
+  })
 }
 
 const check = (file, name, argv, expect, options = {}) => {
@@ -192,17 +441,33 @@ const check = (file, name, argv, expect, options = {}) => {
   return result
 }
 
-const orchestratorConfig = (repoPath, worker, engineName) =>
+const orchestratorConfig = (repoPath, worker, engineName, maxParallelWorktrees = 8) =>
   JSON.stringify({
     worker: engineName,
     workers: { [engineName]: worker },
+    maxParallelWorktrees,
     attemptsBeforeRewrite: 2,
     linear: { team: "ORB", states: { working: "In Progress", review: "In Review", done: "Done" } },
     repos: { ui: repoPath },
   })
 
-const INTERACTIVE_WORKER = { command: "claude", args: ["--permission-mode", "bypassPermissions", "--model", "opus"], interactive: true }
-const INTERACTIVE_CODEX = { command: "codex", args: ["-c", 'windows.sandbox="unelevated"', "--dangerously-bypass-approvals-and-sandbox"], interactive: true }
+const CLAUDE_MODELS = {
+  default: { model: "opus" },
+  cheap: { model: "sonnet" },
+  deep: { model: "opus", args: ["--effort", "max"] },
+}
+const CODEX_MODELS = {
+  default: { model: "gpt-5.6-sol", args: ["-c", 'model_reasoning_effort="high"'] },
+  cheap: { model: "gpt-5.6-luna", args: ["-c", 'model_reasoning_effort="low"'] },
+  deep: { model: "gpt-5.6-sol", args: ["-c", 'model_reasoning_effort="max"'] },
+}
+const INTERACTIVE_WORKER = { command: "claude", args: ["--permission-mode", "bypassPermissions"], models: CLAUDE_MODELS, interactive: true }
+const INTERACTIVE_CODEX = {
+  command: "codex",
+  args: ["-c", 'windows.sandbox="unelevated"', "--dangerously-bypass-approvals-and-sandbox"],
+  models: CODEX_MODELS,
+  interactive: true,
+}
 
 /**
  * Stages a private copy of launch-worker.mjs beside a hand-written
@@ -211,26 +476,90 @@ const INTERACTIVE_CODEX = { command: "codex", args: ["-c", 'windows.sandbox="une
  * The engine name is what the top-level `worker` key selects, which is the only way to
  * exercise a non-default engine: the tool has no engine-override flag by design.
  */
-const stageLaunchWorker = (label, worker, engineName = "claude") => {
+const stageLaunchWorker = (label, worker, engineName = "claude", maxParallelWorktrees = 8) => {
   const base = join(root, "launch", label)
   const repoPath = join(base, "repos", "ui")
   mkdirSync(repoPath, { recursive: true })
   mkdirSync(join(base, "tools"), { recursive: true })
   mkdirSync(join(base, ".claude"), { recursive: true })
-  writeFileSync(join(base, ".claude", "orchestrator.json"), orchestratorConfig(repoPath, worker, engineName))
+  writeFileSync(
+    join(base, ".claude", "orchestrator.json"),
+    orchestratorConfig(repoPath, worker, engineName, maxParallelWorktrees),
+  )
   cpSync(join(TOOLS_DIR, "launch-worker.mjs"), join(base, "tools", "launch-worker.mjs"))
   /** The copy imports tools/lib/tui-repaint.mjs by relative path, so the staged tree carries it too. */
   cpSync(join(TOOLS_DIR, "lib"), join(base, "tools", "lib"), { recursive: true })
   return { path: join(base, "tools", "launch-worker.mjs"), repoPath, base }
 }
 
-const linearIssueStub = (labels) => [
+const stagePreflight = (label, worker = { ...INTERACTIVE_CODEX, command: `"${process.execPath}"` }, engineName = "codex") => {
+  const base = join(root, "preflight", label)
+  const repoPath = join(base, "repos", "ui")
+  mkdirSync(repoPath, { recursive: true })
+  mkdirSync(join(base, "tools"), { recursive: true })
+  mkdirSync(join(base, ".claude"), { recursive: true })
+  writeFileSync(join(base, ".claude", "orchestrator.json"), orchestratorConfig(repoPath, worker, engineName))
+  cpSync(join(TOOLS_DIR, "preflight.mjs"), join(base, "tools", "preflight.mjs"))
+  cpSync(join(TOOLS_DIR, "lib"), join(base, "tools", "lib"), { recursive: true })
+  return { path: join(base, "tools", "preflight.mjs"), repoPath }
+}
+
+const PREFLIGHT_PASS_PLAN = [
+  { match: "auth status", stdout: "logged in", exit: 0 },
+  { match: "status --json", stdout: JSON.stringify({ ok: true, result: { runtime: { reachable: true } } }), exit: 0 },
+  { match: "branch --show-current", stdout: "main\n", exit: 0 },
+  { match: "status --porcelain", stdout: "", exit: 0 },
+]
+
+const preflightEnv = (plan) => ({
+  ...orcaEnv(plan),
+  GIT_BIN: process.execPath,
+  NODE_BIN: process.execPath,
+  NPM_BIN: process.execPath,
+  DOTNET_BIN: process.execPath,
+})
+
+const stageNudgeWorker = (label, worker, instrumentPause = false) => {
+  const base = join(root, "nudge", label)
+  mkdirSync(join(base, "tools"), { recursive: true })
+  mkdirSync(join(base, ".claude"), { recursive: true })
+  writeFileSync(
+    join(base, ".claude", "orchestrator.json"),
+    JSON.stringify({ worker, maxParallelWorktrees: 8, repos: {} }),
+  )
+  cpSync(join(TOOLS_DIR, "nudge-worker.mjs"), join(base, "tools", "nudge-worker.mjs"))
+  cpSync(join(TOOLS_DIR, "lib"), join(base, "tools", "lib"), { recursive: true })
+  if (instrumentPause) {
+    cpSync(join(TOOLS_DIR, "lib", "tui-repaint.mjs"), join(base, "tools", "lib", "tui-repaint-real.mjs"))
+    writeFileSync(
+      join(base, "tools", "lib", "tui-repaint.mjs"),
+      `import { appendFileSync } from "node:fs"
+export { SETTLE_MS, isRepainting } from "./tui-repaint-real.mjs"
+export const pause = (ms) => appendFileSync(process.env.ORBIT_PAUSE_LOG, String(ms) + "\\n")
+`,
+    )
+  }
+  return { path: join(base, "tools", "nudge-worker.mjs"), base }
+}
+
+const launchWorktreeStub = (path, isMainWorktree = false) => ({
+  id: path,
+  path,
+  isMainWorktree,
+  git: { path, isMainWorktree },
+})
+
+const linearIssueStub = (labels, worktrees = []) => [
   {
     match: "linear issue ORB-75",
     stdout: JSON.stringify({
       ok: true,
       result: { issue: { identifier: "ORB-75", title: "Prove the harness gate runs", labels: labels.map((name) => ({ name })) } },
     }),
+  },
+  {
+    match: "worktree list",
+    stdout: JSON.stringify({ ok: true, result: { worktrees } }),
   },
 ]
 
@@ -240,12 +569,22 @@ const linearIssueStub = (labels) => [
  * shipping a worker that stalls on a question or babysits someone else's PR.
  */
 const WORKER_CONTRACT_MARKER = "## Standing worker contract (injected by tools/launch-worker.mjs)"
+const FULL_SURFACE_POLL = /worker-status\.mjs[\s\S]*full-surface completion poll[\s\S]*review submissions[\s\S]*review threads[\s\S]*nested comments[\s\S]*PR conversation comments[\s\S]*fails closed/
 const REQUIRED_CONTRACT_CLAUSES = {
   "asking a question": /Never ask a question/,
   "dropping a blocked criterion": /A blocked sub-step never blocks the PR/,
-  "watching its own PR or another ticket": /Never poll your own PR's CI[\s\S]*never watch another ticket/,
+  "owning its automated review cycle": /Own the automated review cycle[\s\S]*approved with zero unresolved threads/,
+  "polling every review activity surface": FULL_SURFACE_POLL,
+  "replying with the fix commit before resolving": /reply on that[\s\S]*thread naming[\s\S]*the fix commit, then[\s\S]*resolve it/,
+  "acknowledging non-thread review activity": /review body or PR conversation[\s\S]*activity ID[\s\S]*PR commit/,
+  "resolving informational findings with audited evidence": /informational automated finding[\s\S]*No code change required: <reason>\. Evidence: <PR commit>[\s\S]*change the reviewed path/,
+  "escalating a disagreement": /Escalate when you disagree with a finding/,
+  "escalating a blocked decision": /when you are[\s\S]*blocked on a decision you may not make/,
+  "escalating after two failed cycles": /when two consecutive cycles fail on the same[\s\S]*finding/,
+  "leaving human threads unresolved": /Never resolve a thread opened by a human account/,
+  "refusing completion with unresolved threads": /approval with an[\s\S]*unresolved[\s\S]*thread is not done/,
+  "watching only its own ticket": /Never watch another[\s\S]*ticket, worktree, or PR/,
   "arming a monitor that outlives the contract": /Never arm a background monitor/,
-  "resolving a watch-and-stop conflict by doing both": /STOP wins/,
   "merging or pushing to main": /Never merge any PR, never push to/,
   "blanket staging that sweeps in a sibling's artifacts": /Stage explicitly[\s\S]*git add -A/,
   "pushing a commit it has not read back": /Verify before pushing[\s\S]*git show --stat HEAD/,
@@ -262,7 +601,7 @@ const REQUIRED_CONTRACT_CLAUSES = {
  */
 const TRUST_SCREENS = {
   claude: {
-    engine: { command: "claude", args: ["--permission-mode", "bypassPermissions"], interactive: true },
+    engine: INTERACTIVE_WORKER,
     answer: "1",
     /**
      * ONE screen per alternative the profile claims to recognise, each phrased so that only
@@ -278,7 +617,7 @@ const TRUST_SCREENS = {
     ],
   },
   codex: {
-    engine: { command: "codex", args: ["--dangerously-bypass-approvals-and-sandbox"], interactive: true },
+    engine: INTERACTIVE_CODEX,
     answer: "",
     screens: [{ label: "the trust-the-contents wording", tail: "You are in C:\\wt\nDoyoutrustthecontentsofthisdirectory?\n> 1. Yes, continue2.No,quitPress enter to continue" }],
   },
@@ -289,10 +628,16 @@ const TRUST_SCREENS = {
  * Everything else the launch touches is orca, which is.
  */
 const stageCheckout = (base) => {
+  const repoPath = join(base, "repos", "ui")
   const path = join(base, "checkout")
-  mkdirSync(path, { recursive: true })
-  for (const argv of [["init", "-q"], ["config", "user.email", "gate@orbit.test"], ["config", "user.name", "Orbit Gate"], ["commit", "-q", "--allow-empty", "-m", "base"]]) {
-    const result = spawnSync("git", ["-C", path, ...argv], { encoding: "utf8" })
+  for (const argv of [
+    ["init", "-q", "--initial-branch=main"],
+    ["config", "user.email", "gate@orbit.test"],
+    ["config", "user.name", "Orbit Gate"],
+    ["commit", "-q", "--allow-empty", "-m", "base"],
+    ["worktree", "add", "-q", "--detach", path, "HEAD"],
+  ]) {
+    const result = spawnSync("git", ["-C", repoPath, ...argv], { encoding: "utf8" })
     if (result.status !== 0) return null
   }
   return path
@@ -465,13 +810,457 @@ const pointerDeliveryCases = () => {
   )
 }
 
-const launchWorkerCases = () => {
+const runTerminalCreateLaunch = (label, terminalCreateSequence) => {
+  const staged = stageLaunchWorker(label, INTERACTIVE_WORKER)
+  const checkout = join(staged.base, "checkout")
+  const git = (args) => spawnSync("git", ["-C", staged.repoPath, ...args], { encoding: "utf8" })
+  for (const args of [
+    ["init", "-q", "--initial-branch=main"],
+    ["config", "user.email", "gate@orbit.test"],
+    ["config", "user.name", "Orbit Gate"],
+    ["commit", "-q", "--allow-empty", "-m", "base"],
+    ["worktree", "add", "-q", "-b", "thomasluizon/orb-75", checkout],
+  ]) {
+    if (git(args).status !== 0) return null
+  }
+
+  const log = join(staged.base, "orca-calls.log")
+  const promptFile = stage(`${label}-prompt.md`, "the ticket body verbatim\n")
+  const painted = `> Read ${promptFile} and execute it in full. That file is your complete work order for ORB-75:`
+  const plan = [
+    ...linearIssueStub(["repo:ui"]),
+    { match: "worktree create", stdout: JSON.stringify({ ok: true, result: { worktree: { path: checkout, branch: "refs/heads/thomasluizon/orb-75" } } }) },
+    { match: "terminal create", sequence: terminalCreateSequence },
+    { match: "terminal wait", stdout: JSON.stringify({ ok: true, result: { wait: { satisfied: true } } }) },
+    { match: "terminal show", stdout: JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1785168487585 } } }) },
+    { match: "terminal read", stdout: JSON.stringify({ ok: true, result: { terminal: { tail: [painted] } } }) },
+    { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }) },
+    { match: "terminal switch", stdout: JSON.stringify({ ok: true, result: {} }) },
+    { match: "worktree set", stdout: JSON.stringify({ ok: true, result: {} }) },
+    { match: "terminal stop", stdout: JSON.stringify({ ok: true, result: {} }) },
+    { match: "worktree rm", stdout: JSON.stringify({ ok: true, result: {} }), removePath: checkout, pruneRepo: staged.repoPath },
+  ]
+  const result = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile], {
+    path: staged.path,
+    env: { ...orcaEnv(plan), ORBIT_ORCA_LOG: log },
+  })
+  const calls = existsSync(log) ? readFileSync(log, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line)) : []
+  const count = (first, second) => calls.filter((argv) => argv[0].split(/[\\/]/).pop() === first && argv[1] === second).length
+  const branches = git(["branch", "--list", "feature/orb-75-prove-the-harness-gate", "thomasluizon/orb-75"]).stdout.trim()
+  return { result, terminalCreates: count("terminal", "create"), worktreeCreates: count("worktree", "create"), checkout, branches }
+}
+
+const terminalCreateRetryCases = () => {
+  const timeout = { stdout: JSON.stringify({ ok: false, error: { code: "timeout", message: "Terminal creation timed out" } }), exit: 1 }
+  const success = { stdout: JSON.stringify({ ok: true, result: { terminal: { handle: "t1" } } }), exit: 0 }
+  const recovered = runTerminalCreateLaunch("terminal-create-recovers", [timeout, success])
+  if (!recovered) {
+    T("launch-worker.mjs: terminal create retries can be staged", false, "could not stage a linked git worktree")
+    return
+  }
+  T(
+    "launch-worker.mjs: a terminal create timeout retries inside the same worktree and then succeeds",
+    recovered.result.status === 0 && recovered.terminalCreates === 2 && recovered.worktreeCreates === 1 && /"terminal": "t1"/.test(recovered.result.stdout),
+    `exit ${recovered.result.status}, terminal creates ${recovered.terminalCreates}, worktree creates ${recovered.worktreeCreates}\n     ${recovered.result.stderr.trim().split("\n").slice(-5).join("\n     ")}`,
+  )
+
+  const exhausted = runTerminalCreateLaunch("terminal-create-exhausted", [timeout, timeout, timeout])
+  T(
+    "launch-worker.mjs: terminal create timeout retries are bounded and preserve the timeout cause",
+    exhausted.result.status === 3 && exhausted.terminalCreates === 3 && /failed after 3 attempts: Terminal creation timed out/.test(exhausted.result.stderr),
+    `exit ${exhausted.result.status}, terminal creates ${exhausted.terminalCreates}\n     ${exhausted.result.stderr.trim().split("\n").slice(-6).join("\n     ")}`,
+  )
+  T(
+    "launch-worker.mjs: exhausting terminal create retries rolls back the one worktree and both branches",
+    exhausted.worktreeCreates === 1 && !existsSync(exhausted.checkout) && exhausted.branches === "",
+    `worktree creates ${exhausted.worktreeCreates}, checkout exists ${existsSync(exhausted.checkout)}, branches ${JSON.stringify(exhausted.branches)}`,
+  )
+}
+
+const launchConcurrencyCases = async (promptFile) => {
+  const atCap = stageLaunchWorker("concurrency-at-cap", INTERACTIVE_WORKER, "claude", 2)
+  const firstPath = join(atCap.base, "workspaces", "orb-1")
+  const secondPath = join(atCap.base, "workspaces", "orb-2")
+  const refusalLog = stage("concurrency-at-cap.log", "")
+  const refusal = run(
+    "launch-worker.mjs",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    {
+      path: atCap.path,
+      env: {
+        ...orcaEnv(linearIssueStub(
+          ["repo:ui"],
+          [launchWorktreeStub(firstPath), launchWorktreeStub(secondPath)],
+        )),
+        ORBIT_ORCA_LOG: refusalLog,
+      },
+    },
+  )
+  T(
+    "launch-worker.mjs: refuses at the configured cap with the cap, current count, and every occupying path",
+    refusal.status === 1
+      && /maxParallelWorktrees cap 2/.test(refusal.stderr)
+      && /current count 2/.test(refusal.stderr)
+      && refusal.stderr.includes(firstPath)
+      && refusal.stderr.includes(secondPath),
+    `exit ${refusal.status}\n     ${refusal.stderr.trim()}`,
+  )
+  const refusalCalls = readFileSync(refusalLog, "utf8").split("\n").filter(Boolean).map(JSON.parse)
+  T(
+    "launch-worker.mjs: cap refusal happens before any worktree or branch creation",
+    !refusalCalls.some((argv) => argv.join(" ").includes("worktree create")),
+    refusalCalls.map((argv) => argv.join(" ")).join("\n"),
+  )
+
+  const boundary = stageLaunchWorker("concurrency-boundary", INTERACTIVE_WORKER, "claude", 2)
+  const boundaryResult = check(
+    "launch-worker.mjs",
+    "allows a dry run with one slot remaining",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 0, stdout: /"maxParallelWorktrees": 2[\s\S]*"occupiedWorktrees": 1/ },
+    {
+      path: boundary.path,
+      env: orcaEnv(linearIssueStub(
+        ["repo:ui"],
+        [launchWorktreeStub(join(boundary.base, "workspaces", "orb-1"))],
+      )),
+    },
+  )
+  T(
+    "launch-worker.mjs: below-cap dry run creates nothing",
+    boundaryResult.status === 0 && !existsSync(join(boundary.base, "workspaces")),
+    `exit ${boundaryResult.status}; workspaces directory exists: ${existsSync(join(boundary.base, "workspaces"))}`,
+  )
+
+  const serial = stageLaunchWorker("concurrency-serial", INTERACTIVE_WORKER, "claude", 1)
+  const serialPath = join(serial.base, "workspaces", "orb-1")
+  const serialLog = stage("concurrency-serial.log", "")
+  const [serialIssue] = linearIssueStub(["repo:ui"])
+  const serialPlan = [
+    serialIssue,
+    {
+      match: "worktree list",
+      sequence: [
+        JSON.stringify({ ok: true, result: { worktrees: [] } }),
+        JSON.stringify({ ok: true, result: { worktrees: [launchWorktreeStub(serialPath)] } }),
+      ],
+    },
+  ]
+  const serialOptions = {
+    path: serial.path,
+    env: { ...orcaEnv(serialPlan), ORBIT_ORCA_LOG: serialLog },
+  }
+  const firstSerial = run(
+    "launch-worker.mjs",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    serialOptions,
+  )
+  const secondSerial = run(
+    "launch-worker.mjs",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    serialOptions,
+  )
+  T(
+    "launch-worker.mjs: cap 1 accepts the first launch and refuses the second concurrent launch",
+    firstSerial.status === 0
+      && secondSerial.status === 1
+      && /maxParallelWorktrees cap 1/.test(secondSerial.stderr)
+      && /current count 1/.test(secondSerial.stderr)
+      && secondSerial.stderr.includes(serialPath),
+    `first exit ${firstSerial.status}; second exit ${secondSerial.status}\n     ${secondSerial.stderr.trim()}`,
+  )
+
+  const mainOnly = stageLaunchWorker("concurrency-main-only", INTERACTIVE_WORKER, "claude", 1)
+  check(
+    "launch-worker.mjs",
+    "does not count the repository main worktree toward cap 1",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 0, stdout: /"occupiedWorktrees": 0/ },
+    {
+      path: mainOnly.path,
+      env: orcaEnv(linearIssueStub(
+        ["repo:ui"],
+        [launchWorktreeStub(mainOnly.repoPath, true)],
+      )),
+    },
+  )
+
+  const archivedOnly = stageLaunchWorker("concurrency-archived-only", INTERACTIVE_WORKER, "claude", 1)
+  check(
+    "launch-worker.mjs",
+    "does not count an archived child worktree toward cap 1",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 0, stdout: /"occupiedWorktrees": 0/ },
+    {
+      path: archivedOnly.path,
+      env: orcaEnv(linearIssueStub(
+        ["repo:ui"],
+        [{ ...launchWorktreeStub(join(archivedOnly.base, "workspaces", "archived")), isArchived: true }],
+      )),
+    },
+  )
+
+  const gone = stageLaunchWorker("concurrency-orca-authority", INTERACTIVE_WORKER, "claude", 1)
+  const residuePath = join(gone.base, "workspaces", "removed-but-on-disk")
+  mkdirSync(residuePath, { recursive: true })
+  check(
+    "launch-worker.mjs",
+    "does not count disk residue that Orca no longer reports",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 0, stdout: /"occupiedWorktrees": 0/ },
+    { path: gone.path, env: orcaEnv(linearIssueStub(["repo:ui"], [])) },
+  )
+
+  const override = stageLaunchWorker("concurrency-override", INTERACTIVE_WORKER, "claude", 8)
+  check(
+    "launch-worker.mjs",
+    "uses the invocation cap override for serial orchestration",
+    [
+      "--issue", "ORB-75",
+      "--prompt-file", promptFile,
+      "--max-parallel-worktrees", "1",
+      "--dry-run",
+    ],
+    { status: 1, stderr: /maxParallelWorktrees cap 1[\s\S]*current count 1/ },
+    {
+      path: override.path,
+      env: orcaEnv(linearIssueStub(
+        ["repo:ui"],
+        [launchWorktreeStub(join(override.base, "workspaces", "orb-1"))],
+      )),
+    },
+  )
+  check(
+    "launch-worker.mjs",
+    "refuses a non-positive invocation cap",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--max-parallel-worktrees", "0", "--dry-run"],
+    { status: 2, stderr: /positive integer/ },
+    { path: override.path },
+  )
+
+  const invalidConfig = stageLaunchWorker("concurrency-invalid-config", INTERACTIVE_WORKER, "claude", 0)
+  check(
+    "launch-worker.mjs",
+    "refuses a non-positive configured cap",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 2, stderr: /maxParallelWorktrees must be a positive integer/ },
+    { path: invalidConfig.path },
+  )
+
+  const reservationRecoveryCase = (label, lockBody, lockAgeMs) => {
+    const fixture = stageLaunchWorker(`concurrency-reservation-${label}`, INTERACTIVE_WORKER, "claude", 1)
+    const checkout = stageCheckout(fixture.base)
+    if (!checkout) {
+      T(`launch-worker.mjs: reclaims a ${label} reservation`, false, "could not stage a linked Git worktree")
+      return
+    }
+    const lockPath = join(fixture.repoPath, ".git", "orbit-launch-worker.lock")
+    writeFileSync(lockPath, lockBody)
+    if (lockAgeMs) {
+      const staleAt = new Date(Date.now() - lockAgeMs)
+      utimesSync(lockPath, staleAt, staleAt)
+    }
+    const result = run(
+      "launch-worker.mjs",
+      ["--issue", "ORB-75", "--prompt-file", promptFile],
+      {
+        path: fixture.path,
+        env: orcaEnv(linearIssueStub(["repo:ui"], [launchWorktreeStub(checkout)])),
+      },
+    )
+    T(
+      `launch-worker.mjs: reclaims a ${label} reservation`,
+      result.status === 1
+        && /maxParallelWorktrees cap 1[\s\S]*current count 1/.test(result.stderr)
+        && !existsSync(lockPath),
+      `exit ${result.status}; lock exists: ${existsSync(lockPath)}\n     ${result.stderr.trim()}`,
+    )
+  }
+  reservationRecoveryCase(
+    "dead-owner",
+    JSON.stringify({ pid: 2147483647, startedAt: Date.now() - 1000 }),
+    0,
+  )
+  reservationRecoveryCase("stale-corrupt", "{not-json", 10000)
+
+  const timeout = stageLaunchWorker("concurrency-reservation-timeout", INTERACTIVE_WORKER, "claude", 1)
+  const timeoutCheckout = stageCheckout(timeout.base)
+  if (!timeoutCheckout) {
+    T("launch-worker.mjs: times out on a live reservation owner", false, "could not stage a linked Git worktree")
+  } else {
+    const timeoutLock = join(timeout.repoPath, ".git", "orbit-launch-worker.lock")
+    writeFileSync(timeoutLock, JSON.stringify({ pid: process.pid, startedAt: Date.now() }))
+    const timeoutSource = readFileSync(timeout.path, "utf8")
+    const productionDeadline = "const deadline = Date.now() + 5 * 60 * 1000"
+    if (!timeoutSource.includes(productionDeadline)) {
+      T(
+        "launch-worker.mjs: stages a bounded reservation timeout",
+        false,
+        "production reservation deadline expression drifted",
+      )
+    } else {
+      writeFileSync(
+        timeout.path,
+        timeoutSource.replace(productionDeadline, "const deadline = Date.now() + 200"),
+      )
+      const timeoutLog = stage("concurrency-reservation-timeout.log", "")
+      const timeoutResult = run(
+        "launch-worker.mjs",
+        ["--issue", "ORB-75", "--prompt-file", promptFile],
+        {
+          path: timeout.path,
+          env: {
+            ...orcaEnv(linearIssueStub(["repo:ui"], [])),
+            ORBIT_ORCA_LOG: timeoutLog,
+          },
+        },
+      )
+      const timeoutCalls = readFileSync(timeoutLog, "utf8").split("\n").filter(Boolean).map(JSON.parse)
+      T(
+        "launch-worker.mjs: times out on a live reservation owner before listing or creating worktrees",
+        timeoutResult.status === 1
+          && /timed out waiting for another launch reservation/.test(timeoutResult.stderr)
+          && !timeoutCalls.some((argv) => argv.join(" ").includes("worktree list"))
+          && !timeoutCalls.some((argv) => argv.join(" ").includes("worktree create")),
+        `exit ${timeoutResult.status}\n     ${timeoutResult.stderr.trim()}\n     ${timeoutCalls.map((argv) => argv.join(" ")).join("\n     ")}`,
+      )
+    }
+    rmSync(timeoutLock, { force: true })
+  }
+
+  const concurrent = stageLaunchWorker("concurrency-atomic-last-slot", INTERACTIVE_WORKER, "claude", 1)
+  const concurrentCheckout = stageCheckout(concurrent.base)
+  if (!concurrentCheckout) {
+    T(
+      "launch-worker.mjs: concurrent launch reservation can be staged",
+      false,
+      "could not stage a linked Git worktree",
+    )
+    return
+  }
+  const concurrentLog = stage("concurrency-atomic-last-slot.log", "")
+  const concurrentTimingLog = stage("concurrency-atomic-last-slot-timing.log", "")
+  const concurrentPrompt = stage("concurrency-atomic-last-slot-prompt.md", "the ticket body verbatim\n")
+  const painted = `> Read ${concurrentPrompt} and execute it in full. That file is your complete work order for ORB-75:`
+  const [concurrentIssue] = linearIssueStub(["repo:ui"])
+  const concurrentPlan = [
+    concurrentIssue,
+    {
+      match: "worktree list",
+      sequence: [
+        JSON.stringify({ ok: true, result: { worktrees: [] } }),
+        JSON.stringify({ ok: true, result: { worktrees: [launchWorktreeStub(concurrentCheckout)] } }),
+      ],
+    },
+    {
+      match: "worktree create",
+      delayMs: 750,
+      stdout: JSON.stringify({
+        ok: true,
+        result: { worktree: { path: concurrentCheckout, branch: "refs/heads/thomasluizon/orb-75" } },
+      }),
+    },
+    { match: "terminal create", stdout: JSON.stringify({ ok: true, result: { terminal: { handle: "t1" } } }) },
+    { match: "terminal wait", stdout: JSON.stringify({ ok: true, result: { wait: { satisfied: true } } }) },
+    { match: "terminal show", stdout: JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1785168487585 } } }) },
+    { match: "terminal read", stdout: JSON.stringify({ ok: true, result: { terminal: { tail: [painted] } } }) },
+    { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }) },
+    { match: "terminal switch", stdout: JSON.stringify({ ok: true, result: {} }) },
+    { match: "worktree set", stdout: JSON.stringify({ ok: true, result: {} }) },
+  ]
+  const concurrentOptions = {
+    path: concurrent.path,
+    env: {
+      ...orcaEnv(concurrentPlan),
+      ORBIT_ORCA_LOG: concurrentLog,
+      ORBIT_ORCA_TIMING_LOG: concurrentTimingLog,
+    },
+  }
+  const concurrentArguments = ["--issue", "ORB-75", "--prompt-file", concurrentPrompt]
+  const concurrentResults = await Promise.all([
+    runAsync("launch-worker.mjs", concurrentArguments, concurrentOptions),
+    runAsync("launch-worker.mjs", concurrentArguments, concurrentOptions),
+  ])
+  const concurrentCalls = readFileSync(concurrentLog, "utf8")
+    .split("\n")
+    .filter(Boolean)
+    .map(JSON.parse)
+  const createCalls = concurrentCalls.filter(
+    (argv) => argv[0].split(/[\\/]/).pop() === "worktree" && argv[1] === "create",
+  )
+  const statuses = concurrentResults.map((result) => result.status).sort()
+  const concurrentRefusal = concurrentResults.find((result) => result.status === 1)
+  T(
+    "launch-worker.mjs: two concurrent launchers cannot both claim the last slot",
+    statuses.length === 2
+      && statuses[0] === 0
+      && statuses[1] === 1
+      && createCalls.length === 1
+      && /maxParallelWorktrees cap 1[\s\S]*current count 1/.test(concurrentRefusal?.stderr ?? ""),
+    `statuses ${JSON.stringify(statuses)}, worktree creates ${createCalls.length}\n     ${concurrentResults.map((result) => result.stderr.trim()).join("\n     ")}`,
+  )
+}
+
+const launchWorkerCases = async () => {
   const promptFile = stage("prompt.md", "the ticket body verbatim\n")
 
   const good = stageLaunchWorker("interactive", INTERACTIVE_WORKER)
+  const claudeDefault = check(
+    "launch-worker.mjs",
+    "Claude defaults to opus",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 0, stdout: /claude[\s\S]*--model opus/ },
+    { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui"])) },
+  )
+  const claudeCheap = check(
+    "launch-worker.mjs",
+    "tier:cheap selects sonnet on Claude",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 0, stdout: /claude[\s\S]*--model sonnet/ },
+    { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui", "tier:cheap"])) },
+  )
+  const claudeDeep = check(
+    "launch-worker.mjs",
+    "tier:deep selects a distinct max-effort opus invocation on Claude",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 0, stdout: /claude[\s\S]*--effort max[\s\S]*--model opus/ },
+    { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui", "tier:deep"])) },
+  )
+  const claudeDefaultCommand = claudeDefault.status === 0 ? JSON.parse(claudeDefault.stdout).command : ""
+  const claudeCheapCommand = claudeCheap.status === 0 ? JSON.parse(claudeCheap.stdout).command : ""
+  const claudeDeepCommand = claudeDeep.status === 0 ? JSON.parse(claudeDeep.stdout).command : ""
+  T("launch-worker.mjs: Claude cheap tier cannot resolve to the unchanged default invocation", claudeCheapCommand !== claudeDefaultCommand, `default and cheap both resolved to: ${claudeDefaultCommand}`)
+  T("launch-worker.mjs: Claude deep tier cannot resolve to the unchanged default invocation", claudeDeepCommand !== claudeDefaultCommand, `default and deep both resolved to: ${claudeDefaultCommand}`)
+  check(
+    "launch-worker.mjs",
+    "an unknown tier lists the engine's declared cheap and deep tiers",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 2, stderr: /fast[\s\S]*cheap[\s\S]*deep/ },
+    { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui", "tier:fast"])) },
+  )
+  check(
+    "launch-worker.mjs",
+    "a codex-only or unknown tier is rejected on Claude",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 2, stderr: /codex-only[\s\S]*cheap[\s\S]*deep/ },
+    { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui", "tier:codex-only"])) },
+  )
+  check(
+    "launch-worker.mjs",
+    "rejects the legacy worker:sonnet label with tier:cheap remediation",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 2, stderr: /worker:sonnet[\s\S]*tier:cheap/ },
+    { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui", "worker:sonnet"])) },
+  )
+  check(
+    "launch-worker.mjs",
+    "rejects conflicting tier labels",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 2, stderr: /conflict|multiple[\s\S]*tier/i },
+    { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui", "tier:cheap", "tier:deep"])) },
+  )
   check("launch-worker.mjs", "resolves the repo from the repo:* label", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 0, stdout: /"repo": "ui"/ }, { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
   check("launch-worker.mjs", "derives the contract branch from the title", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 0, stdout: /"branch": "feature\/orb-75-prove-the-harness-gate/ }, { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
-  check("launch-worker.mjs", "worker:sonnet swaps the configured opus", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 0, stdout: /--model sonnet/ }, { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui", "worker:sonnet"])) })
   check("launch-worker.mjs", "refuses a repo:* label with no repos entry", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /no repo path for "zzz"/ }, { path: good.path, env: orcaEnv(linearIssueStub(["repo:zzz"])) })
   check("launch-worker.mjs", "refuses a ticket with no repo:* label and no --repo", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /carries no repo:\* label/ }, { path: good.path, env: orcaEnv(linearIssueStub([])) })
 
@@ -479,39 +1268,103 @@ const launchWorkerCases = () => {
   writeFileSync(insidePrompt, "the ticket body verbatim\n")
   check("launch-worker.mjs", "refuses a prompt file inside a repo", ["--issue", "ORB-75", "--prompt-file", insidePrompt, "--dry-run"], { status: 2, stderr: /would be committed/ }, { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
+  const noModels = stageLaunchWorker("no-models", { command: "claude", args: ["--permission-mode", "bypassPermissions"], interactive: true })
+  check("launch-worker.mjs", "refuses an engine with no models map", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /claude[\s\S]*models/ }, { path: noModels.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+
+  const noDefault = stageLaunchWorker("no-default-model", { ...INTERACTIVE_WORKER, models: { cheap: CLAUDE_MODELS.cheap, deep: CLAUDE_MODELS.deep } })
+  check("launch-worker.mjs", "refuses an engine model map with no default", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /claude[\s\S]*default/ }, { path: noDefault.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+
+  const modelInBaseArgs = stageLaunchWorker("model-in-base-args", { ...INTERACTIVE_WORKER, args: ["--model", "opus"] })
+  check("launch-worker.mjs", "refuses a model flag in the engine's base args", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /non-model strings/ }, { path: modelInBaseArgs.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+
+  const noCheap = stageLaunchWorker("no-cheap-model", { ...INTERACTIVE_WORKER, models: { default: CLAUDE_MODELS.default, deep: CLAUDE_MODELS.deep } })
+  check("launch-worker.mjs", "refuses an engine model map with no cheap tier", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /claude[\s\S]*cheap/ }, { path: noCheap.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+
+  const noDeep = stageLaunchWorker("no-deep-model", { ...INTERACTIVE_WORKER, models: { default: CLAUDE_MODELS.default, cheap: CLAUDE_MODELS.cheap } })
+  check("launch-worker.mjs", "refuses an engine model map with no deep tier", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /claude[\s\S]*deep/ }, { path: noDeep.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+
+  const identicalTiers = stageLaunchWorker("identical-tiers", {
+    ...INTERACTIVE_WORKER,
+    models: { ...CLAUDE_MODELS, cheap: { model: "sonnet" }, deep: { model: "sonnet" } },
+  })
+  check("launch-worker.mjs", "refuses identical cheap and deep mappings", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /cheap[\s\S]*deep|deep[\s\S]*cheap/ }, { path: identicalTiers.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+
+  const unchangedCheap = stageLaunchWorker("unchanged-cheap", {
+    ...INTERACTIVE_WORKER,
+    models: { ...CLAUDE_MODELS, cheap: { model: "opus" } },
+  })
+  check(
+    "launch-worker.mjs",
+    "refuses a selected non-default tier identical to the default",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 2, stderr: /cheap[\s\S]*default|default[\s\S]*cheap/ },
+    { path: unchangedCheap.path, env: orcaEnv(linearIssueStub(["repo:ui", "tier:cheap"])) },
+  )
+
   const notInteractive = stageLaunchWorker("not-interactive", { ...INTERACTIVE_WORKER, interactive: false })
   check("launch-worker.mjs", "refuses an engine declaring interactive: false", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /does not declare interactive: true/ }, { path: notInteractive.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
-  const omitted = stageLaunchWorker("omits-interactive", { command: "claude", args: ["--model", "opus"] })
+  const omitted = stageLaunchWorker("omits-interactive", { command: "claude", args: [], models: CLAUDE_MODELS })
   check("launch-worker.mjs", "refuses an engine that omits interactive entirely", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /does not declare interactive: true/ }, { path: omitted.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
-  const headless = stageLaunchWorker("headless-args", { command: "claude", args: ["-p", "--model", "opus"], interactive: true })
+  const headless = stageLaunchWorker("headless-args", { ...INTERACTIVE_WORKER, args: ["-p"] })
   check("launch-worker.mjs", "refuses headless args behind an interactive declaration", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /headless invocation/ }, { path: headless.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
-  const headlessCommand = stageLaunchWorker("headless-command", { command: "claude --print", args: [], interactive: true })
+  const headlessCommand = stageLaunchWorker("headless-command", { ...INTERACTIVE_WORKER, command: "claude --print", args: [] })
   check("launch-worker.mjs", "refuses a headless token hidden in the command field", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /headless invocation/ }, { path: headlessCommand.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+
+  const acceptEdits = stageLaunchWorker("accept-edits", { command: "claude", args: ["--permission-mode", "acceptEdits"], models: CLAUDE_MODELS, interactive: true })
+  check("launch-worker.mjs", "refuses a claude permission mode that cannot run unattended shell commands", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /permission mode is "acceptEdits"/ }, { path: acceptEdits.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+
+  const permissionInCommand = stageLaunchWorker("permission-in-command", { command: "claude --permission-mode bypassPermissions", args: [], models: CLAUDE_MODELS, interactive: true })
+  check("launch-worker.mjs", "accepts the required claude permission mode from the whole resolved invocation", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 0, stdout: /claude --permission-mode bypassPermissions/ }, { path: permissionInCommand.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
   // Headless is a property of the CLI, not of the harness: codex's -p is --profile, an
   // interactive flag, while claude's -p is --print. One shared token list cannot tell them
   // apart, so these five cases pin both halves of the per-engine split.
   const codex = stageLaunchWorker("codex-interactive", INTERACTIVE_CODEX, "codex")
-  const codexPlan = check("launch-worker.mjs", "an interactive codex entry launches", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 0, stdout: /"engine": "codex"/ }, { path: codex.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+  const codexPlan = check(
+    "launch-worker.mjs",
+    "Codex defaults to Sol at high effort",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 0, stdout: /codex[\s\S]*model_reasoning_effort[\s\S]*high[\s\S]*--model gpt-5\.6-sol/ },
+    { path: codex.path, env: orcaEnv(linearIssueStub(["repo:ui"])) },
+  )
+  const codexCheap = check(
+    "launch-worker.mjs",
+    "tier:cheap selects Luna at low effort on Codex",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 0, stdout: /codex[\s\S]*model_reasoning_effort[\s\S]*low[\s\S]*--model gpt-5\.6-luna/ },
+    { path: codex.path, env: orcaEnv(linearIssueStub(["repo:ui", "tier:cheap"])) },
+  )
+  const codexDeep = check(
+    "launch-worker.mjs",
+    "tier:deep selects Sol at max effort on Codex",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 0, stdout: /codex[\s\S]*model_reasoning_effort[\s\S]*max[\s\S]*--model gpt-5\.6-sol/ },
+    { path: codex.path, env: orcaEnv(linearIssueStub(["repo:ui", "tier:deep"])) },
+  )
+  const codexDefaultCommand = codexPlan.status === 0 ? JSON.parse(codexPlan.stdout).command : ""
+  const codexCheapCommand = codexCheap.status === 0 ? JSON.parse(codexCheap.stdout).command : ""
+  const codexDeepCommand = codexDeep.status === 0 ? JSON.parse(codexDeep.stdout).command : ""
+  T("launch-worker.mjs: Codex cheap tier cannot resolve to the unchanged default invocation", codexCheapCommand !== codexDefaultCommand, `default and cheap both resolved to: ${codexDefaultCommand}`)
+  T("launch-worker.mjs: Codex deep tier cannot resolve to the unchanged default invocation", codexDeepCommand !== codexDefaultCommand, `default and deep both resolved to: ${codexDefaultCommand}`)
   T(
     "launch-worker.mjs: the codex plan's command carries no headless token",
     codexPlan.status === 0 && !/(^|\s)(-p|--print|exec|e)(\s|"|$)/.test(JSON.parse(codexPlan.stdout).command),
     `command was: ${codexPlan.stdout.trim().slice(0, 200)}`,
   )
 
-  const codexProfile = stageLaunchWorker("codex-profile", { ...INTERACTIVE_CODEX, args: ["-p", "my-profile"] }, "codex")
+  const codexProfile = stageLaunchWorker("codex-profile", { ...INTERACTIVE_CODEX, args: ["-p", "my-profile", "--dangerously-bypass-approvals-and-sandbox"] }, "codex")
   check("launch-worker.mjs", "accepts codex -p, which is --profile and not --print", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 0, stdout: /codex -p my-profile/ }, { path: codexProfile.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
-  const codexExec = stageLaunchWorker("codex-exec", { command: "codex", args: ["exec", "--full-auto"], interactive: true }, "codex")
+  const codexExec = stageLaunchWorker("codex-exec", { ...INTERACTIVE_CODEX, args: ["exec", "--full-auto"] }, "codex")
   check("launch-worker.mjs", "still refuses codex exec behind an interactive declaration", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /carries "exec", which is a headless invocation of codex/ }, { path: codexExec.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
-  const codexExecAlias = stageLaunchWorker("codex-exec-alias", { command: "codex", args: ["e"], interactive: true }, "codex")
+  const codexExecAlias = stageLaunchWorker("codex-exec-alias", { ...INTERACTIVE_CODEX, args: ["e"] }, "codex")
   check("launch-worker.mjs", "refuses codex e, the documented alias for exec", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /headless invocation of codex/ }, { path: codexExecAlias.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
-  const unknownEngine = stageLaunchWorker("unknown-engine", { command: "aider", args: [], interactive: true }, "aider")
+  const unknownEngine = stageLaunchWorker("unknown-engine", { command: "aider", args: [], models: CLAUDE_MODELS, interactive: true }, "aider")
   check("launch-worker.mjs", "refuses an engine binary with no profile rather than waving it through", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /no engine profile for/ }, { path: unknownEngine.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
   check("launch-worker.mjs", "refuses a missing prompt file", ["--issue", "ORB-75", "--prompt-file", join(root, "absent.md"), "--dry-run"], { status: 2, stderr: /prompt file not found/ }, { path: good.path })
@@ -530,20 +1383,250 @@ const launchWorkerCases = () => {
 
   trustScreenCases()
   pointerDeliveryCases()
+  terminalCreateRetryCases()
+  await launchConcurrencyCases(promptFile)
 
   const launcherSource = readFileSync(join(TOOLS_DIR, "launch-worker.mjs"), "utf8")
   for (const [clause, pattern] of Object.entries(REQUIRED_CONTRACT_CLAUSES)) {
-    T(`launch-worker.mjs: the injected contract still forbids ${clause}`, pattern.test(launcherSource), `WORKER_CONTRACT no longer matches ${pattern}. A worker without this clause repeats the failure it was written for; restore it rather than relaxing this check.`)
+    T(`launch-worker.mjs: the injected contract still enforces ${clause}`, pattern.test(launcherSource), `WORKER_CONTRACT no longer matches ${pattern}. A worker without this clause repeats the failure it was written for; restore it rather than relaxing this check.`)
   }
+  const agentsSource = readFileSync(join(REPO_ROOT, "AGENTS.md"), "utf8")
+  T(
+    "launch-worker.mjs: AGENTS.md requires the same full-surface completion poll",
+    FULL_SURFACE_POLL.test(agentsSource),
+    "AGENTS.md no longer requires worker-status to inventory every review activity surface and fail closed.",
+  )
+}
+
+const preflightCases = () => {
+  const good = stagePreflight("all-pass")
+  check(
+    "preflight.mjs",
+    "a clean base-branch environment prints an all-PASS table",
+    ["--repo", "ui"],
+    { status: 0, stdout: /PASS\s+Worker shell policy[\s\S]*PASS\s+GitHub authentication[\s\S]*PASS\s+Repository working tree/ },
+    { path: good.path, env: preflightEnv(PREFLIGHT_PASS_PLAN) },
+  )
+
+  const claude = stagePreflight(
+    "claude-command-policy",
+    {
+      command: `"${process.execPath}" --permission-mode bypassPermissions`,
+      args: [],
+      models: CLAUDE_MODELS,
+      interactive: true,
+    },
+    "claude",
+  )
+  check(
+    "preflight.mjs",
+    "the known-good Claude policy is accepted from the whole resolved invocation",
+    ["--repo", "ui"],
+    { status: 0, stdout: /PASS\s+Worker shell policy/ },
+    { path: claude.path, env: preflightEnv(PREFLIGHT_PASS_PLAN) },
+  )
+
+  const acceptEdits = stagePreflight(
+    "claude-accept-edits",
+    {
+      command: `"${process.execPath}"`,
+      args: ["--permission-mode", "acceptEdits"],
+      models: CLAUDE_MODELS,
+      interactive: true,
+    },
+    "claude",
+  )
+  check(
+    "preflight.mjs",
+    "a Claude acceptEdits invocation fails with the known-good remedy",
+    ["--repo", "ui"],
+    { status: 1, stdout: /FAIL\s+Worker shell policy\s+set workers\.claude[\s\S]*--permission-mode bypassPermissions/ },
+    { path: acceptEdits.path, env: preflightEnv(PREFLIGHT_PASS_PLAN) },
+  )
+
+  const ghFailurePlan = PREFLIGHT_PASS_PLAN.map((entry) =>
+    entry.match === "auth status" ? { ...entry, stdout: "not logged in", exit: 1 } : entry,
+  )
+  check(
+    "preflight.mjs",
+    "an unauthenticated GitHub CLI fails and names the login remedy",
+    ["--repo", "ui"],
+    { status: 1, stdout: /FAIL\s+GitHub authentication\s+run gh auth login/ },
+    { path: good.path, env: preflightEnv(ghFailurePlan) },
+  )
+
+  const orcaFailurePlan = PREFLIGHT_PASS_PLAN.map((entry) =>
+    entry.match === "status --json"
+      ? { ...entry, stdout: JSON.stringify({ ok: false, error: { message: "runtime unavailable" } }), exit: 1 }
+      : entry,
+  )
+  check(
+    "preflight.mjs",
+    "an unreachable Orca runtime fails and names the restart remedy",
+    ["--repo", "ui"],
+    { status: 1, stdout: /FAIL\s+Orca reachability\s+start or restart Orca/ },
+    { path: good.path, env: preflightEnv(orcaFailurePlan) },
+  )
+
+  const dirtyPlan = PREFLIGHT_PASS_PLAN.map((entry) =>
+    entry.match === "status --porcelain" ? { ...entry, stdout: " M tracked-file\n" } : entry,
+  )
+  check(
+    "preflight.mjs",
+    "a dirty target working tree fails and names the cleanup remedy",
+    ["--repo", "ui"],
+    { status: 1, stdout: /FAIL\s+Repository working tree\s+commit, stash, or remove changes/ },
+    { path: good.path, env: preflightEnv(dirtyPlan) },
+  )
+
+  const wrongBranchPlan = PREFLIGHT_PASS_PLAN.map((entry) =>
+    entry.match === "branch --show-current" ? { ...entry, stdout: "feature/not-main\n" } : entry,
+  )
+  check(
+    "preflight.mjs",
+    "a target repo off its base branch fails and names both branches",
+    ["--repo", "ui"],
+    { status: 1, stdout: /FAIL\s+Repository branch\s+switch ui from feature\/not-main to main/ },
+    { path: good.path, env: preflightEnv(wrongBranchPlan) },
+  )
+
+  check(
+    "preflight.mjs",
+    "a missing ticket-specific CLI fails and names its install remedy",
+    ["--repo", "ui", "--require", "orbit-cli-that-does-not-exist"],
+    { status: 1, stdout: /FAIL\s+CLI orbit-cli-that-does-not-exist\s+install orbit-cli-that-does-not-exist/ },
+    { path: good.path, env: preflightEnv(PREFLIGHT_PASS_PLAN) },
+  )
+
+  const jsonResult = run("preflight.mjs", ["--repo", "ui", "--json"], {
+    path: good.path,
+    env: preflightEnv(PREFLIGHT_PASS_PLAN),
+  })
+  let report
+  try {
+    report = JSON.parse(jsonResult.stdout)
+  } catch {
+    report = null
+  }
+  T(
+    "preflight.mjs: machine-readable output carries stable check ids and the verdict",
+    jsonResult.status === 0 &&
+      report?.ok === true &&
+      report?.checks?.some((entry) => entry.id === "worker-shell-policy" && entry.status === "PASS") &&
+      report?.checks?.some((entry) => entry.id === "repo-clean" && entry.status === "PASS"),
+    `exit ${jsonResult.status}\n     ${(jsonResult.stderr || jsonResult.stdout).slice(0, 500)}`,
+  )
 }
 
 const TIMEOUT_PAYLOAD = JSON.stringify({ ok: false, error: { code: "timeout", message: "condition not met in time" } })
 const BUSY_STUB = [{ match: "terminal wait", stdout: TIMEOUT_PAYLOAD, exit: 1 }]
 const BROKEN_STUB = [{ match: "terminal wait", stdout: JSON.stringify({ ok: false, error: { code: "no-such-terminal", message: "unknown handle" } }), exit: 1 }]
+const STALE_BLOCKED_WAIT = JSON.stringify({ ok: true, result: { wait: { satisfied: false, status: "running", blockedReason: "codex-trust-workspace" } } })
+const DOCUMENTED_CODEX_BLOCKED_WAIT = JSON.stringify({ ok: true, result: { wait: { satisfied: false, status: "running", blockedReason: "codex-interactive-prompt" } } })
+const CODEX_READY_PLACEHOLDER_CASES = [
+  ["explain-codebase", "› Explain this codebase"],
+  ["review-changes", "› Run /review on my current changes"],
+  ["write-tests", "› Write tests for @filename"],
+  ["list-skills", "› Use /skills to list available skills"],
+]
+/**
+ * WHY: Captured 2026-07-28 from three live Codex composers. Placeholder text rotates, while
+ * every ready region carries model, effort, separator and working-directory structure.
+ * https://github.com/thomasluizon/orbit-ui-mobile/pull/629
+ *
+ * › Run /review on my current changes gpt-5.6-sol high · ~\orca\workspaces\orbit-ui-mobile\orb-106-... · Main [default]
+ * › Improve documentation in @filename gpt-5.6-sol high · ~\orca\workspaces\orbit-ui-mobile\orb-113-...
+ * › Explain this codebase gpt-5.6-sol high · ~\orca\workspaces\orbit-ui-mobile\orb-122-... · Main [default]
+ */
+const CODEX_STATUS_STRUCTURE = "gpt-5.6-sol high · ~\\orca\\workspaces\\orbit-ui-mobile\\orb-129-nudge-worker-is-unreachable-when-orca · Main [default]"
+const MEASURED_CODEX_READY_TAIL = [
+  "Working (52s · esc to interrupt)",
+  "a · Main [default]",
+  "",
+  "─ Worked for 11m 02s ─────────────────────────────────────────────────────────── › Explain this codebase gpt-5.6-sol high · ~\\orca\\workspaces\\orbit-ui-mobile\\orb-129-nudge-worker-is-unreachable-when-orca · Main [default]",
+]
+const MEASURED_CODEX_WORKING_TAIL = [
+  ...MEASURED_CODEX_READY_TAIL,
+  "(7s • esc to interrupt)",
+]
+const LIVE_CODEX_SAMPLE_CASES = [
+  ["term-0c6e56a7-idle", "recognizes the first live idle composer shape", [
+    "a · Main [default]",
+    "› Improve documentation in @filename",
+    "gpt-5.6-sol high · ~\\orca\\workspaces\\orbit-ui-mobile\\orb-129-nudge-worker-is-unreachable-when-orca",
+    "─ Worked for 10m 03s ───────────────────────────────────────────────────────────",
+  ], true],
+  ["term-65aa37cd-busy", "refuses the live busy composer shape", [
+    "a · Main [default]",
+    "› Improve documentation in @filename",
+    CODEX_STATUS_STRUCTURE,
+    "(7s • esc to interrupt)",
+  ], false],
+  ["term-652dd931-idle", "recognizes the second live idle composer shape", [
+    "› Use /skills to list available skills",
+    CODEX_STATUS_STRUCTURE,
+  ], true],
+]
 /** A settled TUI emits nothing, so lastOutputAt is the SAME on both samples. */
 const IDLE_STUB = [
   { match: "terminal wait", stdout: JSON.stringify({ ok: true, result: { wait: { satisfied: true } } }), exit: 0 },
   { match: "terminal show", stdout: JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1785168487585 } } }), exit: 0 },
+  { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }), exit: 0 },
+]
+const staleBlockedIdleStub = (tail) => [
+  { match: "terminal wait", stdout: STALE_BLOCKED_WAIT, exit: 0 },
+  { match: "terminal show", stdout: JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1785168487585 } } }), exit: 0 },
+  { match: "terminal read", stdout: JSON.stringify({ ok: true, result: { terminal: { tail } } }), exit: 0 },
+  { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }), exit: 0 },
+]
+const WORKING_COMPOSER_IDLE_STUB = staleBlockedIdleStub([
+  "› Explain this codebase",
+  CODEX_STATUS_STRUCTURE,
+  "Working (52s · esc to interrupt)",
+])
+const MISSPELLED_WORKING_COMPOSER_IDLE_STUB = staleBlockedIdleStub([
+  "› Explain this codebase",
+  CODEX_STATUS_STRUCTURE,
+  "Working (52s · esc to interupt)",
+])
+const LIVE_BLOCKED_IDLE_STUB = [
+  { match: "terminal wait", stdout: STALE_BLOCKED_WAIT, exit: 0 },
+  { match: "terminal show", stdout: JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1785168487585 } } }), exit: 0 },
+  { match: "terminal read", stdout: JSON.stringify({ ok: true, result: { terminal: { tail: ["Doyoutrustthecontents", "ofthisdirectory?"] } } }), exit: 0 },
+  { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }), exit: 0 },
+]
+const ANSWERED_TRUST_BEFORE_READY_TAIL = [
+  "Do you trust the contents of this directory?",
+  "Trust once and continue",
+  "› Explain this codebase",
+  CODEX_STATUS_STRUCTURE,
+]
+const LIVE_TRUST_AFTER_COMPOSER_TAIL = [
+  "› Explain this codebase",
+  CODEX_STATUS_STRUCTURE,
+  "Do you trust the contents of this directory?",
+]
+const RETAINED_COMPOSER_STATIC_SCREEN_TAIL = [
+  "› Run /review on my current changes",
+  "Permission required",
+  "Allow this command?",
+  "[y] Yes  [n] No",
+]
+const RETAINED_READY_STATIC_SCREEN_TAIL = [
+  "› Run /review on my current changes",
+  CODEX_STATUS_STRUCTURE,
+  "Permission required",
+  "Allow this command?",
+  "[y] Yes  [n] No",
+]
+const ALTERNATE_MODEL_READY_TAIL = [
+  "› Explain this codebase",
+  "orbit-coder.v2 ultra · C:\\worktrees\\orbit-ui-mobile\\orb-129 · Main [default]",
+]
+const UNRECOGNIZED_BLOCKED_IDLE_STUB = [
+  { match: "terminal wait", stdout: STALE_BLOCKED_WAIT, exit: 0 },
+  { match: "terminal show", stdout: JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1785168487585 } } }), exit: 0 },
+  { match: "terminal read", stdout: JSON.stringify({ ok: true, result: { terminal: { tail: ["Allow this command?", "[y] Yes  [n] No"] } } }), exit: 0 },
   { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }), exit: 0 },
 ]
 /**
@@ -556,15 +1639,87 @@ const FALSE_IDLE_STUB = [
   { match: "terminal show", stdout: '{"ok":true,"result":{"terminal":{"lastOutputAt":__NOW__}}}', exit: 0 },
   { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }), exit: 0 },
 ]
+const BLOCKED_BUSY_STUB = [
+  { match: "terminal wait", stdout: STALE_BLOCKED_WAIT, exit: 0 },
+  { match: "terminal show", stdout: '{"ok":true,"result":{"terminal":{"lastOutputAt":__NOW__}}}', exit: 0 },
+  { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }), exit: 0 },
+]
+const DOCUMENTED_CODEX_BLOCKED_IDLE_STUB = [
+  { match: "terminal wait", stdout: DOCUMENTED_CODEX_BLOCKED_WAIT, exit: 0 },
+  { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }), exit: 0 },
+]
+
+const runNudgeSignalCase = (label, name, plan, expect, expectedSends, options = {}) => {
+  const log = join(root, `nudge-${label}.log`)
+  check("nudge-worker.mjs", name, ["--terminal", "t1", "--text", "hi", "--wait-attempts", String(options.waitAttempts ?? 1), ...(options.argv ?? [])], expect, {
+    path: options.path,
+    env: { ...orcaEnv(plan), ...(options.env ?? {}), ORBIT_ORCA_LOG: log },
+  })
+  const calls = existsSync(log) ? readFileSync(log, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line)) : []
+  const sends = calls.filter((argv) => argv[0].split(/[\\/]/).pop() === "terminal" && argv[1] === "send").length
+  T(`nudge-worker.mjs: ${name} sends ${expectedSends} time(s)`, sends === expectedSends, `sent ${sends} time(s)`)
+}
 
 const nudgeWorkerCases = () => {
+  check("nudge-worker.mjs", "--help documents the engine override and fail-closed rule", ["--help"], { status: 0, stdout: /--engine <name>[\s\S]*Claude has no verified readiness profile[\s\S]*Missing, auto or unknown values[\s\S]*fail closed/ })
   check("nudge-worker.mjs", "rejects multi-line text", ["--terminal", "t1", "--text", "first line\nsecond line"], { status: 2, stderr: /single line/ })
   check("nudge-worker.mjs", "rejects --text together with --prompt-file", ["--terminal", "t1", "--text", "hi", "--prompt-file", stage("nudge-prompt.md", "body\n")], { status: 2, stderr: /alternatives/ })
   check("nudge-worker.mjs", "rejects a non-positive --wait-attempts", ["--terminal", "t1", "--text", "hi", "--wait-attempts", "0"], { status: 2, stderr: /positive integer/ })
   check("nudge-worker.mjs", "refuses to send while the worker is busy", ["--terminal", "t1", "--text", "hi", "--wait-attempts", "1"], { status: 1, stderr: /NOTHING was sent/ }, { env: orcaEnv(BUSY_STUB) })
   check("nudge-worker.mjs", "an orca failure that is not a timeout is a tool error", ["--terminal", "t1", "--text", "hi", "--wait-attempts", "1"], { status: 3, stderr: /unknown handle/ }, { env: orcaEnv(BROKEN_STUB) })
-  check("nudge-worker.mjs", "sends once the worker is idle", ["--terminal", "t1", "--text", "hi", "--wait-attempts", "1"], { status: 0, stdout: /"sent": "hi"/ }, { env: orcaEnv(IDLE_STUB) })
-  check("nudge-worker.mjs", "refuses a tui-idle that is still repainting, which is a worker mid-turn", ["--terminal", "t1", "--text", "hi", "--wait-attempts", "1"], { status: 1, stderr: /still repainting[\s\S]*NOTHING was sent/ }, { env: orcaEnv(FALSE_IDLE_STUB) })
+  runNudgeSignalCase("both-idle", "sends once both signals say the worker is idle", IDLE_STUB, { status: 0, stdout: /"sent": "hi"/ }, 1, { path: stageNudgeWorker("both-idle", "codex").path })
+  for (const [label, placeholder] of CODEX_READY_PLACEHOLDER_CASES) {
+    const readyTail = ["Worked for 13m 01s", "PR opened and issue moved to In Review", placeholder, CODEX_STATUS_STRUCTURE]
+    runNudgeSignalCase(`stale-block-${label}`, `trusts the codex ready composer structure with ${placeholder}`, staleBlockedIdleStub(readyTail), { status: 0, stdout: /"sent": "hi"/, stderr: /codex-trust-workspace[\s\S]*not repainting[\s\S]*no known trust prompt[\s\S]*codex ready composer is on screen[\s\S]*blocked reason is stale[\s\S]*screen and repaint signals win/ }, 1, { path: stageNudgeWorker(`stale-block-${label}`, "codex").path })
+  }
+  runNudgeSignalCase("retained-composer-static-screen", "refuses a retained composer marker followed by a static permission screen", staleBlockedIdleStub(RETAINED_COMPOSER_STATIC_SCREEN_TAIL), { status: 1, stderr: /no known ready composer is on screen[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("retained-composer-static-screen", "codex").path })
+  runNudgeSignalCase("retained-ready-static-screen", "refuses a retained composer and status followed by a static permission screen", staleBlockedIdleStub(RETAINED_READY_STATIC_SCREEN_TAIL), { status: 1, stderr: /no known ready composer is on screen[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("retained-ready-static-screen", "codex").path })
+  runNudgeSignalCase("measured-ready-composer", "trusts the measured idle codex tail despite a historical working indicator", staleBlockedIdleStub(MEASURED_CODEX_READY_TAIL), { status: 0, stdout: /"sent": "hi"/, stderr: /codex ready composer is on screen/ }, 1, { path: stageNudgeWorker("measured-ready-composer", "codex").path })
+  runNudgeSignalCase("measured-working-composer", "refuses the measured codex tail with a live working indicator after the composer", staleBlockedIdleStub(MEASURED_CODEX_WORKING_TAIL), { status: 1, stderr: /no known ready composer is on screen[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("measured-working-composer", "codex").path })
+  runNudgeSignalCase("alternate-model-ready-composer", "recognizes structural status with a different codex model and effort", staleBlockedIdleStub(ALTERNATE_MODEL_READY_TAIL), { status: 0, stdout: /"sent": "hi"/, stderr: /codex ready composer is on screen/ }, 1, { path: stageNudgeWorker("alternate-model-ready-composer", "codex").path })
+  for (const [label, name, tail, ready] of LIVE_CODEX_SAMPLE_CASES) {
+    const expect = ready
+      ? { status: 0, stdout: /"sent": "hi"/, stderr: /codex ready composer is on screen/ }
+      : { status: 1, stderr: /no known ready composer is on screen[\s\S]*NOTHING was sent/ }
+    runNudgeSignalCase(label, name, staleBlockedIdleStub(tail), expect, ready ? 1 : 0, { path: stageNudgeWorker(label, "codex").path })
+  }
+  runNudgeSignalCase("answered-trust-before-ready", "ignores answered trust text before the current codex composer", staleBlockedIdleStub(ANSWERED_TRUST_BEFORE_READY_TAIL), { status: 0, stdout: /"sent": "hi"/, stderr: /codex ready composer is on screen[\s\S]*blocked reason is stale/ }, 1, { path: stageNudgeWorker("answered-trust-before-ready", "codex").path })
+  runNudgeSignalCase("live-trust-after-composer", "refuses a live trust prompt after the current codex composer", staleBlockedIdleStub(LIVE_TRUST_AFTER_COMPOSER_TAIL), { status: 1, stderr: /codex trust prompt is still on screen[\s\S]*worker remains blocked[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("live-trust-after-composer", "codex").path })
+  runNudgeSignalCase("trust-without-composer", "fails closed when a trust prompt has no current composer region", LIVE_BLOCKED_IDLE_STUB, { status: 1, stderr: /current screen region could not be located[\s\S]*no codex composer marker[\s\S]*codex trust prompt is still on screen in retained tail[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("trust-without-composer", "codex").path })
+  const codexProfile = stageNudgeWorker("codex-profile", "codex")
+  const incidentalGreaterThanTail = [
+    "› Working on the nudge predicate",
+    "(8s • esc to interrupt)",
+    "> quoted output painted after the working indicator",
+  ]
+  runNudgeSignalCase("codex-incidental-greater-than", "does not let incidental greater-than output select the claude profile for a codex worker", staleBlockedIdleStub(incidentalGreaterThanTail), { status: 1, stderr: /no known ready composer is on screen for the codex profile[\s\S]*NOTHING was sent/ }, 0, { path: codexProfile.path })
+  runNudgeSignalCase("explicit-claude-profile", "fails closed for the explicitly selected unverified claude profile", staleBlockedIdleStub(incidentalGreaterThanTail), { status: 1, stderr: /claude readiness profile is unverified[\s\S]*captured Claude Code composer screen with and without a live working indicator[\s\S]*pull\/629[\s\S]*NOTHING was sent/ }, 0, { path: codexProfile.path, argv: ["--engine", "claude"] })
+  const autoProfile = stageNudgeWorker("auto-profile", "auto")
+  runNudgeSignalCase("auto-profile", "fails closed when the orchestrator worker is auto", staleBlockedIdleStub(["› Explain this codebase"]), { status: 1, stderr: /engine "auto" from \.claude\/orchestrator\.json worker does not resolve[\s\S]*NOTHING was sent/ }, 0, { path: autoProfile.path })
+  const unknownProfile = stageNudgeWorker("unknown-profile", "future-engine")
+  runNudgeSignalCase("unknown-profile", "fails closed when the orchestrator worker is unknown", staleBlockedIdleStub(["› Explain this codebase"]), { status: 1, stderr: /engine "future-engine" from \.claude\/orchestrator\.json worker does not resolve[\s\S]*NOTHING was sent/ }, 0, { path: unknownProfile.path })
+  runNudgeSignalCase("unknown-engine-override", "fails closed when the engine override is unknown", staleBlockedIdleStub(["› Explain this codebase"]), { status: 1, stderr: /engine "future-engine" from --engine does not resolve[\s\S]*NOTHING was sent/ }, 0, { path: unknownProfile.path, argv: ["--engine", "future-engine"] })
+  const missingProfile = stageNudgeWorker("missing-profile", undefined)
+  runNudgeSignalCase("missing-profile", "fails closed when the orchestrator worker is missing", staleBlockedIdleStub(["› Explain this codebase"]), { status: 1, stderr: /engine "<missing>" from \.claude\/orchestrator\.json worker does not resolve[\s\S]*NOTHING was sent/ }, 0, { path: missingProfile.path })
+  const claudeProfile = stageNudgeWorker("claude-profile", "claude")
+  runNudgeSignalCase("configured-claude-profile", "fails closed for the configured unverified claude profile", staleBlockedIdleStub(incidentalGreaterThanTail), { status: 1, stderr: /claude readiness profile is unverified[\s\S]*captured Claude Code composer screen with and without a live working indicator[\s\S]*pull\/629[\s\S]*NOTHING was sent/ }, 0, { path: claudeProfile.path })
+  runNudgeSignalCase("engine-override", "--engine overrides a disagreeing orchestrator worker", staleBlockedIdleStub(["› Explain this codebase", CODEX_STATUS_STRUCTURE]), { status: 0, stdout: /"engine": "codex"[\s\S]*"engineSource": "--engine"/ }, 1, { path: claudeProfile.path, argv: ["--engine", "codex"] })
+  const pauseProbe = stageNudgeWorker("pause-probe", "codex", true)
+  const pauseLog = join(pauseProbe.base, "pause.log")
+  runNudgeSignalCase("trust-prompt-pause", "settles before retrying a trust prompt that remains on screen", LIVE_BLOCKED_IDLE_STUB, { status: 1, stderr: /attempt 1:[\s\S]*trust prompt is still on screen[\s\S]*attempt 2:[\s\S]*trust prompt is still on screen[\s\S]*NOTHING was sent/ }, 0, {
+    path: pauseProbe.path,
+    waitAttempts: 2,
+    env: { ORBIT_PAUSE_LOG: pauseLog },
+  })
+  const pauses = existsSync(pauseLog) ? readFileSync(pauseLog, "utf8").trim().split("\n") : []
+  T("nudge-worker.mjs: trust prompt retry applies one settle pause", pauses.length === 1 && pauses[0] === "10000", `pause log: ${JSON.stringify(pauses)}`)
+  runNudgeSignalCase("working-composer", "refuses a ready-looking codex composer carrying esc to interrupt", WORKING_COMPOSER_IDLE_STUB, { status: 1, stderr: /no known ready composer is on screen[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("working-composer", "codex").path })
+  runNudgeSignalCase("misspelled-working-composer", "refuses a ready-looking codex composer carrying esc to interupt", MISSPELLED_WORKING_COMPOSER_IDLE_STUB, { status: 1, stderr: /no known ready composer is on screen[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("misspelled-working-composer", "codex").path })
+  runNudgeSignalCase("live-block", "refuses a static trust prompt that is still on screen", LIVE_BLOCKED_IDLE_STUB, { status: 1, stderr: /codex-trust-workspace[\s\S]*not repainting[\s\S]*codex trust prompt is still on screen[\s\S]*remains blocked[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("live-block", "codex").path })
+  runNudgeSignalCase("unrecognized-block", "refuses an unrecognized static screen with no ready composer signal", UNRECOGNIZED_BLOCKED_IDLE_STUB, { status: 1, stderr: /codex-trust-workspace[\s\S]*not repainting[\s\S]*no known trust prompt[\s\S]*no known ready composer is on screen[\s\S]*worker remains blocked[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("unrecognized-block", "codex").path })
+  runNudgeSignalCase("false-idle", "refuses a tui-idle that is still repainting, which is a worker mid-turn", FALSE_IDLE_STUB, { status: 1, stderr: /tui-idle[\s\S]*still repainting[\s\S]*repaint signal wins[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("false-idle", "codex").path })
+  runNudgeSignalCase("both-busy", "refuses when both signals say the worker is busy", BLOCKED_BUSY_STUB, { status: 1, stderr: /codex-trust-workspace[\s\S]*TUI is repainting[\s\S]*both signals[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("both-busy", "codex").path })
+  runNudgeSignalCase("documented-codex-reason", "does not treat codex-interactive-prompt as the measured stale reason", DOCUMENTED_CODEX_BLOCKED_IDLE_STUB, { status: 1, stderr: /worker is busy \(codex-interactive-prompt\)[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("documented-codex-reason", "codex").path })
   check("nudge-worker.mjs", "--dry-run calls orca not at all", ["--terminal", "t1", "--text", "hi", "--dry-run"], { status: 0, stdout: /"dryRun": true/ }, { env: orcaEnv([]) })
 }
 
@@ -602,6 +1757,32 @@ const rollup = (...contexts) => ({ nodes: [{ commit: { statusCheckRollup: { stat
 
 const prWatchCases = () => {
   const argv = ["--repo", "thomasluizon/orbit-ui-mobile", "--pr", "615", "--once"]
+  check(
+    "pr-watch.mjs",
+    "--help says repeated acted signals on one PR and head accumulate",
+    ["--help"],
+    { status: 0, stdout: /same PR and head accumulate[\s\S]*READY_TO_MERGE independently/ },
+  )
+  let sequenceNumber = 0
+  const checkSequence = (name, states, extraArgv, expect) => {
+    sequenceNumber += 1
+    const log = join(root, `pr-watch-sequence-${sequenceNumber}.log`)
+    const result = check(
+      "pr-watch.mjs",
+      name,
+      ["--repo", "thomasluizon/orbit-ui-mobile", "--pr", "615", "--interval", "0.05", "--timeout", "2", ...extraArgv],
+      expect,
+      {
+        env: {
+          ...orcaEnv([{ match: "number=615", sequence: states.map((state) => pullRequestStub(615, state).stdout) }]),
+          ORBIT_ORCA_LOG: log,
+        },
+      },
+    )
+    const polls = existsSync(log) ? readFileSync(log, "utf8").trim().split("\n").filter(Boolean).length : 0
+    T(`pr-watch.mjs: ${name} consumed the state sequence`, polls >= states.length, `polled ${polls} time(s), expected at least ${states.length}`)
+    return result
+  }
 
   check(
     "pr-watch.mjs",
@@ -621,10 +1802,42 @@ const prWatchCases = () => {
   check("pr-watch.mjs", "a fresh approval fires", argv, { status: 0, stdout: /"transition": "approved"/ }, { env: orcaEnv([approved]) })
   check(
     "pr-watch.mjs",
-    "an approval the caller already acted on reports mergeable-and-approved instead of repeating itself",
+    "an acted approval that became clean between watches reports readiness",
     [...argv, "--acted", `615=${HEAD_SHA.slice(0, 7)}:APPROVED`],
     { status: 0, stdout: /"transition": "ready-to-merge"/ },
     { env: orcaEnv([approved]) },
+  )
+  check(
+    "pr-watch.mjs",
+    "an acted readiness on an already clean PR does not repeat",
+    [...argv, "--acted", `615=${HEAD_SHA.slice(0, 7)}:APPROVED`, "--acted", `615=${HEAD_SHA}:READY_TO_MERGE`],
+    { status: 4, stdout: /"transition": "none"/ },
+    { env: orcaEnv([approved]) },
+  )
+  const twoVerdicts = {
+    reviewDecision: "CHANGES_REQUESTED",
+    latestReviews: { nodes: [reviewOn("CHANGES_REQUESTED", HEAD_SHA), reviewOn("COMMENTED", HEAD_SHA)] },
+  }
+  check(
+    "pr-watch.mjs",
+    "two acted verdicts on the same PR and head both remain suppressed",
+    [...argv, "--acted", `615=${HEAD_SHA}:CHANGES_REQUESTED`, "--acted", `615=${HEAD_SHA}:COMMENTED`],
+    { status: 4, stdout: /"transition": "none"/ },
+    { env: orcaEnv([pullRequestStub(615, twoVerdicts)]) },
+  )
+  check(
+    "pr-watch.mjs",
+    "acting only on the comment leaves changes requested actionable",
+    [...argv, "--acted", `615=${HEAD_SHA}:COMMENTED`],
+    { status: 1, stdout: /"transition": "changes-requested"/ },
+    { env: orcaEnv([pullRequestStub(615, twoVerdicts)]) },
+  )
+  check(
+    "pr-watch.mjs",
+    "acting only on changes requested leaves the comment actionable",
+    [...argv, "--acted", `615=${HEAD_SHA}:CHANGES_REQUESTED`],
+    { status: 1, stdout: /"transition": "review-comment"/ },
+    { env: orcaEnv([pullRequestStub(615, twoVerdicts)]) },
   )
   check(
     "pr-watch.mjs",
@@ -651,12 +1864,95 @@ const prWatchCases = () => {
   )
   check(
     "pr-watch.mjs",
+    "a closed PR ends the watch",
+    argv,
+    { status: 5, stdout: /"transition": "gone"[\s\S]*"reason": "the PR is closed unmerged"/ },
+    { env: orcaEnv([pullRequestStub(615, { state: "CLOSED" })]) },
+  )
+  checkSequence(
+    "a review decision changing on the current head fires",
+    [{ reviewDecision: null }, { reviewDecision: "APPROVED" }],
+    [],
+    { status: 0, stdout: /"transition": "review-decision"/ },
+  )
+  checkSequence(
+    "a non-approving review decision change needs work",
+    [{ reviewDecision: "APPROVED" }, { reviewDecision: "CHANGES_REQUESTED" }],
+    [],
+    { status: 1, stdout: /"transition": "review-decision"/ },
+  )
+  checkSequence(
+    "a required check concluding as failed fires",
+    [
+      { commits: { nodes: [{ commit: { statusCheckRollup: { state: "PENDING", contexts: { nodes: [{ ...checkRun("Lint", null), status: "IN_PROGRESS" }] } } } }] } },
+      { commits: rollup(checkRun("Lint", "FAILURE")) },
+    ],
+    [],
+    { status: 1, stdout: /"transition": "checks-failed"[\s\S]*Lint: FAILURE/ },
+  )
+  checkSequence(
+    "a head change wins when merge state becomes clean in the same poll",
+    [{ headRefOid: OLD_SHA, mergeStateStatus: "BLOCKED" }, { headRefOid: HEAD_SHA, mergeStateStatus: "CLEAN" }],
+    [],
+    { status: 1, stdout: /"transition": "head-changed"/ },
+  )
+  checkSequence(
+    "clean through unknown and back to clean emits nothing",
+    [{ mergeStateStatus: "CLEAN" }, { mergeStateStatus: "UNKNOWN" }, { mergeStateStatus: "CLEAN" }],
+    [],
+    { status: 4, stdout: /"transition": "timeout"/ },
+  )
+  checkSequence(
+    "blocked through unknown to clean emits once for clean",
+    [{ mergeStateStatus: "BLOCKED" }, { mergeStateStatus: "UNKNOWN" }, { mergeStateStatus: "CLEAN" }],
+    [],
+    { status: 0, stdout: /"transition": "merge-clean"/ },
+  )
+  checkSequence(
+    "an acted approval emits readiness when the PR later becomes clean",
+    [
+      { reviewDecision: "APPROVED", mergeStateStatus: "BLOCKED", latestReviews: { nodes: [reviewOn("APPROVED", HEAD_SHA)] } },
+      { reviewDecision: "APPROVED", mergeStateStatus: "CLEAN", latestReviews: { nodes: [reviewOn("APPROVED", HEAD_SHA)] } },
+    ],
+    ["--acted", `615=${HEAD_SHA}:APPROVED`],
+    { status: 0, stdout: /"transition": "ready-to-merge"/ },
+  )
+  checkSequence(
+    "non-terminal merge state churn emits nothing",
+    [{ mergeStateStatus: "BLOCKED" }, { mergeStateStatus: "UNKNOWN" }, { mergeStateStatus: "BEHIND" }],
+    [],
+    { status: 4, stdout: /"transition": "timeout"/ },
+  )
+  check(
+    "pr-watch.mjs",
     "watching several PRs reports whichever one transitioned",
     ["--repo", "thomasluizon/orbit-ui-mobile", "--pr", "615,616", "--once"],
     { status: 1, stdout: /"pr": 616[\s\S]*"transition": "changes-requested"/ },
     {
       env: orcaEnv([
         pullRequestStub(615, {}),
+        pullRequestStub(616, { reviewDecision: "CHANGES_REQUESTED", latestReviews: { nodes: [reviewOn("CHANGES_REQUESTED", HEAD_SHA)] } }),
+      ]),
+    },
+  )
+  check(
+    "pr-watch.mjs",
+    "an acted ready PR does not starve a later fleet transition",
+    [
+      "--repo",
+      "thomasluizon/orbit-ui-mobile",
+      "--pr",
+      "615,616",
+      "--once",
+      "--acted",
+      `615=${HEAD_SHA}:APPROVED`,
+      "--acted",
+      `615=${HEAD_SHA}:READY_TO_MERGE`,
+    ],
+    { status: 1, stdout: /"pr": 616[\s\S]*"transition": "changes-requested"/ },
+    {
+      env: orcaEnv([
+        approved,
         pullRequestStub(616, { reviewDecision: "CHANGES_REQUESTED", latestReviews: { nodes: [reviewOn("CHANGES_REQUESTED", HEAD_SHA)] } }),
       ]),
     },
@@ -682,6 +1978,7 @@ const prWatchCases = () => {
 
   check("pr-watch.mjs", "refuses a baseline for a PR it is not watching", [...argv, "--acted", `616=${HEAD_SHA}:APPROVED`], { status: 2, stderr: /--pr does not watch/ })
   check("pr-watch.mjs", "refuses a malformed baseline rather than ignoring it", [...argv, "--acted", "615=APPROVED"], { status: 2, stderr: /--acted must look like/ })
+  check("pr-watch.mjs", "refuses an unknown acted signal", [...argv, "--acted", `615=${HEAD_SHA}:MERGEABLE`], { status: 2, stderr: /--acted signal must be/ })
   check("pr-watch.mjs", "refuses a repo that is not an owner\\/name slug", ["--repo", "orbit-ui-mobile", "--pr", "615", "--once"], { status: 2, stderr: /owner\/name slug/ })
 }
 
@@ -691,6 +1988,7 @@ const prWatchCases = () => {
  * concatenated repaint fragments that hide whatever it last really said.
  */
 const workerWatchCases = () => {
+  const terminalHandle = "term_ca852374-175d-42cd-8407-b579a03cc13a"
   const childWorktree = (path) => ({
     path,
     repoId: "r-ui",
@@ -710,7 +2008,7 @@ const workerWatchCases = () => {
     { match: "worktree list", stdout: JSON.stringify({ ok: true, result: { worktrees: [childWorktree(path)] } }) },
     {
       match: "terminal list",
-      stdout: JSON.stringify({ ok: true, result: { terminals: [{ handle: "term_abc123def4567", worktreePath: path, title: "Claude Code", lastOutputAt: 0 }] } }).replace(
+      stdout: JSON.stringify({ ok: true, result: { terminals: [{ handle: terminalHandle, worktreePath: path, title: "Claude Code", lastOutputAt: 0 }] } }).replace(
         '"lastOutputAt":0',
         `"lastOutputAt":${lastOutputAt}`,
       ),
@@ -744,6 +2042,11 @@ const workerWatchCases = () => {
   )
   T("worker-watch.mjs: the repaint tail is stripped to nothing rather than printed raw", /nothing but repaint noise/.test(busy.stdout), busy.stdout.slice(0, 400))
   T("worker-watch.mjs: the ticket's Linear state is reported alongside liveness", /In Progress/.test(busy.stdout), busy.stdout.slice(0, 400))
+  T(
+    "worker-watch.mjs: the rendered terminal handle is complete and directly reusable",
+    busy.stdout.includes(`${terminalHandle} BUSY`) && !/term_ca852374\s+BUSY/.test(busy.stdout),
+    busy.stdout.slice(0, 400),
+  )
 
   /** A frozen lastOutputAt is a settled TUI: identical samples, so IDLE. */
   const idle = check(
@@ -807,6 +2110,177 @@ const stageTeardownWorktree = (label, { dirty = false, changed = false, squashMe
     chmodSync(hook, 0o755)
   }
   return { primary, child, branch: "feature/orb-124-teardown" }
+}
+
+const stageWorkerStatusWorktree = () => {
+  const base = join(root, "worker-status")
+  const worktree = join(base, "worktree")
+  const remote = join(base, "remote.git")
+  mkdirSync(base, { recursive: true })
+  const git = (cwd, args) => spawnSync("git", ["-C", cwd, ...args], { encoding: "utf8" })
+  if (git(base, ["init", "-q", "--bare", remote]).status !== 0) return null
+  mkdirSync(worktree, { recursive: true })
+  for (const args of [
+    ["init", "-q", "--initial-branch=main"],
+    ["config", "user.email", "gate@orbit.test"],
+    ["config", "user.name", "Orbit Gate"],
+    ["commit", "-q", "--allow-empty", "-m", "base"],
+    ["remote", "add", "origin", remote],
+    ["push", "-q", "-u", "origin", "main"],
+    ["switch", "-q", "-c", "feature/orb-75-worker-status"],
+    ["commit", "-q", "--allow-empty", "-m", "worker change"],
+  ]) {
+    if (git(worktree, args).status !== 0) return null
+  }
+  writeFileSync(join(worktree, "reviewed.txt"), "implementation\n")
+  if (git(worktree, ["add", "reviewed.txt"]).status !== 0 || git(worktree, ["commit", "-q", "-m", "implement reviewed path"]).status !== 0) return null
+  const implementationCommit = git(worktree, ["rev-parse", "HEAD"]).stdout.trim()
+  writeFileSync(join(worktree, "reviewed.txt"), "implementation\nreviewed state\n")
+  if (git(worktree, ["add", "reviewed.txt"]).status !== 0 || git(worktree, ["commit", "-q", "-m", "reviewed state"]).status !== 0) return null
+  const reviewedCommit = git(worktree, ["rev-parse", "HEAD"]).stdout.trim()
+  writeFileSync(join(worktree, "reviewed.txt"), "implementation\nreviewed state\nreview fix\n")
+  if (git(worktree, ["add", "reviewed.txt"]).status !== 0 || git(worktree, ["commit", "-q", "-m", "fix reviewed path"]).status !== 0) return null
+  const fixCommit = git(worktree, ["rev-parse", "HEAD"]).stdout.trim()
+  writeFileSync(join(worktree, "other.txt"), "unrelated fix\n")
+  if (git(worktree, ["add", "other.txt"]).status !== 0 || git(worktree, ["commit", "-q", "-m", "fix other path"]).status !== 0) return null
+  const unrelatedCommit = git(worktree, ["rev-parse", "HEAD"]).stdout.trim()
+  if (git(worktree, ["push", "-q", "-u", "origin", "feature/orb-75-worker-status"]).status !== 0) return null
+  return { fixCommit, implementationCommit, unrelatedCommit, prHead: unrelatedCommit, reviewedCommit, worktree }
+}
+
+const workerStatusPlan = (
+  attachments,
+  {
+    comments = [],
+    commentsHasNextPage = false,
+    approvalHead,
+    prHead,
+    reviewDecision = "APPROVED",
+    reviews = [],
+    reviewsHasNextPage = false,
+    reviewThreads = [],
+    reviewThreadsHasNextPage = false,
+  } = {},
+) => [
+  {
+    match: "pr list",
+    stdout: JSON.stringify([{ number: 75, url: "https://github.com/orbit/orbit/pull/75", state: "OPEN", baseRefName: "main", isDraft: false }]),
+  },
+  {
+    match: "api graphql",
+    stdout: JSON.stringify({
+      data: {
+        viewer: { login: "worker" },
+        repository: {
+          pullRequest: {
+            headRefOid: prHead,
+            reviewDecision,
+            reviews: {
+              pageInfo: { hasNextPage: reviewsHasNextPage },
+              nodes: [
+                ...reviews,
+                {
+                  id: "PRR_current_approval",
+                  author: { login: "human-approver", __typename: "User" },
+                  state: "APPROVED",
+                  body: "",
+                  submittedAt: "2026-07-28T10:00:00Z",
+                  updatedAt: "2026-07-28T10:00:00Z",
+                  commit: { oid: approvalHead ?? prHead },
+                },
+              ],
+            },
+            comments: { pageInfo: { hasNextPage: commentsHasNextPage }, nodes: comments },
+            reviewThreads: { pageInfo: { hasNextPage: reviewThreadsHasNextPage }, nodes: reviewThreads },
+          },
+        },
+      },
+    }),
+  },
+  {
+    match: "linear issue ORB-75 --attachments",
+    stdout: JSON.stringify({
+      ok: true,
+      result: {
+        issue: { identifier: "ORB-75", state: { name: "In Review" }, labels: [{ name: "visible-effect" }] },
+        attachments: [{ title: "PR", url: "https://github.com/orbit/orbit/pull/75" }, ...attachments],
+      },
+    }),
+  },
+]
+
+const reviewThread = ({
+  author,
+  authorType,
+  findingCreatedAt = "2026-07-28T10:00:00Z",
+  findingUpdatedAt = findingCreatedAt,
+  followUps = [],
+  id,
+  isResolved,
+  path = "reviewed.txt",
+  reply,
+  replyCreatedAt = "2026-07-28T10:00:02Z",
+  resolvedBy,
+  reviewedCommit,
+}) => ({
+  id,
+  isResolved,
+  path,
+  resolvedBy: resolvedBy ? { login: resolvedBy } : null,
+  comments: {
+    pageInfo: { hasNextPage: false },
+    nodes: [
+      {
+        id: `PRRC_${id}_finding`,
+        author: { login: author, __typename: authorType },
+        body: "review finding",
+        createdAt: findingCreatedAt,
+        updatedAt: findingUpdatedAt,
+        pullRequestReview: reviewedCommit ? { id: `PRR_${id}`, commit: { oid: reviewedCommit } } : null,
+      },
+      ...(reply
+        ? [{
+            id: `PRRC_${id}_reply`,
+            author: { login: resolvedBy, __typename: "User" },
+            body: reply,
+            createdAt: replyCreatedAt,
+            updatedAt: replyCreatedAt,
+            pullRequestReview: null,
+          }]
+        : []),
+      ...followUps,
+    ],
+  },
+})
+
+const runWorkerStatusCase = (fixture, attachments, options = {}) => {
+  const result = run(
+    "worker-status.mjs",
+    ["--worktree", fixture.worktree, "--issue", "ORB-75", ...(options.verifyReview ? ["--verify-review"] : []), "--json"],
+    {
+      env: {
+        ...orcaEnv(
+          workerStatusPlan(attachments, {
+            approvalHead: options.approvalHead,
+            comments: options.comments,
+            commentsHasNextPage: options.commentsHasNextPage,
+            prHead: options.prHead ?? fixture.prHead,
+            reviewDecision: options.reviewDecision,
+            reviews: options.reviews,
+            reviewsHasNextPage: options.reviewsHasNextPage,
+            reviewThreads: options.reviewThreads,
+            reviewThreadsHasNextPage: options.reviewThreadsHasNextPage,
+          }),
+        ),
+        ...(options.log ? { ORBIT_ORCA_LOG: options.log } : {}),
+      },
+    },
+  )
+  try {
+    return { ...result, verdict: JSON.parse(result.stdout) }
+  } catch {
+    return { ...result, verdict: null }
+  }
 }
 
 const teardownWorktreeRecord = (fixture) => ({
@@ -1025,6 +2499,106 @@ const captureSurfacesCases = () => {
 // the count is transitive. ORB-4 is unblocked but at the strike limit: it lands
 // in wave 1, is excluded from `launchable` by design, and must still surface in
 // `twoStrikes` (PR #613 review, D9).
+const ISSUES_WAVE_STUB = [
+  { match: "linear list-issues", stdout: JSON.stringify({ ok: true, result: { issues: [{ identifier: "ORB-1" }, { identifier: "ORB-2" }, { identifier: "ORB-3" }, { identifier: "ORB-99" }] } }) },
+  { match: "linear issue ORB-1", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-1", title: "requested first", state: { name: "Todo", type: "unstarted" }, labels: [] }, relations: [] } }) },
+  { match: "linear issue ORB-2", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-2", title: "requested second", state: { name: "Todo", type: "unstarted" }, labels: [{ name: "attempts:2" }] }, relations: [{ relationship: "blockedBy", relatedIssue: { identifier: "ORB-99" } }] } }) },
+  { match: "linear issue ORB-3", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-3", title: "out-of-set dependent", state: { name: "Todo", type: "unstarted" }, labels: [] }, relations: [{ relationship: "blockedBy", relatedIssue: { identifier: "ORB-1" } }] } }) },
+  { match: "linear issue ORB-99", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-99", title: "external blocker", state: { name: "In Progress", type: "started" }, labels: [] }, relations: [] } }) },
+]
+
+const orchestrateFlagCases = () => {
+  const skillPath = join(REPO_ROOT, ".claude", "skills", "orchestrate", "SKILL.md")
+  const skill = readFileSync(skillPath, "utf8")
+  const scopeSection = skill.slice(skill.indexOf("## 0."), skill.indexOf("## 0a."))
+  T(
+    "orchestrate flags: --single accepts project scope without changing it",
+    /`--single` is valid with every resolved scope/.test(scopeSection)
+      && /does not change which tickets belong to it/.test(scopeSection),
+    scopeSection,
+  )
+  T(
+    "orchestrate flags: --only on a project is a usage error naming both flags",
+    /`--only` on a project name is also a usage error/.test(scopeSection)
+      && /`--only` requires one `ORB-N` identifier and `--single` serialises a project run/.test(scopeSection),
+    scopeSection,
+  )
+  T(
+    "orchestrate flags: --only ORB-N preserves the former one-ticket boundary",
+    /With `--only`, reconcile and launch THAT TICKET[\s\S]*ONLY/.test(scopeSection),
+    scopeSection,
+  )
+  T(
+    "orchestrate flags: --only rejects two or more identifiers",
+    /`--only` with an explicit set is a usage error/.test(scopeSection),
+    scopeSection,
+  )
+  T(
+    "orchestrate flags: --single accepts an explicit set and runs it serially",
+    /including an explicit set/.test(scopeSection)
+      && /effective[\s\S]*`maxParallelWorktrees` to 1/.test(scopeSection)
+      && /Wait for each ticket to reach a terminal state before launching the next/.test(scopeSection),
+    scopeSection,
+  )
+  T(
+    "orchestrate flags: --single passes cap 1 to the shared launcher enforcement",
+    /--max-parallel-worktrees 1` when the run has `--single`/.test(skill),
+    skill,
+  )
+
+  const recordedMainSinglePlan = {
+    identifiers: ["ORB-1"],
+    launchable: ["ORB-1"],
+  }
+  const onlyResult = run(
+    "wave-plan.mjs",
+    ["--issues", "ORB-1", "--json"],
+    { env: orcaEnv(ISSUES_WAVE_STUB) },
+  )
+  let onlyPlan = null
+  try {
+    const parsed = JSON.parse(onlyResult.stdout)
+    onlyPlan = {
+      identifiers: parsed.waves.flatMap((wave) => wave.issues.map((issue) => issue.identifier)),
+      launchable: parsed.launchable,
+    }
+  } catch {
+    onlyPlan = null
+  }
+  T(
+    "orchestrate flags: --only ORB-N resolves the recorded former --single plan",
+    onlyResult.status === 0
+      && JSON.stringify(onlyPlan) === JSON.stringify(recordedMainSinglePlan),
+    `exit ${onlyResult.status}; expected ${JSON.stringify(recordedMainSinglePlan)}; got ${JSON.stringify(onlyPlan)}\n     ${onlyResult.stderr}`,
+  )
+
+  const tracked = spawnSync("git", ["ls-files", "-z"], {
+    cwd: REPO_ROOT,
+    encoding: "utf8",
+  })
+  const textFiles = tracked.status === 0
+    ? tracked.stdout
+      .split("\0")
+      .filter((path) => /\.(md|mjs|json|ya?ml|txt)$/i.test(path))
+      .filter((path) => path.replaceAll("\\", "/") !== `tools/${SELF}`)
+    : []
+  const oneTicketSingle = [
+    /\/orchestrate\s+ORB-(?:N|\d+)\s+--single/,
+    /one ticket.{0,80}`--single`/i,
+    /`--single`.{0,80}(?:one-ticket scope|THAT TICKET ONLY)/i,
+  ]
+  const staleUses = []
+  for (const relativePath of textFiles) {
+    const contents = readFileSync(join(REPO_ROOT, relativePath), "utf8")
+    if (oneTicketSingle.some((pattern) => pattern.test(contents))) staleUses.push(relativePath)
+  }
+  T(
+    "orchestrate flags: tracked-doc guard reads files and finds no one-ticket-only --single use",
+    textFiles.length > 0 && staleUses.length === 0,
+    `scanned ${textFiles.length} tracked text files; stale uses: ${staleUses.join(", ") || "none"}`,
+  )
+}
+
 const WAVE_STUB = [
   {
     match: "linear list-issues",
@@ -1069,6 +2643,17 @@ const delayedWaveStub = () => {
   ]
 }
 
+const relationFetchConcurrency = (timingLog) => {
+  const events = readFileSync(timingLog, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line))
+  let active = 0
+  let peak = 0
+  for (const event of events) {
+    active += event.event === "start" ? 1 : -1
+    peak = Math.max(peak, active)
+  }
+  return { events, peak, active }
+}
+
 const composePromptCases = () => {
   const output = stage("prompts/orb-125.md", "")
   const comments = [
@@ -1103,6 +2688,250 @@ const composePromptCases = () => {
   T("compose-prompt.mjs: zero comments add no empty heading", !/Comments on this issue/.test(readFileSync(noComments, "utf8")))
 }
 
+const calibrationDate = (daysAgo) => {
+  const date = new Date()
+  date.setUTCHours(0, 0, 0, 0)
+  date.setUTCDate(date.getUTCDate() - daysAgo)
+  return date.toISOString().slice(0, 10)
+}
+
+const calibrationFingerprint = (source) =>
+  `sha256:${createHash("sha256").update(source.replaceAll("\r\n", "\n")).digest("hex")}`
+
+const stageCalibration = (label, options = {}) => {
+  const base = join(root, "calibration", label)
+  const currentModel = options.currentModel ?? "gpt-current"
+  const currentDefaultArgs = options.currentDefaultArgs ?? ["-c", 'model_reasoning_effort="high"']
+  const stampedModel = options.stampedModel ?? "gpt-current"
+  const agentSource = "---\nname: sample\n---\n"
+  const skillSource = "---\nname: sample\n---\n"
+  mkdirSync(join(base, "tools", "lib"), { recursive: true })
+  mkdirSync(join(base, ".claude", "agents"), { recursive: true })
+  mkdirSync(join(base, ".claude", "skills", "sample"), { recursive: true })
+  cpSync(join(TOOLS_DIR, "check-calibration.mjs"), join(base, "tools", "check-calibration.mjs"))
+  cpSync(
+    join(TOOLS_DIR, "lib", "orchestrator-config.mjs"),
+    join(base, "tools", "lib", "orchestrator-config.mjs"),
+  )
+  writeFileSync(join(base, ".claude", "agents", "sample.md"), agentSource)
+  writeFileSync(join(base, ".claude", "skills", "sample", "SKILL.md"), skillSource)
+  writeFileSync(
+    join(base, ".claude", "orchestrator.json"),
+    JSON.stringify({
+      maxParallelWorktrees: 8,
+      ...(options.orchestrator ?? {
+        worker: "codex",
+        workers: {
+          codex: {
+            args: [],
+            models: {
+              default: { model: currentModel, args: currentDefaultArgs },
+              cheap: { model: "gpt-cheap" },
+              deep: { model: "gpt-deep" },
+            },
+          },
+        },
+      }),
+    }),
+  )
+  if (!options.missingArtifact) {
+    const entries = options.entries ?? [
+      { file: ".claude/agents/sample.md", verdict: "kept", reason: "The bounded role still fits." },
+      { file: ".claude/skills/sample/SKILL.md", verdict: "kept", reason: "The bounded procedure still fits." },
+    ]
+    const artifact = options.artifact ?? {
+      model: stampedModel,
+      invocation: options.stampedInvocation ?? [
+        ...currentDefaultArgs,
+        "--model",
+        stampedModel,
+      ],
+      date: options.date ?? calibrationDate(0),
+      entries: entries.map((entry) => ({
+        fingerprint: calibrationFingerprint(
+          entry.file === ".claude/agents/sample.md"
+            ? agentSource
+            : entry.file === ".claude/skills/sample/SKILL.md"
+              ? skillSource
+              : "",
+        ),
+        ...entry,
+      })),
+    }
+    writeFileSync(
+      join(base, ".claude", "calibration.json"),
+      options.malformed ? "{ nope" : `${JSON.stringify(artifact, null, 2)}\n`,
+    )
+  }
+  return join(base, "tools", "check-calibration.mjs")
+}
+
+const calibrationCases = () => {
+  const valid = stageCalibration("valid")
+  check("check-calibration.mjs", "accepts total coverage", [], { status: 0, stdout: /PASS: 2\/2/ }, { path: valid })
+
+  const missing = stageCalibration("missing-entry", {
+    entries: [{ file: ".claude/skills/sample/SKILL.md", verdict: "kept", reason: "Still fits." }],
+  })
+  check("check-calibration.mjs", "names an uncovered agent", [], { status: 1, stdout: /missing entry: \.claude\/agents\/sample\.md/ }, { path: missing })
+
+  const staleEntry = stageCalibration("stale-entry", {
+    entries: [
+      { file: ".claude/agents/sample.md", verdict: "kept", reason: "Still fits." },
+      { file: ".claude/skills/sample/SKILL.md", verdict: "kept", reason: "Still fits." },
+      { file: ".claude/agents/removed.md", verdict: "kept", reason: "No longer exists." },
+    ],
+  })
+  check("check-calibration.mjs", "rejects an entry with no input file", [], { status: 1, stdout: /entry has no input file: \.claude\/agents\/removed\.md/ }, { path: staleEntry })
+
+  const mismatch = stageCalibration("model-mismatch", { stampedModel: "gpt-old" })
+  check("check-calibration.mjs", "rejects a model mismatch", [], { status: 1, stdout: /model mismatch/ }, { path: mismatch })
+  const invocationMismatch = stageCalibration("invocation-mismatch", {
+    stampedInvocation: ["-c", 'model_reasoning_effort="medium"', "--model", "gpt-current"],
+  })
+  check(
+    "check-calibration.mjs",
+    "rejects a same-model default invocation change",
+    [],
+    { status: 1, stdout: /invocation mismatch/ },
+    { path: invocationMismatch },
+  )
+  const contentDrift = stageCalibration("content-drift")
+  const contentDriftRoot = dirname(dirname(contentDrift))
+  const changedAgentSource = "---\nname: sample\neffort: low\n---\n"
+  writeFileSync(join(contentDriftRoot, ".claude", "agents", "sample.md"), changedAgentSource)
+  check(
+    "check-calibration.mjs",
+    "rejects same-path calibrated input drift",
+    [],
+    { status: 1, stdout: /content fingerprint mismatch: \.claude\/agents\/sample\.md/ },
+    { path: contentDrift },
+  )
+  check(
+    "check-calibration.mjs",
+    "report-only neutralizes calibrated input drift",
+    ["--report-only"],
+    { status: 0, stdout: /report-only[\s\S]*content fingerprint mismatch: \.claude\/agents\/sample\.md/ },
+    { path: contentDrift },
+  )
+  check(
+    "check-calibration.mjs",
+    "refresh stamps changed input content",
+    ["--refresh"],
+    { status: 0, stdout: /PASS/ },
+    { path: contentDrift },
+  )
+  const contentRefreshedArtifact = JSON.parse(
+    readFileSync(join(contentDriftRoot, ".claude", "calibration.json"), "utf8"),
+  )
+  T(
+    "check-calibration.mjs: refresh wrote the changed input fingerprint",
+    contentRefreshedArtifact.entries[0].fingerprint === calibrationFingerprint(changedAgentSource),
+    JSON.stringify(contentRefreshedArtifact.entries[0]),
+  )
+  const refreshable = stageCalibration("refresh", { stampedModel: "gpt-old", date: calibrationDate(91) })
+  check("check-calibration.mjs", "refresh stamps the selected invocation and current date", ["--refresh"], { status: 0, stdout: /PASS/ }, { path: refreshable })
+  const refreshedArtifact = JSON.parse(readFileSync(join(dirname(dirname(refreshable)), ".claude", "calibration.json"), "utf8"))
+  T(
+    "check-calibration.mjs: refresh wrote the live header",
+    refreshedArtifact.model === "gpt-current" &&
+      refreshedArtifact.date === calibrationDate(0) &&
+      JSON.stringify(refreshedArtifact.invocation) ===
+        JSON.stringify(["-c", 'model_reasoning_effort="high"', "--model", "gpt-current"]),
+    JSON.stringify(refreshedArtifact),
+  )
+
+  const tooOld = stageCalibration("too-old", { date: calibrationDate(91) })
+  check("check-calibration.mjs", "rejects a 91-day-old stamp", [], { status: 1, stdout: /91 days old/ }, { path: tooOld })
+
+  const recent = stageCalibration("recent", { date: calibrationDate(89) })
+  check("check-calibration.mjs", "accepts an 89-day-old stamp", [], { status: 0, stdout: /PASS/ }, { path: recent })
+
+  const malformed = stageCalibration("malformed", { malformed: true })
+  check("check-calibration.mjs", "malformed calibration is an operational error", [], { status: 2, stderr: /not valid JSON/ }, { path: malformed })
+  const absent = stageCalibration("absent", { missingArtifact: true })
+  check("check-calibration.mjs", "missing calibration is an operational error", [], { status: 2, stderr: /could not be read/ }, { path: absent })
+  const malformedFingerprint = stageCalibration("malformed-fingerprint", {
+    entries: [
+      {
+        file: ".claude/agents/sample.md",
+        verdict: "kept",
+        reason: "Still fits.",
+        fingerprint: "sha256:not-a-hash",
+      },
+      { file: ".claude/skills/sample/SKILL.md", verdict: "kept", reason: "Still fits." },
+    ],
+  })
+  check(
+    "check-calibration.mjs",
+    "malformed input fingerprint is an operational error",
+    [],
+    { status: 2, stderr: /entries\[0\]\.fingerprint must be a sha256 fingerprint/ },
+    { path: malformedFingerprint },
+  )
+  check(
+    "check-calibration.mjs",
+    "report-only neutralizes a malformed input fingerprint",
+    ["--report-only"],
+    { status: 0, stdout: /report-only[\s\S]*entries\[0\]\.fingerprint/ },
+    { path: malformedFingerprint },
+  )
+
+  const missingWorker = stageCalibration("missing-worker", {
+    orchestrator: { worker: "codex", workers: {} },
+  })
+  check(
+    "check-calibration.mjs",
+    "missing selected worker is an operational error",
+    [],
+    { status: 2, stderr: /worker engine "codex" is missing/ },
+    { path: missingWorker },
+  )
+  check(
+    "check-calibration.mjs",
+    "report-only neutralizes a missing selected worker",
+    ["--report-only"],
+    { status: 0, stdout: /report-only[\s\S]*worker engine "codex" is missing/ },
+    { path: missingWorker },
+  )
+  const invalidWorker = stageCalibration("invalid-worker", {
+    orchestrator: { worker: "codex", workers: { codex: { args: [], models: {} } } },
+  })
+  check(
+    "check-calibration.mjs",
+    "invalid selected worker is an operational error",
+    [],
+    { status: 2, stderr: /invalid models\.default mapping/ },
+    { path: invalidWorker },
+  )
+  check(
+    "check-calibration.mjs",
+    "report-only neutralizes an invalid selected worker",
+    ["--report-only"],
+    { status: 0, stdout: /report-only[\s\S]*invalid models\.default mapping/ },
+    { path: invalidWorker },
+  )
+
+  for (const [label, path] of [
+    ["missing entry", missing],
+    ["stale entry", staleEntry],
+    ["model mismatch", mismatch],
+    ["invocation mismatch", invocationMismatch],
+    ["old stamp", tooOld],
+    ["malformed artifact", malformed],
+    ["missing artifact", absent],
+  ]) {
+    check("check-calibration.mjs", `report-only neutralizes ${label}`, ["--report-only"], { status: 0, stdout: /report-only/ }, { path })
+  }
+
+  check(
+    "check-calibration.mjs",
+    "help names every flag and exit code",
+    ["--help"],
+    { status: 0, stdout: /--report-only[\s\S]*--refresh[\s\S]*--help[\s\S]*exit codes: 0[\s\S]*1 calibration failed[\s\S]*2 usage/ },
+  )
+}
+
 // new-ticket.mjs shells out to check-ticket.mjs, which makes its OWN orca call,
 // so both legs are stubbed in one plan: `linear create` for the creation and
 // `linear issue` for the validation the wrapper exists to perform. The shim
@@ -1133,9 +2962,602 @@ const newTicketStub = (created, issue, options = {}) => [
   { match: "linear issue", stdout: JSON.stringify({ ok: true, result: { issue, relations: [] } }) },
 ]
 const CREATED_OK = { ok: true, result: { issue: { identifier: "ORB-99" } } }
-const VALID_ISSUE = { identifier: "ORB-99", title: "Cover the create and validate round trip", description: VALID_TICKET_BODY, labels: [{ name: "repo:api" }] }
+const VALID_ISSUE = { identifier: "ORB-99", title: "Cover the create and validate round trip", description: VALID_TICKET_BODY, labels: [{ name: "repo:api" }, { name: "Improvement" }] }
+
+const mergeSweepCliFlagCases = () => {
+  const filenames = ["merge-sweep.sh", "merge-sweep-cov.sh"]
+  const scanned = filenames
+    .filter((filename) => existsSync(join(TOOLS_DIR, filename)))
+    .map((filename) => ({ filename, source: readFileSync(join(TOOLS_DIR, filename), "utf8") }))
+  T(
+    "merge sweep CLI flag guard scans both real script filenames",
+    scanned.length === filenames.length,
+    `scanned ${scanned.length} files; missing: ${filenames.filter((filename) => !scanned.some((entry) => entry.filename === filename)).join(", ")}`,
+  )
+  for (const { filename, source } of scanned) {
+    const ghApiInvocations = source
+      .replace(/\\\r?\n/g, " ")
+      .split(/\r?\n/)
+      .filter((line) => /\bgh api\b/.test(line))
+    const unsupported = ghApiInvocations.filter(
+      (invocation) => /(?:^|\s)--slurp(?:[=\s]|$)/.test(invocation) && /(?:^|\s)--(?:jq|template)(?:[=\s]|$)/.test(invocation),
+    )
+    T(
+      `${filename}: never combines --slurp with --jq or --template`,
+      unsupported.length === 0,
+      `unsupported gh api invocation:\n     ${unsupported.join("\n     ")}`,
+    )
+  }
+}
+
+const mergeSweepCases = (file) => {
+  const expectedHead = "1111111111111111111111111111111111111111"
+  const changedHead = "2222222222222222222222222222222222222222"
+  const reviewedThrough = "2026-07-28T00:00:00Z"
+  const newerReviewTime = "2026-07-28T00:00:01Z"
+  const coverageAware = file === "merge-sweep-cov.sh"
+  const reviewedArgs = ["--expected-head", `615=${expectedHead}`, "--reviewed-through", `615=${reviewedThrough}`, "thomasluizon/orbit-ui-mobile", "615"]
+  const matchedLog = join(root, `${file}-matched.log`)
+  const matched = run(file, reviewedArgs, {
+    env: mergeSweepEnv({
+      head: expectedHead,
+      log: matchedLog,
+      sonar: coverageAware ? "coverage-failure" : "success",
+      state: coverageAware ? "BLOCKED" : "CLEAN",
+    }),
+  })
+  const matchedMerges = mergeSweepCalls(matchedLog).filter(([group, command]) => group === "pr" && command === "merge")
+  const matchedMerge = matchedMerges[0] ?? []
+  const matchedHeadFlag = matchedMerge.indexOf("--match-head-commit")
+  T(
+    `${file}: matching expected head and clean review lookups merge`,
+    matched.status === 0 &&
+      /MERGED #615/.test(matched.stdout) &&
+      matchedMerges.length === 1 &&
+      matchedHeadFlag !== -1 &&
+      matchedMerge[matchedHeadFlag + 1] === expectedHead &&
+      (!coverageAware || matchedMerge.includes("--admin")),
+    `exit ${matched.status}\n     stdout: ${matched.stdout.trim()}\n     stderr: ${matched.stderr.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(matchedLog))}`,
+  )
+
+  const changedLog = join(root, `${file}-changed.log`)
+  const changed = run(file, reviewedArgs, {
+    env: mergeSweepEnv({
+      head: changedHead,
+      log: changedLog,
+      sonar: coverageAware ? "coverage-failure" : "success",
+      state: coverageAware ? "BLOCKED" : "CLEAN",
+    }),
+  })
+  const changedCalls = mergeSweepCalls(changedLog)
+  const changedMerges = changedCalls.filter(([group, command]) => group === "pr" && command === "merge")
+  T(
+    `${file}: changed head skips and names both SHAs`,
+    changed.status === 0 &&
+      /SKIP #615/.test(changed.stdout) &&
+      changed.stdout.includes(expectedHead) &&
+      changed.stdout.includes(changedHead) &&
+      changedMerges.length === 0 &&
+      (!coverageAware || !changedCalls.some((argv) => argv.includes("--admin"))),
+    `exit ${changed.status}\n     stdout: ${changed.stdout.trim()}\n     stderr: ${changed.stderr.trim()}\n     calls: ${JSON.stringify(changedCalls)}`,
+  )
+
+  const mergeRaceLog = join(root, `${file}-merge-race.log`)
+  const mergeRace = run(file, reviewedArgs, {
+    env: mergeSweepEnv({
+      changedHead,
+      head: expectedHead,
+      log: mergeRaceLog,
+      moveAtMerge: true,
+      sonar: coverageAware ? "coverage-failure" : "success",
+      state: coverageAware ? "BLOCKED" : "CLEAN",
+    }),
+  })
+  const mergeRaceCalls = mergeSweepCalls(mergeRaceLog)
+  const mergeRaceMerges = mergeRaceCalls.filter(([group, command]) => group === "pr" && command === "merge")
+  T(
+    `${file}: atomic merge refusal reports a last-moment head change`,
+    mergeRace.status === 0 &&
+      /SKIP #615 HEAD-MOVED/.test(mergeRace.stdout) &&
+      mergeRace.stdout.includes(expectedHead) &&
+      mergeRace.stdout.includes(changedHead) &&
+      mergeRaceMerges.length === 1 &&
+      (!coverageAware || mergeRaceMerges[0].includes("--admin")),
+    `exit ${mergeRace.status}\n     stdout: ${mergeRace.stdout.trim()}\n     stderr: ${mergeRace.stderr.trim()}\n     calls: ${JSON.stringify(mergeRaceCalls)}`,
+  )
+
+  const bareLog = join(root, `${file}-bare.log`)
+  const bare = run(file, ["--reviewed-through", `615=${reviewedThrough}`, "thomasluizon/orbit-ui-mobile", "615"], {
+    env: mergeSweepEnv({ head: changedHead, log: bareLog }),
+  })
+  const bareMerges = mergeSweepCalls(bareLog).filter(([group, command]) => group === "pr" && command === "merge")
+  T(
+    `${file}: invocation without expected head still merges`,
+    bare.status === 0 && /MERGED #615/.test(bare.stdout) && bareMerges.length === 1,
+    `exit ${bare.status}\n     stdout: ${bare.stdout.trim()}\n     stderr: ${bare.stderr.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(bareLog))}`,
+  )
+
+  check(
+    file,
+    "help documents the exclusive cutoff and residual post-merge window",
+    ["--help"],
+    { status: 0, stdout: /(?=[\s\S]*--reviewed-through)(?=[\s\S]*cutoff is exclusive: activity at or after that timestamp counts as new\.)(?=[\s\S]*Every status check, required or not, must reach a terminal successful conclusion before merge\.)(?=[\s\S]*residual response-to-merge race)(?=[\s\S]*exits 4)/ },
+  )
+
+  const updatedHead = "3333333333333333333333333333333333333333"
+  const baseTip = "4444444444444444444444444444444444444444"
+  const routineParents = `${expectedHead}\n${baseTip}`
+  const updateCase = (label, envOptions, expect) => {
+    const log = join(root, `${file}-${label}.log`)
+    const result = run(file, ["--reviewed-through", `615=${reviewedThrough}`, "thomasluizon/orbit-ui-mobile", "615"], {
+      env: mergeSweepEnv({
+        baseTip,
+        head: expectedHead,
+        log,
+        sonar: coverageAware ? "coverage-failure" : "success",
+        state: coverageAware ? "BLOCKED" : "CLEAN",
+        updatedHead,
+        updateParents: routineParents,
+        ...envOptions,
+      }),
+    })
+    const calls = mergeSweepCalls(log)
+    const merges = calls.filter(([group, command]) => group === "pr" && command === "merge")
+    T(
+      `${file}: ${label}`,
+      expect(result, calls, merges),
+      `exit ${result.status}\n     stdout: ${result.stdout.trim()}\n     stderr: ${result.stderr.trim()}\n     calls: ${JSON.stringify(calls)}`,
+    )
+  }
+
+  updateCase(
+    "a routine update adopts and rechecks the new head before merging",
+    {},
+    (result, calls, merges) =>
+      result.status === 0 &&
+      /MERGED #615/.test(result.stdout) &&
+      calls.some(([group, command]) => group === "pr" && command === "update-branch") &&
+      calls.some((argv) => argv.includes("headRefOid,baseRefOid")) &&
+      calls.some((argv) => argv.some((value) => value.includes(`/commits/${updatedHead}`))) &&
+      merges.length === 1 &&
+      merges[0][merges[0].indexOf("--match-head-commit") + 1] === updatedHead,
+  )
+  updateCase(
+    "an adversarial update without the expected parents is rejected",
+    { updateParents: `${baseTip}\n5555555555555555555555555555555555555555` },
+    (result, _calls, merges) =>
+      result.status === 0 && result.stdout.includes(`SKIP #615 HEAD-MOVED expected=${expectedHead} actual=${updatedHead}`) && merges.length === 0,
+  )
+  updateCase(
+    "a failing check on the adopted head skips without merging",
+    { failNewHead: true },
+    (result, _calls, merges) =>
+      result.status === 0 &&
+      (coverageAware ? /SKIP #615 FAILED\(non-sonar\)=\[new-head-gate\]/ : /SKIP #615[\s\S]*FAILED=new-head-gate/).test(result.stdout) &&
+      merges.length === 0,
+  )
+  updateCase(
+    "an unsettled current-head review check skips without merging",
+    { reviewRunning: true },
+    (result, _calls, merges) => result.status === 0 && /SKIP #615 \(timeout: checks on the current head never all concluded \(pending=review\)\)/.test(result.stdout) && merges.length === 0,
+  )
+
+  const reconciledLog = join(root, `${file}-reconciled-before-cutoff.log`)
+  const reconciled = run(file, reviewedArgs, {
+    env: mergeSweepEnv({
+      commentTimes: "orchestrator\t2026-07-27T23:59:59Z",
+      head: expectedHead,
+      log: reconciledLog,
+      sonar: coverageAware ? "coverage-failure" : "success",
+      state: coverageAware ? "BLOCKED" : "CLEAN",
+    }),
+  })
+  const reconciledMerges = mergeSweepCalls(reconciledLog).filter(([group, command]) => group === "pr" && command === "merge")
+  T(`${file}: a reconciled reply before the refreshed cutoff merges`, reconciled.status === 0 && reconciledMerges.length === 1, reconciled.stderr || reconciled.stdout)
+
+  const postMergeLog = join(root, `${file}-post-merge-activity.log`)
+  const postMergeUrl = "https://example.test/conversation/late"
+  const postMergeActivity = run(file, reviewedArgs, {
+    env: mergeSweepEnv({
+      head: expectedHead,
+      log: postMergeLog,
+      postMergeActivity: `late-reviewer\t${newerReviewTime}\t${postMergeUrl}`,
+      sonar: coverageAware ? "coverage-failure" : "success",
+      state: coverageAware ? "BLOCKED" : "CLEAN",
+    }),
+  })
+  const postMergeMerges = mergeSweepCalls(postMergeLog).filter(([group, command]) => group === "pr" && command === "merge")
+  T(
+    `${file}: activity in the residual merge window is reported after the merge`,
+    postMergeActivity.status === 4 &&
+      postMergeActivity.stdout.includes(`POST-MERGE-ACTIVITY #615 late-reviewer at ${newerReviewTime} ${postMergeUrl}`) &&
+      postMergeMerges.length === 1,
+    `exit ${postMergeActivity.status}\n     stdout: ${postMergeActivity.stdout.trim()}\n     stderr: ${postMergeActivity.stderr.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(postMergeLog))}`,
+  )
+
+  const postMergeFailure = (label, envOptions, outputPattern) => {
+    const log = join(root, `${file}-${label}.log`)
+    const result = run(file, reviewedArgs, {
+      env: mergeSweepEnv({
+        head: expectedHead,
+        log,
+        sonar: coverageAware ? "coverage-failure" : "success",
+        state: coverageAware ? "BLOCKED" : "CLEAN",
+        ...envOptions,
+      }),
+    })
+    const merges = mergeSweepCalls(log).filter(([group, command]) => group === "pr" && command === "merge")
+    T(
+      `${file}: ${label}`,
+      result.status === 4 && outputPattern.test(result.stdout) && merges.length === 1,
+      `exit ${result.status}\n     stdout: ${result.stdout.trim()}\n     stderr: ${result.stderr.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(log))}`,
+    )
+  }
+
+  postMergeFailure(
+    "unresolved threads in the residual merge window are reported after the merge",
+    { postMergeUnresolvedThreads: "2" },
+    /POST-MERGE-UNRESOLVED-THREADS #615 count=2/,
+  )
+  postMergeFailure(
+    "a review lookup failure after the merge is reported by source",
+    { postMergeReviewsLookupFailure: true },
+    /POST-MERGE-REVIEW-LOOKUP-FAILED #615 source=reviews/,
+  )
+
+  const stopAfterPostMergeFailureLog = join(root, `${file}-stop-after-post-merge-failure.log`)
+  const stopAfterPostMergeFailure = run(
+    file,
+    [
+      "--expected-head",
+      `615=${expectedHead}`,
+      "--expected-head",
+      `616=${expectedHead}`,
+      "--reviewed-through",
+      `615=${reviewedThrough}`,
+      "--reviewed-through",
+      `616=${reviewedThrough}`,
+      "thomasluizon/orbit-ui-mobile",
+      "615",
+      "616",
+    ],
+    {
+      env: mergeSweepEnv({
+        head: expectedHead,
+        log: stopAfterPostMergeFailureLog,
+        postMergeReviewsLookupFailure: true,
+        sonar: coverageAware ? "coverage-failure" : "success",
+        state: coverageAware ? "BLOCKED" : "CLEAN",
+      }),
+    },
+  )
+  const stopAfterPostMergeFailureCalls = mergeSweepCalls(stopAfterPostMergeFailureLog)
+  const stopAfterPostMergeFailureMerges = stopAfterPostMergeFailureCalls.filter(
+    ([group, command]) => group === "pr" && command === "merge",
+  )
+  T(
+    `${file}: a post-merge review failure stops the multi-PR sweep`,
+    stopAfterPostMergeFailure.status === 4 &&
+      stopAfterPostMergeFailureMerges.length === 1 &&
+      stopAfterPostMergeFailureMerges[0][2] === "615" &&
+      !stopAfterPostMergeFailureCalls.some((argv) => argv.includes("616")),
+    `exit ${stopAfterPostMergeFailure.status}\n     stdout: ${stopAfterPostMergeFailure.stdout.trim()}\n     stderr: ${stopAfterPostMergeFailure.stderr.trim()}\n     calls: ${JSON.stringify(stopAfterPostMergeFailureCalls)}`,
+  )
+
+  const reviewSkip = (label, envOptions, outputPattern) => {
+    const log = join(root, `${file}-${label}.log`)
+    const result = run(file, reviewedArgs, {
+      env: mergeSweepEnv({
+        head: expectedHead,
+        log,
+        sonar: coverageAware ? "coverage-failure" : "success",
+        state: coverageAware ? "BLOCKED" : "CLEAN",
+        ...envOptions,
+      }),
+    })
+    const merges = mergeSweepCalls(log).filter(([group, command]) => group === "pr" && command === "merge")
+    T(
+      `${file}: ${label}`,
+      result.status === 0 && outputPattern.test(result.stdout) && merges.length === 0,
+      `exit ${result.status}\n     stdout: ${result.stdout.trim()}\n     stderr: ${result.stderr.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(log))}`,
+    )
+  }
+
+  reviewSkip(
+    "genuine third-party activity at the refreshed cutoff skips",
+    { commentTimes: `third-party\t${reviewedThrough}` },
+    new RegExp(`SKIP #615 NEW-REVIEW-SINCE ${reviewedThrough} by third-party at ${reviewedThrough}`),
+  )
+
+  reviewSkip("unresolved review threads skip without merging", { unresolvedThreads: "2" }, /SKIP #615 UNRESOLVED-THREADS=2/)
+  reviewSkip("a newer review skips without merging", { reviewTimes: `reviewer\t${newerReviewTime}` }, new RegExp(`SKIP #615 NEW-REVIEW-SINCE ${reviewedThrough} by reviewer at ${newerReviewTime}`))
+  reviewSkip(
+    "an already-submitted COMMENTED review edited after the cutoff skips without merging",
+    { reviewTimes: `commented-reviewer\t2026-07-27T22:00:00Z\ncommented-reviewer\t2026-07-27T22:00:00Z\ncommented-reviewer\t${newerReviewTime}` },
+    new RegExp(`SKIP #615 NEW-REVIEW-SINCE ${reviewedThrough} by commented-reviewer at ${newerReviewTime}`),
+  )
+  reviewSkip(
+    "pagination sees a newer review timestamp on page two",
+    {
+      reviewTimes: "page-one-reviewer\t2026-07-27T23:00:00Z",
+      reviewsPageTwo: `page-two-reviewer\t${newerReviewTime}`,
+    },
+    new RegExp(`SKIP #615 NEW-REVIEW-SINCE ${reviewedThrough} by page-two-reviewer at ${newerReviewTime}`),
+  )
+  reviewSkip("a newer issue comment skips without merging", { commentTimes: `issue-commenter\t${newerReviewTime}` }, new RegExp(`SKIP #615 NEW-REVIEW-SINCE ${reviewedThrough} by issue-commenter at ${newerReviewTime}`))
+  reviewSkip("review-thread lookup failure fails closed by name", { threadsLookupFailure: true }, /SKIP #615 REVIEW-LOOKUP-FAILED source=reviewThreads/)
+  reviewSkip("reviews lookup failure fails closed by name", { reviewsLookupFailure: true }, /SKIP #615 REVIEW-LOOKUP-FAILED source=reviews/)
+  reviewSkip("issue-comments lookup failure fails closed by name", { commentsLookupFailure: true }, /SKIP #615 REVIEW-LOOKUP-FAILED source=issue-comments/)
+
+  const olderEditedReviewLog = join(root, `${file}-older-edited-commented-review.log`)
+  const olderEditedReview = run(file, reviewedArgs, {
+    env: mergeSweepEnv({
+      head: expectedHead,
+      log: olderEditedReviewLog,
+      reviewTimes: "commented-reviewer\t2026-07-27T21:00:00Z\ncommented-reviewer\t2026-07-27T22:00:00Z\ncommented-reviewer\t2026-07-27T23:59:59Z",
+      sonar: coverageAware ? "coverage-failure" : "success",
+      state: coverageAware ? "BLOCKED" : "CLEAN",
+    }),
+  })
+  const olderEditedReviewCalls = mergeSweepCalls(olderEditedReviewLog)
+  const olderEditedReviewMerges = olderEditedReviewCalls.filter(([group, command]) => group === "pr" && command === "merge")
+  const paginatedReviewLookup = olderEditedReviewCalls.find((argv) => argv[0] === "api" && argv[1] === "graphql" && argv.some((value) => value.includes("reviews(first:100")))
+  T(
+    `${file}: a COMMENTED review edited strictly before the cutoff still merges`,
+    olderEditedReview.status === 0 &&
+      olderEditedReviewMerges.length === 1 &&
+      paginatedReviewLookup?.includes("--paginate") &&
+      !paginatedReviewLookup.includes("--slurp"),
+    `exit ${olderEditedReview.status}\n     stdout: ${olderEditedReview.stdout.trim()}\n     stderr: ${olderEditedReview.stderr.trim()}\n     calls: ${JSON.stringify(olderEditedReviewCalls)}`,
+  )
+
+  const inlineOutput = (author, timestamp) =>
+    new RegExp(`SKIP #615 NEW-REVIEW-SINCE ${reviewedThrough} \\(inline comment by ${author} at ${timestamp}\\)`)
+
+  reviewSkip(
+    "a newer inline comment on a resolved thread skips without merging",
+    { inlineItems: `inline-reviewer\t${newerReviewTime}\ninline-reviewer\t${newerReviewTime}` },
+    inlineOutput("inline-reviewer", newerReviewTime),
+  )
+
+  const olderInlineLog = join(root, `${file}-older-inline-comment.log`)
+  const olderInline = run(file, reviewedArgs, {
+    env: mergeSweepEnv({
+      head: expectedHead,
+      inlineItems: "inline-reviewer\t2026-07-27T23:00:00Z\ninline-reviewer\t2026-07-27T23:30:00Z",
+      log: olderInlineLog,
+      sonar: coverageAware ? "coverage-failure" : "success",
+      state: coverageAware ? "BLOCKED" : "CLEAN",
+    }),
+  })
+  const olderInlineMerges = mergeSweepCalls(olderInlineLog).filter(([group, command]) => group === "pr" && command === "merge")
+  T(
+    `${file}: an older inline comment still merges`,
+    olderInline.status === 0 && /MERGED #615/.test(olderInline.stdout) && olderInlineMerges.length === 1,
+    `exit ${olderInline.status}\n     stdout: ${olderInline.stdout.trim()}\n     stderr: ${olderInline.stderr.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(olderInlineLog))}`,
+  )
+
+  reviewSkip(
+    "an inline comment edited after the cutoff skips by updated time",
+    { inlineItems: `inline-editor\t2026-07-27T23:00:00Z\ninline-editor\t${newerReviewTime}` },
+    inlineOutput("inline-editor", newerReviewTime),
+  )
+  reviewSkip("inline-comment lookup failure fails closed by name", { inlineLookupFailure: true }, /SKIP #615 REVIEW-LOOKUP-FAILED source=inline-comments/)
+  reviewSkip(
+    "pagination sees a newer inline comment on page two",
+    {
+      inlineItems: "page-one-reviewer\t2026-07-27T23:00:00Z\npage-one-reviewer\t2026-07-27T23:00:00Z",
+      inlinePageTwo: `page-two-reviewer\t${newerReviewTime}\npage-two-reviewer\t${newerReviewTime}`,
+    },
+    inlineOutput("page-two-reviewer", newerReviewTime),
+  )
+
+  const olderBoundaryTime = "2026-07-27T23:59:59Z"
+  const genericActivityOutput = (author, timestamp) =>
+    new RegExp(`SKIP #615 NEW-REVIEW-SINCE ${reviewedThrough} by ${author} at ${timestamp}`)
+  const activityBoundaries = [
+    {
+      author: "boundary-reviewer",
+      envKey: "reviewTimes",
+      items: (timestamp) => `boundary-reviewer\t${timestamp}`,
+      label: "reviews",
+      output: genericActivityOutput,
+    },
+    {
+      author: "boundary-inline-reviewer",
+      envKey: "inlineItems",
+      items: (timestamp) => `boundary-inline-reviewer\t${timestamp}\nboundary-inline-reviewer\t${timestamp}`,
+      label: "inline comments",
+      output: inlineOutput,
+    },
+    {
+      author: "boundary-conversation-reviewer",
+      envKey: "commentTimes",
+      items: (timestamp) => `boundary-conversation-reviewer\t${timestamp}\nboundary-conversation-reviewer\t${timestamp}`,
+      label: "conversation comments",
+      output: genericActivityOutput,
+    },
+  ]
+  for (const boundary of activityBoundaries) {
+    reviewSkip(
+      `${boundary.label} exactly at reviewed-through skip without merging`,
+      { [boundary.envKey]: boundary.items(reviewedThrough) },
+      boundary.output(boundary.author, reviewedThrough),
+    )
+    reviewSkip(
+      `${boundary.label} strictly after reviewed-through skip without merging`,
+      { [boundary.envKey]: boundary.items(newerReviewTime) },
+      boundary.output(boundary.author, newerReviewTime),
+    )
+
+    const beforeLog = join(root, `${file}-${boundary.label}-strictly-before.log`)
+    const before = run(file, reviewedArgs, {
+      env: mergeSweepEnv({
+        [boundary.envKey]: boundary.items(olderBoundaryTime),
+        head: expectedHead,
+        log: beforeLog,
+        sonar: coverageAware ? "coverage-failure" : "success",
+        state: coverageAware ? "BLOCKED" : "CLEAN",
+      }),
+    })
+    const beforeMerges = mergeSweepCalls(beforeLog).filter(([group, command]) => group === "pr" && command === "merge")
+    T(
+      `${file}: ${boundary.label} strictly before reviewed-through still merge`,
+      before.status === 0 && /MERGED #615/.test(before.stdout) && beforeMerges.length === 1,
+      `exit ${before.status}\n     stdout: ${before.stdout.trim()}\n     stderr: ${before.stderr.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(beforeLog))}`,
+    )
+  }
+
+  const missingCutoffLog = join(root, `${file}-missing-reviewed-through.log`)
+  const missingCutoff = run(file, ["--expected-head", `615=${expectedHead}`, "thomasluizon/orbit-ui-mobile", "615"], {
+    env: mergeSweepEnv({
+      head: expectedHead,
+      log: missingCutoffLog,
+      sonar: coverageAware ? "coverage-failure" : "success",
+      state: coverageAware ? "BLOCKED" : "CLEAN",
+    }),
+  })
+  const missingCutoffMerges = mergeSweepCalls(missingCutoffLog).filter(([group, command]) => group === "pr" && command === "merge")
+  T(
+    `${file}: a missing reviewed-through mapping fails closed`,
+    missingCutoff.status === 0 && /SKIP #615 REVIEW-LOOKUP-FAILED source=reviewed-through/.test(missingCutoff.stdout) && missingCutoffMerges.length === 0,
+    `exit ${missingCutoff.status}\n     stdout: ${missingCutoff.stdout.trim()}\n     stderr: ${missingCutoff.stderr.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(missingCutoffLog))}`,
+  )
+}
+
+const CONTEXT_CLAUDE = [
+  "# Orbit fixture",
+  "",
+].join("\n")
+const CONTEXT_CORE = "# Core fixture\n\nAlways applies.\n"
+const contextBytes = (body) => Buffer.byteLength(body, "utf8")
+const contextGit = (repo, argumentsList) => {
+  const result = spawnSync("git", argumentsList, { cwd: repo, encoding: "utf8" })
+  if (result.status !== 0) throw new Error(`context budget git fixture failed: git ${argumentsList.join(" ")}\n${result.stderr}`)
+}
+const stageContextBudget = (label, options = {}) => {
+  const parent = join(root, "context-budget", label)
+  const repo = join(parent, "orbit-ui-mobile")
+  const tools = join(repo, "tools")
+  const rules = join(repo, ".claude", "rules")
+  const claude = options.claude ?? CONTEXT_CLAUDE
+  const core = options.core ?? CONTEXT_CORE
+  mkdirSync(tools, { recursive: true })
+  mkdirSync(rules, { recursive: true })
+  cpSync(join(TOOLS_DIR, "check-context-budget.mjs"), join(tools, "check-context-budget.mjs"))
+  writeFileSync(join(repo, "CLAUDE.md"), claude)
+  writeFileSync(join(rules, "core.md"), core)
+  for (const [file, body] of Object.entries(options.rules ?? {})) writeFileSync(join(rules, file), body)
+  for (const [repoName, body] of Object.entries(options.siblings ?? {})) {
+    const sibling = join(parent, repoName, "CLAUDE.md")
+    mkdirSync(dirname(sibling), { recursive: true })
+    writeFileSync(sibling, body)
+  }
+  const measuredFiles = {
+    "CLAUDE.md": contextBytes(claude),
+    ".claude/rules/core.md": contextBytes(core),
+  }
+  const baselineAdjustment = options.baselineAdjustment ?? 0
+  const baseline = options.baseline ?? {
+    bytes: Object.values(measuredFiles).reduce((sum, bytes) => sum + bytes, 0) + baselineAdjustment,
+    files: {
+      ...measuredFiles,
+      "CLAUDE.md": measuredFiles["CLAUDE.md"] + baselineAdjustment,
+    },
+  }
+  const baselinePath = join(tools, "context-budget.json")
+  const baselineBody = typeof baseline === "string" ? baseline : `${JSON.stringify(baseline, null, 2)}\n`
+  if (options.baselineOnBase !== false) writeFileSync(baselinePath, baselineBody)
+  contextGit(repo, ["init", "-b", "main"])
+  contextGit(repo, ["config", "user.email", "context-budget@example.test"])
+  contextGit(repo, ["config", "user.name", "Context Budget Fixture"])
+  const trackedPaths = [
+    "CLAUDE.md",
+    ".claude/rules/core.md",
+    ...Object.keys(options.rules ?? {}).map((file) => `.claude/rules/${file}`),
+    "tools/check-context-budget.mjs",
+  ]
+  if (options.baselineOnBase !== false) trackedPaths.push("tools/context-budget.json")
+  contextGit(repo, ["add", "--", ...trackedPaths])
+  contextGit(repo, ["commit", "-m", "Seed context budget fixture"])
+  contextGit(repo, ["switch", "-c", "feature"])
+  if (options.baselineOnBase === false) writeFileSync(baselinePath, baselineBody)
+  return { path: join(tools, "check-context-budget.mjs"), repo, baselinePath, measuredFiles }
+}
+
+const contextBudgetCases = () => {
+  const over = stageContextBudget("over", { baselineAdjustment: -1 })
+  check("check-context-budget.mjs", "total over baseline exits 1 and names the offending file", ["--check"], { status: 1, stderr: /grew by 1 byte[\s\S]*CLAUDE\.md: \+1 byte/i }, { path: over.path, cwd: over.repo })
+
+  const under = stageContextBudget("under", { baselineAdjustment: 1 })
+  const underBaselineBefore = readFileSync(under.baselinePath, "utf8")
+  const underResult = check("check-context-budget.mjs", "total under baseline exits 0", ["--check"], { status: 0 }, { path: under.path, cwd: under.repo })
+  T(
+    "check-context-budget.mjs: an under-budget check does not rewrite context-budget.json",
+    underResult.status === 0 && readFileSync(under.baselinePath, "utf8") === underBaselineBefore,
+    readFileSync(under.baselinePath, "utf8"),
+  )
+
+  const regenerated = stageContextBudget("regenerated")
+  writeFileSync(join(regenerated.repo, "CLAUDE.md"), `${CONTEXT_CLAUDE}x`)
+  check("check-context-budget.mjs", "a grown branch can regenerate its working baseline", ["--write-baseline"], { status: 0 }, { path: regenerated.path, cwd: regenerated.repo })
+  check("check-context-budget.mjs", "a regenerated working baseline cannot hide growth from the target branch", ["--check"], { status: 1, stderr: /grew by 1 byte[\s\S]*CLAUDE\.md: \+1 byte/i }, { path: regenerated.path, cwd: regenerated.repo })
+
+  const bootstrap = stageContextBudget("bootstrap", { baselineOnBase: false })
+  check("check-context-budget.mjs", "a first-run baseline bootstraps only when absent from the target branch", ["--check"], { status: 0, stdout: /working tree bootstrap/ }, { path: bootstrap.path, cwd: bootstrap.repo })
+
+  const unfetched = stageContextBudget("unfetched")
+  check("check-context-budget.mjs", "an unfetched target branch fails closed", ["--check"], { status: 2, stderr: /target branch missing-base is unavailable.*fetch its history/i }, { path: unfetched.path, cwd: unfetched.repo, env: { CONTEXT_BUDGET_BASE_REF: "missing-base" } })
+
+  const importAddition = stageContextBudget("import-addition", { claude: `${CONTEXT_CLAUDE}@../orbit-api/CLAUDE.md\n` })
+  check("check-context-budget.mjs", "a removed sibling import fails even when its target is absent", ["--check"], { status: 1, stderr: /@..\/orbit-api\/CLAUDE\.md|import/i }, { path: importAddition.path, cwd: importAddition.repo })
+
+  const unconditional = stageContextBudget("unconditional-rule", { rules: { "foo.md": "# Always loaded\n" } })
+  check("check-context-budget.mjs", "a new unconditional rules file exits 1", ["--check"], { status: 1, stderr: /foo\.md/ }, { path: unconditional.path, cwd: unconditional.repo })
+
+  const scoped = stageContextBudget("scoped-rule", { rules: { "foo.md": "---\npaths:\n  - apps/web/**\n---\n# Scoped\n" } })
+  check("check-context-budget.mjs", "a rules file with paths frontmatter stays outside the budget", ["--check"], { status: 0 }, { path: scoped.path, cwd: scoped.repo })
+
+  const siblingsAbsent = stageContextBudget("siblings-absent")
+  const absentResult = check("check-context-budget.mjs", "missing sibling repos do not fail the check", ["--check"], { status: 0, stdout: /full.session/i }, { path: siblingsAbsent.path, cwd: siblingsAbsent.repo })
+  T(
+    "check-context-budget.mjs: missing sibling files are omitted from the printed full-session table",
+    absentResult.status === 0 && !/(?:orbit-api|orbit-landing-page)\/CLAUDE\.md\s+\d/.test(absentResult.stdout.replaceAll("\\", "/")),
+    absentResult.stdout,
+  )
+
+  const siblingsPresent = stageContextBudget("siblings-present", {
+    siblings: {
+      "orbit-api": "# API fixture\n",
+      "orbit-landing-page": "# Landing fixture\n",
+    },
+  })
+  const presentResult = check("check-context-budget.mjs", "present sibling files without imports do not change the enforced verdict", ["--check"], { status: 0 }, { path: siblingsPresent.path, cwd: siblingsPresent.repo })
+  T(
+    "check-context-budget.mjs: present sibling files without imports stay outside the printed full-session table",
+    presentResult.status === 0 && !/(?:orbit-api|orbit-landing-page)\/CLAUDE\.md:\s+\d+ bytes/.test(presentResult.stdout.replaceAll("\\", "/")),
+    presentResult.stdout,
+  )
+
+  const malformed = stageContextBudget("malformed", { baseline: "{not-json\n" })
+  check("check-context-budget.mjs", "a malformed baseline is a tool error", ["--check"], { status: 2 }, { path: malformed.path, cwd: malformed.repo })
+
+  const help = stageContextBudget("help")
+  check(
+    "check-context-budget.mjs",
+    "help names every flag and every exit code",
+    ["--help"],
+    { status: 0, stdout: /(?=[\s\S]*--check)(?=[\s\S]*--write-baseline)(?=[\s\S]*--json)(?=[\s\S]*--help)(?=[\s\S]*-h)(?=[\s\S]*0)(?=[\s\S]*1)(?=[\s\S]*2)/ },
+    { path: help.path, cwd: help.repo },
+  )
+}
 
 const gateCases = {
+  "merge-sweep.sh": () => {
+    mergeSweepCliFlagCases()
+    mergeSweepCases("merge-sweep.sh")
+  },
+  "merge-sweep-cov.sh": () => mergeSweepCases("merge-sweep-cov.sh"),
   "new-ticket.mjs": () => {
     const argv = ["--title", "Cover the create and validate round trip", "--project", "Backlog"]
     check("new-ticket.mjs", "validates the identifier orca reported", argv, { status: 0, stdout: /ticket ok/ }, { env: orcaEnv(newTicketStub(CREATED_OK, VALID_ISSUE)) })
@@ -1163,6 +3585,7 @@ const gateCases = {
     check("new-ticket.mjs", "requires --project so the ticket cannot be orphaned", ["--title", "Cover the create and validate round trip"], { status: 2, stderr: /--project is required/ })
   },
   "launch-worker.mjs": launchWorkerCases,
+  "preflight.mjs": preflightCases,
   "nudge-worker.mjs": nudgeWorkerCases,
   "pr-watch.mjs": prWatchCases,
   "worker-watch.mjs": workerWatchCases,
@@ -1171,18 +3594,569 @@ const gateCases = {
   "worker-status.mjs": () => {
     check("worker-status.mjs", "requires --worktree", ["--issue", "ORB-75"], { status: 2, stderr: /--worktree is required/ })
     check("worker-status.mjs", "requires a Linear issue identifier", ["--worktree", root, "--issue", "nope"], { status: 2, stderr: /Linear identifier/ })
+    const fixture = stageWorkerStatusWorktree()
+    if (!fixture) {
+      T("worker-status.mjs: real git fixture is available", false, "could not create and push the worker-status Git fixture")
+      return
+    }
+    const screenshot = { title: "about-en.png", url: "https://raw.githubusercontent.com/orbit/orbit/evidence/about-en.png" }
+    const critique = { title: "render critique", url: "https://raw.githubusercontent.com/orbit/orbit/evidence/render-critique.md" }
+    const complete = runWorkerStatusCase(fixture, [screenshot, critique])
+    T(
+      "worker-status.mjs: screenshot and critique present is OK",
+      complete.status === 0 &&
+        complete.verdict?.ok === true &&
+        complete.verdict.checks.find((entry) => entry.name === "review-approved")?.ok === true &&
+        complete.verdict.checks.find((entry) => entry.name === "review-head-approved")?.ok === true &&
+        complete.verdict.checks.find((entry) => entry.name === "screenshot-attached")?.ok === true &&
+        complete.verdict.checks.find((entry) => entry.name === "critique-attached")?.ok === true,
+      `exit ${complete.status}\n     ${(complete.stderr || complete.stdout).slice(0, 600)}`,
+    )
+    const changesRequested = runWorkerStatusCase(fixture, [screenshot, critique], { reviewDecision: "CHANGES_REQUESTED" })
+    T(
+      "worker-status.mjs: a non-approved pull request does not report done",
+      changesRequested.status === 1 &&
+        changesRequested.verdict?.unmet.length === 1 &&
+        changesRequested.verdict.unmet[0] === "review-approved",
+      `exit ${changesRequested.status}\n     ${(changesRequested.stderr || changesRequested.stdout).slice(0, 600)}`,
+    )
+    const staleApproval = runWorkerStatusCase(fixture, [screenshot, critique], {
+      approvalHead: fixture.reviewedCommit,
+    })
+    T(
+      "worker-status.mjs: an approval from an older commit does not approve the current PR head",
+      staleApproval.status === 1 &&
+        staleApproval.verdict?.unmet.length === 1 &&
+        staleApproval.verdict.unmet[0] === "review-head-approved" &&
+        staleApproval.verdict.checks.find((entry) => entry.name === "review-approved")?.ok === true,
+      `exit ${staleApproval.status}\n     ${(staleApproval.stderr || staleApproval.stdout).slice(0, 600)}`,
+    )
+    const cleanAutomatedApproval = {
+      id: "PRR_clean_approval",
+      author: { login: "claude[bot]", __typename: "Bot" },
+      state: "APPROVED",
+      body: `# Code Review
+
+**Recommendation**: APPROVE
+
+## Findings
+
+### Critical
+None
+
+### High
+None.
+
+### Medium
+None posted (signal gate).
+
+### Low / Info
+None
+
+## Validation
+All required checks passed.`,
+      submittedAt: "2026-07-28T10:00:00Z",
+      updatedAt: "2026-07-28T10:00:00Z",
+      commit: { oid: fixture.prHead },
+    }
+    const cleanApproval = runWorkerStatusCase(fixture, [screenshot, critique], {
+      reviews: [cleanAutomatedApproval],
+    })
+    T(
+      "worker-status.mjs: a clean automated approval body is not classified as finding activity",
+      cleanApproval.status === 0 &&
+        cleanApproval.verdict?.checks.find((entry) => entry.name === "review-activity")?.ok === true,
+      `exit ${cleanApproval.status}\n     ${(cleanApproval.stderr || cleanApproval.stdout).slice(0, 600)}`,
+    )
+    const commentedUmbrella = {
+      id: "PRR_commented_umbrella",
+      author: { login: "chatgpt-codex-connector", __typename: "Bot" },
+      state: "COMMENTED",
+      body: "Codex Review. Inline suggestions, when present, are attached as review threads.",
+      submittedAt: "2026-07-28T10:00:00Z",
+      updatedAt: "2026-07-28T10:00:00Z",
+      commit: { oid: fixture.prHead },
+    }
+    const cleanCommented = runWorkerStatusCase(fixture, [screenshot, critique], {
+      reviews: [commentedUmbrella],
+    })
+    T(
+      "worker-status.mjs: a COMMENTED umbrella body with no report finding is not finding activity",
+      cleanCommented.status === 0 &&
+        cleanCommented.verdict?.checks.find((entry) => entry.name === "review-activity")?.ok === true,
+      `exit ${cleanCommented.status}\n     ${(cleanCommented.stderr || cleanCommented.stdout).slice(0, 600)}`,
+    )
+    const nestedPaginatedThread = reviewThread({
+      author: "claude[bot]",
+      authorType: "Bot",
+      id: "PRRT_paginated_comments",
+      isResolved: true,
+      resolvedBy: "worker",
+      reply: "No code change required: informational note only",
+      reviewedCommit: fixture.reviewedCommit,
+    })
+    nestedPaginatedThread.comments.pageInfo.hasNextPage = true
+    for (const [label, options] of [
+      ["review threads", { reviewThreadsHasNextPage: true }],
+      ["review bodies", { reviewsHasNextPage: true }],
+      ["PR conversation comments", { commentsHasNextPage: true }],
+      ["nested thread comments", { reviewThreads: [nestedPaginatedThread] }],
+    ]) {
+      const paginated = runWorkerStatusCase(fixture, [screenshot, critique], options)
+      T(
+        `worker-status.mjs: ${label} pagination fails the review inventory closed`,
+        paginated.status === 1 &&
+          paginated.verdict?.unmet.length === 1 &&
+          paginated.verdict.unmet[0] === "review-thread-inventory",
+        `exit ${paginated.status}\n     ${(paginated.stderr || paginated.stdout).slice(0, 600)}`,
+      )
+    }
+    const linearUpload = {
+      title: "about capture",
+      url: "https://uploads.linear.app/8c329d15-b91e-47ac-9389-1b230452249d",
+    }
+    const extensionlessComplete = runWorkerStatusCase(fixture, [linearUpload, critique])
+    T(
+      "worker-status.mjs: extensionless Linear upload and separate critique is OK",
+      extensionlessComplete.status === 0 &&
+        extensionlessComplete.verdict?.ok === true &&
+        extensionlessComplete.verdict.checks.find((entry) => entry.name === "screenshot-attached")?.ok === true &&
+        extensionlessComplete.verdict.checks.find((entry) => entry.name === "critique-attached")?.ok === true,
+      `exit ${extensionlessComplete.status}\n     ${(extensionlessComplete.stderr || extensionlessComplete.stdout).slice(0, 600)}`,
+    )
+    const extensionlessOnly = runWorkerStatusCase(fixture, [linearUpload])
+    T(
+      "worker-status.mjs: extensionless Linear upload alone is not a critique",
+      extensionlessOnly.status === 1 &&
+        extensionlessOnly.verdict?.unmet.length === 1 &&
+        extensionlessOnly.verdict.unmet[0] === "critique-attached" &&
+        extensionlessOnly.verdict.checks.find((entry) => entry.name === "screenshot-attached")?.ok === true,
+      `exit ${extensionlessOnly.status}\n     ${(extensionlessOnly.stderr || extensionlessOnly.stdout).slice(0, 600)}`,
+    )
+    const critiqueMissing = runWorkerStatusCase(fixture, [screenshot])
+    T(
+      "worker-status.mjs: screenshot present and critique missing is UNMET",
+      critiqueMissing.status === 1 &&
+        critiqueMissing.verdict?.unmet.length === 1 &&
+        critiqueMissing.verdict.unmet[0] === "critique-attached",
+      `exit ${critiqueMissing.status}\n     ${(critiqueMissing.stderr || critiqueMissing.stdout).slice(0, 600)}`,
+    )
+    const neither = runWorkerStatusCase(fixture, [])
+    T(
+      "worker-status.mjs: neither screenshot nor critique present is UNMET",
+      neither.status === 1 &&
+        neither.verdict?.unmet.length === 2 &&
+        neither.verdict.unmet.includes("screenshot-attached") &&
+        neither.verdict.unmet.includes("critique-attached"),
+      `exit ${neither.status}\n     ${(neither.stderr || neither.stdout).slice(0, 600)}`,
+    )
+    const fixedAutomatedThread = reviewThread({
+      author: "claude[bot]",
+      authorType: "Bot",
+      id: "PRRT_fixed",
+      isResolved: true,
+      resolvedBy: "worker",
+      reply: `Fixed in ${fixture.fixCommit}`,
+      reviewedCommit: fixture.reviewedCommit,
+    })
+    const fixed = runWorkerStatusCase(fixture, [screenshot, critique], { reviewThreads: [fixedAutomatedThread], verifyReview: true })
+    T(
+      "worker-status.mjs: a resolved automated finding passes when its named fix commit changed the reviewed path",
+      fixed.status === 0 &&
+        fixed.verdict?.ok === true &&
+        fixed.verdict.checks.find((entry) => entry.name === "pr-head-match")?.ok === true,
+      `exit ${fixed.status}\n     ${(fixed.stderr || fixed.stdout).slice(0, 600)}`,
+    )
+    const editedAfterReplyThread = reviewThread({
+      author: "claude[bot]",
+      authorType: "Bot",
+      findingUpdatedAt: "2026-07-28T10:00:03Z",
+      id: "PRRT_edited_after_reply",
+      isResolved: true,
+      resolvedBy: "worker",
+      reply: `Fixed in ${fixture.fixCommit}`,
+      reviewedCommit: fixture.reviewedCommit,
+    })
+    const editedAfterReply = runWorkerStatusCase(fixture, [screenshot, critique], {
+      reviewThreads: [editedAfterReplyThread],
+      verifyReview: true,
+    })
+    T(
+      "worker-status.mjs: an automated finding edited after its resolver reply needs fresh evidence",
+      editedAfterReply.status === 1 &&
+        editedAfterReply.verdict?.checks.find((entry) => entry.name === "resolved-thread-fixes")?.ok === false,
+      `exit ${editedAfterReply.status}\n     ${(editedAfterReply.stderr || editedAfterReply.stdout).slice(0, 600)}`,
+    )
+    const followUp = {
+      id: "PRRC_follow_up",
+      author: { login: "claude[bot]", __typename: "Bot" },
+      body: "follow-up finding",
+      createdAt: "2026-07-28T10:00:03Z",
+      updatedAt: "2026-07-28T10:00:03Z",
+      pullRequestReview: null,
+    }
+    const followUpAfterReplyThread = reviewThread({
+      author: "claude[bot]",
+      authorType: "Bot",
+      followUps: [followUp],
+      id: "PRRT_follow_up_after_reply",
+      isResolved: true,
+      resolvedBy: "worker",
+      reply: `Fixed in ${fixture.fixCommit}`,
+      reviewedCommit: fixture.reviewedCommit,
+    })
+    const followUpAfterReply = runWorkerStatusCase(fixture, [screenshot, critique], {
+      reviewThreads: [followUpAfterReplyThread],
+      verifyReview: true,
+    })
+    T(
+      "worker-status.mjs: an automated follow-up after the resolver reply needs fresh evidence",
+      followUpAfterReply.status === 1 &&
+        followUpAfterReply.verdict?.checks.find((entry) => entry.name === "resolved-thread-fixes")?.ok === false,
+      `exit ${followUpAfterReply.status}\n     ${(followUpAfterReply.stderr || followUpAfterReply.stdout).slice(0, 600)}`,
+    )
+    followUpAfterReplyThread.comments.nodes.push({
+      id: "PRRC_follow_up_reply",
+      author: { login: "worker", __typename: "User" },
+      body: `Fixed in ${fixture.fixCommit}`,
+      createdAt: "2026-07-28T10:00:04Z",
+      updatedAt: "2026-07-28T10:00:04Z",
+      pullRequestReview: null,
+    })
+    const reconciledFollowUp = runWorkerStatusCase(fixture, [screenshot, critique], {
+      reviewThreads: [followUpAfterReplyThread],
+      verifyReview: true,
+    })
+    T(
+      "worker-status.mjs: a fresh resolver reply after the automated follow-up restores verification",
+      reconciledFollowUp.status === 0 &&
+        reconciledFollowUp.verdict?.checks.find((entry) => entry.name === "resolved-thread-fixes")?.ok === true,
+      `exit ${reconciledFollowUp.status}\n     ${(reconciledFollowUp.stderr || reconciledFollowUp.stdout).slice(0, 600)}`,
+    )
+    const preexistingChangeThread = reviewThread({
+      author: "claude[bot]",
+      authorType: "Bot",
+      id: "PRRT_preexisting_change",
+      isResolved: true,
+      resolvedBy: "worker",
+      reply: `Fixed in ${fixture.fixCommit}`,
+      reviewedCommit: fixture.fixCommit,
+    })
+    const preexistingChange = runWorkerStatusCase(fixture, [screenshot, critique], {
+      reviewThreads: [preexistingChangeThread],
+      verifyReview: true,
+    })
+    T(
+      "worker-status.mjs: a commit at the reviewed revision cannot masquerade as a later fix",
+      preexistingChange.status === 1 &&
+        preexistingChange.verdict?.checks.find((entry) => entry.name === "resolved-thread-fixes")?.ok === false,
+      `exit ${preexistingChange.status}\n     ${(preexistingChange.stderr || preexistingChange.stdout).slice(0, 600)}`,
+    )
+    const earlierImplementationThread = reviewThread({
+      author: "claude[bot]",
+      authorType: "Bot",
+      id: "PRRT_earlier_implementation",
+      isResolved: true,
+      resolvedBy: "worker",
+      reply: `Fixed in ${fixture.implementationCommit}`,
+      reviewedCommit: fixture.reviewedCommit,
+    })
+    const earlierImplementation = runWorkerStatusCase(fixture, [screenshot, critique], {
+      reviewThreads: [earlierImplementationThread],
+      verifyReview: true,
+    })
+    T(
+      "worker-status.mjs: an implementation commit before the review cannot masquerade as its fix",
+      earlierImplementation.status === 1 &&
+        earlierImplementation.verdict?.checks.find((entry) => entry.name === "resolved-thread-fixes")?.ok === false,
+      `exit ${earlierImplementation.status}\n     ${(earlierImplementation.stderr || earlierImplementation.stdout).slice(0, 600)}`,
+    )
+    const missingReviewCommitThread = reviewThread({
+      author: "claude[bot]",
+      authorType: "Bot",
+      id: "PRRT_missing_review_commit",
+      isResolved: true,
+      resolvedBy: "worker",
+      reply: `Fixed in ${fixture.fixCommit}`,
+    })
+    const missingReviewCommit = runWorkerStatusCase(fixture, [screenshot, critique], {
+      reviewThreads: [missingReviewCommitThread],
+      verifyReview: true,
+    })
+    T(
+      "worker-status.mjs: a missing reviewed commit fails thread verification closed",
+      missingReviewCommit.status === 1 &&
+        missingReviewCommit.verdict?.checks.find((entry) => entry.name === "resolved-thread-fixes")?.ok === false,
+      `exit ${missingReviewCommit.status}\n     ${(missingReviewCommit.stderr || missingReviewCommit.stdout).slice(0, 600)}`,
+    )
+    const informationalThread = reviewThread({
+      author: "claude[bot]",
+      authorType: "Bot",
+      id: "PRRT_informational",
+      isResolved: true,
+      resolvedBy: "worker",
+      reply: `No code change required: the reviewer only confirmed the expected behavior. Evidence: ${fixture.fixCommit}`,
+      reviewedCommit: fixture.reviewedCommit,
+    })
+    const informational = runWorkerStatusCase(fixture, [screenshot, critique], {
+      reviewThreads: [informationalThread],
+      verifyReview: true,
+    })
+    T(
+      "worker-status.mjs: an informational automated finding passes with an explicit no-change reason",
+      informational.status === 0 &&
+        informational.verdict?.checks.find((entry) => entry.name === "resolved-thread-fixes")?.ok === true,
+      `exit ${informational.status}\n     ${(informational.stderr || informational.stdout).slice(0, 600)}`,
+    )
+    const unauditedInformationalThread = reviewThread({
+      author: "claude[bot]",
+      authorType: "Bot",
+      id: "PRRT_informational_unaudited",
+      isResolved: true,
+      resolvedBy: "worker",
+      reply: "No code change required: the reviewer only confirmed the expected behavior",
+      reviewedCommit: fixture.reviewedCommit,
+    })
+    const unauditedInformational = runWorkerStatusCase(fixture, [screenshot, critique], {
+      reviewThreads: [unauditedInformationalThread],
+      verifyReview: true,
+    })
+    T(
+      "worker-status.mjs: a bare informational explanation cannot bypass diff evidence",
+      unauditedInformational.status === 1 &&
+        unauditedInformational.verdict?.checks.find((entry) => entry.name === "resolved-thread-fixes")?.ok === false,
+      `exit ${unauditedInformational.status}\n     ${(unauditedInformational.stderr || unauditedInformational.stdout).slice(0, 600)}`,
+    )
+    const standaloneReview = {
+      id: "PRR_standalone",
+      author: { login: "claude[bot]", __typename: "Bot" },
+      state: "APPROVED",
+      body: `# Code Review
+
+## Findings
+
+### Critical
+None
+
+### High
+None
+
+### Medium
+Missing a concrete edge-case test.
+
+### Low / Info
+None
+
+## Validation
+Not run.`,
+      submittedAt: "2026-07-28T10:00:00Z",
+      updatedAt: "2026-07-28T10:00:01Z",
+      commit: { oid: fixture.reviewedCommit },
+    }
+    const unacknowledgedReview = runWorkerStatusCase(fixture, [screenshot, critique], { reviews: [standaloneReview] })
+    T(
+      "worker-status.mjs: a standalone automated review body needs an auditable worker acknowledgement",
+      unacknowledgedReview.status === 1 &&
+        unacknowledgedReview.verdict?.checks.find((entry) => entry.name === "review-activity")?.ok === false,
+      `exit ${unacknowledgedReview.status}\n     ${(unacknowledgedReview.stderr || unacknowledgedReview.stdout).slice(0, 600)}`,
+    )
+    const reviewAcknowledgement = {
+      id: "IC_review_ack",
+      author: { login: "worker", __typename: "User" },
+      body: `Acknowledged PRR_standalone in ${fixture.prHead}`,
+      createdAt: "2026-07-28T10:00:02Z",
+      updatedAt: "2026-07-28T10:00:02Z",
+    }
+    const acknowledgedReview = runWorkerStatusCase(fixture, [screenshot, critique], {
+      comments: [reviewAcknowledgement],
+      reviews: [standaloneReview],
+    })
+    T(
+      "worker-status.mjs: a later worker acknowledgement naming a PR commit covers a standalone review body",
+      acknowledgedReview.status === 0 &&
+        acknowledgedReview.verdict?.checks.find((entry) => entry.name === "review-activity")?.ok === true,
+      `exit ${acknowledgedReview.status}\n     ${(acknowledgedReview.stderr || acknowledgedReview.stdout).slice(0, 600)}`,
+    )
+    const standaloneConversation = {
+      id: "IC_standalone_bot",
+      author: { login: "claude[bot]", __typename: "Bot" },
+      body: "standalone conversation finding",
+      createdAt: "2026-07-28T10:00:00Z",
+      updatedAt: "2026-07-28T10:00:00Z",
+    }
+    const unacknowledgedConversation = runWorkerStatusCase(fixture, [screenshot, critique], {
+      comments: [standaloneConversation],
+    })
+    T(
+      "worker-status.mjs: a standalone automated conversation finding needs an auditable worker acknowledgement",
+      unacknowledgedConversation.status === 1 &&
+        unacknowledgedConversation.verdict?.checks.find((entry) => entry.name === "review-activity")?.ok === false,
+      `exit ${unacknowledgedConversation.status}\n     ${(unacknowledgedConversation.stderr || unacknowledgedConversation.stdout).slice(0, 600)}`,
+    )
+    const conversationAcknowledgement = {
+      id: "IC_conversation_ack",
+      author: { login: "worker", __typename: "User" },
+      body: `Acknowledged IC_standalone_bot in ${fixture.prHead}`,
+      createdAt: "2026-07-28T10:00:02Z",
+      updatedAt: "2026-07-28T10:00:02Z",
+    }
+    const acknowledgedConversation = runWorkerStatusCase(fixture, [screenshot, critique], {
+      comments: [standaloneConversation, conversationAcknowledgement],
+    })
+    T(
+      "worker-status.mjs: a later worker acknowledgement naming a PR commit covers a conversation finding",
+      acknowledgedConversation.status === 0 &&
+        acknowledgedConversation.verdict?.checks.find((entry) => entry.name === "review-activity")?.ok === true,
+      `exit ${acknowledgedConversation.status}\n     ${(acknowledgedConversation.stderr || acknowledgedConversation.stdout).slice(0, 600)}`,
+    )
+    const unfixedAutomatedThread = reviewThread({
+      author: "claude[bot]",
+      authorType: "Bot",
+      id: "PRRT_unfixed",
+      isResolved: true,
+      resolvedBy: "worker",
+      reply: `Fixed in ${fixture.unrelatedCommit}`,
+      reviewedCommit: fixture.reviewedCommit,
+    })
+    const unfixed = runWorkerStatusCase(fixture, [screenshot, critique], { reviewThreads: [unfixedAutomatedThread], verifyReview: true })
+    T(
+      "worker-status.mjs: a worker-resolved automated finding with no matching diff change is UNMET",
+      unfixed.status === 1 &&
+        unfixed.verdict?.checks.find((entry) => entry.name === "resolved-thread-fixes")?.ok === false,
+      `exit ${unfixed.status}\n     ${(unfixed.stderr || unfixed.stdout).slice(0, 600)}`,
+    )
+    const humanThread = reviewThread({
+      author: "human-reviewer",
+      authorType: "User",
+      id: "PRRT_human",
+      isResolved: false,
+    })
+    const humanLog = stage("worker-status-human.log", "")
+    const human = runWorkerStatusCase(fixture, [screenshot, critique], { log: humanLog, reviewThreads: [humanThread] })
+    const humanCalls = readFileSync(humanLog, "utf8")
+    T(
+      "worker-status.mjs: an approved pull request with an unresolved human thread does not report done",
+      human.status === 1 && human.verdict?.checks.find((entry) => entry.name === "review-threads")?.ok === false,
+      `exit ${human.status}\n     ${(human.stderr || human.stdout).slice(0, 600)}`,
+    )
+    T(
+      "worker-status.mjs: verification never auto-resolves a human-authored thread",
+      !humanCalls.includes("resolveReviewThread"),
+      humanCalls.slice(0, 600),
+    )
+    const workerResolvedHumanThread = reviewThread({
+      author: "human-reviewer",
+      authorType: "User",
+      id: "PRRT_human_resolved",
+      isResolved: true,
+      resolvedBy: "worker",
+      reply: `Fixed in ${fixture.fixCommit}`,
+    })
+    const resolvedHuman = runWorkerStatusCase(fixture, [screenshot, critique], { reviewThreads: [workerResolvedHumanThread], verifyReview: true })
+    T(
+      "worker-status.mjs: a human-authored thread resolved by the worker account is UNMET",
+      resolvedHuman.status === 1 &&
+        resolvedHuman.verdict?.checks.find((entry) => entry.name === "human-thread-resolution")?.ok === false,
+      `exit ${resolvedHuman.status}\n     ${(resolvedHuman.stderr || resolvedHuman.stdout).slice(0, 600)}`,
+    )
+    writeFileSync(join(fixture.worktree, "reviewed.txt"), "review fix\nlocal only fix\n")
+    const localGit = (args) => spawnSync("git", ["-C", fixture.worktree, ...args], { encoding: "utf8" })
+    localGit(["add", "reviewed.txt"])
+    localGit(["commit", "-q", "-m", "local only review fix"])
+    const localOnlyCommit = localGit(["rev-parse", "HEAD"]).stdout.trim()
+    const localOnlyThread = reviewThread({
+      author: "claude[bot]",
+      authorType: "Bot",
+      id: "PRRT_local_only",
+      isResolved: true,
+      resolvedBy: "worker",
+      reply: `Fixed in ${localOnlyCommit}`,
+      reviewedCommit: fixture.reviewedCommit,
+    })
+    const localOnly = runWorkerStatusCase(fixture, [screenshot, critique], {
+      reviewThreads: [localOnlyThread],
+      verifyReview: true,
+    })
+    T(
+      "worker-status.mjs: an unpushed local fix cannot satisfy remote PR verification",
+      localOnly.status === 1 &&
+        localOnly.verdict?.checks.find((entry) => entry.name === "pr-head-match")?.ok === false &&
+        localOnly.verdict?.checks.find((entry) => entry.name === "resolved-thread-fixes")?.ok === false,
+      `exit ${localOnly.status}\n     ${(localOnly.stderr || localOnly.stdout).slice(0, 600)}`,
+    )
   },
   "compose-prompt.mjs": composePromptCases,
   "wave-plan.mjs": () => {
+    orchestrateFlagCases()
+    check("wave-plan.mjs", "documents the explicit issue selection mode", ["--help"], { status: 0, stdout: /--issues "ORB-a,\.\.\."/ })
+    const body = (files) => `## Affected modules / files\n\n${files}\n`
+    const stubDescriptions = (aDescription, bDescription, aLabels = [], bLabels = [], aRelations = [], bRelations = []) =>
+      orcaEnv([
+        { match: "linear list-issues", stdout: JSON.stringify({ ok: true, result: { issues: [{ identifier: "ORB-201" }, { identifier: "ORB-202" }] } }) },
+        { match: "linear issue ORB-201", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-201", title: "first collision probe", description: aDescription, state: { name: "Todo", type: "unstarted" }, labels: aLabels }, relations: aRelations } }) },
+        { match: "linear issue ORB-202", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-202", title: "second collision probe", description: bDescription, state: { name: "Todo", type: "unstarted" }, labels: bLabels }, relations: bRelations } }) },
+      ])
+    const stub = (aFiles, bFiles) => stubDescriptions(body(aFiles), body(bFiles))
+    check("wave-plan.mjs", "two tickets naming a common path are reported as a collision pair", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /ORB-201 \+ ORB-202: tools\/test-tools\.mjs/ }, { env: stub("`tools/test-tools.mjs`", "`tools/test-tools.mjs`") })
+    check("wave-plan.mjs", "a backticked root file is reported as a collision", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /ORB-201 \+ ORB-202: README\.md/ }, { env: stub("`README.md`", "`README.md`") })
+    check("wave-plan.mjs", "a bare root file list item is reported as a collision", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /ORB-201 \+ ORB-202: README\.md/ }, { env: stub("- README.md", "- README.md") })
+    check("wave-plan.mjs", "checkbox root files remain collision candidates", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /ORB-201 \+ ORB-202: CLAUDE\.md/ }, { env: stub("- [ ] CLAUDE.md\n`tools/a.mjs`", "- [x] CLAUDE.md\n`tools/b.mjs`") })
+    check("wave-plan.mjs", "annotated root files remain collision candidates", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /ORB-201 \+ ORB-202: README\.md/ }, { env: stub("- README.md: update badge link\n`tools/a.mjs`", "- README.md - revise registry\n`tools/b.mjs`") })
+    check("wave-plan.mjs", "comma and word-separated bare root files remain collision candidates", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /ORB-201 \+ ORB-202: README\.md/ }, { env: stub("README.md, CLAUDE.md and package.json\n`tools/a.mjs`", "README.md, CHANGELOG.md and eslint.config.mjs\n`tools/b.mjs`") })
+    check("wave-plan.mjs", "the same relative path in different repositories is not a collision", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /collisions: none/ }, { env: stubDescriptions(body("`CLAUDE.md`"), body("`CLAUDE.md`"), ["repo:ui"], ["repo:api"]) })
+    check("wave-plan.mjs", "the same path in different waves is not a collision", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /WAVE 1[\s\S]*?collisions: none[\s\S]*?WAVE 2[\s\S]*?collisions: none/ }, { env: stubDescriptions(body("`tools/test-tools.mjs`"), body("`tools/test-tools.mjs`"), [], [], [], [{ relationship: "blockedBy", relatedIssue: { identifier: "ORB-201" } }]) })
+    check("wave-plan.mjs", "two tickets naming disjoint paths report no collision", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /collisions: none/ }, { env: stub("`tools/a.mjs`", "`tools/b.mjs`") })
+    check("wave-plan.mjs", "dynamic route segments stay part of disjoint paths", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /collisions: none/ }, { env: stub("`apps/web/app/r/[code]/page.tsx`", "`apps/web/app/(app)/social/challenges/[id]/page.tsx`") })
+    check("wave-plan.mjs", "native paths collide even when each ticket also names a recognised tool path", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /ORB-201 \+ ORB-202: apps\/mobile\/android\/app\/src\/main\/java\/com\/orbit\/MainActivity\.kt/ }, { env: stub("`tools/a.mjs`\n`apps/mobile/android/app/src/main/java/com/orbit/MainActivity.kt`", "`tools/b.mjs`\n`apps/mobile/android/app/src/main/java/com/orbit/MainActivity.kt`") })
+    check("wave-plan.mjs", "ordinary dotted prose is not reported as a collision", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /collisions: none/ }, { env: stub("e.g. `tools/a.mjs` with Node.js v20.5", "e.g. `tools/b.mjs` with Node.js v20.5") })
+    check("wave-plan.mjs", "a shared URL is not reported as a file collision", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /collisions: none/ }, { env: stub("See https://github.com/org/repo/blob/main/docs/collisions.md and `tools/a.mjs`", "See https://github.com/org/repo/blob/main/docs/collisions.md and `tools/b.mjs`") })
+    check("wave-plan.mjs", "a shared bare-domain URL is not reported as a file collision", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /collisions: none/ }, { env: stub("See github.com/org/repo/blob/main/docs/collisions.md and `tools/a.mjs`", "See github.com/org/repo/blob/main/docs/collisions.md and `tools/b.mjs`") })
+    const fencedDescription = ["## Technical details", "```sh", "# Files affected: `scripts/deploy.sh`", "```", "## Affected modules / files", "`tools/test-tools.mjs`"].join("\n")
+    check("wave-plan.mjs", "a heading-shaped line inside a fence cannot shadow the affected section", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /ORB-201 \+ ORB-202: tools\/test-tools\.mjs/ }, { env: stubDescriptions(fencedDescription, body("`tools/test-tools.mjs`")) })
+    const fencedAffected = (file) => body(`\`${file}\`\n\`\`\`sh\nscripts/shared-example.sh\n\`\`\``)
+    check("wave-plan.mjs", "fenced examples inside the affected section are not collision candidates", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /collisions: none/ }, { env: stubDescriptions(fencedAffected("tools/a.mjs"), fencedAffected("tools/b.mjs")) })
+    const boundedBody = (file) => `${body(file)}\n## Test scenarios\n\n\`tools/shared-after-section.mjs\`\n`
+    check("wave-plan.mjs", "a later section cannot leak a shared path into collisions", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /collisions: none/ }, { env: stubDescriptions(boundedBody("`tools/a.mjs`"), boundedBody("`tools/b.mjs`")) })
+    check("wave-plan.mjs", "a ticket with no affected section is reported as unknown", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /unknown \(no parseable path in Affected modules \/ files\): ORB-201/ }, { env: stubDescriptions("## Summary\n\nno affected section here\n", body("`tools/b.mjs`")) })
+    check("wave-plan.mjs", "a ticket with no parseable affected path is reported as unknown", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /unknown \(no parseable path/ }, { env: stub("nothing recognisable here", "`tools/b.mjs`") })
+    check("wave-plan.mjs", "the json output carries the same collision pair", ["--issues", "ORB-201,ORB-202", "--json"], { status: 0, stdout: /"files": \[\s*"tools\/test-tools\.mjs"/ }, { env: stub("`tools/test-tools.mjs`", "`tools/test-tools.mjs`") })
+    check("wave-plan.mjs", "the json output carries unknown affected identifiers", ["--issues", "ORB-201,ORB-202", "--json"], { status: 0, stdout: /"unknownAffected": \[\s*"ORB-201"/ }, { env: stub("nothing recognisable here", "`tools/b.mjs`") })
+
+    check("wave-plan.mjs", "plans one explicitly requested identifier and counts out-of-set dependents in reach", ["--issues", "ORB-1", "--json"], { status: 0, stdout: /"identifier": "ORB-1"[\s\S]*?"reach": 1[\s\S]*?"launchable": true/ }, { env: orcaEnv(ISSUES_WAVE_STUB) })
+    const duplicateLog = stage("wave-plan-duplicate.log", "")
+    const duplicate = run("wave-plan.mjs", ["--issues", "ORB-1,ORB-1", "--json"], { env: { ...orcaEnv(ISSUES_WAVE_STUB), ORBIT_ORCA_LOG: duplicateLog } })
+    const duplicateFetches = readFileSync(duplicateLog, "utf8").split("\n").filter(Boolean).map(JSON.parse).filter((argv) => argv[0].split(/[\\/]/).pop() === "linear" && argv[1] === "issue" && argv[2] === "ORB-1")
+    T("wave-plan.mjs: deduplicates explicitly requested identifiers before fetching", duplicate.status === 0 && duplicateFetches.length === 1, duplicate.stderr || duplicate.stdout)
+    check("wave-plan.mjs", "renders both members of an explicit two-ticket selection", ["--issues", "ORB-1,ORB-2", "--json"], { status: 0, stdout: /"identifier": "ORB-1"[\s\S]*?"identifier": "ORB-2"/ }, { env: orcaEnv(ISSUES_WAVE_STUB) })
+    check("wave-plan.mjs", "refuses explicit issues combined with another mode", ["--issues", "ORB-1", "--project", "Redesign"], { status: 2, stderr: /cannot be combined/ })
+    check("wave-plan.mjs", "refuses explicit issues combined with a label", ["--issues", "ORB-1", "--label", "bug"], { status: 2, stderr: /cannot be combined/ })
+    check("wave-plan.mjs", "refuses explicit issues combined with all", ["--issues", "ORB-1", "--all"], { status: 2, stderr: /cannot be combined/ })
+    check("wave-plan.mjs", "requires a value for explicit issues", ["--issues"], { status: 2, stderr: /requires at least one identifier/ })
+    check("wave-plan.mjs", "names an unresolved requested identifier", ["--issues", "ORB-404"], { status: 1, stderr: /unresolved requested identifier\(s\): ORB-404/ }, { env: orcaEnv([{ match: "linear issue ORB-404", stdout: JSON.stringify({ ok: false, error: { message: "not found" } }) }]) })
+    check("wave-plan.mjs", "refuses a requested Done identifier", ["--issues", "ORB-3"], { status: 1, stderr: /Done requested identifier\(s\): ORB-3/ }, { env: orcaEnv([{ match: "linear issue ORB-3", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-3", title: "done", state: { name: "Done", type: "completed" }, labels: [] }, relations: [] } }) }]) })
+    check("wave-plan.mjs", "uses an out-of-set team blocker while displaying only requested issues", ["--issues", "ORB-2", "--json"], { status: 0, stdout: /"blockedBy": \[\s*"ORB-99"\s*\][\s\S]*?"blockerState": "blocked by ORB-99"[\s\S]*?"launchable": false[\s\S]*?"twoStrikes": \[\s*"ORB-2"\s*\]/ }, { env: orcaEnv(ISSUES_WAVE_STUB) })
+    check("wave-plan.mjs", "restricts text output to requested identifiers with their blocker state", ["--issues", "ORB-2"], { status: 0, stdout: /ORB-2[\s\S]*?blockerState: blocked by ORB-99[\s\S]*?launchable: no/, stderr: /^$/ }, { env: orcaEnv(ISSUES_WAVE_STUB) })
     check("wave-plan.mjs", "orders a blockedBy pair into two waves", ["--project", "Redesign", "--json"], { status: 0, stdout: /"wave": 2[\s\S]*ORB-2/ }, { env: orcaEnv(WAVE_STUB) })
     check("wave-plan.mjs", "wave 1 is the unblocked ticket", ["--project", "Redesign", "--json"], { status: 0, stdout: /"launchable": \[\s*"ORB-1"\s*\]/ }, { env: orcaEnv(WAVE_STUB) })
     check("wave-plan.mjs", "reach counts the whole downstream chain, not just direct blockers", ["--project", "Redesign", "--json"], { status: 0, stdout: /"identifier": "ORB-1"[\s\S]*?"reach": 2/ }, { env: orcaEnv(WAVE_STUB) })
     check("wave-plan.mjs", "a wave-1 ticket at the strike limit is reported, not dropped", ["--project", "Redesign", "--json"], { status: 0, stdout: /"twoStrikes": \[\s*"ORB-4"\s*\]/ }, { env: orcaEnv(WAVE_STUB) })
     check("wave-plan.mjs", "text mode marks the same strike-limit ticket", ["--project", "Redesign"], { status: 0, stdout: /ORB-4[\s\S]*?TWO STRIKES/ }, { env: orcaEnv(WAVE_STUB) })
     check("wave-plan.mjs", "an empty project is nothing to plan", ["--project", "Empty"], { status: 1, stderr: /nothing to plan/ }, { env: orcaEnv([{ match: "linear list-issues", stdout: JSON.stringify({ ok: true, result: { issues: [] } }) }]) })
-    const start = Date.now()
-    const delayed = run("wave-plan.mjs", ["--all"], { env: orcaEnv(delayedWaveStub()) })
-    T("wave-plan.mjs: fetches 100 relations in a bounded pool while preserving the table order", delayed.status === 0 && Date.now() - start < 3000 && /ORB-1[\s\S]*ORB-100/.test(delayed.stdout), `exit ${delayed.status}, elapsed ${Date.now() - start}ms\n     ${delayed.stderr}`)
+    const timingLog = stage("wave-plan-timing.log", "")
+    const delayed = run("wave-plan.mjs", ["--all"], {
+      env: { ...orcaEnv(delayedWaveStub()), ORBIT_ORCA_TIMING_LOG: timingLog },
+    })
+    const concurrency = relationFetchConcurrency(timingLog)
+    T(
+      "wave-plan.mjs: fetches 100 relations in a bounded pool while preserving the table order",
+      delayed.status === 0
+        && concurrency.events.filter((event) => event.event === "start").length === 100
+        && concurrency.peak > 1
+        && concurrency.peak <= 8
+        && concurrency.active === 0
+        && /ORB-1[\s\S]*ORB-100/.test(delayed.stdout),
+      `exit ${delayed.status}, relation events ${concurrency.events.length}, peak concurrency ${concurrency.peak}, active at exit ${concurrency.active}\n     ${delayed.stderr}`,
+    )
     check(
       "wave-plan.mjs",
       "names a failing relation fetch without an execFile stack trace",
@@ -1208,10 +4182,261 @@ const gateCases = {
     check("check-dashes.mjs", "an em dash in text is rejected", ["--text", `a${EM_DASH}b`], { status: 1, stderr: /Banned dash/ })
     check("check-dashes.mjs", "clean text passes", ["--text", "a plain hyphen - is fine"], { status: 0 })
   },
+  "check-lockstep.mjs": () => {
+    const matching = lockstepFixture("matching")
+    check("check-lockstep.mjs", "six matching pairs pass", ["--ui-root", matching.uiRoot, "--api-root", matching.apiRoot, "--manifest", matching.manifest], { status: 0, stdout: /HARNESS LOCKSTEP OK/ })
+
+    const malformedManifest = lockstepFixture("malformed-manifest")
+    writeFileSync(malformedManifest.manifest, JSON.stringify({ version: 1, files: {} }))
+    check(
+      "check-lockstep.mjs",
+      "a malformed declaration manifest fails loudly",
+      ["--ui-root", malformedManifest.uiRoot, "--api-root", malformedManifest.apiRoot, "--manifest", malformedManifest.manifest],
+      { status: 1, stderr: /check-lockstep: unreadable comparison input: manifest must declare exactly the six lockstep paths/ },
+    )
+
+    const configuredDefault = lockstepFixture("default-configured")
+    writeFileSync(join(configuredDefault.uiRoot, ".claude", "orchestrator.json"), JSON.stringify({ repos: { api: configuredDefault.apiRoot } }))
+    check(
+      "check-lockstep.mjs",
+      "uses orchestrator repos.api when --api-root is omitted",
+      ["--ui-root", configuredDefault.uiRoot, "--manifest", configuredDefault.manifest],
+      { status: 0, stdout: /^HARNESS LOCKSTEP OK: 6 pairs checked\s*$/, stderr: /^$/ },
+      { cwd: root },
+    )
+
+    const missingConfiguredApi = lockstepDefaultApiFixture("default-missing-api")
+    writeFileSync(join(missingConfiguredApi.uiRoot, ".claude", "orchestrator.json"), JSON.stringify({ repos: {} }))
+    check(
+      "check-lockstep.mjs",
+      "falls back to the sibling when orchestrator repos.api is missing",
+      ["--ui-root", missingConfiguredApi.uiRoot, "--manifest", missingConfiguredApi.manifest],
+      { status: 0, stdout: /^HARNESS LOCKSTEP OK: 6 pairs checked\s*$/, stderr: /^$/ },
+      { cwd: root },
+    )
+
+    const malformedConfig = lockstepDefaultApiFixture("default-malformed-config")
+    writeFileSync(join(malformedConfig.uiRoot, ".claude", "orchestrator.json"), "{not-json")
+    check(
+      "check-lockstep.mjs",
+      "falls back to the sibling when orchestrator config is unparsable",
+      ["--ui-root", malformedConfig.uiRoot, "--manifest", malformedConfig.manifest],
+      { status: 0, stdout: /^HARNESS LOCKSTEP OK: 6 pairs checked\s*$/, stderr: /^$/ },
+      { cwd: root },
+    )
+
+    const absentConfig = lockstepDefaultApiFixture("default-no-config")
+    check(
+      "check-lockstep.mjs",
+      "falls back to the sibling when orchestrator config is absent",
+      ["--ui-root", absentConfig.uiRoot, "--manifest", absentConfig.manifest],
+      { status: 0, stdout: /^HARNESS LOCKSTEP OK: 6 pairs checked\s*$/, stderr: /^$/ },
+      { cwd: root },
+    )
+
+    const divergent = lockstepFixture("divergent", "shared\nui-only\nshared-tail\n", "shared\napi-only\nshared-tail\n")
+    check("check-lockstep.mjs", "an undeclared divergence fails with its file and region", ["--ui-root", divergent.uiRoot, "--api-root", divergent.apiRoot, "--manifest", divergent.manifest], { status: 1, stderr: /pr-review\/SKILL\.md: undeclared region/ })
+
+    const staleFingerprint = lockstepFingerprint("old-ui-only", "old-api-only")
+    const staleDeclaration = [{ id: "obsolete-platform-wording", justification: "The old repository wording was intentionally different.", fingerprints: [staleFingerprint] }]
+    const stale = lockstepFixture("stale-declaration", "shared\ncurrent-ui\nshared-tail\n", "shared\ncurrent-api\nshared-tail\n", staleDeclaration)
+    check(
+      "check-lockstep.mjs",
+      "a declaration that matches no current diff is stale",
+      ["--ui-root", stale.uiRoot, "--api-root", stale.apiRoot, "--manifest", stale.manifest],
+      { status: 1, stderr: new RegExp(`stale declaration obsolete-platform-wording \\(${staleFingerprint}\\); remove it or update the justified region`) },
+    )
+
+    const declaration = [{ id: "platform-wording", justification: "The repository names its own platform.", fingerprints: [lockstepFingerprint("ui-only", "api-only")] }]
+    const declared = lockstepFixture("declared", "shared\nui-only\nshared-tail\n", "shared\napi-only\nshared-tail\n", declaration)
+    check("check-lockstep.mjs", "a justified declared divergence passes", ["--ui-root", declared.uiRoot, "--api-root", declared.apiRoot, "--manifest", declared.manifest], { status: 0 })
+    writeFileSync(join(declared.uiRoot, LOCKSTEP_PATHS[0]), "changed-shared\nui-only\nshared-tail\n")
+    check("check-lockstep.mjs", "a change in the shared region still fails", ["--ui-root", declared.uiRoot, "--api-root", declared.apiRoot, "--manifest", declared.manifest], { status: 1, stderr: /undeclared region/ })
+
+    const byteExact = lockstepFixture("byte-exact")
+    writeFileSync(join(byteExact.uiRoot, LOCKSTEP_PATHS.at(-1)), "shared!\n")
+    check("check-lockstep.mjs", "second-opinion drift fails byte for byte", ["--ui-root", byteExact.uiRoot, "--api-root", byteExact.apiRoot, "--manifest", byteExact.manifest], { status: 1, stderr: /second-opinion\/second-opinion\.mjs: whole file differs/ })
+
+    check("check-lockstep.mjs", "an unreachable sibling fails loudly", ["--ui-root", matching.uiRoot, "--api-root", join(root, "missing-api"), "--manifest", matching.manifest], { status: 1, stderr: /unreadable comparison input/ })
+  },
+  "check-context-budget.mjs": contextBudgetCases,
   "capture-surfaces.mjs": captureSurfacesCases,
   "check-ticket.mjs": () => {
     check("check-ticket.mjs", "an incomplete body is rejected", ["--file", stage("ticket.md", "# A ticket\n\nno template sections here\n")], { nonZero: true })
     check("check-ticket.mjs", "a missing body file is a usage error", ["--file", join(root, "absent.md")], { status: 2 })
+    const criteriaTicket = (...items) =>
+      VALID_TICKET_BODY.replace("- the created identifier is the one validated\n\n- a defective ticket exits 1", items.join("\n\n"))
+    check(
+      "check-ticket.mjs",
+      "an acceptance criterion quantifying over an open set is rejected",
+      ["--file", stage("ticket-open-set.md", criteriaTicket("- every phrasing a worker could emit is blocked", "- a defective ticket exits 1"))],
+      { status: 1, stderr: /quantifies over an open set/ },
+    )
+    check(
+      "check-ticket.mjs",
+      "the same criterion passes once it names the command that decides it",
+      ["--file", stage("ticket-bounded-set.md", criteriaTicket("- every phrasing rejected by `node tools/check-ticket.mjs` is blocked", "- a defective ticket exits 1"))],
+      { status: 0, stdout: /ticket ok/ },
+    )
+    check(
+      "check-ticket.mjs",
+      "a bound outside the quantified clause does not rescue an open set",
+      ["--file", stage("ticket-stray-bound.md", criteriaTicket("- every phrasing a worker could emit is blocked and the command exits 1", "- a defective ticket exits 1"))],
+      { status: 1, stderr: /quantifies over an open set/ },
+    )
+    check(
+      "check-ticket.mjs",
+      "an acceptance criterion trailing off into an unnamed remainder is rejected",
+      ["--file", stage("ticket-open-tail.md", criteriaTicket("- the two documented reasons are covered, etc.", "- a defective ticket exits 1"))],
+      { status: 1, stderr: /trails off into an unnamed remainder/ },
+    )
+    const visibleTicket = (evidence = "") => [
+      "# Validate visible effect evidence",
+      "",
+      VALID_TICKET_BODY,
+      "",
+      "The component behavior is user-visible.",
+      evidence,
+    ].join("\n")
+    check(
+      "check-ticket.mjs",
+      "a visible-effect body with screenshots and critique passes",
+      ["--file", stage("ticket-visible-complete.md", visibleTicket("Final screenshots and the critique artifact are attached before In Review."))],
+      { status: 0, stdout: /ticket ok/ },
+    )
+    check(
+      "check-ticket.mjs",
+      "a visible-effect body with screenshots but no critique names the missing critique",
+      ["--file", stage("ticket-visible-no-critique.md", visibleTicket("Final screenshots are attached before In Review."))],
+      { status: 1, stderr: /DEFECTIVE TICKET \(1 problems\)[\s\S]*critique artifact is attached before In Review/ },
+    )
+    check(
+      "check-ticket.mjs",
+      "a visible-effect body with neither screenshots nor critique fails both requirements",
+      ["--file", stage("ticket-visible-no-evidence.md", visibleTicket())],
+      { status: 1, stderr: /DEFECTIVE TICKET \(2 problems\)[\s\S]*final screenshots are attached before In Review[\s\S]*critique artifact is attached before In Review/ },
+    )
+    const issueStub = (labels, description = VALID_TICKET_BODY, relations = []) =>
+      orcaEnv([
+        {
+          match: "linear issue ORB-113",
+          stdout: JSON.stringify({
+            ok: true,
+            result: {
+              issue: {
+                identifier: "ORB-113",
+                title: "Gate the Linear ticket type taxonomy",
+                description,
+                labels: labels.map((name) => ({ name })),
+              },
+              relations,
+            },
+          }),
+        },
+      ])
+    check(
+      "check-ticket.mjs",
+      "issue mode rejects zero type labels and names every valid value",
+      ["--issue", "ORB-113"],
+      { status: 1, stderr: /exactly ONE type label required \(Feature, Bug, Improvement\); found: none/ },
+      { env: issueStub(["repo:api"]) },
+    )
+    check(
+      "check-ticket.mjs",
+      "issue mode accepts exactly one type label",
+      ["--issue", "ORB-113"],
+      { status: 0, stdout: /ticket ok/ },
+      { env: issueStub(["repo:api", "Improvement"]) },
+    )
+    check(
+      "check-ticket.mjs",
+      "issue mode rejects two type labels",
+      ["--issue", "ORB-113"],
+      { status: 1, stderr: /exactly ONE type label required \(Feature, Bug, Improvement\); found: Feature, Bug/ },
+      { env: issueStub(["repo:api", "Feature", "Bug"]) },
+    )
+    check(
+      "check-ticket.mjs",
+      "the repo label rule still rejects two repo labels alongside one type",
+      ["--issue", "ORB-113"],
+      { status: 1, stderr: /exactly ONE repo label required/ },
+      { env: issueStub(["repo:api", "repo:ui", "parity:no", "Feature"]) },
+    )
+    check(
+      "check-ticket.mjs",
+      "file mode remains unaffected by issue-only label validation",
+      ["--file", stage("valid-ticket.md", `# Gate the Linear ticket type taxonomy\n\n${VALID_TICKET_BODY}\n`)],
+      { status: 0, stdout: /ticket ok/ },
+    )
+    for (const [name, prose] of [
+      ["once used as a measured frequency", "The callback fires once for each matching label."],
+      ["depends on used for ordinary logic", "The exact message depends on which labels are present."],
+      ["after used as an ordinary sequence", "After validation, the checker prints ticket ok."],
+      ["after used for process order", "Cleanup runs after the terminal exits."],
+      ["once used for retry timing", "The launcher retries once the daemon is responsive."],
+      ["depends on and blocked by used for ordinary behavior", "The branch name depends on configuration, and startup can be blocked by a trust prompt."],
+    ]) {
+      check(
+        "check-ticket.mjs",
+        `dependency prose ignores ${name}`,
+        ["--issue", "ORB-113"],
+        { status: 0, stdout: /ticket ok/ },
+        { env: issueStub(["repo:api", "Improvement"], `${VALID_TICKET_BODY}\n\n${prose}`) },
+      )
+    }
+    check(
+      "check-ticket.mjs",
+      "a genuine named dependency without a relation is rejected",
+      ["--issue", "ORB-113"],
+      { status: 1, stderr: /body PROSE mentions a dependency but the issue has no blockedBy relation/ },
+      { env: issueStub(["repo:api", "Improvement"], `${VALID_TICKET_BODY}\n\n## Dependencies (blockedBy)\n\nThis work depends on ORB-112.`) },
+    )
+    check(
+      "check-ticket.mjs",
+      "a named issue blocker still requires a blockedBy relation",
+      ["--issue", "ORB-113"],
+      { status: 1, stderr: /body PROSE mentions a dependency/ },
+      { env: issueStub(["repo:api", "Improvement"], `${VALID_TICKET_BODY}\n\nThis change is blocked by ORB-1.`) },
+    )
+    check(
+      "check-ticket.mjs",
+      "an issue named anywhere in Dependencies requires a blockedBy relation",
+      ["--issue", "ORB-113"],
+      { status: 1, stderr: /body PROSE mentions a dependency/ },
+      { env: issueStub(["repo:api", "Improvement"], `${VALID_TICKET_BODY}\n\n## Dependencies\n\nRequires ORB-112.`) },
+    )
+    check(
+      "check-ticket.mjs",
+      "a Dependencies section with no issue and no dependency phrase is accepted",
+      ["--issue", "ORB-113"],
+      { status: 0, stdout: /ticket ok/ },
+      { env: issueStub(["repo:api", "Improvement"], `${VALID_TICKET_BODY}\n\n## Dependencies\n\nNo cross-ticket relation is required.`) },
+    )
+    check(
+      "check-ticket.mjs",
+      "a dependency-free Dependencies section may use ordinary signal words",
+      ["--issue", "ORB-113"],
+      { status: 0, stdout: /ticket ok/ },
+      {
+        env: issueStub(
+          ["repo:api", "Improvement"],
+          `${VALID_TICKET_BODY}\n\nNo server restart is expected; a cache flush is required if that changes.\n\n## Dependencies\n\nNone. This can proceed once the security review completes.`,
+        ),
+      },
+    )
+    check(
+      "check-ticket.mjs",
+      "a named dependency with its blockedBy relation is accepted",
+      ["--issue", "ORB-113"],
+      { status: 0, stdout: /ticket ok/ },
+      {
+        env: issueStub(
+          ["repo:api", "Improvement"],
+          `${VALID_TICKET_BODY}\n\n## Dependencies\n\nRequires ORB-112.`,
+          [{ relationship: "blockedBy", relatedIssue: { identifier: "ORB-112" } }],
+        ),
+      },
+    )
     const ledgerIssue = (line) => ({
       ...VALID_ISSUE,
       description: `${VALID_TICKET_BODY}\n\n${line}`,
@@ -1265,7 +4490,15 @@ const gateCases = {
   },
   "check-frontmatter.mjs": () => {
     check("check-frontmatter.mjs", "runs from any cwd", [], { status: 0, stdout: /frontmatter ok/ }, { cwd: root })
+    stage("frontmatter-valid/SKILL.md", "---\nname: valid\ndescription: A parseable skill.\n---\n")
+    check("check-frontmatter.mjs", "accepts a custom root relative to the caller", ["--root", "frontmatter-valid"], { status: 0, stdout: /frontmatter ok: 1/ }, { cwd: root })
+    const malformedRoot = dirname(stage("frontmatter-malformed/SKILL.md", "---\nname: malformed\ndescription: This breaks: the description will not parse.\n---\n"))
+    check("check-frontmatter.mjs", "rejects an unquoted colon-space scalar in a custom root", ["--root", malformedRoot], { status: 1, stderr: /SKILL\.md  \[description\]/ })
+    check("check-frontmatter.mjs", "rejects a missing custom root", ["--root", join(root, "frontmatter-missing")], { status: 2, stderr: /root does not exist/ })
+    const noFrontmatterRoot = dirname(stage("frontmatter-absent/README.md", "# No frontmatter\n"))
+    check("check-frontmatter.mjs", "rejects a custom root that proves nothing", ["--root", noFrontmatterRoot], { status: 1, stderr: /No frontmatter found/ })
   },
+  "check-calibration.mjs": calibrationCases,
 }
 
 /** argv that must be refused before the tool does any work. */
@@ -1274,9 +4507,12 @@ const INVALID_INPUT = {
   "agent-review.sh": { argv: ["--orbit-not-a-flag"], status: 1 },
   "arch-map.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "capture-surfaces.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "check-context-budget.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "check-calibration.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-copy.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-dashes.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-frontmatter.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "check-lockstep.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-push-target.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-suppressions-ratchet.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-ticket.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
@@ -1287,6 +4523,7 @@ const INVALID_INPUT = {
   "new-ticket.mjs": { argv: [], status: 2 },
   "nudge-worker.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "orca-web-port.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "preflight.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "pr-watch.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "redesign-coverage.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "rollup.sh": { argv: ["--orbit-not-a-flag"], status: 2 },
@@ -1323,7 +4560,7 @@ for (const file of scripts) {
 console.log("\n# decision paths")
 for (const [file, cases] of Object.entries(gateCases)) {
   if (!existsSync(join(TOOLS_DIR, file))) continue
-  cases()
+  await cases()
 }
 
 console.log(`\n${fails === 0 ? "ORBIT TOOLS GATE OK" : `ORBIT TOOLS GATE FAILED (${fails})`}`)

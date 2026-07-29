@@ -5,11 +5,14 @@ name: Guards
 # is the one layer nothing bypasses. Jobs:
 #   dashes  - the cross-repo dash ban: changed files, the shrink-only baseline, and the PR title/body
 #   copy    - AI-cliche / placeholder / typed-uppercase locale values + hardcoded brand colors
+#   context-budget - the shrink-only always-loaded context budget and structural allowlists
 #   ratchet - the eslint-suppressions.json baselines may only shrink
 #   parity  - a web-scope code change with zero mobile-scope change (or inverse) fails without the parity:exempt label
 #   expo-pin - apps/mobile/package.json changes must keep the Expo SDK pin resolution intact
 #   frontmatter - every skill and agent .md has parseable YAML frontmatter (an unquoted ": " drops it silently)
 #   harness - the harness is EXECUTED, not read: every tools/ script and both session hooks run
+#   lockstep - the six load-bearing harness twins stay aligned with orbit-api
+#   calibration - the model stamp covers every skill and agent and is current
 
 on:
   pull_request:
@@ -20,6 +23,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   dashes:
@@ -62,6 +66,21 @@ jobs:
           node-version: 22
       - run: node tools/check-copy.mjs --check
 
+  context-budget:
+    name: Context Budget
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'context:reseed')
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: node tools/check-context-budget.mjs --check
+        env:
+          CONTEXT_BUDGET_BASE_REF: ${{ github.event.pull_request.base.sha || 'origin/main' }}
+
   frontmatter:
     name: Skill and Agent Frontmatter
     runs-on: ubuntu-latest
@@ -71,6 +90,20 @@ jobs:
         with:
           node-version: 22
       - run: node tools/check-frontmatter.mjs
+
+  calibration:
+    name: Harness Calibration
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'calibration:reseed')
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Report calibration drift
+        # Report-only through 2026-08-11. Remove --report-only to make this blocking.
+        shell: bash
+        run: node tools/check-calibration.mjs --report-only | tee -a "$GITHUB_STEP_SUMMARY"
 
   harness:
     name: Harness Execution
@@ -102,6 +135,98 @@ jobs:
       - name: Both session hooks block and allow as specified
         if: steps.scope.outputs.changed == 'true'
         run: node .claude/hooks/test-hooks.mjs
+
+  lockstep:
+    name: Harness Lockstep
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Detect a lockstep change
+        id: scope
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          elif git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD \
+            | grep -Eq '^(\.claude/skills/pr-review/(SKILL\.md|rubric\.md)|\.claude/skills/_shared/verification-protocol\.md|\.claude/agents/(contract-aligner|security-reviewer)\.md|\.claude/skills/second-opinion/second-opinion\.mjs|tools/(check-lockstep\.mjs|lockstep-declarations\.json)|\.github/workflows/guards\.yml)$'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Resolve coordinated sibling candidate
+        id: sibling
+        if: steps.scope.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          CURRENT_PR: ${{ github.event.pull_request.number }}
+          PEER_REPOSITORY: thomasluizon/orbit-api
+        run: |
+          set -euo pipefail
+          ref=main
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            directives=$(printf '%s\n' "$PR_BODY" | tr -d '\r' | grep -E '^Harness-Lockstep-Peer:' || true)
+            count=$(printf '%s\n' "$directives" | sed '/^$/d' | wc -l | tr -d ' ')
+            if [ "$count" -gt 1 ]; then
+              echo "::error::PR body has more than one Harness-Lockstep-Peer directive"
+              exit 1
+            fi
+            if [ "$count" -eq 1 ]; then
+              peer_pr=$(printf '%s\n' "$directives" | sed -nE 's/^Harness-Lockstep-Peer:[[:space:]]*([1-9][0-9]*)[[:space:]]*$/\1/p')
+              if [ -z "$peer_pr" ]; then
+                echo "::error::Harness-Lockstep-Peer must contain one positive PR number"
+                exit 1
+              fi
+              peer_json=$(gh api "repos/$PEER_REPOSITORY/pulls/$peer_pr")
+              peer_base=$(jq -r '.base.ref' <<< "$peer_json")
+              peer_base_repo=$(jq -r '.base.repo.full_name' <<< "$peer_json")
+              peer_head_repo=$(jq -r '.head.repo.full_name' <<< "$peer_json")
+              peer_state=$(jq -r '.state' <<< "$peer_json")
+              peer_merged=$(jq -r '.merged' <<< "$peer_json")
+              peer_sha=$(jq -r '.head.sha' <<< "$peer_json")
+              if [ "$peer_base" != "main" ] || [ "$peer_base_repo" != "$PEER_REPOSITORY" ] || [ "$peer_head_repo" != "$PEER_REPOSITORY" ]; then
+                echo "::error::paired PR must target main from a branch in $PEER_REPOSITORY; forks are not accepted"
+                exit 1
+              fi
+              reciprocal=$(jq -r '.body // ""' <<< "$peer_json" | tr -d '\r' | grep -Fxc "Harness-Lockstep-Peer: $CURRENT_PR" || true)
+              if [ "$reciprocal" -ne 1 ]; then
+                echo "::error::$PEER_REPOSITORY#$peer_pr must contain exactly: Harness-Lockstep-Peer: $CURRENT_PR"
+                exit 1
+              fi
+              if [ "$peer_state" = "open" ]; then
+                if ! [[ "$peer_sha" =~ ^[0-9a-f]{40}$ ]]; then
+                  echo "::error::paired PR returned an invalid head SHA"
+                  exit 1
+                fi
+                ref=$peer_sha
+              elif [ "$peer_merged" = "true" ]; then
+                ref=main
+              else
+                echo "::error::$PEER_REPOSITORY#$peer_pr is closed without merge"
+                exit 1
+              fi
+            fi
+          fi
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          echo "Sibling candidate: $PEER_REPOSITORY@$ref"
+      - name: Check out orbit-api candidate
+        if: steps.scope.outputs.changed == 'true'
+        uses: actions/checkout@v7
+        with:
+          repository: thomasluizon/orbit-api
+          ref: ${{ steps.sibling.outputs.ref }}
+          path: orbit-api
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        if: steps.scope.outputs.changed == 'true'
+        with:
+          node-version: 22
+      - name: Six harness twins stay in lockstep
+        if: steps.scope.outputs.changed == 'true'
+        run: node tools/check-lockstep.mjs --ui-root "$GITHUB_WORKSPACE" --api-root "$GITHUB_WORKSPACE/orbit-api"
 
   ratchet:
     name: Suppressions Ratchet

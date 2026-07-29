@@ -16,9 +16,9 @@
  */
 
 import { execFileSync, spawnSync } from "node:child_process"
-import { readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 
+import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { REPAINT_SAMPLE_MS, classifyTerminals, pause, sampleTerminals } from "./lib/tui-repaint.mjs"
 
 const USAGE = `usage: worker-watch.mjs [options]
@@ -108,9 +108,9 @@ if (!Number.isInteger(lines) || lines < 1) fail(2, "--lines must be a positive i
 
 let config
 try {
-  config = JSON.parse(readFileSync(new URL("../.claude/orchestrator.json", import.meta.url), "utf8"))
+  config = readOrchestratorConfig()
 } catch (error) {
-  fail(2, `.claude/orchestrator.json could not be read as JSON: ${error.message}`)
+  fail(2, error.message)
 }
 const repos = config.repos ?? {}
 if (repoFilter && !repos[repoFilter]) fail(2, `--repo must be one of: ${Object.keys(repos).join(", ")}`)
@@ -219,7 +219,8 @@ for (const entry of report) {
   console.log(`  path      ${entry.path}`)
   if (entry.linearState) console.log(`  linear    ${entry.linearState}`)
   if (entry.comment) console.log(`  card      ${entry.comment}`)
-  console.log(`  terminals ${entry.terminals.length === 0 ? "none (no TUI attached)" : entry.terminals.map((terminal) => `${terminal.handle.slice(0, 13)} ${terminal.liveness}`).join(", ")}`)
+  const terminalLines = entry.terminals.map((terminal) => `${terminal.handle} ${terminal.liveness}`).join("\n            ")
+  console.log(`  terminals ${terminalLines || "none (no TUI attached)"}`)
   if (entry.contract) {
     const line =
       entry.contract.state === "met"

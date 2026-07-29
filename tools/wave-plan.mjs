@@ -12,15 +12,23 @@
 
 import { execFile } from "node:child_process"
 import { promisify } from "node:util"
-import { readFileSync } from "node:fs"
 
-const USAGE = `usage: wave-plan.mjs --project "<name>" | --label "<label>" | --all [--json]
+import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
+
+const USAGE = `usage: wave-plan.mjs --project "<name>" | --label "<label>" | --all | --issues "ORB-a,ORB-b" [--json]
 
   --project "<name>"   plan the issues of one Linear project
   --label "<label>"    plan the issues carrying one label
   --all                plan every non-done issue of the team
+  --issues "ORB-a,..." plan only these issues, resolving their complete blocker DAG
   --json               emit the wave table as JSON instead of text
   --help, -h           print this usage and exit 0
+
+Each wave also reports "collisions": every pair of tickets in it whose "Affected modules / files"
+sections name a common path, with the shared paths. It REPORTS only, and never reorders a wave:
+two tickets appending to the same test file and two rewriting the same function are identical to
+a set intersection, so the call to serialise stays with the operator. A ticket with no parseable
+path is listed as unknown, because silence is the thing this output exists to remove.
 
 exit codes: 0 wave table printed, 1 nothing to plan or a cycle, 2 usage/orca error`
 
@@ -31,9 +39,13 @@ if (process.argv.includes("--help") || process.argv.includes("-h")) {
 
 const ORCA = process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs\\orca\\resources\\bin\\orca"
 const TEAM = "ORB"
-const orchestratorConfig = JSON.parse(
-  readFileSync(new URL("../.claude/orchestrator.json", import.meta.url), "utf8"),
-)
+let orchestratorConfig
+try {
+  orchestratorConfig = readOrchestratorConfig()
+} catch (error) {
+  console.error(error.message)
+  process.exit(2)
+}
 const ATTEMPTS_BEFORE_REWRITE = orchestratorConfig.attemptsBeforeRewrite
 const RELATION_FETCH_CONCURRENCY = 8
 const execFileAsync = promisify(execFile)
@@ -91,28 +103,123 @@ const argOf = (flag) => {
 const project = argOf("--project")
 const label = argOf("--label")
 const all = process.argv.includes("--all")
-if (!project && !label && !all) {
+const issuesArgument = argOf("--issues")
+const issuesMode = issuesArgument !== null
+const requestedIdentifiers = typeof issuesArgument === "string" ? [...new Set(issuesArgument.split(",").map((identifier) => identifier.trim()).filter(Boolean))] : []
+if (issuesMode && (project || label || all)) {
+  console.error("--issues cannot be combined with --project, --label, or --all")
+  process.exit(2)
+}
+if (!project && !label && !all && !issuesMode) {
   console.error(USAGE)
   process.exit(2)
 }
-
-const listArgs = ["linear", "list-issues", "--team", TEAM, "--limit", "250"]
-if (project) listArgs.push("--project", project)
-if (label) listArgs.push("--label", label)
-let listed
-try {
-  listed = await orcaJson(listArgs, project ?? label ?? "the requested issue list")
-} catch (error) {
-  console.error(error.message)
+if (issuesMode && (!issuesArgument || issuesArgument.startsWith("--") || requestedIdentifiers.length === 0)) {
+  console.error("--issues requires at least one identifier")
   process.exit(2)
 }
-const issues = listed.issues ?? listed.nodes ?? listed
-if (!Array.isArray(issues) || issues.length === 0) {
-  console.error("no issues matched; nothing to plan")
-  process.exit(1)
+
+let issues
+if (issuesMode) {
+  issues = requestedIdentifiers.map((identifier) => ({ identifier }))
+} else {
+  const listArgs = ["linear", "list-issues", "--team", TEAM, "--limit", "250"]
+  if (project) listArgs.push("--project", project)
+  if (label) listArgs.push("--label", label)
+  let listed
+  try {
+    listed = await orcaJson(listArgs, project ?? label ?? "the requested issue list")
+  } catch (error) {
+    console.error(error.message)
+    process.exit(2)
+  }
+  issues = listed.issues ?? listed.nodes ?? listed
+  if (!Array.isArray(issues) || issues.length === 0) {
+    console.error("no issues matched; nothing to plan")
+    process.exit(1)
+  }
 }
 
 const DONE_TYPES = new Set(["completed", "canceled", "duplicate"])
+
+/**
+ * Two tickets in the same wave that edit the same file collide. Nothing in the harness knew that,
+ * so serialisation was decided from memory each run: on 2026-07-28 ORB-120 was held behind two
+ * tickets it shared two files with, in different regions, costing hours with a worker idle. The
+ * inverse mistake is worse. This reports the overlap; it never reorders a wave, because a set
+ * intersection cannot tell an append-only test file from a rewrite of the same function.
+ */
+const AFFECTED_PATH = /\.?[\w@][\w./\\@()[\]{}+-]*\.[a-z0-9][a-z0-9-]*/gi
+const BARE_AFFECTED_PATH = /^\.?[\w@][\w./\\@()[\]{}+-]*\.[a-z0-9][a-z0-9-]*$/i
+
+const affectedSectionOf = (description) => {
+  const lines = (description ?? "").split(/\r?\n/)
+  let fence = null
+  let section = null
+  for (const line of lines) {
+    const marker = line.match(/^\s*(`{3,}|~{3,})/)?.[1][0] ?? null
+    if (marker) {
+      if (!fence) fence = marker
+      else if (fence === marker) fence = null
+      continue
+    }
+    if (!fence && /^#+[ \t]+/.test(line)) {
+      if (section) break
+      if (/^#+\s*(affected|files|modules)\b/i.test(line)) section = [line]
+      continue
+    }
+    if (section && !fence) section.push(line)
+  }
+  return section?.join("\n") ?? null
+}
+
+const isDeclaredPath = (section, path, index) => {
+  if (/[a-z][a-z0-9+.-]*:\/\/$/i.test(section.slice(Math.max(0, index - 24), index))) return false
+  if (/^[\w-]+(?:\.[\w-]+)*\.[a-z]{2,63}\//i.test(path)) return false
+  if (/[\\/]/.test(path)) return true
+  if (section[index - 1] === "`" && section[index + path.length] === "`") return true
+  const lineStart = section.lastIndexOf("\n", index) + 1
+  const nextBreak = section.indexOf("\n", index + path.length)
+  const lineEnd = nextBreak === -1 ? section.length : nextBreak
+  const item = section
+    .slice(lineStart, lineEnd)
+    .trim()
+    .replace(/^(?:[-*]|\d+\.)\s+/, "")
+    .replace(/^\[[ xX]\]\s+/, "")
+  const annotation = item.startsWith(path) ? item.slice(path.length) : ""
+  if (/^(?::|\s+-\s+)/.test(annotation)) return true
+  const itemPaths = item
+    .split(/\s*,\s*|\s+and\s+/i)
+    .map((candidate) => candidate.replace(/^`|`$/g, ""))
+  return itemPaths.includes(path) && itemPaths.every((candidate) => BARE_AFFECTED_PATH.test(candidate))
+}
+
+const affectedFilesOf = (description) => {
+  const section = affectedSectionOf(description)
+  if (!section) return []
+  const paths = [...section.matchAll(AFFECTED_PATH)]
+    .filter((match) => isDeclaredPath(section, match[0], match.index))
+    .map(([path]) => path.replace(/\\/g, "/"))
+  return [...new Set(paths)]
+}
+
+const collisionsIn = (waveIssues, byIdentifier) => {
+  const pairs = []
+  for (let a = 0; a < waveIssues.length; a++) {
+    for (let b = a + 1; b < waveIssues.length; b++) {
+      const leftIssue = byIdentifier.get(waveIssues[a])
+      const rightIssue = byIdentifier.get(waveIssues[b])
+      const leftRepo = leftIssue?.labels.find((label) => label.startsWith("repo:"))
+      const rightRepo = rightIssue?.labels.find((label) => label.startsWith("repo:"))
+      if (leftRepo && rightRepo && leftRepo !== rightRepo) continue
+      const left = leftIssue?.affectedFiles ?? []
+      const right = new Set(rightIssue?.affectedFiles ?? [])
+      const shared = left.filter((path) => right.has(path))
+      if (shared.length) pairs.push({ a: waveIssues[a], b: waveIssues[b], files: shared })
+    }
+  }
+  return pairs
+}
 
 const toPlanIssue = (detail) => {
   const full = detail.issue ?? detail
@@ -121,6 +228,7 @@ const toPlanIssue = (detail) => {
   return {
     identifier: full.identifier,
     title: full.title,
+    affectedFiles: affectedFilesOf(full.description),
     state: full.state?.name ?? full.state,
     stateType: full.state?.type ?? null,
     labels: labelNames,
@@ -133,14 +241,56 @@ const toPlanIssue = (detail) => {
 }
 
 let planIssues
-try {
-  planIssues = await mapBounded(issues, async (issue) => {
+if (issuesMode) {
+  const requested = await mapBounded(issues, async (issue) => {
     const identifier = issue.identifier ?? issue.id
-    return toPlanIssue(await orcaJson(["linear", "issue", identifier, "--relations"], identifier))
+    try {
+      return { identifier, issue: toPlanIssue(await orcaJson(["linear", "issue", identifier, "--relations"], identifier)) }
+    } catch {
+      return { identifier, error: true }
+    }
   })
-} catch (error) {
-  console.error(error.message)
-  process.exit(2)
+  const unresolved = requested.filter((result) => result.error).map((result) => result.identifier)
+  const done = requested.filter((result) => !result.error && (DONE_TYPES.has(result.issue.stateType) || result.issue.state === "Done")).map((result) => result.identifier)
+  if (unresolved.length || done.length) {
+    if (unresolved.length) console.error(`unresolved requested identifier(s): ${unresolved.join(", ")}`)
+    if (done.length) console.error(`Done requested identifier(s): ${done.join(", ")}`)
+    process.exit(1)
+  }
+  let listed
+  try {
+    listed = await orcaJson(["linear", "list-issues", "--team", TEAM, "--limit", "250"], "the complete team issue list")
+  } catch (error) {
+    console.error(error.message)
+    process.exit(2)
+  }
+  const teamIssues = listed.issues ?? listed.nodes ?? listed
+  if (!Array.isArray(teamIssues)) {
+    console.error("failed to fetch the complete team issue list: orca returned no issue list")
+    process.exit(2)
+  }
+  const requestedByIdentifier = new Map(requested.map((result) => [result.identifier, result.issue]))
+  try {
+    const remainingTeamIssues = teamIssues.filter((issue) => !requestedByIdentifier.has(issue.identifier ?? issue.id))
+    const remainingPlanIssues = await mapBounded(remainingTeamIssues, async (issue) => {
+      const identifier = issue.identifier ?? issue.id
+      return toPlanIssue(await orcaJson(["linear", "issue", identifier, "--relations"], identifier))
+    })
+    planIssues = [...requestedByIdentifier.values(), ...remainingPlanIssues]
+  } catch (error) {
+    console.error(error.message)
+    process.exit(2)
+  }
+} else {
+  try {
+    planIssues = await mapBounded(issues, async (issue) => {
+      const identifier = issue.identifier ?? issue.id
+      return toPlanIssue(await orcaJson(["linear", "issue", identifier, "--relations"], identifier))
+    })
+  } catch (error) {
+    console.error(error.message)
+    process.exit(2)
+  }
 }
 const byIdentifier = new Map(planIssues.map((issue) => [issue.identifier, issue]))
 
@@ -211,31 +361,64 @@ const reachOf = (identifier) => {
   return seen.size
 }
 
+const visibleWaves = issuesMode
+  ? waves.map((wave, index) => ({ wave: index + 1, issues: wave.filter((identifier) => requestedIdentifiers.includes(identifier)) })).filter(({ issues: wave }) => wave.length)
+  : waves.map((wave, index) => ({ wave: index + 1, issues: wave }))
+const visibleLaunchable = issuesMode
+  ? requestedIdentifiers.filter((identifier) => {
+      const issue = byIdentifier.get(identifier)
+      return issue.blockedBy.every(isDone) && issue.stateType !== "started" && issue.attempts < ATTEMPTS_BEFORE_REWRITE
+    })
+  : launchable
+const visibleTwoStrikes = issuesMode ? twoStrikes.filter((identifier) => requestedIdentifiers.includes(identifier)) : twoStrikes
+const blockerStateOf = (issue) => {
+  const blocking = issue.blockedBy.filter((identifier) => !isDone(identifier))
+  return blocking.length ? `blocked by ${blocking.join(", ")}` : "clear"
+}
+const visibleIssue = (identifier) => {
+  const issue = byIdentifier.get(identifier)
+  if (!issuesMode) return { ...issue, reach: reachOf(identifier) }
+  return {
+    ...issue,
+    reach: reachOf(identifier),
+    blockerState: blockerStateOf(issue),
+    launchable: visibleLaunchable.includes(identifier),
+  }
+}
+
 if (process.argv.includes("--json")) {
   console.log(
     JSON.stringify(
       {
-        waves: waves.map((wave, index) => ({
-          wave: index + 1,
-          issues: wave.map((identifier) => ({ ...byIdentifier.get(identifier), reach: reachOf(identifier) })),
+        waves: visibleWaves.map(({ wave, issues: waveIssues }) => ({
+          wave,
+          issues: waveIssues.map(visibleIssue),
+          collisions: collisionsIn(waveIssues, byIdentifier),
+          unknownAffected: waveIssues.filter((identifier) => (byIdentifier.get(identifier)?.affectedFiles ?? []).length === 0),
         })),
-        launchable,
-        twoStrikes,
+        launchable: visibleLaunchable,
+        twoStrikes: visibleTwoStrikes,
       },
       null,
       2,
     ),
   )
 } else {
-  for (const [index, wave] of waves.entries()) {
-    console.log(`WAVE ${index + 1}`)
-    for (const identifier of wave) {
+  for (const { wave, issues: waveIssues } of visibleWaves) {
+    console.log(`WAVE ${wave}`)
+    for (const identifier of waveIssues) {
       const issue = byIdentifier.get(identifier)
       const blockers = issue.blockedBy.length ? `  blockedBy: ${issue.blockedBy.join(", ")}` : ""
       const strikes = issue.attempts >= ATTEMPTS_BEFORE_REWRITE ? "  [TWO STRIKES: rewrite the ticket first (D9)]" : ""
       const external = issue.external ? "  [external]" : ""
-      console.log(`  ${identifier}  [${issue.state}]${external}  ${issue.title}${blockers}${strikes}`)
+      const restriction = issuesMode ? `  blockerState: ${blockerStateOf(issue)}  launchable: ${visibleLaunchable.includes(identifier) ? "yes" : "no"}` : ""
+      console.log(`  ${identifier}  [${issue.state}]${external}  ${issue.title}${blockers}${restriction}${strikes}`)
     }
+    const collisions = collisionsIn(waveIssues, byIdentifier)
+    const unknown = waveIssues.filter((identifier) => (byIdentifier.get(identifier)?.affectedFiles ?? []).length === 0)
+    console.log(`  collisions: ${collisions.length ? "" : "none"}`)
+    for (const { a, b, files } of collisions) console.log(`    ${a} + ${b}: ${files.join(", ")}`)
+    if (unknown.length) console.log(`    unknown (no parseable path in Affected modules / files): ${unknown.join(", ")}`)
   }
-  console.log(`\nLAUNCHABLE NOW (all blockers merged, not started, under the strike limit): ${launchable?.join(", ") || "none"}`)
+  console.log(`\nLAUNCHABLE NOW (all blockers merged, not started, under the strike limit): ${visibleLaunchable?.join(", ") || "none"}`)
 }
