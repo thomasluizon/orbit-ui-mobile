@@ -906,7 +906,6 @@ const actualBranch = git(["-C", worktreePath, "rev-parse", "--abbrev-ref", "HEAD
 if (actualBranch !== branch) fail(3, `expected the worktree on ${branch}, found ${actualBranch}`)
 
 const generatedWorktreePaths = [
-  "/.claude/hooks/report-worker-turn.mjs",
   "/.claude/settings.local.json",
   "/.codex/hooks.json",
 ]

@@ -816,11 +816,17 @@ const TRUST_SCREENS = {
 const stageCheckout = (base) => {
   const repoPath = join(base, "repos", "ui")
   const path = join(base, "checkout")
+  mkdirSync(join(repoPath, ".claude", "hooks"), { recursive: true })
+  cpSync(
+    join(base, ".claude", "hooks", "report-worker-turn.mjs"),
+    join(repoPath, ".claude", "hooks", "report-worker-turn.mjs"),
+  )
   for (const argv of [
     ["init", "-q", "--initial-branch=main"],
     ["config", "user.email", "gate@orbit.test"],
     ["config", "user.name", "Orbit Gate"],
-    ["commit", "-q", "--allow-empty", "-m", "base"],
+    ["add", ".claude/hooks/report-worker-turn.mjs"],
+    ["commit", "-q", "-m", "base"],
     ["worktree", "add", "-q", "--detach", path, "HEAD"],
   ]) {
     const result = spawnSync("git", ["-C", repoPath, ...argv], { encoding: "utf8" })
@@ -1010,8 +1016,9 @@ const pointerDeliveryCases = () => {
     reportCommands.every((command) => command.includes(join(root, "reports.jsonl")) && command.includes("--ticket ORB-75")),
     true,
   )
+  const trackedHook = spawnSync("git", ["-C", first.checkout, "ls-files", "--error-unmatch", installedHook])
+  T("launch-worker.mjs: the report hook remains a tracked worktree file", trackedHook.status === 0, `git ls-files exited ${trackedHook.status}`)
   for (const generatedPath of [
-    installedHook,
     join(first.checkout, ".claude", "settings.local.json"),
     join(first.checkout, ".codex", "hooks.json"),
   ]) {

@@ -179,7 +179,8 @@ eligible ticket. Do not reorder waves or explicit-set members.
    `.claude/settings.local.json` and `.codex/hooks.json` Stop hooks with the reports path
    and ticket. A Codex launch also carries `--dangerously-bypass-hook-trust`, because
    project-local hooks otherwise wait for an interactive trust approval. The launcher
-   excludes these generated runtime files from the target repo's local git status.
+   excludes the generated settings and Codex hook configuration from the target repo's
+   local git status. The reporter itself stays tracked, so any source drift remains visible.
    Exit 0 means the worker ACCEPTED the prompt as a user turn, read back off the TUI,
    not merely that orca accepted the send. Exit 1 means the concurrency cap was reached
    before anything was created, or the worker never reached tui-idle or took the pointer.
