@@ -452,11 +452,11 @@ const parseBudgetRequest = (values, allowedFlags) => {
 const evaluateBudget = (request, records, json) => {
   const { engine, identity, tier, resetAt, warningTokens, budgetTokens, invocationTokens } = request
   const summary = summarize(records, engine, resetAt)
-  if (summary.missingIdentities.length > 0) {
+  const projectedTokens = summary.totalTokens + invocationTokens
+  if (tier !== "reserved" && summary.missingIdentities.length > 0) {
     emitJson({ status: "INCOMPLETE", identity, tier, warningTokens, budgetTokens, invocationTokens, ...summary }, json)
     fail(`cannot check invocation "${identity}": latest in-window records lack input or output tokens for identities ${summary.missingIdentities.join(", ")}`, 3)
   }
-  const projectedTokens = summary.totalTokens + invocationTokens
   const status = tier === "reserved"
     ? "RESERVED"
     : projectedTokens > budgetTokens
@@ -474,12 +474,15 @@ const evaluateBudget = (request, records, json) => {
 
 const emitBudgetResult = (result, json) => {
   emitJson(result, json)
-  const { status, identity, warningTokens, budgetTokens, invocationTokens, projectedTokens, totalTokens } = result
+  const { status, identity, warningTokens, budgetTokens, invocationTokens, projectedTokens, totalTokens, missingIdentities } = result
   if (status === "WARN") {
     console.error(`automation-budget: warning: invocation "${identity}" projects ${projectedTokens} tokens; warning ${warningTokens} tokens, budget ${budgetTokens} tokens, observed spend ${totalTokens} tokens`)
   }
-  if (status === "RESERVED" && projectedTokens >= warningTokens) {
-    console.error(`automation-budget: warning: reserved invocation "${identity}" proceeds with ${projectedTokens} projected tokens; warning ${warningTokens} tokens, budget ${budgetTokens} tokens, observed spend ${totalTokens} tokens, reservation ${invocationTokens} tokens`)
+  if (status === "RESERVED" && (projectedTokens >= warningTokens || missingIdentities.length > 0)) {
+    const missingContext = missingIdentities.length > 0
+      ? `, missing measurements for identities ${missingIdentities.join(", ")}`
+      : ""
+    console.error(`automation-budget: warning: reserved invocation "${identity}" proceeds with ${projectedTokens} projected tokens; warning ${warningTokens} tokens, budget ${budgetTokens} tokens, observed spend ${totalTokens} tokens, reservation ${invocationTokens} tokens${missingContext}`)
   }
 }
 

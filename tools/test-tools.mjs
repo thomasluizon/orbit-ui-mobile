@@ -4802,6 +4802,17 @@ const automationBudgetCases = () => {
     checkArgs("after-pending", pendingLedger),
     { status: 3, stderr: /after-pending[\s\S]*lack input or output tokens[\s\S]*pending-invocation/ },
   )
+  check(
+    "automation-budget.mjs",
+    "explicitly reserved deep work proceeds with a warning while another measurement is absent",
+    checkArgs("reserved-after-pending", pendingLedger, 100, ["--json"])
+      .map((value) => value === "routine" ? "reserved" : value),
+    {
+      status: 0,
+      stdout: /"status":"RESERVED"[\s\S]*"missingIdentities":\["pending-invocation"\]/,
+      stderr: /warning: reserved invocation "reserved-after-pending" proceeds[\s\S]*missing measurements for identities pending-invocation/,
+    },
+  )
   const correctedLedger = stage(
     "budget/corrected.jsonl",
     `${budgetRecord("corrected-invocation", undefined, undefined)}\n${budgetRecord("corrected-invocation", 300, 200)}\n`,
