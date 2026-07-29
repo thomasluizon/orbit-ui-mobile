@@ -32,6 +32,7 @@ if (process.argv.includes("--help") || process.argv.includes("-h")) {
 
 const ORCA = process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs\\orca\\resources\\bin\\orca"
 const GIT = process.env.GIT_BIN || "git"
+const GH = process.env.GH_BIN || "gh"
 const fail = (code, message) => {
   console.error(message)
   process.exit(code)
@@ -75,6 +76,24 @@ const git = (path, args, { allowFailure = false } = {}) => {
   if (allowFailure) return null
   fail(3, `git ${args.join(" ")} failed: ${(result.stderr || result.stdout || "unknown error").trim()}`)
 }
+const pullRequestFor = (path, branch, base) => {
+  let raw
+  try {
+    raw = execFileSync(GH, ["pr", "list", "--head", branch, "--base", base, "--state", "merged", "--limit", "1", "--json", "number,mergeCommit,headRefOid,mergedAt"], { cwd: path, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
+  } catch (error) {
+    fail(3, `gh pr list for ${branch} failed: ${(error.stdout?.toString() || error.stderr?.toString() || error.message).trim()}`)
+  }
+  try {
+    const pullRequests = JSON.parse(raw)
+    if (!Array.isArray(pullRequests)) fail(3, `gh pr list for ${branch} returned an unexpected payload`)
+    const [pullRequest] = pullRequests
+    if (!pullRequest?.mergedAt || !pullRequest.number || !pullRequest.mergeCommit?.oid || !pullRequest.headRefOid) fail(1, `pull request for ${branch} is not a merged pull request with merge and head commits`)
+    return pullRequest
+  } catch (error) {
+    if (error instanceof SyntaxError) fail(3, `gh pr list for ${branch} returned unparseable output: ${raw.slice(0, 300)}`)
+    throw error
+  }
+}
 const selectorPath = (value) => value?.replace(/^path:/, "")
 const normalize = (path) => (typeof path === "string" ? resolve(selectorPath(path)) : "").replaceAll("\\", "/").replace(/\/+$/, "").toLowerCase()
 
@@ -100,12 +119,12 @@ const state = linearIssue.state?.name ?? linearIssue.state
 
 git(path, ["fetch", "--quiet", "origin", base], { allowFailure: true })
 const baseRef = git(path, ["rev-parse", "--verify", "--quiet", `origin/${base}`], { allowFailure: true }) ? `origin/${base}` : base
-const mergeBase = git(path, ["merge-base", baseRef, branch])
-const branchPaths = git(path, ["diff", "--name-only", mergeBase, branch]).split("\n").filter(Boolean)
-const treePresent = branchPaths.length === 0 || git(path, ["diff", "--quiet", baseRef, branch, "--", ...branchPaths], { allowFailure: true }) !== null
+const pullRequest = pullRequestFor(path, branch, base)
+git(path, ["fetch", "--quiet", "origin", pullRequest.mergeCommit.oid])
+const treePresent = git(path, ["merge-base", "--is-ancestor", pullRequest.mergeCommit.oid, baseRef], { allowFailure: true }) !== null
 const checks = [
   { name: "worktree-clean", ok: dirty.length === 0, detail: dirty.length ? `uncommitted paths: ${dirty.join(", ")}` : "no uncommitted work" },
-  { name: "tree-present-in-target", ok: treePresent, detail: treePresent ? `${branch}'s content is present in ${baseRef}` : `${branch}'s content is not present in ${baseRef}` },
+  { name: "tree-present-in-target", ok: treePresent, detail: treePresent ? `pull request #${pullRequest.number}'s merged content is present in ${baseRef}` : `pull request #${pullRequest.number}'s merged content is not present in ${baseRef}` },
   { name: "linear-done", ok: state === "Done", detail: `issue is ${state ?? "unknown"}, expected Done` },
   { name: "terminals-idle", ok: busy.length === 0, detail: busy.length ? `worker is still working: ${busy.map((terminal) => terminal.handle).join(", ")}` : `${terminals.length} terminal(s) idle` },
 ]

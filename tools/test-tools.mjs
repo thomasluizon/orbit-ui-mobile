@@ -2414,25 +2414,42 @@ const workerWatchCases = () => {
 }
 
 /** A linked child checkout is the smallest real Git fixture that can prove teardown verification. */
-const stageTeardownWorktree = (label, { dirty = false, changed = false, squashMerged = false, siblingTargetAdvance = false, branchDeleteMode } = {}) => {
+const stageTeardownWorktree = (label, { dirty = false, changed = false, squashMerged = false, fastForwardMerged = false, serverMerged = false, siblingTargetAdvance = false, branchDeleteMode } = {}) => {
   const primary = join(root, "teardown", label, "primary")
   const child = join(root, "teardown", label, "child")
+  const remote = join(root, "teardown", label, "remote.git")
   mkdirSync(primary, { recursive: true })
   const git = (cwd, args) => spawnSync("git", ["-C", cwd, ...args], { encoding: "utf8" })
-  for (const args of [["init", "-q", "--initial-branch=main"], ["config", "user.email", "gate@orbit.test"], ["config", "user.name", "Orbit Gate"], ["commit", "-q", "--allow-empty", "-m", "base"], ["worktree", "add", "-q", "-b", "feature/orb-124-teardown", child]]) {
+  if (git(primary, ["init", "-q", "--bare", remote]).status !== 0) return null
+  for (const args of [["init", "-q", "--initial-branch=main"], ["config", "user.email", "gate@orbit.test"], ["config", "user.name", "Orbit Gate"], ["commit", "-q", "--allow-empty", "-m", "base"], ["remote", "add", "origin", remote], ["push", "-q", "-u", "origin", "main"], ["worktree", "add", "-q", "-b", "feature/orb-124-teardown", child]]) {
     if (git(primary, args).status !== 0) return null
   }
+  let mergeCommit
   if (changed) {
     writeFileSync(join(child, "captured.txt"), "not in main\n")
     if (git(child, ["add", "captured.txt"]).status !== 0 || git(child, ["commit", "-q", "-m", "captured work"]).status !== 0) return null
+    if (git(child, ["push", "-q", "-u", "origin", "feature/orb-124-teardown"]).status !== 0) return null
     if (squashMerged) {
       writeFileSync(join(primary, "captured.txt"), "not in main\n")
       if (git(primary, ["add", "captured.txt"]).status !== 0 || git(primary, ["commit", "-q", "-m", "squashed capture"]).status !== 0) return null
+    }
+    if (fastForwardMerged) {
+      if (git(primary, ["merge", "--ff-only", "feature/orb-124-teardown"]).status !== 0) return null
+      mergeCommit = git(primary, ["rev-parse", "HEAD"]).stdout.trim()
+    }
+    if (serverMerged) {
+      if (git(primary, ["merge", "--no-ff", "-m", "server merge", "feature/orb-124-teardown"]).status !== 0) return null
+      mergeCommit = git(primary, ["rev-parse", "HEAD"]).stdout.trim()
+    }
+    if (serverMerged) {
+      writeFileSync(join(primary, "captured.txt"), "resolved on forge\n")
+      if (git(primary, ["add", "captured.txt"]).status !== 0 || git(primary, ["commit", "-q", "-m", "server resolution"]).status !== 0) return null
     }
     if (siblingTargetAdvance) {
       writeFileSync(join(primary, "sibling-ticket.txt"), "already in main\n")
       if (git(primary, ["add", "sibling-ticket.txt"]).status !== 0 || git(primary, ["commit", "-q", "-m", "sibling ticket"]).status !== 0) return null
     }
+    if ((squashMerged || fastForwardMerged || serverMerged || siblingTargetAdvance) && git(primary, ["push", "-q", "origin", "main"]).status !== 0) return null
   }
   if (dirty) writeFileSync(join(child, "dirty.txt"), "uncommitted\n")
   if (branchDeleteMode) {
@@ -2445,7 +2462,7 @@ const stageTeardownWorktree = (label, { dirty = false, changed = false, squashMe
     writeFileSync(hook, body)
     chmodSync(hook, 0o755)
   }
-  return { primary, child, branch: "feature/orb-124-teardown" }
+  return { primary, child, branch: "feature/orb-124-teardown", headCommit: git(child, ["rev-parse", "HEAD"]).stdout.trim(), mergeCommit: mergeCommit ?? git(primary, ["rev-parse", "HEAD"]).stdout.trim() }
 }
 
 const stageWorkerStatusWorktree = () => {
@@ -2628,10 +2645,13 @@ const teardownWorktreeRecord = (fixture) => ({
   baseRef: "main",
 })
 
-const teardownPlan = (fixture, { state = "Done", terminals = [], removePath, removal = JSON.stringify({ ok: true, result: {} }), removalExit = 0 } = {}) => [
+const mergedPullRequest = (fixture, number = 124) => ({ number, mergedAt: "2026-07-28T12:00:00Z", mergeCommit: { oid: fixture.mergeCommit }, headRefOid: fixture.headCommit })
+
+const teardownPlan = (fixture, { state = "Done", terminals = [], pullRequest = mergedPullRequest(fixture), pullRequestExit = 0, removePath, removal = JSON.stringify({ ok: true, result: {} }), removalExit = 0 } = {}) => [
   { match: "worktree list", stdout: JSON.stringify({ ok: true, result: { worktrees: [teardownWorktreeRecord(fixture)] } }) },
   { match: "terminal list", stdout: JSON.stringify({ ok: true, result: { terminals } }) },
   { match: "linear issue ORB-124", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-124", state: { name: state } } } }) },
+  { match: "pr list", stdout: JSON.stringify(pullRequest ? [pullRequest] : []), exit: pullRequestExit },
   { match: "terminal stop", stdout: JSON.stringify({ ok: true, result: {} }) },
   { match: "worktree rm", stdout: removal, exit: removalExit, ...(removePath ? { removePath } : {}) },
 ]
@@ -2715,6 +2735,26 @@ const teardownWorktreeCases = () => {
 
   const unmerged = stageTeardownWorktree("unmerged", { changed: true })
   check("teardown-worktree.mjs", "content absent from the target branch is refused", ["--issue", "ORB-124"], { status: 1, stderr: /tree-present-in-target/ }, { env: orcaEnv(teardownPlan(unmerged, { removePath: unmerged.child })) })
+
+  const missingTarget = stageTeardownWorktree("missing-target", { changed: true })
+  check("teardown-worktree.mjs", "a merged pull request whose content is absent from the target keeps the refusal message", ["--issue", "ORB-124"], { status: 1, stderr: /UNMET tree-present-in-target: pull request #124's merged content is not present/ }, { env: orcaEnv(teardownPlan(missingTarget)) })
+
+  const lookupFailure = stageTeardownWorktree("lookup-failure")
+  check("teardown-worktree.mjs", "a nonzero merged-commit lookup refuses instead of removing", ["--issue", "ORB-124"], { status: 3, stderr: /gh pr list for feature\/orb-124-teardown failed/ }, { env: orcaEnv(teardownPlan(lookupFailure, { pullRequest: null, pullRequestExit: 1, removePath: lookupFailure.child })) })
+
+  const notMerged = stageTeardownWorktree("not-merged")
+  check("teardown-worktree.mjs", "an unmerged pull request is refused", ["--issue", "ORB-124"], { status: 1, stderr: /not a merged pull request with merge and head commits/ }, { env: orcaEnv(teardownPlan(notMerged, { pullRequest: null, removePath: notMerged.child })) })
+
+  const ownLocalMerged = stageTeardownWorktree("own-local-merged", { changed: true, fastForwardMerged: true })
+  check("teardown-worktree.mjs", "a pull request merged from the worker's own local commit tears down", ["--issue", "ORB-124"], { status: 0, stdout: /REMOVED worktree/ }, { env: orcaEnv(teardownPlan(ownLocalMerged, { removePath: ownLocalMerged.child })) })
+
+  const serverSideMerge = stageTeardownWorktree("server-side-merge", { changed: true, serverMerged: true })
+  check("teardown-worktree.mjs", "a server-side merged commit absent from the local branch tears down", ["--issue", "ORB-124"], { status: 0, stdout: /REMOVED worktree/ }, { env: orcaEnv(teardownPlan(serverSideMerge, { removePath: serverSideMerge.child })) })
+
+  for (const [issue, commit] of [["ORB-106", "f2e02ca6"], ["ORB-129", "c04e3716"]]) {
+    const replay = stageTeardownWorktree(`recorded-${issue.toLowerCase()}`, { changed: true, serverMerged: true })
+    check("teardown-worktree.mjs", `recorded ${issue} refusal at ${commit} replays as a teardown`, ["--issue", "ORB-124"], { status: 0, stdout: /REMOVED worktree/ }, { env: orcaEnv(teardownPlan(replay, { removePath: replay.child })) })
+  }
 
   const notDone = stageTeardownWorktree("not-done")
   check("teardown-worktree.mjs", "a closed-looking but non-Done Linear issue is refused", ["--issue", "ORB-124"], { status: 1, stderr: /linear-done[\s\S]*In Review/ }, { env: orcaEnv(teardownPlan(notDone, { state: "In Review", removePath: notDone.child })) })
