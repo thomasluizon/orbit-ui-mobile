@@ -945,10 +945,9 @@ const pointerDeliveryCases = () => {
   )
   T("launch-worker.mjs: the undelivered launch is bounded, not retried forever", never.sends === 3, `sent ${never.sends} time(s), expected the 3-send bound`)
   T(
-    "launch-worker.mjs: verified rollback appends a cancellation for the pre-worktree reservation",
-    never.records.length === 2 &&
-      never.records[0]?.identity === never.records[1]?.identity &&
-      never.records[1]?.cancelled === true,
+    "launch-worker.mjs: any accepted send keeps its reservation pending even after a quiet read-back",
+    never.records.length === 1 &&
+      never.records[0]?.cancelled !== true,
     JSON.stringify(never.records),
   )
 
