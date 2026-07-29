@@ -5513,6 +5513,7 @@ const gateCases = {
   "orca-web-port.mjs": orcaWebPortCases,
   "worker-status.mjs": () => {
     workerStatusCases()
+    check("worker-status.mjs", "rejects an unknown flag before doing work", ["--bogus"], { status: 2, stderr: /unknown option\(s\): --bogus/ })
     check("worker-status.mjs", "requires --worktree", ["--issue", "ORB-75"], { status: 2, stderr: /--worktree is required/ })
     check("worker-status.mjs", "requires a Linear issue identifier", ["--worktree", root, "--issue", "nope"], { status: 2, stderr: /Linear identifier/ })
     const fixture = stageWorkerStatusWorktree()

@@ -1180,6 +1180,26 @@ const completePayload = {
   last_assistant_message:
     'Finished.\nWORKER_REPORT: {"gates":{"lint":"passed","type-check":"passed","test":"passed"},"contractItems":["committed","pushed","pr-open"],"blockedOn":null,"needsHuman":false}',
 }
+const runReportHookWithArgs = (args) =>
+  spawnSync(process.execPath, [reportHook, ...args], {
+    cwd: reportRepo,
+    input: JSON.stringify(completePayload),
+    encoding: "utf8",
+  })
+const relativeReports = runReportHookWithArgs(["--reports-file", "reports.jsonl", "--ticket", "ORB-136"])
+T("worker-report: relative reports path is rejected", relativeReports.status, 1)
+T("worker-report: relative reports path explains the contract", /--reports-file must be an absolute path/.test(relativeReports.stderr), true)
+const missingReports = runReportHookWithArgs(["--ticket", "ORB-136"])
+T("worker-report: missing reports path is rejected", missingReports.status, 1)
+T("worker-report: missing reports path explains the contract", /--reports-file must be an absolute path/.test(missingReports.stderr), true)
+const malformedTicket = runReportHookWithArgs(["--reports-file", join(root, "malformed-ticket.jsonl"), "--ticket", "orb-136"])
+T("worker-report: malformed ticket is rejected", malformedTicket.status, 1)
+T("worker-report: malformed ticket explains the contract", /--ticket must be a Linear identifier/.test(malformedTicket.stderr), true)
+const appendFailureTarget = join(root, "append-failure")
+mkdirSync(appendFailureTarget)
+const appendFailure = runReportHookWithArgs(["--reports-file", appendFailureTarget, "--ticket", "ORB-136"])
+T("worker-report: append failure exits nonzero", appendFailure.status, 1)
+T("worker-report: append failure names the reports target", appendFailure.stderr.includes(`could not append ${appendFailureTarget}`), true)
 T("worker-report: complete turn appends successfully", runReportHook(completeReports, completePayload).status, 0)
 const completeRecords = readFileSync(completeReports, "utf8").trim().split(/\r?\n/).map((line) => JSON.parse(line))
 const completeRecord = completeRecords[0]

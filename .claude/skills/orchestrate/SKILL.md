@@ -313,6 +313,12 @@ the artifact check for that ticket:
 node tools/worker-status.mjs --worktree <worktreePath> --issue ORB-N --reports-file "<absolute reports.jsonl path>" [--base <target>]
 ```
 
+The monitor loop also wakes every 60 to 120 seconds, following the foreground-waiting
+rule below. On every wake, run that same artifact check for EVERY active ticket,
+including when no line was appended. New records trigger an immediate check; periodic
+checks are the independent backstop that makes a fully silent worker reach the
+`report-fresh` suspect verdict once its expected window expires.
+
 It derives the verdict from both liveness and artifacts: commits above the freshly
 fetched `origin/<target>`, never a stale local ref; no staged but uncommitted work; no
 merge in progress; no unpushed commits; a clean worktree; the branch pushed; a PR open
