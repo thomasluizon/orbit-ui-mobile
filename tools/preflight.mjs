@@ -15,8 +15,9 @@ const USAGE = `usage: preflight.mjs --repo ui|api|landing [options]
   --help, -h            print this usage and exit 0
 
 Checks the selected worker's unattended shell policy, every CLI required by the
-target repository, GitHub CLI authentication, Orca reachability, the target
-branch, and a clean target working tree. It reports only and never repairs.
+target repository, GitHub CLI authentication, Orca reachability, Linear tier
+label authority, the target branch, and a clean target working tree. It reports
+only and never repairs.
 
 Binary overrides for hermetic callers: GIT_BIN, GH_BIN, ORCA_BIN, NODE_BIN,
 NPM_BIN, and DOTNET_BIN.
@@ -197,6 +198,54 @@ const run = (command, args) =>
     }, COMMAND_TIMEOUT_MS)
   })
 
+const formatLabels = (labels) => (labels.length > 0 ? labels.join(", ") : "(none)")
+const tierSelectors = [
+  ...new Set(
+    Object.values(config.workers ?? {}).flatMap((worker) =>
+      Object.keys(worker?.models ?? {})
+        .filter((tier) => tier !== "default")
+        .map((tier) => `tier:${tier}`),
+    ),
+  ),
+].sort()
+
+const tierAuthorityVerdict = (lookup) => {
+  const lookedFor = formatLabels(tierSelectors)
+  const unavailable = (reason) => ({
+    passed: false,
+    detail: `looked for: ${lookedFor}; team labels: unavailable; missing: ${lookedFor}; ${reason}`,
+  })
+  if (tierSelectors.length === 0) return unavailable("no non-default worker tiers are declared")
+  if (lookup.status !== 0) {
+    const reason = lookup.timedOut
+      ? "Linear tier-label lookup timed out"
+      : String(lookup.stderr || lookup.stdout || lookup.error?.message || "unknown error").trim()
+    return unavailable(`Linear tier-label lookup failed: ${reason}`)
+  }
+
+  let payload
+  try {
+    payload = JSON.parse(lookup.stdout)
+  } catch (error) {
+    return unavailable(`Linear tier-label lookup returned unparseable JSON: ${error.message}`)
+  }
+  if (payload?.ok === false || !Array.isArray(payload?.result?.labels)) {
+    return unavailable(`Linear tier-label lookup failed: ${payload?.error?.message ?? "no labels array"}`)
+  }
+
+  const names = payload.result.labels.map((label) => (typeof label === "string" ? label : label?.name))
+  if (names.some((name) => typeof name !== "string" || name.trim().length === 0)) {
+    return unavailable("Linear tier-label lookup returned a label without a non-empty name")
+  }
+  const actual = [...new Set(names)].sort()
+  const actualSet = new Set(actual)
+  const missing = tierSelectors.filter((label) => !actualSet.has(label))
+  const inventory = `looked for: ${lookedFor}; team labels: ${formatLabels(actual)}; missing: ${formatLabels(missing)}`
+  if (actual.length === 0) return { passed: false, detail: `${inventory}; Linear returned an empty label set` }
+  if (missing.length > 0) return { passed: false, detail: inventory }
+  return { passed: true, detail: inventory }
+}
+
 const checks = []
 const addCheck = (id, name, passed, detail, remedy) => {
   checks.push({ id, name, status: passed ? "PASS" : "FAIL", detail: passed ? detail : remedy })
@@ -256,6 +305,10 @@ const ghAuthPromise = availability.get("gh")
 const orcaStatusPromise = availability.get("orca")
   ? run(binaryOverrides.orca, ["status", "--json"])
   : Promise.resolve({ status: null, stdout: "", stderr: "", error: null, timedOut: false })
+const tierLabelsPromise =
+  availability.get("orca") && tierSelectors.length > 0
+    ? run(binaryOverrides.orca, ["linear", "team", "labels", "--team", config.linear?.team ?? "", "--json"])
+    : Promise.resolve({ status: null, stdout: "", stderr: "", error: null, timedOut: false })
 const branchPromise =
   availability.get("git") && repoPresent
     ? run(binaryOverrides.git, ["-C", repoPath, "branch", "--show-current"])
@@ -265,9 +318,10 @@ const treePromise =
     ? run(binaryOverrides.git, ["-C", repoPath, "status", "--porcelain"])
     : Promise.resolve({ status: null, stdout: "", stderr: "", error: null, timedOut: false })
 
-const [ghAuth, orcaStatus, branch, tree] = await Promise.all([
+const [ghAuth, orcaStatus, tierLabels, branch, tree] = await Promise.all([
   ghAuthPromise,
   orcaStatusPromise,
+  tierLabelsPromise,
   branchPromise,
   treePromise,
 ])
@@ -296,6 +350,15 @@ addCheck(
   orcaReady,
   "orca status reached the local runtime",
   "start or restart Orca, then verify with orca status",
+)
+
+const tierAuthority = tierAuthorityVerdict(tierLabels)
+addCheck(
+  "linear-tier-labels",
+  "Linear tier labels",
+  tierAuthority.passed,
+  tierAuthority.detail,
+  tierAuthority.detail,
 )
 
 const currentBranch = branch.stdout.trim()
