@@ -15,15 +15,16 @@ const USAGE = `usage: teardown-worktree.mjs (--issue ORB-N | --worktree <path>) 
 
   --issue ORB-N       remove the Orca worktree linked to this Linear issue
   --worktree <path>   remove this Orca child worktree, using its linked Linear issue
-  --base <ref>        target branch whose tree must contain the worktree branch (default: worktree base or main)
+  --base <ref>        target branch that must contain the pull request merge commit (default: worktree base or main)
   --help, -h          print this usage and exit 0
 
-All four checks must pass before anything is removed: the tree is clean, its branch tree is
-present in the target branch, the linked Linear issue is Done, and no terminal is mid-turn.
+All four checks must pass before anything is removed: the tree is clean, the pull request merge
+commit and local branch tip are present in the target branch, the linked Linear issue is Done,
+and no terminal is mid-turn.
 Removal is successful only when the path is gone and git worktree list no longer names it.
 
 exit codes: 0 removed and verified, 1 evidence or removal verification failed, 2 usage error,
-            3 an orca or git command could not be read`
+            3 an orca, git, or gh command could not be read`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
@@ -81,16 +82,16 @@ const pullRequestFor = (path, branch, base) => {
   try {
     raw = execFileSync(GH, ["pr", "list", "--head", branch, "--base", base, "--state", "merged", "--limit", "1", "--json", "number,mergeCommit,headRefOid,mergedAt"], { cwd: path, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
   } catch (error) {
-    fail(3, `gh pr list for ${branch} failed: ${(error.stdout?.toString() || error.stderr?.toString() || error.message).trim()}`)
+    return { error: { exitCode: 3, detail: `gh pr list for ${branch} failed: ${(error.stdout?.toString() || error.stderr?.toString() || error.message).trim()}` } }
   }
   try {
     const pullRequests = JSON.parse(raw)
-    if (!Array.isArray(pullRequests)) fail(3, `gh pr list for ${branch} returned an unexpected payload`)
+    if (!Array.isArray(pullRequests)) return { error: { exitCode: 3, detail: `gh pr list for ${branch} returned an unexpected payload` } }
     const [pullRequest] = pullRequests
-    if (!pullRequest?.mergedAt || !pullRequest.number || !pullRequest.mergeCommit?.oid || !pullRequest.headRefOid) fail(1, `pull request for ${branch} is not a merged pull request with merge and head commits`)
-    return pullRequest
+    if (!pullRequest?.mergedAt || !pullRequest.number || !pullRequest.mergeCommit?.oid || !pullRequest.headRefOid) return { error: { exitCode: 1, detail: `pull request for ${branch} is not a merged pull request with merge and head commits` } }
+    return { pullRequest }
   } catch (error) {
-    if (error instanceof SyntaxError) fail(3, `gh pr list for ${branch} returned unparseable output: ${raw.slice(0, 300)}`)
+    if (error instanceof SyntaxError) return { error: { exitCode: 3, detail: `gh pr list for ${branch} returned unparseable output: ${raw.slice(0, 300)}` } }
     throw error
   }
 }
@@ -119,22 +120,29 @@ const state = linearIssue.state?.name ?? linearIssue.state
 
 git(path, ["fetch", "--quiet", "origin", base], { allowFailure: true })
 const baseRef = git(path, ["rev-parse", "--verify", "--quiet", `origin/${base}`], { allowFailure: true }) ? `origin/${base}` : base
-const pullRequest = pullRequestFor(path, branch, base)
-git(path, ["fetch", "--quiet", "origin", pullRequest.mergeCommit.oid])
-const mergeCommitPresent = git(path, ["merge-base", "--is-ancestor", pullRequest.mergeCommit.oid, baseRef], { allowFailure: true }) !== null
-const localTip = git(path, ["rev-parse", branch])
-const localTipPresent = localTip === pullRequest.headRefOid || git(path, ["merge-base", "--is-ancestor", localTip, baseRef], { allowFailure: true }) !== null
-const treePresent = mergeCommitPresent && localTipPresent
+const pullRequestResult = pullRequestFor(path, branch, base)
+const pullRequest = pullRequestResult.pullRequest
+const treePresent = pullRequest
+  ? (() => {
+      git(path, ["fetch", "--quiet", "origin", pullRequest.mergeCommit.oid])
+      const mergeCommitPresent = git(path, ["merge-base", "--is-ancestor", pullRequest.mergeCommit.oid, baseRef], { allowFailure: true }) !== null
+      const localTip = git(path, ["rev-parse", branch])
+      const localTipPresent = localTip === pullRequest.headRefOid || git(path, ["merge-base", "--is-ancestor", localTip, baseRef], { allowFailure: true }) !== null
+      return mergeCommitPresent && localTipPresent
+    })()
+  : false
 const checks = [
   { name: "worktree-clean", ok: dirty.length === 0, detail: dirty.length ? `uncommitted paths: ${dirty.join(", ")}` : "no uncommitted work" },
-  { name: "tree-present-in-target", ok: treePresent, detail: treePresent ? `pull request #${pullRequest.number}'s merged content is present in ${baseRef}` : `pull request #${pullRequest.number}'s merged content is not present in ${baseRef}` },
+  pullRequest
+    ? { name: "tree-present-in-target", ok: treePresent, detail: treePresent ? `pull request #${pullRequest.number}'s merged content is present in ${baseRef}` : `pull request #${pullRequest.number}'s merged content is not present in ${baseRef}` }
+    : { name: "pull-request-merged", ok: false, detail: pullRequestResult.error.detail, exitCode: pullRequestResult.error.exitCode },
   { name: "linear-done", ok: state === "Done", detail: `issue is ${state ?? "unknown"}, expected Done` },
   { name: "terminals-idle", ok: busy.length === 0, detail: busy.length ? `worker is still working: ${busy.map((terminal) => terminal.handle).join(", ")}` : `${terminals.length} terminal(s) idle` },
 ]
 const unmet = checks.filter((check) => !check.ok)
 if (unmet.length > 0) {
   for (const check of unmet) console.error(`UNMET ${check.name}: ${check.detail}`)
-  process.exit(1)
+  process.exit(unmet.some((check) => check.exitCode === 3) ? 3 : 1)
 }
 
 const commonDirRaw = git(path, ["rev-parse", "--git-common-dir"])
