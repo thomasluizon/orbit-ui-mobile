@@ -353,8 +353,12 @@ const { appendFileSync } = require("node:fs")
 const argv = process.argv.slice(2)
 appendFileSync(process.env.ORBIT_MERGE_SWEEP_LOG, JSON.stringify(["orca", ...argv]) + "\\n")
 if (argv[0] === "linear" && argv[1] === "issue") {
-  if (process.env.ORBIT_MERGE_SWEEP_LINEAR_LOOKUP_FAILURE) process.exit(7)
-  process.stdout.write(JSON.stringify({ ok: true, result: { issue: { state: { name: process.env.ORBIT_MERGE_SWEEP_LINEAR_STATE } } } }))
+  const reassertRead = process.env.ORBIT_MERGE_SWEEP_LOG + ".linear-reassert-read"
+  const reassert = require("node:fs").existsSync(reassertRead)
+  if (reassert ? process.env.ORBIT_MERGE_SWEEP_LINEAR_REASSERT_LOOKUP_FAILURE : process.env.ORBIT_MERGE_SWEEP_LINEAR_LOOKUP_FAILURE) process.exit(7)
+  require("node:fs").writeFileSync(reassertRead, "")
+  const state = reassert ? process.env.ORBIT_MERGE_SWEEP_LINEAR_REASSERT_STATE : process.env.ORBIT_MERGE_SWEEP_LINEAR_STATE
+  process.stdout.write(JSON.stringify({ ok: true, result: { issue: { state: { name: state } } } }))
   process.exit(0)
 }
 if (argv[0] === "linear" && argv[1] === "status" && argv[2] === "set") {
@@ -385,8 +389,10 @@ const mergeSweepEnv = ({
   inlineLookupFailure = false,
   inlinePageTwo = "",
   linearLookupFailure = false,
-  linearReassertFailure = false,
   linearState = "In Review",
+  linearReassertLookupFailure = false,
+  linearReassertFailure = false,
+  linearReassertState = linearState,
   moveAtMerge = false,
   postMergeActivity = "",
   postMergeReviewsLookupFailure = false,
@@ -425,7 +431,9 @@ const mergeSweepEnv = ({
   ORBIT_MERGE_SWEEP_INLINE_PAGE_TWO: inlinePageTwo,
   ORBIT_MERGE_SWEEP_LOG: log,
   ORBIT_MERGE_SWEEP_LINEAR_LOOKUP_FAILURE: linearLookupFailure ? "1" : "",
+  ORBIT_MERGE_SWEEP_LINEAR_REASSERT_LOOKUP_FAILURE: linearReassertLookupFailure ? "1" : "",
   ORBIT_MERGE_SWEEP_LINEAR_REASSERT_FAILURE: linearReassertFailure ? "1" : "",
+  ORBIT_MERGE_SWEEP_LINEAR_REASSERT_STATE: linearReassertState,
   ORBIT_MERGE_SWEEP_LINEAR_STATE: linearState,
   ORCA_BIN: MERGE_SWEEP_ORCA,
   ORBIT_MERGE_SWEEP_MOVE_MARKER: moveAtMerge ? `${log}.moved` : "",
@@ -4008,11 +4016,28 @@ const mergeSweepCases = (file) => {
   T(
     `${file}: a regressed issue is reasserted and recorded after merging`,
     regressed.status === 0 && /LINEAR-STATE-REASSERTED issue=ORB-150 observed=In Progress at=\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ/.test(regressed.stdout) &&
-      regressedCalls.filter(([, linear, command]) => linear === "linear" && command === "issue").length === 1 &&
+      regressedCalls.filter(([, linear, command]) => linear === "linear" && command === "issue").length === 2 &&
       regressedCalls.some(([, linear, command, action, issue, to, stateName]) => linear === "linear" && command === "status" && action === "set" && issue === "ORB-150" && to === "--to" && stateName === "In Review") &&
       mergeSweepCalls(regressedLog).some(([group, command]) => group === "pr" && command === "merge"),
     `exit ${regressed.status}\n     stdout: ${regressed.stdout.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(regressedLog))}`,
   )
+
+  const skippedReassertion = (label, reassertState) => {
+    const log = join(root, `${file}-${label}.log`)
+    const result = run(file, reviewedArgs, {
+      env: mergeSweepEnv({ head: expectedHead, linearState: "In Progress", linearReassertState: reassertState, log, sonar: coverageAware ? "coverage-failure" : "success", state: coverageAware ? "BLOCKED" : "CLEAN" }),
+    })
+    const calls = linearCalls(log)
+    T(
+      `${file}: a post-merge ${reassertState} state is left unchanged and recorded`,
+      result.status === 0 && new RegExp(`LINEAR-STATE-REASSERT-SKIPPED issue=ORB-150 observed=${reassertState} at=\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\dZ`).test(result.stdout) &&
+        calls.filter(([, linear, command]) => linear === "linear" && command === "issue").length === 2 &&
+        !calls.some(([, linear, command, action]) => linear === "linear" && command === "status" && action === "set"),
+      `exit ${result.status}\n     stdout: ${result.stdout.trim()}\n     calls: ${JSON.stringify(calls)}`,
+    )
+  }
+  skippedReassertion("Done-after-merge", "Done")
+  skippedReassertion("unknown-after-merge", "Blocked")
 
   const linearRefusal = (label, envOptions, output) => {
     const log = join(root, `${file}-${label}.log`)
@@ -4035,6 +4060,16 @@ const mergeSweepCases = (file) => {
     `${file}: a failed post-merge Linear reassert reports the failure`,
     reassertFailure.status === 4 && /POST-MERGE-LINEAR-STATE-REASSERT-FAILED issue=ORB-150 observed=In Progress at=\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ/.test(reassertFailure.stdout),
     `exit ${reassertFailure.status}\n     stdout: ${reassertFailure.stdout.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(reassertFailureLog))}`,
+  )
+  const reassertReadFailureLog = join(root, `${file}-failed-Linear-reassert-read.log`)
+  const reassertReadFailure = run(file, reviewedArgs, {
+    env: mergeSweepEnv({ head: expectedHead, linearReassertLookupFailure: true, linearState: "In Progress", log: reassertReadFailureLog, sonar: coverageAware ? "coverage-failure" : "success", state: coverageAware ? "BLOCKED" : "CLEAN" }),
+  })
+  T(
+    `${file}: a failed post-merge Linear re-read reports the failure`,
+    reassertReadFailure.status === 4 && /POST-MERGE-LINEAR-STATE-REASSERT-FAILED issue=ORB-150 observed=In Progress at=\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ/.test(reassertReadFailure.stdout) &&
+      !linearCalls(reassertReadFailureLog).some(([, linear, command, action]) => linear === "linear" && command === "status" && action === "set"),
+    `exit ${reassertReadFailure.status}\n     stdout: ${reassertReadFailure.stdout.trim()}\n     calls: ${JSON.stringify(linearCalls(reassertReadFailureLog))}`,
   )
   linearRefusal("an unknown Linear state", { linearState: "Done" }, /LINEAR-STATE-REFUSED issue=ORB-150 observed=Done reason=unknown-state/)
 
@@ -4128,7 +4163,7 @@ const mergeSweepCases = (file) => {
     file,
     "help documents the Linear issue gate, exclusive cutoff, and residual post-merge window",
     ["--help"],
-    { status: 0, stdout: /(?=[\s\S]*--reviewed-through)(?=[\s\S]*--issue must map every swept PR)(?=[\s\S]*LINEAR-STATE-REASSERTED)(?=[\s\S]*LINEAR-STATE-REFUSED)(?=[\s\S]*review-safety query runs before the fresh Linear decision-time read)(?=[\s\S]*failed post-merge Linear reassertion)(?=[\s\S]*POST-MERGE-LINEAR-STATE-REASSERT-FAILED)(?=[\s\S]*cutoff is exclusive: activity at or after that timestamp counts as new\.)(?=[\s\S]*Every status check, required or not, must reach a terminal successful conclusion before merge\.)(?=[\s\S]*residual response-to-merge race)(?=[\s\S]*exits 4)/ },
+    { status: 0, stdout: /(?=[\s\S]*--reviewed-through)(?=[\s\S]*--issue must map every swept PR)(?=[\s\S]*LINEAR-STATE-REASSERTED)(?=[\s\S]*LINEAR-STATE-REASSERT-SKIPPED)(?=[\s\S]*LINEAR-STATE-REFUSED)(?=[\s\S]*review-safety query runs before the fresh Linear decision-time read)(?=[\s\S]*failed post-merge Linear re-read or reassert)(?=[\s\S]*POST-MERGE-LINEAR-STATE-REASSERT-FAILED)(?=[\s\S]*cutoff is exclusive: activity at or after that timestamp counts as new\.)(?=[\s\S]*Every status check, required or not, must reach a terminal successful conclusion before merge\.)(?=[\s\S]*residual response-to-merge race)(?=[\s\S]*exits 4)/ },
   )
 
   const updatedHead = "3333333333333333333333333333333333333333"

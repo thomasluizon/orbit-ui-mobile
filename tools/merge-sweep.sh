@@ -42,13 +42,16 @@ flag once per PR. The cutoff is exclusive: activity at or after that timestamp c
 The review-safety query runs before the fresh Linear decision-time read and runs again after
 success. Post-merge activity or an unverifiable post-merge review state is reported with a URL
 when available and exits 4; this detects but cannot prevent the residual response-to-merge race.
-A failed post-merge Linear reassert emits POST-MERGE-LINEAR-STATE-REASSERT-FAILED and exits 4.
+Before a pending reassertion, the sweep re-reads Linear: it writes only if the issue is still
+\`In Progress\`; an advanced state is left alone and emits \`LINEAR-STATE-REASSERT-SKIPPED\`.
+A failed post-merge Linear re-read or reassert emits POST-MERGE-LINEAR-STATE-REASSERT-FAILED and exits 4.
 
 --issue must map every swept PR to its Linear identifier (\`<pr-number>=<ORB-N>\`). Immediately
 before merging, the sweep freshly reads that issue: \`In Review\` proceeds unchanged, while
 \`In Progress\` marks a reassertion with the observed state and UTC instant. Only after GitHub
-confirms the merge does it reassert \`In Review\` and print \`LINEAR-STATE-REASSERTED\`. A lookup
-failure or unknown state prints \`LINEAR-STATE-REFUSED\` and skips the merge.
+confirms the merge does it re-read Linear, reassert \`In Review\` only when it is still \`In Progress\`,
+and print \`LINEAR-STATE-REASSERTED\`; an advanced state prints \`LINEAR-STATE-REASSERT-SKIPPED\`.
+A decision-time lookup failure or unknown state prints \`LINEAR-STATE-REFUSED\` and skips the merge.
 
 It refuses to merge while the \`$REVIEW_CHECK_NAME\` check for the CURRENT head SHA is still
 running, and re-reads reviewDecision after that check settles, so a pre-update APPROVED can
@@ -306,7 +309,16 @@ ensure_issue_in_review() { # <pr>; the final operation before the merge decision
 }
 
 commit_linear_reassertion() {
+  local state
   [ -n "$pending_linear_reassert_issue" ] || return 0
+  if ! state="$("$ORCA_BIN" linear issue "$pending_linear_reassert_issue" --json 2>/dev/null | node -e 'let input="";process.stdin.on("data",chunk=>input+=chunk).on("end",()=>{try{const parsed=JSON.parse(input);const state=parsed?.result?.issue?.state?.name;if(typeof state!=="string"||!state)process.exit(1);process.stdout.write(state)}catch{process.exit(1)}})')"; then
+    printf 'POST-MERGE-LINEAR-STATE-REASSERT-FAILED issue=%s observed=%s at=%s\n' "$pending_linear_reassert_issue" "$pending_linear_reassert_observed" "$pending_linear_reassert_at"
+    return 1
+  fi
+  if [ "$state" != "In Progress" ]; then
+    printf 'LINEAR-STATE-REASSERT-SKIPPED issue=%s observed=%s at=%s\n' "$pending_linear_reassert_issue" "$state" "$pending_linear_reassert_at"
+    return 0
+  fi
   if ! "$ORCA_BIN" linear status set "$pending_linear_reassert_issue" --to "In Review" >/dev/null 2>&1; then
     printf 'POST-MERGE-LINEAR-STATE-REASSERT-FAILED issue=%s observed=%s at=%s\n' "$pending_linear_reassert_issue" "$pending_linear_reassert_observed" "$pending_linear_reassert_at"
     return 1
