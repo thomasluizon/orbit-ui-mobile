@@ -431,9 +431,11 @@ So, on hitting a harness defect mid-run:
    from inside a run.
 3. At the end of the run, if the ledger is non-empty, create ONE Linear ticket in the
    Backlog project (`757e1ced-43e9-4459-b7eb-3ade25dc1919`, team ORB) carrying EVERY harness
-   defect that run found, each with its evidence and its workaround. One ticket per RUN,
-   never one per defect; it must pass `node tools/check-ticket.mjs --issue ORB-N` like any
-   other ticket. An empty ledger creates nothing: silence is correct when nothing broke.
+   defect that run found, each with its evidence and its workaround. Its title must contain
+   the fixed marker `Harness defect ledger`, which lets `check-ticket.mjs` distinguish its
+   children from ordinary child tickets. One ticket per RUN, never one per defect; it must
+   pass `node tools/check-ticket.mjs --issue ORB-N` like any other ticket. An empty ledger
+   creates nothing: silence is correct when nothing broke.
 4. Name that ticket in the closing report alongside the per-ticket ledger, so a run ends as
    a work list rather than as silence.
 

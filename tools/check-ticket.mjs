@@ -43,6 +43,7 @@ const REQUIRED_SECTIONS = [
 const REPO_LABELS = ["repo:ui", "repo:api", "repo:landing"]
 const LEDGER_OCCURRENCE_THRESHOLD = 3
 const LEDGER_OCCURRENCE_FORMAT = "Ledger occurrence: <count>; blocked: no|<what it blocked>"
+const LEDGER_PARENT_MARKER = /\bHarness defect ledger\b/i
 
 const problems = []
 const require_ = (condition, message) => {
@@ -88,11 +89,12 @@ const validateLabels = (labels) => {
 }
 
 const isLedgerChild = (issue, relations) => {
-  if (issue.parent) return true
-  return relations.some((relation) => {
+  const parentRelation = relations.find((relation) => {
     const relationship = relation.relationship ?? relation.type
     return relationship === "parent" || relationship === "childOf"
   })
+  const parent = issue.parent ?? parentRelation?.relatedIssue ?? parentRelation?.issue ?? parentRelation
+  return LEDGER_PARENT_MARKER.test(`${parent?.title ?? ""}\n${parent?.description ?? ""}`)
 }
 
 const readLinearParent = async (issue) => {
@@ -102,7 +104,7 @@ const readLinearParent = async (issue) => {
   const apiKey = readFileSync(keyPath, "utf8").trim()
   if (!apiKey) throw new Error(`${keyPath} is empty`)
   const requestBody = JSON.stringify({
-    query: "query($id: String!) { issue(id: $id) { parent { id identifier } } }",
+    query: "query($id: String!) { issue(id: $id) { parent { id identifier title description } } }",
     variables: { id: issue.id },
   })
   const response = await new Promise((resolve, reject) => {

@@ -1215,7 +1215,7 @@ const gateCases = {
     const ledgerIssue = (line) => ({
       ...VALID_ISSUE,
       description: `${VALID_TICKET_BODY}\n\n${line}`,
-      parent: { identifier: "ORB-140" },
+      parent: { identifier: "ORB-140", title: "Harness defect ledger from the recorded run" },
     })
     const checkIssue = (name, issue, expect) =>
       check(
@@ -1245,10 +1245,14 @@ const gateCases = {
     )
     checkIssue(
       "a ledger child with no occurrence line fails",
-      { ...VALID_ISSUE, parent: { identifier: "ORB-140" } },
+      { ...VALID_ISSUE, parent: { identifier: "ORB-140", title: "Harness defect ledger from the recorded run" } },
       { status: 1, stderr: /missing[\s\S]*Ledger occurrence/i },
     )
-    checkIssue("a recorded non-ledger ticket is unaffected", VALID_ISSUE, { status: 0, stdout: /ticket ok/ })
+    checkIssue(
+      "a recorded non-ledger child ticket is unaffected",
+      { ...VALID_ISSUE, parent: { identifier: "ORB-88", title: "Ordinary project parent" } },
+      { status: 0, stdout: /ticket ok/ },
+    )
     checkIssue(
       "an unparseable ledger occurrence line fails",
       ledgerIssue("Ledger occurrence: several; blocked: no"),
