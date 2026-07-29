@@ -19,7 +19,7 @@ set -u
 
 REVIEW_WORKFLOW_PATH=".github/workflows/claude-review.yml"
 REVIEW_CHECK_NAME="review"
-ORCA_BIN="${ORCA_BIN:-orca}"
+ORCA_BIN="${ORCA_BIN:-C:\Users\thoma\AppData\Local\Programs\orca\resources\bin\orca}"
 
 usage() {
   cat <<EOF

@@ -3811,6 +3811,11 @@ const mergeSweepCliFlagCases = () => {
     `scanned ${scanned.length} files; missing: ${filenames.filter((filename) => !scanned.some((entry) => entry.filename === filename)).join(", ")}`,
   )
   for (const { filename, source } of scanned) {
+    T(
+      `${filename}: defaults to the configured Windows Orca executable while allowing an override`,
+      source.includes('ORCA_BIN="${ORCA_BIN:-C:\\Users\\thoma\\AppData\\Local\\Programs\\orca\\resources\\bin\\orca}"'),
+      "merge sweeps must use the configured Orca executable when ORCA_BIN is unset",
+    )
     const ghApiInvocations = source
       .replace(/\\\r?\n/g, " ")
       .split(/\r?\n/)
