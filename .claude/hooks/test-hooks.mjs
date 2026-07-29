@@ -562,7 +562,7 @@ export const RAW_TOOL_REVIEW_CORPUS = [
       filePath,
     }),
   ),
-  ...["ORB-999.md", "pr-description.md", "Downloads/wave-plan--help-output.txt"].map((filePath, index) => ({
+  ...["ORB-999.md", "pr-description.md", "/tmp/pr649-review.md", "Downloads/wave-plan--help-output.txt"].map((filePath, index) => ({
     label: `document artifact basename ${index + 1}`,
     text: "Run node tools/wave-plan.mjs --all",
     status: 0,
@@ -967,6 +967,8 @@ T("cc raw-tool: ticket body -> 0", runHook(RAW_TOOL_HOOK, writePayload(ticketBod
 
 const prDescriptionPath = write("pr-description.md", outsideRepoArtifactBody)
 T("cc raw-tool: PR description -> 0", runHook(RAW_TOOL_HOOK, writePayload(prDescriptionPath, outsideRepoArtifactBody)), 0)
+const prReviewPath = write("pr649-review.md", outsideRepoArtifactBody)
+T("cc raw-tool: PR review report -> 0", runHook(RAW_TOOL_HOOK, writePayload(prReviewPath, outsideRepoArtifactBody)), 0)
 const helpOutputPath = write("Downloads/wave-plan--help-output.txt", outsideRepoArtifactBody)
 T("cc raw-tool: help output basename -> 0", runHook(RAW_TOOL_HOOK, writePayload(helpOutputPath, outsideRepoArtifactBody)), 0)
 T(
