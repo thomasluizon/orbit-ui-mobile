@@ -2414,7 +2414,7 @@ const workerWatchCases = () => {
 }
 
 /** A linked child checkout is the smallest real Git fixture that can prove teardown verification. */
-const stageTeardownWorktree = (label, { dirty = false, changed = false, squashMerged = false, fastForwardMerged = false, serverMerged = false, siblingTargetAdvance = false, branchDeleteMode } = {}) => {
+const stageTeardownWorktree = (label, { dirty = false, changed = false, squashMerged = false, fastForwardMerged = false, serverMerged = false, localFollowUp = false, siblingTargetAdvance = false, branchDeleteMode } = {}) => {
   const primary = join(root, "teardown", label, "primary")
   const child = join(root, "teardown", label, "child")
   const remote = join(root, "teardown", label, "remote.git")
@@ -2451,6 +2451,11 @@ const stageTeardownWorktree = (label, { dirty = false, changed = false, squashMe
     }
     if ((squashMerged || fastForwardMerged || serverMerged || siblingTargetAdvance) && git(primary, ["push", "-q", "origin", "main"]).status !== 0) return null
   }
+  const headCommit = git(child, ["rev-parse", "HEAD"]).stdout.trim()
+  if (localFollowUp) {
+    writeFileSync(join(child, "follow-up.txt"), "must not be removed\n")
+    if (git(child, ["add", "follow-up.txt"]).status !== 0 || git(child, ["commit", "-q", "-m", "local follow-up"]).status !== 0) return null
+  }
   if (dirty) writeFileSync(join(child, "dirty.txt"), "uncommitted\n")
   if (branchDeleteMode) {
     const branchRef = "refs/heads/feature/orb-124-teardown"
@@ -2462,7 +2467,7 @@ const stageTeardownWorktree = (label, { dirty = false, changed = false, squashMe
     writeFileSync(hook, body)
     chmodSync(hook, 0o755)
   }
-  return { primary, child, branch: "feature/orb-124-teardown", headCommit: git(child, ["rev-parse", "HEAD"]).stdout.trim(), mergeCommit: mergeCommit ?? git(primary, ["rev-parse", "HEAD"]).stdout.trim() }
+  return { primary, child, branch: "feature/orb-124-teardown", headCommit, mergeCommit: mergeCommit ?? git(primary, ["rev-parse", "HEAD"]).stdout.trim() }
 }
 
 const stageWorkerStatusWorktree = () => {
@@ -2750,6 +2755,9 @@ const teardownWorktreeCases = () => {
 
   const serverSideMerge = stageTeardownWorktree("server-side-merge", { changed: true, serverMerged: true })
   check("teardown-worktree.mjs", "a server-side merged commit absent from the local branch tears down", ["--issue", "ORB-124"], { status: 0, stdout: /REMOVED worktree/ }, { env: orcaEnv(teardownPlan(serverSideMerge, { removePath: serverSideMerge.child })) })
+
+  const localFollowUp = stageTeardownWorktree("local-follow-up", { changed: true, serverMerged: true, localFollowUp: true })
+  check("teardown-worktree.mjs", "a local follow-up after the merged pull request is refused", ["--issue", "ORB-124"], { status: 1, stderr: /tree-present-in-target/ }, { env: orcaEnv(teardownPlan(localFollowUp)) })
 
   for (const [issue, commit] of [["ORB-106", "f2e02ca6"], ["ORB-129", "c04e3716"]]) {
     const replay = stageTeardownWorktree(`recorded-${issue.toLowerCase()}`, { changed: true, serverMerged: true })

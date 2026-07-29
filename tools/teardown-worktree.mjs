@@ -121,7 +121,10 @@ git(path, ["fetch", "--quiet", "origin", base], { allowFailure: true })
 const baseRef = git(path, ["rev-parse", "--verify", "--quiet", `origin/${base}`], { allowFailure: true }) ? `origin/${base}` : base
 const pullRequest = pullRequestFor(path, branch, base)
 git(path, ["fetch", "--quiet", "origin", pullRequest.mergeCommit.oid])
-const treePresent = git(path, ["merge-base", "--is-ancestor", pullRequest.mergeCommit.oid, baseRef], { allowFailure: true }) !== null
+const mergeCommitPresent = git(path, ["merge-base", "--is-ancestor", pullRequest.mergeCommit.oid, baseRef], { allowFailure: true }) !== null
+const localTip = git(path, ["rev-parse", branch])
+const localTipPresent = localTip === pullRequest.headRefOid || git(path, ["merge-base", "--is-ancestor", localTip, baseRef], { allowFailure: true }) !== null
+const treePresent = mergeCommitPresent && localTipPresent
 const checks = [
   { name: "worktree-clean", ok: dirty.length === 0, detail: dirty.length ? `uncommitted paths: ${dirty.join(", ")}` : "no uncommitted work" },
   { name: "tree-present-in-target", ok: treePresent, detail: treePresent ? `pull request #${pullRequest.number}'s merged content is present in ${baseRef}` : `pull request #${pullRequest.number}'s merged content is not present in ${baseRef}` },
