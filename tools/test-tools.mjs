@@ -4282,6 +4282,25 @@ const automationBudgetCases = () => {
     ledger,
     ...extra,
   ]
+  const recordArgs = (identity, ledger) => [
+    "record",
+    "--identity",
+    identity,
+    "--engine",
+    "claude",
+    "--tier",
+    "routine",
+    "--started-at",
+    "2030-01-02T09:00:00Z",
+    "--ended-at",
+    "2030-01-02T10:00:00Z",
+    "--input-tokens",
+    "10",
+    "--output-tokens",
+    "5",
+    "--ledger",
+    ledger,
+  ]
   const ledgerBelow = stage("budget/below-warning.jsonl", `${budgetRecord("fixture-below", 500, 199)}\n`)
   const ledgerWarning = stage("budget/at-warning.jsonl", `${budgetRecord("fixture-warning", 500, 200)}\n`)
   const ledgerBlock = stage("budget/cross-budget.jsonl", `${budgetRecord("fixture-block", 600, 301)}\n`)
@@ -4326,6 +4345,70 @@ const automationBudgetCases = () => {
     "a malformed ledger is rejected instead of silently changing the fuse total",
     checkArgs("broken-check", stage("budget/broken.jsonl", "{nope}\n")),
     { status: 3, stderr: /ledger line 1 is not valid JSON/ },
+  )
+
+  const deadOwnerLedger = stage("budget/dead-lock-owner.jsonl", "")
+  const deadOwnerLock = `${deadOwnerLedger}.lock`
+  const deadOwnerProbe = spawnSync(
+    process.execPath,
+    ["-e", "process.stdout.write(String(process.pid))"],
+    { encoding: "utf8" },
+  )
+  const deadOwnerPid = Number(deadOwnerProbe.stdout)
+  writeFileSync(
+    deadOwnerLock,
+    `${JSON.stringify({ pid: deadOwnerPid, acquiredAt: new Date().toISOString() })}\n`,
+  )
+  const deadOwnerRecovery = run(
+    "automation-budget.mjs",
+    recordArgs("after-dead-lock", deadOwnerLedger),
+  )
+  T(
+    "automation-budget.mjs: a lock whose owner PID is provably dead is reclaimed immediately",
+    deadOwnerProbe.status === 0 &&
+      Number.isSafeInteger(deadOwnerPid) &&
+      deadOwnerRecovery.status === 0 &&
+      !existsSync(deadOwnerLock),
+    `probe exit ${deadOwnerProbe.status}, pid ${deadOwnerPid}\n     record exit ${deadOwnerRecovery.status}\n     ${deadOwnerRecovery.stderr}`,
+  )
+
+  const corruptLockLedger = stage("budget/stale-corrupt-lock.jsonl", "")
+  const corruptLock = `${corruptLockLedger}.lock`
+  writeFileSync(corruptLock, "{not-json\n")
+  const staleLockTime = new Date(Date.now() - 10_000)
+  utimesSync(corruptLock, staleLockTime, staleLockTime)
+  const corruptLockRecovery = run(
+    "automation-budget.mjs",
+    recordArgs("after-corrupt-lock", corruptLockLedger),
+  )
+  T(
+    "automation-budget.mjs: an old malformed lock marker is reclaimed",
+    corruptLockRecovery.status === 0 && !existsSync(corruptLock),
+    `record exit ${corruptLockRecovery.status}\n     ${corruptLockRecovery.stderr}`,
+  )
+
+  const liveOwnerLedger = stage("budget/live-lock-owner.jsonl", "")
+  const liveOwnerLock = `${liveOwnerLedger}.lock`
+  const liveOwnerMarker = `${JSON.stringify({
+    pid: process.pid,
+    acquiredAt: "2000-01-01T00:00:00.000Z",
+  })}\n`
+  writeFileSync(liveOwnerLock, liveOwnerMarker)
+  utimesSync(liveOwnerLock, staleLockTime, staleLockTime)
+  const liveOwnerRefusal = run(
+    "automation-budget.mjs",
+    recordArgs("blocked-by-live-lock", liveOwnerLedger),
+    { env: { AUTOMATION_BUDGET_TEST_LOCK_TIMEOUT_MS: "100" } },
+  )
+  const liveOwnerPreserved =
+    existsSync(liveOwnerLock) && readFileSync(liveOwnerLock, "utf8") === liveOwnerMarker
+  rmSync(liveOwnerLock, { force: true })
+  T(
+    "automation-budget.mjs: an old lock owned by a live PID is never stolen",
+    liveOwnerRefusal.status === 3 &&
+      /timed out waiting for ledger lock/.test(liveOwnerRefusal.stderr) &&
+      liveOwnerPreserved,
+    `record exit ${liveOwnerRefusal.status}\n     preserved ${liveOwnerPreserved}\n     ${liveOwnerRefusal.stderr}`,
   )
 
   const contextOnlyLedger = stage(

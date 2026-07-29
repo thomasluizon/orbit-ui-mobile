@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, unlinkSync, writeFileSync } from "node:fs"
+import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, statSync, unlinkSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, resolve } from "node:path"
 
@@ -206,10 +206,62 @@ const ledgerPath = (values) => {
 
 const hasOwn = (value, property) => Object.prototype.hasOwnProperty.call(value, property)
 const sleep = (milliseconds) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds)
+const MALFORMED_LOCK_STALE_MILLISECONDS = 5_000
+
+const processIsAlive = (pid) => {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return error?.code !== "ESRCH"
+  }
+}
+
+const unlinkLock = (path) => {
+  try {
+    unlinkSync(path)
+    return true
+  } catch (error) {
+    if (error?.code === "ENOENT") return false
+    fail(`could not reclaim ledger lock ${path}: ${error.message}`, 3)
+  }
+}
+
+const reclaimAbandonedLock = (path) => {
+  let marker
+  try {
+    marker = JSON.parse(readFileSync(path, "utf8"))
+  } catch (error) {
+    if (error?.code === "ENOENT") return true
+    if (!(error instanceof SyntaxError)) {
+      fail(`could not inspect ledger lock ${path}: ${error.message}`, 3)
+    }
+  }
+  const pid = marker?.pid
+  if (Number.isSafeInteger(pid) && pid > 0) {
+    if (!processIsAlive(pid)) {
+      unlinkLock(path)
+      return true
+    }
+    return false
+  }
+  let modifiedAt
+  try {
+    modifiedAt = statSync(path).mtimeMs
+  } catch (error) {
+    if (error?.code === "ENOENT") return true
+    fail(`could not inspect ledger lock ${path}: ${error.message}`, 3)
+  }
+  if (Date.now() - modifiedAt <= MALFORMED_LOCK_STALE_MILLISECONDS) return false
+  unlinkLock(path)
+  return true
+}
 
 const withLedgerLock = (path, action) => {
   const lockPath = `${path}.lock`
-  const deadline = Date.now() + 10_000
+  const configuredTimeout = Number(process.env.AUTOMATION_BUDGET_TEST_LOCK_TIMEOUT_MS)
+  const timeout = Number.isInteger(configuredTimeout) && configuredTimeout > 0 ? configuredTimeout : 10_000
+  const deadline = Date.now() + timeout
   mkdirSync(dirname(path), { recursive: true })
   let descriptor
   while (descriptor === undefined) {
@@ -217,6 +269,7 @@ const withLedgerLock = (path, action) => {
       descriptor = openSync(lockPath, "wx", 0o600)
     } catch (error) {
       if (error?.code !== "EEXIST") fail(`could not acquire ledger lock ${lockPath}: ${error.message}`, 3)
+      if (reclaimAbandonedLock(lockPath)) continue
       if (Date.now() >= deadline) {
         fail(`timed out waiting for ledger lock ${lockPath}; refusing to mutate the budget without an exclusive reservation`, 3)
       }
