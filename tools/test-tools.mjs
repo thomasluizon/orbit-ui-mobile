@@ -1212,6 +1212,48 @@ const gateCases = {
   "check-ticket.mjs": () => {
     check("check-ticket.mjs", "an incomplete body is rejected", ["--file", stage("ticket.md", "# A ticket\n\nno template sections here\n")], { nonZero: true })
     check("check-ticket.mjs", "a missing body file is a usage error", ["--file", join(root, "absent.md")], { status: 2 })
+    const ledgerIssue = (line) => ({
+      ...VALID_ISSUE,
+      description: `${VALID_TICKET_BODY}\n\n${line}`,
+      parent: { identifier: "ORB-140" },
+    })
+    const checkIssue = (name, issue, expect) =>
+      check(
+        "check-ticket.mjs",
+        name,
+        ["--issue", issue.identifier],
+        expect,
+        { env: orcaEnv([{ match: `linear issue ${issue.identifier}`, stdout: JSON.stringify({ ok: true, result: { issue, relations: [] } }) }]) },
+      )
+
+    checkIssue("a ledger child with 7 occurrences passes", ledgerIssue("Ledger occurrence: 7; blocked: no"), { status: 0, stdout: /ticket ok/ })
+    checkIssue("a ledger child at the threshold of 3 occurrences passes", ledgerIssue("Ledger occurrence: 3; blocked: no"), { status: 0, stdout: /ticket ok/ })
+    checkIssue(
+      "a non-blocking ledger child below the threshold fails with the count and threshold",
+      ledgerIssue("Ledger occurrence: 2; blocked: no"),
+      { status: 1, stderr: /2[\s\S]*threshold of 3/i },
+    )
+    checkIssue(
+      "a below-threshold ledger child passes when it names what blocked the run",
+      ledgerIssue("Ledger occurrence: 2; blocked: the merge sweep could not merge qualifying PRs"),
+      { status: 0, stdout: /ticket ok/ },
+    )
+    checkIssue(
+      "a bare blocking claim does not bypass the threshold",
+      ledgerIssue("Ledger occurrence: 2; blocked: yes"),
+      { status: 1, stderr: /bare blocking claim; name what it blocked/i },
+    )
+    checkIssue(
+      "a ledger child with no occurrence line fails",
+      { ...VALID_ISSUE, parent: { identifier: "ORB-140" } },
+      { status: 1, stderr: /missing[\s\S]*Ledger occurrence/i },
+    )
+    checkIssue("a recorded non-ledger ticket is unaffected", VALID_ISSUE, { status: 0, stdout: /ticket ok/ })
+    checkIssue(
+      "an unparseable ledger occurrence line fails",
+      ledgerIssue("Ledger occurrence: several; blocked: no"),
+      { status: 1, stderr: /ledger occurrence line is unparseable/i },
+    )
   },
   "check-push-target.mjs": () => {
     check("check-push-target.mjs", "a push to main is blocked", [], { status: 1, stderr: /BLOCKED/ }, { input: "refs/heads/main abc refs/heads/main def\n" })

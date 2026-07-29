@@ -450,14 +450,19 @@ the same defect then taxes every later run until somebody schedules it.
 
 So once every ticket in the run is merged or stopped, and NOTHING is still executing:
 
-1. **The run ticket stays the record; each defect gets its own CHILD ticket to be fixed
-   from.** The aggregate ticket above is one per RUN and cannot carry N repair PRs: it would
-   close on the first merge, leaving the rest with no live issue to launch from, attach to or
-   close, and `launch-worker.mjs` derives the worktree name and branch from the issue, so two
-   PRs off one issue collide before that even matters. So file one child ticket per ledger
-   entry (`orca linear create --parent <run ticket>`), each passing `check-ticket.mjs`, each
-   describing ONE defect. A ledger with exactly one entry needs no child: the run ticket is
-   already that shape.
+1. **The run ticket stays the durable record of every ledger entry; only recurring or blocking
+   defects get a CHILD ticket to be fixed from.** Create a child
+   (`orca linear create --parent <run ticket>`) when the defect occurred on at least three
+   tickets or blocked the run. Record every entry below that threshold in the parent ticket's
+   body with its evidence. If later evidence raises a recorded entry to three occurrences or
+   shows that it blocked a run, create its child then from the accumulated evidence.
+   Each child describes ONE defect, passes `check-ticket.mjs`, and contains this fixed line:
+   `Ledger occurrence: <count>; blocked: no|<what it blocked>`. Use `no` only for a
+   non-blocking defect; a blocking value must name the run step, ticket, or operation that
+   could not proceed. The aggregate ticket above cannot carry N repair PRs: it would close on
+   the first merge, leaving the rest with no live issue to launch from, attach to or close,
+   and `launch-worker.mjs` derives the worktree name and branch from the issue, so two PRs off
+   one issue collide before that even matters.
 2. Work the children one PR per ticket, through the same worker machinery as any ticket. The
    run is over, so editing `tools/`, this skill or `.claude/orchestrator.json` no longer
    changes a contract anything is executing.
