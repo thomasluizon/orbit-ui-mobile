@@ -212,6 +212,27 @@ const review = reviewPayload?.repository?.pullRequest
 const reviewThreads = review?.reviewThreads?.nodes ?? []
 const workerLogin = reviewPayload?.viewer?.login
 const localHead = git(["rev-parse", "HEAD"])
+const reportRejectionReasons = []
+if (reportsFile) {
+  if (!latestReport) {
+    reportRejectionReasons.push(`no report exists for ${issue}`)
+  } else {
+    if (latestReport.headSha !== localHead) reportRejectionReasons.push(`head SHA ${latestReport.headSha ?? "missing"} does not match ${localHead}`)
+    if (latestReport.needsHuman !== false) reportRejectionReasons.push("needs human")
+    if (latestReport.blockedOn !== null) reportRejectionReasons.push(`blocked on ${JSON.stringify(latestReport.blockedOn)}`)
+
+    const gates = latestReport.gates
+    if (!gates || typeof gates !== "object" || Array.isArray(gates)) {
+      reportRejectionReasons.push("gates payload is invalid")
+    } else {
+      const invalidGates = Object.entries(gates).filter(([, result]) => !["passed", "failed", "not-run"].includes(result))
+      const failedGates = Object.entries(gates).filter(([, result]) => result === "failed").map(([name]) => name)
+      if (invalidGates.length > 0) reportRejectionReasons.push(`gate results are invalid: ${invalidGates.map(([name]) => name).join(", ")}`)
+      if (failedGates.length > 0) reportRejectionReasons.push(`failed gates: ${failedGates.join(", ")}`)
+    }
+  }
+}
+const reportAccepted = Boolean(reportsFile && latestReport && reportRejectionReasons.length === 0)
 const prHead = review?.headRefOid ?? null
 const prHeadPresent = Boolean(prHead && git(["cat-file", "-e", `${prHead}^{commit}`], { allowFailure: true }) !== null)
 const prCommits = new Set(prHeadPresent ? git(["rev-list", `${baseRef}..${prHead}`]).split("\n").filter(Boolean) : [])
@@ -407,11 +428,18 @@ if (verifyReview) {
   })
 }
 if (reportsFile) {
-  checks.unshift({
-    name: "report-fresh",
-    ok: reportFresh,
-    detail: latestReport ? `latest report is ${Number.isFinite(reportAgeMinutes) ? reportAgeMinutes.toFixed(1) : "invalid"} minute(s) old; expected within ${expectedWindowMinutes}` : `no report for ${issue}; worktree is ${reportAgeMinutes.toFixed(1)} minute(s) old and expected within ${expectedWindowMinutes}`,
-  })
+  checks.unshift(
+    {
+      name: "report-fresh",
+      ok: reportFresh,
+      detail: latestReport ? `latest report is ${Number.isFinite(reportAgeMinutes) ? reportAgeMinutes.toFixed(1) : "invalid"} minute(s) old; expected within ${expectedWindowMinutes}` : `no report for ${issue}; worktree is ${reportAgeMinutes.toFixed(1)} minute(s) old and expected within ${expectedWindowMinutes}`,
+    },
+    {
+      name: "report-accepted",
+      ok: reportAccepted,
+      detail: reportAccepted ? `latest report belongs to checked HEAD ${localHead} and carries no blocker, escalation, or failed gate` : `latest report rejected: ${reportRejectionReasons.join("; ")}`,
+    },
+  )
 }
 if (visibleEffect) {
   checks.push({

@@ -3022,7 +3022,7 @@ const workerWatchCases = () => {
   check("worker-watch.mjs", "refuses a non-positive --lines", ["--lines", "0"], { status: 2, stderr: /positive integer/ })
 }
 
-const workerStatusStubs = [
+const workerStatusStubs = (headSha) => [
   {
     match: "pr list",
     stdout: JSON.stringify([
@@ -3042,9 +3042,20 @@ const workerStatusStubs = [
         viewer: { login: "worker" },
         repository: {
           pullRequest: {
-            headRefOid: null,
+            headRefOid: headSha,
             reviewDecision: "APPROVED",
-            reviews: { pageInfo: { hasNextPage: false }, nodes: [] },
+            reviews: {
+              pageInfo: { hasNextPage: false },
+              nodes: [{
+                id: "PRR_worker_status_approval",
+                author: { login: "reviewer", __typename: "User" },
+                state: "APPROVED",
+                body: "",
+                submittedAt: "2026-07-28T10:00:00Z",
+                updatedAt: "2026-07-28T10:00:00Z",
+                commit: { oid: headSha },
+              }],
+            },
             comments: { pageInfo: { hasNextPage: false }, nodes: [] },
             reviewThreads: { pageInfo: { hasNextPage: false }, nodes: [] },
           },
@@ -3064,7 +3075,7 @@ const workerStatusStubs = [
   },
 ]
 
-const stageWorkerStatus = (label, { mergeInProgress = false, unpushedCommit = false, matchingReport = true } = {}) => {
+const stageWorkerStatus = (label, { mergeInProgress = false, unpushedCommit = false, matchingReport = true, reportOverrides = {} } = {}) => {
   const base = join(root, "worker-status", label)
   const repo = join(base, "repo")
   const remote = join(base, "remote.git")
@@ -3147,14 +3158,15 @@ const stageWorkerStatus = (label, { mergeInProgress = false, unpushedCommit = fa
       if (result.status !== 0) return { error: `git ${args.join(" ")}: ${result.stderr}` }
     }
   }
+  const headSha = git(repo, ["rev-parse", "HEAD"]).stdout.trim()
   const reportsFile = join(base, "reports.jsonl")
   writeFileSync(
     reportsFile,
     matchingReport
-      ? `${JSON.stringify({ reportedAt: new Date().toISOString(), ticket: "ORB-75", headSha: "fixture", pushed: true, gates: {}, contractItems: [], blockedOn: null, needsHuman: false })}\n`
+      ? `${JSON.stringify({ reportedAt: new Date().toISOString(), ticket: "ORB-75", headSha, pushed: true, gates: {}, contractItems: [], blockedOn: null, needsHuman: false, ...reportOverrides })}\n`
       : `${JSON.stringify({ reportedAt: "2000-01-01T00:00:00.000Z", ticket: "ORB-999" })}\n`,
   )
-  return { repo, reportsFile, tool: join(toolBase, "tools", "worker-status.mjs") }
+  return { headSha, repo, reportsFile, tool: join(toolBase, "tools", "worker-status.mjs") }
 }
 
 const workerStatusCases = () => {
@@ -3175,7 +3187,7 @@ const workerStatusCases = () => {
       "a staged uncommitted merge fails despite a healthy PR and Linear state",
       ["--worktree", merged.repo, "--issue", "ORB-75", "--reports-file", merged.reportsFile, "--json"],
       { status: 1, stdout: /"name": "staged-uncommitted"[\s\S]*"ok": false[\s\S]*"name": "merge-in-progress"[\s\S]*"ok": false/ },
-      { path: merged.tool, env: orcaEnv(workerStatusStubs) },
+      { path: merged.tool, env: orcaEnv(workerStatusStubs(merged.headSha)) },
     )
   }
 
@@ -3187,7 +3199,7 @@ const workerStatusCases = () => {
       "an unpushed commit fails despite a healthy PR and Linear state",
       ["--worktree", unpushed.repo, "--issue", "ORB-75", "--reports-file", unpushed.reportsFile, "--json"],
       { status: 1, stdout: /"name": "unpushed-commits"[\s\S]*"ok": false/ },
-      { path: unpushed.tool, env: orcaEnv(workerStatusStubs) },
+      { path: unpushed.tool, env: orcaEnv(workerStatusStubs(unpushed.headSha)) },
     )
   }
 
@@ -3209,7 +3221,38 @@ const workerStatusCases = () => {
         "--json",
       ],
       { status: 1, stdout: /"liveness": "suspect"[\s\S]*"report-fresh"/ },
-      { path: silent.tool, env: orcaEnv(workerStatusStubs) },
+      { path: silent.tool, env: orcaEnv(workerStatusStubs(silent.headSha)) },
+    )
+  }
+
+  const accepted = stageWorkerStatus("report-accepted")
+  T("worker-status.mjs: accepted report fixture is valid", !accepted.error, accepted.error ?? "")
+  if (!accepted.error) {
+    check(
+      "worker-status.mjs",
+      "a fresh unblocked report for the checked head is accepted",
+      ["--worktree", accepted.repo, "--issue", "ORB-75", "--reports-file", accepted.reportsFile, "--json"],
+      { status: 0, stdout: /"name": "report-fresh"[\s\S]*"ok": true[\s\S]*"name": "report-accepted"[\s\S]*"ok": true/ },
+      { path: accepted.tool, env: orcaEnv(workerStatusStubs(accepted.headSha)) },
+    )
+  }
+
+  const rejectedReports = [
+    ["report-needs-human", { needsHuman: true }, /latest report rejected: needs human/],
+    ["report-blocked", { blockedOn: "waiting for owner" }, /latest report rejected: blocked on \\"waiting for owner\\"/],
+    ["report-failed-gate", { gates: { lint: "failed" } }, /latest report rejected: failed gates: lint/],
+    ["report-head-mismatch", { headSha: "0000000000000000000000000000000000000000" }, /latest report rejected: head SHA 0000000000000000000000000000000000000000 does not match/],
+  ]
+  for (const [label, reportOverrides, rejection] of rejectedReports) {
+    const rejected = stageWorkerStatus(label, { reportOverrides })
+    T(`worker-status.mjs: ${label} fixture is valid`, !rejected.error, rejected.error ?? "")
+    if (rejected.error) continue
+    check(
+      "worker-status.mjs",
+      `${label} is fresh but rejected`,
+      ["--worktree", rejected.repo, "--issue", "ORB-75", "--reports-file", rejected.reportsFile, "--json"],
+      { status: 1, stdout: new RegExp(`"name": "report-fresh"[\\s\\S]*"ok": true[\\s\\S]*"name": "report-accepted"[\\s\\S]*"ok": false[\\s\\S]*${rejection.source}`) },
+      { path: rejected.tool, env: orcaEnv(workerStatusStubs(rejected.headSha)) },
     )
   }
 }
