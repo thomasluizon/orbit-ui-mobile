@@ -4,18 +4,9 @@
 `.claude/playbooks/` and is read on demand. A rule belongs here only if it applies in any turn AND
 no skill invocation reliably precedes it. Rationale and the full rule set: `.claude/playbooks/README.md`.
 
-The rest of the judgement tier loads two ways, by whether a file path can predict relevance.
-
-**Path-scoped: these load themselves** when you touch a matching file, via `paths:` frontmatter.
-Nothing to remember.
-
-| rule | auto-loads when you touch |
-|---|---|
-| `.claude/rules/visual-delivery.md` | `apps/web/**`, `apps/mobile/**`, the shared theme |
-| `.claude/rules/product-and-content.md` | the i18n JSON, `globals.css`, the theme, the landing page |
-
 **Activity-scoped: READ these yourself** when you start that activity. No file path predicts them,
-so nothing can trigger them for you.
+so nothing can trigger them for you. (The `.claude/rules/` files with `paths:` frontmatter load
+themselves; nothing to remember there.)
 
 | playbook | read it when |
 |---|---|
