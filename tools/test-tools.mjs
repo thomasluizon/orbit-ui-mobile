@@ -4128,7 +4128,7 @@ const mergeSweepCases = (file) => {
     file,
     "help documents the Linear issue gate, exclusive cutoff, and residual post-merge window",
     ["--help"],
-    { status: 0, stdout: /(?=[\s\S]*--reviewed-through)(?=[\s\S]*--issue must map every swept PR)(?=[\s\S]*LINEAR-STATE-REASSERTED)(?=[\s\S]*LINEAR-STATE-REFUSED)(?=[\s\S]*review-safety query runs before the fresh Linear decision-time read)(?=[\s\S]*failed post-merge Linear reassertion)(?=[\s\S]*cutoff is exclusive: activity at or after that timestamp counts as new\.)(?=[\s\S]*Every status check, required or not, must reach a terminal successful conclusion before merge\.)(?=[\s\S]*residual response-to-merge race)(?=[\s\S]*exits 4)/ },
+    { status: 0, stdout: /(?=[\s\S]*--reviewed-through)(?=[\s\S]*--issue must map every swept PR)(?=[\s\S]*LINEAR-STATE-REASSERTED)(?=[\s\S]*LINEAR-STATE-REFUSED)(?=[\s\S]*review-safety query runs before the fresh Linear decision-time read)(?=[\s\S]*failed post-merge Linear reassertion)(?=[\s\S]*POST-MERGE-LINEAR-STATE-REASSERT-FAILED)(?=[\s\S]*cutoff is exclusive: activity at or after that timestamp counts as new\.)(?=[\s\S]*Every status check, required or not, must reach a terminal successful conclusion before merge\.)(?=[\s\S]*residual response-to-merge race)(?=[\s\S]*exits 4)/ },
   )
 
   const updatedHead = "3333333333333333333333333333333333333333"
