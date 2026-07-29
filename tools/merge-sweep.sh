@@ -279,7 +279,7 @@ issue_for() { # <pr>; stdout: Linear identifier
 ensure_issue_in_review() { # <pr>; the final operation before the merge decision
   local pr="$1" issue state observed_at
   issue="$(issue_for "$pr")"
-  if ! state="$($ORCA_BIN linear issue "$issue" --json 2>/dev/null | node -e 'let input="";process.stdin.on("data",chunk=>input+=chunk).on("end",()=>{try{const parsed=JSON.parse(input);const state=parsed?.result?.issue?.state?.name;if(typeof state!=="string"||!state)process.exit(1);process.stdout.write(state)}catch{process.exit(1)}})')"; then
+  if ! state="$("$ORCA_BIN" linear issue "$issue" --json 2>/dev/null | node -e 'let input="";process.stdin.on("data",chunk=>input+=chunk).on("end",()=>{try{const parsed=JSON.parse(input);const state=parsed?.result?.issue?.state?.name;if(typeof state!=="string"||!state)process.exit(1);process.stdout.write(state)}catch{process.exit(1)}})')"; then
     printf 'LINEAR-STATE-REFUSED issue=%s reason=lookup-failed\n' "$issue"
     return 1
   fi
