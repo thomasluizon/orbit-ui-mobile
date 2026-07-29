@@ -11,8 +11,8 @@ before writing code.
   binding; an impossible or contradictory ticket means STOP and report, never improvise.
 - Finish = lint + type-check + tests green for the touched workspaces, commit, push,
   one PR to the ticket's target branch linking `ORB-N`, then own its review cycle
-  through approval with zero unresolved threads. Never merge. Never push to `main`
-  or `redesign/main` directly.
+  through approval with zero unresolved threads. The pull request must be ready for review, never a draft.
+  Never merge. Never push to `main` or `redesign/main` directly.
 - After pushing, poll your pull request. Reconcile each automated review finding
   against the diff, fix valid findings, commit and push the fix, reply on the thread
   naming the fix commit, resolve the thread, and repeat until the review decision is

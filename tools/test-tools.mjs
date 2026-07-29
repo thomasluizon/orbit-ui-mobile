@@ -749,6 +749,7 @@ const linearIssueStub = (labels, worktrees = []) => [
  */
 const WORKER_CONTRACT_MARKER = "## Standing worker contract (injected by tools/launch-worker.mjs)"
 const FULL_SURFACE_POLL = /worker-status\.mjs[\s\S]*full-surface completion poll[\s\S]*review submissions[\s\S]*review threads[\s\S]*nested comments[\s\S]*PR conversation comments[\s\S]*fails closed/
+const NO_DRAFT_PULL_REQUEST_CLAUSE = "The pull request must be ready for review, never a draft."
 const REQUIRED_CONTRACT_CLAUSES = {
   "asking a question": /Never ask a question/,
   "dropping a blocked criterion": /A blocked sub-step never blocks the PR/,
@@ -1982,6 +1983,16 @@ process.stdout.write(JSON.stringify(await Promise.all([first, second])))
   }
   const agentsSource = readFileSync(join(REPO_ROOT, "AGENTS.md"), "utf8")
   T(
+    "launch-worker.mjs: the injected contract forbids opening a draft pull request",
+    launcherSource.includes(NO_DRAFT_PULL_REQUEST_CLAUSE),
+    `WORKER_CONTRACT no longer contains ${NO_DRAFT_PULL_REQUEST_CLAUSE}`,
+  )
+  T(
+    "AGENTS.md: the standing worker contract forbids opening a draft pull request",
+    agentsSource.includes(NO_DRAFT_PULL_REQUEST_CLAUSE),
+    `AGENTS.md no longer contains ${NO_DRAFT_PULL_REQUEST_CLAUSE}`,
+  )
+  T(
     "launch-worker.mjs: AGENTS.md requires the same full-surface completion poll",
     FULL_SURFACE_POLL.test(agentsSource),
     "AGENTS.md no longer requires worker-status to inventory every review activity surface and fail closed.",
@@ -2612,6 +2623,13 @@ const prWatchCases = () => {
   check("pr-watch.mjs", "a fresh approval fires", argv, { status: 0, stdout: /"transition": "approved"/ }, { env: orcaEnv([approved]) })
   check(
     "pr-watch.mjs",
+    "a draft reading clean and approved is refused",
+    argv,
+    { status: 1, stdout: /"transition": "draft"[\s\S]*"reason": "the PR is a draft and cannot be merged"/ },
+    { env: orcaEnv([pullRequestStub(615, { isDraft: true, reviewDecision: "APPROVED", mergeStateStatus: "CLEAN", latestReviews: { nodes: [reviewOn("APPROVED", HEAD_SHA)] } })]) },
+  )
+  check(
+    "pr-watch.mjs",
     "an acted approval that became clean between watches reports readiness",
     [...argv, "--acted", `615=${HEAD_SHA.slice(0, 7)}:APPROVED`],
     { status: 0, stdout: /"transition": "ready-to-merge"/ },
@@ -2964,6 +2982,7 @@ const workerStatusPlan = (
     comments = [],
     commentsHasNextPage = false,
     approvalHead,
+    isDraft = false,
     prHead,
     reviewDecision = "APPROVED",
     reviews = [],
@@ -2974,7 +2993,7 @@ const workerStatusPlan = (
 ) => [
   {
     match: "pr list",
-    stdout: JSON.stringify([{ number: 75, url: "https://github.com/orbit/orbit/pull/75", state: "OPEN", baseRefName: "main", isDraft: false }]),
+    stdout: JSON.stringify([{ number: 75, url: "https://github.com/orbit/orbit/pull/75", state: "OPEN", baseRefName: "main", isDraft }]),
   },
   {
     match: "api graphql",
@@ -3072,6 +3091,7 @@ const runWorkerStatusCase = (fixture, attachments, options = {}) => {
         ...orcaEnv(
           workerStatusPlan(attachments, {
             approvalHead: options.approvalHead,
+            isDraft: options.isDraft,
             comments: options.comments,
             commentsHasNextPage: options.commentsHasNextPage,
             prHead: options.prHead ?? fixture.prHead,
@@ -5272,6 +5292,15 @@ const gateCases = {
         complete.verdict.checks.find((entry) => entry.name === "screenshot-attached")?.ok === true &&
         complete.verdict.checks.find((entry) => entry.name === "critique-attached")?.ok === true,
       `exit ${complete.status}\n     ${(complete.stderr || complete.stdout).slice(0, 600)}`,
+    )
+    const draft = runWorkerStatusCase(fixture, [screenshot, critique], { isDraft: true })
+    T(
+      "worker-status.mjs: a draft pull request is explicitly not ready for review",
+      draft.status === 1 &&
+        draft.verdict?.unmet.length === 1 &&
+        draft.verdict.unmet[0] === "pr-ready-for-review" &&
+        draft.verdict.checks.find((entry) => entry.name === "pr-ready-for-review")?.detail.includes("draft pull request"),
+      `exit ${draft.status}\n     ${(draft.stderr || draft.stdout).slice(0, 600)}`,
     )
     const changesRequested = runWorkerStatusCase(fixture, [screenshot, critique], { reviewDecision: "CHANGES_REQUESTED" })
     T(
