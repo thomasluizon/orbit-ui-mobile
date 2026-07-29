@@ -889,7 +889,7 @@ const EMPTY_COMPOSER = ' (logo)   Claude Code v2.1.220\n> Try "how do I log an e
  * "delivered" is a tail carrying the pointer as a user line, anything else is a tail without it.
  * Returns the orca calls, because the assertion that matters is how many sends really happened.
  */
-const runPointerLaunch = (label, tails, { repainting = false } = {}) => {
+const runPointerLaunch = (label, tails, { repainting = false, postCommitFailure = false } = {}) => {
   const staged = stageLaunchWorker(label, INTERACTIVE_WORKER)
   const checkout = stageCheckout(staged.base)
   if (!checkout) return null
@@ -927,7 +927,9 @@ const runPointerLaunch = (label, tails, { repainting = false } = {}) => {
       sequence: tails.map((tail) => JSON.stringify({ ok: true, result: { terminal: { tail: [tail === "delivered" ? painted : tail] } } })),
     },
     { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }) },
-    { match: "terminal switch", stdout: JSON.stringify({ ok: true, result: {} }) },
+    postCommitFailure
+      ? { match: "terminal switch", stdout: JSON.stringify({ ok: false, error: { message: "fixture post-commit record failure" } }), exit: 1 }
+      : { match: "terminal switch", stdout: JSON.stringify({ ok: true, result: {} }) },
     { match: "worktree set", stdout: JSON.stringify({ ok: true, result: {} }) },
     { match: "terminal stop", stdout: JSON.stringify({ ok: true, result: {} }) },
     { match: "worktree rm", stdout: JSON.stringify({ ok: true, result: {} }) },
@@ -969,17 +971,17 @@ const pointerDeliveryCases = () => {
   const firstPointer = firstSend?.[firstSend.indexOf("--text") + 1] ?? ""
   const firstPlan = first.result.status === 0 ? JSON.parse(first.result.stdout) : null
   T(
-    "launch-worker.mjs: the worker receives its launcher-owned authoritative completion-record command",
+    "launch-worker.mjs: the worker receives its authoritative completion-record command",
     firstPointer.includes(`node "${join(first.staged.base, "tools", "automation-budget.mjs")}" record`) &&
       !firstPointer.includes("node tools/automation-budget.mjs record") &&
-      /automation-budget\.mjs" record[\s\S]*--identity "ORB-75:[^"]+"[\s\S]*--input-tokens <provider-input-tokens>[\s\S]*--ledger "[^"]+"[\s\S]*never record zero or infer tokens from account usedPercent/.test(firstPointer) &&
+      /automation-budget\.mjs" record[\s\S]*--identity "ORB-75:[^"]+"[\s\S]*--input-tokens <provider-input-tokens>[\s\S]*--ledger "[^"]+"[\s\S]*Never close a live reservation, record zero, or infer tokens from account usedPercent/.test(firstPointer) &&
       firstPointer.includes(`--ledger "${firstPlan?.automationBudget?.ledgerPath}"`),
     firstPointer,
   )
-  const [firstRecord, completedRecord] = first.records
+  const [firstRecord] = first.records
   T(
-    "launch-worker.mjs: a delivered pointer closes its pending token record as unknown",
-    first.records.length === 2 &&
+    "launch-worker.mjs: a delivered pointer keeps its reservation pending while the worker is live",
+    first.records.length === 1 &&
       /^ORB-75:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(firstRecord?.identity ?? "") &&
       firstRecord?.engine === "claude" &&
       firstRecord?.tier === "routine" &&
@@ -988,12 +990,35 @@ const pointerDeliveryCases = () => {
       !Object.hasOwn(firstRecord ?? {}, "outputTokens") &&
       firstRecord?.accountContext?.scope === "account" &&
       firstRecord?.accountContext?.attributed === false &&
-      firstRecord?.accountContext?.usedPercent === 10 &&
-      completedRecord?.identity === firstRecord?.identity &&
-      !Object.hasOwn(completedRecord ?? {}, "pending") &&
-      !Object.hasOwn(completedRecord ?? {}, "inputTokens") &&
-      !Object.hasOwn(completedRecord ?? {}, "outputTokens"),
+      firstRecord?.accountContext?.usedPercent === 10,
     JSON.stringify(first.records),
+  )
+  const liveLedger = first.staged.base + "/automation-budget.jsonl"
+  const liveSecondLog = join(first.staged.base, "live-pending-second-calls.log")
+  const liveSecond = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", stage("live-pending-second-prompt.md", "the ticket body verbatim\n")], {
+    path: first.staged.path,
+    env: {
+      ...orcaEnv(linearIssueStub(["repo:ui"])),
+      ORBIT_AUTOMATION_BUDGET_LEDGER: liveLedger,
+      ORBIT_ORCA_LOG: liveSecondLog,
+    },
+  })
+  const liveSecondCalls = existsSync(liveSecondLog) ? readFileSync(liveSecondLog, "utf8") : ""
+  T(
+    "launch-worker.mjs: a live pending reservation blocks a second launch before worktree creation",
+    liveSecond.status === 3 &&
+      /pending reservations lack input or output tokens/.test(liveSecond.stderr) &&
+      !liveSecondCalls.includes("worktree create"),
+    `exit ${liveSecond.status}\n     ${liveSecond.stderr}\n     ${liveSecondCalls}`,
+  )
+  const postCommitFailure = runPointerLaunch("pointer-post-commit-failure", ["delivered"], { postCommitFailure: true })
+  T(
+    "launch-worker.mjs: a post-delivery handoff failure cannot roll back a live worker",
+    postCommitFailure.result.status === 3 &&
+      /fixture post-commit record failure/.test(postCommitFailure.result.stderr) &&
+      !postCommitFailure.calls.some((argv) => argv[0].split(/[\\/\\\\]/).pop() === "terminal" && argv[1] === "stop") &&
+      !postCommitFailure.calls.some((argv) => argv[0].split(/[\\/\\\\]/).pop() === "worktree" && argv[1] === "rm"),
+    `exit ${postCommitFailure.result.status}\n     ${postCommitFailure.result.stderr}\n     ${JSON.stringify(postCommitFailure.calls)}`,
   )
 
   const second = runPointerLaunch("pointer-second", [EMPTY_COMPOSER, "delivered"])
@@ -1879,11 +1904,9 @@ process.stdout.write(JSON.stringify(await Promise.all([first, second])))
         /pending reservations lack input or output tokens/.test(concurrentOutcomes[1]?.stderr ?? "") &&
         createdWorktree(firstCalls) &&
         !createdWorktree(secondCalls) &&
-        concurrentRecords.length === 2 &&
+        concurrentRecords.length === 1 &&
         concurrentRecords[0]?.pending === true &&
-        concurrentRecords[1]?.identity === concurrentRecords[0]?.identity &&
-        !Object.hasOwn(concurrentRecords[1] ?? {}, "pending") &&
-        !Object.hasOwn(concurrentRecords[1] ?? {}, "inputTokens"),
+        !Object.hasOwn(concurrentRecords[0] ?? {}, "inputTokens"),
       `exit ${concurrentResult.status}\n     stdout: ${concurrentResult.stdout}\n     stderr: ${concurrentResult.stderr}\n     ledger: ${JSON.stringify(concurrentRecords)}\n     first calls: ${JSON.stringify(firstCalls)}\n     second calls: ${JSON.stringify(secondCalls)}`,
     )
   }
