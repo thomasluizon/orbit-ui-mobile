@@ -13,6 +13,7 @@ set -u
 
 REVIEW_WORKFLOW_PATH=".github/workflows/claude-review.yml"
 REVIEW_CHECK_NAME="review"
+ORCA_BIN="${ORCA_BIN:-orca}"
 
 usage() {
   cat <<EOF
@@ -20,6 +21,7 @@ Require-up-to-date merge sweep: squash-merge each APPROVED, green PR server-side
 
 Usage: merge-sweep.sh [--expected-head <pr-number>=<sha>]...
                       [--reviewed-through <pr-number>=<iso-timestamp>]...
+                      [--issue <pr-number>=<ORB-N>]...
                       <owner/repo> <pr-number>...
        merge-sweep.sh --help
 
@@ -60,6 +62,7 @@ EOF
 
 expected_head_mappings=""
 reviewed_through_mappings=""
+issue_mappings=""
 while [ "$#" -gt 0 ]; do
   case "$1" in
     -h | --help)
@@ -134,6 +137,33 @@ while [ "$#" -gt 0 ]; do
       reviewed_through_mappings="$reviewed_through_mappings $mapping_pr=$mapping_timestamp"
       shift 2
       ;;
+    --issue)
+      if [ "$#" -lt 2 ]; then
+        printf 'merge-sweep.sh: --issue requires <pr-number>=<ORB-N>\n\n' >&2
+        usage >&2
+        exit 2
+      fi
+      mapping="$2"
+      mapping_pr="${mapping%%=*}"
+      mapping_issue="${mapping#*=}"
+      if [ "$mapping_pr" = "$mapping" ] || [ -z "$mapping_pr" ] || ! printf '%s' "$mapping_issue" | grep -Eq '^ORB-[0-9]+$'; then
+        printf 'merge-sweep.sh: issue mappings must be <pr-number>=<ORB-N>, got: %s\n\n' "$mapping" >&2
+        usage >&2
+        exit 2
+      fi
+      case "$mapping_pr" in
+        *[!0-9]*) printf 'merge-sweep.sh: issue mapping PR must be a number, got: %s\n\n' "$mapping_pr" >&2; usage >&2; exit 2 ;;
+      esac
+      for existing_mapping in $issue_mappings; do
+        if [ "${existing_mapping%%=*}" = "$mapping_pr" ]; then
+          printf 'merge-sweep.sh: duplicate issue mapping for PR %s\n\n' "$mapping_pr" >&2
+          usage >&2
+          exit 2
+        fi
+      done
+      issue_mappings="$issue_mappings $mapping_pr=$mapping_issue"
+      shift 2
+      ;;
     --*)
       printf 'merge-sweep.sh: unknown argument: %s\n\n' "$1" >&2
       usage >&2
@@ -186,6 +216,17 @@ for mapping in $reviewed_through_mappings; do
     exit 2
   fi
 done
+for pr in "$@"; do
+  issue_found=""
+  for mapping in $issue_mappings; do
+    [ "${mapping%%=*}" = "$pr" ] && issue_found=1
+  done
+  if [ -z "$issue_found" ]; then
+    printf 'merge-sweep.sh: issue mapping is required for PR %s\n\n' "$pr" >&2
+    usage >&2
+    exit 2
+  fi
+done
 
 # Fails CLOSED: only a lookup that SUCCEEDS and positively shows no review workflow turns the wait
 # off, so an auth/rate-limit/network hiccup costs a slower sweep rather than the guard itself.
@@ -217,6 +258,40 @@ reviewed_through_for() { # <pr>; stdout: supplied review cutoff
       return
     fi
   done
+}
+
+issue_for() { # <pr>; stdout: Linear identifier
+  local sought_pr="$1" mapping
+  for mapping in $issue_mappings; do
+    if [ "${mapping%%=*}" = "$sought_pr" ]; then
+      printf '%s' "${mapping#*=}"
+      return
+    fi
+  done
+}
+
+ensure_issue_in_review() { # <pr>; the final operation before the merge decision
+  local pr="$1" issue state observed_at
+  issue="$(issue_for "$pr")"
+  if ! state="$($ORCA_BIN linear issue "$issue" --json 2>/dev/null | node -e 'let input="";process.stdin.on("data",chunk=>input+=chunk).on("end",()=>{try{const parsed=JSON.parse(input);const state=parsed?.result?.issue?.state?.name;if(typeof state!=="string"||!state)process.exit(1);process.stdout.write(state)}catch{process.exit(1)}})')"; then
+    printf 'LINEAR-STATE-REFUSED issue=%s reason=lookup-failed\n' "$issue"
+    return 1
+  fi
+  case "$state" in
+    "In Review") return 0 ;;
+    "In Progress")
+      observed_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+      if ! "$ORCA_BIN" linear status set "$issue" --to "In Review" >/dev/null 2>&1; then
+        printf 'LINEAR-STATE-REFUSED issue=%s observed=%s reason=reassert-failed\n' "$issue" "$state"
+        return 1
+      fi
+      printf 'LINEAR-STATE-REASSERTED issue=%s observed=%s at=%s\n' "$issue" "$state" "$observed_at"
+      ;;
+    *)
+      printf 'LINEAR-STATE-REFUSED issue=%s observed=%s reason=unknown-state\n' "$issue" "$state"
+      return 1
+      ;;
+  esac
 }
 
 newest_review_item_after() { # <cutoff>; author/timestamp/url TSV on stdin; exit 1 with newest item, 2 if malformed
@@ -480,6 +555,11 @@ for n in "$@"; do
     if [ -z "$review_stale" ] && [ -z "$checks_pending" ] && { [ "$ms" = "CLEAN" ] || [ "$ms" = "UNSTABLE" ]; } && [ "$rev" = "APPROVED" ]; then
       branch=$(gh pr view "$n" --repo "$repo" --json headRefName --jq .headRefName 2>/dev/null)
       if ! review_safety_gate "$n" pre; then
+        done_pr=1
+        break
+      fi
+      if ! ensure_issue_in_review "$n"; then
+        echo "SKIP #$n LINEAR-STATE-REFUSED"
         done_pr=1
         break
       fi

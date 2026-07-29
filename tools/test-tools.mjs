@@ -322,6 +322,25 @@ process.exit(9)
 `,
 )
 chmodSync(MERGE_SWEEP_GH, 0o755)
+const MERGE_SWEEP_ORCA = stage(
+  "merge-sweep-bin/orca",
+  `#!/usr/bin/env node
+const { appendFileSync } = require("node:fs")
+const argv = process.argv.slice(2)
+appendFileSync(process.env.ORBIT_MERGE_SWEEP_LOG, JSON.stringify(["orca", ...argv]) + "\\n")
+if (argv[0] === "linear" && argv[1] === "issue") {
+  if (process.env.ORBIT_MERGE_SWEEP_LINEAR_LOOKUP_FAILURE) process.exit(7)
+  process.stdout.write(JSON.stringify({ ok: true, result: { issue: { state: { name: process.env.ORBIT_MERGE_SWEEP_LINEAR_STATE } } } }))
+  process.exit(0)
+}
+if (argv[0] === "linear" && argv[1] === "status" && argv[2] === "set") {
+  if (process.env.ORBIT_MERGE_SWEEP_LINEAR_REASSERT_FAILURE) process.exit(7)
+  process.exit(0)
+}
+process.exit(9)
+`,
+)
+chmodSync(MERGE_SWEEP_ORCA, 0o755)
 const MERGE_SWEEP_BASH_ENV = stage("merge-sweep-bin/bash-env", "sleep() { :; }\n")
 
 const mergeSweepEnv = ({
@@ -341,6 +360,9 @@ const mergeSweepEnv = ({
   inlineItems = "inline-reviewer\t2026-07-27T22:00:00Z\ninline-reviewer\t2026-07-27T22:00:00Z",
   inlineLookupFailure = false,
   inlinePageTwo = "",
+  linearLookupFailure = false,
+  linearReassertFailure = false,
+  linearState = "In Review",
   moveAtMerge = false,
   postMergeActivity = "",
   postMergeReviewsLookupFailure = false,
@@ -378,6 +400,10 @@ const mergeSweepEnv = ({
   ORBIT_MERGE_SWEEP_INLINE_LOOKUP_FAILURE: inlineLookupFailure ? "1" : "",
   ORBIT_MERGE_SWEEP_INLINE_PAGE_TWO: inlinePageTwo,
   ORBIT_MERGE_SWEEP_LOG: log,
+  ORBIT_MERGE_SWEEP_LINEAR_LOOKUP_FAILURE: linearLookupFailure ? "1" : "",
+  ORBIT_MERGE_SWEEP_LINEAR_REASSERT_FAILURE: linearReassertFailure ? "1" : "",
+  ORBIT_MERGE_SWEEP_LINEAR_STATE: linearState,
+  ORCA_BIN: MERGE_SWEEP_ORCA,
   ORBIT_MERGE_SWEEP_MOVE_MARKER: moveAtMerge ? `${log}.moved` : "",
   ORBIT_MERGE_SWEEP_POST_MERGE_ACTIVITY: postMergeActivity,
   ORBIT_MERGE_SWEEP_POST_MERGE_FAILURE_PR: "615",
@@ -3343,7 +3369,7 @@ const mergeSweepCases = (file) => {
   const reviewedThrough = "2026-07-28T00:00:00Z"
   const newerReviewTime = "2026-07-28T00:00:01Z"
   const coverageAware = file === "merge-sweep-cov.sh"
-  const reviewedArgs = ["--expected-head", `615=${expectedHead}`, "--reviewed-through", `615=${reviewedThrough}`, "thomasluizon/orbit-ui-mobile", "615"]
+  const reviewedArgs = ["--expected-head", `615=${expectedHead}`, "--reviewed-through", `615=${reviewedThrough}`, "--issue", "615=ORB-150", "thomasluizon/orbit-ui-mobile", "615"]
   const matchedLog = join(root, `${file}-matched.log`)
   const matched = run(file, reviewedArgs, {
     env: mergeSweepEnv({
@@ -3365,6 +3391,57 @@ const mergeSweepCases = (file) => {
       matchedMerge[matchedHeadFlag + 1] === expectedHead &&
       (!coverageAware || matchedMerge.includes("--admin")),
     `exit ${matched.status}\n     stdout: ${matched.stdout.trim()}\n     stderr: ${matched.stderr.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(matchedLog))}`,
+  )
+
+  const linearCalls = (log) => mergeSweepCalls(log).filter(([group, ...argv]) => group === "orca" && argv[0] === "linear")
+  T(
+    `${file}: an In Review issue is freshly read without a rewrite`,
+    linearCalls(matchedLog).filter(([, linear, command]) => linear === "linear" && command === "issue").length === 1 &&
+      !linearCalls(matchedLog).some(([, linear, command, action]) => linear === "linear" && command === "status" && action === "set"),
+    `calls: ${JSON.stringify(linearCalls(matchedLog))}`,
+  )
+
+  const regressedLog = join(root, `${file}-linear-regressed.log`)
+  const regressed = run(file, reviewedArgs, {
+    env: mergeSweepEnv({ head: expectedHead, linearState: "In Progress", log: regressedLog, sonar: coverageAware ? "coverage-failure" : "success", state: coverageAware ? "BLOCKED" : "CLEAN" }),
+  })
+  const regressedCalls = linearCalls(regressedLog)
+  T(
+    `${file}: a regressed issue is reasserted and recorded before merging`,
+    regressed.status === 0 && /LINEAR-STATE-REASSERTED issue=ORB-150 observed=In Progress at=\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ/.test(regressed.stdout) &&
+      regressedCalls.filter(([, linear, command]) => linear === "linear" && command === "issue").length === 1 &&
+      regressedCalls.some(([, linear, command, action, issue, to, stateName]) => linear === "linear" && command === "status" && action === "set" && issue === "ORB-150" && to === "--to" && stateName === "In Review") &&
+      mergeSweepCalls(regressedLog).some(([group, command]) => group === "pr" && command === "merge"),
+    `exit ${regressed.status}\n     stdout: ${regressed.stdout.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(regressedLog))}`,
+  )
+
+  const linearRefusal = (label, envOptions, output) => {
+    const log = join(root, `${file}-${label}.log`)
+    const result = run(file, reviewedArgs, {
+      env: mergeSweepEnv({ head: expectedHead, log, sonar: coverageAware ? "coverage-failure" : "success", state: coverageAware ? "BLOCKED" : "CLEAN", ...envOptions }),
+    })
+    const calls = mergeSweepCalls(log)
+    T(
+      `${file}: ${label} refuses the merge`,
+      result.status === 0 && output.test(result.stdout) && !calls.some(([group, command]) => group === "pr" && command === "merge"),
+      `exit ${result.status}\n     stdout: ${result.stdout.trim()}\n     calls: ${JSON.stringify(calls)}`,
+    )
+  }
+  linearRefusal("a failing Linear lookup", { linearLookupFailure: true }, /LINEAR-STATE-REFUSED issue=ORB-150 reason=lookup-failed/)
+  linearRefusal("an unknown Linear state", { linearState: "Done" }, /LINEAR-STATE-REFUSED issue=ORB-150 observed=Done reason=unknown-state/)
+
+  const finalReadLog = join(root, `${file}-linear-final-read.log`)
+  const finalRead = run(file, reviewedArgs, {
+    env: mergeSweepEnv({ head: expectedHead, log: finalReadLog, sonar: coverageAware ? "coverage-failure" : "success", state: coverageAware ? "BLOCKED" : "CLEAN" }),
+  })
+  const finalReadCalls = mergeSweepCalls(finalReadLog)
+  const issueReadIndex = finalReadCalls.findIndex(([group, linear, command]) => group === "orca" && linear === "linear" && command === "issue")
+  const mergeIndex = finalReadCalls.findIndex(([group, command]) => group === "pr" && command === "merge")
+  const lastReviewReadIndex = finalReadCalls.reduce((last, [group, ...argv], index) => group === "api" && argv.some((value) => String(value).includes("/comments")) ? index : last, -1)
+  T(
+    `${file}: Linear state is freshly read at the decision boundary rather than reused`,
+    finalRead.status === 0 && lastReviewReadIndex !== -1 && issueReadIndex === lastReviewReadIndex + 1 && mergeIndex === issueReadIndex + 1,
+    `calls: ${JSON.stringify(finalReadCalls)}`,
   )
 
   const changedLog = join(root, `${file}-changed.log`)
@@ -3414,7 +3491,7 @@ const mergeSweepCases = (file) => {
   )
 
   const bareLog = join(root, `${file}-bare.log`)
-  const bare = run(file, ["--reviewed-through", `615=${reviewedThrough}`, "thomasluizon/orbit-ui-mobile", "615"], {
+  const bare = run(file, ["--reviewed-through", `615=${reviewedThrough}`, "--issue", "615=ORB-150", "thomasluizon/orbit-ui-mobile", "615"], {
     env: mergeSweepEnv({ head: changedHead, log: bareLog }),
   })
   const bareMerges = mergeSweepCalls(bareLog).filter(([group, command]) => group === "pr" && command === "merge")
@@ -3437,7 +3514,7 @@ const mergeSweepCases = (file) => {
   const routineParents = `${expectedHead}\n${baseTip}`
   const updateCase = (label, envOptions, expect) => {
     const log = join(root, `${file}-${label}.log`)
-    const result = run(file, ["--reviewed-through", `615=${reviewedThrough}`, "thomasluizon/orbit-ui-mobile", "615"], {
+    const result = run(file, ["--reviewed-through", `615=${reviewedThrough}`, "--issue", "615=ORB-150", "thomasluizon/orbit-ui-mobile", "615"], {
       env: mergeSweepEnv({
         baseTip,
         head: expectedHead,
@@ -3682,6 +3759,10 @@ const mergeSweepCases = (file) => {
       `615=${reviewedThrough}`,
       "--reviewed-through",
       `616=${reviewedThrough}`,
+      "--issue",
+      "615=ORB-150",
+      "--issue",
+      "616=ORB-151",
       "thomasluizon/orbit-ui-mobile",
       "615",
       "616",
@@ -3874,7 +3955,7 @@ const mergeSweepCases = (file) => {
   }
 
   const missingCutoffLog = join(root, `${file}-missing-reviewed-through.log`)
-  const missingCutoff = run(file, ["--expected-head", `615=${expectedHead}`, "thomasluizon/orbit-ui-mobile", "615"], {
+  const missingCutoff = run(file, ["--expected-head", `615=${expectedHead}`, "--issue", "615=ORB-150", "thomasluizon/orbit-ui-mobile", "615"], {
     env: mergeSweepEnv({
       head: expectedHead,
       log: missingCutoffLog,

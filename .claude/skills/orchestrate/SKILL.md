@@ -436,6 +436,13 @@ cannot decide for one PR, all against that recorded head:
    the critique's final result recorded as `clean`. A critique that ends with
    `unresolved findings` at the iteration cap stops that ticket for human review.
    The cap permits an honest handoff; it never permits an unattended merge.
+   The merge decision reads the Linear issue state as its own fresh, last evidence
+   input immediately before deciding. Never reuse a state read from preflight,
+   verification, or an earlier part of the run. `In Review` passes without a write.
+   A regressed `In Progress` state is re-set to `In Review` and records
+   `LINEAR-STATE-REASSERTED issue=ORB-N observed=In Progress at=<ISO-8601 instant>`.
+   A failed lookup, an unknown state, or any state other than `In Review` or
+   `In Progress` refuses the decision rather than assuming the evidence passed.
 5. The ticket carries no `attempts:2` label (D9 refuses it regardless of colour).
 6. **The ticket's one pre-merge verification passed.** The worker, not the orchestrator,
    handled review bodies and review rounds. Run `worker-status.mjs --verify-review` exactly
@@ -472,6 +479,7 @@ capturing the timestamp and invoking the sweep.
 bash tools/merge-sweep.sh \
   --expected-head <pr-number>=<expected-head-sha> \
   --reviewed-through <pr-number>=<ISO-8601-timestamp> \
+  --issue <pr-number>=ORB-N \
   <owner/repo> <pr-number>
 ```
 
@@ -521,6 +529,7 @@ only by a human deliberately invoking:
 
 ```bash
 bash tools/merge-sweep-cov.sh \
+  --issue <pr-number>=ORB-N \
   --reviewed-through <pr-number>=<ISO-8601-timestamp> \
   <owner/repo> <pr-number>
 ```
