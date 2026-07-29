@@ -3241,6 +3241,7 @@ const workerStatusCases = () => {
     ["report-needs-human", { needsHuman: true }, /latest report rejected: needs human/],
     ["report-blocked", { blockedOn: "waiting for owner" }, /latest report rejected: blocked on \\"waiting for owner\\"/],
     ["report-empty-gates", { gates: {} }, /latest report rejected: no gate results reported/],
+    ["report-missing-gates", { gates: { lint: "passed" } }, /latest report rejected: gates not run: type-check, test/],
     ["report-unrun-gate", { gates: { lint: "passed", "type-check": "passed", test: "not-run" } }, /latest report rejected: gates not run: test/],
     ["report-failed-gate", { gates: { lint: "failed" } }, /latest report rejected: failed gates: lint/],
     ["report-head-mismatch", { headSha: "0000000000000000000000000000000000000000" }, /latest report rejected: head SHA 0000000000000000000000000000000000000000 does not match/],

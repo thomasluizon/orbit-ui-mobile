@@ -49,6 +49,7 @@ if (process.argv.includes("--help") || process.argv.includes("-h")) {
 
 const ORCA = process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs\\orca\\resources\\bin\\orca"
 const GH = process.env.GH_BIN || "gh"
+const REQUIRED_REPORT_GATES = ["lint", "type-check", "test"]
 
 /** A Linear attachment counts as D7 evidence only when its URL or title identifies its artifact type. */
 const IMAGE_ARTIFACT = /\.(png|jpe?g|gif|webp)(\?|$)/i
@@ -228,7 +229,8 @@ if (reportsFile) {
       const gateEntries = Object.entries(gates)
       const invalidGates = gateEntries.filter(([, result]) => !["passed", "failed", "not-run"].includes(result))
       const failedGates = gateEntries.filter(([, result]) => result === "failed").map(([name]) => name)
-      const unrunGates = gateEntries.filter(([, result]) => result === "not-run").map(([name]) => name)
+      const missingGates = REQUIRED_REPORT_GATES.filter((name) => !Object.hasOwn(gates, name))
+      const unrunGates = [...missingGates, ...gateEntries.filter(([, result]) => result === "not-run").map(([name]) => name)]
       if (gateEntries.length === 0) reportRejectionReasons.push("no gate results reported")
       if (invalidGates.length > 0) reportRejectionReasons.push(`gate results are invalid: ${invalidGates.map(([name]) => name).join(", ")}`)
       if (failedGates.length > 0) reportRejectionReasons.push(`failed gates: ${failedGates.join(", ")}`)

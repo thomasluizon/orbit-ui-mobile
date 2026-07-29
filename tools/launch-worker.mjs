@@ -230,7 +230,9 @@ conflict with anything above, these win.
     contract, then reconciling their output. Keep edits landing in the SAME file inline, and keep
     the final gate run inline because its raw output ships in the PR body. A review round with
     more than one independent finding is dispatched one subagent per finding, not fixed inline.
-12. **End every turn with exactly one single-line marker:** \`WORKER_REPORT: {"gates":{"<command>":"passed|failed|not-run"},"contractItems":["<met item>"],"blockedOn":null,"needsHuman":false}\`.
+12. **End every turn with exactly one single-line marker:** \`WORKER_REPORT: {"gates":{"lint":"passed|failed|not-run","type-check":"passed|failed|not-run","test":"passed|failed|not-run"},"contractItems":["<met item>"],"blockedOn":null,"needsHuman":false}\`.
+    These three semantic gate names are mandatory even when their underlying commands differ by
+    repository; include any additional required commands as extra gate entries.
     On a blocker, \`blockedOn\` is a short string and \`needsHuman\` says whether only a human can
     resolve it. The worktree's Stop hook appends this report with its derived git state to the
     shared reports file.
