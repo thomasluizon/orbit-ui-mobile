@@ -346,8 +346,13 @@ const checks = [
   },
   {
     name: "pr-open",
-    ok: Boolean(pullRequest && pullRequest.state === "OPEN" && pullRequest.baseRefName === base && !pullRequest.isDraft),
-    detail: pullRequest ? `${pullRequest.url} ${pullRequest.state} -> ${pullRequest.baseRefName}${pullRequest.isDraft ? " (draft)" : ""}` : `no PR from ${branch} in ${slug}`,
+    ok: Boolean(pullRequest && pullRequest.state === "OPEN" && pullRequest.baseRefName === base),
+    detail: pullRequest ? `${pullRequest.url} ${pullRequest.state} -> ${pullRequest.baseRefName}` : `no PR from ${branch} in ${slug}`,
+  },
+  {
+    name: "pr-ready-for-review",
+    ok: Boolean(pullRequest && !pullRequest.isDraft),
+    detail: pullRequest?.isDraft ? `${pullRequest.url} is a draft pull request; open it ready for review` : "pull request is ready for review",
   },
   {
     name: "review-approved",
