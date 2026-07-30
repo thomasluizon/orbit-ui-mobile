@@ -977,7 +977,7 @@ const pointerDeliveryCases = () => {
     "launch-worker.mjs: the worker receives its authoritative completion-record command",
     firstPointer.includes(`node "${join(first.staged.base, "tools", "automation-budget.mjs")}" record`) &&
       !firstPointer.includes("node tools/automation-budget.mjs record") &&
-      /automation-budget\.mjs" record[\s\S]*--identity "ORB-75:[^"]+"[\s\S]*--input-tokens <provider-input-tokens>[\s\S]*--ledger "[^"]+"[\s\S]*Never close a live reservation, record zero, or infer tokens from account usedPercent/.test(firstPointer) &&
+      /automation-budget\.mjs" record[\s\S]*--identity "ORB-75:[^"]+"[\s\S]*--input-tokens <provider-input-tokens>[\s\S]*--identity-prefix "ORB-75:"[\s\S]*--ledger "[^"]+"[\s\S]*Never close a live reservation, record zero, or infer tokens from account usedPercent/.test(firstPointer) &&
       firstPointer.includes(`--ledger "${firstPlan?.automationBudget?.ledgerPath}"`),
     firstPointer,
   )
