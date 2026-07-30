@@ -367,11 +367,11 @@ completed_state_between() { # <issue> <lower-inclusive> <upper-inclusive>; stdou
 commit_linear_reassertion() {
   local state pre_write_at write_at post_write_at completed_state history_result
   [ -n "$pending_linear_reassert_issue" ] || return 0
+  pre_write_at="$(utc_instant)"
   if ! state="$(linear_state "$pending_linear_reassert_issue")"; then
     printf 'POST-MERGE-LINEAR-STATE-REASSERT-FAILED issue=%s observed=%s at=%s\n' "$pending_linear_reassert_issue" "$pending_linear_reassert_observed" "$pending_linear_reassert_at"
     return 1
   fi
-  pre_write_at="$(utc_instant)"
   if [ "$state" != "In Progress" ]; then
     printf 'LINEAR-STATE-REASSERT-SKIPPED issue=%s observed=%s at=%s pre-write-at=%s\n' "$pending_linear_reassert_issue" "$state" "$pending_linear_reassert_at" "$pre_write_at"
     return 0

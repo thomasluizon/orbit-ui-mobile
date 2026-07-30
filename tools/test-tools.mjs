@@ -3988,6 +3988,14 @@ const mergeSweepCliFlagCases = () => {
       helpers.map(({ filename, helper }) => `${filename}: ${helper.length} bytes`).join("\n     "),
     )
   }
+  for (const { filename, source } of scanned) {
+    const reassertion = source.match(/^commit_linear_reassertion\(\).*?^}\r?$/ms)?.[0] ?? ""
+    T(
+      `${filename}: captures the recovery boundary before reading the reassertion state`,
+      reassertion.indexOf('pre_write_at="$(utc_instant)"') < reassertion.indexOf('state="$(linear_state "$pending_linear_reassert_issue")"'),
+      "the lower recovery boundary must precede the In Progress observation",
+    )
+  }
 }
 
 const mergeSweepCases = (file) => {
