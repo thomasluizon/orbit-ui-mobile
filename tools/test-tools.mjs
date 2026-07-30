@@ -5351,22 +5351,22 @@ const mergeabilityCases = () => {
       JSON.stringify({ data: { repository: { pullRequest: final } } }),
     ],
   })
-  const linear = (issue = { state: { name: "In Review" }, labels: [] }) => ({
+  const linear = (issue = { state: { name: "In Review" }, labels: [] }, final = issue) => ({
     match: "linear issue ORB-143",
-    stdout: JSON.stringify({ ok: true, result: { issue } }),
+    sequence: [JSON.stringify({ ok: true, result: { issue } }), JSON.stringify({ ok: true, result: { issue: final } })],
   })
-  const runCase = (name, first, { final = first, issue, json = false, plan = [] } = {}) => {
+  const runCase = (name, first, { final = first, issue, finalIssue, json = false, plan = [] } = {}) => {
     const log = stage(`mergeability-${name}.log`, "")
     const result = run("mergeability.mjs", ["--repo", "orbit/ui", "--pr", "615", ...(json ? ["--json"] : [])], {
-      env: { ...orcaEnv([github(first, final), linear(issue), ...plan]), ORBIT_ORCA_LOG: log },
+      env: { ...orcaEnv([github(first, final), linear(issue, finalIssue), ...plan]), ORBIT_ORCA_LOG: log },
     })
     return { ...result, calls: readFileSync(log, "utf8").trim().split(/\r?\n/).filter(Boolean).map((entry) => JSON.parse(entry)) }
   }
   const mergeable = runCase("mergeable", pullRequest())
-  T("mergeability.mjs: a complete current-head decision is MERGEABLE", mergeable.status === 0 && /^MERGEABLE\r?\n/.test(mergeable.stdout) && (mergeable.stdout.match(/^OK /gm) ?? []).length === 9, mergeable.stderr || mergeable.stdout)
-  T("mergeability.mjs: only records the GitHub and Linear read verbs", mergeable.calls.length === 3 && mergeable.calls.every((call) => (/[\\/]api$/.test(call[0]) && call[1] === "graphql") || (/[\\/]linear$/.test(call[0]) && call[1] === "issue")), JSON.stringify(mergeable.calls))
+  T("mergeability.mjs: a complete current-head decision is MERGEABLE", mergeable.status === 0 && /^MERGEABLE\r?\n/.test(mergeable.stdout) && (mergeable.stdout.match(/^OK /gm) ?? []).length === 10, mergeable.stderr || mergeable.stdout)
+  T("mergeability.mjs: only records the GitHub and Linear read verbs", mergeable.calls.length === 4 && mergeable.calls.every((call) => (/[\\/]api$/.test(call[0]) && call[1] === "graphql") || (/[\\/]linear$/.test(call[0]) && call[1] === "issue")), JSON.stringify(mergeable.calls))
   const machine = runCase("machine", pullRequest(), { json: true })
-  T("mergeability.mjs: JSON output carries the consumable verdict and conditions", machine.status === 0 && JSON.parse(machine.stdout).verdict === "MERGEABLE" && JSON.parse(machine.stdout).conditions.length === 9, machine.stderr || machine.stdout)
+  T("mergeability.mjs: JSON output carries the consumable verdict and conditions", machine.status === 0 && JSON.parse(machine.stdout).verdict === "MERGEABLE" && JSON.parse(machine.stdout).conditions.length === 10, machine.stderr || machine.stdout)
   const draft = runCase("draft", pullRequest({ isDraft: true }))
   T("mergeability.mjs: a draft is HELD even when GitHub says CLEAN", draft.status === 1 && /^HELD\r?\n/.test(draft.stdout) && /HELD draft: pull request is a draft/.test(draft.stdout), draft.stderr || draft.stdout)
   const unresolved = runCase("unresolved", pullRequest({ reviewThreads: { pageInfo: { hasNextPage: false }, nodes: [{ isResolved: false }] } }))
@@ -5385,6 +5385,8 @@ const mergeabilityCases = () => {
   T("mergeability.mjs: a linked issue outside In Review is HELD", wrongState.status === 1 && /HELD linear-in-review: issue ORB-143 is In Progress, requires In Review/.test(wrongState.stdout), wrongState.stderr || wrongState.stdout)
   const strikes = runCase("strikes", pullRequest(), { issue: { state: { name: "In Review" }, labels: [{ name: "attempts:2" }] } })
   T("mergeability.mjs: attempts:2 is HELD", strikes.status === 1 && /HELD two-strikes: issue carries attempts:2/.test(strikes.stdout), strikes.stderr || strikes.stdout)
+  const finalStrikes = runCase("final-strikes", pullRequest(), { finalIssue: { state: { name: "In Review" }, labels: [{ name: "attempts:2" }] } })
+  T("mergeability.mjs: attempts:2 added before the final handoff is HELD", finalStrikes.status === 1 && /HELD linear-stability: issue ORB-143 is In Review with attempts:2 on final read/.test(finalStrikes.stdout), finalStrikes.stderr || finalStrikes.stdout)
   const missingLabels = runCase("missing-labels", pullRequest(), { issue: { state: { name: "In Review" } } })
   T("mergeability.mjs: missing Linear labels are HELD rather than treated as empty", missingLabels.status === 1 && /HELD two-strikes: Linear issue labels are unavailable/.test(missingLabels.stdout), missingLabels.stderr || missingLabels.stdout)
   const malformedLabels = runCase("malformed-labels", pullRequest(), { issue: { state: { name: "In Review" }, labels: {} }, json: true })

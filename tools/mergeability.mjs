@@ -121,12 +121,13 @@ if (!first.ok) {
       .flatMap((value) => [...(value ?? "").matchAll(new RegExp(issueIdentifierPattern.source, "gi"))])
       .map((match) => match[0].toUpperCase()),
   )
+  let issueIdentifier
   if (issueIdentifiers.size === 0) {
     add("linear-issue", false, "no configured-team Linear issue identifier appears in the branch or title")
   } else if (issueIdentifiers.size > 1) {
     add("linear-issue", false, `configured-team Linear issue identifiers disagree: ${[...issueIdentifiers].join(", ")}`)
   } else {
-    const [issueIdentifier] = issueIdentifiers
+    [issueIdentifier] = issueIdentifiers
     const issueResult = linearIssue(issueIdentifier)
     if (!issueResult.ok) {
       add("linear-issue", false, issueResult.error)
@@ -144,6 +145,17 @@ if (!first.ok) {
   }
   const finalRead = githubPullRequest()
   add("head-stability", finalRead.ok && finalRead.value.headRefOid === pullRequest.headRefOid, finalRead.ok ? `head was ${pullRequest.headRefOid} and is ${finalRead.value.headRefOid}` : finalRead.error)
+  if (issueIdentifier) {
+    const finalIssueResult = linearIssue(issueIdentifier)
+    if (!finalIssueResult.ok) {
+      add("linear-stability", false, finalIssueResult.error)
+    } else {
+      const finalIssue = finalIssueResult.value
+      const labels = Array.isArray(finalIssue.labels) ? finalIssue.labels.map((label) => label.name) : null
+      const stable = finalIssue.state?.name === reviewState && labels !== null && !labels.includes("attempts:2")
+      add("linear-stability", stable, !labels ? "Linear issue labels are unavailable on final read" : `issue ${issueIdentifier} is ${finalIssue.state?.name ?? "absent"} with ${labels.includes("attempts:2") ? "attempts:2" : "no attempts:2"} on final read`)
+    }
+  }
 }
 
 const mergeable = conditions.length > 0 && conditions.every((condition) => condition.ok)
