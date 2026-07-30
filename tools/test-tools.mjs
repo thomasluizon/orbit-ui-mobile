@@ -5178,6 +5178,32 @@ const automationBudgetCases = () => {
       stderr: /warning:[\s\S]*1 completed invocation[\s\S]*unmeasured[\s\S]*fuse cannot see its spend/,
     },
   )
+  check(
+    "automation-budget.mjs",
+    "a warning-threshold launch retains the completed-unmeasured warning",
+    checkArgs("ORB-999:warn", recordedLedger, 800, ["--json"], "2026-08-05T00:00:00Z").map((value) => value === "claude" ? "codex" : value),
+    { status: 0, stdout: /"status":"WARN"/, stderr: /completed invocation[\s\S]*unmeasured/ },
+  )
+  const malformedStateLedger = stage(
+    "budget/malformed-state.jsonl",
+    `${budgetRecord("malformed-pending", 1, undefined, "routine", "claude", { pending: true })}\n`,
+  )
+  check(
+    "automation-budget.mjs",
+    "ledger validation rejects a pending record carrying a partial measurement",
+    checkArgs("after-malformed-state", malformedStateLedger),
+    { status: 3, stderr: /pending record must not carry token measurements/ },
+  )
+  const contradictoryStateLedger = stage(
+    "budget/contradictory-state.jsonl",
+    `${budgetRecord("contradictory-state", undefined, undefined, "routine", "claude", { pending: true, completed: true })}\n`,
+  )
+  check(
+    "automation-budget.mjs",
+    "ledger validation rejects a record that is both pending and completed",
+    checkArgs("after-contradictory-state", contradictoryStateLedger),
+    { status: 3, stderr: /completed record must not also be pending/ },
+  )
   const pendingLedger = stage("budget/pending.jsonl", `${budgetRecord("pending-invocation", undefined, undefined, "routine", "claude", { pending: true })}\n`)
   check(
     "automation-budget.mjs",
