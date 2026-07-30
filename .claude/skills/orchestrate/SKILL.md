@@ -445,10 +445,9 @@ cannot decide for one PR, all against that recorded head:
    `LINEAR-STATE-REASSERT-SKIPPED` preserves an advanced state found before the write: inspect
    that state before proceeding. `LINEAR-STATE-REASSERT-POST-WRITE-SKIPPED` preserves a state
    written by a competing actor: inspect the transition before proceeding.
-   `LINEAR-STATE-REASSERT-CLOBBERED` restores a completed state only when it is the latest
-   competing transition in Linear's server-bounded write window: audit that transition. If activity is
-   unreadable, `LINEAR-STATE-REASSERT-RESIDUAL-WINDOW` records the unverifiable state, exits 4,
-   and stops further unattended merges for investigation.
+   There is an undetectable sub-second residual between the pre-write read and the write landing:
+   a competing completed state can be overwritten, and the CLI response shapes cannot distinguish
+   that outcome from an ordinary successful reassertion.
    A failed lookup, an unknown state, or any state other than `In Review` or
    `In Progress` refuses the decision rather than assuming the evidence passed.
 5. The ticket carries no `attempts:2` label (D9 refuses it regardless of colour).
@@ -527,8 +526,7 @@ threads, an unverifiable review lookup found by that recheck, or a failed post-m
 Linear reassertion were detected and reported, not prevented: the script prints the corresponding
 `POST-MERGE-ACTIVITY`, `POST-MERGE-UNRESOLVED-THREADS`, or
 `POST-MERGE-REVIEW-LOOKUP-FAILED`, or
-`POST-MERGE-LINEAR-STATE-REASSERT-FAILED` marker, or
-`LINEAR-STATE-REASSERT-RESIDUAL-WINDOW`, exits `4`, and the run stops all
+`POST-MERGE-LINEAR-STATE-REASSERT-FAILED` marker, exits `4`, and the run stops all
 further unattended merges and copies that result into the closing report. It also checks that
 a merged head did not move afterwards. Its workflow lookup fails closed: if it cannot
 prove the repository has no review workflow, the current-head review wait stays
@@ -536,10 +534,9 @@ enabled.
 
 The post-merge Linear markers are operator actions, not merely diagnostics. On
 `LINEAR-STATE-REASSERT-SKIPPED`, inspect the preserved advanced state. On
-`LINEAR-STATE-REASSERT-POST-WRITE-SKIPPED`, inspect the competing transition. On
-`LINEAR-STATE-REASSERT-CLOBBERED`, audit the completed transition restored from the confirmed
-write window. On `LINEAR-STATE-REASSERT-RESIDUAL-WINDOW`, stop the unattended run and investigate:
-the history authority was unavailable, so the state cannot be verified. The last marker exits 4.
+`LINEAR-STATE-REASSERT-POST-WRITE-SKIPPED`, inspect the competing transition. The sub-second
+window between the pre-write read and write landing is undetectable with the CLI response shapes:
+a competing completed state can be overwritten and looks like ordinary success.
 
 `--sleep` always invokes `tools/merge-sweep.sh`. It never invokes
 `tools/merge-sweep-cov.sh`: that variant can use `--admin` to override a SonarCloud
