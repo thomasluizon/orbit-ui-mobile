@@ -112,7 +112,7 @@ if (!first.ok) {
   add("first-reviewer", Boolean(firstApproval) && complete(pullRequest.reviews), firstApproval ? `claude approved head ${pullRequest.headRefOid}` : `claude has no APPROVED review on head ${pullRequest.headRefOid ?? "absent"}`)
   const codexReviews = pullRequest.reviews?.nodes?.filter((review) => review.author?.login === "chatgpt-codex-connector" && ["APPROVED", "COMMENTED"].includes(review.state)) ?? []
   const codexComments = pullRequest.comments?.nodes?.filter((comment) => comment.author?.login === "chatgpt-codex-connector") ?? []
-  const mentionedCommits = codexComments.flatMap((comment) => [...(comment.body ?? "").matchAll(/\b[0-9a-f]{7,40}\b/gi)].map((match) => match[0]))
+  const mentionedCommits = codexComments.flatMap((comment) => [...(comment.body ?? "").matchAll(/\*{0,2}Reviewed commit:\*{0,2}\s*`?([0-9a-f]{7,40})`?/gi)].map((match) => match[1]))
   const secondOnHead = codexReviews.some((review) => review.commit?.oid === pullRequest.headRefOid) || mentionedCommits.some((commit) => pullRequest.headRefOid?.startsWith(commit))
   const observedSecond = [...codexReviews.map((review) => review.commit?.oid), ...mentionedCommits].filter(Boolean)
   add("second-reviewer", secondOnHead && complete(pullRequest.reviews) && complete(pullRequest.comments), secondOnHead ? `chatgpt-codex-connector reviewed head ${pullRequest.headRefOid}` : `chatgpt-codex-connector reviewed ${observedSecond.join(", ") || "no named commit"}; head is ${pullRequest.headRefOid ?? "absent"}`)
