@@ -246,7 +246,7 @@ let budgetReservation = null
 let reservationMaySpend = false
 let cancelBudgetReservation = null
 let recordBudgetReservationAsUnknown = null
-let reservationCompletedUnknown = false
+let workerTornDown = false
 let concurrencyReservation = null
 
 const releaseConcurrencyReservation = () => {
@@ -291,6 +291,7 @@ const fail = (code, message) => {
       console.error(`remove it by hand before relaunching: orca worktree rm --worktree ${selector} --force`)
     } else {
       cleanupConfirmed = true
+      workerTornDown = true
     }
     for (const branchToDrop of [contractBranch, orcaBranch].filter(Boolean)) {
       const stillThere = spawnSync("git", ["-C", rollbackRepo, "rev-parse", "--verify", "--quiet", `refs/heads/${branchToDrop}`], { encoding: "utf8" })
@@ -299,14 +300,14 @@ const fail = (code, message) => {
       if (dropped.status !== 0) console.error(`left the branch ${branchToDrop} behind: ${(dropped.stderr || "").trim().slice(0, 200)}`)
     }
   }
-  if (budgetReservation && reservationCompletedUnknown && cleanupConfirmed && recordBudgetReservationAsUnknown) {
+  if (budgetReservation && reservationMaySpend && workerTornDown && recordBudgetReservationAsUnknown) {
     const recorded = recordBudgetReservationAsUnknown(budgetReservation)
     if (!recorded) {
       console.error(`left budget reservation "${budgetReservation.identity}" pending because its completed-unknown closure could not be recorded`)
     } else {
       budgetReservation = null
     }
-  } else if (budgetReservation && reservationCompletedUnknown) {
+  } else if (budgetReservation && reservationMaySpend) {
     console.error(`left budget reservation "${budgetReservation.identity}" pending because the worker shutdown could not be confirmed`)
   } else if (budgetReservation && !reservationMaySpend && cleanupConfirmed && cancelBudgetReservation) {
     const cancelled = cancelBudgetReservation(budgetReservation)
@@ -1013,7 +1014,6 @@ while (pointerSends < MAX_POINTER_SENDS && !pointerDelivered) {
   if (painting) break
 }
 if (!pointerDelivered) {
-  reservationCompletedUnknown = true
   fail(
     1,
     `${terminal} never showed the prompt pointer as a user turn after ${pointerSends} send(s)${painting ? ", and the TUI never went quiet, so re-sending would have queued into a running turn" : ", and the worker is alive, idle and has NO work"}. This is the 2026-07-27 ORB-88 failure: orca accepts the send, the TUI's composer swallows it, and an exit 0 here would report a launch that delivered nothing. Inspect it with: orca terminal read --terminal ${terminal}`,

@@ -450,7 +450,6 @@ const summarize = (records, engine, resetAt) => {
     reservedTokens,
     pendingIdentities,
     unknownIdentities,
-    missingIdentities: [...pendingIdentities, ...unknownIdentities].sort(),
     windowStart: windowStart.toISOString(),
     resetsAt: resetAt.toISOString(),
   }
@@ -498,14 +497,16 @@ const evaluateBudget = (request, records, json) => {
 
 const emitBudgetResult = (result, json) => {
   emitJson(result, json)
-  const { status, identity, warningTokens, budgetTokens, invocationTokens, projectedTokens, totalTokens, missingIdentities, unknownIdentities } = result
+  const { status, identity, warningTokens, budgetTokens, invocationTokens, projectedTokens, totalTokens, pendingIdentities, unknownIdentities } = result
   if (status === "WARN") {
     console.error(`automation-budget: warning: invocation "${identity}" projects ${projectedTokens} tokens; warning ${warningTokens} tokens, budget ${budgetTokens} tokens, observed spend ${totalTokens} tokens`)
   }
-  if (status === "RESERVED" && (projectedTokens >= warningTokens || missingIdentities.length > 0)) {
-    const missingContext = missingIdentities.length > 0
-      ? `, missing measurements for identities ${missingIdentities.join(", ")}`
-      : ""
+  if (status === "RESERVED" && (projectedTokens >= warningTokens || pendingIdentities.length > 0 || unknownIdentities.length > 0)) {
+    const missingContexts = [
+      pendingIdentities.length > 0 ? `pending identities ${pendingIdentities.join(", ")}` : null,
+      unknownIdentities.length > 0 ? `completed-unknown identities ${unknownIdentities.join(", ")}` : null,
+    ].filter(Boolean)
+    const missingContext = missingContexts.length > 0 ? `, ${missingContexts.join("; ")}` : ""
     console.error(`automation-budget: warning: reserved invocation "${identity}" proceeds with ${projectedTokens} projected tokens; warning ${warningTokens} tokens, budget ${budgetTokens} tokens, observed spend ${totalTokens} tokens, reservation ${invocationTokens} tokens${missingContext}`)
   }
   if ((status === "PROCEED" || status === "WARN") && unknownIdentities.length > 0) {

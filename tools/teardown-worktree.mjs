@@ -6,8 +6,10 @@
  */
 
 import { execFileSync, spawnSync } from "node:child_process"
-import { existsSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
+import { homedir } from "node:os"
 import { resolve } from "node:path"
+import { fileURLToPath } from "node:url"
 
 import { isRepainting } from "./lib/tui-repaint.mjs"
 
@@ -35,6 +37,8 @@ if (process.argv.includes("--help") || process.argv.includes("-h")) {
 const ORCA = process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs\\orca\\resources\\bin\\orca"
 const GIT = process.env.GIT_BIN || "git"
 const GH = process.env.GH_BIN || "gh"
+const BUDGET_TOOL = fileURLToPath(new URL("./automation-budget.mjs", import.meta.url))
+const LEDGER_PATH = resolve(process.env.ORBIT_AUTOMATION_BUDGET_LEDGER ?? resolve(homedir(), ".orbit", "automation-budget.jsonl"))
 const fail = (code, message) => {
   console.error(message)
   process.exit(code)
@@ -98,6 +102,45 @@ const pullRequestFor = (path, branch, base) => {
 }
 const selectorPath = (value) => value?.replace(/^path:/, "")
 const normalize = (path) => (typeof path === "string" ? resolve(selectorPath(path)) : "").replaceAll("\\", "/").replace(/\/+$/, "").toLowerCase()
+const pendingReservationsForIssue = (issue) => {
+  let contents
+  try {
+    contents = readFileSync(LEDGER_PATH, "utf8")
+  } catch (error) {
+    if (error.code === "ENOENT") return []
+    fail(3, `could not read automation ledger ${LEDGER_PATH}: ${error.message}`)
+  }
+  const latestByIdentity = new Map()
+  for (const [index, line] of contents.split(/\r?\n/).entries()) {
+    if (line.length === 0) continue
+    let record
+    try {
+      record = JSON.parse(line)
+    } catch {
+      fail(3, `automation ledger line ${index + 1} is not valid JSON`)
+    }
+    if (typeof record.identity === "string" && record.identity.startsWith(`${issue}:`)) latestByIdentity.set(record.identity, record)
+  }
+  return [...latestByIdentity.values()].filter((record) => record.pending === true)
+}
+const closePendingReservations = (reservations) => {
+  for (const reservation of reservations) {
+    const result = spawnSync(process.execPath, [
+      BUDGET_TOOL,
+      "record",
+      "--identity", reservation.identity,
+      "--engine", reservation.engine,
+      "--tier", reservation.tier,
+      "--started-at", reservation.startedAt,
+      "--ended-at", new Date().toISOString(),
+      "--ledger", LEDGER_PATH,
+      "--json",
+    ], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
+    if (result.error || result.status !== 0) {
+      fail(3, `could not close completed-unknown reservation "${reservation.identity}": ${(result.stderr || result.stdout || result.error?.message || "unknown error").trim()}`)
+    }
+  }
+}
 
 const worktrees = orca(["worktree", "list"]).worktrees ?? []
 const worktree = requestedIssue
@@ -164,6 +207,8 @@ if (unmet.length > 0) {
   process.exit(unmet.some((check) => check.exitCode === 3) ? 3 : 1)
 }
 
+const pendingReservations = pendingReservationsForIssue(issue)
+
 const commonDirRaw = git(path, ["rev-parse", "--git-common-dir"])
 const commonDir = resolve(path, commonDirRaw)
 const gitCommon = (args, { allowFailure = false } = {}) => {
@@ -191,6 +236,7 @@ if (branchExists) {
 }
 const branchRemaining = gitCommon(["show-ref", "--verify", "--quiet", `refs/heads/${branch}`], { allowFailure: true }) !== null
 if (branchRemaining) fail(1, `removed worktree but local branch ${branch} still exists`)
+closePendingReservations(pendingReservations)
 console.log(`REMOVED worktree ${path}`)
 console.log(`REMOVED terminals for ${path}`)
 console.log(`REMOVED local branch ${branch}`)

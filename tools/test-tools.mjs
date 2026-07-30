@@ -890,7 +890,7 @@ const EMPTY_COMPOSER = ' (logo)   Claude Code v2.1.220\n> Try "how do I log an e
  * "delivered" is a tail carrying the pointer as a user line, anything else is a tail without it.
  * Returns the orca calls, because the assertion that matters is how many sends really happened.
  */
-const runPointerLaunch = (label, tails, { repainting = false, postCommitFailure = false, ledgerPath = null } = {}) => {
+const runPointerLaunch = (label, tails, { repainting = false, postCommitFailure = false, readFailureAfterSend = false, ledgerPath = null } = {}) => {
   const staged = stageLaunchWorker(label, INTERACTIVE_WORKER)
   const checkout = stageCheckout(staged.base)
   if (!checkout) return null
@@ -923,10 +923,12 @@ const runPointerLaunch = (label, tails, { repainting = false, postCommitFailure 
           ],
         }
       : { match: "terminal show", stdout: JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1785168487585 } } }) },
-    {
-      match: "terminal read",
-      sequence: tails.map((tail) => JSON.stringify({ ok: true, result: { terminal: { tail: [tail === "delivered" ? painted : tail] } } })),
-    },
+    readFailureAfterSend
+      ? { match: "terminal read", stdout: JSON.stringify({ ok: false, error: { message: "orca daemon went away" } }), exit: 1 }
+      : {
+          match: "terminal read",
+          sequence: tails.map((tail) => JSON.stringify({ ok: true, result: { terminal: { tail: [tail === "delivered" ? painted : tail] } } })),
+        },
     { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }) },
     postCommitFailure
       ? { match: "terminal switch", stdout: JSON.stringify({ ok: false, error: { message: "fixture post-commit record failure" } }), exit: 1 }
@@ -1057,6 +1059,28 @@ const pointerDeliveryCases = () => {
     "launch-worker.mjs: a launch after an undelivered pointer is admitted",
     undeliveredRetry.result.status === 0 && /"pointerSends": 1/.test(undeliveredRetry.result.stdout),
     `exit ${undeliveredRetry.result.status}\n     ${undeliveredRetry.result.stderr}`,
+  )
+
+  const readFailsAfterSend = runPointerLaunch("pointer-read-fails-after-send", ["delivered"], { readFailureAfterSend: true })
+  T(
+    "launch-worker.mjs: a terminal read failure after an accepted send closes the torn-down reservation",
+    readFailsAfterSend.result.status === 3 &&
+      /orca terminal read --terminal t1 --limit 80 failed: orca daemon went away/.test(readFailsAfterSend.result.stderr) &&
+      readFailsAfterSend.records.length === 2 &&
+      readFailsAfterSend.records[0]?.pending === true &&
+      readFailsAfterSend.records[1]?.identity === readFailsAfterSend.records[0]?.identity &&
+      readFailsAfterSend.records[1]?.completed === true,
+    `exit ${readFailsAfterSend.result.status}\n     ${readFailsAfterSend.result.stderr}\n     ${JSON.stringify(readFailsAfterSend.records)}`,
+  )
+  const readFailureRetry = runPointerLaunch(
+    "pointer-read-fails-after-send-retry",
+    ["delivered"],
+    { ledgerPath: join(readFailsAfterSend.staged.base, "automation-budget.jsonl") },
+  )
+  T(
+    "launch-worker.mjs: a launch after a torn-down worker read failure is admitted",
+    readFailureRetry.result.status === 0,
+    `exit ${readFailureRetry.result.status}\n     ${readFailureRetry.result.stderr}`,
   )
 
   /**
@@ -3401,6 +3425,29 @@ const teardownWorktreeCases = () => {
     { status: 1, stderr: /removed worktree but local branch feature\/orb-124-teardown still exists/ },
     { env: orcaEnv(teardownPlan(branchRemains, { removePath: branchRemains.child })) },
   )
+
+  const closesLedger = stageTeardownWorktree("closes-ledger")
+  const closesLedgerPath = stage(
+    "teardown/closes-ledger/automation-budget.jsonl",
+    `${JSON.stringify({ identity: "ORB-124:2020-01-01T00:00:00.000Z:fixture", engine: "claude", tier: "routine", startedAt: "2020-01-01T00:00:00.000Z", endedAt: "2020-01-01T00:00:01.000Z", pending: true })}\n`,
+  )
+  const closesLedgerResult = check(
+    "teardown-worktree.mjs",
+    "verified-Done teardown closes its issue pending reservation as completed-unknown",
+    ["--issue", "ORB-124"],
+    { status: 0, stdout: /REMOVED worktree/ },
+    { env: { ...orcaEnv(teardownPlan(closesLedger, { removePath: closesLedger.child })), ORBIT_AUTOMATION_BUDGET_LEDGER: closesLedgerPath } },
+  )
+  const closedLedgerRecords = readFileSync(closesLedgerPath, "utf8").trim().split(/\r?\n/).map((line) => JSON.parse(line))
+  T(
+    "teardown-worktree.mjs: completed-unknown teardown closure releases later routine launches",
+    closesLedgerResult.status === 0 &&
+      closedLedgerRecords.length === 2 &&
+      closedLedgerRecords[1]?.identity === closedLedgerRecords[0]?.identity &&
+      closedLedgerRecords[1]?.completed === true &&
+      closedLedgerRecords[1]?.pending !== true,
+    JSON.stringify(closedLedgerRecords),
+  )
 }
 
 const orcaWebPortCases = () => {
@@ -5219,7 +5266,7 @@ const automationBudgetCases = () => {
     {
       status: 0,
       stdout: /"status":"RESERVED"[\s\S]*"pendingIdentities":\["pending-invocation"\]/,
-      stderr: /warning: reserved invocation "reserved-after-pending" proceeds[\s\S]*missing measurements for identities pending-invocation/,
+      stderr: /warning: reserved invocation "reserved-after-pending" proceeds[\s\S]*pending identities pending-invocation/,
     },
   )
   const correctedLedger = stage(
@@ -5230,7 +5277,7 @@ const automationBudgetCases = () => {
     "automation-budget.mjs",
     "a later authoritative append for the same identity closes its pending measurement",
     checkArgs("after-correction", correctedLedger, 100, ["--json"]),
-    { status: 0, stdout: /"projectedTokens":600[\s\S]*"totalTokens":500[\s\S]*"missingIdentities":\[\]/ },
+    { status: 0, stdout: /"projectedTokens":600[\s\S]*"totalTokens":500[\s\S]*"unknownIdentities":\[\]/ },
   )
 
   const reportLedger = stage(
@@ -5250,7 +5297,7 @@ const automationBudgetCases = () => {
     {
       status: 0,
       stdout:
-        /"engine":"claude","inputTokens":400,"outputTokens":250,"totalTokens":650,"routineTokens":500,"reservedTokens":150,"pendingIdentities":\["report-pending"\],"unknownIdentities":\["report-unknown"\],"missingIdentities":\["report-pending","report-unknown"\],"windowStart":"2030-01-01T00:00:00.000Z","resetsAt":"2030-01-08T00:00:00.000Z"/,
+        /"engine":"claude","inputTokens":400,"outputTokens":250,"totalTokens":650,"routineTokens":500,"reservedTokens":150,"pendingIdentities":\["report-pending"\],"unknownIdentities":\["report-unknown"\],"windowStart":"2030-01-01T00:00:00.000Z","resetsAt":"2030-01-08T00:00:00.000Z"/,
     },
   )
   check(
@@ -5344,7 +5391,7 @@ process.stdout.write(JSON.stringify(results))
     "automation-budget.mjs: append-only cancellation releases a reservation that never started",
     cancelAtomic.status === 0 &&
       afterCancel.status === 0 &&
-      /"projectedTokens":600[\s\S]*"missingIdentities":\[\]/.test(afterCancel.stdout),
+      /"projectedTokens":600[\s\S]*"unknownIdentities":\[\]/.test(afterCancel.stdout),
     `cancel exit ${cancelAtomic.status}: ${cancelAtomic.stderr}\n     check exit ${afterCancel.status}: ${afterCancel.stderr}\n     ${afterCancel.stdout}`,
   )
 
