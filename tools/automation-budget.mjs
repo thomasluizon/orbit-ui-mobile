@@ -357,6 +357,9 @@ const validateRecord = (record, lineNumber) => {
     }
     validated.completed = true
   }
+  if (hasOwn(record, "inputTokens") !== hasOwn(record, "outputTokens")) {
+    fail(`${prefix} inputTokens and outputTokens must be provided together`, 3)
+  }
   if (hasOwn(record, "inputTokens")) {
     validated.inputTokens = parseTokenCount(record.inputTokens, `${prefix} inputTokens`, 3)
   }
@@ -602,6 +605,9 @@ const runRecord = (values, json) => {
     tier: parseTier(requireValue(values, "--tier")),
     startedAt: startedAt.toISOString(),
     endedAt: endedAt.toISOString(),
+  }
+  if (values.has("--input-tokens") !== values.has("--output-tokens")) {
+    fail(`--input-tokens and --output-tokens must be provided together`, 2)
   }
   if (values.has("--input-tokens")) {
     record.inputTokens = parseTokenCount(values.get("--input-tokens"), "--input-tokens")

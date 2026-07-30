@@ -5357,6 +5357,28 @@ process.stdout.write(JSON.stringify(results))
         /"status":"RECORDED"[\s\S]*"identity":"workflow:123"[\s\S]*"inputTokens":1200[\s\S]*"outputTokens":300[\s\S]*"providerEstimatedCost":1.25[\s\S]*"accountContext":\{"scope":"account","attributed":false,"usedPercent":88,"observedAt":"2030-01-03T09:05:01.000Z"/,
     },
   )
+  check(
+    "automation-budget.mjs",
+    "record rejects a partial provider measurement instead of excluding known spend",
+    [
+      "record",
+      "--identity",
+      "partial-measurement",
+      "--engine",
+      "claude",
+      "--tier",
+      "routine",
+      "--started-at",
+      "2030-01-03T09:00:00Z",
+      "--ended-at",
+      "2030-01-03T09:05:00Z",
+      "--input-tokens",
+      "900000",
+      "--ledger",
+      stage("budget/partial-measurement.jsonl", ""),
+    ],
+    { status: 2, stderr: /--input-tokens and --output-tokens must be provided together/ },
+  )
 
   const concurrentLedger = join(root, "budget", "concurrent.jsonl")
   const concurrentRunner = stage(
