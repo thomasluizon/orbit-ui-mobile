@@ -764,6 +764,7 @@ const REQUIRED_CONTRACT_CLAUSES = {
   "leaving human threads unresolved": /Never resolve a thread opened by a human account/,
   "refusing completion with unresolved threads": /approval with an[\s\S]*unresolved[\s\S]*thread is not done/,
   "watching only its own ticket": /Never watch another[\s\S]*ticket, worktree, or PR/,
+  "closing the automation-ledger reservation": /Close the automation-ledger reservation[\s\S]*exact[\s\S]*automation-budget\.mjs record[\s\S]*completed-but-unknown[\s\S]*record remains pending/,
   "arming a monitor that outlives the contract": /Never arm a background monitor/,
   "merging or pushing to main": /Never merge any PR, never push to/,
   "blanket staging that sweeps in a sibling's artifacts": /Stage explicitly[\s\S]*git add -A/,
@@ -889,12 +890,12 @@ const EMPTY_COMPOSER = ' (logo)   Claude Code v2.1.220\n> Try "how do I log an e
  * "delivered" is a tail carrying the pointer as a user line, anything else is a tail without it.
  * Returns the orca calls, because the assertion that matters is how many sends really happened.
  */
-const runPointerLaunch = (label, tails, { repainting = false, postCommitFailure = false } = {}) => {
+const runPointerLaunch = (label, tails, { repainting = false, postCommitFailure = false, ledgerPath = null } = {}) => {
   const staged = stageLaunchWorker(label, INTERACTIVE_WORKER)
   const checkout = stageCheckout(staged.base)
   if (!checkout) return null
   const log = join(staged.base, "orca-calls.log")
-  const ledger = join(staged.base, "automation-budget.jsonl")
+  const ledger = ledgerPath ?? join(staged.base, "automation-budget.jsonl")
   const promptFile = stage(`${label}-prompt.md`, "the ticket body verbatim\n")
   const painted = `> Read ${promptFile} and execute it in full. That file is your complete work order for ORB-75:`
   const plan = [
@@ -993,7 +994,7 @@ const pointerDeliveryCases = () => {
       firstRecord?.accountContext?.usedPercent === 10,
     JSON.stringify(first.records),
   )
-  const liveLedger = first.staged.base + "/automation-budget.jsonl"
+  const liveLedger = join(first.staged.base, "automation-budget.jsonl")
   const liveSecondLog = join(first.staged.base, "live-pending-second-calls.log")
   const liveSecond = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", stage("live-pending-second-prompt.md", "the ticket body verbatim\n")], {
     path: first.staged.path,
@@ -1036,10 +1037,25 @@ const pointerDeliveryCases = () => {
   )
   T("launch-worker.mjs: the undelivered launch is bounded, not retried forever", never.sends === 3, `sent ${never.sends} time(s), expected the 3-send bound`)
   T(
-    "launch-worker.mjs: any accepted send keeps its reservation pending even after a quiet read-back",
-    never.records.length === 1 &&
-      never.records[0]?.cancelled !== true,
+    "launch-worker.mjs: an undelivered pointer closes its reservation as completed-unknown after teardown",
+    never.records.length === 2 &&
+      never.records[0]?.pending === true &&
+      never.records[1]?.identity === never.records[0]?.identity &&
+      never.records[1]?.cancelled !== true &&
+      never.records[1]?.pending !== true &&
+      !Object.hasOwn(never.records[1] ?? {}, "inputTokens") &&
+      !Object.hasOwn(never.records[1] ?? {}, "outputTokens"),
     JSON.stringify(never.records),
+  )
+  const undeliveredRetry = runPointerLaunch(
+    "pointer-never-retry",
+    ["delivered"],
+    { ledgerPath: join(never.staged.base, "automation-budget.jsonl") },
+  )
+  T(
+    "launch-worker.mjs: a launch after an undelivered pointer is admitted",
+    undeliveredRetry.result.status === 0 && /"pointerSends": 1/.test(undeliveredRetry.result.stdout),
+    `exit ${undeliveredRetry.result.status}\n     ${undeliveredRetry.result.stderr}`,
   )
 
   /**
@@ -1060,9 +1076,14 @@ const pointerDeliveryCases = () => {
     `exit ${busyThroughout.result.status}\n     stderr: ${busyThroughout.result.stderr.trim().split("\n").slice(-4).join("\n     ")}`,
   )
   T(
-    "launch-worker.mjs: an ambiguous prompt send keeps its reservation pending",
-    busyThroughout.records.length === 1 &&
-      busyThroughout.records[0]?.cancelled !== true,
+    "launch-worker.mjs: an ambiguous prompt send closes its reservation as completed-unknown",
+    busyThroughout.records.length === 2 &&
+      busyThroughout.records[0]?.pending === true &&
+      busyThroughout.records[1]?.identity === busyThroughout.records[0]?.identity &&
+      busyThroughout.records[1]?.cancelled !== true &&
+      busyThroughout.records[1]?.pending !== true &&
+      !Object.hasOwn(busyThroughout.records[1] ?? {}, "inputTokens") &&
+      !Object.hasOwn(busyThroughout.records[1] ?? {}, "outputTokens"),
     JSON.stringify(busyThroughout.records),
   )
   T(
@@ -5156,7 +5177,11 @@ const automationBudgetCases = () => {
     "automation-budget.mjs",
     "the recorded completed unmeasured invocation admits the next routine launch",
     checkArgs("after-recorded-unmeasured", recordedLedger, 100, ["--json"]),
-    { status: 0, stdout: /"status":"PROCEED"[\s\S]*"totalTokens":0[\s\S]*"unknownIdentities":\["ORB-157:2026-07-29T05:16:00.000Z:recorded"\]/ },
+    {
+      status: 0,
+      stdout: /"status":"PROCEED"[\s\S]*"totalTokens":0[\s\S]*"unknownIdentities":\["ORB-157:2026-07-29T05:16:00.000Z:recorded"\]/,
+      stderr: /warning:[\s\S]*1 completed invocation[\s\S]*unmeasured[\s\S]*fuse cannot see its spend/,
+    },
   )
   const pendingLedger = stage("budget/pending.jsonl", `${budgetRecord("pending-invocation", undefined, undefined, "routine", "claude", { pending: true })}\n`)
   check(

@@ -487,7 +487,7 @@ const evaluateBudget = (request, records, json) => {
 
 const emitBudgetResult = (result, json) => {
   emitJson(result, json)
-  const { status, identity, warningTokens, budgetTokens, invocationTokens, projectedTokens, totalTokens, missingIdentities } = result
+  const { status, identity, warningTokens, budgetTokens, invocationTokens, projectedTokens, totalTokens, missingIdentities, unknownIdentities } = result
   if (status === "WARN") {
     console.error(`automation-budget: warning: invocation "${identity}" projects ${projectedTokens} tokens; warning ${warningTokens} tokens, budget ${budgetTokens} tokens, observed spend ${totalTokens} tokens`)
   }
@@ -496,6 +496,10 @@ const emitBudgetResult = (result, json) => {
       ? `, missing measurements for identities ${missingIdentities.join(", ")}`
       : ""
     console.error(`automation-budget: warning: reserved invocation "${identity}" proceeds with ${projectedTokens} projected tokens; warning ${warningTokens} tokens, budget ${budgetTokens} tokens, observed spend ${totalTokens} tokens, reservation ${invocationTokens} tokens${missingContext}`)
+  }
+  if (status === "PROCEED" && unknownIdentities.length > 0) {
+    const count = unknownIdentities.length
+    console.error(`automation-budget: warning: ${count} completed invocation${count === 1 ? "" : "s"} in the window ${count === 1 ? "is" : "are"} unmeasured; the fuse cannot see ${count === 1 ? "its" : "their"} spend`)
   }
 }
 

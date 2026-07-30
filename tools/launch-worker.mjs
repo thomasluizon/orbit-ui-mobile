@@ -207,19 +207,27 @@ conflict with anything above, these win.
    unresolved threads, or send the escalation from clause 4. An earlier instruction to stop
    after opening or attaching the PR does not replace this endpoint. Never watch another
    ticket, worktree, or PR.
-6. **Never arm a background monitor, watcher or wait loop that outlives this contract.**
-7. **Never merge any PR, never push to \`main\`, never use \`--no-verify\`, never edit a gate
+6. **Close the automation-ledger reservation before your endpoint.** Immediately before the
+   report in clause 5, append a terminal observation for this invocation using the exact
+   \`automation-budget.mjs record\` command and ledger path supplied in the launch pointer. Supply
+   provider-authoritative input and output totals, plus \`--provider-estimated-cost\` only if the
+   provider supplies it. If measurement is unavailable after the invocation has ended, run that
+   same command without token flags, recording completed-but-unknown spend. Never record zero,
+   infer tokens from account \`usedPercent\`, or close a live reservation. The endpoint in clause 5
+   is not met while this launch's record remains pending.
+7. **Never arm a background monitor, watcher or wait loop that outlives this contract.**
+8. **Never merge any PR, never push to \`main\`, never use \`--no-verify\`, never edit a gate
    baseline.**
-8. **Stage explicitly.** Commit only the paths you edited yourself. \`git add -A\`, \`git add .\`
+9. **Stage explicitly.** Commit only the paths you edited yourself. \`git add -A\`, \`git add .\`
    and \`git commit -a\` are forbidden. A worktree is a shared filesystem that sibling workers,
    dev servers and tooling all write into, so a blanket stage turns any of their runtime
    artifacts into your diff.
-9. **Verify before pushing.** Run \`git show --stat HEAD\` and confirm every path in it is one
+10. **Verify before pushing.** Run \`git show --stat HEAD\` and confirm every path in it is one
    you meant to change. A path you cannot explain is a defect to resolve, never a file to push.
-10. **Never write into another worktree.** A live sibling worktree is another worker's working
+11. **Never write into another worktree.** A live sibling worktree is another worker's working
     tree, and a file you leave there can land in that worker's PR. If your proof genuinely needs
     a second worktree, create a disposable one for it and remove it afterwards.
-11. **Delegate independent slices.** A work order spanning more than one independent file or
+12. **Delegate independent slices.** A work order spanning more than one independent file or
     slice is executed by spawning parallel subagents, one per slice, each with an explicit output
     contract, then reconciling their output. Keep edits landing in the SAME file inline, and keep
     the final gate run inline because its raw output ships in the PR body. A review round with
@@ -237,6 +245,8 @@ let rollback = null
 let budgetReservation = null
 let reservationMaySpend = false
 let cancelBudgetReservation = null
+let recordBudgetReservationAsUnknown = null
+let reservationCompletedUnknown = false
 let concurrencyReservation = null
 
 const releaseConcurrencyReservation = () => {
@@ -289,7 +299,16 @@ const fail = (code, message) => {
       if (dropped.status !== 0) console.error(`left the branch ${branchToDrop} behind: ${(dropped.stderr || "").trim().slice(0, 200)}`)
     }
   }
-  if (budgetReservation && !reservationMaySpend && cleanupConfirmed && cancelBudgetReservation) {
+  if (budgetReservation && reservationCompletedUnknown && cleanupConfirmed && recordBudgetReservationAsUnknown) {
+    const recorded = recordBudgetReservationAsUnknown(budgetReservation)
+    if (!recorded) {
+      console.error(`left budget reservation "${budgetReservation.identity}" pending because its completed-unknown closure could not be recorded`)
+    } else {
+      budgetReservation = null
+    }
+  } else if (budgetReservation && reservationCompletedUnknown) {
+    console.error(`left budget reservation "${budgetReservation.identity}" pending because the worker shutdown could not be confirmed`)
+  } else if (budgetReservation && !reservationMaySpend && cleanupConfirmed && cancelBudgetReservation) {
     const cancelled = cancelBudgetReservation(budgetReservation)
     if (!cancelled) {
       console.error(`left budget reservation "${budgetReservation.identity}" pending because its cancellation could not be recorded`)
@@ -540,6 +559,32 @@ cancelBudgetReservation = ({ identity, engineName, tier, startedAt, ledgerPath }
   })
   if (!result.error && result.status === 0) return true
   console.error(`automation-budget cancellation failed: ${(result.stderr || result.stdout || result.error?.message || "unknown error").trim()}`)
+  return false
+}
+
+recordBudgetReservationAsUnknown = ({ identity, engineName, tier, startedAt, ledgerPath }) => {
+  const result = spawnSync(process.execPath, [
+    budgetToolPath,
+    "record",
+    "--identity",
+    identity,
+    "--engine",
+    engineName,
+    "--tier",
+    tier,
+    "--started-at",
+    startedAt,
+    "--ended-at",
+    new Date().toISOString(),
+    "--ledger",
+    ledgerPath,
+    "--json",
+  ], {
+    encoding: "utf8",
+    maxBuffer: 32 * 1024 * 1024,
+  })
+  if (!result.error && result.status === 0) return true
+  console.error(`automation-budget completed-unknown closure failed: ${(result.stderr || result.stdout || result.error?.message || "unknown error").trim()}`)
   return false
 }
 
@@ -968,6 +1013,7 @@ while (pointerSends < MAX_POINTER_SENDS && !pointerDelivered) {
   if (painting) break
 }
 if (!pointerDelivered) {
+  reservationCompletedUnknown = true
   fail(
     1,
     `${terminal} never showed the prompt pointer as a user turn after ${pointerSends} send(s)${painting ? ", and the TUI never went quiet, so re-sending would have queued into a running turn" : ", and the worker is alive, idle and has NO work"}. This is the 2026-07-27 ORB-88 failure: orca accepts the send, the TUI's composer swallows it, and an exit 0 here would report a launch that delivered nothing. Inspect it with: orca terminal read --terminal ${terminal}`,
