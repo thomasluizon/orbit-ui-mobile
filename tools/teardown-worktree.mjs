@@ -25,6 +25,10 @@ commit is present in the target branch, the local branch tip is contained in the
 head, the linked Linear issue is Done,
 and no terminal is mid-turn.
 Removal is successful only when the path is gone and git worktree list no longer names it.
+After verified removal, every remaining pending reservation for the issue is closed in the shared
+ledger. Inspection and closure never stop at the first failure: each engine is inspected and each
+reservation is attempted, and the exit-3 message lists every failure with its own runnable
+recovery or inspection command, so a partial failure strands nothing without a named repair.
 
 exit codes: 0 removed and verified, 1 evidence or removal verification failed, 2 usage error,
             3 an orca, git, gh, or shared-ledger inspection or closure failed`
@@ -102,9 +106,21 @@ const pullRequestFor = (path, branch, base) => {
 }
 const selectorPath = (value) => value?.replace(/^path:/, "")
 const normalize = (path) => (typeof path === "string" ? resolve(selectorPath(path)) : "").replaceAll("\\", "/").replace(/\/+$/, "").toLowerCase()
+const commandArgument = (value) => `"${String(value).replaceAll("\\", "/").replaceAll('"', '\\"')}"`
+const inspectionCommand = (issue, engine, resetAt) => [
+  "node",
+  commandArgument(BUDGET_TOOL),
+  "report",
+  "--engine", engine,
+  "--reset-at", commandArgument(resetAt),
+  "--identity-prefix", commandArgument(`${issue}:`),
+  "--ledger", commandArgument(LEDGER_PATH),
+  "--json",
+].join(" ")
 const pendingReservationsForIssue = (issue) => {
   const resetAt = new Date().toISOString()
   const pending = []
+  const failures = []
   for (const engine of ["claude", "codex"]) {
     const result = spawnSync(process.execPath, [
       BUDGET_TOOL,
@@ -116,18 +132,18 @@ const pendingReservationsForIssue = (issue) => {
       "--json",
     ], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
     if (result.error || result.status !== 0) {
-      fail(3, `could not inspect pending reservations for ${issue}: ${(result.stderr || result.stdout || result.error?.message || "unknown error").trim()}`)
+      failures.push(`could not inspect ${engine} pending reservations for ${issue}: ${(result.stderr || result.stdout || result.error?.message || "unknown error").trim()}\nInspection command: ${inspectionCommand(issue, engine, resetAt)}`)
+      continue
     }
     try {
       const report = JSON.parse(result.stdout)
       for (const reservation of report.pendingRecords) pending.push(reservation)
     } catch {
-      fail(3, `could not read pending reservation report for ${issue}: ${result.stdout.trim().slice(0, 300)}`)
+      failures.push(`could not read the ${engine} pending reservation report for ${issue}: ${result.stdout.trim().slice(0, 300)}\nInspection command: ${inspectionCommand(issue, engine, resetAt)}`)
     }
   }
-  return pending
+  return { pending, failures }
 }
-const commandArgument = (value) => `"${String(value).replaceAll("\\", "/").replaceAll('"', '\\"')}"`
 const recoveryCommand = (issue, reservation, endedAt) => [
   "node",
   commandArgument(BUDGET_TOOL),
@@ -141,6 +157,7 @@ const recoveryCommand = (issue, reservation, endedAt) => [
   "--ledger", commandArgument(LEDGER_PATH),
 ].join(" ")
 const closePendingReservations = (issue, reservations) => {
+  const failures = []
   for (const reservation of reservations) {
     const endedAt = new Date().toISOString()
     const result = spawnSync(process.execPath, [
@@ -156,9 +173,10 @@ const closePendingReservations = (issue, reservations) => {
       "--json",
     ], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
     if (result.error || result.status !== 0) {
-      fail(3, `could not close completed-unknown reservation "${reservation.identity}": ${(result.stderr || result.stdout || result.error?.message || "unknown error").trim()}\nRecovery command: ${recoveryCommand(issue, reservation, endedAt)}\nLedger path: ${LEDGER_PATH}`)
+      failures.push(`could not close completed-unknown reservation "${reservation.identity}": ${(result.stderr || result.stdout || result.error?.message || "unknown error").trim()}\nRecovery command: ${recoveryCommand(issue, reservation, endedAt)}`)
     }
   }
+  return failures
 }
 
 const worktrees = orca(["worktree", "list"]).worktrees ?? []
@@ -256,5 +274,6 @@ if (branchRemaining) fail(1, `removed worktree but local branch ${branch} still 
 console.log(`REMOVED worktree ${path}`)
 console.log(`REMOVED terminals for ${path}`)
 console.log(`REMOVED local branch ${branch}`)
-const pendingReservations = pendingReservationsForIssue(issue)
-closePendingReservations(issue, pendingReservations)
+const { pending: pendingReservations, failures: inspectionFailures } = pendingReservationsForIssue(issue)
+const ledgerFailures = [...inspectionFailures, ...closePendingReservations(issue, pendingReservations)]
+if (ledgerFailures.length > 0) fail(3, `${ledgerFailures.join("\n")}\nLedger path: ${LEDGER_PATH}`)

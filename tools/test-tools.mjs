@@ -3528,6 +3528,55 @@ const teardownWorktreeCases = () => {
     JSON.stringify({ teardownExit: closureFailureResult.status, recoveryExit: recovery.status, recoveredRecords }),
   )
 
+  const partialClosure = stageTeardownWorktree("partial-closure")
+  const partialClosureLedger = stage(
+    "teardown/partial-closure/automation-budget.jsonl",
+    `${JSON.stringify({ identity: "ORB-124:first", engine: "claude", tier: "routine", startedAt: ledgerStartedAt, endedAt: ledgerEndedAt, pending: true })}\n${JSON.stringify({ identity: "ORB-124:second", engine: "codex", tier: "routine", startedAt: ledgerStartedAt, endedAt: ledgerEndedAt, pending: true })}\n`,
+  )
+  writeFileSync(`${partialClosureLedger}.lock`, `${JSON.stringify({ pid: process.pid, acquiredAt: new Date().toISOString() })}\n`)
+  const partialClosureResult = check(
+    "teardown-worktree.mjs",
+    "a failed closure does not strand the reservations after it",
+    ["--issue", "ORB-124"],
+    {
+      status: 3,
+      stdout: /REMOVED worktree[\s\S]*REMOVED terminals[\s\S]*REMOVED local branch/,
+      stderr: /could not close completed-unknown reservation "ORB-124:first"[\s\S]*Recovery command: node [\s\S]*--identity "ORB-124:first"[\s\S]*could not close completed-unknown reservation "ORB-124:second"[\s\S]*Recovery command: node [\s\S]*--identity "ORB-124:second"[\s\S]*Ledger path:/,
+    },
+    {
+      env: {
+        ...orcaEnv(teardownPlan(partialClosure, { removePath: partialClosure.child })),
+        ORBIT_AUTOMATION_BUDGET_LEDGER: partialClosureLedger,
+        AUTOMATION_BUDGET_TEST_LOCK_TIMEOUT_MS: "1",
+      },
+    },
+  )
+  T(
+    "teardown-worktree.mjs: a partial closure failure attempts every pending reservation exactly once",
+    partialClosureResult.status === 3 &&
+      (partialClosureResult.stderr.match(/could not close completed-unknown reservation/g) ?? []).length === 2 &&
+      (partialClosureResult.stderr.match(/Recovery command: node /g) ?? []).length === 2 &&
+      (partialClosureResult.stderr.match(/Ledger path:/g) ?? []).length === 1,
+    partialClosureResult.stderr,
+  )
+  rmSync(`${partialClosureLedger}.lock`)
+  const partialRecoveries = ["ORB-124:first", "ORB-124:second"].map((identity) =>
+    check(
+      "automation-budget.mjs",
+      `the named recovery command closes stranded reservation ${identity}`,
+      ["record", "--identity", identity, "--engine", identity.endsWith("first") ? "claude" : "codex", "--tier", "routine", "--started-at", ledgerStartedAt, "--ended-at", new Date().toISOString(), "--identity-prefix", "ORB-124:", "--ledger", partialClosureLedger, "--json"],
+      { status: 0, stdout: /"status":"RECORDED"[\s\S]*"completed":true/ },
+    ),
+  )
+  const partialRecoveredRecords = readFileSync(partialClosureLedger, "utf8").trim().split(/\r?\n/).map((line) => JSON.parse(line))
+  T(
+    "teardown-worktree.mjs: both stranded reservations recover from the commands the failure printed",
+    partialRecoveries.every((recovery) => recovery.status === 0) &&
+      partialRecoveredRecords.length === 4 &&
+      partialRecoveredRecords.filter((record) => record.completed === true).length === 2,
+    JSON.stringify(partialRecoveredRecords),
+  )
+
   const unrelatedCorruption = stageTeardownWorktree("unrelated-corruption")
   const unrelatedCorruptionLedger = stage(
     "teardown/unrelated-corruption/automation-budget.jsonl",
@@ -3563,9 +3612,13 @@ const teardownWorktreeCases = () => {
   const ownCorruptionLedger = stage("teardown/own-corruption/automation-budget.jsonl", `{\"identity\":\"ORB-124:broken\"\n`)
   check(
     "teardown-worktree.mjs",
-    "a closure inspection failure reports verified removal before naming the ledger error",
+    "a closure inspection failure reports verified removal, both engines, and an inspection command",
     ["--issue", "ORB-124"],
-    { status: 3, stdout: /REMOVED worktree[\s\S]*REMOVED terminals[\s\S]*REMOVED local branch/, stderr: /could not inspect pending reservations for ORB-124/ },
+    {
+      status: 3,
+      stdout: /REMOVED worktree[\s\S]*REMOVED terminals[\s\S]*REMOVED local branch/,
+      stderr: /could not inspect claude pending reservations for ORB-124[\s\S]*Inspection command: node [\s\S]*--identity-prefix "ORB-124:"[\s\S]*could not inspect codex pending reservations for ORB-124[\s\S]*Inspection command: node [\s\S]*Ledger path:/,
+    },
     { env: { ...orcaEnv(teardownPlan(ownCorruption, { removePath: ownCorruption.child })), ORBIT_AUTOMATION_BUDGET_LEDGER: ownCorruptionLedger } },
   )
 }

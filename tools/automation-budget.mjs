@@ -55,6 +55,11 @@ Duplicate identities are append-only; the latest in-window record is authoritati
 pending invocation contributes no tokens. Account usage percentage and estimated cost are context
 only and never affect token totals. Records are attributed to the seven-day window containing
 their end timestamp. Mutations share an adjacent lock file and fail closed on lock contention.
+The fuse is scoped to the engine's whole quota pool and never to one ticket: check and reserve
+deliberately read the ledger without --identity-prefix, because the budget being defended is the
+weekly account quota every ticket draws from. --identity-prefix exists only to guard a targeted
+repair write and a targeted report read, and passing it to the fuse would let each ticket spend the
+whole budget on its own.
 
 exit codes:
   0  success or permitted invocation
