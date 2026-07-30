@@ -52,8 +52,8 @@ when available and exits 4; this detects but cannot prevent the residual respons
 Before a pending reassertion, the sweep re-reads Linear: it writes only if the issue is still
 \`In Progress\`; an advanced state is left alone and emits \`LINEAR-STATE-REASSERT-SKIPPED\`. It
 then re-reads after writing. A competing post-write state is left alone and emits
-\`LINEAR-STATE-REASSERT-POST-WRITE-SKIPPED\`; a completed history transition inside the
-confirmed pre-write to post-write window is restored and emits \`LINEAR-STATE-REASSERT-CLOBBERED\`.
+\`LINEAR-STATE-REASSERT-POST-WRITE-SKIPPED\`; a completed transition is restored only when it is
+the latest competing state transition inside the Linear server-bounded write window and emits \`LINEAR-STATE-REASSERT-CLOBBERED\`.
 A normal verified reassertion emits \`LINEAR-STATE-REASSERTED\`; unavailable history emits
 \`LINEAR-STATE-REASSERT-RESIDUAL-WINDOW\` and exits 4 because the post-merge state is unverifiable.
 A failed post-merge Linear state read or reassert emits \`POST-MERGE-LINEAR-STATE-REASSERT-FAILED\`
@@ -63,8 +63,8 @@ and exits 4.
 before merging, the sweep freshly reads that issue: \`In Review\` proceeds unchanged, while
 \`In Progress\` marks a reassertion with the observed state and UTC instant. Only after GitHub
 confirms the merge does it re-read Linear, reassert \`In Review\` only when it is still \`In Progress\`,
-then re-read it again. A changed post-write state is left alone; a completed transition in Linear
-activity inside the confirmed pre-write to post-write window is restored. Each result records the
+then re-read it again. A changed post-write state is left alone; only a completed latest competing
+transition in the Linear server-bounded write window is restored. Each result records the
 observed states and instants. An unavailable activity history reports an unverifiable post-merge
 state and exits 4. A decision-time
 lookup failure or unknown state prints \`LINEAR-STATE-REFUSED\` and skips the merge.
@@ -343,31 +343,44 @@ linear_state() { # <issue>; stdout: current state name
   "$ORCA_BIN" linear issue "$1" --json 2>/dev/null | node -e 'let input="";process.stdin.on("data",chunk=>input+=chunk).on("end",()=>{try{const parsed=JSON.parse(input);const state=parsed?.result?.issue?.state?.name;if(typeof state!=="string"||!state)process.exit(1);process.stdout.write(state)}catch{process.exit(1)}})'
 }
 
-utc_instant() {
-  if [ -n "${ORBIT_MERGE_SWEEP_FIXED_INSTANT:-}" ]; then
-    printf '%s' "$ORBIT_MERGE_SWEEP_FIXED_INSTANT"
-  else
-    node -e 'process.stdout.write(new Date().toISOString())'
-  fi
-}
-
-completed_state_between() { # <issue> <lower-inclusive> <upper-inclusive>; stdout: completed state name; 1 absent; 2 history unavailable
+latest_activity_at() { # <issue>; stdout: newest Linear activity timestamp; 2 history unavailable
   "$ORCA_BIN" linear issue "$1" --activity --json 2>/dev/null | node -e '
-    const lower=Date.parse(process.argv[1]);const upper=Date.parse(process.argv[2]);let input="";
+    let input="";
     process.stdin.on("data",chunk=>input+=chunk).on("end",()=>{try{
       const parsed=JSON.parse(input);const activity=parsed?.result?.activity;
-      if(!Number.isFinite(lower)||!Number.isFinite(upper)||lower>upper||!Array.isArray(activity)||parsed?.result?.meta?.sections?.activity?.capReached!==false)process.exit(2);
-      let completed;
-      for(const entry of activity){const instant=Date.parse(entry?.createdAt);if(!Number.isFinite(instant))process.exit(2);
-        for(const change of entry?.changes||[]){const state=change?.to;if(change?.field==="state"&&state?.type==="completed"&&typeof state.name==="string"&&state.name&&instant>=lower&&instant<=upper&&(!completed||instant>completed.instant))completed={name:state.name,instant};}}
-      if(completed)process.stdout.write(completed.name);else process.exitCode=1;
+      if(!Array.isArray(activity)||parsed?.result?.meta?.sections?.activity?.capReached!==false)process.exit(2);
+      let newest;
+      for(const entry of activity){const instant=Date.parse(entry?.createdAt);if(!Number.isFinite(instant))process.exit(2);if(!newest||instant>newest.instant)newest={timestamp:entry.createdAt,instant};}
+      if(newest)process.stdout.write(newest.timestamp);else process.exit(2);
+    }catch{process.exit(2)}})'
+}
+
+latest_state_transition_since() { # <issue> <lower-inclusive> <own-write-at>; stdout: completed state name; 1 latest is non-completed or absent; 2 history unavailable
+  "$ORCA_BIN" linear issue "$1" --activity --json 2>/dev/null | node -e '
+    const lower=Date.parse(process.argv[1]);const ownWrite=Date.parse(process.argv[2]);let input="";
+    process.stdin.on("data",chunk=>input+=chunk).on("end",()=>{try{
+      const parsed=JSON.parse(input);const activity=parsed?.result?.activity;
+      if(!Number.isFinite(lower)||!Number.isFinite(ownWrite)||lower>ownWrite||!Array.isArray(activity)||parsed?.result?.meta?.sections?.activity?.capReached!==false)process.exit(2);
+      let upper=-Infinity;let latest;
+      for(const entry of activity){const instant=Date.parse(entry?.createdAt);if(!Number.isFinite(instant))process.exit(2);upper=Math.max(upper,instant);}
+      if(upper<ownWrite)process.exit(2);
+      for(const entry of activity){const instant=Date.parse(entry.createdAt);if(instant<lower||instant>upper)continue;
+        for(const change of entry?.changes||[]){const state=change?.to;if(change?.field==="state"&&state&&typeof state.name==="string"&&state.name&&instant!==ownWrite&&(!latest||instant>latest.instant))latest={name:state.name,type:state.type,instant};}}
+      if(latest?.type==="completed")process.stdout.write(latest.name);else process.exitCode=1;
     }catch{process.exit(2)}})' "$2" "$3"
+}
+
+set_linear_state_at() { # <issue> <state>; stdout: Linear server write timestamp
+  "$ORCA_BIN" linear status set "$1" --to "$2" --json 2>/dev/null | node -e 'let input="";process.stdin.on("data",chunk=>input+=chunk).on("end",()=>{try{const parsed=JSON.parse(input);const timestamp=parsed?.result?.issue?.updatedAt;if(typeof timestamp!=="string"||!Number.isFinite(Date.parse(timestamp)))process.exit(1);process.stdout.write(timestamp)}catch{process.exit(1)}})'
 }
 
 commit_linear_reassertion() {
   local state pre_write_at write_at post_write_at completed_state history_result
   [ -n "$pending_linear_reassert_issue" ] || return 0
-  pre_write_at="$(utc_instant)"
+  if ! pre_write_at="$(latest_activity_at "$pending_linear_reassert_issue")"; then
+    printf 'LINEAR-STATE-REASSERT-RESIDUAL-WINDOW issue=%s observed=%s at=%s reason=history-unavailable\n' "$pending_linear_reassert_issue" "$pending_linear_reassert_observed" "$pending_linear_reassert_at"
+    return 1
+  fi
   if ! state="$(linear_state "$pending_linear_reassert_issue")"; then
     printf 'POST-MERGE-LINEAR-STATE-REASSERT-FAILED issue=%s observed=%s at=%s\n' "$pending_linear_reassert_issue" "$pending_linear_reassert_observed" "$pending_linear_reassert_at"
     return 1
@@ -376,8 +389,7 @@ commit_linear_reassertion() {
     printf 'LINEAR-STATE-REASSERT-SKIPPED issue=%s observed=%s at=%s pre-write-at=%s\n' "$pending_linear_reassert_issue" "$state" "$pending_linear_reassert_at" "$pre_write_at"
     return 0
   fi
-  write_at="$(utc_instant)"
-  if ! "$ORCA_BIN" linear status set "$pending_linear_reassert_issue" --to "In Review" >/dev/null 2>&1; then
+  if ! write_at="$(set_linear_state_at "$pending_linear_reassert_issue" "In Review")"; then
     printf 'POST-MERGE-LINEAR-STATE-REASSERT-FAILED issue=%s observed=%s at=%s\n' "$pending_linear_reassert_issue" "$pending_linear_reassert_observed" "$pending_linear_reassert_at"
     return 1
   fi
@@ -385,16 +397,19 @@ commit_linear_reassertion() {
     printf 'POST-MERGE-LINEAR-STATE-REASSERT-FAILED issue=%s observed=%s at=%s\n' "$pending_linear_reassert_issue" "$pending_linear_reassert_observed" "$pending_linear_reassert_at"
     return 1
   fi
-  post_write_at="$(utc_instant)"
+  if ! post_write_at="$(latest_activity_at "$pending_linear_reassert_issue")"; then
+    printf 'LINEAR-STATE-REASSERT-RESIDUAL-WINDOW issue=%s observed=%s at=%s pre-write=In Progress pre-write-at=%s write-at=%s reason=history-unavailable\n' "$pending_linear_reassert_issue" "$pending_linear_reassert_observed" "$pending_linear_reassert_at" "$pre_write_at" "$write_at"
+    return 1
+  fi
   if [ "$state" != "In Review" ]; then
     printf 'LINEAR-STATE-REASSERT-POST-WRITE-SKIPPED issue=%s observed=%s pre-write=In Progress pre-write-at=%s write-at=%s post-write-at=%s\n' "$pending_linear_reassert_issue" "$state" "$pre_write_at" "$write_at" "$post_write_at"
     return 0
   fi
-  completed_state="$(completed_state_between "$pending_linear_reassert_issue" "$pre_write_at" "$post_write_at")"
+  completed_state="$(latest_state_transition_since "$pending_linear_reassert_issue" "$pre_write_at" "$write_at")"
   history_result=$?
   case "$history_result" in
     0)
-      if ! "$ORCA_BIN" linear status set "$pending_linear_reassert_issue" --to "$completed_state" >/dev/null 2>&1; then
+      if ! set_linear_state_at "$pending_linear_reassert_issue" "$completed_state" >/dev/null; then
         printf 'POST-MERGE-LINEAR-STATE-REASSERT-FAILED issue=%s observed=%s at=%s\n' "$pending_linear_reassert_issue" "$pending_linear_reassert_observed" "$pending_linear_reassert_at"
         return 1
       fi

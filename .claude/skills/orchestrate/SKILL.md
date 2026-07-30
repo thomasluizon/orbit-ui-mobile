@@ -445,8 +445,8 @@ cannot decide for one PR, all against that recorded head:
    `LINEAR-STATE-REASSERT-SKIPPED` preserves an advanced state found before the write: inspect
    that state before proceeding. `LINEAR-STATE-REASSERT-POST-WRITE-SKIPPED` preserves a state
    written by a competing actor: inspect the transition before proceeding.
-   `LINEAR-STATE-REASSERT-CLOBBERED` restores a completed state proven by Linear activity inside
-   the confirmed pre-write to post-write window: audit the competing completion. If activity is
+   `LINEAR-STATE-REASSERT-CLOBBERED` restores a completed state only when it is the latest
+   competing transition in Linear's server-bounded write window: audit that transition. If activity is
    unreadable, `LINEAR-STATE-REASSERT-RESIDUAL-WINDOW` records the unverifiable state, exits 4,
    and stops further unattended merges for investigation.
    A failed lookup, an unknown state, or any state other than `In Review` or
@@ -527,7 +527,8 @@ threads, an unverifiable review lookup found by that recheck, or a failed post-m
 Linear reassertion were detected and reported, not prevented: the script prints the corresponding
 `POST-MERGE-ACTIVITY`, `POST-MERGE-UNRESOLVED-THREADS`, or
 `POST-MERGE-REVIEW-LOOKUP-FAILED`, or
-`POST-MERGE-LINEAR-STATE-REASSERT-FAILED` marker, exits `4`, and the run stops all
+`POST-MERGE-LINEAR-STATE-REASSERT-FAILED` marker, or
+`LINEAR-STATE-REASSERT-RESIDUAL-WINDOW`, exits `4`, and the run stops all
 further unattended merges and copies that result into the closing report. It also checks that
 a merged head did not move afterwards. Its workflow lookup fails closed: if it cannot
 prove the repository has no review workflow, the current-head review wait stays
@@ -561,10 +562,10 @@ form, either named review-lookup failure, any other `SKIP`, or `MERGE-REFUSED`
 leaves that PR open and supplies its stopped reason.
 Exit `0` also covers a completed sweep that skipped a PR. Exit `1` reports an
 orphaned merged head, exit `2` bad usage, exit `3` an unverifiable merged head, and
-exit `4` post-merge review activity, an unverifiable post-merge review state, or a
-failed post-merge Linear reassertion. Exit `4` is not proof that the merge was unsafe,
+exit `4` post-merge review activity, an unverifiable post-merge review state, a failed
+post-merge Linear reassertion, or an unverifiable Linear reassertion window. Exit `4` is not proof that the merge was unsafe,
 but the result missed or could not verify the pre-merge decision boundary: stop further
-unattended merges and report the exact `POST-MERGE-*` line, including its activity,
+unattended merges and report the exact emitted marker line, including its activity,
 count, lookup source detail, or Linear issue, observed state, and instant. For exits
 `1` or `3`, re-read the affected PR state and record it as a harness defect rather
 than claiming the PR remained unmerged.
