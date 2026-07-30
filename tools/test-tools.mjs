@@ -4997,7 +4997,7 @@ const budgetRecord = (identity, inputTokens, outputTokens, tier = "routine", eng
 
 const automationBudgetCases = () => {
   const resetAt = "2030-01-08T00:00:00Z"
-  const checkArgs = (identity, ledger, invocationTokens = 100, extra = []) => [
+  const checkArgs = (identity, ledger, invocationTokens = 100, extra = [], checkResetAt = resetAt) => [
     "check",
     "--engine",
     "claude",
@@ -5006,7 +5006,7 @@ const automationBudgetCases = () => {
     "--tier",
     "routine",
     "--reset-at",
-    resetAt,
+    checkResetAt,
     "--warning-tokens",
     "800",
     "--budget-tokens",
@@ -5166,32 +5166,17 @@ const automationBudgetCases = () => {
 
   const recordedLedger = stage(
     "budget/recorded-2026-07-29.jsonl",
-    `${budgetRecord("ORB-157:2026-07-29T05:16:00.000Z:recorded", undefined, undefined, "routine", "claude", {
-      completed: true,
-      accountContext: {
-        scope: "account",
-        attributed: false,
-        usedPercent: 42,
-        observedAt: "2026-07-29T05:16:00.000Z",
-      },
-    })}\n`,
+    '{"identity":"ORB-153:2026-07-29T05:16:51.014Z:a50d8330-db34-45e3-b0d9-499dca76b4bb","engine":"codex","tier":"routine","startedAt":"2026-07-29T05:16:51.014Z","endedAt":"2026-07-29T05:17:16.719Z","accountContext":{"scope":"account","attributed":false,"usedPercent":2,"observedAt":"2026-07-29T05:17:16.719Z"}}\n',
   )
   check(
     "automation-budget.mjs",
-    "the recorded completed unmeasured invocation admits the next routine launch",
-    checkArgs("after-recorded-unmeasured", recordedLedger, 100, ["--json"]),
+    "the recorded legacy unmarked invocation admits the next routine launch as unmeasured",
+    checkArgs("ORB-999:probe", recordedLedger, 100, ["--json"], "2026-08-05T00:00:00Z").map((value) => value === "claude" ? "codex" : value),
     {
       status: 0,
-      stdout: /"status":"PROCEED"[\s\S]*"totalTokens":0[\s\S]*"unknownIdentities":\["ORB-157:2026-07-29T05:16:00.000Z:recorded"\]/,
+      stdout: /"status":"PROCEED"[\s\S]*"totalTokens":0[\s\S]*"unknownIdentities":\["ORB-153:2026-07-29T05:16:51\.014Z:a50d8330-db34-45e3-b0d9-499dca76b4bb"\]/,
       stderr: /warning:[\s\S]*1 completed invocation[\s\S]*unmeasured[\s\S]*fuse cannot see its spend/,
     },
-  )
-  const legacyLedger = stage("budget/legacy-unmarked.jsonl", `${budgetRecord("legacy-unmarked")}\n`)
-  check(
-    "automation-budget.mjs",
-    "a legacy unmarked reservation fails closed until it receives a terminal record",
-    checkArgs("after-legacy", legacyLedger),
-    { status: 3, stderr: /pending reservations lack input or output tokens[\s\S]*legacy-unmarked/ },
   )
   const pendingLedger = stage("budget/pending.jsonl", `${budgetRecord("pending-invocation", undefined, undefined, "routine", "claude", { pending: true })}\n`)
   check(

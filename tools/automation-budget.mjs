@@ -427,8 +427,8 @@ const summarize = (records, engine, resetAt) => {
   for (const record of latestByIdentity.values()) {
     if (record.cancelled === true) continue
     if (!hasOwn(record, "inputTokens") || !hasOwn(record, "outputTokens")) {
-      if (record.completed === true) unknownIdentities.push(record.identity)
-      else pendingIdentities.push(record.identity)
+      if (record.pending === true) pendingIdentities.push(record.identity)
+      else unknownIdentities.push(record.identity)
       continue
     }
     inputTokens += record.inputTokens
