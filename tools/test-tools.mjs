@@ -5405,6 +5405,28 @@ process.stdout.write(JSON.stringify(results))
     ],
     { status: 2, stderr: /--input-tokens and --output-tokens must be provided together/ },
   )
+  const measuredLedger = stage("budget/preserve-measurement.jsonl", `${budgetRecord("preserve-measurement", 900, 100)}\n`)
+  check(
+    "automation-budget.mjs",
+    "a completed-unknown closeout preserves a worker's existing authoritative measurement",
+    [
+      "record",
+      "--identity",
+      "preserve-measurement",
+      "--engine",
+      "claude",
+      "--tier",
+      "routine",
+      "--started-at",
+      "2030-01-02T09:00:00Z",
+      "--ended-at",
+      "2030-01-02T10:00:00Z",
+      "--ledger",
+      measuredLedger,
+      "--json",
+    ],
+    { status: 0, stdout: /"inputTokens":900[\s\S]*"outputTokens":100/ },
+  )
 
   const concurrentLedger = join(root, "budget", "concurrent.jsonl")
   const concurrentRunner = stage(

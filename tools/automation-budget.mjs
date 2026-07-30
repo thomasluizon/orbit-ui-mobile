@@ -633,11 +633,14 @@ const runRecord = (values, json) => {
     }
   }
   const path = ledgerPath(values)
-  withLedgerLock(path, () => {
+  const recorded = withLedgerLock(path, () => {
     const existingLedger = readLedger(path)
+    const latest = [...existingLedger.records].reverse().find((existing) => existing.identity === record.identity)
+    if (record.completed === true && latest && hasOwn(latest, "inputTokens") && hasOwn(latest, "outputTokens")) return latest
     appendRecord(path, existingLedger, record)
+    return record
   })
-  emitJson({ status: "RECORDED", record }, json)
+  emitJson({ status: "RECORDED", record: recorded }, json)
 }
 
 const runCancel = (values, json) => {
