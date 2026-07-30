@@ -420,10 +420,12 @@ only thing that advances a wave"), and to the `Never: merge a PR` line below. Sa
 in the run's opening line, so a reader of the transcript is never left wondering
 whether the run went rogue.
 
-For each candidate PR, read `mergeStateStatus` and `headRefOid` first. If it is
-`BEHIND`, run `gh pr update-branch <n> --repo <owner/repo>` and wait for GitHub to
-expose the resulting head SHA. Only then enforce the conditions the merge tool
-cannot decide for one PR, all against that recorded head:
+For each candidate PR, run `node tools/mergeability.mjs --repo <owner/repo> --pr <n> --json`.
+Only a `MERGEABLE` verdict may enter the sweep; consume its condition list rather than
+re-deriving the single-PR decision. If its merge-state condition is `BEHIND`, run
+`gh pr update-branch <n> --repo <owner/repo>` and wait for GitHub to expose the resulting
+head SHA, then run the tool again. The remaining run-level conditions are enforced against
+that recorded head:
 
 1. `--sleep` was passed, every wave blocker is merged, and Phase 1's gates are green
    on the target branch.
@@ -436,6 +438,20 @@ cannot decide for one PR, all against that recorded head:
    the critique's final result recorded as `clean`. A critique that ends with
    `unresolved findings` at the iteration cap stops that ticket for human review.
    The cap permits an honest handoff; it never permits an unattended merge.
+   The merge decision reads the Linear issue state as its own fresh, last evidence
+   input immediately before deciding. Never reuse a state read from preflight,
+   verification, or an earlier part of the run. `In Review` passes without a write.
+   A regressed `In Progress` state records the decision-time instant, then only after GitHub
+   confirms the merge is re-set to `In Review`, printing
+   `LINEAR-STATE-REASSERTED issue=ORB-N observed=In Progress at=<ISO-8601 instant>`.
+   `LINEAR-STATE-REASSERT-SKIPPED` preserves an advanced state found before the write: inspect
+   that state before proceeding. `LINEAR-STATE-REASSERT-POST-WRITE-SKIPPED` preserves a state
+   written by a competing actor: inspect the transition before proceeding.
+   There is an undetectable sub-second residual between the pre-write read and the write landing:
+   a competing completed state can be overwritten, and the CLI response shapes cannot distinguish
+   that outcome from an ordinary successful reassertion.
+   A failed lookup, an unknown state, or any state other than `In Review` or
+   `In Progress` refuses the decision rather than assuming the evidence passed.
 5. The ticket carries no `attempts:2` label (D9 refuses it regardless of colour).
 6. **The ticket's one pre-merge verification passed.** The worker, not the orchestrator,
    handled review bodies and review rounds. Run `worker-status.mjs --verify-review` exactly
@@ -472,6 +488,7 @@ capturing the timestamp and invoking the sweep.
 bash tools/merge-sweep.sh \
   --expected-head <pr-number>=<expected-head-sha> \
   --reviewed-through <pr-number>=<ISO-8601-timestamp> \
+  --issue <pr-number>=ORB-N \
   <owner/repo> <pr-number>
 ```
 
@@ -491,26 +508,37 @@ server refuses a last-moment change.
 The script owns the remaining mechanical merge decision. It repeats the branch update
 as a safety check, polls `mergeStateStatus`, rejects failed checks, requires
 `reviewDecision=APPROVED`, waits for the `review` check on the current head SHA to
-settle, and re-reads the decision after updates. Its review-safety query is the last
-API read before the merge call: it requires every review thread to be resolved and no
+settle, and re-reads the decision after updates. Its review-safety query requires
+every review thread to be resolved and no
 review submission or edit, inline review comment or edit, or conversation comment or
 edit at or after `reviewed-through`. It paginates review submissions through GraphQL
 and checks `submittedAt`, `updatedAt`, and `lastEditedAt`, checks both creation and edit times
 for comments, admits no author exclusions, and fails closed on every thread or activity
-lookup.
+lookup. Immediately after that review-safety query, the sweep freshly reads the mapped
+Linear issue state as the final operation before its merge decision. The Linear read
+therefore cannot inherit an earlier state, but the review-safety query is not the last
+API read before the merge call.
 
 There is still an unavoidable final API race between the response to that safety query
-and the merge request. The sweep makes the safety query last, but it cannot prevent new
-activity from arriving after that response. It squash-merges without `--admin`, then
+and the merge request. The sweep makes its Linear decision-time read after the safety
+query, but it cannot prevent new activity from arriving after the safety response. It
+squash-merges without `--admin`, then
 rechecks review activity after every successful merge. New activity, unresolved
-threads, or an unverifiable review lookup found by that recheck were detected and
-reported, not prevented: the script prints the corresponding
+threads, an unverifiable review lookup found by that recheck, or a failed post-merge
+Linear reassertion were detected and reported, not prevented: the script prints the corresponding
 `POST-MERGE-ACTIVITY`, `POST-MERGE-UNRESOLVED-THREADS`, or
-`POST-MERGE-REVIEW-LOOKUP-FAILED` marker, exits `4`, and the run stops all further
-unattended merges and copies that result into the closing report. It also checks that
+`POST-MERGE-REVIEW-LOOKUP-FAILED`, or
+`POST-MERGE-LINEAR-STATE-REASSERT-FAILED` marker, exits `4`, and the run stops all
+further unattended merges and copies that result into the closing report. It also checks that
 a merged head did not move afterwards. Its workflow lookup fails closed: if it cannot
 prove the repository has no review workflow, the current-head review wait stays
 enabled.
+
+The post-merge Linear markers are operator actions, not merely diagnostics. On
+`LINEAR-STATE-REASSERT-SKIPPED`, inspect the preserved advanced state. On
+`LINEAR-STATE-REASSERT-POST-WRITE-SKIPPED`, inspect the competing transition. The sub-second
+window between the pre-write read and write landing is undetectable with the CLI response shapes:
+a competing completed state can be overwritten and looks like ordinary success.
 
 `--sleep` always invokes `tools/merge-sweep.sh`. It never invokes
 `tools/merge-sweep-cov.sh`: that variant can use `--admin` to override a SonarCloud
@@ -521,6 +549,7 @@ only by a human deliberately invoking:
 
 ```bash
 bash tools/merge-sweep-cov.sh \
+  --issue <pr-number>=ORB-N \
   --reviewed-through <pr-number>=<ISO-8601-timestamp> \
   <owner/repo> <pr-number>
 ```
@@ -532,10 +561,11 @@ form, either named review-lookup failure, any other `SKIP`, or `MERGE-REFUSED`
 leaves that PR open and supplies its stopped reason.
 Exit `0` also covers a completed sweep that skipped a PR. Exit `1` reports an
 orphaned merged head, exit `2` bad usage, exit `3` an unverifiable merged head, and
-exit `4` post-merge review activity or an unverifiable post-merge review state. Exit
-`4` is not proof that the merge was unsafe, but the result missed or could not verify
-the pre-merge decision boundary: stop further unattended merges and report the exact
-`POST-MERGE-*` line, including its activity, count, or lookup source detail. For exits
+exit `4` post-merge review activity, an unverifiable post-merge review state, a failed
+post-merge Linear reassertion, or an unverifiable Linear reassertion window. Exit `4` is not proof that the merge was unsafe,
+but the result missed or could not verify the pre-merge decision boundary: stop further
+unattended merges and report the exact emitted marker line, including its activity,
+count, lookup source detail, or Linear issue, observed state, and instant. For exits
 `1` or `3`, re-read the affected PR state and record it as a harness defect rather
 than claiming the PR remained unmerged.
 
