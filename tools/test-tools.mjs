@@ -353,11 +353,19 @@ const { appendFileSync } = require("node:fs")
 const argv = process.argv.slice(2)
 appendFileSync(process.env.ORBIT_MERGE_SWEEP_LOG, JSON.stringify(["orca", ...argv]) + "\\n")
 if (argv[0] === "linear" && argv[1] === "issue") {
-  const reassertRead = process.env.ORBIT_MERGE_SWEEP_LOG + ".linear-reassert-read"
-  const reassert = require("node:fs").existsSync(reassertRead)
-  if (reassert ? process.env.ORBIT_MERGE_SWEEP_LINEAR_REASSERT_LOOKUP_FAILURE : process.env.ORBIT_MERGE_SWEEP_LINEAR_LOOKUP_FAILURE) process.exit(7)
-  require("node:fs").writeFileSync(reassertRead, "")
-  const state = reassert ? process.env.ORBIT_MERGE_SWEEP_LINEAR_REASSERT_STATE : process.env.ORBIT_MERGE_SWEEP_LINEAR_STATE
+  const { existsSync, readFileSync, writeFileSync } = require("node:fs")
+  const reads = process.env.ORBIT_MERGE_SWEEP_LOG + ".linear-reads"
+  const readNumber = existsSync(reads) ? Number(readFileSync(reads, "utf8")) + 1 : 1
+  writeFileSync(reads, String(readNumber))
+  if (readNumber === 1 && process.env.ORBIT_MERGE_SWEEP_LINEAR_LOOKUP_FAILURE) process.exit(7)
+  if (readNumber > 1 && process.env.ORBIT_MERGE_SWEEP_LINEAR_REASSERT_LOOKUP_FAILURE) process.exit(7)
+  if (argv.includes("--activity")) {
+    if (process.env.ORBIT_MERGE_SWEEP_LINEAR_HISTORY_FAILURE) process.exit(7)
+    process.stdout.write(process.env.ORBIT_MERGE_SWEEP_LINEAR_HISTORY || JSON.stringify({ ok: true, result: { meta: { sections: { activity: { capReached: false } } }, activity: [] } }))
+    process.exit(0)
+  }
+  const states = process.env.ORBIT_MERGE_SWEEP_LINEAR_STATES.split(",")
+  const state = states[readNumber - 1] || states.at(-1)
   process.stdout.write(JSON.stringify({ ok: true, result: { issue: { state: { name: state } } } }))
   process.exit(0)
 }
@@ -393,6 +401,9 @@ const mergeSweepEnv = ({
   linearReassertLookupFailure = false,
   linearReassertFailure = false,
   linearReassertState = linearState,
+  linearPostWriteState = "In Review",
+  linearHistory = "",
+  linearHistoryFailure = false,
   moveAtMerge = false,
   postMergeActivity = "",
   postMergeReviewsLookupFailure = false,
@@ -434,6 +445,9 @@ const mergeSweepEnv = ({
   ORBIT_MERGE_SWEEP_LINEAR_REASSERT_LOOKUP_FAILURE: linearReassertLookupFailure ? "1" : "",
   ORBIT_MERGE_SWEEP_LINEAR_REASSERT_FAILURE: linearReassertFailure ? "1" : "",
   ORBIT_MERGE_SWEEP_LINEAR_REASSERT_STATE: linearReassertState,
+  ORBIT_MERGE_SWEEP_LINEAR_STATES: `${linearState},${linearReassertState},${linearPostWriteState}`,
+  ORBIT_MERGE_SWEEP_LINEAR_HISTORY: linearHistory,
+  ORBIT_MERGE_SWEEP_LINEAR_HISTORY_FAILURE: linearHistoryFailure ? "1" : "",
   ORBIT_MERGE_SWEEP_LINEAR_STATE: linearState,
   ORCA_BIN: MERGE_SWEEP_ORCA,
   ORBIT_MERGE_SWEEP_MOVE_MARKER: moveAtMerge ? `${log}.moved` : "",
@@ -4016,7 +4030,7 @@ const mergeSweepCases = (file) => {
   T(
     `${file}: a regressed issue is reasserted and recorded after merging`,
     regressed.status === 0 && /LINEAR-STATE-REASSERTED issue=ORB-150 observed=In Progress at=\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ/.test(regressed.stdout) &&
-      regressedCalls.filter(([, linear, command]) => linear === "linear" && command === "issue").length === 2 &&
+      regressedCalls.filter(([, linear, command]) => linear === "linear" && command === "issue").length === 4 &&
       regressedCalls.some(([, linear, command, action, issue, to, stateName]) => linear === "linear" && command === "status" && action === "set" && issue === "ORB-150" && to === "--to" && stateName === "In Review") &&
       mergeSweepCalls(regressedLog).some(([group, command]) => group === "pr" && command === "merge"),
     `exit ${regressed.status}\n     stdout: ${regressed.stdout.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(regressedLog))}`,
@@ -4038,6 +4052,31 @@ const mergeSweepCases = (file) => {
   }
   skippedReassertion("Done-after-merge", "Done")
   skippedReassertion("unknown-after-merge", "Blocked")
+
+  const postWriteDisagreementLog = join(root, `${file}-post-write-disagreement.log`)
+  const postWriteDisagreement = run(file, reviewedArgs, {
+    env: mergeSweepEnv({ head: expectedHead, linearState: "In Progress", linearReassertState: "In Progress", linearPostWriteState: "Done", log: postWriteDisagreementLog, sonar: coverageAware ? "coverage-failure" : "success", state: coverageAware ? "BLOCKED" : "CLEAN" }),
+  })
+  T(
+    `${file}: a post-write state disagreement is left unchanged and recorded`,
+    postWriteDisagreement.status === 0 && /LINEAR-STATE-REASSERT-POST-WRITE-SKIPPED issue=ORB-150 observed=Done pre-write=In Progress pre-write-at=\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z write-at=\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z post-write-at=\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z/.test(postWriteDisagreement.stdout) &&
+      linearCalls(postWriteDisagreementLog).filter(([, linear, command, action]) => linear === "linear" && command === "status" && action === "set").length === 1,
+    `exit ${postWriteDisagreement.status}\n     stdout: ${postWriteDisagreement.stdout.trim()}\n     calls: ${JSON.stringify(linearCalls(postWriteDisagreementLog))}`,
+  )
+
+  const clobberHistory = JSON.stringify({ ok: true, result: { meta: { sections: { activity: { capReached: false } } }, activity: [{ createdAt: "2000-01-01T00:00:00.000Z", changes: [{ field: "state", to: { name: "Done", type: "completed" } }] }] } })
+  const clobberLog = join(root, `${file}-clobber-restore.log`)
+  const clobber = run(file, reviewedArgs, {
+    env: mergeSweepEnv({ head: expectedHead, linearState: "In Progress", linearReassertState: "In Progress", linearHistory: clobberHistory, log: clobberLog, sonar: coverageAware ? "coverage-failure" : "success", state: coverageAware ? "BLOCKED" : "CLEAN" }),
+  })
+  const clobberCalls = linearCalls(clobberLog)
+  T(
+    `${file}: a completed state clobbered before the write is restored`,
+    clobber.status === 0 && /LINEAR-STATE-REASSERT-CLOBBERED issue=ORB-150 restored=Done/.test(clobber.stdout) &&
+      clobberCalls.filter(([, linear, command, action, issue, to, stateName]) => linear === "linear" && command === "status" && action === "set" && issue === "ORB-150" && to === "--to" && stateName === "In Review").length === 1 &&
+      clobberCalls.filter(([, linear, command, action, issue, to, stateName]) => linear === "linear" && command === "status" && action === "set" && issue === "ORB-150" && to === "--to" && stateName === "Done").length === 1,
+    `exit ${clobber.status}\n     stdout: ${clobber.stdout.trim()}\n     calls: ${JSON.stringify(clobberCalls)}`,
+  )
 
   const linearRefusal = (label, envOptions, output) => {
     const log = join(root, `${file}-${label}.log`)
@@ -4163,7 +4202,7 @@ const mergeSweepCases = (file) => {
     file,
     "help documents the Linear issue gate, exclusive cutoff, and residual post-merge window",
     ["--help"],
-    { status: 0, stdout: /(?=[\s\S]*--reviewed-through)(?=[\s\S]*--issue must map every swept PR)(?=[\s\S]*LINEAR-STATE-REASSERTED)(?=[\s\S]*LINEAR-STATE-REASSERT-SKIPPED)(?=[\s\S]*LINEAR-STATE-REFUSED)(?=[\s\S]*review-safety query runs before the fresh Linear decision-time read)(?=[\s\S]*failed post-merge Linear re-read or reassert)(?=[\s\S]*POST-MERGE-LINEAR-STATE-REASSERT-FAILED)(?=[\s\S]*cutoff is exclusive: activity at or after that timestamp counts as new\.)(?=[\s\S]*Every status check, required or not, must reach a terminal successful conclusion before merge\.)(?=[\s\S]*residual response-to-merge race)(?=[\s\S]*exits 4)/ },
+    { status: 0, stdout: /(?=[\s\S]*--reviewed-through)(?=[\s\S]*--issue must map every swept PR)(?=[\s\S]*LINEAR-STATE-REASSERTED)(?=[\s\S]*LINEAR-STATE-REASSERT-SKIPPED)(?=[\s\S]*LINEAR-STATE-REASSERT-POST-WRITE-SKIPPED)(?=[\s\S]*LINEAR-STATE-REASSERT-CLOBBERED)(?=[\s\S]*LINEAR-STATE-REASSERT-RESIDUAL-WINDOW)(?=[\s\S]*LINEAR-STATE-REFUSED)(?=[\s\S]*review-safety query runs before the fresh Linear decision-time read)(?=[\s\S]*failed post-merge Linear state read or reassert)(?=[\s\S]*POST-MERGE-LINEAR-STATE-REASSERT-FAILED)(?=[\s\S]*cutoff is exclusive: activity at or after that timestamp counts as new\.)(?=[\s\S]*Every status check, required or not, must reach a terminal successful conclusion before merge\.)(?=[\s\S]*residual response-to-merge race)(?=[\s\S]*exits 4)/ },
   )
 
   const updatedHead = "3333333333333333333333333333333333333333"
