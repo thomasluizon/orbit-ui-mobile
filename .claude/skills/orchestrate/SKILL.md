@@ -420,10 +420,12 @@ only thing that advances a wave"), and to the `Never: merge a PR` line below. Sa
 in the run's opening line, so a reader of the transcript is never left wondering
 whether the run went rogue.
 
-For each candidate PR, read `mergeStateStatus` and `headRefOid` first. If it is
-`BEHIND`, run `gh pr update-branch <n> --repo <owner/repo>` and wait for GitHub to
-expose the resulting head SHA. Only then enforce the conditions the merge tool
-cannot decide for one PR, all against that recorded head:
+For each candidate PR, run `node tools/mergeability.mjs --repo <owner/repo> --pr <n> --json`.
+Only a `MERGEABLE` verdict may enter the sweep; consume its condition list rather than
+re-deriving the single-PR decision. If its merge-state condition is `BEHIND`, run
+`gh pr update-branch <n> --repo <owner/repo>` and wait for GitHub to expose the resulting
+head SHA, then run the tool again. The remaining run-level conditions are enforced against
+that recorded head:
 
 1. `--sleep` was passed, every wave blocker is merged, and Phase 1's gates are green
    on the target branch.
