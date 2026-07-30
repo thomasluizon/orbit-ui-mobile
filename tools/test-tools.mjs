@@ -1019,8 +1019,9 @@ const pointerDeliveryCases = () => {
     "launch-worker.mjs: a post-delivery handoff failure cannot roll back a live worker",
     postCommitFailure.result.status === 3 &&
       /fixture post-commit record failure/.test(postCommitFailure.result.stderr) &&
-      !postCommitFailure.calls.some((argv) => argv[0].split(/[\\/\\\\]/).pop() === "terminal" && argv[1] === "stop") &&
-      !postCommitFailure.calls.some((argv) => argv[0].split(/[\\/\\\\]/).pop() === "worktree" && argv[1] === "rm"),
+      postCommitFailure.sends === 1 &&
+      postCommitFailure.records.length === 1 &&
+      postCommitFailure.records[0]?.pending === true,
     `exit ${postCommitFailure.result.status}\n     ${postCommitFailure.result.stderr}\n     ${JSON.stringify(postCommitFailure.calls)}`,
   )
 
@@ -3451,6 +3452,44 @@ const teardownWorktreeCases = () => {
     JSON.stringify(closedLedgerRecords),
   )
 
+  const closureFailure = stageTeardownWorktree("closure-failure-recovery")
+  const closureFailureLedger = stage(
+    "teardown/closure-failure-recovery/automation-budget.jsonl",
+    `${JSON.stringify({ identity: "ORB-124:fixture", engine: "claude", tier: "routine", startedAt: ledgerStartedAt, endedAt: ledgerEndedAt, pending: true })}\n`,
+  )
+  writeFileSync(`${closureFailureLedger}.lock`, `${JSON.stringify({ pid: process.pid, acquiredAt: new Date().toISOString() })}\n`)
+  const closureFailureResult = check(
+    "teardown-worktree.mjs",
+    "a failed ledger closure after removal names a recovery command and ledger path",
+    ["--issue", "ORB-124"],
+    { status: 3, stdout: /REMOVED worktree[\s\S]*REMOVED terminals[\s\S]*REMOVED local branch/, stderr: /could not close completed-unknown reservation "ORB-124:fixture"[\s\S]*Recovery command: node [\s\S]*automation-budget\.mjs" record[\s\S]*--identity "ORB-124:fixture"[\s\S]*--identity-prefix "ORB-124:"[\s\S]*--ledger "[^"]+"[\s\S]*Ledger path:/ },
+    {
+      env: {
+        ...orcaEnv(teardownPlan(closureFailure, { removePath: closureFailure.child })),
+        ORBIT_AUTOMATION_BUDGET_LEDGER: closureFailureLedger,
+        AUTOMATION_BUDGET_TEST_LOCK_TIMEOUT_MS: "1",
+      },
+    },
+  )
+  rmSync(`${closureFailureLedger}.lock`)
+  const recovery = check(
+    "automation-budget.mjs",
+    "the named post-removal recovery command closes the stranded reservation",
+    ["record", "--identity", "ORB-124:fixture", "--engine", "claude", "--tier", "routine", "--started-at", ledgerStartedAt, "--ended-at", new Date().toISOString(), "--identity-prefix", "ORB-124:", "--ledger", closureFailureLedger, "--json"],
+    { status: 0, stdout: /"status":"RECORDED"[\s\S]*"completed":true/ },
+  )
+  const recoveredRecords = readFileSync(closureFailureLedger, "utf8").trim().split(/\r?\n/).map((line) => JSON.parse(line))
+  T(
+    "teardown-worktree.mjs: the recovery command closes the reservation after removal without its worktree",
+    closureFailureResult.status === 3 &&
+      !existsSync(closureFailure.child) &&
+      recovery.status === 0 &&
+      recoveredRecords.length === 2 &&
+      recoveredRecords[1]?.identity === "ORB-124:fixture" &&
+      recoveredRecords[1]?.completed === true,
+    JSON.stringify({ teardownExit: closureFailureResult.status, recoveryExit: recovery.status, recoveredRecords }),
+  )
+
   const unrelatedCorruption = stageTeardownWorktree("unrelated-corruption")
   const unrelatedCorruptionLedger = stage(
     "teardown/unrelated-corruption/automation-budget.jsonl",
@@ -5086,6 +5125,7 @@ const budgetRecord = (identity, inputTokens, outputTokens, tier = "routine", eng
   })
 
 const automationBudgetCases = () => {
+  check("automation-budget.mjs", "help documents the prefix guard for record and report", ["--help"], { status: 0, stdout: /record[\s\S]*--identity-prefix <prefix>[\s\S]*report[\s\S]*--identity-prefix <prefix>[\s\S]*restrict record writes and report reads/ })
   const resetAt = "2030-01-08T00:00:00Z"
   const checkArgs = (identity, ledger, invocationTokens = 100, extra = [], checkResetAt = resetAt) => [
     "check",

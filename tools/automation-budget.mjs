@@ -10,7 +10,7 @@ const DEFAULT_LEDGER_PATH = resolve(homedir(), ".orbit", "automation-budget.json
 const USAGE = `usage:
   automation-budget.mjs check --engine <claude|codex> --identity <id> --tier <routine|reserved> --reset-at <timestamp> --warning-tokens <count> --budget-tokens <count> --invocation-tokens <count> [--ledger <path>] [--json]
   automation-budget.mjs reserve --engine <claude|codex> --identity <id> --tier <routine|reserved> --started-at <timestamp> --ended-at <timestamp> --reset-at <timestamp> --warning-tokens <count> --budget-tokens <count> --invocation-tokens <count> [--account-used-percent <percent> --account-observed-at <timestamp>] [--ledger <path>] [--json]
-  automation-budget.mjs record --identity <id> --engine <claude|codex> --tier <routine|reserved> --started-at <timestamp> --ended-at <timestamp> [--input-tokens <count>] [--output-tokens <count>] [--provider-estimated-cost <amount>] [--account-used-percent <percent> --account-observed-at <timestamp>] [--ledger <path>] [--json]
+  automation-budget.mjs record --identity <id> --engine <claude|codex> --tier <routine|reserved> --started-at <timestamp> --ended-at <timestamp> [--input-tokens <count>] [--output-tokens <count>] [--provider-estimated-cost <amount>] [--account-used-percent <percent> --account-observed-at <timestamp>] [--identity-prefix <prefix>] [--ledger <path>] [--json]
   automation-budget.mjs cancel --identity <id> --engine <claude|codex> --tier <routine|reserved> --started-at <timestamp> --ended-at <timestamp> [--ledger <path>] [--json]
   automation-budget.mjs report --engine <claude|codex> --reset-at <timestamp> [--identity-prefix <prefix>] [--ledger <path>] [--json]
 
@@ -21,7 +21,7 @@ const USAGE = `usage:
   report         print one engine's current seven-day token totals plus pending and unknown identities
   --identity     stable identity for the invocation
   --identity-prefix
-                  restrict a report to identities beginning with this exact prefix
+                  restrict record writes and report reads to identities beginning with this exact prefix
   --engine       quota pool charged by the invocation; engines are never combined
   --tier         routine automation or explicitly reserved deep work
   --started-at   invocation start as ISO-8601 with a timezone, or Unix seconds

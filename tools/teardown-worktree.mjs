@@ -27,7 +27,7 @@ and no terminal is mid-turn.
 Removal is successful only when the path is gone and git worktree list no longer names it.
 
 exit codes: 0 removed and verified, 1 evidence or removal verification failed, 2 usage error,
-            3 an orca, git, or gh command could not be read`
+            3 an orca, git, gh, or shared-ledger inspection or closure failed`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
@@ -127,8 +127,22 @@ const pendingReservationsForIssue = (issue) => {
   }
   return pending
 }
-const closePendingReservations = (reservations) => {
+const commandArgument = (value) => `"${String(value).replaceAll("\\", "/").replaceAll('"', '\\"')}"`
+const recoveryCommand = (issue, reservation, endedAt) => [
+  "node",
+  commandArgument(BUDGET_TOOL),
+  "record",
+  "--identity", commandArgument(reservation.identity),
+  "--engine", reservation.engine,
+  "--tier", reservation.tier,
+  "--started-at", commandArgument(reservation.startedAt),
+  "--ended-at", commandArgument(endedAt),
+  "--identity-prefix", commandArgument(`${issue}:`),
+  "--ledger", commandArgument(LEDGER_PATH),
+].join(" ")
+const closePendingReservations = (issue, reservations) => {
   for (const reservation of reservations) {
+    const endedAt = new Date().toISOString()
     const result = spawnSync(process.execPath, [
       BUDGET_TOOL,
       "record",
@@ -136,13 +150,13 @@ const closePendingReservations = (reservations) => {
       "--engine", reservation.engine,
       "--tier", reservation.tier,
       "--started-at", reservation.startedAt,
-      "--ended-at", new Date().toISOString(),
-      "--identity-prefix", reservation.identity.slice(0, reservation.identity.indexOf(":") + 1),
+      "--ended-at", endedAt,
+      "--identity-prefix", `${issue}:`,
       "--ledger", LEDGER_PATH,
       "--json",
     ], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
     if (result.error || result.status !== 0) {
-      fail(3, `could not close completed-unknown reservation "${reservation.identity}": ${(result.stderr || result.stdout || result.error?.message || "unknown error").trim()}`)
+      fail(3, `could not close completed-unknown reservation "${reservation.identity}": ${(result.stderr || result.stdout || result.error?.message || "unknown error").trim()}\nRecovery command: ${recoveryCommand(issue, reservation, endedAt)}\nLedger path: ${LEDGER_PATH}`)
     }
   }
 }
@@ -243,4 +257,4 @@ console.log(`REMOVED worktree ${path}`)
 console.log(`REMOVED terminals for ${path}`)
 console.log(`REMOVED local branch ${branch}`)
 const pendingReservations = pendingReservationsForIssue(issue)
-closePendingReservations(pendingReservations)
+closePendingReservations(issue, pendingReservations)
