@@ -148,6 +148,13 @@ const TERMINAL_CREATE_BACKOFF_MS = 1000
  * repainting after all of them is never re-sent to: there is no safe moment, and a queued send
  * would cut its running turn short. */
 const MAX_POINTER_SETTLES = 3
+const SETTLE_MS = 1000
+const terminalIsRepainting = (terminal) => {
+  const first = orca(["terminal", "show", "--terminal", terminal]).terminal?.lastOutputAt
+  pause(SETTLE_MS)
+  const second = orca(["terminal", "show", "--terminal", terminal]).terminal?.lastOutputAt
+  return Number.isFinite(first) && Number.isFinite(second) && second > first
+}
 
 /**
  * The standing worker contract, owned HERE rather than by whoever composed the prompt file.
@@ -165,6 +172,7 @@ const MAX_POINTER_SETTLES = 3
  * CLASS: a .gitignore entry only ever covers the one artifact somebody already got burned by.
  */
 const WORKER_CONTRACT_MARKER = "## Standing worker contract (injected by tools/launch-worker.mjs)"
+const SLICE_CONTRACT_MARKER = "## Slice worker contract (injected by tools/launch-worker.mjs)"
 const WORKER_CONTRACT = `
 
 ---
@@ -224,6 +232,19 @@ conflict with anything above, these win.
     contract, then reconciling their output. Keep edits landing in the SAME file inline, and keep
     the final gate run inline because its raw output ships in the PR body. A review round with
     more than one independent finding is dispatched one subagent per finding, not fixed inline.
+`
+
+const SLICE_CONTRACT = `
+
+---
+
+${SLICE_CONTRACT_MARKER}
+
+This process is one slice in a coordinator-owned worktree. Make only the requested change and run
+the relevant checks. Do not commit, push, open or edit a pull request, merge, change the Linear
+issue, or modify files outside the requested slice. Report the changed paths and raw check output
+to the coordinator when finished. Never ask a question: decide from the work order and repository
+rules, and record any blocked sub-step in the report.
 `
 
 /**
@@ -748,7 +769,10 @@ const invocationIdentity = `${issue}:${invocationStartedAt}:${randomUUID()}`
 const command = [engine.command, ...engineArgs].join(" ")
 const workerPointer = (worktreePath, branch) => `Read ${promptFile} and execute it in full. That file is your complete work order for ${issue}. You are on branch ${branch} in ${worktreePath}. Do not summarise the file back to me, start the work now.`
 const startHeadlessWorker = (worktreePath, branch) => {
-  const child = spawn(engine.command, [...engineArgs, workerPointer(worktreePath, branch)], {
+  const executable = process.platform === "win32" && !/\.(?:cmd|bat|exe)$/i.test(engine.command)
+    ? `${engine.command}.cmd`
+    : engine.command
+  const child = spawn(executable, [...engineArgs, workerPointer(worktreePath, branch)], {
     cwd: worktreePath,
     detached: true,
     stdio: "ignore",
@@ -757,8 +781,8 @@ const startHeadlessWorker = (worktreePath, branch) => {
   })
   if (!child.pid) fail(3, `could not start headless ${engineName} worker`)
   child.unref()
-  const gitCommonDirectory = resolve(worktreePath, git(["-C", worktreePath, "rev-parse", "--git-common-dir"]))
-  appendFileSync(join(gitCommonDirectory, "orbit-worker-pids.jsonl"), `${JSON.stringify({ issue, pid: child.pid, startedAt: new Date().toISOString() })}\n`)
+  const gitDirectory = resolve(worktreePath, git(["-C", worktreePath, "rev-parse", "--git-dir"]))
+  appendFileSync(join(gitDirectory, "orbit-worker-pids.jsonl"), `${JSON.stringify({ issue, worktreePath, pid: child.pid, startedAt: new Date().toISOString() })}\n`)
   return child.pid
 }
 
@@ -791,7 +815,7 @@ if (runPermissionIndex === -1) {
   fail(2, `worker "${engineName}" invocation "${command}" does not carry ${binary}'s required run-permitting policy "${profile.runPermissionTokens.join(" ")}"${mode}. A worker without that policy can stop for approval with nobody at the keyboard. Fix the command or args in .claude/orchestrator.json`)
 }
 
-if (!dryRun) acquireConcurrencyReservation(repoPath)
+if (!dryRun && !existingWorktreeArg) acquireConcurrencyReservation(repoPath)
 const listedWorktrees = orca(["worktree", "list", "--repo", `path:${repoPath}`]).worktrees
 if (!Array.isArray(listedWorktrees)) {
   fail(3, "orca worktree list returned no worktrees array")
@@ -805,7 +829,11 @@ const occupyingWorktrees = listedWorktrees.filter(
     && worktree.git?.isMainWorktree !== true
     && worktree.isArchived !== true,
 )
-if (occupyingWorktrees.length >= maxParallelWorktrees) {
+const maxSlicesPerWorker = config.maxSlicesPerWorker
+if (!Number.isSafeInteger(maxSlicesPerWorker) || maxSlicesPerWorker < 1) {
+  fail(2, ".claude/orchestrator.json must declare maxSlicesPerWorker as a positive integer")
+}
+if (!existingWorktreeArg && occupyingWorktrees.length >= maxParallelWorktrees) {
   const paths = occupyingWorktrees.map((worktree) => worktree.path ?? worktree.git?.path ?? worktree.id)
   fail(
     1,
@@ -815,7 +843,8 @@ if (occupyingWorktrees.length >= maxParallelWorktrees) {
 
 /** Reported in the plan so a dry run shows whether this launch would inject the contract, and a
  * relaunch against an already-injected file is visibly a no-op rather than a silent second copy. */
-const workerContract = readFileSync(promptFile, "utf8").includes(WORKER_CONTRACT_MARKER) ? "already present" : "appended"
+const contractMarker = existingWorktreeArg ? SLICE_CONTRACT_MARKER : WORKER_CONTRACT_MARKER
+const workerContract = readFileSync(promptFile, "utf8").includes(contractMarker) ? "already present" : "appended"
 
 const plan = {
   issue,
@@ -861,7 +890,7 @@ budgetReservation = reserveAutomationBudget(
  * for the relaunch. A dry run resolves this decision but writes nothing. */
 if (workerContract === "appended") {
   try {
-    appendFileSync(promptFile, WORKER_CONTRACT, "utf8")
+    appendFileSync(promptFile, existingWorktreeArg ? SLICE_CONTRACT : WORKER_CONTRACT, "utf8")
   } catch (error) {
     fail(3, `could not append the worker contract to ${promptFile}: ${error.message}`)
   }
@@ -877,6 +906,11 @@ if (existingWorktreeArg) {
   if (!existing || existing.isMainWorktree || existing.isArchived || existing.linkedLinearIssue !== issue) {
     fail(2, `--existing-worktree must be an active Orca worktree linked to ${issue}`)
   }
+  const marker = join(resolve(worktreePath, git(["-C", worktreePath, "rev-parse", "--git-dir"])), "orbit-worker-pids.jsonl")
+  const activeSlices = existsSync(marker)
+    ? readFileSync(marker, "utf8").trim().split(/\r?\n/).filter(Boolean).flatMap((line) => { try { const row = JSON.parse(line); return row.issue === issue && Number.isInteger(row.pid) && (() => { try { process.kill(row.pid, 0); return true } catch (error) { return error.code !== "ESRCH" } })() ? [row] : [] } catch { return [] } })
+    : []
+  if (activeSlices.length >= maxSlicesPerWorker) fail(1, `maxSlicesPerWorker cap ${maxSlicesPerWorker} reached for ${issue}`)
   const branch = git(["-C", worktreePath, "rev-parse", "--abbrev-ref", "HEAD"])
   const workerPid = startHeadlessWorker(worktreePath, branch)
   rollback = null
@@ -938,7 +972,7 @@ while (waitAttempts < MAX_WAIT_ATTEMPTS && !idle) {
    * text from a gate that is long gone and type into the worker's live composer.
    */
   if (wait.satisfied) {
-    if (!busy(terminal)) {
+    if (!terminalIsRepainting(terminal)) {
       idle = true
       break
     }
@@ -1002,14 +1036,14 @@ while (pointerSends < MAX_POINTER_SENDS && !pointerDelivered) {
    * shape that settled once and then fell through to the top of this loop resent into a busy TUI
    * in precisely the case this branch exists to prevent (PR #616 review round 1).
    */
-  painting = !pointerDelivered && busy(terminal)
+  painting = !pointerDelivered && terminalIsRepainting(terminal)
   let settles = 0
   while (painting && settles < MAX_POINTER_SETTLES) {
     settles += 1
     console.error(`the pointer is not on screen and the TUI is painting, so settling instead of sending again (${settles} of ${MAX_POINTER_SETTLES})`)
     pause(SETTLE_MS)
     pointerDelivered = pointerOnScreen()
-    painting = !pointerDelivered && busy(terminal)
+    painting = !pointerDelivered && terminalIsRepainting(terminal)
   }
   /** Still painting past the bound: there is no safe moment to re-send, so this launch is over. */
   if (painting) break

@@ -3,6 +3,7 @@
 import { execFileSync, spawnSync } from "node:child_process"
 import { existsSync, readFileSync } from "node:fs"
 import { join, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
 const ORCA = process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs\\orca\\resources\\bin\\orca"
@@ -24,17 +25,19 @@ const orca = (args) => {
   return payload.result ?? payload
 }
 const alive = (pid) => { try { process.kill(pid, 0); return true } catch (error) { return error.code !== "ESRCH" } }
-const commonDir = (path) => resolve(path, spawnSync("git", ["-C", path, "rev-parse", "--git-common-dir"], { encoding: "utf8" }).stdout.trim())
+const gitDir = (path) => resolve(path, spawnSync("git", ["-C", path, "rev-parse", "--git-dir"], { encoding: "utf8" }).stdout.trim())
 const pidsFor = (path) => {
-  const marker = join(commonDir(path), "orbit-worker-pids.jsonl")
+  const marker = join(gitDir(path), "orbit-worker-pids.jsonl")
   if (!existsSync(marker)) return []
-  return readFileSync(marker, "utf8").trim().split(/\r?\n/).filter(Boolean).flatMap((line) => { try { const row = JSON.parse(line); return Number.isInteger(row.pid) ? [row.pid] : [] } catch { return [] } })
+  return readFileSync(marker, "utf8").trim().split(/\r?\n/).filter(Boolean).flatMap((line) => { try { const row = JSON.parse(line); return row.worktreePath === path && Number.isInteger(row.pid) ? [row.pid] : [] } catch { return [] } })
 }
 const worktrees = orca(["worktree", "list"]).worktrees ?? []
 const report = worktrees.filter((entry) => !entry.isMainWorktree && !entry.isArchived).filter((entry) => !repo || resolve(entry.path).startsWith(resolve(config.repos[repo])) === false || true).map((entry) => {
   const pids = pidsFor(entry.path)
   const workerAlive = pids.some(alive)
-  const status = spawnSync(process.execPath, [WORKER_STATUS.pathname, "--worktree", entry.path, "--issue", entry.linkedLinearIssue, "--json"], { encoding: "utf8" })
+  const status = entry.linkedLinearIssue
+    ? spawnSync(process.execPath, [fileURLToPath(WORKER_STATUS), "--worktree", entry.path, "--issue", entry.linkedLinearIssue, "--base", entry.baseRef ?? "main", "--json"], { encoding: "utf8" })
+    : { status: null }
   return { issue: entry.linkedLinearIssue ?? null, path: entry.path, branch: entry.branch ?? "", liveness: workerAlive ? "BUSY" : "IDLE", workerPids: pids.map((pid) => ({ pid, alive: alive(pid) })), contractExit: status.status }
 })
 if (json) console.log(JSON.stringify({ worktrees: report }, null, 2))

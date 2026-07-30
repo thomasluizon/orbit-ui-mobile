@@ -564,6 +564,7 @@ const orchestratorConfig = (repoPath, worker, engineName, maxParallelWorktrees =
       },
     },
     maxParallelWorktrees,
+    maxSlicesPerWorker: 3,
     attemptsBeforeRewrite: 2,
     linear: { team: "ORB", states: { working: "In Progress", review: "In Review", done: "Done" } },
     repos: { ui: repoPath },
@@ -790,7 +791,8 @@ const REQUIRED_CONTRACT_CLAUSES = {
   "leaving human threads unresolved": /Never resolve a thread opened by a human account/,
   "refusing completion with unresolved threads": /approval with an[\s\S]*unresolved[\s\S]*thread is not done/,
   "watching only its own ticket": /Never watch another[\s\S]*ticket, worktree, or PR/,
-  "arming a monitor that outlives the contract": /Never arm a background monitor/,
+  "arming a detached monitor that outlives the contract": /Never arm a detached background monitor/,
+  "permitting an affordable foreground blocking wait": /foreground blocking wait is permitted/,
   "merging or pushing to main": /Never merge any PR, never push to/,
   "blanket staging that sweeps in a sibling's artifacts": /Stage explicitly[\s\S]*git add -A/,
   "pushing a commit it has not read back": /Verify before pushing[\s\S]*git show --stat HEAD/,
@@ -1670,9 +1672,9 @@ const launchWorkerCases = async () => {
   )
   const codexDeep = check(
     "launch-worker.mjs",
-    "tier:deep selects Sol at high effort and the reserved budget on Codex",
+    "tier:deep selects Sol at high effort with the routine budget on Codex",
     ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
-    { status: 0, stdout: /codex[\s\S]*model_reasoning_effort[\s\S]*high[\s\S]*--model gpt-5\.6-sol[\s\S]*"automationBudget":\s*\{[\s\S]*"tier":\s*"reserved"[\s\S]*"tokenBudget":\s*1000000[\s\S]*"warningTokens":\s*800000[\s\S]*"projectedTokens":\s*250000/ },
+    { status: 0, stdout: /codex[\s\S]*model_reasoning_effort[\s\S]*high[\s\S]*--model gpt-5\.6-sol[\s\S]*"automationBudget":\s*\{[\s\S]*"tier":\s*"routine"[\s\S]*"tokenBudget":\s*1000000[\s\S]*"warningTokens":\s*800000[\s\S]*"projectedTokens":\s*250000/ },
     { path: codex.path, env: orcaEnv(linearIssueStub(["repo:ui", "tier:deep"])) },
   )
   const codexDefaultCommand = codexPlan.status === 0 ? JSON.parse(codexPlan.stdout).command : ""
@@ -1704,11 +1706,7 @@ const launchWorkerCases = async () => {
 
   const headlessCodex = stageLaunchWorker("headless-codex", { ...INTERACTIVE_CODEX, args: ["exec", "--dangerously-bypass-approvals-and-sandbox"], interactive: false }, "codex")
   check("launch-worker.mjs", "accepts codex exec when interactive false agrees with its headless token", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 0, stdout: /codex exec/ }, { path: headlessCodex.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
-  const headlessLauncherSource = readFileSync(join(TOOLS_DIR, "launch-worker.mjs"), "utf8")
-  T("launch-worker.mjs: contract permits foreground waits but forbids detached ones", /foreground blocking[\s\S]*detached background/.test(headlessLauncherSource), "worker contract must distinguish a foreground blocking wait from a detached watcher")
-  T("launch-worker.mjs: contract preserves STOP over watch", headlessLauncherSource.includes("STOP wins"), "worker contract must retain the STOP tiebreaker")
-  T("launch-worker.mjs: contract names every admin-merge bypass", headlessLauncherSource.includes("gh pr merge --admin") && headlessLauncherSource.includes("PUT /repos/{owner}/{repo}/pulls/{number}/merge") && headlessLauncherSource.includes("mergePullRequest"), "worker contract must name CLI, REST, and GraphQL admin merge paths")
-  return
+  check("launch-worker.mjs", "rejects a headless declaration without a headless token", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /has no known headless token/ }, { path: stageLaunchWorker("headless-without-token", { ...INTERACTIVE_CODEX, interactive: false }, "codex").path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
   const unknownEngine = stageLaunchWorker("unknown-engine", { command: "aider", args: [], models: CLAUDE_MODELS, interactive: true }, "aider")
   check("launch-worker.mjs", "refuses an engine with no quota reader rather than waving it through", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /has no quota reader/ }, { path: unknownEngine.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
@@ -1732,7 +1730,7 @@ const launchWorkerCases = async () => {
 
   const appendFailure = stageLaunchWorker("contract-append-failure", INTERACTIVE_WORKER)
   const appendFailureSource = readFileSync(appendFailure.path, "utf8")
-  const appendCall = 'appendFileSync(promptFile, WORKER_CONTRACT, "utf8")'
+  const appendCall = 'appendFileSync(promptFile, existingWorktreeArg ? SLICE_CONTRACT : WORKER_CONTRACT, "utf8")'
   if (!appendFailureSource.includes(appendCall)) {
     throw new Error("launch-worker fixture could not locate the worker-contract append")
   }
@@ -1909,8 +1907,8 @@ process.stdout.write(JSON.stringify(await Promise.all([first, second])))
       "launch-worker.mjs: concurrent launchers share one atomic pre-worktree reservation",
       concurrentResult.status === 0 &&
         concurrentOutcomes[0]?.status === 0 &&
-        concurrentOutcomes[1]?.status === 3 &&
-        /lack input or output tokens/.test(concurrentOutcomes[1]?.stderr ?? "") &&
+        concurrentOutcomes[1]?.status === 4 &&
+        /blocked:/.test(concurrentOutcomes[1]?.stderr ?? "") &&
         createdWorktree(firstCalls) &&
         !createdWorktree(secondCalls) &&
         concurrentRecords.length === 1 &&
@@ -1939,11 +1937,10 @@ process.stdout.write(JSON.stringify(await Promise.all([first, second])))
     ? readFileSync(reservedLog, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
     : []
   T(
-    "launch-worker.mjs: tier:deep uses its reserved tier and 250000-token projection",
-    reservedResult.status === 3 &&
-      /reserved invocation[\s\S]*proceeds with 1200000 projected tokens/.test(reservedResult.stderr) &&
-      /worktree create[\s\S]*failed: stop after reserved budget/.test(reservedResult.stderr) &&
-      reservedCalls.some((argumentsList) => argumentsList[0].split(/[\\/]/).pop() === "worktree" && argumentsList[1] === "create"),
+    "launch-worker.mjs: tier:deep is blocked by the routine token budget before worktree creation",
+    reservedResult.status === 4 &&
+      /blocked:[\s\S]*projected spend 1200000 tokens/.test(reservedResult.stderr) &&
+      !reservedCalls.some((argumentsList) => argumentsList[0].split(/[\\/]/).pop() === "worktree" && argumentsList[1] === "create"),
     `exit ${reservedResult.status}\n     ${reservedResult.stderr}\n     ${reservedCalls}`,
   )
 
@@ -5195,15 +5192,15 @@ const automationBudgetCases = () => {
       .map((value) => value === "routine" ? "reserved" : value),
   )
   T(
-    "automation-budget.mjs: a reserved deep invocation may consume the exact remaining token budget",
+    "automation-budget.mjs: an invocation may consume the exact remaining token budget",
     exactBudget.status === 0 && /warning[\s\S]*1000 tokens/.test(exactBudget.stderr),
     `exit ${exactBudget.status}\n     stdout: ${exactBudget.stdout}\n     stderr: ${exactBudget.stderr}`,
   )
   check(
     "automation-budget.mjs",
-    "explicitly reserved deep work proceeds beyond the routine token budget",
+    "every invocation blocks when it exceeds the token budget",
     checkArgs("deep-over-budget", ledgerBlock, 250, ["--json"]).map((value) => value === "routine" ? "reserved" : value),
-    { status: 0, stdout: /"status":"RESERVED"[\s\S]*"projectedTokens":1151/, stderr: /reserved invocation[\s\S]*proceeds with 1151 projected tokens[\s\S]*budget 1000 tokens/ },
+    { status: 4, stdout: /"status":"BLOCK"[\s\S]*"projectedTokens":1151/, stderr: /blocked:[\s\S]*projected spend 1151 tokens/ },
   )
 
   check(
@@ -5304,13 +5301,12 @@ const automationBudgetCases = () => {
   )
   check(
     "automation-budget.mjs",
-    "explicitly reserved deep work proceeds with a warning while another measurement is absent",
+    "an unmeasured record still fails closed for every invocation tier",
     checkArgs("reserved-after-pending", pendingLedger, 100, ["--json"])
       .map((value) => value === "routine" ? "reserved" : value),
     {
-      status: 0,
-      stdout: /"status":"RESERVED"[\s\S]*"missingIdentities":\["pending-invocation"\]/,
-      stderr: /warning: reserved invocation "reserved-after-pending" proceeds[\s\S]*missing measurements for identities pending-invocation/,
+      status: 3,
+      stderr: /lack input or output tokens[\s\S]*pending-invocation/,
     },
   )
   const correctedLedger = stage(
@@ -5340,7 +5336,7 @@ const automationBudgetCases = () => {
     {
       status: 0,
       stdout:
-        /"engine":"claude","inputTokens":400,"outputTokens":250,"totalTokens":650,"routineTokens":500,"reservedTokens":150,"missingIdentities":\["report-pending"\],"windowStart":"2030-01-01T00:00:00.000Z","resetsAt":"2030-01-08T00:00:00.000Z"/,
+        /"engine":"claude","inputTokens":400,"outputTokens":250,"totalTokens":650,"routineTokens":500,"reservedTokens":150,"pendingTokens":0,"missingIdentities":\["report-pending"\],"windowStart":"2030-01-01T00:00:00.000Z","resetsAt":"2030-01-08T00:00:00.000Z"/,
     },
   )
   check(

@@ -10,7 +10,7 @@ const DEFAULT_LEDGER_PATH = resolve(homedir(), ".orbit", "automation-budget.json
 const USAGE = `usage:
   automation-budget.mjs check --engine <claude|codex> --identity <id> --tier <routine|reserved> --reset-at <timestamp> --warning-tokens <count> --budget-tokens <count> --invocation-tokens <count> [--ledger <path>] [--json]
   automation-budget.mjs reserve --engine <claude|codex> --identity <id> --tier <routine|reserved> --started-at <timestamp> --ended-at <timestamp> --reset-at <timestamp> --warning-tokens <count> --budget-tokens <count> --invocation-tokens <count> [--account-used-percent <percent> --account-observed-at <timestamp>] [--ledger <path>] [--json]
-  automation-budget.mjs record --identity <id> --engine <claude|codex> --tier <routine|reserved> --started-at <timestamp> --ended-at <timestamp> [--input-tokens <count>] [--output-tokens <count>] [--provider-estimated-cost <amount>] [--account-used-percent <percent> --account-observed-at <timestamp>] [--ledger <path>] [--json]
+  automation-budget.mjs record --identity <id> --engine <claude|codex> --tier <routine|reserved> --started-at <timestamp> --ended-at <timestamp> [--input-tokens <count> --cached-input-tokens <count>] [--output-tokens <count>] [--provider-estimated-cost <amount>] [--account-used-percent <percent> --account-observed-at <timestamp>] [--ledger <path>] [--json]
   automation-budget.mjs cancel --identity <id> --engine <claude|codex> --tier <routine|reserved> --started-at <timestamp> --ended-at <timestamp> [--ledger <path>] [--json]
   automation-budget.mjs report --engine <claude|codex> --reset-at <timestamp> [--ledger <path>] [--json]
 
@@ -21,12 +21,14 @@ const USAGE = `usage:
   report         print one engine's current seven-day token totals and missing identities
   --identity     stable identity for the invocation
   --engine       quota pool charged by the invocation; engines are never combined
-  --tier         routine automation or explicitly reserved deep work
+  --tier         routine automation; legacy reserved ledger rows remain readable
   --started-at   invocation start as ISO-8601 with a timezone, or Unix seconds
   --ended-at     invocation end as ISO-8601 with a timezone, or Unix seconds
   --input-tokens measured provider input tokens; omitted while measurement is unavailable
   --output-tokens
                   measured provider output tokens; omitted while measurement is unavailable
+  --cached-input-tokens
+                  provider cache-read input tokens, retained with the raw provider measurement
   --provider-estimated-cost
                   optional provider-estimated monetary cost; reporting context only
   --account-used-percent
@@ -44,9 +46,8 @@ const USAGE = `usage:
   --json         emit the command result as JSON; without it check and record are quiet on success
   --help, -h     print this usage and exit 0
 
-The fuse blocks routine automation when measured input plus output tokens and the proposed
-reservation would exceed the token budget. Explicitly reserved deep work proceeds beyond the
-routine budget with RESERVED status and a warning carrying the budget figures. The fuse fails
+The fuse blocks automation when measured input plus output tokens and the proposed reservation
+would exceed the token budget. The fuse fails
 closed when the latest in-window record for any identity lacks either token measurement.
 Duplicate identities are append-only; the latest in-window record is authoritative. A cancelled
 pending invocation contributes no tokens. Account usage percentage and estimated cost are context
@@ -94,6 +95,7 @@ const parseArguments = (argumentsList) => {
       "--started-at",
       "--ended-at",
       "--input-tokens",
+      "--cached-input-tokens",
       "--output-tokens",
       "--provider-estimated-cost",
       "--account-used-percent",
@@ -349,6 +351,10 @@ const validateRecord = (record, lineNumber) => {
   if (hasOwn(record, "inputTokens")) {
     validated.inputTokens = parseTokenCount(record.inputTokens, `${prefix} inputTokens`, 3)
   }
+  if (hasOwn(record, "cachedInputTokens")) {
+    validated.cachedInputTokens = parseTokenCount(record.cachedInputTokens, `${prefix} cachedInputTokens`, 3)
+    if (!hasOwn(record, "inputTokens") || validated.cachedInputTokens > validated.inputTokens) fail(`${prefix} cachedInputTokens must not exceed inputTokens`, 3)
+  }
   if (hasOwn(record, "outputTokens")) {
     validated.outputTokens = parseTokenCount(record.outputTokens, `${prefix} outputTokens`, 3)
   }
@@ -485,12 +491,6 @@ const emitBudgetResult = (result, json) => {
   if (status === "WARN") {
     console.error(`automation-budget: warning: invocation "${identity}" projects ${projectedTokens} tokens; warning ${warningTokens} tokens, budget ${budgetTokens} tokens, observed spend ${totalTokens} tokens`)
   }
-  if (status === "RESERVED" && (projectedTokens >= warningTokens || missingIdentities.length > 0)) {
-    const missingContext = missingIdentities.length > 0
-      ? `, missing measurements for identities ${missingIdentities.join(", ")}`
-      : ""
-    console.error(`automation-budget: warning: reserved invocation "${identity}" proceeds with ${projectedTokens} projected tokens; warning ${warningTokens} tokens, budget ${budgetTokens} tokens, observed spend ${totalTokens} tokens, reservation ${invocationTokens} tokens${missingContext}`)
-  }
 }
 
 const budgetFlags = new Set([
@@ -570,6 +570,7 @@ const runRecord = (values, json) => {
     "--started-at",
     "--ended-at",
     "--input-tokens",
+    "--cached-input-tokens",
     "--output-tokens",
     "--provider-estimated-cost",
     "--account-used-percent",
@@ -588,6 +589,10 @@ const runRecord = (values, json) => {
   }
   if (values.has("--input-tokens")) {
     record.inputTokens = parseTokenCount(values.get("--input-tokens"), "--input-tokens")
+  }
+  if (values.has("--cached-input-tokens")) {
+    record.cachedInputTokens = parseTokenCount(values.get("--cached-input-tokens"), "--cached-input-tokens")
+    if (!hasOwn(record, "inputTokens") || record.cachedInputTokens > record.inputTokens) fail(`--cached-input-tokens requires --input-tokens and cannot exceed it`, 2)
   }
   if (values.has("--output-tokens")) {
     record.outputTokens = parseTokenCount(values.get("--output-tokens"), "--output-tokens")

@@ -6,7 +6,7 @@
  */
 
 import { execFileSync, spawnSync } from "node:child_process"
-import { existsSync, readFileSync } from "node:fs"
+import { existsSync, readFileSync, unlinkSync } from "node:fs"
 import { join, resolve } from "node:path"
 
 
@@ -113,7 +113,7 @@ const branch = (worktree.branch ?? git(path, ["rev-parse", "--abbrev-ref", "HEAD
 const base = requestedBase ?? worktree.baseRef ?? "main"
 const dirty = git(path, ["status", "--short"]).split("\n").filter(Boolean)
 const terminals = (orca(["terminal", "list"]).terminals ?? []).filter((terminal) => normalize(terminal.worktreePath) === normalize(path))
-const workerMarker = join(resolve(path, git(path, ["rev-parse", "--git-common-dir"])), "orbit-worker-pids.jsonl")
+const workerMarker = join(resolve(path, git(path, ["rev-parse", "--git-dir"])), "orbit-worker-pids.jsonl")
 const workerPids = existsSync(workerMarker)
   ? readFileSync(workerMarker, "utf8").trim().split(/\r?\n/).filter(Boolean).flatMap((line) => { try { const row = JSON.parse(line); return Number.isInteger(row.pid) ? [row.pid] : [] } catch { return [] } })
   : []
@@ -194,6 +194,9 @@ if (branchExists) {
 }
 const branchRemaining = gitCommon(["show-ref", "--verify", "--quiet", `refs/heads/${branch}`], { allowFailure: true }) !== null
 if (branchRemaining) fail(1, `removed worktree but local branch ${branch} still exists`)
+if (existsSync(workerMarker)) {
+  try { unlinkSync(workerMarker) } catch (error) { fail(3, `could not prune worker PID marker ${workerMarker}: ${error.message}`) }
+}
 console.log(`REMOVED worktree ${path}`)
 console.log(`REMOVED terminals for ${path}`)
 console.log(`REMOVED local branch ${branch}`)

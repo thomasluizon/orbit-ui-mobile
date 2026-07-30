@@ -79,6 +79,7 @@
     }
   },
   "maxParallelWorktrees": 4,
+  "maxSlicesPerWorker": 3,
   "attemptsBeforeRewrite": 2,
   "linear": {
     "team": "ORB",
