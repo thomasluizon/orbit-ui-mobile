@@ -1043,6 +1043,7 @@ const pointerDeliveryCases = () => {
       never.records[1]?.identity === never.records[0]?.identity &&
       never.records[1]?.cancelled !== true &&
       never.records[1]?.pending !== true &&
+      never.records[1]?.completed === true &&
       !Object.hasOwn(never.records[1] ?? {}, "inputTokens") &&
       !Object.hasOwn(never.records[1] ?? {}, "outputTokens"),
     JSON.stringify(never.records),
@@ -1082,6 +1083,7 @@ const pointerDeliveryCases = () => {
       busyThroughout.records[1]?.identity === busyThroughout.records[0]?.identity &&
       busyThroughout.records[1]?.cancelled !== true &&
       busyThroughout.records[1]?.pending !== true &&
+      busyThroughout.records[1]?.completed === true &&
       !Object.hasOwn(busyThroughout.records[1] ?? {}, "inputTokens") &&
       !Object.hasOwn(busyThroughout.records[1] ?? {}, "outputTokens"),
     JSON.stringify(busyThroughout.records),
@@ -5165,6 +5167,7 @@ const automationBudgetCases = () => {
   const recordedLedger = stage(
     "budget/recorded-2026-07-29.jsonl",
     `${budgetRecord("ORB-157:2026-07-29T05:16:00.000Z:recorded", undefined, undefined, "routine", "claude", {
+      completed: true,
       accountContext: {
         scope: "account",
         attributed: false,
@@ -5182,6 +5185,13 @@ const automationBudgetCases = () => {
       stdout: /"status":"PROCEED"[\s\S]*"totalTokens":0[\s\S]*"unknownIdentities":\["ORB-157:2026-07-29T05:16:00.000Z:recorded"\]/,
       stderr: /warning:[\s\S]*1 completed invocation[\s\S]*unmeasured[\s\S]*fuse cannot see its spend/,
     },
+  )
+  const legacyLedger = stage("budget/legacy-unmarked.jsonl", `${budgetRecord("legacy-unmarked")}\n`)
+  check(
+    "automation-budget.mjs",
+    "a legacy unmarked reservation fails closed until it receives a terminal record",
+    checkArgs("after-legacy", legacyLedger),
+    { status: 3, stderr: /pending reservations lack input or output tokens[\s\S]*legacy-unmarked/ },
   )
   const pendingLedger = stage("budget/pending.jsonl", `${budgetRecord("pending-invocation", undefined, undefined, "routine", "claude", { pending: true })}\n`)
   check(
@@ -5218,7 +5228,7 @@ const automationBudgetCases = () => {
       budgetRecord("report-routine", 300, 200),
       budgetRecord("report-reserved", 100, 50, "reserved"),
       budgetRecord("report-pending", undefined, undefined, "routine", "claude", { pending: true }),
-      budgetRecord("report-unknown", undefined, undefined),
+      budgetRecord("report-unknown", undefined, undefined, "routine", "claude", { completed: true }),
       "",
     ].join("\n"),
   )

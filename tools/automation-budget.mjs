@@ -349,6 +349,14 @@ const validateRecord = (record, lineNumber) => {
     }
     validated.pending = true
   }
+  if (hasOwn(record, "completed")) {
+    if (record.completed !== true) fail(`${prefix} completed must be true when present`, 3)
+    if (validated.pending === true) fail(`${prefix} completed record must not also be pending`, 3)
+    if (hasOwn(record, "inputTokens") || hasOwn(record, "outputTokens")) {
+      fail(`${prefix} completed record must not carry token measurements`, 3)
+    }
+    validated.completed = true
+  }
   if (hasOwn(record, "inputTokens")) {
     validated.inputTokens = parseTokenCount(record.inputTokens, `${prefix} inputTokens`, 3)
   }
@@ -419,8 +427,8 @@ const summarize = (records, engine, resetAt) => {
   for (const record of latestByIdentity.values()) {
     if (record.cancelled === true) continue
     if (!hasOwn(record, "inputTokens") || !hasOwn(record, "outputTokens")) {
-      if (record.pending === true) pendingIdentities.push(record.identity)
-      else unknownIdentities.push(record.identity)
+      if (record.completed === true) unknownIdentities.push(record.identity)
+      else pendingIdentities.push(record.identity)
       continue
     }
     inputTokens += record.inputTokens
@@ -604,6 +612,7 @@ const runRecord = (values, json) => {
   if (values.has("--provider-estimated-cost")) {
     record.providerEstimatedCost = parseNonNegativeNumber(values.get("--provider-estimated-cost"), "--provider-estimated-cost")
   }
+  if (!values.has("--input-tokens") && !values.has("--output-tokens")) record.completed = true
   const hasAccountPercent = values.has("--account-used-percent")
   const hasAccountTimestamp = values.has("--account-observed-at")
   if (hasAccountPercent !== hasAccountTimestamp) {
