@@ -22,7 +22,7 @@ Every change lands in BOTH `apps/web` AND `apps/mobile` in the same task: logic,
 
 ## Code standards
 
-Seven judgement rules, applied everywhere. The mechanically checkable standards (no `any`, no `console.log`, the comment policy, the dash and copy bans) are enforced by ESLint `local/*`, the `guards.yml` jobs, and Roslyn `ORBIT0001..0005` in orbit-api. Trust them rather than re-checking by eye.
+Eight judgement rules, applied everywhere. The mechanically checkable standards (no `any`, no `console.log`, the comment policy, the dash and copy bans) are enforced by ESLint `local/*`, the `guards.yml` jobs, and Roslyn `ORBIT0001..0005` in orbit-api. Trust them rather than re-checking by eye.
 
 1. **Root cause over workarounds.** No fallbacks or defensive branches for a problem that belongs to an upstream config, type, or util. A genuinely unavoidable workaround gets a one-line WHY comment linking the issue.
 2. **Delete unused code immediately.** No "just in case" exports, dead branches, or stub functions.
@@ -31,6 +31,7 @@ Seven judgement rules, applied everywhere. The mechanically checkable standards 
 5. **Error handling at boundaries only.** Validate at trust boundaries (user input, external APIs); inside, trust your types. Never swallow errors silently.
 6. **Naming.** Descriptive, no abbreviations, never `data`/`info`/`stuff`/`temp`/`obj`/`helper`/`util` as a final name.
 7. **DRY at the right level.** Cross-app duplication goes to `packages/shared`; cross-component to `apps/<platform>/components/`; don't lift to shared for one caller.
+8. **Never assume an external interface.** Confirm any field, flag, exit code, or response shape from a CLI, API, or library you didn't write by reading the real response or the installed source. Not memory, not `--help`, not what it should obviously be. Never write the fixture that agrees with a guess. Can't confirm it? Don't read it.
 
 ## Security & contracts
 
