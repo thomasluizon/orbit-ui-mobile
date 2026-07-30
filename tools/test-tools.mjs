@@ -346,6 +346,33 @@ process.exit(9)
 `,
 )
 chmodSync(MERGE_SWEEP_GH, 0o755)
+const MERGE_SWEEP_ORCA = stage(
+  "merge-sweep-bin/orca",
+  `#!/usr/bin/env node
+const { appendFileSync } = require("node:fs")
+const argv = process.argv.slice(2)
+appendFileSync(process.env.ORBIT_MERGE_SWEEP_LOG, JSON.stringify(["orca", ...argv]) + "\\n")
+if (argv[0] === "linear" && argv[1] === "issue") {
+  const { existsSync, readFileSync, writeFileSync } = require("node:fs")
+  const reads = process.env.ORBIT_MERGE_SWEEP_LOG + ".linear-reads"
+  const readNumber = existsSync(reads) ? Number(readFileSync(reads, "utf8")) + 1 : 1
+  writeFileSync(reads, String(readNumber))
+  if (readNumber === 1 && process.env.ORBIT_MERGE_SWEEP_LINEAR_LOOKUP_FAILURE) process.exit(7)
+  if (readNumber > 1 && process.env.ORBIT_MERGE_SWEEP_LINEAR_REASSERT_LOOKUP_FAILURE) process.exit(7)
+  const states = process.env.ORBIT_MERGE_SWEEP_LINEAR_STATES.split(",")
+  const state = states[readNumber - 1] || states.at(-1)
+  process.stdout.write(JSON.stringify({ ok: true, result: { issue: { state: { name: state } } } }))
+  process.exit(0)
+}
+if (argv[0] === "linear" && argv[1] === "status" && argv[2] === "set") {
+  if (process.env.ORBIT_MERGE_SWEEP_LINEAR_REASSERT_FAILURE) process.exit(7)
+  process.stdout.write(JSON.stringify({ ok: true, result: { issue: { id: "issue-150", identifier: "ORB-150", url: "https://linear.app/orbit/issue/ORB-150" }, state: { id: "state-review", name: "In Review", type: "started" }, previousState: { id: "state-progress", name: "In Progress", type: "started" }, meta: {} } }))
+  process.exit(0)
+}
+process.exit(9)
+`,
+)
+chmodSync(MERGE_SWEEP_ORCA, 0o755)
 const MERGE_SWEEP_BASH_ENV = stage("merge-sweep-bin/bash-env", "sleep() { :; }\n")
 
 const mergeSweepEnv = ({
@@ -365,6 +392,12 @@ const mergeSweepEnv = ({
   inlineItems = "inline-reviewer\t2026-07-27T22:00:00Z\ninline-reviewer\t2026-07-27T22:00:00Z",
   inlineLookupFailure = false,
   inlinePageTwo = "",
+  linearLookupFailure = false,
+  linearState = "In Review",
+  linearReassertLookupFailure = false,
+  linearReassertFailure = false,
+  linearReassertState = linearState,
+  linearPostWriteState = "In Review",
   moveAtMerge = false,
   postMergeActivity = "",
   postMergeReviewsLookupFailure = false,
@@ -402,6 +435,11 @@ const mergeSweepEnv = ({
   ORBIT_MERGE_SWEEP_INLINE_LOOKUP_FAILURE: inlineLookupFailure ? "1" : "",
   ORBIT_MERGE_SWEEP_INLINE_PAGE_TWO: inlinePageTwo,
   ORBIT_MERGE_SWEEP_LOG: log,
+  ORBIT_MERGE_SWEEP_LINEAR_LOOKUP_FAILURE: linearLookupFailure ? "1" : "",
+  ORBIT_MERGE_SWEEP_LINEAR_REASSERT_LOOKUP_FAILURE: linearReassertLookupFailure ? "1" : "",
+  ORBIT_MERGE_SWEEP_LINEAR_REASSERT_FAILURE: linearReassertFailure ? "1" : "",
+  ORBIT_MERGE_SWEEP_LINEAR_STATES: `${linearState},${linearReassertState},${linearPostWriteState}`,
+  ORCA_BIN: MERGE_SWEEP_ORCA,
   ORBIT_MERGE_SWEEP_MOVE_MARKER: moveAtMerge ? `${log}.moved` : "",
   ORBIT_MERGE_SWEEP_POST_MERGE_ACTIVITY: postMergeActivity,
   ORBIT_MERGE_SWEEP_POST_MERGE_FAILURE_PR: "615",
@@ -3895,6 +3933,12 @@ const mergeSweepCliFlagCases = () => {
     `scanned ${scanned.length} files; missing: ${filenames.filter((filename) => !scanned.some((entry) => entry.filename === filename)).join(", ")}`,
   )
   for (const { filename, source } of scanned) {
+    T(
+      `${filename}: defaults to the configured Windows Orca executable while allowing an override`,
+      source.includes('ORCA_BIN="${ORCA_BIN:-C:\\Users\\thoma\\AppData\\Local\\Programs\\orca\\resources\\bin\\orca}"') &&
+        source.includes('"$ORCA_BIN" linear issue "$issue" --json'),
+      "merge sweeps must use the configured Orca executable when ORCA_BIN is unset",
+    )
     const ghApiInvocations = source
       .replace(/\\\r?\n/g, " ")
       .split(/\r?\n/)
@@ -3919,6 +3963,19 @@ const mergeSweepCliFlagCases = () => {
       adoptionHelpers.every(({ helper }) => helper === adoptionHelpers[0].helper),
     adoptionHelpers.map(({ filename, helper }) => `${filename}: ${helper.length} bytes`).join("\n     "),
   )
+  for (const name of ["ensure_issue_in_review", "linear_state", "commit_linear_reassertion"]) {
+    const helpers = scanned.map(({ filename, source }) => ({
+      filename,
+      helper: source.match(new RegExp(`^${name}\\(\\).*?^}\\r?$`, "ms"))?.[0] ?? "",
+    }))
+    T(
+      `merge sweep ${name} helper stays in lockstep`,
+      helpers.length === filenames.length &&
+        helpers.every(({ helper }) => helper.length > 0) &&
+        helpers.every(({ helper }) => helper === helpers[0].helper),
+      helpers.map(({ filename, helper }) => `${filename}: ${helper.length} bytes`).join("\n     "),
+    )
+  }
 }
 
 const mergeSweepCases = (file) => {
@@ -3927,7 +3984,16 @@ const mergeSweepCases = (file) => {
   const reviewedThrough = "2026-07-28T00:00:00Z"
   const newerReviewTime = "2026-07-28T00:00:01Z"
   const coverageAware = file === "merge-sweep-cov.sh"
-  const reviewedArgs = ["--expected-head", `615=${expectedHead}`, "--reviewed-through", `615=${reviewedThrough}`, "thomasluizon/orbit-ui-mobile", "615"]
+  for (const [label, args, stderr] of [
+    ["requires a value for --issue", ["--issue"], /--issue requires <pr-number>=<ORB-N>/],
+    ["rejects a malformed issue mapping", ["--issue", "615=150", "thomasluizon/orbit-ui-mobile", "615"], /issue mappings must be <pr-number>=<ORB-N>, got: 615=150/],
+    ["rejects a non-numeric issue mapping PR", ["--issue", "not-615=ORB-150", "thomasluizon/orbit-ui-mobile", "615"], /issue mapping PR must be a number, got: not-615/],
+    ["rejects a duplicate issue mapping", ["--issue", "615=ORB-150", "--issue", "615=ORB-151", "thomasluizon/orbit-ui-mobile", "615"], /duplicate issue mapping for PR 615/],
+    ["requires an issue mapping for every swept PR", ["thomasluizon/orbit-ui-mobile", "615"], /issue mapping is required for PR 615/],
+  ]) {
+    check(file, label, args, { status: 2, stderr })
+  }
+  const reviewedArgs = ["--expected-head", `615=${expectedHead}`, "--reviewed-through", `615=${reviewedThrough}`, "--issue", "615=ORB-150", "thomasluizon/orbit-ui-mobile", "615"]
   const matchedLog = join(root, `${file}-matched.log`)
   const matched = run(file, reviewedArgs, {
     env: mergeSweepEnv({
@@ -3949,6 +4015,107 @@ const mergeSweepCases = (file) => {
       matchedMerge[matchedHeadFlag + 1] === expectedHead &&
       (!coverageAware || matchedMerge.includes("--admin")),
     `exit ${matched.status}\n     stdout: ${matched.stdout.trim()}\n     stderr: ${matched.stderr.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(matchedLog))}`,
+  )
+
+  const linearCalls = (log) => mergeSweepCalls(log).filter(([group, ...argv]) => group === "orca" && argv[0] === "linear")
+  T(
+    `${file}: an In Review issue is freshly read without a rewrite`,
+    linearCalls(matchedLog).filter(([, linear, command]) => linear === "linear" && command === "issue").length === 1 &&
+      !linearCalls(matchedLog).some(([, linear, command, action]) => linear === "linear" && command === "status" && action === "set"),
+    `calls: ${JSON.stringify(linearCalls(matchedLog))}`,
+  )
+
+  const regressedLog = join(root, `${file}-linear-regressed.log`)
+  const regressed = run(file, reviewedArgs, {
+    env: mergeSweepEnv({ head: expectedHead, linearState: "In Progress", log: regressedLog, sonar: coverageAware ? "coverage-failure" : "success", state: coverageAware ? "BLOCKED" : "CLEAN" }),
+  })
+  const regressedCalls = linearCalls(regressedLog)
+  T(
+    `${file}: a regressed issue is reasserted and recorded after merging`,
+    regressed.status === 0 && /LINEAR-STATE-REASSERTED issue=ORB-150 observed=In Progress at=\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ/.test(regressed.stdout) &&
+      regressedCalls.filter(([, linear, command]) => linear === "linear" && command === "issue").length === 3 &&
+      regressedCalls.some(([, linear, command, action, issue, to, stateName]) => linear === "linear" && command === "status" && action === "set" && issue === "ORB-150" && to === "--to" && stateName === "In Review") &&
+      mergeSweepCalls(regressedLog).some(([group, command]) => group === "pr" && command === "merge"),
+    `exit ${regressed.status}\n     stdout: ${regressed.stdout.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(regressedLog))}`,
+  )
+
+  const skippedReassertion = (label, reassertState) => {
+    const log = join(root, `${file}-${label}.log`)
+    const result = run(file, reviewedArgs, {
+      env: mergeSweepEnv({ head: expectedHead, linearState: "In Progress", linearReassertState: reassertState, log, sonar: coverageAware ? "coverage-failure" : "success", state: coverageAware ? "BLOCKED" : "CLEAN" }),
+    })
+    const calls = linearCalls(log)
+    T(
+      `${file}: a post-merge ${reassertState} state is left unchanged and recorded`,
+      result.status === 0 && new RegExp(`LINEAR-STATE-REASSERT-SKIPPED issue=ORB-150 observed=${reassertState} at=\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\dZ`).test(result.stdout) &&
+        calls.filter(([, linear, command]) => linear === "linear" && command === "issue").length === 2 &&
+        !calls.some(([, linear, command, action]) => linear === "linear" && command === "status" && action === "set"),
+      `exit ${result.status}\n     stdout: ${result.stdout.trim()}\n     calls: ${JSON.stringify(calls)}`,
+    )
+  }
+  skippedReassertion("Done-after-merge", "Done")
+  skippedReassertion("unknown-after-merge", "Blocked")
+
+  const postWriteDisagreementLog = join(root, `${file}-post-write-disagreement.log`)
+  const postWriteDisagreement = run(file, reviewedArgs, {
+    env: mergeSweepEnv({ head: expectedHead, linearState: "In Progress", linearReassertState: "In Progress", linearPostWriteState: "Done", log: postWriteDisagreementLog, sonar: coverageAware ? "coverage-failure" : "success", state: coverageAware ? "BLOCKED" : "CLEAN" }),
+  })
+  T(
+    `${file}: a post-write state disagreement is left unchanged and recorded`,
+    postWriteDisagreement.status === 0 && /LINEAR-STATE-REASSERT-POST-WRITE-SKIPPED issue=ORB-150 observed=Done pre-write=In Progress/.test(postWriteDisagreement.stdout) &&
+      linearCalls(postWriteDisagreementLog).filter(([, linear, command, action]) => linear === "linear" && command === "status" && action === "set").length === 1,
+    `exit ${postWriteDisagreement.status}\n     stdout: ${postWriteDisagreement.stdout.trim()}\n     calls: ${JSON.stringify(linearCalls(postWriteDisagreementLog))}`,
+  )
+
+  const linearRefusal = (label, envOptions, output) => {
+    const log = join(root, `${file}-${label}.log`)
+    const result = run(file, reviewedArgs, {
+      env: mergeSweepEnv({ head: expectedHead, log, sonar: coverageAware ? "coverage-failure" : "success", state: coverageAware ? "BLOCKED" : "CLEAN", ...envOptions }),
+    })
+    const calls = mergeSweepCalls(log)
+    T(
+      `${file}: ${label} refuses the merge`,
+      result.status === 0 && output.test(result.stdout) && !calls.some(([group, command]) => group === "pr" && command === "merge"),
+      `exit ${result.status}\n     stdout: ${result.stdout.trim()}\n     calls: ${JSON.stringify(calls)}`,
+    )
+  }
+  linearRefusal("a failing Linear lookup", { linearLookupFailure: true }, /LINEAR-STATE-REFUSED issue=ORB-150 reason=lookup-failed/)
+  const reassertFailureLog = join(root, `${file}-failed-Linear-reassert.log`)
+  const reassertFailure = run(file, reviewedArgs, {
+    env: mergeSweepEnv({ head: expectedHead, linearReassertFailure: true, linearState: "In Progress", log: reassertFailureLog, sonar: coverageAware ? "coverage-failure" : "success", state: coverageAware ? "BLOCKED" : "CLEAN" }),
+  })
+  T(
+    `${file}: a failed post-merge Linear reassert reports the failure`,
+    reassertFailure.status === 4 && /POST-MERGE-LINEAR-STATE-REASSERT-FAILED issue=ORB-150 observed=In Progress at=\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ/.test(reassertFailure.stdout),
+    `exit ${reassertFailure.status}\n     stdout: ${reassertFailure.stdout.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(reassertFailureLog))}`,
+  )
+  const reassertReadFailureLog = join(root, `${file}-failed-Linear-reassert-read.log`)
+  const reassertReadFailure = run(file, reviewedArgs, {
+    env: mergeSweepEnv({ head: expectedHead, linearReassertLookupFailure: true, linearState: "In Progress", log: reassertReadFailureLog, sonar: coverageAware ? "coverage-failure" : "success", state: coverageAware ? "BLOCKED" : "CLEAN" }),
+  })
+  T(
+    `${file}: a failed post-merge Linear re-read reports the failure`,
+    reassertReadFailure.status === 4 && /POST-MERGE-LINEAR-STATE-REASSERT-FAILED issue=ORB-150 observed=In Progress at=\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ/.test(reassertReadFailure.stdout) &&
+      !linearCalls(reassertReadFailureLog).some(([, linear, command, action]) => linear === "linear" && command === "status" && action === "set"),
+    `exit ${reassertReadFailure.status}\n     stdout: ${reassertReadFailure.stdout.trim()}\n     calls: ${JSON.stringify(linearCalls(reassertReadFailureLog))}`,
+  )
+  linearRefusal("an unknown Linear state", { linearState: "Done" }, /LINEAR-STATE-REFUSED issue=ORB-150 observed=Done reason=unknown-state/)
+
+  const finalReadLog = join(root, `${file}-linear-final-read.log`)
+  const finalRead = run(file, reviewedArgs, {
+    env: mergeSweepEnv({ head: expectedHead, log: finalReadLog, sonar: coverageAware ? "coverage-failure" : "success", state: coverageAware ? "BLOCKED" : "CLEAN" }),
+  })
+  const finalReadCalls = mergeSweepCalls(finalReadLog)
+  const issueReadIndex = finalReadCalls.findIndex(([group, linear, command]) => group === "orca" && linear === "linear" && command === "issue")
+  const mergeIndex = finalReadCalls.findIndex(([group, command]) => group === "pr" && command === "merge")
+  const lastReviewReadIndex = finalReadCalls.slice(0, mergeIndex).reduce(
+    (last, [group, ...argv], index) => group === "api" && argv.some((value) => String(value).includes("/comments")) ? index : last,
+    -1,
+  )
+  T(
+    `${file}: Linear state is freshly read at the decision boundary rather than reused`,
+    finalRead.status === 0 && lastReviewReadIndex !== -1 && issueReadIndex === lastReviewReadIndex + 1 && mergeIndex === issueReadIndex + 1,
+    `calls: ${JSON.stringify(finalReadCalls)}`,
   )
 
   const changedLog = join(root, `${file}-changed.log`)
@@ -3997,8 +4164,20 @@ const mergeSweepCases = (file) => {
     `exit ${mergeRace.status}\n     stdout: ${mergeRace.stdout.trim()}\n     stderr: ${mergeRace.stderr.trim()}\n     calls: ${JSON.stringify(mergeRaceCalls)}`,
   )
 
+  const regressedMergeRaceLog = join(root, `${file}-regressed-merge-race.log`)
+  const regressedMergeRace = run(file, reviewedArgs, {
+    env: mergeSweepEnv({ changedHead, head: expectedHead, linearState: "In Progress", log: regressedMergeRaceLog, moveAtMerge: true, sonar: coverageAware ? "coverage-failure" : "success", state: coverageAware ? "BLOCKED" : "CLEAN" }),
+  })
+  const regressedMergeRaceCalls = linearCalls(regressedMergeRaceLog)
+  T(
+    `${file}: a refused merge never rewrites a regressed Linear issue`,
+    regressedMergeRace.status === 0 && /SKIP #615 HEAD-MOVED/.test(regressedMergeRace.stdout) &&
+      !regressedMergeRaceCalls.some(([, linear, command, action]) => linear === "linear" && command === "status" && action === "set"),
+    `exit ${regressedMergeRace.status}\n     stdout: ${regressedMergeRace.stdout.trim()}\n     calls: ${JSON.stringify(regressedMergeRaceCalls)}`,
+  )
+
   const bareLog = join(root, `${file}-bare.log`)
-  const bare = run(file, ["--reviewed-through", `615=${reviewedThrough}`, "thomasluizon/orbit-ui-mobile", "615"], {
+  const bare = run(file, ["--reviewed-through", `615=${reviewedThrough}`, "--issue", "615=ORB-150", "thomasluizon/orbit-ui-mobile", "615"], {
     env: mergeSweepEnv({ head: changedHead, log: bareLog }),
   })
   const bareMerges = mergeSweepCalls(bareLog).filter(([group, command]) => group === "pr" && command === "merge")
@@ -4010,9 +4189,9 @@ const mergeSweepCases = (file) => {
 
   check(
     file,
-    "help documents the exclusive cutoff and residual post-merge window",
+    "help documents the Linear issue gate, exclusive cutoff, and residual post-merge window",
     ["--help"],
-    { status: 0, stdout: /(?=[\s\S]*--reviewed-through)(?=[\s\S]*cutoff is exclusive: activity at or after that timestamp counts as new\.)(?=[\s\S]*Every status check, required or not, must reach a terminal successful conclusion before merge\.)(?=[\s\S]*residual response-to-merge race)(?=[\s\S]*exits 4)/ },
+    { status: 0, stdout: /(?=[\s\S]*--reviewed-through)(?=[\s\S]*--issue must map every swept PR)(?=[\s\S]*LINEAR-STATE-REASSERTED)(?=[\s\S]*LINEAR-STATE-REASSERT-SKIPPED)(?=[\s\S]*LINEAR-STATE-REASSERT-POST-WRITE-SKIPPED)(?=[\s\S]*LINEAR-STATE-REFUSED)(?=[\s\S]*review-safety query runs before the fresh Linear decision-time read)(?=[\s\S]*failed post-merge Linear state read or reassert)(?=[\s\S]*POST-MERGE-LINEAR-STATE-REASSERT-FAILED)(?=[\s\S]*cutoff is exclusive: activity at or after that timestamp counts as new\.)(?=[\s\S]*Every status check, required or not, must reach a terminal successful conclusion before merge\.)(?=[\s\S]*residual response-to-merge race)(?=[\s\S]*undetectable sub-second residual)(?=[\s\S]*exits 4)/ },
   )
 
   const updatedHead = "3333333333333333333333333333333333333333"
@@ -4021,7 +4200,7 @@ const mergeSweepCases = (file) => {
   const routineParents = `${expectedHead}\n${baseTip}`
   const updateCase = (label, envOptions, expect) => {
     const log = join(root, `${file}-${label}.log`)
-    const result = run(file, ["--reviewed-through", `615=${reviewedThrough}`, "thomasluizon/orbit-ui-mobile", "615"], {
+    const result = run(file, ["--reviewed-through", `615=${reviewedThrough}`, "--issue", "615=ORB-150", "thomasluizon/orbit-ui-mobile", "615"], {
       env: mergeSweepEnv({
         baseTip,
         head: expectedHead,
@@ -4266,6 +4445,10 @@ const mergeSweepCases = (file) => {
       `615=${reviewedThrough}`,
       "--reviewed-through",
       `616=${reviewedThrough}`,
+      "--issue",
+      "615=ORB-150",
+      "--issue",
+      "616=ORB-151",
       "thomasluizon/orbit-ui-mobile",
       "615",
       "616",
@@ -4458,7 +4641,7 @@ const mergeSweepCases = (file) => {
   }
 
   const missingCutoffLog = join(root, `${file}-missing-reviewed-through.log`)
-  const missingCutoff = run(file, ["--expected-head", `615=${expectedHead}`, "thomasluizon/orbit-ui-mobile", "615"], {
+  const missingCutoff = run(file, ["--expected-head", `615=${expectedHead}`, "--issue", "615=ORB-150", "thomasluizon/orbit-ui-mobile", "615"], {
     env: mergeSweepEnv({
       head: expectedHead,
       log: missingCutoffLog,
