@@ -7,7 +7,8 @@
  * the PR, never by an agent. Blockers outside the queried selection are
  * fetched individually and count as blocking unless done; a blocker that
  * cannot be fetched fails closed as blocking. This script only reads; it
- * launches nothing.
+ * launches nothing. Repository facts used during later reconciliation belong to
+ * repo-facts.mjs so this planner remains byte-stable for a fixture graph.
  */
 
 import { execFile } from "node:child_process"

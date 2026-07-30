@@ -75,6 +75,33 @@ const stage = (relativePath, body) => {
   writeFileSync(path, body)
   return path
 }
+const gitFixture = (label) => {
+  const directory = join(root, "repo-facts", label)
+  mkdirSync(directory, { recursive: true })
+  const git = (args) => {
+    const result = spawnSync("git", args, { cwd: directory, encoding: "utf8" })
+    if (result.status !== 0) throw new Error(`fixture git ${args.join(" ")} failed: ${result.stderr}`)
+    return result.stdout.trim()
+  }
+  git(["init", "-q"])
+  git(["config", "user.email", "fixture@example.com"])
+  git(["config", "user.name", "Fixture"])
+  writeFileSync(join(directory, "shared.txt"), "base\n")
+  writeFileSync(join(directory, "only-base.txt"), "base\n")
+  git(["add", "."]); git(["commit", "-qm", "base"])
+  const base = git(["rev-parse", "HEAD"])
+  git(["checkout", "-qb", "left"])
+  writeFileSync(join(directory, "shared.txt"), "left\n")
+  writeFileSync(join(directory, "left.txt"), "left\n")
+  git(["add", "."]); git(["commit", "-qm", "left"])
+  const left = git(["rev-parse", "HEAD"])
+  git(["checkout", "-qb", "right", base])
+  writeFileSync(join(directory, "shared.txt"), "right\n")
+  writeFileSync(join(directory, "right.txt"), "right\n")
+  git(["add", "."]); git(["commit", "-qm", "right"])
+  const right = git(["rev-parse", "HEAD"])
+  return { directory, base, left, right }
+}
 
 const LOCKSTEP_PATHS = [
   ".claude/skills/pr-review/SKILL.md",
@@ -5958,6 +5985,18 @@ Not run.`,
       },
     )
   },
+  "repo-facts.mjs": () => {
+    const fixture = gitFixture("decision-paths")
+    check("repo-facts.mjs", "enumerates changed files from local refs", ["changed", "--base", fixture.base, "--head", fixture.left], { status: 0, stdout: /"files":\["left\.txt","shared\.txt"\]/ }, { cwd: fixture.directory })
+    check("repo-facts.mjs", "finds content at a current fetched ref", ["presence", "--fetched-ref", "left", "--expected-head", fixture.left, "--path", "shared.txt", "--contains", "left"], { status: 0, stdout: /"present":true/ }, { cwd: fixture.directory })
+    check("repo-facts.mjs", "refuses a stale fetched ref naming both SHAs", ["presence", "--fetched-ref", "left", "--expected-head", fixture.right, "--path", "shared.txt", "--contains", "right"], { status: 2, stderr: new RegExp(`local SHA ${fixture.left}[\\s\\S]*pull request head SHA ${fixture.right}`) }, { cwd: fixture.directory })
+    const baseline = stage("repo-facts/baseline.json", JSON.stringify({ "shared.txt": 999 }))
+    check("repo-facts.mjs", "reports a blob-size baseline mismatch", ["blob-size", "--ref", fixture.left, "--baseline", baseline], { status: 1, stdout: /"expected":999,"actual":5/ }, { cwd: fixture.directory })
+    check("repo-facts.mjs", "enumerates the same conflicting file as a real merge", ["conflicts", "--base", "left", "--head", "right"], { status: 1, stdout: /"files":\["shared\.txt"\]/ }, { cwd: fixture.directory })
+    spawnSync("git", ["checkout", "-q", "left"], { cwd: fixture.directory, encoding: "utf8" })
+    const merge = spawnSync("git", ["merge", "--no-commit", "right"], { cwd: fixture.directory, encoding: "utf8" })
+    T("repo-facts.mjs: fixture merge reports the enumerated conflicting file", merge.status !== 0 && /shared\.txt/.test(merge.stdout + merge.stderr), merge.stdout + merge.stderr)
+  },
   "check-dashes.mjs": () => {
     check("check-dashes.mjs", "an em dash in text is rejected", ["--text", `a${EM_DASH}b`], { status: 1, stderr: /Banned dash/ })
     check("check-dashes.mjs", "clean text passes", ["--text", "a plain hyphen - is fine"], { status: 0 })
@@ -6422,6 +6461,7 @@ const INVALID_INPUT = {
   "pr-watch.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "redesign-coverage.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "refresh-tier-labels.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "repo-facts.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "rollup.sh": { argv: ["--orbit-not-a-flag"], status: 2 },
   "surface-manifest.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "teardown-worktree.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },

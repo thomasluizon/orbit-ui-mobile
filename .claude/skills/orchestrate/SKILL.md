@@ -105,10 +105,22 @@ fixes.
 
 ## 1. Reconcile before dispatch (D8)
 
-For each LAUNCHABLE ticket: open the files its body cites and confirm the stated
-problem still reproduces on current `main`. A finding that no longer reproduces sends
-the ticket back to Todo with a dated comment (`orca linear comment add`), never to a
-worker. This applies equally to tickets written by humans, agents, or reviewers.
+For each LAUNCHABLE ticket, do not inspect repository content in the interactive
+session. Ask `tools/repo-facts.mjs` for every mechanical repository fact: changed-file
+sets, whether cited content is present at a ref, recorded blob sizes, and merge-conflict
+paths. For a PR ref, first read its real `headRefOid` with `gh pr view --json headRefOid`,
+then use `presence --fetched-ref <ref> --expected-head <headRefOid>`; a SHA mismatch is
+a refusal, never evidence of absence.
+
+If reconciliation needs judgement the tool cannot express, route only that question to
+the configured Codex `tier:cheap` worker. Its response must be structured as cited refs,
+paths, literal search text, and a conclusion. Validate every cited mechanical claim by
+re-running the matching `repo-facts.mjs` command before using the conclusion. Reject a
+missing field, unparseable response, failed lookup, or claim whose validation disagrees;
+do not repair it in the interactive session. Patch generation never goes to the cheap tier.
+A finding that no longer reproduces sends the ticket back to Todo with a dated comment
+(`orca linear comment add`), never to a worker. This applies equally to tickets written
+by humans, agents, or reviewers.
 
 ## 2. Launch a wave
 
