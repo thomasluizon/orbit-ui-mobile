@@ -5383,6 +5383,8 @@ const mergeabilityCases = () => {
   T("mergeability.mjs: hex-looking Codex comment prose is not a verdict", hexProse.status === 1 && new RegExp(`HELD second-reviewer: .*no named commit.*${head}`).test(hexProse.stdout), hexProse.stderr || hexProse.stdout)
   const wrongState = runCase("wrong-state", pullRequest(), { issue: { state: { name: "In Progress" }, labels: [] } })
   T("mergeability.mjs: a linked issue outside In Review is HELD", wrongState.status === 1 && /HELD linear-in-review: issue ORB-143 is In Progress, requires In Review/.test(wrongState.stdout), wrongState.stderr || wrongState.stdout)
+  const nullState = runCase("null-state", pullRequest(), { issue: { state: null, labels: [] } })
+  T("mergeability.mjs: a null Linear workflow state is HELD with a consumable verdict", nullState.status === 1 && /HELD linear-issue: Linear issue lookup returned no issue with a workflow state/.test(nullState.stdout), nullState.stderr || nullState.stdout)
   const strikes = runCase("strikes", pullRequest(), { issue: { state: { name: "In Review" }, labels: [{ name: "attempts:2" }] } })
   T("mergeability.mjs: attempts:2 is HELD", strikes.status === 1 && /HELD two-strikes: issue carries attempts:2/.test(strikes.stdout), strikes.stderr || strikes.stdout)
   const finalStrikes = runCase("final-strikes", pullRequest(), { finalIssue: { state: { name: "In Review" }, labels: [{ name: "attempts:2" }] } })

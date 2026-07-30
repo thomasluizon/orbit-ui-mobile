@@ -85,9 +85,9 @@ const linearIssue = (identifier) => {
   if (!parsed.ok) return parsed
   if (parsed.value.ok === false) return { ok: false, error: `Linear issue lookup failed: ${parsed.value.error?.message ?? "unknown error"}` }
   const issue = parsed.value.result?.issue
-  return issue && typeof issue === "object" && Object.hasOwn(issue, "state")
+  return issue && typeof issue === "object" && issue.state && typeof issue.state === "object" && typeof issue.state.name === "string"
     ? { ok: true, value: issue }
-    : { ok: false, error: "Linear issue lookup returned no issue" }
+    : { ok: false, error: "Linear issue lookup returned no issue with a workflow state" }
 }
 
 const conditions = []
