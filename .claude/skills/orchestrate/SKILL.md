@@ -442,6 +442,13 @@ cannot decide for one PR, all against that recorded head:
    A regressed `In Progress` state records the decision-time instant, then only after GitHub
    confirms the merge is re-set to `In Review`, printing
    `LINEAR-STATE-REASSERTED issue=ORB-N observed=In Progress at=<ISO-8601 instant>`.
+   `LINEAR-STATE-REASSERT-SKIPPED` preserves an advanced state found before the write: inspect
+   that state before proceeding. `LINEAR-STATE-REASSERT-POST-WRITE-SKIPPED` preserves a state
+   written by a competing actor: inspect the transition before proceeding.
+   `LINEAR-STATE-REASSERT-CLOBBERED` restores a completed state proven by Linear activity inside
+   the confirmed pre-write to post-write window: audit the competing completion. If activity is
+   unreadable, `LINEAR-STATE-REASSERT-RESIDUAL-WINDOW` records the unverifiable state, exits 4,
+   and stops further unattended merges for investigation.
    A failed lookup, an unknown state, or any state other than `In Review` or
    `In Progress` refuses the decision rather than assuming the evidence passed.
 5. The ticket carries no `attempts:2` label (D9 refuses it regardless of colour).
@@ -525,6 +532,13 @@ further unattended merges and copies that result into the closing report. It als
 a merged head did not move afterwards. Its workflow lookup fails closed: if it cannot
 prove the repository has no review workflow, the current-head review wait stays
 enabled.
+
+The post-merge Linear markers are operator actions, not merely diagnostics. On
+`LINEAR-STATE-REASSERT-SKIPPED`, inspect the preserved advanced state. On
+`LINEAR-STATE-REASSERT-POST-WRITE-SKIPPED`, inspect the competing transition. On
+`LINEAR-STATE-REASSERT-CLOBBERED`, audit the completed transition restored from the confirmed
+write window. On `LINEAR-STATE-REASSERT-RESIDUAL-WINDOW`, stop the unattended run and investigate:
+the history authority was unavailable, so the state cannot be verified. The last marker exits 4.
 
 `--sleep` always invokes `tools/merge-sweep.sh`. It never invokes
 `tools/merge-sweep-cov.sh`: that variant can use `--admin` to override a SonarCloud

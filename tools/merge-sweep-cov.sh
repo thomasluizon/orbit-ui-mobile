@@ -52,19 +52,21 @@ when available and exits 4; this detects but cannot prevent the residual respons
 Before a pending reassertion, the sweep re-reads Linear: it writes only if the issue is still
 \`In Progress\`; an advanced state is left alone and emits \`LINEAR-STATE-REASSERT-SKIPPED\`. It
 then re-reads after writing. A competing post-write state is left alone and emits
-\`LINEAR-STATE-REASSERT-POST-WRITE-SKIPPED\`; a completed history transition before our write is
-restored and emits \`LINEAR-STATE-REASSERT-CLOBBERED\`. A normal verified reassertion emits
-\`LINEAR-STATE-REASSERTED\`; unavailable history emits \`LINEAR-STATE-REASSERT-RESIDUAL-WINDOW\`.
-That record carries the decision, pre-write, write, and post-write instants and states so
-the residual window is detected rather than claimed prevented. A failed post-merge Linear state read or reassert emits POST-MERGE-LINEAR-STATE-REASSERT-FAILED and exits 4.
+\`LINEAR-STATE-REASSERT-POST-WRITE-SKIPPED\`; a completed history transition inside the
+confirmed pre-write to post-write window is restored and emits \`LINEAR-STATE-REASSERT-CLOBBERED\`.
+A normal verified reassertion emits \`LINEAR-STATE-REASSERTED\`; unavailable history emits
+\`LINEAR-STATE-REASSERT-RESIDUAL-WINDOW\` and exits 4 because the post-merge state is unverifiable.
+A failed post-merge Linear state read or reassert emits \`POST-MERGE-LINEAR-STATE-REASSERT-FAILED\`
+and exits 4.
 
 --issue must map every swept PR to its Linear identifier (\`<pr-number>=<ORB-N>\`). Immediately
 before merging, the sweep freshly reads that issue: \`In Review\` proceeds unchanged, while
 \`In Progress\` marks a reassertion with the observed state and UTC instant. Only after GitHub
 confirms the merge does it re-read Linear, reassert \`In Review\` only when it is still \`In Progress\`,
 then re-read it again. A changed post-write state is left alone; a completed transition in Linear
-history before the reassertion write is restored. Each result records the observed states and
-instants, including the detectable residual window when history is unavailable. A decision-time
+activity inside the confirmed pre-write to post-write window is restored. Each result records the
+observed states and instants. An unavailable activity history reports an unverifiable post-merge
+state and exits 4. A decision-time
 lookup failure or unknown state prints \`LINEAR-STATE-REFUSED\` and skips the merge.
 
 It refuses to merge while the \`$REVIEW_CHECK_NAME\` check for the CURRENT head SHA is still
@@ -341,17 +343,25 @@ linear_state() { # <issue>; stdout: current state name
   "$ORCA_BIN" linear issue "$1" --json 2>/dev/null | node -e 'let input="";process.stdin.on("data",chunk=>input+=chunk).on("end",()=>{try{const parsed=JSON.parse(input);const state=parsed?.result?.issue?.state?.name;if(typeof state!=="string"||!state)process.exit(1);process.stdout.write(state)}catch{process.exit(1)}})'
 }
 
-completed_state_before() { # <issue> <write-at>; stdout: completed state name; 1 absent; 2 history unavailable
+utc_instant() {
+  if [ -n "${ORBIT_MERGE_SWEEP_FIXED_INSTANT:-}" ]; then
+    printf '%s' "$ORBIT_MERGE_SWEEP_FIXED_INSTANT"
+  else
+    node -e 'process.stdout.write(new Date().toISOString())'
+  fi
+}
+
+completed_state_between() { # <issue> <lower-inclusive> <upper-inclusive>; stdout: completed state name; 1 absent; 2 history unavailable
   "$ORCA_BIN" linear issue "$1" --activity --json 2>/dev/null | node -e '
-    const cutoff=Date.parse(process.argv[1]);let input="";
+    const lower=Date.parse(process.argv[1]);const upper=Date.parse(process.argv[2]);let input="";
     process.stdin.on("data",chunk=>input+=chunk).on("end",()=>{try{
       const parsed=JSON.parse(input);const activity=parsed?.result?.activity;
-      if(!Number.isFinite(cutoff)||!Array.isArray(activity)||parsed?.result?.meta?.sections?.activity?.capReached!==false)process.exit(2);
+      if(!Number.isFinite(lower)||!Number.isFinite(upper)||lower>upper||!Array.isArray(activity)||parsed?.result?.meta?.sections?.activity?.capReached!==false)process.exit(2);
       let completed;
       for(const entry of activity){const instant=Date.parse(entry?.createdAt);if(!Number.isFinite(instant))process.exit(2);
-        for(const change of entry?.changes||[]){const state=change?.to;if(change?.field==="state"&&state?.type==="completed"&&typeof state.name==="string"&&state.name&&instant<=cutoff&&(!completed||instant>completed.instant))completed={name:state.name,instant};}}
+        for(const change of entry?.changes||[]){const state=change?.to;if(change?.field==="state"&&state?.type==="completed"&&typeof state.name==="string"&&state.name&&instant>=lower&&instant<=upper&&(!completed||instant>completed.instant))completed={name:state.name,instant};}}
       if(completed)process.stdout.write(completed.name);else process.exitCode=1;
-    }catch{process.exit(2)}})' "$2"
+    }catch{process.exit(2)}})' "$2" "$3"
 }
 
 commit_linear_reassertion() {
@@ -361,12 +371,12 @@ commit_linear_reassertion() {
     printf 'POST-MERGE-LINEAR-STATE-REASSERT-FAILED issue=%s observed=%s at=%s\n' "$pending_linear_reassert_issue" "$pending_linear_reassert_observed" "$pending_linear_reassert_at"
     return 1
   fi
-  pre_write_at="$(node -e 'process.stdout.write(new Date().toISOString())')"
+  pre_write_at="$(utc_instant)"
   if [ "$state" != "In Progress" ]; then
     printf 'LINEAR-STATE-REASSERT-SKIPPED issue=%s observed=%s at=%s pre-write-at=%s\n' "$pending_linear_reassert_issue" "$state" "$pending_linear_reassert_at" "$pre_write_at"
     return 0
   fi
-  write_at="$(node -e 'process.stdout.write(new Date().toISOString())')"
+  write_at="$(utc_instant)"
   if ! "$ORCA_BIN" linear status set "$pending_linear_reassert_issue" --to "In Review" >/dev/null 2>&1; then
     printf 'POST-MERGE-LINEAR-STATE-REASSERT-FAILED issue=%s observed=%s at=%s\n' "$pending_linear_reassert_issue" "$pending_linear_reassert_observed" "$pending_linear_reassert_at"
     return 1
@@ -375,12 +385,12 @@ commit_linear_reassertion() {
     printf 'POST-MERGE-LINEAR-STATE-REASSERT-FAILED issue=%s observed=%s at=%s\n' "$pending_linear_reassert_issue" "$pending_linear_reassert_observed" "$pending_linear_reassert_at"
     return 1
   fi
-  post_write_at="$(node -e 'process.stdout.write(new Date().toISOString())')"
+  post_write_at="$(utc_instant)"
   if [ "$state" != "In Review" ]; then
     printf 'LINEAR-STATE-REASSERT-POST-WRITE-SKIPPED issue=%s observed=%s pre-write=In Progress pre-write-at=%s write-at=%s post-write-at=%s\n' "$pending_linear_reassert_issue" "$state" "$pre_write_at" "$write_at" "$post_write_at"
     return 0
   fi
-  completed_state="$(completed_state_before "$pending_linear_reassert_issue" "$write_at")"
+  completed_state="$(completed_state_between "$pending_linear_reassert_issue" "$pre_write_at" "$post_write_at")"
   history_result=$?
   case "$history_result" in
     0)
@@ -391,7 +401,10 @@ commit_linear_reassertion() {
       printf 'LINEAR-STATE-REASSERT-CLOBBERED issue=%s restored=%s pre-write=In Progress pre-write-at=%s write-at=%s post-write=In Review post-write-at=%s\n' "$pending_linear_reassert_issue" "$completed_state" "$pre_write_at" "$write_at" "$post_write_at"
       ;;
     1) printf 'LINEAR-STATE-REASSERTED issue=%s observed=%s at=%s pre-write=In Progress pre-write-at=%s write-at=%s post-write=In Review post-write-at=%s\n' "$pending_linear_reassert_issue" "$pending_linear_reassert_observed" "$pending_linear_reassert_at" "$pre_write_at" "$write_at" "$post_write_at" ;;
-    *) printf 'LINEAR-STATE-REASSERT-RESIDUAL-WINDOW issue=%s observed=%s at=%s pre-write=In Progress pre-write-at=%s write-at=%s post-write=In Review post-write-at=%s reason=history-unavailable\n' "$pending_linear_reassert_issue" "$pending_linear_reassert_observed" "$pending_linear_reassert_at" "$pre_write_at" "$write_at" "$post_write_at" ;;
+    *)
+      printf 'LINEAR-STATE-REASSERT-RESIDUAL-WINDOW issue=%s observed=%s at=%s pre-write=In Progress pre-write-at=%s write-at=%s post-write=In Review post-write-at=%s reason=history-unavailable\n' "$pending_linear_reassert_issue" "$pending_linear_reassert_observed" "$pending_linear_reassert_at" "$pre_write_at" "$write_at" "$post_write_at"
+      return 1
+      ;;
   esac
 }
 

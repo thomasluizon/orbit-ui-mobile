@@ -404,6 +404,7 @@ const mergeSweepEnv = ({
   linearPostWriteState = "In Review",
   linearHistory = "",
   linearHistoryFailure = false,
+  fixedInstant = "",
   moveAtMerge = false,
   postMergeActivity = "",
   postMergeReviewsLookupFailure = false,
@@ -448,6 +449,7 @@ const mergeSweepEnv = ({
   ORBIT_MERGE_SWEEP_LINEAR_STATES: `${linearState},${linearReassertState},${linearPostWriteState}`,
   ORBIT_MERGE_SWEEP_LINEAR_HISTORY: linearHistory,
   ORBIT_MERGE_SWEEP_LINEAR_HISTORY_FAILURE: linearHistoryFailure ? "1" : "",
+  ORBIT_MERGE_SWEEP_FIXED_INSTANT: fixedInstant,
   ORBIT_MERGE_SWEEP_LINEAR_STATE: linearState,
   ORCA_BIN: MERGE_SWEEP_ORCA,
   ORBIT_MERGE_SWEEP_MOVE_MARKER: moveAtMerge ? `${log}.moved` : "",
@@ -3973,6 +3975,19 @@ const mergeSweepCliFlagCases = () => {
       adoptionHelpers.every(({ helper }) => helper === adoptionHelpers[0].helper),
     adoptionHelpers.map(({ filename, helper }) => `${filename}: ${helper.length} bytes`).join("\n     "),
   )
+  for (const name of ["ensure_issue_in_review", "linear_state", "utc_instant", "completed_state_between", "commit_linear_reassertion"]) {
+    const helpers = scanned.map(({ filename, source }) => ({
+      filename,
+      helper: source.match(new RegExp(`^${name}\\(\\).*?^}\\r?$`, "ms"))?.[0] ?? "",
+    }))
+    T(
+      `merge sweep ${name} helper stays in lockstep`,
+      helpers.length === filenames.length &&
+        helpers.every(({ helper }) => helper.length > 0) &&
+        helpers.every(({ helper }) => helper === helpers[0].helper),
+      helpers.map(({ filename, helper }) => `${filename}: ${helper.length} bytes`).join("\n     "),
+    )
+  }
 }
 
 const mergeSweepCases = (file) => {
@@ -4064,10 +4079,11 @@ const mergeSweepCases = (file) => {
     `exit ${postWriteDisagreement.status}\n     stdout: ${postWriteDisagreement.stdout.trim()}\n     calls: ${JSON.stringify(linearCalls(postWriteDisagreementLog))}`,
   )
 
-  const clobberHistory = JSON.stringify({ ok: true, result: { meta: { sections: { activity: { capReached: false } } }, activity: [{ createdAt: "2000-01-01T00:00:00.000Z", changes: [{ field: "state", to: { name: "Done", type: "completed" } }] }] } })
+  const writeWindowInstant = "2026-07-30T12:00:00.000Z"
+  const clobberHistory = JSON.stringify({ ok: true, result: { meta: { sections: { activity: { capReached: false } } }, activity: [{ createdAt: writeWindowInstant, changes: [{ field: "state", to: { name: "Done", type: "completed" } }] }] } })
   const clobberLog = join(root, `${file}-clobber-restore.log`)
   const clobber = run(file, reviewedArgs, {
-    env: mergeSweepEnv({ head: expectedHead, linearState: "In Progress", linearReassertState: "In Progress", linearHistory: clobberHistory, log: clobberLog, sonar: coverageAware ? "coverage-failure" : "success", state: coverageAware ? "BLOCKED" : "CLEAN" }),
+    env: mergeSweepEnv({ head: expectedHead, fixedInstant: writeWindowInstant, linearState: "In Progress", linearReassertState: "In Progress", linearHistory: clobberHistory, log: clobberLog, sonar: coverageAware ? "coverage-failure" : "success", state: coverageAware ? "BLOCKED" : "CLEAN" }),
   })
   const clobberCalls = linearCalls(clobberLog)
   T(
@@ -4076,6 +4092,31 @@ const mergeSweepCases = (file) => {
       clobberCalls.filter(([, linear, command, action, issue, to, stateName]) => linear === "linear" && command === "status" && action === "set" && issue === "ORB-150" && to === "--to" && stateName === "In Review").length === 1 &&
       clobberCalls.filter(([, linear, command, action, issue, to, stateName]) => linear === "linear" && command === "status" && action === "set" && issue === "ORB-150" && to === "--to" && stateName === "Done").length === 1,
     `exit ${clobber.status}\n     stdout: ${clobber.stdout.trim()}\n     calls: ${JSON.stringify(clobberCalls)}`,
+  )
+
+  const historicalCompletedHistory = JSON.stringify({ ok: true, result: { meta: { sections: { activity: { capReached: false } } }, activity: [{ createdAt: "2000-01-01T00:00:00.000Z", changes: [{ field: "state", to: { name: "Done", type: "completed" } }] }] } })
+  const historicalCompletedLog = join(root, `${file}-historical-completed.log`)
+  const historicalCompleted = run(file, reviewedArgs, {
+    env: mergeSweepEnv({ head: expectedHead, fixedInstant: writeWindowInstant, linearState: "In Progress", linearReassertState: "In Progress", linearHistory: historicalCompletedHistory, log: historicalCompletedLog, sonar: coverageAware ? "coverage-failure" : "success", state: coverageAware ? "BLOCKED" : "CLEAN" }),
+  })
+  const historicalCompletedCalls = linearCalls(historicalCompletedLog)
+  T(
+    `${file}: a superseded historical completed state does not trigger a restore`,
+    historicalCompleted.status === 0 &&
+      /LINEAR-STATE-REASSERTED issue=ORB-150 observed=In Progress/.test(historicalCompleted.stdout) &&
+      !/LINEAR-STATE-REASSERT-CLOBBERED/.test(historicalCompleted.stdout) &&
+      historicalCompletedCalls.filter(([, linear, command, action, issue, to, stateName]) => linear === "linear" && command === "status" && action === "set" && issue === "ORB-150" && to === "--to" && stateName === "Done").length === 0,
+    `exit ${historicalCompleted.status}\n     stdout: ${historicalCompleted.stdout.trim()}\n     calls: ${JSON.stringify(historicalCompletedCalls)}`,
+  )
+
+  const historyFailureLog = join(root, `${file}-failed-Linear-history.log`)
+  const historyFailure = run(file, reviewedArgs, {
+    env: mergeSweepEnv({ head: expectedHead, linearState: "In Progress", linearReassertState: "In Progress", linearHistoryFailure: true, log: historyFailureLog, sonar: coverageAware ? "coverage-failure" : "success", state: coverageAware ? "BLOCKED" : "CLEAN" }),
+  })
+  T(
+    `${file}: an unavailable post-write Linear history fails closed`,
+    historyFailure.status === 4 && /LINEAR-STATE-REASSERT-RESIDUAL-WINDOW issue=ORB-150 observed=In Progress/.test(historyFailure.stdout),
+    `exit ${historyFailure.status}\n     stdout: ${historyFailure.stdout.trim()}\n     calls: ${JSON.stringify(linearCalls(historyFailureLog))}`,
   )
 
   const linearRefusal = (label, envOptions, output) => {
