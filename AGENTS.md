@@ -55,6 +55,35 @@ before writing code.
   endpoints, or module structure, commit the regenerated artifacts).
 - Never edit a gate baseline to admit a new violation. Fix the violation.
 
+### Never assume an external interface. Check it, then use it.
+
+Before you read a field, flag, subcommand, exit code, or response shape from anything
+outside this repository, confirm it exists. External means a CLI (`orca`, `gh`, `git`,
+`codex`), an HTTP API, or a library you did not write.
+
+Confirm it by running the thing: `--help`, a real read-only invocation, the installed
+package's own source, or schema introspection. Reading the actual response is the
+authority. Documentation, your memory of a similar tool, and what the shape "should"
+obviously be are not.
+
+**Never satisfy an assumption by writing the stub that agrees with it.** You author both
+the code and its harness fixture, so a fixture built from a guess makes the harness prove
+that your code matches your belief, not that it works. A green harness over an invented
+field is worth less than no test at all, because it buys false confidence.
+
+When you use an external field the codebase does not already read, paste the real
+invocation and its real output in the pull request body as the evidence for it. If you
+cannot obtain the real response, say so explicitly and design so the unknown fails closed;
+never guess and proceed.
+
+Measured cost of skipping this, 2026-07-30: a worker parsed `result.issue.updatedAt` out
+of `orca linear status set --json`. That field does not exist; the write result is
+`{ issue: { id, identifier, url }, state, previousState, meta }`. Every real post-merge
+Linear reassertion would have reported a false failure and halted the unattended run at
+the first regressed ticket, on a write that had actually succeeded. The harness stayed
+green through four review rounds because the same commit added a mock that invented the
+field. Four rounds were spent tuning logic that could never run.
+
 ### Guardrails you must not trip
 
 These hold for EVERY worker and every engine. They are enforced by CI, GitHub branch
