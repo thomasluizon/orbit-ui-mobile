@@ -5357,12 +5357,14 @@ const mergeabilityCases = () => {
   })
   const runCase = (name, first, { final = first, issue, json = false, plan = [] } = {}) => {
     const log = stage(`mergeability-${name}.log`, "")
-    return run("mergeability.mjs", ["--repo", "orbit/ui", "--pr", "615", ...(json ? ["--json"] : [])], {
+    const result = run("mergeability.mjs", ["--repo", "orbit/ui", "--pr", "615", ...(json ? ["--json"] : [])], {
       env: { ...orcaEnv([github(first, final), linear(issue), ...plan]), ORBIT_ORCA_LOG: log },
     })
+    return { ...result, calls: readFileSync(log, "utf8").trim().split(/\r?\n/).filter(Boolean).map((entry) => JSON.parse(entry)) }
   }
   const mergeable = runCase("mergeable", pullRequest())
   T("mergeability.mjs: a complete current-head decision is MERGEABLE", mergeable.status === 0 && /^MERGEABLE\r?\n/.test(mergeable.stdout) && (mergeable.stdout.match(/^OK /gm) ?? []).length === 9, mergeable.stderr || mergeable.stdout)
+  T("mergeability.mjs: only records the GitHub and Linear read verbs", mergeable.calls.length === 3 && mergeable.calls.every((call) => (/[\\/]api$/.test(call[0]) && call[1] === "graphql") || (/[\\/]linear$/.test(call[0]) && call[1] === "issue")), JSON.stringify(mergeable.calls))
   const machine = runCase("machine", pullRequest(), { json: true })
   T("mergeability.mjs: JSON output carries the consumable verdict and conditions", machine.status === 0 && JSON.parse(machine.stdout).verdict === "MERGEABLE" && JSON.parse(machine.stdout).conditions.length === 9, machine.stderr || machine.stdout)
   const draft = runCase("draft", pullRequest({ isDraft: true }))
@@ -5377,6 +5379,18 @@ const mergeabilityCases = () => {
   T("mergeability.mjs: a linked issue outside In Review is HELD", wrongState.status === 1 && /HELD linear-in-review: issue ORB-143 is In Progress, requires In Review/.test(wrongState.stdout), wrongState.stderr || wrongState.stdout)
   const strikes = runCase("strikes", pullRequest(), { issue: { state: { name: "In Review" }, labels: [{ name: "attempts:2" }] } })
   T("mergeability.mjs: attempts:2 is HELD", strikes.status === 1 && /HELD two-strikes: issue carries attempts:2/.test(strikes.stdout), strikes.stderr || strikes.stdout)
+  const missingLabels = runCase("missing-labels", pullRequest(), { issue: { state: { name: "In Review" } } })
+  T("mergeability.mjs: missing Linear labels are HELD rather than treated as empty", missingLabels.status === 1 && /HELD two-strikes: Linear issue labels are unavailable/.test(missingLabels.stdout), missingLabels.stderr || missingLabels.stdout)
+  const malformedLabels = runCase("malformed-labels", pullRequest(), { issue: { state: { name: "In Review" }, labels: {} }, json: true })
+  T("mergeability.mjs: malformed Linear labels emit a machine-readable HELD verdict", malformedLabels.status === 1 && JSON.parse(malformedLabels.stdout).conditions.some((condition) => condition.name === "two-strikes" && !condition.ok && condition.detail === "Linear issue labels are unavailable"), malformedLabels.stderr || malformedLabels.stdout)
+  const cancelled = runCase("cancelled-check", pullRequest({ commits: { nodes: [{ commit: { statusCheckRollup: { state: "SUCCESS", contexts: { pageInfo: { hasNextPage: false }, nodes: [{ __typename: "CheckRun", name: "CI", status: "COMPLETED", conclusion: "CANCELLED" }] } } } }] } }))
+  T("mergeability.mjs: a cancelled check is HELD", cancelled.status === 1 && /HELD check-rollup:/.test(cancelled.stdout), cancelled.stderr || cancelled.stdout)
+  const movedHead = runCase("moved-head", pullRequest(), { final: pullRequest({ headRefOid: stale }) })
+  T("mergeability.mjs: a moved head is HELD", movedHead.status === 1 && new RegExp(`HELD head-stability: head was ${head} and is ${stale}`).test(movedHead.stdout), movedHead.stderr || movedHead.stdout)
+  const unrelatedBody = runCase("unrelated-body", pullRequest({ headRefName: "chore/merge-readiness", title: "Merge readiness SHA-256", body: "Sibling ORB-117 remains in review." }))
+  T("mergeability.mjs: a body-only configured-team identifier is HELD", unrelatedBody.status === 1 && /HELD linear-issue: no configured-team Linear issue identifier appears in the branch or title/.test(unrelatedBody.stdout), unrelatedBody.stderr || unrelatedBody.stdout)
+  const lowerCaseBranch = runCase("lowercase-branch", pullRequest({ title: "Merge readiness UTF-8", headRefName: "contact/orb-143-mergeability" }))
+  T("mergeability.mjs: a lowercase configured-team branch identifier is accepted", lowerCaseBranch.status === 0 && /OK linear-in-review: issue ORB-143 is In Review/.test(lowerCaseBranch.stdout), lowerCaseBranch.stderr || lowerCaseBranch.stdout)
   const errorLog = stage("mergeability-error.log", "")
   const forgeError = run("mergeability.mjs", ["--repo", "orbit/ui", "--pr", "615"], { env: { ...orcaEnv([{ match: "query($owner:String!,$name:String!,$number:Int!)", stdout: "forge offline", exit: 7 }]), ORBIT_ORCA_LOG: errorLog } })
   T("mergeability.mjs: an erroring forge lookup is HELD", forgeError.status === 1 && /HELD github-pull-request: GitHub pull-request lookup failed/.test(forgeError.stdout), forgeError.stderr || forgeError.stdout)

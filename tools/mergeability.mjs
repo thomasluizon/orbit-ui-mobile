@@ -49,6 +49,9 @@ try {
 }
 const reviewState = config.linear?.states?.review
 if (typeof reviewState !== "string" || !reviewState) fail(".claude/orchestrator.json must declare linear.states.review")
+const linearTeam = config.linear?.team
+if (typeof linearTeam !== "string" || !linearTeam) fail(".claude/orchestrator.json must declare linear.team")
+const issueIdentifierPattern = new RegExp(`\\b${linearTeam.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}-\\d+\\b`, "i")
 
 const QUERY = `query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){number url title body headRefName isDraft mergeStateStatus headRefOid labels(first:100){pageInfo{hasNextPage}nodes{name}} reviews(first:100){pageInfo{hasNextPage}nodes{state author{login} commit{oid}}} comments(first:100){pageInfo{hasNextPage}nodes{author{login} body}} reviewThreads(first:100){pageInfo{hasNextPage}nodes{isResolved}} commits(last:1){nodes{commit{statusCheckRollup{state contexts(first:100){pageInfo{hasNextPage}nodes{__typename ... on CheckRun{name status conclusion} ... on StatusContext{context state}}}}}}}}}}`
 
@@ -97,7 +100,7 @@ if (!first.ok) {
   const complete = (connection) => connection?.pageInfo?.hasNextPage === false
   const contexts = pullRequest.commits?.nodes?.[0]?.commit?.statusCheckRollup?.contexts
   const checks = contexts?.nodes
-  const failedConclusion = new Set(["FAILURE", "TIMED_OUT", "STARTUP_FAILURE", "ACTION_REQUIRED"])
+  const failedConclusion = new Set(["FAILURE", "CANCELLED", "TIMED_OUT", "STARTUP_FAILURE", "ACTION_REQUIRED"])
   const checkTerminal =
     complete(pullRequest.labels) && complete(pullRequest.reviews) && complete(pullRequest.comments) && complete(pullRequest.reviewThreads) && complete(contexts) &&
     Array.isArray(checks) && checks.length > 0 && checks.every((check) => check.__typename === "CheckRun" ? check.status === "COMPLETED" && !failedConclusion.has(check.conclusion) : !["FAILURE", "ERROR", "PENDING", "EXPECTED"].includes(check.state))
@@ -113,9 +116,11 @@ if (!first.ok) {
   const secondOnHead = codexReviews.some((review) => review.commit?.oid === pullRequest.headRefOid) || mentionedCommits.some((commit) => pullRequest.headRefOid?.startsWith(commit))
   const observedSecond = [...codexReviews.map((review) => review.commit?.oid), ...mentionedCommits].filter(Boolean)
   add("second-reviewer", secondOnHead && complete(pullRequest.reviews) && complete(pullRequest.comments), secondOnHead ? `chatgpt-codex-connector reviewed head ${pullRequest.headRefOid}` : `chatgpt-codex-connector reviewed ${observedSecond.join(", ") || "no named commit"}; head is ${pullRequest.headRefOid ?? "absent"}`)
-  const issueIdentifier = [pullRequest.headRefName, pullRequest.title, pullRequest.body].map((value) => (value ?? "").match(/\b[A-Z]+-\d+\b/)?.[0]).find(Boolean)
+  const issueIdentifier = [pullRequest.headRefName, pullRequest.title]
+    .map((value) => (value ?? "").match(issueIdentifierPattern)?.[0]?.toUpperCase())
+    .find(Boolean)
   if (!issueIdentifier) {
-    add("linear-issue", false, "no Linear issue identifier appears in the branch, title, or body")
+    add("linear-issue", false, "no configured-team Linear issue identifier appears in the branch or title")
   } else {
     const issueResult = linearIssue(issueIdentifier)
     if (!issueResult.ok) {
@@ -123,9 +128,13 @@ if (!first.ok) {
     } else {
       const issue = issueResult.value
       const state = issue.state?.name ?? issue.state
-      const labels = (issue.labels ?? []).map((label) => typeof label === "string" ? label : label.name)
       add("linear-in-review", state === reviewState, `issue ${issueIdentifier} is ${state ?? "absent"}, requires ${reviewState}`)
-      add("two-strikes", !labels.includes("attempts:2"), labels.includes("attempts:2") ? "issue carries attempts:2" : "issue has no attempts:2 label")
+      if (!Array.isArray(issue.labels)) {
+        add("two-strikes", false, "Linear issue labels are unavailable")
+      } else {
+        const labels = issue.labels.map((label) => typeof label === "string" ? label : label.name)
+        add("two-strikes", !labels.includes("attempts:2"), labels.includes("attempts:2") ? "issue carries attempts:2" : "issue has no attempts:2 label")
+      }
     }
   }
   const finalRead = githubPullRequest()
