@@ -94,3 +94,10 @@ export const resolveWorkerInvocation = (engineName, engine, labels) => {
   }
   return { tier, args }
 }
+
+/** Resolve one engine tier without carrying its interactive launcher arguments. */
+export const resolveWorkerModel = (engineName, engine, labels) => {
+  const { tier } = resolveWorkerInvocation(engineName, engine, labels)
+  const entry = modelEntry(engineName, engine.models, tier)
+  return { tier, model: entry.model, args: entry.args ?? [] }
+}

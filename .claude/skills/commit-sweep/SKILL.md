@@ -9,6 +9,10 @@ argument-hint: >-
 
 **Input**: $ARGUMENTS
 
+Run `node tools/run-commit-sweep.mjs $ARGUMENTS`. The runner gathers the deterministic
+git window, resolves the configured cheap tier, validates the structured result, and writes
+the report plus sidecar. Do not substitute a direct model invocation.
+
 Read a window of recent `main` commits across BOTH Orbit repos and diff-review them
 **together**, looking for cross-commit and cross-repo regressions that a per-PR `/pr-review`
 never sees: each PR merged in isolation, so a migration that duplicates an index an earlier

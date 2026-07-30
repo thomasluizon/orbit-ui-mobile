@@ -44,24 +44,20 @@ jobs:
           path: orbit-api
           fetch-depth: 0
 
+      - name: Install Codex
+        run: npm install --global @openai/codex
+
       - name: Run the commit sweep
-        uses: anthropics/claude-code-action@v1
-        with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt: |
-            You are running the repo's report-only `/commit-sweep` skill unattended.
-
-            The two repo roots come from the `ORBIT_UI_ROOT` and `ORBIT_API_ROOT` env vars (already set for this job); resolve each root from those, exactly as the skill's Phase 1 describes.
-
-            Run exactly this command: ${{ github.event_name == 'schedule' && '/commit-sweep --since "24 hours ago"' || format('/commit-sweep {0} {1}', inputs.commits, inputs.scope) }}
-
-            The skill writes `.claude/audits/commit-sweep.md` and the `.claude/audits/commit-sweep.status` sidecar. Do NOT post to GitHub, open or edit issues, or comment - this workflow's own steps surface the report. Do NOT remediate, refactor, or edit any code - the sweep is report-only.
-
-            ## Tool discipline (permissions are prefix-matched)
-
-            Every Bash call MUST be a single plain command exactly matching an allowed prefix - no `cd X && ...`, no pipes, no subshells, no heredocs. Drive git as `git -C "<root>" ...`. If a tool call is denied, simplify to a plain allowed command instead of retrying variants.
-          show_full_output: true
-          claude_args: '--allowedTools "Skill,Read,Grep,Glob,Write,TodoWrite,Bash(git:*),Bash(mkdir:*),Bash(ls:*)"'
+        env:
+          CODEX_AUTH_JSON: ${{ secrets.CODEX_AUTH_JSON }}
+        run: |
+          mkdir -p "$HOME/.codex"
+          printf '%s' "$CODEX_AUTH_JSON" > "$HOME/.codex/auth.json"
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            node tools/run-commit-sweep.mjs --ui-root "$ORBIT_UI_ROOT" --api-root "$ORBIT_API_ROOT" --since "24 hours ago"
+          else
+            node tools/run-commit-sweep.mjs --ui-root "$ORBIT_UI_ROOT" --api-root "$ORBIT_API_ROOT" --count "${{ inputs.commits }}" --scope "${{ inputs.scope }}"
+          fi
 
       - name: Read sweep status
         id: status

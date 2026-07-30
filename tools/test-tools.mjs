@@ -5320,6 +5320,19 @@ process.exit(statuses.every((status) => status === 0) ? 0 : 1)
 }
 
 const gateCases = {
+  "collect-commit-sweep.mjs": () => {
+    const ui = join(root, "commit-sweep", "ui")
+    const api = join(root, "commit-sweep", "api")
+    for (const repository of [ui, api]) {
+      mkdirSync(repository, { recursive: true })
+      spawnSync("git", ["-C", repository, "init", "-q", "--initial-branch=main"])
+      writeFileSync(join(repository, "evidence.txt"), repository === ui ? "ui evidence\n" : "api evidence\n")
+      spawnSync("git", ["-C", repository, "add", "evidence.txt"])
+      spawnSync("git", ["-C", repository, "-c", "user.name=Orbit", "-c", "user.email=orbit@example.test", "commit", "-qm", "seed evidence"])
+    }
+    check("collect-commit-sweep.mjs", "collects both repository patches in count mode", ["--ui-root", ui, "--api-root", api, "--count", "1", "--scope", "both"], { status: 0, stdout: /orbit-ui-mobile[\s\S]*orbit-api[\s\S]*seed evidence/ })
+    check("collect-commit-sweep.mjs", "reports an empty current window", ["--ui-root", ui, "--api-root", api, "--since", "now", "--scope", "both"], { status: 0, stdout: /"commits":\[\]/ })
+  },
   "ai-quota.mjs": aiQuotaCases,
   "automation-budget.mjs": automationBudgetCases,
   "merge-sweep.sh": () => {
@@ -6411,6 +6424,7 @@ const INVALID_INPUT = {
   "check-suppressions-ratchet.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-tier-labels.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-ticket.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "collect-commit-sweep.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "compose-prompt.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "launch-worker.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "merge-sweep-cov.sh": { argv: ["--orbit-not-a-flag", "zzz"], status: 2 },
@@ -6423,6 +6437,7 @@ const INVALID_INPUT = {
   "redesign-coverage.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "refresh-tier-labels.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "rollup.sh": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "run-commit-sweep.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "surface-manifest.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "teardown-worktree.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "wave-plan.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
