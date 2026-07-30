@@ -116,12 +116,17 @@ if (!first.ok) {
   const secondOnHead = codexReviews.some((review) => review.commit?.oid === pullRequest.headRefOid) || mentionedCommits.some((commit) => pullRequest.headRefOid?.startsWith(commit))
   const observedSecond = [...codexReviews.map((review) => review.commit?.oid), ...mentionedCommits].filter(Boolean)
   add("second-reviewer", secondOnHead && complete(pullRequest.reviews) && complete(pullRequest.comments), secondOnHead ? `chatgpt-codex-connector reviewed head ${pullRequest.headRefOid}` : `chatgpt-codex-connector reviewed ${observedSecond.join(", ") || "no named commit"}; head is ${pullRequest.headRefOid ?? "absent"}`)
-  const issueIdentifier = [pullRequest.headRefName, pullRequest.title]
-    .map((value) => (value ?? "").match(issueIdentifierPattern)?.[0]?.toUpperCase())
-    .find(Boolean)
-  if (!issueIdentifier) {
+  const issueIdentifiers = new Set(
+    [pullRequest.headRefName, pullRequest.title]
+      .flatMap((value) => [...(value ?? "").matchAll(new RegExp(issueIdentifierPattern.source, "gi"))])
+      .map((match) => match[0].toUpperCase()),
+  )
+  if (issueIdentifiers.size === 0) {
     add("linear-issue", false, "no configured-team Linear issue identifier appears in the branch or title")
+  } else if (issueIdentifiers.size > 1) {
+    add("linear-issue", false, `configured-team Linear issue identifiers disagree: ${[...issueIdentifiers].join(", ")}`)
   } else {
+    const [issueIdentifier] = issueIdentifiers
     const issueResult = linearIssue(issueIdentifier)
     if (!issueResult.ok) {
       add("linear-issue", false, issueResult.error)

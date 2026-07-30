@@ -5391,6 +5391,8 @@ const mergeabilityCases = () => {
   T("mergeability.mjs: a body-only configured-team identifier is HELD", unrelatedBody.status === 1 && /HELD linear-issue: no configured-team Linear issue identifier appears in the branch or title/.test(unrelatedBody.stdout), unrelatedBody.stderr || unrelatedBody.stdout)
   const lowerCaseBranch = runCase("lowercase-branch", pullRequest({ title: "Merge readiness UTF-8", headRefName: "contact/orb-143-mergeability" }))
   T("mergeability.mjs: a lowercase configured-team branch identifier is accepted", lowerCaseBranch.status === 0 && /OK linear-in-review: issue ORB-143 is In Review/.test(lowerCaseBranch.stdout), lowerCaseBranch.stderr || lowerCaseBranch.stdout)
+  const conflictingIdentifiers = runCase("conflicting-identifiers", pullRequest({ title: "ORB-144 merge decision" }))
+  T("mergeability.mjs: conflicting configured-team branch and title identifiers are HELD", conflictingIdentifiers.status === 1 && /HELD linear-issue: configured-team Linear issue identifiers disagree: ORB-143, ORB-144/.test(conflictingIdentifiers.stdout), conflictingIdentifiers.stderr || conflictingIdentifiers.stdout)
   const errorLog = stage("mergeability-error.log", "")
   const forgeError = run("mergeability.mjs", ["--repo", "orbit/ui", "--pr", "615"], { env: { ...orcaEnv([{ match: "query($owner:String!,$name:String!,$number:Int!)", stdout: "forge offline", exit: 7 }]), ORBIT_ORCA_LOG: errorLog } })
   T("mergeability.mjs: an erroring forge lookup is HELD", forgeError.status === 1 && /HELD github-pull-request: GitHub pull-request lookup failed/.test(forgeError.stdout), forgeError.stderr || forgeError.stdout)
