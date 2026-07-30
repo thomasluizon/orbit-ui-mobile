@@ -5319,7 +5319,77 @@ process.exit(statuses.every((status) => status === 0) ? 0 : 1)
   )
 }
 
+const mergeabilityCases = () => {
+  const head = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  const stale = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  const pullRequest = (overrides = {}) => ({
+    number: 615,
+    url: "https://github.com/orbit/ui/pull/615",
+    title: "ORB-143 merge decision",
+    body: "",
+    headRefName: "feature/orb-143-mergeability",
+    isDraft: false,
+    mergeStateStatus: "CLEAN",
+    headRefOid: head,
+    labels: { pageInfo: { hasNextPage: false }, nodes: [] },
+    reviews: {
+      pageInfo: { hasNextPage: false },
+      nodes: [
+        { state: "APPROVED", author: { login: "claude" }, commit: { oid: head } },
+        { state: "APPROVED", author: { login: "chatgpt-codex-connector" }, commit: { oid: head } },
+      ],
+    },
+    comments: { pageInfo: { hasNextPage: false }, nodes: [] },
+    reviewThreads: { pageInfo: { hasNextPage: false }, nodes: [] },
+    commits: { nodes: [{ commit: { statusCheckRollup: { state: "SUCCESS", contexts: { pageInfo: { hasNextPage: false }, nodes: [{ __typename: "CheckRun", name: "CI", status: "COMPLETED", conclusion: "SUCCESS" }] } } } }] },
+    ...overrides,
+  })
+  const github = (first, final = first) => ({
+    match: "query($owner:String!,$name:String!,$number:Int!)",
+    sequence: [
+      JSON.stringify({ data: { repository: { pullRequest: first } } }),
+      JSON.stringify({ data: { repository: { pullRequest: final } } }),
+    ],
+  })
+  const linear = (issue = { state: { name: "In Review" }, labels: [] }) => ({
+    match: "linear issue ORB-143",
+    stdout: JSON.stringify({ ok: true, result: { issue } }),
+  })
+  const runCase = (name, first, { final = first, issue, json = false, plan = [] } = {}) => {
+    const log = stage(`mergeability-${name}.log`, "")
+    return run("mergeability.mjs", ["--repo", "orbit/ui", "--pr", "615", ...(json ? ["--json"] : [])], {
+      env: { ...orcaEnv([github(first, final), linear(issue), ...plan]), ORBIT_ORCA_LOG: log },
+    })
+  }
+  const mergeable = runCase("mergeable", pullRequest())
+  T("mergeability.mjs: a complete current-head decision is MERGEABLE", mergeable.status === 0 && /^MERGEABLE\r?\n/.test(mergeable.stdout) && (mergeable.stdout.match(/^OK /gm) ?? []).length === 9, mergeable.stderr || mergeable.stdout)
+  const machine = runCase("machine", pullRequest(), { json: true })
+  T("mergeability.mjs: JSON output carries the consumable verdict and conditions", machine.status === 0 && JSON.parse(machine.stdout).verdict === "MERGEABLE" && JSON.parse(machine.stdout).conditions.length === 9, machine.stderr || machine.stdout)
+  const draft = runCase("draft", pullRequest({ isDraft: true }))
+  T("mergeability.mjs: a draft is HELD even when GitHub says CLEAN", draft.status === 1 && /^HELD\r?\n/.test(draft.stdout) && /HELD draft: pull request is a draft/.test(draft.stdout), draft.stderr || draft.stdout)
+  const unresolved = runCase("unresolved", pullRequest({ reviewThreads: { pageInfo: { hasNextPage: false }, nodes: [{ isResolved: false }] } }))
+  T("mergeability.mjs: an unresolved review thread is HELD", unresolved.status === 1 && /HELD unresolved-review-threads: 1 unresolved thread/.test(unresolved.stdout), unresolved.stderr || unresolved.stdout)
+  const staleSecond = runCase("stale-second", pullRequest({ reviews: { pageInfo: { hasNextPage: false }, nodes: [{ state: "APPROVED", author: { login: "claude" }, commit: { oid: head } }, { state: "APPROVED", author: { login: "chatgpt-codex-connector" }, commit: { oid: stale } }] } }))
+  T("mergeability.mjs: a stale second-reviewer commit names it and the head", staleSecond.status === 1 && new RegExp(`HELD second-reviewer: .*${stale}.*${head}`).test(staleSecond.stdout), staleSecond.stderr || staleSecond.stdout)
+  const commentVerdict = runCase("comment-verdict", pullRequest({ reviews: { pageInfo: { hasNextPage: false }, nodes: [{ state: "APPROVED", author: { login: "claude" }, commit: { oid: head } }] }, comments: { pageInfo: { hasNextPage: false }, nodes: [{ author: { login: "chatgpt-codex-connector" }, body: `Reviewed commit ${head}` }] } }))
+  T("mergeability.mjs: a current-head Codex conversation verdict satisfies the second review", commentVerdict.status === 0 && /OK second-reviewer: chatgpt-codex-connector reviewed head/.test(commentVerdict.stdout), commentVerdict.stderr || commentVerdict.stdout)
+  const wrongState = runCase("wrong-state", pullRequest(), { issue: { state: { name: "In Progress" }, labels: [] } })
+  T("mergeability.mjs: a linked issue outside In Review is HELD", wrongState.status === 1 && /HELD linear-in-review: issue ORB-143 is In Progress, requires In Review/.test(wrongState.stdout), wrongState.stderr || wrongState.stdout)
+  const strikes = runCase("strikes", pullRequest(), { issue: { state: { name: "In Review" }, labels: [{ name: "attempts:2" }] } })
+  T("mergeability.mjs: attempts:2 is HELD", strikes.status === 1 && /HELD two-strikes: issue carries attempts:2/.test(strikes.stdout), strikes.stderr || strikes.stdout)
+  const errorLog = stage("mergeability-error.log", "")
+  const forgeError = run("mergeability.mjs", ["--repo", "orbit/ui", "--pr", "615"], { env: { ...orcaEnv([{ match: "query($owner:String!,$name:String!,$number:Int!)", stdout: "forge offline", exit: 7 }]), ORBIT_ORCA_LOG: errorLog } })
+  T("mergeability.mjs: an erroring forge lookup is HELD", forgeError.status === 1 && /HELD github-pull-request: GitHub pull-request lookup failed/.test(forgeError.stdout), forgeError.stderr || forgeError.stdout)
+  const emptyLog = stage("mergeability-empty.log", "")
+  const emptyIssue = run("mergeability.mjs", ["--repo", "orbit/ui", "--pr", "615"], { env: { ...orcaEnv([github(pullRequest()), { match: "linear issue ORB-143", stdout: JSON.stringify({ ok: true, result: {} }) }]), ORBIT_ORCA_LOG: emptyLog } })
+  T("mergeability.mjs: an empty Linear result is HELD", emptyIssue.status === 1 && /HELD linear-issue: Linear issue lookup returned no issue/.test(emptyIssue.stdout), emptyIssue.stderr || emptyIssue.stdout)
+  const badLog = stage("mergeability-unparseable.log", "")
+  const unparseable = run("mergeability.mjs", ["--repo", "orbit/ui", "--pr", "615"], { env: { ...orcaEnv([{ match: "query($owner:String!,$name:String!,$number:Int!)", stdout: "not json" }]), ORBIT_ORCA_LOG: badLog } })
+  T("mergeability.mjs: an unparseable forge result is HELD", unparseable.status === 1 && /HELD github-pull-request: GitHub pull-request lookup returned unparseable output/.test(unparseable.stdout), unparseable.stderr || unparseable.stdout)
+}
+
 const gateCases = {
+  "mergeability.mjs": mergeabilityCases,
   "ai-quota.mjs": aiQuotaCases,
   "automation-budget.mjs": automationBudgetCases,
   "merge-sweep.sh": () => {
@@ -6415,6 +6485,7 @@ const INVALID_INPUT = {
   "launch-worker.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "merge-sweep-cov.sh": { argv: ["--orbit-not-a-flag", "zzz"], status: 2 },
   "merge-sweep.sh": { argv: ["--orbit-not-a-flag", "zzz"], status: 2 },
+  "mergeability.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "new-ticket.mjs": { argv: [], status: 2 },
   "nudge-worker.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "orca-web-port.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
