@@ -71,10 +71,14 @@ the code and its harness fixture, so a fixture built from a guess makes the harn
 that your code matches your belief, not that it works. A green harness over an invented
 field is worth less than no test at all, because it buys false confidence.
 
-When you use an external field the codebase does not already read, paste the real
-invocation and its real output in the pull request body as the evidence for it. If you
-cannot obtain the real response, say so explicitly and design so the unknown fails closed;
-never guess and proceed.
+When you use an external field the codebase does not already read, put the evidence for it
+in the pull request body: the command you ran and the response it returned. What proves a
+field exists is the response SHAPE, so paste keys and types and replace the values. Redact
+before you paste, always: never include a token, key, cookie, or credential in the command
+you show, and replace any personal, customer, or account value in the response with a
+placeholder. A pull request body is readable by everyone with repository access and is
+permanent. If you cannot obtain the real response, say so explicitly and design so the
+unknown fails closed; never guess and proceed.
 
 Measured cost of skipping this, 2026-07-30: a worker parsed `result.issue.updatedAt` out
 of `orca linear status set --json`. That field does not exist; the write result is
