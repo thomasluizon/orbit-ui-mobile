@@ -17,7 +17,7 @@
  * reviews, or moves a Linear issue.
  */
 
-import { execFileSync, spawnSync } from "node:child_process"
+import { execFileSync, spawn, spawnSync } from "node:child_process"
 import { randomUUID } from "node:crypto"
 import {
   appendFileSync,
@@ -34,7 +34,7 @@ import { basename, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
-import { SETTLE_MS, isRepainting, pause } from "./lib/tui-repaint.mjs"
+const pause = (milliseconds) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds)
 
 const USAGE = `usage: launch-worker.mjs --issue ORB-N --prompt-file <path> [options]
 
@@ -53,6 +53,7 @@ const USAGE = `usage: launch-worker.mjs --issue ORB-N --prompt-file <path> [opti
                          override the configured concurrency cap for this invocation
   --comment "<text>"     worktree card comment (default: "<ORB-N> launched: worker running")
   --workspace-status <s> Orca board status id (default: in-progress)
+  --existing-worktree <path> launch an additional headless worker in this existing Orca worktree
   --dry-run              resolve everything and print the plan; run no mutating orca or git command
   --help, -h             print this usage and exit 0
 
@@ -85,6 +86,8 @@ const ORCA = process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs
 /** How long one tui-idle wait may block, and how many waits a launch gets before it fails. */
 const WAIT_TIMEOUT_MS = 60000
 const MAX_WAIT_ATTEMPTS = 6
+// Conservative: two observations establish that 178 fails and 42 succeeds, not the boundary.
+const MAX_INTERACTIVE_PROMPT_PATH_LENGTH = 120
 
 /**
  * What each worker CLI does that this script has to know, keyed by the binary it runs.
@@ -124,11 +127,8 @@ const ENGINE_PROFILES = {
 const TRUST_BLOCKED_REASON = /trust/i
 const flatten = (text) => text.replace(/\s+/g, "").toLowerCase()
 
-/** The prompt pointer below is a `terminal send`, and a send to a busy worker is the ORB-75
- * failure this whole script exists to avoid, so a satisfied tui-idle wait alone is not enough
- * to send on. Why the repaint delta is the signal that works for both engines, and why the
- * terminal text is not: tools/lib/tui-repaint.mjs. */
-const busy = (handle) => isRepainting(orca, handle)
+// Orca WORKTREES remain required for isolation, concurrency accounting, and cleanup. Only
+// Orca TERMINALS are optional now that headless workers are ordinary child processes.
 
 /**
  * How many times the pointer may be sent before the launch is a failure, and how long the TUI
@@ -185,8 +185,8 @@ conflict with anything above, these win.
    is acceptable; unmentioned is not. The pull request must be ready for review, never a draft.
    Never silently drop a criterion.
 3. **Own the automated review cycle.** After the PR is open, attached, and In Review, poll its
-   review transitions with \`node tools/pr-watch.mjs --repo <owner/name> --pr <number>
-   --once\` only as a low-level wake-up. After every call and before waiting or reporting
+   review transitions with a foreground blocking \`node tools/pr-watch.mjs --repo <owner/name> --pr <number>\`.
+   Every wait must state \`yield_time_ms\` explicitly, at or above the whole expected wait. After every call and before waiting or reporting
    completion, run \`node tools/worker-status.mjs --worktree <path> --issue ORB-N --json\`.
    That full-surface completion poll inventories review submissions, review threads and their
    nested comments, and PR conversation comments, and fails closed on an incomplete inventory.
@@ -205,11 +205,11 @@ conflict with anything above, these win.
    finding and your reasoning.
 5. **Your job ends on one report.** Report completion once the PR is approved with zero
    unresolved threads, or send the escalation from clause 4. An earlier instruction to stop
-   after opening or attaching the PR does not replace this endpoint. Never watch another
-   ticket, worktree, or PR.
-6. **Never arm a background monitor, watcher or wait loop that outlives this contract.**
+   after opening or attaching the PR does not replace this endpoint. If your work order tells you
+   both to watch something and to stop, STOP wins. Never watch another ticket, worktree, or PR.
+6. **Never arm a detached background monitor, watcher or wait loop that outlives this contract.** A foreground blocking wait is permitted.
 7. **Never merge any PR, never push to \`main\`, never use \`--no-verify\`, never edit a gate
-   baseline.**
+   baseline, never run \`gh pr merge --admin\`, never directly call \`PUT /repos/{owner}/{repo}/pulls/{number}/merge\`, and never directly call the GraphQL \`mergePullRequest\` mutation. If a merge genuinely needs an admin override, STOP and ask Thomas to merge it himself; never perform the override.**
 8. **Stage explicitly.** Commit only the paths you edited yourself. \`git add -A\`, \`git add .\`
    and \`git commit -a\` are forbidden. A worktree is a shared filesystem that sibling workers,
    dev servers and tooling all write into, so a blanket stage turns any of their runtime
@@ -623,6 +623,7 @@ const acquireConcurrencyReservation = (repoPath) => {
 
 const issue = argOf("--issue")
 const promptFileArg = argOf("--prompt-file")
+const existingWorktreeArg = argOf("--existing-worktree")
 const repoOverride = argOf("--repo")
 const baseBranch = argOf("--base-branch") ?? "main"
 const branchPrefix = argOf("--branch-prefix") ?? "feature"
@@ -687,11 +688,14 @@ if (
 ) {
   fail(2, `.claude/orchestrator.json worker "${engineName}" must declare positive integer automationBudget.invocationTokens for every declared model tier: ${invocationTokenTiers.join(", ")}`)
 }
-if (engine.interactive !== true) {
+if (typeof engine.interactive !== "boolean") {
   fail(
     2,
-    `.claude/orchestrator.json worker "${engineName}" does not declare interactive: true. Everything below this line assumes a supervisable TUI: the trust-prompt answer, the tui-idle poll, nudge-worker's busy refusal, worker-status' idle-then-check. A headless engine has none of that, so it launches unwatched and lands zero commits, zero gates and no PR. Declare the engine interactive only when its invocation really opens a TUI.`,
+    `.claude/orchestrator.json worker "${engineName}" must explicitly declare interactive as true or false; silence must not select a launch mode.`,
   )
+}
+if (engine.interactive && promptFile.length > MAX_INTERACTIVE_PROMPT_PATH_LENGTH) {
+  fail(2, `prompt file path is ${promptFile.length} characters; interactive terminal delivery can swallow long paths. Use a shorter path or a headless worker.`)
 }
 if (!config.repos || typeof config.repos !== "object") {
   fail(2, ".claude/orchestrator.json carries no repos map; add one keyed by the repo:* label ids (ui, api, landing)")
@@ -742,6 +746,21 @@ const projectedTokens = automationBudget.invocationTokens[resolvedInvocation.tie
 const invocationStartedAt = new Date().toISOString()
 const invocationIdentity = `${issue}:${invocationStartedAt}:${randomUUID()}`
 const command = [engine.command, ...engineArgs].join(" ")
+const workerPointer = (worktreePath, branch) => `Read ${promptFile} and execute it in full. That file is your complete work order for ${issue}. You are on branch ${branch} in ${worktreePath}. Do not summarise the file back to me, start the work now.`
+const startHeadlessWorker = (worktreePath, branch) => {
+  const child = spawn(engine.command, [...engineArgs, workerPointer(worktreePath, branch)], {
+    cwd: worktreePath,
+    detached: true,
+    stdio: "ignore",
+    windowsHide: true,
+    env: { ...process.env, ORBIT_LAUNCH_WORKER: "1" },
+  })
+  if (!child.pid) fail(3, `could not start headless ${engineName} worker`)
+  child.unref()
+  const gitCommonDirectory = resolve(worktreePath, git(["-C", worktreePath, "rev-parse", "--git-common-dir"]))
+  appendFileSync(join(gitCommonDirectory, "orbit-worker-pids.jsonl"), `${JSON.stringify({ issue, pid: child.pid, startedAt: new Date().toISOString() })}\n`)
+  return child.pid
+}
 
 /**
  * Second level, for an entry that declares interactive: true while carrying a headless
@@ -759,8 +778,11 @@ if (!profile) {
   fail(2, `worker "${engineName}" runs "${binary}", which tools/launch-worker.mjs has no engine profile for. Add one to ENGINE_PROFILES naming that CLI's headless tokens (the subcommand or flag that runs it with no TUI), its first-run trust screen and the keystroke that answers it. Known: ${Object.keys(ENGINE_PROFILES).join(", ")}`)
 }
 const headless = invocationTokens.slice(1).find((token) => profile.headlessTokens.includes(token))
-if (headless) {
+if (engine.interactive === true && headless) {
   fail(2, `worker "${engineName}" declares interactive: true but its invocation "${command}" carries "${headless}", which is a headless invocation of ${binary}. Fix the command or args, or the declaration, in .claude/orchestrator.json`)
+}
+if (engine.interactive === false && !headless) {
+  fail(2, `worker "${engineName}" declares interactive: false but its invocation "${command}" has no known headless token for ${binary}`)
 }
 const runPermissionIndex = invocationTokens.findIndex((token, index) => token === profile.runPermissionTokens[0] && profile.runPermissionTokens.every((expected, offset) => invocationTokens[index + offset] === expected))
 if (runPermissionIndex === -1) {
@@ -845,6 +867,23 @@ if (workerContract === "appended") {
   }
 }
 
+if (existingWorktreeArg) {
+  const worktreePath = resolve(existingWorktreeArg)
+  if (!existsSync(worktreePath)) fail(2, `existing worktree not found: ${worktreePath}`)
+  if (isInside(promptFile, worktreePath)) fail(2, `prompt file lives inside the existing worktree (${worktreePath})`)
+  const actualRoot = git(["-C", worktreePath, "rev-parse", "--show-toplevel"])
+  if (normalize(actualRoot) !== normalize(worktreePath)) fail(2, `--existing-worktree must name a Git worktree root: ${worktreePath}`)
+  const existing = listedWorktrees.find((worktree) => normalize(worktree.path) === normalize(worktreePath))
+  if (!existing || existing.isMainWorktree || existing.isArchived || existing.linkedLinearIssue !== issue) {
+    fail(2, `--existing-worktree must be an active Orca worktree linked to ${issue}`)
+  }
+  const branch = git(["-C", worktreePath, "rev-parse", "--abbrev-ref", "HEAD"])
+  const workerPid = startHeadlessWorker(worktreePath, branch)
+  rollback = null
+  console.log(JSON.stringify({ ...plan, launchMode: "existing-worktree", worktreePath, worktreeSelector: `path:${worktreePath}`, branch, workerPid }, null, 2))
+  process.exit(0)
+}
+
 console.error(`creating worktree ${worktreeName} in ${repoKey} from ${baseBranch}`)
 const created = orca([
   "worktree", "create",
@@ -875,6 +914,14 @@ git(["-C", worktreePath, "switch", "-c", branch])
 rollback.contractBranch = branch
 const actualBranch = git(["-C", worktreePath, "rev-parse", "--abbrev-ref", "HEAD"])
 if (actualBranch !== branch) fail(3, `expected the worktree on ${branch}, found ${actualBranch}`)
+
+if (engine.interactive === false) {
+  const workerPid = startHeadlessWorker(worktreePath, branch)
+  rollback = null
+  orca(["worktree", "set", "--worktree", worktreeSelector, "--comment", comment, "--workspace-status", workspaceStatus])
+  console.log(JSON.stringify({ ...plan, launchMode: "new-worktree", worktreePath, worktreeSelector, workerPid }, null, 2))
+  process.exit(0)
+}
 
 console.error(`starting the ${engineName} TUI: ${command}`)
 const terminal = createTerminal(worktreeSelector, command)

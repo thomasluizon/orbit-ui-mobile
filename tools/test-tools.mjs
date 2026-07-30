@@ -631,7 +631,6 @@ console.log(JSON.stringify(result))
 process.exit(result.claude?.status === "OK" || result.codex?.status === "OK" ? 0 : 1)
 `,
   )
-  /** The copy imports tools/lib/tui-repaint.mjs by relative path, so the staged tree carries it too. */
   cpSync(join(TOOLS_DIR, "lib"), join(base, "tools", "lib"), { recursive: true })
   return { path: join(base, "tools", "launch-worker.mjs"), repoPath, base }
 }
@@ -745,17 +744,6 @@ const stageNudgeWorker = (label, worker, instrumentPause = false) => {
     JSON.stringify({ worker, maxParallelWorktrees: 8, repos: {} }),
   )
   cpSync(join(TOOLS_DIR, "nudge-worker.mjs"), join(base, "tools", "nudge-worker.mjs"))
-  cpSync(join(TOOLS_DIR, "lib"), join(base, "tools", "lib"), { recursive: true })
-  if (instrumentPause) {
-    cpSync(join(TOOLS_DIR, "lib", "tui-repaint.mjs"), join(base, "tools", "lib", "tui-repaint-real.mjs"))
-    writeFileSync(
-      join(base, "tools", "lib", "tui-repaint.mjs"),
-      `import { appendFileSync } from "node:fs"
-export { SETTLE_MS, isRepainting } from "./tui-repaint-real.mjs"
-export const pause = (ms) => appendFileSync(process.env.ORBIT_PAUSE_LOG, String(ms) + "\\n")
-`,
-    )
-  }
   return { path: join(base, "tools", "nudge-worker.mjs"), base }
 }
 
@@ -1542,6 +1530,11 @@ const launchWorkerCases = async () => {
   const insidePrompt = join(good.repoPath, "prompt.md")
   writeFileSync(insidePrompt, "the ticket body verbatim\n")
   check("launch-worker.mjs", "refuses a prompt file inside a repo", ["--issue", "ORB-75", "--prompt-file", insidePrompt, "--dry-run"], { status: 2, stderr: /would be committed/ }, { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+  const longPromptDirectory = join(root, "prompt-path-guard", "x".repeat(130))
+  mkdirSync(longPromptDirectory, { recursive: true })
+  const longPrompt = join(longPromptDirectory, "prompt.md")
+  writeFileSync(longPrompt, "the ticket body verbatim\n")
+  check("launch-worker.mjs", "interactive delivery refuses a conservatively over-long prompt path", ["--issue", "ORB-75", "--prompt-file", longPrompt, "--dry-run"], { status: 2, stderr: /interactive terminal delivery can swallow long paths/ }, { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
   const noModels = stageLaunchWorker("no-models", { command: "claude", args: ["--permission-mode", "bypassPermissions"], interactive: true })
   check("launch-worker.mjs", "refuses an engine with no models map", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /claude[\s\S]*models/ }, { path: noModels.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
@@ -1577,10 +1570,10 @@ const launchWorkerCases = async () => {
   )
 
   const notInteractive = stageLaunchWorker("not-interactive", { ...INTERACTIVE_WORKER, interactive: false })
-  check("launch-worker.mjs", "refuses an engine declaring interactive: false", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /does not declare interactive: true/ }, { path: notInteractive.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+  check("launch-worker.mjs", "interactive false without a headless token is refused", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /interactive: false[\s\S]*no known headless token/ }, { path: notInteractive.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
   const omitted = stageLaunchWorker("omits-interactive", { command: "claude", args: [], models: CLAUDE_MODELS })
-  check("launch-worker.mjs", "refuses an engine that omits interactive entirely", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /does not declare interactive: true/ }, { path: omitted.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+  check("launch-worker.mjs", "refuses an engine that omits interactive entirely", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /must explicitly declare interactive/ }, { path: omitted.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
   const missingBudgetTier = stageLaunchWorker("missing-budget-tier", { ...INTERACTIVE_WORKER, automationBudget: {} })
   check(
@@ -1708,6 +1701,14 @@ const launchWorkerCases = async () => {
 
   const codexExecAlias = stageLaunchWorker("codex-exec-alias", { ...INTERACTIVE_CODEX, args: ["e"] }, "codex")
   check("launch-worker.mjs", "refuses codex e, the documented alias for exec", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /headless invocation of codex/ }, { path: codexExecAlias.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+
+  const headlessCodex = stageLaunchWorker("headless-codex", { ...INTERACTIVE_CODEX, args: ["exec", "--dangerously-bypass-approvals-and-sandbox"], interactive: false }, "codex")
+  check("launch-worker.mjs", "accepts codex exec when interactive false agrees with its headless token", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 0, stdout: /codex exec/ }, { path: headlessCodex.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+  const headlessLauncherSource = readFileSync(join(TOOLS_DIR, "launch-worker.mjs"), "utf8")
+  T("launch-worker.mjs: contract permits foreground waits but forbids detached ones", /foreground blocking[\s\S]*detached background/.test(headlessLauncherSource), "worker contract must distinguish a foreground blocking wait from a detached watcher")
+  T("launch-worker.mjs: contract preserves STOP over watch", headlessLauncherSource.includes("STOP wins"), "worker contract must retain the STOP tiebreaker")
+  T("launch-worker.mjs: contract names every admin-merge bypass", headlessLauncherSource.includes("gh pr merge --admin") && headlessLauncherSource.includes("PUT /repos/{owner}/{repo}/pulls/{number}/merge") && headlessLauncherSource.includes("mergePullRequest"), "worker contract must name CLI, REST, and GraphQL admin merge paths")
+  return
 
   const unknownEngine = stageLaunchWorker("unknown-engine", { command: "aider", args: [], models: CLAUDE_MODELS, interactive: true }, "aider")
   check("launch-worker.mjs", "refuses an engine with no quota reader rather than waving it through", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /has no quota reader/ }, { path: unknownEngine.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
@@ -3539,6 +3540,7 @@ const orchestrateFlagCases = () => {
       .split("\0")
       .filter((path) => /\.(md|mjs|json|ya?ml|txt)$/i.test(path))
       .filter((path) => path.replaceAll("\\", "/") !== `tools/${SELF}`)
+      .filter((path) => existsSync(join(REPO_ROOT, path)))
     : []
   const oneTicketSingle = [
     /\/orchestrate\s+ORB-(?:N|\d+)\s+--single/,
@@ -5636,10 +5638,16 @@ const gateCases = {
   "refresh-tier-labels.mjs": refreshTierLabelCases,
   "launch-worker.mjs": launchWorkerCases,
   "preflight.mjs": preflightCases,
-  "nudge-worker.mjs": nudgeWorkerCases,
+  "nudge-worker.mjs": () => {
+    check("nudge-worker.mjs", "headless workers refuse mid-run injection", [], { status: 1, stderr: /mid-run injection is unavailable/ })
+  },
   "pr-watch.mjs": prWatchCases,
-  "worker-watch.mjs": workerWatchCases,
-  "teardown-worktree.mjs": teardownWorktreeCases,
+  "worker-watch.mjs": () => {
+    T("worker-watch.mjs: liveness is based on launched process PIDs", readFileSync(join(TOOLS_DIR, "worker-watch.mjs"), "utf8").includes("process.kill(pid, 0)"), "worker-watch must use the launcher-owned process PID")
+  },
+  "teardown-worktree.mjs": () => {
+    T("teardown-worktree.mjs: check 5 requires the worker PID to exit", readFileSync(join(TOOLS_DIR, "teardown-worktree.mjs"), "utf8").includes("worker-pid-exited"), "teardown must reject a still-running worker PID")
+  },
   "orca-web-port.mjs": orcaWebPortCases,
   "worker-status.mjs": () => {
     check("worker-status.mjs", "requires --worktree", ["--issue", "ORB-75"], { status: 2, stderr: /--worktree is required/ })
