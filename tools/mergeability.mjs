@@ -84,7 +84,7 @@ const linearIssue = (identifier) => {
   const parsed = parse(result.raw, "Linear issue lookup")
   if (!parsed.ok) return parsed
   if (parsed.value.ok === false) return { ok: false, error: `Linear issue lookup failed: ${parsed.value.error?.message ?? "unknown error"}` }
-  const issue = parsed.value.result?.issue ?? parsed.value.issue ?? parsed.value.result
+  const issue = parsed.value.result?.issue
   return issue && typeof issue === "object" && Object.hasOwn(issue, "state")
     ? { ok: true, value: issue }
     : { ok: false, error: "Linear issue lookup returned no issue" }
@@ -132,12 +132,12 @@ if (!first.ok) {
       add("linear-issue", false, issueResult.error)
     } else {
       const issue = issueResult.value
-      const state = issue.state?.name ?? issue.state
+      const state = issue.state.name
       add("linear-in-review", state === reviewState, `issue ${issueIdentifier} is ${state ?? "absent"}, requires ${reviewState}`)
       if (!Array.isArray(issue.labels)) {
         add("two-strikes", false, "Linear issue labels are unavailable")
       } else {
-        const labels = issue.labels.map((label) => typeof label === "string" ? label : label.name)
+        const labels = issue.labels.map((label) => label.name)
         add("two-strikes", !labels.includes("attempts:2"), labels.includes("attempts:2") ? "issue carries attempts:2" : "issue has no attempts:2 label")
       }
     }
