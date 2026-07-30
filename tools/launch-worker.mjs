@@ -288,7 +288,7 @@ const fail = (code, message) => {
     }
     if (removal.status !== 0) {
       console.error(`could not remove the worktree: ${(removal.stdout || removal.stderr || "").trim().slice(0, 300)}`)
-      console.error(`remove it by hand before relaunching: orca worktree rm --worktree ${selector} --force`)
+      console.error(`remove it by hand before relaunching: orca worktree rm --worktree ${selector} --force; budget reservation "${budgetReservation?.identity ?? "unknown"}" remains pending and must be recorded after confirming no worker started`)
     } else {
       cleanupConfirmed = true
       workerTornDown = true
@@ -308,7 +308,7 @@ const fail = (code, message) => {
       budgetReservation = null
     }
   } else if (budgetReservation && reservationMaySpend) {
-    console.error(`left budget reservation "${budgetReservation.identity}" pending because the worker shutdown could not be confirmed`)
+    console.error(`left budget reservation "${budgetReservation.identity}" pending because the post-handoff worker may still be active`)
   } else if (budgetReservation && !reservationMaySpend && cleanupConfirmed && cancelBudgetReservation) {
     const cancelled = cancelBudgetReservation(budgetReservation)
     if (!cancelled) {

@@ -6,7 +6,7 @@
  */
 
 import { execFileSync, spawnSync } from "node:child_process"
-import { existsSync, readFileSync } from "node:fs"
+import { existsSync } from "node:fs"
 import { homedir } from "node:os"
 import { resolve } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -103,25 +103,29 @@ const pullRequestFor = (path, branch, base) => {
 const selectorPath = (value) => value?.replace(/^path:/, "")
 const normalize = (path) => (typeof path === "string" ? resolve(selectorPath(path)) : "").replaceAll("\\", "/").replace(/\/+$/, "").toLowerCase()
 const pendingReservationsForIssue = (issue) => {
-  let contents
-  try {
-    contents = readFileSync(LEDGER_PATH, "utf8")
-  } catch (error) {
-    if (error.code === "ENOENT") return []
-    fail(3, `could not read automation ledger ${LEDGER_PATH}: ${error.message}`)
-  }
-  const latestByIdentity = new Map()
-  for (const [index, line] of contents.split(/\r?\n/).entries()) {
-    if (line.length === 0) continue
-    let record
-    try {
-      record = JSON.parse(line)
-    } catch {
-      fail(3, `automation ledger line ${index + 1} is not valid JSON`)
+  const resetAt = new Date().toISOString()
+  const pending = []
+  for (const engine of ["claude", "codex"]) {
+    const result = spawnSync(process.execPath, [
+      BUDGET_TOOL,
+      "report",
+      "--engine", engine,
+      "--reset-at", resetAt,
+      "--identity-prefix", `${issue}:`,
+      "--ledger", LEDGER_PATH,
+      "--json",
+    ], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
+    if (result.error || result.status !== 0) {
+      fail(3, `could not inspect pending reservations for ${issue}: ${(result.stderr || result.stdout || result.error?.message || "unknown error").trim()}`)
     }
-    if (typeof record.identity === "string" && record.identity.startsWith(`${issue}:`)) latestByIdentity.set(record.identity, record)
+    try {
+      const report = JSON.parse(result.stdout)
+      for (const reservation of report.pendingRecords) pending.push(reservation)
+    } catch {
+      fail(3, `could not read pending reservation report for ${issue}: ${result.stdout.trim().slice(0, 300)}`)
+    }
   }
-  return [...latestByIdentity.values()].filter((record) => record.pending === true)
+  return pending
 }
 const closePendingReservations = (reservations) => {
   for (const reservation of reservations) {
@@ -133,6 +137,7 @@ const closePendingReservations = (reservations) => {
       "--tier", reservation.tier,
       "--started-at", reservation.startedAt,
       "--ended-at", new Date().toISOString(),
+      "--identity-prefix", reservation.identity.slice(0, reservation.identity.indexOf(":") + 1),
       "--ledger", LEDGER_PATH,
       "--json",
     ], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
@@ -207,8 +212,6 @@ if (unmet.length > 0) {
   process.exit(unmet.some((check) => check.exitCode === 3) ? 3 : 1)
 }
 
-const pendingReservations = pendingReservationsForIssue(issue)
-
 const commonDirRaw = git(path, ["rev-parse", "--git-common-dir"])
 const commonDir = resolve(path, commonDirRaw)
 const gitCommon = (args, { allowFailure = false } = {}) => {
@@ -236,7 +239,8 @@ if (branchExists) {
 }
 const branchRemaining = gitCommon(["show-ref", "--verify", "--quiet", `refs/heads/${branch}`], { allowFailure: true }) !== null
 if (branchRemaining) fail(1, `removed worktree but local branch ${branch} still exists`)
-closePendingReservations(pendingReservations)
 console.log(`REMOVED worktree ${path}`)
 console.log(`REMOVED terminals for ${path}`)
 console.log(`REMOVED local branch ${branch}`)
+const pendingReservations = pendingReservationsForIssue(issue)
+closePendingReservations(pendingReservations)

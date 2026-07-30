@@ -12,7 +12,7 @@ const USAGE = `usage:
   automation-budget.mjs reserve --engine <claude|codex> --identity <id> --tier <routine|reserved> --started-at <timestamp> --ended-at <timestamp> --reset-at <timestamp> --warning-tokens <count> --budget-tokens <count> --invocation-tokens <count> [--account-used-percent <percent> --account-observed-at <timestamp>] [--ledger <path>] [--json]
   automation-budget.mjs record --identity <id> --engine <claude|codex> --tier <routine|reserved> --started-at <timestamp> --ended-at <timestamp> [--input-tokens <count>] [--output-tokens <count>] [--provider-estimated-cost <amount>] [--account-used-percent <percent> --account-observed-at <timestamp>] [--ledger <path>] [--json]
   automation-budget.mjs cancel --identity <id> --engine <claude|codex> --tier <routine|reserved> --started-at <timestamp> --ended-at <timestamp> [--ledger <path>] [--json]
-  automation-budget.mjs report --engine <claude|codex> --reset-at <timestamp> [--ledger <path>] [--json]
+  automation-budget.mjs report --engine <claude|codex> --reset-at <timestamp> [--identity-prefix <prefix>] [--ledger <path>] [--json]
 
   check          evaluate an invocation against the current engine's token budget
   reserve        atomically evaluate and append a pending invocation before launch mutation
@@ -20,6 +20,8 @@ const USAGE = `usage:
   cancel         append a tombstone for a pending invocation proven not to have started
   report         print one engine's current seven-day token totals plus pending and unknown identities
   --identity     stable identity for the invocation
+  --identity-prefix
+                  restrict a report to identities beginning with this exact prefix
   --engine       quota pool charged by the invocation; engines are never combined
   --tier         routine automation or explicitly reserved deep work
   --started-at   invocation start as ISO-8601 with a timezone, or Unix seconds
@@ -90,6 +92,7 @@ const parseArguments = (argumentsList) => {
     }
     if (![
       "--identity",
+      "--identity-prefix",
       "--engine",
       "--tier",
       "--started-at",
@@ -387,7 +390,7 @@ const validateRecord = (record, lineNumber) => {
   return validated
 }
 
-const readLedger = (path) => {
+const readLedger = (path, identityPrefix = null) => {
   let contents
   try {
     contents = readFileSync(path, "utf8")
@@ -399,15 +402,17 @@ const readLedger = (path) => {
   const needsSeparator = !contents.endsWith("\n")
   const lines = contents.split(/\r?\n/)
   if (lines.at(-1) === "") lines.pop()
-  const records = lines.map((line, index) => {
+  const records = lines.flatMap((line, index) => {
     if (line.trim().length === 0) fail(`ledger line ${index + 1} is empty`, 3)
     let record
     try {
       record = JSON.parse(line)
     } catch {
+      if (identityPrefix !== null && !line.includes(identityPrefix)) return []
       fail(`ledger line ${index + 1} is not valid JSON`, 3)
     }
-    return validateRecord(record, index + 1)
+    if (identityPrefix !== null && (typeof record.identity !== "string" || !record.identity.startsWith(identityPrefix))) return []
+    return [validateRecord(record, index + 1)]
   })
   return { records, needsSeparator }
 }
@@ -595,6 +600,7 @@ const runRecord = (values, json) => {
     "--provider-estimated-cost",
     "--account-used-percent",
     "--account-observed-at",
+    "--identity-prefix",
     "--ledger",
   ]))
   const startedAt = parseTimestamp(requireValue(values, "--started-at"), "--started-at")
@@ -607,6 +613,8 @@ const runRecord = (values, json) => {
     startedAt: startedAt.toISOString(),
     endedAt: endedAt.toISOString(),
   }
+  const identityPrefix = values.has("--identity-prefix") ? parseIdentity(values.get("--identity-prefix"), 2, "--identity-prefix") : null
+  if (identityPrefix !== null && !record.identity.startsWith(identityPrefix)) fail(`--identity must begin with --identity-prefix`, 2)
   if (values.has("--input-tokens") !== values.has("--output-tokens")) {
     fail(`--input-tokens and --output-tokens must be provided together`, 2)
   }
@@ -635,7 +643,7 @@ const runRecord = (values, json) => {
   }
   const path = ledgerPath(values)
   const recorded = withLedgerLock(path, () => {
-    const existingLedger = readLedger(path)
+    const existingLedger = readLedger(path, identityPrefix)
     const latest = [...existingLedger.records].reverse().find((existing) => existing.identity === record.identity)
     if (record.completed === true && latest && hasOwn(latest, "inputTokens") && hasOwn(latest, "outputTokens")) return latest
     appendRecord(path, existingLedger, record)
@@ -686,10 +694,17 @@ const runCancel = (values, json) => {
 }
 
 const runReport = (values, json) => {
-  rejectUnexpected(values, new Set(["--engine", "--reset-at", "--ledger"]))
+  rejectUnexpected(values, new Set(["--engine", "--reset-at", "--identity-prefix", "--ledger"]))
   const engine = parseEngine(requireValue(values, "--engine"))
   const resetAt = parseTimestamp(requireValue(values, "--reset-at"), "--reset-at")
-  const result = summarize(readLedger(ledgerPath(values)).records, engine, resetAt)
+  const identityPrefix = values.has("--identity-prefix") ? parseIdentity(values.get("--identity-prefix"), 2, "--identity-prefix") : null
+  const records = readLedger(ledgerPath(values), identityPrefix).records
+  const result = summarize(records, engine, resetAt)
+  if (identityPrefix !== null) {
+    const latestByIdentity = new Map()
+    for (const record of records) latestByIdentity.set(record.identity, record)
+    result.pendingRecords = [...latestByIdentity.values()].filter((record) => record.pending === true && result.pendingIdentities.includes(record.identity))
+  }
   if (json) console.log(JSON.stringify(result))
   else {
     const pending = result.pendingIdentities.length > 0 ? result.pendingIdentities.join(", ") : "none"

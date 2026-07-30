@@ -3427,9 +3427,11 @@ const teardownWorktreeCases = () => {
   )
 
   const closesLedger = stageTeardownWorktree("closes-ledger")
+  const ledgerStartedAt = new Date(Date.now() - 1_000).toISOString()
+  const ledgerEndedAt = new Date(Date.now() - 500).toISOString()
   const closesLedgerPath = stage(
     "teardown/closes-ledger/automation-budget.jsonl",
-    `${JSON.stringify({ identity: "ORB-124:2020-01-01T00:00:00.000Z:fixture", engine: "claude", tier: "routine", startedAt: "2020-01-01T00:00:00.000Z", endedAt: "2020-01-01T00:00:01.000Z", pending: true })}\n`,
+    `${JSON.stringify({ identity: "ORB-124:fixture", engine: "claude", tier: "routine", startedAt: ledgerStartedAt, endedAt: ledgerEndedAt, pending: true })}\n`,
   )
   const closesLedgerResult = check(
     "teardown-worktree.mjs",
@@ -3440,13 +3442,54 @@ const teardownWorktreeCases = () => {
   )
   const closedLedgerRecords = readFileSync(closesLedgerPath, "utf8").trim().split(/\r?\n/).map((line) => JSON.parse(line))
   T(
-    "teardown-worktree.mjs: completed-unknown teardown closure releases later routine launches",
+    "teardown-worktree.mjs: completed-unknown teardown closure has the expected append shape",
     closesLedgerResult.status === 0 &&
       closedLedgerRecords.length === 2 &&
       closedLedgerRecords[1]?.identity === closedLedgerRecords[0]?.identity &&
       closedLedgerRecords[1]?.completed === true &&
       closedLedgerRecords[1]?.pending !== true,
     JSON.stringify(closedLedgerRecords),
+  )
+
+  const unrelatedCorruption = stageTeardownWorktree("unrelated-corruption")
+  const unrelatedCorruptionLedger = stage(
+    "teardown/unrelated-corruption/automation-budget.jsonl",
+    `{not-json}\n${JSON.stringify({ identity: "ORB-124:fixture", engine: "claude", tier: "routine", startedAt: ledgerStartedAt, endedAt: ledgerEndedAt, pending: true })}\n`,
+  )
+  check(
+    "teardown-worktree.mjs",
+    "unrelated corrupt ledger input does not block verified removal",
+    ["--issue", "ORB-124"],
+    { status: 0, stdout: /REMOVED worktree/ },
+    { env: { ...orcaEnv(teardownPlan(unrelatedCorruption, { removePath: unrelatedCorruption.child })), ORBIT_AUTOMATION_BUDGET_LEDGER: unrelatedCorruptionLedger } },
+  )
+
+  const outOfWindow = stageTeardownWorktree("out-of-window")
+  const outOfWindowLedger = stage(
+    "teardown/out-of-window/automation-budget.jsonl",
+    `${JSON.stringify({ identity: "ORB-124:stale", engine: "claude", tier: "routine", startedAt: "2020-01-01T00:00:00.000Z", endedAt: "2020-01-01T00:00:01.000Z", pending: true })}\n`,
+  )
+  const outOfWindowResult = check(
+    "teardown-worktree.mjs",
+    "out-of-window pending reservations are not closed into the current budget window",
+    ["--issue", "ORB-124"],
+    { status: 0, stdout: /REMOVED worktree/ },
+    { env: { ...orcaEnv(teardownPlan(outOfWindow, { removePath: outOfWindow.child })), ORBIT_AUTOMATION_BUDGET_LEDGER: outOfWindowLedger } },
+  )
+  T(
+    "teardown-worktree.mjs: out-of-window reservations retain their original record",
+    outOfWindowResult.status === 0 && readFileSync(outOfWindowLedger, "utf8").trim().split(/\r?\n/).length === 1,
+    readFileSync(outOfWindowLedger, "utf8"),
+  )
+
+  const ownCorruption = stageTeardownWorktree("own-corruption")
+  const ownCorruptionLedger = stage("teardown/own-corruption/automation-budget.jsonl", `{\"identity\":\"ORB-124:broken\"\n`)
+  check(
+    "teardown-worktree.mjs",
+    "a closure inspection failure reports verified removal before naming the ledger error",
+    ["--issue", "ORB-124"],
+    { status: 3, stdout: /REMOVED worktree[\s\S]*REMOVED terminals[\s\S]*REMOVED local branch/, stderr: /could not inspect pending reservations for ORB-124/ },
+    { env: { ...orcaEnv(teardownPlan(ownCorruption, { removePath: ownCorruption.child })), ORBIT_AUTOMATION_BUDGET_LEDGER: ownCorruptionLedger } },
   )
 }
 
