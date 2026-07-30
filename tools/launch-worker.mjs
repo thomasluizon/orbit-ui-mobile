@@ -741,7 +741,7 @@ try {
   fail(2, error.message)
 }
 const engineArgs = resolvedInvocation.args
-const budgetTier = resolvedInvocation.tier === "deep" ? "reserved" : automationBudget.tier
+const budgetTier = automationBudget.tier
 const projectedTokens = automationBudget.invocationTokens[resolvedInvocation.tier]
 const invocationStartedAt = new Date().toISOString()
 const invocationIdentity = `${issue}:${invocationStartedAt}:${randomUUID()}`

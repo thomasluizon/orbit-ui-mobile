@@ -341,6 +341,11 @@ const validateRecord = (record, lineNumber) => {
     validated.cancelled = true
     return validated
   }
+  if (hasOwn(record, "pending")) {
+    if (record.pending !== true || !hasOwn(record, "reservedTokens")) fail(`${prefix} pending record must carry reservedTokens`, 3)
+    validated.pending = true
+    validated.reservedTokens = parseTokenCount(record.reservedTokens, `${prefix} reservedTokens`, 3)
+  }
   if (hasOwn(record, "inputTokens")) {
     validated.inputTokens = parseTokenCount(record.inputTokens, `${prefix} inputTokens`, 3)
   }
@@ -407,8 +412,13 @@ const summarize = (records, engine, resetAt) => {
   let routineTokens = 0
   let reservedTokens = 0
   const missingIdentities = []
+  let pendingTokens = 0
   for (const record of latestByIdentity.values()) {
     if (record.cancelled === true) continue
+    if (record.pending === true) {
+      pendingTokens += record.reservedTokens
+      continue
+    }
     if (!hasOwn(record, "inputTokens") || !hasOwn(record, "outputTokens")) {
       missingIdentities.push(record.identity)
       continue
@@ -426,6 +436,7 @@ const summarize = (records, engine, resetAt) => {
     totalTokens: inputTokens + outputTokens,
     routineTokens,
     reservedTokens,
+    pendingTokens,
     missingIdentities,
     windowStart: windowStart.toISOString(),
     resetsAt: resetAt.toISOString(),
@@ -452,23 +463,19 @@ const parseBudgetRequest = (values, allowedFlags) => {
 const evaluateBudget = (request, records, json) => {
   const { engine, identity, tier, resetAt, warningTokens, budgetTokens, invocationTokens } = request
   const summary = summarize(records, engine, resetAt)
-  const projectedTokens = summary.totalTokens + invocationTokens
-  if (tier !== "reserved" && summary.missingIdentities.length > 0) {
+  const projectedTokens = summary.totalTokens + summary.pendingTokens + invocationTokens
+  const status = projectedTokens > budgetTokens ? "BLOCK" : projectedTokens >= warningTokens ? "WARN" : "PROCEED"
+  if (status === "BLOCK") {
+    const result = { status, identity, tier, warningTokens, budgetTokens, invocationTokens, projectedTokens, ...summary }
+    emitJson(result, json)
+    fail(`invocation "${identity}" blocked: budget ${budgetTokens} tokens, observed spend ${summary.totalTokens} tokens, pending ${summary.pendingTokens} tokens, reservation ${invocationTokens} tokens, projected spend ${projectedTokens} tokens; resets at ${summary.resetsAt}`, 4)
+  }
+  if (summary.missingIdentities.length > 0) {
     emitJson({ status: "INCOMPLETE", identity, tier, warningTokens, budgetTokens, invocationTokens, ...summary }, json)
     fail(`cannot check invocation "${identity}": latest in-window records lack input or output tokens for identities ${summary.missingIdentities.join(", ")}`, 3)
   }
-  const status = tier === "reserved"
-    ? "RESERVED"
-    : projectedTokens > budgetTokens
-      ? "BLOCK"
-      : projectedTokens >= warningTokens
-        ? "WARN"
-        : "PROCEED"
+  
   const result = { status, identity, tier, warningTokens, budgetTokens, invocationTokens, projectedTokens, ...summary }
-  if (status === "BLOCK") {
-    emitJson(result, json)
-    fail(`invocation "${identity}" blocked: budget ${budgetTokens} tokens, observed spend ${summary.totalTokens} tokens, reservation ${invocationTokens} tokens, projected spend ${projectedTokens} tokens; resets at ${summary.resetsAt}`, 4)
-  }
   return result
 }
 
@@ -529,6 +536,8 @@ const runReserve = (values, json) => {
     tier: request.tier,
     startedAt: startedAt.toISOString(),
     endedAt: endedAt.toISOString(),
+    pending: true,
+    reservedTokens: request.invocationTokens,
   }
   const hasAccountPercent = values.has("--account-used-percent")
   const hasAccountTimestamp = values.has("--account-observed-at")
