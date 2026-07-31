@@ -765,27 +765,62 @@ export const FULL_SURFACE_POLL = /worker-status\.mjs[\s\S]*full-surface completi
 
 export const NO_DRAFT_PULL_REQUEST_CLAUSE = "The pull request must be ready for review, never a draft."
 
+/**
+ * Each entry names the CLAUSE NUMBER it belongs to, because the pattern is matched inside that
+ * clause's own block of the contract the launcher actually appended, never against the launcher
+ * file as a string. Two defects made the old shape prove nothing:
+ *
+ *   1. `pattern.test(launcherSource)` passed with clause 3 deleted from WORKER_CONTRACT
+ *      entirely and parked in a dead comment. Nothing the worker reads was asserted.
+ *   2. `[\s\S]*` spanned clauses. "approved with zero unresolved threads" ends clause 3 and
+ *      recurs in clause 5, so two tokens twenty lines apart satisfied a single clause.
+ *
+ * Block-scoped matching over the injected artifact closes both. Adding a clause here means
+ * adding its number; a clause that moves must move here too, which is the point.
+ */
 export const REQUIRED_CONTRACT_CLAUSES = {
-  "asking a question": /Never ask a question/,
-  "dropping a blocked criterion": /A blocked sub-step never blocks the PR/,
-  "owning its automated review cycle": /Own the automated review cycle[\s\S]*approved with zero unresolved threads/,
-  "polling every review activity surface": FULL_SURFACE_POLL,
-  "replying with the fix commit before resolving": /reply on that[\s\S]*thread naming[\s\S]*the fix commit, then[\s\S]*resolve it/,
-  "acknowledging non-thread review activity": /review body or PR conversation[\s\S]*activity ID[\s\S]*PR commit/,
-  "resolving informational findings with audited evidence": /informational automated finding[\s\S]*No code change required: <reason>\. Evidence: <PR commit>[\s\S]*change the reviewed path/,
-  "escalating a disagreement": /Escalate when you disagree with a finding/,
-  "escalating a blocked decision": /when you are[\s\S]*blocked on a decision you may not make/,
-  "escalating after two failed cycles": /when two consecutive cycles fail on the same[\s\S]*finding/,
-  "leaving human threads unresolved": /Never resolve a thread opened by a human account/,
-  "refusing completion with unresolved threads": /approval with an[\s\S]*unresolved[\s\S]*thread is not done/,
-  "watching only its own ticket": /Never watch another[\s\S]*ticket, worktree, or PR/,
-  "arming a detached monitor that outlives the contract": /Never arm a detached background monitor/,
-  "permitting an affordable foreground blocking wait": /foreground blocking wait is permitted/,
-  "merging or pushing to main": /Never merge any PR, never push to/,
-  "blanket staging that sweeps in a sibling's artifacts": /Stage explicitly[\s\S]*git add -A/,
-  "pushing a commit it has not read back": /Verify before pushing[\s\S]*git show --stat HEAD/,
-  "writing into another worker's worktree": /Never write into another worktree/,
-  "delegating independent slices while keeping conflicts and PR evidence inline": /Delegate independent slices[\s\S]*SAME file[\s\S]*final gate run[\s\S]*review round/,
+  "asking a question": { clause: 1, pattern: /Never ask a question/ },
+  "recording unattended decisions in the PR body": { clause: 1, pattern: /Decisions taken unattended/ },
+  "dropping a blocked criterion": { clause: 2, pattern: /A blocked sub-step never blocks the PR/ },
+  "opening a draft pull request": { clause: 2, pattern: /The pull request must be ready for review, never a draft\./ },
+  "owning its automated review cycle": { clause: 3, pattern: /Own the automated review cycle[\s\S]*approved with zero unresolved threads/ },
+  "polling every review activity surface": { clause: 3, pattern: FULL_SURFACE_POLL },
+  "replying with the fix commit before resolving": { clause: 3, pattern: /reply on that[\s\S]*thread naming[\s\S]*the fix commit, then[\s\S]*resolve it/ },
+  "acknowledging non-thread review activity": { clause: 3, pattern: /review body or PR conversation[\s\S]*activity ID[\s\S]*PR commit/ },
+  "resolving informational findings with audited evidence": { clause: 3, pattern: /informational automated finding[\s\S]*No code change required: <reason>\. Evidence: <PR commit>[\s\S]*change the reviewed path/ },
+  "escalating a disagreement": { clause: 4, pattern: /Escalate when you disagree with a finding/ },
+  "escalating a blocked decision": { clause: 4, pattern: /when you are[\s\S]*blocked on a decision you may not make/ },
+  "escalating after two failed cycles": { clause: 4, pattern: /when two consecutive cycles fail on the same[\s\S]*finding/ },
+  "leaving human threads unresolved": { clause: 3, pattern: /Never resolve a thread opened by a human account/ },
+  "refusing completion with unresolved threads": { clause: 3, pattern: /approval with an[\s\S]*unresolved[\s\S]*thread is not done/ },
+  "watching only its own ticket": { clause: 5, pattern: /Never watch another[\s\S]*ticket, worktree, or PR/ },
+  "arming a detached monitor that outlives the contract": { clause: 6, pattern: /Never arm a detached background monitor/ },
+  "permitting an affordable foreground blocking wait": { clause: 6, pattern: /foreground blocking wait is permitted/ },
+  "merging or pushing to main": { clause: 7, pattern: /Never merge any PR, never push to/ },
+  "performing an admin merge": { clause: 7, pattern: /gh pr merge --admin[\s\S]*pulls\/\{number\}\/merge[\s\S]*mergePullRequest/ },
+  "blanket staging that sweeps in a sibling's artifacts": { clause: 8, pattern: /Stage explicitly[\s\S]*git add -A/ },
+  "pushing a commit it has not read back": { clause: 9, pattern: /Verify before pushing[\s\S]*git show --stat HEAD/ },
+  "writing into another worker's worktree": { clause: 10, pattern: /Never write into another worktree/ },
+  "delegating independent slices while keeping conflicts and PR evidence inline": { clause: 11, pattern: /Delegate independent slices[\s\S]*SAME file[\s\S]*final gate run[\s\S]*review round/ },
+}
+
+/** The contract's numbered clauses, keyed by number. A clause is everything up to the next one. */
+export const contractClauseBlocks = (contractText) => {
+  const marks = [...contractText.matchAll(/^(\d+)\.\s/gm)]
+  return Object.fromEntries(
+    marks.map((mark, index) => [
+      Number(mark[1]),
+      contractText.slice(mark.index, index + 1 < marks.length ? marks[index + 1].index : contractText.length),
+    ]),
+  )
+}
+
+/** Clause names whose pattern does not match INSIDE its own clause block. */
+export const missingContractClauses = (contractText) => {
+  const blocks = contractClauseBlocks(contractText)
+  return Object.entries(REQUIRED_CONTRACT_CLAUSES)
+    .filter(([, { clause, pattern }]) => !pattern.test(blocks[clause] ?? ""))
+    .map(([name]) => name)
 }
 
 /**
