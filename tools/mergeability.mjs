@@ -53,7 +53,7 @@ const linearTeam = config.linear?.team
 if (typeof linearTeam !== "string" || !linearTeam) fail(".claude/orchestrator.json must declare linear.team")
 const issueIdentifierPattern = new RegExp(`\\b${linearTeam.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}-\\d+\\b`, "i")
 
-const QUERY = `query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){number url title body headRefName isDraft mergeStateStatus headRefOid labels(first:100){pageInfo{hasNextPage}nodes{name}} reviews(first:100){pageInfo{hasNextPage}nodes{state author{login} commit{oid}}} comments(first:100){pageInfo{hasNextPage}nodes{author{login} body}} reviewThreads(first:100){pageInfo{hasNextPage}nodes{isResolved}} commits(last:1){nodes{commit{statusCheckRollup{state contexts(first:100){pageInfo{hasNextPage}nodes{__typename ... on CheckRun{name status conclusion} ... on StatusContext{context state}}}}}}}}}}`
+const QUERY = `query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){number url title body headRefName isDraft mergeStateStatus reviewDecision headRefOid labels(first:100){pageInfo{hasNextPage}nodes{name}} reviews(first:100){pageInfo{hasNextPage}nodes{state commit{oid}}} reviewThreads(first:100){pageInfo{hasNextPage}nodes{isResolved}} commits(last:1){nodes{commit{statusCheckRollup{state contexts(first:100){pageInfo{hasNextPage}nodes{__typename ... on CheckRun{name status conclusion startedAt} ... on StatusContext{context state createdAt}}}}}}}}}}`
 
 const command = (file, args) => {
   try {
@@ -92,6 +92,26 @@ const linearIssue = (identifier) => {
 
 const conditions = []
 const add = (name, ok, detail) => conditions.push({ name, ok, detail })
+const latestContextsOf = (contexts) => {
+  const latestByName = new Map()
+  const unordered = []
+  for (const context of contexts) {
+    const name = context.name ?? context.context
+    if (!name) {
+      unordered.push(context)
+      continue
+    }
+    const createdAt = context.__typename === "CheckRun" ? context.startedAt : context.createdAt
+    if (typeof createdAt !== "string") {
+      unordered.push(context)
+      continue
+    }
+    const latest = latestByName.get(name)
+    if (!latest || createdAt > latest.createdAt) latestByName.set(name, { createdAt, contexts: [context] })
+    else if (createdAt === latest.createdAt) latest.contexts.push(context)
+  }
+  return [...unordered, ...[...latestByName.values()].flatMap((latest) => latest.contexts)]
+}
 const first = githubPullRequest()
 if (!first.ok) {
   add("github-pull-request", false, first.error)
@@ -99,23 +119,31 @@ if (!first.ok) {
   const pullRequest = first.value
   const complete = (connection) => connection?.pageInfo?.hasNextPage === false
   const contexts = pullRequest.commits?.nodes?.[0]?.commit?.statusCheckRollup?.contexts
-  const checks = contexts?.nodes
+  const rawChecks = contexts?.nodes
+  const checks = Array.isArray(rawChecks) ? latestContextsOf(rawChecks) : null
   const failedConclusion = new Set(["FAILURE", "CANCELLED", "TIMED_OUT", "STARTUP_FAILURE", "ACTION_REQUIRED"])
   const checkTerminal =
-    complete(pullRequest.labels) && complete(pullRequest.reviews) && complete(pullRequest.comments) && complete(pullRequest.reviewThreads) && complete(contexts) &&
+    complete(pullRequest.labels) && complete(pullRequest.reviews) && complete(pullRequest.reviewThreads) && complete(contexts) &&
     Array.isArray(checks) && checks.length > 0 && checks.every((check) => check.__typename === "CheckRun" ? check.status === "COMPLETED" && !failedConclusion.has(check.conclusion) : !["FAILURE", "ERROR", "PENDING", "EXPECTED"].includes(check.state))
   add("draft", pullRequest.isDraft === false, pullRequest.isDraft ? "pull request is a draft" : "pull request is ready for review")
   add("check-rollup", checkTerminal, !Array.isArray(checks) ? "check rollup is unavailable" : `${checks.length} check(s), ${checkTerminal ? "all terminal with no failed conclusion" : "a check is pending, failed, or inventory is incomplete"}`)
   add("merge-state", pullRequest.mergeStateStatus === "CLEAN", `merge state is ${pullRequest.mergeStateStatus ?? "absent"}, requires CLEAN`)
   add("unresolved-review-threads", pullRequest.reviewThreads?.nodes?.every((thread) => thread.isResolved) === true && complete(pullRequest.reviewThreads), `${pullRequest.reviewThreads?.nodes?.filter((thread) => !thread.isResolved).length ?? "unknown"} unresolved thread(s)`)
-  const firstApproval = pullRequest.reviews?.nodes?.some((review) => ["claude", "claude[bot]"].includes(review.author?.login) && review.state === "APPROVED" && review.commit?.oid === pullRequest.headRefOid)
-  add("first-reviewer", Boolean(firstApproval) && complete(pullRequest.reviews), firstApproval ? `claude approved head ${pullRequest.headRefOid}` : `claude has no APPROVED review on head ${pullRequest.headRefOid ?? "absent"}`)
-  const codexReviews = pullRequest.reviews?.nodes?.filter((review) => review.author?.login === "chatgpt-codex-connector" && ["APPROVED", "COMMENTED"].includes(review.state)) ?? []
-  const codexComments = pullRequest.comments?.nodes?.filter((comment) => comment.author?.login === "chatgpt-codex-connector") ?? []
-  const mentionedCommits = codexComments.flatMap((comment) => [...(comment.body ?? "").matchAll(/\*{0,2}Reviewed commit:\*{0,2}\s*`?([0-9a-f]{7,40})`?/gi)].map((match) => match[1]))
-  const secondOnHead = codexReviews.some((review) => review.commit?.oid === pullRequest.headRefOid) || mentionedCommits.some((commit) => pullRequest.headRefOid?.startsWith(commit))
-  const observedSecond = [...codexReviews.map((review) => review.commit?.oid), ...mentionedCommits].filter(Boolean)
-  add("second-reviewer", secondOnHead && complete(pullRequest.reviews) && complete(pullRequest.comments), secondOnHead ? `chatgpt-codex-connector reviewed head ${pullRequest.headRefOid}` : `chatgpt-codex-connector reviewed ${observedSecond.join(", ") || "no named commit"}; head is ${pullRequest.headRefOid ?? "absent"}`)
+  const reviewsComplete = complete(pullRequest.reviews)
+  const reviewDecisionKnown = Object.hasOwn(pullRequest, "reviewDecision")
+  add("review-decision", reviewsComplete && reviewDecisionKnown && pullRequest.reviewDecision !== "CHANGES_REQUESTED", `review decision is ${reviewDecisionKnown ? (pullRequest.reviewDecision || "empty") : "unavailable"}`)
+  const approvedCommits = pullRequest.reviews?.nodes?.filter((review) => review.state === "APPROVED").map((review) => review.commit?.oid ?? "<unavailable>") ?? []
+  const approvalOnHead = approvedCommits.includes(pullRequest.headRefOid)
+  const approvalNotStale = reviewsComplete && (approvedCommits.length === 0 || approvalOnHead)
+  add(
+    "approval-not-stale",
+    approvalNotStale,
+    approvedCommits.length === 0
+      ? "no approval exists, and none is required"
+      : approvalOnHead
+        ? `approval names current head ${pullRequest.headRefOid}`
+        : `approvals name ${approvedCommits.join(", ")}; head is ${pullRequest.headRefOid ?? "absent"}`,
+  )
   const issueIdentifiers = new Set(
     [pullRequest.headRefName, pullRequest.title]
       .flatMap((value) => [...(value ?? "").matchAll(new RegExp(issueIdentifierPattern.source, "gi"))])

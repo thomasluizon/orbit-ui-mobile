@@ -1,7 +1,6 @@
 {
   ".claudeignore": 1,
   ".github/dependabot.yml": 1,
-  ".github/workflows/claude-review.yml": 9,
   ".github/workflows/dep-sweep-reminder.yml": 2,
   ".github/workflows/dependabot-auto-merge.yml": 1,
   ".github/workflows/expo-sdk-watch.yml": 1,

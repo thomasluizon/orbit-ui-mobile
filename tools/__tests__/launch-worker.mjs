@@ -649,12 +649,10 @@ const contractClauseCases = () => {
 
   // Gate proof 2: cross-clause spanning. Clause 3's terminator is written a second time in
   // clause 5, so an unscoped `[\s\S]*` can be satisfied by two tokens twenty lines apart.
-  // Measured on the shipped contract: the phrase occurs twice, but clause 5's copy is
-  // line-wrapped ("approved with zero\n   unresolved threads"), so the hazard is LATENT rather
-  // than live today. The fixture plants an unwrapped copy in clause 5 to exercise it, and the
+  // The fixture plants a second copy in clause 5 to exercise it, and the
   // second assertion pins that whole-text matching really would accept what this refuses;
   // without it, the first assertion could pass for the wrong reason.
-  const terminator = "approved with zero unresolved threads"
+  const terminator = "zero unresolved threads and every automated review item is reconciled"
   const spanning = injected
     .replace(blocks[3], () => blocks[3].replace(terminator, () => "settled"))
     .replace(blocks[5], () => `${blocks[5].trimEnd()} The PR must end ${terminator}.\n`)
@@ -1949,6 +1947,11 @@ process.stdout.write(JSON.stringify(await Promise.all([first, second])))
     "launch-worker.mjs: AGENTS.md requires the same full-surface completion poll",
     FULL_SURFACE_POLL.test(agentsSource),
     "AGENTS.md no longer requires worker-status to inventory every review activity surface and fail closed.",
+  )
+  T(
+    "launch-worker.mjs: AGENTS.md carries the approval-count-zero review-clear contract",
+    /CHANGES_REQUESTED blocks[\s\S]*No approval is required[\s\S]*If an approval exists[\s\S]*current head[\s\S]*zero unresolved threads and every automated review item is reconciled/.test(agentsSource),
+    "AGENTS.md no longer states the complete review-clear contract.",
   )
 }
 

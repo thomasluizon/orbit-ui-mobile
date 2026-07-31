@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 
@@ -32,6 +33,51 @@ const mergeSweepCliFlagCases = () => {
       `${filename}: never combines --slurp with --jq or --template`,
       unsupported.length === 0,
       `unsupported gh api invocation:\n     ${unsupported.join("\n     ")}`,
+    )
+    const stateParser = source.match(/statusCheckRollup,headRefOid 2>\/dev\/null \| node -e "([\s\S]*?)"\r?\n\}/)?.[1] ?? ""
+    const runStateParser = (rows) =>
+      spawnSync(process.execPath, ["-e", stateParser], {
+        encoding: "utf8",
+        input: JSON.stringify({ mergeStateStatus: "CLEAN", reviewDecision: "", headRefOid: "a".repeat(40), statusCheckRollup: rows }),
+      })
+    const latestSuccess = runStateParser([
+      { __typename: "CheckRun", name: "Harness Lockstep", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-07-31T14:55:37Z" },
+      { __typename: "CheckRun", name: "Harness Lockstep", status: "COMPLETED", conclusion: "FAILURE", startedAt: "2026-07-31T14:53:17Z" },
+    ])
+    const clearOutput = filename === "merge-sweep-cov.sh"
+      ? `CLEAN\t?\tNONE\tNONE\t${"a".repeat(40)}\tNONE\tABSENT`
+      : `CLEAN|?|none|none|ABSENT|${"a".repeat(40)}`
+    T(
+      `${filename}: a newer successful status check supersedes an older failure regardless of array order`,
+      stateParser.length > 0 && latestSuccess.status === 0 && latestSuccess.stdout === clearOutput,
+      `exit ${latestSuccess.status}\n     stdout: ${latestSuccess.stdout}\n     stderr: ${latestSuccess.stderr}`,
+    )
+    const exactTie = runStateParser([
+      { __typename: "CheckRun", name: "Harness Lockstep", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-07-31T14:55:37Z" },
+      { __typename: "CheckRun", name: "Harness Lockstep", status: "COMPLETED", conclusion: "FAILURE", startedAt: "2026-07-31T14:55:37Z" },
+    ])
+    T(
+      `${filename}: exact timestamp ties fail closed when one duplicate failed`,
+      stateParser.length > 0 && exactTie.status === 0 && exactTie.stdout.includes("Harness Lockstep"),
+      `exit ${exactTie.status}\n     stdout: ${exactTie.stdout}\n     stderr: ${exactTie.stderr}`,
+    )
+    const nullTimestampFailure = runStateParser([
+      { __typename: "CheckRun", name: "Harness Lockstep", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-07-31T14:55:37Z" },
+      { __typename: "CheckRun", name: "Harness Lockstep", status: "COMPLETED", conclusion: "FAILURE", startedAt: null },
+    ])
+    T(
+      `${filename}: a failed duplicate with null startedAt remains fail-closed beside a newer success`,
+      stateParser.length > 0 && nullTimestampFailure.status === 0 && nullTimestampFailure.stdout.includes("Harness Lockstep"),
+      `exit ${nullTimestampFailure.status}\n     stdout: ${nullTimestampFailure.stdout}\n     stderr: ${nullTimestampFailure.stderr}`,
+    )
+    const missingTimestampPending = runStateParser([
+      { __typename: "CheckRun", name: "Harness Lockstep", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-07-31T14:55:37Z" },
+      { __typename: "CheckRun", name: "Harness Lockstep", status: "IN_PROGRESS", conclusion: null },
+    ])
+    T(
+      `${filename}: a pending duplicate with missing startedAt remains fail-closed beside a newer success`,
+      stateParser.length > 0 && missingTimestampPending.status === 0 && missingTimestampPending.stdout.includes("Harness Lockstep"),
+      `exit ${missingTimestampPending.status}\n     stdout: ${missingTimestampPending.stdout}\n     stderr: ${missingTimestampPending.stderr}`,
     )
   }
   const adoptionHelpers = scanned.map(({ filename, source }) => ({
@@ -760,7 +806,7 @@ const mergeSweepCases = (file) => {
 
   /**
    * A2 refuses a STALE approval; it does not require a fresh one, and this case is what stops
-   * the next agent restoring the stricter form. PR4 deletes claude-review.yml, and the ONLY
+   * the next agent restoring the stricter form. PR4 deletes the review workflow, and the ONLY
    * account that has ever posted an APPROVED review in this repository is the bot it drives.
    * A rule demanding an approval on the head would therefore refuse every unattended merge from
    * that point on, forever, which is the specification's own J3c failure mode arriving in the
@@ -843,6 +889,97 @@ const mergeSweepCases = (file) => {
     )
   }
 
+  /**
+   * The review-workflow detector, in BOTH directions. Every case above this point ran against a
+   * stub that answered the workflow lookup with empty stdout, which pinned the detector in its
+   * absent branch: the armed branch was unreachable, so nothing could tell a working detector from
+   * one that never fired. These are the cases that can.
+   *
+   * The `review` check is ABSENT throughout, because that is the permanent shape once
+   * the review workflow is deleted: no run posts it again, ever.
+   *
+   * Row states are only ones the LIST endpoint really returns, read live on 2026-07-31. A DELETED
+   * workflow is dropped from that list outright even with run history (orbit-api's deploy.yml has
+   * 9 runs and reads `state: "deleted"` by id, but is absent from the list), so there is no
+   * `deleted` row here and deleting the workflow is NOT what could strand this guard. A DISABLED
+   * one is retained (disabling dep-sweep-reminder.yml returned it as `disabled_manually`), and it
+   * posts no check run, which is the state that can.
+   */
+  const detector = (label, environment, expectation) => {
+    const log = join(root, `${file}-detector-${label.replace(/[^a-z]+/gi, "-")}.log`)
+    const result = run(file, reviewedArgs, { env: mergeSweepEnv({ head: expectedHead, log, reviewCheckAbsent: true, ...environment }) })
+    const merges = mergeSweepCalls(log).filter(([group, command]) => group === "pr" && command === "merge")
+    T(
+      `${file}: ${label}`,
+      result.status === 0 && (expectation.merges ? merges.length === 1 && /MERGED #615/.test(result.stdout) : merges.length === 0),
+      `exit ${result.status}\n     stdout: ${result.stdout.trim()}\n     stderr: ${result.stderr.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(log))}`,
+    )
+  }
+  detector(
+    "a DISABLED review workflow does not arm the review-settled wait",
+    // dead-path-ok: fixture proves a disabled review workflow cannot post the awaited check
+    { workflows: ".github/workflows/claude-review.yml\tdisabled_manually\n.github/workflows/guards.yml\tactive" },
+    { merges: true },
+  )
+  detector(
+    "a review workflow absent from the list does not arm the review-settled wait",
+    { workflows: ".github/workflows/guards.yml\tactive" },
+    { merges: true },
+  )
+  detector(
+    "an ACTIVE review workflow whose check never appears refuses the merge",
+    // dead-path-ok: fixture proves an active review workflow keeps the wait armed
+    { workflows: ".github/workflows/claude-review.yml\tactive" },
+    { merges: false },
+  )
+  detector("a failed workflow lookup fails closed and refuses the merge", { workflowsLookupFailure: true }, { merges: false })
+
+  /**
+   * A2's remaining half. `required_approving_review_count` is 0 in both repositories, so GitHub
+   * reports `reviewDecision: ""` on an APPROVED pull request while still reporting
+   * CHANGES_REQUESTED on a blocked one. Read live on 2026-07-31: #667 and #668 carry APPROVED
+   * reviews and report "", while #656, #658, #660 and #661 report CHANGES_REQUESTED. A bare
+   * `reviewDecision = APPROVED` precondition therefore refused every unattended merge in both
+   * repositories, and no identity remains that could satisfy it. The positive gate is
+   * `approval_not_stale`; this field keeps only its blocking half.
+   */
+  const emptyDecisionLog = join(root, `${file}-empty-review-decision.log`)
+  const emptyDecision = run(file, reviewedArgs, {
+    env: mergeSweepEnv({ head: expectedHead, log: emptyDecisionLog, reviewDecision: "", approvalCommits: "" }),
+  })
+  const emptyDecisionMerges = mergeSweepCalls(emptyDecisionLog).filter(([group, command]) => group === "pr" && command === "merge")
+  T(
+    `${file}: an empty reviewDecision with no approving review still merges`,
+    emptyDecision.status === 0 && /MERGED #615/.test(emptyDecision.stdout) && emptyDecisionMerges.length === 1,
+    `exit ${emptyDecision.status}\n     stdout: ${emptyDecision.stdout.trim()}\n     stderr: ${emptyDecision.stderr.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(emptyDecisionLog))}`,
+  )
+  const changesRequestedLog = join(root, `${file}-changes-requested.log`)
+  const changesRequested = run(file, reviewedArgs, {
+    env: mergeSweepEnv({ head: expectedHead, log: changesRequestedLog, reviewDecision: "CHANGES_REQUESTED" }),
+  })
+  const changesRequestedMerges = mergeSweepCalls(changesRequestedLog).filter(([group, command]) => group === "pr" && command === "merge")
+  T(
+    `${file}: an outstanding CHANGES_REQUESTED still refuses the merge`,
+    changesRequested.status === 0 && changesRequestedMerges.length === 0,
+    `exit ${changesRequested.status}\n     stdout: ${changesRequested.stdout.trim()}\n     stderr: ${changesRequested.stderr.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(changesRequestedLog))}`,
+  )
+  /**
+   * Dropping the bare precondition must not reopen #654's race: an approval naming an older
+   * commit stays refused even now that reviewDecision no longer says APPROVED.
+   */
+  const staleUnderEmptyLog = join(root, `${file}-stale-approval-under-empty-decision.log`)
+  const staleUnderEmpty = run(file, reviewedArgs, {
+    env: mergeSweepEnv({ head: expectedHead, log: staleUnderEmptyLog, reviewDecision: "", approvalCommits: changedHead }),
+  })
+  const staleUnderEmptyMerges = mergeSweepCalls(staleUnderEmptyLog).filter(([group, command]) => group === "pr" && command === "merge")
+  T(
+    `${file}: a stale approval is still refused when reviewDecision is empty`,
+    staleUnderEmpty.status === 0 &&
+      new RegExp(`SKIP #615 APPROVAL-STALE expected=${expectedHead} approved=\\[${changedHead}\\]`).test(staleUnderEmpty.stdout) &&
+      staleUnderEmptyMerges.length === 0,
+    `exit ${staleUnderEmpty.status}\n     stdout: ${staleUnderEmpty.stdout.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(staleUnderEmptyLog))}`,
+  )
+
   const missingCutoffLog = join(root, `${file}-missing-reviewed-through.log`)
   const missingCutoff = run(file, ["--expected-head", `615=${expectedHead}`, "--issue", "615=ORB-150", "thomasluizon/orbit-ui-mobile", "615"], {
     env: mergeSweepEnv({
@@ -865,3 +1002,4 @@ export const cases = () => {
     mergeSweepCases("merge-sweep.sh")
   }
 export const coverageCases = () => mergeSweepCases("merge-sweep-cov.sh")
+export { mergeSweepCliFlagCases as cliCases }

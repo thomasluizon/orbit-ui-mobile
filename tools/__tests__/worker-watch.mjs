@@ -1,8 +1,8 @@
 import { spawnSync } from "node:child_process"
-import { cpSync, mkdirSync, writeFileSync } from "node:fs"
+import { cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
-import { TOOLS_DIR, T, root, orcaEnv, run, check, exitedProbePid } from "./_harness.mjs"
+import { REPO_ROOT, TOOLS_DIR, T, root, orcaEnv, run, check, exitedProbePid } from "./_harness.mjs"
 
 /**
  * worker-watch cases against the one thing this tool must never do again: derive liveness itself.
@@ -129,6 +129,30 @@ const API_REPO = { path: join(root, "watch", "repos", "api"), repoId: "9ef5a39a-
 const mainWorktree = ({ path, repoId }) => ({ path, repoId, isMainWorktree: true, isArchived: false, branch: "refs/heads/main", linkedLinearIssue: null })
 
 const workerWatchCases = () => {
+  const reviewClearContract = /CHANGES_REQUESTED blocks[\s\S]*No approval is required[\s\S]*If an approval exists[\s\S]*current head[\s\S]*zero unresolved threads and every automated review item is reconciled/
+  for (const [label, path] of [
+    ["watch skill", join(REPO_ROOT, ".claude", "skills", "watch", "SKILL.md")],
+    ["tools catalog", join(REPO_ROOT, "tools", "README.md")],
+  ]) {
+    const source = readFileSync(path, "utf8")
+    T(
+      `worker-watch.mjs: the ${label} carries the approval-count-zero review-clear contract`,
+      reviewClearContract.test(source),
+      `${path} no longer states the complete review-clear contract`,
+    )
+  }
+  const conventionsSource = readFileSync(join(REPO_ROOT, "tools", "CONVENTIONS.md"), "utf8")
+  T(
+    "worker-watch.mjs: tool conventions no longer claim a CI reviewer exists",
+    conventionsSource.includes("no CI reviewer exists") && !conventionsSource.includes("the CI reviewer reads the diff"),
+    "tools/CONVENTIONS.md still assigns the gate to a deleted CI reviewer",
+  )
+  const dependabotWorkflow = readFileSync(join(REPO_ROOT, ".github", "workflows", "dependabot-auto-merge.yml"), "utf8")
+  T(
+    "worker-watch.mjs: the Dependabot approval comment reflects zero required approvals",
+    dependabotWorkflow.includes("Approval is not required by branch protection") && !dependabotWorkflow.includes('"require 1 approving review"'),
+    "dependabot-auto-merge.yml still says its approval satisfies an obsolete branch-protection rule",
+  )
   const repos = { ui: UI_REPO.path, api: API_REPO.path }
   const tool = stageWorkerWatch("fleet", repos)
   const strikeLedger = join(root, "watch", "strikes.jsonl")

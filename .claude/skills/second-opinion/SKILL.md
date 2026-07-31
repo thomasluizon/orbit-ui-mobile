@@ -1,6 +1,6 @@
 ---
 name: second-opinion
-description: Get an independent cross-model second opinion (GPT-5.6 Sol via Codex) on a specific, load-bearing technical claim or a Critical code-review finding. A different model reads the claim and code, then returns AGREE, DISAGREE, or UNSURE. Use to stress-test a single Critical finding, a risky assertion, or a close call before you commit to it. Auto-fired inside /pr-review on each Critical finding that survives the skeptic. Not for open-ended research (use /deep-research) or multi-lens judgement (use /llm-council).
+description: Get an independent cross-model second opinion (GPT-5.6 Sol via Codex) on a specific, load-bearing technical claim or a Critical or High code-review finding. A different model reads the claim and code, then returns AGREE, DISAGREE, or UNSURE. Use to stress-test a single blocking finding, a risky assertion, or a close call before you commit to it. Auto-fired inside /pr-review on each Critical or High finding that survives the skeptic, in unattended runs exactly as in interactive ones. Not for open-ended research (use /deep-research) or multi-lens judgement (use /llm-council).
 argument-hint: <a claim to test, optionally with a file:line to pull context from>
 ---
 
@@ -10,8 +10,8 @@ argument-hint: <a claim to test, optionally with a file:line to pull context fro
 
 Ask **GPT-5.6 Sol** through the local `codex` CLI to independently judge one concrete
 claim. Sol is reserved for this ambiguous, difficult, high-value decision: the helper
-runs once per surviving Critical finding, where the extra cost is justified by the
-consequence of getting the call wrong.
+runs once per surviving Critical or High finding, where the extra cost is justified by
+the consequence of getting the call wrong.
 
 Moving to Sol through Codex intentionally trades guaranteed cross-vendor diversity for
 cross-model diversity. The calling reviewer or executor and this helper can now share the
@@ -87,7 +87,10 @@ For a `/second-opinion <claim>` invocation outside a review:
 
 ## Inside /pr-review
 
-`/pr-review` Phase 6 fires this on each **Critical** finding that survives the adversarial
-skeptic in interactive runs. The verdict contract is unchanged: `DISAGREE` tags the
-finding `CONTESTED` and shows both verdicts, `UNSURE` leaves the existing review in place,
-and `UNAVAILABLE` leaves the finding exactly as the skeptic left it.
+`/pr-review` Phase 6 fires this on each **Critical** and **High** finding that survives
+the adversarial skeptic, in an unattended `--sleep` run exactly as in an interactive one.
+Both decisive findings of the 2026-07-28/29 run were High, so a Critical-only,
+interactive-only scope would have skipped both. The verdict contract is unchanged:
+`DISAGREE` tags the finding `CONTESTED` and shows both verdicts, `UNSURE` leaves the
+existing review in place, and `UNAVAILABLE` leaves the finding exactly as the skeptic
+left it.

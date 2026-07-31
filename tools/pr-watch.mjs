@@ -7,9 +7,9 @@
  * improvised its own shell loop, and on the 2026-07-27 ORB-88 run that loop was written wrong
  * twice, both times failing SILENTLY. First it exited as soon as a review verdict existed at
  * all, so a stale CHANGES_REQUESTED carried on an older commit fired instantly and reported a
- * verdict that had nothing to do with the pushed fix. Then, rewritten, it exited only on
- * `mergeStateStatus == CLEAN` plus APPROVED or on a failing check: a fresh CHANGES_REQUESTED
- * is neither, so when review round 3 requested changes the loop just kept spinning, recording
+ * verdict that had nothing to do with the pushed fix. A rewritten version then exited only on
+ * `mergeStateStatus == CLEAN` plus APPROVED or a failing check. A fresh CHANGES_REQUESTED
+ * is neither, so when review round 3 requested changes that loop just kept spinning, recording
  * `verdict=CHANGES_REQUESTED merge=BLOCKED` at polls 9, 10 and 11 into a file nobody was
  * reading. Thomas learned the PR had come back before the orchestrator did, by asking.
  *
@@ -43,13 +43,16 @@ reviewDecision, mergeStateStatus, failingChecks, polls, watched. Progress goes t
 
 The transitions, in the order they are checked, so a PR in several at once reports the one
 that matters most: gone (merged or closed), draft, checks-failed, changes-requested, review-comment,
-approved (a fresh verdict on the current head), ready-to-merge (an approved PR becomes mergeable),
-head-changed, review-decision, merge-clean. UNKNOWN and changes among other merge states
+approved (a fresh verdict on the current head), head-changed, ready-to-merge (a review-clear PR
+becomes mergeable), review-decision, merge-clean. UNKNOWN and changes among other merge states
 never emit. The first poll establishes the baseline for state transitions, except unhandled
 verdicts and unhandled readiness still emit immediately.
 
+Ready-to-merge means CLEAN with no CHANGES_REQUESTED and a complete approval inventory. No
+approval is required; if any approval exists, at least one must name the current head commit.
+
 exit codes: 0 an actionable non-error state, 1 the PR needs work or has a new head (a failing
-            check, a fresh non-approving verdict or decision, or a head change), 2 usage error,
+            check, a fresh blocking verdict or decision, or a head change), 2 usage error,
             3 a gh command failed,
             4 nothing transitioned before the timeout (or before --once returned),
             5 the PR is merged or closed, so there is nothing left to watch`
@@ -122,9 +125,10 @@ const QUERY = `query($owner:String!,$name:String!,$number:Int!){
     pullRequest(number:$number){
       number url state merged isDraft mergeStateStatus reviewDecision headRefOid
       latestReviews(last:20){nodes{state author{login} commit{oid}}}
+      reviews(first:100){pageInfo{hasNextPage} nodes{state commit{oid}}}
       commits(last:1){nodes{commit{statusCheckRollup{state contexts(last:100){nodes{
         __typename
-        ... on CheckRun{name status conclusion}
+        ... on CheckRun{name status conclusion startedAt}
         ... on StatusContext{context state}
       }}}}}}
     }
@@ -155,8 +159,26 @@ const readPullRequest = (number) => {
   return pullRequest
 }
 
+/** GitHub evaluates only the latest check run per context name. The connection order is not that contract. */
+const latestCheckRunsOf = (contexts) => {
+  const statusContexts = contexts.filter((context) => context.__typename !== "CheckRun")
+  const latestByName = new Map()
+  const unordered = []
+  for (const checkRun of contexts.filter((context) => context.__typename === "CheckRun")) {
+    const startedAt = checkRun.startedAt
+    if (typeof startedAt !== "string") {
+      unordered.push(checkRun)
+      continue
+    }
+    const latest = latestByName.get(checkRun.name)
+    if (!latest || startedAt > latest.startedAt) latestByName.set(checkRun.name, { startedAt, runs: [checkRun] })
+    else if (startedAt === latest.startedAt) latest.runs.push(checkRun)
+  }
+  return [...statusContexts, ...unordered, ...[...latestByName.values()].flatMap((latest) => latest.runs)]
+}
+
 const failingChecksOf = (pullRequest) =>
-  (pullRequest.commits?.nodes?.[0]?.commit?.statusCheckRollup?.contexts?.nodes ?? [])
+  latestCheckRunsOf(pullRequest.commits?.nodes?.[0]?.commit?.statusCheckRollup?.contexts?.nodes ?? [])
     .filter((context) =>
       context.__typename === "CheckRun" ? FAILED_CONCLUSIONS.has(context.conclusion) : FAILED_STATUS_STATES.has(context.state),
     )
@@ -180,6 +202,14 @@ const handledSignalsOn = (number, head) => {
   return handled
 }
 
+const reviewClearOn = (pullRequest) => {
+  const reviews = pullRequest.reviews
+  if (reviews?.pageInfo?.hasNextPage !== false || !Array.isArray(reviews.nodes)) return false
+  if (!Object.hasOwn(pullRequest, "reviewDecision") || pullRequest.reviewDecision === "CHANGES_REQUESTED") return false
+  const approvals = reviews.nodes.filter((review) => review.state === "APPROVED")
+  return approvals.length === 0 || approvals.some((review) => review.commit?.oid === pullRequest.headRefOid)
+}
+
 const snapshotOf = (pullRequest, previous) => ({
   headSha: pullRequest.headRefOid,
   reviewDecision: pullRequest.reviewDecision,
@@ -194,6 +224,7 @@ const transitionOf = (pullRequest, previous) => {
   const handled = handledSignalsOn(number, head)
   const verdicts = verdictsOn(pullRequest)
   const verdict = verdicts.find((candidate) => !handled.has(candidate)) ?? verdicts[0] ?? null
+  const reviewClear = reviewClearOn(pullRequest)
   const state = {
     repo,
     pr: pullRequest.number,
@@ -217,16 +248,16 @@ const transitionOf = (pullRequest, previous) => {
   }
   const becameClean = Boolean(previous && pullRequest.mergeStateStatus === "CLEAN" && previous.mergeStateStatus !== "CLEAN")
   const decisionChanged = previous && pullRequest.reviewDecision !== previous.reviewDecision
+  if (previous && head !== previous.headSha) {
+    return { ...state, transition: "head-changed", reason: `the head changed from ${previous.headSha.slice(0, 7)} to ${head.slice(0, 7)}`, code: 1 }
+  }
   if (
     handled.has("READY_TO_MERGE") === false &&
-    pullRequest.reviewDecision === "APPROVED" &&
+    reviewClear &&
     pullRequest.mergeStateStatus === "CLEAN" &&
     (!previous || becameClean || decisionChanged)
   ) {
-    return { ...state, transition: "ready-to-merge", reason: "approved and mergeable", code: 0 }
-  }
-  if (previous && head !== previous.headSha) {
-    return { ...state, transition: "head-changed", reason: `the head changed from ${previous.headSha.slice(0, 7)} to ${head.slice(0, 7)}`, code: 1 }
+    return { ...state, transition: "ready-to-merge", reason: "review clear and mergeable", code: 0 }
   }
   if (decisionChanged) {
     const decision = pullRequest.reviewDecision ?? "none"
@@ -234,7 +265,7 @@ const transitionOf = (pullRequest, previous) => {
       ...state,
       transition: "review-decision",
       reason: `the review decision changed from ${previous.reviewDecision ?? "none"} to ${decision}`,
-      code: pullRequest.reviewDecision === "APPROVED" ? 0 : 1,
+      code: reviewClear ? 0 : 1,
     }
   }
   if (becameClean) return { ...state, transition: "merge-clean", reason: "the merge state became CLEAN", code: 0 }
@@ -279,7 +310,7 @@ while (true) {
 console.log(JSON.stringify({ ...last, transition: once ? "none" : "timeout", polls, watched: prNumbers.map(Number) }, null, 2))
 console.error(
   once
-    ? "nothing to act on: no failing check, no verdict on the current head that you have not handled, and not mergeable-and-approved"
+    ? "nothing to act on: no failing check, no verdict on the current head that you have not handled, and not review-clear-and-mergeable"
     : `nothing transitioned in ${timeout}s over ${polls} poll(s); the PR is still in a state you have already acted on`,
 )
 process.exit(4)

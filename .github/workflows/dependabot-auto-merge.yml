@@ -17,9 +17,8 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      # github-actions[bot] is a different actor than the dependabot[bot] author, so this
-      # approval satisfies the "require 1 approving review" rule (and removes the
-      # admin-merge friction for the PRs that don't auto-merge below).
+      # Approval is not required by branch protection. This independent bot review records
+      # provenance and, when present, must name the current head for the merge guard.
       - name: Approve
         run: gh pr review --approve "$PR_URL"
         env:

@@ -5,6 +5,14 @@ import { T, stage, orcaEnv, run } from "./_harness.mjs"
 const mergeabilityCases = () => {
   const head = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   const stale = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  const checkRun = (name, conclusion, createdAt = "2026-07-31T14:55:29Z", startedAt = createdAt) => ({
+    __typename: "CheckRun",
+    name,
+    status: "COMPLETED",
+    conclusion,
+    startedAt,
+    checkSuite: { createdAt },
+  })
   const pullRequest = (overrides = {}) => ({
     number: 615,
     url: "https://github.com/orbit/ui/pull/615",
@@ -13,18 +21,16 @@ const mergeabilityCases = () => {
     headRefName: "feature/orb-143-mergeability",
     isDraft: false,
     mergeStateStatus: "CLEAN",
+    reviewDecision: "",
     headRefOid: head,
     labels: { pageInfo: { hasNextPage: false }, nodes: [] },
     reviews: {
       pageInfo: { hasNextPage: false },
-      nodes: [
-        { state: "APPROVED", author: { login: "claude" }, commit: { oid: head } },
-        { state: "APPROVED", author: { login: "chatgpt-codex-connector" }, commit: { oid: head } },
-      ],
+      nodes: [],
     },
     comments: { pageInfo: { hasNextPage: false }, nodes: [] },
     reviewThreads: { pageInfo: { hasNextPage: false }, nodes: [] },
-    commits: { nodes: [{ commit: { statusCheckRollup: { state: "SUCCESS", contexts: { pageInfo: { hasNextPage: false }, nodes: [{ __typename: "CheckRun", name: "CI", status: "COMPLETED", conclusion: "SUCCESS" }] } } } }] },
+    commits: { nodes: [{ commit: { statusCheckRollup: { state: "SUCCESS", contexts: { pageInfo: { hasNextPage: false }, nodes: [checkRun("CI", "SUCCESS")] } } } }] },
     ...overrides,
   })
   const github = (first, final = first) => ({
@@ -46,7 +52,7 @@ const mergeabilityCases = () => {
     return { ...result, calls: readFileSync(log, "utf8").trim().split(/\r?\n/).filter(Boolean).map((entry) => JSON.parse(entry)) }
   }
   const mergeable = runCase("mergeable", pullRequest())
-  T("mergeability.mjs: a complete current-head decision is MERGEABLE", mergeable.status === 0 && /^MERGEABLE\r?\n/.test(mergeable.stdout) && (mergeable.stdout.match(/^OK /gm) ?? []).length === 10, mergeable.stderr || mergeable.stdout)
+  T("mergeability.mjs: zero required approvals and no review submissions is MERGEABLE", mergeable.status === 0 && /^MERGEABLE\r?\n/.test(mergeable.stdout) && (mergeable.stdout.match(/^OK /gm) ?? []).length === 10, mergeable.stderr || mergeable.stdout)
   T("mergeability.mjs: only records the GitHub and Linear read verbs", mergeable.calls.length === 4 && mergeable.calls.every((call) => (/[\\/]api$/.test(call[0]) && call[1] === "graphql") || (/[\\/]linear$/.test(call[0]) && call[1] === "issue")), JSON.stringify(mergeable.calls))
   const machine = runCase("machine", pullRequest(), { json: true })
   T("mergeability.mjs: JSON output carries the consumable verdict and conditions", machine.status === 0 && JSON.parse(machine.stdout).verdict === "MERGEABLE" && JSON.parse(machine.stdout).conditions.length === 10, machine.stderr || machine.stdout)
@@ -54,16 +60,22 @@ const mergeabilityCases = () => {
   T("mergeability.mjs: a draft is HELD even when GitHub says CLEAN", draft.status === 1 && /^HELD\r?\n/.test(draft.stdout) && /HELD draft: pull request is a draft/.test(draft.stdout), draft.stderr || draft.stdout)
   const unresolved = runCase("unresolved", pullRequest({ reviewThreads: { pageInfo: { hasNextPage: false }, nodes: [{ isResolved: false }] } }))
   T("mergeability.mjs: an unresolved review thread is HELD", unresolved.status === 1 && /HELD unresolved-review-threads: 1 unresolved thread/.test(unresolved.stdout), unresolved.stderr || unresolved.stdout)
-  const staleSecond = runCase("stale-second", pullRequest({ reviews: { pageInfo: { hasNextPage: false }, nodes: [{ state: "APPROVED", author: { login: "claude" }, commit: { oid: head } }, { state: "APPROVED", author: { login: "chatgpt-codex-connector" }, commit: { oid: stale } }] } }))
-  T("mergeability.mjs: a stale second-reviewer commit names it and the head", staleSecond.status === 1 && new RegExp(`HELD second-reviewer: .*${stale}.*${head}`).test(staleSecond.stdout), staleSecond.stderr || staleSecond.stdout)
-  const commentVerdict = runCase("comment-verdict", pullRequest({ reviews: { pageInfo: { hasNextPage: false }, nodes: [{ state: "APPROVED", author: { login: "claude" }, commit: { oid: head } }] }, comments: { pageInfo: { hasNextPage: false }, nodes: [{ author: { login: "chatgpt-codex-connector" }, body: `### 💡 Codex Review\n**Reviewed commit:** \`${head.slice(0, 10)}\`` }] } }))
-  T("mergeability.mjs: a current-head Codex conversation verdict satisfies the second review", commentVerdict.status === 0 && /OK second-reviewer: chatgpt-codex-connector reviewed head/.test(commentVerdict.stdout), commentVerdict.stderr || commentVerdict.stdout)
-  const unlabelledHead = runCase("unlabelled-head", pullRequest({ reviews: { pageInfo: { hasNextPage: false }, nodes: [{ state: "APPROVED", author: { login: "claude" }, commit: { oid: head } }] }, comments: { pageInfo: { hasNextPage: false }, nodes: [{ author: { login: "chatgpt-codex-connector" }, body: `The current head is ${head}.` }] } }))
-  T("mergeability.mjs: an unlabelled Codex comment naming the head is HELD", unlabelledHead.status === 1 && new RegExp(`HELD second-reviewer: .*no named commit.*${head}`).test(unlabelledHead.stdout), unlabelledHead.stderr || unlabelledHead.stdout)
-  const staleCommentVerdict = runCase("stale-comment-verdict", pullRequest({ reviews: { pageInfo: { hasNextPage: false }, nodes: [{ state: "APPROVED", author: { login: "claude" }, commit: { oid: head } }] }, comments: { pageInfo: { hasNextPage: false }, nodes: [{ author: { login: "chatgpt-codex-connector" }, body: `### 💡 Codex Review\n**Reviewed commit:** \`${stale.slice(0, 10)}\`` }] } }))
-  T("mergeability.mjs: a stale labelled Codex conversation verdict names it and the head", staleCommentVerdict.status === 1 && new RegExp(`HELD second-reviewer: .*${stale.slice(0, 10)}.*${head}`).test(staleCommentVerdict.stdout), staleCommentVerdict.stderr || staleCommentVerdict.stdout)
-  const hexProse = runCase("hex-prose", pullRequest({ reviews: { pageInfo: { hasNextPage: false }, nodes: [{ state: "APPROVED", author: { login: "claude" }, commit: { oid: head } }] }, comments: { pageInfo: { hasNextPage: false }, nodes: [{ author: { login: "chatgpt-codex-connector" }, body: `Diff hunk: deadbeef\n+++ b/${head.slice(0, 10)}` }] } }))
-  T("mergeability.mjs: hex-looking Codex comment prose is not a verdict", hexProse.status === 1 && new RegExp(`HELD second-reviewer: .*no named commit.*${head}`).test(hexProse.stdout), hexProse.stderr || hexProse.stdout)
+  const staleApproval = runCase("stale-approval", pullRequest({ reviews: { pageInfo: { hasNextPage: false }, nodes: [{ state: "APPROVED", author: { login: "reviewer" }, commit: { oid: stale } }] } }))
+  T("mergeability.mjs: any present stale approval is HELD", staleApproval.status === 1 && new RegExp(`HELD approval-not-stale: .*${stale}.*${head}`).test(staleApproval.stdout), staleApproval.stderr || staleApproval.stdout)
+  const currentApproval = runCase("current-approval", pullRequest({ reviews: { pageInfo: { hasNextPage: false }, nodes: [{ state: "APPROVED", author: { login: "reviewer" }, commit: { oid: head } }] } }))
+  T("mergeability.mjs: a present current-head approval remains acceptable", currentApproval.status === 0 && /OK approval-not-stale: approval names current head/.test(currentApproval.stdout), currentApproval.stderr || currentApproval.stdout)
+  const unanchoredApproval = runCase("unanchored-approval", pullRequest({ reviews: { pageInfo: { hasNextPage: false }, nodes: [{ state: "APPROVED", author: { login: "reviewer" }, commit: null }] } }))
+  T("mergeability.mjs: a present approval without a commit anchor is HELD", unanchoredApproval.status === 1 && /HELD approval-not-stale: approvals name <unavailable>/.test(unanchoredApproval.stdout), unanchoredApproval.stderr || unanchoredApproval.stdout)
+  const changesRequested = runCase("changes-requested", pullRequest({ reviewDecision: "CHANGES_REQUESTED" }))
+  T("mergeability.mjs: CHANGES_REQUESTED remains HELD", changesRequested.status === 1 && /HELD review-decision: review decision is CHANGES_REQUESTED/.test(changesRequested.stdout), changesRequested.stderr || changesRequested.stdout)
+  const latestCheck = runCase("latest-check", pullRequest({ commits: { nodes: [{ commit: { statusCheckRollup: { state: "FAILURE", contexts: { pageInfo: { hasNextPage: false }, nodes: [checkRun("CI", "SUCCESS", "2026-07-31T14:55:29Z"), checkRun("CI", "CANCELLED", "2026-07-31T14:53:08Z")] } } } }] } }))
+  T("mergeability.mjs: a newer successful check supersedes an older cancellation regardless of array order", latestCheck.status === 0 && /OK check-rollup: 1 check\(s\), all terminal/.test(latestCheck.stdout), latestCheck.stderr || latestCheck.stdout)
+  const sameSuiteRerun = runCase("same-suite-rerun", pullRequest({ commits: { nodes: [{ commit: { statusCheckRollup: { state: "FAILURE", contexts: { pageInfo: { hasNextPage: false }, nodes: [checkRun("CI", "SUCCESS", "2026-07-31T14:53:08Z", "2026-07-31T14:55:37Z"), checkRun("CI", "CANCELLED", "2026-07-31T14:53:08Z", "2026-07-31T14:53:17Z")] } } } }] } }))
+  T("mergeability.mjs: a newer successful same-suite rerun supersedes its older cancellation", sameSuiteRerun.status === 0 && /OK check-rollup: 1 check\(s\), all terminal/.test(sameSuiteRerun.stdout), sameSuiteRerun.stderr || sameSuiteRerun.stdout)
+  const tiedCheck = runCase("tied-check", pullRequest({ commits: { nodes: [{ commit: { statusCheckRollup: { state: "FAILURE", contexts: { pageInfo: { hasNextPage: false }, nodes: [checkRun("CI", "SUCCESS"), checkRun("CI", "CANCELLED")] } } } }] } }))
+  T("mergeability.mjs: exact check start timestamp ties fail closed", tiedCheck.status === 1 && /HELD check-rollup:/.test(tiedCheck.stdout), tiedCheck.stderr || tiedCheck.stdout)
+  const missingTimestamp = runCase("missing-check-timestamp", pullRequest({ commits: { nodes: [{ commit: { statusCheckRollup: { state: "FAILURE", contexts: { pageInfo: { hasNextPage: false }, nodes: [checkRun("CI", "SUCCESS", "2026-07-31T14:55:29Z", "2026-07-31T14:55:37Z"), checkRun("CI", "CANCELLED", "2026-07-31T14:53:08Z", null)] } } } }] } }))
+  T("mergeability.mjs: a cancelled duplicate with no start timestamp cannot be discarded", missingTimestamp.status === 1 && /HELD check-rollup:/.test(missingTimestamp.stdout), missingTimestamp.stderr || missingTimestamp.stdout)
   const wrongState = runCase("wrong-state", pullRequest(), { issue: { state: { name: "In Progress" }, labels: [] } })
   T("mergeability.mjs: a linked issue outside In Review is HELD", wrongState.status === 1 && /HELD linear-in-review: issue ORB-143 is In Progress, requires In Review/.test(wrongState.stdout), wrongState.stderr || wrongState.stdout)
   const nullState = runCase("null-state", pullRequest(), { issue: { state: null, labels: [] } })
@@ -76,7 +88,7 @@ const mergeabilityCases = () => {
   T("mergeability.mjs: missing Linear labels are HELD rather than treated as empty", missingLabels.status === 1 && /HELD two-strikes: Linear issue labels are unavailable/.test(missingLabels.stdout), missingLabels.stderr || missingLabels.stdout)
   const malformedLabels = runCase("malformed-labels", pullRequest(), { issue: { state: { name: "In Review" }, labels: {} }, json: true })
   T("mergeability.mjs: malformed Linear labels emit a machine-readable HELD verdict", malformedLabels.status === 1 && JSON.parse(malformedLabels.stdout).conditions.some((condition) => condition.name === "two-strikes" && !condition.ok && condition.detail === "Linear issue labels are unavailable"), malformedLabels.stderr || malformedLabels.stdout)
-  const cancelled = runCase("cancelled-check", pullRequest({ commits: { nodes: [{ commit: { statusCheckRollup: { state: "SUCCESS", contexts: { pageInfo: { hasNextPage: false }, nodes: [{ __typename: "CheckRun", name: "CI", status: "COMPLETED", conclusion: "CANCELLED" }] } } } }] } }))
+  const cancelled = runCase("cancelled-check", pullRequest({ commits: { nodes: [{ commit: { statusCheckRollup: { state: "SUCCESS", contexts: { pageInfo: { hasNextPage: false }, nodes: [checkRun("CI", "CANCELLED")] } } } }] } }))
   T("mergeability.mjs: a cancelled check is HELD", cancelled.status === 1 && /HELD check-rollup:/.test(cancelled.stdout), cancelled.stderr || cancelled.stdout)
   const movedHead = runCase("moved-head", pullRequest(), { final: pullRequest({ headRefOid: stale }) })
   T("mergeability.mjs: a moved head is HELD", movedHead.status === 1 && new RegExp(`HELD head-stability: head was ${head} and is ${stale}`).test(movedHead.stdout), movedHead.stderr || movedHead.stdout)

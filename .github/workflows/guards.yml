@@ -9,6 +9,7 @@ name: Guards
 #   ratchet - the eslint-suppressions.json baselines may only shrink
 #   parity  - a web-scope code change with zero mobile-scope change (or inverse) fails without the parity:exempt label
 #   expo-pin - apps/mobile/package.json changes must keep the Expo SDK pin resolution intact
+#   archaeology - instruction files may not carry run-narrative archaeology (shrink-only)
 #   frontmatter - every skill and agent .md has parseable YAML frontmatter (an unquoted ": " drops it silently)
 #   harness - the harness is EXECUTED, not read: every tools/ script and both session hooks run
 #   lockstep - the six load-bearing harness twins stay aligned with orbit-api
@@ -88,6 +89,20 @@ jobs:
         env:
           CONTEXT_BUDGET_BASE_REF: ${{ github.event.pull_request.base.sha || 'origin/main' }}
 
+  archaeology:
+    name: Run Archaeology
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The baseline is compared against the TARGET branch copy, so a new occurrence
+          # cannot be laundered by rewriting the baseline in the same pull request. That
+          # needs the base ref present, which a shallow checkout does not give.
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: node tools/check-archaeology.mjs --check
   frontmatter:
     name: Skill and Agent Frontmatter
     runs-on: ubuntu-latest

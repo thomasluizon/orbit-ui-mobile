@@ -235,7 +235,21 @@ const currentHead = () => existsSync(updateMarker) && process.env.ORBIT_MERGE_SW
 const withUrls = (value, source) => value.split("\\n").filter(Boolean).map((item, index) => item.split("\\t").length === 2 ? item + "\\thttps://example.test/" + source + "/" + index : item).join("\\n")
 const postMergeFailurePr = process.env.ORBIT_MERGE_SWEEP_POST_MERGE_FAILURE_PR
 const targetsPostMergeFailure = () => line.includes("n=" + postMergeFailurePr) || line.includes("/" + postMergeFailurePr + "/")
-if (line.includes("/actions/workflows")) process.exit(0)
+// Emulates \`gh api --jq\` for the workflow-list lookup rather than answering it blindly. The
+// fixture rows carry a real \`state\` and the filter the caller actually passed decides what is
+// emitted, so a sweep selecting on \`.path\` alone still sees a non-active workflow. Answering
+// this call with empty stdout pinned the detector in its absent branch and left the armed branch
+// unreachable by any case. Row states must be ones the LIST endpoint really returns: a deleted
+// workflow is dropped from it entirely (observed on orbit-api deploy.yml), so \`deleted\` is not a
+// legal row here; \`disabled_manually\` is (observed on dep-sweep-reminder.yml).
+if (line.includes("/actions/workflows")) {
+  if (process.env.ORBIT_MERGE_SWEEP_WORKFLOWS_LOOKUP_FAILURE) process.exit(7)
+  const jqIndex = argv.indexOf("--jq")
+  const activeOnly = jqIndex !== -1 && argv[jqIndex + 1].includes('select(.state == "active")')
+  const rows = (process.env.ORBIT_MERGE_SWEEP_WORKFLOWS || "").split("\\n").filter(Boolean).map((row) => row.split("\\t"))
+  process.stdout.write(rows.filter((row) => !activeOnly || row[1] === "active").map((row) => row[0]).join("\\n"))
+  process.exit(0)
+}
 if (argv[0] === "pr" && argv[1] === "update-branch") {
   if (process.env.ORBIT_MERGE_SWEEP_UPDATED_HEAD) writeFileSync(updateMarker, "")
   process.exit(0)
@@ -279,7 +293,12 @@ if (argv[0] === "pr" && argv[1] === "view") {
   } else if (line.includes("headRefName")) {
     process.stdout.write(process.env.ORBIT_MERGE_SWEEP_BRANCH)
   } else {
-    const checks = [{ name: "review", status: process.env.ORBIT_MERGE_SWEEP_REVIEW_RUNNING ? "IN_PROGRESS" : "COMPLETED", conclusion: process.env.ORBIT_MERGE_SWEEP_REVIEW_RUNNING ? "" : "SUCCESS" }]
+    // Once the review workflow is deleted no run ever posts this check again, so its ABSENCE is the
+    // permanent live shape and has to be expressible. Emitting it unconditionally meant every case
+    // read reviewCheck=SETTLED and none could reach the ABSENT branch the detector governs.
+    const checks = process.env.ORBIT_MERGE_SWEEP_REVIEW_CHECK_ABSENT
+      ? []
+      : [{ name: "review", status: process.env.ORBIT_MERGE_SWEEP_REVIEW_RUNNING ? "IN_PROGRESS" : "COMPLETED", conclusion: process.env.ORBIT_MERGE_SWEEP_REVIEW_RUNNING ? "" : "SUCCESS" }]
     if (process.env.ORBIT_MERGE_SWEEP_FAIL_NEW_HEAD) checks.push({ name: "new-head-gate", status: "COMPLETED", conclusion: "FAILURE" })
     if (process.env.ORBIT_MERGE_SWEEP_SONAR === "success") {
       checks.push({ name: "SonarCloud Code Analysis", status: "COMPLETED", conclusion: "SUCCESS" })
@@ -289,7 +308,7 @@ if (argv[0] === "pr" && argv[1] === "view") {
     }
     process.stdout.write(JSON.stringify({
       mergeStateStatus: process.env.ORBIT_MERGE_SWEEP_STATE,
-      reviewDecision: "APPROVED",
+      reviewDecision: process.env.ORBIT_MERGE_SWEEP_REVIEW_DECISION,
       statusCheckRollup: checks,
       headRefOid: currentHead(),
     }))
@@ -430,6 +449,17 @@ export const mergeSweepEnv = ({
   sonar = "success",
   state = "CLEAN",
   reviewRunning = false,
+  reviewCheckAbsent = false,
+  // Live on 2026-07-31 this reads "" for an APPROVED pull request, because
+  // `required_approving_review_count` is 0 in both repositories. APPROVED is kept as the DEFAULT
+  // deliberately: it is the strictly stronger premise for the A2 refusal cases, which exist to
+  // show a refusal happening WITH the most positive PR-level signal in hand. The live "" value is
+  // asserted by its own cases rather than by moving this default.
+  reviewDecision = "APPROVED",
+  // Lines of `path<TAB>state`, exactly as GitHub reports them. Empty means the repository lists no
+  // workflows at all, which is what every pre-existing case assumed without saying so.
+  workflows = "",
+  workflowsLookupFailure = false,
   threadsLookupFailure = false,
   unresolvedThreads = "0",
   updatedHead = "",
@@ -470,6 +500,10 @@ export const mergeSweepEnv = ({
   ORBIT_MERGE_SWEEP_POST_MERGE_THREADS_LOOKUP_FAILURE: postMergeThreadsLookupFailure ? "1" : "",
   ORBIT_MERGE_SWEEP_POST_MERGE_UNRESOLVED_THREADS: postMergeUnresolvedThreads,
   ORBIT_MERGE_SWEEP_REVIEW_RUNNING: reviewRunning ? "1" : "",
+  ORBIT_MERGE_SWEEP_REVIEW_CHECK_ABSENT: reviewCheckAbsent ? "1" : "",
+  ORBIT_MERGE_SWEEP_REVIEW_DECISION: reviewDecision,
+  ORBIT_MERGE_SWEEP_WORKFLOWS: workflows,
+  ORBIT_MERGE_SWEEP_WORKFLOWS_LOOKUP_FAILURE: workflowsLookupFailure ? "1" : "",
   ORBIT_MERGE_SWEEP_REVIEWS_LOOKUP_FAILURE: reviewsLookupFailure ? "1" : "",
   ORBIT_MERGE_SWEEP_REVIEWS_PAGE_TWO: reviewsPageTwo,
   ORBIT_MERGE_SWEEP_REVIEW_TIMES: reviewTimes,
@@ -810,8 +844,8 @@ export const NO_DRAFT_PULL_REQUEST_CLAUSE = "The pull request must be ready for 
  *
  *   1. `pattern.test(launcherSource)` passed with clause 3 deleted from WORKER_CONTRACT
  *      entirely and parked in a dead comment. Nothing the worker reads was asserted.
- *   2. `[\s\S]*` spanned clauses. "approved with zero unresolved threads" ends clause 3 and
- *      recurs in clause 5, so two tokens twenty lines apart satisfied a single clause.
+ *   2. `[\s\S]*` spanned clauses. The review-clear terminator ends clause 3 and recurs in clause
+ *      5, so two tokens twenty lines apart satisfied a single clause.
  *
  * Block-scoped matching over the injected artifact closes both. Adding a clause here means
  * adding its number; a clause that moves must move here too, which is the point.
@@ -821,7 +855,7 @@ export const REQUIRED_CONTRACT_CLAUSES = {
   "recording unattended decisions in the PR body": { clause: 1, pattern: /Decisions taken unattended/ },
   "dropping a blocked criterion": { clause: 2, pattern: /A blocked sub-step never blocks the PR/ },
   "opening a draft pull request": { clause: 2, pattern: /The pull request must be ready for review, never a draft\./ },
-  "owning its automated review cycle": { clause: 3, pattern: /Own the automated review cycle[\s\S]*approved with zero unresolved threads/ },
+  "owning its automated review cycle": { clause: 3, pattern: /Own the automated review cycle[\s\S]*CHANGES_REQUESTED blocks[\s\S]*No approval is required[\s\S]*If an approval exists[\s\S]*current head[\s\S]*zero unresolved threads and every automated review item is reconciled/ },
   "polling every review activity surface": { clause: 3, pattern: FULL_SURFACE_POLL },
   "replying with the fix commit before resolving": { clause: 3, pattern: /reply on that[\s\S]*thread naming[\s\S]*the fix commit, then[\s\S]*resolve it/ },
   "acknowledging non-thread review activity": { clause: 3, pattern: /review body or PR conversation[\s\S]*activity ID[\s\S]*PR commit/ },
@@ -830,7 +864,7 @@ export const REQUIRED_CONTRACT_CLAUSES = {
   "escalating a blocked decision": { clause: 4, pattern: /when you are[\s\S]*blocked on a decision you may not make/ },
   "escalating after two failed cycles": { clause: 4, pattern: /when two consecutive cycles fail on the same[\s\S]*finding/ },
   "leaving human threads unresolved": { clause: 3, pattern: /Never resolve a thread opened by a human account/ },
-  "refusing completion with unresolved threads": { clause: 3, pattern: /approval with an[\s\S]*unresolved[\s\S]*thread is not done/ },
+  "refusing completion with unresolved threads": { clause: 3, pattern: /zero unresolved threads and every automated review item is reconciled/ },
   "watching only its own ticket": { clause: 5, pattern: /Never watch another[\s\S]*ticket, worktree, or PR/ },
   "arming a detached monitor that outlives the contract": { clause: 6, pattern: /Never arm a detached background monitor/ },
   "permitting an affordable foreground blocking wait": { clause: 6, pattern: /foreground blocking wait is permitted/ },

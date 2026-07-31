@@ -222,7 +222,6 @@ Intentionally untracked, each for a stated reason:
 - **Reminders** - \`dep-sweep-reminder.yml\`, \`expo-sdk-watch.yml\` (UI): schedulers that file reminder issues, no pass/fail signal.
 - **Auto-merge** - \`dependabot-auto-merge.yml\` (UI + api): merges Dependabot PRs, not a health gate.
 - **Dependency review** - \`dependency-review.yml\` (UI + api + landing): PR-time supply-chain diff, gated at merge.
-- **LLM PR review** - \`claude-review.yml\` (UI + api): per-PR AI review, not a main-branch health signal.
 
 ## Notes
 

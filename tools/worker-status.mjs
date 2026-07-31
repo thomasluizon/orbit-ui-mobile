@@ -38,8 +38,8 @@ const USAGE = `usage: worker-status.mjs --worktree <path> --issue ORB-N [--base 
   --help, -h          print this usage and exit 0
 
 Checks, all from artifacts: commits exist on the branch, the worktree carries no uncommitted
-work, the branch is pushed, a PR is open against <ref> with an approving review on its current
-head and zero unresolved threads, every resolved automated thread has reconciliation evidence
+work, the branch is pushed, a PR is open against <ref> with no CHANGES_REQUESTED decision,
+zero unresolved threads, and any existing approval anchored to its current head, every resolved automated thread has reconciliation evidence
 after its latest finding-bearing nested activity and names a later fix commit that changed its reviewed path,
 every standalone automated review item has a worker acknowledgement naming a PR commit,
 no human-authored thread was resolved by the worker account, the local head matches the PR
@@ -57,11 +57,11 @@ verdicts:
   DELIVERED       every check above is met; liveness does not enter into it
   WORKING         a check is unmet and the worker process is alive
   STALLED         the worker process is gone, a PR is open, and review work is still outstanding:
-                  either its current head carries no approving review, or it does and an
-                  unresolved thread, an unacknowledged standalone automated review item, or a
-                  resolved automated thread with no fix commit still needs a worker
-  AWAITING-MERGE  the worker process is gone, a PR is open, its head is approved and NO review
-                  work is outstanding, so what is left is bookkeeping no relaunch can do
+                  CHANGES_REQUESTED is active, an existing approval is stale, or an unresolved
+                  thread, unacknowledged standalone automated review item, or resolved automated
+                  thread with no fix commit still needs a worker
+  AWAITING-MERGE  the worker process is gone, a PR is open, its review gates are clear and NO
+                  review work is outstanding, so what is left is bookkeeping no relaunch can do
   IDLE            the worker process is gone and no PR is open, so this ticket is between pull
                   requests and needs a launch decision rather than a relaunch
   UNKNOWN         liveness could not be read, so nothing is relaunched on a state nobody observed
@@ -298,9 +298,10 @@ const reviewInventoryComplete =
   review?.reviews?.pageInfo?.hasNextPage === false &&
   review?.comments?.pageInfo?.hasNextPage === false &&
   reviewThreads.every((thread) => thread.comments?.pageInfo?.hasNextPage === false)
-const currentHeadApproved = (review?.reviews?.nodes ?? []).some(
-  (item) => item.state === "APPROVED" && item.commit?.oid === prHead,
-)
+const approvedReviews = (review?.reviews?.nodes ?? []).filter((item) => item.state === "APPROVED")
+const currentHeadApproved = approvedReviews.some((item) => item.commit?.oid === prHead)
+const reviewNotChangesRequested = Boolean(review && review.reviewDecision !== "CHANGES_REQUESTED")
+const approvalNotStale = approvedReviews.length === 0 || currentHeadApproved
 
 const detail = orca(["linear", "issue", issue, "--attachments"])
 const linearIssue = detail.issue ?? detail
@@ -343,15 +344,17 @@ const checks = [
     detail: pullRequest?.isDraft ? `${pullRequest.url} is a draft pull request; open it ready for review` : "pull request is ready for review",
   },
   {
-    name: "review-approved",
-    ok: review?.reviewDecision === "APPROVED",
-    detail: review ? `review decision is ${review.reviewDecision ?? "absent"}, contract wants APPROVED` : "no pull request review state is available",
+    name: "review-not-changes-requested",
+    ok: reviewNotChangesRequested,
+    detail: review ? `review decision is ${review.reviewDecision ?? "absent"}; only CHANGES_REQUESTED blocks` : "no pull request review state is available",
   },
   {
-    name: "review-head-approved",
-    ok: Boolean(prHead && currentHeadApproved),
+    name: "approval-not-stale",
+    ok: Boolean(prHead && approvalNotStale),
     detail: prHead
-      ? `PR head ${prHead} ${currentHeadApproved ? "has" : "does not have"} an approving review`
+      ? approvedReviews.length === 0
+        ? `PR head ${prHead} has no approving review, so no approval can be stale`
+        : `PR head ${prHead} ${currentHeadApproved ? "has" : "does not have"} an approving review among ${approvedReviews.length} approval(s)`
       : "no PR head is available for approval verification",
   },
   {
@@ -474,11 +477,11 @@ const liveness = {
 }
 
 const prOpen = Boolean(pullRequest && pullRequest.state === "OPEN")
-const headApproved = Boolean(prHead && currentHeadApproved)
+const reviewGatesClear = reviewNotChangesRequested && approvalNotStale
 /**
- * The unmet items that are reviewer output only a WORKER can reconcile, so an approved head
+ * The unmet items that are reviewer output only a WORKER can reconcile, so a review-clear head
  * carrying any of them still needs a relaunch rather than a merge. Everything else that can sit
- * unmet beside an approved head is deliberately excluded, because relaunching on it spends an
+ * unmet beside a review-clear head is deliberately excluded, because relaunching on it spends an
  * allowance that buys nothing: linear-in-review, pr-attached and the two D7 artifact checks are
  * bookkeeping; review-thread-inventory is a >100-item ceiling in the query itself, which no worker
  * can move; human-thread-resolution is a human's call, since the worker already buried a
@@ -499,7 +502,7 @@ const verdictName =
       ? "WORKING"
       : livenessState === "unknown"
         ? "UNKNOWN"
-        : prOpen && (!headApproved || reviewWorkOutstanding)
+        : prOpen && (!reviewGatesClear || reviewWorkOutstanding)
           ? "STALLED"
           : prOpen
             ? "AWAITING-MERGE"

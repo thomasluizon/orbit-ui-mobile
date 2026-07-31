@@ -47,11 +47,7 @@ cheap to correct. Use `SCOPE: <project | single ticket | explicit set> [<resolve
 name or deduplicated members>]; sleep: <on | off>`. Usage errors stop before this
 line because no scope was resolved.
 
-The flag exists because the skill previously accepted both argument shapes while
-documenting only the project flow, so the reader could not tell which one an `ORB-N`
-argument selected. Measured on the ORB-75 run: three reconciliation agents for
-ORB-76, ORB-77 and ORB-79 that Thomas had not asked for, about 230k tokens. Widening
-was the RIGHT default and stays the default; what was missing was a way to say no.
+Widening is the RIGHT default and stays the default; `--only` is how a run says no.
 
 1. `orca linear list-issues --team ORB --project "<name>" --json` for the tickets.
    Note: the project description is only a 255-char pointer (Linear hard-caps it), and
@@ -146,7 +142,7 @@ eligible ticket. Do not reorder waves or explicit-set members.
    revising and state every unresolved finding honestly in the critique. For `parity:yes`,
    cover web and mobile, or name the platform gap and its reason. Attach the final screenshots
    and the critique to the issue, then set the issue to In Review and own the automated review
-   cycle until the worker reports approved with zero unresolved threads or sends one escalation.
+   cycle until the worker reports review-clear with zero unresolved threads or sends one escalation.
    The branch is NOT the worker's job; step 3 hands it the contract branch already checked out.
 
    **Do NOT hand-write the STANDING clauses here.** Never ask a question, state a blocked
@@ -154,11 +150,8 @@ eligible ticket. Do not reorder waves or explicit-set members.
    the three contract conditions, never arm a monitor that outlives the contract, post the
    intended approach as a PR comment before writing any code, never merge:
    all of that is `WORKER_CONTRACT` in `tools/launch-worker.mjs`, which APPENDS it to your
-   prompt file at launch (idempotently). The guarantee is structural precisely because it
-   used to be prose in this list: on the ORB-88 run a worker whose hand-composed prompt omitted
-   the clauses ended a turn on a question and stalled until a human noticed the terminal, and
-   then armed a monitor on another ticket's PR. `tools/test-tools.mjs` fails if a clause is
-   dropped, so the Harness Execution job is what keeps it true, not this paragraph.
+   prompt file at launch (idempotently). `tools/test-tools.mjs` fails if a clause is dropped,
+   so the Harness Execution job is what keeps it true, not this paragraph.
 3. `node tools/launch-worker.mjs --issue ORB-N --prompt-file "<absolute path>"`
    (`--base-branch <target>` when the target is not `main`, `--branch-prefix fix` for a
    bug ticket, `--repo ui|api|landing` only to override the `repo:*` label, and
@@ -237,16 +230,15 @@ fatal to an unattended worker:
   through a TUI submits early and arrives quoting-damaged. The tool sends a one-line
   pointer to the prompt FILE and the worker reads it, so the body reaches the worker
   byte-for-byte.
-- **An accepted send is not a delivered prompt.** Measured on the 2026-07-27 ORB-88 launch:
-  orca accepted the pointer, the launcher printed a full plan and exited 0, and the pointer
-  never became a user turn. The TUI sat at an empty composer with its placeholder still
-  painted, alive and idle with no work, and would have sat there until a human noticed.
-  `waitAttempts: 1` was the clue: on a cold TUI, reaching tui-idle on the first wait means the
-  composer had not finished mounting, and the send went into nothing. So the tool now READS THE
-  POINTER BACK off the terminal after sending, re-sends up to three times, and exits 1 (rolling
-  the worktree out) if the pointer never appears; the plan reports `pointerSends`. A repainting
-  TUI is never sent to twice: it settles and re-reads instead, because a second send into a busy
-  worker is the ORB-75 corruption.
+- **An accepted send is not a delivered prompt.** orca can accept the pointer, the launcher can
+  print a full plan and exit 0, and the pointer can still never become a user turn: the TUI sits
+  at an empty composer with its placeholder painted, alive and idle with no work, until a human
+  notices. `waitAttempts: 1` is the clue, because on a cold TUI reaching tui-idle on the first
+  wait means the composer had not finished mounting and the send went into nothing. So the tool
+  READS THE POINTER BACK off the terminal after sending, re-sends up to three times, and exits 1
+  (rolling the worktree out) if the pointer never appears; the plan reports `pointerSends`. A
+  repainting TUI is never sent to twice: it settles and re-reads instead, because a second send
+  into a busy worker corrupts the run.
 
 It also resolves model routing from the selected engine's `models` map in
 orchestrator.json. No tier label selects `default`; `tier:cheap` and `tier:deep` select
@@ -262,9 +254,9 @@ launch mode. The configured default `codex` declares `interactive: false` and ru
 ordinary detached child process, so an Orca terminal is optional for it; `claude` declares
 `interactive: true` and drives a TUI.
 
-Headless has one real cost, measured on the ORB-75 Phase 7 run: the Orca worktree card
-showed `agents: none` with an empty comment for the worker's entire life and death, because
-a headless worker is not a TUI and populates no Agents row. That is why the launcher writes
+Headless has one real cost: the Orca worktree card shows `agents: none` with an empty comment
+for the worker's entire life and death, because a headless worker is not a TUI and populates
+no Agents row. That is why the launcher writes
 its PID to `orbit-worker-pids.jsonl`, why `worker-status.mjs` reads that marker for liveness, and
 why `/watch` reports what that tool decided rather than `orca terminal read`, which for a headless
 worker shows no live turn at all.
@@ -297,11 +289,9 @@ the harness cannot supply is the account: a paid ChatGPT plan and `codex login`
 (`codex login --device-auth` works from a headless session, printing a URL and a one-time
 code). Its model map defaults to gpt-5.6-terra at medium reasoning, maps `tier:cheap` to
 gpt-5.6-luna at low reasoning, and maps `tier:deep` to gpt-5.6-sol at high reasoning.
-Terra-medium is the routine default because the 23 pull requests in the 2026-07-28
-unattended run all used Sol-high and averaged 2.0 CHANGES_REQUESTED rounds, exactly the
-result that had condemned Terra-medium. That measured falsifier reversed the earlier Sol
-default. Model routing does not change the top-level `worker` selection; D5 keeps that as
-an explicit configuration decision.
+Terra-medium is the routine default; the decision register carries the falsifier that
+reversed the earlier Sol default. Model routing does not change the top-level `worker`
+selection; D5 keeps that as an explicit configuration decision.
 
 Waiting differs by declared mode. A headless worker is a child process that EXITS when the
 work is done, so its liveness is the recorded PID. An interactive worker never exits, so it
@@ -312,9 +302,8 @@ nobody at the keyboard is just as stuck as a headless one.
 ## 3. Babysit
 
 **tui-idle is not completion.** It cannot tell "finished the contract" apart from "stopped
-early" or "waiting on a prompt that will never come". Measured 2026-07-24 on ORB-75: the
-waiter returned `satisfied: true` and that was read as done, while the worktree held 14
-modified and 7 untracked files with zero commits, no push, no PR, and the issue still In
+early" or "waiting on a prompt that will never come": a waiter returning `satisfied: true` is
+consistent with a worktree full of uncommitted work, no push, no PR, and the issue still In
 Progress. So idle is a trigger to CHECK, never a report of success:
 
 ```
@@ -323,7 +312,7 @@ node tools/worker-status.mjs --worktree <worktreePath> --issue ORB-N --base <tar
 
 It derives the verdict from artifacts (commits above the freshly fetched `origin/<target>`,
 never a stale local ref, a clean worktree, the branch pushed, a PR open against the target,
-the issue In Review with the PR attached, an approved review decision, zero unresolved threads,
+the issue In Review with the PR attached, no CHANGES_REQUESTED decision, no stale approval,
 and an image attached when the ticket is `visible-effect`, D7) and exits non-zero listing exactly
 what is unmet. For a `visible-effect` ticket, also inspect the issue evidence and require the
 attached critique paired with the final screenshots before treating the contract as met. That
@@ -339,8 +328,8 @@ unreadable or non-JSON marker and an unparseable timestamp.
 |---|---|
 | `DELIVERED` | exit 0, every check met. Release the ticket's concurrency slot. This is the ONLY verdict that releases one. |
 | `WORKING` | the worker process is alive with something still unmet. Keep waiting; launch nothing. |
-| `STALLED` | the process is gone, a PR is open, and its current head carries no approving review. Relaunch, on the terms below and only these. |
-| `AWAITING-MERGE` | the process is gone, the PR is open and its head is approved. No relaunch can help: finish the bookkeeping, or hand the merge to Thomas (to the 4a sweep under `--sleep`). |
+| `STALLED` | process gone, PR open, review blocked or outstanding. Relaunch only on the terms below. |
+| `AWAITING-MERGE` | process gone, PR open, review clear. Finish bookkeeping or merge by section 4a. |
 | `IDLE` | the process is gone and NO pull request is open, so the ticket sits between pull requests. Relaunch nothing; go back to the DAG and make a launch decision. |
 | `UNKNOWN` | liveness could not be read. Relaunch nothing, decide nothing, surface it to the operator. A state nobody observed is not a state to act on. |
 
@@ -387,7 +376,7 @@ After the PR opens, the worker owns its automated review cycle. The orchestrator
 review bodies, author review-round files, or relay findings back to the worker. It waits for one
 worker report:
 
-- **Done:** the current head is approved with zero unresolved threads.
+- **Done:** no CHANGES_REQUESTED, stale approval, or unresolved thread.
 - **Escalated:** the worker disagrees with a finding, is blocked on a decision it may not make,
   or has failed the same finding in two consecutive cycles. Only then may the orchestrator read
   that finding's review body and the worker's reasoning, reconcile it against the diff (D8), and
@@ -415,7 +404,7 @@ That is the SAME poll with `--verify-review` added, not a second tool, and no se
 invented for it. This is one pass for the whole ticket, never one pass per review round. It verifies the final
 diff and thread metadata without printing review bodies. A resolved automated thread whose
 named fix commit did not follow the reviewed commit or change the reviewed path, a human-authored
-thread resolved by the worker account, a head without its own approving review, or any unresolved
+thread resolved by the worker account, a stale approval, or any unresolved
 thread is a hard failure. Stop for human adjudication on failure; do not run a second verification
 pass.
 
@@ -449,8 +438,8 @@ withdrawn and none replaces it; the cost was never measured on a controlled run.
   original body all go in the closing report, because an agent editing its own work order
   unsupervised is exactly the thing that must be auditable afterwards. Without `--sleep`
   this does not apply: a human is awake, and the rewrite is theirs.
-- "All PRs green" requires reviewDecision APPROVED, zero unresolved threads, and a passing
-  one-time pre-merge verification, not just checks passing.
+- "All PRs green" requires no CHANGES_REQUESTED decision, no stale approval, zero unresolved
+  threads, and a passing one-time pre-merge verification, not just checks passing.
 
 ## 4. Advance
 
@@ -467,7 +456,7 @@ a project name or with a single `ORB-N`, because without `--only` a ticket argum
 names where to start, not where to stop.
 
 **`--only` ends here instead.** The run is complete once that one ticket's worker reports
-approved with zero unresolved threads, its one pre-merge verification passes, and its issue is
+review-clear with zero unresolved threads, its one pre-merge verification passes, and its issue is
 In Review with the PR attached, plus the final screenshots and critique when it carries
 `visible-effect`. Print that ticket's ledger row and STOP. A merge of that ticket is not a
 trigger to launch anything: observing it may have opened a wave, but the run was explicitly
@@ -475,7 +464,7 @@ bounded. Name the tickets that became launchable so Thomas can start them, and d
 
 **Explicit-set scope also ends here.** It never advances a wave, including when a
 member merge makes a successor launchable. Finish after every launchable member has
-an approved PR with zero unresolved threads, its one pre-merge verification passed,
+a review-clear PR with zero unresolved threads, its one pre-merge verification passed,
 and its issue is In Review with the PR attached (plus D7 evidence when required), and
 every refused member has its blocker or strike reason recorded. Print one ledger covering
 every requested member, then re-read the full DAG, name the tickets that became launchable,
@@ -519,18 +508,12 @@ that recorded head:
    `LINEAR-STATE-REASSERT-SKIPPED` preserves an advanced state found before the write: inspect
    that state before proceeding. `LINEAR-STATE-REASSERT-POST-WRITE-SKIPPED` preserves a state
    written by a competing actor: inspect the transition before proceeding.
-   There is an undetectable sub-second residual between the pre-write read and the write landing:
-   a competing completed state can be overwritten, and the CLI response shapes cannot distinguish
-   that outcome from an ordinary successful reassertion.
    A failed lookup, an unknown state, or any state other than `In Review` or
    `In Progress` refuses the decision rather than assuming the evidence passed.
 5. The ticket carries no `attempts:2` label (D9 refuses it regardless of colour).
-6. **The ticket's one pre-merge verification passed.** The worker, not the orchestrator,
-   handled review bodies and review rounds. Run `worker-status.mjs --verify-review` exactly
-   once after the worker reports approved with zero unresolved threads. A resolved automated
-   thread whose named fix commit did not change the reviewed path, a human-authored thread
-   resolved by the worker account, or any unresolved thread is a hard failure. Stop that ticket
-   rather than reading review bodies or repeating the pass.
+6. **The ticket's one pre-merge verification passed**, on section 3's terms and with section 3's
+   hard failures. The worker, not the orchestrator, handled review bodies and review rounds.
+   Stop that ticket rather than reading review bodies or repeating the pass.
 
 Immediately before the one verification pass, read `headRefOid` and `mergeStateStatus`. If the
 state is `BEHIND`, update the branch and wait for the new head before starting the pass. Verify
@@ -577,11 +560,11 @@ script re-reads the head after updating and during every poll, skips with both S
 it changed, and supplies `--match-head-commit` to GitHub at the merge call so the
 server refuses a last-moment change.
 
-The script owns the remaining mechanical merge decision. It repeats the branch update
-as a safety check, polls `mergeStateStatus`, rejects failed checks, requires
-`reviewDecision=APPROVED`, waits for the `review` check on the current head SHA to
-settle, and re-reads the decision after updates. Its review-safety query requires
-every review thread to be resolved and no
+The script owns the remaining mechanical merge decision. It repeats the branch update,
+polls `mergeStateStatus`, keeps only the latest run per check context, rejects failed checks,
+waits for pending checks, and refuses `reviewDecision=CHANGES_REQUESTED`. No required review
+status producer exists. If any approval exists, the final SHA-anchored gate requires one on the
+current head. Its review-safety query requires every review thread to be resolved and no
 review submission or edit, inline review comment or edit, or conversation comment or
 edit at or after `reviewed-through`. It paginates review submissions through GraphQL
 and checks `submittedAt`, `updatedAt`, and `lastEditedAt`, checks both creation and edit times
@@ -602,9 +585,7 @@ Linear reassertion were detected and reported, not prevented: the script prints 
 `POST-MERGE-REVIEW-LOOKUP-FAILED`, or
 `POST-MERGE-LINEAR-STATE-REASSERT-FAILED` marker, exits `4`, and the run stops all
 further unattended merges and copies that result into the closing report. It also checks that
-a merged head did not move afterwards. Its workflow lookup fails closed: if it cannot
-prove the repository has no review workflow, the current-head review wait stays
-enabled.
+a merged head did not move afterwards.
 
 The post-merge Linear markers are operator actions, not merely diagnostics. On
 `LINEAR-STATE-REASSERT-SKIPPED`, inspect the preserved advanced state. On
@@ -751,9 +732,8 @@ and doing the second one first is the failure this section's opening paragraphs 
 
 ## Delegation discipline (the session-flood rule)
 
-The orchestrating session ORCHESTRATES; it never implements. Measured 2026-07-24:
-implementing inline flooded a main session to 611k tokens, while every delegated slice
-landed clean. So:
+The orchestrating session ORCHESTRATES; it never implements. Implementing inline floods the
+session's own context, while a delegated slice costs the orchestrator only its report. So:
 
 - Every self-contained multi-file build or fix slice runs as a background agent with
   a branch + commit + PR + verification contract in its prompt (worktree or
@@ -771,10 +751,8 @@ landed clean. So:
 
 A stopped agent receives no notifications, so a background waiter it armed can never wake
 it: ending a turn with the goal unmet records the task as idle, and only a human nudge
-restarts it. Measured 2026-07-24: three agents in one day (the ui merge-chain, the Phase 3
-deletion, the orchestrate-skill fix) each ended their turn on "the monitor will notify me"
-with no live background child. Two of the three prompts already carried a warning against
-exactly that, so the subagent-side half alone does not hold. Both halves are the rule:
+restarts it. A warning in the subagent's own prompt does not hold on its own, so both halves
+are the rule:
 
 - **In a prompt whose task includes waiting on CI or a review:** use one FOREGROUND blocking
   `node tools/pr-watch.mjs --repo <owner/name> --pr <number>` invocation without `--once`.

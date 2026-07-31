@@ -1,11 +1,21 @@
-import { writeFileSync } from "node:fs"
+import { readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { root, LOCKSTEP_PATHS, lockstepFingerprint, lockstepFixture, lockstepDefaultApiFixture, check } from "./_harness.mjs"
+import { root, REPO_ROOT, LOCKSTEP_PATHS, lockstepFingerprint, lockstepFixture, lockstepDefaultApiFixture, check, T } from "./_harness.mjs"
 
 
 
 export const cases = () => {
+    const secondOpinion = readFileSync(join(REPO_ROOT, ".claude", "skills", "second-opinion", "second-opinion.mjs"), "utf8")
+    T(
+      "check-lockstep.mjs: second-opinion prompt judges Critical and High findings at their reported severity",
+      secondOpinion.includes("flagged a Critical or High issue") &&
+        secondOpinion.includes("reported Critical or High severity is justified") &&
+        !secondOpinion.includes("flagged a CRITICAL issue") &&
+        !secondOpinion.includes("Critical severity is justified"),
+      "the byte-exact helper must preserve Critical behavior without converting High findings into Critical-only claims",
+    )
+
     const matching = lockstepFixture("matching")
     check("check-lockstep.mjs", "six matching pairs pass", ["--ui-root", matching.uiRoot, "--api-root", matching.apiRoot, "--manifest", matching.manifest], { status: 0, stdout: /HARNESS LOCKSTEP OK/ })
 

@@ -259,16 +259,18 @@ conflict with anything above, these win.
    thread naming the fix commit, then resolve it.
    An informational automated finding that needs no code change may be resolved after replying
    \`No code change required: <reason>. Evidence: <PR commit>\`; the named commit must be on the
-   PR and change the reviewed path. Never resolve a thread opened by a human account. Repeat until
-   the review decision is approved with zero unresolved threads; approval with an unresolved
-   thread is not done. For an automated finding in a review body or PR conversation comment with
+   PR and change the reviewed path. Never resolve a thread opened by a human account.
+   CHANGES_REQUESTED blocks. No approval is required. If an approval exists, it must name the
+   current head. Repeat until there are zero unresolved threads and every automated review item is reconciled.
+   For an automated finding in a review body or PR conversation comment with
    no thread, post a PR comment naming that activity ID and the PR commit that addresses it.
 4. **Escalate instead of guessing.** Escalate when you disagree with a finding, when you are
    blocked on a decision you may not make, or when two consecutive cycles fail on the same
    finding. Do not try that finding a third time. Send one escalation carrying the disputed
    finding and your reasoning.
-5. **Your job ends on one report.** Report completion once the PR is approved with zero
-   unresolved threads, or send the escalation from clause 4. An earlier instruction to stop
+5. **Your job ends on one report.** Report completion once CHANGES_REQUESTED is absent, any
+   existing approval names the current head, and there are zero unresolved threads and every automated review item is reconciled;
+   or send the escalation from clause 4. An earlier instruction to stop
    after opening or attaching the PR does not replace this endpoint. If your work order tells you
    both to watch something and to stop, STOP wins. Never watch another ticket, worktree, or PR.
 6. **Never arm a detached background monitor, watcher or wait loop that outlives this contract.** A foreground blocking wait is permitted.

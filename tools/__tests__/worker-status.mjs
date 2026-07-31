@@ -47,6 +47,7 @@ const workerStatusPlan = (
     comments = [],
     commentsHasNextPage = false,
     approvalHead,
+    includeApproval = true,
     isDraft = false,
     prHead,
     pullRequests,
@@ -74,7 +75,7 @@ const workerStatusPlan = (
               pageInfo: { hasNextPage: reviewsHasNextPage },
               nodes: [
                 ...reviews,
-                {
+                ...(includeApproval ? [{
                   id: "PRR_current_approval",
                   author: { login: "human-approver", __typename: "User" },
                   state: "APPROVED",
@@ -82,7 +83,7 @@ const workerStatusPlan = (
                   submittedAt: "2026-07-28T10:00:00Z",
                   updatedAt: "2026-07-28T10:00:00Z",
                   commit: { oid: approvalHead ?? prHead },
-                },
+                }] : []),
               ],
             },
             comments: { pageInfo: { hasNextPage: commentsHasNextPage }, nodes: comments },
@@ -165,6 +166,7 @@ const runWorkerStatusCase = (fixture, attachments, options = {}) => {
         ...orcaEnv(
           workerStatusPlan(attachments, {
             approvalHead: options.approvalHead,
+            includeApproval: options.includeApproval,
             isDraft: options.isDraft,
             comments: options.comments,
             commentsHasNextPage: options.commentsHasNextPage,
@@ -256,8 +258,8 @@ export const cases = () => {
       "worker-status.mjs: screenshot and critique present is OK",
       complete.status === 0 &&
         complete.verdict?.ok === true &&
-        complete.verdict.checks.find((entry) => entry.name === "review-approved")?.ok === true &&
-        complete.verdict.checks.find((entry) => entry.name === "review-head-approved")?.ok === true &&
+        complete.verdict.checks.find((entry) => entry.name === "review-not-changes-requested")?.ok === true &&
+        complete.verdict.checks.find((entry) => entry.name === "approval-not-stale")?.ok === true &&
         complete.verdict.checks.find((entry) => entry.name === "screenshot-attached")?.ok === true &&
         complete.verdict.checks.find((entry) => entry.name === "critique-attached")?.ok === true,
       `exit ${complete.status}\n     ${(complete.stderr || complete.stdout).slice(0, 600)}`,
@@ -285,13 +287,57 @@ export const cases = () => {
         draft.verdict.checks.find((entry) => entry.name === "pr-ready-for-review")?.detail.includes("draft pull request"),
       `exit ${draft.status}\n     ${(draft.stderr || draft.stdout).slice(0, 600)}`,
     )
-    const changesRequested = runWorkerStatusCase(fixture, [screenshot, critique], { reviewDecision: "CHANGES_REQUESTED" })
+    const changesRequested = runWorkerStatusCase(fixture, [screenshot, critique], {
+      includeApproval: false,
+      reviewDecision: "CHANGES_REQUESTED",
+    })
     T(
-      "worker-status.mjs: a non-approved pull request does not report done",
+      "worker-status.mjs: CHANGES_REQUESTED does not report done",
       changesRequested.status === 1 &&
         changesRequested.verdict?.unmet.length === 1 &&
-        changesRequested.verdict.unmet[0] === "review-approved",
+        changesRequested.verdict.unmet[0] === "review-not-changes-requested",
       `exit ${changesRequested.status}\n     ${(changesRequested.stderr || changesRequested.stdout).slice(0, 600)}`,
+    )
+    /**
+     * Branch protection requires zero approvals, and the merge sweep therefore treats an absent
+     * reviewDecision as clear unless it says CHANGES_REQUESTED. No APPROVED submission is the
+     * ordinary shape after the review workflow is deleted, not unfinished review work.
+     */
+    const noApprovalRequired = runWorkerStatusCase(fixture, [screenshot, critique], {
+      includeApproval: false,
+      reviewDecision: null,
+    })
+    T(
+      "worker-status.mjs: zero required approvals with no approval or CHANGES_REQUESTED is DELIVERED",
+      noApprovalRequired.status === 0 &&
+        noApprovalRequired.verdict?.verdict === "DELIVERED" &&
+        noApprovalRequired.verdict.unmet.length === 0 &&
+        noApprovalRequired.verdict.checks.find((entry) => entry.name === "review-not-changes-requested")?.ok === true &&
+        noApprovalRequired.verdict.checks.find((entry) => entry.name === "approval-not-stale")?.ok === true,
+      `exit ${noApprovalRequired.status}\n     ${(noApprovalRequired.stderr || noApprovalRequired.stdout).slice(0, 600)}`,
+    )
+    const currentApprovalWithEmptyDecision = runWorkerStatusCase(fixture, [screenshot, critique], {
+      reviewDecision: "",
+    })
+    T(
+      "worker-status.mjs: a current-head approval stays valid when zero required approvals empties reviewDecision",
+      currentApprovalWithEmptyDecision.status === 0 &&
+        currentApprovalWithEmptyDecision.verdict?.verdict === "DELIVERED" &&
+        currentApprovalWithEmptyDecision.verdict.checks.find((entry) => entry.name === "review-not-changes-requested")?.ok === true &&
+        currentApprovalWithEmptyDecision.verdict.checks.find((entry) => entry.name === "approval-not-stale")?.ok === true,
+      `exit ${currentApprovalWithEmptyDecision.status}\n     ${(currentApprovalWithEmptyDecision.stderr || currentApprovalWithEmptyDecision.stdout).slice(0, 600)}`,
+    )
+    const staleApprovalWithNoDecision = runWorkerStatusCase(fixture, [screenshot, critique], {
+      approvalHead: fixture.reviewedCommit,
+      reviewDecision: null,
+    })
+    T(
+      "worker-status.mjs: an existing stale approval still blocks when reviewDecision is absent",
+      staleApprovalWithNoDecision.status === 1 &&
+        staleApprovalWithNoDecision.verdict?.unmet.length === 1 &&
+        staleApprovalWithNoDecision.verdict.unmet[0] === "approval-not-stale" &&
+        staleApprovalWithNoDecision.verdict.checks.find((entry) => entry.name === "review-not-changes-requested")?.ok === true,
+      `exit ${staleApprovalWithNoDecision.status}\n     ${(staleApprovalWithNoDecision.stderr || staleApprovalWithNoDecision.stdout).slice(0, 600)}`,
     )
     const staleApproval = runWorkerStatusCase(fixture, [screenshot, critique], {
       approvalHead: fixture.reviewedCommit,
@@ -300,8 +346,8 @@ export const cases = () => {
       "worker-status.mjs: an approval from an older commit does not approve the current PR head",
       staleApproval.status === 1 &&
         staleApproval.verdict?.unmet.length === 1 &&
-        staleApproval.verdict.unmet[0] === "review-head-approved" &&
-        staleApproval.verdict.checks.find((entry) => entry.name === "review-approved")?.ok === true,
+        staleApproval.verdict.unmet[0] === "approval-not-stale" &&
+        staleApproval.verdict.checks.find((entry) => entry.name === "review-not-changes-requested")?.ok === true,
       `exit ${staleApproval.status}\n     ${(staleApproval.stderr || staleApproval.stdout).slice(0, 600)}`,
     )
     const cleanAutomatedApproval = {
@@ -753,10 +799,25 @@ Not run.`,
         awaitingMerge.verdict.liveness.state === "gone" &&
         awaitingMerge.verdict.unmet.length === 1 &&
         awaitingMerge.verdict.unmet[0] === "critique-attached" &&
-        awaitingMerge.verdict.checks.find((entry) => entry.name === "review-head-approved")?.ok === true &&
+        awaitingMerge.verdict.checks.find((entry) => entry.name === "approval-not-stale")?.ok === true &&
         awaitingMerge.verdict.relaunch.allowed === false &&
         awaitingMerge.verdict.relaunch.refusal.includes("AWAITING-MERGE"),
       `exit ${awaitingMerge.status}\n     ${(awaitingMerge.stderr || awaitingMerge.stdout).slice(0, 600)}`,
+    )
+    const awaitingMergeWithoutApproval = runWorkerStatusCase(fixture, [screenshot], {
+      includeApproval: false,
+      reviewDecision: null,
+    })
+    T(
+      "worker-status.mjs: zero required approvals never turns bookkeeping-only AWAITING-MERGE into STALLED",
+      awaitingMergeWithoutApproval.status === 1 &&
+        awaitingMergeWithoutApproval.verdict?.verdict === "AWAITING-MERGE" &&
+        awaitingMergeWithoutApproval.verdict.unmet.length === 1 &&
+        awaitingMergeWithoutApproval.verdict.unmet[0] === "critique-attached" &&
+        awaitingMergeWithoutApproval.verdict.checks.find((entry) => entry.name === "review-not-changes-requested")?.ok === true &&
+        awaitingMergeWithoutApproval.verdict.checks.find((entry) => entry.name === "approval-not-stale")?.ok === true &&
+        awaitingMergeWithoutApproval.verdict.relaunch.allowed === false,
+      `exit ${awaitingMergeWithoutApproval.status}\n     ${(awaitingMergeWithoutApproval.stderr || awaitingMergeWithoutApproval.stdout).slice(0, 600)}`,
     )
     const approvedWithLiveThread = {
       reviewThreads: [
@@ -774,7 +835,7 @@ Not run.`,
       "worker-status.mjs: an approved head with one unresolved thread is STALLED, never AWAITING-MERGE",
       stalledUnderApproval.status === 1 &&
         stalledUnderApproval.verdict?.verdict === "STALLED" &&
-        stalledUnderApproval.verdict.checks.find((entry) => entry.name === "review-head-approved")?.ok === true &&
+        stalledUnderApproval.verdict.checks.find((entry) => entry.name === "approval-not-stale")?.ok === true &&
         stalledUnderApproval.verdict.unmet.length === 1 &&
         stalledUnderApproval.verdict.unmet[0] === "review-threads" &&
         stalledUnderApproval.verdict.relaunch.allowed === true,
@@ -826,7 +887,7 @@ Not run.`,
     writePidMarker(fixture.worktree, [{ pid: deadPid, startedAt: hoursAgo(1) }])
     const stalled = runWorkerStatusCase(fixture, [screenshot, critique], abandoned)
     T(
-      "worker-status.mjs: a dead worker with an unapproved open pull request is STALLED",
+      "worker-status.mjs: a dead worker with outstanding review work on an open pull request is STALLED",
       stalled.status === 1 &&
         stalled.verdict?.verdict === "STALLED" &&
         stalled.verdict.liveness.state === "gone" &&
@@ -847,7 +908,7 @@ Not run.`,
     writePidMarker(fixture.worktree, [{ pid: process.pid, startedAt: hoursAgo(15) }])
     const working = runWorkerStatusCase(fixture, [screenshot, critique], abandoned)
     T(
-      "worker-status.mjs: a live worker with an unapproved open pull request is WORKING, never STALLED",
+      "worker-status.mjs: a live worker with outstanding review work is WORKING, never STALLED",
       working.status === 1 &&
         working.verdict?.verdict === "WORKING" &&
         working.verdict.liveness.state === "alive" &&
