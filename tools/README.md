@@ -43,7 +43,8 @@ Read `CONVENTIONS.md` before adding one. Use the `/make-tool` skill to scaffold 
 | `check-tier-labels.mjs` | Fails closed unless the under-30-day committed Linear team-label snapshot contains every `tier:<name>` selector implied by non-default worker model tiers in `.claude/orchestrator.json`. Reports the expected, snapshotted, and missing label inventory without requiring CI network access. | `node tools/check-tier-labels.mjs` (`--help`) |
 | `refresh-tier-labels.mjs` | Reads the configured Linear team's live labels through Orca and atomically rewrites `.claude/linear-team-labels.json` with a canonical timestamped inventory for `check-tier-labels.mjs`. | `node tools/refresh-tier-labels.mjs` (`--help`) |
 | `check-push-target.mjs` | The lefthook `pre-push` guard: reads git's pre-push stdin and rejects a push whose remote ref is a protected branch. | `node tools/check-push-target.mjs < <pre-push stdin>` |
-| `test-tools.mjs` | The harness execution gate: runs every script in this directory and asserts the `CONVENTIONS.md` CLI contract plus each tool's real decision paths, with orca stubbed and every side effect staged in a temp dir. Fails when a script here has no coverage entry. Backs the Harness Execution CI job. | `node tools/test-tools.mjs` |
+| `test-tools.mjs` | The harness execution gate, and a thin runner: it resolves `TOOLS_DIR` once, injects it into `__tests__/_harness.mjs`, and loads one case module per tool. Runs every script in this directory and asserts the `CONVENTIONS.md` CLI contract plus each tool's real decision paths, with orca stubbed and every side effect staged in a temp dir. Fails when a script here has no coverage entry, and when a registered case key matches no real script. Backs the Harness Execution CI job. | `node tools/test-tools.mjs` |
+| `__tests__/` | Not tools, the harness case modules `test-tools.mjs` loads: `_harness.mjs` holds the shared prelude (reporter, temp root, `run`/`check`, the orca and gh stubs, the staging helpers) and every other file holds one tool's decision-path cases. No file here is a lockstep twin and none is invoked directly. | imported by `tools/test-tools.mjs`, never invoked |
 | `check-ticket.mjs` | Validates a Linear ticket body against the ticket template (D2); rejects an incomplete ticket rather than letting a worker guess. | `node tools/check-ticket.mjs --help` |
 | `preflight.mjs` | Fast, fail-loud environment gate for autonomous runs: prints a PASS/FAIL table for the selected worker invocation, GitHub CLI installation and authentication, Orca reachability, target repo branch and cleanliness, repo defaults, and every repeated ticket-specific `--require <cli>`. Reports remedies and exits non-zero without repairing any failure. | `node tools/preflight.mjs --repo <ui\|api\|landing> [--base-branch <ref>] [--require <cli> ...]` (`--json`, `--help`) |
 | `new-ticket.mjs` | Thin wrapper over `orca linear create` that validates the issue it just created, using the identifier orca REPORTED rather than one typed by hand. Use it instead of calling `orca linear create` directly whenever the result must be a valid ticket. | `node tools/new-ticket.mjs --help` |
@@ -75,3 +76,10 @@ justification in `lockstep-declarations.json`; the checker prints the fingerprin
 undeclared hunk. Stale declarations fail so the exception set shrinks when twins converge.
 The JavaScript twin accepts no declarations and compares byte for byte. Missing roots,
 files, or malformed declarations are failures, never skips.
+
+The list is closed at exactly those six paths: `check-lockstep.mjs` hardcodes them as
+`REQUIRED_PATHS` and rejects any manifest declaring a different set. **Nothing under
+`tools/__tests__/` carries a lockstep obligation, and no path there is ever added to that
+list.** `test-tools.mjs` and the per-tool case modules it loads exist only in
+orbit-ui-mobile; orbit-api ships no twin of them, so there is nothing to compare and a
+seventh entry would fail the checker rather than gate anything.

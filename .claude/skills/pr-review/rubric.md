@@ -397,8 +397,11 @@ execution, never an impression.
 - The review must cite the **Harness Execution** job's result for this PR (`node
   tools/test-tools.mjs` + `node .claude/hooks/test-hooks.mjs`). A red job is **Critical**; a
   job that never ran on a diff in scope is **High** (the evidence is missing, not clean).
-- A new or changed script under `tools/` with no matching coverage in `tools/test-tools.mjs`
-  is **High**: it merges unexecuted, and the next tool inherits the same hole.
+- A new or changed script under `tools/` with no matching coverage is **High**: it merges
+  unexecuted, and the next tool inherits the same hole. Coverage is that tool's own case
+  module at `tools/__tests__/<tool>.mjs` plus its row in `tools/test-tools.mjs`, the runner
+  that injects `TOOLS_DIR` and loads every module; a case key naming no real script fails
+  the runner by name rather than being skipped.
 - **"Verified" without an execution is itself a finding** (**High**). A claim that a tool,
   hook, skill, or agent works - in the PR body, a code comment, or the review - must trace to
   a command that ran and its output. Reading the diff is not verification.
