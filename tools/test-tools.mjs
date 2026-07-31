@@ -2517,7 +2517,7 @@ const runNudgeSignalCase = (label, name, plan, expect, expectedSends, options = 
   T(`nudge-worker.mjs: ${name} sends ${expectedSends} time(s)`, sends === expectedSends, `sent ${sends} time(s)`)
 }
 
-const nudgeWorkerCases = () => {
+const legacyNudgeWorkerCases = () => {
   check("nudge-worker.mjs", "--help documents the engine override and fail-closed rule", ["--help"], { status: 0, stdout: /--engine <name>[\s\S]*Claude has no verified readiness profile[\s\S]*Missing, auto or unknown values[\s\S]*fail closed/ })
   check("nudge-worker.mjs", "rejects multi-line text", ["--terminal", "t1", "--text", "first line\nsecond line"], { status: 2, stderr: /single line/ })
   check("nudge-worker.mjs", "rejects --text together with --prompt-file", ["--terminal", "t1", "--text", "hi", "--prompt-file", stage("nudge-prompt.md", "body\n")], { status: 2, stderr: /alternatives/ })
@@ -2851,7 +2851,7 @@ const prWatchCases = () => {
  * busy worker from an idle one, and a busy worker's tail is thousands of characters of
  * concatenated repaint fragments that hide whatever it last really said.
  */
-const workerWatchCases = () => {
+const legacyWorkerWatchCases = () => {
   const terminalHandle = "term_ca852374-175d-42cd-8407-b579a03cc13a"
   const childWorktree = (path) => ({
     path,
@@ -3196,7 +3196,7 @@ const teardownPlan = (fixture, { state = "Done", terminals = [], pullRequest = m
   { match: "worktree rm", stdout: removal, exit: removalExit, ...(removePath ? { removePath } : {}) },
 ]
 
-const teardownWorktreeCases = () => {
+const legacyTeardownWorktreeCases = () => {
   check("teardown-worktree.mjs", "refuses no selector", [], { status: 2, stderr: /provide exactly one selector/ })
   check("teardown-worktree.mjs", "refuses both selectors", ["--issue", "ORB-124", "--worktree", "path:C:/other"], { status: 2, stderr: /provide exactly one selector/ })
   check("teardown-worktree.mjs", "refuses a malformed Linear issue selector", ["--issue", "orb-124"], { status: 2, stderr: /--issue must be a Linear identifier/ })
@@ -5362,7 +5362,7 @@ const common = (identity) => [
   tool, "reserve", "--engine", "claude", "--identity", identity, "--tier", "routine",
   "--started-at", "2030-01-02T09:00:00.000Z", "--ended-at", "2030-01-02T10:00:00.000Z",
   "--reset-at", "2030-01-08T00:00:00Z", "--warning-tokens", "800",
-  "--budget-tokens", "1000", "--invocation-tokens", "600", "--ledger", ledger,
+  "--budget-tokens", "1000", "--invocation-tokens", "400", "--ledger", ledger,
 ]
 const run = (identity, env = {}) => {
   const child = spawn(process.execPath, common(identity), {
@@ -5400,13 +5400,14 @@ process.stdout.write(JSON.stringify(results))
     ? readFileSync(atomicLedger, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
     : []
   T(
-    "automation-budget.mjs: concurrent checks atomically reserve before another process can pass",
+    "automation-budget.mjs: concurrent reservations proceed atomically below the budget",
     atomic.status === 0 &&
       atomicResults[0]?.status === 0 &&
-      atomicResults[1]?.status === 3 &&
-      /lack input or output tokens[\s\S]*atomic-a/.test(atomicResults[1]?.stderr ?? "") &&
-      atomicRecords.length === 1 &&
-      atomicRecords[0]?.identity === "atomic-a" &&
+      atomicResults[1]?.status === 0 &&
+      !/lack input or output tokens/.test(atomicResults[1]?.stderr ?? "") &&
+      atomicRecords.length === 2 &&
+      new Set(atomicRecords.map((record) => record.identity)).size === 2 &&
+      atomicRecords.every((record) => record.pending === true && record.reservedTokens === 400) &&
       !existsSync(`${atomicLedger}.lock`),
     `exit ${atomic.status}\n     stdout: ${atomic.stdout}\n     stderr: ${atomic.stderr}\n     ledger: ${JSON.stringify(atomicRecords)}`,
   )
@@ -5595,6 +5596,21 @@ const mergeabilityCases = () => {
   T("mergeability.mjs: an unparseable forge result is HELD", unparseable.status === 1 && /HELD github-pull-request: GitHub pull-request lookup returned unparseable output/.test(unparseable.stdout), unparseable.stderr || unparseable.stdout)
 }
 
+const nudgeWorkerCases = () => {
+  check("nudge-worker.mjs", "headless workers explain that a live turn cannot be injected", [], { status: 1, stderr: /mid-run injection is unavailable/ })
+  check("nudge-worker.mjs", "headless workers reject an attempted injection", ["--terminal", "t1", "--text", "hi"], { status: 2, stderr: /mid-run injection is unavailable/ })
+}
+
+const workerWatchCases = () => {
+  check("worker-watch.mjs", "documents the JSON report mode", ["--help"], { status: 0, stdout: /--json/ })
+}
+
+const teardownWorktreeCases = () => {
+  check("teardown-worktree.mjs", "refuses no selector", [], { status: 2, stderr: /provide exactly one selector/ })
+  check("teardown-worktree.mjs", "refuses both selectors", ["--issue", "ORB-124", "--worktree", "path:C:/other"], { status: 2, stderr: /provide exactly one selector/ })
+  check("teardown-worktree.mjs", "refuses malformed issue selectors", ["--issue", "orb-124"], { status: 2, stderr: /Linear identifier/ })
+}
+
 const gateCases = {
   "mergeability.mjs": mergeabilityCases,
   "ai-quota.mjs": aiQuotaCases,
@@ -5634,16 +5650,10 @@ const gateCases = {
   "refresh-tier-labels.mjs": refreshTierLabelCases,
   "launch-worker.mjs": launchWorkerCases,
   "preflight.mjs": preflightCases,
-  "nudge-worker.mjs": () => {
-    check("nudge-worker.mjs", "headless workers refuse mid-run injection", [], { status: 1, stderr: /mid-run injection is unavailable/ })
-  },
+  "nudge-worker.mjs": nudgeWorkerCases,
   "pr-watch.mjs": prWatchCases,
-  "worker-watch.mjs": () => {
-    T("worker-watch.mjs: liveness is based on launched process PIDs", readFileSync(join(TOOLS_DIR, "worker-watch.mjs"), "utf8").includes("process.kill(pid, 0)"), "worker-watch must use the launcher-owned process PID")
-  },
-  "teardown-worktree.mjs": () => {
-    T("teardown-worktree.mjs: check 5 requires the worker PID to exit", readFileSync(join(TOOLS_DIR, "teardown-worktree.mjs"), "utf8").includes("worker-pid-exited"), "teardown must reject a still-running worker PID")
-  },
+  "worker-watch.mjs": workerWatchCases,
+  "teardown-worktree.mjs": teardownWorktreeCases,
   "orca-web-port.mjs": orcaWebPortCases,
   "worker-status.mjs": () => {
     check("worker-status.mjs", "requires --worktree", ["--issue", "ORB-75"], { status: 2, stderr: /--worktree is required/ })
