@@ -1,0 +1,24 @@
+{
+  "slices": [
+    {
+      "name": "slice_a",
+      "files": [
+        "tools/launch-worker.mjs",
+        "tools/lib/strike-ledger.mjs"
+      ]
+    },
+    {
+      "name": "slice_b",
+      "files": [
+        "tools/wave-plan.mjs",
+        "tools/lib/strike-ledger.mjs"
+      ]
+    },
+    {
+      "name": "slice_c",
+      "files": [
+        "tools/check-slice-evidence.mjs"
+      ]
+    }
+  ]
+}

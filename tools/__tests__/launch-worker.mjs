@@ -1,8 +1,8 @@
 import { spawnSync } from "node:child_process"
-import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs"
+import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs"
 import { delimiter, join, resolve } from "node:path"
 
-import { TOOLS_DIR, REPO_ROOT, T, root, stage, orcaEnv, run, runAsync, check, DEFAULT_AUTOMATION_BUDGET, CLAUDE_MODELS, CODEX_MODELS, INTERACTIVE_WORKER, INTERACTIVE_CODEX, stageLaunchWorker, launchWorktreeStub, linearIssueStub, WORKER_CONTRACT_MARKER, FULL_SURFACE_POLL, NO_DRAFT_PULL_REQUEST_CLAUSE, REQUIRED_CONTRACT_CLAUSES, contractClauseBlocks, missingContractClauses, TRUST_SCREENS, stageCheckout, runTrustScreen, budgetRecord } from "./_harness.mjs"
+import { TOOLS_DIR, REPO_ROOT, T, root, stage, orcaEnv, orchestratorConfig, run, runAsync, check, DEFAULT_AUTOMATION_BUDGET, CLAUDE_MODELS, CODEX_MODELS, INTERACTIVE_WORKER, INTERACTIVE_CODEX, stageLaunchWorker, launchWorktreeStub, linearIssueStub, WORKER_CONTRACT_MARKER, FULL_SURFACE_POLL, NO_DRAFT_PULL_REQUEST_CLAUSE, REQUIRED_CONTRACT_CLAUSES, contractClauseBlocks, missingContractClauses, TRUST_SCREENS, stageCheckout, budgetRecord, runTrustScreen } from "./_harness.mjs"
 
 const trustScreenCases = () => {
   for (const [engineName, { screens }] of Object.entries(TRUST_SCREENS)) {
@@ -669,7 +669,474 @@ const contractClauseCases = () => {
     spanningPattern.test(spanning),
     "whole-text matching rejected the spanning fixture too, so this proof demonstrates nothing; rebuild the fixture",
   )
+
+  /**
+   * F2. The plan goes to the reviewer BEFORE the code exists, because changing a plan is free and
+   * changing a merged design costs rounds. Asserted the same way PR3a converted the other eleven:
+   * inside clause 12's own block of the artifact the launcher really appended, never against the
+   * launcher file as a string.
+   */
+  const approachFirst = /Post the approach before you write the code[\s\S]*pull request comment[\s\S]*files it will land in[\s\S]*Only then start writing/
+  T(
+    "launch-worker.mjs: injected clause 12 makes the worker post its approach before writing code",
+    approachFirst.test(blocks[12] ?? ""),
+    `clause 12 as injected: ${JSON.stringify((blocks[12] ?? "").slice(0, 320))}`,
+  )
+  T(
+    "launch-worker.mjs: gutting clause 12 in what the worker reads fails, so a text-only clause cannot pass",
+    !approachFirst.test((blocks[12] ?? "").replace("Only then start writing", "carry on")),
+    "clause 12 still matched after its terminator was removed, so this assertion proves nothing",
+  )
+  T(
+    "launch-worker.mjs: the injected contract carries clause 12, so it was appended and not merely written",
+    Object.hasOwn(blocks, 12) && injected.indexOf(blocks[12]) > injected.indexOf(blocks[11] ?? ""),
+    `clauses present: ${Object.keys(blocks).join(", ")}`,
+  )
 }
+
+/**
+ * C3. wave-plan.mjs already computes the launchable set and reports collisions, and it refuses to
+ * act; the launch belongs here. These cases drive the REAL wave-plan as a child with orca stubbed,
+ * so the two halves are proved against each other rather than against a canned plan that agrees
+ * with whatever the launcher expects. Children run --dry-run: no worktree, no worker, no clock.
+ */
+const stageWaveLauncher = (label, maxParallelWorktrees = 8) => {
+  const staged = stageLaunchWorker(label, INTERACTIVE_WORKER, "claude", maxParallelWorktrees)
+  cpSync(join(TOOLS_DIR, "wave-plan.mjs"), join(staged.base, "tools", "wave-plan.mjs"))
+  /** A wave spans repositories, so the fixture has to as well: without an api repo the launcher
+   * would refuse the api ticket for the wrong reason and the within-a-repo case would prove
+   * nothing about disjointness. */
+  const configPath = join(staged.base, ".claude", "orchestrator.json")
+  const config = JSON.parse(readFileSync(configPath, "utf8"))
+  config.repos.api = join(staged.base, "repos", "api")
+  mkdirSync(config.repos.api, { recursive: true })
+  writeFileSync(configPath, JSON.stringify(config))
+  return staged
+}
+
+const waveTicketStub = ({ identifier, files, labels = ["repo:ui"] }) => ({
+  match: `linear issue ${identifier}`,
+  stdout: JSON.stringify({
+    ok: true,
+    result: {
+      issue: {
+        identifier,
+        title: `wave ticket ${identifier.toLowerCase()}`,
+        description: `## Affected modules / files\n\n${files.map((file) => `\`${file}\``).join("\n")}\n`,
+        state: { name: "Todo", type: "unstarted" },
+        labels: labels.map((name) => ({ name })),
+      },
+      relations: [],
+    },
+  }),
+})
+
+const runWave = (label, tickets, waveArguments, { maxParallelWorktrees = 8, withoutPromptFor = [] } = {}) => {
+  const staged = stageWaveLauncher(label, maxParallelWorktrees)
+  const promptDirectory = join(staged.base, "prompts")
+  mkdirSync(promptDirectory, { recursive: true })
+  for (const { identifier } of tickets) {
+    if (withoutPromptFor.includes(identifier)) continue
+    writeFileSync(join(promptDirectory, `${identifier}.md`), "the ticket body verbatim\n")
+  }
+  const result = run("launch-worker.mjs", [...waveArguments, "--prompt-dir", promptDirectory, "--dry-run"], {
+    path: staged.path,
+    env: orcaEnv([
+      { match: "linear list-issues", stdout: JSON.stringify({ ok: true, result: { issues: tickets.map(({ identifier }) => ({ identifier })) } }) },
+      ...tickets.map(waveTicketStub),
+      { match: "worktree list", stdout: JSON.stringify({ ok: true, result: { worktrees: [] } }) },
+    ]),
+  })
+  let plan = null
+  try {
+    plan = JSON.parse(result.stdout)
+  } catch {
+    plan = null
+  }
+  return { result, plan }
+}
+
+const DISJOINT_PAIR = [
+  { identifier: "ORB-301", files: ["tools/launch-worker.mjs"] },
+  { identifier: "ORB-302", files: ["tools/wave-plan.mjs"] },
+]
+const COLLIDING_PAIR = [
+  { identifier: "ORB-301", files: ["tools/launch-worker.mjs", "tools/README.md"] },
+  { identifier: "ORB-302", files: ["tools/wave-plan.mjs", "tools/README.md"] },
+]
+
+const waveLaunchCases = () => {
+  const disjoint = runWave("wave-disjoint", DISJOINT_PAIR, ["--wave-label", "harness"])
+  T(
+    "launch-worker.mjs: a wave of pairwise disjoint tickets launches every one of them together",
+    disjoint.result.status === 0 &&
+      JSON.stringify(disjoint.plan?.concurrent) === JSON.stringify(["ORB-301", "ORB-302"]) &&
+      disjoint.plan?.serialised.length === 0 &&
+      disjoint.plan?.launches.length === 2 &&
+      disjoint.plan.launches.every((launch) => launch.status === 0),
+    `exit ${disjoint.result.status}\n     ${(disjoint.result.stdout || disjoint.result.stderr).trim().slice(0, 700)}`,
+  )
+
+  const colliding = runWave("wave-colliding", COLLIDING_PAIR, ["--wave-label", "harness"])
+  T(
+    "launch-worker.mjs: two tickets sharing a path are never launched concurrently",
+    colliding.result.status === 0 &&
+      JSON.stringify(colliding.plan?.concurrent) === JSON.stringify(["ORB-301"]) &&
+      colliding.plan?.serialised.length === 1 &&
+      colliding.plan.serialised[0].issue === "ORB-302" &&
+      colliding.plan.serialised[0].behind === "ORB-301" &&
+      JSON.stringify(colliding.plan.serialised[0].sharedPaths) === JSON.stringify(["tools/README.md"]) &&
+      colliding.plan.launches.length === 1,
+    `exit ${colliding.result.status}\n     ${(colliding.result.stdout || colliding.result.stderr).trim().slice(0, 700)}`,
+  )
+
+  /** Silence must not buy parallelism: an unparseable path list collides with its whole repo. */
+  const silent = runWave("wave-silent", [DISJOINT_PAIR[0], { identifier: "ORB-302", files: [] }], ["--wave-label", "harness"])
+  T(
+    "launch-worker.mjs: a ticket with no parseable path list collides with everything in its repo",
+    silent.result.status === 0 &&
+      JSON.stringify(silent.plan?.concurrent) === JSON.stringify(["ORB-301"]) &&
+      silent.plan?.serialised[0]?.issue === "ORB-302" &&
+      /no parseable path list/.test(silent.plan.serialised[0].sharedPaths.join(" ")),
+    `exit ${silent.result.status}\n     ${(silent.result.stdout || silent.result.stderr).trim().slice(0, 700)}`,
+  )
+
+  /** ...but only its own repo: wave-plan already skips a pair whose repo:* labels differ, and the
+   * silence rule has to be worded the same way or two repositories would serialise for nothing. */
+  const crossRepo = runWave(
+    "wave-cross-repo",
+    [DISJOINT_PAIR[0], { identifier: "ORB-302", files: [], labels: ["repo:api"] }],
+    ["--wave-label", "harness"],
+  )
+  T(
+    "launch-worker.mjs: disjointness is evaluated WITHIN a repo, so a silent api ticket still runs",
+    crossRepo.result.status === 0 &&
+      JSON.stringify(crossRepo.plan?.concurrent) === JSON.stringify(["ORB-301", "ORB-302"]) &&
+      crossRepo.plan.serialised.length === 0 &&
+      crossRepo.plan.launches.every((launch) => launch.status === 0),
+    `exit ${crossRepo.result.status}\n     ${(crossRepo.result.stdout || crossRepo.result.stderr).trim().slice(0, 700)}`,
+  )
+
+  const capped = runWave("wave-capped", DISJOINT_PAIR, ["--wave-label", "harness"], { maxParallelWorktrees: 1 })
+  T(
+    "launch-worker.mjs: wave mode respects maxParallelWorktrees and defers the excess with its reason",
+    capped.result.status === 0 &&
+      JSON.stringify(capped.plan?.concurrent) === JSON.stringify(["ORB-301"]) &&
+      capped.plan?.serialised[0]?.reason === "maxParallelWorktrees cap 1",
+    `exit ${capped.result.status}\n     ${(capped.result.stdout || capped.result.stderr).trim().slice(0, 700)}`,
+  )
+
+  /**
+   * The four selectors do not all partition the same way, so the three the launcher accepts are
+   * proved to agree on one wave, and the fourth is refused by name. In --issues mode wave-plan
+   * filters every wave down to the requested identifiers BEFORE computing collisions, so a
+   * collision with a ticket the caller did not name is invisible.
+   */
+  const partitions = ["--wave-all", "--wave-label", "--wave-project"].map((flag) => {
+    const outcome = runWave(`wave-selector-${flag.slice(2)}`, COLLIDING_PAIR, flag === "--wave-all" ? [flag] : [flag, "harness"])
+    return { flag, concurrent: outcome.plan?.concurrent, serialised: outcome.plan?.serialised?.map(({ issue, behind }) => [issue, behind]), status: outcome.result.status }
+  })
+  T(
+    "launch-worker.mjs: the three accepted wave selectors partition one wave identically",
+    partitions.every((partition) => partition.status === 0) &&
+      new Set(partitions.map((partition) => JSON.stringify([partition.concurrent, partition.serialised]))).size === 1 &&
+      JSON.stringify(partitions[0].concurrent) === JSON.stringify(["ORB-301"]),
+    JSON.stringify(partitions, null, 2),
+  )
+  check(
+    "launch-worker.mjs",
+    "refuses wave-plan's --issues mode, which partitions differently, rather than accepting it",
+    ["--wave-issues", "ORB-301,ORB-302", "--prompt-dir", root, "--dry-run"],
+    { status: 2, stderr: /--wave-issues is refused[\s\S]*filters every wave down[\s\S]*BEFORE computing collisions/ },
+    { path: stageWaveLauncher("wave-issues-refused").path },
+  )
+
+  const missingPrompt = runWave("wave-missing-prompt", DISJOINT_PAIR, ["--wave-label", "harness"], { withoutPromptFor: ["ORB-302"] })
+  T(
+    "launch-worker.mjs: a wave with a missing work order refuses rather than skipping that ticket",
+    missingPrompt.result.status === 2 && /no work order for ORB-302/.test(missingPrompt.result.stderr),
+    `exit ${missingPrompt.result.status}\n     ${missingPrompt.result.stderr.trim()}`,
+  )
+
+  const waveStage = stageWaveLauncher("wave-usage")
+  check(
+    "launch-worker.mjs",
+    "wave mode requires a prompt directory",
+    ["--wave-all", "--dry-run"],
+    { status: 2, stderr: /wave mode requires --prompt-dir/ },
+    { path: waveStage.path },
+  )
+  check(
+    "launch-worker.mjs",
+    "wave mode takes exactly one selector",
+    ["--wave-all", "--wave-label", "harness", "--prompt-dir", root, "--dry-run"],
+    { status: 2, stderr: /wave mode takes exactly one selector; got --wave-all, --wave-label/ },
+    { path: waveStage.path },
+  )
+  check(
+    "launch-worker.mjs",
+    "wave mode cannot be combined with the per-ticket flags",
+    ["--wave-all", "--issue", "ORB-75", "--prompt-dir", root, "--dry-run"],
+    { status: 2, stderr: /wave mode selects its own tickets/ },
+    { path: waveStage.path },
+  )
+  check(
+    "launch-worker.mjs",
+    "a single-ticket launch refuses the wave prompt directory",
+    ["--issue", "ORB-75", "--prompt-dir", root, "--dry-run"],
+    { status: 2, stderr: /--prompt-dir belongs to wave mode/ },
+    { path: waveStage.path },
+  )
+}
+
+/**
+ * D3. The launcher used to read .claude/orchestrator.json out of whatever working tree it sat in.
+ * Measured: the ticket that changed the codex default merged, the very next launch still started a
+ * worker on the old, more expensive model, and nothing anywhere said so, because that tree was 26
+ * commits behind on an already squash-merged branch. So the fixture is exactly that state: a real
+ * repository whose HEAD is one commit behind its own origin/main, with the two copies disagreeing.
+ * No stub can stand in for it; the reader's whole job is reading git.
+ */
+const stagedRepositoryLauncher = (label, committedWorker, workingWorker) => {
+  const base = join(root, "config-authority", label)
+  const originPath = join(base, "origin.git")
+  const workPath = join(base, "work")
+  const repoPath = join(base, "repos", "ui")
+  mkdirSync(repoPath, { recursive: true })
+  mkdirSync(join(workPath, "tools"), { recursive: true })
+  mkdirSync(join(workPath, ".claude"), { recursive: true })
+  const git = (cwd, argv) => spawnSync("git", ["-C", cwd, ...argv], { encoding: "utf8" })
+  if (spawnSync("git", ["init", "--quiet", "--bare", "--initial-branch=main", originPath], { encoding: "utf8" }).status !== 0) return null
+  for (const argv of [
+    ["init", "--quiet", "--initial-branch=main"],
+    ["config", "user.email", "gate@orbit.test"],
+    ["config", "user.name", "Orbit Gate"],
+    ["remote", "add", "origin", originPath],
+  ]) {
+    if (git(workPath, argv).status !== 0) return null
+  }
+  cpSync(join(TOOLS_DIR, "launch-worker.mjs"), join(workPath, "tools", "launch-worker.mjs"))
+  cpSync(join(TOOLS_DIR, "wave-plan.mjs"), join(workPath, "tools", "wave-plan.mjs"))
+  cpSync(join(TOOLS_DIR, "automation-budget.mjs"), join(workPath, "tools", "automation-budget.mjs"))
+  cpSync(join(TOOLS_DIR, "lib"), join(workPath, "tools", "lib"), { recursive: true })
+  writeFileSync(join(workPath, "tools", "ai-quota.mjs"), "#!/usr/bin/env node\nprocess.exit(1)\n")
+  const configPath = join(workPath, ".claude", "orchestrator.json")
+
+  writeFileSync(configPath, orchestratorConfig(repoPath, workingWorker, "claude"))
+  for (const argv of [["add", "-A"], ["commit", "--quiet", "-m", "the copy this checkout carries"], ["push", "--quiet", "-u", "origin", "main"]]) {
+    if (git(workPath, argv).status !== 0) return null
+  }
+  writeFileSync(configPath, orchestratorConfig(repoPath, committedWorker, "claude"))
+  for (const argv of [["commit", "--quiet", "-am", "the copy origin/main carries"], ["push", "--quiet", "origin", "main"], ["reset", "--quiet", "--hard", "HEAD~1"]]) {
+    if (git(workPath, argv).status !== 0) return null
+  }
+  return { path: join(workPath, "tools", "launch-worker.mjs"), wavePlanPath: join(workPath, "tools", "wave-plan.mjs"), workPath, repoPath }
+}
+
+const configAuthorityCases = (promptFile) => {
+  const staged = stagedRepositoryLauncher(
+    "stale-root",
+    { ...INTERACTIVE_WORKER, models: { ...CLAUDE_MODELS, default: { model: "sonnet" } } },
+    INTERACTIVE_WORKER,
+  )
+  if (!staged) {
+    T("launch-worker.mjs: refuses a working-tree config the base branch has moved past", false, "could not stage a git repository with an origin remote")
+    return
+  }
+  const stale = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], {
+    path: staged.path,
+    env: orcaEnv(linearIssueStub(["repo:ui"])),
+  })
+  T(
+    "launch-worker.mjs: refuses a working-tree config the base branch has moved past, naming BOTH values",
+    stale.status === 2 &&
+      /\.claude\/orchestrator\.json disagrees with origin\/main/.test(stale.stderr) &&
+      /workers\.claude\.models\.default\.model: origin\/main has "sonnet", the working tree has "opus"/.test(stale.stderr) &&
+      /git merge --ff-only origin\/main/.test(stale.stderr),
+    `exit ${stale.status}, expected 2\n     ${stale.stderr.trim()}`,
+  )
+  const wavePlanStale = run("wave-plan.mjs", ["--all", "--json"], { path: staged.wavePlanPath })
+  T(
+    "wave-plan.mjs: the same shared reader refuses the same stale config",
+    wavePlanStale.status === 2 && /origin\/main has "sonnet", the working tree has "opus"/.test(wavePlanStale.stderr),
+    `exit ${wavePlanStale.status}, expected 2\n     ${wavePlanStale.stderr.trim()}`,
+  )
+
+  // Green half: the identical launch once the checkout carries what origin/main carries. Without
+  // this the refusal above could be a reader that refuses everything.
+  const merged = spawnSync("git", ["-C", staged.workPath, "merge", "--quiet", "--ff-only", "origin/main"], { encoding: "utf8" })
+  const current = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], {
+    path: staged.path,
+    env: orcaEnv(linearIssueStub(["repo:ui"])),
+  })
+  T(
+    "launch-worker.mjs: the same launch proceeds once the checkout carries origin/main's copy, on ITS value",
+    merged.status === 0 && current.status === 0 && /"command": "claude --permission-mode bypassPermissions --model sonnet"/.test(current.stdout),
+    `merge exit ${merged.status}, launch exit ${current.status}\n     ${(current.stdout || current.stderr).trim().slice(0, 400)}`,
+  )
+
+  // A checkout that CONTAINS origin/main and edits the config is the ordinary pull request, not
+  // the stale-copy defect. Refusing it would make every config change turn every tool red, which
+  // is how a gate gets switched off.
+  writeFileSync(
+    join(staged.workPath, ".claude", "orchestrator.json"),
+    orchestratorConfig(staged.repoPath, { ...INTERACTIVE_WORKER, models: { ...CLAUDE_MODELS, default: { model: "haiku" } } }, "claude"),
+  )
+  const ahead = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], {
+    path: staged.path,
+    env: orcaEnv(linearIssueStub(["repo:ui"])),
+  })
+  T(
+    "launch-worker.mjs: a checkout that already contains origin/main keeps its own newer config",
+    ahead.status === 0 && /--model haiku/.test(ahead.stdout),
+    `exit ${ahead.status}\n     ${(ahead.stdout || ahead.stderr).trim().slice(0, 400)}`,
+  )
+
+  // An unresolvable origin/<base> is a READ FAILURE, not a licence to use the working copy: a
+  // reader that fell back there would reintroduce the defect it exists to remove.
+  const missingRef = spawnSync("git", ["-C", staged.workPath, "remote", "set-url", "origin", join(root, "config-authority", "no-such-origin.git")], { encoding: "utf8" })
+  spawnSync("git", ["-C", staged.workPath, "update-ref", "-d", "refs/remotes/origin/main"], { encoding: "utf8" })
+  const unresolvable = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], {
+    path: staged.path,
+    env: orcaEnv(linearIssueStub(["repo:ui"])),
+  })
+  T(
+    "launch-worker.mjs: an unresolvable origin/main fails CLOSED naming which read failed",
+    missingRef.status === 0 &&
+      unresolvable.status === 2 &&
+      /could not resolve origin\/main/.test(unresolvable.stderr) &&
+      /git fetch origin main did not create it/.test(unresolvable.stderr) &&
+      !/"command"/.test(unresolvable.stdout),
+    `exit ${unresolvable.status}\n     ${(unresolvable.stderr || unresolvable.stdout).trim().slice(0, 500)}`,
+  )
+}
+
+/**
+ * B3. Clause 4 says "two consecutive cycles fail on the same finding. Do not try that finding a
+ * third time", and until now that sentence was the whole mechanism: a string in a prompt file
+ * every relaunch rewrote, so the count reset to zero each time and escalation degraded into
+ * unbounded retry. Nineteen review rounds. These cases pin the count at ABSOLUTE values the test
+ * writes, so raising the compiled-in limit turns them red rather than quietly following it.
+ */
+const findingStrikeCases = (promptFile) => {
+  const staged = stageLaunchWorker("finding-strikes", INTERACTIVE_WORKER)
+  const ledger = join(staged.base, "worker-strikes.jsonl")
+  const strikeRow = (scope, issue, key) => JSON.stringify({ scope, issue, key, recordedAt: "2026-07-31T10:00:00.000Z" })
+  const dryRun = (finding, environment = {}) =>
+    run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile, "--finding", finding, "--dry-run"], {
+      path: staged.path,
+      env: { ...orcaEnv(linearIssueStub(["repo:ui"])), ORBIT_WORKER_STRIKE_LEDGER: ledger, ...environment },
+    })
+
+  writeFileSync(
+    ledger,
+    `${[
+      strikeRow("finding", "ORB-75", "review-thread-9001"),
+      strikeRow("finding", "ORB-75", "review-thread-9001"),
+      strikeRow("finding", "ORB-75", "review-thread-other"),
+      strikeRow("finding", "ORB-88", "review-thread-9001"),
+      strikeRow("relaunch", "ORB-75", "review-thread-9001"),
+    ].join("\n")}\n`,
+  )
+  const third = dryRun("review-thread-9001")
+  T(
+    "launch-worker.mjs: a third launch on the same unresolved finding escalates instead of relaunching",
+    third.status === 5 &&
+      /ORB-75 finding "review-thread-9001" has already failed 2 cycles/.test(third.stderr) &&
+      /worker-contract clause 4's limit of 2/.test(third.stderr) &&
+      /escalate the finding with your reasoning instead/.test(third.stderr),
+    `exit ${third.status}, expected 5\n     ${third.stderr.trim()}`,
+  )
+  const otherFinding = dryRun("review-thread-other")
+  T(
+    "launch-worker.mjs: the strike count is per finding, not per ticket",
+    otherFinding.status === 0 && /"strikes": 1/.test(otherFinding.stdout) && /"limit": 2/.test(otherFinding.stdout),
+    `exit ${otherFinding.status}\n     ${(otherFinding.stdout || otherFinding.stderr).trim().slice(0, 400)}`,
+  )
+  const freshFinding = dryRun("review-thread-new")
+  T(
+    "launch-worker.mjs: a relaunch-scoped row for the same key is a different counter and never a strike",
+    freshFinding.status === 0 && /"strikes": 0/.test(freshFinding.stdout),
+    `exit ${freshFinding.status}\n     ${(freshFinding.stdout || freshFinding.stderr).trim().slice(0, 400)}`,
+  )
+
+  /**
+   * Durability is the whole point, so it is proved across PROCESSES: three real launches, each a
+   * fresh node process reading the store the previous one wrote. Each stops at `worktree create`,
+   * which the launcher reaches only after the strike is recorded.
+   */
+  const durable = stageLaunchWorker("finding-strikes-durable", INTERACTIVE_WORKER)
+  const durableLedger = join(durable.base, "worker-strikes.jsonl")
+  const realLaunch = () =>
+    run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", stage("finding-strike-prompt.md", "the ticket body verbatim\n"), "--finding", "thread-42"], {
+      path: durable.path,
+      env: {
+        ...orcaEnv([
+          ...linearIssueStub(["repo:ui"]),
+          { match: "worktree create", stdout: JSON.stringify({ ok: false, error: { message: "stop after the strike is recorded" } }), exit: 1 },
+          { match: "terminal stop", stdout: JSON.stringify({ ok: true, result: {} }) },
+          { match: "worktree rm", stdout: JSON.stringify({ ok: true, result: {} }) },
+        ]),
+        ORBIT_AUTOMATION_BUDGET_LEDGER: join(durable.base, "automation-budget.jsonl"),
+        ORBIT_WORKER_STRIKE_LEDGER: durableLedger,
+      },
+    })
+  const cycles = [realLaunch(), realLaunch(), realLaunch()]
+  const durableRows = existsSync(durableLedger)
+    ? readFileSync(durableLedger, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
+    : []
+  T(
+    "launch-worker.mjs: the strike survives the process that wrote it, so the third cycle escalates",
+    cycles[0].status === 3 &&
+      cycles[1].status === 3 &&
+      cycles[2].status === 5 &&
+      durableRows.length === 2 &&
+      durableRows.every((row) => row.scope === "finding" && row.issue === "ORB-75" && row.key === "thread-42" && typeof row.recordedAt === "string"),
+    `statuses ${cycles.map((cycle) => cycle.status).join(", ")}\n     ledger ${JSON.stringify(durableRows)}\n     ${cycles[2].stderr.trim()}`,
+  )
+  T(
+    "launch-worker.mjs: a launch with no --finding records no strike at all",
+    (() => {
+      const before = readFileSync(durableLedger, "utf8")
+      run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], {
+        path: durable.path,
+        env: { ...orcaEnv(linearIssueStub(["repo:ui"])), ORBIT_WORKER_STRIKE_LEDGER: durableLedger },
+      })
+      return readFileSync(durableLedger, "utf8") === before
+    })(),
+    "an unlabelled launch appended to the strike ledger",
+  )
+  check(
+    "launch-worker.mjs",
+    "refuses an empty strike-ledger override instead of writing an unknown default",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--finding", "thread-42", "--dry-run"],
+    { status: 2, stderr: /ORBIT_WORKER_STRIKE_LEDGER must not be empty/ },
+    { path: staged.path, env: { ...orcaEnv(linearIssueStub(["repo:ui"])), ORBIT_WORKER_STRIKE_LEDGER: " " } },
+  )
+}
+
+/**
+ * The fuse is the PROVIDER's own weekly reading against the configured ceiling; the token budget
+ * is warning-only whenever that reading is available, because one measured codex session spent
+ * 89 percent of the configured 1,000,000 while the provider reading did not move off 11 percent.
+ * So the blocking case is a reading at the ceiling, and the ledger figures below exist for the
+ * fallback cases, which need records INSIDE the trailing seven-day window that fallback uses.
+ */
+const recentTimestamp = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+const inWindowRecord = (identity, inputTokens, outputTokens) =>
+  budgetRecord(identity, inputTokens, outputTokens, "routine", "codex", { startedAt: recentTimestamp, endedAt: recentTimestamp })
+const unavailableCodexQuota = JSON.stringify({
+  claude: { status: "OK", weeklyPercent: 10, sessionPercent: 5, resetsIn: "4h 7m" },
+  codex: { status: "UNAVAILABLE", usedPercent: null, windowDays: null, resetsAt: null, hasCredits: null, planType: null },
+})
+const createdAWorktree = (logPath) =>
+  existsSync(logPath) &&
+  readFileSync(logPath, "utf8")
+    .trim()
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((line) => JSON.parse(line))
+    .some((argumentsList) => argumentsList[0].split(/[\\/]/).pop() === "worktree" && argumentsList[1] === "create")
 
 const launchWorkerCases = async () => {
   const promptFile = stage("prompt.md", "the ticket body verbatim\n")
@@ -958,6 +1425,9 @@ const launchWorkerCases = async () => {
       },
     },
   )
+  /** The raw log text never contains "worktree create": each row is JSON, so the two tokens are
+   * `"worktree","create"`. A substring probe here could never fail, which is the same defect this
+   * ticket exists to remove, so the calls are parsed instead. */
   const appendFailureCalls = readFileSync(appendFailureLog, "utf8")
   const appendFailureRecords = readFileSync(appendFailureLedger, "utf8")
     .trim()
@@ -967,7 +1437,7 @@ const launchWorkerCases = async () => {
     "launch-worker.mjs: a worker-contract append failure cancels its pre-worktree reservation",
     appendFailureResult.status === 3 &&
       /could not append the worker contract[\s\S]*fixture append failure/.test(appendFailureResult.stderr) &&
-      !appendFailureCalls.includes("worktree create") &&
+      !createdAWorktree(appendFailureLog) &&
       appendFailureRecords.length === 2 &&
       appendFailureRecords[0]?.identity === appendFailureRecords[1]?.identity &&
       appendFailureRecords[1]?.cancelled === true,
@@ -975,42 +1445,44 @@ const launchWorkerCases = async () => {
   )
 
   const blocked = stageLaunchWorker("budget-blocked", INTERACTIVE_CODEX, "codex")
-  const blockedLedger = stage("launch/budget-blocked.jsonl", `${budgetRecord("prior-routine", 600_000, 350_000, "routine", "codex")}\n`)
   const blockedLog = join(root, "launch", "budget-blocked-calls.jsonl")
   const blockedResult = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile], {
     path: blocked.path,
     env: {
       ...orcaEnv(linearIssueStub(["repo:ui"])),
-      ORBIT_AUTOMATION_BUDGET_LEDGER: blockedLedger,
+      ORBIT_TEST_AI_QUOTA: JSON.stringify({
+        claude: { status: "OK", weeklyPercent: 10, sessionPercent: 5, resetsIn: "4h 7m" },
+        codex: { status: "OK", usedPercent: 90, windowDays: 7, resetsAt: 1894060800, hasCredits: false, planType: "pro" },
+      }),
+      ORBIT_AUTOMATION_BUDGET_LEDGER: stage("launch/budget-blocked.jsonl", ""),
       ORBIT_ORCA_LOG: blockedLog,
     },
   })
-  const blockedCalls = existsSync(blockedLog) ? readFileSync(blockedLog, "utf8") : ""
   T(
-    "launch-worker.mjs: the routine fuse blocks before any worktree is created",
+    "launch-worker.mjs: a provider reading at the account ceiling blocks before any worktree is created",
     blockedResult.status === 4 &&
-      /ORB-75:[\s\S]*budget 1000000 tokens[\s\S]*observed spend 950000 tokens[\s\S]*reservation 100000 tokens/.test(blockedResult.stderr) &&
-      !blockedCalls.includes("worktree create"),
-    `exit ${blockedResult.status}\n     ${blockedResult.stderr}\n     ${blockedCalls}`,
+      /ORB-75:[\s\S]*codex account usage 90 percent has reached the configured ceiling 85 percent/.test(blockedResult.stderr) &&
+      !createdAWorktree(blockedLog),
+    `exit ${blockedResult.status}\n     ${blockedResult.stderr}\n     created a worktree: ${createdAWorktree(blockedLog)}`,
   )
 
-  const pendingLedger = stage("launch/budget-pending.jsonl", `${budgetRecord("prior-pending", undefined, undefined, "routine", "codex")}\n`)
+  const pendingLedger = stage("launch/budget-pending.jsonl", `${inWindowRecord("prior-pending", undefined, undefined)}\n`)
   const pendingLog = join(root, "launch", "budget-pending-calls.jsonl")
   const pendingResult = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile], {
     path: blocked.path,
     env: {
       ...orcaEnv(linearIssueStub(["repo:ui"])),
+      ORBIT_TEST_AI_QUOTA: unavailableCodexQuota,
       ORBIT_AUTOMATION_BUDGET_LEDGER: pendingLedger,
       ORBIT_ORCA_LOG: pendingLog,
     },
   })
-  const pendingCalls = existsSync(pendingLog) ? readFileSync(pendingLog, "utf8") : ""
   T(
-    "launch-worker.mjs: an absent prior token measurement fails closed before worktree creation",
+    "launch-worker.mjs: under the token fallback an absent prior measurement fails closed before worktree creation",
     pendingResult.status === 3 &&
       /lack input or output tokens[\s\S]*prior-pending/.test(pendingResult.stderr) &&
-      !pendingCalls.includes("worktree create"),
-    `exit ${pendingResult.status}\n     ${pendingResult.stderr}\n     ${pendingCalls}`,
+      !createdAWorktree(pendingLog),
+    `exit ${pendingResult.status}\n     ${pendingResult.stderr}\n     created a worktree: ${createdAWorktree(pendingLog)}`,
   )
 
   /**
@@ -1195,7 +1667,7 @@ process.stdout.write(JSON.stringify(await Promise.all([run(), run()])))
   const concurrentWorker = {
     ...INTERACTIVE_WORKER,
     automationBudget: {
-      tier: "routine",
+      ...DEFAULT_AUTOMATION_BUDGET,
       tokenBudget: 1_000,
       warningTokens: 800,
       invocationTokens: { default: 600, cheap: 500, deep: 900 },
@@ -1273,7 +1745,22 @@ process.stdout.write(JSON.stringify(await Promise.all([first, second])))
       {
         encoding: "utf8",
         timeout: 30_000,
-        env: { ...process.env, CONCURRENT_LAUNCH_ENV: JSON.stringify(orcaEnv(concurrentPlan)) },
+        /**
+         * The provider reading is UNAVAILABLE here on purpose. Atomicity is only observable when
+         * something the two launchers SHARE can refuse the second one, and the only shared state
+         * is the ledger, which gates a launch under the token fallback. The account ceiling reads
+         * the provider and would refuse both or neither, proving nothing about the lock.
+         */
+        env: {
+          ...process.env,
+          CONCURRENT_LAUNCH_ENV: JSON.stringify({
+            ...orcaEnv(concurrentPlan),
+            ORBIT_TEST_AI_QUOTA: JSON.stringify({
+              claude: { status: "UNAVAILABLE", weeklyPercent: null, sessionPercent: null, resetsIn: null },
+              codex: { status: "OK", usedPercent: 10, windowDays: 7, resetsAt: 1894060800, hasCredits: false, planType: "pro" },
+            }),
+          }),
+        },
       },
     )
     const concurrentOutcomes = concurrentResult.status === 0 ? JSON.parse(concurrentResult.stdout) : []
@@ -1313,37 +1800,87 @@ process.stdout.write(JSON.stringify(await Promise.all([first, second])))
           exit: 1,
         },
       ]),
-      ORBIT_AUTOMATION_BUDGET_LEDGER: blockedLedger,
+      ORBIT_TEST_AI_QUOTA: unavailableCodexQuota,
+      ORBIT_AUTOMATION_BUDGET_LEDGER: stage("launch/budget-reserved.jsonl", `${inWindowRecord("prior-routine", 600_000, 350_000)}\n`),
       ORBIT_ORCA_LOG: reservedLog,
     },
   })
-  const reservedCalls = existsSync(reservedLog)
-    ? readFileSync(reservedLog, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
-    : []
   T(
-    "launch-worker.mjs: tier:deep is blocked by the routine token budget before worktree creation",
+    "launch-worker.mjs: under the token fallback tier:deep is blocked before worktree creation",
     reservedResult.status === 4 &&
       /blocked:[\s\S]*projected spend 1200000 tokens/.test(reservedResult.stderr) &&
-      !reservedCalls.some((argumentsList) => argumentsList[0].split(/[\\/]/).pop() === "worktree" && argumentsList[1] === "create"),
-    `exit ${reservedResult.status}\n     ${reservedResult.stderr}\n     ${reservedCalls}`,
+      !createdAWorktree(reservedLog),
+    `exit ${reservedResult.status}\n     ${reservedResult.stderr}\n     created a worktree: ${createdAWorktree(reservedLog)}`,
   )
 
-  const selectedUnavailable = stageLaunchWorker("budget-selected-unavailable", INTERACTIVE_CODEX, "codex")
-  const selectedUnavailableResult = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile], {
-    path: selectedUnavailable.path,
+  /**
+   * An UNAVAILABLE provider reading is an honest answer, not a tool failure. The launcher used to
+   * exit 3 on it, which is stricter than automation-budget's own policy and refuses every launch
+   * while the Orca window is not scrapeable; that reading was measured flipping OK to UNAVAILABLE
+   * twice on an idle machine inside twenty minutes. So the bounded token fallback must be able to
+   * fire, AND must still be able to refuse. Both halves, or the relaxation is just a hole.
+   */
+  const fallbackPermits = stageLaunchWorker("budget-unavailable-permits", INTERACTIVE_CODEX, "codex")
+  const fallbackPermitsLog = join(fallbackPermits.base, "orca-calls.jsonl")
+  const fallbackPermitsResult = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile], {
+    path: fallbackPermits.path,
     env: {
-      ...orcaEnv(linearIssueStub(["repo:ui"])),
-      ORBIT_TEST_AI_QUOTA: JSON.stringify({
-        claude: { status: "OK", weeklyPercent: 10, sessionPercent: 5, resetsIn: "4h 7m" },
-        codex: { status: "UNAVAILABLE", usedPercent: null, windowDays: null, resetsAt: null, hasCredits: null, planType: null },
-      }),
-      ORBIT_AUTOMATION_BUDGET_LEDGER: join(selectedUnavailable.base, "automation-budget.jsonl"),
+      ...orcaEnv([
+        ...linearIssueStub(["repo:ui"]),
+        { match: "worktree create", stdout: JSON.stringify({ ok: false, error: { message: "stop after the fuse passed" } }), exit: 1 },
+        { match: "terminal stop", stdout: JSON.stringify({ ok: true, result: {} }) },
+        { match: "worktree rm", stdout: JSON.stringify({ ok: true, result: {} }) },
+      ]),
+      ORBIT_TEST_AI_QUOTA: unavailableCodexQuota,
+      ORBIT_AUTOMATION_BUDGET_LEDGER: join(fallbackPermits.base, "automation-budget.jsonl"),
+      ORBIT_ORCA_LOG: fallbackPermitsLog,
     },
   })
   T(
-    "launch-worker.mjs: an unavailable selected provider fails closed",
-    selectedUnavailableResult.status === 3 && /could not read codex quota/.test(selectedUnavailableResult.stderr),
-    `exit ${selectedUnavailableResult.status}\n     ${selectedUnavailableResult.stderr}`,
+    "launch-worker.mjs: an unavailable provider reading does not by itself refuse a launch the token fallback permits",
+    fallbackPermitsResult.status === 3 &&
+      /codex UNAVAILABLE, so automation-budget gates this launch on the token budget/.test(fallbackPermitsResult.stderr) &&
+      /worktree create[\s\S]*stop after the fuse passed/.test(fallbackPermitsResult.stderr) &&
+      createdAWorktree(fallbackPermitsLog),
+    `exit ${fallbackPermitsResult.status}\n     ${fallbackPermitsResult.stderr.trim().split("\n").slice(-4).join("\n     ")}`,
+  )
+
+  const fallbackBlocks = stageLaunchWorker("budget-unavailable-blocks", INTERACTIVE_CODEX, "codex")
+  const fallbackBlocksLog = join(fallbackBlocks.base, "orca-calls.jsonl")
+  const fallbackBlocksResult = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile], {
+    path: fallbackBlocks.path,
+    env: {
+      ...orcaEnv(linearIssueStub(["repo:ui"])),
+      ORBIT_TEST_AI_QUOTA: unavailableCodexQuota,
+      ORBIT_AUTOMATION_BUDGET_LEDGER: stage("launch/budget-unavailable-blocks.jsonl", `${inWindowRecord("prior-routine", 600_000, 350_000)}\n`),
+      ORBIT_ORCA_LOG: fallbackBlocksLog,
+    },
+  })
+  T(
+    "launch-worker.mjs: the token fallback still refuses a launch that would cross the token budget",
+    fallbackBlocksResult.status === 4 &&
+      /blocked/.test(fallbackBlocksResult.stderr) &&
+      !createdAWorktree(fallbackBlocksLog),
+    `exit ${fallbackBlocksResult.status}, expected 4\n     ${fallbackBlocksResult.stderr.trim().split("\n").slice(-4).join("\n     ")}`,
+  )
+
+    /** The shared default now carries the ceiling, so the refusal needs a budget that explicitly omits it. */
+  const budgetWithoutCeiling = { ...DEFAULT_AUTOMATION_BUDGET }
+  delete budgetWithoutCeiling.accountUsedPercentCeiling
+  const noCeiling = stageLaunchWorker("budget-no-account-ceiling", { ...INTERACTIVE_CODEX, automationBudget: budgetWithoutCeiling }, "codex")
+  check(
+    "launch-worker.mjs",
+    "refuses a worker that declares no provider account ceiling",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 2, stderr: /automationBudget\.accountUsedPercentCeiling as a number from 0 to 100[\s\S]*only figure that refuses a launch/ },
+    { path: noCeiling.path, env: orcaEnv(linearIssueStub(["repo:ui"])) },
+  )
+  check(
+    "launch-worker.mjs",
+    "reports the resolved account ceiling in the plan",
+    ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
+    { status: 0, stdout: /"accountCeilingPercent": 85/ },
+    { path: fallbackPermits.path, env: orcaEnv(linearIssueStub(["repo:ui"])) },
   )
 
   const malformedClaudeReset = stageLaunchWorker("budget-malformed-claude-reset", INTERACTIVE_WORKER)
@@ -1398,6 +1935,9 @@ process.stdout.write(JSON.stringify(await Promise.all([first, second])))
   await launchConcurrencyCases(promptFile)
 
   contractClauseCases()
+  configAuthorityCases(promptFile)
+  findingStrikeCases(promptFile)
+  waveLaunchCases()
 
   const agentsSource = readFileSync(join(REPO_ROOT, "AGENTS.md"), "utf8")
   T(

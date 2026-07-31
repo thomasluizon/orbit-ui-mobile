@@ -29,11 +29,12 @@ import {
   unlinkSync,
   writeFileSync,
 } from "node:fs"
-import { homedir } from "node:os"
+import { homedir, tmpdir } from "node:os"
 import { basename, delimiter, dirname, extname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
+import { FINDING_SCOPE, STRIKES_BEFORE_ESCALATION, recordStrike, strikeCount, strikeLedgerPath } from "./lib/strike-ledger.mjs"
 const pause = (milliseconds) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds)
 
 const USAGE = `usage: launch-worker.mjs --issue ORB-N --prompt-file <path> [options]
@@ -54,12 +55,37 @@ const USAGE = `usage: launch-worker.mjs --issue ORB-N --prompt-file <path> [opti
   --comment "<text>"     worktree card comment (default: "<ORB-N> launched: worker running")
   --workspace-status <s> Orca board status id (default: in-progress)
   --existing-worktree <path> launch an additional headless worker in this existing Orca worktree
+  --finding <id>         relaunch identifier for ONE unresolved review finding. Each launch under
+                         the same --issue and --finding is one cycle of worker-contract clause 4,
+                         counted in a durable ledger outside this process; the third refuses and
+                         tells the caller to escalate instead of retrying
   --dry-run              resolve everything and print the plan; run no mutating orca or git command
   --help, -h             print this usage and exit 0
 
+Wave mode launches every LAUNCHABLE ticket of wave 1 whose affected-file sets are pairwise
+disjoint, and defers the rest behind the ticket they collide with. It consumes
+tools/wave-plan.mjs --json and re-invokes THIS script once per ticket, so every per-ticket gate
+(the budget fuse, the concurrency reservation, maxParallelWorktrees, the injected contract) is
+enforced exactly once, here:
+
+  --wave-all             launch wave 1 of \`wave-plan.mjs --all\`
+  --wave-label <label>   launch wave 1 of \`wave-plan.mjs --label <label>\`
+  --wave-project <name>  launch wave 1 of \`wave-plan.mjs --project <name>\`
+  --prompt-dir <path>    directory holding one <ORB-N>.md work order per launched ticket (required
+                         in wave mode). A ticket with no file there refuses the whole wave
+
+Those three selectors partition identically: wave-plan reports each wave's collisions over the
+whole wave. Its fourth selector, --issues, filters every wave down to the requested identifiers
+FIRST, so a collision with a ticket you did not name is invisible in that mode; --wave-issues is
+therefore refused rather than silently partitioning differently. Disjointness is evaluated WITHIN
+a repo, and a ticket with no parseable path list collides with every other ticket in its repo,
+because silence must not buy parallelism. Deferred tickets are named with what they collide on;
+they are not launched, because only a merge advances a wave (D3).
+
 Prints one JSON object on stdout: issue, repo, repoPath, worktreePath, worktreeSelector,
 branch, baseBranch, terminal, engine, command, promptFile, workerContract, trustPromptAnswered,
-waitAttempts, pointerSends.
+waitAttempts, pointerSends. In wave mode: selector, wave, launchable, concurrent, serialised,
+launches.
 Progress goes to stderr, so stdout stays pipeable.
 
 exit 0 means the worker ACCEPTED the prompt as a user turn, verified by reading the pointer back
@@ -69,7 +95,8 @@ exit codes: 0 worker launched and holding the work order, 1 the worker never rea
             never took the prompt pointer as a turn, or the concurrency cap was reached,
             2 usage or config error,
             3 an orca, git, quota reader or budget command failed,
-            4 the proposed invocation would cross the engine token budget
+            4 the proposed invocation would cross the engine token budget,
+            5 this finding has already burned its cycles; escalate it instead of relaunching
 
 Any non-zero exit after the worktree exists stops its terminals and removes that worktree and
 the branches this run created, so a relaunch starts clean instead of piling up orb-N-slug-2.
@@ -261,6 +288,13 @@ conflict with anything above, these win.
     contract, then reconciling their output. Keep edits landing in the SAME file inline, and keep
     the final gate run inline because its raw output ships in the PR body. A review round with
     more than one independent finding is dispatched one subagent per finding, not fixed inline.
+12. **Post the approach before you write the code.** Open the pull request as your FIRST act after
+    creating the branch, carrying no implementation yet, and immediately post your intended
+    approach as a pull request comment: the change you mean to make, the files it will land in,
+    and why that shape rather than the alternatives you rejected. Only then start writing. The
+    cloud reviewer reads that comment before it reads a diff, so a wrong shape costs one comment
+    instead of a review round against code already written. Changing a plan is free; changing a
+    merged design is not.
 `
 
 const SLICE_CONTRACT = `
@@ -499,16 +533,31 @@ const runBudgetCommand = (argumentsList, blockedExit = false) => {
   fail(blockedExit && budgetResult.status === 4 ? 4 : 3, reason)
 }
 
-const reserveAutomationBudget = (
+/**
+ * One provider reading per launch, handed to automation-budget verbatim rather than read twice.
+ * The claude arm reads its figure by scraping an Orca accessibility tree, so a second read is a
+ * second scrape and can legitimately disagree with the first.
+ */
+const quotaSnapshotPath = join(tmpdir(), `orbit-launch-quota-${process.pid}-${randomUUID()}.json`)
+process.on("exit", () => {
+  try {
+    unlinkSync(quotaSnapshotPath)
+  } catch {
+    /* a snapshot the OS already reclaimed must never change this launch's verdict */
+  }
+})
+
+const reserveAutomationBudget = ({
   engineName,
   identity,
   tier,
   startedAt,
   warningTokens,
   tokenBudget,
+  accountCeilingPercent,
   projectedTokens,
   ledgerPath,
-) => {
+}) => {
   const quotaResult = spawnSync(process.execPath, [quotaToolPath, "--json"], {
     encoding: "utf8",
     maxBuffer: 32 * 1024 * 1024,
@@ -520,17 +569,33 @@ const reserveAutomationBudget = (
   } catch {
     fail(3, `ai-quota returned unparseable output: ${(quotaResult.stdout || quotaResult.stderr || "").slice(0, 400)}`)
   }
-  const selectedQuota = quota?.[engineName]
-  if (selectedQuota?.status !== "OK") {
-    fail(3, `ai-quota could not read ${engineName} quota; refusing to launch unattended automation`)
+  try {
+    writeFileSync(quotaSnapshotPath, quotaResult.stdout, "utf8")
+  } catch (error) {
+    fail(3, `could not write the quota snapshot ${quotaSnapshotPath}: ${error.message}`)
   }
+  const selectedQuota = quota?.[engineName]
   const accountObservedAt = new Date().toISOString()
-  const accountUsedPercent = engineName === "claude"
-    ? selectedQuota.weeklyPercent
-    : selectedQuota.usedPercent
-  const resetAt = engineName === "claude"
-    ? parseClaudeResetAt(selectedQuota.resetsIn)
-    : parseCodexResetAt(selectedQuota.resetsAt)
+  /**
+   * UNAVAILABLE is an honest answer, not a tool failure, and refusing on it was stricter than the
+   * budget tool's own policy: the claude reading flipped OK to UNAVAILABLE twice on an idle
+   * machine inside twenty minutes purely because the Orca window was not scrapeable, and every
+   * launch in between would have been refused. automation-budget falls back to the token budget
+   * and says so (gate TOKEN_FALLBACK), so the launcher lets that bounded fallback fire. A reading
+   * this launcher cannot even parse is still fatal above.
+   */
+  const readingAvailable = selectedQuota?.status === "OK"
+  const accountUsedPercent = readingAvailable
+    ? (engineName === "claude" ? selectedQuota.weeklyPercent : selectedQuota.usedPercent)
+    : null
+  /** With no provider window to read, the trailing seven days is the conservative window: it
+   * counts every recent record, where a future reset timestamp would count none of them. */
+  const resetAt = readingAvailable
+    ? (engineName === "claude" ? parseClaudeResetAt(selectedQuota.resetsIn) : parseCodexResetAt(selectedQuota.resetsAt))
+    : accountObservedAt
+  if (!readingAvailable) {
+    console.error(`ai-quota reports ${engineName} UNAVAILABLE, so automation-budget gates this launch on the token budget over the trailing seven days instead of the provider reading`)
+  }
   const argumentsList = [
     "reserve",
     "--engine",
@@ -545,16 +610,20 @@ const reserveAutomationBudget = (
     accountObservedAt,
     "--reset-at",
     resetAt,
+    "--account-ceiling-percent",
+    String(accountCeilingPercent),
     "--warning-tokens",
     String(warningTokens),
     "--budget-tokens",
     String(tokenBudget),
     "--invocation-tokens",
     String(projectedTokens),
+    "--quota",
+    quotaSnapshotPath,
     "--ledger",
     ledgerPath,
   ]
-  if (Number.isFinite(accountUsedPercent) && typeof accountObservedAt === "string") {
+  if (Number.isFinite(accountUsedPercent)) {
     argumentsList.push(
       "--account-used-percent",
       String(accountUsedPercent),
@@ -712,8 +781,165 @@ const baseBranch = argOf("--base-branch") ?? "main"
 const branchPrefix = argOf("--branch-prefix") ?? "feature"
 const maxParallelOverride = argOf("--max-parallel-worktrees")
 const workspaceStatus = argOf("--workspace-status") ?? "in-progress"
+const findingArg = argOf("--finding")
 const dryRun = process.argv.includes("--dry-run")
 
+/**
+ * wave-plan.mjs has FOUR selectors and they do not all partition the same way. --project, --label
+ * and --all report each wave's collisions over the whole wave; --issues filters every wave down to
+ * the requested identifiers before collisions are computed, so a collision with a ticket the
+ * caller did not name never appears. Consuming that mode here would buy parallelism with silence,
+ * which is the defect this whole ticket exists to remove, so it is refused by name rather than
+ * quietly accepted.
+ */
+const WAVE_SELECTORS = [
+  ["--wave-all", "--all", false],
+  ["--wave-label", "--label", true],
+  ["--wave-project", "--project", true],
+]
+if (process.argv.includes("--wave-issues")) {
+  fail(
+    2,
+    "--wave-issues is refused: wave-plan.mjs's --issues mode filters every wave down to the identifiers you named BEFORE computing collisions, so a collision with a ticket outside that set is invisible and two tickets sharing a path could launch together. Use --wave-all, --wave-label or --wave-project.",
+  )
+}
+const selectedWaveSelectors = WAVE_SELECTORS.filter(([flag]) => process.argv.includes(flag))
+if (selectedWaveSelectors.length > 1) {
+  fail(2, `wave mode takes exactly one selector; got ${selectedWaveSelectors.map(([flag]) => flag).join(", ")}`)
+}
+
+if (selectedWaveSelectors.length === 1) {
+  const [waveFlag, planFlag, takesValue] = selectedWaveSelectors[0]
+  const selectorValue = takesValue ? argOf(waveFlag) : null
+  if (takesValue && (!selectorValue || selectorValue.startsWith("--"))) fail(2, `${waveFlag} requires a value`)
+  if (issue || promptFileArg || existingWorktreeArg) {
+    fail(2, "wave mode selects its own tickets; --issue, --prompt-file and --existing-worktree are per-ticket flags and cannot be combined with it")
+  }
+  const promptDirectoryArgument = argOf("--prompt-dir")
+  if (!promptDirectoryArgument) {
+    fail(2, "wave mode requires --prompt-dir naming a directory that holds one <ORB-N>.md work order per ticket")
+  }
+  const promptDirectory = resolve(promptDirectoryArgument)
+
+  let waveConfig
+  try {
+    waveConfig = readOrchestratorConfig(undefined, baseBranch)
+  } catch (error) {
+    fail(2, error.message)
+  }
+  const waveCap = maxParallelOverride === null ? waveConfig.maxParallelWorktrees : Number(maxParallelOverride)
+
+  const planArgs = [planFlag, ...(selectorValue === null ? [] : [selectorValue]), "--json"]
+  const planned = spawnSync(process.execPath, [fileURLToPath(new URL("./wave-plan.mjs", import.meta.url)), ...planArgs], {
+    encoding: "utf8",
+    maxBuffer: 32 * 1024 * 1024,
+  })
+  if (planned.error) fail(3, `could not run wave-plan.mjs: ${planned.error.message}`)
+  if (planned.status !== 0) {
+    fail(3, `wave-plan.mjs ${planArgs.join(" ")} exited ${planned.status}: ${(planned.stderr || planned.stdout || "").trim().slice(0, 600)}`)
+  }
+  let wavePlan
+  try {
+    wavePlan = JSON.parse(planned.stdout)
+  } catch {
+    fail(3, `wave-plan.mjs ${planArgs.join(" ")} returned unparseable JSON: ${planned.stdout.slice(0, 400)}`)
+  }
+  const firstWave = wavePlan.waves?.[0]
+  const candidates = (wavePlan.launchable ?? []).filter((identifier) =>
+    (firstWave?.issues ?? []).some((waveIssue) => waveIssue.identifier === identifier),
+  )
+  if (candidates.length === 0) {
+    fail(1, `wave-plan.mjs ${planArgs.join(" ")} reports nothing launchable in wave 1; there is no wave to launch`)
+  }
+
+  const waveIssueOf = new Map((firstWave.issues ?? []).map((waveIssue) => [waveIssue.identifier, waveIssue]))
+  const repoLabelOf = (identifier) =>
+    (waveIssueOf.get(identifier)?.labels ?? []).find((label) => label.startsWith("repo:")) ?? null
+  const unknownAffected = new Set(firstWave.unknownAffected ?? [])
+  const pairKey = (left, right) => [left, right].sort().join("|")
+  const reportedCollisions = new Map((firstWave.collisions ?? []).map(({ a, b, files }) => [pairKey(a, b), files]))
+  /**
+   * Disjointness is a property of a repo, not of raw path strings: wave-plan already skips a pair
+   * whose repo:* labels differ, and the same rule has to hold for the silence case or two tickets
+   * in different repositories would serialise for naming nothing.
+   */
+  const sharedPathsBetween = (left, right) => {
+    const reported = reportedCollisions.get(pairKey(left, right))
+    if (reported?.length) return reported
+    if (!unknownAffected.has(left) && !unknownAffected.has(right)) return null
+    const leftRepo = repoLabelOf(left)
+    const rightRepo = repoLabelOf(right)
+    if (leftRepo && rightRepo && leftRepo !== rightRepo) return null
+    return ["(no parseable path list in Affected modules / files)"]
+  }
+
+  const concurrent = []
+  const serialised = []
+  for (const identifier of candidates) {
+    const conflict = concurrent
+      .map((other) => ({ other, files: sharedPathsBetween(identifier, other) }))
+      .find(({ files }) => files)
+    if (conflict) {
+      serialised.push({ issue: identifier, behind: conflict.other, sharedPaths: conflict.files })
+      continue
+    }
+    if (concurrent.length >= waveCap) {
+      serialised.push({ issue: identifier, behind: null, sharedPaths: [], reason: `maxParallelWorktrees cap ${waveCap}` })
+      continue
+    }
+    concurrent.push(identifier)
+  }
+
+  const missingPrompts = concurrent.filter((identifier) => !existsSync(join(promptDirectory, `${identifier}.md`)))
+  if (missingPrompts.length) {
+    fail(2, `no work order for ${missingPrompts.join(", ")} in ${promptDirectory}; a wave with a missing prompt refuses rather than skipping a ticket`)
+  }
+
+  const passthrough = [
+    ...(argOf("--base-branch") === null ? [] : ["--base-branch", baseBranch]),
+    ...(argOf("--branch-prefix") === null ? [] : ["--branch-prefix", branchPrefix]),
+    ...(argOf("--workspace-status") === null ? [] : ["--workspace-status", workspaceStatus]),
+    ...(maxParallelOverride === null ? [] : ["--max-parallel-worktrees", maxParallelOverride]),
+    ...(dryRun ? ["--dry-run"] : []),
+  ]
+  const launches = []
+  let waveStatus = 0
+  for (const identifier of concurrent) {
+    if (waveStatus !== 0) {
+      serialised.push({ issue: identifier, behind: null, sharedPaths: [], reason: `an earlier launch in this wave exited ${waveStatus}` })
+      continue
+    }
+    const launch = spawnSync(
+      process.execPath,
+      [fileURLToPath(import.meta.url), "--issue", identifier, "--prompt-file", join(promptDirectory, `${identifier}.md`), ...passthrough],
+      { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 },
+    )
+    const status = launch.error ? 3 : launch.status
+    launches.push({ issue: identifier, status, stderr: (launch.stderr || launch.error?.message || "").trim().split("\n").slice(-3).join("\n") })
+    if (status !== 0) waveStatus = status
+  }
+
+  console.log(
+    JSON.stringify(
+      {
+        mode: "wave",
+        selector: { flag: waveFlag, value: selectorValue },
+        wave: firstWave.wave,
+        maxParallelWorktrees: waveCap,
+        launchable: candidates,
+        concurrent,
+        serialised,
+        launches,
+        ...(dryRun ? { dryRun: true } : {}),
+      },
+      null,
+      2,
+    ),
+  )
+  process.exit(waveStatus)
+}
+
+if (argOf("--prompt-dir") !== null) fail(2, "--prompt-dir belongs to wave mode; a single-ticket launch takes --prompt-file")
 if (!issue || !/^[A-Z]+-\d+$/.test(issue)) fail(2, `${USAGE}\n\n--issue must be a Linear identifier such as ORB-75`)
 if (!promptFileArg) fail(2, `${USAGE}\n\n--prompt-file is required`)
 if (branchPrefix !== "feature" && branchPrefix !== "fix") fail(2, "--branch-prefix must be feature or fix")
@@ -725,9 +951,33 @@ const promptFile = resolve(promptFileArg)
 if (!existsSync(promptFile)) fail(2, `prompt file not found: ${promptFile}`)
 if (statSync(promptFile).size === 0) fail(2, `prompt file is empty: ${promptFile}`)
 
+/**
+ * Clause 4's counter, read before anything is created and BEFORE the account is charged, because
+ * the failure it prevents is spending a cycle at all. It lives in a durable ledger rather than in
+ * the prompt: the clause used to be a sentence in a file every relaunch rewrote, so the count it
+ * describes reset to zero on every launch and "escalate on the third" never happened once.
+ */
+let findingStrikeLedger = null
+let findingStrikes = null
+if (findingArg !== null) {
+  if (findingArg.trim().length === 0 || findingArg.startsWith("--")) fail(2, "--finding requires a non-empty identifier")
+  try {
+    findingStrikeLedger = strikeLedgerPath()
+    findingStrikes = strikeCount({ ledgerPath: findingStrikeLedger, scope: FINDING_SCOPE, issue, key: findingArg })
+  } catch (error) {
+    fail(2, error.message)
+  }
+  if (findingStrikes >= STRIKES_BEFORE_ESCALATION) {
+    fail(
+      5,
+      `${issue} finding "${findingArg}" has already failed ${findingStrikes} cycles, which is worker-contract clause 4's limit of ${STRIKES_BEFORE_ESCALATION}. A third attempt is the unbounded retry that clause forbids; escalate the finding with your reasoning instead. Strike ledger: ${findingStrikeLedger}`,
+    )
+  }
+}
+
 let config
 try {
-  config = readOrchestratorConfig()
+  config = readOrchestratorConfig(undefined, baseBranch)
 } catch (error) {
   fail(2, error.message)
 }
@@ -754,6 +1004,16 @@ if (
   automationBudget.warningTokens >= automationBudget.tokenBudget
 ) {
   fail(2, `.claude/orchestrator.json worker "${engineName}" must declare automationBudget.warningTokens as a nonnegative integer below tokenBudget`)
+}
+/** The only figure that refuses a launch while the provider reading is available, so a worker
+ * that omits it must not launch at all: a fuse whose authoritative input can be silently left out
+ * is the same defect as a gate that reports green over a condition it never checked. */
+if (
+  !Number.isFinite(automationBudget.accountUsedPercentCeiling) ||
+  automationBudget.accountUsedPercentCeiling < 0 ||
+  automationBudget.accountUsedPercentCeiling > 100
+) {
+  fail(2, `.claude/orchestrator.json worker "${engineName}" must declare automationBudget.accountUsedPercentCeiling as a number from 0 to 100; it is the only figure that refuses a launch while the provider reading is available`)
 }
 const invocationTokenTiers =
   engine.models && typeof engine.models === "object" && !Array.isArray(engine.models)
@@ -993,12 +1253,16 @@ const plan = {
     identity: invocationIdentity,
     tokenBudget: automationBudget.tokenBudget,
     warningTokens: automationBudget.warningTokens,
+    accountCeilingPercent: automationBudget.accountUsedPercentCeiling,
     projectedTokens,
     ledgerPath: automationLedgerPath,
   },
   promptFile,
   workerContract,
   labels,
+  ...(findingArg === null
+    ? {}
+    : { finding: { id: findingArg, strikes: findingStrikes, limit: STRIKES_BEFORE_ESCALATION, ledgerPath: findingStrikeLedger } }),
 }
 
 if (dryRun) {
@@ -1006,16 +1270,27 @@ if (dryRun) {
   process.exit(0)
 }
 
-budgetReservation = reserveAutomationBudget(
+budgetReservation = reserveAutomationBudget({
   engineName,
-  invocationIdentity,
-  budgetTier,
-  invocationStartedAt,
-  automationBudget.warningTokens,
-  automationBudget.tokenBudget,
+  identity: invocationIdentity,
+  tier: budgetTier,
+  startedAt: invocationStartedAt,
+  warningTokens: automationBudget.warningTokens,
+  tokenBudget: automationBudget.tokenBudget,
+  accountCeilingPercent: automationBudget.accountUsedPercentCeiling,
   projectedTokens,
-  automationLedgerPath,
-)
+  ledgerPath: automationLedgerPath,
+})
+
+/** Recorded once the launch is committed (the fuse passed and the account is charged), so a run
+ * the budget refused never burns one of clause 4's two cycles. */
+if (findingArg !== null) {
+  try {
+    recordStrike({ ledgerPath: findingStrikeLedger, scope: FINDING_SCOPE, issue, key: findingArg })
+  } catch (error) {
+    fail(3, error.message)
+  }
+}
 
 /** Before anything is created, so a launch that fails later still leaves the work order complete
  * for the relaunch. A dry run resolves this decision but writes nothing. */
