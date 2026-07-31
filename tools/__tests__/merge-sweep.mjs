@@ -54,7 +54,7 @@ const mergeSweepCliFlagCases = () => {
       "an admin merge bypasses the required checks. The override is Thomas's alone; an agent that needs one stops and asks.",
     )
   }
-  for (const name of ["ensure_issue_in_review", "linear_state", "commit_linear_reassertion", "approval_anchored_to_head"]) {
+  for (const name of ["ensure_issue_in_review", "linear_state", "commit_linear_reassertion", "approval_not_stale"]) {
     const helpers = scanned.map(({ filename, source }) => ({
       filename,
       helper: source.match(new RegExp(`^${name}\\(\\).*?^}\\r?$`, "ms"))?.[0] ?? "",
@@ -755,9 +755,30 @@ const mergeSweepCases = (file) => {
   approvalRefusal(
     "an approval naming an older commit",
     { approvalCommits: changedHead },
-    new RegExp(`SKIP #615 APPROVAL-NOT-ON-HEAD expected=${expectedHead} approved=\\[${changedHead}\\]`),
+    new RegExp(`SKIP #615 APPROVAL-STALE expected=${expectedHead} approved=\\[${changedHead}\\]`),
   )
-  approvalRefusal("no approving review at all", { approvalCommits: "" }, /SKIP #615 APPROVAL-NOT-ON-HEAD expected=\w+ approved=\[none\]/)
+
+  /**
+   * A2 refuses a STALE approval; it does not require a fresh one, and this case is what stops
+   * the next agent restoring the stricter form. PR4 deletes claude-review.yml, and the ONLY
+   * account that has ever posted an APPROVED review in this repository is the bot it drives.
+   * A rule demanding an approval on the head would therefore refuse every unattended merge from
+   * that point on, forever, which is the specification's own J3c failure mode arriving in the
+   * two repositories that matter. The other gates carry a pull request nobody approved.
+   */
+  const noApprovalLog = join(root, `${file}-no-approving-review.log`)
+  const noApproval = run(file, reviewedArgs, {
+    env: mergeSweepEnv({ head: expectedHead, log: noApprovalLog, approvalCommits: "" }),
+  })
+  const noApprovalCalls = mergeSweepCalls(noApprovalLog)
+  T(
+    `${file}: a pull request with no approving review at all is not refused by the staleness gate`,
+    noApproval.status === 0 &&
+      !/APPROVAL-STALE/.test(noApproval.stdout) &&
+      noApprovalCalls.some((argv) => argv.some((argument) => String(argument).includes("commit{oid}"))) &&
+      noApprovalCalls.some(([group, command]) => group === "pr" && command === "merge"),
+    `exit ${noApproval.status}\n     stdout: ${noApproval.stdout.trim()}\n     calls: ${JSON.stringify(noApprovalCalls)}`,
+  )
 
   /**
    * The pair a human or an agent actually reads before typing a merge command is
@@ -781,7 +802,7 @@ const mergeSweepCases = (file) => {
     insufficient.status === 0 &&
       insufficientCalls.some((argv) => argv.some((argument) => String(argument).includes("commit{oid}"))) &&
       !insufficientCalls.some(([group, command]) => group === "pr" && command === "merge") &&
-      /SKIP #615 APPROVAL-NOT-ON-HEAD/.test(insufficient.stdout),
+      /SKIP #615 APPROVAL-STALE/.test(insufficient.stdout),
     `exit ${insufficient.status}\n     stdout: ${insufficient.stdout.trim()}\n     calls: ${JSON.stringify(insufficientCalls)}`,
   )
   approvalRefusal("an approval lookup failure", { approvalLookupFailure: true }, /SKIP #615 APPROVAL-LOOKUP-FAILED/)

@@ -492,7 +492,12 @@ review_safety_gate() { # <pr> <pre|post>; prints the fail-closed reason
   fi
 }
 
-approval_anchored_to_head() { # <pr> <expected-head-sha>; prints the refusal reason
+# Refuses a STALE approval; it does NOT require a fresh one. If any review is APPROVED, at
+# least one of them must name the expected head. If nothing is approved at all this imposes
+# nothing and the other gates carry the merge, because after claude-review.yml is deleted no
+# GitHub identity in either repository can produce an approving review, and a rule demanding
+# one would refuse every unattended merge from that point on, forever.
+approval_not_stale() { # <pr> <expected-head-sha>; prints the refusal reason
   local pr="$1" expected="$2" approved oid
   if ! approved="$(gh api graphql \
     -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){reviews(first:100){pageInfo{hasNextPage} nodes{state author{login} commit{oid}}}}}}' \
@@ -505,10 +510,11 @@ approval_anchored_to_head() { # <pr> <expected-head-sha>; prints the refusal rea
     echo "SKIP #$pr APPROVAL-PAGE-OVERFLOW (over 100 reviews; refusing rather than paginating)"
     return 1
   fi
+  [ -z "$approved" ] && return 0
   for oid in $approved; do
     [ "$oid" = "$expected" ] && return 0
   done
-  echo "SKIP #$pr APPROVAL-NOT-ON-HEAD expected=$expected approved=[${approved:-none}]"
+  echo "SKIP #$pr APPROVAL-STALE expected=$expected approved=[$approved]"
   return 1
 }
 
@@ -529,7 +535,7 @@ squash_merge() { # <pr> <expected-head-sha> <label>
   # The LAST API read before the merge call, and the only one anchored to a SHA. The
   # PR-level `reviewDecision` read by the caller survives every push, so an APPROVED there
   # can name a commit that is no longer on the branch. See merge-sweep.sh.
-  if ! approval_anchored_to_head "$pr" "$expected"; then
+  if ! approval_not_stale "$pr" "$expected"; then
     return 2
   fi
   if gh pr merge "$pr" --repo "$repo" --squash --delete-branch --match-head-commit "$expected" >/dev/null 2>&1; then

@@ -5,11 +5,17 @@
 // these on BOTH tools, because the PowerShell tool fires no hook by default and that alone
 // defeats every command guard in this repository.
 //
-// KNOWN BYPASSES, stated here rather than implied. This gate is cost-raising defence in
-// depth and is NEVER the control:
+// KNOWN BYPASSES, stated here rather than implied, because a disclosed-bypass list that is
+// incomplete is worse than none: it gets read as exhaustive. This gate is cost-raising defence
+// in depth and is NEVER the control:
 //   1. another tool that runs a shell without a PreToolUse matcher,
 //   2. a shell wrapper (`sh -c '<command>'`), whose inner text this never inspects,
-//   3. script-file indirection (write a two-line script, then run the script).
+//   3. script-file indirection (write a two-line script, then run the script),
+//   4. the cwd exemption: an orchestrating session that changes directory into any
+//      launcher-created worktree gets the engine exemption. ACCEPTED by the specification,
+//      which scopes the refusal to the caller rather than the command, and recorded here
+//      because an accepted risk that is written down is a decision and one that is not is a
+//      hole. Note the admin-merge rule takes NO exemption, so this does not reach it.
 // The control for the admin merge is the prohibition itself, which ships in the worker
 // contract, AGENTS.md and CLAUDE.md; the separate non-admin machine identity that would have
 // closed it mechanically was declined (J3a).
@@ -24,26 +30,28 @@ const LEADING_ENV_ASSIGNMENT = /^\s*[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\S
 const LEADING_TOKEN = /^\s*("[^"]*"|'[^']*'|\S+)/
 const PR_MERGE = /(?:^|\s)pr\s+merge(?:\s|$)/
 const ADMIN_FLAG = /(?<![\w-])--admin(?![\w-])/
-const PUT_METHOD = /(?<![\w-])(?:-X|--method)[= ]+PUT(?![\w-])/i
+// `[=\s]*` and not `[= ]+`: curl's concatenated short form `-XPUT` carries no separator at all,
+// and the quoted forms carry one on each side. rules-linear.mjs already uses `[=\s]*` for the
+// same reason, so the two files agree. A gate fixed for exactly the example it was shown is the
+// defect this ticket exists to remove, so every shape an agent would type has its own case.
+const PUT_METHOD = /(?<![\w-])(?:-X|--method|--request)[=\s]*["']?PUT["']?(?![\w-])/i
 const PULLS_MERGE_PATH = /repos\/[^/\s"']+\/[^/\s"']+\/pulls\/[^/\s"']+\/merge(?![\w-])/
 const MERGE_MUTATION = /(?<![\w])mergePullRequest(?![\w])/
 const API_CLIENTS = new Set(["gh", "curl", "wget", "http", "httpie"])
 
 /**
  * Everything before the first real word: leading grouping punctuation and any number of
- * `NAME=value` assignments. Returned separately because the launcher marker legitimately
- * arrives as one of those assignments.
+ * `NAME=value` assignments, which are skipped so `FOO=1 codex exec` still resolves to codex.
+ * The values are discarded on purpose; nothing an agent types into a command exempts it.
  */
-function splitLeadingAssignments(segment) {
+function withoutLeadingAssignments(segment) {
   let rest = segment.replace(/^[\s(){]*/, "")
-  const assignments = []
   let assignment = LEADING_ENV_ASSIGNMENT.exec(rest)
   while (assignment) {
-    assignments.push(assignment[0].trim())
     rest = rest.slice(assignment[0].length)
     assignment = LEADING_ENV_ASSIGNMENT.exec(rest)
   }
-  return { assignments, rest }
+  return rest
 }
 
 /**
@@ -53,7 +61,7 @@ function splitLeadingAssignments(segment) {
  * an arbitrary payload as an invocation is root cause 3 and this gate must not commit it.
  */
 export function invokedBinary(segment) {
-  const token = LEADING_TOKEN.exec(splitLeadingAssignments(segment).rest)
+  const token = LEADING_TOKEN.exec(withoutLeadingAssignments(segment))
   if (!token) return ""
   return token[1]
     .replace(/^["']|["']$/g, "")
@@ -80,10 +88,11 @@ export function checkEngineInvocation(command, { env = {}, cwd = "", repoRoots =
   if (env[LAUNCHER_MARKER]) return null
   if (cwd && insideLinkedWorktree(cwd, repoRoots)) return null
 
+  // The marker is read from the ENVIRONMENT only. The launcher exports it on the spawn and
+  // never shells out with an inline assignment, so a text-based exemption would exempt nothing
+  // legitimate and everything an agent chose to type. Removed rather than softened.
   for (const segment of segmentsOf(command)) {
-    const { assignments, rest } = splitLeadingAssignments(segment)
-    if (assignments.some((entry) => entry.startsWith(`${LAUNCHER_MARKER}=`))) continue
-    if (!ENGINE_BINARIES.has(invokedBinary(rest))) continue
+    if (!ENGINE_BINARIES.has(invokedBinary(segment))) continue
     return blocked(
       command,
       "An orchestrating session may not spend model budget outside the launcher. Every worker\n" +

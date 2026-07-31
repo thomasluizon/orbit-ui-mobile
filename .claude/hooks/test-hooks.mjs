@@ -269,7 +269,12 @@ T("orchestrator: a later chained engine call blocks", engineBlocks("npm test && 
 // The launcher's own marker is the discriminator, in the environment it exports into every
 // worker and as the inline assignment shape.
 T("orchestrator: the launcher marker in the environment allows", engineBlocks("codex exec", { env: { ORBIT_LAUNCH_WORKER: "1" } }), false)
-T("orchestrator: the launcher marker as an inline assignment allows", engineBlocks("ORBIT_LAUNCH_WORKER=1 codex exec"), false)
+// The marker is read from the ENVIRONMENT only. The launcher exports it on the spawn and never
+// shells out with an inline assignment, so an exemption keyed on the command TEXT would exempt
+// nothing legitimate and everything an agent chose to type. That was a real bypass in the first
+// version of this rule; it is deleted rather than softened.
+T("orchestrator: a typed marker with no such environment still blocks", engineBlocks("ORBIT_LAUNCH_WORKER=1 codex exec"), true)
+T("orchestrator: leading assignments still resolve the binary", engineBlocks("FOO=1 ORBIT_LAUNCH_WORKER=1 codex exec"), true)
 T("orchestrator: the launcher itself allows", engineBlocks("node tools/launch-worker.mjs --issue ORB-75 --prompt-file p.md"), false)
 // Root cause 3: match the real invocation, never a substring of an arbitrary payload. The
 // second-opinion helper is not refused because `node` is what it invokes; `.claude/` is a
@@ -284,9 +289,22 @@ T("orchestrator: the engine refusal names the launcher", checkEngineInvocation("
 
 T(`orchestrator: gh pr merge ${ADMIN} blocks`, !!checkAdminMerge(`gh pr merge 667 --squash ${ADMIN}`)?.block, true)
 T("orchestrator: gh pr merge without the flag allows", checkAdminMerge("gh pr merge 667 --squash --delete-branch"), null)
-T("orchestrator: a raw PUT merge call blocks", !!checkAdminMerge("gh api -X PUT repos/o/r/pulls/667/merge -f merge_method=squash")?.block, true)
-T("orchestrator: the long method flag blocks too", !!checkAdminMerge("gh api --method PUT repos/o/r/pulls/667/merge")?.block, true)
+// Every method shape an agent would actually type, not just the one the rule was first shown.
+// `-XPUT` carries no separator at all, which the first version of this pattern required.
+for (const [label, method] of [
+  ["a separated short flag", "-X PUT"],
+  ["a concatenated short flag", "-XPUT"],
+  ["an equals-joined short flag", "-X=PUT"],
+  ["a single-quoted value", "-X 'PUT'"],
+  ["a double-quoted value", '-X"PUT"'],
+  ["gh's long flag", "--method PUT"],
+  ["curl's long flag", "--request PUT"],
+  ["a lowercase method", "-X put"],
+]) {
+  T(`orchestrator: ${label} on the merge endpoint blocks`, !!checkAdminMerge(`gh api ${method} repos/o/r/pulls/667/merge -f merge_method=squash`)?.block, true)
+}
 T("orchestrator: curl to the same endpoint blocks", !!checkAdminMerge("curl -X PUT https://api.github.com/repos/o/r/pulls/667/merge")?.block, true)
+T("orchestrator: a PUT to another endpoint allows", checkAdminMerge("gh api -XPUT repos/o/r/issues/667/labels"), null)
 T("orchestrator: reading the merge endpoint allows", checkAdminMerge("gh api repos/o/r/pulls/667/merge"), null)
 T(
   "orchestrator: the GraphQL merge mutation blocks",
@@ -1056,6 +1074,11 @@ T(
   "cc orchestrator: codex exec carrying the launcher marker -> 0",
   runHookResult(ORCHESTRATOR_HOOK, commandPayload("codex exec", mainCheckoutCwd), { ORBIT_LAUNCH_WORKER: "1" }).status,
   0,
+)
+T(
+  "cc orchestrator: a typed marker with no such environment -> 2",
+  runHook(ORCHESTRATOR_HOOK, commandPayload("ORBIT_LAUNCH_WORKER=1 codex exec", mainCheckoutCwd)),
+  2,
 )
 T(
   "cc orchestrator: the second-opinion helper -> 0",

@@ -202,14 +202,19 @@ jobs:
         env:
           ADMIN_READ_TOKEN: ${{ secrets.ADMIN_READ_TOKEN }}
           REPOSITORY: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           if [ -z "${ADMIN_READ_TOKEN:-}" ]; then
             echo "no ADMIN_READ_TOKEN secret, so branch protection could not be read; reporting nothing rather than a clean diff" \
               | tee -a "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
+          # --head is what makes the latest-per-context correction actually execute here rather
+          # than only in its own fixtures. Contexts still running at this instant, including the
+          # ones this very workflow is producing, are reported as pending; that is accurate, and
+          # it is one more reason the step is report-only.
           status=0
-          GH_TOKEN="$ADMIN_READ_TOKEN" node tools/check-required-gates.mjs --repo "$REPOSITORY" --report-only \
+          GH_TOKEN="$ADMIN_READ_TOKEN" node tools/check-required-gates.mjs --repo "$REPOSITORY" --head "$HEAD_SHA" --report-only \
             > "$RUNNER_TEMP/required-gates.txt" 2>&1 || status=$?
           cat "$RUNNER_TEMP/required-gates.txt"
           cat "$RUNNER_TEMP/required-gates.txt" >> "$GITHUB_STEP_SUMMARY"
