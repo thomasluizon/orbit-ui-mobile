@@ -1,7 +1,7 @@
 import { cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { root, stage, orcaEnv, check, T, toolPath, VALID_TICKET_BODY, VALID_ISSUE } from "./_harness.mjs"
+import { root, stage, orcaEnv, check, T, toolPath, INTERACTIVE_CODEX, VALID_TICKET_BODY, VALID_ISSUE } from "./_harness.mjs"
 
 
 
@@ -477,10 +477,17 @@ export const cases = () => {
       [],
       linearParentEnv(null),
     )
-    const registeredRootBody = stage(
-      "ticket-root-cause.md",
-      `# Gate the harness root cause registry\n\n${VALID_TICKET_BODY}\n\nRoot cause: string-not-act\n`,
-    )
+    /**
+     * --file has no Linear labels to read, so it reads the drafted `Labels:` line the 6.2 body
+     * opens with. The shape is the live one: `orca linear issue ORB-163 --full --json` returns a
+     * description whose first line is
+     * "Labels: repo:ui | parity:no | Improvement | Estimate: 8 points", and ORB-164's is the same
+     * shape. The `harness` entry is what a draft intending that label writes there.
+     */
+    const HARNESS_DRAFT_LABELS = "Labels: repo:ui | parity:no | Improvement | harness"
+    const harnessDraft = (name, rootCauseLine) =>
+      stage(name, `# Gate the harness root cause registry\n\n${HARNESS_DRAFT_LABELS}\n\n${VALID_TICKET_BODY}${rootCauseLine === null ? "" : `\n\n${rootCauseLine}`}\n`)
+    const registeredRootBody = harnessDraft("ticket-root-cause.md", "Root cause: string-not-act")
     check(
       "check-ticket.mjs",
       "file mode names the owning ticket and says it could not confirm that ticket is open",
@@ -490,8 +497,38 @@ export const cases = () => {
     check(
       "check-ticket.mjs",
       "file mode refuses an unregistered root cause",
-      ["--file", stage("ticket-unregistered-root-cause.md", `# Gate the harness root cause registry\n\n${VALID_TICKET_BODY}\n\nRoot cause: not-a-registered-root\n`)],
+      ["--file", harnessDraft("ticket-unregistered-root-cause.md", "Root cause: not-a-registered-root")],
       { status: 1, stderr: /not registered in tools\/harness-roots\.json/ },
+    )
+    check(
+      "check-ticket.mjs",
+      "a harness draft with no Root cause line is refused",
+      ["--file", harnessDraft("ticket-harness-no-root-cause.md", null)],
+      { status: 1, stderr: /claims the harness label but carries no "Root cause:" line[\s\S]*exempt/ },
+    )
+    /**
+     * The measured false positive, in the literal string it was measured on. `/ticket` Phase D
+     * puts a root-cause hypothesis in Technical details for EVERY defect and step 4 validates
+     * every draft with --file, so an unscoped registry check captured the claim "A", called it
+     * unregistered, and refused ordinary bug tickets at the entry point of the D1-D9 workflow.
+     */
+    const PROSE_ROOT_CAUSE = "Root cause: A race condition in the token refresh handler."
+    check(
+      "check-ticket.mjs",
+      "a non-harness draft carrying a prose root-cause hypothesis is accepted",
+      ["--file", stage("ticket-prose-root-cause.md", `# Fix the token refresh race condition\n\n${VALID_TICKET_BODY}\n\n${PROSE_ROOT_CAUSE}\n`)],
+      { status: 0, stdout: /ticket ok/, stderr: /does not name harness[\s\S]*NOT applied/ },
+    )
+    const proseInHarnessDraft = check(
+      "check-ticket.mjs",
+      "a harness draft carrying a prose root-cause hypothesis is refused for not being an id",
+      ["--file", harnessDraft("ticket-harness-prose-root-cause.md", PROSE_ROOT_CAUSE)],
+      { status: 1, stderr: /Root cause: A is not a root-cause id[\s\S]*lowercase kebab-case/ },
+    )
+    T(
+      "check-ticket.mjs: the id-shape refusal does not send the author to the registry instead",
+      !/not registered in/.test(proseInHarnessDraft.stderr),
+      `a prose claim must be refused for its shape, not reported as an unregistered root:\n     ${proseInHarnessDraft.stderr.trim()}`,
     )
     /**
      * A registry the tool cannot trust must stop the run. Each fixture is a full copy of the tool
@@ -514,6 +551,11 @@ export const cases = () => {
       ["incomplete", "leaves an entry field empty", JSON.stringify({ version: 1, roots: [{ id: "a-root", definition: "", owner: "ORB-1" }] }), /needs a non-empty id, definition and owner/],
       ["duplicate-id", "registers one id twice", JSON.stringify({ version: 1, roots: [{ id: "a-root", definition: "d", owner: "ORB-1" }, { id: "a-root", definition: "d", owner: "ORB-2" }] }), /registers the id a-root twice/],
       ["reserved-id", "registers the reserved exempt id", JSON.stringify({ version: 1, roots: [{ id: "exempt", definition: "d", owner: "ORB-1" }] }), /must not register the reserved id exempt/],
+      /**
+       * The id shape a claim is measured against is enforced ON the registry too, so the two can
+       * never drift: a registry free to hold "A Root Cause" would make the shape refusal a lie.
+       */
+      ["misshapen-id", "registers an id that is not kebab-case", JSON.stringify({ version: 1, roots: [{ id: "A Root Cause", definition: "d", owner: "ORB-1" }] }), /must be lowercase kebab-case/],
     ]) {
       check(
         "check-ticket.mjs",
@@ -523,4 +565,44 @@ export const cases = () => {
         { path: stageRegistryFixture(label, registryBody) },
       )
     }
+    /**
+     * linear.team is interpolated into this tool's ISSUE_IDENTIFIER and SIGNAL_NAMING_ISSUE
+     * patterns, so a hostile key would be a regex injection and an absent one would silently
+     * match nothing. tools/__tests__/wave-plan.mjs covers the identical refusal in wave-plan.mjs;
+     * these two are the same cases against this tool, so the pair cannot regress one-sided.
+     */
+    const stageConfiguredTeam = (label, team) => {
+      const base = join(root, "check-ticket-team", label)
+      mkdirSync(join(base, "tools"), { recursive: true })
+      mkdirSync(join(base, ".claude"), { recursive: true })
+      cpSync(toolPath("check-ticket.mjs"), join(base, "tools", "check-ticket.mjs"))
+      cpSync(toolPath("lib"), join(base, "tools", "lib"), { recursive: true })
+      cpSync(toolPath("harness-roots.json"), join(base, "tools", "harness-roots.json"))
+      writeFileSync(
+        join(base, ".claude", "orchestrator.json"),
+        JSON.stringify({
+          worker: "codex",
+          workers: { codex: INTERACTIVE_CODEX },
+          maxParallelWorktrees: 8,
+          attemptsBeforeRewrite: 2,
+          linear: { team },
+          repos: {},
+        }),
+      )
+      return join(base, "tools", "check-ticket.mjs")
+    }
+    check(
+      "check-ticket.mjs",
+      "refuses a team key it would have to interpolate, rather than sanitising it",
+      ["--file", registeredRootBody],
+      { status: 2, stderr: /must declare linear\.team as an alphanumeric key; got "ORB-\.\*"/ },
+      { path: stageConfiguredTeam("hostile-team", "ORB-.*") },
+    )
+    check(
+      "check-ticket.mjs",
+      "refuses a configuration that declares no team at all",
+      ["--file", registeredRootBody],
+      { status: 2, stderr: /must declare linear\.team as an alphanumeric key; got undefined/ },
+      { path: stageConfiguredTeam("absent-team", undefined) },
+    )
   }

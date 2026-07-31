@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process"
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 
+import { STRIKE_LEDGER_ENV } from "../lib/strike-ledger.mjs"
 import { T, root, stage, orcaEnv, run, check, exitedProbePid } from "./_harness.mjs"
 
 const stageWorkerStatusWorktree = () => {
@@ -167,7 +168,8 @@ const runWorkerStatusCase = (fixture, attachments, options = {}) => {
             isDraft: options.isDraft,
             comments: options.comments,
             commentsHasNextPage: options.commentsHasNextPage,
-            prHead: options.prHead ?? fixture.prHead,
+            /** An explicit null is the "graphql answered without a head" case, so it must survive. */
+            prHead: "prHead" in options ? options.prHead : fixture.prHead,
             pullRequests: options.pullRequests,
             reviewDecision: options.reviewDecision,
             reviews: options.reviews,
@@ -176,7 +178,7 @@ const runWorkerStatusCase = (fixture, attachments, options = {}) => {
             reviewThreadsHasNextPage: options.reviewThreadsHasNextPage,
           }),
         ),
-        ORBIT_WORKER_STRIKE_LEDGER: STRIKE_LEDGER,
+        [STRIKE_LEDGER_ENV]: "strikeLedger" in options ? options.strikeLedger : STRIKE_LEDGER,
         ...(options.log ? { ORBIT_ORCA_LOG: options.log } : {}),
       },
     },
@@ -260,6 +262,20 @@ export const cases = () => {
         complete.verdict.checks.find((entry) => entry.name === "critique-attached")?.ok === true,
       `exit ${complete.status}\n     ${(complete.stderr || complete.stdout).slice(0, 600)}`,
     )
+    /**
+     * The verdict LITERAL, not `ok === true` implying it. A rename of the string, or a ternary slip
+     * that let liveness reach a met contract, would otherwise pass every other case in this module.
+     */
+    writePidMarker(fixture.worktree, [{ pid: process.pid, startedAt: hoursAgo(1) }])
+    const deliveredWhileAlive = runWorkerStatusCase(fixture, [screenshot, critique])
+    T(
+      "worker-status.mjs: a met contract is DELIVERED by name, and liveness does not enter into it",
+      deliveredWhileAlive.status === 0 &&
+        deliveredWhileAlive.verdict?.verdict === "DELIVERED" &&
+        deliveredWhileAlive.verdict.liveness.state === "alive",
+      `exit ${deliveredWhileAlive.status}\n     ${(deliveredWhileAlive.stderr || deliveredWhileAlive.stdout).slice(0, 600)}`,
+    )
+    clearPidMarker(fixture.worktree)
     const draft = runWorkerStatusCase(fixture, [screenshot, critique], { isDraft: true })
     T(
       "worker-status.mjs: a draft pull request is explicitly not ready for review",
@@ -716,6 +732,68 @@ Not run.`,
         resolvedHuman.verdict?.checks.find((entry) => entry.name === "human-thread-resolution")?.ok === false,
       `exit ${resolvedHuman.status}\n     ${(resolvedHuman.stderr || resolvedHuman.stdout).slice(0, 600)}`,
     )
+    const deadPid = exitedProbePid()
+    T("worker-status.mjs: the harness can name an exited process", Number.isInteger(deadPid), `probe pid was ${deadPid}`)
+
+    /**
+     * The AWAITING-MERGE / STALLED boundary, driven while the local head still matches the PR head
+     * so the only unmet item is the one each case is about. AWAITING-MERGE means "no relaunch can
+     * help": an approved head whose remaining gap is D7 bookkeeping. The moment the same approved
+     * head carries one live review thread, a worker is exactly what it needs, so it is STALLED and
+     * an allowance is spendable. Classifying that shape AWAITING-MERGE stranded the pull request:
+     * only STALLED relaunches, so the thread could never be reconciled.
+     */
+    clearStrikeLedger()
+    writePidMarker(fixture.worktree, [{ pid: deadPid, startedAt: hoursAgo(1) }])
+    const awaitingMerge = runWorkerStatusCase(fixture, [screenshot])
+    T(
+      "worker-status.mjs: a dead worker with an approved head and zero outstanding review work is AWAITING-MERGE",
+      awaitingMerge.status === 1 &&
+        awaitingMerge.verdict?.verdict === "AWAITING-MERGE" &&
+        awaitingMerge.verdict.liveness.state === "gone" &&
+        awaitingMerge.verdict.unmet.length === 1 &&
+        awaitingMerge.verdict.unmet[0] === "critique-attached" &&
+        awaitingMerge.verdict.checks.find((entry) => entry.name === "review-head-approved")?.ok === true &&
+        awaitingMerge.verdict.relaunch.allowed === false &&
+        awaitingMerge.verdict.relaunch.refusal.includes("AWAITING-MERGE"),
+      `exit ${awaitingMerge.status}\n     ${(awaitingMerge.stderr || awaitingMerge.stdout).slice(0, 600)}`,
+    )
+    const approvedWithLiveThread = {
+      reviewThreads: [
+        reviewThread({
+          author: "claude[bot]",
+          authorType: "Bot",
+          id: "PRRT_open_under_approval",
+          isResolved: false,
+          reviewedCommit: fixture.reviewedCommit,
+        }),
+      ],
+    }
+    const stalledUnderApproval = runWorkerStatusCase(fixture, [screenshot, critique], approvedWithLiveThread)
+    T(
+      "worker-status.mjs: an approved head with one unresolved thread is STALLED, never AWAITING-MERGE",
+      stalledUnderApproval.status === 1 &&
+        stalledUnderApproval.verdict?.verdict === "STALLED" &&
+        stalledUnderApproval.verdict.checks.find((entry) => entry.name === "review-head-approved")?.ok === true &&
+        stalledUnderApproval.verdict.unmet.length === 1 &&
+        stalledUnderApproval.verdict.unmet[0] === "review-threads" &&
+        stalledUnderApproval.verdict.relaunch.allowed === true,
+      `exit ${stalledUnderApproval.status}\n     ${(stalledUnderApproval.stderr || stalledUnderApproval.stdout).slice(0, 600)}`,
+    )
+    const grantedUnderApproval = runWorkerStatusCase(fixture, [screenshot, critique], {
+      ...approvedWithLiveThread,
+      consumeRelaunch: true,
+    })
+    T(
+      "worker-status.mjs: --consume-relaunch grants on an approved head whose review thread is still open",
+      grantedUnderApproval.status === 0 &&
+        grantedUnderApproval.verdict?.relaunch.consumed === 1 &&
+        relaunchStrikeCount("ORB-75", fixture.prHead) === 1,
+      `exit ${grantedUnderApproval.status}\n     ${(grantedUnderApproval.stderr || grantedUnderApproval.stdout).slice(0, 600)}`,
+    )
+    clearStrikeLedger()
+    clearPidMarker(fixture.worktree)
+
     writeFileSync(join(fixture.worktree, "reviewed.txt"), "review fix\nlocal only fix\n")
     const localGit = (args) => spawnSync("git", ["-C", fixture.worktree, ...args], { encoding: "utf8" })
     localGit(["add", "reviewed.txt"])
@@ -743,8 +821,6 @@ Not run.`,
     )
 
     const abandoned = unapprovedPullRequest(fixture)
-    const deadPid = exitedProbePid()
-    T("worker-status.mjs: the harness can name an exited process", Number.isInteger(deadPid), `probe pid was ${deadPid}`)
 
     clearStrikeLedger()
     writePidMarker(fixture.worktree, [{ pid: deadPid, startedAt: hoursAgo(1) }])
@@ -869,13 +945,50 @@ Not run.`,
     clearStrikeLedger()
     clearPidMarker(fixture.worktree)
 
+    /**
+     * `pr list` and the head graphql call are two separate reads. When the second resolves without
+     * a head while the first still reports OPEN, keying the allowance on the local head would hand
+     * out a relaunch against a SHA GitHub never saw, so the read is reported failed instead.
+     */
+    const unreadablePrHead = runWorkerStatusCase(fixture, [screenshot, critique], { prHead: null })
+    T(
+      "worker-status.mjs: an OPEN pull request whose head could not be read exits 3 instead of keying the allowance on the local head",
+      unreadablePrHead.status === 3 &&
+        /returned no pull request head/.test(unreadablePrHead.stderr) &&
+        unreadablePrHead.stderr.includes("gh pr list reports OPEN"),
+      `exit ${unreadablePrHead.status}\n     ${(unreadablePrHead.stderr || unreadablePrHead.stdout).slice(0, 600)}`,
+    )
+
+    /**
+     * The strike ledger's two fail-closed guards, driven from its heaviest consumer because no
+     * consumer drove either one. An empty override is the isolation that silently stopped applying
+     * and wrote the operator's real home ledger instead; a malformed line is a count that would
+     * otherwise read short and hand out an allowance already spent.
+     */
+    const emptyLedgerOverride = runWorkerStatusCase(fixture, [screenshot, critique], { strikeLedger: "" })
+    T(
+      "worker-status.mjs: an empty strike-ledger override is a usage error, never a silent fall back to the home ledger",
+      emptyLedgerOverride.status === 2 && emptyLedgerOverride.stderr.includes(`${STRIKE_LEDGER_ENV} must not be empty`),
+      `exit ${emptyLedgerOverride.status}\n     ${(emptyLedgerOverride.stderr || emptyLedgerOverride.stdout).slice(0, 600)}`,
+    )
+    writeFileSync(STRIKE_LEDGER, `${JSON.stringify({ scope: "relaunch", issue: "ORB-75", key: fixture.prHead })}\n{ not json\n`)
+    const malformedLedgerLine = runWorkerStatusCase(fixture, [screenshot, critique], abandoned)
+    T(
+      "worker-status.mjs: a malformed strike-ledger line fails the allowance read closed rather than counting short",
+      malformedLedgerLine.status === 3 && /line 2 is not JSON/.test(malformedLedgerLine.stderr),
+      `exit ${malformedLedgerLine.status}\n     ${(malformedLedgerLine.stderr || malformedLedgerLine.stdout).slice(0, 600)}`,
+    )
+    clearStrikeLedger()
+
     check("worker-status.mjs", "refuses an unknown option", ["--worktree", root, "--issue", "ORB-75", "--orbit-not-a-flag"], {
       status: 2,
       stderr: /unknown option\(s\): --orbit-not-a-flag/,
     })
-    check("worker-status.mjs", "--help documents every verdict, the reuse backstop and exit 4", ["--help"], {
+    check("worker-status.mjs", "--help documents every verdict and every exit code", ["--help"], {
       status: 0,
-      stdout: /DELIVERED[\s\S]*WORKING[\s\S]*STALLED[\s\S]*AWAITING-MERGE[\s\S]*IDLE[\s\S]*UNKNOWN[\s\S]*ORBIT_WORKER_STRIKE_LEDGER[\s\S]*4 --consume-relaunch refused/,
+      stdout: new RegExp(
+        `DELIVERED[\\s\\S]*WORKING[\\s\\S]*STALLED[\\s\\S]*AWAITING-MERGE[\\s\\S]*IDLE[\\s\\S]*UNKNOWN[\\s\\S]*${STRIKE_LEDGER_ENV}[\\s\\S]*1 unmet items[\\s\\S]*2 usage error[\\s\\S]*3 a git, gh or orca command failed, an OPEN pull request's head could not be read[\\s\\S]*4 --consume-relaunch refused`,
+      ),
     })
     check("worker-status.mjs", "--help pins the reuse backstop the cases are written against", ["--help"], {
       status: 0,

@@ -1,13 +1,13 @@
 {
   "version": 1,
-  "total": 953,
+  "total": 978,
   "tools": {
     "(runner)": 7,
     "agent-review.ps1": 2,
     "agent-review.sh": 2,
     "ai-quota.mjs": 12,
     "arch-map.mjs": 2,
-    "automation-budget.mjs": 52,
+    "automation-budget.mjs": 57,
     "capture-surfaces.mjs": 6,
     "check-calibration.mjs": 34,
     "check-context-budget.mjs": 18,
@@ -18,9 +18,9 @@
     "check-lockstep.mjs": 14,
     "check-push-target.mjs": 4,
     "check-required-gates.mjs": 26,
-    "check-slice-evidence.mjs": 16,
+    "check-slice-evidence.mjs": 17,
     "check-suppressions-ratchet.mjs": 2,
-    "check-ticket.mjs": 80,
+    "check-ticket.mjs": 87,
     "check-tier-labels.mjs": 8,
     "compose-prompt.mjs": 6,
     "launch-worker.mjs": 159,
@@ -38,8 +38,8 @@
     "rollup.sh": 2,
     "surface-manifest.mjs": 2,
     "teardown-worktree.mjs": 36,
-    "wave-plan.mjs": 56,
-    "worker-status.mjs": 50,
+    "wave-plan.mjs": 61,
+    "worker-status.mjs": 57,
     "worker-watch.mjs": 24
   }
 }

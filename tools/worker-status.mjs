@@ -16,7 +16,7 @@ import { existsSync, readFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { RELAUNCH_SCOPE, recordStrike, strikeCount, strikeLedgerPath } from "./lib/strike-ledger.mjs"
+import { RELAUNCH_SCOPE, STRIKE_LEDGER_ENV, recordStrike, strikeCount, strikeLedgerPath } from "./lib/strike-ledger.mjs"
 
 /**
  * `process.kill(pid, 0)` proves SOME process holds that id, never that it is still the worker the
@@ -56,10 +56,12 @@ ticket shipping several sequential pull requests.
 verdicts:
   DELIVERED       every check above is met; liveness does not enter into it
   WORKING         a check is unmet and the worker process is alive
-  STALLED         the worker process is gone, a PR is open, and its current head carries no
-                  approving review, so the outstanding findings need a relaunch
-  AWAITING-MERGE  the worker process is gone, a PR is open and its head is approved, and what is
-                  left is bookkeeping no relaunch can do
+  STALLED         the worker process is gone, a PR is open, and review work is still outstanding:
+                  either its current head carries no approving review, or it does and an
+                  unresolved thread, an unacknowledged standalone automated review item, or a
+                  resolved automated thread with no fix commit still needs a worker
+  AWAITING-MERGE  the worker process is gone, a PR is open, its head is approved and NO review
+                  work is outstanding, so what is left is bookkeeping no relaunch can do
   IDLE            the worker process is gone and no PR is open, so this ticket is between pull
                   requests and needs a launch decision rather than a relaunch
   UNKNOWN         liveness could not be read, so nothing is relaunched on a state nobody observed
@@ -67,11 +69,13 @@ verdicts:
 The relaunch allowance is counted in the shared strike ledger under scope "relaunch", keyed on
 (issue, PR head SHA), so a push earns a fresh allowance and an unchanged head does not. The ledger
 lives outside every worker process at ~/.orbit/worker-strikes.jsonl, overridable with
-ORBIT_WORKER_STRIKE_LEDGER. Its cap is attemptsBeforeRewrite from .claude/orchestrator.json, and
+${STRIKE_LEDGER_ENV}. Its cap is attemptsBeforeRewrite from .claude/orchestrator.json, and
 the verdict carries the outstanding findings a relaunch must carry instead of the ticket body alone.
 
 exit codes: 0 the contract is met, or under --consume-relaunch the relaunch was granted and recorded,
-            1 unmet items (listed), 2 usage error, 3 a git, gh or orca command failed,
+            1 unmet items (listed), 2 usage error,
+            3 a git, gh or orca command failed, an OPEN pull request's head could not be read, or
+              the strike ledger could not be read; a value that was not read is never substituted,
             4 --consume-relaunch refused because the verdict is not STALLED or the allowance for
               this head SHA is spent; nothing was written`
 
@@ -208,6 +212,20 @@ const reviewThreads = review?.reviewThreads?.nodes ?? []
 const workerLogin = reviewPayload?.viewer?.login
 const localHead = git(["rev-parse", "HEAD"])
 const prHead = review?.headRefOid ?? null
+/**
+ * `prOpen` comes from the `gh pr list` response and `prHead` from a SEPARATE graphql call keyed by
+ * pull request number. Nothing makes the second answer whenever the first does, so a partial
+ * graphql failure resolves the head to null while the list still reports OPEN, and the allowance
+ * below would silently key on the LOCAL head: an allowance handed out against a SHA GitHub never
+ * saw, which is the "a push earns a fresh allowance" invariant inverted. A lookup that could not be
+ * performed reports so, exactly as liveness reads UNKNOWN rather than guessing.
+ */
+if (pullRequest?.state === "OPEN" && !prHead) {
+  fail(
+    3,
+    `gh api graphql returned no pull request head for ${slug}#${pullRequest.number}, which gh pr list reports OPEN; the relaunch allowance keys on the PR head and the local head is never substituted for it`,
+  )
+}
 const prHeadPresent = Boolean(prHead && git(["cat-file", "-e", `${prHead}^{commit}`], { allowFailure: true }) !== null)
 const prCommits = new Set(prHeadPresent ? git(["rev-list", `${baseRef}..${prHead}`]).split("\n").filter(Boolean) : [])
 const resolveCommit = (reference) => git(["rev-parse", "--verify", `${reference}^{commit}`], { allowFailure: true })
@@ -458,6 +476,17 @@ const liveness = {
 const prOpen = Boolean(pullRequest && pullRequest.state === "OPEN")
 const headApproved = Boolean(prHead && currentHeadApproved)
 /**
+ * The unmet items that are reviewer output only a WORKER can reconcile, so an approved head
+ * carrying any of them still needs a relaunch rather than a merge. Everything else that can sit
+ * unmet beside an approved head is deliberately excluded, because relaunching on it spends an
+ * allowance that buys nothing: linear-in-review, pr-attached and the two D7 artifact checks are
+ * bookkeeping; review-thread-inventory is a >100-item ceiling in the query itself, which no worker
+ * can move; human-thread-resolution is a human's call, since the worker already buried a
+ * human-authored finding and only that human can reopen it.
+ */
+const OUTSTANDING_REVIEW_WORK = new Set(["review-threads", "review-activity", "resolved-thread-fixes"])
+const reviewWorkOutstanding = unmet.some((name) => OUTSTANDING_REVIEW_WORK.has(name))
+/**
  * STALLED keys on the worker PROCESS and the pull request, never on the Linear state: measured on
  * ORB-163, `linear-in-review` is unmet purely because a ticket shipping four sequential pull
  * requests honestly sits In Progress between them. That shape has no open pull request, so it
@@ -470,7 +499,7 @@ const verdictName =
       ? "WORKING"
       : livenessState === "unknown"
         ? "UNKNOWN"
-        : prOpen && !headApproved
+        : prOpen && (!headApproved || reviewWorkOutstanding)
           ? "STALLED"
           : prOpen
             ? "AWAITING-MERGE"
@@ -480,6 +509,9 @@ const verdictName =
  * The head SHA is the whole key, so a push earns a fresh allowance and an unchanged head does not.
  * The counter itself lives in the shared strike ledger, which is append-only, keyed by
  * (scope, issue, key) and owned by no worker process, rather than in a second store of its own.
+ * The local-head fallback is reachable only when no pull request is OPEN, because the guard above
+ * refuses an OPEN pull request whose head could not be read; that shape is IDLE, which spends no
+ * allowance, so the key is a ledger label rather than a substitute for a SHA nobody read.
  */
 const allowanceHead = prHead ?? localHead
 let strikeLedger

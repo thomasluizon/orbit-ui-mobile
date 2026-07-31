@@ -59,11 +59,23 @@ ticket's Scope and Affected modules / files.
 
 1. Draft ONE ticket with the 6.2 sections. Severity and blast radius go in Problem
    for defects. Root-cause hypotheses go in Technical details, labelled as
-   hypotheses.
+   hypotheses. **A prose hypothesis there is not a root-cause CLAIM**: only a
+   `Root cause: <id>` line naming an id in `tools/harness-roots.json` is, and only
+   on a `harness` ticket. See step 2a.
 2. Label with exactly one `repo:*` and exactly one of `Feature`, `Bug`, or
    `Improvement`; add `parity:yes|no` for ui and `visible-effect` when the fix
    changes pixels. If the work genuinely spans repos, that is TWO tickets (api
    blocks ui) even when it began as one request (D4), so use `/feature` instead.
+   **Open the body with a `Labels:` line naming every label you intend, pipe
+   separated**, for example `Labels: repo:ui | parity:no | Improvement`. The draft
+   file is the only place `check-ticket.mjs --file` can read your intent, because
+   the issue does not exist yet, so a missing or incomplete line means the gate
+   skips a check rather than running it, and it says so on stderr.
+2a. **A `harness` ticket, and only a `harness` ticket, must carry a `Root cause:`
+   line** naming an id registered in `tools/harness-roots.json`, or the literal
+   `exempt` if it instantiates no root. Adding a root is a one-line edit to that
+   file in the SAME pull request as the ticket that needs it. An id is lowercase
+   kebab-case; the first word of a prose sentence is not one.
 3. Pick the project. Every ticket belongs to one: /orchestrate is project-scoped
    by default, so a project-less ticket is created and then never picked up by
    anything. Route the ticket into the project whose scope it falls in (a redesign

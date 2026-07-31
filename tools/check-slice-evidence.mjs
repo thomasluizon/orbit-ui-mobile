@@ -8,12 +8,23 @@
  * recorded by the engine itself rather than claimed by the agent that spent the money:
  *
  *   one engine rollout per slice process, and two of their [startedAt, endedAt] intervals OVERLAP
- *   one automation-budget reserve AND one record per slice, each a distinct reservation
+ *   one automation-budget reserve AND one record per slice, each a distinct reservation whose own
+ *   window CONTAINS that slice process's start
  *
  * The second half is not decoration. Measured on ORB-153: three `spawn_agent` children burned
  * 160,505 uncached input tokens that the ledger never saw, because the fan-out happened inside a
  * session the launcher had already reserved once. A concurrency gate that only counted rollouts
  * would have called that run green.
+ *
+ * Containment, rather than "any earlier reservation", is what binds the ledger to THIS run. No
+ * field is shared between a ledger row and a rollout: the ledger identity is
+ * `<issue>:<invocation start>:<uuid>` and the rollout carries only its thread id, cwd and branch,
+ * so an explicit run identity does not exist to key on. The interval does. `reserve` stamps
+ * startedAt just before the launch mutation and the closing `record` stamps endedAt at the
+ * provider observation that ends the session, so a live slice process starts inside its own
+ * reservation's window and outside every earlier one. Matching on "the earliest reservation that
+ * merely precedes this rollout" let last week's completed launches pay for a fan-out that
+ * reserved nothing at all.
  *
  * Both shapes of fan-out are accepted, because both really ship: separate slice PROCESSES in one
  * coordinator worktree (`launch-worker.mjs --existing-worktree`), and the in-session
@@ -49,10 +60,13 @@ The verdict is structural, never wall clock. It passes when, for the given issue
   every declared slice names at least one file, and no two slices share one
   each slice process left its own engine rollout, matched by branch or worktree path
   two or more of those rollouts have OVERLAPPING [startedAt, endedAt] intervals
-  each slice process maps to its own budget reservation carrying a reserve AND a record row
-In the in-session fallback shape, the slice processes are \`spawn_agent\` children of one parent
-rollout with no \`close_agent\` between the spawns, each corroborated by a child rollout carrying
-"thread_source":"subagent", the parent's thread id, and "agent_path":"/root/<slice>".
+  each slice process maps to its own budget reservation carrying a reserve AND a record row,
+    whose reserve-to-record window CONTAINS that process's start, so a completed earlier run's
+    reservations cannot pay for a later fan-out that reserved nothing
+In the in-session fallback shape, the slice processes are the \`spawn_agent\` children of one
+parent rollout, each corroborated by a child rollout carrying "thread_source":"subagent", the
+parent's thread id, and "agent_path":"/root/<slice>". Their concurrency is proved by the SAME
+overlapping child intervals as the multi-process shape, never by a synchronisation event.
 
 exit codes: 0 the slice run is proved concurrent and fully reserved,
             1 the evidence does not prove it, with every shortfall named,
@@ -193,9 +207,17 @@ const readRollout = (path) => {
   })
   const meta = events.find((event) => event.type === "session_meta")
   if (!meta) return null
-  const spawns = events.filter(
-    (event) => event.payload?.type === "function_call" && ["spawn_agent", "close_agent"].includes(event.payload?.name),
-  )
+  /**
+   * Only `spawn_agent` is counted, and only because it was OBSERVED: 143 real function_call
+   * events carrying "name":"spawn_agent","namespace":"collaboration" across 36 of the 275 codex
+   * rollouts on this machine. No synchronisation event is read. `close_agent` is a real tool in
+   * the installed engine (codex 0.146.0 names core/src/tools/handlers/multi_agents/close_agent.rs)
+   * but it appears as a rollout event ZERO times in those 275, and treating one between two
+   * spawns as proof of a serial fan-out would be unsound even where it does fire: closing a
+   * finished child before spawning the next is an ordinary concurrent pipeline. Overlapping
+   * child intervals prove the same thing from data every rollout carries.
+   */
+  const spawns = events.filter((event) => event.payload?.type === "function_call" && event.payload?.name === "spawn_agent")
   return {
     path,
     file: basename(path),
@@ -207,7 +229,7 @@ const readRollout = (path) => {
     branch: meta.payload?.git?.branch ?? "",
     startedAt: Date.parse(meta.payload?.timestamp ?? meta.timestamp),
     endedAt: Date.parse(events.at(-1).timestamp ?? meta.timestamp),
-    agentCalls: spawns.map((event) => event.payload.name),
+    spawnAgentCalls: spawns.length,
   }
 }
 
@@ -238,15 +260,8 @@ if (shape === "in-session-fanout") {
   if (!parent) {
     shortfalls.push(`no parent rollout for subagent thread(s) ${[...parentIds].join(", ")} under ${engineHome}`)
   } else {
-    /** Two spawns with a close between them is a SERIAL fan-out wearing the same events. */
-    const firstSpawn = parent.agentCalls.indexOf("spawn_agent")
-    const lastSpawn = parent.agentCalls.lastIndexOf("spawn_agent")
-    const spawnCount = parent.agentCalls.filter((name) => name === "spawn_agent").length
-    if (spawnCount < 2) {
-      shortfalls.push(`parent rollout ${parent.file} carries ${spawnCount} spawn_agent call(s); a fan-out needs at least two`)
-    }
-    if (parent.agentCalls.slice(firstSpawn, lastSpawn).includes("close_agent")) {
-      shortfalls.push(`parent rollout ${parent.file} closes an agent between its spawn_agent calls, so those slices ran one after another`)
+    if (parent.spawnAgentCalls < 2) {
+      shortfalls.push(`parent rollout ${parent.file} carries ${parent.spawnAgentCalls} spawn_agent call(s); a fan-out needs at least two`)
     }
     for (const slice of declaredSlices) {
       const expected = `/root/${slice.name}`
@@ -305,13 +320,19 @@ if (existsSync(ledgerPath)) {
  * A reservation counts only when it is CLOSED: `reserve` appends a pending row and `record`
  * appends the measured one. A pending row on its own is a launch nobody ever measured, which is
  * the stranded reservation the fuse already fails closed on; it must not read as evidence here.
+ *
+ * The pair also delimits the WINDOW the reservation paid for. `reserve` stamps startedAt at the
+ * invocation start it was gating and the closing `record` stamps endedAt at the provider
+ * observation that ends that invocation, so [reserve.startedAt, record.endedAt] spans exactly the
+ * run. Appends are append-only with the latest record authoritative, so the last measured row is
+ * the one that closes the window.
  */
 const reservations = []
 for (const identity of new Set(ledgerRows.map((row) => row.identity).filter((value) => typeof value === "string"))) {
   if (!identity.startsWith(`${issue}:`)) continue
   const rows = ledgerRows.filter((row) => row.identity === identity)
   const reserved = rows.find((row) => row.pending === true)
-  const recorded = rows.find(
+  const recorded = rows.findLast(
     (row) => row.pending !== true && row.cancelled !== true && Number.isFinite(row.inputTokens) && Number.isFinite(row.outputTokens),
   )
   if (!reserved) {
@@ -322,16 +343,23 @@ for (const identity of new Set(ledgerRows.map((row) => row.identity).filter((val
     shortfalls.push(`budget identity ${identity} reserved but never recorded measured tokens, so its slice spend is unknown`)
     continue
   }
-  reservations.push({ identity, startedAt: Date.parse(reserved.startedAt) })
+  reservations.push({ identity, startedAt: Date.parse(reserved.startedAt), endedAt: Date.parse(recorded.endedAt) })
 }
 reservations.sort((left, right) => left.startedAt - right.startedAt)
 
-/** A reservation is appended moments BEFORE its process starts, so the earliest unclaimed
- * reservation at or before a rollout's start is that rollout's own. */
+/**
+ * A reservation is appended moments before its process starts and closed once that process has
+ * finished, so a slice process is claimed only by a reservation whose window CONTAINS its start.
+ * "The earliest reservation that merely precedes it" is what let an issue's earlier completed
+ * launches pay for a later fan-out that reserved nothing.
+ */
 const claimed = new Set()
 const unreserved = []
 for (const process_ of sliceProcesses) {
-  const match = reservations.find((reservation) => !claimed.has(reservation.identity) && reservation.startedAt <= process_.startedAt)
+  const match = reservations.find(
+    (reservation) =>
+      !claimed.has(reservation.identity) && reservation.startedAt <= process_.startedAt && process_.startedAt <= reservation.endedAt,
+  )
   if (!match) {
     unreserved.push(process_)
     continue
@@ -340,7 +368,7 @@ for (const process_ of sliceProcesses) {
 }
 for (const process_ of unreserved) {
   shortfalls.push(
-    `unreserved slice process: rollout ${process_.file} (thread ${process_.threadId}${process_.agentPath ? `, ${process_.agentPath}` : ""}) started ${new Date(process_.startedAt).toISOString()} with no automation-budget reservation for ${issue}; its spend is invisible to the fuse`,
+    `unreserved slice process: rollout ${process_.file} (thread ${process_.threadId}${process_.agentPath ? `, ${process_.agentPath}` : ""}) started ${new Date(process_.startedAt).toISOString()} inside no automation-budget reservation window for ${issue}; its spend is invisible to the fuse`,
   )
 }
 

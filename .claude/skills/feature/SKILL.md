@@ -61,6 +61,14 @@ Acceptance criteria, Test scenarios, plus Rollout/kill-switch and Events/metrics
 risk or measurement exists), then run
 `node tools/check-ticket.mjs --file <draft>` and fix until it exits 0.
 
+Open every draft with a `Labels:` line naming every label that ticket will carry, pipe
+separated, for example `Labels: repo:api | Improvement`. The draft file is the only place
+the file-mode validator can read your intent, because the issue does not exist yet, so a
+missing or incomplete line makes it SKIP a check rather than run it, and it says so on
+stderr. A `harness` ticket must also carry a `Root cause:` line naming an id registered in
+`tools/harness-roots.json`, or the literal `exempt` if it instantiates no root; adding a
+root is a one-line edit to that file in the same pull request as the ticket needing it.
+
 ## Phase D: create
 
 0. **Resolve the project BEFORE the gate, and never by default.** Run

@@ -14,12 +14,27 @@
  *   the section is one heading matching affected/files/modules, ending at the next heading
  *   fenced blocks are skipped, both as heading shadows and as example paths inside the section
  *   a bare word only counts inside backticks, as a list item, or with a `:` or ` - ` annotation
- *   a URL and a bare domain are not paths, however file-shaped their tail looks
+ *   a URL and a bare domain are not paths, however file-shaped their tail looks, and no context
+ *     admits one: a backticked, listed or annotated host is refused exactly like a naked one
  */
 
 /** Anything path-shaped. The gate on what actually counts is isDeclaredPath below. */
 export const AFFECTED_PATH = /\.?[\w@][\w./\\@()[\]{}+-]*\.[a-z0-9][a-z0-9-]*/gi
 const BARE_AFFECTED_PATH = /^\.?[\w@][\w./\\@()[\]{}+-]*\.[a-z0-9][a-z0-9-]*$/i
+
+/** A host carrying a path: the slash after a dotted label is decisive, no file name looks like it. */
+const HOST_WITH_PATH = /^[\w-]+(?:\.[\w-]+)*\.[a-z]{2,63}\//i
+
+/**
+ * A host carrying nothing. With no slash to read, a hostname and a repository-root file are the same
+ * shape, dotted lowercase labels, so only the last label separates them and the two namespaces
+ * overlap: `.sh`, `.md`, `.py` and `.rs` are file extensions AND country-code TLDs. This rule is
+ * therefore inexact BY CONSTRUCTION and says so rather than pretending. It lists the generic TLDs
+ * that no tracked root file in any of the three repositories ends with, so rejecting them costs no
+ * real path; a host under an overlapping country-code TLD, `orbit.sh` say, is not separable from a
+ * root script of that name and is still read as a path. Write such a host as a URL or fence it.
+ */
+const BARE_HOSTNAME = /^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+(?:com|net|org|io|ai|dev|app|co|cloud|info|tech|xyz)$/i
 
 const affectedSectionOf = (description) => {
   const lines = (description ?? "").split(/\r?\n/)
@@ -44,7 +59,7 @@ const affectedSectionOf = (description) => {
 
 const isDeclaredPath = (section, path, index) => {
   if (/[a-z][a-z0-9+.-]*:\/\/$/i.test(section.slice(Math.max(0, index - 24), index))) return false
-  if (/^[\w-]+(?:\.[\w-]+)*\.[a-z]{2,63}\//i.test(path)) return false
+  if (HOST_WITH_PATH.test(path) || BARE_HOSTNAME.test(path)) return false
   if (/[\\/]/.test(path)) return true
   if (section[index - 1] === "`" && section[index + path.length] === "`") return true
   const lineStart = section.lastIndexOf("\n", index) + 1

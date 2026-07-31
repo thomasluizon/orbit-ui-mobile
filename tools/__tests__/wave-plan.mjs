@@ -260,6 +260,20 @@ export const cases = () => {
     check("wave-plan.mjs", "ordinary dotted prose is not reported as a collision", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /collisions: none/ }, { env: stub("e.g. `tools/a.mjs` with Node.js v20.5", "e.g. `tools/b.mjs` with Node.js v20.5") })
     check("wave-plan.mjs", "a shared URL is not reported as a file collision", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /collisions: none/ }, { env: stub("See https://github.com/org/repo/blob/main/docs/collisions.md and `tools/a.mjs`", "See https://github.com/org/repo/blob/main/docs/collisions.md and `tools/b.mjs`") })
     check("wave-plan.mjs", "a shared bare-domain URL is not reported as a file collision", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /collisions: none/ }, { env: stub("See github.com/org/repo/blob/main/docs/collisions.md and `tools/a.mjs`", "See github.com/org/repo/blob/main/docs/collisions.md and `tools/b.mjs`") })
+    /**
+     * A host is refused in EVERY context, not only naked in prose. The annotation branch used to
+     * admit `- config.example.com: staging host`, and the list and backtick branches admitted the
+     * same host without one, so a ticket could satisfy check-ticket.mjs and reach wave-plan.mjs
+     * carrying a declared file it does not have: it escapes the unknown-affected bucket, collides
+     * with nothing, and launches in parallel with a ticket it really does overlap.
+     */
+    check("wave-plan.mjs", "an annotated bare domain is not a declared path", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /unknown \(no parseable path in Affected modules \/ files\): ORB-201/ }, { env: stub("- config.example.com: staging host", "`tools/b.mjs`") })
+    check("wave-plan.mjs", "an unannotated bare domain list item is not a declared path", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /unknown \(no parseable path in Affected modules \/ files\): ORB-201/ }, { env: stub("- config.example.com", "`tools/b.mjs`") })
+    check("wave-plan.mjs", "a backticked bare domain is not a declared path", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /unknown \(no parseable path in Affected modules \/ files\): ORB-201/ }, { env: stub("`config.example.com`", "`tools/b.mjs`") })
+    check("wave-plan.mjs", "an annotated real path is still a declared path", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /ORB-201 \+ ORB-202: tools\/merge-sweep\.sh$/m }, { env: stub("- tools/merge-sweep.sh: the POSIX sweep", "- tools/merge-sweep.sh: the sweep again") })
+    // The boundary the host rule cannot read structurally: `app.config.js` is hostname-shaped and is
+    // a real root file, so the last label is what separates the two and the pair collides on it alone.
+    check("wave-plan.mjs", "a hostname-shaped root file collides while the host beside it does not", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /ORB-201 \+ ORB-202: app\.config\.js$/m }, { env: stub("- config.example.com: staging host\n- app.config.js: the expo config", "- config.example.com: staging host\n- app.config.js: the expo config") })
     const fencedDescription = ["## Technical details", "```sh", "# Files affected: `scripts/deploy.sh`", "```", "## Affected modules / files", "`tools/test-tools.mjs`"].join("\n")
     check("wave-plan.mjs", "a heading-shaped line inside a fence cannot shadow the affected section", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /ORB-201 \+ ORB-202: tools\/test-tools\.mjs/ }, { env: stubDescriptions(fencedDescription, body("`tools/test-tools.mjs`")) })
     const fencedAffected = (file) => body(`\`${file}\`\n\`\`\`sh\nscripts/shared-example.sh\n\`\`\``)

@@ -136,7 +136,7 @@
       "file": ".claude/skills/feature/SKILL.md",
       "verdict": "kept",
       "reason": "High effort fits multi-ticket decomposition, contracts, and DAG shaping.",
-      "fingerprint": "sha256:714311c30bacebab33bd87c552233132c71595d2c91b4a9aa778a28d788bbcbc"
+      "fingerprint": "sha256:7c72d6cdcc84494ffeee9861164b348657ef415f2647104065c655e181a2ff57"
     },
     {
       "file": ".claude/skills/investigate/SKILL.md",
@@ -214,7 +214,7 @@
       "file": ".claude/skills/ticket/SKILL.md",
       "verdict": "kept",
       "reason": "Medium effort fits one-ticket reproduction, reconciliation, and scope shaping.",
-      "fingerprint": "sha256:3e165a6e644ef4136f83c8af579b08e34e390f822bc1d4a97a2d57656863e826"
+      "fingerprint": "sha256:c53eaa68ebda9f889b09df50daa65a548dac283fd8686bddd1510d6af81fdcfa"
     },
     {
       "file": ".claude/skills/validate/SKILL.md",

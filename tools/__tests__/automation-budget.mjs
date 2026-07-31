@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process"
-import { existsSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs"
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs"
 import { isAbsolute, join, relative, resolve } from "node:path"
 
 import { TOOLS_DIR, T, root, stage, run, check, exitedProbePid, budgetRecord } from "./_harness.mjs"
@@ -852,11 +852,158 @@ const automationBudgetCases = () => {
   )
   check(
     "automation-budget.mjs",
+    "a named quota file holding invalid JSON is a hard failure too, because a typo in that flag would otherwise disable the only real gate",
+    leaseCheckArgs(
+      "after-malformed-quota",
+      stage("budget/account-malformed-quota.jsonl", ""),
+      100000,
+      stage("budget/malformed-quota.json", '{"codex": {"status": "OK", "usedPercent": 11\n'),
+    ),
+    { status: 3, stderr: /quota reading[\s\S]*malformed-quota\.json is not valid JSON/ },
+  )
+  check(
+    "automation-budget.mjs",
     "check refuses to run at all without the account ceiling that decides the launch",
     leaseCheckArgs("after-no-ceiling", stage("budget/account-no-ceiling.jsonl", ""), 100000).filter(
       (value, index, argv) => value !== "--account-ceiling-percent" && argv[index - 1] !== "--account-ceiling-percent",
     ),
     { status: 2, stderr: /--account-ceiling-percent is required/ },
+  )
+
+  /**
+   * The DEFAULT quota resolution, which is the one PRODUCTION takes and the only one no case
+   * above ever ran: every case so far hands the tool a `--quota` fixture, so the third arm, where
+   * the tool resolves and spawns its own reader, was wired and believed and never executed.
+   *
+   * It resolves that reader as `./ai-quota.mjs` beside its OWN file, read off QUOTA_TOOL_PATH in
+   * the tool rather than assumed, so the only hermetic way to reach the spawn is to stage a
+   * private copy of the tool and put the stub next to it. Every case below withholds `--quota`
+   * and explicitly UNSETS the environment override, because an ambient one on the operator's
+   * machine would otherwise send these straight back down the arm that was already covered.
+   */
+  const spawnedReaderEnvironment = { ORBIT_AUTOMATION_BUDGET_QUOTA: undefined }
+  const stageSpawnedReader = (label, readingPath, exitCode) => {
+    const toolsDirectory = join(root, "budget-spawn", label, "tools")
+    mkdirSync(toolsDirectory, { recursive: true })
+    cpSync(join(TOOLS_DIR, "automation-budget.mjs"), join(toolsDirectory, "automation-budget.mjs"))
+    /**
+     * The stub prints a CAPTURED reading byte for byte and never composes one, and its exit code
+     * is a parameter because the real reader exits 1 while still printing a complete object.
+     * A `readingPath` of undefined stages no reader at all, which is the child that cannot start.
+     */
+    if (readingPath !== undefined) {
+      writeFileSync(
+        join(toolsDirectory, "ai-quota.mjs"),
+        `import { readFileSync } from "node:fs"
+process.stdout.write(readFileSync(${JSON.stringify(readingPath)}, "utf8"))
+process.exit(${exitCode})
+`,
+      )
+    }
+    return { path: join(toolsDirectory, "automation-budget.mjs"), readerPath: join(toolsDirectory, "ai-quota.mjs") }
+  }
+  const runSpawnedReaderCheck = (label, identity, readingPath, exitCode, ceilingPercent) => {
+    const staged = stageSpawnedReader(label, readingPath, exitCode)
+    const result = run(
+      "automation-budget.mjs",
+      [
+        "check",
+        "--engine",
+        "codex",
+        "--identity",
+        identity,
+        "--tier",
+        "routine",
+        "--reset-at",
+        leaseResetAt,
+        "--account-ceiling-percent",
+        ceilingPercent,
+        "--warning-tokens",
+        "800000",
+        "--budget-tokens",
+        "1000000",
+        "--invocation-tokens",
+        "100000",
+        "--ledger",
+        stage(`budget/spawn-${label}.jsonl`, ""),
+        "--json",
+      ],
+      { path: staged.path, env: spawnedReaderEnvironment },
+    )
+    /**
+     * Every one of these commands emits JSON on both the permitted and the blocked path, so
+     * unparseable stdout is itself the failure. It becomes a null the assertions read as wrong
+     * rather than an exception, which would abort the module instead of naming the case.
+     */
+    let emitted = null
+    try {
+      emitted = JSON.parse(result.stdout)
+    } catch {
+      emitted = null
+    }
+    return { ...result, emitted, readerPath: staged.readerPath }
+  }
+  const spawnedReaderDetail = (result) =>
+    `exit ${result.status}\n     reader: ${result.readerPath}\n     stdout: ${result.stdout}\n     stderr: ${result.stderr}`
+
+  const spawnedBelowCeiling = runSpawnedReaderCheck(
+    "below-ceiling",
+    "spawned-below-ceiling",
+    quotaFixture(QUOTA_CLAUDE_UNAVAILABLE),
+    0,
+    "85",
+  )
+  T(
+    "automation-budget.mjs: with neither --quota nor the environment override the tool spawns its own reader and gates on the figure that reader printed",
+    spawnedBelowCeiling.status === 0 &&
+      spawnedBelowCeiling.emitted?.status === "PROCEED" &&
+      spawnedBelowCeiling.emitted?.gate === "ACCOUNT" &&
+      spawnedBelowCeiling.emitted?.accountUsage?.usedPercent === 11 &&
+      resolve(spawnedBelowCeiling.emitted?.accountUsage?.source ?? ".") === resolve(spawnedBelowCeiling.readerPath),
+    spawnedReaderDetail(spawnedBelowCeiling),
+  )
+  const spawnedOverCeiling = runSpawnedReaderCheck(
+    "over-ceiling",
+    "spawned-over-ceiling",
+    codexUsageAt("spawned-over-ceiling", 92),
+    0,
+    "85",
+  )
+  T(
+    "automation-budget.mjs: the spawned reader's own figure above the ceiling refuses the launch with exit 4",
+    spawnedOverCeiling.status === 4 &&
+      /codex account usage 92 percent has reached the configured ceiling 85 percent/.test(spawnedOverCeiling.stderr) &&
+      spawnedOverCeiling.emitted?.status === "BLOCK" &&
+      spawnedOverCeiling.emitted?.accountUsage?.usedPercent === 92 &&
+      resolve(spawnedOverCeiling.emitted?.accountUsage?.source ?? ".") === resolve(spawnedOverCeiling.readerPath),
+    spawnedReaderDetail(spawnedOverCeiling),
+  )
+
+  const spawnedReaderAbsent = runSpawnedReaderCheck("absent-reader", "spawned-absent-reader", undefined, 0, "85")
+  T(
+    "automation-budget.mjs: a spawned reader that printed nothing is unavailable and says the output was not JSON, never that the account is idle",
+    spawnedReaderAbsent.status === 0 &&
+      spawnedReaderAbsent.emitted?.gate === "TOKEN_FALLBACK" &&
+      spawnedReaderAbsent.emitted?.accountUsage?.status === "UNAVAILABLE" &&
+      spawnedReaderAbsent.emitted?.accountUsage?.usedPercent === undefined &&
+      spawnedReaderAbsent.emitted?.accountUsage?.reason === "ai-quota.mjs returned output that is not JSON",
+    spawnedReaderDetail(spawnedReaderAbsent),
+  )
+  const spawnedHonestUnavailable = runSpawnedReaderCheck(
+    "honest-unavailable",
+    "spawned-honest-unavailable",
+    quotaFixture(QUOTA_BOTH_UNAVAILABLE),
+    1,
+    "85",
+  )
+  T(
+    "automation-budget.mjs: a spawned reader exiting 1 while printing a complete UNAVAILABLE object is read anyway, and its reason never collapses into the printed-nothing one",
+    spawnedHonestUnavailable.status === 0 &&
+      spawnedHonestUnavailable.emitted?.gate === "TOKEN_FALLBACK" &&
+      spawnedHonestUnavailable.emitted?.accountUsage?.status === "UNAVAILABLE" &&
+      spawnedHonestUnavailable.emitted?.accountUsage?.reason === "ai-quota reported codex status UNAVAILABLE and usedPercent null" &&
+      spawnedHonestUnavailable.emitted?.accountUsage?.reason !== spawnedReaderAbsent.emitted?.accountUsage?.reason,
+    `${spawnedReaderDetail(spawnedHonestUnavailable)}\n     printed-nothing reason: ${spawnedReaderAbsent.emitted?.accountUsage?.reason}`,
   )
 
   /**

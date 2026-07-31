@@ -1,8 +1,11 @@
 /**
  * check-slice-evidence.mjs drives no model and reads no clock, so every case here is a fixture on
- * disk. The four committed fixtures under tools/__fixtures__/slice-evidence are SHAPED FROM REAL
+ * disk. The five committed fixtures under tools/__fixtures__/slice-evidence are SHAPED FROM REAL
  * codex rollouts (the 2026-07-27 parent/subagent pair under ~/.codex/sessions), not invented, so a
- * change in the engine's record format breaks these cases instead of passing them.
+ * change in the engine's record format breaks these cases instead of passing them. Every event
+ * they carry was observed there: session_meta with its id / parent_thread_id / thread_source /
+ * agent_path, and function_call "spawn_agent" in namespace "collaboration". No case plants an
+ * event shape nobody has seen.
  */
 
 import { cpSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
@@ -89,7 +92,7 @@ export const cases = () => {
 
   check(
     "check-slice-evidence.mjs",
-    "an in-session spawn_agent fan-out with no interleaved close_agent proves the run",
+    "an in-session spawn_agent fan-out with overlapping child rollouts proves the run",
     argumentsFor(join(FIXTURES, "fallback-disjoint")),
     { status: 0, stdout: /in-session-fanout, 3 slice rollout\(s\), 3 overlapping pair\(s\)[\s\S]*proved structurally/ },
     { path: staged.path },
@@ -118,23 +121,43 @@ export const cases = () => {
     { path: staged.path },
   )
 
-  // Gate proof 2: the close_agent branch. Two spawns with a close between them are a SERIAL
-  // fan-out wearing the concurrent shape, so the fallback fixture must fail once one is planted.
-  const closed = copyFixture("fallback-disjoint", "closed-between-spawns")
-  const parentPath = rolloutStartingAt(rolloutsOf(closed), "09-58")
-  const parentEvents = readFileSync(parentPath, "utf8").trim().split("\n").map((line) => JSON.parse(line))
-  const firstSpawnIndex = parentEvents.findIndex((event) => event.payload?.name === "spawn_agent")
-  const closeCall = structuredClone(parentEvents[firstSpawnIndex])
-  closeCall.payload.name = "close_agent"
-  closeCall.payload.call_id = "call_close_slice_a"
-  parentEvents.splice(firstSpawnIndex + 1, 0, closeCall)
-  writeFileSync(parentPath, `${parentEvents.map((event) => JSON.stringify(event)).join("\n")}\n`)
+  // Gate proof 2: the fallback shape's concurrency rests on the SAME overlapping child intervals
+  // as the multi-process shape, and on no synchronisation event. A `close_agent` signal used to
+  // sit here; it was deleted because that event occurs ZERO times in the 275 real codex rollouts
+  // on this machine, so it could pass a serial fan-out as concurrent. Serialise the three
+  // children and the fallback fixture has to flip, which is what proves the real signal carries
+  // the verdict on its own.
+  const serialChildren = copyFixture("fallback-disjoint", "fallback-serialised")
+  for (const [stamp, , endedAt] of serialWindows) {
+    const path = rolloutStartingAt(rolloutsOf(serialChildren), stamp)
+    const events = readFileSync(path, "utf8").trim().split("\n").map((line) => JSON.parse(line))
+    events.at(-1).timestamp = endedAt
+    writeFileSync(path, `${events.map((event) => JSON.stringify(event)).join("\n")}\n`)
+  }
   check(
     "check-slice-evidence.mjs",
-    "a close_agent between two spawns is a serial fan-out, not a concurrent one",
-    argumentsFor(closed),
-    { status: 1, stdout: /closes an agent between its spawn_agent calls, so those slices ran one after another/ },
+    "a fallback fan-out whose child rollouts never overlap is serial, not concurrent",
+    argumentsFor(serialChildren),
+    { status: 1, stdout: /no two of the 3 slice rollout\(s\) for ORB-163 have overlapping intervals/ },
     { path: staged.path },
+  )
+
+  /**
+   * The reservation lookup must bind to THIS run. This fixture carries a prior completed run's
+   * three closed reservations, dated 2026-07-24, against a 2026-07-31 fan-out that reserved
+   * nothing at all. Before the fix it exited 0: every old reservation merely preceded every new
+   * rollout, so last week's budget paid for this week's slices and the gate reported green over
+   * the one thing it exists to check.
+   */
+  const stale = run("check-slice-evidence.mjs", argumentsFor(join(FIXTURES, "multi-stale-reservations")), { path: staged.path })
+  const staleShortfalls = stale.stdout.split("\n").filter((line) => line.includes("unreserved slice process"))
+  T(
+    "check-slice-evidence.mjs: a prior run's reservations cannot pay for a later fan-out that reserved nothing",
+    stale.status === 1 &&
+      staleShortfalls.length === 3 &&
+      staleShortfalls.every((line) => line.includes("inside no automation-budget reservation window for ORB-163")) &&
+      ["10-02", "10-03", "10-04"].every((stamp) => staleShortfalls.some((line) => line.includes(`rollout-2026-07-31T${stamp}-00-`))),
+    `exit ${stale.status}\n     ${stale.stdout.trim()}\n     ${stale.stderr.trim()}`,
   )
 
   // A slice that declares no file set fails in EITHER shape: an undeclared set cannot be proved

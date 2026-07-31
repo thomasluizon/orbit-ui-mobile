@@ -28,7 +28,9 @@ the same module wave-plan.mjs reads, so what this gate accepts is exactly what t
 
 Harness root causes (D5/D5a). tools/harness-roots.json is the registry and the ONLY enumeration
 source; neither Linear path in this tool can list the board. A "Root cause:" line must name an id
-the registry carries. The literal value "exempt" claims no root and is accepted. When the named
+the registry carries. An id is lowercase kebab-case, the shape every registered id is required to
+carry, so a prose sentence after the colon is refused as not being an id at all rather than as an
+unregistered one. The literal value "exempt" claims no root and is accepted. When the named
 root is already owned by a ticket that is still open, this exits 1 naming that ticket: add to it
 rather than filing a second ticket for the same root. This tool acquires no write capability;
 appending a root is a one-line edit to tools/harness-roots.json in the SAME pull request as the
@@ -37,10 +39,13 @@ ticket that needs it, performed by the /ticket and /feature skills, never here.
   --issue  applies the root-cause check to every issue carrying the "harness" label. Such an issue
            with NO "Root cause:" line is REFUSED: the point of the gate is to force the
            classification, not to check the spelling of one somebody volunteered.
-  --file   cannot read Linear labels, so it applies the check whenever the body carries a
-           "Root cause:" line and skips it otherwise: fail-open by necessity. It also cannot
-           confirm whether the owning ticket is still open, so a registered id is warned about on
-           stderr and exits 0 for that sub-case. Re-run with --issue once the ticket exists.
+  --file   cannot read Linear labels, so it reads the drafted "Labels:" line the 6.2 body opens
+           with and applies the check only to a draft whose labels name "harness". A draft with no
+           such line, or one that does not claim that label, SKIPS the check and says so on stderr:
+           fail-open by necessity, and the reason an ordinary root-cause hypothesis in Technical
+           details is never read as a registry id. --file also cannot confirm whether the owning
+           ticket is still open, so a registered id is warned about on stderr and exits 0 for that
+           sub-case. Re-run with --issue once the ticket exists.
 
 exit codes: 0 ticket ok, 1 defective ticket (problems listed on stderr), 2 usage error`
 
@@ -297,6 +302,24 @@ const HARNESS_LABEL = "harness"
 /** The one value that claims no root. Reserved, so it can never be registered as one. */
 const ROOT_CAUSE_EXEMPT = "exempt"
 const ROOT_CAUSE_LINE = /^[ \t]*(?:[-*][ \t]+)?(?:\*\*)?[Rr]oot [Cc]ause(?:\*\*)?:[ \t]*([^\s.,;]+)/m
+/**
+ * The only place a DRAFT can express its intended labels: a 6.2 body opens with a pipe-separated
+ * `Labels:` line, read live from ORB-163 ("Labels: repo:ui | parity:no | Improvement | Estimate: 8
+ * points") and ORB-164 on 2026-07-31. Without this scope --file applied the registry check to
+ * every drafted body, and the /ticket skill puts a root-cause hypothesis in Technical details for
+ * EVERY defect, so "Root cause: A race condition in the token refresh handler." was read as the
+ * claim "A" and blocked an ordinary bug ticket from ever being created.
+ */
+const DRAFT_LABELS_LINE = /^[ \t]*(?:\*\*)?Labels(?:\*\*)?:[ \t]*([^\r\n]+)$/m
+const draftClaimsHarness = (body) =>
+  (DRAFT_LABELS_LINE.exec(body)?.[1].split("|") ?? []).some((label) => label.trim() === HARNESS_LABEL)
+/**
+ * The shape every registered id already carries. readHarnessRoots enforces it ON the registry as
+ * well, so the pattern a claim is measured against and the ids the registry may hold cannot drift
+ * apart. A captured token that is not id-shaped is prose, and saying "not registered" about prose
+ * sends the author to the registry to fix a sentence.
+ */
+const ROOT_ID_SHAPE = /^[a-z]+(?:-[a-z]+)*$/
 const DONE_STATE_TYPES = new Set(["completed", "canceled", "duplicate"])
 
 const toolFailure = (message) => {
@@ -320,6 +343,7 @@ const readHarnessRoots = () => {
       (field) => typeof entry?.[field] === "string" && entry[field].trim() !== "",
     )
     if (!complete) toolFailure(`every ${HARNESS_ROOTS_NAME} entry needs a non-empty id, definition and owner; got ${JSON.stringify(entry)}`)
+    if (!ROOT_ID_SHAPE.test(entry.id)) toolFailure(`every ${HARNESS_ROOTS_NAME} id must be lowercase kebab-case (${ROOT_ID_SHAPE.source}), which is the same shape a claimed root is held to; got ${JSON.stringify(entry.id)}`)
     if (entry.id === ROOT_CAUSE_EXEMPT) toolFailure(`${HARNESS_ROOTS_NAME} must not register the reserved id ${ROOT_CAUSE_EXEMPT}`)
     if (byId.has(entry.id)) toolFailure(`${HARNESS_ROOTS_NAME} registers the id ${entry.id} twice`)
     byId.set(entry.id, entry)
@@ -329,6 +353,15 @@ const readHarnessRoots = () => {
 
 const unregisteredRootProblem = (claim, roots) =>
   `Root cause: ${claim} is not registered in ${HARNESS_ROOTS_NAME} (registered: ${[...roots.keys()].join(", ")}; the literal ${ROOT_CAUSE_EXEMPT} claims no root). Adding a root is a one-line edit to that file in the SAME pull request as this ticket`
+
+const notAnIdProblem = (claim, roots) =>
+  `Root cause: ${claim} is not a root-cause id, so ${HARNESS_ROOTS_NAME} is not where this is fixed. An id is lowercase kebab-case (${ROOT_ID_SHAPE.source}), the shape every id in that registry carries; the first word of a prose hypothesis is not one. Name a registered id (${[...roots.keys()].join(", ")}), or the literal ${ROOT_CAUSE_EXEMPT} if this ticket instantiates no root`
+
+/** The shared verdict on a claimed root, so both modes refuse the same things for the same reason. */
+const rootCauseProblem = (claim, roots) => {
+  if (!ROOT_ID_SHAPE.test(claim)) return notAnIdProblem(claim, roots)
+  return roots.has(claim) ? null : unregisteredRootProblem(claim, roots)
+}
 
 const issueStateType = (identifier) => {
   const raw = execFileSync(ORCA, ["linear", "issue", identifier, "--json"], {
@@ -357,13 +390,20 @@ if (mode === "--file") {
   const firstLine = body.split("\n")[0].replace(/^#\s*/, "")
   validateTitle(firstLine)
   validateBody(body)
-  const claim = ROOT_CAUSE_LINE.exec(body)?.[1] ?? null
-  if (claim !== null && claim !== ROOT_CAUSE_EXEMPT) {
-    const roots = readHarnessRoots()
-    const registered = roots.get(claim)
-    if (!registered) problems.push(unregisteredRootProblem(claim, roots))
-    else {
-      console.error(`check-ticket: root cause ${claim} is owned by ${registered.owner}. --file reads no Linear, so whether ${registered.owner} is still open was NOT checked; re-run with --issue once this ticket exists`)
+  if (!draftClaimsHarness(body)) {
+    console.error(`check-ticket: this draft's "Labels:" line does not name ${HARNESS_LABEL}, so the D5/D5a root-cause registry check was NOT applied and any "Root cause:" line here was read as ordinary prose. Re-run with --issue once the ticket exists and Linear owns its labels`)
+  } else {
+    const claim = ROOT_CAUSE_LINE.exec(body)?.[1] ?? null
+    if (claim === null) {
+      problems.push(`this draft claims the ${HARNESS_LABEL} label but carries no "Root cause:" line. Name a root id registered in ${HARNESS_ROOTS_NAME}, or the literal ${ROOT_CAUSE_EXEMPT} if this ticket instantiates no root`)
+    } else if (claim !== ROOT_CAUSE_EXEMPT) {
+      const roots = readHarnessRoots()
+      const problem = rootCauseProblem(claim, roots)
+      if (problem) problems.push(problem)
+      else {
+        const owner = roots.get(claim).owner
+        console.error(`check-ticket: root cause ${claim} is owned by ${owner}. --file reads no Linear, so whether ${owner} is still open was NOT checked; re-run with --issue once this ticket exists`)
+      }
     }
   }
 } else if (mode === "--issue") {
@@ -408,8 +448,9 @@ if (mode === "--file") {
       problems.push(`${identifier} carries the ${HARNESS_LABEL} label but no "Root cause:" line. Name a root id registered in ${HARNESS_ROOTS_NAME}, or the literal ${ROOT_CAUSE_EXEMPT} if this ticket instantiates no root`)
     } else if (claim !== ROOT_CAUSE_EXEMPT) {
       const roots = readHarnessRoots()
+      const problem = rootCauseProblem(claim, roots)
       const registered = roots.get(claim)
-      if (!registered) problems.push(unregisteredRootProblem(claim, roots))
+      if (problem) problems.push(problem)
       else if (registered.owner !== identifier) {
         let ownerState
         try {
