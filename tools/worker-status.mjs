@@ -12,17 +12,30 @@
  */
 
 import { execFileSync } from "node:child_process"
+import { existsSync, readFileSync } from "node:fs"
+import { join, resolve } from "node:path"
 
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
+import { RELAUNCH_SCOPE, recordStrike, strikeCount, strikeLedgerPath } from "./lib/strike-ledger.mjs"
 
-const USAGE = `usage: worker-status.mjs --worktree <path> --issue ORB-N [--base <ref>] [--verify-review] [--json]
+/**
+ * `process.kill(pid, 0)` proves SOME process holds that id, never that it is still the worker the
+ * launcher started, because the operating system recycles ids. The same 275 codex rollouts that
+ * set automation-budget.mjs's claimed-row backstop (p99 13.4 h, max 14.9 h on this machine) bound
+ * a real session, so a claim older than 16 hours is past every measured session and the id may
+ * belong to anyone. Past it liveness reads UNKNOWN: not alive, not gone, because neither was read.
+ */
+const PID_REUSE_BACKSTOP_HOURS = 16
 
-  --worktree <path>  the worker's worktree path, as printed by launch-worker.mjs (required)
-  --issue ORB-N      the Linear issue the worker is finishing (required)
-  --base <ref>       the branch the PR must target (default: main)
-  --verify-review    run the one-time pre-merge review-thread verification
-  --json             emit the verdict as JSON instead of text
-  --help, -h         print this usage and exit 0
+const USAGE = `usage: worker-status.mjs --worktree <path> --issue ORB-N [--base <ref>] [--verify-review] [--consume-relaunch] [--json]
+
+  --worktree <path>   the worker's worktree path, as printed by launch-worker.mjs (required)
+  --issue ORB-N       the Linear issue the worker is finishing (required)
+  --base <ref>        the branch the PR must target (default: main)
+  --verify-review     run the one-time pre-merge review-thread verification
+  --consume-relaunch  spend one relaunch allowance for this (issue, PR head) pair
+  --json              emit the verdict as JSON instead of text
+  --help, -h          print this usage and exit 0
 
 Checks, all from artifacts: commits exist on the branch, the worktree carries no uncommitted
 work, the branch is pushed, a PR is open against <ref> with an approving review on its current
@@ -33,8 +46,34 @@ no human-authored thread was resolved by the worker account, the local head matc
 head, the Linear issue is In Review with the PR attached, and both a screenshot and critique
 artifact are attached when the ticket carries visible-effect (D7).
 
-exit codes: 0 the contract is met, 1 unmet items (listed), 2 usage error,
-            3 a git, gh or orca command failed`
+Liveness comes from the launcher-written PID marker <git-dir>/orbit-worker-pids.jsonl, read with
+process.kill(pid, 0): ESRCH is gone, EPERM is alive and not ours. A pid that answers alive but was
+claimed more than ${PID_REUSE_BACKSTOP_HOURS} hours ago may be a recycled id, so it reads unknown rather than alive. A
+missing or unreadable marker, a row naming no parseable startedAt, and any other errno also read
+unknown. Liveness is never inferred from the Linear state, which is honestly In Progress for a
+ticket shipping several sequential pull requests.
+
+verdicts:
+  DELIVERED       every check above is met; liveness does not enter into it
+  WORKING         a check is unmet and the worker process is alive
+  STALLED         the worker process is gone, a PR is open, and its current head carries no
+                  approving review, so the outstanding findings need a relaunch
+  AWAITING-MERGE  the worker process is gone, a PR is open and its head is approved, and what is
+                  left is bookkeeping no relaunch can do
+  IDLE            the worker process is gone and no PR is open, so this ticket is between pull
+                  requests and needs a launch decision rather than a relaunch
+  UNKNOWN         liveness could not be read, so nothing is relaunched on a state nobody observed
+
+The relaunch allowance is counted in the shared strike ledger under scope "relaunch", keyed on
+(issue, PR head SHA), so a push earns a fresh allowance and an unchanged head does not. The ledger
+lives outside every worker process at ~/.orbit/worker-strikes.jsonl, overridable with
+ORBIT_WORKER_STRIKE_LEDGER. Its cap is attemptsBeforeRewrite from .claude/orchestrator.json, and
+the verdict carries the outstanding findings a relaunch must carry instead of the ticket body alone.
+
+exit codes: 0 the contract is met, or under --consume-relaunch the relaunch was granted and recorded,
+            1 unmet items (listed), 2 usage error, 3 a git, gh or orca command failed,
+            4 --consume-relaunch refused because the verdict is not STALLED or the allowance for
+              this head SHA is spent; nothing was written`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
@@ -93,10 +132,20 @@ const orca = (args) => {
   return parsed.result ?? parsed
 }
 
+const VALUE_FLAGS = new Set(["--worktree", "--issue", "--base"])
+const BOOLEAN_FLAGS = new Set(["--verify-review", "--consume-relaunch", "--json"])
+const argv = process.argv.slice(2)
+const unknownOptions = argv.filter(
+  (value, index) =>
+    value.startsWith("-") && !VALUE_FLAGS.has(value) && !BOOLEAN_FLAGS.has(value) && !VALUE_FLAGS.has(argv[index - 1]),
+)
+if (unknownOptions.length) fail(2, `${USAGE}\n\nunknown option(s): ${unknownOptions.join(" ")}`)
+
 const worktree = argOf("--worktree")
 const issue = argOf("--issue")
 const base = argOf("--base") ?? "main"
 const verifyReview = process.argv.includes("--verify-review")
+const consumeRelaunch = process.argv.includes("--consume-relaunch")
 const asJson = process.argv.includes("--json")
 
 if (!worktree) fail(2, `${USAGE}\n\n--worktree is required`)
@@ -109,6 +158,11 @@ try {
   fail(2, error.message)
 }
 const reviewState = config.linear?.states?.review ?? "In Review"
+/** The relaunch cap is D9's own number, not a second one invented here. A missing one is a config defect. */
+if (!Number.isInteger(config.attemptsBeforeRewrite) || config.attemptsBeforeRewrite < 1) {
+  fail(2, ".claude/orchestrator.json attemptsBeforeRewrite must be a positive integer; it is the relaunch cap")
+}
+const relaunchCap = config.attemptsBeforeRewrite
 
 const git = (args, options) => run("git", ["-C", worktree, ...args], options)
 const branch = git(["rev-parse", "--abbrev-ref", "HEAD"])
@@ -336,14 +390,166 @@ if (visibleEffect) {
 }
 
 const unmet = checks.filter((check) => !check.ok).map((check) => check.name)
-const verdict = { issue, branch, base, worktree, repo: slug, pullRequest: pullRequest?.url ?? null, verifyReview, checks, unmet, ok: unmet.length === 0 }
+
+const samePath = (left, right) =>
+  process.platform === "win32" ? resolve(left).toLowerCase() === resolve(right).toLowerCase() : resolve(left) === resolve(right)
+
+/**
+ * The launcher's own record, which is the only liveness source that survives a headless worker: a
+ * worker that dies cannot write "I died", so a heartbeat proves nothing here. Rows for another
+ * worktree or another ticket are somebody else's worker and are not evidence about this one.
+ */
+const readWorkerPidRows = () => {
+  const marker = join(resolve(worktree, git(["rev-parse", "--git-dir"])), "orbit-worker-pids.jsonl")
+  if (!existsSync(marker)) return { marker, rows: [], unreadable: `no launcher PID marker at ${marker}` }
+  let lines
+  try {
+    lines = readFileSync(marker, "utf8").split(/\r?\n/).filter(Boolean)
+  } catch (error) {
+    return { marker, rows: [], unreadable: `PID marker ${marker} could not be read: ${error.message}` }
+  }
+  const rows = []
+  for (const line of lines) {
+    let row
+    try {
+      row = JSON.parse(line)
+    } catch {
+      return { marker, rows: [], unreadable: `PID marker ${marker} carries a line that is not JSON` }
+    }
+    if (typeof row?.worktreePath === "string" && samePath(row.worktreePath, worktree) && row.issue === issue) rows.push(row)
+  }
+  return { marker, rows, unreadable: rows.length ? null : `PID marker ${marker} names no ${issue} worker for this worktree` }
+}
+
+const readRowLiveness = (row) => {
+  if (!Number.isInteger(row.pid) || row.pid < 1) return { pid: row.pid ?? null, state: "unknown", detail: "PID marker row carries no positive integer pid" }
+  const claimedAt = Date.parse(row.startedAt ?? "")
+  if (!Number.isFinite(claimedAt)) return { pid: row.pid, state: "unknown", detail: `pid ${row.pid} carries no parseable startedAt, so a recycled id cannot be ruled out` }
+  try {
+    process.kill(row.pid, 0)
+  } catch (error) {
+    if (error.code === "ESRCH") return { pid: row.pid, state: "gone", detail: `pid ${row.pid} is gone (ESRCH)` }
+    if (error.code !== "EPERM") return { pid: row.pid, state: "unknown", detail: `pid ${row.pid} liveness could not be read: ${error.code ?? error.message}` }
+  }
+  const claimedHoursAgo = (Date.now() - claimedAt) / 3_600_000
+  if (claimedHoursAgo < 0) return { pid: row.pid, state: "unknown", detail: `pid ${row.pid} was claimed in the future, so the clock cannot bound a recycled id` }
+  if (claimedHoursAgo > PID_REUSE_BACKSTOP_HOURS) {
+    return { pid: row.pid, state: "unknown", detail: `pid ${row.pid} answers alive but was claimed ${claimedHoursAgo.toFixed(1)}h ago, past the ${PID_REUSE_BACKSTOP_HOURS}h reuse backstop` }
+  }
+  return { pid: row.pid, state: "alive", detail: `pid ${row.pid} is alive, claimed ${claimedHoursAgo.toFixed(1)}h ago` }
+}
+
+const { marker, rows: pidRows, unreadable } = readWorkerPidRows()
+const pidReadings = pidRows.map(readRowLiveness)
+const livenessState = unreadable
+  ? "unknown"
+  : pidReadings.some((reading) => reading.state === "alive")
+    ? "alive"
+    : pidReadings.some((reading) => reading.state === "unknown")
+      ? "unknown"
+      : "gone"
+const liveness = {
+  state: livenessState,
+  marker,
+  pids: pidReadings,
+  detail: unreadable ?? pidReadings.map((reading) => reading.detail).join("; "),
+}
+
+const prOpen = Boolean(pullRequest && pullRequest.state === "OPEN")
+const headApproved = Boolean(prHead && currentHeadApproved)
+/**
+ * STALLED keys on the worker PROCESS and the pull request, never on the Linear state: measured on
+ * ORB-163, `linear-in-review` is unmet purely because a ticket shipping four sequential pull
+ * requests honestly sits In Progress between them. That shape has no open pull request, so it
+ * lands on IDLE, which needs a launch decision rather than a relaunch of nobody.
+ */
+const verdictName =
+  unmet.length === 0
+    ? "DELIVERED"
+    : livenessState === "alive"
+      ? "WORKING"
+      : livenessState === "unknown"
+        ? "UNKNOWN"
+        : prOpen && !headApproved
+          ? "STALLED"
+          : prOpen
+            ? "AWAITING-MERGE"
+            : "IDLE"
+
+/**
+ * The head SHA is the whole key, so a push earns a fresh allowance and an unchanged head does not.
+ * The counter itself lives in the shared strike ledger, which is append-only, keyed by
+ * (scope, issue, key) and owned by no worker process, rather than in a second store of its own.
+ */
+const allowanceHead = prHead ?? localHead
+let strikeLedger
+try {
+  strikeLedger = strikeLedgerPath()
+} catch (error) {
+  fail(2, error.message)
+}
+const relaunchStrike = { ledgerPath: strikeLedger, scope: RELAUNCH_SCOPE, issue, key: allowanceHead }
+let consumed
+try {
+  consumed = strikeCount(relaunchStrike)
+} catch (error) {
+  fail(3, error.message)
+}
+const relaunchRefusal =
+  verdictName === "STALLED"
+    ? consumed >= relaunchCap
+      ? `the ${relaunchCap} relaunch allowance(s) for ${issue} at ${allowanceHead} are spent; the head must move before another one is earned`
+      : null
+    : `the verdict is ${verdictName}, and only STALLED spends a relaunch allowance`
+const outstandingFindings = [
+  ...unresolvedThreads.map((thread) => ({
+    kind: "unresolved-thread",
+    id: thread.id,
+    path: thread.path ?? null,
+    body: (thread.comments?.nodes?.[0]?.body ?? "").slice(0, 2000),
+  })),
+  ...unacknowledgedAutomatedActivity.map((item) => ({
+    kind: "unacknowledged-review-activity",
+    id: item.id,
+    path: null,
+    body: (item.body ?? "").slice(0, 2000),
+  })),
+]
+const relaunch = {
+  scope: RELAUNCH_SCOPE,
+  headSha: allowanceHead,
+  ledger: strikeLedger,
+  cap: relaunchCap,
+  consumed,
+  remaining: Math.max(0, relaunchCap - consumed),
+  allowed: relaunchRefusal === null,
+  refusal: relaunchRefusal,
+  unmet,
+  findings: outstandingFindings,
+}
+
+if (consumeRelaunch && relaunchRefusal === null) {
+  try {
+    relaunch.consumed = recordStrike(relaunchStrike)
+  } catch (error) {
+    fail(3, error.message)
+  }
+  relaunch.remaining = Math.max(0, relaunchCap - relaunch.consumed)
+}
+
+const verdict = { issue, branch, base, worktree, repo: slug, pullRequest: pullRequest?.url ?? null, verifyReview, checks, unmet, ok: unmet.length === 0, verdict: verdictName, liveness, relaunch }
 
 if (asJson) {
   console.log(JSON.stringify(verdict, null, 2))
 } else {
   console.log(`${issue} on ${branch} (${slug})`)
   for (const check of checks) console.log(`  ${check.ok ? "OK  " : "UNMET"} ${check.name}: ${check.detail}`)
-  console.log(unmet.length === 0 ? "\nCONTRACT MET" : `\nCONTRACT NOT MET: ${unmet.join(", ")}. Idle is not done; nudge the worker with this list.`)
+  console.log(`\nVERDICT ${verdictName}`)
+  console.log(`  liveness ${livenessState}: ${liveness.detail}`)
+  console.log(`  relaunch ${relaunch.allowed ? `allowed, ${relaunch.remaining} of ${relaunchCap} left for ${issue} at ${allowanceHead}` : `not allowed: ${relaunchRefusal}`}`)
+  if (outstandingFindings.length) console.log(`  outstanding findings: ${outstandingFindings.map((finding) => `${finding.kind} ${finding.id}`).join(", ")}`)
+  console.log(unmet.length === 0 ? "CONTRACT MET" : `CONTRACT NOT MET: ${unmet.join(", ")}. Idle is not done; nudge the worker with this list.`)
 }
 
+if (consumeRelaunch) process.exit(relaunchRefusal === null ? 0 : 4)
 process.exit(unmet.length === 0 ? 0 : 1)

@@ -1,8 +1,8 @@
 import { spawnSync } from "node:child_process"
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
-import { join } from "node:path"
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { join, resolve } from "node:path"
 
-import { T, root, stage, orcaEnv, run, check } from "./_harness.mjs"
+import { T, root, stage, orcaEnv, run, check, exitedProbePid } from "./_harness.mjs"
 
 const stageWorkerStatusWorktree = () => {
   const base = join(root, "worker-status")
@@ -48,6 +48,7 @@ const workerStatusPlan = (
     approvalHead,
     isDraft = false,
     prHead,
+    pullRequests,
     reviewDecision = "APPROVED",
     reviews = [],
     reviewsHasNextPage = false,
@@ -57,7 +58,7 @@ const workerStatusPlan = (
 ) => [
   {
     match: "pr list",
-    stdout: JSON.stringify([{ number: 75, url: "https://github.com/orbit/orbit/pull/75", state: "OPEN", baseRefName: "main", isDraft }]),
+    stdout: JSON.stringify(pullRequests ?? [{ number: 75, url: "https://github.com/orbit/orbit/pull/75", state: "OPEN", baseRefName: "main", isDraft }]),
   },
   {
     match: "api graphql",
@@ -149,7 +150,15 @@ const reviewThread = ({
 const runWorkerStatusCase = (fixture, attachments, options = {}) => {
   const result = run(
     "worker-status.mjs",
-    ["--worktree", fixture.worktree, "--issue", "ORB-75", ...(options.verifyReview ? ["--verify-review"] : []), "--json"],
+    [
+      "--worktree",
+      fixture.worktree,
+      "--issue",
+      "ORB-75",
+      ...(options.verifyReview ? ["--verify-review"] : []),
+      ...(options.consumeRelaunch ? ["--consume-relaunch"] : []),
+      "--json",
+    ],
     {
       env: {
         ...orcaEnv(
@@ -159,6 +168,7 @@ const runWorkerStatusCase = (fixture, attachments, options = {}) => {
             comments: options.comments,
             commentsHasNextPage: options.commentsHasNextPage,
             prHead: options.prHead ?? fixture.prHead,
+            pullRequests: options.pullRequests,
             reviewDecision: options.reviewDecision,
             reviews: options.reviews,
             reviewsHasNextPage: options.reviewsHasNextPage,
@@ -166,6 +176,7 @@ const runWorkerStatusCase = (fixture, attachments, options = {}) => {
             reviewThreadsHasNextPage: options.reviewThreadsHasNextPage,
           }),
         ),
+        ORBIT_WORKER_STRIKE_LEDGER: STRIKE_LEDGER,
         ...(options.log ? { ORBIT_ORCA_LOG: options.log } : {}),
       },
     },
@@ -176,6 +187,57 @@ const runWorkerStatusCase = (fixture, attachments, options = {}) => {
     return { ...result, verdict: null }
   }
 }
+
+const gitPath = (worktreePath, revParseFlag) =>
+  resolve(worktreePath, spawnSync("git", ["-C", worktreePath, "rev-parse", revParseFlag], { encoding: "utf8" }).stdout.trim())
+
+const pidMarkerPath = (worktreePath) => join(gitPath(worktreePath, "--git-dir"), "orbit-worker-pids.jsonl")
+
+/**
+ * The launcher's marker, written by hand so a case can pin BOTH the pid and the claim age. Every
+ * age here is an absolute hour count this module declares, never one derived from the tool's own
+ * reuse backstop, so moving that backstop turns a case red rather than being quietly followed.
+ */
+const hoursAgo = (hours) => new Date(Date.now() - hours * 3_600_000).toISOString()
+const writePidMarker = (worktreePath, rows) =>
+  writeFileSync(pidMarkerPath(worktreePath), rows.map((row) => `${JSON.stringify({ issue: "ORB-75", worktreePath, ...row })}\n`).join(""))
+const clearPidMarker = (worktreePath) => rmSync(pidMarkerPath(worktreePath), { force: true })
+
+/**
+ * The relaunch allowance counts rows in the SHARED strike ledger under scope "relaunch", the same
+ * store clause 4 uses under scope "finding", so these cases drive the real store rather than a
+ * private mirror of it. Isolated by the ledger's own env override, never the operator's home file.
+ */
+const STRIKE_LEDGER = join(root, "worker-status-strikes.jsonl")
+const writeRelaunchStrikes = (rows) =>
+  writeFileSync(STRIKE_LEDGER, rows.map((row) => `${JSON.stringify({ scope: "relaunch", recordedAt: "2026-07-30T00:00:00.000Z", ...row })}\n`).join(""))
+const clearStrikeLedger = () => rmSync(STRIKE_LEDGER, { force: true })
+const relaunchStrikeCount = (issue, headSha) =>
+  existsSync(STRIKE_LEDGER)
+    ? readFileSync(STRIKE_LEDGER, "utf8")
+        .split(/\r?\n/)
+        .filter(Boolean)
+        .map((line) => JSON.parse(line))
+        .filter((entry) => entry.scope === "relaunch" && entry.issue === issue && entry.key === headSha).length
+    : 0
+
+/**
+ * The shape a stalled worker leaves behind: an open pull request carrying a live finding, whose
+ * only approval sits on an older commit, so nothing approves the head the worker abandoned.
+ */
+const unapprovedPullRequest = (fixture) => ({
+  approvalHead: fixture.reviewedCommit,
+  reviewDecision: "CHANGES_REQUESTED",
+  reviewThreads: [
+    reviewThread({
+      author: "claude[bot]",
+      authorType: "Bot",
+      id: "PRRT_outstanding",
+      isResolved: false,
+      reviewedCommit: fixture.reviewedCommit,
+    }),
+  ],
+})
 
 export const cases = () => {
     check("worker-status.mjs", "requires --worktree", ["--issue", "ORB-75"], { status: 2, stderr: /--worktree is required/ })
@@ -679,4 +741,144 @@ Not run.`,
         localOnly.verdict?.checks.find((entry) => entry.name === "resolved-thread-fixes")?.ok === false,
       `exit ${localOnly.status}\n     ${(localOnly.stderr || localOnly.stdout).slice(0, 600)}`,
     )
+
+    const abandoned = unapprovedPullRequest(fixture)
+    const deadPid = exitedProbePid()
+    T("worker-status.mjs: the harness can name an exited process", Number.isInteger(deadPid), `probe pid was ${deadPid}`)
+
+    clearStrikeLedger()
+    writePidMarker(fixture.worktree, [{ pid: deadPid, startedAt: hoursAgo(1) }])
+    const stalled = runWorkerStatusCase(fixture, [screenshot, critique], abandoned)
+    T(
+      "worker-status.mjs: a dead worker with an unapproved open pull request is STALLED",
+      stalled.status === 1 &&
+        stalled.verdict?.verdict === "STALLED" &&
+        stalled.verdict.liveness.state === "gone" &&
+        stalled.verdict.relaunch.allowed === true &&
+        stalled.verdict.relaunch.cap === 2 &&
+        stalled.verdict.relaunch.remaining === 2 &&
+        stalled.verdict.relaunch.scope === "relaunch" &&
+        stalled.verdict.relaunch.headSha === fixture.prHead,
+      `exit ${stalled.status}\n     ${(stalled.stderr || stalled.stdout).slice(0, 600)}`,
+    )
+    T(
+      "worker-status.mjs: a STALLED relaunch carries the outstanding findings, not the ticket body alone",
+      stalled.verdict?.relaunch.findings.some((finding) => finding.kind === "unresolved-thread" && finding.id === "PRRT_outstanding" && finding.path === "reviewed.txt" && finding.body.includes("review finding")) &&
+        stalled.verdict.relaunch.unmet.includes("review-threads"),
+      JSON.stringify(stalled.verdict?.relaunch ?? null).slice(0, 600),
+    )
+
+    writePidMarker(fixture.worktree, [{ pid: process.pid, startedAt: hoursAgo(15) }])
+    const working = runWorkerStatusCase(fixture, [screenshot, critique], abandoned)
+    T(
+      "worker-status.mjs: a live worker with an unapproved open pull request is WORKING, never STALLED",
+      working.status === 1 &&
+        working.verdict?.verdict === "WORKING" &&
+        working.verdict.liveness.state === "alive" &&
+        working.verdict.relaunch.allowed === false,
+      `exit ${working.status}\n     ${(working.stderr || working.stdout).slice(0, 600)}`,
+    )
+
+    writePidMarker(fixture.worktree, [{ pid: process.pid, startedAt: hoursAgo(17) }])
+    const recycled = runWorkerStatusCase(fixture, [screenshot, critique], abandoned)
+    T(
+      "worker-status.mjs: a pid alive past the reuse backstop is UNKNOWN, neither alive nor gone",
+      recycled.status === 1 &&
+        recycled.verdict?.verdict === "UNKNOWN" &&
+        recycled.verdict.liveness.state === "unknown" &&
+        recycled.verdict.liveness.detail.includes("reuse backstop") &&
+        recycled.verdict.relaunch.allowed === false,
+      `exit ${recycled.status}\n     ${(recycled.stderr || recycled.stdout).slice(0, 600)}`,
+    )
+
+    clearPidMarker(fixture.worktree)
+    const unreadableLiveness = runWorkerStatusCase(fixture, [screenshot, critique], abandoned)
+    T(
+      "worker-status.mjs: liveness that cannot be read is UNKNOWN and recommends no relaunch",
+      unreadableLiveness.status === 1 &&
+        unreadableLiveness.verdict?.verdict === "UNKNOWN" &&
+        unreadableLiveness.verdict.liveness.state === "unknown" &&
+        unreadableLiveness.verdict.liveness.detail.includes("no launcher PID marker") &&
+        unreadableLiveness.verdict.relaunch.allowed === false,
+      `exit ${unreadableLiveness.status}\n     ${(unreadableLiveness.stderr || unreadableLiveness.stdout).slice(0, 600)}`,
+    )
+    const refusedOnUnknown = runWorkerStatusCase(fixture, [screenshot, critique], { ...abandoned, consumeRelaunch: true })
+    T(
+      "worker-status.mjs: --consume-relaunch on UNKNOWN liveness is refused and writes nothing",
+      refusedOnUnknown.status === 4 &&
+        refusedOnUnknown.verdict?.relaunch.allowed === false &&
+        relaunchStrikeCount("ORB-75", fixture.prHead) === 0,
+      `exit ${refusedOnUnknown.status}\n     ${(refusedOnUnknown.stderr || refusedOnUnknown.stdout).slice(0, 600)}`,
+    )
+
+    writePidMarker(fixture.worktree, [{ pid: deadPid, startedAt: hoursAgo(1) }])
+    const idle = runWorkerStatusCase(fixture, [screenshot, critique], { ...abandoned, pullRequests: [] })
+    T(
+      "worker-status.mjs: no open pull request and no live worker is IDLE, not STALLED",
+      idle.status === 1 &&
+        idle.verdict?.verdict === "IDLE" &&
+        idle.verdict.liveness.state === "gone" &&
+        idle.verdict.relaunch.allowed === false &&
+        idle.verdict.relaunch.refusal.includes("IDLE"),
+      `exit ${idle.status}\n     ${(idle.stderr || idle.stdout).slice(0, 600)}`,
+    )
+
+    writeRelaunchStrikes([
+      { issue: "ORB-75", key: fixture.prHead },
+      { issue: "ORB-75", key: fixture.prHead },
+    ])
+    const spent = runWorkerStatusCase(fixture, [screenshot, critique], abandoned)
+    T(
+      "worker-status.mjs: an unchanged head SHA does not earn a fresh relaunch allowance",
+      spent.verdict?.verdict === "STALLED" &&
+        spent.verdict.relaunch.allowed === false &&
+        spent.verdict.relaunch.consumed === 2 &&
+        spent.verdict.relaunch.remaining === 0,
+      `exit ${spent.status}\n     ${(spent.stderr || spent.stdout).slice(0, 600)}`,
+    )
+    writeRelaunchStrikes([
+      { issue: "ORB-75", key: fixture.reviewedCommit },
+      { issue: "ORB-75", key: fixture.reviewedCommit },
+      { scope: "finding", issue: "ORB-75", key: "PRRT_outstanding" },
+      { scope: "finding", issue: "ORB-75", key: "PRRT_outstanding" },
+    ])
+    const pushedNewHead = runWorkerStatusCase(fixture, [screenshot, critique], abandoned)
+    T(
+      "worker-status.mjs: a new head SHA earns a fresh relaunch allowance, and clause 4 strikes do not spend it",
+      pushedNewHead.verdict?.verdict === "STALLED" &&
+        pushedNewHead.verdict.relaunch.allowed === true &&
+        pushedNewHead.verdict.relaunch.consumed === 0 &&
+        pushedNewHead.verdict.relaunch.remaining === 2,
+      `exit ${pushedNewHead.status}\n     ${(pushedNewHead.stderr || pushedNewHead.stdout).slice(0, 600)}`,
+    )
+
+    clearStrikeLedger()
+    const grants = [1, 2].map((expected) => {
+      const granted = runWorkerStatusCase(fixture, [screenshot, critique], { ...abandoned, consumeRelaunch: true })
+      return granted.status === 0 && granted.verdict?.relaunch.consumed === expected && relaunchStrikeCount("ORB-75", fixture.prHead) === expected
+    })
+    const exhausted = runWorkerStatusCase(fixture, [screenshot, critique], { ...abandoned, consumeRelaunch: true })
+    T(
+      "worker-status.mjs: --consume-relaunch spends the cap once per grant and then refuses",
+      grants.every(Boolean) &&
+        exhausted.status === 4 &&
+        exhausted.verdict?.relaunch.allowed === false &&
+        relaunchStrikeCount("ORB-75", fixture.prHead) === 2,
+      `grants ${JSON.stringify(grants)} exhausted exit ${exhausted.status}\n     ${(exhausted.stderr || exhausted.stdout).slice(0, 600)}`,
+    )
+    clearStrikeLedger()
+    clearPidMarker(fixture.worktree)
+
+    check("worker-status.mjs", "refuses an unknown option", ["--worktree", root, "--issue", "ORB-75", "--orbit-not-a-flag"], {
+      status: 2,
+      stderr: /unknown option\(s\): --orbit-not-a-flag/,
+    })
+    check("worker-status.mjs", "--help documents every verdict, the reuse backstop and exit 4", ["--help"], {
+      status: 0,
+      stdout: /DELIVERED[\s\S]*WORKING[\s\S]*STALLED[\s\S]*AWAITING-MERGE[\s\S]*IDLE[\s\S]*UNKNOWN[\s\S]*ORBIT_WORKER_STRIKE_LEDGER[\s\S]*4 --consume-relaunch refused/,
+    })
+    check("worker-status.mjs", "--help pins the reuse backstop the cases are written against", ["--help"], {
+      status: 0,
+      stdout: /claimed more than 16 hours ago/,
+    })
   }
