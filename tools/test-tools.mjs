@@ -5583,6 +5583,26 @@ const automationBudgetCases = () => {
   )
   check(
     "automation-budget.mjs",
+    "a half-measured invocation keeps failing closed for the whole window, no lease applies",
+    leaseCheckArgs(
+      "after-half-measured",
+      stage(
+        "budget/half-measured.jsonl",
+        `${JSON.stringify({
+          identity: "ORB-163:half-measured",
+          engine: "codex",
+          tier: "routine",
+          startedAt: new Date(Date.now() - 4 * HOUR_MILLISECONDS - 60_000).toISOString(),
+          endedAt: new Date(Date.now() - 4 * HOUR_MILLISECONDS).toISOString(),
+          inputTokens: 900,
+        })}\n`,
+      ),
+      100000,
+    ),
+    { status: 3, stderr: /lack input or output tokens[\s\S]*ORB-163:half-measured/ },
+  )
+  check(
+    "automation-budget.mjs",
     "an expired lease never softens a real token block",
     leaseCheckArgs(
       "after-expired-block",
@@ -5986,6 +6006,30 @@ const workerWatchCases = () => {
     "worker-watch.mjs: an unreadable contract verdict is reported, never silently dropped",
     /contract\s+unavailable/.test(live.stdout),
     `worker-status ran against a checkout with no Orbit contract, so the verdict must degrade visibly\n     ${live.stdout.slice(0, 400)}`,
+  )
+  /**
+   * IDLE plus NOT MET is the pair that costs a run, so it is the row that has to say WHAT is
+   * unmet. worker-status.mjs already returns the list on stdout; reading only its exit code
+   * threw away the one thing an operator acts on, while /watch's own worked example promised it.
+   */
+  const verdictTool = stageWorkerWatch("verdict", repoPath)
+  writeFileSync(
+    join(dirname(verdictTool), "worker-status.mjs"),
+    `#!/usr/bin/env node\nconsole.log(JSON.stringify({ issue: "ORB-75", unmet: ["commits", "pushed", "pr-open"], pullRequest: null, ok: false }))\nprocess.exit(1)\n`,
+  )
+  const unmetReport = check(
+    "worker-watch.mjs",
+    "a NOT MET row names the unmet checklist rather than the bare verdict",
+    [],
+    { status: 0, stdout: /contract\s+NOT MET: commits, pushed, pr-open/ },
+    { path: verdictTool, env: orcaEnv(watchPlan([watched(livePath)])) },
+  )
+  T(
+    "worker-watch.mjs: the JSON report carries the same unmet list the text line names",
+    /"unmet": \[\s*"commits",\s*"pushed",\s*"pr-open"\s*\]/.test(
+      run("worker-watch.mjs", ["--json"], { path: verdictTool, env: orcaEnv(watchPlan([watched(livePath)])) }).stdout,
+    ),
+    unmetReport.stdout.slice(0, 400),
   )
 
   const exitedPath = stageWatchedWorktree("exited")

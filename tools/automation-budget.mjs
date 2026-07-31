@@ -101,7 +101,9 @@ pending invocation contributes no tokens. A reservation is a lease. One that rec
 expires the moment that process is gone, and in any case once its end timestamp is more than
 ${CLAIMED_RESERVATION_BACKSTOP_MILLISECONDS / 3_600_000} hours old, which terminates a recycled PID. One that never recorded a PID was never
 confirmed spawned, so it expires once its end timestamp is more than ${UNCLAIMED_RESERVATION_LEASE_MILLISECONDS / 3_600_000} hours old. An expired
-reservation holds no budget and no longer fails the fuse closed. Account usage percentage
+reservation holds no budget and no longer fails the fuse closed. No lease applies to a record
+reporting exactly one of the two token figures: that is a half-measured real invocation, not a
+reservation, and it fails the fuse closed for the whole window. Account usage percentage
 and estimated cost are context only and never affect token totals. Records are attributed to the
 seven-day window containing their end timestamp. Mutations share an adjacent lock file and fail
 closed on lock contention.
@@ -482,8 +484,21 @@ const summarize = (records, engine, resetAt) => {
   let pendingTokens = 0
   for (const record of latestByIdentity.values()) {
     if (record.cancelled === true) continue
-    const open = record.pending === true || !hasOwn(record, "inputTokens") || !hasOwn(record, "outputTokens")
+    const hasInput = hasOwn(record, "inputTokens")
+    const hasOutput = hasOwn(record, "outputTokens")
+    const open = record.pending === true || !hasInput || !hasOutput
     if (open) {
+      /**
+       * A reservation reports NEITHER token figure, because nothing was ever measured. A record
+       * reporting exactly one of them is a real invocation that reported half its usage, and no
+       * lease applies to it: it keeps failing the fuse closed for the whole window, which is what
+       * this tool's contract promises for an absent measurement. Without this line the two are
+       * structurally identical, and a half-measured invocation would quietly stop counting.
+       */
+      if (record.pending !== true && (hasInput || hasOutput)) {
+        missingIdentities.push(record.identity)
+        continue
+      }
       /**
        * A claimed row expires on EITHER its dead process or the recycled-pid backstop, never on
        * liveness alone, because the operating system recycles pids and a liveness-only answer

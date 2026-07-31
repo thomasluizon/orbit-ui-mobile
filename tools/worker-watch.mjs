@@ -41,8 +41,23 @@ const pidsFor = (path) => {
   return readFileSync(marker, "utf8").trim().split(/\r?\n/).filter(Boolean).flatMap((line) => { try { const row = JSON.parse(line); return row.worktreePath === path && Number.isInteger(row.pid) ? [row.pid] : [] } catch { return [] } })
 }
 const worktrees = orca(["worktree", "list"]).worktrees ?? []
-/** A verdict that cannot be read is reported as unavailable, never folded into MET or NOT MET. */
+/**
+ * A verdict that cannot be read is reported as unavailable, never folded into MET or NOT MET.
+ * The unmet list is the whole point of the NOT MET row: worker-status.mjs already returns
+ * `{ unmet: [...], pullRequest }` on stdout, and reading only the exit code threw away the one
+ * thing an operator acts on. IDLE plus NOT MET is the pair that costs a run, so it is exactly
+ * the row that must say WHAT is unmet.
+ */
 const contractVerdict = (exitCode) => (exitCode === 0 ? "MET" : exitCode === 1 ? "NOT MET" : "unavailable")
+const contractDetail = (status) => {
+  if (status.status !== 0 && status.status !== 1) return { unmet: [], pullRequest: null }
+  try {
+    const verdict = JSON.parse(status.stdout)
+    return { unmet: Array.isArray(verdict.unmet) ? verdict.unmet : [], pullRequest: verdict.pullRequest ?? null }
+  } catch {
+    return { unmet: [], pullRequest: null }
+  }
+}
 const linearState = (issue) => {
   if (!issue) return "(no ticket)"
   try {
@@ -58,8 +73,9 @@ const report = worktrees.filter((entry) => !entry.isMainWorktree && !entry.isArc
   const status = entry.linkedLinearIssue
     ? spawnSync(process.execPath, [fileURLToPath(WORKER_STATUS), "--worktree", entry.path, "--issue", entry.linkedLinearIssue, "--base", entry.baseRef ?? "main", "--json"], { encoding: "utf8" })
     : { status: null }
-  return { issue: entry.linkedLinearIssue ?? null, state: linearState(entry.linkedLinearIssue), path: entry.path, branch: entry.branch ?? "", liveness: workerAlive ? "BUSY" : "IDLE", workerPids: pids.map((pid) => ({ pid, alive: alive(pid) })), contractExit: status.status, contract: contractVerdict(status.status) }
+  const { unmet, pullRequest } = contractDetail(status)
+  return { issue: entry.linkedLinearIssue ?? null, state: linearState(entry.linkedLinearIssue), path: entry.path, branch: entry.branch ?? "", liveness: workerAlive ? "BUSY" : "IDLE", workerPids: pids.map((pid) => ({ pid, alive: alive(pid) })), contractExit: status.status, contract: contractVerdict(status.status), unmet, pullRequest }
 })
 if (json) console.log(JSON.stringify({ worktrees: report }, null, 2))
 else if (report.length === 0) console.log(`no Orca worktrees${repo ? ` for ${repo}` : ""}`)
-else for (const entry of report) console.log(`${entry.liveness}  ${entry.issue ?? "(no ticket)"}  ${entry.state}  ${entry.branch}  pid(s): ${entry.workerPids.map((worker) => `${worker.pid}:${worker.alive ? "alive" : "exited"}`).join(", ") || "none"}  contract  ${entry.contract}`)
+else for (const entry of report) console.log(`${entry.liveness}  ${entry.issue ?? "(no ticket)"}  ${entry.state}  ${entry.branch}  pid(s): ${entry.workerPids.map((worker) => `${worker.pid}:${worker.alive ? "alive" : "exited"}`).join(", ") || "none"}  contract  ${entry.contract}${entry.unmet.length > 0 ? `: ${entry.unmet.join(", ")}` : ""}`)
