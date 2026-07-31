@@ -122,16 +122,15 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - name: Report calibration drift
-        # Report-only through 2026-08-11. Remove --report-only to make this blocking.
+      - name: Enforce calibration drift
+        # Blocking after all 12 guards jobs were added to branch protection and read back.
         # The status is captured and re-raised separately rather than piped: a pipeline
         # reports its LAST command's status, so piping into tee reported tee and a crash in
-        # the tool read as a pass. --report-only exits 0 on drift by design; what this
-        # restores is the tool's own error exit.
+        # the tool read as a pass. Capturing it directly preserves the tool's error exit.
         shell: bash
         run: |
           status=0
-          node tools/check-calibration.mjs --report-only > "$RUNNER_TEMP/calibration.txt" 2>&1 || status=$?
+          node tools/check-calibration.mjs > "$RUNNER_TEMP/calibration.txt" 2>&1 || status=$?
           cat "$RUNNER_TEMP/calibration.txt"
           cat "$RUNNER_TEMP/calibration.txt" >> "$GITHUB_STEP_SUMMARY"
           exit "$status"
