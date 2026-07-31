@@ -5307,8 +5307,15 @@ const automationBudgetCases = () => {
    * written before `reserve` persisted `pending`: no pending key, no reserved figure, no
    * tokens. That shape is why the fuse refused every codex launch for a full week.
    */
-  const LEASE_MILLISECONDS = 16 * 60 * 60 * 1000
-  const LEASE_MARGIN_MILLISECONDS = 5 * 60 * 1000
+  /**
+   * ABSOLUTE ages, never an offset derived from the tool's own constants. A fixture aged
+   * relative to the compiled-in lease can never fail when that lease moves, it moves with it,
+   * which is how raising the unclaimed lease from two hours to sixteen re-poisoned the real
+   * production ledger with the whole suite still green. These four hold the two arms between
+   * fixed walls: change either constant far enough to re-break a four hour old legacy row, or
+   * to expire a fourteen hour session that is still running, and a case goes red.
+   */
+  const HOUR_MILLISECONDS = 60 * 60 * 1000
   const leaseResetAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
   const leaseCheckArgs = (identity, ledger, invocationTokens) => [
     "check",
@@ -5330,17 +5337,36 @@ const automationBudgetCases = () => {
     ledger,
     "--json",
   ]
+  /**
+   * The committed production row, read off disk rather than retyped, so the SHAPE this suite
+   * defends is the one a pre-C1 `reserve` actually wrote: no pending, no reservedTokens, no
+   * token measurements, no workerPid. Only the timestamps are moved, to the absolute age each
+   * case names in its own label.
+   */
+  const LEGACY_FIXTURE = JSON.parse(
+    readFileSync(join(TOOLS_DIR, "__fixtures__", "legacy-reservation.jsonl"), "utf8").trim(),
+  )
   const legacyReservation = (identity, endedAgoMilliseconds) => {
     const endedAt = new Date(Date.now() - endedAgoMilliseconds).toISOString()
     return JSON.stringify({
+      ...LEGACY_FIXTURE,
       identity,
-      engine: "codex",
-      tier: "routine",
       startedAt: new Date(Date.now() - endedAgoMilliseconds - 13_000).toISOString(),
       endedAt,
-      accountContext: { scope: "account", attributed: false, usedPercent: 11, observedAt: endedAt },
+      accountContext: { ...LEGACY_FIXTURE.accountContext, observedAt: endedAt },
     })
   }
+  T(
+    "automation-budget.mjs: the committed legacy fixture still carries the pre-C1 reservation shape",
+    LEGACY_FIXTURE.engine === "codex" &&
+      LEGACY_FIXTURE.tier === "routine" &&
+      typeof LEGACY_FIXTURE.identity === "string" &&
+      LEGACY_FIXTURE.accountContext?.scope === "account" &&
+      ["pending", "reservedTokens", "inputTokens", "outputTokens", "workerPid", "cancelled"].every(
+        (field) => !Object.hasOwn(LEGACY_FIXTURE, field),
+      ),
+    `tools/__fixtures__/legacy-reservation.jsonl: ${JSON.stringify(LEGACY_FIXTURE)}`,
+  )
   const leasedReservation = (identity, endedAgoMilliseconds, reservedTokens, workerPid) =>
     JSON.stringify({
       identity,
@@ -5365,12 +5391,12 @@ const automationBudgetCases = () => {
 
   check(
     "automation-budget.mjs",
-    "an unmeasured legacy reservation past its lease stops refusing a launch the budget permits",
+    "a legacy reservation four hours old no longer refuses a launch the budget permits",
     leaseCheckArgs(
       "after-expired-legacy",
       stage(
         "budget/expired-legacy.jsonl",
-        `${legacyReservation("ORB-163:stranded", LEASE_MILLISECONDS + LEASE_MARGIN_MILLISECONDS)}\n`,
+        `${legacyReservation("ORB-163:stranded", 4 * HOUR_MILLISECONDS)}\n`,
       ),
       100000,
     ),
@@ -5382,12 +5408,12 @@ const automationBudgetCases = () => {
   )
   check(
     "automation-budget.mjs",
-    "an unmeasured legacy reservation still inside its lease keeps failing the fuse closed",
+    "a legacy reservation one hour old still fails the fuse closed",
     leaseCheckArgs(
       "after-live-legacy",
       stage(
         "budget/live-legacy.jsonl",
-        `${legacyReservation("ORB-163:in-flight", LEASE_MILLISECONDS - LEASE_MARGIN_MILLISECONDS)}\n`,
+        `${legacyReservation("ORB-163:in-flight", HOUR_MILLISECONDS)}\n`,
       ),
       100000,
     ),
@@ -5395,12 +5421,12 @@ const automationBudgetCases = () => {
   )
   check(
     "automation-budget.mjs",
-    "a reservation still inside its lease still holds its reserved tokens",
+    "an unclaimed reservation one hour old still holds its reserved tokens",
     leaseCheckArgs(
       "after-live-reservation",
       stage(
         "budget/live-reservation.jsonl",
-        `${leasedReservation("ORB-163:live", LEASE_MILLISECONDS - LEASE_MARGIN_MILLISECONDS, 250000)}\n`,
+        `${leasedReservation("ORB-163:live", HOUR_MILLISECONDS, 250000)}\n`,
       ),
       100000,
     ),
@@ -5411,12 +5437,12 @@ const automationBudgetCases = () => {
   )
   check(
     "automation-budget.mjs",
-    "a reservation whose launcher died past its lease stops holding budget",
+    "an unclaimed reservation four hours old stops holding budget",
     leaseCheckArgs(
       "after-killed-launcher",
       stage(
         "budget/expired-reservation.jsonl",
-        `${leasedReservation("ORB-163:killed-launcher", LEASE_MILLISECONDS + LEASE_MARGIN_MILLISECONDS, 250000)}\n`,
+        `${leasedReservation("ORB-163:killed-launcher", 4 * HOUR_MILLISECONDS, 250000)}\n`,
       ),
       100000,
     ),
@@ -5444,12 +5470,12 @@ const automationBudgetCases = () => {
   )
   check(
     "automation-budget.mjs",
-    "a reservation whose worker process is alive still holds its tokens inside its lease",
+    "a live worker PID fourteen hours in still holds its tokens, because real sessions run that long",
     leaseCheckArgs(
       "after-live-worker",
       stage(
         "budget/live-worker.jsonl",
-        `${leasedReservation("ORB-163:live-worker", LEASE_MILLISECONDS - LEASE_MARGIN_MILLISECONDS, 250000, process.pid)}\n`,
+        `${leasedReservation("ORB-163:live-worker", 14 * HOUR_MILLISECONDS, 250000, process.pid)}\n`,
       ),
       100000,
     ),
@@ -5460,12 +5486,12 @@ const automationBudgetCases = () => {
   )
   check(
     "automation-budget.mjs",
-    "a live worker PID past the backstop still expires, so a recycled PID can never poison the fuse forever",
+    "a live worker PID eighteen hours in still expires, so a recycled PID can never poison the fuse forever",
     leaseCheckArgs(
       "after-recycled-pid",
       stage(
         "budget/recycled-pid.jsonl",
-        `${leasedReservation("ORB-163:recycled-pid", LEASE_MILLISECONDS + LEASE_MARGIN_MILLISECONDS, 250000, process.pid)}\n`,
+        `${leasedReservation("ORB-163:recycled-pid", 18 * HOUR_MILLISECONDS, 250000, process.pid)}\n`,
       ),
       100000,
     ),
@@ -5563,8 +5589,8 @@ const automationBudgetCases = () => {
       stage(
         "budget/expired-with-spend.jsonl",
         [
-          legacyReservation("ORB-163:stranded-beside-spend", LEASE_MILLISECONDS + LEASE_MARGIN_MILLISECONDS),
-          measuredInvocation("ORB-163:measured", LEASE_MILLISECONDS + LEASE_MARGIN_MILLISECONDS, 900000, 50000),
+          legacyReservation("ORB-163:stranded-beside-spend", 4 * HOUR_MILLISECONDS),
+          measuredInvocation("ORB-163:measured", 4 * HOUR_MILLISECONDS, 900000, 50000),
           "",
         ].join("\n"),
       ),

@@ -19,19 +19,31 @@ const WINDOW_MILLISECONDS = 7 * 24 * 60 * 60 * 1000
  * 0)` sends no signal and throws ESRCH when the process is gone, EPERM when it exists but is
  * not ours, so EPERM is alive. Both errnos confirmed by running it. The clock still settles the
  * second, because the operating system recycles pids and a liveness-only answer would let one
- * recycled pid hold the fuse forever. The whole truth table, with no case left unterminated:
+ * recycled pid hold the fuse forever.
  *
- *   alive, inside the lease   holds its reserved tokens   the real 14.9 hour session
- *   alive, past the lease     expires                     a recycled pid, never immortal
- *   gone, inside the lease    expires at once             the killed launcher, the fast path
- *   no PID at all             the clock decides           every legacy and interactive row
+ * The two populations need OPPOSITE lease lengths, so one global TTL is wrong for one of them.
+ * A row carrying a PID is paying for a process that demonstrably started, so its clock arm is
+ * only the recycled-pid terminator and must clear the longest real session. A row carrying NO
+ * PID was never claimed, which means the worker it was paying for either never started or died
+ * before it could be recorded; that row is stranded by definition and wants a short lease. The
+ * whole truth table, with no case left unterminated:
  *
- * The TTL is derived, not chosen: 275 codex rollouts measured on this machine, first to last
- * event per session, give p50 8.1 min, p90 3.8 h, p95 6.8 h, p99 13.4 h, max 14.9 h. Sixteen
- * hours clears that maximum with margin and still bounds a stranded reservation to under a day.
- * A two hour TTL was measured wrong: over ten percent of real sessions outrun it.
+ *   PID alive, inside the backstop   holds its reserved tokens   the real 14.9 hour session
+ *   PID alive, past the backstop     expires                     a recycled pid, never immortal
+ *   PID gone, any age                expires at once             the killed worker, fast path
+ *   no PID, inside the lease         holds                       a launcher still mid-setup
+ *   no PID, past the lease           expires                     every legacy row
+ *
+ * Both numbers are derived, neither is a round guess. The backstop is 16 hours because 275 codex
+ * rollouts measured on this machine, first to last event per session, give p50 8.1 min, p90
+ * 3.8 h, p95 6.8 h, p99 13.4 h and max 14.9 h, which 16 hours clears with margin. The unclaimed
+ * lease is 2 hours because the gap it covers is reserve to claim, which is bounded by worktree
+ * creation and dependency install rather than by the worker's runtime, so two hours is already
+ * orders of magnitude of margin. Applying the 16 hour figure to unclaimed rows was measured
+ * wrong: it re-poisoned the fuse against the real production ledger for up to 16 hours.
  */
-const RESERVATION_LEASE_MILLISECONDS = 16 * 60 * 60 * 1000
+const CLAIMED_RESERVATION_BACKSTOP_MILLISECONDS = 16 * 60 * 60 * 1000
+const UNCLAIMED_RESERVATION_LEASE_MILLISECONDS = 2 * 60 * 60 * 1000
 const ENGINES = new Set(["claude", "codex"])
 const TIERS = new Set(["routine", "reserved"])
 const DEFAULT_LEDGER_PATH = resolve(homedir(), ".orbit", "automation-budget.jsonl")
@@ -85,10 +97,11 @@ record's cachedInputTokens are subtracted from its inputTokens, because a cache 
 fresh spend. The fuse fails closed when the latest in-window record for any identity lacks
 either token measurement.
 Duplicate identities are append-only; the latest in-window record is authoritative. A cancelled
-pending invocation contributes no tokens. A reservation is a lease. It expires the moment its
-recorded worker process is gone, and a reservation carrying no worker PID expires once its end
-timestamp is more than ${RESERVATION_LEASE_MILLISECONDS / 3_600_000} hours old. An expired reservation holds no budget and no
-longer fails the fuse closed. Account usage percentage
+pending invocation contributes no tokens. A reservation is a lease. One that recorded a worker PID
+expires the moment that process is gone, and in any case once its end timestamp is more than
+${CLAIMED_RESERVATION_BACKSTOP_MILLISECONDS / 3_600_000} hours old, which terminates a recycled PID. One that never recorded a PID was never
+confirmed spawned, so it expires once its end timestamp is more than ${UNCLAIMED_RESERVATION_LEASE_MILLISECONDS / 3_600_000} hours old. An expired
+reservation holds no budget and no longer fails the fuse closed. Account usage percentage
 and estimated cost are context only and never affect token totals. Records are attributed to the
 seven-day window containing their end timestamp. Mutations share an adjacent lock file and fail
 closed on lock contention.
@@ -452,7 +465,8 @@ const readLedger = (path) => {
 const summarize = (records, engine, resetAt) => {
   const resetMilliseconds = resetAt.getTime()
   const windowStart = new Date(resetMilliseconds - WINDOW_MILLISECONDS)
-  const leaseFloor = Date.now() - RESERVATION_LEASE_MILLISECONDS
+  const claimedFloor = Date.now() - CLAIMED_RESERVATION_BACKSTOP_MILLISECONDS
+  const unclaimedFloor = Date.now() - UNCLAIMED_RESERVATION_LEASE_MILLISECONDS
   const latestByIdentity = new Map()
   for (const record of records) {
     const endedMilliseconds = Date.parse(record.endedAt)
@@ -471,14 +485,17 @@ const summarize = (records, engine, resetAt) => {
     const open = record.pending === true || !hasOwn(record, "inputTokens") || !hasOwn(record, "outputTokens")
     if (open) {
       /**
-       * OR, never either/or. Liveness may only ever expire a reservation EARLIER than the clock
-       * would: a `workerPid` that skipped the clock would let one recycled pid hold the fuse for
-       * the whole window, which is the permanent poison this section exists to delete, reached by
-       * another road. `endedAt` is always a validated ISO timestamp here because `validateRecord`
-       * reparses it and exits 3 on anything else, so this comparison cannot silently be NaN.
+       * A claimed row expires on EITHER its dead process or the recycled-pid backstop, never on
+       * liveness alone, because the operating system recycles pids and a liveness-only answer
+       * would let one recycled pid hold the fuse for the whole window. An unclaimed row has no
+       * process to ask, so its own much shorter lease is the only terminator. `endedAt` is
+       * always a validated ISO timestamp here because `validateRecord` reparses it and exits 3
+       * on anything else, so neither comparison can silently be NaN.
        */
-      const expired = Date.parse(record.endedAt) < leaseFloor
-        || (hasOwn(record, "workerPid") && !processIsAlive(record.workerPid))
+      const endedMilliseconds = Date.parse(record.endedAt)
+      const expired = hasOwn(record, "workerPid")
+        ? !processIsAlive(record.workerPid) || endedMilliseconds < claimedFloor
+        : endedMilliseconds < unclaimedFloor
       if (expired) expiredIdentities.push(record.identity)
       else if (record.pending === true) pendingTokens += record.reservedTokens
       else missingIdentities.push(record.identity)
