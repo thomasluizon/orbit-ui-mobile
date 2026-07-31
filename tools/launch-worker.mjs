@@ -17,7 +17,7 @@
  * reviews, or moves a Linear issue.
  */
 
-import { execFileSync, spawnSync } from "node:child_process"
+import { execFileSync, spawn, spawnSync } from "node:child_process"
 import { randomUUID } from "node:crypto"
 import {
   appendFileSync,
@@ -30,11 +30,11 @@ import {
   writeFileSync,
 } from "node:fs"
 import { homedir } from "node:os"
-import { basename, join, resolve } from "node:path"
+import { basename, delimiter, dirname, extname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
-import { SETTLE_MS, isRepainting, pause } from "./lib/tui-repaint.mjs"
+const pause = (milliseconds) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds)
 
 const USAGE = `usage: launch-worker.mjs --issue ORB-N --prompt-file <path> [options]
 
@@ -53,6 +53,7 @@ const USAGE = `usage: launch-worker.mjs --issue ORB-N --prompt-file <path> [opti
                          override the configured concurrency cap for this invocation
   --comment "<text>"     worktree card comment (default: "<ORB-N> launched: worker running")
   --workspace-status <s> Orca board status id (default: in-progress)
+  --existing-worktree <path> launch an additional headless worker in this existing Orca worktree
   --dry-run              resolve everything and print the plan; run no mutating orca or git command
   --help, -h             print this usage and exit 0
 
@@ -85,6 +86,8 @@ const ORCA = process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs
 /** How long one tui-idle wait may block, and how many waits a launch gets before it fails. */
 const WAIT_TIMEOUT_MS = 60000
 const MAX_WAIT_ATTEMPTS = 6
+// Conservative: two observations establish that 178 fails and 42 succeeds, not the boundary.
+const MAX_INTERACTIVE_PROMPT_PATH_LENGTH = 120
 
 /**
  * What each worker CLI does that this script has to know, keyed by the binary it runs.
@@ -99,6 +102,35 @@ const MAX_WAIT_ATTEMPTS = 6
  * reason each CLI prints on the screen itself: Claude Code takes the digit, codex paints
  * a preselected list saying "Press enter to continue" and takes Enter alone. Both
  * measured; sending codex the digit left its process exited (-1).
+ *
+ * The measured facts behind each engine's REQUIRED run-permitting policy, which used to live in
+ * .claude/orchestrator.json's per-worker `notes` and belong next to the guard that enforces them:
+ *
+ * claude: the mode must be `bypassPermissions`, never `acceptEdits`. `acceptEdits` auto-approves
+ * file writes only, so every shell command still prompts and a worker with nobody at the keyboard
+ * is stuck. Measured on the 2026-07-24 ORB-75 run, where git switch, dotnet build/test/format, gh
+ * and orca were all denied and the worker delivered files with zero gates run, zero commit, no PR.
+ *
+ * codex: the policy is the single `--dangerously-bypass-approvals-and-sandbox`, not the equivalent
+ * pair `-a never --sandbox danger-full-access`, and never `--full-auto`. `--full-auto` is
+ * `-a on-request --sandbox workspace-write`, and `on-request` lets the MODEL decide when to ask a
+ * human who is not there. The single flag beats the pair because the pair has a half-state: an
+ * edit dropping `-a never` while keeping the sandbox flag silently restores approval prompts. The
+ * containment story is the disposable Orca worktree, the same one that justifies bypassPermissions.
+ *
+ * codex, measured 2026-07-27 against codex-cli 0.145.0 on Windows 11: `-c windows.sandbox="unelevated"`
+ * is load-bearing. The default Windows sandbox is elevated, its setup needs Administrator rights,
+ * and the first run paints "Setting up sandbox... Input disabled until setup completes" forever in
+ * a PTY with no desktop to raise UAC on. The unelevated fallback needs no elevation, and the worker
+ * never executes inside it anyway because the bypass flag runs commands unsandboxed.
+ *
+ * codex auth: CODEX_HOME DECIDES WHETHER A WORKER IS LOGGED IN, and it is the first thing to check
+ * before believing any auth verdict. Orca redirects codex's home for the terminals it spawns, so on
+ * this machine the real credential is
+ * C:\\Users\\thoma\\AppData\\Roaming\\orca\\codex-runtime-home\\home\\auth.json, not ~/.codex/auth.json.
+ * Measured 2026-07-27: a shell that had lost CODEX_HOME reported "Not logged in" while the same CLI
+ * in an Orca terminal in the same worktree reported "Logged in using ChatGPT" minutes earlier. Never
+ * diagnose codex auth from an ad hoc shell without printing CODEX_HOME first.
  */
 const ENGINE_PROFILES = {
   claude: {
@@ -124,11 +156,8 @@ const ENGINE_PROFILES = {
 const TRUST_BLOCKED_REASON = /trust/i
 const flatten = (text) => text.replace(/\s+/g, "").toLowerCase()
 
-/** The prompt pointer below is a `terminal send`, and a send to a busy worker is the ORB-75
- * failure this whole script exists to avoid, so a satisfied tui-idle wait alone is not enough
- * to send on. Why the repaint delta is the signal that works for both engines, and why the
- * terminal text is not: tools/lib/tui-repaint.mjs. */
-const busy = (handle) => isRepainting(orca, handle)
+// Orca WORKTREES remain required for isolation, concurrency accounting, and cleanup. Only
+// Orca TERMINALS are optional now that headless workers are ordinary child processes.
 
 /**
  * How many times the pointer may be sent before the launch is a failure, and how long the TUI
@@ -148,6 +177,13 @@ const TERMINAL_CREATE_BACKOFF_MS = 1000
  * repainting after all of them is never re-sent to: there is no safe moment, and a queued send
  * would cut its running turn short. */
 const MAX_POINTER_SETTLES = 3
+const SETTLE_MS = 1000
+const terminalIsRepainting = (terminal) => {
+  const first = orca(["terminal", "show", "--terminal", terminal]).terminal?.lastOutputAt
+  pause(SETTLE_MS)
+  const second = orca(["terminal", "show", "--terminal", terminal]).terminal?.lastOutputAt
+  return Number.isFinite(first) && Number.isFinite(second) && second > first
+}
 
 /**
  * The standing worker contract, owned HERE rather than by whoever composed the prompt file.
@@ -165,6 +201,7 @@ const MAX_POINTER_SETTLES = 3
  * CLASS: a .gitignore entry only ever covers the one artifact somebody already got burned by.
  */
 const WORKER_CONTRACT_MARKER = "## Standing worker contract (injected by tools/launch-worker.mjs)"
+const SLICE_CONTRACT_MARKER = "## Slice worker contract (injected by tools/launch-worker.mjs)"
 const WORKER_CONTRACT = `
 
 ---
@@ -185,8 +222,8 @@ conflict with anything above, these win.
    is acceptable; unmentioned is not. The pull request must be ready for review, never a draft.
    Never silently drop a criterion.
 3. **Own the automated review cycle.** After the PR is open, attached, and In Review, poll its
-   review transitions with \`node tools/pr-watch.mjs --repo <owner/name> --pr <number>
-   --once\` only as a low-level wake-up. After every call and before waiting or reporting
+   review transitions with a foreground blocking \`node tools/pr-watch.mjs --repo <owner/name> --pr <number>\`.
+   Every wait must state \`yield_time_ms\` explicitly, at or above the whole expected wait. After every call and before waiting or reporting
    completion, run \`node tools/worker-status.mjs --worktree <path> --issue ORB-N --json\`.
    That full-surface completion poll inventories review submissions, review threads and their
    nested comments, and PR conversation comments, and fails closed on an incomplete inventory.
@@ -205,11 +242,11 @@ conflict with anything above, these win.
    finding and your reasoning.
 5. **Your job ends on one report.** Report completion once the PR is approved with zero
    unresolved threads, or send the escalation from clause 4. An earlier instruction to stop
-   after opening or attaching the PR does not replace this endpoint. Never watch another
-   ticket, worktree, or PR.
-6. **Never arm a background monitor, watcher or wait loop that outlives this contract.**
+   after opening or attaching the PR does not replace this endpoint. If your work order tells you
+   both to watch something and to stop, STOP wins. Never watch another ticket, worktree, or PR.
+6. **Never arm a detached background monitor, watcher or wait loop that outlives this contract.** A foreground blocking wait is permitted.
 7. **Never merge any PR, never push to \`main\`, never use \`--no-verify\`, never edit a gate
-   baseline.**
+   baseline, never run \`gh pr merge --admin\`, never directly call \`PUT /repos/{owner}/{repo}/pulls/{number}/merge\`, and never directly call the GraphQL \`mergePullRequest\` mutation. If a merge genuinely needs an admin override, STOP and ask Thomas to merge it himself; never perform the override.**
 8. **Stage explicitly.** Commit only the paths you edited yourself. \`git add -A\`, \`git add .\`
    and \`git commit -a\` are forbidden. A worktree is a shared filesystem that sibling workers,
    dev servers and tooling all write into, so a blanket stage turns any of their runtime
@@ -224,6 +261,19 @@ conflict with anything above, these win.
     contract, then reconciling their output. Keep edits landing in the SAME file inline, and keep
     the final gate run inline because its raw output ships in the PR body. A review round with
     more than one independent finding is dispatched one subagent per finding, not fixed inline.
+`
+
+const SLICE_CONTRACT = `
+
+---
+
+${SLICE_CONTRACT_MARKER}
+
+This process is one slice in a coordinator-owned worktree. Make only the requested change and run
+the relevant checks. Do not commit, push, open or edit a pull request, merge, change the Linear
+issue, or modify files outside the requested slice. Report the changed paths and raw check output
+to the coordinator when finished. Never ask a question: decide from the work order and repository
+rules, and record any blocked sub-step in the report.
 `
 
 /**
@@ -517,6 +567,39 @@ const reserveAutomationBudget = (
   return { identity, engineName, tier, startedAt, ledgerPath }
 }
 
+/**
+ * The reservation is appended before the worktree exists, so it cannot carry the PID of a worker
+ * that does not exist yet. Attaching it here is what lets `summarize` expire a reservation the
+ * instant its process is gone instead of waiting out the whole lease. A failure to attach is
+ * reported, never fatal: the worker is already running, and the reservation simply falls back to
+ * the timestamp backstop.
+ */
+const claimBudgetReservation = ({ identity, engineName, tier, startedAt, ledgerPath }, projectedTokens, workerPid) => {
+  const result = spawnSync(process.execPath, [
+    budgetToolPath,
+    "claim",
+    "--identity",
+    identity,
+    "--engine",
+    engineName,
+    "--tier",
+    tier,
+    "--started-at",
+    startedAt,
+    "--ended-at",
+    new Date().toISOString(),
+    "--invocation-tokens",
+    String(projectedTokens),
+    "--worker-pid",
+    String(workerPid),
+    "--ledger",
+    ledgerPath,
+  ], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
+  if (!result.error && result.status === 0) return true
+  console.error(`automation-budget claim failed, the reservation keeps its timestamp lease: ${(result.stderr || result.stdout || result.error?.message || "unknown error").trim()}`)
+  return false
+}
+
 cancelBudgetReservation = ({ identity, engineName, tier, startedAt, ledgerPath }) => {
   const result = spawnSync(process.execPath, [
     budgetToolPath,
@@ -623,6 +706,7 @@ const acquireConcurrencyReservation = (repoPath) => {
 
 const issue = argOf("--issue")
 const promptFileArg = argOf("--prompt-file")
+const existingWorktreeArg = argOf("--existing-worktree")
 const repoOverride = argOf("--repo")
 const baseBranch = argOf("--base-branch") ?? "main"
 const branchPrefix = argOf("--branch-prefix") ?? "feature"
@@ -687,11 +771,14 @@ if (
 ) {
   fail(2, `.claude/orchestrator.json worker "${engineName}" must declare positive integer automationBudget.invocationTokens for every declared model tier: ${invocationTokenTiers.join(", ")}`)
 }
-if (engine.interactive !== true) {
+if (typeof engine.interactive !== "boolean") {
   fail(
     2,
-    `.claude/orchestrator.json worker "${engineName}" does not declare interactive: true. Everything below this line assumes a supervisable TUI: the trust-prompt answer, the tui-idle poll, nudge-worker's busy refusal, worker-status' idle-then-check. A headless engine has none of that, so it launches unwatched and lands zero commits, zero gates and no PR. Declare the engine interactive only when its invocation really opens a TUI.`,
+    `.claude/orchestrator.json worker "${engineName}" must explicitly declare interactive as true or false; silence must not select a launch mode.`,
   )
+}
+if (engine.interactive && promptFile.length > MAX_INTERACTIVE_PROMPT_PATH_LENGTH) {
+  fail(2, `prompt file path is ${promptFile.length} characters; interactive terminal delivery can swallow long paths. Use a shorter path or a headless worker.`)
 }
 if (!config.repos || typeof config.repos !== "object") {
   fail(2, ".claude/orchestrator.json carries no repos map; add one keyed by the repo:* label ids (ui, api, landing)")
@@ -737,11 +824,91 @@ try {
   fail(2, error.message)
 }
 const engineArgs = resolvedInvocation.args
-const budgetTier = resolvedInvocation.tier === "deep" ? "reserved" : automationBudget.tier
+const budgetTier = automationBudget.tier
 const projectedTokens = automationBudget.invocationTokens[resolvedInvocation.tier]
 const invocationStartedAt = new Date().toISOString()
 const invocationIdentity = `${issue}:${invocationStartedAt}:${randomUUID()}`
 const command = [engine.command, ...engineArgs].join(" ")
+/**
+ * The one instruction that closes this launch's reservation. It must reach the HEADLESS pointer as
+ * well as the interactive one: headless is the default engine shape, and a headless worker that is
+ * never told to record leaves a pending row nothing ever closes, which is the stranded reservation
+ * measured in the production ledger on 2026-07-30.
+ */
+const measurementCommand = `node "${budgetToolPath}" record --identity "${invocationIdentity}" --engine ${engineName} --tier ${budgetTier} --started-at "${invocationStartedAt}" --ended-at <provider-observation-time> --input-tokens <provider-raw-input-tokens> --cached-input-tokens <provider-cache-read-input-tokens> --output-tokens <provider-output-tokens> --ledger "${automationLedgerPath}"`
+const measurementInstruction = `Before finishing, replace this launch's pending ledger record with an append carrying provider-authoritative token totals: ${measurementCommand}. --input-tokens is the provider's RAW input count and --cached-input-tokens is its cache-read share of that same count; the fuse charges the difference, so omit --cached-input-tokens only when the provider reports no cache read at all. Add --provider-estimated-cost only when the provider supplies its own estimate. If the token measurement is unavailable, leave the pending record unchanged so the next launch fails closed; never record zero or infer tokens from account usedPercent.`
+const workerPointer = (worktreePath, branch) => `Read ${promptFile} and execute it in full. That file is your complete work order for ${issue}. You are on branch ${branch} in ${worktreePath}. Do not summarise the file back to me, start the work now. ${measurementInstruction}`
+/**
+ * Resolve a bare command the way the platform's launcher does, so the result is a real file rather
+ * than a name Node will refuse. On win32 only PATHEXT candidates count: npm also drops an
+ * extensionless shell script next to the shim, and Windows cannot execute it.
+ */
+const resolveOnPath = (command) => {
+  if (command.includes("/") || command.includes("\\")) {
+    return existsSync(command) ? resolve(command) : null
+  }
+  const extensions = process.platform === "win32"
+    ? (process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";").filter(Boolean)
+    : [""]
+  for (const directory of (process.env.PATH ?? "").split(delimiter).filter(Boolean)) {
+    for (const extension of extensions) {
+      const candidate = join(directory, `${command}${extension}`)
+      if (existsSync(candidate) && statSync(candidate).isFile()) return candidate
+    }
+  }
+  return null
+}
+
+/**
+ * Node has refused to spawn a `.cmd` or `.bat` without `shell: true` since the CVE-2024-27980 fix,
+ * and `spawn("codex.cmd", ...)` throws EINVAL before codex ever starts. `shell: true` avoids the
+ * errno but hands the worker pointer to cmd.exe to re-parse, and that pointer is a positional
+ * prompt carrying spaces and quotes, which is the ORB-88 mangled-prompt class. So resolve the npm
+ * shim to the script it execs and spawn Node on that: the argv array survives with no shell in the
+ * path. Verified against the installed codex.cmd, whose last line is
+ * `"%_prog%"  "%dp0%\\node_modules\\@openai\\codex\\bin\\codex.js" %*`. A shim that does not match
+ * that shape fails closed here rather than falling through to a spawn known to throw.
+ */
+const NPM_SHIM_SCRIPT = /"%dp0%\\+([^"]+\.js)"/i
+const headlessInvocation = () => {
+  const resolved = resolveOnPath(engine.command)
+  if (!resolved) {
+    fail(3, `could not resolve the ${engineName} worker executable "${engine.command}" on PATH; a headless launch has no shell to resolve it later`)
+  }
+  if (!/\.(?:cmd|bat)$/i.test(resolved)) return { executable: resolved, scriptArgs: [] }
+  let shim
+  try {
+    shim = readFileSync(resolved, "utf8")
+  } catch (error) {
+    fail(3, `could not read the ${engineName} shim ${resolved}: ${error.message}`)
+  }
+  const match = shim.match(NPM_SHIM_SCRIPT)
+  if (!match) {
+    fail(3, `${resolved} is a ${extname(resolved)} shim that tools/launch-worker.mjs cannot run headlessly: Node refuses to spawn it without a shell, and no "%dp0%...js" script line was found to spawn directly. Point .claude/orchestrator.json at the executable or the script itself.`)
+  }
+  const script = resolve(dirname(resolved), match[1])
+  if (!existsSync(script)) {
+    fail(3, `${resolved} names the script ${script}, which does not exist`)
+  }
+  return { executable: process.execPath, scriptArgs: [script] }
+}
+
+const startHeadlessWorker = (worktreePath, branch) => {
+  const { executable, scriptArgs } = headlessInvocation()
+  const child = spawn(executable, [...scriptArgs, ...engineArgs, workerPointer(worktreePath, branch)], {
+    cwd: worktreePath,
+    detached: true,
+    stdio: "ignore",
+    windowsHide: true,
+    env: { ...process.env, ORBIT_LAUNCH_WORKER: "1" },
+  })
+  if (!child.pid) fail(3, `could not start headless ${engineName} worker`)
+  child.unref()
+  const gitDirectory = resolve(worktreePath, git(["-C", worktreePath, "rev-parse", "--git-dir"]))
+  appendFileSync(join(gitDirectory, "orbit-worker-pids.jsonl"), `${JSON.stringify({ issue, worktreePath, pid: child.pid, startedAt: new Date().toISOString() })}\n`)
+  if (budgetReservation) claimBudgetReservation(budgetReservation, projectedTokens, child.pid)
+  return child.pid
+}
 
 /**
  * Second level, for an entry that declares interactive: true while carrying a headless
@@ -759,8 +926,11 @@ if (!profile) {
   fail(2, `worker "${engineName}" runs "${binary}", which tools/launch-worker.mjs has no engine profile for. Add one to ENGINE_PROFILES naming that CLI's headless tokens (the subcommand or flag that runs it with no TUI), its first-run trust screen and the keystroke that answers it. Known: ${Object.keys(ENGINE_PROFILES).join(", ")}`)
 }
 const headless = invocationTokens.slice(1).find((token) => profile.headlessTokens.includes(token))
-if (headless) {
+if (engine.interactive === true && headless) {
   fail(2, `worker "${engineName}" declares interactive: true but its invocation "${command}" carries "${headless}", which is a headless invocation of ${binary}. Fix the command or args, or the declaration, in .claude/orchestrator.json`)
+}
+if (engine.interactive === false && !headless) {
+  fail(2, `worker "${engineName}" declares interactive: false but its invocation "${command}" has no known headless token for ${binary}`)
 }
 const runPermissionIndex = invocationTokens.findIndex((token, index) => token === profile.runPermissionTokens[0] && profile.runPermissionTokens.every((expected, offset) => invocationTokens[index + offset] === expected))
 if (runPermissionIndex === -1) {
@@ -769,6 +939,13 @@ if (runPermissionIndex === -1) {
   fail(2, `worker "${engineName}" invocation "${command}" does not carry ${binary}'s required run-permitting policy "${profile.runPermissionTokens.join(" ")}"${mode}. A worker without that policy can stop for approval with nobody at the keyboard. Fix the command or args in .claude/orchestrator.json`)
 }
 
+/**
+ * Held by BOTH launch modes, for different caps that race the same way. A new worktree races
+ * `maxParallelWorktrees` against `orca worktree list`; an additional slice races
+ * `maxSlicesPerWorker` against `orbit-worker-pids.jsonl`, which it reads, counts, checks, and
+ * only then appends to after spawning. Two slice launches into one worktree is the mode's whole
+ * purpose, so unlocked they both read before either appends and both pass a cap of one.
+ */
 if (!dryRun) acquireConcurrencyReservation(repoPath)
 const listedWorktrees = orca(["worktree", "list", "--repo", `path:${repoPath}`]).worktrees
 if (!Array.isArray(listedWorktrees)) {
@@ -783,7 +960,11 @@ const occupyingWorktrees = listedWorktrees.filter(
     && worktree.git?.isMainWorktree !== true
     && worktree.isArchived !== true,
 )
-if (occupyingWorktrees.length >= maxParallelWorktrees) {
+const maxSlicesPerWorker = config.maxSlicesPerWorker
+if (!Number.isSafeInteger(maxSlicesPerWorker) || maxSlicesPerWorker < 1) {
+  fail(2, ".claude/orchestrator.json must declare maxSlicesPerWorker as a positive integer")
+}
+if (!existingWorktreeArg && occupyingWorktrees.length >= maxParallelWorktrees) {
   const paths = occupyingWorktrees.map((worktree) => worktree.path ?? worktree.git?.path ?? worktree.id)
   fail(
     1,
@@ -793,7 +974,8 @@ if (occupyingWorktrees.length >= maxParallelWorktrees) {
 
 /** Reported in the plan so a dry run shows whether this launch would inject the contract, and a
  * relaunch against an already-injected file is visibly a no-op rather than a silent second copy. */
-const workerContract = readFileSync(promptFile, "utf8").includes(WORKER_CONTRACT_MARKER) ? "already present" : "appended"
+const contractMarker = existingWorktreeArg ? SLICE_CONTRACT_MARKER : WORKER_CONTRACT_MARKER
+const workerContract = readFileSync(promptFile, "utf8").includes(contractMarker) ? "already present" : "appended"
 
 const plan = {
   issue,
@@ -839,10 +1021,34 @@ budgetReservation = reserveAutomationBudget(
  * for the relaunch. A dry run resolves this decision but writes nothing. */
 if (workerContract === "appended") {
   try {
-    appendFileSync(promptFile, WORKER_CONTRACT, "utf8")
+    appendFileSync(promptFile, existingWorktreeArg ? SLICE_CONTRACT : WORKER_CONTRACT, "utf8")
   } catch (error) {
     fail(3, `could not append the worker contract to ${promptFile}: ${error.message}`)
   }
+}
+
+if (existingWorktreeArg) {
+  const worktreePath = resolve(existingWorktreeArg)
+  if (!existsSync(worktreePath)) fail(2, `existing worktree not found: ${worktreePath}`)
+  if (isInside(promptFile, worktreePath)) fail(2, `prompt file lives inside the existing worktree (${worktreePath})`)
+  const actualRoot = git(["-C", worktreePath, "rev-parse", "--show-toplevel"])
+  if (normalize(actualRoot) !== normalize(worktreePath)) fail(2, `--existing-worktree must name a Git worktree root: ${worktreePath}`)
+  const existing = listedWorktrees.find((worktree) => normalize(worktree.path) === normalize(worktreePath))
+  if (!existing || existing.isMainWorktree || existing.isArchived || existing.linkedLinearIssue !== issue) {
+    fail(2, `--existing-worktree must be an active Orca worktree linked to ${issue}`)
+  }
+  const marker = join(resolve(worktreePath, git(["-C", worktreePath, "rev-parse", "--git-dir"])), "orbit-worker-pids.jsonl")
+  const activeSlices = existsSync(marker)
+    ? readFileSync(marker, "utf8").trim().split(/\r?\n/).filter(Boolean).flatMap((line) => { try { const row = JSON.parse(line); return row.issue === issue && Number.isInteger(row.pid) && (() => { try { process.kill(row.pid, 0); return true } catch (error) { return error.code !== "ESRCH" } })() ? [row] : [] } catch { return [] } })
+    : []
+  if (activeSlices.length >= maxSlicesPerWorker) fail(1, `maxSlicesPerWorker cap ${maxSlicesPerWorker} reached for ${issue}`)
+  const branch = git(["-C", worktreePath, "rev-parse", "--abbrev-ref", "HEAD"])
+  const workerPid = startHeadlessWorker(worktreePath, branch)
+  /** Only once the new PID is in the marker file, so the next launcher counts this slice. */
+  releaseConcurrencyReservation()
+  rollback = null
+  console.log(JSON.stringify({ ...plan, launchMode: "existing-worktree", worktreePath, worktreeSelector: `path:${worktreePath}`, branch, workerPid }, null, 2))
+  process.exit(0)
 }
 
 console.error(`creating worktree ${worktreeName} in ${repoKey} from ${baseBranch}`)
@@ -876,6 +1082,14 @@ rollback.contractBranch = branch
 const actualBranch = git(["-C", worktreePath, "rev-parse", "--abbrev-ref", "HEAD"])
 if (actualBranch !== branch) fail(3, `expected the worktree on ${branch}, found ${actualBranch}`)
 
+if (engine.interactive === false) {
+  const workerPid = startHeadlessWorker(worktreePath, branch)
+  rollback = null
+  orca(["worktree", "set", "--worktree", worktreeSelector, "--comment", comment, "--workspace-status", workspaceStatus])
+  console.log(JSON.stringify({ ...plan, launchMode: "new-worktree", worktreePath, worktreeSelector, workerPid }, null, 2))
+  process.exit(0)
+}
+
 console.error(`starting the ${engineName} TUI: ${command}`)
 const terminal = createTerminal(worktreeSelector, command)
 
@@ -891,7 +1105,7 @@ while (waitAttempts < MAX_WAIT_ATTEMPTS && !idle) {
    * text from a gate that is long gone and type into the worker's live composer.
    */
   if (wait.satisfied) {
-    if (!busy(terminal)) {
+    if (!terminalIsRepainting(terminal)) {
       idle = true
       break
     }
@@ -916,8 +1130,7 @@ if (!idle) {
   fail(1, `${terminal} never reached tui-idle after ${waitAttempts} waits; the worker is not running. Inspect it with: orca terminal read --terminal ${terminal}`)
 }
 
-const measurementCommand = `node "${budgetToolPath}" record --identity "${invocationIdentity}" --engine ${engineName} --tier ${budgetTier} --started-at "${invocationStartedAt}" --ended-at <provider-observation-time> --input-tokens <provider-input-tokens> --output-tokens <provider-output-tokens> --ledger "${automationLedgerPath}"`
-const pointer = `Read ${promptFile} and execute it in full. That file is your complete work order for ${issue}: the ticket body verbatim, then the finishing contract. You are on branch ${branch} in ${worktreePath}. Do not summarise the file back to me, start the work now. Before finishing, replace this launch's pending ledger record with an append carrying provider-authoritative token totals: ${measurementCommand}. Add --provider-estimated-cost only when the provider supplies its own estimate. If the token measurement is unavailable, leave the pending record unchanged so the next launch fails closed; never record zero or infer tokens from account usedPercent.`
+const pointer = `Read ${promptFile} and execute it in full. That file is your complete work order for ${issue}: the ticket body verbatim, then the finishing contract. You are on branch ${branch} in ${worktreePath}. Do not summarise the file back to me, start the work now. ${measurementInstruction}`
 
 /**
  * What a DELIVERED pointer looks like on screen: a send that became a user turn makes the TUI
@@ -955,14 +1168,14 @@ while (pointerSends < MAX_POINTER_SENDS && !pointerDelivered) {
    * shape that settled once and then fell through to the top of this loop resent into a busy TUI
    * in precisely the case this branch exists to prevent (PR #616 review round 1).
    */
-  painting = !pointerDelivered && busy(terminal)
+  painting = !pointerDelivered && terminalIsRepainting(terminal)
   let settles = 0
   while (painting && settles < MAX_POINTER_SETTLES) {
     settles += 1
     console.error(`the pointer is not on screen and the TUI is painting, so settling instead of sending again (${settles} of ${MAX_POINTER_SETTLES})`)
     pause(SETTLE_MS)
     pointerDelivered = pointerOnScreen()
-    painting = !pointerDelivered && busy(terminal)
+    painting = !pointerDelivered && terminalIsRepainting(terminal)
   }
   /** Still painting past the bound: there is no safe moment to re-send, so this launch is over. */
   if (painting) break

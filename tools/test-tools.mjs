@@ -554,7 +554,7 @@ const DEFAULT_AUTOMATION_BUDGET = {
   },
 }
 
-const orchestratorConfig = (repoPath, worker, engineName, maxParallelWorktrees = 8) =>
+const orchestratorConfig = (repoPath, worker, engineName, maxParallelWorktrees = 8, maxSlicesPerWorker = 3) =>
   JSON.stringify({
     worker: engineName,
     workers: {
@@ -564,6 +564,7 @@ const orchestratorConfig = (repoPath, worker, engineName, maxParallelWorktrees =
       },
     },
     maxParallelWorktrees,
+    maxSlicesPerWorker,
     attemptsBeforeRewrite: 2,
     linear: { team: "ORB", states: { working: "In Progress", review: "In Review", done: "Done" } },
     repos: { ui: repoPath },
@@ -601,7 +602,7 @@ const INTERACTIVE_CODEX = {
  * The engine name is what the top-level `worker` key selects, which is the only way to
  * exercise a non-default engine: the tool has no engine-override flag by design.
  */
-const stageLaunchWorker = (label, worker, engineName = "claude", maxParallelWorktrees = 8) => {
+const stageLaunchWorker = (label, worker, engineName = "claude", maxParallelWorktrees = 8, maxSlicesPerWorker = 3) => {
   const base = join(root, "launch", label)
   const repoPath = join(base, "repos", "ui")
   mkdirSync(repoPath, { recursive: true })
@@ -615,7 +616,7 @@ const stageLaunchWorker = (label, worker, engineName = "claude", maxParallelWork
   mkdirSync(join(base, ".claude"), { recursive: true })
   writeFileSync(
     join(base, ".claude", "orchestrator.json"),
-    orchestratorConfig(repoPath, worker, engineName, maxParallelWorktrees),
+    orchestratorConfig(repoPath, worker, engineName, maxParallelWorktrees, maxSlicesPerWorker),
   )
   cpSync(join(TOOLS_DIR, "launch-worker.mjs"), join(base, "tools", "launch-worker.mjs"))
   cpSync(join(TOOLS_DIR, "automation-budget.mjs"), join(base, "tools", "automation-budget.mjs"))
@@ -631,7 +632,6 @@ console.log(JSON.stringify(result))
 process.exit(result.claude?.status === "OK" || result.codex?.status === "OK" ? 0 : 1)
 `,
   )
-  /** The copy imports tools/lib/tui-repaint.mjs by relative path, so the staged tree carries it too. */
   cpSync(join(TOOLS_DIR, "lib"), join(base, "tools", "lib"), { recursive: true })
   return { path: join(base, "tools", "launch-worker.mjs"), repoPath, base }
 }
@@ -736,29 +736,6 @@ const preflightEnv = (plan) => ({
   DOTNET_BIN: process.execPath,
 })
 
-const stageNudgeWorker = (label, worker, instrumentPause = false) => {
-  const base = join(root, "nudge", label)
-  mkdirSync(join(base, "tools"), { recursive: true })
-  mkdirSync(join(base, ".claude"), { recursive: true })
-  writeFileSync(
-    join(base, ".claude", "orchestrator.json"),
-    JSON.stringify({ worker, maxParallelWorktrees: 8, repos: {} }),
-  )
-  cpSync(join(TOOLS_DIR, "nudge-worker.mjs"), join(base, "tools", "nudge-worker.mjs"))
-  cpSync(join(TOOLS_DIR, "lib"), join(base, "tools", "lib"), { recursive: true })
-  if (instrumentPause) {
-    cpSync(join(TOOLS_DIR, "lib", "tui-repaint.mjs"), join(base, "tools", "lib", "tui-repaint-real.mjs"))
-    writeFileSync(
-      join(base, "tools", "lib", "tui-repaint.mjs"),
-      `import { appendFileSync } from "node:fs"
-export { SETTLE_MS, isRepainting } from "./tui-repaint-real.mjs"
-export const pause = (ms) => appendFileSync(process.env.ORBIT_PAUSE_LOG, String(ms) + "\\n")
-`,
-    )
-  }
-  return { path: join(base, "tools", "nudge-worker.mjs"), base }
-}
-
 const launchWorktreeStub = (path, isMainWorktree = false) => ({
   id: path,
   path,
@@ -802,7 +779,8 @@ const REQUIRED_CONTRACT_CLAUSES = {
   "leaving human threads unresolved": /Never resolve a thread opened by a human account/,
   "refusing completion with unresolved threads": /approval with an[\s\S]*unresolved[\s\S]*thread is not done/,
   "watching only its own ticket": /Never watch another[\s\S]*ticket, worktree, or PR/,
-  "arming a monitor that outlives the contract": /Never arm a background monitor/,
+  "arming a detached monitor that outlives the contract": /Never arm a detached background monitor/,
+  "permitting an affordable foreground blocking wait": /foreground blocking wait is permitted/,
   "merging or pushing to main": /Never merge any PR, never push to/,
   "blanket staging that sweeps in a sibling's artifacts": /Stage explicitly[\s\S]*git add -A/,
   "pushing a commit it has not read back": /Verify before pushing[\s\S]*git show --stat HEAD/,
@@ -1010,7 +988,7 @@ const pointerDeliveryCases = () => {
     "launch-worker.mjs: the worker receives its launcher-owned authoritative completion-record command",
     firstPointer.includes(`node "${join(first.staged.base, "tools", "automation-budget.mjs")}" record`) &&
       !firstPointer.includes("node tools/automation-budget.mjs record") &&
-      /automation-budget\.mjs" record[\s\S]*--identity "ORB-75:[^"]+"[\s\S]*--input-tokens <provider-input-tokens>[\s\S]*--ledger "[^"]+"[\s\S]*never record zero or infer tokens from account usedPercent/.test(firstPointer) &&
+      /automation-budget\.mjs" record[\s\S]*--identity "ORB-75:[^"]+"[\s\S]*--input-tokens <provider-raw-input-tokens> --cached-input-tokens <provider-cache-read-input-tokens>[\s\S]*--ledger "[^"]+"[\s\S]*the fuse charges the difference[\s\S]*never record zero or infer tokens from account usedPercent/.test(firstPointer) &&
       firstPointer.includes(`--ledger "${firstPlan?.automationBudget?.ledgerPath}"`),
     firstPointer,
   )
@@ -1542,6 +1520,11 @@ const launchWorkerCases = async () => {
   const insidePrompt = join(good.repoPath, "prompt.md")
   writeFileSync(insidePrompt, "the ticket body verbatim\n")
   check("launch-worker.mjs", "refuses a prompt file inside a repo", ["--issue", "ORB-75", "--prompt-file", insidePrompt, "--dry-run"], { status: 2, stderr: /would be committed/ }, { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+  const longPromptDirectory = join(root, "prompt-path-guard", "x".repeat(130))
+  mkdirSync(longPromptDirectory, { recursive: true })
+  const longPrompt = join(longPromptDirectory, "prompt.md")
+  writeFileSync(longPrompt, "the ticket body verbatim\n")
+  check("launch-worker.mjs", "interactive delivery refuses a conservatively over-long prompt path", ["--issue", "ORB-75", "--prompt-file", longPrompt, "--dry-run"], { status: 2, stderr: /interactive terminal delivery can swallow long paths/ }, { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
   const noModels = stageLaunchWorker("no-models", { command: "claude", args: ["--permission-mode", "bypassPermissions"], interactive: true })
   check("launch-worker.mjs", "refuses an engine with no models map", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /claude[\s\S]*models/ }, { path: noModels.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
@@ -1577,10 +1560,10 @@ const launchWorkerCases = async () => {
   )
 
   const notInteractive = stageLaunchWorker("not-interactive", { ...INTERACTIVE_WORKER, interactive: false })
-  check("launch-worker.mjs", "refuses an engine declaring interactive: false", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /does not declare interactive: true/ }, { path: notInteractive.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+  check("launch-worker.mjs", "interactive false without a headless token is refused", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /interactive: false[\s\S]*no known headless token/ }, { path: notInteractive.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
   const omitted = stageLaunchWorker("omits-interactive", { command: "claude", args: [], models: CLAUDE_MODELS })
-  check("launch-worker.mjs", "refuses an engine that omits interactive entirely", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /does not declare interactive: true/ }, { path: omitted.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+  check("launch-worker.mjs", "refuses an engine that omits interactive entirely", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /must explicitly declare interactive/ }, { path: omitted.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
   const missingBudgetTier = stageLaunchWorker("missing-budget-tier", { ...INTERACTIVE_WORKER, automationBudget: {} })
   check(
@@ -1677,9 +1660,9 @@ const launchWorkerCases = async () => {
   )
   const codexDeep = check(
     "launch-worker.mjs",
-    "tier:deep selects Sol at high effort and the reserved budget on Codex",
+    "tier:deep selects Sol at high effort with the routine budget on Codex",
     ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
-    { status: 0, stdout: /codex[\s\S]*model_reasoning_effort[\s\S]*high[\s\S]*--model gpt-5\.6-sol[\s\S]*"automationBudget":\s*\{[\s\S]*"tier":\s*"reserved"[\s\S]*"tokenBudget":\s*1000000[\s\S]*"warningTokens":\s*800000[\s\S]*"projectedTokens":\s*250000/ },
+    { status: 0, stdout: /codex[\s\S]*model_reasoning_effort[\s\S]*high[\s\S]*--model gpt-5\.6-sol[\s\S]*"automationBudget":\s*\{[\s\S]*"tier":\s*"routine"[\s\S]*"tokenBudget":\s*1000000[\s\S]*"warningTokens":\s*800000[\s\S]*"projectedTokens":\s*250000/ },
     { path: codex.path, env: orcaEnv(linearIssueStub(["repo:ui", "tier:deep"])) },
   )
   const codexDefaultCommand = codexPlan.status === 0 ? JSON.parse(codexPlan.stdout).command : ""
@@ -1709,6 +1692,10 @@ const launchWorkerCases = async () => {
   const codexExecAlias = stageLaunchWorker("codex-exec-alias", { ...INTERACTIVE_CODEX, args: ["e"] }, "codex")
   check("launch-worker.mjs", "refuses codex e, the documented alias for exec", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /headless invocation of codex/ }, { path: codexExecAlias.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
+  const headlessCodex = stageLaunchWorker("headless-codex", { ...INTERACTIVE_CODEX, args: ["exec", "--dangerously-bypass-approvals-and-sandbox"], interactive: false }, "codex")
+  check("launch-worker.mjs", "accepts codex exec when interactive false agrees with its headless token", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 0, stdout: /codex exec/ }, { path: headlessCodex.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+  check("launch-worker.mjs", "rejects a headless declaration without a headless token", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /has no known headless token/ }, { path: stageLaunchWorker("headless-without-token", { ...INTERACTIVE_CODEX, interactive: false }, "codex").path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
+
   const unknownEngine = stageLaunchWorker("unknown-engine", { command: "aider", args: [], models: CLAUDE_MODELS, interactive: true }, "aider")
   check("launch-worker.mjs", "refuses an engine with no quota reader rather than waving it through", ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /has no quota reader/ }, { path: unknownEngine.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
@@ -1731,7 +1718,7 @@ const launchWorkerCases = async () => {
 
   const appendFailure = stageLaunchWorker("contract-append-failure", INTERACTIVE_WORKER)
   const appendFailureSource = readFileSync(appendFailure.path, "utf8")
-  const appendCall = 'appendFileSync(promptFile, WORKER_CONTRACT, "utf8")'
+  const appendCall = 'appendFileSync(promptFile, existingWorktreeArg ? SLICE_CONTRACT : WORKER_CONTRACT, "utf8")'
   if (!appendFailureSource.includes(appendCall)) {
     throw new Error("launch-worker fixture could not locate the worker-contract append")
   }
@@ -1808,6 +1795,185 @@ const launchWorkerCases = async () => {
       !pendingCalls.includes("worktree create"),
     `exit ${pendingResult.status}\n     ${pendingResult.stderr}\n     ${pendingCalls}`,
   )
+
+  /**
+   * The REAL spawn, never --dry-run. A dry run returns before startHeadlessWorker, which is how a
+   * headless launcher that could not start anything reached CI twice: Node has refused to spawn a
+   * .cmd without a shell since CVE-2024-27980, so `spawn("codex.cmd", ...)` throws EINVAL before
+   * the engine exists. The win32 fixture is an npm shim of the same shape as the installed
+   * codex.cmd (`"%dp0%\\...js" %*`, read off disk, not invented), and the child reports its own
+   * argv back so a shell re-parse of the prompt would be visible rather than silent.
+   */
+  const headlessEngineDirectory = join(root, "launch", "headless-bin")
+  mkdirSync(headlessEngineDirectory, { recursive: true })
+  const headlessArgvLog = join(root, "launch", "headless-argv.json")
+  const headlessScript = join(headlessEngineDirectory, "worker-shim.js")
+  writeFileSync(
+    headlessScript,
+    `const { writeFileSync } = require("node:fs")\nwriteFileSync(process.env.ORBIT_HEADLESS_ARGV_LOG, JSON.stringify(process.argv.slice(2)))\nconst holdMilliseconds = Number(process.env.ORBIT_HEADLESS_HOLD_MS || 0)\nif (holdMilliseconds > 0) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, holdMilliseconds)\n`,
+  )
+  if (process.platform === "win32") {
+    writeFileSync(
+      join(headlessEngineDirectory, "codex.cmd"),
+      `@ECHO off\r\nGOTO start\r\n:find_dp0\r\nSET dp0=%~dp0\r\nEXIT /b\r\n:start\r\nSETLOCAL\r\nCALL :find_dp0\r\nSET "_prog=node"\r\nendLocal & goto #_undefined_# 2>NUL || title %COMSPEC% & "%_prog%"  "%dp0%\\worker-shim.js" %*\r\n`,
+    )
+  } else {
+    const posixShim = join(headlessEngineDirectory, "codex")
+    writeFileSync(posixShim, `#!/usr/bin/env node\nrequire(${JSON.stringify(headlessScript)})\n`)
+    chmodSync(posixShim, 0o755)
+  }
+  const headlessWorker = {
+    command: "codex",
+    args: ["exec", "-c", 'windows.sandbox="unelevated"', "--dangerously-bypass-approvals-and-sandbox"],
+    models: CODEX_MODELS,
+    interactive: false,
+    automationBudget: DEFAULT_AUTOMATION_BUDGET,
+  }
+  const headlessStage = stageLaunchWorker("headless-spawn", headlessWorker, "codex")
+  const headlessCheckout = stageCheckout(headlessStage.base)
+  if (!headlessCheckout) {
+    T("launch-worker.mjs: a headless launch starts a real worker process", false, "could not stage the headless launch checkout")
+  } else {
+    const headlessPrompt = stage("headless-launch-prompt.md", "the ticket body verbatim\n")
+    const headlessResult = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", headlessPrompt], {
+      path: headlessStage.path,
+      env: {
+        ...orcaEnv([
+          ...linearIssueStub(["repo:ui"]),
+          { match: "worktree create", stdout: JSON.stringify({ ok: true, result: { worktree: { path: headlessCheckout, branch: "refs/heads/thomasluizon/orb-75" } } }) },
+          { match: "worktree set", stdout: JSON.stringify({ ok: true, result: {} }) },
+          { match: "worktree rm", stdout: JSON.stringify({ ok: true, result: {} }) },
+        ]),
+        PATH: `${headlessEngineDirectory}${delimiter}${process.env.PATH}`,
+        ORBIT_AUTOMATION_BUDGET_LEDGER: join(headlessStage.base, "automation-budget.jsonl"),
+        ORBIT_HEADLESS_ARGV_LOG: headlessArgvLog,
+      },
+    })
+    let headlessPlan = null
+    try {
+      headlessPlan = JSON.parse(headlessResult.stdout)
+    } catch {
+      headlessPlan = null
+    }
+    const headlessDeadline = Date.now() + 15_000
+    while (!existsSync(headlessArgvLog) && Date.now() < headlessDeadline) {
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50)
+    }
+    const childArgv = existsSync(headlessArgvLog) ? JSON.parse(readFileSync(headlessArgvLog, "utf8")) : null
+    const markerPath = join(
+      resolve(headlessCheckout, spawnSync("git", ["-C", headlessCheckout, "rev-parse", "--git-dir"], { encoding: "utf8" }).stdout.trim()),
+      "orbit-worker-pids.jsonl",
+    )
+    const markerRows = existsSync(markerPath)
+      ? readFileSync(markerPath, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
+      : []
+    T(
+      "launch-worker.mjs: a headless launch starts a real worker process and records its PID",
+      headlessResult.status === 0 &&
+        headlessPlan?.launchMode === "new-worktree" &&
+        Number.isInteger(headlessPlan?.workerPid) &&
+        markerRows.length === 1 &&
+        markerRows[0].pid === headlessPlan.workerPid &&
+        markerRows[0].worktreePath === headlessCheckout,
+      `exit ${headlessResult.status}\n     stdout: ${headlessResult.stdout.slice(0, 400)}\n     stderr: ${headlessResult.stderr.slice(0, 600)}\n     marker: ${JSON.stringify(markerRows)}`,
+    )
+    const headlessLedger = join(headlessStage.base, "automation-budget.jsonl")
+    const headlessRows = existsSync(headlessLedger)
+      ? readFileSync(headlessLedger, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
+      : []
+    T(
+      "launch-worker.mjs: the launcher claims its reservation with the PID it just spawned",
+      headlessRows.length === 2 &&
+        headlessRows[0]?.pending === true &&
+        !Object.hasOwn(headlessRows[0] ?? {}, "workerPid") &&
+        headlessRows[1]?.pending === true &&
+        headlessRows[1]?.workerPid === headlessPlan?.workerPid,
+      `plan pid ${headlessPlan?.workerPid}\n     ledger: ${JSON.stringify(headlessRows)}`,
+    )
+    const expectedEngineArgs = [...headlessWorker.args, ...CODEX_MODELS.default.args, "--model", CODEX_MODELS.default.model]
+    T(
+      "launch-worker.mjs: the headless worker receives its engine args and the whole pointer as one argument",
+      Array.isArray(childArgv) &&
+        childArgv.length === expectedEngineArgs.length + 1 &&
+        expectedEngineArgs.every((argument, index) => childArgv[index] === argument) &&
+        childArgv.at(-1).includes(headlessPrompt) &&
+        childArgv.at(-1).includes('automation-budget.mjs" record') &&
+        childArgv.at(-1).includes("--cached-input-tokens"),
+      `expected ${JSON.stringify(expectedEngineArgs)} plus one pointer
+     child argv: ${JSON.stringify(childArgv)}`,
+    )
+  }
+
+  /**
+   * The slice cap races the same way the worktree cap does, and the whole point of
+   * --existing-worktree is two slices in one worktree. The cap is read from
+   * orbit-worker-pids.jsonl, checked, and only appended to after the spawn, so unlocked both
+   * launchers read before either appends and both pass a cap of one. Two real concurrent
+   * processes are the only thing that can prove the lock; a serial pair passes either way.
+   */
+  const sliceStage = stageLaunchWorker("slice-cap", headlessWorker, "codex", 8, 1)
+  const sliceWorktree = stageCheckout(sliceStage.base)
+  if (!sliceWorktree) {
+    T("launch-worker.mjs: concurrent slice launches cannot both pass one slice cap", false, "could not stage the slice checkout")
+  } else {
+    const slicePrompt = stage("slice-cap-prompt.md", "the ticket body verbatim\n")
+    const sliceRunner = stage(
+      "slice-cap-runner.mjs",
+      `import { spawn } from "node:child_process"
+const [tool, promptFile, worktreePath] = process.argv.slice(2)
+const run = () => new Promise((resolve) => {
+  const child = spawn(process.execPath, [tool, "--issue", "ORB-75", "--prompt-file", promptFile, "--existing-worktree", worktreePath], {
+    stdio: ["ignore", "pipe", "pipe"],
+  })
+  let stderr = ""
+  child.stderr.setEncoding("utf8")
+  child.stderr.on("data", (chunk) => { stderr += chunk })
+  child.stdout.resume()
+  child.on("exit", (status) => resolve({ status, stderr }))
+})
+process.stdout.write(JSON.stringify(await Promise.all([run(), run()])))
+`,
+    )
+    const sliceEnv = {
+      ...orcaEnv([
+        ...linearIssueStub(["repo:ui"], [{ ...launchWorktreeStub(sliceWorktree), isArchived: false, linkedLinearIssue: "ORB-75" }]),
+        { match: "worktree set", stdout: JSON.stringify({ ok: true, result: {} }) },
+      ]),
+      PATH: `${headlessEngineDirectory}${delimiter}${process.env.PATH}`,
+      ORBIT_AUTOMATION_BUDGET_LEDGER: join(sliceStage.base, "automation-budget.jsonl"),
+      ORBIT_HEADLESS_ARGV_LOG: join(root, "launch", "slice-argv.json"),
+      ORBIT_HEADLESS_HOLD_MS: "6000",
+    }
+    const sliceResult = spawnSync(process.execPath, [sliceRunner, sliceStage.path, slicePrompt, sliceWorktree], {
+      encoding: "utf8",
+      cwd: REPO_ROOT,
+      env: { ...process.env, ...sliceEnv },
+      timeout: 120_000,
+    })
+    let sliceOutcomes = []
+    try {
+      sliceOutcomes = JSON.parse(sliceResult.stdout)
+    } catch {
+      sliceOutcomes = []
+    }
+    const sliceStatuses = sliceOutcomes.map((outcome) => outcome.status).sort((first, second) => first - second)
+    const sliceMarker = join(
+      resolve(sliceWorktree, spawnSync("git", ["-C", sliceWorktree, "rev-parse", "--git-dir"], { encoding: "utf8" }).stdout.trim()),
+      "orbit-worker-pids.jsonl",
+    )
+    const sliceRows = existsSync(sliceMarker)
+      ? readFileSync(sliceMarker, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
+      : []
+    T(
+      "launch-worker.mjs: concurrent slice launches cannot both pass one slice cap",
+      sliceStatuses.length === 2 &&
+        sliceStatuses[0] === 0 &&
+        sliceStatuses[1] === 1 &&
+        sliceOutcomes.some((outcome) => /maxSlicesPerWorker cap 1 reached for ORB-75/.test(outcome.stderr)) &&
+        sliceRows.length === 1,
+      `runner exit ${sliceResult.status}\n     statuses ${JSON.stringify(sliceStatuses)}\n     marker ${JSON.stringify(sliceRows)}\n     stderr ${sliceOutcomes.map((outcome) => (outcome.stderr ?? "").trim().split("\n").slice(-2).join(" | ")).join("\n     ")}`,
+    )
+  }
 
   const concurrentWorker = {
     ...INTERACTIVE_WORKER,
@@ -1908,8 +2074,8 @@ process.stdout.write(JSON.stringify(await Promise.all([first, second])))
       "launch-worker.mjs: concurrent launchers share one atomic pre-worktree reservation",
       concurrentResult.status === 0 &&
         concurrentOutcomes[0]?.status === 0 &&
-        concurrentOutcomes[1]?.status === 3 &&
-        /lack input or output tokens/.test(concurrentOutcomes[1]?.stderr ?? "") &&
+        concurrentOutcomes[1]?.status === 4 &&
+        /blocked:/.test(concurrentOutcomes[1]?.stderr ?? "") &&
         createdWorktree(firstCalls) &&
         !createdWorktree(secondCalls) &&
         concurrentRecords.length === 1 &&
@@ -1938,11 +2104,10 @@ process.stdout.write(JSON.stringify(await Promise.all([first, second])))
     ? readFileSync(reservedLog, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
     : []
   T(
-    "launch-worker.mjs: tier:deep uses its reserved tier and 250000-token projection",
-    reservedResult.status === 3 &&
-      /reserved invocation[\s\S]*proceeds with 1200000 projected tokens/.test(reservedResult.stderr) &&
-      /worktree create[\s\S]*failed: stop after reserved budget/.test(reservedResult.stderr) &&
-      reservedCalls.some((argumentsList) => argumentsList[0].split(/[\\/]/).pop() === "worktree" && argumentsList[1] === "create"),
+    "launch-worker.mjs: tier:deep is blocked by the routine token budget before worktree creation",
+    reservedResult.status === 4 &&
+      /blocked:[\s\S]*projected spend 1200000 tokens/.test(reservedResult.stderr) &&
+      !reservedCalls.some((argumentsList) => argumentsList[0].split(/[\\/]/).pop() === "worktree" && argumentsList[1] === "create"),
     `exit ${reservedResult.status}\n     ${reservedResult.stderr}\n     ${reservedCalls}`,
   )
 
@@ -2377,211 +2542,6 @@ const preflightCases = () => {
   )
 }
 
-const TIMEOUT_PAYLOAD = JSON.stringify({ ok: false, error: { code: "timeout", message: "condition not met in time" } })
-const BUSY_STUB = [{ match: "terminal wait", stdout: TIMEOUT_PAYLOAD, exit: 1 }]
-const BROKEN_STUB = [{ match: "terminal wait", stdout: JSON.stringify({ ok: false, error: { code: "no-such-terminal", message: "unknown handle" } }), exit: 1 }]
-const STALE_BLOCKED_WAIT = JSON.stringify({ ok: true, result: { wait: { satisfied: false, status: "running", blockedReason: "codex-trust-workspace" } } })
-const DOCUMENTED_CODEX_BLOCKED_WAIT = JSON.stringify({ ok: true, result: { wait: { satisfied: false, status: "running", blockedReason: "codex-interactive-prompt" } } })
-const CODEX_READY_PLACEHOLDER_CASES = [
-  ["explain-codebase", "› Explain this codebase"],
-  ["review-changes", "› Run /review on my current changes"],
-  ["write-tests", "› Write tests for @filename"],
-  ["list-skills", "› Use /skills to list available skills"],
-]
-/**
- * WHY: Captured 2026-07-28 from three live Codex composers. Placeholder text rotates, while
- * every ready region carries model, effort, separator and working-directory structure.
- * https://github.com/thomasluizon/orbit-ui-mobile/pull/629
- *
- * › Run /review on my current changes gpt-5.6-sol high · ~\orca\workspaces\orbit-ui-mobile\orb-106-... · Main [default]
- * › Improve documentation in @filename gpt-5.6-sol high · ~\orca\workspaces\orbit-ui-mobile\orb-113-...
- * › Explain this codebase gpt-5.6-sol high · ~\orca\workspaces\orbit-ui-mobile\orb-122-... · Main [default]
- */
-const CODEX_STATUS_STRUCTURE = "gpt-5.6-sol high · ~\\orca\\workspaces\\orbit-ui-mobile\\orb-129-nudge-worker-is-unreachable-when-orca · Main [default]"
-const MEASURED_CODEX_READY_TAIL = [
-  "Working (52s · esc to interrupt)",
-  "a · Main [default]",
-  "",
-  "─ Worked for 11m 02s ─────────────────────────────────────────────────────────── › Explain this codebase gpt-5.6-sol high · ~\\orca\\workspaces\\orbit-ui-mobile\\orb-129-nudge-worker-is-unreachable-when-orca · Main [default]",
-]
-const MEASURED_CODEX_WORKING_TAIL = [
-  ...MEASURED_CODEX_READY_TAIL,
-  "(7s • esc to interrupt)",
-]
-const LIVE_CODEX_SAMPLE_CASES = [
-  ["term-0c6e56a7-idle", "recognizes the first live idle composer shape", [
-    "a · Main [default]",
-    "› Improve documentation in @filename",
-    "gpt-5.6-sol high · ~\\orca\\workspaces\\orbit-ui-mobile\\orb-129-nudge-worker-is-unreachable-when-orca",
-    "─ Worked for 10m 03s ───────────────────────────────────────────────────────────",
-  ], true],
-  ["term-65aa37cd-busy", "refuses the live busy composer shape", [
-    "a · Main [default]",
-    "› Improve documentation in @filename",
-    CODEX_STATUS_STRUCTURE,
-    "(7s • esc to interrupt)",
-  ], false],
-  ["term-652dd931-idle", "recognizes the second live idle composer shape", [
-    "› Use /skills to list available skills",
-    CODEX_STATUS_STRUCTURE,
-  ], true],
-]
-/** A settled TUI emits nothing, so lastOutputAt is the SAME on both samples. */
-const IDLE_STUB = [
-  { match: "terminal wait", stdout: JSON.stringify({ ok: true, result: { wait: { satisfied: true } } }), exit: 0 },
-  { match: "terminal show", stdout: JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1785168487585 } } }), exit: 0 },
-  { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }), exit: 0 },
-]
-const staleBlockedIdleStub = (tail) => [
-  { match: "terminal wait", stdout: STALE_BLOCKED_WAIT, exit: 0 },
-  { match: "terminal show", stdout: JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1785168487585 } } }), exit: 0 },
-  { match: "terminal read", stdout: JSON.stringify({ ok: true, result: { terminal: { tail } } }), exit: 0 },
-  { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }), exit: 0 },
-]
-const WORKING_COMPOSER_IDLE_STUB = staleBlockedIdleStub([
-  "› Explain this codebase",
-  CODEX_STATUS_STRUCTURE,
-  "Working (52s · esc to interrupt)",
-])
-const MISSPELLED_WORKING_COMPOSER_IDLE_STUB = staleBlockedIdleStub([
-  "› Explain this codebase",
-  CODEX_STATUS_STRUCTURE,
-  "Working (52s · esc to interupt)",
-])
-const LIVE_BLOCKED_IDLE_STUB = [
-  { match: "terminal wait", stdout: STALE_BLOCKED_WAIT, exit: 0 },
-  { match: "terminal show", stdout: JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1785168487585 } } }), exit: 0 },
-  { match: "terminal read", stdout: JSON.stringify({ ok: true, result: { terminal: { tail: ["Doyoutrustthecontents", "ofthisdirectory?"] } } }), exit: 0 },
-  { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }), exit: 0 },
-]
-const ANSWERED_TRUST_BEFORE_READY_TAIL = [
-  "Do you trust the contents of this directory?",
-  "Trust once and continue",
-  "› Explain this codebase",
-  CODEX_STATUS_STRUCTURE,
-]
-const LIVE_TRUST_AFTER_COMPOSER_TAIL = [
-  "› Explain this codebase",
-  CODEX_STATUS_STRUCTURE,
-  "Do you trust the contents of this directory?",
-]
-const RETAINED_COMPOSER_STATIC_SCREEN_TAIL = [
-  "› Run /review on my current changes",
-  "Permission required",
-  "Allow this command?",
-  "[y] Yes  [n] No",
-]
-const RETAINED_READY_STATIC_SCREEN_TAIL = [
-  "› Run /review on my current changes",
-  CODEX_STATUS_STRUCTURE,
-  "Permission required",
-  "Allow this command?",
-  "[y] Yes  [n] No",
-]
-const ALTERNATE_MODEL_READY_TAIL = [
-  "› Explain this codebase",
-  "orbit-coder.v2 ultra · C:\\worktrees\\orbit-ui-mobile\\orb-129 · Main [default]",
-]
-const UNRECOGNIZED_BLOCKED_IDLE_STUB = [
-  { match: "terminal wait", stdout: STALE_BLOCKED_WAIT, exit: 0 },
-  { match: "terminal show", stdout: JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1785168487585 } } }), exit: 0 },
-  { match: "terminal read", stdout: JSON.stringify({ ok: true, result: { terminal: { tail: ["Allow this command?", "[y] Yes  [n] No"] } } }), exit: 0 },
-  { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }), exit: 0 },
-]
-/**
- * The measured codex failure: orca reports tui-idle while the worker is mid-turn. The stub
- * says satisfied AND repaints (lastOutputAt is stamped fresh on every call), which is exactly
- * what a running turn looks like. A send here is the ORB-75 corruption, so this must refuse.
- */
-const FALSE_IDLE_STUB = [
-  { match: "terminal wait", stdout: JSON.stringify({ ok: true, result: { wait: { satisfied: true } } }), exit: 0 },
-  { match: "terminal show", stdout: '{"ok":true,"result":{"terminal":{"lastOutputAt":__NOW__}}}', exit: 0 },
-  { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }), exit: 0 },
-]
-const BLOCKED_BUSY_STUB = [
-  { match: "terminal wait", stdout: STALE_BLOCKED_WAIT, exit: 0 },
-  { match: "terminal show", stdout: '{"ok":true,"result":{"terminal":{"lastOutputAt":__NOW__}}}', exit: 0 },
-  { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }), exit: 0 },
-]
-const DOCUMENTED_CODEX_BLOCKED_IDLE_STUB = [
-  { match: "terminal wait", stdout: DOCUMENTED_CODEX_BLOCKED_WAIT, exit: 0 },
-  { match: "terminal send", stdout: JSON.stringify({ ok: true, result: {} }), exit: 0 },
-]
-
-const runNudgeSignalCase = (label, name, plan, expect, expectedSends, options = {}) => {
-  const log = join(root, `nudge-${label}.log`)
-  check("nudge-worker.mjs", name, ["--terminal", "t1", "--text", "hi", "--wait-attempts", String(options.waitAttempts ?? 1), ...(options.argv ?? [])], expect, {
-    path: options.path,
-    env: { ...orcaEnv(plan), ...(options.env ?? {}), ORBIT_ORCA_LOG: log },
-  })
-  const calls = existsSync(log) ? readFileSync(log, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line)) : []
-  const sends = calls.filter((argv) => argv[0].split(/[\\/]/).pop() === "terminal" && argv[1] === "send").length
-  T(`nudge-worker.mjs: ${name} sends ${expectedSends} time(s)`, sends === expectedSends, `sent ${sends} time(s)`)
-}
-
-const nudgeWorkerCases = () => {
-  check("nudge-worker.mjs", "--help documents the engine override and fail-closed rule", ["--help"], { status: 0, stdout: /--engine <name>[\s\S]*Claude has no verified readiness profile[\s\S]*Missing, auto or unknown values[\s\S]*fail closed/ })
-  check("nudge-worker.mjs", "rejects multi-line text", ["--terminal", "t1", "--text", "first line\nsecond line"], { status: 2, stderr: /single line/ })
-  check("nudge-worker.mjs", "rejects --text together with --prompt-file", ["--terminal", "t1", "--text", "hi", "--prompt-file", stage("nudge-prompt.md", "body\n")], { status: 2, stderr: /alternatives/ })
-  check("nudge-worker.mjs", "rejects a non-positive --wait-attempts", ["--terminal", "t1", "--text", "hi", "--wait-attempts", "0"], { status: 2, stderr: /positive integer/ })
-  check("nudge-worker.mjs", "refuses to send while the worker is busy", ["--terminal", "t1", "--text", "hi", "--wait-attempts", "1"], { status: 1, stderr: /NOTHING was sent/ }, { env: orcaEnv(BUSY_STUB) })
-  check("nudge-worker.mjs", "an orca failure that is not a timeout is a tool error", ["--terminal", "t1", "--text", "hi", "--wait-attempts", "1"], { status: 3, stderr: /unknown handle/ }, { env: orcaEnv(BROKEN_STUB) })
-  runNudgeSignalCase("both-idle", "sends once both signals say the worker is idle", IDLE_STUB, { status: 0, stdout: /"sent": "hi"/ }, 1, { path: stageNudgeWorker("both-idle", "codex").path })
-  for (const [label, placeholder] of CODEX_READY_PLACEHOLDER_CASES) {
-    const readyTail = ["Worked for 13m 01s", "PR opened and issue moved to In Review", placeholder, CODEX_STATUS_STRUCTURE]
-    runNudgeSignalCase(`stale-block-${label}`, `trusts the codex ready composer structure with ${placeholder}`, staleBlockedIdleStub(readyTail), { status: 0, stdout: /"sent": "hi"/, stderr: /codex-trust-workspace[\s\S]*not repainting[\s\S]*no known trust prompt[\s\S]*codex ready composer is on screen[\s\S]*blocked reason is stale[\s\S]*screen and repaint signals win/ }, 1, { path: stageNudgeWorker(`stale-block-${label}`, "codex").path })
-  }
-  runNudgeSignalCase("retained-composer-static-screen", "refuses a retained composer marker followed by a static permission screen", staleBlockedIdleStub(RETAINED_COMPOSER_STATIC_SCREEN_TAIL), { status: 1, stderr: /no known ready composer is on screen[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("retained-composer-static-screen", "codex").path })
-  runNudgeSignalCase("retained-ready-static-screen", "refuses a retained composer and status followed by a static permission screen", staleBlockedIdleStub(RETAINED_READY_STATIC_SCREEN_TAIL), { status: 1, stderr: /no known ready composer is on screen[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("retained-ready-static-screen", "codex").path })
-  runNudgeSignalCase("measured-ready-composer", "trusts the measured idle codex tail despite a historical working indicator", staleBlockedIdleStub(MEASURED_CODEX_READY_TAIL), { status: 0, stdout: /"sent": "hi"/, stderr: /codex ready composer is on screen/ }, 1, { path: stageNudgeWorker("measured-ready-composer", "codex").path })
-  runNudgeSignalCase("measured-working-composer", "refuses the measured codex tail with a live working indicator after the composer", staleBlockedIdleStub(MEASURED_CODEX_WORKING_TAIL), { status: 1, stderr: /no known ready composer is on screen[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("measured-working-composer", "codex").path })
-  runNudgeSignalCase("alternate-model-ready-composer", "recognizes structural status with a different codex model and effort", staleBlockedIdleStub(ALTERNATE_MODEL_READY_TAIL), { status: 0, stdout: /"sent": "hi"/, stderr: /codex ready composer is on screen/ }, 1, { path: stageNudgeWorker("alternate-model-ready-composer", "codex").path })
-  for (const [label, name, tail, ready] of LIVE_CODEX_SAMPLE_CASES) {
-    const expect = ready
-      ? { status: 0, stdout: /"sent": "hi"/, stderr: /codex ready composer is on screen/ }
-      : { status: 1, stderr: /no known ready composer is on screen[\s\S]*NOTHING was sent/ }
-    runNudgeSignalCase(label, name, staleBlockedIdleStub(tail), expect, ready ? 1 : 0, { path: stageNudgeWorker(label, "codex").path })
-  }
-  runNudgeSignalCase("answered-trust-before-ready", "ignores answered trust text before the current codex composer", staleBlockedIdleStub(ANSWERED_TRUST_BEFORE_READY_TAIL), { status: 0, stdout: /"sent": "hi"/, stderr: /codex ready composer is on screen[\s\S]*blocked reason is stale/ }, 1, { path: stageNudgeWorker("answered-trust-before-ready", "codex").path })
-  runNudgeSignalCase("live-trust-after-composer", "refuses a live trust prompt after the current codex composer", staleBlockedIdleStub(LIVE_TRUST_AFTER_COMPOSER_TAIL), { status: 1, stderr: /codex trust prompt is still on screen[\s\S]*worker remains blocked[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("live-trust-after-composer", "codex").path })
-  runNudgeSignalCase("trust-without-composer", "fails closed when a trust prompt has no current composer region", LIVE_BLOCKED_IDLE_STUB, { status: 1, stderr: /current screen region could not be located[\s\S]*no codex composer marker[\s\S]*codex trust prompt is still on screen in retained tail[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("trust-without-composer", "codex").path })
-  const codexProfile = stageNudgeWorker("codex-profile", "codex")
-  const incidentalGreaterThanTail = [
-    "› Working on the nudge predicate",
-    "(8s • esc to interrupt)",
-    "> quoted output painted after the working indicator",
-  ]
-  runNudgeSignalCase("codex-incidental-greater-than", "does not let incidental greater-than output select the claude profile for a codex worker", staleBlockedIdleStub(incidentalGreaterThanTail), { status: 1, stderr: /no known ready composer is on screen for the codex profile[\s\S]*NOTHING was sent/ }, 0, { path: codexProfile.path })
-  runNudgeSignalCase("explicit-claude-profile", "fails closed for the explicitly selected unverified claude profile", staleBlockedIdleStub(incidentalGreaterThanTail), { status: 1, stderr: /claude readiness profile is unverified[\s\S]*captured Claude Code composer screen with and without a live working indicator[\s\S]*pull\/629[\s\S]*NOTHING was sent/ }, 0, { path: codexProfile.path, argv: ["--engine", "claude"] })
-  const autoProfile = stageNudgeWorker("auto-profile", "auto")
-  runNudgeSignalCase("auto-profile", "fails closed when the orchestrator worker is auto", staleBlockedIdleStub(["› Explain this codebase"]), { status: 1, stderr: /engine "auto" from \.claude\/orchestrator\.json worker does not resolve[\s\S]*NOTHING was sent/ }, 0, { path: autoProfile.path })
-  const unknownProfile = stageNudgeWorker("unknown-profile", "future-engine")
-  runNudgeSignalCase("unknown-profile", "fails closed when the orchestrator worker is unknown", staleBlockedIdleStub(["› Explain this codebase"]), { status: 1, stderr: /engine "future-engine" from \.claude\/orchestrator\.json worker does not resolve[\s\S]*NOTHING was sent/ }, 0, { path: unknownProfile.path })
-  runNudgeSignalCase("unknown-engine-override", "fails closed when the engine override is unknown", staleBlockedIdleStub(["› Explain this codebase"]), { status: 1, stderr: /engine "future-engine" from --engine does not resolve[\s\S]*NOTHING was sent/ }, 0, { path: unknownProfile.path, argv: ["--engine", "future-engine"] })
-  const missingProfile = stageNudgeWorker("missing-profile", undefined)
-  runNudgeSignalCase("missing-profile", "fails closed when the orchestrator worker is missing", staleBlockedIdleStub(["› Explain this codebase"]), { status: 1, stderr: /engine "<missing>" from \.claude\/orchestrator\.json worker does not resolve[\s\S]*NOTHING was sent/ }, 0, { path: missingProfile.path })
-  const claudeProfile = stageNudgeWorker("claude-profile", "claude")
-  runNudgeSignalCase("configured-claude-profile", "fails closed for the configured unverified claude profile", staleBlockedIdleStub(incidentalGreaterThanTail), { status: 1, stderr: /claude readiness profile is unverified[\s\S]*captured Claude Code composer screen with and without a live working indicator[\s\S]*pull\/629[\s\S]*NOTHING was sent/ }, 0, { path: claudeProfile.path })
-  runNudgeSignalCase("engine-override", "--engine overrides a disagreeing orchestrator worker", staleBlockedIdleStub(["› Explain this codebase", CODEX_STATUS_STRUCTURE]), { status: 0, stdout: /"engine": "codex"[\s\S]*"engineSource": "--engine"/ }, 1, { path: claudeProfile.path, argv: ["--engine", "codex"] })
-  const pauseProbe = stageNudgeWorker("pause-probe", "codex", true)
-  const pauseLog = join(pauseProbe.base, "pause.log")
-  runNudgeSignalCase("trust-prompt-pause", "settles before retrying a trust prompt that remains on screen", LIVE_BLOCKED_IDLE_STUB, { status: 1, stderr: /attempt 1:[\s\S]*trust prompt is still on screen[\s\S]*attempt 2:[\s\S]*trust prompt is still on screen[\s\S]*NOTHING was sent/ }, 0, {
-    path: pauseProbe.path,
-    waitAttempts: 2,
-    env: { ORBIT_PAUSE_LOG: pauseLog },
-  })
-  const pauses = existsSync(pauseLog) ? readFileSync(pauseLog, "utf8").trim().split("\n") : []
-  T("nudge-worker.mjs: trust prompt retry applies one settle pause", pauses.length === 1 && pauses[0] === "10000", `pause log: ${JSON.stringify(pauses)}`)
-  runNudgeSignalCase("working-composer", "refuses a ready-looking codex composer carrying esc to interrupt", WORKING_COMPOSER_IDLE_STUB, { status: 1, stderr: /no known ready composer is on screen[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("working-composer", "codex").path })
-  runNudgeSignalCase("misspelled-working-composer", "refuses a ready-looking codex composer carrying esc to interupt", MISSPELLED_WORKING_COMPOSER_IDLE_STUB, { status: 1, stderr: /no known ready composer is on screen[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("misspelled-working-composer", "codex").path })
-  runNudgeSignalCase("live-block", "refuses a static trust prompt that is still on screen", LIVE_BLOCKED_IDLE_STUB, { status: 1, stderr: /codex-trust-workspace[\s\S]*not repainting[\s\S]*codex trust prompt is still on screen[\s\S]*remains blocked[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("live-block", "codex").path })
-  runNudgeSignalCase("unrecognized-block", "refuses an unrecognized static screen with no ready composer signal", UNRECOGNIZED_BLOCKED_IDLE_STUB, { status: 1, stderr: /codex-trust-workspace[\s\S]*not repainting[\s\S]*no known trust prompt[\s\S]*no known ready composer is on screen[\s\S]*worker remains blocked[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("unrecognized-block", "codex").path })
-  runNudgeSignalCase("false-idle", "refuses a tui-idle that is still repainting, which is a worker mid-turn", FALSE_IDLE_STUB, { status: 1, stderr: /tui-idle[\s\S]*still repainting[\s\S]*repaint signal wins[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("false-idle", "codex").path })
-  runNudgeSignalCase("both-busy", "refuses when both signals say the worker is busy", BLOCKED_BUSY_STUB, { status: 1, stderr: /codex-trust-workspace[\s\S]*TUI is repainting[\s\S]*both signals[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("both-busy", "codex").path })
-  runNudgeSignalCase("documented-codex-reason", "does not treat codex-interactive-prompt as the measured stale reason", DOCUMENTED_CODEX_BLOCKED_IDLE_STUB, { status: 1, stderr: /worker is busy \(codex-interactive-prompt\)[\s\S]*NOTHING was sent/ }, 0, { path: stageNudgeWorker("documented-codex-reason", "codex").path })
-  check("nudge-worker.mjs", "--dry-run calls orca not at all", ["--terminal", "t1", "--text", "hi", "--dry-run"], { status: 0, stdout: /"dryRun": true/ }, { env: orcaEnv([]) })
-}
-
 /**
  * pr-watch cases. Every one is a state the two hand-rolled ORB-88 loops got wrong, so the
  * regression they pin is "the watcher went back to sleep with the answer on screen".
@@ -2848,101 +2808,6 @@ const prWatchCases = () => {
   check("pr-watch.mjs", "refuses a repo that is not an owner\\/name slug", ["--repo", "orbit-ui-mobile", "--pr", "615", "--once"], { status: 2, stderr: /owner\/name slug/ })
 }
 
-/**
- * worker-watch cases. The liveness half is the whole point: a single terminal read cannot tell a
- * busy worker from an idle one, and a busy worker's tail is thousands of characters of
- * concatenated repaint fragments that hide whatever it last really said.
- */
-const workerWatchCases = () => {
-  const terminalHandle = "term_ca852374-175d-42cd-8407-b579a03cc13a"
-  const childWorktree = (path) => ({
-    path,
-    repoId: "r-ui",
-    projectId: "github:thomasluizon/orbit-ui-mobile",
-    isMainWorktree: false,
-    isArchived: false,
-    branch: "refs/heads/feature/orb-75-prove-the-harness-gate",
-    linkedLinearIssue: "ORB-75",
-    baseRef: "main",
-    comment: "ORB-75 launched: worker running",
-  })
-  const linearState = {
-    match: "linear issue ORB-75",
-    stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-75", state: { name: "In Progress" }, labels: [] } } }),
-  }
-  const fleet = (path, { lastOutputAt, tail }) => [
-    { match: "worktree list", stdout: JSON.stringify({ ok: true, result: { worktrees: [childWorktree(path)] } }) },
-    {
-      match: "terminal list",
-      stdout: JSON.stringify({ ok: true, result: { terminals: [{ handle: terminalHandle, worktreePath: path, title: "Claude Code", lastOutputAt: 0 }] } }).replace(
-        '"lastOutputAt":0',
-        `"lastOutputAt":${lastOutputAt}`,
-      ),
-    },
-    { match: "terminal read", stdout: JSON.stringify({ ok: true, result: { terminal: { tail } } }) },
-    linearState,
-  ]
-
-  check(
-    "worker-watch.mjs",
-    "an empty fleet says so rather than printing nothing",
-    [],
-    { status: 0, stdout: /no Orca worktrees/ },
-    { env: orcaEnv([{ match: "worktree list", stdout: JSON.stringify({ ok: true, result: { worktrees: [] } }) }]) },
-  )
-
-  /** __NOW__ is stamped per stub call, so the two samples differ: a TUI painting its spinner. */
-  const busy = check(
-    "worker-watch.mjs",
-    "a repainting terminal is BUSY, and its repaint tail yields no output lines",
-    ["--no-contract"],
-    { status: 0, stdout: /BUSY\s+ORB-75/ },
-    {
-      env: orcaEnv(
-        fleet("C:/wt/orb-75", {
-          lastOutputAt: "__NOW__",
-          tail: ["WorkingWorkingWorkingWorking (12s - esc to interupt)WorkingWorking", "  ⠋ ⠙ ⠹ ⠸  "],
-        }),
-      ),
-    },
-  )
-  T("worker-watch.mjs: the repaint tail is stripped to nothing rather than printed raw", /nothing but repaint noise/.test(busy.stdout), busy.stdout.slice(0, 400))
-  T("worker-watch.mjs: the ticket's Linear state is reported alongside liveness", /In Progress/.test(busy.stdout), busy.stdout.slice(0, 400))
-  T(
-    "worker-watch.mjs: the rendered terminal handle is complete and directly reusable",
-    busy.stdout.includes(`${terminalHandle} BUSY`) && !/term_ca852374\s+BUSY/.test(busy.stdout),
-    busy.stdout.slice(0, 400),
-  )
-
-  /** A frozen lastOutputAt is a settled TUI: identical samples, so IDLE. */
-  const idle = check(
-    "worker-watch.mjs",
-    "two identical samples are IDLE, and real content survives the stripping",
-    [],
-    { status: 0, stdout: /IDLE\s+ORB-75/ },
-    {
-      env: orcaEnv(
-        fleet(root, {
-          lastOutputAt: "1785168487585",
-          tail: ["Working (30s - esc to interupt)", "Wrote tools/pr-watch.mjs", "Which of these two approaches do you want?"],
-        }),
-      ),
-    },
-  )
-  T(
-    "worker-watch.mjs: the last meaningful lines survive, so a worker stopped on a question is readable",
-    /Wrote tools\/pr-watch\.mjs/.test(idle.stdout) && /Which of these two approaches/.test(idle.stdout),
-    idle.stdout.slice(0, 400),
-  )
-  T(
-    "worker-watch.mjs: an unreadable contract verdict is reported, never silently dropped",
-    /contract\s+unavailable/.test(idle.stdout),
-    `worker-status ran against a non-repo path, so the verdict must degrade visibly\n     ${idle.stdout.slice(0, 400)}`,
-  )
-  check("worker-watch.mjs", "refuses a repo outside orchestrator.json", ["--repo", "zzz"], { status: 2, stderr: /--repo must be one of/ })
-  check("worker-watch.mjs", "refuses a non-positive --lines", ["--lines", "0"], { status: 2, stderr: /positive integer/ })
-}
-
 /** A linked child checkout is the smallest real Git fixture that can prove teardown verification. */
 const stageTeardownWorktree = (label, { dirty = false, changed = false, squashMerged = false, fastForwardMerged = false, serverMerged = false, localFollowUp = false, localFollowUpMerged = false, siblingTargetAdvance = false, branchDeleteMode } = {}) => {
   const primary = join(root, "teardown", label, "primary")
@@ -3189,14 +3054,33 @@ const teardownWorktreeRecord = (fixture) => ({
 const mergedPullRequest = (fixture, number = 124) => ({ number, mergedAt: "2026-07-28T12:00:00Z", mergeCommit: { oid: fixture.mergeCommit }, headRefOid: fixture.headCommit })
 const missingTargetPullRequest = (fixture) => ({ ...mergedPullRequest(fixture), mergeCommit: { oid: fixture.headCommit } })
 
-const teardownPlan = (fixture, { state = "Done", terminals = [], pullRequest = mergedPullRequest(fixture), pullRequestOutput = JSON.stringify(pullRequest ? [pullRequest] : []), pullRequestExit = 0, removePath, removal = JSON.stringify({ ok: true, result: {} }), removalExit = 0 } = {}) => [
+const teardownPlan = (fixture, { state = "Done", pullRequest = mergedPullRequest(fixture), pullRequestOutput = JSON.stringify(pullRequest ? [pullRequest] : []), pullRequestExit = 0, removePath, removal = JSON.stringify({ ok: true, result: {} }), removalExit = 0 } = {}) => [
   { match: "worktree list", stdout: JSON.stringify({ ok: true, result: { worktrees: [teardownWorktreeRecord(fixture)] } }) },
-  { match: "terminal list", stdout: JSON.stringify({ ok: true, result: { terminals } }) },
   { match: "linear issue ORB-124", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-124", state: { name: state } } } }) },
   { match: "pr list --head feature/orb-124-teardown --base main --state merged --limit 1 --json number,mergeCommit,headRefOid,mergedAt", stdout: pullRequestOutput, exit: pullRequestExit },
   { match: "terminal stop", stdout: JSON.stringify({ ok: true, result: {} }) },
   { match: "worktree rm", stdout: removal, exit: removalExit, ...(removePath ? { removePath } : {}) },
 ]
+
+/**
+ * A worker's liveness is its launcher-written PID, not a terminal repaint: headless workers own
+ * no terminal to repaint. `pid` must be a process this suite can prove alive or dead, so a live
+ * case uses the harness's own PID and a dead case uses a probe process that has already exited.
+ */
+const stageWorkerPidMarker = (worktreePath, pid) => {
+  const gitDirectory = resolve(
+    worktreePath,
+    spawnSync("git", ["-C", worktreePath, "rev-parse", "--git-dir"], { encoding: "utf8" }).stdout.trim(),
+  )
+  const marker = join(gitDirectory, "orbit-worker-pids.jsonl")
+  writeFileSync(marker, `${JSON.stringify({ issue: "ORB-124", worktreePath, pid, startedAt: "2026-07-30T00:00:00.000Z" })}\n`)
+  return marker
+}
+
+const exitedProbePid = () => {
+  const probe = spawnSync(process.execPath, ["-e", "process.stdout.write(String(process.pid))"], { encoding: "utf8" })
+  return probe.status === 0 ? Number(probe.stdout) : Number.NaN
+}
 
 const teardownWorktreeCases = () => {
   check("teardown-worktree.mjs", "refuses no selector", [], { status: 2, stderr: /provide exactly one selector/ })
@@ -3254,21 +3138,19 @@ const teardownWorktreeCases = () => {
   )
   T("teardown-worktree.mjs: verified removal actually deleted the fixture", !existsSync(allGood.child), unavailable.stderr)
 
-  const missingTerminalPath = stageTeardownWorktree("missing-terminal-path")
+  const exitedWorker = stageTeardownWorktree("exited-worker")
+  const exitedWorkerMarker = stageWorkerPidMarker(exitedWorker.child, exitedProbePid())
   check(
     "teardown-worktree.mjs",
-    "ignores another fleet terminal without a worktree path",
+    "a worker PID that has exited is torn down",
     ["--issue", "ORB-124"],
     { status: 0, stdout: /REMOVED worktree/ },
-    {
-      env: orcaEnv([
-        ...teardownPlan(missingTerminalPath, {
-          terminals: [{ handle: "term_other_worktree", title: "other worktree" }, { handle: "term_target", worktreePath: missingTerminalPath.child, title: "target worktree" }],
-          removePath: missingTerminalPath.child,
-        }),
-        { match: "terminal show", stdout: JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1 } } }) },
-      ]),
-    },
+    { env: orcaEnv(teardownPlan(exitedWorker, { removePath: exitedWorker.child })) },
+  )
+  T(
+    "teardown-worktree.mjs: teardown prunes the worker PID marker it verified",
+    !existsSync(exitedWorkerMarker),
+    `marker still present at ${exitedWorkerMarker}`,
   )
 
   const dirty = stageTeardownWorktree("dirty", { dirty: true })
@@ -3285,18 +3167,16 @@ const teardownWorktreeCases = () => {
   check("teardown-worktree.mjs", "an unreadable merge commit refuses with exit 3", ["--issue", "ORB-124"], { status: 3, stderr: /UNMET merge-commit-in-target: could not read pull request #124's merge commit/ }, { env: orcaEnv(teardownPlan(unreadableMergeCommit, { pullRequest: { ...mergedPullRequest(unreadableMergeCommit), mergeCommit: { oid: "0000000000000000000000000000000000000001" } } })) })
 
   const lookupFailure = stageTeardownWorktree("lookup-failure", { dirty: true })
+  stageWorkerPidMarker(lookupFailure.child, process.pid)
   const lookupFailureLog = join(root, "teardown", "lookup-failure.log")
   check(
     "teardown-worktree.mjs",
     "a failed merged-commit lookup reports every independent refusal",
     ["--issue", "ORB-124"],
-    { status: 3, stderr: /UNMET worktree-clean: uncommitted paths: (?:\?\? )?dirty\.txt[\s\S]*UNMET pull-request-merged: gh pr list for feature\/orb-124-teardown failed[\s\S]*UNMET linear-done: issue is In Review, expected Done[\s\S]*UNMET terminals-idle: worker is still working/ },
+    { status: 3, stderr: /UNMET worktree-clean: uncommitted paths: (?:\?\? )?dirty\.txt[\s\S]*UNMET pull-request-merged: gh pr list for feature\/orb-124-teardown failed[\s\S]*UNMET linear-done: issue is In Review, expected Done[\s\S]*UNMET worker-pid-exited: worker PID is still running/ },
     {
       env: {
-        ...orcaEnv([
-          ...teardownPlan(lookupFailure, { state: "In Review", terminals: [{ handle: "term_busy", worktreePath: lookupFailure.child }], pullRequest: null, pullRequestExit: 1, removePath: lookupFailure.child }),
-          { match: "terminal show", sequence: [JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1 } } }), JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 2 } } })] },
-        ]),
+        ...orcaEnv(teardownPlan(lookupFailure, { state: "In Review", pullRequest: null, pullRequestExit: 1, removePath: lookupFailure.child })),
         ORBIT_ORCA_LOG: lookupFailureLog,
       },
     },
@@ -3309,18 +3189,16 @@ const teardownWorktreeCases = () => {
   check("teardown-worktree.mjs", "a merged-commit lookup with malformed JSON refuses", ["--issue", "ORB-124"], { status: 3, stderr: /gh pr list for feature\/orb-124-teardown returned unparseable output/ }, { env: orcaEnv(teardownPlan(malformedPullRequestPayload, { pullRequestOutput: "not-json" })) })
 
   const notMerged = stageTeardownWorktree("not-merged", { dirty: true })
+  stageWorkerPidMarker(notMerged.child, process.pid)
   const notMergedLog = join(root, "teardown", "not-merged.log")
   check(
     "teardown-worktree.mjs",
     "an unmerged pull request reports every independent refusal",
     ["--issue", "ORB-124"],
-    { status: 1, stderr: /UNMET worktree-clean: uncommitted paths: (?:\?\? )?dirty\.txt[\s\S]*UNMET pull-request-merged: pull request for feature\/orb-124-teardown is not a merged pull request with merge and head commits[\s\S]*UNMET linear-done: issue is In Review, expected Done[\s\S]*UNMET terminals-idle: worker is still working/ },
+    { status: 1, stderr: /UNMET worktree-clean: uncommitted paths: (?:\?\? )?dirty\.txt[\s\S]*UNMET pull-request-merged: pull request for feature\/orb-124-teardown is not a merged pull request with merge and head commits[\s\S]*UNMET linear-done: issue is In Review, expected Done[\s\S]*UNMET worker-pid-exited: worker PID is still running/ },
     {
       env: {
-        ...orcaEnv([
-          ...teardownPlan(notMerged, { state: "In Review", terminals: [{ handle: "term_busy", worktreePath: notMerged.child }], pullRequest: null, removePath: notMerged.child }),
-          { match: "terminal show", sequence: [JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1 } } }), JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 2 } } })] },
-        ]),
+        ...orcaEnv(teardownPlan(notMerged, { state: "In Review", pullRequest: null, removePath: notMerged.child })),
         ORBIT_ORCA_LOG: notMergedLog,
       },
     },
@@ -3341,22 +3219,20 @@ const teardownWorktreeCases = () => {
   const notDone = stageTeardownWorktree("not-done")
   check("teardown-worktree.mjs", "a closed-looking but non-Done Linear issue is refused", ["--issue", "ORB-124"], { status: 1, stderr: /linear-done[\s\S]*In Review/ }, { env: orcaEnv(teardownPlan(notDone, { state: "In Review", removePath: notDone.child })) })
 
-  const repainting = stageTeardownWorktree("repainting")
-  const log = join(root, "teardown", "repainting.log")
+  const stillRunning = stageTeardownWorktree("still-running")
+  const stillRunningMarker = stageWorkerPidMarker(stillRunning.child, process.pid)
+  const stillRunningLog = join(root, "teardown", "still-running.log")
   check(
     "teardown-worktree.mjs",
-    "a repainting terminal is refused because the worker is still working",
+    "a worker PID that is still running is refused because the worker is still working",
     ["--issue", "ORB-124"],
-    { status: 1, stderr: /terminals-idle[\s\S]*worker is still working/ },
-    {
-      env: {
-        ...orcaEnv([
-          ...teardownPlan(repainting, { terminals: [{ handle: "term_busy", worktreePath: repainting.child }] }),
-          { match: "terminal show", sequence: [JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 1 } } }), JSON.stringify({ ok: true, result: { terminal: { lastOutputAt: 2 } } })] },
-        ]),
-        ORBIT_ORCA_LOG: log,
-      },
-    },
+    { status: 1, stderr: new RegExp(`worker-pid-exited[\\s\\S]*worker PID is still running: ${process.pid}`) },
+    { env: { ...orcaEnv(teardownPlan(stillRunning)), ORBIT_ORCA_LOG: stillRunningLog } },
+  )
+  T(
+    "teardown-worktree.mjs: a refused teardown leaves the worker PID marker in place",
+    existsSync(stillRunningMarker) && existsSync(stillRunning.child),
+    `marker ${existsSync(stillRunningMarker)}, worktree ${existsSync(stillRunning.child)}`,
   )
 
   const survives = stageTeardownWorktree("survives")
@@ -3539,6 +3415,7 @@ const orchestrateFlagCases = () => {
       .split("\0")
       .filter((path) => /\.(md|mjs|json|ya?ml|txt)$/i.test(path))
       .filter((path) => path.replaceAll("\\", "/") !== `tools/${SELF}`)
+      .filter((path) => existsSync(join(REPO_ROOT, path)))
     : []
   const oneTicketSingle = [
     /\/orchestrate\s+ORB-(?:N|\d+)\s+--single/,
@@ -5193,15 +5070,15 @@ const automationBudgetCases = () => {
       .map((value) => value === "routine" ? "reserved" : value),
   )
   T(
-    "automation-budget.mjs: a reserved deep invocation may consume the exact remaining token budget",
+    "automation-budget.mjs: an invocation may consume the exact remaining token budget",
     exactBudget.status === 0 && /warning[\s\S]*1000 tokens/.test(exactBudget.stderr),
     `exit ${exactBudget.status}\n     stdout: ${exactBudget.stdout}\n     stderr: ${exactBudget.stderr}`,
   )
   check(
     "automation-budget.mjs",
-    "explicitly reserved deep work proceeds beyond the routine token budget",
+    "every invocation blocks when it exceeds the token budget",
     checkArgs("deep-over-budget", ledgerBlock, 250, ["--json"]).map((value) => value === "routine" ? "reserved" : value),
-    { status: 0, stdout: /"status":"RESERVED"[\s\S]*"projectedTokens":1151/, stderr: /reserved invocation[\s\S]*proceeds with 1151 projected tokens[\s\S]*budget 1000 tokens/ },
+    { status: 4, stdout: /"status":"BLOCK"[\s\S]*"projectedTokens":1151/, stderr: /blocked:[\s\S]*projected spend 1151 tokens/ },
   )
 
   check(
@@ -5302,13 +5179,12 @@ const automationBudgetCases = () => {
   )
   check(
     "automation-budget.mjs",
-    "explicitly reserved deep work proceeds with a warning while another measurement is absent",
+    "an unmeasured record still fails closed for every invocation tier",
     checkArgs("reserved-after-pending", pendingLedger, 100, ["--json"])
       .map((value) => value === "routine" ? "reserved" : value),
     {
-      status: 0,
-      stdout: /"status":"RESERVED"[\s\S]*"missingIdentities":\["pending-invocation"\]/,
-      stderr: /warning: reserved invocation "reserved-after-pending" proceeds[\s\S]*missing measurements for identities pending-invocation/,
+      status: 3,
+      stderr: /lack input or output tokens[\s\S]*pending-invocation/,
     },
   )
   const correctedLedger = stage(
@@ -5320,6 +5196,427 @@ const automationBudgetCases = () => {
     "a later authoritative append for the same identity closes its pending measurement",
     checkArgs("after-correction", correctedLedger, 100, ["--json"]),
     { status: 0, stdout: /"projectedTokens":600[\s\S]*"totalTokens":500[\s\S]*"missingIdentities":\[\]/ },
+  )
+
+  /**
+   * Cache reads are recorded and never charged. Measured on the ORB-153 launch: raw input was
+   * 5,681,754 tokens of which 5,399,808 were cache reads, so the raw figure blocks a 1,000,000
+   * budget and the uncached figure proceeds. Every fixture here is sized so the two answers
+   * differ, which is the only way the assertion can fail when the subtraction is dropped.
+   */
+  const cachedLedger = stage(
+    "budget/cached-input.jsonl",
+    `${JSON.stringify({
+      identity: "cache-heavy",
+      engine: "claude",
+      tier: "routine",
+      startedAt: "2030-01-02T09:00:00.000Z",
+      endedAt: "2030-01-02T10:00:00.000Z",
+      inputTokens: 900,
+      cachedInputTokens: 850,
+      outputTokens: 20,
+    })}\n`,
+  )
+  check(
+    "automation-budget.mjs",
+    "cache reads are recorded but never counted as spend",
+    checkArgs("after-cache-heavy", cachedLedger, 100, ["--json"]),
+    {
+      status: 0,
+      stdout: /"status":"PROCEED"[\s\S]*"projectedTokens":170[\s\S]*"inputTokens":50,"outputTokens":20,"totalTokens":70,"routineTokens":70/,
+    },
+  )
+  check(
+    "automation-budget.mjs",
+    "record keeps the raw provider input alongside its cache-read share",
+    [
+      "record",
+      "--identity",
+      "cache-round-trip",
+      "--engine",
+      "claude",
+      "--tier",
+      "routine",
+      "--started-at",
+      "2030-01-02T09:00:00Z",
+      "--ended-at",
+      "2030-01-02T10:00:00Z",
+      "--input-tokens",
+      "900",
+      "--cached-input-tokens",
+      "850",
+      "--output-tokens",
+      "20",
+      "--ledger",
+      stage("budget/cache-round-trip.jsonl", ""),
+      "--json",
+    ],
+    { status: 0, stdout: /"inputTokens":900,"cachedInputTokens":850,"outputTokens":20/ },
+  )
+  check(
+    "automation-budget.mjs",
+    "a cache-read count without its raw input is refused rather than assumed",
+    [
+      "record",
+      "--identity",
+      "cache-without-input",
+      "--engine",
+      "claude",
+      "--tier",
+      "routine",
+      "--started-at",
+      "2030-01-02T09:00:00Z",
+      "--ended-at",
+      "2030-01-02T10:00:00Z",
+      "--cached-input-tokens",
+      "850",
+      "--output-tokens",
+      "20",
+      "--ledger",
+      stage("budget/cache-without-input.jsonl", ""),
+    ],
+    { status: 2, stderr: /--cached-input-tokens requires --input-tokens and cannot exceed it/ },
+  )
+  check(
+    "automation-budget.mjs",
+    "a ledger row claiming more cache reads than raw input is rejected",
+    checkArgs(
+      "after-impossible-cache",
+      stage(
+        "budget/impossible-cache.jsonl",
+        `${JSON.stringify({
+          identity: "impossible-cache",
+          engine: "claude",
+          tier: "routine",
+          startedAt: "2030-01-02T09:00:00.000Z",
+          endedAt: "2030-01-02T10:00:00.000Z",
+          inputTokens: 100,
+          cachedInputTokens: 101,
+          outputTokens: 20,
+        })}\n`,
+      ),
+    ),
+    { status: 3, stderr: /cachedInputTokens must not exceed inputTokens/ },
+  )
+
+  /**
+   * The reservation lease. Every row below is built relative to the wall clock, because the
+   * lease is the only rule in this tool that reads it, and both of its edges have to hold:
+   * inside the lease a reservation still holds budget, past it the row releases itself. The
+   * unmeasured rows copy the exact shape the production ledger carries for a reservation
+   * written before `reserve` persisted `pending`: no pending key, no reserved figure, no
+   * tokens. That shape is why the fuse refused every codex launch for a full week.
+   */
+  /**
+   * ABSOLUTE ages, never an offset derived from the tool's own constants. A fixture aged
+   * relative to the compiled-in lease can never fail when that lease moves, it moves with it,
+   * which is how raising the unclaimed lease from two hours to sixteen re-poisoned the real
+   * production ledger with the whole suite still green. These four hold the two arms between
+   * fixed walls: change either constant far enough to re-break a four hour old legacy row, or
+   * to expire a fourteen hour session that is still running, and a case goes red.
+   */
+  const HOUR_MILLISECONDS = 60 * 60 * 1000
+  const leaseResetAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+  const leaseCheckArgs = (identity, ledger, invocationTokens) => [
+    "check",
+    "--engine",
+    "codex",
+    "--identity",
+    identity,
+    "--tier",
+    "routine",
+    "--reset-at",
+    leaseResetAt,
+    "--warning-tokens",
+    "800000",
+    "--budget-tokens",
+    "1000000",
+    "--invocation-tokens",
+    String(invocationTokens),
+    "--ledger",
+    ledger,
+    "--json",
+  ]
+  /**
+   * The committed production row, read off disk rather than retyped, so the SHAPE this suite
+   * defends is the one a pre-C1 `reserve` actually wrote: no pending, no reservedTokens, no
+   * token measurements, no workerPid. Only the timestamps are moved, to the absolute age each
+   * case names in its own label.
+   */
+  const LEGACY_FIXTURE = JSON.parse(
+    readFileSync(join(TOOLS_DIR, "__fixtures__", "legacy-reservation.jsonl"), "utf8").trim(),
+  )
+  const legacyReservation = (identity, endedAgoMilliseconds) => {
+    const endedAt = new Date(Date.now() - endedAgoMilliseconds).toISOString()
+    return JSON.stringify({
+      ...LEGACY_FIXTURE,
+      identity,
+      startedAt: new Date(Date.now() - endedAgoMilliseconds - 13_000).toISOString(),
+      endedAt,
+      accountContext: { ...LEGACY_FIXTURE.accountContext, observedAt: endedAt },
+    })
+  }
+  T(
+    "automation-budget.mjs: the committed legacy fixture still carries the pre-C1 reservation shape",
+    LEGACY_FIXTURE.engine === "codex" &&
+      LEGACY_FIXTURE.tier === "routine" &&
+      typeof LEGACY_FIXTURE.identity === "string" &&
+      LEGACY_FIXTURE.accountContext?.scope === "account" &&
+      ["pending", "reservedTokens", "inputTokens", "outputTokens", "workerPid", "cancelled"].every(
+        (field) => !Object.hasOwn(LEGACY_FIXTURE, field),
+      ),
+    `tools/__fixtures__/legacy-reservation.jsonl: ${JSON.stringify(LEGACY_FIXTURE)}`,
+  )
+  const leasedReservation = (identity, endedAgoMilliseconds, reservedTokens, workerPid) =>
+    JSON.stringify({
+      identity,
+      engine: "codex",
+      tier: "routine",
+      startedAt: new Date(Date.now() - endedAgoMilliseconds - 13_000).toISOString(),
+      endedAt: new Date(Date.now() - endedAgoMilliseconds).toISOString(),
+      pending: true,
+      reservedTokens,
+      ...(workerPid === undefined ? {} : { workerPid }),
+    })
+  const measuredInvocation = (identity, endedAgoMilliseconds, inputTokens, outputTokens) =>
+    JSON.stringify({
+      identity,
+      engine: "codex",
+      tier: "routine",
+      startedAt: new Date(Date.now() - endedAgoMilliseconds - 60_000).toISOString(),
+      endedAt: new Date(Date.now() - endedAgoMilliseconds).toISOString(),
+      inputTokens,
+      outputTokens,
+    })
+
+  check(
+    "automation-budget.mjs",
+    "a legacy reservation four hours old no longer refuses a launch the budget permits",
+    leaseCheckArgs(
+      "after-expired-legacy",
+      stage(
+        "budget/expired-legacy.jsonl",
+        `${legacyReservation("ORB-163:stranded", 4 * HOUR_MILLISECONDS)}\n`,
+      ),
+      100000,
+    ),
+    {
+      status: 0,
+      stdout: /"status":"PROCEED"[\s\S]*"projectedTokens":100000[\s\S]*"pendingTokens":0,"missingIdentities":\[\],"expiredIdentities":\["ORB-163:stranded"\]/,
+      stderr: /reservation lease expired for identities ORB-163:stranded/,
+    },
+  )
+  check(
+    "automation-budget.mjs",
+    "a legacy reservation one hour old still fails the fuse closed",
+    leaseCheckArgs(
+      "after-live-legacy",
+      stage(
+        "budget/live-legacy.jsonl",
+        `${legacyReservation("ORB-163:in-flight", HOUR_MILLISECONDS)}\n`,
+      ),
+      100000,
+    ),
+    { status: 3, stderr: /lack input or output tokens[\s\S]*ORB-163:in-flight/ },
+  )
+  check(
+    "automation-budget.mjs",
+    "an unclaimed reservation one hour old still holds its reserved tokens",
+    leaseCheckArgs(
+      "after-live-reservation",
+      stage(
+        "budget/live-reservation.jsonl",
+        `${leasedReservation("ORB-163:live", HOUR_MILLISECONDS, 250000)}\n`,
+      ),
+      100000,
+    ),
+    {
+      status: 0,
+      stdout: /"status":"PROCEED"[\s\S]*"projectedTokens":350000[\s\S]*"pendingTokens":250000,"missingIdentities":\[\],"expiredIdentities":\[\]/,
+    },
+  )
+  check(
+    "automation-budget.mjs",
+    "an unclaimed reservation four hours old stops holding budget",
+    leaseCheckArgs(
+      "after-killed-launcher",
+      stage(
+        "budget/expired-reservation.jsonl",
+        `${leasedReservation("ORB-163:killed-launcher", 4 * HOUR_MILLISECONDS, 250000)}\n`,
+      ),
+      100000,
+    ),
+    {
+      status: 0,
+      stdout: /"projectedTokens":100000[\s\S]*"pendingTokens":0,"missingIdentities":\[\],"expiredIdentities":\["ORB-163:killed-launcher"\]/,
+    },
+  )
+  check(
+    "automation-budget.mjs",
+    "a reservation whose worker process is gone expires well inside its lease",
+    leaseCheckArgs(
+      "after-dead-worker",
+      stage(
+        "budget/dead-worker.jsonl",
+        `${leasedReservation("ORB-163:dead-worker", 60_000, 250000, exitedProbePid())}\n`,
+      ),
+      100000,
+    ),
+    {
+      status: 0,
+      stdout: /"projectedTokens":100000[\s\S]*"pendingTokens":0,"missingIdentities":\[\],"expiredIdentities":\["ORB-163:dead-worker"\]/,
+      stderr: /reservation lease expired for identities ORB-163:dead-worker/,
+    },
+  )
+  check(
+    "automation-budget.mjs",
+    "a live worker PID fourteen hours in still holds its tokens, because real sessions run that long",
+    leaseCheckArgs(
+      "after-live-worker",
+      stage(
+        "budget/live-worker.jsonl",
+        `${leasedReservation("ORB-163:live-worker", 14 * HOUR_MILLISECONDS, 250000, process.pid)}\n`,
+      ),
+      100000,
+    ),
+    {
+      status: 0,
+      stdout: /"projectedTokens":350000[\s\S]*"pendingTokens":250000,"missingIdentities":\[\],"expiredIdentities":\[\]/,
+    },
+  )
+  check(
+    "automation-budget.mjs",
+    "a live worker PID eighteen hours in still expires, so a recycled PID can never poison the fuse forever",
+    leaseCheckArgs(
+      "after-recycled-pid",
+      stage(
+        "budget/recycled-pid.jsonl",
+        `${leasedReservation("ORB-163:recycled-pid", 18 * HOUR_MILLISECONDS, 250000, process.pid)}\n`,
+      ),
+      100000,
+    ),
+    {
+      status: 0,
+      stdout: /"projectedTokens":100000[\s\S]*"pendingTokens":0,"missingIdentities":\[\],"expiredIdentities":\["ORB-163:recycled-pid"\]/,
+      stderr: /reservation lease expired for identities ORB-163:recycled-pid/,
+    },
+  )
+  const claimedLedger = stage("budget/claimed.jsonl", `${leasedReservation("ORB-163:to-claim", 60_000, 250000)}\n`)
+  const claimed = run("automation-budget.mjs", [
+    "claim",
+    "--identity",
+    "ORB-163:to-claim",
+    "--engine",
+    "codex",
+    "--tier",
+    "routine",
+    "--started-at",
+    new Date(Date.now() - 73_000).toISOString(),
+    "--ended-at",
+    new Date().toISOString(),
+    "--invocation-tokens",
+    "250000",
+    "--worker-pid",
+    String(process.pid),
+    "--ledger",
+    claimedLedger,
+    "--json",
+  ])
+  const claimedRows = existsSync(claimedLedger)
+    ? readFileSync(claimedLedger, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
+    : []
+  T(
+    "automation-budget.mjs: claim attaches the running worker PID to an open reservation",
+    claimed.status === 0 &&
+      /"status":"CLAIMED"/.test(claimed.stdout) &&
+      claimedRows.length === 2 &&
+      claimedRows[1]?.pending === true &&
+      claimedRows[1]?.workerPid === process.pid &&
+      claimedRows[1]?.reservedTokens === 250000,
+    `exit ${claimed.status}\n     ${claimed.stderr}\n     ${JSON.stringify(claimedRows)}`,
+  )
+  check(
+    "automation-budget.mjs",
+    "claim refuses an identity whose latest record is not an open reservation",
+    [
+      "claim",
+      "--identity",
+      "ORB-163:measured-already",
+      "--engine",
+      "codex",
+      "--tier",
+      "routine",
+      "--started-at",
+      new Date(Date.now() - 73_000).toISOString(),
+      "--ended-at",
+      new Date().toISOString(),
+      "--invocation-tokens",
+      "250000",
+      "--worker-pid",
+      String(process.pid),
+      "--ledger",
+      stage("budget/claim-closed.jsonl", `${measuredInvocation("ORB-163:measured-already", 60_000, 10, 5)}\n`),
+    ],
+    { status: 3, stderr: /is not an open reservation/ },
+  )
+  check(
+    "automation-budget.mjs",
+    "a ledger row carrying a worker PID without a reservation is rejected",
+    leaseCheckArgs(
+      "after-orphan-pid",
+      stage(
+        "budget/orphan-pid.jsonl",
+        `${JSON.stringify({
+          identity: "ORB-163:orphan-pid",
+          engine: "codex",
+          tier: "routine",
+          startedAt: "2026-07-30T09:00:00.000Z",
+          endedAt: "2026-07-30T10:00:00.000Z",
+          inputTokens: 10,
+          outputTokens: 5,
+          workerPid: 1234,
+        })}\n`,
+      ),
+      100000,
+    ),
+    { status: 3, stderr: /workerPid is only valid on a pending reservation/ },
+  )
+  check(
+    "automation-budget.mjs",
+    "a half-measured invocation keeps failing closed for the whole window, no lease applies",
+    leaseCheckArgs(
+      "after-half-measured",
+      stage(
+        "budget/half-measured.jsonl",
+        `${JSON.stringify({
+          identity: "ORB-163:half-measured",
+          engine: "codex",
+          tier: "routine",
+          startedAt: new Date(Date.now() - 4 * HOUR_MILLISECONDS - 60_000).toISOString(),
+          endedAt: new Date(Date.now() - 4 * HOUR_MILLISECONDS).toISOString(),
+          inputTokens: 900,
+        })}\n`,
+      ),
+      100000,
+    ),
+    { status: 3, stderr: /lack input or output tokens[\s\S]*ORB-163:half-measured/ },
+  )
+  check(
+    "automation-budget.mjs",
+    "an expired lease never softens a real token block",
+    leaseCheckArgs(
+      "after-expired-block",
+      stage(
+        "budget/expired-with-spend.jsonl",
+        [
+          legacyReservation("ORB-163:stranded-beside-spend", 4 * HOUR_MILLISECONDS),
+          measuredInvocation("ORB-163:measured", 4 * HOUR_MILLISECONDS, 900000, 50000),
+          "",
+        ].join("\n"),
+      ),
+      100000,
+    ),
+    { status: 4, stderr: /blocked:[\s\S]*projected spend 1050000 tokens/ },
   )
 
   const reportLedger = stage(
@@ -5338,7 +5635,7 @@ const automationBudgetCases = () => {
     {
       status: 0,
       stdout:
-        /"engine":"claude","inputTokens":400,"outputTokens":250,"totalTokens":650,"routineTokens":500,"reservedTokens":150,"missingIdentities":\["report-pending"\],"windowStart":"2030-01-01T00:00:00.000Z","resetsAt":"2030-01-08T00:00:00.000Z"/,
+        /"engine":"claude","inputTokens":400,"outputTokens":250,"totalTokens":650,"routineTokens":500,"reservedTokens":150,"pendingTokens":0,"missingIdentities":\["report-pending"\],"expiredIdentities":\[\],"windowStart":"2030-01-01T00:00:00.000Z","resetsAt":"2030-01-08T00:00:00.000Z"/,
     },
   )
   check(
@@ -5348,7 +5645,7 @@ const automationBudgetCases = () => {
     {
       status: 0,
       stdout:
-        /^claude: 650 tokens \(400 input, 250 output; 500 routine, 150 reserved\); missing identities: report-pending; resets at 2030-01-08T00:00:00.000Z\r?\n$/,
+        /^claude: 650 tokens \(400 input, 250 output; 500 routine, 150 reserved, 0 pending\); missing identities: report-pending; expired reservations: none; resets at 2030-01-08T00:00:00.000Z\r?\n$/,
     },
   )
 
@@ -5364,7 +5661,7 @@ const common = (identity) => [
   tool, "reserve", "--engine", "claude", "--identity", identity, "--tier", "routine",
   "--started-at", "2030-01-02T09:00:00.000Z", "--ended-at", "2030-01-02T10:00:00.000Z",
   "--reset-at", "2030-01-08T00:00:00Z", "--warning-tokens", "800",
-  "--budget-tokens", "1000", "--invocation-tokens", "600", "--ledger", ledger,
+  "--budget-tokens", "1000", "--invocation-tokens", "400", "--ledger", ledger,
 ]
 const run = (identity, env = {}) => {
   const child = spawn(process.execPath, common(identity), {
@@ -5402,16 +5699,18 @@ process.stdout.write(JSON.stringify(results))
     ? readFileSync(atomicLedger, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
     : []
   T(
-    "automation-budget.mjs: concurrent checks atomically reserve before another process can pass",
+    "automation-budget.mjs: concurrent reservations proceed atomically below the budget",
     atomic.status === 0 &&
       atomicResults[0]?.status === 0 &&
-      atomicResults[1]?.status === 3 &&
-      /lack input or output tokens[\s\S]*atomic-a/.test(atomicResults[1]?.stderr ?? "") &&
-      atomicRecords.length === 1 &&
-      atomicRecords[0]?.identity === "atomic-a" &&
+      atomicResults[1]?.status === 0 &&
+      !/lack input or output tokens/.test(atomicResults[1]?.stderr ?? "") &&
+      atomicRecords.length === 2 &&
+      new Set(atomicRecords.map((record) => record.identity)).size === 2 &&
+      atomicRecords.every((record) => record.pending === true && record.reservedTokens === 400) &&
       !existsSync(`${atomicLedger}.lock`),
     `exit ${atomic.status}\n     stdout: ${atomic.stdout}\n     stderr: ${atomic.stderr}\n     ledger: ${JSON.stringify(atomicRecords)}`,
   )
+  const beforeCancel = run("automation-budget.mjs", checkArgs("atomic-before-cancel", atomicLedger, 600, ["--json"]))
   const cancelAtomic = run("automation-budget.mjs", [
     "cancel",
     "--identity",
@@ -5430,10 +5729,12 @@ process.stdout.write(JSON.stringify(results))
   const afterCancel = run("automation-budget.mjs", checkArgs("atomic-after-cancel", atomicLedger, 600, ["--json"]))
   T(
     "automation-budget.mjs: append-only cancellation releases a reservation that never started",
-    cancelAtomic.status === 0 &&
+    beforeCancel.status === 4 &&
+      /"projectedTokens":1400[\s\S]*"pendingTokens":800,/.test(beforeCancel.stdout) &&
+      cancelAtomic.status === 0 &&
       afterCancel.status === 0 &&
-      /"projectedTokens":600[\s\S]*"missingIdentities":\[\]/.test(afterCancel.stdout),
-    `cancel exit ${cancelAtomic.status}: ${cancelAtomic.stderr}\n     check exit ${afterCancel.status}: ${afterCancel.stderr}\n     ${afterCancel.stdout}`,
+      /"projectedTokens":1000[\s\S]*"pendingTokens":400,"missingIdentities":\[\]/.test(afterCancel.stdout),
+    `before exit ${beforeCancel.status}: ${beforeCancel.stdout}\n     cancel exit ${cancelAtomic.status}: ${cancelAtomic.stderr}\n     check exit ${afterCancel.status}: ${afterCancel.stderr}\n     ${afterCancel.stdout}`,
   )
 
   check(
@@ -5595,6 +5896,176 @@ const mergeabilityCases = () => {
   const badLog = stage("mergeability-unparseable.log", "")
   const unparseable = run("mergeability.mjs", ["--repo", "orbit/ui", "--pr", "615"], { env: { ...orcaEnv([{ match: "query($owner:String!,$name:String!,$number:Int!)", stdout: "not json" }]), ORBIT_ORCA_LOG: badLog } })
   T("mergeability.mjs: an unparseable forge result is HELD", unparseable.status === 1 && /HELD github-pull-request: GitHub pull-request lookup returned unparseable output/.test(unparseable.stdout), unparseable.stderr || unparseable.stdout)
+}
+
+/**
+ * nudge-worker's whole surface is now a refusal, so every case here asserts the SAME thing the
+ * flag-by-flag suite asserted before the flags went away: this tool never delivers a mid-run turn.
+ * Each named case survives its flag's deletion because the invocation a caller would still try is
+ * exactly the one that must be refused, and the orca log proves nothing was sent.
+ */
+const nudgeWorkerCases = () => {
+  const noArgumentLog = join(root, "nudge-no-argument.log")
+  check(
+    "nudge-worker.mjs",
+    "headless workers explain that a live turn cannot be injected",
+    [],
+    { status: 1, stderr: /mid-run injection is unavailable[\s\S]*relaunch/ },
+    { env: { ...orcaEnv([]), ORBIT_ORCA_LOG: noArgumentLog } },
+  )
+  T(
+    "nudge-worker.mjs: a refused nudge calls orca not at all",
+    !existsSync(noArgumentLog),
+    `orca was invoked: ${existsSync(noArgumentLog) ? readFileSync(noArgumentLog, "utf8") : ""}`,
+  )
+  check("nudge-worker.mjs", "--help documents the fail-closed rule and the relaunch remedy", ["--help"], { status: 0, stdout: /unavailable for headless workers[\s\S]*Relaunch after exit[\s\S]*exit codes:/ })
+  check("nudge-worker.mjs", "rejects multi-line text", ["--terminal", "t1", "--text", "first line\nsecond line"], { status: 2, stderr: /mid-run injection is unavailable/ })
+  check("nudge-worker.mjs", "rejects --text together with --prompt-file", ["--terminal", "t1", "--text", "hi", "--prompt-file", stage("nudge-prompt.md", "body\n")], { status: 2, stderr: /mid-run injection is unavailable/ })
+  check("nudge-worker.mjs", "rejects a non-positive --wait-attempts", ["--terminal", "t1", "--text", "hi", "--wait-attempts", "0"], { status: 2, stderr: /mid-run injection is unavailable/ })
+  const dryRunLog = join(root, "nudge-dry-run.log")
+  check(
+    "nudge-worker.mjs",
+    "--dry-run calls orca not at all",
+    ["--terminal", "t1", "--text", "hi", "--dry-run"],
+    { status: 2, stderr: /mid-run injection is unavailable/ },
+    { env: { ...orcaEnv([]), ORBIT_ORCA_LOG: dryRunLog } },
+  )
+  T(
+    "nudge-worker.mjs: --dry-run leaves no orca invocation behind",
+    !existsSync(dryRunLog),
+    `orca was invoked: ${existsSync(dryRunLog) ? readFileSync(dryRunLog, "utf8") : ""}`,
+  )
+}
+
+/**
+ * worker-watch cases against the PID model that replaced the repaint delta. Liveness is now a
+ * launcher-written PID the harness can prove alive or dead, but everything else the report is for
+ * survives: the Linear state beside liveness, a contract verdict that degrades visibly rather than
+ * vanishing, an empty fleet that says so, and a --repo filter that actually excludes.
+ */
+const stageWorkerWatch = (label, repoPath) => {
+  const base = join(root, "watch", label)
+  mkdirSync(join(base, "tools"), { recursive: true })
+  mkdirSync(join(base, ".claude"), { recursive: true })
+  writeFileSync(
+    join(base, ".claude", "orchestrator.json"),
+    JSON.stringify({ worker: "codex", maxParallelWorktrees: 4, repos: { ui: repoPath, api: join(root, "watch", "absent-api") } }),
+  )
+  cpSync(join(TOOLS_DIR, "worker-watch.mjs"), join(base, "tools", "worker-watch.mjs"))
+  cpSync(join(TOOLS_DIR, "worker-status.mjs"), join(base, "tools", "worker-status.mjs"))
+  cpSync(join(TOOLS_DIR, "lib"), join(base, "tools", "lib"), { recursive: true })
+  return join(base, "tools", "worker-watch.mjs")
+}
+
+const stageWatchedWorktree = (label) => {
+  const path = join(root, "watch", "repos", label)
+  mkdirSync(path, { recursive: true })
+  spawnSync("git", ["-C", path, "init", "--initial-branch=main"], { encoding: "utf8" })
+  return path
+}
+
+const workerWatchCases = () => {
+  const repoPath = join(root, "watch", "repos")
+  const tool = stageWorkerWatch("fleet", repoPath)
+  const watchPlan = (worktrees) => [
+    { match: "worktree list", stdout: JSON.stringify({ ok: true, result: { worktrees } }) },
+    { match: "linear issue ORB-75", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-75", state: { name: "In Progress" } } } }) },
+  ]
+  const watched = (path) => ({
+    path,
+    isMainWorktree: false,
+    isArchived: false,
+    branch: "refs/heads/feature/orb-75-prove-the-harness-gate",
+    linkedLinearIssue: "ORB-75",
+    baseRef: "main",
+  })
+
+  check(
+    "worker-watch.mjs",
+    "an empty fleet says so rather than printing nothing",
+    [],
+    { status: 0, stdout: /no Orca worktrees/ },
+    { path: tool, env: orcaEnv(watchPlan([])) },
+  )
+
+  const livePath = stageWatchedWorktree("live")
+  stageWorkerPidMarker(livePath, process.pid)
+  const live = check(
+    "worker-watch.mjs",
+    "a launcher PID that is still running is BUSY",
+    [],
+    { status: 0, stdout: /BUSY\s+ORB-75/ },
+    { path: tool, env: orcaEnv(watchPlan([watched(livePath)])) },
+  )
+  T(
+    "worker-watch.mjs: the ticket's Linear state is reported alongside liveness",
+    /In Progress/.test(live.stdout),
+    live.stdout.slice(0, 400),
+  )
+  T(
+    "worker-watch.mjs: an unreadable contract verdict is reported, never silently dropped",
+    /contract\s+unavailable/.test(live.stdout),
+    `worker-status ran against a checkout with no Orbit contract, so the verdict must degrade visibly\n     ${live.stdout.slice(0, 400)}`,
+  )
+  /**
+   * IDLE plus NOT MET is the pair that costs a run, so it is the row that has to say WHAT is
+   * unmet. worker-status.mjs already returns the list on stdout; reading only its exit code
+   * threw away the one thing an operator acts on, while /watch's own worked example promised it.
+   */
+  const verdictTool = stageWorkerWatch("verdict", repoPath)
+  writeFileSync(
+    join(dirname(verdictTool), "worker-status.mjs"),
+    `#!/usr/bin/env node\nconsole.log(JSON.stringify({ issue: "ORB-75", unmet: ["commits", "pushed", "pr-open"], pullRequest: null, ok: false }))\nprocess.exit(1)\n`,
+  )
+  const unmetReport = check(
+    "worker-watch.mjs",
+    "a NOT MET row names the unmet checklist rather than the bare verdict",
+    [],
+    { status: 0, stdout: /contract\s+NOT MET: commits, pushed, pr-open/ },
+    { path: verdictTool, env: orcaEnv(watchPlan([watched(livePath)])) },
+  )
+  T(
+    "worker-watch.mjs: the JSON report carries the same unmet list the text line names",
+    /"unmet": \[\s*"commits",\s*"pushed",\s*"pr-open"\s*\]/.test(
+      run("worker-watch.mjs", ["--json"], { path: verdictTool, env: orcaEnv(watchPlan([watched(livePath)])) }).stdout,
+    ),
+    unmetReport.stdout.slice(0, 400),
+  )
+
+  const exitedPath = stageWatchedWorktree("exited")
+  stageWorkerPidMarker(exitedPath, exitedProbePid())
+  check(
+    "worker-watch.mjs",
+    "a launcher PID that has exited is IDLE",
+    [],
+    { status: 0, stdout: /IDLE\s+ORB-75/ },
+    { path: tool, env: orcaEnv(watchPlan([watched(exitedPath)])) },
+  )
+
+  check(
+    "worker-watch.mjs",
+    "--repo actually excludes a worktree outside that repo",
+    ["--repo", "api"],
+    { status: 0, stdout: /no Orca worktrees for api/ },
+    { path: tool, env: orcaEnv(watchPlan([watched(livePath)])) },
+  )
+  check(
+    "worker-watch.mjs",
+    "--repo keeps a worktree inside that repo",
+    ["--repo", "ui"],
+    { status: 0, stdout: /BUSY\s+ORB-75/ },
+    { path: tool, env: orcaEnv(watchPlan([watched(livePath)])) },
+  )
+  check(
+    "worker-watch.mjs",
+    "the JSON report carries the PID liveness the text line summarises",
+    ["--json"],
+    { status: 0, stdout: /"liveness": "BUSY"[\s\S]*"pid": \d+,\s*"alive": true/ },
+    { path: tool, env: orcaEnv(watchPlan([watched(livePath)])) },
+  )
+  check("worker-watch.mjs", "refuses a repo outside orchestrator.json", ["--repo", "zzz"], { status: 2, stderr: /--repo must be one of/ }, { path: tool })
+  check("worker-watch.mjs", "refuses an unknown option instead of ignoring it", ["--lines", "8"], { status: 2, stderr: /unknown option/ }, { path: tool })
+  check("worker-watch.mjs", "documents the JSON report mode", ["--help"], { status: 0, stdout: /--json/ }, { path: tool })
 }
 
 const gateCases = {

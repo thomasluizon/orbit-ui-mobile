@@ -302,26 +302,16 @@ what is unmet. For a `visible-effect` ticket, also inspect the issue evidence an
 attached critique paired with the final screenshots before treating the contract as met. That
 list plus this critique check is what you nudge with. Nothing else counts as "done".
 
-**Never `terminal send` to a worker that is not idle.** Measured on the same run: a send
-issued mid-turn never became a user turn at all. It appears in the worker's session
-transcript only as `queue-operation` records, and the running turn was cut short on a
-mid-flow sentence. Everything a worker needs belongs in its prompt FILE at launch. When new
-information arrives mid-run, append it to that file and point the worker back at it:
-
-```
-node tools/nudge-worker.mjs --terminal <handle> --prompt-file <path> < update.md
-node tools/nudge-worker.mjs --terminal <handle> --text "<one line>"
-```
-
-Either form waits for tui-idle first and REFUSES with exit 1 (sending nothing) while the
-worker is busy, so a mid-turn send is not reachable through the sanctioned path.
+**Headless workers cannot receive a mid-run user turn.** `codex exec` has no terminal
+injection channel. When information arrives mid-run, wait for the worker process to exit,
+derive the artifact verdict, update the prompt, and relaunch. Do not promise a nudge that
+cannot be delivered.
 
 **What the fleet is doing right now** is `/watch` (`tools/worker-watch.mjs`): per worktree, the
-ticket, the branch, the Linear state, BUSY or IDLE by repaint delta, the last meaningful output
-lines, and the contract verdict above. Liveness and delivery answer different questions, and
-`IDLE + NOT MET` is the pair that costs a run: a worker that stopped on a question with nobody
-at the keyboard. Read it instead of hand-running `orca terminal read`, which returns a busy
-worker's tail as thousands of characters of concatenated `Working` fragments.
+ticket, the branch, the Linear state, BUSY or IDLE from the launcher-written worker PID, and the
+contract verdict above. Liveness and delivery answer different questions, and `IDLE + NOT MET` is
+the pair that costs a run: a worker process that exited without delivering. Read it instead of
+hand-running `orca terminal read`, which for a headless worker shows no live turn at all.
 
 After the PR opens, the worker owns its automated review cycle. The orchestrator does not read
 review bodies, author review-round files, or relay findings back to the worker. It waits for one
@@ -704,9 +694,10 @@ deletion, the orchestrate-skill fix) each ended their turn on "the monitor will 
 with no live background child. Two of the three prompts already carried a warning against
 exactly that, so the subagent-side half alone does not hold. Both halves are the rule:
 
-- **In a prompt whose task includes waiting on CI or a review:** poll in the FOREGROUND,
-  sleep 60 to 120s per loop, inside your own turn. End the turn only on the goal state or a
-  genuinely unfixable blocker, and say which one.
+- **In a prompt whose task includes waiting on CI or a review:** use one FOREGROUND blocking
+  `node tools/pr-watch.mjs --repo <owner/name> --pr <number>` invocation without `--once`.
+  State `yield_time_ms` explicitly at or above the whole expected wait. End the turn only on
+  the goal state or a genuinely unfixable blocker, and say which one.
 - **On any completion notification whose result reads "waiting", "standing by", or "monitor
   armed":** read the real PR/CI state yourself and send the agent back to work with it.
   Standing by is not progress.

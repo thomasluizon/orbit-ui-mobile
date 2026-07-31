@@ -6,10 +6,9 @@
  */
 
 import { execFileSync, spawnSync } from "node:child_process"
-import { existsSync } from "node:fs"
-import { resolve } from "node:path"
+import { existsSync, readFileSync, unlinkSync } from "node:fs"
+import { join, resolve } from "node:path"
 
-import { isRepainting } from "./lib/tui-repaint.mjs"
 
 const USAGE = `usage: teardown-worktree.mjs (--issue ORB-N | --worktree <path>) [--base <ref>]
 
@@ -113,8 +112,11 @@ const issue = worktree.linkedLinearIssue
 const branch = (worktree.branch ?? git(path, ["rev-parse", "--abbrev-ref", "HEAD"])).replace(/^refs\/heads\//, "")
 const base = requestedBase ?? worktree.baseRef ?? "main"
 const dirty = git(path, ["status", "--short"]).split("\n").filter(Boolean)
-const terminals = (orca(["terminal", "list"]).terminals ?? []).filter((terminal) => normalize(terminal.worktreePath) === normalize(path))
-const busy = terminals.filter((terminal) => isRepainting(orca, terminal.handle))
+const workerMarker = join(resolve(path, git(path, ["rev-parse", "--git-dir"])), "orbit-worker-pids.jsonl")
+const workerPids = existsSync(workerMarker)
+  ? readFileSync(workerMarker, "utf8").trim().split(/\r?\n/).filter(Boolean).flatMap((line) => { try { const row = JSON.parse(line); return Number.isInteger(row.pid) ? [row.pid] : [] } catch { return [] } })
+  : []
+const workerAlive = workerPids.filter((pid) => { try { process.kill(pid, 0); return true } catch (error) { return error.code !== "ESRCH" } })
 const detail = orca(["linear", "issue", issue])
 const linearIssue = detail.issue ?? detail
 const state = linearIssue.state?.name ?? linearIssue.state
@@ -156,7 +158,7 @@ const checks = [
   { name: "worktree-clean", ok: dirty.length === 0, detail: dirty.length ? `uncommitted paths: ${dirty.join(", ")}` : "no uncommitted work" },
   ...pullRequestChecks,
   { name: "linear-done", ok: state === "Done", detail: `issue is ${state ?? "unknown"}, expected Done` },
-  { name: "terminals-idle", ok: busy.length === 0, detail: busy.length ? `worker is still working: ${busy.map((terminal) => terminal.handle).join(", ")}` : `${terminals.length} terminal(s) idle` },
+  { name: "worker-pid-exited", ok: workerAlive.length === 0, detail: workerAlive.length ? `worker PID is still running: ${workerAlive.join(", ")}` : "the worker PID has exited" },
 ]
 const unmet = checks.filter((check) => !check.ok)
 if (unmet.length > 0) {
@@ -191,6 +193,9 @@ if (branchExists) {
 }
 const branchRemaining = gitCommon(["show-ref", "--verify", "--quiet", `refs/heads/${branch}`], { allowFailure: true }) !== null
 if (branchRemaining) fail(1, `removed worktree but local branch ${branch} still exists`)
+if (existsSync(workerMarker)) {
+  try { unlinkSync(workerMarker) } catch (error) { fail(3, `could not prune worker PID marker ${workerMarker}: ${error.message}`) }
+}
 console.log(`REMOVED worktree ${path}`)
 console.log(`REMOVED terminals for ${path}`)
 console.log(`REMOVED local branch ${branch}`)
