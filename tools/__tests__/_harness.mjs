@@ -133,6 +133,89 @@ export const resolveBash = () => {
 
 export const BASH = resolveBash()
 
+let linearEnvelopeManifest
+
+const linearEnvelopes = () => {
+  if (!linearEnvelopeManifest) {
+    linearEnvelopeManifest = JSON.parse(readFileSync(join(TOOLS_DIR, "__fixtures__", "orca-linear-envelopes.json"), "utf8"))
+  }
+  return linearEnvelopeManifest.commands
+}
+
+const jsonType = (value) => {
+  if (value === null) return "null"
+  if (Array.isArray(value)) return "array"
+  return typeof value === "object" ? "object" : typeof value
+}
+
+const STATE_TYPES = new Set(["triage", "backlog", "unstarted", "started", "completed", "canceled", "duplicate"])
+const RELATIONSHIPS = new Set(["blocks", "blockedBy", "relatedTo", "duplicateOf"])
+
+const assertRecordedLinearValue = (command, value, recordedPaths, path = "$") => {
+  const actualType = jsonType(value)
+  const recorded = recordedPaths[path]
+  if (!recorded) throw new Error(`orca fixture ${command} asserts unrecorded key ${path}`)
+  if (!recorded.types.includes(actualType)) {
+    const expected = recorded.types.join(" | ")
+    throw new Error(`orca fixture ${command} asserts type ${actualType} at ${path}; recorded types: ${expected}`)
+  }
+  if (/\.state\.type$/.test(path) && typeof value === "string" && !STATE_TYPES.has(value)) {
+    throw new Error(`orca fixture ${command} asserts unsupported enum at ${path}: ${JSON.stringify(value)}`)
+  }
+  if (/\.relations\[\]\.relationship$/.test(path) && typeof value === "string" && !RELATIONSHIPS.has(value)) {
+    throw new Error(`orca fixture ${command} asserts unsupported enum at ${path}: ${JSON.stringify(value)}`)
+  }
+  if (actualType === "array") {
+    for (const item of value) assertRecordedLinearValue(command, item, recordedPaths, `${path}[]`)
+    return
+  }
+  if (actualType !== "object") return
+  for (const [key, child] of Object.entries(value)) {
+    assertRecordedLinearValue(command, child, recordedPaths, `${path}.${key}`)
+  }
+}
+
+const linearEnvelopeName = (command, response) => {
+  if (response?.ok === false || response?.error) {
+    if (/\blinear\s+create\b/.test(command)) return "createError"
+    if (/\blinear\s+team\s+labels\b/.test(command)) return "teamLabelsError"
+    if (/\blinear\s+issue\b/.test(command)) return "issueError"
+    return null
+  }
+  if (/\blinear\s+status\s+set\b/.test(command)) return "statusSet"
+  if (/\blinear\s+create\b/.test(command)) return "create"
+  if (/\blinear\s+list-issues\b/.test(command)) return "listIssues"
+  if (/\blinear\s+team\s+labels\b/.test(command)) return "teamLabels"
+  if (!/\blinear\s+issue\b/.test(command)) return null
+  if (/\s--full(?:\s|$)/.test(command)) return "issueFull"
+  if (/\s--attachments(?:\s|$)/.test(command) || Object.hasOwn(response?.result ?? {}, "attachments")) return "issueAttachments"
+  if (/\s--comments(?:\s|$)/.test(command) || Object.hasOwn(response?.result ?? {}, "comments")) return "issueComments"
+  if (/\s--relations(?:\s|$)/.test(command) || Object.hasOwn(response?.result ?? {}, "relations")) return "issueRelations"
+  return "issueDefault"
+}
+
+const assertOrcaLinearStub = (entry, stdout) => {
+  const command = String(entry.match)
+  if (!/\blinear\s+/.test(command)) return
+  let response
+  let parsedJson = false
+  try {
+    response = JSON.parse(stdout)
+    parsedJson = true
+  } catch {
+    response = null
+  }
+  const envelopeName = linearEnvelopeName(command, response)
+  if (!envelopeName) throw new Error(`orca fixture ${command} has no recorded invocation envelope`)
+  if (!parsedJson) {
+    if (entry.allowNonJsonLinear === true) return
+    throw new Error(`orca fixture ${command} has non-JSON stdout without allowNonJsonLinear: true`)
+  }
+  const envelope = linearEnvelopes()[envelopeName]
+  if (!envelope) throw new Error(`orca fixture ${command} has no recorded invocation envelope (${envelopeName})`)
+  assertRecordedLinearValue(command, response, envelope.paths)
+}
+
 /**
  * orca is stubbed by pointing ORCA_BIN at this node binary and preloading a shim.
  * The shim answers a stubbed plan when node was invoked as orca (argv[1] is a
@@ -213,12 +296,21 @@ process.exit(exit)
  * The same shim answers `gh`, because it keys on the command line and nothing else: pr-watch.mjs
  * shells out to `gh api graphql`, and a stub plan entry matching `number=615` answers it.
  */
-export const orcaEnv = (plan) => ({
-  ORCA_BIN: process.execPath,
-  GH_BIN: process.execPath,
-  NODE_OPTIONS: `--require "${ORCA_SHIM.replaceAll("\\", "/")}"`,
-  ORBIT_ORCA_STUB: JSON.stringify(plan),
-})
+export const orcaEnv = (plan) => {
+  for (const entry of plan) {
+    const outputs = Array.isArray(entry.sequence)
+      ? entry.sequence.map((item) => (typeof item === "string" ? item : item.stdout))
+      : [entry.stdout]
+    if (outputs.length === 0) outputs.push(undefined)
+    for (const stdout of outputs) assertOrcaLinearStub(entry, stdout)
+  }
+  return {
+    ORCA_BIN: process.execPath,
+    GH_BIN: process.execPath,
+    NODE_OPTIONS: `--require "${ORCA_SHIM.replaceAll("\\", "/")}"`,
+    ORBIT_ORCA_STUB: JSON.stringify(plan),
+  }
+}
 
 export const MERGE_SWEEP_GH_DIR = join(root, "merge-sweep-bin")
 
@@ -382,6 +474,17 @@ process.exit(9)
 
 chmodSync(MERGE_SWEEP_GH, 0o755)
 
+const MERGE_SWEEP_LINEAR_ISSUE_RESPONSE = { ok: true, result: { issue: { state: { name: "In Review" } } } }
+const MERGE_SWEEP_LINEAR_STATUS_RESPONSE = {
+  ok: true,
+  result: {
+    issue: { id: "issue-150", identifier: "ORB-150", url: "https://linear.app/orbit/issue/ORB-150" },
+    state: { id: "state-review", name: "In Review", type: "started" },
+    previousState: { id: "state-progress", name: "In Progress" },
+    meta: {},
+  },
+}
+
 export const MERGE_SWEEP_ORCA = stage(
   "merge-sweep-bin/orca",
   `#!/usr/bin/env node
@@ -397,12 +500,14 @@ if (argv[0] === "linear" && argv[1] === "issue") {
   if (readNumber > 1 && process.env.ORBIT_MERGE_SWEEP_LINEAR_REASSERT_LOOKUP_FAILURE) process.exit(7)
   const states = process.env.ORBIT_MERGE_SWEEP_LINEAR_STATES.split(",")
   const state = states[readNumber - 1] || states.at(-1)
-  process.stdout.write(JSON.stringify({ ok: true, result: { issue: { state: { name: state } } } }))
+  const response = ${JSON.stringify(MERGE_SWEEP_LINEAR_ISSUE_RESPONSE)}
+  response.result.issue.state.name = state
+  process.stdout.write(JSON.stringify(response))
   process.exit(0)
 }
 if (argv[0] === "linear" && argv[1] === "status" && argv[2] === "set") {
   if (process.env.ORBIT_MERGE_SWEEP_LINEAR_REASSERT_FAILURE) process.exit(7)
-  process.stdout.write(JSON.stringify({ ok: true, result: { issue: { id: "issue-150", identifier: "ORB-150", url: "https://linear.app/orbit/issue/ORB-150" }, state: { id: "state-review", name: "In Review", type: "started" }, previousState: { id: "state-progress", name: "In Progress", type: "started" }, meta: {} } }))
+  process.stdout.write(${JSON.stringify(JSON.stringify(MERGE_SWEEP_LINEAR_STATUS_RESPONSE))})
   process.exit(0)
 }
 process.exit(9)
@@ -465,55 +570,59 @@ export const mergeSweepEnv = ({
   updatedHead = "",
   updateParents = "",
   log,
-}) => ({
-  BASH_ENV: MERGE_SWEEP_BASH_ENV,
-  PATH: `${MERGE_SWEEP_GH_DIR}${delimiter}${process.env.PATH}`,
-  ORBIT_MERGE_SWEEP_APPROVAL_COMMITS: approvalCommits,
-  ORBIT_MERGE_SWEEP_APPROVAL_LOOKUP_FAILURE: approvalLookupFailure ? "1" : "",
-  ORBIT_MERGE_SWEEP_AUTHENTIC_UPDATE: authenticUpdate ? "1" : "",
-  ORBIT_MERGE_SWEEP_BRANCH: "feature/orb-106",
-  ORBIT_MERGE_SWEEP_BASE_ANCESTOR: baseAncestor,
-  ORBIT_MERGE_SWEEP_BASE_REF: baseRef,
-  ORBIT_MERGE_SWEEP_BASE_REF_LOOKUP_FAILURE: baseRefLookupFailure ? "1" : "",
-  ORBIT_MERGE_SWEEP_BASE_TIP: baseTip,
-  ORBIT_MERGE_SWEEP_CHANGED_HEAD: changedHead,
-  ORBIT_MERGE_SWEEP_COMMITS_LOOKUP_EMPTY: commitsLookupEmpty ? "1" : "",
-  ORBIT_MERGE_SWEEP_COMMITS_LOOKUP_FAILURE: commitsLookupFailure ? "1" : "",
-  ORBIT_MERGE_SWEEP_COMMENTS_LOOKUP_FAILURE: commentsLookupFailure ? "1" : "",
-  ORBIT_MERGE_SWEEP_COMMENT_TIMES: commentTimes,
-  ORBIT_MERGE_SWEEP_COMPARE_LOOKUP_FAILURE: compareLookupFailure ? "1" : "",
-  ORBIT_MERGE_SWEEP_HEAD: head,
-  ORBIT_MERGE_SWEEP_FAIL_NEW_HEAD: failNewHead ? "1" : "",
-  ORBIT_MERGE_SWEEP_INLINE_ITEMS: inlineItems,
-  ORBIT_MERGE_SWEEP_INLINE_LOOKUP_FAILURE: inlineLookupFailure ? "1" : "",
-  ORBIT_MERGE_SWEEP_INLINE_PAGE_TWO: inlinePageTwo,
-  ORBIT_MERGE_SWEEP_LOG: log,
-  ORBIT_MERGE_SWEEP_LINEAR_LOOKUP_FAILURE: linearLookupFailure ? "1" : "",
-  ORBIT_MERGE_SWEEP_LINEAR_REASSERT_LOOKUP_FAILURE: linearReassertLookupFailure ? "1" : "",
-  ORBIT_MERGE_SWEEP_LINEAR_REASSERT_FAILURE: linearReassertFailure ? "1" : "",
-  ORBIT_MERGE_SWEEP_LINEAR_STATES: `${linearState},${linearReassertState},${linearPostWriteState}`,
-  ORCA_BIN: MERGE_SWEEP_ORCA,
-  ORBIT_MERGE_SWEEP_MOVE_MARKER: moveAtMerge ? `${log}.moved` : "",
-  ORBIT_MERGE_SWEEP_POST_MERGE_ACTIVITY: postMergeActivity,
-  ORBIT_MERGE_SWEEP_POST_MERGE_FAILURE_PR: "615",
-  ORBIT_MERGE_SWEEP_POST_MERGE_REVIEWS_LOOKUP_FAILURE: postMergeReviewsLookupFailure ? "1" : "",
-  ORBIT_MERGE_SWEEP_POST_MERGE_THREADS_LOOKUP_FAILURE: postMergeThreadsLookupFailure ? "1" : "",
-  ORBIT_MERGE_SWEEP_POST_MERGE_UNRESOLVED_THREADS: postMergeUnresolvedThreads,
-  ORBIT_MERGE_SWEEP_REVIEW_RUNNING: reviewRunning ? "1" : "",
-  ORBIT_MERGE_SWEEP_REVIEW_CHECK_ABSENT: reviewCheckAbsent ? "1" : "",
-  ORBIT_MERGE_SWEEP_REVIEW_DECISION: reviewDecision,
-  ORBIT_MERGE_SWEEP_WORKFLOWS: workflows,
-  ORBIT_MERGE_SWEEP_WORKFLOWS_LOOKUP_FAILURE: workflowsLookupFailure ? "1" : "",
-  ORBIT_MERGE_SWEEP_REVIEWS_LOOKUP_FAILURE: reviewsLookupFailure ? "1" : "",
-  ORBIT_MERGE_SWEEP_REVIEWS_PAGE_TWO: reviewsPageTwo,
-  ORBIT_MERGE_SWEEP_REVIEW_TIMES: reviewTimes,
-  ORBIT_MERGE_SWEEP_SONAR: sonar,
-  ORBIT_MERGE_SWEEP_STATE: state,
-  ORBIT_MERGE_SWEEP_THREADS_LOOKUP_FAILURE: threadsLookupFailure ? "1" : "",
-  ORBIT_MERGE_SWEEP_UNRESOLVED_THREADS: unresolvedThreads,
-  ORBIT_MERGE_SWEEP_UPDATED_HEAD: updatedHead,
-  ORBIT_MERGE_SWEEP_UPDATE_PARENTS: updateParents,
-})
+}) => {
+  assertOrcaLinearStub("linear issue ORB-150 --json", JSON.stringify(MERGE_SWEEP_LINEAR_ISSUE_RESPONSE))
+  assertOrcaLinearStub("linear status set ORB-150 --to In Review --json", JSON.stringify(MERGE_SWEEP_LINEAR_STATUS_RESPONSE))
+  return {
+    BASH_ENV: MERGE_SWEEP_BASH_ENV,
+    PATH: `${MERGE_SWEEP_GH_DIR}${delimiter}${process.env.PATH}`,
+    ORBIT_MERGE_SWEEP_APPROVAL_COMMITS: approvalCommits,
+    ORBIT_MERGE_SWEEP_APPROVAL_LOOKUP_FAILURE: approvalLookupFailure ? "1" : "",
+    ORBIT_MERGE_SWEEP_AUTHENTIC_UPDATE: authenticUpdate ? "1" : "",
+    ORBIT_MERGE_SWEEP_BRANCH: "feature/orb-106",
+    ORBIT_MERGE_SWEEP_BASE_ANCESTOR: baseAncestor,
+    ORBIT_MERGE_SWEEP_BASE_REF: baseRef,
+    ORBIT_MERGE_SWEEP_BASE_REF_LOOKUP_FAILURE: baseRefLookupFailure ? "1" : "",
+    ORBIT_MERGE_SWEEP_BASE_TIP: baseTip,
+    ORBIT_MERGE_SWEEP_CHANGED_HEAD: changedHead,
+    ORBIT_MERGE_SWEEP_COMMITS_LOOKUP_EMPTY: commitsLookupEmpty ? "1" : "",
+    ORBIT_MERGE_SWEEP_COMMITS_LOOKUP_FAILURE: commitsLookupFailure ? "1" : "",
+    ORBIT_MERGE_SWEEP_COMMENTS_LOOKUP_FAILURE: commentsLookupFailure ? "1" : "",
+    ORBIT_MERGE_SWEEP_COMMENT_TIMES: commentTimes,
+    ORBIT_MERGE_SWEEP_COMPARE_LOOKUP_FAILURE: compareLookupFailure ? "1" : "",
+    ORBIT_MERGE_SWEEP_HEAD: head,
+    ORBIT_MERGE_SWEEP_FAIL_NEW_HEAD: failNewHead ? "1" : "",
+    ORBIT_MERGE_SWEEP_INLINE_ITEMS: inlineItems,
+    ORBIT_MERGE_SWEEP_INLINE_LOOKUP_FAILURE: inlineLookupFailure ? "1" : "",
+    ORBIT_MERGE_SWEEP_INLINE_PAGE_TWO: inlinePageTwo,
+    ORBIT_MERGE_SWEEP_LOG: log,
+    ORBIT_MERGE_SWEEP_LINEAR_LOOKUP_FAILURE: linearLookupFailure ? "1" : "",
+    ORBIT_MERGE_SWEEP_LINEAR_REASSERT_LOOKUP_FAILURE: linearReassertLookupFailure ? "1" : "",
+    ORBIT_MERGE_SWEEP_LINEAR_REASSERT_FAILURE: linearReassertFailure ? "1" : "",
+    ORBIT_MERGE_SWEEP_LINEAR_STATES: `${linearState},${linearReassertState},${linearPostWriteState}`,
+    ORCA_BIN: MERGE_SWEEP_ORCA,
+    ORBIT_MERGE_SWEEP_MOVE_MARKER: moveAtMerge ? `${log}.moved` : "",
+    ORBIT_MERGE_SWEEP_POST_MERGE_ACTIVITY: postMergeActivity,
+    ORBIT_MERGE_SWEEP_POST_MERGE_FAILURE_PR: "615",
+    ORBIT_MERGE_SWEEP_POST_MERGE_REVIEWS_LOOKUP_FAILURE: postMergeReviewsLookupFailure ? "1" : "",
+    ORBIT_MERGE_SWEEP_POST_MERGE_THREADS_LOOKUP_FAILURE: postMergeThreadsLookupFailure ? "1" : "",
+    ORBIT_MERGE_SWEEP_POST_MERGE_UNRESOLVED_THREADS: postMergeUnresolvedThreads,
+    ORBIT_MERGE_SWEEP_REVIEW_RUNNING: reviewRunning ? "1" : "",
+    ORBIT_MERGE_SWEEP_REVIEW_CHECK_ABSENT: reviewCheckAbsent ? "1" : "",
+    ORBIT_MERGE_SWEEP_REVIEW_DECISION: reviewDecision,
+    ORBIT_MERGE_SWEEP_WORKFLOWS: workflows,
+    ORBIT_MERGE_SWEEP_WORKFLOWS_LOOKUP_FAILURE: workflowsLookupFailure ? "1" : "",
+    ORBIT_MERGE_SWEEP_REVIEWS_LOOKUP_FAILURE: reviewsLookupFailure ? "1" : "",
+    ORBIT_MERGE_SWEEP_REVIEWS_PAGE_TWO: reviewsPageTwo,
+    ORBIT_MERGE_SWEEP_REVIEW_TIMES: reviewTimes,
+    ORBIT_MERGE_SWEEP_SONAR: sonar,
+    ORBIT_MERGE_SWEEP_STATE: state,
+    ORBIT_MERGE_SWEEP_THREADS_LOOKUP_FAILURE: threadsLookupFailure ? "1" : "",
+    ORBIT_MERGE_SWEEP_UNRESOLVED_THREADS: unresolvedThreads,
+    ORBIT_MERGE_SWEEP_UPDATED_HEAD: updatedHead,
+    ORBIT_MERGE_SWEEP_UPDATE_PARENTS: updateParents,
+  }
+}
 
 export const mergeSweepCalls = (log) =>
   existsSync(log)
@@ -783,6 +892,13 @@ export const stagePreflight = (label, worker = { ...INTERACTIVE_CODEX, command: 
 }
 
 export const LINEAR_LABELS_COMMAND = "linear team labels --team ORB --json"
+export const LINEAR_TEAM_REQUIRED_ERROR = JSON.stringify({
+  ok: false,
+  error: {
+    code: "linear_team_required",
+    message: "No connected Linear team matched 00000000-0000-0000-0000-000000000000.",
+  },
+})
 
 export const linearLabelsResult = (labels) =>
   JSON.stringify({ ok: true, result: { labels: labels.map((name) => ({ name })) } })

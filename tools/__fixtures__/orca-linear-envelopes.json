@@ -1,0 +1,3358 @@
+{
+  "schemaVersion": 1,
+  "generation": {
+    "method": "Generated mechanically from real Orca captures. No response key, type, command exit, or scalar value was entered by hand.",
+    "generator": "scratchpad/generate-d4-linear-envelopes.mjs",
+    "deterministic": true
+  },
+  "schemaSemantics": {
+    "scalarValues": "No captured scalar response value is retained. Its normalized path records only JSON type and timestamp format when applicable.",
+    "objects": "Child paths are the complete union of keys observed at each object location.",
+    "arrays": "A [] path segment is derived from every observed array element and preserves every child key and conflicting JSON type. No [] path exists when every observed array was empty.",
+    "timestamps": "date-time means the captured string matched an ISO-8601 UTC timestamp and parsed as a date."
+  },
+  "commands": {
+    "issueDefault": {
+      "command": [
+        "orca",
+        "linear",
+        "issue",
+        "<issue-id>",
+        "--json"
+      ],
+      "commandCompleteness": "complete argv with issue and team identifiers replaced",
+      "provenance": {
+        "capture": "read-capture-set/issue.capture.json",
+        "sha256": "994f0b7ad6c0d1682310604b08e4f80f1ca639785494522e2303d453abac743b",
+        "capturedAt": "2026-07-31T16:52:16.600Z",
+        "captureKind": "complete process invocation envelope"
+      },
+      "observedExitCode": 0,
+      "paths": {
+        "$": {
+          "types": [
+            "object"
+          ]
+        },
+        "$._meta": {
+          "types": [
+            "object"
+          ]
+        },
+        "$._meta.runtimeId": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.ok": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue.assignee": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue.assignee.avatarUrl": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.assignee.displayName": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.assignee.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.branchName": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.createdAt": {
+          "types": [
+            "string"
+          ],
+          "stringFormats": [
+            "date-time"
+          ]
+        },
+        "$.result.issue.cycle": {
+          "types": [
+            "null"
+          ]
+        },
+        "$.result.issue.description": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.dueDate": {
+          "types": [
+            "null"
+          ]
+        },
+        "$.result.issue.estimate": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.issue.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.identifier": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.labels": {
+          "types": [
+            "array"
+          ],
+          "observedLengths": [
+            4
+          ]
+        },
+        "$.result.issue.labels[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue.labels[].color": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.labels[].id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.labels[].name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.priority": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.issue.project": {
+          "types": [
+            "null"
+          ]
+        },
+        "$.result.issue.state": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue.state.color": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.state.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.state.name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.state.type": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.team": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue.team.color": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.team.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.team.key": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.team.name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.title": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.updatedAt": {
+          "types": [
+            "string"
+          ],
+          "stringFormats": [
+            "date-time"
+          ]
+        },
+        "$.result.issue.url": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.includeErrors": {
+          "types": [
+            "array"
+          ],
+          "observedLengths": [
+            0
+          ]
+        },
+        "$.result.meta.partial": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.requested": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.requested.current": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.requested.depth": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.meta.requested.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta.requested.include": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.requested.include.activity": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.requested.include.attachments": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.requested.include.children": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.requested.include.comments": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.requested.include.relations": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.resolved": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.resolved.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta.resolved.identifier": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta.resolved.workspaceId": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta.resolved.workspaceName": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta.sections": {
+          "types": [
+            "object"
+          ]
+        }
+      },
+      "redactionAndStripping": "Replaced issue and team command values. Removed every response scalar value, stdout text, stderr text, signal value, and spawn error value. Retained every normalized response path, all observed JSON types, ISO-8601 timestamp format metadata, and array lengths. Array item paths use [] and union all observed item shapes."
+    },
+    "issueRelations": {
+      "command": [
+        "orca",
+        "linear",
+        "issue",
+        "<issue-id>",
+        "--relations",
+        "--json"
+      ],
+      "commandCompleteness": "complete argv with issue and team identifiers replaced",
+      "provenance": {
+        "capture": "read-capture-set/issue-relations.capture.json",
+        "sha256": "d1219aff91687d29987baea44bc39d53c41d2ca0ebe527f34b13add775e873c9",
+        "capturedAt": "2026-07-31T16:52:17.678Z",
+        "captureKind": "complete process invocation envelope"
+      },
+      "observedExitCode": 0,
+      "paths": {
+        "$": {
+          "types": [
+            "object"
+          ]
+        },
+        "$._meta": {
+          "types": [
+            "object"
+          ]
+        },
+        "$._meta.runtimeId": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.ok": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue.assignee": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue.assignee.avatarUrl": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.assignee.displayName": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.assignee.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.branchName": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.createdAt": {
+          "types": [
+            "string"
+          ],
+          "stringFormats": [
+            "date-time"
+          ]
+        },
+        "$.result.issue.cycle": {
+          "types": [
+            "null"
+          ]
+        },
+        "$.result.issue.description": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.dueDate": {
+          "types": [
+            "null"
+          ]
+        },
+        "$.result.issue.estimate": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.issue.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.identifier": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.labels": {
+          "types": [
+            "array"
+          ],
+          "observedLengths": [
+            4
+          ]
+        },
+        "$.result.issue.labels[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue.labels[].color": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.labels[].id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.labels[].name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.priority": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.issue.project": {
+          "types": [
+            "null"
+          ]
+        },
+        "$.result.issue.state": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue.state.color": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.state.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.state.name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.state.type": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.team": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue.team.color": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.team.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.team.key": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.team.name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.title": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.updatedAt": {
+          "types": [
+            "string"
+          ],
+          "stringFormats": [
+            "date-time"
+          ]
+        },
+        "$.result.issue.url": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.includeErrors": {
+          "types": [
+            "array"
+          ],
+          "observedLengths": [
+            0
+          ]
+        },
+        "$.result.meta.partial": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.requested": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.requested.current": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.requested.depth": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.meta.requested.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta.requested.include": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.requested.include.activity": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.requested.include.attachments": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.requested.include.children": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.requested.include.comments": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.requested.include.relations": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.resolved": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.resolved.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta.resolved.identifier": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta.resolved.workspaceId": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta.resolved.workspaceName": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta.sections": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.sections.relations": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.sections.relations.cap": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.meta.sections.relations.capReached": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.sections.relations.hasMore": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.sections.relations.returned": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.relations": {
+          "types": [
+            "array"
+          ],
+          "observedLengths": [
+            1
+          ]
+        },
+        "$.result.relations[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.relations[].direction": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.relations[].id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.relations[].relatedIssue": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.relations[].relatedIssue.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.relations[].relatedIssue.identifier": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.relations[].relatedIssue.title": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.relations[].relatedIssue.url": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.relations[].relationship": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.relations[].type": {
+          "types": [
+            "string"
+          ]
+        }
+      },
+      "redactionAndStripping": "Replaced issue and team command values. Removed every response scalar value, stdout text, stderr text, signal value, and spawn error value. Retained every normalized response path, all observed JSON types, ISO-8601 timestamp format metadata, and array lengths. Array item paths use [] and union all observed item shapes."
+    },
+    "issueComments": {
+      "command": [
+        "orca",
+        "linear",
+        "issue",
+        "<issue-id>",
+        "--comments",
+        "--json"
+      ],
+      "commandCompleteness": "complete argv with issue and team identifiers replaced",
+      "provenance": {
+        "capture": "read-capture-set/issue-comments.capture.json",
+        "sha256": "c5800a3dfa0486101bc89e6fba8d570b1f5af5a00b5d737f666761cc1c075b98",
+        "capturedAt": "2026-07-31T16:52:18.834Z",
+        "captureKind": "complete process invocation envelope"
+      },
+      "observedExitCode": 0,
+      "paths": {
+        "$": {
+          "types": [
+            "object"
+          ]
+        },
+        "$._meta": {
+          "types": [
+            "object"
+          ]
+        },
+        "$._meta.runtimeId": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.ok": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.comments": {
+          "types": [
+            "array"
+          ],
+          "observedLengths": [
+            10
+          ]
+        },
+        "$.result.comments[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.comments[].body": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.comments[].bodyTruncated": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.comments[].createdAt": {
+          "types": [
+            "string"
+          ],
+          "stringFormats": [
+            "date-time"
+          ]
+        },
+        "$.result.comments[].id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.comments[].parentId": {
+          "types": [
+            "null"
+          ]
+        },
+        "$.result.comments[].updatedAt": {
+          "types": [
+            "string"
+          ],
+          "stringFormats": [
+            "date-time"
+          ]
+        },
+        "$.result.comments[].user": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.comments[].user.avatarUrl": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.comments[].user.displayName": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.comments[].user.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue.assignee": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue.assignee.avatarUrl": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.assignee.displayName": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.assignee.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.branchName": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.createdAt": {
+          "types": [
+            "string"
+          ],
+          "stringFormats": [
+            "date-time"
+          ]
+        },
+        "$.result.issue.cycle": {
+          "types": [
+            "null"
+          ]
+        },
+        "$.result.issue.description": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.dueDate": {
+          "types": [
+            "null"
+          ]
+        },
+        "$.result.issue.estimate": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.issue.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.identifier": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.labels": {
+          "types": [
+            "array"
+          ],
+          "observedLengths": [
+            4
+          ]
+        },
+        "$.result.issue.labels[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue.labels[].color": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.labels[].id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.labels[].name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.priority": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.issue.project": {
+          "types": [
+            "null"
+          ]
+        },
+        "$.result.issue.state": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue.state.color": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.state.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.state.name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.state.type": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.team": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue.team.color": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.team.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.team.key": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.team.name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.title": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.updatedAt": {
+          "types": [
+            "string"
+          ],
+          "stringFormats": [
+            "date-time"
+          ]
+        },
+        "$.result.issue.url": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.includeErrors": {
+          "types": [
+            "array"
+          ],
+          "observedLengths": [
+            0
+          ]
+        },
+        "$.result.meta.partial": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.requested": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.requested.current": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.requested.depth": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.meta.requested.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta.requested.include": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.requested.include.activity": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.requested.include.attachments": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.requested.include.children": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.requested.include.comments": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.requested.include.relations": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.resolved": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.resolved.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta.resolved.identifier": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta.resolved.workspaceId": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta.resolved.workspaceName": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta.sections": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.sections.comments": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.sections.comments.cap": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.meta.sections.comments.capReached": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.sections.comments.hasMore": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.sections.comments.returned": {
+          "types": [
+            "number"
+          ]
+        }
+      },
+      "redactionAndStripping": "Replaced issue and team command values. Removed every response scalar value, stdout text, stderr text, signal value, and spawn error value. Retained every normalized response path, all observed JSON types, ISO-8601 timestamp format metadata, and array lengths. Array item paths use [] and union all observed item shapes."
+    },
+    "issueAttachments": {
+      "command": [
+        "orca",
+        "linear",
+        "issue",
+        "<issue-id>",
+        "--attachments",
+        "--json"
+      ],
+      "commandCompleteness": "complete argv with issue and team identifiers replaced",
+      "provenance": {
+        "capture": "read-capture-set/issue-attachments.capture.json",
+        "sha256": "03af82e7097d3c5b217faeac8c3bbce40a10eba437acc0860132a83e41dc1944",
+        "capturedAt": "2026-07-31T16:52:19.760Z",
+        "captureKind": "complete process invocation envelope"
+      },
+      "observedExitCode": 0,
+      "paths": {
+        "$": {
+          "types": [
+            "object"
+          ]
+        },
+        "$._meta": {
+          "types": [
+            "object"
+          ]
+        },
+        "$._meta.runtimeId": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.ok": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.attachments": {
+          "types": [
+            "array"
+          ],
+          "observedLengths": [
+            7
+          ]
+        },
+        "$.result.attachments[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.attachments[].createdAt": {
+          "types": [
+            "string"
+          ],
+          "stringFormats": [
+            "date-time"
+          ]
+        },
+        "$.result.attachments[].id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.attachments[].metadataOnly": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.attachments[].source": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.attachments[].source.pullRequestId": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.attachments[].source.type": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.attachments[].subtitle": {
+          "types": [
+            "null"
+          ]
+        },
+        "$.result.attachments[].title": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.attachments[].url": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue.assignee": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue.assignee.avatarUrl": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.assignee.displayName": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.assignee.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.branchName": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.createdAt": {
+          "types": [
+            "string"
+          ],
+          "stringFormats": [
+            "date-time"
+          ]
+        },
+        "$.result.issue.cycle": {
+          "types": [
+            "null"
+          ]
+        },
+        "$.result.issue.description": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.dueDate": {
+          "types": [
+            "null"
+          ]
+        },
+        "$.result.issue.estimate": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.issue.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.identifier": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.labels": {
+          "types": [
+            "array"
+          ],
+          "observedLengths": [
+            4
+          ]
+        },
+        "$.result.issue.labels[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue.labels[].color": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.labels[].id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.labels[].name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.priority": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.issue.project": {
+          "types": [
+            "null"
+          ]
+        },
+        "$.result.issue.state": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue.state.color": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.state.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.state.name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.state.type": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.team": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue.team.color": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.team.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.team.key": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.team.name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.title": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.updatedAt": {
+          "types": [
+            "string"
+          ],
+          "stringFormats": [
+            "date-time"
+          ]
+        },
+        "$.result.issue.url": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.includeErrors": {
+          "types": [
+            "array"
+          ],
+          "observedLengths": [
+            0
+          ]
+        },
+        "$.result.meta.partial": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.requested": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.requested.current": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.requested.depth": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.meta.requested.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta.requested.include": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.requested.include.activity": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.requested.include.attachments": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.requested.include.children": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.requested.include.comments": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.requested.include.relations": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.resolved": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.resolved.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta.resolved.identifier": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta.resolved.workspaceId": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta.resolved.workspaceName": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta.sections": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.sections.attachments": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.sections.attachments.cap": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.meta.sections.attachments.capReached": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.sections.attachments.hasMore": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.sections.attachments.returned": {
+          "types": [
+            "number"
+          ]
+        }
+      },
+      "redactionAndStripping": "Replaced issue and team command values. Removed every response scalar value, stdout text, stderr text, signal value, and spawn error value. Retained every normalized response path, all observed JSON types, ISO-8601 timestamp format metadata, and array lengths. Array item paths use [] and union all observed item shapes."
+    },
+    "issueFull": {
+      "command": [
+        "orca",
+        "linear",
+        "issue",
+        "<issue-id>",
+        "--full",
+        "--json"
+      ],
+      "commandCompleteness": "complete argv with issue and team identifiers replaced",
+      "provenance": {
+        "capture": "read-capture-set/issue-full.capture.json",
+        "sha256": "7838f81de2c2fed58f02eef0a8b85ec9f969d9e53c854ceb887461e94b746b3d",
+        "capturedAt": "2026-07-31T16:52:21.959Z",
+        "captureKind": "complete process invocation envelope"
+      },
+      "observedExitCode": 0,
+      "paths": {
+        "$": {
+          "types": [
+            "object"
+          ]
+        },
+        "$._meta": {
+          "types": [
+            "object"
+          ]
+        },
+        "$._meta.runtimeId": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.ok": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.activity": {
+          "types": [
+            "array"
+          ],
+          "observedLengths": [
+            33
+          ]
+        },
+        "$.result.activity[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.activity[].actor": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.activity[].actor.avatarUrl": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.activity[].actor.displayName": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.activity[].actor.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.activity[].actor.kind": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.activity[].actor.name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.activity[].actor.subType": {
+          "types": [
+            "null"
+          ]
+        },
+        "$.result.activity[].actor.type": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.activity[].changes": {
+          "types": [
+            "array"
+          ],
+          "observedLengths": [
+            1,
+            2
+          ]
+        },
+        "$.result.activity[].changes[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.activity[].changes[].field": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.activity[].changes[].from": {
+          "types": [
+            "null",
+            "object"
+          ]
+        },
+        "$.result.activity[].changes[].from.color": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.activity[].changes[].from.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.activity[].changes[].from.name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.activity[].changes[].from.type": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.activity[].changes[].to": {
+          "types": [
+            "array",
+            "object"
+          ],
+          "observedLengths": [
+            1
+          ]
+        },
+        "$.result.activity[].changes[].to.avatarUrl": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.activity[].changes[].to.color": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.activity[].changes[].to.displayName": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.activity[].changes[].to.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.activity[].changes[].to.name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.activity[].changes[].to.title": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.activity[].changes[].to.type": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.activity[].changes[].to.url": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.activity[].changes[].to[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.activity[].changes[].to[].color": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.activity[].changes[].to[].id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.activity[].changes[].to[].identifier": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.activity[].changes[].to[].name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.activity[].changes[].to[].type": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.activity[].createdAt": {
+          "types": [
+            "string"
+          ],
+          "stringFormats": [
+            "date-time"
+          ]
+        },
+        "$.result.activity[].id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.activity[].updatedAt": {
+          "types": [
+            "string"
+          ],
+          "stringFormats": [
+            "date-time"
+          ]
+        },
+        "$.result.attachments": {
+          "types": [
+            "array"
+          ],
+          "observedLengths": [
+            7
+          ]
+        },
+        "$.result.attachments[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.attachments[].createdAt": {
+          "types": [
+            "string"
+          ],
+          "stringFormats": [
+            "date-time"
+          ]
+        },
+        "$.result.attachments[].id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.attachments[].metadataOnly": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.attachments[].source": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.attachments[].source.pullRequestId": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.attachments[].source.type": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.attachments[].subtitle": {
+          "types": [
+            "null"
+          ]
+        },
+        "$.result.attachments[].title": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.attachments[].url": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.children": {
+          "types": [
+            "array"
+          ],
+          "observedLengths": [
+            0
+          ]
+        },
+        "$.result.comments": {
+          "types": [
+            "array"
+          ],
+          "observedLengths": [
+            10
+          ]
+        },
+        "$.result.comments[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.comments[].body": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.comments[].bodyTruncated": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.comments[].createdAt": {
+          "types": [
+            "string"
+          ],
+          "stringFormats": [
+            "date-time"
+          ]
+        },
+        "$.result.comments[].id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.comments[].parentId": {
+          "types": [
+            "null"
+          ]
+        },
+        "$.result.comments[].updatedAt": {
+          "types": [
+            "string"
+          ],
+          "stringFormats": [
+            "date-time"
+          ]
+        },
+        "$.result.comments[].user": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.comments[].user.avatarUrl": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.comments[].user.displayName": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.comments[].user.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue.assignee": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue.assignee.avatarUrl": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.assignee.displayName": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.assignee.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.branchName": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.createdAt": {
+          "types": [
+            "string"
+          ],
+          "stringFormats": [
+            "date-time"
+          ]
+        },
+        "$.result.issue.cycle": {
+          "types": [
+            "null"
+          ]
+        },
+        "$.result.issue.description": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.dueDate": {
+          "types": [
+            "null"
+          ]
+        },
+        "$.result.issue.estimate": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.issue.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.identifier": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.labels": {
+          "types": [
+            "array"
+          ],
+          "observedLengths": [
+            4
+          ]
+        },
+        "$.result.issue.labels[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue.labels[].color": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.labels[].id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.labels[].name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.priority": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.issue.project": {
+          "types": [
+            "null"
+          ]
+        },
+        "$.result.issue.state": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue.state.color": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.state.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.state.name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.state.type": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.team": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue.team.color": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.team.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.team.key": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.team.name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.title": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.updatedAt": {
+          "types": [
+            "string"
+          ],
+          "stringFormats": [
+            "date-time"
+          ]
+        },
+        "$.result.issue.url": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.includeErrors": {
+          "types": [
+            "array"
+          ],
+          "observedLengths": [
+            0
+          ]
+        },
+        "$.result.meta.partial": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.requested": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.requested.current": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.requested.depth": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.meta.requested.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta.requested.include": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.requested.include.activity": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.requested.include.attachments": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.requested.include.children": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.requested.include.comments": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.requested.include.relations": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.resolved": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.resolved.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta.resolved.identifier": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta.resolved.workspaceId": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta.resolved.workspaceName": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta.sections": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.sections.activity": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.sections.activity.cap": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.meta.sections.activity.capReached": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.sections.activity.hasMore": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.sections.activity.returned": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.meta.sections.attachments": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.sections.attachments.cap": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.meta.sections.attachments.capReached": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.sections.attachments.hasMore": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.sections.attachments.returned": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.meta.sections.children": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.sections.children.cap": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.meta.sections.children.capReached": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.sections.children.mayHaveMore": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.sections.children.returned": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.meta.sections.comments": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.sections.comments.cap": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.meta.sections.comments.capReached": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.sections.comments.hasMore": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.sections.comments.returned": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.meta.sections.relations": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.sections.relations.cap": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.meta.sections.relations.capReached": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.sections.relations.hasMore": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.sections.relations.returned": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.relations": {
+          "types": [
+            "array"
+          ],
+          "observedLengths": [
+            1
+          ]
+        },
+        "$.result.relations[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.relations[].direction": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.relations[].id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.relations[].relatedIssue": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.relations[].relatedIssue.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.relations[].relatedIssue.identifier": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.relations[].relatedIssue.title": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.relations[].relatedIssue.url": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.relations[].relationship": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.relations[].type": {
+          "types": [
+            "string"
+          ]
+        }
+      },
+      "redactionAndStripping": "Replaced issue and team command values. Removed every response scalar value, stdout text, stderr text, signal value, and spawn error value. Retained every normalized response path, all observed JSON types, ISO-8601 timestamp format metadata, and array lengths. Array item paths use [] and union all observed item shapes."
+    },
+    "listIssues": {
+      "command": [
+        "orca",
+        "linear",
+        "list-issues",
+        "--team",
+        "<team-key>",
+        "--limit",
+        "250",
+        "--json"
+      ],
+      "commandCompleteness": "complete argv with issue and team identifiers replaced",
+      "provenance": {
+        "capture": "read-capture-set/list-issues.capture.json",
+        "sha256": "d4b11835198d3a7ba638612fde08a8297ac44d157d58e2fde98909063d46ee30",
+        "capturedAt": "2026-07-31T16:52:23.203Z",
+        "captureKind": "complete process invocation envelope"
+      },
+      "observedExitCode": 0,
+      "paths": {
+        "$": {
+          "types": [
+            "object"
+          ]
+        },
+        "$._meta": {
+          "types": [
+            "object"
+          ]
+        },
+        "$._meta.runtimeId": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.ok": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issues": {
+          "types": [
+            "array"
+          ],
+          "observedLengths": [
+            159
+          ]
+        },
+        "$.result.issues[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issues[].assignee": {
+          "types": [
+            "null",
+            "object"
+          ]
+        },
+        "$.result.issues[].assignee.avatarUrl": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issues[].assignee.displayName": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issues[].assignee.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issues[].branchName": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issues[].createdAt": {
+          "types": [
+            "string"
+          ],
+          "stringFormats": [
+            "date-time"
+          ]
+        },
+        "$.result.issues[].cycle": {
+          "types": [
+            "null"
+          ]
+        },
+        "$.result.issues[].description": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issues[].dueDate": {
+          "types": [
+            "null"
+          ]
+        },
+        "$.result.issues[].estimate": {
+          "types": [
+            "null",
+            "number"
+          ]
+        },
+        "$.result.issues[].id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issues[].identifier": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issues[].labels": {
+          "types": [
+            "array"
+          ],
+          "observedLengths": [
+            2,
+            3,
+            4
+          ]
+        },
+        "$.result.issues[].labels[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issues[].labels[].color": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issues[].labels[].id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issues[].labels[].name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issues[].priority": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.issues[].project": {
+          "types": [
+            "null",
+            "object"
+          ]
+        },
+        "$.result.issues[].project.color": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issues[].project.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issues[].project.name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issues[].state": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issues[].state.color": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issues[].state.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issues[].state.name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issues[].state.type": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issues[].team": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issues[].team.color": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issues[].team.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issues[].team.key": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issues[].team.name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issues[].title": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issues[].updatedAt": {
+          "types": [
+            "string"
+          ],
+          "stringFormats": [
+            "date-time"
+          ]
+        },
+        "$.result.issues[].url": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issues[].workspace": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issues[].workspace.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issues[].workspace.name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.hasMore": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.limit": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.meta.orderBy": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta.partial": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.returned": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.meta.workspaceErrors": {
+          "types": [
+            "array"
+          ],
+          "observedLengths": [
+            0
+          ]
+        },
+        "$.result.meta.workspaceId": {
+          "types": [
+            "string"
+          ]
+        }
+      },
+      "redactionAndStripping": "Replaced issue and team command values. Removed every response scalar value, stdout text, stderr text, signal value, and spawn error value. Retained every normalized response path, all observed JSON types, ISO-8601 timestamp format metadata, and array lengths. Array item paths use [] and union all observed item shapes."
+    },
+    "teamLabels": {
+      "command": [
+        "orca",
+        "linear",
+        "team",
+        "labels",
+        "--team",
+        "<team-key>",
+        "--json"
+      ],
+      "commandCompleteness": "complete argv with issue and team identifiers replaced",
+      "provenance": {
+        "capture": "read-capture-set/team-labels.capture.json",
+        "sha256": "bd599ef27a90e4e5eab8a26a427dafed7df4914cbc5a8d6e0dfa8c2918779918",
+        "capturedAt": "2026-07-31T16:52:24.237Z",
+        "captureKind": "complete process invocation envelope"
+      },
+      "observedExitCode": 0,
+      "paths": {
+        "$": {
+          "types": [
+            "object"
+          ]
+        },
+        "$._meta": {
+          "types": [
+            "object"
+          ]
+        },
+        "$._meta.runtimeId": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.ok": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.labels": {
+          "types": [
+            "array"
+          ],
+          "observedLengths": [
+            14
+          ]
+        },
+        "$.result.labels[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.labels[].color": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.labels[].id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.labels[].name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.returned": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.meta.workspaceId": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.team": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.team.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.team.key": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.team.name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.team.workspace": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.team.workspace.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.team.workspace.name": {
+          "types": [
+            "string"
+          ]
+        }
+      },
+      "redactionAndStripping": "Replaced issue and team command values. Removed every response scalar value, stdout text, stderr text, signal value, and spawn error value. Retained every normalized response path, all observed JSON types, ISO-8601 timestamp format metadata, and array lengths. Array item paths use [] and union all observed item shapes."
+    },
+    "teamLabelsError": {
+      "command": [
+        "orca",
+        "linear",
+        "team",
+        "labels",
+        "--team",
+        "<team-key>",
+        "--json"
+      ],
+      "commandCompleteness": "complete argv with team identifier replaced",
+      "provenance": {
+        "capture": "read-capture-set/team-labels-error.capture.json",
+        "sha256": "69339e9ca5f9334d1ca46101ab26cf5194e9dab6ca3a4fa45e18b2411b6cd6cb",
+        "capturedAt": "2026-07-31T18:22:40.424Z",
+        "captureKind": "complete process invocation envelope"
+      },
+      "observedExitCode": 1,
+      "paths": {
+        "$": {
+          "types": [
+            "object"
+          ]
+        },
+        "$._meta": {
+          "types": [
+            "object"
+          ]
+        },
+        "$._meta.runtimeId": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.error": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.error.code": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.error.message": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.ok": {
+          "types": [
+            "boolean"
+          ]
+        }
+      },
+      "redactionAndStripping": "Replaced team command value. Removed every response scalar value, stdout text, stderr text, signal value, and spawn error value. Retained every normalized response path, all observed JSON types, ISO-8601 timestamp format metadata, and array lengths. Array item paths use [] and union all observed item shapes."
+    },
+    "create": {
+      "command": [
+        "orca",
+        "linear",
+        "create"
+      ],
+      "commandCompleteness": "subcommand only because the stdout-only capture did not retain argv",
+      "provenance": {
+        "capture": "write-capture-set/create-response.json",
+        "sha256": "d6fb0708a21ef115b944d9f1fc5ddede2268fa832de67cea7b81d06c9df8b294",
+        "capturedAt": null,
+        "captureKind": "stdout-only real response"
+      },
+      "observedExitCode": null,
+      "paths": {
+        "$": {
+          "types": [
+            "object"
+          ]
+        },
+        "$._meta": {
+          "types": [
+            "object"
+          ]
+        },
+        "$._meta.runtimeId": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.ok": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue.assignee": {
+          "types": [
+            "null"
+          ]
+        },
+        "$.result.issue.description": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.dueDate": {
+          "types": [
+            "null"
+          ]
+        },
+        "$.result.issue.estimate": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.issue.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.identifier": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.labelIds": {
+          "types": [
+            "array"
+          ],
+          "observedLengths": [
+            3
+          ]
+        },
+        "$.result.issue.labelIds[]": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.labels": {
+          "types": [
+            "array"
+          ],
+          "observedLengths": [
+            3
+          ]
+        },
+        "$.result.issue.labels[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue.labels[].id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.labels[].name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.parent": {
+          "types": [
+            "null"
+          ]
+        },
+        "$.result.issue.priority": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.result.issue.project": {
+          "types": [
+            "null"
+          ]
+        },
+        "$.result.issue.state": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue.state.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.state.name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.team": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue.team.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.team.key": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.team.name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.title": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.url": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.deduplicated": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.workspaceId": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta.writeId": {
+          "types": [
+            "string"
+          ]
+        }
+      },
+      "redactionAndStripping": "The source retained only real JSON stdout, so argv and process exit were not available and are not invented. Removed every response scalar value. Retained every normalized response path, all observed JSON types, ISO-8601 timestamp format metadata, and array lengths. Array item paths use [] and union all observed item shapes."
+    },
+    "createError": {
+      "command": [
+        "orca",
+        "linear",
+        "create",
+        "--title",
+        "<title>",
+        "--team",
+        "<team-key>",
+        "--json"
+      ],
+      "commandCompleteness": "complete argv with team identifier and title replaced",
+      "provenance": {
+        "capture": "read-capture-set/create-error.capture.json",
+        "sha256": "779be3c2250f38a4fc80b4ce6d0c48e059c29d4b9734cff2f82fc02f10cf0ec3",
+        "capturedAt": "2026-07-31T18:22:40.970Z",
+        "captureKind": "complete process invocation envelope"
+      },
+      "observedExitCode": 1,
+      "paths": {
+        "$": {
+          "types": [
+            "object"
+          ]
+        },
+        "$._meta": {
+          "types": [
+            "object"
+          ]
+        },
+        "$._meta.runtimeId": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.error": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.error.code": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.error.message": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.ok": {
+          "types": [
+            "boolean"
+          ]
+        }
+      },
+      "redactionAndStripping": "Replaced team and title command values. Removed every response scalar value, stdout text, stderr text, signal value, and spawn error value. Retained every normalized response path, all observed JSON types, ISO-8601 timestamp format metadata, and array lengths. Array item paths use [] and union all observed item shapes."
+    },
+    "statusSet": {
+      "command": [
+        "orca",
+        "linear",
+        "status",
+        "set"
+      ],
+      "commandCompleteness": "subcommand only because the stdout-only capture did not retain argv",
+      "provenance": {
+        "capture": "write-capture-set/status-set-response.json",
+        "sha256": "da327c8795609d81e88f613b809c7270e681b3c9db6f2aa4305ce6b5f9a1e70e",
+        "capturedAt": null,
+        "captureKind": "stdout-only real response"
+      },
+      "observedExitCode": null,
+      "paths": {
+        "$": {
+          "types": [
+            "object"
+          ]
+        },
+        "$._meta": {
+          "types": [
+            "object"
+          ]
+        },
+        "$._meta.runtimeId": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.ok": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.issue.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.identifier": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.issue.url": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.meta": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.meta.alreadyInState": {
+          "types": [
+            "boolean"
+          ]
+        },
+        "$.result.meta.workspaceId": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.previousState": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.previousState.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.previousState.name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.state": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.result.state.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.state.name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.result.state.type": {
+          "types": [
+            "string"
+          ]
+        }
+      },
+      "redactionAndStripping": "The source retained only real JSON stdout, so argv and process exit were not available and are not invented. Removed every response scalar value. Retained every normalized response path, all observed JSON types, ISO-8601 timestamp format metadata, and array lengths. Array item paths use [] and union all observed item shapes."
+    },
+    "issueError": {
+      "command": [
+        "orca",
+        "linear",
+        "issue",
+        "<issue-id>",
+        "--json"
+      ],
+      "commandCompleteness": "complete argv with issue and team identifiers replaced",
+      "provenance": {
+        "capture": "read-capture-set/issue-error.capture.json",
+        "sha256": "5b9952ceb7dca1b36b3403f122b8ed085d38c1d1781c35da6cd1fba3641a5c63",
+        "capturedAt": "2026-07-31T16:52:24.842Z",
+        "captureKind": "complete process invocation envelope"
+      },
+      "observedExitCode": 1,
+      "paths": {
+        "$": {
+          "types": [
+            "object"
+          ]
+        },
+        "$._meta": {
+          "types": [
+            "object"
+          ]
+        },
+        "$._meta.runtimeId": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.error": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.error.code": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.error.message": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.ok": {
+          "types": [
+            "boolean"
+          ]
+        }
+      },
+      "redactionAndStripping": "Replaced issue and team command values. Removed every response scalar value, stdout text, stderr text, signal value, and spawn error value. Retained every normalized response path, all observed JSON types, ISO-8601 timestamp format metadata, and array lengths. Array item paths use [] and union all observed item shapes."
+    }
+  }
+}

@@ -1,5 +1,5 @@
 
-import { T, run, check, CLAUDE_MODELS, stagePreflight, LINEAR_LABELS_COMMAND, linearLabelsResult, PREFLIGHT_PASS_PLAN, preflightEnv } from "./_harness.mjs"
+import { T, run, check, CLAUDE_MODELS, stagePreflight, LINEAR_LABELS_COMMAND, LINEAR_TEAM_REQUIRED_ERROR, linearLabelsResult, PREFLIGHT_PASS_PLAN, preflightEnv } from "./_harness.mjs"
 
 const preflightCases = () => {
   const good = stagePreflight("all-pass")
@@ -91,7 +91,7 @@ const preflightCases = () => {
     entry.match === LINEAR_LABELS_COMMAND
       ? {
           ...entry,
-          stdout: JSON.stringify({ ok: false, error: { message: "Linear labels unavailable" } }),
+          stdout: LINEAR_TEAM_REQUIRED_ERROR,
           exit: 1,
         }
       : entry,
@@ -100,7 +100,7 @@ const preflightCases = () => {
     "preflight.mjs",
     "a Linear tier-label lookup error fails closed",
     ["--repo", "ui"],
-    { status: 1, stdout: /FAIL\s+Linear tier labels[\s\S]*Linear tier-label lookup failed[\s\S]*unavailable/i },
+    { status: 1, stdout: /FAIL\s+Linear tier labels[\s\S]*Linear tier-label lookup failed[\s\S]*linear_team_required[\s\S]*No connected Linear team matched/ },
     { path: good.path, env: preflightEnv(tierLookupFailurePlan) },
   )
 
@@ -122,7 +122,7 @@ const preflightCases = () => {
 
   const unparseableTierLabelsPlan = PREFLIGHT_PASS_PLAN.map((entry) =>
     entry.match === LINEAR_LABELS_COMMAND
-      ? { ...entry, stdout: "not-json" }
+      ? { ...entry, stdout: "not-json", allowNonJsonLinear: true }
       : entry,
   )
   check(

@@ -5,16 +5,16 @@ import { T, stage, orcaEnv, check, INTERACTIVE_WORKER, stageLaunchWorker, linear
 const composePromptCases = () => {
   const output = stage("prompts/orb-125.md", "")
   const comments = [
-    { user: { name: "Later reviewer" }, createdAt: "2026-07-28T10:00:00.000Z", body: "Later comment" },
-    { user: { name: "First reviewer" }, createdAt: "2026-07-27T10:00:00.000Z", body: "First comment with ```ts\nconst answer = 42\n```" },
+    { user: { displayName: "Later reviewer" }, createdAt: "2026-07-28T10:00:00.000Z", body: "Later comment" },
+    { user: { displayName: "First reviewer" }, createdAt: "2026-07-27T10:00:00.000Z", body: "First comment with ```ts\nconst answer = 42\n```" },
   ]
-  const issue = { identifier: "ORB-125", description: "# Ticket body\n\nKeep this verbatim.", comments }
+  const issue = { identifier: "ORB-125", description: "# Ticket body\n\nKeep this verbatim." }
   const result = check(
     "compose-prompt.mjs",
     "writes the body and chronological, attributed comments without changing fenced Markdown",
     ["--issue", "ORB-125", "--output", output],
     { status: 0, stdout: /orb-125\.md/ },
-    { env: orcaEnv([{ match: "linear issue ORB-125", stdout: JSON.stringify({ ok: true, result: { issue } }) }]) },
+    { env: orcaEnv([{ match: "linear issue ORB-125 --comments", stdout: JSON.stringify({ ok: true, result: { issue, comments } }) }]) },
   )
   const prompt = readFileSync(output, "utf8")
   T(
@@ -31,7 +31,7 @@ const composePromptCases = () => {
     "omits the comments heading when the issue has no comments",
     ["--issue", "ORB-126", "--output", noComments],
     { status: 0 },
-    { env: orcaEnv([{ match: "linear issue ORB-126", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-126", description: "# Body", comments: [] } } }) }]) },
+    { env: orcaEnv([{ match: "linear issue ORB-126 --comments", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-126", description: "# Body" }, comments: [] } }) }]) },
   )
   T("compose-prompt.mjs: zero comments add no empty heading", !/Comments on this issue/.test(readFileSync(noComments, "utf8")))
 }

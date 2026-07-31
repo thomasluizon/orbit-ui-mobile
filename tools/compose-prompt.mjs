@@ -39,26 +39,26 @@ try {
   const raw = execFileSync(ORCA, ["linear", "issue", issue.toUpperCase(), "--comments", "--json"], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
   const parsed = JSON.parse(raw)
   if (parsed.ok === false) throw new Error(parsed.error?.message ?? "unknown orca error")
-  result = parsed.result ?? parsed
+  result = parsed.result
 } catch (error) {
   console.error(`failed to compose ${issue.toUpperCase()}: ${error.stderr?.toString().trim() || error.message}`)
   process.exit(2)
 }
 
-const full = result.issue ?? result
-const comments = result.comments?.nodes ?? result.comments ?? full.comments?.nodes ?? full.comments ?? []
+const full = result.issue
+const comments = result.comments
 if (!Array.isArray(comments)) {
   console.error(`failed to compose ${issue.toUpperCase()}: comments were not an array`)
   process.exit(2)
 }
-const body = full.description ?? full.body ?? ""
+const body = full.description
 const renderedComments = comments
   .slice()
-  .sort((left, right) => String(left.createdAt ?? left.created_at ?? "").localeCompare(String(right.createdAt ?? right.created_at ?? "")))
+  .sort((left, right) => left.createdAt.localeCompare(right.createdAt))
   .map((comment) => {
-    const author = comment.user?.name ?? comment.user?.displayName ?? comment.author?.name ?? comment.userName ?? "unknown author"
-    const createdAt = comment.createdAt ?? comment.created_at ?? "unknown date"
-    const content = comment.body ?? comment.content ?? ""
+    const author = comment.user.displayName
+    const createdAt = comment.createdAt
+    const content = comment.body
     return `### ${author} - ${createdAt}\n\n${content}`
   })
 const prompt = renderedComments.length ? `${body}\n\n---\n\n## Comments on this issue (part of the work order)\n\n${renderedComments.join("\n\n")}` : body

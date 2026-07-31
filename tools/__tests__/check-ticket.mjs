@@ -1,11 +1,112 @@
 import { cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { root, stage, orcaEnv, check, T, toolPath, INTERACTIVE_CODEX, VALID_TICKET_BODY, VALID_ISSUE } from "./_harness.mjs"
+import { root, stage, orcaEnv, check, T, toolPath, INTERACTIVE_CODEX, LINEAR_TEAM_REQUIRED_ERROR, VALID_TICKET_BODY, VALID_ISSUE } from "./_harness.mjs"
 
 
 
 export const cases = () => {
+    const fixtureValidationError = (match, response) => {
+      try {
+        orcaEnv([{ match, stdout: JSON.stringify(response) }])
+        return ""
+      } catch (error) {
+        return error.message
+      }
+    }
+    const inventedParentError = fixtureValidationError("linear issue ORB-113 --relations", {
+      ok: true,
+      result: { issue: { identifier: "ORB-113", parent: { identifier: "ORB-112" } }, relations: [] },
+    })
+    T(
+      "check-ticket.mjs: a Linear fixture cannot assert a key absent from the recorded invocation envelope",
+      /linear issue[\s\S]*\$\.result\.issue\.parent/.test(inventedParentError),
+      inventedParentError || "invented parent key was accepted",
+    )
+    const inventedStateError = fixtureValidationError("linear issue ORB-113", {
+      ok: true,
+      result: { issue: { identifier: "ORB-113", state: { type: "invented-state" } } },
+    })
+    T(
+      "check-ticket.mjs: a Linear fixture cannot assert an external enum literal absent from the vendor artifact",
+      /linear issue[\s\S]*\$\.result\.issue\.state\.type[\s\S]*invented-state/.test(inventedStateError),
+      inventedStateError || "invented state enum was accepted",
+    )
+    const wrongTypeError = fixtureValidationError("linear issue ORB-113", {
+      ok: true,
+      result: { issue: { identifier: 113 } },
+    })
+    T(
+      "check-ticket.mjs: a Linear fixture cannot change the recorded type of a key",
+      /linear issue[\s\S]*type number[\s\S]*\$\.result\.issue\.identifier/.test(wrongTypeError),
+      wrongTypeError || "wrong identifier type was accepted",
+    )
+    let unknownCommandError = ""
+    try {
+      orcaEnv([{ match: "linear imaginary-subcommand", stdout: "not-json", allowNonJsonLinear: true }])
+    } catch (error) {
+      unknownCommandError = error.message
+    }
+    T(
+      "check-ticket.mjs: an unknown Linear subcommand has no envelope even when its output is unparseable",
+      /linear imaginary-subcommand[\s\S]*no recorded invocation envelope/.test(unknownCommandError),
+      unknownCommandError || "unknown Linear subcommand was accepted",
+    )
+    let undeclaredNonJsonError = ""
+    try {
+      orcaEnv([{ match: "linear issue ORB-113", stdout: "not-json" }])
+    } catch (error) {
+      undeclaredNonJsonError = error.message
+    }
+    T(
+      "check-ticket.mjs: intentional non-JSON Linear output must be declared by that plan entry",
+      /linear issue ORB-113[\s\S]*allowNonJsonLinear/.test(undeclaredNonJsonError),
+      undeclaredNonJsonError || "undeclared non-JSON Linear output was accepted",
+    )
+    let declaredJsonNullError = ""
+    try {
+      orcaEnv([{ match: "linear issue ORB-113", stdout: "null", allowNonJsonLinear: true }])
+    } catch (error) {
+      declaredJsonNullError = error.message
+    }
+    T(
+      "check-ticket.mjs: a non-JSON declaration cannot bypass validation for parseable JSON",
+      /linear issue ORB-113[\s\S]*type null[\s\S]*\$/.test(declaredJsonNullError),
+      declaredJsonNullError || "a declared JSON null bypassed the recorded envelope",
+    )
+    for (const [command, expectedEnvelope] of [
+      ["linear create", "createError"],
+      ["linear team labels --team ORB --json", "teamLabelsError"],
+    ]) {
+      let dispatchError = ""
+      try {
+        orcaEnv([{ match: command, stdout: LINEAR_TEAM_REQUIRED_ERROR, exit: 1 }])
+      } catch (error) {
+        dispatchError = error.message
+      }
+      T(
+        `check-ticket.mjs: ${command} errors use the ${expectedEnvelope} envelope before success dispatch`,
+        dispatchError === "",
+        dispatchError,
+      )
+    }
+    let sequenceError = ""
+    try {
+      orcaEnv([{
+        match: "linear issue ORB-113",
+        sequence: [
+          JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-113" } } }),
+          JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-113", invented: true } } }),
+        ],
+      }])
+    } catch (error) {
+      sequenceError = error.message
+    }
+    T(
+      "check-ticket.mjs: every response in a Linear fixture sequence is envelope-checked",
+      /linear issue[\s\S]*\$\.result\.issue\.invented/.test(sequenceError),
+      sequenceError || "invented sequence key was accepted",
+    )
     check("check-ticket.mjs", "an incomplete body is rejected", ["--file", stage("ticket.md", "# A ticket\n\nno template sections here\n")], { nonZero: true })
     check("check-ticket.mjs", "a missing body file is a usage error", ["--file", join(root, "absent.md")], { status: 2 })
     const criteriaTicket = (...items) =>

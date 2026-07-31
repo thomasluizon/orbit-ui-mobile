@@ -370,9 +370,9 @@ const issueStateType = (identifier) => {
   })
   const parsed = JSON.parse(raw)
   if (parsed.ok === false) throw new Error(parsed.error?.message ?? "unknown orca error")
-  const parsedResult = parsed.result ?? parsed
-  const state = (parsedResult.issue ?? parsedResult).state
-  const type = typeof state === "string" ? undefined : state?.type
+  const parsedResult = parsed.result
+  const state = parsedResult.issue.state
+  const type = state.type
   if (typeof type !== "string") throw new Error(`the payload for ${identifier} carries no state.type`)
   return type
 }
@@ -412,15 +412,15 @@ if (mode === "--file") {
     maxBuffer: 16 * 1024 * 1024,
   })
   const parsed = JSON.parse(raw)
-  const parsedResult = parsed.result ?? parsed
-  const issue = parsedResult.issue ?? parsedResult
+  const parsedResult = parsed.result
+  const issue = parsedResult.issue
   const title = issue.title ?? ""
   const body = issue.description ?? ""
-  const labels = (issue.labels ?? []).map((label) => (typeof label === "string" ? label : label.name))
+  const labels = (issue.labels ?? []).map((label) => label.name)
   validateTitle(title)
   validateBody(body)
   validateLabels(labels)
-  const relations = parsedResult.relations ?? issue.relations ?? []
+  const relations = parsedResult.relations
   /**
    * Linear is the ONLY source of the parent. `orca linear issue <id> --relations --json` returns
    * no `parent` key at all, and orca's relation vocabulary is blocks / blocked-by / related /
@@ -437,12 +437,12 @@ if (mode === "--file") {
     process.exit(2)
   }
   if (isLedgerParent(parent)) validateLedgerOccurrence(body)
-  const blockedBy = relations.filter((r) => r.relationship === "blockedBy" || r.type === "blockedBy")
+  const blockedBy = relations.filter((r) => r.relationship === "blockedBy")
   if (mentionsIssueDependency(body) && blockedBy.length === 0) {
     problems.push("body PROSE mentions a dependency but the issue has no blockedBy relation; the DAG is explicit, never inferred from titles (6.2)")
   }
   if (labels.includes(HARNESS_LABEL)) {
-    const identifier = issue.identifier ?? target
+    const identifier = issue.identifier
     const claim = ROOT_CAUSE_LINE.exec(body)?.[1] ?? null
     if (claim === null) {
       problems.push(`${identifier} carries the ${HARNESS_LABEL} label but no "Root cause:" line. Name a root id registered in ${HARNESS_ROOTS_NAME}, or the literal ${ROOT_CAUSE_EXEMPT} if this ticket instantiates no root`)
