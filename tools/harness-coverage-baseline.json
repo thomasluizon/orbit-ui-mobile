@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total": 816,
+  "total": 819,
   "tools": {
     "(runner)": 7,
     "agent-review.ps1": 2,
@@ -17,7 +17,7 @@
     "check-harness-coverage.mjs": 14,
     "check-lockstep.mjs": 14,
     "check-push-target.mjs": 4,
-    "check-required-gates.mjs": 23,
+    "check-required-gates.mjs": 26,
     "check-suppressions-ratchet.mjs": 2,
     "check-ticket.mjs": 54,
     "check-tier-labels.mjs": 8,

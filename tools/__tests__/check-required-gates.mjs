@@ -124,6 +124,36 @@ const cases = () => {
     `exit ${live.status}\n     ${(live.stderr || live.stdout).trim().split("\n").slice(0, 4).join("\n     ")}`,
   )
 
+  /**
+   * The CI wiring itself, because a gate can be wired, green and never executed, which is the
+   * defect this tool exists to remove one level up. Reading branch protection needs a token with
+   * the Administration permission and the Actions `permissions:` block has no `administration`
+   * key, so GITHUB_TOKEN can NEVER satisfy it and a PAT is structurally required. That secret
+   * does not exist yet, so the step takes its early exit on every run. The distinction between
+   * "aligned" and "could not look" is the whole point: the absence must be LOUD and must never
+   * read as a clean diff.
+   */
+  const guardsWorkflow = readFileSync(join(REPO_ROOT, ".github", "workflows", "guards.yml"), "utf8")
+  const requiredGatesStep = /- name: Every deterministic gate is a required check[\s\S]*?(?=\n      - name:|\n  [a-z-]+:\n)/.exec(guardsWorkflow)?.[0] ?? ""
+  T(
+    "check-required-gates.mjs: the CI step runs report-only against the pull request head",
+    /--report-only/.test(requiredGatesStep) && /--head "\$HEAD_SHA"/.test(requiredGatesStep) && /github\.event\.pull_request\.head\.sha/.test(requiredGatesStep),
+    `the required-gates step in guards.yml no longer passes --head and --report-only:\n     ${requiredGatesStep.slice(0, 400)}`,
+  )
+  const missingTokenBranch = /if \[ -z "\$\{ADMIN_READ_TOKEN:-\}" \]; then[\s\S]*?\n          fi/.exec(requiredGatesStep)?.[0] ?? ""
+  T(
+    "check-required-gates.mjs: a missing admin token is announced rather than passing silently",
+    /::warning::/.test(missingTokenBranch) &&
+      /NOT read and NO alignment was checked/.test(missingTokenBranch) &&
+      !/check-required-gates/.test(missingTokenBranch),
+    `the no-token branch must emit a warning annotation and must not read as a verdict:\n     ${missingTokenBranch || "(branch not found)"}`,
+  )
+  T(
+    "check-required-gates.mjs: the CI step never fails the job while it is report-only",
+    /\|\| status=\$\?/.test(requiredGatesStep) && !/\bexit "\$status"/.test(requiredGatesStep),
+    `the step must capture the status and warn, never re-raise it, or every pull request goes red until the secret exists:\n     ${requiredGatesStep.slice(0, 400)}`,
+  )
+
   // The ordered gate: a job added to an enforced workflow without a protection entry fails CI.
   const unlisted = gatesRun("unlisted", { jobs: [...namedJob("first", "Listed Gate"), ...namedJob("second", "Unlisted Gate")], contexts: ["Listed Gate"] })
   T(

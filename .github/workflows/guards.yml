@@ -204,8 +204,14 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
+          # LOUD, not silent. The secret does not exist yet, so without this the step exits 0
+          # having checked nothing, which is a gate that is wired, green and never executed:
+          # the exact defect A1 exists to remove. A warning annotation surfaces on the run
+          # itself; the summary line alone goes somewhere nobody reads. It must NOT fail, or
+          # every pull request goes red until the secret exists, including this one.
           if [ -z "${ADMIN_READ_TOKEN:-}" ]; then
-            echo "no ADMIN_READ_TOKEN secret, so branch protection could not be read; reporting nothing rather than a clean diff" \
+            echo "::warning::ADMIN_READ_TOKEN is not set, so branch protection was not read and this gate checked nothing"
+            echo "ADMIN_READ_TOKEN is not set. Branch protection was NOT read and NO alignment was checked." \
               | tee -a "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
