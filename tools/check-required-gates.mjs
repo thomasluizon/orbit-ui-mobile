@@ -44,6 +44,9 @@ const USAGE = `usage: check-required-gates.mjs --repo <owner/name> [options]
   --protection-file <path>   read a recorded protection payload instead of the API
   --head <sha>               also report required contexts with no honoured check run
   --check-runs-file <path>   read recorded check runs instead of the API
+  --unverified-workflows-source
+                             accept a --workflows-dir whose checkout is not --repo,
+                             or is not a checkout at all; prints a loud banner
   --report-only              print the verdict and exit 0
   --json                     print the result as machine-readable JSON
   --help, -h                 print this usage and exit 0
@@ -51,19 +54,25 @@ const USAGE = `usage: check-required-gates.mjs --repo <owner/name> [options]
 exit codes: 0 aligned (or --report-only), 1 a difference, 2 usage or lookup error`
 
 const FLAGS_WITH_VALUES = new Set(["--repo", "--branch", "--manifest", "--workflows-dir", "--protection-file", "--head", "--check-runs-file"])
-const BOOLEAN_FLAGS = new Set(["--report-only", "--json"])
+const BOOLEAN_FLAGS = new Set(["--report-only", "--json", "--unverified-workflows-source"])
 
 const fail = (message) => {
   console.error(`check-required-gates: ${message}`)
   process.exit(2)
 }
 
+const BOOLEAN_FIELD = {
+  "--report-only": "reportOnly",
+  "--json": "json",
+  "--unverified-workflows-source": "unverifiedWorkflowsSource",
+}
+
 function parseArguments(argumentList) {
-  const parsed = { reportOnly: false, json: false }
+  const parsed = { reportOnly: false, json: false, unverifiedWorkflowsSource: false }
   for (let index = 0; index < argumentList.length; index++) {
     const argument = argumentList[index]
     if (BOOLEAN_FLAGS.has(argument)) {
-      parsed[argument === "--report-only" ? "reportOnly" : "json"] = true
+      parsed[BOOLEAN_FIELD[argument]] = true
       continue
     }
     if (!FLAGS_WITH_VALUES.has(argument)) fail(`unknown argument: ${argument}\n\n${USAGE}`)
@@ -158,6 +167,49 @@ if (!branch) fail(`no branch for ${argumentsParsed.repo}: pass --branch or decla
 
 const workflowsDirectory = argumentsParsed.workflowsDir ?? join(REPO_ROOT, ".github", "workflows")
 if (!existsSync(workflowsDirectory)) fail(`no workflow directory at ${workflowsDirectory}`)
+
+/**
+ * The two halves of this diff come from different places: the required contexts from the API for
+ * --repo, and the job names from whatever directory this process happens to read. Nothing tied
+ * them together, and a run pointed at one repository's workflows and another's protection
+ * produced a confident, fully formed, entirely WRONG verdict: 17 problems claiming orbit-api
+ * defines Cross-Platform Parity and Expo SDK Pin, and that its genuinely required OpenAPI and
+ * migration gates are defined by nobody. It read as a discovery rather than a misconfiguration,
+ * which is the worst possible failure mode for a gate.
+ *
+ * That is state read from a source nothing keeps current, in a tool written to catch exactly
+ * that. So the checkout's own identity is resolved and must MATCH, and an identity that cannot
+ * be resolved at all is refused too rather than assumed benign. A caller who genuinely wants a
+ * mismatched or non-checkout source says so with a flag whose name admits it.
+ */
+function checkoutRepository(directory) {
+  const result = spawnSync(process.env.GIT_BIN ?? "git", ["-C", directory, "remote", "get-url", "origin"], { encoding: "utf8" })
+  if (result.error || result.status !== 0) return null
+  const remote = result.stdout.trim().replace(/\.git$/, "")
+  const parts = remote.split(/[/:]/).filter(Boolean)
+  return parts.length >= 2 ? `${parts.at(-2)}/${parts.at(-1)}` : null
+}
+
+const workflowsRepository = checkoutRepository(resolve(workflowsDirectory, "..", ".."))
+if (!argumentsParsed.unverifiedWorkflowsSource) {
+  if (workflowsRepository === null) {
+    fail(
+      `could not resolve which repository owns ${workflowsDirectory}, so its jobs cannot be trusted against ${argumentsParsed.repo}'s protection.\n` +
+        "     Pass --unverified-workflows-source to compare them anyway.",
+    )
+  }
+  if (workflowsRepository !== argumentsParsed.repo) {
+    fail(
+      `--workflows-dir belongs to ${workflowsRepository} but --repo is ${argumentsParsed.repo}.\n` +
+        "     Comparing one repository's jobs with another's branch protection yields a confident wrong verdict.\n" +
+        "     Pass --unverified-workflows-source if the mismatch is deliberate.",
+    )
+  }
+} else {
+  console.log(
+    `UNVERIFIED WORKFLOWS SOURCE: reading ${workflowsDirectory} (${workflowsRepository ?? "not a checkout"}) against ${argumentsParsed.repo}'s protection.`,
+  )
+}
 
 const enforcedWorkflows = declaration.enforcedWorkflows ?? []
 const externalContexts = declaration.externalContexts ?? {}

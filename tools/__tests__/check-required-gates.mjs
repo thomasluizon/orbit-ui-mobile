@@ -32,6 +32,7 @@ const gatesRun = (label, { jobs, contexts, declaration = {}, extra = [] }) =>
     stageWorkflows(label, jobs),
     "--protection-file",
     stageProtection(label, contexts),
+    "--unverified-workflows-source",
     ...extra,
   ])
 
@@ -68,6 +69,59 @@ const cases = () => {
       return typeof payload.url === "string" && payload.url.includes("/branches/main/protection") && Array.isArray(payload.required_status_checks?.checks)
     })(),
     "tools/__fixtures__/branch-protection-main.json lost the fields only the real endpoint returns; re-record it rather than editing it",
+  )
+
+  /**
+   * The two halves of the diff come from different places, and nothing tied them together. A run
+   * pointed at this repository's workflows while asking for orbit-api's protection produced a
+   * confident, fully formed, entirely wrong verdict: 17 problems claiming orbit-api defines
+   * Cross-Platform Parity and Expo SDK Pin, and that its own OpenAPI and migration gates are
+   * defined by nobody. It read as a discovery rather than a misconfiguration. State from a source
+   * nothing keeps current, in the tool written to catch exactly that.
+   */
+  const crossedRepo = run("check-required-gates.mjs", [
+    "--repo",
+    "owner/fixture",
+    "--manifest",
+    stageManifest("crossed", {}),
+    "--workflows-dir",
+    join(REPO_ROOT, ".github", "workflows"),
+    "--protection-file",
+    stageProtection("crossed", []),
+  ])
+  T(
+    "check-required-gates.mjs: a workflows directory belonging to another repository is refused, naming both",
+    crossedRepo.status === 2 &&
+      /--workflows-dir belongs to \S+ but --repo is owner\/fixture/.test(crossedRepo.stderr) &&
+      crossedRepo.stdout === "",
+    `exit ${crossedRepo.status}\n     ${(crossedRepo.stderr || crossedRepo.stdout).trim()}`,
+  )
+  const notACheckout = run("check-required-gates.mjs", [
+    "--repo",
+    "owner/fixture",
+    "--manifest",
+    stageManifest("not-a-checkout", {}),
+    "--workflows-dir",
+    stageWorkflows("not-a-checkout", namedJob("first", "Listed Gate")),
+    "--protection-file",
+    stageProtection("not-a-checkout", ["Listed Gate"]),
+  ])
+  T(
+    "check-required-gates.mjs: a workflows directory that is not a checkout at all is refused",
+    notACheckout.status === 2 && /could not resolve which repository owns/.test(notACheckout.stderr),
+    `exit ${notACheckout.status}\n     ${(notACheckout.stderr || notACheckout.stdout).trim()}`,
+  )
+  const acknowledged = gatesRun("acknowledged", { jobs: namedJob("first", "Listed Gate"), contexts: ["Listed Gate"] })
+  T(
+    "check-required-gates.mjs: the explicit flag still produces a verdict, under a loud banner",
+    acknowledged.status === 0 && /UNVERIFIED WORKFLOWS SOURCE:.*not a checkout.*owner\/fixture/.test(acknowledged.stdout),
+    `exit ${acknowledged.status}\n     ${acknowledged.stdout.trim()}`,
+  )
+  // The matching pair, which is what CI runs: same repository on both halves, no flag.
+  T(
+    "check-required-gates.mjs: a matching repository and checkout needs no acknowledgement",
+    verdict !== null && !live.stdout.includes("UNVERIFIED WORKFLOWS SOURCE"),
+    `exit ${live.status}\n     ${(live.stderr || live.stdout).trim().split("\n").slice(0, 4).join("\n     ")}`,
   )
 
   // The ordered gate: a job added to an enforced workflow without a protection entry fails CI.
@@ -132,6 +186,7 @@ const cases = () => {
     stageWorkflows("undeclared", namedJob("first", "Listed Gate")),
     "--protection-file",
     stageProtection("undeclared", []),
+    "--unverified-workflows-source",
   ])
   T(
     "check-required-gates.mjs: an undeclared repository is refused rather than waved through",
@@ -151,6 +206,7 @@ const cases = () => {
     stageWorkflows("malformed", namedJob("first", "Listed Gate")),
     "--protection-file",
     stage("required-gates/malformed/protection.json", JSON.stringify({ required_status_checks: { strict: true } })),
+    "--unverified-workflows-source",
   ])
   T(
     "check-required-gates.mjs: a protection payload with no contexts array fails closed",
@@ -167,6 +223,7 @@ const cases = () => {
     stageWorkflows("missing-workflow", namedJob("first", "Listed Gate")),
     "--protection-file",
     stageProtection("missing-workflow", []),
+    "--unverified-workflows-source",
   ])
   T(
     "check-required-gates.mjs: an enforced workflow file that does not exist is an error",
@@ -195,6 +252,7 @@ const cases = () => {
       "c0ffee".padEnd(40, "0"),
       "--check-runs-file",
       stage(`required-gates/${label}/check-runs.json`, JSON.stringify({ check_runs: runs })),
+      "--unverified-workflows-source",
     ])
   const supersededFailure = checkRunsRun(
     "superseded-failure",
