@@ -34,7 +34,7 @@
       "file": ".claude/agents/contract-aligner.md",
       "verdict": "kept",
       "reason": "Sonnet with medium effort fits structured cross-repo contract comparison.",
-      "fingerprint": "sha256:245024a497d6077c8a9258c32163b5f973534374a93392d6b7e2cb569e7c4f90"
+      "fingerprint": "sha256:dbf3206b1d8179f703637265bd5209acf0f56ba28a9b9ff8001b0156723e5305"
     },
     {
       "file": ".claude/agents/design-reviewer.md",
@@ -70,7 +70,7 @@
       "file": ".claude/agents/security-reviewer.md",
       "verdict": "kept",
       "reason": "Sonnet with medium effort fits a bounded, evidence-led security rubric.",
-      "fingerprint": "sha256:9054b6aa7e63f93c668a1a03793f166ee3a225b540f8f42799874f34a2eba89b"
+      "fingerprint": "sha256:4c9a04b1dff7ec53b81038332fb22c5501654c04c297d3f0a995b89f6acecc99"
     },
     {
       "file": ".claude/agents/web-researcher.md",
@@ -172,13 +172,13 @@
       "file": ".claude/skills/orchestrate/SKILL.md",
       "verdict": "kept",
       "reason": "High effort fits merge-gated multi-worker coordination and reconciliation.",
-      "fingerprint": "sha256:517320a210ef5631a5dd0a5ec5fe4a42a527b0950222b234f27a0c7e21c100a1"
+      "fingerprint": "sha256:bb6c39d70e481019c699202d46e20889075e50c9c2428ea5b158b285c7a1e08f"
     },
     {
       "file": ".claude/skills/pr-review/SKILL.md",
       "verdict": "kept",
       "reason": "Omitted effort intentionally inherits high reasoning for adversarial diff review.",
-      "fingerprint": "sha256:b64b3b5ada82699858a5d78916d8b6f0c04c9b1eacdeba94c7898264973be8b3"
+      "fingerprint": "sha256:caf193f47e18bdc3e967e7745947f36ea46bc40a64ed57f286d6a390ed6747f2"
     },
     {
       "file": ".claude/skills/prod-readiness/SKILL.md",
@@ -208,7 +208,7 @@
       "file": ".claude/skills/second-opinion/SKILL.md",
       "verdict": "kept",
       "reason": "Omitted effort intentionally inherits high reasoning for load-bearing claim reconciliation.",
-      "fingerprint": "sha256:4e8f79b5f3177f502bdefd6010a0e921a4fe4d2f25a3506abc4fd955a73867c7"
+      "fingerprint": "sha256:aff9fbbfbce5ab5b0616863f7ef3361efe315644eec66fbe8962a0e269211998"
     },
     {
       "file": ".claude/skills/ticket/SKILL.md",
@@ -226,7 +226,7 @@
       "file": ".claude/skills/watch/SKILL.md",
       "verdict": "kept",
       "reason": "Low effort fits scripted fleet-status interpretation.",
-      "fingerprint": "sha256:b8316e1b98238021091e8b8e1df60c4e3494f875078af51e380b7d31621a4f43"
+      "fingerprint": "sha256:e73d24fea17b4ffe67fe791744df436c21c88ffd457ab3920b74d31ad615cd8c"
     }
   ]
 }
