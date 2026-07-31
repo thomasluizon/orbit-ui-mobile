@@ -5,11 +5,12 @@ import { T, stage, orcaEnv, run } from "./_harness.mjs"
 const mergeabilityCases = () => {
   const head = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   const stale = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-  const checkRun = (name, conclusion, createdAt = "2026-07-31T14:55:29Z") => ({
+  const checkRun = (name, conclusion, createdAt = "2026-07-31T14:55:29Z", startedAt = createdAt) => ({
     __typename: "CheckRun",
     name,
     status: "COMPLETED",
     conclusion,
+    startedAt,
     checkSuite: { createdAt },
   })
   const pullRequest = (overrides = {}) => ({
@@ -69,8 +70,12 @@ const mergeabilityCases = () => {
   T("mergeability.mjs: CHANGES_REQUESTED remains HELD", changesRequested.status === 1 && /HELD review-decision: review decision is CHANGES_REQUESTED/.test(changesRequested.stdout), changesRequested.stderr || changesRequested.stdout)
   const latestCheck = runCase("latest-check", pullRequest({ commits: { nodes: [{ commit: { statusCheckRollup: { state: "FAILURE", contexts: { pageInfo: { hasNextPage: false }, nodes: [checkRun("CI", "SUCCESS", "2026-07-31T14:55:29Z"), checkRun("CI", "CANCELLED", "2026-07-31T14:53:08Z")] } } } }] } }))
   T("mergeability.mjs: a newer successful check supersedes an older cancellation regardless of array order", latestCheck.status === 0 && /OK check-rollup: 1 check\(s\), all terminal/.test(latestCheck.stdout), latestCheck.stderr || latestCheck.stdout)
+  const sameSuiteRerun = runCase("same-suite-rerun", pullRequest({ commits: { nodes: [{ commit: { statusCheckRollup: { state: "FAILURE", contexts: { pageInfo: { hasNextPage: false }, nodes: [checkRun("CI", "SUCCESS", "2026-07-31T14:53:08Z", "2026-07-31T14:55:37Z"), checkRun("CI", "CANCELLED", "2026-07-31T14:53:08Z", "2026-07-31T14:53:17Z")] } } } }] } }))
+  T("mergeability.mjs: a newer successful same-suite rerun supersedes its older cancellation", sameSuiteRerun.status === 0 && /OK check-rollup: 1 check\(s\), all terminal/.test(sameSuiteRerun.stdout), sameSuiteRerun.stderr || sameSuiteRerun.stdout)
   const tiedCheck = runCase("tied-check", pullRequest({ commits: { nodes: [{ commit: { statusCheckRollup: { state: "FAILURE", contexts: { pageInfo: { hasNextPage: false }, nodes: [checkRun("CI", "SUCCESS"), checkRun("CI", "CANCELLED")] } } } }] } }))
-  T("mergeability.mjs: exact check creation timestamp ties fail closed", tiedCheck.status === 1 && /HELD check-rollup:/.test(tiedCheck.stdout), tiedCheck.stderr || tiedCheck.stdout)
+  T("mergeability.mjs: exact check start timestamp ties fail closed", tiedCheck.status === 1 && /HELD check-rollup:/.test(tiedCheck.stdout), tiedCheck.stderr || tiedCheck.stdout)
+  const missingTimestamp = runCase("missing-check-timestamp", pullRequest({ commits: { nodes: [{ commit: { statusCheckRollup: { state: "FAILURE", contexts: { pageInfo: { hasNextPage: false }, nodes: [checkRun("CI", "SUCCESS", "2026-07-31T14:55:29Z", "2026-07-31T14:55:37Z"), checkRun("CI", "CANCELLED", "2026-07-31T14:53:08Z", null)] } } } }] } }))
+  T("mergeability.mjs: a cancelled duplicate with no start timestamp cannot be discarded", missingTimestamp.status === 1 && /HELD check-rollup:/.test(missingTimestamp.stdout), missingTimestamp.stderr || missingTimestamp.stdout)
   const wrongState = runCase("wrong-state", pullRequest(), { issue: { state: { name: "In Progress" }, labels: [] } })
   T("mergeability.mjs: a linked issue outside In Review is HELD", wrongState.status === 1 && /HELD linear-in-review: issue ORB-143 is In Progress, requires In Review/.test(wrongState.stdout), wrongState.stderr || wrongState.stdout)
   const nullState = runCase("null-state", pullRequest(), { issue: { state: null, labels: [] } })

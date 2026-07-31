@@ -128,7 +128,7 @@ const QUERY = `query($owner:String!,$name:String!,$number:Int!){
       reviews(first:100){pageInfo{hasNextPage} nodes{state commit{oid}}}
       commits(last:1){nodes{commit{statusCheckRollup{state contexts(last:100){nodes{
         __typename
-        ... on CheckRun{name status conclusion checkSuite{createdAt}}
+        ... on CheckRun{name status conclusion startedAt}
         ... on StatusContext{context state}
       }}}}}}
     }
@@ -163,13 +163,18 @@ const readPullRequest = (number) => {
 const latestCheckRunsOf = (contexts) => {
   const statusContexts = contexts.filter((context) => context.__typename !== "CheckRun")
   const latestByName = new Map()
+  const unordered = []
   for (const checkRun of contexts.filter((context) => context.__typename === "CheckRun")) {
-    const createdAt = checkRun.checkSuite.createdAt
+    const startedAt = checkRun.startedAt
+    if (typeof startedAt !== "string") {
+      unordered.push(checkRun)
+      continue
+    }
     const latest = latestByName.get(checkRun.name)
-    if (!latest || createdAt > latest.createdAt) latestByName.set(checkRun.name, { createdAt, runs: [checkRun] })
-    else if (createdAt === latest.createdAt) latest.runs.push(checkRun)
+    if (!latest || startedAt > latest.startedAt) latestByName.set(checkRun.name, { startedAt, runs: [checkRun] })
+    else if (startedAt === latest.startedAt) latest.runs.push(checkRun)
   }
-  return [...statusContexts, ...[...latestByName.values()].flatMap((latest) => latest.runs)]
+  return [...statusContexts, ...unordered, ...[...latestByName.values()].flatMap((latest) => latest.runs)]
 }
 
 const failingChecksOf = (pullRequest) =>

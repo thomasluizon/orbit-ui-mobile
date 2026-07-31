@@ -844,8 +844,8 @@ export const NO_DRAFT_PULL_REQUEST_CLAUSE = "The pull request must be ready for 
  *
  *   1. `pattern.test(launcherSource)` passed with clause 3 deleted from WORKER_CONTRACT
  *      entirely and parked in a dead comment. Nothing the worker reads was asserted.
- *   2. `[\s\S]*` spanned clauses. "approved with zero unresolved threads" ends clause 3 and
- *      recurs in clause 5, so two tokens twenty lines apart satisfied a single clause.
+ *   2. `[\s\S]*` spanned clauses. The review-clear terminator ends clause 3 and recurs in clause
+ *      5, so two tokens twenty lines apart satisfied a single clause.
  *
  * Block-scoped matching over the injected artifact closes both. Adding a clause here means
  * adding its number; a clause that moves must move here too, which is the point.
@@ -855,7 +855,7 @@ export const REQUIRED_CONTRACT_CLAUSES = {
   "recording unattended decisions in the PR body": { clause: 1, pattern: /Decisions taken unattended/ },
   "dropping a blocked criterion": { clause: 2, pattern: /A blocked sub-step never blocks the PR/ },
   "opening a draft pull request": { clause: 2, pattern: /The pull request must be ready for review, never a draft\./ },
-  "owning its automated review cycle": { clause: 3, pattern: /Own the automated review cycle[\s\S]*approved with zero unresolved threads/ },
+  "owning its automated review cycle": { clause: 3, pattern: /Own the automated review cycle[\s\S]*CHANGES_REQUESTED blocks[\s\S]*No approval is required[\s\S]*If an approval exists[\s\S]*current head[\s\S]*zero unresolved threads and every automated review item is reconciled/ },
   "polling every review activity surface": { clause: 3, pattern: FULL_SURFACE_POLL },
   "replying with the fix commit before resolving": { clause: 3, pattern: /reply on that[\s\S]*thread naming[\s\S]*the fix commit, then[\s\S]*resolve it/ },
   "acknowledging non-thread review activity": { clause: 3, pattern: /review body or PR conversation[\s\S]*activity ID[\s\S]*PR commit/ },
@@ -864,7 +864,7 @@ export const REQUIRED_CONTRACT_CLAUSES = {
   "escalating a blocked decision": { clause: 4, pattern: /when you are[\s\S]*blocked on a decision you may not make/ },
   "escalating after two failed cycles": { clause: 4, pattern: /when two consecutive cycles fail on the same[\s\S]*finding/ },
   "leaving human threads unresolved": { clause: 3, pattern: /Never resolve a thread opened by a human account/ },
-  "refusing completion with unresolved threads": { clause: 3, pattern: /approval with an[\s\S]*unresolved[\s\S]*thread is not done/ },
+  "refusing completion with unresolved threads": { clause: 3, pattern: /zero unresolved threads and every automated review item is reconciled/ },
   "watching only its own ticket": { clause: 5, pattern: /Never watch another[\s\S]*ticket, worktree, or PR/ },
   "arming a detached monitor that outlives the contract": { clause: 6, pattern: /Never arm a detached background monitor/ },
   "permitting an affordable foreground blocking wait": { clause: 6, pattern: /foreground blocking wait is permitted/ },

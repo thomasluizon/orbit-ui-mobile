@@ -887,7 +887,7 @@ Not run.`,
     writePidMarker(fixture.worktree, [{ pid: deadPid, startedAt: hoursAgo(1) }])
     const stalled = runWorkerStatusCase(fixture, [screenshot, critique], abandoned)
     T(
-      "worker-status.mjs: a dead worker with an unapproved open pull request is STALLED",
+      "worker-status.mjs: a dead worker with outstanding review work on an open pull request is STALLED",
       stalled.status === 1 &&
         stalled.verdict?.verdict === "STALLED" &&
         stalled.verdict.liveness.state === "gone" &&
@@ -908,7 +908,7 @@ Not run.`,
     writePidMarker(fixture.worktree, [{ pid: process.pid, startedAt: hoursAgo(15) }])
     const working = runWorkerStatusCase(fixture, [screenshot, critique], abandoned)
     T(
-      "worker-status.mjs: a live worker with an unapproved open pull request is WORKING, never STALLED",
+      "worker-status.mjs: a live worker with outstanding review work is WORKING, never STALLED",
       working.status === 1 &&
         working.verdict?.verdict === "WORKING" &&
         working.verdict.liveness.state === "alive" &&

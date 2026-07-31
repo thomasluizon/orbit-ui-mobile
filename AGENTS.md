@@ -9,9 +9,10 @@ before writing code.
 
 - Your prompt is a Linear ticket body. Execute exactly it: scope and out-of-scope are
   binding; an impossible or contradictory ticket means STOP and report, never improvise.
-- Finish = lint + type-check + tests green for the touched workspaces, commit, push,
-  one PR to the ticket's target branch linking `ORB-N`, then own its review cycle
-  through approval with zero unresolved threads. The pull request must be ready for review, never a draft.
+- Finish = gates green, commit, push, and one ready PR to the target linking `ORB-N`, then own
+  its review cycle. CHANGES_REQUESTED blocks. No approval is required. If an approval exists,
+  it must name the current head. Finish requires zero unresolved threads and every automated review item is reconciled.
+  The pull request must be ready for review, never a draft.
   Never merge. Never push to `main` or `redesign/main` directly.
 - Post the approach before you write the code. Open the pull request as your FIRST act
   after creating the branch, carrying no implementation yet, and immediately post your
@@ -22,9 +23,8 @@ before writing code.
   a plan is free; changing a merged design is not.
 - After pushing, poll your pull request. Reconcile each automated review finding
   against the diff, fix valid findings, commit and push the fix, reply on the thread
-  naming the fix commit, resolve the thread, and repeat until the review decision is
-  approved with zero unresolved threads. Never resolve a thread opened by a human,
-  and never report completion while any thread remains unresolved.
+  naming the fix commit, resolve the thread, and repeat until the finish rule above is met.
+  Never resolve a human thread or report completion while one remains unresolved.
 - Use `node tools/pr-watch.mjs --repo <owner/name> --pr <number> --once` for each
   low-level transition wake-up only. After every call and before waiting or
   reporting completion, run
@@ -45,8 +45,7 @@ before writing code.
   fresh relaunch does not reset it and escalation cannot degrade into unbounded retry.
   A relaunch driven by one finding carries `--finding <id>`, and exit code 5 from the
   launcher means the strikes are spent: escalate, never retry. Report one escalation
-  carrying the finding and your reasoning; otherwise report once when the pull request is
-  approved with zero unresolved threads.
+  carrying the finding and your reasoning; otherwise report once when the finish rule is met.
 - Parity is mandatory for `parity:yes` tickets: `apps/web` and `apps/mobile` change in
   the SAME PR, logic and behaviour identical; i18n keys land in `en.json` AND
   `pt-BR.json` in the same edit.

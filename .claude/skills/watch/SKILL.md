@@ -49,16 +49,16 @@ nothing about whether the work is any good or even started.
 
 **The DELIVERY verdict** is one of `DELIVERED`, `WORKING`, `STALLED`, `AWAITING-MERGE`, `IDLE` or
 `UNKNOWN`, derived by `worker-status.mjs` from artifacts (commits above the fetched base, a clean
-worktree, the branch pushed, a pull request open with an approving review on its current head, the
-issue In Review with its pull request attached, final screenshots and the critique artifact when
-`visible-effect`). This is the one that decides whether a ticket is done.
+worktree, the branch pushed, and an open pull request). CHANGES_REQUESTED blocks.
+No approval is required. If an approval exists, it must name the current head. Delivery also requires zero unresolved threads and every automated review item is reconciled, the issue In Review with its pull request
+attached, and final screenshots plus critique when `visible-effect`.
 
 | verdict | what it is |
 |---|---|
 | `DELIVERED` | the contract is met. Merge-side work is yours now |
 | `WORKING` | the process is alive and the contract is not met yet. Leave it alone |
-| `STALLED` | the process is GONE and an open pull request is unapproved. **This is the one that costs a run** |
-| `AWAITING-MERGE` | gone, and the pull request is already approved on its head. Bookkeeping, not a relaunch |
+| `STALLED` | process GONE, PR open, and CHANGES_REQUESTED, a stale approval, or review work remains. **This costs a run** |
+| `AWAITING-MERGE` | gone with review gates clear. Bookkeeping, not a relaunch |
 | `IDLE` | no live worker and no open pull request. Nothing is wrong; the ticket is simply between pull requests |
 | `UNKNOWN` | something on the path could not be read. Act on nothing and surface it |
 

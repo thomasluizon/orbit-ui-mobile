@@ -13,11 +13,12 @@ const OLD_SHA = "1111111111111111111111111111111111111111"
 
 const reviewOn = (state, oid) => ({ state, author: { login: "claude" }, commit: { oid } })
 
-const checkRun = (name, conclusion, createdAt = "2026-07-31T14:53:08Z") => ({
+const checkRun = (name, conclusion, createdAt = "2026-07-31T14:53:08Z", startedAt = createdAt) => ({
   __typename: "CheckRun",
   name,
   status: "COMPLETED",
   conclusion,
+  startedAt,
   checkSuite: { createdAt },
 })
 
@@ -214,6 +215,55 @@ const prWatchCases = () => {
           commits: rollup(
             checkRun("Harness Lockstep", "SUCCESS", "2026-07-31T14:55:29Z"),
             checkRun("Harness Lockstep", "FAILURE", "2026-07-31T14:53:08Z"),
+          ),
+        }),
+      ]),
+    },
+  )
+  check(
+    "pr-watch.mjs",
+    "a newer successful same-suite rerun supersedes its older failure",
+    argv,
+    { status: 0, stdout: /"transition": "ready-to-merge"/ },
+    {
+      env: orcaEnv([
+        pullRequestStub(615, {
+          mergeStateStatus: "CLEAN",
+          commits: rollup(
+            checkRun("Harness Lockstep", "SUCCESS", "2026-07-31T14:53:08Z", "2026-07-31T14:55:37Z"),
+            checkRun("Harness Lockstep", "FAILURE", "2026-07-31T14:53:08Z", "2026-07-31T14:53:17Z"),
+          ),
+        }),
+      ]),
+    },
+  )
+  check(
+    "pr-watch.mjs",
+    "an exact start timestamp tie retains a failed duplicate",
+    argv,
+    { status: 1, stdout: /"transition": "checks-failed"/ },
+    {
+      env: orcaEnv([
+        pullRequestStub(615, {
+          commits: rollup(
+            checkRun("Harness Lockstep", "SUCCESS", "2026-07-31T14:55:29Z", "2026-07-31T14:55:37Z"),
+            checkRun("Harness Lockstep", "FAILURE", "2026-07-31T14:53:08Z", "2026-07-31T14:55:37Z"),
+          ),
+        }),
+      ]),
+    },
+  )
+  check(
+    "pr-watch.mjs",
+    "a failed duplicate with no start timestamp cannot be discarded",
+    argv,
+    { status: 1, stdout: /"transition": "checks-failed"/ },
+    {
+      env: orcaEnv([
+        pullRequestStub(615, {
+          commits: rollup(
+            checkRun("Harness Lockstep", "SUCCESS", "2026-07-31T14:55:29Z", "2026-07-31T14:55:37Z"),
+            checkRun("Harness Lockstep", "FAILURE", "2026-07-31T14:53:08Z", null),
           ),
         }),
       ]),

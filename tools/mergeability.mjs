@@ -53,7 +53,7 @@ const linearTeam = config.linear?.team
 if (typeof linearTeam !== "string" || !linearTeam) fail(".claude/orchestrator.json must declare linear.team")
 const issueIdentifierPattern = new RegExp(`\\b${linearTeam.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}-\\d+\\b`, "i")
 
-const QUERY = `query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){number url title body headRefName isDraft mergeStateStatus reviewDecision headRefOid labels(first:100){pageInfo{hasNextPage}nodes{name}} reviews(first:100){pageInfo{hasNextPage}nodes{state commit{oid}}} reviewThreads(first:100){pageInfo{hasNextPage}nodes{isResolved}} commits(last:1){nodes{commit{statusCheckRollup{state contexts(first:100){pageInfo{hasNextPage}nodes{__typename ... on CheckRun{name status conclusion checkSuite{createdAt}} ... on StatusContext{context state createdAt}}}}}}}}}}`
+const QUERY = `query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){number url title body headRefName isDraft mergeStateStatus reviewDecision headRefOid labels(first:100){pageInfo{hasNextPage}nodes{name}} reviews(first:100){pageInfo{hasNextPage}nodes{state commit{oid}}} reviewThreads(first:100){pageInfo{hasNextPage}nodes{isResolved}} commits(last:1){nodes{commit{statusCheckRollup{state contexts(first:100){pageInfo{hasNextPage}nodes{__typename ... on CheckRun{name status conclusion startedAt} ... on StatusContext{context state createdAt}}}}}}}}}}`
 
 const command = (file, args) => {
   try {
@@ -94,19 +94,23 @@ const conditions = []
 const add = (name, ok, detail) => conditions.push({ name, ok, detail })
 const latestContextsOf = (contexts) => {
   const latestByName = new Map()
-  const unnamed = []
+  const unordered = []
   for (const context of contexts) {
     const name = context.name ?? context.context
     if (!name) {
-      unnamed.push(context)
+      unordered.push(context)
       continue
     }
-    const createdAt = context.__typename === "CheckRun" ? (context.checkSuite?.createdAt ?? "") : (context.createdAt ?? "")
+    const createdAt = context.__typename === "CheckRun" ? context.startedAt : context.createdAt
+    if (typeof createdAt !== "string") {
+      unordered.push(context)
+      continue
+    }
     const latest = latestByName.get(name)
     if (!latest || createdAt > latest.createdAt) latestByName.set(name, { createdAt, contexts: [context] })
     else if (createdAt === latest.createdAt) latest.contexts.push(context)
   }
-  return [...unnamed, ...[...latestByName.values()].flatMap((latest) => latest.contexts)]
+  return [...unordered, ...[...latestByName.values()].flatMap((latest) => latest.contexts)]
 }
 const first = githubPullRequest()
 if (!first.ok) {
