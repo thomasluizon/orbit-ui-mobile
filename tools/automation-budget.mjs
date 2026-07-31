@@ -8,12 +8,24 @@ const WINDOW_MILLISECONDS = 7 * 24 * 60 * 60 * 1000
  * A reservation is a LEASE, not a permanent claim. `reserve` appends a row carrying no
  * measurement and `record` or `cancel` closes it, so anything that kills the launcher in
  * between leaves that row open forever, and every ledger row written before reservations
- * carried `pending` is open by construction. Past this TTL the lease has expired: the row
- * holds no budget and never fails the fuse closed. The resulting error is transient and
- * bounded, because the worker's own `record` still lands inside the same seven-day window,
- * whereas a reservation that never expires poisons the fuse for that entire window.
+ * carried `pending` is open by construction. An expired lease holds no budget and never
+ * fails the fuse closed.
+ *
+ * Expiry keys on the WORKER PROCESS first and the clock only as a backstop, because both
+ * directions of a clock-only answer are wrong. Expiring a live worker's reservation stops
+ * counting real projected spend and can authorise a launch past the budget; never expiring a
+ * dead one poisons the fuse for the whole seven-day window. A recorded `workerPid` answers it
+ * exactly: `process.kill(pid, 0)` sends no signal and throws ESRCH when the process is gone,
+ * EPERM when it exists but is not ours, so EPERM is alive. Both errnos confirmed by running
+ * it. PID reuse can make a dead reservation look alive, which fails CLOSED, the safe way.
+ *
+ * The TTL only decides rows carrying no PID, which is every legacy row and every interactive
+ * launch. It is derived, not chosen: 275 codex rollouts measured on this machine, first to
+ * last event per session, give p50 8.1 min, p90 3.8 h, p95 6.8 h, p99 13.4 h, max 14.9 h.
+ * Sixteen hours clears that maximum with margin and still bounds a stranded reservation to
+ * under a day. A two hour TTL was measured wrong: over ten percent of real sessions outrun it.
  */
-const RESERVATION_LEASE_MILLISECONDS = 2 * 60 * 60 * 1000
+const RESERVATION_LEASE_MILLISECONDS = 16 * 60 * 60 * 1000
 const ENGINES = new Set(["claude", "codex"])
 const TIERS = new Set(["routine", "reserved"])
 const DEFAULT_LEDGER_PATH = resolve(homedir(), ".orbit", "automation-budget.jsonl")
@@ -21,12 +33,14 @@ const USAGE = `usage:
   automation-budget.mjs check --engine <claude|codex> --identity <id> --tier <routine|reserved> --reset-at <timestamp> --warning-tokens <count> --budget-tokens <count> --invocation-tokens <count> [--ledger <path>] [--json]
   automation-budget.mjs reserve --engine <claude|codex> --identity <id> --tier <routine|reserved> --started-at <timestamp> --ended-at <timestamp> --reset-at <timestamp> --warning-tokens <count> --budget-tokens <count> --invocation-tokens <count> [--account-used-percent <percent> --account-observed-at <timestamp>] [--ledger <path>] [--json]
   automation-budget.mjs record --identity <id> --engine <claude|codex> --tier <routine|reserved> --started-at <timestamp> --ended-at <timestamp> [--input-tokens <count> --cached-input-tokens <count>] [--output-tokens <count>] [--provider-estimated-cost <amount>] [--account-used-percent <percent> --account-observed-at <timestamp>] [--ledger <path>] [--json]
+  automation-budget.mjs claim --identity <id> --engine <claude|codex> --tier <routine|reserved> --started-at <timestamp> --ended-at <timestamp> --invocation-tokens <count> --worker-pid <pid> [--ledger <path>] [--json]
   automation-budget.mjs cancel --identity <id> --engine <claude|codex> --tier <routine|reserved> --started-at <timestamp> --ended-at <timestamp> [--ledger <path>] [--json]
   automation-budget.mjs report --engine <claude|codex> --reset-at <timestamp> [--ledger <path>] [--json]
 
   check          evaluate an invocation against the current engine's token budget
   reserve        atomically evaluate and append a pending invocation before launch mutation
   record         append one invocation observation to the ledger
+  claim          re-append an open reservation carrying the worker PID now running it
   cancel         append a tombstone for a pending invocation proven not to have started
   report         print one engine's current seven-day token totals, missing identities, and expired reservations
   --identity     stable identity for the invocation
@@ -53,6 +67,8 @@ const USAGE = `usage:
                   non-negative token warning level below the engine budget
   --invocation-tokens
                   non-negative token reservation for the proposed invocation
+  --worker-pid   process id of the worker this reservation is paying for; while it is alive the
+                  reservation never expires, and once it is gone the reservation expires at once
   --ledger       JSONL ledger path; defaults to ORBIT_AUTOMATION_BUDGET_LEDGER or ${DEFAULT_LEDGER_PATH}
   --json         emit the command result as JSON; without it check and record are quiet on success
   --help, -h     print this usage and exit 0
@@ -63,9 +79,10 @@ record's cachedInputTokens are subtracted from its inputTokens, because a cache 
 fresh spend. The fuse fails closed when the latest in-window record for any identity lacks
 either token measurement.
 Duplicate identities are append-only; the latest in-window record is authoritative. A cancelled
-pending invocation contributes no tokens. A reservation is a lease: once its end timestamp is more
-than ${RESERVATION_LEASE_MILLISECONDS / 3_600_000} hours old, and neither a measurement nor a cancellation has closed it, the lease
-has expired, so it holds no budget and no longer fails the fuse closed. Account usage percentage
+pending invocation contributes no tokens. A reservation is a lease. It expires the moment its
+recorded worker process is gone, and a reservation carrying no worker PID expires once its end
+timestamp is more than ${RESERVATION_LEASE_MILLISECONDS / 3_600_000} hours old. An expired reservation holds no budget and no
+longer fails the fuse closed. Account usage percentage
 and estimated cost are context only and never affect token totals. Records are attributed to the
 seven-day window containing their end timestamp. Mutations share an adjacent lock file and fail
 closed on lock contention.
@@ -73,7 +90,7 @@ closed on lock contention.
 exit codes:
   0  success or permitted invocation
   2  invalid command-line input
-  3  ledger read, validation, lock, append, or incomplete-measurement failure
+  3  ledger read, validation, lock, append, claim, or incomplete-measurement failure
   4  routine invocation blocked because its token reservation would exceed the budget`
 
 let releaseActiveLock = null
@@ -94,7 +111,7 @@ const parseArguments = (argumentsList) => {
     process.exit(0)
   }
   const command = argumentsList[0]
-  if (!["check", "reserve", "record", "cancel", "report"].includes(command)) fail(`expected check, reserve, record, cancel, or report\n\n${USAGE}`, 2)
+  if (!["check", "reserve", "record", "claim", "cancel", "report"].includes(command)) fail(`expected check, reserve, record, claim, cancel, or report\n\n${USAGE}`, 2)
   const values = new Map()
   const switches = new Set()
   for (let index = 1; index < argumentsList.length; index++) {
@@ -120,6 +137,7 @@ const parseArguments = (argumentsList) => {
       "--warning-tokens",
       "--budget-tokens",
       "--invocation-tokens",
+      "--worker-pid",
       "--ledger",
     ].includes(argument)) {
       fail(`unknown argument ${argument}\n\n${USAGE}`, 2)
@@ -363,6 +381,11 @@ const validateRecord = (record, lineNumber) => {
     if (record.pending !== true || !hasOwn(record, "reservedTokens")) fail(`${prefix} pending record must carry reservedTokens`, 3)
     validated.pending = true
     validated.reservedTokens = parseTokenCount(record.reservedTokens, `${prefix} reservedTokens`, 3)
+    if (hasOwn(record, "workerPid")) {
+      validated.workerPid = parseTokenCount(record.workerPid, `${prefix} workerPid`, 3, true)
+    }
+  } else if (hasOwn(record, "workerPid")) {
+    fail(`${prefix} workerPid is only valid on a pending reservation`, 3)
   }
   if (hasOwn(record, "inputTokens")) {
     validated.inputTokens = parseTokenCount(record.inputTokens, `${prefix} inputTokens`, 3)
@@ -441,7 +464,10 @@ const summarize = (records, engine, resetAt) => {
     if (record.cancelled === true) continue
     const open = record.pending === true || !hasOwn(record, "inputTokens") || !hasOwn(record, "outputTokens")
     if (open) {
-      if (Date.parse(record.endedAt) < leaseFloor) expiredIdentities.push(record.identity)
+      const expired = hasOwn(record, "workerPid")
+        ? !processIsAlive(record.workerPid)
+        : Date.parse(record.endedAt) < leaseFloor
+      if (expired) expiredIdentities.push(record.identity)
       else if (record.pending === true) pendingTokens += record.reservedTokens
       else missingIdentities.push(record.identity)
       continue
@@ -643,6 +669,48 @@ const runRecord = (values, json) => {
   emitJson({ status: "RECORDED", record }, json)
 }
 
+/**
+ * The reservation is appended BEFORE the worktree exists, so the worker process it is paying
+ * for does not exist yet and its PID cannot be on that row. `claim` appends the same pending
+ * reservation again once the process is running, this time carrying its PID, and the
+ * latest-in-window rule makes that the authoritative one. It re-evaluates nothing on purpose:
+ * the budget was gated at `reserve`, and blocking here would refuse a worker already working.
+ */
+const runClaim = (values, json) => {
+  rejectUnexpected(values, new Set([
+    "--identity",
+    "--engine",
+    "--tier",
+    "--started-at",
+    "--ended-at",
+    "--invocation-tokens",
+    "--worker-pid",
+    "--ledger",
+  ]))
+  const startedAt = parseTimestamp(requireValue(values, "--started-at"), "--started-at")
+  const endedAt = parseTimestamp(requireValue(values, "--ended-at"), "--ended-at")
+  if (startedAt.getTime() > endedAt.getTime()) fail(`--started-at must not be after --ended-at`, 2)
+  const claimed = {
+    identity: parseIdentity(requireValue(values, "--identity")),
+    engine: parseEngine(requireValue(values, "--engine")),
+    tier: parseTier(requireValue(values, "--tier")),
+    startedAt: startedAt.toISOString(),
+    endedAt: endedAt.toISOString(),
+    pending: true,
+    reservedTokens: parseTokenCount(requireValue(values, "--invocation-tokens"), "--invocation-tokens"),
+    workerPid: parseTokenCount(requireValue(values, "--worker-pid"), "--worker-pid", 2, true),
+  }
+  const path = ledgerPath(values)
+  withLedgerLock(path, () => {
+    const existingLedger = readLedger(path)
+    const latest = [...existingLedger.records].reverse().find((record) => record.identity === claimed.identity)
+    if (!latest) fail(`cannot claim invocation "${claimed.identity}": no ledger record exists`, 3)
+    if (latest.pending !== true) fail(`cannot claim invocation "${claimed.identity}": its latest record is not an open reservation`, 3)
+    appendRecord(path, existingLedger, claimed)
+  })
+  emitJson({ status: "CLAIMED", record: claimed }, json)
+}
+
 const runCancel = (values, json) => {
   rejectUnexpected(values, new Set([
     "--identity",
@@ -701,5 +769,6 @@ const options = parseArguments(process.argv.slice(2))
 if (options.command === "check") runCheck(options.values, options.json)
 else if (options.command === "reserve") runReserve(options.values, options.json)
 else if (options.command === "record") runRecord(options.values, options.json)
+else if (options.command === "claim") runClaim(options.values, options.json)
 else if (options.command === "cancel") runCancel(options.values, options.json)
 else runReport(options.values, options.json)

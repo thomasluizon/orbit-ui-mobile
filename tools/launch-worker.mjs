@@ -567,6 +567,39 @@ const reserveAutomationBudget = (
   return { identity, engineName, tier, startedAt, ledgerPath }
 }
 
+/**
+ * The reservation is appended before the worktree exists, so it cannot carry the PID of a worker
+ * that does not exist yet. Attaching it here is what lets `summarize` expire a reservation the
+ * instant its process is gone instead of waiting out the whole lease. A failure to attach is
+ * reported, never fatal: the worker is already running, and the reservation simply falls back to
+ * the timestamp backstop.
+ */
+const claimBudgetReservation = ({ identity, engineName, tier, startedAt, ledgerPath }, projectedTokens, workerPid) => {
+  const result = spawnSync(process.execPath, [
+    budgetToolPath,
+    "claim",
+    "--identity",
+    identity,
+    "--engine",
+    engineName,
+    "--tier",
+    tier,
+    "--started-at",
+    startedAt,
+    "--ended-at",
+    new Date().toISOString(),
+    "--invocation-tokens",
+    String(projectedTokens),
+    "--worker-pid",
+    String(workerPid),
+    "--ledger",
+    ledgerPath,
+  ], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
+  if (!result.error && result.status === 0) return true
+  console.error(`automation-budget claim failed, the reservation keeps its timestamp lease: ${(result.stderr || result.stdout || result.error?.message || "unknown error").trim()}`)
+  return false
+}
+
 cancelBudgetReservation = ({ identity, engineName, tier, startedAt, ledgerPath }) => {
   const result = spawnSync(process.execPath, [
     budgetToolPath,
@@ -873,6 +906,7 @@ const startHeadlessWorker = (worktreePath, branch) => {
   child.unref()
   const gitDirectory = resolve(worktreePath, git(["-C", worktreePath, "rev-parse", "--git-dir"]))
   appendFileSync(join(gitDirectory, "orbit-worker-pids.jsonl"), `${JSON.stringify({ issue, worktreePath, pid: child.pid, startedAt: new Date().toISOString() })}\n`)
+  if (budgetReservation) claimBudgetReservation(budgetReservation, projectedTokens, child.pid)
   return child.pid
 }
 

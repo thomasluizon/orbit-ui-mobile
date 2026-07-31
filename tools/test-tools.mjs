@@ -1877,6 +1877,19 @@ const launchWorkerCases = async () => {
         markerRows[0].worktreePath === headlessCheckout,
       `exit ${headlessResult.status}\n     stdout: ${headlessResult.stdout.slice(0, 400)}\n     stderr: ${headlessResult.stderr.slice(0, 600)}\n     marker: ${JSON.stringify(markerRows)}`,
     )
+    const headlessLedger = join(headlessStage.base, "automation-budget.jsonl")
+    const headlessRows = existsSync(headlessLedger)
+      ? readFileSync(headlessLedger, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
+      : []
+    T(
+      "launch-worker.mjs: the launcher claims its reservation with the PID it just spawned",
+      headlessRows.length === 2 &&
+        headlessRows[0]?.pending === true &&
+        !Object.hasOwn(headlessRows[0] ?? {}, "workerPid") &&
+        headlessRows[1]?.pending === true &&
+        headlessRows[1]?.workerPid === headlessPlan?.workerPid,
+      `plan pid ${headlessPlan?.workerPid}\n     ledger: ${JSON.stringify(headlessRows)}`,
+    )
     const expectedEngineArgs = [...headlessWorker.args, ...CODEX_MODELS.default.args, "--model", CODEX_MODELS.default.model]
     T(
       "launch-worker.mjs: the headless worker receives its engine args and the whole pointer as one argument",
@@ -5223,7 +5236,7 @@ const automationBudgetCases = () => {
    * written before `reserve` persisted `pending`: no pending key, no reserved figure, no
    * tokens. That shape is why the fuse refused every codex launch for a full week.
    */
-  const LEASE_MILLISECONDS = 2 * 60 * 60 * 1000
+  const LEASE_MILLISECONDS = 16 * 60 * 60 * 1000
   const LEASE_MARGIN_MILLISECONDS = 5 * 60 * 1000
   const leaseResetAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
   const leaseCheckArgs = (identity, ledger, invocationTokens) => [
@@ -5257,7 +5270,7 @@ const automationBudgetCases = () => {
       accountContext: { scope: "account", attributed: false, usedPercent: 11, observedAt: endedAt },
     })
   }
-  const leasedReservation = (identity, endedAgoMilliseconds, reservedTokens) =>
+  const leasedReservation = (identity, endedAgoMilliseconds, reservedTokens, workerPid) =>
     JSON.stringify({
       identity,
       engine: "codex",
@@ -5266,6 +5279,7 @@ const automationBudgetCases = () => {
       endedAt: new Date(Date.now() - endedAgoMilliseconds).toISOString(),
       pending: true,
       reservedTokens,
+      ...(workerPid === undefined ? {} : { workerPid }),
     })
   const measuredInvocation = (identity, endedAgoMilliseconds, inputTokens, outputTokens) =>
     JSON.stringify({
@@ -5339,6 +5353,119 @@ const automationBudgetCases = () => {
       status: 0,
       stdout: /"projectedTokens":100000[\s\S]*"pendingTokens":0,"missingIdentities":\[\],"expiredIdentities":\["ORB-163:killed-launcher"\]/,
     },
+  )
+  check(
+    "automation-budget.mjs",
+    "a reservation whose worker process is gone expires well inside its lease",
+    leaseCheckArgs(
+      "after-dead-worker",
+      stage(
+        "budget/dead-worker.jsonl",
+        `${leasedReservation("ORB-163:dead-worker", 60_000, 250000, exitedProbePid())}\n`,
+      ),
+      100000,
+    ),
+    {
+      status: 0,
+      stdout: /"projectedTokens":100000[\s\S]*"pendingTokens":0,"missingIdentities":\[\],"expiredIdentities":\["ORB-163:dead-worker"\]/,
+      stderr: /reservation lease expired for identities ORB-163:dead-worker/,
+    },
+  )
+  check(
+    "automation-budget.mjs",
+    "a reservation whose worker process is alive still holds its tokens well past its lease",
+    leaseCheckArgs(
+      "after-live-worker",
+      stage(
+        "budget/live-worker.jsonl",
+        `${leasedReservation("ORB-163:live-worker", LEASE_MILLISECONDS * 2, 250000, process.pid)}\n`,
+      ),
+      100000,
+    ),
+    {
+      status: 0,
+      stdout: /"projectedTokens":350000[\s\S]*"pendingTokens":250000,"missingIdentities":\[\],"expiredIdentities":\[\]/,
+    },
+  )
+  const claimedLedger = stage("budget/claimed.jsonl", `${leasedReservation("ORB-163:to-claim", 60_000, 250000)}\n`)
+  const claimed = run("automation-budget.mjs", [
+    "claim",
+    "--identity",
+    "ORB-163:to-claim",
+    "--engine",
+    "codex",
+    "--tier",
+    "routine",
+    "--started-at",
+    new Date(Date.now() - 73_000).toISOString(),
+    "--ended-at",
+    new Date().toISOString(),
+    "--invocation-tokens",
+    "250000",
+    "--worker-pid",
+    String(process.pid),
+    "--ledger",
+    claimedLedger,
+    "--json",
+  ])
+  const claimedRows = existsSync(claimedLedger)
+    ? readFileSync(claimedLedger, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
+    : []
+  T(
+    "automation-budget.mjs: claim attaches the running worker PID to an open reservation",
+    claimed.status === 0 &&
+      /"status":"CLAIMED"/.test(claimed.stdout) &&
+      claimedRows.length === 2 &&
+      claimedRows[1]?.pending === true &&
+      claimedRows[1]?.workerPid === process.pid &&
+      claimedRows[1]?.reservedTokens === 250000,
+    `exit ${claimed.status}\n     ${claimed.stderr}\n     ${JSON.stringify(claimedRows)}`,
+  )
+  check(
+    "automation-budget.mjs",
+    "claim refuses an identity whose latest record is not an open reservation",
+    [
+      "claim",
+      "--identity",
+      "ORB-163:measured-already",
+      "--engine",
+      "codex",
+      "--tier",
+      "routine",
+      "--started-at",
+      new Date(Date.now() - 73_000).toISOString(),
+      "--ended-at",
+      new Date().toISOString(),
+      "--invocation-tokens",
+      "250000",
+      "--worker-pid",
+      String(process.pid),
+      "--ledger",
+      stage("budget/claim-closed.jsonl", `${measuredInvocation("ORB-163:measured-already", 60_000, 10, 5)}\n`),
+    ],
+    { status: 3, stderr: /is not an open reservation/ },
+  )
+  check(
+    "automation-budget.mjs",
+    "a ledger row carrying a worker PID without a reservation is rejected",
+    leaseCheckArgs(
+      "after-orphan-pid",
+      stage(
+        "budget/orphan-pid.jsonl",
+        `${JSON.stringify({
+          identity: "ORB-163:orphan-pid",
+          engine: "codex",
+          tier: "routine",
+          startedAt: "2026-07-30T09:00:00.000Z",
+          endedAt: "2026-07-30T10:00:00.000Z",
+          inputTokens: 10,
+          outputTokens: 5,
+          workerPid: 1234,
+        })}\n`,
+      ),
+      100000,
+    ),
+    { status: 3, stderr: /workerPid is only valid on a pending reservation/ },
   )
   check(
     "automation-budget.mjs",
