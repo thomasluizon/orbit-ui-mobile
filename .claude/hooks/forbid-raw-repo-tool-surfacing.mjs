@@ -14,6 +14,7 @@ import { dirname, posix, resolve, win32 } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { filePathFrom, readStdinJson } from "./_lib/io.mjs"
+import { belongsToDeclaredRepo, declaredRepoRoots } from "./_lib/repo-roots.mjs"
 
 const APPEAL_SUFFIX = /\s+(?:#\s*)?Repo-tool appeal:\s*(\S.*)\s*$/i
 const NODE_TOOL_COMMAND =
@@ -41,21 +42,8 @@ const DOCUMENT_BASENAME = /^(?:ticket(?:-body)?|pr(?:-body|-description|-?\d+-re
 const TICKET_BASENAME = /^ORB-\d+\.(?:md|txt)$/
 const HELP_BASENAME = /^(?:help|.+--help)(?:[-_.].*)?\.(?:md|txt|log)$/i
 const HOOK_REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..")
-const WINDOWS_PATH = /^(?:[a-z]:[\\/]|\\\\)/i
 
-function declaredRepoRoots() {
-  try {
-    const config = JSON.parse(readFileSync(resolve(HOOK_REPO_ROOT, ".claude", "orchestrator.json"), "utf8"))
-    const configured = Object.values(config?.repos ?? {}).filter(
-      (repoPath) => typeof repoPath === "string" && (win32.isAbsolute(repoPath) || posix.isAbsolute(repoPath)),
-    )
-    return [HOOK_REPO_ROOT, ...configured]
-  } catch {
-    return [HOOK_REPO_ROOT]
-  }
-}
-
-const REPO_ROOTS = declaredRepoRoots()
+const REPO_ROOTS = declaredRepoRoots(HOOK_REPO_ROOT)
 
 function containsDirectRepoToolInvocation(command) {
   for (const pattern of [NODE_TOOL_COMMAND, TOOL_SCRIPT_COMMAND, NPX_COMMAND]) {
@@ -475,16 +463,18 @@ function transcriptAssistantMessage(transcriptPath) {
   return ""
 }
 
+/**
+ * Declared roots are the three ROOT checkouts, and an Orca worktree lives under none of
+ * them, so before ORB-165 a worker editing a real repository file had its content scanned
+ * as an arbitrary payload and any legitimate repo-tool string in it blocked the write.
+ * tools/README.md is full of those by design. belongsToDeclaredRepo follows a linked
+ * worktree's `.git` file back to its main checkout and fails closed on anything it cannot
+ * read, so an undeclared repository is still scanned.
+ */
 function isRepoArtifact(filePath) {
   if (!filePath) return false
   const target = win32.isAbsolute(filePath) || posix.isAbsolute(filePath) ? filePath : resolve(filePath)
-  return REPO_ROOTS.some((repoRoot) => {
-    const rootIsWindows = WINDOWS_PATH.test(repoRoot)
-    if (rootIsWindows !== WINDOWS_PATH.test(target)) return false
-    const pathApi = rootIsWindows ? win32 : posix
-    const relation = pathApi.relative(pathApi.normalize(repoRoot), pathApi.normalize(target))
-    return relation === "" || (relation !== ".." && !relation.startsWith(`..${pathApi.sep}`) && !pathApi.isAbsolute(relation))
-  })
+  return belongsToDeclaredRepo(target, REPO_ROOTS)
 }
 
 function writtenArtifact(input) {

@@ -31,7 +31,7 @@
  * Run: node tools/test-tools.mjs   (exits non-zero on any failure)
  */
 
-import { existsSync, readdirSync } from "node:fs"
+import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -59,7 +59,9 @@ const TOOLS_DIR = dirname(fileURLToPath(import.meta.url))
 const SELF = "test-tools.mjs"
 
 // Loaded after the CLI contract, so --help and a bad argument stage no fixture root.
-const { BASH, T, check, configure, failureCount, orphanCaseKeys, stage, toolPath } = await import("./__tests__/_harness.mjs")
+const { BASH, T, assertionTally, beginToolScope, check, configure, endToolScope, failureCount, orphanCaseKeys, stage, toolPath } =
+  await import("./__tests__/_harness.mjs")
+const { compareCoverage, formatCoverage, formatDrops, readBaselineShape } = await import("./lib/harness-coverage.mjs")
 
 configure({ toolsDir: TOOLS_DIR, self: SELF })
 
@@ -91,6 +93,8 @@ const CASE_MODULES = [
   ["check-push-target.mjs", "check-push-target", "cases"],
   ["check-frontmatter.mjs", "check-frontmatter", "cases"],
   ["check-calibration.mjs", "check-calibration", "cases"],
+  ["check-required-gates.mjs", "check-required-gates", "cases"],
+  ["check-harness-coverage.mjs", "check-harness-coverage", "cases"],
 ]
 
 const gateCases = {}
@@ -116,8 +120,10 @@ const INVALID_INPUT = {
   "check-copy.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-dashes.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-frontmatter.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "check-harness-coverage.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-lockstep.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-push-target.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "check-required-gates.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-suppressions-ratchet.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-tier-labels.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-ticket.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
@@ -189,7 +195,59 @@ T(
 )
 for (const [file, cases] of Object.entries(gateCases)) {
   if (orphanedCaseKeys.includes(file)) continue
+  beginToolScope(file)
   await cases()
+  endToolScope()
+}
+
+/**
+ * The coverage ratchet. Silent coverage loss is the root defect this ticket exists to remove:
+ * on its own PR1 a bare `return` disabled about 60 assertions and this suite still printed PASS
+ * lines and exited 0, and a later head replaced two case bodies with `--help` greps and nothing
+ * failed. Both were caught by a human reading a diff. The tally is taken by EXECUTION, because
+ * a static count over the source cannot see an unreachable `return`.
+ *
+ * Printed every run, so a drop stays visible even when the label allows it.
+ */
+console.log("\n# assertion coverage")
+// The two verdicts below are excluded from the tally by construction: an assertion whose
+// subject IS the tally cannot be inside it. Every one of the tool buckets is ratcheted, so the
+// suite's printed assertion total is the tally plus exactly these two.
+const tally = assertionTally()
+const baselinePath = join(TOOLS_DIR, "harness-coverage-baseline.json")
+let baseline = null
+let baselineProblem = existsSync(baselinePath) ? null : `no baseline at ${baselinePath}`
+if (!baselineProblem) {
+  try {
+    baseline = JSON.parse(readFileSync(baselinePath, "utf8"))
+  } catch (error) {
+    baselineProblem = `${baselinePath} is unreadable: ${error.message}`
+  }
+  baselineProblem = baselineProblem ?? readBaselineShape(baseline)
+}
+const reseeding = process.env.ORBIT_HARNESS_COVERAGE_RESEED === "1"
+const coverage = compareCoverage(baseline ?? { tools: {} }, tally)
+console.log(formatCoverage(tally, coverage))
+T(
+  "the coverage baseline is readable and well formed",
+  baselineProblem === null,
+  `${baselineProblem}\n     Without a baseline this gate cannot see an assertion that stopped running, which is the defect it exists for.`,
+)
+T(
+  reseeding ? "per-tool assertion coverage may drop under coverage:reseed" : "no tool lost assertion coverage",
+  reseeding || coverage.drops.length === 0,
+  `${coverage.drops.length} tool(s) lost coverage:\n${formatDrops(coverage.drops)}\n     An assertion that stops running prints nothing at all. Restore the cases, or apply the\n     coverage:reseed label and reseed ${baselinePath} if the loss is deliberate.`,
+)
+if (reseeding && coverage.drops.length > 0) {
+  console.log(`coverage:reseed accepted ${coverage.drops.length} drop(s):\n${formatDrops(coverage.drops)}`)
+}
+if (coverage.growth.length > 0) {
+  console.log(`${coverage.growth.length} tool(s) gained coverage; reseed the baseline to record the new figures.`)
+}
+/** The executed tally, for the deliberate reseed. Written only when a path is asked for. */
+if (process.env.ORBIT_HARNESS_COVERAGE_TALLY) {
+  writeFileSync(process.env.ORBIT_HARNESS_COVERAGE_TALLY, `${JSON.stringify(tally, null, 2)}\n`)
+  console.log(`tally written: ${process.env.ORBIT_HARNESS_COVERAGE_TALLY}`)
 }
 
 const failures = failureCount()

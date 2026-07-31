@@ -128,6 +128,11 @@ copy; the gates are the enforcement.
 - Never push or force-push to `main` (or `redesign/main`). Branch to
   `feature/`|`fix/`|`chore/`, open a PR, squash-merge only. Never reuse a squash-merged
   branch.
+- Never perform an admin merge, in any shape: no `gh pr merge --admin`, no direct
+  `PUT /repos/{owner}/{repo}/pulls/{number}/merge`, and no GraphQL `mergePullRequest`
+  mutation. Naming the two raw API calls is deliberate; forbidding only the CLI flag
+  leaves both API paths open. The admin override exists for Thomas alone. If a merge
+  genuinely needs it, STOP and ask Thomas to merge it himself.
 - Never bypass the git hooks: no `--no-verify` (or its `-n` commit alias), no
   `--no-gpg-sign` and no `commit.gpgsign=false`. Fix what a hook flags, then commit.
 - Never `git worktree remove --force`: on Windows it follows a junction and deletes the

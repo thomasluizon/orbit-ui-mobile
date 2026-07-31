@@ -18,6 +18,8 @@ import { fileURLToPath } from "node:url"
 import { checkGitCommand, checkGitWorktreeRemove } from "./_lib/rules-git.mjs"
 import { checkEfMigrationRawIndex } from "./_lib/rules-source.mjs"
 import { checkLinearMutation } from "./_lib/rules-linear.mjs"
+import { checkAdminMerge, checkEngineInvocation, invokedBinary } from "./_lib/rules-orchestrator.mjs"
+import { owningRepository, withinRoot } from "./_lib/repo-roots.mjs"
 import { checkRawRepoToolSurfacing } from "./forbid-raw-repo-tool-surfacing.mjs"
 
 const hooksDir = dirname(fileURLToPath(import.meta.url))
@@ -251,6 +253,83 @@ T(
 )
 T("linear: non-string input allows", checkLinearMutation(undefined), null)
 
+// The orchestration guardrails (A3d). The engine rule keys on WHO is calling, never on the
+// subcommand: after the headless flip `codex exec` is how every worker runs, so a rule that
+// refused the flag would refuse the launcher. The admin-merge rule has no exemption at all.
+const ADMIN = "--" + "admin"
+const engineBlocks = (command, options) => !!checkEngineInvocation(command, { repoRoots: [], ...options })?.block
+T("orchestrator: bare codex blocks", engineBlocks("codex"), true)
+T("orchestrator: codex exec blocks", engineBlocks('codex exec "do the thing"'), true)
+T("orchestrator: codex resume blocks", engineBlocks("codex resume 019fb50d-0b9c"), true)
+T("orchestrator: bare claude blocks", engineBlocks("claude"), true)
+T("orchestrator: claude -p blocks", engineBlocks('claude -p "summarize"'), true)
+T("orchestrator: a Windows shim extension is still the binary", engineBlocks("codex.cmd exec --help"), true)
+T("orchestrator: a quoted absolute engine path still blocks", engineBlocks('"C:\\Program Files\\codex\\codex.exe" exec'), true)
+T("orchestrator: a later chained engine call blocks", engineBlocks("npm test && codex exec"), true)
+// The launcher's own marker is the discriminator, in the environment it exports into every
+// worker and as the inline assignment shape.
+T("orchestrator: the launcher marker in the environment allows", engineBlocks("codex exec", { env: { ORBIT_LAUNCH_WORKER: "1" } }), false)
+// The marker is read from the ENVIRONMENT only. The launcher exports it on the spawn and never
+// shells out with an inline assignment, so an exemption keyed on the command TEXT would exempt
+// nothing legitimate and everything an agent chose to type. That was a real bypass in the first
+// version of this rule; it is deleted rather than softened.
+T("orchestrator: a typed marker with no such environment still blocks", engineBlocks("ORBIT_LAUNCH_WORKER=1 codex exec"), true)
+T("orchestrator: leading assignments still resolve the binary", engineBlocks("FOO=1 ORBIT_LAUNCH_WORKER=1 codex exec"), true)
+T("orchestrator: the launcher itself allows", engineBlocks("node tools/launch-worker.mjs --issue ORB-75 --prompt-file p.md"), false)
+// Root cause 3: match the real invocation, never a substring of an arbitrary payload. The
+// second-opinion helper is not refused because `node` is what it invokes; `.claude/` is a
+// path, and a message NAMING a command is data.
+T("orchestrator: the second-opinion helper allows", engineBlocks("node .claude/skills/second-opinion/second-opinion.mjs"), false)
+T("orchestrator: a path containing .claude is not the claude binary", engineBlocks("cat .claude/skills/second-opinion/SKILL.md"), false)
+T("orchestrator: a commit message naming the engine allows", engineBlocks('git commit -m "stop running codex exec by hand"'), false)
+T("orchestrator: a heredoc body naming the engine allows", engineBlocks("git commit -F - <<'EOF'\nfix: route codex exec through the launcher\nEOF"), false)
+T("orchestrator: an unrelated command allows", engineBlocks("npm run lint"), false)
+T("orchestrator: non-string input allows", checkEngineInvocation(undefined), null)
+T("orchestrator: the engine refusal names the launcher", checkEngineInvocation("codex exec")?.message.includes("tools/launch-worker.mjs"), true)
+
+T(`orchestrator: gh pr merge ${ADMIN} blocks`, !!checkAdminMerge(`gh pr merge 667 --squash ${ADMIN}`)?.block, true)
+T("orchestrator: gh pr merge without the flag allows", checkAdminMerge("gh pr merge 667 --squash --delete-branch"), null)
+// Every method shape an agent would actually type, not just the one the rule was first shown.
+// `-XPUT` carries no separator at all, which the first version of this pattern required.
+for (const [label, method] of [
+  ["a separated short flag", "-X PUT"],
+  ["a concatenated short flag", "-XPUT"],
+  ["an equals-joined short flag", "-X=PUT"],
+  ["a single-quoted value", "-X 'PUT'"],
+  ["a double-quoted value", '-X"PUT"'],
+  ["gh's long flag", "--method PUT"],
+  ["curl's long flag", "--request PUT"],
+  ["a lowercase method", "-X put"],
+]) {
+  T(`orchestrator: ${label} on the merge endpoint blocks`, !!checkAdminMerge(`gh api ${method} repos/o/r/pulls/667/merge -f merge_method=squash`)?.block, true)
+}
+T("orchestrator: curl to the same endpoint blocks", !!checkAdminMerge("curl -X PUT https://api.github.com/repos/o/r/pulls/667/merge")?.block, true)
+T("orchestrator: a PUT to another endpoint allows", checkAdminMerge("gh api -XPUT repos/o/r/issues/667/labels"), null)
+T("orchestrator: reading the merge endpoint allows", checkAdminMerge("gh api repos/o/r/pulls/667/merge"), null)
+T(
+  "orchestrator: the GraphQL merge mutation blocks",
+  !!checkAdminMerge("gh api graphql -f query='mutation{mergePullRequest(input:{pullRequestId:\"x\"}){clientMutationId}}'")?.block,
+  true,
+)
+T("orchestrator: another GraphQL mutation allows", checkAdminMerge("gh api graphql -f query='mutation{resolveReviewThread(input:{threadId:\"x\"}){thread{isResolved}}}'"), null)
+T(`orchestrator: a heredoc body naming ${ADMIN} allows`, checkAdminMerge(`git commit -F - <<'EOF'\ndocs: forbid gh pr merge ${ADMIN}\nEOF`), null)
+T(`orchestrator: a commit message naming ${ADMIN} allows`, checkAdminMerge(`git commit -m "forbid gh pr merge ${ADMIN}"`), null)
+// J3a is absolute for every agent: neither the launcher marker nor a worker's worktree buys
+// an admin merge, which is why the admin rule takes no context at all.
+T(`orchestrator: the admin refusal says to ask Thomas`, checkAdminMerge(`gh pr merge 1 ${ADMIN}`)?.message.includes("ask him to"), true)
+T("orchestrator: non-string input allows", checkAdminMerge(undefined), null)
+
+T("orchestrator: invokedBinary strips directory and extension", invokedBinary("/usr/local/bin/codex exec"), "codex")
+T("orchestrator: invokedBinary skips leading assignments", invokedBinary("FOO=1 BAR=2 codex exec"), "codex")
+T("orchestrator: invokedBinary reads a subshell's first word", invokedBinary("( codex exec )"), "codex")
+T("orchestrator: invokedBinary of an empty segment is empty", invokedBinary("   "), "")
+
+T("repo-roots: a path inside its root is within it", withinRoot("C:\\repo\\tools\\x.mjs", "C:\\repo"), true)
+T("repo-roots: a sibling path is not within it", withinRoot("C:\\other\\x.mjs", "C:\\repo"), false)
+T("repo-roots: a POSIX target never matches a Windows root", withinRoot("/repo/x.mjs", "C:\\repo"), false)
+T("repo-roots: a path with no repository resolves to null", owningRepository(join(tmpdir(), "orbit-no-repo-here", "x.md")), null)
+T("repo-roots: non-string input resolves to null", owningRepository(undefined), null)
+
 // ---------------------------------------------------------------------------
 // 2. Claude Code hooks: run the real files, assert exit codes
 // ---------------------------------------------------------------------------
@@ -271,8 +350,12 @@ const write = (rel, body) => {
   writeFileSync(p, body)
   return p
 }
-function runHookResult(file, payload) {
-  return spawnSync(process.execPath, [join(hooksDir, file)], { input: JSON.stringify(payload), encoding: "utf8" })
+function runHookResult(file, payload, env) {
+  return spawnSync(process.execPath, [join(hooksDir, file)], {
+    input: JSON.stringify(payload),
+    encoding: "utf8",
+    ...(env ? { env: { ...process.env, ...env } } : {}),
+  })
 }
 
 function runHook(file, payload) {
@@ -901,6 +984,128 @@ for (const [repoName, repoPath] of Object.entries(declaredRepos)) {
     0,
   )
 }
+
+// ORB-165. Declared roots are the three ROOT checkouts, so a worker editing a real
+// repository file inside an Orca worktree (C:\Users\thoma\orca\workspaces\...) fell under
+// none of them, got its content scanned as an arbitrary payload, and was blocked by any
+// legitimate repo-tool string in it. tools/README.md is full of those by design. The
+// exemption now follows a linked worktree's `.git` FILE back to its main checkout. These
+// cases pin both directions: the exemption must reach a worktree, and must not become
+// purchasable with `git init`.
+// The `.git` file's one line is written in the shape read off this worktree's real one.
+const stageWorktree = (name, gitFileBody) => {
+  const worktreeRoot = dirname(dirname(write(`${name}/tools/README.md`, "placeholder\n")))
+  writeFileSync(join(worktreeRoot, ".git"), gitFileBody)
+  return worktreeRoot
+}
+const worktreeFile = (worktreeRoot) => join(worktreeRoot, "tools", "README.md")
+const linkedWorktreeRoot = stageWorktree(
+  "linked-worktree",
+  `gitdir: ${rawToolRepoRoot.replace(/\\/g, "/")}/.git/worktrees/orb-165-fixture\n`,
+)
+T(
+  "cc raw-tool: repo file in a linked worktree of a declared root -> 0",
+  runHook(RAW_TOOL_HOOK, writePayload(worktreeFile(linkedWorktreeRoot), outsideRepoArtifactBody)),
+  0,
+)
+T(
+  "cc raw-tool: repo file in the root checkout stays exempt -> 0",
+  runHook(RAW_TOOL_HOOK, writePayload(join(rawToolRepoRoot, "tools", "README.md"), outsideRepoArtifactBody)),
+  0,
+)
+// The exemption is not for "any git repository": `git init` in a scratch directory must not
+// buy it, or root cause 3 is back through a different door.
+write("foreign-repo/.git/HEAD", "ref: refs/heads/main\n")
+T(
+  "cc raw-tool: repo file in an undeclared repository is still scanned -> 2",
+  runHook(RAW_TOOL_HOOK, writePayload(join(root, "foreign-repo", "tools", "README.md"), outsideRepoArtifactBody)),
+  2,
+)
+T(
+  "cc raw-tool: artifact with no .git ancestor is still scanned -> 2",
+  runHook(RAW_TOOL_HOOK, writePayload(join(root, "scratchpad", "order.md"), outsideRepoArtifactBody)),
+  2,
+)
+// Fail CLOSED on both unrecognised shapes: scan, never exempt on a `.git` we cannot read.
+T(
+  "cc raw-tool: malformed .git file falls through to scanning -> 2",
+  runHook(RAW_TOOL_HOOK, writePayload(stageWorktree("malformed-worktree", "this is not a gitdir line\n"), outsideRepoArtifactBody)),
+  2,
+)
+T(
+  "cc raw-tool: gitdir with no worktrees segment falls through to scanning -> 2",
+  runHook(RAW_TOOL_HOOK, writePayload(stageWorktree("detached-worktree", "gitdir: C:/somewhere/else/.git\n"), outsideRepoArtifactBody)),
+  2,
+)
+
+// A3d. The orchestration guardrails through the real hook file, on the payload shapes the
+// tools actually send. The cwd cases are the reason the rule takes a cwd at all: a worker
+// runs in a LINKED worktree, the orchestrating session runs in the main checkout, and only
+// the first may spend model budget outside the launcher.
+const ORCHESTRATOR_HOOK = "orchestrator-guardrails.mjs"
+const commandPayload = (command, cwd) => ({ hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command }, ...(cwd ? { cwd } : {}) })
+// A staged MAIN checkout, `.git` a directory, standing in for the orchestrating session's
+// cwd. It is staged rather than taken from this repository because this suite runs from a
+// linked worktree locally and from a main checkout in CI, and a fixture whose verdict depends
+// on which one would prove nothing in one of the two places.
+const mainCheckoutCwd = dirname(write("main-checkout/.git/HEAD", "ref: refs/heads/main\n"))
+const undeclaredWorktreeCwd = stageWorktree("undeclared-worktree", `gitdir: ${join(root, "foreign-repo").replace(/\\/g, "/")}/.git/worktrees/x\n`)
+const rawEngine = runHookResult(ORCHESTRATOR_HOOK, commandPayload('codex exec "do the thing"', mainCheckoutCwd))
+T("cc orchestrator: raw codex exec from a main checkout -> 2", rawEngine.status, 2)
+T("cc orchestrator: the refusal names the launcher", rawEngine.stderr.includes("tools/launch-worker.mjs"), true)
+T(
+  "cc orchestrator: raw claude from a main checkout -> 2",
+  runHook(ORCHESTRATOR_HOOK, commandPayload('claude -p "summarize"', mainCheckoutCwd)),
+  2,
+)
+T(
+  "cc orchestrator: codex exec from a launcher worktree -> 0",
+  runHook(ORCHESTRATOR_HOOK, commandPayload("codex exec", linkedWorktreeRoot)),
+  0,
+)
+// The exemption is for a launcher-created worktree of a DECLARED repository, so it cannot be
+// bought by pointing a hand-written `.git` file at some other repository.
+T(
+  "cc orchestrator: codex exec from a worktree of an undeclared repository -> 2",
+  runHook(ORCHESTRATOR_HOOK, commandPayload("codex exec", undeclaredWorktreeCwd)),
+  2,
+)
+T(
+  "cc orchestrator: codex exec carrying the launcher marker -> 0",
+  runHookResult(ORCHESTRATOR_HOOK, commandPayload("codex exec", mainCheckoutCwd), { ORBIT_LAUNCH_WORKER: "1" }).status,
+  0,
+)
+T(
+  "cc orchestrator: a typed marker with no such environment -> 2",
+  runHook(ORCHESTRATOR_HOOK, commandPayload("ORBIT_LAUNCH_WORKER=1 codex exec", mainCheckoutCwd)),
+  2,
+)
+T(
+  "cc orchestrator: the second-opinion helper -> 0",
+  runHook(ORCHESTRATOR_HOOK, commandPayload("node .claude/skills/second-opinion/second-opinion.mjs", mainCheckoutCwd)),
+  0,
+)
+// The hook reads tool_input.command and nothing else, so a Write carrying the literal text is
+// not an invocation. This is the payload shape root cause 3 got wrong.
+T(
+  "cc orchestrator: a file write containing the literal text -> 0",
+  runHook(ORCHESTRATOR_HOOK, writePayload(join(root, "Downloads", "engine-notes.md"), "Never run codex exec by hand.")),
+  0,
+)
+T("cc orchestrator: an unrelated command -> 0", runHook(ORCHESTRATOR_HOOK, commandPayload("npm run lint", mainCheckoutCwd)), 0)
+const adminMerge = runHookResult(ORCHESTRATOR_HOOK, commandPayload(`gh pr merge 667 --squash ${ADMIN}`, linkedWorktreeRoot))
+T("cc orchestrator: an admin merge from a worktree is still refused -> 2", adminMerge.status, 2)
+T("cc orchestrator: the admin refusal says to ask Thomas", adminMerge.stderr.includes("ask him to"), true)
+T(
+  "cc orchestrator: an admin merge carrying the launcher marker is still refused -> 2",
+  runHookResult(ORCHESTRATOR_HOOK, commandPayload(`gh pr merge 667 ${ADMIN}`, mainCheckoutCwd), { ORBIT_LAUNCH_WORKER: "1" }).status,
+  2,
+)
+T(
+  "cc orchestrator: an ordinary squash merge -> 0",
+  runHook(ORCHESTRATOR_HOOK, commandPayload("gh pr merge 667 --squash --delete-branch", mainCheckoutCwd)),
+  0,
+)
 
 const existingOutsideArtifact = write("Downloads/existing-order.md", outsideRepoArtifactBody)
 const safeOutsideEdit = runHookResult(RAW_TOOL_HOOK, editPayload(existingOutsideArtifact, "Updated heading only."))

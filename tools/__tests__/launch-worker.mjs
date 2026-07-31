@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process"
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs"
 import { delimiter, join, resolve } from "node:path"
 
-import { TOOLS_DIR, REPO_ROOT, T, root, stage, orcaEnv, run, runAsync, check, DEFAULT_AUTOMATION_BUDGET, CLAUDE_MODELS, CODEX_MODELS, INTERACTIVE_WORKER, INTERACTIVE_CODEX, stageLaunchWorker, launchWorktreeStub, linearIssueStub, WORKER_CONTRACT_MARKER, FULL_SURFACE_POLL, NO_DRAFT_PULL_REQUEST_CLAUSE, REQUIRED_CONTRACT_CLAUSES, TRUST_SCREENS, stageCheckout, runTrustScreen, budgetRecord } from "./_harness.mjs"
+import { TOOLS_DIR, REPO_ROOT, T, root, stage, orcaEnv, run, runAsync, check, DEFAULT_AUTOMATION_BUDGET, CLAUDE_MODELS, CODEX_MODELS, INTERACTIVE_WORKER, INTERACTIVE_CODEX, stageLaunchWorker, launchWorktreeStub, linearIssueStub, WORKER_CONTRACT_MARKER, FULL_SURFACE_POLL, NO_DRAFT_PULL_REQUEST_CLAUSE, REQUIRED_CONTRACT_CLAUSES, contractClauseBlocks, missingContractClauses, TRUST_SCREENS, stageCheckout, runTrustScreen, budgetRecord } from "./_harness.mjs"
 
 const trustScreenCases = () => {
   for (const [engineName, { screens }] of Object.entries(TRUST_SCREENS)) {
@@ -582,6 +582,92 @@ const launchConcurrencyCases = async (promptFile) => {
       && createCalls.length === 1
       && /maxParallelWorktrees cap 1[\s\S]*current count 1/.test(concurrentRefusal?.stderr ?? ""),
     `statuses ${JSON.stringify(statuses)}, worktree creates ${createCalls.length}\n     ${concurrentResults.map((result) => result.stderr.trim()).join("\n     ")}`,
+  )
+}
+
+/**
+ * A4. The clause assertions used to be `pattern.test(launcherSource)` over the whole
+ * launch-worker.mjs file as a string, so nothing they claimed was ever driven. Demonstrated:
+ * clause 3 could be deleted from the injected contract entirely and parked in a dead comment
+ * while every assertion passed. Second defect: clause 3's terminator recurs in clause 5, so
+ * `[\s\S]*` let two tokens twenty lines apart satisfy one clause.
+ *
+ * These cases drive the path the clauses govern instead. A real launch appends the contract to
+ * a real prompt file (a dry run returns before the append, so this one runs for real and fails
+ * at `worktree create`, which the launcher reaches only AFTER appending), and every pattern is
+ * matched inside its own clause block of the artifact the worker would actually read.
+ */
+const contractClauseCases = () => {
+  const staged = stageLaunchWorker("contract-clauses", INTERACTIVE_WORKER)
+  const promptFile = stage("contract-clauses-prompt.md", "the ticket body verbatim\n")
+  const result = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile], {
+    path: staged.path,
+    env: {
+      ...orcaEnv([
+        ...linearIssueStub(["repo:ui"]),
+        { match: "worktree create", stdout: JSON.stringify({ ok: false, error: { code: "fixture", message: "stop after the contract append" } }), exit: 1 },
+      ]),
+      ORBIT_AUTOMATION_BUDGET_LEDGER: join(staged.base, "automation-budget.jsonl"),
+    },
+  })
+  const promptBody = readFileSync(promptFile, "utf8")
+  const markerIndex = promptBody.indexOf(WORKER_CONTRACT_MARKER)
+  T(
+    "launch-worker.mjs: a real launch appends the standing worker contract to the prompt file",
+    markerIndex !== -1,
+    `exit ${result.status}; the prompt the worker would read carries no contract marker\n     ${result.stderr.trim()}`,
+  )
+  const injected = markerIndex === -1 ? "" : promptBody.slice(markerIndex)
+  const blocks = contractClauseBlocks(injected)
+  const clauseNumbers = Object.keys(blocks).map(Number).sort((left, right) => left - right)
+  T(
+    "launch-worker.mjs: the injected contract carries a contiguous run of numbered clauses",
+    clauseNumbers.length > 0 && clauseNumbers.every((number, index) => number === index + 1),
+    `the appended contract split into clauses ${JSON.stringify(clauseNumbers)}; a gap means a clause was deleted or renumbered without updating REQUIRED_CONTRACT_CLAUSES`,
+  )
+  const missing = missingContractClauses(injected)
+  for (const [name, { clause }] of Object.entries(REQUIRED_CONTRACT_CLAUSES)) {
+    T(
+      `launch-worker.mjs: injected clause ${clause} enforces ${name}`,
+      !missing.includes(name),
+      `clause ${clause} of the contract the launcher appended no longer matches its pattern. A worker without this clause repeats the failure it was written for; restore the clause rather than relaxing this check.\n     clause ${clause} as injected: ${JSON.stringify((blocks[clause] ?? "").slice(0, 240))}`,
+    )
+  }
+
+  // Gate proof 1: the demonstrated hole. Deleting a clause from what the worker reads must
+  // fail, and must name the clauses it carried. Source-string matching could not see this at
+  // all, because the deleted text stayed in the file as a comment.
+  const clauseThreeDeleted = injected.replace(blocks[3], "3. **Own the automated review cycle.** (see the comment in the launcher)\n")
+  const deletedVerdict = missingContractClauses(clauseThreeDeleted)
+  T(
+    "launch-worker.mjs: deleting clause 3 from the injected contract fails, naming its clauses",
+    deletedVerdict.includes("owning its automated review cycle") &&
+      deletedVerdict.includes("polling every review activity surface") &&
+      deletedVerdict.includes("leaving human threads unresolved"),
+    `a gutted clause 3 reported ${JSON.stringify(deletedVerdict)}`,
+  )
+
+  // Gate proof 2: cross-clause spanning. Clause 3's terminator is written a second time in
+  // clause 5, so an unscoped `[\s\S]*` can be satisfied by two tokens twenty lines apart.
+  // Measured on the shipped contract: the phrase occurs twice, but clause 5's copy is
+  // line-wrapped ("approved with zero\n   unresolved threads"), so the hazard is LATENT rather
+  // than live today. The fixture plants an unwrapped copy in clause 5 to exercise it, and the
+  // second assertion pins that whole-text matching really would accept what this refuses;
+  // without it, the first assertion could pass for the wrong reason.
+  const terminator = "approved with zero unresolved threads"
+  const spanning = injected
+    .replace(blocks[3], () => blocks[3].replace(terminator, () => "settled"))
+    .replace(blocks[5], () => `${blocks[5].trimEnd()} The PR must end ${terminator}.\n`)
+  const spanningPattern = REQUIRED_CONTRACT_CLAUSES["owning its automated review cycle"].pattern
+  T(
+    "launch-worker.mjs: a clause satisfied only by a phrase from a later clause is refused",
+    missingContractClauses(spanning).includes("owning its automated review cycle"),
+    "clause 3 lost its terminator and the block-scoped check still passed",
+  )
+  T(
+    "launch-worker.mjs: the same contract passes whole-text matching, which is the defect",
+    spanningPattern.test(spanning),
+    "whole-text matching rejected the spanning fixture too, so this proof demonstrates nothing; rebuild the fixture",
   )
 }
 
@@ -1311,16 +1397,9 @@ process.stdout.write(JSON.stringify(await Promise.all([first, second])))
   terminalCreateRetryCases()
   await launchConcurrencyCases(promptFile)
 
-  const launcherSource = readFileSync(join(TOOLS_DIR, "launch-worker.mjs"), "utf8")
-  for (const [clause, pattern] of Object.entries(REQUIRED_CONTRACT_CLAUSES)) {
-    T(`launch-worker.mjs: the injected contract still enforces ${clause}`, pattern.test(launcherSource), `WORKER_CONTRACT no longer matches ${pattern}. A worker without this clause repeats the failure it was written for; restore it rather than relaxing this check.`)
-  }
+  contractClauseCases()
+
   const agentsSource = readFileSync(join(REPO_ROOT, "AGENTS.md"), "utf8")
-  T(
-    "launch-worker.mjs: the injected contract forbids opening a draft pull request",
-    launcherSource.includes(NO_DRAFT_PULL_REQUEST_CLAUSE),
-    `WORKER_CONTRACT no longer contains ${NO_DRAFT_PULL_REQUEST_CLAUSE}`,
-  )
   T(
     "AGENTS.md: the standing worker contract forbids opening a draft pull request",
     agentsSource.includes(NO_DRAFT_PULL_REQUEST_CLAUSE),
