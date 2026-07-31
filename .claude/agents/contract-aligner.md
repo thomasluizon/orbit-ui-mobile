@@ -6,7 +6,7 @@ model: sonnet
 effort: medium
 ---
 
-<!-- LOCKSTEP COPY — twin lives at orbit-api/.claude/agents/contract-aligner.md. /pr-review runs from EITHER repo root (orbit-api CI fires it via .github/workflows/claude-review.yml), and subagents resolve from the launch repo's own .claude/agents/, so both copies are load-bearing — dedup is impossible across two separate git repos + CI. Keep BEHAVIOR identical (steps, drift categories, output format, frontmatter). Sanctioned divergences: (1) path style — this copy is ui-mobile-rooted/relative, the orbit-api copy uses absolute paths; (2) the orbit-api copy adds a NOT_VERIFIABLE fallback for when the ui-mobile sibling isn't checked out (orbit-api CI). -->
+<!-- LOCKSTEP COPY. Twin lives at orbit-api/.claude/agents/contract-aligner.md. /pr-review runs from EITHER repo root, orchestrator-side in a fresh worktree at the pull request head, and subagents resolve from the launch repo's own .claude/agents/, so both copies are load-bearing: dedup is impossible across two separate git repos. Keep BEHAVIOR identical (steps, drift categories, output format, frontmatter). Sanctioned divergences: (1) path style, this copy is ui-mobile-rooted/relative and the orbit-api copy uses absolute paths; (2) the orbit-api copy adds a NOT_VERIFIABLE fallback for when the ui-mobile sibling isn't checked out. -->
 
 # Contract aligner
 

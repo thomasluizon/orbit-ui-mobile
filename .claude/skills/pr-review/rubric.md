@@ -1,12 +1,21 @@
 # Orbit Review Rubric
 
-The single source of truth for what a review checks, shared verbatim by two skills:
-`/pr-review` walks it dimension-by-dimension over a **diff**, and `/audit-code-quality`
-(#228) walks it over the **whole repo**. Both read this one file
-(`.claude/skills/pr-review/rubric.md`) — there is no second copy, so the two can never
-drift. It is command-agnostic on purpose: it contains **dimensions, severities, and
-templates** — no orchestration, no scope resolution, no GitHub mechanics. Those live in
-the consuming skill.
+The single source of truth for what a review checks **in this repo**, shared verbatim by
+two skills: `/pr-review` walks it dimension-by-dimension over a **diff**, and
+`/audit-code-quality` (#228) walks it over the **whole repo**. Both read this one file
+(`.claude/skills/pr-review/rubric.md`), so those two skills can never drift from each
+other.
+
+**A lockstep TWIN does exist**, at `orbit-api/.claude/skills/pr-review/rubric.md`. Two
+repos mean the file cannot be deduped, so `tools/check-lockstep.mjs` compares the two line
+by line and a divergence is legal only when its diff-hunk fingerprint carries a
+justification in `tools/lockstep-declarations.json`. Change a dimension here and mirror it
+there in the same task: `Harness Lockstep` is a REQUIRED status check on orbit-api's
+`main`, so an unmirrored, undeclared edit here turns that check red over there.
+
+It is command-agnostic on purpose: it contains **dimensions, severities, and templates**,
+no orchestration, no scope resolution, no GitHub mechanics. Those live in the consuming
+skill.
 
 Every finding cites the rule it came from (a `CLAUDE.md` rule number, `no-comments.cjs`,
 a `DESIGN.md` section, an orbit-api hard rule, or a security category) so the author can

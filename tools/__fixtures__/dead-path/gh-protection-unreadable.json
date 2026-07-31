@@ -1,0 +1,9 @@
+{
+  "recordedAt": "2026-07-31",
+  "command": "gh api repos/thomasluizon/orbit-ui-mobile/branches/main/protection",
+  "how": "Captured live by running that command with GH_TOKEN set to an invalid token, and copied verbatim. Not hand-written: a hand-written envelope of an external CLI proves the belief rather than the behaviour.",
+  "note": "The condition this stands in for in CI is an admin-permission 403, which could not be produced from this machine because the only tokens available are either fully authorised or invalid. The tool branches on gh's non-zero exit status, which 401 and 403 share, and never on the code, so this envelope drives the same path. Recorded honestly rather than edited into a 403.",
+  "exitStatus": 1,
+  "stdout": "{\n  \"message\": \"Bad credentials\",\n  \"documentation_url\": \"https://docs.github.com/rest\",\n  \"status\": \"401\"\n}",
+  "stderr": "gh: Bad credentials (HTTP 401)\n"
+}

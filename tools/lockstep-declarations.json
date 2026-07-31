@@ -7,13 +7,12 @@
           "id": "repository-review-adapters",
           "justification": "Each repository resolves its own default target, specialist set, validation commands, and report adapters while preserving the shared review contract.",
           "fingerprints": [
-            "eee5b4a66495589846e797c71466365c926bff790d931e8379f65900b20c89c5", "eb1901bcb39cf6c98e1a34e1aa7c474173de4d23b9fd9662816ec3235812e5f9", "50d9f11d57d9c131770f877617ebf8b18a4120de75ed7275b35b0c6ff3a9d3aa", "f7317801191b06e5c3f5e3f35a9ff9349a0410a612d7e8ca13cfe51eab7cea58",
+            "eee5b4a66495589846e797c71466365c926bff790d931e8379f65900b20c89c5", "eb1901bcb39cf6c98e1a34e1aa7c474173de4d23b9fd9662816ec3235812e5f9", "d2c8c15ab8537546a2fe8003c52bd083a19662f07c70941ebd5d14d020b17531", "f7317801191b06e5c3f5e3f35a9ff9349a0410a612d7e8ca13cfe51eab7cea58",
             "761832b862ca9c03a415f62e98f9f6c7581af6935d66641c898d17682ea901a7", "81eee9da71bdbbef88fe099a6f24542f7fbb96950c7988661163846223ee45e5", "04d891432c5034401fee51bc9b9a4c4b62f8876e1cba7db5e9b9dbcca2e74a8c", "5e8eb438e74203b5bca8c9a78654e862afe9dad0151583d097656ca3f54460b5",
-            "73a1f7195af714fd0cf9a9856e7a30c2a66f74367601018f86c53d699227db9b", "d452c23dd53eecd7695a36c9848a6d4de178722e05cad8f643e9acc33081ed33", "be57e446b6f2487bdc2dc9c79364de6469d3a2d887925bb70ae04b15635366b7", "a8418f0112b9c4d7b13c09fac6ddfe37a287bcf3607ad9ccee342f19fbd506fb",
+            "73a1f7195af714fd0cf9a9856e7a30c2a66f74367601018f86c53d699227db9b", "d452c23dd53eecd7695a36c9848a6d4de178722e05cad8f643e9acc33081ed33", "be57e446b6f2487bdc2dc9c79364de6469d3a2d887925bb70ae04b15635366b7", "c85d338e91817b89ca8143a308b774cffeecdf47d58aa3ade55787930670dd1d",
             "81291dc791347ef121e99b91ef389211eb18032568189a1cab97d819aec0bcd4", "ab99e0f5e11b13b3e02ecf1b46a34381f00a8583078d60876ecf6ff85eefe565", "d4d2bd8707a480c909aad0275c80b5d371ab566f9fc7ad918995b8ed212a2aaa", "83424c59a2006a9002fd23717f9b2ed3bd15cc56eac26a75317b53df25527196",
-            "58cd6a6259a8dd639324589da32746bbda2aa99a2f1bb3f1d6d2f8e992c1e2ac", "02c0366a1c7d59c0a02b47f8a6b0ee49b9f9ea21887c1f72f82295c0dbc15e3d", "ade1a26b26f40f2581e05f74653317cdb37b52d62414e0593e58ffb41114154c", "f87120c2db8beda694529ee052a65bcf6421c24ff2249612ac861c2a23d18e2d",
-            "c990e9fab0558526c79c0eab933405d0f4527adb35921e12fd3c54d9e5a488b4", "5435fe2cca38b17bb55457aa66cede43c2ce62bc0dac46cc4e9eceb3de4029f3", "7f8ef749bbb07fed8235e73c8018e1b3fa1514cf66625ee8d386d52312c1ec97", "aedd430953918d80db12adaa7516197a1b44f12edf012b019b170792ee81abb8",
-            "82f6e920a21f70b27e93e80eaa3542d97a32b667758559a63f4a6e10d8782aab"
+            "58cd6a6259a8dd639324589da32746bbda2aa99a2f1bb3f1d6d2f8e992c1e2ac", "daa7a60d5257923fc5af06b719d0a7e0f32b745373e3ae284254d7fb3f732275", "f87120c2db8beda694529ee052a65bcf6421c24ff2249612ac861c2a23d18e2d", "5435fe2cca38b17bb55457aa66cede43c2ce62bc0dac46cc4e9eceb3de4029f3",
+            "7f8ef749bbb07fed8235e73c8018e1b3fa1514cf66625ee8d386d52312c1ec97", "aedd430953918d80db12adaa7516197a1b44f12edf012b019b170792ee81abb8"
           ]
         }
       ]
@@ -22,10 +21,10 @@
       "declarations": [
         {
           "id": "repository-rubric-dimensions",
-          "justification": "The UI rubric carries frontend design and harness dimensions while the API rubric carries backend-only transaction guidance and local consumer context.",
+          "justification": "Each rubric names its own twin and its own reading skills in the head note, then the UI copy carries frontend design and harness dimensions while the API copy carries backend-only transaction guidance and local consumer context.",
           "fingerprints": [
-            "2b726f91e5dcda6db1eba5a162981905875e6e63d57849457a83defa0195a5ba", "f82c87488ad948028fd54e0227835119051e9534a7e00df14b0e7b5ecc92605b", "daac12c9e4c50313ef28df407a2cc328f8477aab6835e2f3d433886f152f0277", "e78a13879cae66878fc0dadd7be7a23d1606f13ac532b9f223f63aa8427201c2",
-            "1a11ad4c67802c490ff24f9ddb9a7f1ecfe9eca16b6b464f18c58b6ec7157544", "03e41bb3125b63f477ac511e5c3cb27999286087616b84417245744168255134", "76221bc847771f82da20ec53eb89bca8057d6733f7379682105a8af3371ffc52", "e7f89bd1bfe6f0c91211b9b8a0a861a35378f2c8ac338c524a2080956fe89c9a",
+            "83e7ebb54b77a2e6097ed568dd700654277388106643aa59d85bdad0bc8c789b", "0b39f9cc2a9d5d5340c650d825dee1708829720cd683e102efefe7299234605a", "68972dbf37bf166a87b54c58e7d3a73cd7e1cceda5901f3291dd4d99614d5bd0",
+            "1a11ad4c67802c490ff24f9ddb9a7f1ecfe9eca16b6b464f18c58b6ec7157544", "c401d89d298d335a1ac797cc8e434f2f7084cc465447dab1246b7e94134a4db6", "76221bc847771f82da20ec53eb89bca8057d6733f7379682105a8af3371ffc52", "e7f89bd1bfe6f0c91211b9b8a0a861a35378f2c8ac338c524a2080956fe89c9a",
             "adb9bb4f553259b191382509c94e397fcbd5f73013eec3e7a5b960f793316b1b", "becd7aa66cfcceb35a0ebe0cc954826df5dfa0cb9db3043d9ac250b081a27827", "ee513c495b46a7afda1628dce96dd07110cdb828a377289bc91d27aae9dc9ff9", "7d034b64b3ea20b362a9f997f21ade736b9ae08f636c326d40093b8e416771dc",
             "1ba7595dce76d07d5fae2ba5adcb20d71418f9979f6acfbfc0cadf3197af9fee", "69f09422e83fedb03ae9f41570f85cf71d093cb1b49fa070a9b333f3e98afe60", "d9c02c79845b2fcf6897ee916166f0ead818dd95045725052a757a94f964411d", "757aa4ef2ad3e6f3ccad8e46fe0e26934be69be1c6df9e12e68c9d66bbfb37a2"
           ]
@@ -47,9 +46,9 @@
       "declarations": [
         {
           "id": "repository-path-adapter",
-          "justification": "The UI copy uses sibling-relative paths while the API copy uses absolute UI paths and a CI-only not-verifiable fallback.",
+          "justification": "The UI copy uses sibling-relative paths while the API copy uses absolute UI paths and a not-verifiable fallback for a checkout with no sibling repository beside it.",
           "fingerprints": [
-            "ef7bef641d5f7d815ebed0737b789aa71e64a976946f826315653282c9a04892", "1f9d0cb655ee94e71473e107bcb31daf77da4fd8e9625d95cb030cd970c7ebe2", "6068351153e9dee7ae1de84de07d96f088385b148c4014619f8e3396c2c53de2", "cfdf066f29a43cc50fada8279ac409198bf15fcc4393d65bac70aa1116589c6c"
+            "6c67dd32b7e9f87854958a0d95b48172d8f174d51933ceedca93a12c1b0b3914", "1f9d0cb655ee94e71473e107bcb31daf77da4fd8e9625d95cb030cd970c7ebe2", "ac2b3f5bc341e253f2253fb7f2ce7788f8291e60c7fe9e9b3fdb102d612af301", "cfdf066f29a43cc50fada8279ac409198bf15fcc4393d65bac70aa1116589c6c"
           ]
         }
       ]
@@ -60,7 +59,7 @@
           "id": "reciprocal-copy-note",
           "justification": "Each otherwise-identical agent copy names the other repository as its twin in the provenance note.",
           "fingerprints": [
-            "3f3ec3594bf7fde8ac7b25cb4df08b831d422dfe759bb819f1f4abef3ad6bc44"
+            "734455f42a58f39555a8da0018ecf46625c3cc32fa2b5ed5bbb0f0c6c7e907aa"
           ]
         }
       ]

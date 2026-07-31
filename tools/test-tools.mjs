@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
  * The harness execution gate: every script under tools/ is EXECUTED here, never
- * merely read. A harness cannot certify itself by review - claude-review.yml runs a
- * fresh session on every PR, but it reviews the DIFF, so a broken tool can be read,
- * approved and merged. tools/launch-worker.mjs shipped in PR #604 reading `orca
- * terminal wait`'s "not yet" (exit 1 with an ok:false payload) as a fatal error,
- * which only running it caught.
+ * merely read. A harness cannot certify itself by review, and after ORB-163 there is
+ * no CI reviewer left to try: review is a local /pr-review subagent reading the DIFF,
+ * so a broken tool can be read, approved and merged. tools/launch-worker.mjs shipped
+ * in PR #604 reading `orca terminal wait`'s "not yet" (exit 1 with an ok:false
+ * payload) as a fatal error, which only running it caught.
  *
  * Three layers:
  *   1. Structural coverage: every tools/<script> has a COVERAGE entry, so tool N+1
@@ -97,6 +97,8 @@ const CASE_MODULES = [
   ["check-harness-coverage.mjs", "check-harness-coverage", "cases"],
   ["check-slice-evidence.mjs", "check-slice-evidence", "cases"],
   ["review-rounds.mjs", "review-rounds", "cases"],
+  ["check-archaeology.mjs", "check-archaeology", "cases"],
+  ["check-dead-path.mjs", "check-dead-path", "cases"],
 ]
 
 const gateCases = {}
@@ -111,16 +113,16 @@ for (const [file, module, exported] of CASE_MODULES) {
 
 /** argv that must be refused before the tool does any work. */
 const INVALID_INPUT = {
-  "agent-review.ps1": { argv: ["--orbit-not-a-flag"], status: 1 },
-  "agent-review.sh": { argv: ["--orbit-not-a-flag"], status: 1 },
   "ai-quota.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "arch-map.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "automation-budget.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "capture-surfaces.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-context-budget.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "check-archaeology.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-calibration.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-copy.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-dashes.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "check-dead-path.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-frontmatter.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-harness-coverage.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-lockstep.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },

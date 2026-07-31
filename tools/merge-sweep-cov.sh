@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Coverage-aware merge sweep (server-side gh, robust polling). Per PR:
-#   - require reviewDecision == APPROVED; SKIP otherwise.
+#   - SKIP while reviewDecision reads CHANGES_REQUESTED. An approving review is NOT required.
 #   - SKIP on any failing NON-Sonar required check (a real defect) or a merge conflict (DIRTY).
 #   - poll through BEHIND (update-branch) and the post-update re-CI window until the merge state
 #     is decidable (CLEAN/UNSTABLE), then:
@@ -18,13 +18,14 @@
 # Never touches the local working tree.
 set -u
 
+# dead-path-ok: feature detector waits only while the review workflow can still post a check
 REVIEW_WORKFLOW_PATH=".github/workflows/claude-review.yml"
 REVIEW_CHECK_NAME="review"
 ORCA_BIN="${ORCA_BIN:-C:\Users\thoma\AppData\Local\Programs\orca\resources\bin\orca}"
 
 usage() {
   cat <<EOF
-Coverage-aware merge sweep: squash-merge each APPROVED, green PR server-side.
+Coverage-aware merge sweep: squash-merge each green PR server-side.
 
 Usage: merge-sweep-cov.sh [--expected-head <pr-number>=<sha>]...
                           [--reviewed-through <pr-number>=<iso-timestamp>]...
@@ -71,8 +72,14 @@ lookup failure or unknown state prints \`LINEAR-STATE-REFUSED\` and skips the me
 
 It refuses to merge while the \`$REVIEW_CHECK_NAME\` check for the CURRENT head SHA is still
 running, and re-reads reviewDecision after that check settles, so a pre-update APPROVED can
-never carry a merge. Only a workflow lookup that succeeds and shows no $REVIEW_WORKFLOW_PATH
-skips that wait; a failed lookup keeps the guard on.
+never carry a merge. Only a workflow lookup that succeeds and shows no ACTIVE
+$REVIEW_WORKFLOW_PATH skips that wait: a deleted workflow leaves the list entirely, while a
+disabled one stays listed yet can never post the check. A failed lookup keeps the guard on.
+
+It does NOT require an approving review to exist: no identity in either repository can produce
+one, so requiring it would refuse every unattended merge. It requires instead that no APPROVED
+review is STALE (see --reviewed-through and the SHA-anchored gate) and refuses outright while
+reviewDecision reads CHANGES_REQUESTED.
 Every status check, required or not, must reach a terminal successful conclusion before merge.
 
 After the sweep it re-checks every merged PR's head branch. A branch whose tip moved past the
@@ -255,8 +262,13 @@ done
 
 # Fails CLOSED: only a lookup that SUCCEEDS and positively shows no review workflow turns the wait
 # off, so an auth/rate-limit/network hiccup costs a slower sweep rather than the guard itself.
+# WHY the state filter: a DELETED workflow is dropped from this list outright, so deleting
+# deleting the review workflow does not strand this guard, but a DISABLED one stays listed and posts no check
+# run, which would hold `review_required` on forever while the check can never arrive. Only an
+# `active` workflow can produce one. Both halves were read live; see merge-sweep.sh for the
+# observations.
 review_required=1
-if workflow_paths=$(gh api "repos/$repo/actions/workflows" --paginate --jq '.workflows[].path' 2>/dev/null); then
+if workflow_paths=$(gh api "repos/$repo/actions/workflows" --paginate --jq '.workflows[] | select(.state == "active") | .path' 2>/dev/null); then
   printf '%s\n' "$workflow_paths" | grep -qx "$REVIEW_WORKFLOW_PATH" || review_required=""
 else
   echo "WARN: could not list $repo workflows; assuming the $REVIEW_CHECK_NAME check is required" >&2
@@ -494,7 +506,7 @@ review_safety_gate() { # <pr> <pre|post>; prints the fail-closed reason
 
 # Refuses a STALE approval; it does NOT require a fresh one. If any review is APPROVED, at
 # least one of them must name the expected head. If nothing is approved at all this imposes
-# nothing and the other gates carry the merge, because after claude-review.yml is deleted no
+      # nothing and the other gates carry the merge, because after the review workflow is deleted no
 # GitHub identity in either repository can produce an approving review, and a rule demanding
 # one would refuse every unattended merge from that point on, forever.
 approval_not_stale() { # <pr> <expected-head-sha>; prints the refusal reason
@@ -656,7 +668,12 @@ for n in "$@"; do
       done_pr=1
       break
     fi
-    if [ "$rev" != "APPROVED" ]; then
+    # A2 in full: "no approving review may be STALE", never "an approving review must exist".
+    # See merge-sweep.sh for the live reads behind this. `required_approving_review_count` is 0 in
+    # both repositories, so `reviewDecision` reads empty on an approved pull request while still
+    # reading CHANGES_REQUESTED on a blocked one. Only the blocking half survives here; the
+    # positive half is `approval_not_stale`, the only SHA-anchored review gate.
+    if [ "$rev" = "CHANGES_REQUESTED" ]; then
       echo "SKIP #$n review=$rev"
       done_pr=1
       break

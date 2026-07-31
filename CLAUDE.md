@@ -51,7 +51,7 @@ Auth: web cookie is httpOnly + sameSite strict + secure; mobile tokens live in S
 - Session act-time hooks live in `.claude/settings.json`; `node .claude/hooks/test-hooks.mjs` is their proof (D6, D22).
 - Orca worktree setup runs `npm install && node tools/orca-web-port.mjs --setup` under this repository's run-by-default setup policy. The hook assigns a deterministic web port in the 3100-4099 window and records it in the ignored `.orca/web-port`; `node tools/orca-web-port.mjs` reports it. Root stays on 3000. The database and API remain shared on 5432 and 5000.
 - Testing: Vitest unit tests only; every feature needs behavior tests. The only sanctioned E2E against prod is the post-deploy web smoke suite; a separate hermetic web visual-regression gate (`.github/workflows/visual.yml`, web-only by locked decision) screenshots four surfaces against a local mock orbit-api at PR time. Configs live in each workspace. `TESTING.md` (repo root) is the suite catalog + how to write a test here.
-Skill behavior lives in each command's description; `claude-review.yml` carries the CI verdict (D25) and the Codex cloud reviewer is steered by `AGENTS.md` (D26).
+Skill behavior lives in each command's description; `AGENTS.md` steers Codex review (D26). No review check exists; `guards.yml` + merge-sweep gate merges (D25).
 
 ## Agent tool scoping
 

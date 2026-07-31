@@ -487,11 +487,20 @@ export const RAW_TOOL_REVIEW_CORPUS = [
     "node --trace-warnings tools/wave-plan.mjs --all",
     "node --require loader tools/wave-plan.mjs --all",
   ].map((text, index) => ({ label: `node invocation variant ${index + 1}`, text, status: 2, includes: ["/next"] })),
+  // No `.ps1` lives under tools/ today, so these pin the three PowerShell shapes of
+  // TOOL_SCRIPT_COMMAND against a placeholder path, the same way tools/foo.mjs and
+  // tools/bar.mjs are used above. The gate reads text and never touches the filesystem,
+  // and the arm has to stay proven for the day a PowerShell tool returns.
   ...[
-    "Run pwsh tools/agent-review.ps1 --claim test",
-    "Run powershell.exe .\\tools\\agent-review.ps1 --claim test",
-    "Run .\\tools\\agent-review.ps1 --claim test",
-  ].map((text, index) => ({ label: `PowerShell invocation ${index + 1}`, text, status: 2, includes: ["/second-opinion"] })),
+    "Run pwsh tools/foo.ps1 --claim test",
+    "Run powershell.exe .\\tools\\foo.ps1 --claim test",
+    "Run .\\tools\\foo.ps1 --claim test",
+  ].map((text, index) => ({
+    label: `PowerShell invocation ${index + 1}`,
+    text,
+    status: 2,
+    includes: ["No skill currently exposes this capability"],
+  })),
   {
     label: "previous internal line laundering",
     text: ["The skill runs internally to gather inputs.", "To refresh it yourself, run node tools/wave-plan.mjs --all"].join("\n"),
@@ -923,10 +932,6 @@ for (const [label, command, skills] of [
   ["PR watch", "node tools/pr-watch.mjs --repo owner/repo --pr 1", ["/orchestrate"]],
   ["ticket creation", "node tools/new-ticket.mjs --help", ["/ticket", "/feature"]],
   ["web port", "node tools/orca-web-port.mjs", ["/dev-server"]],
-  ["second opinion", "tools/agent-review.sh --claim test", ["/second-opinion"]],
-  ["PowerShell second opinion", "pwsh tools/agent-review.ps1 --claim test", ["/second-opinion"]],
-  ["Windows PowerShell second opinion", "powershell.exe .\\tools\\agent-review.ps1 --claim test", ["/second-opinion"]],
-  ["direct PowerShell second opinion", ".\\tools\\agent-review.ps1 --claim test", ["/second-opinion"]],
 ]) {
   const result = runHookResult(RAW_TOOL_HOOK, stopPayload(`Run ${command}`))
   T(`cc raw-tool: ${label} wrapper instruction -> 2`, result.status, 2)
