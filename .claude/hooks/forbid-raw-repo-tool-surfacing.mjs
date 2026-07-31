@@ -9,8 +9,8 @@
 // Chat exemptions are bounded to punctuation clauses and adjacent inline-code
 // atoms. An ambiguous quote, fence, or backtick parse fails closed.
 
-import { existsSync, readFileSync } from "node:fs"
-import { dirname, posix, resolve, win32 } from "node:path"
+import { existsSync, readFileSync, statSync } from "node:fs"
+import { dirname, join, posix, resolve, win32 } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { filePathFrom, readStdinJson } from "./_lib/io.mjs"
@@ -475,9 +475,7 @@ function transcriptAssistantMessage(transcriptPath) {
   return ""
 }
 
-function isRepoArtifact(filePath) {
-  if (!filePath) return false
-  const target = win32.isAbsolute(filePath) || posix.isAbsolute(filePath) ? filePath : resolve(filePath)
+function withinDeclaredRoot(target) {
   return REPO_ROOTS.some((repoRoot) => {
     const rootIsWindows = WINDOWS_PATH.test(repoRoot)
     if (rootIsWindows !== WINDOWS_PATH.test(target)) return false
@@ -485,6 +483,49 @@ function isRepoArtifact(filePath) {
     const relation = pathApi.relative(pathApi.normalize(repoRoot), pathApi.normalize(target))
     return relation === "" || (relation !== ".." && !relation.startsWith(`..${pathApi.sep}`) && !pathApi.isAbsolute(relation))
   })
+}
+
+/**
+ * The repository root that OWNS a path, following a linked worktree back to its main
+ * checkout. Declared roots are the three root checkouts, and an Orca worktree lives under
+ * none of them, so without this a worker editing a real repository file had its content
+ * scanned as an arbitrary payload and any legitimate repo-tool string in it blocked the
+ * write (ORB-165). tools/README.md is full of such strings by design.
+ *
+ * A linked worktree's root carries a `.git` FILE whose single `gitdir:` line points into
+ * <main-root>/.git/worktrees/<name>; a normal checkout carries a `.git` DIRECTORY. Purely
+ * filesystem, because a PreToolUse hook must not spawn a subprocess, and machine-independent,
+ * because the Orca workspaces path is nowhere in it. Fails CLOSED: an unreadable or
+ * unrecognised `.git` returns null and the caller scans rather than exempting blindly.
+ */
+function owningRepositoryRoot(startPath) {
+  let current = resolve(startPath)
+  let previous = ""
+  while (current !== previous) {
+    const marker = join(current, ".git")
+    if (existsSync(marker)) {
+      try {
+        if (statSync(marker).isDirectory()) return current
+        const gitdir = /^gitdir:[ \t]*(.+?)[ \t]*$/m.exec(readFileSync(marker, "utf8"))
+        if (!gitdir) return null
+        const segments = gitdir[1].replace(/\\/g, "/").split("/.git/worktrees/")
+        return segments.length === 2 && segments[0] ? segments[0] : null
+      } catch {
+        return null
+      }
+    }
+    previous = current
+    current = dirname(current)
+  }
+  return null
+}
+
+function isRepoArtifact(filePath) {
+  if (!filePath) return false
+  const target = win32.isAbsolute(filePath) || posix.isAbsolute(filePath) ? filePath : resolve(filePath)
+  if (withinDeclaredRoot(target)) return true
+  const owner = owningRepositoryRoot(target)
+  return owner === null ? false : withinDeclaredRoot(owner)
 }
 
 function writtenArtifact(input) {

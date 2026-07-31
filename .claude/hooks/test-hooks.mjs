@@ -902,6 +902,58 @@ for (const [repoName, repoPath] of Object.entries(declaredRepos)) {
   )
 }
 
+// ORB-165. Declared roots are the three ROOT checkouts, so a worker editing a real
+// repository file inside an Orca worktree (C:\Users\thoma\orca\workspaces\...) fell under
+// none of them, got its content scanned as an arbitrary payload, and was blocked by any
+// legitimate repo-tool string in it. tools/README.md is full of those by design. The
+// exemption now follows a linked worktree's `.git` FILE back to its main checkout. These
+// cases pin both directions: the exemption must reach a worktree, and must not become
+// purchasable with `git init`.
+// The `.git` file's one line is written in the shape read off this worktree's real one.
+const stageWorktree = (name, gitFileBody) => {
+  const worktreeRoot = dirname(dirname(write(`${name}/tools/README.md`, "placeholder\n")))
+  writeFileSync(join(worktreeRoot, ".git"), gitFileBody)
+  return join(worktreeRoot, "tools", "README.md")
+}
+const linkedWorktreeFile = stageWorktree(
+  "linked-worktree",
+  `gitdir: ${rawToolRepoRoot.replace(/\\/g, "/")}/.git/worktrees/orb-165-fixture\n`,
+)
+T(
+  "cc raw-tool: repo file in a linked worktree of a declared root -> 0",
+  runHook(RAW_TOOL_HOOK, writePayload(linkedWorktreeFile, outsideRepoArtifactBody)),
+  0,
+)
+T(
+  "cc raw-tool: repo file in the root checkout stays exempt -> 0",
+  runHook(RAW_TOOL_HOOK, writePayload(join(rawToolRepoRoot, "tools", "README.md"), outsideRepoArtifactBody)),
+  0,
+)
+// The exemption is not for "any git repository": `git init` in a scratch directory must not
+// buy it, or root cause 3 is back through a different door.
+write("foreign-repo/.git/HEAD", "ref: refs/heads/main\n")
+T(
+  "cc raw-tool: repo file in an undeclared repository is still scanned -> 2",
+  runHook(RAW_TOOL_HOOK, writePayload(join(root, "foreign-repo", "tools", "README.md"), outsideRepoArtifactBody)),
+  2,
+)
+T(
+  "cc raw-tool: artifact with no .git ancestor is still scanned -> 2",
+  runHook(RAW_TOOL_HOOK, writePayload(join(root, "scratchpad", "order.md"), outsideRepoArtifactBody)),
+  2,
+)
+// Fail CLOSED on both unrecognised shapes: scan, never exempt on a `.git` we cannot read.
+T(
+  "cc raw-tool: malformed .git file falls through to scanning -> 2",
+  runHook(RAW_TOOL_HOOK, writePayload(stageWorktree("malformed-worktree", "this is not a gitdir line\n"), outsideRepoArtifactBody)),
+  2,
+)
+T(
+  "cc raw-tool: gitdir with no worktrees segment falls through to scanning -> 2",
+  runHook(RAW_TOOL_HOOK, writePayload(stageWorktree("detached-worktree", "gitdir: C:/somewhere/else/.git\n"), outsideRepoArtifactBody)),
+  2,
+)
+
 const existingOutsideArtifact = write("Downloads/existing-order.md", outsideRepoArtifactBody)
 const safeOutsideEdit = runHookResult(RAW_TOOL_HOOK, editPayload(existingOutsideArtifact, "Updated heading only."))
 T("cc raw-tool: outside edit scans only its safe new string -> 0", safeOutsideEdit.status, 0)
