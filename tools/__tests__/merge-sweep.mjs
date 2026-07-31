@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 
@@ -32,6 +33,33 @@ const mergeSweepCliFlagCases = () => {
       `${filename}: never combines --slurp with --jq or --template`,
       unsupported.length === 0,
       `unsupported gh api invocation:\n     ${unsupported.join("\n     ")}`,
+    )
+    const stateParser = source.match(/statusCheckRollup,headRefOid 2>\/dev\/null \| node -e "([\s\S]*?)"\r?\n\}/)?.[1] ?? ""
+    const runStateParser = (rows) =>
+      spawnSync(process.execPath, ["-e", stateParser], {
+        encoding: "utf8",
+        input: JSON.stringify({ mergeStateStatus: "CLEAN", reviewDecision: "", headRefOid: "a".repeat(40), statusCheckRollup: rows }),
+      })
+    const latestSuccess = runStateParser([
+      { __typename: "CheckRun", name: "Harness Lockstep", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-07-31T14:55:37Z" },
+      { __typename: "CheckRun", name: "Harness Lockstep", status: "COMPLETED", conclusion: "FAILURE", startedAt: "2026-07-31T14:53:17Z" },
+    ])
+    const clearOutput = filename === "merge-sweep-cov.sh"
+      ? `CLEAN\t?\tNONE\tNONE\t${"a".repeat(40)}\tNONE\tABSENT`
+      : `CLEAN|?|none|none|ABSENT|${"a".repeat(40)}`
+    T(
+      `${filename}: a newer successful status check supersedes an older failure regardless of array order`,
+      stateParser.length > 0 && latestSuccess.status === 0 && latestSuccess.stdout === clearOutput,
+      `exit ${latestSuccess.status}\n     stdout: ${latestSuccess.stdout}\n     stderr: ${latestSuccess.stderr}`,
+    )
+    const exactTie = runStateParser([
+      { __typename: "CheckRun", name: "Harness Lockstep", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-07-31T14:55:37Z" },
+      { __typename: "CheckRun", name: "Harness Lockstep", status: "COMPLETED", conclusion: "FAILURE", startedAt: "2026-07-31T14:55:37Z" },
+    ])
+    T(
+      `${filename}: exact timestamp ties fail closed when one duplicate failed`,
+      stateParser.length > 0 && exactTie.status === 0 && exactTie.stdout.includes("Harness Lockstep"),
+      `exit ${exactTie.status}\n     stdout: ${exactTie.stdout}\n     stderr: ${exactTie.stderr}`,
     )
   }
   const adoptionHelpers = scanned.map(({ filename, source }) => ({
@@ -956,3 +984,4 @@ export const cases = () => {
     mergeSweepCases("merge-sweep.sh")
   }
 export const coverageCases = () => mergeSweepCases("merge-sweep-cov.sh")
+export { mergeSweepCliFlagCases as cliCases }

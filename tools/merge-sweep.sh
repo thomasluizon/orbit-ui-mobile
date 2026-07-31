@@ -486,7 +486,7 @@ review_safety_gate() { # <pr> <pre|post>; prints the fail-closed reason
 
 # Refuses a STALE approval; it does NOT require a fresh one. If any review is APPROVED, at
 # least one of them must name the expected head. If nothing is approved at all this imposes
-      # nothing and the other gates carry the merge, because after the review workflow is deleted no
+# nothing and the other gates carry the merge, because after the review workflow is deleted no
 # GitHub identity in either repository can produce an approving review, and a rule demanding
 # one would refuse every unattended merge from that point on, forever.
 approval_not_stale() { # <pr> <expected-head-sha>; prints the refusal reason
@@ -573,7 +573,16 @@ mstate() { # prints  MS | REVIEW | FAILEDCHECKS | PENDINGCHECKS | REVIEWCHECK | 
     let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{
       try{
         const d=JSON.parse(s);
-        const rows=d.statusCheckRollup||[];
+        const latestByContext=new Map(),unnamed=[];
+        for(const row of d.statusCheckRollup||[]){
+          const name=row.name||row.context;
+          if(!name){unnamed.push(row);continue;}
+          const startedAt=row.startedAt||'';
+          const latest=latestByContext.get(name);
+          if(!latest||startedAt>latest.startedAt)latestByContext.set(name,{startedAt,rows:[row]});
+          else if(startedAt===latest.startedAt)latest.rows.push(row);
+        }
+        const rows=[...unnamed,...[...latestByContext.values()].flatMap(entry=>entry.rows)];
         const bad=['FAILURE','ERROR','CANCELLED','TIMED_OUT','ACTION_REQUIRED','STARTUP_FAILURE'];
         const failed=rows.filter(c=>bad.includes((c.conclusion||c.state||'').toUpperCase())).map(c=>c.name||c.context).join(',')||'none';
         const terminalStates=['SUCCESS',...bad,'NEUTRAL','SKIPPED','STALE'];
@@ -668,7 +677,7 @@ for n in "$@"; do
       # The LAST API read before the merge call, and the only one anchored to a SHA. The
       # `rev` above is PR-level `reviewDecision`, which survives every push: PR #654 read
       # APPROVED from a review submitted against cac9ccb while headRefOid was 40dba9f, and
-      # merged. Nothing may merge unless an APPROVED review names THIS commit.
+      # merged. If any approval exists, at least one must name THIS commit.
       if ! approval_not_stale "$n" "$expected"; then
         done_pr=1
         break

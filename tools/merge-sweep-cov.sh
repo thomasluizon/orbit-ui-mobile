@@ -287,7 +287,16 @@ gate() { # prints  MS \t REVIEW \t NONSONAR_FAILED \t SONARSTATE \t SHA \t PENDI
       try{
         const d=JSON.parse(s);
         const bad=['FAILURE','ERROR','CANCELLED','TIMED_OUT','ACTION_REQUIRED','STARTUP_FAILURE'];
-        const rows=d.statusCheckRollup||[];
+        const latestByContext=new Map(),unnamed=[];
+        for(const row of d.statusCheckRollup||[]){
+          const name=row.name||row.context;
+          if(!name){unnamed.push(row);continue;}
+          const startedAt=row.startedAt||'';
+          const latest=latestByContext.get(name);
+          if(!latest||startedAt>latest.startedAt)latestByContext.set(name,{startedAt,rows:[row]});
+          else if(startedAt===latest.startedAt)latest.rows.push(row);
+        }
+        const rows=[...unnamed,...[...latestByContext.values()].flatMap(entry=>entry.rows)];
         const failed=rows.filter(c=>bad.includes((c.conclusion||c.state||'').toUpperCase()));
         const nonSonar=failed.filter(c=>(c.name||c.context)!=='SonarCloud Code Analysis').map(c=>c.name||c.context);
         const sonar=rows.find(c=>(c.name||c.context)==='SonarCloud Code Analysis')||{};
@@ -506,7 +515,7 @@ review_safety_gate() { # <pr> <pre|post>; prints the fail-closed reason
 
 # Refuses a STALE approval; it does NOT require a fresh one. If any review is APPROVED, at
 # least one of them must name the expected head. If nothing is approved at all this imposes
-      # nothing and the other gates carry the merge, because after the review workflow is deleted no
+# nothing and the other gates carry the merge, because after the review workflow is deleted no
 # GitHub identity in either repository can produce an approving review, and a rule demanding
 # one would refuse every unattended merge from that point on, forever.
 approval_not_stale() { # <pr> <expected-head-sha>; prints the refusal reason

@@ -13,7 +13,13 @@ const OLD_SHA = "1111111111111111111111111111111111111111"
 
 const reviewOn = (state, oid) => ({ state, author: { login: "claude" }, commit: { oid } })
 
-const checkRun = (name, conclusion) => ({ __typename: "CheckRun", name, status: "COMPLETED", conclusion })
+const checkRun = (name, conclusion, createdAt = "2026-07-31T14:53:08Z") => ({
+  __typename: "CheckRun",
+  name,
+  status: "COMPLETED",
+  conclusion,
+  checkSuite: { createdAt },
+})
 
 const pullRequestStub = (number, pullRequest) => ({
   match: `number=${number}`,
@@ -30,6 +36,7 @@ const pullRequestStub = (number, pullRequest) => ({
           reviewDecision: null,
           headRefOid: HEAD_SHA,
           latestReviews: { nodes: [] },
+          reviews: { pageInfo: { hasNextPage: false }, nodes: [] },
           commits: { nodes: [{ commit: { statusCheckRollup: { state: "SUCCESS", contexts: { nodes: [checkRun("Lint", "SUCCESS")] } } } }] },
           ...pullRequest,
         },
@@ -44,9 +51,9 @@ const prWatchCases = () => {
   const argv = ["--repo", "thomasluizon/orbit-ui-mobile", "--pr", "615", "--once"]
   check(
     "pr-watch.mjs",
-    "--help says repeated acted signals on one PR and head accumulate",
+    "--help documents accumulated signals and review-clear readiness",
     ["--help"],
-    { status: 0, stdout: /same PR and head accumulate[\s\S]*READY_TO_MERGE independently/ },
+    { status: 0, stdout: /same PR and head accumulate[\s\S]*READY_TO_MERGE independently[\s\S]*No\s+approval is required; if any approval exists, at least one must name the current head commit/ },
   )
   let sequenceNumber = 0
   const checkSequence = (name, states, extraArgv, expect) => {
@@ -83,28 +90,77 @@ const prWatchCases = () => {
     { status: 1, stdout: /"transition": "changes-requested"/ },
     { env: orcaEnv([pullRequestStub(615, { reviewDecision: "CHANGES_REQUESTED", latestReviews: { nodes: [reviewOn("CHANGES_REQUESTED", HEAD_SHA)] } })]) },
   )
-  const approved = pullRequestStub(615, { reviewDecision: "APPROVED", mergeStateStatus: "CLEAN", latestReviews: { nodes: [reviewOn("APPROVED", HEAD_SHA)] } })
+  const headApproval = reviewOn("APPROVED", HEAD_SHA)
+  const approved = pullRequestStub(615, {
+    reviewDecision: "APPROVED",
+    mergeStateStatus: "CLEAN",
+    latestReviews: { nodes: [headApproval] },
+    reviews: { pageInfo: { hasNextPage: false }, nodes: [headApproval] },
+  })
   check("pr-watch.mjs", "a fresh approval fires", argv, { status: 0, stdout: /"transition": "approved"/ }, { env: orcaEnv([approved]) })
   check(
     "pr-watch.mjs",
-    "a draft reading clean and approved is refused",
+    "a draft reading clean and review-clear is refused",
     argv,
     { status: 1, stdout: /"transition": "draft"[\s\S]*"reason": "the PR is a draft and cannot be merged"/ },
-    { env: orcaEnv([pullRequestStub(615, { isDraft: true, reviewDecision: "APPROVED", mergeStateStatus: "CLEAN", latestReviews: { nodes: [reviewOn("APPROVED", HEAD_SHA)] } })]) },
+    { env: orcaEnv([pullRequestStub(615, { isDraft: true, mergeStateStatus: "CLEAN" })]) },
   )
+  const reviewClear = pullRequestStub(615, { mergeStateStatus: "CLEAN" })
   check(
     "pr-watch.mjs",
-    "an acted approval that became clean between watches reports readiness",
-    [...argv, "--acted", `615=${HEAD_SHA.slice(0, 7)}:APPROVED`],
+    "a clean PR with no approval and no CHANGES_REQUESTED reports readiness",
+    argv,
     { status: 0, stdout: /"transition": "ready-to-merge"/ },
-    { env: orcaEnv([approved]) },
+    { env: orcaEnv([reviewClear]) },
   )
   check(
     "pr-watch.mjs",
-    "an acted readiness on an already clean PR does not repeat",
-    [...argv, "--acted", `615=${HEAD_SHA.slice(0, 7)}:APPROVED`, "--acted", `615=${HEAD_SHA}:READY_TO_MERGE`],
+    "an acted readiness on an already clean and review-clear PR does not repeat",
+    [...argv, "--acted", `615=${HEAD_SHA}:READY_TO_MERGE`],
     { status: 4, stdout: /"transition": "none"/ },
-    { env: orcaEnv([approved]) },
+    { env: orcaEnv([reviewClear]) },
+  )
+  check(
+    "pr-watch.mjs",
+    "a stale approval blocks readiness even when reviewDecision is empty",
+    argv,
+    { status: 4, stdout: /"transition": "none"/ },
+    {
+      env: orcaEnv([
+        pullRequestStub(615, {
+          mergeStateStatus: "CLEAN",
+          reviews: { pageInfo: { hasNextPage: false }, nodes: [reviewOn("APPROVED", OLD_SHA)] },
+        }),
+      ]),
+    },
+  )
+  check(
+    "pr-watch.mjs",
+    "a current-head approval remains review-clear even when reviewDecision is empty",
+    argv,
+    { status: 0, stdout: /"transition": "ready-to-merge"/ },
+    {
+      env: orcaEnv([
+        pullRequestStub(615, {
+          mergeStateStatus: "CLEAN",
+          reviews: { pageInfo: { hasNextPage: false }, nodes: [headApproval] },
+        }),
+      ]),
+    },
+  )
+  check(
+    "pr-watch.mjs",
+    "CHANGES_REQUESTED blocks readiness without requiring a current-head verdict",
+    argv,
+    { status: 4, stdout: /"transition": "none"/ },
+    { env: orcaEnv([pullRequestStub(615, { mergeStateStatus: "CLEAN", reviewDecision: "CHANGES_REQUESTED" })]) },
+  )
+  check(
+    "pr-watch.mjs",
+    "an incomplete approval inventory blocks readiness",
+    argv,
+    { status: 4, stdout: /"transition": "none"/ },
+    { env: orcaEnv([pullRequestStub(615, { mergeStateStatus: "CLEAN", reviews: { pageInfo: { hasNextPage: true }, nodes: [] } })]) },
   )
   const twoVerdicts = {
     reviewDecision: "CHANGES_REQUESTED",
@@ -143,6 +199,22 @@ const prWatchCases = () => {
           mergeStateStatus: "CLEAN",
           latestReviews: { nodes: [reviewOn("APPROVED", HEAD_SHA)] },
           commits: rollup(checkRun("Lint", "SUCCESS"), checkRun("Harness Execution", "FAILURE")),
+        }),
+      ]),
+    },
+  )
+  check(
+    "pr-watch.mjs",
+    "a newer successful run supersedes an older failure regardless of API array order",
+    argv,
+    { status: 4, stdout: /"transition": "none"/ },
+    {
+      env: orcaEnv([
+        pullRequestStub(615, {
+          commits: rollup(
+            checkRun("Harness Lockstep", "SUCCESS", "2026-07-31T14:55:29Z"),
+            checkRun("Harness Lockstep", "FAILURE", "2026-07-31T14:53:08Z"),
+          ),
         }),
       ]),
     },
@@ -191,14 +263,14 @@ const prWatchCases = () => {
   checkSequence(
     "clean through unknown and back to clean emits nothing",
     [{ mergeStateStatus: "CLEAN" }, { mergeStateStatus: "UNKNOWN" }, { mergeStateStatus: "CLEAN" }],
-    [],
+    ["--acted", `615=${HEAD_SHA}:READY_TO_MERGE`],
     { status: 4, stdout: /"transition": "timeout"/ },
   )
   checkSequence(
-    "blocked through unknown to clean emits once for clean",
+    "blocked through unknown to clean emits readiness once review-clear",
     [{ mergeStateStatus: "BLOCKED" }, { mergeStateStatus: "UNKNOWN" }, { mergeStateStatus: "CLEAN" }],
     [],
-    { status: 0, stdout: /"transition": "merge-clean"/ },
+    { status: 0, stdout: /"transition": "ready-to-merge"/ },
   )
   checkSequence(
     "an acted approval emits readiness when the PR later becomes clean",

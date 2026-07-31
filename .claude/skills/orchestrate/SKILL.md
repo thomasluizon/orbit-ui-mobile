@@ -142,7 +142,7 @@ eligible ticket. Do not reorder waves or explicit-set members.
    revising and state every unresolved finding honestly in the critique. For `parity:yes`,
    cover web and mobile, or name the platform gap and its reason. Attach the final screenshots
    and the critique to the issue, then set the issue to In Review and own the automated review
-   cycle until the worker reports approved with zero unresolved threads or sends one escalation.
+   cycle until the worker reports review-clear with zero unresolved threads or sends one escalation.
    The branch is NOT the worker's job; step 3 hands it the contract branch already checked out.
 
    **Do NOT hand-write the STANDING clauses here.** Never ask a question, state a blocked
@@ -312,7 +312,7 @@ node tools/worker-status.mjs --worktree <worktreePath> --issue ORB-N --base <tar
 
 It derives the verdict from artifacts (commits above the freshly fetched `origin/<target>`,
 never a stale local ref, a clean worktree, the branch pushed, a PR open against the target,
-the issue In Review with the PR attached, an approved review decision, zero unresolved threads,
+the issue In Review with the PR attached, no CHANGES_REQUESTED decision, no stale approval,
 and an image attached when the ticket is `visible-effect`, D7) and exits non-zero listing exactly
 what is unmet. For a `visible-effect` ticket, also inspect the issue evidence and require the
 attached critique paired with the final screenshots before treating the contract as met. That
@@ -328,8 +328,8 @@ unreadable or non-JSON marker and an unparseable timestamp.
 |---|---|
 | `DELIVERED` | exit 0, every check met. Release the ticket's concurrency slot. This is the ONLY verdict that releases one. |
 | `WORKING` | the worker process is alive with something still unmet. Keep waiting; launch nothing. |
-| `STALLED` | the process is gone, a PR is open, and its current head carries no approving review. Relaunch, on the terms below and only these. |
-| `AWAITING-MERGE` | the process is gone, the PR is open and its head is approved. No relaunch can help: finish the bookkeeping, or hand the merge to Thomas (to the 4a sweep under `--sleep`). |
+| `STALLED` | process gone, PR open, review blocked or outstanding. Relaunch only on the terms below. |
+| `AWAITING-MERGE` | process gone, PR open, review clear. Finish bookkeeping or merge by section 4a. |
 | `IDLE` | the process is gone and NO pull request is open, so the ticket sits between pull requests. Relaunch nothing; go back to the DAG and make a launch decision. |
 | `UNKNOWN` | liveness could not be read. Relaunch nothing, decide nothing, surface it to the operator. A state nobody observed is not a state to act on. |
 
@@ -376,7 +376,7 @@ After the PR opens, the worker owns its automated review cycle. The orchestrator
 review bodies, author review-round files, or relay findings back to the worker. It waits for one
 worker report:
 
-- **Done:** the current head is approved with zero unresolved threads.
+- **Done:** no CHANGES_REQUESTED, stale approval, or unresolved thread.
 - **Escalated:** the worker disagrees with a finding, is blocked on a decision it may not make,
   or has failed the same finding in two consecutive cycles. Only then may the orchestrator read
   that finding's review body and the worker's reasoning, reconcile it against the diff (D8), and
@@ -404,7 +404,7 @@ That is the SAME poll with `--verify-review` added, not a second tool, and no se
 invented for it. This is one pass for the whole ticket, never one pass per review round. It verifies the final
 diff and thread metadata without printing review bodies. A resolved automated thread whose
 named fix commit did not follow the reviewed commit or change the reviewed path, a human-authored
-thread resolved by the worker account, a head without its own approving review, or any unresolved
+thread resolved by the worker account, a stale approval, or any unresolved
 thread is a hard failure. Stop for human adjudication on failure; do not run a second verification
 pass.
 
@@ -438,8 +438,8 @@ withdrawn and none replaces it; the cost was never measured on a controlled run.
   original body all go in the closing report, because an agent editing its own work order
   unsupervised is exactly the thing that must be auditable afterwards. Without `--sleep`
   this does not apply: a human is awake, and the rewrite is theirs.
-- "All PRs green" requires reviewDecision APPROVED, zero unresolved threads, and a passing
-  one-time pre-merge verification, not just checks passing.
+- "All PRs green" requires no CHANGES_REQUESTED decision, no stale approval, zero unresolved
+  threads, and a passing one-time pre-merge verification, not just checks passing.
 
 ## 4. Advance
 
@@ -456,7 +456,7 @@ a project name or with a single `ORB-N`, because without `--only` a ticket argum
 names where to start, not where to stop.
 
 **`--only` ends here instead.** The run is complete once that one ticket's worker reports
-approved with zero unresolved threads, its one pre-merge verification passes, and its issue is
+review-clear with zero unresolved threads, its one pre-merge verification passes, and its issue is
 In Review with the PR attached, plus the final screenshots and critique when it carries
 `visible-effect`. Print that ticket's ledger row and STOP. A merge of that ticket is not a
 trigger to launch anything: observing it may have opened a wave, but the run was explicitly
@@ -464,7 +464,7 @@ bounded. Name the tickets that became launchable so Thomas can start them, and d
 
 **Explicit-set scope also ends here.** It never advances a wave, including when a
 member merge makes a successor launchable. Finish after every launchable member has
-an approved PR with zero unresolved threads, its one pre-merge verification passed,
+a review-clear PR with zero unresolved threads, its one pre-merge verification passed,
 and its issue is In Review with the PR attached (plus D7 evidence when required), and
 every refused member has its blocker or strike reason recorded. Print one ledger covering
 every requested member, then re-read the full DAG, name the tickets that became launchable,
@@ -560,11 +560,11 @@ script re-reads the head after updating and during every poll, skips with both S
 it changed, and supplies `--match-head-commit` to GitHub at the merge call so the
 server refuses a last-moment change.
 
-The script owns the remaining mechanical merge decision. It repeats the branch update
-as a safety check, polls `mergeStateStatus`, rejects failed checks, requires
-`reviewDecision=APPROVED`, waits for the `review` check on the current head SHA to
-settle, and re-reads the decision after updates. Its review-safety query requires
-every review thread to be resolved and no
+The script owns the remaining mechanical merge decision. It repeats the branch update,
+polls `mergeStateStatus`, keeps only the latest run per check context, rejects failed checks,
+waits for pending checks, and refuses `reviewDecision=CHANGES_REQUESTED`. No required review
+status producer exists. If any approval exists, the final SHA-anchored gate requires one on the
+current head. Its review-safety query requires every review thread to be resolved and no
 review submission or edit, inline review comment or edit, or conversation comment or
 edit at or after `reviewed-through`. It paginates review submissions through GraphQL
 and checks `submittedAt`, `updatedAt`, and `lastEditedAt`, checks both creation and edit times
@@ -585,9 +585,7 @@ Linear reassertion were detected and reported, not prevented: the script prints 
 `POST-MERGE-REVIEW-LOOKUP-FAILED`, or
 `POST-MERGE-LINEAR-STATE-REASSERT-FAILED` marker, exits `4`, and the run stops all
 further unattended merges and copies that result into the closing report. It also checks that
-a merged head did not move afterwards. Its workflow lookup fails closed: if it cannot
-prove the repository has no review workflow, the current-head review wait stays
-enabled.
+a merged head did not move afterwards.
 
 The post-merge Linear markers are operator actions, not merely diagnostics. On
 `LINEAR-STATE-REASSERT-SKIPPED`, inspect the preserved advanced state. On
