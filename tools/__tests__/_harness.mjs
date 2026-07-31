@@ -37,8 +37,29 @@ export const EM_DASH = String.fromCharCode(0x2014)
 
 let fails = 0
 
+/**
+ * Every assertion is attributed to a tool, so the coverage ratchet can see a case body that
+ * stopped running. Attribution prefers the `<tool>.<ext>:` prefix the reporter names carry,
+ * because one case module owns both merge sweeps; it falls back to whichever module the runner
+ * is currently driving, and finally to the runner itself for the structural checks.
+ */
+const TOOL_PREFIX = /^([A-Za-z0-9_.-]+\.(?:mjs|sh|ps1)):/
+export const RUNNER_TALLY_KEY = "(runner)"
+const tally = new Map()
+let currentScope = null
+
+export const beginToolScope = (tool) => {
+  currentScope = tool
+}
+export const endToolScope = () => {
+  currentScope = null
+}
+export const assertionTally = () => Object.fromEntries(tally)
+
 export const T = (name, ok, detail = "") => {
   if (!ok) fails++
+  const tool = TOOL_PREFIX.exec(name)?.[1] ?? currentScope ?? RUNNER_TALLY_KEY
+  tally.set(tool, (tally.get(tool) ?? 0) + 1)
   console.log(`${ok ? "PASS" : "FAIL"} ${name}${ok ? "" : `\n     ${detail}`}`)
 }
 
@@ -219,6 +240,12 @@ if (argv[0] === "pr" && argv[1] === "update-branch") {
   if (process.env.ORBIT_MERGE_SWEEP_UPDATED_HEAD) writeFileSync(updateMarker, "")
   process.exit(0)
 }
+if (argv[0] === "api" && argv[1] === "graphql" && line.includes("commit{oid}")) {
+  if (process.env.ORBIT_MERGE_SWEEP_APPROVAL_LOOKUP_FAILURE) process.exit(7)
+  const approvals = process.env.ORBIT_MERGE_SWEEP_APPROVAL_COMMITS
+  process.stdout.write(approvals === "__HEAD__" ? currentHead() : approvals)
+  process.exit(0)
+}
 if (argv[0] === "api" && argv[1] === "graphql" && line.includes("reviews(first:100")) {
   if (
     process.env.ORBIT_MERGE_SWEEP_REVIEWS_LOOKUP_FAILURE ||
@@ -368,6 +395,8 @@ chmodSync(MERGE_SWEEP_ORCA, 0o755)
 export const MERGE_SWEEP_BASH_ENV = stage("merge-sweep-bin/bash-env", "sleep() { :; }\n")
 
 export const mergeSweepEnv = ({
+  approvalCommits = "__HEAD__",
+  approvalLookupFailure = false,
   authenticUpdate = true,
   baseAncestor = "",
   baseRef = "main",
@@ -409,6 +438,8 @@ export const mergeSweepEnv = ({
 }) => ({
   BASH_ENV: MERGE_SWEEP_BASH_ENV,
   PATH: `${MERGE_SWEEP_GH_DIR}${delimiter}${process.env.PATH}`,
+  ORBIT_MERGE_SWEEP_APPROVAL_COMMITS: approvalCommits,
+  ORBIT_MERGE_SWEEP_APPROVAL_LOOKUP_FAILURE: approvalLookupFailure ? "1" : "",
   ORBIT_MERGE_SWEEP_AUTHENTIC_UPDATE: authenticUpdate ? "1" : "",
   ORBIT_MERGE_SWEEP_BRANCH: "feature/orb-106",
   ORBIT_MERGE_SWEEP_BASE_ANCESTOR: baseAncestor,

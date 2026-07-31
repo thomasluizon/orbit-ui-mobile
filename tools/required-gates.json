@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "note": "Which workflows carry deterministic gates that MUST be required contexts on the protected branch, and why every difference from branch protection is allowed. tools/check-required-gates.mjs is the reader. A workflow left out of enforcedWorkflows is out of scope: the architecture map, the mutation report, the Lighthouse budget, the visual gate and the review workflow are reports and gates that are deliberately not merge blockers, and listing them here would only produce noise. Every externalContexts and exemptJobs entry states its producer or its reason, so this file is the argument rather than a list.",
+  "repositories": {
+    "thomasluizon/orbit-ui-mobile": {
+      "branch": "main",
+      "enforcedWorkflows": ["guards.yml", "test.yml", "react-doctor.yml", "dependency-review.yml"],
+      "externalContexts": {
+        "GitGuardian Security Checks": "posted by the GitGuardian App, which has no workflow file in this repository",
+        "SonarCloud Code Analysis": "posted by the SonarCloud App; sonarcloud.yml's own job is named SonarCloud Analysis and is not the required context",
+        "Analyze (javascript-typescript)": "CodeQL default setup, which posts without a codeql.yml in this repository",
+        "Analyze (actions)": "CodeQL default setup, which posts without a codeql.yml in this repository"
+      },
+      "exemptJobs": {}
+    },
+    "thomasluizon/orbit-api": {
+      "branch": "main",
+      "enforcedWorkflows": ["guards.yml", "test.yml", "dependency-review.yml"],
+      "externalContexts": {
+        "GitGuardian Security Checks": "posted by the GitGuardian App, which has no workflow file in this repository",
+        "SonarCloud Code Analysis": "posted by the SonarCloud App; sonarcloud.yml's own job is named SonarCloud Analysis and is not the required context",
+        "Analyze (csharp)": "codeql.yml exists here, but its job name is the matrix expression Analyze (${{ matrix.language }}), which a static reader cannot expand; the workflow is therefore not enforced and its contexts are declared here",
+        "Analyze (javascript-typescript)": "same matrix job in codeql.yml, declared here for the same reason",
+        "Analyze (actions)": "same matrix job in codeql.yml, declared here for the same reason"
+      },
+      "exemptJobs": {}
+    }
+  }
+}

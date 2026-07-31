@@ -45,7 +45,16 @@ const mergeSweepCliFlagCases = () => {
       adoptionHelpers.every(({ helper }) => helper === adoptionHelpers[0].helper),
     adoptionHelpers.map(({ filename, helper }) => `${filename}: ${helper.length} bytes`).join("\n     "),
   )
-  for (const name of ["ensure_issue_in_review", "linear_state", "commit_linear_reassertion"]) {
+  // J3. The coverage sweep's `--admin` merge was the only agent-reachable admin merge in the
+  // tooling. Prose telling the next agent not to restore it decays; this does not.
+  for (const { filename, source } of scanned) {
+    T(
+      `${filename}: never passes --admin to a merge`,
+      !/--admin/.test(source.replace(/^#.*$/gm, "")),
+      "an admin merge bypasses the required checks. The override is Thomas's alone; an agent that needs one stops and asks.",
+    )
+  }
+  for (const name of ["ensure_issue_in_review", "linear_state", "commit_linear_reassertion", "approval_anchored_to_head"]) {
     const helpers = scanned.map(({ filename, source }) => ({
       filename,
       helper: source.match(new RegExp(`^${name}\\(\\).*?^}\\r?$`, "ms"))?.[0] ?? "",
@@ -81,8 +90,8 @@ const mergeSweepCases = (file) => {
     env: mergeSweepEnv({
       head: expectedHead,
       log: matchedLog,
-      sonar: coverageAware ? "coverage-failure" : "success",
-      state: coverageAware ? "BLOCKED" : "CLEAN",
+      sonar: "success",
+      state: "CLEAN",
     }),
   })
   const matchedMerges = mergeSweepCalls(matchedLog).filter(([group, command]) => group === "pr" && command === "merge")
@@ -94,8 +103,7 @@ const mergeSweepCases = (file) => {
       /MERGED #615/.test(matched.stdout) &&
       matchedMerges.length === 1 &&
       matchedHeadFlag !== -1 &&
-      matchedMerge[matchedHeadFlag + 1] === expectedHead &&
-      (!coverageAware || matchedMerge.includes("--admin")),
+      matchedMerge[matchedHeadFlag + 1] === expectedHead,
     `exit ${matched.status}\n     stdout: ${matched.stdout.trim()}\n     stderr: ${matched.stderr.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(matchedLog))}`,
   )
 
@@ -109,7 +117,7 @@ const mergeSweepCases = (file) => {
 
   const regressedLog = join(root, `${file}-linear-regressed.log`)
   const regressed = run(file, reviewedArgs, {
-    env: mergeSweepEnv({ head: expectedHead, linearState: "In Progress", log: regressedLog, sonar: coverageAware ? "coverage-failure" : "success", state: coverageAware ? "BLOCKED" : "CLEAN" }),
+    env: mergeSweepEnv({ head: expectedHead, linearState: "In Progress", log: regressedLog, sonar: "success", state: "CLEAN" }),
   })
   const regressedCalls = linearCalls(regressedLog)
   T(
@@ -124,7 +132,7 @@ const mergeSweepCases = (file) => {
   const skippedReassertion = (label, reassertState) => {
     const log = join(root, `${file}-${label}.log`)
     const result = run(file, reviewedArgs, {
-      env: mergeSweepEnv({ head: expectedHead, linearState: "In Progress", linearReassertState: reassertState, log, sonar: coverageAware ? "coverage-failure" : "success", state: coverageAware ? "BLOCKED" : "CLEAN" }),
+      env: mergeSweepEnv({ head: expectedHead, linearState: "In Progress", linearReassertState: reassertState, log, sonar: "success", state: "CLEAN" }),
     })
     const calls = linearCalls(log)
     T(
@@ -140,7 +148,7 @@ const mergeSweepCases = (file) => {
 
   const postWriteDisagreementLog = join(root, `${file}-post-write-disagreement.log`)
   const postWriteDisagreement = run(file, reviewedArgs, {
-    env: mergeSweepEnv({ head: expectedHead, linearState: "In Progress", linearReassertState: "In Progress", linearPostWriteState: "Done", log: postWriteDisagreementLog, sonar: coverageAware ? "coverage-failure" : "success", state: coverageAware ? "BLOCKED" : "CLEAN" }),
+    env: mergeSweepEnv({ head: expectedHead, linearState: "In Progress", linearReassertState: "In Progress", linearPostWriteState: "Done", log: postWriteDisagreementLog, sonar: "success", state: "CLEAN" }),
   })
   T(
     `${file}: a post-write state disagreement is left unchanged and recorded`,
@@ -152,7 +160,7 @@ const mergeSweepCases = (file) => {
   const linearRefusal = (label, envOptions, output) => {
     const log = join(root, `${file}-${label}.log`)
     const result = run(file, reviewedArgs, {
-      env: mergeSweepEnv({ head: expectedHead, log, sonar: coverageAware ? "coverage-failure" : "success", state: coverageAware ? "BLOCKED" : "CLEAN", ...envOptions }),
+      env: mergeSweepEnv({ head: expectedHead, log, sonar: "success", state: "CLEAN", ...envOptions }),
     })
     const calls = mergeSweepCalls(log)
     T(
@@ -164,7 +172,7 @@ const mergeSweepCases = (file) => {
   linearRefusal("a failing Linear lookup", { linearLookupFailure: true }, /LINEAR-STATE-REFUSED issue=ORB-150 reason=lookup-failed/)
   const reassertFailureLog = join(root, `${file}-failed-Linear-reassert.log`)
   const reassertFailure = run(file, reviewedArgs, {
-    env: mergeSweepEnv({ head: expectedHead, linearReassertFailure: true, linearState: "In Progress", log: reassertFailureLog, sonar: coverageAware ? "coverage-failure" : "success", state: coverageAware ? "BLOCKED" : "CLEAN" }),
+    env: mergeSweepEnv({ head: expectedHead, linearReassertFailure: true, linearState: "In Progress", log: reassertFailureLog, sonar: "success", state: "CLEAN" }),
   })
   T(
     `${file}: a failed post-merge Linear reassert reports the failure`,
@@ -173,7 +181,7 @@ const mergeSweepCases = (file) => {
   )
   const reassertReadFailureLog = join(root, `${file}-failed-Linear-reassert-read.log`)
   const reassertReadFailure = run(file, reviewedArgs, {
-    env: mergeSweepEnv({ head: expectedHead, linearReassertLookupFailure: true, linearState: "In Progress", log: reassertReadFailureLog, sonar: coverageAware ? "coverage-failure" : "success", state: coverageAware ? "BLOCKED" : "CLEAN" }),
+    env: mergeSweepEnv({ head: expectedHead, linearReassertLookupFailure: true, linearState: "In Progress", log: reassertReadFailureLog, sonar: "success", state: "CLEAN" }),
   })
   T(
     `${file}: a failed post-merge Linear re-read reports the failure`,
@@ -185,7 +193,7 @@ const mergeSweepCases = (file) => {
 
   const finalReadLog = join(root, `${file}-linear-final-read.log`)
   const finalRead = run(file, reviewedArgs, {
-    env: mergeSweepEnv({ head: expectedHead, log: finalReadLog, sonar: coverageAware ? "coverage-failure" : "success", state: coverageAware ? "BLOCKED" : "CLEAN" }),
+    env: mergeSweepEnv({ head: expectedHead, log: finalReadLog, sonar: "success", state: "CLEAN" }),
   })
   const finalReadCalls = mergeSweepCalls(finalReadLog)
   const issueReadIndex = finalReadCalls.findIndex(([group, linear, command]) => group === "orca" && linear === "linear" && command === "issue")
@@ -194,9 +202,16 @@ const mergeSweepCases = (file) => {
     (last, [group, ...argv], index) => group === "api" && argv.some((value) => String(value).includes("/comments")) ? index : last,
     -1,
   )
+  // A2 inserted the head-anchored approval read between the Linear read and the merge, so the
+  // boundary is now review reads, Linear, approval, merge, with nothing else in between.
+  const approvalIndex = finalReadCalls.findIndex((argv) => argv.some((argument) => String(argument).includes("commit{oid}")))
   T(
     `${file}: Linear state is freshly read at the decision boundary rather than reused`,
-    finalRead.status === 0 && lastReviewReadIndex !== -1 && issueReadIndex === lastReviewReadIndex + 1 && mergeIndex === issueReadIndex + 1,
+    finalRead.status === 0 &&
+      lastReviewReadIndex !== -1 &&
+      issueReadIndex === lastReviewReadIndex + 1 &&
+      approvalIndex === issueReadIndex + 1 &&
+      mergeIndex === approvalIndex + 1,
     `calls: ${JSON.stringify(finalReadCalls)}`,
   )
 
@@ -205,8 +220,8 @@ const mergeSweepCases = (file) => {
     env: mergeSweepEnv({
       head: changedHead,
       log: changedLog,
-      sonar: coverageAware ? "coverage-failure" : "success",
-      state: coverageAware ? "BLOCKED" : "CLEAN",
+      sonar: "success",
+      state: "CLEAN",
     }),
   })
   const changedCalls = mergeSweepCalls(changedLog)
@@ -217,8 +232,7 @@ const mergeSweepCases = (file) => {
       /SKIP #615/.test(changed.stdout) &&
       changed.stdout.includes(expectedHead) &&
       changed.stdout.includes(changedHead) &&
-      changedMerges.length === 0 &&
-      (!coverageAware || !changedCalls.some((argv) => argv.includes("--admin"))),
+      changedMerges.length === 0,
     `exit ${changed.status}\n     stdout: ${changed.stdout.trim()}\n     stderr: ${changed.stderr.trim()}\n     calls: ${JSON.stringify(changedCalls)}`,
   )
 
@@ -229,8 +243,8 @@ const mergeSweepCases = (file) => {
       head: expectedHead,
       log: mergeRaceLog,
       moveAtMerge: true,
-      sonar: coverageAware ? "coverage-failure" : "success",
-      state: coverageAware ? "BLOCKED" : "CLEAN",
+      sonar: "success",
+      state: "CLEAN",
     }),
   })
   const mergeRaceCalls = mergeSweepCalls(mergeRaceLog)
@@ -241,14 +255,13 @@ const mergeSweepCases = (file) => {
       /SKIP #615 HEAD-MOVED/.test(mergeRace.stdout) &&
       mergeRace.stdout.includes(expectedHead) &&
       mergeRace.stdout.includes(changedHead) &&
-      mergeRaceMerges.length === 1 &&
-      (!coverageAware || mergeRaceMerges[0].includes("--admin")),
+      mergeRaceMerges.length === 1,
     `exit ${mergeRace.status}\n     stdout: ${mergeRace.stdout.trim()}\n     stderr: ${mergeRace.stderr.trim()}\n     calls: ${JSON.stringify(mergeRaceCalls)}`,
   )
 
   const regressedMergeRaceLog = join(root, `${file}-regressed-merge-race.log`)
   const regressedMergeRace = run(file, reviewedArgs, {
-    env: mergeSweepEnv({ changedHead, head: expectedHead, linearState: "In Progress", log: regressedMergeRaceLog, moveAtMerge: true, sonar: coverageAware ? "coverage-failure" : "success", state: coverageAware ? "BLOCKED" : "CLEAN" }),
+    env: mergeSweepEnv({ changedHead, head: expectedHead, linearState: "In Progress", log: regressedMergeRaceLog, moveAtMerge: true, sonar: "success", state: "CLEAN" }),
   })
   const regressedMergeRaceCalls = linearCalls(regressedMergeRaceLog)
   T(
@@ -287,8 +300,8 @@ const mergeSweepCases = (file) => {
         baseTip,
         head: expectedHead,
         log,
-        sonar: coverageAware ? "coverage-failure" : "success",
-        state: coverageAware ? "BLOCKED" : "CLEAN",
+        sonar: "success",
+        state: "CLEAN",
         updatedHead,
         updateParents: routineParents,
         ...envOptions,
@@ -458,8 +471,8 @@ const mergeSweepCases = (file) => {
       commentTimes: "orchestrator\t2026-07-27T23:59:59Z",
       head: expectedHead,
       log: reconciledLog,
-      sonar: coverageAware ? "coverage-failure" : "success",
-      state: coverageAware ? "BLOCKED" : "CLEAN",
+      sonar: "success",
+      state: "CLEAN",
     }),
   })
   const reconciledMerges = mergeSweepCalls(reconciledLog).filter(([group, command]) => group === "pr" && command === "merge")
@@ -472,8 +485,8 @@ const mergeSweepCases = (file) => {
       head: expectedHead,
       log: postMergeLog,
       postMergeActivity: `late-reviewer\t${newerReviewTime}\t${postMergeUrl}`,
-      sonar: coverageAware ? "coverage-failure" : "success",
-      state: coverageAware ? "BLOCKED" : "CLEAN",
+      sonar: "success",
+      state: "CLEAN",
     }),
   })
   const postMergeMerges = mergeSweepCalls(postMergeLog).filter(([group, command]) => group === "pr" && command === "merge")
@@ -491,8 +504,8 @@ const mergeSweepCases = (file) => {
       env: mergeSweepEnv({
         head: expectedHead,
         log,
-        sonar: coverageAware ? "coverage-failure" : "success",
-        state: coverageAware ? "BLOCKED" : "CLEAN",
+        sonar: "success",
+        state: "CLEAN",
         ...envOptions,
       }),
     })
@@ -540,8 +553,8 @@ const mergeSweepCases = (file) => {
         head: expectedHead,
         log: stopAfterPostMergeFailureLog,
         postMergeReviewsLookupFailure: true,
-        sonar: coverageAware ? "coverage-failure" : "success",
-        state: coverageAware ? "BLOCKED" : "CLEAN",
+        sonar: "success",
+        state: "CLEAN",
       }),
     },
   )
@@ -564,8 +577,8 @@ const mergeSweepCases = (file) => {
       env: mergeSweepEnv({
         head: expectedHead,
         log,
-        sonar: coverageAware ? "coverage-failure" : "success",
-        state: coverageAware ? "BLOCKED" : "CLEAN",
+        sonar: "success",
+        state: "CLEAN",
         ...envOptions,
       }),
     })
@@ -609,8 +622,8 @@ const mergeSweepCases = (file) => {
       head: expectedHead,
       log: olderEditedReviewLog,
       reviewTimes: "commented-reviewer\t2026-07-27T21:00:00Z\ncommented-reviewer\t2026-07-27T22:00:00Z\ncommented-reviewer\t2026-07-27T23:59:59Z",
-      sonar: coverageAware ? "coverage-failure" : "success",
-      state: coverageAware ? "BLOCKED" : "CLEAN",
+      sonar: "success",
+      state: "CLEAN",
     }),
   })
   const olderEditedReviewCalls = mergeSweepCalls(olderEditedReviewLog)
@@ -640,8 +653,8 @@ const mergeSweepCases = (file) => {
       head: expectedHead,
       inlineItems: "inline-reviewer\t2026-07-27T23:00:00Z\ninline-reviewer\t2026-07-27T23:30:00Z",
       log: olderInlineLog,
-      sonar: coverageAware ? "coverage-failure" : "success",
-      state: coverageAware ? "BLOCKED" : "CLEAN",
+      sonar: "success",
+      state: "CLEAN",
     }),
   })
   const olderInlineMerges = mergeSweepCalls(olderInlineLog).filter(([group, command]) => group === "pr" && command === "merge")
@@ -710,8 +723,8 @@ const mergeSweepCases = (file) => {
         [boundary.envKey]: boundary.items(olderBoundaryTime),
         head: expectedHead,
         log: beforeLog,
-        sonar: coverageAware ? "coverage-failure" : "success",
-        state: coverageAware ? "BLOCKED" : "CLEAN",
+        sonar: "success",
+        state: "CLEAN",
       }),
     })
     const beforeMerges = mergeSweepCalls(beforeLog).filter(([group, command]) => group === "pr" && command === "merge")
@@ -722,13 +735,74 @@ const mergeSweepCases = (file) => {
     )
   }
 
+  /**
+   * A2. `reviewDecision` is PR-level and survives every push, so an APPROVED read from it can
+   * name a commit that is no longer on the branch. PR #654 is the live instance: newest
+   * APPROVED on cac9ccb, headRefOid 40dba9f, merged anyway. The stub reports
+   * `reviewDecision: "APPROVED"` in every one of these runs, which is the point: each refusal
+   * below happens WITH the PR-level signal saying approved.
+   */
+  const approvalRefusal = (label, environment, expectedOutput) => {
+    const log = join(root, `${file}-${label}.log`)
+    const result = run(file, reviewedArgs, { env: mergeSweepEnv({ head: expectedHead, log, ...environment }) })
+    const merges = mergeSweepCalls(log).filter(([group, command]) => group === "pr" && command === "merge")
+    T(
+      `${file}: ${label} refuses the merge although reviewDecision reads APPROVED`,
+      result.status === 0 && expectedOutput.test(result.stdout) && merges.length === 0,
+      `exit ${result.status}\n     stdout: ${result.stdout.trim()}\n     stderr: ${result.stderr.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(log))}`,
+    )
+  }
+  approvalRefusal(
+    "an approval naming an older commit",
+    { approvalCommits: changedHead },
+    new RegExp(`SKIP #615 APPROVAL-NOT-ON-HEAD expected=${expectedHead} approved=\\[${changedHead}\\]`),
+  )
+  approvalRefusal("no approving review at all", { approvalCommits: "" }, /SKIP #615 APPROVAL-NOT-ON-HEAD expected=\w+ approved=\[none\]/)
+  approvalRefusal("an approval lookup failure", { approvalLookupFailure: true }, /SKIP #615 APPROVAL-LOOKUP-FAILED/)
+  approvalRefusal("more than one page of reviews", { approvalCommits: "PAGINATED" }, /SKIP #615 APPROVAL-PAGE-OVERFLOW/)
+
+  const movedApprovalLog = join(root, `${file}-approval-moved-to-head.log`)
+  const movedApproval = run(file, reviewedArgs, {
+    env: mergeSweepEnv({ head: expectedHead, log: movedApprovalLog, approvalCommits: `${changedHead} ${expectedHead}` }),
+  })
+  const movedApprovalCalls = mergeSweepCalls(movedApprovalLog)
+  const movedApprovalMerges = movedApprovalCalls.filter(([group, command]) => group === "pr" && command === "merge")
+  T(
+    `${file}: the same PR merges once an approval names the head SHA`,
+    movedApproval.status === 0 && /MERGED #615/.test(movedApproval.stdout) && movedApprovalMerges.length === 1,
+    `exit ${movedApproval.status}\n     stdout: ${movedApproval.stdout.trim()}\n     calls: ${JSON.stringify(movedApprovalCalls)}`,
+  )
+  const approvalReadIndex = movedApprovalCalls.findIndex((argv) => argv.some((argument) => argument.includes("commit{oid}")))
+  const mergeCallIndex = movedApprovalCalls.findIndex(([group, command]) => group === "pr" && command === "merge")
+  T(
+    `${file}: the head-anchored approval read is the LAST API call before the merge`,
+    approvalReadIndex !== -1 && mergeCallIndex !== -1 && approvalReadIndex + 1 === mergeCallIndex,
+    `approval read at ${approvalReadIndex}, merge at ${mergeCallIndex}\n     calls: ${JSON.stringify(movedApprovalCalls)}`,
+  )
+
+  if (coverageAware) {
+    // J3. This path used to squash-merge with --admin. It now asks.
+    const adminLog = join(root, `${file}-coverage-only-failure.log`)
+    const adminResult = run(file, reviewedArgs, {
+      env: mergeSweepEnv({ head: expectedHead, log: adminLog, sonar: "coverage-failure", state: "BLOCKED" }),
+    })
+    const adminMerges = mergeSweepCalls(adminLog).filter(([group, command]) => group === "pr" && command === "merge")
+    T(
+      `${file}: a coverage-only Sonar failure asks for an admin merge instead of performing one`,
+      adminResult.status === 0 &&
+        new RegExp(`ADMIN-MERGE-REQUIRED #615 coverage-only Sonar failure on head ${expectedHead}`).test(adminResult.stdout) &&
+        adminMerges.length === 0,
+      `exit ${adminResult.status}\n     stdout: ${adminResult.stdout.trim()}\n     stderr: ${adminResult.stderr.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(adminLog))}`,
+    )
+  }
+
   const missingCutoffLog = join(root, `${file}-missing-reviewed-through.log`)
   const missingCutoff = run(file, ["--expected-head", `615=${expectedHead}`, "--issue", "615=ORB-150", "thomasluizon/orbit-ui-mobile", "615"], {
     env: mergeSweepEnv({
       head: expectedHead,
       log: missingCutoffLog,
-      sonar: coverageAware ? "coverage-failure" : "success",
-      state: coverageAware ? "BLOCKED" : "CLEAN",
+      sonar: "success",
+      state: "CLEAN",
     }),
   })
   const missingCutoffMerges = mergeSweepCalls(missingCutoffLog).filter(([group, command]) => group === "pr" && command === "merge")

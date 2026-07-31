@@ -469,6 +469,26 @@ review_safety_gate() { # <pr> <pre|post>; prints the fail-closed reason
   fi
 }
 
+approval_anchored_to_head() { # <pr> <expected-head-sha>; prints the refusal reason
+  local pr="$1" expected="$2" approved oid
+  if ! approved="$(gh api graphql \
+    -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){reviews(first:100){pageInfo{hasNextPage} nodes{state author{login} commit{oid}}}}}}' \
+    -F o="${repo%%/*}" -F r="${repo##*/}" -F n="$pr" \
+    --jq '.data.repository.pullRequest.reviews | if .pageInfo.hasNextPage then "PAGINATED" else ([.nodes[] | select(.state == "APPROVED") | .commit.oid] | join(" ")) end' 2>/dev/null)"; then
+    echo "SKIP #$pr APPROVAL-LOOKUP-FAILED"
+    return 1
+  fi
+  if [ "$approved" = "PAGINATED" ]; then
+    echo "SKIP #$pr APPROVAL-PAGE-OVERFLOW (over 100 reviews; refusing rather than paginating)"
+    return 1
+  fi
+  for oid in $approved; do
+    [ "$oid" = "$expected" ] && return 0
+  done
+  echo "SKIP #$pr APPROVAL-NOT-ON-HEAD expected=$expected approved=[${approved:-none}]"
+  return 1
+}
+
 head_oid() { # <pr>; stdout: current head SHA
   gh pr view "$1" --repo "$repo" --json headRefOid --jq .headRefOid 2>/dev/null
 }
@@ -612,6 +632,14 @@ for n in "$@"; do
       fi
       if ! ensure_issue_in_review "$n"; then
         echo "SKIP #$n LINEAR-STATE-REFUSED"
+        done_pr=1
+        break
+      fi
+      # The LAST API read before the merge call, and the only one anchored to a SHA. The
+      # `rev` above is PR-level `reviewDecision`, which survives every push: PR #654 read
+      # APPROVED from a review submitted against cac9ccb while headRefOid was 40dba9f, and
+      # merged. Nothing may merge unless an APPROVED review names THIS commit.
+      if ! approval_anchored_to_head "$n" "$expected"; then
         done_pr=1
         break
       fi

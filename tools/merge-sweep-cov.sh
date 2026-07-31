@@ -6,8 +6,9 @@
 #     is decidable (CLEAN/UNSTABLE), then:
 #       * Sonar SUCCESS/absent  -> normal squash-merge.
 #       * Sonar FAILURE that is SOLELY new-code coverage (verified from the check-run summary,
-#         never a Bug/Vuln/Hotspot/Smell/Duplication/rating drop) -> admin squash-merge
-#         (coverage debt repaid in the Sonar burn-down; rubber-stamp tests are banned).
+#         never a Bug/Vuln/Hotspot/Smell/Duplication/rating drop) -> print ADMIN-MERGE-REQUIRED
+#         and stop. This used to perform an admin merge and was the ONLY agent-reachable one in
+#         the tooling; J3 turned the escape hatch into a request. The override is Thomas's.
 #       * Sonar FAILURE on anything more -> SKIP (needs a real fix).
 # WHY the review-staleness guard below: an update-branch rewrites the head SHA and re-triggers the
 # `review` check, but GitHub keeps the PRE-update APPROVED reviewDecision while that re-review runs,
@@ -33,7 +34,7 @@ Usage: merge-sweep-cov.sh [--expected-head <pr-number>=<sha>]...
 
 Per PR it update-branches, polls until the merge state is decidable, then merges:
   Sonar SUCCESS or absent           -> squash merge
-  Sonar FAILURE, new-code coverage  -> admin squash merge (coverage-only override)
+  Sonar FAILURE, new-code coverage  -> print ADMIN-MERGE-REQUIRED and stop (never merges)
   Sonar FAILURE, anything else      -> SKIP
 
 An --expected-head mapping pins that PR to the supplied head SHA. Without one, the current
@@ -491,9 +492,31 @@ review_safety_gate() { # <pr> <pre|post>; prints the fail-closed reason
   fi
 }
 
-squash_merge() { # <pr> <expected-head-sha> <label> [extra gh pr merge flags...]
+approval_anchored_to_head() { # <pr> <expected-head-sha>; prints the refusal reason
+  local pr="$1" expected="$2" approved oid
+  if ! approved="$(gh api graphql \
+    -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){reviews(first:100){pageInfo{hasNextPage} nodes{state author{login} commit{oid}}}}}}' \
+    -F o="${repo%%/*}" -F r="${repo##*/}" -F n="$pr" \
+    --jq '.data.repository.pullRequest.reviews | if .pageInfo.hasNextPage then "PAGINATED" else ([.nodes[] | select(.state == "APPROVED") | .commit.oid] | join(" ")) end' 2>/dev/null)"; then
+    echo "SKIP #$pr APPROVAL-LOOKUP-FAILED"
+    return 1
+  fi
+  if [ "$approved" = "PAGINATED" ]; then
+    echo "SKIP #$pr APPROVAL-PAGE-OVERFLOW (over 100 reviews; refusing rather than paginating)"
+    return 1
+  fi
+  for oid in $approved; do
+    [ "$oid" = "$expected" ] && return 0
+  done
+  echo "SKIP #$pr APPROVAL-NOT-ON-HEAD expected=$expected approved=[${approved:-none}]"
+  return 1
+}
+
+# No variadic passthrough: the ONLY caller that ever supplied one passed `--admin`, and J3
+# removes that escape hatch entirely rather than at one call site. An admin merge is now
+# unreachable from this tool by construction.
+squash_merge() { # <pr> <expected-head-sha> <label>
   local pr="$1" expected="$2" label="$3"
-  shift 3
   local branch
   branch=$(gh pr view "$pr" --repo "$repo" --json headRefName --jq .headRefName 2>/dev/null)
   if ! review_safety_gate "$pr" pre; then
@@ -503,7 +526,13 @@ squash_merge() { # <pr> <expected-head-sha> <label> [extra gh pr merge flags...]
     echo "SKIP #$pr LINEAR-STATE-REFUSED"
     return 2
   fi
-  if gh pr merge "$pr" --repo "$repo" --squash --delete-branch --match-head-commit "$expected" "$@" >/dev/null 2>&1; then
+  # The LAST API read before the merge call, and the only one anchored to a SHA. The
+  # PR-level `reviewDecision` read by the caller survives every push, so an APPROVED there
+  # can name a commit that is no longer on the branch. See merge-sweep.sh.
+  if ! approval_anchored_to_head "$pr" "$expected"; then
+    return 2
+  fi
+  if gh pr merge "$pr" --repo "$repo" --squash --delete-branch --match-head-commit "$expected" >/dev/null 2>&1; then
     echo "MERGED #$pr ($label)"
     # `^` is illegal in a refname, so it cannot collide with a branch name.
     merged_heads="$merged_heads $pr^$branch^$expected"
@@ -673,9 +702,10 @@ for n in "$@"; do
     if [ "$sonar" = "FAILURE" ]; then
       summary=$(gh api "repos/$repo/commits/$sha/check-runs" --jq '.check_runs[] | select(.name=="SonarCloud Code Analysis") | .output.summary' 2>/dev/null)
       if printf '%s' "$summary" | grep -qi "Coverage on New Code" && ! printf '%s' "$summary" | grep -qiE "New Bugs|Bugs |Vulnerabilit|Security Hotspots|Security Rating|Code Smell|Duplicat|Maintainability Rating|Reliability Rating"; then
-        squash_merge "$n" "$expected" "admin: coverage-only override" --admin
-        merge_status=$?
-        [ "$merge_status" -eq 0 ] || [ "$merge_status" -eq 2 ] || echo "FAIL-ADMIN #$n"
+        # J3: this was the only agent-reachable admin merge in the tooling. The escape hatch
+        # is now a REQUEST, not an act. The override belongs to Thomas alone; an agent that
+        # needs one stops and asks him to merge it himself.
+        echo "ADMIN-MERGE-REQUIRED #$n coverage-only Sonar failure on head $sha"
       else
         echo "SKIP #$n Sonar fails on MORE than coverage, needs a real fix"
       fi

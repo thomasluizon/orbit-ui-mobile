@@ -18,7 +18,13 @@ name: Guards
 on:
   pull_request:
     branches: [main]
-    types: [opened, synchronize, reopened, edited]
+    # `labeled` and `unlabeled` are load-bearing, not tidiness. Four of these jobs carry a
+    # label escape hatch (context:reseed, calibration:reseed, ratchet:reseed, parity:exempt,
+    # coverage:reseed), and `edited` covers title, body and base but NOT labels. Without these
+    # two the sequence "the check fails, apply the label, merge" fires no new run, the failing
+    # check run stands, and every escape hatch is decorative unless the label was predicted and
+    # applied before the first run.
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
   push:
     branches: [main]
 
@@ -103,8 +109,17 @@ jobs:
           node-version: 22
       - name: Report calibration drift
         # Report-only through 2026-08-11. Remove --report-only to make this blocking.
+        # The status is captured and re-raised separately rather than piped: a pipeline
+        # reports its LAST command's status, so piping into tee reported tee and a crash in
+        # the tool read as a pass. --report-only exits 0 on drift by design; what this
+        # restores is the tool's own error exit.
         shell: bash
-        run: node tools/check-calibration.mjs --report-only | tee -a "$GITHUB_STEP_SUMMARY"
+        run: |
+          status=0
+          node tools/check-calibration.mjs --report-only > "$RUNNER_TEMP/calibration.txt" 2>&1 || status=$?
+          cat "$RUNNER_TEMP/calibration.txt"
+          cat "$RUNNER_TEMP/calibration.txt" >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
 
   tier-labels:
     name: Worker Tier Label Snapshot
@@ -157,10 +172,48 @@ jobs:
           fi
       - name: Every tools/ script executes to its contract
         if: steps.scope.outputs.changed == 'true'
+        # The suite carries its own per-tool coverage ratchet: a case body that stopped running
+        # prints nothing, so only a committed count can see it. Shrinking a count needs the
+        # coverage:reseed label, which is why `labeled` is in this workflow's trigger types.
+        env:
+          ORBIT_HARNESS_COVERAGE_RESEED: ${{ contains(github.event.pull_request.labels.*.name, 'coverage:reseed') && '1' || '0' }}
         run: node tools/test-tools.mjs
       - name: Both session hooks block and allow as specified
         if: steps.scope.outputs.changed == 'true'
         run: node .claude/hooks/test-hooks.mjs
+      # Unscoped on purpose: branch protection drifts without any change to this repository,
+      # so a scope check keyed on the diff would miss exactly the case this exists for.
+      #
+      # REPORT-ONLY until the protection edit lands (the last act of ORB-163). Applied earlier
+      # it would make that very pull request unmergeable, because deleting or renaming a job
+      # whose context is already required leaves the branch waiting forever for a status
+      # nobody reports; orbit-api #440 and #441 sat in exactly that state for two days with
+      # every reported check green. To make it blocking: drop --report-only and the warning
+      # branch below.
+      #
+      # ADMIN_READ_TOKEN is a personal access token with repository Administration: read.
+      # GITHUB_TOKEN cannot substitute: workflow `permissions:` has no `administration` key
+      # (verified against the workflow-syntax reference), so the protection endpoint 403s for
+      # it. Without the secret this step says so rather than reporting a clean diff it never
+      # made.
+      - name: Every deterministic gate is a required check (report-only)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          ADMIN_READ_TOKEN: ${{ secrets.ADMIN_READ_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          if [ -z "${ADMIN_READ_TOKEN:-}" ]; then
+            echo "no ADMIN_READ_TOKEN secret, so branch protection could not be read; reporting nothing rather than a clean diff" \
+              | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          status=0
+          GH_TOKEN="$ADMIN_READ_TOKEN" node tools/check-required-gates.mjs --repo "$REPOSITORY" --report-only \
+            > "$RUNNER_TEMP/required-gates.txt" 2>&1 || status=$?
+          cat "$RUNNER_TEMP/required-gates.txt"
+          cat "$RUNNER_TEMP/required-gates.txt" >> "$GITHUB_STEP_SUMMARY"
+          [ "$status" -eq 0 ] || echo "::warning::check-required-gates exited $status (report-only)"
 
   lockstep:
     name: Harness Lockstep
