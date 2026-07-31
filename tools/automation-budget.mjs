@@ -11,19 +11,25 @@ const WINDOW_MILLISECONDS = 7 * 24 * 60 * 60 * 1000
  * carried `pending` is open by construction. An expired lease holds no budget and never
  * fails the fuse closed.
  *
- * Expiry keys on the WORKER PROCESS first and the clock only as a backstop, because both
- * directions of a clock-only answer are wrong. Expiring a live worker's reservation stops
- * counting real projected spend and can authorise a launch past the budget; never expiring a
- * dead one poisons the fuse for the whole seven-day window. A recorded `workerPid` answers it
- * exactly: `process.kill(pid, 0)` sends no signal and throws ESRCH when the process is gone,
- * EPERM when it exists but is not ours, so EPERM is alive. Both errnos confirmed by running
- * it. PID reuse can make a dead reservation look alive, which fails CLOSED, the safe way.
+ * Expiry reads the clock AND the worker process, and liveness can only ever expire a
+ * reservation earlier, never hold one open past the backstop. Both directions of a clock-only
+ * answer are wrong: expiring a live worker's reservation stops counting real projected spend
+ * and can authorise a launch past the budget, while never expiring a dead one poisons the fuse
+ * for the whole seven-day window. A recorded `workerPid` settles the first: `process.kill(pid,
+ * 0)` sends no signal and throws ESRCH when the process is gone, EPERM when it exists but is
+ * not ours, so EPERM is alive. Both errnos confirmed by running it. The clock still settles the
+ * second, because the operating system recycles pids and a liveness-only answer would let one
+ * recycled pid hold the fuse forever. The whole truth table, with no case left unterminated:
  *
- * The TTL only decides rows carrying no PID, which is every legacy row and every interactive
- * launch. It is derived, not chosen: 275 codex rollouts measured on this machine, first to
- * last event per session, give p50 8.1 min, p90 3.8 h, p95 6.8 h, p99 13.4 h, max 14.9 h.
- * Sixteen hours clears that maximum with margin and still bounds a stranded reservation to
- * under a day. A two hour TTL was measured wrong: over ten percent of real sessions outrun it.
+ *   alive, inside the lease   holds its reserved tokens   the real 14.9 hour session
+ *   alive, past the lease     expires                     a recycled pid, never immortal
+ *   gone, inside the lease    expires at once             the killed launcher, the fast path
+ *   no PID at all             the clock decides           every legacy and interactive row
+ *
+ * The TTL is derived, not chosen: 275 codex rollouts measured on this machine, first to last
+ * event per session, give p50 8.1 min, p90 3.8 h, p95 6.8 h, p99 13.4 h, max 14.9 h. Sixteen
+ * hours clears that maximum with margin and still bounds a stranded reservation to under a day.
+ * A two hour TTL was measured wrong: over ten percent of real sessions outrun it.
  */
 const RESERVATION_LEASE_MILLISECONDS = 16 * 60 * 60 * 1000
 const ENGINES = new Set(["claude", "codex"])
@@ -464,9 +470,15 @@ const summarize = (records, engine, resetAt) => {
     if (record.cancelled === true) continue
     const open = record.pending === true || !hasOwn(record, "inputTokens") || !hasOwn(record, "outputTokens")
     if (open) {
-      const expired = hasOwn(record, "workerPid")
-        ? !processIsAlive(record.workerPid)
-        : Date.parse(record.endedAt) < leaseFloor
+      /**
+       * OR, never either/or. Liveness may only ever expire a reservation EARLIER than the clock
+       * would: a `workerPid` that skipped the clock would let one recycled pid hold the fuse for
+       * the whole window, which is the permanent poison this section exists to delete, reached by
+       * another road. `endedAt` is always a validated ISO timestamp here because `validateRecord`
+       * reparses it and exits 3 on anything else, so this comparison cannot silently be NaN.
+       */
+      const expired = Date.parse(record.endedAt) < leaseFloor
+        || (hasOwn(record, "workerPid") && !processIsAlive(record.workerPid))
       if (expired) expiredIdentities.push(record.identity)
       else if (record.pending === true) pendingTokens += record.reservedTokens
       else missingIdentities.push(record.identity)

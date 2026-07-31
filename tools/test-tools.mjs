@@ -554,7 +554,7 @@ const DEFAULT_AUTOMATION_BUDGET = {
   },
 }
 
-const orchestratorConfig = (repoPath, worker, engineName, maxParallelWorktrees = 8) =>
+const orchestratorConfig = (repoPath, worker, engineName, maxParallelWorktrees = 8, maxSlicesPerWorker = 3) =>
   JSON.stringify({
     worker: engineName,
     workers: {
@@ -564,7 +564,7 @@ const orchestratorConfig = (repoPath, worker, engineName, maxParallelWorktrees =
       },
     },
     maxParallelWorktrees,
-    maxSlicesPerWorker: 3,
+    maxSlicesPerWorker,
     attemptsBeforeRewrite: 2,
     linear: { team: "ORB", states: { working: "In Progress", review: "In Review", done: "Done" } },
     repos: { ui: repoPath },
@@ -602,7 +602,7 @@ const INTERACTIVE_CODEX = {
  * The engine name is what the top-level `worker` key selects, which is the only way to
  * exercise a non-default engine: the tool has no engine-override flag by design.
  */
-const stageLaunchWorker = (label, worker, engineName = "claude", maxParallelWorktrees = 8) => {
+const stageLaunchWorker = (label, worker, engineName = "claude", maxParallelWorktrees = 8, maxSlicesPerWorker = 3) => {
   const base = join(root, "launch", label)
   const repoPath = join(base, "repos", "ui")
   mkdirSync(repoPath, { recursive: true })
@@ -616,7 +616,7 @@ const stageLaunchWorker = (label, worker, engineName = "claude", maxParallelWork
   mkdirSync(join(base, ".claude"), { recursive: true })
   writeFileSync(
     join(base, ".claude", "orchestrator.json"),
-    orchestratorConfig(repoPath, worker, engineName, maxParallelWorktrees),
+    orchestratorConfig(repoPath, worker, engineName, maxParallelWorktrees, maxSlicesPerWorker),
   )
   cpSync(join(TOOLS_DIR, "launch-worker.mjs"), join(base, "tools", "launch-worker.mjs"))
   cpSync(join(TOOLS_DIR, "automation-budget.mjs"), join(base, "tools", "automation-budget.mjs"))
@@ -1810,7 +1810,7 @@ const launchWorkerCases = async () => {
   const headlessScript = join(headlessEngineDirectory, "worker-shim.js")
   writeFileSync(
     headlessScript,
-    `const { writeFileSync } = require("node:fs")\nwriteFileSync(process.env.ORBIT_HEADLESS_ARGV_LOG, JSON.stringify(process.argv.slice(2)))\n`,
+    `const { writeFileSync } = require("node:fs")\nwriteFileSync(process.env.ORBIT_HEADLESS_ARGV_LOG, JSON.stringify(process.argv.slice(2)))\nconst holdMilliseconds = Number(process.env.ORBIT_HEADLESS_HOLD_MS || 0)\nif (holdMilliseconds > 0) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, holdMilliseconds)\n`,
   )
   if (process.platform === "win32") {
     writeFileSync(
@@ -1901,6 +1901,77 @@ const launchWorkerCases = async () => {
         childArgv.at(-1).includes("--cached-input-tokens"),
       `expected ${JSON.stringify(expectedEngineArgs)} plus one pointer
      child argv: ${JSON.stringify(childArgv)}`,
+    )
+  }
+
+  /**
+   * The slice cap races the same way the worktree cap does, and the whole point of
+   * --existing-worktree is two slices in one worktree. The cap is read from
+   * orbit-worker-pids.jsonl, checked, and only appended to after the spawn, so unlocked both
+   * launchers read before either appends and both pass a cap of one. Two real concurrent
+   * processes are the only thing that can prove the lock; a serial pair passes either way.
+   */
+  const sliceStage = stageLaunchWorker("slice-cap", headlessWorker, "codex", 8, 1)
+  const sliceWorktree = stageCheckout(sliceStage.base)
+  if (!sliceWorktree) {
+    T("launch-worker.mjs: concurrent slice launches cannot both pass one slice cap", false, "could not stage the slice checkout")
+  } else {
+    const slicePrompt = stage("slice-cap-prompt.md", "the ticket body verbatim\n")
+    const sliceRunner = stage(
+      "slice-cap-runner.mjs",
+      `import { spawn } from "node:child_process"
+const [tool, promptFile, worktreePath] = process.argv.slice(2)
+const run = () => new Promise((resolve) => {
+  const child = spawn(process.execPath, [tool, "--issue", "ORB-75", "--prompt-file", promptFile, "--existing-worktree", worktreePath], {
+    stdio: ["ignore", "pipe", "pipe"],
+  })
+  let stderr = ""
+  child.stderr.setEncoding("utf8")
+  child.stderr.on("data", (chunk) => { stderr += chunk })
+  child.stdout.resume()
+  child.on("exit", (status) => resolve({ status, stderr }))
+})
+process.stdout.write(JSON.stringify(await Promise.all([run(), run()])))
+`,
+    )
+    const sliceEnv = {
+      ...orcaEnv([
+        ...linearIssueStub(["repo:ui"], [{ ...launchWorktreeStub(sliceWorktree), isArchived: false, linkedLinearIssue: "ORB-75" }]),
+        { match: "worktree set", stdout: JSON.stringify({ ok: true, result: {} }) },
+      ]),
+      PATH: `${headlessEngineDirectory}${delimiter}${process.env.PATH}`,
+      ORBIT_AUTOMATION_BUDGET_LEDGER: join(sliceStage.base, "automation-budget.jsonl"),
+      ORBIT_HEADLESS_ARGV_LOG: join(root, "launch", "slice-argv.json"),
+      ORBIT_HEADLESS_HOLD_MS: "6000",
+    }
+    const sliceResult = spawnSync(process.execPath, [sliceRunner, sliceStage.path, slicePrompt, sliceWorktree], {
+      encoding: "utf8",
+      cwd: REPO_ROOT,
+      env: { ...process.env, ...sliceEnv },
+      timeout: 120_000,
+    })
+    let sliceOutcomes = []
+    try {
+      sliceOutcomes = JSON.parse(sliceResult.stdout)
+    } catch {
+      sliceOutcomes = []
+    }
+    const sliceStatuses = sliceOutcomes.map((outcome) => outcome.status).sort((first, second) => first - second)
+    const sliceMarker = join(
+      resolve(sliceWorktree, spawnSync("git", ["-C", sliceWorktree, "rev-parse", "--git-dir"], { encoding: "utf8" }).stdout.trim()),
+      "orbit-worker-pids.jsonl",
+    )
+    const sliceRows = existsSync(sliceMarker)
+      ? readFileSync(sliceMarker, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
+      : []
+    T(
+      "launch-worker.mjs: concurrent slice launches cannot both pass one slice cap",
+      sliceStatuses.length === 2 &&
+        sliceStatuses[0] === 0 &&
+        sliceStatuses[1] === 1 &&
+        sliceOutcomes.some((outcome) => /maxSlicesPerWorker cap 1 reached for ORB-75/.test(outcome.stderr)) &&
+        sliceRows.length === 1,
+      `runner exit ${sliceResult.status}\n     statuses ${JSON.stringify(sliceStatuses)}\n     marker ${JSON.stringify(sliceRows)}\n     stderr ${sliceOutcomes.map((outcome) => (outcome.stderr ?? "").trim().split("\n").slice(-2).join(" | ")).join("\n     ")}`,
     )
   }
 
@@ -5373,18 +5444,35 @@ const automationBudgetCases = () => {
   )
   check(
     "automation-budget.mjs",
-    "a reservation whose worker process is alive still holds its tokens well past its lease",
+    "a reservation whose worker process is alive still holds its tokens inside its lease",
     leaseCheckArgs(
       "after-live-worker",
       stage(
         "budget/live-worker.jsonl",
-        `${leasedReservation("ORB-163:live-worker", LEASE_MILLISECONDS * 2, 250000, process.pid)}\n`,
+        `${leasedReservation("ORB-163:live-worker", LEASE_MILLISECONDS - LEASE_MARGIN_MILLISECONDS, 250000, process.pid)}\n`,
       ),
       100000,
     ),
     {
       status: 0,
       stdout: /"projectedTokens":350000[\s\S]*"pendingTokens":250000,"missingIdentities":\[\],"expiredIdentities":\[\]/,
+    },
+  )
+  check(
+    "automation-budget.mjs",
+    "a live worker PID past the backstop still expires, so a recycled PID can never poison the fuse forever",
+    leaseCheckArgs(
+      "after-recycled-pid",
+      stage(
+        "budget/recycled-pid.jsonl",
+        `${leasedReservation("ORB-163:recycled-pid", LEASE_MILLISECONDS + LEASE_MARGIN_MILLISECONDS, 250000, process.pid)}\n`,
+      ),
+      100000,
+    ),
+    {
+      status: 0,
+      stdout: /"projectedTokens":100000[\s\S]*"pendingTokens":0,"missingIdentities":\[\],"expiredIdentities":\["ORB-163:recycled-pid"\]/,
+      stderr: /reservation lease expired for identities ORB-163:recycled-pid/,
     },
   )
   const claimedLedger = stage("budget/claimed.jsonl", `${leasedReservation("ORB-163:to-claim", 60_000, 250000)}\n`)

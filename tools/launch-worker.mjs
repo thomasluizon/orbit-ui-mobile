@@ -939,7 +939,14 @@ if (runPermissionIndex === -1) {
   fail(2, `worker "${engineName}" invocation "${command}" does not carry ${binary}'s required run-permitting policy "${profile.runPermissionTokens.join(" ")}"${mode}. A worker without that policy can stop for approval with nobody at the keyboard. Fix the command or args in .claude/orchestrator.json`)
 }
 
-if (!dryRun && !existingWorktreeArg) acquireConcurrencyReservation(repoPath)
+/**
+ * Held by BOTH launch modes, for different caps that race the same way. A new worktree races
+ * `maxParallelWorktrees` against `orca worktree list`; an additional slice races
+ * `maxSlicesPerWorker` against `orbit-worker-pids.jsonl`, which it reads, counts, checks, and
+ * only then appends to after spawning. Two slice launches into one worktree is the mode's whole
+ * purpose, so unlocked they both read before either appends and both pass a cap of one.
+ */
+if (!dryRun) acquireConcurrencyReservation(repoPath)
 const listedWorktrees = orca(["worktree", "list", "--repo", `path:${repoPath}`]).worktrees
 if (!Array.isArray(listedWorktrees)) {
   fail(3, "orca worktree list returned no worktrees array")
@@ -1037,6 +1044,8 @@ if (existingWorktreeArg) {
   if (activeSlices.length >= maxSlicesPerWorker) fail(1, `maxSlicesPerWorker cap ${maxSlicesPerWorker} reached for ${issue}`)
   const branch = git(["-C", worktreePath, "rev-parse", "--abbrev-ref", "HEAD"])
   const workerPid = startHeadlessWorker(worktreePath, branch)
+  /** Only once the new PID is in the marker file, so the next launcher counts this slice. */
+  releaseConcurrencyReservation()
   rollback = null
   console.log(JSON.stringify({ ...plan, launchMode: "existing-worktree", worktreePath, worktreeSelector: `path:${worktreePath}`, branch, workerPid }, null, 2))
   process.exit(0)
