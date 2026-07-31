@@ -1,8 +1,8 @@
 
-import { orcaEnv, check, VALID_ISSUE } from "./_harness.mjs"
+import { orcaEnv, check, LINEAR_TEAM_REQUIRED_ERROR, VALID_ISSUE } from "./_harness.mjs"
 
 const newTicketStub = (created, issue, options = {}) => [
-  { match: "linear create", stdout: options.createExit ? "" : JSON.stringify(created), exit: options.createExit ?? 0 },
+  { match: "linear create", stdout: options.createExit ? LINEAR_TEAM_REQUIRED_ERROR : JSON.stringify(created), exit: options.createExit ?? 0 },
   { match: "linear issue", stdout: JSON.stringify({ ok: true, result: { issue, relations: [] } }) },
 ]
 
@@ -22,7 +22,7 @@ export const cases = () => {
       "new-ticket.mjs",
       "an orca failure creates nothing and exits 3",
       argv,
-      { status: 3, stderr: /orca linear create failed/ },
+      { status: 3, stderr: /orca linear create failed[\s\S]*linear_team_required[\s\S]*No connected Linear team matched/ },
       { env: orcaEnv(newTicketStub(null, VALID_ISSUE, { createExit: 1 })) },
     )
     check(

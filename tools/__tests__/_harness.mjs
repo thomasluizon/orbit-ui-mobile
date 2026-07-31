@@ -176,12 +176,17 @@ const assertRecordedLinearValue = (command, value, recordedPaths, path = "$") =>
 }
 
 const linearEnvelopeName = (command, response) => {
+  if (response?.ok === false || response?.error) {
+    if (/\blinear\s+create\b/.test(command)) return "createError"
+    if (/\blinear\s+team\s+labels\b/.test(command)) return "teamLabelsError"
+    if (/\blinear\s+issue\b/.test(command)) return "issueError"
+    return null
+  }
   if (/\blinear\s+status\s+set\b/.test(command)) return "statusSet"
   if (/\blinear\s+create\b/.test(command)) return "create"
   if (/\blinear\s+list-issues\b/.test(command)) return "listIssues"
   if (/\blinear\s+team\s+labels\b/.test(command)) return "teamLabels"
   if (!/\blinear\s+issue\b/.test(command)) return null
-  if (response?.ok === false || response?.error) return "issueError"
   if (/\s--full(?:\s|$)/.test(command)) return "issueFull"
   if (/\s--attachments(?:\s|$)/.test(command) || Object.hasOwn(response?.result ?? {}, "attachments")) return "issueAttachments"
   if (/\s--comments(?:\s|$)/.test(command) || Object.hasOwn(response?.result ?? {}, "comments")) return "issueComments"
@@ -189,17 +194,23 @@ const linearEnvelopeName = (command, response) => {
   return "issueDefault"
 }
 
-const assertOrcaLinearStub = (command, stdout) => {
+const assertOrcaLinearStub = (entry, stdout) => {
+  const command = String(entry.match)
   if (!/\blinear\s+/.test(command)) return
   let response
+  let parsedJson = false
   try {
     response = JSON.parse(stdout)
+    parsedJson = true
   } catch {
     response = null
   }
   const envelopeName = linearEnvelopeName(command, response)
   if (!envelopeName) throw new Error(`orca fixture ${command} has no recorded invocation envelope`)
-  if (response === null) return
+  if (!parsedJson) {
+    if (entry.allowNonJsonLinear === true) return
+    throw new Error(`orca fixture ${command} has non-JSON stdout without allowNonJsonLinear: true`)
+  }
   const envelope = linearEnvelopes()[envelopeName]
   if (!envelope) throw new Error(`orca fixture ${command} has no recorded invocation envelope (${envelopeName})`)
   assertRecordedLinearValue(command, response, envelope.paths)
@@ -291,7 +302,7 @@ export const orcaEnv = (plan) => {
       ? entry.sequence.map((item) => (typeof item === "string" ? item : item.stdout))
       : [entry.stdout]
     if (outputs.length === 0) outputs.push(undefined)
-    for (const stdout of outputs) assertOrcaLinearStub(String(entry.match), stdout)
+    for (const stdout of outputs) assertOrcaLinearStub(entry, stdout)
   }
   return {
     ORCA_BIN: process.execPath,
@@ -881,6 +892,13 @@ export const stagePreflight = (label, worker = { ...INTERACTIVE_CODEX, command: 
 }
 
 export const LINEAR_LABELS_COMMAND = "linear team labels --team ORB --json"
+export const LINEAR_TEAM_REQUIRED_ERROR = JSON.stringify({
+  ok: false,
+  error: {
+    code: "linear_team_required",
+    message: "No connected Linear team matched 00000000-0000-0000-0000-000000000000.",
+  },
+})
 
 export const linearLabelsResult = (labels) =>
   JSON.stringify({ ok: true, result: { labels: labels.map((name) => ({ name })) } })

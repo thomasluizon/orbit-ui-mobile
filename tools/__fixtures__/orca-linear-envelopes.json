@@ -2851,6 +2851,68 @@
       },
       "redactionAndStripping": "Replaced issue and team command values. Removed every response scalar value, stdout text, stderr text, signal value, and spawn error value. Retained every normalized response path, all observed JSON types, ISO-8601 timestamp format metadata, and array lengths. Array item paths use [] and union all observed item shapes."
     },
+    "teamLabelsError": {
+      "command": [
+        "orca",
+        "linear",
+        "team",
+        "labels",
+        "--team",
+        "<team-key>",
+        "--json"
+      ],
+      "commandCompleteness": "complete argv with team identifier replaced",
+      "provenance": {
+        "capture": "read-capture-set/team-labels-error.capture.json",
+        "sha256": "69339e9ca5f9334d1ca46101ab26cf5194e9dab6ca3a4fa45e18b2411b6cd6cb",
+        "capturedAt": "2026-07-31T18:22:40.424Z",
+        "captureKind": "complete process invocation envelope"
+      },
+      "observedExitCode": 1,
+      "paths": {
+        "$": {
+          "types": [
+            "object"
+          ]
+        },
+        "$._meta": {
+          "types": [
+            "object"
+          ]
+        },
+        "$._meta.runtimeId": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.error": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.error.code": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.error.message": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.ok": {
+          "types": [
+            "boolean"
+          ]
+        }
+      },
+      "redactionAndStripping": "Replaced team command value. Removed every response scalar value, stdout text, stderr text, signal value, and spawn error value. Retained every normalized response path, all observed JSON types, ISO-8601 timestamp format metadata, and array lengths. Array item paths use [] and union all observed item shapes."
+    },
     "create": {
       "command": [
         "orca",
@@ -3049,6 +3111,69 @@
         }
       },
       "redactionAndStripping": "The source retained only real JSON stdout, so argv and process exit were not available and are not invented. Removed every response scalar value. Retained every normalized response path, all observed JSON types, ISO-8601 timestamp format metadata, and array lengths. Array item paths use [] and union all observed item shapes."
+    },
+    "createError": {
+      "command": [
+        "orca",
+        "linear",
+        "create",
+        "--title",
+        "<title>",
+        "--team",
+        "<team-key>",
+        "--json"
+      ],
+      "commandCompleteness": "complete argv with team identifier and title replaced",
+      "provenance": {
+        "capture": "read-capture-set/create-error.capture.json",
+        "sha256": "779be3c2250f38a4fc80b4ce6d0c48e059c29d4b9734cff2f82fc02f10cf0ec3",
+        "capturedAt": "2026-07-31T18:22:40.970Z",
+        "captureKind": "complete process invocation envelope"
+      },
+      "observedExitCode": 1,
+      "paths": {
+        "$": {
+          "types": [
+            "object"
+          ]
+        },
+        "$._meta": {
+          "types": [
+            "object"
+          ]
+        },
+        "$._meta.runtimeId": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.error": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.error.code": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.error.message": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.ok": {
+          "types": [
+            "boolean"
+          ]
+        }
+      },
+      "redactionAndStripping": "Replaced team and title command values. Removed every response scalar value, stdout text, stderr text, signal value, and spawn error value. Retained every normalized response path, all observed JSON types, ISO-8601 timestamp format metadata, and array lengths. Array item paths use [] and union all observed item shapes."
     },
     "statusSet": {
       "command": [

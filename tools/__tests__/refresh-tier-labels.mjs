@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync } from "node:fs"
 
-import { T, orcaEnv, check, stageTierLabelRefresh, LINEAR_LABELS_COMMAND, linearLabelsResult, PRESENT_TIER_LABELS } from "./_harness.mjs"
+import { T, orcaEnv, check, stageTierLabelRefresh, LINEAR_LABELS_COMMAND, LINEAR_TEAM_REQUIRED_ERROR, linearLabelsResult, PRESENT_TIER_LABELS } from "./_harness.mjs"
 
 const refreshTierLabelCases = () => {
   const refreshed = stageTierLabelRefresh("success")
@@ -47,13 +47,13 @@ const refreshTierLabelCases = () => {
     "refresh-tier-labels.mjs",
     "a live lookup error fails closed",
     [],
-    { status: 3, stderr: /refresh-tier-labels ERROR[\s\S]*unavailable/i },
+    { status: 3, stderr: /refresh-tier-labels ERROR[\s\S]*linear_team_required[\s\S]*No connected Linear team matched/ },
     {
       path: lookupFailure.path,
       env: orcaEnv([
         {
           match: LINEAR_LABELS_COMMAND,
-          stdout: "Linear labels unavailable",
+          stdout: LINEAR_TEAM_REQUIRED_ERROR,
           exit: 1,
         },
       ]),
@@ -82,7 +82,7 @@ const refreshTierLabelCases = () => {
     { status: 3, stderr: /refresh-tier-labels ERROR[\s\S]*unparseable JSON/i },
     {
       path: unparseable.path,
-      env: orcaEnv([{ match: LINEAR_LABELS_COMMAND, stdout: "not-json" }]),
+      env: orcaEnv([{ match: LINEAR_LABELS_COMMAND, stdout: "not-json", allowNonJsonLinear: true }]),
     },
   )
 }

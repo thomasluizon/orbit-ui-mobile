@@ -1,7 +1,7 @@
 import { cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { root, stage, orcaEnv, check, T, toolPath, INTERACTIVE_CODEX, VALID_TICKET_BODY, VALID_ISSUE } from "./_harness.mjs"
+import { root, stage, orcaEnv, check, T, toolPath, INTERACTIVE_CODEX, LINEAR_TEAM_REQUIRED_ERROR, VALID_TICKET_BODY, VALID_ISSUE } from "./_harness.mjs"
 
 
 
@@ -43,7 +43,7 @@ export const cases = () => {
     )
     let unknownCommandError = ""
     try {
-      orcaEnv([{ match: "linear imaginary-subcommand", stdout: "not-json" }])
+      orcaEnv([{ match: "linear imaginary-subcommand", stdout: "not-json", allowNonJsonLinear: true }])
     } catch (error) {
       unknownCommandError = error.message
     }
@@ -52,6 +52,44 @@ export const cases = () => {
       /linear imaginary-subcommand[\s\S]*no recorded invocation envelope/.test(unknownCommandError),
       unknownCommandError || "unknown Linear subcommand was accepted",
     )
+    let undeclaredNonJsonError = ""
+    try {
+      orcaEnv([{ match: "linear issue ORB-113", stdout: "not-json" }])
+    } catch (error) {
+      undeclaredNonJsonError = error.message
+    }
+    T(
+      "check-ticket.mjs: intentional non-JSON Linear output must be declared by that plan entry",
+      /linear issue ORB-113[\s\S]*allowNonJsonLinear/.test(undeclaredNonJsonError),
+      undeclaredNonJsonError || "undeclared non-JSON Linear output was accepted",
+    )
+    let declaredJsonNullError = ""
+    try {
+      orcaEnv([{ match: "linear issue ORB-113", stdout: "null", allowNonJsonLinear: true }])
+    } catch (error) {
+      declaredJsonNullError = error.message
+    }
+    T(
+      "check-ticket.mjs: a non-JSON declaration cannot bypass validation for parseable JSON",
+      /linear issue ORB-113[\s\S]*type null[\s\S]*\$/.test(declaredJsonNullError),
+      declaredJsonNullError || "a declared JSON null bypassed the recorded envelope",
+    )
+    for (const [command, expectedEnvelope] of [
+      ["linear create", "createError"],
+      ["linear team labels --team ORB --json", "teamLabelsError"],
+    ]) {
+      let dispatchError = ""
+      try {
+        orcaEnv([{ match: command, stdout: LINEAR_TEAM_REQUIRED_ERROR, exit: 1 }])
+      } catch (error) {
+        dispatchError = error.message
+      }
+      T(
+        `check-ticket.mjs: ${command} errors use the ${expectedEnvelope} envelope before success dispatch`,
+        dispatchError === "",
+        dispatchError,
+      )
+    }
     let sequenceError = ""
     try {
       orcaEnv([{
