@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total": 1072,
+  "total": 1100,
   "tools": {
     "(runner)": 7,
     "ai-quota.mjs": 12,
@@ -23,14 +23,14 @@
     "check-ticket.mjs": 87,
     "check-tier-labels.mjs": 8,
     "compose-prompt.mjs": 6,
-    "launch-worker.mjs": 159,
-    "merge-sweep-cov.sh": 86,
-    "merge-sweep.sh": 91,
-    "mergeability.mjs": 26,
+    "launch-worker.mjs": 160,
+    "merge-sweep-cov.sh": 90,
+    "merge-sweep.sh": 95,
+    "mergeability.mjs": 29,
     "new-ticket.mjs": 7,
     "nudge-worker.mjs": 10,
     "orca-web-port.mjs": 16,
-    "pr-watch.mjs": 39,
+    "pr-watch.mjs": 47,
     "preflight.mjs": 15,
     "redesign-coverage.mjs": 2,
     "refresh-tier-labels.mjs": 8,
@@ -39,7 +39,7 @@
     "surface-manifest.mjs": 2,
     "teardown-worktree.mjs": 36,
     "wave-plan.mjs": 61,
-    "worker-status.mjs": 57,
-    "worker-watch.mjs": 24
+    "worker-status.mjs": 61,
+    "worker-watch.mjs": 28
   }
 }
