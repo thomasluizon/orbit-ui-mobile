@@ -2,7 +2,7 @@
 import { orcaEnv, check, VALID_ISSUE } from "./_harness.mjs"
 
 const newTicketStub = (created, issue, options = {}) => [
-  { match: "linear create", stdout: JSON.stringify(created), exit: options.createExit ?? 0 },
+  { match: "linear create", stdout: options.createExit ? "" : JSON.stringify(created), exit: options.createExit ?? 0 },
   { match: "linear issue", stdout: JSON.stringify({ ok: true, result: { issue, relations: [] } }) },
 ]
 
@@ -23,7 +23,7 @@ export const cases = () => {
       "an orca failure creates nothing and exits 3",
       argv,
       { status: 3, stderr: /orca linear create failed/ },
-      { env: orcaEnv(newTicketStub({ ok: false, error: { message: "no such project" } }, VALID_ISSUE, { createExit: 1 })) },
+      { env: orcaEnv(newTicketStub(null, VALID_ISSUE, { createExit: 1 })) },
     )
     check(
       "new-ticket.mjs",

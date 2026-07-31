@@ -91,7 +91,7 @@ const preflightCases = () => {
     entry.match === LINEAR_LABELS_COMMAND
       ? {
           ...entry,
-          stdout: JSON.stringify({ ok: false, error: { message: "Linear labels unavailable" } }),
+          stdout: "Linear labels unavailable",
           exit: 1,
         }
       : entry,

@@ -88,7 +88,7 @@ const orcaJson = async (args, identifier) => {
     throw new Error(`failed to fetch ${identifier}: orca returned unparseable JSON`)
   }
   if (parsed.ok === false) throw new Error(`failed to fetch ${identifier}: ${parsed.error?.message ?? "unknown orca error"}`)
-  return parsed.result ?? parsed
+  return parsed.result
 }
 
 const mapBounded = async (items, mapper) => {
@@ -142,7 +142,7 @@ if (issuesMode) {
     console.error(error.message)
     process.exit(2)
   }
-  issues = listed.issues ?? listed.nodes ?? listed
+  issues = listed.issues
   if (!Array.isArray(issues) || issues.length === 0) {
     console.error("no issues matched; nothing to plan")
     process.exit(1)
@@ -180,28 +180,27 @@ const collisionsIn = (waveIssues, byIdentifier) => {
 }
 
 const toPlanIssue = (detail) => {
-  const full = detail.issue ?? detail
-  const relations = detail.relations ?? full.relations ?? []
-  const labelNames = (full.labels ?? []).map((entry) => (typeof entry === "string" ? entry : entry.name))
+  const full = detail.issue
+  const relations = detail.relations ?? []
+  const labelNames = (full.labels ?? []).map((entry) => entry.name)
   return {
     identifier: full.identifier,
     title: full.title,
     affectedFiles: affectedFilesOf(full.description),
-    state: full.state?.name ?? full.state,
-    stateType: full.state?.type ?? null,
+    state: full.state.name,
+    stateType: full.state.type,
     labels: labelNames,
     attempts: Number((labelNames.find((name) => /^attempts:\d+$/.test(name)) ?? "attempts:0").split(":")[1]),
     blockedBy: relations
-      .filter((relation) => relation.relationship === "blockedBy" || relation.type === "blockedBy")
-      .map((relation) => relation.relatedIssue?.identifier ?? relation.issue?.identifier ?? relation.identifier)
-      .filter(Boolean),
+      .filter((relation) => relation.relationship === "blockedBy")
+      .map((relation) => relation.relatedIssue.identifier),
   }
 }
 
 let planIssues
 if (issuesMode) {
   const requested = await mapBounded(issues, async (issue) => {
-    const identifier = issue.identifier ?? issue.id
+    const identifier = issue.identifier
     try {
       return { identifier, issue: toPlanIssue(await orcaJson(["linear", "issue", identifier, "--relations"], identifier)) }
     } catch {
@@ -222,16 +221,16 @@ if (issuesMode) {
     console.error(error.message)
     process.exit(2)
   }
-  const teamIssues = listed.issues ?? listed.nodes ?? listed
+  const teamIssues = listed.issues
   if (!Array.isArray(teamIssues)) {
     console.error("failed to fetch the complete team issue list: orca returned no issue list")
     process.exit(2)
   }
   const requestedByIdentifier = new Map(requested.map((result) => [result.identifier, result.issue]))
   try {
-    const remainingTeamIssues = teamIssues.filter((issue) => !requestedByIdentifier.has(issue.identifier ?? issue.id))
+    const remainingTeamIssues = teamIssues.filter((issue) => !requestedByIdentifier.has(issue.identifier))
     const remainingPlanIssues = await mapBounded(remainingTeamIssues, async (issue) => {
-      const identifier = issue.identifier ?? issue.id
+      const identifier = issue.identifier
       return toPlanIssue(await orcaJson(["linear", "issue", identifier, "--relations"], identifier))
     })
     planIssues = [...requestedByIdentifier.values(), ...remainingPlanIssues]
@@ -242,7 +241,7 @@ if (issuesMode) {
 } else {
   try {
     planIssues = await mapBounded(issues, async (issue) => {
-      const identifier = issue.identifier ?? issue.id
+      const identifier = issue.identifier
       return toPlanIssue(await orcaJson(["linear", "issue", identifier, "--relations"], identifier))
     })
   } catch (error) {

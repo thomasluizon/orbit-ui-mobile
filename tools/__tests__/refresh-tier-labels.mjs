@@ -53,7 +53,7 @@ const refreshTierLabelCases = () => {
       env: orcaEnv([
         {
           match: LINEAR_LABELS_COMMAND,
-          stdout: JSON.stringify({ ok: false, error: { message: "Linear labels unavailable" } }),
+          stdout: "Linear labels unavailable",
           exit: 1,
         },
       ]),
