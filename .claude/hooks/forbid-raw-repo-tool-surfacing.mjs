@@ -9,11 +9,12 @@
 // Chat exemptions are bounded to punctuation clauses and adjacent inline-code
 // atoms. An ambiguous quote, fence, or backtick parse fails closed.
 
-import { existsSync, readFileSync, statSync } from "node:fs"
-import { dirname, join, posix, resolve, win32 } from "node:path"
+import { existsSync, readFileSync } from "node:fs"
+import { dirname, posix, resolve, win32 } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { filePathFrom, readStdinJson } from "./_lib/io.mjs"
+import { belongsToDeclaredRepo, declaredRepoRoots } from "./_lib/repo-roots.mjs"
 
 const APPEAL_SUFFIX = /\s+(?:#\s*)?Repo-tool appeal:\s*(\S.*)\s*$/i
 const NODE_TOOL_COMMAND =
@@ -41,21 +42,8 @@ const DOCUMENT_BASENAME = /^(?:ticket(?:-body)?|pr(?:-body|-description|-?\d+-re
 const TICKET_BASENAME = /^ORB-\d+\.(?:md|txt)$/
 const HELP_BASENAME = /^(?:help|.+--help)(?:[-_.].*)?\.(?:md|txt|log)$/i
 const HOOK_REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..")
-const WINDOWS_PATH = /^(?:[a-z]:[\\/]|\\\\)/i
 
-function declaredRepoRoots() {
-  try {
-    const config = JSON.parse(readFileSync(resolve(HOOK_REPO_ROOT, ".claude", "orchestrator.json"), "utf8"))
-    const configured = Object.values(config?.repos ?? {}).filter(
-      (repoPath) => typeof repoPath === "string" && (win32.isAbsolute(repoPath) || posix.isAbsolute(repoPath)),
-    )
-    return [HOOK_REPO_ROOT, ...configured]
-  } catch {
-    return [HOOK_REPO_ROOT]
-  }
-}
-
-const REPO_ROOTS = declaredRepoRoots()
+const REPO_ROOTS = declaredRepoRoots(HOOK_REPO_ROOT)
 
 function containsDirectRepoToolInvocation(command) {
   for (const pattern of [NODE_TOOL_COMMAND, TOOL_SCRIPT_COMMAND, NPX_COMMAND]) {
@@ -475,57 +463,18 @@ function transcriptAssistantMessage(transcriptPath) {
   return ""
 }
 
-function withinDeclaredRoot(target) {
-  return REPO_ROOTS.some((repoRoot) => {
-    const rootIsWindows = WINDOWS_PATH.test(repoRoot)
-    if (rootIsWindows !== WINDOWS_PATH.test(target)) return false
-    const pathApi = rootIsWindows ? win32 : posix
-    const relation = pathApi.relative(pathApi.normalize(repoRoot), pathApi.normalize(target))
-    return relation === "" || (relation !== ".." && !relation.startsWith(`..${pathApi.sep}`) && !pathApi.isAbsolute(relation))
-  })
-}
-
 /**
- * The repository root that OWNS a path, following a linked worktree back to its main
- * checkout. Declared roots are the three root checkouts, and an Orca worktree lives under
- * none of them, so without this a worker editing a real repository file had its content
- * scanned as an arbitrary payload and any legitimate repo-tool string in it blocked the
- * write (ORB-165). tools/README.md is full of such strings by design.
- *
- * A linked worktree's root carries a `.git` FILE whose single `gitdir:` line points into
- * <main-root>/.git/worktrees/<name>; a normal checkout carries a `.git` DIRECTORY. Purely
- * filesystem, because a PreToolUse hook must not spawn a subprocess, and machine-independent,
- * because the Orca workspaces path is nowhere in it. Fails CLOSED: an unreadable or
- * unrecognised `.git` returns null and the caller scans rather than exempting blindly.
+ * Declared roots are the three ROOT checkouts, and an Orca worktree lives under none of
+ * them, so before ORB-165 a worker editing a real repository file had its content scanned
+ * as an arbitrary payload and any legitimate repo-tool string in it blocked the write.
+ * tools/README.md is full of those by design. belongsToDeclaredRepo follows a linked
+ * worktree's `.git` file back to its main checkout and fails closed on anything it cannot
+ * read, so an undeclared repository is still scanned.
  */
-function owningRepositoryRoot(startPath) {
-  let current = resolve(startPath)
-  let previous = ""
-  while (current !== previous) {
-    const marker = join(current, ".git")
-    if (existsSync(marker)) {
-      try {
-        if (statSync(marker).isDirectory()) return current
-        const gitdir = /^gitdir:[ \t]*(.+?)[ \t]*$/m.exec(readFileSync(marker, "utf8"))
-        if (!gitdir) return null
-        const segments = gitdir[1].replace(/\\/g, "/").split("/.git/worktrees/")
-        return segments.length === 2 && segments[0] ? segments[0] : null
-      } catch {
-        return null
-      }
-    }
-    previous = current
-    current = dirname(current)
-  }
-  return null
-}
-
 function isRepoArtifact(filePath) {
   if (!filePath) return false
   const target = win32.isAbsolute(filePath) || posix.isAbsolute(filePath) ? filePath : resolve(filePath)
-  if (withinDeclaredRoot(target)) return true
-  const owner = owningRepositoryRoot(target)
-  return owner === null ? false : withinDeclaredRoot(owner)
+  return belongsToDeclaredRepo(target, REPO_ROOTS)
 }
 
 function writtenArtifact(input) {
