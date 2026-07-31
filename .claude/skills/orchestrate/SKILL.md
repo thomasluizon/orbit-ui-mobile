@@ -1,6 +1,6 @@
 ---
 name: orchestrate
-description: Linear project, single ticket, or explicit ticket set in, reviewed PRs out, wave by wave. Computes the merge-gated DAG with tools/wave-plan.mjs, preflights every target repo before worktree creation, reconciles each ticket against the code (D8), launches one Orca worktree + worker per ticket (engine from .claude/orchestrator.json, claude or codex), lets workers own automated review, adjudicates escalations, performs one pre-merge verification per ticket, enforces the evidence gate (D7) and two-strikes (D9), then tears down each worktree immediately after verified Done. A human merge is the only thing that advances a wave (D3), unless --sleep is passed. Scope is the whole project for a name or one ticket argument, one ticket under --only, or exactly the named tickets when two or more are supplied; --single runs that resolved scope serially. Use after /feature or /ticket created the tickets.
+description: Orchestrate a Linear project or ticket set into reviewed PRs. Plans merge-gated waves, reaps completed worktrees, preflights repos, reconciles scope, launches configured workers, and runs a fresh context-free Codex review on every pushed head until current-head approval. Enforces evidence, strikes, pre-merge verification, and verified-Done teardown. Human merges advance waves unless --sleep; --only and explicit sets remain bounded. Use after /feature or /ticket.
 argument-hint: <Linear project name | ORB-N [ORB-N ...]> [--only] [--single] [--sleep]
 effort: high
 ---
@@ -13,6 +13,20 @@ paths). The session always runs from orbit-ui-mobile (D17); worktrees open in wh
 repo a ticket's `repo:*` label names.
 
 ## 0. Classify the scope, then read the contract
+
+At startup, before resolving scope or launching work, run `node tools/reap-worktrees.mjs`.
+Any non-zero exit stops the run. It delegates only inactive, linked, Done worktrees to
+the safe teardown; unlinked review worktrees remain the review launcher's responsibility.
+This sweep does not replace per-ticket teardown immediately after verified Done.
+
+Operating matrix:
+
+| main orchestrator | implementation workers | reviewer |
+|---|---|---|
+| Codex main: Sol, high | Luna, max | fresh Sol, high |
+| Claude main: Opus 5, high | Luna, max | fresh Sol, high |
+
+Explicit ticket tier overrides and escalation rules remain authoritative over worker defaults.
 
 Classify by the number of `ORB-N` identifiers after splitting on spaces and commas:
 
@@ -287,11 +301,10 @@ sandbox... Input disabled until setup completes" forever in a PTY with no deskto
 UAC on, while `orca terminal wait` reports `satisfied: true` throughout. The prerequisite
 the harness cannot supply is the account: a paid ChatGPT plan and `codex login`
 (`codex login --device-auth` works from a headless session, printing a URL and a one-time
-code). Its model map defaults to gpt-5.6-terra at medium reasoning, maps `tier:cheap` to
+code). Its model map defaults to gpt-5.6-luna at max reasoning, maps `tier:cheap` to
 gpt-5.6-luna at low reasoning, and maps `tier:deep` to gpt-5.6-sol at high reasoning.
-Terra-medium is the routine default; the decision register carries the falsifier that
-reversed the earlier Sol default. Model routing does not change the top-level `worker`
-selection; D5 keeps that as an explicit configuration decision.
+Luna-max is the routine implementation default. Model routing does not change the
+top-level `worker` selection; D5 keeps that as an explicit configuration decision.
 
 Waiting differs by declared mode. A headless worker is a child process that EXITS when the
 work is done, so its liveness is the recorded PID. An interactive worker never exits, so it
@@ -329,6 +342,8 @@ unreadable or non-JSON marker and an unparseable timestamp.
 | `DELIVERED` | exit 0, every check met. Release the ticket's concurrency slot. This is the ONLY verdict that releases one. |
 | `WORKING` | the worker process is alive with something still unmet. Keep waiting; launch nothing. |
 | `STALLED` | process gone, PR open, review blocked or outstanding. Relaunch only on the terms below. |
+| `NEEDS-WORK` | the current-head reviewer found work. Route its findings to the same implementation worker and worktree, consuming the durable finding relaunch budget when required. A pushed head becomes `AWAITING-REVIEW`. |
+| `AWAITING-REVIEW` | the PR is otherwise ready, but its current head has no decisive local Codex review. Launch the reviewer for that exact head; never spend a worker relaunch on this state. |
 | `AWAITING-MERGE` | process gone, PR open, review clear. Finish bookkeeping or merge by section 4a. |
 | `IDLE` | the process is gone and NO pull request is open, so the ticket sits between pull requests. Relaunch nothing; go back to the DAG and make a launch decision. |
 | `UNKNOWN` | liveness could not be read. Relaunch nothing, decide nothing, surface it to the operator. A state nobody observed is not a state to act on. |
@@ -336,22 +351,23 @@ unreadable or non-JSON marker and an unparseable timestamp.
 `STALLED` keys on the PROCESS and the pull request, never on the Linear state: a ticket shipping
 several sequential pull requests sits honestly In Progress between them, and that shape is `IDLE`.
 
-Only a `STALLED` poll may spend a relaunch, and it spends it through the same tool:
+For `STALLED`, this spends the per-head allowance before any relaunch. For `NEEDS-WORK`, it is
+the mandatory first step:
 
 ```
 node tools/worker-status.mjs --worktree <worktreePath> --issue ORB-N --base <target> --consume-relaunch --json
 ```
 
-**Exit 0 is granted and recorded.** Relaunch injecting that JSON's `relaunch.findings` and
-`relaunch.unmet` into the prompt, not the ticket body alone: the body is what the worker already
-failed against. **Exit 4 is refused: do not relaunch, escalate.** The allowance is keyed on
-(issue, PR head SHA) and capped by `attemptsBeforeRewrite`, so a push earns a fresh one and an
-unchanged head does not.
+Exit 0 records the (issue, head SHA) allowance. Inject its `relaunch.findings` and `relaunch.unmet`,
+not the ticket body alone. For `NEEDS-WORK`, take the review id and then run:
 
-Two exhaustion conditions, two exit codes, and conflating them retries something that must escalate:
-`worker-status.mjs --consume-relaunch` exits **4** when the allowance for this (issue, PR head SHA)
-is spent, while `launch-worker.mjs --finding <id>` exits **5** when the strike count for this
-(issue, finding) is spent. Both mean stop and escalate; neither is a reason to try again.
+```
+node tools/launch-worker.mjs --issue ORB-N --prompt-file <path> --existing-worktree <worktreePath> --finding <review-id>
+```
+
+That returns the findings to the same implementation worker/worktree and spends the durable
+(issue, finding) strike. Exit 4 from `worker-status` or exit 5 from `launch-worker` escalates.
+After a push, `AWAITING-REVIEW` launches only a fresh reviewer and spends neither allowance.
 
 Teardown is NOT what `DELIVERED` triggers. `teardown-worktree.mjs` carries its own five-check
 evidence gate, and two of those checks (the PR merge commit present in the target branch, and the
@@ -372,52 +388,34 @@ liveness could not be read; answer it by finding out, never by relaunching. Read
 hand-running `orca terminal read`, which for a headless worker shows no live turn at all.
 `--repo ui|api|landing` narrows the report to one repository.
 
-After the PR opens, the worker owns its automated review cycle. The orchestrator does not read
-review bodies, author review-round files, or relay findings back to the worker. It waits for one
-worker report:
+After the PR opens, the implementation worker owns every repair and waits in the same worktree.
+The orchestrator coordinates but never implements or summarizes findings. `pr-watch.mjs` is only a
+wake-up; after it returns, the worker runs `worker-status.mjs --json`, whose complete changed-file and
+review inventories are the delivery gate. An informational finding is reconciled with the contract reply and fix evidence.
+Disagreement, a decision the worker may not make, or two failed cycles on one finding escalates for
+D8 adjudication. D9 still counts ticket-body implementation cycles, not review cycles.
 
-- **Done:** no CHANGES_REQUESTED, stale approval, or unresolved thread.
-- **Escalated:** the worker disagrees with a finding, is blocked on a decision it may not make,
-  or has failed the same finding in two consecutive cycles. Only then may the orchestrator read
-  that finding's review body and the worker's reasoning, reconcile it against the diff (D8), and
-  adjudicate it. Do not load unrelated review bodies.
+**The local `/pr-review` loop applies to every pull request**, with no path, label, repository, or
+change-kind exemption. After the implementation worker pushes head H, invoke
+`tools/launch-pr-review.mjs` for that PR and exact head. Its disposable worktree runs a brand-new, context-free Codex review.
+Pass no worker transcript, prior review, suggested finding, or inherited
+session context, and re-read the PR head when the launcher returns.
 
-The worker may use `pr-watch.mjs` only as a low-level review and check transition wake-up. After
-every call and before waiting or reporting Done, it runs `worker-status.mjs --json` as the
-full-surface completion poll. That poll inventories review submissions, review threads and their
-nested comments, and PR conversation comments, and fails closed on an incomplete inventory.
+- Current-head `APPROVE` passes the round.
+- `NEEDS_WORK` returns to the same implementation worker in the same worktree. `pr-watch.mjs` wakes
+  it to fix and push. When it pushes a new head, launch a brand-new reviewer and continue the loop.
+- Missing, malformed, unverifiable, stale, or head-moved evidence passes nothing. Review the new head.
 
-An informational automated finding that needs no code change is handled by the worker replying
-`No code change required: <reason>. Evidence: <PR commit>`, naming a commit on the PR that
-changed the reviewed path, and resolving it. It is neither a disagreement nor an escalation.
-
-The worker's two failed cycles on one review finding trigger escalation, not D9. D9 still counts
-failed ticket-body implementation cycles and is unchanged.
-
-Once the worker reports Done, run exactly ONE pre-merge verification for that ticket:
+Loop until current-head `APPROVE`; no earlier approval transfers. Then verify the approved head:
 
 ```
 node tools/worker-status.mjs --worktree <worktreePath> --issue ORB-N [--base <target>] --verify-review
 ```
 
-That is the SAME poll with `--verify-review` added, not a second tool, and no second tool may be
-invented for it. This is one pass for the whole ticket, never one pass per review round. It verifies the final
-diff and thread metadata without printing review bodies. A resolved automated thread whose
-named fix commit did not follow the reviewed commit or change the reviewed path, a human-authored
-thread resolved by the worker account, a stale approval, or any unresolved
-thread is a hard failure. Stop for human adjudication on failure; do not run a second verification
-pass.
-
-**The local `/pr-review` pass, for harness diffs only.** After that verification passes, run
-`/pr-review <pr-number>` exactly ONCE for the ticket, against the SAME final head the
-verification just passed, and only when that head's diff touches `tools/**` or `.claude/**`.
-A diff that touches neither path gets no local pass: the worker-owned automated review cycle
-plus the one verification above are its whole gate. Never one pass per review round, never a
-re-run after a head move (a moved head stops the ticket for human review, exactly as it does
-for the verification), and never inline in the orchestrating session: dispatch it as a
-subagent, because the pass loads the whole diff and the rubric into whichever context invokes
-it. **No token figure is claimed for this pass.** Every figure quoted for it earlier is
-withdrawn and none replaces it; the cost was never measured on a controlled run.
+The poll verifies the final diff and thread metadata. Unresolved threads, stale approval, a human
+thread resolved by the worker, or a resolved automated finding without its later path-changing fix
+commit fails. The same implementation worker repairs it. A new head invalidates review and
+verification, so return to the brand-new reviewer loop before verifying again.
 - D7: an issue may sit In Review only with its PR attached. When labelled `visible-effect`,
   it also needs final screenshots and the worker's critique attached; otherwise demote to In
   Progress and finish.
@@ -439,12 +437,14 @@ withdrawn and none replaces it; the cost was never measured on a controlled run.
   unsupervised is exactly the thing that must be auditable afterwards. Without `--sleep`
   this does not apply: a human is awake, and the rewrite is theirs.
 - "All PRs green" requires no CHANGES_REQUESTED decision, no stale approval, zero unresolved
-  threads, and a passing one-time pre-merge verification, not just checks passing.
+  threads, current-head local Codex `APPROVE`, and passing pre-merge verification, not just checks
+  passing.
 
 ## 4. Advance
 
 **Project scope, the default.** Thomas merges, and the run never asks him to merge a ticket
-until its one pre-merge verification has passed. On his word (or on observing merges), fetch,
+until its current-head Codex `APPROVE` and pre-merge verification have passed. Normal mode never merges
+and waits for Thomas to perform the merge. On his word (or on observing merges), fetch,
 verify the Linear issue is Done, then immediately run
 `node tools/teardown-worktree.mjs --issue ORB-N` for that ticket. It is evidence-gated:
 if it refuses, leave the tree untouched, record the failed check, and do not call the
@@ -456,7 +456,8 @@ a project name or with a single `ORB-N`, because without `--only` a ticket argum
 names where to start, not where to stop.
 
 **`--only` ends here instead.** The run is complete once that one ticket's worker reports
-review-clear with zero unresolved threads, its one pre-merge verification passes, and its issue is
+review-clear with zero unresolved threads, its current head carries local Codex `APPROVE`, its
+pre-merge verification passes, and its issue is
 In Review with the PR attached, plus the final screenshots and critique when it carries
 `visible-effect`. Print that ticket's ledger row and STOP. A merge of that ticket is not a
 trigger to launch anything: observing it may have opened a wave, but the run was explicitly
@@ -464,7 +465,7 @@ bounded. Name the tickets that became launchable so Thomas can start them, and d
 
 **Explicit-set scope also ends here.** It never advances a wave, including when a
 member merge makes a successor launchable. Finish after every launchable member has
-a review-clear PR with zero unresolved threads, its one pre-merge verification passed,
+a review-clear PR with zero unresolved threads, current-head local Codex `APPROVE`, pre-merge verification passed,
 and its issue is In Review with the PR attached (plus D7 evidence when required), and
 every refused member has its blocker or strike reason recorded. Print one ledger covering
 every requested member, then re-read the full DAG, name the tickets that became launchable,
@@ -475,6 +476,8 @@ and STOP without starting them.
 `--sleep` means Thomas is asleep. It suspends exactly one thing, the human merge of
 D3, and nothing else. Every gate stays where it is; the flag removes the reviewer
 from the loop, never the review.
+
+`--sleep` positively requires current-head `APPROVE` before the ordinary non-admin merge.
 
 **This is a deliberate, Thomas-authorised exception to D3** ("a human merge is the
 only thing that advances a wave"), and to the `Never: merge a PR` line below. Say so
@@ -511,14 +514,18 @@ that recorded head:
    A failed lookup, an unknown state, or any state other than `In Review` or
    `In Progress` refuses the decision rather than assuming the evidence passed.
 5. The ticket carries no `attempts:2` label (D9 refuses it regardless of colour).
-6. **The ticket's one pre-merge verification passed**, on section 3's terms and with section 3's
-   hard failures. The worker, not the orchestrator, handled review bodies and review rounds.
-   Stop that ticket rather than reading review bodies or repeating the pass.
+6. **Pre-merge verification passed for the exact current head**, on section 3's terms and with
+   section 3's hard failures. The worker, not the orchestrator, handled review bodies and review
+   rounds. Return worker-actionable failures to that worker rather than repairing them here.
+7. **The exact current head carries positive local Codex `APPROVE` evidence.** Re-read it rather
+   than inferring it from a prior `DELIVERED` verdict. Missing, malformed, `NEEDS_WORK`, or evidence
+   naming any other head refuses the unattended merge. Only after this check passes may `--sleep`
+   proceed to the ordinary non-admin merge path below.
 
-Immediately before the one verification pass, read `headRefOid` and `mergeStateStatus`. If the
+Immediately before verification, read `headRefOid` and `mergeStateStatus`. If the
 state is `BEHIND`, update the branch and wait for the new head before starting the pass. Verify
-only a `CLEAN` recorded head. If the head moves after verification, stop that ticket for human
-review rather than running a second pass.
+only a `CLEAN` recorded head. If the head moves after review or verification, both results are stale:
+return to section 3, launch a brand-new Codex reviewer for the new head, and verify that approved head.
 
 Record the verified `headRefOid` as the expected head. Retain a metadata-only review activity
 snapshot: item identifiers plus every review `submittedAt` and non-null `updatedAt` and
@@ -593,19 +600,10 @@ The post-merge Linear markers are operator actions, not merely diagnostics. On
 window between the pre-write read and write landing is undetectable with the CLI response shapes:
 a competing completed state can be overwritten and looks like ordinary success.
 
-`--sleep` always invokes `tools/merge-sweep.sh`. It never invokes
-`tools/merge-sweep-cov.sh`: that variant can use `--admin` to override a SonarCloud
-new-code-coverage failure, while an unattended run must never bypass a red check. A
-PR blocked only by new-code coverage is stopped for human review and listed in the
-closing report. The coverage variant is an attended choice outside `--sleep`, made
-only by a human deliberately invoking:
-
-```bash
-bash tools/merge-sweep-cov.sh \
-  --issue <pr-number>=ORB-N \
-  --reviewed-through <pr-number>=<ISO-8601-timestamp> \
-  <owner/repo> <pr-number>
-```
+`--sleep` always invokes `tools/merge-sweep.sh`, never `tools/merge-sweep-cov.sh`.
+The coverage variant has no admin merge path: on a SonarCloud new-code-coverage-only
+failure it prints `ADMIN-MERGE-REQUIRED` and stops for Thomas. An unattended run records
+that stopped reason and leaves the pull request open.
 
 Read the script's per-PR output, not only its process exit code. `MERGED #<n>` is the
 merge result. `SKIP #<n> UNRESOLVED-THREADS=<count>`,
@@ -624,7 +622,7 @@ than claiming the PR remained unmerged.
 
 After the script returns, read the PR's `headRefOid` and merge commit. For a `MERGED`
 result, the merged `headRefOid` must equal the expected head that passed conditions 1
-to 6. If it differs, say loudly in the closing report that the PR merged on an
+to 7. If it differs, say loudly in the closing report that the PR merged on an
 ungated head, include both head SHAs and the merge commit, and stop all further merges
 in that repository until Thomas has looked. A PR named by any `POST-MERGE-*` marker is
 already merged: keep it in the Merged section, copy the exact marker and its activity,

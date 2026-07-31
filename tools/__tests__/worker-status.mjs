@@ -46,9 +46,13 @@ const workerStatusPlan = (
   {
     comments = [],
     commentsHasNextPage = false,
+    filesHasNextPage = false,
     approvalHead,
     includeApproval = true,
+    includeLocalReview = true,
     isDraft = false,
+    localReviewHead,
+    localRecommendation = "APPROVE",
     prHead,
     pullRequests,
     reviewDecision = "APPROVED",
@@ -70,11 +74,23 @@ const workerStatusPlan = (
         repository: {
           pullRequest: {
             headRefOid: prHead,
+            files: { pageInfo: { hasNextPage: filesHasNextPage }, nodes: [{ path: "reviewed.txt" }] },
             reviewDecision,
             reviews: {
               pageInfo: { hasNextPage: reviewsHasNextPage },
               nodes: [
                 ...reviews,
+                ...(includeLocalReview ? [{
+                  id: "PRR_local_review",
+                  author: { login: "local-reviewer", __typename: "User" },
+                  state: "COMMENTED",
+                  body: `<!-- orbit-local-review: ${JSON.stringify({ version: 1, head: localReviewHead ?? prHead, recommendation: localRecommendation })} -->`,
+                  submittedAt: "2026-07-28T11:00:00Z",
+                  updatedAt: "2026-07-28T11:00:00Z",
+                  lastEditedAt: null,
+                  url: "https://github.com/orbit/orbit/pull/75#pullrequestreview-local",
+                  commit: { oid: localReviewHead ?? prHead },
+                }] : []),
                 ...(includeApproval ? [{
                   id: "PRR_current_approval",
                   author: { login: "human-approver", __typename: "User" },
@@ -82,6 +98,8 @@ const workerStatusPlan = (
                   body: "",
                   submittedAt: "2026-07-28T10:00:00Z",
                   updatedAt: "2026-07-28T10:00:00Z",
+                  lastEditedAt: null,
+                  url: "https://github.com/orbit/orbit/pull/75#pullrequestreview-native",
                   commit: { oid: approvalHead ?? prHead },
                 }] : []),
               ],
@@ -167,13 +185,17 @@ const runWorkerStatusCase = (fixture, attachments, options = {}) => {
           workerStatusPlan(attachments, {
             approvalHead: options.approvalHead,
             includeApproval: options.includeApproval,
+            includeLocalReview: options.includeLocalReview,
             isDraft: options.isDraft,
             comments: options.comments,
             commentsHasNextPage: options.commentsHasNextPage,
+            filesHasNextPage: options.filesHasNextPage,
             /** An explicit null is the "graphql answered without a head" case, so it must survive. */
             prHead: "prHead" in options ? options.prHead : fixture.prHead,
             pullRequests: options.pullRequests,
             reviewDecision: options.reviewDecision,
+            localRecommendation: options.localRecommendation,
+            localReviewHead: options.localReviewHead,
             reviews: options.reviews,
             reviewsHasNextPage: options.reviewsHasNextPage,
             reviewThreads: options.reviewThreads,
@@ -259,10 +281,19 @@ export const cases = () => {
       complete.status === 0 &&
         complete.verdict?.ok === true &&
         complete.verdict.checks.find((entry) => entry.name === "review-not-changes-requested")?.ok === true &&
-        complete.verdict.checks.find((entry) => entry.name === "approval-not-stale")?.ok === true &&
+        complete.verdict.checks.find((entry) => entry.name === "review-evidence")?.ok === true &&
         complete.verdict.checks.find((entry) => entry.name === "screenshot-attached")?.ok === true &&
         complete.verdict.checks.find((entry) => entry.name === "critique-attached")?.ok === true,
       `exit ${complete.status}\n     ${(complete.stderr || complete.stdout).slice(0, 600)}`,
+    )
+    const incompleteFiles = runWorkerStatusCase(fixture, [screenshot, critique], { filesHasNextPage: true })
+    T(
+      "worker-status.mjs: an incomplete changed-files inventory blocks delivery",
+      incompleteFiles.status === 1 &&
+        incompleteFiles.verdict?.unmet.includes("review-evidence") &&
+        incompleteFiles.verdict.unmet.includes("review-thread-inventory") &&
+        incompleteFiles.verdict.checks.find((entry) => entry.name === "review-evidence")?.detail === "INCOMPLETE: file inventory has another page",
+      `exit ${incompleteFiles.status}\n     ${(incompleteFiles.stderr || incompleteFiles.stdout).slice(0, 600)}`,
     )
     /**
      * The verdict LITERAL, not `ok === true` implying it. A rename of the string, or a ternary slip
@@ -308,12 +339,12 @@ export const cases = () => {
       reviewDecision: null,
     })
     T(
-      "worker-status.mjs: zero required approvals with no approval or CHANGES_REQUESTED is DELIVERED",
+      "worker-status.mjs: current local evidence with no native approval or CHANGES_REQUESTED is DELIVERED",
       noApprovalRequired.status === 0 &&
         noApprovalRequired.verdict?.verdict === "DELIVERED" &&
         noApprovalRequired.verdict.unmet.length === 0 &&
         noApprovalRequired.verdict.checks.find((entry) => entry.name === "review-not-changes-requested")?.ok === true &&
-        noApprovalRequired.verdict.checks.find((entry) => entry.name === "approval-not-stale")?.ok === true,
+        noApprovalRequired.verdict.checks.find((entry) => entry.name === "review-evidence")?.ok === true,
       `exit ${noApprovalRequired.status}\n     ${(noApprovalRequired.stderr || noApprovalRequired.stdout).slice(0, 600)}`,
     )
     const currentApprovalWithEmptyDecision = runWorkerStatusCase(fixture, [screenshot, critique], {
@@ -324,7 +355,7 @@ export const cases = () => {
       currentApprovalWithEmptyDecision.status === 0 &&
         currentApprovalWithEmptyDecision.verdict?.verdict === "DELIVERED" &&
         currentApprovalWithEmptyDecision.verdict.checks.find((entry) => entry.name === "review-not-changes-requested")?.ok === true &&
-        currentApprovalWithEmptyDecision.verdict.checks.find((entry) => entry.name === "approval-not-stale")?.ok === true,
+        currentApprovalWithEmptyDecision.verdict.checks.find((entry) => entry.name === "review-evidence")?.ok === true,
       `exit ${currentApprovalWithEmptyDecision.status}\n     ${(currentApprovalWithEmptyDecision.stderr || currentApprovalWithEmptyDecision.stdout).slice(0, 600)}`,
     )
     const staleApprovalWithNoDecision = runWorkerStatusCase(fixture, [screenshot, critique], {
@@ -335,7 +366,7 @@ export const cases = () => {
       "worker-status.mjs: an existing stale approval still blocks when reviewDecision is absent",
       staleApprovalWithNoDecision.status === 1 &&
         staleApprovalWithNoDecision.verdict?.unmet.length === 1 &&
-        staleApprovalWithNoDecision.verdict.unmet[0] === "approval-not-stale" &&
+        staleApprovalWithNoDecision.verdict.unmet[0] === "review-evidence" &&
         staleApprovalWithNoDecision.verdict.checks.find((entry) => entry.name === "review-not-changes-requested")?.ok === true,
       `exit ${staleApprovalWithNoDecision.status}\n     ${(staleApprovalWithNoDecision.stderr || staleApprovalWithNoDecision.stdout).slice(0, 600)}`,
     )
@@ -346,7 +377,7 @@ export const cases = () => {
       "worker-status.mjs: an approval from an older commit does not approve the current PR head",
       staleApproval.status === 1 &&
         staleApproval.verdict?.unmet.length === 1 &&
-        staleApproval.verdict.unmet[0] === "approval-not-stale" &&
+        staleApproval.verdict.unmet[0] === "review-evidence" &&
         staleApproval.verdict.checks.find((entry) => entry.name === "review-not-changes-requested")?.ok === true,
       `exit ${staleApproval.status}\n     ${(staleApproval.stderr || staleApproval.stdout).slice(0, 600)}`,
     )
@@ -425,8 +456,10 @@ All required checks passed.`,
       T(
         `worker-status.mjs: ${label} pagination fails the review inventory closed`,
         paginated.status === 1 &&
-          paginated.verdict?.unmet.length === 1 &&
-          paginated.verdict.unmet[0] === "review-thread-inventory",
+          paginated.verdict?.unmet.includes("review-thread-inventory") &&
+          (label === "review bodies"
+            ? paginated.verdict.unmet.length === 2 && paginated.verdict.unmet.includes("review-evidence")
+            : paginated.verdict.unmet.length === 1),
         `exit ${paginated.status}\n     ${(paginated.stderr || paginated.stdout).slice(0, 600)}`,
       )
     }
@@ -791,6 +824,116 @@ Not run.`,
      */
     clearStrikeLedger()
     writePidMarker(fixture.worktree, [{ pid: deadPid, startedAt: hoursAgo(1) }])
+    const awaitingReview = runWorkerStatusCase(fixture, [screenshot, critique], {
+      includeApproval: false,
+      includeLocalReview: false,
+      reviewDecision: null,
+    })
+    T(
+      "worker-status.mjs: a dead worker without local evidence is AWAITING-REVIEW",
+      awaitingReview.status === 1 &&
+        awaitingReview.verdict?.verdict === "AWAITING-REVIEW" &&
+        awaitingReview.verdict.unmet.length === 1 &&
+        awaitingReview.verdict.unmet[0] === "review-evidence" &&
+        awaitingReview.verdict.relaunch.allowed === false,
+      `exit ${awaitingReview.status}\n     ${(awaitingReview.stderr || awaitingReview.stdout).slice(0, 600)}`,
+    )
+    const staleLocalReview = runWorkerStatusCase(fixture, [screenshot, critique], {
+      includeApproval: false,
+      localReviewHead: fixture.reviewedCommit,
+      reviewDecision: null,
+    })
+    T(
+      "worker-status.mjs: a prior-head local approval waits for a fresh reviewer, not a worker relaunch",
+      staleLocalReview.status === 1 &&
+        staleLocalReview.verdict?.verdict === "AWAITING-REVIEW" &&
+        staleLocalReview.verdict.unmet.length === 1 &&
+        staleLocalReview.verdict.unmet[0] === "review-evidence" &&
+        staleLocalReview.verdict.checks.find((entry) => entry.name === "review-evidence")?.detail.startsWith("STALE:") &&
+        staleLocalReview.verdict.relaunch.allowed === false,
+      `exit ${staleLocalReview.status}\n     ${(staleLocalReview.stderr || staleLocalReview.stdout).slice(0, 600)}`,
+    )
+    const absentReviewWithHeadMismatch = runWorkerStatusCase(fixture, [screenshot, critique], {
+      includeApproval: false,
+      includeLocalReview: false,
+      prHead: fixture.reviewedCommit,
+      reviewDecision: null,
+    })
+    T(
+      "worker-status.mjs: absent evidence does not hide a worker-actionable PR head mismatch",
+      absentReviewWithHeadMismatch.status === 1 &&
+        absentReviewWithHeadMismatch.verdict?.verdict === "STALLED" &&
+        absentReviewWithHeadMismatch.verdict.unmet.includes("pr-head-match") &&
+        absentReviewWithHeadMismatch.verdict.unmet.includes("review-evidence") &&
+        absentReviewWithHeadMismatch.verdict.relaunch.allowed === true,
+      `exit ${absentReviewWithHeadMismatch.status}\n     ${(absentReviewWithHeadMismatch.stderr || absentReviewWithHeadMismatch.stdout).slice(0, 600)}`,
+    )
+    const malformedLocalReview = runWorkerStatusCase(fixture, [screenshot, critique], {
+      includeApproval: false,
+      reviewDecision: null,
+      reviews: [{
+        id: "PRR_malformed_local",
+        author: { login: "local-reviewer", __typename: "User" },
+        state: "COMMENTED",
+        body: '<!-- orbit-local-review: {"version":1} -->',
+        submittedAt: "2026-07-28T12:00:00Z",
+        updatedAt: "2026-07-28T12:00:00Z",
+        lastEditedAt: null,
+        url: "https://github.com/orbit/orbit/pull/75#pullrequestreview-malformed",
+        commit: { oid: fixture.prHead },
+      }],
+    })
+    T(
+      "worker-status.mjs: a selected malformed local marker waits for a fresh reviewer",
+      malformedLocalReview.status === 1 &&
+        malformedLocalReview.verdict?.verdict === "AWAITING-REVIEW" &&
+        malformedLocalReview.verdict.unmet.length === 1 &&
+        malformedLocalReview.verdict.unmet[0] === "review-evidence" &&
+        malformedLocalReview.verdict.checks.find((entry) => entry.name === "review-evidence")?.detail.startsWith("MALFORMED:") &&
+        malformedLocalReview.verdict.relaunch.allowed === false,
+      `exit ${malformedLocalReview.status}\n     ${(malformedLocalReview.stderr || malformedLocalReview.stdout).slice(0, 600)}`,
+    )
+    const incompleteLocalReview = runWorkerStatusCase(fixture, [screenshot, critique], {
+      includeApproval: false,
+      reviewDecision: null,
+      reviewsHasNextPage: true,
+    })
+    T(
+      "worker-status.mjs: incomplete review inventory remains STALLED rather than launching a reviewer",
+      incompleteLocalReview.status === 1 &&
+        incompleteLocalReview.verdict?.verdict === "STALLED" &&
+        incompleteLocalReview.verdict.unmet.includes("review-evidence") &&
+        incompleteLocalReview.verdict.unmet.includes("review-thread-inventory") &&
+        incompleteLocalReview.verdict.relaunch.allowed === true,
+      `exit ${incompleteLocalReview.status}\n     ${(incompleteLocalReview.stderr || incompleteLocalReview.stdout).slice(0, 600)}`,
+    )
+    const needsWork = runWorkerStatusCase(fixture, [screenshot, critique], {
+      includeApproval: false,
+      localRecommendation: "NEEDS_WORK",
+      reviewDecision: null,
+    })
+    T(
+      "worker-status.mjs: a dead worker with latest NEEDS_WORK evidence is NEEDS-WORK",
+      needsWork.status === 1 &&
+        needsWork.verdict?.verdict === "NEEDS-WORK" &&
+        needsWork.verdict.unmet.length === 1 &&
+        needsWork.verdict.unmet[0] === "review-evidence" &&
+        needsWork.verdict.relaunch.findings.some((finding) => finding.kind === "local-review-needs-work" && finding.id === "PRR_local_review" && finding.body.includes("NEEDS_WORK")) &&
+        needsWork.verdict.relaunch.allowed === true,
+      `exit ${needsWork.status}\n     ${(needsWork.stderr || needsWork.stdout).slice(0, 600)}`,
+    )
+    const needsWorkGrant = runWorkerStatusCase(fixture, [screenshot, critique], {
+      consumeRelaunch: true,
+      includeApproval: false,
+      localRecommendation: "NEEDS_WORK",
+      reviewDecision: null,
+    })
+    T(
+      "worker-status.mjs: --consume-relaunch grants the durable worker budget for NEEDS-WORK",
+      needsWorkGrant.status === 0 && needsWorkGrant.verdict?.relaunch.consumed === 1,
+      `exit ${needsWorkGrant.status}\n     ${(needsWorkGrant.stderr || needsWorkGrant.stdout).slice(0, 600)}`,
+    )
+    clearStrikeLedger()
     const awaitingMerge = runWorkerStatusCase(fixture, [screenshot])
     T(
       "worker-status.mjs: a dead worker with an approved head and zero outstanding review work is AWAITING-MERGE",
@@ -799,7 +942,7 @@ Not run.`,
         awaitingMerge.verdict.liveness.state === "gone" &&
         awaitingMerge.verdict.unmet.length === 1 &&
         awaitingMerge.verdict.unmet[0] === "critique-attached" &&
-        awaitingMerge.verdict.checks.find((entry) => entry.name === "approval-not-stale")?.ok === true &&
+        awaitingMerge.verdict.checks.find((entry) => entry.name === "review-evidence")?.ok === true &&
         awaitingMerge.verdict.relaunch.allowed === false &&
         awaitingMerge.verdict.relaunch.refusal.includes("AWAITING-MERGE"),
       `exit ${awaitingMerge.status}\n     ${(awaitingMerge.stderr || awaitingMerge.stdout).slice(0, 600)}`,
@@ -809,13 +952,13 @@ Not run.`,
       reviewDecision: null,
     })
     T(
-      "worker-status.mjs: zero required approvals never turns bookkeeping-only AWAITING-MERGE into STALLED",
+      "worker-status.mjs: no native approval never turns bookkeeping-only AWAITING-MERGE into STALLED",
       awaitingMergeWithoutApproval.status === 1 &&
         awaitingMergeWithoutApproval.verdict?.verdict === "AWAITING-MERGE" &&
         awaitingMergeWithoutApproval.verdict.unmet.length === 1 &&
         awaitingMergeWithoutApproval.verdict.unmet[0] === "critique-attached" &&
         awaitingMergeWithoutApproval.verdict.checks.find((entry) => entry.name === "review-not-changes-requested")?.ok === true &&
-        awaitingMergeWithoutApproval.verdict.checks.find((entry) => entry.name === "approval-not-stale")?.ok === true &&
+        awaitingMergeWithoutApproval.verdict.checks.find((entry) => entry.name === "review-evidence")?.ok === true &&
         awaitingMergeWithoutApproval.verdict.relaunch.allowed === false,
       `exit ${awaitingMergeWithoutApproval.status}\n     ${(awaitingMergeWithoutApproval.stderr || awaitingMergeWithoutApproval.stdout).slice(0, 600)}`,
     )
@@ -835,7 +978,7 @@ Not run.`,
       "worker-status.mjs: an approved head with one unresolved thread is STALLED, never AWAITING-MERGE",
       stalledUnderApproval.status === 1 &&
         stalledUnderApproval.verdict?.verdict === "STALLED" &&
-        stalledUnderApproval.verdict.checks.find((entry) => entry.name === "approval-not-stale")?.ok === true &&
+        stalledUnderApproval.verdict.checks.find((entry) => entry.name === "review-evidence")?.ok === true &&
         stalledUnderApproval.verdict.unmet.length === 1 &&
         stalledUnderApproval.verdict.unmet[0] === "review-threads" &&
         stalledUnderApproval.verdict.relaunch.allowed === true,
@@ -1048,7 +1191,7 @@ Not run.`,
     check("worker-status.mjs", "--help documents every verdict and every exit code", ["--help"], {
       status: 0,
       stdout: new RegExp(
-        `DELIVERED[\\s\\S]*WORKING[\\s\\S]*STALLED[\\s\\S]*AWAITING-MERGE[\\s\\S]*IDLE[\\s\\S]*UNKNOWN[\\s\\S]*${STRIKE_LEDGER_ENV}[\\s\\S]*1 unmet items[\\s\\S]*2 usage error[\\s\\S]*3 a git, gh or orca command failed, an OPEN pull request's head could not be read[\\s\\S]*4 --consume-relaunch refused`,
+        `DELIVERED[\\s\\S]*WORKING[\\s\\S]*AWAITING-REVIEW[\\s\\S]*NEEDS-WORK[\\s\\S]*STALLED[\\s\\S]*AWAITING-MERGE[\\s\\S]*IDLE[\\s\\S]*UNKNOWN[\\s\\S]*${STRIKE_LEDGER_ENV}[\\s\\S]*1 unmet items[\\s\\S]*2 usage error[\\s\\S]*3 a git, gh or orca command failed, an OPEN pull request's head could not be read[\\s\\S]*4 --consume-relaunch refused`,
       ),
     })
     check("worker-status.mjs", "--help pins the reuse backstop the cases are written against", ["--help"], {

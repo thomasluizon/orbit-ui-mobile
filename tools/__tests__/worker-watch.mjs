@@ -30,6 +30,7 @@ const stageWorkerWatch = (label, repos) => {
   )
   cpSync(join(TOOLS_DIR, "worker-watch.mjs"), join(base, "tools", "worker-watch.mjs"))
   cpSync(join(TOOLS_DIR, "worker-status.mjs"), join(base, "tools", "worker-status.mjs"))
+  cpSync(join(TOOLS_DIR, "check-review-evidence.mjs"), join(base, "tools", "check-review-evidence.mjs"))
   cpSync(join(TOOLS_DIR, "lib"), join(base, "tools", "lib"), { recursive: true })
   return join(base, "tools", "worker-watch.mjs")
 }
@@ -130,14 +131,15 @@ const mainWorktree = ({ path, repoId }) => ({ path, repoId, isMainWorktree: true
 
 const workerWatchCases = () => {
   const reviewClearContract = /CHANGES_REQUESTED blocks[\s\S]*No approval is required[\s\S]*If an approval exists[\s\S]*current head[\s\S]*zero unresolved threads and every automated review item is reconciled/
-  for (const [label, path] of [
-    ["watch skill", join(REPO_ROOT, ".claude", "skills", "watch", "SKILL.md")],
-    ["tools catalog", join(REPO_ROOT, "tools", "README.md")],
+  const catalogReviewContract = /complete changed-file and review connections[\s\S]*Native approval is not required[\s\S]*when present at least one must name the current head[\s\S]*worker-status\.mjs[\s\S]*current-head local `APPROVE` evidence[\s\S]*zero unresolved or unreconciled review work[\s\S]*CHANGES_REQUESTED blocks[\s\S]*Native approval is not positively required[\s\S]*any native approval that exists must name the current head/
+  for (const [label, path, contract] of [
+    ["watch skill", join(REPO_ROOT, ".claude", "skills", "watch", "SKILL.md"), reviewClearContract],
+    ["tools catalog", join(REPO_ROOT, "tools", "README.md"), catalogReviewContract],
   ]) {
     const source = readFileSync(path, "utf8")
     T(
       `worker-watch.mjs: the ${label} carries the approval-count-zero review-clear contract`,
-      reviewClearContract.test(source),
+      contract.test(source),
       `${path} no longer states the complete review-clear contract`,
     )
   }

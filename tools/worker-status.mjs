@@ -17,6 +17,7 @@ import { join, resolve } from "node:path"
 
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { RELAUNCH_SCOPE, STRIKE_LEDGER_ENV, recordStrike, strikeCount, strikeLedgerPath } from "./lib/strike-ledger.mjs"
+import { evaluateReviewEvidence } from "./check-review-evidence.mjs"
 
 /**
  * `process.kill(pid, 0)` proves SOME process holds that id, never that it is still the worker the
@@ -39,7 +40,7 @@ const USAGE = `usage: worker-status.mjs --worktree <path> --issue ORB-N [--base 
 
 Checks, all from artifacts: commits exist on the branch, the worktree carries no uncommitted
 work, the branch is pushed, a PR is open against <ref> with no CHANGES_REQUESTED decision,
-zero unresolved threads, and any existing approval anchored to its current head, every resolved automated thread has reconciliation evidence
+current local APPROVE evidence, zero unresolved threads, and any existing native approval anchored to its current head, every resolved automated thread has reconciliation evidence
 after its latest finding-bearing nested activity and names a later fix commit that changed its reviewed path,
 every standalone automated review item has a worker acknowledgement naming a PR commit,
 no human-authored thread was resolved by the worker account, the local head matches the PR
@@ -56,8 +57,12 @@ ticket shipping several sequential pull requests.
 verdicts:
   DELIVERED       every check above is met; liveness does not enter into it
   WORKING         a check is unmet and the worker process is alive
+  AWAITING-REVIEW the worker process is gone, the PR is otherwise ready for review, and no
+                  decisive local verdict exists for the current head. This includes no local
+                  evidence, a valid prior-head marker, a selected malformed marker, or ambiguity
+  NEEDS-WORK      the worker process is gone and the latest local review requests work
   STALLED         the worker process is gone, a PR is open, and review work is still outstanding:
-                  CHANGES_REQUESTED is active, an existing approval is stale, or an unresolved
+                  CHANGES_REQUESTED is active, review evidence is invalid or stale, or an unresolved
                   thread, unacknowledged standalone automated review item, or resolved automated
                   thread with no fix commit still needs a worker
   AWAITING-MERGE  the worker process is gone, a PR is open, its review gates are clear and NO
@@ -76,7 +81,7 @@ exit codes: 0 the contract is met, or under --consume-relaunch the relaunch was 
             1 unmet items (listed), 2 usage error,
             3 a git, gh or orca command failed, an OPEN pull request's head could not be read, or
               the strike ledger could not be read; a value that was not read is never substituted,
-            4 --consume-relaunch refused because the verdict is not STALLED or the allowance for
+            4 --consume-relaunch refused because the verdict is neither STALLED nor NEEDS-WORK or the allowance for
               this head SHA is spent; nothing was written`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
@@ -197,7 +202,7 @@ const reviewPayload = pullRequest
         "api",
         "graphql",
         "-f",
-        "query=query($owner:String!,$name:String!,$number:Int!){viewer{login}repository(owner:$owner,name:$name){pullRequest(number:$number){headRefOid reviewDecision reviews(first:100){pageInfo{hasNextPage}nodes{id author{login __typename}state body submittedAt updatedAt commit{oid}}}comments(first:100){pageInfo{hasNextPage}nodes{id author{login __typename}body createdAt updatedAt}}reviewThreads(first:100){pageInfo{hasNextPage}nodes{id isResolved path resolvedBy{login}comments(first:100){pageInfo{hasNextPage}nodes{id author{login __typename}body createdAt updatedAt pullRequestReview{id commit{oid}}}}}}}}}",
+        "query=query($owner:String!,$name:String!,$number:Int!){viewer{login}repository(owner:$owner,name:$name){pullRequest(number:$number){headRefOid reviewDecision files(first:100){pageInfo{hasNextPage}nodes{path}} reviews(first:100){pageInfo{hasNextPage}nodes{id author{login __typename}state body submittedAt updatedAt lastEditedAt url commit{oid}}}comments(first:100){pageInfo{hasNextPage}nodes{id author{login __typename}body createdAt updatedAt}}reviewThreads(first:100){pageInfo{hasNextPage}nodes{id isResolved path resolvedBy{login}comments(first:100){pageInfo{hasNextPage}nodes{id author{login __typename}body createdAt updatedAt pullRequestReview{id commit{oid}}}}}}}}}",
         "-F",
         `owner=${slug.split("/")[0]}`,
         "-F",
@@ -294,14 +299,13 @@ const activityAcknowledged = (item) => {
 }
 const unacknowledgedAutomatedActivity = standaloneAutomatedActivity.filter((item) => !activityAcknowledged(item))
 const reviewInventoryComplete =
+  review?.files?.pageInfo?.hasNextPage === false &&
   review?.reviewThreads?.pageInfo?.hasNextPage === false &&
   review?.reviews?.pageInfo?.hasNextPage === false &&
   review?.comments?.pageInfo?.hasNextPage === false &&
   reviewThreads.every((thread) => thread.comments?.pageInfo?.hasNextPage === false)
-const approvedReviews = (review?.reviews?.nodes ?? []).filter((item) => item.state === "APPROVED")
-const currentHeadApproved = approvedReviews.some((item) => item.commit?.oid === prHead)
 const reviewNotChangesRequested = Boolean(review && review.reviewDecision !== "CHANGES_REQUESTED")
-const approvalNotStale = approvedReviews.length === 0 || currentHeadApproved
+const reviewEvidence = evaluateReviewEvidence(review, prHead)
 
 const detail = orca(["linear", "issue", issue, "--attachments"])
 const linearIssue = detail.issue ?? detail
@@ -349,18 +353,14 @@ const checks = [
     detail: review ? `review decision is ${review.reviewDecision ?? "absent"}; only CHANGES_REQUESTED blocks` : "no pull request review state is available",
   },
   {
-    name: "approval-not-stale",
-    ok: Boolean(prHead && approvalNotStale),
-    detail: prHead
-      ? approvedReviews.length === 0
-        ? `PR head ${prHead} has no approving review, so no approval can be stale`
-        : `PR head ${prHead} ${currentHeadApproved ? "has" : "does not have"} an approving review among ${approvedReviews.length} approval(s)`
-      : "no PR head is available for approval verification",
+    name: "review-evidence",
+    ok: Boolean(prHead && reviewEvidence.ok),
+    detail: `${reviewEvidence.status}: ${reviewEvidence.reason}`,
   },
   {
     name: "review-thread-inventory",
     ok: reviewInventoryComplete,
-    detail: reviewInventoryComplete ? "complete review activity inventory" : "more than 100 review items in at least one connection, verification is incomplete",
+    detail: reviewInventoryComplete ? "complete file and review activity inventory" : "changed files or review activity exceed one connection page, verification is incomplete",
   },
   {
     name: "review-threads",
@@ -477,7 +477,7 @@ const liveness = {
 }
 
 const prOpen = Boolean(pullRequest && pullRequest.state === "OPEN")
-const reviewGatesClear = reviewNotChangesRequested && approvalNotStale
+const reviewGatesClear = reviewNotChangesRequested && reviewEvidence.ok
 /**
  * The unmet items that are reviewer output only a WORKER can reconcile, so a review-clear head
  * carrying any of them still needs a relaunch rather than a merge. Everything else that can sit
@@ -489,6 +489,15 @@ const reviewGatesClear = reviewNotChangesRequested && approvalNotStale
  */
 const OUTSTANDING_REVIEW_WORK = new Set(["review-threads", "review-activity", "resolved-thread-fixes"])
 const reviewWorkOutstanding = unmet.some((name) => OUTSTANDING_REVIEW_WORK.has(name))
+const REVIEWER_WAIT_ALLOWED_UNMET = new Set(["review-evidence", "linear-in-review", "pr-attached", "screenshot-attached", "critique-attached"])
+const localReviewUndecided =
+  reviewEvidence.status === "AWAITING_REVIEW" ||
+  reviewEvidence.status === "AMBIGUOUS" ||
+  (["STALE", "MALFORMED"].includes(reviewEvidence.status) && Boolean(reviewEvidence.review))
+const readyForFreshReviewer =
+  localReviewUndecided &&
+  reviewNotChangesRequested &&
+  unmet.every((name) => REVIEWER_WAIT_ALLOWED_UNMET.has(name))
 /**
  * STALLED keys on the worker PROCESS and the pull request, never on the Linear state: measured on
  * ORB-163, `linear-in-review` is unmet purely because a ticket shipping four sequential pull
@@ -502,7 +511,11 @@ const verdictName =
       ? "WORKING"
       : livenessState === "unknown"
         ? "UNKNOWN"
-        : prOpen && (!reviewGatesClear || reviewWorkOutstanding)
+        : prOpen && reviewEvidence.status === "NEEDS_WORK"
+          ? "NEEDS-WORK"
+          : prOpen && readyForFreshReviewer
+            ? "AWAITING-REVIEW"
+            : prOpen && (!reviewGatesClear || reviewWorkOutstanding)
           ? "STALLED"
           : prOpen
             ? "AWAITING-MERGE"
@@ -530,13 +543,22 @@ try {
 } catch (error) {
   fail(3, error.message)
 }
+const relaunchable = verdictName === "STALLED" || verdictName === "NEEDS-WORK"
 const relaunchRefusal =
-  verdictName === "STALLED"
+  relaunchable
     ? consumed >= relaunchCap
       ? `the ${relaunchCap} relaunch allowance(s) for ${issue} at ${allowanceHead} are spent; the head must move before another one is earned`
       : null
-    : `the verdict is ${verdictName}, and only STALLED spends a relaunch allowance`
+    : `the verdict is ${verdictName}, and only STALLED or NEEDS-WORK spends a relaunch allowance`
 const outstandingFindings = [
+  ...(reviewEvidence.status === "NEEDS_WORK" && reviewEvidence.review
+    ? [{
+        kind: "local-review-needs-work",
+        id: reviewEvidence.review.id ?? reviewEvidence.review.url ?? "local-review",
+        path: null,
+        body: (reviewEvidence.review.body ?? "").slice(0, 2000),
+      }]
+    : []),
   ...unresolvedThreads.map((thread) => ({
     kind: "unresolved-thread",
     id: thread.id,

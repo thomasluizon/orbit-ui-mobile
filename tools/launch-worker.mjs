@@ -29,11 +29,16 @@ import {
   unlinkSync,
   writeFileSync,
 } from "node:fs"
-import { homedir, tmpdir } from "node:os"
+import { homedir } from "node:os"
 import { basename, delimiter, dirname, extname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
+import {
+  cancelBudgetReservation as cancelAutomationBudgetReservation,
+  claimBudgetReservation,
+  reserveAutomationBudget,
+} from "./lib/automation-launch-budget.mjs"
 import { FINDING_SCOPE, STRIKES_BEFORE_ESCALATION, recordStrike, strikeCount, strikeLedgerPath } from "./lib/strike-ledger.mjs"
 const pause = (milliseconds) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds)
 
@@ -322,7 +327,6 @@ rules, and record any blocked sub-step in the report.
 let rollback = null
 let budgetReservation = null
 let reservationMaySpend = false
-let cancelBudgetReservation = null
 let concurrencyReservation = null
 
 const releaseConcurrencyReservation = () => {
@@ -375,8 +379,8 @@ const fail = (code, message) => {
       if (dropped.status !== 0) console.error(`left the branch ${branchToDrop} behind: ${(dropped.stderr || "").trim().slice(0, 200)}`)
     }
   }
-  if (budgetReservation && !reservationMaySpend && cleanupConfirmed && cancelBudgetReservation) {
-    const cancelled = cancelBudgetReservation(budgetReservation)
+  if (budgetReservation && !reservationMaySpend && cleanupConfirmed) {
+    const cancelled = cancelAutomationBudgetReservation(budgetReservation)
     if (!cancelled) {
       console.error(`left budget reservation "${budgetReservation.identity}" pending because its cancellation could not be recorded`)
     }
@@ -494,208 +498,6 @@ if (automationLedgerOverride !== undefined && automationLedgerOverride.trim().le
 const automationLedgerPath = resolve(
   automationLedgerOverride ?? resolve(homedir(), ".orbit", "automation-budget.jsonl"),
 )
-
-const parseClaudeResetAt = (resetsIn) => {
-  if (typeof resetsIn !== "string") {
-    fail(3, "ai-quota returned no Claude weekly reset duration; refusing to launch unattended automation")
-  }
-  const match = resetsIn.match(/^(?:(\d+)d(?: (\d+)h)?(?: (\d+)m)?|(\d+)h(?: (\d+)m)?|(\d+)m)$/)
-  if (!match) {
-    fail(3, `ai-quota returned unsupported Claude reset duration "${resetsIn}"; expected compact d/h/m units such as "6d 4h"`)
-  }
-  const days = Number(match[1] ?? 0)
-  const hours = Number(match[2] ?? match[4] ?? 0)
-  const minutes = Number(match[3] ?? match[5] ?? match[6] ?? 0)
-  const durationMilliseconds = ((days * 24 + hours) * 60 + minutes) * 60 * 1000
-  if (!Number.isSafeInteger(durationMilliseconds) || durationMilliseconds <= 0) {
-    fail(3, `ai-quota returned invalid Claude reset duration "${resetsIn}"; refusing to launch unattended automation`)
-  }
-  return new Date(Date.now() + durationMilliseconds).toISOString()
-}
-
-const parseCodexResetAt = (resetsAt) => {
-  const milliseconds = typeof resetsAt === "number" ? resetsAt * 1000 : Date.parse(resetsAt)
-  if (!Number.isFinite(milliseconds) || milliseconds <= Date.now()) {
-    fail(3, `ai-quota returned invalid Codex reset timestamp "${resetsAt}"; refusing to launch unattended automation`)
-  }
-  return new Date(milliseconds).toISOString()
-}
-
-const runBudgetCommand = (argumentsList, blockedExit = false) => {
-  const budgetResult = spawnSync(process.execPath, [budgetToolPath, ...argumentsList], {
-    encoding: "utf8",
-    maxBuffer: 32 * 1024 * 1024,
-  })
-  if (budgetResult.error) fail(3, `automation-budget could not start: ${budgetResult.error.message}`)
-  if (budgetResult.status === 0) {
-    if (budgetResult.stderr) process.stderr.write(budgetResult.stderr)
-    return
-  }
-  const reason = (budgetResult.stderr || budgetResult.stdout || "automation-budget failed").trim()
-  fail(blockedExit && budgetResult.status === 4 ? 4 : 3, reason)
-}
-
-/**
- * One provider reading per launch, handed to automation-budget verbatim rather than read twice.
- * The claude arm reads its figure by scraping an Orca accessibility tree, so a second read is a
- * second scrape and can legitimately disagree with the first.
- */
-const quotaSnapshotPath = join(tmpdir(), `orbit-launch-quota-${process.pid}-${randomUUID()}.json`)
-process.on("exit", () => {
-  try {
-    unlinkSync(quotaSnapshotPath)
-  } catch {
-    /* a snapshot the OS already reclaimed must never change this launch's verdict */
-  }
-})
-
-const reserveAutomationBudget = ({
-  engineName,
-  identity,
-  tier,
-  startedAt,
-  warningTokens,
-  tokenBudget,
-  accountCeilingPercent,
-  projectedTokens,
-  ledgerPath,
-}) => {
-  const quotaResult = spawnSync(process.execPath, [quotaToolPath, "--json"], {
-    encoding: "utf8",
-    maxBuffer: 32 * 1024 * 1024,
-  })
-  if (quotaResult.error) fail(3, `ai-quota could not start: ${quotaResult.error.message}`)
-  let quota
-  try {
-    quota = JSON.parse(quotaResult.stdout)
-  } catch {
-    fail(3, `ai-quota returned unparseable output: ${(quotaResult.stdout || quotaResult.stderr || "").slice(0, 400)}`)
-  }
-  try {
-    writeFileSync(quotaSnapshotPath, quotaResult.stdout, "utf8")
-  } catch (error) {
-    fail(3, `could not write the quota snapshot ${quotaSnapshotPath}: ${error.message}`)
-  }
-  const selectedQuota = quota?.[engineName]
-  const accountObservedAt = new Date().toISOString()
-  /**
-   * UNAVAILABLE is an honest answer, not a tool failure, and refusing on it was stricter than the
-   * budget tool's own policy: the claude reading flipped OK to UNAVAILABLE twice on an idle
-   * machine inside twenty minutes purely because the Orca window was not scrapeable, and every
-   * launch in between would have been refused. automation-budget falls back to the token budget
-   * and says so (gate TOKEN_FALLBACK), so the launcher lets that bounded fallback fire. A reading
-   * this launcher cannot even parse is still fatal above.
-   */
-  const readingAvailable = selectedQuota?.status === "OK"
-  const accountUsedPercent = readingAvailable
-    ? (engineName === "claude" ? selectedQuota.weeklyPercent : selectedQuota.usedPercent)
-    : null
-  /** With no provider window to read, the trailing seven days is the conservative window: it
-   * counts every recent record, where a future reset timestamp would count none of them. */
-  const resetAt = readingAvailable
-    ? (engineName === "claude" ? parseClaudeResetAt(selectedQuota.resetsIn) : parseCodexResetAt(selectedQuota.resetsAt))
-    : accountObservedAt
-  if (!readingAvailable) {
-    console.error(`ai-quota reports ${engineName} UNAVAILABLE, so automation-budget gates this launch on the token budget over the trailing seven days instead of the provider reading`)
-  }
-  const argumentsList = [
-    "reserve",
-    "--engine",
-    engineName,
-    "--identity",
-    identity,
-    "--tier",
-    tier,
-    "--started-at",
-    startedAt,
-    "--ended-at",
-    accountObservedAt,
-    "--reset-at",
-    resetAt,
-    "--account-ceiling-percent",
-    String(accountCeilingPercent),
-    "--warning-tokens",
-    String(warningTokens),
-    "--budget-tokens",
-    String(tokenBudget),
-    "--invocation-tokens",
-    String(projectedTokens),
-    "--quota",
-    quotaSnapshotPath,
-    "--ledger",
-    ledgerPath,
-  ]
-  if (Number.isFinite(accountUsedPercent)) {
-    argumentsList.push(
-      "--account-used-percent",
-      String(accountUsedPercent),
-      "--account-observed-at",
-      accountObservedAt,
-    )
-  }
-  argumentsList.push("--json")
-  runBudgetCommand(argumentsList, true)
-  return { identity, engineName, tier, startedAt, ledgerPath }
-}
-
-/**
- * The reservation is appended before the worktree exists, so it cannot carry the PID of a worker
- * that does not exist yet. Attaching it here is what lets `summarize` expire a reservation the
- * instant its process is gone instead of waiting out the whole lease. A failure to attach is
- * reported, never fatal: the worker is already running, and the reservation simply falls back to
- * the timestamp backstop.
- */
-const claimBudgetReservation = ({ identity, engineName, tier, startedAt, ledgerPath }, projectedTokens, workerPid) => {
-  const result = spawnSync(process.execPath, [
-    budgetToolPath,
-    "claim",
-    "--identity",
-    identity,
-    "--engine",
-    engineName,
-    "--tier",
-    tier,
-    "--started-at",
-    startedAt,
-    "--ended-at",
-    new Date().toISOString(),
-    "--invocation-tokens",
-    String(projectedTokens),
-    "--worker-pid",
-    String(workerPid),
-    "--ledger",
-    ledgerPath,
-  ], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
-  if (!result.error && result.status === 0) return true
-  console.error(`automation-budget claim failed, the reservation keeps its timestamp lease: ${(result.stderr || result.stdout || result.error?.message || "unknown error").trim()}`)
-  return false
-}
-
-cancelBudgetReservation = ({ identity, engineName, tier, startedAt, ledgerPath }) => {
-  const result = spawnSync(process.execPath, [
-    budgetToolPath,
-    "cancel",
-    "--identity",
-    identity,
-    "--engine",
-    engineName,
-    "--tier",
-    tier,
-    "--started-at",
-    startedAt,
-    "--ended-at",
-    new Date().toISOString(),
-    "--ledger",
-    ledgerPath,
-    "--json",
-  ], {
-    encoding: "utf8",
-    maxBuffer: 32 * 1024 * 1024,
-  })
-  if (!result.error && result.status === 0) return true
-  console.error(`automation-budget cancellation failed: ${(result.stderr || result.stdout || result.error?.message || "unknown error").trim()}`)
-  return false
-}
 
 const processIsAlive = (pid) => {
   try {
@@ -1272,17 +1074,23 @@ if (dryRun) {
   process.exit(0)
 }
 
-budgetReservation = reserveAutomationBudget({
-  engineName,
-  identity: invocationIdentity,
-  tier: budgetTier,
-  startedAt: invocationStartedAt,
-  warningTokens: automationBudget.warningTokens,
-  tokenBudget: automationBudget.tokenBudget,
-  accountCeilingPercent: automationBudget.accountUsedPercentCeiling,
-  projectedTokens,
-  ledgerPath: automationLedgerPath,
-})
+try {
+  budgetReservation = reserveAutomationBudget({
+    engineName,
+    identity: invocationIdentity,
+    tier: budgetTier,
+    startedAt: invocationStartedAt,
+    warningTokens: automationBudget.warningTokens,
+    tokenBudget: automationBudget.tokenBudget,
+    accountCeilingPercent: automationBudget.accountUsedPercentCeiling,
+    projectedTokens,
+    ledgerPath: automationLedgerPath,
+    quotaToolPath,
+    budgetToolPath,
+  })
+} catch (error) {
+  fail(error.exitCode ?? 3, error.message)
+}
 
 /** Recorded once the launch is committed (the fuse passed and the account is charged), so a run
  * the budget refused never burns one of clause 4's two cycles. */

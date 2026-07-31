@@ -21,6 +21,8 @@
 
 import { execFileSync } from "node:child_process"
 
+import { evaluateReviewEvidence, isReviewEvidenceCandidate } from "./check-review-evidence.mjs"
+
 const USAGE = `usage: pr-watch.mjs --repo <owner/name> --pr <n>[,<n>...] [options]
 
   --repo <owner/name>   the GitHub repository the PRs live in (required)
@@ -29,7 +31,7 @@ const USAGE = `usage: pr-watch.mjs --repo <owner/name> --pr <n>[,<n>...] [option
   --acted <n>=<sha>:<signal>
                         what the caller has ALREADY handled on PR <n>: the head SHA the
                         signal belongs to (a prefix is enough) and APPROVED,
-                        CHANGES_REQUESTED, COMMENTED, or READY_TO_MERGE. Repeatable entries
+                        CHANGES_REQUESTED, COMMENTED, NEEDS_WORK, or READY_TO_MERGE. Repeatable entries
                         for the same PR and head accumulate, suppressing every listed signal.
                         APPROVED suppresses only that verdict; READY_TO_MERGE independently
                         suppresses readiness already handled on that head
@@ -42,14 +44,15 @@ Prints one JSON object on stdout: repo, pr, url, transition, headSha, verdict, v
 reviewDecision, mergeStateStatus, failingChecks, polls, watched. Progress goes to stderr.
 
 The transitions, in the order they are checked, so a PR in several at once reports the one
-that matters most: gone (merged or closed), draft, checks-failed, changes-requested, review-comment,
-approved (a fresh verdict on the current head), head-changed, ready-to-merge (a review-clear PR
+that matters most: gone (merged or closed), draft, checks-failed, head-changed, changes-requested,
+review-comment, needs-work, review-evidence-blocked, approved (a fresh verdict on the current head),
+ready-to-merge (a review-clear PR
 becomes mergeable), review-decision, merge-clean. UNKNOWN and changes among other merge states
 never emit. The first poll establishes the baseline for state transitions, except unhandled
 verdicts and unhandled readiness still emit immediately.
 
-Ready-to-merge means CLEAN with no CHANGES_REQUESTED and a complete approval inventory. No
-approval is required; if any approval exists, at least one must name the current head commit.
+Ready-to-merge means CLEAN with no CHANGES_REQUESTED and current local APPROVE evidence from a
+complete review inventory. If a native approval exists, at least one must name the current head.
 
 exit codes: 0 an actionable non-error state, 1 the PR needs work or has a new head (a failing
             check, a fresh blocking verdict or decision, or a head change), 2 usage error,
@@ -74,7 +77,7 @@ const FAILED_STATUS_STATES = new Set(["FAILURE", "ERROR"])
 
 /** CHANGES_REQUESTED outranks APPROVED on the same head: two reviewers disagreeing is work, not a merge. */
 const VERDICT_RANK = { CHANGES_REQUESTED: 3, COMMENTED: 2, APPROVED: 1 }
-const ACTED_SIGNALS = new Set([...Object.keys(VERDICT_RANK), "READY_TO_MERGE"])
+const ACTED_SIGNALS = new Set([...Object.keys(VERDICT_RANK), "NEEDS_WORK", "READY_TO_MERGE"])
 
 const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
 
@@ -124,8 +127,9 @@ const QUERY = `query($owner:String!,$name:String!,$number:Int!){
   repository(owner:$owner,name:$name){
     pullRequest(number:$number){
       number url state merged isDraft mergeStateStatus reviewDecision headRefOid
-      latestReviews(last:20){nodes{state author{login} commit{oid}}}
-      reviews(first:100){pageInfo{hasNextPage} nodes{state commit{oid}}}
+      files(first:100){pageInfo{hasNextPage}nodes{path}}
+      latestReviews(last:20){nodes{state body author{login} commit{oid}}}
+      reviews(first:100){pageInfo{hasNextPage} nodes{state body submittedAt updatedAt lastEditedAt url author{login} commit{oid}}}
       commits(last:1){nodes{commit{statusCheckRollup{state contexts(last:100){nodes{
         __typename
         ... on CheckRun{name status conclusion startedAt}
@@ -187,7 +191,7 @@ const failingChecksOf = (pullRequest) =>
 /** Only reviews sitting on the CURRENT head count, which is the whole stale-verdict fix. */
 const verdictsOn = (pullRequest) => {
   const head = pullRequest.headRefOid
-  const onHead = (pullRequest.latestReviews?.nodes ?? []).filter((review) => review.commit?.oid === head && VERDICT_RANK[review.state])
+  const onHead = (pullRequest.latestReviews?.nodes ?? []).filter((review) => review.commit?.oid === head && VERDICT_RANK[review.state] && !isReviewEvidenceCandidate(review))
   return [...new Set(onHead.map((review) => review.state))].sort((left, right) => VERDICT_RANK[right] - VERDICT_RANK[left])
 }
 
@@ -203,11 +207,8 @@ const handledSignalsOn = (number, head) => {
 }
 
 const reviewClearOn = (pullRequest) => {
-  const reviews = pullRequest.reviews
-  if (reviews?.pageInfo?.hasNextPage !== false || !Array.isArray(reviews.nodes)) return false
   if (!Object.hasOwn(pullRequest, "reviewDecision") || pullRequest.reviewDecision === "CHANGES_REQUESTED") return false
-  const approvals = reviews.nodes.filter((review) => review.state === "APPROVED")
-  return approvals.length === 0 || approvals.some((review) => review.commit?.oid === pullRequest.headRefOid)
+  return evaluateReviewEvidence(pullRequest, pullRequest.headRefOid).ok
 }
 
 const snapshotOf = (pullRequest, previous) => ({
@@ -224,6 +225,7 @@ const transitionOf = (pullRequest, previous) => {
   const handled = handledSignalsOn(number, head)
   const verdicts = verdictsOn(pullRequest)
   const verdict = verdicts.find((candidate) => !handled.has(candidate)) ?? verdicts[0] ?? null
+  const reviewEvidence = evaluateReviewEvidence(pullRequest, head)
   const reviewClear = reviewClearOn(pullRequest)
   const state = {
     repo,
@@ -235,22 +237,32 @@ const transitionOf = (pullRequest, previous) => {
     reviewDecision: pullRequest.reviewDecision,
     mergeStateStatus: pullRequest.mergeStateStatus,
     failingChecks,
+    reviewEvidence: { status: reviewEvidence.status, reason: reviewEvidence.reason },
   }
 
   if (pullRequest.merged) return { ...state, transition: "gone", reason: "the PR is merged", code: 5 }
   if (pullRequest.state === "CLOSED") return { ...state, transition: "gone", reason: "the PR is closed unmerged", code: 5 }
   if (pullRequest.isDraft) return { ...state, transition: "draft", reason: "the PR is a draft and cannot be merged", code: 1 }
   if (failingChecks.length > 0) return { ...state, transition: "checks-failed", reason: `failing check(s): ${failingChecks.join(", ")}`, code: 1 }
-  if (verdict && !handled.has(verdict)) {
-    if (verdict === "CHANGES_REQUESTED") return { ...state, transition: "changes-requested", reason: `a fresh CHANGES_REQUESTED on ${head.slice(0, 7)}`, code: 1 }
-    if (verdict === "COMMENTED") return { ...state, transition: "review-comment", reason: `a fresh review comment on ${head.slice(0, 7)}`, code: 1 }
-    return { ...state, transition: "approved", reason: `a fresh APPROVED on ${head.slice(0, 7)} (merge state ${pullRequest.mergeStateStatus})`, code: 0 }
-  }
-  const becameClean = Boolean(previous && pullRequest.mergeStateStatus === "CLEAN" && previous.mergeStateStatus !== "CLEAN")
-  const decisionChanged = previous && pullRequest.reviewDecision !== previous.reviewDecision
   if (previous && head !== previous.headSha) {
     return { ...state, transition: "head-changed", reason: `the head changed from ${previous.headSha.slice(0, 7)} to ${head.slice(0, 7)}`, code: 1 }
   }
+  if (verdict === "CHANGES_REQUESTED" && !handled.has(verdict)) return { ...state, transition: "changes-requested", reason: `a fresh CHANGES_REQUESTED on ${head.slice(0, 7)}`, code: 1 }
+  if (verdict === "COMMENTED" && !handled.has(verdict)) return { ...state, transition: "review-comment", reason: `a fresh review comment on ${head.slice(0, 7)}`, code: 1 }
+  if (reviewEvidence.status === "NEEDS_WORK" && !handled.has("NEEDS_WORK")) return { ...state, transition: "needs-work", reason: reviewEvidence.reason, code: 1 }
+  if (!["APPROVE", "AWAITING_REVIEW", "NEEDS_WORK"].includes(reviewEvidence.status)) return { ...state, transition: "review-evidence-blocked", reason: reviewEvidence.reason, code: 1 }
+  if (reviewEvidence.ok && pullRequest.reviewDecision !== "CHANGES_REQUESTED" && !handled.has("APPROVED")) {
+    return {
+      ...state,
+      verdict: "APPROVED",
+      verdictSha: head,
+      transition: "approved",
+      reason: `current local APPROVE evidence on ${head.slice(0, 7)} (merge state ${pullRequest.mergeStateStatus})`,
+      code: 0,
+    }
+  }
+  const becameClean = Boolean(previous && pullRequest.mergeStateStatus === "CLEAN" && previous.mergeStateStatus !== "CLEAN")
+  const decisionChanged = previous && pullRequest.reviewDecision !== previous.reviewDecision
   if (
     handled.has("READY_TO_MERGE") === false &&
     reviewClear &&
@@ -293,6 +305,10 @@ while (true) {
       reviewDecision: pullRequest.reviewDecision,
       mergeStateStatus: pullRequest.mergeStateStatus,
       failingChecks: failingChecksOf(pullRequest),
+      reviewEvidence: (() => {
+        const evidence = evaluateReviewEvidence(pullRequest, pullRequest.headRefOid)
+        return { status: evidence.status, reason: evidence.reason }
+      })(),
     }
     console.error(
       `poll ${polls}: #${pullRequest.number} head=${pullRequest.headRefOid.slice(0, 7)} verdict=${last.verdict ?? "none-on-head"} decision=${pullRequest.reviewDecision ?? "none"} merge=${pullRequest.mergeStateStatus} failing=${last.failingChecks.length}${fired ? ` -> ${fired.transition}` : ""}`,

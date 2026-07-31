@@ -6,8 +6,8 @@
  */
 
 import { execFileSync, spawnSync } from "node:child_process"
-import { existsSync, readFileSync, unlinkSync } from "node:fs"
-import { join, resolve } from "node:path"
+import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync, statSync, unlinkSync } from "node:fs"
+import { isAbsolute, join, relative, resolve } from "node:path"
 
 
 const USAGE = `usage: teardown-worktree.mjs (--issue ORB-N | --worktree <path>) [--base <ref>]
@@ -97,6 +97,52 @@ const pullRequestFor = (path, branch, base) => {
 }
 const selectorPath = (value) => value?.replace(/^path:/, "")
 const normalize = (path) => (typeof path === "string" ? resolve(selectorPath(path)) : "").replaceAll("\\", "/").replace(/\/+$/, "").toLowerCase()
+const isInside = (parent, child) => {
+  const pathFromParent = relative(parent, child)
+  return pathFromParent !== "" && pathFromParent !== ".." && !pathFromParent.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`) && !isAbsolute(pathFromParent)
+}
+const directoryLinks = (worktreePath) => {
+  let exactRoot
+  try {
+    exactRoot = realpathSync(worktreePath)
+  } catch (error) {
+    fail(3, `could not resolve worktree root ${worktreePath}: ${error.message}`)
+  }
+  const links = []
+  const visit = (directory) => {
+    let entries
+    try {
+      entries = readdirSync(directory, { withFileTypes: true })
+    } catch (error) {
+      fail(3, `could not inspect worktree directory ${directory}: ${error.message}`)
+    }
+    for (const entry of entries) {
+      const entryPath = resolve(directory, entry.name)
+      if (!isInside(exactRoot, entryPath)) fail(1, `refusing to inspect a path outside the exact worktree: ${entryPath}`)
+      let entryStats
+      try {
+        entryStats = lstatSync(entryPath)
+      } catch (error) {
+        fail(3, `could not inspect worktree entry ${entryPath}: ${error.message}`)
+      }
+      if (entryStats.isSymbolicLink()) {
+        let target
+        let targetStats
+        try {
+          target = realpathSync(entryPath)
+          targetStats = statSync(entryPath)
+        } catch (error) {
+          fail(1, `refusing an unresolved link in the worktree: ${entryPath}: ${error.message}`)
+        }
+        if (targetStats.isDirectory()) links.push({ link: entryPath, target })
+        continue
+      }
+      if (entryStats.isDirectory()) visit(entryPath)
+    }
+  }
+  visit(exactRoot)
+  return links
+}
 
 const worktrees = orca(["worktree", "list"]).worktrees ?? []
 const worktree = requestedIssue
@@ -174,9 +220,21 @@ const gitCommon = (args, { allowFailure = false } = {}) => {
   if (allowFailure) return null
   fail(3, `git ${args.join(" ")} failed: ${(result.stderr || result.stdout || "unknown error").trim()}`)
 }
+const links = directoryLinks(path)
+for (const { link, target } of links) {
+  try {
+    unlinkSync(link)
+  } catch (error) {
+    fail(3, `could not remove verified junction link ${link}: ${error.message}`)
+  }
+  if (existsSync(link)) fail(1, `junction link remained after removal: ${link}`)
+  if (!existsSync(target)) fail(1, `junction target did not survive link removal: ${target}`)
+  console.log(`REMOVED junction link ${link}`)
+  console.log(`PRESERVED junction target ${target}`)
+}
 orca(["terminal", "stop", "--worktree", selector])
 try {
-  execFileSync(ORCA, ["worktree", "rm", "--worktree", selector, "--force", "--json"], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
+  execFileSync(ORCA, ["worktree", "rm", "--worktree", selector, "--json"], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
 } catch {
   // Verification below decides whether a dropped Orca runtime connection was harmless.
 }

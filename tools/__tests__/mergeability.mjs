@@ -5,6 +5,16 @@ import { T, stage, orcaEnv, run } from "./_harness.mjs"
 const mergeabilityCases = () => {
   const head = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   const stale = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  const localReview = (recommendation = "APPROVE", markerHead = head, commit = head, at = "2026-07-31T10:00:00Z") => ({
+    state: "COMMENTED",
+    body: `<!-- orbit-local-review: ${JSON.stringify({ version: 1, head: markerHead, recommendation })} -->`,
+    submittedAt: at,
+    updatedAt: at,
+    lastEditedAt: null,
+    url: "https://github.com/orbit/ui/pull/615#pullrequestreview-local",
+    author: { login: "local-reviewer" },
+    commit: { oid: commit },
+  })
   const checkRun = (name, conclusion, createdAt = "2026-07-31T14:55:29Z", startedAt = createdAt) => ({
     __typename: "CheckRun",
     name,
@@ -23,10 +33,11 @@ const mergeabilityCases = () => {
     mergeStateStatus: "CLEAN",
     reviewDecision: "",
     headRefOid: head,
+    files: { pageInfo: { hasNextPage: false }, nodes: [{ path: "tools/example.mjs" }] },
     labels: { pageInfo: { hasNextPage: false }, nodes: [] },
     reviews: {
       pageInfo: { hasNextPage: false },
-      nodes: [],
+      nodes: [localReview()],
     },
     comments: { pageInfo: { hasNextPage: false }, nodes: [] },
     reviewThreads: { pageInfo: { hasNextPage: false }, nodes: [] },
@@ -52,20 +63,25 @@ const mergeabilityCases = () => {
     return { ...result, calls: readFileSync(log, "utf8").trim().split(/\r?\n/).filter(Boolean).map((entry) => JSON.parse(entry)) }
   }
   const mergeable = runCase("mergeable", pullRequest())
-  T("mergeability.mjs: zero required approvals and no review submissions is MERGEABLE", mergeable.status === 0 && /^MERGEABLE\r?\n/.test(mergeable.stdout) && (mergeable.stdout.match(/^OK /gm) ?? []).length === 10, mergeable.stderr || mergeable.stdout)
+  T("mergeability.mjs: current local approval evidence is MERGEABLE", mergeable.status === 0 && /^MERGEABLE\r?\n/.test(mergeable.stdout) && (mergeable.stdout.match(/^OK /gm) ?? []).length === 10, mergeable.stderr || mergeable.stdout)
   T("mergeability.mjs: only records the GitHub and Linear read verbs", mergeable.calls.length === 4 && mergeable.calls.every((call) => (/[\\/]api$/.test(call[0]) && call[1] === "graphql") || (/[\\/]linear$/.test(call[0]) && call[1] === "issue")), JSON.stringify(mergeable.calls))
+  T("mergeability.mjs: the atomic GitHub snapshot requests the complete changed-files inventory", mergeable.calls.filter((call) => /[\\/]api$/.test(call[0])).every((call) => call.some((argument) => argument.includes("files(first:100){pageInfo{hasNextPage}nodes{path}}"))), JSON.stringify(mergeable.calls))
   const machine = runCase("machine", pullRequest(), { json: true })
   T("mergeability.mjs: JSON output carries the consumable verdict and conditions", machine.status === 0 && JSON.parse(machine.stdout).verdict === "MERGEABLE" && JSON.parse(machine.stdout).conditions.length === 10, machine.stderr || machine.stdout)
   const draft = runCase("draft", pullRequest({ isDraft: true }))
   T("mergeability.mjs: a draft is HELD even when GitHub says CLEAN", draft.status === 1 && /^HELD\r?\n/.test(draft.stdout) && /HELD draft: pull request is a draft/.test(draft.stdout), draft.stderr || draft.stdout)
   const unresolved = runCase("unresolved", pullRequest({ reviewThreads: { pageInfo: { hasNextPage: false }, nodes: [{ isResolved: false }] } }))
   T("mergeability.mjs: an unresolved review thread is HELD", unresolved.status === 1 && /HELD unresolved-review-threads: 1 unresolved thread/.test(unresolved.stdout), unresolved.stderr || unresolved.stdout)
-  const staleApproval = runCase("stale-approval", pullRequest({ reviews: { pageInfo: { hasNextPage: false }, nodes: [{ state: "APPROVED", author: { login: "reviewer" }, commit: { oid: stale } }] } }))
-  T("mergeability.mjs: any present stale approval is HELD", staleApproval.status === 1 && new RegExp(`HELD approval-not-stale: .*${stale}.*${head}`).test(staleApproval.stdout), staleApproval.stderr || staleApproval.stdout)
-  const currentApproval = runCase("current-approval", pullRequest({ reviews: { pageInfo: { hasNextPage: false }, nodes: [{ state: "APPROVED", author: { login: "reviewer" }, commit: { oid: head } }] } }))
-  T("mergeability.mjs: a present current-head approval remains acceptable", currentApproval.status === 0 && /OK approval-not-stale: approval names current head/.test(currentApproval.stdout), currentApproval.stderr || currentApproval.stdout)
-  const unanchoredApproval = runCase("unanchored-approval", pullRequest({ reviews: { pageInfo: { hasNextPage: false }, nodes: [{ state: "APPROVED", author: { login: "reviewer" }, commit: null }] } }))
-  T("mergeability.mjs: a present approval without a commit anchor is HELD", unanchoredApproval.status === 1 && /HELD approval-not-stale: approvals name <unavailable>/.test(unanchoredApproval.stdout), unanchoredApproval.stderr || unanchoredApproval.stdout)
+  const missingEvidence = runCase("missing-evidence", pullRequest({ reviews: { pageInfo: { hasNextPage: false }, nodes: [] } }))
+  T("mergeability.mjs: absent local review evidence is HELD", missingEvidence.status === 1 && /HELD review-evidence: AWAITING_REVIEW/.test(missingEvidence.stdout), missingEvidence.stderr || missingEvidence.stdout)
+  const incompleteFiles = runCase("incomplete-files", pullRequest({ files: { pageInfo: { hasNextPage: true }, nodes: [{ path: "tools/example.mjs" }] } }))
+  T("mergeability.mjs: an incomplete changed-files inventory is HELD", incompleteFiles.status === 1 && /HELD review-evidence: INCOMPLETE: file inventory has another page/.test(incompleteFiles.stdout), incompleteFiles.stderr || incompleteFiles.stdout)
+  const needsWork = runCase("needs-work", pullRequest({ reviews: { pageInfo: { hasNextPage: false }, nodes: [localReview("NEEDS_WORK")] } }))
+  T("mergeability.mjs: latest NEEDS_WORK evidence is HELD", needsWork.status === 1 && /HELD review-evidence: NEEDS_WORK/.test(needsWork.stdout), needsWork.stderr || needsWork.stdout)
+  const staleApproval = runCase("stale-approval", pullRequest({ reviews: { pageInfo: { hasNextPage: false }, nodes: [localReview(), { state: "APPROVED", body: "", submittedAt: "2026-07-31T09:00:00Z", updatedAt: "2026-07-31T09:00:00Z", lastEditedAt: null, url: "https://github.com/orbit/ui/pull/615#pullrequestreview-native", author: { login: "reviewer" }, commit: { oid: stale } }] } }))
+  T("mergeability.mjs: any present stale native approval is HELD", staleApproval.status === 1 && /HELD review-evidence: STALE_NATIVE_APPROVAL/.test(staleApproval.stdout), staleApproval.stderr || staleApproval.stdout)
+  const currentApproval = runCase("current-approval", pullRequest({ reviews: { pageInfo: { hasNextPage: false }, nodes: [localReview(), { state: "APPROVED", body: "", submittedAt: "2026-07-31T09:00:00Z", updatedAt: "2026-07-31T09:00:00Z", lastEditedAt: null, url: "https://github.com/orbit/ui/pull/615#pullrequestreview-native", author: { login: "reviewer" }, commit: { oid: head } }] } }))
+  T("mergeability.mjs: current local and native approvals remain acceptable", currentApproval.status === 0 && /OK review-evidence: APPROVE/.test(currentApproval.stdout), currentApproval.stderr || currentApproval.stdout)
   const changesRequested = runCase("changes-requested", pullRequest({ reviewDecision: "CHANGES_REQUESTED" }))
   T("mergeability.mjs: CHANGES_REQUESTED remains HELD", changesRequested.status === 1 && /HELD review-decision: review decision is CHANGES_REQUESTED/.test(changesRequested.stdout), changesRequested.stderr || changesRequested.stdout)
   const latestCheck = runCase("latest-check", pullRequest({ commits: { nodes: [{ commit: { statusCheckRollup: { state: "FAILURE", contexts: { pageInfo: { hasNextPage: false }, nodes: [checkRun("CI", "SUCCESS", "2026-07-31T14:55:29Z"), checkRun("CI", "CANCELLED", "2026-07-31T14:53:08Z")] } } } }] } }))

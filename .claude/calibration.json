@@ -1,14 +1,14 @@
 {
-  "model": "gpt-5.6-terra",
+  "model": "gpt-5.6-luna",
   "invocation": [
     "exec",
     "-c",
     "windows.sandbox=\"unelevated\"",
     "--dangerously-bypass-approvals-and-sandbox",
     "-c",
-    "model_reasoning_effort=\"medium\"",
+    "model_reasoning_effort=\"max\"",
     "--model",
-    "gpt-5.6-terra"
+    "gpt-5.6-luna"
   ],
   "date": "2026-07-31",
   "entries": [
@@ -172,7 +172,7 @@
       "file": ".claude/skills/orchestrate/SKILL.md",
       "verdict": "kept",
       "reason": "High effort fits merge-gated multi-worker coordination and reconciliation.",
-      "fingerprint": "sha256:bb6c39d70e481019c699202d46e20889075e50c9c2428ea5b158b285c7a1e08f"
+      "fingerprint": "sha256:07c73d1cc75a30ee8bbb0f4c99cba45bd9004100d8d5347e971f9200f4e3524d"
     },
     {
       "file": ".claude/skills/pr-review/SKILL.md",

@@ -4,6 +4,7 @@
 import { execFileSync } from "node:child_process"
 
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
+import { evaluateReviewEvidence } from "./check-review-evidence.mjs"
 
 const USAGE = `usage: mergeability.mjs --repo <owner/name> --pr <number> [--json]
 
@@ -53,7 +54,7 @@ const linearTeam = config.linear?.team
 if (typeof linearTeam !== "string" || !linearTeam) fail(".claude/orchestrator.json must declare linear.team")
 const issueIdentifierPattern = new RegExp(`\\b${linearTeam.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}-\\d+\\b`, "i")
 
-const QUERY = `query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){number url title body headRefName isDraft mergeStateStatus reviewDecision headRefOid labels(first:100){pageInfo{hasNextPage}nodes{name}} reviews(first:100){pageInfo{hasNextPage}nodes{state commit{oid}}} reviewThreads(first:100){pageInfo{hasNextPage}nodes{isResolved}} commits(last:1){nodes{commit{statusCheckRollup{state contexts(first:100){pageInfo{hasNextPage}nodes{__typename ... on CheckRun{name status conclusion startedAt} ... on StatusContext{context state createdAt}}}}}}}}}}`
+const QUERY = `query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){number url title body headRefName isDraft mergeStateStatus reviewDecision headRefOid files(first:100){pageInfo{hasNextPage}nodes{path}} labels(first:100){pageInfo{hasNextPage}nodes{name}} reviews(first:100){pageInfo{hasNextPage}nodes{state body submittedAt updatedAt lastEditedAt url author{login} commit{oid}}} reviewThreads(first:100){pageInfo{hasNextPage}nodes{isResolved}} commits(last:1){nodes{commit{statusCheckRollup{state contexts(first:100){pageInfo{hasNextPage}nodes{__typename ... on CheckRun{name status conclusion startedAt} ... on StatusContext{context state createdAt}}}}}}}}}}`
 
 const command = (file, args) => {
   try {
@@ -132,18 +133,8 @@ if (!first.ok) {
   const reviewsComplete = complete(pullRequest.reviews)
   const reviewDecisionKnown = Object.hasOwn(pullRequest, "reviewDecision")
   add("review-decision", reviewsComplete && reviewDecisionKnown && pullRequest.reviewDecision !== "CHANGES_REQUESTED", `review decision is ${reviewDecisionKnown ? (pullRequest.reviewDecision || "empty") : "unavailable"}`)
-  const approvedCommits = pullRequest.reviews?.nodes?.filter((review) => review.state === "APPROVED").map((review) => review.commit?.oid ?? "<unavailable>") ?? []
-  const approvalOnHead = approvedCommits.includes(pullRequest.headRefOid)
-  const approvalNotStale = reviewsComplete && (approvedCommits.length === 0 || approvalOnHead)
-  add(
-    "approval-not-stale",
-    approvalNotStale,
-    approvedCommits.length === 0
-      ? "no approval exists, and none is required"
-      : approvalOnHead
-        ? `approval names current head ${pullRequest.headRefOid}`
-        : `approvals name ${approvedCommits.join(", ")}; head is ${pullRequest.headRefOid ?? "absent"}`,
-  )
+  const reviewEvidence = evaluateReviewEvidence(pullRequest, pullRequest.headRefOid)
+  add("review-evidence", reviewEvidence.ok, `${reviewEvidence.status}: ${reviewEvidence.reason}`)
   const issueIdentifiers = new Set(
     [pullRequest.headRefName, pullRequest.title]
       .flatMap((value) => [...(value ?? "").matchAll(new RegExp(issueIdentifierPattern.source, "gi"))])

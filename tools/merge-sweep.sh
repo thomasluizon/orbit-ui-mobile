@@ -15,6 +15,7 @@ set -u
 REVIEW_WORKFLOW_PATH=".github/workflows/claude-review.yml"
 REVIEW_CHECK_NAME="review"
 ORCA_BIN="${ORCA_BIN:-C:\Users\thoma\AppData\Local\Programs\orca\resources\bin\orca}"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 usage() {
   cat <<EOF
@@ -484,29 +485,20 @@ review_safety_gate() { # <pr> <pre|post>; prints the fail-closed reason
   fi
 }
 
-# Refuses a STALE approval; it does NOT require a fresh one. If any review is APPROVED, at
-# least one of them must name the expected head. If nothing is approved at all this imposes
-# nothing and the other gates carry the merge, because after the review workflow is deleted no
-# GitHub identity in either repository can produce an approving review, and a rule demanding
-# one would refuse every unattended merge from that point on, forever.
-approval_not_stale() { # <pr> <expected-head-sha>; prints the refusal reason
-  local pr="$1" expected="$2" approved oid
-  if ! approved="$(gh api graphql \
-    -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){reviews(first:100){pageInfo{hasNextPage} nodes{state author{login} commit{oid}}}}}}' \
+# Requires current local review evidence and preserves the native stale-approval refusal.
+review_evidence_allows() { # <pr> <expected-head-sha>; prints the refusal reason
+  local pr="$1" expected="$2" reviews verdict
+  if ! reviews="$(gh api graphql \
+    -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){headRefOid files(first:100){pageInfo{hasNextPage} nodes{path}} reviews(first:100){pageInfo{hasNextPage} nodes{state body submittedAt updatedAt lastEditedAt url author{login} commit{oid}}}}}}' \
     -F o="${repo%%/*}" -F r="${repo##*/}" -F n="$pr" \
-    --jq '.data.repository.pullRequest.reviews | if .pageInfo.hasNextPage then "PAGINATED" else ([.nodes[] | select(.state == "APPROVED") | .commit.oid] | join(" ")) end' 2>/dev/null)"; then
-    echo "SKIP #$pr APPROVAL-LOOKUP-FAILED"
+    --jq '.data.repository.pullRequest' 2>/dev/null)"; then
+    echo "SKIP #$pr REVIEW-EVIDENCE-LOOKUP-FAILED"
     return 1
   fi
-  if [ "$approved" = "PAGINATED" ]; then
-    echo "SKIP #$pr APPROVAL-PAGE-OVERFLOW (over 100 reviews; refusing rather than paginating)"
-    return 1
+  if verdict="$(node "$SCRIPT_DIR/check-review-evidence.mjs" --expected-head "$expected" <<<"$reviews")"; then
+    return 0
   fi
-  [ -z "$approved" ] && return 0
-  for oid in $approved; do
-    [ "$oid" = "$expected" ] && return 0
-  done
-  echo "SKIP #$pr APPROVAL-STALE expected=$expected approved=[$approved]"
+  echo "SKIP #$pr REVIEW-EVIDENCE-HELD $verdict"
   return 1
 }
 
@@ -654,15 +646,9 @@ for n in "$@"; do
       checks_pending=1
       block_reason="checks on the current head never all concluded (pending=$pending)"
     fi
-    # A2 in full: "no approving review may be STALE", never "an approving review must exist".
-    # `claude` is the only identity that has ever approved here, GitHub forbids an author approving
-    # their own pull request, and this pull request deletes the workflow that drove that identity,
-    # so `required_approving_review_count` is 0 in both repositories and `reviewDecision` now reads
-    # empty on an approved pull request. Requiring APPROVED here would refuse every unattended
-    # merge forever. Read live on 2026-07-31: #667 and #668 carry APPROVED reviews and report
-    # `reviewDecision: ""`, while #656, #658, #660 and #661 still report `CHANGES_REQUESTED`. Only
-    # the APPROVED value was zeroed, so the blocking half of this field is still load-bearing and
-    # is kept; the positive half is now `approval_not_stale`, the only SHA-anchored review gate.
+    # GitHub's PR-level decision still carries the native CHANGES_REQUESTED block. The positive
+    # gate is the marker-bearing local review, read from the complete reviews inventory at the
+    # final decision boundary and anchored both in its marker and GitHub commit to this head.
     if [ -z "$review_stale" ] && [ -z "$checks_pending" ] && { [ "$ms" = "CLEAN" ] || [ "$ms" = "UNSTABLE" ]; } && [ "$rev" != "CHANGES_REQUESTED" ]; then
       branch=$(gh pr view "$n" --repo "$repo" --json headRefName --jq .headRefName 2>/dev/null)
       if ! review_safety_gate "$n" pre; then
@@ -678,7 +664,7 @@ for n in "$@"; do
       # `rev` above is PR-level `reviewDecision`, which survives every push: PR #654 read
       # APPROVED from a review submitted against cac9ccb while headRefOid was 40dba9f, and
       # merged. If any approval exists, at least one must name THIS commit.
-      if ! approval_not_stale "$n" "$expected"; then
+      if ! review_evidence_allows "$n" "$expected"; then
         done_pr=1
         break
       fi

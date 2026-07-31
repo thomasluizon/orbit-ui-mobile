@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process"
-import { chmodSync, existsSync, mkdirSync, writeFileSync } from "node:fs"
+import { appendFileSync, chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { T, root, orcaEnv, check, stageWorkerPidMarker, exitedProbePid } from "./_harness.mjs"
@@ -87,6 +87,13 @@ const teardownPlan = (fixture, { state = "Done", pullRequest = mergedPullRequest
 ]
 
 const teardownWorktreeCases = () => {
+  const source = readFileSync(new URL("../teardown-worktree.mjs", import.meta.url), "utf8")
+  const forceRemoved = !/worktree", "rm"[^\n]+"--force"/.test(source)
+  T(
+    "teardown-worktree.mjs: Orca removal never uses --force",
+    forceRemoved,
+    "the shipped worktree rm call still carries --force and may follow a Windows junction target",
+  )
   check("teardown-worktree.mjs", "refuses no selector", [], { status: 2, stderr: /provide exactly one selector/ })
   check("teardown-worktree.mjs", "refuses both selectors", ["--issue", "ORB-124", "--worktree", "path:C:/other"], { status: 2, stderr: /provide exactly one selector/ })
   check("teardown-worktree.mjs", "refuses a malformed Linear issue selector", ["--issue", "orb-124"], { status: 2, stderr: /--issue must be a Linear identifier/ })
@@ -264,6 +271,99 @@ const teardownWorktreeCases = () => {
     ["--issue", "ORB-124"],
     { status: 1, stderr: /removed worktree but local branch feature\/orb-124-teardown still exists/ },
     { env: orcaEnv(teardownPlan(branchRemains, { removePath: branchRemains.child })) },
+  )
+
+  if (!forceRemoved) {
+    T(
+      "teardown-worktree.mjs: a real Windows junction target survives teardown",
+      false,
+      "fixture withheld while the shipped removal still uses --force",
+    )
+    return
+  }
+
+  const internalJunction = stageTeardownWorktree("internal-junction-present-at-removal")
+  const internalTarget = join(internalJunction.child, "node_modules", ".store", "shared")
+  const internalLink = join(internalJunction.child, "node_modules", "shared")
+  const internalSentinel = join(internalTarget, "sentinel.txt")
+  const internalObservation = join(root, "teardown", "internal-junction-observation.json")
+  const junctionObserver = join(root, "teardown", "junction-observer.cjs")
+  mkdirSync(internalTarget, { recursive: true })
+  writeFileSync(internalSentinel, "target must exist when Orca removal starts\n")
+  appendFileSync(join(internalJunction.primary, ".git", "info", "exclude"), "\nnode_modules/\n")
+  symlinkSync(internalTarget, internalLink, "junction")
+  writeFileSync(junctionObserver, `const { existsSync, writeFileSync } = require("node:fs")
+if (process.argv.slice(1).join(" ").includes("worktree rm")) {
+  writeFileSync(process.env.ORBIT_JUNCTION_OBSERVATION, JSON.stringify({
+    link: existsSync(process.env.ORBIT_JUNCTION_LINK),
+    target: existsSync(process.env.ORBIT_JUNCTION_SENTINEL),
+  }))
+}
+`)
+  const internalPlan = teardownPlan(internalJunction, { removePath: internalJunction.child })
+  const internalEnv = orcaEnv(internalPlan)
+  check(
+    "teardown-worktree.mjs",
+    "unlinks an internal Windows junction before ordinary Orca removal",
+    ["--issue", "ORB-124"],
+    { status: 0, stdout: /REMOVED junction link[\s\S]*PRESERVED junction target[\s\S]*REMOVED worktree/ },
+    {
+      env: {
+        ...internalEnv,
+        NODE_OPTIONS: `--require "${junctionObserver.replaceAll("\\", "/")}" ${internalEnv.NODE_OPTIONS}`,
+        ORBIT_JUNCTION_OBSERVATION: internalObservation,
+        ORBIT_JUNCTION_LINK: internalLink,
+        ORBIT_JUNCTION_SENTINEL: internalSentinel,
+      },
+    },
+  )
+  const observedInternalJunction = existsSync(internalObservation)
+    ? JSON.parse(readFileSync(internalObservation, "utf8"))
+    : null
+  T(
+    "teardown-worktree.mjs: internal junction target exists at the Orca removal boundary",
+    observedInternalJunction?.link === false && observedInternalJunction?.target === true,
+    `observation: ${JSON.stringify(observedInternalJunction)}`,
+  )
+
+  const junction = stageTeardownWorktree("junction-survives")
+  const junctionTarget = join(root, "teardown", "junction-target")
+  const junctionParent = join(junction.child, "node_modules")
+  const junctionLink = join(junctionParent, "shared")
+  const sentinel = join(junctionTarget, "sentinel.txt")
+  mkdirSync(junctionTarget, { recursive: true })
+  mkdirSync(junctionParent, { recursive: true })
+  writeFileSync(sentinel, "target must survive\n")
+  appendFileSync(join(junction.primary, ".git", "info", "exclude"), "\nnode_modules/\n")
+  symlinkSync(junctionTarget, junctionLink, "junction")
+  T(
+    "teardown-worktree.mjs: junction fixture is a real filesystem link",
+    lstatSync(junctionLink).isSymbolicLink(),
+    `${junctionLink} is not a junction or symbolic link`,
+  )
+  const junctionLog = join(root, "teardown", "junction-calls.log")
+  const junctionResult = check(
+    "teardown-worktree.mjs",
+    "removes the verified junction link before safe Orca teardown",
+    ["--issue", "ORB-124"],
+    { status: 0, stdout: /REMOVED junction link[\s\S]*PRESERVED junction target[\s\S]*REMOVED worktree/ },
+    { env: { ...orcaEnv(teardownPlan(junction, { removePath: junction.child })), ORBIT_ORCA_LOG: junctionLog } },
+  )
+  const junctionCalls = existsSync(junctionLog)
+    ? readFileSync(junctionLog, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
+    : []
+  T(
+    "teardown-worktree.mjs: safe Orca removal omits --force",
+    junctionCalls.some((call) => {
+      const command = call.findIndex((token) => token === "worktree" || token.endsWith("\\worktree") || token.endsWith("/worktree"))
+      return command !== -1 && call[command + 1] === "rm" && !call.includes("--force")
+    }),
+    junctionResult.stderr || `calls: ${JSON.stringify(junctionCalls)}`,
+  )
+  T(
+    "teardown-worktree.mjs: a real Windows junction target survives teardown",
+    existsSync(junctionTarget) && existsSync(sentinel),
+    `target=${existsSync(junctionTarget)}, sentinel=${existsSync(sentinel)}`,
   )
 }
 

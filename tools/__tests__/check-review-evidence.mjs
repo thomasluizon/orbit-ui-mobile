@@ -1,0 +1,115 @@
+import { spawnSync } from "node:child_process"
+
+import { T, toolPath } from "./_harness.mjs"
+
+const HEAD = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+const OLD = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+const MARKER = (head, recommendation, extra = {}) =>
+  `<!-- orbit-local-review: ${JSON.stringify({ version: 1, head, recommendation, ...extra })} -->`
+const review = ({ body, commit = HEAD, state = "COMMENTED", at = "2026-07-31T10:00:00Z", edited = null }) => ({
+  state,
+  body,
+  submittedAt: at,
+  updatedAt: at,
+  lastEditedAt: edited,
+  url: "https://github.com/orbit/ui/pull/1#pullrequestreview-1",
+  author: { login: "reviewer" },
+  commit: commit === null ? null : { oid: commit },
+})
+const connection = (nodes, hasNextPage = false) => ({ pageInfo: { hasNextPage }, nodes })
+const snapshot = (nodes, expectedHead = HEAD, reviewsHaveNextPage = false, filesHaveNextPage = false) => ({
+  headRefOid: expectedHead,
+  files: connection([], filesHaveNextPage),
+  reviews: connection(nodes, reviewsHaveNextPage),
+})
+const runEvidence = (nodes, expectedHead = HEAD, reviewsHaveNextPage = false, filesHaveNextPage = false) =>
+  spawnSync(process.execPath, [toolPath("check-review-evidence.mjs"), "--expected-head", expectedHead], {
+    encoding: "utf8",
+    input: JSON.stringify(snapshot(nodes, expectedHead, reviewsHaveNextPage, filesHaveNextPage)),
+  })
+
+const reviewEvidenceCases = () => {
+  const help = spawnSync(process.execPath, [toolPath("check-review-evidence.mjs"), "--help"], { encoding: "utf8" })
+  T("check-review-evidence.mjs: --help documents input and exits", help.status === 0 && /pull-request snapshot containing headRefOid plus complete files and reviews[\s\S]*0 approved, 1 held, 2 invalid input/.test(help.stdout), help.stderr || help.stdout)
+
+  const absent = runEvidence([])
+  T("check-review-evidence.mjs: absent local review evidence blocks", absent.status === 1 && /AWAITING_REVIEW/.test(absent.stdout), absent.stderr || absent.stdout)
+
+  const approve = runEvidence([review({ body: `${MARKER(HEAD, "APPROVE")}\n\nReviewed locally.` })])
+  T("check-review-evidence.mjs: current complete APPROVE evidence passes", approve.status === 0 && /\"status\":\s*\"APPROVE\"/.test(approve.stdout), approve.stderr || approve.stdout)
+
+  const needsWork = runEvidence([review({ body: MARKER(HEAD, "NEEDS_WORK") })])
+  T("check-review-evidence.mjs: NEEDS_WORK blocks", needsWork.status === 1 && /\"status\":\s*\"NEEDS_WORK\"/.test(needsWork.stdout), needsWork.stderr || needsWork.stdout)
+
+  const staleMarker = runEvidence([review({ body: MARKER(OLD, "APPROVE"), commit: HEAD })])
+  T("check-review-evidence.mjs: stale marker head blocks", staleMarker.status === 1 && /STALE/.test(staleMarker.stdout), staleMarker.stderr || staleMarker.stdout)
+
+  const staleCommit = runEvidence([review({ body: MARKER(HEAD, "APPROVE"), commit: OLD })])
+  T("check-review-evidence.mjs: stale GitHub review commit blocks", staleCommit.status === 1 && /STALE/.test(staleCommit.stdout), staleCommit.stderr || staleCommit.stdout)
+
+  const malformedLatest = runEvidence([
+    review({ body: MARKER(HEAD, "APPROVE"), at: "2026-07-31T10:00:00Z" }),
+    review({ body: '<!-- orbit-local-review: {"version":1} -->', at: "2026-07-31T11:00:00Z" }),
+  ])
+  T("check-review-evidence.mjs: malformed latest evidence supersedes an older approval", malformedLatest.status === 1 && /MALFORMED/.test(malformedLatest.stdout), malformedLatest.stderr || malformedLatest.stdout)
+
+  const extraKey = runEvidence([review({ body: MARKER(HEAD, "APPROVE", { note: "no" }) })])
+  T("check-review-evidence.mjs: marker keys must be exact", extraKey.status === 1 && /MALFORMED/.test(extraKey.stdout), extraKey.stderr || extraKey.stdout)
+
+  for (const [label, body] of [
+    ["invalid JSON", '<!-- orbit-local-review: {"version":1,} -->'],
+    ["wrong version", `<!-- orbit-local-review: ${JSON.stringify({ version: 2, head: HEAD, recommendation: "APPROVE" })} -->`],
+    ["invalid head", `<!-- orbit-local-review: ${JSON.stringify({ version: 1, head: HEAD.toUpperCase(), recommendation: "APPROVE" })} -->`],
+    ["unknown recommendation", `<!-- orbit-local-review: ${JSON.stringify({ version: 1, head: HEAD, recommendation: "COMMENT" })} -->`],
+  ]) {
+    const malformed = runEvidence([review({ body })])
+    T(`check-review-evidence.mjs: ${label} is malformed`, malformed.status === 1 && /MALFORMED/.test(malformed.stdout), malformed.stderr || malformed.stdout)
+  }
+
+  const badTimestamp = runEvidence([review({ body: MARKER(HEAD, "APPROVE"), at: "not-a-time" })])
+  T("check-review-evidence.mjs: an unorderable marker timestamp blocks", badTimestamp.status === 1 && /MALFORMED/.test(badTimestamp.stdout), badTimestamp.stderr || badTimestamp.stdout)
+
+  const badConnection = spawnSync(process.execPath, [toolPath("check-review-evidence.mjs"), "--expected-head", HEAD], {
+    encoding: "utf8",
+    input: JSON.stringify({ headRefOid: HEAD, files: connection([]), reviews: { nodes: [] } }),
+  })
+  T("check-review-evidence.mjs: an incomplete review connection shape blocks", badConnection.status === 1 && /INCOMPLETE/.test(badConnection.stdout), badConnection.stderr || badConnection.stdout)
+
+  const incompleteFiles = runEvidence([review({ body: MARKER(HEAD, "APPROVE") })], HEAD, false, true)
+  T("check-review-evidence.mjs: incomplete file inventory blocks", incompleteFiles.status === 1 && /INCOMPLETE/.test(incompleteFiles.stdout), incompleteFiles.stderr || incompleteFiles.stdout)
+
+  const quoted = runEvidence([review({ body: `Context\n${MARKER(HEAD, "APPROVE")}` })])
+  T("check-review-evidence.mjs: a marker below other content is absent rather than evidence", quoted.status === 1 && /AWAITING_REVIEW/.test(quoted.stdout), quoted.stderr || quoted.stdout)
+
+  const tied = runEvidence([
+    review({ body: MARKER(HEAD, "APPROVE"), at: "2026-07-31T10:00:00Z" }),
+    review({ body: MARKER(HEAD, "NEEDS_WORK"), at: "2026-07-31T10:00:00Z" }),
+  ])
+  T("check-review-evidence.mjs: latest timestamp ties are ambiguous", tied.status === 1 && /AMBIGUOUS/.test(tied.stdout), tied.stderr || tied.stdout)
+
+  const pagination = runEvidence([review({ body: MARKER(HEAD, "APPROVE") })], HEAD, true)
+  T("check-review-evidence.mjs: incomplete review inventory blocks", pagination.status === 1 && /INCOMPLETE/.test(pagination.stdout), pagination.stderr || pagination.stdout)
+
+  const movedSnapshot = spawnSync(process.execPath, [toolPath("check-review-evidence.mjs"), "--expected-head", HEAD], {
+    encoding: "utf8",
+    input: JSON.stringify({ headRefOid: OLD, files: connection([]), reviews: connection([review({ body: MARKER(HEAD, "APPROVE") })]) }),
+  })
+  T("check-review-evidence.mjs: an atomically read moved PR head blocks", movedSnapshot.status === 1 && /STALE/.test(movedSnapshot.stdout), movedSnapshot.stderr || movedSnapshot.stdout)
+
+  const staleNative = runEvidence([
+    review({ body: MARKER(HEAD, "APPROVE"), commit: HEAD }),
+    review({ body: "native", commit: OLD, state: "APPROVED", at: "2026-07-31T09:00:00Z" }),
+  ])
+  T("check-review-evidence.mjs: a stale native approval blocks", staleNative.status === 1 && /STALE_NATIVE_APPROVAL/.test(staleNative.stdout), staleNative.stderr || staleNative.stdout)
+
+  const currentNative = runEvidence([
+    review({ body: MARKER(HEAD, "APPROVE"), commit: HEAD }),
+    review({ body: "native", commit: HEAD, state: "APPROVED", at: "2026-07-31T09:00:00Z" }),
+  ])
+  T("check-review-evidence.mjs: current native approval and local approval pass", currentNative.status === 0, currentNative.stderr || currentNative.stdout)
+
+  const badInput = spawnSync(process.execPath, [toolPath("check-review-evidence.mjs"), "--expected-head", HEAD], { encoding: "utf8", input: "not-json" })
+  T("check-review-evidence.mjs: invalid input exits 2", badInput.status === 2, badInput.stderr || badInput.stdout)
+}
+
+export { reviewEvidenceCases as cases }

@@ -1325,12 +1325,24 @@ const launchWorkerCases = async () => {
   // Headless is a property of the CLI, not of the harness: codex's -p is --profile, an
   // interactive flag, while claude's -p is --print. One shared token list cannot tell them
   // apart, so these five cases pin both halves of the per-engine split.
-  const codex = stageLaunchWorker("codex-interactive", INTERACTIVE_CODEX, "codex")
+  const configuredCodex = JSON.parse(readFileSync(join(REPO_ROOT, ".claude", "orchestrator.json"), "utf8")).workers?.codex?.models
+  T(
+    "launch-worker.mjs: the configured Codex implementation worker defaults to Luna at max effort",
+    configuredCodex?.default?.model === "gpt-5.6-luna" &&
+      configuredCodex.default.args?.join(" ") === '-c model_reasoning_effort="max"',
+    JSON.stringify(configuredCodex?.default),
+  )
+  const implementationCodexModels = {
+    default: { model: "gpt-5.6-luna", args: ["-c", 'model_reasoning_effort="max"'] },
+    cheap: CODEX_MODELS.cheap,
+    deep: CODEX_MODELS.deep,
+  }
+  const codex = stageLaunchWorker("codex-interactive", { ...INTERACTIVE_CODEX, models: implementationCodexModels }, "codex")
   const codexPlan = check(
     "launch-worker.mjs",
-    "Codex defaults to Terra at medium effort",
+    "Codex defaults to Luna at max effort",
     ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
-    { status: 0, stdout: /codex[\s\S]*model_reasoning_effort[\s\S]*medium[\s\S]*--model gpt-5\.6-terra/ },
+    { status: 0, stdout: /codex[\s\S]*model_reasoning_effort[\s\S]*max[\s\S]*--model gpt-5\.6-luna/ },
     { path: codex.path, env: orcaEnv(linearIssueStub(["repo:ui"])) },
   )
   const codexCheap = check(
@@ -1353,10 +1365,9 @@ const launchWorkerCases = async () => {
   T("launch-worker.mjs: Codex cheap tier cannot resolve to the unchanged default invocation", codexCheapCommand !== codexDefaultCommand, `default and cheap both resolved to: ${codexDefaultCommand}`)
   T("launch-worker.mjs: Codex deep tier cannot resolve to the unchanged default invocation", codexDeepCommand !== codexDefaultCommand, `default and deep both resolved to: ${codexDefaultCommand}`)
   T(
-    "launch-worker.mjs: no Codex tier resolves at max reasoning",
-    ![codexDefaultCommand, codexCheapCommand, codexDeepCommand].some(
-      (command) => command.includes('model_reasoning_effort="max"'),
-    ),
+    "launch-worker.mjs: only the default implementation tier resolves at max reasoning",
+    codexDefaultCommand.includes('model_reasoning_effort="max"') &&
+      ![codexCheapCommand, codexDeepCommand].some((command) => command.includes('model_reasoning_effort="max"')),
     `resolved commands: ${[codexDefaultCommand, codexCheapCommand, codexDeepCommand].join(" | ")}`,
   )
   T(

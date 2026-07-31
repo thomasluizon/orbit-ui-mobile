@@ -2,7 +2,42 @@ import { spawnSync } from "node:child_process"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { TOOLS_DIR, T, root, mergeSweepEnv, mergeSweepCalls, orphanCaseKeys, toolPath, run, check } from "./_harness.mjs"
+import { TOOLS_DIR, T, root, mergeSweepEnv as baseMergeSweepEnv, mergeSweepCalls, orphanCaseKeys, toolPath, run, check } from "./_harness.mjs"
+
+const reviewEvidenceJson = (head, approvalCommits = "__HEAD__", recommendation = "APPROVE") => {
+  const files = { pageInfo: { hasNextPage: approvalCommits === "FILES_PAGINATED" }, nodes: [{ path: "tools/example.mjs" }] }
+  if (approvalCommits === "PAGINATED") return JSON.stringify({ headRefOid: head, files, reviews: { pageInfo: { hasNextPage: true }, nodes: [] } })
+  const local = {
+    state: "COMMENTED",
+    body: `<!-- orbit-local-review: ${JSON.stringify({ version: 1, head, recommendation })} -->`,
+    submittedAt: "2026-07-31T10:00:00Z",
+    updatedAt: "2026-07-31T10:00:00Z",
+    lastEditedAt: null,
+    url: "https://github.com/orbit/ui/pull/615#pullrequestreview-local",
+    author: { login: "local-reviewer" },
+    commit: { oid: head },
+  }
+  const nativeHeads = approvalCommits === "__HEAD__" ? [head] : approvalCommits.split(/\s+/).filter(Boolean)
+  const native = nativeHeads.map((oid, index) => ({
+    state: "APPROVED",
+    body: "",
+    submittedAt: `2026-07-31T09:00:0${index}Z`,
+    updatedAt: `2026-07-31T09:00:0${index}Z`,
+    lastEditedAt: null,
+    url: `https://github.com/orbit/ui/pull/615#pullrequestreview-native-${index}`,
+    author: { login: "native-reviewer" },
+    commit: { oid },
+  }))
+  return JSON.stringify({ headRefOid: head, files, reviews: { pageInfo: { hasNextPage: false }, nodes: [local, ...native] } })
+}
+
+const mergeSweepEnv = (options = {}) => {
+  const evidenceHead = options.updatedHead || options.head
+  return baseMergeSweepEnv({
+    ...options,
+    approvalCommits: options.reviewEvidenceJson ?? reviewEvidenceJson(evidenceHead, options.approvalCommits),
+  })
+}
 
 const mergeSweepCliFlagCases = () => {
   const filenames = ["merge-sweep.sh", "merge-sweep-cov.sh"]
@@ -100,7 +135,7 @@ const mergeSweepCliFlagCases = () => {
       "an admin merge bypasses the required checks. The override is Thomas's alone; an agent that needs one stops and asks.",
     )
   }
-  for (const name of ["ensure_issue_in_review", "linear_state", "commit_linear_reassertion", "approval_not_stale"]) {
+  for (const name of ["ensure_issue_in_review", "linear_state", "commit_linear_reassertion", "review_evidence_allows"]) {
     const helpers = scanned.map(({ filename, source }) => ({
       filename,
       helper: source.match(new RegExp(`^${name}\\(\\).*?^}\\r?$`, "ms"))?.[0] ?? "",
@@ -801,7 +836,7 @@ const mergeSweepCases = (file) => {
   approvalRefusal(
     "an approval naming an older commit",
     { approvalCommits: changedHead },
-    new RegExp(`SKIP #615 APPROVAL-STALE expected=${expectedHead} approved=\\[${changedHead}\\]`),
+    /SKIP #615 REVIEW-EVIDENCE-HELD[\s\S]*STALE_NATIVE_APPROVAL/,
   )
 
   /**
@@ -824,6 +859,16 @@ const mergeSweepCases = (file) => {
       noApprovalCalls.some((argv) => argv.some((argument) => String(argument).includes("commit{oid}"))) &&
       noApprovalCalls.some(([group, command]) => group === "pr" && command === "merge"),
     `exit ${noApproval.status}\n     stdout: ${noApproval.stdout.trim()}\n     calls: ${JSON.stringify(noApprovalCalls)}`,
+  )
+  approvalRefusal(
+    "absent local review evidence",
+    { reviewEvidenceJson: JSON.stringify({ headRefOid: expectedHead, files: { pageInfo: { hasNextPage: false }, nodes: [{ path: "tools/example.mjs" }] }, reviews: { pageInfo: { hasNextPage: false }, nodes: [] } }) },
+    /SKIP #615 REVIEW-EVIDENCE-HELD[\s\S]*AWAITING_REVIEW/,
+  )
+  approvalRefusal(
+    "latest local review requests work",
+    { reviewEvidenceJson: reviewEvidenceJson(expectedHead, "", "NEEDS_WORK") },
+    /SKIP #615 REVIEW-EVIDENCE-HELD[\s\S]*NEEDS_WORK/,
   )
 
   /**
@@ -848,11 +893,12 @@ const mergeSweepCases = (file) => {
     insufficient.status === 0 &&
       insufficientCalls.some((argv) => argv.some((argument) => String(argument).includes("commit{oid}"))) &&
       !insufficientCalls.some(([group, command]) => group === "pr" && command === "merge") &&
-      /SKIP #615 APPROVAL-STALE/.test(insufficient.stdout),
+      /SKIP #615 REVIEW-EVIDENCE-HELD[\s\S]*STALE_NATIVE_APPROVAL/.test(insufficient.stdout),
     `exit ${insufficient.status}\n     stdout: ${insufficient.stdout.trim()}\n     calls: ${JSON.stringify(insufficientCalls)}`,
   )
-  approvalRefusal("an approval lookup failure", { approvalLookupFailure: true }, /SKIP #615 APPROVAL-LOOKUP-FAILED/)
-  approvalRefusal("more than one page of reviews", { approvalCommits: "PAGINATED" }, /SKIP #615 APPROVAL-PAGE-OVERFLOW/)
+  approvalRefusal("an approval lookup failure", { approvalLookupFailure: true }, /SKIP #615 REVIEW-EVIDENCE-LOOKUP-FAILED/)
+  approvalRefusal("more than one page of reviews", { approvalCommits: "PAGINATED" }, /SKIP #615 REVIEW-EVIDENCE-HELD[\s\S]*INCOMPLETE/)
+  approvalRefusal("more than one page of changed files", { approvalCommits: "FILES_PAGINATED" }, /SKIP #615 REVIEW-EVIDENCE-HELD[\s\S]*INCOMPLETE/)
 
   const movedApprovalLog = join(root, `${file}-approval-moved-to-head.log`)
   const movedApproval = run(file, reviewedArgs, {
@@ -935,13 +981,13 @@ const mergeSweepCases = (file) => {
   detector("a failed workflow lookup fails closed and refuses the merge", { workflowsLookupFailure: true }, { merges: false })
 
   /**
-   * A2's remaining half. `required_approving_review_count` is 0 in both repositories, so GitHub
+   * GitHub's remaining blocking half. `required_approving_review_count` is 0 in both repositories, so GitHub
    * reports `reviewDecision: ""` on an APPROVED pull request while still reporting
    * CHANGES_REQUESTED on a blocked one. Read live on 2026-07-31: #667 and #668 carry APPROVED
    * reviews and report "", while #656, #658, #660 and #661 report CHANGES_REQUESTED. A bare
    * `reviewDecision = APPROVED` precondition therefore refused every unattended merge in both
-   * repositories, and no identity remains that could satisfy it. The positive gate is
-   * `approval_not_stale`; this field keeps only its blocking half.
+   * repositories. The positive gate is current marker-bearing local review evidence; this field
+   * keeps only its blocking half.
    */
   const emptyDecisionLog = join(root, `${file}-empty-review-decision.log`)
   const emptyDecision = run(file, reviewedArgs, {
@@ -975,7 +1021,7 @@ const mergeSweepCases = (file) => {
   T(
     `${file}: a stale approval is still refused when reviewDecision is empty`,
     staleUnderEmpty.status === 0 &&
-      new RegExp(`SKIP #615 APPROVAL-STALE expected=${expectedHead} approved=\\[${changedHead}\\]`).test(staleUnderEmpty.stdout) &&
+      /SKIP #615 REVIEW-EVIDENCE-HELD[\s\S]*STALE_NATIVE_APPROVAL/.test(staleUnderEmpty.stdout) &&
       staleUnderEmptyMerges.length === 0,
     `exit ${staleUnderEmpty.status}\n     stdout: ${staleUnderEmpty.stdout.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(staleUnderEmptyLog))}`,
   )

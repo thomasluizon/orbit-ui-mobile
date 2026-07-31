@@ -23,8 +23,8 @@
 import { stripHeredocBodies } from "./rules-git.mjs"
 import { insideLinkedWorktree } from "./repo-roots.mjs"
 
-/** The launcher exports this into every worker it starts (tools/launch-worker.mjs). */
-const LAUNCHER_MARKER = "ORBIT_LAUNCH_WORKER"
+/** Each approved launcher exports its own marker into the model process it starts. */
+const LAUNCHER_MARKERS = ["ORBIT_LAUNCH_WORKER", "ORBIT_LAUNCH_PR_REVIEW"]
 const ENGINE_BINARIES = new Set(["claude", "codex"])
 const LEADING_ENV_ASSIGNMENT = /^\s*[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\S*)(?:\s+|$)/
 const LEADING_TOKEN = /^\s*("[^"]*"|'[^']*'|\S+)/
@@ -85,7 +85,7 @@ const blocked = (command, why) => ({ block: true, message: `BLOCKED (Orbit orche
  */
 export function checkEngineInvocation(command, { env = {}, cwd = "", repoRoots = [] } = {}) {
   if (typeof command !== "string") return null
-  if (env[LAUNCHER_MARKER]) return null
+  if (LAUNCHER_MARKERS.some((marker) => env[marker])) return null
   if (cwd && insideLinkedWorktree(cwd, repoRoots)) return null
 
   // The marker is read from the ENVIRONMENT only. The launcher exports it on the spawn and
@@ -95,11 +95,11 @@ export function checkEngineInvocation(command, { env = {}, cwd = "", repoRoots =
     if (!ENGINE_BINARIES.has(invokedBinary(segment))) continue
     return blocked(
       command,
-      "An orchestrating session may not spend model budget outside the launcher. Every worker\n" +
-        "starts through `node tools/launch-worker.mjs`, which reserves the budget, creates the\n" +
-        "worktree, injects the standing worker contract and records the worker PID. None of that\n" +
-        "happens for a raw `codex` or `claude` invocation, so its spend is invisible and its\n" +
-        "worker is unsupervised.\n" +
+      "An orchestrating session may not spend model budget outside an approved launcher.\n" +
+        "Implementation workers start through `node tools/launch-worker.mjs`; independent pull\n" +
+        "request reviews start through `node tools/launch-pr-review.mjs`. Each reserves and\n" +
+        "records its budget and gives the model its own bounded contract. None of that happens\n" +
+        "for a raw `codex` or `claude` invocation, so its spend is invisible and unsupervised.\n" +
         "This refusal is scoped to the CALLER, not the flag: the launcher itself, and any command\n" +
         "run from inside a launcher-created worktree, are permitted, `codex exec` included.",
     )
