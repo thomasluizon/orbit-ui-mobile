@@ -112,7 +112,6 @@ const issue = worktree.linkedLinearIssue
 const branch = (worktree.branch ?? git(path, ["rev-parse", "--abbrev-ref", "HEAD"])).replace(/^refs\/heads\//, "")
 const base = requestedBase ?? worktree.baseRef ?? "main"
 const dirty = git(path, ["status", "--short"]).split("\n").filter(Boolean)
-const terminals = (orca(["terminal", "list"]).terminals ?? []).filter((terminal) => normalize(terminal.worktreePath) === normalize(path))
 const workerMarker = join(resolve(path, git(path, ["rev-parse", "--git-dir"])), "orbit-worker-pids.jsonl")
 const workerPids = existsSync(workerMarker)
   ? readFileSync(workerMarker, "utf8").trim().split(/\r?\n/).filter(Boolean).flatMap((line) => { try { const row = JSON.parse(line); return Number.isInteger(row.pid) ? [row.pid] : [] } catch { return [] } })

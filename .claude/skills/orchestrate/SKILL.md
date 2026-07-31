@@ -308,11 +308,10 @@ derive the artifact verdict, update the prompt, and relaunch. Do not promise a n
 cannot be delivered.
 
 **What the fleet is doing right now** is `/watch` (`tools/worker-watch.mjs`): per worktree, the
-ticket, the branch, the Linear state, BUSY or IDLE by repaint delta, the last meaningful output
-lines, and the contract verdict above. Liveness and delivery answer different questions, and
-`IDLE + NOT MET` is the pair that costs a run: a worker that stopped on a question with nobody
-at the keyboard. Read it instead of hand-running `orca terminal read`, which returns a busy
-worker's tail as thousands of characters of concatenated `Working` fragments.
+ticket, the branch, the Linear state, BUSY or IDLE from the launcher-written worker PID, and the
+contract verdict above. Liveness and delivery answer different questions, and `IDLE + NOT MET` is
+the pair that costs a run: a worker process that exited without delivering. Read it instead of
+hand-running `orca terminal read`, which for a headless worker shows no live turn at all.
 
 After the PR opens, the worker owns its automated review cycle. The orchestrator does not read
 review bodies, author review-round files, or relay findings back to the worker. It waits for one

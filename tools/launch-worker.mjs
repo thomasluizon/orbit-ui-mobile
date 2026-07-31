@@ -30,7 +30,7 @@ import {
   writeFileSync,
 } from "node:fs"
 import { homedir } from "node:os"
-import { basename, join, resolve } from "node:path"
+import { basename, delimiter, dirname, extname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
@@ -102,6 +102,35 @@ const MAX_INTERACTIVE_PROMPT_PATH_LENGTH = 120
  * reason each CLI prints on the screen itself: Claude Code takes the digit, codex paints
  * a preselected list saying "Press enter to continue" and takes Enter alone. Both
  * measured; sending codex the digit left its process exited (-1).
+ *
+ * The measured facts behind each engine's REQUIRED run-permitting policy, which used to live in
+ * .claude/orchestrator.json's per-worker `notes` and belong next to the guard that enforces them:
+ *
+ * claude: the mode must be `bypassPermissions`, never `acceptEdits`. `acceptEdits` auto-approves
+ * file writes only, so every shell command still prompts and a worker with nobody at the keyboard
+ * is stuck. Measured on the 2026-07-24 ORB-75 run, where git switch, dotnet build/test/format, gh
+ * and orca were all denied and the worker delivered files with zero gates run, zero commit, no PR.
+ *
+ * codex: the policy is the single `--dangerously-bypass-approvals-and-sandbox`, not the equivalent
+ * pair `-a never --sandbox danger-full-access`, and never `--full-auto`. `--full-auto` is
+ * `-a on-request --sandbox workspace-write`, and `on-request` lets the MODEL decide when to ask a
+ * human who is not there. The single flag beats the pair because the pair has a half-state: an
+ * edit dropping `-a never` while keeping the sandbox flag silently restores approval prompts. The
+ * containment story is the disposable Orca worktree, the same one that justifies bypassPermissions.
+ *
+ * codex, measured 2026-07-27 against codex-cli 0.145.0 on Windows 11: `-c windows.sandbox="unelevated"`
+ * is load-bearing. The default Windows sandbox is elevated, its setup needs Administrator rights,
+ * and the first run paints "Setting up sandbox... Input disabled until setup completes" forever in
+ * a PTY with no desktop to raise UAC on. The unelevated fallback needs no elevation, and the worker
+ * never executes inside it anyway because the bypass flag runs commands unsandboxed.
+ *
+ * codex auth: CODEX_HOME DECIDES WHETHER A WORKER IS LOGGED IN, and it is the first thing to check
+ * before believing any auth verdict. Orca redirects codex's home for the terminals it spawns, so on
+ * this machine the real credential is
+ * C:\\Users\\thoma\\AppData\\Roaming\\orca\\codex-runtime-home\\home\\auth.json, not ~/.codex/auth.json.
+ * Measured 2026-07-27: a shell that had lost CODEX_HOME reported "Not logged in" while the same CLI
+ * in an Orca terminal in the same worktree reported "Logged in using ChatGPT" minutes earlier. Never
+ * diagnose codex auth from an ad hoc shell without printing CODEX_HOME first.
  */
 const ENGINE_PROFILES = {
   claude: {
@@ -767,12 +796,73 @@ const projectedTokens = automationBudget.invocationTokens[resolvedInvocation.tie
 const invocationStartedAt = new Date().toISOString()
 const invocationIdentity = `${issue}:${invocationStartedAt}:${randomUUID()}`
 const command = [engine.command, ...engineArgs].join(" ")
-const workerPointer = (worktreePath, branch) => `Read ${promptFile} and execute it in full. That file is your complete work order for ${issue}. You are on branch ${branch} in ${worktreePath}. Do not summarise the file back to me, start the work now.`
+/**
+ * The one instruction that closes this launch's reservation. It must reach the HEADLESS pointer as
+ * well as the interactive one: headless is the default engine shape, and a headless worker that is
+ * never told to record leaves a pending row nothing ever closes, which is the stranded reservation
+ * measured in the production ledger on 2026-07-30.
+ */
+const measurementCommand = `node "${budgetToolPath}" record --identity "${invocationIdentity}" --engine ${engineName} --tier ${budgetTier} --started-at "${invocationStartedAt}" --ended-at <provider-observation-time> --input-tokens <provider-raw-input-tokens> --cached-input-tokens <provider-cache-read-input-tokens> --output-tokens <provider-output-tokens> --ledger "${automationLedgerPath}"`
+const measurementInstruction = `Before finishing, replace this launch's pending ledger record with an append carrying provider-authoritative token totals: ${measurementCommand}. --input-tokens is the provider's RAW input count and --cached-input-tokens is its cache-read share of that same count; the fuse charges the difference, so omit --cached-input-tokens only when the provider reports no cache read at all. Add --provider-estimated-cost only when the provider supplies its own estimate. If the token measurement is unavailable, leave the pending record unchanged so the next launch fails closed; never record zero or infer tokens from account usedPercent.`
+const workerPointer = (worktreePath, branch) => `Read ${promptFile} and execute it in full. That file is your complete work order for ${issue}. You are on branch ${branch} in ${worktreePath}. Do not summarise the file back to me, start the work now. ${measurementInstruction}`
+/**
+ * Resolve a bare command the way the platform's launcher does, so the result is a real file rather
+ * than a name Node will refuse. On win32 only PATHEXT candidates count: npm also drops an
+ * extensionless shell script next to the shim, and Windows cannot execute it.
+ */
+const resolveOnPath = (command) => {
+  if (command.includes("/") || command.includes("\\")) {
+    return existsSync(command) ? resolve(command) : null
+  }
+  const extensions = process.platform === "win32"
+    ? (process.env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";").filter(Boolean)
+    : [""]
+  for (const directory of (process.env.PATH ?? "").split(delimiter).filter(Boolean)) {
+    for (const extension of extensions) {
+      const candidate = join(directory, `${command}${extension}`)
+      if (existsSync(candidate) && statSync(candidate).isFile()) return candidate
+    }
+  }
+  return null
+}
+
+/**
+ * Node has refused to spawn a `.cmd` or `.bat` without `shell: true` since the CVE-2024-27980 fix,
+ * and `spawn("codex.cmd", ...)` throws EINVAL before codex ever starts. `shell: true` avoids the
+ * errno but hands the worker pointer to cmd.exe to re-parse, and that pointer is a positional
+ * prompt carrying spaces and quotes, which is the ORB-88 mangled-prompt class. So resolve the npm
+ * shim to the script it execs and spawn Node on that: the argv array survives with no shell in the
+ * path. Verified against the installed codex.cmd, whose last line is
+ * `"%_prog%"  "%dp0%\\node_modules\\@openai\\codex\\bin\\codex.js" %*`. A shim that does not match
+ * that shape fails closed here rather than falling through to a spawn known to throw.
+ */
+const NPM_SHIM_SCRIPT = /"%dp0%\\+([^"]+\.js)"/i
+const headlessInvocation = () => {
+  const resolved = resolveOnPath(engine.command)
+  if (!resolved) {
+    fail(3, `could not resolve the ${engineName} worker executable "${engine.command}" on PATH; a headless launch has no shell to resolve it later`)
+  }
+  if (!/\.(?:cmd|bat)$/i.test(resolved)) return { executable: resolved, scriptArgs: [] }
+  let shim
+  try {
+    shim = readFileSync(resolved, "utf8")
+  } catch (error) {
+    fail(3, `could not read the ${engineName} shim ${resolved}: ${error.message}`)
+  }
+  const match = shim.match(NPM_SHIM_SCRIPT)
+  if (!match) {
+    fail(3, `${resolved} is a ${extname(resolved)} shim that tools/launch-worker.mjs cannot run headlessly: Node refuses to spawn it without a shell, and no "%dp0%...js" script line was found to spawn directly. Point .claude/orchestrator.json at the executable or the script itself.`)
+  }
+  const script = resolve(dirname(resolved), match[1])
+  if (!existsSync(script)) {
+    fail(3, `${resolved} names the script ${script}, which does not exist`)
+  }
+  return { executable: process.execPath, scriptArgs: [script] }
+}
+
 const startHeadlessWorker = (worktreePath, branch) => {
-  const executable = process.platform === "win32" && !/\.(?:cmd|bat|exe)$/i.test(engine.command)
-    ? `${engine.command}.cmd`
-    : engine.command
-  const child = spawn(executable, [...engineArgs, workerPointer(worktreePath, branch)], {
+  const { executable, scriptArgs } = headlessInvocation()
+  const child = spawn(executable, [...scriptArgs, ...engineArgs, workerPointer(worktreePath, branch)], {
     cwd: worktreePath,
     detached: true,
     stdio: "ignore",
@@ -997,8 +1087,7 @@ if (!idle) {
   fail(1, `${terminal} never reached tui-idle after ${waitAttempts} waits; the worker is not running. Inspect it with: orca terminal read --terminal ${terminal}`)
 }
 
-const measurementCommand = `node "${budgetToolPath}" record --identity "${invocationIdentity}" --engine ${engineName} --tier ${budgetTier} --started-at "${invocationStartedAt}" --ended-at <provider-observation-time> --input-tokens <provider-input-tokens> --output-tokens <provider-output-tokens> --ledger "${automationLedgerPath}"`
-const pointer = `Read ${promptFile} and execute it in full. That file is your complete work order for ${issue}: the ticket body verbatim, then the finishing contract. You are on branch ${branch} in ${worktreePath}. Do not summarise the file back to me, start the work now. Before finishing, replace this launch's pending ledger record with an append carrying provider-authoritative token totals: ${measurementCommand}. Add --provider-estimated-cost only when the provider supplies its own estimate. If the token measurement is unavailable, leave the pending record unchanged so the next launch fails closed; never record zero or infer tokens from account usedPercent.`
+const pointer = `Read ${promptFile} and execute it in full. That file is your complete work order for ${issue}: the ticket body verbatim, then the finishing contract. You are on branch ${branch} in ${worktreePath}. Do not summarise the file back to me, start the work now. ${measurementInstruction}`
 
 /**
  * What a DELIVERED pointer looks like on screen: a send that became a user turn makes the TUI

@@ -4,6 +4,16 @@ import { homedir } from "node:os"
 import { dirname, resolve } from "node:path"
 
 const WINDOW_MILLISECONDS = 7 * 24 * 60 * 60 * 1000
+/**
+ * A reservation is a LEASE, not a permanent claim. `reserve` appends a row carrying no
+ * measurement and `record` or `cancel` closes it, so anything that kills the launcher in
+ * between leaves that row open forever, and every ledger row written before reservations
+ * carried `pending` is open by construction. Past this TTL the lease has expired: the row
+ * holds no budget and never fails the fuse closed. The resulting error is transient and
+ * bounded, because the worker's own `record` still lands inside the same seven-day window,
+ * whereas a reservation that never expires poisons the fuse for that entire window.
+ */
+const RESERVATION_LEASE_MILLISECONDS = 2 * 60 * 60 * 1000
 const ENGINES = new Set(["claude", "codex"])
 const TIERS = new Set(["routine", "reserved"])
 const DEFAULT_LEDGER_PATH = resolve(homedir(), ".orbit", "automation-budget.jsonl")
@@ -18,7 +28,7 @@ const USAGE = `usage:
   reserve        atomically evaluate and append a pending invocation before launch mutation
   record         append one invocation observation to the ledger
   cancel         append a tombstone for a pending invocation proven not to have started
-  report         print one engine's current seven-day token totals and missing identities
+  report         print one engine's current seven-day token totals, missing identities, and expired reservations
   --identity     stable identity for the invocation
   --engine       quota pool charged by the invocation; engines are never combined
   --tier         routine automation; legacy reserved ledger rows remain readable
@@ -29,6 +39,7 @@ const USAGE = `usage:
                   measured provider output tokens; omitted while measurement is unavailable
   --cached-input-tokens
                   provider cache-read input tokens, retained with the raw provider measurement
+                  and subtracted from it, because a cache read is not fresh spend
   --provider-estimated-cost
                   optional provider-estimated monetary cost; reporting context only
   --account-used-percent
@@ -46,13 +57,18 @@ const USAGE = `usage:
   --json         emit the command result as JSON; without it check and record are quiet on success
   --help, -h     print this usage and exit 0
 
-The fuse blocks automation when measured input plus output tokens and the proposed reservation
-would exceed the token budget. The fuse fails
-closed when the latest in-window record for any identity lacks either token measurement.
+The fuse blocks automation when measured spend, every live reservation, and the proposed
+reservation would exceed the token budget. Measured spend is UNCACHED input plus output: a
+record's cachedInputTokens are subtracted from its inputTokens, because a cache read is not
+fresh spend. The fuse fails closed when the latest in-window record for any identity lacks
+either token measurement.
 Duplicate identities are append-only; the latest in-window record is authoritative. A cancelled
-pending invocation contributes no tokens. Account usage percentage and estimated cost are context
-only and never affect token totals. Records are attributed to the seven-day window containing
-their end timestamp. Mutations share an adjacent lock file and fail closed on lock contention.
+pending invocation contributes no tokens. A reservation is a lease: once its end timestamp is more
+than ${RESERVATION_LEASE_MILLISECONDS / 3_600_000} hours old, and neither a measurement nor a cancellation has closed it, the lease
+has expired, so it holds no budget and no longer fails the fuse closed. Account usage percentage
+and estimated cost are context only and never affect token totals. Records are attributed to the
+seven-day window containing their end timestamp. Mutations share an adjacent lock file and fail
+closed on lock contention.
 
 exit codes:
   0  success or permitted invocation
@@ -407,6 +423,7 @@ const readLedger = (path) => {
 const summarize = (records, engine, resetAt) => {
   const resetMilliseconds = resetAt.getTime()
   const windowStart = new Date(resetMilliseconds - WINDOW_MILLISECONDS)
+  const leaseFloor = Date.now() - RESERVATION_LEASE_MILLISECONDS
   const latestByIdentity = new Map()
   for (const record of records) {
     const endedMilliseconds = Date.parse(record.endedAt)
@@ -418,23 +435,25 @@ const summarize = (records, engine, resetAt) => {
   let routineTokens = 0
   let reservedTokens = 0
   const missingIdentities = []
+  const expiredIdentities = []
   let pendingTokens = 0
   for (const record of latestByIdentity.values()) {
     if (record.cancelled === true) continue
-    if (record.pending === true) {
-      pendingTokens += record.reservedTokens
+    const open = record.pending === true || !hasOwn(record, "inputTokens") || !hasOwn(record, "outputTokens")
+    if (open) {
+      if (Date.parse(record.endedAt) < leaseFloor) expiredIdentities.push(record.identity)
+      else if (record.pending === true) pendingTokens += record.reservedTokens
+      else missingIdentities.push(record.identity)
       continue
     }
-    if (!hasOwn(record, "inputTokens") || !hasOwn(record, "outputTokens")) {
-      missingIdentities.push(record.identity)
-      continue
-    }
-    inputTokens += record.inputTokens
+    const uncachedInputTokens = record.inputTokens - (record.cachedInputTokens ?? 0)
+    inputTokens += uncachedInputTokens
     outputTokens += record.outputTokens
-    if (record.tier === "routine") routineTokens += record.inputTokens + record.outputTokens
-    else reservedTokens += record.inputTokens + record.outputTokens
+    if (record.tier === "routine") routineTokens += uncachedInputTokens + record.outputTokens
+    else reservedTokens += uncachedInputTokens + record.outputTokens
   }
   missingIdentities.sort()
+  expiredIdentities.sort()
   return {
     engine,
     inputTokens,
@@ -444,6 +463,7 @@ const summarize = (records, engine, resetAt) => {
     reservedTokens,
     pendingTokens,
     missingIdentities,
+    expiredIdentities,
     windowStart: windowStart.toISOString(),
     resetsAt: resetAt.toISOString(),
   }
@@ -480,14 +500,16 @@ const evaluateBudget = (request, records, json) => {
     emitJson({ status: "INCOMPLETE", identity, tier, warningTokens, budgetTokens, invocationTokens, ...summary }, json)
     fail(`cannot check invocation "${identity}": latest in-window records lack input or output tokens for identities ${summary.missingIdentities.join(", ")}`, 3)
   }
-  
   const result = { status, identity, tier, warningTokens, budgetTokens, invocationTokens, projectedTokens, ...summary }
   return result
 }
 
 const emitBudgetResult = (result, json) => {
   emitJson(result, json)
-  const { status, identity, warningTokens, budgetTokens, invocationTokens, projectedTokens, totalTokens, missingIdentities } = result
+  const { status, identity, warningTokens, budgetTokens, invocationTokens, projectedTokens, totalTokens, expiredIdentities } = result
+  if (expiredIdentities.length > 0) {
+    console.error(`automation-budget: reservation lease expired for identities ${expiredIdentities.join(", ")}; they hold no budget and no longer fail the fuse closed`)
+  }
   if (status === "WARN") {
     console.error(`automation-budget: warning: invocation "${identity}" projects ${projectedTokens} tokens; warning ${warningTokens} tokens, budget ${budgetTokens} tokens, observed spend ${totalTokens} tokens`)
   }
@@ -670,7 +692,8 @@ const runReport = (values, json) => {
   if (json) console.log(JSON.stringify(result))
   else {
     const missing = result.missingIdentities.length > 0 ? result.missingIdentities.join(", ") : "none"
-    console.log(`${result.engine}: ${result.totalTokens} tokens (${result.inputTokens} input, ${result.outputTokens} output; ${result.routineTokens} routine, ${result.reservedTokens} reserved); missing identities: ${missing}; resets at ${result.resetsAt}`)
+    const expired = result.expiredIdentities.length > 0 ? result.expiredIdentities.join(", ") : "none"
+    console.log(`${result.engine}: ${result.totalTokens} tokens (${result.inputTokens} input, ${result.outputTokens} output; ${result.routineTokens} routine, ${result.reservedTokens} reserved, ${result.pendingTokens} pending); missing identities: ${missing}; expired reservations: ${expired}; resets at ${result.resetsAt}`)
   }
 }
 
