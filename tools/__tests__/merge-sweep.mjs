@@ -758,6 +758,32 @@ const mergeSweepCases = (file) => {
     new RegExp(`SKIP #615 APPROVAL-NOT-ON-HEAD expected=${expectedHead} approved=\\[${changedHead}\\]`),
   )
   approvalRefusal("no approving review at all", { approvalCommits: "" }, /SKIP #615 APPROVAL-NOT-ON-HEAD expected=\w+ approved=\[none\]/)
+
+  /**
+   * The pair a human or an agent actually reads before typing a merge command is
+   * `reviewDecision: APPROVED` with `mergeStateStatus: CLEAN`, and that pair was TRUE for
+   * PR #654, which merged with its newest approval naming cac9ccb while headRefOid was
+   * 40dba9f. It was true again at 05:20Z on the pull request shipping this fix: reviewDecision
+   * APPROVED, head 6f8d8a1a, only approval on 0d3df5f7, because dismiss_stale_reviews is false.
+   *
+   * So the case is not "an old approval refuses". It is that those two green signals together
+   * are INSUFFICIENT. Reaching the approval read at all proves the sweep got past the failed
+   * check, DIRTY, review-staleness, pending-check, threads and Linear gates, which is only
+   * possible with CLEAN and APPROVED in hand.
+   */
+  const insufficientLog = join(root, `${file}-approved-and-clean-is-insufficient.log`)
+  const insufficient = run(file, reviewedArgs, {
+    env: mergeSweepEnv({ head: expectedHead, log: insufficientLog, state: "CLEAN", approvalCommits: changedHead }),
+  })
+  const insufficientCalls = mergeSweepCalls(insufficientLog)
+  T(
+    `${file}: APPROVED plus a CLEAN merge state is not sufficient on its own`,
+    insufficient.status === 0 &&
+      insufficientCalls.some((argv) => argv.some((argument) => String(argument).includes("commit{oid}"))) &&
+      !insufficientCalls.some(([group, command]) => group === "pr" && command === "merge") &&
+      /SKIP #615 APPROVAL-NOT-ON-HEAD/.test(insufficient.stdout),
+    `exit ${insufficient.status}\n     stdout: ${insufficient.stdout.trim()}\n     calls: ${JSON.stringify(insufficientCalls)}`,
+  )
   approvalRefusal("an approval lookup failure", { approvalLookupFailure: true }, /SKIP #615 APPROVAL-LOOKUP-FAILED/)
   approvalRefusal("more than one page of reviews", { approvalCommits: "PAGINATED" }, /SKIP #615 APPROVAL-PAGE-OVERFLOW/)
 
