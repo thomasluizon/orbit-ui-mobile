@@ -61,6 +61,24 @@ const mergeSweepCliFlagCases = () => {
       stateParser.length > 0 && exactTie.status === 0 && exactTie.stdout.includes("Harness Lockstep"),
       `exit ${exactTie.status}\n     stdout: ${exactTie.stdout}\n     stderr: ${exactTie.stderr}`,
     )
+    const nullTimestampFailure = runStateParser([
+      { __typename: "CheckRun", name: "Harness Lockstep", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-07-31T14:55:37Z" },
+      { __typename: "CheckRun", name: "Harness Lockstep", status: "COMPLETED", conclusion: "FAILURE", startedAt: null },
+    ])
+    T(
+      `${filename}: a failed duplicate with null startedAt remains fail-closed beside a newer success`,
+      stateParser.length > 0 && nullTimestampFailure.status === 0 && nullTimestampFailure.stdout.includes("Harness Lockstep"),
+      `exit ${nullTimestampFailure.status}\n     stdout: ${nullTimestampFailure.stdout}\n     stderr: ${nullTimestampFailure.stderr}`,
+    )
+    const missingTimestampPending = runStateParser([
+      { __typename: "CheckRun", name: "Harness Lockstep", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-07-31T14:55:37Z" },
+      { __typename: "CheckRun", name: "Harness Lockstep", status: "IN_PROGRESS", conclusion: null },
+    ])
+    T(
+      `${filename}: a pending duplicate with missing startedAt remains fail-closed beside a newer success`,
+      stateParser.length > 0 && missingTimestampPending.status === 0 && missingTimestampPending.stdout.includes("Harness Lockstep"),
+      `exit ${missingTimestampPending.status}\n     stdout: ${missingTimestampPending.stdout}\n     stderr: ${missingTimestampPending.stderr}`,
+    )
   }
   const adoptionHelpers = scanned.map(({ filename, source }) => ({
     filename,

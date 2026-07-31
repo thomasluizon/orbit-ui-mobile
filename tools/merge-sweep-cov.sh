@@ -287,16 +287,16 @@ gate() { # prints  MS \t REVIEW \t NONSONAR_FAILED \t SONARSTATE \t SHA \t PENDI
       try{
         const d=JSON.parse(s);
         const bad=['FAILURE','ERROR','CANCELLED','TIMED_OUT','ACTION_REQUIRED','STARTUP_FAILURE'];
-        const latestByContext=new Map(),unnamed=[];
+        const latestByContext=new Map(),unordered=[];
         for(const row of d.statusCheckRollup||[]){
           const name=row.name||row.context;
-          if(!name){unnamed.push(row);continue;}
-          const startedAt=row.startedAt||'';
+          const startedAt=row.startedAt;
+          if(!name||typeof startedAt!=='string'){unordered.push(row);continue;}
           const latest=latestByContext.get(name);
           if(!latest||startedAt>latest.startedAt)latestByContext.set(name,{startedAt,rows:[row]});
           else if(startedAt===latest.startedAt)latest.rows.push(row);
         }
-        const rows=[...unnamed,...[...latestByContext.values()].flatMap(entry=>entry.rows)];
+        const rows=[...unordered,...[...latestByContext.values()].flatMap(entry=>entry.rows)];
         const failed=rows.filter(c=>bad.includes((c.conclusion||c.state||'').toUpperCase()));
         const nonSonar=failed.filter(c=>(c.name||c.context)!=='SonarCloud Code Analysis').map(c=>c.name||c.context);
         const sonar=rows.find(c=>(c.name||c.context)==='SonarCloud Code Analysis')||{};
