@@ -89,7 +89,10 @@ const orchestrateFlagCases = () => {
     ? tracked.stdout
       .split("\0")
       .filter((path) => /\.(md|mjs|json|ya?ml|txt)$/i.test(path))
-      .filter((path) => path.replaceAll("\\", "/") !== `tools/${SELF}`)
+      .filter((path) => {
+        const normalized = path.replaceAll("\\", "/")
+        return normalized !== `tools/${SELF}` && !normalized.startsWith("tools/__tests__/")
+      })
       .filter((path) => existsSync(join(REPO_ROOT, path)))
     : []
   const oneTicketSingle = [
