@@ -331,7 +331,6 @@ let reservation = null
 let reviewStarted = false
 let worktreePath = null
 let worktreePreserved = false
-let baseReviewRef = null
 let recorded = false
 
 const cleanWorktree = () => {
@@ -339,18 +338,10 @@ const cleanWorktree = () => {
   const status = runSync(gitCommand, ["status", "--porcelain"], { cwd: worktreePath }).trim()
   if (status) {
     worktreePreserved = true
-    if (baseReviewRef) {
-      runSync(gitCommand, ["update-ref", "-d", `refs/heads/${baseReviewRef}`], { cwd: argumentsParsed.repoRoot })
-      baseReviewRef = null
-    }
     throw new Error(`review worktree ${worktreePath} is dirty and was preserved for inspection`)
   }
   runSync(gitCommand, ["worktree", "remove", worktreePath], { cwd: argumentsParsed.repoRoot })
   worktreePath = null
-  if (baseReviewRef) {
-    runSync(gitCommand, ["update-ref", "-d", `refs/heads/${baseReviewRef}`], { cwd: argumentsParsed.repoRoot })
-    baseReviewRef = null
-  }
 }
 
 const failReview = (error, code = 3) => {
@@ -400,8 +391,6 @@ const main = async () => {
   runSync(gitCommand, ["worktree", "add", "--detach", worktreePath, headSha], { cwd: argumentsParsed.repoRoot })
   const checkedOutHead = runSync(gitCommand, ["rev-parse", "HEAD"], { cwd: worktreePath }).trim()
   if (checkedOutHead !== headSha) throw new Error(`detached review worktree is at ${checkedOutHead}, expected ${headSha}`)
-  baseReviewRef = `orbit-pr-review-base-${randomUUID()}`
-  runSync(gitCommand, ["update-ref", `refs/heads/${baseReviewRef}`, baseSha], { cwd: argumentsParsed.repoRoot })
 
   const outputPath = join(worktreeRoot, "final-review.json")
   const assets = reviewAssets(worktreePath)
@@ -415,8 +404,6 @@ const main = async () => {
     "--output-schema", schemaPath,
     "--output-last-message", outputPath,
     "--json",
-    "review",
-    "--base", baseReviewRef,
     "-",
   ]
   const codexResult = await runCodex(codexCommand(), codexArguments, {

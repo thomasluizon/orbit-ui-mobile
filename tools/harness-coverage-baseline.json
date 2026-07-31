@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total": 1233,
+  "total": 1236,
   "tools": {
     "(runner)": 32,
     "ai-quota.mjs": 12,
@@ -8,7 +8,7 @@
     "automation-budget.mjs": 57,
     "capture-surfaces.mjs": 6,
     "check-archaeology.mjs": 20,
-    "check-calibration.mjs": 34,
+    "check-calibration.mjs": 36,
     "check-context-budget.mjs": 44,
     "check-copy.mjs": 2,
     "check-dashes.mjs": 4,
@@ -24,7 +24,7 @@
     "check-ticket.mjs": 96,
     "check-tier-labels.mjs": 8,
     "compose-prompt.mjs": 6,
-    "launch-pr-review.mjs": 25,
+    "launch-pr-review.mjs": 26,
     "launch-worker.mjs": 161,
     "merge-sweep-cov.sh": 93,
     "merge-sweep.sh": 98,
