@@ -13,6 +13,7 @@
 import { execFile } from "node:child_process"
 import { promisify } from "node:util"
 
+import { affectedFilesOf } from "./lib/affected-files.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
 const USAGE = `usage: wave-plan.mjs --project "<name>" | --label "<label>" | --all | --issues "ORB-a,ORB-b" [--json]
@@ -38,12 +39,20 @@ if (process.argv.includes("--help") || process.argv.includes("-h")) {
 }
 
 const ORCA = process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs\\orca\\resources\\bin\\orca"
-const TEAM = "ORB"
 let orchestratorConfig
 try {
   orchestratorConfig = readOrchestratorConfig()
 } catch (error) {
   console.error(error.message)
+  process.exit(2)
+}
+/** The team key was a literal here while the configuration declared it and every other Linear
+ * tool resolved it through this reader: state read from something nothing keeps current. It is
+ * refused rather than sanitised when it is not alphanumeric, matching check-ticket.mjs, because
+ * downstream it is interpolated into identifier patterns. */
+const TEAM = orchestratorConfig.linear?.team
+if (typeof TEAM !== "string" || !/^[A-Za-z0-9]+$/.test(TEAM)) {
+  console.error(`.claude/orchestrator.json must declare linear.team as an alphanumeric key; got ${JSON.stringify(TEAM)}`)
   process.exit(2)
 }
 const ATTEMPTS_BEFORE_REWRITE = orchestratorConfig.attemptsBeforeRewrite
@@ -147,62 +156,11 @@ const DONE_TYPES = new Set(["completed", "canceled", "duplicate"])
  * so serialisation was decided from memory each run: on 2026-07-28 ORB-120 was held behind two
  * tickets it shared two files with, in different regions, costing hours with a worker idle. The
  * inverse mistake is worse. This reports the overlap; it never reorders a wave, because a set
- * intersection cannot tell an append-only test file from a rewrite of the same function.
+ * intersection cannot tell an append-only test file from a rewrite of the same function. The
+ * parser itself lives in tools/lib/affected-files.mjs, shared with check-ticket.mjs, because the
+ * gate that requires a parseable path and the report that intersects them must accept exactly the
+ * same thing or a ticket passes the gate while contributing nothing to the report.
  */
-const AFFECTED_PATH = /\.?[\w@][\w./\\@()[\]{}+-]*\.[a-z0-9][a-z0-9-]*/gi
-const BARE_AFFECTED_PATH = /^\.?[\w@][\w./\\@()[\]{}+-]*\.[a-z0-9][a-z0-9-]*$/i
-
-const affectedSectionOf = (description) => {
-  const lines = (description ?? "").split(/\r?\n/)
-  let fence = null
-  let section = null
-  for (const line of lines) {
-    const marker = line.match(/^\s*(`{3,}|~{3,})/)?.[1][0] ?? null
-    if (marker) {
-      if (!fence) fence = marker
-      else if (fence === marker) fence = null
-      continue
-    }
-    if (!fence && /^#+[ \t]+/.test(line)) {
-      if (section) break
-      if (/^#+\s*(affected|files|modules)\b/i.test(line)) section = [line]
-      continue
-    }
-    if (section && !fence) section.push(line)
-  }
-  return section?.join("\n") ?? null
-}
-
-const isDeclaredPath = (section, path, index) => {
-  if (/[a-z][a-z0-9+.-]*:\/\/$/i.test(section.slice(Math.max(0, index - 24), index))) return false
-  if (/^[\w-]+(?:\.[\w-]+)*\.[a-z]{2,63}\//i.test(path)) return false
-  if (/[\\/]/.test(path)) return true
-  if (section[index - 1] === "`" && section[index + path.length] === "`") return true
-  const lineStart = section.lastIndexOf("\n", index) + 1
-  const nextBreak = section.indexOf("\n", index + path.length)
-  const lineEnd = nextBreak === -1 ? section.length : nextBreak
-  const item = section
-    .slice(lineStart, lineEnd)
-    .trim()
-    .replace(/^(?:[-*]|\d+\.)\s+/, "")
-    .replace(/^\[[ xX]\]\s+/, "")
-  const annotation = item.startsWith(path) ? item.slice(path.length) : ""
-  if (/^(?::|\s+-\s+)/.test(annotation)) return true
-  const itemPaths = item
-    .split(/\s*,\s*|\s+and\s+/i)
-    .map((candidate) => candidate.replace(/^`|`$/g, ""))
-  return itemPaths.includes(path) && itemPaths.every((candidate) => BARE_AFFECTED_PATH.test(candidate))
-}
-
-const affectedFilesOf = (description) => {
-  const section = affectedSectionOf(description)
-  if (!section) return []
-  const paths = [...section.matchAll(AFFECTED_PATH)]
-    .filter((match) => isDeclaredPath(section, match[0], match.index))
-    .map(([path]) => path.replace(/\\/g, "/"))
-  return [...new Set(paths)]
-}
-
 const collisionsIn = (waveIssues, byIdentifier) => {
   const pairs = []
   for (let a = 0; a < waveIssues.length; a++) {

@@ -1,12 +1,42 @@
 import { spawnSync } from "node:child_process"
-import { existsSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs"
-import { join } from "node:path"
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs"
+import { isAbsolute, join, relative, resolve } from "node:path"
 
 import { TOOLS_DIR, T, root, stage, run, check, exitedProbePid, budgetRecord } from "./_harness.mjs"
 
+/**
+ * Three verbatim `node tools/ai-quota.mjs --json` readings, captured on this machine on
+ * 2026-07-31 and committed unedited. Nothing here is hand-written: the tool's contract was
+ * confirmed by RUNNING it, including that with both providers down it exits 1 and still writes
+ * the whole object to stdout.
+ *
+ * All three shapes are real and all three are load-bearing. The claude arm reads its figure by
+ * scraping an Orca accessibility tree, so `ai-quota-claude-unavailable.json` (one arm down, the
+ * other unmoved) is the COMMON reading, not an edge case; two captures twenty minutes apart on an
+ * idle machine differed by exactly that.
+ */
+const QUOTA_BOTH_OK = "ai-quota-both-ok.json"
+const QUOTA_CLAUDE_UNAVAILABLE = "ai-quota-claude-unavailable.json"
+const QUOTA_BOTH_UNAVAILABLE = "ai-quota-both-unavailable.json"
+
 const automationBudgetCases = () => {
+  const quotaFixture = (name) => join(TOOLS_DIR, "__fixtures__", name)
+  /**
+   * F-5's first half. A stranded reservation was found in the PRODUCTION ledger that was never a
+   * worker at all: it matched this suite's own fixture field for field, including a mocked
+   * usedPercent, and no worktree, transcript or session ever existed for it. These two readings
+   * bracket the whole module, so a case that writes one production byte is named at the end.
+   */
+  const helpOutput = run("automation-budget.mjs", ["--help"])
+  const productionLedgerPath = helpOutput.stdout.match(/defaults to ORBIT_AUTOMATION_BUDGET_LEDGER or (.+?)\r?\n/)?.[1] ?? ""
+  const productionLedgerState = () =>
+    existsSync(productionLedgerPath)
+      ? `${statSync(productionLedgerPath).size}@${statSync(productionLedgerPath).mtimeMs}`
+      : "absent"
+  const productionLedgerBefore = productionLedgerState()
+
   const resetAt = "2030-01-08T00:00:00Z"
-  const checkArgs = (identity, ledger, invocationTokens = 100, extra = []) => [
+  const checkArgs = (identity, ledger, invocationTokens = 100, extra = [], quota = quotaFixture(QUOTA_BOTH_UNAVAILABLE), ceilingPercent = "85") => [
     "check",
     "--engine",
     "claude",
@@ -16,6 +46,10 @@ const automationBudgetCases = () => {
     "routine",
     "--reset-at",
     resetAt,
+    "--account-ceiling-percent",
+    ceilingPercent,
+    "--quota",
+    quota,
     "--warning-tokens",
     "800",
     "--budget-tokens",
@@ -51,9 +85,21 @@ const automationBudgetCases = () => {
 
   const belowWarning = run("automation-budget.mjs", checkArgs("next-below", ledgerBelow))
   T(
-    "automation-budget.mjs: a token projection below the configured warning proceeds silently",
-    belowWarning.status === 0 && belowWarning.stdout === "" && belowWarning.stderr === "",
+    "automation-budget.mjs: a token projection below the configured warning proceeds, naming the unavailable reading it fell back from",
+    belowWarning.status === 0 &&
+      belowWarning.stdout === "" &&
+      belowWarning.stderr.trim().split("\n").length === 1 &&
+      /claude account usage is UNAVAILABLE and is not being read as zero/.test(belowWarning.stderr),
     `exit ${belowWarning.status}\n     stdout: ${belowWarning.stdout}\n     stderr: ${belowWarning.stderr}`,
+  )
+  const silentWithReading = run(
+    "automation-budget.mjs",
+    checkArgs("next-below-with-reading", ledgerBelow, 100, [], quotaFixture(QUOTA_BOTH_OK)),
+  )
+  T(
+    "automation-budget.mjs: an available provider reading below the ceiling proceeds silently",
+    silentWithReading.status === 0 && silentWithReading.stdout === "" && silentWithReading.stderr === "",
+    `exit ${silentWithReading.status}\n     stdout: ${silentWithReading.stdout}\n     stderr: ${silentWithReading.stderr}`,
   )
   check(
     "automation-budget.mjs",
@@ -320,7 +366,7 @@ const automationBudgetCases = () => {
    */
   const HOUR_MILLISECONDS = 60 * 60 * 1000
   const leaseResetAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-  const leaseCheckArgs = (identity, ledger, invocationTokens) => [
+  const leaseCheckArgs = (identity, ledger, invocationTokens, quota = quotaFixture(QUOTA_BOTH_UNAVAILABLE), ceilingPercent = "85") => [
     "check",
     "--engine",
     "codex",
@@ -330,6 +376,10 @@ const automationBudgetCases = () => {
     "routine",
     "--reset-at",
     leaseResetAt,
+    "--account-ceiling-percent",
+    ceilingPercent,
+    "--quota",
+    quota,
     "--warning-tokens",
     "800000",
     "--budget-tokens",
@@ -622,6 +672,374 @@ const automationBudgetCases = () => {
     { status: 4, stderr: /blocked:[\s\S]*projected spend 1050000 tokens/ },
   )
 
+  /**
+   * The provider ceiling, which is now the only thing that can refuse a launch.
+   *
+   * Every ledger below is pinned at the ABSOLUTE figure the live window really carried on
+   * 2026-07-31: one codex worker session charged 827,711 uncached input and 60,858 output, so
+   * 888,569 tokens, 89 percent of the configured 1,000,000 budget, while the provider's own
+   * reading did not move off usedPercent 11. Nothing here is derived from the tool's own numbers,
+   * so moving the ceiling or the budget turns a case red instead of quietly following it.
+   */
+  const MEASURED_SESSION_INPUT_TOKENS = 827711
+  const MEASURED_SESSION_OUTPUT_TOKENS = 60858
+  const measuredSessionLedger = (label) =>
+    stage(
+      `budget/${label}.jsonl`,
+      `${measuredInvocation("ORB-163:measured-session", 60_000, MEASURED_SESSION_INPUT_TOKENS, MEASURED_SESSION_OUTPUT_TOKENS)}\n`,
+    )
+  const reserveSequentially = (label, ledger, quota, identities) => {
+    const startedAt = new Date(Date.now() - 13_000).toISOString()
+    const endedAt = new Date().toISOString()
+    return identities.map((identity) =>
+      run("automation-budget.mjs", [
+        "reserve",
+        "--engine",
+        "codex",
+        "--identity",
+        `${label}:${identity}`,
+        "--tier",
+        "routine",
+        "--started-at",
+        startedAt,
+        "--ended-at",
+        endedAt,
+        "--reset-at",
+        leaseResetAt,
+        "--account-ceiling-percent",
+        "85",
+        "--quota",
+        quota,
+        "--warning-tokens",
+        "800000",
+        "--budget-tokens",
+        "1000000",
+        "--invocation-tokens",
+        "100000",
+        "--ledger",
+        ledger,
+        "--json",
+      ]),
+    )
+  }
+  const sequentialLedger = measuredSessionLedger("account-sequential")
+  const sequential = reserveSequentially("wave", sequentialLedger, quotaFixture(QUOTA_CLAUDE_UNAVAILABLE), ["a", "b", "c"])
+  const sequentialRows = readFileSync(sequentialLedger, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
+  T(
+    "automation-budget.mjs: a provider reading below the ceiling permits three sequential launches the token budget alone would have refused",
+    sequential.every((result) => result.status === 0) &&
+      /"projectedTokens":988569[\s\S]*"gate":"ACCOUNT"[\s\S]*"usedPercent":11,"ceilingPercent":85/.test(sequential[0].stdout) &&
+      /"projectedTokens":1088569/.test(sequential[1].stdout) &&
+      /"projectedTokens":1188569/.test(sequential[2].stdout) &&
+      sequentialRows.length === 4 &&
+      sequentialRows.slice(1).every((record) => record.pending === true && record.reservedTokens === 100000),
+    sequential
+      .map((result, index) => `reserve ${index} exit ${result.status}\n     stdout: ${result.stdout}\n     stderr: ${result.stderr}`)
+      .join("\n     "),
+  )
+  const fallbackRefusal = reserveSequentially("wave-fallback", sequentialLedger, quotaFixture(QUOTA_BOTH_UNAVAILABLE), ["d"])[0]
+  T(
+    "automation-budget.mjs: the identical fourth launch is refused the moment the provider reading goes unavailable",
+    fallbackRefusal.status === 4 &&
+      /account usage is unavailable, so the token fallback gates this launch[\s\S]*projected spend 1288569 tokens/.test(fallbackRefusal.stderr) &&
+      /"status":"BLOCK"[\s\S]*"gate":"TOKEN_FALLBACK"/.test(fallbackRefusal.stdout),
+    `exit ${fallbackRefusal.status}\n     stdout: ${fallbackRefusal.stdout}\n     stderr: ${fallbackRefusal.stderr}`,
+  )
+
+  /**
+   * The only figure moved off the committed capture is `usedPercent`, exactly as
+   * `legacyReservation` above moves only the timestamps: the shape stays the real one, because
+   * the account is at 11 percent and a 92 percent reading cannot be captured to order.
+   */
+  const REAL_CODEX_READING = JSON.parse(readFileSync(quotaFixture(QUOTA_CLAUDE_UNAVAILABLE), "utf8"))
+  const codexUsageAt = (label, usedPercent) =>
+    stage(
+      `budget/quota-${label}.json`,
+      JSON.stringify({ ...REAL_CODEX_READING, codex: { ...REAL_CODEX_READING.codex, usedPercent } }),
+    )
+  check(
+    "automation-budget.mjs",
+    "a provider reading above the ceiling refuses a launch an empty ledger would have permitted",
+    leaseCheckArgs(
+      "after-over-ceiling",
+      stage("budget/account-idle.jsonl", ""),
+      100000,
+      codexUsageAt("over-ceiling", 92),
+    ),
+    {
+      status: 4,
+      stderr: /codex account usage 92 percent has reached the configured ceiling 85 percent/,
+      stdout: /"status":"BLOCK"[\s\S]*"gate":"ACCOUNT"[\s\S]*"usedPercent":92,"ceilingPercent":85/,
+    },
+  )
+  check(
+    "automation-budget.mjs",
+    "usage exactly at the ceiling refuses, because at the ceiling there is no headroom left to authorise",
+    leaseCheckArgs("after-exact-ceiling", stage("budget/account-exact.jsonl", ""), 100000, quotaFixture(QUOTA_CLAUDE_UNAVAILABLE), "11"),
+    { status: 4, stderr: /codex account usage 11 percent has reached the configured ceiling 11 percent/ },
+  )
+  check(
+    "automation-budget.mjs",
+    "usage one point below the ceiling proceeds",
+    leaseCheckArgs("after-under-ceiling", stage("budget/account-under.jsonl", ""), 100000, quotaFixture(QUOTA_CLAUDE_UNAVAILABLE), "12"),
+    { status: 0, stdout: /"gate":"ACCOUNT"[\s\S]*"usedPercent":11,"ceilingPercent":12/ },
+  )
+  check(
+    "automation-budget.mjs",
+    "the claude ceiling reads weeklyPercent, not the codex field, and blocks on it",
+    checkArgs("after-claude-weekly", stage("budget/account-claude.jsonl", ""), 100, ["--json"], quotaFixture(QUOTA_BOTH_OK), "40"),
+    {
+      status: 4,
+      stderr: /claude account usage 48 percent has reached the configured ceiling 40 percent/,
+      stdout: /"gate":"ACCOUNT"[\s\S]*"usedPercent":48,"ceilingPercent":40/,
+    },
+  )
+  check(
+    "automation-budget.mjs",
+    "one unavailable provider arm never disturbs the other engine's account gate",
+    leaseCheckArgs("after-one-arm-down", measuredSessionLedger("account-one-arm"), 250000, quotaFixture(QUOTA_CLAUDE_UNAVAILABLE)),
+    {
+      status: 0,
+      stdout: /"status":"WARN"[\s\S]*"projectedTokens":1138569[\s\S]*"gate":"ACCOUNT"/,
+      stderr: /warning-only signal that was never derived from a measurement, so it did not refuse this launch/,
+    },
+  )
+  check(
+    "automation-budget.mjs",
+    "an unavailable reading falls back to the token budget and says so on stderr",
+    leaseCheckArgs("after-unavailable", measuredSessionLedger("account-unavailable"), 250000),
+    {
+      status: 4,
+      stderr: /codex account usage is UNAVAILABLE and is not being read as zero[\s\S]*falling back to the token budget[\s\S]*projected spend 1138569 tokens/,
+      stdout: /"status":"BLOCK"[\s\S]*"gate":"TOKEN_FALLBACK"[\s\S]*"status":"UNAVAILABLE"[\s\S]*"ceilingPercent":85/,
+    },
+  )
+  check(
+    "automation-budget.mjs",
+    "an unmeasured record warns instead of failing closed once the provider reading gates the launch",
+    leaseCheckArgs(
+      "after-incomplete-with-reading",
+      stage(
+        "budget/account-incomplete.jsonl",
+        `${JSON.stringify({
+          identity: "ORB-163:half-measured-with-reading",
+          engine: "codex",
+          tier: "routine",
+          startedAt: new Date(Date.now() - 4 * HOUR_MILLISECONDS - 60_000).toISOString(),
+          endedAt: new Date(Date.now() - 4 * HOUR_MILLISECONDS).toISOString(),
+          inputTokens: 900,
+        })}\n`,
+      ),
+      100000,
+      quotaFixture(QUOTA_CLAUDE_UNAVAILABLE),
+    ),
+    {
+      status: 0,
+      stderr: /token totals are incomplete for identities ORB-163:half-measured-with-reading[\s\S]*measurement is still missing from the ledger/,
+      stdout: /"gate":"ACCOUNT"/,
+    },
+  )
+  check(
+    "automation-budget.mjs",
+    "a named quota file that cannot be read is a hard failure, never a silent unbounded proceed",
+    leaseCheckArgs(
+      "after-missing-quota",
+      stage("budget/account-missing-quota.jsonl", ""),
+      100000,
+      join(root, "budget", "no-such-quota.json"),
+    ),
+    { status: 3, stderr: /could not read quota reading[\s\S]*no-such-quota\.json/ },
+  )
+  check(
+    "automation-budget.mjs",
+    "a named quota file holding invalid JSON is a hard failure too, because a typo in that flag would otherwise disable the only real gate",
+    leaseCheckArgs(
+      "after-malformed-quota",
+      stage("budget/account-malformed-quota.jsonl", ""),
+      100000,
+      stage("budget/malformed-quota.json", '{"codex": {"status": "OK", "usedPercent": 11\n'),
+    ),
+    { status: 3, stderr: /quota reading[\s\S]*malformed-quota\.json is not valid JSON/ },
+  )
+  check(
+    "automation-budget.mjs",
+    "check refuses to run at all without the account ceiling that decides the launch",
+    leaseCheckArgs("after-no-ceiling", stage("budget/account-no-ceiling.jsonl", ""), 100000).filter(
+      (value, index, argv) => value !== "--account-ceiling-percent" && argv[index - 1] !== "--account-ceiling-percent",
+    ),
+    { status: 2, stderr: /--account-ceiling-percent is required/ },
+  )
+
+  /**
+   * The DEFAULT quota resolution, which is the one PRODUCTION takes and the only one no case
+   * above ever ran: every case so far hands the tool a `--quota` fixture, so the third arm, where
+   * the tool resolves and spawns its own reader, was wired and believed and never executed.
+   *
+   * It resolves that reader as `./ai-quota.mjs` beside its OWN file, read off QUOTA_TOOL_PATH in
+   * the tool rather than assumed, so the only hermetic way to reach the spawn is to stage a
+   * private copy of the tool and put the stub next to it. Every case below withholds `--quota`
+   * and explicitly UNSETS the environment override, because an ambient one on the operator's
+   * machine would otherwise send these straight back down the arm that was already covered.
+   */
+  const spawnedReaderEnvironment = { ORBIT_AUTOMATION_BUDGET_QUOTA: undefined }
+  const stageSpawnedReader = (label, readingPath, exitCode) => {
+    const toolsDirectory = join(root, "budget-spawn", label, "tools")
+    mkdirSync(toolsDirectory, { recursive: true })
+    cpSync(join(TOOLS_DIR, "automation-budget.mjs"), join(toolsDirectory, "automation-budget.mjs"))
+    /**
+     * The stub prints a CAPTURED reading byte for byte and never composes one, and its exit code
+     * is a parameter because the real reader exits 1 while still printing a complete object.
+     * A `readingPath` of undefined stages no reader at all, which is the child that cannot start.
+     */
+    if (readingPath !== undefined) {
+      writeFileSync(
+        join(toolsDirectory, "ai-quota.mjs"),
+        `import { readFileSync } from "node:fs"
+process.stdout.write(readFileSync(${JSON.stringify(readingPath)}, "utf8"))
+process.exit(${exitCode})
+`,
+      )
+    }
+    return { path: join(toolsDirectory, "automation-budget.mjs"), readerPath: join(toolsDirectory, "ai-quota.mjs") }
+  }
+  const runSpawnedReaderCheck = (label, identity, readingPath, exitCode, ceilingPercent) => {
+    const staged = stageSpawnedReader(label, readingPath, exitCode)
+    const result = run(
+      "automation-budget.mjs",
+      [
+        "check",
+        "--engine",
+        "codex",
+        "--identity",
+        identity,
+        "--tier",
+        "routine",
+        "--reset-at",
+        leaseResetAt,
+        "--account-ceiling-percent",
+        ceilingPercent,
+        "--warning-tokens",
+        "800000",
+        "--budget-tokens",
+        "1000000",
+        "--invocation-tokens",
+        "100000",
+        "--ledger",
+        stage(`budget/spawn-${label}.jsonl`, ""),
+        "--json",
+      ],
+      { path: staged.path, env: spawnedReaderEnvironment },
+    )
+    /**
+     * Every one of these commands emits JSON on both the permitted and the blocked path, so
+     * unparseable stdout is itself the failure. It becomes a null the assertions read as wrong
+     * rather than an exception, which would abort the module instead of naming the case.
+     */
+    let emitted = null
+    try {
+      emitted = JSON.parse(result.stdout)
+    } catch {
+      emitted = null
+    }
+    return { ...result, emitted, readerPath: staged.readerPath }
+  }
+  const spawnedReaderDetail = (result) =>
+    `exit ${result.status}\n     reader: ${result.readerPath}\n     stdout: ${result.stdout}\n     stderr: ${result.stderr}`
+
+  const spawnedBelowCeiling = runSpawnedReaderCheck(
+    "below-ceiling",
+    "spawned-below-ceiling",
+    quotaFixture(QUOTA_CLAUDE_UNAVAILABLE),
+    0,
+    "85",
+  )
+  T(
+    "automation-budget.mjs: with neither --quota nor the environment override the tool spawns its own reader and gates on the figure that reader printed",
+    spawnedBelowCeiling.status === 0 &&
+      spawnedBelowCeiling.emitted?.status === "PROCEED" &&
+      spawnedBelowCeiling.emitted?.gate === "ACCOUNT" &&
+      spawnedBelowCeiling.emitted?.accountUsage?.usedPercent === 11 &&
+      resolve(spawnedBelowCeiling.emitted?.accountUsage?.source ?? ".") === resolve(spawnedBelowCeiling.readerPath),
+    spawnedReaderDetail(spawnedBelowCeiling),
+  )
+  const spawnedOverCeiling = runSpawnedReaderCheck(
+    "over-ceiling",
+    "spawned-over-ceiling",
+    codexUsageAt("spawned-over-ceiling", 92),
+    0,
+    "85",
+  )
+  T(
+    "automation-budget.mjs: the spawned reader's own figure above the ceiling refuses the launch with exit 4",
+    spawnedOverCeiling.status === 4 &&
+      /codex account usage 92 percent has reached the configured ceiling 85 percent/.test(spawnedOverCeiling.stderr) &&
+      spawnedOverCeiling.emitted?.status === "BLOCK" &&
+      spawnedOverCeiling.emitted?.accountUsage?.usedPercent === 92 &&
+      resolve(spawnedOverCeiling.emitted?.accountUsage?.source ?? ".") === resolve(spawnedOverCeiling.readerPath),
+    spawnedReaderDetail(spawnedOverCeiling),
+  )
+
+  const spawnedReaderAbsent = runSpawnedReaderCheck("absent-reader", "spawned-absent-reader", undefined, 0, "85")
+  T(
+    "automation-budget.mjs: a spawned reader that printed nothing is unavailable and says the output was not JSON, never that the account is idle",
+    spawnedReaderAbsent.status === 0 &&
+      spawnedReaderAbsent.emitted?.gate === "TOKEN_FALLBACK" &&
+      spawnedReaderAbsent.emitted?.accountUsage?.status === "UNAVAILABLE" &&
+      spawnedReaderAbsent.emitted?.accountUsage?.usedPercent === undefined &&
+      spawnedReaderAbsent.emitted?.accountUsage?.reason === "ai-quota.mjs returned output that is not JSON",
+    spawnedReaderDetail(spawnedReaderAbsent),
+  )
+  const spawnedHonestUnavailable = runSpawnedReaderCheck(
+    "honest-unavailable",
+    "spawned-honest-unavailable",
+    quotaFixture(QUOTA_BOTH_UNAVAILABLE),
+    1,
+    "85",
+  )
+  T(
+    "automation-budget.mjs: a spawned reader exiting 1 while printing a complete UNAVAILABLE object is read anyway, and its reason never collapses into the printed-nothing one",
+    spawnedHonestUnavailable.status === 0 &&
+      spawnedHonestUnavailable.emitted?.gate === "TOKEN_FALLBACK" &&
+      spawnedHonestUnavailable.emitted?.accountUsage?.status === "UNAVAILABLE" &&
+      spawnedHonestUnavailable.emitted?.accountUsage?.reason === "ai-quota reported codex status UNAVAILABLE and usedPercent null" &&
+      spawnedHonestUnavailable.emitted?.accountUsage?.reason !== spawnedReaderAbsent.emitted?.accountUsage?.reason,
+    `${spawnedReaderDetail(spawnedHonestUnavailable)}\n     printed-nothing reason: ${spawnedReaderAbsent.emitted?.accountUsage?.reason}`,
+  )
+
+  /**
+   * F-5's second half. The assertion is on the ledger path a child actually RECEIVES, never on a
+   * write, because proving isolation by writing is the defect that put a fixture row in the real
+   * ledger. Delete the ORBIT_AUTOMATION_BUDGET_LEDGER default from run() in _harness.mjs and the
+   * child falls back to the tool's compiled-in production path, which this case names as not
+   * isolated, with no production byte touched.
+   */
+  const ledgerProbe = stage(
+    "budget/ledger-probe.mjs",
+    `process.stdout.write(process.env.ORBIT_AUTOMATION_BUDGET_LEDGER ?? "<unset>")\n`,
+  )
+  const probeLedgerPath = (env) => run("ledger-probe.mjs", [], { path: ledgerProbe, ...(env === undefined ? {} : { env }) }).stdout
+  const isolatedFromProduction = (path) => {
+    if (typeof path !== "string" || path.length === 0 || path === "<unset>") return false
+    const insideSuite = relative(resolve(root), resolve(path))
+    return (
+      resolve(path) !== resolve(productionLedgerPath) &&
+      insideSuite.length > 0 &&
+      !insideSuite.startsWith("..") &&
+      !isAbsolute(insideSuite)
+    )
+  }
+  const suiteLedgerPath = probeLedgerPath()
+  const productionProbe = probeLedgerPath({ ORBIT_AUTOMATION_BUDGET_LEDGER: productionLedgerPath })
+  T(
+    "automation-budget.mjs: the suite hands every child a ledger inside its own temp root, never the real ~/.orbit one",
+    helpOutput.status === 0 &&
+      isAbsolute(productionLedgerPath) &&
+      /[\\/]\.orbit[\\/]automation-budget\.jsonl$/.test(productionLedgerPath) &&
+      isolatedFromProduction(suiteLedgerPath) &&
+      !isolatedFromProduction(productionProbe),
+    `production default from --help: ${productionLedgerPath}\n     child received: ${suiteLedgerPath}\n     unisolated control: ${productionProbe}`,
+  )
+
   const reportLedger = stage(
     "budget/report.jsonl",
     [
@@ -659,11 +1077,12 @@ const automationBudgetCases = () => {
     "budget/atomic-reservations.mjs",
     `import { spawn } from "node:child_process"
 import { existsSync, writeFileSync } from "node:fs"
-const [tool, ledger, marker, release] = process.argv.slice(2)
+const [tool, ledger, marker, release, quota] = process.argv.slice(2)
 const common = (identity) => [
   tool, "reserve", "--engine", "claude", "--identity", identity, "--tier", "routine",
   "--started-at", "2030-01-02T09:00:00.000Z", "--ended-at", "2030-01-02T10:00:00.000Z",
-  "--reset-at", "2030-01-08T00:00:00Z", "--warning-tokens", "800",
+  "--reset-at", "2030-01-08T00:00:00Z", "--account-ceiling-percent", "85", "--quota", quota,
+  "--warning-tokens", "800",
   "--budget-tokens", "1000", "--invocation-tokens", "400", "--ledger", ledger,
 ]
 const run = (identity, env = {}) => {
@@ -694,7 +1113,7 @@ process.stdout.write(JSON.stringify(results))
   )
   const atomic = spawnSync(
     process.execPath,
-    [atomicRunner, join(TOOLS_DIR, "automation-budget.mjs"), atomicLedger, lockMarker, lockRelease],
+    [atomicRunner, join(TOOLS_DIR, "automation-budget.mjs"), atomicLedger, lockMarker, lockRelease, quotaFixture(QUOTA_BOTH_UNAVAILABLE)],
     { encoding: "utf8", timeout: 20_000 },
   )
   const atomicResults = atomic.status === 0 ? JSON.parse(atomic.stdout) : []
@@ -803,6 +1222,18 @@ process.exit(statuses.every((status) => status === 0) ? 0 : 1)
       concurrentRecords.length === 2 &&
       new Set(concurrentRecords.map((record) => record.identity)).size === 2,
     `exit ${concurrent.status}\n     ${concurrent.stderr ?? ""}\n     ${JSON.stringify(concurrentRecords)}`,
+  )
+
+  /**
+   * The closing half of F-5, and the only assertion here that looks at the real file. Every case
+   * above has now run; if any of them reached ~/.orbit/automation-budget.jsonl its size or mtime
+   * moved. This is a read, never a write, so a green run proves the suite left production alone
+   * and a red one names the module that did not.
+   */
+  T(
+    "automation-budget.mjs: no case in this module touched the real ~/.orbit ledger",
+    productionLedgerState() === productionLedgerBefore,
+    `${productionLedgerPath}\n     before: ${productionLedgerBefore}\n     after:  ${productionLedgerState()}`,
   )
 }
 

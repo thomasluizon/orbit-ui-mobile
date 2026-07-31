@@ -12,11 +12,40 @@ import { request } from "node:https"
 import { homedir } from "node:os"
 import { join } from "node:path"
 
+import { affectedFilesOf } from "./lib/affected-files.mjs"
+import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
+
 const USAGE = `usage: check-ticket.mjs --issue ORB-12 | --file body.md
 
   --issue ORB-12   validate a Linear issue (body + labels + relations, fetched via the orca CLI)
   --file body.md   validate a drafted body before creation (no labels/relations checks)
   --help, -h       print this usage and exit 0
+
+Affected modules / files must name at least ONE parseable path, not merely carry the heading. A
+ticket with no path list collides with everything, because silence must not buy parallelism: the
+wave collision report can only intersect paths it can read. The parser is tools/lib/affected-files.mjs,
+the same module wave-plan.mjs reads, so what this gate accepts is exactly what that report intersects.
+
+Harness root causes (D5/D5a). tools/harness-roots.json is the registry and the ONLY enumeration
+source; neither Linear path in this tool can list the board. A "Root cause:" line must name an id
+the registry carries. An id is lowercase kebab-case, the shape every registered id is required to
+carry, so a prose sentence after the colon is refused as not being an id at all rather than as an
+unregistered one. The literal value "exempt" claims no root and is accepted. When the named
+root is already owned by a ticket that is still open, this exits 1 naming that ticket: add to it
+rather than filing a second ticket for the same root. This tool acquires no write capability;
+appending a root is a one-line edit to tools/harness-roots.json in the SAME pull request as the
+ticket that needs it, performed by the /ticket and /feature skills, never here.
+
+  --issue  applies the root-cause check to every issue carrying the "harness" label. Such an issue
+           with NO "Root cause:" line is REFUSED: the point of the gate is to force the
+           classification, not to check the spelling of one somebody volunteered.
+  --file   cannot read Linear labels, so it reads the drafted "Labels:" line the 6.2 body opens
+           with and applies the check only to a draft whose labels name "harness". A draft with no
+           such line, or one that does not claim that label, SKIPS the check and says so on stderr:
+           fail-open by necessity, and the reason an ordinary root-cause hypothesis in Technical
+           details is never read as a registry id. --file also cannot confirm whether the owning
+           ticket is still open, so a registered id is warned about on stderr and exits 0 for that
+           sub-case. Re-run with --issue once the ticket exists.
 
 exit codes: 0 ticket ok, 1 defective ticket (problems listed on stderr), 2 usage error`
 
@@ -26,6 +55,19 @@ if (process.argv.includes("--help") || process.argv.includes("-h")) {
 }
 
 const ORCA = process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs\\orca\\resources\\bin\\orca"
+
+let orchestratorConfig
+try {
+  orchestratorConfig = readOrchestratorConfig()
+} catch (error) {
+  console.error(error.message)
+  process.exit(2)
+}
+const TEAM_KEY = orchestratorConfig.linear?.team
+if (typeof TEAM_KEY !== "string" || !/^[A-Za-z0-9]+$/.test(TEAM_KEY)) {
+  console.error(`.claude/orchestrator.json must declare linear.team as an alphanumeric key; got ${JSON.stringify(TEAM_KEY)}`)
+  process.exit(2)
+}
 
 /** Section names the body must carry as markdown headings (any level). */
 const REQUIRED_SECTIONS = [
@@ -79,14 +121,31 @@ const isBounded = (text) => {
 }
 const TYPE_LABELS = ["Feature", "Bug", "Improvement"]
 
+/**
+ * `\b` treats a hyphen as a word boundary, so the plain word list matched inside identifiers:
+ * "Root cause: string-not-act" made a pure tooling ticket demand screenshots and a critique
+ * artifact. A hyphenated compound is its own token, never the bare word, so the boundaries
+ * exclude a hyphen on either side. Everything the plain word list caught it still catches.
+ */
+const VISIBLE_EFFECT_WORD =
+  /(?<![\w-])(?:screen|page|component|modal|sheet|button|copy|string|animation|style|design)(?![\w-])/i
+
 const problems = []
 const require_ = (condition, message) => {
   if (!condition) problems.push(message)
 }
 
+const AFFECTED_SECTION = REQUIRED_SECTIONS.find((section) => section.name === "Affected modules / files")
+
 const validateBody = (body) => {
   for (const section of REQUIRED_SECTIONS) {
     require_(section.pattern.test(body), `missing section: ${section.name}`)
+  }
+  if (AFFECTED_SECTION.pattern.test(body)) {
+    require_(
+      affectedFilesOf(body).length >= 1,
+      `${AFFECTED_SECTION.name} carries the heading but names no parseable path. A ticket with no path list collides with everything, because silence must not buy parallelism: wave-plan.mjs can only intersect paths it can read. List each path on its own line, backticked or as a list item`,
+    )
   }
   const criteria = body.split(/^#+[ \t]+/m).find((chunk) => /^acceptance criteria/i.test(chunk)) ?? ""
   const criteriaItems = criteria.match(/^[ \t]*(?:[-*]|\d+\.)[ \t]+.*$/gm) || []
@@ -104,7 +163,7 @@ const validateBody = (body) => {
   }
   require_(!/\b(TBD|TODO|FIXME|\?\?\?)\b/.test(body), "body carries TBD/TODO placeholders; resolve before dispatch")
   require_(!/\u2014/.test(body), "body carries an em dash (banned everywhere)")
-  const visibleEffect = /\b(screen|page|component|modal|sheet|button|copy|string|animation|style|design)\b/i.test(body)
+  const visibleEffect = VISIBLE_EFFECT_WORD.test(body)
   if (visibleEffect) {
     require_(
       /screenshot|pixel evidence/i.test(body),
@@ -117,14 +176,28 @@ const validateBody = (body) => {
   }
 }
 
+/**
+ * The whole pattern used to carry /i, which case-folded the IDENTIFIER as well as the signal
+ * words, so any lowercase hyphen-and-digit token within 80 characters of a signal word read as a
+ * named dependency: "after feature/orb-163-c2-split-test-file is merged", "once
+ * orb-164-c2-rubric-twin exists", "depends on expo-sdk-54", "blocked by node-24" all tripped it,
+ * and every one of those is a branch slug or a package pin, not a ticket. JavaScript has no
+ * inline case-insensitivity scope, so the signal words are folded one letter at a time and the
+ * identifier is built from the team key the configuration declares instead of any uppercase run.
+ */
+const caseFolded = (phrase) => phrase.replace(/[a-z]/g, (letter) => `[${letter}${letter.toUpperCase()}]`)
+const DEPENDENCY_SIGNALS = ["after", "once", "depends on", "blocked by"]
+const ISSUE_IDENTIFIER = new RegExp(`\\b${TEAM_KEY}-\\d+\\b`)
+const SIGNAL_NAMING_ISSUE = new RegExp(
+  `\\b(?:${DEPENDENCY_SIGNALS.map(caseFolded).join("|")})\\b[^\\n.!?]{0,80}\\b${TEAM_KEY}-\\d+\\b`,
+)
+
 const mentionsIssueDependency = (body) => {
   const dependencySection = body
     .split(/(?=^#+[ \t]+)/m)
     .find((section) => /^#+\s*dependencies\b/im.test(section))
   const dependencyProse = dependencySection?.replace(/^#+[^\n]*(?:\n|$)/, "") ?? ""
-  const issueIdentifier = /\b[A-Z][A-Z0-9]+-\d+\b/
-  const signalNamingIssue = /\b(after|once|depends on|blocked by)\b[^\n.!?]{0,80}\b[A-Z][A-Z0-9]+-\d+\b/i
-  return issueIdentifier.test(dependencyProse) || signalNamingIssue.test(body)
+  return ISSUE_IDENTIFIER.test(dependencyProse) || SIGNAL_NAMING_ISSUE.test(body)
 }
 
 const validateTitle = (title) => {
@@ -145,17 +218,6 @@ const validateLabels = (labels) => {
       "ui tickets must declare parity:yes (web+mobile in one PR) or parity:no (with the adapter-only justification in the body)",
     )
   }
-}
-
-const parentFromOrca = (issue, relations) => {
-  if (Object.hasOwn(issue, "parent")) return issue.parent
-  const parentRelation = relations.find((relation) => {
-    const relationship = relation.relationship ?? relation.type
-    return relationship === "parent" || relationship === "childOf"
-  })
-  return parentRelation
-    ? parentRelation.relatedIssue ?? parentRelation.issue ?? parentRelation
-    : null
 }
 
 const isLedgerParent = (parent) => {
@@ -227,6 +289,94 @@ const validateLedgerOccurrence = (body) => {
   }
 }
 
+/**
+ * D5/D5a, the filing gate. The taxonomy of harness root causes is OPEN, so the gate cannot be a
+ * closed list compiled into this file; it is tools/harness-roots.json, a committed registry that
+ * grows by a one-line edit in the same pull request as the ticket that needs the new root. The
+ * registry is also the only enumeration source available: both Linear paths in this tool are keyed
+ * to a single known identifier and neither can list the board.
+ */
+const HARNESS_ROOTS_URL = new URL("./harness-roots.json", import.meta.url)
+const HARNESS_ROOTS_NAME = "tools/harness-roots.json"
+const HARNESS_LABEL = "harness"
+/** The one value that claims no root. Reserved, so it can never be registered as one. */
+const ROOT_CAUSE_EXEMPT = "exempt"
+const ROOT_CAUSE_LINE = /^[ \t]*(?:[-*][ \t]+)?(?:\*\*)?[Rr]oot [Cc]ause(?:\*\*)?:[ \t]*([^\s.,;]+)/m
+/**
+ * The only place a DRAFT can express its intended labels: a 6.2 body opens with a pipe-separated
+ * `Labels:` line, read live from ORB-163 ("Labels: repo:ui | parity:no | Improvement | Estimate: 8
+ * points") and ORB-164 on 2026-07-31. Without this scope --file applied the registry check to
+ * every drafted body, and the /ticket skill puts a root-cause hypothesis in Technical details for
+ * EVERY defect, so "Root cause: A race condition in the token refresh handler." was read as the
+ * claim "A" and blocked an ordinary bug ticket from ever being created.
+ */
+const DRAFT_LABELS_LINE = /^[ \t]*(?:\*\*)?Labels(?:\*\*)?:[ \t]*([^\r\n]+)$/m
+const draftClaimsHarness = (body) =>
+  (DRAFT_LABELS_LINE.exec(body)?.[1].split("|") ?? []).some((label) => label.trim() === HARNESS_LABEL)
+/**
+ * The shape every registered id already carries. readHarnessRoots enforces it ON the registry as
+ * well, so the pattern a claim is measured against and the ids the registry may hold cannot drift
+ * apart. A captured token that is not id-shaped is prose, and saying "not registered" about prose
+ * sends the author to the registry to fix a sentence.
+ */
+const ROOT_ID_SHAPE = /^[a-z]+(?:-[a-z]+)*$/
+const DONE_STATE_TYPES = new Set(["completed", "canceled", "duplicate"])
+
+const toolFailure = (message) => {
+  console.error(`check-ticket: ${message}`)
+  process.exit(2)
+}
+
+const readHarnessRoots = () => {
+  let registry
+  try {
+    registry = JSON.parse(readFileSync(HARNESS_ROOTS_URL, "utf8"))
+  } catch (error) {
+    toolFailure(`${HARNESS_ROOTS_NAME} could not be read as JSON: ${error instanceof Error ? error.message : String(error)}`)
+  }
+  if (!Array.isArray(registry.roots) || registry.roots.length === 0) {
+    toolFailure(`${HARNESS_ROOTS_NAME} must carry a non-empty roots array`)
+  }
+  const byId = new Map()
+  for (const entry of registry.roots) {
+    const complete = ["id", "definition", "owner"].every(
+      (field) => typeof entry?.[field] === "string" && entry[field].trim() !== "",
+    )
+    if (!complete) toolFailure(`every ${HARNESS_ROOTS_NAME} entry needs a non-empty id, definition and owner; got ${JSON.stringify(entry)}`)
+    if (!ROOT_ID_SHAPE.test(entry.id)) toolFailure(`every ${HARNESS_ROOTS_NAME} id must be lowercase kebab-case (${ROOT_ID_SHAPE.source}), which is the same shape a claimed root is held to; got ${JSON.stringify(entry.id)}`)
+    if (entry.id === ROOT_CAUSE_EXEMPT) toolFailure(`${HARNESS_ROOTS_NAME} must not register the reserved id ${ROOT_CAUSE_EXEMPT}`)
+    if (byId.has(entry.id)) toolFailure(`${HARNESS_ROOTS_NAME} registers the id ${entry.id} twice`)
+    byId.set(entry.id, entry)
+  }
+  return byId
+}
+
+const unregisteredRootProblem = (claim, roots) =>
+  `Root cause: ${claim} is not registered in ${HARNESS_ROOTS_NAME} (registered: ${[...roots.keys()].join(", ")}; the literal ${ROOT_CAUSE_EXEMPT} claims no root). Adding a root is a one-line edit to that file in the SAME pull request as this ticket`
+
+const notAnIdProblem = (claim, roots) =>
+  `Root cause: ${claim} is not a root-cause id, so ${HARNESS_ROOTS_NAME} is not where this is fixed. An id is lowercase kebab-case (${ROOT_ID_SHAPE.source}), the shape every id in that registry carries; the first word of a prose hypothesis is not one. Name a registered id (${[...roots.keys()].join(", ")}), or the literal ${ROOT_CAUSE_EXEMPT} if this ticket instantiates no root`
+
+/** The shared verdict on a claimed root, so both modes refuse the same things for the same reason. */
+const rootCauseProblem = (claim, roots) => {
+  if (!ROOT_ID_SHAPE.test(claim)) return notAnIdProblem(claim, roots)
+  return roots.has(claim) ? null : unregisteredRootProblem(claim, roots)
+}
+
+const issueStateType = (identifier) => {
+  const raw = execFileSync(ORCA, ["linear", "issue", identifier, "--json"], {
+    encoding: "utf8",
+    maxBuffer: 16 * 1024 * 1024,
+  })
+  const parsed = JSON.parse(raw)
+  if (parsed.ok === false) throw new Error(parsed.error?.message ?? "unknown orca error")
+  const parsedResult = parsed.result ?? parsed
+  const state = (parsedResult.issue ?? parsedResult).state
+  const type = typeof state === "string" ? undefined : state?.type
+  if (typeof type !== "string") throw new Error(`the payload for ${identifier} carries no state.type`)
+  return type
+}
+
 const mode = process.argv[2]
 const target = process.argv[3]
 
@@ -240,6 +390,22 @@ if (mode === "--file") {
   const firstLine = body.split("\n")[0].replace(/^#\s*/, "")
   validateTitle(firstLine)
   validateBody(body)
+  if (!draftClaimsHarness(body)) {
+    console.error(`check-ticket: this draft's "Labels:" line does not name ${HARNESS_LABEL}, so the D5/D5a root-cause registry check was NOT applied and any "Root cause:" line here was read as ordinary prose. Re-run with --issue once the ticket exists and Linear owns its labels`)
+  } else {
+    const claim = ROOT_CAUSE_LINE.exec(body)?.[1] ?? null
+    if (claim === null) {
+      problems.push(`this draft claims the ${HARNESS_LABEL} label but carries no "Root cause:" line. Name a root id registered in ${HARNESS_ROOTS_NAME}, or the literal ${ROOT_CAUSE_EXEMPT} if this ticket instantiates no root`)
+    } else if (claim !== ROOT_CAUSE_EXEMPT) {
+      const roots = readHarnessRoots()
+      const problem = rootCauseProblem(claim, roots)
+      if (problem) problems.push(problem)
+      else {
+        const owner = roots.get(claim).owner
+        console.error(`check-ticket: root cause ${claim} is owned by ${owner}. --file reads no Linear, so whether ${owner} is still open was NOT checked; re-run with --issue once this ticket exists`)
+      }
+    }
+  }
 } else if (mode === "--issue") {
   const raw = execFileSync(ORCA, ["linear", "issue", target, "--relations", "--json"], {
     encoding: "utf8",
@@ -255,22 +421,48 @@ if (mode === "--file") {
   validateBody(body)
   validateLabels(labels)
   const relations = parsedResult.relations ?? issue.relations ?? []
-  let parent = parentFromOrca(issue, relations)
-  const parentIsClassifiable = parent === null ||
-    typeof parent?.title === "string" ||
-    typeof parent?.description === "string"
-  if (!parentIsClassifiable) {
-    try {
-      parent = await readLinearParent(issue)
-    } catch (error) {
-      console.error(`check-ticket: could not read the Linear parent relation: ${error instanceof Error ? error.message : String(error)}`)
-      process.exit(2)
-    }
+  /**
+   * Linear is the ONLY source of the parent. `orca linear issue <id> --relations --json` returns
+   * no `parent` key at all, and orca's relation vocabulary is blocks / blocked-by / related /
+   * duplicate-of, so a parent is not expressible as a relation either: verified against ORB-150,
+   * whose payload carries 17 issue keys, no `parent`, and `relations: []`, while Linear reports
+   * its parent as ORB-140. Reading the orca payload for a parent therefore proves nothing, and a
+   * lookup that fails is a refusal rather than an assumed absence.
+   */
+  let parent
+  try {
+    parent = await readLinearParent(issue)
+  } catch (error) {
+    console.error(`check-ticket: could not read the Linear parent relation: ${error instanceof Error ? error.message : String(error)}`)
+    process.exit(2)
   }
   if (isLedgerParent(parent)) validateLedgerOccurrence(body)
   const blockedBy = relations.filter((r) => r.relationship === "blockedBy" || r.type === "blockedBy")
   if (mentionsIssueDependency(body) && blockedBy.length === 0) {
     problems.push("body PROSE mentions a dependency but the issue has no blockedBy relation; the DAG is explicit, never inferred from titles (6.2)")
+  }
+  if (labels.includes(HARNESS_LABEL)) {
+    const identifier = issue.identifier ?? target
+    const claim = ROOT_CAUSE_LINE.exec(body)?.[1] ?? null
+    if (claim === null) {
+      problems.push(`${identifier} carries the ${HARNESS_LABEL} label but no "Root cause:" line. Name a root id registered in ${HARNESS_ROOTS_NAME}, or the literal ${ROOT_CAUSE_EXEMPT} if this ticket instantiates no root`)
+    } else if (claim !== ROOT_CAUSE_EXEMPT) {
+      const roots = readHarnessRoots()
+      const problem = rootCauseProblem(claim, roots)
+      const registered = roots.get(claim)
+      if (problem) problems.push(problem)
+      else if (registered.owner !== identifier) {
+        let ownerState
+        try {
+          ownerState = issueStateType(registered.owner)
+        } catch (error) {
+          toolFailure(`could not read the state of ${registered.owner}, the ticket ${HARNESS_ROOTS_NAME} records as owning root cause ${claim}: ${error instanceof Error ? error.message : String(error)}`)
+        }
+        if (!DONE_STATE_TYPES.has(ownerState)) {
+          problems.push(`root cause ${claim} is already filed as ${registered.owner}, which is still open (${ownerState}); add to ${registered.owner} rather than filing a second ticket for the same root`)
+        }
+      }
+    }
   }
 } else {
   console.error(USAGE)

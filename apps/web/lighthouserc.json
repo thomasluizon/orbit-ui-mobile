@@ -1,4 +1,12 @@
 {
+  "thresholdDerivation": {
+    "whyThisKeyExists": "lhci parses lighthouserc.json with JSON.parse (node_modules/@lhci/utils/src/lighthouserc.js), so the file cannot hold a comment. flattenRcToConfig reads only ci, lhci, ci:client and ci:server, so this sibling key never reaches lhci. It is the derivation for the numbers under ci.assert.assertions, kept in the file a reader edits them in.",
+    "population": "The full history of .github/workflows/perf.yml: 80 runs, 38 failure, 31 success, 11 cancelled. That is 47.50 percent of all runs and 55.07 percent excluding cancelled. All 38 failures were total-blocking-time. The strings largest-contentful-paint and resource-summary appear in 0 of the 80 logs, so two of the three assertions below have never once fired.",
+    "total-blocking-time": "800 -> 950 ms. n = 70: 38 exact failing medians plus 32 known-censored at <= 800, so every percentile above p46 is an exact order statistic rather than an estimate. p50 810.9, p75 852.0, p90 878.0, p95 906.5, p98 930.0, p99 = max = 1093.0. The old 800 sat AT the median, which is the entire defect: a budget at the median fails half the runs. 950 sits between p97 and p98 and projects about 1.3 percent, roughly 1 run in 80. 1100 (p99) was rejected because it projects 0.0 percent, which is a gate that asserts nothing, and because it would wave through the 1093 observation, which came from a genuinely large design diff and is plausibly a real regression rather than runner noise.",
+    "largest-contentful-paint": "7000 is UNCHANGED and underived: n = 0. lhci prints a metric's numeric value only for an assertion that FAILS, and this one never has in 80 runs, so every observation of it is missing and any replacement number would be fabricated. What makes it derivable: the .lighthouseci artifact upload, silently discarded on all 80 runs until include-hidden-files was set in perf.yml, now retains the full LHR JSON for every run, pass or fail. Re-derive from those reports once a comparable run count exists.",
+    "resource-summary:script:size": "820000 is UNCHANGED and underived for the same reason: n = 0, never asserted-failing, never printed. Derivable from the same restored .lighthouseci reports.",
+    "aggregation": "numberOfRuns 5 with aggregationMethod median is what makes total-blocking-time usable at all, and neither may be lowered without re-deriving the threshold. Runner noise characterised from the 190 raw per-run values inside the 38 failing runs: within-run spread has a median of 1807 ms and a max of 3392 ms, which is larger than the entire p50-to-max range of the medians above."
+  },
   "ci": {
     "collect": {
       "startServerCommand": "npm run start -w @orbit/web",
@@ -15,7 +23,7 @@
       "aggregationMethod": "median",
       "assertions": {
         "largest-contentful-paint": ["error", { "maxNumericValue": 7000 }],
-        "total-blocking-time": ["error", { "maxNumericValue": 800 }],
+        "total-blocking-time": ["error", { "maxNumericValue": 950 }],
         "resource-summary:script:size": ["error", { "maxNumericValue": 820000 }]
       }
     },

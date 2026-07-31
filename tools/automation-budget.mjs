@@ -1,7 +1,9 @@
 #!/usr/bin/env node
+import { spawnSync } from "node:child_process"
 import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, statSync, unlinkSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
 
 const WINDOW_MILLISECONDS = 7 * 24 * 60 * 60 * 1000
 /**
@@ -47,9 +49,25 @@ const UNCLAIMED_RESERVATION_LEASE_MILLISECONDS = 2 * 60 * 60 * 1000
 const ENGINES = new Set(["claude", "codex"])
 const TIERS = new Set(["routine", "reserved"])
 const DEFAULT_LEDGER_PATH = resolve(homedir(), ".orbit", "automation-budget.jsonl")
+/**
+ * The BLOCK keys on the provider's own weekly usage, never on the token budget, because the
+ * token budget was never derived from anything and is roughly an order of magnitude below the
+ * real capacity. Measured 2026-07-31: one codex worker session (2 h 22 m, one parent thread and
+ * three spawned children) charged 827,711 uncached input and 60,858 output, 888,569 tokens, which
+ * is 89 percent of the configured 1,000,000 and would refuse the next default launch. Over the
+ * same period the provider's own authoritative reading moved from usedPercent 11 to usedPercent
+ * 11. A fuse that refuses a launch the configured concurrency cap permits is the same defect one
+ * level up, so the ceiling lives in `.claude/orchestrator.json` per engine and its derivation is
+ * written beside it there.
+ *
+ * The field carrying that reading differs per engine, and both names were confirmed by RUNNING
+ * `node tools/ai-quota.mjs --json`, not read off a document.
+ */
+const ACCOUNT_PERCENT_FIELD = { claude: "weeklyPercent", codex: "usedPercent" }
+const QUOTA_TOOL_PATH = fileURLToPath(new URL("./ai-quota.mjs", import.meta.url))
 const USAGE = `usage:
-  automation-budget.mjs check --engine <claude|codex> --identity <id> --tier <routine|reserved> --reset-at <timestamp> --warning-tokens <count> --budget-tokens <count> --invocation-tokens <count> [--ledger <path>] [--json]
-  automation-budget.mjs reserve --engine <claude|codex> --identity <id> --tier <routine|reserved> --started-at <timestamp> --ended-at <timestamp> --reset-at <timestamp> --warning-tokens <count> --budget-tokens <count> --invocation-tokens <count> [--account-used-percent <percent> --account-observed-at <timestamp>] [--ledger <path>] [--json]
+  automation-budget.mjs check --engine <claude|codex> --identity <id> --tier <routine|reserved> --reset-at <timestamp> --account-ceiling-percent <percent> --warning-tokens <count> --budget-tokens <count> --invocation-tokens <count> [--quota <path>] [--ledger <path>] [--json]
+  automation-budget.mjs reserve --engine <claude|codex> --identity <id> --tier <routine|reserved> --started-at <timestamp> --ended-at <timestamp> --reset-at <timestamp> --account-ceiling-percent <percent> --warning-tokens <count> --budget-tokens <count> --invocation-tokens <count> [--quota <path>] [--account-used-percent <percent> --account-observed-at <timestamp>] [--ledger <path>] [--json]
   automation-budget.mjs record --identity <id> --engine <claude|codex> --tier <routine|reserved> --started-at <timestamp> --ended-at <timestamp> [--input-tokens <count> --cached-input-tokens <count>] [--output-tokens <count>] [--provider-estimated-cost <amount>] [--account-used-percent <percent> --account-observed-at <timestamp>] [--ledger <path>] [--json]
   automation-budget.mjs claim --identity <id> --engine <claude|codex> --tier <routine|reserved> --started-at <timestamp> --ended-at <timestamp> --invocation-tokens <count> --worker-pid <pid> [--ledger <path>] [--json]
   automation-budget.mjs cancel --identity <id> --engine <claude|codex> --tier <routine|reserved> --started-at <timestamp> --ended-at <timestamp> [--ledger <path>] [--json]
@@ -79,6 +97,14 @@ const USAGE = `usage:
   --account-observed-at
                   timestamp paired with --account-used-percent
   --reset-at     end of the current weekly window as ISO-8601 with a timezone, or Unix seconds
+  --account-ceiling-percent
+                  the provider account usage from 0 to 100 at which this engine stops launching.
+                  This is the ONLY figure that refuses a launch while the provider reading is
+                  available. Configured per engine as automationBudget.accountUsedPercentCeiling
+                  in .claude/orchestrator.json, where its derivation is written beside it
+  --quota        path to a file holding one \`ai-quota.mjs --json\` reading verbatim; defaults to
+                  ORBIT_AUTOMATION_BUDGET_QUOTA, and with neither this tool runs
+                  ${QUOTA_TOOL_PATH} itself
   --budget-tokens
                   positive token budget for the current engine and window
   --warning-tokens
@@ -91,11 +117,26 @@ const USAGE = `usage:
   --json         emit the command result as JSON; without it check and record are quiet on success
   --help, -h     print this usage and exit 0
 
-The fuse blocks automation when measured spend, every live reservation, and the proposed
-reservation would exceed the token budget. Measured spend is UNCACHED input plus output: a
-record's cachedInputTokens are subtracted from its inputTokens, because a cache read is not
-fresh spend. The fuse fails closed when the latest in-window record for any identity lacks
-either token measurement.
+The fuse blocks automation when the PROVIDER's own authoritative weekly usage for this engine has
+reached --account-ceiling-percent. That reading comes from ai-quota.mjs: claude weeklyPercent,
+codex usedPercent. Nothing else refuses a launch while it is available.
+
+The token budget is a WARNING-ONLY signal whenever that reading is available, and it is NOT
+derived from any measurement. One measured codex session spent 888,569 tokens, 89 percent of the
+configured 1,000,000, while the provider's own reading did not move off 11 percent. Measured spend
+is UNCACHED input plus output: a record's cachedInputTokens are subtracted from its inputTokens,
+because a cache read is not fresh spend. Every token figure is still reserved, recorded and
+reported exactly as before; it is the audit trail and the proof of concurrency.
+
+When the provider reading is UNAVAILABLE the token budget becomes the fuse again, and check and
+reserve say so on stderr and in the emitted JSON (gate TOKEN_FALLBACK, accountUsage.reason). This
+is the common path, not the edge case: the claude arm reads its figure by scraping an Orca
+accessibility tree and is UNAVAILABLE whenever that window is not scrapeable. UNAVAILABLE is an
+honest answer and is NEVER read as zero usage. In fallback the tool blocks when measured spend,
+every live reservation, and the proposed reservation would exceed the token budget, and it fails
+closed when the latest in-window record for any identity lacks either token measurement. Under an
+available reading that same incomplete measurement is a warning, because the token total it spoils
+no longer gates anything.
 Duplicate identities are append-only; the latest in-window record is authoritative. A cancelled
 pending invocation contributes no tokens. A reservation is a lease. One that recorded a worker PID
 expires the moment that process is gone, and in any case once its end timestamp is more than
@@ -103,16 +144,18 @@ ${CLAIMED_RESERVATION_BACKSTOP_MILLISECONDS / 3_600_000} hours old, which termin
 confirmed spawned, so it expires once its end timestamp is more than ${UNCLAIMED_RESERVATION_LEASE_MILLISECONDS / 3_600_000} hours old. An expired
 reservation holds no budget and no longer fails the fuse closed. No lease applies to a record
 reporting exactly one of the two token figures: that is a half-measured real invocation, not a
-reservation, and it fails the fuse closed for the whole window. Account usage percentage
-and estimated cost are context only and never affect token totals. Records are attributed to the
+reservation, and it fails the fuse closed for the whole window. The RECORDED --account-used-percent
+and --provider-estimated-cost stay ledger context only and never affect token totals; they are not
+the gate reading, which is read fresh per invocation from --quota. Records are attributed to the
 seven-day window containing their end timestamp. Mutations share an adjacent lock file and fail
 closed on lock contention.
 
 exit codes:
   0  success or permitted invocation
   2  invalid command-line input
-  3  ledger read, validation, lock, append, claim, or incomplete-measurement failure
-  4  routine invocation blocked because its token reservation would exceed the budget`
+  3  ledger read, validation, lock, append, claim, quota-file read, or incomplete-measurement failure
+  4  invocation blocked: provider account usage reached the ceiling, or the provider reading was
+     unavailable and the token fallback would exceed the budget`
 
 let releaseActiveLock = null
 
@@ -154,6 +197,8 @@ const parseArguments = (argumentsList) => {
       "--provider-estimated-cost",
       "--account-used-percent",
       "--account-observed-at",
+      "--account-ceiling-percent",
+      "--quota",
       "--reset-at",
       "--warning-tokens",
       "--budget-tokens",
@@ -259,6 +304,68 @@ const ledgerPath = (values) => {
   const configuredPath = values.get("--ledger") ?? process.env.ORBIT_AUTOMATION_BUDGET_LEDGER ?? DEFAULT_LEDGER_PATH
   if (configuredPath.trim().length === 0) fail(`ORBIT_AUTOMATION_BUDGET_LEDGER must not be empty`, 2)
   return resolve(configuredPath)
+}
+
+/**
+ * One engine's arm of an `ai-quota.mjs --json` reading, reduced to the single number the fuse
+ * keys on. Anything short of an OK status carrying a finite percentage is UNAVAILABLE and says
+ * why; it is NEVER coerced to zero, which would read a broken window scrape as an idle account.
+ */
+const selectAccountUsage = (reading, engine, source) => {
+  const engineReading = reading?.[engine]
+  const field = ACCOUNT_PERCENT_FIELD[engine]
+  const usedPercent = engineReading?.[field]
+  if (engineReading?.status !== "OK" || !Number.isFinite(usedPercent) || usedPercent < 0 || usedPercent > 100) {
+    return {
+      status: "UNAVAILABLE",
+      source,
+      reason: `ai-quota reported ${engine} status ${engineReading?.status ?? "absent"} and ${field} ${JSON.stringify(usedPercent) ?? "absent"}`,
+    }
+  }
+  return { status: "OK", source, usedPercent }
+}
+
+/**
+ * The quota reading is isolated exactly the way the ledger path is, so the harness can stub one
+ * without this tool ever spawning a process: `--quota`, then ORBIT_AUTOMATION_BUDGET_QUOTA, then
+ * the real tool. A file the caller NAMED and this tool cannot read or parse is a hard failure,
+ * because a typo there silently disables the only gate that can refuse a launch; a spawn of the
+ * real reader that fails is UNAVAILABLE, because that is the honest common answer and the token
+ * fallback still bounds it.
+ *
+ * ai-quota's exit code is deliberately ignored. Confirmed by running it: with both providers down
+ * it exits 1 and still writes the complete JSON object to stdout, so reading stdout is the only
+ * way to learn WHICH arm is unavailable.
+ */
+const readAccountUsage = (values, engine) => {
+  const configuredPath = values.get("--quota") ?? process.env.ORBIT_AUTOMATION_BUDGET_QUOTA
+  if (configuredPath !== undefined) {
+    if (configuredPath.trim().length === 0) fail(`ORBIT_AUTOMATION_BUDGET_QUOTA must not be empty`, 2)
+    const path = resolve(configuredPath)
+    let contents
+    try {
+      contents = readFileSync(path, "utf8")
+    } catch (error) {
+      fail(`could not read quota reading ${path}: ${error.message}`, 3)
+    }
+    try {
+      return selectAccountUsage(JSON.parse(contents), engine, path)
+    } catch (error) {
+      fail(`quota reading ${path} is not valid JSON: ${error.message}`, 3)
+    }
+  }
+  const probe = spawnSync(process.execPath, [QUOTA_TOOL_PATH, "--json"], {
+    encoding: "utf8",
+    maxBuffer: 32 * 1024 * 1024,
+  })
+  if (probe.error) {
+    return { status: "UNAVAILABLE", source: QUOTA_TOOL_PATH, reason: `ai-quota.mjs could not start: ${probe.error.message}` }
+  }
+  try {
+    return selectAccountUsage(JSON.parse(probe.stdout), engine, QUOTA_TOOL_PATH)
+  } catch {
+    return { status: "UNAVAILABLE", source: QUOTA_TOOL_PATH, reason: "ai-quota.mjs returned output that is not JSON" }
+  }
 }
 
 const hasOwn = (value, property) => Object.prototype.hasOwnProperty.call(value, property)
@@ -553,35 +660,72 @@ const parseBudgetRequest = (values, allowedFlags) => {
   const budgetTokens = parseTokenCount(requireValue(values, "--budget-tokens"), "--budget-tokens", 2, true)
   if (warningTokens >= budgetTokens) fail(`--warning-tokens must be below --budget-tokens`, 2)
   const invocationTokens = parseTokenCount(requireValue(values, "--invocation-tokens"), "--invocation-tokens")
-  return { engine, identity, tier, resetAt, warningTokens, budgetTokens, invocationTokens }
+  const accountCeilingPercent = parsePercent(requireValue(values, "--account-ceiling-percent"), "--account-ceiling-percent")
+  const accountUsage = readAccountUsage(values, engine)
+  if (accountUsage.status !== "OK") {
+    console.error(`automation-budget: ${engine} account usage is UNAVAILABLE and is not being read as zero (${accountUsage.reason}; source ${accountUsage.source}); falling back to the token budget, which blocks but was never derived from any measurement`)
+  }
+  return { engine, identity, tier, resetAt, warningTokens, budgetTokens, invocationTokens, accountCeilingPercent, accountUsage }
 }
 
 const evaluateBudget = (request, records, json) => {
-  const { engine, identity, tier, resetAt, warningTokens, budgetTokens, invocationTokens } = request
+  const { engine, identity, tier, resetAt, warningTokens, budgetTokens, invocationTokens, accountCeilingPercent, accountUsage } = request
   const summary = summarize(records, engine, resetAt)
   const projectedTokens = summary.totalTokens + summary.pendingTokens + invocationTokens
-  const status = projectedTokens > budgetTokens ? "BLOCK" : projectedTokens >= warningTokens ? "WARN" : "PROCEED"
-  if (status === "BLOCK") {
-    const result = { status, identity, tier, warningTokens, budgetTokens, invocationTokens, projectedTokens, ...summary }
-    emitJson(result, json)
-    fail(`invocation "${identity}" blocked: budget ${budgetTokens} tokens, observed spend ${summary.totalTokens} tokens, pending ${summary.pendingTokens} tokens, reservation ${invocationTokens} tokens, projected spend ${projectedTokens} tokens; resets at ${summary.resetsAt}`, 4)
+  const gate = accountUsage.status === "OK" ? "ACCOUNT" : "TOKEN_FALLBACK"
+  const details = {
+    identity,
+    tier,
+    warningTokens,
+    budgetTokens,
+    invocationTokens,
+    projectedTokens,
+    ...summary,
+    gate,
+    accountUsage: { ...accountUsage, ceilingPercent: accountCeilingPercent },
+  }
+  /**
+   * At the ceiling there is no headroom left to authorise, so the comparison is >= rather than
+   * the token budget's >. The two are deliberately different: a token budget is spent by the
+   * invocation being weighed, while a usage percentage already counts everything spent.
+   */
+  if (gate === "ACCOUNT") {
+    if (accountUsage.usedPercent >= accountCeilingPercent) {
+      emitJson({ status: "BLOCK", ...details }, json)
+      fail(`invocation "${identity}" blocked: ${engine} account usage ${accountUsage.usedPercent} percent has reached the configured ceiling ${accountCeilingPercent} percent; resets at ${summary.resetsAt}`, 4)
+    }
+    return { status: projectedTokens >= warningTokens ? "WARN" : "PROCEED", ...details }
+  }
+  if (projectedTokens > budgetTokens) {
+    emitJson({ status: "BLOCK", ...details }, json)
+    fail(`invocation "${identity}" blocked: ${engine} account usage is unavailable, so the token fallback gates this launch; budget ${budgetTokens} tokens, observed spend ${summary.totalTokens} tokens, pending ${summary.pendingTokens} tokens, reservation ${invocationTokens} tokens, projected spend ${projectedTokens} tokens; resets at ${summary.resetsAt}`, 4)
   }
   if (summary.missingIdentities.length > 0) {
-    emitJson({ status: "INCOMPLETE", identity, tier, warningTokens, budgetTokens, invocationTokens, ...summary }, json)
-    fail(`cannot check invocation "${identity}": latest in-window records lack input or output tokens for identities ${summary.missingIdentities.join(", ")}`, 3)
+    emitJson({ status: "INCOMPLETE", ...details }, json)
+    fail(`cannot check invocation "${identity}": ${engine} account usage is unavailable, so the token fallback gates this launch and latest in-window records lack input or output tokens for identities ${summary.missingIdentities.join(", ")}`, 3)
   }
-  const result = { status, identity, tier, warningTokens, budgetTokens, invocationTokens, projectedTokens, ...summary }
-  return result
+  return { status: projectedTokens >= warningTokens ? "WARN" : "PROCEED", ...details }
 }
 
 const emitBudgetResult = (result, json) => {
   emitJson(result, json)
-  const { status, identity, warningTokens, budgetTokens, invocationTokens, projectedTokens, totalTokens, expiredIdentities } = result
+  const { status, identity, warningTokens, budgetTokens, invocationTokens, projectedTokens, totalTokens, expiredIdentities, missingIdentities, gate } = result
   if (expiredIdentities.length > 0) {
     console.error(`automation-budget: reservation lease expired for identities ${expiredIdentities.join(", ")}; they hold no budget and no longer fail the fuse closed`)
   }
+  /**
+   * Under an available provider reading an unmeasured record spoils only the advisory total, so
+   * refusing the launch over it would be the same defect this gate exists to remove. It is still
+   * named, because a worker that never recorded its usage is a real hole in the audit trail.
+   */
+  if (gate === "ACCOUNT" && missingIdentities.length > 0) {
+    console.error(`automation-budget: token totals are incomplete for identities ${missingIdentities.join(", ")}; they no longer refuse a launch because the provider account reading gates it, but their measurement is still missing from the ledger`)
+  }
   if (status === "WARN") {
-    console.error(`automation-budget: warning: invocation "${identity}" projects ${projectedTokens} tokens; warning ${warningTokens} tokens, budget ${budgetTokens} tokens, observed spend ${totalTokens} tokens`)
+    const advisory = gate === "ACCOUNT"
+      ? "; the token budget is a warning-only signal that was never derived from a measurement, so it did not refuse this launch"
+      : ""
+    console.error(`automation-budget: warning: invocation "${identity}" projects ${projectedTokens} tokens; warning ${warningTokens} tokens, budget ${budgetTokens} tokens, observed spend ${totalTokens} tokens${advisory}`)
   }
 }
 
@@ -590,6 +734,8 @@ const budgetFlags = new Set([
   "--identity",
   "--tier",
   "--reset-at",
+  "--account-ceiling-percent",
+  "--quota",
   "--warning-tokens",
   "--budget-tokens",
   "--invocation-tokens",

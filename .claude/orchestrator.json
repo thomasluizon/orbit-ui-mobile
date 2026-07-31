@@ -25,7 +25,10 @@
       "interactive": true,
       "automationBudget": {
         "tier": "routine",
+        "accountUsedPercentCeiling": 85,
+        "accountUsedPercentCeilingDerivation": "The only figure that refuses a launch. 85 leaves 15 points of the provider's own weekly window unspent, and the 15 is measured rather than round. On 2026-07-31 one full codex worker session (2 h 22 m, one parent thread plus three spawned children, 827,711 uncached input and 60,858 output) moved the codex reading from usedPercent 11 to usedPercent 11, so a whole session costs less than the 1 point resolution of the reading. maxParallelWorktrees 4 times maxSlicesPerWorker 3 authorises 12 concurrent sessions, so one full wave costs under 12 points: starting below 85 a whole wave lands under 97 and can never exhaust the window mid-wave. NOT MEASURED for claude: no per-session claude figure exists, so the codex-derived 12 point wave plus margin is applied here unchanged. Raise or lower this only against a new measurement, and write that measurement here.",
         "tokenBudget": 1000000,
+        "tokenBudgetNote": "WARNING ONLY, and NOT DERIVED FROM ANYTHING. Nobody measured this number; it is roughly an order of magnitude below the real weekly capacity. One measured codex session spent 888,569 tokens, 89 percent of it, while the provider's own reading did not move off 11 percent, so as a fuse it refused launches the concurrency cap permits. It can no longer refuse a launch while the provider reading is available. It IS still the fuse whenever that reading is UNAVAILABLE, which is the common case for claude because that arm scrapes an Orca accessibility tree. Every token figure is still reserved, recorded and reported: it is the audit trail and the proof of concurrency.",
         "warningTokens": 800000,
         "invocationTokens": {
           "default": 100000,
@@ -68,7 +71,10 @@
       "interactive": false,
       "automationBudget": {
         "tier": "routine",
+        "accountUsedPercentCeiling": 85,
+        "accountUsedPercentCeilingDerivation": "The only figure that refuses a launch. 85 leaves 15 points of the provider's own weekly window unspent, and the 15 is measured rather than round. On 2026-07-31 one full codex worker session (2 h 22 m, one parent thread plus three spawned children, 827,711 uncached input and 60,858 output) moved this reading from usedPercent 11 to usedPercent 11, so a whole session costs less than the 1 point resolution of the reading. maxParallelWorktrees 4 times maxSlicesPerWorker 3 authorises 12 concurrent sessions, so one full wave costs under 12 points: starting below 85 a whole wave lands under 97 and can never exhaust the window mid-wave. Raise or lower this only against a new measurement, and write that measurement here.",
         "tokenBudget": 1000000,
+        "tokenBudgetNote": "WARNING ONLY, and NOT DERIVED FROM ANYTHING. Nobody measured this number; it is roughly an order of magnitude below the real weekly capacity. One measured codex session spent 888,569 tokens, 89 percent of it, while this engine's own reading did not move off 11 percent, so as a fuse it refused launches the concurrency cap permits. It can no longer refuse a launch while the provider reading is available. It IS still the fuse whenever that reading is UNAVAILABLE. Every token figure is still reserved, recorded and reported: it is the audit trail and the proof of concurrency.",
         "warningTokens": 800000,
         "invocationTokens": {
           "default": 100000,

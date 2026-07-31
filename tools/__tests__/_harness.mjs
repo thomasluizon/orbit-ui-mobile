@@ -568,6 +568,13 @@ export const check = (file, name, argv, expect, options = {}) => {
 
 export const DEFAULT_AUTOMATION_BUDGET = {
   tier: "routine",
+  /**
+   * The provider's own weekly usage is what refuses a launch; the token budget is the warning that
+   * takes over only when that reading is UNAVAILABLE. Both live here because the launcher requires a
+   * worker to declare the ceiling, so a fixture worker missing it fails validation rather than the
+   * behaviour under test.
+   */
+  accountUsedPercentCeiling: 85,
   tokenBudget: 1_000_000,
   warningTokens: 800_000,
   invocationTokens: {

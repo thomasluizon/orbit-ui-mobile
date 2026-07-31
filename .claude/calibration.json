@@ -1,6 +1,7 @@
 {
   "model": "gpt-5.6-terra",
   "invocation": [
+    "exec",
     "-c",
     "windows.sandbox=\"unelevated\"",
     "--dangerously-bypass-approvals-and-sandbox",
@@ -9,7 +10,7 @@
     "--model",
     "gpt-5.6-terra"
   ],
-  "date": "2026-07-29",
+  "date": "2026-07-31",
   "entries": [
     {
       "file": ".claude/agents/Explore.md",
@@ -135,7 +136,7 @@
       "file": ".claude/skills/feature/SKILL.md",
       "verdict": "kept",
       "reason": "High effort fits multi-ticket decomposition, contracts, and DAG shaping.",
-      "fingerprint": "sha256:714311c30bacebab33bd87c552233132c71595d2c91b4a9aa778a28d788bbcbc"
+      "fingerprint": "sha256:7c72d6cdcc84494ffeee9861164b348657ef415f2647104065c655e181a2ff57"
     },
     {
       "file": ".claude/skills/investigate/SKILL.md",
@@ -171,7 +172,7 @@
       "file": ".claude/skills/orchestrate/SKILL.md",
       "verdict": "kept",
       "reason": "High effort fits merge-gated multi-worker coordination and reconciliation.",
-      "fingerprint": "sha256:b9e28b2d489ae3ad23f3d99c9eb6514993b751786a40d17325ac1ed878b5c66d"
+      "fingerprint": "sha256:517320a210ef5631a5dd0a5ec5fe4a42a527b0950222b234f27a0c7e21c100a1"
     },
     {
       "file": ".claude/skills/pr-review/SKILL.md",
@@ -192,6 +193,12 @@
       "fingerprint": "sha256:7b01b4a52e5753e77d5fd77b3dda8cbddf0fa4264a95556a91c12926efeab6a5"
     },
     {
+      "file": ".claude/skills/quota/SKILL.md",
+      "verdict": "kept",
+      "reason": "Low effort fits relaying one reader command's JSON verbatim; the only judgement is naming a partial or failed read.",
+      "fingerprint": "sha256:ad100c3e1dfce608f532ffbf3168dd100d816239739104b77c7691ade2dcb678"
+    },
+    {
       "file": ".claude/skills/rollup/SKILL.md",
       "verdict": "kept",
       "reason": "Low effort fits reading and presenting scripted gate conclusions.",
@@ -207,7 +214,7 @@
       "file": ".claude/skills/ticket/SKILL.md",
       "verdict": "kept",
       "reason": "Medium effort fits one-ticket reproduction, reconciliation, and scope shaping.",
-      "fingerprint": "sha256:3e165a6e644ef4136f83c8af579b08e34e390f822bc1d4a97a2d57656863e826"
+      "fingerprint": "sha256:c53eaa68ebda9f889b09df50daa65a548dac283fd8686bddd1510d6af81fdcfa"
     },
     {
       "file": ".claude/skills/validate/SKILL.md",
@@ -219,7 +226,7 @@
       "file": ".claude/skills/watch/SKILL.md",
       "verdict": "kept",
       "reason": "Low effort fits scripted fleet-status interpretation.",
-      "fingerprint": "sha256:e687009f5b21bf49c26cea001a9eb48afa3fde509601f33f6fc4d86c67eb0f40"
+      "fingerprint": "sha256:b8316e1b98238021091e8b8e1df60c4e3494f875078af51e380b7d31621a4f43"
     }
   ]
 }

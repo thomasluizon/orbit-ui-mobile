@@ -1,0 +1,3566 @@
+{
+ "capturedAt": "2026-07-31T10:20:05.747Z",
+ "repo": "thomasluizon/orbit-ui-mobile",
+ "query": "query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){number reviews(first:100){pageInfo{hasNextPage}nodes{state submittedAt author{__typename login} commit{oid}}}}}}",
+ "responses": [
+  {
+   "number": 641,
+   "envelope": {
+    "data": {
+     "repository": {
+      "pullRequest": {
+       "number": 641,
+       "reviews": {
+        "pageInfo": {
+         "hasNextPage": false
+        },
+        "nodes": [
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T16:22:24Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "1bfdae32659f8b707b42f522e8545c814609d748"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-28T16:32:30Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "1bfdae32659f8b707b42f522e8545c814609d748"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T16:33:52Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "3e915908e23cfd6c06037931b0e60932978388c3"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T16:44:41Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "3e915908e23cfd6c06037931b0e60932978388c3"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-28T16:44:45Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "3e915908e23cfd6c06037931b0e60932978388c3"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T16:55:24Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "f12c2c891fe7b06de45e75a201b2c156de58f9d4"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-28T17:01:06Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "f12c2c891fe7b06de45e75a201b2c156de58f9d4"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-28T17:02:01Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "f12c2c891fe7b06de45e75a201b2c156de58f9d4"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-28T17:13:07Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "67bebcd1605f72e23953317967c11d9f7132d88c"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-28T17:21:28Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "67bebcd1605f72e23953317967c11d9f7132d88c"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-28T17:33:45Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "112fa15bcb833896d2500ca60fc68cf459a518ab"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T17:44:31Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "82e4010f8cca1caa67c2302b17f185b72e8eb62a"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T17:48:49Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "82e4010f8cca1caa67c2302b17f185b72e8eb62a"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-28T17:50:53Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "82e4010f8cca1caa67c2302b17f185b72e8eb62a"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-28T18:28:54Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "8c7a01b36413bfb95f7aa64f006c0acfd2a4a8ba"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T18:32:25Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "e479716c8e6b1d20479d3c3dda5d35bca35288e0"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-28T18:39:30Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "e479716c8e6b1d20479d3c3dda5d35bca35288e0"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-28T19:27:34Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "6a451cbe183fe341b1f1cf7f36435fb64ce2a20f"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-28T19:48:19Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "13497dd40b97cda4e16a3674c4bba0dc3ac814d6"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-28T20:35:09Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "1e1e0e8029ca0089d52f8f6e5faf909367bc3c5d"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-28T22:06:30Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "1e1e0e8029ca0089d52f8f6e5faf909367bc3c5d"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-28T22:33:17Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "1e1e0e8029ca0089d52f8f6e5faf909367bc3c5d"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T22:35:11Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "1e1e0e8029ca0089d52f8f6e5faf909367bc3c5d"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T23:19:14Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "55cd84c876377f6cc54c0aade7c0b2418f7c090d"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-28T23:28:26Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "0e8f78fd4275040f29e8cce59e7f3ebd8173d280"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-28T23:29:31Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "0e8f78fd4275040f29e8cce59e7f3ebd8173d280"
+          }
+         }
+        ]
+       }
+      }
+     }
+    }
+   }
+  },
+  {
+   "number": 642,
+   "envelope": {
+    "data": {
+     "repository": {
+      "pullRequest": {
+       "number": 642,
+       "reviews": {
+        "pageInfo": {
+         "hasNextPage": false
+        },
+        "nodes": [
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-28T18:24:02Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "da8207f41be107f343ce883bf326c0c7e8307049"
+          }
+         }
+        ]
+       }
+      }
+     }
+    }
+   }
+  },
+  {
+   "number": 643,
+   "envelope": {
+    "data": {
+     "repository": {
+      "pullRequest": {
+       "number": 643,
+       "reviews": {
+        "pageInfo": {
+         "hasNextPage": false
+        },
+        "nodes": [
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-28T18:43:51Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "e6bd30cbea7327cb2f9cf5a50ba7d0ecc5fc5d5a"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-28T19:03:19Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "e6bd30cbea7327cb2f9cf5a50ba7d0ecc5fc5d5a"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-28T19:06:38Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "e6bd30cbea7327cb2f9cf5a50ba7d0ecc5fc5d5a"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-28T19:36:52Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "de528d3f451c778feab92efdd7ea30b80cb43e90"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T19:39:12Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "de528d3f451c778feab92efdd7ea30b80cb43e90"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-28T19:42:27Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "de528d3f451c778feab92efdd7ea30b80cb43e90"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-28T19:57:12Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "2aefcecd0e19c83f6b7b013ace161ca7e1c44c1c"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T20:20:38Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "5afc0dfec1d7822d0a75b01bfe92bfa15a55e300"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T20:47:59Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "88c13f8f6b876078a1dac715f1219dc3b3221173"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-28T21:05:42Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "88c13f8f6b876078a1dac715f1219dc3b3221173"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T21:05:52Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "88c13f8f6b876078a1dac715f1219dc3b3221173"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-28T21:16:19Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "8b6dd5d61541613ec3347a88c452fdeb65b7e7cb"
+          }
+         }
+        ]
+       }
+      }
+     }
+    }
+   }
+  },
+  {
+   "number": 644,
+   "envelope": {
+    "data": {
+     "repository": {
+      "pullRequest": {
+       "number": 644,
+       "reviews": {
+        "pageInfo": {
+         "hasNextPage": false
+        },
+        "nodes": [
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T19:03:31Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "3c6103c622f08d5027efea4576381b90bf853688"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T19:47:19Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "0aeebe3ac024d39a3b89d97a4b329ea971ee6963"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-28T19:54:32Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "0aeebe3ac024d39a3b89d97a4b329ea971ee6963"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T20:27:43Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "dd420b794043a2e6cf40ca66bd555d7178405cd6"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T20:27:49Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "dd420b794043a2e6cf40ca66bd555d7178405cd6"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T20:32:27Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "dd420b794043a2e6cf40ca66bd555d7178405cd6"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-28T20:40:55Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "dd420b794043a2e6cf40ca66bd555d7178405cd6"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T20:41:04Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "dd420b794043a2e6cf40ca66bd555d7178405cd6"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T20:50:54Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "78339020fb5db797665b4e23e3c8aa03a65fb25a"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T20:54:55Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "78339020fb5db797665b4e23e3c8aa03a65fb25a"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T22:36:28Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "05bcd300f8f6a966c761ed46106a59913a312458"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T22:36:30Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "05bcd300f8f6a966c761ed46106a59913a312458"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T22:38:30Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "05bcd300f8f6a966c761ed46106a59913a312458"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-28T22:46:29Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "05bcd300f8f6a966c761ed46106a59913a312458"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T22:46:38Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "05bcd300f8f6a966c761ed46106a59913a312458"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T22:46:43Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "05bcd300f8f6a966c761ed46106a59913a312458"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T23:24:11Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "3b27d9a110300ce53c47950842fbf5aeb5401409"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T23:24:12Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "3b27d9a110300ce53c47950842fbf5aeb5401409"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T23:34:08Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "3b27d9a110300ce53c47950842fbf5aeb5401409"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-28T23:36:37Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "3b27d9a110300ce53c47950842fbf5aeb5401409"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T23:36:49Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "3b27d9a110300ce53c47950842fbf5aeb5401409"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T23:36:55Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "3b27d9a110300ce53c47950842fbf5aeb5401409"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T23:50:51Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "4e29ea814d5e808d27a392f9b9423358d28c9b92"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T23:50:53Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "4e29ea814d5e808d27a392f9b9423358d28c9b92"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T23:51:38Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "4e29ea814d5e808d27a392f9b9423358d28c9b92"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T23:51:40Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "4e29ea814d5e808d27a392f9b9423358d28c9b92"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T23:56:24Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "4e29ea814d5e808d27a392f9b9423358d28c9b92"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-28T23:56:46Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "4e29ea814d5e808d27a392f9b9423358d28c9b92"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T00:19:26Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "4ec6ec867669739e169f58d89cc3933f57a1ea07"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T00:21:24Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "4ec6ec867669739e169f58d89cc3933f57a1ea07"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T00:27:31Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "4ec6ec867669739e169f58d89cc3933f57a1ea07"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-29T00:31:19Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "4ec6ec867669739e169f58d89cc3933f57a1ea07"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T01:09:28Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "05f0e54b16b04774ea6a1cef1861e90a6d33a80e"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-29T01:15:25Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "05f0e54b16b04774ea6a1cef1861e90a6d33a80e"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T01:21:59Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "05f0e54b16b04774ea6a1cef1861e90a6d33a80e"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-29T02:32:08Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "f0ae1d761407bbd5dfd3dad9e958122eac1adc72"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-29T02:36:17Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "f0ae1d761407bbd5dfd3dad9e958122eac1adc72"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T03:07:33Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "f0ae1d761407bbd5dfd3dad9e958122eac1adc72"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T03:08:21Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "27592054a827d4561964a761bd0bf4ddff0c2f61"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T03:12:57Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "27592054a827d4561964a761bd0bf4ddff0c2f61"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-29T03:17:01Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "27592054a827d4561964a761bd0bf4ddff0c2f61"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T03:39:45Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "29c6a03a3fc697c1098ccb5c7f8b2a67e5f2b30c"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-29T03:47:37Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "29c6a03a3fc697c1098ccb5c7f8b2a67e5f2b30c"
+          }
+         }
+        ]
+       }
+      }
+     }
+    }
+   }
+  },
+  {
+   "number": 645,
+   "envelope": {
+    "data": {
+     "repository": {
+      "pullRequest": {
+       "number": 645,
+       "reviews": {
+        "pageInfo": {
+         "hasNextPage": false
+        },
+        "nodes": [
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T19:22:36Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "9747f3111177ed603f28ceb596c58446c1968409"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-28T19:34:22Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "9747f3111177ed603f28ceb596c58446c1968409"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T19:38:45Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "1957fe09b82fb2faedd683093722c15f793bc30f"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T19:38:48Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "1957fe09b82fb2faedd683093722c15f793bc30f"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T19:45:19Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "1957fe09b82fb2faedd683093722c15f793bc30f"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-28T19:46:23Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "1957fe09b82fb2faedd683093722c15f793bc30f"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T20:36:32Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "8f41c94e1fa741936935a0ee66eed7da4387c3a3"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T21:00:57Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "e2a6fb24b8a74028dd9f73abd1671605ef3d2d8c"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T21:00:59Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "e2a6fb24b8a74028dd9f73abd1671605ef3d2d8c"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T21:01:02Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "e2a6fb24b8a74028dd9f73abd1671605ef3d2d8c"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T21:01:49Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "e2a6fb24b8a74028dd9f73abd1671605ef3d2d8c"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-28T21:11:42Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "e2a6fb24b8a74028dd9f73abd1671605ef3d2d8c"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T22:13:24Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "ae93771aa59549cfc4ae52c580d70503e5dc66d8"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T22:17:58Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "ae93771aa59549cfc4ae52c580d70503e5dc66d8"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T22:22:39Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "ae93771aa59549cfc4ae52c580d70503e5dc66d8"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T22:23:55Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "ae93771aa59549cfc4ae52c580d70503e5dc66d8"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-28T22:24:27Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "ae93771aa59549cfc4ae52c580d70503e5dc66d8"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T22:32:49Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "101d54963270aa4f7fdb994b2ae6176e0fba274d"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-28T22:39:51Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "101d54963270aa4f7fdb994b2ae6176e0fba274d"
+          }
+         }
+        ]
+       }
+      }
+     }
+    }
+   }
+  },
+  {
+   "number": 646,
+   "envelope": {
+    "data": {
+     "repository": {
+      "pullRequest": {
+       "number": 646,
+       "reviews": {
+        "pageInfo": {
+         "hasNextPage": false
+        },
+        "nodes": [
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-28T19:26:49Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "9c6946c2649e142d8b7b4b7e73143b4a44027afc"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-28T20:15:45Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "9c6946c2649e142d8b7b4b7e73143b4a44027afc"
+          }
+         }
+        ]
+       }
+      }
+     }
+    }
+   }
+  },
+  {
+   "number": 647,
+   "envelope": {
+    "data": {
+     "repository": {
+      "pullRequest": {
+       "number": 647,
+       "reviews": {
+        "pageInfo": {
+         "hasNextPage": false
+        },
+        "nodes": [
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T19:56:23Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "2dea2e62f2fa1678eba4bf90974c521ccbe2ca89"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-28T20:00:17Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "2dea2e62f2fa1678eba4bf90974c521ccbe2ca89"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T20:00:58Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "2dea2e62f2fa1678eba4bf90974c521ccbe2ca89"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-28T20:01:29Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "2dea2e62f2fa1678eba4bf90974c521ccbe2ca89"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T20:48:44Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "3950aafc0b21ac0a84ddcbcc53c2c3c1aafa38aa"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T20:48:46Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "3950aafc0b21ac0a84ddcbcc53c2c3c1aafa38aa"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-28T21:01:17Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "0123067ae6ee2228003c9ca1b256290b121b5d0d"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-28T21:08:12Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "0123067ae6ee2228003c9ca1b256290b121b5d0d"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T21:45:18Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "a85c75d840a65832bb8f495e26a21acf997a2b9c"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-28T21:51:57Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "a85c75d840a65832bb8f495e26a21acf997a2b9c"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T21:55:05Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "a85c75d840a65832bb8f495e26a21acf997a2b9c"
+          }
+         }
+        ]
+       }
+      }
+     }
+    }
+   }
+  },
+  {
+   "number": 648,
+   "envelope": {
+    "data": {
+     "repository": {
+      "pullRequest": {
+       "number": 648,
+       "reviews": {
+        "pageInfo": {
+         "hasNextPage": false
+        },
+        "nodes": [
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-28T22:08:23Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "a49498dbaf6a0d22b89d3bbbf44c242519cd38d3"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T22:27:49Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "80616660dd35cb4d403c8998c314fde59e9a709b"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-28T22:33:39Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "80616660dd35cb4d403c8998c314fde59e9a709b"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T22:51:42Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "22dba6c5c2e5400284f454362ad2b6f734a31a32"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-28T22:56:54Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "14b28164c254c810661cedaccfd99ee0cc243fc0"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-28T23:15:28Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "14b28164c254c810661cedaccfd99ee0cc243fc0"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-28T23:44:42Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "14b28164c254c810661cedaccfd99ee0cc243fc0"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-29T00:07:34Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "d7a9f4b7c4908683a77f79e9f1153b1cee3e19b1"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-29T01:15:22Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "dcf2f953d52058c13e0f27b189be65a5fac64eea"
+          }
+         }
+        ]
+       }
+      }
+     }
+    }
+   }
+  },
+  {
+   "number": 649,
+   "envelope": {
+    "data": {
+     "repository": {
+      "pullRequest": {
+       "number": 649,
+       "reviews": {
+        "pageInfo": {
+         "hasNextPage": false
+        },
+        "nodes": [
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T23:44:28Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "ec30761cadbc9cb38dbf29ec9caa91989f079b46"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-28T23:49:23Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "41ad74ed67eed7d669c876295adc745698a0058d"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-28T23:51:40Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "41ad74ed67eed7d669c876295adc745698a0058d"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T00:46:12Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "f87e7d57c70c49a1592e9a032cdcc504ea6e7dc0"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-29T00:54:05Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "f87e7d57c70c49a1592e9a032cdcc504ea6e7dc0"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-29T01:18:50Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "8c7bbe15d593b34d4aac0b5775f62134dda8ecaa"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T01:26:58Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "8c7bbe15d593b34d4aac0b5775f62134dda8ecaa"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T02:13:21Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "6b5bd3d494287dd72c47d4dcbcd26152439cfe0f"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T02:13:23Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "6b5bd3d494287dd72c47d4dcbcd26152439cfe0f"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T02:13:25Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "6b5bd3d494287dd72c47d4dcbcd26152439cfe0f"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T02:13:27Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "6b5bd3d494287dd72c47d4dcbcd26152439cfe0f"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-29T02:19:35Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "bceb9cd8a9fd8f521961466500787bc2b125221d"
+          }
+         }
+        ]
+       }
+      }
+     }
+    }
+   }
+  },
+  {
+   "number": 650,
+   "envelope": {
+    "data": {
+     "repository": {
+      "pullRequest": {
+       "number": 650,
+       "reviews": {
+        "pageInfo": {
+         "hasNextPage": false
+        },
+        "nodes": [
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T00:55:55Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "f6567a23a82d5ba810d55e81849caa0021a7bb14"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T01:02:56Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "e5f4cedf0c6ef613c5bba22f7d6ce3871ea5bc23"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T02:47:37Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "398e822ff3efbadd445d9a7f2b015c627023efb1"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-29T02:53:31Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "398e822ff3efbadd445d9a7f2b015c627023efb1"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T02:55:19Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "398e822ff3efbadd445d9a7f2b015c627023efb1"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T03:10:31Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "6c108bff6ff8f42b493fd311e82bdd0486eb42c1"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T03:21:41Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "6c108bff6ff8f42b493fd311e82bdd0486eb42c1"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T03:35:38Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "2b684972a06b982da3c4e8d3f97beb5dddcd523d"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-29T03:48:49Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "2b684972a06b982da3c4e8d3f97beb5dddcd523d"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T03:53:57Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "8de522694c16331a77bac34ba0e784f5f95e7d70"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-29T04:06:58Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "8de522694c16331a77bac34ba0e784f5f95e7d70"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T04:09:07Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "8de522694c16331a77bac34ba0e784f5f95e7d70"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T04:21:10Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "7c40ae8e1f97bc3452cd80e9efcdae28a0443aac"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-29T04:21:20Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "7c40ae8e1f97bc3452cd80e9efcdae28a0443aac"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T04:23:47Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "9d2ddf9f59817f3a6f2b41a6d877b4a64e71db5f"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T04:24:55Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "9d2ddf9f59817f3a6f2b41a6d877b4a64e71db5f"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T04:29:19Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "9d2ddf9f59817f3a6f2b41a6d877b4a64e71db5f"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-29T04:37:43Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "9d2ddf9f59817f3a6f2b41a6d877b4a64e71db5f"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T04:46:43Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "5d592cb9f38d29e7291eaf9a006344617b0dd4b1"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-29T04:52:04Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "ce91fcd803af1de0454dc8ea76054c47d7db1d20"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-29T05:08:15Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "ce91fcd803af1de0454dc8ea76054c47d7db1d20"
+          }
+         }
+        ]
+       }
+      }
+     }
+    }
+   }
+  },
+  {
+   "number": 651,
+   "envelope": {
+    "data": {
+     "repository": {
+      "pullRequest": {
+       "number": 651,
+       "reviews": {
+        "pageInfo": {
+         "hasNextPage": false
+        },
+        "nodes": [
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-29T01:41:37Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "19dac17ee3a6f6c6eb68e1b2870fb6bc5554c891"
+          }
+         }
+        ]
+       }
+      }
+     }
+    }
+   }
+  },
+  {
+   "number": 652,
+   "envelope": {
+    "data": {
+     "repository": {
+      "pullRequest": {
+       "number": 652,
+       "reviews": {
+        "pageInfo": {
+         "hasNextPage": false
+        },
+        "nodes": [
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T02:39:26Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "009f02a40f402a90ed13650865079524913cd3d7"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T02:41:52Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "eaebb84462b46c09fb763699f2ba97f3cd0a7aa2"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-29T02:48:39Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "eaebb84462b46c09fb763699f2ba97f3cd0a7aa2"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-29T02:57:33Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "eaebb84462b46c09fb763699f2ba97f3cd0a7aa2"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T04:15:13Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "049a938a297ff85d1b4599fa2383ec94b24a5c80"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-29T04:23:51Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "049a938a297ff85d1b4599fa2383ec94b24a5c80"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T04:24:51Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "049a938a297ff85d1b4599fa2383ec94b24a5c80"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T04:54:11Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "7283e7cfead741e657d621fd05d3e945d4f4a563"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-29T04:54:13Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "7283e7cfead741e657d621fd05d3e945d4f4a563"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T05:24:03Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "6e87ceb8d9334f10edc2bcb0aee6a4ec6e7e7cc1"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T05:24:53Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "6e87ceb8d9334f10edc2bcb0aee6a4ec6e7e7cc1"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-29T05:29:04Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "0c2d9247c6905a0db14c212fa6480225a9ec6fe2"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T05:53:50Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "0c2d9247c6905a0db14c212fa6480225a9ec6fe2"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-29T06:00:38Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "0c2d9247c6905a0db14c212fa6480225a9ec6fe2"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T06:01:54Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "0c2d9247c6905a0db14c212fa6480225a9ec6fe2"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T06:27:23Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "0c2d9247c6905a0db14c212fa6480225a9ec6fe2"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T07:11:10Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "bfbddbdd54e331c6fe220b50bc8c7536462a1fca"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T07:26:06Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "bfbddbdd54e331c6fe220b50bc8c7536462a1fca"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T07:42:37Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "863ea0de51cc826576470f31abe9d3b63a92d0e3"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T08:05:30Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "258a8322316cd76fdd178ba3bd28ee20e2c106d3"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T08:10:23Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "258a8322316cd76fdd178ba3bd28ee20e2c106d3"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T08:22:31Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "40c942ce540b5edc4569fa25824a8ad014d36f08"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T08:38:22Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "40c942ce540b5edc4569fa25824a8ad014d36f08"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T10:27:54Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "d68fbcc61f92c221137f250059a1402dbc9b4f88"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T11:20:45Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "d68fbcc61f92c221137f250059a1402dbc9b4f88"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T12:31:31Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "f8c09db99c5f5c1766a00e5a36c31af6bc829f59"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T13:29:45Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "9b86a2f58d8c3352e1563eda682e8d4bc732d156"
+          }
+         }
+        ]
+       }
+      }
+     }
+    }
+   }
+  },
+  {
+   "number": 653,
+   "envelope": {
+    "data": {
+     "repository": {
+      "pullRequest": {
+       "number": 653,
+       "reviews": {
+        "pageInfo": {
+         "hasNextPage": false
+        },
+        "nodes": [
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-29T03:10:36Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "5d7c4bf87730d832fc03d11201a271f3e9ecd479"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T05:16:47Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "6722ae030fd61a635afc51f19f4e3ce42147348c"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T05:19:35Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "c131089384d91e9c787ce7e8df45ba55230bc20e"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-29T05:22:56Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "c131089384d91e9c787ce7e8df45ba55230bc20e"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-29T05:23:46Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "c131089384d91e9c787ce7e8df45ba55230bc20e"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-29T05:27:19Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "912e7585b6fc2d73693df0397cf32704d9c01847"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T05:36:07Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "6f0e07e83877aab9e40ea51d9c30a9d45b046a58"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-29T05:36:44Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "6f0e07e83877aab9e40ea51d9c30a9d45b046a58"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-29T05:38:03Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "6f0e07e83877aab9e40ea51d9c30a9d45b046a58"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T11:52:24Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "9dfd58267db426bfa96fd649c2084ceb301cc333"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T15:22:42Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "8cd18663dc0db54c87ed4187f3e83f4a6fbc26f8"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T15:56:21Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "d1b824536acf659eb9316866a8079198f5e3f56c"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T16:27:00Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "d2220ae9343b4d782ea9e5bce01d05d7054a9bdc"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T16:27:02Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "d2220ae9343b4d782ea9e5bce01d05d7054a9bdc"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T16:33:23Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "d2220ae9343b4d782ea9e5bce01d05d7054a9bdc"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T11:15:28Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "c810bd8e91350ff9084b4ad91bae808222e23980"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T11:22:25Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "c810bd8e91350ff9084b4ad91bae808222e23980"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-30T11:27:01Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "c810bd8e91350ff9084b4ad91bae808222e23980"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T12:05:15Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "a35750a2604af625805e24daa38222a921c17f5d"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T12:07:39Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "a35750a2604af625805e24daa38222a921c17f5d"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-30T12:17:47Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "a35750a2604af625805e24daa38222a921c17f5d"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T12:22:23Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "bb71ad765b31ba009c86b659a81eaab48273a3b8"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T12:31:24Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "bb71ad765b31ba009c86b659a81eaab48273a3b8"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-30T12:32:33Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "bb71ad765b31ba009c86b659a81eaab48273a3b8"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-30T13:51:52Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "3d19ff29f5ea3118e49fcba1c99c7124dc8c3bc6"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T13:55:47Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "3d19ff29f5ea3118e49fcba1c99c7124dc8c3bc6"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T14:50:32Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "eb3c2897ee61a6abbcdcdeb9301f5b6a6dbc2df5"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T14:51:20Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "eb3c2897ee61a6abbcdcdeb9301f5b6a6dbc2df5"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-30T14:53:20Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "eb3c2897ee61a6abbcdcdeb9301f5b6a6dbc2df5"
+          }
+         }
+        ]
+       }
+      }
+     }
+    }
+   }
+  },
+  {
+   "number": 654,
+   "envelope": {
+    "data": {
+     "repository": {
+      "pullRequest": {
+       "number": 654,
+       "reviews": {
+        "pageInfo": {
+         "hasNextPage": false
+        },
+        "nodes": [
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T03:27:49Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "6f850eee4e5b44d952f35cc0b0a6c93030fc9bec"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T03:29:30Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "badaa383f49c14fedd1d12a40e86cedb0743b603"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-29T03:37:49Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "badaa383f49c14fedd1d12a40e86cedb0743b603"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-29T03:41:57Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "3abe51a3fbf94af1fa948764e7de56d5a499cccb"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T03:42:48Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "3abe51a3fbf94af1fa948764e7de56d5a499cccb"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-29T03:48:19Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "3abe51a3fbf94af1fa948764e7de56d5a499cccb"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-29T03:48:31Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "3abe51a3fbf94af1fa948764e7de56d5a499cccb"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-29T03:49:50Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "3abe51a3fbf94af1fa948764e7de56d5a499cccb"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-29T05:12:03Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "4feeba4773c01c6aa32ca9fd22323ad39b80427c"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-29T05:17:51Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "4feeba4773c01c6aa32ca9fd22323ad39b80427c"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-29T07:06:58Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "cac9ccbaa7ac990ac27dfb9c388a8fc44845dd08"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T10:32:49Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "cac9ccbaa7ac990ac27dfb9c388a8fc44845dd08"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T10:33:08Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "cac9ccbaa7ac990ac27dfb9c388a8fc44845dd08"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T12:33:06Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "992de569de1965b16109a1f1eb35539767e6c64f"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T13:11:00Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "40dba9fcfe2dbcd20b2ac185d17821d5f8486914"
+          }
+         }
+        ]
+       }
+      }
+     }
+    }
+   }
+  },
+  {
+   "number": 655,
+   "envelope": {
+    "data": {
+     "repository": {
+      "pullRequest": {
+       "number": 655,
+       "reviews": {
+        "pageInfo": {
+         "hasNextPage": false
+        },
+        "nodes": [
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-29T05:47:16Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "51e9eecf16b4aa5b95c8a8c8a19dc4ada3563ffa"
+          }
+         }
+        ]
+       }
+      }
+     }
+    }
+   }
+  },
+  {
+   "number": 656,
+   "envelope": {
+    "data": {
+     "repository": {
+      "pullRequest": {
+       "number": 656,
+       "reviews": {
+        "pageInfo": {
+         "hasNextPage": false
+        },
+        "nodes": [
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T06:56:15Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "7b75b0e792af751e1913c5b5644b19b1615b23f9"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-29T07:02:32Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "7b75b0e792af751e1913c5b5644b19b1615b23f9"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T07:02:46Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "7b75b0e792af751e1913c5b5644b19b1615b23f9"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T15:50:28Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "81e909193e5060a69e3b775aed418cbaaa04c7a7"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T15:50:29Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "81e909193e5060a69e3b775aed418cbaaa04c7a7"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-29T16:04:59Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "81e909193e5060a69e3b775aed418cbaaa04c7a7"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T10:52:03Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "6f5f341717e1c9df2053c8a8e44818955f79931c"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-30T11:00:34Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "6f5f341717e1c9df2053c8a8e44818955f79931c"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T11:06:30Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "45830bef6545dfcf63a47299b6fd2fa8745ac302"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-30T11:15:33Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "45830bef6545dfcf63a47299b6fd2fa8745ac302"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T11:36:12Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "c2bbcd2d64a30dcef3df8d9a88a4f41d4b67f434"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-30T11:45:02Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "c2bbcd2d64a30dcef3df8d9a88a4f41d4b67f434"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T11:48:01Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "569b1230e13de3c0f1dc2655cd71e99c67c21cf8"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T11:55:28Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "569b1230e13de3c0f1dc2655cd71e99c67c21cf8"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-30T11:58:57Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "569b1230e13de3c0f1dc2655cd71e99c67c21cf8"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T12:11:22Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "17dbd7a5bb63ffe456c550aa546bfb5632b2deac"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-30T12:11:33Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "17dbd7a5bb63ffe456c550aa546bfb5632b2deac"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-30T12:19:34Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "17dbd7a5bb63ffe456c550aa546bfb5632b2deac"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-30T13:16:04Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "6429c66160430b60e3438d3f86ee1cf1869bff35"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T13:17:14Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "6429c66160430b60e3438d3f86ee1cf1869bff35"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-30T13:17:23Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "6429c66160430b60e3438d3f86ee1cf1869bff35"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T14:09:32Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "952fd28ddefbcbe0b0e9e6c37be1fcd4f1ab94b1"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-30T14:13:14Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "952fd28ddefbcbe0b0e9e6c37be1fcd4f1ab94b1"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-30T15:34:53Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "d0b52d542ac92fa1ab738dddd5b31be76fbe9bf8"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-30T16:08:22Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "15a5532a995a221f8f67d361fba58750acb53432"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-30T16:11:16Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "15a5532a995a221f8f67d361fba58750acb53432"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-30T20:25:59Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "c71030121d3e2a1b346709a444d21afdc24c829d"
+          }
+         }
+        ]
+       }
+      }
+     }
+    }
+   }
+  },
+  {
+   "number": 658,
+   "envelope": {
+    "data": {
+     "repository": {
+      "pullRequest": {
+       "number": 658,
+       "reviews": {
+        "pageInfo": {
+         "hasNextPage": false
+        },
+        "nodes": [
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-30T11:06:47Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "25a38f9725bd001539202b06823e324576fa2534"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T11:12:53Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "25a38f9725bd001539202b06823e324576fa2534"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T11:59:30Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "b7f02561bd877a4413abddce1d601b26f31df153"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T12:03:12Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "b7f02561bd877a4413abddce1d601b26f31df153"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-30T12:15:31Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "3da9c00062437f3bdf5f8e3303b86793e6abe9f8"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T12:15:37Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "3da9c00062437f3bdf5f8e3303b86793e6abe9f8"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T12:19:25Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "3da9c00062437f3bdf5f8e3303b86793e6abe9f8"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-30T12:24:02Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "3da9c00062437f3bdf5f8e3303b86793e6abe9f8"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T12:29:13Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "e9956826b8b682baf7d0728c5af32a5786b6f447"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T12:31:31Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "e9956826b8b682baf7d0728c5af32a5786b6f447"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-30T12:38:57Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "e9956826b8b682baf7d0728c5af32a5786b6f447"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-30T12:52:28Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "765bac54c0c9b73d0fd8b3ca218eafd697a656fa"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T12:52:39Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "765bac54c0c9b73d0fd8b3ca218eafd697a656fa"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T12:59:08Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "07621adcc7ddb73de563315c73d9839a198f09d4"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T12:59:09Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "07621adcc7ddb73de563315c73d9839a198f09d4"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T13:03:04Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "07621adcc7ddb73de563315c73d9839a198f09d4"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-30T13:09:33Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "07621adcc7ddb73de563315c73d9839a198f09d4"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T13:10:38Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "58e8684185f53fa030fe05f2a83abeaa6bb94dcf"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T13:13:54Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "58e8684185f53fa030fe05f2a83abeaa6bb94dcf"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-30T13:22:09Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "58e8684185f53fa030fe05f2a83abeaa6bb94dcf"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T19:48:33Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "70aca7fe303f71195cb94af5df93623c838feb69"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-30T19:48:37Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "70aca7fe303f71195cb94af5df93623c838feb69"
+          }
+         }
+        ]
+       }
+      }
+     }
+    }
+   }
+  },
+  {
+   "number": 659,
+   "envelope": {
+    "data": {
+     "repository": {
+      "pullRequest": {
+       "number": 659,
+       "reviews": {
+        "pageInfo": {
+         "hasNextPage": false
+        },
+        "nodes": [
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T14:20:23Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "edf1d782b6c96cf2710cc76563f18fa21542b12e"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-30T14:21:30Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "edf1d782b6c96cf2710cc76563f18fa21542b12e"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T14:32:15Z",
+          "author": {
+           "__typename": "User",
+           "login": "thomasluizon"
+          },
+          "commit": {
+           "oid": "3386b5a7ffedbfd8414757990de85b6d8a8f3334"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-30T14:41:39Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "3386b5a7ffedbfd8414757990de85b6d8a8f3334"
+          }
+         },
+         {
+          "state": "APPROVED",
+          "submittedAt": "2026-07-30T15:00:33Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "e32adfb3a34339b3d9f988fea46764fce448d6d9"
+          }
+         }
+        ]
+       }
+      }
+     }
+    }
+   }
+  },
+  {
+   "number": 660,
+   "envelope": {
+    "data": {
+     "repository": {
+      "pullRequest": {
+       "number": 660,
+       "reviews": {
+        "pageInfo": {
+         "hasNextPage": false
+        },
+        "nodes": [
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T14:39:16Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "393aec42f4e5969902290ca5cc2b0a9f706a025b"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-30T14:57:41Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "393aec42f4e5969902290ca5cc2b0a9f706a025b"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T14:57:53Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "393aec42f4e5969902290ca5cc2b0a9f706a025b"
+          }
+         },
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T14:58:06Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "393aec42f4e5969902290ca5cc2b0a9f706a025b"
+          }
+         }
+        ]
+       }
+      }
+     }
+    }
+   }
+  },
+  {
+   "number": 661,
+   "envelope": {
+    "data": {
+     "repository": {
+      "pullRequest": {
+       "number": 661,
+       "reviews": {
+        "pageInfo": {
+         "hasNextPage": false
+        },
+        "nodes": [
+         {
+          "state": "COMMENTED",
+          "submittedAt": "2026-07-30T15:44:47Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "chatgpt-codex-connector"
+          },
+          "commit": {
+           "oid": "acda9b83779d7d57c1276f40fe611b04f0514c17"
+          }
+         },
+         {
+          "state": "CHANGES_REQUESTED",
+          "submittedAt": "2026-07-30T15:49:09Z",
+          "author": {
+           "__typename": "Bot",
+           "login": "claude"
+          },
+          "commit": {
+           "oid": "acda9b83779d7d57c1276f40fe611b04f0514c17"
+          }
+         }
+        ]
+       }
+      }
+     }
+    }
+   }
+  }
+ ]
+}

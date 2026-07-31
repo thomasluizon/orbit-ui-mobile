@@ -1,8 +1,75 @@
 import { spawnSync } from "node:child_process"
-import { existsSync, readFileSync } from "node:fs"
+import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { REPO_ROOT, SELF, T, stage, orcaEnv, run, check } from "./_harness.mjs"
+import { REPO_ROOT, SELF, T, TOOLS_DIR, INTERACTIVE_CODEX, root, stage, orcaEnv, run, check } from "./_harness.mjs"
+
+/**
+ * A private copy beside a hand-written .claude/orchestrator.json. The team key used to be the
+ * literal "ORB" in wave-plan.mjs while the configuration declared it and every other Linear tool
+ * resolved it through the shared reader, which is state read from something nothing keeps current.
+ * These cases are what make a second literal fail instead of silently querying the wrong team.
+ */
+const stageWavePlan = (label, team) => {
+  const base = join(root, "wave-plan-config", label)
+  mkdirSync(join(base, "tools"), { recursive: true })
+  mkdirSync(join(base, ".claude"), { recursive: true })
+  writeFileSync(
+    join(base, ".claude", "orchestrator.json"),
+    JSON.stringify({
+      worker: "codex",
+      workers: { codex: INTERACTIVE_CODEX },
+      maxParallelWorktrees: 8,
+      attemptsBeforeRewrite: 2,
+      linear: { team },
+      repos: {},
+    }),
+  )
+  cpSync(join(TOOLS_DIR, "wave-plan.mjs"), join(base, "tools", "wave-plan.mjs"))
+  cpSync(join(TOOLS_DIR, "lib"), join(base, "tools", "lib"), { recursive: true })
+  return join(base, "tools", "wave-plan.mjs")
+}
+
+const configuredTeamCases = () => {
+  const configuredLog = stage("wave-plan-team.log", "")
+  const configured = run("wave-plan.mjs", ["--all", "--json"], {
+    path: stageWavePlan("configured-team", "ENG"),
+    env: {
+      ...orcaEnv([
+        { match: "linear list-issues", stdout: JSON.stringify({ ok: true, result: { issues: [{ identifier: "ENG-1" }] } }) },
+        { match: "linear issue ENG-1", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ENG-1", title: "configured team", description: "## Affected modules / files\n\n`tools/a.mjs`\n", state: { name: "Todo", type: "unstarted" }, labels: [] }, relations: [] } }) },
+      ]),
+      ORBIT_ORCA_LOG: configuredLog,
+    },
+  })
+  const listCall = readFileSync(configuredLog, "utf8")
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => JSON.parse(line))
+    .find((argv) => argv[1] === "list-issues")
+  T(
+    "wave-plan.mjs: the Linear team comes from the configuration, never a literal in this file",
+    configured.status === 0 &&
+      Array.isArray(listCall) &&
+      listCall[listCall.indexOf("--team") + 1] === "ENG" &&
+      !listCall.includes("ORB"),
+    `exit ${configured.status}\n     list-issues call: ${JSON.stringify(listCall)}\n     ${configured.stderr.trim()}`,
+  )
+  check(
+    "wave-plan.mjs",
+    "refuses a team key it would have to interpolate, rather than sanitising it",
+    ["--all", "--json"],
+    { status: 2, stderr: /must declare linear\.team as an alphanumeric key; got "ORB-\.\*"/ },
+    { path: stageWavePlan("hostile-team", "ORB-.*") },
+  )
+  check(
+    "wave-plan.mjs",
+    "refuses a configuration that declares no team at all",
+    ["--all", "--json"],
+    { status: 2, stderr: /must declare linear\.team as an alphanumeric key; got undefined/ },
+    { path: stageWavePlan("absent-team", undefined) },
+  )
+}
 
 // ORB-1 <- ORB-2 <- ORB-3 is a three-link chain, so ORB-1's reach is 2 only if
 // the count is transitive. ORB-4 is unblocked but at the strike limit: it lands
@@ -169,6 +236,7 @@ const relationFetchConcurrency = (timingLog) => {
 
 export const cases = () => {
     orchestrateFlagCases()
+    configuredTeamCases()
     check("wave-plan.mjs", "documents the explicit issue selection mode", ["--help"], { status: 0, stdout: /--issues "ORB-a,\.\.\."/ })
     const body = (files) => `## Affected modules / files\n\n${files}\n`
     const stubDescriptions = (aDescription, bDescription, aLabels = [], bLabels = [], aRelations = [], bRelations = []) =>
@@ -192,6 +260,20 @@ export const cases = () => {
     check("wave-plan.mjs", "ordinary dotted prose is not reported as a collision", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /collisions: none/ }, { env: stub("e.g. `tools/a.mjs` with Node.js v20.5", "e.g. `tools/b.mjs` with Node.js v20.5") })
     check("wave-plan.mjs", "a shared URL is not reported as a file collision", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /collisions: none/ }, { env: stub("See https://github.com/org/repo/blob/main/docs/collisions.md and `tools/a.mjs`", "See https://github.com/org/repo/blob/main/docs/collisions.md and `tools/b.mjs`") })
     check("wave-plan.mjs", "a shared bare-domain URL is not reported as a file collision", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /collisions: none/ }, { env: stub("See github.com/org/repo/blob/main/docs/collisions.md and `tools/a.mjs`", "See github.com/org/repo/blob/main/docs/collisions.md and `tools/b.mjs`") })
+    /**
+     * A host is refused in EVERY context, not only naked in prose. The annotation branch used to
+     * admit `- config.example.com: staging host`, and the list and backtick branches admitted the
+     * same host without one, so a ticket could satisfy check-ticket.mjs and reach wave-plan.mjs
+     * carrying a declared file it does not have: it escapes the unknown-affected bucket, collides
+     * with nothing, and launches in parallel with a ticket it really does overlap.
+     */
+    check("wave-plan.mjs", "an annotated bare domain is not a declared path", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /unknown \(no parseable path in Affected modules \/ files\): ORB-201/ }, { env: stub("- config.example.com: staging host", "`tools/b.mjs`") })
+    check("wave-plan.mjs", "an unannotated bare domain list item is not a declared path", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /unknown \(no parseable path in Affected modules \/ files\): ORB-201/ }, { env: stub("- config.example.com", "`tools/b.mjs`") })
+    check("wave-plan.mjs", "a backticked bare domain is not a declared path", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /unknown \(no parseable path in Affected modules \/ files\): ORB-201/ }, { env: stub("`config.example.com`", "`tools/b.mjs`") })
+    check("wave-plan.mjs", "an annotated real path is still a declared path", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /ORB-201 \+ ORB-202: tools\/merge-sweep\.sh$/m }, { env: stub("- tools/merge-sweep.sh: the POSIX sweep", "- tools/merge-sweep.sh: the sweep again") })
+    // The boundary the host rule cannot read structurally: `app.config.js` is hostname-shaped and is
+    // a real root file, so the last label is what separates the two and the pair collides on it alone.
+    check("wave-plan.mjs", "a hostname-shaped root file collides while the host beside it does not", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /ORB-201 \+ ORB-202: app\.config\.js$/m }, { env: stub("- config.example.com: staging host\n- app.config.js: the expo config", "- config.example.com: staging host\n- app.config.js: the expo config") })
     const fencedDescription = ["## Technical details", "```sh", "# Files affected: `scripts/deploy.sh`", "```", "## Affected modules / files", "`tools/test-tools.mjs`"].join("\n")
     check("wave-plan.mjs", "a heading-shaped line inside a fence cannot shadow the affected section", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /ORB-201 \+ ORB-202: tools\/test-tools\.mjs/ }, { env: stubDescriptions(fencedDescription, body("`tools/test-tools.mjs`")) })
     const fencedAffected = (file) => body(`\`${file}\`\n\`\`\`sh\nscripts/shared-example.sh\n\`\`\``)

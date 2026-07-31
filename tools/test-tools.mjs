@@ -95,6 +95,8 @@ const CASE_MODULES = [
   ["check-calibration.mjs", "check-calibration", "cases"],
   ["check-required-gates.mjs", "check-required-gates", "cases"],
   ["check-harness-coverage.mjs", "check-harness-coverage", "cases"],
+  ["check-slice-evidence.mjs", "check-slice-evidence", "cases"],
+  ["review-rounds.mjs", "review-rounds", "cases"],
 ]
 
 const gateCases = {}
@@ -124,6 +126,7 @@ const INVALID_INPUT = {
   "check-lockstep.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-push-target.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-required-gates.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "check-slice-evidence.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-suppressions-ratchet.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-tier-labels.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-ticket.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
@@ -139,6 +142,7 @@ const INVALID_INPUT = {
   "pr-watch.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "redesign-coverage.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "refresh-tier-labels.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "review-rounds.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "rollup.sh": { argv: ["--orbit-not-a-flag"], status: 2 },
   "surface-manifest.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "teardown-worktree.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },

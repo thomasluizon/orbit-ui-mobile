@@ -13,6 +13,13 @@ before writing code.
   one PR to the ticket's target branch linking `ORB-N`, then own its review cycle
   through approval with zero unresolved threads. The pull request must be ready for review, never a draft.
   Never merge. Never push to `main` or `redesign/main` directly.
+- Post the approach before you write the code. Open the pull request as your FIRST act
+  after creating the branch, carrying no implementation yet, and immediately post your
+  intended approach as a pull request comment: the change you mean to make, the files it
+  will land in, and why that shape rather than the alternatives you rejected. Only then
+  start writing. The cloud reviewer reads that comment before it reads a diff, so a wrong
+  shape costs one comment instead of a review round against code already written. Changing
+  a plan is free; changing a merged design is not.
 - After pushing, poll your pull request. Reconcile each automated review finding
   against the diff, fix valid findings, commit and push the fix, reply on the thread
   naming the fix commit, resolve the thread, and repeat until the review decision is
@@ -33,9 +40,13 @@ before writing code.
   thread, post a PR comment naming that activity ID and the PR commit that addresses
   it so the pre-merge verification can prove it was handled.
 - Escalate when you disagree with a finding, when you are blocked on a decision you
-  may not make, or when two consecutive cycles fail on the same finding. Report one
-  escalation carrying the finding and your reasoning; otherwise report once when the
-  pull request is approved with zero unresolved threads.
+  may not make, or when two consecutive cycles fail on the same finding. That strike
+  count is DURABLE and lives outside your process, in `tools/lib/strike-ledger.mjs`, so a
+  fresh relaunch does not reset it and escalation cannot degrade into unbounded retry.
+  A relaunch driven by one finding carries `--finding <id>`, and exit code 5 from the
+  launcher means the strikes are spent: escalate, never retry. Report one escalation
+  carrying the finding and your reasoning; otherwise report once when the pull request is
+  approved with zero unresolved threads.
 - Parity is mandatory for `parity:yes` tickets: `apps/web` and `apps/mobile` change in
   the SAME PR, logic and behaviour identical; i18n keys land in `en.json` AND
   `pt-BR.json` in the same edit.
