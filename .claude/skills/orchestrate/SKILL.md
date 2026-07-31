@@ -121,8 +121,8 @@ refusal names the cap, observed count, and every worktree holding a slot. The
 repository's main worktree and archived child worktrees do not consume slots.
 
 For an explicit set larger than the cap, keep the remaining members in first-seen
-order. Launch the next member only when `tools/worker-status.mjs` reports that a
-running member has completed its contract and freed a slot. The cap is a concurrency
+order. Launch the next member only when `tools/worker-status.mjs` reports `DELIVERED` for a
+running member, which is the one verdict that frees a slot (section 3). The cap is a concurrency
 limit, not a batch size: never launch above it, truncate the set, or wait for a fixed
 batch sleep before filling an observed free slot.
 
@@ -151,7 +151,8 @@ eligible ticket. Do not reorder waves or explicit-set members.
 
    **Do NOT hand-write the STANDING clauses here.** Never ask a question, state a blocked
    criterion as UNMET instead of stalling, own only this PR's automated review, escalate on
-   the three contract conditions, never arm a monitor that outlives the contract, never merge:
+   the three contract conditions, never arm a monitor that outlives the contract, post the
+   intended approach as a PR comment before writing any code, never merge:
    all of that is `WORKER_CONTRACT` in `tools/launch-worker.mjs`, which APPENDS it to your
    prompt file at launch (idempotently). The guarantee is structural precisely because it
    used to be prose in this list: on the ORB-88 run a worker whose hand-composed prompt omitted
@@ -179,6 +180,28 @@ eligible ticket. Do not reorder waves or explicit-set members.
    LATER checkpoint (gates green, PR open, blocked), and `--workspace-status` to match.
    The comment is the worktree card's status line, so an empty one means the card reads
    as idle no matter what the worker is doing.
+
+**Wave mode launches a whole disjoint wave in one call.** `--wave-all`, `--wave-label <label>` and
+`--wave-project "<name>"` each consume `tools/wave-plan.mjs --json`, launch every launchable wave-1
+ticket whose affected-file sets are pairwise disjoint, and serialise the rest behind the ticket they
+collide with. The launcher re-invokes itself once per ticket, so the budget fuse, the concurrency
+reservation and `maxParallelWorktrees` are enforced in exactly one place instead of once per mode.
+`--prompt-dir <dir>` is REQUIRED in wave mode and expects `<dir>/<ORB-N>.md`, so step 2's
+`compose-prompt.mjs --output` must write every member's work order there; a ticket with no file in
+that directory refuses the WHOLE wave rather than launching a partial one. Deferred tickets are
+reported with the paths they collide on and are not launched, because only a merge advances a wave
+(D3). Disjointness is evaluated within a repo, and a ticket with no parseable path list collides
+with every other ticket in its repo, because silence must not buy parallelism.
+
+**`--wave-issues` does not exist and is refused by name (exit 2).** In `wave-plan.mjs --issues` mode
+the requested identifiers filter every wave BEFORE collisions are computed, so a collision with a
+ticket the operator did not name is invisible and two tickets sharing a path could launch together.
+The other three selectors partition identically, which is why they are the only three.
+
+**A relaunch that exists to retry ONE review finding passes `--finding <id>`.** Each launch under
+the same `--issue` and `--finding` is one cycle of worker-contract clause 4, counted in a durable
+ledger outside every worker process, so the count survives the relaunch that resets the prompt.
+**Exit 5 means that finding has burned its cycles: escalate it to Thomas, never launch it again.**
 
 **What `launch-worker.mjs` handles for you**, every one measured on a real launch, every one
 fatal to an unattended worker:
@@ -232,32 +255,35 @@ Unknown or conflicting tier labels, missing mappings, and identical tier invocat
 fail the launch loudly. The legacy `worker:sonnet` label is rejected with remediation to
 use `tier:cheap`; it is never silently translated or ignored.
 
-**Why not `claude -p`.** Headless mode is invisible to Orca: it is not a TUI, so the
-worktree card shows no Agents row and clicking the card reveals only a bare shell.
-Measured on the ORB-75 Phase 7 run, where the card read `agents: none` with an empty
-comment for the worker's entire life and death. A TUI worker populates the card's Agents
-row with its live prompt, current tool and elapsed time, which is the only in-Orca window
-into a running worker.
+**The launch mode is declared, never inferred.** Every entry in `orchestrator.json`'s
+`workers` map must declare `interactive` as an explicit boolean; `launch-worker.mjs`
+refuses (exit 2) on silence, because a missing field must not be allowed to select a
+launch mode. The configured default `codex` declares `interactive: false` and runs as an
+ordinary detached child process, so an Orca terminal is optional for it; `claude` declares
+`interactive: true` and drives a TUI.
 
-`claude -p` is not the only way to get there: `codex exec` is Codex CLI's non-interactive
-subcommand and lands in exactly the same place, and flipping the top-level `worker` key is
-a one-word edit (D5). So the guard is not a flag check. Every entry in
-`orchestrator.json`'s `workers` map must declare `interactive: true`, and
-`launch-worker.mjs` refuses (exit 2) to launch anything that does not, with a second
-assertion catching an entry that declares itself interactive while carrying its CLI's
-headless token anywhere in its `command` OR its `args` (a guard that reads only `args` is
-one field move from passing `"command": "codex exec"`).
+Headless has one real cost, measured on the ORB-75 Phase 7 run: the Orca worktree card
+showed `agents: none` with an empty comment for the worker's entire life and death, because
+a headless worker is not a TUI and populates no Agents row. That is why the launcher writes
+its PID to `orbit-worker-pids.jsonl`, why `worker-status.mjs` reads that marker for liveness, and
+why `/watch` reports what that tool decided rather than `orca terminal read`, which for a headless
+worker shows no live turn at all.
 
-That second assertion is **per engine**, keyed by the binary, because headless is a
-property of the CLI: `exec` (and its alias `e`) for codex, `-p` / `--print` for claude.
-One shared token list cannot tell codex's `-p`, which is `--profile`, apart from claude's
-`-p`, which is `--print`, and rejected every valid `codex --profile` invocation as
-headless. A binary with no `ENGINE_PROFILES` entry is refused rather than waved through,
-so adding a third engine means declaring what headless looks like for it.
+A second assertion keeps the declaration honest in BOTH directions. It scans the whole
+invocation, `command` included, because `"command": "codex exec"` is the same headless
+launch as the same token sitting in `args`, and a guard reading only `args` is one field
+move from passing it. `interactive: true` carrying a headless token fails, and so does
+`interactive: false` carrying none. It is **per engine**, keyed by the binary, because
+headless is a property of the CLI: `exec` (and its alias `e`) for codex, `-p` / `--print`
+for claude. One shared token list cannot tell codex's `-p`, which is `--profile`, apart
+from claude's `-p`, which is `--print`, and rejected every valid `codex --profile`
+invocation as headless. A binary with no `ENGINE_PROFILES` entry is refused rather than
+waved through, so adding a third engine means declaring what headless looks like for it.
+A third assertion requires that engine's run-permitting policy token to be present, so a
+worker can never stop for approval with nobody at the keyboard.
 
-**codex is a usable engine.** Its entry is bare `codex` with no subcommand
-(`codex --help`: "If no subcommand is specified, options will be forwarded to the
-interactive CLI") plus `--dangerously-bypass-approvals-and-sandbox`, which is codex's
+**codex is the configured worker.** Its entry is `codex` with the `exec` subcommand, its
+non-interactive mode, plus `--dangerously-bypass-approvals-and-sandbox`, which is codex's
 `bypassPermissions`. Never `--full-auto`: that is `-a on-request --sandbox
 workspace-write`, and `on-request` lets the MODEL decide when to ask a human who is not
 there. The single bypass flag is preferred over the equivalent pair
@@ -277,10 +303,11 @@ result that had condemned Terra-medium. That measured falsifier reversed the ear
 default. Model routing does not change the top-level `worker` selection; D5 keeps that as
 an explicit configuration decision.
 
-Two consequences of dropping `-p`. The process does NOT exit when the work is done, so
-wait with `--for tui-idle`, never `--for exit`. And the permission mode must still come
-from orchestrator.json (`bypassPermissions`), because an interactive worker with nobody
-at the keyboard is just as stuck as a headless one.
+Waiting differs by declared mode. A headless worker is a child process that EXITS when the
+work is done, so its liveness is the recorded PID. An interactive worker never exits, so it
+is waited on with `--for tui-idle`, never `--for exit`. Neither mode changes the permission
+requirement: it comes from orchestrator.json in both, because an interactive worker with
+nobody at the keyboard is just as stuck as a headless one.
 
 ## 3. Babysit
 
@@ -291,7 +318,7 @@ modified and 7 untracked files with zero commits, no push, no PR, and the issue 
 Progress. So idle is a trigger to CHECK, never a report of success:
 
 ```
-node tools/worker-status.mjs --worktree <worktreePath> --issue ORB-N [--base <target>]
+node tools/worker-status.mjs --worktree <worktreePath> --issue ORB-N --base <target> --json
 ```
 
 It derives the verdict from artifacts (commits above the freshly fetched `origin/<target>`,
@@ -302,16 +329,59 @@ what is unmet. For a `visible-effect` ticket, also inspect the issue evidence an
 attached critique paired with the final screenshots before treating the contract as met. That
 list plus this critique check is what you nudge with. Nothing else counts as "done".
 
+**Branch on that poll's `verdict` field, never on a worker's self-report.** Its liveness half comes
+from the launcher-written PID marker, the only source that survives a headless worker, because a
+process that dies cannot report that it died. It fails CLOSED: a pid answering alive whose launcher
+row is older than any measured session reads `unknown`, never `alive`, and so do a missing,
+unreadable or non-JSON marker and an unparseable timestamp.
+
+| `verdict` | what the run does |
+|---|---|
+| `DELIVERED` | exit 0, every check met. Release the ticket's concurrency slot. This is the ONLY verdict that releases one. |
+| `WORKING` | the worker process is alive with something still unmet. Keep waiting; launch nothing. |
+| `STALLED` | the process is gone, a PR is open, and its current head carries no approving review. Relaunch, on the terms below and only these. |
+| `AWAITING-MERGE` | the process is gone, the PR is open and its head is approved. No relaunch can help: finish the bookkeeping, or hand the merge to Thomas (to the 4a sweep under `--sleep`). |
+| `IDLE` | the process is gone and NO pull request is open, so the ticket sits between pull requests. Relaunch nothing; go back to the DAG and make a launch decision. |
+| `UNKNOWN` | liveness could not be read. Relaunch nothing, decide nothing, surface it to the operator. A state nobody observed is not a state to act on. |
+
+`STALLED` keys on the PROCESS and the pull request, never on the Linear state: a ticket shipping
+several sequential pull requests sits honestly In Progress between them, and that shape is `IDLE`.
+
+Only a `STALLED` poll may spend a relaunch, and it spends it through the same tool:
+
+```
+node tools/worker-status.mjs --worktree <worktreePath> --issue ORB-N --base <target> --consume-relaunch --json
+```
+
+**Exit 0 is granted and recorded.** Relaunch injecting that JSON's `relaunch.findings` and
+`relaunch.unmet` into the prompt, not the ticket body alone: the body is what the worker already
+failed against. **Exit 4 is refused: do not relaunch, escalate.** The allowance is keyed on
+(issue, PR head SHA) and capped by `attemptsBeforeRewrite`, so a push earns a fresh one and an
+unchanged head does not.
+
+Two exhaustion conditions, two exit codes, and conflating them retries something that must escalate:
+`worker-status.mjs --consume-relaunch` exits **4** when the allowance for this (issue, PR head SHA)
+is spent, while `launch-worker.mjs --finding <id>` exits **5** when the strike count for this
+(issue, finding) is spent. Both mean stop and escalate; neither is a reason to try again.
+
+Teardown is NOT what `DELIVERED` triggers. `teardown-worktree.mjs` carries its own five-check
+evidence gate, and two of those checks (the PR merge commit present in the target branch, and the
+Linear issue Done) cannot be true of a DELIVERED ticket, which is In Review and unmerged.
+`DELIVERED` is the necessary condition for the slot; section 4's merge is when teardown can pass.
+
 **Headless workers cannot receive a mid-run user turn.** `codex exec` has no terminal
 injection channel. When information arrives mid-run, wait for the worker process to exit,
 derive the artifact verdict, update the prompt, and relaunch. Do not promise a nudge that
 cannot be delivered.
 
 **What the fleet is doing right now** is `/watch` (`tools/worker-watch.mjs`): per worktree, the
-ticket, the branch, the Linear state, BUSY or IDLE from the launcher-written worker PID, and the
-contract verdict above. Liveness and delivery answer different questions, and `IDLE + NOT MET` is
-the pair that costs a run: a worker process that exited without delivering. Read it instead of
+ticket, the branch, the Linear state, and the SAME liveness and verdict the poll above returns,
+because it consumes `worker-status.mjs --json` per worktree and derives nothing of its own. Worker
+liveness reads ALIVE, GONE or UNKNOWN, and `GONE` beside a NOT MET contract is the pair that costs a
+run: a worker process that exited without delivering. An UNKNOWN row is neither, and it says why the
+liveness could not be read; answer it by finding out, never by relaunching. Read this instead of
 hand-running `orca terminal read`, which for a headless worker shows no live turn at all.
+`--repo ui|api|landing` narrows the report to one repository.
 
 After the PR opens, the worker owns its automated review cycle. The orchestrator does not read
 review bodies, author review-round files, or relay findings back to the worker. It waits for one
@@ -341,12 +411,24 @@ Once the worker reports Done, run exactly ONE pre-merge verification for that ti
 node tools/worker-status.mjs --worktree <worktreePath> --issue ORB-N [--base <target>] --verify-review
 ```
 
-This is one pass for the whole ticket, never one pass per review round. It verifies the final
+That is the SAME poll with `--verify-review` added, not a second tool, and no second tool may be
+invented for it. This is one pass for the whole ticket, never one pass per review round. It verifies the final
 diff and thread metadata without printing review bodies. A resolved automated thread whose
 named fix commit did not follow the reviewed commit or change the reviewed path, a human-authored
 thread resolved by the worker account, a head without its own approving review, or any unresolved
 thread is a hard failure. Stop for human adjudication on failure; do not run a second verification
 pass.
+
+**The local `/pr-review` pass, for harness diffs only.** After that verification passes, run
+`/pr-review <pr-number>` exactly ONCE for the ticket, against the SAME final head the
+verification just passed, and only when that head's diff touches `tools/**` or `.claude/**`.
+A diff that touches neither path gets no local pass: the worker-owned automated review cycle
+plus the one verification above are its whole gate. Never one pass per review round, never a
+re-run after a head move (a moved head stops the ticket for human review, exactly as it does
+for the verification), and never inline in the orchestrating session: dispatch it as a
+subagent, because the pass loads the whole diff and the rubric into whichever context invokes
+it. **No token figure is claimed for this pass.** Every figure quoted for it earlier is
+withdrawn and none replaces it; the cost was never measured on a controlled run.
 - D7: an issue may sit In Review only with its PR attached. When labelled `visible-effect`,
   it also needs final screenshots and the worker's critique attached; otherwise demote to In
   Progress and finish.
@@ -696,6 +778,13 @@ exactly that, so the subagent-side half alone does not hold. Both halves are the
 
 - **In a prompt whose task includes waiting on CI or a review:** use one FOREGROUND blocking
   `node tools/pr-watch.mjs --repo <owner/name> --pr <number>` invocation without `--once`.
+  ONE call covers the WHOLE wait: the tool blocks in-process on `Atomics.wait` between polls
+  rather than returning, polling every `--interval` seconds (default 60) until `--timeout`
+  (default 5400, ninety minutes) and exiting on the first transition it can name. Never write
+  a shell loop around it, and never re-arm it once per poll. Raise `--timeout` when the wait
+  can plausibly exceed ninety minutes. Exit 4 is the timeout with nothing actionable, which is
+  not a goal state. No token saving is claimed for the single blocking call over the poll loop
+  it replaced; the difference was not measurable.
   State `yield_time_ms` explicitly at or above the whole expected wait. End the turn only on
   the goal state or a genuinely unfixable blocker, and say which one.
 - **On any completion notification whose result reads "waiting", "standing by", or "monitor

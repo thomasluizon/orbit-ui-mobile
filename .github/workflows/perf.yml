@@ -56,11 +56,22 @@ jobs:
         if: always()
         run: kill "${MOCK_PID}" 2>/dev/null || true
 
+      # include-hidden-files is load-bearing, not cosmetic. actions/upload-artifact excludes
+      # dot-paths by default (`include-hidden-files` defaults to 'false' in v7's action.yml),
+      # .lighthouseci is a dot-directory, and `if-no-files-found: ignore` swallowed the miss.
+      # lhci dumped 5 reports to disk on every one of the first 80 runs and all 80 uploads were
+      # discarded: zero of the repository's 713 artifacts belong to a perf run. That is why two
+      # of the three assertions in apps/web/lighthouserc.json still have n = 0 observations.
+      # if-no-files-found is `error` rather than `warn` because a warning leaves the job green
+      # over a missing artifact, which is the exact defect above. The cost is a second red step
+      # on a job that already failed before the gate ran; the annotation still names a real
+      # missing artifact rather than hiding it.
       - name: Upload Lighthouse reports
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: lighthouse-reports
           path: .lighthouseci
-          if-no-files-found: ignore
+          include-hidden-files: true
+          if-no-files-found: error
           retention-days: 14

@@ -2,7 +2,7 @@ import { createHash } from "node:crypto"
 import { cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
-import { TOOLS_DIR, T, root, check } from "./_harness.mjs"
+import { TOOLS_DIR, T, root, check, run } from "./_harness.mjs"
 
 const calibrationDate = (daysAgo) => {
   const date = new Date()
@@ -90,6 +90,78 @@ const calibrationCases = () => {
     entries: [{ file: ".claude/skills/sample/SKILL.md", verdict: "kept", reason: "Still fits." }],
   })
   check("check-calibration.mjs", "names an uncovered agent", [], { status: 1, stdout: /missing entry: \.claude\/agents\/sample\.md/ }, { path: missing })
+
+  /**
+   * A SKILL is the half that actually shipped uncovered: .claude/skills/quota/SKILL.md
+   * arrived in 495f037d and the gate failed silently for every merge afterwards, because
+   * CI only ever ran this tool with --report-only. The pair below is one fixture read
+   * twice, red then green, so "adding the entry fixes it" is proven rather than assumed.
+   */
+  const missingSkill = stageCalibration("missing-skill-entry", {
+    entries: [{ file: ".claude/agents/sample.md", verdict: "kept", reason: "The bounded role still fits." }],
+  })
+  check(
+    "check-calibration.mjs",
+    "names an uncovered skill",
+    [],
+    { status: 1, stdout: /missing entry: \.claude\/skills\/sample\/SKILL\.md/ },
+    { path: missingSkill },
+  )
+  const missingSkillRoot = dirname(dirname(missingSkill))
+  const missingSkillArtifact = join(missingSkillRoot, ".claude", "calibration.json")
+  const repairedArtifact = JSON.parse(readFileSync(missingSkillArtifact, "utf8"))
+  repairedArtifact.entries.push({
+    file: ".claude/skills/sample/SKILL.md",
+    verdict: "kept",
+    reason: "The bounded procedure still fits.",
+    fingerprint: calibrationFingerprint(
+      readFileSync(join(missingSkillRoot, ".claude", "skills", "sample", "SKILL.md"), "utf8"),
+    ),
+  })
+  writeFileSync(missingSkillArtifact, `${JSON.stringify(repairedArtifact, null, 2)}\n`)
+  check(
+    "check-calibration.mjs",
+    "the same artifact passes once the skill entry is added",
+    [],
+    { status: 0, stdout: /PASS: 2\/2/ },
+    { path: missingSkill },
+  )
+
+  /**
+   * The case that would have caught PR1's stale stamp the day it landed. A worker-level
+   * argument, codex's `exec` subcommand, is part of the resolved invocation, so a stamp
+   * carrying only the model-tier arguments no longer describes how workers are invoked.
+   * Both arrays are pinned here rather than derived from the fixture defaults, so moving
+   * a default turns this case red instead of quietly following it. The verdict must NAME
+   * both values: "invocation mismatch" alone leaves the reader diffing two files by eye.
+   */
+  const stampedInvocation = ["-c", 'model_reasoning_effort="high"', "--model", "gpt-current"]
+  const resolvedInvocation = ["exec", ...stampedInvocation]
+  const workerArgumentDrift = stageCalibration("worker-argument-drift", {
+    stampedInvocation,
+    orchestrator: {
+      worker: "codex",
+      workers: {
+        codex: {
+          args: ["exec"],
+          models: {
+            default: { model: "gpt-current", args: ["-c", 'model_reasoning_effort="high"'] },
+            cheap: { model: "gpt-cheap" },
+            deep: { model: "gpt-deep" },
+          },
+        },
+      },
+    },
+  })
+  const driftVerdict = run("check-calibration.mjs", [], { path: workerArgumentDrift })
+  T(
+    "check-calibration.mjs: names both invocations when the stamp omits a worker-level argument",
+    driftVerdict.status === 1 &&
+      driftVerdict.stdout.includes(
+        `invocation mismatch: stamp ${JSON.stringify(stampedInvocation)}, orchestrator ${JSON.stringify(resolvedInvocation)}`,
+      ),
+    `exit ${driftVerdict.status}\n     ${driftVerdict.stdout.trim()}`,
+  )
 
   const staleEntry = stageCalibration("stale-entry", {
     entries: [
