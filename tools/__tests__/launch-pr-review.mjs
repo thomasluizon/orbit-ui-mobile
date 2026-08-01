@@ -185,6 +185,20 @@ console.log(JSON.stringify({ status: args[0].toUpperCase() }))
 }
 
 export const cases = () => {
+  const schema = JSON.parse(readFileSync(join(REPO_ROOT, "tools", "schemas", "pr-review-result.schema.json"), "utf8"))
+  const constrainedWithoutType = []
+  const visitSchema = (node, path = "$") => {
+    if (!node || typeof node !== "object") return
+    if (!Array.isArray(node) && (Object.hasOwn(node, "const") || Object.hasOwn(node, "enum")) && !Object.hasOwn(node, "type")) {
+      constrainedWithoutType.push(path)
+    }
+    for (const [key, value] of Object.entries(node)) visitSchema(value, `${path}.${key}`)
+  }
+  visitSchema(schema)
+  T("launch-pr-review.mjs: every provider const or enum schema node declares its type", constrainedWithoutType.length === 0, constrainedWithoutType.join(", "))
+  const properties = schema.properties
+  T("launch-pr-review.mjs: provider schema pins identity, verdict, and severity types", properties.schemaVersion?.type === "integer" && properties.repository?.type === "string" && properties.pullRequest?.type === "integer" && properties.base?.type === "string" && properties.reviewedHead?.type === "string" && properties.verdict?.type === "string" && properties.findings?.items?.properties?.severity?.type === "string", JSON.stringify(properties))
+
   const approve = stageReview("approve")
   const approveCalls = approve.calls
   const budgetCalls = approveCalls.filter((call) => call.tool === "budget")

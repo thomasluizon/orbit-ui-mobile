@@ -17,6 +17,7 @@
   ],
   "properties": {
     "schemaVersion": {
+      "type": "integer",
       "const": 1
     },
     "repository": {
@@ -36,6 +37,7 @@
       "pattern": "^[0-9a-f]{40}$"
     },
     "verdict": {
+      "type": "string",
       "enum": ["APPROVE", "NEEDS_WORK"]
     },
     "summary": {
@@ -50,6 +52,7 @@
         "required": ["severity", "title", "path", "line", "evidence", "remediation"],
         "properties": {
           "severity": {
+            "type": "string",
             "enum": ["Critical", "High"]
           },
           "title": {
