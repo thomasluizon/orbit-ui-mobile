@@ -9,7 +9,7 @@ const reviewEvidenceJson = (head, approvalCommits = "__HEAD__", recommendation =
   if (approvalCommits === "PAGINATED") return JSON.stringify({ headRefOid: head, files, reviews: { pageInfo: { hasNextPage: true }, nodes: [] } })
   const local = {
     state: "COMMENTED",
-    body: reviewBody ?? reviewMarker({ head, recommendation, findingIds: recommendation === "NEEDS_WORK" ? ["finding-0123456789abcdef0123456789abcdef"] : [] }),
+    body: reviewBody ?? reviewMarker({ repository: "thomasluizon/orbit-ui-mobile", pullRequest: 615, head, recommendation, findingIds: recommendation === "NEEDS_WORK" ? ["finding-0123456789abcdef0123456789abcdef"] : [] }),
     submittedAt: "2026-07-31T10:00:00Z",
     updatedAt: "2026-07-31T10:00:00Z",
     lastEditedAt: null,

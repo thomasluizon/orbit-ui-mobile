@@ -42,6 +42,9 @@ import {
 import { FINDING_SCOPE, STRIKES_BEFORE_ESCALATION, recordStrike, strikeCount, strikeLedgerPath } from "./lib/strike-ledger.mjs"
 import { REVIEW_AUTHORITY_PRIVATE_KEY_ENV } from "./lib/review-provenance.mjs"
 import {
+  assertWorkerLaunchAuthority,
+  signWorkerLaunchRecord,
+  WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY_ENV,
   readWorkerLaunchRecords,
   recordWorkerLaunch,
   sameWorkerLaunch,
@@ -991,6 +994,7 @@ const headlessInvocation = () => {
 }
 
 const startHeadlessWorker = (worktreePath, branch, launchMode) => {
+  assertWorkerLaunchAuthority()
   const { executable, scriptArgs } = headlessInvocation()
   const launchId = randomUUID()
   const startedAt = new Date().toISOString()
@@ -1002,7 +1006,7 @@ const startHeadlessWorker = (worktreePath, branch, launchMode) => {
   const supervisorPath = resolve(dirname(fileURLToPath(import.meta.url)), "worker-supervisor.mjs")
   const payloadPath = join(tmpdir(), `orbit-worker-${launchId}.json`)
   const startGate = join(tmpdir(), `orbit-worker-${launchId}.ready`)
-  const launchRecord = {
+  let launchRecord = {
     version: 1,
     launchId,
     issue,
@@ -1040,6 +1044,7 @@ const startHeadlessWorker = (worktreePath, branch, launchMode) => {
   let child
   const workerEnvironment = { ...process.env, ORBIT_LAUNCH_WORKER: "1", ORBIT_WORKER_LAUNCH_ID: launchId }
   delete workerEnvironment[REVIEW_AUTHORITY_PRIVATE_KEY_ENV]
+  delete workerEnvironment[WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY_ENV]
   try {
     child = spawn(process.execPath, [supervisorPath, payloadPath], {
       cwd: workerPath,
@@ -1060,6 +1065,7 @@ const startHeadlessWorker = (worktreePath, branch, launchMode) => {
   // The supervisor waits for the gate, so rewrite its payload after the spawn supplies the
   // authoritative supervisor PID. A completion row carrying pid 0 is not a launch receipt and
   // would make the central delivery ledger reject the worker that actually ran.
+  launchRecord = signWorkerLaunchRecord(launchRecord)
   writeSupervisorPayload()
   child.stdio[3].end(privateKey.export({ format: "pem", type: "pkcs8" }))
   try {

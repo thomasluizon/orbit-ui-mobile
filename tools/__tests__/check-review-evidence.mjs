@@ -4,6 +4,7 @@ import { join } from "node:path"
 import { pathToFileURL } from "node:url"
 
 import {
+  REVIEW_AUTHORITY_PRIVATE_KEY,
   REVIEW_AUTHORITY_PRIVATE_KEY_ENV,
   REVIEW_AUTHORITY_PUBLIC_KEY,
   REVIEW_AUTHORITY_PUBLIC_KEY_ENV,
@@ -15,6 +16,7 @@ import {
   root,
   toolPath,
 } from "./_harness.mjs"
+import { issueReviewProvenance } from "../lib/review-provenance.mjs"
 
 const HEAD = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 const OLD = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
@@ -38,11 +40,11 @@ const snapshot = (nodes, expectedHead = HEAD, reviewsHaveNextPage = false, files
   files: connection([], filesHaveNextPage),
   reviews: connection(nodes, reviewsHaveNextPage),
 })
-const runEvidence = (nodes, expectedHead = HEAD, reviewsHaveNextPage = false, filesHaveNextPage = false) =>
-  spawnSync(process.execPath, [toolPath("check-review-evidence.mjs"), "--expected-head", expectedHead], {
+const runEvidence = (nodes, expectedHead = HEAD, reviewsHaveNextPage = false, filesHaveNextPage = false, { ledgerPath = REVIEW_EVIDENCE_LEDGER, repository = "orbit/ui", pullRequest = 615 } = {}) =>
+  spawnSync(process.execPath, [toolPath("check-review-evidence.mjs"), "--repository", repository, "--pull-request", String(pullRequest), "--expected-head", expectedHead], {
     encoding: "utf8",
     input: JSON.stringify(snapshot(nodes, expectedHead, reviewsHaveNextPage, filesHaveNextPage)),
-    env: { ...process.env, ORBIT_LOCAL_REVIEW_PROVENANCE_LEDGER: REVIEW_EVIDENCE_LEDGER },
+    env: { ...process.env, ORBIT_LOCAL_REVIEW_PROVENANCE_LEDGER: ledgerPath },
   })
 
 const reviewEvidenceCases = () => {
@@ -61,6 +63,19 @@ const reviewEvidenceCases = () => {
   const forged = runEvidence([review({ body: forgedReviewMarker({ head: HEAD, recommendation: "APPROVE" }) })])
   T("check-review-evidence.mjs: a hostile worker marker without a launcher receipt blocks", forged.status === 1 && /UNAUTHENTICATED/.test(forged.stdout), forged.stderr || forged.stdout)
 
+  const replayLedger = join(root, "review-replay.jsonl")
+  const oldApproval = issueReviewProvenance({ repository: "orbit/ui", pullRequest: 615, head: HEAD, recommendation: "APPROVE", issuedAt: "2026-07-31T10:00:00Z", ledgerPath: replayLedger, privateKey: REVIEW_AUTHORITY_PRIVATE_KEY })
+  const laterNeedsWork = issueReviewProvenance({ repository: "orbit/ui", pullRequest: 615, head: HEAD, recommendation: "NEEDS_WORK", findingIds: ["finding-0123456789abcdef0123456789abcdef"], issuedAt: "2026-07-31T11:00:00Z", ledgerPath: replayLedger, privateKey: REVIEW_AUTHORITY_PRIVATE_KEY })
+  const markerFor = (provenance, recommendation) => `<!-- orbit-local-review: ${JSON.stringify({ version: 1, head: HEAD, recommendation, provenance })} -->`
+  const replayedApproval = runEvidence([review({ body: markerFor(oldApproval, "APPROVE") })], HEAD, false, false, { ledgerPath: replayLedger })
+  T("check-review-evidence.mjs: an older APPROVE cannot replay after a later NEEDS_WORK issuance", replayedApproval.status === 1 && /UNAUTHENTICATED/.test(replayedApproval.stdout), replayedApproval.stderr || replayedApproval.stdout)
+  const currentNeedsWork = runEvidence([review({ body: markerFor(laterNeedsWork, "NEEDS_WORK") })], HEAD, false, false, { ledgerPath: replayLedger })
+  T("check-review-evidence.mjs: the newest same-PR issuance is the only accepted verdict", currentNeedsWork.status === 1 && /NEEDS_WORK/.test(currentNeedsWork.stdout), currentNeedsWork.stderr || currentNeedsWork.stdout)
+  const crossPullRequestLedger = join(root, "review-cross-pr-replay.jsonl")
+  const otherPullRequest = issueReviewProvenance({ repository: "orbit/ui", pullRequest: 616, head: HEAD, recommendation: "APPROVE", issuedAt: "2026-07-31T12:00:00Z", ledgerPath: crossPullRequestLedger, privateKey: REVIEW_AUTHORITY_PRIVATE_KEY })
+  const crossPullRequest = runEvidence([review({ body: markerFor(otherPullRequest, "APPROVE") })], HEAD, false, false, { ledgerPath: crossPullRequestLedger, pullRequest: 615 })
+  T("check-review-evidence.mjs: a receipt for another pull request cannot replay on this pull request", crossPullRequest.status === 1 && /UNAUTHENTICATED/.test(crossPullRequest.stdout), crossPullRequest.stderr || crossPullRequest.stdout)
+
   const workerLedger = join(root, "worker-review-attempt.jsonl")
   const workerReviewModule = pathToFileURL(join(REPO_ROOT, "tools", "lib", "review-provenance.mjs")).href
   const workerEnvironment = { ...process.env, [REVIEW_AUTHORITY_PUBLIC_KEY_ENV]: REVIEW_AUTHORITY_PUBLIC_KEY }
@@ -68,7 +83,7 @@ const reviewEvidenceCases = () => {
   const workerAttempt = spawnSync(process.execPath, [
     "--input-type=module",
     "-e",
-    `import { generateKeyPairSync } from "node:crypto"; import { issueReviewProvenance } from ${JSON.stringify(workerReviewModule)}; const { privateKey } = generateKeyPairSync("ed25519"); try { issueReviewProvenance({ head: "${HEAD}", recommendation: "APPROVE", ledgerPath: ${JSON.stringify(workerLedger)}, privateKey: privateKey.export({ format: "pem", type: "pkcs8" }) }); process.exit(0) } catch (error) { console.error(error.message); process.exit(1) }`,
+    `import { generateKeyPairSync } from "node:crypto"; import { issueReviewProvenance } from ${JSON.stringify(workerReviewModule)}; const { privateKey } = generateKeyPairSync("ed25519"); try { issueReviewProvenance({ repository: "orbit/ui", pullRequest: 615, head: "${HEAD}", recommendation: "APPROVE", ledgerPath: ${JSON.stringify(workerLedger)}, privateKey: privateKey.export({ format: "pem", type: "pkcs8" }) }); process.exit(0) } catch (error) { console.error(error.message); process.exit(1) }`,
   ], { encoding: "utf8", env: workerEnvironment })
   T("check-review-evidence.mjs: an implementation worker importing production provenance cannot mint APPROVE with its own key", workerAttempt.status === 1 && /does not match/.test(workerAttempt.stderr) && !existsSync(workerLedger), `${workerAttempt.status}\n${workerAttempt.stderr}`)
 
@@ -100,7 +115,7 @@ const reviewEvidenceCases = () => {
   const badTimestamp = runEvidence([review({ body: MARKER(HEAD, "APPROVE"), at: "not-a-time" })])
   T("check-review-evidence.mjs: an unorderable marker timestamp blocks", badTimestamp.status === 1 && /MALFORMED/.test(badTimestamp.stdout), badTimestamp.stderr || badTimestamp.stdout)
 
-  const badConnection = spawnSync(process.execPath, [toolPath("check-review-evidence.mjs"), "--expected-head", HEAD], {
+  const badConnection = spawnSync(process.execPath, [toolPath("check-review-evidence.mjs"), "--repository", "orbit/ui", "--pull-request", "615", "--expected-head", HEAD], {
     encoding: "utf8",
     input: JSON.stringify({ headRefOid: HEAD, files: connection([]), reviews: { nodes: [] } }),
     env: { ...process.env, ORBIT_LOCAL_REVIEW_PROVENANCE_LEDGER: REVIEW_EVIDENCE_LEDGER },
@@ -122,7 +137,7 @@ const reviewEvidenceCases = () => {
   const pagination = runEvidence([review({ body: MARKER(HEAD, "APPROVE") })], HEAD, true)
   T("check-review-evidence.mjs: incomplete review inventory blocks", pagination.status === 1 && /INCOMPLETE/.test(pagination.stdout), pagination.stderr || pagination.stdout)
 
-  const movedSnapshot = spawnSync(process.execPath, [toolPath("check-review-evidence.mjs"), "--expected-head", HEAD], {
+  const movedSnapshot = spawnSync(process.execPath, [toolPath("check-review-evidence.mjs"), "--repository", "orbit/ui", "--pull-request", "615", "--expected-head", HEAD], {
     encoding: "utf8",
     input: JSON.stringify({ headRefOid: OLD, files: connection([]), reviews: connection([review({ body: MARKER(HEAD, "APPROVE") })]) }),
     env: { ...process.env, ORBIT_LOCAL_REVIEW_PROVENANCE_LEDGER: REVIEW_EVIDENCE_LEDGER },
@@ -141,7 +156,7 @@ const reviewEvidenceCases = () => {
   ])
   T("check-review-evidence.mjs: current native approval and local approval pass", currentNative.status === 0, currentNative.stderr || currentNative.stdout)
 
-  const badInput = spawnSync(process.execPath, [toolPath("check-review-evidence.mjs"), "--expected-head", HEAD], { encoding: "utf8", input: "not-json", env: { ...process.env, ORBIT_LOCAL_REVIEW_PROVENANCE_LEDGER: REVIEW_EVIDENCE_LEDGER } })
+  const badInput = spawnSync(process.execPath, [toolPath("check-review-evidence.mjs"), "--repository", "orbit/ui", "--pull-request", "615", "--expected-head", HEAD], { encoding: "utf8", input: "not-json", env: { ...process.env, ORBIT_LOCAL_REVIEW_PROVENANCE_LEDGER: REVIEW_EVIDENCE_LEDGER } })
   T("check-review-evidence.mjs: invalid input exits 2", badInput.status === 2, badInput.stderr || badInput.stdout)
 }
 

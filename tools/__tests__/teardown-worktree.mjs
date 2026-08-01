@@ -78,10 +78,11 @@ const mergedPullRequest = (fixture, number = 124) => ({ number, mergedAt: "2026-
 
 const missingTargetPullRequest = (fixture) => ({ ...mergedPullRequest(fixture), mergeCommit: { oid: fixture.headCommit } })
 
-const teardownPlan = (fixture, { state = "Done", pullRequest = mergedPullRequest(fixture), pullRequestOutput = JSON.stringify(pullRequest ? [pullRequest] : []), pullRequestExit = 0, removePath, removal = JSON.stringify({ ok: true, result: {} }), removalExit = 0 } = {}) => [
+const teardownPlan = (fixture, { state = "Done", pullRequest = mergedPullRequest(fixture), pullRequestOutput = JSON.stringify(pullRequest ? [pullRequest] : []), pullRequestExit = 0, removePath, removal = JSON.stringify({ ok: true, result: {} }), removalExit = 0, finalActive = false, finalAgents = [] } = {}) => [
   { match: "worktree list", stdout: JSON.stringify({ ok: true, result: { worktrees: [teardownWorktreeRecord(fixture)] } }) },
   { match: "linear issue ORB-124", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-124", state: { name: state } } } }) },
   { match: "pr list --head feature/orb-124-teardown --base main --state merged --limit 1 --json number,mergeCommit,headRefOid,mergedAt", stdout: pullRequestOutput, exit: pullRequestExit },
+  { match: "worktree ps", stdout: JSON.stringify({ ok: true, result: { worktrees: [{ path: fixture.child, isActive: finalActive, agents: finalAgents }], totalCount: 1, truncated: false } }) },
   { match: "terminal stop", stdout: JSON.stringify({ ok: true, result: {} }) },
   { match: "worktree rm", stdout: removal, exit: removalExit, ...(removePath ? { removePath } : {}) },
 ]
@@ -163,6 +164,16 @@ const teardownWorktreeCases = () => {
     !existsSync(exitedWorkerMarker),
     `marker still present at ${exitedWorkerMarker}`,
   )
+
+  const finalActivity = stageTeardownWorktree("final-activity")
+  check(
+    "teardown-worktree.mjs",
+    "a final Orca activity re-read refuses removal",
+    ["--issue", "ORB-124"],
+    { status: 1, stderr: /refusing removal because Orca reports active work/ },
+    { env: orcaEnv(teardownPlan(finalActivity, { finalActive: true, finalAgents: [{ state: "working" }] })) },
+  )
+  T("teardown-worktree.mjs: final Orca activity refusal preserves the worktree", existsSync(finalActivity.child), "the final activity check allowed removal")
 
   const dirty = stageTeardownWorktree("dirty", { dirty: true })
   check("teardown-worktree.mjs", "a dirty tree is refused with its uncommitted path", ["--issue", "ORB-124"], { status: 1, stderr: /worktree-clean[\s\S]*dirty\.txt/ }, { env: orcaEnv(teardownPlan(dirty, { removePath: dirty.child })) })

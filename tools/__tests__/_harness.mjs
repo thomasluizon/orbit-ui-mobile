@@ -18,7 +18,13 @@ import {
   REVIEW_AUTHORITY_PRIVATE_KEY_ENV,
   REVIEW_AUTHORITY_PUBLIC_KEY_ENV,
 } from "../lib/review-provenance.mjs"
-import { recordWorkerLaunch, workerCompletionSigningPayload } from "../lib/worker-launch-provenance.mjs"
+import {
+  recordWorkerLaunch,
+  signWorkerLaunchRecord,
+  workerCompletionSigningPayload,
+  WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY_ENV,
+  WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY_ENV,
+} from "../lib/worker-launch-provenance.mjs"
 
 /**
  * Injected by the runner. These are live bindings: configure() runs before any case
@@ -79,6 +85,12 @@ export const REVIEW_AUTHORITY_PRIVATE_KEY = reviewAuthority.privateKey.export({ 
 export const REVIEW_AUTHORITY_PUBLIC_KEY = reviewAuthority.publicKey.export({ format: "der", type: "spki" }).toString("base64")
 export { REVIEW_AUTHORITY_PRIVATE_KEY_ENV, REVIEW_AUTHORITY_PUBLIC_KEY_ENV }
 process.env[REVIEW_AUTHORITY_PUBLIC_KEY_ENV] = REVIEW_AUTHORITY_PUBLIC_KEY
+const workerLaunchAuthority = generateKeyPairSync("ed25519")
+export const WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY = workerLaunchAuthority.privateKey.export({ format: "pem", type: "pkcs8" })
+export const WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY = workerLaunchAuthority.publicKey.export({ format: "der", type: "spki" }).toString("base64")
+export { WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY_ENV, WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY_ENV }
+process.env[WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY_ENV] = WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY
+process.env[WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY_ENV] = WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY
 
 export const writeCompletedWorkerLaunch = ({
   issue,
@@ -93,7 +105,7 @@ export const writeCompletedWorkerLaunch = ({
   launchMode = "existing-worktree",
 } = {}) => {
   const { publicKey, privateKey } = generateKeyPairSync("ed25519")
-  const launchRecord = {
+  let launchRecord = {
     version: 1,
     launchId: `fixture-${issue}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     issue,
@@ -111,6 +123,7 @@ export const writeCompletedWorkerLaunch = ({
       publicKey: publicKey.export({ format: "der", type: "spki" }).toString("base64"),
     },
   }
+  launchRecord = signWorkerLaunchRecord(launchRecord, WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY)
   const unsignedCompletion = { completedAt: new Date().toISOString(), completedHead: head, exitCode: 0 }
   const completion = {
     ...unsignedCompletion,
@@ -126,8 +139,10 @@ export const writeCompletedWorkerLaunch = ({
   return { launchRecord, completedRecord }
 }
 
-export const reviewMarker = ({ head, recommendation, findingIds = [] }) => {
+export const reviewMarker = ({ head, recommendation, findingIds = [], repository = "orbit/ui", pullRequest = 615 }) => {
   const provenance = issueReviewProvenance({
+    repository,
+    pullRequest,
     head,
     recommendation,
     findingIds,
@@ -137,7 +152,7 @@ export const reviewMarker = ({ head, recommendation, findingIds = [] }) => {
   return `<!-- orbit-local-review: ${JSON.stringify({ version: 1, head, recommendation, provenance })} -->`
 }
 
-export const forgedReviewMarker = ({ head, recommendation, findingIds = [] }) =>
+export const forgedReviewMarker = ({ head, recommendation, findingIds = [], repository = "orbit/ui", pullRequest = 615 }) =>
   `<!-- orbit-local-review: ${JSON.stringify({
     version: 1,
     head,
@@ -146,6 +161,8 @@ export const forgedReviewMarker = ({ head, recommendation, findingIds = [] }) =>
       version: 1,
       issuer: "tools/launch-pr-review.mjs",
       evidenceId: "forged-review-evidence",
+      repository,
+      pullRequest,
       signature: "A".repeat(88),
       findingIds,
     },
@@ -1207,7 +1224,7 @@ export const stageWorkerPidMarker = (worktreePath, pid) => {
     spawnSync("git", ["-C", worktreePath, "rev-parse", "--git-dir"], { encoding: "utf8" }).stdout.trim(),
   )
   const marker = join(gitDirectory, "orbit-worker-pids.jsonl")
-  const launchRecord = {
+  let launchRecord = {
     version: 1,
     launchId: `fixture-${pid}-${Date.now()}`,
     issue: "ORB-124",
@@ -1223,7 +1240,12 @@ export const stageWorkerPidMarker = (worktreePath, pid) => {
     branch: "feature/orb-124",
     launcherPid: process.pid,
     issuedAt: new Date().toISOString(),
+    completionAttestation: {
+      algorithm: "ed25519",
+      publicKey: generateKeyPairSync("ed25519").publicKey.export({ format: "der", type: "spki" }).toString("base64"),
+    },
   }
+  launchRecord = signWorkerLaunchRecord(launchRecord, WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY)
   recordWorkerLaunch(launchRecord, WORKER_LAUNCH_LEDGER)
   writeFileSync(marker, `${JSON.stringify(launchRecord)}\n`)
   return marker

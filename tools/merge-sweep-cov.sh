@@ -524,7 +524,7 @@ review_evidence_allows() { # <pr> <expected-head-sha>; prints the refusal reason
     echo "SKIP #$pr REVIEW-EVIDENCE-LOOKUP-FAILED"
     return 1
   fi
-  if verdict="$(node "$SCRIPT_DIR/check-review-evidence.mjs" --expected-head "$expected" <<<"$reviews")"; then
+  if verdict="$(node "$SCRIPT_DIR/check-review-evidence.mjs" --repository "$repo" --pull-request "$pr" --expected-head "$expected" <<<"$reviews")"; then
     return 0
   fi
   echo "SKIP #$pr REVIEW-EVIDENCE-HELD $verdict"

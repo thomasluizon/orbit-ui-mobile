@@ -4,8 +4,8 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { join, resolve } from "node:path"
 
 import { STRIKE_LEDGER_ENV } from "../lib/strike-ledger.mjs"
-import { recordWorkerLaunch, workerCompletionSigningPayload } from "../lib/worker-launch-provenance.mjs"
-import { WORKER_LAUNCH_LEDGER, T, reviewMarker, root, stage, orcaEnv, run, check, exitedProbePid } from "./_harness.mjs"
+import { recordWorkerLaunch, signWorkerLaunchRecord, verifyWorkerLaunchCompletion, workerCompletionSigningPayload, workerDeliveryEvidence, workerLaunchSigningPayload } from "../lib/worker-launch-provenance.mjs"
+import { WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY, WORKER_LAUNCH_LEDGER, T, reviewMarker, root, stage, orcaEnv, run, check, exitedProbePid } from "./_harness.mjs"
 
 const stageWorkerStatusWorktree = (label = "worker-status") => {
   const base = join(root, label)
@@ -87,7 +87,7 @@ const workerStatusPlan = (
                   author: { login: "local-reviewer", __typename: "User" },
                   state: "COMMENTED",
                   body: localReviewHead ?? prHead
-                    ? reviewMarker({ head: localReviewHead ?? prHead, recommendation: localRecommendation, findingIds: localRecommendation === "NEEDS_WORK" ? ["finding-0123456789abcdef0123456789abcdef"] : [] })
+                    ? reviewMarker({ repository: "orbit/orbit", pullRequest: 75, head: localReviewHead ?? prHead, recommendation: localRecommendation, findingIds: localRecommendation === "NEEDS_WORK" ? ["finding-0123456789abcdef0123456789abcdef"] : [] })
                     : '<!-- orbit-local-review: {"version":1} -->',
                   submittedAt: "2026-07-28T11:00:00Z",
                   updatedAt: "2026-07-28T11:00:00Z",
@@ -234,7 +234,7 @@ const writePidMarker = (worktreePath, rows) =>
     pidMarkerPath(worktreePath),
     rows.map((row, index) => {
       const { publicKey, privateKey } = generateKeyPairSync("ed25519")
-      const record = {
+      let record = {
         version: 1,
         launchId: `fixture-orb-75-${Date.now()}-${index}`,
         issue: "ORB-75",
@@ -255,6 +255,7 @@ const writePidMarker = (worktreePath, rows) =>
           publicKey: publicKey.export({ format: "der", type: "spki" }).toString("base64"),
         },
       }
+      record = signWorkerLaunchRecord(record, WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY)
       recordWorkerLaunch(record, WORKER_LAUNCH_LEDGER)
       const completedHead = row.completed === false
         ? null
@@ -330,6 +331,38 @@ const unapprovedPullRequest = (fixture) => ({
 })
 
 export const cases = () => {
+    const attackerRoot = generateKeyPairSync("ed25519")
+    const completionAttestation = generateKeyPairSync("ed25519")
+    const forgedLaunch = {
+      version: 1,
+      launchId: "forged-root-launch",
+      issue: "ORB-75",
+      worktreePath: join(root, "forged-root-worktree"),
+      pid: process.pid,
+      startedAt: new Date(Date.now() - 1000).toISOString(),
+      launchMode: "existing-worktree",
+      engine: "codex",
+      invocation: { command: "codex", args: ["exec"] },
+      branch: "feature/orb-75-worker-status",
+      launcherPid: process.pid,
+      issuedAt: new Date(Date.now() - 1000).toISOString(),
+      completionAttestation: {
+        algorithm: "ed25519",
+        publicKey: completionAttestation.publicKey.export({ format: "der", type: "spki" }).toString("base64"),
+      },
+    }
+    forgedLaunch.launchSignature = sign(null, Buffer.from(workerLaunchSigningPayload(forgedLaunch), "utf8"), attackerRoot.privateKey).toString("base64")
+    const forgedCompletion = { completedAt: new Date().toISOString(), completedHead: "a".repeat(40), exitCode: 0 }
+    forgedLaunch.completion = {
+      ...forgedCompletion,
+      signature: sign(null, Buffer.from(workerCompletionSigningPayload(forgedLaunch, forgedCompletion), "utf8"), completionAttestation.privateKey).toString("base64"),
+    }
+    T(
+      "worker-status.mjs: a worker-generated root signature cannot satisfy completed-head delivery",
+      verifyWorkerLaunchCompletion(forgedLaunch) === false &&
+        workerDeliveryEvidence({ issue: "ORB-75", branch: forgedLaunch.branch, head: forgedCompletion.completedHead, worktreePath: forgedLaunch.worktreePath, invocation: { engine: forgedLaunch.engine, command: forgedLaunch.invocation.command, args: forgedLaunch.invocation.args }, records: [forgedLaunch] }).ok === false,
+      "a completion signed by a worker-generated root must be rejected by the merge-consumer evidence path",
+    )
     check("worker-status.mjs", "requires --worktree", ["--issue", "ORB-75"], { status: 2, stderr: /--worktree is required/ })
     check("worker-status.mjs", "requires a Linear issue identifier", ["--worktree", root, "--issue", "nope"], { status: 2, stderr: /Linear identifier/ })
     const fixture = stageWorkerStatusWorktree()

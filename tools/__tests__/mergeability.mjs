@@ -35,7 +35,7 @@ const mergeabilityCases = () => {
     headRefOid: head,
     files: { pageInfo: { hasNextPage: false }, nodes: [{ path: "tools/example.mjs" }] },
     labels: { pageInfo: { hasNextPage: false }, nodes: [] },
-    reviews: {
+    reviews: overrides.reviews ?? {
       pageInfo: { hasNextPage: false },
       nodes: [localReview()],
     },

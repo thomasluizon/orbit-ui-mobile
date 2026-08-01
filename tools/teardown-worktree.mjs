@@ -212,6 +212,24 @@ if (unmet.length > 0) {
   process.exit(unmet.some((check) => check.exitCode === 3) ? 3 : 1)
 }
 
+// The initial worktree list does not carry the live agent state. Re-read the Orca process
+// inventory after every loss-prevention check and immediately before unlinking or removal.
+const finalInventory = orca(["worktree", "ps"])
+if (!Array.isArray(finalInventory.worktrees) || !Number.isInteger(finalInventory.totalCount) || typeof finalInventory.truncated !== "boolean") {
+  fail(3, "Orca final worktree process inventory is incomplete")
+}
+if (finalInventory.truncated || finalInventory.totalCount !== finalInventory.worktrees.length) {
+  fail(3, "Orca final worktree process inventory is truncated")
+}
+const finalWorktree = finalInventory.worktrees.find((entry) => normalize(entry.path) === normalize(path))
+if (!finalWorktree) fail(3, `Orca final worktree process inventory no longer names ${path}`)
+if (typeof finalWorktree.isActive !== "boolean" || !Array.isArray(finalWorktree.agents)) {
+  fail(3, "Orca final worktree process inventory lacks isActive and agents")
+}
+if (finalWorktree.isActive || finalWorktree.agents.length > 0) {
+  fail(1, `refusing removal because Orca reports active work on ${path}`)
+}
+
 const commonDirRaw = git(path, ["rev-parse", "--git-common-dir"])
 const commonDir = resolve(path, commonDirRaw)
 const gitCommon = (args, { allowFailure = false } = {}) => {

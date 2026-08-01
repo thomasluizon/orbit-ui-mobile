@@ -208,7 +208,7 @@ const handledSignalsOn = (number, head) => {
 
 const reviewClearOn = (pullRequest) => {
   if (!Object.hasOwn(pullRequest, "reviewDecision") || pullRequest.reviewDecision === "CHANGES_REQUESTED") return false
-  return evaluateReviewEvidence(pullRequest, pullRequest.headRefOid).ok
+  return evaluateReviewEvidence(pullRequest, pullRequest.headRefOid, { repository: repo, pullRequest: pullRequest.number }).ok
 }
 
 const snapshotOf = (pullRequest, previous) => ({
@@ -225,7 +225,7 @@ const transitionOf = (pullRequest, previous) => {
   const handled = handledSignalsOn(number, head)
   const verdicts = verdictsOn(pullRequest)
   const verdict = verdicts.find((candidate) => !handled.has(candidate)) ?? verdicts[0] ?? null
-  const reviewEvidence = evaluateReviewEvidence(pullRequest, head)
+  const reviewEvidence = evaluateReviewEvidence(pullRequest, head, { repository: repo, pullRequest: pullRequest.number })
   const reviewClear = reviewClearOn(pullRequest)
   const state = {
     repo,
@@ -306,7 +306,7 @@ while (true) {
       mergeStateStatus: pullRequest.mergeStateStatus,
       failingChecks: failingChecksOf(pullRequest),
       reviewEvidence: (() => {
-        const evidence = evaluateReviewEvidence(pullRequest, pullRequest.headRefOid)
+        const evidence = evaluateReviewEvidence(pullRequest, pullRequest.headRefOid, { repository: repo, pullRequest: pullRequest.number })
         return { status: evidence.status, reason: evidence.reason }
       })(),
     }

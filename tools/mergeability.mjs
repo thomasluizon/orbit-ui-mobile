@@ -134,7 +134,7 @@ if (!first.ok) {
   const reviewsComplete = complete(pullRequest.reviews)
   const reviewDecisionKnown = Object.hasOwn(pullRequest, "reviewDecision")
   add("review-decision", reviewsComplete && reviewDecisionKnown && pullRequest.reviewDecision !== "CHANGES_REQUESTED", `review decision is ${reviewDecisionKnown ? (pullRequest.reviewDecision || "empty") : "unavailable"}`)
-  const reviewEvidence = evaluateReviewEvidence(pullRequest, pullRequest.headRefOid)
+  const reviewEvidence = evaluateReviewEvidence(pullRequest, pullRequest.headRefOid, { repository: repo, pullRequest: Number(pr) })
   add("review-evidence", reviewEvidence.ok, `${reviewEvidence.status}: ${reviewEvidence.reason}`)
   const issueIdentifiers = new Set(
     [pullRequest.headRefName, pullRequest.title]

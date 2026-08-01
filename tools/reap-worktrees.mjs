@@ -7,8 +7,8 @@ import { fileURLToPath } from "node:url"
 const USAGE = `usage: reap-worktrees.mjs [--json]
 
 Find non-primary Orca worktrees linked to Linear issues, read each current state,
-and pass every Done worktree's exact path to teardown-worktree.mjs. Active or
-agent-bearing non-Done worktrees are ignored after their state is confirmed.
+and pass every inactive, agent-free Done worktree's exact path to teardown-worktree.mjs.
+Active or agent-bearing worktrees are never reaped, even when their Linear issue is Done.
 
 exit codes: 0 inventory processed, 1 a Done candidate could not be removed,
             2 usage error, 3 Orca inventory or Linear state could not be read`
@@ -92,6 +92,15 @@ const reaped = []
 const skipped = []
 for (const worktree of candidates) {
   const identifier = worktree.linkedLinearIssue
+  if (worktree.isActive || worktree.agents.length > 0) {
+    skipped.push({
+      identifier,
+      path: worktree.path,
+      state: "ACTIVE",
+      reason: worktree.isActive ? "Orca reports the worktree active" : "Orca reports one or more attached agents",
+    })
+    continue
+  }
   const state = issueState(identifier)
   if (state !== "Done") {
     skipped.push({ identifier, path: worktree.path, state })
@@ -118,6 +127,9 @@ if (json) {
     if (row.output) console.log(row.output)
     console.log(`REAPED ${row.identifier} path=${row.path}`)
   }
-  for (const row of skipped) console.log(`SKIPPED_NON_DONE ${row.identifier} state=${row.state} path=${row.path}`)
+  for (const row of skipped) {
+    const label = row.reason ? "SKIPPED_ACTIVE" : "SKIPPED_NON_DONE"
+    console.log(`${label} ${row.identifier} state=${row.state} path=${row.path}${row.reason ? ` reason=${row.reason}` : ""}`)
+  }
   console.log(`REAPER OK reaped=${reaped.length} skipped=${skipped.length} ignored=${inventory.worktrees.length - candidates.length}`)
 }

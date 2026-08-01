@@ -166,9 +166,9 @@ const reapWorktreeCases = () => {
   const nonDoneStub = stageTeardownStub("live-non-done")
   check(
     "reap-worktrees.mjs",
-    "ignores active and agent-bearing worktrees only after proving they are non-Done",
+    "skips active and agent-bearing worktrees before Linear state lookup",
     [],
-    { status: 0, stdout: /SKIPPED_NON_DONE ORB-131[\s\S]*SKIPPED_NON_DONE ORB-132[\s\S]*REAPER OK reaped=0 skipped=2/ },
+    { status: 0, stdout: /SKIPPED_ACTIVE ORB-131[\s\S]*SKIPPED_ACTIVE ORB-132[\s\S]*REAPER OK reaped=0 skipped=2/ },
     {
       env: {
         ...orcaEnv([
@@ -201,14 +201,13 @@ const reapWorktreeCases = () => {
     const unsafeStub = stageTeardownStub(label, { exit: 1 })
     check(
       "reap-worktrees.mjs",
-      `passes a linked ${label} worktree to teardown and exposes its refusal`,
+      `skips a linked Done ${label} worktree before teardown`,
       [],
-      { status: 1, stderr: new RegExp(`REAP_FAILED ${identifier}`) },
+      { status: 0, stdout: new RegExp(`SKIPPED_ACTIVE ${identifier}`) },
       {
         env: {
           ...orcaEnv([
             { match: "worktree ps", stdout: psResult([worktree(unsafePath, { ...overrides, linkedLinearIssue: identifier })]) },
-            { match: `linear issue ${identifier}`, stdout: issueResult(identifier, "Done") },
           ]),
           ORBIT_TEARDOWN_SCRIPT: unsafeStub.path,
           ORBIT_REAPER_TEARDOWN_LOG: unsafeStub.log,
@@ -217,8 +216,8 @@ const reapWorktreeCases = () => {
     )
     const unsafeCalls = existsSync(unsafeStub.log) ? readFileSync(unsafeStub.log, "utf8").trim().split(/\r?\n/).filter(Boolean) : []
     T(
-      `reap-worktrees.mjs: linked ${label} refusal is observed at the exact worktree path`,
-      unsafeCalls.length === 1 && JSON.parse(unsafeCalls[0]).join(" ") === `--worktree path:${unsafePath}`,
+      `reap-worktrees.mjs: linked ${label} worktree never reaches teardown`,
+      unsafeCalls.length === 0,
       `teardown calls: ${JSON.stringify(unsafeCalls)}`,
     )
   }

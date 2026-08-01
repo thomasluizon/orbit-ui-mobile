@@ -204,6 +204,7 @@ const pullRequests = JSON.parse(
   run(GH, ["pr", "list", "--repo", slug, "--head", branch, "--state", "all", "--json", "number,url,state,baseRefName,isDraft"]) || "[]",
 )
 const pullRequest = pullRequests.find((entry) => entry.state === "OPEN") ?? pullRequests[0] ?? null
+const reviewRepository = pullRequest?.url?.match(/^https:\/\/github\.com\/([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)\/pull\//i)?.[1] ?? slug
 
 const reviewPayload = pullRequest
   ? JSON.parse(
@@ -314,7 +315,7 @@ const reviewInventoryComplete =
   review?.comments?.pageInfo?.hasNextPage === false &&
   reviewThreads.every((thread) => thread.comments?.pageInfo?.hasNextPage === false)
 const reviewNotChangesRequested = Boolean(review && review.reviewDecision !== "CHANGES_REQUESTED")
-const reviewEvidence = evaluateReviewEvidence(review, prHead)
+const reviewEvidence = evaluateReviewEvidence(review, prHead, { repository: reviewRepository, pullRequest: pullRequest?.number })
 
 const detail = orca(["linear", "issue", issue, "--attachments"])
 const linearIssue = detail.issue ?? detail

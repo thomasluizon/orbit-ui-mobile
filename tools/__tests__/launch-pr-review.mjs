@@ -8,6 +8,9 @@ import {
   REVIEW_AUTHORITY_PRIVATE_KEY_ENV,
   REVIEW_AUTHORITY_PUBLIC_KEY,
   REVIEW_AUTHORITY_PUBLIC_KEY_ENV,
+  WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY_ENV,
+  WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY,
+  WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY_ENV,
   T,
   root,
   toolPath,
@@ -123,7 +126,7 @@ const args = process.argv.slice(2)
 let prompt = ""
 process.stdin.setEncoding("utf8")
 for await (const chunk of process.stdin) prompt += chunk
-appendFileSync(process.env.ORBIT_TEST_LOG, JSON.stringify({ tool: "codex", args, cwd: process.cwd(), marker: process.env.ORBIT_LAUNCH_PR_REVIEW ?? null, reviewAuthorityPrivateKeyPresent: Boolean(process.env.ORBIT_REVIEW_AUTHORITY_PRIVATE_KEY), prompt }) + "\\n")
+appendFileSync(process.env.ORBIT_TEST_LOG, JSON.stringify({ tool: "codex", args, cwd: process.cwd(), marker: process.env.ORBIT_LAUNCH_PR_REVIEW ?? null, reviewAuthorityPrivateKeyPresent: Boolean(process.env.ORBIT_REVIEW_AUTHORITY_PRIVATE_KEY), workerLaunchAuthorityPrivateKeyPresent: Boolean(process.env.ORBIT_WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY), prompt }) + "\\n")
 const output = args[args.indexOf("--output-last-message") + 1]
 writeFileSync(output, process.env.ORBIT_TEST_REVIEW_RESULT)
 const lines = readFileSync(process.env.ORBIT_TEST_CODEX_ENVELOPE, "utf8").trim().split(/\\r?\\n/)
@@ -180,6 +183,8 @@ console.log(JSON.stringify({ status: args[0].toUpperCase() }))
       ORBIT_LOCAL_REVIEW_PROVENANCE_LEDGER: join(base, "review-provenance.jsonl"),
       [REVIEW_AUTHORITY_PUBLIC_KEY_ENV]: REVIEW_AUTHORITY_PUBLIC_KEY,
       [REVIEW_AUTHORITY_PRIVATE_KEY_ENV]: REVIEW_AUTHORITY_PRIVATE_KEY,
+      [WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY_ENV]: WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY,
+      [WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY_ENV]: process.env[WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY_ENV],
       ORBIT_TEST_LOG: log,
       ORBIT_TEST_HEAD_READS: headReads,
       ORBIT_TEST_MOVED: moved ? "1" : "0",
@@ -227,7 +232,7 @@ export const cases = () => {
   const worktreeAdd = approveCalls.find((call) => call.tool === "git" && call.args[0] === "worktree" && call.args[1] === "add")
   T("launch-pr-review.mjs: the disposable worktree is detached at the observed pull request head", worktreeAdd?.args.includes("--detach") && worktreeAdd.args.at(-1) === HEAD, JSON.stringify(worktreeAdd))
   T("launch-pr-review.mjs: the synchronous Codex child is claimed and recorded", budgetCalls.some((call) => call.args[0] === "claim") && budgetCalls.some((call) => call.args[0] === "record" && call.args.includes("17244") && call.args.includes("9984") && call.args.includes("5")), JSON.stringify(budgetCalls))
-  T("launch-pr-review.mjs: Codex is fresh Sol high, read-only, ephemeral, schema-bound, review-only, and lacks the signing key", codexCall?.args.includes("gpt-5.6-sol") && codexCall.args.includes('model_reasoning_effort="high"') && codexCall.args.includes("--sandbox") && codexCall.args.includes("read-only") && codexCall.args.includes("--ephemeral") && codexCall.args.includes("--output-schema") && !codexCall.args.includes("--dangerously-bypass-approvals-and-sandbox") && codexCall.marker === "1" && codexCall.reviewAuthorityPrivateKeyPresent === false && !codexCall.prompt.includes("Standing worker contract"), JSON.stringify(codexCall))
+  T("launch-pr-review.mjs: Codex is fresh Sol high, read-only, ephemeral, schema-bound, review-only, and lacks both signing keys", codexCall?.args.includes("gpt-5.6-sol") && codexCall.args.includes('model_reasoning_effort="high"') && codexCall.args.includes("--sandbox") && codexCall.args.includes("read-only") && codexCall.args.includes("--ephemeral") && codexCall.args.includes("--output-schema") && !codexCall.args.includes("--dangerously-bypass-approvals-and-sandbox") && codexCall.marker === "1" && codexCall.reviewAuthorityPrivateKeyPresent === false && codexCall.workerLaunchAuthorityPrivateKeyPresent === false && !codexCall.prompt.includes("Standing worker contract"), JSON.stringify(codexCall))
   T("launch-pr-review.mjs: general exec reads the exact diff review prompt from trusted-base policy files", codexCall?.args[0] === "exec" && codexCall.args.at(-1) === "-" && !codexCall.args.includes("review") && !codexCall.args.includes("--base") && !approveCalls.some((call) => call.tool === "git" && call.args[0] === "update-ref") && codexCall.prompt.includes(`complete ${BASE}...${HEAD} diff`) && /review skill at .*trusted-policy[\\/]\.claude[\\/]skills[\\/]pr-review[\\/]SKILL\.md/.test(codexCall.prompt) && /rubric at .*trusted-policy[\\/]\.claude[\\/]skills[\\/]pr-review[\\/]rubric\.md/.test(codexCall.prompt) && codexCall.prompt.includes("loaded from").valueOf(), JSON.stringify(codexCall))
   T("launch-pr-review.mjs: a target without review assets still uses trusted-base policy paths", codexCall?.prompt.includes("trusted-policy") && !codexCall.prompt.includes(join(codexCall.cwd, "AGENTS.md")) && !codexCall.prompt.includes(join(codexCall.cwd, "CLAUDE.md")), codexCall?.prompt)
   T("launch-pr-review.mjs: the durable COMMENTED review carries an authenticated marker, verdict, and exact head", ghCall?.args.slice(0, 3).join(" ") === "pr review 166" && ghCall.args.includes("--comment") && ghCall.body?.startsWith(`<!-- orbit-local-review: {"version":1,"head":"${HEAD}","recommendation":"APPROVE","provenance":`) && ghCall.body.includes('"verdict": "APPROVE"'), JSON.stringify(ghCall))
@@ -245,7 +250,7 @@ export const cases = () => {
         commit: { oid: HEAD },
       }],
     },
-  }, HEAD, { ledgerPath: approve.ledgerPath })
+  }, HEAD, { ledgerPath: approve.ledgerPath, repository: "thomasluizon/orbit-ui-mobile", pullRequest: 166 })
   T("launch-pr-review.mjs: its COMMENTED body passes the merge gate's evidence parser", evidence.ok && evidence.status === "APPROVE", JSON.stringify(evidence))
 
   const localSkill = stageReview("local-skill", { localReviewSkill: true })

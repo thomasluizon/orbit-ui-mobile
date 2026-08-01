@@ -1,9 +1,11 @@
 import { appendFileSync, mkdirSync, readFileSync } from "node:fs"
-import { createPublicKey, verify } from "node:crypto"
+import { createPrivateKey, createPublicKey, sign, verify } from "node:crypto"
 import { homedir } from "node:os"
 import { dirname, resolve } from "node:path"
 
 export const WORKER_LAUNCH_LEDGER_ENV = "ORBIT_WORKER_LAUNCH_LEDGER"
+export const WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY_ENV = "ORBIT_WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY"
+export const WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY_ENV = "ORBIT_WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY"
 export const WORKER_LAUNCH_VERSION = 1
 export const WORKER_LAUNCH_MODES = new Set(["new-worktree", "existing-worktree", "repair"])
 const SHA1 = /^[0-9a-f]{40}$/
@@ -39,6 +41,31 @@ const isCompletion = (completion) =>
   typeof completion.signature === "string" &&
   BASE64.test(completion.signature)
 
+const configuredAuthorityPublicKey = () => {
+  const encoded = process.env[WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY_ENV]?.trim()
+  if (!encoded || !BASE64.test(encoded)) throw new Error(`${WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY_ENV} is unavailable or malformed`)
+  return encoded
+}
+
+const authorityPublicKey = () =>
+  createPublicKey({
+    key: Buffer.from(configuredAuthorityPublicKey(), "base64"),
+    format: "der",
+    type: "spki",
+  })
+
+const authorityPrivateKey = (privateKeyPem = process.env[WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY_ENV]) => {
+  if (typeof privateKeyPem !== "string" || privateKeyPem.trim().length === 0) {
+    throw new Error(`${WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY_ENV} is unavailable; only the launcher may issue worker provenance`)
+  }
+  const privateKey = createPrivateKey(privateKeyPem)
+  const derivedPublicKey = createPublicKey(privateKey).export({ format: "der", type: "spki" }).toString("base64")
+  if (derivedPublicKey !== configuredAuthorityPublicKey()) {
+    throw new Error("worker launch authority private key does not match the trusted public key")
+  }
+  return privateKey
+}
+
 export const isWorkerLaunchRecord = (record) =>
   record &&
   typeof record === "object" &&
@@ -64,10 +91,12 @@ export const isWorkerLaunchRecord = (record) =>
   Number.isInteger(record.launcherPid) &&
   record.launcherPid > 0 &&
   Number.isFinite(Date.parse(record.issuedAt)) &&
-  (!Object.hasOwn(record, "completionAttestation") || isCompletionAttestation(record.completionAttestation)) &&
+  isCompletionAttestation(record.completionAttestation) &&
+  typeof record.launchSignature === "string" &&
+  BASE64.test(record.launchSignature) &&
   (!Object.hasOwn(record, "completion") || isCompletion(record.completion))
 
-const signingPayload = (record, completion = record.completion) => JSON.stringify({
+export const workerLaunchSigningPayload = (record) => JSON.stringify({
   version: record.version,
   launchId: record.launchId,
   issue: record.issue,
@@ -80,6 +109,45 @@ const signingPayload = (record, completion = record.completion) => JSON.stringif
   branch: record.branch,
   launcherPid: record.launcherPid,
   issuedAt: record.issuedAt,
+  completionAttestation: {
+    algorithm: record.completionAttestation?.algorithm,
+    publicKey: record.completionAttestation?.publicKey,
+  },
+})
+
+export const signWorkerLaunchRecord = (record, privateKeyPem = process.env[WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY_ENV]) => {
+  if (!isWorkerLaunchRecord({ ...record, launchSignature: "placeholder" })) {
+    throw new Error("worker launch provenance record is incomplete")
+  }
+  const launchSignature = sign(
+    null,
+    Buffer.from(workerLaunchSigningPayload(record), "utf8"),
+    authorityPrivateKey(privateKeyPem),
+  ).toString("base64")
+  return { ...record, launchSignature }
+}
+
+export const assertWorkerLaunchAuthority = (privateKeyPem = process.env[WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY_ENV]) => {
+  authorityPrivateKey(privateKeyPem)
+  return true
+}
+
+export const verifyWorkerLaunchRecord = (record) => {
+  if (!isWorkerLaunchRecord(record)) return false
+  try {
+    return verify(
+      null,
+      Buffer.from(workerLaunchSigningPayload(record), "utf8"),
+      authorityPublicKey(),
+      Buffer.from(record.launchSignature, "base64"),
+    )
+  } catch {
+    return false
+  }
+}
+
+const signingPayload = (record, completion = record.completion) => JSON.stringify({
+  launch: JSON.parse(workerLaunchSigningPayload(record)),
   completion: completion
     ? {
         completedAt: completion.completedAt,
@@ -92,7 +160,7 @@ const signingPayload = (record, completion = record.completion) => JSON.stringif
 export const workerCompletionSigningPayload = (record, completion) => signingPayload(record, completion)
 
 export const verifyWorkerLaunchCompletion = (record) => {
-  if (!isWorkerLaunchRecord(record) || !isCompletionAttestation(record.completionAttestation) || !isCompletion(record.completion)) return false
+  if (!verifyWorkerLaunchRecord(record) || !isCompletion(record.completion)) return false
   try {
     const publicKey = createPublicKey({
       key: Buffer.from(record.completionAttestation.publicKey, "base64"),
@@ -111,7 +179,7 @@ export const verifyWorkerLaunchCompletion = (record) => {
 }
 
 export const recordWorkerLaunch = (record, ledgerPath) => {
-  if (!isWorkerLaunchRecord(record)) throw new Error("worker launch provenance record is incomplete")
+  if (!verifyWorkerLaunchRecord(record)) throw new Error("worker launch provenance record is not launcher-authenticated")
   const target = workerLaunchLedgerPath(ledgerPath)
   mkdirSync(dirname(target), { recursive: true })
   appendFileSync(target, `${JSON.stringify(record)}\n`, { encoding: "utf8", mode: 0o600 })
@@ -154,7 +222,10 @@ export const sameWorkerLaunch = (left, right) =>
   left.branch === right.branch &&
   left.launcherPid === right.launcherPid &&
   left.issuedAt === right.issuedAt &&
-  sameAttestation(left, right)
+  sameAttestation(left, right) &&
+  left.launchSignature === right.launchSignature &&
+  verifyWorkerLaunchRecord(left) &&
+  verifyWorkerLaunchRecord(right)
 
 export const workerDeliveryEvidence = ({ issue, branch, head, worktreePath, invocation, ledgerPath, records } = {}) => {
   if (typeof issue !== "string" || !/^[A-Z]+-\d+$/.test(issue)) return { ok: false, status: "INVALID", reason: "issue is not a Linear identifier" }

@@ -33,6 +33,7 @@ import {
   REVIEW_AUTHORITY_PRIVATE_KEY_ENV,
   stableFindingIdentity,
 } from "./lib/review-provenance.mjs"
+import { WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY_ENV } from "./lib/worker-launch-provenance.mjs"
 
 const USAGE = `usage: launch-pr-review.mjs --repo <owner/name> --pr <number> --base <branch> [options]
 
@@ -430,6 +431,7 @@ const main = async () => {
   ]
   const reviewerEnvironment = { ...process.env, ORBIT_LAUNCH_PR_REVIEW: "1" }
   delete reviewerEnvironment[REVIEW_AUTHORITY_PRIVATE_KEY_ENV]
+  delete reviewerEnvironment[WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY_ENV]
   const codexResult = await runCodex(codexCommand(), codexArguments, {
     cwd: worktreePath,
     env: reviewerEnvironment,
@@ -475,6 +477,8 @@ const main = async () => {
     recommendation: review.recommendation,
   }
   const provenance = issueReviewProvenance({
+    repository: argumentsParsed.repository,
+    pullRequest: argumentsParsed.pullRequest,
     head: headSha,
     recommendation: review.verdict,
     findingIds: durableResult.findings.map((finding) => finding.id),

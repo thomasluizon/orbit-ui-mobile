@@ -11,6 +11,7 @@ const MARKER_PATTERN = /^<!-- orbit-local-review:\s*(\{.*\})\s*-->$/
 const EXPECTED_KEYS = ["head", "provenance", "recommendation", "version"]
 const RECOMMENDATIONS = new Set(["APPROVE", "NEEDS_WORK"])
 const SHA_PATTERN = /^[0-9a-f]{40}$/
+const REPOSITORY_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/
 
 const firstNonblankLine = (body) =>
   typeof body === "string" ? body.split(/\r?\n/).find((line) => line.trim().length > 0)?.trim() ?? "" : ""
@@ -61,8 +62,11 @@ const parseMarker = (review) => {
   return { ok: true, marker }
 }
 
-const evaluateReviewEvidence = (input, expectedHead, { ledgerPath } = {}) => {
+const evaluateReviewEvidence = (input, expectedHead, { ledgerPath, repository, pullRequest } = {}) => {
   if (!SHA_PATTERN.test(expectedHead ?? "")) return result(false, "INVALID", "expected head must be 40 lowercase hexadecimal characters")
+  if (!REPOSITORY_PATTERN.test(repository ?? "") || !Number.isSafeInteger(pullRequest) || pullRequest < 1) {
+    return result(false, "INVALID", "repository and pullRequest are required to authenticate review provenance")
+  }
   if (!input || typeof input !== "object" || Array.isArray(input)) {
     return result(false, "INCOMPLETE", "pull request snapshot is missing its complete connection shape")
   }
@@ -91,6 +95,8 @@ const evaluateReviewEvidence = (input, expectedHead, { ledgerPath } = {}) => {
   const parsed = parseMarker(selected)
   if (!parsed.ok) return result(false, "MALFORMED", parsed.reason, selected)
   const authenticated = verifyReviewProvenance({
+    repository,
+    pullRequest,
     provenance: parsed.marker.provenance,
     head: parsed.marker.head,
     recommendation: parsed.marker.recommendation,
@@ -118,7 +124,7 @@ const evaluateReviewEvidence = (input, expectedHead, { ledgerPath } = {}) => {
   return result(true, "APPROVE", `latest local review approves current head ${expectedHead}`, selected, parsed.marker.provenance.findingIds)
 }
 
-const USAGE = `usage: check-review-evidence.mjs --expected-head <sha>
+const USAGE = `usage: check-review-evidence.mjs --repository <owner/name> --pull-request <number> --expected-head <sha>
 
 Reads a GitHub pull-request snapshot containing headRefOid plus complete files and reviews
 connections as JSON from stdin.
@@ -130,12 +136,17 @@ const runCli = () => {
     console.log(USAGE)
     return 0
   }
-  const known = new Set(["--expected-head", "--help", "-h"])
+  const known = new Set(["--repository", "--pull-request", "--expected-head", "--help", "-h"])
   const unknown = process.argv.slice(2).filter((value) => value.startsWith("-") && !known.has(value))
+  const repositoryIndex = process.argv.indexOf("--repository")
+  const repository = repositoryIndex === -1 ? null : process.argv[repositoryIndex + 1]
+  const pullRequestIndex = process.argv.indexOf("--pull-request")
+  const pullRequestValue = pullRequestIndex === -1 ? null : process.argv[pullRequestIndex + 1]
+  const pullRequest = Number(pullRequestValue)
   const index = process.argv.indexOf("--expected-head")
   const expectedHead = index === -1 ? null : process.argv[index + 1]
-  if (unknown.length > 0 || !SHA_PATTERN.test(expectedHead ?? "")) {
-    console.error(`${USAGE}\n\n--expected-head must be a 40-character lowercase hexadecimal SHA`)
+  if (unknown.length > 0 || !REPOSITORY_PATTERN.test(repository ?? "") || !Number.isSafeInteger(pullRequest) || pullRequest < 1 || !SHA_PATTERN.test(expectedHead ?? "")) {
+    console.error(`${USAGE}\n\n--repository, --pull-request, and --expected-head must identify the review context`)
     return 2
   }
   let reviews
@@ -145,7 +156,7 @@ const runCli = () => {
     console.error("stdin must contain a JSON reviews connection")
     return 2
   }
-  const verdict = evaluateReviewEvidence(reviews, expectedHead)
+  const verdict = evaluateReviewEvidence(reviews, expectedHead, { repository, pullRequest })
   console.log(JSON.stringify(verdict, null, 2))
   return verdict.ok ? 0 : 1
 }
