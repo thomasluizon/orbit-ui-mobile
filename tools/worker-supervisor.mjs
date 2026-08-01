@@ -15,6 +15,7 @@ import {
   recordWorkerLaunch,
   workerCompletionSigningPayload,
 } from "./lib/worker-launch-provenance.mjs"
+import { REVIEW_AUTHORITY_PRIVATE_KEY_ENV } from "./lib/review-provenance.mjs"
 
 const USAGE = "usage: worker-supervisor.mjs <launcher-payload>"
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
@@ -59,12 +60,14 @@ const readHead = () => {
 const run = async () => {
   if (!waitForGate(payload.startGate)) return 3
   removeIfPresent(payload.startGate)
+  const workerEnvironment = { ...process.env, ORBIT_LAUNCH_WORKER: "1", ORBIT_WORKER_LAUNCH_ID: payload.launchRecord.launchId }
+  delete workerEnvironment[REVIEW_AUTHORITY_PRIVATE_KEY_ENV]
   const child = spawn(payload.executable, [...payload.scriptArgs, ...payload.engineArgs, payload.pointer], {
     cwd: payload.worktreePath,
     detached: false,
     stdio: "ignore",
     windowsHide: true,
-    env: { ...process.env, ORBIT_LAUNCH_WORKER: "1", ORBIT_WORKER_LAUNCH_ID: payload.launchRecord.launchId },
+    env: workerEnvironment,
   })
   const result = await new Promise((resolve) => {
     child.once("error", () => resolve({ code: 1 }))

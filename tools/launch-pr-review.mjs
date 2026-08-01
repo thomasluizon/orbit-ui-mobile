@@ -27,7 +27,12 @@ import {
   recordAutomationBudget,
   reserveAutomationBudget,
 } from "./lib/automation-launch-budget.mjs"
-import { issueReviewProvenance, stableFindingIdentity } from "./lib/review-provenance.mjs"
+import {
+  assertReviewAuthority,
+  issueReviewProvenance,
+  REVIEW_AUTHORITY_PRIVATE_KEY_ENV,
+  stableFindingIdentity,
+} from "./lib/review-provenance.mjs"
 
 const USAGE = `usage: launch-pr-review.mjs --repo <owner/name> --pr <number> --base <branch> [options]
 
@@ -113,6 +118,11 @@ if (!Number.isSafeInteger(reviewer.projectedTokens) || reviewer.projectedTokens 
 }
 for (const key of ["accountUsedPercentCeiling", "tokenBudget", "warningTokens"]) {
   if (!Number.isFinite(codexBudget?.[key])) exitWith(2, `${configPath} workers.codex.automationBudget.${key} must be numeric`)
+}
+try {
+  assertReviewAuthority(process.env[REVIEW_AUTHORITY_PRIVATE_KEY_ENV])
+} catch (error) {
+  exitWith(3, error.message)
 }
 
 const schemaPath = fileURLToPath(new URL("./schemas/pr-review-result.schema.json", import.meta.url))
@@ -418,9 +428,11 @@ const main = async () => {
     "--json",
     "-",
   ]
+  const reviewerEnvironment = { ...process.env, ORBIT_LAUNCH_PR_REVIEW: "1" }
+  delete reviewerEnvironment[REVIEW_AUTHORITY_PRIVATE_KEY_ENV]
   const codexResult = await runCodex(codexCommand(), codexArguments, {
     cwd: worktreePath,
-    env: { ...process.env, ORBIT_LAUNCH_PR_REVIEW: "1" },
+    env: reviewerEnvironment,
     prompt: reviewPrompt({ ...argumentsParsed, baseSha, headSha, assets }),
     onStart: (pid) => {
       reviewStarted = true
@@ -466,6 +478,7 @@ const main = async () => {
     head: headSha,
     recommendation: review.verdict,
     findingIds: durableResult.findings.map((finding) => finding.id),
+    privateKey: process.env[REVIEW_AUTHORITY_PRIVATE_KEY_ENV],
   })
   const bodyPath = join(tmpdir(), `orbit-pr-review-comment-${process.pid}-${randomUUID()}.md`)
   try {

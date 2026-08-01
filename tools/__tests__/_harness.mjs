@@ -13,7 +13,11 @@ import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rm
 import { tmpdir } from "node:os"
 import { delimiter, dirname, join, resolve } from "node:path"
 
-import { issueReviewProvenance } from "../lib/review-provenance.mjs"
+import {
+  issueReviewProvenance,
+  REVIEW_AUTHORITY_PRIVATE_KEY_ENV,
+  REVIEW_AUTHORITY_PUBLIC_KEY_ENV,
+} from "../lib/review-provenance.mjs"
 import { recordWorkerLaunch, workerCompletionSigningPayload } from "../lib/worker-launch-provenance.mjs"
 
 /**
@@ -70,6 +74,12 @@ export const root = mkdtempSync(join(tmpdir(), "orbit-tools-gate-"))
 export const REVIEW_EVIDENCE_LEDGER = join(root, "review-provenance.jsonl")
 export const WORKER_LAUNCH_LEDGER = join(root, "worker-launches.jsonl")
 
+const reviewAuthority = generateKeyPairSync("ed25519")
+export const REVIEW_AUTHORITY_PRIVATE_KEY = reviewAuthority.privateKey.export({ format: "pem", type: "pkcs8" })
+export const REVIEW_AUTHORITY_PUBLIC_KEY = reviewAuthority.publicKey.export({ format: "der", type: "spki" }).toString("base64")
+export { REVIEW_AUTHORITY_PRIVATE_KEY_ENV, REVIEW_AUTHORITY_PUBLIC_KEY_ENV }
+process.env[REVIEW_AUTHORITY_PUBLIC_KEY_ENV] = REVIEW_AUTHORITY_PUBLIC_KEY
+
 export const writeCompletedWorkerLaunch = ({
   issue,
   branch,
@@ -122,6 +132,7 @@ export const reviewMarker = ({ head, recommendation, findingIds = [] }) => {
     recommendation,
     findingIds,
     ledgerPath: REVIEW_EVIDENCE_LEDGER,
+    privateKey: REVIEW_AUTHORITY_PRIVATE_KEY,
   })
   return `<!-- orbit-local-review: ${JSON.stringify({ version: 1, head, recommendation, provenance })} -->`
 }
@@ -135,7 +146,7 @@ export const forgedReviewMarker = ({ head, recommendation, findingIds = [] }) =>
       version: 1,
       issuer: "tools/launch-pr-review.mjs",
       evidenceId: "forged-review-evidence",
-      proof: "0".repeat(64),
+      signature: "A".repeat(88),
       findingIds,
     },
   })} -->`

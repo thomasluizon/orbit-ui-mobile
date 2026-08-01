@@ -40,6 +40,7 @@ import {
   reserveAutomationBudget,
 } from "./lib/automation-launch-budget.mjs"
 import { FINDING_SCOPE, STRIKES_BEFORE_ESCALATION, recordStrike, strikeCount, strikeLedgerPath } from "./lib/strike-ledger.mjs"
+import { REVIEW_AUTHORITY_PRIVATE_KEY_ENV } from "./lib/review-provenance.mjs"
 import {
   readWorkerLaunchRecords,
   recordWorkerLaunch,
@@ -1037,13 +1038,15 @@ const startHeadlessWorker = (worktreePath, branch, launchMode) => {
   )
   writeSupervisorPayload()
   let child
+  const workerEnvironment = { ...process.env, ORBIT_LAUNCH_WORKER: "1", ORBIT_WORKER_LAUNCH_ID: launchId }
+  delete workerEnvironment[REVIEW_AUTHORITY_PRIVATE_KEY_ENV]
   try {
     child = spawn(process.execPath, [supervisorPath, payloadPath], {
       cwd: workerPath,
       detached: true,
       stdio: ["ignore", "ignore", "ignore", "pipe"],
       windowsHide: true,
-      env: { ...process.env, ORBIT_LAUNCH_WORKER: "1", ORBIT_WORKER_LAUNCH_ID: launchId },
+      env: workerEnvironment,
     })
   } catch (error) {
     unlinkSync(payloadPath)
