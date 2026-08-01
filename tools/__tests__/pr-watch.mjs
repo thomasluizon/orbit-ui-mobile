@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { T, root, orcaEnv, check } from "./_harness.mjs"
+import { T, forgedReviewMarker, root, orcaEnv, reviewMarker, check } from "./_harness.mjs"
 
 /**
  * pr-watch cases. Every one is a state the two hand-rolled ORB-88 loops got wrong, so the
@@ -14,7 +14,7 @@ const OLD_SHA = "1111111111111111111111111111111111111111"
 const reviewOn = (state, oid) => ({ state, author: { login: "claude" }, commit: { oid } })
 const localReview = (recommendation = "APPROVE", markerHead = HEAD_SHA, commit = HEAD_SHA, at = "2026-07-31T10:00:00Z") => ({
   state: "COMMENTED",
-  body: `<!-- orbit-local-review: ${JSON.stringify({ version: 1, head: markerHead, recommendation })} -->`,
+  body: reviewMarker({ head: markerHead, recommendation, findingIds: recommendation === "NEEDS_WORK" ? ["finding-0123456789abcdef0123456789abcdef"] : [] }),
   submittedAt: at,
   updatedAt: at,
   lastEditedAt: null,
@@ -148,6 +148,13 @@ const prWatchCases = () => {
     argv,
     { status: 4, stdout: /"status": "AWAITING_REVIEW"[\s\S]*"transition": "none"/ },
     { env: orcaEnv([pullRequestStub(615, { mergeStateStatus: "CLEAN", reviews: { pageInfo: { hasNextPage: false }, nodes: [] } })]) },
+  )
+  check(
+    "pr-watch.mjs",
+    "a hostile worker marker without a launcher receipt cannot report readiness",
+    argv,
+    { status: 1, stdout: /"status": "UNAUTHENTICATED"[\s\S]*"transition": "review-evidence-blocked"/ },
+    { env: orcaEnv([pullRequestStub(615, { mergeStateStatus: "CLEAN", reviews: { pageInfo: { hasNextPage: false }, nodes: [{ ...localReview(), body: forgedReviewMarker({ head: HEAD_SHA, recommendation: "APPROVE" }) }] } })]) },
   )
   check(
     "pr-watch.mjs",

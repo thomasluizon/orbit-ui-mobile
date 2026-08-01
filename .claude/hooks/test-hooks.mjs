@@ -355,10 +355,14 @@ const write = (rel, body) => {
   return p
 }
 function runHookResult(file, payload, env) {
+  const cleanEnvironment = { ...process.env }
+  delete cleanEnvironment.ORBIT_LAUNCH_WORKER
+  delete cleanEnvironment.ORBIT_LAUNCH_PR_REVIEW
+  delete cleanEnvironment.ORBIT_WORKER_LAUNCH_ID
   return spawnSync(process.execPath, [join(hooksDir, file)], {
     input: JSON.stringify(payload),
     encoding: "utf8",
-    ...(env ? { env: { ...process.env, ...env } } : {}),
+    env: { ...cleanEnvironment, ...(env ?? {}) },
   })
 }
 
@@ -1048,9 +1052,8 @@ T(
 )
 
 // A3d. The orchestration guardrails through the real hook file, on the payload shapes the
-// tools actually send. The cwd cases are the reason the rule takes a cwd at all: a worker
-// runs in a LINKED worktree, the orchestrating session runs in the main checkout, and only
-// the first may spend model budget outside the launcher.
+// tools actually send. A linked worktree does not grant a manually typed engine invocation an
+// exemption; only a launcher-issued environment marker identifies a child process.
 const ORCHESTRATOR_HOOK = "orchestrator-guardrails.mjs"
 const commandPayload = (command, cwd) => ({ hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command }, ...(cwd ? { cwd } : {}) })
 // A staged MAIN checkout, `.git` a directory, standing in for the orchestrating session's
@@ -1068,12 +1071,11 @@ T(
   2,
 )
 T(
-  "cc orchestrator: codex exec from a launcher worktree -> 0",
+  "cc orchestrator: codex exec from a launcher worktree still blocks without launcher provenance -> 2",
   runHook(ORCHESTRATOR_HOOK, commandPayload("codex exec", linkedWorktreeRoot)),
-  0,
+  2,
 )
-// The exemption is for a launcher-created worktree of a DECLARED repository, so it cannot be
-// bought by pointing a hand-written `.git` file at some other repository.
+// A hand-written `.git` file cannot buy an engine exemption either.
 T(
   "cc orchestrator: codex exec from a worktree of an undeclared repository -> 2",
   runHook(ORCHESTRATOR_HOOK, commandPayload("codex exec", undeclaredWorktreeCwd)),

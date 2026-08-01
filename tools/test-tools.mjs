@@ -76,6 +76,7 @@ const CASE_MODULES = [
   ["check-tier-labels.mjs", "check-tier-labels", "cases"],
   ["refresh-tier-labels.mjs", "refresh-tier-labels", "cases"],
   ["launch-worker.mjs", "launch-worker", "cases"],
+  ["worker-supervisor.mjs", "worker-supervisor", "cases"],
   ["launch-pr-review.mjs", "launch-pr-review", "cases"],
   ["preflight.mjs", "preflight", "cases"],
   ["nudge-worker.mjs", "nudge-worker", "cases"],
@@ -85,6 +86,7 @@ const CASE_MODULES = [
   ["reap-worktrees.mjs", "reap-worktrees", "cases"],
   ["orca-web-port.mjs", "orca-web-port", "cases"],
   ["worker-status.mjs", "worker-status", "cases"],
+  ["check-worker-delivery.mjs", "check-worker-delivery", "cases"],
   ["compose-prompt.mjs", "compose-prompt", "cases"],
   ["wave-plan.mjs", "wave-plan", "cases"],
   ["check-dashes.mjs", "check-dashes", "cases"],
@@ -170,8 +172,10 @@ const INVALID_INPUT = {
   "teardown-worktree.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "wave-plan.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "worker-status.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "worker-supervisor.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "worker-watch.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-review-evidence.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "check-worker-delivery.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
 }
 
 console.log("# structural coverage")

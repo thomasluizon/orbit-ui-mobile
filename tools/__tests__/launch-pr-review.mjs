@@ -83,6 +83,8 @@ if (args[0] === "ls-remote") {
   } else console.log("${BASE}\\t" + ref)
 } else if (args[0] === "remote" && args[1] === "get-url") {
   console.log("https://github.com/thomasluizon/orbit-ui-mobile.git")
+  } else if (args[0] === "show") {
+  console.log("trusted-base-policy:" + args.at(-1))
 } else if (args[0] === "fetch") {
   process.exit(0)
 } else if (args[0] === "worktree" && args[1] === "add") {
@@ -166,6 +168,7 @@ console.log(JSON.stringify({ status: args[0].toUpperCase() }))
       ORBIT_AI_QUOTA_TOOL: quotaStub,
       ORBIT_AUTOMATION_BUDGET_TOOL: budgetStub,
       ORBIT_AUTOMATION_BUDGET_LEDGER: join(base, "ledger.jsonl"),
+      ORBIT_LOCAL_REVIEW_PROVENANCE_LEDGER: join(base, "review-provenance.jsonl"),
       ORBIT_TEST_LOG: log,
       ORBIT_TEST_HEAD_READS: headReads,
       ORBIT_TEST_MOVED: moved ? "1" : "0",
@@ -181,7 +184,7 @@ console.log(JSON.stringify({ status: args[0].toUpperCase() }))
       ORBIT_TEST_CODEX_ENVELOPE: join(REPO_ROOT, "tools", "__tests__", "fixtures", "codex-exec-jsonl-observed.jsonl"),
     },
   })
-  return { result, calls: readJsonLines(log) }
+  return { result, calls: readJsonLines(log), ledgerPath: join(base, "review-provenance.jsonl") }
 }
 
 export const cases = () => {
@@ -197,7 +200,7 @@ export const cases = () => {
   visitSchema(schema)
   T("launch-pr-review.mjs: every provider const or enum schema node declares its type", constrainedWithoutType.length === 0, constrainedWithoutType.join(", "))
   const properties = schema.properties
-  T("launch-pr-review.mjs: provider schema pins identity, verdict, and severity types", properties.schemaVersion?.type === "integer" && properties.repository?.type === "string" && properties.pullRequest?.type === "integer" && properties.base?.type === "string" && properties.reviewedHead?.type === "string" && properties.verdict?.type === "string" && properties.findings?.items?.properties?.severity?.type === "string", JSON.stringify(properties))
+  T("launch-pr-review.mjs: provider schema pins identity, verdict, finding identity, and severity types", properties.schemaVersion?.type === "integer" && properties.repository?.type === "string" && properties.pullRequest?.type === "integer" && properties.base?.type === "string" && properties.reviewedHead?.type === "string" && properties.verdict?.type === "string" && properties.findings?.items?.properties?.id?.type === "string" && properties.findings?.items?.properties?.severity?.type === "string", JSON.stringify(properties))
 
   const approve = stageReview("approve")
   const approveCalls = approve.calls
@@ -213,12 +216,10 @@ export const cases = () => {
   const worktreeAdd = approveCalls.find((call) => call.tool === "git" && call.args[0] === "worktree" && call.args[1] === "add")
   T("launch-pr-review.mjs: the disposable worktree is detached at the observed pull request head", worktreeAdd?.args.includes("--detach") && worktreeAdd.args.at(-1) === HEAD, JSON.stringify(worktreeAdd))
   T("launch-pr-review.mjs: the synchronous Codex child is claimed and recorded", budgetCalls.some((call) => call.args[0] === "claim") && budgetCalls.some((call) => call.args[0] === "record" && call.args.includes("17244") && call.args.includes("9984") && call.args.includes("5")), JSON.stringify(budgetCalls))
-  const canonicalSkill = join(REPO_ROOT, ".claude", "skills", "pr-review", "SKILL.md")
-  const canonicalRubric = join(REPO_ROOT, ".claude", "skills", "pr-review", "rubric.md")
   T("launch-pr-review.mjs: Codex is fresh Sol high, read-only, ephemeral, schema-bound, and review-only", codexCall?.args.includes("gpt-5.6-sol") && codexCall.args.includes('model_reasoning_effort="high"') && codexCall.args.includes("--sandbox") && codexCall.args.includes("read-only") && codexCall.args.includes("--ephemeral") && codexCall.args.includes("--output-schema") && !codexCall.args.includes("--dangerously-bypass-approvals-and-sandbox") && codexCall.marker === "1" && !codexCall.prompt.includes("Standing worker contract"), JSON.stringify(codexCall))
-  T("launch-pr-review.mjs: general exec reads the exact diff review prompt from standalone stdin", codexCall?.args[0] === "exec" && codexCall.args.at(-1) === "-" && !codexCall.args.includes("review") && !codexCall.args.includes("--base") && !approveCalls.some((call) => call.tool === "git" && call.args[0] === "update-ref") && codexCall.prompt.includes(`complete ${BASE}...${HEAD} diff`) && codexCall.prompt.includes(`review skill at ${canonicalSkill}`) && codexCall.prompt.includes(`rubric at ${canonicalRubric}`), JSON.stringify(codexCall))
-  T("launch-pr-review.mjs: a target without review assets uses the canonical UI skill and rubric paths", codexCall?.prompt.includes(canonicalSkill) && codexCall.prompt.includes(canonicalRubric) && !codexCall.prompt.includes(join(codexCall.cwd, "AGENTS.md")) && !codexCall.prompt.includes(join(codexCall.cwd, "CLAUDE.md")), codexCall?.prompt)
-  T("launch-pr-review.mjs: the durable COMMENTED review carries the gate marker, verdict, and exact head", ghCall?.args.slice(0, 3).join(" ") === "pr review 166" && ghCall.args.includes("--comment") && ghCall.body?.startsWith(`<!-- orbit-local-review: {"version":1,"head":"${HEAD}","recommendation":"APPROVE"} -->`) && ghCall.body.includes('"verdict": "APPROVE"'), JSON.stringify(ghCall))
+  T("launch-pr-review.mjs: general exec reads the exact diff review prompt from trusted-base policy files", codexCall?.args[0] === "exec" && codexCall.args.at(-1) === "-" && !codexCall.args.includes("review") && !codexCall.args.includes("--base") && !approveCalls.some((call) => call.tool === "git" && call.args[0] === "update-ref") && codexCall.prompt.includes(`complete ${BASE}...${HEAD} diff`) && /review skill at .*trusted-policy[\\/]\.claude[\\/]skills[\\/]pr-review[\\/]SKILL\.md/.test(codexCall.prompt) && /rubric at .*trusted-policy[\\/]\.claude[\\/]skills[\\/]pr-review[\\/]rubric\.md/.test(codexCall.prompt) && codexCall.prompt.includes("loaded from").valueOf(), JSON.stringify(codexCall))
+  T("launch-pr-review.mjs: a target without review assets still uses trusted-base policy paths", codexCall?.prompt.includes("trusted-policy") && !codexCall.prompt.includes(join(codexCall.cwd, "AGENTS.md")) && !codexCall.prompt.includes(join(codexCall.cwd, "CLAUDE.md")), codexCall?.prompt)
+  T("launch-pr-review.mjs: the durable COMMENTED review carries an authenticated marker, verdict, and exact head", ghCall?.args.slice(0, 3).join(" ") === "pr review 166" && ghCall.args.includes("--comment") && ghCall.body?.startsWith(`<!-- orbit-local-review: {"version":1,"head":"${HEAD}","recommendation":"APPROVE","provenance":`) && ghCall.body.includes('"verdict": "APPROVE"'), JSON.stringify(ghCall))
   const evidence = evaluateReviewEvidence({
     headRefOid: HEAD,
     files: { pageInfo: { hasNextPage: false }, nodes: [] },
@@ -233,14 +234,14 @@ export const cases = () => {
         commit: { oid: HEAD },
       }],
     },
-  }, HEAD)
+  }, HEAD, { ledgerPath: approve.ledgerPath })
   T("launch-pr-review.mjs: its COMMENTED body passes the merge gate's evidence parser", evidence.ok && evidence.status === "APPROVE", JSON.stringify(evidence))
 
   const localSkill = stageReview("local-skill", { localReviewSkill: true })
   const localCodex = localSkill.calls.find((call) => call.tool === "codex")
-  T("launch-pr-review.mjs: a complete target-local review skill pair wins over the canonical fallback", localSkill.result.status === 0 && localCodex?.prompt.includes(join(localCodex.cwd, ".claude", "skills", "pr-review", "SKILL.md")) && localCodex.prompt.includes(join(localCodex.cwd, ".claude", "skills", "pr-review", "rubric.md")) && localCodex.prompt.includes(join(localCodex.cwd, "AGENTS.md")) && localCodex.prompt.includes(join(localCodex.cwd, "CLAUDE.md")) && !localCodex.prompt.includes(canonicalSkill), `${localSkill.result.status}\n${localSkill.result.stderr}\n${localCodex?.prompt}`)
+  T("launch-pr-review.mjs: hostile target-local policy copies are ignored in favor of the trusted base", localSkill.result.status === 0 && localCodex?.prompt.includes("trusted-policy") && !localCodex.prompt.includes("target-local skill") && !localCodex.prompt.includes("target agents") && !localCodex.prompt.includes(join(localCodex.cwd, ".claude", "skills", "pr-review", "SKILL.md")), `${localSkill.result.status}\n${localSkill.result.stderr}\n${localCodex?.prompt}`)
 
-  const needsWork = stageReview("needs-work", { verdict: "NEEDS_WORK", findings: [{ severity: "High", title: "Unsafe path", path: "tools/x.mjs", line: 7, evidence: "The branch skips validation.", remediation: "Validate before use." }] })
+  const needsWork = stageReview("needs-work", { verdict: "NEEDS_WORK", findings: [{ id: "finding-0123456789abcdef0123456789abcdef", severity: "High", title: "Unsafe path", path: "tools/x.mjs", line: 7, evidence: "The branch skips validation.", remediation: "Validate before use." }] })
   T("launch-pr-review.mjs: NEEDS_WORK is durable and exits 4", needsWork.result.status === 4 && JSON.parse(needsWork.result.stdout).verdict === "NEEDS_WORK" && needsWork.calls.some((call) => call.tool === "gh" && call.args[1] === "review" && call.body.includes('"verdict": "NEEDS_WORK"')), `${needsWork.result.status}\n${needsWork.result.stderr}`)
 
   const moved = stageReview("moved", { moved: true })

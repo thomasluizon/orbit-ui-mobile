@@ -15,8 +15,9 @@ import { execFileSync } from "node:child_process"
 import { existsSync, readFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 
-import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
+import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
 import { RELAUNCH_SCOPE, STRIKE_LEDGER_ENV, recordStrike, strikeCount, strikeLedgerPath } from "./lib/strike-ledger.mjs"
+import { readWorkerLaunchRecords, sameWorkerLaunch, workerDeliveryEvidence, workerLaunchLedgerPath } from "./lib/worker-launch-provenance.mjs"
 import { evaluateReviewEvidence } from "./check-review-evidence.mjs"
 
 /**
@@ -47,15 +48,17 @@ no human-authored thread was resolved by the worker account, the local head matc
 head, the Linear issue is In Review with the PR attached, and both a screenshot and critique
 artifact are attached when the ticket carries visible-effect (D7).
 
-Liveness comes from the launcher-written PID marker <git-dir>/orbit-worker-pids.jsonl, read with
+Liveness comes from the launcher-written PID marker <git-dir>/orbit-worker-pids.jsonl, whose exact
+row must also exist in the central launcher ledger and match the configured headless invocation.
 process.kill(pid, 0): ESRCH is gone, EPERM is alive and not ours. A pid that answers alive but was
 claimed more than ${PID_REUSE_BACKSTOP_HOURS} hours ago may be a recycled id, so it reads unknown rather than alive. A
-missing or unreadable marker, a row naming no parseable startedAt, and any other errno also read
-unknown. Liveness is never inferred from the Linear state, which is honestly In Progress for a
-ticket shipping several sequential pull requests.
+missing or unreadable marker, an unissued row, a row naming no parseable startedAt, and any other
+errno also read unknown. Liveness is never inferred from the Linear state, which is honestly In
+Progress for a ticket shipping several sequential pull requests.
 
 verdicts:
-  DELIVERED       every check above is met; liveness does not enter into it
+  DELIVERED       every check above is met, including launcher-issued worker provenance and a
+                  signed completion receipt for the exact PR head
   WORKING         a check is unmet and the worker process is alive
   AWAITING-REVIEW the worker process is gone, the PR is otherwise ready for review, and no
                   decisive local verdict exists for the current head. This includes no local
@@ -172,6 +175,12 @@ if (!Number.isInteger(config.attemptsBeforeRewrite) || config.attemptsBeforeRewr
   fail(2, ".claude/orchestrator.json attemptsBeforeRewrite must be a positive integer; it is the relaunch cap")
 }
 const relaunchCap = config.attemptsBeforeRewrite
+let workerLaunchLedger
+try {
+  workerLaunchLedger = workerLaunchLedgerPath()
+} catch (error) {
+  fail(2, error.message)
+}
 
 const git = (args, options) => run("git", ["-C", worktree, ...args], options)
 const branch = git(["rev-parse", "--abbrev-ref", "HEAD"])
@@ -325,6 +334,15 @@ const critiqueAttachments = attachments.filter((entry) => {
 })
 const labels = (linearIssue.labels ?? []).map((label) => (typeof label === "string" ? label : label.name))
 const visibleEffect = labels.includes("visible-effect")
+let configuredInvocation = null
+let configuredInvocationError = null
+try {
+  const workerEngine = config.workers?.[config.worker]
+  const resolved = resolveWorkerInvocation(config.worker, workerEngine, labels)
+  configuredInvocation = { engine: config.worker, command: workerEngine.command, args: resolved.args }
+} catch (error) {
+  configuredInvocationError = error.message
+}
 
 const checks = [
   { name: "commits", ok: commits.length > 0, detail: commits.length ? `${commits.length} commit(s) on ${branch}` : `no commits on ${branch} above ${baseRef}` },
@@ -410,8 +428,6 @@ if (visibleEffect) {
   })
 }
 
-const unmet = checks.filter((check) => !check.ok).map((check) => check.name)
-
 const samePath = (left, right) =>
   process.platform === "win32" ? resolve(left).toLowerCase() === resolve(right).toLowerCase() : resolve(left) === resolve(right)
 
@@ -423,6 +439,12 @@ const samePath = (left, right) =>
 const readWorkerPidRows = () => {
   const marker = join(resolve(worktree, git(["rev-parse", "--git-dir"])), "orbit-worker-pids.jsonl")
   if (!existsSync(marker)) return { marker, rows: [], unreadable: `no launcher PID marker at ${marker}` }
+  let issuedLaunches
+  try {
+    issuedLaunches = readWorkerLaunchRecords(workerLaunchLedger)
+  } catch (error) {
+    return { marker, rows: [], unreadable: error.message }
+  }
   let lines
   try {
     lines = readFileSync(marker, "utf8").split(/\r?\n/).filter(Boolean)
@@ -437,7 +459,12 @@ const readWorkerPidRows = () => {
     } catch {
       return { marker, rows: [], unreadable: `PID marker ${marker} carries a line that is not JSON` }
     }
-    if (typeof row?.worktreePath === "string" && samePath(row.worktreePath, worktree) && row.issue === issue) rows.push(row)
+    if (typeof row?.worktreePath === "string" && samePath(row.worktreePath, worktree) && row.issue === issue) {
+      if (!issuedLaunches.some((issued) => sameWorkerLaunch(row, issued))) {
+        return { marker, rows: [], unreadable: `PID marker ${marker} carries a ${issue} row without launcher-issued provenance` }
+      }
+      rows.push(row)
+    }
   }
   return { marker, rows, unreadable: rows.length ? null : `PID marker ${marker} names no ${issue} worker for this worktree` }
 }
@@ -476,6 +503,43 @@ const liveness = {
   detail: unreadable ?? pidReadings.map((reading) => reading.detail).join("; "),
 }
 
+const configuredLaunchRows = configuredInvocation
+  ? pidRows.filter((row) =>
+      row.engine === configuredInvocation.engine &&
+      row.invocation?.command === configuredInvocation.command &&
+      JSON.stringify(row.invocation?.args) === JSON.stringify(configuredInvocation.args),
+    )
+  : []
+const workerLaunchProvenanceOk = !unreadable && configuredInvocationError === null && configuredLaunchRows.length > 0
+checks.push({
+  name: "worker-launch-provenance",
+  ok: workerLaunchProvenanceOk,
+  detail: workerLaunchProvenanceOk
+    ? `launcher-issued ${configuredInvocation.engine} invocation for ${issue} in ${worktree}`
+    : configuredInvocationError
+      ? `configured headless invocation could not be resolved: ${configuredInvocationError}`
+      : `${liveness.detail}; no launcher-issued row matches the configured headless invocation`,
+})
+const workerDelivery = workerDeliveryEvidence({
+  issue,
+  branch,
+  head: prHead,
+  worktreePath: worktree,
+  invocation: configuredInvocation,
+  ledgerPath: workerLaunchLedger,
+})
+const workerDeliveryOk = !unreadable && configuredInvocationError === null && workerDelivery.ok
+checks.push({
+  name: "worker-completed-head",
+  ok: workerDeliveryOk,
+  detail: workerDeliveryOk
+    ? workerDelivery.reason
+    : configuredInvocationError
+      ? `configured headless invocation could not be resolved: ${configuredInvocationError}`
+      : workerDelivery.reason,
+})
+const unmet = checks.filter((check) => !check.ok).map((check) => check.name)
+
 const prOpen = Boolean(pullRequest && pullRequest.state === "OPEN")
 const reviewGatesClear = reviewNotChangesRequested && reviewEvidence.ok
 /**
@@ -493,7 +557,7 @@ const REVIEWER_WAIT_ALLOWED_UNMET = new Set(["review-evidence", "linear-in-revie
 const localReviewUndecided =
   reviewEvidence.status === "AWAITING_REVIEW" ||
   reviewEvidence.status === "AMBIGUOUS" ||
-  (["STALE", "MALFORMED"].includes(reviewEvidence.status) && Boolean(reviewEvidence.review))
+  (["STALE", "MALFORMED", "UNAUTHENTICATED"].includes(reviewEvidence.status) && Boolean(reviewEvidence.review))
 const readyForFreshReviewer =
   localReviewUndecided &&
   reviewNotChangesRequested &&
@@ -552,12 +616,19 @@ const relaunchRefusal =
     : `the verdict is ${verdictName}, and only STALLED or NEEDS-WORK spends a relaunch allowance`
 const outstandingFindings = [
   ...(reviewEvidence.status === "NEEDS_WORK" && reviewEvidence.review
-    ? [{
-        kind: "local-review-needs-work",
-        id: reviewEvidence.review.id ?? reviewEvidence.review.url ?? "local-review",
-        path: null,
-        body: (reviewEvidence.review.body ?? "").slice(0, 2000),
-      }]
+    ? (reviewEvidence.findingIds.length > 0
+      ? reviewEvidence.findingIds.map((id) => ({
+          kind: "local-review-needs-work",
+          id,
+          path: null,
+          body: (reviewEvidence.review.body ?? "").slice(0, 2000),
+        }))
+      : [{
+          kind: "local-review-needs-work",
+          id: "missing-finding-identity",
+          path: null,
+          body: (reviewEvidence.review.body ?? "").slice(0, 2000),
+        }])
     : []),
   ...unresolvedThreads.map((thread) => ({
     kind: "unresolved-thread",

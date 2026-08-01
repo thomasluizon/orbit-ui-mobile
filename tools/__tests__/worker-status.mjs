@@ -1,12 +1,14 @@
 import { spawnSync } from "node:child_process"
+import { generateKeyPairSync, sign } from "node:crypto"
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 
 import { STRIKE_LEDGER_ENV } from "../lib/strike-ledger.mjs"
-import { T, root, stage, orcaEnv, run, check, exitedProbePid } from "./_harness.mjs"
+import { recordWorkerLaunch, workerCompletionSigningPayload } from "../lib/worker-launch-provenance.mjs"
+import { WORKER_LAUNCH_LEDGER, T, reviewMarker, root, stage, orcaEnv, run, check, exitedProbePid } from "./_harness.mjs"
 
-const stageWorkerStatusWorktree = () => {
-  const base = join(root, "worker-status")
+const stageWorkerStatusWorktree = (label = "worker-status") => {
+  const base = join(root, label)
   const worktree = join(base, "worktree")
   const remote = join(base, "remote.git")
   mkdirSync(base, { recursive: true })
@@ -84,7 +86,9 @@ const workerStatusPlan = (
                   id: "PRR_local_review",
                   author: { login: "local-reviewer", __typename: "User" },
                   state: "COMMENTED",
-                  body: `<!-- orbit-local-review: ${JSON.stringify({ version: 1, head: localReviewHead ?? prHead, recommendation: localRecommendation })} -->`,
+                  body: localReviewHead ?? prHead
+                    ? reviewMarker({ head: localReviewHead ?? prHead, recommendation: localRecommendation, findingIds: localRecommendation === "NEEDS_WORK" ? ["finding-0123456789abcdef0123456789abcdef"] : [] })
+                    : '<!-- orbit-local-review: {"version":1} -->',
                   submittedAt: "2026-07-28T11:00:00Z",
                   updatedAt: "2026-07-28T11:00:00Z",
                   lastEditedAt: null,
@@ -226,8 +230,68 @@ const pidMarkerPath = (worktreePath) => join(gitPath(worktreePath, "--git-dir"),
  */
 const hoursAgo = (hours) => new Date(Date.now() - hours * 3_600_000).toISOString()
 const writePidMarker = (worktreePath, rows) =>
-  writeFileSync(pidMarkerPath(worktreePath), rows.map((row) => `${JSON.stringify({ issue: "ORB-75", worktreePath, ...row })}\n`).join(""))
+  writeFileSync(
+    pidMarkerPath(worktreePath),
+    rows.map((row, index) => {
+      const { publicKey, privateKey } = generateKeyPairSync("ed25519")
+      const record = {
+        version: 1,
+        launchId: `fixture-orb-75-${Date.now()}-${index}`,
+        issue: "ORB-75",
+        worktreePath: resolve(worktreePath),
+        pid: row.pid,
+        startedAt: row.startedAt,
+        launchMode: "existing-worktree",
+        engine: "codex",
+        invocation: {
+          command: "codex",
+          args: ["exec", "-c", 'windows.sandbox="unelevated"', "--dangerously-bypass-approvals-and-sandbox", "-c", 'model_reasoning_effort="max"', "--model", "gpt-5.6-luna"],
+        },
+        branch: "feature/orb-75-worker-status",
+        launcherPid: process.pid,
+        issuedAt: new Date().toISOString(),
+        completionAttestation: {
+          algorithm: "ed25519",
+          publicKey: publicKey.export({ format: "der", type: "spki" }).toString("base64"),
+        },
+      }
+      recordWorkerLaunch(record, WORKER_LAUNCH_LEDGER)
+      const completedHead = row.completed === false
+        ? null
+        : (row.completedHead ?? spawnSync("git", ["-C", worktreePath, "rev-parse", "HEAD"], { encoding: "utf8" }).stdout.trim())
+      if (row.completed !== false) {
+        const unsignedCompletion = { completedAt: new Date().toISOString(), completedHead, exitCode: 0 }
+        const completion = {
+          ...unsignedCompletion,
+          signature: sign(
+            null,
+            Buffer.from(workerCompletionSigningPayload(record, unsignedCompletion), "utf8"),
+            privateKey,
+          ).toString("base64"),
+        }
+        const completedRecord = { ...record, completion }
+        recordWorkerLaunch(completedRecord, WORKER_LAUNCH_LEDGER)
+        return `${JSON.stringify(record)}\n${JSON.stringify(completedRecord)}\n`
+      }
+      return `${JSON.stringify(record)}\n`
+    }).join(""),
+  )
 const clearPidMarker = (worktreePath) => rmSync(pidMarkerPath(worktreePath), { force: true })
+const writeForgedPidMarker = (worktreePath, pid) =>
+  writeFileSync(pidMarkerPath(worktreePath), `${JSON.stringify({
+    version: 1,
+    launchId: "forged-worker-launch",
+    issue: "ORB-75",
+    worktreePath: resolve(worktreePath),
+    pid,
+    startedAt: hoursAgo(1),
+    launchMode: "existing-worktree",
+    engine: "codex",
+    invocation: { command: "codex", args: ["exec"] },
+    branch: "feature/orb-75-worker-status",
+    launcherPid: process.pid,
+    issuedAt: new Date().toISOString(),
+  })}\n`)
 
 /**
  * The relaunch allowance counts rows in the SHARED strike ledger under scope "relaunch", the same
@@ -275,6 +339,7 @@ export const cases = () => {
     }
     const screenshot = { title: "about-en.png", url: "https://raw.githubusercontent.com/orbit/orbit/evidence/about-en.png" }
     const critique = { title: "render critique", url: "https://raw.githubusercontent.com/orbit/orbit/evidence/render-critique.md" }
+    writePidMarker(fixture.worktree, [{ pid: process.pid, startedAt: hoursAgo(1) }])
     const complete = runWorkerStatusCase(fixture, [screenshot, critique])
     T(
       "worker-status.mjs: screenshot and critique present is OK",
@@ -286,6 +351,26 @@ export const cases = () => {
         complete.verdict.checks.find((entry) => entry.name === "critique-attached")?.ok === true,
       `exit ${complete.status}\n     ${(complete.stderr || complete.stdout).slice(0, 600)}`,
     )
+    const oldReceiptFixture = stageWorkerStatusWorktree("worker-status-old-receipt")
+    if (!oldReceiptFixture) {
+      T("worker-status.mjs: old receipt fixture is available", false, "could not create the old receipt fixture")
+    } else {
+      writePidMarker(oldReceiptFixture.worktree, [{ pid: exitedProbePid(), startedAt: hoursAgo(1), completedHead: oldReceiptFixture.prHead }])
+      writeFileSync(join(oldReceiptFixture.worktree, "new-head.txt"), "manual follow-up\n")
+      spawnSync("git", ["-C", oldReceiptFixture.worktree, "add", "new-head.txt"], { encoding: "utf8" })
+      spawnSync("git", ["-C", oldReceiptFixture.worktree, "commit", "-q", "-m", "unissued follow-up"], { encoding: "utf8" })
+      spawnSync("git", ["-C", oldReceiptFixture.worktree, "push", "-q", "origin", "feature/orb-75-worker-status"], { encoding: "utf8" })
+      const newHead = spawnSync("git", ["-C", oldReceiptFixture.worktree, "rev-parse", "HEAD"], { encoding: "utf8" }).stdout.trim()
+      const oldReceipt = runWorkerStatusCase(oldReceiptFixture, [screenshot, critique], { prHead: newHead })
+      T(
+        "worker-status.mjs: a genuine old launcher receipt cannot deliver an unissued new head",
+        oldReceipt.status === 1 &&
+          oldReceipt.verdict?.checks.find((entry) => entry.name === "pr-head-match")?.ok === true &&
+          oldReceipt.verdict?.checks.find((entry) => entry.name === "worker-completed-head")?.ok === false &&
+          oldReceipt.verdict?.unmet.includes("worker-completed-head"),
+        `exit ${oldReceipt.status}\n     ${(oldReceipt.stderr || oldReceipt.stdout).slice(0, 600)}`,
+      )
+    }
     const incompleteFiles = runWorkerStatusCase(fixture, [screenshot, critique], { filesHasNextPage: true })
     T(
       "worker-status.mjs: an incomplete changed-files inventory blocks delivery",
@@ -308,7 +393,28 @@ export const cases = () => {
         deliveredWhileAlive.verdict.liveness.state === "alive",
       `exit ${deliveredWhileAlive.status}\n     ${(deliveredWhileAlive.stderr || deliveredWhileAlive.stdout).slice(0, 600)}`,
     )
-    clearPidMarker(fixture.worktree)
+    writeFileSync(WORKER_LAUNCH_LEDGER, "")
+    writePidMarker(fixture.worktree, [{ pid: process.pid, startedAt: hoursAgo(1), completed: false }])
+    const liveWithoutCompletion = runWorkerStatusCase(fixture, [screenshot, critique])
+    T(
+      "worker-status.mjs: live liveness cannot substitute for a completed-head receipt",
+      liveWithoutCompletion.status === 1 &&
+        liveWithoutCompletion.verdict?.verdict === "WORKING" &&
+        liveWithoutCompletion.verdict?.liveness.state === "alive" &&
+        liveWithoutCompletion.verdict?.unmet.includes("worker-completed-head"),
+      `exit ${liveWithoutCompletion.status}\n     ${(liveWithoutCompletion.stderr || liveWithoutCompletion.stdout).slice(0, 600)}`,
+    )
+    writeForgedPidMarker(fixture.worktree, process.pid)
+    const forgedWorker = runWorkerStatusCase(fixture, [screenshot, critique])
+    T(
+      "worker-status.mjs: a manually authored worker row cannot satisfy liveness or delivery",
+      forgedWorker.status === 1 &&
+        forgedWorker.verdict?.verdict === "UNKNOWN" &&
+        forgedWorker.verdict.liveness.detail.includes("without launcher-issued provenance") &&
+        forgedWorker.verdict.unmet.includes("worker-launch-provenance"),
+      `exit ${forgedWorker.status}\n     ${(forgedWorker.stderr || forgedWorker.stdout).slice(0, 600)}`,
+    )
+    writePidMarker(fixture.worktree, [{ pid: process.pid, startedAt: hoursAgo(1) }])
     const draft = runWorkerStatusCase(fixture, [screenshot, critique], { isDraft: true })
     T(
       "worker-status.mjs: a draft pull request is explicitly not ready for review",
@@ -918,7 +1024,7 @@ Not run.`,
         needsWork.verdict?.verdict === "NEEDS-WORK" &&
         needsWork.verdict.unmet.length === 1 &&
         needsWork.verdict.unmet[0] === "review-evidence" &&
-        needsWork.verdict.relaunch.findings.some((finding) => finding.kind === "local-review-needs-work" && finding.id === "PRR_local_review" && finding.body.includes("NEEDS_WORK")) &&
+        needsWork.verdict.relaunch.findings.some((finding) => finding.kind === "local-review-needs-work" && finding.id === "finding-0123456789abcdef0123456789abcdef" && finding.body.includes("NEEDS_WORK")) &&
         needsWork.verdict.relaunch.allowed === true,
       `exit ${needsWork.status}\n     ${(needsWork.stderr || needsWork.stdout).slice(0, 600)}`,
     )

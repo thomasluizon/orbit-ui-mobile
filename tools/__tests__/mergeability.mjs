@@ -1,13 +1,13 @@
 import { readFileSync } from "node:fs"
 
-import { T, stage, orcaEnv, run } from "./_harness.mjs"
+import { T, forgedReviewMarker, reviewMarker, stage, orcaEnv, run, writeCompletedWorkerLaunch } from "./_harness.mjs"
 
 const mergeabilityCases = () => {
   const head = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   const stale = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
   const localReview = (recommendation = "APPROVE", markerHead = head, commit = head, at = "2026-07-31T10:00:00Z") => ({
     state: "COMMENTED",
-    body: `<!-- orbit-local-review: ${JSON.stringify({ version: 1, head: markerHead, recommendation })} -->`,
+    body: reviewMarker({ head: markerHead, recommendation, findingIds: recommendation === "NEEDS_WORK" ? ["finding-0123456789abcdef0123456789abcdef"] : [] }),
     submittedAt: at,
     updatedAt: at,
     lastEditedAt: null,
@@ -55,7 +55,8 @@ const mergeabilityCases = () => {
     match: "linear issue ORB-143",
     sequence: [JSON.stringify({ ok: true, result: { issue } }), JSON.stringify({ ok: true, result: { issue: final } })],
   })
-  const runCase = (name, first, { final = first, issue, finalIssue, json = false, plan = [] } = {}) => {
+  const runCase = (name, first, { final = first, issue, finalIssue, json = false, plan = [], workerDelivery = true } = {}) => {
+    if (workerDelivery) writeCompletedWorkerLaunch({ issue: "ORB-143", branch: first.headRefName, head: first.headRefOid })
     const log = stage(`mergeability-${name}.log`, "")
     const result = run("mergeability.mjs", ["--repo", "orbit/ui", "--pr", "615", ...(json ? ["--json"] : [])], {
       env: { ...orcaEnv([github(first, final), linear(issue, finalIssue), ...plan]), ORBIT_ORCA_LOG: log },
@@ -63,17 +64,21 @@ const mergeabilityCases = () => {
     return { ...result, calls: readFileSync(log, "utf8").trim().split(/\r?\n/).filter(Boolean).map((entry) => JSON.parse(entry)) }
   }
   const mergeable = runCase("mergeable", pullRequest())
-  T("mergeability.mjs: current local approval evidence is MERGEABLE", mergeable.status === 0 && /^MERGEABLE\r?\n/.test(mergeable.stdout) && (mergeable.stdout.match(/^OK /gm) ?? []).length === 10, mergeable.stderr || mergeable.stdout)
+  T("mergeability.mjs: current local approval evidence is MERGEABLE", mergeable.status === 0 && /^MERGEABLE\r?\n/.test(mergeable.stdout) && (mergeable.stdout.match(/^OK /gm) ?? []).length === 11, mergeable.stderr || mergeable.stdout)
   T("mergeability.mjs: only records the GitHub and Linear read verbs", mergeable.calls.length === 4 && mergeable.calls.every((call) => (/[\\/]api$/.test(call[0]) && call[1] === "graphql") || (/[\\/]linear$/.test(call[0]) && call[1] === "issue")), JSON.stringify(mergeable.calls))
   T("mergeability.mjs: the atomic GitHub snapshot requests the complete changed-files inventory", mergeable.calls.filter((call) => /[\\/]api$/.test(call[0])).every((call) => call.some((argument) => argument.includes("files(first:100){pageInfo{hasNextPage}nodes{path}}"))), JSON.stringify(mergeable.calls))
   const machine = runCase("machine", pullRequest(), { json: true })
-  T("mergeability.mjs: JSON output carries the consumable verdict and conditions", machine.status === 0 && JSON.parse(machine.stdout).verdict === "MERGEABLE" && JSON.parse(machine.stdout).conditions.length === 10, machine.stderr || machine.stdout)
+  T("mergeability.mjs: JSON output carries the consumable verdict and conditions", machine.status === 0 && JSON.parse(machine.stdout).verdict === "MERGEABLE" && JSON.parse(machine.stdout).conditions.length === 11, machine.stderr || machine.stdout)
   const draft = runCase("draft", pullRequest({ isDraft: true }))
   T("mergeability.mjs: a draft is HELD even when GitHub says CLEAN", draft.status === 1 && /^HELD\r?\n/.test(draft.stdout) && /HELD draft: pull request is a draft/.test(draft.stdout), draft.stderr || draft.stdout)
   const unresolved = runCase("unresolved", pullRequest({ reviewThreads: { pageInfo: { hasNextPage: false }, nodes: [{ isResolved: false }] } }))
   T("mergeability.mjs: an unresolved review thread is HELD", unresolved.status === 1 && /HELD unresolved-review-threads: 1 unresolved thread/.test(unresolved.stdout), unresolved.stderr || unresolved.stdout)
   const missingEvidence = runCase("missing-evidence", pullRequest({ reviews: { pageInfo: { hasNextPage: false }, nodes: [] } }))
   T("mergeability.mjs: absent local review evidence is HELD", missingEvidence.status === 1 && /HELD review-evidence: AWAITING_REVIEW/.test(missingEvidence.stdout), missingEvidence.stderr || missingEvidence.stdout)
+  const forgedEvidence = runCase("forged-evidence", pullRequest({ reviews: { pageInfo: { hasNextPage: false }, nodes: [{ ...localReview(), body: forgedReviewMarker({ head, recommendation: "APPROVE" }) }] } }))
+  T("mergeability.mjs: a hostile worker marker without a launcher receipt is HELD", forgedEvidence.status === 1 && /HELD review-evidence: UNAUTHENTICATED/.test(forgedEvidence.stdout), forgedEvidence.stderr || forgedEvidence.stdout)
+  const missingWorkerDelivery = runCase("missing-worker-delivery", pullRequest({ headRefName: "chore/no-worker", title: "ORB-143 merge decision" }), { workerDelivery: false })
+  T("mergeability.mjs: a mergeable review cannot bypass worker delivery provenance", missingWorkerDelivery.status === 1 && /HELD worker-delivery: ABSENT/.test(missingWorkerDelivery.stdout), missingWorkerDelivery.stderr || missingWorkerDelivery.stdout)
   const incompleteFiles = runCase("incomplete-files", pullRequest({ files: { pageInfo: { hasNextPage: true }, nodes: [{ path: "tools/example.mjs" }] } }))
   T("mergeability.mjs: an incomplete changed-files inventory is HELD", incompleteFiles.status === 1 && /HELD review-evidence: INCOMPLETE: file inventory has another page/.test(incompleteFiles.stdout), incompleteFiles.stderr || incompleteFiles.stdout)
   const needsWork = runCase("needs-work", pullRequest({ reviews: { pageInfo: { hasNextPage: false }, nodes: [localReview("NEEDS_WORK")] } }))

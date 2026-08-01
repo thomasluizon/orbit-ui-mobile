@@ -1,6 +1,6 @@
 // Command (Bash and PowerShell) invariants for an orchestrating session: model spend routes
 // through the launcher, and no agent performs an admin merge.
-// Pure: they take the command string plus injected environment and cwd, and return
+// Pure: they take the command string plus injected environment and return
 // { block, message } or null. The Claude Code PreToolUse orchestrator-guardrails hook calls
 // these on BOTH tools, because the PowerShell tool fires no hook by default and that alone
 // defeats every command guard in this repository.
@@ -11,17 +11,14 @@
 //   1. another tool that runs a shell without a PreToolUse matcher,
 //   2. a shell wrapper (`sh -c '<command>'`), whose inner text this never inspects,
 //   3. script-file indirection (write a two-line script, then run the script),
-//   4. the cwd exemption: an orchestrating session that changes directory into any
-//      launcher-created worktree gets the engine exemption. ACCEPTED by the specification,
-//      which scopes the refusal to the caller rather than the command, and recorded here
-//      because an accepted risk that is written down is a decision and one that is not is a
-//      hole. Note the admin-merge rule takes NO exemption, so this does not reach it.
+//   4. a manually exported launcher marker can imitate the environment exemption. The
+//      completion gate separately requires a launcher-issued provenance receipt tied to the
+//      worker process, worktree, issue and configured headless invocation.
 // The control for the admin merge is the prohibition itself, which ships in the worker
 // contract, AGENTS.md and CLAUDE.md; the separate non-admin machine identity that would have
 // closed it mechanically was declined (J3a).
 
 import { stripHeredocBodies } from "./rules-git.mjs"
-import { insideLinkedWorktree } from "./repo-roots.mjs"
 
 /** Each approved launcher exports its own marker into the model process it starts. */
 const LAUNCHER_MARKERS = ["ORBIT_LAUNCH_WORKER", "ORBIT_LAUNCH_PR_REVIEW"]
@@ -79,14 +76,13 @@ const blocked = (command, why) => ({ block: true, message: `BLOCKED (Orbit orche
 /**
  * Refuse a raw engine invocation from an ORCHESTRATING session. It keys on WHO is calling,
  * never on the subcommand: after the headless flip `codex exec` is how every worker runs, so
- * refusing the flag would break the launcher itself. Permitted from a process carrying the
- * launcher's marker, and from inside a launcher-created worktree, which is a LINKED git
- * worktree of a declared repository and never the main checkout the orchestrator sits in.
+ * refusing the flag would break the launcher itself. Permitted only from a process carrying the
+ * launcher's environment marker. A worktree path alone is not worker provenance. Delivery
+ * additionally requires the launcher's signed completion receipt for the exact PR head.
  */
-export function checkEngineInvocation(command, { env = {}, cwd = "", repoRoots = [] } = {}) {
+export function checkEngineInvocation(command, { env = {} } = {}) {
   if (typeof command !== "string") return null
   if (LAUNCHER_MARKERS.some((marker) => env[marker])) return null
-  if (cwd && insideLinkedWorktree(cwd, repoRoots)) return null
 
   // The marker is read from the ENVIRONMENT only. The launcher exports it on the spawn and
   // never shells out with an inline assignment, so a text-based exemption would exempt nothing
@@ -100,8 +96,8 @@ export function checkEngineInvocation(command, { env = {}, cwd = "", repoRoots =
         "request reviews start through `node tools/launch-pr-review.mjs`. Each reserves and\n" +
         "records its budget and gives the model its own bounded contract. None of that happens\n" +
         "for a raw `codex` or `claude` invocation, so its spend is invisible and unsupervised.\n" +
-        "This refusal is scoped to the CALLER, not the flag: the launcher itself, and any command\n" +
-        "run from inside a launcher-created worktree, are permitted, `codex exec` included.",
+        "This refusal is scoped to the CALLER, not the flag: the launcher itself carries the\n" +
+        "environment marker, while a manually opened TUI or ad hoc `codex exec` does not.",
     )
   }
   return null

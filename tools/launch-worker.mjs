@@ -18,7 +18,7 @@
  */
 
 import { execFileSync, spawn, spawnSync } from "node:child_process"
-import { randomUUID } from "node:crypto"
+import { generateKeyPairSync, randomUUID } from "node:crypto"
 import {
   appendFileSync,
   closeSync,
@@ -29,7 +29,7 @@ import {
   unlinkSync,
   writeFileSync,
 } from "node:fs"
-import { homedir } from "node:os"
+import { homedir, tmpdir } from "node:os"
 import { basename, delimiter, dirname, extname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -40,6 +40,12 @@ import {
   reserveAutomationBudget,
 } from "./lib/automation-launch-budget.mjs"
 import { FINDING_SCOPE, STRIKES_BEFORE_ESCALATION, recordStrike, strikeCount, strikeLedgerPath } from "./lib/strike-ledger.mjs"
+import {
+  readWorkerLaunchRecords,
+  recordWorkerLaunch,
+  sameWorkerLaunch,
+  workerLaunchLedgerPath,
+} from "./lib/worker-launch-provenance.mjs"
 const pause = (milliseconds) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds)
 
 const USAGE = `usage: launch-worker.mjs --issue ORB-N --prompt-file <path> [options]
@@ -60,6 +66,7 @@ const USAGE = `usage: launch-worker.mjs --issue ORB-N --prompt-file <path> [opti
   --comment "<text>"     worktree card comment (default: "<ORB-N> launched: worker running")
   --workspace-status <s> Orca board status id (default: in-progress)
   --existing-worktree <path> launch an additional headless worker in this existing Orca worktree
+  --repair                launch an existing-worktree repair owned by the same implementation worker
   --finding <id>         relaunch identifier for ONE unresolved review finding. Each launch under
                          the same --issue and --finding is one cycle of worker-contract clause 4,
                          counted in a durable ledger outside this process; the third refuses and
@@ -234,6 +241,7 @@ const terminalIsRepainting = (terminal) => {
  */
 const WORKER_CONTRACT_MARKER = "## Standing worker contract (injected by tools/launch-worker.mjs)"
 const SLICE_CONTRACT_MARKER = "## Slice worker contract (injected by tools/launch-worker.mjs)"
+const REPAIR_CONTRACT_MARKER = "## Repair worker contract (injected by tools/launch-worker.mjs)"
 const WORKER_CONTRACT = `
 
 ---
@@ -315,6 +323,20 @@ the relevant checks. Do not commit, push, open or edit a pull request, merge, ch
 issue, or modify files outside the requested slice. Report the changed paths and raw check output
 to the coordinator when finished. Never ask a question: decide from the work order and repository
 rules, and record any blocked sub-step in the report.
+`
+
+const repairWorkerContract = (finding) => `
+
+---
+
+${REPAIR_CONTRACT_MARKER}
+
+This is a repair launch in the existing worktree, owned by the same implementation worker. Repair
+only the stable finding \`${finding}\` from the current review. Inspect the current diff and the
+finding evidence before changing code. You may edit, run gates, commit the repair, push the
+existing branch, update the existing pull request, and own its review cycle. Do not merge, push
+main or redesign/main, change Linear, or modify files outside this finding's repair. Stage only
+paths you edited. Never ask a question; record any blocked sub-step in the pull request and report.
 `
 
 /**
@@ -498,6 +520,12 @@ if (automationLedgerOverride !== undefined && automationLedgerOverride.trim().le
 const automationLedgerPath = resolve(
   automationLedgerOverride ?? resolve(homedir(), ".orbit", "automation-budget.jsonl"),
 )
+let workerLaunchLedger
+try {
+  workerLaunchLedger = workerLaunchLedgerPath()
+} catch (error) {
+  fail(2, error.message)
+}
 
 const processIsAlive = (pid) => {
   try {
@@ -586,6 +614,7 @@ const branchPrefix = argOf("--branch-prefix") ?? "feature"
 const maxParallelOverride = argOf("--max-parallel-worktrees")
 const workspaceStatus = argOf("--workspace-status") ?? "in-progress"
 const findingArg = argOf("--finding")
+const repairMode = process.argv.includes("--repair")
 const dryRun = process.argv.includes("--dry-run")
 
 /**
@@ -746,6 +775,9 @@ if (selectedWaveSelectors.length === 1) {
 if (argOf("--prompt-dir") !== null) fail(2, "--prompt-dir belongs to wave mode; a single-ticket launch takes --prompt-file")
 if (!issue || !/^[A-Z]+-\d+$/.test(issue)) fail(2, `${USAGE}\n\n--issue must be a Linear identifier such as ORB-75`)
 if (!promptFileArg) fail(2, `${USAGE}\n\n--prompt-file is required`)
+if (repairMode && !existingWorktreeArg) fail(2, "--repair requires --existing-worktree")
+if (repairMode && findingArg === null) fail(2, "--repair requires --finding with the stable finding identity")
+if (repairMode && !/^finding-[0-9a-f]{32}$/.test(findingArg ?? "")) fail(2, "--repair --finding must be a stable finding identity such as finding-0123456789abcdef0123456789abcdef")
 if (branchPrefix !== "feature" && branchPrefix !== "fix") fail(2, "--branch-prefix must be feature or fix")
 if (maxParallelOverride !== null && !/^[1-9]\d*$/.test(maxParallelOverride)) {
   fail(2, "--max-parallel-worktrees must be a positive integer")
@@ -957,21 +989,97 @@ const headlessInvocation = () => {
   return { executable: process.execPath, scriptArgs: [script] }
 }
 
-const startHeadlessWorker = (worktreePath, branch) => {
+const startHeadlessWorker = (worktreePath, branch, launchMode) => {
   const { executable, scriptArgs } = headlessInvocation()
-  const child = spawn(executable, [...scriptArgs, ...engineArgs, workerPointer(worktreePath, branch)], {
-    cwd: worktreePath,
-    detached: true,
-    stdio: "ignore",
-    windowsHide: true,
-    env: { ...process.env, ORBIT_LAUNCH_WORKER: "1" },
-  })
-  if (!child.pid) fail(3, `could not start headless ${engineName} worker`)
-  child.unref()
+  const launchId = randomUUID()
+  const startedAt = new Date().toISOString()
+  const invocation = { command: engine.command, args: [...engineArgs] }
+  const { publicKey, privateKey } = generateKeyPairSync("ed25519")
+  const workerPath = resolve(worktreePath)
   const gitDirectory = resolve(worktreePath, git(["-C", worktreePath, "rev-parse", "--git-dir"]))
-  appendFileSync(join(gitDirectory, "orbit-worker-pids.jsonl"), `${JSON.stringify({ issue, worktreePath, pid: child.pid, startedAt: new Date().toISOString() })}\n`)
-  if (budgetReservation) claimBudgetReservation(budgetReservation, projectedTokens, child.pid)
-  return child.pid
+  const markerPath = join(gitDirectory, "orbit-worker-pids.jsonl")
+  const supervisorPath = resolve(dirname(fileURLToPath(import.meta.url)), "worker-supervisor.mjs")
+  const payloadPath = join(tmpdir(), `orbit-worker-${launchId}.json`)
+  const startGate = join(tmpdir(), `orbit-worker-${launchId}.ready`)
+  const launchRecord = {
+    version: 1,
+    launchId,
+    issue,
+    worktreePath: workerPath,
+    pid: 0,
+    startedAt,
+    launchMode,
+    engine: engineName,
+    invocation,
+    branch,
+    launcherPid: process.pid,
+    issuedAt: new Date().toISOString(),
+    completionAttestation: {
+      algorithm: "ed25519",
+      publicKey: publicKey.export({ format: "der", type: "spki" }).toString("base64"),
+    },
+  }
+  const writeSupervisorPayload = () => writeFileSync(
+    payloadPath,
+    JSON.stringify({
+      payloadPath,
+      launchRecord,
+      executable,
+      scriptArgs,
+      engineArgs,
+      pointer: workerPointer(worktreePath, branch),
+      worktreePath: workerPath,
+      markerPath,
+      ledgerPath: workerLaunchLedger,
+      startGate,
+    }),
+    { encoding: "utf8", mode: 0o600 },
+  )
+  writeSupervisorPayload()
+  let child
+  try {
+    child = spawn(process.execPath, [supervisorPath, payloadPath], {
+      cwd: workerPath,
+      detached: true,
+      stdio: ["ignore", "ignore", "ignore", "pipe"],
+      windowsHide: true,
+      env: { ...process.env, ORBIT_LAUNCH_WORKER: "1", ORBIT_WORKER_LAUNCH_ID: launchId },
+    })
+  } catch (error) {
+    unlinkSync(payloadPath)
+    fail(3, `could not start headless ${engineName} supervisor: ${error.message}`)
+  }
+  if (!child.pid) {
+    unlinkSync(payloadPath)
+    fail(3, `could not start headless ${engineName} supervisor`)
+  }
+  launchRecord.pid = child.pid
+  // The supervisor waits for the gate, so rewrite its payload after the spawn supplies the
+  // authoritative supervisor PID. A completion row carrying pid 0 is not a launch receipt and
+  // would make the central delivery ledger reject the worker that actually ran.
+  writeSupervisorPayload()
+  child.stdio[3].end(privateKey.export({ format: "pem", type: "pkcs8" }))
+  try {
+    recordWorkerLaunch(launchRecord, workerLaunchLedger)
+    appendFileSync(markerPath, `${JSON.stringify(launchRecord)}\n`)
+    if (budgetReservation) claimBudgetReservation(budgetReservation, projectedTokens, child.pid)
+    writeFileSync(startGate, "ready\n", { encoding: "utf8", mode: 0o600 })
+  } catch (error) {
+    try {
+      process.kill(child.pid)
+    } catch {
+      /* the child may have exited before provenance failed */
+    }
+    try {
+      unlinkSync(payloadPath)
+      unlinkSync(startGate)
+    } catch {
+      /* cleanup must not mask the provenance failure */
+    }
+    fail(3, `could not issue worker launch provenance: ${error.message}`)
+  }
+  child.unref()
+  return { workerPid: child.pid, launchId }
 }
 
 /**
@@ -1038,8 +1146,18 @@ if (!existingWorktreeArg && occupyingWorktrees.length >= maxParallelWorktrees) {
 
 /** Reported in the plan so a dry run shows whether this launch would inject the contract, and a
  * relaunch against an already-injected file is visibly a no-op rather than a silent second copy. */
-const contractMarker = existingWorktreeArg ? SLICE_CONTRACT_MARKER : WORKER_CONTRACT_MARKER
-const workerContract = readFileSync(promptFile, "utf8").includes(contractMarker) ? "already present" : "appended"
+const contractMarker = repairMode
+  ? REPAIR_CONTRACT_MARKER
+  : existingWorktreeArg
+    ? SLICE_CONTRACT_MARKER
+    : WORKER_CONTRACT_MARKER
+const originalPrompt = readFileSync(promptFile, "utf8")
+const hasInjectedContract = [WORKER_CONTRACT_MARKER, SLICE_CONTRACT_MARKER, REPAIR_CONTRACT_MARKER]
+  .some((marker) => originalPrompt.includes(marker))
+const contractText = repairMode ? repairWorkerContract(findingArg) : existingWorktreeArg ? SLICE_CONTRACT : WORKER_CONTRACT
+const workerContract = repairMode
+  ? originalPrompt.includes(contractText.trim()) ? "already present" : hasInjectedContract ? "replaced" : "appended"
+  : originalPrompt.includes(contractMarker) ? "already present" : "appended"
 
 const plan = {
   issue,
@@ -1106,9 +1224,22 @@ if (findingArg !== null) {
  * for the relaunch. A dry run resolves this decision but writes nothing. */
 if (workerContract === "appended") {
   try {
-    appendFileSync(promptFile, existingWorktreeArg ? SLICE_CONTRACT : WORKER_CONTRACT, "utf8")
+    appendFileSync(promptFile, contractText, "utf8")
   } catch (error) {
     fail(3, `could not append the worker contract to ${promptFile}: ${error.message}`)
+  }
+} else if (workerContract === "replaced") {
+  try {
+    let prompt = readFileSync(promptFile, "utf8")
+    for (const marker of [WORKER_CONTRACT_MARKER, SLICE_CONTRACT_MARKER, REPAIR_CONTRACT_MARKER]) {
+      const markerIndex = prompt.indexOf(marker)
+      if (markerIndex === -1) continue
+      const separatorIndex = prompt.lastIndexOf("\n---\n", markerIndex)
+      prompt = prompt.slice(0, separatorIndex === -1 ? markerIndex : separatorIndex).trimEnd()
+    }
+    writeFileSync(promptFile, `${prompt}${contractText}`, "utf8")
+  } catch (error) {
+    fail(3, `could not replace the worker contract in ${promptFile}: ${error.message}`)
   }
 }
 
@@ -1123,16 +1254,29 @@ if (existingWorktreeArg) {
     fail(2, `--existing-worktree must be an active Orca worktree linked to ${issue}`)
   }
   const marker = join(resolve(worktreePath, git(["-C", worktreePath, "rev-parse", "--git-dir"])), "orbit-worker-pids.jsonl")
+  let issuedLaunches
+  try {
+    issuedLaunches = readWorkerLaunchRecords(workerLaunchLedger)
+  } catch (error) {
+    fail(3, error.message)
+  }
   const activeSlices = existsSync(marker)
-    ? readFileSync(marker, "utf8").trim().split(/\r?\n/).filter(Boolean).flatMap((line) => { try { const row = JSON.parse(line); return row.issue === issue && Number.isInteger(row.pid) && (() => { try { process.kill(row.pid, 0); return true } catch (error) { return error.code !== "ESRCH" } })() ? [row] : [] } catch { return [] } })
+    ? readFileSync(marker, "utf8").trim().split(/\r?\n/).filter(Boolean).flatMap((line) => {
+      try {
+        const row = JSON.parse(line)
+        return row.issue === issue && issuedLaunches.some((issued) => sameWorkerLaunch(row, issued)) && Number.isInteger(row.pid) && (() => { try { process.kill(row.pid, 0); return true } catch (error) { return error.code !== "ESRCH" } })() ? [row] : []
+      } catch {
+        return []
+      }
+    })
     : []
   if (activeSlices.length >= maxSlicesPerWorker) fail(1, `maxSlicesPerWorker cap ${maxSlicesPerWorker} reached for ${issue}`)
   const branch = git(["-C", worktreePath, "rev-parse", "--abbrev-ref", "HEAD"])
-  const workerPid = startHeadlessWorker(worktreePath, branch)
+  const launch = startHeadlessWorker(worktreePath, branch, repairMode ? "repair" : "existing-worktree")
   /** Only once the new PID is in the marker file, so the next launcher counts this slice. */
   releaseConcurrencyReservation()
   rollback = null
-  console.log(JSON.stringify({ ...plan, launchMode: "existing-worktree", worktreePath, worktreeSelector: `path:${worktreePath}`, branch, workerPid }, null, 2))
+  console.log(JSON.stringify({ ...plan, launchMode: repairMode ? "repair" : "existing-worktree", worktreePath, worktreeSelector: `path:${worktreePath}`, branch, workerPid: launch.workerPid, launchId: launch.launchId }, null, 2))
   process.exit(0)
 }
 
@@ -1168,10 +1312,10 @@ const actualBranch = git(["-C", worktreePath, "rev-parse", "--abbrev-ref", "HEAD
 if (actualBranch !== branch) fail(3, `expected the worktree on ${branch}, found ${actualBranch}`)
 
 if (engine.interactive === false) {
-  const workerPid = startHeadlessWorker(worktreePath, branch)
+  const launch = startHeadlessWorker(worktreePath, branch, "new-worktree")
   rollback = null
   orca(["worktree", "set", "--worktree", worktreeSelector, "--comment", comment, "--workspace-status", workspaceStatus])
-  console.log(JSON.stringify({ ...plan, launchMode: "new-worktree", worktreePath, worktreeSelector, workerPid }, null, 2))
+  console.log(JSON.stringify({ ...plan, launchMode: "new-worktree", worktreePath, worktreeSelector, workerPid: launch.workerPid, launchId: launch.launchId }, null, 2))
   process.exit(0)
 }
 

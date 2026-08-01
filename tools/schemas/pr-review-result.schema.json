@@ -49,8 +49,12 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["severity", "title", "path", "line", "evidence", "remediation"],
+        "required": ["id", "severity", "title", "path", "line", "evidence", "remediation"],
         "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^finding-[0-9a-f]{32}$"
+          },
           "severity": {
             "type": "string",
             "enum": ["Critical", "High"]

@@ -502,6 +502,16 @@ review_evidence_allows() { # <pr> <expected-head-sha>; prints the refusal reason
   return 1
 }
 
+worker_delivery_allows() { # <pr> <branch> <expected-head-sha>; prints the refusal reason
+  local pr="$1" branch="$2" expected="$3" issue verdict
+  issue="$(issue_for "$pr")"
+  if verdict="$(node "$SCRIPT_DIR/check-worker-delivery.mjs" --issue "$issue" --branch "$branch" --head "$expected")"; then
+    return 0
+  fi
+  echo "SKIP #$pr WORKER-DELIVERY-HELD $verdict"
+  return 1
+}
+
 head_oid() { # <pr>; stdout: current head SHA
   gh pr view "$1" --repo "$repo" --json headRefOid --jq .headRefOid 2>/dev/null
 }
@@ -665,6 +675,10 @@ for n in "$@"; do
       # APPROVED from a review submitted against cac9ccb while headRefOid was 40dba9f, and
       # merged. If any approval exists, at least one must name THIS commit.
       if ! review_evidence_allows "$n" "$expected"; then
+        done_pr=1
+        break
+      fi
+      if ! worker_delivery_allows "$n" "$branch" "$expected"; then
         done_pr=1
         break
       fi

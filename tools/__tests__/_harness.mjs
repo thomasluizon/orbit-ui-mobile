@@ -8,10 +8,13 @@
  */
 
 import { spawn, spawnSync } from "node:child_process"
-import { createHash } from "node:crypto"
+import { createHash, generateKeyPairSync, sign } from "node:crypto"
 import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { delimiter, dirname, join, resolve } from "node:path"
+
+import { issueReviewProvenance } from "../lib/review-provenance.mjs"
+import { recordWorkerLaunch, workerCompletionSigningPayload } from "../lib/worker-launch-provenance.mjs"
 
 /**
  * Injected by the runner. These are live bindings: configure() runs before any case
@@ -64,6 +67,78 @@ export const T = (name, ok, detail = "") => {
 }
 
 export const root = mkdtempSync(join(tmpdir(), "orbit-tools-gate-"))
+export const REVIEW_EVIDENCE_LEDGER = join(root, "review-provenance.jsonl")
+export const WORKER_LAUNCH_LEDGER = join(root, "worker-launches.jsonl")
+
+export const writeCompletedWorkerLaunch = ({
+  issue,
+  branch,
+  head,
+  worktreePath = join(root, "worker-delivery", issue, branch.replace(/[^A-Za-z0-9_.-]/g, "_")),
+  engine = "codex",
+  invocation = {
+    command: "codex",
+    args: ["exec", "-c", 'windows.sandbox="unelevated"', "--dangerously-bypass-approvals-and-sandbox"],
+  },
+  launchMode = "existing-worktree",
+} = {}) => {
+  const { publicKey, privateKey } = generateKeyPairSync("ed25519")
+  const launchRecord = {
+    version: 1,
+    launchId: `fixture-${issue}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    issue,
+    worktreePath: resolve(worktreePath),
+    pid: process.pid,
+    startedAt: new Date(Date.now() - 1000).toISOString(),
+    launchMode,
+    engine,
+    invocation,
+    branch,
+    launcherPid: process.pid,
+    issuedAt: new Date(Date.now() - 1000).toISOString(),
+    completionAttestation: {
+      algorithm: "ed25519",
+      publicKey: publicKey.export({ format: "der", type: "spki" }).toString("base64"),
+    },
+  }
+  const unsignedCompletion = { completedAt: new Date().toISOString(), completedHead: head, exitCode: 0 }
+  const completion = {
+    ...unsignedCompletion,
+    signature: sign(
+      null,
+      Buffer.from(workerCompletionSigningPayload(launchRecord, unsignedCompletion), "utf8"),
+      privateKey,
+    ).toString("base64"),
+  }
+  const completedRecord = { ...launchRecord, completion }
+  recordWorkerLaunch(launchRecord, WORKER_LAUNCH_LEDGER)
+  recordWorkerLaunch(completedRecord, WORKER_LAUNCH_LEDGER)
+  return { launchRecord, completedRecord }
+}
+
+export const reviewMarker = ({ head, recommendation, findingIds = [] }) => {
+  const provenance = issueReviewProvenance({
+    head,
+    recommendation,
+    findingIds,
+    ledgerPath: REVIEW_EVIDENCE_LEDGER,
+  })
+  return `<!-- orbit-local-review: ${JSON.stringify({ version: 1, head, recommendation, provenance })} -->`
+}
+
+export const forgedReviewMarker = ({ head, recommendation, findingIds = [] }) =>
+  `<!-- orbit-local-review: ${JSON.stringify({
+    version: 1,
+    head,
+    recommendation,
+    provenance: {
+      version: 1,
+      issuer: "tools/launch-pr-review.mjs",
+      evidenceId: "forged-review-evidence",
+      proof: "0".repeat(64),
+      findingIds,
+    },
+  })} -->`
 
 process.on("exit", () => {
   try {
@@ -344,6 +419,11 @@ if (line.includes("/actions/workflows")) {
 }
 if (argv[0] === "pr" && argv[1] === "update-branch") {
   if (process.env.ORBIT_MERGE_SWEEP_UPDATED_HEAD) writeFileSync(updateMarker, "")
+  process.exit(0)
+}
+if (argv[0] === "api" && argv[1] === "graphql" && line.includes("files(first:100)")) {
+  if (process.env.ORBIT_MERGE_SWEEP_APPROVAL_LOOKUP_FAILURE) process.exit(7)
+  process.stdout.write(process.env.ORBIT_MERGE_SWEEP_APPROVAL_COMMITS)
   process.exit(0)
 }
 if (argv[0] === "api" && argv[1] === "graphql" && line.includes("commit{oid}")) {
@@ -646,6 +726,8 @@ export const run = (file, argv, options = {}) => {
     env: {
       ...process.env,
       ORBIT_AUTOMATION_BUDGET_LEDGER: join(root, "default-automation-budget.jsonl"),
+      ORBIT_LOCAL_REVIEW_PROVENANCE_LEDGER: REVIEW_EVIDENCE_LEDGER,
+      ORBIT_WORKER_LAUNCH_LEDGER: WORKER_LAUNCH_LEDGER,
       ...(options.env ?? {}),
     },
     timeout: 180000,
@@ -661,7 +743,13 @@ export const runAsync = (file, argv, options = {}) => {
   const target = options.path ?? join(TOOLS_DIR, file)
   const child = spawn(process.execPath, [target, ...argv], {
     cwd: options.cwd ?? REPO_ROOT,
-    env: { ...process.env, ...(options.env ?? {}) },
+    env: {
+      ...process.env,
+      ORBIT_AUTOMATION_BUDGET_LEDGER: join(root, "default-automation-budget.jsonl"),
+      ORBIT_LOCAL_REVIEW_PROVENANCE_LEDGER: REVIEW_EVIDENCE_LEDGER,
+      ORBIT_WORKER_LAUNCH_LEDGER: WORKER_LAUNCH_LEDGER,
+      ...(options.env ?? {}),
+    },
     stdio: ["ignore", "pipe", "pipe"],
   })
   let stdout = ""
@@ -795,6 +883,7 @@ export const stageLaunchWorker = (label, worker, engineName = "claude", maxParal
     orchestratorConfig(repoPath, worker, engineName, maxParallelWorktrees, maxSlicesPerWorker),
   )
   cpSync(join(TOOLS_DIR, "launch-worker.mjs"), join(base, "tools", "launch-worker.mjs"))
+  cpSync(join(TOOLS_DIR, "worker-supervisor.mjs"), join(base, "tools", "worker-supervisor.mjs"))
   cpSync(join(TOOLS_DIR, "automation-budget.mjs"), join(base, "tools", "automation-budget.mjs"))
   writeFileSync(
     join(base, "tools", "ai-quota.mjs"),
@@ -1107,7 +1196,25 @@ export const stageWorkerPidMarker = (worktreePath, pid) => {
     spawnSync("git", ["-C", worktreePath, "rev-parse", "--git-dir"], { encoding: "utf8" }).stdout.trim(),
   )
   const marker = join(gitDirectory, "orbit-worker-pids.jsonl")
-  writeFileSync(marker, `${JSON.stringify({ issue: "ORB-124", worktreePath, pid, startedAt: "2026-07-30T00:00:00.000Z" })}\n`)
+  const launchRecord = {
+    version: 1,
+    launchId: `fixture-${pid}-${Date.now()}`,
+    issue: "ORB-124",
+    worktreePath: resolve(worktreePath),
+    pid,
+    startedAt: new Date().toISOString(),
+    launchMode: "existing-worktree",
+    engine: "codex",
+    invocation: {
+      command: "codex",
+      args: ["exec", "-c", 'windows.sandbox="unelevated"', "--dangerously-bypass-approvals-and-sandbox"],
+    },
+    branch: "feature/orb-124",
+    launcherPid: process.pid,
+    issuedAt: new Date().toISOString(),
+  }
+  recordWorkerLaunch(launchRecord, WORKER_LAUNCH_LEDGER)
+  writeFileSync(marker, `${JSON.stringify(launchRecord)}\n`)
   return marker
 }
 

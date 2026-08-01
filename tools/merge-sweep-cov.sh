@@ -531,6 +531,16 @@ review_evidence_allows() { # <pr> <expected-head-sha>; prints the refusal reason
   return 1
 }
 
+worker_delivery_allows() { # <pr> <branch> <expected-head-sha>; prints the refusal reason
+  local pr="$1" branch="$2" expected="$3" issue verdict
+  issue="$(issue_for "$pr")"
+  if verdict="$(node "$SCRIPT_DIR/check-worker-delivery.mjs" --issue "$issue" --branch "$branch" --head "$expected")"; then
+    return 0
+  fi
+  echo "SKIP #$pr WORKER-DELIVERY-HELD $verdict"
+  return 1
+}
+
 # No variadic passthrough: the ONLY caller that ever supplied one passed `--admin`, and J3
 # removes that escape hatch entirely rather than at one call site. An admin merge is now
 # unreachable from this tool by construction.
@@ -549,6 +559,9 @@ squash_merge() { # <pr> <expected-head-sha> <label>
   # PR-level `reviewDecision` read by the caller survives every push, so an APPROVED there
   # can name a commit that is no longer on the branch. See merge-sweep.sh.
   if ! review_evidence_allows "$pr" "$expected"; then
+    return 2
+  fi
+  if ! worker_delivery_allows "$pr" "$branch" "$expected"; then
     return 2
   fi
   if gh pr merge "$pr" --repo "$repo" --squash --delete-branch --match-head-commit "$expected" >/dev/null 2>&1; then

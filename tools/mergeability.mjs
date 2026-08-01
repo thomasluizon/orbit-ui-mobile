@@ -4,6 +4,7 @@
 import { execFileSync } from "node:child_process"
 
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
+import { workerDeliveryEvidence } from "./lib/worker-launch-provenance.mjs"
 import { evaluateReviewEvidence } from "./check-review-evidence.mjs"
 
 const USAGE = `usage: mergeability.mjs --repo <owner/name> --pr <number> [--json]
@@ -142,11 +143,19 @@ if (!first.ok) {
   )
   let issueIdentifier
   if (issueIdentifiers.size === 0) {
+    add("worker-delivery", false, "no configured-team Linear issue identifier appears in the branch or title")
     add("linear-issue", false, "no configured-team Linear issue identifier appears in the branch or title")
   } else if (issueIdentifiers.size > 1) {
+    add("worker-delivery", false, `configured-team Linear issue identifiers disagree: ${[...issueIdentifiers].join(", ")}`)
     add("linear-issue", false, `configured-team Linear issue identifiers disagree: ${[...issueIdentifiers].join(", ")}`)
   } else {
     [issueIdentifier] = issueIdentifiers
+    const workerDelivery = workerDeliveryEvidence({
+      issue: issueIdentifier,
+      branch: pullRequest.headRefName,
+      head: pullRequest.headRefOid,
+    })
+    add("worker-delivery", workerDelivery.ok, `${workerDelivery.status}: ${workerDelivery.reason}`)
     const issueResult = linearIssue(issueIdentifier)
     if (!issueResult.ok) {
       add("linear-issue", false, issueResult.error)

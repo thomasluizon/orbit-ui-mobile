@@ -3,6 +3,7 @@ import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, utimesS
 import { delimiter, join, resolve } from "node:path"
 
 import { TOOLS_DIR, REPO_ROOT, T, root, stage, orcaEnv, orchestratorConfig, run, runAsync, check, DEFAULT_AUTOMATION_BUDGET, CLAUDE_MODELS, CODEX_MODELS, INTERACTIVE_WORKER, INTERACTIVE_CODEX, stageLaunchWorker, launchWorktreeStub, linearIssueStub, WORKER_CONTRACT_MARKER, FULL_SURFACE_POLL, NO_DRAFT_PULL_REQUEST_CLAUSE, REQUIRED_CONTRACT_CLAUSES, contractClauseBlocks, missingContractClauses, TRUST_SCREENS, stageCheckout, budgetRecord, runTrustScreen } from "./_harness.mjs"
+import { readWorkerLaunchRecords, verifyWorkerLaunchCompletion } from "../lib/worker-launch-provenance.mjs"
 
 const trustScreenCases = () => {
   for (const [engineName, { screens }] of Object.entries(TRUST_SCREENS)) {
@@ -556,6 +557,7 @@ const launchConcurrencyCases = async (promptFile) => {
     env: {
       ...orcaEnv(concurrentPlan),
       ORBIT_AUTOMATION_BUDGET_LEDGER: join(concurrent.base, "automation-budget.jsonl"),
+      ORBIT_WORKER_LAUNCH_LEDGER: join(concurrent.base, "worker-launches.jsonl"),
       ORBIT_ORCA_LOG: concurrentLog,
       ORBIT_ORCA_TIMING_LOG: concurrentTimingLog,
     },
@@ -1409,9 +1411,25 @@ const launchWorkerCases = async () => {
   const alreadyContracted = stage("prompt-with-contract.md", `the ticket body verbatim\n\n${WORKER_CONTRACT_MARKER}\n\nclauses already here\n`)
   check("launch-worker.mjs", "does not stack a second copy on relaunch", ["--issue", "ORB-75", "--prompt-file", alreadyContracted, "--dry-run"], { status: 0, stdout: /"workerContract": "already present"/ }, { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
+  const repairPrompt = stage("repair-contract-prompt.md", "the ticket body verbatim\n\n---\n\n## Slice worker contract (injected by tools/launch-worker.mjs)\n\nDo not commit or push this slice.\n")
+  const repairWorktree = join(root, "repair-contract-worktree")
+  const repairFinding = "finding-0123456789abcdef0123456789abcdef"
+  const repairPlan = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", repairPrompt, "--existing-worktree", repairWorktree, "--repair", "--finding", repairFinding, "--dry-run"], {
+    path: good.path,
+    env: {
+      ...orcaEnv(linearIssueStub(["repo:ui"], [{ ...launchWorktreeStub(repairWorktree), isArchived: false, linkedLinearIssue: "ORB-75" }])),
+      ORBIT_WORKER_STRIKE_LEDGER: join(root, "repair-contract-strikes.jsonl"),
+    },
+  })
+  T(
+    "launch-worker.mjs: explicit repair mode replaces the no-commit slice route for a stable finding",
+    repairPlan.status === 0 && /"workerContract": "replaced"/.test(repairPlan.stdout) && /"finding":/.test(repairPlan.stdout) && repairPlan.stdout.includes(repairFinding),
+    `${repairPlan.status}\n${repairPlan.stderr}\n${repairPlan.stdout}`,
+  )
+
   const appendFailure = stageLaunchWorker("contract-append-failure", INTERACTIVE_WORKER)
   const appendFailureSource = readFileSync(appendFailure.path, "utf8")
-  const appendCall = 'appendFileSync(promptFile, existingWorktreeArg ? SLICE_CONTRACT : WORKER_CONTRACT, "utf8")'
+  const appendCall = 'appendFileSync(promptFile, contractText, "utf8")'
   if (!appendFailureSource.includes(appendCall)) {
     throw new Error("launch-worker fixture could not locate the worker-contract append")
   }
@@ -1544,6 +1562,7 @@ const launchWorkerCases = async () => {
         ]),
         PATH: `${headlessEngineDirectory}${delimiter}${process.env.PATH}`,
         ORBIT_AUTOMATION_BUDGET_LEDGER: join(headlessStage.base, "automation-budget.jsonl"),
+        ORBIT_WORKER_LAUNCH_LEDGER: join(headlessStage.base, "worker-launches.jsonl"),
         ORBIT_HEADLESS_ARGV_LOG: headlessArgvLog,
       },
     })
@@ -1562,17 +1581,28 @@ const launchWorkerCases = async () => {
       resolve(headlessCheckout, spawnSync("git", ["-C", headlessCheckout, "rev-parse", "--git-dir"], { encoding: "utf8" }).stdout.trim()),
       "orbit-worker-pids.jsonl",
     )
-    const markerRows = existsSync(markerPath)
+    const readMarkerRows = () => (existsSync(markerPath)
       ? readFileSync(markerPath, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
-      : []
+      : [])
+    let markerRows = readMarkerRows()
+    const completionDeadline = Date.now() + 15_000
+    while (!markerRows.some((row) => row.completion?.completedHead) && Date.now() < completionDeadline) {
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50)
+      markerRows = readMarkerRows()
+    }
+    const headlessHead = spawnSync("git", ["-C", headlessCheckout, "rev-parse", "HEAD"], { encoding: "utf8" }).stdout.trim()
+    const headlessLaunchRows = readWorkerLaunchRecords(join(headlessStage.base, "worker-launches.jsonl"))
+    const centralCompletion = headlessLaunchRows.find((row) => row.completion?.completedHead === headlessHead)
     T(
-      "launch-worker.mjs: a headless launch starts a real worker process and records its PID",
+      "launch-worker.mjs: a headless launch starts a real worker process and records its signed completion",
       headlessResult.status === 0 &&
         headlessPlan?.launchMode === "new-worktree" &&
         Number.isInteger(headlessPlan?.workerPid) &&
-        markerRows.length === 1 &&
-        markerRows[0].pid === headlessPlan.workerPid &&
-        markerRows[0].worktreePath === headlessCheckout,
+        markerRows.some((row) => row.pid === headlessPlan.workerPid && row.worktreePath === headlessCheckout) &&
+        markerRows.some((row) => row.completion?.completedHead === headlessHead && row.completion?.exitCode === 0) &&
+        centralCompletion?.pid === headlessPlan.workerPid &&
+        centralCompletion?.completion?.exitCode === 0 &&
+        verifyWorkerLaunchCompletion(centralCompletion),
       `exit ${headlessResult.status}\n     stdout: ${headlessResult.stdout.slice(0, 400)}\n     stderr: ${headlessResult.stderr.slice(0, 600)}\n     marker: ${JSON.stringify(markerRows)}`,
     )
     const headlessLedger = join(headlessStage.base, "automation-budget.jsonl")
@@ -1639,6 +1669,7 @@ process.stdout.write(JSON.stringify(await Promise.all([run(), run()])))
       ]),
       PATH: `${headlessEngineDirectory}${delimiter}${process.env.PATH}`,
       ORBIT_AUTOMATION_BUDGET_LEDGER: join(sliceStage.base, "automation-budget.jsonl"),
+      ORBIT_WORKER_LAUNCH_LEDGER: join(sliceStage.base, "worker-launches.jsonl"),
       ORBIT_HEADLESS_ARGV_LOG: join(root, "launch", "slice-argv.json"),
       ORBIT_HEADLESS_HOLD_MS: "6000",
     }

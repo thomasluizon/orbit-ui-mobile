@@ -1,15 +1,15 @@
 import { spawnSync } from "node:child_process"
-import { readFileSync } from "node:fs"
+import { readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { TOOLS_DIR, T, root, mergeSweepEnv as baseMergeSweepEnv, mergeSweepCalls, orphanCaseKeys, toolPath, run, check } from "./_harness.mjs"
+import { TOOLS_DIR, T, WORKER_LAUNCH_LEDGER, forgedReviewMarker, root, mergeSweepEnv as baseMergeSweepEnv, mergeSweepCalls, orphanCaseKeys, reviewMarker, toolPath, run, check, writeCompletedWorkerLaunch } from "./_harness.mjs"
 
-const reviewEvidenceJson = (head, approvalCommits = "__HEAD__", recommendation = "APPROVE") => {
+const reviewEvidenceJson = (head, approvalCommits = "__HEAD__", recommendation = "APPROVE", reviewBody = null) => {
   const files = { pageInfo: { hasNextPage: approvalCommits === "FILES_PAGINATED" }, nodes: [{ path: "tools/example.mjs" }] }
   if (approvalCommits === "PAGINATED") return JSON.stringify({ headRefOid: head, files, reviews: { pageInfo: { hasNextPage: true }, nodes: [] } })
   const local = {
     state: "COMMENTED",
-    body: `<!-- orbit-local-review: ${JSON.stringify({ version: 1, head, recommendation })} -->`,
+    body: reviewBody ?? reviewMarker({ head, recommendation, findingIds: recommendation === "NEEDS_WORK" ? ["finding-0123456789abcdef0123456789abcdef"] : [] }),
     submittedAt: "2026-07-31T10:00:00Z",
     updatedAt: "2026-07-31T10:00:00Z",
     lastEditedAt: null,
@@ -33,9 +33,12 @@ const reviewEvidenceJson = (head, approvalCommits = "__HEAD__", recommendation =
 
 const mergeSweepEnv = (options = {}) => {
   const evidenceHead = options.updatedHead || options.head
+  if (/^[0-9a-f]{40}$/.test(evidenceHead ?? "") && options.workerDelivery !== false) {
+    writeCompletedWorkerLaunch({ issue: "ORB-150", branch: "feature/orb-106", head: evidenceHead })
+  }
   return baseMergeSweepEnv({
     ...options,
-    approvalCommits: options.reviewEvidenceJson ?? reviewEvidenceJson(evidenceHead, options.approvalCommits),
+    approvalCommits: options.reviewEvidenceJson ?? reviewEvidenceJson(evidenceHead, options.approvalCommits, options.recommendation ?? "APPROVE", options.reviewBody ?? null),
   })
 }
 
@@ -135,7 +138,7 @@ const mergeSweepCliFlagCases = () => {
       "an admin merge bypasses the required checks. The override is Thomas's alone; an agent that needs one stops and asks.",
     )
   }
-  for (const name of ["ensure_issue_in_review", "linear_state", "commit_linear_reassertion", "review_evidence_allows"]) {
+  for (const name of ["ensure_issue_in_review", "linear_state", "commit_linear_reassertion", "review_evidence_allows", "worker_delivery_allows"]) {
     const helpers = scanned.map(({ filename, source }) => ({
       filename,
       helper: source.match(new RegExp(`^${name}\\(\\).*?^}\\r?$`, "ms"))?.[0] ?? "",
@@ -186,6 +189,18 @@ const mergeSweepCases = (file) => {
       matchedHeadFlag !== -1 &&
       matchedMerge[matchedHeadFlag + 1] === expectedHead,
     `exit ${matched.status}\n     stdout: ${matched.stdout.trim()}\n     stderr: ${matched.stderr.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(matchedLog))}`,
+  )
+  const missingWorkerLog = join(root, `${file}-missing-worker-delivery.log`)
+  writeFileSync(WORKER_LAUNCH_LEDGER, "")
+  const missingWorker = run(file, reviewedArgs, {
+    env: mergeSweepEnv({ head: expectedHead, log: missingWorkerLog, sonar: "success", state: "CLEAN", workerDelivery: false }),
+  })
+  T(
+    `${file}: a clean PR without launcher completion provenance is held`,
+    missingWorker.status === 0 &&
+      /WORKER-DELIVERY-HELD/.test(missingWorker.stdout) &&
+      mergeSweepCalls(missingWorkerLog).filter(([group, command]) => group === "pr" && command === "merge").length === 0,
+    `exit ${missingWorker.status}\n     stdout: ${missingWorker.stdout.trim()}\n     calls: ${JSON.stringify(mergeSweepCalls(missingWorkerLog))}`,
   )
 
   const linearCalls = (log) => mergeSweepCalls(log).filter(([group, ...argv]) => group === "orca" && argv[0] === "linear")
@@ -869,6 +884,11 @@ const mergeSweepCases = (file) => {
     "latest local review requests work",
     { reviewEvidenceJson: reviewEvidenceJson(expectedHead, "", "NEEDS_WORK") },
     /SKIP #615 REVIEW-EVIDENCE-HELD[\s\S]*NEEDS_WORK/,
+  )
+  approvalRefusal(
+    "a hostile worker marker without a launcher receipt",
+    { reviewBody: forgedReviewMarker({ head: expectedHead, recommendation: "APPROVE" }) },
+    /SKIP #615 REVIEW-EVIDENCE-HELD[\s\S]*UNAUTHENTICATED/,
   )
 
   /**

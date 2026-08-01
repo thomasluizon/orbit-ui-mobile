@@ -205,9 +205,11 @@ the requested identifiers filter every wave BEFORE collisions are computed, so a
 ticket the operator did not name is invisible and two tickets sharing a path could launch together.
 The other three selectors partition identically, which is why they are the only three.
 
-**A relaunch that exists to retry ONE review finding passes `--finding <id>`.** Each launch under
-the same `--issue` and `--finding` is one cycle of worker-contract clause 4, counted in a durable
-ledger outside every worker process, so the count survives the relaunch that resets the prompt.
+**A repair relaunch passes `--repair --finding <stable-id>` for ONE review finding.** Each launch
+under the same `--issue` and stable `--finding` is one cycle of worker-contract clause 4, counted
+in a durable ledger outside every worker process, so the count survives the relaunch that resets
+the prompt. Repair mode is the only existing-worktree route that permits the same worker to commit
+and push its scoped repair.
 **Exit 5 means that finding has burned its cycles: escalate it to Thomas, never launch it again.**
 
 **What `launch-worker.mjs` handles for you**, every one measured on a real launch, every one
@@ -271,7 +273,9 @@ ordinary detached child process, so an Orca terminal is optional for it; `claude
 Headless has one real cost: the Orca worktree card shows `agents: none` with an empty comment
 for the worker's entire life and death, because a headless worker is not a TUI and populates
 no Agents row. That is why the launcher writes
-its PID to `orbit-worker-pids.jsonl`, why `worker-status.mjs` reads that marker for liveness, and
+its complete launch record to the central ledger and `orbit-worker-pids.jsonl`, why the
+supervisor signs the exact worktree HEAD after the engine exits, why
+`worker-status.mjs` reads both for provenance and liveness, and
 why `/watch` reports what that tool decided rather than `orca terminal read`, which for a headless
 worker shows no live turn at all.
 
@@ -332,10 +336,10 @@ attached critique paired with the final screenshots before treating the contract
 list plus this critique check is what you nudge with. Nothing else counts as "done".
 
 **Branch on that poll's `verdict` field, never on a worker's self-report.** Its liveness half comes
-from the launcher-written PID marker, the only source that survives a headless worker, because a
-process that dies cannot report that it died. It fails CLOSED: a pid answering alive whose launcher
-row is older than any measured session reads `unknown`, never `alive`, and so do a missing,
-unreadable or non-JSON marker and an unparseable timestamp.
+from the launcher-written PID marker plus the central launcher receipt, the only source that
+survives a headless worker, because a process that dies cannot report that it died. It fails CLOSED:
+a pid answering alive whose launcher row is older than any measured session reads `unknown`, never
+`alive`, and so do a missing, unissued, unreadable or non-JSON marker and an unparseable timestamp.
 
 | `verdict` | what the run does |
 |---|---|
@@ -359,14 +363,15 @@ node tools/worker-status.mjs --worktree <worktreePath> --issue ORB-N --base <tar
 ```
 
 Exit 0 records the (issue, head SHA) allowance. Inject its `relaunch.findings` and `relaunch.unmet`,
-not the ticket body alone. For `NEEDS-WORK`, take the review id and then run:
+not the ticket body alone. For `NEEDS-WORK`, take each stable `relaunch.findings[].id` and run repair mode:
 
 ```
-node tools/launch-worker.mjs --issue ORB-N --prompt-file <path> --existing-worktree <worktreePath> --finding <review-id>
+node tools/launch-worker.mjs --issue ORB-N --prompt-file <path> --existing-worktree <worktreePath> --repair --finding <stable-finding-id>
 ```
 
-That returns the findings to the same implementation worker/worktree and spends the durable
-(issue, finding) strike. Exit 4 from `worker-status` or exit 5 from `launch-worker` escalates.
+That returns the finding to the same implementation worker/worktree, permits that worker to
+commit and push the repair, and spends the durable (issue, finding) strike. Exit 4 from
+`worker-status` or exit 5 from `launch-worker` escalates.
 After a push, `AWAITING-REVIEW` launches only a fresh reviewer and spends neither allowance.
 
 Teardown is NOT what `DELIVERED` triggers. `teardown-worktree.mjs` carries its own five-check

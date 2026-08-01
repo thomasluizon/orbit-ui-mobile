@@ -4,9 +4,11 @@ import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
+import { verifyReviewProvenance } from "./lib/review-provenance.mjs"
+
 const REVIEW_MARKER_PREFIX = "<!-- orbit-local-review:"
 const MARKER_PATTERN = /^<!-- orbit-local-review:\s*(\{.*\})\s*-->$/
-const EXPECTED_KEYS = ["head", "recommendation", "version"]
+const EXPECTED_KEYS = ["head", "provenance", "recommendation", "version"]
 const RECOMMENDATIONS = new Set(["APPROVE", "NEEDS_WORK"])
 const SHA_PATTERN = /^[0-9a-f]{40}$/
 
@@ -15,7 +17,7 @@ const firstNonblankLine = (body) =>
 
 const isReviewEvidenceCandidate = (review) => firstNonblankLine(review?.body).startsWith(REVIEW_MARKER_PREFIX)
 
-const result = (ok, status, reason, review = null) => ({ ok, status, reason, review })
+const result = (ok, status, reason, review = null, findingIds = []) => ({ ok, status, reason, review, findingIds })
 
 const completeConnection = (connection) =>
   connection &&
@@ -50,10 +52,16 @@ const parseMarker = (review) => {
   if (marker.version !== 1) return { ok: false, reason: "latest marker version must be 1" }
   if (typeof marker.head !== "string" || !SHA_PATTERN.test(marker.head)) return { ok: false, reason: "latest marker head must be 40 lowercase hexadecimal characters" }
   if (!RECOMMENDATIONS.has(marker.recommendation)) return { ok: false, reason: "latest marker recommendation must be APPROVE or NEEDS_WORK" }
+  if (!marker.provenance || typeof marker.provenance !== "object" || Array.isArray(marker.provenance)) {
+    return { ok: false, reason: "latest marker provenance must be an object" }
+  }
+  if (!Array.isArray(marker.provenance.findingIds) || marker.provenance.findingIds.some((id) => typeof id !== "string")) {
+    return { ok: false, reason: "latest marker provenance findingIds must be an array of stable identities" }
+  }
   return { ok: true, marker }
 }
 
-const evaluateReviewEvidence = (input, expectedHead) => {
+const evaluateReviewEvidence = (input, expectedHead, { ledgerPath } = {}) => {
   if (!SHA_PATTERN.test(expectedHead ?? "")) return result(false, "INVALID", "expected head must be 40 lowercase hexadecimal characters")
   if (!input || typeof input !== "object" || Array.isArray(input)) {
     return result(false, "INCOMPLETE", "pull request snapshot is missing its complete connection shape")
@@ -82,21 +90,32 @@ const evaluateReviewEvidence = (input, expectedHead) => {
   const selected = latest[0].review
   const parsed = parseMarker(selected)
   if (!parsed.ok) return result(false, "MALFORMED", parsed.reason, selected)
+  const authenticated = verifyReviewProvenance({
+    provenance: parsed.marker.provenance,
+    head: parsed.marker.head,
+    recommendation: parsed.marker.recommendation,
+    findingIds: parsed.marker.provenance.findingIds,
+    ledgerPath,
+  })
+  if (!authenticated) {
+    return result(false, "UNAUTHENTICATED", "latest marker lacks launcher-issued review provenance", selected, parsed.marker.provenance.findingIds)
+  }
   if (parsed.marker.head !== expectedHead || selected.commit?.oid !== expectedHead) {
     return result(
       false,
       "STALE",
       `latest marker head is ${parsed.marker.head}; GitHub review commit is ${selected.commit?.oid ?? "absent"}; expected ${expectedHead}`,
       selected,
+      parsed.marker.provenance.findingIds,
     )
   }
-  if (parsed.marker.recommendation === "NEEDS_WORK") return result(false, "NEEDS_WORK", `latest local review requests work on ${expectedHead}`, selected)
+  if (parsed.marker.recommendation === "NEEDS_WORK") return result(false, "NEEDS_WORK", `latest local review requests work on ${expectedHead}`, selected, parsed.marker.provenance.findingIds)
 
   const nativeApprovals = reviews.nodes.filter((review) => review.state === "APPROVED")
   if (nativeApprovals.length > 0 && !nativeApprovals.some((review) => review.commit?.oid === expectedHead)) {
-    return result(false, "STALE_NATIVE_APPROVAL", `native approvals do not name current head ${expectedHead}`, selected)
+    return result(false, "STALE_NATIVE_APPROVAL", `native approvals do not name current head ${expectedHead}`, selected, parsed.marker.provenance.findingIds)
   }
-  return result(true, "APPROVE", `latest local review approves current head ${expectedHead}`, selected)
+  return result(true, "APPROVE", `latest local review approves current head ${expectedHead}`, selected, parsed.marker.provenance.findingIds)
 }
 
 const USAGE = `usage: check-review-evidence.mjs --expected-head <sha>
