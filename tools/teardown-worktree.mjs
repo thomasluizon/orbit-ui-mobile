@@ -212,8 +212,18 @@ if (unmet.length > 0) {
   process.exit(unmet.some((check) => check.exitCode === 3) ? 3 : 1)
 }
 
-// The initial worktree list does not carry the live agent state. Re-read the Orca process
-// inventory after every loss-prevention check and immediately before unlinking or removal.
+const commonDirRaw = git(path, ["rev-parse", "--git-common-dir"])
+const commonDir = resolve(path, commonDirRaw)
+const gitCommon = (args, { allowFailure = false } = {}) => {
+  const result = spawnSync(GIT, [`--git-dir=${commonDir}`, ...args], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
+  if (result.status === 0) return result.stdout.trim()
+  if (allowFailure) return null
+  fail(3, `git ${args.join(" ")} failed: ${(result.stderr || result.stdout || "unknown error").trim()}`)
+}
+const links = directoryLinks(path)
+
+// Directory link enumeration is read-only, but it can take time on a large checkout. Keep it
+// before the final Orca activity read so the destructive sequence starts at the freshest state.
 const finalInventory = orca(["worktree", "ps"])
 if (!Array.isArray(finalInventory.worktrees) || !Number.isInteger(finalInventory.totalCount) || typeof finalInventory.truncated !== "boolean") {
   fail(3, "Orca final worktree process inventory is incomplete")
@@ -230,15 +240,6 @@ if (finalWorktree.isActive || finalWorktree.agents.length > 0) {
   fail(1, `refusing removal because Orca reports active work on ${path}`)
 }
 
-const commonDirRaw = git(path, ["rev-parse", "--git-common-dir"])
-const commonDir = resolve(path, commonDirRaw)
-const gitCommon = (args, { allowFailure = false } = {}) => {
-  const result = spawnSync(GIT, [`--git-dir=${commonDir}`, ...args], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
-  if (result.status === 0) return result.stdout.trim()
-  if (allowFailure) return null
-  fail(3, `git ${args.join(" ")} failed: ${(result.stderr || result.stdout || "unknown error").trim()}`)
-}
-const links = directoryLinks(path)
 for (const { link, target } of links) {
   try {
     unlinkSync(link)

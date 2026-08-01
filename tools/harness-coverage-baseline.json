@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total": 1267,
+  "total": 1270,
   "tools": {
     "(runner)": 32,
     "ai-quota.mjs": 12,
@@ -18,7 +18,7 @@
     "check-lockstep.mjs": 15,
     "check-push-target.mjs": 4,
     "check-required-gates.mjs": 26,
-    "check-review-evidence.mjs": 29,
+    "check-review-evidence.mjs": 30,
     "check-slice-evidence.mjs": 17,
     "check-suppressions-ratchet.mjs": 2,
     "check-ticket.mjs": 96,
@@ -41,7 +41,7 @@
     "review-rounds.mjs": 20,
     "rollup.sh": 2,
     "surface-manifest.mjs": 2,
-    "teardown-worktree.mjs": 45,
+    "teardown-worktree.mjs": 47,
     "wave-plan.mjs": 61,
     "worker-status.mjs": 73,
     "worker-supervisor.mjs": 4,

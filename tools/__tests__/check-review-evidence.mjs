@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process"
-import { existsSync } from "node:fs"
+import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
 
@@ -67,10 +67,23 @@ const reviewEvidenceCases = () => {
   const oldApproval = issueReviewProvenance({ repository: "orbit/ui", pullRequest: 615, head: HEAD, recommendation: "APPROVE", issuedAt: "2026-07-31T10:00:00Z", ledgerPath: replayLedger, privateKey: REVIEW_AUTHORITY_PRIVATE_KEY })
   const laterNeedsWork = issueReviewProvenance({ repository: "orbit/ui", pullRequest: 615, head: HEAD, recommendation: "NEEDS_WORK", findingIds: ["finding-0123456789abcdef0123456789abcdef"], issuedAt: "2026-07-31T11:00:00Z", ledgerPath: replayLedger, privateKey: REVIEW_AUTHORITY_PRIVATE_KEY })
   const markerFor = (provenance, recommendation) => `<!-- orbit-local-review: ${JSON.stringify({ version: 1, head: HEAD, recommendation, provenance })} -->`
-  const replayedApproval = runEvidence([review({ body: markerFor(oldApproval, "APPROVE") })], HEAD, false, false, { ledgerPath: replayLedger })
-  T("check-review-evidence.mjs: an older APPROVE cannot replay after a later NEEDS_WORK issuance", replayedApproval.status === 1 && /UNAUTHENTICATED/.test(replayedApproval.stdout), replayedApproval.stderr || replayedApproval.stdout)
+  const replayedApproval = runEvidence([
+    review({ body: markerFor(laterNeedsWork, "NEEDS_WORK"), at: "2026-07-31T11:00:00Z" }),
+    review({ body: markerFor(oldApproval, "APPROVE"), at: "2026-07-31T12:00:00Z" }),
+  ], HEAD, false, false, { ledgerPath: replayLedger })
+  T("check-review-evidence.mjs: an older APPROVE cannot replay after a later NEEDS_WORK issuance", replayedApproval.status === 1 && /REPLAYED/.test(replayedApproval.stdout), replayedApproval.stderr || replayedApproval.stdout)
   const currentNeedsWork = runEvidence([review({ body: markerFor(laterNeedsWork, "NEEDS_WORK") })], HEAD, false, false, { ledgerPath: replayLedger })
   T("check-review-evidence.mjs: the newest same-PR issuance is the only accepted verdict", currentNeedsWork.status === 1 && /NEEDS_WORK/.test(currentNeedsWork.stdout), currentNeedsWork.stderr || currentNeedsWork.stdout)
+  const rollbackLedger = join(root, "review-ledger-rollback.jsonl")
+  const rollbackApproval = issueReviewProvenance({ repository: "orbit/ui", pullRequest: 615, head: HEAD, recommendation: "APPROVE", issuedAt: "2026-07-31T10:00:00Z", ledgerPath: rollbackLedger, privateKey: REVIEW_AUTHORITY_PRIVATE_KEY })
+  const rollbackNeedsWork = issueReviewProvenance({ repository: "orbit/ui", pullRequest: 615, head: HEAD, recommendation: "NEEDS_WORK", findingIds: ["finding-0123456789abcdef0123456789abcdef"], issuedAt: "2026-07-31T11:00:00Z", ledgerPath: rollbackLedger, privateKey: REVIEW_AUTHORITY_PRIVATE_KEY })
+  const firstLedgerRow = readFileSync(rollbackLedger, "utf8").split(/\r?\n/).filter(Boolean)[0]
+  writeFileSync(rollbackLedger, `${firstLedgerRow}\n`)
+  const rollback = runEvidence([
+    review({ body: markerFor(rollbackNeedsWork, "NEEDS_WORK"), at: "2026-07-31T11:00:00Z" }),
+    review({ body: markerFor(rollbackApproval, "APPROVE"), at: "2026-07-31T12:00:00Z" }),
+  ], HEAD, false, false, { ledgerPath: rollbackLedger })
+  T("check-review-evidence.mjs: a worker-truncated local ledger cannot replay an older APPROVE marker", rollback.status === 1 && /REPLAYED/.test(rollback.stdout), rollback.stderr || rollback.stdout)
   const crossPullRequestLedger = join(root, "review-cross-pr-replay.jsonl")
   const otherPullRequest = issueReviewProvenance({ repository: "orbit/ui", pullRequest: 616, head: HEAD, recommendation: "APPROVE", issuedAt: "2026-07-31T12:00:00Z", ledgerPath: crossPullRequestLedger, privateKey: REVIEW_AUTHORITY_PRIVATE_KEY })
   const crossPullRequest = runEvidence([review({ body: markerFor(otherPullRequest, "APPROVE") })], HEAD, false, false, { ledgerPath: crossPullRequestLedger, pullRequest: 615 })

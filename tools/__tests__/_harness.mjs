@@ -379,6 +379,22 @@ if (match.removePath) rmSync(match.removePath, { recursive: true, force: true })
 if (match.pruneRepo) spawnSync("git", ["-C", match.pruneRepo, "worktree", "prune"])
 let out = match.stdout
 let exit = match.exit ?? 0
+if (line.includes("worktree ps") && process.env.ORBIT_ENUMERATION_ACTIVITY_MARKER && existsSync(process.env.ORBIT_ENUMERATION_ACTIVITY_MARKER)) {
+  try {
+    const payload = JSON.parse(out)
+    const result = payload.result ?? payload
+    const target = process.env.ORBIT_ENUMERATION_ACTIVITY_PATH
+    for (const row of result.worktrees ?? []) {
+      if (row.path === target) {
+        row.isActive = true
+        row.agents = [{ state: "working" }]
+      }
+    }
+    out = JSON.stringify(payload)
+  } catch {
+    /* The production parser reports malformed envelopes; leave the fixture untouched here. */
+  }
+}
 if (Array.isArray(match.sequence)) {
   const log = process.env.ORBIT_ORCA_LOG
   const previous = log && existsSync(log)

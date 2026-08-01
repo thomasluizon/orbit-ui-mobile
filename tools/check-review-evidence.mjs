@@ -106,7 +106,39 @@ const evaluateReviewEvidence = (input, expectedHead, { ledgerPath, repository, p
   if (!authenticated) {
     return result(false, "UNAUTHENTICATED", "latest marker lacks launcher-issued review provenance", selected, parsed.marker.provenance.findingIds)
   }
-  if (parsed.marker.head !== expectedHead || selected.commit?.oid !== expectedHead) {
+  if (parsed.marker.head !== expectedHead) {
+    return result(
+      false,
+      "STALE",
+      `latest marker head is ${parsed.marker.head}; GitHub review commit is ${selected.commit?.oid ?? "absent"}; expected ${expectedHead}`,
+      selected,
+      parsed.marker.provenance.findingIds,
+    )
+  }
+  const sameHeadIssuances = candidates.flatMap((candidate) => {
+    const candidateParsed = parseMarker(candidate)
+    if (!candidateParsed.ok || candidateParsed.marker.head !== expectedHead) return []
+    const candidateAuthenticated = verifyReviewProvenance({
+      repository,
+      pullRequest,
+      provenance: candidateParsed.marker.provenance,
+      head: candidateParsed.marker.head,
+      recommendation: candidateParsed.marker.recommendation,
+      findingIds: candidateParsed.marker.provenance.findingIds,
+    })
+    if (!candidateAuthenticated) return []
+    return [{ issuedAt: Date.parse(candidateParsed.marker.provenance.issuedAt) }]
+  })
+  const selectedIssuedAt = Date.parse(parsed.marker.provenance.issuedAt)
+  const newestIssuedAt = Math.max(...sameHeadIssuances.map(({ issuedAt }) => issuedAt))
+  const newestIssuances = sameHeadIssuances.filter(({ issuedAt }) => issuedAt === newestIssuedAt)
+  if (newestIssuances.length > 1) {
+    return result(false, "AMBIGUOUS", "same-head launcher review issuances tie for newest", selected, parsed.marker.provenance.findingIds)
+  }
+  if (selectedIssuedAt !== newestIssuedAt) {
+    return result(false, "REPLAYED", "latest GitHub marker replays an older launcher review issuance", selected, parsed.marker.provenance.findingIds)
+  }
+  if (selected.commit?.oid !== expectedHead) {
     return result(
       false,
       "STALE",

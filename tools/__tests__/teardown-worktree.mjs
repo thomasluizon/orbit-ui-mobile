@@ -175,6 +175,39 @@ const teardownWorktreeCases = () => {
   )
   T("teardown-worktree.mjs: final Orca activity refusal preserves the worktree", existsSync(finalActivity.child), "the final activity check allowed removal")
 
+  const enumerationActivity = stageTeardownWorktree("enumeration-activity")
+  const enumerationMarker = join(root, "teardown", "enumeration-activity.marker")
+  const enumerationObserver = join(root, "teardown", "enumeration-activity-observer.cjs")
+  writeFileSync(enumerationObserver, `const fs = require("node:fs")
+const original = fs.readdirSync
+fs.readdirSync = function (directory, ...args) {
+  if (directory === process.env.ORBIT_ENUMERATION_ACTIVITY_PATH && !fs.existsSync(process.env.ORBIT_ENUMERATION_ACTIVITY_MARKER)) {
+    fs.writeFileSync(process.env.ORBIT_ENUMERATION_ACTIVITY_MARKER, "activity appeared during enumeration\\n")
+  }
+  return original.call(this, directory, ...args)
+}
+`)
+  const enumerationEnvironment = orcaEnv(teardownPlan(enumerationActivity, { removePath: enumerationActivity.child }))
+  const enumerationResult = check(
+    "teardown-worktree.mjs",
+    "a worktree that becomes active during junction enumeration is refused",
+    ["--issue", "ORB-124"],
+    { status: 1, stderr: /refusing removal because Orca reports active work/ },
+    {
+      env: {
+        ...enumerationEnvironment,
+        NODE_OPTIONS: `--require "${enumerationObserver.replaceAll("\\", "/")}" ${enumerationEnvironment.NODE_OPTIONS}`,
+        ORBIT_ENUMERATION_ACTIVITY_MARKER: enumerationMarker,
+        ORBIT_ENUMERATION_ACTIVITY_PATH: enumerationActivity.child,
+      },
+    },
+  )
+  T(
+    "teardown-worktree.mjs: activity introduced during enumeration preserves the worktree",
+    enumerationResult.status === 1 && existsSync(enumerationActivity.child),
+    enumerationResult.stderr || `worktree exists: ${existsSync(enumerationActivity.child)}`,
+  )
+
   const dirty = stageTeardownWorktree("dirty", { dirty: true })
   check("teardown-worktree.mjs", "a dirty tree is refused with its uncommitted path", ["--issue", "ORB-124"], { status: 1, stderr: /worktree-clean[\s\S]*dirty\.txt/ }, { env: orcaEnv(teardownPlan(dirty, { removePath: dirty.child })) })
   T("teardown-worktree.mjs: dirty refusal leaves the tree untouched", existsSync(dirty.child), "the dirty fixture was removed")
