@@ -1,0 +1,191 @@
+{
+  "schemaVersion": 1,
+  "generation": {
+    "method": "Recorded from complete live Git process captures and the installed npm shim source, with values replaced by typed placeholders after inspection.",
+    "generator": "manual redaction from credential-free commands and installed-source reads",
+    "deterministic": true
+  },
+  "schemaSemantics": {
+    "textOutputs": "The recorded stdout and stderr values retain the complete observed line grammar. Parser-specific accepted grammars retain every character class the implementation reads.",
+    "source": "The npm shim lines are the complete installed codex.cmd source after local installation paths were removed. The referenced JavaScript path and existence result remain recorded.",
+    "credentials": "No token, cookie, credential, private key, personal content, repository URL, or unredacted local path is retained."
+  },
+  "commands": {
+    "gitLsRemote": {
+      "command": ["git", "ls-remote", "origin", "<ref>"],
+      "commandCompleteness": "Complete argv with the repository path supplied as cwd and the ref replaced by a named placeholder.",
+      "rederive": "git -C <repository-path> ls-remote origin <ref>",
+      "provenance": {
+        "capture": "git -C <repository-path> ls-remote origin refs/heads/main",
+        "capturedAt": "2026-08-02T10:06:23.6613747Z",
+        "captureKind": "complete stdout, stderr, and exit-code capture with the SHA and repository path redacted"
+      },
+      "observedExitCode": 0,
+      "observedStdout": "0000000000000000000000000000000000000000\t<ref>\n",
+      "observedStderr": "",
+      "stdoutGrammar": "^[0-9a-f]{40}\\s+[^\\r\\n]+\\r?\\n?$",
+      "comparedFields": {
+        "sha": "must be exactly 40 lowercase hexadecimal characters",
+        "ref": "must equal the requested ref after the tab or other Git whitespace separator"
+      }
+    },
+    "gitRemoteOrigin": {
+      "command": ["git", "remote", "get-url", "origin"],
+      "commandCompleteness": "Complete argv with the repository path supplied as cwd.",
+      "rederive": "git -C <repository-path> remote get-url origin",
+      "provenance": {
+        "capture": "git -C <repository-path> remote get-url origin",
+        "capturedAt": "2026-08-02T10:04:46.1000877Z",
+        "captureKind": "complete stdout, stderr, and exit-code capture with the remote URL redacted after grammar inspection"
+      },
+      "observedExitCode": 0,
+      "observedStdout": "https://github.com/<owner>/<repository>.git\n",
+      "observedStderr": "",
+      "stdoutGrammar": "^https://github\\.com/[^/\\s]+/[^/\\s]+(?:\\.git)?\\r?\\n?$",
+      "parserPattern": "(?:github\\.com[/:])([^/\\s]+)\\/([^/\\s]+?)(?:\\.git)?$",
+      "comparedFields": {
+        "repository": "the captured owner/repository must equal the requested --repo value, case-insensitively"
+      }
+    },
+    "gitRevParseHead": {
+      "command": ["git", "rev-parse", "HEAD"],
+      "commandCompleteness": "Complete argv with the detached review worktree supplied as cwd.",
+      "rederive": "git -C <review-worktree-path> rev-parse HEAD",
+      "provenance": {
+        "capture": "git -C <review-worktree-path> rev-parse HEAD",
+        "capturedAt": "2026-08-02T10:04:46.1000877Z",
+        "captureKind": "complete stdout, stderr, and exit-code capture with the commit SHA and worktree path redacted"
+      },
+      "observedExitCode": 0,
+      "observedStdout": "0000000000000000000000000000000000000000\n",
+      "observedStderr": "",
+      "stdoutGrammar": "^[0-9a-f]{40}\\r?\\n?$",
+      "comparedFields": {
+        "head": "the trimmed output must equal the exact SHA used to create the detached review worktree"
+      }
+    },
+    "gitStatusPorcelain": {
+      "command": ["git", "status", "--porcelain"],
+      "commandCompleteness": "Complete argv with the detached review worktree supplied as cwd.",
+      "rederive": "git -C <review-worktree-path> status --porcelain",
+      "provenance": {
+        "capture": "git -C <review-worktree-path> status --porcelain",
+        "capturedAt": "2026-08-02T10:04:46.1000877Z",
+        "captureKind": "complete stdout, stderr, and exit-code capture from a clean detached review worktree"
+      },
+      "observedExitCode": 0,
+      "observedStdout": "",
+      "observedStderr": "",
+      "stdoutGrammar": "^$",
+      "acceptedStdoutGrammar": "^(?:[ MADRCU?!][ MADRCU?!] [^\\r\\n]*(?:\\r?\\n|$))*$",
+      "comparedFields": {
+        "status": "the trimmed stdout is empty for removal; any non-empty trimmed stdout preserves the worktree for inspection"
+      }
+    }
+  },
+  "npmShim": {
+    "discovery": {
+      "platform": "win32",
+      "pathextOrder": [".COM", ".EXE", ".BAT", ".CMD"],
+      "selectedPath": "<node-installation>\\codex.cmd",
+      "rederive": "Get-Command codex.cmd -CommandType Application"
+    },
+    "source": {
+      "path": "<node-installation>\\codex.cmd",
+      "rederive": "Get-Content -Raw -LiteralPath <node-installation>\\codex.cmd",
+      "observedExitCode": 0,
+      "lineEnding": "CRLF",
+      "trailingLineEnding": true,
+      "lines": [
+        "@ECHO off",
+        "GOTO start",
+        ":find_dp0",
+        "SET dp0=%~dp0",
+        "EXIT /b",
+        ":start",
+        "SETLOCAL",
+        "CALL :find_dp0",
+        "",
+        "IF EXIST \"%dp0%\\node.exe\" (",
+        "  SET \"_prog=%dp0%\\node.exe\"",
+        ") ELSE (",
+        "  SET \"_prog=node\"",
+        "  SET PATHEXT=%PATHEXT:;.JS;=;%",
+        ")",
+        "",
+        "endLocal & goto #_undefined_# 2>NUL || title %COMSPEC% & \"%_prog%\"  \"%dp0%\\node_modules\\@openai\\codex\\bin\\codex.js\" %*"
+      ],
+      "referencedScript": {
+        "path": "<node-installation>\\node_modules\\@openai\\codex\\bin\\codex.js",
+        "rederive": "Test-Path -LiteralPath <node-installation>\\node_modules\\@openai\\codex\\bin\\codex.js",
+        "observedExitCode": 0,
+        "exists": true,
+        "firstLine": "#!/usr/bin/env node"
+      },
+      "parserPattern": "\"%dp0%\\\\+([^\"]+\\.js)\"",
+      "comparedFields": {
+        "script": "the captured relative JavaScript path is resolved beside the shim and must name an existing file"
+      }
+    }
+  },
+  "implementation": {
+    "launcher": "tools/launch-pr-review.mjs",
+    "sourceCallSites": [
+      {
+        "source": "  const output = runSync(gitCommand, [\"ls-remote\", \"origin\", ref], { cwd: argumentsParsed.repoRoot }).trim()",
+        "evidenceKey": "gitLsRemote",
+        "responseUse": "split into one SHA/ref row and compare both captures"
+      },
+      {
+        "source": "  const origin = runSync(gitCommand, [\"remote\", \"get-url\", \"origin\"], { cwd: argumentsParsed.repoRoot }).trim()",
+        "evidenceKey": "gitRemoteOrigin",
+        "responseUse": "match the recorded GitHub URL grammar and capture owner/repository"
+      },
+      {
+        "source": "  const shim = readFileSync(resolved, \"utf8\")",
+        "evidenceKey": "npmShim",
+        "responseUse": "read the complete installed cmd source as UTF-8 text"
+      },
+      {
+        "source": "  const match = shim.match(/\"%dp0%\\\\+([^\"]+\\.js)\"/i)",
+        "evidenceKey": "npmShim",
+        "responseUse": "capture the relative JavaScript target from the recorded shim source"
+      },
+      {
+        "source": "      const content = runSync(gitCommand, [\"show\", `${baseSha}:${relativePath}`], { cwd: repositoryRoot })",
+        "evidenceKey": "trustedBasePolicyContent",
+        "responseUse": "copy trusted-base text verbatim; no response field is parsed"
+      },
+      {
+        "source": "  const status = runSync(gitCommand, [\"status\", \"--porcelain\"], { cwd: worktreePath }).trim()",
+        "evidenceKey": "gitStatusPorcelain",
+        "responseUse": "test whether trimmed stdout is empty"
+      },
+      {
+        "source": "  runSync(gitCommand, [\"worktree\", \"remove\", worktreePath], { cwd: argumentsParsed.repoRoot })",
+        "evidenceKey": "gitWorktreeRemove",
+        "responseUse": "success depends only on the exit code"
+      },
+      {
+        "source": "  runSync(gitCommand, [\"check-ref-format\", \"--branch\", argumentsParsed.base], { cwd: argumentsParsed.repoRoot })",
+        "evidenceKey": "gitCheckRefFormat",
+        "responseUse": "success depends only on the exit code"
+      },
+      {
+        "source": "  runSync(gitCommand, [\"fetch\", \"--no-tags\", \"origin\", baseRef, headRef], { cwd: argumentsParsed.repoRoot })",
+        "evidenceKey": "gitFetch",
+        "responseUse": "success depends only on the exit code"
+      },
+      {
+        "source": "  runSync(gitCommand, [\"worktree\", \"add\", \"--detach\", worktreePath, headSha], { cwd: argumentsParsed.repoRoot })",
+        "evidenceKey": "gitWorktreeAdd",
+        "responseUse": "success depends only on the exit code"
+      },
+      {
+        "source": "  const checkedOutHead = runSync(gitCommand, [\"rev-parse\", \"HEAD\"], { cwd: worktreePath }).trim()",
+        "evidenceKey": "gitRevParseHead",
+        "responseUse": "compare trimmed stdout with the observed head SHA"
+      }
+    ]
+  }
+}

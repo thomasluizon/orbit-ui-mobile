@@ -50,7 +50,94 @@ try {
   process.exit(3)
 }
 
-const killProcessTree = (pid) => {
+const processIsPresent = (pid) => {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return error.code !== "ESRCH"
+  }
+}
+
+const readPosixProcessTree = (rootPid) => {
+  const result = spawnSync("ps", ["-eo", "pid=,ppid="], { encoding: "utf8", timeout: 250 })
+  if (result.error || result.status !== 0) return null
+  const childrenByParent = new Map()
+  for (const line of result.stdout.split(/\r?\n/)) {
+    const [pidText, parentPidText] = line.trim().split(/\s+/)
+    const childPid = Number(pidText)
+    const parentPid = Number(parentPidText)
+    if (!Number.isInteger(childPid) || !Number.isInteger(parentPid)) continue
+    const children = childrenByParent.get(parentPid) ?? []
+    children.push(childPid)
+    childrenByParent.set(parentPid, children)
+  }
+  const descendants = []
+  const queue = [{ pid: rootPid, depth: 0 }]
+  const visited = new Set([rootPid])
+  while (queue.length > 0) {
+    const current = queue.shift()
+    for (const childPid of childrenByParent.get(current.pid) ?? []) {
+      if (visited.has(childPid)) continue
+      visited.add(childPid)
+      descendants.push({ pid: childPid, depth: current.depth + 1 })
+      queue.push({ pid: childPid, depth: current.depth + 1 })
+    }
+  }
+  return descendants.sort((left, right) => right.depth - left.depth)
+}
+
+const sendPosixSignal = (pid, signal) => {
+  try {
+    process.kill(pid, signal)
+  } catch (error) {
+    if (error.code !== "ESRCH") return false
+  }
+  return true
+}
+
+const waitForProcessExit = async (pid, deadline) => {
+  while (processIsPresent(pid) && Date.now() < deadline) await delay(10)
+  return !processIsPresent(pid)
+}
+
+const terminatePosixProcess = async (pid, deadline) => {
+  sendPosixSignal(pid, "SIGKILL")
+  await waitForProcessExit(pid, deadline)
+}
+
+const sendPosixGroupSignal = (pid, signal) => {
+  try {
+    process.kill(-pid, signal)
+  } catch {
+    sendPosixSignal(pid, signal)
+  }
+}
+
+const terminatePosixProcessTree = async (rootPid) => {
+  const deadline = Date.now() + 1000
+  const discovered = new Set([rootPid])
+  /* Kill leaves while their parents can reap them; group-killing first orphaned Linux zombies. */
+  for (let pass = 0; pass < 3 && Date.now() < deadline; pass++) {
+    const descendants = readPosixProcessTree(rootPid)
+    if (descendants === null) {
+      sendPosixGroupSignal(rootPid, "SIGTERM")
+      await delay(100)
+      sendPosixGroupSignal(rootPid, "SIGKILL")
+      return
+    }
+    const pending = descendants.filter(({ pid }) => !discovered.has(pid))
+    if (pending.length === 0) break
+    for (const { pid } of pending) {
+      discovered.add(pid)
+      await terminatePosixProcess(pid, deadline)
+    }
+  }
+  sendPosixSignal(rootPid, "SIGKILL")
+  await waitForProcessExit(rootPid, deadline)
+}
+
+const killProcessTree = async (pid) => {
   if (!Number.isInteger(pid) || pid <= 0) return
   if (process.platform === "win32") {
     const result = spawnSync("taskkill", ["/PID", String(pid), "/T", "/F"], { encoding: "utf8", windowsHide: true })
@@ -62,22 +149,7 @@ const killProcessTree = (pid) => {
     }
     return
   }
-  try {
-    process.kill(-pid, "SIGTERM")
-  } catch {
-    try {
-      process.kill(pid, "SIGTERM")
-    } catch {
-      /* the target may have exited before the tree kill */
-    }
-  }
-  setTimeout(() => {
-    try {
-      process.kill(-pid, "SIGKILL")
-    } catch {
-      /* the target may have exited after SIGTERM */
-    }
-  }, 100)
+  await terminatePosixProcessTree(pid)
 }
 
 const writeResult = (result) => {
@@ -109,6 +181,7 @@ let finished = false
 let timedOut = false
 let timeoutHandle
 let forceFinishHandle
+let treeTermination = Promise.resolve()
 const processTreeObservation = observeProcessTree(control.processTreeObservation)
 child.stdout.setEncoding("utf8")
 child.stderr.setEncoding("utf8")
@@ -120,14 +193,14 @@ const finish = (status, signal, error = null) => {
   finished = true
   clearTimeout(timeoutHandle)
   clearTimeout(forceFinishHandle)
-  processTreeObservation.then((processTree) => writeResult({ status, signal, timedOut, stdout, stderr, error, processTree }))
+  Promise.all([processTreeObservation, treeTermination]).then(([processTree]) => writeResult({ status, signal, timedOut, stdout, stderr, error, processTree }))
 }
 
 child.on("error", (error) => finish(null, null, error.message))
 child.on("close", (status, signal) => finish(status, signal))
 timeoutHandle = setTimeout(() => {
   timedOut = true
-  killProcessTree(child.pid)
+  treeTermination = killProcessTree(child.pid).catch(() => {})
   forceFinishHandle = setTimeout(() => finish(null, "SIGKILL"), 2000)
 }, control.timeoutMs)
 child.stdin.end(control.input ?? "")

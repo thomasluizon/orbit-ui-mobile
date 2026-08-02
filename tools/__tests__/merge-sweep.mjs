@@ -249,8 +249,8 @@ const processTreeTimeoutCase = () => {
   }
   T(
     "test harness: a timed-out Git Bash child returns, kills its descendant, and cleans only its fixture subtree",
-    result.status === "timed out" && /merge-sweep-fixture-last-output/.test(result.stdout) && !descendantAlive && !existsSync(fixtureRoot),
-    `exit ${result.status}; descendant ${descendantPid} alive=${descendantAlive}; fixture exists=${existsSync(fixtureRoot)}\\n     stdout: ${result.stdout}\\n     stderr: ${result.stderr}`,
+    result.status === "timed out" && /merge-sweep-fixture-last-output/.test(result.stdout) && !descendantAlive && !existsSync(fixtureRoot) && existsSync(stateRoot),
+    `exit ${result.status}; descendant ${descendantPid} alive=${descendantAlive}; fixture exists=${existsSync(fixtureRoot)}; outside state exists=${existsSync(stateRoot)}\\n     stdout: ${result.stdout}\\n     stderr: ${result.stderr}`,
   )
 }
 
