@@ -179,8 +179,11 @@ if (args[0] === "pr" && args[1] === "view") {
   }
 } else if (args[0] === "api" && args[1]?.endsWith("/reviews") && args.includes("POST")) {
   console.log(JSON.stringify({ id: 123, node_id: "PRR_test_review", body, commit_id: inputPayload.commit_id, state: "COMMENTED", submitted_at: "2026-08-01T12:00:00Z" }))
-} else if (args[0] === "api" && args[1]?.includes("/reviews/123") && args.includes("PATCH")) {
+} else if (args[0] === "api" && args[1]?.includes("/reviews/123") && args.includes("PUT")) {
   console.log(JSON.stringify({ id: 123, node_id: "PRR_test_review", body, commit_id: process.env.ORBIT_TEST_LIVE_HEAD, state: "COMMENTED", submitted_at: "2026-08-01T12:00:00Z" }))
+} else if (args[0] === "api" && args[1]?.includes("/reviews/123") && args.includes("PATCH")) {
+  console.error("review update must use PUT")
+  process.exit(22)
 }
 `)
   const quotaStub = writeExecutable(join(base, "quota-stub.mjs"), `
@@ -268,7 +271,8 @@ export const cases = () => {
   const budgetCalls = approveCalls.filter((call) => call.tool === "budget")
   const codexCall = approveCalls.find((call) => call.tool === "codex")
   const createReviewCall = approveCalls.find((call) => call.tool === "gh" && call.args[0] === "api" && call.args.includes("POST"))
-  const ghCall = approveCalls.find((call) => call.tool === "gh" && call.args[0] === "api" && call.args.includes("PATCH"))
+  const ghCall = approveCalls.find((call) => call.tool === "gh" && call.args[0] === "api" && call.args.includes("PUT"))
+  const patchCall = approveCalls.find((call) => call.tool === "gh" && call.args[0] === "api" && call.args.includes("PATCH"))
   T("launch-pr-review.mjs: APPROVE is a successful structured result", approve.result.status === 0 && JSON.parse(approve.result.stdout).verdict === "APPROVE", approve.result.stderr)
   const liveReadIndex = approveCalls.findIndex((call) => call.tool === "gh" && call.args.slice(0, 2).join(" ") === "pr view")
   const reserveIndex = approveCalls.findIndex((call) => call.tool === "budget" && call.args[0] === "reserve")
@@ -281,7 +285,7 @@ export const cases = () => {
   T("launch-pr-review.mjs: Codex is fresh Sol high, read-only, ephemeral, schema-bound, review-only, and lacks both signing keys", codexCall?.args.includes("gpt-5.6-sol") && codexCall.args.includes('model_reasoning_effort="high"') && codexCall.args.includes("--sandbox") && codexCall.args.includes("read-only") && codexCall.args.includes("--ephemeral") && codexCall.args.includes("--output-schema") && !codexCall.args.includes("--dangerously-bypass-approvals-and-sandbox") && codexCall.marker === "1" && codexCall.reviewAuthorityPrivateKeyPresent === false && codexCall.workerLaunchAuthorityPrivateKeyPresent === false && !codexCall.prompt.includes("Standing worker contract"), JSON.stringify(codexCall))
   T("launch-pr-review.mjs: general exec reads the exact diff review prompt from trusted-base policy files", codexCall?.args[0] === "exec" && codexCall.args.at(-1) === "-" && !codexCall.args.includes("review") && !codexCall.args.includes("--base") && !approveCalls.some((call) => call.tool === "git" && call.args[0] === "update-ref") && codexCall.prompt.includes(`complete ${BASE}...${HEAD} diff`) && /review skill at .*trusted-policy[\\/]\.claude[\\/]skills[\\/]pr-review[\\/]SKILL\.md/.test(codexCall.prompt) && /rubric at .*trusted-policy[\\/]\.claude[\\/]skills[\\/]pr-review[\\/]rubric\.md/.test(codexCall.prompt) && codexCall.prompt.includes("loaded from") && codexCall.prompt.includes("live-pull-request-snapshot") && codexCall.prompt.includes("Harness Execution").valueOf(), JSON.stringify(codexCall))
   T("launch-pr-review.mjs: a target without review assets still uses trusted-base policy paths", codexCall?.prompt.includes("trusted-policy") && !codexCall.prompt.includes(join(codexCall.cwd, "AGENTS.md")) && !codexCall.prompt.includes(join(codexCall.cwd, "CLAUDE.md")), codexCall?.prompt)
-  T("launch-pr-review.mjs: the durable COMMENTED review carries an authenticated marker, verdict, and exact head", createReviewCall?.body?.startsWith("orbit-local-review-pending:") && ghCall?.args.includes("PATCH") && ghCall.body?.startsWith(`<!-- orbit-local-review: {"version":1,"head":"${HEAD}","recommendation":"APPROVE","provenance":`) && ghCall.body.includes('"verdict": "APPROVE"'), JSON.stringify({ createReviewCall, ghCall }))
+  T("launch-pr-review.mjs: the durable COMMENTED review carries an authenticated marker, verdict, and exact head", createReviewCall?.body?.startsWith("orbit-local-review-pending:") && ghCall?.args.includes("PUT") && !patchCall && ghCall.body?.startsWith(`<!-- orbit-local-review: {"version":1,"head":"${HEAD}","recommendation":"APPROVE","provenance":`) && ghCall.body.includes('"verdict": "APPROVE"'), JSON.stringify({ createReviewCall, ghCall, patchCall }))
   const evidence = evaluateReviewEvidence({
     headRefOid: HEAD,
     files: { pageInfo: { hasNextPage: false }, nodes: [] },
@@ -318,7 +322,7 @@ export const cases = () => {
   T("launch-pr-review.mjs: hostile target-local policy copies are ignored in favor of the trusted base", localSkill.result.status === 0 && localCodex?.prompt.includes("trusted-policy") && !localCodex.prompt.includes("target-local skill") && !localCodex.prompt.includes("target agents") && !localCodex.prompt.includes(join(localCodex.cwd, ".claude", "skills", "pr-review", "SKILL.md")), `${localSkill.result.status}\n${localSkill.result.stderr}\n${localCodex?.prompt}`)
 
   const needsWork = stageReview("needs-work", { verdict: "NEEDS_WORK", findings: [{ id: "finding-0123456789abcdef0123456789abcdef", severity: "High", title: "Unsafe path", path: "tools/x.mjs", line: 7, evidence: "The branch skips validation.", remediation: "Validate before use." }] })
-  T("launch-pr-review.mjs: NEEDS_WORK is durable and exits 4", needsWork.result.status === 4 && JSON.parse(needsWork.result.stdout).verdict === "NEEDS_WORK" && needsWork.calls.some((call) => call.tool === "gh" && call.args[0] === "api" && call.args.includes("PATCH") && call.body.includes('"verdict": "NEEDS_WORK"')), `${needsWork.result.status}\n${needsWork.result.stderr}`)
+  T("launch-pr-review.mjs: NEEDS_WORK is durable and exits 4", needsWork.result.status === 4 && JSON.parse(needsWork.result.stdout).verdict === "NEEDS_WORK" && needsWork.calls.some((call) => call.tool === "gh" && call.args[0] === "api" && call.args.includes("PUT") && call.body.includes('"verdict": "NEEDS_WORK"')) && !needsWork.calls.some((call) => call.tool === "gh" && call.args[0] === "api" && call.args.includes("PATCH")), `${needsWork.result.status}\n${needsWork.result.stderr}`)
 
   const moved = stageReview("moved", { moved: true })
   T("launch-pr-review.mjs: a head move refuses the result before commenting", moved.result.status === 3 && /head moved/.test(moved.result.stderr) && !moved.calls.some((call) => call.tool === "gh" && call.args[0] === "api" && call.args.includes("POST")), `${moved.result.status}\n${moved.result.stderr}\n${JSON.stringify(moved.calls)}`)

@@ -313,7 +313,7 @@ const createReview = (headSha, body) => parseReviewResource(
 )
 
 const updateReview = (reviewId, body) => parseReviewResource(
-  runSync(ghCommand, ["api", `${reviewResourcePath()}/${reviewId}`, "--method", "PATCH", "--input", "-"], {
+  runSync(ghCommand, ["api", `${reviewResourcePath()}/${reviewId}`, "--method", "PUT", "--input", "-"], {
     input: JSON.stringify({ body }),
   }),
   "GitHub review update",
