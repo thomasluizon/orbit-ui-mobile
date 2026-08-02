@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total": 1319,
+  "total": 1330,
   "tools": {
     "(runner)": 40,
     "ai-quota.mjs": 12,
@@ -25,7 +25,7 @@
     "check-tier-labels.mjs": 8,
     "check-worker-delivery.mjs": 5,
     "compose-prompt.mjs": 6,
-    "launch-pr-review.mjs": 60,
+    "launch-pr-review.mjs": 71,
     "launch-worker.mjs": 164,
     "merge-sweep-cov.sh": 95,
     "merge-sweep.sh": 103,

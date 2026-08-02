@@ -47,6 +47,23 @@
         "repository": "the captured owner/repository must equal the requested --repo value, case-insensitively"
       }
     },
+    "gitDiffPatch": {
+      "command": ["git", "diff", "--binary", "--full-index", "--no-ext-diff", "--no-renames", "<base-sha>", "<head-sha>"],
+      "commandCompleteness": "Complete argv with the repository path supplied as cwd and both authenticated commit SHAs supplied as named placeholders.",
+      "rederive": "git -C <repository-path> diff --binary --full-index --no-ext-diff --no-renames <base-sha> <head-sha>",
+      "provenance": {
+        "capture": "git -C <repository-path> diff --binary --full-index --no-ext-diff --no-renames <base-sha> <head-sha>",
+        "capturedAt": "2026-08-02T12:10:00.0000000Z",
+        "captureKind": "complete stdout, stderr, and exit-code capture with the repository path and commit SHAs replaced by named placeholders"
+      },
+      "observedExitCode": 0,
+      "observedStdout": "diff --git a/<path> b/<path>\ndeleted file mode 100644\nindex <sha>..<sha>\n--- a/<path>\n+++ /dev/null\n@@ -1 +0,0 @@\n-<removed line>\ndiff --git a/<path> b/<path>\nindex <sha>..<sha> 100644\n--- a/<path>\n+++ b/<path>\n@@ -1 +1 @@\n-<old line>\n+<changed line>\n",
+      "observedStderr": "",
+      "stdoutGrammar": "^(?:diff --git [^\\r\\n]+\\r?\\n|(?:deleted file mode|new file mode|index|---|\\+\\+\\+|@@) [^\\r\\n]+\\r?\\n|[+-][^\\r\\n]*\\r?\\n|[ @][^\\r\\n]*\\r?\\n|\\\\ No newline at end of file\\r?\\n|GIT binary patch\\r?\\n|(?:literal|delta) [0-9]+\\r?\\n|[A-Za-z0-9+/=]+\\r?\\n)*$",
+      "comparedFields": {
+        "patch": "stdout is copied as the complete authenticated base-to-head patch and is not parsed by the launcher"
+      }
+    },
     "gitRevParseHead": {
       "command": ["git", "rev-parse", "HEAD"],
       "commandCompleteness": "Complete argv with the detached review worktree supplied as cwd.",
@@ -128,9 +145,33 @@
       }
     }
   },
+  "filesystem": {
+    "reviewSandbox": {
+      "root": {
+        "path": "<temp-review-root>",
+        "createdBy": "mkdtempSync(join(tmpdir(), \"orbit-pr-review-\"))",
+        "primaryWorkspace": "Codex cwd",
+        "checkoutRelativePath": "checkout",
+        "artifactRelativePath": "base-to-head.patch",
+        "readOnly": true,
+        "cleanup": "git worktree remove checkout, then rmSync(review-root, { recursive: true })",
+        "dirtyBehavior": "preserve the review root and artifact"
+      }
+    }
+  },
   "implementation": {
     "launcher": "tools/launch-pr-review.mjs",
     "sourceCallSites": [
+      {
+        "source": "  const patch = runSync(gitCommand, [",
+        "evidenceKey": "gitDiffPatch",
+        "responseUse": "materialize the complete authenticated patch as read-only reviewer subject data"
+      },
+      {
+        "source": "  const persistedPatch = readFileSync(patchPath, \"utf8\")",
+        "evidenceKey": "reviewPatchArtifact",
+        "responseUse": "verify the materialized artifact can be read back byte-for-byte before the reviewer starts"
+      },
       {
         "source": "  const output = runSync(gitCommand, [\"ls-remote\", \"origin\", ref], { cwd: argumentsParsed.repoRoot }).trim()",
         "evidenceKey": "gitLsRemote",
@@ -157,12 +198,12 @@
         "responseUse": "copy trusted-base text verbatim; no response field is parsed"
       },
       {
-        "source": "  const status = runSync(gitCommand, [\"status\", \"--porcelain\"], { cwd: worktreePath }).trim()",
+        "source": "      status = runSync(gitCommand, [\"status\", \"--porcelain\"], { cwd: worktreePath }).trim()",
         "evidenceKey": "gitStatusPorcelain",
         "responseUse": "test whether trimmed stdout is empty"
       },
       {
-        "source": "  runSync(gitCommand, [\"worktree\", \"remove\", worktreePath], { cwd: argumentsParsed.repoRoot })",
+        "source": "    runSync(gitCommand, [\"worktree\", \"remove\", worktreePath], { cwd: argumentsParsed.repoRoot })",
         "evidenceKey": "gitWorktreeRemove",
         "responseUse": "success depends only on the exit code"
       },
