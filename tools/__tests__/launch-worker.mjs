@@ -1,9 +1,25 @@
-import { spawnSync } from "node:child_process"
+import { spawnSyncHidden as spawnSync } from "../lib/subprocess-options.mjs"
 import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs"
 import { delimiter, join, resolve } from "node:path"
 
-import { TOOLS_DIR, REPO_ROOT, T, root, stage, orcaEnv, orchestratorConfig, run, runAsync, check, DEFAULT_AUTOMATION_BUDGET, CLAUDE_MODELS, CODEX_MODELS, INTERACTIVE_WORKER, INTERACTIVE_CODEX, stageLaunchWorker, launchWorktreeStub, linearIssueStub, WORKER_CONTRACT_MARKER, FULL_SURFACE_POLL, NO_DRAFT_PULL_REQUEST_CLAUSE, REQUIRED_CONTRACT_CLAUSES, contractClauseBlocks, missingContractClauses, TRUST_SCREENS, stageCheckout, budgetRecord, runTrustScreen } from "./_harness.mjs"
+import { TOOLS_DIR, REPO_ROOT, T, root, stage, orcaEnv, orchestratorConfig, run, runAsync, check, DEFAULT_AUTOMATION_BUDGET, CLAUDE_MODELS, CODEX_MODELS, INTERACTIVE_WORKER, INTERACTIVE_CODEX, stageLaunchWorker, launchWorktreeStub, linearIssueStub, WORKER_CONTRACT_MARKER, ORCHESTRATOR_REVIEW_HANDOFF, REQUIRED_CONTRACT_CLAUSES as BASE_REQUIRED_CONTRACT_CLAUSES, contractClauseBlocks, TRUST_SCREENS, stageCheckout, budgetRecord, runTrustScreen } from "./_harness.mjs"
 import { readWorkerLaunchRecords, verifyWorkerLaunchCompletion } from "../lib/worker-launch-provenance.mjs"
+
+const REQUIRED_CONTRACT_CLAUSES = {
+  ...BASE_REQUIRED_CONTRACT_CLAUSES,
+  "repairing only orchestrator-returned findings": { clause: 3, pattern: /only its stable finding and\s+evidence[\s\S]*repair only that passed-back finding/ },
+  "requiring fresh review after a changed head": { clause: 3, pattern: /A changed head requires a fresh orchestrator\s+review[\s\S]*report AWAITING-REVIEW/ },
+  "escalating a disagreement": { clause: 4, pattern: /Escalate when a returned finding is disputed/ },
+  "escalating after two failed cycles": { clause: 4, pattern: /when two consecutive repair cycles fail on the same\s+finding/ },
+  "watching only its own ticket": { clause: 5, pattern: /Never\s+watch another ticket, worktree, or PR/ },
+}
+
+const missingContractClauses = (contractText) => {
+  const blocks = contractClauseBlocks(contractText)
+  return Object.entries(REQUIRED_CONTRACT_CLAUSES)
+    .filter(([, { clause, pattern }]) => !pattern.test(blocks[clause] ?? ""))
+    .map(([name]) => name)
+}
 
 const trustScreenCases = () => {
   for (const [engineName, { screens }] of Object.entries(TRUST_SCREENS)) {
@@ -190,7 +206,7 @@ const pointerDeliveryCases = () => {
   )
 }
 
-const runTerminalCreateLaunch = (label, terminalCreateSequence) => {
+const runTerminalCreateLaunch = (label, terminalCreateSequence, { removalSequence = null } = {}) => {
   const staged = stageLaunchWorker(label, INTERACTIVE_WORKER)
   const checkout = join(staged.base, "checkout")
   const git = (args) => spawnSync("git", ["-C", staged.repoPath, ...args], { encoding: "utf8" })
@@ -218,7 +234,9 @@ const runTerminalCreateLaunch = (label, terminalCreateSequence) => {
     { match: "terminal switch", stdout: JSON.stringify({ ok: true, result: {} }) },
     { match: "worktree set", stdout: JSON.stringify({ ok: true, result: {} }) },
     { match: "terminal stop", stdout: JSON.stringify({ ok: true, result: {} }) },
-    { match: "worktree rm", stdout: JSON.stringify({ ok: true, result: {} }), removePath: checkout, pruneRepo: staged.repoPath },
+    removalSequence
+      ? { match: "worktree rm", sequence: removalSequence }
+      : { match: "worktree rm", stdout: JSON.stringify({ ok: true, result: {} }), removePath: checkout, pruneRepo: staged.repoPath },
   ]
   const result = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile], {
     path: staged.path,
@@ -231,7 +249,7 @@ const runTerminalCreateLaunch = (label, terminalCreateSequence) => {
   const calls = existsSync(log) ? readFileSync(log, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line)) : []
   const count = (first, second) => calls.filter((argv) => argv[0].split(/[\\/]/).pop() === first && argv[1] === second).length
   const branches = git(["branch", "--list", "feature/orb-75-prove-the-harness-gate", "thomasluizon/orb-75"]).stdout.trim()
-  return { result, terminalCreates: count("terminal", "create"), worktreeCreates: count("worktree", "create"), checkout, branches }
+  return { result, calls, terminalCreates: count("terminal", "create"), worktreeCreates: count("worktree", "create"), checkout, branches }
 }
 
 const terminalCreateRetryCases = () => {
@@ -258,6 +276,31 @@ const terminalCreateRetryCases = () => {
     "launch-worker.mjs: exhausting terminal create retries rolls back the one worktree and both branches",
     exhausted.worktreeCreates === 1 && !existsSync(exhausted.checkout) && exhausted.branches === "",
     `worktree creates ${exhausted.worktreeCreates}, checkout exists ${existsSync(exhausted.checkout)}, branches ${JSON.stringify(exhausted.branches)}`,
+  )
+}
+
+const rollbackRemovalCases = () => {
+  const timeout = { stdout: JSON.stringify({ ok: false, error: { code: "timeout", message: "Terminal creation timed out" } }), exit: 1 }
+  const ordinary = runTerminalCreateLaunch("rollback-removal-ordinary", [timeout, timeout, timeout])
+  const failedRemoval = runTerminalCreateLaunch(
+    "rollback-removal-fallback",
+    [timeout, timeout, timeout],
+    { removalSequence: [{ stdout: "{}", exit: 1 }, { stdout: "{}", exit: 1 }] },
+  )
+  const removalCalls = [...ordinary.calls, ...failedRemoval.calls].filter((argv) => {
+    const worktreeIndex = argv.findIndex((token) => token === "worktree" || token.endsWith("\\worktree") || token.endsWith("/worktree"))
+    return worktreeIndex !== -1 && argv[worktreeIndex + 1] === "rm"
+  })
+  T(
+    "launch-worker.mjs: every failed-launch rollback removal is ordinary and never forced",
+    removalCalls.length === 3 && removalCalls.every((argv) => argv.includes("--worktree") && argv.includes("--json") && !argv.includes("--force")),
+    `rollback removal calls: ${JSON.stringify(removalCalls)}`,
+  )
+  const fallbackLine = failedRemoval.result.stderr.split(/\r?\n/).find((line) => line.includes("remove it by hand")) ?? ""
+  T(
+    "launch-worker.mjs: a failed rollback fallback recommends ordinary removal",
+    fallbackLine.includes("orca worktree rm --worktree") && !fallbackLine.includes("--force"),
+    `fallback: ${fallbackLine || failedRemoval.result.stderr}`,
   )
 }
 
@@ -474,8 +517,9 @@ const launchConcurrencyCases = async (promptFile) => {
   } else {
     const timeoutLock = join(timeout.repoPath, ".git", "orbit-launch-worker.lock")
     writeFileSync(timeoutLock, JSON.stringify({ pid: process.pid, startedAt: Date.now() }))
-    const timeoutSource = readFileSync(timeout.path, "utf8")
-    const productionDeadline = "const deadline = Date.now() + 5 * 60 * 1000"
+    const lockHelperPath = join(timeout.base, "tools", "lib", "worktree-lifecycle-lock.mjs")
+    const timeoutSource = readFileSync(lockHelperPath, "utf8")
+    const productionDeadline = "timeoutMs = 5 * 60 * 1000"
     if (!timeoutSource.includes(productionDeadline)) {
       T(
         "launch-worker.mjs: stages a bounded reservation timeout",
@@ -483,10 +527,7 @@ const launchConcurrencyCases = async (promptFile) => {
         "production reservation deadline expression drifted",
       )
     } else {
-      writeFileSync(
-        timeout.path,
-        timeoutSource.replace(productionDeadline, "const deadline = Date.now() + 200"),
-      )
+      writeFileSync(lockHelperPath, timeoutSource.replace(productionDeadline, "timeoutMs = 200"))
       const timeoutLog = stage("concurrency-reservation-timeout.log", "")
       const timeoutResult = run(
         "launch-worker.mjs",
@@ -503,7 +544,7 @@ const launchConcurrencyCases = async (promptFile) => {
       T(
         "launch-worker.mjs: times out on a live reservation owner before listing or creating worktrees",
         timeoutResult.status === 1
-          && /timed out waiting for another launch reservation/.test(timeoutResult.stderr)
+          && /timed out waiting for worktree lifecycle lock/.test(timeoutResult.stderr)
           && !timeoutCalls.some((argv) => argv.join(" ").includes("worktree list"))
           && !timeoutCalls.some((argv) => argv.join(" ").includes("worktree create")),
         `exit ${timeoutResult.status}\n     ${timeoutResult.stderr.trim()}\n     ${timeoutCalls.map((argv) => argv.join(" ")).join("\n     ")}`,
@@ -639,13 +680,13 @@ const contractClauseCases = () => {
   // Gate proof 1: the demonstrated hole. Deleting a clause from what the worker reads must
   // fail, and must name the clauses it carried. Source-string matching could not see this at
   // all, because the deleted text stayed in the file as a comment.
-  const clauseThreeDeleted = injected.replace(blocks[3], "3. **Own the automated review cycle.** (see the comment in the launcher)\n")
+  const clauseThreeDeleted = injected.replace(blocks[3], "3. **Wait for orchestrator-owned review.** (see the comment in the launcher)\n")
   const deletedVerdict = missingContractClauses(clauseThreeDeleted)
   T(
     "launch-worker.mjs: deleting clause 3 from the injected contract fails, naming its clauses",
-    deletedVerdict.includes("owning its automated review cycle") &&
-      deletedVerdict.includes("polling every review activity surface") &&
-      deletedVerdict.includes("leaving human threads unresolved"),
+    deletedVerdict.includes("waiting for orchestrator review") &&
+      deletedVerdict.includes("refusing the worker review launcher") &&
+      deletedVerdict.includes("repairing only orchestrator-returned findings"),
     `a gutted clause 3 reported ${JSON.stringify(deletedVerdict)}`,
   )
 
@@ -654,14 +695,14 @@ const contractClauseCases = () => {
   // The fixture plants a second copy in clause 5 to exercise it, and the
   // second assertion pins that whole-text matching really would accept what this refuses;
   // without it, the first assertion could pass for the wrong reason.
-  const terminator = "zero unresolved threads and every automated review item is reconciled"
+  const terminator = "report AWAITING-REVIEW"
   const spanning = injected
-    .replace(blocks[3], () => blocks[3].replace(terminator, () => "settled"))
+    .replace(blocks[3], () => blocks[3].replace(terminator, () => "report the handoff"))
     .replace(blocks[5], () => `${blocks[5].trimEnd()} The PR must end ${terminator}.\n`)
-  const spanningPattern = REQUIRED_CONTRACT_CLAUSES["owning its automated review cycle"].pattern
+  const spanningPattern = REQUIRED_CONTRACT_CLAUSES["requiring fresh review after a changed head"].pattern
   T(
     "launch-worker.mjs: a clause satisfied only by a phrase from a later clause is refused",
-    missingContractClauses(spanning).includes("owning its automated review cycle"),
+    missingContractClauses(spanning).includes("requiring fresh review after a changed head"),
     "clause 3 lost its terminator and the block-scoped check still passed",
   )
   T(
@@ -1652,6 +1693,7 @@ const [tool, promptFile, worktreePath] = process.argv.slice(2)
 const run = () => new Promise((resolve) => {
   const child = spawn(process.execPath, [tool, "--issue", "ORB-75", "--prompt-file", promptFile, "--existing-worktree", worktreePath], {
     stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true,
   })
   let stderr = ""
   child.stderr.setEncoding("utf8")
@@ -1746,6 +1788,7 @@ const run = (extraEnv) => {
   const child = spawn(process.execPath, [tool, "--issue", "ORB-75", "--prompt-file", prompt], {
     env: { ...process.env, ...baseEnv, ORBIT_AUTOMATION_BUDGET_LEDGER: ledger, ...extraEnv },
     stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true,
   })
   let stderr = ""
   child.stderr.setEncoding("utf8")
@@ -1972,6 +2015,7 @@ process.stdout.write(JSON.stringify(await Promise.all([first, second])))
   trustScreenCases()
   pointerDeliveryCases()
   terminalCreateRetryCases()
+  rollbackRemovalCases()
   await launchConcurrencyCases(promptFile)
 
   contractClauseCases()
@@ -1982,18 +2026,18 @@ process.stdout.write(JSON.stringify(await Promise.all([first, second])))
   const agentsSource = readFileSync(join(REPO_ROOT, "AGENTS.md"), "utf8")
   T(
     "AGENTS.md: the standing worker contract forbids opening a draft pull request",
-    agentsSource.includes(NO_DRAFT_PULL_REQUEST_CLAUSE),
-    `AGENTS.md no longer contains ${NO_DRAFT_PULL_REQUEST_CLAUSE}`,
+    /The pull request\s+must be ready for review, never a draft\./.test(agentsSource),
+    "AGENTS.md no longer requires a ready pull request and forbids draft pull requests.",
   )
   T(
-    "launch-worker.mjs: AGENTS.md requires the same full-surface completion poll",
-    FULL_SURFACE_POLL.test(agentsSource),
-    "AGENTS.md no longer requires worker-status to inventory every review activity surface and fail closed.",
+    "launch-worker.mjs: AGENTS.md assigns review ownership to the orchestrator",
+    ORCHESTRATOR_REVIEW_HANDOFF.test(agentsSource) && /Workers never invoke or authorize\s+`tools\/launch-pr-review\.mjs`[\s\S]*wait for the orchestrator-owned review loop/i.test(agentsSource),
+    "AGENTS.md no longer tells workers to wait for the orchestrator-owned review loop.",
   )
   T(
-    "launch-worker.mjs: AGENTS.md carries the approval-count-zero review-clear contract",
-    /CHANGES_REQUESTED blocks[\s\S]*No approval is required[\s\S]*If an approval exists[\s\S]*current head[\s\S]*zero unresolved threads and every automated review item is reconciled/.test(agentsSource),
-    "AGENTS.md no longer states the complete review-clear contract.",
+    "launch-worker.mjs: AGENTS.md requires a fresh review after a worker repair",
+    /NEEDS_WORK[\s\S]*same implementation worker[\s\S]*changed head[\s\S]*fresh/i.test(agentsSource),
+    "AGENTS.md no longer states that a repaired head returns to a fresh orchestrator review.",
   )
 }
 

@@ -13,6 +13,7 @@ const OLD_SHA = "1111111111111111111111111111111111111111"
 
 const reviewOn = (state, oid) => ({ state, author: { login: "claude" }, commit: { oid } })
 const localReview = (recommendation = "APPROVE", markerHead = HEAD_SHA, commit = HEAD_SHA, at = "2026-07-31T10:00:00Z") => ({
+  id: "PRR_local_review",
   state: "COMMENTED",
   body: reviewMarker({ repository: "thomasluizon/orbit-ui-mobile", pullRequest: 615, head: markerHead, recommendation, findingIds: recommendation === "NEEDS_WORK" ? ["finding-0123456789abcdef0123456789abcdef"] : [] }),
   submittedAt: at,
@@ -68,13 +69,13 @@ const prWatchCases = () => {
     { status: 0, stdout: /same PR and head accumulate[\s\S]*READY_TO_MERGE independently[\s\S]*current local APPROVE evidence/ },
   )
   let sequenceNumber = 0
-  const checkSequence = (name, states, extraArgv, expect) => {
+  const checkSequence = (name, states, extraArgv, expect, timeout = 2) => {
     sequenceNumber += 1
     const log = join(root, `pr-watch-sequence-${sequenceNumber}.log`)
     const result = check(
       "pr-watch.mjs",
       name,
-      ["--repo", "thomasluizon/orbit-ui-mobile", "--pr", "615", "--interval", "0.05", "--timeout", "2", ...extraArgv],
+      ["--repo", "thomasluizon/orbit-ui-mobile", "--pr", "615", "--interval", "0.05", "--timeout", String(timeout), ...extraArgv],
       expect,
       {
         env: {
@@ -386,6 +387,8 @@ const prWatchCases = () => {
     ],
     ["--acted", `615=${HEAD_SHA}:APPROVED`],
     { status: 0, stdout: /"transition": "ready-to-merge"/ },
+    // Three child-process polls need a local allowance on Windows; the transition assertion stays exact.
+    4,
   )
   const actedReview = localReview()
   checkSequence(

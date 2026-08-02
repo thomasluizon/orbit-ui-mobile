@@ -5,10 +5,11 @@
  * removal, so success is verified from the filesystem and Git, never its reply.
  */
 
-import { execFileSync, spawnSync } from "node:child_process"
+import { execFileSyncHidden as execFileSync, spawnSyncHidden as spawnSync } from "./lib/subprocess-options.mjs"
 import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync, statSync, unlinkSync } from "node:fs"
 import { isAbsolute, join, relative, resolve } from "node:path"
 
+import { acquireWorktreeLifecycleLock } from "./lib/worktree-lifecycle-lock.mjs"
 
 const USAGE = `usage: teardown-worktree.mjs (--issue ORB-N | --worktree <path>) [--base <ref>]
 
@@ -157,6 +158,20 @@ const selector = `path:${path}`
 const issue = worktree.linkedLinearIssue
 const branch = (worktree.branch ?? git(path, ["rev-parse", "--abbrev-ref", "HEAD"])).replace(/^refs\/heads\//, "")
 const base = requestedBase ?? worktree.baseRef ?? "main"
+const commonDir = resolve(path, git(path, ["rev-parse", "--git-common-dir"]))
+let lifecycleLock
+try {
+  lifecycleLock = acquireWorktreeLifecycleLock(commonDir)
+} catch (error) {
+  fail(error.message.includes("timed out") ? 1 : 3, error.message)
+}
+process.on("exit", () => {
+  try {
+    lifecycleLock?.release()
+  } catch (error) {
+    console.error(`could not release worktree lifecycle lock ${lifecycleLock?.path ?? commonDir}: ${error.message}`)
+  }
+})
 const dirty = git(path, ["status", "--short"]).split("\n").filter(Boolean)
 const workerMarker = join(resolve(path, git(path, ["rev-parse", "--git-dir"])), "orbit-worker-pids.jsonl")
 const workerPids = existsSync(workerMarker)
@@ -212,8 +227,6 @@ if (unmet.length > 0) {
   process.exit(unmet.some((check) => check.exitCode === 3) ? 3 : 1)
 }
 
-const commonDirRaw = git(path, ["rev-parse", "--git-common-dir"])
-const commonDir = resolve(path, commonDirRaw)
 const gitCommon = (args, { allowFailure = false } = {}) => {
   const result = spawnSync(GIT, [`--git-dir=${commonDir}`, ...args], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
   if (result.status === 0) return result.stdout.trim()

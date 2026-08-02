@@ -155,14 +155,16 @@ eligible ticket. Do not reorder waves or explicit-set members.
    iterations because an unbounded subjective loop burns the worker budget. At the cap, stop
    revising and state every unresolved finding honestly in the critique. For `parity:yes`,
    cover web and mobile, or name the platform gap and its reason. Attach the final screenshots
-   and the critique to the issue, then set the issue to In Review and own the automated review
-   cycle until the worker reports review-clear with zero unresolved threads or sends one escalation.
+   and the critique to the issue, then set the issue to In Review and wait for the worker's
+   implementation handoff. The orchestrator owns review; workers wait for and repair only findings
+   explicitly passed back.
    The branch is NOT the worker's job; step 3 hands it the contract branch already checked out.
 
    **Do NOT hand-write the STANDING clauses here.** Never ask a question, state a blocked
-   criterion as UNMET instead of stalling, own only this PR's automated review, escalate on
-   the three contract conditions, never arm a monitor that outlives the contract, post the
-   intended approach as a PR comment before writing any code, never merge:
+   criterion as UNMET instead of stalling, wait for orchestrator-owned review, repair only
+   findings passed back by the orchestrator, escalate on the three contract conditions, never
+   arm a monitor that outlives the contract, post the intended approach as a PR comment before
+   writing any code, never merge:
    all of that is `WORKER_CONTRACT` in `tools/launch-worker.mjs`, which APPENDS it to your
    prompt file at launch (idempotently). `tools/test-tools.mjs` fails if a clause is dropped,
    so the Harness Execution job is what keeps it true, not this paragraph.
@@ -393,22 +395,23 @@ liveness could not be read; answer it by finding out, never by relaunching. Read
 hand-running `orca terminal read`, which for a headless worker shows no live turn at all.
 `--repo ui|api|landing` narrows the report to one repository.
 
-After the PR opens, the implementation worker owns every repair and waits in the same worktree.
-The orchestrator coordinates but never implements or summarizes findings. `pr-watch.mjs` is only a
-wake-up; after it returns, the worker runs `worker-status.mjs --json`, whose complete changed-file and
-review inventories are the delivery gate. An informational finding is reconciled with the contract reply and fix evidence.
-Disagreement, a decision the worker may not make, or two failed cycles on one finding escalates for
-D8 adjudication. D9 still counts ticket-body implementation cycles, not review cycles.
+After the PR opens, the worker completes its handoff and waits in the same worktree. The
+orchestrator owns review and never implements repairs; workers do not invoke or authorize
+`tools/launch-pr-review.mjs`, run `pr-watch.mjs` as a review loop, or reconcile unpassed activity.
+`worker-status.mjs` is the review inventory gate. A disputed or unmakeable decision, or two failed
+repair cycles on one finding, escalates for D8 adjudication; D9 counts ticket-body cycles, not
+review cycles.
 
-**The local `/pr-review` loop applies to every pull request**, with no path, label, repository, or
-change-kind exemption. After the implementation worker pushes head H, invoke
-`tools/launch-pr-review.mjs` for that PR and exact head. Its disposable worktree runs a brand-new, context-free Codex review.
-Pass no worker transcript, prior review, suggested finding, or inherited
-session context, and re-read the PR head when the launcher returns.
+**The local `/pr-review` loop applies to every pull request**; no path, label, repository, or
+change-kind exception. The orchestrator owns the review cycle and invokes
+`tools/launch-pr-review.mjs` for every pushed head in a disposable worktree with a brand-new, context-free Codex review.
+Workers do not invoke or authorize it. Pass no worker transcript, prior review, suggested finding,
+or inherited context; re-read the head on return.
 
 - Current-head `APPROVE` passes the round.
-- `NEEDS_WORK` returns to the same implementation worker in the same worktree. `pr-watch.mjs` wakes
-  it to fix and push. When it pushes a new head, launch a brand-new reviewer and continue the loop.
+- `NEEDS_WORK` returns only the stable finding and its evidence to the same implementation worker
+  in the same worktree. A finding that has not been passed back is not actionable. After it pushes a new head,
+  launch a brand-new reviewer and continue the loop.
 - Missing, malformed, unverifiable, stale, or head-moved evidence passes nothing. Review the new head.
 
 Loop until current-head `APPROVE`; no earlier approval transfers. Then verify the approved head:
@@ -520,8 +523,9 @@ that recorded head:
    `In Progress` refuses the decision rather than assuming the evidence passed.
 5. The ticket carries no `attempts:2` label (D9 refuses it regardless of colour).
 6. **Pre-merge verification passed for the exact current head**, on section 3's terms and with
-   section 3's hard failures. The worker, not the orchestrator, handled review bodies and review
-   rounds. Return worker-actionable failures to that worker rather than repairing them here.
+   section 3's hard failures. The orchestrator handled review bodies and review rounds; the worker
+   handled only the repair findings explicitly returned to it. Return worker-actionable failures
+   to that worker rather than repairing them here.
 7. **The exact current head carries positive local Codex `APPROVE` evidence.** Re-read it rather
    than inferring it from a prior `DELIVERED` verdict. Missing, malformed, `NEEDS_WORK`, or evidence
    naming any other head refuses the unattended merge. Only after this check passes may `--sleep`

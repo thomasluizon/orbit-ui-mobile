@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { execFileSync } from "node:child_process"
+import { execFileSyncHidden as execFileSync } from "./lib/subprocess-options.mjs"
 import { renameSync, unlinkSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"

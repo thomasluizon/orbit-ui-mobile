@@ -10,7 +10,7 @@
  * launches nothing.
  */
 
-import { execFile } from "node:child_process"
+import { execFileHidden as execFile } from "./lib/subprocess-options.mjs"
 import { promisify } from "node:util"
 
 import { affectedFilesOf } from "./lib/affected-files.mjs"

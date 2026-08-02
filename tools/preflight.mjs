@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { spawn } from "node:child_process"
+import { spawnHidden as spawn } from "./lib/subprocess-options.mjs"
 import { accessSync, constants, statSync } from "node:fs"
 import { delimiter, extname, join } from "node:path"
 

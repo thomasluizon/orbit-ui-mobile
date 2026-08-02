@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process"
+import { spawnSyncHidden as spawnSync } from "../lib/subprocess-options.mjs"
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
@@ -53,6 +53,8 @@ const stageReview = (label, {
   liveHead = HEAD,
   malformedPullRequest = false,
   incompletePullRequest = false,
+  statusCheckVariant = "CheckRun",
+  workerContext = false,
   resultRepository = "thomasluizon/orbit-ui-mobile",
   resultPullRequest = 166,
   resultBase = "main",
@@ -140,12 +142,45 @@ for (const line of lines) {
 import { appendFileSync, readFileSync } from "node:fs"
 const args = process.argv.slice(2)
 const bodyIndex = args.indexOf("--body-file")
-const body = bodyIndex === -1 ? null : readFileSync(args[bodyIndex + 1], "utf8")
-appendFileSync(process.env.ORBIT_TEST_LOG, JSON.stringify({ tool: "gh", args, body }) + "\\n")
+const input = args[0] === "api" ? readFileSync(0, "utf8") : ""
+let inputPayload = null
+try { inputPayload = input.trim() ? JSON.parse(input) : null } catch { inputPayload = null }
+const body = bodyIndex === -1 ? inputPayload?.body ?? null : readFileSync(args[bodyIndex + 1], "utf8")
+appendFileSync(process.env.ORBIT_TEST_LOG, JSON.stringify({ tool: "gh", args, body, inputPayload }) + "\\n")
 if (args[0] === "pr" && args[1] === "view") {
   if (process.env.ORBIT_TEST_MALFORMED_PR === "1") console.log("not-json")
   else if (process.env.ORBIT_TEST_INCOMPLETE_PR === "1") console.log(JSON.stringify({ baseRefName: process.env.ORBIT_TEST_LIVE_BASE }))
-  else console.log(JSON.stringify({ baseRefName: process.env.ORBIT_TEST_LIVE_BASE, headRefOid: process.env.ORBIT_TEST_LIVE_HEAD, state: process.env.ORBIT_TEST_LIVE_STATE }))
+  else {
+    const statusCheckRollup = process.env.ORBIT_TEST_STATUS_CHECK_VARIANT === "StatusContext"
+      ? [{ __typename: "StatusContext", context: "Vercel", startedAt: "2026-08-01T11:37:30Z", state: "SUCCESS", targetUrl: "https://example.test/vercel" }]
+      : process.env.ORBIT_TEST_STATUS_CHECK_VARIANT === "StatusContext-incomplete"
+        ? [{ __typename: "StatusContext", context: "Vercel", startedAt: "2026-08-01T11:37:30Z", state: "SUCCESS" }]
+        : process.env.ORBIT_TEST_STATUS_CHECK_VARIANT === "StatusContext-extra"
+          ? [{ __typename: "StatusContext", context: "Vercel", startedAt: "2026-08-01T11:37:30Z", state: "SUCCESS", targetUrl: "https://example.test/vercel", extra: "unexpected" }]
+          : process.env.ORBIT_TEST_STATUS_CHECK_VARIANT === "CheckRun-incomplete"
+            ? [{ __typename: "CheckRun", completedAt: "2026-08-01T12:00:00Z", conclusion: "SUCCESS", detailsUrl: "https://example.test/check", name: "Harness Execution", startedAt: "2026-08-01T11:00:00Z", status: "COMPLETED" }]
+            : process.env.ORBIT_TEST_STATUS_CHECK_VARIANT === "CheckRun-extra"
+              ? [{ __typename: "CheckRun", completedAt: "2026-08-01T12:00:00Z", conclusion: "SUCCESS", detailsUrl: "https://example.test/check", name: "Harness Execution", startedAt: "2026-08-01T11:00:00Z", status: "COMPLETED", workflowName: "Guards", extra: "unexpected" }]
+          : [{ __typename: "CheckRun", completedAt: "2026-08-01T12:00:00Z", conclusion: "SUCCESS", detailsUrl: "https://example.test/check", name: "Harness Execution", startedAt: "2026-08-01T11:00:00Z", status: "COMPLETED", workflowName: "Guards" }]
+    console.log(JSON.stringify({
+    number: 166,
+    title: "ORB-166 review fixture",
+    body: "review fixture body",
+    author: { id: "author-1", is_bot: false, login: "thomasluizon", name: "Thomas Luizon" },
+    baseRefName: process.env.ORBIT_TEST_LIVE_BASE,
+    headRefName: "feature/orb-166-review",
+    headRefOid: process.env.ORBIT_TEST_LIVE_HEAD,
+    files: [{ additions: 1, changeType: "MODIFIED", deletions: 0, path: "tools/example.mjs" }],
+    labels: [{ color: "000000", description: null, id: "label-1", name: "harness" }],
+    statusCheckRollup,
+    state: process.env.ORBIT_TEST_LIVE_STATE,
+    isDraft: false,
+    }))
+  }
+} else if (args[0] === "api" && args[1]?.endsWith("/reviews") && args.includes("POST")) {
+  console.log(JSON.stringify({ id: 123, node_id: "PRR_test_review", body, commit_id: inputPayload.commit_id, state: "COMMENTED", submitted_at: "2026-08-01T12:00:00Z" }))
+} else if (args[0] === "api" && args[1]?.includes("/reviews/123") && args.includes("PATCH")) {
+  console.log(JSON.stringify({ id: 123, node_id: "PRR_test_review", body, commit_id: process.env.ORBIT_TEST_LIVE_HEAD, state: "COMMENTED", submitted_at: "2026-08-01T12:00:00Z" }))
 }
 `)
   const quotaStub = writeExecutable(join(base, "quota-stub.mjs"), `
@@ -196,6 +231,9 @@ console.log(JSON.stringify({ status: args[0].toUpperCase() }))
       ORBIT_TEST_LIVE_STATE: liveState,
       ORBIT_TEST_MALFORMED_PR: malformedPullRequest ? "1" : "0",
       ORBIT_TEST_INCOMPLETE_PR: incompletePullRequest ? "1" : "0",
+      ORBIT_TEST_STATUS_CHECK_VARIANT: statusCheckVariant,
+      ORBIT_LAUNCH_WORKER: workerContext ? "1" : "",
+      ORBIT_WORKER_LAUNCH_ID: workerContext ? "fixture-worker-launch" : "",
       ORBIT_TEST_REVIEW_RESULT: resultBody,
       ORBIT_TEST_CODEX_ENVELOPE: join(REPO_ROOT, "tools", "__tests__", "fixtures", "codex-exec-jsonl-observed.jsonl"),
     },
@@ -218,11 +256,19 @@ export const cases = () => {
   const properties = schema.properties
   T("launch-pr-review.mjs: provider schema pins identity, verdict, finding identity, and severity types", properties.schemaVersion?.type === "integer" && properties.repository?.type === "string" && properties.pullRequest?.type === "integer" && properties.base?.type === "string" && properties.reviewedHead?.type === "string" && properties.verdict?.type === "string" && properties.findings?.items?.properties?.id?.type === "string" && properties.findings?.items?.properties?.severity?.type === "string", JSON.stringify(properties))
 
+  const workerContext = stageReview("worker-context", { workerContext: true })
+  T(
+    "launch-pr-review.mjs: an implementation worker cannot invoke the review launcher, including ORBIT_LAUNCH_WORKER=1",
+    workerContext.result.status === 3 && /orchestrator-only|implementation worker/i.test(workerContext.result.stderr) && workerContext.calls.length === 0,
+    `exit ${workerContext.result.status}\n     stderr: ${workerContext.result.stderr}\n     calls: ${JSON.stringify(workerContext.calls)}`,
+  )
+
   const approve = stageReview("approve")
   const approveCalls = approve.calls
   const budgetCalls = approveCalls.filter((call) => call.tool === "budget")
   const codexCall = approveCalls.find((call) => call.tool === "codex")
-  const ghCall = approveCalls.find((call) => call.tool === "gh" && call.args[1] === "review")
+  const createReviewCall = approveCalls.find((call) => call.tool === "gh" && call.args[0] === "api" && call.args.includes("POST"))
+  const ghCall = approveCalls.find((call) => call.tool === "gh" && call.args[0] === "api" && call.args.includes("PATCH"))
   T("launch-pr-review.mjs: APPROVE is a successful structured result", approve.result.status === 0 && JSON.parse(approve.result.stdout).verdict === "APPROVE", approve.result.stderr)
   const liveReadIndex = approveCalls.findIndex((call) => call.tool === "gh" && call.args.slice(0, 2).join(" ") === "pr view")
   const reserveIndex = approveCalls.findIndex((call) => call.tool === "budget" && call.args[0] === "reserve")
@@ -233,15 +279,16 @@ export const cases = () => {
   T("launch-pr-review.mjs: the disposable worktree is detached at the observed pull request head", worktreeAdd?.args.includes("--detach") && worktreeAdd.args.at(-1) === HEAD, JSON.stringify(worktreeAdd))
   T("launch-pr-review.mjs: the synchronous Codex child is claimed and recorded", budgetCalls.some((call) => call.args[0] === "claim") && budgetCalls.some((call) => call.args[0] === "record" && call.args.includes("17244") && call.args.includes("9984") && call.args.includes("5")), JSON.stringify(budgetCalls))
   T("launch-pr-review.mjs: Codex is fresh Sol high, read-only, ephemeral, schema-bound, review-only, and lacks both signing keys", codexCall?.args.includes("gpt-5.6-sol") && codexCall.args.includes('model_reasoning_effort="high"') && codexCall.args.includes("--sandbox") && codexCall.args.includes("read-only") && codexCall.args.includes("--ephemeral") && codexCall.args.includes("--output-schema") && !codexCall.args.includes("--dangerously-bypass-approvals-and-sandbox") && codexCall.marker === "1" && codexCall.reviewAuthorityPrivateKeyPresent === false && codexCall.workerLaunchAuthorityPrivateKeyPresent === false && !codexCall.prompt.includes("Standing worker contract"), JSON.stringify(codexCall))
-  T("launch-pr-review.mjs: general exec reads the exact diff review prompt from trusted-base policy files", codexCall?.args[0] === "exec" && codexCall.args.at(-1) === "-" && !codexCall.args.includes("review") && !codexCall.args.includes("--base") && !approveCalls.some((call) => call.tool === "git" && call.args[0] === "update-ref") && codexCall.prompt.includes(`complete ${BASE}...${HEAD} diff`) && /review skill at .*trusted-policy[\\/]\.claude[\\/]skills[\\/]pr-review[\\/]SKILL\.md/.test(codexCall.prompt) && /rubric at .*trusted-policy[\\/]\.claude[\\/]skills[\\/]pr-review[\\/]rubric\.md/.test(codexCall.prompt) && codexCall.prompt.includes("loaded from").valueOf(), JSON.stringify(codexCall))
+  T("launch-pr-review.mjs: general exec reads the exact diff review prompt from trusted-base policy files", codexCall?.args[0] === "exec" && codexCall.args.at(-1) === "-" && !codexCall.args.includes("review") && !codexCall.args.includes("--base") && !approveCalls.some((call) => call.tool === "git" && call.args[0] === "update-ref") && codexCall.prompt.includes(`complete ${BASE}...${HEAD} diff`) && /review skill at .*trusted-policy[\\/]\.claude[\\/]skills[\\/]pr-review[\\/]SKILL\.md/.test(codexCall.prompt) && /rubric at .*trusted-policy[\\/]\.claude[\\/]skills[\\/]pr-review[\\/]rubric\.md/.test(codexCall.prompt) && codexCall.prompt.includes("loaded from") && codexCall.prompt.includes("live-pull-request-snapshot") && codexCall.prompt.includes("Harness Execution").valueOf(), JSON.stringify(codexCall))
   T("launch-pr-review.mjs: a target without review assets still uses trusted-base policy paths", codexCall?.prompt.includes("trusted-policy") && !codexCall.prompt.includes(join(codexCall.cwd, "AGENTS.md")) && !codexCall.prompt.includes(join(codexCall.cwd, "CLAUDE.md")), codexCall?.prompt)
-  T("launch-pr-review.mjs: the durable COMMENTED review carries an authenticated marker, verdict, and exact head", ghCall?.args.slice(0, 3).join(" ") === "pr review 166" && ghCall.args.includes("--comment") && ghCall.body?.startsWith(`<!-- orbit-local-review: {"version":1,"head":"${HEAD}","recommendation":"APPROVE","provenance":`) && ghCall.body.includes('"verdict": "APPROVE"'), JSON.stringify(ghCall))
+  T("launch-pr-review.mjs: the durable COMMENTED review carries an authenticated marker, verdict, and exact head", createReviewCall?.body?.startsWith("orbit-local-review-pending:") && ghCall?.args.includes("PATCH") && ghCall.body?.startsWith(`<!-- orbit-local-review: {"version":1,"head":"${HEAD}","recommendation":"APPROVE","provenance":`) && ghCall.body.includes('"verdict": "APPROVE"'), JSON.stringify({ createReviewCall, ghCall }))
   const evidence = evaluateReviewEvidence({
     headRefOid: HEAD,
     files: { pageInfo: { hasNextPage: false }, nodes: [] },
     reviews: {
       pageInfo: { hasNextPage: false },
       nodes: [{
+        id: "PRR_test_review",
         state: "COMMENTED",
         body: ghCall?.body,
         submittedAt: "2026-07-31T10:00:00Z",
@@ -253,15 +300,28 @@ export const cases = () => {
   }, HEAD, { ledgerPath: approve.ledgerPath, repository: "thomasluizon/orbit-ui-mobile", pullRequest: 166 })
   T("launch-pr-review.mjs: its COMMENTED body passes the merge gate's evidence parser", evidence.ok && evidence.status === "APPROVE", JSON.stringify(evidence))
 
+  const statusContext = stageReview("status-context", { statusCheckVariant: "StatusContext" })
+  T("launch-pr-review.mjs: a complete StatusContext rollup item follows the live PR decision path", statusContext.result.status === 0 && JSON.parse(statusContext.result.stdout).verdict === "APPROVE", `${statusContext.result.status}\n${statusContext.result.stderr}`)
+
+  for (const [label, statusCheckVariant] of [
+    ["status-context-incomplete", "StatusContext-incomplete"],
+    ["status-context-extra", "StatusContext-extra"],
+    ["check-run-incomplete", "CheckRun-incomplete"],
+    ["check-run-extra", "CheckRun-extra"],
+  ]) {
+    const invalidStatusContext = stageReview(label, { statusCheckVariant })
+    T(`launch-pr-review.mjs: ${statusCheckVariant} rollup items are rejected before reservation`, invalidStatusContext.result.status === 3 && /statusCheckRollup|complete/.test(invalidStatusContext.result.stderr) && !invalidStatusContext.calls.some((call) => call.tool === "budget") && !invalidStatusContext.calls.some((call) => call.tool === "git" && ["fetch", "worktree", "update-ref"].includes(call.args[0])), `${invalidStatusContext.result.status}\n${invalidStatusContext.result.stderr}\n${JSON.stringify(invalidStatusContext.calls)}`)
+  }
+
   const localSkill = stageReview("local-skill", { localReviewSkill: true })
   const localCodex = localSkill.calls.find((call) => call.tool === "codex")
   T("launch-pr-review.mjs: hostile target-local policy copies are ignored in favor of the trusted base", localSkill.result.status === 0 && localCodex?.prompt.includes("trusted-policy") && !localCodex.prompt.includes("target-local skill") && !localCodex.prompt.includes("target agents") && !localCodex.prompt.includes(join(localCodex.cwd, ".claude", "skills", "pr-review", "SKILL.md")), `${localSkill.result.status}\n${localSkill.result.stderr}\n${localCodex?.prompt}`)
 
   const needsWork = stageReview("needs-work", { verdict: "NEEDS_WORK", findings: [{ id: "finding-0123456789abcdef0123456789abcdef", severity: "High", title: "Unsafe path", path: "tools/x.mjs", line: 7, evidence: "The branch skips validation.", remediation: "Validate before use." }] })
-  T("launch-pr-review.mjs: NEEDS_WORK is durable and exits 4", needsWork.result.status === 4 && JSON.parse(needsWork.result.stdout).verdict === "NEEDS_WORK" && needsWork.calls.some((call) => call.tool === "gh" && call.args[1] === "review" && call.body.includes('"verdict": "NEEDS_WORK"')), `${needsWork.result.status}\n${needsWork.result.stderr}`)
+  T("launch-pr-review.mjs: NEEDS_WORK is durable and exits 4", needsWork.result.status === 4 && JSON.parse(needsWork.result.stdout).verdict === "NEEDS_WORK" && needsWork.calls.some((call) => call.tool === "gh" && call.args[0] === "api" && call.args.includes("PATCH") && call.body.includes('"verdict": "NEEDS_WORK"')), `${needsWork.result.status}\n${needsWork.result.stderr}`)
 
   const moved = stageReview("moved", { moved: true })
-  T("launch-pr-review.mjs: a head move refuses the result before commenting", moved.result.status === 3 && /head moved/.test(moved.result.stderr) && !moved.calls.some((call) => call.tool === "gh" && call.args[1] === "review"), `${moved.result.status}\n${moved.result.stderr}\n${JSON.stringify(moved.calls)}`)
+  T("launch-pr-review.mjs: a head move refuses the result before commenting", moved.result.status === 3 && /head moved/.test(moved.result.stderr) && !moved.calls.some((call) => call.tool === "gh" && call.args[0] === "api" && call.args.includes("POST")), `${moved.result.status}\n${moved.result.stderr}\n${JSON.stringify(moved.calls)}`)
 
   const malformedUsage = stageReview("malformed-usage", { malformedUsage: true })
   const malformedBudget = malformedUsage.calls.filter((call) => call.tool === "budget")
@@ -291,7 +351,7 @@ export const cases = () => {
     ["result-base", { resultBase: "release" }, /base/],
   ]) {
     const mismatch = stageReview(label, options)
-    T(`launch-pr-review.mjs: a schema-valid ${label} identity mismatch cannot post evidence`, mismatch.result.status === 3 && pattern.test(mismatch.result.stderr) && !mismatch.calls.some((call) => call.tool === "gh" && call.args[1] === "review"), `${mismatch.result.status}\n${mismatch.result.stderr}\n${JSON.stringify(mismatch.calls)}`)
+    T(`launch-pr-review.mjs: a schema-valid ${label} identity mismatch cannot post evidence`, mismatch.result.status === 3 && pattern.test(mismatch.result.stderr) && !mismatch.calls.some((call) => call.tool === "gh" && call.args[0] === "api" && call.args.includes("POST")), `${mismatch.result.status}\n${mismatch.result.stderr}\n${JSON.stringify(mismatch.calls)}`)
   }
 
   const invalid = spawnSync(process.execPath, [toolPath("launch-pr-review.mjs"), "--orbit-not-a-flag"], { encoding: "utf8" })

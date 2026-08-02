@@ -18,7 +18,7 @@
  * Exit 0 created and valid, 1 created but DEFECTIVE, 2 usage error, 3 orca error.
  */
 
-import { execFileSync } from "node:child_process"
+import { execFileSyncHidden as execFileSync } from "./lib/subprocess-options.mjs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 

@@ -17,13 +17,11 @@
  * reviews, or moves a Linear issue.
  */
 
-import { execFileSync, spawn, spawnSync } from "node:child_process"
+import { execFileSyncHidden as execFileSync, spawnHidden as spawn, spawnSyncHidden as spawnSync } from "./lib/subprocess-options.mjs"
 import { generateKeyPairSync, randomUUID } from "node:crypto"
 import {
   appendFileSync,
-  closeSync,
   existsSync,
-  openSync,
   readFileSync,
   statSync,
   unlinkSync,
@@ -41,6 +39,7 @@ import {
 } from "./lib/automation-launch-budget.mjs"
 import { FINDING_SCOPE, STRIKES_BEFORE_ESCALATION, recordStrike, strikeCount, strikeLedgerPath } from "./lib/strike-ledger.mjs"
 import { REVIEW_AUTHORITY_PRIVATE_KEY_ENV } from "./lib/review-provenance.mjs"
+import { acquireWorktreeLifecycleLock } from "./lib/worktree-lifecycle-lock.mjs"
 import {
   assertWorkerLaunchAuthority,
   signWorkerLaunchRecord,
@@ -265,31 +264,23 @@ conflict with anything above, these win.
    and still complete the contract: gates, commit, push, PR, attach, In Review. Unmet and stated
    is acceptable; unmentioned is not. The pull request must be ready for review, never a draft.
    Never silently drop a criterion.
-3. **Own the automated review cycle.** After the PR is open, attached, and In Review, poll its
-   review transitions with a foreground blocking \`node tools/pr-watch.mjs --repo <owner/name> --pr <number>\`.
-   Every wait must state \`yield_time_ms\` explicitly, at or above the whole expected wait. After every call and before waiting or reporting
-   completion, run \`node tools/worker-status.mjs --worktree <path> --issue ORB-N --json\`.
-   That full-surface completion poll inventories review submissions, review threads and their
-   nested comments, and PR conversation comments, and fails closed on an incomplete inventory.
-   Read unmet item bodies through GitHub's read APIs, reconcile them against the diff, then poll
-   again. For each valid finding, fix it, run the affected gates, commit and push, reply on that
-   thread naming the fix commit, then resolve it.
-   An informational automated finding that needs no code change may be resolved after replying
-   \`No code change required: <reason>. Evidence: <PR commit>\`; the named commit must be on the
-   PR and change the reviewed path. Never resolve a thread opened by a human account.
-   CHANGES_REQUESTED blocks. No approval is required. If an approval exists, it must name the
-   current head. Repeat until there are zero unresolved threads and every automated review item is reconciled.
-   For an automated finding in a review body or PR conversation comment with
-   no thread, post a PR comment naming that activity ID and the PR commit that addresses it.
-4. **Escalate instead of guessing.** Escalate when you disagree with a finding, when you are
-   blocked on a decision you may not make, or when two consecutive cycles fail on the same
+3. **Wait for orchestrator-owned review.** After the PR is open, attached, and In Review, do not
+   invoke or authorize \`tools/launch-pr-review.mjs\`, and do not run \`tools/pr-watch.mjs\` or
+   \`tools/worker-status.mjs\` as a review loop. The orchestrator launches a fresh isolated
+   Sol/high review for every pushed head. A NEEDS_WORK result returns only its stable finding and
+   evidence to this implementation worker and worktree; repair only that passed-back finding,
+   then run the affected gates, commit and push. A changed head requires a fresh orchestrator
+   review, so report AWAITING-REVIEW rather than review-clear. Never review or reconcile a finding
+   that the orchestrator did not pass back.
+4. **Escalate instead of guessing.** Escalate when a returned finding is disputed, when you are
+   blocked on a decision you may not make, or when two consecutive repair cycles fail on the same
    finding. Do not try that finding a third time. Send one escalation carrying the disputed
    finding and your reasoning.
-5. **Your job ends on one report.** Report completion once CHANGES_REQUESTED is absent, any
-   existing approval names the current head, and there are zero unresolved threads and every automated review item is reconciled;
-   or send the escalation from clause 4. An earlier instruction to stop
-   after opening or attaching the PR does not replace this endpoint. If your work order tells you
-   both to watch something and to stop, STOP wins. Never watch another ticket, worktree, or PR.
+5. **Your job ends on one implementation handoff.** Report completion after the implementation
+   gates, commit, push, PR, attachment, and In Review handoff are complete. Do not claim review-clear
+   or resolve review activity; the orchestrator owns that loop. If the orchestrator returns a
+   stable finding, repair only that finding and hand the changed head back for fresh review. Never
+   watch another ticket, worktree, or PR.
 6. **Never arm a detached background monitor, watcher or wait loop that outlives this contract.** A foreground blocking wait is permitted.
 7. **Never merge any PR, never push to \`main\`, never use \`--no-verify\`, never edit a gate
    baseline, never run \`gh pr merge --admin\`, never directly call \`PUT /repos/{owner}/{repo}/pulls/{number}/merge\`, and never directly call the GraphQL \`mergePullRequest\` mutation. If a merge genuinely needs an admin override, STOP and ask Thomas to merge it himself; never perform the override.**
@@ -338,9 +329,11 @@ ${REPAIR_CONTRACT_MARKER}
 This is a repair launch in the existing worktree, owned by the same implementation worker. Repair
 only the stable finding \`${finding}\` from the current review. Inspect the current diff and the
 finding evidence before changing code. You may edit, run gates, commit the repair, push the
-existing branch, update the existing pull request, and own its review cycle. Do not merge, push
-main or redesign/main, change Linear, or modify files outside this finding's repair. Stage only
-paths you edited. Never ask a question; record any blocked sub-step in the pull request and report.
+existing branch, and update the existing pull request. Do not invoke or authorize
+\`tools/launch-pr-review.mjs\`; after pushing, report AWAITING-REVIEW so the orchestrator can
+launch a fresh review for the changed head. Do not merge, push main or redesign/main, change
+Linear, or modify files outside this finding's repair. Stage only paths you edited. Never ask a
+question; record any blocked sub-step in the pull request and report.
 `
 
 /**
@@ -353,18 +346,16 @@ paths you edited. Never ask a question; record any blocked sub-step in the pull 
 let rollback = null
 let budgetReservation = null
 let reservationMaySpend = false
-let concurrencyReservation = null
+let lifecycleLock = null
 
 const releaseConcurrencyReservation = () => {
-  if (!concurrencyReservation) return
-  const { path, token } = concurrencyReservation
-  concurrencyReservation = null
+  if (!lifecycleLock) return
+  const held = lifecycleLock
+  lifecycleLock = null
   try {
-    if (readFileSync(path, "utf8") === token) unlinkSync(path)
+    held.release()
   } catch (error) {
-    if (error.code !== "ENOENT") {
-      console.error(`could not release launch reservation ${path}: ${error.message}`)
-    }
+    console.error(`could not release worktree lifecycle lock ${held.path}: ${error.message}`)
   }
 }
 
@@ -380,21 +371,22 @@ const fail = (code, message) => {
     console.error(`rolling back ${selector} so a relaunch starts clean`)
     /**
      * `orca worktree create` spawns its own startup PTYs (a shell, plus the repo's setup hook,
-     * which is `npm install` here). `worktree rm --force` fails with "Failed to physically stop
+     * which is `npm install` here). Worktree removal can fail with "Failed to physically stop
      * every PTY" while one of those is still alive, so stop them first and give a slow one a
      * second chance before giving up. Measured on this branch: the first rollback attempt
-     * failed exactly this way with npm install still running.
+     * failed exactly this way with npm install still running. Removal stays ordinary because a
+     * forced removal can follow a Windows junction into the linked checkout target.
      */
     spawnSync(ORCA, ["terminal", "stop", "--worktree", selector, "--json"], { encoding: "utf8" })
-    let removal = spawnSync(ORCA, ["worktree", "rm", "--worktree", selector, "--force", "--json"], { encoding: "utf8" })
+    let removal = spawnSync(ORCA, ["worktree", "rm", "--worktree", selector, "--json"], { encoding: "utf8" })
     if (removal.status !== 0) {
       pause(5000)
       spawnSync(ORCA, ["terminal", "stop", "--worktree", selector, "--json"], { encoding: "utf8" })
-      removal = spawnSync(ORCA, ["worktree", "rm", "--worktree", selector, "--force", "--json"], { encoding: "utf8" })
+      removal = spawnSync(ORCA, ["worktree", "rm", "--worktree", selector, "--json"], { encoding: "utf8" })
     }
     if (removal.status !== 0) {
       console.error(`could not remove the worktree: ${(removal.stdout || removal.stderr || "").trim().slice(0, 300)}`)
-      console.error(`remove it by hand before relaunching: orca worktree rm --worktree ${selector} --force`)
+      console.error(`remove it by hand before relaunching: orca worktree rm --worktree ${selector}`)
     } else {
       cleanupConfirmed = true
     }
@@ -531,81 +523,15 @@ try {
   fail(2, error.message)
 }
 
-const processIsAlive = (pid) => {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (error) {
-    return error.code !== "ESRCH"
-  }
-}
-
-const unlinkReservation = (path) => {
-  try {
-    unlinkSync(path)
-    return true
-  } catch (error) {
-    if (error.code === "ENOENT") return false
-    throw error
-  }
-}
-
 const acquireConcurrencyReservation = (repoPath) => {
   const gitCommonDirectory = resolve(
     repoPath,
     git(["-C", repoPath, "rev-parse", "--git-common-dir"]),
   )
-  const path = join(gitCommonDirectory, "orbit-launch-worker.lock")
-  const token = JSON.stringify({ pid: process.pid, startedAt: Date.now() })
-  const deadline = Date.now() + 5 * 60 * 1000
-
-  while (true) {
-    let descriptor
-    try {
-      descriptor = openSync(path, "wx")
-      writeFileSync(descriptor, token, "utf8")
-      closeSync(descriptor)
-      concurrencyReservation = { path, token }
-      return
-    } catch (error) {
-      if (descriptor !== undefined) {
-        try {
-          closeSync(descriptor)
-        } catch {
-          // The descriptor may already have closed before a later setup step failed.
-        }
-        unlinkReservation(path)
-      }
-      if (error.code !== "EEXIST") {
-        fail(3, `could not reserve a concurrency slot for ${repoPath}: ${error.message}`)
-      }
-    }
-
-    try {
-      const owner = JSON.parse(readFileSync(path, "utf8"))
-      if (Number.isInteger(owner.pid) && !processIsAlive(owner.pid)) {
-        unlinkReservation(path)
-        continue
-      }
-    } catch (error) {
-      if (error.code === "ENOENT") continue
-      let stale = false
-      try {
-        stale = Date.now() - statSync(path).mtimeMs > 5000
-      } catch (statError) {
-        if (statError.code === "ENOENT") continue
-        fail(3, `could not inspect launch reservation ${path}: ${statError.message}`)
-      }
-      if (stale) {
-        unlinkReservation(path)
-        continue
-      }
-    }
-
-    if (Date.now() >= deadline) {
-      fail(1, `timed out waiting for another launch reservation in ${repoPath}`)
-    }
-    pause(100)
+  try {
+    lifecycleLock = acquireWorktreeLifecycleLock(gitCommonDirectory)
+  } catch (error) {
+    fail(error.message.includes("timed out") ? 1 : 3, error.message)
   }
 }
 
@@ -1299,7 +1225,6 @@ const created = orca([
   "--no-parent",
   "--comment", comment,
 ])
-releaseConcurrencyReservation()
 const worktreePath = created.worktree?.path
 if (!worktreePath) fail(3, `orca worktree create returned no path: ${JSON.stringify(created).slice(0, 400)}`)
 const worktreeSelector = `path:${worktreePath}`
@@ -1322,8 +1247,9 @@ if (actualBranch !== branch) fail(3, `expected the worktree on ${branch}, found 
 
 if (engine.interactive === false) {
   const launch = startHeadlessWorker(worktreePath, branch, "new-worktree")
-  rollback = null
   orca(["worktree", "set", "--worktree", worktreeSelector, "--comment", comment, "--workspace-status", workspaceStatus])
+  releaseConcurrencyReservation()
+  rollback = null
   console.log(JSON.stringify({ ...plan, launchMode: "new-worktree", worktreePath, worktreeSelector, workerPid: launch.workerPid, launchId: launch.launchId }, null, 2))
   process.exit(0)
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { spawnSync } from "node:child_process"
+import { spawnSyncHidden as spawnSync } from "./lib/subprocess-options.mjs"
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { dirname, join, relative, resolve } from "node:path"

@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process"
+import { spawnSyncHidden as spawnSync } from "../lib/subprocess-options.mjs"
 import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
@@ -106,8 +106,11 @@ const stageContextBudget = (label, options = {}) => {
   const core = options.core ?? CONTEXT_CORE
   const skill = options.skill === null ? null : (options.skill ?? CONTEXT_SKILL)
   mkdirSync(tools, { recursive: true })
+  mkdirSync(join(tools, "lib"), { recursive: true })
   mkdirSync(rules, { recursive: true })
   cpSync(join(TOOLS_DIR, "check-context-budget.mjs"), join(tools, "check-context-budget.mjs"))
+  mkdirSync(join(tools, "lib"), { recursive: true })
+  cpSync(join(TOOLS_DIR, "lib", "subprocess-options.mjs"), join(tools, "lib", "subprocess-options.mjs"))
   writeFileSync(join(repo, "CLAUDE.md"), claude)
   writeFileSync(join(rules, "core.md"), core)
   writeFileSync(join(repo, ".gitattributes"), options.gitattributes ?? CONTEXT_GITATTRIBUTES)

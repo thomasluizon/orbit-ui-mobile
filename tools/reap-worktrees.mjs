@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** Remove linked, completed Orca worktrees through safe teardown. */
 
-import { execFileSync, spawnSync } from "node:child_process"
+import { execFileSyncHidden as execFileSync, spawnSyncHidden as spawnSync } from "./lib/subprocess-options.mjs"
 import { fileURLToPath } from "node:url"
 
 const USAGE = `usage: reap-worktrees.mjs [--json]

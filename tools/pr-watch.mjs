@@ -19,7 +19,7 @@
  * is deliberately not a transition.
  */
 
-import { execFileSync } from "node:child_process"
+import { execFileSyncHidden as execFileSync } from "./lib/subprocess-options.mjs"
 
 import { evaluateReviewEvidence, isReviewEvidenceCandidate } from "./check-review-evidence.mjs"
 
@@ -129,7 +129,7 @@ const QUERY = `query($owner:String!,$name:String!,$number:Int!){
       number url state merged isDraft mergeStateStatus reviewDecision headRefOid
       files(first:100){pageInfo{hasNextPage}nodes{path}}
       latestReviews(last:20){nodes{state body author{login} commit{oid}}}
-      reviews(first:100){pageInfo{hasNextPage} nodes{state body submittedAt updatedAt lastEditedAt url author{login} commit{oid}}}
+      reviews(first:100){pageInfo{hasNextPage} nodes{id state body submittedAt updatedAt lastEditedAt url author{login} commit{oid}}}
       commits(last:1){nodes{commit{statusCheckRollup{state contexts(last:100){nodes{
         __typename
         ... on CheckRun{name status conclusion startedAt}

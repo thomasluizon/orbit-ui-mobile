@@ -300,6 +300,7 @@ const aiQuotaCases = () => {
           ],
         },
       ], join(root, "missing-codex")),
+      AI_QUOTA_TIMEOUT_MS: "10000",
       ORBIT_ORCA_LOG: indexLog,
     },
   })

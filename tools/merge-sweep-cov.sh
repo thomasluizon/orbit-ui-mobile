@@ -518,7 +518,7 @@ review_safety_gate() { # <pr> <pre|post>; prints the fail-closed reason
 review_evidence_allows() { # <pr> <expected-head-sha>; prints the refusal reason
   local pr="$1" expected="$2" reviews verdict
   if ! reviews="$(gh api graphql \
-    -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){headRefOid files(first:100){pageInfo{hasNextPage} nodes{path}} reviews(first:100){pageInfo{hasNextPage} nodes{state body submittedAt updatedAt lastEditedAt url author{login} commit{oid}}}}}}' \
+    -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){headRefOid files(first:100){pageInfo{hasNextPage} nodes{path}} reviews(first:100){pageInfo{hasNextPage} nodes{id state body submittedAt updatedAt lastEditedAt url author{login} commit{oid}}}}}}' \
     -F o="${repo%%/*}" -F r="${repo##*/}" -F n="$pr" \
     --jq '.data.repository.pullRequest' 2>/dev/null)"; then
     echo "SKIP #$pr REVIEW-EVIDENCE-LOOKUP-FAILED"

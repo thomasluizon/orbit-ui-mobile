@@ -1,13 +1,14 @@
-import { spawnSync } from "node:child_process"
-import { readFileSync, writeFileSync } from "node:fs"
+import { spawnSyncHidden as spawnSync } from "../lib/subprocess-options.mjs"
+import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { TOOLS_DIR, T, WORKER_LAUNCH_LEDGER, forgedReviewMarker, root, mergeSweepEnv as baseMergeSweepEnv, mergeSweepCalls, orphanCaseKeys, reviewMarker, toolPath, run, check, writeCompletedWorkerLaunch } from "./_harness.mjs"
+import { BASH, TOOLS_DIR, T, WORKER_LAUNCH_LEDGER, forgedReviewMarker, root, stage, mergeSweepEnv as baseMergeSweepEnv, mergeSweepCalls, orphanCaseKeys, reviewMarker, toolPath, run, check, writeCompletedWorkerLaunch } from "./_harness.mjs"
 
 const reviewEvidenceJson = (head, approvalCommits = "__HEAD__", recommendation = "APPROVE", reviewBody = null) => {
   const files = { pageInfo: { hasNextPage: approvalCommits === "FILES_PAGINATED" }, nodes: [{ path: "tools/example.mjs" }] }
   if (approvalCommits === "PAGINATED") return JSON.stringify({ headRefOid: head, files, reviews: { pageInfo: { hasNextPage: true }, nodes: [] } })
   const local = {
+    id: "PRR_local_review",
     state: "COMMENTED",
     body: reviewBody ?? reviewMarker({ repository: "thomasluizon/orbit-ui-mobile", pullRequest: 615, head, recommendation, findingIds: recommendation === "NEEDS_WORK" ? ["finding-0123456789abcdef0123456789abcdef"] : [] }),
     submittedAt: "2026-07-31T10:00:00Z",
@@ -19,6 +20,7 @@ const reviewEvidenceJson = (head, approvalCommits = "__HEAD__", recommendation =
   }
   const nativeHeads = approvalCommits === "__HEAD__" ? [head] : approvalCommits.split(/\s+/).filter(Boolean)
   const native = nativeHeads.map((oid, index) => ({
+    id: `PRR_native_review_${index}`,
     state: "APPROVED",
     body: "",
     submittedAt: `2026-07-31T09:00:0${index}Z`,
@@ -151,6 +153,105 @@ const mergeSweepCliFlagCases = () => {
       helpers.map(({ filename, helper }) => `${filename}: ${helper.length} bytes`).join("\n     "),
     )
   }
+}
+
+const processTreeVisibilityCase = () => {
+  if (process.platform !== "win32") {
+    T("Windows process-tree visibility regression is deterministic outside Windows", true, "the OS window probe is Windows-only")
+    return
+  }
+  const fixtureRoot = join(root, "process-tree-visibility-fixture")
+  const readyPath = join(fixtureRoot, "nested.ready")
+  const expectedHead = "1111111111111111111111111111111111111111"
+  const log = join(fixtureRoot, "merge-sweep.log")
+  const nestedBash = existsSync("C:\\Program Files\\Git\\bin\\bash.exe") ? "C:\\Program Files\\Git\\bin\\bash.exe" : BASH
+  const fixture = stage(
+    "process-tree-visibility-fixture/fixture.sh",
+    [
+      "#!/usr/bin/env bash",
+      "set -eu",
+      "\"$ORBIT_REAL_BASH\" \"$ORBIT_REAL_MERGE_SWEEP\" --expected-head \"615=$ORBIT_EXPECTED_HEAD\" --reviewed-through \"615=2026-07-28T00:00:00Z\" --issue \"615=ORB-150\" thomasluizon/orbit-ui-mobile 615 &",
+      "printf 'ready' > \"$ORBIT_PROCESS_TREE_READY\"",
+      "while :; do sleep 1; done",
+    ].join("\n"),
+  )
+  const result = run("merge-sweep.sh", [], {
+    path: fixture,
+    timeoutMs: 3000,
+    cleanupPath: fixtureRoot,
+    processTreeObservation: { readyPath, settleMs: 500, timeoutMs: 2000 },
+    env: {
+      ...baseMergeSweepEnv({ head: expectedHead, log, sonar: "success", state: "CLEAN", approvalCommits: reviewEvidenceJson(expectedHead) }),
+      BASH_ENV: "",
+      ORBIT_EXPECTED_HEAD: expectedHead,
+      ORBIT_PROCESS_TREE_READY: readyPath.replaceAll("\\", "/"),
+      ORBIT_REAL_BASH: nestedBash.replaceAll("\\", "/"),
+      ORBIT_REAL_MERGE_SWEEP: join(TOOLS_DIR, "merge-sweep.sh").replaceAll("\\", "/"),
+    },
+  })
+  const descendants = result.processTree?.descendants ?? []
+  const visible = descendants.filter(({ mainWindowHandle }) => Number(mainWindowHandle) > 0)
+  const bashProcesses = descendants.filter(({ name }) => /bash(?:\.exe)?$/i.test(name ?? ""))
+  T(
+    "Windows process-tree regression observes every nested Git Bash descendant and rejects visible top-level windows",
+    result.status === "timed out" && result.processTree?.ready === true && bashProcesses.length >= 3 && visible.length === 0,
+    JSON.stringify({ status: result.status, bashProcesses, visible, processTree: result.processTree, stderr: result.stderr }),
+  )
+}
+
+const processTreeTimeoutCase = () => {
+  const fixtureRoot = join(root, "process-tree-timeout-fixture")
+  const stateRoot = join(root, "process-tree-timeout-state")
+  const descendantPidPath = join(stateRoot, "descendant.pid")
+  const descendantScript = stage(
+    "process-tree-timeout-fixture/descendant.mjs",
+    [
+      "import { writeFileSync } from \"node:fs\"",
+      "writeFileSync(process.env.ORBIT_TIMEOUT_DESCENDANT_PID, String(process.pid))",
+      "setInterval(() => {}, 1000)",
+    ].join("\n"),
+  )
+  stage("process-tree-timeout-state/last-output.txt", "")
+  const fixture = stage(
+    "process-tree-timeout-fixture/fixture.sh",
+    [
+      "#!/usr/bin/env bash",
+      "set -eu",
+      "node \"$ORBIT_TIMEOUT_DESCENDANT_SCRIPT\" &",
+      "printf '%s' \"$!\" > \"$ORBIT_TIMEOUT_SHELL_PID\"",
+      "printf 'merge-sweep-fixture-last-output\\n'",
+      "while :; do sleep 1; done",
+    ].join("\n"),
+  )
+  const result = run("merge-sweep.sh", [], {
+    path: fixture,
+    timeoutMs: 500,
+    cleanupPath: fixtureRoot,
+    env: {
+      BASH_ENV: "",
+      ORBIT_TIMEOUT_DESCENDANT_PID: descendantPidPath,
+      ORBIT_TIMEOUT_DESCENDANT_SCRIPT: descendantScript,
+      ORBIT_TIMEOUT_SHELL_PID: join(stateRoot, "shell.pid"),
+    },
+  })
+  let descendantAlive = false
+  let descendantPid = Number.NaN
+  if (existsSync(descendantPidPath)) {
+    descendantPid = Number(readFileSync(descendantPidPath, "utf8"))
+    if (Number.isInteger(descendantPid)) {
+      try {
+        process.kill(descendantPid, 0)
+        descendantAlive = true
+      } catch (error) {
+        descendantAlive = error.code !== "ESRCH"
+      }
+    }
+  }
+  T(
+    "test harness: a timed-out Git Bash child returns, kills its descendant, and cleans only its fixture subtree",
+    result.status === "timed out" && /merge-sweep-fixture-last-output/.test(result.stdout) && !descendantAlive && !existsSync(fixtureRoot),
+    `exit ${result.status}; descendant ${descendantPid} alive=${descendantAlive}; fixture exists=${existsSync(fixtureRoot)}\\n     stdout: ${result.stdout}\\n     stderr: ${result.stderr}`,
+  )
 }
 
 const mergeSweepCases = (file) => {
@@ -1064,6 +1165,8 @@ const mergeSweepCases = (file) => {
 }
 
 export const cases = () => {
+    processTreeVisibilityCase()
+    processTreeTimeoutCase()
     mergeSweepCliFlagCases()
     mergeSweepCases("merge-sweep.sh")
   }

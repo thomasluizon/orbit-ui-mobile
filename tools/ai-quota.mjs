@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { execFile, spawn, spawnSync } from "node:child_process"
+import { execFileHidden as execFile, spawnHidden as spawn, spawnSyncHidden as spawnSync } from "./lib/subprocess-options.mjs"
 import { promisify } from "node:util"
 
 const USAGE = `usage: ai-quota.mjs --json

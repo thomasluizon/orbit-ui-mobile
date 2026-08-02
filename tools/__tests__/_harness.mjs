@@ -7,7 +7,7 @@
  * never silently resolve tools/__tests__ as the tools directory.
  */
 
-import { spawn, spawnSync } from "node:child_process"
+import { spawnHidden as spawn, spawnSyncHidden as spawnSync } from "../lib/subprocess-options.mjs"
 import { createHash, generateKeyPairSync, sign } from "node:crypto"
 import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
@@ -139,11 +139,12 @@ export const writeCompletedWorkerLaunch = ({
   return { launchRecord, completedRecord }
 }
 
-export const reviewMarker = ({ head, recommendation, findingIds = [], repository = "orbit/ui", pullRequest = 615 }) => {
+export const reviewMarker = ({ head, recommendation, findingIds = [], repository = "orbit/ui", pullRequest = 615, reviewNodeId = "PRR_local_review" }) => {
   const provenance = issueReviewProvenance({
     repository,
     pullRequest,
     head,
+    reviewNodeId,
     recommendation,
     findingIds,
     ledgerPath: REVIEW_EVIDENCE_LEDGER,
@@ -376,7 +377,7 @@ if (match.delayMs) {
   if (timingLog) appendFileSync(timingLog, JSON.stringify({ event: "end", line, pid: process.pid }) + "\\n")
 }
 if (match.removePath) rmSync(match.removePath, { recursive: true, force: true })
-if (match.pruneRepo) spawnSync("git", ["-C", match.pruneRepo, "worktree", "prune"])
+if (match.pruneRepo) spawnSync("git", ["-C", match.pruneRepo, "worktree", "prune"], { windowsHide: true })
 let out = match.stdout
 let exit = match.exit ?? 0
 if (line.includes("worktree ps") && process.env.ORBIT_ENUMERATION_ACTIVITY_MARKER && existsSync(process.env.ORBIT_ENUMERATION_ACTIVITY_MARKER)) {
@@ -756,6 +757,38 @@ export const mergeSweepCalls = (log) =>
         .map((line) => JSON.parse(line))
     : []
 
+let processRunSequence = 0
+
+const killProcessTree = (pid) => {
+  if (!Number.isInteger(pid) || pid <= 0) return
+  if (process.platform === "win32") {
+    const result = spawnSync("taskkill", ["/PID", String(pid), "/T", "/F"], { encoding: "utf8", windowsHide: true })
+    if (result.status === 0) return
+    try {
+      process.kill(pid)
+    } catch {
+      /* the target may have exited between taskkill and the fallback */
+    }
+    return
+  }
+  try {
+    process.kill(-pid, "SIGTERM")
+  } catch {
+    try {
+      process.kill(pid, "SIGTERM")
+    } catch {
+      /* the target may have exited before the tree kill */
+    }
+  }
+}
+
+const pathInsideHarnessRoot = (path) => {
+  const normalizedRoot = resolve(root).toLowerCase()
+  const normalizedPath = resolve(path).toLowerCase()
+  const separator = process.platform === "win32" ? "\\" : "/"
+  return normalizedPath === normalizedRoot || normalizedPath.startsWith(`${normalizedRoot}${separator}`)
+}
+
 export const run = (file, argv, options = {}) => {
   const target = options.path ?? join(TOOLS_DIR, file)
   const invocation = file.endsWith(".mjs")
@@ -763,23 +796,77 @@ export const run = (file, argv, options = {}) => {
     : file.endsWith(".sh")
       ? [BASH, [target, ...argv]]
       : ["pwsh", ["-NoProfile", "-File", target, ...argv]]
-  const result = spawnSync(invocation[0], invocation[1], {
-    encoding: "utf8",
-    cwd: options.cwd ?? REPO_ROOT,
-    input: options.input ?? "",
-    env: {
-      ...process.env,
-      ORBIT_AUTOMATION_BUDGET_LEDGER: join(root, "default-automation-budget.jsonl"),
-      ORBIT_LOCAL_REVIEW_PROVENANCE_LEDGER: REVIEW_EVIDENCE_LEDGER,
-      ORBIT_WORKER_LAUNCH_LEDGER: WORKER_LAUNCH_LEDGER,
-      ...(options.env ?? {}),
-    },
-    timeout: 180000,
+  const timeoutMs = options.timeoutMs ?? 180000
+  const cleanupPath = options.cleanupPath ? resolve(options.cleanupPath) : null
+  if (cleanupPath && (cleanupPath === resolve(root) || !pathInsideHarnessRoot(cleanupPath))) {
+    throw new Error(`run cleanupPath must be a child of the harness root: ${cleanupPath}`)
+  }
+  const processRunRoot = join(root, "process-runs", String(++processRunSequence))
+  mkdirSync(processRunRoot, { recursive: true })
+  const controlPath = join(processRunRoot, "control.json")
+  const resultPath = join(processRunRoot, "result.json")
+  const pidPath = join(processRunRoot, "child.pid")
+  const environment = {
+    ...process.env,
+    ORBIT_AUTOMATION_BUDGET_LEDGER: join(root, "default-automation-budget.jsonl"),
+    ORBIT_LOCAL_REVIEW_PROVENANCE_LEDGER: REVIEW_EVIDENCE_LEDGER,
+    ORBIT_WORKER_LAUNCH_LEDGER: WORKER_LAUNCH_LEDGER,
+    ...(options.env ?? {}),
+  }
+  writeFileSync(
+    controlPath,
+    JSON.stringify({
+      command: invocation[0],
+      args: invocation[1],
+      cwd: options.cwd ?? REPO_ROOT,
+      env: environment,
+      input: options.input ?? "",
+      timeoutMs,
+      resultPath,
+      pidPath,
+      processTreeObservation: options.processTreeObservation,
+    }),
+  )
+  const runner = spawnSync(process.execPath, [join(TOOLS_DIR, "__tests__", "_process-tree-runner.mjs"), controlPath], {
+    cwd: REPO_ROOT,
+    stdio: "ignore",
+    timeout: timeoutMs + 5000,
+    windowsHide: true,
   })
+  let result = null
+  try {
+    result = JSON.parse(readFileSync(resultPath, "utf8"))
+  } catch {
+    /* the runner can be killed before it writes a result; use the PID fallback below */
+  }
+  if (!result && existsSync(pidPath)) {
+    const pid = Number(readFileSync(pidPath, "utf8"))
+    killProcessTree(pid)
+  }
+  try {
+    rmSync(processRunRoot, { recursive: true, force: true })
+  } catch {
+    /* a target that outlived the runner must not hide the original harness result */
+  }
+  if (cleanupPath) {
+    try {
+      rmSync(cleanupPath, { recursive: true, force: true })
+    } catch {
+      /* fixture cleanup is best effort after the exact process tree is gone */
+    }
+  }
+  if (!result) {
+    return {
+      status: runner.error ? `spawn error: ${runner.error.message}` : `spawn error: process runner exited ${runner.status}`,
+      stdout: "",
+      stderr: "",
+    }
+  }
   return {
-    status: result.error ? `spawn error: ${result.error.message}` : result.status,
+    status: result.timedOut ? "timed out" : result.error ? `spawn error: ${result.error}` : result.status,
     stdout: result.stdout ?? "",
     stderr: result.stderr ?? "",
+    processTree: result.processTree ?? null,
   }
 }
 
@@ -1082,7 +1169,7 @@ export const linearIssueStub = (labels, worktrees = []) => [
  */
 export const WORKER_CONTRACT_MARKER = "## Standing worker contract (injected by tools/launch-worker.mjs)"
 
-export const FULL_SURFACE_POLL = /worker-status\.mjs[\s\S]*full-surface completion poll[\s\S]*review submissions[\s\S]*review threads[\s\S]*nested comments[\s\S]*PR conversation comments[\s\S]*fails closed/
+export const ORCHESTRATOR_REVIEW_HANDOFF = /workers?[\s\S]*orchestrator-owned review|orchestrator[\s\S]*launches a fresh[\s\S]*review/i
 
 export const NO_DRAFT_PULL_REQUEST_CLAUSE = "The pull request must be ready for review, never a draft."
 
@@ -1104,16 +1191,16 @@ export const REQUIRED_CONTRACT_CLAUSES = {
   "recording unattended decisions in the PR body": { clause: 1, pattern: /Decisions taken unattended/ },
   "dropping a blocked criterion": { clause: 2, pattern: /A blocked sub-step never blocks the PR/ },
   "opening a draft pull request": { clause: 2, pattern: /The pull request must be ready for review, never a draft\./ },
-  "owning its automated review cycle": { clause: 3, pattern: /Own the automated review cycle[\s\S]*CHANGES_REQUESTED blocks[\s\S]*No approval is required[\s\S]*If an approval exists[\s\S]*current head[\s\S]*zero unresolved threads and every automated review item is reconciled/ },
-  "polling every review activity surface": { clause: 3, pattern: FULL_SURFACE_POLL },
-  "replying with the fix commit before resolving": { clause: 3, pattern: /reply on that[\s\S]*thread naming[\s\S]*the fix commit, then[\s\S]*resolve it/ },
-  "acknowledging non-thread review activity": { clause: 3, pattern: /review body or PR conversation[\s\S]*activity ID[\s\S]*PR commit/ },
-  "resolving informational findings with audited evidence": { clause: 3, pattern: /informational automated finding[\s\S]*No code change required: <reason>\. Evidence: <PR commit>[\s\S]*change the reviewed path/ },
+  "waiting for orchestrator review": { clause: 3, pattern: /Wait for orchestrator-owned review[\s\S]*orchestrator launches a fresh isolated[\s\S]*review/ },
+  "refusing the worker review launcher": { clause: 3, pattern: /do not[\s\S]*invoke or authorize[\s\S]*tools\/launch-pr-review\.mjs/ },
+  "repairing only orchestrator-returned findings": { clause: 3, pattern: /only its stable finding and evidence[\s\S]*repair only that passed-back finding/ },
+  "requiring fresh review after a changed head": { clause: 3, pattern: /changed head requires a fresh orchestrator[\s\S]*fresh review/ },
+  "refusing unpassed review findings": { clause: 3, pattern: /Never review or reconcile a finding[\s\S]*did not pass back/ },
+  "reporting the review handoff": { clause: 3, pattern: /report AWAITING-REVIEW rather than review-clear/ },
   "escalating a disagreement": { clause: 4, pattern: /Escalate when you disagree with a finding/ },
   "escalating a blocked decision": { clause: 4, pattern: /when you are[\s\S]*blocked on a decision you may not make/ },
   "escalating after two failed cycles": { clause: 4, pattern: /when two consecutive cycles fail on the same[\s\S]*finding/ },
-  "leaving human threads unresolved": { clause: 3, pattern: /Never resolve a thread opened by a human account/ },
-  "refusing completion with unresolved threads": { clause: 3, pattern: /zero unresolved threads and every automated review item is reconciled/ },
+  "ending at implementation handoff": { clause: 5, pattern: /Your job ends on one implementation handoff[\s\S]*Do not claim review-clear[\s\S]*orchestrator owns that loop/ },
   "watching only its own ticket": { clause: 5, pattern: /Never watch another[\s\S]*ticket, worktree, or PR/ },
   "arming a detached monitor that outlives the contract": { clause: 6, pattern: /Never arm a detached background monitor/ },
   "permitting an affordable foreground blocking wait": { clause: 6, pattern: /foreground blocking wait is permitted/ },

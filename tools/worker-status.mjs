@@ -11,7 +11,7 @@
  * unmet items, which is the checklist to nudge the worker with.
  */
 
-import { execFileSync } from "node:child_process"
+import { execFileSyncHidden as execFileSync } from "./lib/subprocess-options.mjs"
 import { existsSync, readFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 

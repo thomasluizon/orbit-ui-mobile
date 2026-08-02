@@ -29,6 +29,10 @@ const stageCalibration = (label, options = {}) => {
     join(TOOLS_DIR, "lib", "orchestrator-config.mjs"),
     join(base, "tools", "lib", "orchestrator-config.mjs"),
   )
+  cpSync(
+    join(TOOLS_DIR, "lib", "subprocess-options.mjs"),
+    join(base, "tools", "lib", "subprocess-options.mjs"),
+  )
   writeFileSync(join(base, ".claude", "agents", "sample.md"), agentSource)
   writeFileSync(join(base, ".claude", "skills", "sample", "SKILL.md"), skillSource)
   writeFileSync(

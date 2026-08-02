@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process"
+import { spawnSyncHidden as spawnSync } from "../lib/subprocess-options.mjs"
 import { generateKeyPairSync, sign } from "node:crypto"
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join, resolve } from "node:path"

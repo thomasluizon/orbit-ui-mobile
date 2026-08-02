@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process"
+import { spawnSyncHidden as spawnSync } from "./subprocess-options.mjs"
 import { randomUUID } from "node:crypto"
 import { unlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"

@@ -9,7 +9,7 @@
  * 2026-07-31, so the red and the green case rest on what GitHub really returns.
  */
 
-import { spawnSync } from "node:child_process"
+import { spawnSyncHidden as spawnSync } from "../lib/subprocess-options.mjs"
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 

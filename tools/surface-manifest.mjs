@@ -31,7 +31,7 @@
 // There is deliberately no status field. Completion is derived by
 // tools/check-surface-coverage.mjs from evidence on disk.
 
-import { execFileSync } from "node:child_process"
+import { execFileSyncHidden as execFileSync } from "./lib/subprocess-options.mjs"
 import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs"
 import { dirname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"

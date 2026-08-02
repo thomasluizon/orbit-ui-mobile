@@ -81,6 +81,7 @@ const signingPayload = (receipt) => JSON.stringify({
   repository: receipt.repository,
   pullRequest: receipt.pullRequest,
   head: receipt.head,
+  reviewNodeId: receipt.reviewNodeId,
   recommendation: receipt.recommendation,
   findingIds: receipt.findingIds,
   issuedAt: receipt.issuedAt,
@@ -90,6 +91,7 @@ export const issueReviewProvenance = ({
   repository,
   pullRequest,
   head,
+  reviewNodeId,
   recommendation,
   findingIds = [],
   ledgerPath,
@@ -98,6 +100,7 @@ export const issueReviewProvenance = ({
 }) => {
   if (!validReviewContext(repository, pullRequest)) throw new Error("review provenance repository and pullRequest are invalid")
   if (!SHA1.test(head ?? "")) throw new Error("review provenance head must be a 40-character lowercase SHA")
+  if (typeof reviewNodeId !== "string" || reviewNodeId.trim().length === 0) throw new Error("review provenance reviewNodeId must be a non-empty GitHub review node id")
   if (!new Set(["APPROVE", "NEEDS_WORK"]).has(recommendation)) {
     throw new Error("review provenance recommendation must be APPROVE or NEEDS_WORK")
   }
@@ -111,6 +114,7 @@ export const issueReviewProvenance = ({
     repository,
     pullRequest,
     head,
+    reviewNodeId,
     recommendation,
     findingIds: normalizedIds,
     issuedAt,
@@ -126,6 +130,7 @@ export const issueReviewProvenance = ({
     repository,
     pullRequest,
     head,
+    reviewNodeId,
     recommendation,
     issuedAt,
     findingIds: normalizedIds,
@@ -151,13 +156,16 @@ export const readReviewProvenanceReceipts = (ledgerPath) => {
   })
 }
 
-const receiptMatches = (receipt, { repository, pullRequest, head, recommendation, findingIds } = {}) => {
+const receiptMatches = (receipt, { repository, pullRequest, head, reviewNodeId, recommendation, findingIds } = {}) => {
   if (!receipt ||
     receipt.version !== REVIEW_PROVENANCE_VERSION ||
     receipt.issuer !== REVIEW_PROVENANCE_ISSUER ||
     receipt.repository !== repository ||
     receipt.pullRequest !== pullRequest ||
     receipt.head !== head ||
+    receipt.reviewNodeId !== reviewNodeId ||
+    typeof receipt.reviewNodeId !== "string" ||
+    receipt.reviewNodeId.trim().length === 0 ||
     !["APPROVE", "NEEDS_WORK"].includes(receipt.recommendation) ||
     !Array.isArray(receipt.findingIds) ||
     typeof receipt.evidenceId !== "string" ||
@@ -173,15 +181,16 @@ const receiptMatches = (receipt, { repository, pullRequest, head, recommendation
   }
 }
 
-export const verifyReviewProvenance = ({ repository, pullRequest, provenance, head, recommendation, findingIds = [] }) => {
+export const verifyReviewProvenance = ({ repository, pullRequest, provenance, head, reviewNodeId, recommendation, findingIds = [] }) => {
   if (!provenance || typeof provenance !== "object" || Array.isArray(provenance)) return false
   if (!validReviewContext(repository, pullRequest)) return false
   const keys = Object.keys(provenance).sort()
-  const expectedKeys = ["evidenceId", "findingIds", "head", "issuedAt", "issuer", "pullRequest", "recommendation", "repository", "signature", "version"]
+  const expectedKeys = ["evidenceId", "findingIds", "head", "issuedAt", "issuer", "pullRequest", "recommendation", "repository", "reviewNodeId", "signature", "version"]
   if (keys.length !== expectedKeys.length || keys.some((key, index) => key !== expectedKeys[index])) return false
   if (provenance.version !== REVIEW_PROVENANCE_VERSION || provenance.issuer !== REVIEW_PROVENANCE_ISSUER) return false
   if (provenance.repository !== repository || provenance.pullRequest !== pullRequest) return false
   if (provenance.head !== head || !SHA1.test(provenance.head)) return false
+  if (provenance.reviewNodeId !== reviewNodeId || typeof provenance.reviewNodeId !== "string" || provenance.reviewNodeId.trim().length === 0) return false
   if (provenance.recommendation !== recommendation || !["APPROVE", "NEEDS_WORK"].includes(provenance.recommendation)) return false
   if (!Number.isFinite(Date.parse(provenance.issuedAt))) return false
   if (typeof provenance.evidenceId !== "string" || typeof provenance.signature !== "string" || !BASE64.test(provenance.signature)) return false
@@ -191,7 +200,7 @@ export const verifyReviewProvenance = ({ repository, pullRequest, provenance, he
     if (JSON.stringify(provenance.findingIds) !== JSON.stringify(normalizedIds)) return false
     if (JSON.stringify(provenance.findingIds) !== JSON.stringify(normalizedFindingIds(provenance.findingIds))) return false
     const receipt = { ...provenance }
-    return receiptMatches(receipt, { repository, pullRequest, head, recommendation, findingIds: normalizedIds }) &&
+    return receiptMatches(receipt, { repository, pullRequest, head, reviewNodeId, recommendation, findingIds: normalizedIds }) &&
       verify(null, Buffer.from(signingPayload(receipt), "utf8"), authorityPublicKey(), Buffer.from(receipt.signature, "base64"))
   } catch {
     return false

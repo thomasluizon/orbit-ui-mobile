@@ -6,7 +6,7 @@
  * HEAD observed after that process exits.
  */
 
-import { execFileSync, spawn } from "node:child_process"
+import { execFileSyncHidden as execFileSync, spawnHidden as spawn } from "./lib/subprocess-options.mjs"
 import { createPrivateKey, sign } from "node:crypto"
 import { appendFileSync, existsSync, mkdirSync, readFileSync, unlinkSync } from "node:fs"
 import { dirname } from "node:path"

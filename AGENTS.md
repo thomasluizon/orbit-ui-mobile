@@ -9,10 +9,10 @@ before writing code.
 
 - Your prompt is a Linear ticket body. Execute exactly it: scope and out-of-scope are
   binding; an impossible or contradictory ticket means STOP and report, never improvise.
-- Finish = gates green, commit, push, and one ready PR to the target linking `ORB-N`, then own
-  its review cycle. CHANGES_REQUESTED blocks. No approval is required. If an approval exists,
-  it must name the current head. Finish requires zero unresolved threads and every automated review item is reconciled.
-  The pull request must be ready for review, never a draft.
+- Finish = gates green, commit, push, and one ready PR to the target linking `ORB-N`, then hand
+  the PR to the orchestrator for review. Workers never invoke or authorize
+  `tools/launch-pr-review.mjs`; they wait for the orchestrator-owned review loop. The pull request
+  must be ready for review, never a draft.
   Never merge. Never push to `main` or `redesign/main` directly.
 - Post the approach before you write the code. Open the pull request as your FIRST act
   after creating the branch, carrying no implementation yet, and immediately post your
@@ -21,31 +21,19 @@ before writing code.
   start writing. The cloud reviewer reads that comment before it reads a diff, so a wrong
   shape costs one comment instead of a review round against code already written. Changing
   a plan is free; changing a merged design is not.
-- After pushing, poll your pull request. Reconcile each automated review finding
-  against the diff, fix valid findings, commit and push the fix, reply on the thread
-  naming the fix commit, resolve the thread, and repeat until the finish rule above is met.
-  Never resolve a human thread or report completion while one remains unresolved.
-- Use `node tools/pr-watch.mjs --repo <owner/name> --pr <number> --once` for each
-  low-level transition wake-up only. After every call and before waiting or
-  reporting completion, run
-  `node tools/worker-status.mjs --worktree <path> --issue ORB-N --json`. That
-  full-surface completion poll inventories review submissions, review threads and
-  their nested comments, and PR conversation comments, and fails closed on an
-  incomplete inventory. Read unmet item bodies through GitHub's read APIs,
-  reconcile them, then poll again. An informational automated finding that needs
-  no code change may be resolved after replying with
-  `No code change required: <reason>. Evidence: <PR commit>`. The named commit must
-  be on the PR and change the reviewed path.
-- For an automated finding in a review body or PR conversation comment with no
-  thread, post a PR comment naming that activity ID and the PR commit that addresses
-  it so the pre-merge verification can prove it was handled.
-- Escalate when you disagree with a finding, when you are blocked on a decision you
-  may not make, or when two consecutive cycles fail on the same finding. That strike
-  count is DURABLE and lives outside your process, in `tools/lib/strike-ledger.mjs`, so a
-  fresh relaunch does not reset it and escalation cannot degrade into unbounded retry.
-  A relaunch driven by one finding carries `--finding <id>`, and exit code 5 from the
-  launcher means the strikes are spent: escalate, never retry. Report one escalation
-  carrying the finding and your reasoning; otherwise report once when the finish rule is met.
+- After pushing, report `AWAITING-REVIEW` and wait for the orchestrator. It launches a fresh
+  isolated Sol/high review for every pushed head. A `NEEDS_WORK` result returns only the stable
+  finding and its evidence to this same implementation worker and worktree. Repair only that
+  passed-back finding, run the affected gates, commit and push, then hand the changed head back;
+  every changed head requires a fresh review. Never review, reconcile, or resolve findings that
+  the orchestrator did not pass back, and never claim review-clear from the worker.
+- Escalate when a returned finding is disputed, when you are blocked on a decision you may not
+  make, or when two consecutive repair cycles fail on the same finding. That strike count is
+  DURABLE and lives outside your process, in `tools/lib/strike-ledger.mjs`, so a fresh relaunch
+  does not reset it and escalation cannot degrade into unbounded retry. A relaunch driven by one
+  finding carries `--finding`, and exit code 5 from the launcher means the strikes are spent:
+  escalate, never retry. Report the implementation handoff or one escalation; the orchestrator
+  owns review completion.
 - Parity is mandatory for `parity:yes` tickets: `apps/web` and `apps/mobile` change in
   the SAME PR, logic and behaviour identical; i18n keys land in `en.json` AND
   `pt-BR.json` in the same edit.

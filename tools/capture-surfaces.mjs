@@ -8,7 +8,7 @@
 // silently skipped surface is exactly the failure the completion gate exists to
 // prevent (.claude/rules/visual-delivery.md rule 1).
 
-import { spawnSync } from "node:child_process"
+import { spawnSyncHidden as spawnSync } from "./lib/subprocess-options.mjs"
 import { readFileSync, mkdirSync, existsSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"

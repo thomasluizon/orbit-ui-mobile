@@ -6,6 +6,7 @@ const mergeabilityCases = () => {
   const head = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   const stale = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
   const localReview = (recommendation = "APPROVE", markerHead = head, commit = head, at = "2026-07-31T10:00:00Z") => ({
+    id: "PRR_local_review",
     state: "COMMENTED",
     body: reviewMarker({ head: markerHead, recommendation, findingIds: recommendation === "NEEDS_WORK" ? ["finding-0123456789abcdef0123456789abcdef"] : [] }),
     submittedAt: at,

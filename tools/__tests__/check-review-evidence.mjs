@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process"
+import { spawnSyncHidden as spawnSync } from "../lib/subprocess-options.mjs"
 import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
@@ -24,11 +24,12 @@ const MARKER = (head, recommendation, extra = {}) =>
   Object.keys(extra).length === 0
     ? reviewMarker({ head, recommendation, findingIds: recommendation === "NEEDS_WORK" ? ["finding-0123456789abcdef0123456789abcdef"] : [] })
     : `<!-- orbit-local-review: ${JSON.stringify({ version: 1, head, recommendation, ...extra })} -->`
-const review = ({ body, commit = HEAD, state = "COMMENTED", at = "2026-07-31T10:00:00Z", edited = null }) => ({
+const review = ({ id = "PRR_local_review", body, commit = HEAD, state = "COMMENTED", at = "2026-07-31T10:00:00Z", submittedAt = at, edited = null }) => ({
+  id,
   state,
   body,
-  submittedAt: at,
-  updatedAt: at,
+  submittedAt,
+  updatedAt: edited ?? submittedAt,
   lastEditedAt: edited,
   url: "https://github.com/orbit/ui/pull/1#pullrequestreview-1",
   author: { login: "reviewer" },
@@ -64,28 +65,35 @@ const reviewEvidenceCases = () => {
   T("check-review-evidence.mjs: a hostile worker marker without a launcher receipt blocks", forged.status === 1 && /UNAUTHENTICATED/.test(forged.stdout), forged.stderr || forged.stdout)
 
   const replayLedger = join(root, "review-replay.jsonl")
-  const oldApproval = issueReviewProvenance({ repository: "orbit/ui", pullRequest: 615, head: HEAD, recommendation: "APPROVE", issuedAt: "2026-07-31T10:00:00Z", ledgerPath: replayLedger, privateKey: REVIEW_AUTHORITY_PRIVATE_KEY })
-  const laterNeedsWork = issueReviewProvenance({ repository: "orbit/ui", pullRequest: 615, head: HEAD, recommendation: "NEEDS_WORK", findingIds: ["finding-0123456789abcdef0123456789abcdef"], issuedAt: "2026-07-31T11:00:00Z", ledgerPath: replayLedger, privateKey: REVIEW_AUTHORITY_PRIVATE_KEY })
+  const oldApproval = issueReviewProvenance({ repository: "orbit/ui", pullRequest: 615, head: HEAD, reviewNodeId: "PRR_old_approval", recommendation: "APPROVE", issuedAt: "2026-07-31T10:00:00Z", ledgerPath: replayLedger, privateKey: REVIEW_AUTHORITY_PRIVATE_KEY })
+  const laterNeedsWork = issueReviewProvenance({ repository: "orbit/ui", pullRequest: 615, head: HEAD, reviewNodeId: "PRR_later_needs_work", recommendation: "NEEDS_WORK", findingIds: ["finding-0123456789abcdef0123456789abcdef"], issuedAt: "2026-07-31T11:00:00Z", ledgerPath: replayLedger, privateKey: REVIEW_AUTHORITY_PRIVATE_KEY })
   const markerFor = (provenance, recommendation) => `<!-- orbit-local-review: ${JSON.stringify({ version: 1, head: HEAD, recommendation, provenance })} -->`
   const replayedApproval = runEvidence([
-    review({ body: markerFor(laterNeedsWork, "NEEDS_WORK"), at: "2026-07-31T11:00:00Z" }),
-    review({ body: markerFor(oldApproval, "APPROVE"), at: "2026-07-31T12:00:00Z" }),
+    review({ id: "PRR_later_needs_work", body: markerFor(laterNeedsWork, "NEEDS_WORK"), at: "2026-07-31T11:00:00Z" }),
+    review({ id: "PRR_old_approval", body: markerFor(oldApproval, "APPROVE"), at: "2026-07-31T12:00:00Z" }),
   ], HEAD, false, false, { ledgerPath: replayLedger })
   T("check-review-evidence.mjs: an older APPROVE cannot replay after a later NEEDS_WORK issuance", replayedApproval.status === 1 && /REPLAYED/.test(replayedApproval.stdout), replayedApproval.stderr || replayedApproval.stdout)
+  const forgedReviewId = runEvidence([review({ id: "PRR_later_needs_work", body: markerFor(oldApproval, "APPROVE"), at: "2026-07-31T11:00:00Z" })], HEAD, false, false, { ledgerPath: replayLedger })
+  T("check-review-evidence.mjs: a signed marker cannot move to another immutable GitHub review node", forgedReviewId.status === 1 && /UNAUTHENTICATED/.test(forgedReviewId.stdout), forgedReviewId.stderr || forgedReviewId.stdout)
+  const hiddenNewerIssuance = runEvidence([
+    review({ id: "PRR_old_approval", body: markerFor(oldApproval, "APPROVE"), submittedAt: "2026-07-31T10:00:00Z", edited: "2026-07-31T13:00:00Z" }),
+    review({ id: "PRR_later_needs_work", body: "", submittedAt: "2026-07-31T11:00:00Z", edited: "2026-07-31T12:00:00Z" }),
+  ], HEAD, false, false, { ledgerPath: replayLedger })
+  T("check-review-evidence.mjs: hiding a newer NEEDS_WORK body cannot restore an older approval", hiddenNewerIssuance.status === 1 && /REPLAYED/.test(hiddenNewerIssuance.stdout), hiddenNewerIssuance.stderr || hiddenNewerIssuance.stdout)
   const currentNeedsWork = runEvidence([review({ body: markerFor(laterNeedsWork, "NEEDS_WORK") })], HEAD, false, false, { ledgerPath: replayLedger })
   T("check-review-evidence.mjs: the newest same-PR issuance is the only accepted verdict", currentNeedsWork.status === 1 && /NEEDS_WORK/.test(currentNeedsWork.stdout), currentNeedsWork.stderr || currentNeedsWork.stdout)
   const rollbackLedger = join(root, "review-ledger-rollback.jsonl")
-  const rollbackApproval = issueReviewProvenance({ repository: "orbit/ui", pullRequest: 615, head: HEAD, recommendation: "APPROVE", issuedAt: "2026-07-31T10:00:00Z", ledgerPath: rollbackLedger, privateKey: REVIEW_AUTHORITY_PRIVATE_KEY })
-  const rollbackNeedsWork = issueReviewProvenance({ repository: "orbit/ui", pullRequest: 615, head: HEAD, recommendation: "NEEDS_WORK", findingIds: ["finding-0123456789abcdef0123456789abcdef"], issuedAt: "2026-07-31T11:00:00Z", ledgerPath: rollbackLedger, privateKey: REVIEW_AUTHORITY_PRIVATE_KEY })
+  const rollbackApproval = issueReviewProvenance({ repository: "orbit/ui", pullRequest: 615, head: HEAD, reviewNodeId: "PRR_rollback_approval", recommendation: "APPROVE", issuedAt: "2026-07-31T10:00:00Z", ledgerPath: rollbackLedger, privateKey: REVIEW_AUTHORITY_PRIVATE_KEY })
+  const rollbackNeedsWork = issueReviewProvenance({ repository: "orbit/ui", pullRequest: 615, head: HEAD, reviewNodeId: "PRR_rollback_needs_work", recommendation: "NEEDS_WORK", findingIds: ["finding-0123456789abcdef0123456789abcdef"], issuedAt: "2026-07-31T11:00:00Z", ledgerPath: rollbackLedger, privateKey: REVIEW_AUTHORITY_PRIVATE_KEY })
   const firstLedgerRow = readFileSync(rollbackLedger, "utf8").split(/\r?\n/).filter(Boolean)[0]
   writeFileSync(rollbackLedger, `${firstLedgerRow}\n`)
   const rollback = runEvidence([
-    review({ body: markerFor(rollbackNeedsWork, "NEEDS_WORK"), at: "2026-07-31T11:00:00Z" }),
-    review({ body: markerFor(rollbackApproval, "APPROVE"), at: "2026-07-31T12:00:00Z" }),
+    review({ id: "PRR_rollback_needs_work", body: markerFor(rollbackNeedsWork, "NEEDS_WORK"), at: "2026-07-31T11:00:00Z" }),
+    review({ id: "PRR_rollback_approval", body: markerFor(rollbackApproval, "APPROVE"), at: "2026-07-31T12:00:00Z" }),
   ], HEAD, false, false, { ledgerPath: rollbackLedger })
   T("check-review-evidence.mjs: a worker-truncated local ledger cannot replay an older APPROVE marker", rollback.status === 1 && /REPLAYED/.test(rollback.stdout), rollback.stderr || rollback.stdout)
   const crossPullRequestLedger = join(root, "review-cross-pr-replay.jsonl")
-  const otherPullRequest = issueReviewProvenance({ repository: "orbit/ui", pullRequest: 616, head: HEAD, recommendation: "APPROVE", issuedAt: "2026-07-31T12:00:00Z", ledgerPath: crossPullRequestLedger, privateKey: REVIEW_AUTHORITY_PRIVATE_KEY })
+  const otherPullRequest = issueReviewProvenance({ repository: "orbit/ui", pullRequest: 616, head: HEAD, reviewNodeId: "PRR_other_pull_request", recommendation: "APPROVE", issuedAt: "2026-07-31T12:00:00Z", ledgerPath: crossPullRequestLedger, privateKey: REVIEW_AUTHORITY_PRIVATE_KEY })
   const crossPullRequest = runEvidence([review({ body: markerFor(otherPullRequest, "APPROVE") })], HEAD, false, false, { ledgerPath: crossPullRequestLedger, pullRequest: 615 })
   T("check-review-evidence.mjs: a receipt for another pull request cannot replay on this pull request", crossPullRequest.status === 1 && /UNAUTHENTICATED/.test(crossPullRequest.stdout), crossPullRequest.stderr || crossPullRequest.stdout)
 
@@ -96,7 +104,7 @@ const reviewEvidenceCases = () => {
   const workerAttempt = spawnSync(process.execPath, [
     "--input-type=module",
     "-e",
-    `import { generateKeyPairSync } from "node:crypto"; import { issueReviewProvenance } from ${JSON.stringify(workerReviewModule)}; const { privateKey } = generateKeyPairSync("ed25519"); try { issueReviewProvenance({ repository: "orbit/ui", pullRequest: 615, head: "${HEAD}", recommendation: "APPROVE", ledgerPath: ${JSON.stringify(workerLedger)}, privateKey: privateKey.export({ format: "pem", type: "pkcs8" }) }); process.exit(0) } catch (error) { console.error(error.message); process.exit(1) }`,
+    `import { generateKeyPairSync } from "node:crypto"; import { issueReviewProvenance } from ${JSON.stringify(workerReviewModule)}; const { privateKey } = generateKeyPairSync("ed25519"); try { issueReviewProvenance({ repository: "orbit/ui", pullRequest: 615, head: "${HEAD}", reviewNodeId: "PRR_worker_attempt", recommendation: "APPROVE", ledgerPath: ${JSON.stringify(workerLedger)}, privateKey: privateKey.export({ format: "pem", type: "pkcs8" }) }); process.exit(0) } catch (error) { console.error(error.message); process.exit(1) }`,
   ], { encoding: "utf8", env: workerEnvironment })
   T("check-review-evidence.mjs: an implementation worker importing production provenance cannot mint APPROVE with its own key", workerAttempt.status === 1 && /does not match/.test(workerAttempt.stderr) && !existsSync(workerLedger), `${workerAttempt.status}\n${workerAttempt.stderr}`)
 

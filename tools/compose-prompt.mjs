@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** Compose one worker prompt from a Linear issue body and its chronological comments. */
 
-import { execFileSync } from "node:child_process"
+import { execFileSyncHidden as execFileSync } from "./lib/subprocess-options.mjs"
 import { writeFileSync } from "node:fs"
 import { isAbsolute, resolve } from "node:path"
 

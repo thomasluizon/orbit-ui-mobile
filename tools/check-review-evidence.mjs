@@ -94,11 +94,15 @@ const evaluateReviewEvidence = (input, expectedHead, { ledgerPath, repository, p
   const selected = latest[0].review
   const parsed = parseMarker(selected)
   if (!parsed.ok) return result(false, "MALFORMED", parsed.reason, selected)
+  if (typeof selected.id !== "string" || selected.id.trim().length === 0) {
+    return result(false, "UNAUTHENTICATED", "latest marker has no immutable GitHub review node id", selected, parsed.marker.provenance.findingIds)
+  }
   const authenticated = verifyReviewProvenance({
     repository,
     pullRequest,
     provenance: parsed.marker.provenance,
     head: parsed.marker.head,
+    reviewNodeId: selected.id,
     recommendation: parsed.marker.recommendation,
     findingIds: parsed.marker.provenance.findingIds,
     ledgerPath,
@@ -115,6 +119,23 @@ const evaluateReviewEvidence = (input, expectedHead, { ledgerPath, repository, p
       parsed.marker.provenance.findingIds,
     )
   }
+  const selectedSubmittedAt = Date.parse(selected.submittedAt ?? "")
+  if (!Number.isFinite(selectedSubmittedAt)) {
+    return result(false, "MALFORMED", "latest marker review has no complete parseable submittedAt", selected, parsed.marker.provenance.findingIds)
+  }
+  const currentHeadCommentedReviews = reviews.nodes.filter((review) => review.commit?.oid === expectedHead && review.state === "COMMENTED")
+  const malformedCurrentHeadReview = currentHeadCommentedReviews.find((review) => !Number.isFinite(Date.parse(review.submittedAt ?? "")))
+  if (malformedCurrentHeadReview) {
+    return result(false, "MALFORMED", "a current-head COMMENTED review has no complete parseable submittedAt", selected, parsed.marker.provenance.findingIds)
+  }
+  const newerUnmarkedReview = currentHeadCommentedReviews.find((review) =>
+    review.id !== selected.id &&
+    Date.parse(review.submittedAt) >= selectedSubmittedAt &&
+    !isReviewEvidenceCandidate(review),
+  )
+  if (newerUnmarkedReview) {
+    return result(false, "REPLAYED", "a newer current-head COMMENTED review has no launcher-issued marker", selected, parsed.marker.provenance.findingIds)
+  }
   const sameHeadIssuances = candidates.flatMap((candidate) => {
     const candidateParsed = parseMarker(candidate)
     if (!candidateParsed.ok || candidateParsed.marker.head !== expectedHead) return []
@@ -123,6 +144,7 @@ const evaluateReviewEvidence = (input, expectedHead, { ledgerPath, repository, p
       pullRequest,
       provenance: candidateParsed.marker.provenance,
       head: candidateParsed.marker.head,
+      reviewNodeId: candidate.id,
       recommendation: candidateParsed.marker.recommendation,
       findingIds: candidateParsed.marker.provenance.findingIds,
     })

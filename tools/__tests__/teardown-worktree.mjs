@@ -1,8 +1,8 @@
-import { spawnSync } from "node:child_process"
-import { appendFileSync, chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs"
+import { spawnSyncHidden as spawnSync } from "../lib/subprocess-options.mjs"
+import { appendFileSync, chmodSync, cpSync, existsSync, lstatSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { T, root, orcaEnv, check, stageWorkerPidMarker, exitedProbePid } from "./_harness.mjs"
+import { T, root, orcaEnv, check, stageWorkerPidMarker, exitedProbePid, toolPath } from "./_harness.mjs"
 
 /** A linked child checkout is the smallest real Git fixture that can prove teardown verification. */
 const stageTeardownWorktree = (label, { dirty = false, changed = false, squashMerged = false, fastForwardMerged = false, serverMerged = false, localFollowUp = false, localFollowUpMerged = false, siblingTargetAdvance = false, branchDeleteMode } = {}) => {
@@ -114,6 +114,24 @@ const teardownWorktreeCases = () => {
     T("teardown-worktree.mjs: real git fixture is available", false, "could not create a linked Git worktree")
     return
   }
+  const lifecycleLocked = stageTeardownWorktree("lifecycle-lock")
+  const lockedToolRoot = join(root, "teardown", "lifecycle-lock-tool")
+  mkdirSync(lockedToolRoot, { recursive: true })
+  const lockedTool = join(lockedToolRoot, "teardown-worktree.mjs")
+  cpSync(toolPath("teardown-worktree.mjs"), lockedTool)
+  cpSync(toolPath("lib"), join(lockedToolRoot, "lib"), { recursive: true })
+  const lockHelper = join(lockedToolRoot, "lib", "worktree-lifecycle-lock.mjs")
+  writeFileSync(lockHelper, readFileSync(lockHelper, "utf8").replace("timeoutMs = 5 * 60 * 1000", "timeoutMs = 200"))
+  const lifecycleLockPath = join(lifecycleLocked.primary, ".git", "orbit-launch-worker.lock")
+  writeFileSync(lifecycleLockPath, JSON.stringify({ pid: process.pid, startedAt: Date.now() }))
+  check(
+    "teardown-worktree.mjs",
+    "a live worker launch lifecycle lock blocks teardown before loss-prevention reads",
+    ["--issue", "ORB-124"],
+    { status: 1, stderr: /timed out waiting for worktree lifecycle lock/ },
+    { path: lockedTool, env: orcaEnv([{ match: "worktree list", stdout: JSON.stringify({ ok: true, result: { worktrees: [teardownWorktreeRecord(lifecycleLocked)] } }) }]) },
+  )
+  T("teardown-worktree.mjs: a live lifecycle lock preserves the worktree", existsSync(lifecycleLocked.child), "the lock holder did not prevent removal")
   const primaryRefusal = stageTeardownWorktree("primary-refusal")
   const primaryRecord = { ...teardownWorktreeRecord(primaryRefusal), path: primaryRefusal.primary, isMainWorktree: true }
   check(

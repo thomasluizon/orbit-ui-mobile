@@ -109,6 +109,7 @@ const CASE_MODULES = [
 /** Repository contracts that have case modules but no tools/ executable of their own. */
 const SUPPORT_MODULES = [
   ["codex-skill-adapters", "cases"],
+  ["subprocess-options", "cases"],
 ]
 
 const gateCases = {}

@@ -46,6 +46,16 @@ const localReview = localReviewStart >= 0 && localReviewEnd > localReviewStart
 
 check("orchestrate has a local review contract", localReview.length > 0, "the local /pr-review contract is missing")
 check(
+  "the orchestrator owns review launch and workers wait",
+  /orchestrator owns the review cycle/i.test(localReview) && /workers do not invoke or authorize/i.test(localReview) && /launch-pr-review\.mjs/i.test(localReview),
+  "the canonical orchestrator contract does not close the worker-origin review path",
+)
+check(
+  "workers receive only passed-back repair findings",
+  /only the stable finding and its evidence/i.test(localReview) && /not been passed back/i.test(localReview),
+  "the canonical review contract does not constrain worker repairs to orchestrator evidence",
+)
+check(
   "every pull request enters the local review loop",
   /every pull request/i.test(localReview) && !/harness diffs only|only when .*diff touches|gets no local pass/i.test(localReview),
   "the local review contract is still path-gated",

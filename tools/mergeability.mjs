@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** Decide section 4a mergeability from one fail-closed, read-only snapshot. */
 
-import { execFileSync } from "node:child_process"
+import { execFileSyncHidden as execFileSync } from "./lib/subprocess-options.mjs"
 
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { workerDeliveryEvidence } from "./lib/worker-launch-provenance.mjs"
@@ -55,7 +55,7 @@ const linearTeam = config.linear?.team
 if (typeof linearTeam !== "string" || !linearTeam) fail(".claude/orchestrator.json must declare linear.team")
 const issueIdentifierPattern = new RegExp(`\\b${linearTeam.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}-\\d+\\b`, "i")
 
-const QUERY = `query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){number url title body headRefName isDraft mergeStateStatus reviewDecision headRefOid files(first:100){pageInfo{hasNextPage}nodes{path}} labels(first:100){pageInfo{hasNextPage}nodes{name}} reviews(first:100){pageInfo{hasNextPage}nodes{state body submittedAt updatedAt lastEditedAt url author{login} commit{oid}}} reviewThreads(first:100){pageInfo{hasNextPage}nodes{isResolved}} commits(last:1){nodes{commit{statusCheckRollup{state contexts(first:100){pageInfo{hasNextPage}nodes{__typename ... on CheckRun{name status conclusion startedAt} ... on StatusContext{context state createdAt}}}}}}}}}}`
+const QUERY = `query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){number url title body headRefName isDraft mergeStateStatus reviewDecision headRefOid files(first:100){pageInfo{hasNextPage}nodes{path}} labels(first:100){pageInfo{hasNextPage}nodes{name}} reviews(first:100){pageInfo{hasNextPage}nodes{id state body submittedAt updatedAt lastEditedAt url author{login} commit{oid}}} reviewThreads(first:100){pageInfo{hasNextPage}nodes{isResolved}} commits(last:1){nodes{commit{statusCheckRollup{state contexts(first:100){pageInfo{hasNextPage}nodes{__typename ... on CheckRun{name status conclusion startedAt} ... on StatusContext{context state createdAt}}}}}}}}}}`
 
 const command = (file, args) => {
   try {
