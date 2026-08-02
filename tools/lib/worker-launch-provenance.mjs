@@ -7,6 +7,7 @@ export const WORKER_LAUNCH_LEDGER_ENV = "ORBIT_WORKER_LAUNCH_LEDGER"
 export const WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY_ENV = "ORBIT_WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY"
 export const WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY_ENV = "ORBIT_WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY"
 export const WORKER_LAUNCH_VERSION = 1
+export const WORKER_SUPERVISOR_ENVELOPE_VERSION = 1
 export const WORKER_LAUNCH_MODES = new Set(["new-worktree", "existing-worktree", "repair"])
 const SHA1 = /^[0-9a-f]{40}$/
 const BASE64 = /^[A-Za-z0-9+/]+={0,2}$/
@@ -30,6 +31,42 @@ const isCompletionAttestation = (attestation) =>
   attestation.algorithm === "ed25519" &&
   typeof attestation.publicKey === "string" &&
   BASE64.test(attestation.publicKey)
+
+const isStringArray = (value) => Array.isArray(value) && value.every((item) => typeof item === "string")
+
+const isSupervisorEnvelope = (envelope) =>
+  envelope &&
+  typeof envelope === "object" &&
+  !Array.isArray(envelope) &&
+  envelope.version === WORKER_SUPERVISOR_ENVELOPE_VERSION &&
+  typeof envelope.payloadPath === "string" &&
+  envelope.payloadPath.length > 0 &&
+  typeof envelope.executable === "string" &&
+  envelope.executable.length > 0 &&
+  isStringArray(envelope.scriptArgs) &&
+  isStringArray(envelope.engineArgs) &&
+  typeof envelope.pointer === "string" &&
+  typeof envelope.worktreePath === "string" &&
+  envelope.worktreePath.length > 0 &&
+  typeof envelope.markerPath === "string" &&
+  envelope.markerPath.length > 0 &&
+  typeof envelope.ledgerPath === "string" &&
+  envelope.ledgerPath.length > 0 &&
+  typeof envelope.startGate === "string" &&
+  envelope.startGate.length > 0
+
+const supervisorEnvelopeSigningPayload = (envelope) => ({
+  version: envelope.version,
+  payloadPath: envelope.payloadPath,
+  executable: envelope.executable,
+  scriptArgs: envelope.scriptArgs,
+  engineArgs: envelope.engineArgs,
+  pointer: envelope.pointer,
+  worktreePath: envelope.worktreePath,
+  markerPath: envelope.markerPath,
+  ledgerPath: envelope.ledgerPath,
+  startGate: envelope.startGate,
+})
 
 const isCompletion = (completion) =>
   completion &&
@@ -92,28 +129,36 @@ export const isWorkerLaunchRecord = (record) =>
   record.launcherPid > 0 &&
   Number.isFinite(Date.parse(record.issuedAt)) &&
   isCompletionAttestation(record.completionAttestation) &&
+  (!Object.hasOwn(record, "supervisorEnvelope") || (
+    isSupervisorEnvelope(record.supervisorEnvelope) &&
+    record.supervisorEnvelope.worktreePath === record.worktreePath
+  )) &&
   typeof record.launchSignature === "string" &&
   BASE64.test(record.launchSignature) &&
   (!Object.hasOwn(record, "completion") || isCompletion(record.completion))
 
-export const workerLaunchSigningPayload = (record) => JSON.stringify({
-  version: record.version,
-  launchId: record.launchId,
-  issue: record.issue,
-  worktreePath: record.worktreePath,
-  pid: record.pid,
-  startedAt: record.startedAt,
-  launchMode: record.launchMode,
-  engine: record.engine,
-  invocation: { command: record.invocation.command, args: record.invocation.args },
-  branch: record.branch,
-  launcherPid: record.launcherPid,
-  issuedAt: record.issuedAt,
-  completionAttestation: {
-    algorithm: record.completionAttestation?.algorithm,
-    publicKey: record.completionAttestation?.publicKey,
-  },
-})
+export const workerLaunchSigningPayload = (record) => {
+  const payload = {
+    version: record.version,
+    launchId: record.launchId,
+    issue: record.issue,
+    worktreePath: record.worktreePath,
+    pid: record.pid,
+    startedAt: record.startedAt,
+    launchMode: record.launchMode,
+    engine: record.engine,
+    invocation: { command: record.invocation.command, args: record.invocation.args },
+    branch: record.branch,
+    launcherPid: record.launcherPid,
+    issuedAt: record.issuedAt,
+    completionAttestation: {
+      algorithm: record.completionAttestation?.algorithm,
+      publicKey: record.completionAttestation?.publicKey,
+    },
+  }
+  if (record.supervisorEnvelope) payload.supervisorEnvelope = supervisorEnvelopeSigningPayload(record.supervisorEnvelope)
+  return JSON.stringify(payload)
+}
 
 export const signWorkerLaunchRecord = (record, privateKeyPem = process.env[WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY_ENV]) => {
   if (!isWorkerLaunchRecord({ ...record, launchSignature: "placeholder" })) {
@@ -158,6 +203,22 @@ const signingPayload = (record, completion = record.completion) => JSON.stringif
 })
 
 export const workerCompletionSigningPayload = (record, completion) => signingPayload(record, completion)
+
+const supervisorPayloadFields = (payload) => ({
+  payloadPath: payload?.payloadPath,
+  executable: payload?.executable,
+  scriptArgs: payload?.scriptArgs,
+  engineArgs: payload?.engineArgs,
+  pointer: payload?.pointer,
+  worktreePath: payload?.worktreePath,
+  markerPath: payload?.markerPath,
+  ledgerPath: payload?.ledgerPath,
+  startGate: payload?.startGate,
+})
+
+export const sameWorkerSupervisorPayload = (payload, launchRecord) =>
+  isSupervisorEnvelope(launchRecord?.supervisorEnvelope) &&
+  JSON.stringify(supervisorPayloadFields(payload)) === JSON.stringify(supervisorPayloadFields(launchRecord.supervisorEnvelope))
 
 export const verifyWorkerLaunchCompletion = (record) => {
   if (!verifyWorkerLaunchRecord(record) || !isCompletion(record.completion)) return false

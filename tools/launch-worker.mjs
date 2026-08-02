@@ -47,6 +47,7 @@ import {
   readWorkerLaunchRecords,
   recordWorkerLaunch,
   sameWorkerLaunch,
+  WORKER_SUPERVISOR_ENVELOPE_VERSION,
   workerLaunchLedgerPath,
 } from "./lib/worker-launch-provenance.mjs"
 const pause = (milliseconds) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds)
@@ -932,6 +933,19 @@ const startHeadlessWorker = (worktreePath, branch, launchMode) => {
   const supervisorPath = resolve(dirname(fileURLToPath(import.meta.url)), "worker-supervisor.mjs")
   const payloadPath = join(tmpdir(), `orbit-worker-${launchId}.json`)
   const startGate = join(tmpdir(), `orbit-worker-${launchId}.ready`)
+  const pointer = workerPointer(worktreePath, branch)
+  const supervisorEnvelope = {
+    version: WORKER_SUPERVISOR_ENVELOPE_VERSION,
+    payloadPath,
+    executable,
+    scriptArgs,
+    engineArgs,
+    pointer,
+    worktreePath: workerPath,
+    markerPath,
+    ledgerPath: workerLaunchLedger,
+    startGate,
+  }
   let launchRecord = {
     version: 1,
     launchId,
@@ -949,6 +963,7 @@ const startHeadlessWorker = (worktreePath, branch, launchMode) => {
       algorithm: "ed25519",
       publicKey: publicKey.export({ format: "der", type: "spki" }).toString("base64"),
     },
+    supervisorEnvelope,
   }
   const writeSupervisorPayload = () => writeFileSync(
     payloadPath,
@@ -958,7 +973,7 @@ const startHeadlessWorker = (worktreePath, branch, launchMode) => {
       executable,
       scriptArgs,
       engineArgs,
-      pointer: workerPointer(worktreePath, branch),
+      pointer,
       worktreePath: workerPath,
       markerPath,
       ledgerPath: workerLaunchLedger,

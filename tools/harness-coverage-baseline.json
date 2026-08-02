@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "total": 1292,
+  "total": 1300,
   "tools": {
     "(runner)": 40,
     "ai-quota.mjs": 12,
@@ -25,7 +25,7 @@
     "check-tier-labels.mjs": 8,
     "check-worker-delivery.mjs": 5,
     "compose-prompt.mjs": 6,
-    "launch-pr-review.mjs": 34,
+    "launch-pr-review.mjs": 41,
     "launch-worker.mjs": 164,
     "merge-sweep-cov.sh": 95,
     "merge-sweep.sh": 103,
@@ -44,7 +44,7 @@
     "teardown-worktree.mjs": 49,
     "wave-plan.mjs": 61,
     "worker-status.mjs": 73,
-    "worker-supervisor.mjs": 4,
+    "worker-supervisor.mjs": 5,
     "worker-watch.mjs": 28
   }
 }

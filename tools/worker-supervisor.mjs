@@ -9,10 +9,11 @@
 import { execFileSyncHidden as execFileSync, spawnHidden as spawn } from "./lib/subprocess-options.mjs"
 import { createPrivateKey, sign } from "node:crypto"
 import { appendFileSync, existsSync, mkdirSync, readFileSync, unlinkSync } from "node:fs"
-import { dirname } from "node:path"
+import { basename, dirname, join } from "node:path"
 
 import {
   recordWorkerLaunch,
+  sameWorkerSupervisorPayload,
   WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY_ENV,
   verifyWorkerLaunchRecord,
   workerCompletionSigningPayload,
@@ -30,6 +31,14 @@ if (!payloadPath || process.argv.length !== 3 || payloadPath.startsWith("-")) {
   process.exit(2)
 }
 
+const payloadName = basename(payloadPath)
+const payloadMatch = /^orbit-worker-(.+)\.json$/.exec(payloadName)
+if (!payloadMatch) {
+  console.error("launcher payload path does not carry a launch id")
+  process.exit(2)
+}
+const startGate = join(dirname(payloadPath), `orbit-worker-${payloadMatch[1]}.ready`)
+
 const removeIfPresent = (path) => {
   try {
     unlinkSync(path)
@@ -41,6 +50,7 @@ const removeIfPresent = (path) => {
 const privateKeyPem = readFileSync(3, "utf8").trim()
 const privateKey = createPrivateKey(privateKeyPem)
 let payload = null
+let supervisorEnvelope = null
 
 const waitForGate = (path, timeoutMs = 30_000) => {
   const deadline = Date.now() + timeoutMs
@@ -52,7 +62,7 @@ const waitForGate = (path, timeoutMs = 30_000) => {
 
 const readHead = () => {
   try {
-    const head = execFileSync("git", ["-C", payload.worktreePath, "rev-parse", "HEAD"], { encoding: "utf8" }).trim()
+    const head = execFileSync("git", ["-C", supervisorEnvelope.worktreePath, "rev-parse", "HEAD"], { encoding: "utf8" }).trim()
     return /^[0-9a-f]{40}$/.test(head) ? head : null
   } catch {
     return null
@@ -60,18 +70,20 @@ const readHead = () => {
 }
 
 const run = async () => {
-  payload = JSON.parse(readFileSync(payloadPath, "utf8"))
-  if (!waitForGate(payload.startGate)) return 3
-  // The first payload may precede the launcher's authoritative PID signature. Reload it
-  // after the gate, then refuse to supervise anything that is not root-authenticated.
+  if (!waitForGate(startGate)) return 3
   payload = JSON.parse(readFileSync(payloadPath, "utf8"))
   if (!verifyWorkerLaunchRecord(payload.launchRecord)) throw new Error("launcher payload is not root-authenticated")
-  removeIfPresent(payload.startGate)
+  if (!sameWorkerSupervisorPayload(payload, payload.launchRecord)) throw new Error("launcher supervisor payload does not match its authenticated envelope")
+  supervisorEnvelope = payload.launchRecord.supervisorEnvelope
+  if (supervisorEnvelope.payloadPath !== payloadPath || supervisorEnvelope.startGate !== startGate) {
+    throw new Error("launcher supervisor envelope does not match its payload path")
+  }
+  removeIfPresent(startGate)
   const workerEnvironment = { ...process.env, ORBIT_LAUNCH_WORKER: "1", ORBIT_WORKER_LAUNCH_ID: payload.launchRecord.launchId }
   delete workerEnvironment[REVIEW_AUTHORITY_PRIVATE_KEY_ENV]
   delete workerEnvironment[WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY_ENV]
-  const child = spawn(payload.executable, [...payload.scriptArgs, ...payload.engineArgs, payload.pointer], {
-    cwd: payload.worktreePath,
+  const child = spawn(supervisorEnvelope.executable, [...supervisorEnvelope.scriptArgs, ...supervisorEnvelope.engineArgs, supervisorEnvelope.pointer], {
+    cwd: supervisorEnvelope.worktreePath,
     detached: false,
     stdio: "ignore",
     windowsHide: true,
@@ -92,9 +104,9 @@ const run = async () => {
     privateKey,
   ).toString("base64")
   const completedRecord = { ...payload.launchRecord, completion }
-  mkdirSync(dirname(payload.markerPath), { recursive: true })
-  appendFileSync(payload.markerPath, `${JSON.stringify(completedRecord)}\n`, { encoding: "utf8", mode: 0o600 })
-  recordWorkerLaunch(completedRecord, payload.ledgerPath)
+  mkdirSync(dirname(supervisorEnvelope.markerPath), { recursive: true })
+  appendFileSync(supervisorEnvelope.markerPath, `${JSON.stringify(completedRecord)}\n`, { encoding: "utf8", mode: 0o600 })
+  recordWorkerLaunch(completedRecord, supervisorEnvelope.ledgerPath)
   return result.code
 }
 
@@ -104,7 +116,7 @@ try {
   process.exitCode = status
 } catch (error) {
   try {
-    if (payload) removeIfPresent(payload.startGate)
+    removeIfPresent(startGate)
     removeIfPresent(payloadPath)
   } catch {
     /* cleanup must not replace the supervisor failure */
