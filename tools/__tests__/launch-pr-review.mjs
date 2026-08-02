@@ -1,5 +1,5 @@
 import { spawnSyncHidden as spawnSync } from "../lib/subprocess-options.mjs"
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import {
@@ -16,10 +16,19 @@ import {
   toolPath,
 } from "./_harness.mjs"
 import { evaluateReviewEvidence } from "../check-review-evidence.mjs"
+import {
+  pullRequestHead,
+  reviewId,
+  reviewNodeId,
+  reviewPreservesIdentity,
+  validateGitHubPullRequestPayload,
+  validateGitHubReviewResourcePayload,
+} from "../lib/github-review-interface.mjs"
 
 const HEAD = "1111111111111111111111111111111111111111"
 const BASE = "2222222222222222222222222222222222222222"
 const MOVED = "3333333333333333333333333333333333333333"
+const GITHUB_REVIEW_EVIDENCE = join(REPO_ROOT, "tools", "__fixtures__", "github-review-envelopes.json")
 
 /**
  * The JSONL fixture was captured from one real Codex 5.6 Sol/high invocation on 2026-07-31.
@@ -38,6 +47,218 @@ const readJsonLines = (path) => {
   } catch {
     return []
   }
+}
+
+const jsonType = (value) => {
+  if (value === null) return "null"
+  if (Array.isArray(value)) return "array"
+  return typeof value === "object" ? "object" : typeof value
+}
+
+const samplePaths = (value, path = "$", paths = {}) => {
+  const type = jsonType(value)
+  paths[path] ??= new Set()
+  paths[path].add(type)
+  if (type === "array") {
+    for (const item of value) samplePaths(item, `${path}[]`, paths)
+  } else if (type === "object") {
+    for (const [key, child] of Object.entries(value)) samplePaths(child, `${path}.${key}`, paths)
+  }
+  return paths
+}
+
+const redactedPullRequest = () => ({
+  author: { id: "<redacted id>", is_bot: false, login: "<redacted login>", name: "<redacted name>" },
+  baseRefName: "main",
+  body: "<redacted body>",
+  files: [{ additions: 0, changeType: "<redacted string>", deletions: 0, path: "<redacted path>" }],
+  headRefName: "<redacted branch>",
+  headRefOid: "0".repeat(40),
+  isDraft: false,
+  labels: [{ color: "<redacted string>", description: "<redacted string>", id: "<redacted id>", name: "<redacted string>" }],
+  number: 166,
+  state: "OPEN",
+  statusCheckRollup: [
+    {
+      __typename: "CheckRun",
+      completedAt: "2026-08-02T00:00:00Z",
+      conclusion: "SUCCESS",
+      detailsUrl: "<redacted URL>",
+      name: "<redacted string>",
+      startedAt: "2026-08-02T00:00:00Z",
+      status: "COMPLETED",
+      workflowName: "<redacted string>",
+    },
+    {
+      __typename: "StatusContext",
+      context: "<redacted string>",
+      startedAt: "2026-08-02T00:00:00Z",
+      state: "SUCCESS",
+      targetUrl: "<redacted URL>",
+    },
+  ],
+  title: "<redacted title>",
+})
+
+const redactedReview = () => ({
+  _links: {
+    html: { href: "<redacted URL>" },
+    pull_request: { href: "<redacted URL>" },
+  },
+  author_association: "<redacted string>",
+  body: "<redacted body>",
+  commit_id: "0".repeat(40),
+  html_url: "<redacted URL>",
+  id: 1,
+  node_id: "<redacted node id>",
+  pull_request_url: "<redacted URL>",
+  state: "COMMENTED",
+  submitted_at: "2026-08-02T00:00:00Z",
+  user: {
+    avatar_url: "<redacted URL>",
+    events_url: "<redacted URL>",
+    followers_url: "<redacted URL>",
+    following_url: "<redacted URL>",
+    gists_url: "<redacted URL>",
+    gravatar_id: "<redacted string>",
+    html_url: "<redacted URL>",
+    id: 1,
+    login: "<redacted login>",
+    node_id: "<redacted node id>",
+    organizations_url: "<redacted URL>",
+    received_events_url: "<redacted URL>",
+    repos_url: "<redacted URL>",
+    site_admin: false,
+    starred_url: "<redacted URL>",
+    subscriptions_url: "<redacted URL>",
+    type: "<redacted string>",
+    url: "<redacted URL>",
+    user_view_type: "<redacted string>",
+  },
+})
+
+const trackExternalReads = (value, path, reads) => {
+  if (!value || typeof value !== "object") return value
+  if (Array.isArray(value)) {
+    return new Proxy(value, {
+      get(target, property, receiver) {
+        if (typeof property === "string" && /^\d+$/.test(property)) {
+          return trackExternalReads(Reflect.get(target, property, receiver), `${path}[]`, reads)
+        }
+        return Reflect.get(target, property, receiver)
+      },
+    })
+  }
+  return new Proxy(value, {
+    get(target, property, receiver) {
+      if (typeof property !== "string") return Reflect.get(target, property, receiver)
+      const childPath = `${path}.${property}`
+      reads.add(childPath)
+      return trackExternalReads(Reflect.get(target, property, receiver), childPath, reads)
+    },
+  })
+}
+
+const samePathTypes = (sample, recorded) => {
+  const samplePaths = Object.keys(sample)
+  const recordedPaths = Object.keys(recorded ?? {})
+  return samplePaths.length === recordedPaths.length && samplePaths.every((path) => {
+    const expectedTypes = [...sample[path]].sort()
+    const recordedTypes = [...(recorded[path]?.types ?? [])].sort()
+    return expectedTypes.length === recordedTypes.length && expectedTypes.every((type, index) => type === recordedTypes[index])
+  })
+}
+
+const evidencePaths = (entry, key) => new Set(Object.keys(entry[key]))
+
+const assertGitHubEvidence = () => {
+  if (!existsSync(GITHUB_REVIEW_EVIDENCE)) {
+    T(
+      "launch-pr-review.mjs: the exact GitHub pull request and review response evidence is recorded",
+      false,
+      `missing ${GITHUB_REVIEW_EVIDENCE}; record complete redacted key/type sets and re-derivation commands before reading new fields`,
+    )
+    return
+  }
+  let evidence
+  try {
+    evidence = JSON.parse(readFileSync(GITHUB_REVIEW_EVIDENCE, "utf8"))
+  } catch (error) {
+    T("launch-pr-review.mjs: GitHub external-interface evidence is readable JSON", false, error.message)
+    return
+  }
+  const view = evidence.commands?.pullRequestView
+  const create = evidence.commands?.reviewCreate
+  const update = evidence.commands?.reviewUpdate
+  const pullRequest = redactedPullRequest()
+  const review = redactedReview()
+  const createRequest = { body: "<redacted body>", commit_id: "0".repeat(40), event: "COMMENT" }
+  const updateRequest = { body: "<redacted body>" }
+  const pullRequestSamplePaths = new Set(Object.keys(samplePaths(pullRequest)))
+  const reviewSamplePaths = new Set(Object.keys(samplePaths(review)))
+  const createRequestSamplePaths = new Set(Object.keys(samplePaths(createRequest)))
+  const updateRequestSamplePaths = new Set(Object.keys(samplePaths(updateRequest)))
+  T(
+    "launch-pr-review.mjs: recorded pull request paths match the complete redacted live key/type set",
+    Boolean(view?.paths) && samePathTypes(samplePaths(pullRequest), view.paths),
+    JSON.stringify({ expected: [...pullRequestSamplePaths], recorded: Object.keys(view?.paths ?? {}) }),
+  )
+  T(
+    "launch-pr-review.mjs: recorded review create paths match the complete redacted live key/type set",
+    Boolean(create?.responsePaths) && samePathTypes(samplePaths(review), create.responsePaths),
+    JSON.stringify({ expected: [...reviewSamplePaths], recorded: Object.keys(create?.responsePaths ?? {}) }),
+  )
+  T(
+    "launch-pr-review.mjs: recorded review update paths match the complete redacted live key/type set",
+    Boolean(update?.responsePaths) && samePathTypes(samplePaths(review), update.responsePaths),
+    JSON.stringify({ expected: [...reviewSamplePaths], recorded: Object.keys(update?.responsePaths ?? {}) }),
+  )
+  T(
+    "launch-pr-review.mjs: recorded review request paths cover both write payloads",
+    Boolean(create?.requestPaths && update?.requestPaths) &&
+      samePathTypes(samplePaths(createRequest), create.requestPaths) &&
+      samePathTypes(samplePaths(updateRequest), update.requestPaths),
+    JSON.stringify({ create: Object.keys(create?.requestPaths ?? {}), update: Object.keys(update?.requestPaths ?? {}) }),
+  )
+  T(
+    "launch-pr-review.mjs: evidence records the exact selections and compared provider values",
+    view?.rederive === "gh pr view <pull-request-number> --repo <owner/name> --json number,title,body,author,baseRefName,headRefName,headRefOid,files,labels,statusCheckRollup,state,isDraft" &&
+      create?.rederive === "gh api repos/<owner/name>/pulls/<pull-request-number>/reviews --method POST --input -" &&
+      update?.rederive === "gh api repos/<owner/name>/pulls/<pull-request-number>/reviews/<review-id> --method PUT --input -" &&
+      JSON.stringify(view?.comparedFields?.["$.state"]) === JSON.stringify(["OPEN"]) &&
+      JSON.stringify(view?.comparedFields?.["$.statusCheckRollup[].__typename"]) === JSON.stringify(["CheckRun", "StatusContext"]) &&
+      JSON.stringify(create?.requestComparedFields?.["$.event"]) === JSON.stringify(["COMMENT"]),
+    JSON.stringify({ view: view?.rederive, create: create?.rederive, update: update?.rederive }),
+  )
+
+  const reads = new Set()
+  const trackedPullRequest = trackExternalReads(pullRequest, "$", reads)
+  validateGitHubPullRequestPayload(trackedPullRequest, { pullRequest: 166, base: "main" })
+  pullRequestHead(trackedPullRequest)
+  const trackedSubmittedReview = trackExternalReads(review, "$", reads)
+  const trackedUpdatedReview = trackExternalReads({ ...review }, "$", reads)
+  validateGitHubReviewResourcePayload(trackedSubmittedReview, "GitHub review creation")
+  validateGitHubReviewResourcePayload(trackedUpdatedReview, "GitHub review update")
+  reviewId(trackedSubmittedReview)
+  reviewNodeId(trackedSubmittedReview)
+  reviewPreservesIdentity(trackedUpdatedReview, trackedSubmittedReview, review.commit_id, review.body)
+  const recorded = new Set([
+    ...evidencePaths(view, "paths"),
+    ...evidencePaths(create, "responsePaths"),
+    ...evidencePaths(update, "responsePaths"),
+  ])
+  const unrecorded = [...reads].filter((path) => !recorded.has(path))
+  T(
+    "launch-pr-review.mjs: implementation reads never exceed recorded GitHub evidence",
+    unrecorded.length === 0,
+    `unrecorded external fields: ${unrecorded.join(", ")}`,
+  )
+  const launcherSource = readFileSync(toolPath("launch-pr-review.mjs"), "utf8")
+  T(
+    "launch-pr-review.mjs: the launcher cannot bypass the recorded response contract with raw field reads",
+    !/\b(?:pullRequest|submittedReview|updatedReview)\s*(?:\.[A-Za-z_][A-Za-z0-9_]*|\[\s*["'][^"']+["']\s*\])/.test(launcherSource),
+    "raw GitHub response reads must live in github-review-interface.mjs so the proxy gate observes them",
+  )
 }
 
 const stageReview = (label, {
@@ -245,6 +466,7 @@ console.log(JSON.stringify({ status: args[0].toUpperCase() }))
 }
 
 export const cases = () => {
+  assertGitHubEvidence()
   const schema = JSON.parse(readFileSync(join(REPO_ROOT, "tools", "schemas", "pr-review-result.schema.json"), "utf8"))
   const constrainedWithoutType = []
   const visitSchema = (node, path = "$") => {
