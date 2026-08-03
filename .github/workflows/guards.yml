@@ -179,7 +179,7 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" != "pull_request" ]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
-          elif git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -Eq '^(tools/|\.claude/)'; then
+          elif git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -Eq '^(tools/|\.claude/|\.agents/|\.codex/)'; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"

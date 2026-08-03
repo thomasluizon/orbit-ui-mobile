@@ -1,0 +1,3 @@
+name = "explore"
+description = "Codex adapter for the canonical Claude Explore agent."
+developer_instructions = "Before taking any action, read and follow the complete canonical agent contract at .claude/agents/Explore.md. That source is authoritative; this adapter must not become a behavioral copy."
