@@ -915,6 +915,7 @@ const startHeadlessWorker = (worktreePath, branch, launchMode) => {
   const { publicKey, privateKey } = generateKeyPairSync("ed25519")
   const authorityPublicKey = publicKey.export({ format: "der", type: "spki" }).toString("base64")
   const workerPath = resolve(worktreePath)
+  const startingHead = launchMode === "repair" ? git(["-C", worktreePath, "rev-parse", "HEAD"]) : null
   const gitDirectory = resolve(worktreePath, git(["-C", worktreePath, "rev-parse", "--git-dir"]))
   const markerPath = join(gitDirectory, "orbit-worker-pids.jsonl")
   const supervisorPath = resolve(dirname(fileURLToPath(import.meta.url)), "worker-supervisor.mjs")
@@ -946,6 +947,7 @@ const startHeadlessWorker = (worktreePath, branch, launchMode) => {
     pid: 0,
     startedAt,
     launchMode,
+    ...(startingHead ? { startingHead } : {}),
     engine: engineName,
     invocation,
     branch,

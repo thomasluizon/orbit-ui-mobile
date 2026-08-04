@@ -100,6 +100,7 @@ export const writeCompletedWorkerLaunch = ({
     args: ["exec", "-c", 'windows.sandbox="unelevated"', "--dangerously-bypass-approvals-and-sandbox"],
   },
   launchMode = "existing-worktree",
+  startingHead,
 } = {}) => {
   const authorityPublicKey = WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY
   const privateKey = WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY
@@ -111,6 +112,7 @@ export const writeCompletedWorkerLaunch = ({
     pid: process.pid,
     startedAt: new Date(Date.now() - 1000).toISOString(),
     launchMode,
+    ...(startingHead ? { startingHead } : {}),
     engine,
     invocation,
     branch,

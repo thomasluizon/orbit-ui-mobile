@@ -5,7 +5,7 @@ import { join, resolve } from "node:path"
 
 import { STRIKE_LEDGER_ENV } from "../lib/strike-ledger.mjs"
 import { recordWorkerLaunch, signWorkerLaunchRecord, verifyWorkerLaunchCompletion, workerCompletionSigningPayload, workerDeliveryEvidence, workerLaunchSigningPayload } from "../lib/worker-launch-provenance.mjs"
-import { REVIEW_AUTHORITY_PUBLIC_KEY, WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY, WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY, WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY_ENV, WORKER_LAUNCH_LEDGER, T, reviewMarker, root, stage, orcaEnv, run, check, exitedProbePid } from "./_harness.mjs"
+import { REVIEW_AUTHORITY_PUBLIC_KEY, WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY, WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY, WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY_ENV, WORKER_LAUNCH_LEDGER, T, reviewMarker, root, stage, orcaEnv, run, check, exitedProbePid, writeCompletedWorkerLaunch } from "./_harness.mjs"
 
 const stageWorkerStatusWorktree = (label = "worker-status") => {
   const base = join(root, label)
@@ -231,6 +231,20 @@ const pidMarkerPath = (worktreePath) => join(gitPath(worktreePath, "--git-dir"),
  * reuse backstop, so moving that backstop turns a case red rather than being quietly followed.
  */
 const hoursAgo = (hours) => new Date(Date.now() - hours * 3_600_000).toISOString()
+const CONFIGURED_CODEX_INVOCATIONS = Object.freeze({
+  default: {
+    command: "codex",
+    args: ["exec", "-c", 'windows.sandbox="unelevated"', "--dangerously-bypass-approvals-and-sandbox", "-c", 'model_reasoning_effort="max"', "-c", 'service_tier="fast"', "--model", "gpt-5.6-luna"],
+  },
+  cheap: {
+    command: "codex",
+    args: ["exec", "-c", 'windows.sandbox="unelevated"', "--dangerously-bypass-approvals-and-sandbox", "-c", 'model_reasoning_effort="low"', "--model", "gpt-5.6-luna"],
+  },
+  deep: {
+    command: "codex",
+    args: ["exec", "-c", 'windows.sandbox="unelevated"', "--dangerously-bypass-approvals-and-sandbox", "-c", 'model_reasoning_effort="high"', "--model", "gpt-5.6-sol"],
+  },
+})
 const writePidMarker = (worktreePath, rows) =>
   writeFileSync(
     pidMarkerPath(worktreePath),
@@ -244,12 +258,10 @@ const writePidMarker = (worktreePath, rows) =>
         worktreePath: resolve(worktreePath),
         pid: row.pid,
         startedAt: row.startedAt,
-        launchMode: "existing-worktree",
+        launchMode: row.launchMode ?? "existing-worktree",
+        ...(row.startingHead ? { startingHead: row.startingHead } : {}),
         engine: "codex",
-        invocation: {
-          command: "codex",
-          args: ["exec", "-c", 'windows.sandbox="unelevated"', "--dangerously-bypass-approvals-and-sandbox", "-c", 'model_reasoning_effort="max"', "-c", 'service_tier="fast"', "--model", "gpt-5.6-luna"],
-        },
+        invocation: row.invocation ?? CONFIGURED_CODEX_INVOCATIONS.default,
         branch: "feature/orb-75-worker-status",
         launcherPid: process.pid,
         issuedAt: new Date().toISOString(),
@@ -281,6 +293,18 @@ const writePidMarker = (worktreePath, rows) =>
     }).join(""),
   )
 const clearPidMarker = (worktreePath) => rmSync(pidMarkerPath(worktreePath), { force: true })
+const runImplementationStatus = (fixture) => {
+  const result = run(
+    "worker-status.mjs",
+    ["--worktree", fixture.worktree, "--issue", "ORB-75", "--implementation", "--authority-public-key", WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY, "--json"],
+    { env: { ORBIT_WORKER_LAUNCH_LEDGER: WORKER_LAUNCH_LEDGER } },
+  )
+  try {
+    return { ...result, verdict: JSON.parse(result.stdout) }
+  } catch {
+    return { ...result, verdict: null }
+  }
+}
 const writeForgedPidMarker = (worktreePath, pid) =>
   writeFileSync(pidMarkerPath(worktreePath), `${JSON.stringify({
     version: 1,
@@ -379,6 +403,49 @@ export const cases = () => {
         workerDeliveryEvidence({ issue: "ORB-75", branch: sameKeyForgedLaunch.branch, head: forgedCompletion.completedHead, worktreePath: sameKeyForgedLaunch.worktreePath, invocation: { engine: sameKeyForgedLaunch.engine, command: sameKeyForgedLaunch.invocation.command, args: sameKeyForgedLaunch.invocation.args }, authorityPublicKey: WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY, records: [sameKeyForgedLaunch] }).ok === false,
       "a completion signed by one worker-generated key must be rejected by the explicit launcher authority",
     )
+    const repairStartingHead = "b".repeat(40)
+    const changedRepairHead = "c".repeat(40)
+    const changedRepair = writeCompletedWorkerLaunch({
+      issue: "ORB-75",
+      branch: "feature/orb-75-repair-changed",
+      head: changedRepairHead,
+      launchMode: "repair",
+      startingHead: repairStartingHead,
+      invocation: CONFIGURED_CODEX_INVOCATIONS.default,
+    }).completedRecord
+    const unchangedRepair = writeCompletedWorkerLaunch({
+      issue: "ORB-75",
+      branch: "feature/orb-75-repair-unchanged",
+      head: repairStartingHead,
+      launchMode: "repair",
+      startingHead: repairStartingHead,
+      invocation: CONFIGURED_CODEX_INVOCATIONS.default,
+    }).completedRecord
+    const changedRepairEvidence = workerDeliveryEvidence({
+      issue: "ORB-75",
+      branch: changedRepair.branch,
+      head: changedRepairHead,
+      authorityPublicKey: WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY,
+      records: [changedRepair],
+    })
+    const unchangedRepairEvidence = workerDeliveryEvidence({
+      issue: "ORB-75",
+      branch: unchangedRepair.branch,
+      head: repairStartingHead,
+      authorityPublicKey: WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY,
+      records: [unchangedRepair],
+    })
+    T(
+      "worker-status.mjs: a changed repair head passes while an unchanged repair head fails closed",
+      changedRepairEvidence.ok === true && unchangedRepairEvidence.ok === false && unchangedRepairEvidence.status === "NOOP",
+      `changed: ${JSON.stringify(changedRepairEvidence)}\n     unchanged: ${JSON.stringify(unchangedRepairEvidence)}`,
+    )
+    const tamperedRepair = { ...changedRepair, startingHead: "d".repeat(40) }
+    T(
+      "worker-status.mjs: a repair starting HEAD is covered by the launch authority signature",
+      verifyWorkerLaunchCompletion(tamperedRepair, WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY) === false,
+      "changing the authenticated repair starting HEAD must invalidate the completion receipt",
+    )
     check("worker-status.mjs", "requires --worktree", ["--issue", "ORB-75"], { status: 2, stderr: /--worktree is required/ })
     check("worker-status.mjs", "requires a Linear issue identifier", ["--worktree", root, "--issue", "nope"], { status: 2, stderr: /Linear identifier/ })
     const fixture = stageWorkerStatusWorktree()
@@ -400,13 +467,8 @@ export const cases = () => {
         complete.verdict.checks.find((entry) => entry.name === "critique-attached")?.ok === true,
       `exit ${complete.status}\n     ${(complete.stderr || complete.stdout).slice(0, 600)}`,
     )
-    const implementationReady = run(
-      "worker-status.mjs",
-      ["--worktree", fixture.worktree, "--issue", "ORB-75", "--implementation", "--authority-public-key", WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY, "--json"],
-      { env: { ORBIT_WORKER_LAUNCH_LEDGER: WORKER_LAUNCH_LEDGER } },
-    )
-    let implementationVerdict = null
-    try { implementationVerdict = JSON.parse(implementationReady.stdout) } catch { /* assertion below reports the raw result */ }
+    const implementationReady = runImplementationStatus(fixture)
+    const implementationVerdict = implementationReady.verdict
     T(
       "worker-status.mjs: implementation mode authoritatively accepts Luna's clean signed local handoff",
       implementationReady.status === 0 && implementationVerdict?.verdict === "IMPLEMENTATION_READY" && implementationVerdict?.checks.every((check) => check.ok),
@@ -432,6 +494,42 @@ export const cases = () => {
       implementationMalformedAuthority.status === 2 && /authority public key is malformed/.test(implementationMalformedAuthority.stderr),
       `exit ${implementationMalformedAuthority.status}\n     ${implementationMalformedAuthority.stderr}`,
     )
+    for (const tier of ["cheap", "deep"]) {
+      const tierFixture = stageWorkerStatusWorktree(`worker-status-${tier}-tier`)
+      if (!tierFixture) {
+        T(`worker-status.mjs: implementation mode fixture exists for tier:${tier}`, false, "could not create the tier fixture")
+        continue
+      }
+      writePidMarker(tierFixture.worktree, [{ pid: process.pid, startedAt: hoursAgo(1), invocation: CONFIGURED_CODEX_INVOCATIONS[tier] }])
+      const tierResult = runImplementationStatus(tierFixture)
+      T(
+        `worker-status.mjs: implementation mode accepts a signed tier:${tier} handoff`,
+        tierResult.status === 0 && tierResult.verdict?.verdict === "IMPLEMENTATION_READY" && tierResult.verdict?.checks.every((check) => check.ok),
+        `tier ${tier}\n     exit ${tierResult.status}\n     ${(tierResult.stderr || tierResult.stdout).slice(0, 600)}`,
+      )
+    }
+    const unconfiguredFixture = stageWorkerStatusWorktree("worker-status-unconfigured-tier")
+    if (!unconfiguredFixture) {
+      T("worker-status.mjs: implementation mode unconfigured invocation fixture exists", false, "could not create the unconfigured invocation fixture")
+    } else {
+      writePidMarker(unconfiguredFixture.worktree, [{
+        pid: process.pid,
+        startedAt: hoursAgo(1),
+        invocation: {
+          command: "codex",
+          args: ["exec", "-c", 'windows.sandbox="unelevated"', "--dangerously-bypass-approvals-and-sandbox", "--model", "gpt-5.6-unconfigured"],
+        },
+      }])
+      const unconfiguredResult = runImplementationStatus(unconfiguredFixture)
+      T(
+        "worker-status.mjs: implementation mode rejects a signed invocation outside configured tiers",
+        unconfiguredResult.status === 1 &&
+          unconfiguredResult.verdict?.verdict === "IMPLEMENTATION_BLOCKED" &&
+          unconfiguredResult.verdict?.checks.find((check) => check.name === "worker-launch-provenance")?.ok === false &&
+          unconfiguredResult.verdict?.workerDelivery?.ok === false,
+        `exit ${unconfiguredResult.status}\n     ${(unconfiguredResult.stderr || unconfiguredResult.stdout).slice(0, 600)}`,
+      )
+    }
     const oldReceiptFixture = stageWorkerStatusWorktree("worker-status-old-receipt")
     if (!oldReceiptFixture) {
       T("worker-status.mjs: old receipt fixture is available", false, "could not create the old receipt fixture")

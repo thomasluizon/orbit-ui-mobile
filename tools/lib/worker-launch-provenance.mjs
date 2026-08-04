@@ -88,6 +88,8 @@ const isCompletion = (completion) =>
   typeof completion.signature === "string" &&
   BASE64.test(completion.signature)
 
+const isStartingHead = (startingHead) => typeof startingHead === "string" && SHA1.test(startingHead)
+
 const parseAuthorityPublicKey = (encoded) => {
   if (typeof encoded !== "string" || encoded.trim().length === 0 || !BASE64.test(encoded.trim())) return null
   try {
@@ -145,6 +147,9 @@ export const isWorkerLaunchRecord = (record) =>
   record.launcherPid > 0 &&
   Number.isFinite(Date.parse(record.issuedAt)) &&
   isCompletionAttestation(record.completionAttestation) &&
+  (record.launchMode === "repair"
+    ? isStartingHead(record.startingHead)
+    : (!Object.hasOwn(record, "startingHead") || isStartingHead(record.startingHead))) &&
   (!Object.hasOwn(record, "supervisorEnvelope") || (
     isSupervisorEnvelope(record.supervisorEnvelope) &&
     record.supervisorEnvelope.worktreePath === record.worktreePath
@@ -172,6 +177,7 @@ export const workerLaunchSigningPayload = (record) => {
       publicKey: record.completionAttestation?.publicKey,
     },
   }
+  if (Object.hasOwn(record, "startingHead")) payload.startingHead = record.startingHead
   if (record.supervisorEnvelope) payload.supervisorEnvelope = supervisorEnvelopeSigningPayload(record.supervisorEnvelope)
   return JSON.stringify(payload)
 }
@@ -287,6 +293,7 @@ export const sameWorkerLaunch = (left, right) =>
   left.pid === right.pid &&
   left.startedAt === right.startedAt &&
   left.launchMode === right.launchMode &&
+  left.startingHead === right.startingHead &&
   left.engine === right.engine &&
   left.invocation.command === right.invocation.command &&
   sameArray(left.invocation.args, right.invocation.args) &&
@@ -296,7 +303,7 @@ export const sameWorkerLaunch = (left, right) =>
   sameAttestation(left, right) &&
   left.launchSignature === right.launchSignature
 
-export const workerDeliveryEvidence = ({ issue, branch, head, worktreePath, invocation, ledgerPath, records, authorityPublicKey } = {}) => {
+export const workerDeliveryEvidence = ({ issue, branch, head, worktreePath, invocation, invocations, ledgerPath, records, authorityPublicKey } = {}) => {
   if (typeof issue !== "string" || !/^[A-Z]+-\d+$/.test(issue)) return { ok: false, status: "INVALID", reason: "issue is not a Linear identifier" }
   if (typeof branch !== "string" || branch.length === 0) return { ok: false, status: "INVALID", reason: "branch is missing" }
   if (typeof head !== "string" || !SHA1.test(head)) return { ok: false, status: "INVALID", reason: "head is not a full commit SHA" }
@@ -308,14 +315,15 @@ export const workerDeliveryEvidence = ({ issue, branch, head, worktreePath, invo
   } catch (error) {
     return { ok: false, status: "UNREADABLE", reason: error.message }
   }
+  const expectedInvocations = invocations ?? (invocation ? [invocation] : null)
   const candidates = launches.filter((record) =>
     record.issue === issue &&
     record.branch === branch &&
     (!worktreePath || normalizedPath(record.worktreePath) === normalizedPath(worktreePath)) &&
-    (!invocation || (
-      record.engine === invocation.engine &&
-      record.invocation.command === invocation.command &&
-      sameArray(record.invocation.args, invocation.args)
+    (!expectedInvocations || expectedInvocations.some((expected) =>
+      record.engine === expected.engine &&
+      record.invocation.command === expected.command &&
+      sameArray(record.invocation.args, expected.args)
     )),
   )
   const completed = candidates.find((record) =>
@@ -323,6 +331,9 @@ export const workerDeliveryEvidence = ({ issue, branch, head, worktreePath, invo
     record.completion.exitCode === 0 &&
     verifyWorkerLaunchCompletion(record, expectedAuthority.encoded),
   )
+  if (completed?.launchMode === "repair" && completed.startingHead === completed.completion.completedHead) {
+    return { ok: false, status: "NOOP", reason: `authenticated repair completion left HEAD unchanged at ${head}`, record: completed }
+  }
   if (completed) return { ok: true, status: "COMPLETED", reason: `launcher-supervised worker completed ${head}`, record: completed }
   if (candidates.some((record) => record.completion)) {
     return { ok: false, status: "STALE", reason: `no authenticated worker completion receipt matches ${head}` }

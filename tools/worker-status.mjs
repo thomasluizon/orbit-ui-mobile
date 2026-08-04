@@ -113,6 +113,22 @@ const fail = (code, message) => {
   process.exit(code)
 }
 
+/** Resolve every model tier the authenticated launcher is allowed to issue. The completion
+ * record's invocation is evidence only; it never chooses the policy tier. */
+const resolveConfiguredInvocations = (engineName, workerEngine) => {
+  const tiers = ["default", ...Object.keys(workerEngine?.models ?? {}).filter((tier) => tier !== "default")]
+  return tiers.map((tier) => {
+    const labels = tier === "default" ? [] : [`tier:${tier}`]
+    const resolved = resolveWorkerInvocation(engineName, workerEngine, labels)
+    return { engine: engineName, command: workerEngine.command, args: resolved.args }
+  })
+}
+
+const sameInvocation = (row, expected) =>
+  row.engine === expected.engine &&
+  row.invocation?.command === expected.command &&
+  JSON.stringify(row.invocation?.args) === JSON.stringify(expected.args)
+
 const argOf = (flag) => {
   const index = process.argv.indexOf(flag)
   return index === -1 ? null : process.argv[index + 1]
@@ -221,12 +237,11 @@ const dirty = git(["status", "--porcelain"]).split("\n").filter(Boolean)
 
 if (implementationMode) {
   const localHead = git(["rev-parse", "HEAD"])
-  let configuredInvocation = null
+  let configuredInvocations = null
   let configuredInvocationError = null
   try {
     const workerEngine = config.workers?.[config.worker]
-    const resolved = resolveWorkerInvocation(config.worker, workerEngine, [])
-    configuredInvocation = { engine: config.worker, command: workerEngine.command, args: resolved.args }
+    configuredInvocations = resolveConfiguredInvocations(config.worker, workerEngine)
   } catch (error) {
     configuredInvocationError = error.message
   }
@@ -237,7 +252,7 @@ if (implementationMode) {
         branch,
         head: localHead,
         worktreePath: worktree,
-        invocation: configuredInvocation,
+        invocations: configuredInvocations,
         ledgerPath: workerLaunchLedger,
         authorityPublicKey: cliAuthorityPublicKey,
       })
@@ -580,9 +595,7 @@ const liveness = {
 
 const configuredLaunchRows = configuredInvocation
   ? pidRows.filter((row) =>
-      row.engine === configuredInvocation.engine &&
-      row.invocation?.command === configuredInvocation.command &&
-      JSON.stringify(row.invocation?.args) === JSON.stringify(configuredInvocation.args),
+      sameInvocation(row, configuredInvocation),
     )
   : []
 const workerLaunchProvenanceOk = !unreadable && configuredInvocationError === null && configuredLaunchRows.length > 0

@@ -79,6 +79,7 @@ const adversarialPayloadCase = async () => {
     pid: process.pid,
     startedAt: new Date().toISOString(),
     launchMode: "repair",
+    startingHead: "a".repeat(40),
     engine: "codex",
     invocation: { command: "codex", args: ["exec"] },
     branch: "fix/orb-166-supervisor-envelope",
