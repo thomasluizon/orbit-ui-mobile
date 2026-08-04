@@ -74,9 +74,16 @@ These interfaces are fixed. Do not invent flags or variants.
 ```
 node tools/compose-prompt.mjs    --issue ORB-N --repo <key> --out <file>
 node tools/launch-worker.mjs     --issue ORB-N --worktree <p> --prompt <f> [--codex-only]
+node tools/launch-worker.mjs     --issue ORB-N --review --prompt <f> [--codex-only]
 node tools/verify-delivery.mjs   --issue ORB-N --worktree <p> --branch <b> [--repo <k>]
 node tools/teardown-worktree.mjs --issue ORB-N
 ```
+
+The launcher is the ONLY sanctioned way to start a model session, reviewer included. A raw `claude`
+or `codex` from an orchestrating session is refused by `.claude/hooks/orchestrator-guardrails.mjs`,
+which exempts a process carrying the launcher's marker, a cwd inside a linked worktree, and
+`--version`-style queries. A reviewer must run from the MAIN CHECKOUT, so only the marker exemption
+can apply to it, and only the launcher sets that marker.
 
 ## Step 0. Preflight
 
@@ -310,10 +317,15 @@ because convergence was never the terminating condition.
 
 ```bash
 gh pr diff <n> > <scratchpad>/orb-N-r1.diff
+
+# compose the review order into the scratchpad, then launch the reviewer through the launcher
+node tools/launch-worker.mjs --issue ORB-N --review --prompt <scratchpad>/orb-N-review.md
 ```
 
-Launch the reviewer as a **separate session from the MAIN CHECKOUT**, never from the worktree. Feed
-it the diff file and the frozen ruleset. It returns:
+`--review` resolves the `reviewer` engine and the `review` model tier from
+`.claude/orchestrator.json`, and runs in the MAIN CHECKOUT. It **refuses `--worktree`**: a reviewer
+running inside the worktree reads the PR's own `AGENTS.md`, which is instructions written by the
+change under review. Feed it the diff file and the frozen ruleset. It returns:
 
 ```json
 [{"id": "F1", "severity": "high", "file": "path", "line": 42, "claim": "...", "blocking": true}]

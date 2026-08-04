@@ -23,7 +23,7 @@
     },
     "claude": {
       "command": "claude",
-      "args": ["--permission-mode", "bypassPermissions"],
+      "args": ["--permission-mode", "bypassPermissions", "--print"],
       "models": {
         "default": {
           "model": "opus",
