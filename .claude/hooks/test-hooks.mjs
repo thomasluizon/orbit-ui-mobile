@@ -269,13 +269,16 @@ T("orchestrator: a later chained engine call blocks", engineBlocks("npm test && 
 // The launcher's own marker is the discriminator, in the environment it exports into every
 // worker and as the inline assignment shape.
 T("orchestrator: the launcher marker in the environment allows", engineBlocks("codex exec", { env: { ORBIT_LAUNCH_WORKER: "1" } }), false)
+T("orchestrator: the review launcher marker in the environment allows", engineBlocks("codex exec review", { env: { ORBIT_LAUNCH_PR_REVIEW: "1" } }), false)
 // The marker is read from the ENVIRONMENT only. The launcher exports it on the spawn and never
 // shells out with an inline assignment, so an exemption keyed on the command TEXT would exempt
 // nothing legitimate and everything an agent chose to type. That was a real bypass in the first
 // version of this rule; it is deleted rather than softened.
 T("orchestrator: a typed marker with no such environment still blocks", engineBlocks("ORBIT_LAUNCH_WORKER=1 codex exec"), true)
+T("orchestrator: a typed review marker with no such environment still blocks", engineBlocks("ORBIT_LAUNCH_PR_REVIEW=1 codex exec review"), true)
 T("orchestrator: leading assignments still resolve the binary", engineBlocks("FOO=1 ORBIT_LAUNCH_WORKER=1 codex exec"), true)
 T("orchestrator: the launcher itself allows", engineBlocks("node tools/launch-worker.mjs --issue ORB-75 --prompt-file p.md"), false)
+T("orchestrator: the review launcher itself allows", engineBlocks("node tools/launch-pr-review.mjs --repo owner/repo --pr 75 --base main"), false)
 // Root cause 3: match the real invocation, never a substring of an arbitrary payload. The
 // second-opinion helper is not refused because `node` is what it invokes; `.claude/` is a
 // path, and a message NAMING a command is data.
@@ -286,6 +289,7 @@ T("orchestrator: a heredoc body naming the engine allows", engineBlocks("git com
 T("orchestrator: an unrelated command allows", engineBlocks("npm run lint"), false)
 T("orchestrator: non-string input allows", checkEngineInvocation(undefined), null)
 T("orchestrator: the engine refusal names the launcher", checkEngineInvocation("codex exec")?.message.includes("tools/launch-worker.mjs"), true)
+T("orchestrator: the engine refusal names the review launcher", checkEngineInvocation("codex exec")?.message.includes("tools/launch-pr-review.mjs"), true)
 
 T(`orchestrator: gh pr merge ${ADMIN} blocks`, !!checkAdminMerge(`gh pr merge 667 --squash ${ADMIN}`)?.block, true)
 T("orchestrator: gh pr merge without the flag allows", checkAdminMerge("gh pr merge 667 --squash --delete-branch"), null)
@@ -351,10 +355,14 @@ const write = (rel, body) => {
   return p
 }
 function runHookResult(file, payload, env) {
+  const cleanEnvironment = { ...process.env }
+  delete cleanEnvironment.ORBIT_LAUNCH_WORKER
+  delete cleanEnvironment.ORBIT_LAUNCH_PR_REVIEW
+  delete cleanEnvironment.ORBIT_WORKER_LAUNCH_ID
   return spawnSync(process.execPath, [join(hooksDir, file)], {
     input: JSON.stringify(payload),
     encoding: "utf8",
-    ...(env ? { env: { ...process.env, ...env } } : {}),
+    env: { ...cleanEnvironment, ...(env ?? {}) },
   })
 }
 
@@ -1044,9 +1052,8 @@ T(
 )
 
 // A3d. The orchestration guardrails through the real hook file, on the payload shapes the
-// tools actually send. The cwd cases are the reason the rule takes a cwd at all: a worker
-// runs in a LINKED worktree, the orchestrating session runs in the main checkout, and only
-// the first may spend model budget outside the launcher.
+// tools actually send. A linked worktree does not grant a manually typed engine invocation an
+// exemption; only a launcher-issued environment marker identifies a child process.
 const ORCHESTRATOR_HOOK = "orchestrator-guardrails.mjs"
 const commandPayload = (command, cwd) => ({ hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command }, ...(cwd ? { cwd } : {}) })
 // A staged MAIN checkout, `.git` a directory, standing in for the orchestrating session's
@@ -1064,12 +1071,11 @@ T(
   2,
 )
 T(
-  "cc orchestrator: codex exec from a launcher worktree -> 0",
+  "cc orchestrator: codex exec from a launcher worktree still blocks without launcher provenance -> 2",
   runHook(ORCHESTRATOR_HOOK, commandPayload("codex exec", linkedWorktreeRoot)),
-  0,
+  2,
 )
-// The exemption is for a launcher-created worktree of a DECLARED repository, so it cannot be
-// bought by pointing a hand-written `.git` file at some other repository.
+// A hand-written `.git` file cannot buy an engine exemption either.
 T(
   "cc orchestrator: codex exec from a worktree of an undeclared repository -> 2",
   runHook(ORCHESTRATOR_HOOK, commandPayload("codex exec", undeclaredWorktreeCwd)),
@@ -1078,6 +1084,11 @@ T(
 T(
   "cc orchestrator: codex exec carrying the launcher marker -> 0",
   runHookResult(ORCHESTRATOR_HOOK, commandPayload("codex exec", mainCheckoutCwd), { ORBIT_LAUNCH_WORKER: "1" }).status,
+  0,
+)
+T(
+  "cc orchestrator: codex review carrying the review launcher marker -> 0",
+  runHookResult(ORCHESTRATOR_HOOK, commandPayload("codex exec review", mainCheckoutCwd), { ORBIT_LAUNCH_PR_REVIEW: "1" }).status,
   0,
 )
 T(

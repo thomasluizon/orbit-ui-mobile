@@ -11,12 +11,14 @@
  * unmet items, which is the checklist to nudge the worker with.
  */
 
-import { execFileSync } from "node:child_process"
+import { execFileSyncHidden as execFileSync } from "./lib/subprocess-options.mjs"
 import { existsSync, readFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 
-import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
+import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
 import { RELAUNCH_SCOPE, STRIKE_LEDGER_ENV, recordStrike, strikeCount, strikeLedgerPath } from "./lib/strike-ledger.mjs"
+import { readWorkerLaunchRecords, sameWorkerLaunch, workerDeliveryEvidence, workerLaunchLedgerPath } from "./lib/worker-launch-provenance.mjs"
+import { evaluateReviewEvidence } from "./check-review-evidence.mjs"
 
 /**
  * `process.kill(pid, 0)` proves SOME process holds that id, never that it is still the worker the
@@ -27,11 +29,12 @@ import { RELAUNCH_SCOPE, STRIKE_LEDGER_ENV, recordStrike, strikeCount, strikeLed
  */
 const PID_REUSE_BACKSTOP_HOURS = 16
 
-const USAGE = `usage: worker-status.mjs --worktree <path> --issue ORB-N [--base <ref>] [--verify-review] [--consume-relaunch] [--json]
+const USAGE = `usage: worker-status.mjs --worktree <path> --issue ORB-N [--base <ref>] [--implementation] [--verify-review] [--consume-relaunch] [--json]
 
   --worktree <path>   the worker's worktree path, as printed by launch-worker.mjs (required)
   --issue ORB-N       the Linear issue the worker is finishing (required)
   --base <ref>        the branch the PR must target (default: main)
+  --implementation     verify Luna's local commit handoff before Sol pushes or opens the PR
   --verify-review     run the one-time pre-merge review-thread verification
   --consume-relaunch  spend one relaunch allowance for this (issue, PR head) pair
   --json              emit the verdict as JSON instead of text
@@ -39,25 +42,32 @@ const USAGE = `usage: worker-status.mjs --worktree <path> --issue ORB-N [--base 
 
 Checks, all from artifacts: commits exist on the branch, the worktree carries no uncommitted
 work, the branch is pushed, a PR is open against <ref> with no CHANGES_REQUESTED decision,
-zero unresolved threads, and any existing approval anchored to its current head, every resolved automated thread has reconciliation evidence
+current local APPROVE evidence, zero unresolved threads, and any existing native approval anchored to its current head, every resolved automated thread has reconciliation evidence
 after its latest finding-bearing nested activity and names a later fix commit that changed its reviewed path,
 every standalone automated review item has a worker acknowledgement naming a PR commit,
 no human-authored thread was resolved by the worker account, the local head matches the PR
 head, the Linear issue is In Review with the PR attached, and both a screenshot and critique
 artifact are attached when the ticket carries visible-effect (D7).
 
-Liveness comes from the launcher-written PID marker <git-dir>/orbit-worker-pids.jsonl, read with
+Liveness comes from the launcher-written PID marker <git-dir>/orbit-worker-pids.jsonl, whose exact
+row must also exist in the central launcher ledger and match the configured headless invocation.
 process.kill(pid, 0): ESRCH is gone, EPERM is alive and not ours. A pid that answers alive but was
 claimed more than ${PID_REUSE_BACKSTOP_HOURS} hours ago may be a recycled id, so it reads unknown rather than alive. A
-missing or unreadable marker, a row naming no parseable startedAt, and any other errno also read
-unknown. Liveness is never inferred from the Linear state, which is honestly In Progress for a
-ticket shipping several sequential pull requests.
+missing or unreadable marker, an unissued row, a row naming no parseable startedAt, and any other
+errno also read unknown. Liveness is never inferred from the Linear state, which is honestly In
+Progress for a ticket shipping several sequential pull requests.
 
 verdicts:
-  DELIVERED       every check above is met; liveness does not enter into it
+  IMPLEMENTATION_READY Luna's signed completion receipt matches a clean local head above the remote base
+  DELIVERED       every check above is met, including launcher-issued worker provenance and a
+                  signed completion receipt for the exact PR head
   WORKING         a check is unmet and the worker process is alive
+  AWAITING-REVIEW the worker process is gone, the PR is otherwise ready for review, and no
+                  decisive local verdict exists for the current head. This includes no local
+                  evidence, a valid prior-head marker, a selected malformed marker, or ambiguity
+  NEEDS-WORK      the worker process is gone and the latest local review requests work
   STALLED         the worker process is gone, a PR is open, and review work is still outstanding:
-                  CHANGES_REQUESTED is active, an existing approval is stale, or an unresolved
+                  CHANGES_REQUESTED is active, review evidence is invalid or stale, or an unresolved
                   thread, unacknowledged standalone automated review item, or resolved automated
                   thread with no fix commit still needs a worker
   AWAITING-MERGE  the worker process is gone, a PR is open, its review gates are clear and NO
@@ -76,7 +86,7 @@ exit codes: 0 the contract is met, or under --consume-relaunch the relaunch was 
             1 unmet items (listed), 2 usage error,
             3 a git, gh or orca command failed, an OPEN pull request's head could not be read, or
               the strike ledger could not be read; a value that was not read is never substituted,
-            4 --consume-relaunch refused because the verdict is not STALLED or the allowance for
+            4 --consume-relaunch refused because the verdict is neither STALLED nor NEEDS-WORK or the allowance for
               this head SHA is spent; nothing was written`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
@@ -137,7 +147,7 @@ const orca = (args) => {
 }
 
 const VALUE_FLAGS = new Set(["--worktree", "--issue", "--base"])
-const BOOLEAN_FLAGS = new Set(["--verify-review", "--consume-relaunch", "--json"])
+const BOOLEAN_FLAGS = new Set(["--implementation", "--verify-review", "--consume-relaunch", "--json"])
 const argv = process.argv.slice(2)
 const unknownOptions = argv.filter(
   (value, index) =>
@@ -148,6 +158,7 @@ if (unknownOptions.length) fail(2, `${USAGE}\n\nunknown option(s): ${unknownOpti
 const worktree = argOf("--worktree")
 const issue = argOf("--issue")
 const base = argOf("--base") ?? "main"
+const implementationMode = process.argv.includes("--implementation")
 const verifyReview = process.argv.includes("--verify-review")
 const consumeRelaunch = process.argv.includes("--consume-relaunch")
 const asJson = process.argv.includes("--json")
@@ -167,6 +178,12 @@ if (!Number.isInteger(config.attemptsBeforeRewrite) || config.attemptsBeforeRewr
   fail(2, ".claude/orchestrator.json attemptsBeforeRewrite must be a positive integer; it is the relaunch cap")
 }
 const relaunchCap = config.attemptsBeforeRewrite
+let workerLaunchLedger
+try {
+  workerLaunchLedger = workerLaunchLedgerPath()
+} catch (error) {
+  fail(2, error.message)
+}
 
 const git = (args, options) => run("git", ["-C", worktree, ...args], options)
 const branch = git(["rev-parse", "--abbrev-ref", "HEAD"])
@@ -182,6 +199,57 @@ git(["fetch", "--quiet", "origin", base], { allowFailure: true })
 const baseRef = git(["rev-parse", "--verify", "--quiet", `origin/${base}`], { allowFailure: true }) ? `origin/${base}` : base
 const commits = git(["log", "--oneline", `${baseRef}..HEAD`]).split("\n").filter(Boolean)
 const dirty = git(["status", "--porcelain"]).split("\n").filter(Boolean)
+
+if (implementationMode) {
+  const localHead = git(["rev-parse", "HEAD"])
+  let configuredInvocation = null
+  let configuredInvocationError = null
+  try {
+    const workerEngine = config.workers?.[config.worker]
+    const resolved = resolveWorkerInvocation(config.worker, workerEngine, [])
+    configuredInvocation = { engine: config.worker, command: workerEngine.command, args: resolved.args }
+  } catch (error) {
+    configuredInvocationError = error.message
+  }
+  const workerDelivery = configuredInvocationError
+    ? { ok: false, status: "INVALID", reason: configuredInvocationError }
+    : workerDeliveryEvidence({
+        issue,
+        branch,
+        head: localHead,
+        worktreePath: worktree,
+        invocation: configuredInvocation,
+        ledgerPath: workerLaunchLedger,
+      })
+  const checks = [
+    { name: "commits", ok: commits.length > 0, detail: commits.length ? `${commits.length} commit(s) on ${branch}` : `no commits on ${branch} above ${baseRef}` },
+    { name: "worktree-clean", ok: dirty.length === 0, detail: dirty.length ? `${dirty.length} uncommitted path(s)` : "no uncommitted work" },
+    { name: "worker-launch-provenance", ok: configuredInvocationError === null && workerDelivery.ok, detail: workerDelivery.reason },
+  ]
+  const ok = checks.every((check) => check.ok)
+  const verdict = {
+    issue,
+    branch,
+    base,
+    baseRef,
+    worktree,
+    head: localHead,
+    implementation: true,
+    checks,
+    unmet: checks.filter((check) => !check.ok).map((check) => check.name),
+    ok,
+    verdict: ok ? "IMPLEMENTATION_READY" : "IMPLEMENTATION_BLOCKED",
+    workerDelivery,
+  }
+  if (asJson) console.log(JSON.stringify(verdict, null, 2))
+  else {
+    console.log(`${issue} local implementation on ${branch}`)
+    for (const check of checks) console.log(`  ${check.ok ? "OK  " : "UNMET"} ${check.name}: ${check.detail}`)
+    console.log(`\nVERDICT ${verdict.verdict}`)
+  }
+  process.exit(ok ? 0 : 1)
+}
+
 const pushed = (git(["ls-remote", "--heads", "origin", branch]) || "").length > 0
 
 const remoteUrl = git(["remote", "get-url", "origin"])
@@ -190,6 +258,7 @@ const pullRequests = JSON.parse(
   run(GH, ["pr", "list", "--repo", slug, "--head", branch, "--state", "all", "--json", "number,url,state,baseRefName,isDraft"]) || "[]",
 )
 const pullRequest = pullRequests.find((entry) => entry.state === "OPEN") ?? pullRequests[0] ?? null
+const reviewRepository = pullRequest?.url?.match(/^https:\/\/github\.com\/([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)\/pull\//i)?.[1] ?? slug
 
 const reviewPayload = pullRequest
   ? JSON.parse(
@@ -197,7 +266,7 @@ const reviewPayload = pullRequest
         "api",
         "graphql",
         "-f",
-        "query=query($owner:String!,$name:String!,$number:Int!){viewer{login}repository(owner:$owner,name:$name){pullRequest(number:$number){headRefOid reviewDecision reviews(first:100){pageInfo{hasNextPage}nodes{id author{login __typename}state body submittedAt updatedAt commit{oid}}}comments(first:100){pageInfo{hasNextPage}nodes{id author{login __typename}body createdAt updatedAt}}reviewThreads(first:100){pageInfo{hasNextPage}nodes{id isResolved path resolvedBy{login}comments(first:100){pageInfo{hasNextPage}nodes{id author{login __typename}body createdAt updatedAt pullRequestReview{id commit{oid}}}}}}}}}",
+        "query=query($owner:String!,$name:String!,$number:Int!){viewer{login}repository(owner:$owner,name:$name){pullRequest(number:$number){headRefOid reviewDecision files(first:100){pageInfo{hasNextPage}nodes{path}} reviews(first:100){pageInfo{hasNextPage}nodes{id author{login __typename}state body submittedAt updatedAt lastEditedAt url commit{oid}}}comments(first:100){pageInfo{hasNextPage}nodes{id author{login __typename}body createdAt updatedAt}}reviewThreads(first:100){pageInfo{hasNextPage}nodes{id isResolved path resolvedBy{login}comments(first:100){pageInfo{hasNextPage}nodes{id author{login __typename}body createdAt updatedAt pullRequestReview{id commit{oid}}}}}}}}}",
         "-F",
         `owner=${slug.split("/")[0]}`,
         "-F",
@@ -294,14 +363,13 @@ const activityAcknowledged = (item) => {
 }
 const unacknowledgedAutomatedActivity = standaloneAutomatedActivity.filter((item) => !activityAcknowledged(item))
 const reviewInventoryComplete =
+  review?.files?.pageInfo?.hasNextPage === false &&
   review?.reviewThreads?.pageInfo?.hasNextPage === false &&
   review?.reviews?.pageInfo?.hasNextPage === false &&
   review?.comments?.pageInfo?.hasNextPage === false &&
   reviewThreads.every((thread) => thread.comments?.pageInfo?.hasNextPage === false)
-const approvedReviews = (review?.reviews?.nodes ?? []).filter((item) => item.state === "APPROVED")
-const currentHeadApproved = approvedReviews.some((item) => item.commit?.oid === prHead)
 const reviewNotChangesRequested = Boolean(review && review.reviewDecision !== "CHANGES_REQUESTED")
-const approvalNotStale = approvedReviews.length === 0 || currentHeadApproved
+const reviewEvidence = evaluateReviewEvidence(review, prHead, { repository: reviewRepository, pullRequest: pullRequest?.number })
 
 const detail = orca(["linear", "issue", issue, "--attachments"])
 const linearIssue = detail.issue ?? detail
@@ -321,6 +389,15 @@ const critiqueAttachments = attachments.filter((entry) => {
 })
 const labels = (linearIssue.labels ?? []).map((label) => (typeof label === "string" ? label : label.name))
 const visibleEffect = labels.includes("visible-effect")
+let configuredInvocation = null
+let configuredInvocationError = null
+try {
+  const workerEngine = config.workers?.[config.worker]
+  const resolved = resolveWorkerInvocation(config.worker, workerEngine, labels)
+  configuredInvocation = { engine: config.worker, command: workerEngine.command, args: resolved.args }
+} catch (error) {
+  configuredInvocationError = error.message
+}
 
 const checks = [
   { name: "commits", ok: commits.length > 0, detail: commits.length ? `${commits.length} commit(s) on ${branch}` : `no commits on ${branch} above ${baseRef}` },
@@ -349,18 +426,14 @@ const checks = [
     detail: review ? `review decision is ${review.reviewDecision ?? "absent"}; only CHANGES_REQUESTED blocks` : "no pull request review state is available",
   },
   {
-    name: "approval-not-stale",
-    ok: Boolean(prHead && approvalNotStale),
-    detail: prHead
-      ? approvedReviews.length === 0
-        ? `PR head ${prHead} has no approving review, so no approval can be stale`
-        : `PR head ${prHead} ${currentHeadApproved ? "has" : "does not have"} an approving review among ${approvedReviews.length} approval(s)`
-      : "no PR head is available for approval verification",
+    name: "review-evidence",
+    ok: Boolean(prHead && reviewEvidence.ok),
+    detail: `${reviewEvidence.status}: ${reviewEvidence.reason}`,
   },
   {
     name: "review-thread-inventory",
     ok: reviewInventoryComplete,
-    detail: reviewInventoryComplete ? "complete review activity inventory" : "more than 100 review items in at least one connection, verification is incomplete",
+    detail: reviewInventoryComplete ? "complete file and review activity inventory" : "changed files or review activity exceed one connection page, verification is incomplete",
   },
   {
     name: "review-threads",
@@ -410,8 +483,6 @@ if (visibleEffect) {
   })
 }
 
-const unmet = checks.filter((check) => !check.ok).map((check) => check.name)
-
 const samePath = (left, right) =>
   process.platform === "win32" ? resolve(left).toLowerCase() === resolve(right).toLowerCase() : resolve(left) === resolve(right)
 
@@ -423,6 +494,12 @@ const samePath = (left, right) =>
 const readWorkerPidRows = () => {
   const marker = join(resolve(worktree, git(["rev-parse", "--git-dir"])), "orbit-worker-pids.jsonl")
   if (!existsSync(marker)) return { marker, rows: [], unreadable: `no launcher PID marker at ${marker}` }
+  let issuedLaunches
+  try {
+    issuedLaunches = readWorkerLaunchRecords(workerLaunchLedger)
+  } catch (error) {
+    return { marker, rows: [], unreadable: error.message }
+  }
   let lines
   try {
     lines = readFileSync(marker, "utf8").split(/\r?\n/).filter(Boolean)
@@ -437,7 +514,12 @@ const readWorkerPidRows = () => {
     } catch {
       return { marker, rows: [], unreadable: `PID marker ${marker} carries a line that is not JSON` }
     }
-    if (typeof row?.worktreePath === "string" && samePath(row.worktreePath, worktree) && row.issue === issue) rows.push(row)
+    if (typeof row?.worktreePath === "string" && samePath(row.worktreePath, worktree) && row.issue === issue) {
+      if (!issuedLaunches.some((issued) => sameWorkerLaunch(row, issued))) {
+        return { marker, rows: [], unreadable: `PID marker ${marker} carries a ${issue} row without launcher-issued provenance` }
+      }
+      rows.push(row)
+    }
   }
   return { marker, rows, unreadable: rows.length ? null : `PID marker ${marker} names no ${issue} worker for this worktree` }
 }
@@ -476,8 +558,45 @@ const liveness = {
   detail: unreadable ?? pidReadings.map((reading) => reading.detail).join("; "),
 }
 
+const configuredLaunchRows = configuredInvocation
+  ? pidRows.filter((row) =>
+      row.engine === configuredInvocation.engine &&
+      row.invocation?.command === configuredInvocation.command &&
+      JSON.stringify(row.invocation?.args) === JSON.stringify(configuredInvocation.args),
+    )
+  : []
+const workerLaunchProvenanceOk = !unreadable && configuredInvocationError === null && configuredLaunchRows.length > 0
+checks.push({
+  name: "worker-launch-provenance",
+  ok: workerLaunchProvenanceOk,
+  detail: workerLaunchProvenanceOk
+    ? `launcher-issued ${configuredInvocation.engine} invocation for ${issue} in ${worktree}`
+    : configuredInvocationError
+      ? `configured headless invocation could not be resolved: ${configuredInvocationError}`
+      : `${liveness.detail}; no launcher-issued row matches the configured headless invocation`,
+})
+const workerDelivery = workerDeliveryEvidence({
+  issue,
+  branch,
+  head: prHead,
+  worktreePath: worktree,
+  invocation: configuredInvocation,
+  ledgerPath: workerLaunchLedger,
+})
+const workerDeliveryOk = !unreadable && configuredInvocationError === null && workerDelivery.ok
+checks.push({
+  name: "worker-completed-head",
+  ok: workerDeliveryOk,
+  detail: workerDeliveryOk
+    ? workerDelivery.reason
+    : configuredInvocationError
+      ? `configured headless invocation could not be resolved: ${configuredInvocationError}`
+      : workerDelivery.reason,
+})
+const unmet = checks.filter((check) => !check.ok).map((check) => check.name)
+
 const prOpen = Boolean(pullRequest && pullRequest.state === "OPEN")
-const reviewGatesClear = reviewNotChangesRequested && approvalNotStale
+const reviewGatesClear = reviewNotChangesRequested && reviewEvidence.ok
 /**
  * The unmet items that are reviewer output only a WORKER can reconcile, so a review-clear head
  * carrying any of them still needs a relaunch rather than a merge. Everything else that can sit
@@ -489,6 +608,15 @@ const reviewGatesClear = reviewNotChangesRequested && approvalNotStale
  */
 const OUTSTANDING_REVIEW_WORK = new Set(["review-threads", "review-activity", "resolved-thread-fixes"])
 const reviewWorkOutstanding = unmet.some((name) => OUTSTANDING_REVIEW_WORK.has(name))
+const REVIEWER_WAIT_ALLOWED_UNMET = new Set(["review-evidence", "linear-in-review", "pr-attached", "screenshot-attached", "critique-attached"])
+const localReviewUndecided =
+  reviewEvidence.status === "AWAITING_REVIEW" ||
+  reviewEvidence.status === "AMBIGUOUS" ||
+  (["STALE", "MALFORMED", "UNAUTHENTICATED"].includes(reviewEvidence.status) && Boolean(reviewEvidence.review))
+const readyForFreshReviewer =
+  localReviewUndecided &&
+  reviewNotChangesRequested &&
+  unmet.every((name) => REVIEWER_WAIT_ALLOWED_UNMET.has(name))
 /**
  * STALLED keys on the worker PROCESS and the pull request, never on the Linear state: measured on
  * ORB-163, `linear-in-review` is unmet purely because a ticket shipping four sequential pull
@@ -502,7 +630,11 @@ const verdictName =
       ? "WORKING"
       : livenessState === "unknown"
         ? "UNKNOWN"
-        : prOpen && (!reviewGatesClear || reviewWorkOutstanding)
+        : prOpen && reviewEvidence.status === "NEEDS_WORK"
+          ? "NEEDS-WORK"
+          : prOpen && readyForFreshReviewer
+            ? "AWAITING-REVIEW"
+            : prOpen && (!reviewGatesClear || reviewWorkOutstanding)
           ? "STALLED"
           : prOpen
             ? "AWAITING-MERGE"
@@ -530,13 +662,29 @@ try {
 } catch (error) {
   fail(3, error.message)
 }
+const relaunchable = verdictName === "STALLED" || verdictName === "NEEDS-WORK"
 const relaunchRefusal =
-  verdictName === "STALLED"
+  relaunchable
     ? consumed >= relaunchCap
       ? `the ${relaunchCap} relaunch allowance(s) for ${issue} at ${allowanceHead} are spent; the head must move before another one is earned`
       : null
-    : `the verdict is ${verdictName}, and only STALLED spends a relaunch allowance`
+    : `the verdict is ${verdictName}, and only STALLED or NEEDS-WORK spends a relaunch allowance`
 const outstandingFindings = [
+  ...(reviewEvidence.status === "NEEDS_WORK" && reviewEvidence.review
+    ? (reviewEvidence.findingIds.length > 0
+      ? reviewEvidence.findingIds.map((id) => ({
+          kind: "local-review-needs-work",
+          id,
+          path: null,
+          body: (reviewEvidence.review.body ?? "").slice(0, 2000),
+        }))
+      : [{
+          kind: "local-review-needs-work",
+          id: "missing-finding-identity",
+          path: null,
+          body: (reviewEvidence.review.body ?? "").slice(0, 2000),
+        }])
+    : []),
   ...unresolvedThreads.map((thread) => ({
     kind: "unresolved-thread",
     id: thread.id,

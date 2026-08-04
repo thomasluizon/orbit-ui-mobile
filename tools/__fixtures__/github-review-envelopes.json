@@ -1,0 +1,236 @@
+{
+  "schemaVersion": 1,
+  "generation": {
+    "method": "Recorded from complete live GitHub captures with values redacted after key and type inspection.",
+    "generator": "manual redaction from credential-free command output",
+    "deterministic": true
+  },
+  "schemaSemantics": {
+    "scalarValues": "Captured values are omitted or replaced with typed placeholders. JSON types and timestamp formats remain recorded.",
+    "objects": "Child paths are the complete union of keys observed at each object location.",
+    "arrays": "Array paths retain observed lengths, and [] paths retain every child key and conflicting JSON type observed across their elements.",
+    "variants": "Variant key sets are recorded when a provider union uses different object keys for different discriminator values.",
+    "credentials": "No token, cookie, credential, private key, personal content, or unredacted response value is retained."
+  },
+  "commands": {
+    "pullRequestView": {
+      "command": [
+        "gh",
+        "pr",
+        "view",
+        "<pull-request-number>",
+        "--repo",
+        "<owner/name>",
+        "--json",
+        "number,title,body,author,baseRefName,headRefName,headRefOid,files,labels,statusCheckRollup,state,isDraft"
+      ],
+      "commandCompleteness": "Complete argv with repository and pull request identifiers replaced by named placeholders.",
+      "rederive": "gh pr view <pull-request-number> --repo <owner/name> --json number,title,body,author,baseRefName,headRefName,headRefOid,files,labels,statusCheckRollup,state,isDraft",
+      "provenance": {
+        "capture": "gh pr view 672 --repo thomasluizon/orbit-ui-mobile --json number,title,body,author,baseRefName,headRefName,headRefOid,files,labels,statusCheckRollup,state,isDraft",
+        "capturedAt": "2026-08-02T04:45:23.603Z",
+        "captureKind": "complete process response with values reduced to key/type evidence"
+      },
+      "observedExitCode": 0,
+      "comparedFields": {
+        "$.number": "must equal the requested --pr integer",
+        "$.baseRefName": "must equal the requested --base branch",
+        "$.state": ["OPEN"],
+        "$.statusCheckRollup[].__typename": ["CheckRun", "StatusContext"]
+      },
+      "paths": {
+        "$": { "types": ["object"] },
+        "$.author": { "types": ["object"] },
+        "$.author.id": { "types": ["string"] },
+        "$.author.is_bot": { "types": ["boolean"] },
+        "$.author.login": { "types": ["string"] },
+        "$.author.name": { "types": ["string"] },
+        "$.baseRefName": { "types": ["string"] },
+        "$.body": { "types": ["string"] },
+        "$.files": { "types": ["array"], "observedLengths": [81] },
+        "$.files[]": { "types": ["object"] },
+        "$.files[].additions": { "types": ["number"] },
+        "$.files[].changeType": { "types": ["string"] },
+        "$.files[].deletions": { "types": ["number"] },
+        "$.files[].path": { "types": ["string"] },
+        "$.headRefName": { "types": ["string"] },
+        "$.headRefOid": { "types": ["string"] },
+        "$.isDraft": { "types": ["boolean"] },
+        "$.labels": { "types": ["array"], "observedLengths": [1] },
+        "$.labels[]": { "types": ["object"] },
+        "$.labels[].color": { "types": ["string"] },
+        "$.labels[].description": { "types": ["string"] },
+        "$.labels[].id": { "types": ["string"] },
+        "$.labels[].name": { "types": ["string"] },
+        "$.number": { "types": ["number"] },
+        "$.state": { "types": ["string"] },
+        "$.statusCheckRollup": { "types": ["array"], "observedLengths": [32] },
+        "$.statusCheckRollup[]": { "types": ["object"] },
+        "$.statusCheckRollup[].__typename": { "types": ["string"] },
+        "$.statusCheckRollup[].completedAt": { "types": ["string"] },
+        "$.statusCheckRollup[].conclusion": { "types": ["string"] },
+        "$.statusCheckRollup[].context": { "types": ["string"] },
+        "$.statusCheckRollup[].detailsUrl": { "types": ["string"] },
+        "$.statusCheckRollup[].name": { "types": ["string"] },
+        "$.statusCheckRollup[].startedAt": { "types": ["string"] },
+        "$.statusCheckRollup[].state": { "types": ["string"] },
+        "$.statusCheckRollup[].status": { "types": ["string"] },
+        "$.statusCheckRollup[].targetUrl": { "types": ["string"] },
+        "$.statusCheckRollup[].workflowName": { "types": ["string"] },
+        "$.title": { "types": ["string"] }
+      },
+      "variants": [
+        {
+          "discriminator": { "path": "$.statusCheckRollup[].__typename", "value": "CheckRun" },
+          "keys": ["__typename", "completedAt", "conclusion", "detailsUrl", "name", "startedAt", "status", "workflowName"]
+        },
+        {
+          "discriminator": { "path": "$.statusCheckRollup[].__typename", "value": "StatusContext" },
+          "keys": ["__typename", "context", "startedAt", "state", "targetUrl"]
+        }
+      ]
+    },
+    "reviewCreate": {
+      "command": [
+        "gh",
+        "api",
+        "repos/<owner/name>/pulls/<pull-request-number>/reviews",
+        "--method",
+        "POST",
+        "--input",
+        "-"
+      ],
+      "commandCompleteness": "Complete argv with repository and pull request identifiers replaced by named placeholders.",
+      "rederive": "gh api repos/<owner/name>/pulls/<pull-request-number>/reviews --method POST --input -",
+      "requestPaths": {
+        "$": { "types": ["object"] },
+        "$.body": { "types": ["string"] },
+        "$.commit_id": { "types": ["string"] },
+        "$.event": { "types": ["string"] }
+      },
+      "requestComparedFields": {
+        "$.event": ["COMMENT"],
+        "$.commit_id": "must equal the reviewed GitHub head SHA"
+      },
+      "provenance": {
+        "capture": "gh api repos/thomasluizon/orbit-ui-mobile/pulls/672/reviews, then gh api repos/thomasluizon/orbit-ui-mobile/pulls/672/reviews/<observed-review-id>",
+        "capturedAt": "2026-08-02T04:45:23.603Z",
+        "captureKind": "complete live review-resource response; the exact POST re-derivation is recorded without repeating a mutating call"
+      },
+      "observedExitCode": 0,
+      "responsePaths": {
+        "$": { "types": ["object"] },
+        "$._links": { "types": ["object"] },
+        "$._links.html": { "types": ["object"] },
+        "$._links.html.href": { "types": ["string"] },
+        "$._links.pull_request": { "types": ["object"] },
+        "$._links.pull_request.href": { "types": ["string"] },
+        "$.author_association": { "types": ["string"] },
+        "$.body": { "types": ["string"] },
+        "$.commit_id": { "types": ["string"] },
+        "$.html_url": { "types": ["string"] },
+        "$.id": { "types": ["number"] },
+        "$.node_id": { "types": ["string"] },
+        "$.pull_request_url": { "types": ["string"] },
+        "$.state": { "types": ["string"] },
+        "$.submitted_at": { "types": ["string"], "stringFormats": ["date-time"] },
+        "$.user": { "types": ["object"] },
+        "$.user.avatar_url": { "types": ["string"] },
+        "$.user.events_url": { "types": ["string"] },
+        "$.user.followers_url": { "types": ["string"] },
+        "$.user.following_url": { "types": ["string"] },
+        "$.user.gists_url": { "types": ["string"] },
+        "$.user.gravatar_id": { "types": ["string"] },
+        "$.user.html_url": { "types": ["string"] },
+        "$.user.id": { "types": ["number"] },
+        "$.user.login": { "types": ["string"] },
+        "$.user.node_id": { "types": ["string"] },
+        "$.user.organizations_url": { "types": ["string"] },
+        "$.user.received_events_url": { "types": ["string"] },
+        "$.user.repos_url": { "types": ["string"] },
+        "$.user.site_admin": { "types": ["boolean"] },
+        "$.user.starred_url": { "types": ["string"] },
+        "$.user.subscriptions_url": { "types": ["string"] },
+        "$.user.type": { "types": ["string"] },
+        "$.user.url": { "types": ["string"] },
+        "$.user.user_view_type": { "types": ["string"] }
+      },
+      "observedValues": { "$.state": ["COMMENTED"] },
+      "responseComparedFields": {
+        "$.id": "must be a positive integer reused in the PUT path",
+        "$.node_id": "must remain equal to the POST resource identity",
+        "$.body": "must remain equal to the signed review body",
+        "$.commit_id": "must equal the reviewed GitHub head SHA"
+      }
+    },
+    "reviewUpdate": {
+      "command": [
+        "gh",
+        "api",
+        "repos/<owner/name>/pulls/<pull-request-number>/reviews/<review-id>",
+        "--method",
+        "PUT",
+        "--input",
+        "-"
+      ],
+      "commandCompleteness": "Complete argv with repository, pull request, and review identifiers replaced by named placeholders.",
+      "rederive": "gh api repos/<owner/name>/pulls/<pull-request-number>/reviews/<review-id> --method PUT --input -",
+      "requestPaths": {
+        "$": { "types": ["object"] },
+        "$.body": { "types": ["string"] }
+      },
+      "requestComparedFields": {
+        "$.body": "must equal the signed review body"
+      },
+      "provenance": {
+        "capture": "gh api repos/thomasluizon/orbit-ui-mobile/pulls/672/reviews, then gh api repos/thomasluizon/orbit-ui-mobile/pulls/672/reviews/<observed-review-id>",
+        "capturedAt": "2026-08-02T04:45:23.603Z",
+        "captureKind": "complete live review-resource response; the exact PUT re-derivation is recorded without repeating a mutating call"
+      },
+      "observedExitCode": 0,
+      "responsePaths": {
+        "$": { "types": ["object"] },
+        "$._links": { "types": ["object"] },
+        "$._links.html": { "types": ["object"] },
+        "$._links.html.href": { "types": ["string"] },
+        "$._links.pull_request": { "types": ["object"] },
+        "$._links.pull_request.href": { "types": ["string"] },
+        "$.author_association": { "types": ["string"] },
+        "$.body": { "types": ["string"] },
+        "$.commit_id": { "types": ["string"] },
+        "$.html_url": { "types": ["string"] },
+        "$.id": { "types": ["number"] },
+        "$.node_id": { "types": ["string"] },
+        "$.pull_request_url": { "types": ["string"] },
+        "$.state": { "types": ["string"] },
+        "$.submitted_at": { "types": ["string"], "stringFormats": ["date-time"] },
+        "$.user": { "types": ["object"] },
+        "$.user.avatar_url": { "types": ["string"] },
+        "$.user.events_url": { "types": ["string"] },
+        "$.user.followers_url": { "types": ["string"] },
+        "$.user.following_url": { "types": ["string"] },
+        "$.user.gists_url": { "types": ["string"] },
+        "$.user.gravatar_id": { "types": ["string"] },
+        "$.user.html_url": { "types": ["string"] },
+        "$.user.id": { "types": ["number"] },
+        "$.user.login": { "types": ["string"] },
+        "$.user.node_id": { "types": ["string"] },
+        "$.user.organizations_url": { "types": ["string"] },
+        "$.user.received_events_url": { "types": ["string"] },
+        "$.user.repos_url": { "types": ["string"] },
+        "$.user.site_admin": { "types": ["boolean"] },
+        "$.user.starred_url": { "types": ["string"] },
+        "$.user.subscriptions_url": { "types": ["string"] },
+        "$.user.type": { "types": ["string"] },
+        "$.user.url": { "types": ["string"] },
+        "$.user.user_view_type": { "types": ["string"] }
+      },
+      "observedValues": { "$.state": ["COMMENTED"] },
+      "responseComparedFields": {
+        "$.node_id": "must remain equal to the POST resource identity",
+        "$.body": "must remain equal to the signed review body",
+        "$.commit_id": "must equal the reviewed GitHub head SHA"
+      }
+    }
+  }
+}

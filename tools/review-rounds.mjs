@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** Freeze the review-round definition and measure it over a pull request set, fail-closed. */
 
-import { execFileSync } from "node:child_process"
+import { execFileSyncHidden as execFileSync } from "./lib/subprocess-options.mjs"
 import { readFileSync, writeFileSync } from "node:fs"
 
 const USAGE = `usage: review-rounds.mjs --repo <owner/name> --pr <number|first-last> [--pr ...] [options]

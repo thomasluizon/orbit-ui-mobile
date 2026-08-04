@@ -1,5 +1,12 @@
 {
   "worker": "codex",
+  "reviewer": {
+    "engine": "codex",
+    "model": "gpt-5.6-sol",
+    "reasoningEffort": "high",
+    "automationBudgetTier": "routine",
+    "projectedTokens": 250000
+  },
   "workers": {
     "claude": {
       "command": "claude",
@@ -47,10 +54,12 @@
       ],
       "models": {
         "default": {
-          "model": "gpt-5.6-terra",
+          "model": "gpt-5.6-luna",
           "args": [
             "-c",
-            "model_reasoning_effort=\"medium\""
+            "model_reasoning_effort=\"max\"",
+            "-c",
+            "service_tier=\"fast\""
           ]
         },
         "cheap": {

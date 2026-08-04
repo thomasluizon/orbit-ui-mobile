@@ -6,7 +6,7 @@
  * the orca CLI) or a local markdown body.
  */
 
-import { execFileSync } from "node:child_process"
+import { execFileSyncHidden as execFileSync } from "./lib/subprocess-options.mjs"
 import { existsSync, readFileSync } from "node:fs"
 import { request } from "node:https"
 import { homedir } from "node:os"

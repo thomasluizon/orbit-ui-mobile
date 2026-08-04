@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process"
+import { spawnSyncHidden as spawnSync } from "../lib/subprocess-options.mjs"
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { cpSync } from "node:fs"
 import { dirname, join } from "node:path"
@@ -56,7 +56,10 @@ const stageArchaeology = (label, options = {}) => {
   const repo = join(root, "archaeology", label)
   const tools = join(repo, "tools")
   mkdirSync(tools, { recursive: true })
+  mkdirSync(join(tools, "lib"), { recursive: true })
   cpSync(join(TOOLS_DIR, "check-archaeology.mjs"), join(tools, "check-archaeology.mjs"))
+  mkdirSync(join(tools, "lib"), { recursive: true })
+  cpSync(join(TOOLS_DIR, "lib", "subprocess-options.mjs"), join(tools, "lib", "subprocess-options.mjs"))
   writeFileSync(join(repo, "CLAUDE.md"), "# Fixture root\n")
 
   const writeAll = (fileMap) => {

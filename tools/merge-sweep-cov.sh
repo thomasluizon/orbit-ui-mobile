@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
-# Coverage-aware merge sweep (server-side gh, robust polling). Per PR:
+# Coverage-aware merge readiness sweep (server-side gh, robust polling). Per PR:
 #   - SKIP while reviewDecision reads CHANGES_REQUESTED. An approving review is NOT required.
 #   - SKIP on any failing NON-Sonar required check (a real defect) or a merge conflict (DIRTY).
 #   - poll through BEHIND (update-branch) and the post-update re-CI window until the merge state
 #     is decidable (CLEAN/UNSTABLE), then:
-#       * Sonar SUCCESS/absent  -> normal squash-merge.
+#       * Sonar SUCCESS/absent  -> print HUMAN-MERGE-REQUIRED.
 #       * Sonar FAILURE that is SOLELY new-code coverage (verified from the check-run summary,
-#         never a Bug/Vuln/Hotspot/Smell/Duplication/rating drop) -> print ADMIN-MERGE-REQUIRED
-#         and stop. This used to perform an admin merge and was the ONLY agent-reachable one in
-#         the tooling; J3 turned the escape hatch into a request. The override is Thomas's.
+#         never a Bug/Vuln/Hotspot/Smell/Duplication/rating drop) -> print HUMAN-MERGE-REQUIRED
+#         and stop. The override remains a human decision.
 #       * Sonar FAILURE on anything more -> SKIP (needs a real fix).
 # WHY the review-staleness guard below: an update-branch rewrites the head SHA and re-triggers the
 # `review` check, but GitHub keeps the PRE-update APPROVED reviewDecision while that re-review runs,
@@ -22,10 +21,11 @@ set -u
 REVIEW_WORKFLOW_PATH=".github/workflows/claude-review.yml"
 REVIEW_CHECK_NAME="review"
 ORCA_BIN="${ORCA_BIN:-C:\Users\thoma\AppData\Local\Programs\orca\resources\bin\orca}"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 usage() {
   cat <<EOF
-Coverage-aware merge sweep: squash-merge each green PR server-side.
+Coverage-aware merge sweep: prepare a human squash-merge handoff for each green PR.
 
 Usage: merge-sweep-cov.sh [--expected-head <pr-number>=<sha>]...
                           [--reviewed-through <pr-number>=<iso-timestamp>]...
@@ -33,10 +33,11 @@ Usage: merge-sweep-cov.sh [--expected-head <pr-number>=<sha>]...
                           <owner/repo> <pr-number>...
        merge-sweep-cov.sh --help
 
-Per PR it update-branches, polls until the merge state is decidable, then merges:
-  Sonar SUCCESS or absent           -> squash merge
-  Sonar FAILURE, new-code coverage  -> print ADMIN-MERGE-REQUIRED and stop (never merges)
+Per PR it update-branches, polls until the merge state is decidable, then prints:
+  Sonar SUCCESS or absent           -> HUMAN-MERGE-REQUIRED
+  Sonar FAILURE, new-code coverage  -> HUMAN-MERGE-REQUIRED and stop (never merges)
   Sonar FAILURE, anything else      -> SKIP
+It never calls a merge command or merge API. Human squash merge is mandatory.
 
 An --expected-head mapping pins that PR to the supplied head SHA. Without one, the current
 head SHA is captured before update-branch. A routine update-branch merge is adopted only when
@@ -85,11 +86,24 @@ Every status check, required or not, must reach a terminal successful conclusion
 After the sweep it re-checks every merged PR's head branch. A branch whose tip moved past the
 SHA that was merged carries a post-merge commit that never reached main.
 
-Output (stdout): one MERGED/SKIP/FAIL-ADMIN line per PR, then any ORPHANED-HEAD lines, then
-COV-SWEEP-DONE.
-Exit codes: 0 every merged head verified clean; 1 at least one orphaned head branch; 2 bad usage;
-3 a head branch could not be verified; 4 post-merge review activity, an unverifiable review
-state, or a failed post-merge Linear reassertion (unknown is not a clean pass).
+Output (stdout): one HUMAN-MERGE-REQUIRED/SKIP line per PR, then COV-SWEEP-DONE.
+Exit codes: 0 when every PR reached a human handoff or an explicit skip; 2 bad usage;
+4 when a post-check read is unverifiable.
+EOF
+}
+
+usage() {
+  cat <<EOF
+Read-only coverage-aware merge readiness sweep: hand clean pull requests to a human for squash merge.
+
+Usage: merge-sweep-cov.sh [--expected-head <pr-number>=<sha>]...
+                          [--reviewed-through <pr-number>=<iso-timestamp>]...
+                          [--issue <pr-number>=<ORB-N>]... <owner/repo> <pr-number>...
+
+The sweep checks the current head, CI, review activity, signed exact-head review evidence,
+worker delivery, and Linear In Review. It prints HUMAN-MERGE-REQUIRED for a clean PR and for
+a coverage-only Sonar decision. It never calls a merge command or merge API, writes Linear,
+or deletes a branch.
 EOF
 }
 
@@ -274,13 +288,6 @@ else
   echo "WARN: could not list $repo workflows; assuming the $REVIEW_CHECK_NAME check is required" >&2
 fi
 
-merged_heads=""
-post_merge_review_failures=0
-post_merge_linear_reassert_failures=0
-pending_linear_reassert_issue=""
-pending_linear_reassert_observed=""
-pending_linear_reassert_at=""
-
 gate() { # prints  MS \t REVIEW \t NONSONAR_FAILED \t SONARSTATE \t SHA \t PENDING \t REVIEWCHECK
   gh pr view "$1" --repo "$repo" --json mergeStateStatus,reviewDecision,statusCheckRollup,headRefOid 2>/dev/null | node -e "
     let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{
@@ -338,9 +345,6 @@ issue_for() { # <pr>; stdout: Linear identifier
 
 ensure_issue_in_review() { # <pr>; the final operation before the merge decision
   local pr="$1" issue state
-  pending_linear_reassert_issue=""
-  pending_linear_reassert_observed=""
-  pending_linear_reassert_at=""
   issue="$(issue_for "$pr")"
   if ! state="$("$ORCA_BIN" linear issue "$issue" --json 2>/dev/null | node -e 'let input="";process.stdin.on("data",chunk=>input+=chunk).on("end",()=>{try{const parsed=JSON.parse(input);const state=parsed?.result?.issue?.state?.name;if(typeof state!=="string"||!state)process.exit(1);process.stdout.write(state)}catch{process.exit(1)}})')"; then
     printf 'LINEAR-STATE-REFUSED issue=%s reason=lookup-failed\n' "$issue"
@@ -349,45 +353,14 @@ ensure_issue_in_review() { # <pr>; the final operation before the merge decision
   case "$state" in
     "In Review") return 0 ;;
     "In Progress")
-      pending_linear_reassert_issue="$issue"
-      pending_linear_reassert_observed="$state"
-      pending_linear_reassert_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+      printf 'LINEAR-STATE-REFUSED issue=%s observed=%s reason=human-update-required\n' "$issue" "$state"
+      return 1
       ;;
     *)
       printf 'LINEAR-STATE-REFUSED issue=%s observed=%s reason=unknown-state\n' "$issue" "$state"
       return 1
       ;;
   esac
-}
-
-linear_state() { # <issue>; stdout: current state name
-  "$ORCA_BIN" linear issue "$1" --json 2>/dev/null | node -e 'let input="";process.stdin.on("data",chunk=>input+=chunk).on("end",()=>{try{const parsed=JSON.parse(input);const state=parsed?.result?.issue?.state?.name;if(typeof state!=="string"||!state)process.exit(1);process.stdout.write(state)}catch{process.exit(1)}})'
-}
-
-commit_linear_reassertion() {
-  local state
-  [ -n "$pending_linear_reassert_issue" ] || return 0
-  if ! state="$(linear_state "$pending_linear_reassert_issue")"; then
-    printf 'POST-MERGE-LINEAR-STATE-REASSERT-FAILED issue=%s observed=%s at=%s\n' "$pending_linear_reassert_issue" "$pending_linear_reassert_observed" "$pending_linear_reassert_at"
-    return 1
-  fi
-  if [ "$state" != "In Progress" ]; then
-    printf 'LINEAR-STATE-REASSERT-SKIPPED issue=%s observed=%s at=%s\n' "$pending_linear_reassert_issue" "$state" "$pending_linear_reassert_at"
-    return 0
-  fi
-  if ! "$ORCA_BIN" linear status set "$pending_linear_reassert_issue" --to "In Review" --json >/dev/null 2>&1; then
-    printf 'POST-MERGE-LINEAR-STATE-REASSERT-FAILED issue=%s observed=%s at=%s\n' "$pending_linear_reassert_issue" "$pending_linear_reassert_observed" "$pending_linear_reassert_at"
-    return 1
-  fi
-  if ! state="$(linear_state "$pending_linear_reassert_issue")"; then
-    printf 'POST-MERGE-LINEAR-STATE-REASSERT-FAILED issue=%s observed=%s at=%s\n' "$pending_linear_reassert_issue" "$pending_linear_reassert_observed" "$pending_linear_reassert_at"
-    return 1
-  fi
-  if [ "$state" != "In Review" ]; then
-    printf 'LINEAR-STATE-REASSERT-POST-WRITE-SKIPPED issue=%s observed=%s pre-write=In Progress\n' "$pending_linear_reassert_issue" "$state"
-    return 0
-  fi
-  printf 'LINEAR-STATE-REASSERTED issue=%s observed=%s at=%s pre-write=In Progress post-write=In Review\n' "$pending_linear_reassert_issue" "$pending_linear_reassert_observed" "$pending_linear_reassert_at"
 }
 
 newest_review_item_after() { # <cutoff>; author/timestamp/url TSV on stdin; exit 1 with newest item, 2 if malformed
@@ -513,35 +486,35 @@ review_safety_gate() { # <pr> <pre|post>; prints the fail-closed reason
   fi
 }
 
-# Refuses a STALE approval; it does NOT require a fresh one. If any review is APPROVED, at
-# least one of them must name the expected head. If nothing is approved at all this imposes
-# nothing and the other gates carry the merge, because after the review workflow is deleted no
-# GitHub identity in either repository can produce an approving review, and a rule demanding
-# one would refuse every unattended merge from that point on, forever.
-approval_not_stale() { # <pr> <expected-head-sha>; prints the refusal reason
-  local pr="$1" expected="$2" approved oid
-  if ! approved="$(gh api graphql \
-    -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){reviews(first:100){pageInfo{hasNextPage} nodes{state author{login} commit{oid}}}}}}' \
+# Requires current local review evidence and preserves the native stale-approval refusal.
+review_evidence_allows() { # <pr> <expected-head-sha>; prints the refusal reason
+  local pr="$1" expected="$2" reviews verdict
+  if ! reviews="$(gh api graphql \
+    -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){headRefOid files(first:100){pageInfo{hasNextPage} nodes{path}} reviews(first:100){pageInfo{hasNextPage} nodes{id state body submittedAt updatedAt lastEditedAt url author{login} commit{oid}}}}}}' \
     -F o="${repo%%/*}" -F r="${repo##*/}" -F n="$pr" \
-    --jq '.data.repository.pullRequest.reviews | if .pageInfo.hasNextPage then "PAGINATED" else ([.nodes[] | select(.state == "APPROVED") | .commit.oid] | join(" ")) end' 2>/dev/null)"; then
-    echo "SKIP #$pr APPROVAL-LOOKUP-FAILED"
+    --jq '.data.repository.pullRequest' 2>/dev/null)"; then
+    echo "SKIP #$pr REVIEW-EVIDENCE-LOOKUP-FAILED"
     return 1
   fi
-  if [ "$approved" = "PAGINATED" ]; then
-    echo "SKIP #$pr APPROVAL-PAGE-OVERFLOW (over 100 reviews; refusing rather than paginating)"
-    return 1
+  if verdict="$(node "$SCRIPT_DIR/check-review-evidence.mjs" --repository "$repo" --pull-request "$pr" --expected-head "$expected" <<<"$reviews")"; then
+    return 0
   fi
-  [ -z "$approved" ] && return 0
-  for oid in $approved; do
-    [ "$oid" = "$expected" ] && return 0
-  done
-  echo "SKIP #$pr APPROVAL-STALE expected=$expected approved=[$approved]"
+  echo "SKIP #$pr REVIEW-EVIDENCE-HELD $verdict"
   return 1
 }
 
-# No variadic passthrough: the ONLY caller that ever supplied one passed `--admin`, and J3
-# removes that escape hatch entirely rather than at one call site. An admin merge is now
-# unreachable from this tool by construction.
+worker_delivery_allows() { # <pr> <branch> <expected-head-sha>; prints the refusal reason
+  local pr="$1" branch="$2" expected="$3" issue verdict
+  issue="$(issue_for "$pr")"
+  if verdict="$(node "$SCRIPT_DIR/check-worker-delivery.mjs" --issue "$issue" --branch "$branch" --head "$expected")"; then
+    return 0
+  fi
+  echo "SKIP #$pr WORKER-DELIVERY-HELD $verdict"
+  return 1
+}
+
+# No variadic passthrough: the historical privileged merge escape hatch is removed rather than
+# hidden at one call site. Human squash merge is the only merge path.
 squash_merge() { # <pr> <expected-head-sha> <label>
   local pr="$1" expected="$2" label="$3"
   local branch
@@ -556,27 +529,14 @@ squash_merge() { # <pr> <expected-head-sha> <label>
   # The LAST API read before the merge call, and the only one anchored to a SHA. The
   # PR-level `reviewDecision` read by the caller survives every push, so an APPROVED there
   # can name a commit that is no longer on the branch. See merge-sweep.sh.
-  if ! approval_not_stale "$pr" "$expected"; then
+  if ! review_evidence_allows "$pr" "$expected"; then
     return 2
   fi
-  if gh pr merge "$pr" --repo "$repo" --squash --delete-branch --match-head-commit "$expected" >/dev/null 2>&1; then
-    echo "MERGED #$pr ($label)"
-    # `^` is illegal in a refname, so it cannot collide with a branch name.
-    merged_heads="$merged_heads $pr^$branch^$expected"
-    if ! commit_linear_reassertion; then
-      post_merge_linear_reassert_failures=1
-    fi
-    if ! review_safety_gate "$pr" post; then
-      post_merge_review_failures=1
-    fi
-    return 0
-  fi
-  actual=$(head_oid "$pr")
-  if [ "$actual" != "$expected" ]; then
-    echo "SKIP #$pr HEAD-MOVED expected=$expected actual=$actual"
+  if ! worker_delivery_allows "$pr" "$branch" "$expected"; then
     return 2
   fi
-  return 1
+  echo "HUMAN-MERGE-REQUIRED #$pr head=$expected ($label)"
+  return 0
 }
 
 head_oid() {
@@ -677,11 +637,9 @@ for n in "$@"; do
       done_pr=1
       break
     fi
-    # A2 in full: "no approving review may be STALE", never "an approving review must exist".
-    # See merge-sweep.sh for the live reads behind this. `required_approving_review_count` is 0 in
-    # both repositories, so `reviewDecision` reads empty on an approved pull request while still
-    # reading CHANGES_REQUESTED on a blocked one. Only the blocking half survives here; the
-    # positive half is `approval_not_stale`, the only SHA-anchored review gate.
+    # GitHub's PR-level decision still carries the native CHANGES_REQUESTED block. The positive
+    # gate is the marker-bearing local review, read from the complete reviews inventory at the
+    # final decision boundary and anchored both in its marker and GitHub commit to this head.
     if [ "$rev" = "CHANGES_REQUESTED" ]; then
       echo "SKIP #$n review=$rev"
       done_pr=1
@@ -737,7 +695,7 @@ for n in "$@"; do
         # J3: this was the only agent-reachable admin merge in the tooling. The escape hatch
         # is now a REQUEST, not an act. The override belongs to Thomas alone; an agent that
         # needs one stops and asks him to merge it himself.
-        echo "ADMIN-MERGE-REQUIRED #$n coverage-only Sonar failure on head $sha"
+        echo "HUMAN-MERGE-REQUIRED #$n coverage-only Sonar failure on head $sha"
       else
         echo "SKIP #$n Sonar fails on MORE than coverage, needs a real fix"
       fi
@@ -760,40 +718,5 @@ for n in "$@"; do
     sleep 20
   done
   [ -z "$done_pr" ] && echo "SKIP #$n (timeout: $block_reason)"
-  [ "$post_merge_review_failures" -eq 0 ] && [ "$post_merge_linear_reassert_failures" -eq 0 ] || break
 done
-
-# A head branch that merely survived --delete-branch is benign; only a tip that MOVED past the SHA
-# that was merged proves a post-merge commit that never reached main. The GraphQL ref lookup exits 0
-# with an EMPTY oid for a deleted branch, so a non-zero exit is unambiguously "could not verify",
-# which is reported and counted, never silently read as clean.
-branch_tip() { # <branch>; stdout: tip SHA, or empty when the ref is confirmed absent
-  gh api graphql \
-    -f query='query($o:String!,$n:String!,$q:String!){repository(owner:$o,name:$n){ref(qualifiedName:$q){target{oid}}}}' \
-    -F o="${repo%%/*}" -F n="${repo##*/}" -F q="refs/heads/$1" \
-    --jq '.data.repository.ref.target.oid // ""' 2>/dev/null
-}
-
-orphans=0
-unverified=0
-for entry in $merged_heads; do
-  pr="${entry%%^*}"
-  rest="${entry#*^}"
-  branch="${rest%^*}"
-  merged_sha="${rest##*^}"
-  [ -n "$branch" ] || continue
-  if ! tip=$(branch_tip "$branch"); then
-    echo "WARN: could not verify branch $branch for #$pr; orphan status unknown" >&2
-    unverified=$((unverified + 1))
-    continue
-  fi
-  if [ -n "$tip" ] && [ "$tip" != "$merged_sha" ]; then
-    echo "ORPHANED-HEAD #$pr $branch tip=$tip (moved past the merged $merged_sha, so those commits are NOT on main)"
-    orphans=$((orphans + 1))
-  fi
-done
-
 echo "COV-SWEEP-DONE"
-[ "$post_merge_review_failures" -eq 0 ] && [ "$post_merge_linear_reassert_failures" -eq 0 ] || exit 4
-[ "$orphans" -eq 0 ] || exit 1
-[ "$unverified" -eq 0 ] || exit 3

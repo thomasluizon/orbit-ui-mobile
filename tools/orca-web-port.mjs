@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { spawn, spawnSync } from "node:child_process"
+import { spawnHidden as spawn, spawnSyncHidden as spawnSync } from "./lib/subprocess-options.mjs"
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { basename, dirname, join, resolve } from "node:path"
 import { createRequire } from "node:module"

@@ -7,7 +7,10 @@ const captureSurfacesCases = () => {
   const fixture = join(root, "capture-surfaces-origin")
   const tools = join(fixture, "tools")
   mkdirSync(tools, { recursive: true })
+  mkdirSync(join(tools, "lib"), { recursive: true })
   cpSync(join(TOOLS_DIR, "capture-surfaces.mjs"), join(tools, "capture-surfaces.mjs"))
+  mkdirSync(join(tools, "lib"), { recursive: true })
+  cpSync(join(TOOLS_DIR, "lib", "subprocess-options.mjs"), join(tools, "lib", "subprocess-options.mjs"))
   writeFileSync(
     join(tools, "orca-web-port.mjs"),
     `if (process.env.ORBIT_CAPTURE_FAIL === "1") { process.stderr.write("unassigned\\n"); process.exit(1) }\nprocess.stdout.write(process.env.ORBIT_CAPTURE_PORT ?? "3000")\n`,

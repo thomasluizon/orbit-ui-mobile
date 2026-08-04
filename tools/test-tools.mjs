@@ -76,14 +76,19 @@ const CASE_MODULES = [
   ["check-tier-labels.mjs", "check-tier-labels", "cases"],
   ["refresh-tier-labels.mjs", "refresh-tier-labels", "cases"],
   ["launch-worker.mjs", "launch-worker", "cases"],
+  ["worker-supervisor.mjs", "worker-supervisor", "cases"],
+  ["launch-pr-review.mjs", "launch-pr-review", "cases"],
   ["preflight.mjs", "preflight", "cases"],
   ["nudge-worker.mjs", "nudge-worker", "cases"],
   ["pr-watch.mjs", "pr-watch", "cases"],
   ["worker-watch.mjs", "worker-watch", "cases"],
   ["teardown-worktree.mjs", "teardown-worktree", "cases"],
+  ["reap-worktrees.mjs", "reap-worktrees", "cases"],
   ["orca-web-port.mjs", "orca-web-port", "cases"],
   ["worker-status.mjs", "worker-status", "cases"],
+  ["check-worker-delivery.mjs", "check-worker-delivery", "cases"],
   ["compose-prompt.mjs", "compose-prompt", "cases"],
+  ["make-execution-brief.mjs", "make-execution-brief", "cases"],
   ["wave-plan.mjs", "wave-plan", "cases"],
   ["check-dashes.mjs", "check-dashes", "cases"],
   ["check-lockstep.mjs", "check-lockstep", "cases"],
@@ -100,6 +105,13 @@ const CASE_MODULES = [
   ["review-rounds.mjs", "review-rounds", "cases"],
   ["check-archaeology.mjs", "check-archaeology", "cases"],
   ["check-dead-path.mjs", "check-dead-path", "cases"],
+  ["check-review-evidence.mjs", "check-review-evidence", "cases"],
+]
+
+/** Repository contracts that have case modules but no tools/ executable of their own. */
+const SUPPORT_MODULES = [
+  ["codex-skill-adapters", "cases"],
+  ["subprocess-options", "cases"],
 ]
 
 const gateCases = {}
@@ -110,6 +122,16 @@ for (const [file, module, exported] of CASE_MODULES) {
     process.exit(1)
   }
   gateCases[file] = loaded[exported]
+}
+
+const supportCases = []
+for (const [module, exported] of SUPPORT_MODULES) {
+  const loaded = await import(`./__tests__/${module}.mjs`)
+  if (typeof loaded[exported] !== "function") {
+    console.error(`test-tools: tools/__tests__/${module}.mjs exports no ${exported}()`)
+    process.exit(1)
+  }
+  supportCases.push(loaded[exported])
 }
 
 /** argv that must be refused before the tool does any work. */
@@ -135,7 +157,9 @@ const INVALID_INPUT = {
   "check-tier-labels.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-ticket.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "compose-prompt.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "make-execution-brief.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "launch-worker.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "launch-pr-review.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "merge-sweep-cov.sh": { argv: ["--orbit-not-a-flag", "zzz"], status: 2 },
   "merge-sweep.sh": { argv: ["--orbit-not-a-flag", "zzz"], status: 2 },
   "mergeability.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
@@ -147,12 +171,16 @@ const INVALID_INPUT = {
   "redesign-coverage.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "refresh-tier-labels.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "review-rounds.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "reap-worktrees.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "rollup.sh": { argv: ["--orbit-not-a-flag"], status: 2 },
   "surface-manifest.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "teardown-worktree.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "wave-plan.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "worker-status.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "worker-supervisor.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "worker-watch.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "check-review-evidence.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "check-worker-delivery.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
 }
 
 console.log("# structural coverage")
@@ -207,6 +235,7 @@ for (const [file, cases] of Object.entries(gateCases)) {
   await cases()
   endToolScope()
 }
+for (const cases of supportCases) await cases()
 
 /**
  * The coverage ratchet. Silent coverage loss is the root defect this ticket exists to remove:

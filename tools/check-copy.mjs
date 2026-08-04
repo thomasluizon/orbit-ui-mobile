@@ -16,7 +16,7 @@
 //   node tools/check-copy.mjs --write-baseline    regenerate tools/copy-baseline.json
 
 import { readFileSync, writeFileSync, existsSync } from "node:fs"
-import { execFileSync } from "node:child_process"
+import { execFileSyncHidden as execFileSync } from "./lib/subprocess-options.mjs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 

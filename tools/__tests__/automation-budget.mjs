@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process"
+import { spawnSyncHidden as spawnSync } from "../lib/subprocess-options.mjs"
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs"
 import { isAbsolute, join, relative, resolve } from "node:path"
 
@@ -886,6 +886,8 @@ const automationBudgetCases = () => {
     const toolsDirectory = join(root, "budget-spawn", label, "tools")
     mkdirSync(toolsDirectory, { recursive: true })
     cpSync(join(TOOLS_DIR, "automation-budget.mjs"), join(toolsDirectory, "automation-budget.mjs"))
+    mkdirSync(join(toolsDirectory, "lib"), { recursive: true })
+    cpSync(join(TOOLS_DIR, "lib", "subprocess-options.mjs"), join(toolsDirectory, "lib", "subprocess-options.mjs"))
     /**
      * The stub prints a CAPTURED reading byte for byte and never composes one, and its exit code
      * is a parameter because the real reader exits 1 while still printing a complete object.
@@ -1089,6 +1091,7 @@ const run = (identity, env = {}) => {
   const child = spawn(process.execPath, common(identity), {
     env: { ...process.env, ...env },
     stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true,
   })
   let stderr = ""
   child.stderr.setEncoding("utf8")
@@ -1202,7 +1205,7 @@ process.stdout.write(JSON.stringify(results))
 const [tool, ledger] = process.argv.slice(2)
 const base = ["--engine", "claude", "--tier", "routine", "--started-at", "2030-01-04T09:00:00Z", "--ended-at", "2030-01-04T09:01:00Z", "--input-tokens", "10", "--output-tokens", "5", "--ledger", ledger]
 const run = (identity) => new Promise((resolve) => {
-  const child = spawn(process.execPath, [tool, "record", "--identity", identity, ...base], { stdio: "inherit" })
+  const child = spawn(process.execPath, [tool, "record", "--identity", identity, ...base], { stdio: "inherit", windowsHide: true })
   child.on("exit", (status) => resolve(status))
 })
 const statuses = await Promise.all([run("concurrent-a"), run("concurrent-b")])

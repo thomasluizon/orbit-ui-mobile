@@ -7,6 +7,9 @@ effort: medium
 
 # /ticket: one work item -> one Linear ticket
 
+This skill creates and validates one executable Linear ticket only. It never writes product code,
+creates branches or pull requests, runs implementation review, or merges anything.
+
 The split between `/ticket` and `/feature` is cardinality: this skill produces one
 ticket, while `/feature` decomposes a larger idea into a project of tickets.
 

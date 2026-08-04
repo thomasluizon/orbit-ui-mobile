@@ -8,7 +8,7 @@
 // registered, like spacing-scale landing) must regenerate on the SAME PR that
 // registers the rule, and gets reviewed as such.
 
-import { execFileSync } from "node:child_process"
+import { execFileSyncHidden as execFileSync } from "./lib/subprocess-options.mjs"
 import { readFileSync, existsSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"

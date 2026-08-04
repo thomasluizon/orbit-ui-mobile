@@ -7,6 +7,9 @@ effort: high
 
 # /feature: idea -> Linear project
 
+This skill creates and validates executable Linear tickets only. It never writes product code,
+creates branches or pull requests, runs implementation review, or merges anything.
+
 The ticket is the prompt (D2): a ticket that a fresh agent with no session history
 cannot execute is a defective ticket. This skill exists to make defective tickets
 impossible to create.

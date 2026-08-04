@@ -5,10 +5,11 @@
  * removal, so success is verified from the filesystem and Git, never its reply.
  */
 
-import { execFileSync, spawnSync } from "node:child_process"
-import { existsSync, readFileSync, unlinkSync } from "node:fs"
-import { join, resolve } from "node:path"
+import { execFileSyncHidden as execFileSync, spawnSyncHidden as spawnSync } from "./lib/subprocess-options.mjs"
+import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync, statSync, unlinkSync } from "node:fs"
+import { isAbsolute, join, relative, resolve } from "node:path"
 
+import { acquireWorktreeLifecycleLock } from "./lib/worktree-lifecycle-lock.mjs"
 
 const USAGE = `usage: teardown-worktree.mjs (--issue ORB-N | --worktree <path>) [--base <ref>]
 
@@ -97,6 +98,52 @@ const pullRequestFor = (path, branch, base) => {
 }
 const selectorPath = (value) => value?.replace(/^path:/, "")
 const normalize = (path) => (typeof path === "string" ? resolve(selectorPath(path)) : "").replaceAll("\\", "/").replace(/\/+$/, "").toLowerCase()
+const isInside = (parent, child) => {
+  const pathFromParent = relative(parent, child)
+  return pathFromParent !== "" && pathFromParent !== ".." && !pathFromParent.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`) && !isAbsolute(pathFromParent)
+}
+const directoryLinks = (worktreePath) => {
+  let exactRoot
+  try {
+    exactRoot = realpathSync(worktreePath)
+  } catch (error) {
+    fail(3, `could not resolve worktree root ${worktreePath}: ${error.message}`)
+  }
+  const links = []
+  const visit = (directory) => {
+    let entries
+    try {
+      entries = readdirSync(directory, { withFileTypes: true })
+    } catch (error) {
+      fail(3, `could not inspect worktree directory ${directory}: ${error.message}`)
+    }
+    for (const entry of entries) {
+      const entryPath = resolve(directory, entry.name)
+      if (!isInside(exactRoot, entryPath)) fail(1, `refusing to inspect a path outside the exact worktree: ${entryPath}`)
+      let entryStats
+      try {
+        entryStats = lstatSync(entryPath)
+      } catch (error) {
+        fail(3, `could not inspect worktree entry ${entryPath}: ${error.message}`)
+      }
+      if (entryStats.isSymbolicLink()) {
+        let target
+        let targetStats
+        try {
+          target = realpathSync(entryPath)
+          targetStats = statSync(entryPath)
+        } catch (error) {
+          fail(1, `refusing an unresolved link in the worktree: ${entryPath}: ${error.message}`)
+        }
+        if (targetStats.isDirectory()) links.push({ link: entryPath, target })
+        continue
+      }
+      if (entryStats.isDirectory()) visit(entryPath)
+    }
+  }
+  visit(exactRoot)
+  return links
+}
 
 const worktrees = orca(["worktree", "list"]).worktrees ?? []
 const worktree = requestedIssue
@@ -111,6 +158,20 @@ const selector = `path:${path}`
 const issue = worktree.linkedLinearIssue
 const branch = (worktree.branch ?? git(path, ["rev-parse", "--abbrev-ref", "HEAD"])).replace(/^refs\/heads\//, "")
 const base = requestedBase ?? worktree.baseRef ?? "main"
+const commonDir = resolve(path, git(path, ["rev-parse", "--git-common-dir"]))
+let lifecycleLock
+try {
+  lifecycleLock = acquireWorktreeLifecycleLock(commonDir)
+} catch (error) {
+  fail(error.message.includes("timed out") ? 1 : 3, error.message)
+}
+process.on("exit", () => {
+  try {
+    lifecycleLock?.release()
+  } catch (error) {
+    console.error(`could not release worktree lifecycle lock ${lifecycleLock?.path ?? commonDir}: ${error.message}`)
+  }
+})
 const dirty = git(path, ["status", "--short"]).split("\n").filter(Boolean)
 const workerMarker = join(resolve(path, git(path, ["rev-parse", "--git-dir"])), "orbit-worker-pids.jsonl")
 const workerPids = existsSync(workerMarker)
@@ -166,17 +227,46 @@ if (unmet.length > 0) {
   process.exit(unmet.some((check) => check.exitCode === 3) ? 3 : 1)
 }
 
-const commonDirRaw = git(path, ["rev-parse", "--git-common-dir"])
-const commonDir = resolve(path, commonDirRaw)
 const gitCommon = (args, { allowFailure = false } = {}) => {
   const result = spawnSync(GIT, [`--git-dir=${commonDir}`, ...args], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
   if (result.status === 0) return result.stdout.trim()
   if (allowFailure) return null
   fail(3, `git ${args.join(" ")} failed: ${(result.stderr || result.stdout || "unknown error").trim()}`)
 }
+const links = directoryLinks(path)
+
+// Directory link enumeration is read-only, but it can take time on a large checkout. Keep it
+// before the final Orca activity read so the destructive sequence starts at the freshest state.
+const finalInventory = orca(["worktree", "ps"])
+if (!Array.isArray(finalInventory.worktrees) || !Number.isInteger(finalInventory.totalCount) || typeof finalInventory.truncated !== "boolean") {
+  fail(3, "Orca final worktree process inventory is incomplete")
+}
+if (finalInventory.truncated || finalInventory.totalCount !== finalInventory.worktrees.length) {
+  fail(3, "Orca final worktree process inventory is truncated")
+}
+const finalWorktree = finalInventory.worktrees.find((entry) => normalize(entry.path) === normalize(path))
+if (!finalWorktree) fail(3, `Orca final worktree process inventory no longer names ${path}`)
+if (typeof finalWorktree.isActive !== "boolean" || !Array.isArray(finalWorktree.agents)) {
+  fail(3, "Orca final worktree process inventory lacks isActive and agents")
+}
+if (finalWorktree.isActive || finalWorktree.agents.length > 0) {
+  fail(1, `refusing removal because Orca reports active work on ${path}`)
+}
+
+for (const { link, target } of links) {
+  try {
+    unlinkSync(link)
+  } catch (error) {
+    fail(3, `could not remove verified junction link ${link}: ${error.message}`)
+  }
+  if (existsSync(link)) fail(1, `junction link remained after removal: ${link}`)
+  if (!existsSync(target)) fail(1, `junction target did not survive link removal: ${target}`)
+  console.log(`REMOVED junction link ${link}`)
+  console.log(`PRESERVED junction target ${target}`)
+}
 orca(["terminal", "stop", "--worktree", selector])
 try {
-  execFileSync(ORCA, ["worktree", "rm", "--worktree", selector, "--force", "--json"], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
+  execFileSync(ORCA, ["worktree", "rm", "--worktree", selector, "--json"], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
 } catch {
   // Verification below decides whether a dropped Orca runtime connection was harmless.
 }
@@ -188,8 +278,12 @@ if (!pathGone || stillListed) fail(1, `removal verification failed: filesystem=$
 
 const branchExists = gitCommon(["show-ref", "--verify", "--quiet", `refs/heads/${branch}`], { allowFailure: true }) !== null
 if (branchExists) {
-  const dropped = gitCommon(["branch", "-D", branch], { allowFailure: true })
-  if (dropped === null) fail(1, `removed worktree but could not delete local branch ${branch}`)
+  // Git's ordinary branch safety check follows the branch's configured upstream, which may
+  // remain the pre-merge remote head even after the verified pull request head was merged.
+  // The checks above already prove the exact PR head and merge commit, so force is limited to
+  // this local ref deletion and cannot discard an unverified worktree or commit.
+  const dropped = spawnSync(GIT, [`--git-dir=${commonDir}`, "branch", "--delete", "--force", branch], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
+  if (dropped.status !== 0) fail(1, `removed worktree but could not delete local branch ${branch}: ${(dropped.stderr || dropped.stdout || "unknown git error").trim()}`)
 }
 const branchRemaining = gitCommon(["show-ref", "--verify", "--quiet", `refs/heads/${branch}`], { allowFailure: true }) !== null
 if (branchRemaining) fail(1, `removed worktree but local branch ${branch} still exists`)

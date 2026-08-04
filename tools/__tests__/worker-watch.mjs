@@ -1,8 +1,11 @@
-import { spawnSync } from "node:child_process"
+import { spawnSyncHidden as spawnSync } from "../lib/subprocess-options.mjs"
 import { cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { generateKeyPairSync } from "node:crypto"
 import { dirname, join } from "node:path"
 
-import { REPO_ROOT, TOOLS_DIR, T, root, orcaEnv, run, check, exitedProbePid } from "./_harness.mjs"
+import { recordWorkerLaunch, signWorkerLaunchRecord } from "../lib/worker-launch-provenance.mjs"
+import { REPO_ROOT, TOOLS_DIR, T, WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY, root, orcaEnv, run, check, exitedProbePid } from "./_harness.mjs"
+import { WORKER_LAUNCH_LEDGER } from "./_harness.mjs"
 
 /**
  * worker-watch cases against the one thing this tool must never do again: derive liveness itself.
@@ -22,6 +25,18 @@ const stageWorkerWatch = (label, repos) => {
     join(base, ".claude", "orchestrator.json"),
     JSON.stringify({
       worker: "codex",
+      workers: {
+        codex: {
+          command: "codex",
+          args: ["exec", "-c", 'windows.sandbox="unelevated"', "--dangerously-bypass-approvals-and-sandbox"],
+          models: {
+            default: { model: "gpt-5.6-luna", args: ["-c", 'model_reasoning_effort="max"'] },
+            cheap: { model: "gpt-5.6-luna", args: ["-c", 'model_reasoning_effort="low"'] },
+            deep: { model: "gpt-5.6-sol", args: ["-c", 'model_reasoning_effort="high"'] },
+          },
+          interactive: false,
+        },
+      },
       maxParallelWorktrees: 4,
       attemptsBeforeRewrite: 2,
       linear: { team: "ORB", states: { working: "In Progress", review: "In Review", done: "Done" } },
@@ -30,6 +45,7 @@ const stageWorkerWatch = (label, repos) => {
   )
   cpSync(join(TOOLS_DIR, "worker-watch.mjs"), join(base, "tools", "worker-watch.mjs"))
   cpSync(join(TOOLS_DIR, "worker-status.mjs"), join(base, "tools", "worker-status.mjs"))
+  cpSync(join(TOOLS_DIR, "check-review-evidence.mjs"), join(base, "tools", "check-review-evidence.mjs"))
   cpSync(join(TOOLS_DIR, "lib"), join(base, "tools", "lib"), { recursive: true })
   return join(base, "tools", "worker-watch.mjs")
 }
@@ -78,7 +94,30 @@ const writeWatchPidMarker = (worktreePath, { pid, claimedHoursAgo, issue = "ORB-
   )
   const marker = join(gitDirectory, "orbit-worker-pids.jsonl")
   const startedAt = new Date(Date.now() - claimedHoursAgo * HOUR_MS).toISOString()
-  writeFileSync(marker, `${JSON.stringify({ issue, worktreePath, pid, startedAt })}\n`)
+  let launchRecord = {
+    version: 1,
+    launchId: `watch-fixture-${issue}-${pid}-${Date.now()}`,
+    issue,
+    worktreePath: join(worktreePath),
+    pid,
+    startedAt,
+    launchMode: "existing-worktree",
+    engine: "codex",
+    invocation: {
+      command: "codex",
+      args: ["exec", "-c", 'windows.sandbox="unelevated"', "--dangerously-bypass-approvals-and-sandbox", "-c", 'model_reasoning_effort="max"', "--model", "gpt-5.6-luna"],
+    },
+    branch: "feature/orb-75-prove-the-harness-gate",
+    launcherPid: process.pid,
+    issuedAt: new Date().toISOString(),
+    completionAttestation: {
+      algorithm: "ed25519",
+      publicKey: generateKeyPairSync("ed25519").publicKey.export({ format: "der", type: "spki" }).toString("base64"),
+    },
+  }
+  launchRecord = signWorkerLaunchRecord(launchRecord, WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY)
+  recordWorkerLaunch(launchRecord, WORKER_LAUNCH_LEDGER)
+  writeFileSync(marker, `${JSON.stringify(launchRecord)}\n`)
   return marker
 }
 
@@ -130,14 +169,15 @@ const mainWorktree = ({ path, repoId }) => ({ path, repoId, isMainWorktree: true
 
 const workerWatchCases = () => {
   const reviewClearContract = /CHANGES_REQUESTED blocks[\s\S]*No approval is required[\s\S]*If an approval exists[\s\S]*current head[\s\S]*zero unresolved threads and every automated review item is reconciled/
-  for (const [label, path] of [
-    ["watch skill", join(REPO_ROOT, ".claude", "skills", "watch", "SKILL.md")],
-    ["tools catalog", join(REPO_ROOT, "tools", "README.md")],
+  const catalogReviewContract = /complete changed-file and review connections[\s\S]*Native approval is not required[\s\S]*when present at least one must name the current head[\s\S]*worker-status\.mjs[\s\S]*current-head local `APPROVE` evidence[\s\S]*zero unresolved or unreconciled review work[\s\S]*CHANGES_REQUESTED blocks[\s\S]*Native approval is not positively required[\s\S]*any native approval that exists must name the current head/
+  for (const [label, path, contract] of [
+    ["watch skill", join(REPO_ROOT, ".claude", "skills", "watch", "SKILL.md"), reviewClearContract],
+    ["tools catalog", join(REPO_ROOT, "tools", "README.md"), catalogReviewContract],
   ]) {
     const source = readFileSync(path, "utf8")
     T(
       `worker-watch.mjs: the ${label} carries the approval-count-zero review-clear contract`,
-      reviewClearContract.test(source),
+      contract.test(source),
       `${path} no longer states the complete review-clear contract`,
     )
   }

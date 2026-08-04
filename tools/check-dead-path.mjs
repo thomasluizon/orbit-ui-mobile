@@ -37,7 +37,7 @@
  * the same lookup, kept rather than a second one invented beside it.
  */
 
-import { spawnSync } from "node:child_process"
+import { spawnSyncHidden as spawnSync } from "./lib/subprocess-options.mjs"
 import { existsSync, readFileSync } from "node:fs"
 import { basename, dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"

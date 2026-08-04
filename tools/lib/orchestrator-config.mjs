@@ -24,7 +24,7 @@
  * once first, because a shallow CI checkout legitimately has no such remote-tracking ref yet.
  */
 
-import { spawnSync } from "node:child_process"
+import { spawnSyncHidden as spawnSync } from "./subprocess-options.mjs"
 import { readFileSync } from "node:fs"
 import { dirname, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"

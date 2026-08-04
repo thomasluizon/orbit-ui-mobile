@@ -2,7 +2,7 @@ import { createHash } from "node:crypto"
 import { cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
-import { TOOLS_DIR, T, root, check, run } from "./_harness.mjs"
+import { REPO_ROOT, TOOLS_DIR, T, root, check, run } from "./_harness.mjs"
 
 const calibrationDate = (daysAgo) => {
   const date = new Date()
@@ -28,6 +28,10 @@ const stageCalibration = (label, options = {}) => {
   cpSync(
     join(TOOLS_DIR, "lib", "orchestrator-config.mjs"),
     join(base, "tools", "lib", "orchestrator-config.mjs"),
+  )
+  cpSync(
+    join(TOOLS_DIR, "lib", "subprocess-options.mjs"),
+    join(base, "tools", "lib", "subprocess-options.mjs"),
   )
   writeFileSync(join(base, ".claude", "agents", "sample.md"), agentSource)
   writeFileSync(join(base, ".claude", "skills", "sample", "SKILL.md"), skillSource)
@@ -83,6 +87,22 @@ const stageCalibration = (label, options = {}) => {
 }
 
 const calibrationCases = () => {
+  const guards = readFileSync(join(REPO_ROOT, ".github", "workflows", "guards.yml"), "utf8")
+  const calibrationJob = /^  calibration:\r?\n([\s\S]*?)(?=^  [a-z][a-z-]*:\r?$)/m.exec(guards)?.[0] ?? ""
+  T(
+    "check-calibration.mjs: the blocking calibration job checks out complete base history",
+    /name: Harness Calibration[\s\S]*uses: actions\/checkout@v7\r?\n\s+with:\r?\n\s+fetch-depth: 0/.test(calibrationJob),
+    calibrationJob || "guards.yml has no calibration job",
+  )
+  T(
+    "check-calibration.mjs: the calibration reseed label remains the only pull request bypass",
+    /if: github\.event_name == 'pull_request' && !contains\(github\.event\.pull_request\.labels\.\*\.name, 'calibration:reseed'\)/.test(calibrationJob)
+      && /node tools\/check-calibration\.mjs > "\$RUNNER_TEMP\/calibration\.txt" 2>&1 \|\| status=\$\?/.test(calibrationJob)
+      && /exit "\$status"/.test(calibrationJob)
+      && !/--report-only/.test(calibrationJob),
+    calibrationJob || "guards.yml has no calibration job",
+  )
+
   const valid = stageCalibration("valid")
   check("check-calibration.mjs", "accepts total coverage", [], { status: 0, stdout: /PASS: 2\/2/ }, { path: valid })
 

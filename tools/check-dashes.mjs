@@ -12,7 +12,7 @@
 //   node tools/check-dashes.mjs --write-baseline    regenerate tools/dash-baseline.json
 //   node tools/check-dashes.mjs --text "<string>"   check a string (PR titles/bodies; exit 1 on any hit)
 
-import { execFileSync } from "node:child_process"
+import { execFileSyncHidden as execFileSync } from "./lib/subprocess-options.mjs"
 import { readFileSync, writeFileSync, existsSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"

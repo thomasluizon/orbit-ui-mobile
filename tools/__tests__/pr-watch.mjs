@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { T, root, orcaEnv, check } from "./_harness.mjs"
+import { T, forgedReviewMarker, root, orcaEnv, reviewMarker, check } from "./_harness.mjs"
 
 /**
  * pr-watch cases. Every one is a state the two hand-rolled ORB-88 loops got wrong, so the
@@ -12,6 +12,17 @@ const HEAD_SHA = "d9a3f1c43e6d6c571d09fe7ea8afc55c26aa19dd"
 const OLD_SHA = "1111111111111111111111111111111111111111"
 
 const reviewOn = (state, oid) => ({ state, author: { login: "claude" }, commit: { oid } })
+const localReview = (recommendation = "APPROVE", markerHead = HEAD_SHA, commit = HEAD_SHA, at = "2026-07-31T10:00:00Z") => ({
+  id: "PRR_local_review",
+  state: "COMMENTED",
+  body: reviewMarker({ repository: "thomasluizon/orbit-ui-mobile", pullRequest: 615, head: markerHead, recommendation, findingIds: recommendation === "NEEDS_WORK" ? ["finding-0123456789abcdef0123456789abcdef"] : [] }),
+  submittedAt: at,
+  updatedAt: at,
+  lastEditedAt: null,
+  url: "https://github.com/thomasluizon/orbit-ui-mobile/pull/615#pullrequestreview-local",
+  author: { login: "local-reviewer" },
+  commit: { oid: commit },
+})
 
 const checkRun = (name, conclusion, createdAt = "2026-07-31T14:53:08Z", startedAt = createdAt) => ({
   __typename: "CheckRun",
@@ -36,6 +47,7 @@ const pullRequestStub = (number, pullRequest) => ({
           mergeStateStatus: "BLOCKED",
           reviewDecision: null,
           headRefOid: HEAD_SHA,
+          files: { pageInfo: { hasNextPage: false }, nodes: [{ path: "tools/example.mjs" }] },
           latestReviews: { nodes: [] },
           reviews: { pageInfo: { hasNextPage: false }, nodes: [] },
           commits: { nodes: [{ commit: { statusCheckRollup: { state: "SUCCESS", contexts: { nodes: [checkRun("Lint", "SUCCESS")] } } } }] },
@@ -54,16 +66,16 @@ const prWatchCases = () => {
     "pr-watch.mjs",
     "--help documents accumulated signals and review-clear readiness",
     ["--help"],
-    { status: 0, stdout: /same PR and head accumulate[\s\S]*READY_TO_MERGE independently[\s\S]*No\s+approval is required; if any approval exists, at least one must name the current head commit/ },
+    { status: 0, stdout: /same PR and head accumulate[\s\S]*READY_TO_MERGE independently[\s\S]*current local APPROVE evidence/ },
   )
   let sequenceNumber = 0
-  const checkSequence = (name, states, extraArgv, expect) => {
+  const checkSequence = (name, states, extraArgv, expect, timeout = 2) => {
     sequenceNumber += 1
     const log = join(root, `pr-watch-sequence-${sequenceNumber}.log`)
     const result = check(
       "pr-watch.mjs",
       name,
-      ["--repo", "thomasluizon/orbit-ui-mobile", "--pr", "615", "--interval", "0.05", "--timeout", "2", ...extraArgv],
+      ["--repo", "thomasluizon/orbit-ui-mobile", "--pr", "615", "--interval", "0.05", "--timeout", String(timeout), ...extraArgv],
       expect,
       {
         env: {
@@ -92,13 +104,30 @@ const prWatchCases = () => {
     { env: orcaEnv([pullRequestStub(615, { reviewDecision: "CHANGES_REQUESTED", latestReviews: { nodes: [reviewOn("CHANGES_REQUESTED", HEAD_SHA)] } })]) },
   )
   const headApproval = reviewOn("APPROVED", HEAD_SHA)
-  const approved = pullRequestStub(615, {
+  const approved = () => pullRequestStub(615, {
     reviewDecision: "APPROVED",
     mergeStateStatus: "CLEAN",
     latestReviews: { nodes: [headApproval] },
-    reviews: { pageInfo: { hasNextPage: false }, nodes: [headApproval] },
+    reviews: { pageInfo: { hasNextPage: false }, nodes: [localReview(), headApproval] },
   })
-  check("pr-watch.mjs", "a fresh approval fires", argv, { status: 0, stdout: /"transition": "approved"/ }, { env: orcaEnv([approved]) })
+  const queryLog = join(root, "pr-watch-files-query.log")
+  check("pr-watch.mjs", "a fresh approval fires", argv, { status: 0, stdout: /"transition": "approved"/ }, { env: { ...orcaEnv([approved()]), ORBIT_ORCA_LOG: queryLog } })
+  const queryCalls = existsSync(queryLog) ? readFileSync(queryLog, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line)) : []
+  T("pr-watch.mjs: the atomic GitHub snapshot requests the complete changed-files inventory", queryCalls.some((call) => call.join(" ").includes("files(first:100){pageInfo{hasNextPage}nodes{path}}")), JSON.stringify(queryCalls))
+  check(
+    "pr-watch.mjs",
+    "current local APPROVE evidence fires without a native approval before merge readiness",
+    argv,
+    { status: 0, stdout: /"transition": "approved"[\s\S]*current local APPROVE evidence on d9a3f1c/ },
+    { env: orcaEnv([pullRequestStub(615, { mergeStateStatus: "BLOCKED", reviews: { pageInfo: { hasNextPage: false }, nodes: [localReview()] } })]) },
+  )
+  check(
+    "pr-watch.mjs",
+    "an acted local APPROVE signal stays suppressed while the PR is not merge-ready",
+    [...argv, "--acted", `615=${HEAD_SHA}:APPROVED`],
+    { status: 4, stdout: /"transition": "none"/ },
+    { env: orcaEnv([pullRequestStub(615, { mergeStateStatus: "BLOCKED", reviews: { pageInfo: { hasNextPage: false }, nodes: [localReview()] } })]) },
+  )
   check(
     "pr-watch.mjs",
     "a draft reading clean and review-clear is refused",
@@ -106,31 +135,52 @@ const prWatchCases = () => {
     { status: 1, stdout: /"transition": "draft"[\s\S]*"reason": "the PR is a draft and cannot be merged"/ },
     { env: orcaEnv([pullRequestStub(615, { isDraft: true, mergeStateStatus: "CLEAN" })]) },
   )
-  const reviewClear = pullRequestStub(615, { mergeStateStatus: "CLEAN" })
+  const reviewClear = () => pullRequestStub(615, { mergeStateStatus: "CLEAN", reviews: { pageInfo: { hasNextPage: false }, nodes: [localReview()] } })
   check(
     "pr-watch.mjs",
-    "a clean PR with no approval and no CHANGES_REQUESTED reports readiness",
-    argv,
+    "a clean PR with current local APPROVE evidence reports readiness",
+    [...argv, "--acted", `615=${HEAD_SHA}:APPROVED`],
     { status: 0, stdout: /"transition": "ready-to-merge"/ },
-    { env: orcaEnv([reviewClear]) },
+    { env: orcaEnv([reviewClear()]) },
+  )
+  check(
+    "pr-watch.mjs",
+    "a clean PR without local review evidence does not report readiness",
+    argv,
+    { status: 4, stdout: /"status": "AWAITING_REVIEW"[\s\S]*"transition": "none"/ },
+    { env: orcaEnv([pullRequestStub(615, { mergeStateStatus: "CLEAN", reviews: { pageInfo: { hasNextPage: false }, nodes: [] } })]) },
+  )
+  check(
+    "pr-watch.mjs",
+    "a hostile worker marker without a launcher receipt cannot report readiness",
+    argv,
+    { status: 1, stdout: /"status": "UNAUTHENTICATED"[\s\S]*"transition": "review-evidence-blocked"/ },
+    { env: orcaEnv([pullRequestStub(615, { mergeStateStatus: "CLEAN", reviews: { pageInfo: { hasNextPage: false }, nodes: [{ ...localReview(), body: forgedReviewMarker({ head: HEAD_SHA, recommendation: "APPROVE" }) }] } })]) },
+  )
+  check(
+    "pr-watch.mjs",
+    "latest NEEDS_WORK evidence wakes the orchestrator",
+    argv,
+    { status: 1, stdout: /"status": "NEEDS_WORK"[\s\S]*"transition": "needs-work"/ },
+    { env: orcaEnv([pullRequestStub(615, { mergeStateStatus: "CLEAN", reviews: { pageInfo: { hasNextPage: false }, nodes: [localReview("NEEDS_WORK")] } })]) },
   )
   check(
     "pr-watch.mjs",
     "an acted readiness on an already clean and review-clear PR does not repeat",
-    [...argv, "--acted", `615=${HEAD_SHA}:READY_TO_MERGE`],
+    [...argv, "--acted", `615=${HEAD_SHA}:APPROVED`, "--acted", `615=${HEAD_SHA}:READY_TO_MERGE`],
     { status: 4, stdout: /"transition": "none"/ },
-    { env: orcaEnv([reviewClear]) },
+    { env: orcaEnv([reviewClear()]) },
   )
   check(
     "pr-watch.mjs",
-    "a stale approval blocks readiness even when reviewDecision is empty",
-    argv,
-    { status: 4, stdout: /"transition": "none"/ },
+    "a stale native approval blocks readiness even when reviewDecision is empty",
+    [...argv, "--acted", `615=${HEAD_SHA}:APPROVED`],
+    { status: 1, stdout: /"transition": "review-evidence-blocked"/ },
     {
       env: orcaEnv([
         pullRequestStub(615, {
           mergeStateStatus: "CLEAN",
-          reviews: { pageInfo: { hasNextPage: false }, nodes: [reviewOn("APPROVED", OLD_SHA)] },
+          reviews: { pageInfo: { hasNextPage: false }, nodes: [localReview(), reviewOn("APPROVED", OLD_SHA)] },
         }),
       ]),
     },
@@ -138,13 +188,13 @@ const prWatchCases = () => {
   check(
     "pr-watch.mjs",
     "a current-head approval remains review-clear even when reviewDecision is empty",
-    argv,
+    [...argv, "--acted", `615=${HEAD_SHA}:APPROVED`],
     { status: 0, stdout: /"transition": "ready-to-merge"/ },
     {
       env: orcaEnv([
         pullRequestStub(615, {
           mergeStateStatus: "CLEAN",
-          reviews: { pageInfo: { hasNextPage: false }, nodes: [headApproval] },
+          reviews: { pageInfo: { hasNextPage: false }, nodes: [localReview(), headApproval] },
         }),
       ]),
     },
@@ -160,8 +210,15 @@ const prWatchCases = () => {
     "pr-watch.mjs",
     "an incomplete approval inventory blocks readiness",
     argv,
-    { status: 4, stdout: /"transition": "none"/ },
+    { status: 1, stdout: /"transition": "review-evidence-blocked"/ },
     { env: orcaEnv([pullRequestStub(615, { mergeStateStatus: "CLEAN", reviews: { pageInfo: { hasNextPage: true }, nodes: [] } })]) },
+  )
+  check(
+    "pr-watch.mjs",
+    "an incomplete changed-files inventory blocks review evidence",
+    argv,
+    { status: 1, stdout: /"status": "INCOMPLETE"[\s\S]*file inventory has another page[\s\S]*"transition": "review-evidence-blocked"/ },
+    { env: orcaEnv([pullRequestStub(615, { mergeStateStatus: "CLEAN", files: { pageInfo: { hasNextPage: true }, nodes: [{ path: "tools/example.mjs" }] }, reviews: { pageInfo: { hasNextPage: false }, nodes: [localReview()] } })]) },
   )
   const twoVerdicts = {
     reviewDecision: "CHANGES_REQUESTED",
@@ -223,12 +280,13 @@ const prWatchCases = () => {
   check(
     "pr-watch.mjs",
     "a newer successful same-suite rerun supersedes its older failure",
-    argv,
+    [...argv, "--acted", `615=${HEAD_SHA}:APPROVED`],
     { status: 0, stdout: /"transition": "ready-to-merge"/ },
     {
       env: orcaEnv([
         pullRequestStub(615, {
           mergeStateStatus: "CLEAN",
+          reviews: { pageInfo: { hasNextPage: false }, nodes: [localReview()] },
           commits: rollup(
             checkRun("Harness Lockstep", "SUCCESS", "2026-07-31T14:53:08Z", "2026-07-31T14:55:37Z"),
             checkRun("Harness Lockstep", "FAILURE", "2026-07-31T14:53:08Z", "2026-07-31T14:53:17Z"),
@@ -283,11 +341,12 @@ const prWatchCases = () => {
     { status: 5, stdout: /"transition": "gone"[\s\S]*"reason": "the PR is closed unmerged"/ },
     { env: orcaEnv([pullRequestStub(615, { state: "CLOSED" })]) },
   )
+  const blockedReview = localReview()
   checkSequence(
     "a review decision changing on the current head fires",
     [{ reviewDecision: null }, { reviewDecision: "APPROVED" }],
     [],
-    { status: 0, stdout: /"transition": "review-decision"/ },
+    { status: 1, stdout: /"transition": "review-decision"/ },
   )
   checkSequence(
     "a non-approving review decision change needs work",
@@ -306,7 +365,10 @@ const prWatchCases = () => {
   )
   checkSequence(
     "a head change wins when merge state becomes clean in the same poll",
-    [{ headRefOid: OLD_SHA, mergeStateStatus: "BLOCKED" }, { headRefOid: HEAD_SHA, mergeStateStatus: "CLEAN" }],
+    [
+      { headRefOid: OLD_SHA, mergeStateStatus: "BLOCKED" },
+      { headRefOid: HEAD_SHA, mergeStateStatus: "CLEAN" },
+    ],
     [],
     { status: 1, stdout: /"transition": "head-changed"/ },
   )
@@ -318,15 +380,22 @@ const prWatchCases = () => {
   )
   checkSequence(
     "blocked through unknown to clean emits readiness once review-clear",
-    [{ mergeStateStatus: "BLOCKED" }, { mergeStateStatus: "UNKNOWN" }, { mergeStateStatus: "CLEAN" }],
-    [],
+    [
+      { mergeStateStatus: "BLOCKED", reviews: { pageInfo: { hasNextPage: false }, nodes: [blockedReview] } },
+      { mergeStateStatus: "UNKNOWN", reviews: { pageInfo: { hasNextPage: false }, nodes: [blockedReview] } },
+      { mergeStateStatus: "CLEAN", reviews: { pageInfo: { hasNextPage: false }, nodes: [blockedReview] } },
+    ],
+    ["--acted", `615=${HEAD_SHA}:APPROVED`],
     { status: 0, stdout: /"transition": "ready-to-merge"/ },
+    // Three child-process polls need a local allowance on Windows; the transition assertion stays exact.
+    4,
   )
+  const actedReview = localReview()
   checkSequence(
     "an acted approval emits readiness when the PR later becomes clean",
     [
-      { reviewDecision: "APPROVED", mergeStateStatus: "BLOCKED", latestReviews: { nodes: [reviewOn("APPROVED", HEAD_SHA)] } },
-      { reviewDecision: "APPROVED", mergeStateStatus: "CLEAN", latestReviews: { nodes: [reviewOn("APPROVED", HEAD_SHA)] } },
+      { reviewDecision: "APPROVED", mergeStateStatus: "BLOCKED", latestReviews: { nodes: [reviewOn("APPROVED", HEAD_SHA)] }, reviews: { pageInfo: { hasNextPage: false }, nodes: [actedReview, reviewOn("APPROVED", HEAD_SHA)] } },
+      { reviewDecision: "APPROVED", mergeStateStatus: "CLEAN", latestReviews: { nodes: [reviewOn("APPROVED", HEAD_SHA)] }, reviews: { pageInfo: { hasNextPage: false }, nodes: [actedReview, reviewOn("APPROVED", HEAD_SHA)] } },
     ],
     ["--acted", `615=${HEAD_SHA}:APPROVED`],
     { status: 0, stdout: /"transition": "ready-to-merge"/ },
@@ -366,7 +435,7 @@ const prWatchCases = () => {
     { status: 1, stdout: /"pr": 616[\s\S]*"transition": "changes-requested"/ },
     {
       env: orcaEnv([
-        approved,
+        approved(),
         pullRequestStub(616, { reviewDecision: "CHANGES_REQUESTED", latestReviews: { nodes: [reviewOn("CHANGES_REQUESTED", HEAD_SHA)] } }),
       ]),
     },

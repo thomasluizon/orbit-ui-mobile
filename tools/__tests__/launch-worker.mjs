@@ -1,8 +1,18 @@
-import { spawnSync } from "node:child_process"
+import { spawnSyncHidden as spawnSync } from "../lib/subprocess-options.mjs"
 import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs"
 import { delimiter, join, resolve } from "node:path"
 
-import { TOOLS_DIR, REPO_ROOT, T, root, stage, orcaEnv, orchestratorConfig, run, runAsync, check, DEFAULT_AUTOMATION_BUDGET, CLAUDE_MODELS, CODEX_MODELS, INTERACTIVE_WORKER, INTERACTIVE_CODEX, stageLaunchWorker, launchWorktreeStub, linearIssueStub, WORKER_CONTRACT_MARKER, FULL_SURFACE_POLL, NO_DRAFT_PULL_REQUEST_CLAUSE, REQUIRED_CONTRACT_CLAUSES, contractClauseBlocks, missingContractClauses, TRUST_SCREENS, stageCheckout, budgetRecord, runTrustScreen } from "./_harness.mjs"
+import { TOOLS_DIR, REPO_ROOT, T, root, stage, orcaEnv, orchestratorConfig, run, runAsync, check, DEFAULT_AUTOMATION_BUDGET, CLAUDE_MODELS, CODEX_MODELS, INTERACTIVE_WORKER, INTERACTIVE_CODEX, stageLaunchWorker, launchWorktreeStub, linearIssueStub, WORKER_CONTRACT_MARKER, ORCHESTRATOR_REVIEW_HANDOFF, REQUIRED_CONTRACT_CLAUSES as BASE_REQUIRED_CONTRACT_CLAUSES, contractClauseBlocks, TRUST_SCREENS, stageCheckout, budgetRecord, runTrustScreen } from "./_harness.mjs"
+import { readWorkerLaunchRecords, verifyWorkerLaunchCompletion } from "../lib/worker-launch-provenance.mjs"
+
+const REQUIRED_CONTRACT_CLAUSES = BASE_REQUIRED_CONTRACT_CLAUSES
+
+const missingContractClauses = (contractText) => {
+  const blocks = contractClauseBlocks(contractText)
+  return Object.entries(REQUIRED_CONTRACT_CLAUSES)
+    .filter(([, { clause, pattern }]) => !pattern.test(blocks[clause] ?? ""))
+    .map(([name]) => name)
+}
 
 const trustScreenCases = () => {
   for (const [engineName, { screens }] of Object.entries(TRUST_SCREENS)) {
@@ -189,7 +199,7 @@ const pointerDeliveryCases = () => {
   )
 }
 
-const runTerminalCreateLaunch = (label, terminalCreateSequence) => {
+const runTerminalCreateLaunch = (label, terminalCreateSequence, { removalSequence = null } = {}) => {
   const staged = stageLaunchWorker(label, INTERACTIVE_WORKER)
   const checkout = join(staged.base, "checkout")
   const git = (args) => spawnSync("git", ["-C", staged.repoPath, ...args], { encoding: "utf8" })
@@ -217,7 +227,9 @@ const runTerminalCreateLaunch = (label, terminalCreateSequence) => {
     { match: "terminal switch", stdout: JSON.stringify({ ok: true, result: {} }) },
     { match: "worktree set", stdout: JSON.stringify({ ok: true, result: {} }) },
     { match: "terminal stop", stdout: JSON.stringify({ ok: true, result: {} }) },
-    { match: "worktree rm", stdout: JSON.stringify({ ok: true, result: {} }), removePath: checkout, pruneRepo: staged.repoPath },
+    removalSequence
+      ? { match: "worktree rm", sequence: removalSequence }
+      : { match: "worktree rm", stdout: JSON.stringify({ ok: true, result: {} }), removePath: checkout, pruneRepo: staged.repoPath },
   ]
   const result = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", promptFile], {
     path: staged.path,
@@ -230,7 +242,7 @@ const runTerminalCreateLaunch = (label, terminalCreateSequence) => {
   const calls = existsSync(log) ? readFileSync(log, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line)) : []
   const count = (first, second) => calls.filter((argv) => argv[0].split(/[\\/]/).pop() === first && argv[1] === second).length
   const branches = git(["branch", "--list", "feature/orb-75-prove-the-harness-gate", "thomasluizon/orb-75"]).stdout.trim()
-  return { result, terminalCreates: count("terminal", "create"), worktreeCreates: count("worktree", "create"), checkout, branches }
+  return { result, calls, terminalCreates: count("terminal", "create"), worktreeCreates: count("worktree", "create"), checkout, branches }
 }
 
 const terminalCreateRetryCases = () => {
@@ -257,6 +269,31 @@ const terminalCreateRetryCases = () => {
     "launch-worker.mjs: exhausting terminal create retries rolls back the one worktree and both branches",
     exhausted.worktreeCreates === 1 && !existsSync(exhausted.checkout) && exhausted.branches === "",
     `worktree creates ${exhausted.worktreeCreates}, checkout exists ${existsSync(exhausted.checkout)}, branches ${JSON.stringify(exhausted.branches)}`,
+  )
+}
+
+const rollbackRemovalCases = () => {
+  const timeout = { stdout: JSON.stringify({ ok: false, error: { code: "timeout", message: "Terminal creation timed out" } }), exit: 1 }
+  const ordinary = runTerminalCreateLaunch("rollback-removal-ordinary", [timeout, timeout, timeout])
+  const failedRemoval = runTerminalCreateLaunch(
+    "rollback-removal-fallback",
+    [timeout, timeout, timeout],
+    { removalSequence: [{ stdout: "{}", exit: 1 }, { stdout: "{}", exit: 1 }] },
+  )
+  const removalCalls = [...ordinary.calls, ...failedRemoval.calls].filter((argv) => {
+    const worktreeIndex = argv.findIndex((token) => token === "worktree" || token.endsWith("\\worktree") || token.endsWith("/worktree"))
+    return worktreeIndex !== -1 && argv[worktreeIndex + 1] === "rm"
+  })
+  T(
+    "launch-worker.mjs: every failed-launch rollback removal is ordinary and never forced",
+    removalCalls.length === 3 && removalCalls.every((argv) => argv.includes("--worktree") && argv.includes("--json") && !argv.includes("--force")),
+    `rollback removal calls: ${JSON.stringify(removalCalls)}`,
+  )
+  const fallbackLine = failedRemoval.result.stderr.split(/\r?\n/).find((line) => line.includes("remove it by hand")) ?? ""
+  T(
+    "launch-worker.mjs: a failed rollback fallback recommends ordinary removal",
+    fallbackLine.includes("orca worktree rm --worktree") && !fallbackLine.includes("--force"),
+    `fallback: ${fallbackLine || failedRemoval.result.stderr}`,
   )
 }
 
@@ -473,8 +510,9 @@ const launchConcurrencyCases = async (promptFile) => {
   } else {
     const timeoutLock = join(timeout.repoPath, ".git", "orbit-launch-worker.lock")
     writeFileSync(timeoutLock, JSON.stringify({ pid: process.pid, startedAt: Date.now() }))
-    const timeoutSource = readFileSync(timeout.path, "utf8")
-    const productionDeadline = "const deadline = Date.now() + 5 * 60 * 1000"
+    const lockHelperPath = join(timeout.base, "tools", "lib", "worktree-lifecycle-lock.mjs")
+    const timeoutSource = readFileSync(lockHelperPath, "utf8")
+    const productionDeadline = "timeoutMs = 5 * 60 * 1000"
     if (!timeoutSource.includes(productionDeadline)) {
       T(
         "launch-worker.mjs: stages a bounded reservation timeout",
@@ -482,10 +520,7 @@ const launchConcurrencyCases = async (promptFile) => {
         "production reservation deadline expression drifted",
       )
     } else {
-      writeFileSync(
-        timeout.path,
-        timeoutSource.replace(productionDeadline, "const deadline = Date.now() + 200"),
-      )
+      writeFileSync(lockHelperPath, timeoutSource.replace(productionDeadline, "timeoutMs = 200"))
       const timeoutLog = stage("concurrency-reservation-timeout.log", "")
       const timeoutResult = run(
         "launch-worker.mjs",
@@ -502,7 +537,7 @@ const launchConcurrencyCases = async (promptFile) => {
       T(
         "launch-worker.mjs: times out on a live reservation owner before listing or creating worktrees",
         timeoutResult.status === 1
-          && /timed out waiting for another launch reservation/.test(timeoutResult.stderr)
+          && /timed out waiting for worktree lifecycle lock/.test(timeoutResult.stderr)
           && !timeoutCalls.some((argv) => argv.join(" ").includes("worktree list"))
           && !timeoutCalls.some((argv) => argv.join(" ").includes("worktree create")),
         `exit ${timeoutResult.status}\n     ${timeoutResult.stderr.trim()}\n     ${timeoutCalls.map((argv) => argv.join(" ")).join("\n     ")}`,
@@ -556,6 +591,7 @@ const launchConcurrencyCases = async (promptFile) => {
     env: {
       ...orcaEnv(concurrentPlan),
       ORBIT_AUTOMATION_BUDGET_LEDGER: join(concurrent.base, "automation-budget.jsonl"),
+      ORBIT_WORKER_LAUNCH_LEDGER: join(concurrent.base, "worker-launches.jsonl"),
       ORBIT_ORCA_LOG: concurrentLog,
       ORBIT_ORCA_TIMING_LOG: concurrentTimingLog,
     },
@@ -637,30 +673,27 @@ const contractClauseCases = () => {
   // Gate proof 1: the demonstrated hole. Deleting a clause from what the worker reads must
   // fail, and must name the clauses it carried. Source-string matching could not see this at
   // all, because the deleted text stayed in the file as a comment.
-  const clauseThreeDeleted = injected.replace(blocks[3], "3. **Own the automated review cycle.** (see the comment in the launcher)\n")
+  const clauseThreeDeleted = injected.replace(blocks[3], "3. **Finish the implementation.** (see the comment in the launcher)\n")
   const deletedVerdict = missingContractClauses(clauseThreeDeleted)
   T(
     "launch-worker.mjs: deleting clause 3 from the injected contract fails, naming its clauses",
-    deletedVerdict.includes("owning its automated review cycle") &&
-      deletedVerdict.includes("polling every review activity surface") &&
-      deletedVerdict.includes("leaving human threads unresolved"),
+    deletedVerdict.includes("dropping a blocked criterion") &&
+      deletedVerdict.includes("failing closed on unverified evidence"),
     `a gutted clause 3 reported ${JSON.stringify(deletedVerdict)}`,
   )
 
-  // Gate proof 2: cross-clause spanning. Clause 3's terminator is written a second time in
-  // clause 5, so an unscoped `[\s\S]*` can be satisfied by two tokens twenty lines apart.
-  // The fixture plants a second copy in clause 5 to exercise it, and the
-  // second assertion pins that whole-text matching really would accept what this refuses;
-  // without it, the first assertion could pass for the wrong reason.
-  const terminator = "zero unresolved threads and every automated review item is reconciled"
+  // Gate proof 2: block-scoped checks cannot borrow implementation-handoff language from a
+  // later clause. The fixture plants a second copy in clause 5 to exercise the boundary, and
+  // the second assertion pins that whole-text matching really would accept what this refuses.
+  const terminator = "git show --stat HEAD"
   const spanning = injected
-    .replace(blocks[3], () => blocks[3].replace(terminator, () => "settled"))
-    .replace(blocks[5], () => `${blocks[5].trimEnd()} The PR must end ${terminator}.\n`)
-  const spanningPattern = REQUIRED_CONTRACT_CLAUSES["owning its automated review cycle"].pattern
+    .replace(blocks[3], () => blocks[3].replace("external interface", "external system"))
+    .replace(blocks[5], () => `${blocks[5].trimEnd()} Do not claim that a gate or external interface was verified. ${terminator}.\n`)
+  const spanningPattern = REQUIRED_CONTRACT_CLAUSES["failing closed on unverified evidence"].pattern
   T(
     "launch-worker.mjs: a clause satisfied only by a phrase from a later clause is refused",
-    missingContractClauses(spanning).includes("owning its automated review cycle"),
-    "clause 3 lost its terminator and the block-scoped check still passed",
+    missingContractClauses(spanning).includes("failing closed on unverified evidence"),
+    "clause 3 lost its evidence phrase and the block-scoped check still passed",
   )
   T(
     "launch-worker.mjs: the same contract passes whole-text matching, which is the defect",
@@ -669,21 +702,20 @@ const contractClauseCases = () => {
   )
 
   /**
-   * F2. The plan goes to the reviewer BEFORE the code exists, because changing a plan is free and
-   * changing a merged design costs rounds. Asserted the same way PR3a converted the other eleven:
+   * F2. Luna consumes the Sol brief without opening a second planning or approval loop. Asserted
    * inside clause 12's own block of the artifact the launcher really appended, never against the
    * launcher file as a string.
    */
-  const approachFirst = /Post the approach before you write the code[\s\S]*pull request comment[\s\S]*files it will land in[\s\S]*Only then start writing/
+  const finalWorkflowBoundary = /Do not create planning or approval loops[\s\S]*Sol owns the DAG[\s\S]*substantive pull request[\s\S]*consumes the brief/
   T(
-    "launch-worker.mjs: injected clause 12 makes the worker post its approach before writing code",
-    approachFirst.test(blocks[12] ?? ""),
+    "launch-worker.mjs: injected clause 12 keeps Luna inside the Sol execution boundary",
+    finalWorkflowBoundary.test(blocks[12] ?? ""),
     `clause 12 as injected: ${JSON.stringify((blocks[12] ?? "").slice(0, 320))}`,
   )
   T(
     "launch-worker.mjs: gutting clause 12 in what the worker reads fails, so a text-only clause cannot pass",
-    !approachFirst.test((blocks[12] ?? "").replace("Only then start writing", "carry on")),
-    "clause 12 still matched after its terminator was removed, so this assertion proves nothing",
+    !finalWorkflowBoundary.test((blocks[12] ?? "").replace("substantive pull request", "bounded delivery")),
+    "clause 12 still matched after its boundary was removed, so this assertion proves nothing",
   )
   T(
     "launch-worker.mjs: the injected contract carries clause 12, so it was appended and not merely written",
@@ -1325,12 +1357,24 @@ const launchWorkerCases = async () => {
   // Headless is a property of the CLI, not of the harness: codex's -p is --profile, an
   // interactive flag, while claude's -p is --print. One shared token list cannot tell them
   // apart, so these five cases pin both halves of the per-engine split.
-  const codex = stageLaunchWorker("codex-interactive", INTERACTIVE_CODEX, "codex")
+  const configuredCodex = JSON.parse(readFileSync(join(REPO_ROOT, ".claude", "orchestrator.json"), "utf8")).workers?.codex?.models
+  T(
+    "launch-worker.mjs: the configured Codex implementation worker defaults to Luna at max effort",
+    configuredCodex?.default?.model === "gpt-5.6-luna" &&
+      configuredCodex.default.args?.join(" ") === '-c model_reasoning_effort="max" -c service_tier="fast"',
+    JSON.stringify(configuredCodex?.default),
+  )
+  const implementationCodexModels = {
+    default: { model: "gpt-5.6-luna", args: ["-c", 'model_reasoning_effort="max"', "-c", 'service_tier="fast"'] },
+    cheap: CODEX_MODELS.cheap,
+    deep: CODEX_MODELS.deep,
+  }
+  const codex = stageLaunchWorker("codex-interactive", { ...INTERACTIVE_CODEX, models: implementationCodexModels }, "codex")
   const codexPlan = check(
     "launch-worker.mjs",
-    "Codex defaults to Terra at medium effort",
+    "Codex defaults to Luna at max effort",
     ["--issue", "ORB-75", "--prompt-file", promptFile, "--dry-run"],
-    { status: 0, stdout: /codex[\s\S]*model_reasoning_effort[\s\S]*medium[\s\S]*--model gpt-5\.6-terra/ },
+    { status: 0, stdout: /codex[\s\S]*model_reasoning_effort[\s\S]*max[\s\S]*--model gpt-5\.6-luna/ },
     { path: codex.path, env: orcaEnv(linearIssueStub(["repo:ui"])) },
   )
   const codexCheap = check(
@@ -1353,10 +1397,9 @@ const launchWorkerCases = async () => {
   T("launch-worker.mjs: Codex cheap tier cannot resolve to the unchanged default invocation", codexCheapCommand !== codexDefaultCommand, `default and cheap both resolved to: ${codexDefaultCommand}`)
   T("launch-worker.mjs: Codex deep tier cannot resolve to the unchanged default invocation", codexDeepCommand !== codexDefaultCommand, `default and deep both resolved to: ${codexDefaultCommand}`)
   T(
-    "launch-worker.mjs: no Codex tier resolves at max reasoning",
-    ![codexDefaultCommand, codexCheapCommand, codexDeepCommand].some(
-      (command) => command.includes('model_reasoning_effort="max"'),
-    ),
+    "launch-worker.mjs: only the default implementation tier resolves at max reasoning",
+    codexDefaultCommand.includes('model_reasoning_effort="max"') &&
+      ![codexCheapCommand, codexDeepCommand].some((command) => command.includes('model_reasoning_effort="max"')),
     `resolved commands: ${[codexDefaultCommand, codexCheapCommand, codexDeepCommand].join(" | ")}`,
   )
   T(
@@ -1398,9 +1441,25 @@ const launchWorkerCases = async () => {
   const alreadyContracted = stage("prompt-with-contract.md", `the ticket body verbatim\n\n${WORKER_CONTRACT_MARKER}\n\nclauses already here\n`)
   check("launch-worker.mjs", "does not stack a second copy on relaunch", ["--issue", "ORB-75", "--prompt-file", alreadyContracted, "--dry-run"], { status: 0, stdout: /"workerContract": "already present"/ }, { path: good.path, env: orcaEnv(linearIssueStub(["repo:ui"])) })
 
+  const repairPrompt = stage("repair-contract-prompt.md", "the ticket body verbatim\n\n---\n\n## Slice worker contract (injected by tools/launch-worker.mjs)\n\nDo not commit or push this slice.\n")
+  const repairWorktree = join(root, "repair-contract-worktree")
+  const repairFinding = "finding-0123456789abcdef0123456789abcdef"
+  const repairPlan = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", repairPrompt, "--existing-worktree", repairWorktree, "--repair", "--finding", repairFinding, "--dry-run"], {
+    path: good.path,
+    env: {
+      ...orcaEnv(linearIssueStub(["repo:ui"], [{ ...launchWorktreeStub(repairWorktree), isArchived: false, linkedLinearIssue: "ORB-75" }])),
+      ORBIT_WORKER_STRIKE_LEDGER: join(root, "repair-contract-strikes.jsonl"),
+    },
+  })
+  T(
+    "launch-worker.mjs: explicit repair mode replaces the no-commit slice route for a stable finding",
+    repairPlan.status === 0 && /"workerContract": "replaced"/.test(repairPlan.stdout) && /"finding":/.test(repairPlan.stdout) && repairPlan.stdout.includes(repairFinding),
+    `${repairPlan.status}\n${repairPlan.stderr}\n${repairPlan.stdout}`,
+  )
+
   const appendFailure = stageLaunchWorker("contract-append-failure", INTERACTIVE_WORKER)
   const appendFailureSource = readFileSync(appendFailure.path, "utf8")
-  const appendCall = 'appendFileSync(promptFile, existingWorktreeArg ? SLICE_CONTRACT : WORKER_CONTRACT, "utf8")'
+  const appendCall = 'appendFileSync(promptFile, contractText, "utf8")'
   if (!appendFailureSource.includes(appendCall)) {
     throw new Error("launch-worker fixture could not locate the worker-contract append")
   }
@@ -1497,7 +1556,7 @@ const launchWorkerCases = async () => {
   const headlessScript = join(headlessEngineDirectory, "worker-shim.js")
   writeFileSync(
     headlessScript,
-    `const { writeFileSync } = require("node:fs")\nwriteFileSync(process.env.ORBIT_HEADLESS_ARGV_LOG, JSON.stringify(process.argv.slice(2)))\nconst holdMilliseconds = Number(process.env.ORBIT_HEADLESS_HOLD_MS || 0)\nif (holdMilliseconds > 0) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, holdMilliseconds)\n`,
+    `const { writeFileSync } = require("node:fs")\nwriteFileSync(process.env.ORBIT_TEST_HEADLESS_ARGV_LOG, JSON.stringify(process.argv.slice(2)))\nconst holdMilliseconds = Number(process.env.ORBIT_TEST_HEADLESS_HOLD_MS || 0)\nif (holdMilliseconds > 0) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, holdMilliseconds)\n`,
   )
   if (process.platform === "win32") {
     writeFileSync(
@@ -1533,7 +1592,9 @@ const launchWorkerCases = async () => {
         ]),
         PATH: `${headlessEngineDirectory}${delimiter}${process.env.PATH}`,
         ORBIT_AUTOMATION_BUDGET_LEDGER: join(headlessStage.base, "automation-budget.jsonl"),
-        ORBIT_HEADLESS_ARGV_LOG: headlessArgvLog,
+        ORBIT_WORKER_LAUNCH_LEDGER: join(headlessStage.base, "worker-launches.jsonl"),
+        ORBIT_HARNESS_TEST: "1",
+        ORBIT_TEST_HEADLESS_ARGV_LOG: headlessArgvLog,
       },
     })
     let headlessPlan = null
@@ -1551,17 +1612,47 @@ const launchWorkerCases = async () => {
       resolve(headlessCheckout, spawnSync("git", ["-C", headlessCheckout, "rev-parse", "--git-dir"], { encoding: "utf8" }).stdout.trim()),
       "orbit-worker-pids.jsonl",
     )
-    const markerRows = existsSync(markerPath)
+    const readMarkerRows = () => (existsSync(markerPath)
       ? readFileSync(markerPath, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
-      : []
+      : [])
+    let markerRows = readMarkerRows()
+    const completionDeadline = Date.now() + 15_000
+    while (!markerRows.some((row) => row.completion?.completedHead) && Date.now() < completionDeadline) {
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50)
+      markerRows = readMarkerRows()
+    }
+    const headlessHead = spawnSync("git", ["-C", headlessCheckout, "rev-parse", "HEAD"], { encoding: "utf8" }).stdout.trim()
+    const headlessLaunchRows = readWorkerLaunchRecords(join(headlessStage.base, "worker-launches.jsonl"))
+    const centralCompletion = headlessLaunchRows.find((row) => row.completion?.completedHead === headlessHead)
+    const headlessReceipt = headlessLaunchRows[0]
+    const supervisorEnvelope = headlessReceipt?.supervisorEnvelope
+    const startedAt = Date.parse(headlessReceipt?.startedAt ?? "")
+    const deadlineAt = Date.parse(supervisorEnvelope?.deadlineAt ?? "")
     T(
-      "launch-worker.mjs: a headless launch starts a real worker process and records its PID",
+      "launch-worker.mjs: a new-worktree launch records its bounded supervisor deadline",
+      supervisorEnvelope?.timeoutMs === 90 * 60 * 1000 && Number.isFinite(startedAt) && Number.isFinite(deadlineAt) && deadlineAt - startedAt >= supervisorEnvelope.timeoutMs,
+      `supervisor envelope: ${JSON.stringify(supervisorEnvelope)}`,
+    )
+    T(
+      "launch-worker.mjs: the supervisor envelope carries its start gate and payload",
+      typeof supervisorEnvelope?.payloadPath === "string" && supervisorEnvelope.payloadPath.length > 0 && typeof supervisorEnvelope?.startGate === "string" && supervisorEnvelope.startGate.length > 0,
+      `supervisor envelope: ${JSON.stringify(supervisorEnvelope)}`,
+    )
+    T(
+      "launch-worker.mjs: the authoritative completion attests to the exact worker head",
+      centralCompletion?.completion?.completedHead === headlessHead && centralCompletion?.completion?.exitCode === 0,
+      `completion: ${JSON.stringify(centralCompletion?.completion)}`,
+    )
+    T(
+      "launch-worker.mjs: a headless launch starts a real worker process and records its signed completion",
       headlessResult.status === 0 &&
         headlessPlan?.launchMode === "new-worktree" &&
         Number.isInteger(headlessPlan?.workerPid) &&
-        markerRows.length === 1 &&
-        markerRows[0].pid === headlessPlan.workerPid &&
-        markerRows[0].worktreePath === headlessCheckout,
+        markerRows.some((row) => row.pid === headlessPlan.workerPid && row.worktreePath === headlessCheckout) &&
+        markerRows.some((row) => row.completion?.completedHead === headlessHead && row.completion?.exitCode === 0) &&
+        centralCompletion?.pid === headlessPlan.workerPid &&
+        centralCompletion?.completion?.exitCode === 0 &&
+        verifyWorkerLaunchCompletion(centralCompletion),
       `exit ${headlessResult.status}\n     stdout: ${headlessResult.stdout.slice(0, 400)}\n     stderr: ${headlessResult.stderr.slice(0, 600)}\n     marker: ${JSON.stringify(markerRows)}`,
     )
     const headlessLedger = join(headlessStage.base, "automation-budget.jsonl")
@@ -1587,7 +1678,9 @@ const launchWorkerCases = async () => {
         childArgv.at(-1).includes('automation-budget.mjs" record') &&
         childArgv.at(-1).includes("--cached-input-tokens"),
       `expected ${JSON.stringify(expectedEngineArgs)} plus one pointer
-     child argv: ${JSON.stringify(childArgv)}`,
+     child argv: ${JSON.stringify(childArgv)}
+     supervisor payload exists: ${headlessReceipt?.supervisorEnvelope?.payloadPath ? existsSync(headlessReceipt.supervisorEnvelope.payloadPath) : "unknown"}
+     supervisor gate exists: ${headlessReceipt?.supervisorEnvelope?.startGate ? existsSync(headlessReceipt.supervisorEnvelope.startGate) : "unknown"}`,
     )
   }
 
@@ -1611,6 +1704,7 @@ const [tool, promptFile, worktreePath] = process.argv.slice(2)
 const run = () => new Promise((resolve) => {
   const child = spawn(process.execPath, [tool, "--issue", "ORB-75", "--prompt-file", promptFile, "--existing-worktree", worktreePath], {
     stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true,
   })
   let stderr = ""
   child.stderr.setEncoding("utf8")
@@ -1628,8 +1722,10 @@ process.stdout.write(JSON.stringify(await Promise.all([run(), run()])))
       ]),
       PATH: `${headlessEngineDirectory}${delimiter}${process.env.PATH}`,
       ORBIT_AUTOMATION_BUDGET_LEDGER: join(sliceStage.base, "automation-budget.jsonl"),
-      ORBIT_HEADLESS_ARGV_LOG: join(root, "launch", "slice-argv.json"),
-      ORBIT_HEADLESS_HOLD_MS: "6000",
+      ORBIT_WORKER_LAUNCH_LEDGER: join(sliceStage.base, "worker-launches.jsonl"),
+      ORBIT_HARNESS_TEST: "1",
+      ORBIT_TEST_HEADLESS_ARGV_LOG: join(root, "launch", "slice-argv.json"),
+      ORBIT_TEST_HEADLESS_HOLD_MS: "6000",
     }
     const sliceResult = spawnSync(process.execPath, [sliceRunner, sliceStage.path, slicePrompt, sliceWorktree], {
       encoding: "utf8",
@@ -1704,6 +1800,7 @@ const run = (extraEnv) => {
   const child = spawn(process.execPath, [tool, "--issue", "ORB-75", "--prompt-file", prompt], {
     env: { ...process.env, ...baseEnv, ORBIT_AUTOMATION_BUDGET_LEDGER: ledger, ...extraEnv },
     stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true,
   })
   let stderr = ""
   child.stderr.setEncoding("utf8")
@@ -1930,6 +2027,7 @@ process.stdout.write(JSON.stringify(await Promise.all([first, second])))
   trustScreenCases()
   pointerDeliveryCases()
   terminalCreateRetryCases()
+  rollbackRemovalCases()
   await launchConcurrencyCases(promptFile)
 
   contractClauseCases()
@@ -1940,18 +2038,18 @@ process.stdout.write(JSON.stringify(await Promise.all([first, second])))
   const agentsSource = readFileSync(join(REPO_ROOT, "AGENTS.md"), "utf8")
   T(
     "AGENTS.md: the standing worker contract forbids opening a draft pull request",
-    agentsSource.includes(NO_DRAFT_PULL_REQUEST_CLAUSE),
-    `AGENTS.md no longer contains ${NO_DRAFT_PULL_REQUEST_CLAUSE}`,
+    /The pull request\s+must be ready for review, never a draft\./.test(agentsSource),
+    "AGENTS.md no longer requires a ready pull request and forbids draft pull requests.",
   )
   T(
-    "launch-worker.mjs: AGENTS.md requires the same full-surface completion poll",
-    FULL_SURFACE_POLL.test(agentsSource),
-    "AGENTS.md no longer requires worker-status to inventory every review activity surface and fail closed.",
+    "launch-worker.mjs: AGENTS.md assigns review ownership to the orchestrator",
+    ORCHESTRATOR_REVIEW_HANDOFF.test(agentsSource) && /Workers never invoke or authorize\s+`tools\/launch-pr-review\.mjs`[\s\S]*wait for the orchestrator-owned review loop/i.test(agentsSource),
+    "AGENTS.md no longer tells workers to wait for the orchestrator-owned review loop.",
   )
   T(
-    "launch-worker.mjs: AGENTS.md carries the approval-count-zero review-clear contract",
-    /CHANGES_REQUESTED blocks[\s\S]*No approval is required[\s\S]*If an approval exists[\s\S]*current head[\s\S]*zero unresolved threads and every automated review item is reconciled/.test(agentsSource),
-    "AGENTS.md no longer states the complete review-clear contract.",
+    "launch-worker.mjs: AGENTS.md requires a fresh review after a worker repair",
+    /NEEDS_WORK[\s\S]*same implementation worker[\s\S]*changed head[\s\S]*fresh/i.test(agentsSource),
+    "AGENTS.md no longer states that a repaired head returns to a fresh orchestrator review.",
   )
 }
 

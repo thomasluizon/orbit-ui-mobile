@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process"
+import { spawnSyncHidden as spawnSync } from "../lib/subprocess-options.mjs"
 import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
@@ -86,39 +86,34 @@ const ISSUES_WAVE_STUB = [
 const orchestrateFlagCases = () => {
   const skillPath = join(REPO_ROOT, ".claude", "skills", "orchestrate", "SKILL.md")
   const skill = readFileSync(skillPath, "utf8")
-  const scopeSection = skill.slice(skill.indexOf("## 0."), skill.indexOf("## 0a."))
   T(
-    "orchestrate flags: --single accepts project scope without changing it",
-    /`--single` is valid with every resolved scope/.test(scopeSection)
-      && /does not change which tickets belong to it/.test(scopeSection),
-    scopeSection,
+    "orchestrate workflow: every Luna launch binds the unchanged ticket to the exact base",
+    /ticket body.*verbatim/i.test(skill) && /execution brief/i.test(skill) && /base SHA/i.test(skill) && /ticketBodySha256/i.test(skill) && /baseSha/i.test(skill),
+    skill,
   )
   T(
-    "orchestrate flags: --only on a project is a usage error naming both flags",
-    /`--only` on a project name is also a usage error/.test(scopeSection)
-      && /`--only` requires one `ORB-N` identifier and `--single` serialises a project run/.test(scopeSection),
-    scopeSection,
+    "orchestrate workflow: wave planning remains a DAG and collision report",
+    /DAG/i.test(skill) && /collision/i.test(skill) && /wave\s+output is a DAG and collision report/i.test(skill),
+    skill,
   )
   T(
-    "orchestrate flags: --only ORB-N preserves the former one-ticket boundary",
-    /With `--only`, reconcile and launch THAT TICKET[\s\S]*ONLY/.test(scopeSection),
-    scopeSection,
+    "orchestrate workflow: explicit issue sets use the shared wave planner",
+    /wave-plan\.mjs --issues/i.test(skill) && /explicit set/i.test(skill),
+    skill,
   )
   T(
-    "orchestrate flags: --only rejects two or more identifiers",
-    /`--only` with an explicit set is a usage error/.test(scopeSection),
-    scopeSection,
+    "orchestrate workflow: Luna cannot plan the DAG or mutate delivery systems",
+    /Luna never plans the DAG/i.test(skill) && /never mutates Linear/i.test(skill) && /never opens or updates a pull request/i.test(skill),
+    skill,
   )
   T(
-    "orchestrate flags: --single accepts an explicit set and runs it serially",
-    /including an explicit set/.test(scopeSection)
-      && /effective[\s\S]*`maxParallelWorktrees` to 1/.test(scopeSection)
-      && /Wait for each ticket to reach a terminal state before launching the next/.test(scopeSection),
-    scopeSection,
+    "orchestrate workflow: changed heads require a fresh exact-head review",
+    /fresh context-free review/i.test(skill) && /changed head/i.test(skill) && /new review/i.test(skill),
+    skill,
   )
   T(
-    "orchestrate flags: --single passes cap 1 to the shared launcher enforcement",
-    /--max-parallel-worktrees 1` when the run has `--single`/.test(skill),
+    "orchestrate workflow: human squash merge and safe cleanup are mandatory",
+    /Human squash merge is mandatory/i.test(skill) && /never calls a merge command/i.test(skill) && /clean, inactive, verified stale/i.test(skill),
     skill,
   )
 
@@ -142,7 +137,7 @@ const orchestrateFlagCases = () => {
     onlyPlan = null
   }
   T(
-    "orchestrate flags: --only ORB-N resolves the recorded former --single plan",
+    "orchestrate workflow: --issues resolves the requested explicit plan",
     onlyResult.status === 0
       && JSON.stringify(onlyPlan) === JSON.stringify(recordedMainSinglePlan),
     `exit ${onlyResult.status}; expected ${JSON.stringify(recordedMainSinglePlan)}; got ${JSON.stringify(onlyPlan)}\n     ${onlyResult.stderr}`,

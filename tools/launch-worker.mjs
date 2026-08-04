@@ -17,13 +17,11 @@
  * reviews, or moves a Linear issue.
  */
 
-import { execFileSync, spawn, spawnSync } from "node:child_process"
-import { randomUUID } from "node:crypto"
+import { execFileSyncHidden as execFileSync, spawnHidden as spawn, spawnSyncHidden as spawnSync } from "./lib/subprocess-options.mjs"
+import { generateKeyPairSync, randomUUID } from "node:crypto"
 import {
   appendFileSync,
-  closeSync,
   existsSync,
-  openSync,
   readFileSync,
   statSync,
   unlinkSync,
@@ -34,7 +32,24 @@ import { basename, delimiter, dirname, extname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
+import {
+  cancelBudgetReservation as cancelAutomationBudgetReservation,
+  claimBudgetReservation,
+  reserveAutomationBudget,
+} from "./lib/automation-launch-budget.mjs"
 import { FINDING_SCOPE, STRIKES_BEFORE_ESCALATION, recordStrike, strikeCount, strikeLedgerPath } from "./lib/strike-ledger.mjs"
+import { acquireWorktreeLifecycleLock } from "./lib/worktree-lifecycle-lock.mjs"
+import { minimalChildEnvironment } from "./lib/child-environment.mjs"
+import {
+  assertWorkerLaunchAuthority,
+  signWorkerLaunchRecord,
+  readWorkerLaunchRecords,
+  recordWorkerLaunch,
+  sameWorkerLaunch,
+  WORKER_SUPERVISOR_ENVELOPE_VERSION,
+  WORKER_TIMEOUTS_MS,
+  workerLaunchLedgerPath,
+} from "./lib/worker-launch-provenance.mjs"
 const pause = (milliseconds) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds)
 
 const USAGE = `usage: launch-worker.mjs --issue ORB-N --prompt-file <path> [options]
@@ -55,6 +70,7 @@ const USAGE = `usage: launch-worker.mjs --issue ORB-N --prompt-file <path> [opti
   --comment "<text>"     worktree card comment (default: "<ORB-N> launched: worker running")
   --workspace-status <s> Orca board status id (default: in-progress)
   --existing-worktree <path> launch an additional headless worker in this existing Orca worktree
+  --repair                launch an existing-worktree repair owned by the same implementation worker
   --finding <id>         relaunch identifier for ONE unresolved review finding. Each launch under
                          the same --issue and --finding is one cycle of worker-contract clause 4,
                          counted in a durable ledger outside this process; the third refuses and
@@ -229,6 +245,7 @@ const terminalIsRepainting = (terminal) => {
  */
 const WORKER_CONTRACT_MARKER = "## Standing worker contract (injected by tools/launch-worker.mjs)"
 const SLICE_CONTRACT_MARKER = "## Slice worker contract (injected by tools/launch-worker.mjs)"
+const REPAIR_CONTRACT_MARKER = "## Repair worker contract (injected by tools/launch-worker.mjs)"
 const WORKER_CONTRACT = `
 
 ---
@@ -238,50 +255,32 @@ ${WORKER_CONTRACT_MARKER}
 These clauses come from the launcher, not from whoever composed the work order above. Where they
 conflict with anything above, these win.
 
-1. **Never ask a question.** Nobody is at your keyboard, so a question is not a safe default, it
-   is a silent stall: the run stops until a human notices your terminal by accident. Never
-   present a menu, never wait for a choice, never end a turn on a question. Decide every fork
-   yourself, the way this repo's CLAUDE.md and the ticket body point, and record each decision
-   and its reasoning in the PR body under a \`## Decisions taken unattended\` heading.
-2. **A blocked sub-step never blocks the PR.** If one step is genuinely impossible, finish every
-   other part in full, mark that criterion explicitly UNMET in the PR body with the evidence,
-   and still complete the contract: gates, commit, push, PR, attach, In Review. Unmet and stated
-   is acceptable; unmentioned is not. The pull request must be ready for review, never a draft.
-   Never silently drop a criterion.
-3. **Own the automated review cycle.** After the PR is open, attached, and In Review, poll its
-   review transitions with a foreground blocking \`node tools/pr-watch.mjs --repo <owner/name> --pr <number>\`.
-   Every wait must state \`yield_time_ms\` explicitly, at or above the whole expected wait. After every call and before waiting or reporting
-   completion, run \`node tools/worker-status.mjs --worktree <path> --issue ORB-N --json\`.
-   That full-surface completion poll inventories review submissions, review threads and their
-   nested comments, and PR conversation comments, and fails closed on an incomplete inventory.
-   Read unmet item bodies through GitHub's read APIs, reconcile them against the diff, then poll
-   again. For each valid finding, fix it, run the affected gates, commit and push, reply on that
-   thread naming the fix commit, then resolve it.
-   An informational automated finding that needs no code change may be resolved after replying
-   \`No code change required: <reason>. Evidence: <PR commit>\`; the named commit must be on the
-   PR and change the reviewed path. Never resolve a thread opened by a human account.
-   CHANGES_REQUESTED blocks. No approval is required. If an approval exists, it must name the
-   current head. Repeat until there are zero unresolved threads and every automated review item is reconciled.
-   For an automated finding in a review body or PR conversation comment with
-   no thread, post a PR comment naming that activity ID and the PR commit that addresses it.
-4. **Escalate instead of guessing.** Escalate when you disagree with a finding, when you are
-   blocked on a decision you may not make, or when two consecutive cycles fail on the same
-   finding. Do not try that finding a third time. Send one escalation carrying the disputed
-   finding and your reasoning.
-5. **Your job ends on one report.** Report completion once CHANGES_REQUESTED is absent, any
-   existing approval names the current head, and there are zero unresolved threads and every automated review item is reconciled;
-   or send the escalation from clause 4. An earlier instruction to stop
-   after opening or attaching the PR does not replace this endpoint. If your work order tells you
-   both to watch something and to stop, STOP wins. Never watch another ticket, worktree, or PR.
+1. **Never ask a question.** Decide from the unchanged ticket, the Sol execution brief, and the
+   repository rules. If the ticket and brief disagree, stop with a consistency failure. Do not
+   invent a missing requirement or fixture.
+2. **Implement only the approved work order.** Luna is the headless implementation worker. Do not
+   plan the DAG, mutate Linear, open or edit a pull request, publish a review, push any branch, or
+   merge. Do not run a coordinator or review loop. A returned review finding may be repaired only
+   when Sol passes its stable identifier and evidence back in the existing worktree.
+3. **A blocked criterion is explicit.** Finish every safe in-scope part, record an unmet criterion
+   with evidence in the local completion report, and leave the worktree for Sol. Do not claim that
+   a gate or external interface was verified when it was not.
+4. **Escalate instead of guessing.** Escalate when a returned finding is disputed, when you are
+   blocked on a decision reserved for Sol or Thomas, or when two consecutive repair cycles fail on
+   the same finding. Do not try that finding a third time.
+5. **Your job ends at a local implementation handoff.** Run the relevant local gates, commit through
+   normal hooks with a concise ORB message, verify \`git show --stat HEAD\`, and report the exact
+   commit and outcomes. Do not claim that the branch was pushed, that a pull request is ready, or
+   that review is clear.
 6. **Never arm a detached background monitor, watcher or wait loop that outlives this contract.** A foreground blocking wait is permitted.
-7. **Never merge any PR, never push to \`main\`, never use \`--no-verify\`, never edit a gate
-   baseline, never run \`gh pr merge --admin\`, never directly call \`PUT /repos/{owner}/{repo}/pulls/{number}/merge\`, and never directly call the GraphQL \`mergePullRequest\` mutation. If a merge genuinely needs an admin override, STOP and ask Thomas to merge it himself; never perform the override.**
+7. **Never merge any PR, never push any branch, never use \`--no-verify\`, never edit a gate
+   baseline, never run \`gh pr merge --admin\`, never directly call \`PUT /repos/{owner}/{repo}/pulls/{number}/merge\`, and never directly call the GraphQL \`mergePullRequest\` mutation.**
 8. **Stage explicitly.** Commit only the paths you edited yourself. \`git add -A\`, \`git add .\`
    and \`git commit -a\` are forbidden. A worktree is a shared filesystem that sibling workers,
    dev servers and tooling all write into, so a blanket stage turns any of their runtime
    artifacts into your diff.
-9. **Verify before pushing.** Run \`git show --stat HEAD\` and confirm every path in it is one
-   you meant to change. A path you cannot explain is a defect to resolve, never a file to push.
+9. **Verify before handoff.** Run \`git show --stat HEAD\` and confirm every path in it is one
+   you meant to change. A path you cannot explain is a defect to resolve, never a file to hand off.
 10. **Never write into another worktree.** A live sibling worktree is another worker's working
     tree, and a file you leave there can land in that worker's PR. If your proof genuinely needs
     a second worktree, create a disposable one for it and remove it afterwards.
@@ -290,13 +289,8 @@ conflict with anything above, these win.
     contract, then reconciling their output. Keep edits landing in the SAME file inline, and keep
     the final gate run inline because its raw output ships in the PR body. A review round with
     more than one independent finding is dispatched one subagent per finding, not fixed inline.
-12. **Post the approach before you write the code.** Open the pull request as your FIRST act after
-    creating the branch, carrying no implementation yet, and immediately post your intended
-    approach as a pull request comment: the change you mean to make, the files it will land in,
-    and why that shape rather than the alternatives you rejected. Only then start writing. The
-    cloud reviewer reads that comment before it reads a diff, so a wrong shape costs one comment
-    instead of a review round against code already written. Changing a plan is free; changing a
-    merged design is not.
+12. **Do not create planning or approval loops.** Sol owns the DAG and the substantive pull request
+    boundary. This worker consumes the brief and implements it.
 `
 
 const SLICE_CONTRACT = `
@@ -312,6 +306,20 @@ to the coordinator when finished. Never ask a question: decide from the work ord
 rules, and record any blocked sub-step in the report.
 `
 
+const repairWorkerContract = (finding) => `
+
+---
+
+${REPAIR_CONTRACT_MARKER}
+
+This is a repair launch in the existing worktree, owned by the same implementation worker. Repair
+only the stable finding \`${finding}\` from the current review. Inspect the current diff and the
+finding evidence before changing code. Run the affected gates, commit the repair, and hand the
+changed local head back to Sol. Do not invoke or authorize \`tools/launch-pr-review.mjs\`, push,
+edit the pull request, merge, change Linear, or modify files outside this finding's repair. Stage
+only paths you edited. Never ask a question; record blocked work locally and report it.
+`
+
 /**
  * Everything created after `orca worktree create` succeeds has to come back out on any later
  * failure, or a failed launch leaves a full checkout, its terminals and an `npm install`
@@ -322,19 +330,16 @@ rules, and record any blocked sub-step in the report.
 let rollback = null
 let budgetReservation = null
 let reservationMaySpend = false
-let cancelBudgetReservation = null
-let concurrencyReservation = null
+let lifecycleLock = null
 
 const releaseConcurrencyReservation = () => {
-  if (!concurrencyReservation) return
-  const { path, token } = concurrencyReservation
-  concurrencyReservation = null
+  if (!lifecycleLock) return
+  const held = lifecycleLock
+  lifecycleLock = null
   try {
-    if (readFileSync(path, "utf8") === token) unlinkSync(path)
+    held.release()
   } catch (error) {
-    if (error.code !== "ENOENT") {
-      console.error(`could not release launch reservation ${path}: ${error.message}`)
-    }
+    console.error(`could not release worktree lifecycle lock ${held.path}: ${error.message}`)
   }
 }
 
@@ -350,33 +355,34 @@ const fail = (code, message) => {
     console.error(`rolling back ${selector} so a relaunch starts clean`)
     /**
      * `orca worktree create` spawns its own startup PTYs (a shell, plus the repo's setup hook,
-     * which is `npm install` here). `worktree rm --force` fails with "Failed to physically stop
+     * which is `npm install` here). Worktree removal can fail with "Failed to physically stop
      * every PTY" while one of those is still alive, so stop them first and give a slow one a
      * second chance before giving up. Measured on this branch: the first rollback attempt
-     * failed exactly this way with npm install still running.
+     * failed exactly this way with npm install still running. Removal stays ordinary because a
+     * forced removal can follow a Windows junction into the linked checkout target.
      */
     spawnSync(ORCA, ["terminal", "stop", "--worktree", selector, "--json"], { encoding: "utf8" })
-    let removal = spawnSync(ORCA, ["worktree", "rm", "--worktree", selector, "--force", "--json"], { encoding: "utf8" })
+    let removal = spawnSync(ORCA, ["worktree", "rm", "--worktree", selector, "--json"], { encoding: "utf8" })
     if (removal.status !== 0) {
       pause(5000)
       spawnSync(ORCA, ["terminal", "stop", "--worktree", selector, "--json"], { encoding: "utf8" })
-      removal = spawnSync(ORCA, ["worktree", "rm", "--worktree", selector, "--force", "--json"], { encoding: "utf8" })
+      removal = spawnSync(ORCA, ["worktree", "rm", "--worktree", selector, "--json"], { encoding: "utf8" })
     }
     if (removal.status !== 0) {
       console.error(`could not remove the worktree: ${(removal.stdout || removal.stderr || "").trim().slice(0, 300)}`)
-      console.error(`remove it by hand before relaunching: orca worktree rm --worktree ${selector} --force`)
+      console.error(`remove it by hand before relaunching: orca worktree rm --worktree ${selector}`)
     } else {
       cleanupConfirmed = true
     }
     for (const branchToDrop of [contractBranch, orcaBranch].filter(Boolean)) {
       const stillThere = spawnSync("git", ["-C", rollbackRepo, "rev-parse", "--verify", "--quiet", `refs/heads/${branchToDrop}`], { encoding: "utf8" })
       if (stillThere.status !== 0) continue
-      const dropped = spawnSync("git", ["-C", rollbackRepo, "branch", "-D", branchToDrop], { encoding: "utf8" })
+    const dropped = spawnSync("git", ["-C", rollbackRepo, "branch", "--delete", branchToDrop], { encoding: "utf8" })
       if (dropped.status !== 0) console.error(`left the branch ${branchToDrop} behind: ${(dropped.stderr || "").trim().slice(0, 200)}`)
     }
   }
-  if (budgetReservation && !reservationMaySpend && cleanupConfirmed && cancelBudgetReservation) {
-    const cancelled = cancelBudgetReservation(budgetReservation)
+  if (budgetReservation && !reservationMaySpend && cleanupConfirmed) {
+    const cancelled = cancelAutomationBudgetReservation(budgetReservation)
     if (!cancelled) {
       console.error(`left budget reservation "${budgetReservation.identity}" pending because its cancellation could not be recorded`)
     }
@@ -494,226 +500,11 @@ if (automationLedgerOverride !== undefined && automationLedgerOverride.trim().le
 const automationLedgerPath = resolve(
   automationLedgerOverride ?? resolve(homedir(), ".orbit", "automation-budget.jsonl"),
 )
-
-const parseClaudeResetAt = (resetsIn) => {
-  if (typeof resetsIn !== "string") {
-    fail(3, "ai-quota returned no Claude weekly reset duration; refusing to launch unattended automation")
-  }
-  const match = resetsIn.match(/^(?:(\d+)d(?: (\d+)h)?(?: (\d+)m)?|(\d+)h(?: (\d+)m)?|(\d+)m)$/)
-  if (!match) {
-    fail(3, `ai-quota returned unsupported Claude reset duration "${resetsIn}"; expected compact d/h/m units such as "6d 4h"`)
-  }
-  const days = Number(match[1] ?? 0)
-  const hours = Number(match[2] ?? match[4] ?? 0)
-  const minutes = Number(match[3] ?? match[5] ?? match[6] ?? 0)
-  const durationMilliseconds = ((days * 24 + hours) * 60 + minutes) * 60 * 1000
-  if (!Number.isSafeInteger(durationMilliseconds) || durationMilliseconds <= 0) {
-    fail(3, `ai-quota returned invalid Claude reset duration "${resetsIn}"; refusing to launch unattended automation`)
-  }
-  return new Date(Date.now() + durationMilliseconds).toISOString()
-}
-
-const parseCodexResetAt = (resetsAt) => {
-  const milliseconds = typeof resetsAt === "number" ? resetsAt * 1000 : Date.parse(resetsAt)
-  if (!Number.isFinite(milliseconds) || milliseconds <= Date.now()) {
-    fail(3, `ai-quota returned invalid Codex reset timestamp "${resetsAt}"; refusing to launch unattended automation`)
-  }
-  return new Date(milliseconds).toISOString()
-}
-
-const runBudgetCommand = (argumentsList, blockedExit = false) => {
-  const budgetResult = spawnSync(process.execPath, [budgetToolPath, ...argumentsList], {
-    encoding: "utf8",
-    maxBuffer: 32 * 1024 * 1024,
-  })
-  if (budgetResult.error) fail(3, `automation-budget could not start: ${budgetResult.error.message}`)
-  if (budgetResult.status === 0) {
-    if (budgetResult.stderr) process.stderr.write(budgetResult.stderr)
-    return
-  }
-  const reason = (budgetResult.stderr || budgetResult.stdout || "automation-budget failed").trim()
-  fail(blockedExit && budgetResult.status === 4 ? 4 : 3, reason)
-}
-
-/**
- * One provider reading per launch, handed to automation-budget verbatim rather than read twice.
- * The claude arm reads its figure by scraping an Orca accessibility tree, so a second read is a
- * second scrape and can legitimately disagree with the first.
- */
-const quotaSnapshotPath = join(tmpdir(), `orbit-launch-quota-${process.pid}-${randomUUID()}.json`)
-process.on("exit", () => {
-  try {
-    unlinkSync(quotaSnapshotPath)
-  } catch {
-    /* a snapshot the OS already reclaimed must never change this launch's verdict */
-  }
-})
-
-const reserveAutomationBudget = ({
-  engineName,
-  identity,
-  tier,
-  startedAt,
-  warningTokens,
-  tokenBudget,
-  accountCeilingPercent,
-  projectedTokens,
-  ledgerPath,
-}) => {
-  const quotaResult = spawnSync(process.execPath, [quotaToolPath, "--json"], {
-    encoding: "utf8",
-    maxBuffer: 32 * 1024 * 1024,
-  })
-  if (quotaResult.error) fail(3, `ai-quota could not start: ${quotaResult.error.message}`)
-  let quota
-  try {
-    quota = JSON.parse(quotaResult.stdout)
-  } catch {
-    fail(3, `ai-quota returned unparseable output: ${(quotaResult.stdout || quotaResult.stderr || "").slice(0, 400)}`)
-  }
-  try {
-    writeFileSync(quotaSnapshotPath, quotaResult.stdout, "utf8")
-  } catch (error) {
-    fail(3, `could not write the quota snapshot ${quotaSnapshotPath}: ${error.message}`)
-  }
-  const selectedQuota = quota?.[engineName]
-  const accountObservedAt = new Date().toISOString()
-  /**
-   * UNAVAILABLE is an honest answer, not a tool failure, and refusing on it was stricter than the
-   * budget tool's own policy: the claude reading flipped OK to UNAVAILABLE twice on an idle
-   * machine inside twenty minutes purely because the Orca window was not scrapeable, and every
-   * launch in between would have been refused. automation-budget falls back to the token budget
-   * and says so (gate TOKEN_FALLBACK), so the launcher lets that bounded fallback fire. A reading
-   * this launcher cannot even parse is still fatal above.
-   */
-  const readingAvailable = selectedQuota?.status === "OK"
-  const accountUsedPercent = readingAvailable
-    ? (engineName === "claude" ? selectedQuota.weeklyPercent : selectedQuota.usedPercent)
-    : null
-  /** With no provider window to read, the trailing seven days is the conservative window: it
-   * counts every recent record, where a future reset timestamp would count none of them. */
-  const resetAt = readingAvailable
-    ? (engineName === "claude" ? parseClaudeResetAt(selectedQuota.resetsIn) : parseCodexResetAt(selectedQuota.resetsAt))
-    : accountObservedAt
-  if (!readingAvailable) {
-    console.error(`ai-quota reports ${engineName} UNAVAILABLE, so automation-budget gates this launch on the token budget over the trailing seven days instead of the provider reading`)
-  }
-  const argumentsList = [
-    "reserve",
-    "--engine",
-    engineName,
-    "--identity",
-    identity,
-    "--tier",
-    tier,
-    "--started-at",
-    startedAt,
-    "--ended-at",
-    accountObservedAt,
-    "--reset-at",
-    resetAt,
-    "--account-ceiling-percent",
-    String(accountCeilingPercent),
-    "--warning-tokens",
-    String(warningTokens),
-    "--budget-tokens",
-    String(tokenBudget),
-    "--invocation-tokens",
-    String(projectedTokens),
-    "--quota",
-    quotaSnapshotPath,
-    "--ledger",
-    ledgerPath,
-  ]
-  if (Number.isFinite(accountUsedPercent)) {
-    argumentsList.push(
-      "--account-used-percent",
-      String(accountUsedPercent),
-      "--account-observed-at",
-      accountObservedAt,
-    )
-  }
-  argumentsList.push("--json")
-  runBudgetCommand(argumentsList, true)
-  return { identity, engineName, tier, startedAt, ledgerPath }
-}
-
-/**
- * The reservation is appended before the worktree exists, so it cannot carry the PID of a worker
- * that does not exist yet. Attaching it here is what lets `summarize` expire a reservation the
- * instant its process is gone instead of waiting out the whole lease. A failure to attach is
- * reported, never fatal: the worker is already running, and the reservation simply falls back to
- * the timestamp backstop.
- */
-const claimBudgetReservation = ({ identity, engineName, tier, startedAt, ledgerPath }, projectedTokens, workerPid) => {
-  const result = spawnSync(process.execPath, [
-    budgetToolPath,
-    "claim",
-    "--identity",
-    identity,
-    "--engine",
-    engineName,
-    "--tier",
-    tier,
-    "--started-at",
-    startedAt,
-    "--ended-at",
-    new Date().toISOString(),
-    "--invocation-tokens",
-    String(projectedTokens),
-    "--worker-pid",
-    String(workerPid),
-    "--ledger",
-    ledgerPath,
-  ], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
-  if (!result.error && result.status === 0) return true
-  console.error(`automation-budget claim failed, the reservation keeps its timestamp lease: ${(result.stderr || result.stdout || result.error?.message || "unknown error").trim()}`)
-  return false
-}
-
-cancelBudgetReservation = ({ identity, engineName, tier, startedAt, ledgerPath }) => {
-  const result = spawnSync(process.execPath, [
-    budgetToolPath,
-    "cancel",
-    "--identity",
-    identity,
-    "--engine",
-    engineName,
-    "--tier",
-    tier,
-    "--started-at",
-    startedAt,
-    "--ended-at",
-    new Date().toISOString(),
-    "--ledger",
-    ledgerPath,
-    "--json",
-  ], {
-    encoding: "utf8",
-    maxBuffer: 32 * 1024 * 1024,
-  })
-  if (!result.error && result.status === 0) return true
-  console.error(`automation-budget cancellation failed: ${(result.stderr || result.stdout || result.error?.message || "unknown error").trim()}`)
-  return false
-}
-
-const processIsAlive = (pid) => {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (error) {
-    return error.code !== "ESRCH"
-  }
-}
-
-const unlinkReservation = (path) => {
-  try {
-    unlinkSync(path)
-    return true
-  } catch (error) {
-    if (error.code === "ENOENT") return false
-    throw error
-  }
+let workerLaunchLedger
+try {
+  workerLaunchLedger = workerLaunchLedgerPath()
+} catch (error) {
+  fail(2, error.message)
 }
 
 const acquireConcurrencyReservation = (repoPath) => {
@@ -721,57 +512,10 @@ const acquireConcurrencyReservation = (repoPath) => {
     repoPath,
     git(["-C", repoPath, "rev-parse", "--git-common-dir"]),
   )
-  const path = join(gitCommonDirectory, "orbit-launch-worker.lock")
-  const token = JSON.stringify({ pid: process.pid, startedAt: Date.now() })
-  const deadline = Date.now() + 5 * 60 * 1000
-
-  while (true) {
-    let descriptor
-    try {
-      descriptor = openSync(path, "wx")
-      writeFileSync(descriptor, token, "utf8")
-      closeSync(descriptor)
-      concurrencyReservation = { path, token }
-      return
-    } catch (error) {
-      if (descriptor !== undefined) {
-        try {
-          closeSync(descriptor)
-        } catch {
-          // The descriptor may already have closed before a later setup step failed.
-        }
-        unlinkReservation(path)
-      }
-      if (error.code !== "EEXIST") {
-        fail(3, `could not reserve a concurrency slot for ${repoPath}: ${error.message}`)
-      }
-    }
-
-    try {
-      const owner = JSON.parse(readFileSync(path, "utf8"))
-      if (Number.isInteger(owner.pid) && !processIsAlive(owner.pid)) {
-        unlinkReservation(path)
-        continue
-      }
-    } catch (error) {
-      if (error.code === "ENOENT") continue
-      let stale = false
-      try {
-        stale = Date.now() - statSync(path).mtimeMs > 5000
-      } catch (statError) {
-        if (statError.code === "ENOENT") continue
-        fail(3, `could not inspect launch reservation ${path}: ${statError.message}`)
-      }
-      if (stale) {
-        unlinkReservation(path)
-        continue
-      }
-    }
-
-    if (Date.now() >= deadline) {
-      fail(1, `timed out waiting for another launch reservation in ${repoPath}`)
-    }
-    pause(100)
+  try {
+    lifecycleLock = acquireWorktreeLifecycleLock(gitCommonDirectory)
+  } catch (error) {
+    fail(error.message.includes("timed out") ? 1 : 3, error.message)
   }
 }
 
@@ -784,6 +528,7 @@ const branchPrefix = argOf("--branch-prefix") ?? "feature"
 const maxParallelOverride = argOf("--max-parallel-worktrees")
 const workspaceStatus = argOf("--workspace-status") ?? "in-progress"
 const findingArg = argOf("--finding")
+const repairMode = process.argv.includes("--repair")
 const dryRun = process.argv.includes("--dry-run")
 
 /**
@@ -944,6 +689,9 @@ if (selectedWaveSelectors.length === 1) {
 if (argOf("--prompt-dir") !== null) fail(2, "--prompt-dir belongs to wave mode; a single-ticket launch takes --prompt-file")
 if (!issue || !/^[A-Z]+-\d+$/.test(issue)) fail(2, `${USAGE}\n\n--issue must be a Linear identifier such as ORB-75`)
 if (!promptFileArg) fail(2, `${USAGE}\n\n--prompt-file is required`)
+if (repairMode && !existingWorktreeArg) fail(2, "--repair requires --existing-worktree")
+if (repairMode && findingArg === null) fail(2, "--repair requires --finding with the stable finding identity")
+if (repairMode && !/^finding-[0-9a-f]{32}$/.test(findingArg ?? "")) fail(2, "--repair --finding must be a stable finding identity such as finding-0123456789abcdef0123456789abcdef")
 if (branchPrefix !== "feature" && branchPrefix !== "fix") fail(2, "--branch-prefix must be feature or fix")
 if (maxParallelOverride !== null && !/^[1-9]\d*$/.test(maxParallelOverride)) {
   fail(2, "--max-parallel-worktrees must be a positive integer")
@@ -1155,21 +903,125 @@ const headlessInvocation = () => {
   return { executable: process.execPath, scriptArgs: [script] }
 }
 
-const startHeadlessWorker = (worktreePath, branch) => {
+const startHeadlessWorker = (worktreePath, branch, launchMode) => {
+  assertWorkerLaunchAuthority()
   const { executable, scriptArgs } = headlessInvocation()
-  const child = spawn(executable, [...scriptArgs, ...engineArgs, workerPointer(worktreePath, branch)], {
-    cwd: worktreePath,
-    detached: true,
-    stdio: "ignore",
-    windowsHide: true,
-    env: { ...process.env, ORBIT_LAUNCH_WORKER: "1" },
-  })
-  if (!child.pid) fail(3, `could not start headless ${engineName} worker`)
-  child.unref()
+  const launchId = randomUUID()
+  const startedAt = new Date().toISOString()
+  const invocation = { command: engine.command, args: [...engineArgs] }
+  const { publicKey, privateKey } = generateKeyPairSync("ed25519")
+  const workerPath = resolve(worktreePath)
   const gitDirectory = resolve(worktreePath, git(["-C", worktreePath, "rev-parse", "--git-dir"]))
-  appendFileSync(join(gitDirectory, "orbit-worker-pids.jsonl"), `${JSON.stringify({ issue, worktreePath, pid: child.pid, startedAt: new Date().toISOString() })}\n`)
-  if (budgetReservation) claimBudgetReservation(budgetReservation, projectedTokens, child.pid)
-  return child.pid
+  const markerPath = join(gitDirectory, "orbit-worker-pids.jsonl")
+  const supervisorPath = resolve(dirname(fileURLToPath(import.meta.url)), "worker-supervisor.mjs")
+  const payloadPath = join(tmpdir(), `orbit-worker-${launchId}.json`)
+  const startGate = join(tmpdir(), `orbit-worker-${launchId}.ready`)
+  const pointer = workerPointer(worktreePath, branch)
+  const timeoutMs = WORKER_TIMEOUTS_MS[launchMode]
+  if (!Number.isSafeInteger(timeoutMs)) fail(2, `unknown headless worker launch mode: ${launchMode}`)
+  const deadlineAt = new Date(Date.now() + timeoutMs).toISOString()
+  const supervisorEnvelope = {
+    version: WORKER_SUPERVISOR_ENVELOPE_VERSION,
+    payloadPath,
+    executable,
+    scriptArgs,
+    engineArgs,
+    pointer,
+    worktreePath: workerPath,
+    markerPath,
+    ledgerPath: workerLaunchLedger,
+    startGate,
+    timeoutMs,
+    deadlineAt,
+  }
+  let launchRecord = {
+    version: 1,
+    launchId,
+    issue,
+    worktreePath: workerPath,
+    pid: 0,
+    startedAt,
+    launchMode,
+    engine: engineName,
+    invocation,
+    branch,
+    launcherPid: process.pid,
+    issuedAt: new Date().toISOString(),
+    completionAttestation: {
+      algorithm: "ed25519",
+      publicKey: publicKey.export({ format: "der", type: "spki" }).toString("base64"),
+    },
+    supervisorEnvelope,
+  }
+  const writeSupervisorPayload = () => writeFileSync(
+    payloadPath,
+    JSON.stringify({
+      payloadPath,
+      launchRecord,
+      executable,
+      scriptArgs,
+      engineArgs,
+      pointer,
+      worktreePath: workerPath,
+      markerPath,
+      ledgerPath: workerLaunchLedger,
+      startGate,
+      timeoutMs,
+      deadlineAt,
+    }),
+    { encoding: "utf8", mode: 0o600 },
+  )
+  writeSupervisorPayload()
+  let child
+  const workerEnvironment = minimalChildEnvironment("supervisor", {
+    ...process.env,
+    ORBIT_LAUNCH_WORKER: "1",
+    ORBIT_WORKER_LAUNCH_ID: launchId,
+  })
+  try {
+    child = spawn(process.execPath, [supervisorPath, payloadPath], {
+      cwd: workerPath,
+      detached: true,
+      stdio: ["ignore", "ignore", "ignore", "pipe"],
+      windowsHide: true,
+      env: workerEnvironment,
+    })
+  } catch (error) {
+    unlinkSync(payloadPath)
+    fail(3, `could not start headless ${engineName} supervisor: ${error.message}`)
+  }
+  if (!child.pid) {
+    unlinkSync(payloadPath)
+    fail(3, `could not start headless ${engineName} supervisor`)
+  }
+  launchRecord.pid = child.pid
+  // The supervisor waits for the gate, so rewrite its payload after the spawn supplies the
+  // authoritative supervisor PID. A completion row carrying pid 0 is not a launch receipt and
+  // would make the central delivery ledger reject the worker that actually ran.
+  launchRecord = signWorkerLaunchRecord(launchRecord)
+  writeSupervisorPayload()
+  child.stdio[3].end(privateKey.export({ format: "pem", type: "pkcs8" }))
+  try {
+    recordWorkerLaunch(launchRecord, workerLaunchLedger)
+    appendFileSync(markerPath, `${JSON.stringify(launchRecord)}\n`)
+    if (budgetReservation) claimBudgetReservation(budgetReservation, projectedTokens, child.pid)
+    writeFileSync(startGate, "ready\n", { encoding: "utf8", mode: 0o600 })
+  } catch (error) {
+    try {
+      process.kill(child.pid)
+    } catch {
+      /* the child may have exited before provenance failed */
+    }
+    try {
+      unlinkSync(payloadPath)
+      unlinkSync(startGate)
+    } catch {
+      /* cleanup must not mask the provenance failure */
+    }
+    fail(3, `could not issue worker launch provenance: ${error.message}`)
+  }
+  child.unref()
+  return { workerPid: child.pid, launchId }
 }
 
 /**
@@ -1236,8 +1088,18 @@ if (!existingWorktreeArg && occupyingWorktrees.length >= maxParallelWorktrees) {
 
 /** Reported in the plan so a dry run shows whether this launch would inject the contract, and a
  * relaunch against an already-injected file is visibly a no-op rather than a silent second copy. */
-const contractMarker = existingWorktreeArg ? SLICE_CONTRACT_MARKER : WORKER_CONTRACT_MARKER
-const workerContract = readFileSync(promptFile, "utf8").includes(contractMarker) ? "already present" : "appended"
+const contractMarker = repairMode
+  ? REPAIR_CONTRACT_MARKER
+  : existingWorktreeArg
+    ? SLICE_CONTRACT_MARKER
+    : WORKER_CONTRACT_MARKER
+const originalPrompt = readFileSync(promptFile, "utf8")
+const hasInjectedContract = [WORKER_CONTRACT_MARKER, SLICE_CONTRACT_MARKER, REPAIR_CONTRACT_MARKER]
+  .some((marker) => originalPrompt.includes(marker))
+const contractText = repairMode ? repairWorkerContract(findingArg) : existingWorktreeArg ? SLICE_CONTRACT : WORKER_CONTRACT
+const workerContract = repairMode
+  ? originalPrompt.includes(contractText.trim()) ? "already present" : hasInjectedContract ? "replaced" : "appended"
+  : originalPrompt.includes(contractMarker) ? "already present" : "appended"
 
 const plan = {
   issue,
@@ -1272,17 +1134,23 @@ if (dryRun) {
   process.exit(0)
 }
 
-budgetReservation = reserveAutomationBudget({
-  engineName,
-  identity: invocationIdentity,
-  tier: budgetTier,
-  startedAt: invocationStartedAt,
-  warningTokens: automationBudget.warningTokens,
-  tokenBudget: automationBudget.tokenBudget,
-  accountCeilingPercent: automationBudget.accountUsedPercentCeiling,
-  projectedTokens,
-  ledgerPath: automationLedgerPath,
-})
+try {
+  budgetReservation = reserveAutomationBudget({
+    engineName,
+    identity: invocationIdentity,
+    tier: budgetTier,
+    startedAt: invocationStartedAt,
+    warningTokens: automationBudget.warningTokens,
+    tokenBudget: automationBudget.tokenBudget,
+    accountCeilingPercent: automationBudget.accountUsedPercentCeiling,
+    projectedTokens,
+    ledgerPath: automationLedgerPath,
+    quotaToolPath,
+    budgetToolPath,
+  })
+} catch (error) {
+  fail(error.exitCode ?? 3, error.message)
+}
 
 /** Recorded once the launch is committed (the fuse passed and the account is charged), so a run
  * the budget refused never burns one of clause 4's two cycles. */
@@ -1298,9 +1166,22 @@ if (findingArg !== null) {
  * for the relaunch. A dry run resolves this decision but writes nothing. */
 if (workerContract === "appended") {
   try {
-    appendFileSync(promptFile, existingWorktreeArg ? SLICE_CONTRACT : WORKER_CONTRACT, "utf8")
+    appendFileSync(promptFile, contractText, "utf8")
   } catch (error) {
     fail(3, `could not append the worker contract to ${promptFile}: ${error.message}`)
+  }
+} else if (workerContract === "replaced") {
+  try {
+    let prompt = readFileSync(promptFile, "utf8")
+    for (const marker of [WORKER_CONTRACT_MARKER, SLICE_CONTRACT_MARKER, REPAIR_CONTRACT_MARKER]) {
+      const markerIndex = prompt.indexOf(marker)
+      if (markerIndex === -1) continue
+      const separatorIndex = prompt.lastIndexOf("\n---\n", markerIndex)
+      prompt = prompt.slice(0, separatorIndex === -1 ? markerIndex : separatorIndex).trimEnd()
+    }
+    writeFileSync(promptFile, `${prompt}${contractText}`, "utf8")
+  } catch (error) {
+    fail(3, `could not replace the worker contract in ${promptFile}: ${error.message}`)
   }
 }
 
@@ -1315,16 +1196,29 @@ if (existingWorktreeArg) {
     fail(2, `--existing-worktree must be an active Orca worktree linked to ${issue}`)
   }
   const marker = join(resolve(worktreePath, git(["-C", worktreePath, "rev-parse", "--git-dir"])), "orbit-worker-pids.jsonl")
+  let issuedLaunches
+  try {
+    issuedLaunches = readWorkerLaunchRecords(workerLaunchLedger)
+  } catch (error) {
+    fail(3, error.message)
+  }
   const activeSlices = existsSync(marker)
-    ? readFileSync(marker, "utf8").trim().split(/\r?\n/).filter(Boolean).flatMap((line) => { try { const row = JSON.parse(line); return row.issue === issue && Number.isInteger(row.pid) && (() => { try { process.kill(row.pid, 0); return true } catch (error) { return error.code !== "ESRCH" } })() ? [row] : [] } catch { return [] } })
+    ? readFileSync(marker, "utf8").trim().split(/\r?\n/).filter(Boolean).flatMap((line) => {
+      try {
+        const row = JSON.parse(line)
+        return row.issue === issue && issuedLaunches.some((issued) => sameWorkerLaunch(row, issued)) && Number.isInteger(row.pid) && (() => { try { process.kill(row.pid, 0); return true } catch (error) { return error.code !== "ESRCH" } })() ? [row] : []
+      } catch {
+        return []
+      }
+    })
     : []
   if (activeSlices.length >= maxSlicesPerWorker) fail(1, `maxSlicesPerWorker cap ${maxSlicesPerWorker} reached for ${issue}`)
   const branch = git(["-C", worktreePath, "rev-parse", "--abbrev-ref", "HEAD"])
-  const workerPid = startHeadlessWorker(worktreePath, branch)
+  const launch = startHeadlessWorker(worktreePath, branch, repairMode ? "repair" : "existing-worktree")
   /** Only once the new PID is in the marker file, so the next launcher counts this slice. */
   releaseConcurrencyReservation()
   rollback = null
-  console.log(JSON.stringify({ ...plan, launchMode: "existing-worktree", worktreePath, worktreeSelector: `path:${worktreePath}`, branch, workerPid }, null, 2))
+  console.log(JSON.stringify({ ...plan, launchMode: repairMode ? "repair" : "existing-worktree", worktreePath, worktreeSelector: `path:${worktreePath}`, branch, workerPid: launch.workerPid, launchId: launch.launchId }, null, 2))
   process.exit(0)
 }
 
@@ -1338,7 +1232,6 @@ const created = orca([
   "--no-parent",
   "--comment", comment,
 ])
-releaseConcurrencyReservation()
 const worktreePath = created.worktree?.path
 if (!worktreePath) fail(3, `orca worktree create returned no path: ${JSON.stringify(created).slice(0, 400)}`)
 const worktreeSelector = `path:${worktreePath}`
@@ -1360,10 +1253,11 @@ const actualBranch = git(["-C", worktreePath, "rev-parse", "--abbrev-ref", "HEAD
 if (actualBranch !== branch) fail(3, `expected the worktree on ${branch}, found ${actualBranch}`)
 
 if (engine.interactive === false) {
-  const workerPid = startHeadlessWorker(worktreePath, branch)
-  rollback = null
+  const launch = startHeadlessWorker(worktreePath, branch, "new-worktree")
   orca(["worktree", "set", "--worktree", worktreeSelector, "--comment", comment, "--workspace-status", workspaceStatus])
-  console.log(JSON.stringify({ ...plan, launchMode: "new-worktree", worktreePath, worktreeSelector, workerPid }, null, 2))
+  releaseConcurrencyReservation()
+  rollback = null
+  console.log(JSON.stringify({ ...plan, launchMode: "new-worktree", worktreePath, worktreeSelector, workerPid: launch.workerPid, launchId: launch.launchId }, null, 2))
   process.exit(0)
 }
 

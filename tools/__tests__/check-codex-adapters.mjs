@@ -17,13 +17,16 @@ const resetFixture = () => {
   rmSync(fixtureRoot, { recursive: true, force: true })
   for (const name of skillNames) {
     write(join(fixtureRoot, ".claude", "skills", name, "SKILL.md"), "canonical skill\n")
-    write(join(fixtureRoot, ".agents", "skills", name, "SKILL.md"))
+    write(join(fixtureRoot, ".agents", "skills", name, "SKILL.md"), `---\nname: ${name}\n---\nRead .claude/skills/${name}/SKILL.md. Pass the caller's arguments unchanged. The source is authoritative.\n`)
   }
   mkdirSync(join(fixtureRoot, ".claude", "skills", "_shared"), { recursive: true })
   for (const name of agentNames) {
     write(join(fixtureRoot, ".claude", "agents", `${name}.md`), "canonical agent\n")
-    write(join(fixtureRoot, ".codex", "agents", `${name}.toml`))
+    write(join(fixtureRoot, ".codex", "agents", `${name.toLowerCase()}.toml`), `name = "${name.toLowerCase()}"\ndescription = "adapter"\ndeveloper_instructions = "Read .claude/agents/${name}.md. The source is authoritative."\n`)
   }
+  write(join(fixtureRoot, ".codex", "config.toml"), 'model = "gpt-5.6-sol"\nmodel_reasoning_effort = "high"\n')
+  const events = ["SessionEnd", "SessionStart", "UserPromptSubmit", "PreToolUse", "PermissionRequest", "PostToolUse", "SubagentStart", "SubagentStop", "Stop"]
+  write(join(fixtureRoot, ".codex", "hooks.json"), JSON.stringify({ hooks: Object.fromEntries(events.map((event) => [event, [{ hooks: [{ type: "command", command: "node .codex/hooks/lifecycle-adapter.mjs", timeout: 10 }] }]])) }))
 }
 
 export const cases = () => {
@@ -43,6 +46,6 @@ export const cases = () => {
   check("check-codex-adapters.mjs", "names a missing agent adapter and its canonical source", ["--root", fixtureRoot], { status: 1, stderr: /missing agent adapter: \.codex\/agents\/web-researcher\.toml for \.claude\/agents\/web-researcher\.md/ })
 
   resetFixture()
-  write(join(fixtureRoot, ".codex", "agents", "retired.toml"))
+  write(join(fixtureRoot, ".codex", "agents", "retired.toml"), 'name = "retired"\n')
   check("check-codex-adapters.mjs", "names an orphan agent adapter and absent canonical source", ["--root", fixtureRoot], { status: 1, stderr: /orphan agent adapter: \.codex\/agents\/retired\.toml has no canonical \.claude\/agents\/retired\.md/ })
 }

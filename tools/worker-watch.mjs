@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /** Report the fleet from worker-status.mjs's own liveness and verdict. This tool derives neither. */
-import { execFileSync, spawnSync } from "node:child_process"
+import { execFileSyncHidden as execFileSync, spawnSyncHidden as spawnSync } from "./lib/subprocess-options.mjs"
 import { resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"

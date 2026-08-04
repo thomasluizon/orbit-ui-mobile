@@ -1,8 +1,8 @@
-import { spawnSync } from "node:child_process"
-import { chmodSync, existsSync, mkdirSync, writeFileSync } from "node:fs"
+import { spawnSyncHidden as spawnSync } from "../lib/subprocess-options.mjs"
+import { appendFileSync, chmodSync, cpSync, existsSync, lstatSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { T, root, orcaEnv, check, stageWorkerPidMarker, exitedProbePid } from "./_harness.mjs"
+import { T, root, orcaEnv, check, stageWorkerPidMarker, exitedProbePid, toolPath } from "./_harness.mjs"
 
 /** A linked child checkout is the smallest real Git fixture that can prove teardown verification. */
 const stageTeardownWorktree = (label, { dirty = false, changed = false, squashMerged = false, fastForwardMerged = false, serverMerged = false, localFollowUp = false, localFollowUpMerged = false, siblingTargetAdvance = false, branchDeleteMode } = {}) => {
@@ -78,15 +78,23 @@ const mergedPullRequest = (fixture, number = 124) => ({ number, mergedAt: "2026-
 
 const missingTargetPullRequest = (fixture) => ({ ...mergedPullRequest(fixture), mergeCommit: { oid: fixture.headCommit } })
 
-const teardownPlan = (fixture, { state = "Done", pullRequest = mergedPullRequest(fixture), pullRequestOutput = JSON.stringify(pullRequest ? [pullRequest] : []), pullRequestExit = 0, removePath, removal = JSON.stringify({ ok: true, result: {} }), removalExit = 0 } = {}) => [
+const teardownPlan = (fixture, { state = "Done", pullRequest = mergedPullRequest(fixture), pullRequestOutput = JSON.stringify(pullRequest ? [pullRequest] : []), pullRequestExit = 0, removePath, removal = JSON.stringify({ ok: true, result: {} }), removalExit = 0, finalActive = false, finalAgents = [] } = {}) => [
   { match: "worktree list", stdout: JSON.stringify({ ok: true, result: { worktrees: [teardownWorktreeRecord(fixture)] } }) },
   { match: "linear issue ORB-124", stdout: JSON.stringify({ ok: true, result: { issue: { identifier: "ORB-124", state: { name: state } } } }) },
   { match: "pr list --head feature/orb-124-teardown --base main --state merged --limit 1 --json number,mergeCommit,headRefOid,mergedAt", stdout: pullRequestOutput, exit: pullRequestExit },
+  { match: "worktree ps", stdout: JSON.stringify({ ok: true, result: { worktrees: [{ path: fixture.child, isActive: finalActive, agents: finalAgents }], totalCount: 1, truncated: false } }) },
   { match: "terminal stop", stdout: JSON.stringify({ ok: true, result: {} }) },
   { match: "worktree rm", stdout: removal, exit: removalExit, ...(removePath ? { removePath } : {}) },
 ]
 
 const teardownWorktreeCases = () => {
+  const source = readFileSync(new URL("../teardown-worktree.mjs", import.meta.url), "utf8")
+  const forceRemoved = !/worktree", "rm"[^\n]+"--force"/.test(source)
+  T(
+    "teardown-worktree.mjs: Orca removal never uses --force",
+    forceRemoved,
+    "the shipped worktree rm call still carries --force and may follow a Windows junction target",
+  )
   check("teardown-worktree.mjs", "refuses no selector", [], { status: 2, stderr: /provide exactly one selector/ })
   check("teardown-worktree.mjs", "refuses both selectors", ["--issue", "ORB-124", "--worktree", "path:C:/other"], { status: 2, stderr: /provide exactly one selector/ })
   check("teardown-worktree.mjs", "refuses a malformed Linear issue selector", ["--issue", "orb-124"], { status: 2, stderr: /--issue must be a Linear identifier/ })
@@ -106,6 +114,24 @@ const teardownWorktreeCases = () => {
     T("teardown-worktree.mjs: real git fixture is available", false, "could not create a linked Git worktree")
     return
   }
+  const lifecycleLocked = stageTeardownWorktree("lifecycle-lock")
+  const lockedToolRoot = join(root, "teardown", "lifecycle-lock-tool")
+  mkdirSync(lockedToolRoot, { recursive: true })
+  const lockedTool = join(lockedToolRoot, "teardown-worktree.mjs")
+  cpSync(toolPath("teardown-worktree.mjs"), lockedTool)
+  cpSync(toolPath("lib"), join(lockedToolRoot, "lib"), { recursive: true })
+  const lockHelper = join(lockedToolRoot, "lib", "worktree-lifecycle-lock.mjs")
+  writeFileSync(lockHelper, readFileSync(lockHelper, "utf8").replace("timeoutMs = 5 * 60 * 1000", "timeoutMs = 200"))
+  const lifecycleLockPath = join(lifecycleLocked.primary, ".git", "orbit-launch-worker.lock")
+  writeFileSync(lifecycleLockPath, JSON.stringify({ pid: process.pid, startedAt: Date.now() }))
+  check(
+    "teardown-worktree.mjs",
+    "a live worker launch lifecycle lock blocks teardown before loss-prevention reads",
+    ["--issue", "ORB-124"],
+    { status: 1, stderr: /timed out waiting for worktree lifecycle lock/ },
+    { path: lockedTool, env: orcaEnv([{ match: "worktree list", stdout: JSON.stringify({ ok: true, result: { worktrees: [teardownWorktreeRecord(lifecycleLocked)] } }) }]) },
+  )
+  T("teardown-worktree.mjs: a live lifecycle lock preserves the worktree", existsSync(lifecycleLocked.child), "the lock holder did not prevent removal")
   const primaryRefusal = stageTeardownWorktree("primary-refusal")
   const primaryRecord = { ...teardownWorktreeRecord(primaryRefusal), path: primaryRefusal.primary, isMainWorktree: true }
   check(
@@ -155,6 +181,49 @@ const teardownWorktreeCases = () => {
     "teardown-worktree.mjs: teardown prunes the worker PID marker it verified",
     !existsSync(exitedWorkerMarker),
     `marker still present at ${exitedWorkerMarker}`,
+  )
+
+  const finalActivity = stageTeardownWorktree("final-activity")
+  check(
+    "teardown-worktree.mjs",
+    "a final Orca activity re-read refuses removal",
+    ["--issue", "ORB-124"],
+    { status: 1, stderr: /refusing removal because Orca reports active work/ },
+    { env: orcaEnv(teardownPlan(finalActivity, { finalActive: true, finalAgents: [{ state: "working" }] })) },
+  )
+  T("teardown-worktree.mjs: final Orca activity refusal preserves the worktree", existsSync(finalActivity.child), "the final activity check allowed removal")
+
+  const enumerationActivity = stageTeardownWorktree("enumeration-activity")
+  const enumerationMarker = join(root, "teardown", "enumeration-activity.marker")
+  const enumerationObserver = join(root, "teardown", "enumeration-activity-observer.cjs")
+  writeFileSync(enumerationObserver, `const fs = require("node:fs")
+const original = fs.readdirSync
+fs.readdirSync = function (directory, ...args) {
+  if (directory === process.env.ORBIT_ENUMERATION_ACTIVITY_PATH && !fs.existsSync(process.env.ORBIT_ENUMERATION_ACTIVITY_MARKER)) {
+    fs.writeFileSync(process.env.ORBIT_ENUMERATION_ACTIVITY_MARKER, "activity appeared during enumeration\\n")
+  }
+  return original.call(this, directory, ...args)
+}
+`)
+  const enumerationEnvironment = orcaEnv(teardownPlan(enumerationActivity, { removePath: enumerationActivity.child }))
+  const enumerationResult = check(
+    "teardown-worktree.mjs",
+    "a worktree that becomes active during junction enumeration is refused",
+    ["--issue", "ORB-124"],
+    { status: 1, stderr: /refusing removal because Orca reports active work/ },
+    {
+      env: {
+        ...enumerationEnvironment,
+        NODE_OPTIONS: `--require "${enumerationObserver.replaceAll("\\", "/")}" ${enumerationEnvironment.NODE_OPTIONS}`,
+        ORBIT_ENUMERATION_ACTIVITY_MARKER: enumerationMarker,
+        ORBIT_ENUMERATION_ACTIVITY_PATH: enumerationActivity.child,
+      },
+    },
+  )
+  T(
+    "teardown-worktree.mjs: activity introduced during enumeration preserves the worktree",
+    enumerationResult.status === 1 && existsSync(enumerationActivity.child),
+    enumerationResult.stderr || `worktree exists: ${existsSync(enumerationActivity.child)}`,
   )
 
   const dirty = stageTeardownWorktree("dirty", { dirty: true })
@@ -264,6 +333,99 @@ const teardownWorktreeCases = () => {
     ["--issue", "ORB-124"],
     { status: 1, stderr: /removed worktree but local branch feature\/orb-124-teardown still exists/ },
     { env: orcaEnv(teardownPlan(branchRemains, { removePath: branchRemains.child })) },
+  )
+
+  if (!forceRemoved) {
+    T(
+      "teardown-worktree.mjs: a real Windows junction target survives teardown",
+      false,
+      "fixture withheld while the shipped removal still uses --force",
+    )
+    return
+  }
+
+  const internalJunction = stageTeardownWorktree("internal-junction-present-at-removal")
+  const internalTarget = join(internalJunction.child, "node_modules", ".store", "shared")
+  const internalLink = join(internalJunction.child, "node_modules", "shared")
+  const internalSentinel = join(internalTarget, "sentinel.txt")
+  const internalObservation = join(root, "teardown", "internal-junction-observation.json")
+  const junctionObserver = join(root, "teardown", "junction-observer.cjs")
+  mkdirSync(internalTarget, { recursive: true })
+  writeFileSync(internalSentinel, "target must exist when Orca removal starts\n")
+  appendFileSync(join(internalJunction.primary, ".git", "info", "exclude"), "\nnode_modules/\n")
+  symlinkSync(internalTarget, internalLink, "junction")
+  writeFileSync(junctionObserver, `const { existsSync, writeFileSync } = require("node:fs")
+if (process.argv.slice(1).join(" ").includes("worktree rm")) {
+  writeFileSync(process.env.ORBIT_JUNCTION_OBSERVATION, JSON.stringify({
+    link: existsSync(process.env.ORBIT_JUNCTION_LINK),
+    target: existsSync(process.env.ORBIT_JUNCTION_SENTINEL),
+  }))
+}
+`)
+  const internalPlan = teardownPlan(internalJunction, { removePath: internalJunction.child })
+  const internalEnv = orcaEnv(internalPlan)
+  check(
+    "teardown-worktree.mjs",
+    "unlinks an internal Windows junction before ordinary Orca removal",
+    ["--issue", "ORB-124"],
+    { status: 0, stdout: /REMOVED junction link[\s\S]*PRESERVED junction target[\s\S]*REMOVED worktree/ },
+    {
+      env: {
+        ...internalEnv,
+        NODE_OPTIONS: `--require "${junctionObserver.replaceAll("\\", "/")}" ${internalEnv.NODE_OPTIONS}`,
+        ORBIT_JUNCTION_OBSERVATION: internalObservation,
+        ORBIT_JUNCTION_LINK: internalLink,
+        ORBIT_JUNCTION_SENTINEL: internalSentinel,
+      },
+    },
+  )
+  const observedInternalJunction = existsSync(internalObservation)
+    ? JSON.parse(readFileSync(internalObservation, "utf8"))
+    : null
+  T(
+    "teardown-worktree.mjs: internal junction target exists at the Orca removal boundary",
+    observedInternalJunction?.link === false && observedInternalJunction?.target === true,
+    `observation: ${JSON.stringify(observedInternalJunction)}`,
+  )
+
+  const junction = stageTeardownWorktree("junction-survives")
+  const junctionTarget = join(root, "teardown", "junction-target")
+  const junctionParent = join(junction.child, "node_modules")
+  const junctionLink = join(junctionParent, "shared")
+  const sentinel = join(junctionTarget, "sentinel.txt")
+  mkdirSync(junctionTarget, { recursive: true })
+  mkdirSync(junctionParent, { recursive: true })
+  writeFileSync(sentinel, "target must survive\n")
+  appendFileSync(join(junction.primary, ".git", "info", "exclude"), "\nnode_modules/\n")
+  symlinkSync(junctionTarget, junctionLink, "junction")
+  T(
+    "teardown-worktree.mjs: junction fixture is a real filesystem link",
+    lstatSync(junctionLink).isSymbolicLink(),
+    `${junctionLink} is not a junction or symbolic link`,
+  )
+  const junctionLog = join(root, "teardown", "junction-calls.log")
+  const junctionResult = check(
+    "teardown-worktree.mjs",
+    "removes the verified junction link before safe Orca teardown",
+    ["--issue", "ORB-124"],
+    { status: 0, stdout: /REMOVED junction link[\s\S]*PRESERVED junction target[\s\S]*REMOVED worktree/ },
+    { env: { ...orcaEnv(teardownPlan(junction, { removePath: junction.child })), ORBIT_ORCA_LOG: junctionLog } },
+  )
+  const junctionCalls = existsSync(junctionLog)
+    ? readFileSync(junctionLog, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
+    : []
+  T(
+    "teardown-worktree.mjs: safe Orca removal omits --force",
+    junctionCalls.some((call) => {
+      const command = call.findIndex((token) => token === "worktree" || token.endsWith("\\worktree") || token.endsWith("/worktree"))
+      return command !== -1 && call[command + 1] === "rm" && !call.includes("--force")
+    }),
+    junctionResult.stderr || `calls: ${JSON.stringify(junctionCalls)}`,
+  )
+  T(
+    "teardown-worktree.mjs: a real Windows junction target survives teardown",
+    existsSync(junctionTarget) && existsSync(sentinel),
+    `target=${existsSync(junctionTarget)}, sentinel=${existsSync(sentinel)}`,
   )
 }
 

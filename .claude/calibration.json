@@ -1,16 +1,18 @@
 {
-  "model": "gpt-5.6-terra",
+  "model": "gpt-5.6-luna",
   "invocation": [
     "exec",
     "-c",
     "windows.sandbox=\"unelevated\"",
     "--dangerously-bypass-approvals-and-sandbox",
     "-c",
-    "model_reasoning_effort=\"medium\"",
+    "model_reasoning_effort=\"max\"",
+    "-c",
+    "service_tier=\"fast\"",
     "--model",
-    "gpt-5.6-terra"
+    "gpt-5.6-luna"
   ],
-  "date": "2026-07-31",
+  "date": "2026-08-04",
   "entries": [
     {
       "file": ".claude/agents/Explore.md",
@@ -136,7 +138,7 @@
       "file": ".claude/skills/feature/SKILL.md",
       "verdict": "kept",
       "reason": "High effort fits multi-ticket decomposition, contracts, and DAG shaping.",
-      "fingerprint": "sha256:7c72d6cdcc84494ffeee9861164b348657ef415f2647104065c655e181a2ff57"
+      "fingerprint": "sha256:39265088af6153388d1675ebdf0961f6c5dba6d48458597f5db922180c42ef4e"
     },
     {
       "file": ".claude/skills/investigate/SKILL.md",
@@ -172,7 +174,7 @@
       "file": ".claude/skills/orchestrate/SKILL.md",
       "verdict": "kept",
       "reason": "High effort fits merge-gated multi-worker coordination and reconciliation.",
-      "fingerprint": "sha256:bb6c39d70e481019c699202d46e20889075e50c9c2428ea5b158b285c7a1e08f"
+      "fingerprint": "sha256:738db981c5e2dde4a9c20ff0bfc70c132a2c731821497fc48da006d23a8e4e32"
     },
     {
       "file": ".claude/skills/pr-review/SKILL.md",
@@ -214,7 +216,7 @@
       "file": ".claude/skills/ticket/SKILL.md",
       "verdict": "kept",
       "reason": "Medium effort fits one-ticket reproduction, reconciliation, and scope shaping.",
-      "fingerprint": "sha256:c53eaa68ebda9f889b09df50daa65a548dac283fd8686bddd1510d6af81fdcfa"
+      "fingerprint": "sha256:ce6931b35bbfcccb58c400318dd9df97df66f7b98e5b3ae5bae7b7bfdc2715a9"
     },
     {
       "file": ".claude/skills/validate/SKILL.md",

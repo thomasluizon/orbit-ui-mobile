@@ -9,7 +9,7 @@
  * can claim a capability no longer exists. Both directions must fail.
  */
 
-import { existsSync, readdirSync, statSync } from "node:fs"
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs"
 import { dirname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -74,6 +74,16 @@ function canonicalAgentNames(root) {
   }
 }
 
+function canonicalAgentFiles(root) {
+  const agentsRoot = join(root, ".claude", "agents")
+  if (!existsSync(agentsRoot) || !statSync(agentsRoot).isDirectory()) return new Map()
+  return new Map(
+    readdirSync(agentsRoot, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
+      .map((entry) => [entry.name.slice(0, -".md".length).toLowerCase(), entry.name]),
+  )
+}
+
 function entriesAt(root, relativeDirectory, matcher) {
   const directory = join(root, relativeDirectory)
   if (!existsSync(directory) || !statSync(directory).isDirectory()) return { entries: [], problem: `${relativeDirectory} is missing` }
@@ -90,6 +100,7 @@ function verify(root) {
   const findings = []
   const skills = directSkillNames(root)
   const agents = canonicalAgentNames(root)
+  const agentFiles = canonicalAgentFiles(root)
   if (skills.problem) findings.push(skills.problem)
   if (agents.problem) findings.push(agents.problem)
 
@@ -102,6 +113,11 @@ function verify(root) {
     const adapterPath = join(root, ".agents", "skills", name, "SKILL.md")
     if (!existsSync(adapterPath) || !statSync(adapterPath).isFile()) {
       findings.push(`missing skill adapter: .agents/skills/${name}/SKILL.md for .claude/skills/${name}/SKILL.md`)
+      continue
+    }
+    const adapter = readFileSync(adapterPath, "utf8")
+    if (adapter.length > 700 || !adapter.includes(`.claude/skills/${name}/SKILL.md`) || !/source is authoritative/i.test(adapter)) {
+      findings.push(`invalid skill adapter: .agents/skills/${name}/SKILL.md must be a thin pass-through to .claude/skills/${name}/SKILL.md`)
     }
   }
   for (const name of skillAdapters.entries) {
@@ -113,10 +129,45 @@ function verify(root) {
     const adapterPath = join(root, ".codex", "agents", `${name}.toml`)
     if (!existsSync(adapterPath) || !statSync(adapterPath).isFile()) {
       findings.push(`missing agent adapter: .codex/agents/${name}.toml for .claude/agents/${name}.md`)
+      continue
+    }
+    const adapter = readFileSync(adapterPath, "utf8")
+    const canonicalFile = agentFiles.get(name)
+    if (!new RegExp(`^name\\s*=\\s*"${name}"`, "m").test(adapter) || !/^description\s*=\s*"/m.test(adapter) || !/^developer_instructions\s*=\s*"/m.test(adapter) || !adapter.includes(`.claude/agents/${canonicalFile}`) || !/source is authoritative/i.test(adapter) || /^(tools|permissions|sandbox)\s*=/m.test(adapter)) {
+      findings.push(`invalid agent adapter: .codex/agents/${name}.toml must defer to .claude/agents/${canonicalFile} without unconfirmed permission fields`)
     }
   }
   for (const name of agentAdapters.entries.map((entry) => entry.slice(0, -".toml".length))) {
     if (!agents.names.includes(name)) findings.push(`orphan agent adapter: .codex/agents/${name}.toml has no canonical .claude/agents/${name}.md`)
+  }
+
+  const configPath = join(root, ".codex", "config.toml")
+  if (!existsSync(configPath) || !statSync(configPath).isFile()) findings.push(".codex/config.toml is missing")
+  else {
+    const config = readFileSync(configPath, "utf8")
+    if (!/^model\s*=\s*"gpt-5\.6-sol"\s*$/m.test(config) || !/^model_reasoning_effort\s*=\s*"high"\s*$/m.test(config) || /^hooks\s*=/m.test(config)) {
+      findings.push(".codex/config.toml must contain only the confirmed Sol/high project defaults")
+    }
+  }
+
+  const hooksPath = join(root, ".codex", "hooks.json")
+  const nativeEvents = ["SessionEnd", "SessionStart", "UserPromptSubmit", "PreToolUse", "PermissionRequest", "PostToolUse", "SubagentStart", "SubagentStop", "Stop"]
+  if (!existsSync(hooksPath) || !statSync(hooksPath).isFile()) findings.push(".codex/hooks.json is missing")
+  else {
+    try {
+      const hooks = JSON.parse(readFileSync(hooksPath, "utf8"))
+      const actualEvents = Object.keys(hooks.hooks ?? {})
+      if (actualEvents.length !== nativeEvents.length || actualEvents.some((event) => !nativeEvents.includes(event))) findings.push(".codex/hooks.json does not match the installed Codex hook event inventory")
+      for (const event of nativeEvents) {
+        const rows = hooks.hooks?.[event]
+        const command = rows?.[0]?.hooks?.[0]
+        if (!Array.isArray(rows) || !Array.isArray(rows[0]?.hooks) || command?.type !== "command" || command.command !== "node .codex/hooks/lifecycle-adapter.mjs" || !Number.isSafeInteger(command.timeout) || command.timeout < 1) {
+          findings.push(`invalid native hook registration: ${event}`)
+        }
+      }
+    } catch (error) {
+      findings.push(`.codex/hooks.json is not valid JSON: ${error.message}`)
+    }
   }
 
   return findings

@@ -25,7 +25,7 @@
  * Invoked by the Harness Execution job in guards.yml; see tools/README.md for the catalog row.
  */
 
-import { spawnSync } from "node:child_process"
+import { spawnSyncHidden as spawnSync } from "./lib/subprocess-options.mjs"
 import { existsSync, readFileSync, readdirSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"

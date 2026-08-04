@@ -1,17 +1,20 @@
 #!/usr/bin/env node
 /** Compose one worker prompt from a Linear issue body and its chronological comments. */
 
-import { execFileSync } from "node:child_process"
-import { writeFileSync } from "node:fs"
+import { execFileSyncHidden as execFileSync } from "./lib/subprocess-options.mjs"
+import { createHash } from "node:crypto"
+import { readFileSync, writeFileSync } from "node:fs"
 import { isAbsolute, resolve } from "node:path"
 
-const USAGE = `usage: compose-prompt.mjs --issue ORB-N --output <absolute path>
+const USAGE = `usage: compose-prompt.mjs --issue ORB-N --output <absolute path> [--brief-file <absolute path>]
 
   --issue ORB-N                 Linear issue whose body and comments to compose (required)
   --output <absolute path>      prompt file to write outside every Orbit repository (required)
+  --brief-file <absolute path>  Sol execution brief JSON to bind after the unchanged ticket (optional)
   --help, -h                    print this usage and exit 0
 
 Reads the issue body and every comment through orca, preserving comment markdown verbatim.
+When a brief is supplied it must name the same issue, body SHA-256, base branch, and base SHA.
 Prints the output path on stdout.
 
 exit codes: 0 prompt written, 2 usage or Linear read error`
@@ -23,12 +26,24 @@ if (process.argv.includes("--help") || process.argv.includes("-h")) {
 
 const argOf = (flag) => {
   const index = process.argv.indexOf(flag)
-  return index === -1 ? null : process.argv[index + 1]
+  if (index === -1) return null
+  const value = process.argv[index + 1]
+  return value && !value.startsWith("--") ? value : null
 }
 
 const issue = argOf("--issue")
 const output = argOf("--output")
-if (!issue || !/^ORB-\d+$/i.test(issue) || !output || !isAbsolute(output) || process.argv.length !== 6) {
+const briefFile = argOf("--brief-file")
+const knownFlags = new Set(["--issue", "--output", "--brief-file", "--help", "-h"])
+const unknown = process.argv.slice(2).filter((token) => token.startsWith("-") && !knownFlags.has(token))
+if (
+  unknown.length > 0
+  || !issue
+  || !/^ORB-\d+$/i.test(issue)
+  || !output
+  || !isAbsolute(output)
+  || (briefFile !== null && !isAbsolute(briefFile))
+) {
   console.error(USAGE)
   process.exit(2)
 }
@@ -52,6 +67,10 @@ if (!Array.isArray(comments)) {
   process.exit(2)
 }
 const body = full.description
+if (typeof body !== "string") {
+  console.error(`failed to compose ${issue.toUpperCase()}: issue description was not a string`)
+  process.exit(2)
+}
 const renderedComments = comments
   .slice()
   .sort((left, right) => left.createdAt.localeCompare(right.createdAt))
@@ -62,5 +81,29 @@ const renderedComments = comments
     return `### ${author} - ${createdAt}\n\n${content}`
   })
 const prompt = renderedComments.length ? `${body}\n\n---\n\n## Comments on this issue (part of the work order)\n\n${renderedComments.join("\n\n")}` : body
-writeFileSync(resolve(output), `${prompt.replace(/\s*$/, "")}\n`, "utf8")
+let finalPrompt = prompt.replace(/\s*$/, "")
+if (briefFile) {
+  let brief
+  try {
+    brief = JSON.parse(readFileSync(resolve(briefFile), "utf8"))
+  } catch (error) {
+    console.error(`failed to compose ${issue.toUpperCase()}: execution brief is not valid JSON: ${error.message}`)
+    process.exit(2)
+  }
+  const expectedIssue = issue.toUpperCase()
+  const bodySha256 = createHash("sha256").update(body, "utf8").digest("hex")
+  if (
+    brief?.issue !== expectedIssue
+    || brief?.ticketBodySha256 !== bodySha256
+    || !/^main$|^[A-Za-z0-9._/-]+$/.test(brief?.base ?? "")
+    || !/^[0-9a-f]{40}$/.test(brief?.baseSha ?? "")
+    || typeof brief?.summary !== "string"
+    || !Array.isArray(brief?.scope)
+  ) {
+    console.error(`failed to compose ${expectedIssue}: execution brief does not bind the exact ticket body and base SHA`)
+    process.exit(2)
+  }
+  finalPrompt += `\n\n---\n\n## Sol execution brief (bound to this ticket and base)\n\n${JSON.stringify(brief, null, 2)}\n`
+}
+writeFileSync(resolve(output), `${finalPrompt}\n`, "utf8")
 console.log(resolve(output))
