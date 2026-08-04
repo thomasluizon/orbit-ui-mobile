@@ -33,10 +33,12 @@ Do not pick one, do not widen, do not queue the rest.
 ## §5.6 The algorithm
 
 ```
- 0  Preflight        git clean · on main · up to date · gh auth · orca reachable
+ 0a Preflight, env   gh auth · orca reachable
                      PRINT the always-loaded byte total (all six sources)   [D32]
                      ASSERT no skill name exists in both scopes             [D33]
  1  Read ticket      orca linear issue ORB-N --json; resolve repo from repo:* label
+ 0b Preflight, tgt   the TARGET repo: git clean · on main · up to date
+                     not this checkout, which D17 pins to orbit-ui-mobile whatever the target
  2  SCOPE GATE       >8 affected files, or judged >400 lines  ->  STOP, split the ticket
  3  Worktree         orca worktree create; git switch -c feature/orb-N-<slug>
  4  Compose prompt   ticket verbatim + comments + ORCHESTRATOR'S BRIEF + finishing contract
@@ -77,15 +79,29 @@ node tools/teardown-worktree.mjs --issue ORB-N --worktree <p>
 
 ## Step 0. Preflight
 
-Inline shell. There is no preflight tool.
+Inline shell. There is no preflight tool. **Two halves, because the target repo is not known until
+step 1 resolves it from the `repo:*` label.**
+
+**0a. Environment, now.** Nothing here depends on which ticket is being run.
 
 ```bash
-git -C <repo> status --porcelain            # must be empty
-git -C <repo> rev-parse --abbrev-ref HEAD   # must be main
-git -C <repo> fetch origin main && git -C <repo> rev-list --count HEAD..origin/main   # must be 0
 gh auth status
 orca --version
 ```
+
+**0b. Target repo, after step 1 and before step 3 creates the worktree.**
+
+```bash
+git -C <target> status --porcelain            # must be empty
+git -C <target> rev-parse --abbrev-ref HEAD   # must be main
+git -C <target> fetch origin main && git -C <target> rev-list --count HEAD..origin/main   # must be 0
+```
+
+`<target>` is the repository the TICKET names, resolved from its `repo:*` label, which is very often
+not this one. The session always opens in orbit-ui-mobile (D17) regardless of where the work lands,
+so the orchestrator's own checkout may sit on any branch and that is not a gate. What must be clean,
+on main, and current is the repo the worktree will branch FROM. Checking the orchestrator's checkout
+instead would refuse a legitimate run and pass a dangerous one.
 
 Any failure stops the run. Print the failing check verbatim. Repair nothing silently.
 
