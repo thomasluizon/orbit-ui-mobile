@@ -2,16 +2,18 @@
 # Coverage-aware merge readiness sweep (server-side gh, robust polling). Per PR:
 #   - SKIP while reviewDecision reads CHANGES_REQUESTED. An approving review is NOT required.
 #   - SKIP on any failing NON-Sonar required check (a real defect) or a merge conflict (DIRTY).
-#   - poll through BEHIND (update-branch) and the post-update re-CI window until the merge state
-#     is decidable (CLEAN/UNSTABLE), then:
+#   - hold a BEHIND head for a separately authorized branch update, then require fresh CI and
+#     exact-head review evidence before another sweep.
+#   - poll the current head until its merge state is decidable (CLEAN/UNSTABLE), then:
 #       * Sonar SUCCESS/absent  -> print HUMAN-MERGE-REQUIRED.
 #       * Sonar FAILURE that is SOLELY new-code coverage (verified from the check-run summary,
 #         never a Bug/Vuln/Hotspot/Smell/Duplication/rating drop) -> print HUMAN-MERGE-REQUIRED
 #         and stop. The override remains a human decision.
 #       * Sonar FAILURE on anything more -> SKIP (needs a real fix).
-# WHY the review-staleness guard below: an update-branch rewrites the head SHA and re-triggers the
-# `review` check, but GitHub keeps the PRE-update APPROVED reviewDecision while that re-review runs,
-# so a sweep that merges on a decidable merge state can ship past a CHANGES_REQUESTED that lands
+# WHY the review-staleness guard below: an externally authorized branch update can rewrite the head
+# SHA and re-trigger the `review` check, but GitHub keeps the PRE-update APPROVED reviewDecision
+# while that re-review runs, so a sweep that hands off on a decidable merge state can ship past a
+# CHANGES_REQUESTED that lands
 # seconds later. That happened on https://github.com/thomasluizon/orbit-api/pull/403: a HIGH
 # backend-contract finding reached main and deployed, and the fix went to the orphaned head branch.
 # Never touches the local working tree.
@@ -35,17 +37,16 @@ Usage: merge-sweep-cov.sh [--expected-head <pr-number>=<sha>]...
                           <owner/repo> <pr-number>...
        merge-sweep-cov.sh --help
 
-Per PR it update-branches, polls until the merge state is decidable, then prints:
+Per PR it captures the current head and polls until the merge state is decidable, then prints:
   Sonar SUCCESS or absent           -> HUMAN-MERGE-REQUIRED
   Sonar FAILURE, new-code coverage  -> HUMAN-MERGE-REQUIRED and stop (never merges)
   Sonar FAILURE, anything else      -> SKIP
 It never calls a merge command or merge API. Human squash merge is mandatory.
 
 An --expected-head mapping pins that PR to the supplied head SHA. Without one, the current
-head SHA is captured before update-branch. A routine update-branch merge is adopted only when
-its parents include the prior expected SHA and a parent equal to or behind the freshly resolved
-base branch tip; any other change prints HEAD-MOVED. The merge API also atomically matches the
-final expected SHA.
+head SHA is captured at entry. A BEHIND head is held for a separately authorized branch update
+outside this sweep, followed by fresh CI and exact-head review evidence. Any other change prints
+HEAD-MOVED.
 
 Before any merge, --reviewed-through must name the latest instant through which that PR's
 reviews, inline review comments, and issue comments were inspected. A newer or edited item,
@@ -73,8 +74,8 @@ sub-second residual between that pre-write read and the write landing: a competi
 can be overwritten, and the CLI response shapes cannot distinguish it from ordinary success. A decision-time
 lookup failure or unknown state prints \`LINEAR-STATE-REFUSED\` and skips the merge.
 
-It refuses to merge while the \`$REVIEW_CHECK_NAME\` check for the CURRENT head SHA is still
-running, and re-reads reviewDecision after that check settles, so a pre-update APPROVED can
+It refuses to hand off while the \`$REVIEW_CHECK_NAME\` check for the CURRENT head SHA is still
+running, and re-reads reviewDecision after that check settles, so an older APPROVED can
 never carry a merge. Only a workflow lookup that succeeds and shows no ACTIVE
 $REVIEW_WORKFLOW_PATH skips that wait: a deleted workflow leaves the list entirely, while a
 disabled one stays listed yet can never post the check. A failed lookup keeps the guard on.
@@ -107,7 +108,8 @@ Usage: merge-sweep-cov.sh [--expected-head <pr-number>=<sha>]...
 The sweep checks the current head, CI, review activity, signed exact-head review evidence,
 worker delivery, and Linear In Review. It prints HUMAN-MERGE-REQUIRED for a clean PR and for
 a coverage-only Sonar decision. It never calls a merge command or merge API, writes Linear,
-or deletes a branch.
+updates a branch, or deletes a branch. A BEHIND head is held and requires a separately
+authorized branch update outside this sweep, followed by fresh CI and exact-head review evidence.
 EOF
 }
 
@@ -575,60 +577,6 @@ head_oid() {
   gh pr view "$1" --repo "$repo" --json headRefOid --jq .headRefOid 2>/dev/null
 }
 
-UPDATED_EXPECTED=""
-UPDATED_ACTUAL=""
-adopt_routine_update() { # <pr> <old-expected>; sets UPDATED_EXPECTED and UPDATED_ACTUAL
-  local pr="$1" old_expected="$2" state base_ref head_ref base_tip commit_state
-  local committer_name committer_email verified verification_reason commit_message parents parent relationship
-  UPDATED_EXPECTED=""
-  UPDATED_ACTUAL=""
-  if ! state=$(gh pr view "$pr" --repo "$repo" --json headRefOid,baseRefName,headRefName --jq '[.headRefOid, .baseRefName, .headRefName] | @tsv' 2>/dev/null); then
-    return 1
-  fi
-  IFS=$'\t' read -r UPDATED_ACTUAL base_ref head_ref <<<"$state"
-  [ -n "$UPDATED_ACTUAL" ] && [ -n "$base_ref" ] && [ -n "$head_ref" ] || return 1
-  if [ "$UPDATED_ACTUAL" = "$old_expected" ]; then
-    UPDATED_EXPECTED="$old_expected"
-    return 0
-  fi
-  if ! base_tip=$(gh api "repos/$repo/git/ref/heads/$base_ref" --jq '.object.sha' 2>/dev/null); then
-    return 1
-  fi
-  [ -n "$base_tip" ] || return 1
-  if ! commit_state=$(gh api "repos/$repo/git/commits/$UPDATED_ACTUAL" \
-    --jq '[.committer.name, .committer.email, (.verification.verified | tostring), .verification.reason, .message, (.parents | map(.sha) | join(" "))] | @tsv' 2>/dev/null); then
-    return 1
-  fi
-  IFS=$'\t' read -r committer_name committer_email verified verification_reason commit_message parents <<<"$commit_state"
-  [ "$committer_name" = "GitHub" ] &&
-    [ "$committer_email" = "noreply@github.com" ] &&
-    [ "$verified" = "true" ] &&
-    [ "$verification_reason" = "valid" ] &&
-    [ "$commit_message" = "Merge branch '$base_ref' into $head_ref" ] &&
-    [ -n "$parents" ] || return 1
-  case " $parents " in
-    *" $old_expected "*) ;;
-    *) return 1 ;;
-  esac
-  for parent in $parents; do
-    [ "$parent" = "$old_expected" ] && continue
-    if [ "$parent" = "$base_tip" ]; then
-      UPDATED_EXPECTED="$UPDATED_ACTUAL"
-      return 0
-    fi
-    if ! relationship=$(gh api "repos/$repo/compare/$parent...$base_tip" --jq '.status' 2>/dev/null); then
-      return 1
-    fi
-    case "$relationship" in
-      ahead | identical)
-        UPDATED_EXPECTED="$UPDATED_ACTUAL"
-        return 0
-        ;;
-    esac
-  done
-  return 1
-}
-
 expected_head_for() {
   local requested_pr="$1"
   for mapping in $expected_head_mappings; do
@@ -653,13 +601,6 @@ for n in "$@"; do
     echo "SKIP #$n HEAD-MOVED expected=$expected actual=$actual"
     continue
   fi
-  gh pr update-branch "$n" --repo "$repo" >/dev/null 2>&1
-  old_expected="$expected"
-  if ! adopt_routine_update "$n" "$old_expected"; then
-    echo "SKIP #$n HEAD-MOVED expected=$old_expected actual=${UPDATED_ACTUAL:-<unavailable>}"
-    continue
-  fi
-  expected="$UPDATED_EXPECTED"
   done_pr=""
   block_reason="no decidable merge state"
   for i in $(seq 1 45); do # ~15 min per PR
@@ -688,26 +629,19 @@ for n in "$@"; do
       break
     fi
     if [ "$ms" = "BEHIND" ]; then
-      block_reason="still BEHIND main after update-branch"
+      block_reason="BEHIND main (HELD; separately authorized branch update required outside this sweep, then fresh CI and exact-head review)"
       actual=$(head_oid "$n")
       if [ "$actual" != "$expected" ]; then
         echo "SKIP #$n HEAD-MOVED expected=$expected actual=$actual"
         done_pr=1
         break
       fi
-      gh pr update-branch "$n" --repo "$repo" >/dev/null 2>&1
-      old_expected="$expected"
-      if ! adopt_routine_update "$n" "$old_expected"; then
-        echo "SKIP #$n HEAD-MOVED expected=$old_expected actual=${UPDATED_ACTUAL:-<unavailable>}"
-        done_pr=1
-        break
-      fi
-      expected="$UPDATED_EXPECTED"
-      sleep 20
-      continue
+      echo "SKIP #$n $block_reason"
+      done_pr=1
+      break
     fi
-    # The APPROVED read above is PR-level and survives the update-branch, so it can predate this
-    # head SHA. Nothing below may merge until this SHA's own review has settled.
+    # The APPROVED read above is PR-level and can predate this head after an external branch
+    # update. Nothing below may be handed off until this SHA's own review has settled.
     if [ -n "$review_required" ] && [ "$reviewcheck" != "SETTLED" ]; then
       block_reason="the $REVIEW_CHECK_NAME check on head $sha never settled (state=$reviewcheck), so the APPROVED is stale"
       sleep 20

@@ -18,8 +18,6 @@ import {
 
 const EXPECTED_HEAD = "1111111111111111111111111111111111111111"
 const CHANGED_HEAD = "2222222222222222222222222222222222222222"
-const UPDATED_HEAD = "3333333333333333333333333333333333333333"
-const BASE_TIP = "4444444444444444444444444444444444444444"
 const REVIEWED_THROUGH = "2026-07-28T00:00:00Z"
 const NEWER_REVIEW = "2026-07-28T00:00:01Z"
 
@@ -83,13 +81,14 @@ const fixtureEnv = (options = {}) => {
 
 const callsFor = (log) => mergeSweepCalls(log)
 const mergeCalls = (calls) => calls.filter(([group, command]) => group === "pr" && command === "merge")
+const updateBranchCalls = (calls) => calls.filter(([group, command]) => group === "pr" && command === "update-branch")
 const linearWrites = (calls) =>
   calls.filter(([group, command, action]) => group === "orca" && command === "linear" && action === "status")
 
 const detail = (result, calls) =>
   `exit ${result.status}\n     stdout: ${result.stdout.trim()}\n     stderr: ${result.stderr.trim()}\n     calls: ${JSON.stringify(calls)}`
 
-const executeScenario = (file, label, environment, outputPattern, { handoff = false, expectedHead = EXPECTED_HEAD, includeExpected = true } = {}) => {
+const executeScenario = (file, label, environment, outputPattern, { handoff = false, expectedHead = EXPECTED_HEAD, includeExpected = true, retries = false } = {}) => {
   const log = join(root, `${file}-${label.replace(/[^A-Za-z0-9]+/g, "-")}.log`)
   if (environment.workerDelivery === false) writeFileSync(WORKER_LAUNCH_LEDGER, "")
   const result = run(file, argsFor(expectedHead, includeExpected), {
@@ -101,8 +100,13 @@ const executeScenario = (file, label, environment, outputPattern, { handoff = fa
   T(`${file}: ${label} exits without a process failure`, result.status === 0, detail(result, calls))
   T(`${file}: ${label} reports the expected readiness decision`, outputPattern.test(result.stdout), detail(result, calls))
   T(`${file}: ${label} never invokes a merge command`, merges.length === 0, detail(result, calls))
+  T(`${file}: ${label} never invokes a branch update`, updateBranchCalls(calls).length === 0, detail(result, calls))
   T(`${file}: ${label} never mutates Linear`, linearWrites(calls).length === 0, detail(result, calls))
   T(`${file}: ${label} reads the current pull-request head`, headRead, detail(result, calls))
+  if (retries) {
+    const stateReads = calls.filter(([group, command, ...argv]) => group === "pr" && command === "view" && argv.includes("mergeStateStatus,reviewDecision,statusCheckRollup,headRefOid")).length
+    T(`${file}: ${label} retries the current-head read`, stateReads > 1, detail(result, calls))
+  }
   if (handoff) {
     T(`${file}: ${label} emits the human handoff`, /HUMAN-MERGE-REQUIRED/.test(result.stdout), detail(result, calls))
   }
@@ -128,6 +132,7 @@ const policyCases = (file) => {
   T(`${file}: no executable gh merge call remains`, !/gh\s+pr\s+merge/.test(source), "human squash merge is mandatory")
   T(`${file}: no GraphQL merge mutation remains`, !/mergePullRequest|pulls\/\{number\}\/merge/.test(source), "human squash merge is mandatory")
   T(`${file}: no admin merge flag remains`, !/--admin/.test(source), "an agent must never perform an admin merge")
+  T(`${file}: no branch-update mutation remains`, !/gh\s+pr\s+update-branch/.test(source), "readiness sweeps must not update pull-request branches")
   T(`${file}: the source names the human handoff`, source.includes("HUMAN-MERGE-REQUIRED"), "ready work must stop at human handoff")
 
   const help = run(file, ["--help"])
@@ -144,7 +149,7 @@ const policyCases = (file) => {
   executeScenario(file, "changes-requested", { reviewDecision: "CHANGES_REQUESTED" }, /review=CHANGES_REQUESTED|timeout: never reached a mergeable state/)
   executeScenario(file, "dirty-merge-state", { state: "DIRTY" }, /DIRTY/)
   executeScenario(file, "failed-check", { failNewHead: true }, /SKIP #615[\s\S]*FAILED/)
-  executeScenario(file, "pending-review-check", { reviewRunning: true }, /timeout: checks on the current head never all concluded/)
+  executeScenario(file, "retry-after-pending-review-check", { reviewRunning: true }, /timeout: checks on the current head never all concluded/, { retries: true })
   executeScenario(file, "new-review", { reviewTimes: `reviewer\t${NEWER_REVIEW}` }, new RegExp(`NEW-REVIEW-SINCE ${REVIEWED_THROUGH}`))
   executeScenario(file, "new-inline-comment", { inlineItems: `reviewer\t${NEWER_REVIEW}\nreviewer\t${NEWER_REVIEW}` }, new RegExp(`NEW-REVIEW-SINCE ${REVIEWED_THROUGH}`))
   executeScenario(file, "new-conversation-comment", { commentTimes: `reviewer\t${NEWER_REVIEW}` }, new RegExp(`NEW-REVIEW-SINCE ${REVIEWED_THROUGH}`))
@@ -156,18 +161,12 @@ const policyCases = (file) => {
   executeScenario(file, "linear-update-required", { linearState: "In Progress" }, /LINEAR-STATE-REFUSED issue=ORB-150 observed=In Progress reason=human-update-required/)
   executeScenario(file, "changed-head", { head: CHANGED_HEAD }, new RegExp(`HEAD-MOVED expected=${EXPECTED_HEAD} actual=${CHANGED_HEAD}`), { expectedHead: EXPECTED_HEAD })
   executeScenario(file, "captured-head", { head: CHANGED_HEAD }, /HUMAN-MERGE-REQUIRED #615 head=2222222222222222222222222222222222222222/, { expectedHead: CHANGED_HEAD, includeExpected: false, handoff: true })
+  executeScenario(file, "behind-head-is-held", { state: "BEHIND" }, /SKIP #615 BEHIND[\s\S]*branch update required outside this sweep/)
   executeScenario(
     file,
-    "routine-update",
-    { updatedHead: UPDATED_HEAD, baseTip: BASE_TIP, updateParents: `${EXPECTED_HEAD}\n${BASE_TIP}` },
-    new RegExp(`HUMAN-MERGE-REQUIRED #615 head=${UPDATED_HEAD}`),
-    { handoff: true },
-  )
-  executeScenario(
-    file,
-    "untrusted-update",
-    { updatedHead: UPDATED_HEAD, updateParents: EXPECTED_HEAD, authenticUpdate: false },
-    new RegExp(`HEAD-MOVED expected=${EXPECTED_HEAD} actual=${UPDATED_HEAD}`),
+    "out-of-date-head-is-held",
+    { head: CHANGED_HEAD },
+    new RegExp(`HEAD-MOVED expected=${EXPECTED_HEAD} actual=${CHANGED_HEAD}`),
   )
 
   if (file === "merge-sweep-cov.sh") {
