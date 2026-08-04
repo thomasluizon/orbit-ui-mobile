@@ -108,3 +108,4 @@ yarn-error.log*
 .sess-*
 .session-*
 .orca-*
+.agent-scratch-*

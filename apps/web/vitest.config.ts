@@ -41,7 +41,6 @@ export default defineConfig({
         'components/navigation/web-nav.tsx',
         'components/shell/astra-copilot-rail.tsx',
         'components/calendar/calendar-week-view.tsx',
-        'components/ui/mono-toggle.tsx',
         'components/ui/parent-ring.tsx',
         'components/onboarding/retained-onboarding-overlay.tsx',
         'components/habits/habit-form-fields/habit-tag-chip.tsx',

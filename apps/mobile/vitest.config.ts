@@ -130,7 +130,6 @@ export default defineConfig({
         'components/ui/expiry-warning.tsx',
         'components/ui/fresh-start-animation.tsx',
         'components/ui/highlight-text.tsx',
-        'components/ui/mono-toggle.tsx',
         'components/ui/tag-chip.tsx',
         'components/ui/theme-toggle.tsx',
         'components/ui/trial-banner.tsx',

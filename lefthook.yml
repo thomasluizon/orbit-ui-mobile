@@ -14,8 +14,12 @@ pre-commit:
     mobile-eslint:
       root: "apps/mobile/"
       glob: "*.{ts,tsx,js,jsx,mjs,cjs}"
-      run: npx expo lint -- --fix {staged_files}
-      stage_fixed: true
+      # No --fix here, unlike web and shared above. `expo lint` ignores the file
+      # arguments and always walks the whole app, so --fix repaired all 718
+      # suppressed local/spacing-scale violations across 65 files nobody staged,
+      # which orphaned those same 718 suppressions and exited 2. The hook could
+      # never pass while a fixable rule was suppressed. Without --fix it exits 0.
+      run: npx expo lint -- {staged_files}
     dashes:
       run: node tools/check-dashes.mjs --files {staged_files}
     copy-register:
