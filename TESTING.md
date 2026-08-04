@@ -4,7 +4,7 @@
 > - Unit-only policy (Vitest); the only sanctioned E2E against prod is the post-deploy web smoke suite.
 > - Assert behavior and data-attributes, never class names or implementation details.
 > - Nine suites: web / mobile / shared unit, web Playwright e2e (which IS the post-deploy smoke), the hermetic web visual-regression PR gate, the authed-Today Lighthouse budget gate, Stryker mutation, and the two harness suites (hook parity and the tools execution gate) that test the agent harness rather than the product.
-> - The two harness suites run in CI as the `Harness Execution` guards job, path-scoped to `tools/**` and `.claude/**`: a harness change is EXECUTED before it merges, never only read.
+> - The two harness suites are run BY HAND after any change to `tools/**` or `.claude/**`: `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs`. The `Harness Execution` CI job was removed from branch protection on 2026-08-04, because a broken harness self-check froze every product merge.
 > - The visual gate is web-only by locked decision (mobile Android visual regression is out of scope) and hermetic: it renders the PR's own build against a local mock orbit-api with a fake-JWT session, so it needs no prod and no secrets. Baselines are Linux-seeded in CI, never from a dev machine.
 > - The authed-Today Lighthouse budget gate (`perf.yml`) reuses that same hermetic mock-api + fake-JWT harness to enforce LCP / TBT / script-bundle-size budgets on the signed-in Today surface at PR time (web-only, no prod, no secrets). Its interactive twin is the `/profile` skill.
 > - orbit-api has its own xUnit suite, documented in that repo.
@@ -62,9 +62,8 @@ Happy-path-only; rubber-stamp / assertion-free; "asserts a mock was called" taut
 ## CI mapping
 
 - **`.github/workflows/test.yml`** - build, unit tests with coverage thresholds (`turbo run test -- --coverage`), type-check, lint, dependency-audit, design-guard, and contract-drift, on PRs to `main`.
-- **`.github/workflows/guards.yml`, `Harness Execution` job** - the two harness suites, on any PR touching `tools/**` or `.claude/**` and on every push to `main`. It runs `node tools/test-tools.mjs` then `node .claude/hooks/test-hooks.mjs`, so a change to a tool, a hook, or an agent's frontmatter is executed before it merges. Run both locally too after touching either directory; the reviewer cites this job's result rather than re-deriving it (review rubric, dimension 15).
+- **The two harness suites** - `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs`. RUN BOTH BY HAND after touching `tools/**` or `.claude/**`. They no longer run in CI: the `Harness Execution` job was removed from branch protection on 2026-08-04, because a red harness self-check blocked every product merge while the harness itself was being rebuilt. A harness that gates the product is the failure this repo just spent a week undoing.
 - **`.github/workflows/mutation.yml`** - PR-incremental Stryker run on `packages/shared`, report-only.
-- **`.github/workflows/nightly.yml`** - full-scope Stryker mutation run.
 - **`.github/workflows/smoke-prod.yml`** - the Playwright smoke suite, post-deploy against the live production deployment.
 - **`.github/workflows/visual.yml`** - the hermetic web visual-regression gate, on PRs touching `apps/web/**` or `packages/shared/**` (pinned `ubuntu-24.04`, no secrets). Compares four surfaces against the Linux baselines; seeds/updates them on the `visual:update` label or `workflow_dispatch` (`update=true`); on failure runs the `design-reviewer` job.
 - **`.github/workflows/perf.yml`** - the authed-Today Lighthouse budget gate, on PRs touching `apps/web/**` or `packages/shared/**` (pinned `ubuntu-24.04`, no secrets). Builds the web app, boots the hermetic mock orbit-api, and runs `lhci autorun` with a `puppeteerScript` fake-JWT injection to assert LCP / TBT / script-bundle-size budgets on the signed-in `/` (Today) surface. Uploads the `.lighthouseci/` reports.

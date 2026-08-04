@@ -1,6 +1,6 @@
 # Review & audit discipline
 
-**At a glance:** 11 standing rules for `/pr-review`, `/audit-*`, `/commit-sweep`, `/prod-readiness`, and any fan-out assessment. Judgement-bound; none is gate-checkable. See `README.md` for the tier's contract.
+**At a glance:** 11 standing rules for `/pr-review`, `/audit-*`, `/prod-readiness`, and any fan-out assessment. Judgement-bound; none is gate-checkable. See `README.md` for the tier's contract.
 
 ## What a review is allowed to say
 
@@ -52,7 +52,7 @@ This one exists to stop Orbit's own gates-over-prose culture from degrading into
 ### 10. A performance claim needs metric evidence for that surface
 A recommendation must trace to an **observed metric for the specific route/surface**. A static-scan finding with no traffic evidence is supplementary only and is never ranked as a fix.
 
-`/audit-performance` and `/profile` have no stated evidence bar, so a grep-derived "slow path" can otherwise be reported as fact.
+`/audit-performance` has no stated evidence bar, so a grep-derived "slow path" can otherwise be reported as fact.
 
 ## Fixing what an audit found
 

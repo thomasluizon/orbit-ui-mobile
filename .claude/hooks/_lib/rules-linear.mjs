@@ -18,7 +18,7 @@
 // mutation absent from this map is not automatically fine; the ALLOWED set
 // below is what decides. This map only makes the block message actionable.
 const ORCA_EQUIVALENT = {
-  issueCreate: "node tools/new-ticket.mjs --title ... --project ... --body-file -",
+  issueCreate: "orca linear save-issue --title ... (or the Linear MCP save_issue), via /ticket",
   issueUpdate: "orca linear save-issue (or status set / priority set / estimate set / due-date set / assignee set)",
   issueDelete: "orca linear save-issue",
   issueArchive: "orca linear save-issue",

@@ -24,7 +24,7 @@ A tool here is something an agent invokes without reading its source. That only 
 
 A tool whose job is to answer "is this work done?" obeys one extra rule: **the verdict is computed from artifacts on disk, never read from a status field.** A checklist an agent can edit is not a gate, it is a suggestion, and #539 proved it (five "done" reports over ~20% of the surfaces, every lint gate green).
 
-The pattern, as implemented by `surface-manifest.mjs` + `redesign-coverage.mjs`:
+The pattern, as implemented by `surface-manifest.mjs` + `capture-surfaces.mjs`:
 
 - **Derive the expected inventory from the codebase**, not from a hand-written list. A hand-written list omits what the author forgot; a glob does not.
 - **Store the expectation, compute the completion.** The manifest is the denominator. The numerator comes from `statSync` on the evidence.
@@ -45,4 +45,4 @@ A new tool therefore lands with its coverage in the same PR: an `INVALID_INPUT` 
 
 ## Adding one
 
-Use `/make-tool`. It scaffolds the script to this contract and adds the catalog row to `README.md`. Do not abstract across tools on the first shared line (rule 6, extract on the third real use); two twenty-line wrappers do not need a shared library.
+Scaffold the script to this contract by hand and add its catalog row to `README.md` in the same change. Do not abstract across tools on the first shared line (rule 6, extract on the third real use); two twenty-line wrappers do not need a shared library.

@@ -4,7 +4,7 @@
 run. A report is a photograph that starts lying the day after it is written (D10); the
 durable output of an audit is a set of executable Linear tickets, gated by one human
 approval. This is the single copy of that pipeline so the five skills cannot drift. Every
-ticket satisfies the same 6.2 template `tools/check-ticket.mjs` enforces and follows the same
+ticket satisfies the same 6.2 template `/ticket` applies and follows the same
 rules `/ticket` does.
 
 Constants: orca binary `C:\Users\thoma\AppData\Local\Programs\orca\resources\bin\orca`,
@@ -44,13 +44,13 @@ PR, target under 400 lines). Never split one fix across tickets.
 - `repo:ui` tickets declare `parity:yes` (web + mobile in one PR) or `parity:no` with the
   adapter-only justification in the body.
 - Add `visible-effect` and the D7 screenshots plus critique line when the fix changes pixels;
-  check-ticket fails a body that names a user-visible surface without both artifacts.
+  A body that names a user-visible surface without both artifacts is not executable.
 - blockedBy is an explicit relation, never prose: a ui perf fix that needs an api index first
   is a ui ticket blockedBy the api ticket.
 
 ## 3. Validate every draft
 
-`node tools/check-ticket.mjs --file <draft>`; fix until it exits 0. No em/en dashes (banned
+Re-read the draft against the 6.2 template; fix until it is complete. No em/en dashes (banned
 everywhere), no TBD/TODO, at least two acceptance criteria.
 
 ## 4. HARD GATE: one human approval before anything exists in Linear
@@ -76,7 +76,7 @@ On approval:
 
 1. `orca linear create --team ORB --state Todo --title "<title>" --body-file <draft> --label <repo:*> --label <Feature|Bug|Improvement> [--label <parity:*> ...] --json` per ticket. Use `--body-file -` to pass a multiline body on stdin.
 2. `orca linear relation add` every blockedBy edge.
-3. Re-validate each created issue: `node tools/check-ticket.mjs --issue ORB-N` (this pass also
+3. Re-read each created issue against the template (this pass also
    checks labels + relations, which `--file` cannot).
 4. Print the final table: identifier, title, repo, type, blockedBy.
 

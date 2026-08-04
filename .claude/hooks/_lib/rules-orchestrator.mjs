@@ -31,7 +31,13 @@ const ADMIN_FLAG = /(?<![\w-])--admin(?![\w-])/
 const PUT_METHOD = /(?<![\w-])(?:-X|--method|--request)[=\s]*["']?PUT["']?(?![\w-])/i
 const PULLS_MERGE_PATH = /repos\/[^/\s"']+\/[^/\s"']+\/pulls\/[^/\s"']+\/merge(?![\w-])/
 const MERGE_MUTATION = /(?<![\w])mergePullRequest(?![\w])/
-const API_CLIENTS = new Set(["gh", "curl", "wget", "http", "httpie"])
+const API_CLIENTS = new Set(["gh", "curl", "wget", "http", "https", "httpie"])
+// httpie takes the method as a POSITIONAL argument (`http PUT <url>`), never as a flag, so the
+// flag-shaped PUT_METHOD above cannot match it. Measured 2026-08-04: `http PUT .../pulls/1/merge`
+// was ALLOWED while the byte-identical curl call was blocked. A prohibition with a documented
+// bypass is not a prohibition, and this is the one everything else rests on.
+const HTTPIE_BINARIES = new Set(["http", "https", "httpie"])
+const BARE_PUT = /(?<![\w-])PUT(?![\w-])/
 
 /**
  * Everything before the first real word: leading grouping punctuation and any number of
@@ -141,7 +147,8 @@ export function checkAdminMerge(command) {
       return blocked(command, adminMergeReason("`gh pr merge --admin`"))
     }
     if (!API_CLIENTS.has(binary)) continue
-    if (PUT_METHOD.test(segment) && PULLS_MERGE_PATH.test(segment)) {
+    const putMethod = PUT_METHOD.test(segment) || (HTTPIE_BINARIES.has(binary) && BARE_PUT.test(segment))
+    if (putMethod && PULLS_MERGE_PATH.test(segment)) {
       return blocked(command, adminMergeReason("a direct `PUT /repos/{owner}/{repo}/pulls/{number}/merge`"))
     }
     if (MERGE_MUTATION.test(segment)) {
