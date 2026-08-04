@@ -88,7 +88,7 @@ For a `/second-opinion <claim>` invocation outside a review:
 ## Inside /pr-review
 
 `/pr-review` Phase 6 fires this on each **Critical** and **High** finding that survives
-the adversarial skeptic, in an unattended `--sleep` run exactly as in an interactive one.
+the adversarial skeptic, in an unattended run exactly as in an interactive one.
 Both decisive findings of the 2026-07-28/29 run were High, so a Critical-only,
 interactive-only scope would have skipped both. The verdict contract is unchanged:
 `DISAGREE` tags the finding `CONTESTED` and shows both verdicts, `UNSURE` leaves the
