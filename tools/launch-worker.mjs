@@ -176,12 +176,21 @@ const logFd = openSync(logFile, "a")
  * stdin is CLOSED, never "inherit" and never "pipe": an inherited-but-unwritten stdin pipe hangs
  * `codex exec` forever on Windows (openai/codex#20919). The marker in the env is what lets the
  * orchestrator hook tell this launcher's `codex exec` from a hand-typed one.
+ *
+ * ORCA_CLI_COMMAND is the orca-linear skill's FIRST binary-resolution rule, and setting it here is
+ * what keeps a worker off its last one: bare `orca`, which is not on PATH on this machine. Measured
+ * on ORB-87, where the worker resolved bare `orca`, hit "not recognized as a name of a cmdlet", and
+ * correctly stopped rather than falling through to another executable. It delivered nothing in 54s.
  */
 const child = spawn(executable, workerArgs, {
   cwd: worktreePath,
   stdio: ["ignore", logFd, logFd],
   windowsHide: true,
-  env: { ...process.env, ORBIT_LAUNCH_WORKER: "1" },
+  env: {
+    ...process.env,
+    ORBIT_LAUNCH_WORKER: "1",
+    ORCA_CLI_COMMAND: process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs\\orca\\resources\\bin\\orca",
+  },
 })
 
 const finish = (outcome, exitCode) => {
