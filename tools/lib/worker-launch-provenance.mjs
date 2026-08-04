@@ -89,6 +89,9 @@ const isCompletion = (completion) =>
   BASE64.test(completion.signature)
 
 const isStartingHead = (startingHead) => typeof startingHead === "string" && SHA1.test(startingHead)
+const hasValidStartingHead = (record) => !Object.hasOwn(record, "startingHead") || isStartingHead(record.startingHead)
+const hasRequiredRepairStartingHead = (record) =>
+  record.launchMode !== "repair" || (Object.hasOwn(record, "startingHead") && isStartingHead(record.startingHead))
 
 const parseAuthorityPublicKey = (encoded) => {
   if (typeof encoded !== "string" || encoded.trim().length === 0 || !BASE64.test(encoded.trim())) return null
@@ -147,9 +150,7 @@ export const isWorkerLaunchRecord = (record) =>
   record.launcherPid > 0 &&
   Number.isFinite(Date.parse(record.issuedAt)) &&
   isCompletionAttestation(record.completionAttestation) &&
-  (record.launchMode === "repair"
-    ? isStartingHead(record.startingHead)
-    : (!Object.hasOwn(record, "startingHead") || isStartingHead(record.startingHead))) &&
+  hasValidStartingHead(record) &&
   (!Object.hasOwn(record, "supervisorEnvelope") || (
     isSupervisorEnvelope(record.supervisorEnvelope) &&
     record.supervisorEnvelope.worktreePath === record.worktreePath
@@ -183,7 +184,7 @@ export const workerLaunchSigningPayload = (record) => {
 }
 
 export const signWorkerLaunchRecord = (record, privateKey) => {
-  if (!isWorkerLaunchRecord({ ...record, launchSignature: "placeholder" })) {
+  if (!isWorkerLaunchRecord({ ...record, launchSignature: "placeholder" }) || !hasRequiredRepairStartingHead(record)) {
     throw new Error("worker launch provenance record is incomplete")
   }
   const launchSignature = sign(
@@ -329,6 +330,7 @@ export const workerDeliveryEvidence = ({ issue, branch, head, worktreePath, invo
   const completed = candidates.find((record) =>
     record.completion?.completedHead === head &&
     record.completion.exitCode === 0 &&
+    hasRequiredRepairStartingHead(record) &&
     verifyWorkerLaunchCompletion(record, expectedAuthority.encoded),
   )
   if (completed?.launchMode === "repair" && completed.startingHead === completed.completion.completedHead) {

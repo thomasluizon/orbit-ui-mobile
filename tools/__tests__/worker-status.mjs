@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { join, resolve } from "node:path"
 
 import { STRIKE_LEDGER_ENV } from "../lib/strike-ledger.mjs"
-import { recordWorkerLaunch, signWorkerLaunchRecord, verifyWorkerLaunchCompletion, workerCompletionSigningPayload, workerDeliveryEvidence, workerLaunchSigningPayload } from "../lib/worker-launch-provenance.mjs"
+import { readWorkerLaunchRecords, recordWorkerLaunch, signWorkerLaunchRecord, verifyWorkerLaunchCompletion, verifyWorkerLaunchRecord, workerCompletionSigningPayload, workerDeliveryEvidence, workerLaunchSigningPayload } from "../lib/worker-launch-provenance.mjs"
 import { REVIEW_AUTHORITY_PUBLIC_KEY, WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY, WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY, WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY_ENV, WORKER_LAUNCH_LEDGER, T, reviewMarker, root, stage, orcaEnv, run, check, exitedProbePid, writeCompletedWorkerLaunch } from "./_harness.mjs"
 
 const stageWorkerStatusWorktree = (label = "worker-status") => {
@@ -245,6 +245,81 @@ const CONFIGURED_CODEX_INVOCATIONS = Object.freeze({
     args: ["exec", "-c", 'windows.sandbox="unelevated"', "--dangerously-bypass-approvals-and-sandbox", "-c", 'model_reasoning_effort="high"', "--model", "gpt-5.6-sol"],
   },
 })
+const legacyWorkerLaunchSigningPayload = (record) => JSON.stringify({
+  version: record.version,
+  launchId: record.launchId,
+  issue: record.issue,
+  worktreePath: record.worktreePath,
+  pid: record.pid,
+  startedAt: record.startedAt,
+  launchMode: record.launchMode,
+  engine: record.engine,
+  invocation: { command: record.invocation.command, args: record.invocation.args },
+  branch: record.branch,
+  launcherPid: record.launcherPid,
+  issuedAt: record.issuedAt,
+  completionAttestation: {
+    algorithm: record.completionAttestation.algorithm,
+    publicKey: record.completionAttestation.publicKey,
+  },
+})
+const legacyWorkerCompletionSigningPayload = (record, completion) => JSON.stringify({
+  launch: JSON.parse(legacyWorkerLaunchSigningPayload(record)),
+  completion: completion
+    ? {
+        completedAt: completion.completedAt,
+        completedHead: completion.completedHead,
+        exitCode: completion.exitCode,
+      }
+    : null,
+})
+const createLegacyRepairLaunch = () => {
+  const timestamp = new Date(Date.now() - 1000).toISOString()
+  const record = {
+    version: 1,
+    launchId: "legacy-repair-launch",
+    issue: "ORB-75",
+    worktreePath: resolve(join(root, "legacy-repair-worktree")),
+    pid: process.pid,
+    startedAt: timestamp,
+    launchMode: "repair",
+    engine: "codex",
+    invocation: CONFIGURED_CODEX_INVOCATIONS.default,
+    branch: "feature/orb-75-repair-legacy",
+    launcherPid: process.pid,
+    issuedAt: timestamp,
+    completionAttestation: {
+      algorithm: "ed25519",
+      publicKey: WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY,
+    },
+  }
+  return {
+    ...record,
+    launchSignature: sign(
+      null,
+      Buffer.from(legacyWorkerLaunchSigningPayload(record), "utf8"),
+      WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY,
+    ).toString("base64"),
+  }
+}
+const completeLegacyRepairLaunch = (launchRecord) => {
+  const unsignedCompletion = {
+    completedAt: new Date().toISOString(),
+    completedHead: "a".repeat(40),
+    exitCode: 0,
+  }
+  return {
+    ...launchRecord,
+    completion: {
+      ...unsignedCompletion,
+      signature: sign(
+        null,
+        Buffer.from(legacyWorkerCompletionSigningPayload(launchRecord, unsignedCompletion), "utf8"),
+        WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY,
+      ).toString("base64"),
+    },
+  }
+}
 const writePidMarker = (worktreePath, rows) =>
   writeFileSync(
     pidMarkerPath(worktreePath),
@@ -403,6 +478,8 @@ export const cases = () => {
         workerDeliveryEvidence({ issue: "ORB-75", branch: sameKeyForgedLaunch.branch, head: forgedCompletion.completedHead, worktreePath: sameKeyForgedLaunch.worktreePath, invocation: { engine: sameKeyForgedLaunch.engine, command: sameKeyForgedLaunch.invocation.command, args: sameKeyForgedLaunch.invocation.args }, authorityPublicKey: WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY, records: [sameKeyForgedLaunch] }).ok === false,
       "a completion signed by one worker-generated key must be rejected by the explicit launcher authority",
     )
+    const legacyRepair = createLegacyRepairLaunch()
+    const legacyCompletedRepair = completeLegacyRepairLaunch(legacyRepair)
     const repairStartingHead = "b".repeat(40)
     const changedRepairHead = "c".repeat(40)
     const changedRepair = writeCompletedWorkerLaunch({
@@ -421,19 +498,48 @@ export const cases = () => {
       startingHead: repairStartingHead,
       invocation: CONFIGURED_CODEX_INVOCATIONS.default,
     }).completedRecord
+    const compatibilityLedger = join(root, "worker-launch-legacy-repair-compat.jsonl")
+    writeFileSync(compatibilityLedger, [legacyCompletedRepair, changedRepair, unchangedRepair].map((record) => `${JSON.stringify(record)}\n`).join(""))
+    const compatibilityRecords = readWorkerLaunchRecords(compatibilityLedger)
+    const legacyRepairEvidence = workerDeliveryEvidence({
+      issue: "ORB-75",
+      branch: legacyCompletedRepair.branch,
+      head: legacyCompletedRepair.completion.completedHead,
+      authorityPublicKey: WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY,
+      records: compatibilityRecords,
+    })
+    let currentIssuerRejectsLegacyRepair = false
+    try {
+      signWorkerLaunchRecord(legacyRepair, WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY)
+    } catch {
+      currentIssuerRejectsLegacyRepair = true
+    }
+    T(
+      "worker-status.mjs: a legacy signed repair row remains parseable before current repair rows",
+      compatibilityRecords.length === 3 &&
+        !Object.hasOwn(compatibilityRecords[0], "startingHead") &&
+        legacyWorkerLaunchSigningPayload(legacyRepair) === workerLaunchSigningPayload(legacyRepair) &&
+        legacyWorkerCompletionSigningPayload(legacyRepair, legacyCompletedRepair.completion) === workerCompletionSigningPayload(legacyRepair, legacyCompletedRepair.completion) &&
+        verifyWorkerLaunchRecord(compatibilityRecords[0], WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY) === true &&
+        verifyWorkerLaunchCompletion(compatibilityRecords[0], WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY) === true &&
+        legacyRepairEvidence.ok === false &&
+        legacyRepairEvidence.status === "STALE" &&
+        currentIssuerRejectsLegacyRepair,
+      `rows: ${compatibilityRecords.length}\n     first row: ${JSON.stringify(compatibilityRecords[0])}`,
+    )
     const changedRepairEvidence = workerDeliveryEvidence({
       issue: "ORB-75",
       branch: changedRepair.branch,
       head: changedRepairHead,
       authorityPublicKey: WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY,
-      records: [changedRepair],
+      records: compatibilityRecords,
     })
     const unchangedRepairEvidence = workerDeliveryEvidence({
       issue: "ORB-75",
       branch: unchangedRepair.branch,
       head: repairStartingHead,
       authorityPublicKey: WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY,
-      records: [unchangedRepair],
+      records: compatibilityRecords,
     })
     T(
       "worker-status.mjs: a changed repair head passes while an unchanged repair head fails closed",
