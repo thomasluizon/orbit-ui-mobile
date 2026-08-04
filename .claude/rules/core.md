@@ -12,7 +12,7 @@ themselves; nothing to remember there.)
 |---|---|
 | `.claude/playbooks/debugging.md` | a bug, a triage, `/investigate`, a merge conflict |
 | `.claude/playbooks/review-and-audit.md` | `/pr-review`, `/audit-*`, `/commit-sweep`, any fan-out assessment |
-| `.claude/playbooks/planning-and-artifacts.md` | `/feature`, `/ticket`, `/orchestrate`, ticket writing, ADRs |
+| `.claude/playbooks/planning-and-artifacts.md` | `/ticket`, `/orchestrate`, ticket writing, ADRs |
 | `.claude/playbooks/context-engineering.md` | authoring or editing anything the agent reads: a `CLAUDE.md`, a rule, a playbook, a skill, an agent, a tool interface, a ticket body |
 
 ### 1. No red-capable command, no hypothesising

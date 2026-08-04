@@ -12,7 +12,7 @@ While building or fixing, see something broken, stale, or wrong? Fix it immediat
 
 ## The workflow (D1-D9)
 
-Linear is the source of truth for product work in this repo and orbit-api; GitHub Issues holds orbit-landing-page, infra chores, and Dependabot (D1). The ticket is the prompt (D2); one ticket = one repo = one reviewable PR, target under 400 lines (D4), and cross-repo work uses an API ticket blocking a UI ticket. The worker engine and its engine-specific model tiers live in `.claude/orchestrator.json` (D5); a `visible-effect` ticket needs final screenshots, a critique artifact, and test output before In Review (D7). `RENDER-CORRECTNESS.md` defines the bounded self-critique after capture. Invoke `tools/` scripts through their skills or agents; after `/next`, run `/orchestrate ORB-N --only`. `/next` is gated by `.claude/hooks/forbid-raw-repo-tool-surfacing.mjs`; appeals stay inline, one per command.
+Linear is the source of truth for product work in this repo and orbit-api; GitHub Issues holds orbit-landing-page, infra chores, and Dependabot (D1). The ticket is the prompt (D2); one ticket = one repo = one reviewable PR, target under 400 lines (D4), and cross-repo work uses an API ticket blocking a UI ticket. The worker engine and its engine-specific model tiers live in `.claude/orchestrator.json` (D5); a `visible-effect` ticket needs final screenshots, a critique artifact, and test output before In Review (D7). `RENDER-CORRECTNESS.md` defines the bounded self-critique after capture. Invoke `tools/` scripts through their skills or agents. Run `/orchestrate ORB-N`, one ticket per run; `--only`, `--single` and `--sleep` no longer exist.
 
 The session always opens in orbit-ui-mobile (D17); the orchestrator spawns worktrees into whichever repo the ticket targets. `AGENTS.md` (repo root) is Codex's entry doc: the worker contract plus `## Code Review Rules` (D26/D27). It DEFERS to this CLAUDE.md for conventions; change behaviour here, never there.
 
@@ -51,7 +51,7 @@ Auth: web cookie is httpOnly + sameSite strict + secure; mobile tokens live in S
 - Session act-time hooks live in `.claude/settings.json`; `node .claude/hooks/test-hooks.mjs` is their proof (D6, D22).
 - Orca worktree setup runs `npm install && node tools/orca-web-port.mjs --setup` under this repository's run-by-default setup policy. The hook assigns a deterministic web port in the 3100-4099 window and records it in the ignored `.orca/web-port`; `node tools/orca-web-port.mjs` reports it. Root stays on 3000. The database and API remain shared on 5432 and 5000.
 - Testing: Vitest unit tests only; every feature needs behavior tests. The only sanctioned E2E against prod is the post-deploy web smoke suite; a separate hermetic web visual-regression gate (`.github/workflows/visual.yml`, web-only by locked decision) screenshots four surfaces against a local mock orbit-api at PR time. Configs live in each workspace. `TESTING.md` (repo root) is the suite catalog + how to write a test here.
-Skill behavior lives in each command's description; `AGENTS.md` steers Codex review (D26). No review check exists; `guards.yml` + merge-sweep gate merges (D25).
+Skill behavior lives in each command's description; `AGENTS.md` steers Codex review (D26). No review check exists; `guards.yml` gates merges, and only Thomas merges.
 
 ## Agent tool scoping
 
