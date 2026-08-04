@@ -37,8 +37,8 @@ Do not pick one, do not widen, do not queue the rest.
                      PRINT the always-loaded byte total (all six sources)   [D32]
                      ASSERT no skill name exists in both scopes             [D33]
  1  Read ticket      orca linear issue ORB-N --json; resolve repo from repo:* label
- 0b Preflight, tgt   the TARGET repo: git clean · on main · up to date
-                     not this checkout, which D17 pins to orbit-ui-mobile whatever the target
+ 0b Preflight, tgt   the TARGET repo, not this checkout (D17 pins it to orbit-ui-mobile)
+                     dirty -> STOP · not on main -> switch · behind -> ff-only. Print repairs.
  2  SCOPE GATE       >8 affected files, or judged >400 lines  ->  STOP, split the ticket
  3  Worktree         orca worktree create; git switch -c feature/orb-N-<slug>
  4  Compose prompt   ticket verbatim + comments + ORCHESTRATOR'S BRIEF + finishing contract
@@ -91,19 +91,41 @@ orca --version
 
 **0b. Target repo, after step 1 and before step 3 creates the worktree.**
 
-```bash
-git -C <target> status --porcelain            # must be empty
-git -C <target> rev-parse --abbrev-ref HEAD   # must be main
-git -C <target> fetch origin main && git -C <target> rev-list --count HEAD..origin/main   # must be 0
-```
-
 `<target>` is the repository the TICKET names, resolved from its `repo:*` label, which is very often
 not this one. The session always opens in orbit-ui-mobile (D17) regardless of where the work lands,
 so the orchestrator's own checkout may sit on any branch and that is not a gate. What must be clean,
 on main, and current is the repo the worktree will branch FROM. Checking the orchestrator's checkout
 instead would refuse a legitimate run and pass a dangerous one.
 
-Any failure stops the run. Print the failing check verbatim. Repair nothing silently.
+**Bring it to that state rather than refusing.** Two of the three conditions are one safe idempotent
+command away, and stopping a run because a repo is one commit behind is friction with no safety in
+it. The third is not, and never becomes so.
+
+```bash
+# 1. DIRTY TREE: the one hard stop. Never auto-repaired.
+git -C <target> status --porcelain     # any output -> STOP, print it, do not stash, do not discard
+
+# 2. NOT ON MAIN: switch, once the tree is proven clean above.
+git -C <target> rev-parse --abbrev-ref HEAD
+git -C <target> switch main            # only if <target> is NOT this session's own checkout
+
+# 3. BEHIND: fast-forward. Always safe on a clean tree.
+git -C <target> fetch origin main
+git -C <target> merge --ff-only origin/main
+git -C <target> rev-list --count HEAD..origin/main    # now 0
+```
+
+Uncommitted work is somebody's unsaved thinking and this skill does not get to decide it is
+disposable. Stashing hides it somewhere they will not look. So a dirty target repo stops the run,
+prints the paths verbatim, and hands the decision back.
+
+**The carve-out on step 2:** if `<target>` resolves to the repository this session is running from,
+do NOT switch it. Switching would swap this skill file, `.claude/orchestrator.json` and the tools out
+from under the run in progress, and the orchestrator would finish reading a different harness than it
+started with. Stop and say exactly that instead.
+
+Print every repair you performed, with its command. A silent repair is how a run starts from a state
+nobody chose.
 
 ### D32. Print the always-loaded byte total
 
