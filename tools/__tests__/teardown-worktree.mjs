@@ -2,7 +2,7 @@ import { spawnSyncHidden as spawnSync } from "../lib/subprocess-options.mjs"
 import { appendFileSync, chmodSync, cpSync, existsSync, lstatSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { T, root, orcaEnv, check, stageWorkerPidMarker, exitedProbePid, toolPath } from "./_harness.mjs"
+import { T, root, orcaEnv, check, run, stageWorkerPidMarker, exitedProbePid, toolPath } from "./_harness.mjs"
 
 /** A linked child checkout is the smallest real Git fixture that can prove teardown verification. */
 const stageTeardownWorktree = (label, { dirty = false, changed = false, squashMerged = false, fastForwardMerged = false, serverMerged = false, localFollowUp = false, localFollowUpMerged = false, siblingTargetAdvance = false, branchDeleteMode } = {}) => {
@@ -316,6 +316,15 @@ fs.readdirSync = function (directory, ...args) {
 
   const siblingAdvanced = stageTeardownWorktree("sibling-advance", { changed: true, squashMerged: true, siblingTargetAdvance: true })
   check("teardown-worktree.mjs", "a squash-merged tree is present when the target advanced on unrelated paths", ["--issue", "ORB-124"], { status: 0, stdout: /REMOVED worktree/ }, { env: orcaEnv(teardownPlan(siblingAdvanced, { removePath: siblingAdvanced.child })) })
+
+  const squashBranchRetained = stageTeardownWorktree("squash-branch-retained", { changed: true, squashMerged: true })
+  const squashBranchRetainedResult = run("teardown-worktree.mjs", ["--issue", "ORB-124"], { env: orcaEnv(teardownPlan(squashBranchRetained, { removePath: squashBranchRetained.child })) })
+  const squashBranchStillExists = spawnSync("git", ["-C", squashBranchRetained.primary, "show-ref", "--verify", "--quiet", "refs/heads/feature/orb-124-teardown"], { encoding: "utf8" }).status === 0
+  T(
+    "teardown-worktree.mjs: an unmerged local branch is retained after verified squash cleanup",
+    squashBranchRetainedResult.status === 0 && /REMOVED worktree/.test(squashBranchRetainedResult.stdout) && /RETAINED local branch/.test(squashBranchRetainedResult.stdout) && squashBranchStillExists,
+    `exit ${squashBranchRetainedResult.status}\n     stdout: ${squashBranchRetainedResult.stdout}\n     stderr: ${squashBranchRetainedResult.stderr}\n     branch exists: ${squashBranchStillExists}`,
+  )
 
   const branchDeleteFails = stageTeardownWorktree("branch-delete-fails", { branchDeleteMode: "fail" })
   check(

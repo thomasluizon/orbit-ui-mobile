@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 
-import { T, forgedReviewMarker, reviewMarker, stage, orcaEnv, run, writeCompletedWorkerLaunch } from "./_harness.mjs"
+import { T, WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY, forgedReviewMarker, reviewMarker, stage, orcaEnv, run, writeCompletedWorkerLaunch } from "./_harness.mjs"
 
 const mergeabilityCases = () => {
   const head = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -59,7 +59,7 @@ const mergeabilityCases = () => {
   const runCase = (name, first, { final = first, issue, finalIssue, json = false, plan = [], workerDelivery = true } = {}) => {
     if (workerDelivery) writeCompletedWorkerLaunch({ issue: "ORB-143", branch: first.headRefName, head: first.headRefOid })
     const log = stage(`mergeability-${name}.log`, "")
-    const result = run("mergeability.mjs", ["--repo", "orbit/ui", "--pr", "615", ...(json ? ["--json"] : [])], {
+    const result = run("mergeability.mjs", ["--repo", "orbit/ui", "--pr", "615", "--authority-public-key", WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY, ...(json ? ["--json"] : [])], {
       env: { ...orcaEnv([github(first, final), linear(issue, finalIssue), ...plan]), ORBIT_ORCA_LOG: log },
     })
     return { ...result, calls: readFileSync(log, "utf8").trim().split(/\r?\n/).filter(Boolean).map((entry) => JSON.parse(entry)) }
@@ -121,13 +121,13 @@ const mergeabilityCases = () => {
   const conflictingIdentifiers = runCase("conflicting-identifiers", pullRequest({ title: "ORB-144 merge decision" }))
   T("mergeability.mjs: conflicting configured-team branch and title identifiers are HELD", conflictingIdentifiers.status === 1 && /HELD linear-issue: configured-team Linear issue identifiers disagree: ORB-143, ORB-144/.test(conflictingIdentifiers.stdout), conflictingIdentifiers.stderr || conflictingIdentifiers.stdout)
   const errorLog = stage("mergeability-error.log", "")
-  const forgeError = run("mergeability.mjs", ["--repo", "orbit/ui", "--pr", "615"], { env: { ...orcaEnv([{ match: "query($owner:String!,$name:String!,$number:Int!)", stdout: "forge offline", exit: 7 }]), ORBIT_ORCA_LOG: errorLog } })
+  const forgeError = run("mergeability.mjs", ["--repo", "orbit/ui", "--pr", "615", "--authority-public-key", WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY], { env: { ...orcaEnv([{ match: "query($owner:String!,$name:String!,$number:Int!)", stdout: "forge offline", exit: 7 }]), ORBIT_ORCA_LOG: errorLog } })
   T("mergeability.mjs: an erroring forge lookup is HELD", forgeError.status === 1 && /HELD github-pull-request: GitHub pull-request lookup failed/.test(forgeError.stdout), forgeError.stderr || forgeError.stdout)
   const emptyLog = stage("mergeability-empty.log", "")
-  const emptyIssue = run("mergeability.mjs", ["--repo", "orbit/ui", "--pr", "615"], { env: { ...orcaEnv([github(pullRequest()), { match: "linear issue ORB-143", stdout: JSON.stringify({ ok: true, result: {} }) }]), ORBIT_ORCA_LOG: emptyLog } })
+  const emptyIssue = run("mergeability.mjs", ["--repo", "orbit/ui", "--pr", "615", "--authority-public-key", WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY], { env: { ...orcaEnv([github(pullRequest()), { match: "linear issue ORB-143", stdout: JSON.stringify({ ok: true, result: {} }) }]), ORBIT_ORCA_LOG: emptyLog } })
   T("mergeability.mjs: an empty Linear result is HELD", emptyIssue.status === 1 && /HELD linear-issue: Linear issue lookup returned no issue/.test(emptyIssue.stdout), emptyIssue.stderr || emptyIssue.stdout)
   const badLog = stage("mergeability-unparseable.log", "")
-  const unparseable = run("mergeability.mjs", ["--repo", "orbit/ui", "--pr", "615"], { env: { ...orcaEnv([{ match: "query($owner:String!,$name:String!,$number:Int!)", stdout: "not json" }]), ORBIT_ORCA_LOG: badLog } })
+  const unparseable = run("mergeability.mjs", ["--repo", "orbit/ui", "--pr", "615", "--authority-public-key", WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY], { env: { ...orcaEnv([{ match: "query($owner:String!,$name:String!,$number:Int!)", stdout: "not json" }]), ORBIT_ORCA_LOG: badLog } })
   T("mergeability.mjs: an unparseable forge result is HELD", unparseable.status === 1 && /HELD github-pull-request: GitHub pull-request lookup returned unparseable output/.test(unparseable.stdout), unparseable.stderr || unparseable.stdout)
 }
 

@@ -4,10 +4,10 @@
 import { execFileSyncHidden as execFileSync } from "./lib/subprocess-options.mjs"
 
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { workerDeliveryEvidence } from "./lib/worker-launch-provenance.mjs"
+import { workerDeliveryEvidence, WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY_ENV } from "./lib/worker-launch-provenance.mjs"
 import { evaluateReviewEvidence } from "./check-review-evidence.mjs"
 
-const USAGE = `usage: mergeability.mjs --repo <owner/name> --pr <number> [--json]
+const USAGE = `usage: mergeability.mjs --repo <owner/name> --pr <number> [--authority-public-key <base64>] [--json]
 
   --repo <owner/name>  GitHub repository containing the pull request (required)
   --pr <number>        pull request number to decide (required)
@@ -30,15 +30,17 @@ const argOf = (flag) => {
   const index = process.argv.indexOf(flag)
   return index === -1 ? null : process.argv[index + 1]
 }
-const knownFlags = new Set(["--repo", "--pr", "--json", "--help", "-h"])
+const knownFlags = new Set(["--repo", "--pr", "--authority-public-key", "--json", "--help", "-h"])
 const unknown = process.argv.slice(2).filter((value) => value.startsWith("-") && !knownFlags.has(value))
 if (unknown.length) fail(`${USAGE}\n\nunknown option(s): ${unknown.join(" ")}`)
 
 const repo = argOf("--repo")
 const pr = argOf("--pr")
+const authorityPublicKey = argOf("--authority-public-key") ?? process.env[WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY_ENV] ?? null
 const asJson = process.argv.includes("--json")
 if (!repo || !/^[\w.-]+\/[\w.-]+$/.test(repo)) fail(`${USAGE}\n\n--repo must be an owner/name slug`)
 if (!pr || !/^\d+$/.test(pr)) fail(`${USAGE}\n\n--pr must be a positive pull request number`)
+if (process.argv.includes("--authority-public-key") && !argOf("--authority-public-key")) fail(`${USAGE}\n\n--authority-public-key requires a value`)
 
 const GH = process.env.GH_BIN || "gh"
 const ORCA = process.env.ORCA_BIN || "orca"
@@ -154,6 +156,7 @@ if (!first.ok) {
       issue: issueIdentifier,
       branch: pullRequest.headRefName,
       head: pullRequest.headRefOid,
+      authorityPublicKey,
     })
     add("worker-delivery", workerDelivery.ok, `${workerDelivery.status}: ${workerDelivery.reason}`)
     const issueResult = linearIssue(issueIdentifier)

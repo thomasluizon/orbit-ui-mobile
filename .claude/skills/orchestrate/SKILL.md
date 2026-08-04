@@ -133,10 +133,11 @@ New worktrees have the configured 90 minute deadline, an additional existing-wor
 the configured 30 minute deadline, and a review repair has the configured 45 minute deadline.
 Deadline exit 124 terminates the entire descendant process tree and is not a successful handoff.
 
-After Luna exits, Sol runs the authoritative local handoff check before touching the remote:
+After Luna exits, Sol takes `authorityPublicKey` from the headless `launch-worker.mjs` JSON result and
+runs the authoritative local handoff check before touching the remote:
 
 ```text
-node tools/worker-status.mjs --worktree <path> --issue ORB-N --base main --implementation --json
+node tools/worker-status.mjs --worktree <path> --issue ORB-N --base main --implementation --authority-public-key <authorityPublicKey> --json
 ```
 
 Only `IMPLEMENTATION_READY` permits Sol to proceed. It requires commits above the exact remote

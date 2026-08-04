@@ -5,7 +5,7 @@ import { join, resolve } from "node:path"
 
 import { STRIKE_LEDGER_ENV } from "../lib/strike-ledger.mjs"
 import { recordWorkerLaunch, signWorkerLaunchRecord, verifyWorkerLaunchCompletion, workerCompletionSigningPayload, workerDeliveryEvidence, workerLaunchSigningPayload } from "../lib/worker-launch-provenance.mjs"
-import { WORKER_LAUNCH_LEDGER, T, reviewMarker, root, stage, orcaEnv, run, check, exitedProbePid } from "./_harness.mjs"
+import { WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY, WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY, WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY_ENV, WORKER_LAUNCH_LEDGER, T, reviewMarker, root, stage, orcaEnv, run, check, exitedProbePid } from "./_harness.mjs"
 
 const stageWorkerStatusWorktree = (label = "worker-status") => {
   const base = join(root, label)
@@ -233,7 +233,8 @@ const writePidMarker = (worktreePath, rows) =>
   writeFileSync(
     pidMarkerPath(worktreePath),
     rows.map((row, index) => {
-      const { publicKey, privateKey } = generateKeyPairSync("ed25519")
+      const publicKey = WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY
+      const privateKey = WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY
       let record = {
         version: 1,
         launchId: `fixture-orb-75-${Date.now()}-${index}`,
@@ -252,11 +253,11 @@ const writePidMarker = (worktreePath, rows) =>
         issuedAt: new Date().toISOString(),
         completionAttestation: {
           algorithm: "ed25519",
-          publicKey: publicKey.export({ format: "der", type: "spki" }).toString("base64"),
+          publicKey,
         },
       }
       record = signWorkerLaunchRecord(record, privateKey)
-      recordWorkerLaunch(record, WORKER_LAUNCH_LEDGER)
+      recordWorkerLaunch(record, WORKER_LAUNCH_LEDGER, WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY)
       const completedHead = row.completed === false
         ? null
         : (row.completedHead ?? spawnSync("git", ["-C", worktreePath, "rev-parse", "HEAD"], { encoding: "utf8" }).stdout.trim())
@@ -271,7 +272,7 @@ const writePidMarker = (worktreePath, rows) =>
           ).toString("base64"),
         }
         const completedRecord = { ...record, completion }
-        recordWorkerLaunch(completedRecord, WORKER_LAUNCH_LEDGER)
+        recordWorkerLaunch(completedRecord, WORKER_LAUNCH_LEDGER, WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY)
         return `${JSON.stringify(record)}\n${JSON.stringify(completedRecord)}\n`
       }
       return `${JSON.stringify(record)}\n`
@@ -357,11 +358,24 @@ export const cases = () => {
       ...forgedCompletion,
       signature: sign(null, Buffer.from(workerCompletionSigningPayload(forgedLaunch, forgedCompletion), "utf8"), completionAttestation.privateKey).toString("base64"),
     }
+    const sameKeyAttacker = generateKeyPairSync("ed25519")
+    const sameKeyPublic = sameKeyAttacker.publicKey.export({ format: "der", type: "spki" }).toString("base64")
+    const sameKeyForgedLaunch = {
+      ...forgedLaunch,
+      launchId: "forged-same-key-launch",
+      completionAttestation: { algorithm: "ed25519", publicKey: sameKeyPublic },
+    }
+    sameKeyForgedLaunch.launchSignature = sign(null, Buffer.from(workerLaunchSigningPayload(sameKeyForgedLaunch), "utf8"), sameKeyAttacker.privateKey).toString("base64")
+    sameKeyForgedLaunch.completion = {
+      ...forgedCompletion,
+      signature: sign(null, Buffer.from(workerCompletionSigningPayload(sameKeyForgedLaunch, forgedCompletion), "utf8"), sameKeyAttacker.privateKey).toString("base64"),
+    }
     T(
-      "worker-status.mjs: a worker-generated root signature cannot satisfy completed-head delivery",
-      verifyWorkerLaunchCompletion(forgedLaunch) === false &&
-        workerDeliveryEvidence({ issue: "ORB-75", branch: forgedLaunch.branch, head: forgedCompletion.completedHead, worktreePath: forgedLaunch.worktreePath, invocation: { engine: forgedLaunch.engine, command: forgedLaunch.invocation.command, args: forgedLaunch.invocation.args }, records: [forgedLaunch] }).ok === false,
-      "a completion signed by a worker-generated root must be rejected by the merge-consumer evidence path",
+      "worker-status.mjs: worker-generated launch and completion keys cannot satisfy Sol's expected authority",
+      verifyWorkerLaunchCompletion(forgedLaunch, WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY) === false &&
+        verifyWorkerLaunchCompletion(sameKeyForgedLaunch, WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY) === false &&
+        workerDeliveryEvidence({ issue: "ORB-75", branch: sameKeyForgedLaunch.branch, head: forgedCompletion.completedHead, worktreePath: sameKeyForgedLaunch.worktreePath, invocation: { engine: sameKeyForgedLaunch.engine, command: sameKeyForgedLaunch.invocation.command, args: sameKeyForgedLaunch.invocation.args }, authorityPublicKey: WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY, records: [sameKeyForgedLaunch] }).ok === false,
+      "a completion signed by one worker-generated key must be rejected by the explicit launcher authority",
     )
     check("worker-status.mjs", "requires --worktree", ["--issue", "ORB-75"], { status: 2, stderr: /--worktree is required/ })
     check("worker-status.mjs", "requires a Linear issue identifier", ["--worktree", root, "--issue", "nope"], { status: 2, stderr: /Linear identifier/ })
@@ -386,7 +400,7 @@ export const cases = () => {
     )
     const implementationReady = run(
       "worker-status.mjs",
-      ["--worktree", fixture.worktree, "--issue", "ORB-75", "--implementation", "--json"],
+      ["--worktree", fixture.worktree, "--issue", "ORB-75", "--implementation", "--authority-public-key", WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY, "--json"],
       { env: { ORBIT_WORKER_LAUNCH_LEDGER: WORKER_LAUNCH_LEDGER } },
     )
     let implementationVerdict = null
@@ -395,6 +409,26 @@ export const cases = () => {
       "worker-status.mjs: implementation mode authoritatively accepts Luna's clean signed local handoff",
       implementationReady.status === 0 && implementationVerdict?.verdict === "IMPLEMENTATION_READY" && implementationVerdict?.checks.every((check) => check.ok),
       `exit ${implementationReady.status}\n     ${(implementationReady.stderr || implementationReady.stdout).slice(0, 600)}`,
+    )
+    const implementationMissingAuthority = run(
+      "worker-status.mjs",
+      ["--worktree", fixture.worktree, "--issue", "ORB-75", "--implementation", "--json"],
+      { env: { ORBIT_WORKER_LAUNCH_LEDGER: WORKER_LAUNCH_LEDGER } },
+    )
+    T(
+      "worker-status.mjs: implementation mode refuses to trust an ambient or absent authority",
+      implementationMissingAuthority.status === 2 && /--implementation requires --authority-public-key/.test(implementationMissingAuthority.stderr),
+      `exit ${implementationMissingAuthority.status}\n     ${implementationMissingAuthority.stderr}`,
+    )
+    const implementationMalformedAuthority = run(
+      "worker-status.mjs",
+      ["--worktree", fixture.worktree, "--issue", "ORB-75", "--implementation", "--authority-public-key", "not-an-ed25519-key", "--json"],
+      { env: { ORBIT_WORKER_LAUNCH_LEDGER: WORKER_LAUNCH_LEDGER, [WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY_ENV]: undefined } },
+    )
+    T(
+      "worker-status.mjs: implementation mode refuses a malformed authority",
+      implementationMalformedAuthority.status === 2 && /authority public key is malformed/.test(implementationMalformedAuthority.stderr),
+      `exit ${implementationMalformedAuthority.status}\n     ${implementationMalformedAuthority.stderr}`,
     )
     const oldReceiptFixture = stageWorkerStatusWorktree("worker-status-old-receipt")
     if (!oldReceiptFixture) {

@@ -105,7 +105,8 @@ export const writeCompletedWorkerLaunch = ({
   },
   launchMode = "existing-worktree",
 } = {}) => {
-  const { publicKey, privateKey } = generateKeyPairSync("ed25519")
+  const authorityPublicKey = WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY
+  const privateKey = WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY
   let launchRecord = {
     version: 1,
     launchId: `fixture-${issue}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -121,7 +122,7 @@ export const writeCompletedWorkerLaunch = ({
     issuedAt: new Date(Date.now() - 1000).toISOString(),
     completionAttestation: {
       algorithm: "ed25519",
-      publicKey: publicKey.export({ format: "der", type: "spki" }).toString("base64"),
+      publicKey: authorityPublicKey,
     },
   }
   launchRecord = signWorkerLaunchRecord(launchRecord, privateKey)
@@ -135,8 +136,8 @@ export const writeCompletedWorkerLaunch = ({
     ).toString("base64"),
   }
   const completedRecord = { ...launchRecord, completion }
-  recordWorkerLaunch(launchRecord, WORKER_LAUNCH_LEDGER)
-  recordWorkerLaunch(completedRecord, WORKER_LAUNCH_LEDGER)
+  recordWorkerLaunch(launchRecord, WORKER_LAUNCH_LEDGER, authorityPublicKey)
+  recordWorkerLaunch(completedRecord, WORKER_LAUNCH_LEDGER, authorityPublicKey)
   return { launchRecord, completedRecord }
 }
 
@@ -1325,7 +1326,8 @@ export const stageWorkerPidMarker = (worktreePath, pid) => {
     spawnSync("git", ["-C", worktreePath, "rev-parse", "--git-dir"], { encoding: "utf8" }).stdout.trim(),
   )
   const marker = join(gitDirectory, "orbit-worker-pids.jsonl")
-  const { publicKey, privateKey } = generateKeyPairSync("ed25519")
+  const authorityPublicKey = WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY
+  const privateKey = WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY
   let launchRecord = {
     version: 1,
     launchId: `fixture-${pid}-${Date.now()}`,
@@ -1344,11 +1346,11 @@ export const stageWorkerPidMarker = (worktreePath, pid) => {
     issuedAt: new Date().toISOString(),
     completionAttestation: {
       algorithm: "ed25519",
-      publicKey: publicKey.export({ format: "der", type: "spki" }).toString("base64"),
+      publicKey: authorityPublicKey,
     },
   }
   launchRecord = signWorkerLaunchRecord(launchRecord, privateKey)
-  recordWorkerLaunch(launchRecord, WORKER_LAUNCH_LEDGER)
+  recordWorkerLaunch(launchRecord, WORKER_LAUNCH_LEDGER, authorityPublicKey)
   writeFileSync(marker, `${JSON.stringify(launchRecord)}\n`)
   return marker
 }

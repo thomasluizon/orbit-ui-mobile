@@ -17,7 +17,7 @@ import { join, resolve } from "node:path"
 
 import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
 import { RELAUNCH_SCOPE, STRIKE_LEDGER_ENV, recordStrike, strikeCount, strikeLedgerPath } from "./lib/strike-ledger.mjs"
-import { readWorkerLaunchRecords, sameWorkerLaunch, workerDeliveryEvidence, workerLaunchLedgerPath } from "./lib/worker-launch-provenance.mjs"
+import { isWorkerAuthorityPublicKey, readWorkerLaunchRecords, sameWorkerLaunch, workerDeliveryEvidence, workerLaunchLedgerPath, WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY_ENV } from "./lib/worker-launch-provenance.mjs"
 import { evaluateReviewEvidence } from "./check-review-evidence.mjs"
 
 /**
@@ -29,12 +29,14 @@ import { evaluateReviewEvidence } from "./check-review-evidence.mjs"
  */
 const PID_REUSE_BACKSTOP_HOURS = 16
 
-const USAGE = `usage: worker-status.mjs --worktree <path> --issue ORB-N [--base <ref>] [--implementation] [--verify-review] [--consume-relaunch] [--json]
+const USAGE = `usage: worker-status.mjs --worktree <path> --issue ORB-N [--base <ref>] [--implementation --authority-public-key <base64>] [--verify-review] [--consume-relaunch] [--json]
 
   --worktree <path>   the worker's worktree path, as printed by launch-worker.mjs (required)
   --issue ORB-N       the Linear issue the worker is finishing (required)
   --base <ref>        the branch the PR must target (default: main)
   --implementation     verify Luna's local commit handoff before Sol pushes or opens the PR
+  --authority-public-key <base64>
+                       launcher-returned Ed25519 public key; required with --implementation
   --verify-review     run the one-time pre-merge review-thread verification
   --consume-relaunch  spend one relaunch allowance for this (issue, PR head) pair
   --json              emit the verdict as JSON instead of text
@@ -146,7 +148,7 @@ const orca = (args) => {
   return parsed.result ?? parsed
 }
 
-const VALUE_FLAGS = new Set(["--worktree", "--issue", "--base"])
+const VALUE_FLAGS = new Set(["--worktree", "--issue", "--base", "--authority-public-key", "--worker-authority-public-key"])
 const BOOLEAN_FLAGS = new Set(["--implementation", "--verify-review", "--consume-relaunch", "--json"])
 const argv = process.argv.slice(2)
 const unknownOptions = argv.filter(
@@ -162,9 +164,19 @@ const implementationMode = process.argv.includes("--implementation")
 const verifyReview = process.argv.includes("--verify-review")
 const consumeRelaunch = process.argv.includes("--consume-relaunch")
 const asJson = process.argv.includes("--json")
+const authorityFlag = process.argv.includes("--authority-public-key")
+  ? "--authority-public-key"
+  : process.argv.includes("--worker-authority-public-key")
+    ? "--worker-authority-public-key"
+    : null
+const cliAuthorityPublicKey = authorityFlag ? argOf(authorityFlag) : null
+const authorityPublicKey = cliAuthorityPublicKey ?? process.env[WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY_ENV] ?? null
 
 if (!worktree) fail(2, `${USAGE}\n\n--worktree is required`)
 if (!issue || !/^[A-Z]+-\d+$/.test(issue)) fail(2, `${USAGE}\n\n--issue must be a Linear identifier such as ORB-75`)
+if (authorityFlag && !cliAuthorityPublicKey) fail(2, `${USAGE}\n\n${authorityFlag} requires a value`)
+if (implementationMode && !cliAuthorityPublicKey) fail(2, `${USAGE}\n\n--implementation requires --authority-public-key from the launch-worker result`)
+if (authorityPublicKey && !isWorkerAuthorityPublicKey(authorityPublicKey)) fail(2, `${USAGE}\n\nlauncher authority public key is malformed`)
 
 let config
 try {
@@ -220,6 +232,7 @@ if (implementationMode) {
         worktreePath: worktree,
         invocation: configuredInvocation,
         ledgerPath: workerLaunchLedger,
+        authorityPublicKey: cliAuthorityPublicKey,
       })
   const checks = [
     { name: "commits", ok: commits.length > 0, detail: commits.length ? `${commits.length} commit(s) on ${branch}` : `no commits on ${branch} above ${baseRef}` },
@@ -582,6 +595,7 @@ const workerDelivery = workerDeliveryEvidence({
   worktreePath: worktree,
   invocation: configuredInvocation,
   ledgerPath: workerLaunchLedger,
+  authorityPublicKey,
 })
 const workerDeliveryOk = !unreadable && configuredInvocationError === null && workerDelivery.ok
 checks.push({

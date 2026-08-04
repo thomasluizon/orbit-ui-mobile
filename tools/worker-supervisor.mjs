@@ -15,6 +15,7 @@ import {
   recordWorkerLaunch,
   sameWorkerSupervisorPayload,
   verifyWorkerLaunchRecord,
+  workerAuthorityPublicKeyFromPrivateKey,
   workerCompletionSigningPayload,
 } from "./lib/worker-launch-provenance.mjs"
 import { minimalChildEnvironment } from "./lib/child-environment.mjs"
@@ -48,6 +49,7 @@ const removeIfPresent = (path) => {
 
 const privateKeyPem = readFileSync(3, "utf8").trim()
 const privateKey = createPrivateKey(privateKeyPem)
+const authorityPublicKey = workerAuthorityPublicKeyFromPrivateKey(privateKey)
 let payload = null
 let supervisorEnvelope = null
 
@@ -130,7 +132,7 @@ const runChild = (envelope, environment) => new Promise((resolve) => {
 const run = async () => {
   if (!waitForGate(startGate)) return 3
   payload = JSON.parse(readFileSync(payloadPath, "utf8"))
-  if (!verifyWorkerLaunchRecord(payload.launchRecord)) throw new Error("launcher payload is not root-authenticated")
+  if (!verifyWorkerLaunchRecord(payload.launchRecord, authorityPublicKey)) throw new Error("launcher payload is not authenticated by the launcher's authority")
   if (!sameWorkerSupervisorPayload(payload, payload.launchRecord)) throw new Error("launcher supervisor payload does not match its authenticated envelope")
   supervisorEnvelope = payload.launchRecord.supervisorEnvelope
   if (supervisorEnvelope.payloadPath !== payloadPath || supervisorEnvelope.startGate !== startGate) {
@@ -156,7 +158,7 @@ const run = async () => {
     const completedRecord = { ...payload.launchRecord, completion }
     mkdirSync(dirname(supervisorEnvelope.markerPath), { recursive: true })
     appendFileSync(supervisorEnvelope.markerPath, `${JSON.stringify(completedRecord)}\n`, { encoding: "utf8", mode: 0o600 })
-    recordWorkerLaunch(completedRecord, supervisorEnvelope.ledgerPath)
+    recordWorkerLaunch(completedRecord, supervisorEnvelope.ledgerPath, authorityPublicKey)
     return 124
   }
   const result = await runChild(supervisorEnvelope, workerEnvironment)
@@ -173,7 +175,7 @@ const run = async () => {
   const completedRecord = { ...payload.launchRecord, completion }
   mkdirSync(dirname(supervisorEnvelope.markerPath), { recursive: true })
   appendFileSync(supervisorEnvelope.markerPath, `${JSON.stringify(completedRecord)}\n`, { encoding: "utf8", mode: 0o600 })
-  recordWorkerLaunch(completedRecord, supervisorEnvelope.ledgerPath)
+  recordWorkerLaunch(completedRecord, supervisorEnvelope.ledgerPath, authorityPublicKey)
   return result.code
 }
 

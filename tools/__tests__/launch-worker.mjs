@@ -1559,10 +1559,11 @@ const launchWorkerCases = async () => {
   const headlessEngineDirectory = join(root, "launch", "headless-bin")
   mkdirSync(headlessEngineDirectory, { recursive: true })
   const headlessArgvLog = join(root, "launch", "headless-argv.json")
+  const headlessEnvironmentLog = join(root, "launch", "headless-environment.json")
   const headlessScript = join(headlessEngineDirectory, "worker-shim.js")
   writeFileSync(
     headlessScript,
-    `const { writeFileSync } = require("node:fs")\nwriteFileSync(process.env.ORBIT_TEST_HEADLESS_ARGV_LOG, JSON.stringify(process.argv.slice(2)))\nconst holdMilliseconds = Number(process.env.ORBIT_TEST_HEADLESS_HOLD_MS || 0)\nif (holdMilliseconds > 0) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, holdMilliseconds)\n`,
+    `const { writeFileSync } = require("node:fs")\nwriteFileSync(process.env.ORBIT_TEST_HEADLESS_ARGV_LOG, JSON.stringify(process.argv.slice(2)))\nif (process.env.ORBIT_TEST_HEADLESS_ENV_LOG) writeFileSync(process.env.ORBIT_TEST_HEADLESS_ENV_LOG, JSON.stringify({ privateAuthority: Boolean(process.env.ORBIT_WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY), publicAuthority: Boolean(process.env.ORBIT_WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY) }))\nconst holdMilliseconds = Number(process.env.ORBIT_TEST_HEADLESS_HOLD_MS || 0)\nif (holdMilliseconds > 0) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, holdMilliseconds)\n`,
   )
   if (process.platform === "win32") {
     writeFileSync(
@@ -1599,6 +1600,7 @@ const launchWorkerCases = async () => {
       ORBIT_WORKER_LAUNCH_LEDGER: join(headlessStage.base, "worker-launches.jsonl"),
       ORBIT_HARNESS_TEST: "1",
       ORBIT_TEST_HEADLESS_ARGV_LOG: headlessArgvLog,
+      ORBIT_TEST_HEADLESS_ENV_LOG: headlessEnvironmentLog,
       [WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY_ENV]: undefined,
       [WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY_ENV]: undefined,
     }
@@ -1617,6 +1619,7 @@ const launchWorkerCases = async () => {
       Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50)
     }
     const childArgv = existsSync(headlessArgvLog) ? JSON.parse(readFileSync(headlessArgvLog, "utf8")) : null
+    const childEnvironment = existsSync(headlessEnvironmentLog) ? JSON.parse(readFileSync(headlessEnvironmentLog, "utf8")) : null
     const markerPath = join(
       resolve(headlessCheckout, spawnSync("git", ["-C", headlessCheckout, "rev-parse", "--git-dir"], { encoding: "utf8" }).stdout.trim()),
       "orbit-worker-pids.jsonl",
@@ -1661,13 +1664,13 @@ const launchWorkerCases = async () => {
         markerRows.some((row) => row.completion?.completedHead === headlessHead && row.completion?.exitCode === 0) &&
         centralCompletion?.pid === headlessPlan.workerPid &&
         centralCompletion?.completion?.exitCode === 0 &&
-        verifyWorkerLaunchCompletion(centralCompletion),
+        verifyWorkerLaunchCompletion(centralCompletion, headlessPlan?.authorityPublicKey),
       `exit ${headlessResult.status}\n     stdout: ${headlessResult.stdout.slice(0, 400)}\n     stderr: ${headlessResult.stderr.slice(0, 600)}\n     marker: ${JSON.stringify(markerRows)}`,
     )
     T(
       "launch-worker.mjs: a headless launch owns its ephemeral authority without authority environment variables",
-      headlessResult.status === 0 && centralCompletion?.completion?.exitCode === 0 && verifyWorkerLaunchCompletion(centralCompletion),
-      `exit ${headlessResult.status}\n     private authority env absent; completion: ${JSON.stringify(centralCompletion?.completion)}`,
+      headlessResult.status === 0 && centralCompletion?.completion?.exitCode === 0 && childEnvironment?.privateAuthority === false && verifyWorkerLaunchCompletion(centralCompletion, headlessPlan?.authorityPublicKey),
+      `exit ${headlessResult.status}\n     child environment: ${JSON.stringify(childEnvironment)}\n     completion: ${JSON.stringify(centralCompletion?.completion)}`,
     )
     const headlessLedger = join(headlessStage.base, "automation-budget.jsonl")
     const headlessRows = existsSync(headlessLedger)

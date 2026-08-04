@@ -30,6 +30,7 @@ Coverage-aware merge sweep: prepare a human squash-merge handoff for each green 
 Usage: merge-sweep-cov.sh [--expected-head <pr-number>=<sha>]...
                           [--reviewed-through <pr-number>=<iso-timestamp>]...
                           [--issue <pr-number>=<ORB-N>]...
+                          [--authority-public-key <base64>]
                           <owner/repo> <pr-number>...
        merge-sweep-cov.sh --help
 
@@ -98,7 +99,8 @@ Read-only coverage-aware merge readiness sweep: hand clean pull requests to a hu
 
 Usage: merge-sweep-cov.sh [--expected-head <pr-number>=<sha>]...
                           [--reviewed-through <pr-number>=<iso-timestamp>]...
-                          [--issue <pr-number>=<ORB-N>]... <owner/repo> <pr-number>...
+                          [--issue <pr-number>=<ORB-N>]...
+                          [--authority-public-key <base64>] <owner/repo> <pr-number>...
 
 The sweep checks the current head, CI, review activity, signed exact-head review evidence,
 worker delivery, and Linear In Review. It prints HUMAN-MERGE-REQUIRED for a clean PR and for
@@ -110,6 +112,7 @@ EOF
 expected_head_mappings=""
 reviewed_through_mappings=""
 issue_mappings=""
+authority_public_key=""
 while [ "$#" -gt 0 ]; do
   case "$1" in
     -h | --help)
@@ -209,6 +212,15 @@ while [ "$#" -gt 0 ]; do
         fi
       done
       issue_mappings="$issue_mappings $mapping_pr=$mapping_issue"
+      shift 2
+      ;;
+    --authority-public-key)
+      if [ "$#" -lt 2 ] || [ -z "$2" ]; then
+        printf 'merge-sweep-cov.sh: --authority-public-key requires a value\n\n' >&2
+        usage >&2
+        exit 2
+      fi
+      authority_public_key="$2"
       shift 2
       ;;
     --*)
@@ -505,8 +517,12 @@ review_evidence_allows() { # <pr> <expected-head-sha>; prints the refusal reason
 
 worker_delivery_allows() { # <pr> <branch> <expected-head-sha>; prints the refusal reason
   local pr="$1" branch="$2" expected="$3" issue verdict
+  local authority_args=()
+  if [ -n "$authority_public_key" ]; then
+    authority_args=(--authority-public-key "$authority_public_key")
+  fi
   issue="$(issue_for "$pr")"
-  if verdict="$(node "$SCRIPT_DIR/check-worker-delivery.mjs" --issue "$issue" --branch "$branch" --head "$expected")"; then
+  if verdict="$(node "$SCRIPT_DIR/check-worker-delivery.mjs" --issue "$issue" --branch "$branch" --head "$expected" "${authority_args[@]}")"; then
     return 0
   fi
   echo "SKIP #$pr WORKER-DELIVERY-HELD $verdict"

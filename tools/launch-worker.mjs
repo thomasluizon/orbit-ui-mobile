@@ -99,8 +99,9 @@ they are not launched, because only a merge advances a wave (D3).
 
 Prints one JSON object on stdout: issue, repo, repoPath, worktreePath, worktreeSelector,
 branch, baseBranch, terminal, engine, command, promptFile, workerContract, trustPromptAnswered,
-waitAttempts, pointerSends. In wave mode: selector, wave, launchable, concurrent, serialised,
-launches.
+waitAttempts, pointerSends. Headless results also carry launchId and authorityPublicKey so Sol
+can authenticate the implementation handoff. In wave mode: selector, wave, launchable, concurrent,
+serialised, launches.
 Progress goes to stderr, so stdout stays pipeable.
 
 Headless mode exits 0 after the supervisor launch is issued, the launch record is signed, and the
@@ -912,6 +913,7 @@ const startHeadlessWorker = (worktreePath, branch, launchMode) => {
   const startedAt = new Date().toISOString()
   const invocation = { command: engine.command, args: [...engineArgs] }
   const { publicKey, privateKey } = generateKeyPairSync("ed25519")
+  const authorityPublicKey = publicKey.export({ format: "der", type: "spki" }).toString("base64")
   const workerPath = resolve(worktreePath)
   const gitDirectory = resolve(worktreePath, git(["-C", worktreePath, "rev-parse", "--git-dir"]))
   const markerPath = join(gitDirectory, "orbit-worker-pids.jsonl")
@@ -951,7 +953,7 @@ const startHeadlessWorker = (worktreePath, branch, launchMode) => {
     issuedAt: new Date().toISOString(),
     completionAttestation: {
       algorithm: "ed25519",
-      publicKey: publicKey.export({ format: "der", type: "spki" }).toString("base64"),
+      publicKey: authorityPublicKey,
     },
     supervisorEnvelope,
   }
@@ -1004,7 +1006,7 @@ const startHeadlessWorker = (worktreePath, branch, launchMode) => {
   writeSupervisorPayload()
   child.stdio[3].end(privateKey.export({ format: "pem", type: "pkcs8" }))
   try {
-    recordWorkerLaunch(launchRecord, workerLaunchLedger)
+    recordWorkerLaunch(launchRecord, workerLaunchLedger, authorityPublicKey)
     appendFileSync(markerPath, `${JSON.stringify(launchRecord)}\n`)
     if (budgetReservation) claimBudgetReservation(budgetReservation, projectedTokens, child.pid)
     writeFileSync(startGate, "ready\n", { encoding: "utf8", mode: 0o600 })
@@ -1023,7 +1025,7 @@ const startHeadlessWorker = (worktreePath, branch, launchMode) => {
     fail(3, `could not issue worker launch provenance: ${error.message}`)
   }
   child.unref()
-  return { workerPid: child.pid, launchId }
+  return { workerPid: child.pid, launchId, authorityPublicKey }
 }
 
 /**
@@ -1220,7 +1222,7 @@ if (existingWorktreeArg) {
   /** Only once the new PID is in the marker file, so the next launcher counts this slice. */
   releaseConcurrencyReservation()
   rollback = null
-  console.log(JSON.stringify({ ...plan, launchMode: repairMode ? "repair" : "existing-worktree", worktreePath, worktreeSelector: `path:${worktreePath}`, branch, workerPid: launch.workerPid, launchId: launch.launchId }, null, 2))
+  console.log(JSON.stringify({ ...plan, launchMode: repairMode ? "repair" : "existing-worktree", worktreePath, worktreeSelector: `path:${worktreePath}`, branch, workerPid: launch.workerPid, launchId: launch.launchId, authorityPublicKey: launch.authorityPublicKey }, null, 2))
   process.exit(0)
 }
 
@@ -1259,7 +1261,7 @@ if (engine.interactive === false) {
   orca(["worktree", "set", "--worktree", worktreeSelector, "--comment", comment, "--workspace-status", workspaceStatus])
   releaseConcurrencyReservation()
   rollback = null
-  console.log(JSON.stringify({ ...plan, launchMode: "new-worktree", worktreePath, worktreeSelector, workerPid: launch.workerPid, launchId: launch.launchId }, null, 2))
+  console.log(JSON.stringify({ ...plan, launchMode: "new-worktree", worktreePath, worktreeSelector, workerPid: launch.workerPid, launchId: launch.launchId, authorityPublicKey: launch.authorityPublicKey }, null, 2))
   process.exit(0)
 }
 

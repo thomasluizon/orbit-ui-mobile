@@ -88,16 +88,35 @@ const isCompletion = (completion) =>
   typeof completion.signature === "string" &&
   BASE64.test(completion.signature)
 
-const launchPublicKey = (record) => createPublicKey({
-  key: Buffer.from(record.completionAttestation.publicKey, "base64"),
-  format: "der",
-  type: "spki",
-})
+const parseAuthorityPublicKey = (encoded) => {
+  if (typeof encoded !== "string" || encoded.trim().length === 0 || !BASE64.test(encoded.trim())) return null
+  try {
+    const key = createPublicKey({
+      key: Buffer.from(encoded.trim(), "base64"),
+      format: "der",
+      type: "spki",
+    })
+    if (key.asymmetricKeyType !== "ed25519") return null
+    const canonical = key.export({ format: "der", type: "spki" }).toString("base64")
+    return canonical === encoded.trim() ? { encoded: canonical, key } : null
+  } catch {
+    return null
+  }
+}
+
+export const isWorkerAuthorityPublicKey = (encoded) => parseAuthorityPublicKey(encoded) !== null
 
 const signingKey = (privateKey) => {
   if (privateKey && typeof privateKey === "object" && privateKey.type === "private") return privateKey
   if (typeof privateKey === "string" && privateKey.trim().length > 0) return createPrivateKey(privateKey)
   throw new Error("worker launch signing key is unavailable; only the launcher may issue worker provenance")
+}
+
+export const workerAuthorityPublicKeyFromPrivateKey = (privateKey) => {
+  const key = signingKey(privateKey)
+  const publicKey = createPublicKey(key)
+  if (publicKey.asymmetricKeyType !== "ed25519") throw new Error("worker launch signing key must be Ed25519")
+  return publicKey.export({ format: "der", type: "spki" }).toString("base64")
 }
 
 export const isWorkerLaunchRecord = (record) =>
@@ -169,13 +188,14 @@ export const signWorkerLaunchRecord = (record, privateKey) => {
   return { ...record, launchSignature }
 }
 
-export const verifyWorkerLaunchRecord = (record) => {
-  if (!isWorkerLaunchRecord(record)) return false
+export const verifyWorkerLaunchRecord = (record, expectedAuthorityPublicKey) => {
+  const authority = parseAuthorityPublicKey(expectedAuthorityPublicKey)
+  if (!authority || !isWorkerLaunchRecord(record) || record.completionAttestation.publicKey !== authority.encoded) return false
   try {
     return verify(
       null,
       Buffer.from(workerLaunchSigningPayload(record), "utf8"),
-      launchPublicKey(record),
+      authority.key,
       Buffer.from(record.launchSignature, "base64"),
     )
   } catch {
@@ -214,13 +234,14 @@ export const sameWorkerSupervisorPayload = (payload, launchRecord) =>
   isSupervisorEnvelope(launchRecord?.supervisorEnvelope) &&
   JSON.stringify(supervisorPayloadFields(payload)) === JSON.stringify(supervisorPayloadFields(launchRecord.supervisorEnvelope))
 
-export const verifyWorkerLaunchCompletion = (record) => {
-  if (!verifyWorkerLaunchRecord(record) || !isCompletion(record.completion)) return false
+export const verifyWorkerLaunchCompletion = (record, expectedAuthorityPublicKey) => {
+  const authority = parseAuthorityPublicKey(expectedAuthorityPublicKey)
+  if (!authority || !verifyWorkerLaunchRecord(record, authority.encoded) || !isCompletion(record.completion)) return false
   try {
     return verify(
       null,
       Buffer.from(signingPayload(record, record.completion), "utf8"),
-      launchPublicKey(record),
+      authority.key,
       Buffer.from(record.completion.signature, "base64"),
     )
   } catch {
@@ -228,8 +249,8 @@ export const verifyWorkerLaunchCompletion = (record) => {
   }
 }
 
-export const recordWorkerLaunch = (record, ledgerPath) => {
-  if (!verifyWorkerLaunchRecord(record)) throw new Error("worker launch provenance record is not launcher-authenticated")
+export const recordWorkerLaunch = (record, ledgerPath, expectedAuthorityPublicKey) => {
+  if (!verifyWorkerLaunchRecord(record, expectedAuthorityPublicKey)) throw new Error("worker launch provenance record is not authenticated by the expected launcher authority")
   const target = workerLaunchLedgerPath(ledgerPath)
   mkdirSync(dirname(target), { recursive: true })
   appendFileSync(target, `${JSON.stringify(record)}\n`, { encoding: "utf8", mode: 0o600 })
@@ -273,14 +294,14 @@ export const sameWorkerLaunch = (left, right) =>
   left.launcherPid === right.launcherPid &&
   left.issuedAt === right.issuedAt &&
   sameAttestation(left, right) &&
-  left.launchSignature === right.launchSignature &&
-  verifyWorkerLaunchRecord(left) &&
-  verifyWorkerLaunchRecord(right)
+  left.launchSignature === right.launchSignature
 
-export const workerDeliveryEvidence = ({ issue, branch, head, worktreePath, invocation, ledgerPath, records } = {}) => {
+export const workerDeliveryEvidence = ({ issue, branch, head, worktreePath, invocation, ledgerPath, records, authorityPublicKey } = {}) => {
   if (typeof issue !== "string" || !/^[A-Z]+-\d+$/.test(issue)) return { ok: false, status: "INVALID", reason: "issue is not a Linear identifier" }
   if (typeof branch !== "string" || branch.length === 0) return { ok: false, status: "INVALID", reason: "branch is missing" }
   if (typeof head !== "string" || !SHA1.test(head)) return { ok: false, status: "INVALID", reason: "head is not a full commit SHA" }
+  const expectedAuthority = parseAuthorityPublicKey(authorityPublicKey)
+  if (!expectedAuthority) return { ok: false, status: "UNAUTHENTICATED", reason: "expected launcher authority public key is absent or malformed" }
   let launches
   try {
     launches = records ?? readWorkerLaunchRecords(ledgerPath)
@@ -300,7 +321,7 @@ export const workerDeliveryEvidence = ({ issue, branch, head, worktreePath, invo
   const completed = candidates.find((record) =>
     record.completion?.completedHead === head &&
     record.completion.exitCode === 0 &&
-    verifyWorkerLaunchCompletion(record),
+    verifyWorkerLaunchCompletion(record, expectedAuthority.encoded),
   )
   if (completed) return { ok: true, status: "COMPLETED", reason: `launcher-supervised worker completed ${head}`, record: completed }
   if (candidates.some((record) => record.completion)) {

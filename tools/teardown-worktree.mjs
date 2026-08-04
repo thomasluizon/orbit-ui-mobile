@@ -281,19 +281,31 @@ const pathGone = !existsSync(path)
 if (!pathGone || stillListed) fail(1, `removal verification failed: filesystem=${pathGone ? "gone" : "present"}, git-worktree-list=${stillListed ? "present" : "gone"}`)
 
 const branchExists = gitCommon(["show-ref", "--verify", "--quiet", `refs/heads/${branch}`], { allowFailure: true }) !== null
+let branchRetainedAfterSquash = false
 if (branchExists) {
-  // Git's ordinary branch safety check follows the branch's configured upstream, which may
-  // remain the pre-merge remote head even after the verified pull request head was merged.
-  // The checks above already prove the exact PR head and merge commit, so force is limited to
-  // this local ref deletion and cannot discard an unverified worktree or commit.
-  const dropped = spawnSync(GIT, [`--git-dir=${commonDir}`, "branch", "--delete", "--force", branch], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
-  if (dropped.status !== 0) fail(1, `removed worktree but could not delete local branch ${branch}: ${(dropped.stderr || dropped.stdout || "unknown git error").trim()}`)
+  const ancestry = spawnSync(GIT, [`--git-dir=${commonDir}`, "merge-base", "--is-ancestor", branch, baseRef], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
+  if (ancestry.status !== 0 && ancestry.status !== 1) fail(3, `could not compare local branch ${branch} with ${baseRef}: ${(ancestry.stderr || ancestry.stdout || "unknown git error").trim()}`)
+  const branchIsSquashMerged = ancestry.status === 1
+  if (branchIsSquashMerged) {
+    const targetTracking = spawnSync(GIT, [`--git-dir=${commonDir}`, "branch", "--set-upstream-to", baseRef, branch], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
+    if (targetTracking.status !== 0) fail(3, `could not bind local branch ${branch} to ${baseRef} for ordinary deletion: ${(targetTracking.stderr || targetTracking.stdout || "unknown git error").trim()}`)
+  }
+  const dropped = spawnSync(GIT, [`--git-dir=${commonDir}`, "branch", "--delete", branch], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
+  if (dropped.status !== 0) {
+    const detail = (dropped.stderr || dropped.stdout || "ordinary branch deletion was refused").trim()
+    if (branchIsSquashMerged) {
+      branchRetainedAfterSquash = true
+      console.error(`RETAINED local branch ${branch}: ordinary git branch --delete refused after verified squash merge (${detail})`)
+    } else {
+      fail(1, `removed worktree but could not delete local branch ${branch}: ${detail}`)
+    }
+  }
 }
 const branchRemaining = gitCommon(["show-ref", "--verify", "--quiet", `refs/heads/${branch}`], { allowFailure: true }) !== null
-if (branchRemaining) fail(1, `removed worktree but local branch ${branch} still exists`)
+if (branchRemaining && !branchRetainedAfterSquash) fail(1, `removed worktree but local branch ${branch} still exists`)
 if (existsSync(workerMarker)) {
   try { unlinkSync(workerMarker) } catch (error) { fail(3, `could not prune worker PID marker ${workerMarker}: ${error.message}`) }
 }
 console.log(`REMOVED worktree ${path}`)
 console.log(`REMOVED terminals for ${path}`)
-console.log(`REMOVED local branch ${branch}`)
+console.log(branchRetainedAfterSquash ? `RETAINED local branch ${branch}` : `REMOVED local branch ${branch}`)
