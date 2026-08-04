@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process"
 import { existsSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
@@ -72,7 +73,7 @@ export const cases = () => {
     TOOL,
     "refuses a prompt file living inside the worktree it would be committed into",
     ["--issue", "ORB-201", "--worktree", fixture.worktree, "--prompt", insidePrompt],
-    { status: 2, stderr: /prompt file lives inside the worktree[\s\S]*scratchpad/ },
+    { status: 2, stderr: /prompt file lives inside[\s\S]*work order written into a repository gets committed[\s\S]*scratchpad/ },
     options,
   )
   rmSync(insidePrompt, { force: true })
@@ -166,5 +167,106 @@ export const cases = () => {
     `${TOOL}: a config with a zero clock is refused before anything is launched`,
     refused.status === 2 && /timeouts\.pollSeconds must be a positive number/.test(refused.stderr),
     `exit ${refused.status}: ${refused.stderr || refused.stdout}`,
+  )
+
+  reviewCases()
+}
+
+/**
+ * The reviewer half of the launcher. It exists because /orchestrate step 8 demands a session that
+ * did not write the code, launched from the MAIN CHECKOUT, and the guardrail hook refuses a raw
+ * `claude` from an orchestrating session: the launcher's marker is the only exemption a
+ * main-checkout reviewer can claim.
+ */
+const reviewConfig = () => {
+  const real = realOrchestratorConfig()
+  return {
+    ...real,
+    workers: {
+      ...real.workers,
+      [real.reviewer]: {
+        ...real.workers[real.reviewer],
+        command: process.execPath,
+        args: [IMMEDIATE],
+        models: { ...real.workers[real.reviewer].models, review: { model: "gate-stub-reviewer", args: [] } },
+      },
+    },
+  }
+}
+
+/**
+ * A reviewer runs in the checkout the tool itself sits in, so the staged base has to BE a git
+ * repository. Staging it as one is what proves the launcher resolves the main checkout from its own
+ * location rather than from a flag a caller could point anywhere.
+ */
+const stageReviewFixture = (label) => {
+  const staged = stageWithConfig(label, TOOL, reviewConfig())
+  for (const args of [["init", "-q", "--initial-branch=main"], ["config", "user.email", "gate@orbit.test"], ["config", "user.name", "Orbit Gate"], ["commit", "-q", "--allow-empty", "-m", "base"]]) {
+    if (spawnSync("git", ["-C", staged.base, ...args], { encoding: "utf8" }).status !== 0) return null
+  }
+  return staged
+}
+
+const reviewCases = () => {
+  const staged = stageReviewFixture("launch-worker-review")
+  if (!staged) {
+    T(`${TOOL}: a git-backed main-checkout fixture is available`, false, "could not stage a git repository")
+    return
+  }
+  const prompt = stage("launch-worker/review-order.md", "the review order, verbatim\n")
+  const options = { path: staged.path }
+
+  check(
+    TOOL,
+    "--review refuses --worktree, so a reviewer cannot read the PR's own AGENTS.md",
+    ["--issue", "ORB-201", "--review", "--worktree", staged.base, "--prompt", prompt],
+    { status: 2, stderr: /--review refuses --worktree/ },
+    options,
+  )
+
+  check(
+    TOOL,
+    "--review needs no --worktree",
+    ["--issue", "ORB-201", "--review", "--prompt", prompt, "--dry-run"],
+    { status: 0, stdout: /"review": true/ },
+    options,
+  )
+
+  const plan = check(
+    TOOL,
+    "--review resolves the reviewer engine and the review model tier",
+    ["--issue", "ORB-201", "--review", "--prompt", prompt, "--dry-run"],
+    { status: 0, stdout: /"tier": "review"/ },
+    options,
+  )
+  const resolved = JSON.parse(plan.stdout)
+  const real = realOrchestratorConfig()
+  T(
+    `${TOOL}: --review runs the reviewer engine, not the implementer's`,
+    resolved.engine === real.reviewer && resolved.engine !== real.worker,
+    `engine ${resolved.engine}, reviewer ${real.reviewer}, worker ${real.worker}`,
+  )
+  T(
+    `${TOOL}: --review runs in the main checkout the tool sits in`,
+    resolved.runDirectory === staged.base,
+    `runDirectory ${resolved.runDirectory}, expected ${staged.base}`,
+  )
+  T(
+    `${TOOL}: --review hands the reviewer the review tier's model`,
+    resolved.model === "gate-stub-reviewer",
+    `model ${resolved.model}`,
+  )
+  T(
+    `${TOOL}: the review pointer tells the reviewer not to fix what it finds`,
+    resolved.args.at(-1).includes("you do not fix what you find"),
+    resolved.args.at(-1),
+  )
+
+  check(
+    TOOL,
+    "--review refuses a review order written inside the main checkout",
+    ["--issue", "ORB-201", "--review", "--prompt", stage(`staged/launch-worker-review/review-order.md`, "committed by accident\n"), "--dry-run"],
+    { status: 2, stderr: /review order written into a repository gets committed/ },
+    options,
   )
 }

@@ -16,15 +16,21 @@ import { spawn, spawnSync } from "node:child_process"
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, statSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { delimiter, dirname, extname, join, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
 
 import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
 
 const USAGE = `usage: launch-worker.mjs --issue ORB-N --worktree <path> --prompt <file> [options]
+       launch-worker.mjs --issue ORB-N --review --prompt <file> [options]
 
   --issue ORB-N      Linear issue this worker is for (required)
-  --worktree <path>  the existing worktree the worker runs in (required)
+  --worktree <path>  the existing worktree the worker runs in (required, implementer only)
   --prompt <file>    the composed work order. MUST live outside the worktree, or the worker commits
                      it. Only its path is handed to the worker, never its text (required)
+  --review           launch the REVIEWER instead of the implementer: the reviewer engine and the
+                     "review" model tier from .claude/orchestrator.json, running in THIS main
+                     checkout. Refuses --worktree, because a reviewer inside the worktree reads the
+                     PR's own AGENTS.md, which is instructions written by the change under review
   --codex-only       record that this is the Claude-quota-exhausted fallback run. It changes
                      nothing about the implementer, which is the same model in both modes
   --dry-run          print the resolved plan as JSON and exit 0, spawning nothing
@@ -55,30 +61,38 @@ const argOf = (flag) => {
 const issue = argOf("--issue")
 const worktreeArg = argOf("--worktree")
 const promptArg = argOf("--prompt")
+const review = process.argv.includes("--review")
 const codexOnly = process.argv.includes("--codex-only")
 const dryRun = process.argv.includes("--dry-run")
 
+/** This checkout, resolved from the tool's own location: the MAIN checkout a reviewer runs in. */
+const mainCheckout = resolve(dirname(fileURLToPath(import.meta.url)), "..")
+
 if (!issue || !/^[A-Z]+-\d+$/.test(issue)) fail(2, `${USAGE}\n\n--issue must be a Linear identifier such as ORB-75`)
-if (!worktreeArg || worktreeArg.startsWith("--")) fail(2, `${USAGE}\n\n--worktree is required`)
+if (review && worktreeArg) {
+  fail(2, `${USAGE}\n\n--review refuses --worktree: the reviewer runs in the main checkout, never in the worktree, so it cannot read the PR's own AGENTS.md as instructions`)
+}
+if (!review && (!worktreeArg || worktreeArg.startsWith("--"))) fail(2, `${USAGE}\n\n--worktree is required`)
 if (!promptArg || promptArg.startsWith("--")) fail(2, `${USAGE}\n\n--prompt is required`)
 
-const worktreePath = resolve(worktreeArg)
-if (!existsSync(worktreePath)) fail(2, `worktree not found: ${worktreePath}`)
+const runDirectory = review ? mainCheckout : resolve(worktreeArg)
+if (!existsSync(runDirectory)) fail(2, `worktree not found: ${runDirectory}`)
 const promptFile = resolve(promptArg)
 if (!existsSync(promptFile)) fail(2, `prompt file not found: ${promptFile}`)
 if (statSync(promptFile).size === 0) fail(2, `prompt file is empty: ${promptFile}`)
 
 const normalize = (path) => path.replaceAll("\\", "/").replace(/\/+$/, "").toLowerCase()
-if (normalize(promptFile).startsWith(`${normalize(worktreePath)}/`)) {
-  fail(2, `prompt file lives inside the worktree (${worktreePath}); a work order committed into its own PR. Write it to the session scratchpad instead`)
+if (normalize(promptFile).startsWith(`${normalize(runDirectory)}/`)) {
+  const what = review ? "review order" : "work order"
+  fail(2, `prompt file lives inside ${runDirectory}; a ${what} written into a repository gets committed. Write it to the session scratchpad instead`)
 }
 
 const gitIn = (args) => {
-  const result = spawnSync("git", ["-C", worktreePath, ...args], { encoding: "utf8", windowsHide: true })
+  const result = spawnSync("git", ["-C", runDirectory, ...args], { encoding: "utf8", windowsHide: true })
   return result.status === 0 ? result.stdout.trim() : ""
 }
 const branch = gitIn(["rev-parse", "--abbrev-ref", "HEAD"])
-if (!branch) fail(2, `${worktreePath} is not a git worktree`)
+if (!branch) fail(2, `${runDirectory} is not a git worktree`)
 
 let config
 try {
@@ -86,21 +100,27 @@ try {
 } catch (error) {
   fail(2, error.message)
 }
-const engineName = config.worker
+const engineName = review ? config.reviewer : config.worker
 const engine = config.workers[engineName]
-if (!engine.command) fail(2, `.claude/orchestrator.json names worker "${engineName}" but carries no command for it`)
+if (!engine.command) fail(2, `.claude/orchestrator.json names ${review ? "reviewer" : "worker"} "${engineName}" but carries no command for it`)
 
-/** One ticket, one worker, one model: "default" is the only tier an implementer ever resolves. */
+/**
+ * One ticket, one worker, one model: "default" is the only tier an IMPLEMENTER ever resolves. The
+ * reviewer is the other half, and it is why the "review" tier exists in the config at all: a
+ * cross-vendor reviewer in a fresh session, which is the invariant step 8 of /orchestrate rests on.
+ */
 let invocation
 try {
-  invocation = resolveWorkerInvocation(engineName, engine, "default")
+  invocation = resolveWorkerInvocation(engineName, engine, review ? "review" : "default")
 } catch (error) {
   fail(2, error.message)
 }
 const hardCeilingMs = config.timeouts.hardCeilingMinutes * 60 * 1000
 const noProgressMs = config.timeouts.noProgressMinutes * 60 * 1000
 
-const workerPointer = (worktreePath, branch) => `Read ${promptFile} and execute it in full. That file is your complete work order for ${issue}. You are on branch ${branch} in ${worktreePath}. Do not summarise the file back to me, start the work now.`
+const workerPointer = (worktreePath, branch) => review
+  ? `Read ${promptFile} and execute it in full. That file is your complete review order for ${issue}. You are reviewing a diff, not the repository, and you do not fix what you find. Do not summarise the file back to me, start the review now.`
+  : `Read ${promptFile} and execute it in full. That file is your complete work order for ${issue}. You are on branch ${branch} in ${worktreePath}. Do not summarise the file back to me, start the work now.`
 
 /**
  * Resolve a bare command the way the platform's launcher does, so the result is a real file rather
@@ -158,18 +178,18 @@ const headlessInvocation = () => {
 }
 
 const { executable, scriptArgs } = headlessInvocation()
-const workerArgs = [...scriptArgs, ...invocation.args, workerPointer(worktreePath, branch)]
+const workerArgs = [...scriptArgs, ...invocation.args, workerPointer(runDirectory, branch)]
 /** Outside every repo: a log written into the worktree lands in the worker's own diff. */
 const logDirectory = join(tmpdir(), "orbit-workers")
 mkdirSync(logDirectory, { recursive: true })
 const logFile = join(logDirectory, `${issue}-${Date.now()}.log`)
 
 if (dryRun) {
-  console.log(JSON.stringify({ issue, engine: engineName, tier: invocation.tier, model: invocation.model, codexOnly, worktreePath, branch, promptFile, executable, args: workerArgs, logFile, dryRun: true }, null, 2))
+  console.log(JSON.stringify({ issue, engine: engineName, tier: invocation.tier, model: invocation.model, codexOnly, review, runDirectory, branch, promptFile, executable, args: workerArgs, logFile, dryRun: true }, null, 2))
   process.exit(0)
 }
 
-console.error(`starting the ${engineName} worker for ${issue} in ${worktreePath}; log: ${logFile}`)
+console.error(`starting the ${engineName} ${review ? "reviewer" : "worker"} for ${issue} in ${runDirectory}; log: ${logFile}`)
 const startedAt = new Date().toISOString()
 const logFd = openSync(logFile, "a")
 /**
@@ -183,7 +203,7 @@ const logFd = openSync(logFile, "a")
  * correctly stopped rather than falling through to another executable. It delivered nothing in 54s.
  */
 const child = spawn(executable, workerArgs, {
-  cwd: worktreePath,
+  cwd: runDirectory,
   stdio: ["ignore", logFd, logFd],
   windowsHide: true,
   // POSIX only, and it is what makes killTree's `process.kill(-pid)` reach anything at all: the
@@ -241,9 +261,25 @@ const newestMtimeUnder = (directory) => {
   return newest
 }
 
-/** Both halves are needed: a worker that edits without committing moves only the mtime, and a
- * worker that commits an already-written tree moves only HEAD. */
-const progressFingerprint = () => `${gitIn(["rev-parse", "HEAD"])}:${newestMtimeUnder(worktreePath)}`
+/**
+ * Both halves are needed for an implementer: one that edits without committing moves only the
+ * mtime, and one that commits an already-written tree moves only HEAD.
+ *
+ * A REVIEWER moves neither. It writes its findings to the session scratchpad and never touches the
+ * checkout it reads from, so the tree fingerprint is constant and the no-progress clock would kill
+ * every review at ten minutes. Its log is the honest signal: it grows on every tool call.
+ */
+const progressFingerprint = () => {
+  if (review) {
+    try {
+      const log = statSync(logFile)
+      return `${log.size}:${log.mtimeMs}`
+    } catch {
+      return "no-log-yet"
+    }
+  }
+  return `${gitIn(["rev-parse", "HEAD"])}:${newestMtimeUnder(runDirectory)}`
+}
 
 let outcome = "EXITED"
 const ceiling = setTimeout(() => {
