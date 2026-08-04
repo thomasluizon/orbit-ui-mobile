@@ -3,6 +3,7 @@ name: Guards
 # The deterministic replacements for the Claude-session-only PostToolUse hooks
 # (D6): these hold for Codex, Claude, a human, or a bot, because CI
 # is the one layer nothing bypasses. Jobs:
+#   root-allowlist - every repository-root file must be a deliberate architecture addition
 #   dashes  - the cross-repo dash ban: changed files, the shrink-only baseline, and the PR title/body
 #   copy    - AI-cliche / placeholder / typed-uppercase locale values + hardcoded brand colors
 #   ratchet - the eslint-suppressions.json baselines may only shrink
@@ -27,6 +28,16 @@ permissions:
   pull-requests: read
 
 jobs:
+  root-allowlist:
+    name: Root Allowlist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: node tools/check-root-allowlist.mjs
+
   dashes:
     name: Dash Ban
     runs-on: ubuntu-latest
