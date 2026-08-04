@@ -1,6 +1,8 @@
 min_version: "2.1.10"
 pre-commit:
   commands:
+    root-allowlist:
+      run: node tools/check-root-allowlist.mjs
     web-eslint:
       root: "apps/web/"
       glob: "*.{ts,tsx,js,jsx,mjs,cjs}"
