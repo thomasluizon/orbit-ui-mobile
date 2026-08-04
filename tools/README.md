@@ -1,7 +1,7 @@
 # tools/
 
 > **At a glance** - reusable, agent-callable scripts for the Orbit harness, versioned with the repo.
-> - A script lives here when it is worth running more than once. Throwaways go to the scratchpad, never here.
+> - A script lives here when it is worth running more than once. Throwaways go to the scratchpad, never here; `check-root-allowlist.mjs` enforces that boundary.
 > - Every tool is non-interactive, supports `--help`, and returns meaningful exit codes (see `CONVENTIONS.md`).
 > - `test-tools.mjs` EXECUTES every script here. A new tool with no coverage entry fails it, so coverage lands in the same PR as the tool.
 > - Six of these are the orchestration core: `compose-prompt`, `launch-worker`, `verify-delivery`, `teardown-worktree`, `lib/orchestrator-config`, and `test-tools` itself.
@@ -9,7 +9,8 @@
 
 Reusable scripts an agent (or a human) invokes from the CLI. The bar for landing a file here: it has a
 single clear purpose and you will run it again. One-off commands stay in your shell history or the
-scratchpad. Read `CONVENTIONS.md` before adding one.
+scratchpad. The root allowlist gate rejects any undeclared root file regardless of its name or git
+status. Read `CONVENTIONS.md` before adding one.
 
 ## The orchestration core
 
@@ -31,6 +32,7 @@ These back required CI checks. They fail a merge.
 | `check-copy.mjs` | Enforces the copy register. Backs `Copy Register`. | `node tools/check-copy.mjs --check` |
 | `check-suppressions-ratchet.mjs` | Fails when the lint-suppression count grows. Backs `Suppressions Ratchet` (escape hatch: the `ratchet:reseed` label). | `node tools/check-suppressions-ratchet.mjs` |
 | `check-push-target.mjs` | Refuses a push whose target is a protected branch. | `node tools/check-push-target.mjs` |
+| `check-root-allowlist.mjs` | Fails when an undeclared file exists at the repository root, including ignored and untracked files. Backs `Root Allowlist`; declarations live in `root-allowlist.json`. | `node tools/check-root-allowlist.mjs` |
 
 ## Architecture map and visual evidence
 

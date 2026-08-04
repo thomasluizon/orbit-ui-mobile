@@ -99,10 +99,8 @@ yarn-error.log*
 # foglamp scan (edit token in scan.lock.json is a secret)
 .foglamp/
 
-# Agent scratch. A throwaway script belongs in the session scratchpad, never in a repo, and the
-# rule is stated in tools/README.md. It was not enforced, so seven session-transcript parsers
-# accumulated at the root on 2026-08-04 and one earlier case was patched by name rather than by
-# pattern (.tmp_session_text.txt). Ignoring the shape is the gate; the rule alone was not.
+# Agent scratch. The patterns keep local git status quiet, but they are not the gate: the closed
+# root allowlist in tools/root-allowlist.json rejects every undeclared root file regardless of name.
 .tmp-*
 .tmp_*
 .sess-*
