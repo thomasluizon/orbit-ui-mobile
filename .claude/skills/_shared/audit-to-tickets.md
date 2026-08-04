@@ -5,7 +5,7 @@ run. A report is a photograph that starts lying the day after it is written (D10
 durable output of an audit is a set of executable Linear tickets, gated by one human
 approval. This is the single copy of that pipeline so the five skills cannot drift. Every
 ticket satisfies the same 6.2 template `tools/check-ticket.mjs` enforces and follows the same
-rules `/feature` and `/ticket` do.
+rules `/ticket` does.
 
 Constants: orca binary `C:\Users\thoma\AppData\Local\Programs\orca\resources\bin\orca`,
 team `ORB`. Read `.claude/playbooks/planning-and-artifacts.md` for the ticket-writing rules
@@ -55,7 +55,7 @@ everywhere), no TBD/TODO, at least two acceptance criteria.
 
 ## 4. HARD GATE: one human approval before anything exists in Linear
 
-Mirror /feature Phase D step 0. In ONE message show Thomas:
+Mirror /ticket phase D. In ONE message show Thomas:
 
 - the ticket table: title, repo label, type label and reason, parity, severity, blockedBy;
 - the audit provenance so he approves with eyes open: coverage (surfaces swept), the Deferred
@@ -82,7 +82,7 @@ On approval:
 
 orca handles Linear auth. The personal key at `$env:USERPROFILE\.linear-api-key` is read at
 call time and never echoed, referenced only if a direct Linear GraphQL call is needed (as in
-/feature for project content); standalone-issue creation via orca needs no direct key.
+/ticket for project content); standalone-issue creation via orca needs no direct key.
 
 If the run produced zero in-scope findings, create nothing: report "clean: no judgement-level
 findings; the mechanical layer is gate-owned" and stop.

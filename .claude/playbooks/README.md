@@ -49,7 +49,7 @@ are read on demand by the skill or agent that needs them:
 |---|---|---|
 | `debugging.md` | 8 | chasing a bug, triaging an issue, `/investigate`, or resolving a merge conflict |
 | `review-and-audit.md` | 11 | `/pr-review`, `/audit-*`, `/commit-sweep`, `/prod-readiness`, or any fan-out assessment |
-| `planning-and-artifacts.md` | 11 | `/feature`, `/ticket`, `/orchestrate`, ticket writing, prototyping, ADRs, or deciding whether to hand off |
+| `planning-and-artifacts.md` | 11 | `/ticket`, `/orchestrate`, ticket writing, prototyping, ADRs, or deciding whether to hand off |
 | `context-engineering.md` | 8 | authoring or editing anything the agent itself reads: a `CLAUDE.md`, a rule, a playbook, a skill, an agent, a tool interface, a ticket body. The 5-generation delta: constrain less, prompt the positive, design interfaces instead of writing examples, and prefer a runnable artifact over prose |
 
 ## How these relate to the gates

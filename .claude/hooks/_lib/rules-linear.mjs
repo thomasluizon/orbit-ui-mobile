@@ -33,7 +33,7 @@ const ORCA_EQUIVALENT = {
 
 // The ONLY Linear writes with no orca command. `orca linear` exposes project
 // list and nothing else for projects, so the project overview document - where
-// /feature stores the locked decisions and #539 stores targetBranch (D36) - is
+// /ticket stores the locked decisions and #539 stores targetBranch (D36) - is
 // unreachable any other way.
 const ALLOWED = new Set(["projectCreate", "projectUpdate"])
 

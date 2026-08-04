@@ -159,7 +159,7 @@ audit workflows directly and owns the single consolidated emission.
 
 ### HARD GATE, headlined by the launch verdict
 
-Present ONE message and get ONE approval (mirror /feature Phase C step 0). The headline is the
+Present ONE message and get ONE approval (mirror /ticket phase D). The headline is the
 **launch verdict**; the body is the combined ticket table plus the full provenance:
 
 - **Verdict**: {GO | CONDITIONAL | NO-GO}, one calibrated line (why, and the single thing in
