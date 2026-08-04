@@ -5,6 +5,7 @@ import { T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stage
 
 const TOOL = "verify-delivery.mjs"
 const BRANCH = "feature/orb-200-delivery"
+const ISSUE = "ORB-200"
 
 /**
  * A real git repository is the whole point: this tool exists because a worker's own report is not
@@ -24,12 +25,20 @@ const stageDelivery = (label, { commit = true, push = true, dirty = false } = {}
   return { ...repo, head: repo.git(["rev-parse", "HEAD"]).stdout.trim() }
 }
 
-const pullRequest = (headRefOid, additions = 10, deletions = 5, number = 200) => ({
+/**
+ * Every key here was read off a REAL `gh pr list --json` response before being written down, per
+ * CLAUDE.md standard 8. `files` is an array of `{path, additions, deletions}` and the GitHub API
+ * truncates it at 100 entries, which is why the tool treats a length of 100 as "at least 100".
+ */
+const pullRequest = (headRefOid, additions = 10, deletions = 5, number = 200, fileCount = 3) => ({
   number,
   url: `https://github.com/useorbitai/orbit-ui-mobile/pull/${number}`,
   headRefOid,
   additions,
   deletions,
+  title: `${ISSUE} do the thing`,
+  body: `Implements ${ISSUE}.`,
+  files: Array.from({ length: fileCount }, (unused, index) => ({ path: `src/file-${index}.ts`, additions: 1, deletions: 0 })),
 })
 
 const ghPlan = (stdout, exit = 0) => orcaEnv([{ match: `pr list --head ${BRANCH}`, stdout, exit }])
@@ -108,8 +117,14 @@ export const cases = () => {
     "a pull request with no numeric diff size is an environment error, not an in-cap pass",
     argv,
     { status: 2, stderr: /reported no numeric additions and deletions/ },
-    { env: ghPlan(JSON.stringify([{ number: 200, url: "https://example.test/pull/200", headRefOid: pushed.head }])) },
+    // title is present so the run reaches the size check: linksTicket is asserted earlier in the
+    // ladder, and a payload missing it would short-circuit to UNLINKED_PR and never test this.
+    { env: ghPlan(JSON.stringify([{ number: 200, url: "https://example.test/pull/200", headRefOid: pushed.head, title: `${ISSUE} x` }])) },
   )
+
+  verdictOf(pushed, JSON.stringify([{ ...pullRequest(pushed.head), title: "no ticket here", body: "none either" }]), "UNLINKED_PR", 1, "a pull request that never names the ticket is UNLINKED_PR")
+  verdictOf(pushed, JSON.stringify([pullRequest(pushed.head, 10, 5, 200, 8)]), "DELIVERED", 0, "exactly 8 affected files is at the cap and DELIVERED")
+  verdictOf(pushed, JSON.stringify([pullRequest(pushed.head, 10, 5, 200, 9)]), "OVERSIZE", 1, "9 affected files exceeds the file cap even well under 400 lines")
 
   const real = realOrchestratorConfig()
   const staged = stageWithConfig("verify-delivery-repo", TOOL, { ...real, repos: { ui: pushed.path } })

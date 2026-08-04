@@ -94,6 +94,7 @@ if (repoKey !== null) {
 const GIT = process.env.GIT_BIN || "git"
 const GH = process.env.GH_BIN || "gh"
 const DIFF_CAP = 400
+const FILE_CAP = 8
 const run = (file, args, cwd) => {
   try {
     const stdout = execFileSync(file, args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 32 * 1024 * 1024 })
@@ -128,7 +129,7 @@ const localOnly = ahead.ok ? Number(ahead.stdout.trim()) : `origin/${branch} doe
 checks.pushed = { pass: localOnly === 0, observed: localOnly }
 if (!checks.pushed.pass) emit("UNPUSHED")
 
-const listed = run(GH, ["pr", "list", "--head", branch, "--json", "number,url,headRefOid,additions,deletions"], githubCwd)
+const listed = run(GH, ["pr", "list", "--head", branch, "--json", "number,url,headRefOid,additions,deletions,title,body,files"], githubCwd)
 if (!listed.ok) fail(2, `gh pr list --head ${branch} failed: ${listed.error}`)
 let pullRequests
 try {
@@ -146,6 +147,18 @@ checks.prCount = {
 }
 if (!checks.prCount.pass) emit("NO_PR")
 
+/**
+ * `--head` filters on the BRANCH and nothing else, so a pull request that never names the ticket
+ * still lands here and would read as delivered. The composed work order requires a pull request
+ * that links the issue, and this file is the only thing that checks the work order was honoured.
+ */
+const mentionsIssue = (text) => typeof text === "string" && new RegExp(`\\b${issue}\\b`, "i").test(text)
+checks.linksTicket = {
+  pass: mentionsIssue(pullRequest.title) || mentionsIssue(pullRequest.body),
+  observed: mentionsIssue(pullRequest.title) ? "title" : mentionsIssue(pullRequest.body) ? "body" : "neither title nor body names the issue",
+}
+if (!checks.linksTicket.pass) emit("UNLINKED_PR")
+
 const head = git(["rev-parse", "HEAD"])
 if (!head.ok) fail(2, `git rev-parse HEAD failed in ${worktree}: ${head.error}`)
 const localHead = head.stdout.trim()
@@ -158,5 +171,23 @@ if (!Number.isInteger(pullRequest.additions) || !Number.isInteger(pullRequest.de
 const size = pullRequest.additions + pullRequest.deletions
 checks.diffSize = { pass: size <= DIFF_CAP, observed: size, cap: DIFF_CAP }
 if (!checks.diffSize.pass) emit("OVERSIZE")
+
+/**
+ * The scope gate promises TWO caps and this file enforced only one: a worker can touch 20 files
+ * while staying under 400 lines. `files` is what the GitHub API returns, and it truncates at 100
+ * entries, so a length of exactly 100 means "at least 100" and is reported that way rather than as
+ * a precise count that would be a lie.
+ */
+if (!Array.isArray(pullRequest.files)) {
+  fail(2, `gh pr list reported no files array for pull request #${pullRequest.number}`)
+}
+const truncated = pullRequest.files.length >= 100
+const fileCount = pullRequest.files.length
+checks.affectedFiles = {
+  pass: !truncated && fileCount <= FILE_CAP,
+  observed: truncated ? `at least ${fileCount} (the API truncates this list)` : fileCount,
+  cap: FILE_CAP,
+}
+if (!checks.affectedFiles.pass) emit("OVERSIZE")
 
 emit("DELIVERED")

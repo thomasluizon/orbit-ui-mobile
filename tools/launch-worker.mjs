@@ -186,6 +186,10 @@ const child = spawn(executable, workerArgs, {
   cwd: worktreePath,
   stdio: ["ignore", logFd, logFd],
   windowsHide: true,
+  // POSIX only, and it is what makes killTree's `process.kill(-pid)` reach anything at all: the
+  // child becomes a process-group leader, so the group exists to be signalled. Windows needs the
+  // opposite, since detached there spawns a console window; taskkill /T already walks that tree.
+  detached: process.platform !== "win32",
   env: {
     ...process.env,
     ORBIT_LAUNCH_WORKER: "1",
@@ -208,6 +212,11 @@ const killTree = (pid) => {
     return
   }
   try {
+    // Negative pid signals the process GROUP, which only exists because the spawn below sets
+    // detached on POSIX. Without that, spawn puts the child in this process's group, `-pid` names
+    // a group that was never created, and the kill silently no-ops on ESRCH while a hung worker
+    // outlives both clocks. detached does NOT make it fire-and-forget: this launcher never calls
+    // unref(), so it still supervises the child and still exits when the child does.
     process.kill(-pid)
   } catch {
     /* a tree that is already gone still ends this launch; the exit handler reports what happened */

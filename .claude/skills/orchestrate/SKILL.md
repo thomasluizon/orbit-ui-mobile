@@ -50,8 +50,9 @@ Do not pick one, do not widen, do not queue the rest.
                      git rev-list --count main..HEAD   -> >= 1
                      git rev-list origin/<br>..HEAD    -> 0  (pushed)
                      gh pr list --head <br>            -> exactly 1, headRefOid matches
-                     additions+deletions               -> <= 400
-                     DELIVERED · NO_COMMIT · UNPUSHED · NO_PR · STALE_PR · OVERSIZE
+                     PR title or body names ORB-N      -> the branch alone is not the link
+                     additions+deletions               -> <= 400   ·   files -> <= 8
+                     DELIVERED · NO_COMMIT · UNPUSHED · NO_PR · UNLINKED_PR · STALE_PR · OVERSIZE
                      anything but DELIVERED  ->  STOP and report. No auto-relaunch.
  8  Review round 1   gh pr diff > file; launch a SEPARATE session from the MAIN CHECKOUT
                      normal: Claude Opus 5 @ high   ·   --codex-only: Sol @ xhigh
@@ -74,7 +75,7 @@ These interfaces are fixed. Do not invent flags or variants.
 node tools/compose-prompt.mjs    --issue ORB-N --repo <key> --out <file>
 node tools/launch-worker.mjs     --issue ORB-N --worktree <p> --prompt <f> [--codex-only]
 node tools/verify-delivery.mjs   --issue ORB-N --worktree <p> --branch <b> [--repo <k>]
-node tools/teardown-worktree.mjs --issue ORB-N --worktree <p>
+node tools/teardown-worktree.mjs --issue ORB-N
 ```
 
 ## Step 0. Preflight
@@ -362,7 +363,7 @@ The run is over. Thomas merges.
 Only after `gh pr view <n> --json state` reads `MERGED`:
 
 ```bash
-node tools/teardown-worktree.mjs --issue ORB-N --worktree <p>
+node tools/teardown-worktree.mjs --issue ORB-N
 ```
 
 Never tear down an unmerged worktree. The branch and its work are the only copy.

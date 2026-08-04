@@ -141,7 +141,7 @@ require the zero-reference proof.
 
 Run the shared pipeline in **`.claude/skills/_shared/audit-to-tickets.md`**: one Linear
 ticket per verified debt, drafted to the 6.2 template, validated by
-`node tools/check-ticket.mjs --file`, presented behind ONE approval gate, then created via
+re-read against the 6.2 template, presented behind ONE approval gate, then created via
 `orca linear create` and re-validated with `--issue`.
 
 Code-quality-specific mapping into the 6.2 body:

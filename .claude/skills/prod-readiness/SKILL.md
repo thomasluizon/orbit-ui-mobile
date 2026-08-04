@@ -152,7 +152,7 @@ audit workflows directly and owns the single consolidated emission.
   findings that share a fix and PR into one ticket (D4).
 - Map each to its `repo:*` from `location`; an ops finding is almost always `repo:api`. A ui
   fix that depends on an api change is the ui ticket blockedBy the api ticket.
-- Draft each body to the 6.2 template, validate with `node tools/check-ticket.mjs --file`. An
+- Draft each body to the 6.2 template and re-read it against that template before proposing it. An
   ops ticket's Problem carries the `risk` (what breaks in production and when); Technical
   details carry `evidence`; Acceptance criteria name the observable ready-state (the scheduler
   fires once cluster-wide, work survives a restart, the pre-prod gate exists).
