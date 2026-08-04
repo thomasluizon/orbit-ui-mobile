@@ -4,10 +4,6 @@ import { join } from "node:path"
 
 import {
   REPO_ROOT,
-  REVIEW_AUTHORITY_PRIVATE_KEY,
-  REVIEW_AUTHORITY_PRIVATE_KEY_ENV,
-  REVIEW_AUTHORITY_PUBLIC_KEY,
-  REVIEW_AUTHORITY_PUBLIC_KEY_ENV,
   WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY_ENV,
   WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY,
   WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY_ENV,
@@ -16,6 +12,7 @@ import {
   toolPath,
 } from "./_harness.mjs"
 import { evaluateReviewEvidence } from "../check-review-evidence.mjs"
+import { isReviewAuthorityPublicKey } from "../lib/review-provenance.mjs"
 import {
   pullRequestHead,
   reviewId,
@@ -640,7 +637,7 @@ try {
   patchReadError = error.message
 }
 const patchContainsRemovedAndChangedContent = Boolean(patchContent?.includes("-removed from base") && patchContent.includes("@@") && patchContent.includes("+changed line"))
-const reviewCall = { tool: "codex", args, cwd: process.cwd(), subjectPath, discoveredPolicy, subjectPolicy, subjectFileContent, gitPointer, linkedGitMetadataReadable, patchPath, patchContent, patchReadError, patchContainsRemovedAndChangedContent, sandboxPolicy: args[args.indexOf("--sandbox") + 1] ?? null, marker: process.env.ORBIT_LAUNCH_PR_REVIEW ?? null, reviewAuthorityPrivateKeyPresent: Boolean(process.env.ORBIT_REVIEW_AUTHORITY_PRIVATE_KEY), workerLaunchAuthorityPrivateKeyPresent: Boolean(process.env.ORBIT_WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY), prompt }
+const reviewCall = { tool: "codex", args, cwd: process.cwd(), subjectPath, discoveredPolicy, subjectPolicy, subjectFileContent, gitPointer, linkedGitMetadataReadable, patchPath, patchContent, patchReadError, patchContainsRemovedAndChangedContent, sandboxPolicy: args[args.indexOf("--sandbox") + 1] ?? null, marker: process.env.ORBIT_LAUNCH_PR_REVIEW ?? null, reviewAuthorityPrivateKeyPresent: Boolean(process.env.ORBIT_REVIEW_AUTHORITY_PRIVATE_KEY), reviewAuthorityPublicKeyPresent: Boolean(process.env.ORBIT_REVIEW_AUTHORITY_PUBLIC_KEY), workerLaunchAuthorityPrivateKeyPresent: Boolean(process.env.ORBIT_WORKER_LAUNCH_PRIVATE_KEY || process.env.ORBIT_WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY), prompt }
 appendFileSync(process.env.ORBIT_TEST_LOG, JSON.stringify(reviewCall) + "\\n")
 const output = args[args.indexOf("--output-last-message") + 1]
 const result = JSON.parse(process.env.ORBIT_TEST_REVIEW_RESULT)
@@ -750,8 +747,8 @@ console.log(JSON.stringify({ status: args[0].toUpperCase() }))
       ORBIT_AUTOMATION_BUDGET_TOOL: budgetStub,
       ORBIT_AUTOMATION_BUDGET_LEDGER: join(base, "ledger.jsonl"),
       ORBIT_LOCAL_REVIEW_PROVENANCE_LEDGER: join(base, "review-provenance.jsonl"),
-      [REVIEW_AUTHORITY_PUBLIC_KEY_ENV]: REVIEW_AUTHORITY_PUBLIC_KEY,
-      [REVIEW_AUTHORITY_PRIVATE_KEY_ENV]: REVIEW_AUTHORITY_PRIVATE_KEY,
+      ORBIT_REVIEW_AUTHORITY_PUBLIC_KEY: "legacy-review-public-sentinel",
+      ORBIT_REVIEW_AUTHORITY_PRIVATE_KEY: "legacy-review-private-sentinel",
       [WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY_ENV]: WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY,
       [WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY_ENV]: process.env[WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY_ENV],
       ORBIT_TEST_LOG: log,
@@ -817,7 +814,8 @@ export const cases = () => {
   const createReviewCall = approveCalls.find((call) => call.tool === "gh" && call.args[0] === "api" && call.args.includes("POST"))
   const ghCall = approveCalls.find((call) => call.tool === "gh" && call.args[0] === "api" && call.args.includes("PUT"))
   const patchCall = approveCalls.find((call) => call.tool === "gh" && call.args[0] === "api" && call.args.includes("PATCH"))
-  T("launch-pr-review.mjs: APPROVE is a successful structured result", approve.result.status === 0 && JSON.parse(approve.result.stdout).verdict === "APPROVE", approve.result.stderr)
+  const approveDurableResult = JSON.parse(approve.result.stdout)
+  T("launch-pr-review.mjs: APPROVE is a successful structured result with a launch public key", approve.result.status === 0 && approveDurableResult.verdict === "APPROVE" && isReviewAuthorityPublicKey(approveDurableResult.authorityPublicKey), approve.result.stderr)
   const liveReadIndex = approveCalls.findIndex((call) => call.tool === "gh" && call.args.slice(0, 2).join(" ") === "pr view")
   const reserveIndex = approveCalls.findIndex((call) => call.tool === "budget" && call.args[0] === "reserve")
   const firstGitMutation = approveCalls.findIndex((call) => call.tool === "git" && ["fetch", "worktree", "update-ref"].includes(call.args[0]))
@@ -826,7 +824,7 @@ export const cases = () => {
   const worktreeAdd = approveCalls.find((call) => call.tool === "git" && call.args[0] === "worktree" && call.args[1] === "add")
   T("launch-pr-review.mjs: the disposable worktree is detached at the observed pull request head", worktreeAdd?.args.includes("--detach") && worktreeAdd.args.at(-1) === HEAD, JSON.stringify(worktreeAdd))
   T("launch-pr-review.mjs: the synchronous Codex child is claimed and recorded", budgetCalls.some((call) => call.args[0] === "claim") && budgetCalls.some((call) => call.args[0] === "record" && call.args.includes("17244") && call.args.includes("9984") && call.args.includes("5")), JSON.stringify(budgetCalls))
-  T("launch-pr-review.mjs: Codex is fresh Sol high, read-only, ephemeral, schema-bound, review-only, and lacks both signing keys", codexCall?.args.includes("gpt-5.6-sol") && codexCall.args.includes('model_reasoning_effort="high"') && codexCall.args.includes("--sandbox") && codexCall.args.includes("read-only") && codexCall.args.includes("--ephemeral") && codexCall.args.includes("--output-schema") && !codexCall.args.includes("--dangerously-bypass-approvals-and-sandbox") && codexCall.marker === "1" && codexCall.reviewAuthorityPrivateKeyPresent === false && codexCall.workerLaunchAuthorityPrivateKeyPresent === false && !codexCall.prompt.includes("Standing worker contract"), JSON.stringify(codexCall))
+  T("launch-pr-review.mjs: Codex is fresh Sol high, read-only, ephemeral, schema-bound, review-only, and lacks both signing keys", codexCall?.args.includes("gpt-5.6-sol") && codexCall.args.includes('model_reasoning_effort="high"') && codexCall.args.includes("--sandbox") && codexCall.args.includes("read-only") && codexCall.args.includes("--ephemeral") && codexCall.args.includes("--output-schema") && !codexCall.args.includes("--dangerously-bypass-approvals-and-sandbox") && codexCall.marker === "1" && codexCall.reviewAuthorityPrivateKeyPresent === false && codexCall.reviewAuthorityPublicKeyPresent === false && codexCall.workerLaunchAuthorityPrivateKeyPresent === false && !codexCall.prompt.includes("Standing worker contract"), JSON.stringify(codexCall))
   T("launch-pr-review.mjs: general exec reads the exact authenticated patch and trusted-base review policy", codexCall?.args[0] === "exec" && codexCall.args.at(-1) === "-" && !codexCall.args.includes("review") && !codexCall.args.includes("--base") && !approveCalls.some((call) => call.tool === "git" && call.args[0] === "update-ref") && codexCall.prompt.includes(`complete authenticated ${BASE}...${HEAD} patch`) && codexCall.prompt.includes(codexCall.patchPath) && codexCall.prompt.includes(`git diff --binary --full-index --no-ext-diff --no-renames ${BASE} ${HEAD}`) && /review skill at .*trusted-policy[\\/]\.claude[\\/]skills[\\/]pr-review[\\/]SKILL\.md/.test(codexCall.prompt) && /rubric at .*trusted-policy[\\/]\.claude[\\/]skills[\\/]pr-review[\\/]rubric\.md/.test(codexCall.prompt) && codexCall.prompt.includes("loaded from") && codexCall.prompt.includes("live-pull-request-snapshot") && codexCall.prompt.includes("Harness Execution").valueOf(), JSON.stringify(codexCall))
   T("launch-pr-review.mjs: a target without review assets still uses trusted-base policy paths", codexCall?.prompt.includes("trusted-policy") && !codexCall.prompt.includes(join(codexCall.cwd, "AGENTS.md")) && !codexCall.prompt.includes(join(codexCall.cwd, "CLAUDE.md")), codexCall?.prompt)
   T("launch-pr-review.mjs: the durable COMMENTED review carries an authenticated marker, verdict, and exact head", createReviewCall?.body?.startsWith("orbit-local-review-pending:") && ghCall?.args.includes("PUT") && !patchCall && ghCall.body?.startsWith(`<!-- orbit-local-review: {"version":1,"head":"${HEAD}","recommendation":"APPROVE","provenance":`) && ghCall.body.includes('"verdict": "APPROVE"'), JSON.stringify({ createReviewCall, ghCall, patchCall }))
@@ -845,11 +843,13 @@ export const cases = () => {
         commit: { oid: HEAD },
       }],
     },
-  }, HEAD, { ledgerPath: approve.ledgerPath, repository: "thomasluizon/orbit-ui-mobile", pullRequest: 166 })
+  }, HEAD, { repository: "thomasluizon/orbit-ui-mobile", pullRequest: 166, expectedReviewAuthorityPublicKey: approveDurableResult.authorityPublicKey })
   T("launch-pr-review.mjs: its COMMENTED body passes the merge gate's evidence parser", evidence.ok && evidence.status === "APPROVE", JSON.stringify(evidence))
 
   const statusContext = stageReview("status-context", { statusCheckVariant: "StatusContext" })
-  T("launch-pr-review.mjs: a complete StatusContext rollup item follows the live PR decision path", statusContext.result.status === 0 && JSON.parse(statusContext.result.stdout).verdict === "APPROVE", `${statusContext.result.status}\n${statusContext.result.stderr}`)
+  const statusContextResult = JSON.parse(statusContext.result.stdout)
+  T("launch-pr-review.mjs: a complete StatusContext rollup item follows the live PR decision path", statusContext.result.status === 0 && statusContextResult.verdict === "APPROVE" && isReviewAuthorityPublicKey(statusContextResult.authorityPublicKey), `${statusContext.result.status}\n${statusContext.result.stderr}`)
+  T("launch-pr-review.mjs: every review launch gets a fresh authority", statusContextResult.authorityPublicKey !== approveDurableResult.authorityPublicKey, JSON.stringify({ approve: approveDurableResult.authorityPublicKey, next: statusContextResult.authorityPublicKey }))
 
   for (const [label, statusCheckVariant] of [
     ["status-context-incomplete", "StatusContext-incomplete"],
@@ -963,7 +963,7 @@ export const cases = () => {
   )
 
   const needsWork = stageReview("needs-work", { verdict: "NEEDS_WORK", findings: [{ id: "finding-0123456789abcdef0123456789abcdef", severity: "High", title: "Unsafe path", path: "tools/x.mjs", line: 7, evidence: "The branch skips validation.", remediation: "Validate before use." }] })
-  T("launch-pr-review.mjs: NEEDS_WORK is durable and exits 4", needsWork.result.status === 4 && JSON.parse(needsWork.result.stdout).verdict === "NEEDS_WORK" && needsWork.calls.some((call) => call.tool === "gh" && call.args[0] === "api" && call.args.includes("PUT") && call.body.includes('"verdict": "NEEDS_WORK"')) && !needsWork.calls.some((call) => call.tool === "gh" && call.args[0] === "api" && call.args.includes("PATCH")), `${needsWork.result.status}\n${needsWork.result.stderr}`)
+  T("launch-pr-review.mjs: NEEDS_WORK is durable with its launch public key and exits 4", needsWork.result.status === 4 && JSON.parse(needsWork.result.stdout).verdict === "NEEDS_WORK" && isReviewAuthorityPublicKey(JSON.parse(needsWork.result.stdout).authorityPublicKey) && needsWork.calls.some((call) => call.tool === "gh" && call.args[0] === "api" && call.args.includes("PUT") && call.body.includes('"verdict": "NEEDS_WORK"')) && !needsWork.calls.some((call) => call.tool === "gh" && call.args[0] === "api" && call.args.includes("PATCH")), `${needsWork.result.status}\n${needsWork.result.stderr}`)
 
   const moved = stageReview("moved", { moved: true })
   T("launch-pr-review.mjs: a head move refuses the result before commenting", moved.result.status === 3 && /authenticated ref moved/.test(moved.result.stderr) && !moved.calls.some((call) => call.tool === "gh" && call.args[0] === "api" && call.args.includes("POST")), `${moved.result.status}\n${moved.result.stderr}\n${JSON.stringify(moved.calls)}`)

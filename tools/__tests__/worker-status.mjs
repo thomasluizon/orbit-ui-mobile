@@ -5,7 +5,7 @@ import { join, resolve } from "node:path"
 
 import { STRIKE_LEDGER_ENV } from "../lib/strike-ledger.mjs"
 import { recordWorkerLaunch, signWorkerLaunchRecord, verifyWorkerLaunchCompletion, workerCompletionSigningPayload, workerDeliveryEvidence, workerLaunchSigningPayload } from "../lib/worker-launch-provenance.mjs"
-import { WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY, WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY, WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY_ENV, WORKER_LAUNCH_LEDGER, T, reviewMarker, root, stage, orcaEnv, run, check, exitedProbePid } from "./_harness.mjs"
+import { REVIEW_AUTHORITY_PUBLIC_KEY, WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY, WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY, WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY_ENV, WORKER_LAUNCH_LEDGER, T, reviewMarker, root, stage, orcaEnv, run, check, exitedProbePid } from "./_harness.mjs"
 
 const stageWorkerStatusWorktree = (label = "worker-status") => {
   const base = join(root, label)
@@ -179,6 +179,8 @@ const runWorkerStatusCase = (fixture, attachments, options = {}) => {
       fixture.worktree,
       "--issue",
       "ORB-75",
+      "--review-authority-public-key",
+      REVIEW_AUTHORITY_PUBLIC_KEY,
       ...(options.verifyReview ? ["--verify-review"] : []),
       ...(options.consumeRelaunch ? ["--consume-relaunch"] : []),
       "--json",

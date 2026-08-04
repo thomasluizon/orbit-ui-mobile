@@ -4,6 +4,8 @@ import { unlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
+import { scrubReviewAuthorityEnvironment } from "./child-environment.mjs"
+
 export class AutomationLaunchBudgetError extends Error {
   constructor(message, exitCode = 3) {
     super(message)
@@ -45,6 +47,7 @@ const parseCodexResetAt = (resetsAt) => {
 const runNodeTool = (toolPath, argumentsList) => spawnSync(process.execPath, [toolPath, ...argumentsList], {
   encoding: "utf8",
   maxBuffer: 32 * 1024 * 1024,
+  env: scrubReviewAuthorityEnvironment(),
 })
 
 const commandFailure = (label, result) => {

@@ -179,6 +179,12 @@ For every substantive PR head, run a fresh context-free review:
 node tools/launch-pr-review.mjs --repo <owner/name> --pr <number> --base main --repo-root <repo> --json
 ```
 
+The JSON result contains a fresh launch-scoped `authorityPublicKey`. Sol retains that public value
+out of band as `reviewAuthorityPublicKey` and passes it explicitly to every later review-evidence
+consumer. The marker body and the local provenance ledger are not trust roots. If a coordinator
+restart has no retained review public key, it launches a fresh review instead of recovering one
+from GitHub or the ledger.
+
 The reviewer is GPT-5.6 Sol at high effort in a disposable detached checkout. It reads the exact
 authenticated base and head, the complete binary patch, and trusted canonical policy from the
 base. It must not edit, commit, push, mutate Linear, merge, or recurse into planning. Preserve the
@@ -192,6 +198,15 @@ Luna. An informational finding that needs no code change is acknowledged with it
 the reason, and the PR commit that changed the reviewed path. Human threads are never resolved by
 the coordinator. Disputed findings and two consecutive failed repair cycles are escalated with the
 strike-ledger identity; they are not retried indefinitely.
+
+When Sol runs the delivery and merge gates, it carries the two authorities separately:
+
+```text
+node tools/worker-status.mjs --worktree <path> --issue ORB-N --base main --authority-public-key <workerAuthorityPublicKey> --review-authority-public-key <reviewAuthorityPublicKey> --verify-review --json
+node tools/mergeability.mjs --repo <owner/name> --pr <number> --authority-public-key <workerAuthorityPublicKey> --review-authority-public-key <reviewAuthorityPublicKey> --json
+bash tools/merge-sweep.sh --authority-public-key <workerAuthorityPublicKey> --review-authority-public-key <reviewAuthorityPublicKey> --issue <pr>=<ORB-N> <owner/name> <pr>
+bash tools/merge-sweep-cov.sh --authority-public-key <workerAuthorityPublicKey> --review-authority-public-key <reviewAuthorityPublicKey> --issue <pr>=<ORB-N> <owner/name> <pr>
+```
 
 The PR is ready for human handoff only when the current head has passing CI, a current-head Sol
 `APPROVE`, zero unresolved review threads, every automated activity reconciled, no stale approval

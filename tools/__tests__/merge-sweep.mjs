@@ -4,6 +4,7 @@ import { join } from "node:path"
 import {
   T,
   TOOLS_DIR,
+  REVIEW_AUTHORITY_PUBLIC_KEY,
   WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY,
   WORKER_LAUNCH_LEDGER,
   mergeSweepCalls,
@@ -25,6 +26,8 @@ const NEWER_REVIEW = "2026-07-28T00:00:01Z"
 const argsFor = (expected = EXPECTED_HEAD, includeExpected = true) => [
   "--authority-public-key",
   WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY,
+  "--review-authority-public-key",
+  REVIEW_AUTHORITY_PUBLIC_KEY,
   ...(includeExpected ? ["--expected-head", `615=${expected}`] : []),
   "--reviewed-through",
   `615=${REVIEWED_THROUGH}`,

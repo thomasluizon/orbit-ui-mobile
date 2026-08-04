@@ -15,8 +15,6 @@ import { delimiter, dirname, join, resolve } from "node:path"
 
 import {
   issueReviewProvenance,
-  REVIEW_AUTHORITY_PRIVATE_KEY_ENV,
-  REVIEW_AUTHORITY_PUBLIC_KEY_ENV,
 } from "../lib/review-provenance.mjs"
 import {
   recordWorkerLaunch,
@@ -84,8 +82,6 @@ export const WORKER_LAUNCH_LEDGER = join(root, "worker-launches.jsonl")
 const reviewAuthority = generateKeyPairSync("ed25519")
 export const REVIEW_AUTHORITY_PRIVATE_KEY = reviewAuthority.privateKey.export({ format: "pem", type: "pkcs8" })
 export const REVIEW_AUTHORITY_PUBLIC_KEY = reviewAuthority.publicKey.export({ format: "der", type: "spki" }).toString("base64")
-export { REVIEW_AUTHORITY_PRIVATE_KEY_ENV, REVIEW_AUTHORITY_PUBLIC_KEY_ENV }
-process.env[REVIEW_AUTHORITY_PUBLIC_KEY_ENV] = REVIEW_AUTHORITY_PUBLIC_KEY
 const workerLaunchAuthority = generateKeyPairSync("ed25519")
 export const WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY = workerLaunchAuthority.privateKey.export({ format: "pem", type: "pkcs8" })
 export const WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY = workerLaunchAuthority.publicKey.export({ format: "der", type: "spki" }).toString("base64")

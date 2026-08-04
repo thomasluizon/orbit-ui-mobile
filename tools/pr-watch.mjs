@@ -37,6 +37,8 @@ const USAGE = `usage: pr-watch.mjs --repo <owner/name> --pr <n>[,<n>...] [option
                         suppresses readiness already handled on that head
   --interval <seconds>  seconds between polls (default: 60)
   --timeout <seconds>   stop waiting after this long (default: 5400, 90 minutes)
+  --review-authority-public-key <base64>
+                         launch-scoped public key required for local review evidence
   --once                read the state once and report it; wait for nothing
   --help, -h            print this usage and exit 0
 
@@ -90,7 +92,7 @@ const argsOf = (flag) =>
   process.argv.reduce((found, token, index) => (token === flag && process.argv[index + 1] ? [...found, process.argv[index + 1]] : found), [])
 const argOf = (flag) => argsOf(flag)[0] ?? null
 
-const KNOWN_FLAGS = new Set(["--repo", "--pr", "--acted", "--interval", "--timeout", "--once", "--help", "-h"])
+const KNOWN_FLAGS = new Set(["--repo", "--pr", "--acted", "--interval", "--timeout", "--review-authority-public-key", "--once", "--help", "-h"])
 const unknown = process.argv.slice(2).filter((token) => token.startsWith("-") && KNOWN_FLAGS.has(token) === false && /^-\d+$/.test(token) === false)
 if (unknown.length > 0) fail(2, `${USAGE}\n\nunknown option(s): ${unknown.join(" ")}`)
 
@@ -101,6 +103,8 @@ const prNumbers = argsOf("--pr")
   .filter(Boolean)
 const interval = Number(argOf("--interval") ?? 60)
 const timeout = Number(argOf("--timeout") ?? 5400)
+const reviewAuthorityFlag = process.argv.includes("--review-authority-public-key")
+const reviewAuthorityPublicKey = reviewAuthorityFlag ? argOf("--review-authority-public-key") : null
 const once = process.argv.includes("--once")
 
 if (!repo || !/^[\w.-]+\/[\w.-]+$/.test(repo)) fail(2, `${USAGE}\n\n--repo must be an owner/name slug such as thomasluizon/orbit-ui-mobile`)
@@ -108,6 +112,7 @@ if (prNumbers.length === 0) fail(2, `${USAGE}\n\n--pr is required`)
 if (prNumbers.some((value) => !/^\d+$/.test(value))) fail(2, `--pr takes PR numbers, got: ${prNumbers.join(", ")}`)
 if (!Number.isFinite(interval) || interval <= 0) fail(2, "--interval must be a positive number of seconds")
 if (!Number.isFinite(timeout) || timeout <= 0) fail(2, "--timeout must be a positive number of seconds")
+if (reviewAuthorityFlag && !reviewAuthorityPublicKey) fail(2, "--review-authority-public-key requires a value")
 
 /** The baseline is per PR and head, with every handled verdict or readiness signal retained. */
 const acted = new Map()
@@ -208,7 +213,7 @@ const handledSignalsOn = (number, head) => {
 
 const reviewClearOn = (pullRequest) => {
   if (!Object.hasOwn(pullRequest, "reviewDecision") || pullRequest.reviewDecision === "CHANGES_REQUESTED") return false
-  return evaluateReviewEvidence(pullRequest, pullRequest.headRefOid, { repository: repo, pullRequest: pullRequest.number }).ok
+  return evaluateReviewEvidence(pullRequest, pullRequest.headRefOid, { repository: repo, pullRequest: pullRequest.number, expectedReviewAuthorityPublicKey: reviewAuthorityPublicKey }).ok
 }
 
 const snapshotOf = (pullRequest, previous) => ({
@@ -225,7 +230,7 @@ const transitionOf = (pullRequest, previous) => {
   const handled = handledSignalsOn(number, head)
   const verdicts = verdictsOn(pullRequest)
   const verdict = verdicts.find((candidate) => !handled.has(candidate)) ?? verdicts[0] ?? null
-  const reviewEvidence = evaluateReviewEvidence(pullRequest, head, { repository: repo, pullRequest: pullRequest.number })
+  const reviewEvidence = evaluateReviewEvidence(pullRequest, head, { repository: repo, pullRequest: pullRequest.number, expectedReviewAuthorityPublicKey: reviewAuthorityPublicKey })
   const reviewClear = reviewClearOn(pullRequest)
   const state = {
     repo,
@@ -306,7 +311,7 @@ while (true) {
       mergeStateStatus: pullRequest.mergeStateStatus,
       failingChecks: failingChecksOf(pullRequest),
       reviewEvidence: (() => {
-        const evidence = evaluateReviewEvidence(pullRequest, pullRequest.headRefOid, { repository: repo, pullRequest: pullRequest.number })
+        const evidence = evaluateReviewEvidence(pullRequest, pullRequest.headRefOid, { repository: repo, pullRequest: pullRequest.number, expectedReviewAuthorityPublicKey: reviewAuthorityPublicKey })
         return { status: evidence.status, reason: evidence.reason }
       })(),
     }

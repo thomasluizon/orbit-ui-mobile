@@ -19,6 +19,7 @@ import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestra
 import { RELAUNCH_SCOPE, STRIKE_LEDGER_ENV, recordStrike, strikeCount, strikeLedgerPath } from "./lib/strike-ledger.mjs"
 import { isWorkerAuthorityPublicKey, readWorkerLaunchRecords, sameWorkerLaunch, workerDeliveryEvidence, workerLaunchLedgerPath, WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY_ENV } from "./lib/worker-launch-provenance.mjs"
 import { evaluateReviewEvidence } from "./check-review-evidence.mjs"
+import { isReviewAuthorityPublicKey } from "./lib/review-provenance.mjs"
 
 /**
  * `process.kill(pid, 0)` proves SOME process holds that id, never that it is still the worker the
@@ -29,7 +30,7 @@ import { evaluateReviewEvidence } from "./check-review-evidence.mjs"
  */
 const PID_REUSE_BACKSTOP_HOURS = 16
 
-const USAGE = `usage: worker-status.mjs --worktree <path> --issue ORB-N [--base <ref>] [--implementation --authority-public-key <base64>] [--verify-review] [--consume-relaunch] [--json]
+const USAGE = `usage: worker-status.mjs --worktree <path> --issue ORB-N [--base <ref>] [--implementation --authority-public-key <base64>] [--review-authority-public-key <base64>] [--verify-review] [--consume-relaunch] [--json]
 
   --worktree <path>   the worker's worktree path, as printed by launch-worker.mjs (required)
   --issue ORB-N       the Linear issue the worker is finishing (required)
@@ -37,6 +38,8 @@ const USAGE = `usage: worker-status.mjs --worktree <path> --issue ORB-N [--base 
   --implementation     verify Luna's local commit handoff before Sol pushes or opens the PR
   --authority-public-key <base64>
                        launcher-returned Ed25519 public key; required with --implementation
+  --review-authority-public-key <base64>
+                       launch-scoped Ed25519 public key returned by launch-pr-review.mjs
   --verify-review     run the one-time pre-merge review-thread verification
   --consume-relaunch  spend one relaunch allowance for this (issue, PR head) pair
   --json              emit the verdict as JSON instead of text
@@ -148,7 +151,7 @@ const orca = (args) => {
   return parsed.result ?? parsed
 }
 
-const VALUE_FLAGS = new Set(["--worktree", "--issue", "--base", "--authority-public-key", "--worker-authority-public-key"])
+const VALUE_FLAGS = new Set(["--worktree", "--issue", "--base", "--authority-public-key", "--worker-authority-public-key", "--review-authority-public-key"])
 const BOOLEAN_FLAGS = new Set(["--implementation", "--verify-review", "--consume-relaunch", "--json"])
 const argv = process.argv.slice(2)
 const unknownOptions = argv.filter(
@@ -171,12 +174,16 @@ const authorityFlag = process.argv.includes("--authority-public-key")
     : null
 const cliAuthorityPublicKey = authorityFlag ? argOf(authorityFlag) : null
 const authorityPublicKey = cliAuthorityPublicKey ?? process.env[WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY_ENV] ?? null
+const reviewAuthorityFlag = process.argv.includes("--review-authority-public-key")
+const reviewAuthorityPublicKey = reviewAuthorityFlag ? argOf("--review-authority-public-key") : null
 
 if (!worktree) fail(2, `${USAGE}\n\n--worktree is required`)
 if (!issue || !/^[A-Z]+-\d+$/.test(issue)) fail(2, `${USAGE}\n\n--issue must be a Linear identifier such as ORB-75`)
 if (authorityFlag && !cliAuthorityPublicKey) fail(2, `${USAGE}\n\n${authorityFlag} requires a value`)
+if (reviewAuthorityFlag && !reviewAuthorityPublicKey) fail(2, `${USAGE}\n\n--review-authority-public-key requires a value`)
 if (implementationMode && !cliAuthorityPublicKey) fail(2, `${USAGE}\n\n--implementation requires --authority-public-key from the launch-worker result`)
 if (authorityPublicKey && !isWorkerAuthorityPublicKey(authorityPublicKey)) fail(2, `${USAGE}\n\nlauncher authority public key is malformed`)
+if (reviewAuthorityPublicKey && !isReviewAuthorityPublicKey(reviewAuthorityPublicKey)) fail(2, `${USAGE}\n\nreview authority public key is malformed`)
 
 let config
 try {
@@ -382,7 +389,7 @@ const reviewInventoryComplete =
   review?.comments?.pageInfo?.hasNextPage === false &&
   reviewThreads.every((thread) => thread.comments?.pageInfo?.hasNextPage === false)
 const reviewNotChangesRequested = Boolean(review && review.reviewDecision !== "CHANGES_REQUESTED")
-const reviewEvidence = evaluateReviewEvidence(review, prHead, { repository: reviewRepository, pullRequest: pullRequest?.number })
+const reviewEvidence = evaluateReviewEvidence(review, prHead, { repository: reviewRepository, pullRequest: pullRequest?.number, expectedReviewAuthorityPublicKey: reviewAuthorityPublicKey })
 
 const detail = orca(["linear", "issue", issue, "--attachments"])
 const linearIssue = detail.issue ?? detail

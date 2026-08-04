@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { T, forgedReviewMarker, root, orcaEnv, reviewMarker, check } from "./_harness.mjs"
+import { REVIEW_AUTHORITY_PUBLIC_KEY, T, forgedReviewMarker, root, orcaEnv, reviewMarker, check } from "./_harness.mjs"
 
 /**
  * pr-watch cases. Every one is a state the two hand-rolled ORB-88 loops got wrong, so the
@@ -61,7 +61,7 @@ const pullRequestStub = (number, pullRequest) => ({
 const rollup = (...contexts) => ({ nodes: [{ commit: { statusCheckRollup: { state: "FAILURE", contexts: { nodes: contexts } } } }] })
 
 const prWatchCases = () => {
-  const argv = ["--repo", "thomasluizon/orbit-ui-mobile", "--pr", "615", "--once"]
+  const argv = ["--repo", "thomasluizon/orbit-ui-mobile", "--pr", "615", "--review-authority-public-key", REVIEW_AUTHORITY_PUBLIC_KEY, "--once"]
   check(
     "pr-watch.mjs",
     "--help documents accumulated signals and review-clear readiness",
@@ -75,7 +75,7 @@ const prWatchCases = () => {
     const result = check(
       "pr-watch.mjs",
       name,
-      ["--repo", "thomasluizon/orbit-ui-mobile", "--pr", "615", "--interval", "0.05", "--timeout", String(timeout), ...extraArgv],
+      ["--repo", "thomasluizon/orbit-ui-mobile", "--pr", "615", "--review-authority-public-key", REVIEW_AUTHORITY_PUBLIC_KEY, "--interval", "0.05", "--timeout", String(timeout), ...extraArgv],
       expect,
       {
         env: {
@@ -409,7 +409,7 @@ const prWatchCases = () => {
   check(
     "pr-watch.mjs",
     "watching several PRs reports whichever one transitioned",
-    ["--repo", "thomasluizon/orbit-ui-mobile", "--pr", "615,616", "--once"],
+    ["--repo", "thomasluizon/orbit-ui-mobile", "--pr", "615,616", "--review-authority-public-key", REVIEW_AUTHORITY_PUBLIC_KEY, "--once"],
     { status: 1, stdout: /"pr": 616[\s\S]*"transition": "changes-requested"/ },
     {
       env: orcaEnv([
@@ -426,6 +426,8 @@ const prWatchCases = () => {
       "thomasluizon/orbit-ui-mobile",
       "--pr",
       "615,616",
+      "--review-authority-public-key",
+      REVIEW_AUTHORITY_PUBLIC_KEY,
       "--once",
       "--acted",
       `615=${HEAD_SHA}:APPROVED`,
@@ -449,7 +451,7 @@ const prWatchCases = () => {
   const timedOut = check(
     "pr-watch.mjs",
     "the polling loop sleeps, re-polls and times out reporting it, without --once",
-    ["--repo", "thomasluizon/orbit-ui-mobile", "--pr", "615", "--interval", "1", "--timeout", "3"],
+    ["--repo", "thomasluizon/orbit-ui-mobile", "--pr", "615", "--review-authority-public-key", REVIEW_AUTHORITY_PUBLIC_KEY, "--interval", "1", "--timeout", "3"],
     { status: 4, stdout: /"transition": "timeout"/ },
     { env: orcaEnv([pullRequestStub(615, { reviewDecision: "CHANGES_REQUESTED", latestReviews: { nodes: [reviewOn("CHANGES_REQUESTED", OLD_SHA)] } })]) },
   )

@@ -1,13 +1,11 @@
 import { appendFileSync, mkdirSync, readFileSync } from "node:fs"
-import { createHash, createPrivateKey, createPublicKey, randomUUID, sign, verify } from "node:crypto"
+import { createHash, createPrivateKey, createPublicKey, generateKeyPairSync, randomUUID, sign, verify } from "node:crypto"
 import { homedir } from "node:os"
 import { dirname, resolve } from "node:path"
 
 export const REVIEW_PROVENANCE_LEDGER_ENV = "ORBIT_LOCAL_REVIEW_PROVENANCE_LEDGER"
 export const REVIEW_PROVENANCE_ISSUER = "tools/launch-pr-review.mjs"
 export const REVIEW_PROVENANCE_VERSION = 1
-export const REVIEW_AUTHORITY_PUBLIC_KEY_ENV = "ORBIT_REVIEW_AUTHORITY_PUBLIC_KEY"
-export const REVIEW_AUTHORITY_PRIVATE_KEY_ENV = "ORBIT_REVIEW_AUTHORITY_PRIVATE_KEY"
 
 const SHA1 = /^[0-9a-f]{40}$/
 const FINDING_ID = /^finding-[0-9a-f]{32}$/
@@ -31,34 +29,38 @@ export const reviewProvenanceLedgerPath = (override = process.env[REVIEW_PROVENA
   return resolve(override ?? resolve(homedir(), ".orbit", "local-review-provenance.jsonl"))
 }
 
-const configuredPublicKey = () => {
-  const encoded = process.env[REVIEW_AUTHORITY_PUBLIC_KEY_ENV]?.trim()
-  if (!encoded || !BASE64.test(encoded)) throw new Error(`${REVIEW_AUTHORITY_PUBLIC_KEY_ENV} is unavailable or malformed`)
-  return encoded
+const publicKeyEncoding = (key) => key.export({ format: "der", type: "spki" }).toString("base64")
+
+const parseReviewAuthorityPublicKey = (encoded) => {
+  if (typeof encoded !== "string" || !BASE64.test(encoded.trim())) return null
+  try {
+    const key = createPublicKey({
+      key: Buffer.from(encoded.trim(), "base64"),
+      format: "der",
+      type: "spki",
+    })
+    if (key.asymmetricKeyType !== "ed25519") return null
+    const canonical = publicKeyEncoding(key)
+    return canonical === encoded.trim() ? { encoded: canonical, key } : null
+  } catch {
+    return null
+  }
 }
 
-const authorityPublicKey = () =>
-  createPublicKey({
-    key: Buffer.from(configuredPublicKey(), "base64"),
-    format: "der",
-    type: "spki",
-  })
+export const isReviewAuthorityPublicKey = (encoded) => Boolean(parseReviewAuthorityPublicKey(encoded))
 
-const authorityPrivateKey = (privateKeyPem = process.env[REVIEW_AUTHORITY_PRIVATE_KEY_ENV]) => {
-  if (typeof privateKeyPem !== "string" || privateKeyPem.trim().length === 0) {
-    throw new Error(`${REVIEW_AUTHORITY_PRIVATE_KEY_ENV} is unavailable; only the independent reviewer may issue evidence`)
-  }
-  const privateKey = createPrivateKey(privateKeyPem)
-  const derivedPublicKey = createPublicKey(privateKey).export({ format: "der", type: "spki" }).toString("base64")
-  if (derivedPublicKey !== configuredPublicKey()) {
-    throw new Error("review authority private key does not match the trusted public key")
-  }
-  return privateKey
+export const createReviewAuthority = () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519")
+  return { privateKey, publicKey: publicKeyEncoding(publicKey) }
 }
 
-export const assertReviewAuthority = (privateKeyPem = process.env[REVIEW_AUTHORITY_PRIVATE_KEY_ENV]) => {
-  authorityPrivateKey(privateKeyPem)
-  return true
+const signingKey = (privateKey) => {
+  let parsed = privateKey
+  if (typeof privateKey === "string" && privateKey.trim().length > 0) parsed = createPrivateKey(privateKey)
+  if (!parsed || typeof parsed !== "object" || parsed.type !== "private" || parsed.asymmetricKeyType !== "ed25519") {
+    throw new Error("review authority signing key is unavailable or is not Ed25519")
+  }
+  return parsed
 }
 
 const normalizedFindingIds = (findingIds) => {
@@ -119,7 +121,7 @@ export const issueReviewProvenance = ({
     findingIds: normalizedIds,
     issuedAt,
   }
-  receipt.signature = sign(null, Buffer.from(signingPayload(receipt), "utf8"), authorityPrivateKey(privateKey)).toString("base64")
+  receipt.signature = sign(null, Buffer.from(signingPayload(receipt), "utf8"), signingKey(privateKey)).toString("base64")
   const target = reviewProvenanceLedgerPath(ledgerPath)
   mkdirSync(dirname(target), { recursive: true })
   appendFileSync(target, `${JSON.stringify(receipt)}\n`, { encoding: "utf8", mode: 0o600 })
@@ -181,9 +183,11 @@ const receiptMatches = (receipt, { repository, pullRequest, head, reviewNodeId, 
   }
 }
 
-export const verifyReviewProvenance = ({ repository, pullRequest, provenance, head, reviewNodeId, recommendation, findingIds = [] }) => {
+export const verifyReviewProvenance = ({ repository, pullRequest, provenance, head, reviewNodeId, recommendation, findingIds = [], expectedAuthorityPublicKey }) => {
   if (!provenance || typeof provenance !== "object" || Array.isArray(provenance)) return false
   if (!validReviewContext(repository, pullRequest)) return false
+  const authority = parseReviewAuthorityPublicKey(expectedAuthorityPublicKey)
+  if (!authority) return false
   const keys = Object.keys(provenance).sort()
   const expectedKeys = ["evidenceId", "findingIds", "head", "issuedAt", "issuer", "pullRequest", "recommendation", "repository", "reviewNodeId", "signature", "version"]
   if (keys.length !== expectedKeys.length || keys.some((key, index) => key !== expectedKeys[index])) return false
@@ -201,7 +205,7 @@ export const verifyReviewProvenance = ({ repository, pullRequest, provenance, he
     if (JSON.stringify(provenance.findingIds) !== JSON.stringify(normalizedFindingIds(provenance.findingIds))) return false
     const receipt = { ...provenance }
     return receiptMatches(receipt, { repository, pullRequest, head, reviewNodeId, recommendation, findingIds: normalizedIds }) &&
-      verify(null, Buffer.from(signingPayload(receipt), "utf8"), authorityPublicKey(), Buffer.from(receipt.signature, "base64"))
+      verify(null, Buffer.from(signingPayload(receipt), "utf8"), authority.key, Buffer.from(receipt.signature, "base64"))
   } catch {
     return false
   }

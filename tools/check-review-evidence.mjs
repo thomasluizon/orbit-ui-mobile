@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs"
 import { resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
-import { verifyReviewProvenance } from "./lib/review-provenance.mjs"
+import { isReviewAuthorityPublicKey, verifyReviewProvenance } from "./lib/review-provenance.mjs"
 
 const REVIEW_MARKER_PREFIX = "<!-- orbit-local-review:"
 const MARKER_PATTERN = /^<!-- orbit-local-review:\s*(\{.*\})\s*-->$/
@@ -62,7 +62,7 @@ const parseMarker = (review) => {
   return { ok: true, marker }
 }
 
-const evaluateReviewEvidence = (input, expectedHead, { ledgerPath, repository, pullRequest } = {}) => {
+const evaluateReviewEvidence = (input, expectedHead, { repository, pullRequest, expectedReviewAuthorityPublicKey } = {}) => {
   if (!SHA_PATTERN.test(expectedHead ?? "")) return result(false, "INVALID", "expected head must be 40 lowercase hexadecimal characters")
   if (!REPOSITORY_PATTERN.test(repository ?? "") || !Number.isSafeInteger(pullRequest) || pullRequest < 1) {
     return result(false, "INVALID", "repository and pullRequest are required to authenticate review provenance")
@@ -94,6 +94,9 @@ const evaluateReviewEvidence = (input, expectedHead, { ledgerPath, repository, p
   const selected = latest[0].review
   const parsed = parseMarker(selected)
   if (!parsed.ok) return result(false, "MALFORMED", parsed.reason, selected)
+  if (!isReviewAuthorityPublicKey(expectedReviewAuthorityPublicKey)) {
+    return result(false, "UNAUTHENTICATED", "expected review authority public key is absent or malformed", selected, parsed.marker.provenance.findingIds)
+  }
   if (typeof selected.id !== "string" || selected.id.trim().length === 0) {
     return result(false, "UNAUTHENTICATED", "latest marker has no immutable GitHub review node id", selected, parsed.marker.provenance.findingIds)
   }
@@ -105,7 +108,7 @@ const evaluateReviewEvidence = (input, expectedHead, { ledgerPath, repository, p
     reviewNodeId: selected.id,
     recommendation: parsed.marker.recommendation,
     findingIds: parsed.marker.provenance.findingIds,
-    ledgerPath,
+    expectedAuthorityPublicKey: expectedReviewAuthorityPublicKey,
   })
   if (!authenticated) {
     return result(false, "UNAUTHENTICATED", "latest marker lacks launcher-issued review provenance", selected, parsed.marker.provenance.findingIds)
@@ -147,6 +150,7 @@ const evaluateReviewEvidence = (input, expectedHead, { ledgerPath, repository, p
       reviewNodeId: candidate.id,
       recommendation: candidateParsed.marker.recommendation,
       findingIds: candidateParsed.marker.provenance.findingIds,
+      expectedAuthorityPublicKey: expectedReviewAuthorityPublicKey,
     })
     if (!candidateAuthenticated) return []
     return [{ issuedAt: Date.parse(candidateParsed.marker.provenance.issuedAt) }]
@@ -178,7 +182,7 @@ const evaluateReviewEvidence = (input, expectedHead, { ledgerPath, repository, p
   return result(true, "APPROVE", `latest local review approves current head ${expectedHead}`, selected, parsed.marker.provenance.findingIds)
 }
 
-const USAGE = `usage: check-review-evidence.mjs --repository <owner/name> --pull-request <number> --expected-head <sha>
+const USAGE = `usage: check-review-evidence.mjs --repository <owner/name> --pull-request <number> --expected-head <sha> [--review-authority-public-key <base64>]
 
 Reads a GitHub pull-request snapshot containing headRefOid plus complete files and reviews
 connections as JSON from stdin.
@@ -190,7 +194,7 @@ const runCli = () => {
     console.log(USAGE)
     return 0
   }
-  const known = new Set(["--repository", "--pull-request", "--expected-head", "--help", "-h"])
+  const known = new Set(["--repository", "--pull-request", "--expected-head", "--review-authority-public-key", "--help", "-h"])
   const unknown = process.argv.slice(2).filter((value) => value.startsWith("-") && !known.has(value))
   const repositoryIndex = process.argv.indexOf("--repository")
   const repository = repositoryIndex === -1 ? null : process.argv[repositoryIndex + 1]
@@ -199,6 +203,12 @@ const runCli = () => {
   const pullRequest = Number(pullRequestValue)
   const index = process.argv.indexOf("--expected-head")
   const expectedHead = index === -1 ? null : process.argv[index + 1]
+  const authorityIndex = process.argv.indexOf("--review-authority-public-key")
+  const expectedReviewAuthorityPublicKey = authorityIndex === -1 ? null : process.argv[authorityIndex + 1]
+  if (authorityIndex !== -1 && (!expectedReviewAuthorityPublicKey || expectedReviewAuthorityPublicKey.startsWith("-"))) {
+    console.error(`${USAGE}\n\n--review-authority-public-key requires a value`)
+    return 2
+  }
   if (unknown.length > 0 || !REPOSITORY_PATTERN.test(repository ?? "") || !Number.isSafeInteger(pullRequest) || pullRequest < 1 || !SHA_PATTERN.test(expectedHead ?? "")) {
     console.error(`${USAGE}\n\n--repository, --pull-request, and --expected-head must identify the review context`)
     return 2
@@ -210,7 +220,7 @@ const runCli = () => {
     console.error("stdin must contain a JSON reviews connection")
     return 2
   }
-  const verdict = evaluateReviewEvidence(reviews, expectedHead, { repository, pullRequest })
+  const verdict = evaluateReviewEvidence(reviews, expectedHead, { repository, pullRequest, expectedReviewAuthorityPublicKey })
   console.log(JSON.stringify(verdict, null, 2))
   return verdict.ok ? 0 : 1
 }

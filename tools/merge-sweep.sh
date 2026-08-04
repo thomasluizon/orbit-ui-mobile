@@ -24,6 +24,7 @@ Usage: merge-sweep.sh [--expected-head <pr-number>=<sha>]...
                       [--reviewed-through <pr-number>=<iso-timestamp>]...
                       [--issue <pr-number>=<ORB-N>]...
                       [--authority-public-key <base64>]
+                      [--review-authority-public-key <base64>]
                       <owner/repo> <pr-number>...
        merge-sweep.sh --help
 
@@ -92,7 +93,8 @@ Read-only merge readiness sweep: hand clean pull requests to a human for squash 
 Usage: merge-sweep.sh [--expected-head <pr-number>=<sha>]...
                       [--reviewed-through <pr-number>=<iso-timestamp>]...
                       [--issue <pr-number>=<ORB-N>]...
-                      [--authority-public-key <base64>] <owner/repo> <pr-number>...
+                      [--authority-public-key <base64>]
+                      [--review-authority-public-key <base64>] <owner/repo> <pr-number>...
 
 The sweep checks the current head, CI, review activity, signed exact-head review evidence,
 worker delivery, and Linear In Review. It prints HUMAN-MERGE-REQUIRED for a clean PR.
@@ -104,6 +106,7 @@ expected_head_mappings=""
 reviewed_through_mappings=""
 issue_mappings=""
 authority_public_key=""
+review_authority_public_key=""
 while [ "$#" -gt 0 ]; do
   case "$1" in
     -h | --help)
@@ -212,6 +215,15 @@ while [ "$#" -gt 0 ]; do
         exit 2
       fi
       authority_public_key="$2"
+      shift 2
+      ;;
+    --review-authority-public-key)
+      if [ "$#" -lt 2 ] || [ -z "$2" ]; then
+        printf 'merge-sweep.sh: --review-authority-public-key requires a value\n\n' >&2
+        usage >&2
+        exit 2
+      fi
+      review_authority_public_key="$2"
       shift 2
       ;;
     --*)
@@ -471,6 +483,10 @@ review_safety_gate() { # <pr> <pre|post>; prints the fail-closed reason
 # Requires current local review evidence and preserves the native stale-approval refusal.
 review_evidence_allows() { # <pr> <expected-head-sha>; prints the refusal reason
   local pr="$1" expected="$2" reviews verdict
+  local review_authority_args=()
+  if [ -n "$review_authority_public_key" ]; then
+    review_authority_args=(--review-authority-public-key "$review_authority_public_key")
+  fi
   if ! reviews="$(gh api graphql \
     -f query='query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){headRefOid files(first:100){pageInfo{hasNextPage} nodes{path}} reviews(first:100){pageInfo{hasNextPage} nodes{id state body submittedAt updatedAt lastEditedAt url author{login} commit{oid}}}}}}' \
     -F o="${repo%%/*}" -F r="${repo##*/}" -F n="$pr" \
@@ -478,7 +494,7 @@ review_evidence_allows() { # <pr> <expected-head-sha>; prints the refusal reason
     echo "SKIP #$pr REVIEW-EVIDENCE-LOOKUP-FAILED"
     return 1
   fi
-  if verdict="$(node "$SCRIPT_DIR/check-review-evidence.mjs" --repository "$repo" --pull-request "$pr" --expected-head "$expected" <<<"$reviews")"; then
+  if verdict="$(node "$SCRIPT_DIR/check-review-evidence.mjs" --repository "$repo" --pull-request "$pr" --expected-head "$expected" "${review_authority_args[@]}" <<<"$reviews")"; then
     return 0
   fi
   echo "SKIP #$pr REVIEW-EVIDENCE-HELD $verdict"

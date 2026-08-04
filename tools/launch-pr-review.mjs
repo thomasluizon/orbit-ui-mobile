@@ -28,12 +28,11 @@ import {
   reserveAutomationBudget,
 } from "./lib/automation-launch-budget.mjs"
 import {
-  assertReviewAuthority,
+  createReviewAuthority,
   issueReviewProvenance,
-  REVIEW_AUTHORITY_PRIVATE_KEY_ENV,
   stableFindingIdentity,
 } from "./lib/review-provenance.mjs"
-import { minimalChildEnvironment } from "./lib/child-environment.mjs"
+import { minimalChildEnvironment, scrubReviewAuthorityEnvironment } from "./lib/child-environment.mjs"
 import {
   parseGitHubPullRequest,
   parseGitHubReviewResource,
@@ -49,7 +48,8 @@ const USAGE = `usage: launch-pr-review.mjs --repo <owner/name> --pr <number> --b
   --pr <number>        pull request number
   --base <branch>      target branch to review against
   --repo-root <path>   local repository checkout (default: current directory)
-  --json               emit the durable result as JSON
+  --json               emit the durable result as JSON, including the fresh
+                       launch-scoped authorityPublicKey for APPROVE and NEEDS_WORK
   --help, -h           show this help
 
 Exit 0 for APPROVE, 4 for NEEDS_WORK, 2 for invalid input, and 3 when no durable verdict can be produced.`
@@ -133,12 +133,6 @@ if (!Number.isSafeInteger(reviewer.projectedTokens) || reviewer.projectedTokens 
 for (const key of ["accountUsedPercentCeiling", "tokenBudget", "warningTokens"]) {
   if (!Number.isFinite(codexBudget?.[key])) exitWith(2, `${configPath} workers.codex.automationBudget.${key} must be numeric`)
 }
-try {
-  assertReviewAuthority(process.env[REVIEW_AUTHORITY_PRIVATE_KEY_ENV])
-} catch (error) {
-  exitWith(3, error.message)
-}
-
 const schemaPath = fileURLToPath(new URL("./schemas/pr-review-result.schema.json", import.meta.url))
 const quotaToolPath = resolve(process.env.ORBIT_AI_QUOTA_TOOL ?? fileURLToPath(new URL("./ai-quota.mjs", import.meta.url)))
 const budgetToolPath = resolve(process.env.ORBIT_AUTOMATION_BUDGET_TOOL ?? fileURLToPath(new URL("./automation-budget.mjs", import.meta.url)))
@@ -160,7 +154,7 @@ const runSync = (command, argumentsList, options = {}) => {
     input: options.input,
     maxBuffer: 64 * 1024 * 1024,
     windowsHide: true,
-    env: options.env ?? process.env,
+    env: options.env ?? scrubReviewAuthorityEnvironment(),
   })
   if (result.error || result.status !== 0) {
     const reason = (result.stderr || result.stdout || result.error?.message || "unknown error").trim()
@@ -449,6 +443,7 @@ const main = async () => {
   }
   const baseSha = remoteSha(baseRef)
   assertExactRemoteRefs({ baseRef, baseSha, headRef, headSha, phase: "after authenticated ref read" })
+  const reviewAuthority = createReviewAuthority()
   const startedAt = new Date().toISOString()
   const identity = `pr-review:${argumentsParsed.repository}#${argumentsParsed.pullRequest}@${headSha}:${startedAt}:${randomUUID()}`
   reservation = reserveAutomationBudget({
@@ -529,6 +524,7 @@ const main = async () => {
     baseSha,
     headSha,
     reviewer: { engine: "codex", model: reviewer.model, reasoningEffort: reviewer.reasoningEffort },
+    authorityPublicKey: reviewAuthority.publicKey,
     verdict: review.verdict,
     summary: review.summary,
     findings: review.findings,
@@ -545,7 +541,7 @@ const main = async () => {
     reviewNodeId: reviewNodeId(submittedReview),
     recommendation: review.verdict,
     findingIds: durableResult.findings.map((finding) => finding.id),
-    privateKey: process.env[REVIEW_AUTHORITY_PRIVATE_KEY_ENV],
+    privateKey: reviewAuthority.privateKey,
   })
   const finalBody = commentBody(durableResult, provenance)
   const updatedReview = updateReview(reviewId(submittedReview), finalBody)

@@ -44,9 +44,21 @@ const INTERNAL_KEYS = {
   supervisor: ["ORBIT_LAUNCH_WORKER", "ORBIT_WORKER_LAUNCH_ID", "ORBIT_WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY"],
 }
 
+const REVIEW_AUTHORITY_KEYS = ["ORBIT_REVIEW_AUTHORITY_PRIVATE_KEY", "ORBIT_REVIEW_AUTHORITY_PUBLIC_KEY"]
+
 const valueFor = (environment, key) => {
   const actual = Object.keys(environment).find((candidate) => candidate.toLowerCase() === key.toLowerCase())
   return actual === undefined ? undefined : environment[actual]
+}
+
+export const scrubReviewAuthorityEnvironment = (source = process.env) => {
+  const result = { ...source }
+  for (const key of Object.keys(result)) {
+    if (REVIEW_AUTHORITY_KEYS.some((candidate) => candidate.toLowerCase() === key.toLowerCase())) {
+      delete result[key]
+    }
+  }
+  return result
 }
 
 const allowedKeys = (purpose, allowTestControls) => [
