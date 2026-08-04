@@ -125,7 +125,7 @@ purpose: an audit reads, so its workers carry no write, edit, or shell tools eit
 
 Run the shared pipeline in **`.claude/skills/_shared/audit-to-tickets.md`**: one Linear
 ticket per verified gap, drafted to the 6.2 template, validated by
-`node tools/check-ticket.mjs --file`, presented behind ONE approval gate, then created via
+re-read against the 6.2 template, presented behind ONE approval gate, then created via
 `orca linear create` and re-validated with `--issue`.
 
 Tests-specific mapping into the 6.2 body, where the deliverable of each ticket IS a test:
@@ -143,7 +143,7 @@ Tests-specific mapping into the 6.2 body, where the deliverable of each ticket I
   real, or its removal. Unit-only: never draft an integration/E2E ticket.
 - `repo:*` from `location` (`orbit-api` -> `repo:api`, `apps/*` / `packages/*` -> `repo:ui`).
   A ui test ticket carries `parity:yes|no`. A test ticket rarely changes pixels, so it rarely
-  needs `visible-effect`; if a body names a user-visible surface, check-ticket will require
+  needs `visible-effect`; a body naming a user-visible surface must carry
   the D7 line and you add it.
 
 At the approval gate, present **suite health** (files scored, % happy-path-only, % smell-

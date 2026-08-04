@@ -1,6 +1,6 @@
 # Scope completeness before work starts
 
-**At a glance:** the shared search and evidence contract for `/feature`, `/ticket`, and
+**At a glance:** the shared search and evidence contract for `/ticket` and
 `/orchestrate`. It prevents a ticket from covering the obvious code edit while missing a
 call site, operating document, or agent instruction that must change with it. Run it before
 decomposing, drafting, or dispatching work.

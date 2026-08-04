@@ -1,69 +1,14 @@
 # AGENTS.md (orbit-ui-mobile)
 
-Instructions for Codex (CLI workers and the cloud reviewer). Claude Code reads
-CLAUDE.md; the two must not fork: this file holds the worker contract and the review
-rules, and DEFERS to `CLAUDE.md` (same directory) for repo conventions. Read CLAUDE.md
-before writing code.
+Instructions for Codex workers in this repository. Claude Code reads `CLAUDE.md`; the two must
+not fork. This file DEFERS to `CLAUDE.md` (same directory) for every repo convention, so read it
+before you write code. Your launch prompt already carries the objective, scope, caps, output
+contract, and the merge and push prohibitions; this file holds only what neither of those does.
 
-## Worker contract
-
-- Your prompt is a Linear ticket body. Execute exactly it: scope and out-of-scope are
-  binding; an impossible or contradictory ticket means STOP and report, never improvise.
-- Finish = gates green, commit, push, and one ready PR to the target linking `ORB-N`, then own
-  its review cycle. CHANGES_REQUESTED blocks. No approval is required. If an approval exists,
-  it must name the current head. Finish requires zero unresolved threads and every automated review item is reconciled.
-  The pull request must be ready for review, never a draft.
-  Never merge. Never push to `main` or `redesign/main` directly.
-- Post the approach before you write the code. Open the pull request as your FIRST act
-  after creating the branch, carrying no implementation yet, and immediately post your
-  intended approach as a pull request comment: the change you mean to make, the files it
-  will land in, and why that shape rather than the alternatives you rejected. Only then
-  start writing. The cloud reviewer reads that comment before it reads a diff, so a wrong
-  shape costs one comment instead of a review round against code already written. Changing
-  a plan is free; changing a merged design is not.
-- After pushing, poll your pull request. Reconcile each automated review finding
-  against the diff, fix valid findings, commit and push the fix, reply on the thread
-  naming the fix commit, resolve the thread, and repeat until the finish rule above is met.
-  Never resolve a human thread or report completion while one remains unresolved.
-- Use `node tools/pr-watch.mjs --repo <owner/name> --pr <number> --once` for each
-  low-level transition wake-up only. After every call and before waiting or
-  reporting completion, run
-  `node tools/worker-status.mjs --worktree <path> --issue ORB-N --json`. That
-  full-surface completion poll inventories review submissions, review threads and
-  their nested comments, and PR conversation comments, and fails closed on an
-  incomplete inventory. Read unmet item bodies through GitHub's read APIs,
-  reconcile them, then poll again. An informational automated finding that needs
-  no code change may be resolved after replying with
-  `No code change required: <reason>. Evidence: <PR commit>`. The named commit must
-  be on the PR and change the reviewed path.
-- For an automated finding in a review body or PR conversation comment with no
-  thread, post a PR comment naming that activity ID and the PR commit that addresses
-  it so the pre-merge verification can prove it was handled.
-- Escalate when you disagree with a finding, when you are blocked on a decision you
-  may not make, or when two consecutive cycles fail on the same finding. That strike
-  count is DURABLE and lives outside your process, in `tools/lib/strike-ledger.mjs`, so a
-  fresh relaunch does not reset it and escalation cannot degrade into unbounded retry.
-  A relaunch driven by one finding carries `--finding <id>`, and exit code 5 from the
-  launcher means the strikes are spent: escalate, never retry. Report one escalation
-  carrying the finding and your reasoning; otherwise report once when the finish rule is met.
-- Parity is mandatory for `parity:yes` tickets: `apps/web` and `apps/mobile` change in
-  the SAME PR, logic and behaviour identical; i18n keys land in `en.json` AND
-  `pt-BR.json` in the same edit.
-- `visible-effect` tickets: capture the affected surfaces, read every captured
-  screenshot, and critique the pixels against `DESIGN.md` plus
-  `RENDER-CORRECTNESS.md`. Revise and re-capture until the critique is clean or a
-  hard cap of three capture-critique iterations is reached; the cap prevents a
-  subjective review loop from consuming the worker budget. Before In Review, attach
-  the final screenshots and the critique to the Linear issue. At the cap, the
-  critique must explicitly report every unresolved finding. For `parity:yes`, critique
-  both platforms or name the platform not covered and why.
-- Gates you will hit (all CI-enforced, none optional): ESLint `local/*` rules, the
-  spacing-scale and z-index ratchets (`eslint-suppressions.json` may only shrink), the
-  dash ban (`tools/check-dashes.mjs`; never type an em dash anywhere, including
-  commits and PR text), the copy register (`tools/check-copy.mjs`), cross-platform
-  parity, and the arch-map drift job (`node tools/arch-map.mjs` after changing routes,
-  endpoints, or module structure, commit the regenerated artifacts).
-- Never edit a gate baseline to admit a new violation. Fix the violation.
+Beyond the gates `CLAUDE.md` names: `eslint-suppressions.json` and the dash and copy baselines
+may only shrink, and any change to routes, endpoints, or module structure needs
+`node tools/arch-map.mjs` re-run and its artifacts committed. Never edit a gate baseline to
+admit a new violation; fix the violation.
 
 ### Never assume an external interface. Check it, then use it.
 
@@ -128,46 +73,15 @@ first fails loudly on work that succeeded, the second passes silently on work ne
 Both shapes above are documentation and age like documentation. Confirm them yourself before
 you rely on them; that is the whole point of this section.
 
-### Guardrails you must not trip
+## Guardrails you must not trip
 
-These hold for EVERY worker and every engine. They are enforced by CI, GitHub branch
-protection, and the lefthook pre-commit/pre-push hooks, NOT by the Claude Code session
-hooks (those do not run under a codex worker or a raw shell). This list is the readable
-copy; the gates are the enforcement.
-
-- Never push or force-push to `main` (or `redesign/main`). Branch to
-  `feature/`|`fix/`|`chore/`, open a PR, squash-merge only. Never reuse a squash-merged
-  branch.
+- Never push or force-push to `main`, never reuse a squash-merged branch, and never bypass the
+  git hooks: no `--no-verify` (or its `-n` commit alias), no `--no-gpg-sign`, no
+  `commit.gpgsign=false`. Fix what a hook flags, then commit.
 - Never perform an admin merge, in any shape: no `gh pr merge --admin`, no direct
   `PUT /repos/{owner}/{repo}/pulls/{number}/merge`, and no GraphQL `mergePullRequest`
-  mutation. Naming the two raw API calls is deliberate; forbidding only the CLI flag
-  leaves both API paths open. The admin override exists for Thomas alone. If a merge
-  genuinely needs it, STOP and ask Thomas to merge it himself.
-- Never bypass the git hooks: no `--no-verify` (or its `-n` commit alias), no
-  `--no-gpg-sign` and no `commit.gpgsign=false`. Fix what a hook flags, then commit.
-- Never `git worktree remove --force`: on Windows it follows a junction and deletes the
-  link target. Remove the junctions first, then remove the worktree without `--force`.
-
-## Code Review Rules
-
-Only what no gate can check; mechanical findings belong to CI and are noise here.
-Flag P0/P1 only.
-
-1. **A DTO field renamed, removed, or retyped that a shipped mobile client still
-   reads.** The Contract Drift job cannot judge this: it does not know the Play-fleet
-   lag. Safe path: append-only optional fields; breaking changes use expand-contract
-   plus the `AppConfig.MinSupportedVersion` gate.
-2. **`AppConfig.MinSupportedVersion` raised before the carrying build is live in the
-   Play fleet.** Safe path: raise it only after the build carrying the change is the
-   fleet minimum.
-3. **A mobile mirror that exists but behaves differently from the web change.** The
-   parity CI job sees file presence, not behaviour. Safe path: same logic, same error
-   handling, same i18n keys; platform adapters differ only in the adapter layer.
-4. **A load-bearing string changed**: URL slug, anchor id, primary nav label, form
-   field `name` or order. Every test stays green while SEO/analytics/autofill
-   regresses. Safe path: treat as a decision needing sign-off, not a refactor.
-5. **A field, flag, or exit code read from an external interface with no evidence in the
-   pull request body, or a harness fixture asserting a shape no evidence supports.** No
-   gate can see this: the harness is green precisely because the author wrote both the
-   code and the fixture. Safe path: the complete redacted response shape plus a way to
-   re-derive it, or a design that does not read the unconfirmed field.
+  mutation. Naming the two raw API calls is deliberate; forbidding only the CLI flag leaves
+  both API paths open. The admin override exists for Thomas alone. If a merge genuinely needs
+  it, STOP and ask Thomas to merge it himself.
+- Never `git worktree remove --force`: on Windows it follows a junction and deletes the link
+  target. Remove the junctions first, then remove the worktree without `--force`.

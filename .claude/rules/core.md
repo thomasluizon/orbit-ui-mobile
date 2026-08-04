@@ -1,54 +1,46 @@
 # Standing rules: the always-loaded core
 
-**At a glance:** the only judgement rules that load on EVERY turn. Everything else lives in
-`.claude/playbooks/` and is read on demand. A rule belongs here only if it applies in any turn AND
-no skill invocation reliably precedes it. Rationale and the full rule set: `.claude/playbooks/README.md`.
-
-**Activity-scoped: READ these yourself** when you start that activity. No file path predicts them,
-so nothing can trigger them for you. (The `.claude/rules/` files with `paths:` frontmatter load
-themselves; nothing to remember there.)
+**At a glance:** the judgement that loads on EVERY turn. Everything else lives in
+`.claude/playbooks/`: **read the playbook yourself** when you start that activity, because no file
+path predicts it.
 
 | playbook | read it when |
 |---|---|
-| `.claude/playbooks/debugging.md` | a bug, a triage, `/investigate`, a merge conflict |
-| `.claude/playbooks/review-and-audit.md` | `/pr-review`, `/audit-*`, `/commit-sweep`, any fan-out assessment |
-| `.claude/playbooks/planning-and-artifacts.md` | `/feature`, `/ticket`, `/orchestrate`, ticket writing, ADRs |
-| `.claude/playbooks/context-engineering.md` | authoring or editing anything the agent reads: a `CLAUDE.md`, a rule, a playbook, a skill, an agent, a tool interface, a ticket body |
+| `debugging.md` | a bug, a triage, `/investigate`, a merge conflict |
+| `review-and-audit.md` | `/pr-review`, `/audit-*`, any fan-out assessment |
+| `planning-and-artifacts.md` | `/ticket`, `/orchestrate`, ticket writing, ADRs |
+| `context-engineering.md` | authoring anything the agent reads: a rule, playbook, skill, agent, tool, ticket |
 
 ### 1. No red-capable command, no hypothesising
 
-Before theorising about a bug, build and RUN one command that drives the real code path, asserts the
-exact symptom, and is deterministic and fast. Until it exists and is red you do not have a bug, you
-have a story about one. Then cut the repro down before you think.
+Before theorising about a bug, RUN one fast, deterministic command that drives the real code path
+and asserts the exact symptom. Until it is red you have a story, not a bug. Cut the repro down first.
 
 ### 2. Tag temporary debug output with a unique prefix
 
-`[DEBUG-a4f2]`, so removing it is one grep. Confirm the grep is empty before calling the fix done.
+`[DEBUG-a4f2]`, so removing it is one grep. Confirm the grep is empty before calling it done.
 
 ### 3. Never re-flag what a gate already enforces
 
 If ESLint `local/*`, a `guards.yml` job (Dash Ban, Copy Register, Suppressions Ratchet, Expo SDK
-Pin, Cross-Platform Parity), or Roslyn `ORBIT0001..0005` already fails on it, repeating it by hand
-is noise. The inverse of gates-over-prose, and the most-broken rule.
+Pin, Cross-Platform Parity), or Roslyn `ORBIT0001..0005` fails on it, saying it by hand is noise.
 
 ### 4. Load-bearing strings need approval before they change
 
-Never silently change a URL slug, an anchor id, a primary nav label, or a form field's `name` or
-order. Each carries SEO, analytics, or autofill, and every test stays green while attribution
-regresses. Changing one is a decision, not a refactor.
+Never silently change a URL slug, anchor id, primary nav label, or a form field's `name` or order.
+Each carries SEO, analytics, or autofill; every test stays green while attribution regresses.
 
 ### 5. Expanding the design system is a request, not a judgement call
 
-If a change seems to need a token, colour, gradient, radius, shadow, font, or effect `DESIGN.md`
-lacks, stop and ask: name the addition, its role, and why the current system cannot do the job.
+Needs a token, colour, gradient, radius, shadow, font, or effect `DESIGN.md` lacks? Stop and ask: name it,
+its role, and why the current system cannot do the job.
 
-### 6. Assert the obvious option; do not offer a menu you know the answer to
+### 6. Assert the obvious option, never a menu
 
-When context makes one option obvious, state it and ask for confirmation or override. Never list an
-open question you would immediately annotate with "Recommend: X" - decide X and move on.
+State the obvious option and ask for confirmation or override. Never list an open question you
+would annotate "Recommend: X"; decide X and move on.
 
 ### 7. Never present a zero-result lookup as data
 
-Retry once with different wording, then say explicitly that the answer came from built-in defaults
-rather than a match. Never invent ratings, prices, reviews, or org details, and never fabricate a
-`file:line` a tool did not give you.
+Retry once with different wording, then say the answer came from built-in defaults, not a match.
+Never invent ratings, prices, reviews, or org details, or a `file:line` no tool gave you.
