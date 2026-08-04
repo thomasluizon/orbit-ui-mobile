@@ -64,6 +64,23 @@
         "patch": "stdout is copied as the complete authenticated base-to-head patch and is not parsed by the launcher"
       }
     },
+    "gitDiffFiles": {
+      "command": ["git", "diff", "--name-only", "--no-renames", "-z", "<base-sha>", "<head-sha>"],
+      "commandCompleteness": "Complete argv with the repository path supplied as cwd and both authenticated commit SHAs supplied as named placeholders.",
+      "rederive": "git -C <repository-path> diff --name-only --no-renames -z <base-sha> <head-sha>",
+      "provenance": {
+        "capture": "git -C <repository-path> diff --name-only --no-renames -z <base-sha> <head-sha>",
+        "capturedAt": "2026-08-04T07:26:32.771Z",
+        "captureKind": "complete NUL-delimited stdout, stderr, and exit-code capture with the repository path and commit SHAs replaced by named placeholders"
+      },
+      "observedExitCode": 0,
+      "observedStdout": "<path>\u0000<path>\u0000",
+      "observedStderr": "",
+      "stdoutGrammar": "^(?:[^\\u0000]+\\u0000)*$",
+      "comparedFields": {
+        "paths": "each NUL-delimited path is compared as the complete authenticated no-renames base-to-head filename inventory"
+      }
+    },
     "gitRevParseHead": {
       "command": ["git", "rev-parse", "HEAD"],
       "commandCompleteness": "Complete argv with the detached review worktree supplied as cwd.",
@@ -181,6 +198,11 @@
         "source": "  const origin = runSync(gitCommand, [\"remote\", \"get-url\", \"origin\"], { cwd: argumentsParsed.repoRoot }).trim()",
         "evidenceKey": "gitRemoteOrigin",
         "responseUse": "match the recorded GitHub URL grammar and capture owner/repository"
+      },
+      {
+        "source": "  const output = runSync(gitCommand, [",
+        "evidenceKey": "gitDiffFiles",
+        "responseUse": "parse the complete NUL-delimited authenticated no-renames filename inventory before comparing it with GitHub"
       },
       {
         "source": "  const shim = readFileSync(resolved, \"utf8\")",

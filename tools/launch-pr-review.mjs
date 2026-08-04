@@ -35,6 +35,7 @@ import {
 import { minimalChildEnvironment, scrubReviewAuthorityEnvironment } from "./lib/child-environment.mjs"
 import {
   parseGitHubPullRequest,
+  parseGitHubPullRequestFiles,
   parseGitHubReviewResource,
   pullRequestHead,
   reviewId,
@@ -216,9 +217,60 @@ const livePullRequest = () => {
   const output = runSync(ghCommand, [
     "pr", "view", String(argumentsParsed.pullRequest),
     "--repo", argumentsParsed.repository,
-    "--json", "number,title,body,author,baseRefName,headRefName,headRefOid,files,labels,statusCheckRollup,state,isDraft",
+    "--json", "number,title,body,author,baseRefName,headRefName,headRefOid,labels,statusCheckRollup,state,isDraft",
   ])
   return parseGitHubPullRequest(output, { pullRequest: argumentsParsed.pullRequest, base: argumentsParsed.base })
+}
+
+const livePullRequestFiles = () => {
+  const output = runSync(ghCommand, [
+    "api",
+    "--paginate",
+    "--slurp",
+    "-H", "Accept: application/vnd.github+json",
+    `repos/${argumentsParsed.repository}/pulls/${argumentsParsed.pullRequest}/files?per_page=100`,
+  ])
+  return parseGitHubPullRequestFiles(output)
+}
+
+const gitChangedFileNames = ({ baseSha, headSha }) => {
+  const output = runSync(gitCommand, [
+    "diff",
+    "--name-only",
+    "--no-renames",
+    "-z",
+    baseSha,
+    headSha,
+  ], { cwd: argumentsParsed.repoRoot })
+  if (output && !output.endsWith("\u0000")) {
+    throw new Error(`authenticated ${baseSha}...${headSha} Git filename inventory is truncated`)
+  }
+  const names = output ? output.slice(0, -1).split("\u0000") : []
+  if (names.some((name) => !name)) throw new Error("authenticated Git filename inventory contains an empty path")
+  if (new Set(names).size !== names.length) throw new Error("authenticated Git filename inventory contains duplicate paths")
+  return names
+}
+
+const duplicateNames = (names) => {
+  const seen = new Set()
+  const duplicates = new Set()
+  for (const name of names) {
+    if (seen.has(name)) duplicates.add(name)
+    seen.add(name)
+  }
+  return [...duplicates]
+}
+
+const assertCompleteFileInventory = ({ githubNames, gitNames, baseSha, headSha }) => {
+  const githubSet = new Set(githubNames)
+  const gitSet = new Set(gitNames)
+  const missingFromGitHub = gitNames.filter((name) => !githubSet.has(name))
+  const extraFromGitHub = githubNames.filter((name) => !gitSet.has(name))
+  const duplicateGitHubNames = duplicateNames(githubNames)
+  const duplicateGitNames = duplicateNames(gitNames)
+  if (missingFromGitHub.length || extraFromGitHub.length || duplicateGitHubNames.length || duplicateGitNames.length) {
+    throw new Error(`GitHub file inventory does not match authenticated ${baseSha}...${headSha} Git inventory: ${JSON.stringify({ missingFromGitHub, extraFromGitHub, duplicateGitHubNames, duplicateGitNames })}`)
+  }
 }
 
 const resolveOnPath = (command) => {
@@ -435,6 +487,7 @@ const main = async () => {
     throw new Error(`--repo names ${argumentsParsed.repository}, but origin is ${originRepository}`)
   }
   const pullRequest = livePullRequest()
+  const githubFileNames = livePullRequestFiles()
   const headRef = `refs/pull/${argumentsParsed.pullRequest}/head`
   const baseRef = `refs/heads/${argumentsParsed.base}`
   const headSha = remoteSha(headRef)
@@ -461,6 +514,9 @@ const main = async () => {
   })
 
   runSync(gitCommand, ["fetch", "--no-tags", "origin", baseRef, headRef], { cwd: argumentsParsed.repoRoot })
+  assertExactRemoteRefs({ baseRef, baseSha, headRef, headSha, phase: "after authenticated ref fetch" })
+  const gitFileNames = gitChangedFileNames({ baseSha, headSha })
+  assertCompleteFileInventory({ githubNames: githubFileNames, gitNames: gitFileNames, baseSha, headSha })
   worktreeRoot = mkdtempSync(join(tmpdir(), "orbit-pr-review-"))
   worktreePath = join(worktreeRoot, "checkout")
   runSync(gitCommand, ["worktree", "add", "--detach", worktreePath, headSha], { cwd: argumentsParsed.repoRoot })

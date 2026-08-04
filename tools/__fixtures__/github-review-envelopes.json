@@ -22,12 +22,12 @@
         "--repo",
         "<owner/name>",
         "--json",
-        "number,title,body,author,baseRefName,headRefName,headRefOid,files,labels,statusCheckRollup,state,isDraft"
+        "number,title,body,author,baseRefName,headRefName,headRefOid,labels,statusCheckRollup,state,isDraft"
       ],
       "commandCompleteness": "Complete argv with repository and pull request identifiers replaced by named placeholders.",
-      "rederive": "gh pr view <pull-request-number> --repo <owner/name> --json number,title,body,author,baseRefName,headRefName,headRefOid,files,labels,statusCheckRollup,state,isDraft",
+      "rederive": "gh pr view <pull-request-number> --repo <owner/name> --json number,title,body,author,baseRefName,headRefName,headRefOid,labels,statusCheckRollup,state,isDraft",
       "provenance": {
-        "capture": "gh pr view 672 --repo thomasluizon/orbit-ui-mobile --json number,title,body,author,baseRefName,headRefName,headRefOid,files,labels,statusCheckRollup,state,isDraft",
+        "capture": "gh pr view 674 --repo thomasluizon/orbit-ui-mobile --json number,title,body,author,baseRefName,headRefName,headRefOid,labels,statusCheckRollup,state,isDraft",
         "capturedAt": "2026-08-02T04:45:23.603Z",
         "captureKind": "complete process response with values reduced to key/type evidence"
       },
@@ -47,12 +47,6 @@
         "$.author.name": { "types": ["string"] },
         "$.baseRefName": { "types": ["string"] },
         "$.body": { "types": ["string"] },
-        "$.files": { "types": ["array"], "observedLengths": [81] },
-        "$.files[]": { "types": ["object"] },
-        "$.files[].additions": { "types": ["number"] },
-        "$.files[].changeType": { "types": ["string"] },
-        "$.files[].deletions": { "types": ["number"] },
-        "$.files[].path": { "types": ["string"] },
         "$.headRefName": { "types": ["string"] },
         "$.headRefOid": { "types": ["string"] },
         "$.isDraft": { "types": ["boolean"] },
@@ -89,6 +83,46 @@
           "keys": ["__typename", "context", "startedAt", "state", "targetUrl"]
         }
       ]
+    },
+    "pullRequestFiles": {
+      "command": [
+        "gh",
+        "api",
+        "--paginate",
+        "--slurp",
+        "-H",
+        "Accept: application/vnd.github+json",
+        "repos/<owner/name>/pulls/<pull-request-number>/files?per_page=100"
+      ],
+      "commandCompleteness": "Complete argv with repository and pull request identifiers replaced by named placeholders.",
+      "rederive": "gh api --paginate --slurp -H 'Accept: application/vnd.github+json' 'repos/<owner/name>/pulls/<pull-request-number>/files?per_page=100'",
+      "provenance": {
+        "capture": "gh api --paginate --slurp -H 'Accept: application/vnd.github+json' 'repos/thomasluizon/orbit-ui-mobile/pulls/674/files?per_page=100'",
+        "capturedAt": "2026-08-04T07:26:32.771Z",
+        "captureKind": "complete paginated process response with values reduced to key/type evidence"
+      },
+      "observedExitCode": 0,
+      "observedPageCount": 2,
+      "observedPageLengths": [100, 33],
+      "observedFileCount": 133,
+      "observedValues": {
+        "$[][].status": ["added", "modified"]
+      },
+      "paths": {
+        "$": { "types": ["array"], "observedLengths": [2] },
+        "$[]": { "types": ["array"], "observedLengths": [100, 33] },
+        "$[][]": { "types": ["object"] },
+        "$[][].additions": { "types": ["number"] },
+        "$[][].blob_url": { "types": ["string"] },
+        "$[][].changes": { "types": ["number"] },
+        "$[][].contents_url": { "types": ["string"] },
+        "$[][].deletions": { "types": ["number"] },
+        "$[][].filename": { "types": ["string"] },
+        "$[][].patch": { "types": ["string"] },
+        "$[][].raw_url": { "types": ["string"] },
+        "$[][].sha": { "types": ["string"] },
+        "$[][].status": { "types": ["string"] }
+      }
     },
     "reviewCreate": {
       "command": [
