@@ -284,10 +284,10 @@ fs.readdirSync = function (directory, ...args) {
   check("teardown-worktree.mjs", "a server-side merged commit absent from the local branch tears down", ["--issue", "ORB-124"], { status: 0, stdout: /REMOVED worktree/ }, { env: orcaEnv(teardownPlan(serverSideMerge, { removePath: serverSideMerge.child })) })
 
   const localFollowUp = stageTeardownWorktree("local-follow-up", { changed: true, serverMerged: true, localFollowUp: true })
-  check("teardown-worktree.mjs", "a local follow-up after the merged pull request is refused without suggesting a forceful merge check", ["--issue", "ORB-124"], { status: 1, stderr: /UNMET local-tip-in-pull-request-head: local tip .* is not contained in pull request #124's head .*; local commits would be lost/ }, { env: orcaEnv(teardownPlan(localFollowUp)) })
+  check("teardown-worktree.mjs", "a local follow-up after the merged pull request is refused by content mismatch", ["--issue", "ORB-124"], { status: 1, stderr: /UNMET local-content-in-pull-request-head: local tip .* has different content from pull request #124's head .*; local changes would be lost/ }, { env: orcaEnv(teardownPlan(localFollowUp)) })
 
   const mergedLocalFollowUp = stageTeardownWorktree("merged-local-follow-up", { changed: true, serverMerged: true, localFollowUp: true, localFollowUpMerged: true })
-  check("teardown-worktree.mjs", "a local tip behind the forge pull request head tears down", ["--issue", "ORB-124"], { status: 0, stdout: /REMOVED worktree/ }, { env: orcaEnv(teardownPlan(mergedLocalFollowUp, { pullRequest: { ...mergedPullRequest(mergedLocalFollowUp), headRefOid: mergedLocalFollowUp.targetTip }, removePath: mergedLocalFollowUp.child })) })
+  check("teardown-worktree.mjs", "a forge head with different content preserves the local worktree", ["--issue", "ORB-124"], { status: 1, stderr: /UNMET local-content-in-pull-request-head: local tip .* has different content from pull request #124's head/ }, { env: orcaEnv(teardownPlan(mergedLocalFollowUp, { pullRequest: { ...mergedPullRequest(mergedLocalFollowUp), headRefOid: mergedLocalFollowUp.targetTip } })) })
 
   const notDone = stageTeardownWorktree("not-done")
   check("teardown-worktree.mjs", "a closed-looking but non-Done Linear issue is refused", ["--issue", "ORB-124"], { status: 1, stderr: /linear-done[\s\S]*In Review/ }, { env: orcaEnv(teardownPlan(notDone, { state: "In Review", removePath: notDone.child })) })

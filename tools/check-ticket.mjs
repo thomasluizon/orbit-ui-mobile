@@ -13,6 +13,7 @@ import { homedir } from "node:os"
 import { join } from "node:path"
 
 import { affectedFilesOf } from "./lib/affected-files.mjs"
+import { affectedScopeOf } from "./lib/affected-files.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
 const USAGE = `usage: check-ticket.mjs --issue ORB-12 | --file body.md
@@ -21,10 +22,12 @@ const USAGE = `usage: check-ticket.mjs --issue ORB-12 | --file body.md
   --file body.md   validate a drafted body before creation (no labels/relations checks)
   --help, -h       print this usage and exit 0
 
-Affected modules / files must name at least ONE parseable path, not merely carry the heading. A
-ticket with no path list collides with everything, because silence must not buy parallelism: the
-wave collision report can only intersect paths it can read. The parser is tools/lib/affected-files.mjs,
-the same module wave-plan.mjs reads, so what this gate accepts is exactly what that report intersects.
+Affected modules / files must name at least ONE parseable path or broad scope, not merely carry the
+heading. A ticket with no path list collides with everything, because silence must not buy
+parallelism: the wave collision report can only intersect paths it can read. A wildcard or directory
+scope is retained as an unknown affected scope and is serialized conservatively by wave-plan.mjs.
+The parser is tools/lib/affected-files.mjs, the same module wave-plan.mjs reads, so what this gate
+accepts is exactly what that report classifies.
 
 Harness root causes (D5/D5a). tools/harness-roots.json is the registry and the ONLY enumeration
 source; neither Linear path in this tool can list the board. A "Root cause:" line must name an id
@@ -143,8 +146,8 @@ const validateBody = (body) => {
   }
   if (AFFECTED_SECTION.pattern.test(body)) {
     require_(
-      affectedFilesOf(body).length >= 1,
-      `${AFFECTED_SECTION.name} carries the heading but names no parseable path. A ticket with no path list collides with everything, because silence must not buy parallelism: wave-plan.mjs can only intersect paths it can read. List each path on its own line, backticked or as a list item`,
+      affectedFilesOf(body).length >= 1 || affectedScopeOf(body).unknown,
+      `${AFFECTED_SECTION.name} carries the heading but names no parseable path or broad scope. A ticket with no path list collides with everything, because silence must not buy parallelism: wave-plan.mjs can only intersect paths it can read. List each path on its own line, backticked or as a list item`,
     )
   }
   const criteria = body.split(/^#+[ \t]+/m).find((chunk) => /^acceptance criteria/i.test(chunk)) ?? ""

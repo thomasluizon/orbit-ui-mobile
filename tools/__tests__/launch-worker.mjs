@@ -2,7 +2,7 @@ import { spawnSyncHidden as spawnSync } from "../lib/subprocess-options.mjs"
 import { chmodSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs"
 import { delimiter, join, resolve } from "node:path"
 
-import { TOOLS_DIR, REPO_ROOT, T, root, stage, orcaEnv, orchestratorConfig, run, runAsync, check, DEFAULT_AUTOMATION_BUDGET, CLAUDE_MODELS, CODEX_MODELS, INTERACTIVE_WORKER, INTERACTIVE_CODEX, stageLaunchWorker, launchWorktreeStub, linearIssueStub, WORKER_CONTRACT_MARKER, ORCHESTRATOR_REVIEW_HANDOFF, REQUIRED_CONTRACT_CLAUSES as BASE_REQUIRED_CONTRACT_CLAUSES, contractClauseBlocks, TRUST_SCREENS, stageCheckout, budgetRecord, runTrustScreen } from "./_harness.mjs"
+import { TOOLS_DIR, REPO_ROOT, T, root, stage, orcaEnv, orchestratorConfig, run, runAsync, check, DEFAULT_AUTOMATION_BUDGET, CLAUDE_MODELS, CODEX_MODELS, INTERACTIVE_WORKER, INTERACTIVE_CODEX, stageLaunchWorker, launchWorktreeStub, linearIssueStub, WORKER_CONTRACT_MARKER, ORCHESTRATOR_REVIEW_HANDOFF, REQUIRED_CONTRACT_CLAUSES as BASE_REQUIRED_CONTRACT_CLAUSES, contractClauseBlocks, TRUST_SCREENS, stageCheckout, budgetRecord, runTrustScreen, WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY_ENV, WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY_ENV } from "./_harness.mjs"
 import { readWorkerLaunchRecords, verifyWorkerLaunchCompletion } from "../lib/worker-launch-provenance.mjs"
 
 const REQUIRED_CONTRACT_CLAUSES = BASE_REQUIRED_CONTRACT_CLAUSES
@@ -1429,6 +1429,12 @@ const launchWorkerCases = async () => {
 
   check("launch-worker.mjs", "refuses a missing prompt file", ["--issue", "ORB-75", "--prompt-file", join(root, "absent.md"), "--dry-run"], { status: 2, stderr: /prompt file not found/ }, { path: good.path })
   check("launch-worker.mjs", "refuses a non-Linear issue identifier", ["--issue", "nope", "--prompt-file", promptFile, "--dry-run"], { status: 2, stderr: /Linear identifier/ }, { path: good.path })
+  check(
+    "launch-worker.mjs",
+    "documents headless acceptance separately from interactive compatibility",
+    ["--help"],
+    { status: 0, stdout: /Headless mode exits 0[\s\S]*Interactive compatibility mode exits 0/ },
+  )
 
   /**
    * The standing worker contract has to be OWNED by the launcher, not by whoever composed the
@@ -1581,21 +1587,24 @@ const launchWorkerCases = async () => {
     T("launch-worker.mjs: a headless launch starts a real worker process", false, "could not stage the headless launch checkout")
   } else {
     const headlessPrompt = stage("headless-launch-prompt.md", "the ticket body verbatim\n")
+    const headlessEnvironment = {
+      ...orcaEnv([
+        ...linearIssueStub(["repo:ui"]),
+        { match: "worktree create", stdout: JSON.stringify({ ok: true, result: { worktree: { path: headlessCheckout, branch: "refs/heads/thomasluizon/orb-75" } } }) },
+        { match: "worktree set", stdout: JSON.stringify({ ok: true, result: {} }) },
+        { match: "worktree rm", stdout: JSON.stringify({ ok: true, result: {} }) },
+      ]),
+      PATH: `${headlessEngineDirectory}${delimiter}${process.env.PATH}`,
+      ORBIT_AUTOMATION_BUDGET_LEDGER: join(headlessStage.base, "automation-budget.jsonl"),
+      ORBIT_WORKER_LAUNCH_LEDGER: join(headlessStage.base, "worker-launches.jsonl"),
+      ORBIT_HARNESS_TEST: "1",
+      ORBIT_TEST_HEADLESS_ARGV_LOG: headlessArgvLog,
+      [WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY_ENV]: undefined,
+      [WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY_ENV]: undefined,
+    }
     const headlessResult = run("launch-worker.mjs", ["--issue", "ORB-75", "--prompt-file", headlessPrompt], {
       path: headlessStage.path,
-      env: {
-        ...orcaEnv([
-          ...linearIssueStub(["repo:ui"]),
-          { match: "worktree create", stdout: JSON.stringify({ ok: true, result: { worktree: { path: headlessCheckout, branch: "refs/heads/thomasluizon/orb-75" } } }) },
-          { match: "worktree set", stdout: JSON.stringify({ ok: true, result: {} }) },
-          { match: "worktree rm", stdout: JSON.stringify({ ok: true, result: {} }) },
-        ]),
-        PATH: `${headlessEngineDirectory}${delimiter}${process.env.PATH}`,
-        ORBIT_AUTOMATION_BUDGET_LEDGER: join(headlessStage.base, "automation-budget.jsonl"),
-        ORBIT_WORKER_LAUNCH_LEDGER: join(headlessStage.base, "worker-launches.jsonl"),
-        ORBIT_HARNESS_TEST: "1",
-        ORBIT_TEST_HEADLESS_ARGV_LOG: headlessArgvLog,
-      },
+      env: headlessEnvironment,
     })
     let headlessPlan = null
     try {
@@ -1654,6 +1663,11 @@ const launchWorkerCases = async () => {
         centralCompletion?.completion?.exitCode === 0 &&
         verifyWorkerLaunchCompletion(centralCompletion),
       `exit ${headlessResult.status}\n     stdout: ${headlessResult.stdout.slice(0, 400)}\n     stderr: ${headlessResult.stderr.slice(0, 600)}\n     marker: ${JSON.stringify(markerRows)}`,
+    )
+    T(
+      "launch-worker.mjs: a headless launch owns its ephemeral authority without authority environment variables",
+      headlessResult.status === 0 && centralCompletion?.completion?.exitCode === 0 && verifyWorkerLaunchCompletion(centralCompletion),
+      `exit ${headlessResult.status}\n     private authority env absent; completion: ${JSON.stringify(centralCompletion?.completion)}`,
     )
     const headlessLedger = join(headlessStage.base, "automation-budget.jsonl")
     const headlessRows = existsSync(headlessLedger)

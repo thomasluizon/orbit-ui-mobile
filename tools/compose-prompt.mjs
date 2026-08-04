@@ -6,6 +6,8 @@ import { createHash } from "node:crypto"
 import { readFileSync, writeFileSync } from "node:fs"
 import { isAbsolute, resolve } from "node:path"
 
+import { normalizeTicketBody } from "./lib/ticket-body.mjs"
+
 const USAGE = `usage: compose-prompt.mjs --issue ORB-N --output <absolute path> [--brief-file <absolute path>]
 
   --issue ORB-N                 Linear issue whose body and comments to compose (required)
@@ -91,7 +93,7 @@ if (briefFile) {
     process.exit(2)
   }
   const expectedIssue = issue.toUpperCase()
-  const bodySha256 = createHash("sha256").update(body, "utf8").digest("hex")
+  const bodySha256 = createHash("sha256").update(normalizeTicketBody(body), "utf8").digest("hex")
   if (
     brief?.issue !== expectedIssue
     || brief?.ticketBodySha256 !== bodySha256

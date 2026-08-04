@@ -5,7 +5,7 @@ import { join, resolve } from "node:path"
 
 import { STRIKE_LEDGER_ENV } from "../lib/strike-ledger.mjs"
 import { recordWorkerLaunch, signWorkerLaunchRecord, verifyWorkerLaunchCompletion, workerCompletionSigningPayload, workerDeliveryEvidence, workerLaunchSigningPayload } from "../lib/worker-launch-provenance.mjs"
-import { WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY, WORKER_LAUNCH_LEDGER, T, reviewMarker, root, stage, orcaEnv, run, check, exitedProbePid } from "./_harness.mjs"
+import { WORKER_LAUNCH_LEDGER, T, reviewMarker, root, stage, orcaEnv, run, check, exitedProbePid } from "./_harness.mjs"
 
 const stageWorkerStatusWorktree = (label = "worker-status") => {
   const base = join(root, label)
@@ -255,7 +255,7 @@ const writePidMarker = (worktreePath, rows) =>
           publicKey: publicKey.export({ format: "der", type: "spki" }).toString("base64"),
         },
       }
-      record = signWorkerLaunchRecord(record, WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY)
+      record = signWorkerLaunchRecord(record, privateKey)
       recordWorkerLaunch(record, WORKER_LAUNCH_LEDGER)
       const completedHead = row.completed === false
         ? null

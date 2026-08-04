@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * Keep the launcher's completion authority outside the worker process. The worker receives only
- * the ticket pointer. This supervisor keeps the signing key in its own memory, starts the
- * configured headless engine after launch-worker has recorded the launch, and signs the exact
- * HEAD observed after that process exits.
+ * Keep the launcher's per-launch signing authority outside the worker process. The worker receives
+ * only the ticket pointer. This supervisor keeps the signing key in its own memory, starts the
+ * configured headless engine after launch-worker has recorded the launch, and signs the exact HEAD
+ * observed after that process exits.
  */
 
 import { execFileSyncHidden as execFileSync, spawnHidden as spawn, spawnSyncHidden as spawnSync } from "./lib/subprocess-options.mjs"

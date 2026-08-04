@@ -203,8 +203,10 @@ mutation, or sleep-mode substitute.
 The active delivery worktree remains available while the PR awaits Thomas. After human squash
 merge or explicit closure, Sol re-reads the real PR and Linear state, fetches the target branch so
 `origin/main` is current, and runs the safe teardown checks. It may remove the worktree only when
-the tree is clean and inactive, the worker PID is gone, the merged head is contained in
-`origin/main`, the Linear issue is Done, and every junction is verified before unlinking. The
+the tree is clean and inactive, the worker PID is gone, the merged PR commit is present in the
+target branch, the feature head content is equivalent to the recorded PR head content, the Linear
+issue is Done, and every junction is verified before unlinking. The content check is squash-safe:
+it verifies what would be lost rather than requiring the feature commit ancestry to survive. The
 teardown uses `orca worktree rm` without force, `git worktree prune`, and ordinary `git branch
 --delete` only after the exact child path is gone. A branch that is still unmerged is never deleted.
 

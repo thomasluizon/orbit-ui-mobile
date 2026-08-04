@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Launch one ticket's Orca worktree + TUI worker end to end, and be the single
+ * Launch one ticket's Orca worktree + worker end to end, and be the single
  * place the four launch gotchas measured on 2026-07-24 (the ORB-75 Phase 7 run)
  * are handled: `orca worktree create` exits 1 without --name, a fresh checkout
  * blocks forever on the worker CLI's workspace-trust prompt, Orca's
@@ -41,7 +41,6 @@ import { FINDING_SCOPE, STRIKES_BEFORE_ESCALATION, recordStrike, strikeCount, st
 import { acquireWorktreeLifecycleLock } from "./lib/worktree-lifecycle-lock.mjs"
 import { minimalChildEnvironment } from "./lib/child-environment.mjs"
 import {
-  assertWorkerLaunchAuthority,
   signWorkerLaunchRecord,
   readWorkerLaunchRecords,
   recordWorkerLaunch,
@@ -58,7 +57,7 @@ const USAGE = `usage: launch-worker.mjs --issue ORB-N --prompt-file <path> [opti
   --prompt-file <path>   the composed worker prompt: ticket body verbatim (D2) then the
                          finishing contract. MUST live outside every Orbit repo and outside
                          the worktree (an in-worktree prompt gets committed). Only its path
-                         is sent to the TUI, never its text. The standing worker contract
+                         is sent to the worker, never its text. The standing worker contract
                          (never ask a question, never watch your own PR, stage explicitly,
                          never merge) is APPENDED to this file at launch, so it does not
                          depend on the caller having remembered it (required)
@@ -104,11 +103,16 @@ waitAttempts, pointerSends. In wave mode: selector, wave, launchable, concurrent
 launches.
 Progress goes to stderr, so stdout stays pipeable.
 
-exit 0 means the worker ACCEPTED the prompt as a user turn, verified by reading the pointer back
-off the TUI, never merely that orca accepted the send.
+Headless mode exits 0 after the supervisor launch is issued, the launch record is signed, and the
+start gate is published. The worker's later completion is reported by worker-status, not this
+launcher. Interactive compatibility mode exits 0 only after the prompt pointer is accepted as a
+user turn and verified by reading it back from the TUI, never merely because Orca accepted the
+send.
 
-exit codes: 0 worker launched and holding the work order, 1 the worker never reached tui-idle or
-            never took the prompt pointer as a turn, or the concurrency cap was reached,
+exit codes: 0 headless supervisor launch issued with signed provenance and a published start gate,
+            or interactive compatibility accepted the prompt pointer as a user turn, 1 interactive
+            delivery never reached tui-idle or took the prompt pointer as a turn, or the concurrency
+            cap was reached,
             2 usage or config error,
             3 an orca, git, quota reader or budget command failed,
             4 the proposed invocation would cross the engine token budget,
@@ -284,11 +288,10 @@ conflict with anything above, these win.
 10. **Never write into another worktree.** A live sibling worktree is another worker's working
     tree, and a file you leave there can land in that worker's PR. If your proof genuinely needs
     a second worktree, create a disposable one for it and remove it afterwards.
-11. **Delegate independent slices.** A work order spanning more than one independent file or
-    slice is executed by spawning parallel subagents, one per slice, each with an explicit output
-    contract, then reconciling their output. Keep edits landing in the SAME file inline, and keep
-    the final gate run inline because its raw output ships in the PR body. A review round with
-    more than one independent finding is dispatched one subagent per finding, not fixed inline.
+11. **Own implementation sequencing directly.** Luna owns the implementation work in this
+    worktree and decides its internal file and test sequencing. Do not create planning, review, or
+    coordinator roles or extra agents; Sol owns those boundaries and the worker implements the
+    approved brief directly.
 12. **Do not create planning or approval loops.** Sol owns the DAG and the substantive pull request
     boundary. This worker consumes the brief and implements it.
 `
@@ -904,7 +907,6 @@ const headlessInvocation = () => {
 }
 
 const startHeadlessWorker = (worktreePath, branch, launchMode) => {
-  assertWorkerLaunchAuthority()
   const { executable, scriptArgs } = headlessInvocation()
   const launchId = randomUUID()
   const startedAt = new Date().toISOString()
@@ -998,7 +1000,7 @@ const startHeadlessWorker = (worktreePath, branch, launchMode) => {
   // The supervisor waits for the gate, so rewrite its payload after the spawn supplies the
   // authoritative supervisor PID. A completion row carrying pid 0 is not a launch receipt and
   // would make the central delivery ledger reject the worker that actually ran.
-  launchRecord = signWorkerLaunchRecord(launchRecord)
+  launchRecord = signWorkerLaunchRecord(launchRecord, privateKey)
   writeSupervisorPayload()
   child.stdio[3].end(privateKey.export({ format: "pem", type: "pkcs8" }))
   try {

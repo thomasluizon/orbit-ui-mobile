@@ -4,7 +4,7 @@ import { generateKeyPairSync } from "node:crypto"
 import { dirname, join } from "node:path"
 
 import { recordWorkerLaunch, signWorkerLaunchRecord } from "../lib/worker-launch-provenance.mjs"
-import { REPO_ROOT, TOOLS_DIR, T, WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY, root, orcaEnv, run, check, exitedProbePid } from "./_harness.mjs"
+import { REPO_ROOT, TOOLS_DIR, T, root, orcaEnv, run, check, exitedProbePid } from "./_harness.mjs"
 import { WORKER_LAUNCH_LEDGER } from "./_harness.mjs"
 
 /**
@@ -94,6 +94,7 @@ const writeWatchPidMarker = (worktreePath, { pid, claimedHoursAgo, issue = "ORB-
   )
   const marker = join(gitDirectory, "orbit-worker-pids.jsonl")
   const startedAt = new Date(Date.now() - claimedHoursAgo * HOUR_MS).toISOString()
+  const { publicKey, privateKey } = generateKeyPairSync("ed25519")
   let launchRecord = {
     version: 1,
     launchId: `watch-fixture-${issue}-${pid}-${Date.now()}`,
@@ -112,10 +113,10 @@ const writeWatchPidMarker = (worktreePath, { pid, claimedHoursAgo, issue = "ORB-
     issuedAt: new Date().toISOString(),
     completionAttestation: {
       algorithm: "ed25519",
-      publicKey: generateKeyPairSync("ed25519").publicKey.export({ format: "der", type: "spki" }).toString("base64"),
+      publicKey: publicKey.export({ format: "der", type: "spki" }).toString("base64"),
     },
   }
-  launchRecord = signWorkerLaunchRecord(launchRecord, WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY)
+  launchRecord = signWorkerLaunchRecord(launchRecord, privateKey)
   recordWorkerLaunch(launchRecord, WORKER_LAUNCH_LEDGER)
   writeFileSync(marker, `${JSON.stringify(launchRecord)}\n`)
   return marker

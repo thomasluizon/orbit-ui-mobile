@@ -13,7 +13,7 @@
 import { execFileHidden as execFile } from "./lib/subprocess-options.mjs"
 import { promisify } from "node:util"
 
-import { affectedFilesOf } from "./lib/affected-files.mjs"
+import { affectedScopeOf } from "./lib/affected-files.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
 const USAGE = `usage: wave-plan.mjs --project "<name>" | --label "<label>" | --all | --issues "ORB-a,ORB-b" [--json]
@@ -172,7 +172,9 @@ const collisionsIn = (waveIssues, byIdentifier) => {
       if (leftRepo && rightRepo && leftRepo !== rightRepo) continue
       const left = leftIssue?.affectedFiles ?? []
       const right = new Set(rightIssue?.affectedFiles ?? [])
-      const shared = left.filter((path) => right.has(path))
+      const shared = leftIssue?.affectedScopeUnknown || rightIssue?.affectedScopeUnknown
+        ? ["(unknown affected scope)"]
+        : left.filter((path) => right.has(path))
       if (shared.length) pairs.push({ a: waveIssues[a], b: waveIssues[b], files: shared })
     }
   }
@@ -183,10 +185,12 @@ const toPlanIssue = (detail) => {
   const full = detail.issue
   const relations = detail.relations ?? []
   const labelNames = (full.labels ?? []).map((entry) => entry.name)
+  const affectedScope = affectedScopeOf(full.description)
   return {
     identifier: full.identifier,
     title: full.title,
-    affectedFiles: affectedFilesOf(full.description),
+    affectedFiles: affectedScope.files,
+    affectedScopeUnknown: affectedScope.unknown,
     state: full.state.name,
     stateType: full.state.type,
     labels: labelNames,
@@ -351,7 +355,10 @@ if (process.argv.includes("--json")) {
           wave,
           issues: waveIssues.map(visibleIssue),
           collisions: collisionsIn(waveIssues, byIdentifier),
-          unknownAffected: waveIssues.filter((identifier) => (byIdentifier.get(identifier)?.affectedFiles ?? []).length === 0),
+          unknownAffected: waveIssues.filter((identifier) => {
+            const issue = byIdentifier.get(identifier)
+            return issue?.affectedScopeUnknown || (issue?.affectedFiles ?? []).length === 0
+          }),
         })),
         launchable: visibleLaunchable,
         twoStrikes: visibleTwoStrikes,
@@ -372,10 +379,16 @@ if (process.argv.includes("--json")) {
       console.log(`  ${identifier}  [${issue.state}]${external}  ${issue.title}${blockers}${restriction}${strikes}`)
     }
     const collisions = collisionsIn(waveIssues, byIdentifier)
-    const unknown = waveIssues.filter((identifier) => (byIdentifier.get(identifier)?.affectedFiles ?? []).length === 0)
+    const unknown = waveIssues.filter((identifier) => {
+      const issue = byIdentifier.get(identifier)
+      return issue?.affectedScopeUnknown || (issue?.affectedFiles ?? []).length === 0
+    })
     console.log(`  collisions: ${collisions.length ? "" : "none"}`)
     for (const { a, b, files } of collisions) console.log(`    ${a} + ${b}: ${files.join(", ")}`)
-    if (unknown.length) console.log(`    unknown (no parseable path in Affected modules / files): ${unknown.join(", ")}`)
+    if (unknown.length) {
+      const broadUnknown = unknown.some((identifier) => byIdentifier.get(identifier)?.affectedScopeUnknown)
+      console.log(`    unknown (no parseable path in Affected modules / files): ${unknown.join(", ")}${broadUnknown ? " (broad scopes are also unknown)" : ""}`)
+    }
   }
   console.log(`\nLAUNCHABLE NOW (all blockers merged, not started, under the strike limit): ${visibleLaunchable?.join(", ") || "none"}`)
 }

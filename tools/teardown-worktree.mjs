@@ -19,9 +19,9 @@ const USAGE = `usage: teardown-worktree.mjs (--issue ORB-N | --worktree <path>) 
   --help, -h          print this usage and exit 0
 
 All five checks must pass before anything is removed: the tree is clean, the pull request merge
-commit is present in the target branch, the local branch tip is contained in the pull request
-head, the linked Linear issue is Done,
-and no terminal is mid-turn.
+commit is present in the target branch, the local branch content matches the pull request head
+content, the linked Linear issue is Done, and no terminal is mid-turn. The content check accepts
+the squash merge required by this workflow while refusing unmerged local changes.
 Removal is successful only when the path is gone and git worktree list no longer names it.
 
 exit codes: 0 removed and verified, 1 evidence or removal verification failed, 2 usage error,
@@ -194,7 +194,11 @@ const pullRequestChecks = pullRequest
       const localTip = git(path, ["rev-parse", branch])
       const pullRequestHeadFetched = git(path, ["fetch", "--quiet", "origin", pullRequest.headRefOid], { allowFailure: true }) !== null
       const pullRequestHeadReadable = pullRequestHeadFetched && git(path, ["cat-file", "-e", `${pullRequest.headRefOid}^{commit}`], { allowFailure: true }) !== null
-      const localTipPresent = pullRequestHeadReadable && git(path, ["merge-base", "--is-ancestor", localTip, pullRequest.headRefOid], { allowFailure: true }) !== null
+      const localTipTree = git(path, ["rev-parse", `${localTip}^{tree}`], { allowFailure: true })
+      const pullRequestHeadTree = pullRequestHeadReadable
+        ? git(path, ["rev-parse", `${pullRequest.headRefOid}^{tree}`], { allowFailure: true })
+        : null
+      const localContentPresent = pullRequestHeadReadable && localTipTree !== null && pullRequestHeadTree !== null && localTipTree === pullRequestHeadTree
       return [
         {
           name: "merge-commit-in-target",
@@ -205,12 +209,12 @@ const pullRequestChecks = pullRequest
           exitCode: mergeCommitReadable ? undefined : 3,
         },
         {
-          name: "local-tip-in-pull-request-head",
-          ok: localTipPresent,
-          detail: pullRequestHeadReadable
-            ? `local tip ${localTip} is not contained in pull request #${pullRequest.number}'s head ${pullRequest.headRefOid}; local commits would be lost`
+          name: "local-content-in-pull-request-head",
+          ok: localContentPresent,
+          detail: pullRequestHeadReadable && localTipTree !== null && pullRequestHeadTree !== null
+            ? `local tip ${localTip} has different content from pull request #${pullRequest.number}'s head ${pullRequest.headRefOid}; local changes would be lost`
             : `could not read pull request #${pullRequest.number}'s head ${pullRequest.headRefOid}`,
-          exitCode: pullRequestHeadReadable ? undefined : 3,
+          exitCode: pullRequestHeadReadable && localTipTree !== null && pullRequestHeadTree !== null ? undefined : 3,
         },
       ]
     })()

@@ -242,6 +242,8 @@ export const cases = () => {
       ])
     const stub = (aFiles, bFiles) => stubDescriptions(body(aFiles), body(bFiles))
     check("wave-plan.mjs", "two tickets naming a common path are reported as a collision pair", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /ORB-201 \+ ORB-202: tools\/test-tools\.mjs/ }, { env: stub("`tools/test-tools.mjs`", "`tools/test-tools.mjs`") })
+    check("wave-plan.mjs", "wildcard affected scopes are unknown and serialize same-repo tickets", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /ORB-201 \+ ORB-202: \(unknown affected scope\)[\s\S]*unknown \(no parseable path in Affected modules \/ files\): ORB-201 \(broad scopes are also unknown\)/ }, { env: stub(".claude/**", "`tools/test-tools.mjs`") })
+    check("wave-plan.mjs", "directory affected scopes are unknown and serialize same-repo tickets", ["--issues", "ORB-201,ORB-202", "--json"], { status: 0, stdout: /"files": \[\s*"\(unknown affected scope\)"[\s\S]*"unknownAffected": \[\s*"ORB-201"/ }, { env: stub("- tools/", "`tools/test-tools.mjs`") })
     check("wave-plan.mjs", "a backticked root file is reported as a collision", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /ORB-201 \+ ORB-202: README\.md/ }, { env: stub("`README.md`", "`README.md`") })
     check("wave-plan.mjs", "a bare root file list item is reported as a collision", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /ORB-201 \+ ORB-202: README\.md/ }, { env: stub("- README.md", "- README.md") })
     check("wave-plan.mjs", "checkbox root files remain collision candidates", ["--issues", "ORB-201,ORB-202"], { status: 0, stdout: /ORB-201 \+ ORB-202: CLAUDE\.md/ }, { env: stub("- [ ] CLAUDE.md\n`tools/a.mjs`", "- [x] CLAUDE.md\n`tools/b.mjs`") })

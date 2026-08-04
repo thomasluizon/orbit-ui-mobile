@@ -16,11 +16,13 @@
  *   a bare word only counts inside backticks, as a list item, or with a `:` or ` - ` annotation
  *   a URL and a bare domain are not paths, however file-shaped their tail looks, and no context
  *     admits one: a backticked, listed or annotated host is refused exactly like a naked one
+ *   a wildcard or directory scope is unsafe to intersect precisely and is reported as unknown
  */
 
 /** Anything path-shaped. The gate on what actually counts is isDeclaredPath below. */
 export const AFFECTED_PATH = /\.?[\w@][\w./\\@()[\]{}+-]*\.[a-z0-9][a-z0-9-]*/gi
 const BARE_AFFECTED_PATH = /^\.?[\w@][\w./\\@()[\]{}+-]*\.[a-z0-9][a-z0-9-]*$/i
+const BROAD_AFFECTED_SCOPE = /(?:\.?[\w@][\w./\\@()[\]{}+-]*\/(?:\*{1,2})?|\.?[\w@][\w./\\@()[\]{}+*-]*\*[\w./\\@()[\]{}+*-]*)(?![\w@.\-()[\]{}+/])/gi
 
 /** A host carrying a path: the slash after a dotted label is decisive, no file name looks like it. */
 const HOST_WITH_PATH = /^[\w-]+(?:\.[\w-]+)*\.[a-z]{2,63}\//i
@@ -78,12 +80,19 @@ const isDeclaredPath = (section, path, index) => {
   return itemPaths.includes(path) && itemPaths.every((candidate) => BARE_AFFECTED_PATH.test(candidate))
 }
 
-/** Every path a ticket body declares, de-duplicated, with backslashes normalised to forward. */
-export const affectedFilesOf = (description) => {
+const pathsOf = (section) => [...section.matchAll(AFFECTED_PATH)]
+  .filter((match) => isDeclaredPath(section, match[0], match.index))
+  .map(([path]) => path.replace(/\\/g, "/"))
+
+/** Paths and unsafe broad scopes declared by a ticket body. */
+export const affectedScopeOf = (description) => {
   const section = affectedSectionOf(description)
-  if (!section) return []
-  const paths = [...section.matchAll(AFFECTED_PATH)]
+  if (!section) return { files: [], unknown: false }
+  const files = [...new Set(pathsOf(section))]
+  const broadScopes = [...section.matchAll(BROAD_AFFECTED_SCOPE)]
     .filter((match) => isDeclaredPath(section, match[0], match.index))
-    .map(([path]) => path.replace(/\\/g, "/"))
-  return [...new Set(paths)]
+  return { files, unknown: broadScopes.length > 0 }
 }
+
+/** Every precise path a ticket body declares, de-duplicated, with separators normalised. */
+export const affectedFilesOf = (description) => affectedScopeOf(description).files

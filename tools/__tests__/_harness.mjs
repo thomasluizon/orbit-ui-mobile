@@ -124,7 +124,7 @@ export const writeCompletedWorkerLaunch = ({
       publicKey: publicKey.export({ format: "der", type: "spki" }).toString("base64"),
     },
   }
-  launchRecord = signWorkerLaunchRecord(launchRecord, WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY)
+  launchRecord = signWorkerLaunchRecord(launchRecord, privateKey)
   const unsignedCompletion = { completedAt: new Date().toISOString(), completedHead: head, exitCode: 0 }
   const completion = {
     ...unsignedCompletion,
@@ -1206,7 +1206,7 @@ export const REQUIRED_CONTRACT_CLAUSES = {
   "blanket staging that sweeps in a sibling's artifacts": { clause: 8, pattern: /Stage explicitly[\s\S]*git add -A/ },
   "reading back the local commit": { clause: 9, pattern: /Verify before handoff[\s\S]*git show --stat HEAD/ },
   "writing into another worker's worktree": { clause: 10, pattern: /Never write into another worktree/ },
-  "delegating independent slices while keeping conflicts and PR evidence inline": { clause: 11, pattern: /Delegate independent slices[\s\S]*SAME file[\s\S]*final gate run[\s\S]*review round/ },
+  "owning implementation sequencing without extra roles": { clause: 11, pattern: /Own implementation sequencing directly[\s\S]*Do not create planning, review, or[\s\S]*coordinator roles[\s\S]*approved brief directly/ },
   "avoiding planning and approval loops": { clause: 12, pattern: /Do not create planning or approval loops[\s\S]*Sol owns the DAG[\s\S]*substantive pull request[\s\S]*consumes the brief/ },
 }
 
@@ -1325,6 +1325,7 @@ export const stageWorkerPidMarker = (worktreePath, pid) => {
     spawnSync("git", ["-C", worktreePath, "rev-parse", "--git-dir"], { encoding: "utf8" }).stdout.trim(),
   )
   const marker = join(gitDirectory, "orbit-worker-pids.jsonl")
+  const { publicKey, privateKey } = generateKeyPairSync("ed25519")
   let launchRecord = {
     version: 1,
     launchId: `fixture-${pid}-${Date.now()}`,
@@ -1343,10 +1344,10 @@ export const stageWorkerPidMarker = (worktreePath, pid) => {
     issuedAt: new Date().toISOString(),
     completionAttestation: {
       algorithm: "ed25519",
-      publicKey: generateKeyPairSync("ed25519").publicKey.export({ format: "der", type: "spki" }).toString("base64"),
+      publicKey: publicKey.export({ format: "der", type: "spki" }).toString("base64"),
     },
   }
-  launchRecord = signWorkerLaunchRecord(launchRecord, WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY)
+  launchRecord = signWorkerLaunchRecord(launchRecord, privateKey)
   recordWorkerLaunch(launchRecord, WORKER_LAUNCH_LEDGER)
   writeFileSync(marker, `${JSON.stringify(launchRecord)}\n`)
   return marker

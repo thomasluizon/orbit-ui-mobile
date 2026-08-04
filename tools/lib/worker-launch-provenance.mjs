@@ -88,29 +88,16 @@ const isCompletion = (completion) =>
   typeof completion.signature === "string" &&
   BASE64.test(completion.signature)
 
-const configuredAuthorityPublicKey = () => {
-  const encoded = process.env[WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY_ENV]?.trim()
-  if (!encoded || !BASE64.test(encoded)) throw new Error(`${WORKER_LAUNCH_AUTHORITY_PUBLIC_KEY_ENV} is unavailable or malformed`)
-  return encoded
-}
+const launchPublicKey = (record) => createPublicKey({
+  key: Buffer.from(record.completionAttestation.publicKey, "base64"),
+  format: "der",
+  type: "spki",
+})
 
-const authorityPublicKey = () =>
-  createPublicKey({
-    key: Buffer.from(configuredAuthorityPublicKey(), "base64"),
-    format: "der",
-    type: "spki",
-  })
-
-const authorityPrivateKey = (privateKeyPem = process.env[WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY_ENV]) => {
-  if (typeof privateKeyPem !== "string" || privateKeyPem.trim().length === 0) {
-    throw new Error(`${WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY_ENV} is unavailable; only the launcher may issue worker provenance`)
-  }
-  const privateKey = createPrivateKey(privateKeyPem)
-  const derivedPublicKey = createPublicKey(privateKey).export({ format: "der", type: "spki" }).toString("base64")
-  if (derivedPublicKey !== configuredAuthorityPublicKey()) {
-    throw new Error("worker launch authority private key does not match the trusted public key")
-  }
-  return privateKey
+const signingKey = (privateKey) => {
+  if (privateKey && typeof privateKey === "object" && privateKey.type === "private") return privateKey
+  if (typeof privateKey === "string" && privateKey.trim().length > 0) return createPrivateKey(privateKey)
+  throw new Error("worker launch signing key is unavailable; only the launcher may issue worker provenance")
 }
 
 export const isWorkerLaunchRecord = (record) =>
@@ -170,21 +157,16 @@ export const workerLaunchSigningPayload = (record) => {
   return JSON.stringify(payload)
 }
 
-export const signWorkerLaunchRecord = (record, privateKeyPem = process.env[WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY_ENV]) => {
+export const signWorkerLaunchRecord = (record, privateKey) => {
   if (!isWorkerLaunchRecord({ ...record, launchSignature: "placeholder" })) {
     throw new Error("worker launch provenance record is incomplete")
   }
   const launchSignature = sign(
     null,
     Buffer.from(workerLaunchSigningPayload(record), "utf8"),
-    authorityPrivateKey(privateKeyPem),
+    signingKey(privateKey),
   ).toString("base64")
   return { ...record, launchSignature }
-}
-
-export const assertWorkerLaunchAuthority = (privateKeyPem = process.env[WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY_ENV]) => {
-  authorityPrivateKey(privateKeyPem)
-  return true
 }
 
 export const verifyWorkerLaunchRecord = (record) => {
@@ -193,7 +175,7 @@ export const verifyWorkerLaunchRecord = (record) => {
     return verify(
       null,
       Buffer.from(workerLaunchSigningPayload(record), "utf8"),
-      authorityPublicKey(),
+      launchPublicKey(record),
       Buffer.from(record.launchSignature, "base64"),
     )
   } catch {
@@ -235,15 +217,10 @@ export const sameWorkerSupervisorPayload = (payload, launchRecord) =>
 export const verifyWorkerLaunchCompletion = (record) => {
   if (!verifyWorkerLaunchRecord(record) || !isCompletion(record.completion)) return false
   try {
-    const publicKey = createPublicKey({
-      key: Buffer.from(record.completionAttestation.publicKey, "base64"),
-      format: "der",
-      type: "spki",
-    })
     return verify(
       null,
       Buffer.from(signingPayload(record, record.completion), "utf8"),
-      publicKey,
+      launchPublicKey(record),
       Buffer.from(record.completion.signature, "base64"),
     )
   } catch {

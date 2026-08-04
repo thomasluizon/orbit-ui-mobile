@@ -240,6 +240,12 @@ export const cases = () => {
     )
     check(
       "check-ticket.mjs",
+      "a wildcard affected scope passes validation for conservative wave serialization",
+      ["--file", stage("ticket-affected-wildcard.md", `# Gate the affected files path list\n\n${affectedSection("- .claude/**")}\n`)],
+      { status: 0, stdout: /ticket ok/ },
+    )
+    check(
+      "check-ticket.mjs",
       "a path only inside a fenced block under the heading does not count as declared",
       ["--file", stage("ticket-affected-fenced.md", `# Gate the affected files path list\n\n${affectedSection("```\ntools/check-ticket.mjs\n```")}\n`)],
       { status: 1, stderr: /Affected modules \/ files carries the heading but names no parseable path/ },

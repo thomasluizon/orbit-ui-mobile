@@ -10,7 +10,6 @@ import { spawnHidden as spawn } from "../lib/subprocess-options.mjs"
 import {
   REPO_ROOT,
   T,
-  WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY,
   WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY_ENV,
   WORKER_LAUNCH_LEDGER,
   check,
@@ -21,7 +20,7 @@ const readRows = (path) => (existsSync(path)
   ? readFileSync(path, "utf8").trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
   : [])
 
-const launchSupervisor = (payloadPath) => {
+const launchSupervisor = (payloadPath, privateKey) => {
   const environment = { ...process.env, ORBIT_WORKER_LAUNCH_LEDGER: WORKER_LAUNCH_LEDGER }
   delete environment[WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY_ENV]
   const child = spawn(process.execPath, [join(REPO_ROOT, "tools", "worker-supervisor.mjs"), payloadPath], {
@@ -33,7 +32,7 @@ const launchSupervisor = (payloadPath) => {
   let stderr = ""
   child.stderr.setEncoding("utf8")
   child.stderr.on("data", (chunk) => { stderr += chunk })
-  child.stdio[3].end(WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY)
+  child.stdio[3].end(privateKey.export({ format: "pem", type: "pkcs8" }))
   return new Promise((resolve) => {
     child.on("error", (error) => resolve({ status: `spawn error: ${error.message}`, stderr }))
     child.on("close", (status) => resolve({ status, stderr }))
@@ -91,7 +90,7 @@ const adversarialPayloadCase = async () => {
     },
     supervisorEnvelope,
   }
-  launchRecord = signWorkerLaunchRecord(launchRecord, WORKER_LAUNCH_AUTHORITY_PRIVATE_KEY)
+  launchRecord = signWorkerLaunchRecord(launchRecord, completionKeys.privateKey)
   const payload = {
     payloadPath,
     launchRecord,
@@ -99,7 +98,7 @@ const adversarialPayloadCase = async () => {
   }
   writeFileSync(payloadPath, `${JSON.stringify(payload)}\n`)
 
-  const supervisor = launchSupervisor(payloadPath)
+  const supervisor = launchSupervisor(payloadPath, completionKeys.privateKey)
   const alteredPayload = {
     ...payload,
     payloadPath: alteredPayloadPath,

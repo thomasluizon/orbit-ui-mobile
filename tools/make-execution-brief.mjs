@@ -4,6 +4,8 @@ import { createHash } from "node:crypto"
 import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { isAbsolute, resolve } from "node:path"
 
+import { normalizeTicketBody } from "./lib/ticket-body.mjs"
+
 const USAGE = `usage: make-execution-brief.mjs --issue ORB-N --ticket-file <absolute path> --dag-file <absolute path> --base <ref> --base-sha <40 hex> --summary <text> --scope-file <absolute path> --output <absolute path> [--exclusions-file <absolute path>] [--wave <n>]
 
 Creates the small Sol execution brief that binds Luna to the exact ticket body,
@@ -82,7 +84,7 @@ const sha256 = (value) => createHash("sha256").update(value, "utf8").digest("hex
 const brief = {
   version: 1,
   issue,
-  ticketBodySha256: sha256(ticket),
+  ticketBodySha256: sha256(normalizeTicketBody(ticket)),
   dagSha256: sha256(dag),
   base,
   baseSha,
