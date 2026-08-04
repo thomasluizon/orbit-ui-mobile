@@ -32,7 +32,10 @@ const USAGE = `usage: launch-worker.mjs --issue ORB-N --worktree <path> --prompt
                      checkout. Refuses --worktree, because a reviewer inside the worktree reads the
                      PR's own AGENTS.md, which is instructions written by the change under review
   --codex-only       record that this is the Claude-quota-exhausted fallback run. It changes
-                     nothing about the implementer, which is the same model in both modes
+                     nothing about the implementer, which is the same model in both modes. With
+                     --review it DOES move the reviewer onto the worker engine's review tier,
+                     because Claude is the engine that is unavailable. That review is same-vendor
+                     and DEGRADED; the orchestrator says so, this launcher only resolves it
   --dry-run          print the resolved plan as JSON and exit 0, spawning nothing
   --help, -h         print this usage and exit 0
 
@@ -100,7 +103,15 @@ try {
 } catch (error) {
   fail(2, error.message)
 }
-const engineName = review ? config.reviewer : config.worker
+/**
+ * --codex-only is the CLAUDE-QUOTA-EXHAUSTED fallback, so its reviewer cannot be config.reviewer:
+ * that names the one engine known to be unavailable whenever the flag is passed. It resolves the
+ * worker engine at the review tier instead, which is Sol at xhigh against the implementer's high,
+ * exactly as the skill's model-routing table specifies. Same-vendor review is DEGRADED and the
+ * orchestrator must print that in its opening line and in the PR body, but a degraded review is
+ * still a review, and a reviewer that cannot start is not.
+ */
+const engineName = review && !codexOnly ? config.reviewer : config.worker
 const engine = config.workers[engineName]
 if (!engine.command) fail(2, `.claude/orchestrator.json names ${review ? "reviewer" : "worker"} "${engineName}" but carries no command for it`)
 

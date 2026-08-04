@@ -180,16 +180,20 @@ export const cases = () => {
  */
 const reviewConfig = () => {
   const real = realOrchestratorConfig()
+  const stub = (engineName, reviewModel) => ({
+    ...real.workers[engineName],
+    command: process.execPath,
+    args: [IMMEDIATE],
+    models: { ...real.workers[engineName].models, review: { model: reviewModel, args: [] } },
+  })
   return {
     ...real,
     workers: {
       ...real.workers,
-      [real.reviewer]: {
-        ...real.workers[real.reviewer],
-        command: process.execPath,
-        args: [IMMEDIATE],
-        models: { ...real.workers[real.reviewer].models, review: { model: "gate-stub-reviewer", args: [] } },
-      },
+      [real.reviewer]: stub(real.reviewer, "gate-stub-reviewer"),
+      // Stubbed too, because --codex-only moves the reviewer onto the WORKER engine, and a gate
+      // that needs the real codex CLI on PATH is not hermetic.
+      [real.worker]: stub(real.worker, "gate-stub-fallback-reviewer"),
     },
   }
 }
@@ -268,5 +272,34 @@ const reviewCases = () => {
     ["--issue", "ORB-201", "--review", "--prompt", stage(`staged/launch-worker-review/review-order.md`, "committed by accident\n"), "--dry-run"],
     { status: 2, stderr: /review order written into a repository gets committed/ },
     options,
+  )
+
+  /**
+   * The fallback reviewer. --codex-only means the Claude quota is exhausted, so resolving the
+   * configured reviewer there would launch the one engine that is known to be unavailable, and the
+   * only path meant to survive a quota outage would be the only path that cannot run.
+   */
+  const fallback = check(
+    TOOL,
+    "--review with --codex-only reviews on the worker engine, never the unavailable Claude reviewer",
+    ["--issue", "ORB-201", "--review", "--codex-only", "--prompt", prompt, "--dry-run"],
+    { status: 0, stdout: /"tier": "review"/ },
+    options,
+  )
+  const degraded = JSON.parse(fallback.stdout)
+  T(
+    `${TOOL}: --review --codex-only resolves the worker engine, not the reviewer engine`,
+    degraded.engine === real.worker && degraded.engine !== real.reviewer,
+    `engine ${degraded.engine}, worker ${real.worker}, reviewer ${real.reviewer}`,
+  )
+  T(
+    `${TOOL}: --review --codex-only still resolves the review tier, not the implementer's`,
+    degraded.tier === "review" && degraded.model === "gate-stub-fallback-reviewer",
+    `tier ${degraded.tier}, model ${degraded.model}`,
+  )
+  T(
+    `${TOOL}: --review --codex-only still runs in the main checkout`,
+    degraded.runDirectory === staged.base,
+    `runDirectory ${degraded.runDirectory}`,
   )
 }
