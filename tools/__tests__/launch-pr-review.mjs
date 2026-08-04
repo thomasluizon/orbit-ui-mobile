@@ -14,6 +14,7 @@ import {
 import { evaluateReviewEvidence } from "../check-review-evidence.mjs"
 import { isReviewAuthorityPublicKey } from "../lib/review-provenance.mjs"
 import {
+  GITHUB_PULL_REQUEST_FILES_BOUNDS,
   pullRequestHead,
   parseGitHubPullRequestFiles,
   pullRequestFileNames,
@@ -306,6 +307,28 @@ const assertGitHubEvidence = () => {
       JSON.stringify(create?.requestComparedFields?.["$.event"]) === JSON.stringify(["COMMENT"]),
     JSON.stringify({ view: view?.rederive, create: create?.rederive, update: update?.rederive }),
   )
+  const observedFileVariants = files?.observedVariants ?? []
+  const removedVariant = observedFileVariants.find((variant) => variant.pullRequest === 669)
+  const patchlessVariant = observedFileVariants.find((variant) => variant.pullRequest === 670)
+  T(
+    "launch-pr-review.mjs: file evidence records complete observed variant shapes without claiming renamed evidence",
+    removedVariant?.status === "removed" &&
+      JSON.stringify(removedVariant.completeKeys) === JSON.stringify(["sha", "filename", "status", "additions", "deletions", "changes", "blob_url", "raw_url", "contents_url", "patch"]) &&
+      removedVariant.completeKeyTypes?.patch === "string" &&
+      patchlessVariant?.status === "added" &&
+      JSON.stringify(patchlessVariant.completeKeys) === JSON.stringify(["sha", "filename", "status", "additions", "deletions", "changes", "blob_url", "raw_url", "contents_url"]) &&
+      !Object.hasOwn(patchlessVariant.completeKeyTypes ?? {}, "patch") &&
+      observedFileVariants.every((variant) => [669, 670].includes(variant.pullRequest)),
+    JSON.stringify(observedFileVariants),
+  )
+  T(
+    "launch-pr-review.mjs: file evidence separates the complete observed shape from consumed fields",
+    JSON.stringify(files?.consumedFields?.["$[][].filename"]?.types) === JSON.stringify(["string"]) &&
+      files?.consumedFields?.["$[][].filename"]?.constraint === "nonempty safe relative filename" &&
+      !Object.hasOwn(files?.consumedFields ?? {}, "$[][].status") &&
+      !Object.hasOwn(files?.consumedFields ?? {}, "$[][].patch"),
+    JSON.stringify(files?.consumedFields),
+  )
 
   const reads = new Set()
   const trackedPullRequest = trackExternalReads(pullRequest, "$", reads)
@@ -319,18 +342,63 @@ const assertGitHubEvidence = () => {
     JSON.stringify(parseGitHubPullRequestFiles(JSON.stringify(pullRequestFiles))) === JSON.stringify(["<redacted path>"]),
     JSON.stringify(parseGitHubPullRequestFiles(JSON.stringify(pullRequestFiles))),
   )
-  const incompletePullRequestFile = redactedPullRequestFile()
-  delete incompletePullRequestFile.patch
-  let incompleteFileError = null
-  try {
-    validateGitHubPullRequestFilesPayload([[incompletePullRequestFile]])
-  } catch (error) {
-    incompleteFileError = error
+  const fileValidationError = (payload, bounds) => {
+    try {
+      validateGitHubPullRequestFilesPayload(payload, bounds)
+      return null
+    } catch (error) {
+      return error
+    }
   }
+  const removedFile = fixturePullRequestFile("tools/removed.mjs", 1)
+  removedFile.status = "removed"
   T(
-    "launch-pr-review.mjs: every consumed paginated file field is required by the fail-closed validator",
-    /incomplete or unsupported shape/.test(incompleteFileError?.message ?? ""),
-    incompleteFileError?.message ?? "missing validation error",
+    "launch-pr-review.mjs: a removed GitHub file record is accepted because status is unconsumed",
+    fileValidationError([[removedFile]]) === null,
+    "removed file record was rejected",
+  )
+  const renameShapedFile = fixturePullRequestFile("tools/renamed.mjs", 2)
+  renameShapedFile.status = "renamed"
+  renameShapedFile.previous_filename = "tools/old-name.mjs"
+  renameShapedFile.rename_score = 100
+  T(
+    "launch-pr-review.mjs: a synthetic rename-shaped record with extra fields is accepted",
+    fileValidationError([[renameShapedFile]]) === null,
+    "rename-shaped file record was rejected",
+  )
+  const binaryFile = fixturePullRequestFile("assets/icon.bin", 3)
+  delete binaryFile.patch
+  binaryFile.binary = true
+  T(
+    "launch-pr-review.mjs: a patchless binary-shaped record is accepted",
+    fileValidationError([[binaryFile]]) === null,
+    "patchless binary-shaped file record was rejected",
+  )
+  const malformedFilenames = ["", "../escape.mjs", "unsafe\u0000name.mjs", "C:/absolute.mjs"]
+  const malformedFilenameErrors = malformedFilenames.map((filename, index) => {
+    const malformedFile = fixturePullRequestFile(filename, index + 4)
+    return fileValidationError([[malformedFile]])
+  })
+  T(
+    "launch-pr-review.mjs: malformed filenames fail closed at the GitHub inventory boundary",
+    malformedFilenameErrors.every((error) => /incomplete or unsupported shape/.test(error?.message ?? "")),
+    malformedFilenameErrors.map((error) => error?.message ?? "missing validation error").join("\n"),
+  )
+  const duplicateFile = fixturePullRequestFile("tools/example.mjs", 5)
+  const duplicateError = fileValidationError([[fixturePullRequestFile("tools/example.mjs", 4), duplicateFile]])
+  T(
+    "launch-pr-review.mjs: duplicate paginated filenames fail closed before inventory comparison",
+    /duplicate filename/.test(duplicateError?.message ?? ""),
+    duplicateError?.message ?? "missing duplicate validation error",
+  )
+  const boundsError = fileValidationError(
+    fixtureFilePages(["tools/one.mjs", "tools/two.mjs"], 1),
+    { ...GITHUB_PULL_REQUEST_FILES_BOUNDS, maxPages: 1 },
+  )
+  T(
+    "launch-pr-review.mjs: configured paginated inventory bounds fail closed",
+    /configured maximum/.test(boundsError?.message ?? ""),
+    boundsError?.message ?? "missing bounds validation error",
   )
   const trackedSubmittedReview = trackExternalReads(review, "$", reads)
   const trackedUpdatedReview = trackExternalReads({ ...review }, "$", reads)
@@ -350,6 +418,13 @@ const assertGitHubEvidence = () => {
     "launch-pr-review.mjs: implementation reads never exceed recorded GitHub evidence",
     unrecorded.length === 0,
     `unrecorded external fields: ${unrecorded.join(", ")}`,
+  )
+  const consumedFilePaths = new Set(Object.keys(files?.consumedFields ?? {}))
+  const fileReads = [...reads].filter((path) => path.startsWith("$[][]"))
+  T(
+    "launch-pr-review.mjs: the inventory implementation reads only the evidenced filename field",
+    fileReads.length === 1 && fileReads.every((path) => consumedFilePaths.has(path)),
+    JSON.stringify({ fileReads, consumedFilePaths: [...consumedFilePaths] }),
   )
   const launcherSource = readFileSync(toolPath("launch-pr-review.mjs"), "utf8")
   T(
@@ -945,10 +1020,33 @@ export const cases = () => {
   T(
     "launch-pr-review.mjs: duplicate paginated filenames block before Sol",
     duplicateInventory.result.status === 3 &&
-      /does not match authenticated/.test(duplicateInventory.result.stderr) &&
+      /duplicate filename/.test(duplicateInventory.result.stderr) &&
       !duplicateInventory.calls.some((call) => call.tool === "codex") &&
       !duplicateInventory.calls.some((call) => call.tool === "gh" && call.args[0] === "api" && call.args.includes("POST")),
     `${duplicateInventory.result.status}\n${duplicateInventory.result.stderr}\n${JSON.stringify(duplicateInventory.calls)}`,
+  )
+  const missingInventory = stageReview("missing-file-inventory", {
+    gitFileNames: ["tools/example.mjs", "tools/missing.mjs"],
+    githubFilePages: [[fixturePullRequestFile("tools/example.mjs", 0)]],
+  })
+  T(
+    "launch-pr-review.mjs: a missing GitHub filename blocks before Sol",
+    missingInventory.result.status === 3 &&
+      /does not match authenticated/.test(missingInventory.result.stderr) &&
+      !missingInventory.calls.some((call) => call.tool === "codex") &&
+      !missingInventory.calls.some((call) => call.tool === "gh" && call.args[0] === "api" && call.args.includes("POST")),
+    `${missingInventory.result.status}\n${missingInventory.result.stderr}\n${JSON.stringify(missingInventory.calls)}`,
+  )
+  const extraInventory = stageReview("extra-file-inventory", {
+    githubFilePages: [[fixturePullRequestFile("tools/example.mjs", 0), fixturePullRequestFile("tools/extra.mjs", 1)]],
+  })
+  T(
+    "launch-pr-review.mjs: an extra GitHub filename blocks before Sol",
+    extraInventory.result.status === 3 &&
+      /does not match authenticated/.test(extraInventory.result.stderr) &&
+      !extraInventory.calls.some((call) => call.tool === "codex") &&
+      !extraInventory.calls.some((call) => call.tool === "gh" && call.args[0] === "api" && call.args.includes("POST")),
+    `${extraInventory.result.status}\n${extraInventory.result.stderr}\n${JSON.stringify(extraInventory.calls)}`,
   )
   const malformedPage = stageReview("malformed-file-page", {
     githubFilePages: [{ notAnArray: true }],

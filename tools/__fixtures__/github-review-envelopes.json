@@ -108,6 +108,47 @@
       "observedValues": {
         "$[][].status": ["added", "modified"]
       },
+      "observedVariants": [
+        {
+          "pullRequest": 669,
+          "status": "removed",
+          "completeKeys": ["sha", "filename", "status", "additions", "deletions", "changes", "blob_url", "raw_url", "contents_url", "patch"],
+          "completeKeyTypes": {
+            "sha": "string",
+            "filename": "string",
+            "status": "string",
+            "additions": "number",
+            "deletions": "number",
+            "changes": "number",
+            "blob_url": "string",
+            "raw_url": "string",
+            "contents_url": "string",
+            "patch": "string"
+          }
+        },
+        {
+          "pullRequest": 670,
+          "status": "added",
+          "completeKeys": ["sha", "filename", "status", "additions", "deletions", "changes", "blob_url", "raw_url", "contents_url"],
+          "completeKeyTypes": {
+            "sha": "string",
+            "filename": "string",
+            "status": "string",
+            "additions": "number",
+            "deletions": "number",
+            "changes": "number",
+            "blob_url": "string",
+            "raw_url": "string",
+            "contents_url": "string"
+          }
+        }
+      ],
+      "consumedFields": {
+        "$[][].filename": {
+          "types": ["string"],
+          "constraint": "nonempty safe relative filename"
+        }
+      },
       "paths": {
         "$": { "types": ["array"], "observedLengths": [2] },
         "$[]": { "types": ["array"], "observedLengths": [100, 33] },

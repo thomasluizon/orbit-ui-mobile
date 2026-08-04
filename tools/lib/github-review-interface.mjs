@@ -12,21 +12,15 @@ const PULL_REQUEST_KEYS = [
   "title",
 ]
 
-const PULL_REQUEST_FILE_KEYS = [
-  "additions",
-  "blob_url",
-  "changes",
-  "contents_url",
-  "deletions",
-  "filename",
-  "patch",
-  "raw_url",
-  "sha",
-  "status",
-]
-
 const CHECK_RUN_KEYS = ["__typename", "completedAt", "conclusion", "detailsUrl", "name", "startedAt", "status", "workflowName"]
 const STATUS_CONTEXT_KEYS = ["__typename", "context", "startedAt", "state", "targetUrl"]
+
+export const GITHUB_PULL_REQUEST_FILES_BOUNDS = Object.freeze({
+  maxPages: 100,
+  maxFilesPerPage: 100,
+  maxFiles: 10_000,
+  maxFilenameLength: 4_096,
+})
 
 const hasExactKeys = (value, expectedKeys) => {
   const actualKeys = Object.keys(value).sort()
@@ -78,38 +72,68 @@ const parseJson = (output, label) => {
   }
 }
 
-const isPullRequestFile = (file) =>
-  file && typeof file === "object" && !Array.isArray(file) &&
-  hasExactKeys(file, PULL_REQUEST_FILE_KEYS) &&
-  isNonEmptyString(file.sha) &&
-  isNonEmptyString(file.filename) && !file.filename.includes("\u0000") &&
-  ["added", "modified"].includes(file.status) &&
-  Number.isSafeInteger(file.additions) && file.additions >= 0 &&
-  Number.isSafeInteger(file.deletions) && file.deletions >= 0 &&
-  Number.isSafeInteger(file.changes) && file.changes >= 0 &&
-  isNonEmptyString(file.blob_url) &&
-  isNonEmptyString(file.raw_url) &&
-  isNonEmptyString(file.contents_url) &&
-  typeof file.patch === "string"
+const isSafeFilename = (filename, maximumLength) =>
+  isNonEmptyString(filename) &&
+  filename.trim().length > 0 &&
+  filename.length <= maximumLength &&
+  !/[\u0000-\u001f\u007f]/.test(filename) &&
+  !/^[\\/]/.test(filename) &&
+  !/^[A-Za-z]:/.test(filename) &&
+  !/(?:^|[\\/])\.{1,2}(?=$|[\\/])/.test(filename) &&
+  !/[\\/]$/.test(filename)
 
-export const validateGitHubPullRequestFilesPayload = (payload) => {
+const resolveFileInventoryBounds = (configuredBounds = GITHUB_PULL_REQUEST_FILES_BOUNDS) => {
+  if (!configuredBounds || typeof configuredBounds !== "object" || Array.isArray(configuredBounds)) {
+    throw new Error("paginated GitHub pull request files bounds are not an object")
+  }
+  const bounds = { ...GITHUB_PULL_REQUEST_FILES_BOUNDS, ...configuredBounds }
+  for (const [name, value] of Object.entries(bounds)) {
+    if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`paginated GitHub pull request files bound ${name} must be a positive safe integer`)
+  }
+  if (bounds.maxFilesPerPage > bounds.maxFiles) {
+    throw new Error("paginated GitHub pull request files bound maxFilesPerPage exceeds maxFiles")
+  }
+  return bounds
+}
+
+const collectPullRequestFileNames = (payload, configuredBounds) => {
+  const bounds = resolveFileInventoryBounds(configuredBounds)
   if (!Array.isArray(payload)) throw new Error("paginated GitHub pull request files envelope is not an outer pages array")
+  if (payload.length > bounds.maxPages) {
+    throw new Error(`paginated GitHub pull request files envelope has ${payload.length} pages; configured maximum is ${bounds.maxPages}`)
+  }
+  const names = []
+  const seenNames = new Set()
   for (const [pageIndex, page] of payload.entries()) {
     if (!Array.isArray(page)) throw new Error(`paginated GitHub pull request files page ${pageIndex + 1} is not an array`)
+    if (page.length > bounds.maxFilesPerPage) {
+      throw new Error(`paginated GitHub pull request files page ${pageIndex + 1} has ${page.length} files; configured maximum is ${bounds.maxFilesPerPage}`)
+    }
     for (const [fileIndex, file] of page.entries()) {
-      if (!isPullRequestFile(file)) {
-        throw new Error(`paginated GitHub pull request files page ${pageIndex + 1} file ${fileIndex + 1} has an incomplete or unsupported shape`)
+      if (!file || typeof file !== "object" || Array.isArray(file) || !isSafeFilename(file.filename, bounds.maxFilenameLength)) {
+        throw new Error(`paginated GitHub pull request files page ${pageIndex + 1} file ${fileIndex + 1} has an incomplete or unsupported shape: filename must be a nonempty safe relative path`)
+      }
+      if (seenNames.has(file.filename)) throw new Error(`paginated GitHub pull request files contains duplicate filename ${JSON.stringify(file.filename)}`)
+      seenNames.add(file.filename)
+      names.push(file.filename)
+      if (names.length > bounds.maxFiles) {
+        throw new Error(`paginated GitHub pull request files envelope has more than the configured maximum of ${bounds.maxFiles} files`)
       }
     }
   }
+  return names
+}
+
+export const validateGitHubPullRequestFilesPayload = (payload, configuredBounds) => {
+  collectPullRequestFileNames(payload, configuredBounds)
   return payload
 }
 
-export const pullRequestFileNames = (payload) =>
-  validateGitHubPullRequestFilesPayload(payload).flatMap((page) => page.map((file) => file.filename))
+export const pullRequestFileNames = (payload, configuredBounds) =>
+  collectPullRequestFileNames(payload, configuredBounds)
 
-export const parseGitHubPullRequestFiles = (output) =>
-  pullRequestFileNames(parseJson(output, "paginated GitHub pull request files"))
+export const parseGitHubPullRequestFiles = (output, configuredBounds) =>
+  pullRequestFileNames(parseJson(output, "paginated GitHub pull request files"), configuredBounds)
 
 export const validateGitHubPullRequestPayload = (payload, { pullRequest, base }) => {
   const expectedKeys = PULL_REQUEST_KEYS

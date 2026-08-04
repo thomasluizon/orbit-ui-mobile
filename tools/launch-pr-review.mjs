@@ -34,6 +34,7 @@ import {
 } from "./lib/review-provenance.mjs"
 import { minimalChildEnvironment, scrubReviewAuthorityEnvironment } from "./lib/child-environment.mjs"
 import {
+  GITHUB_PULL_REQUEST_FILES_BOUNDS,
   parseGitHubPullRequest,
   parseGitHubPullRequestFiles,
   parseGitHubReviewResource,
@@ -228,9 +229,9 @@ const livePullRequestFiles = () => {
     "--paginate",
     "--slurp",
     "-H", "Accept: application/vnd.github+json",
-    `repos/${argumentsParsed.repository}/pulls/${argumentsParsed.pullRequest}/files?per_page=100`,
+    `repos/${argumentsParsed.repository}/pulls/${argumentsParsed.pullRequest}/files?per_page=${GITHUB_PULL_REQUEST_FILES_BOUNDS.maxFilesPerPage}`,
   ])
-  return parseGitHubPullRequestFiles(output)
+  return parseGitHubPullRequestFiles(output, GITHUB_PULL_REQUEST_FILES_BOUNDS)
 }
 
 const gitChangedFileNames = ({ baseSha, headSha }) => {
