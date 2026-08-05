@@ -1,16 +1,16 @@
 ---
 name: orchestrate
-description: One Linear ticket in, one reviewed PR out. Preflights, opens an Orca worktree, launches one headless worker, verifies delivery out of band from artifacts, runs a capped two-round cross-vendor review, then hands the PR to Thomas. A machine never merges. Use after /ticket created the ticket.
-argument-hint: ORB-N [--codex-only]
+description: Tickets in, reviewed pull requests out. Plans a queue from one ticket, several, or a project, then per ticket opens a worktree, launches a headless worker, verifies delivery from artifacts, runs a capped cross-vendor review and clears the Codex bot's threads. --sleep works the whole queue unattended. A machine never merges unasked.
+argument-hint: <ORB-N | ORB-A ORB-B | project> [--sleep] [--parallel] [--auto] [--codex-only]
 effort: high
 ---
 
-# /orchestrate: one ticket, one reviewed PR
+# /orchestrate: a queue of tickets, a stack of reviewed pull requests
 
 Constants:
 
 - orca binary `C:\Users\thoma\AppData\Local\Programs\orca\resources\bin\orca`, Linear team `ORB`.
-- The session always runs from orbit-ui-mobile (D17). The worktree opens in whichever repo the
+- The session always runs from orbit-ui-mobile (D17). Each worktree opens in whichever repo its
   ticket's `repo:*` label names.
 - **Scratchpad** = this session's scratchpad directory. Every prompt, diff, log and findings file
   goes there. Never inside a repo: a file written into the worktree gets committed by the worker.
@@ -18,42 +18,54 @@ Constants:
 ## Invocation
 
 ```
-/orchestrate ORB-N [--codex-only]
+/orchestrate ORB-N                      one ticket, exactly as before
+/orchestrate ORB-A ORB-B ORB-C          those tickets, in dependency order
+/orchestrate "<project name>"           every open ticket in that project
+/orchestrate --auto                     the whole board, highest leverage first
 ```
 
-**One ticket. Nothing else.** The old scope and concurrency flags (sleep, only, single),
-project-name scope, wave planning and parallel fleets are all deleted. There is no multi-ticket
-path, and no flag reopens one.
+Flags, all combinable:
 
-If the argument is a project name, or more than one `ORB-N` is supplied, say exactly that and STOP.
-Do not pick one, do not widen, do not queue the rest.
+| Flag | Effect |
+|---|---|
+| `--sleep` | do not stop after each pull request; work the whole queue and report at the end |
+| `--parallel` | run up to `caps.parallelTickets` tickets at once, one worktree each |
+| `--auto` | take the scope from the board rather than from an argument |
+| `--codex-only` | Thomas's Claude-quota fallback. Never a quota check the run performs for itself |
 
-`--codex-only` is a FLAG Thomas passes. It is never a quota check the run performs for itself.
+**Without `--sleep` the run stops after every pull request** and waits for Thomas to type
+`continue`. Nothing polls, nothing watches, and zero tokens burn while it waits.
+
+**One ticket with no flags behaves exactly as it did before.** The queue of length one is the same
+run it always was.
 
 ## §5.6 The algorithm
 
 ```
- 0a Preflight, env   gh auth · orca reachable
+ 0a Preflight, env   gh auth (ASSERT the ACTIVE account owns the target remote) · orca reachable
                      PRINT the always-loaded byte total (all six sources)   [D32]
                      ASSERT no skill name exists in both scopes             [D33]
- 1  Read ticket      orca linear issue ORB-N --json; resolve repo from repo:* label
- 0b Preflight, tgt   the TARGET repo, not this checkout (D17 pins it to orbit-ui-mobile)
+ 1  PLAN THE QUEUE   node tools/plan-queue.mjs -> admitted, deferred, waves, stacks
+                     PRINT the plan and the deferrals BEFORE any work starts
+ 0b Preflight, tgt   ONCE PER DISTINCT REPO in the plan, never once per ticket
                      dirty -> STOP · not on main -> switch · behind -> ff-only. Print repairs.
- 2  SCOPE GATE       >8 affected files, or judged >400 lines  ->  STOP, split the ticket
+                                        ---- per ticket, in wave order ----
+ 2  SCOPE GATE       >8 affected files, or judged >400 lines  ->  SKIP it, record why, carry on
  3  Worktree         orca worktree create; git switch -c feature/orb-N-<slug>
+                     stackParent set -> branch from ITS branch, not from main
  4  Compose prompt   ticket verbatim + comments + ORCHESTRATOR'S BRIEF + finishing contract
                      written to the scratchpad, never inside a repo
  5  Spawn worker     headless · stdin=NUL · cwd=worktree · log to scratchpad · background
  6  Stall detection  hard 45 min · no-progress 10 min · kill process tree
  7  VERIFY OUT OF BAND
                      git status --porcelain            -> empty
-                     git rev-list --count main..HEAD   -> >= 1
+                     git rev-list --count <base>..HEAD -> >= 1
                      git rev-list origin/<br>..HEAD    -> 0  (pushed)
                      gh pr list --head <br>            -> exactly 1, headRefOid matches
                      PR title or body names ORB-N      -> the branch alone is not the link
                      additions+deletions               -> <= 400   ·   files -> <= 8
                      DELIVERED · NO_COMMIT · UNPUSHED · NO_PR · UNLINKED_PR · STALE_PR · OVERSIZE
-                     anything but DELIVERED  ->  STOP and report. No auto-relaunch.
+                     anything but DELIVERED -> record it, SKIP the ticket. No auto-relaunch.
  8  Review round 1   gh pr diff > file; launch a SEPARATE session from the MAIN CHECKOUT
                      normal: Claude Opus 5 @ high   ·   --codex-only: Sol @ xhigh
                      -> findings.json [{id, severity, file, line, claim, blocking}]
@@ -62,20 +74,32 @@ Do not pick one, do not widen, do not queue the rest.
 10  Fixer            round 2 only; prompt contains ONLY the frozen blocking findings
 11  Verify-only      CLOSED/OPEN per frozen finding. New findings forbidden except on a line
                      in `git diff <r1>..<r2> --unified=0`
-                     all CLOSED -> 12 · any OPEN -> STOP, hand to Thomas. No round 3 exists.
-12  Hand to Thomas   PR URL, diff size, follow-ups filed, verdict. ORB-N -> In Review. STOP.
-13  Teardown         only after gh pr view reads MERGED
+                     all CLOSED -> 12 · any OPEN -> 12 anyway, report-only, then hand over
+12  CODEX THREADS    node tools/list-bot-threads.mjs -> REVIEWED · CHANGES_REQUESTED · DRAFT
+                     · NO_REVIEW.  NO_REVIEW is never reported as clean.
+                     P1 fix · P2/P3 fix if cheap else file · reply THEN resolve, never resolve
+                     alone. One fix round, then re-verify and post @codex review. No second.
+13  Hand over        PR URL, diff size, follow-ups, threads handled, verdict.
+                     ORB-N -> In Review, EXCEPT visible-effect: leave it, print visual check owed.
+                     no --sleep -> STOP and wait for `continue`  ·  --sleep -> next ticket
+                                        ---- end per ticket ----
+14  Report           every PR opened, the stack order, every ticket skipped and why,
+                     and the one command that merges the lot. Thomas merges.
+15  Teardown         per worktree, only after gh pr view reads MERGED
 ```
 
-## The four tools
+## The tools
 
 These interfaces are fixed. Do not invent flags or variants.
 
 ```
+node tools/plan-queue.mjs        (--tickets ORB-1,ORB-2 | --project <name> | --board) [--format markdown]
 node tools/compose-prompt.mjs    --issue ORB-N --repo <key> --out <file>
 node tools/launch-worker.mjs     --issue ORB-N --worktree <p> --prompt <f> [--codex-only]
 node tools/launch-worker.mjs     --issue ORB-N --review --prompt <f> [--codex-only]
-node tools/verify-delivery.mjs   --issue ORB-N --worktree <p> --branch <b> [--repo <k>]
+node tools/verify-delivery.mjs   --issue ORB-N --worktree <p> --branch <b> [--base <ref>] [--repo <k>]
+node tools/list-bot-threads.mjs  --pr <n> [--wait-seconds <s>]
+node tools/resolve-bot-thread.mjs --thread <PRRT_...>   # reply body on stdin
 node tools/teardown-worktree.mjs --issue ORB-N
 ```
 
@@ -97,7 +121,30 @@ gh auth status
 orca --version
 ```
 
-**0b. Target repo, after step 1 and before step 3 creates the worktree.**
+**"Logged in" is not the check. "The ACTIVE account owns the target remote" is.** Two accounts are
+authenticated on this machine and the wrong one is often active, which fails only at the push, after
+a worker has already done its work:
+
+```
+remote: Permission to thomasluizon/orbit-ui-mobile.git denied to thomas-luizon_iqpay.
+```
+
+So compare, and repair before anything is spawned:
+
+```bash
+gh api user --jq .login                       # the ACTIVE account
+gh repo view --json owner --jq .owner.login   # who owns the target remote
+gh auth switch --user <owner>                 # only if they disagree
+```
+
+This bit ORB-170's proving run and it bit this one too. `gh auth status` says "Logged in" for both
+accounts and marks only one active, so reading it for a checkmark passes while the run is doomed.
+
+**0b. Target repos, after step 1 and before step 3 creates any worktree.**
+
+**Once per DISTINCT repo in the plan, never once per ticket.** Two tickets in the same repo would
+otherwise run `fetch` and `merge --ff-only` against one checkout twice, and under `--parallel` they
+would race on `.git/index`.
 
 `<target>` is the repository the TICKET names, resolved from its `repo:*` label, which is very often
 not this one. The session always opens in orbit-ui-mobile (D17) regardless of where the work lands,
@@ -198,25 +245,50 @@ Expected state: `~/.claude/skills/` holds exactly 12 dirs (`brain`, `brain-agend
 `brain-decide`, `brain-review`, `catch-up`, `humanize`, `i-have-adhd`, `message`, `grilling`, `tdd`,
 `diagnosing-bugs`) and none of them may also exist under `.claude/skills/`.
 
-## Step 1. Read the ticket
+## Step 1. Plan the queue
+
+```bash
+node tools/plan-queue.mjs --tickets ORB-A,ORB-B          # explicit list
+node tools/plan-queue.mjs --project "<name>"             # a Linear project
+node tools/plan-queue.mjs --board                        # --auto
+```
+
+It returns `admitted`, `deferred`, `waves` and `stacks`. **Print the plan and every deferral before
+any work starts.** A ticket dropped at 03:00 that Thomas only discovers at 08:00 is a wasted night;
+the same ticket named at the start is a decision he can make before he goes to bed.
+
+Then read each admitted ticket in full, because the plan carries titles and labels, not bodies:
 
 ```bash
 orca linear issue ORB-N --json
 ```
 
-Resolve the target repo from the `repo:*` label. Read the body and every comment. The ticket is the
-prompt (D2): it is quoted verbatim into the worker prompt, never paraphrased.
+The ticket is the prompt (D2): quoted verbatim into the worker prompt, never paraphrased.
 
-## Step 2. Scope gate
+**Deferral reasons and what each means.** None of them is a failure of the run:
 
-STOP the run and tell Thomas to split the ticket when either holds:
+| Reason | Meaning |
+|---|---|
+| `BLOCKED_OUTSIDE_QUEUE` | its blocker is open and not in this queue, so its branch cannot carry it |
+| `NO_REPO_LABEL` | no `repo:*` label, so the target repository is unknown. Never guess it |
+| `AMBIGUOUS_REPO` | two `repo:*` labels. `repo:both` does not exist (D4) |
+| `CLOSED` | already Done, Canceled or Duplicate |
 
-- the ticket touches more than **8 files**, or
+`visible-effect` is **not** a deferral. Those tickets run; step 13 withholds In Review instead.
+
+## Step 2. Scope gate, per ticket
+
+Skip a ticket, record the reason, and carry on with the queue when either holds:
+
+- it touches more than **8 files**, or
 - you judge the change at more than **400 diff lines**.
 
 Judge before spawning, not after. A worker never launches on a ticket judged over 400 lines. This is
 the same 400 that step 7 enforces on the delivered diff; catching it here costs one message instead
 of a run.
+
+**On a single-ticket run this ends the run**, exactly as it always did. In a queue it removes one
+ticket and nothing else: one oversized ticket must not cost Thomas the other four PRs of his night.
 
 ## Step 3. Worktree
 
@@ -228,6 +300,41 @@ orca worktree create --repo path:<repo> --name <slug> --base-branch main \
 Orca creates `refs/heads/<gituser>/<name>`. That is not the contract branch. In the worktree run
 `git switch -c feature/orb-N-<slug>` (`fix/` for a bug ticket) and confirm HEAD landed on it. The
 branch is never left to the worker to remember.
+
+### Stacking, when the plan says so
+
+A ticket whose plan entry carries a `stackParent` **branches from that parent's branch, not from
+main**, and its pull request targets that branch:
+
+```bash
+git switch -c feature/orb-N-<slug> feature/orb-<parent>-<slug>
+# and the worker's finishing contract opens the PR with:  --base feature/orb-<parent>-<slug>
+```
+
+Pass the parent branch to `verify-delivery.mjs` as `--base` too, or `git rev-list --count
+main..HEAD` counts the parent's commits as this ticket's and the size caps read the wrong diff.
+
+**Why stack at all.** Nothing merges overnight, so a second ticket that depends on the first cannot
+branch from main: main will not contain the first ticket's work until Thomas merges it in the
+morning. Stacking is the only way a blocked ticket runs the same night as its blocker.
+
+After the last pull request in a stack is open, link them on GitHub:
+
+```bash
+gh stack init --base main <parent-branch> <child-branch> [<grandchild-branch> ...]
+gh stack submit          # links the existing PRs into a Stack; --open marks them ready
+gh stack view --json     # machine-readable state, for the final report
+```
+
+**Merging a layer auto-rebases and auto-retargets every pull request above it**, so Thomas has no
+rebasing to do. `gh stack` needs `gh` 2.90.0 or newer.
+
+**A stack lives in ONE repository.** GitHub requires it, so `plan-queue.mjs` never sets a
+`stackParent` across repos. A UI ticket blocked by an API ticket stays two independent pull requests
+and the API one merges and deploys first, which is the standing deploy-API-first rule.
+
+**Two layers of one stack never run concurrently**, even under `--parallel`. A stack is sequential by
+construction: the child's branch cannot exist until the parent's does.
 
 ## Step 4. Compose the prompt
 
@@ -287,7 +394,13 @@ A dirty tree (`git status --porcelain` non-empty) fails too.
 meaningless: openai/codex#20919, openai/codex#19945, anthropics/claude-code#25629. Artifacts are the
 only evidence.
 
-**Anything but `DELIVERED` stops the run.** Report the verdict and what is unmet. **No auto-relaunch.**
+**Anything but `DELIVERED` ends that TICKET.** Record the verdict and what is unmet, then move to the
+next ticket in the queue. On a single-ticket run that is the end of the run, unchanged.
+**No auto-relaunch, ever.** A verdict that failed once is not retried by the same prompt.
+
+A ticket that fails here and has children stacked behind it takes them with it: their branches were
+to be cut from a branch whose work never landed. Say so by name in the report rather than attempting
+them against main.
 
 ## §5.3 The review contract
 
@@ -307,6 +420,11 @@ Six rules. All six hold in both modes.
    fixer's own round-2 diff touched, computed as `git diff <r1>..<r2> --unified=0` and handed to the
    reviewer as data it cannot widen.
 6. **Hard cap of 2 rounds.** No round-3 path exists. At the cap, hand to Thomas.
+
+   **"Round" means a round of THIS review**, the frozen cross-vendor finding list. The Codex bot pass
+   at step 12 is a separate reviewer with its own ruleset and its own cap of one fix, and it is not a
+   third round of this one. Without that scoping the two contracts contradict each other, and a
+   contradictory contract is how a run picks whichever half it read last.
 
 **Why the cap exists.** PR #672 ran 9 review rounds over 38 hours and produced 19 findings: 19
 unique, zero repeats, on a 7,078-line diff against a 400 line cap. Termination required "the
@@ -336,7 +454,10 @@ finding as its own follow-up Linear ticket immediately, then drop it from this r
 
 ## Step 9. Adjudicate
 
-Zero blocking findings goes straight to step 12. Otherwise, step 10.
+Zero blocking findings goes straight to **step 12, the Codex bot pass**. Otherwise, step 10.
+
+The cleanest and most common path runs through step 12, not around it. A jump that skipped it here
+would mean the PRs with nothing wrong are exactly the ones whose second reviewer nobody read.
 
 ## Step 10. Fixer, round 2 only
 
@@ -350,35 +471,113 @@ The reviewer answers `CLOSED` or `OPEN` for each frozen blocking finding, and no
 `git diff <r1>..<r2> --unified=0` as the only surface on which a new finding is admissible.
 
 - All `CLOSED` -> step 12.
-- Any `OPEN` -> STOP and hand to Thomas with the open findings named. **There is no round 3.**
+- Any `OPEN` -> step 12 anyway, **report-only, no bot fix round**, then hand over with the open
+  findings named. **There is no round 3.** The Codex threads are unread either way, and the hand-off
+  is where Thomas reads them.
 
-## Step 12. Hand to Thomas
+## Step 12. Clear the Codex reviewer's threads
 
-**Visible-effect tickets only, before setting In Review.** A ticket labelled `visible-effect`
-needs final screenshots, a critique artifact, and test output. Capture with
-`node tools/capture-surfaces.mjs`, then run the bounded self-critique that `RENDER-CORRECTNESS.md`
-defines. This is CLAUDE.md's D7 and it is not optional: only a human grants visual completion, and
-a machine may only withhold it. A ticket with no visible surface skips this entirely.
+Every pull request gets a second review from `chatgpt-codex-connector`, and until now nothing in this
+harness has ever read it. Measured 2026-08-05 across PRs #676, #680 and #681: **8 inline threads
+opened, 8 still unresolved, all three merged.**
 
-Set `ORB-N` to In Review. Print, then STOP:
+```bash
+node tools/list-bot-threads.mjs --pr <n>          # waits up to caps.botReviewWaitSeconds
+```
 
-- PR URL and diff size (additions + deletions).
+| Verdict | What it means and what to do |
+|---|---|
+| `REVIEWED` | a review exists. Zero threads here genuinely means clean |
+| `CHANGES_REQUESTED` | a review exists and blocks. This can carry **zero threads** |
+| `DRAFT` | a draft attracts no review ever. Mark it ready, or say so and move on |
+| `NO_REVIEW` | none arrived inside the budget. **Never report this pull request as clean** |
+
+**Never read the thread count as the verdict.** An empty list is ambiguous between "reviewed, found
+nothing" and "has not run yet", and a body-level `CHANGES_REQUESTED` opens no thread at all. The tool
+derives the verdict from the review itself for exactly this reason; do not re-derive it by eye.
+
+**Triage each unresolved thread by its badge**, which mirrors the Blocking split in §5.3:
+
+- **P1 -> fix it in this pull request.** A P1 is never closed by filing a ticket.
+- **P2 or P3 -> fix it if cheap, otherwise file a follow-up Linear ticket** and close the thread
+  naming it.
+- **`isOutdated` is not evidence.** It means the code moved under the comment, not that anyone
+  addressed it. #681's survivor is outdated and still unresolved. Treat it like any other thread.
+
+**Every resolve posts a reply FIRST.** One of exactly three:
+
+```bash
+printf 'fixed in %s' "$sha"                 | node tools/resolve-bot-thread.mjs --thread PRRT_...
+printf 'not applicable because %s' "$why"   | node tools/resolve-bot-thread.mjs --thread PRRT_...
+printf 'filed as %s' "$ticket"              | node tools/resolve-bot-thread.mjs --thread PRRT_...
+```
+
+The tool refuses an empty body and never attempts the resolve if the reply failed, so a bare resolve
+is impossible rather than merely discouraged. A thread closed with no reason is indistinguishable
+from one nobody read, which is the whole defect this step exists to remove.
+
+**One fix round, then stop.** If anything was fixed:
+
+1. Re-run `node tools/verify-delivery.mjs`. The fix moved the head, so the earlier `DELIVERED` is
+   stale until this re-runs. `DELIVERED` continues; `STALE_PR` means the push did not land, so stop
+   and report; `OVERSIZE` hands over naming the overage and **never reverts the fix**.
+2. Reply `fixed in <sha>` with the NEW sha, then resolve.
+3. Post `@codex review` as a comment and read once more.
+
+**Step 3 is not optional and not a courtesy.** The bot reviews on open, on ready-for-review, and on
+an explicit `@codex review`. **It never reviews on a push.** Confirmed on PR #676: its single review
+landed at `17:23:33Z` while commits continued to `17:35:14Z` and no second review ever came. Without
+the re-request its verdict stays pinned to a head that no longer exists, which is exactly the trap
+`An approval is only valid pinned to the head it was given on` records.
+
+Whatever the second pass returns is reported, not fixed. **No second fix round.**
+
+## Step 13. Hand over
+
+Set `ORB-N` to In Review, **except for a `visible-effect` ticket**.
+
+**A `visible-effect` ticket is never moved to In Review by this run.** It stops at the pull request
+and prints `visual check owed`. Thomas runs `/dev-server` and looks at it himself, then moves it.
+Only a human grants visual completion (D7), and with nothing merging unattended there is no reason
+for a machine to assemble screenshots on his behalf. A ticket with no visible surface is unaffected.
+
+Print:
+
+- PR URL, its base branch, and diff size (additions + deletions).
 - Verdict: clean after round 1, clean after round 2, or handed over with N open findings.
+- Codex threads: `N found, F fixed, R filed, X not applicable, U left open`, or
+  `BOT REVIEW ABSENT`.
 - Every follow-up ticket filed, by identifier.
-- Screenshots and critique artifact paths, for a `visible-effect` ticket.
+- `visual check owed` when the ticket is `visible-effect`.
 - `DEGRADED: same-vendor review` when `--codex-only` was passed.
 
-The run is over. Thomas merges.
+**Then, without `--sleep`: STOP and wait for Thomas to type `continue`.** Nothing polls and nothing
+watches; zero tokens burn while it waits. **With `--sleep`: go straight to the next ticket.**
 
-## Step 13. Teardown
+## Step 14. The report
 
-Only after `gh pr view <n> --json state` reads `MERGED`:
+Once the queue is exhausted, print one summary and stop:
+
+- Every pull request opened, with number, base branch, diff size and verdict.
+- **The stack layout**, so the merge order is stated rather than worked out at 08:00.
+- Every ticket skipped, with its reason: a deferral from step 1, a scope gate, or a delivery verdict.
+- Every `visual check owed`.
+- **The single command that merges the lot**, ready for Thomas to approve.
+
+Append one JSON line per ticket outcome to `<scratchpad>/queue-run.jsonl` as the queue runs, not at
+the end. A summary assembled only at the end does not survive a context reset in the middle of the
+night.
+
+## Step 15. Teardown
+
+Per worktree, only after `gh pr view <n> --json state` reads `MERGED`:
 
 ```bash
 node tools/teardown-worktree.mjs --issue ORB-N
 ```
 
-Never tear down an unmerged worktree. The branch and its work are the only copy.
+Never tear down an unmerged worktree. The branch and its work are the only copy. In a queue this
+runs for merged tickets only, which after an overnight run is usually none of them.
 
 ## §5.4 Model routing
 
@@ -403,12 +602,49 @@ Three things keep degraded mode honest:
 Say it plainly: same-family bias is **not** eliminated by any of the three, and its magnitude is
 unmeasured. Degraded mode is a fallback, not an equivalent.
 
+## §5.7 The queue
+
+**`--sleep` opens pull requests. It never merges one.** Every piece of signing, provenance, ledger
+and merge-sweep machinery the OLD `--sleep` needed stays deleted, because nothing here acts on a
+receipt. What makes an unattended run trustworthy now is `verify-delivery.mjs`: it is the sole
+authority for the word "delivered" and reads only git and GitHub artifacts, never a worker's
+self-report. That is what was missing the first time, when a worker claimed work it had not done.
+
+**A failed ticket is recorded and skipped.** No retry, no relaunch, nobody woken. The queue carries
+on. One ticket failing at 03:00 must not cost the other four.
+
+**`--parallel` runs up to `caps.parallelTickets` tickets at once**, currently **3**, one worktree
+each. Not eight: each worktree is a full install, build and test run plus its own model session, and
+eight concurrent will thrash one laptop and hit rate limits. Raise it after measuring, not before.
+
+Two rules bound it:
+
+- **Never two layers of one stack.** A stack is sequential by construction.
+- **Preflight 0b runs once per repo, before any fan-out.** Concurrent `fetch` and `merge --ff-only`
+  against one checkout race on `.git/index`.
+
+**`--auto` takes the scope from the board**, ordered by leverage: a ticket that unblocks three others
+outranks three easy ones. `plan-queue.mjs --board` computes that ordering from the real `blockedBy`
+graph, so it is derived rather than guessed.
+
+**Check this session's own checkout ONCE, up front, before Thomas sleeps.** Step 0b refuses to switch
+the repository this session is running from, and most tickets are `repo:ui`, so a session sitting on
+the wrong branch loses the entire night. Discover it at the start, not at 03:00.
+
 ## Hard prohibitions
 
-- **A machine never merges.** No `gh pr merge`, no `PUT /repos/{owner}/{repo}/pulls/{number}/merge`,
-  no GraphQL `mergePullRequest`, no `--admin` in any shape. Naming both raw API paths is deliberate:
-  banning only the flag leaves them open. **The human merge gate is what makes this whole
-  simplification possible.** Thomas merges.
+- **A machine never merges unasked.** No `gh pr merge`, no
+  `PUT /repos/{owner}/{repo}/pulls/{number}/merge`, no GraphQL merge mutation, no `--admin` in any
+  shape, **from inside a run**. Naming the raw API paths is deliberate: banning only the flag leaves
+  them open. **The human merge gate is what makes this whole simplification possible.**
+
+  The rule is about consent, not about who types the command. Thomas reads the pull requests and then
+  asks for the merge; running `gh stack merge --squash` or `gh pr merge --squash` **in a later turn,
+  on his explicit instruction**, is the intended path and is not a violation. What is forbidden is a
+  machine merging work he has not looked at and approved.
+
+  `--admin`, the raw REST and GraphQL merge paths, force pushes and pushes to `main` stay blocked in
+  every case, run or no run. Those remain Thomas's alone.
 - Never push to `main`. Never force-push. Never `--no-verify`, never `--no-gpg-sign`.
 - The composed prompt is written to the scratchpad, never inside a repo.
 - No auto-relaunch on a failed verdict. Stop and report.
