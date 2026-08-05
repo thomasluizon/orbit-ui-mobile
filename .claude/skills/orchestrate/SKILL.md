@@ -524,11 +524,20 @@ from one nobody read, which is the whole defect this step exists to remove.
 2. Reply `fixed in <sha>` with the NEW sha, then resolve.
 3. Post `@codex review` as a comment and read once more.
 
-**Step 3 is not optional and not a courtesy.** The bot reviews on open, on ready-for-review, and on
-an explicit `@codex review`. **It never reviews on a push.** Confirmed on PR #676: its single review
-landed at `17:23:33Z` while commits continued to `17:35:14Z` and no second review ever came. Without
-the re-request its verdict stays pinned to a head that no longer exists, which is exactly the trap
-`An approval is only valid pinned to the head it was given on` records.
+**Step 3 is not optional and not a courtesy: a re-review after a push is not guaranteed.** Both
+shapes are measured, which is exactly why the run must not depend on either:
+
+- **PR #676:** one review at `17:23:33Z`, commits continued to `17:35:14Z`, **no second review ever
+  came.**
+- **PR #682:** review at `16:43:46Z` on the old head, a push, then a review at `16:50:40Z` on the new
+  head, so it **did** re-review.
+
+Treat a re-review as luck, never as the mechanism. The reliable path is the explicit request, and
+`list-bot-threads.mjs` is what makes the difference visible: it accepts a review only when
+`review.commit.oid` equals the current head, so a verdict pinned to a dead head reads as
+`NO_REVIEW` with the stale commit named. That is the trap
+`An approval is only valid pinned to the head it was given on` records, closed by construction
+rather than by remembering to check.
 
 Whatever the second pass returns is reported, not fixed. **No second fix round.**
 
