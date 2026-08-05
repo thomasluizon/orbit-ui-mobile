@@ -22,10 +22,14 @@ import { execFileSync } from "node:child_process"
 import { readFileSync } from "node:fs"
 
 const USAGE = `usage: resolve-bot-thread.mjs --thread <PRRT_...> [--dry-run]
+       resolve-bot-thread.mjs --thread <PRRT_...> --resolve-only
 
-  --thread <id>  the review thread node id, opaque (required)
-  --dry-run      print the resolved plan as JSON and exit 0, mutating nothing
-  --help, -h     print this usage and exit 0
+  --thread <id>    the review thread node id, opaque (required)
+  --resolve-only   retry ONLY the resolve, for a run whose reply already landed. Reads no stdin,
+                   and first VERIFIES a reply exists on the thread, so the no-bare-resolve rule
+                   still holds by construction rather than by trusting the caller
+  --dry-run        print the resolved plan as JSON and exit 0, mutating nothing
+  --help, -h       print this usage and exit 0
 
 The reply body is read from STDIN and must not be empty. Send one of:
   fixed in <sha>  ·  not applicable because <reason>  ·  filed as ORB-N
@@ -53,12 +57,14 @@ const argOf = (flag) => {
   return index === -1 ? null : process.argv[index + 1]
 }
 
-const KNOWN_FLAGS = new Set(["--thread", "--dry-run", "--help", "-h"])
-const unknown = process.argv.slice(2).filter((value) => value.startsWith("-") && !KNOWN_FLAGS.has(value))
+const VALUE_FLAGS = new Set(["--thread"])
+const KNOWN_FLAGS = new Set([...VALUE_FLAGS, "--dry-run", "--resolve-only", "--help", "-h"])
+const unknown = process.argv.slice(2).filter((value, index, argv) => value.startsWith("-") && !KNOWN_FLAGS.has(value) && !VALUE_FLAGS.has(argv[index - 1]))
 if (unknown.length) fail(2, `${USAGE}\n\nunknown option(s): ${unknown.join(" ")}`)
 
 const threadId = argOf("--thread")
 const dryRun = process.argv.includes("--dry-run")
+const resolveOnly = process.argv.includes("--resolve-only")
 
 /**
  * Opaque, but not unvalidated. GitHub's review-thread node ids carry the PRRT_ prefix, and refusing
@@ -69,16 +75,19 @@ if (!threadId || !/^PRRT_[A-Za-z0-9_-]+$/.test(threadId)) {
   fail(2, `${USAGE}\n\n--thread must be a review thread node id such as PRRT_kwDOABCD1234`)
 }
 
-let body = ""
-try {
-  body = readFileSync(0, "utf8")
-} catch {
-  body = ""
+let reply = ""
+if (!resolveOnly) {
+  let body = ""
+  try {
+    body = readFileSync(0, "utf8")
+  } catch {
+    body = ""
+  }
+  if (body.trim().length === 0) {
+    fail(2, `${USAGE}\n\nthe reply body on stdin is empty; a thread is never resolved without a stated reason`)
+  }
+  reply = body.trim()
 }
-if (body.trim().length === 0) {
-  fail(2, `${USAGE}\n\nthe reply body on stdin is empty; a thread is never resolved without a stated reason`)
-}
-const reply = body.trim()
 
 const GH = process.env.GH_BIN || "gh"
 
@@ -120,7 +129,42 @@ const graphql = (query, fields) => {
 }
 
 if (dryRun) {
-  console.log(JSON.stringify({ threadId, replyBytes: reply.length, replyPreview: reply.slice(0, 120), replied: false, resolved: false, dryRun: true }, null, 2))
+  console.log(JSON.stringify({ threadId, resolveOnly, replyBytes: reply.length, replyPreview: reply.slice(0, 120), replied: false, resolved: false, dryRun: true }, null, 2))
+  process.exit(0)
+}
+
+/**
+ * --resolve-only exists because a failed resolve after a landed reply told the caller to "retry the
+ * resolve alone" and gave them no way to do it. It does NOT weaken the no-bare-resolve rule: it
+ * asks GitHub whether a reply is actually on the thread and refuses when there is none, so the
+ * invariant is enforced against the live thread rather than trusted from a flag.
+ */
+const THREAD_QUERY = `query($thread:ID!){
+  node(id:$thread){ ... on PullRequestReviewThread {
+    isResolved
+    comments(first:100){ totalCount }
+  }}
+}`
+
+if (resolveOnly) {
+  const existing = graphql(THREAD_QUERY, [["-f", `thread=${threadId}`]])
+  if (!existing.ok) fail(2, `could not read thread ${threadId} to confirm a reply exists: ${existing.detail}`)
+  const thread = existing.data?.node
+  if (!thread) fail(2, `no review thread ${threadId}`)
+  if (thread.isResolved) {
+    console.log(JSON.stringify({ threadId, resolveOnly: true, replied: true, resolved: true, isResolved: true, note: "already resolved; nothing to do" }, null, 2))
+    process.exit(0)
+  }
+  /** The bot's own comment is the first, so a reply is anything beyond it. */
+  if ((thread.comments?.totalCount ?? 0) < 2) {
+    fail(2, `${threadId} carries no reply, so --resolve-only would close it with no stated reason. Send a reply body on stdin instead`)
+  }
+  const retried = graphql(RESOLVE_MUTATION, [["-f", `thread=${threadId}`]])
+  if (!retried.ok) {
+    console.log(JSON.stringify({ threadId, resolveOnly: true, replied: true, resolved: false, error: retried.detail }, null, 2))
+    process.exit(1)
+  }
+  console.log(JSON.stringify({ threadId, resolveOnly: true, replied: true, resolved: true, isResolved: Boolean(retried.data?.resolveReviewThread?.thread?.isResolved) }, null, 2))
   process.exit(0)
 }
 
@@ -141,7 +185,7 @@ if (!resolved.ok) {
    * The reply LANDED. Saying so is what stops a retry from double-posting it: a caller that reads
    * only "failed" would repost the same reply and leave the thread with two identical comments.
    */
-  console.log(JSON.stringify({ threadId, replied: true, resolved: false, error: resolved.detail, note: "the reply landed; retry the resolve alone, do not repost the reply" }, null, 2))
+  console.log(JSON.stringify({ threadId, replied: true, resolved: false, error: resolved.detail, note: `the reply landed; retry with --resolve-only, do not repost the reply`, retry: `node tools/resolve-bot-thread.mjs --thread ${threadId} --resolve-only` }, null, 2))
   process.exit(1)
 }
 

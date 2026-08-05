@@ -104,7 +104,7 @@ const QUERY = `query($owner:String!,$repo:String!,$pr:Int!){
   repository(owner:$owner,name:$repo){
     pullRequest(number:$pr){
       number isDraft headRefOid
-      reviews(last:50){nodes{author{login} state submittedAt commit{oid}}}
+      reviews(last:50){nodes{author{login} state submittedAt body commit{oid}}}
       reviewThreads(first:100){nodes{
         id isResolved isOutdated path line
         comments(first:1){nodes{author{login} body}}
@@ -243,6 +243,13 @@ console.log(
       reviewState: review.state ?? null,
       reviewedCommit: review.commit.oid,
       headRefOid: node.headRefOid,
+      /**
+       * A body-level CHANGES_REQUESTED carries its whole complaint here and opens no thread, so
+       * without the body the caller learns it is blocked and nothing about why. Only carried for
+       * that verdict: on a COMMENTED review the body is the bot's boilerplate preamble and the
+       * threads hold the findings.
+       */
+      reviewBody: verdict === "CHANGES_REQUESTED" ? (review.body ?? "").trim().slice(0, 4000) : null,
       counts: { total: threads.length, unresolved: threads.filter((thread) => !thread.isResolved).length },
       threads,
     },

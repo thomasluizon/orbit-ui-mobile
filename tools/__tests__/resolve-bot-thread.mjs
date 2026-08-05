@@ -80,6 +80,36 @@ export const cases = () => {
     resolveFailed.stdout || resolveFailed.stderr,
   )
 
+  /**
+   * Raised by the Codex reviewer on this pull request (#682, P2): the failed-resolve branch told the
+   * caller to "retry the resolve alone" and the tool had no way to do it. --resolve-only closes that
+   * gap WITHOUT weakening the rule, by asking GitHub whether a reply is really on the thread.
+   */
+  const threadWithReply = JSON.stringify({ data: { node: { isResolved: false, comments: { totalCount: 2 } } } })
+  const threadNoReply = JSON.stringify({ data: { node: { isResolved: false, comments: { totalCount: 1 } } } })
+  const threadDone = JSON.stringify({ data: { node: { isResolved: true, comments: { totalCount: 2 } } } })
+  const retryPlan = (threadStdout, resolve = RESOLVE_OK, resolveExit = 0) =>
+    orcaEnv([
+      { match: "PullRequestReviewThread", stdout: threadStdout },
+      { match: "resolveReviewThread", stdout: resolve, exit: resolveExit },
+    ])
+
+  const retried = run(TOOL, ["--thread", THREAD, "--resolve-only"], { env: retryPlan(threadWithReply) })
+  T(`${TOOL}: --resolve-only resolves a thread that already carries a reply`, retried.status === 0 && parsed(retried)?.resolved === true && parsed(retried)?.resolveOnly === true, retried.stdout || retried.stderr)
+
+  const bare = run(TOOL, ["--thread", THREAD, "--resolve-only"], { env: retryPlan(threadNoReply) })
+  T(
+    `${TOOL}: --resolve-only REFUSES a thread with no reply, so it cannot become a bare resolve`,
+    bare.status === 2 && /carries no reply/.test(bare.stderr),
+    `exit ${bare.status}: ${bare.stderr || bare.stdout}`,
+  )
+
+  const already = run(TOOL, ["--thread", THREAD, "--resolve-only"], { env: retryPlan(threadDone) })
+  T(`${TOOL}: --resolve-only on an already-resolved thread is a no-op exit 0`, already.status === 0 && /already resolved/.test(already.stdout), already.stdout || already.stderr)
+
+  const retryFailed = run(TOOL, ["--thread", THREAD, "--resolve-only"], { env: retryPlan(threadWithReply, JSON.stringify({ errors: [{ message: "still failing" }] })) })
+  T(`${TOOL}: a failing --resolve-only retry exits non-zero naming the error`, retryFailed.status === 1 && /still failing/.test(parsed(retryFailed)?.error ?? ""), retryFailed.stdout || retryFailed.stderr)
+
   /** --dry-run is the seam that keeps this module hermetic: it must mutate nothing at all. */
   const dry = run(TOOL, ["--thread", THREAD, "--dry-run"], { env: orcaEnv([]), input: "not applicable because the code moved" })
   const dryPlan = parsed(dry)

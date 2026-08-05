@@ -37,7 +37,7 @@ const payload = ({ isDraft = false, reviews = [], threads = [], headRefOid = HEA
     },
   })
 
-const botReview = (state = "COMMENTED", submittedAt = "2026-08-04T23:16:35Z", oid = HEAD) => ({ author: { login: BOT }, state, submittedAt, commit: { oid } })
+const botReview = (state = "COMMENTED", submittedAt = "2026-08-04T23:16:35Z", oid = HEAD, body = "") => ({ author: { login: BOT }, state, submittedAt, body, commit: { oid } })
 const ghPlan = (stdout, exit = 0) => orcaEnv([{ match: "api graphql", stdout, exit }])
 const parsed = (result) => {
   try {
@@ -77,12 +77,27 @@ export const cases = () => {
   )
 
   /** A body-level CHANGES_REQUESTED opens no thread at all, so a thread count of 0 is not clean. */
-  const changes = readPr(payload({ reviews: [botReview("CHANGES_REQUESTED")] }))
+  const changes = readPr(payload({ reviews: [botReview("CHANGES_REQUESTED", "2026-08-04T23:16:35Z", HEAD, "The migration drops a column old clients still read.")] }))
   const changesPlan = parsed(changes)
   T(
     `${TOOL}: CHANGES_REQUESTED with zero threads is reported as blocked, not clean`,
     changes.status === 0 && changesPlan?.verdict === "CHANGES_REQUESTED" && changesPlan.counts.total === 0,
     changes.stdout || changes.stderr,
+  )
+  /**
+   * Raised by the Codex reviewer on this pull request (#682, P2). Without the body a caller learns
+   * it is blocked and NOTHING about why, because this verdict's whole complaint lives in the review
+   * body and no thread carries it.
+   */
+  T(
+    `${TOOL}: CHANGES_REQUESTED carries the review body, which is its only statement of the problem`,
+    changesPlan?.reviewBody === "The migration drops a column old clients still read.",
+    changes.stdout,
+  )
+  T(
+    `${TOOL}: a COMMENTED review carries no body, because there the threads hold the findings`,
+    parsed(clean)?.reviewBody === null,
+    clean.stdout,
   )
 
   /** A draft attracts no review ever, so the wait budget must not be spent discovering that. */
