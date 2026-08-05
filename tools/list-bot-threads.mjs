@@ -33,9 +33,10 @@ const USAGE = `usage: list-bot-threads.mjs --pr <number> [options]
   --bot <login>       reviewer login to filter on (default ${BOT_LOGIN})
   --help, -h          print this usage and exit 0
 
-The bot reviews on open, on ready-for-review, and on an explicit "@codex review" comment. It does
-NOT review on a push, so a verdict here is pinned to the head it was given on. 900 covers the
-longest lag observed on a real pull request (564s on #676) with margin.
+The bot reviews on open, on ready-for-review, and on an explicit "@codex review" comment. Whether it
+re-reviews after a plain push is NOT reliable (#676 never did, #682 did), so a review is accepted
+only when its commit is the current head. 900 covers the longest lag observed on a real pull request
+(564s on #676) with margin.
 
 Prints ONE JSON object on stdout: pr, isDraft, verdict, reviewedAt, reviewState, threads[].
 Errors go to stderr.
@@ -174,11 +175,16 @@ if (node.isDraft) {
 }
 
 /**
- * A review is only evidence about the commit it was given on. The bot reviews on open, on ready,
- * and on an explicit "@codex review", but NEVER on a push, so after any fixup the newest bot review
- * still names the OLD head. Accepting it would report REVIEWED for code the bot never saw, which is
- * the same class of defect this tool exists to remove: the harness reading a stale approval as a
- * current one. A review whose commit is not the head does not count, and the wait continues.
+ * A review is only evidence about the commit it was given on.
+ *
+ * Whether the bot re-reviews after a push is NOT reliable, and both shapes are measured: PR #676
+ * reviewed once and never again while commits kept landing, and PR #682 reviewed the old head, took
+ * a push, and reviewed the new head seven minutes later. So the newest bot review may name the OLD
+ * commit, and accepting it would report REVIEWED for code the bot never saw. That is the same class
+ * of defect this tool exists to remove: the harness reading a stale approval as a current one.
+ *
+ * Comparing the commit is what makes the answer correct under either behaviour. A review whose
+ * commit is not the head does not count, and the wait continues.
  */
 const botReviewOf = (payload) =>
   (payload.reviews?.nodes ?? [])
