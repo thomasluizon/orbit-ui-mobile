@@ -40,10 +40,15 @@ longest lag observed on a real pull request (564s on #676) with margin.
 Prints ONE JSON object on stdout: pr, isDraft, verdict, reviewedAt, reviewState, threads[].
 Errors go to stderr.
 
-  verdict  REVIEWED      a bot review exists; threads[] may be empty, which means clean
-           CHANGES_REQUESTED  a bot review exists and requests changes
+  verdict  REVIEWED      a bot review OF THE CURRENT HEAD exists; threads[] may be empty (clean)
+           CHANGES_REQUESTED  a bot review of the current head exists and requests changes
            DRAFT         the pull request is a draft, so no review will ever arrive
-           NO_REVIEW     no bot review inside the wait budget
+           NO_REVIEW     no bot review of this head inside the budget. staleReviewCommit names
+                         the commit an older review WAS given on, when there is one
+
+A review is evidence about the commit it was given on and nothing else. One pinned to an older
+head is NOT accepted: after any push the newest bot review still names the old commit, and taking
+it would report REVIEWED for code the bot never saw.
 
   threads[]  id, isResolved, isOutdated, path, line, severity, claim
 
@@ -97,8 +102,8 @@ const GH = process.env.GH_BIN || "gh"
 const QUERY = `query($owner:String!,$repo:String!,$pr:Int!){
   repository(owner:$owner,name:$repo){
     pullRequest(number:$pr){
-      number isDraft
-      reviews(last:50){nodes{author{login} state submittedAt}}
+      number isDraft headRefOid
+      reviews(last:50){nodes{author{login} state submittedAt commit{oid}}}
       reviewThreads(first:100){nodes{
         id isResolved isOutdated path line
         comments(first:1){nodes{author{login} body}}
@@ -168,7 +173,21 @@ if (node.isDraft) {
   process.exit(1)
 }
 
-const botReviewOf = (payload) => (payload.reviews?.nodes ?? []).filter((review) => review.author?.login === botLogin).at(-1)
+/**
+ * A review is only evidence about the commit it was given on. The bot reviews on open, on ready,
+ * and on an explicit "@codex review", but NEVER on a push, so after any fixup the newest bot review
+ * still names the OLD head. Accepting it would report REVIEWED for code the bot never saw, which is
+ * the same class of defect this tool exists to remove: the harness reading a stale approval as a
+ * current one. A review whose commit is not the head does not count, and the wait continues.
+ */
+const botReviewOf = (payload) =>
+  (payload.reviews?.nodes ?? [])
+    .filter((review) => review.author?.login === botLogin)
+    .filter((review) => review.commit?.oid && review.commit.oid === payload.headRefOid)
+    .at(-1)
+
+/** Kept separately so NO_REVIEW can say WHICH shape it is: never reviewed, or reviewed a dead head. */
+const staleReviewOf = (payload) => (payload.reviews?.nodes ?? []).filter((review) => review.author?.login === botLogin).at(-1)
 
 let review = botReviewOf(node)
 while (!review && Date.now() < deadline) {
@@ -193,7 +212,17 @@ const threads = (node.reviewThreads?.nodes ?? [])
   })
 
 if (!review) {
-  console.log(JSON.stringify({ pr: Number(pullRequest), isDraft: false, verdict: "NO_REVIEW", reviewedAt: null, reviewState: null, threads, waitedSeconds: waitSeconds, note: `no ${botLogin} review arrived; do not report this pull request as clean` }, null, 2))
+  const stale = staleReviewOf(node)
+  const note = stale
+    ? `the newest ${botLogin} review is pinned to ${stale.commit?.oid ?? "an unknown commit"}, not to head ${node.headRefOid}; it never saw this code. Post "@codex review" to re-request`
+    : `no ${botLogin} review arrived; do not report this pull request as clean`
+  console.log(
+    JSON.stringify(
+      { pr: Number(pullRequest), isDraft: false, verdict: "NO_REVIEW", reviewedAt: null, reviewState: null, headRefOid: node.headRefOid, staleReviewCommit: stale?.commit?.oid ?? null, threads, waitedSeconds: waitSeconds, note },
+      null,
+      2,
+    ),
+  )
   process.exit(1)
 }
 
@@ -206,6 +235,8 @@ console.log(
       verdict,
       reviewedAt: review.submittedAt ?? null,
       reviewState: review.state ?? null,
+      reviewedCommit: review.commit.oid,
+      headRefOid: node.headRefOid,
       counts: { total: threads.length, unresolved: threads.filter((thread) => !thread.isResolved).length },
       threads,
     },

@@ -199,6 +199,54 @@ export const cases = () => {
   const refused = run(TOOL, ["--tickets", "ORB-1"], { env: orcaEnv([{ match: "linear issue ORB-1 --relations", stdout: JSON.stringify({ id: "e", ok: false, error: { code: "not_found", message: "no such issue" } }), exit: 1, allowNonJsonLinear: false }]) })
   T(`${TOOL}: an orca refusal is an environment error, never an empty plan`, refused.status === 2 && /refused: no such issue/.test(refused.stderr), `exit ${refused.status}: ${refused.stderr || refused.stdout}`)
 
+  /**
+   * Raised by the Codex reviewer on this tool's own pull request (#682, P2), and it was right. A
+   * branch has ONE parent, so a ticket blocked by two INDEPENDENT same-repo tickets cannot stack on
+   * both. Picking one silently would plan a branch missing the other blocker's work while the plan
+   * claims both are satisfied, so an unrepresentable shape is refused by name instead.
+   */
+  const forked = run(TOOL, ["--tickets", "ORB-1,ORB-2,ORB-3"], {
+    env: orcaEnv([
+      { match: "linear issue ORB-1 --relations", stdout: relationsEnvelope("ORB-1") },
+      { match: "linear issue ORB-2 --relations", stdout: relationsEnvelope("ORB-2") },
+      { match: "linear issue ORB-3 --relations", stdout: relationsEnvelope("ORB-3", {}, ["ORB-1", "ORB-2"]) },
+    ]),
+  })
+  T(
+    `${TOOL}: two independent same-repo blockers are refused, never silently stacked on one`,
+    forked.status === 2 && /do not form one chain/.test(forked.stderr) && /ORB-3 is blocked by ORB-1 and ORB-2/.test(forked.stderr),
+    `exit ${forked.status}: ${forked.stderr || forked.stdout}`,
+  )
+
+  /** The same two blockers CHAINED are representable, and the child stacks on the deeper one. */
+  const chainedPair = run(TOOL, ["--tickets", "ORB-1,ORB-2,ORB-3"], {
+    env: orcaEnv([
+      { match: "linear issue ORB-1 --relations", stdout: relationsEnvelope("ORB-1") },
+      { match: "linear issue ORB-2 --relations", stdout: relationsEnvelope("ORB-2", {}, ["ORB-1"]) },
+      { match: "linear issue ORB-3 --relations", stdout: relationsEnvelope("ORB-3", {}, ["ORB-1", "ORB-2"]) },
+    ]),
+  })
+  const chainedPairPlan = planOf(chainedPair)
+  T(
+    `${TOOL}: blockers that DO form a chain stack the child on the deepest one`,
+    chainedPair.status === 0 && chainedPairPlan?.admitted.find((ticket) => ticket.identifier === "ORB-3")?.stackParent === "ORB-2" && chainedPairPlan.stacks[0]?.members.join(",") === "ORB-1,ORB-2,ORB-3",
+    chainedPair.stdout || chainedPair.stderr,
+  )
+
+  /** Two same-repo blockers where one is cross-repo is not a fork: only same-repo ones can stack. */
+  const mixedParents = run(TOOL, ["--tickets", "ORB-1,ORB-2,ORB-3"], {
+    env: orcaEnv([
+      { match: "linear issue ORB-1 --relations", stdout: relationsEnvelope("ORB-1", { labels: ["repo:api"] }) },
+      { match: "linear issue ORB-2 --relations", stdout: relationsEnvelope("ORB-2") },
+      { match: "linear issue ORB-3 --relations", stdout: relationsEnvelope("ORB-3", {}, ["ORB-1", "ORB-2"]) },
+    ]),
+  })
+  T(
+    `${TOOL}: one same-repo blocker plus one cross-repo blocker is representable, not a fork`,
+    mixedParents.status === 0 && planOf(mixedParents)?.admitted.find((ticket) => ticket.identifier === "ORB-3")?.stackParent === "ORB-2",
+    mixedParents.stdout || mixedParents.stderr,
+  )
+
   const markdown = run(TOOL, ["--tickets", "ORB-1", "--format", "markdown"], { env: orcaEnv([{ match: "linear issue ORB-1 --relations", stdout: relationsEnvelope("ORB-1", { labels: ["repo:ui", "visible-effect"] }) }]) })
   T(
     `${TOOL}: markdown names the wave and marks the visual debt`,

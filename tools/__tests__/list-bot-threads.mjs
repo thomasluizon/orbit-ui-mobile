@@ -19,13 +19,17 @@ const thread = ({ id = "PRRT_kwDOR5Siws6Wfy_V", isResolved = false, isOutdated =
   comments: { nodes: [{ author: { login }, body }] },
 })
 
-const payload = ({ isDraft = false, reviews = [], threads = [] } = {}) =>
+const HEAD = "0f4abca78a0f4c487a98ab642508c06c6634f36f"
+const OLD_HEAD = "b5cd7394a8a687126eaaec32c02978ad6575c01c"
+
+const payload = ({ isDraft = false, reviews = [], threads = [], headRefOid = HEAD } = {}) =>
   JSON.stringify({
     data: {
       repository: {
         pullRequest: {
           number: 681,
           isDraft,
+          headRefOid,
           reviews: { nodes: reviews },
           reviewThreads: { nodes: threads },
         },
@@ -33,7 +37,7 @@ const payload = ({ isDraft = false, reviews = [], threads = [] } = {}) =>
     },
   })
 
-const botReview = (state = "COMMENTED", submittedAt = "2026-08-04T23:16:35Z") => ({ author: { login: BOT }, state, submittedAt })
+const botReview = (state = "COMMENTED", submittedAt = "2026-08-04T23:16:35Z", oid = HEAD) => ({ author: { login: BOT }, state, submittedAt, commit: { oid } })
 const ghPlan = (stdout, exit = 0) => orcaEnv([{ match: "api graphql", stdout, exit }])
 const parsed = (result) => {
   try {
@@ -113,8 +117,33 @@ export const cases = () => {
   const human = readPr(payload({ reviews: [botReview()], threads: [thread({ login: "thomasluizon", body: "looks fine to me" })] }))
   T(`${TOOL}: a human-authored thread is excluded from the bot's list`, parsed(human)?.counts.total === 0, human.stdout || human.stderr)
 
-  const otherBot = readPr(payload({ reviews: [{ author: { login: "sonarqubecloud" }, state: "COMMENTED", submittedAt: "2026-08-04T23:00:00Z" }] }))
+  const otherBot = readPr(payload({ reviews: [{ author: { login: "sonarqubecloud" }, state: "COMMENTED", submittedAt: "2026-08-04T23:00:00Z", commit: { oid: HEAD } }] }))
   T(`${TOOL}: another bot's review does not satisfy the Codex reviewer`, otherBot.status === 1 && parsed(otherBot)?.verdict === "NO_REVIEW", otherBot.stdout || otherBot.stderr)
+
+  /**
+   * Raised by the Codex reviewer on this tool's own pull request (#682, P1), and it was right. The
+   * bot never reviews on a push, so after any fixup its newest review still names the OLD head.
+   * Accepting it reports REVIEWED for code the bot never saw, which is the very defect this tool
+   * exists to remove. A review is evidence about its own commit and nothing else.
+   */
+  const stale = readPr(payload({ reviews: [botReview("COMMENTED", "2026-08-04T23:16:35Z", OLD_HEAD)], threads: [thread()] }))
+  const stalePlan = parsed(stale)
+  T(
+    `${TOOL}: a review pinned to an older head is NO_REVIEW, never REVIEWED`,
+    stale.status === 1 && stalePlan?.verdict === "NO_REVIEW",
+    stale.stdout || stale.stderr,
+  )
+  T(
+    `${TOOL}: NO_REVIEW names the stale commit and the head, so the caller knows to re-request`,
+    stalePlan?.staleReviewCommit === OLD_HEAD && stalePlan.headRefOid === HEAD && /@codex review/.test(stalePlan.note ?? ""),
+    stale.stdout,
+  )
+
+  const fresh = readPr(payload({ reviews: [botReview("COMMENTED", "2026-08-04T23:16:35Z", OLD_HEAD), botReview("COMMENTED", "2026-08-05T10:00:00Z", HEAD)] }))
+  T(`${TOOL}: a fresh review after a stale one is accepted`, fresh.status === 0 && parsed(fresh)?.verdict === "REVIEWED" && parsed(fresh)?.reviewedCommit === HEAD, fresh.stdout || fresh.stderr)
+
+  const noCommit = readPr(payload({ reviews: [{ author: { login: BOT }, state: "COMMENTED", submittedAt: "2026-08-04T23:16:35Z", commit: null }] }))
+  T(`${TOOL}: a review with no commit at all cannot be proven current, so it is not accepted`, noCommit.status === 1 && parsed(noCommit)?.verdict === "NO_REVIEW", noCommit.stdout || noCommit.stderr)
 
   const failing = readPr("", 1)
   T(`${TOOL}: a failing gh is an environment error, never a verdict`, failing.status === 2 && /gh api graphql failed/.test(failing.stderr), `exit ${failing.status}: ${failing.stderr || failing.stdout}`)

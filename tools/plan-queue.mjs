@@ -229,18 +229,50 @@ while (remaining.size > 0) {
   }
 }
 
+const order = waves.flat()
+const depthOf = new Map(order.map((id, index) => [id, index]))
+
 /**
  * A stack is a dependency chain inside ONE repository. Cross-repo blockers can never stack, because
  * GitHub requires every branch in a stack to live in the same repository, so those stay independent
  * pull requests against main and the api one has to merge and deploy first.
+ *
+ * A branch has exactly ONE parent, so a ticket with two same-repo blockers can only stack on one of
+ * them. Picking either and saying nothing would plan a branch that does not contain the other
+ * blocker's work while the plan claims both are satisfied. So the deepest blocker is chosen and the
+ * rest MUST be its ancestors; when they are not, the shape is unrepresentable and this refuses
+ * rather than emitting a plan whose branch is missing a declared dependency.
  */
-const stackParentOf = (id) => {
+const sameRepoBlockersOf = (id) => {
   const entry = candidates.get(id)
-  const sameRepo = entry.blockedBy.filter((blocker) => candidates.get(blocker)?.repo === entry.repo)
-  return sameRepo.sort().at(-1) ?? null
+  return entry.blockedBy.filter((blocker) => candidates.get(blocker)?.repo === entry.repo)
 }
 
-const order = waves.flat()
+const stackParentOf = (id) => {
+  const sameRepo = sameRepoBlockersOf(id)
+  if (sameRepo.length === 0) return null
+  return sameRepo.slice().sort((left, right) => depthOf.get(right) - depthOf.get(left) || right.localeCompare(left))[0]
+}
+
+for (const id of order) {
+  const sameRepo = sameRepoBlockersOf(id)
+  if (sameRepo.length < 2) continue
+  const parent = stackParentOf(id)
+  const ancestors = new Set()
+  for (let cursor = parent; cursor; cursor = stackParentOf(cursor)) {
+    if (ancestors.has(cursor)) break
+    ancestors.add(cursor)
+  }
+  const missing = sameRepo.filter((blocker) => !ancestors.has(blocker))
+  if (missing.length > 0) {
+    fail(
+      2,
+      `${id} is blocked by ${sameRepo.join(" and ")}, all in ${candidates.get(id).repo}, but they do not form one chain: ` +
+        `${missing.join(", ")} would not be in the branch stacked on ${parent}. A branch has one parent, so this shape cannot be planned. ` +
+        `Add a blocking edge between them so they order, or run them in separate invocations.`,
+    )
+  }
+}
 const admitted = order.map((id, index) => {
   const entry = candidates.get(id)
   return {
