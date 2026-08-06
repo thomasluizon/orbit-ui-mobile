@@ -32,7 +32,7 @@ Exactly one of --tickets, --project or --board is required.
 
 Prints ONE JSON object on stdout: scope, admitted, deferred, stacks, waves. Errors go to stderr.
 
-  admitted[]  identifier, repo, title, labels, visibleEffect, blockedBy, stackParent, wave, unlocks
+  admitted[]  identifier, repo, title, labels, visibleEffect, blockedBy, stackParent, branchMode, wave, unlocks
   deferred[]  identifier, reason  (BLOCKED_OUTSIDE_QUEUE, NO_REPO_LABEL, AMBIGUOUS_REPO, CLOSED)
   stacks[]    repo, branchBase, members[]   one stack per dependency chain within a repo
   waves[][]   identifiers that may run concurrently, each wave depending only on earlier ones
@@ -264,6 +264,7 @@ const sameRepoBlockersOf = (id) => {
 }
 
 const stackParentById = new Map()
+const branchModeById = new Map()
 for (const id of order) {
   const sameRepo = sameRepoBlockersOf(id)
   const parent = sameRepo.slice().sort((left, right) => depthOf.get(right) - depthOf.get(left) || right.localeCompare(left))[0] ?? null
@@ -271,7 +272,10 @@ for (const id of order) {
   for (let cursor = parent; cursor; cursor = stackParentById.get(cursor)) {
     ancestors.add(cursor)
   }
-  stackParentById.set(id, sameRepo.every((blocker) => ancestors.has(blocker)) ? parent : null)
+  const stackable = sameRepo.every((blocker) => ancestors.has(blocker))
+  const stackParent = stackable ? parent : null
+  stackParentById.set(id, stackParent)
+  branchModeById.set(id, stackable ? (stackParent ? "stacked" : "main") : "main-after-blockers-merge")
 }
 const admitted = order.map((id, index) => {
   const entry = candidates.get(id)
@@ -284,6 +288,7 @@ const admitted = order.map((id, index) => {
     visibleEffect: labelNames(entry.issue).includes("visible-effect"),
     blockedBy: entry.blockedBy,
     stackParent: stackParentById.get(id),
+    branchMode: branchModeById.get(id),
     wave: waves.findIndex((wave) => wave.includes(id)),
     position: index,
     unlocks: unlocksById.get(id),
@@ -319,9 +324,14 @@ if (format === "markdown") {
     lines.push(`## Wave ${index + 1}`)
     for (const id of wave) {
       const ticket = byIdentifier.get(id)
-      const stacked = ticket.stackParent ? ` (stacks on ${ticket.stackParent})` : " (opens against main)"
+      const branch =
+        ticket.branchMode === "stacked"
+          ? ` (stacks on ${ticket.stackParent})`
+          : ticket.branchMode === "main-after-blockers-merge"
+            ? " (opens against main after blockers merge; blockers do not form a stack)"
+            : " (opens against main)"
       const visual = ticket.visibleEffect ? " [visual check owed]" : ""
-      lines.push(`- ${id} \`${ticket.repo}\`${stacked}${visual} ${ticket.title}`)
+      lines.push(`- ${id} \`${ticket.repo}\`${branch}${visual} ${ticket.title}`)
     }
     lines.push("")
   }

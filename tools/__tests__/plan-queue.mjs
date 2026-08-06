@@ -75,7 +75,11 @@ export const cases = () => {
   const independentPlan = planOf(independent)
   T(
     `${TOOL}: two unrelated tickets share one wave and form no stack`,
-    independent.status === 0 && independentPlan?.waves.length === 1 && independentPlan.waves[0].length === 2 && independentPlan.stacks.length === 0,
+    independent.status === 0 &&
+      independentPlan?.waves.length === 1 &&
+      independentPlan.waves[0].length === 2 &&
+      independentPlan.stacks.length === 0 &&
+      independentPlan.admitted.every((ticket) => ticket.branchMode === "main"),
     independent.stdout || independent.stderr,
   )
 
@@ -94,7 +98,9 @@ export const cases = () => {
   )
   T(
     `${TOOL}: a same-repo blocker inside the queue becomes a stack parent`,
-    chainedPlan?.admitted.find((ticket) => ticket.identifier === "ORB-2")?.stackParent === "ORB-1" && chainedPlan.stacks[0]?.members.join(",") === "ORB-1,ORB-2",
+    chainedPlan?.admitted.find((ticket) => ticket.identifier === "ORB-2")?.stackParent === "ORB-1" &&
+      chainedPlan.admitted.find((ticket) => ticket.identifier === "ORB-2")?.branchMode === "stacked" &&
+      chainedPlan.stacks[0]?.members.join(",") === "ORB-1,ORB-2",
     chained.stdout,
   )
 
@@ -216,7 +222,11 @@ export const cases = () => {
   const forkedPlan = planOf(forked)
   T(
     `${TOOL}: independent same-repo blockers degrade to a main-based pull request in a later wave`,
-    forked.status === 0 && forkedPlan?.admitted.find((ticket) => ticket.identifier === "ORB-4")?.stackParent === null && forkedPlan.waves[1]?.[0] === "ORB-4" && obeysWaveOrder(forkedPlan),
+    forked.status === 0 &&
+      forkedPlan?.admitted.find((ticket) => ticket.identifier === "ORB-4")?.stackParent === null &&
+      forkedPlan.admitted.find((ticket) => ticket.identifier === "ORB-4")?.branchMode === "main-after-blockers-merge" &&
+      forkedPlan.waves[1]?.[0] === "ORB-4" &&
+      obeysWaveOrder(forkedPlan),
     `exit ${forked.status}: ${forked.stderr || forked.stdout}`,
   )
 
@@ -269,10 +279,16 @@ export const cases = () => {
     wideMixed.stdout || wideMixed.stderr,
   )
 
-  const markdown = run(TOOL, ["--tickets", "ORB-1", "--format", "markdown"], { env: orcaEnv([{ match: "linear issue ORB-1 --relations", stdout: relationsEnvelope("ORB-1", { labels: ["repo:ui", "visible-effect"] }) }]) })
+  const markdown = run(TOOL, ["--tickets", "ORB-1,ORB-2,ORB-3", "--format", "markdown"], {
+    env: orcaEnv([
+      { match: "linear issue ORB-1 --relations", stdout: relationsEnvelope("ORB-1") },
+      { match: "linear issue ORB-2 --relations", stdout: relationsEnvelope("ORB-2") },
+      { match: "linear issue ORB-3 --relations", stdout: relationsEnvelope("ORB-3", { labels: ["repo:ui", "visible-effect"] }, ["ORB-1", "ORB-2"]) },
+    ]),
+  })
   T(
-    `${TOOL}: markdown names the wave, main base, and visual debt`,
-    markdown.status === 0 && /## Wave 1/.test(markdown.stdout) && /opens against main/.test(markdown.stdout) && /visual check owed/.test(markdown.stdout),
+    `${TOOL}: markdown names the degraded branch prerequisite and visual debt`,
+    markdown.status === 0 && /## Wave 2/.test(markdown.stdout) && /opens against main after blockers merge/.test(markdown.stdout) && /visual check owed/.test(markdown.stdout),
     markdown.stdout || markdown.stderr,
   )
 }
