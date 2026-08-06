@@ -29,11 +29,14 @@ const USAGE = `usage: verify-delivery.mjs --issue ORB-N --worktree <path> --bran
   --repo <key>        repository key from .claude/orchestrator.json; GitHub is
                       queried from that checkout instead of the worktree
   --base <ref>        base the commit count is taken against (default: main)
+  --wait-ci <s>       seconds to wait for still-running checks to settle before
+                      reporting CI_PENDING (default: 0, report immediately)
   --help, -h          print this usage and exit 0
 
 Derives delivery from git and GitHub artifacts only, never from a worker's own
 report. Checks run in order and the first failure decides the verdict:
-NO_COMMIT, UNPUSHED, NO_PR, STALE_PR, OVERSIZE, or DELIVERED.
+NO_COMMIT, UNPUSHED, NO_PR, STALE_PR, OVERSIZE, CI_FAILING, CI_PENDING, or
+DELIVERED.
 
 stdout carries ONE JSON object and nothing else. Errors go to stderr.
 
@@ -52,7 +55,7 @@ const argOf = (flag) => {
   const index = process.argv.indexOf(flag)
   return index === -1 ? null : process.argv[index + 1]
 }
-const knownFlags = new Set(["--issue", "--worktree", "--branch", "--repo", "--base", "--help", "-h"])
+const knownFlags = new Set(["--issue", "--worktree", "--branch", "--repo", "--base", "--wait-ci", "--help", "-h"])
 const unknown = process.argv.slice(2).filter((value) => value.startsWith("-") && !knownFlags.has(value))
 if (unknown.length) fail(2, `${USAGE}\n\nunknown option(s): ${unknown.join(" ")}`)
 
@@ -61,6 +64,9 @@ const worktree = argOf("--worktree")
 const branch = argOf("--branch")
 const repoKey = argOf("--repo")
 const base = argOf("--base") ?? "main"
+const waitCiRaw = argOf("--wait-ci") ?? "0"
+const waitCiSeconds = Number(waitCiRaw)
+if (!Number.isFinite(waitCiSeconds) || waitCiSeconds < 0) fail(2, `${USAGE}\n\n--wait-ci requires a non-negative number of seconds`)
 const safeValue = (value) => typeof value === "string" && value.length > 0 && !value.startsWith("-")
 if (!issue || !/^[A-Z][A-Z0-9]*-\d+$/i.test(issue)) fail(2, `${USAGE}\n\n--issue must be a Linear identifier such as ORB-163`)
 if (!safeValue(worktree)) fail(2, `${USAGE}\n\n--worktree requires a path`)
@@ -189,5 +195,84 @@ checks.affectedFiles = {
   cap: FILE_CAP,
 }
 if (!checks.affectedFiles.pass) emit("OVERSIZE")
+
+/**
+ * A pull request that cannot merge was never delivered, and until this check existed nothing here
+ * looked: the header above promises that every check reads a GitHub artifact, and CI status was the
+ * one artifact it never read. Measured on #685, which this file called DELIVERED twice while five
+ * required-or-gating checks were red.
+ *
+ * The rollup mixes two node types with DIFFERENT fields, confirmed against a live response rather
+ * than assumed: a `CheckRun` carries `status` plus `conclusion`, where `conclusion` is the EMPTY
+ * STRING (not null) until it completes, and a `StatusContext` carries `state` alone and no status.
+ * Reading only one shape silently ignores every check of the other kind.
+ */
+const FAILING_CONCLUSIONS = new Set(["FAILURE", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED", "STARTUP_FAILURE"])
+const FAILING_STATES = new Set(["FAILURE", "ERROR"])
+const PENDING_STATES = new Set(["PENDING", "EXPECTED"])
+
+const readRollup = () => {
+  const viewed = run(GH, ["pr", "view", String(pullRequest.number), "--json", "statusCheckRollup"], githubCwd)
+  if (!viewed.ok) fail(2, `gh pr view ${pullRequest.number} --json statusCheckRollup failed: ${viewed.error}`)
+  let parsed
+  try {
+    parsed = JSON.parse(viewed.stdout)
+  } catch {
+    fail(2, `gh pr view ${pullRequest.number} returned unparseable JSON: ${viewed.stdout.trim().slice(0, 240) || "empty output"}`)
+  }
+  const rollup = parsed?.statusCheckRollup
+  if (!Array.isArray(rollup)) fail(2, `gh pr view ${pullRequest.number} returned no statusCheckRollup array`)
+  /**
+   * A re-run does NOT replace the old entry: the rollup carries BOTH, so a re-run of a red check
+   * reads as failing and pending at once and could never clear. Measured on #685, where a re-queued
+   * `Dash Ban` appeared twice. Keep only the newest entry per check name, which is what the GitHub
+   * UI shows and the only reading under which a re-run can go green.
+   */
+  const newestByName = new Map()
+  for (const node of rollup) {
+    const name = node.name ?? node.context ?? "unnamed check"
+    const startedAt = node.startedAt ?? node.createdAt ?? ""
+    const previous = newestByName.get(name)
+    if (!previous || String(startedAt) >= String(previous.startedAt ?? previous.createdAt ?? "")) newestByName.set(name, node)
+  }
+  const failing = []
+  const pending = []
+  for (const [name, node] of newestByName) {
+    if (node.__typename === "StatusContext" || typeof node.state === "string") {
+      if (FAILING_STATES.has(node.state)) failing.push(name)
+      else if (PENDING_STATES.has(node.state)) pending.push(name)
+      continue
+    }
+    if (node.status !== "COMPLETED") {
+      pending.push(name)
+      continue
+    }
+    if (FAILING_CONCLUSIONS.has(node.conclusion)) failing.push(name)
+  }
+  return { total: newestByName.size, failing, pending }
+}
+
+// The same synchronous wait list-bot-threads.mjs uses, so the two tools poll the same way.
+const sleep = (seconds) => {
+  const buffer = new Int32Array(new SharedArrayBuffer(4))
+  Atomics.wait(buffer, 0, 0, seconds * 1000)
+}
+
+let rollup = readRollup()
+const deadline = Date.now() + waitCiSeconds * 1000
+while (rollup.failing.length === 0 && rollup.pending.length > 0 && Date.now() < deadline) {
+  sleep(Math.min(30, Math.max(1, Math.ceil((deadline - Date.now()) / 1000))))
+  rollup = readRollup()
+}
+
+checks.ci = {
+  pass: rollup.failing.length === 0 && rollup.pending.length === 0,
+  observed: `${rollup.total} checks: ${rollup.failing.length} failing, ${rollup.pending.length} pending`,
+  failing: rollup.failing,
+  pending: rollup.pending,
+  waitedSeconds: waitCiSeconds,
+}
+if (rollup.failing.length > 0) emit("CI_FAILING")
+if (rollup.pending.length > 0) emit("CI_PENDING")
 
 emit("DELIVERED")

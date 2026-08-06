@@ -41,7 +41,19 @@ const pullRequest = (headRefOid, additions = 10, deletions = 5, number = 200, fi
   files: Array.from({ length: fileCount }, (unused, index) => ({ path: `src/file-${index}.ts`, additions: 1, deletions: 0 })),
 })
 
-const ghPlan = (stdout, exit = 0) => orcaEnv([{ match: `pr list --head ${BRANCH}`, stdout, exit }])
+/**
+ * A CheckRun reports `status` plus `conclusion` and a StatusContext reports `state` alone, so both
+ * shapes appear here: a rollup fixture carrying only one kind would let a reader that ignores the
+ * other pass. Confirmed against a live `gh pr view --json statusCheckRollup` response.
+ */
+const rollup = (nodes = [{ __typename: "CheckRun", name: "Lint", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-06T10:00:00Z" }]) =>
+  JSON.stringify({ statusCheckRollup: nodes })
+
+const ghPlan = (stdout, exit = 0, checks = rollup()) =>
+  orcaEnv([
+    { match: `pr list --head ${BRANCH}`, stdout, exit },
+    { match: "pr view", stdout: checks },
+  ])
 
 const verdictOf = (fixture, stdout, expected, status, name) =>
   check(TOOL, name, ["--issue", "ORB-200", "--worktree", fixture.path, "--branch", BRANCH], { status, stdout: new RegExp(`"verdict": "${expected}"`) }, { env: ghPlan(stdout) })
@@ -96,6 +108,36 @@ export const cases = () => {
     /"number": 200/.test(delivered.stdout) && /"url": "https:\/\/github\.com\/[^"]+\/pull\/200"/.test(delivered.stdout),
     delivered.stdout || delivered.stderr,
   )
+
+  /**
+   * A pull request that cannot merge was never delivered. Every case below passes every OTHER check,
+   * so only the CI verdict can be what moves it, which is what makes these assertions able to fail.
+   */
+  const withChecks = (nodes) => ({ env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, rollup(nodes)) })
+  const ciArgv = ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH]
+
+  check(TOOL, "a red required check is CI_FAILING, never DELIVERED", ciArgv, { status: 1, stdout: /"verdict": "CI_FAILING"/ }, withChecks([{ __typename: "CheckRun", name: "React Doctor", status: "COMPLETED", conclusion: "FAILURE", startedAt: "2026-08-06T10:00:00Z" }]))
+
+  check(TOOL, "a still-running check is CI_PENDING, so nothing is called delivered mid-flight", ciArgv, { status: 1, stdout: /"verdict": "CI_PENDING"/ }, withChecks([{ __typename: "CheckRun", name: "Build", status: "IN_PROGRESS", conclusion: "", startedAt: "2026-08-06T10:00:00Z" }]))
+
+  check(TOOL, "a StatusContext failure counts too, despite carrying state instead of conclusion", ciArgv, { status: 1, stdout: /"verdict": "CI_FAILING"/ }, withChecks([{ __typename: "StatusContext", context: "Vercel", state: "FAILURE" }]))
+
+  check(TOOL, "SKIPPED and NEUTRAL are not failures", ciArgv, { status: 0, stdout: /"verdict": "DELIVERED"/ }, withChecks([
+    { __typename: "CheckRun", name: "auto-merge", status: "COMPLETED", conclusion: "SKIPPED", startedAt: "2026-08-06T10:00:00Z" },
+    { __typename: "CheckRun", name: "Advisory", status: "COMPLETED", conclusion: "NEUTRAL", startedAt: "2026-08-06T10:00:00Z" },
+  ]))
+
+  /**
+   * The trap this exists for: a re-run does NOT replace the old entry, so the rollup carries the old
+   * FAILURE and the new SUCCESS under ONE name. Reading every entry leaves the check permanently red
+   * and permanently pending at once, and no re-run could ever clear it. Measured on #685.
+   */
+  check(TOOL, "a re-run supersedes its own failed entry rather than counting twice", ciArgv, { status: 0, stdout: /"verdict": "DELIVERED"/ }, withChecks([
+    { __typename: "CheckRun", name: "Dash Ban", status: "COMPLETED", conclusion: "FAILURE", startedAt: "2026-08-06T10:00:00Z" },
+    { __typename: "CheckRun", name: "Dash Ban", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-06T11:00:00Z" },
+  ]))
+
+  check(TOOL, "CI_FAILING names the checks, so the report never says merely that something is red", ciArgv, { status: 1, stdout: /"failing": \[\s*"CodeQL"/ }, withChecks([{ __typename: "CheckRun", name: "CodeQL", status: "COMPLETED", conclusion: "TIMED_OUT", startedAt: "2026-08-06T10:00:00Z" }]))
   T(
     `${TOOL}: stdout carries ONE JSON object and nothing else`,
     (() => {
@@ -109,9 +151,9 @@ export const cases = () => {
   )
 
   const argv = ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH]
-  check(TOOL, "a failing gh is an environment error, never a verdict", argv, { status: 2, stderr: /gh pr list --head .* failed/ }, { env: ghPlan("", 1) })
-  check(TOOL, "unparseable gh output is an environment error", argv, { status: 2, stderr: /returned unparseable JSON/ }, { env: ghPlan("not json at all") })
-  check(TOOL, "a non-array gh payload is an environment error", argv, { status: 2, stderr: /did not return an array/ }, { env: ghPlan(JSON.stringify({ number: 200 })) })
+  check(TOOL, "a failing gh is an environment error, never a verdict", ciArgv, { status: 2, stderr: /gh pr list --head .* failed/ }, { env: ghPlan("", 1) })
+  check(TOOL, "unparseable gh output is an environment error", ciArgv, { status: 2, stderr: /returned unparseable JSON/ }, { env: ghPlan("not json at all") })
+  check(TOOL, "a non-array gh payload is an environment error", ciArgv, { status: 2, stderr: /did not return an array/ }, { env: ghPlan(JSON.stringify({ number: 200 })) })
   check(
     TOOL,
     "a pull request with no numeric diff size is an environment error, not an in-cap pass",

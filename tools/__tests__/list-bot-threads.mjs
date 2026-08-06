@@ -153,6 +153,17 @@ export const cases = () => {
     stalePlan?.staleReviewCommit === OLD_HEAD && stalePlan.headRefOid === HEAD && /@codex review/.test(stalePlan.note ?? ""),
     stale.stdout,
   )
+  /**
+   * NO_REVIEW is ambiguous unless it says whether anyone asked, and the two readings justify
+   * different actions: a reviewer that was asked and stayed silent is evidence about the reviewer,
+   * while one that was never triggered is evidence about us. A zero wait budget posts no request,
+   * because asking and then waiting no time at all would report an absence it manufactured.
+   */
+  T(
+    `${TOOL}: NO_REVIEW states whether the review was actually requested on this run`,
+    stalePlan?.reviewRequested === false && /never have been triggered/.test(stalePlan.note ?? ""),
+    stale.stdout,
+  )
 
   const fresh = readPr(payload({ reviews: [botReview("COMMENTED", "2026-08-04T23:16:35Z", OLD_HEAD), botReview("COMMENTED", "2026-08-05T10:00:00Z", HEAD)] }))
   T(`${TOOL}: a fresh review after a stale one is accepted`, fresh.status === 0 && parsed(fresh)?.verdict === "REVIEWED" && parsed(fresh)?.reviewedCommit === HEAD, fresh.stdout || fresh.stderr)

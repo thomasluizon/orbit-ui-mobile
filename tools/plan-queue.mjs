@@ -275,9 +275,64 @@ for (const id of order) {
   const stackable = sameRepo.every((blocker) => ancestors.has(blocker))
   const stackParent = stackable ? parent : null
   stackParentById.set(id, stackParent)
-  branchModeById.set(id, stackable ? (stackParent ? "stacked" : "main") : "main-after-blockers-merge")
+  branchModeById.set(id, stackable ? (stackParent ? "stacked" : "main") : "unstackable")
 }
-const admitted = order.map((id, index) => {
+
+/**
+ * An unstackable ticket cannot run in this queue at all, and saying so is the only honest verdict.
+ *
+ * The first attempt annotated it and admitted it anyway, on the reasoning that a later wave gates
+ * it. That reasoning is wrong: waves order tickets in TIME, and nothing merges between them, so a
+ * later wave confers no code. Three independent reviewers reached the same defect on #685.
+ *
+ * There is no live "have the blockers merged yet" check worth writing, because the answer is fixed
+ * by construction. `sameRepoBlockersOf` counts only blockers that are CANDIDATES, and a blocker
+ * whose work already merged is Done in Linear, so it was deferred as CLOSED and never became one.
+ * Every blocker still counted here is therefore open and in THIS queue, and cannot merge before the
+ * ticket that waits on it. So the ticket defers.
+ *
+ * This amends an acceptance criterion of ORB-235, which said no diamond may land in `deferred`. That
+ * criterion was written under the same wrong assumption. What ORB-235 actually bought is intact and
+ * is the part that mattered: the board PLANS instead of refusing, and one unrunnable ticket costs
+ * itself rather than the whole night.
+ */
+const dropped = new Map()
+for (const id of order) {
+  if (branchModeById.get(id) !== "unstackable") continue
+  dropped.set(
+    id,
+    `blocked by ${sameRepoBlockersOf(id).join(", ")} in ${candidates.get(id).repo}, which do not form one chain. ` +
+      `A branch has one parent, and none of those blockers can merge while this queue runs, so no branch can carry their work. Run it after they merge.`,
+  )
+}
+
+/**
+ * Dropping a ticket orphans anything that depended on it, so the removal is transitive. A child
+ * whose blocker just left the queue is in exactly the position BLOCKED_OUTSIDE_QUEUE describes: its
+ * branch would have to contain work that will not exist, and it is reported with that same reason so
+ * the two identical situations do not carry two different names.
+ *
+ * Detail strings are computed BEFORE anything is removed, because `sameRepoBlockersOf` reads
+ * `candidates` and a mutation mid-walk would silently change a later ticket's answer.
+ */
+for (let changed = true; changed; ) {
+  changed = false
+  for (const id of order) {
+    if (dropped.has(id)) continue
+    const orphanedBy = candidates.get(id).blockedBy.filter((blocker) => dropped.has(blocker))
+    if (orphanedBy.length === 0) continue
+    dropped.set(id, `blocked by ${orphanedBy.join(", ")}, which left this queue, so its branch cannot carry their work`)
+    changed = true
+  }
+}
+for (const [id, detail] of dropped) {
+  deferred.push({ identifier: id, reason: branchModeById.get(id) === "unstackable" ? "UNSTACKABLE_BLOCKERS_IN_QUEUE" : "BLOCKED_OUTSIDE_QUEUE", detail })
+}
+
+const runnable = order.filter((id) => !dropped.has(id))
+const runnableWaves = waves.map((wave) => wave.filter((id) => !dropped.has(id))).filter((wave) => wave.length > 0)
+
+const admitted = runnable.map((id, index) => {
   const entry = candidates.get(id)
   return {
     identifier: id,
@@ -289,7 +344,7 @@ const admitted = order.map((id, index) => {
     blockedBy: entry.blockedBy,
     stackParent: stackParentById.get(id),
     branchMode: branchModeById.get(id),
-    wave: waves.findIndex((wave) => wave.includes(id)),
+    wave: runnableWaves.findIndex((wave) => wave.includes(id)),
     position: index,
     unlocks: unlocksById.get(id),
   }
@@ -311,16 +366,16 @@ for (const ticket of admitted) {
 
 const plan = {
   scope: safeValue(ticketsArg) ? { kind: "tickets", value: scopeIds } : safeValue(projectArg) ? { kind: "project", value: projectArg } : { kind: "board", value: team },
-  counts: { requested: scopeIds.length, admitted: admitted.length, deferred: deferred.length, waves: waves.length, stacks: stacks.length },
+  counts: { requested: scopeIds.length, admitted: admitted.length, deferred: deferred.length, waves: runnableWaves.length, stacks: stacks.length },
   admitted,
   deferred: deferred.sort((left, right) => left.identifier.localeCompare(right.identifier)),
   stacks,
-  waves,
+  waves: runnableWaves,
 }
 
 if (format === "markdown") {
   const lines = [`# Queue plan (${plan.counts.admitted} admitted, ${plan.counts.deferred} deferred)`, ""]
-  for (const [index, wave] of waves.entries()) {
+  for (const [index, wave] of runnableWaves.entries()) {
     lines.push(`## Wave ${index + 1}`)
     for (const id of wave) {
       const ticket = byIdentifier.get(id)

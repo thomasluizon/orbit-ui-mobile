@@ -20,6 +20,9 @@ const USAGE = `usage: compose-prompt.mjs --issue ORB-N --repo <ui|api|landing> -
   --issue ORB-N     Linear issue whose body and comments to compose (required)
   --repo <key>      target repository key from .claude/orchestrator.json (required)
   --out <path>      absolute prompt path, OUTSIDE every Orbit repository (required)
+  --worktree <path> worktree the worker will run in, named in the brief
+  --branch <name>   branch already checked out for the worker
+  --base <ref>      base branch the pull request targets (default: main)
   --help, -h        print this usage and exit 0
 
 Prints the output path on stdout.
@@ -43,6 +46,9 @@ const argOf = (flag) => {
 const issue = argOf("--issue")
 const repoKey = argOf("--repo")
 const out = argOf("--out")
+const worktree = argOf("--worktree")
+const branch = argOf("--branch")
+const baseBranch = argOf("--base") ?? "main"
 if (!issue || !/^ORB-\d+$/i.test(issue) || !repoKey || !out || !isAbsolute(out)) fail(2, USAGE)
 
 const config = readOrchestratorConfig()
@@ -80,11 +86,23 @@ const ticket = renderedComments.length
   ? `${result.issue.description}\n\n---\n\n## Comments on this issue (part of the work order)\n\n${renderedComments.join("\n\n")}`
   : result.issue.description
 
+/**
+ * The brief promised the worktree path, the checked-out branch and the base branch, and shipped
+ * none of them: a worker learned where it was only from its cwd, and learned the base branch not at
+ * all, which is how a stacked ticket opens against main. Absent values are omitted rather than
+ * printed as "unknown", because a confident wrong value is worse than a missing one.
+ */
+const worktreeLine = worktree ? `\nWorking tree \`${worktree}\`.` : ""
+const branchLine = branch ? `\nBranch \`${branch}\` is ALREADY checked out for you.` : ""
+
 const brief = `## Orchestrator's brief
 
 **Objective.** Implement ${issue.toUpperCase()} in the ${repoKey} repository, and nothing else. The
 ticket above is the specification. Where it is ambiguous, choose the reading a careful colleague
 would and say which you chose in the PR body.
+
+**Where you are.** Repository \`${repoKey}\` at \`${repoPath}\`.${worktreeLine}${branchLine}
+Base branch \`${baseBranch}\`: open your pull request against it, and do not create another branch.
 
 **Scope.** Only files this ticket names or provably requires. The caps are hard: ${config.caps.affectedFiles}
 affected files and ${config.caps.diffLines} diff lines. If the real change exceeds either, STOP and
@@ -115,7 +133,18 @@ work was lost. Committing first means a timeout can only ever cost you the last 
 never the work itself.
 
 Then, in order: run the broader suite, push, and open exactly one pull request. Stop there and
-report. You do not merge and you do not wait for review.`
+report. You do not merge and you do not wait for review.
+
+**The prose you write is gated too, and nothing used to tell you that.** The pull request TITLE and
+BODY pass through the Dash Ban and Copy Register jobs exactly as source files do. So: no em dash and
+no en dash anywhere in either, no shouted strings, and none of the cliche register those jobs reject.
+A red gate on your own PR description blocks the merge just as hard as a failing test.
+
+**Your pull request must be GREEN before you report.** After pushing, read the checks with
+\`gh pr checks <number>\`. A red required check means the work is not delivered, whatever your own
+test run said, and \`tools/verify-delivery.mjs\` now returns CI_FAILING for it. If a check is red for
+a reason your change caused, fix it and push again. If it is red for an infrastructure reason, say so
+explicitly and name the step that failed rather than reporting a clean run.`
 
 writeFileSync(resolve(out), `${ticket.replace(/\s*$/, "")}\n\n---\n\n${brief}\n\n---\n\n${finishing}\n`, "utf8")
 console.log(resolve(out))

@@ -31,6 +31,8 @@ const USAGE = `usage: list-bot-threads.mjs --pr <number> [options]
   --wait-seconds <n>  how long to wait for the bot review to land (default 900, 0 polls once)
   --poll-seconds <n>  gap between polls (default 30)
   --bot <login>       reviewer login to filter on (default ${BOT_LOGIN})
+  --no-request        do NOT post "@codex review" first; wait for a review that
+                      may never have been triggered (default: request it)
   --help, -h          print this usage and exit 0
 
 The bot reviews on open, on ready-for-review, and on an explicit "@codex review" comment. Whether it
@@ -74,7 +76,7 @@ const argOf = (flag) => {
 }
 
 const VALUE_FLAGS = new Set(["--pr", "--wait-seconds", "--poll-seconds", "--bot"])
-const KNOWN_FLAGS = new Set([...VALUE_FLAGS, "--help", "-h"])
+const KNOWN_FLAGS = new Set([...VALUE_FLAGS, "--no-request", "--help", "-h"])
 /**
  * A flag's VALUE is skipped before the unknown-option check, because `--wait-seconds -5` is a
  * legitimate (if invalid) argument and reporting it as an unknown option would hide the real
@@ -97,6 +99,7 @@ const waitSeconds = numberFlag("--wait-seconds", 900)
 const pollSeconds = numberFlag("--poll-seconds", 30, { min: 1 })
 const botLogin = argOf("--bot") ?? BOT_LOGIN
 if (!botLogin || botLogin.startsWith("-")) fail(2, `${USAGE}\n\n--bot requires a login`)
+const requestReview = !process.argv.includes("--no-request")
 
 const GH = process.env.GH_BIN || "gh"
 
@@ -196,6 +199,29 @@ const botReviewOf = (payload) =>
 const staleReviewOf = (payload) => (payload.reviews?.nodes ?? []).filter((review) => review.author?.login === botLogin).at(-1)
 
 let review = botReviewOf(node)
+
+/**
+ * Ask BEFORE waiting, not after.
+ *
+ * The bot reviews on open, on ready-for-review, and on an explicit request, and a plain push is not
+ * a reliable trigger: #676 took one review and never re-reviewed while commits kept landing. Waiting
+ * first and asking afterwards spends the entire budget on a review that may never have been
+ * triggered, then starts a second budget from zero. Measured on #685: 900 seconds elapsed to
+ * NO_REVIEW, the request was then posted by hand, and the review arrived within minutes.
+ *
+ * The request is gated on `botReviewOf` returning nothing, which is already "no review pinned to the
+ * CURRENT head", so a pull request the bot has genuinely reviewed is never nagged.
+ */
+let requested = false
+if (requestReview && !review && waitSeconds > 0) {
+  try {
+    execFileSync(GH, ["pr", "comment", pullRequest, "--body", "@codex review"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] })
+    requested = true
+  } catch (error) {
+    fail(2, `gh pr comment ${pullRequest} failed: ${(error.stderr?.toString() || error.message).trim()}`)
+  }
+}
+
 while (!review && Date.now() < deadline) {
   sleep(Math.min(pollSeconds, Math.max(1, Math.ceil((deadline - Date.now()) / 1000))))
   node = readPullRequest()
@@ -219,12 +245,19 @@ const threads = (node.reviewThreads?.nodes ?? [])
 
 if (!review) {
   const stale = staleReviewOf(node)
+  /**
+   * The note distinguishes "asked and still absent" from "never asked", because the two justify
+   * different actions and only the first is evidence about the reviewer rather than about us.
+   */
+  const asked = requested
+    ? '"@codex review" WAS posted on this run and no review arrived inside the budget, so the absence is the reviewer\'s, not ours'
+    : 'no "@codex review" was posted on this run, so the reviewer may simply never have been triggered'
   const note = stale
-    ? `the newest ${botLogin} review is pinned to ${stale.commit?.oid ?? "an unknown commit"}, not to head ${node.headRefOid}; it never saw this code. Post "@codex review" to re-request`
-    : `no ${botLogin} review arrived; do not report this pull request as clean`
+    ? `the newest ${botLogin} review is pinned to ${stale.commit?.oid ?? "an unknown commit"}, not to head ${node.headRefOid}; it never saw this code. ${asked}`
+    : `no ${botLogin} review arrived; ${asked}; do not report this pull request as clean`
   console.log(
     JSON.stringify(
-      { pr: Number(pullRequest), isDraft: false, verdict: "NO_REVIEW", reviewedAt: null, reviewState: null, headRefOid: node.headRefOid, staleReviewCommit: stale?.commit?.oid ?? null, threads, waitedSeconds: waitSeconds, note },
+      { pr: Number(pullRequest), isDraft: false, verdict: "NO_REVIEW", reviewedAt: null, reviewState: null, headRefOid: node.headRefOid, staleReviewCommit: stale?.commit?.oid ?? null, threads, waitedSeconds: waitSeconds, reviewRequested: requested, note },
       null,
       2,
     ),
