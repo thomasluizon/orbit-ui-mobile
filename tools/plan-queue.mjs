@@ -12,8 +12,8 @@
  *
  * The ordering rule that matters: a ticket whose blocker is not itself in this queue cannot run,
  * because its branch would have to contain work that does not exist yet. A ticket whose blocker IS
- * in the queue does not have to wait for a merge, because its branch stacks on its blocker's branch.
- * That distinction is the whole reason stacked pull requests were adopted.
+ * in the queue does not have to wait for a merge when its dependencies form one stackable chain.
+ * Other DAG shapes run against main in a later wave, after every blocker has landed.
  */
 
 import { execFileSync } from "node:child_process"
@@ -32,7 +32,7 @@ Exactly one of --tickets, --project or --board is required.
 
 Prints ONE JSON object on stdout: scope, admitted, deferred, stacks, waves. Errors go to stderr.
 
-  admitted[]  identifier, repo, title, labels, visibleEffect, blockedBy, stackParent, wave
+  admitted[]  identifier, repo, title, labels, visibleEffect, blockedBy, stackParent, branchMode, wave, unlocks
   deferred[]  identifier, reason  (BLOCKED_OUTSIDE_QUEUE, NO_REPO_LABEL, AMBIGUOUS_REPO, CLOSED)
   stacks[]    repo, branchBase, members[]   one stack per dependency chain within a repo
   waves[][]   identifiers that may run concurrently, each wave depending only on earlier ones
@@ -231,49 +231,108 @@ while (remaining.size > 0) {
 
 const order = waves.flat()
 const depthOf = new Map(order.map((id, index) => [id, index]))
+const blockedTicketsById = new Map(order.map((id) => [id, []]))
+for (const [id, entry] of candidates) {
+  for (const blocker of entry.blockedBy) blockedTicketsById.get(blocker)?.push(id)
+}
+const unlocksById = new Map()
+for (const id of order) {
+  const unlocked = new Set()
+  const frontier = [...blockedTicketsById.get(id)]
+  while (frontier.length > 0) {
+    const unlockedId = frontier.pop()
+    if (unlocked.has(unlockedId)) continue
+    unlocked.add(unlockedId)
+    frontier.push(...blockedTicketsById.get(unlockedId))
+  }
+  unlocksById.set(id, unlocked.size)
+}
 
 /**
  * A stack is a dependency chain inside ONE repository. Cross-repo blockers can never stack, because
  * GitHub requires every branch in a stack to live in the same repository, so those stay independent
  * pull requests against main and the api one has to merge and deploy first.
  *
- * A branch has exactly ONE parent, so a ticket with two same-repo blockers can only stack on one of
- * them. Picking either and saying nothing would plan a branch that does not contain the other
- * blocker's work while the plan claims both are satisfied. So the deepest blocker is chosen and the
- * rest MUST be its ancestors; when they are not, the shape is unrepresentable and this refuses
- * rather than emitting a plan whose branch is missing a declared dependency.
+ * A branch has exactly ONE parent, so a ticket can stack only when its same-repo blockers form one
+ * chain. Picking one parent for independent blockers would plan a branch that does not contain the
+ * other blockers' work while claiming all are satisfied. Such a ticket instead opens against main
+ * in its DAG-ordered wave, after every blocker; only a cycle is genuinely unorderable and refused.
  */
 const sameRepoBlockersOf = (id) => {
   const entry = candidates.get(id)
   return entry.blockedBy.filter((blocker) => candidates.get(blocker)?.repo === entry.repo)
 }
 
-const stackParentOf = (id) => {
-  const sameRepo = sameRepoBlockersOf(id)
-  if (sameRepo.length === 0) return null
-  return sameRepo.slice().sort((left, right) => depthOf.get(right) - depthOf.get(left) || right.localeCompare(left))[0]
-}
-
+const stackParentById = new Map()
+const branchModeById = new Map()
 for (const id of order) {
   const sameRepo = sameRepoBlockersOf(id)
-  if (sameRepo.length < 2) continue
-  const parent = stackParentOf(id)
+  const parent = sameRepo.slice().sort((left, right) => depthOf.get(right) - depthOf.get(left) || right.localeCompare(left))[0] ?? null
   const ancestors = new Set()
-  for (let cursor = parent; cursor; cursor = stackParentOf(cursor)) {
-    if (ancestors.has(cursor)) break
+  for (let cursor = parent; cursor; cursor = stackParentById.get(cursor)) {
     ancestors.add(cursor)
   }
-  const missing = sameRepo.filter((blocker) => !ancestors.has(blocker))
-  if (missing.length > 0) {
-    fail(
-      2,
-      `${id} is blocked by ${sameRepo.join(" and ")}, all in ${candidates.get(id).repo}, but they do not form one chain: ` +
-        `${missing.join(", ")} would not be in the branch stacked on ${parent}. A branch has one parent, so this shape cannot be planned. ` +
-        `Add a blocking edge between them so they order, or run them in separate invocations.`,
-    )
+  const stackable = sameRepo.every((blocker) => ancestors.has(blocker))
+  const stackParent = stackable ? parent : null
+  stackParentById.set(id, stackParent)
+  branchModeById.set(id, stackable ? (stackParent ? "stacked" : "main") : "unstackable")
+}
+
+/**
+ * An unstackable ticket cannot run in this queue at all, and saying so is the only honest verdict.
+ *
+ * The first attempt annotated it and admitted it anyway, on the reasoning that a later wave gates
+ * it. That reasoning is wrong: waves order tickets in TIME, and nothing merges between them, so a
+ * later wave confers no code. Three independent reviewers reached the same defect on #685.
+ *
+ * There is no live "have the blockers merged yet" check worth writing, because the answer is fixed
+ * by construction. `sameRepoBlockersOf` counts only blockers that are CANDIDATES, and a blocker
+ * whose work already merged is Done in Linear, so it was deferred as CLOSED and never became one.
+ * Every blocker still counted here is therefore open and in THIS queue, and cannot merge before the
+ * ticket that waits on it. So the ticket defers.
+ *
+ * This amends an acceptance criterion of ORB-235, which said no diamond may land in `deferred`. That
+ * criterion was written under the same wrong assumption. What ORB-235 actually bought is intact and
+ * is the part that mattered: the board PLANS instead of refusing, and one unrunnable ticket costs
+ * itself rather than the whole night.
+ */
+const dropped = new Map()
+for (const id of order) {
+  if (branchModeById.get(id) !== "unstackable") continue
+  dropped.set(
+    id,
+    `blocked by ${sameRepoBlockersOf(id).join(", ")} in ${candidates.get(id).repo}, which do not form one chain. ` +
+      `A branch has one parent, and none of those blockers can merge while this queue runs, so no branch can carry their work. Run it after they merge.`,
+  )
+}
+
+/**
+ * Dropping a ticket orphans anything that depended on it, so the removal is transitive. A child
+ * whose blocker just left the queue is in exactly the position BLOCKED_OUTSIDE_QUEUE describes: its
+ * branch would have to contain work that will not exist, and it is reported with that same reason so
+ * the two identical situations do not carry two different names.
+ *
+ * Detail strings are computed BEFORE anything is removed, because `sameRepoBlockersOf` reads
+ * `candidates` and a mutation mid-walk would silently change a later ticket's answer.
+ */
+for (let changed = true; changed; ) {
+  changed = false
+  for (const id of order) {
+    if (dropped.has(id)) continue
+    const orphanedBy = candidates.get(id).blockedBy.filter((blocker) => dropped.has(blocker))
+    if (orphanedBy.length === 0) continue
+    dropped.set(id, `blocked by ${orphanedBy.join(", ")}, which left this queue, so its branch cannot carry their work`)
+    changed = true
   }
 }
-const admitted = order.map((id, index) => {
+for (const [id, detail] of dropped) {
+  deferred.push({ identifier: id, reason: branchModeById.get(id) === "unstackable" ? "UNSTACKABLE_BLOCKERS_IN_QUEUE" : "BLOCKED_OUTSIDE_QUEUE", detail })
+}
+
+const runnable = order.filter((id) => !dropped.has(id))
+const runnableWaves = waves.map((wave) => wave.filter((id) => !dropped.has(id))).filter((wave) => wave.length > 0)
+
+const admitted = runnable.map((id, index) => {
   const entry = candidates.get(id)
   return {
     identifier: id,
@@ -283,9 +342,11 @@ const admitted = order.map((id, index) => {
     labels: labelNames(entry.issue),
     visibleEffect: labelNames(entry.issue).includes("visible-effect"),
     blockedBy: entry.blockedBy,
-    stackParent: stackParentOf(id),
-    wave: waves.findIndex((wave) => wave.includes(id)),
+    stackParent: stackParentById.get(id),
+    branchMode: branchModeById.get(id),
+    wave: runnableWaves.findIndex((wave) => wave.includes(id)),
     position: index,
+    unlocks: unlocksById.get(id),
   }
 })
 
@@ -305,22 +366,27 @@ for (const ticket of admitted) {
 
 const plan = {
   scope: safeValue(ticketsArg) ? { kind: "tickets", value: scopeIds } : safeValue(projectArg) ? { kind: "project", value: projectArg } : { kind: "board", value: team },
-  counts: { requested: scopeIds.length, admitted: admitted.length, deferred: deferred.length, waves: waves.length, stacks: stacks.length },
+  counts: { requested: scopeIds.length, admitted: admitted.length, deferred: deferred.length, waves: runnableWaves.length, stacks: stacks.length },
   admitted,
   deferred: deferred.sort((left, right) => left.identifier.localeCompare(right.identifier)),
   stacks,
-  waves,
+  waves: runnableWaves,
 }
 
 if (format === "markdown") {
   const lines = [`# Queue plan (${plan.counts.admitted} admitted, ${plan.counts.deferred} deferred)`, ""]
-  for (const [index, wave] of waves.entries()) {
+  for (const [index, wave] of runnableWaves.entries()) {
     lines.push(`## Wave ${index + 1}`)
     for (const id of wave) {
       const ticket = byIdentifier.get(id)
-      const stacked = ticket.stackParent ? ` (stacks on ${ticket.stackParent})` : ""
+      const branch =
+        ticket.branchMode === "stacked"
+          ? ` (stacks on ${ticket.stackParent})`
+          : ticket.branchMode === "main-after-blockers-merge"
+            ? " (opens against main after blockers merge; blockers do not form a stack)"
+            : " (opens against main)"
       const visual = ticket.visibleEffect ? " [visual check owed]" : ""
-      lines.push(`- ${id} \`${ticket.repo}\`${stacked}${visual} ${ticket.title}`)
+      lines.push(`- ${id} \`${ticket.repo}\`${branch}${visual} ${ticket.title}`)
     }
     lines.push("")
   }

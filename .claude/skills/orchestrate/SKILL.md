@@ -64,7 +64,9 @@ run it always was.
                      gh pr list --head <br>            -> exactly 1, headRefOid matches
                      PR title or body names ORB-N      -> the branch alone is not the link
                      additions+deletions               -> <= 400   ·   files -> <= 8
+                     statusCheckRollup, both node shapes -> no check red, none pending
                      DELIVERED · NO_COMMIT · UNPUSHED · NO_PR · UNLINKED_PR · STALE_PR · OVERSIZE
+                     · CI_FAILING · CI_PENDING
                      anything but DELIVERED -> record it, SKIP the ticket. No auto-relaunch.
  8  Review round 1   gh pr diff > file; launch a SEPARATE session from the MAIN CHECKOUT
                      normal: Claude Opus 5 @ high   ·   --codex-only: Sol @ xhigh
@@ -94,11 +96,11 @@ These interfaces are fixed. Do not invent flags or variants.
 
 ```
 node tools/plan-queue.mjs        (--tickets ORB-1,ORB-2 | --project <name> | --board) [--format markdown]
-node tools/compose-prompt.mjs    --issue ORB-N --repo <key> --out <file>
+node tools/compose-prompt.mjs    --issue ORB-N --repo <key> --out <file> [--worktree <p>] [--branch <b>] [--base <ref>]
 node tools/launch-worker.mjs     --issue ORB-N --worktree <p> --prompt <f> [--codex-only]
 node tools/launch-worker.mjs     --issue ORB-N --review --prompt <f> [--codex-only]
-node tools/verify-delivery.mjs   --issue ORB-N --worktree <p> --branch <b> [--base <ref>] [--repo <k>]
-node tools/list-bot-threads.mjs  --pr <n> [--wait-seconds <s>]
+node tools/verify-delivery.mjs   --issue ORB-N --worktree <p> --branch <b> [--base <ref>] [--repo <k>] [--wait-ci <s>]
+node tools/list-bot-threads.mjs  --pr <n> [--wait-seconds <s>] [--no-request]
 node tools/resolve-bot-thread.mjs --thread <PRRT_...>   # reply body on stdin
 node tools/teardown-worktree.mjs --issue ORB-N
 ```
@@ -270,6 +272,7 @@ The ticket is the prompt (D2): quoted verbatim into the worker prompt, never par
 | Reason | Meaning |
 |---|---|
 | `BLOCKED_OUTSIDE_QUEUE` | its blocker is open and not in this queue, so its branch cannot carry it |
+| `UNSTACKABLE_BLOCKERS_IN_QUEUE` | two or more same-repo blockers that do not chain. A branch has ONE parent and none of them can merge mid-queue, so no branch can carry their work. Run it after they merge |
 | `NO_REPO_LABEL` | no `repo:*` label, so the target repository is unknown. Never guess it |
 | `AMBIGUOUS_REPO` | two `repo:*` labels. `repo:both` does not exist (D4) |
 | `CLOSED` | already Done, Canceled or Duplicate |
@@ -318,6 +321,18 @@ main..HEAD` counts the parent's commits as this ticket's and the size caps read 
 branch from main: main will not contain the first ticket's work until Thomas merges it in the
 morning. Stacking is the only way a blocked ticket runs the same night as its blocker.
 
+**And why a ticket that cannot stack cannot run either.** A branch has ONE parent, so a ticket whose
+same-repo blockers do not form a chain has no branch that carries all of them. It does not get to
+open against main instead: the same sentence above says main lacks that work until morning. A wave
+orders tickets in TIME, and time confers no code, so a later wave is not a substitute for a
+dependency. `plan-queue.mjs` defers it as `UNSTACKABLE_BLOCKERS_IN_QUEUE` and the rest of the board
+still plans, which is the whole difference from the exit-2 refusal this replaced.
+
+There is no live "have the blockers merged yet" check to write, because the answer is fixed by
+construction: a blocker whose work already merged is Done in Linear and was deferred as `CLOSED`
+before it could count. Every blocker still counted is open, in this queue, and cannot merge before
+the ticket waiting on it.
+
 After the last pull request in a stack is open, link them on GitHub:
 
 ```bash
@@ -339,7 +354,7 @@ construction: the child's branch cannot exist until the parent's does.
 ## Step 4. Compose the prompt
 
 ```bash
-node tools/compose-prompt.mjs --issue ORB-N --repo <key> --out <scratchpad>/orb-N-prompt.md
+node tools/compose-prompt.mjs --issue ORB-N --repo <key> --out <scratchpad>/orb-N-prompt.md \n  --worktree <worktree path> --branch <contract branch> --base <base branch>
 ```
 
 The file carries, in order:
@@ -386,9 +401,31 @@ It is the SOLE authority for the word "delivered". Exit 0 means `DELIVERED`.
 | `UNPUSHED` | commits exist above `origin/<branch>` |
 | `NO_PR` | `gh pr list --head <branch>` returned 0, or more than 1 |
 | `STALE_PR` | the PR's `headRefOid` is not the branch head |
-| `OVERSIZE` | additions + deletions exceed 400 |
+| `OVERSIZE` | additions + deletions exceed 400, or more than 8 files |
+| `CI_FAILING` | a required or gating check concluded red on the current head |
+| `CI_PENDING` | nothing is red but checks are still running |
 
 A dirty tree (`git status --porcelain` non-empty) fails too.
+
+### A red pull request was never delivered
+
+For its whole life this step read eight artifacts and not the one that decides whether the work can
+land. Measured on PR #685, the run that found it: `DELIVERED` twice, while five required-or-gating
+checks were red. An unattended night would have stacked those up and called every one clean.
+
+**`CI_FAILING` feeds ONE fixer round, and that round is not a review round.** The two-round cap in
+§5.3 is scoped to the frozen review list; a red gate is a different thing with a different fix, and
+conflating them either burns a review round on a lint error or lets a red pull request through
+because the cap was spent. After the fixer, re-verify. Still red, or red again for a new reason, is a
+hand-over with the checks named.
+
+**Read what actually failed before fixing anything.** `gh run view <id> --json jobs` names the failed
+STEP. A failure at `Set up job` is GitHub infrastructure, not the diff, and the repair is a re-run:
+all five reds on #685 were one Actions outage, and every hypothesis about their content was wrong.
+Never fix a diff to satisfy a check that never ran.
+
+`CI_PENDING` is its own verdict rather than a pass or a stop. Pass `--wait-ci <seconds>` to let
+checks settle; without it the state is reported immediately and the run does not sit on it.
 
 **Never read the worker's own exit code as proof of anything.** Three documented CLI bugs make it
 meaningless: openai/codex#20919, openai/codex#19945, anthropics/claude-code#25629. Artifacts are the
@@ -482,7 +519,7 @@ harness has ever read it. Measured 2026-08-05 across PRs #676, #680 and #681: **
 opened, 8 still unresolved, all three merged.**
 
 ```bash
-node tools/list-bot-threads.mjs --pr <n>          # waits up to caps.botReviewWaitSeconds
+node tools/list-bot-threads.mjs --pr <n>          # posts "@codex review", THEN waits
 ```
 
 | Verdict | What it means and what to do |
@@ -491,6 +528,15 @@ node tools/list-bot-threads.mjs --pr <n>          # waits up to caps.botReviewWa
 | `CHANGES_REQUESTED` | a review exists and blocks. This can carry **zero threads** |
 | `DRAFT` | a draft attracts no review ever. Mark it ready, or say so and move on |
 | `NO_REVIEW` | none arrived inside the budget. **Never report this pull request as clean** |
+
+**The request comes FIRST, not after the fix round.** The tool posts `@codex review` before it starts
+the clock, gated on there being no review already pinned to the current head, so a reviewed pull
+request is never nagged. This used to run the other way: wait the full budget, then ask, then wait a
+second full budget from zero. Measured on #685, 900 seconds elapsed to `NO_REVIEW` on a review nobody
+had requested. `--no-request` restores the old blind wait, and there is no good reason to pass it.
+
+Because of that ordering, `NO_REVIEW` now carries `reviewRequested`, and the two readings mean
+different things: asked-and-silent is evidence about the reviewer, never-asked is evidence about us.
 
 **Never read the thread count as the verdict.** An empty list is ambiguous between "reviewed, found
 nothing" and "has not run yet", and a body-level `CHANGES_REQUESTED` opens no thread at all. The tool
