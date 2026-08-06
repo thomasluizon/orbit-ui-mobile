@@ -53,6 +53,11 @@ const planOf = (result) => {
   }
 }
 
+const obeysWaveOrder = (plan) => {
+  const admitted = new Map(plan.admitted.map((ticket) => [ticket.identifier, ticket]))
+  return plan.admitted.every((ticket) => ticket.blockedBy.every((blocker) => !admitted.has(blocker) || admitted.get(blocker).wave < ticket.wave))
+}
+
 export const cases = () => {
   check(TOOL, "refuses no scope at all", [], { status: 2, stderr: /one of --tickets, --project or --board is required/ })
   check(TOOL, "refuses two scopes at once", ["--tickets", "ORB-1", "--board"], { status: 2, stderr: /mutually exclusive/ })
@@ -199,22 +204,19 @@ export const cases = () => {
   const refused = run(TOOL, ["--tickets", "ORB-1"], { env: orcaEnv([{ match: "linear issue ORB-1 --relations", stdout: JSON.stringify({ id: "e", ok: false, error: { code: "not_found", message: "no such issue" } }), exit: 1, allowNonJsonLinear: false }]) })
   T(`${TOOL}: an orca refusal is an environment error, never an empty plan`, refused.status === 2 && /refused: no such issue/.test(refused.stderr), `exit ${refused.status}: ${refused.stderr || refused.stdout}`)
 
-  /**
-   * Raised by the Codex reviewer on this tool's own pull request (#682, P2), and it was right. A
-   * branch has ONE parent, so a ticket blocked by two INDEPENDENT same-repo tickets cannot stack on
-   * both. Picking one silently would plan a branch missing the other blocker's work while the plan
-   * claims both are satisfied, so an unrepresentable shape is refused by name instead.
-   */
-  const forked = run(TOOL, ["--tickets", "ORB-1,ORB-2,ORB-3"], {
+  /** A same-repo diamond cannot stack, but its wave still orders it after every blocker. */
+  const forked = run(TOOL, ["--tickets", "ORB-1,ORB-2,ORB-3,ORB-4"], {
     env: orcaEnv([
       { match: "linear issue ORB-1 --relations", stdout: relationsEnvelope("ORB-1") },
       { match: "linear issue ORB-2 --relations", stdout: relationsEnvelope("ORB-2") },
-      { match: "linear issue ORB-3 --relations", stdout: relationsEnvelope("ORB-3", {}, ["ORB-1", "ORB-2"]) },
+      { match: "linear issue ORB-3 --relations", stdout: relationsEnvelope("ORB-3") },
+      { match: "linear issue ORB-4 --relations", stdout: relationsEnvelope("ORB-4", {}, ["ORB-1", "ORB-2", "ORB-3"]) },
     ]),
   })
+  const forkedPlan = planOf(forked)
   T(
-    `${TOOL}: two independent same-repo blockers are refused, never silently stacked on one`,
-    forked.status === 2 && /do not form one chain/.test(forked.stderr) && /ORB-3 is blocked by ORB-1 and ORB-2/.test(forked.stderr),
+    `${TOOL}: independent same-repo blockers degrade to a main-based pull request in a later wave`,
+    forked.status === 0 && forkedPlan?.admitted.find((ticket) => ticket.identifier === "ORB-4")?.stackParent === null && forkedPlan.waves[1]?.[0] === "ORB-4" && obeysWaveOrder(forkedPlan),
     `exit ${forked.status}: ${forked.stderr || forked.stdout}`,
   )
 
@@ -232,6 +234,11 @@ export const cases = () => {
     chainedPair.status === 0 && chainedPairPlan?.admitted.find((ticket) => ticket.identifier === "ORB-3")?.stackParent === "ORB-2" && chainedPairPlan.stacks[0]?.members.join(",") === "ORB-1,ORB-2,ORB-3",
     chainedPair.stdout || chainedPair.stderr,
   )
+  T(
+    `${TOOL}: unlocks reports transitive fan-out over the admitted graph`,
+    chainedPairPlan?.admitted.map((ticket) => [ticket.identifier, ticket.unlocks]).join("|") === "ORB-1,2|ORB-2,1|ORB-3,0",
+    chainedPair.stdout || chainedPair.stderr,
+  )
 
   /** Two same-repo blockers where one is cross-repo is not a fork: only same-repo ones can stack. */
   const mixedParents = run(TOOL, ["--tickets", "ORB-1,ORB-2,ORB-3"], {
@@ -247,10 +254,25 @@ export const cases = () => {
     mixedParents.stdout || mixedParents.stderr,
   )
 
+  /** ORB-49's mixed diamond: five same-repo blockers and two cross-repo blockers. */
+  const wideMixed = run(TOOL, ["--tickets", "ORB-10,ORB-11,ORB-12,ORB-13,ORB-14,ORB-15,ORB-16,ORB-49"], {
+    env: orcaEnv([
+      ...["ORB-10", "ORB-11", "ORB-12", "ORB-13", "ORB-14"].map((id) => ({ match: `linear issue ${id} --relations`, stdout: relationsEnvelope(id) })),
+      ...["ORB-15", "ORB-16"].map((id) => ({ match: `linear issue ${id} --relations`, stdout: relationsEnvelope(id, { labels: ["repo:api"] }) })),
+      { match: "linear issue ORB-49 --relations", stdout: relationsEnvelope("ORB-49", {}, ["ORB-10", "ORB-11", "ORB-12", "ORB-13", "ORB-14", "ORB-15", "ORB-16"]) },
+    ]),
+  })
+  const wideMixedPlan = planOf(wideMixed)
+  T(
+    `${TOOL}: five same-repo and two cross-repo blockers remain ordered without stacking`,
+    wideMixed.status === 0 && wideMixedPlan?.admitted.find((ticket) => ticket.identifier === "ORB-49")?.stackParent === null && obeysWaveOrder(wideMixedPlan),
+    wideMixed.stdout || wideMixed.stderr,
+  )
+
   const markdown = run(TOOL, ["--tickets", "ORB-1", "--format", "markdown"], { env: orcaEnv([{ match: "linear issue ORB-1 --relations", stdout: relationsEnvelope("ORB-1", { labels: ["repo:ui", "visible-effect"] }) }]) })
   T(
-    `${TOOL}: markdown names the wave and marks the visual debt`,
-    markdown.status === 0 && /## Wave 1/.test(markdown.stdout) && /visual check owed/.test(markdown.stdout),
+    `${TOOL}: markdown names the wave, main base, and visual debt`,
+    markdown.status === 0 && /## Wave 1/.test(markdown.stdout) && /opens against main/.test(markdown.stdout) && /visual check owed/.test(markdown.stdout),
     markdown.stdout || markdown.stderr,
   )
 }

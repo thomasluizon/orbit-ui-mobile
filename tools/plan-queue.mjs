@@ -12,8 +12,8 @@
  *
  * The ordering rule that matters: a ticket whose blocker is not itself in this queue cannot run,
  * because its branch would have to contain work that does not exist yet. A ticket whose blocker IS
- * in the queue does not have to wait for a merge, because its branch stacks on its blocker's branch.
- * That distinction is the whole reason stacked pull requests were adopted.
+ * in the queue does not have to wait for a merge when its dependencies form one stackable chain.
+ * Other DAG shapes run against main in a later wave, after every blocker has landed.
  */
 
 import { execFileSync } from "node:child_process"
@@ -32,7 +32,7 @@ Exactly one of --tickets, --project or --board is required.
 
 Prints ONE JSON object on stdout: scope, admitted, deferred, stacks, waves. Errors go to stderr.
 
-  admitted[]  identifier, repo, title, labels, visibleEffect, blockedBy, stackParent, wave
+  admitted[]  identifier, repo, title, labels, visibleEffect, blockedBy, stackParent, wave, unlocks
   deferred[]  identifier, reason  (BLOCKED_OUTSIDE_QUEUE, NO_REPO_LABEL, AMBIGUOUS_REPO, CLOSED)
   stacks[]    repo, branchBase, members[]   one stack per dependency chain within a repo
   waves[][]   identifiers that may run concurrently, each wave depending only on earlier ones
@@ -231,47 +231,47 @@ while (remaining.size > 0) {
 
 const order = waves.flat()
 const depthOf = new Map(order.map((id, index) => [id, index]))
+const blockedTicketsById = new Map(order.map((id) => [id, []]))
+for (const [id, entry] of candidates) {
+  for (const blocker of entry.blockedBy) blockedTicketsById.get(blocker)?.push(id)
+}
+const unlocksById = new Map()
+for (const id of order) {
+  const unlocked = new Set()
+  const frontier = [...blockedTicketsById.get(id)]
+  while (frontier.length > 0) {
+    const unlockedId = frontier.pop()
+    if (unlocked.has(unlockedId)) continue
+    unlocked.add(unlockedId)
+    frontier.push(...blockedTicketsById.get(unlockedId))
+  }
+  unlocksById.set(id, unlocked.size)
+}
 
 /**
  * A stack is a dependency chain inside ONE repository. Cross-repo blockers can never stack, because
  * GitHub requires every branch in a stack to live in the same repository, so those stay independent
  * pull requests against main and the api one has to merge and deploy first.
  *
- * A branch has exactly ONE parent, so a ticket with two same-repo blockers can only stack on one of
- * them. Picking either and saying nothing would plan a branch that does not contain the other
- * blocker's work while the plan claims both are satisfied. So the deepest blocker is chosen and the
- * rest MUST be its ancestors; when they are not, the shape is unrepresentable and this refuses
- * rather than emitting a plan whose branch is missing a declared dependency.
+ * A branch has exactly ONE parent, so a ticket can stack only when its same-repo blockers form one
+ * chain. Picking one parent for independent blockers would plan a branch that does not contain the
+ * other blockers' work while claiming all are satisfied. Such a ticket instead opens against main
+ * in its DAG-ordered wave, after every blocker; only a cycle is genuinely unorderable and refused.
  */
 const sameRepoBlockersOf = (id) => {
   const entry = candidates.get(id)
   return entry.blockedBy.filter((blocker) => candidates.get(blocker)?.repo === entry.repo)
 }
 
-const stackParentOf = (id) => {
-  const sameRepo = sameRepoBlockersOf(id)
-  if (sameRepo.length === 0) return null
-  return sameRepo.slice().sort((left, right) => depthOf.get(right) - depthOf.get(left) || right.localeCompare(left))[0]
-}
-
+const stackParentById = new Map()
 for (const id of order) {
   const sameRepo = sameRepoBlockersOf(id)
-  if (sameRepo.length < 2) continue
-  const parent = stackParentOf(id)
+  const parent = sameRepo.slice().sort((left, right) => depthOf.get(right) - depthOf.get(left) || right.localeCompare(left))[0] ?? null
   const ancestors = new Set()
-  for (let cursor = parent; cursor; cursor = stackParentOf(cursor)) {
-    if (ancestors.has(cursor)) break
+  for (let cursor = parent; cursor; cursor = stackParentById.get(cursor)) {
     ancestors.add(cursor)
   }
-  const missing = sameRepo.filter((blocker) => !ancestors.has(blocker))
-  if (missing.length > 0) {
-    fail(
-      2,
-      `${id} is blocked by ${sameRepo.join(" and ")}, all in ${candidates.get(id).repo}, but they do not form one chain: ` +
-        `${missing.join(", ")} would not be in the branch stacked on ${parent}. A branch has one parent, so this shape cannot be planned. ` +
-        `Add a blocking edge between them so they order, or run them in separate invocations.`,
-    )
-  }
+  stackParentById.set(id, sameRepo.every((blocker) => ancestors.has(blocker)) ? parent : null)
 }
 const admitted = order.map((id, index) => {
   const entry = candidates.get(id)
@@ -283,9 +283,10 @@ const admitted = order.map((id, index) => {
     labels: labelNames(entry.issue),
     visibleEffect: labelNames(entry.issue).includes("visible-effect"),
     blockedBy: entry.blockedBy,
-    stackParent: stackParentOf(id),
+    stackParent: stackParentById.get(id),
     wave: waves.findIndex((wave) => wave.includes(id)),
     position: index,
+    unlocks: unlocksById.get(id),
   }
 })
 
@@ -318,7 +319,7 @@ if (format === "markdown") {
     lines.push(`## Wave ${index + 1}`)
     for (const id of wave) {
       const ticket = byIdentifier.get(id)
-      const stacked = ticket.stackParent ? ` (stacks on ${ticket.stackParent})` : ""
+      const stacked = ticket.stackParent ? ` (stacks on ${ticket.stackParent})` : " (opens against main)"
       const visual = ticket.visibleEffect ? " [visual check owed]" : ""
       lines.push(`- ${id} \`${ticket.repo}\`${stacked}${visual} ${ticket.title}`)
     }
