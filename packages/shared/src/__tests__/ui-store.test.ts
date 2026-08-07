@@ -3,6 +3,7 @@ import {
   createTourUIState,
   createUIStoreState,
   getPersistedUIState,
+  getTourSessionUIState,
   migratePersistedUIState,
   type UIStoreState,
 } from "../stores/ui-store";
@@ -164,6 +165,13 @@ describe("shared ui store", () => {
       showCompleted: true,
       setupChecklistDismissed: false,
     });
+  });
+
+  it("keeps the active search in the tour session snapshot", () => {
+    const store = createStoreHarness();
+    store.getState().setSearchQuery("focus");
+
+    expect(getTourSessionUIState(store.getState()).searchQuery).toBe("focus");
   });
 
   it("returns cloned persisted ui state snapshots", () => {

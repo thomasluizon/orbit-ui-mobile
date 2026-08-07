@@ -1,6 +1,10 @@
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createTourUIState, getPersistedUIState } from "@orbit/shared/stores";
+import {
+  createTourUIState,
+  getPersistedUIState,
+  getTourSessionUIState,
+} from "@orbit/shared/stores";
 
 import { TodayHabitsHeader } from "@/components/today/today-habits-header";
 import { useUIStore } from "@/stores/ui-store";
@@ -119,11 +123,12 @@ describe("mobile ui store", () => {
   });
 
   it.each([
-    { query: "focus", selected: true },
-    { query: "   ", selected: false },
+    { query: "focus", isSearchOpen: false, selected: true },
+    { query: "   ", isSearchOpen: false, selected: false },
+    { query: "   ", isSearchOpen: true, selected: false },
   ])(
     "marks the search control selected only for a trimmed query",
-    ({ query, selected }) => {
+    ({ query, isSearchOpen, selected }) => {
       const emptyCallback = vi.fn();
       let tree: RenderedTree | undefined;
 
@@ -143,7 +148,7 @@ describe("mobile ui store", () => {
             isSearchFocused: false,
             showDayProgress: false,
             dayProgress: { done: 0, total: 0 },
-            isSearchOpen: false,
+            isSearchOpen,
             searchQuery: query,
             selectedFrequency: null,
             selectedTagIds: [],
@@ -189,6 +194,22 @@ describe("mobile ui store", () => {
       )[0];
 
       expect(searchButton?.props.accessibilityState).toEqual({ selected });
+
+      const resolveStyle = searchButton?.props.style as (state: {
+        pressed: boolean;
+      }) => unknown[];
+      const restingStyle = resolveStyle({ pressed: false });
+      const pressedStyle = resolveStyle({ pressed: true });
+      const hasActiveIndicator = restingStyle.some(
+        (layer) =>
+          typeof layer === "object" &&
+          layer !== null &&
+          "borderColor" in layer,
+      );
+
+      expect(hasActiveIndicator).toBe(selected);
+      expect(restingStyle.at(-1)).toBeNull();
+      expect(pressedStyle.at(-1)).not.toBeNull();
     },
   );
 
@@ -331,6 +352,17 @@ describe("mobile ui store", () => {
       showCompleted: true,
       setupChecklistDismissed: false,
     });
+  });
+
+  it("restores an active search after applying the tour ui state", () => {
+    useUIStore.setState({ searchQuery: "focus" });
+    const snapshot = getTourSessionUIState(useUIStore.getState());
+
+    useUIStore.setState(createTourUIState());
+    expect(useUIStore.getState().searchQuery).toBe("");
+
+    useUIStore.setState(snapshot);
+    expect(useUIStore.getState().searchQuery).toBe("focus");
   });
 
   it("returns cloned persisted ui state snapshots", () => {

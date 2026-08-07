@@ -8315,7 +8315,8 @@
         "apps/mobile/__tests__/components/upgrade/plan-selection.test.tsx",
         "apps/mobile/__tests__/components/upgrade/pricing-footer.test.tsx",
         "apps/mobile/__tests__/hooks/use-bulk-actions.test.ts",
-        "apps/mobile/__tests__/hooks/use-today-selection.test.tsx"
+        "apps/mobile/__tests__/hooks/use-today-selection.test.tsx",
+        "apps/mobile/__tests__/stores/ui-store.test.ts"
       ],
       "apps/mobile/hooks": [
         "apps/mobile/__tests__/components/habits/habit-form-fields.test.tsx",
@@ -8579,7 +8580,8 @@
         "apps/web/__tests__/pages/streak.test.tsx",
         "apps/web/__tests__/pages/support.test.tsx",
         "apps/web/__tests__/pages/upgrade.test.tsx",
-        "apps/web/__tests__/pages/wrapped-page.test.tsx"
+        "apps/web/__tests__/pages/wrapped-page.test.tsx",
+        "apps/web/__tests__/stores/ui-store.test.ts"
       ],
       "apps/web/components": [
         "apps/web/__tests__/components/app-sidebar-presentation.test.ts",

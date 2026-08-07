@@ -4,8 +4,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { usePathname, useRouter } from 'expo-router'
 import {
   createTourUIState,
-  getPersistedUIState,
-  type PersistedUIState,
+  getTourSessionUIState,
+  type TourUIState,
 } from '@orbit/shared/stores'
 import { useTourStore } from '@/stores/tour-store'
 import { useUIStore } from '@/stores/ui-store'
@@ -44,7 +44,7 @@ export function TourProvider({ children }: Readonly<{ children: React.ReactNode 
   } = store
 
   const prevStepIdRef = useRef<string | null>(null)
-  const uiSnapshotRef = useRef<PersistedUIState | null>(null)
+  const uiSnapshotRef = useRef<TourUIState | null>(null)
   const mockDataInjectedRef = useRef(false)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -113,7 +113,7 @@ export function TourProvider({ children }: Readonly<{ children: React.ReactNode 
 
   useEffect(() => {
     if (isActive && !mockDataInjectedRef.current) {
-      uiSnapshotRef.current = getPersistedUIState(useUIStore.getState())
+      uiSnapshotRef.current = getTourSessionUIState(useUIStore.getState())
       useUIStore.setState(createTourUIState())
       resetSessionState()
       inject()
