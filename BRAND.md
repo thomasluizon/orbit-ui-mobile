@@ -21,8 +21,8 @@ qualifies nor disqualifies someone. The stated buyer is defined by the routine f
 
 **The founder is not the ICP, and his usage pattern is not evidence of demand.** Thomas uses Orbit
 manual-first and reserves AI for bulk work. That behavior must not be used to make the manual path
-the product. The one conclusion that survives from his usage is that bulk is where AI beats manual
-outright.
+the product. **The one conclusion that survives from his usage is that bulk is where AI beats manual
+outright.**
 
 ## Positioning
 
