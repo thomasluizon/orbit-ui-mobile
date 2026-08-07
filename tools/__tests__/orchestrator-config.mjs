@@ -132,6 +132,11 @@ export const cases = async () => {
     "a zero no-progress clock was accepted",
   )
   T(
+    `${NAME}: a zero connector fixer bound is refused rather than becoming unbounded`,
+    /caps\.connectorFixAttempts must be a positive number/.test(readAndFail("zero-connector-fixes", { ...real, caps: { ...real.caps, connectorFixAttempts: 0 } }) ?? ""),
+    "a zero connector fixer bound was accepted",
+  )
+  T(
     `${NAME}: an unreadable file is refused as unreadable, not as invalid JSON`,
     /could not be read: /.test(thrown(() => readOrchestratorConfig(pathToFileURL(join(root, "orchestrator-config", "absent.json")))) ?? ""),
     "a missing config did not report itself as missing",

@@ -62,7 +62,23 @@ export const readRunState = (repoRoot = REPO_ROOT) => {
 
 export const writeRunState = (state, repoRoot = REPO_ROOT) => {
   mkdirSync(gitDirectoryOf(repoRoot), { recursive: true })
-  writeFileSync(runStatePath(repoRoot), `${JSON.stringify(state, null, 2)}\n`)
+  const previous = readRunState(repoRoot)
+  const identities = [
+    ...(Array.isArray(previous?.readinessLedger) ? previous.readinessLedger : []),
+    ...(Array.isArray(previous?.pullRequests) ? previous.pullRequests : []),
+    ...(Array.isArray(state?.readinessLedger) ? state.readinessLedger : []),
+    ...(Array.isArray(state?.pullRequests) ? state.pullRequests : []),
+  ]
+  const readinessLedger = []
+  const seen = new Set()
+  for (const entry of identities) {
+    if (typeof entry?.repositoryKey !== "string" || !Number.isInteger(entry?.prNumber) || typeof entry?.receiptPath !== "string") continue
+    const key = `${entry.repositoryKey}#${entry.prNumber}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    readinessLedger.push({ repositoryKey: entry.repositoryKey, prNumber: entry.prNumber, receiptPath: entry.receiptPath })
+  }
+  writeFileSync(runStatePath(repoRoot), `${JSON.stringify({ ...state, readinessLedger }, null, 2)}\n`)
 }
 
 /** Every wake source ever registered and not yet removed. Liveness is the CALLER's question. */

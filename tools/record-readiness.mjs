@@ -65,7 +65,13 @@ const ci = delivery?.checks?.ci
 if (delivery?.checks?.prCount?.number !== prNumber || !state || !upToDate || !ci) fail("delivery artifact does not carry this PR's base, head, compare, and CI evidence")
 
 const review = artifact.review?.review ?? artifact.review
-if (typeof review?.reviewedHeadOid !== "string" || typeof review?.artifactPath !== "string") fail("review artifact carries no reviewedHeadOid or artifactPath")
+if (
+  typeof review?.reviewedHeadOid !== "string" ||
+  typeof review?.artifactPath !== "string" ||
+  typeof review?.rubricBaseOid !== "string" ||
+  typeof review?.rubricArtifactPath !== "string" ||
+  !Array.isArray(review?.findings)
+) fail("review artifact carries no reviewedHeadOid, findings, or frozen-rubric evidence")
 const bot = artifact.bot
 if (bot?.pr !== prNumber) fail("bot artifact does not name this pull request")
 const linear = artifact.linear
@@ -76,6 +82,8 @@ if (linear.issue !== delivery.issue || linear.repositoryKey !== repoKey || linea
 
 let live
 let liveComparison
+let liveLinear
+let bodyMutated = false
 try {
   const repository = repositorySlug(repoRoot)
   const githubAuth = await githubEnvironment(repoRoot, { timeoutMs: 45000 })
@@ -114,6 +122,7 @@ try {
         fail(`could not enforce degraded PR body marker on ${prNumber}: ${redactSecrets(detail.trim(), githubAuth.secrets)}`)
       }
       live.body = degradedBody
+      bodyMutated = true
     }
   }
   const comparison = await runBounded(
@@ -127,10 +136,26 @@ try {
     fail(`gh compare for PR ${prNumber} failed: ${redactSecrets(detail.trim(), githubAuth.secrets)}`)
   }
   liveComparison = JSON.parse(comparison.stdout)
+
+  const ORCA = process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs\\orca\\resources\\bin\\orca"
+  const linearRead = await runBounded(
+    ORCA,
+    ["linear", "issue", delivery.issue, "--full", "--json"],
+    { timeoutMs: 45000, maxBuffer: 16 * 1024 * 1024 },
+  )
+  if (linearRead.timedOut) fail(`Linear issue ${delivery.issue} timed out after 45s; the complete child process tree was terminated`)
+  if (linearRead.error || linearRead.status !== 0) {
+    const detail = linearRead.stderr || linearRead.stdout || linearRead.error?.message || `exit ${linearRead.status}`
+    fail(`Linear issue ${delivery.issue} failed: ${redactSecrets(detail.trim())}`)
+  }
+  liveLinear = JSON.parse(linearRead.stdout)?.result?.issue
 } catch (error) {
   fail(`could not revalidate live pull request ${prNumber}: ${redactSecrets(error.message)}`)
 }
 if (!Number.isInteger(liveComparison?.behind_by) || liveComparison.behind_by < 0) fail(`gh compare for PR ${prNumber} did not return numeric behind_by`)
+if (typeof liveLinear?.state?.name !== "string" || typeof liveLinear?.state?.type !== "string" || !Array.isArray(liveLinear?.labels) || liveLinear.labels.some((label) => typeof label?.name !== "string")) {
+  fail(`Linear issue ${delivery.issue} did not return the confirmed state name/type and labels shape`)
+}
 
 const baseSha = live.baseRefOid
 const headSha = live.headRefOid
@@ -146,17 +171,22 @@ const receipt = {
     rounds: review.rounds,
     reviewedHeadOid: review.reviewedHeadOid,
     artifactPath: review.artifactPath,
+    rubricBaseOid: review.rubricBaseOid,
+    rubricArtifactPath: review.rubricArtifactPath,
+    findings: review.findings,
     headSha: review.reviewedHeadOid,
     baseSha: review.baseSha,
   },
-  ci: { settled: ci.pending.length === 0, green: ci.pass === true, checks: ci, headSha: state.headSha, baseSha: state.baseSha },
+  ci: { settled: !bodyMutated && ci.pending.length === 0, green: !bodyMutated && ci.pass === true, invalidatedByBodyEdit: bodyMutated, checks: ci, headSha: state.headSha, baseSha: state.baseSha },
   codexConnector: { passed: bot.verdict === "REVIEWED", reviewedCommit: bot.reviewedCommit ?? null, headSha: bot.headRefOid, baseSha: bot.baseRefOid },
   threads: { complete: bot.threadsComplete === true, unresolvedCount: bot.counts?.unresolved ?? bot.threads?.filter((thread) => !thread.isResolved).length ?? null, headSha: bot.headRefOid, baseSha: bot.baseRefOid },
   behindBy: liveComparison.behind_by,
   draft: live.isDraft,
   linear: {
-    status: linear.status,
-    lastSynchronizationResult: linear.lastSynchronizationResult,
+    status: liveLinear.state.name,
+    stateType: liveLinear.state.type,
+    visibleEffect: liveLinear.labels.some((label) => label.name === "visible-effect"),
+    lastSynchronizationResult: linear.status === liveLinear.state.name ? linear.lastSynchronizationResult : "STALE",
     lastPostedState: linear.lastPostedState ?? null,
     headSha: linear.headSha,
     baseSha: linear.baseSha,

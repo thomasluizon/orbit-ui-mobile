@@ -1,7 +1,7 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { T, check, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
+import { T, check, processIsRunning, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
 
 const TOOL = "salvage-worker.mjs"
 
@@ -108,6 +108,51 @@ export const cases = () => {
     T(`${TOOL}: blocked subset salvage commits nothing`, omitted.git(["rev-list", "--count", "main..HEAD"]).stdout.trim() === "0", "unselected source reached a commit")
   } else {
     T(`${TOOL}: omitted-source salvage fixture is available`, false, "could not create branch")
+  }
+
+  const hanging = stageRepo("salvage-worker-hanging-test")
+  if (hanging?.git(["switch", "-q", "-c", "feature/hanging-test"]).status === 0) {
+    writeFileSync(join(hanging.path, "hung.txt"), "must remain uncommitted\n")
+    const descendantPid = stage("salvage-worker/hanging-test-child.pid", "")
+    const hangingScript = stage("salvage-worker/hanging-test.cjs", `const { spawn } = require("node:child_process")\nconst { writeFileSync } = require("node:fs")\nconst child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" })\nwriteFileSync(process.argv[2], String(child.pid))\nsetInterval(() => {}, 1000)\n`)
+    const hangingOrder = stage("salvage-worker/hanging-test.json", JSON.stringify({ command: process.execPath, args: [hangingScript, descendantPid] }))
+    const shortConfig = { ...config, repos: { ...config.repos, ui: hanging.path }, timeouts: { ...config.timeouts, hardCeilingMinutes: 0.02 } }
+    const hangingStaged = stageWithConfig("salvage-worker-hanging-test", TOOL, shortConfig)
+    const timed = check(
+      TOOL,
+      "a hanging workspace test is bounded before staging",
+      ["--issue", "ORB-250", "--repo", "ui", "--worktree", hanging.path, "--branch", "feature/hanging-test", "--run-root", hanging.path, "--test-command", hangingOrder, "--test-receipt", receipt, "--message", "never", "--path", "hung.txt"],
+      { status: 1, stderr: /workspace test failed; nothing was staged or pushed/ },
+      { path: hangingStaged.path },
+    )
+    const childPid = Number(readFileSync(descendantPid, "utf8"))
+    T(`${TOOL}: a timed-out workspace test leaves no descendant process`, timed.status === 1 && !processIsRunning(childPid), `descendant ${childPid} survived`)
+  } else {
+    T(`${TOOL}: hanging-test salvage fixture is available`, false, "could not create branch")
+  }
+
+  const hangingGit = stageRepo("salvage-worker-hanging-git")
+  if (hangingGit?.git(["switch", "-q", "-c", "feature/hanging-git"]).status === 0) {
+    writeFileSync(join(hangingGit.path, "hung-git.txt"), "must remain unpushed\n")
+    const gitChildPid = stage("salvage-worker/hanging-git-child.pid", "")
+    const hookRunner = stage("salvage-worker/hanging-git-hook.cjs", `const { spawn } = require("node:child_process")\nconst { writeFileSync } = require("node:fs")\nconst child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" })\nwriteFileSync(process.argv[2], String(child.pid))\nsetInterval(() => {}, 1000)\n`)
+    const hooksDir = stage("salvage-worker/hanging-git-hooks/.keep", "").replace(/[\\/]\.keep$/, "")
+    const preCommit = join(hooksDir, "pre-commit")
+    writeFileSync(preCommit, `#!/bin/sh\nexec "${process.execPath.replaceAll("\\", "/")}" "${hookRunner.replaceAll("\\", "/")}" "${gitChildPid.replaceAll("\\", "/")}"\n`)
+    chmodSync(preCommit, 0o755)
+    hangingGit.git(["config", "core.hooksPath", hooksDir])
+    const gitStaged = stageWithConfig("salvage-worker-hanging-git", TOOL, { ...config, repos: { ...config.repos, ui: hangingGit.path } })
+    const timedGit = check(
+      TOOL,
+      "a hanging Git commit is bounded",
+      ["--issue", "ORB-250", "--repo", "ui", "--worktree", hangingGit.path, "--branch", "feature/hanging-git", "--run-root", hangingGit.path, "--test-command", passedOrder, "--test-receipt", receipt, "--message", "never", "--path", "hung-git.txt", "--command-timeout-seconds", "1"],
+      { status: 1, stderr: /git commit timed out after 1s; the complete child process tree was terminated/ },
+      { path: gitStaged.path },
+    )
+    const gitPid = Number(readFileSync(gitChildPid, "utf8"))
+    T(`${TOOL}: a timed-out Git operation leaves no descendant process`, timedGit.status === 1 && !processIsRunning(gitPid), `descendant ${gitPid} survived`)
+  } else {
+    T(`${TOOL}: hanging-Git salvage fixture is available`, false, "could not create branch")
   }
 
   const second = stageRepo("salvage-worker-broad")

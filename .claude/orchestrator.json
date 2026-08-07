@@ -44,7 +44,8 @@
   "caps": {
     "reviewRounds": 2,
     "parallelTickets": 3,
-    "botReviewWaitSeconds": 900
+    "botReviewWaitSeconds": 900,
+    "connectorFixAttempts": 3
   },
   "linear": {
     "team": "ORB",

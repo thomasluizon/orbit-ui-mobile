@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 /** Finish a dead worker's already-written changes without broad staging or an invented test receipt. */
 
-import { execFileSync } from "node:child_process"
 import { readFileSync, statSync, writeFileSync } from "node:fs"
 import { isAbsolute, relative, resolve } from "node:path"
 
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
+import { runBounded } from "./lib/bounded-process.mjs"
 import { readinessReceiptPath } from "./lib/readiness-receipt.mjs"
 import { readRunState, writeRunState } from "./lib/run-state.mjs"
 
-const USAGE = `usage: salvage-worker.mjs --issue ORB-N --repo <key> [--pr <number>] --worktree <path> --branch <name> --run-root <path> --test-command <json> --test-receipt <path> --message <text> --path <relative-path> [--path <relative-path> ...]
+const USAGE = `usage: salvage-worker.mjs --issue ORB-N --repo <key> [--pr <number>] --worktree <path> --branch <name> --run-root <path> --test-command <json> --test-receipt <path> --message <text> --path <relative-path> [--path <relative-path> ...] [--command-timeout-seconds <s>]
 
 The test-command file is {"command":"<executable>","args":["..."]}. The tool runs it in the
 worktree and persists its real exit receipt before staging. Only repeated, explicitly named --path
@@ -29,7 +29,7 @@ const fail = (code, message) => {
 }
 const valuesOf = (flag) => process.argv.slice(2).flatMap((value, index, args) => value === flag ? [args[index + 1]] : [])
 const argOf = (flag) => valuesOf(flag).at(0) ?? null
-const valueFlags = new Set(["--issue", "--repo", "--pr", "--worktree", "--branch", "--run-root", "--test-command", "--test-receipt", "--message", "--path"])
+const valueFlags = new Set(["--issue", "--repo", "--pr", "--worktree", "--branch", "--run-root", "--test-command", "--test-receipt", "--message", "--path", "--command-timeout-seconds"])
 const known = new Set([...valueFlags, "--help", "-h"])
 const unknown = process.argv.slice(2).filter((value, index, args) => value.startsWith("-") && !known.has(value) && !valueFlags.has(args[index - 1]))
 if (unknown.length) fail(2, `${USAGE}\n\nunknown option(s): ${unknown.join(" ")}`)
@@ -44,9 +44,11 @@ const runRoot = resolve(argOf("--run-root") ?? "")
 const testCommandPath = argOf("--test-command")
 const testReceiptPath = argOf("--test-receipt")
 const message = argOf("--message")
+const commandTimeoutSeconds = Number(argOf("--command-timeout-seconds") ?? "45")
 const paths = valuesOf("--path")
 const normalizedPaths = []
 if (!/^[A-Z][A-Z0-9]*-\d+$/.test(issue ?? "") || !repoKey || (prNumber !== null && (!Number.isInteger(prNumber) || prNumber < 1)) || !branch || !testCommandPath || !testReceiptPath || !message || paths.length === 0) fail(2, USAGE)
+if (!Number.isFinite(commandTimeoutSeconds) || commandTimeoutSeconds <= 0) fail(2, "--command-timeout-seconds requires a positive number")
 if (!isAbsolute(testCommandPath) || !isAbsolute(testReceiptPath)) fail(2, "--test-command and --test-receipt must be absolute scratchpad paths")
 const receiptRelative = relative(worktree, resolve(testReceiptPath))
 if (receiptRelative === "" || (!receiptRelative.startsWith("..") && !isAbsolute(receiptRelative))) fail(2, "--test-receipt must live outside the worker worktree")
@@ -83,17 +85,24 @@ try {
 }
 if (typeof testOrder?.command !== "string" || !testOrder.command || !Array.isArray(testOrder.args) || testOrder.args.some((value) => typeof value !== "string")) fail(2, "test command must contain command:string and args:string[]")
 
-const git = (args) => execFileSync(process.env.GIT_BIN || "git", ["-C", worktree, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] })
+const git = async (args) => {
+  const result = await runBounded(process.env.GIT_BIN || "git", ["-C", worktree, ...args], { timeoutMs: commandTimeoutSeconds * 1000 })
+  if (result.timedOut) throw new Error(`git ${args[0]} timed out after ${commandTimeoutSeconds}s; the complete child process tree was terminated`)
+  if (result.overflowed) throw new Error(`git ${args[0]} exceeded the output bound; the complete child process tree was terminated`)
+  if (result.error || result.status !== 0) throw new Error((result.stderr || result.stdout || result.error?.message || `git ${args[0]} exited ${result.status}`).trim())
+  return result.stdout
+}
 let testedHead = null
 try {
-  testedHead = git(["rev-parse", "HEAD"]).trim()
+  testedHead = (await git(["rev-parse", "HEAD"])).trim()
 } catch (error) {
-  fail(2, `worktree is not a readable git checkout: ${(error.stderr?.toString() || error.message).trim()}`)
+  fail(2, `worktree is not a readable git checkout: ${error.message}`)
 }
 const completedAt = new Date().toISOString()
 let testExitCode = 0
 try {
-  execFileSync(testOrder.command, testOrder.args, { cwd: worktree, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 30 * 60 * 1000, windowsHide: true })
+  const testResult = await runBounded(testOrder.command, testOrder.args, { cwd: worktree, timeoutMs: config.timeouts.hardCeilingMinutes * 60 * 1000 })
+  if (testResult.timedOut || testResult.overflowed || testResult.error || testResult.status !== 0) testExitCode = 1
 } catch (error) {
   testExitCode = 1
 }
@@ -103,17 +112,17 @@ if (testExitCode !== 0) fail(1, "workspace test failed; nothing was staged or pu
 
 let inventory
 try {
-  inventory = git(["status", "--porcelain", "--untracked-files=all"]).replace(/\s+$/, "").split(/\r?\n/).filter(Boolean)
+  inventory = (await git(["status", "--porcelain", "--untracked-files=all"])).replace(/\s+$/, "").split(/\r?\n/).filter(Boolean)
 } catch (error) {
   fail(2, `could not inventory dirty files: ${(error.stderr?.toString() || error.message).trim()}`)
 }
 let dirtyPaths
 let untrackedPaths
 try {
-  untrackedPaths = new Set(git(["ls-files", "--others", "--exclude-standard", "-z"]).split("\0").filter(Boolean).map((path) => path.replaceAll("\\", "/")))
+  untrackedPaths = new Set((await git(["ls-files", "--others", "--exclude-standard", "-z"])).split("\0").filter(Boolean).map((path) => path.replaceAll("\\", "/")))
   dirtyPaths = new Set([
-    ...git(["diff", "--name-only", "-z"]).split("\0"),
-    ...git(["diff", "--cached", "--name-only", "-z"]).split("\0"),
+    ...(await git(["diff", "--name-only", "-z"])).split("\0"),
+    ...(await git(["diff", "--cached", "--name-only", "-z"])).split("\0"),
     ...untrackedPaths,
   ].filter(Boolean).map((path) => path.replaceAll("\\", "/")))
 } catch (error) {
@@ -127,7 +136,7 @@ const namedPathSet = new Set(normalizedPaths)
 // Never inherit an unrelated index from the dead worker. `git add -- <named paths>` adds to the
 // existing index; it does not replace it, so a later `git commit` would otherwise publish every
 // already-staged path even when the caller deliberately omitted it from --path.
-const alreadyStaged = git(["diff", "--cached", "--name-only", "-z"]).split("\0").filter(Boolean).map((path) => path.replaceAll("\\", "/"))
+const alreadyStaged = (await git(["diff", "--cached", "--name-only", "-z"])).split("\0").filter(Boolean).map((path) => path.replaceAll("\\", "/"))
 const unnamedStaged = alreadyStaged.filter((path) => !namedPathSet.has(path))
 if (unnamedStaged.length > 0) fail(2, `index contains staged paths not named by --path: ${unnamedStaged.join(", ")}`)
 
@@ -143,13 +152,13 @@ if (prNumber !== null) {
 }
 
 try {
-  git(["--literal-pathspecs", "add", "--", ...normalizedPaths])
-  const staged = git(["diff", "--cached", "--name-only"]).trim()
+  await git(["--literal-pathspecs", "add", "--", ...normalizedPaths])
+  const staged = (await git(["diff", "--cached", "--name-only"])).trim()
   if (!staged) fail(1, "named paths produced no staged change")
-  git(["commit", "-m", message])
-  git(["push", "origin", `HEAD:${branch}`])
-  const headSha = git(["rev-parse", "HEAD"]).trim()
+  await git(["commit", "-m", message])
+  await git(["push", "origin", `HEAD:${branch}`])
+  const headSha = (await git(["rev-parse", "HEAD"])).trim()
   console.log(JSON.stringify({ issue, repositoryKey: repoKey, prNumber, branch, inventory, stagedPaths: staged.split(/\r?\n/), testReceiptPath, readinessPath, readinessRegistrationPending: prNumber === null, headSha }, null, 2))
 } catch (error) {
-  fail(1, `salvage commit/push failed: ${(error.stderr?.toString() || error.message).trim()}`)
+  fail(1, `salvage commit/push failed: ${error.message}`)
 }

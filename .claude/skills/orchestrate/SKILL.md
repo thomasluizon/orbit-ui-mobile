@@ -601,7 +601,8 @@ Six rules. All six hold in both modes.
 6. **Hard cap of 2 rounds.** No round-3 path exists. At the cap, hand to Thomas.
 
    **"Round" means a round of THIS review**, the frozen cross-vendor finding list. The Codex bot pass
-   at step 12 is a separate reviewer with its own ruleset and its own cap of one fix, and it is not a
+   at step 12 is a separate reviewer with its own ruleset and its own configured cap of
+   `caps.connectorFixAttempts` fixer commits, and it is not a
    third round of this one. Without that scoping the two contracts contradict each other, and a
    contradictory contract is how a run picks whichever half it read last.
 
@@ -740,8 +741,10 @@ progress rather than going silent. That is the trap
 rather than by remembering to check.
 
 Repeat inside the bounded readiness loop until the connector pass is pinned to the current head and
-every actionable thread has a commit/ticket-evidenced reply and is resolved. A connector failure
-that persists at the bound is a named blocker, never a clean handoff.
+every actionable thread has a commit/ticket-evidenced reply and is resolved. Count one connector
+fix attempt for each commit made to address a connector pass; never exceed the positive
+`caps.connectorFixAttempts` value from `.claude/orchestrator.json` (currently 3). A connector
+failure that persists after that attempt is a named exhausted-fixer blocker, never a clean handoff.
 
 ## Step 13. Final-head readiness loop
 
@@ -759,7 +762,7 @@ old SHAs as current. Its explicit stale/blocking verdicts include
 Any commit, ordinary push, merge from main, or base advancement invalidates receipts tied to the old
 head or base. Bare PR numbers are never sufficient run state.
 
-For each existing PR, repeat within the configured readiness bound:
+For each existing PR, repeat within the configured `caps.connectorFixAttempts` fixer bound:
 
 1. Read PR draft/head/base state and GitHub compare. If behind, merge current `main` into the branch
    without rebasing or force-pushing, push normally, and invalidate all earlier receipts.
@@ -918,19 +921,25 @@ from:
   "remaining": ["ORB-2", "ORB-3"],
   "pullRequests": [
     {"repositoryKey":"ui","prNumber":693,"receiptPath":"<absolute receipt path>"}
+  ],
+  "readinessLedger": [
+    {"repositoryKey":"ui","prNumber":693,"receiptPath":"<absolute receipt path>"}
   ]
 }
 ```
 
 `pullRequests` holds repository-qualified identities and receipt paths for every pull request this
-run opened. A bare number is invalid because UI and API can have the same PR number. Keep the entry
-until `record-readiness.mjs` says READY for the receipt's current head/base pair. **An entry there
-blocks the turn exactly as a remaining ticket does**, which is the mechanical half of salvage: a
-pull request opened by hand and never re-verified cannot be reported as a finished queue.
+run opened. `writeRunState` mechanically unions those identities into the append-only
+`readinessLedger`; later writes cannot erase them by setting `pullRequests: []`. A bare number is
+invalid because UI and API can have the same PR number. The stop hook opens every ledger receipt and
+allows completion only when `readinessReport` says READY for its current head/base pair. This is the
+mechanical half of salvage: a pull request opened by hand and never re-verified cannot be reported
+as a finished queue even if a fallible session clears the active list.
 
 `sessionId` is what keeps yesterday's record from blocking today: a record whose session does not
-match is ignored. **When the queue really is done, write `remaining: []` and `pullRequests: []`** and then print the step 15
-report. A record that still claims work while the run is over is the one way to trap a session.
+match is ignored. When the queue really is done, write `remaining: []`; `pullRequests` may be empty,
+but never remove `readinessLedger`. The READY receipts let the hook distinguish completion from a
+mistakenly cleared queue, then the run may print the step 15 report.
 
 What the gate can prove is that a registered pid is still alive, which is real evidence rather than a
 claim, because only the launcher registers one. What it cannot prove is that the task will re-invoke

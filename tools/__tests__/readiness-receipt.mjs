@@ -15,13 +15,13 @@ const ready = () => ({
   baseBranch: "main",
   currentBaseSha: BASE_A,
   currentHeadSha: HEAD_A,
-  independentReview: { reviewerKind: "independent", verdict: "CLEAN", rounds: 1, reviewedHeadOid: HEAD_A, artifactPath: "C:/scratch/review.json", headSha: HEAD_A, baseSha: BASE_A },
+  independentReview: { reviewerKind: "independent", verdict: "CLEAN", rounds: 1, reviewedHeadOid: HEAD_A, artifactPath: "C:/scratch/review.json", rubricBaseOid: BASE_A, rubricArtifactPath: "C:/scratch/rubric.md", findings: [], headSha: HEAD_A, baseSha: BASE_A },
   ci: { settled: true, green: true, headSha: HEAD_A, baseSha: BASE_A, checks: [] },
   codexConnector: { passed: true, reviewedCommit: HEAD_A, headSha: HEAD_A, baseSha: BASE_A },
   threads: { complete: true, unresolvedCount: 0, headSha: HEAD_A, baseSha: BASE_A },
   behindBy: 0,
   draft: false,
-  linear: { status: "In Review", lastSynchronizationResult: "SUCCESS", lastPostedState: "ready", headSha: HEAD_A, baseSha: BASE_A },
+  linear: { status: "In Review", lastSynchronizationResult: "SUCCESS", lastPostedState: "ready", visibleEffect: false, headSha: HEAD_A, baseSha: BASE_A },
 })
 
 export const cases = () => {
@@ -36,6 +36,10 @@ export const cases = () => {
   T(`${TOOL}: a simultaneous final-head receipt is READY`, readinessReport(readReadinessReceipt(fixture.path, "ui", 701)).verdict === "READY")
   const selfReviewed = { ...receipt, independentReview: { ...receipt.independentReview, reviewerKind: "self", rounds: 9 } }
   T(`${TOOL}: a self-review or more than two rounds is REVIEW_STALE`, readinessReport(selfReviewed).verdicts.includes("REVIEW_STALE"))
+  const openBlocker = { ...receipt, independentReview: { ...receipt.independentReview, findings: [{ id: "F1", blocking: true, status: "OPEN" }] } }
+  T(`${TOOL}: a CLEAN string cannot hide an OPEN frozen blocker`, readinessReport(openBlocker).verdicts.includes("REVIEW_STALE"))
+  const staleRubric = { ...receipt, independentReview: { ...receipt.independentReview, rubricBaseOid: BASE_B } }
+  T(`${TOOL}: a rubric snapshot from another base is REVIEW_STALE`, readinessReport(staleRubric).verdicts.includes("REVIEW_STALE"))
 
   const pushed = { ...receipt, currentHeadSha: HEAD_B }
   const pushedVerdicts = readinessReport(pushed).verdicts
@@ -52,7 +56,7 @@ export const cases = () => {
   const linearStale = { ...receipt, linear: { ...receipt.linear, lastSynchronizationResult: "FAILED" } }
   T(`${TOOL}: final readiness cannot clear while Linear is stale`, readinessReport(linearStale).verdicts.includes("LINEAR_STALE"))
 
-  const visual = { ...receipt, linear: { ...receipt.linear, status: "In Progress", lastPostedState: "visual" } }
+  const visual = { ...receipt, linear: { ...receipt.linear, status: "In Progress", lastPostedState: "visual", visibleEffect: true } }
   const visualReport = readinessReport(visual)
   T(`${TOOL}: a synchronized visible ticket reaches technical READY while remaining In Progress`, visualReport.verdict === "READY" && visualReport.visualCheckOwed === true, JSON.stringify(visualReport))
   const visualWrongStatus = { ...visual, linear: { ...visual.linear, status: "In Review" } }

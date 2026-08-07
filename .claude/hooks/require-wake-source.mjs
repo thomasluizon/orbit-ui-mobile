@@ -8,6 +8,9 @@
 // re-derived here: launch-worker.mjs writes them with that same module, and two definitions of
 // where the files live is how one of them silently stops finding the other.
 
+import { readFileSync } from "node:fs"
+
+import { readinessReport } from "../../tools/lib/readiness-receipt.mjs"
 import { readRunState, readWakeSources } from "../../tools/lib/run-state.mjs"
 import { readStdinJson } from "./_lib/io.mjs"
 import { checkSleepStop } from "./_lib/rules-sleep.mjs"
@@ -30,6 +33,13 @@ try {
     sessionId: input?.session_id ?? "",
     stopHookActive: input?.stop_hook_active === true,
     isAlive,
+    receiptVerdict: (path) => {
+      try {
+        return readinessReport(JSON.parse(readFileSync(path, "utf8"))).verdict
+      } catch {
+        return null
+      }
+    },
   })
   if (verdict?.block) {
     process.stderr.write(verdict.message)

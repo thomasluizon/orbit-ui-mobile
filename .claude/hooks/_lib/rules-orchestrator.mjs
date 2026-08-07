@@ -43,6 +43,17 @@ const BROAD_ADD_FLAGS = new Set(["-A", "--all", "-u", "--update", "--renormalize
 const COMMIT_VALUE_FLAGS = new Set(["-m", "--message", "-F", "--file", "-C", "--reuse-message", "-c", "--reedit-message", "--author", "--date", "--cleanup", "--trailer", "--fixup", "--squash"])
 const BROAD_COMMIT_LONG_FLAGS = ["--all", "--interactive", "--patch", "--pathspec-from-file", "--pathspec-file-nul"]
 
+const hasBroadCommitShortFlag = (argument) => {
+  if (!/^-[^-]/.test(argument)) return false
+  for (const flag of argument.slice(1)) {
+    if (["a", "i", "p"].includes(flag)) return true
+    // The remainder is the attached value, not more option letters. In particular, -mapi is a
+    // message containing a/i/p and stages nothing.
+    if (["m", "F", "C", "c"].includes(flag)) return false
+  }
+  return false
+}
+
 const isBroadPathspec = (argument, literalGlobally) => {
   const literalPrefix = argument.startsWith(":(literal)")
   const path = literalPrefix ? argument.slice(10) : argument
@@ -173,7 +184,7 @@ export function checkBroadStaging(command, { env = {}, cwd = "", repoRoots = [] 
         if (!afterSeparator && argument.startsWith("-")) {
           // Git accepts unambiguous long-option abbreviations. Prefix matching the dangerous set
           // closes --intera/--patc and the equivalent pathspec/all spellings mechanically.
-          if (BROAD_COMMIT_LONG_FLAGS.some((flag) => flag.startsWith(argument) || argument.startsWith(`${flag}=`)) || /^-[^-]*[aip]/.test(argument)) broadCommit = true
+          if (BROAD_COMMIT_LONG_FLAGS.some((flag) => flag.startsWith(argument) || argument.startsWith(`${flag}=`)) || hasBroadCommitShortFlag(argument)) broadCommit = true
           if (COMMIT_VALUE_FLAGS.has(argument)) skipValue = true
           continue
         }

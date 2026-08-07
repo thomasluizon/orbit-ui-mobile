@@ -38,15 +38,21 @@ export const readinessVerdicts = (receipt) => {
   if (!Number.isInteger(receipt.behindBy) || receipt.behindBy > 0) verdicts.push("OUT_OF_DATE")
 
   const review = receipt.independentReview
+  const blockersClosed = Array.isArray(review?.findings) && review.findings.every(
+    (finding) => finding?.blocking !== true || finding?.status === "CLOSED",
+  )
   if (
     !currentEvidence(review, receipt) ||
     review?.reviewedHeadOid !== receipt.currentHeadSha ||
     review?.verdict !== "CLEAN" ||
+    blockersClosed !== true ||
     !Number.isInteger(review?.rounds) ||
     review.rounds < 1 ||
     review.rounds > 2 ||
     review?.reviewerKind !== "independent" ||
-    typeof review?.artifactPath !== "string"
+    typeof review?.artifactPath !== "string" ||
+    review?.rubricBaseOid !== receipt.currentBaseSha ||
+    typeof review?.rubricArtifactPath !== "string"
   ) {
     verdicts.push("REVIEW_STALE")
   }
@@ -65,9 +71,9 @@ export const readinessVerdicts = (receipt) => {
   else if (threads.complete !== true || !Number.isInteger(threads.unresolvedCount) || threads.unresolvedCount > 0) verdicts.push("THREADS_OPEN")
 
   const linear = receipt.linear
-  const expectedLinearStatus = linear?.lastPostedState === "visual" ? "In Progress" : "In Review"
-  const synchronizedLifecycle = linear?.lastPostedState === "visual" || linear?.lastPostedState === "ready"
-  if (!currentEvidence(linear, receipt) || linear?.lastSynchronizationResult !== "SUCCESS" || !synchronizedLifecycle || linear?.status !== expectedLinearStatus) {
+  const expectedPostedState = linear?.visibleEffect === true ? "visual" : "ready"
+  const expectedLinearStatus = linear?.visibleEffect === true ? "In Progress" : "In Review"
+  if (!currentEvidence(linear, receipt) || linear?.lastSynchronizationResult !== "SUCCESS" || linear?.lastPostedState !== expectedPostedState || linear?.status !== expectedLinearStatus) {
     verdicts.push("LINEAR_STALE")
   }
   return [...new Set(verdicts)]

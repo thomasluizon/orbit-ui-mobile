@@ -3,7 +3,7 @@ import { join } from "node:path"
 
 import { T, root } from "./_harness.mjs"
 
-const { clearWakeSource, readRunState, readWakeSources, registerWakeSource, runStatePath, wakeSourceDirectory } = await import("../lib/run-state.mjs")
+const { clearWakeSource, readRunState, readWakeSources, registerWakeSource, runStatePath, wakeSourceDirectory, writeRunState } = await import("../lib/run-state.mjs")
 
 const TOOL = "lib/run-state.mjs"
 
@@ -21,6 +21,11 @@ export const cases = () => {
   writeFileSync(runStatePath(repoRoot), JSON.stringify({ sessionId: "s1", sleep: true, remaining: ["ORB-2", "ORB-3"] }))
   const state = readRunState(repoRoot)
   T(`${TOOL}: the orchestrator's record round-trips`, state?.sleep === true && state.remaining.join(",") === "ORB-2,ORB-3", JSON.stringify(state))
+
+  const identity = { repositoryKey: "ui", prNumber: 694, receiptPath: "C:/receipt.json" }
+  writeRunState({ ...state, pullRequests: [identity] }, repoRoot)
+  writeRunState({ ...state, pullRequests: [] }, repoRoot)
+  T(`${TOOL}: clearing pullRequests cannot erase the append-only readiness ledger`, readRunState(repoRoot)?.readinessLedger?.[0]?.prNumber === 694, JSON.stringify(readRunState(repoRoot)))
 
   registerWakeSource({ pid: 4242, what: "worker ORB-1" }, repoRoot)
   registerWakeSource({ pid: 4343, what: "reviewer ORB-1" }, repoRoot)

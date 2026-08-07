@@ -18,7 +18,7 @@
  * @param options `{ state, wakeSources, sessionId, stopHookActive, isAlive }`
  * @returns `{ block, message }` when an unattended run is about to go quiet, else null
  */
-export function checkSleepStop({ state, wakeSources = [], sessionId = "", stopHookActive = false, isAlive = () => false } = {}) {
+export function checkSleepStop({ state, wakeSources = [], sessionId = "", stopHookActive = false, isAlive = () => false, receiptVerdict = () => null } = {}) {
   // A blocked stop that blocks again is an infinite loop, and Claude Code sets this flag on the
   // second pass for exactly that reason.
   if (stopHookActive) return null
@@ -35,13 +35,18 @@ export function checkSleepStop({ state, wakeSources = [], sessionId = "", stopHo
    * re-entered step 7. A queue is not done while one of its pull requests has not been through the
    * rest of the algorithm.
    */
-  const rawPullRequests = Array.isArray(state.pullRequests) ? state.pullRequests : []
+  const rawPullRequests = [
+    ...(Array.isArray(state.pullRequests) ? state.pullRequests : []),
+    ...(Array.isArray(state.readinessLedger) ? state.readinessLedger : []),
+  ]
   const pullRequests = rawPullRequests.filter(
     (entry) => typeof entry?.repositoryKey === "string" && entry.repositoryKey !== "" && Number.isInteger(entry?.prNumber) && typeof entry?.receiptPath === "string" && entry.receiptPath !== "",
   )
+  const uniquePullRequests = [...new Map(pullRequests.map((entry) => [`${entry.repositoryKey}#${entry.prNumber}`, entry])).values()]
+  const pendingPullRequests = uniquePullRequests.filter((entry) => receiptVerdict(entry.receiptPath) !== "READY")
   const invalidPullRequestIdentities = rawPullRequests.length - pullRequests.length +
     (Array.isArray(state.unreviewedPullRequests) ? state.unreviewedPullRequests.length : 0)
-  if (remaining.length === 0 && pullRequests.length === 0 && invalidPullRequestIdentities === 0) return null
+  if (remaining.length === 0 && pendingPullRequests.length === 0 && invalidPullRequestIdentities === 0) return null
 
   const live = wakeSources.filter((source) => Number.isInteger(source?.pid) && isAlive(source.pid))
   if (live.length > 0) return null
@@ -51,7 +56,7 @@ export function checkSleepStop({ state, wakeSources = [], sessionId = "", stopHo
       ? `${remaining.length} ticket(s) left (${remaining.join(", ")})`
       : invalidPullRequestIdentities > 0
         ? `${invalidPullRequestIdentities} pull request identity record(s) are bare or invalid; repositoryKey, prNumber, and receiptPath are required`
-        : `every ticket done but pull request(s) ${pullRequests.map((entry) => `${entry.repositoryKey}#${entry.prNumber}`).join(", ")} lack a READY final-head receipt`
+        : `every ticket done but pull request(s) ${pendingPullRequests.map((entry) => `${entry.repositoryKey}#${entry.prNumber}`).join(", ")} lack a READY final-head receipt`
 
   return {
     block: true,
@@ -65,8 +70,8 @@ export function checkSleepStop({ state, wakeSources = [], sessionId = "", stopHo
       "A pull request listed in pullRequests has not reached simultaneous final-head readiness. Run\n" +
       "the readiness loop, then drop it only after its receipt says READY. A salvaged pull request\n" +
       "is not an exception: opening it is the middle of salvage, never the end.\n\n" +
-      "If the queue really is done and every pull request is reviewed, write `remaining: []` and\n" +
-      "`pullRequests: []` into .git/orbit-orchestrate-run.json, then print the step 15\n" +
-      "report. Never leave the record saying work remains when it does not.",
+      "If the queue really is done, keep its append-only readinessLedger intact. The hook reads\n" +
+      "each receipt and allows completion only when every one mechanically reports READY.\n" +
+      "Never clear the ledger to manufacture an exhausted queue.",
   }
 }

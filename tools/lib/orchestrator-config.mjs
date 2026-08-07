@@ -73,6 +73,7 @@ export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranc
   positive(config.timeouts?.noProgressMinutes, "timeouts.noProgressMinutes")
   positive(config.timeouts?.pollSeconds, "timeouts.pollSeconds")
   positive(config.caps?.reviewRounds, "caps.reviewRounds")
+  positive(config.caps?.connectorFixAttempts, "caps.connectorFixAttempts")
   return config
 }
 

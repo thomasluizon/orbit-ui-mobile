@@ -200,6 +200,8 @@ T(
 T("staging: literal pathspec magic is allowed", workerStaging("git add ':(literal)apps/web/app/api/[...path]/route.ts'"), null)
 T("staging: an explicitly named commit path is allowed", workerStaging("git commit tools/verify-delivery.mjs -m 'named only'"), null)
 T("staging: a literal bracketed commit path is allowed", workerStaging("git commit ':(literal)apps/web/app/api/[...path]/route.ts' -m 'named only'"), null)
+T("staging: an attached -m value containing broad flag letters is allowed", workerStaging("git commit -mapi"), null)
+T("staging: an attached -F value containing broad flag letters is allowed", workerStaging("git commit -Fpath-to-message"), null)
 T("staging: broad add outside a worker is untouched", checkBroadStaging("git add -A", { cwd: mainCheckout, repoRoots: [mainCheckout] }), null)
 // REGRESSION (fixed 2026-08-04). The previous revision split the command on a
 // bare /[&|;\n]/, so the `|` inside the quoted search pattern produced a phantom
@@ -271,6 +273,8 @@ T("sleep-stop: an open pull request with no review verdict blocks the queue from
 T("sleep-stop: the refusal names the repository-qualified pull request and receipt debt", stop({ state: salvaged })?.message.includes("ui#690") && stop({ state: salvaged })?.message.includes("READY final-head receipt"), true)
 T("sleep-stop: a live reviewer allows the turn to end", checkSleepStop({ state: salvaged, wakeSources: [{ pid: 1 }], sessionId: "s1", isAlive: alive }), null)
 T("sleep-stop: bare PR numbers are invalid run state and cannot clear readiness", blocks(stop({ state: { ...sleeping, remaining: [], unreviewedPullRequests: [690] } })), true)
+T("sleep-stop: an append-only ledger survives a cleared pullRequests list", blocks(stop({ state: { ...sleeping, remaining: [], pullRequests: [], readinessLedger: salvaged.pullRequests } })), true)
+T("sleep-stop: a mechanically READY ledger permits queue completion", checkSleepStop({ state: { ...sleeping, remaining: [], pullRequests: [], readinessLedger: salvaged.pullRequests }, sessionId: "s1", isAlive: dead, receiptVerdict: () => "READY" }), null)
 T("sleep-stop: nothing remaining and no pull requests allows", checkSleepStop({ state: { ...sleeping, remaining: [], pullRequests: [] }, sessionId: "s1", isAlive: dead }), null)
 T("sleep-stop: a run that is not --sleep allows", checkSleepStop({ state: { ...sleeping, sleep: false }, sessionId: "s1", isAlive: dead }), null)
 T("sleep-stop: no record at all allows", checkSleepStop({ state: null, sessionId: "s1", isAlive: dead }), null)
