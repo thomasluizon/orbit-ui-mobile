@@ -548,7 +548,7 @@ describe('ui store', () => {
       await useUIStore.persist.rehydrate()
 
       expect(useUIStore.getState()).toMatchObject({
-        activeFilters: { search: 'focus' },
+        activeFilters: {},
         activeView: 'goals',
         searchQuery: '',
         selectedFrequency: 'Month',

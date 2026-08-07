@@ -305,7 +305,7 @@ describe("mobile ui store", () => {
     await useUIStore.persist.rehydrate();
 
     expect(useUIStore.getState()).toMatchObject({
-      activeFilters: { search: "focus" },
+      activeFilters: {},
       activeView: "general",
       searchQuery: "",
       selectedFrequency: "Month",

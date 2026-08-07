@@ -208,6 +208,17 @@ describe("shared ui store", () => {
     expect(snapshot).not.toHaveProperty("followToday");
   });
 
+  it("excludes active search filters from the persisted snapshot", () => {
+    const store = createStoreHarness();
+    store.setState({
+      activeFilters: { dateFrom: "2026-04-06", search: "focus" },
+    });
+
+    expect(getPersistedUIState(store.getState()).activeFilters).toEqual({
+      dateFrom: "2026-04-06",
+    });
+  });
+
   it("drops legacy day-selection and search keys when migrating persisted state", () => {
     const migrated = migratePersistedUIState({
       activeFilters: { search: "focus" },
@@ -224,7 +235,7 @@ describe("shared ui store", () => {
     expect(migrated).not.toHaveProperty("followToday");
     expect(migrated).not.toHaveProperty("searchQuery");
     expect(migrated).toEqual({
-      activeFilters: { search: "focus" },
+      activeFilters: {},
       activeView: "all",
       selectedFrequency: "Month",
       selectedTagIds: ["deep-work"],

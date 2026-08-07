@@ -72,9 +72,13 @@ export function migratePersistedUIState(
   persistedState: unknown,
 ): PersistedUIState {
   const state = isRecord(persistedState) ? persistedState : {};
+  const activeFilters = isRecord(state.activeFilters)
+    ? { ...state.activeFilters }
+    : {};
+  delete activeFilters.search;
 
   return {
-    activeFilters: isRecord(state.activeFilters) ? state.activeFilters : {},
+    activeFilters,
     activeView: isActiveView(state.activeView) ? state.activeView : "today",
     selectedFrequency: isHabitFrequencyFilter(state.selectedFrequency)
       ? state.selectedFrequency
@@ -157,8 +161,11 @@ export interface UIStoreState {
 }
 
 export function getPersistedUIState(state: UIStoreState): PersistedUIState {
+  const activeFilters = { ...state.activeFilters };
+  delete activeFilters.search;
+
   return {
-    activeFilters: { ...state.activeFilters },
+    activeFilters,
     activeView: state.activeView,
     selectedFrequency: state.selectedFrequency,
     selectedTagIds: [...state.selectedTagIds],
