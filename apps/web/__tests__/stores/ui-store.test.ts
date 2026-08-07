@@ -475,13 +475,14 @@ describe('ui store', () => {
     })
 
     it.each([
-      { query: 'focus', pressed: 'true' },
-      { query: '   ', pressed: 'false' },
-    ])('marks the search control pressed only for a trimmed query', ({ query, pressed }) => {
+      { query: 'focus', searchOpen: false, pressed: 'true' },
+      { query: 'focus', searchOpen: true, pressed: 'true' },
+      { query: '   ', searchOpen: false, pressed: 'false' },
+    ])('renders the active search while its input is open', ({ query, searchOpen, pressed }) => {
       render(
         React.createElement(TodayUtilityRow, {
           activeView: 'general',
-          searchOpen: false,
+          searchOpen,
           searchValue: query,
           selectedFrequency: null,
           selectedTagIds: [],
@@ -503,10 +504,14 @@ describe('ui store', () => {
         }),
       )
 
-      expect(screen.getByRole('button', { name: 'habits.searchPlaceholder' })).toHaveAttribute(
-        'aria-pressed',
-        pressed,
-      )
+      const searchControl = screen.getByRole('button', { name: 'habits.searchPlaceholder' })
+      expect(searchControl).toHaveAttribute('aria-pressed', pressed)
+      if (pressed === 'true') {
+        expect(searchControl).toHaveStyle({
+          background: 'var(--selection-bg)',
+          boxShadow: 'inset 0 0 0 1px rgba(var(--primary-rgb), 0.45)',
+        })
+      }
     })
   })
 
