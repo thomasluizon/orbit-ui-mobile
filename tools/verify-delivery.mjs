@@ -298,6 +298,26 @@ const validatePullRequestState = (state) => {
 let pullRequestState = readPullRequestState()
 validatePullRequestState(pullRequestState)
 
+const readRequiredContexts = (state) => {
+  const required = run(
+    GH,
+    ["api", `repos/${repositoryFromUrl}/branches/${encodeURIComponent(state.baseRefName)}/protection/required_status_checks`],
+    githubCwd,
+  )
+  if (!required.ok) fail(2, `gh api required status checks failed for ${state.baseRefName}: ${required.error}`)
+  let parsed
+  try {
+    parsed = JSON.parse(required.stdout)
+  } catch {
+    fail(2, `gh api required status checks returned unparseable JSON: ${required.stdout.trim().slice(0, 240) || "empty output"}`)
+  }
+  if (!Array.isArray(parsed?.contexts) || parsed.contexts.some((context) => typeof context !== "string" || context.length === 0)) {
+    fail(2, `gh api required status checks returned no string contexts array for ${state.baseRefName}`)
+  }
+  return parsed.contexts
+}
+let requiredContexts = readRequiredContexts(pullRequestState)
+
 /**
  * A pull request that cannot merge was never delivered, and until this check existed nothing here
  * looked: the header above promises that every check reads a GitHub artifact, and CI status was the
@@ -345,8 +365,8 @@ const readRollup = () => {
   }
   const failing = []
   const pending = []
-  if (newestByName.size === 0) {
-    pending.push(checkMetadata("CI registration", { status: "NOT_REGISTERED", conclusion: null }))
+  for (const name of requiredContexts) {
+    if (!newestByName.has(name)) pending.push(checkMetadata(name, { status: "NOT_REGISTERED", conclusion: null }))
   }
   for (const [name, node] of newestByName) {
     if (node.__typename === "StatusContext" || typeof node.state === "string") {
@@ -376,6 +396,7 @@ while (rollup.failing.length === 0 && rollup.pending.length > 0 && Date.now() < 
   sleep(Math.min(30, Math.max(1, Math.ceil((deadline - Date.now()) / 1000))))
   pullRequestState = readPullRequestState()
   validatePullRequestState(pullRequestState)
+  requiredContexts = readRequiredContexts(pullRequestState)
   rollup = readRollup()
 }
 
@@ -384,6 +405,7 @@ checks.ci = {
   observed: `${rollup.total} checks: ${rollup.failing.length} failing, ${rollup.pending.length} pending`,
   failing: rollup.failing,
   pending: rollup.pending,
+  requiredContexts,
   waitedSeconds: waitCiSeconds,
 }
 if (rollup.failing.length > 0) emit("CI_FAILING")

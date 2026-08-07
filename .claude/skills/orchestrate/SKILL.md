@@ -543,7 +543,9 @@ the run asked Thomas. **A harness converting its own gap into an interruption is
 - **Run the caller-specified touched-workspace test in the worktree and persist its successful
   command, exit code, head and timestamp receipt. Only then stage every intended path by name,
   commit, push, and open or update the pull request.** Broad staging (`git add -A`, `git add --all`,
-  or `git add .`) is forbidden by both the prompt and command hook.
+  `git add -u`, `git add --update`, dot, wildcard, or non-literal magic pathspecs) is forbidden by
+  both the prompt and command hook. Use Git's literal pathspec mode for explicit names containing
+  pathspec metacharacters.
 - **Re-run a CI job whose failure you have READ and attributed to infrastructure or flake**, naming
   the evidence: a failed STEP of `Set up job`, or an assertion that touches no file in the diff.
 
@@ -880,9 +882,12 @@ of them, collect every derivable decision, ask them in one batch. Under `--sleep
 the queue without stopping again; without it, the run also keeps its stop after every pull request.
 It cannot ask what only a running worker discovers, and it does not pretend to.
 
-**A failed ticket is recorded and skipped.** No retry, no relaunch, nobody woken. The queue carries
-on. One ticket failing at 03:00 must not cost the other four. The one exception is the step 7 salvage
-clause, which finishes a delivery a dead worker had already committed and never writes code.
+**A failed worker attempt is recorded, but its ticket is not silently skipped.** Preserve its work,
+use the step 7 salvage path when the caller-specified workspace test is green, and keep the PR in
+the bounded readiness loop until CI, both reviews, threads, base freshness, and Linear agree on one
+head/base pair. The queue may continue independent tickets while a wake source owns that debt. Only
+a genuine permission, external, human-only, or exhausted bounded-fixer blocker permits handoff, and
+the ticket remains In Progress with the exact decision required.
 
 ### Every turn under `--sleep` ends with a live wake source, named
 

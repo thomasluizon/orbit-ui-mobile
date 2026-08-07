@@ -11,6 +11,10 @@ const affected = (count) => `## Affected modules / files\n\n${Array.from({ lengt
 
 export const cases = () => {
   const ticketContract = readFileSync(new URL("../../.claude/skills/ticket/SKILL.md", import.meta.url), "utf8")
+  const rootContract = readFileSync(new URL("../../CLAUDE.md", import.meta.url), "utf8")
+  const plannerContract = readFileSync(new URL("../../.claude/agents/product-manager.md", import.meta.url), "utf8")
+  const auditTicketContract = readFileSync(new URL("../../.claude/skills/_shared/audit-to-tickets.md", import.meta.url), "utf8")
+  const orchestrateContract = readFileSync(new URL("../../.claude/skills/orchestrate/SKILL.md", import.meta.url), "utf8")
   T(
     `${TOOL}: ticket policy recommends coherent smaller tickets at separable behavior boundaries`,
     /split separable behavior or deployment\s+boundaries/.test(ticketContract),
@@ -22,6 +26,19 @@ export const cases = () => {
       /Never split those artifacts\s+away from the change that requires them/.test(ticketContract) &&
       !/CAPS-OVERRIDE/.test(ticketContract),
     "the canonical ticket contract permits a numeric or generated-artifact split",
+  )
+  T(
+    `${TOOL}: every always-loaded ticket planner treats counts as advisory`,
+    [rootContract, plannerContract, auditTicketContract].every((contract) => !/(?:under|target under)\s+~?400\s+lines/i.test(contract)) &&
+      [rootContract, plannerContract, auditTicketContract].every((contract) => /(?:advisory|planning signals)/i.test(contract)),
+    "an always-loaded planner still imposes a numeric PR-size policy",
+  )
+  T(
+    `${TOOL}: a failed worker remains owned by the bounded readiness loop`,
+    /failed worker attempt is recorded, but its ticket is not silently skipped/.test(orchestrateContract) &&
+      /keep the PR in\s+the bounded readiness loop/.test(orchestrateContract) &&
+      !/A failed ticket is recorded and skipped/.test(orchestrateContract),
+    "the queue contract can still abandon final-head readiness debt",
   )
   T(`${TOOL}: an ordinary ticket defers on nothing and warns about nothing`, reasons("## Scope\n\n- Fix the store\n\n## Acceptance\n\n- It works").length === 0 && warnings("## Scope\n\n- Fix the store").length === 0)
 

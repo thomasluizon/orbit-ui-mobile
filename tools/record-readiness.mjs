@@ -68,6 +68,9 @@ const bot = artifact.bot
 if (bot?.pr !== prNumber) fail("bot artifact does not name this pull request")
 const linear = artifact.linear
 if (typeof linear?.status !== "string" || typeof linear?.lastSynchronizationResult !== "string") fail("Linear artifact carries no status or synchronization result")
+if (linear.issue !== delivery.issue || linear.repositoryKey !== repoKey || linear.prNumber !== prNumber) {
+  fail("Linear artifact does not name this delivery issue, repository, and pull request")
+}
 
 let live
 let liveComparison

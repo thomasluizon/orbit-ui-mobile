@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs"
 
 import { runBounded } from "../lib/bounded-process.mjs"
-import { T, stage } from "./_harness.mjs"
+import { processIsRunning, T, stage } from "./_harness.mjs"
 
 export const cases = async () => {
   const success = await runBounded(process.execPath, ["-e", "process.stdout.write('bounded-ok')"], { timeoutMs: 5000 })
@@ -14,13 +14,7 @@ export const cases = async () => {
   )
   const timed = await runBounded(process.execPath, [script], { timeoutMs: 1000 })
   const descendantPid = Number(readFileSync(pidFile, "utf8"))
-  let alive = false
-  try {
-    process.kill(descendantPid, 0)
-    alive = true
-  } catch {
-    alive = false
-  }
+  const alive = processIsRunning(descendantPid)
   T("bounded-process.mjs: the hard bound fires", timed.timedOut === true, JSON.stringify(timed))
   T("bounded-process.mjs: timeout kills the complete process tree", Number.isInteger(descendantPid) && !alive, `descendant ${descendantPid} still alive`)
 }

@@ -77,6 +77,9 @@ T("pr-review: external fields require complete live shape evidence", reviewRubri
 T("pr-review: live OIDs pin a base-rubric snapshot across both rounds", reviewSkill.includes("baseRefName,baseRefOid,headRefName,headRefOid") && reviewSkill.includes("git show {baseRefOid}:.claude/skills/pr-review/rubric.md") && reviewSkill.includes("never reload the\nmutable main-checkout copy in round 2"), true)
 T("pr-review: API repository-relative sources are classified as backend", reviewSkill.includes("**backend** is `src/` or `tests/` in\norbit-api"), true)
 T("pr-review: API review floor drops sub-P1 candidates before receipt or tickets", reviewSkill.includes("Medium/Low/Info candidates are discarded before the receipt and create no ticket"), true)
+T("pr-review: public selector never advertises ambiguous blank or bare-number scope", reviewSkill.includes("argument-hint: <ui#N | api#N | pr-url>") && reviewSkill.includes("blank scope is ambiguous"), true)
+T("pr-review: the prescribed fixer transition preserves round one and materializes both heads", reviewSkill.includes("single prescribed round-1-to-round-2 fixer head change keeps") && reviewSkill.includes("Fetch both exact reviewed head OIDs from `origin`"), true)
+T("pr-review: backend timezone review includes background boundary-hour behavior", reviewRubric.includes("background schedule window, notification cutoff, or streak") && reviewRubric.includes("boundary-hour unit test"), true)
 
 // ---------------------------------------------------------------------------
 // 2. Rule units
@@ -152,10 +155,30 @@ writeFileSync(join(linkedWorktree, ".git"), `gitdir: ${join(mainCheckout, ".git"
 T("engine: a cwd inside a linked worktree allows", checkEngineInvocation("codex exec", { cwd: linkedWorktree, repoRoots: [mainCheckout] }), null)
 T("engine: the main checkout is not a linked worktree", blocks(checkEngineInvocation("codex exec", { cwd: mainCheckout, repoRoots: [mainCheckout] })), true)
 const workerStaging = (command) => checkBroadStaging(command, { cwd: linkedWorktree, repoRoots: [mainCheckout] })
-for (const command of ["git add -A", "git add --all", "git add .", "git add -- .", "git add \".\"", "git add named.ts .", "git add \"./\"", `git -C "${linkedWorktree}" add .`]) {
+for (const command of [
+  "git add -A",
+  "git add --all",
+  "git add -u",
+  "git add --update",
+  "git add .",
+  "git add -- .",
+  "git add \".\"",
+  "git add named.ts .",
+  "git add \"./\"",
+  "git add src/*.ts",
+  "git add ':(glob)src/*.ts'",
+  "git add apps/web/app/api/[...path]/route.ts",
+  `git -C "${linkedWorktree}" add .`,
+]) {
   T(`staging: ${command} blocks in a worker worktree`, blocks(workerStaging(command)), true)
 }
 T("staging: explicitly named paths are allowed", workerStaging("git add tools/verify-delivery.mjs .claude/skills/orchestrate/SKILL.md"), null)
+T(
+  "staging: a literal bracketed filename is allowed",
+  workerStaging("git --literal-pathspecs add apps/web/app/api/[...path]/route.ts"),
+  null,
+)
+T("staging: literal pathspec magic is allowed", workerStaging("git add ':(literal)apps/web/app/api/[...path]/route.ts'"), null)
 T("staging: broad add outside a worker is untouched", checkBroadStaging("git add -A", { cwd: mainCheckout, repoRoots: [mainCheckout] }), null)
 // REGRESSION (fixed 2026-08-04). The previous revision split the command on a
 // bare /[&|;\n]/, so the `|` inside the quoted search pattern produced a phantom
@@ -318,7 +341,13 @@ T("adapter orchestrator: codex --version -> 0", runHook(ORCH, bash("codex --vers
 T("adapter orchestrator: grep over a codex pattern -> 0", runHook(ORCH, bash("grep -rnE 'claude|codex' tools/")), 0)
 T("adapter orchestrator: the launcher marker -> 0", runHook(ORCH, bash("codex exec"), { ORBIT_LAUNCH_WORKER: "1" }), 0)
 T("adapter orchestrator: worker git add -A -> 2", runHook(ORCH, bash("git add -A"), { ORBIT_LAUNCH_WORKER: "1" }), 2)
+T("adapter orchestrator: worker git add -u -> 2", runHook(ORCH, bash("git add -u"), { ORBIT_LAUNCH_WORKER: "1" }), 2)
 T("adapter orchestrator: worker named git add -> 0", runHook(ORCH, bash("git add tools/verify-delivery.mjs"), { ORBIT_LAUNCH_WORKER: "1" }), 0)
+T(
+  "adapter orchestrator: worker literal bracketed git add -> 0",
+  runHook(ORCH, bash("git --literal-pathspecs add apps/web/app/api/[...path]/route.ts"), { ORBIT_LAUNCH_WORKER: "1" }),
+  0,
+)
 
 // The launcher marker means the opposite for the browser ban: it identifies the worker, which is
 // the only caller this gate refuses.

@@ -55,7 +55,7 @@ const pullRequest = (headRefOid, additions = 10, deletions = 5, number = 200, ch
 const rollup = (nodes = [{ __typename: "CheckRun", name: "Lint", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-06T10:00:00Z" }]) =>
   JSON.stringify({ statusCheckRollup: nodes })
 
-const ghPlan = (stdout, exit = 0, checks = rollup(), comparison = { behind_by: 0 }) => {
+const ghPlan = (stdout, exit = 0, checks = rollup(), comparison = { behind_by: 0 }, requiredContexts = null) => {
   let headRefOid = "fixture-head"
   try {
     headRefOid = JSON.parse(stdout)?.[0]?.headRefOid ?? headRefOid
@@ -68,10 +68,12 @@ const ghPlan = (stdout, exit = 0, checks = rollup(), comparison = { behind_by: 0
   } catch {
     state = {}
   }
+  const required = requiredContexts ?? (state.statusCheckRollup ?? []).map((node) => node.name ?? node.context).filter(Boolean)
   return orcaEnv([
     { match: "auth token --user thomasluizon", stdout: "test-github-token" },
     { match: `pr list --head ${BRANCH}`, stdout, exit },
     { match: "pr view", stdout: JSON.stringify({ baseRefName: "main", baseRefOid: "base-sha", headRefOid, isDraft: false, ...state }) },
+    { match: "branches/main/protection/required_status_checks", stdout: JSON.stringify({ contexts: required }) },
     { match: "api repos/", stdout: JSON.stringify(comparison) },
   ])
 }
@@ -247,7 +249,20 @@ export const cases = () => {
   T(`${TOOL}: failed CI retains exact inspectable run metadata`, /"runId": "12345"[\s\S]*"jobId": "67890"[\s\S]*"detailsUrl": "https:\/\/github\.com\/[^"\s]+"[\s\S]*"workflow": "React Doctor"[\s\S]*"name": "React Doctor"[\s\S]*"status": "COMPLETED"[\s\S]*"conclusion": "FAILURE"/.test(failedCi.stdout), failedCi.stdout)
 
   check(TOOL, "a still-running check is CI_PENDING, so nothing is called delivered mid-flight", ciArgv, { status: 1, stdout: /"verdict": "CI_PENDING"/ }, withChecks([{ __typename: "CheckRun", name: "Build", status: "IN_PROGRESS", conclusion: "", startedAt: "2026-08-06T10:00:00Z" }]))
-  check(TOOL, "an empty rollup is CI_PENDING until checks register", ciArgv, { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"name": "CI registration"/ }, withChecks([]))
+  check(
+    TOOL,
+    "an empty rollup is CI_PENDING until required checks register",
+    ciArgv,
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"name": "Lint"[\s\S]*"status": "NOT_REGISTERED"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, rollup([]), { behind_by: 0 }, ["Lint"]) },
+  )
+  check(
+    TOOL,
+    "a partial rollup is CI_PENDING until every required check registers",
+    ciArgv,
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"name": "Unit Tests"[\s\S]*"status": "NOT_REGISTERED"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, rollup([{ __typename: "CheckRun", name: "Lint", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-06T10:00:00Z" }]), { behind_by: 0 }, ["Lint", "Unit Tests"]) },
+  )
 
   const stateSequenceFile = stage("verify-delivery/pr-view-sequence.txt", "0")
   const pendingState = { baseRefName: "main", baseRefOid: "base-sha", headRefOid: pushed.head, isDraft: false, statusCheckRollup: [{ __typename: "CheckRun", name: "Build", status: "IN_PROGRESS", conclusion: "", startedAt: "2026-08-06T10:00:00Z" }] }
@@ -261,6 +276,7 @@ export const cases = () => {
       { match: "auth token --user thomasluizon", stdout: "test-github-token" },
       { match: `pr list --head ${BRANCH}`, stdout: JSON.stringify([pullRequest(pushed.head)]) },
       { match: "pr view", stdout: JSON.stringify(pendingState), stdoutSequence: [JSON.stringify(pendingState), JSON.stringify(advancedState)], sequenceFile: stateSequenceFile },
+      { match: "branches/main/protection/required_status_checks", stdout: JSON.stringify({ contexts: ["Build"] }) },
       { match: "api repos/", stdout: JSON.stringify({ behind_by: 0 }) },
     ]) },
   )

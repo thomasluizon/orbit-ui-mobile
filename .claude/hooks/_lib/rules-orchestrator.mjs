@@ -38,7 +38,8 @@ const API_CLIENTS = new Set(["gh", "curl", "wget", "http", "https", "httpie"])
 // bypass is not a prohibition, and this is the one everything else rests on.
 const HTTPIE_BINARIES = new Set(["http", "https", "httpie"])
 const BARE_PUT = /(?<![\w-])PUT(?![\w-])/
-const BROAD_GIT_ADD = /(?:^|\s)git(?:\.exe)?(?:\s+-C\s+(?:"[^"]+"|'[^']+'|\S+))?\s+add(?=\s|$)(?=[\s\S]*\s(?:-A|--all|["']?\.\/?["']?)(?=\s|$))/i
+const SHELL_WORD = /"[^"]*"|'[^']*'|\S+/g
+const BROAD_ADD_FLAGS = new Set(["-A", "--all", "-u", "--update", "--renormalize"])
 
 /**
  * Everything before the first real word: leading grouping punctuation and any number of
@@ -142,12 +143,37 @@ export function checkBroadStaging(command, { env = {}, cwd = "", repoRoots = [] 
   if (typeof command !== "string") return null
   if (!env[LAUNCHER_MARKER] && !(cwd && insideLinkedWorktree(cwd, repoRoots))) return null
   for (const segment of segmentsOf(command)) {
-    if (!BROAD_GIT_ADD.test(segment)) continue
+    const source = withoutLeadingAssignments(segment)
+    if (invokedBinary(source) !== "git") continue
+    const words = (source.match(SHELL_WORD) ?? []).map((word) => word.replace(/^["']|["']$/g, ""))
+    const addIndex = words.findIndex((word, index) => index > 0 && word.toLowerCase() === "add")
+    if (addIndex < 0) continue
+    const literalGlobally = words.slice(1, addIndex).includes("--literal-pathspecs")
+    let afterSeparator = false
+    let namedPaths = 0
+    let broad = false
+    for (const argument of words.slice(addIndex + 1)) {
+      if (!afterSeparator && argument === "--") {
+        afterSeparator = true
+        continue
+      }
+      if (!afterSeparator && argument.startsWith("-")) {
+        if (BROAD_ADD_FLAGS.has(argument) || /^-[^-]*[Au][^-]*$/.test(argument)) broad = true
+        continue
+      }
+      namedPaths += 1
+      const literalPrefix = argument.startsWith(":(literal)")
+      const path = literalPrefix ? argument.slice(10) : argument
+      if (/^\.\/?$/.test(path)) broad = true
+      if (!literalGlobally && !literalPrefix && (/[*?[\]]/.test(path) || /^:(?:\(|!|\^|\/)/.test(path))) broad = true
+    }
+    if (!broad && !(words.length > addIndex + 1 && namedPaths === 0)) continue
     return blocked(
       command,
-      "Worker worktrees may stage only explicitly named paths. `git add -A`, `git add --all`, and\n" +
-        "`git add .` can capture unrelated or runtime residue. Inspect `git status --short`, then\n" +
-        "pass each intended path to `git add` by name. Tracked `.orca/` changes are source.",
+      "Worker worktrees may stage only explicitly named literal paths. Bulk update flags, dot,\n" +
+        "wildcards, and non-literal magic pathspecs can capture unrelated or runtime residue.\n" +
+        "Inspect `git status --short`, then use `git --literal-pathspecs add` with each intended\n" +
+        "path by name. Tracked `.orca/` changes are source.",
     )
   }
   return null

@@ -8,7 +8,7 @@ Something broken, stale, or wrong while you build or fix? Fix it in the same PR;
 
 ## The workflow (D1-D9)
 
-Linear is the source of truth for product work here and in orbit-api; GitHub Issues holds orbit-landing-page and infra chores (D1). The ticket is the prompt (D2); one ticket = one repo = one reviewable PR under 400 lines (D4), and cross-repo work uses an API ticket blocking a UI ticket. `/orchestrate ORB-N` takes exactly one ticket (D5), and the reviewer is never the session that wrote the code. `visible-effect` tickets need screenshots, a critique artifact, and test output before In Review (D7, `RENDER-CORRECTNESS.md`).
+Linear is the source of truth for product work here and in orbit-api; GitHub Issues holds orbit-landing-page and infra chores (D1). The ticket is the prompt (D2); one ticket = one repo = one coherent, independently mergeable PR (D4), with file and line estimates used only as planning signals, and cross-repo work uses an API ticket blocking a UI ticket. `/orchestrate ORB-N` takes exactly one ticket (D5), and the reviewer is never the session that wrote the code. `visible-effect` tickets need screenshots, a critique artifact, and test output before In Review (D7, `RENDER-CORRECTNESS.md`).
 
 ## Cross-platform parity (MANDATORY)
 

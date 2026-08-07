@@ -147,9 +147,10 @@ no GraphQL mergePullRequest, no --admin. Never push to main. Never force-push. N
 --no-gpg-sign. Do not edit the Linear ticket. Do not touch a second repository: cross-repo work is
 two tickets. Do not modify the harness under tools/ or .claude/ unless this ticket says to.
 
-**Stage only named paths.** Never run \`git add -A\`, \`git add --all\`, or \`git add .\`. Inspect \`git
-status --short\`, then pass every intended path explicitly to \`git add\`. Tracked \`.orca/\` changes are
-source and must never be discarded; only untracked \`.orca/\` runtime residue is disposable.
+**Stage only named paths.** Never run \`git add -A\`, \`git add --all\`, \`git add -u\`, \`git add
+--update\`, a dot path, a wildcard, or a non-literal magic pathspec. Inspect \`git status --short\`,
+then pass every intended path explicitly to \`git --literal-pathspecs add\`. Tracked \`.orca/\` changes
+are source and must never be discarded; only untracked \`.orca/\` runtime residue is disposable.
 
 **Never create an end-to-end, visual-regression or Playwright file.** The testing rule in CLAUDE.md
 is Vitest unit and behaviour tests, and no new end-to-end suite. A worker on ORB-39 wrote

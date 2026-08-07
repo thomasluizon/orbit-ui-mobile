@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 
-import { T, orcaEnv, stage, stageRepo } from "./_harness.mjs"
+import { processIsRunning, T, orcaEnv, stage, stageRepo } from "./_harness.mjs"
 import { githubEnvironment, redactSecrets } from "../lib/github-auth.mjs"
 
 const TOOL = "lib/github-auth.mjs"
@@ -34,13 +34,7 @@ export const cases = async () => {
     timeoutMessage = error.message
   }
   const descendantPid = Number(readFileSync(descendantPidFile, "utf8"))
-  let descendantAlive = false
-  try {
-    process.kill(descendantPid, 0)
-    descendantAlive = true
-  } catch {
-    descendantAlive = false
-  }
+  const descendantAlive = processIsRunning(descendantPid)
   T(`${TOOL}: token selection is bounded and reports full-tree termination`, /timed out after 1000ms/.test(timeoutMessage), timeoutMessage)
   T(`${TOOL}: token timeout removes the complete process tree`, Number.isInteger(descendantPid) && !descendantAlive, `descendant ${descendantPid} still alive`)
 }

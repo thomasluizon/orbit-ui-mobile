@@ -77,6 +77,25 @@ export const stage = (relativePath, body) => {
   return path
 }
 
+/** `kill(pid, 0)` also succeeds for a defunct child on Linux. A zombie has terminated and cannot
+ * retain work or ports, so process-tree assertions must not call it alive while PID 1 delays reaping. */
+export const processIsRunning = (pid) => {
+  if (!Number.isInteger(pid) || pid <= 0) return false
+  try {
+    process.kill(pid, 0)
+  } catch {
+    return false
+  }
+  if (process.platform !== "linux") return true
+  try {
+    const stat = readFileSync(`/proc/${pid}/stat`, "utf8")
+    const stateOffset = stat.lastIndexOf(") ") + 2
+    return stat.slice(stateOffset, stateOffset + 1) !== "Z"
+  } catch {
+    return false
+  }
+}
+
 /**
  * The PATH `bash` on Windows is the WSL stub, which fails with no such file. Resolve
  * a real one and fail loudly rather than skipping every .sh tool.

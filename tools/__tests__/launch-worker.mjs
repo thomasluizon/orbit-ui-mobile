@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process"
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
-import { T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR } from "./_harness.mjs"
+import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR } from "./_harness.mjs"
 
 const TOOL = "launch-worker.mjs"
 
@@ -173,13 +173,7 @@ export const cases = () => {
   const treeKilled = check(TOOL, "a hanging worker tree is timed out", ["--issue", "ORB-201", "--worktree", tree.worktree, "--prompt", tree.prompt], { status: 1, stdout: /KILLED_HARD_CEILING/ }, { path: tree.path, env: githubAuthEnv() })
   discardLog(treeKilled.stdout)
   const descendantPid = Number(readFileSync(descendantPidFile, "utf8"))
-  let descendantAlive = false
-  try {
-    process.kill(descendantPid, 0)
-    descendantAlive = true
-  } catch {
-    descendantAlive = false
-  }
+  const descendantAlive = processIsRunning(descendantPid)
   T(`${TOOL}: timeout removes the complete process tree, not only the parent`, Number.isInteger(descendantPid) && !descendantAlive, `descendant ${descendantPid} still alive`)
 
   const brokenClock = launch("broken-clock", launchConfig({ timeouts: { pollSeconds: 0 } }))

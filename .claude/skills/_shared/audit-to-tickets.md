@@ -28,8 +28,10 @@ scratchpad mapping the finding onto the 6.2 sections:
 | Acceptance criteria | at least two checkable items derived from `fix` |
 | Test scenarios | the test that proves the fix (for a tests-audit finding, `fix` already IS the concrete test) |
 
-Fold findings that share a single fix and PR into one ticket (D4: one ticket = one reviewable
-PR, target under 400 lines). Never split one fix across tickets.
+Fold findings that share a single fix and PR into one ticket (D4: one ticket = one coherent,
+independently mergeable PR). Prefer a small review surface when behavior is genuinely separable,
+but treat file and line counts as advisory planning signals. Never split one atomic fix or its
+mandatory generated artifacts across tickets merely to satisfy a number.
 
 ## 2. Label and wire the DAG
 

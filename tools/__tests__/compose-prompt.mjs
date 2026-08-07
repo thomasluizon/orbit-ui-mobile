@@ -68,7 +68,8 @@ export const cases = () => {
   )
   T(
     `${TOOL}: every prompt bans broad staging and permits named paths`,
-    prompt.includes("Never run `git add -A`, `git add --all`, or `git add .`") && /pass every intended path explicitly to `git add`/.test(prompt),
+    prompt.includes("Never run `git add -A`, `git add --all`, `git add -u`") &&
+      /pass every intended path explicitly to `git --literal-pathspecs add`/.test(prompt),
     prompt,
   )
   T(

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 
-import { T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
+import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
 
 const TOOL = "list-bot-threads.mjs"
 const BOT = "chatgpt-codex-connector"
@@ -249,13 +249,7 @@ export const cases = () => {
     { match: "api graphql", stdout: "", hangTreePidFile: descendantPidFile },
   ]) })
   const descendantPid = Number(readFileSync(descendantPidFile, "utf8"))
-  let descendantAlive = false
-  try {
-    process.kill(descendantPid, 0)
-    descendantAlive = true
-  } catch {
-    descendantAlive = false
-  }
+  const descendantAlive = processIsRunning(descendantPid)
   T(`${TOOL}: a hanging GitHub read is bounded and reports its timeout`, hanging.status === 2 && /timed out after 1s/.test(hanging.stderr), hanging.stderr || hanging.stdout)
   T(`${TOOL}: a GitHub timeout removes the complete child process tree`, Number.isInteger(descendantPid) && !descendantAlive, `descendant ${descendantPid} still alive`)
 

@@ -15,13 +15,13 @@ export const cases = () => {
   const real = realOrchestratorConfig()
   const staged = stageWithConfig("record-readiness", TOOL, { ...real, repos: { ui: repo.path } })
   repo.git(["remote", "set-url", "origin", "https://github.com/thomasluizon/orbit-ui-mobile.git"])
-  const delivery = stage("record-readiness/delivery.json", JSON.stringify({ verdict: "DELIVERED", checks: {
+  const delivery = stage("record-readiness/delivery.json", JSON.stringify({ issue: "ORB-700", verdict: "DELIVERED", checks: {
     prCount: { number: 700 }, pullRequestState: { baseBranch: "main", baseSha: BASE, headSha: HEAD, draft: false },
     upToDate: { behindBy: 0 }, ci: { pass: true, failing: [], pending: [] },
   }}))
   const review = stage("record-readiness/review.json", JSON.stringify({ reviewerKind: "independent", verdict: "CLEAN", rounds: 1, reviewedHeadOid: HEAD, baseSha: BASE, artifactPath: "C:/scratch/review.json" }))
   const bot = stage("record-readiness/bot.json", JSON.stringify({ pr: 700, verdict: "REVIEWED", reviewedCommit: HEAD, baseRefOid: BASE, headRefOid: HEAD, counts: { unresolved: 0 }, threads: [] }))
-  const linear = stage("record-readiness/linear.json", JSON.stringify({ status: "In Review", lastSynchronizationResult: "SUCCESS", lastPostedState: "ready", headSha: HEAD, baseSha: BASE }))
+  const linear = stage("record-readiness/linear.json", JSON.stringify({ issue: "ORB-700", repositoryKey: "ui", prNumber: 700, status: "In Review", lastSynchronizationResult: "SUCCESS", lastPostedState: "ready", headSha: HEAD, baseSha: BASE }))
   const argv = ["--repo", "ui", "--pr", "700", "--delivery", delivery, "--review", review, "--bot", bot, "--linear", linear]
   const live = (headRefOid = HEAD, baseRefOid = BASE, behindBy = 0) => orcaEnv([
     { match: "auth token --user thomasluizon", stdout: "test-github-token" },
@@ -39,5 +39,7 @@ export const cases = () => {
 
   const staleBot = stage("record-readiness/stale-bot.json", JSON.stringify({ pr: 700, verdict: "REVIEWED", reviewedCommit: BASE, baseRefOid: BASE, headRefOid: HEAD, counts: { unresolved: 0 }, threads: [] }))
   check(TOOL, "a connector review pinned to another commit is BOT_REVIEW_STALE", [...argv.slice(0, -4), "--bot", staleBot, "--linear", linear], { status: 1, stdout: /BOT_REVIEW_STALE/ }, { path: staged.path, env: live() })
+  const wrongLinear = stage("record-readiness/wrong-linear.json", JSON.stringify({ issue: "ORB-701", repositoryKey: "api", prNumber: 701, status: "In Review", lastSynchronizationResult: "SUCCESS", lastPostedState: "ready", headSha: HEAD, baseSha: BASE }))
+  check(TOOL, "a Linear receipt for another ticket, repository, or PR is rejected", [...argv.slice(0, -1), wrongLinear], { status: 2, stderr: /does not name this delivery issue, repository, and pull request/ }, { path: staged.path, env: live() })
   check(TOOL, "a missing artifact fails closed", [...argv.slice(0, -1), join(repo.path, "missing.json")], { status: 2, stderr: /could not be read as JSON/ }, { path: staged.path, env: live() })
 }
