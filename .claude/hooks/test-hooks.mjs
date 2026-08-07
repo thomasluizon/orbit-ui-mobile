@@ -69,6 +69,12 @@ T("parity guidance: obsolete platform-adapters-only help is gone", guardsWorkflo
 T("parity gate: parity:exempt remains the only label bypass", guardsWorkflow.includes("if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'parity:exempt') && github.actor != 'dependabot[bot]'"), true)
 T("parity gate: both one-sided file-count failures remain enforced", (guardsWorkflow.match(/if \[ \"\$(?:web|mobile)\" -gt 0 \] && \[ \"\$(?:mobile|web)\" -eq 0 \]; then/g) ?? []).length, 2)
 
+const reviewSkill = readFileSync(join(repoRoot, ".claude", "skills", "pr-review", "SKILL.md"), "utf8")
+const reviewRubric = readFileSync(join(repoRoot, ".claude", "skills", "pr-review", "rubric.md"), "utf8")
+T("pr-review: contract changes permit only targeted sibling-primary consumer evidence", reviewSkill.includes("targeted read/search in the sibling repository's primary `main` checkout"), true)
+T("pr-review: every admitted round-two blocker remains OPEN in the verdict", reviewSkill.includes("no admitted round-2\n   blocker is OPEN") && reviewSkill.includes("Every newly admitted round-2 blocker is appended with `status: \"OPEN\"`"), true)
+T("pr-review: external fields require complete live shape evidence", reviewRubric.includes("### 13. External-interface evidence") && reviewRubric.includes("complete selected key/type shape") && reviewRubric.includes("High and Blocking"), true)
+
 // ---------------------------------------------------------------------------
 // 2. Rule units
 // ---------------------------------------------------------------------------
