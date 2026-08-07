@@ -19,6 +19,7 @@ import { checkGitCommand, checkGitWorktreeRemove } from "./_lib/rules-git.mjs"
 import { checkEfMigrationRawIndex } from "./_lib/rules-source.mjs"
 import { checkLinearMutation } from "./_lib/rules-linear.mjs"
 import { checkAdminMerge, checkEngineInvocation } from "./_lib/rules-orchestrator.mjs"
+import { checkWorkerBrowser } from "./_lib/rules-worker.mjs"
 
 const hooksDir = dirname(fileURLToPath(import.meta.url))
 const repoRoot = join(hooksDir, "..", "..")
@@ -148,6 +149,26 @@ T("engine: an unrelated command allows", engine("npm run lint"), null)
 T("engine: a commit message naming the engine allows", engine('git commit -m "stop running codex exec by hand"'), null)
 T("engine: a path containing .claude is not the claude binary", engine("cat .claude/skills/second-opinion/SKILL.md"), null)
 
+console.log("\n# forbid-worker-browser (_lib/rules-worker.mjs)")
+// A worker never opens a browser and never starts a server, unconditionally. Measured 2026-08-06:
+// ORB-39 and ORB-98 both finished their tickets, then spent the rest of their budgets on a dev
+// server and a login page a worktree can never authenticate against, and both needed rescuing.
+// The discrimination is the CALLER, never the command: Thomas runs /dev-server whenever he likes.
+const worker = (command, options) => checkWorkerBrowser(command, { env: { ORBIT_LAUNCH_WORKER: "1" }, repoRoots: [], ...options })
+for (const command of ["npm run dev", "next dev --port 3920", "pnpm dev", "expo start", "npx playwright test", "maestro test flow.yaml", "curl http://localhost:3920/login", "adb shell input tap 1 1"]) {
+  T(`worker-browser: ${command} blocks`, blocks(worker(command)), true)
+}
+T("worker-browser: the refusal says who owes the visual check", worker("npm run dev")?.message.includes("owed by a HUMAN"), true)
+T("worker-browser: a later chained dev server blocks", blocks(worker("npm test && npm run dev")), true)
+// The same commands from a session that is NOT a worker are none of this gate's business.
+T("worker-browser: npm run dev outside a worker allows", checkWorkerBrowser("npm run dev", { env: {}, cwd: "", repoRoots: [] }), null)
+T("worker-browser: a cwd inside a linked worktree IS a worker", blocks(checkWorkerBrowser("npm run dev", { env: {}, cwd: linkedWorktree, repoRoots: [mainCheckout] })), true)
+T("worker-browser: the main checkout is not a worker", checkWorkerBrowser("npm run dev", { env: {}, cwd: mainCheckout, repoRoots: [mainCheckout] }), null)
+// Ordinary work a worker MUST still be able to do. A gate that blocks the test run gets switched off.
+for (const command of ["npm test", "npm run build", "npm run lint", "dotnet test", "npx vitest run apps/web", "git commit -m 'stop npm run dev in CI'", "curl https://api.github.com/repos/o/r"]) {
+  T(`worker-browser: ${command} allows`, worker(command), null)
+}
+
 console.log("\n# forbid-raw-linear-mutation (_lib/rules-linear.mjs)")
 // Every Linear WRITE goes through orca. Only the project overview document,
 // which orca cannot reach, may be mutated raw. READS stay open: /orchestrate
@@ -230,6 +251,14 @@ T("adapter orchestrator: gh pr merge --squash -> 0", runHook(ORCH, bash("gh pr m
 T("adapter orchestrator: codex --version -> 0", runHook(ORCH, bash("codex --version")), 0)
 T("adapter orchestrator: grep over a codex pattern -> 0", runHook(ORCH, bash("grep -rnE 'claude|codex' tools/")), 0)
 T("adapter orchestrator: the launcher marker -> 0", runHook(ORCH, bash("codex exec"), { ORBIT_LAUNCH_WORKER: "1" }), 0)
+
+// The launcher marker means the opposite for the browser ban: it identifies the worker, which is
+// the only caller this gate refuses.
+const BROWSER = "forbid-worker-browser.mjs"
+T("adapter worker-browser: a worker starting a dev server -> 2", runHook(BROWSER, bash("npm run dev"), { ORBIT_LAUNCH_WORKER: "1" }), 2)
+T("adapter worker-browser: a worker running playwright -> 2", runHook(BROWSER, bash("npx playwright test"), { ORBIT_LAUNCH_WORKER: "1" }), 2)
+T("adapter worker-browser: a worker running the tests -> 0", runHook(BROWSER, bash("npm test"), { ORBIT_LAUNCH_WORKER: "1" }), 0)
+T("adapter worker-browser: the same dev server outside a worker -> 0", runHook(BROWSER, bash("npm run dev")), 0)
 
 // The Linear guard is wired to BOTH events: the shell call, and the script that
 // will make it. Only the second can be pre-empted before anything reaches Linear.
