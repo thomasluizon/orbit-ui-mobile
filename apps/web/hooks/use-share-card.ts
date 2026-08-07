@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useRef, useState } from 'react'
-import { toPng } from 'html-to-image'
+import { toBlob } from 'html-to-image'
 import { ACHIEVEMENT_EVENT_KEYS } from '@orbit/shared/types/gamification'
 import { useReportEvent } from '@/hooks/use-gamification'
 
@@ -37,8 +37,10 @@ export function useShareCard() {
     if (!node) {
       throw new Error('Share card is not mounted')
     }
-    const dataUrl = await toPng(node, { pixelRatio: 3, cacheBust: true })
-    const blob = await (await fetch(dataUrl)).blob()
+    const blob = await toBlob(node, { pixelRatio: 3, cacheBust: true })
+    if (!blob) {
+      throw new Error('Share card capture produced no image')
+    }
     return new File([blob], 'orbit-recap.png', { type: 'image/png' })
   }
 

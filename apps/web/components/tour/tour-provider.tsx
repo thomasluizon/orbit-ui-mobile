@@ -4,8 +4,8 @@ import { useEffect, useRef, useCallback } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   createTourUIState,
-  getPersistedUIState,
-  type PersistedUIState,
+  getTourSessionUIState,
+  type TourUIState,
 } from '@orbit/shared/stores'
 import type { TourStep } from '@orbit/shared/types'
 import { useTourStore } from '@/stores/tour-store'
@@ -50,7 +50,7 @@ export function TourProvider() {
   )
 
   const prevStepIdRef = useRef<string | null>(null)
-  const uiSnapshotRef = useRef<PersistedUIState | null>(null)
+  const uiSnapshotRef = useRef<TourUIState | null>(null)
   const mockDataInjectedRef = useRef(false)
   const observerRef = useRef<MutationObserver | null>(null)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -107,7 +107,7 @@ export function TourProvider() {
 
   useEffect(() => {
     if (isActive && !mockDataInjectedRef.current) {
-      uiSnapshotRef.current = getPersistedUIState(useUIStore.getState())
+      uiSnapshotRef.current = getTourSessionUIState(useUIStore.getState())
       useUIStore.setState(createTourUIState())
       resetSessionState()
       inject()

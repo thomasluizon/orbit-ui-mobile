@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { headers } from 'next/headers'
 import { Suspense } from 'react'
 import { Rubik, Inter, Roboto } from 'next/font/google'
 import { NextIntlClientProvider } from 'next-intl'
@@ -57,6 +58,7 @@ export default async function RootLayout({
 }>) {
   const locale = await getLocale()
   const messages = await getMessages()
+  const nonce = (await headers()).get('x-nonce') ?? undefined
   const canvasByScheme = Object.fromEntries(
     colorSchemeOptions.map(({ value }) => [
       value,
@@ -100,6 +102,7 @@ export default async function RootLayout({
     <html lang={locale} className={`dark scheme-purple ${rubik.variable} ${inter.variable} ${roboto.variable}`} suppressHydrationWarning>
       <head>
         <script
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html: themeBootstrapScript,
           }}
