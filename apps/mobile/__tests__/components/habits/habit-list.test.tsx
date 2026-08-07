@@ -18,6 +18,7 @@ const TestRenderer = require('react-test-renderer')
 const reorderMutateAsync = vi.fn()
 const logMutateAsync = vi.fn()
 const skipMutateAsync = vi.fn()
+let mockHabitsDataUpdatedAt = 1
 const toggleSelectMode = vi.fn()
 const toggleSelectionCascade = vi.fn()
 const colorProxy: Record<string, string> = new Proxy(
@@ -75,7 +76,7 @@ vi.mock('@/hooks/use-habits', () => ({
     data: mockHabitsData,
     isLoading: false,
     isFetching: false,
-    dataUpdatedAt: Date.now(),
+    dataUpdatedAt: mockHabitsDataUpdatedAt,
     refetch: vi.fn(),
     getChildren: (parentId: string) => {
       const childIds = mockHabitsData.childrenByParent.get(parentId) ?? []
@@ -202,7 +203,7 @@ function flattenRenderedText(node: unknown): string {
   if (typeof node === 'string' || typeof node === 'number') return String(node)
   if (Array.isArray(node)) return node.map(flattenRenderedText).join('')
   if (typeof node === 'object' && 'children' in node) {
-    return flattenRenderedText((node as { children: unknown }).children)
+    return flattenRenderedText(node.children)
   }
   return ''
 }
@@ -223,9 +224,10 @@ function seedHabits(habits: NormalizedHabit[]) {
 describe('HabitList', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockHabitsDataUpdatedAt = 1
     logMutateAsync.mockReset()
     skipMutateAsync.mockReset()
-    logMutateAsync.mockImplementation(async ({ habitId }: { habitId: string }) => {
+    logMutateAsync.mockImplementation(({ habitId }: { habitId: string }) => {
       const habit = mockHabitsData.habitsById.get(habitId)
       if (!habit) return
 
@@ -1274,6 +1276,7 @@ describe('HabitList', () => {
       id: 'parent',
       title: 'Parent',
       hasSubHabits: true,
+      scheduledDates: [TODAY, TOMORROW],
       instances: [{ date: TODAY, status: 'Pending', logId: null }],
     })
     const childA = createMockHabit({ id: 'child-a', title: 'A', parentId: 'parent' })
@@ -1320,6 +1323,26 @@ describe('HabitList', () => {
     expect(skipParentDialog?.props.description).toContain('"Parent"')
     expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'child-a' })
     expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'child-b' })
+
+    TestRenderer.act(() => skipParentDialog?.props.onCancel())
+    TestRenderer.act(() => {
+      tree.update(
+        <HabitList view="today" filters={{}} selectedDate={new Date(`${TOMORROW}T12:00:00Z`)}
+          showCompleted onCreatePress={vi.fn()} />,
+      )
+    })
+    await skipChild('child-b')
+    expect(
+      tree.root
+        .findAllByType('ConfirmDialog')
+        .find((node: any) => node.props.title === 'habits.autoSkipParentTitle'),
+    ).toBeUndefined()
+    await skipChild('child-a')
+    expect(
+      tree.root
+        .findAllByType('ConfirmDialog')
+        .find((node: any) => node.props.title === 'habits.autoSkipParentTitle'),
+    ).toBeTruthy()
   })
 
   it('clears the recently-completed timer on unmount so it never fires after teardown', () => {
@@ -1630,6 +1653,32 @@ describe('HabitList', () => {
       .filter((node: any) => node.props.title === 'habits.autoLogParentTitle')
 
     expect(reopenedDialogs).toHaveLength(0)
+  })
+
+  it('preserves dismissed prompts through refetches until progress becomes incomplete', () => {
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true, instances: [{ date: TODAY, status: 'Pending', logId: null }] })
+    const child = createMockHabit({ id: 'child', title: 'Child', parentId: 'parent', isCompleted: true })
+    seedHabits([parent, child])
+    const ref = React.createRef<HabitListHandle>()
+    const renderList = () => <HabitList ref={ref} view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />
+    let tree: any
+    TestRenderer.act(() => { tree = TestRenderer.create(renderList()) })
+    const refetch = (isCompleted = true) => TestRenderer.act(() => {
+      seedHabits([parent, { ...child, isCompleted }])
+      mockHabitsDataUpdatedAt += 1
+      tree.update(renderList())
+    })
+    const findDialog = () => tree.root.findAllByType('ConfirmDialog').find((node: any) => node.props.title === 'habits.autoLogParentTitle')
+    TestRenderer.act(() => ref.current?.checkAndPromptParentLog('child'))
+    TestRenderer.act(() => findDialog()?.props.onCancel())
+    refetch()
+    TestRenderer.act(() => ref.current?.checkAndPromptParentLog('child'))
+    expect(findDialog()).toBeUndefined()
+    refetch(false)
+    refetch()
+    TestRenderer.act(() => ref.current?.checkAndPromptParentLog('child'))
+    expect(findDialog()).toBeTruthy()
+
   })
 
   describe('today view scroll offset wiring', () => {
