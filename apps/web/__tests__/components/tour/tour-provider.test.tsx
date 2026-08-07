@@ -3,6 +3,7 @@ import { act, render } from '@testing-library/react'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { Profile } from '@orbit/shared/types'
 import { useTourStore } from '@/stores/tour-store'
+import { useUIStore } from '@/stores/ui-store'
 
 const mockRouterPush = vi.fn()
 let mockPathname = '/'
@@ -110,6 +111,7 @@ describe('TourProvider session lifecycle', () => {
     mockRestore.mockClear()
     mockPathname = '/'
     mockProfile = createMockProfile({ hasProAccess: true })
+    useUIStore.setState({ searchQuery: '' })
     stubMatchMedia(false)
   })
 
@@ -125,6 +127,21 @@ describe('TourProvider session lifecycle', () => {
       useTourStore.getState().endTour()
     })
     expect(mockRestore).toHaveBeenCalledTimes(1)
+  })
+
+  it('restores an active search after the tour ends', () => {
+    useUIStore.setState({ searchQuery: 'focus' })
+    render(<TourProvider />)
+
+    act(() => {
+      useTourStore.getState().startSectionReplay('habits')
+    })
+    expect(useUIStore.getState().searchQuery).toBe('')
+
+    act(() => {
+      useTourStore.getState().endTour()
+    })
+    expect(useUIStore.getState().searchQuery).toBe('focus')
   })
 
   it('remeasures the spotlight target on scroll while the tour is active', async () => {

@@ -58,22 +58,28 @@ function isActiveView(value: unknown): value is ActiveView {
 export interface PersistedUIState {
   activeFilters: HabitsFilter;
   activeView: ActiveView;
-  searchQuery: string;
   selectedFrequency: HabitFrequencyFilter | null;
   selectedTagIds: string[];
   showCompleted: boolean;
   setupChecklistDismissed: boolean;
 }
 
+export interface TourUIState extends PersistedUIState {
+  searchQuery: string;
+}
+
 export function migratePersistedUIState(
   persistedState: unknown,
 ): PersistedUIState {
   const state = isRecord(persistedState) ? persistedState : {};
+  const activeFilters = isRecord(state.activeFilters)
+    ? { ...state.activeFilters }
+    : {};
+  delete activeFilters.search;
 
   return {
-    activeFilters: isRecord(state.activeFilters) ? state.activeFilters : {},
+    activeFilters,
     activeView: isActiveView(state.activeView) ? state.activeView : "today",
-    searchQuery: typeof state.searchQuery === "string" ? state.searchQuery : "",
     selectedFrequency: isHabitFrequencyFilter(state.selectedFrequency)
       ? state.selectedFrequency
       : null,
@@ -155,10 +161,12 @@ export interface UIStoreState {
 }
 
 export function getPersistedUIState(state: UIStoreState): PersistedUIState {
+  const activeFilters = { ...state.activeFilters };
+  delete activeFilters.search;
+
   return {
-    activeFilters: { ...state.activeFilters },
+    activeFilters,
     activeView: state.activeView,
-    searchQuery: state.searchQuery,
     selectedFrequency: state.selectedFrequency,
     selectedTagIds: [...state.selectedTagIds],
     showCompleted: state.showCompleted,
@@ -166,7 +174,14 @@ export function getPersistedUIState(state: UIStoreState): PersistedUIState {
   };
 }
 
-export function createTourUIState(): PersistedUIState {
+export function getTourSessionUIState(state: UIStoreState): TourUIState {
+  return {
+    ...getPersistedUIState(state),
+    searchQuery: state.searchQuery,
+  };
+}
+
+export function createTourUIState(): TourUIState {
   return {
     activeFilters: {},
     activeView: "today",
