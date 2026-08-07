@@ -78,6 +78,7 @@ const CASE_MODULES = [
   ["launch-worker.mjs", "launch-worker"],
   ["lib/caps-override.mjs", "caps-override"],
   ["lib/orchestrator-config.mjs", "orchestrator-config"],
+  ["lib/run-state.mjs", "run-state"],
   ["lib/ticket-executability.mjs", "ticket-executability"],
   ["list-bot-threads.mjs", "list-bot-threads"],
   ["orca-web-port.mjs", "orca-web-port"],
