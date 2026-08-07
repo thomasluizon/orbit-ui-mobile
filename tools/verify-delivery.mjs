@@ -28,7 +28,8 @@
  *    source change that requires them.
  */
 
-import { statSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { dirname, resolve } from "node:path"
 
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
@@ -227,17 +228,6 @@ checks.prCount = {
 }
 if (!checks.prCount.pass) emit("NO_PR")
 
-let bodyMutated = false
-if (codexOnly) {
-  const degradedBody = withDegradedReviewFirst(pullRequest.body)
-  if (degradedBody !== pullRequest.body) {
-    const edited = await run(GH, ["pr", "edit", String(pullRequest.number), "--body-file", "-"], githubCwd, degradedBody)
-    if (!edited.ok) fail(2, `could not enforce degraded PR body marker on #${pullRequest.number}: ${edited.error}`)
-    pullRequest.body = degradedBody
-    bodyMutated = true
-  }
-}
-
 /**
  * `--head` filters on the BRANCH and nothing else, so a pull request that never names the ticket
  * still lands here and would read as delivered. The composed work order requires a pull request
@@ -338,6 +328,64 @@ const readRequiredContexts = async (state) => {
 }
 let requiredContexts = await readRequiredContexts(pullRequestState)
 
+const markerLocation = await git(["rev-parse", "--git-path", "orbit-body-edit-invalidations"])
+if (!markerLocation.ok || !markerLocation.stdout.trim()) fail(2, `git rev-parse --git-path orbit-body-edit-invalidations failed in ${worktree}: ${markerLocation.error ?? "empty output"}`)
+const bodyEditMarkerPath = resolve(worktree, markerLocation.stdout.trim(), `${repoKey}-${pullRequest.number}.json`)
+const newestGuardsRuns = (rollup) => {
+  const newest = new Map()
+  for (const node of rollup) {
+    if (node.workflowName !== "Guards" || typeof node.name !== "string" || typeof node.startedAt !== "string") continue
+    const previous = newest.get(node.name)
+    if (!previous || Date.parse(node.startedAt) >= Date.parse(previous.startedAt)) newest.set(node.name, node)
+  }
+  return newest
+}
+const readBodyEditMarker = () => {
+  if (!existsSync(bodyEditMarkerPath)) return null
+  let marker
+  try {
+    marker = JSON.parse(readFileSync(bodyEditMarkerPath, "utf8"))
+  } catch (error) {
+    fail(2, `could not parse persisted PR-body CI invalidation ${bodyEditMarkerPath}: ${error.message}`)
+  }
+  if (
+    marker?.repositoryKey !== repoKey ||
+    marker?.prNumber !== pullRequest.number ||
+    typeof marker?.headSha !== "string" ||
+    typeof marker?.baseSha !== "string" ||
+    typeof marker?.editedAt !== "string" ||
+    !Array.isArray(marker?.guardsRuns) ||
+    marker.guardsRuns.some((entry) => typeof entry?.name !== "string" || typeof entry?.startedAt !== "string")
+  ) {
+    fail(2, `persisted PR-body CI invalidation has an invalid shape: ${bodyEditMarkerPath}`)
+  }
+  return marker
+}
+
+let bodyMutated = false
+if (codexOnly) {
+  const degradedBody = withDegradedReviewFirst(pullRequest.body)
+  if (degradedBody !== pullRequest.body) {
+    const marker = {
+      repositoryKey: repoKey,
+      prNumber: pullRequest.number,
+      headSha: pullRequestState.headRefOid,
+      baseSha: pullRequestState.baseRefOid,
+      editedAt: new Date().toISOString(),
+      guardsRuns: [...newestGuardsRuns(pullRequestState.statusCheckRollup)].map(([name, node]) => ({ name, startedAt: node.startedAt })),
+    }
+    mkdirSync(dirname(bodyEditMarkerPath), { recursive: true })
+    writeFileSync(bodyEditMarkerPath, `${JSON.stringify(marker, null, 2)}\n`)
+    const edited = await run(GH, ["pr", "edit", String(pullRequest.number), "--body-file", "-"], githubCwd, degradedBody)
+    if (!edited.ok) {
+      rmSync(bodyEditMarkerPath, { force: true })
+      fail(2, `could not enforce degraded PR body marker on #${pullRequest.number}: ${edited.error}`)
+    }
+    pullRequest.body = degradedBody
+    bodyMutated = true
+  }
+}
+
 /**
  * A pull request that cannot merge was never delivered, and until this check existed nothing here
  * looked: the header above promises that every check reads a GitHub artifact, and CI status was the
@@ -404,13 +452,42 @@ const readRollup = () => {
   return { total: newestByName.size, failing, pending }
 }
 
+const applyBodyEditInvalidation = (rollup) => {
+  const marker = readBodyEditMarker()
+  if (!marker) return rollup
+  if (marker.headSha !== pullRequestState.headRefOid || marker.baseSha !== pullRequestState.baseRefOid) {
+    rmSync(bodyEditMarkerPath, { force: true })
+    return rollup
+  }
+
+  const currentGuardsRuns = newestGuardsRuns(pullRequestState.statusCheckRollup)
+  const pending = marker.guardsRuns
+    .filter((baseline) => {
+      const current = currentGuardsRuns.get(baseline.name)
+      return !current || Date.parse(current.startedAt) <= Date.parse(baseline.startedAt)
+    })
+    .map((baseline) => checkMetadata(`post-edit ${baseline.name}`, { status: "NOT_REGISTERED", conclusion: null }))
+
+  if (marker.guardsRuns.length === 0) {
+    const editTime = Date.parse(marker.editedAt)
+    const replacementRegistered = [...currentGuardsRuns.values()].some((node) => Date.parse(node.startedAt) >= Math.floor(editTime / 1000) * 1000)
+    if (!replacementRegistered) pending.push(checkMetadata("post-edit Guards workflow", { status: "NOT_REGISTERED", conclusion: null }))
+  }
+
+  if (pending.length === 0) {
+    rmSync(bodyEditMarkerPath, { force: true })
+    return rollup
+  }
+  return { ...rollup, pending: [...rollup.pending, ...pending] }
+}
+
 // The same synchronous wait list-bot-threads.mjs uses, so the two tools poll the same way.
 const sleep = (seconds) => {
   const buffer = new Int32Array(new SharedArrayBuffer(4))
   Atomics.wait(buffer, 0, 0, seconds * 1000)
 }
 
-let rollup = readRollup()
+let rollup = applyBodyEditInvalidation(readRollup())
 if (bodyMutated) {
   const bodyEditPending = checkMetadata("PR body edited; rerun delivery after edited-event checks register", { status: "NOT_REGISTERED", conclusion: null })
   checks.ci = {
@@ -430,7 +507,7 @@ while (rollup.failing.length === 0 && rollup.pending.length > 0 && Date.now() < 
   pullRequestState = await readPullRequestState()
   await validatePullRequestState(pullRequestState)
   requiredContexts = await readRequiredContexts(pullRequestState)
-  rollup = readRollup()
+  rollup = applyBodyEditInvalidation(readRollup())
 }
 
 checks.ci = {

@@ -49,7 +49,7 @@ const hasBroadCommitShortFlag = (argument) => {
     if (["a", "i", "p"].includes(flag)) return true
     // The remainder is the attached value, not more option letters. In particular, -mapi is a
     // message containing a/i/p and stages nothing.
-    if (["m", "F", "C", "c"].includes(flag)) return false
+    if (["m", "F", "C", "c", "S"].includes(flag)) return false
   }
   return false
 }

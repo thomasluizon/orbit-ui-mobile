@@ -202,6 +202,7 @@ T("staging: an explicitly named commit path is allowed", workerStaging("git comm
 T("staging: a literal bracketed commit path is allowed", workerStaging("git commit ':(literal)apps/web/app/api/[...path]/route.ts' -m 'named only'"), null)
 T("staging: an attached -m value containing broad flag letters is allowed", workerStaging("git commit -mapi"), null)
 T("staging: an attached -F value containing broad flag letters is allowed", workerStaging("git commit -Fpath-to-message"), null)
+T("staging: an attached -S key ID containing broad flag letters is allowed", workerStaging("git commit -Sapi"), null)
 T("staging: broad add outside a worker is untouched", checkBroadStaging("git add -A", { cwd: mainCheckout, repoRoots: [mainCheckout] }), null)
 // REGRESSION (fixed 2026-08-04). The previous revision split the command on a
 // bare /[&|;\n]/, so the `|` inside the quoted search pattern produced a phantom

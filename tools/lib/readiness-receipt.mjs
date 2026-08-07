@@ -29,6 +29,30 @@ export const writeReadinessReceipt = (repoRoot, receipt) => {
 const currentEvidence = (evidence, receipt) =>
   evidence?.headSha === receipt.currentHeadSha && evidence?.baseSha === receipt.currentBaseSha
 
+const PASSING_CONCLUSIONS = new Set(["SUCCESS", "NEUTRAL", "SKIPPED"])
+
+/** Same newest-rerun-wins CI reading as delivery, for stop-time live revalidation. */
+export const readinessCiIsGreen = (rollup, requiredContexts) => {
+  if (!Array.isArray(rollup) || !Array.isArray(requiredContexts) || requiredContexts.some((name) => typeof name !== "string" || name === "")) return false
+  const newest = new Map()
+  for (const node of rollup) {
+    const name = node?.name ?? node?.context
+    if (typeof name !== "string") return false
+    const startedAt = node.startedAt ?? node.createdAt ?? ""
+    const previous = newest.get(name)
+    if (!previous || String(startedAt) >= String(previous.startedAt ?? previous.createdAt ?? "")) newest.set(name, node)
+  }
+  if (requiredContexts.some((name) => !newest.has(name))) return false
+  for (const node of newest.values()) {
+    if (node.__typename === "StatusContext" || typeof node.state === "string") {
+      if (node.state !== "SUCCESS") return false
+    } else if (node.status !== "COMPLETED" || !PASSING_CONCLUSIONS.has(node.conclusion)) {
+      return false
+    }
+  }
+  return true
+}
+
 /** All verdicts are reported together, because fixing REVIEW_STALE only to discover CI_STALE on
  * the next run turns a mechanical state machine back into a serial guessing loop. */
 export const readinessVerdicts = (receipt) => {
@@ -91,7 +115,11 @@ export const readinessReceiptMatchesLive = (receipt, entry, live) =>
   live?.draft === receipt?.draft &&
   live?.linearIssue === receipt?.issue &&
   live?.linearStatus === receipt?.linear?.status &&
-  live?.linearVisibleEffect === receipt?.linear?.visibleEffect
+  live?.linearVisibleEffect === receipt?.linear?.visibleEffect &&
+  live?.ciGreen === true &&
+  live?.connectorPassed === true &&
+  live?.threadsComplete === true &&
+  live?.unresolvedThreads === 0
 
 export const readinessReport = (receipt) => {
   const verdicts = readinessVerdicts(receipt)

@@ -262,7 +262,7 @@ export const cases = () => {
       { match: "auth token --user thomasluizon", stdout: "test-github-token" },
       { match: `pr list --head ${BRANCH}`, stdout: JSON.stringify([codexBody]) },
       { match: "pr edit 200 --body-file -", stdout: "", removePath: marker },
-      { match: "pr view", stdout: JSON.stringify({ baseRefName: "main", baseRefOid: "base-sha", headRefOid: pushed.head, isDraft: false, statusCheckRollup: [{ __typename: "CheckRun", name: "Lint", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-06T10:00:00Z" }] }) },
+      { match: "pr view", stdout: JSON.stringify({ baseRefName: "main", baseRefOid: "base-sha", headRefOid: pushed.head, isDraft: false, statusCheckRollup: [{ __typename: "CheckRun", name: "Lint", workflowName: "Guards", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-06T10:00:00Z" }] }) },
       { match: "branches/main/protection/required_status_checks", stdout: JSON.stringify({ contexts: ["Lint"] }) },
       { match: "api repos/", stdout: JSON.stringify({ behind_by: 0 }) },
     ]) },
@@ -271,10 +271,17 @@ export const cases = () => {
   const markedBody = { ...codexBody, body: `DEGRADED: same-vendor review\n\nImplements ${ISSUE}.\n` }
   check(
     TOOL,
-    "the next codex-only delivery invocation can settle the post-edit checks",
+    "the next codex-only invocation cannot reuse pre-edit checks before replacements register",
+    ["--issue", ISSUE, "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui", "--codex-only"],
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"post-edit Lint"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([markedBody]), 0, rollup([{ __typename: "CheckRun", name: "Lint", workflowName: "Guards", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-06T10:00:00Z" }]), { behind_by: 0 }) },
+  )
+  check(
+    TOOL,
+    "a later codex-only invocation settles after the replacement Guards checks register",
     ["--issue", ISSUE, "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui", "--codex-only"],
     { status: 0, stdout: /"verdict": "DELIVERED"/ },
-    { path: testedToolPath, env: ghPlan(JSON.stringify([markedBody]), 0, rollup(), { behind_by: 0 }) },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([markedBody]), 0, rollup([{ __typename: "CheckRun", name: "Lint", workflowName: "Guards", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-08T10:00:00Z" }]), { behind_by: 0 }) },
   )
 
   /**

@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs"
 
 import { T, stageRepo } from "./_harness.mjs"
-import { readReadinessReceipt, readinessReceiptMatchesLive, readinessReceiptPath, readinessReport, writeReadinessReceipt } from "../lib/readiness-receipt.mjs"
+import { readReadinessReceipt, readinessCiIsGreen, readinessReceiptMatchesLive, readinessReceiptPath, readinessReport, writeReadinessReceipt } from "../lib/readiness-receipt.mjs"
 
 const TOOL = "lib/readiness-receipt.mjs"
 const HEAD_A = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -66,9 +66,18 @@ export const cases = () => {
   T(`${TOOL}: a visible ticket moved to In Review before acceptance is LINEAR_STALE`, readinessReport(visualWrongStatus).verdicts.includes("LINEAR_STALE"))
 
   const entry = { repositoryKey: "ui", prNumber: 701, receiptPath: path }
-  const live = { repositoryKey: "ui", prNumber: 701, baseSha: BASE_A, headSha: HEAD_A, draft: false, linearIssue: "ORB-701", linearStatus: "In Review", linearVisibleEffect: false }
+  const live = { repositoryKey: "ui", prNumber: 701, baseSha: BASE_A, headSha: HEAD_A, draft: false, linearIssue: "ORB-701", linearStatus: "In Review", linearVisibleEffect: false, ciGreen: true, connectorPassed: true, threadsComplete: true, unresolvedThreads: 0 }
   T(`${TOOL}: a READY receipt matches the exact live PR and Linear identity`, readinessReceiptMatchesLive(receipt, entry, live) === true)
   T(`${TOOL}: a later live push invalidates an offline READY receipt`, readinessReceiptMatchesLive(receipt, entry, { ...live, headSha: HEAD_B }) === false)
   T(`${TOOL}: a receipt for another numbered PR cannot satisfy a ledger entry`, readinessReceiptMatchesLive(receipt, { ...entry, prNumber: 700 }, live) === false)
   T(`${TOOL}: live Linear drift invalidates an offline READY receipt`, readinessReceiptMatchesLive(receipt, entry, { ...live, linearStatus: "In Progress" }) === false)
+  T(`${TOOL}: a same-SHA failed CI rerun invalidates an offline READY receipt`, readinessReceiptMatchesLive(receipt, entry, { ...live, ciGreen: false }) === false)
+  T(`${TOOL}: a dismissed connector review invalidates an offline READY receipt`, readinessReceiptMatchesLive(receipt, entry, { ...live, connectorPassed: false }) === false)
+  T(`${TOOL}: a reopened thread invalidates an offline READY receipt`, readinessReceiptMatchesLive(receipt, entry, { ...live, unresolvedThreads: 1 }) === false)
+
+  const greenRun = { __typename: "CheckRun", name: "Unit Tests", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-07T10:00:00Z" }
+  T(`${TOOL}: stop-time CI accepts a complete current green rollup`, readinessCiIsGreen([greenRun], ["Unit Tests"]) === true)
+  T(`${TOOL}: stop-time CI rejects a missing required context`, readinessCiIsGreen([], ["Unit Tests"]) === false)
+  const failedRerun = { ...greenRun, conclusion: "FAILURE", startedAt: "2026-08-07T11:00:00Z" }
+  T(`${TOOL}: newest failed rerun invalidates same-SHA cached green CI`, readinessCiIsGreen([greenRun, failedRerun], ["Unit Tests"]) === false)
 }

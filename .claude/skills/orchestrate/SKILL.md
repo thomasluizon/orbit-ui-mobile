@@ -786,8 +786,10 @@ For each existing PR, repeat within the configured `caps.connectorFixAttempts` f
 In `--codex-only`, every PR body the harness creates or touches is mechanically rewritten so its
 exact first line is `DEGRADED: same-vendor review`. The launcher enforces it after implementation;
 every delivery verification reasserts it after later body edits; and final receipt aggregation
-reasserts it once more. Pass `--codex-only` to both tools. A body touch cannot clear readiness while
-silently dropping the banner.
+reasserts it once more. Pass `--codex-only` to both tools. Delivery persists a body-edit CI
+invalidation in Git metadata until newer `Guards` check instances register, so another process
+cannot reuse the pre-edit green rollup. A body touch cannot clear readiness while silently dropping
+the banner.
 
 ## Step 14. Hand over
 
@@ -932,8 +934,9 @@ from:
 run opened. `writeRunState` mechanically unions those identities into the append-only
 `readinessLedger`; later writes cannot erase them by setting `pullRequests: []`. A bare number is
 invalid because UI and API can have the same PR number. The stop hook opens every ledger receipt,
-matches its repository and PR identity, then boundedly rereads the live GitHub head/base/draft and
-Linear status/visible-effect state. It allows completion only when the cached report is READY and
+matches its repository and PR identity, then boundedly rereads the live GitHub head/base/draft,
+newest CI reruns and required-context inventory, current connector verdict and fully paginated
+thread count, plus Linear status/visible-effect state. It allows completion only when the cached report is READY and
 all live values still match that exact receipt. This is the
 mechanical half of salvage: a pull request opened by hand and never re-verified cannot be reported
 as a finished queue even if a fallible session clears the active list.

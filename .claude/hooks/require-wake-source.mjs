@@ -9,14 +9,17 @@
 // where the files live is how one of them silently stops finding the other.
 
 import { readFileSync } from "node:fs"
+import { fileURLToPath } from "node:url"
 
 import { githubEnvironment, repositorySlug } from "../../tools/lib/github-auth.mjs"
 import { runBounded } from "../../tools/lib/bounded-process.mjs"
 import { readOrchestratorConfig } from "../../tools/lib/orchestrator-config.mjs"
-import { readinessReceiptMatchesLive, readinessReport } from "../../tools/lib/readiness-receipt.mjs"
+import { readinessCiIsGreen, readinessReceiptMatchesLive, readinessReport } from "../../tools/lib/readiness-receipt.mjs"
 import { readRunState, readWakeSources } from "../../tools/lib/run-state.mjs"
 import { readStdinJson } from "./_lib/io.mjs"
 import { checkSleepStop } from "./_lib/rules-sleep.mjs"
+
+const LIST_BOT_THREADS = fileURLToPath(new URL("../../tools/list-bot-threads.mjs", import.meta.url))
 
 /** Signal 0 tests for existence without delivering anything. EPERM means it exists and is not ours. */
 const isAlive = (pid) => {
@@ -38,12 +41,28 @@ const liveReceiptVerdict = async (entry, config) => {
     const githubAuth = await githubEnvironment(repoRoot, { timeoutMs: 45000 })
     const viewed = await runBounded(
       process.env.GH_BIN || "gh",
-      ["pr", "view", String(entry.prNumber), "--repo", repository, "--json", "number,baseRefOid,headRefOid,isDraft"],
+      ["pr", "view", String(entry.prNumber), "--repo", repository, "--json", "number,baseRefName,baseRefOid,headRefOid,isDraft,statusCheckRollup"],
       { cwd: repoRoot, env: githubAuth.environment, timeoutMs: 45000 },
     )
     if (viewed.timedOut || viewed.error || viewed.status !== 0) return null
     const pr = JSON.parse(viewed.stdout)
-    if (pr?.number !== entry.prNumber || typeof pr?.baseRefOid !== "string" || typeof pr?.headRefOid !== "string" || typeof pr?.isDraft !== "boolean") return null
+    if (pr?.number !== entry.prNumber || typeof pr?.baseRefName !== "string" || typeof pr?.baseRefOid !== "string" || typeof pr?.headRefOid !== "string" || typeof pr?.isDraft !== "boolean" || !Array.isArray(pr?.statusCheckRollup)) return null
+
+    const requiredRead = await runBounded(
+      process.env.GH_BIN || "gh",
+      ["api", `repos/${repository}/branches/${encodeURIComponent(pr.baseRefName)}/protection/required_status_checks`],
+      { cwd: repoRoot, env: githubAuth.environment, timeoutMs: 45000 },
+    )
+    if (requiredRead.timedOut || requiredRead.error || requiredRead.status !== 0) return null
+    const requiredContexts = JSON.parse(requiredRead.stdout)?.contexts
+
+    const botRead = await runBounded(
+      process.execPath,
+      [LIST_BOT_THREADS, "--pr", String(entry.prNumber), "--repo", entry.repositoryKey, "--wait-seconds", "0", "--poll-seconds", "1", "--command-timeout-seconds", "45", "--no-request"],
+      { cwd: repoRoot, env: githubAuth.environment, timeoutMs: 60000 },
+    )
+    if (botRead.timedOut || botRead.error || botRead.status !== 0) return null
+    const bot = JSON.parse(botRead.stdout)
 
     const ORCA = process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs\\orca\\resources\\bin\\orca"
     const linearRead = await runBounded(ORCA, ["linear", "issue", receipt.issue, "--full", "--json"], { timeoutMs: 45000, maxBuffer: 16 * 1024 * 1024 })
@@ -60,6 +79,10 @@ const liveReceiptVerdict = async (entry, config) => {
       linearIssue: receipt.issue,
       linearStatus: linear.state.name,
       linearVisibleEffect: linear.labels.some((label) => label.name === "visible-effect"),
+      ciGreen: readinessCiIsGreen(pr.statusCheckRollup, requiredContexts),
+      connectorPassed: bot?.verdict === "REVIEWED" && bot?.reviewedCommit === pr.headRefOid && bot?.baseRefOid === pr.baseRefOid,
+      threadsComplete: bot?.threadsComplete === true,
+      unresolvedThreads: bot?.counts?.unresolved,
     }
     return readinessReceiptMatchesLive(receipt, entry, live) ? "READY" : null
   } catch {
