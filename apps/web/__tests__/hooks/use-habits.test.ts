@@ -616,17 +616,40 @@ describe('useLogHabit onSuccess', () => {
     mockSetStreakCelebration.mockClear()
   })
 
-  it.each([
-    {
-      name: 'does not celebrate a bad sub-habit completion',
-      habits: [makeScheduleItem({
-        id: 'parent-1',
-        children: [makeScheduleChild({ id: 'bad-child', isBadHabit: true })],
-      })],
-      habitId: 'bad-child',
+  it('does not celebrate or award XP for a bad sub-habit completion', async () => {
+    const { logHabit } = await import('@/app/actions/habits')
+    vi.mocked(logHabit).mockResolvedValue({
+      logId: 'log-streak',
       isFirstCompletionToday: true,
-      celebrates: false,
-    },
+      currentStreak: 3,
+      xpEarned: 25,
+    })
+
+    const queryClient = createQueryClient()
+    queryClient.setQueryData<HabitScheduleItem[]>(habitKeys.list({}), [makeScheduleItem({
+      id: 'parent-1',
+      children: [makeScheduleChild({ id: 'bad-child', isBadHabit: true })],
+    })])
+    queryClient.setQueryData(profileKeys.detail(), { currentStreak: 1 })
+    queryClient.setQueryData(gamificationKeys.profile(), { totalXp: 100 })
+    const { result } = renderHook(() => useLogHabit(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await act(async () => {
+      await result.current.mutateAsync({ habitId: 'bad-child' })
+    })
+
+    expect(mockSetStreakCelebration).not.toHaveBeenCalled()
+    expect(
+      queryClient.getQueryData<{ currentStreak: number }>(profileKeys.detail())?.currentStreak,
+    ).toBe(1)
+    expect(
+      queryClient.getQueryData<{ totalXp: number }>(gamificationKeys.profile())?.totalXp,
+    ).toBe(100)
+  })
+
+  it.each([
     {
       name: 'does not celebrate a bad top-level habit completion',
       habits: [makeScheduleItem({ id: 'bad-habit', isBadHabit: true })],
