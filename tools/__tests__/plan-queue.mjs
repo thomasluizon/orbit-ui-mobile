@@ -8,10 +8,11 @@ const TOOL = "plan-queue.mjs"
  * throws rather than passing. state.type carries Linear's own type, never a display name, because
  * that is what the tool branches on.
  */
-const issueBody = (identifier, { title = `${identifier} work`, stateName = "Todo", stateType = "unstarted", labels = ["repo:ui"] } = {}) => ({
+const issueBody = (identifier, { title = `${identifier} work`, stateName = "Todo", stateType = "unstarted", labels = ["repo:ui"], description = "## Scope\n\n- Do the work" } = {}) => ({
   id: `id-${identifier}`,
   identifier,
   title,
+  description,
   url: `https://linear.app/useorbitai/issue/${identifier.toLowerCase()}`,
   state: { id: `state-${stateType}`, name: stateName, type: stateType, color: "#000000" },
   labels: labels.map((name) => ({ id: `label-${name}`, name, color: "#111111" })),
@@ -306,6 +307,51 @@ export const cases = () => {
    * only ticket had no blockers, so the arm it was written for was never rendered and breaking it
    * left the suite green. A suffix is only proven when it is bound to the ticket that earns it.
    */
+  /**
+   * The executability pass. Measured on the Onda 1 queue, 2026-08-06: 71 admitted, 0 deferred, and
+   * ELEVEN of them not executable by a headless agent at all, each burning a worker slot or a
+   * scope-gate cycle one at a time during the night. Naming them in the plan costs nothing and puts
+   * every one of them in front of Thomas before he goes to bed.
+   */
+  const unexecutable = run(TOOL, ["--tickets", "ORB-1,ORB-2,ORB-3,ORB-4"], {
+    env: orcaEnv([
+      { match: "linear issue ORB-1 --relations", stdout: relationsEnvelope("ORB-1", { description: "## Problem\n\nNOT REPRODUCED; needs a device." }) },
+      { match: "linear issue ORB-2 --relations", stdout: relationsEnvelope("ORB-2", { description: "## Scope\n\nHUMAN-ONLY: flip the branch protection toggle." }) },
+      { match: "linear issue ORB-3 --relations", stdout: relationsEnvelope("ORB-3", { description: "## Scope\n\nShip one PR per group of surfaces." }) },
+      { match: "linear issue ORB-4 --relations", stdout: relationsEnvelope("ORB-4", { description: "## Technical details\n\nA codemod rewrites every icon import." }) },
+    ]),
+  })
+  const unexecutablePlan = planOf(unexecutable)
+  T(
+    `${TOOL}: a ticket no headless agent can execute is deferred by name, not admitted and failed at 03:00`,
+    unexecutable.status === 0 &&
+      unexecutablePlan?.counts.admitted === 0 &&
+      unexecutablePlan.deferred.map((entry) => entry.reason).join(",") === "NOT_REPRODUCED,NOT_CODE_WORK,MULTI_PR,OVER_CAPS",
+    unexecutable.stdout || unexecutable.stderr,
+  )
+
+  /** The override is the answer to OVER_CAPS, so the same codemod ticket runs once Thomas signs it. */
+  const exempted = run(TOOL, ["--tickets", "ORB-4"], {
+    env: orcaEnv([{ match: "linear issue ORB-4 --relations", stdout: relationsEnvelope("ORB-4", { description: "CAPS-OVERRIDE: files=400 reason=one mechanical icon codemod\n\n## Technical details\n\nA codemod rewrites every icon import." }) }]),
+  })
+  const exemptedPlan = planOf(exempted)
+  T(
+    `${TOOL}: a human-authored caps override admits the codemod and reports which cap moved`,
+    exemptedPlan?.counts.admitted === 1 && exemptedPlan.admitted[0].capsOverride?.files === 400 && exemptedPlan.admitted[0].capsOverride.lines === null,
+    exempted.stdout || exempted.stderr,
+  )
+
+  /** A marginal affected-modules count is a WARNING: that list over-counts, and ORB-86 proved it. */
+  const marginal = run(TOOL, ["--tickets", "ORB-5"], {
+    env: orcaEnv([{ match: "linear issue ORB-5 --relations", stdout: relationsEnvelope("ORB-5", { description: `## Affected modules / files\n\n${Array.from({ length: 12 }, (unused, index) => `- apps/web/file-${index}.ts`).join("\n")}` }) }]),
+  })
+  const marginalPlan = planOf(marginal)
+  T(
+    `${TOOL}: a marginal affected-modules count warns on an admitted ticket rather than deferring it`,
+    marginalPlan?.counts.admitted === 1 && /12 entries against a cap of 8/.test(marginalPlan.admitted[0].warnings[0] ?? ""),
+    marginal.stdout || marginal.stderr,
+  )
+
   const markdown = run(TOOL, ["--tickets", "ORB-1,ORB-2,ORB-3", "--format", "markdown"], {
     env: orcaEnv([
       { match: "linear issue ORB-1 --relations", stdout: relationsEnvelope("ORB-1") },
