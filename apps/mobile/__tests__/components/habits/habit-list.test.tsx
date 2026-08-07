@@ -18,6 +18,7 @@ const TestRenderer = require('react-test-renderer')
 const reorderMutateAsync = vi.fn()
 const logMutateAsync = vi.fn()
 const skipMutateAsync = vi.fn()
+let mockHabitsDataUpdatedAt = 1
 const toggleSelectMode = vi.fn()
 const toggleSelectionCascade = vi.fn()
 const colorProxy: Record<string, string> = new Proxy(
@@ -75,7 +76,7 @@ vi.mock('@/hooks/use-habits', () => ({
     data: mockHabitsData,
     isLoading: false,
     isFetching: false,
-    dataUpdatedAt: Date.now(),
+    dataUpdatedAt: mockHabitsDataUpdatedAt,
     refetch: vi.fn(),
     getChildren: (parentId: string) => {
       const childIds = mockHabitsData.childrenByParent.get(parentId) ?? []
@@ -202,7 +203,7 @@ function flattenRenderedText(node: unknown): string {
   if (typeof node === 'string' || typeof node === 'number') return String(node)
   if (Array.isArray(node)) return node.map(flattenRenderedText).join('')
   if (typeof node === 'object' && 'children' in node) {
-    return flattenRenderedText((node as { children: unknown }).children)
+    return flattenRenderedText(node.children)
   }
   return ''
 }
@@ -223,9 +224,10 @@ function seedHabits(habits: NormalizedHabit[]) {
 describe('HabitList', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockHabitsDataUpdatedAt = 1
     logMutateAsync.mockReset()
     skipMutateAsync.mockReset()
-    logMutateAsync.mockImplementation(async ({ habitId }: { habitId: string }) => {
+    logMutateAsync.mockImplementation(({ habitId }: { habitId: string }) => {
       const habit = mockHabitsData.habitsById.get(habitId)
       if (!habit) return
 
@@ -1630,6 +1632,64 @@ describe('HabitList', () => {
       .filter((node: any) => node.props.title === 'habits.autoLogParentTitle')
 
     expect(reopenedDialogs).toHaveLength(0)
+  })
+
+  it('prompts again after dismissal when the selected date changes', () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      hasSubHabits: true,
+      scheduledDates: [TODAY, TOMORROW],
+      instances: [
+        { date: TODAY, status: 'Pending', logId: null },
+        { date: TOMORROW, status: 'Pending', logId: null },
+      ],
+    })
+    const child = createMockHabit({
+      id: 'child',
+      title: 'Child',
+      parentId: 'parent',
+      isCompleted: true,
+    })
+    seedHabits([parent, child])
+    const ref = React.createRef<HabitListHandle>()
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          ref={ref}
+          view="today"
+          filters={{}}
+          selectedDate={new Date(`${TODAY}T12:00:00Z`)}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+    TestRenderer.act(() => ref.current?.checkAndPromptParentLog('child'))
+    let dialog = tree.root
+      .findAllByType('ConfirmDialog')
+      .find((node: any) => node.props.title === 'habits.autoLogParentTitle')
+    TestRenderer.act(() => dialog?.props.onCancel())
+    TestRenderer.act(() => {
+      tree.update(
+        <HabitList
+          ref={ref}
+          view="today"
+          filters={{}}
+          selectedDate={new Date(`${TOMORROW}T12:00:00Z`)}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+    TestRenderer.act(() => ref.current?.checkAndPromptParentLog('child'))
+    dialog = tree.root
+      .findAllByType('ConfirmDialog')
+      .find((node: any) => node.props.title === 'habits.autoLogParentTitle')
+
+    expect(dialog).toBeTruthy()
   })
 
   describe('today view scroll offset wiring', () => {

@@ -320,6 +320,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       [isSelectMode, recentlyCompletedIds, selectedIds],
     )
     const selectedDateStr = formatAPIDate(selectedDate ?? new Date())
+    useEffect(() => {
+      promptedParentIdsRef.current.clear()
+    }, [promptedParentIdsRef, selectedDateStr, habitsQuery.dataUpdatedAt])
     const autoLogParentHabit = autoLogParentId
       ? (habitsById.get(autoLogParentId) ?? null)
       : null

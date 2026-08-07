@@ -23,6 +23,7 @@ const toggleSelectionSpy = vi.fn()
 const drillRefreshCurrent = vi.fn()
 const drillInto = vi.fn()
 const getDrillChildrenMock = vi.fn(() => [])
+let mockHabitsDataUpdatedAt = 1
 const mockDrillState = {
   drillStack: [] as string[],
   currentParentId: null as string | null,
@@ -61,7 +62,7 @@ vi.mock('@/hooks/use-habits', () => ({
     data: mockHabitsData,
     isLoading: false,
     error: null,
-    dataUpdatedAt: Date.now(),
+    dataUpdatedAt: mockHabitsDataUpdatedAt,
     getChildren: (parentId: string) => {
       const childIds = mockHabitsData.childrenByParent.get(parentId) ?? []
       return childIds
@@ -230,11 +231,13 @@ vi.mock('@/components/ui/confirm-dialog', () => ({
     title,
     description,
     onConfirm,
+    onCancel,
   }: {
     open: boolean
     title: string
     description: string
     onConfirm: () => void
+    onCancel: () => void
   }) =>
     open ? (
       <div data-testid={`confirm-dialog-${title}`}>
@@ -242,6 +245,9 @@ vi.mock('@/components/ui/confirm-dialog', () => ({
         <span>{description}</span>
         <button data-testid={`confirm-action-${title}`} onClick={onConfirm}>
           confirm
+        </button>
+        <button data-testid={`cancel-action-${title}`} onClick={onCancel}>
+          cancel
         </button>
       </div>
     ) : null,
@@ -319,6 +325,7 @@ const defaultFilters = {
 describe('HabitList', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockHabitsDataUpdatedAt = 1
     drillRefreshCurrent.mockReset()
     drillInto.mockReset()
     getDrillChildrenMock.mockReset()
@@ -699,6 +706,44 @@ describe('HabitList', () => {
     expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
   })
 
+  it('prompts the next parent after force-logging its final unresolved child', async () => {
+    const grandparent = createMockHabit({
+      id: 'grandparent',
+      title: 'Grandparent',
+      hasSubHabits: true,
+      scheduledDates: [TODAY],
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+    })
+    const child = createMockHabit({
+      id: 'child',
+      title: 'Child',
+      parentId: 'grandparent',
+      hasSubHabits: true,
+      scheduledDates: [TODAY],
+    })
+    const grandchild = createMockHabit({
+      id: 'grandchild',
+      title: 'Grandchild',
+      parentId: 'child',
+      isCompleted: true,
+      scheduledDates: [TODAY],
+    })
+    mockHabitsData.habitsById.set(grandparent.id, grandparent)
+    mockHabitsData.habitsById.set(child.id, child)
+    mockHabitsData.habitsById.set(grandchild.id, grandchild)
+    mockHabitsData.childrenByParent.set(grandparent.id, [child.id])
+    mockHabitsData.childrenByParent.set(child.id, [grandchild.id])
+    mockHabitsData.topLevelHabits = [grandparent]
+    renderWithProviders(<HabitList filters={defaultFilters} />)
+
+    fireEvent.click(screen.getByTestId('force-log-child'))
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('confirm-action-habits.forceLogTitle'))
+    })
+
+    expect(screen.getByText('habits.autoLogParentMessage({"name":"Grandparent"})')).toBeDefined()
+  })
+
   it('prompts the parent immediately when the last child is marked completed', () => {
     const parent = createMockHabit({
       id: 'parent',
@@ -814,6 +859,42 @@ describe('HabitList', () => {
     expect(
       screen.getAllByText('habits.autoLogParentMessage({"name":"Parent"})'),
     ).toHaveLength(1)
+  })
+
+  it('prompts again after dismissal when the selected date changes', () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      hasSubHabits: true,
+      scheduledDates: [TODAY, TOMORROW],
+      instances: [
+        { date: TODAY, status: 'Pending', logId: null },
+        { date: TOMORROW, status: 'Pending', logId: null },
+      ],
+    })
+    const child = createMockHabit({
+      id: 'child',
+      title: 'Child',
+      parentId: 'parent',
+      isCompleted: true,
+    })
+    mockHabitsData.habitsById.set(parent.id, parent)
+    mockHabitsData.habitsById.set(child.id, child)
+    mockHabitsData.childrenByParent.set(parent.id, [child.id])
+    mockHabitsData.topLevelHabits = [parent]
+    const ref = React.createRef<HabitListHandle>()
+    const { rerenderWithProviders } = renderWithProviders(
+      <HabitList ref={ref} filters={defaultFilters} selectedDate={new Date(`${TODAY}T12:00:00Z`)} />,
+    )
+
+    act(() => ref.current?.checkAndPromptParentLog('child'))
+    fireEvent.click(screen.getByTestId('cancel-action-habits.autoLogParentTitle'))
+    rerenderWithProviders(
+      <HabitList ref={ref} filters={defaultFilters} selectedDate={new Date(`${TOMORROW}T12:00:00Z`)} />,
+    )
+    act(() => ref.current?.checkAndPromptParentLog('child'))
+
+    expect(screen.getByText('habits.autoLogParentMessage({"name":"Parent"})')).toBeDefined()
   })
 
   it('prompts an overdue parent when the last child is marked completed', () => {
