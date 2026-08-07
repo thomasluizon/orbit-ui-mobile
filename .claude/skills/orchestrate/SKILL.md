@@ -46,11 +46,17 @@ run it always was.
                      PRINT the always-loaded byte total (all six sources)   [D32]
                      ASSERT no skill name exists in both scopes             [D33]
  1  PLAN THE QUEUE   node tools/plan-queue.mjs -> admitted, deferred, waves, stacks
-                     PRINT the plan and the deferrals BEFORE any work starts
+                     PRINT the plan, the deferrals and every warning BEFORE any work starts
+                     READ each admitted ticket WITH ITS COMMENTS. A comment is the work order too.
  0b Preflight, tgt   ONCE PER DISTINCT REPO in the plan, never once per ticket
                      dirty -> STOP · not on main -> switch · behind -> ff-only. Print repairs.
+ 2  SCOPE GATE       judged for EVERY admitted ticket, before any worker is spawned
+                     >8 affected files, or judged >400 lines  ->  SKIP it, record why, carry on
+                     UNLESS the ticket's own CAPS-OVERRIDE line lifts that cap
+ 2b QUESTION GATE    BOTH MODES. Every question the queue raises, asked in ONE batch, before
+                     the first worktree. Answers that remove a ticket remove it now.
+                     THEN write .git/orbit-orchestrate-run.json: session, sleep, remaining[]
                                         ---- per ticket, in wave order ----
- 2  SCOPE GATE       >8 affected files, or judged >400 lines  ->  SKIP it, record why, carry on
  3  Worktree         orca worktree create; git switch -c feature/orb-N-<slug>
                      stackParent set -> branch from ITS branch, not from main
  4  Compose prompt   ticket verbatim + comments + ORCHESTRATOR'S BRIEF + finishing contract
@@ -63,11 +69,15 @@ run it always was.
                      git rev-list origin/<br>..HEAD    -> 0  (pushed)
                      gh pr list --head <br>            -> exactly 1, headRefOid matches
                      PR title or body names ORB-N      -> the branch alone is not the link
-                     additions+deletions               -> <= 400   ·   files -> <= 8
+                     additions+deletions               -> <= 400   ·   changedFiles -> <= 8
+                     either cap breached              -> read the ticket's CAPS-OVERRIDE line
                      statusCheckRollup, both node shapes -> no check red, none pending
-                     DELIVERED · NO_COMMIT · UNPUSHED · NO_PR · UNLINKED_PR · STALE_PR · OVERSIZE
-                     · CI_FAILING · CI_PENDING
-                     anything but DELIVERED -> record it, SKIP the ticket. No auto-relaunch.
+                     DELIVERED · DELIVERED_OVERSIZE_EXEMPT · NO_COMMIT · DIRTY_TREE · UNPUSHED
+                     · NO_PR · UNLINKED_PR · STALE_PR · OVERSIZE · CI_FAILING · CI_PENDING
+                     anything but DELIVERED* -> record it, SKIP the ticket. No auto-relaunch.
+                     SALVAGE allowed: discard residue · test then commit+push what the worker
+                     left · re-run a CI job proven infra. NEVER write code, revert, force, merge.
+                     A SALVAGED PR RE-ENTERS HERE and runs 7, 8, 12, 13 like any other.
  8  Review round 1   gh pr diff > file; launch a SEPARATE session from the MAIN CHECKOUT
                      normal: Claude Opus 5 @ high   ·   --codex-only: Sol @ xhigh
                      -> findings.json [{id, severity, file, line, claim, blocking}]
@@ -83,7 +93,9 @@ run it always was.
                      alone. One fix round, then re-verify and post @codex review. No second.
 13  Hand over        PR URL, diff size, follow-ups, threads handled, verdict.
                      ORB-N -> In Review, EXCEPT visible-effect: leave it, print visual check owed.
+                     UPDATE remaining[] in .git/orbit-orchestrate-run.json
                      no --sleep -> STOP and wait for `continue`  ·  --sleep -> next ticket
+                     --sleep: a turn ends ONLY with a live background task, NAMED  [Stop hook]
                                         ---- end per ticket ----
 14  Report           every PR opened, the stack order, every ticket skipped and why,
                      and the one command that merges the lot. Thomas merges.
@@ -259,11 +271,20 @@ It returns `admitted`, `deferred`, `waves` and `stacks`. **Print the plan and ev
 any work starts.** A ticket dropped at 03:00 that Thomas only discovers at 08:00 is a wasted night;
 the same ticket named at the start is a decision he can make before he goes to bed.
 
-Then read each admitted ticket in full, because the plan carries titles and labels, not bodies:
+Then read each admitted ticket in full **with its comments**, because the plan carries titles and
+labels, not bodies:
 
 ```bash
-orca linear issue ORB-N --json
+orca linear issue ORB-N --comments --json
 ```
+
+**A comment is part of the work order, not commentary on it.** A comment saying the ticket has to be
+split, that the approach changed, or that half of it is already done changes what the run does, and a
+run that read only the description would execute a plan its own ticket has already superseded. When a
+comment and the body disagree, the LATER comment wins and you say so in the plan. A comment that
+makes the ticket unrunnable as written removes it from the queue exactly like a step 1 deferral.
+`compose-prompt.mjs` passes the comments through to the worker too, so both of you read the same
+work order.
 
 The ticket is the prompt (D2): quoted verbatim into the worker prompt, never paraphrased.
 
@@ -276,10 +297,73 @@ The ticket is the prompt (D2): quoted verbatim into the worker prompt, never par
 | `NO_REPO_LABEL` | no `repo:*` label, so the target repository is unknown. Never guess it |
 | `AMBIGUOUS_REPO` | two `repo:*` labels. `repo:both` does not exist (D4) |
 | `CLOSED` | already Done, Canceled or Duplicate |
+| `NOT_REPRODUCED` | the body says NOT REPRODUCED, asks for a device or emulator repro, or makes obtaining one the first Scope item. ORB-128 and ORB-208 are both Android runtime bugs whose competing hypotheses only a device can tell apart |
+| `NOT_CODE_WORK` | the body says no code in any repo, Ops-only, or HUMAN-ONLY. ORB-27, ORB-28, ORB-83 |
+| `MULTI_PR` | the body scopes itself to several pull requests, which breaks D4 before the harness sees it. ORB-25, ORB-26 |
+| `OVER_CAPS` | the Affected modules list is far past `caps.affectedFiles`, or the body describes a codemod or a regenerated lockfile. ORB-204 (355 files), ORB-84, ORB-172. **A `CAPS-OVERRIDE` line suppresses this one** |
+
+The last four are the executability pass, added after the Onda 1 queue admitted 71 tickets and
+deferred none while eleven of them could not be executed by a headless agent at all. Two things it is
+deliberately careful about, and you should be too when you read its output: **a keyword match is
+evidence, not a verdict** (the same sentence under Out of scope means the opposite of what it means
+under Scope), and **counting bullets under Affected modules over-counts**, because that list carries
+test files and read-only references. ORB-86 named two orbit-api files it never touched. A marginal
+count is therefore a `warnings` entry on an ADMITTED ticket, not a deferral. Print those warnings.
 
 `visible-effect` is **not** a deferral. Those tickets run; step 13 withholds In Review instead.
 
-## Step 2. Scope gate, per ticket
+## Step 2b. The question gate, BOTH modes
+
+**Every question the queue raises, asked once, before the first worktree exists.**
+
+**It runs in both modes, and the position is the point.** The only human checkpoint used to sit at
+step 13, AFTER the pull request exists, and nothing at all sat between step 4 and step 5. So the run
+never asked anything before spending a worker budget in either mode; it only stopped afterwards, when
+the answer had already cost a whole 45 minute run. Under `--sleep` that same question instead
+surfaced as a failed verdict at 03:00 and the ticket was simply lost.
+
+| Mode | Behaviour |
+|---|---|
+| `--sleep` | ask once here, then work the whole queue without stopping again |
+| no `--sleep` | ask once here, **and** still stop after every pull request exactly as today |
+
+Read every admitted ticket, its comments, and the deferrals from step 1, and collect:
+
+1. **Contradictions inside one ticket**, especially a tool, path or process named two ways. ORB-30
+   (34,293 characters) names Pencil as the prototyping tool in one section and Claude Design with
+   `design/reference.html` in another, and says Pencil is retired in the first. `hot.md` confirms it
+   is retired. A headless worker cannot ask which is current, and the Pencil section is the more
+   detailed of the two, so it would follow the retired tool and produce evidence in the wrong form.
+2. **Acceptance criteria carrying a human grant no agent can satisfy.** ORB-30 again: "Thomas has
+   opened the page and approved the direction. This is a human grant (D13); no gate and no agent may
+   substitute for it." Run as one ticket that produces a failed verdict however good the work is, so
+   ask whether to split the grant out or accept the ticket stopping short of it.
+3. **Tickets the scope gate will skip**, judged at step 2 for every ticket rather than one at a time.
+   If the right answer is a caps override, ask for it: only Thomas can author one, and the marker
+   line goes in the ticket DESCRIPTION. Never write one yourself.
+4. **Tickets whose body delegates a choice to the implementer**: "pick a library", "either approach
+   works", an open acceptance criterion. A worker will choose and justify, and nobody sees what it
+   chose until the pull request exists.
+5. **Tickets needing something the repository cannot supply**: a product call, a copy string, a
+   price, a brand choice, a physical device, a vendor console, a production write.
+
+Anything a COMMENT raises belongs here too: split this, do it differently, this is already done.
+
+Ask all of them in ONE `AskUserQuestion` batch, or one message if there are more than four. **If an
+answer removes a ticket, remove it from the queue before the run starts** rather than spawning a
+worker that will fail.
+
+**What this gate cannot do, stated plainly rather than implied.** It asks only what is derivable from
+the tickets UP FRONT. It cannot predict what a worker hits mid-run: a dependency that turns out to be
+missing, a test that was already broken, an API whose real response contradicts the ticket. Those
+still surface as failed verdicts. This gate removes the class of failure that was knowable before the
+first worktree, and nothing else, and it is not a promise of an uninterrupted night.
+
+## Step 2. Scope gate, judged for every admitted ticket before any worker spawns
+
+Judge it for the WHOLE queue here, not one ticket at a time inside the loop: step 2b needs to know
+which tickets it would skip in order to ask about them in one batch, and every input it needs is the
+ticket body, which step 1 has already read.
 
 Skip a ticket, record the reason, and carry on with the queue when either holds:
 
@@ -292,6 +376,29 @@ of a run.
 
 **On a single-ticket run this ends the run**, exactly as it always did. In a queue it removes one
 ticket and nothing else: one oversized ticket must not cost Thomas the other four PRs of his night.
+
+### The caps override, and who may write one
+
+A cap is lifted by ONE line Thomas types in the ticket's **description**:
+
+```
+CAPS-OVERRIDE: files=400 reason=one mechanical icon codemod, reviewed as a transform
+CAPS-OVERRIDE: lines=6000 reason=regenerated package-lock.json
+```
+
+It names WHICH cap moves and to what, plus a reason. A cap it does not name is not lifted, because
+lifting the file cap for a codemod is a different decision from lifting the line cap for a lockfile,
+and a blanket exemption is how this becomes the default. `plan-queue.mjs` reports it, the composed
+brief tells the worker the lifted number, and `verify-delivery.mjs` measures the real diff against it.
+
+**You never write one. `/ticket` never emits one.** A Linear label would be one API call away for
+every agent in this harness, which is why the mechanism is a line in the description and not a label:
+the thing being capped must not be able to lift its own cap. If a ticket needs one, ASK for it at the
+question gate and let him type it. A ticket with no marker is capped, full stop.
+
+The caps exist because two legitimate tickets died on them on 2026-08-06: ORB-204, a 355-file icon
+codemod that under an 8-file cap becomes 45 pull requests, which is worse than the problem it splits;
+and ORB-84, which needs a regenerated `package-lock.json`, thousands of lines by construction.
 
 ## Step 3. Worktree
 
@@ -397,15 +504,38 @@ It is the SOLE authority for the word "delivered". Exit 0 means `DELIVERED`.
 | Verdict | Meaning |
 |---|---|
 | `DELIVERED` | every check below passed |
-| `NO_COMMIT` | `git rev-list --count main..HEAD` is 0 |
+| `DELIVERED_OVERSIZE_EXEMPT` | delivered, and a cap was over but the ticket's `CAPS-OVERRIDE` covered it. Exit 0. The real numbers are printed; this verdict exists so a run that shipped 700 lines can never say plain `DELIVERED` |
+| `NO_COMMIT` | `git rev-list --count main..HEAD` is 0. **This and nothing else** |
+| `DIRTY_TREE` | commits exist AND the tree is dirty |
 | `UNPUSHED` | commits exist above `origin/<branch>` |
 | `NO_PR` | `gh pr list --head <branch>` returned 0, or more than 1 |
 | `STALE_PR` | the PR's `headRefOid` is not the branch head |
-| `OVERSIZE` | additions + deletions exceed 400, or more than 8 files |
+| `OVERSIZE` | additions + deletions exceed 400, or `changedFiles` exceeds 8, and no override covers it |
 | `CI_FAILING` | a required or gating check concluded red on the current head |
 | `CI_PENDING` | nothing is red but checks are still running |
 
-A dirty tree (`git status --porcelain` non-empty) fails too.
+### `DIRTY_TREE` with commits is the one failed verdict worth a human look
+
+Measured on ORB-39, 2026-08-06. The tool short-circuited on the dirty tree, printed a `checks` object
+with ONE key, and called it `NO_COMMIT`. There WAS a commit: 7c726189, 8 files, 221 insertions,
+carrying the entire ticket across both platforms with its tests. `NO_COMMIT` reads as "produced
+nothing", and had it been trusted that work would have been binned and re-run from scratch. It became
+PR #690 with zero re-work instead.
+
+So the two states are now two verdicts, because their recoveries have nothing in common:
+
+- **dirty tree, 0 commits** -> nothing survived; the ticket genuinely needs re-running.
+- **dirty tree, commits present** -> the work may be complete. Read `hasCommits.headStat`, which the
+  report now carries, before deciding anything.
+
+`checks.cleanTree` classifies the paths. `discardable` is generated or evidence residue
+(`next-env.d.ts`, build output, anything under `e2e/`); `source` is tracked work left mid-edit, which
+is somebody's unfinished thinking and is never yours to throw away. `allDiscardable` true means the
+orchestrator **may** clean the residue and finish the push, then re-verify.
+
+**That is not the banned auto-relaunch.** No new model session starts and no code is written outside
+the worker's own commit; the run is pushing a commit that already exists. `allDiscardable` false, or
+anything ambiguous, hands over with the paths named.
 
 ### A red pull request was never delivered
 
@@ -426,6 +556,42 @@ Never fix a diff to satisfy a check that never ran.
 
 `CI_PENDING` is its own verdict rather than a pass or a stop. Pass `--wait-ci <seconds>` to let
 checks settle; without it the state is reported immediately and the run does not sit on it.
+
+### Salvage: what you may do to a dead worker's worktree without asking
+
+The most common real outcome is neither delivered nor empty: a worker COMMITTED complete work and
+then died, at the hard ceiling, at the no-progress kill, or because it was stopped. That happened
+four times on 2026-08-06 (ORB-39, ORB-98, ORB-213, ORB-92) and each time this step had no rule, so
+the run asked Thomas. **A harness converting its own gap into an interruption is the defect.** So:
+
+**You MAY, without asking:**
+
+- **Discard generated or untracked residue** and say so, naming every file in the report:
+  `next-env.d.ts`, `architecture.*` before regeneration, anything under `e2e/`, build output.
+  `checks.cleanTree.discardable` is that list, already computed.
+- **Run the touched workspace's test suite in the worktree and, if it is green, commit the worker's
+  uncommitted work, push, and open or update the pull request.**
+- **Re-run a CI job whose failure you have READ and attributed to infrastructure or flake**, naming
+  the evidence: a failed STEP of `Set up job`, or an assertion that touches no file in the diff.
+
+**You MAY NOT, ever:** write new implementation code yourself, revert a fix to satisfy a cap,
+force-push, or merge. Those are the line between finishing a delivery and doing the ticket.
+
+**Never push a worker's uncommitted work without running its tests first.** That is a precondition,
+not a preference. Both salvages that worked that night, ORB-39 and ORB-98, were verified before the
+push, and both pull requests were correct.
+
+**A salvaged pull request RE-ENTERS this algorithm at step 7 and runs every remaining step exactly as
+a worker-delivered one does.** Opening the pull request is the MIDDLE of salvage, never the end. Add
+its number to `unreviewedPullRequests` in the run record the moment it opens, then run step 7
+(verify, including CI), step 8 (review), step 12 (the Codex bot threads) and step 13, and only then
+drop it from the list.
+
+Measured, and the reason this sentence is here: PR #690 (ORB-39) was salvaged by hand, cleaned,
+pushed and opened, and then reported as finished except the visual check. It was carrying two failing
+required checks (`Architecture map drift`, and SonarCloud coverage at 61.5% against a floor of 80%)
+and one unresolved P2 bot thread. Nobody would have found out until the merge. A pull request that
+skipped steps 7, 8 and 12 is not delivered, however it came to exist.
 
 **Never read the worker's own exit code as proof of anything.** Three documented CLI bugs make it
 meaningless: openai/codex#20919, openai/codex#19945, anthropics/claude-code#25629. Artifacts are the
@@ -488,6 +654,15 @@ change under review. Feed it the diff file and the frozen ruleset. It returns:
 
 Write it to `<scratchpad>/orb-N-findings.json`. **The list is now frozen.** File every non-blocking
 finding as its own follow-up Linear ticket immediately, then drop it from this run.
+
+**A caps override never exempts the review.** A 355-file codemod still gets reviewed; it gets
+reviewed AS a codemod. Change the order, never the depth: read the transform or the generator first,
+decide whether it is correct in general, then spot-check its output where the transform is most
+likely to be wrong (the odd import shape, the one file that was already different, anything the
+transform touched twice). Reviewing 355 mechanically identical edits as 355 independent ones spends
+the whole round proving the same thing 355 times, which is how a real defect in the transform gets
+missed. A lockfile is the same shape: review the manifest change and the lockfile's own diff summary,
+not the thousands of resolved lines. Say in the findings which reading you used.
 
 ## Step 9. Adjudicate
 
@@ -596,6 +771,20 @@ and prints `visual check owed`. Thomas runs `/dev-server` and looks at it himsel
 Only a human grants visual completion (D7), and with nothing merging unattended there is no reason
 for a machine to assemble screenshots on his behalf. A ticket with no visible surface is unaffected.
 
+**A worker producing visual evidence is never the mechanism, on any ticket.** It cannot be: only a
+human grants visual completion (D7), the run merges nothing unattended, and a fresh worktree has no
+seeded session, so the attempt can only ever end at a login page. Measured 2026-08-06 on two tickets
+whose code was already committed and correct: ORB-39 started a dev server on :3920, wrote a
+Playwright visual test, and was killed at the 45 minute ceiling with a dirty tree; ORB-98 opened
+`/login?returnUrl=%2Fpreferences` and burned the rest of its budget. Two worker budgets, two dev
+servers left listening, two deliveries a human had to rescue.
+
+Both enforcement points are unconditional and neither is scoped to `visible-effect`, because the
+first attempt WAS scoped and the scoping was the defect: `compose-prompt.mjs` puts the prohibition in
+every worker prompt, and `.claude/hooks/forbid-worker-browser.mjs` refuses the command at act time
+for any caller carrying the launcher marker or running inside a linked worktree. `/dev-server` is
+untouched: it runs from the main checkout, which is Thomas.
+
 Print:
 
 - PR URL, its base branch, and diff size (additions + deletions).
@@ -665,8 +854,57 @@ receipt. What makes an unattended run trustworthy now is `verify-delivery.mjs`: 
 authority for the word "delivered" and reads only git and GitHub artifacts, never a worker's
 self-report. That is what was missing the first time, when a worker claimed work it had not done.
 
+**`--sleep` asks everything it can BEFORE it starts.** Step 2b is the whole of it, and it runs in
+both modes: plan the queue, read every admitted ticket and its comments, judge the scope gate for all
+of them, collect every derivable decision, ask them in one batch. Under `--sleep` the run then works
+the queue without stopping again; without it, the run also keeps its stop after every pull request.
+It cannot ask what only a running worker discovers, and it does not pretend to.
+
 **A failed ticket is recorded and skipped.** No retry, no relaunch, nobody woken. The queue carries
-on. One ticket failing at 03:00 must not cost the other four.
+on. One ticket failing at 03:00 must not cost the other four. The one exception is the step 7 salvage
+clause, which finishes a delivery a dead worker had already committed and never writes code.
+
+### Every turn under `--sleep` ends with a live wake source, named
+
+**The invariant:** under `--sleep`, a turn may only end while at least one background task is still
+running, and the turn's last line names it. Nothing else continues the run. Ending a turn with no
+live task ends the night silently, and what it leaves behind is indistinguishable from a queue that
+finished, so nobody goes looking. That is exactly how 2026-08-06 ended: the orchestrator said "CI
+will wake me" with nothing scheduled.
+
+**When there is genuinely nothing to wait on and work remains, LAUNCH THE NEXT TICKET.** All slots
+free plus a non-empty queue is not a reason to end the turn; it is the definition of the next
+action. `launch-worker.mjs` registers itself as a wake source, so starting the next worker satisfies
+the invariant by construction.
+
+**The gate:** `.claude/hooks/require-wake-source.mjs` runs on `Stop` and refuses the stop when the
+run record says `--sleep` with tickets remaining and no registered wake source is a live process. So
+maintain the record. Write it at step 2b and update it at step 13, in the checkout you are running
+from:
+
+```jsonc
+// .git/orbit-orchestrate-run.json   (never committed; .git is not part of the tree)
+{
+  "sessionId": "<this session's id>",
+  "sleep": true,
+  "remaining": ["ORB-2", "ORB-3"],
+  "unreviewedPullRequests": [693]
+}
+```
+
+`unreviewedPullRequests` holds every pull request this run opened that has not finished steps 7, 8
+and 12. Add a number when the pull request opens, drop it when the review and the bot threads are
+done. **An entry there blocks the turn exactly as a remaining ticket does**, which is the mechanical
+half of the salvage rule: a pull request opened by hand and never re-verified cannot be reported as a
+finished queue. That is what happened to #690.
+
+`sessionId` is what keeps yesterday's record from blocking today: a record whose session does not
+match is ignored. **When the queue really is done, write `remaining: []`** and then print the step 14
+report. A record that still claims work while the run is over is the one way to trap a session.
+
+What the gate can prove is that a registered pid is still alive, which is real evidence rather than a
+claim, because only the launcher registers one. What it cannot prove is that the task will re-invoke
+THIS session. That part is still yours, which is why the invariant says to name it.
 
 **`--parallel` runs up to `caps.parallelTickets` tickets at once**, currently **3**, one worktree
 each. Not eight: each worktree is a full install, build and test run plus its own model session, and

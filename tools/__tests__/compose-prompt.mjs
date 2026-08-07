@@ -69,6 +69,57 @@ export const cases = () => {
     /your own exit code counts for nothing[\s\S]*tools\/verify-delivery\.mjs/.test(prompt) && prompt.includes("Never write the fixture that agrees with a"),
     prompt,
   )
+  /**
+   * The browser ban is in EVERY prompt, and the scoping is the whole point: the first version fired
+   * only on visible-effect tickets, ORB-86 received it and made 4 browser-related log entries while
+   * ORB-98 did not and made 51. This ticket carries no visible-effect label at all.
+   */
+  T(
+    `${TOOL}: every prompt forbids a dev server, a browser and an e2e file, whatever the labels say`,
+    /NEVER open a browser and never start a server/.test(prompt) && /OVERRIDES the ticket's\nown Evidence section/.test(prompt) && /Playwright, Maestro or Cypress/.test(prompt),
+    prompt.slice(prompt.indexOf("**NEVER open"), prompt.indexOf("**NEVER open") + 400),
+  )
+  T(
+    `${TOOL}: the ban says who owes the visual check instead of merely refusing`,
+    /required OF A HUMAN,\nafter your pull request exists/.test(prompt) && /Only a human grants visual completion \(D7\)/.test(prompt),
+    prompt,
+  )
+
+  /**
+   * A worker told the standing caps on a ticket whose caps were lifted would correctly STOP on the
+   * codemod the override exists to let through, so the brief carries the LIFTED number.
+   */
+  const lifted = join(root, "compose-prompt", "orb-129.md")
+  check(
+    TOOL,
+    "a ticket carrying a caps override tells the worker the lifted cap, not the standing one",
+    ["--issue", "ORB-129", "--repo", "ui", "--out", lifted],
+    { status: 0 },
+    options(issuePlan("ORB-129", { ok: true, result: { issue: { identifier: "ORB-129", description: "CAPS-OVERRIDE: files=400 reason=one mechanical icon codemod" }, comments: [] } })),
+  )
+  T(
+    `${TOOL}: the lifted cap replaces the standing one and the override is quoted`,
+    composed(lifted).includes(`400\naffected files and ${real.caps.diffLines} diff lines`) && composed(lifted).includes("caps override authored by the repository owner"),
+    composed(lifted).slice(composed(lifted).indexOf("**Scope.**"), composed(lifted).indexOf("**Scope.**") + 420),
+  )
+  T(
+    `${TOOL}: the override never exempts the review`,
+    /The review still reads every line/.test(composed(lifted)),
+    composed(lifted),
+  )
+  const malformed = join(root, "compose-prompt", "orb-130.md")
+  check(
+    TOOL,
+    "a malformed override is composed rather than refused",
+    ["--issue", "ORB-130", "--repo", "ui", "--out", malformed],
+    { status: 0 },
+    options(issuePlan("ORB-130", { ok: true, result: { issue: { identifier: "ORB-130", description: "CAPS-OVERRIDE: files=8 reason=this lifts nothing" }, comments: [] } })),
+  )
+  T(
+    `${TOOL}: a malformed override lifts nothing, so the standing caps still reach the worker`,
+    composed(malformed).includes(`${real.caps.affectedFiles}\naffected files and ${real.caps.diffLines} diff lines`) && !composed(malformed).includes("caps override authored by"),
+    composed(malformed).slice(composed(malformed).indexOf("**Scope.**"), composed(malformed).indexOf("**Scope.**") + 300),
+  )
 
   const bare = join(root, "compose-prompt", "orb-126.md")
   check(
