@@ -115,6 +115,31 @@ describe('computeParentPromptProgress', () => {
     expect(progress.total).toBe(2)
   })
 
+  it('treats an optimistically completed server-known skip as logged', () => {
+    const loggedAfterSkip = createMockHabit({
+      id: 'logged-after-skip',
+      parentId: 'parent',
+      isCompleted: true,
+      isFlexible: true,
+      isLoggedInRange: false,
+      flexibleTarget: 0,
+      flexibleCompleted: 0,
+      scheduledDates: [],
+    })
+
+    const progress = computeParentPromptProgress({
+      parentId: 'parent',
+      getChildren: makeGetChildren({ parent: [loggedAfterSkip] }),
+      isRelevantToday: scheduledToday,
+      isDueOnSelectedDate: scheduledToday,
+      isListView: false,
+      skippedIds: new Set(),
+      assumeCompletedId: loggedAfterSkip.id,
+    })
+
+    expect(progress).toEqual({ done: 1, total: 1, loggedDone: 1 })
+  })
+
   it('reports no logged children when every sub-habit was skipped before this mount', () => {
     const first = createMockHabit({
       id: 'a',
