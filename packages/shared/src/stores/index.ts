@@ -54,6 +54,7 @@ export {
   createTourUIState,
   createUIStoreState,
   getPersistedUIState,
+  getTourSessionUIState,
   migratePersistedUIState,
   type ActiveView,
   type CelebrationKind,
@@ -61,5 +62,6 @@ export {
   type CelebrationQueueItem,
   type HabitFrequencyFilter,
   type PersistedUIState,
+  type TourUIState,
   type UIStoreState,
 } from './ui-store'

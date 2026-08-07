@@ -127,13 +127,10 @@ export function useLogHabit() {
       }),
 
     onMutate: ({ habitId, date }) => {
-      // Start cancelling refetches, but don't delay the optimistic completion state on it.
       void queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 
-      // Snapshot all list queries for rollback
       const previousLists = snapshotHabitLists(queryClient)
 
-      // Optimistic toggle: find the habit in any list cache and flip isCompleted
       if (!date) {
         updateHabitLists(queryClient, (items) => optimisticToggleCompletion(items, habitId))
       }
@@ -146,7 +143,6 @@ export function useLogHabit() {
     },
 
     onError: (_err, _vars, context) => {
-      // Rollback optimistic update
       if (context?.previousLists) {
         for (const [key, data] of context.previousLists) {
           if (data) {
@@ -157,17 +153,19 @@ export function useLogHabit() {
     },
 
     onSuccess: (response, variables) => {
-      // Streak celebration + update profile streak immediately so StreakBadge reflects it
       if (isQueuedResult(response)) {
         return
       }
 
-      const loggedHabit = queryClient
-        .getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })
-        .flatMap(([, items]) => items ?? [])
-        .find((item) => item.id === variables.habitId)
+      const loggedHabit = findHabitInList(
+        queryClient
+          .getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })
+          .flatMap(([, items]) => items ?? []),
+        variables.habitId,
+      )
+      const countsTowardStreak = loggedHabit !== null && !loggedHabit.isBadHabit
 
-      if (!loggedHabit?.isBadHabit && response.isFirstCompletionToday && response.currentStreak > 0) {
+      if (countsTowardStreak && response.isFirstCompletionToday && response.currentStreak > 0) {
         setStreakCelebration({ streak: response.currentStreak })
         queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
           old ? { ...old, currentStreak: response.currentStreak } : old,
@@ -190,7 +188,6 @@ export function useLogHabit() {
         }
       }
 
-      // Apply targeted goal updates from enriched response (instant, no refetch needed)
       if (response.linkedGoalUpdates?.length) {
         queryClient.setQueriesData<Goal[]>(
           { queryKey: goalKeys.lists() },
@@ -198,17 +195,15 @@ export function useLogHabit() {
         )
       }
 
-      // Apply gamification XP/achievement updates from enriched response (instant)
-      if (!loggedHabit?.isBadHabit && (response.xpEarned || response.newAchievementIds?.length)) {
+      if (countsTowardStreak && (response.xpEarned || response.newAchievementIds?.length)) {
         queryClient.setQueryData<GamificationProfile>(gamificationKeys.profile(), (old) => {
           if (!old) return old
           return { ...old, totalXp: old.totalXp + (response.xpEarned ?? 0) }
         })
       }
 
-      // Check all-done celebration
       const habitsData = queryClient.getQueryData<HabitScheduleItem[]>(
-        habitKeys.list(activeFilters as Record<string, unknown>),
+        habitKeys.list(activeFilters),
       )
       if (habitsData) {
         const normalized = normalizeHabits(habitsData)
@@ -251,7 +246,6 @@ export function useSkipHabit() {
 
       const previousLists = snapshotHabitLists(queryClient)
 
-      // Optimistic: recurring skips should leave the current view; one-time skips are postponed.
       if (!date) {
         updateHabitLists(queryClient, (items) => {
           const habit = findHabitInList(items, habitId)

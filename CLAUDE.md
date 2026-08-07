@@ -12,7 +12,7 @@ Linear is the source of truth for product work here and in orbit-api; GitHub Iss
 
 ## Cross-platform parity (MANDATORY)
 
-Every change lands in BOTH `apps/web` AND `apps/mobile` in the same task: logic, features, behavior, and error handling identical, reverts included. Allowed differences: platform adapters only (BFF vs direct API, cookie vs SecureStore, shadcn vs NativeWind). i18n keys land in `en.json` AND `pt-BR.json` in the same edit. The Cross-Platform Parity job in `guards.yml` fails a one-sided UI change; the escape hatch is `parity:exempt`.
+Every change lands in BOTH `apps/web` AND `apps/mobile` in the same task: logic, features, behavior, and error handling identical, reverts included. Allowed differences: platform adapters only (BFF vs direct API, cookie vs SecureStore, shadcn vs NativeWind, next-intl vs i18next) and a layout shell divergence enumerated in `DESIGN.md`, limited to navigation chrome (sidebar vs tab bar), the desktop stats rail, the command palette and keyboard shortcuts, and hover affordances on that shell chrome. Everything below the shell, including a screen, component, data flow, error path, or behavior, remains parity-bound. i18n keys land in `en.json` AND `pt-BR.json` in the same edit. The Cross-Platform Parity job in `guards.yml` fails a one-sided UI change; the escape hatch is `parity:exempt`.
 
 ## Code standards
 
@@ -36,7 +36,7 @@ Web cookie is httpOnly + sameSite strict + secure; mobile tokens live in SecureS
 
 ## Brand & design
 
-"Orbit" and "Astra" are never translated. `DESIGN.md` (repo root) is authoritative for all UI: read it before any frontend work. **No decorative glow and no gradient wash anywhere**; identity comes from the orbital logo, the Astra glyph, and ring indicators. `--primary` is fill/graphic only, `--primary-soft` accent text.
+"Orbit" and "Astra" are never translated. `BRAND.md` is authoritative for audience and positioning: read it before any brand, copy, positioning or design-direction work, and before ORB-30. `DESIGN.md` (repo root) is authoritative for all UI: read it before any frontend work. **No decorative glow and no gradient wash anywhere**; identity comes from the orbital logo, the Astra glyph, and ring indicators. `--primary` is fill/graphic only, `--primary-soft` accent text.
 
 ## Conventions & tooling
 
@@ -51,6 +51,7 @@ Grep a doc's `At a glance` header before loading it; update this table when a do
 
 | Doc | Purpose |
 |---|---|
+| `BRAND.md` | Audience, positioning and principles; read before brand, copy, positioning or design-direction work, and before ORB-30. |
 | `DESIGN.md` | UI spec; read before frontend work. |
 | `RENDER-CORRECTNESS.md` | The `visible-effect` screenshot critique and its cap. |
 | `AGENTS.md` | Codex's worker entry doc; defers to this file. |

@@ -1354,7 +1354,7 @@
   },
   "privacy": {
     "title": "Política de Privacidade",
-    "lastUpdated": "Última atualização: Junho de 2026",
+    "lastUpdated": "Última atualização: agosto de 2026",
     "intro": {
       "title": "Introdução",
       "body": "O Orbit é um aplicativo de acompanhamento de hábitos pessoais. Levamos sua privacidade a sério e temos o compromisso de proteger seus dados pessoais. Esta política explica quais dados guardamos, como os usamos e quais são os seus direitos sob a LGPD (Lei Geral de Proteção de Dados) e leis equivalentes de proteção de dados."
@@ -1387,7 +1387,9 @@
       "resend": "Resend - para e-mails transacionais",
       "googlePlay": "Google Play Billing - para compras de assinatura no Android",
       "admob": "Google AdMob - exibe anúncios a usuários gratuitos (sem Pro) e usa o identificador de publicidade do seu dispositivo",
-      "sentry": "Sentry - para diagnósticos de falhas e erros, com identificadores pessoais removidos"
+      "sentry": "Sentry - para diagnósticos de falhas e erros, com identificadores pessoais removidos",
+      "posthog": "PostHog (nuvem nos Estados Unidos): para análises de uso do produto vinculadas a um identificador da conta e a detalhes do plano; não enviamos conteúdo de hábitos nem do chat",
+      "vercel": "Vercel: para hospedagem web, análise de tráfego e medição de desempenho"
     },
     "noSell": {
       "title": "Não vendemos seus dados",
@@ -1403,7 +1405,11 @@
       "account": "Dados da conta: guardados enquanto sua conta estiver ativa.",
       "sessions": "Sessões de autenticação e tokens de push: guardados enquanto estão ativos e removidos quando você sai, quando o token expira ou quando o aparelho é desinscrito.",
       "ai": "Histórico do chat com a IA e a memória dela: guardados enquanto os recursos de IA estiverem ativos; excluir sua conta ou limpar a memória da IA remove tudo isso.",
-      "afterDeletion": "Depois da exclusão da conta ou do período de carência de 7 dias, seus dados pessoais são apagados de vez, exceto quando a lei exige guardar registros limitados."
+      "reminderHistory": "Registros de lembretes enviados, alertas de deslize e congelamentos de sequência: guardados por 90 dias a partir da data do registro.",
+      "syncRecords": "Registros excluídos mantidos para sincronização offline: guardados por 31 dias antes da remoção permanente.",
+      "calendarSuggestions": "Sugestões de importação do Google Agenda que você não importa: guardadas por 14 dias.",
+      "billingRecords": "Registros operacionais e de cobrança: solicitações processadas e notificações de cobrança do Google Play são guardadas por 30 dias; eventos processados de webhook da Stripe são guardados por 90 dias.",
+      "afterDeletion": "Exclusão da conta: os dados pessoais são apagados de forma permanente 7 dias após a confirmação, ou 7 dias após o fim do período pago atual, o que ocorrer por último, exceto quando a lei exige guardar registros limitados."
     },
     "googleScopes": {
       "title": "Acesso à conta e ao Google Agenda",
@@ -1414,7 +1420,7 @@
     },
     "dataResidency": {
       "title": "Onde seus dados ficam guardados",
-      "body": "O banco de dados e os servidores do Orbit ficam na Supabase e na Render. Alguns suboperadores (como OpenAI, Stripe e Google) podem processar dados fora do Brasil. As transferências internacionais se baseiam em decisões de adequação ou cláusulas contratuais padrão, conforme o Capítulo V da LGPD."
+      "body": "O banco de dados do Orbit fica na Supabase, e os servidores de aplicação do backend ficam na Render. A Vercel hospeda o aplicativo web em sua rede global e pode processar dados de hospedagem web, análise de tráfego e desempenho nos Estados Unidos e em outros países fora do Brasil. As análises de uso do produto feitas pelo PostHog são processadas nos Estados Unidos. Outros suboperadores, incluindo OpenAI, Stripe e Google, podem processar dados fora do Brasil. As transferências internacionais para a Vercel e outros suboperadores se baseiam em decisões de adequação ou cláusulas contratuais padrão, conforme o Capítulo V da LGPD."
     },
     "automatedProcessing": {
       "title": "IA e processamento automatizado",
@@ -1434,7 +1440,7 @@
       "step1": "1. Vá ao Perfil e toque em \"Excluir conta\"",
       "step2": "2. Enviamos um código de confirmação para o seu e-mail",
       "step3": "3. Digite o código para confirmar a exclusão",
-      "step4": "Após um período de carência de 7 dias (ou o fim do seu período pago atual, o que ocorrer por último), todos os dados são apagados de forma permanente: hábitos, histórico de conclusão, conversas com a IA, o que a IA sabe sobre você e as configurações. Esta ação não tem volta."
+      "step4": "7 dias após a confirmação, ou 7 dias após o fim do seu período pago atual, o que ocorrer por último, todos os dados são apagados de forma permanente: hábitos, histórico de conclusão, conversas com a IA, o que a IA sabe sobre você e as configurações. Esta ação não tem volta."
     },
     "contact": {
       "title": "Contato",

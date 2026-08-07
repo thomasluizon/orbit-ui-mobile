@@ -120,12 +120,15 @@ export function useLogHabit() {
     },
 
     onSuccess: (response, variables) => {
-      const loggedHabit = queryClient
-        .getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })
-        .flatMap(([, items]) => items ?? [])
-        .find((item) => item.id === variables.habitId)
+      const loggedHabit = findHabitInList(
+        queryClient
+          .getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })
+          .flatMap(([, items]) => items ?? []),
+        variables.habitId,
+      )
+      const countsTowardStreak = loggedHabit !== null && !loggedHabit.isBadHabit
 
-      if (!loggedHabit?.isBadHabit && response.isFirstCompletionToday && response.currentStreak > 0) {
+      if (countsTowardStreak && response.isFirstCompletionToday && response.currentStreak > 0) {
         setStreakCelebration({ streak: response.currentStreak })
         queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
           old ? { ...old, currentStreak: response.currentStreak } : old,
@@ -143,7 +146,7 @@ export function useLogHabit() {
         )
       }
 
-      if (!loggedHabit?.isBadHabit && (response.xpEarned || response.newAchievementIds?.length)) {
+      if (countsTowardStreak && (response.xpEarned || response.newAchievementIds?.length)) {
         queryClient.setQueryData<GamificationProfile>(gamificationKeys.profile(), (old) => {
           if (!old) return old
           return { ...old, totalXp: old.totalXp + (response.xpEarned ?? 0) }
