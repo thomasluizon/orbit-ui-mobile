@@ -41,8 +41,8 @@ const payload = ({ isDraft = false, reviews = [], comments = [], threads = [], h
   })
 
 const botReview = (state = "COMMENTED", submittedAt = "2026-08-04T23:16:35Z", oid = HEAD, body = "") => ({ author: { login: BOT }, state, submittedAt, body, commit: { oid } })
-const botComment = (oid = HEAD.slice(0, 10), createdAt = "2026-08-05T11:00:00Z") => ({
-  author: { login: `${BOT}[bot]` },
+const botComment = (oid = HEAD.slice(0, 10), createdAt = "2026-08-05T11:00:00Z", login = BOT) => ({
+  author: { login },
   body: `Codex Review: Didn't find any major issues.\n\n**Reviewed commit:** \`${oid}\``,
   createdAt,
   url: "https://github.com/thomasluizon/orbit-ui-mobile/pull/681#issuecomment-123",
@@ -105,6 +105,8 @@ export const cases = () => {
     cleanComment.status === 0 && cleanCommentPlan?.verdict === "REVIEWED" && cleanCommentPlan.reviewSource === "ISSUE_COMMENT" && cleanCommentPlan.reviewedCommit === HEAD && cleanCommentPlan.reportedCommit === HEAD.slice(0, 10),
     cleanComment.stdout || cleanComment.stderr,
   )
+  const restAlias = readPr(payload({ comments: [botComment(HEAD.slice(0, 10), "2026-08-05T11:00:00Z", `${BOT}[bot]`)] }))
+  T(`${TOOL}: the measured REST bot-login alias is accepted too`, restAlias.status === 0 && parsed(restAlias)?.reviewSource === "ISSUE_COMMENT", restAlias.stdout || restAlias.stderr)
 
   const staleComment = readPr(payload({ comments: [botComment(OLD_HEAD.slice(0, 10))] }))
   const staleCommentPlan = parsed(staleComment)

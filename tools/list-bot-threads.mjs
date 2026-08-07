@@ -254,11 +254,11 @@ const botReviewOf = (payload) =>
     .at(-1)
 
 const CLEAN_COMMENT = "Codex Review: Didn't find any major issues."
-const connectorCommentLogin = botLogin.endsWith("[bot]") ? botLogin : `${botLogin}[bot]`
+const connectorCommentLogins = new Set(botLogin.endsWith("[bot]") ? [botLogin, botLogin.slice(0, -5)] : [botLogin, `${botLogin}[bot]`])
 const commitFromComment = (comment) => /\*\*Reviewed commit:\*\*\s*`([0-9a-f]{7,40})`/i.exec(comment?.body ?? "")?.[1] ?? null
 const cleanCommentOf = (payload) =>
   (payload.comments?.nodes ?? [])
-    .filter((comment) => comment.author?.login === connectorCommentLogin)
+    .filter((comment) => connectorCommentLogins.has(comment.author?.login))
     .map((comment) => ({ ...comment, reportedCommit: commitFromComment(comment) }))
     .filter((comment) => comment.body?.includes(CLEAN_COMMENT))
     .filter((comment) => comment.reportedCommit && payload.headRefOid?.toLowerCase().startsWith(comment.reportedCommit.toLowerCase()))
@@ -266,7 +266,7 @@ const cleanCommentOf = (payload) =>
 
 const staleCommentOf = (payload) =>
   (payload.comments?.nodes ?? [])
-    .filter((comment) => comment.author?.login === connectorCommentLogin)
+    .filter((comment) => connectorCommentLogins.has(comment.author?.login))
     .map((comment) => ({ ...comment, reportedCommit: commitFromComment(comment) }))
     .filter((comment) => comment.body?.includes(CLEAN_COMMENT) && comment.reportedCommit)
     .at(-1)
@@ -339,7 +339,7 @@ if (!evidence) {
   const note = stale
     ? `the newest ${botLogin} review is pinned to ${stale.commit?.oid ?? "an unknown commit"}, not to head ${node.headRefOid}; it never saw this code. ${asked}`
     : staleComment
-      ? `the newest ${connectorCommentLogin} clean issue comment reports commit ${staleComment.reportedCommit}, not head ${node.headRefOid}; it never saw this code. ${asked}`
+      ? `the newest ${botLogin} clean issue comment reports commit ${staleComment.reportedCommit}, not head ${node.headRefOid}; it never saw this code. ${asked}`
     : `no ${botLogin} review arrived; ${asked}; do not report this pull request as clean`
   console.log(
     JSON.stringify(
