@@ -116,7 +116,7 @@ export function computeParentPromptProgress(
       child.flexibleCompleted != null &&
       child.flexibleCompleted >= child.flexibleTarget &&
       !child.isLoggedInRange
-    const isAssumedCompleted = child.id === assumeCompletedId
+    const isAssumedCompleted = child.id === assumeCompletedId && !skippedIds.has(child.id)
     const isSkipped = !isAssumedCompleted && (skippedIds.has(child.id) || isServerKnownSkip)
     const isResolved =
       child.isCompleted ||
