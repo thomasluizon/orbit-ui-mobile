@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 
-const { toPngMock, reportEventMock } = vi.hoisted(() => ({
-  toPngMock: vi.fn(),
+const { toBlobMock, reportEventMock } = vi.hoisted(() => ({
+  toBlobMock: vi.fn(),
   reportEventMock: vi.fn(),
 }))
-vi.mock('html-to-image', () => ({ toPng: toPngMock }))
+vi.mock('html-to-image', () => ({ toBlob: toBlobMock }))
 vi.mock('@/hooks/use-gamification', () => ({ useReportEvent: () => ({ mutate: reportEventMock }) }))
 
 import { useShareCard } from '@/hooks/use-share-card'
@@ -15,14 +15,9 @@ const payload = { shareTitle: 'title', shareText: 'text', url: 'https://app.useo
 let clickSpy: ReturnType<typeof vi.spyOn>
 
 beforeEach(() => {
-  toPngMock.mockReset().mockResolvedValue('data:image/png;base64,AAA')
+  toBlobMock.mockReset().mockResolvedValue(new Blob(['x'], { type: 'image/png' }))
   reportEventMock.mockReset()
-  vi.stubGlobal(
-    'fetch',
-    vi.fn().mockResolvedValue({
-      blob: () => Promise.resolve(new Blob(['x'], { type: 'image/png' })),
-    }),
-  )
+  vi.stubGlobal('fetch', vi.fn())
   globalThis.URL.createObjectURL = vi.fn(() => 'blob:x')
   globalThis.URL.revokeObjectURL = vi.fn()
   clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
@@ -36,6 +31,22 @@ afterEach(() => {
 })
 
 describe('useShareCard', () => {
+  it('captures a blob without fetching a data URL', async () => {
+    const { result } = renderHook(() => useShareCard())
+    result.current.captureRef.current = document.createElement('div')
+
+    await act(async () => {
+      await result.current.download()
+    })
+
+    expect(toBlobMock).toHaveBeenCalledWith(result.current.captureRef.current, {
+      pixelRatio: 3,
+      cacheBust: true,
+    })
+    expect(fetch).not.toHaveBeenCalled()
+    expect(result.current.hasError).toBe(false)
+  })
+
   it('falls back to a download when Web Share is unavailable and fires the share seam once', async () => {
     const { result } = renderHook(() => useShareCard())
     result.current.captureRef.current = document.createElement('div')
@@ -44,7 +55,7 @@ describe('useShareCard', () => {
       await result.current.share(payload)
     })
 
-    expect(toPngMock).toHaveBeenCalledTimes(1)
+    expect(toBlobMock).toHaveBeenCalledTimes(1)
     expect(clickSpy).toHaveBeenCalledTimes(1)
     expect(reportEventMock).toHaveBeenCalledTimes(1)
     expect(reportEventMock).toHaveBeenCalledWith('card_shared')
