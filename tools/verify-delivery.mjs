@@ -140,27 +140,41 @@ const emit = (verdict) => {
  * plus `?? apps/web/e2e/visual/orb-39-evidence.visual.ts`, both discardable, so the finished commit
  * underneath was recoverable without a human opening the worktree.
  */
-const DISCARDABLE_RESIDUE = [/(^|\/)next-env\.d\.ts$/, /(^|\/)\.next\//, /(^|\/)dist\//, /(^|\/)build\//, /(^|\/)coverage\//, /(^|\/)node_modules\//, /\.tsbuildinfo$/, /(^|\/)test-results\//, /(^|\/)playwright-report\//, /(^|\/)e2e\//]
+const GENERATED_RESIDUE = [/(^|\/)next-env\.d\.ts$/, /(^|\/)\.next\//, /(^|\/)dist\//, /(^|\/)build\//, /(^|\/)coverage\//, /(^|\/)node_modules\//, /\.tsbuildinfo$/, /(^|\/)test-results\//, /(^|\/)playwright-report\//]
+/**
+ * Discardable only while UNTRACKED. The repository has a tracked E2E suite, and a path-only rule
+ * called a modified or deleted file under `e2e/` residue, which step 7 then permits the run to throw
+ * away. A worker's invented evidence file is untracked (`??`); an edit to the real suite is not.
+ */
+const UNTRACKED_ONLY_RESIDUE = [/(^|\/)e2e\//]
+const isDiscardable = ({ status, path }) =>
+  GENERATED_RESIDUE.some((pattern) => pattern.test(path)) || (status === "??" && UNTRACKED_ONLY_RESIDUE.some((pattern) => pattern.test(path)))
 
 /** `--untracked-files=all` because the default collapses a wholly untracked directory into one
  * entry, and a single `?? apps/` cannot be classified as residue or as somebody's unfinished work. */
 const tree = git(["status", "--porcelain", "--untracked-files=all"])
 if (!tree.ok) fail(2, `git status --porcelain failed in ${worktree}: ${tree.error}`)
-const dirty = tree.stdout.trim()
-const dirtyPaths = dirty
+/**
+ * TRAILING whitespace only. Trimming the whole blob ate the leading space of the FIRST line, so a
+ * tracked modification (` M path`) lost a character off its path and its two-character status code
+ * read as `M `. Every earlier fixture happened to start with `??`, which has no leading space, so
+ * the defect was invisible until a tracked e2e edit had to be told from an untracked one.
+ */
+const dirty = tree.stdout.replace(/\s+$/, "")
+const dirtyEntries = dirty
   .split(/\r?\n/)
   .filter(Boolean)
   .map((line) => {
     const parts = line.slice(3).trim().split(" -> ")
-    return parts[parts.length - 1].replaceAll('"', "")
+    return { status: line.slice(0, 2), path: parts[parts.length - 1].replaceAll('"', "") }
   })
-const sourcePaths = dirtyPaths.filter((path) => !DISCARDABLE_RESIDUE.some((pattern) => pattern.test(path)))
+const sourcePaths = dirtyEntries.filter((entry) => !isDiscardable(entry)).map((entry) => entry.path)
 checks.cleanTree = {
   pass: dirty.length === 0,
   observed: dirty,
-  discardable: dirtyPaths.filter((path) => !sourcePaths.includes(path)),
+  discardable: dirtyEntries.filter((entry) => isDiscardable(entry)).map((entry) => entry.path),
   source: sourcePaths,
-  allDiscardable: dirtyPaths.length > 0 && sourcePaths.length === 0,
+  allDiscardable: dirtyEntries.length > 0 && sourcePaths.length === 0,
 }
 
 /**
@@ -228,10 +242,18 @@ if (!Number.isInteger(pullRequest.additions) || !Number.isInteger(pullRequest.de
 }
 /**
  * The scope gate promises TWO caps and this file enforced only one: a worker can touch 20 files while
- * staying under 400 lines. `changedFiles` is the count GitHub itself reports and was read off a real
- * `gh pr view 690 --json changedFiles` response before being relied on here. It replaces counting the
- * `files` array, which the API truncates at 100 entries and which therefore could never measure the
- * 355-file codemod this override exists for.
+ * staying under 400 lines. It replaces counting the `files` array, which the API truncates at 100
+ * entries and which therefore could never measure the 355-file codemod the override exists for.
+ *
+ * `changedFiles` was confirmed on THIS subcommand, not a neighbouring one. `gh pr view` and
+ * `gh pr list` are different response interfaces and an earlier comment cited the wrong one, which
+ * is the kind of near-miss standard 8 exists to catch. The real `gh pr list` response, gh 2.97.0:
+ *
+ *   $ gh pr list --head <branch> --json number,additions,deletions,changedFiles
+ *   [{"additions":1453,"changedFiles":22,"deletions":74,"number":693}]
+ *
+ * An integer, matching `gh pr view 693 --json changedFiles`, and the CLI lists the field as valid
+ * for `pr list` when given no field names at all.
  */
 if (!Number.isInteger(pullRequest.changedFiles)) {
   fail(2, `gh pr list reported no numeric changedFiles for pull request #${pullRequest.number}`)

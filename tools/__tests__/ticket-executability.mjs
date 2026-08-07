@@ -47,10 +47,31 @@ export const cases = () => {
   T(`${TOOL}: a count at the cap says nothing at all`, reasons(affected(8)).length === 0 && warnings(affected(8)).length === 0)
   T(`${TOOL}: a count no over-counting explains defers as OVER_CAPS`, reasons(affected(30))[0] === "OVER_CAPS", JSON.stringify(classifyExecutability(affected(30), OPTIONS)))
 
-  /** The override is the answer to OVER_CAPS, so it suppresses that reason and only that reason. */
-  const withOverride = { ...OPTIONS, hasCapsOverride: true }
-  T(`${TOOL}: a caps override suppresses OVER_CAPS`, reasons(`${affected(30)}\n\n## Technical details\n\nA codemod does it.`, withOverride).length === 0)
-  T(`${TOOL}: a caps override does not suppress NOT_CODE_WORK`, reasons("## Scope\n\nOps-only, no code in any repo.", withOverride)[0] === "NOT_CODE_WORK")
+  /**
+   * An override answers the cap it NAMES and no other. A codemod is a file-count problem and a
+   * regenerated lockfile is a line-count problem, so lifting one must not admit the other: the
+   * contract is that an unnamed cap stays standing, and a boolean "an override exists" broke it.
+   */
+  const filesLifted = { ...OPTIONS, capsOverride: { files: 400, lines: null } }
+  const linesLifted = { ...OPTIONS, capsOverride: { files: null, lines: 6000 } }
+  const codemod = "## Technical details\n\nA codemod rewrites every icon import."
+  const lockfile = "## Scope\n\nThe package-lock.json is regenerated from scratch."
+  T(`${TOOL}: a files override admits the codemod`, reasons(codemod, filesLifted).length === 0)
+  T(`${TOOL}: a LINES override does not admit the codemod`, reasons(codemod, linesLifted)[0] === "OVER_CAPS", JSON.stringify(classifyExecutability(codemod, linesLifted)))
+  T(`${TOOL}: a lines override admits the regenerated lockfile`, reasons(lockfile, linesLifted).length === 0)
+  T(`${TOOL}: a FILES override does not admit the regenerated lockfile`, reasons(lockfile, filesLifted)[0] === "OVER_CAPS", JSON.stringify(classifyExecutability(lockfile, filesLifted)))
+  T(`${TOOL}: a files override admits an over-cap Affected modules list`, reasons(affected(30), filesLifted).length === 0)
+  T(`${TOOL}: a lines override leaves the file-count breach standing`, reasons(affected(30), linesLifted)[0] === "OVER_CAPS", JSON.stringify(classifyExecutability(affected(30), linesLifted)))
+  T(`${TOOL}: a caps override does not suppress NOT_CODE_WORK`, reasons("## Scope\n\nOps-only, no code in any repo.", filesLifted)[0] === "NOT_CODE_WORK")
+
+  /**
+   * Out of scope owns its DESCENDANTS. `## Out of scope` then `### Operations` is one excluded
+   * region; filtering only the parent read the child as in-scope and deferred an executable ticket.
+   */
+  const nested = "## Scope\n\n- Add the endpoint\n\n## Out of scope\n\n### Operations\n\nHUMAN-ONLY: Thomas flips the toggle.\n"
+  T(`${TOOL}: a heading nested under Out of scope is excluded with its parent`, reasons(nested).length === 0, JSON.stringify(classifyExecutability(nested, OPTIONS)))
+  const resumed = `${nested}\n## Technical details\n\nA codemod rewrites every icon import.\n`
+  T(`${TOOL}: a sibling heading after the excluded region is scanned again`, reasons(resumed)[0] === "OVER_CAPS", JSON.stringify(classifyExecutability(resumed, OPTIONS)))
 
   T(
     `${TOOL}: a deferral quotes the line it fired on, so the evidence travels with the verdict`,

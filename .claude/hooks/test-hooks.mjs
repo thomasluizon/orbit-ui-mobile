@@ -169,6 +169,18 @@ T("worker-browser: the main checkout is not a worker", checkWorkerBrowser("npm r
 for (const command of ["npm test", "npm run build", "npm run lint", "dotnet test", "npx vitest run apps/web", "git commit -m 'stop npm run dev in CI'", "curl https://api.github.com/repos/o/r"]) {
   T(`worker-browser: ${command} allows`, worker(command), null)
 }
+// The rule judges the INVOKED PROGRAM, never stray argument text. Scanning the whole segment refused
+// `rg -n playwright .`, so a worker could not inspect or delete the very code this bans, which
+// aborts executable work for no safety. Same defect rules-orchestrator fixed for grep-over-engines.
+for (const command of ["rg -n playwright .", 'grep -rn "npm run dev" tools/', "cat apps/web/e2e/visual/orb-39.ts", "rm -rf apps/web/e2e", 'sed -i "s/expo start//" README.md']) {
+  T(`worker-browser: read-only work whose ARGUMENTS name a browser tool allows: ${command}`, worker(command), null)
+}
+// ...and the package runners that front the real program are still resolved through.
+T("worker-browser: npx playwright still blocks through the runner prefix", blocks(worker("npx playwright test")), true)
+T("worker-browser: pnpm dlx cypress still blocks", blocks(worker("pnpm dlx cypress run")), true)
+T("worker-browser: a dev script under a runner still blocks", blocks(worker("npm run dev -- --port 4000")), true)
+T("worker-browser: an unrelated npm script named dev-docs allows", worker("npm run dev:docs"), null)
+T("worker-browser: curl to a public host allows while localhost blocks", worker("curl https://example.com") === null && blocks(worker("curl http://localhost:3000")), true)
 
 console.log("\n# require-wake-source (_lib/rules-sleep.mjs)")
 // Under --sleep the ONLY thing that continues the run is a background task completing and

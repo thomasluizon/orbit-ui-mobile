@@ -23,31 +23,85 @@ import { insideLinkedWorktree } from "./repo-roots.mjs"
 const LAUNCHER_MARKER = "ORBIT_LAUNCH_WORKER"
 
 /** Binaries whose arguments are PROSE. A commit message naming `npm run dev` is not a dev server. */
-const QUOTING_BINARIES = new Set(["git", "echo", "printf", "cat"])
-
-const FORBIDDEN = [
-  { pattern: /(?<![\w-])(?:next|vite|remix|nuxt)\s+dev(?![\w-])/i, what: "a dev server" },
-  { pattern: /(?<![\w-])(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?(?:dev|start|serve|preview)(?![\w:-])/i, what: "a dev server" },
-  { pattern: /(?<![\w-])(?:expo\s+(?:start|run)|turbo\s+run\s+dev|dotnet\s+run)(?![\w-])/i, what: "a dev server or an emulator" },
-  { pattern: /(?<![\w-])(?:playwright|maestro|cypress|puppeteer|chromedriver|webdriver)(?![\w-])/i, what: "a browser driver" },
-  { pattern: /(?<![\w-])(?:adb|emulator)\s+/i, what: "an emulator" },
-  { pattern: /https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(?::\d+)?/i, what: "a request to a locally served app" },
-]
+/**
+ * Every rule below judges the INVOKED PROGRAM and its arguments, never arbitrary text inside the
+ * segment. An earlier revision scanned the whole segment, so `rg -n playwright .` was refused: a
+ * worker could not inspect or delete the very code this rule bans, which aborts executable work for
+ * no safety at all. The same defect was found and fixed once already in rules-orchestrator.mjs,
+ * where a grep whose PATTERN named an engine was read as an invocation.
+ *
+ * KNOWN BYPASSES, disclosed rather than implied, because a list that reads as exhaustive and is not
+ * is worse than none: a shell or interpreter wrapper (`sh -c '<command>'`, `node -e "..."`) whose
+ * inner text is never inspected; a script file that runs any of this; and an npm script name that
+ * fronts a dev server without being called dev, start, serve or preview. This is cost-raising
+ * defence in depth. The prompt in tools/compose-prompt.mjs states the rule; this stops the reflex.
+ */
+const BROWSER_DRIVERS = new Set(["playwright", "maestro", "cypress", "puppeteer", "chromedriver", "geckodriver", "webdriver", "adb", "emulator"])
+/** Package runners that front another program. The real invocation is whatever follows them. */
+const RUNNER_PREFIXES = new Set(["npx", "bunx", "sudo", "command", "time"])
+const RUNNER_SUBCOMMANDS = new Map([
+  ["pnpm", "dlx"],
+  ["yarn", "dlx"],
+  ["npm", "exec"],
+  ["bun", "x"],
+])
+const DEV_SCRIPTS = new Set(["dev", "start", "serve", "preview"])
+const DEV_BINARIES = new Set(["next", "vite", "remix", "nuxt"])
+const SCRIPT_RUNNERS = new Set(["npm", "pnpm", "yarn", "bun"])
+const NETWORK_CLIENTS = new Set(["curl", "wget", "http", "https", "httpie", "open", "xdg-open", "start", "invoke-webrequest", "invoke-restmethod"])
+const LOCAL_URL = /https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(?::\d+)?/i
 
 const SEGMENT_SPLIT = /[&|;\n]+/
 const LEADING_ASSIGNMENT = /^\s*[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\S*)(?:\s+|$)/
 
-/** The binary a segment invokes, lowercased and stripped of directory and Windows extension. */
-function invokedBinary(segment) {
-  let rest = segment.replace(/^[\s(){]*/, "")
-  for (let match = LEADING_ASSIGNMENT.exec(rest); match; match = LEADING_ASSIGNMENT.exec(rest)) rest = rest.slice(match[0].length)
-  const token = /^("[^"]*"|'[^']*'|\S+)/.exec(rest)?.[1] ?? ""
-  return token
+const normalize = (token) =>
+  String(token ?? "")
     .replaceAll(/["']/g, "")
     .split(/[/\\]/)
     .pop()
     .replace(/\.(?:exe|cmd|bat|ps1)$/i, "")
     .toLowerCase()
+
+/** The tokens a segment actually invokes: leading grouping and NAME=value assignments removed. */
+function tokensOf(segment) {
+  let rest = segment.replace(/^[\s(){]*/, "")
+  for (let match = LEADING_ASSIGNMENT.exec(rest); match; match = LEADING_ASSIGNMENT.exec(rest)) rest = rest.slice(match[0].length)
+  return rest.trim().split(/\s+/).filter(Boolean)
+}
+
+/** Strips package-runner prefixes so `npx playwright test` is judged as `playwright test`. */
+function withoutRunners(tokens) {
+  let rest = tokens
+  for (let guard = 0; guard < 4 && rest.length > 1; guard += 1) {
+    const binary = normalize(rest[0])
+    if (RUNNER_PREFIXES.has(binary)) {
+      rest = rest.slice(1)
+      continue
+    }
+    if (RUNNER_SUBCOMMANDS.get(binary) === normalize(rest[1])) {
+      rest = rest.slice(2)
+      continue
+    }
+    return rest
+  }
+  return rest
+}
+
+/** What a segment starts, or null. Judged on the program and its arguments, never on stray text. */
+function forbiddenAction(segment) {
+  const tokens = withoutRunners(tokensOf(segment))
+  if (tokens.length === 0) return null
+  const binary = normalize(tokens[0])
+  const args = tokens.slice(1).filter((token) => !token.startsWith("-")).map(normalize)
+
+  if (BROWSER_DRIVERS.has(binary)) return "a browser driver or an emulator"
+  if (DEV_BINARIES.has(binary) && args[0] === "dev") return "a dev server"
+  if (SCRIPT_RUNNERS.has(binary) && DEV_SCRIPTS.has(args[0] === "run" ? args[1] : args[0])) return "a dev server"
+  if (binary === "expo" && (args[0] === "start" || args[0] === "run")) return "a dev server or an emulator"
+  if (binary === "turbo" && args[0] === "run" && args[1] === "dev") return "a dev server"
+  if (binary === "dotnet" && args[0] === "run") return "a dev server"
+  if (NETWORK_CLIENTS.has(binary) && tokens.some((token) => LOCAL_URL.test(token))) return "a request to a locally served app"
+  return null
 }
 
 /**
@@ -61,13 +115,12 @@ export function checkWorkerBrowser(command, { env = {}, cwd = "", repoRoots = []
   if (!isWorker) return null
 
   for (const segment of stripHeredocBodies(command).split(SEGMENT_SPLIT)) {
-    if (QUOTING_BINARIES.has(invokedBinary(segment))) continue
-    const hit = FORBIDDEN.find((entry) => entry.pattern.test(segment))
-    if (!hit) continue
+    const action = forbiddenAction(segment)
+    if (!action) continue
     return {
       block: true,
       message:
-        `A worker may not start ${hit.what}. Refused: ${segment.trim().slice(0, 160)}\n\n` +
+        `A worker may not start ${action}. Refused: ${segment.trim().slice(0, 160)}\n\n` +
         "Do the code and the tests, commit, push, open the pull request, and stop. Visual evidence is\n" +
         "owed by a HUMAN after the pull request exists (D7): only a human grants visual completion, the\n" +
         "run merges nothing unattended, and a fresh worktree cannot authenticate, so the attempt can\n" +

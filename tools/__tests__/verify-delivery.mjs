@@ -118,6 +118,39 @@ export const cases = () => {
     residueResult.stdout,
   )
 
+  /**
+   * The repository has a TRACKED e2e suite, so `e2e/` cannot be discardable by path alone: a modified
+   * or deleted file there is somebody's real edit, and step 7 permits the run to throw residue away.
+   * Only an UNTRACKED file under e2e/ is a worker's invented evidence. The fixture commits the suite
+   * first, so the dirty entry is a tracked modification rather than a new file.
+   */
+  const trackedSuite = stageRepo("verify-delivery-tracked-e2e")
+  if (trackedSuite && trackedSuite.git(["switch", "-q", "-c", BRANCH]).status === 0) {
+    mkdirSync(join(trackedSuite.path, "apps", "web", "e2e"), { recursive: true })
+    writeFileSync(join(trackedSuite.path, "apps", "web", "e2e", "login.spec.ts"), "the real suite\n")
+    trackedSuite.git(["add", "-A"])
+    trackedSuite.git(["commit", "-q", "-m", "the ticket's real work"])
+    trackedSuite.git(["push", "-q", "-u", "origin", BRANCH])
+    writeFileSync(join(trackedSuite.path, "apps", "web", "e2e", "login.spec.ts"), "half an edit\n")
+    const head = trackedSuite.git(["rev-parse", "HEAD"]).stdout.trim()
+    const trackedResult = verdictOf({ ...trackedSuite, head }, JSON.stringify([pullRequest(head)]), "DIRTY_TREE", 1, "a MODIFIED tracked e2e file is DIRTY_TREE like any other source edit")
+    T(
+      `${TOOL}: a tracked e2e edit is source, never discardable evidence`,
+      /"allDiscardable": false/.test(trackedResult.stdout) && /"source": \[\s*"apps\/web\/e2e\/login\.spec\.ts"/.test(trackedResult.stdout) && /"discardable": \[\]/.test(trackedResult.stdout),
+      trackedResult.stdout || trackedResult.stderr,
+    )
+    /** The path is reported WHOLE. A trim over the blob ate the first line's leading status space,
+     * so ` M apps/...` lost its "a" and every tracked-modification path was reported one character
+     * short. Nothing caught it while every fixture happened to start with an untracked `??` line. */
+    T(
+      `${TOOL}: a tracked modification's path survives parsing intact`,
+      !/"[a-z]?pps\/web/.test(trackedResult.stdout) || /"apps\/web\/e2e\/login\.spec\.ts"/.test(trackedResult.stdout),
+      trackedResult.stdout,
+    )
+  } else {
+    T(`${TOOL}: the tracked e2e fixture staged`, false, "could not stage a repository carrying a committed e2e suite")
+  }
+
   const midEdit = stageDelivery("dirty-source", { dirty: ["apps/web/src/store.ts"] })
   const midEditResult = verdictOf(midEdit, JSON.stringify([pullRequest(midEdit.head)]), "DIRTY_TREE", 1, "a tracked source file left mid-edit is DIRTY_TREE too, but not discardable")
   T(

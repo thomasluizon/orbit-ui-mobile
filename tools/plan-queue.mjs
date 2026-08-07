@@ -212,7 +212,7 @@ for (const [id, entry] of fetched) {
    */
   const parsed = parseCapsOverride(issue.description, STANDING_CAPS)
   const capsOverride = parsed.found && !parsed.error ? { files: parsed.files, lines: parsed.lines, reason: parsed.reason } : null
-  const { deferrals, warnings } = classifyExecutability(issue.description, { affectedFilesCap: STANDING_CAPS.files, hasCapsOverride: Boolean(capsOverride) })
+  const { deferrals, warnings } = classifyExecutability(issue.description, { affectedFilesCap: STANDING_CAPS.files, capsOverride })
   if (parsed.error) warnings.push(`the CAPS-OVERRIDE line does not parse, so the caps stand: ${parsed.error}`)
   if (deferrals.length > 0) {
     const [first, ...also] = deferrals
