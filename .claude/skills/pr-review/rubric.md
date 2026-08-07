@@ -181,9 +181,12 @@ reverts included. Allowed differences: platform adapters only (BFF vs direct API
 shadcn vs NativeWind, next-intl vs i18next) and a layout shell divergence enumerated in `DESIGN.md`, limited
 to navigation chrome (sidebar vs tab bar), the desktop stats rail, the command palette and keyboard
 shortcuts, and hover affordances on that shell chrome. Everything below the shell, including a screen,
-component, data flow, error path, or behavior, remains parity-bound. A missing mirror file, or one that
-exists but was not updated, is **High** until proven intentional (the `parity:exempt` label plus a
-justification in the PR body). Never flag `packages/shared/**`, `apps/web/proxy.ts`,
+component, data flow, error path, or behavior, remains parity-bound. The per-file mirror requirement does
+not apply when a file's diff is confined to one of the enumerated layout shell surfaces above. It still
+applies to every non-shell surface and to any shared product behavior in that file. Otherwise, a missing
+mirror file, or one that exists but was not updated, is **High** until proven intentional (the
+`parity:exempt` label plus a justification in the PR body). Never flag `packages/shared/**`,
+`apps/web/proxy.ts`,
 `apps/web/app/api/[...path]/route.ts` (its mobile equivalent is built into
 `apps/mobile/lib/api-client.ts`), or a platform-specific test.
 
