@@ -7,6 +7,8 @@ import {
 } from "@orbit/shared/stores";
 
 import { TodayHabitsHeader } from "@/components/today/today-habits-header";
+import { TourProvider } from "@/components/tour/tour-provider";
+import { useTourStore } from "@/stores/tour-store";
 import { useUIStore } from "@/stores/ui-store";
 import { Animated } from "@/test-mocks/react-native";
 
@@ -26,6 +28,19 @@ vi.mock("@/app/(tabs)/today-shell", () => ({
 
 vi.mock("@/components/habits/today-ai-summary", () => ({
   TodayAISummary: () => null,
+}));
+
+vi.mock("expo-router", () => ({
+  usePathname: () => "/",
+  useRouter: () => ({ push: vi.fn() }),
+}));
+
+vi.mock("@/hooks/use-profile", () => ({
+  useProfile: () => ({ profile: { hasProAccess: true } }),
+}));
+
+vi.mock("@/hooks/use-tour-mock-data", () => ({
+  useTourMockData: () => ({ inject: vi.fn(), restore: vi.fn() }),
 }));
 
 vi.mock("lucide-react-native", () => {
@@ -69,6 +84,8 @@ describe("mobile ui store", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-06T12:00:00Z"));
     asyncStorageState.data.clear();
+    useTourStore.getState().endTour();
+    useTourStore.getState().setHiddenSections([]);
     useUIStore.setState({
       activeFilters: {},
       activeView: "today",
@@ -363,6 +380,28 @@ describe("mobile ui store", () => {
 
     useUIStore.setState(snapshot);
     expect(useUIStore.getState().searchQuery).toBe("focus");
+  });
+
+  it("clears an active search during the mobile tour and restores it afterward", () => {
+    useUIStore.setState({ searchQuery: "focus" });
+    let tree: { unmount: () => void } | undefined;
+
+    void TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        React.createElement(TourProvider, null),
+      ) as unknown as { unmount: () => void };
+    });
+    void TestRenderer.act(() => {
+      useTourStore.getState().startSectionReplay("habits");
+    });
+    expect(useUIStore.getState().searchQuery).toBe("");
+
+    void TestRenderer.act(() => {
+      useTourStore.getState().endTour();
+    });
+    expect(useUIStore.getState().searchQuery).toBe("focus");
+
+    void TestRenderer.act(() => tree?.unmount());
   });
 
   it("returns cloned persisted ui state snapshots", () => {
