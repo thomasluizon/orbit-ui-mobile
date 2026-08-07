@@ -12,6 +12,7 @@ vi.stubGlobal('fetch', mockFetch)
 const mockShowError = vi.fn()
 const mockShowSuccess = vi.fn()
 const mockShowQueued = vi.fn()
+const mockSetStreakCelebration = vi.fn()
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -50,14 +51,14 @@ vi.mock('@/stores/ui-store', () => ({
   useUIStore: Object.assign(
     () => ({
       activeFilters: {},
-      setStreakCelebration: vi.fn(),
+      setStreakCelebration: mockSetStreakCelebration,
       checkAllDoneCelebration: vi.fn(),
       setLastCreatedHabitId: vi.fn(),
     }),
     {
       getState: () => ({
         activeFilters: {},
-        setStreakCelebration: vi.fn(),
+        setStreakCelebration: mockSetStreakCelebration,
         checkAllDoneCelebration: vi.fn(),
         setLastCreatedHabitId: vi.fn(),
       }),
@@ -612,6 +613,85 @@ describe('useRestoreHabit', () => {
 describe('useLogHabit onSuccess', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+    mockSetStreakCelebration.mockClear()
+  })
+
+  it.each([
+    {
+      name: 'does not celebrate a bad sub-habit completion',
+      habits: [makeScheduleItem({
+        id: 'parent-1',
+        children: [makeScheduleChild({ id: 'bad-child', isBadHabit: true })],
+      })],
+      habitId: 'bad-child',
+      isFirstCompletionToday: true,
+      celebrates: false,
+    },
+    {
+      name: 'does not celebrate a bad top-level habit completion',
+      habits: [makeScheduleItem({ id: 'bad-habit', isBadHabit: true })],
+      habitId: 'bad-habit',
+      isFirstCompletionToday: true,
+      celebrates: false,
+    },
+    {
+      name: 'celebrates a good top-level habit completion',
+      habits: [makeScheduleItem({ id: 'good-habit' })],
+      habitId: 'good-habit',
+      isFirstCompletionToday: true,
+      celebrates: true,
+    },
+    {
+      name: 'celebrates a good sub-habit completion',
+      habits: [makeScheduleItem({
+        id: 'parent-1',
+        children: [makeScheduleChild({ id: 'good-child' })],
+      })],
+      habitId: 'good-child',
+      isFirstCompletionToday: true,
+      celebrates: true,
+    },
+    {
+      name: 'does not celebrate an unresolvable habit completion',
+      habits: [makeScheduleItem({ id: 'cached-habit' })],
+      habitId: 'missing-habit',
+      isFirstCompletionToday: true,
+      celebrates: false,
+    },
+    {
+      name: 'does not celebrate a repeat completion',
+      habits: [makeScheduleItem({ id: 'good-habit' })],
+      habitId: 'good-habit',
+      isFirstCompletionToday: false,
+      celebrates: false,
+    },
+  ])('$name', async ({ habits, habitId, isFirstCompletionToday, celebrates }) => {
+    const { logHabit } = await import('@/app/actions/habits')
+    vi.mocked(logHabit).mockResolvedValue({
+      logId: 'log-streak',
+      isFirstCompletionToday,
+      currentStreak: 3,
+    })
+
+    const queryClient = createQueryClient()
+    queryClient.setQueryData<HabitScheduleItem[]>(habitKeys.list({}), habits)
+    queryClient.setQueryData(profileKeys.detail(), { currentStreak: 1 })
+    const { result } = renderHook(() => useLogHabit(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await act(async () => {
+      await result.current.mutateAsync({ habitId })
+    })
+
+    if (celebrates) {
+      expect(mockSetStreakCelebration).toHaveBeenCalledWith({ streak: 3 })
+    } else {
+      expect(mockSetStreakCelebration).not.toHaveBeenCalled()
+    }
+    expect(
+      queryClient.getQueryData<{ currentStreak: number }>(profileKeys.detail())?.currentStreak,
+    ).toBe(celebrates ? 3 : 1)
   })
 
   it('completes successfully with streak response', async () => {

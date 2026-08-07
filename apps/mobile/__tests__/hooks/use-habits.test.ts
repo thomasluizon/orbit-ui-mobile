@@ -43,7 +43,7 @@ const mocks = vi.hoisted(() => {
     ),
     setQueriesData: vi.fn((
       filters: { queryKey: readonly unknown[] },
-      updater: unknown | ((old: unknown) => unknown),
+      updater: unknown,
     ) => {
       state.entries = state.entries.map((entry) => {
         if (!matchesPrefix(entry.key, filters.queryKey)) return entry
@@ -58,7 +58,7 @@ const mocks = vi.hoisted(() => {
     ),
     setQueryData: vi.fn((
       queryKey: readonly unknown[],
-      updater: unknown | ((old: unknown) => unknown),
+      updater: unknown,
     ) => {
       const index = state.entries.findIndex(
         (entry) => JSON.stringify(entry.key) === JSON.stringify(queryKey),
@@ -87,14 +87,14 @@ const mocks = vi.hoisted(() => {
     useQuery: vi.fn(),
     useQueryClient: vi.fn(() => queryClient),
     useMutation: vi.fn((config: unknown) => config),
-    runQueuedMutation: vi.fn(async ({ queuedResult, queuedResultFactory }: {
+    runQueuedMutation: vi.fn(({ queuedResult, queuedResultFactory }: {
       queuedResult?: unknown
       queuedResultFactory?: (mutationId: string) => unknown
-    }) => (
+    }) => Promise.resolve(
       queuedResultFactory?.('mutation-1') ?? queuedResult ?? {
         queued: true as const,
         queuedMutationId: 'mutation-1',
-      }
+      },
     )),
     buildQueuedMutation: vi.fn((options) => ({
       id: 'mutation-1',
@@ -651,7 +651,6 @@ describe('mobile habit hooks', () => {
     expect(context?.previousDetail?.checklistItems).toEqual(originalItems)
     expect(context?.previousFullDetail?.habit.checklistItems).toEqual(originalItems)
 
-    // Rollback path also restores both caches
     mutation.onError?.(new Error('boom'), variables, context)
     const detailAfter = mocks.queryClient.getQueryData(habitKeys.detail('habit-1')) as {
       checklistItems: ChecklistItem[]
@@ -723,7 +722,7 @@ describe('mobile habit hooks', () => {
 
     const result = await mutation.mutationFn('habit-1')
     mutation.onSuccess?.(result, 'habit-1', undefined)
-    await mutation.onSettled?.(result, null, 'habit-1', undefined)
+    mutation.onSettled?.(result, null, 'habit-1', undefined)
 
     expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({
       mutation: expect.objectContaining({
@@ -784,34 +783,78 @@ describe('mobile habit hooks', () => {
     expect(mocks.checkAllDoneCelebration).toHaveBeenCalled()
   })
 
-  it('does not celebrate a completion logged for a bad habit', () => {
-    mocks.state.entries = [
-      { key: habitKeys.list({}), value: [makeHabit({ id: 'habit-1', isBadHabit: true })] },
-      { key: habitKeys.count(), value: 1 },
-      { key: tagKeys.lists(), value: [] },
-      { key: goalKeys.lists(), value: [] },
-      { key: gamificationKeys.profile(), value: { totalXp: 100 } },
-    ]
-
+  it.each([
+    {
+      name: 'does not celebrate a bad sub-habit completion',
+      habits: [makeHabit({
+        id: 'parent-1',
+        children: [makeChild({ id: 'bad-child', isBadHabit: true })],
+      })],
+      habitId: 'bad-child',
+      isFirstCompletionToday: true,
+      celebrates: false,
+    },
+    {
+      name: 'does not celebrate a bad top-level habit completion',
+      habits: [makeHabit({ id: 'bad-habit', isBadHabit: true })],
+      habitId: 'bad-habit',
+      isFirstCompletionToday: true,
+      celebrates: false,
+    },
+    {
+      name: 'celebrates a good top-level habit completion',
+      habits: [makeHabit({ id: 'good-habit' })],
+      habitId: 'good-habit',
+      isFirstCompletionToday: true,
+      celebrates: true,
+    },
+    {
+      name: 'celebrates a good sub-habit completion',
+      habits: [makeHabit({
+        id: 'parent-1',
+        children: [makeChild({ id: 'good-child' })],
+      })],
+      habitId: 'good-child',
+      isFirstCompletionToday: true,
+      celebrates: true,
+    },
+    {
+      name: 'does not celebrate an unresolvable habit completion',
+      habits: [makeHabit({ id: 'cached-habit' })],
+      habitId: 'missing-habit',
+      isFirstCompletionToday: true,
+      celebrates: false,
+    },
+    {
+      name: 'does not celebrate a repeat completion',
+      habits: [makeHabit({ id: 'good-habit' })],
+      habitId: 'good-habit',
+      isFirstCompletionToday: false,
+      celebrates: false,
+    },
+  ])('$name', ({ habits, habitId, isFirstCompletionToday, celebrates }) => {
+    seedHabitState(habits)
+    mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: 1 })
     const mutation = useLogHabit() as unknown as MutationConfig<
       unknown,
       { habitId: string; date?: string },
       unknown
     >
     const response: LogHabitResponse = {
-      logId: 'log-1',
-      isFirstCompletionToday: true,
+      logId: 'log-streak',
+      isFirstCompletionToday,
       currentStreak: 3,
-      xpEarned: 25,
-      linkedGoalUpdates: [],
-      newAchievementIds: [],
     }
 
-    mutation.onSuccess?.(response, { habitId: 'habit-1' }, undefined)
+    mutation.onSuccess?.(response, { habitId }, undefined)
 
-    expect(mocks.setStreakCelebration).not.toHaveBeenCalled()
-    const gamification = mocks.queryClient.getQueryData(gamificationKeys.profile()) as { totalXp: number }
-    expect(gamification.totalXp).toBe(100)
+    if (celebrates) {
+      expect(mocks.setStreakCelebration).toHaveBeenCalledWith({ streak: 3 })
+    } else {
+      expect(mocks.setStreakCelebration).not.toHaveBeenCalled()
+    }
+    const profile = mocks.queryClient.getQueryData(profileKeys.detail()) as { currentStreak: number }
+    expect(profile.currentStreak).toBe(celebrates ? 3 : 1)
   })
 
   it('skips all celebrations when a completion is queued offline', () => {
