@@ -583,7 +583,8 @@ export const PostApiGoalsBody = zod.object({
   "targetValue": zod.union([zod.number(),zod.stringFormat('double', postApiGoalsBodyTargetValueRegExpTwo)]),
   "unit": zod.string(),
   "deadline": zod.iso.date().nullish(),
-  "type": zod.number().default(postApiGoalsBodyTypeDefault)
+  "type": zod.number().default(postApiGoalsBodyTypeDefault),
+  "habitIds": zod.array(zod.uuid()).nullish()
 })
 
 export const PostApiGoalsResponse = zod.void()
