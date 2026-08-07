@@ -112,9 +112,22 @@ describe('proxy', () => {
       'http://localhost:3000/api/profile',
       'http://localhost:3000/_next/static/chunks/app.js',
       'http://localhost:3000/app-ads.txt',
+      'http://localhost:3000/favicon.ico',
+      'http://localhost:3000/images/orbit-logo.png',
     ]) {
       expect(unstable_doesMiddlewareMatch({ config, url })).toBe(true)
     }
+  })
+
+  it('adds the policy to static image responses without resolving a session', async () => {
+    for (const path of ['/favicon.ico', '/images/orbit-logo.png']) {
+      const response = await proxy(createRequest(path))
+
+      expect(response.headers.get('Content-Security-Policy')).toMatch(
+        /^default-src 'self'; script-src 'self' 'nonce-[^']+' 'strict-dynamic'/,
+      )
+    }
+    expect(resolveSessionTokens).not.toHaveBeenCalled()
   })
 
   it('redirects protected routes to login when no session can be resolved', async () => {

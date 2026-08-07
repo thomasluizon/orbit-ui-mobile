@@ -9,6 +9,7 @@ import {
 } from '@/lib/auth-api'
 
 const CONTENT_SECURITY_POLICY = 'Content-Security-Policy'
+const STATIC_IMAGE_PATH = /\.(?:svg|png|jpg|jpeg|gif|webp|ico)$/
 
 const PUBLIC_PATHS = [
   '/login',
@@ -115,7 +116,8 @@ export async function proxy(request: NextRequest) {
   if (
     pathname.startsWith('/api/') ||
     pathname.startsWith('/_next/') ||
-    pathname === '/app-ads.txt'
+    pathname === '/app-ads.txt' ||
+    STATIC_IMAGE_PATH.test(pathname)
   ) {
     return secureResponse(
       NextResponse.next({ request: { headers: requestHeaders } }),
@@ -163,7 +165,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    '/((?!favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
-  ],
+  matcher: ['/:path*'],
 }
