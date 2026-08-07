@@ -185,6 +185,8 @@ for (const command of [
   "git commit --patch",
   "git commit -i",
   "git commit --interactive",
+  "git commit --intera",
+  "git commit --patc",
   `git -C "${linkedWorktree}" add .`,
 ]) {
   T(`staging: ${command} blocks in a worker worktree`, blocks(workerStaging(command)), true)

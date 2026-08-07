@@ -41,6 +41,7 @@ const BARE_PUT = /(?<![\w-])PUT(?![\w-])/
 const SHELL_WORD = /"[^"]*"|'[^']*'|\S+/g
 const BROAD_ADD_FLAGS = new Set(["-A", "--all", "-u", "--update", "--renormalize"])
 const COMMIT_VALUE_FLAGS = new Set(["-m", "--message", "-F", "--file", "-C", "--reuse-message", "-c", "--reedit-message", "--author", "--date", "--cleanup", "--trailer", "--fixup", "--squash"])
+const BROAD_COMMIT_LONG_FLAGS = ["--all", "--interactive", "--patch", "--pathspec-from-file", "--pathspec-file-nul"]
 
 const isBroadPathspec = (argument, literalGlobally) => {
   const literalPrefix = argument.startsWith(":(literal)")
@@ -170,7 +171,9 @@ export function checkBroadStaging(command, { env = {}, cwd = "", repoRoots = [] 
           continue
         }
         if (!afterSeparator && argument.startsWith("-")) {
-          if (["--all", "--interactive", "--patch"].includes(argument) || /^-[^-]*[aip]/.test(argument) || argument.startsWith("--pathspec")) broadCommit = true
+          // Git accepts unambiguous long-option abbreviations. Prefix matching the dangerous set
+          // closes --intera/--patc and the equivalent pathspec/all spellings mechanically.
+          if (BROAD_COMMIT_LONG_FLAGS.some((flag) => flag.startsWith(argument) || argument.startsWith(`${flag}=`)) || /^-[^-]*[aip]/.test(argument)) broadCommit = true
           if (COMMIT_VALUE_FLAGS.has(argument)) skipValue = true
           continue
         }
