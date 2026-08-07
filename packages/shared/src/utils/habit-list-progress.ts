@@ -110,6 +110,7 @@ export function computeParentPromptProgress(
     let total = 0
     let loggedDone = 0
 
+    // WHY: API dateFrom/user-today populates flexible progress; general habits cannot be skipped. https://linear.app/useorbitai/issue/ORB-86
     const isServerKnownSkip =
       child.flexibleTarget != null &&
       child.flexibleCompleted != null &&

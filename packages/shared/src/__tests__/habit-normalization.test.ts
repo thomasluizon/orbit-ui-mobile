@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { HabitDetail, HabitScheduleItem } from '../types/habit'
+import type { HabitDetail, HabitScheduleChild, HabitScheduleItem } from '../types/habit'
 import type { Goal } from '../types/goal'
 import {
   applyLinkedGoalUpdates,
@@ -9,6 +9,7 @@ import {
   normalizeHabits,
   sortNormalizedHabits,
 } from '../utils/habit-normalization'
+import { computeParentPromptProgress } from '../utils/habit-list-progress'
 import { createMockHabit } from './factories'
 
 function makeScheduleItem(overrides: Partial<HabitScheduleItem> = {}): HabitScheduleItem {
@@ -63,37 +64,45 @@ describe('habit normalization utils', () => {
     ])
   })
 
-  it('normalizes children into a flat map and child index', () => {
+  it('preserves populated child progress and leaves absent progress unresolved', () => {
+    const childWithoutFlexibleProgress: HabitScheduleChild = {
+      id: 'child-2',
+      title: 'Child 2',
+      description: null,
+      frequencyUnit: 'Week',
+      frequencyQuantity: 1,
+      isBadHabit: false,
+      isCompleted: false,
+      isGeneral: false,
+      isFlexible: true,
+      days: [],
+      dueDate: '2025-01-01',
+      dueTime: null,
+      dueEndTime: null,
+      endDate: null,
+      scheduledDates: ['2025-01-01'],
+      isOverdue: true,
+      position: null,
+      checklistItems: [],
+      tags: [],
+      children: [],
+      hasSubHabits: false,
+      isLoggedInRange: false,
+      instances: [],
+    }
     const data = normalizeHabitQueryData([
       makeScheduleItem({
         id: 'parent',
         hasSubHabits: true,
         children: [
           {
+            ...childWithoutFlexibleProgress,
             id: 'child-1',
             title: 'Child 1',
-            description: null,
-            frequencyUnit: null,
-            frequencyQuantity: null,
-            isBadHabit: false,
-            isCompleted: false,
-            isGeneral: false,
-            isFlexible: false,
-            days: [],
-            dueDate: '2025-01-01',
-            dueTime: null,
-            dueEndTime: null,
-            endDate: null,
-            scheduledDates: ['2025-01-01'],
-            isOverdue: true,
-            position: null,
-            checklistItems: [],
-            tags: [],
-            children: [],
-            hasSubHabits: false,
-            isLoggedInRange: false,
-            instances: [],
+            flexibleTarget: 0,
+            flexibleCompleted: 0,
           },
+          childWithoutFlexibleProgress,
         ],
       }),
     ])
@@ -102,9 +111,29 @@ describe('habit normalization utils', () => {
     expect(data.habitsById.get('child-1')).toMatchObject({
       scheduledDates: ['2025-01-01'],
       isOverdue: true,
+      flexibleTarget: 0,
+      flexibleCompleted: 0,
+    })
+    expect(data.habitsById.get('child-2')).toMatchObject({
+      flexibleTarget: null,
+      flexibleCompleted: null,
     })
     expect(data.topLevelHabits.map((habit) => habit.id)).toEqual(['parent'])
-    expect(data.childrenByParent.get('parent')).toEqual(['child-1'])
+    expect(data.childrenByParent.get('parent')).toEqual(['child-1', 'child-2'])
+
+    const progress = computeParentPromptProgress({
+      parentId: 'parent',
+      getChildren: (parentId) =>
+        (data.childrenByParent.get(parentId) ?? [])
+          .map((id) => data.habitsById.get(id))
+          .filter((habit) => habit !== undefined),
+      isRelevantToday: () => true,
+      isDueOnSelectedDate: () => true,
+      isListView: false,
+      skippedIds: new Set(),
+    })
+
+    expect(progress).toEqual({ done: 1, total: 2, loggedDone: 0 })
   })
 
   it('derives top-level logged-in-range from completed instances', () => {
