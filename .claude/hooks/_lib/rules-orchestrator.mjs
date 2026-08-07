@@ -38,6 +38,7 @@ const API_CLIENTS = new Set(["gh", "curl", "wget", "http", "https", "httpie"])
 // bypass is not a prohibition, and this is the one everything else rests on.
 const HTTPIE_BINARIES = new Set(["http", "https", "httpie"])
 const BARE_PUT = /(?<![\w-])PUT(?![\w-])/
+const BROAD_GIT_ADD = /(?:^|\s)git(?:\.exe)?(?:\s+-C\s+(?:"[^"]+"|'[^']+'|\S+))?\s+add\s+(?:-A|--all|\.)(?:\s|$)/i
 
 /**
  * Everything before the first real word: leading grouping punctuation and any number of
@@ -129,6 +130,24 @@ export function checkEngineInvocation(command, { env = {}, cwd = "", repoRoots =
         "for a raw `codex` or `claude` invocation, so its worker is unsupervised.\n" +
         "The refusal is scoped to the CALLER, not the flag: the launcher itself, any command run\n" +
         "from inside a launcher-created worktree, and version or help queries are permitted.",
+    )
+  }
+  return null
+}
+
+/** Workers stage only named paths. Broad staging can sweep prompt residue, generated output, or a
+ * colleague's tracked `.orca/` edit into the commit. The rule applies only to launcher children and
+ * linked worktrees; ordinary user Git outside a worker remains untouched. */
+export function checkBroadStaging(command, { env = {}, cwd = "", repoRoots = [] } = {}) {
+  if (typeof command !== "string") return null
+  if (!env[LAUNCHER_MARKER] && !(cwd && insideLinkedWorktree(cwd, repoRoots))) return null
+  for (const segment of segmentsOf(command)) {
+    if (!BROAD_GIT_ADD.test(segment)) continue
+    return blocked(
+      command,
+      "Worker worktrees may stage only explicitly named paths. `git add -A`, `git add --all`, and\n" +
+        "`git add .` can capture unrelated or runtime residue. Inspect `git status --short`, then\n" +
+        "pass each intended path to `git add` by name. Tracked `.orca/` changes are source.",
     )
   }
   return null

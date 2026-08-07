@@ -84,12 +84,15 @@ export const stage = (relativePath, body) => {
 export const resolveBash = () => {
   const candidates = [
     process.env.ORBIT_BASH,
-    "bash",
+    // On Windows the PATH `bash` may be the WSL app-execution alias. Its `--version` probe can
+    // wait forever and spawn a child that outlives a killed test runner. Known Git Bash paths are
+    // deterministic and do not cross that alias. POSIX keeps the ordinary PATH lookup.
+    process.platform === "win32" ? null : "bash",
     "C:\\Program Files\\Git\\bin\\bash.exe",
     "C:\\Program Files\\Git\\usr\\bin\\bash.exe",
   ].filter(Boolean)
   for (const candidate of candidates) {
-    const probe = spawnSync(candidate, ["--version"], { encoding: "utf8" })
+    const probe = spawnSync(candidate, ["--version"], { encoding: "utf8", timeout: 5000, windowsHide: true })
     if (!probe.error && probe.status === 0) return candidate
   }
   return null
@@ -174,6 +177,9 @@ const linearEnvelopeName = (command, response) => {
 const assertOrcaLinearStub = (entry, stdout) => {
   const command = String(entry.match)
   if (!/\blinear\s+/.test(command)) return
+  // A write whose caller branches only on the exit code has no response field to prove. Keeping
+  // stdout empty is stronger than inventing a success object that the real CLI may never emit.
+  if (entry.ignoreLinearShape === true && stdout === "") return
   let response
   let parsedJson = false
   try {

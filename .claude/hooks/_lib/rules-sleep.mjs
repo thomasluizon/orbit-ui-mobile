@@ -35,8 +35,13 @@ export function checkSleepStop({ state, wakeSources = [], sessionId = "", stopHo
    * re-entered step 7. A queue is not done while one of its pull requests has not been through the
    * rest of the algorithm.
    */
-  const unreviewed = Array.isArray(state.unreviewedPullRequests) ? state.unreviewedPullRequests.filter((entry) => Number.isInteger(entry)) : []
-  if (remaining.length === 0 && unreviewed.length === 0) return null
+  const rawPullRequests = Array.isArray(state.pullRequests) ? state.pullRequests : []
+  const pullRequests = rawPullRequests.filter(
+    (entry) => typeof entry?.repositoryKey === "string" && entry.repositoryKey !== "" && Number.isInteger(entry?.prNumber) && typeof entry?.receiptPath === "string" && entry.receiptPath !== "",
+  )
+  const invalidPullRequestIdentities = rawPullRequests.length - pullRequests.length +
+    (Array.isArray(state.unreviewedPullRequests) ? state.unreviewedPullRequests.length : 0)
+  if (remaining.length === 0 && pullRequests.length === 0 && invalidPullRequestIdentities === 0) return null
 
   const live = wakeSources.filter((source) => Number.isInteger(source?.pid) && isAlive(source.pid))
   if (live.length > 0) return null
@@ -44,7 +49,9 @@ export function checkSleepStop({ state, wakeSources = [], sessionId = "", stopHo
   const outstanding =
     remaining.length > 0
       ? `${remaining.length} ticket(s) left (${remaining.join(", ")})`
-      : `every ticket done but pull request(s) ${unreviewed.map((number) => `#${number}`).join(", ")} carrying no review verdict`
+      : invalidPullRequestIdentities > 0
+        ? `${invalidPullRequestIdentities} pull request identity record(s) are bare or invalid; repositoryKey, prNumber, and receiptPath are required`
+        : `every ticket done but pull request(s) ${pullRequests.map((entry) => `${entry.repositoryKey}#${entry.prNumber}`).join(", ")} lack a READY final-head receipt`
 
   return {
     block: true,
@@ -55,11 +62,11 @@ export function checkSleepStop({ state, wakeSources = [], sessionId = "", stopHo
       "When every slot is free and work remains, the action is to LAUNCH THE NEXT TICKET, not to end\n" +
       "the turn. `node tools/launch-worker.mjs` registers itself as a wake source, so starting the\n" +
       "next worker or the next reviewer clears this by construction.\n\n" +
-      "A pull request listed in unreviewedPullRequests has not been through steps 7, 8 and 12. Run\n" +
-      "them, then drop it from the list. A salvaged pull request is not an exception: opening it is\n" +
-      "the middle of salvage, never the end.\n\n" +
+      "A pull request listed in pullRequests has not reached simultaneous final-head readiness. Run\n" +
+      "the readiness loop, then drop it only after its receipt says READY. A salvaged pull request\n" +
+      "is not an exception: opening it is the middle of salvage, never the end.\n\n" +
       "If the queue really is done and every pull request is reviewed, write `remaining: []` and\n" +
-      "`unreviewedPullRequests: []` into .git/orbit-orchestrate-run.json, then print the step 14\n" +
+      "`pullRequests: []` into .git/orbit-orchestrate-run.json, then print the step 15\n" +
       "report. Never leave the record saying work remains when it does not.",
   }
 }

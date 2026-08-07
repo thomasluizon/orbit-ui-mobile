@@ -12,26 +12,30 @@
  * verified out of band by tools/verify-delivery.mjs.
  */
 
-import { spawn, spawnSync } from "node:child_process"
+import { execFileSync, spawn, spawnSync } from "node:child_process"
+import { createHash } from "node:crypto"
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, statSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { delimiter, dirname, extname, join, resolve } from "node:path"
-import { fileURLToPath } from "node:url"
 
+import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
+import { withDegradedReviewFirst } from "./lib/pr-body.mjs"
 import { clearWakeSource, registerWakeSource } from "./lib/run-state.mjs"
 
 const USAGE = `usage: launch-worker.mjs --issue ORB-N --worktree <path> --prompt <file> [options]
-       launch-worker.mjs --issue ORB-N --review --prompt <file> [options]
+       launch-worker.mjs --issue ORB-N --review --repo <ui|api|landing> --prompt <file> [options]
 
   --issue ORB-N      Linear issue this worker is for (required)
   --worktree <path>  the existing worktree the worker runs in (required, implementer only)
   --prompt <file>    the composed work order. MUST live outside the worktree, or the worker commits
                      it. Only its path is handed to the worker, never its text (required)
   --review           launch the REVIEWER instead of the implementer: the reviewer engine and the
-                     "review" model tier from .claude/orchestrator.json, running in THIS main
-                     checkout. Refuses --worktree, because a reviewer inside the worktree reads the
+                     "review" model tier from .claude/orchestrator.json, running in the selected
+                     repository's primary main checkout. Refuses --worktree, because a reviewer inside the worktree reads the
                      PR's own AGENTS.md, which is instructions written by the change under review
+  --repo <key>       required with --review. Selects the configured primary main checkout; a bare
+                     PR number is never resolved from the caller's cwd
   --codex-only       record that this is the Claude-quota-exhausted fallback run. It changes
                      nothing about the implementer, which is the same model in both modes. With
                      --review it DOES move the reviewer onto the worker engine's review tier,
@@ -65,21 +69,44 @@ const argOf = (flag) => {
 const issue = argOf("--issue")
 const worktreeArg = argOf("--worktree")
 const promptArg = argOf("--prompt")
+const repoKey = argOf("--repo")
 const review = process.argv.includes("--review")
 const codexOnly = process.argv.includes("--codex-only")
 const dryRun = process.argv.includes("--dry-run")
-
-/** This checkout, resolved from the tool's own location: the MAIN checkout a reviewer runs in. */
-const mainCheckout = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 
 if (!issue || !/^[A-Z]+-\d+$/.test(issue)) fail(2, `${USAGE}\n\n--issue must be a Linear identifier such as ORB-75`)
 if (review && worktreeArg) {
   fail(2, `${USAGE}\n\n--review refuses --worktree: the reviewer runs in the main checkout, never in the worktree, so it cannot read the PR's own AGENTS.md as instructions`)
 }
+if (review && (!repoKey || repoKey.startsWith("--"))) fail(2, `${USAGE}\n\n--review requires --repo`)
 if (!review && (!worktreeArg || worktreeArg.startsWith("--"))) fail(2, `${USAGE}\n\n--worktree is required`)
 if (!promptArg || promptArg.startsWith("--")) fail(2, `${USAGE}\n\n--prompt is required`)
 
-const runDirectory = review ? mainCheckout : resolve(worktreeArg)
+let config
+try {
+  config = readOrchestratorConfig()
+} catch (error) {
+  fail(2, error.message)
+}
+if (review && typeof config.repos?.[repoKey] !== "string") fail(2, `--repo must name a configured repository (known: ${Object.keys(config.repos ?? {}).join(", ") || "none"})`)
+
+if (review && ["ui", "api"].includes(repoKey)) {
+  const relativePaths = [join(".claude", "skills", "pr-review", "SKILL.md"), join(".claude", "skills", "pr-review", "rubric.md")]
+  const digest = (path) => createHash("sha256").update(readFileSync(path)).digest("hex")
+  for (const relativePath of relativePaths) {
+    const uiPath = join(config.repos.ui, relativePath)
+    const apiPath = join(config.repos.api, relativePath)
+    let matches = false
+    try {
+      matches = digest(uiPath) === digest(apiPath)
+    } catch (error) {
+      fail(2, `pr-review parity could not read ${relativePath}: ${error.message}`)
+    }
+    if (!matches) fail(2, `pr-review parity failed for ${relativePath}: UI is canonical and API must match before an API review can launch`)
+  }
+}
+
+const runDirectory = review ? resolve(config.repos[repoKey]) : resolve(worktreeArg)
 if (!existsSync(runDirectory)) fail(2, `worktree not found: ${runDirectory}`)
 const promptFile = resolve(promptArg)
 if (!existsSync(promptFile)) fail(2, `prompt file not found: ${promptFile}`)
@@ -97,13 +124,7 @@ const gitIn = (args) => {
 }
 const branch = gitIn(["rev-parse", "--abbrev-ref", "HEAD"])
 if (!branch) fail(2, `${runDirectory} is not a git worktree`)
-
-let config
-try {
-  config = readOrchestratorConfig()
-} catch (error) {
-  fail(2, error.message)
-}
+if (review && branch !== "main") fail(2, `--review --repo ${repoKey} requires the configured primary checkout on main; found ${branch} in ${runDirectory}`)
 /**
  * --codex-only is the CLAUDE-QUOTA-EXHAUSTED fallback, so its reviewer cannot be config.reviewer:
  * that names the one engine known to be unavailable whenever the flag is passed. It resolves the
@@ -197,7 +218,7 @@ mkdirSync(logDirectory, { recursive: true })
 const logFile = join(logDirectory, `${issue}-${Date.now()}.log`)
 
 if (dryRun) {
-  console.log(JSON.stringify({ issue, engine: engineName, tier: invocation.tier, model: invocation.model, codexOnly, review, runDirectory, branch, promptFile, executable, args: workerArgs, logFile, dryRun: true }, null, 2))
+  console.log(JSON.stringify({ issue, engine: engineName, tier: invocation.tier, model: invocation.model, codexOnly, review, repositoryKey: repoKey, runDirectory, branch, promptFile, executable, args: workerArgs, logFile, dryRun: true }, null, 2))
   process.exit(0)
 }
 
@@ -214,6 +235,12 @@ const logFd = openSync(logFile, "a")
  * on ORB-87, where the worker resolved bare `orca`, hit "not recognized as a name of a cmdlet", and
  * correctly stopped rather than falling through to another executable. It delivered nothing in 54s.
  */
+let githubAuth
+try {
+  githubAuth = githubEnvironment(runDirectory)
+} catch (error) {
+  fail(3, redactSecrets(error.message))
+}
 const child = spawn(executable, workerArgs, {
   cwd: runDirectory,
   stdio: ["ignore", logFd, logFd],
@@ -223,7 +250,7 @@ const child = spawn(executable, workerArgs, {
   // opposite, since detached there spawns a console window; taskkill /T already walks that tree.
   detached: process.platform !== "win32",
   env: {
-    ...process.env,
+    ...githubAuth.environment,
     ORBIT_LAUNCH_WORKER: "1",
     ORCA_CLI_COMMAND: process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs\\orca\\resources\\bin\\orca",
   },
@@ -240,6 +267,19 @@ registerWakeSource({ pid: process.pid, what: `${review ? "reviewer" : "worker"} 
 const finish = (outcome, exitCode) => {
   clearWakeSource(process.pid)
   closeSync(logFd)
+  if (codexOnly && !review) {
+    try {
+      const GH = process.env.GH_BIN || "gh"
+      const listed = JSON.parse(execFileSync(GH, ["pr", "list", "--head", branch, "--json", "number,body"], { cwd: runDirectory, encoding: "utf8", env: githubAuth.environment, stdio: ["ignore", "pipe", "pipe"] }))
+      if (Array.isArray(listed) && listed.length === 1) {
+        const body = withDegradedReviewFirst(listed[0].body)
+        if (body !== listed[0].body) execFileSync(GH, ["pr", "edit", String(listed[0].number), "--body-file", "-"], { cwd: runDirectory, encoding: "utf8", input: body, env: githubAuth.environment, stdio: ["pipe", "pipe", "pipe"] })
+      }
+    } catch (error) {
+      console.error(`could not enforce the degraded PR body marker: ${redactSecrets(error.stderr?.toString() || error.message, githubAuth.secrets)}`)
+      outcome = "PR_BODY_ENFORCEMENT_FAILED"
+    }
+  }
   const result = { issue, engine: engineName, tier: invocation.tier, model: invocation.model, codexOnly, pid: child.pid ?? null, logFile, startedAt, endedAt: new Date().toISOString(), exitCode, outcome }
   console.log(JSON.stringify(result, null, 2))
   process.exit(outcome === "EXITED" ? 0 : 1)

@@ -18,7 +18,6 @@
 
 import { execFileSync } from "node:child_process"
 
-import { parseCapsOverride } from "./lib/caps-override.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { classifyExecutability } from "./lib/ticket-executability.mjs"
 
@@ -37,10 +36,9 @@ Exactly one of --tickets, --project or --board is required.
 Prints ONE JSON object on stdout: scope, admitted, deferred, stacks, waves. Errors go to stderr.
 
   admitted[]  identifier, repo, title, labels, visibleEffect, blockedBy, stackParent, branchMode,
-              wave, unlocks, capsOverride, warnings
+              wave, unlocks, warnings
   deferred[]  identifier, reason  (BLOCKED_OUTSIDE_QUEUE, UNSTACKABLE_BLOCKERS_IN_QUEUE,
-              NO_REPO_LABEL, AMBIGUOUS_REPO, CLOSED, NOT_REPRODUCED, NOT_CODE_WORK, MULTI_PR,
-              OVER_CAPS)
+              NO_REPO_LABEL, AMBIGUOUS_REPO, CLOSED, NOT_REPRODUCED, NOT_CODE_WORK, MULTI_PR)
   stacks[]    repo, branchBase, members[]   one stack per dependency chain within a repo
   waves[][]   identifiers that may run concurrently, each wave depending only on earlier ones
 
@@ -48,9 +46,6 @@ A ticket is admitted when it is open, carries exactly one repo:* label, every ti
 either closed or also admitted here, and its body does not say a headless agent cannot execute it.
 visible-effect is NOT a bar to admission: the run opens the pull request and stops, and the human
 grants visual completion.
-
-A ticket whose DESCRIPTION carries a human-authored CAPS-OVERRIDE line runs with the cap it names
-lifted, and the override is reported so nothing has to re-read the ticket to learn the caps.
 
 exit codes: 0 a plan was produced (it may admit zero tickets), 1 the scope resolved to no tickets
             at all, 2 usage or environment error`
@@ -180,13 +175,11 @@ for (const { blockedBy } of fetched.values()) {
   }
 }
 
-let config
 try {
-  config = readOrchestratorConfig()
+  readOrchestratorConfig()
 } catch (error) {
   fail(2, error.message)
 }
-const STANDING_CAPS = { files: config.caps.affectedFiles, lines: config.caps.diffLines }
 
 const deferred = []
 const candidates = new Map()
@@ -210,16 +203,13 @@ for (const [id, entry] of fetched) {
    * dropped before the fixed point below cascades correctly onto whatever depended on it, and a
    * ticket named at 23:00 is a decision Thomas can make before bed rather than a slot burned at 03:00.
    */
-  const parsed = parseCapsOverride(issue.description, STANDING_CAPS)
-  const capsOverride = parsed.found && !parsed.error ? { files: parsed.files, lines: parsed.lines, reason: parsed.reason } : null
-  const { deferrals, warnings } = classifyExecutability(issue.description, { affectedFilesCap: STANDING_CAPS.files, capsOverride })
-  if (parsed.error) warnings.push(`the CAPS-OVERRIDE line does not parse, so the caps stand: ${parsed.error}`)
+  const { deferrals, warnings } = classifyExecutability(issue.description)
   if (deferrals.length > 0) {
     const [first, ...also] = deferrals
     deferred.push({ identifier: id, reason: first.reason, detail: also.length > 0 ? `${first.detail}. It also reads as ${also.map((entry) => entry.reason).join(" and ")}` : first.detail })
     continue
   }
-  candidates.set(id, { ...entry, repo: repos[0].slice("repo:".length), capsOverride, warnings })
+  candidates.set(id, { ...entry, repo: repos[0].slice("repo:".length), warnings })
 }
 
 /**
@@ -380,7 +370,6 @@ const admitted = runnable.map((id, index) => {
     wave: runnableWaves.findIndex((wave) => wave.includes(id)),
     position: index,
     unlocks: unlocksById.get(id),
-    capsOverride: entry.capsOverride,
     warnings: entry.warnings,
   }
 })
@@ -421,9 +410,7 @@ if (format === "markdown") {
             ? " (opens against main after blockers merge; blockers do not form a stack)"
             : " (opens against main)"
       const visual = ticket.visibleEffect ? " [visual check owed]" : ""
-      const lifted = [ticket.capsOverride?.files ? `files ${ticket.capsOverride.files}` : null, ticket.capsOverride?.lines ? `lines ${ticket.capsOverride.lines}` : null].filter(Boolean).join(", ")
-      const override = lifted ? ` [caps override: ${lifted}]` : ""
-      lines.push(`- ${id} \`${ticket.repo}\`${branch}${visual}${override} ${ticket.title}`)
+      lines.push(`- ${id} \`${ticket.repo}\`${branch}${visual} ${ticket.title}`)
       for (const warning of ticket.warnings) lines.push(`  - WARNING ${warning}`)
     }
     lines.push("")

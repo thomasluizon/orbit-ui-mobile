@@ -117,7 +117,7 @@ export const cases = async () => {
     /reviewer "ghost" is not one of its workers/.test(readAndFail("bad-reviewer", { ...real, reviewer: "ghost" }) ?? ""),
     "a reviewer key naming no engine was accepted",
   )
-  for (const [label, key] of [["hardCeilingMinutes", "timeouts"], ["diffLines", "caps"]]) {
+  for (const [label, key] of [["hardCeilingMinutes", "timeouts"]]) {
     const stripped = { ...real }
     delete stripped[key]
     T(

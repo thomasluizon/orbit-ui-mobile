@@ -15,7 +15,7 @@ Review one diff against `rubric.md` and emit `findings.json`. This review is bui
 
 PR #672 ran **9 local `/pr-review` rounds over 38 hours**. Verdict every time `NEEDS_WORK`.
 **19 findings, 19 unique, zero repeats.** The fixer fixed everything; the reviewer found
-brand-new issues every round on a 7,078-line diff against a 400-line cap. Termination required
+brand-new issues every round on a 7,078-line diff. Termination required
 "the reviewer finds nothing", which on that diff has probability about zero. The skill was
 correctly implemented and mathematically unable to stop.
 
@@ -89,10 +89,12 @@ Concretely, before round 1:
 
 | Input | Repo | Command |
 |---|---|---|
-| `123` | orbit-ui-mobile (default) | `gh pr view 123 --repo thomasluizon/orbit-ui-mobile` |
+| `ui#123` | orbit-ui-mobile | `gh pr view 123 --repo thomasluizon/orbit-ui-mobile` |
 | `api#123` | orbit-api | `gh pr view 123 --repo thomasluizon/orbit-api` |
 | Full PR URL | parsed from the URL | use the URL's repo |
-| Blank | local | `gh pr list --head $(git branch --show-current)` |
+
+A bare number or blank scope is ambiguous across two repositories and must be refused. The caller
+provides a repository-qualified selector or full PR URL; caller cwd never chooses the repository.
 
 ```bash
 gh pr view {N} --repo {OWNER/REPO} --json number,title,body,baseRefName,headRefName,files,labels
@@ -127,19 +129,24 @@ Read `rubric.md` once, then classify the diff as **frontend** (`apps/`, `package
 
 ## Output contract
 
-`findings.json` is an array of objects, one per finding:
+`findings.json` is one receipt object. Its `findings` array contains one object per finding:
 
 ```json
-[{ "id": "F1", "severity": "High", "file": "apps/web/hooks/use-streak.ts", "line": 42,
-   "claim": "one sentence: what is wrong and what goes wrong if it ships", "blocking": true }]
+{"reviewerKind":"independent","verdict":"BLOCKING","rounds":1,
+ "reviewedHeadOid":"<full head SHA>","baseSha":"<full base SHA>",
+ "artifactPath":"<absolute path to this file>",
+ "findings":[{"id":"F1","severity":"High","file":"apps/web/hooks/use-streak.ts","line":42,
+   "claim":"one sentence: what is wrong and what goes wrong if it ships","blocking":true}]}
 ```
 
 `severity` is descriptive and comes from the rubric's ladder. `blocking` is the decision, and it is
 the answer to rule 3's question alone: a High that does not break behaviour, security, or data
 integrity is `"blocking": false` and becomes a ticket.
 
-Round 2 rewrites the same file, adding `"status": "CLOSED" | "OPEN"` to every round-1 Blocking
-finding. Round-1 entries are never edited or removed.
+Round 2 rewrites the same receipt, sets `rounds` to 2, and adds
+`"status": "CLOSED" | "OPEN"` to every round-1 Blocking finding. Round-1 entries are never removed.
+Set `verdict` to `CLEAN` only when no Blocking finding remains OPEN. Capture `reviewedHeadOid` and
+`baseSha` from the PR state reviewed; a review of any other head/base is stale by construction.
 
 ### Posting
 
@@ -167,7 +174,8 @@ A frozen finding list can bury a defect the fixer introduced in round 2. Three n
 
 1. The mechanical carve-out on the round-2 diff line set (rule 5).
 2. The 18 required CI checks, which run on the fixer's commit independently of any reviewer verdict.
-3. Thomas reads the PR, on a diff capped at 400 lines instead of 7,078.
+3. Thomas reads the PR with exact advisory file/line counts and all required generated artifacts
+   attached to their source change.
 
-This is a deliberate trade: a review that stops and hands a human a bounded diff beats a review that
+This is a deliberate trade: a review that stops and hands a human a bounded review beats one that
 is still finding true defects on hour 38.

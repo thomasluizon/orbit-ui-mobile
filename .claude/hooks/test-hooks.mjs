@@ -18,7 +18,7 @@ import { fileURLToPath } from "node:url"
 import { checkGitCommand, checkGitWorktreeRemove } from "./_lib/rules-git.mjs"
 import { checkEfMigrationRawIndex } from "./_lib/rules-source.mjs"
 import { checkLinearMutation } from "./_lib/rules-linear.mjs"
-import { checkAdminMerge, checkEngineInvocation } from "./_lib/rules-orchestrator.mjs"
+import { checkAdminMerge, checkBroadStaging, checkEngineInvocation } from "./_lib/rules-orchestrator.mjs"
 import { checkSleepStop } from "./_lib/rules-sleep.mjs"
 import { checkWorkerBrowser } from "./_lib/rules-worker.mjs"
 
@@ -135,6 +135,12 @@ mkdirSync(linkedWorktree, { recursive: true })
 writeFileSync(join(linkedWorktree, ".git"), `gitdir: ${join(mainCheckout, ".git", "worktrees", "feat")}\n`)
 T("engine: a cwd inside a linked worktree allows", checkEngineInvocation("codex exec", { cwd: linkedWorktree, repoRoots: [mainCheckout] }), null)
 T("engine: the main checkout is not a linked worktree", blocks(checkEngineInvocation("codex exec", { cwd: mainCheckout, repoRoots: [mainCheckout] })), true)
+const workerStaging = (command) => checkBroadStaging(command, { cwd: linkedWorktree, repoRoots: [mainCheckout] })
+for (const command of ["git add -A", "git add --all", "git add .", `git -C "${linkedWorktree}" add .`]) {
+  T(`staging: ${command} blocks in a worker worktree`, blocks(workerStaging(command)), true)
+}
+T("staging: explicitly named paths are allowed", workerStaging("git add tools/verify-delivery.mjs .claude/skills/orchestrate/SKILL.md"), null)
+T("staging: broad add outside a worker is untouched", checkBroadStaging("git add -A", { cwd: mainCheckout, repoRoots: [mainCheckout] }), null)
 // REGRESSION (fixed 2026-08-04). The previous revision split the command on a
 // bare /[&|;\n]/, so the `|` inside the quoted search pattern produced a phantom
 // segment whose first token resolved to `codex`, and a read-only grep was
@@ -200,11 +206,12 @@ T("sleep-stop: an exhausted queue allows", checkSleepStop({ state: { ...sleeping
 // A salvaged pull request that never re-entered step 7 is unfinished work, not a finished queue.
 // PR #690 was opened by hand and reported as done while two required checks were red and a bot
 // thread was unresolved, because opening it was treated as the end of salvage.
-const salvaged = { ...sleeping, remaining: [], unreviewedPullRequests: [690] }
+const salvaged = { ...sleeping, remaining: [], pullRequests: [{ repositoryKey: "ui", prNumber: 690, receiptPath: "C:/receipt.json" }] }
 T("sleep-stop: an open pull request with no review verdict blocks the queue from reading as done", blocks(stop({ state: salvaged })), true)
-T("sleep-stop: the refusal names the pull request and the steps it owes", stop({ state: salvaged })?.message.includes("#690") && stop({ state: salvaged })?.message.includes("steps 7, 8 and 12"), true)
+T("sleep-stop: the refusal names the repository-qualified pull request and receipt debt", stop({ state: salvaged })?.message.includes("ui#690") && stop({ state: salvaged })?.message.includes("READY final-head receipt"), true)
 T("sleep-stop: a live reviewer allows the turn to end", checkSleepStop({ state: salvaged, wakeSources: [{ pid: 1 }], sessionId: "s1", isAlive: alive }), null)
-T("sleep-stop: nothing remaining and nothing unreviewed allows", checkSleepStop({ state: { ...sleeping, remaining: [], unreviewedPullRequests: [] }, sessionId: "s1", isAlive: dead }), null)
+T("sleep-stop: bare PR numbers are invalid run state and cannot clear readiness", blocks(stop({ state: { ...sleeping, remaining: [], unreviewedPullRequests: [690] } })), true)
+T("sleep-stop: nothing remaining and no pull requests allows", checkSleepStop({ state: { ...sleeping, remaining: [], pullRequests: [] }, sessionId: "s1", isAlive: dead }), null)
 T("sleep-stop: a run that is not --sleep allows", checkSleepStop({ state: { ...sleeping, sleep: false }, sessionId: "s1", isAlive: dead }), null)
 T("sleep-stop: no record at all allows", checkSleepStop({ state: null, sessionId: "s1", isAlive: dead }), null)
 // A record from a previous run must never block today's session, and the session id is exact.
@@ -294,6 +301,8 @@ T("adapter orchestrator: gh pr merge --squash -> 0", runHook(ORCH, bash("gh pr m
 T("adapter orchestrator: codex --version -> 0", runHook(ORCH, bash("codex --version")), 0)
 T("adapter orchestrator: grep over a codex pattern -> 0", runHook(ORCH, bash("grep -rnE 'claude|codex' tools/")), 0)
 T("adapter orchestrator: the launcher marker -> 0", runHook(ORCH, bash("codex exec"), { ORBIT_LAUNCH_WORKER: "1" }), 0)
+T("adapter orchestrator: worker git add -A -> 2", runHook(ORCH, bash("git add -A"), { ORBIT_LAUNCH_WORKER: "1" }), 2)
+T("adapter orchestrator: worker named git add -> 0", runHook(ORCH, bash("git add tools/verify-delivery.mjs"), { ORBIT_LAUNCH_WORKER: "1" }), 0)
 
 // The launcher marker means the opposite for the browser ban: it identifies the worker, which is
 // the only caller this gate refuses.

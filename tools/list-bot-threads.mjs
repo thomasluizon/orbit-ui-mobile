@@ -22,12 +22,15 @@
  */
 
 import { execFileSync } from "node:child_process"
+import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-auth.mjs"
+import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
 const BOT_LOGIN = "chatgpt-codex-connector"
 
-const USAGE = `usage: list-bot-threads.mjs --pr <number> [options]
+const USAGE = `usage: list-bot-threads.mjs --pr <number|url> (--repo <ui|api|landing> | URL) [options]
 
-  --pr <number>       the pull request to read (required)
+  --pr <number|url>   the pull request to read (required)
+  --repo <key>        required for a bare number; a full PR URL selects its repository
   --wait-seconds <n>  how long to wait for the bot review to land (default 900, 0 polls once)
   --poll-seconds <n>  gap between polls (default 30)
   --bot <login>       reviewer login to filter on (default ${BOT_LOGIN})
@@ -75,7 +78,7 @@ const argOf = (flag) => {
   return index === -1 ? null : process.argv[index + 1]
 }
 
-const VALUE_FLAGS = new Set(["--pr", "--wait-seconds", "--poll-seconds", "--bot"])
+const VALUE_FLAGS = new Set(["--pr", "--repo", "--wait-seconds", "--poll-seconds", "--bot"])
 const KNOWN_FLAGS = new Set([...VALUE_FLAGS, "--no-request", "--help", "-h"])
 /**
  * A flag's VALUE is skipped before the unknown-option check, because `--wait-seconds -5` is a
@@ -93,8 +96,12 @@ const numberFlag = (flag, fallback, { min = 0 } = {}) => {
   return value
 }
 
-const pullRequest = argOf("--pr")
-if (!pullRequest || !/^\d+$/.test(pullRequest)) fail(2, `${USAGE}\n\n--pr must be a pull request number`)
+const pullRequestArg = argOf("--pr")
+const repoKey = argOf("--repo")
+const urlMatch = /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)\/?$/i.exec(pullRequestArg ?? "")
+if (!pullRequestArg || (!/^\d+$/.test(pullRequestArg) && !urlMatch)) fail(2, `${USAGE}\n\n--pr must be a pull request number or full GitHub pull request URL`)
+if (!urlMatch && !repoKey) fail(2, `${USAGE}\n\na bare pull request number requires --repo`)
+const pullRequest = urlMatch?.[3] ?? pullRequestArg
 const waitSeconds = numberFlag("--wait-seconds", 900)
 const pollSeconds = numberFlag("--poll-seconds", 30, { min: 1 })
 const botLogin = argOf("--bot") ?? BOT_LOGIN
@@ -102,6 +109,40 @@ if (!botLogin || botLogin.startsWith("-")) fail(2, `${USAGE}\n\n--bot requires a
 const requestReview = !process.argv.includes("--no-request")
 
 const GH = process.env.GH_BIN || "gh"
+let config
+try {
+  config = readOrchestratorConfig()
+} catch (error) {
+  fail(2, error.message)
+}
+if (repoKey && typeof config.repos?.[repoKey] !== "string") fail(2, `--repo must name a configured repository (known: ${Object.keys(config.repos ?? {}).join(", ") || "none"})`)
+let githubCwd = repoKey ? config.repos[repoKey] : null
+let repository = urlMatch ? `${urlMatch[1]}/${urlMatch[2]}` : null
+if (!githubCwd) {
+  const matches = Object.values(config.repos).filter((path) => {
+    try {
+      return repositorySlug(path).toLowerCase() === repository.toLowerCase()
+    } catch {
+      return false
+    }
+  })
+  if (matches.length !== 1) fail(2, `pull request URL does not identify exactly one configured repository`)
+  ;[githubCwd] = matches
+}
+if (!repository) {
+  try {
+    repository = repositorySlug(githubCwd)
+  } catch (error) {
+    fail(2, error.message)
+  }
+}
+const [owner, repo] = repository.split("/")
+let githubAuth
+try {
+  githubAuth = githubEnvironment(githubCwd)
+} catch (error) {
+  fail(2, redactSecrets(error.message))
+}
 
 const QUERY = `query($owner:String!,$repo:String!,$pr:Int!){
   repository(owner:$owner,name:$repo){
@@ -121,11 +162,11 @@ const readPullRequest = () => {
   try {
     stdout = execFileSync(
       GH,
-      ["api", "graphql", "-F", "owner={owner}", "-F", "repo={repo}", "-F", `pr=${pullRequest}`, "-f", `query=${QUERY}`],
-      { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 32 * 1024 * 1024 },
+      ["api", "graphql", "-F", `owner=${owner}`, "-F", `repo=${repo}`, "-F", `pr=${pullRequest}`, "-f", `query=${QUERY}`],
+      { cwd: githubCwd, encoding: "utf8", env: githubAuth.environment, stdio: ["ignore", "pipe", "pipe"], maxBuffer: 32 * 1024 * 1024 },
     )
   } catch (error) {
-    fail(2, `gh api graphql failed for pull request ${pullRequest}: ${(error.stderr?.toString() || error.stdout?.toString() || error.message).trim()}`)
+    fail(2, `gh api graphql failed for pull request ${pullRequest}: ${redactSecrets((error.stderr?.toString() || error.stdout?.toString() || error.message).trim(), githubAuth.secrets)}`)
   }
   let payload
   try {
@@ -215,10 +256,10 @@ let review = botReviewOf(node)
 let requested = false
 if (requestReview && !review && waitSeconds > 0) {
   try {
-    execFileSync(GH, ["pr", "comment", pullRequest, "--body", "@codex review"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] })
+    execFileSync(GH, ["pr", "comment", pullRequest, "--repo", repository, "--body", "@codex review"], { cwd: githubCwd, encoding: "utf8", env: githubAuth.environment, stdio: ["ignore", "pipe", "pipe"] })
     requested = true
   } catch (error) {
-    fail(2, `gh pr comment ${pullRequest} failed: ${(error.stderr?.toString() || error.message).trim()}`)
+    fail(2, `gh pr comment ${pullRequest} failed: ${redactSecrets((error.stderr?.toString() || error.message).trim(), githubAuth.secrets)}`)
   }
 }
 

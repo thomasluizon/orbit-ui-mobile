@@ -42,8 +42,6 @@
     "pollSeconds": 60
   },
   "caps": {
-    "diffLines": 400,
-    "affectedFiles": 8,
     "reviewRounds": 2,
     "parallelTickets": 3,
     "botReviewWaitSeconds": 900

@@ -23,15 +23,15 @@
  *    reads as "produced nothing", and the correct recovery was the opposite: discard
  *    the residue, push, open the pull request. DIRTY_TREE is now its own verdict and
  *    hasCommits is always evaluated and always reported.
- * 2. It never hides an oversize diff behind a pass. A ticket may carry a human-authored
- *    CAPS-OVERRIDE line (tools/lib/caps-override.mjs), and when one covers the breach the
- *    real numbers are still measured, still printed, and the verdict says so by name.
+ * 2. It measures diff size for review planning but never turns size into a delivery verdict.
+ *    Correct migrations, generated artifacts, lockfiles and codemod output stay attached to the
+ *    source change that requires them.
  */
 
 import { execFileSync } from "node:child_process"
 import { statSync } from "node:fs"
 
-import { effectiveCaps, parseCapsOverride } from "./lib/caps-override.mjs"
+import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
 const USAGE = `usage: verify-delivery.mjs --issue ORB-N --worktree <path> --branch <name> [options]
@@ -39,8 +39,8 @@ const USAGE = `usage: verify-delivery.mjs --issue ORB-N --worktree <path> --bran
   --issue <ORB-N>     Linear issue the worker was launched on (required)
   --worktree <path>   worktree the worker committed in (required)
   --branch <name>     branch the worker pushed (required)
-  --repo <key>        repository key from .claude/orchestrator.json; GitHub is
-                      queried from that checkout instead of the worktree
+  --repo <key>        repository key from .claude/orchestrator.json (required); GitHub is
+                      queried with that repository's owner-scoped token
   --base <ref>        base the commit count is taken against (default: main)
   --wait-ci <s>       seconds to wait for still-running checks to settle before
                       reporting CI_PENDING (default: 0, report immediately)
@@ -48,12 +48,12 @@ const USAGE = `usage: verify-delivery.mjs --issue ORB-N --worktree <path> --bran
 
 Derives delivery from git and GitHub artifacts only, never from a worker's own
 report. Checks run in order and the first failure decides the verdict:
-NO_COMMIT, DIRTY_TREE, UNPUSHED, NO_PR, STALE_PR, OVERSIZE, CI_FAILING,
-CI_PENDING, DELIVERED_OVERSIZE_EXEMPT, or DELIVERED.
+NO_COMMIT, DIRTY_TREE, UNPUSHED, NO_PR, STALE_PR, DRAFT, OUT_OF_DATE,
+CI_FAILING, CI_PENDING, or DELIVERED.
 
 stdout carries ONE JSON object and nothing else. Errors go to stderr.
 
-exit codes: 0 DELIVERED or DELIVERED_OVERSIZE_EXEMPT, 1 every other verdict,
+exit codes: 0 DELIVERED, 1 every other verdict,
             2 usage or environment error`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
@@ -86,6 +86,7 @@ if (!issue || !/^[A-Z][A-Z0-9]*-\d+$/i.test(issue)) fail(2, `${USAGE}\n\n--issue
 if (!safeValue(worktree)) fail(2, `${USAGE}\n\n--worktree requires a path`)
 if (!safeValue(branch)) fail(2, `${USAGE}\n\n--branch requires a branch name`)
 if (!safeValue(base)) fail(2, `${USAGE}\n\n--base requires a ref`)
+if (!safeValue(repoKey)) fail(2, `${USAGE}\n\n--repo requires a repository key`)
 
 let worktreePresent = false
 try {
@@ -102,27 +103,25 @@ try {
   fail(2, error.message)
 }
 
-let githubCwd = worktree
-if (repoKey !== null) {
-  if (!safeValue(repoKey)) fail(2, `${USAGE}\n\n--repo requires a repository key`)
-  const repoPath = config.repos?.[repoKey]
-  if (typeof repoPath !== "string" || repoPath.trim().length === 0) {
-    fail(2, `--repo must name a configured repository (known: ${Object.keys(config.repos ?? {}).join(", ") || "none"})`)
-  }
-  githubCwd = repoPath
+const githubCwd = config.repos?.[repoKey]
+if (typeof githubCwd !== "string" || githubCwd.trim().length === 0) {
+  fail(2, `--repo must name a configured repository (known: ${Object.keys(config.repos ?? {}).join(", ") || "none"})`)
 }
 
 const GIT = process.env.GIT_BIN || "git"
 const GH = process.env.GH_BIN || "gh"
-const ORCA = process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs\\orca\\resources\\bin\\orca"
-/** The standing caps come from the config the whole harness reads, never from a second copy here. */
-const STANDING_CAPS = { lines: config.caps.diffLines, files: config.caps.affectedFiles }
+let githubAuth
+try {
+  githubAuth = githubEnvironment(githubCwd)
+} catch (error) {
+  fail(2, redactSecrets(error.message))
+}
 const run = (file, args, cwd) => {
   try {
-    const stdout = execFileSync(file, args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 32 * 1024 * 1024 })
+    const stdout = execFileSync(file, args, { cwd, encoding: "utf8", env: file === GH ? githubAuth.environment : process.env, stdio: ["ignore", "pipe", "pipe"], maxBuffer: 32 * 1024 * 1024 })
     return { ok: true, stdout }
   } catch (error) {
-    return { ok: false, stdout: error.stdout?.toString() ?? "", error: (error.stderr?.toString() || error.stdout?.toString() || error.message).trim() }
+    return { ok: false, stdout: error.stdout?.toString() ?? "", error: redactSecrets((error.stderr?.toString() || error.stdout?.toString() || error.message).trim(), githubAuth.secrets) }
   }
 }
 const git = (args) => run(GIT, ["-C", worktree, ...args])
@@ -130,7 +129,7 @@ const git = (args) => run(GIT, ["-C", worktree, ...args])
 const checks = {}
 const emit = (verdict) => {
   console.log(JSON.stringify({ issue, verdict, checks }, null, 2))
-  process.exit(verdict.startsWith("DELIVERED") ? 0 : 1)
+  process.exit(verdict === "DELIVERED" ? 0 : 1)
 }
 
 /**
@@ -146,7 +145,7 @@ const GENERATED_RESIDUE = [/(^|\/)next-env\.d\.ts$/, /(^|\/)\.next\//, /(^|\/)di
  * called a modified or deleted file under `e2e/` residue, which step 7 then permits the run to throw
  * away. A worker's invented evidence file is untracked (`??`); an edit to the real suite is not.
  */
-const UNTRACKED_ONLY_RESIDUE = [/(^|\/)e2e\//]
+const UNTRACKED_ONLY_RESIDUE = [/(^|\/)e2e\//, /(^|\/)\.orca\//]
 const isDiscardable = ({ status, path }) =>
   GENERATED_RESIDUE.some((pattern) => pattern.test(path)) || (status === "??" && UNTRACKED_ONLY_RESIDUE.some((pattern) => pattern.test(path)))
 
@@ -240,61 +239,60 @@ if (!checks.prHeadMatches.pass) emit("STALE_PR")
 if (!Number.isInteger(pullRequest.additions) || !Number.isInteger(pullRequest.deletions)) {
   fail(2, `gh pr list reported no numeric additions and deletions for pull request #${pullRequest.number}`)
 }
-/**
- * The scope gate promises TWO caps and this file enforced only one: a worker can touch 20 files while
- * staying under 400 lines. It replaces counting the `files` array, which the API truncates at 100
- * entries and which therefore could never measure the 355-file codemod the override exists for.
- *
- * `changedFiles` was confirmed on THIS subcommand, not a neighbouring one. `gh pr view` and
- * `gh pr list` are different response interfaces and an earlier comment cited the wrong one, which
- * is the kind of near-miss standard 8 exists to catch. The real `gh pr list` response, gh 2.97.0:
- *
- *   $ gh pr list --head <branch> --json number,additions,deletions,changedFiles
- *   [{"additions":1453,"changedFiles":22,"deletions":74,"number":693}]
- *
- * An integer, matching `gh pr view 693 --json changedFiles`, and the CLI lists the field as valid
- * for `pr list` when given no field names at all.
- */
+/** Size remains visible review information. It never changes the verdict. */
 if (!Number.isInteger(pullRequest.changedFiles)) {
   fail(2, `gh pr list reported no numeric changedFiles for pull request #${pullRequest.number}`)
 }
 const size = pullRequest.additions + pullRequest.deletions
 const fileCount = pullRequest.changedFiles
 
-/**
- * The ticket is read ONLY when a cap is already breached, so the normal path costs no Linear call. A
- * lookup that fails leaves the caps standing: an unreadable ticket is not evidence of an exemption,
- * and failing closed here can only ever cost one hand-over.
- */
-let override = null
-if (size > STANDING_CAPS.lines || fileCount > STANDING_CAPS.files) {
-  const read = run(ORCA, ["linear", "issue", issue.toUpperCase(), "--json"])
-  let description = null
-  let lookupError = read.ok ? null : read.error
+checks.sizeAdvisory = { changedFiles: fileCount, additions: pullRequest.additions, deletions: pullRequest.deletions, diffLines: size, blocking: false }
+
+const repositoryFromUrl = /^https:\/\/github\.com\/([^/]+\/[^/]+)\/pull\/\d+\/?$/i.exec(pullRequest.url)?.[1]
+if (!repositoryFromUrl) fail(2, `pull request #${pullRequest.number} carried no parseable GitHub URL`)
+
+const readPullRequestState = () => {
+  const viewed = run(GH, ["pr", "view", String(pullRequest.number), "--json", "baseRefName,baseRefOid,headRefOid,isDraft,statusCheckRollup"], githubCwd)
+  if (!viewed.ok) fail(2, `gh pr view ${pullRequest.number} failed: ${viewed.error}`)
+  let parsed
   try {
-    const envelope = JSON.parse(read.stdout)
-    if (envelope?.ok === false) lookupError = envelope.error?.message ?? "orca refused the read"
-    else if (typeof envelope?.result?.issue?.description === "string") description = envelope.result.issue.description
-    else lookupError = "the issue carried no description"
+    parsed = JSON.parse(viewed.stdout)
   } catch {
-    lookupError = lookupError ?? `orca returned unparseable JSON: ${read.stdout.trim().slice(0, 120) || "empty output"}`
+    fail(2, `gh pr view ${pullRequest.number} returned unparseable JSON: ${viewed.stdout.trim().slice(0, 240) || "empty output"}`)
   }
-  const parsed = description === null ? { found: false } : parseCapsOverride(description, STANDING_CAPS)
-  if (parsed.found && !parsed.error) override = parsed
-  checks.capsOverride = {
-    present: Boolean(override),
-    files: override?.files ?? null,
-    lines: override?.lines ?? null,
-    reason: override?.reason ?? null,
-    observed: lookupError ? `the ticket could not be read, so the caps stand: ${lookupError}` : parsed.error ? parsed.error : override ? parsed.source : `no ${"CAPS-OVERRIDE:"} line in the ticket description`,
+  if (!Array.isArray(parsed?.statusCheckRollup)) fail(2, `gh pr view ${pullRequest.number} returned no statusCheckRollup array`)
+  if (typeof parsed.baseRefName !== "string" || typeof parsed.baseRefOid !== "string" || typeof parsed.headRefOid !== "string" || typeof parsed.isDraft !== "boolean") {
+    fail(2, `gh pr view ${pullRequest.number} returned incomplete base/head/draft state`)
   }
+  return parsed
 }
 
-const caps = effectiveCaps(STANDING_CAPS, override)
-checks.diffSize = { pass: size <= caps.lines, exempt: size > STANDING_CAPS.lines && size <= caps.lines, observed: size, cap: STANDING_CAPS.lines, allowed: caps.lines }
-checks.affectedFiles = { pass: fileCount <= caps.files, exempt: fileCount > STANDING_CAPS.files && fileCount <= caps.files, observed: fileCount, cap: STANDING_CAPS.files, allowed: caps.files }
-if (!checks.diffSize.pass || !checks.affectedFiles.pass) emit("OVERSIZE")
-const oversizeExempt = checks.diffSize.exempt || checks.affectedFiles.exempt
+let pullRequestState = readPullRequestState()
+checks.pullRequestState = {
+  baseBranch: pullRequestState.baseRefName,
+  baseSha: pullRequestState.baseRefOid,
+  headSha: pullRequestState.headRefOid,
+  draft: pullRequestState.isDraft,
+}
+if (pullRequestState.headRefOid !== localHead) emit("STALE_PR")
+if (pullRequestState.isDraft) emit("DRAFT")
+
+const compared = run(GH, ["api", `repos/${repositoryFromUrl}/compare/${encodeURIComponent(pullRequestState.baseRefName)}...${pullRequestState.headRefOid}`], githubCwd)
+if (!compared.ok) fail(2, `gh api compare failed for pull request #${pullRequest.number}: ${compared.error}`)
+let comparison
+try {
+  comparison = JSON.parse(compared.stdout)
+} catch {
+  fail(2, `gh api compare returned unparseable JSON: ${compared.stdout.trim().slice(0, 240) || "empty output"}`)
+}
+if (!Number.isInteger(comparison?.behind_by)) fail(2, `gh api compare reported no numeric behind_by for pull request #${pullRequest.number}`)
+checks.upToDate = {
+  pass: comparison.behind_by === 0,
+  baseSha: pullRequestState.baseRefOid,
+  headSha: pullRequestState.headRefOid,
+  behindBy: comparison.behind_by,
+}
+if (!checks.upToDate.pass) emit("OUT_OF_DATE")
 
 /**
  * A pull request that cannot merge was never delivered, and until this check existed nothing here
@@ -311,17 +309,21 @@ const FAILING_CONCLUSIONS = new Set(["FAILURE", "TIMED_OUT", "CANCELLED", "ACTIO
 const FAILING_STATES = new Set(["FAILURE", "ERROR"])
 const PENDING_STATES = new Set(["PENDING", "EXPECTED"])
 
-const readRollup = () => {
-  const viewed = run(GH, ["pr", "view", String(pullRequest.number), "--json", "statusCheckRollup"], githubCwd)
-  if (!viewed.ok) fail(2, `gh pr view ${pullRequest.number} --json statusCheckRollup failed: ${viewed.error}`)
-  let parsed
-  try {
-    parsed = JSON.parse(viewed.stdout)
-  } catch {
-    fail(2, `gh pr view ${pullRequest.number} returned unparseable JSON: ${viewed.stdout.trim().slice(0, 240) || "empty output"}`)
+const checkMetadata = (name, node) => {
+  const identity = typeof node.detailsUrl === "string" ? /\/actions\/runs\/(\d+)(?:\/job\/(\d+))?/.exec(node.detailsUrl) : null
+  return {
+    runId: identity?.[1] ?? null,
+    jobId: identity?.[2] ?? null,
+    detailsUrl: node.detailsUrl ?? node.targetUrl ?? null,
+    workflow: node.workflowName ?? null,
+    name,
+    status: node.status ?? node.state ?? null,
+    conclusion: node.conclusion ?? node.state ?? null,
   }
-  const rollup = parsed?.statusCheckRollup
-  if (!Array.isArray(rollup)) fail(2, `gh pr view ${pullRequest.number} returned no statusCheckRollup array`)
+}
+
+const readRollup = () => {
+  const rollup = pullRequestState.statusCheckRollup
   /**
    * A re-run does NOT replace the old entry: the rollup carries BOTH, so a re-run of a red check
    * reads as failing and pending at once and could never clear. Measured on #685, where a re-queued
@@ -339,15 +341,15 @@ const readRollup = () => {
   const pending = []
   for (const [name, node] of newestByName) {
     if (node.__typename === "StatusContext" || typeof node.state === "string") {
-      if (FAILING_STATES.has(node.state)) failing.push(name)
-      else if (PENDING_STATES.has(node.state)) pending.push(name)
+      if (FAILING_STATES.has(node.state)) failing.push(checkMetadata(name, node))
+      else if (PENDING_STATES.has(node.state)) pending.push(checkMetadata(name, node))
       continue
     }
     if (node.status !== "COMPLETED") {
-      pending.push(name)
+      pending.push(checkMetadata(name, node))
       continue
     }
-    if (FAILING_CONCLUSIONS.has(node.conclusion)) failing.push(name)
+    if (FAILING_CONCLUSIONS.has(node.conclusion)) failing.push(checkMetadata(name, node))
   }
   return { total: newestByName.size, failing, pending }
 }
@@ -362,6 +364,7 @@ let rollup = readRollup()
 const deadline = Date.now() + waitCiSeconds * 1000
 while (rollup.failing.length === 0 && rollup.pending.length > 0 && Date.now() < deadline) {
   sleep(Math.min(30, Math.max(1, Math.ceil((deadline - Date.now()) / 1000))))
+  pullRequestState = readPullRequestState()
   rollup = readRollup()
 }
 
@@ -375,4 +378,4 @@ checks.ci = {
 if (rollup.failing.length > 0) emit("CI_FAILING")
 if (rollup.pending.length > 0) emit("CI_PENDING")
 
-emit(oversizeExempt ? "DELIVERED_OVERSIZE_EXEMPT" : "DELIVERED")
+emit("DELIVERED")
