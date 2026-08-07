@@ -19,6 +19,8 @@ import { checkGitCommand, checkGitWorktreeRemove } from "./_lib/rules-git.mjs"
 import { checkEfMigrationRawIndex } from "./_lib/rules-source.mjs"
 import { checkLinearMutation } from "./_lib/rules-linear.mjs"
 import { checkAdminMerge, checkEngineInvocation } from "./_lib/rules-orchestrator.mjs"
+import { checkSleepStop } from "./_lib/rules-sleep.mjs"
+import { checkWorkerBrowser } from "./_lib/rules-worker.mjs"
 
 const hooksDir = dirname(fileURLToPath(import.meta.url))
 const repoRoot = join(hooksDir, "..", "..")
@@ -148,6 +150,68 @@ T("engine: an unrelated command allows", engine("npm run lint"), null)
 T("engine: a commit message naming the engine allows", engine('git commit -m "stop running codex exec by hand"'), null)
 T("engine: a path containing .claude is not the claude binary", engine("cat .claude/skills/second-opinion/SKILL.md"), null)
 
+console.log("\n# forbid-worker-browser (_lib/rules-worker.mjs)")
+// A worker never opens a browser and never starts a server, unconditionally. Measured 2026-08-06:
+// ORB-39 and ORB-98 both finished their tickets, then spent the rest of their budgets on a dev
+// server and a login page a worktree can never authenticate against, and both needed rescuing.
+// The discrimination is the CALLER, never the command: Thomas runs /dev-server whenever he likes.
+const worker = (command, options) => checkWorkerBrowser(command, { env: { ORBIT_LAUNCH_WORKER: "1" }, repoRoots: [], ...options })
+for (const command of ["npm run dev", "next dev --port 3920", "pnpm dev", "expo start", "npx playwright test", "maestro test flow.yaml", "curl http://localhost:3920/login", "adb shell input tap 1 1"]) {
+  T(`worker-browser: ${command} blocks`, blocks(worker(command)), true)
+}
+T("worker-browser: the refusal says who owes the visual check", worker("npm run dev")?.message.includes("owed by a HUMAN"), true)
+T("worker-browser: a later chained dev server blocks", blocks(worker("npm test && npm run dev")), true)
+// The same commands from a session that is NOT a worker are none of this gate's business.
+T("worker-browser: npm run dev outside a worker allows", checkWorkerBrowser("npm run dev", { env: {}, cwd: "", repoRoots: [] }), null)
+T("worker-browser: a cwd inside a linked worktree IS a worker", blocks(checkWorkerBrowser("npm run dev", { env: {}, cwd: linkedWorktree, repoRoots: [mainCheckout] })), true)
+T("worker-browser: the main checkout is not a worker", checkWorkerBrowser("npm run dev", { env: {}, cwd: mainCheckout, repoRoots: [mainCheckout] }), null)
+// Ordinary work a worker MUST still be able to do. A gate that blocks the test run gets switched off.
+for (const command of ["npm test", "npm run build", "npm run lint", "dotnet test", "npx vitest run apps/web", "git commit -m 'stop npm run dev in CI'", "curl https://api.github.com/repos/o/r"]) {
+  T(`worker-browser: ${command} allows`, worker(command), null)
+}
+// The rule judges the INVOKED PROGRAM, never stray argument text. Scanning the whole segment refused
+// `rg -n playwright .`, so a worker could not inspect or delete the very code this bans, which
+// aborts executable work for no safety. Same defect rules-orchestrator fixed for grep-over-engines.
+for (const command of ["rg -n playwright .", 'grep -rn "npm run dev" tools/', "cat apps/web/e2e/visual/orb-39.ts", "rm -rf apps/web/e2e", 'sed -i "s/expo start//" README.md']) {
+  T(`worker-browser: read-only work whose ARGUMENTS name a browser tool allows: ${command}`, worker(command), null)
+}
+// ...and the package runners that front the real program are still resolved through.
+T("worker-browser: npx playwright still blocks through the runner prefix", blocks(worker("npx playwright test")), true)
+T("worker-browser: pnpm dlx cypress still blocks", blocks(worker("pnpm dlx cypress run")), true)
+T("worker-browser: a dev script under a runner still blocks", blocks(worker("npm run dev -- --port 4000")), true)
+T("worker-browser: an unrelated npm script named dev-docs allows", worker("npm run dev:docs"), null)
+T("worker-browser: curl to a public host allows while localhost blocks", worker("curl https://example.com") === null && blocks(worker("curl http://localhost:3000")), true)
+
+console.log("\n# require-wake-source (_lib/rules-sleep.mjs)")
+// Under --sleep the ONLY thing that continues the run is a background task completing and
+// re-invoking the session. On 2026-08-06 the orchestrator ended a turn saying "CI will wake me"
+// with nothing scheduled; the night stopped there and its artifacts looked like a finished run.
+const alive = () => true
+const dead = () => false
+const sleeping = { sessionId: "s1", sleep: true, remaining: ["ORB-2", "ORB-3"] }
+const stop = (options) => checkSleepStop({ sessionId: "s1", isAlive: dead, ...options })
+T("sleep-stop: work remaining and no live wake source blocks", blocks(stop({ state: sleeping })), true)
+T("sleep-stop: the refusal names the tickets and the action", stop({ state: sleeping })?.message.includes("LAUNCH THE NEXT TICKET"), true)
+T("sleep-stop: a live wake source allows", checkSleepStop({ state: sleeping, wakeSources: [{ pid: 1 }], sessionId: "s1", isAlive: alive }), null)
+// A leaked file from a crashed launcher is not a wake source, which is why liveness is checked at
+// all rather than the file's existence being trusted.
+T("sleep-stop: a registered but DEAD wake source is not one", blocks(stop({ state: sleeping, wakeSources: [{ pid: 1 }] })), true)
+T("sleep-stop: an exhausted queue allows", checkSleepStop({ state: { ...sleeping, remaining: [] }, sessionId: "s1", isAlive: dead }), null)
+// A salvaged pull request that never re-entered step 7 is unfinished work, not a finished queue.
+// PR #690 was opened by hand and reported as done while two required checks were red and a bot
+// thread was unresolved, because opening it was treated as the end of salvage.
+const salvaged = { ...sleeping, remaining: [], unreviewedPullRequests: [690] }
+T("sleep-stop: an open pull request with no review verdict blocks the queue from reading as done", blocks(stop({ state: salvaged })), true)
+T("sleep-stop: the refusal names the pull request and the steps it owes", stop({ state: salvaged })?.message.includes("#690") && stop({ state: salvaged })?.message.includes("steps 7, 8 and 12"), true)
+T("sleep-stop: a live reviewer allows the turn to end", checkSleepStop({ state: salvaged, wakeSources: [{ pid: 1 }], sessionId: "s1", isAlive: alive }), null)
+T("sleep-stop: nothing remaining and nothing unreviewed allows", checkSleepStop({ state: { ...sleeping, remaining: [], unreviewedPullRequests: [] }, sessionId: "s1", isAlive: dead }), null)
+T("sleep-stop: a run that is not --sleep allows", checkSleepStop({ state: { ...sleeping, sleep: false }, sessionId: "s1", isAlive: dead }), null)
+T("sleep-stop: no record at all allows", checkSleepStop({ state: null, sessionId: "s1", isAlive: dead }), null)
+// A record from a previous run must never block today's session, and the session id is exact.
+T("sleep-stop: a record from another session allows", checkSleepStop({ state: sleeping, sessionId: "s2", isAlive: dead }), null)
+// A blocked stop that blocks again is an infinite loop.
+T("sleep-stop: the second pass never blocks again", checkSleepStop({ state: sleeping, sessionId: "s1", stopHookActive: true, isAlive: dead }), null)
+
 console.log("\n# forbid-raw-linear-mutation (_lib/rules-linear.mjs)")
 // Every Linear WRITE goes through orca. Only the project overview document,
 // which orca cannot reach, may be mutated raw. READS stay open: /orchestrate
@@ -231,6 +295,41 @@ T("adapter orchestrator: codex --version -> 0", runHook(ORCH, bash("codex --vers
 T("adapter orchestrator: grep over a codex pattern -> 0", runHook(ORCH, bash("grep -rnE 'claude|codex' tools/")), 0)
 T("adapter orchestrator: the launcher marker -> 0", runHook(ORCH, bash("codex exec"), { ORBIT_LAUNCH_WORKER: "1" }), 0)
 
+// The launcher marker means the opposite for the browser ban: it identifies the worker, which is
+// the only caller this gate refuses.
+const BROWSER = "forbid-worker-browser.mjs"
+T("adapter worker-browser: a worker starting a dev server -> 2", runHook(BROWSER, bash("npm run dev"), { ORBIT_LAUNCH_WORKER: "1" }), 2)
+T("adapter worker-browser: a worker running playwright -> 2", runHook(BROWSER, bash("npx playwright test"), { ORBIT_LAUNCH_WORKER: "1" }), 2)
+T("adapter worker-browser: a worker running the tests -> 0", runHook(BROWSER, bash("npm test"), { ORBIT_LAUNCH_WORKER: "1" }), 0)
+T("adapter worker-browser: the same dev server outside a worker -> 0", runHook(BROWSER, bash("npm run dev")), 0)
+
+/**
+ * The Stop adapter reads THIS checkout's real run record, because that is the only path a live run
+ * writes. The fixture carries its own session id, so even a leaked file cannot block a real session:
+ * a session id that does not match is treated as a previous run's and ignored.
+ */
+const WAKE_HOOK = "require-wake-source.mjs"
+const { readWakeSources, runStatePath } = await import("../../tools/lib/run-state.mjs")
+const stopPayload = { session_id: "orbit-hooks-gate-session", stop_hook_active: false }
+const priorState = existsSync(runStatePath()) ? readFileSync(runStatePath(), "utf8") : null
+const liveWakeSources = readWakeSources().length
+try {
+  writeFileSync(runStatePath(), JSON.stringify({ sessionId: stopPayload.session_id, sleep: true, remaining: ["ORB-2"] }))
+  // A live wake source is a legitimate reason NOT to block, so assert the blocking case only when
+  // this checkout genuinely has none. A conditional that silently passes would be vacuous, so it
+  // reports which arm it took.
+  T(
+    liveWakeSources === 0 ? "adapter wake-source: a sleeping queue with nothing live -> 2" : "adapter wake-source: a live wake source allows the stop -> 0",
+    runHook(WAKE_HOOK, stopPayload),
+    liveWakeSources === 0 ? 2 : 0,
+  )
+  writeFileSync(runStatePath(), JSON.stringify({ sessionId: stopPayload.session_id, sleep: true, remaining: [] }))
+  T("adapter wake-source: an exhausted queue -> 0", runHook(WAKE_HOOK, stopPayload), 0)
+  T("adapter wake-source: another session's record -> 0", runHook(WAKE_HOOK, { ...stopPayload, session_id: "someone-else" }), 0)
+} finally {
+  if (priorState === null) rmSync(runStatePath(), { force: true })
+  else writeFileSync(runStatePath(), priorState)
+}
 // The Linear guard is wired to BOTH events: the shell call, and the script that
 // will make it. Only the second can be pre-empted before anything reaches Linear.
 const LINEAR_HOOK = "forbid-raw-linear-mutation.mjs"
