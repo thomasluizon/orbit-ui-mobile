@@ -1,4 +1,6 @@
-import { T, check, orcaEnv, run } from "./_harness.mjs"
+import { readFileSync } from "node:fs"
+
+import { T, check, orcaEnv, run, stage } from "./_harness.mjs"
 
 const TOOL = "list-bot-threads.mjs"
 const BOT = "chatgpt-codex-connector"
@@ -22,7 +24,7 @@ const thread = ({ id = "PRRT_kwDOR5Siws6Wfy_V", isResolved = false, isOutdated =
 const HEAD = "0f4abca78a0f4c487a98ab642508c06c6634f36f"
 const OLD_HEAD = "b5cd7394a8a687126eaaec32c02978ad6575c01c"
 
-const payload = ({ isDraft = false, reviews = [], threads = [], headRefOid = HEAD } = {}) =>
+const payload = ({ isDraft = false, reviews = [], comments = [], threads = [], headRefOid = HEAD } = {}) =>
   JSON.stringify({
     data: {
       repository: {
@@ -31,6 +33,7 @@ const payload = ({ isDraft = false, reviews = [], threads = [], headRefOid = HEA
           isDraft,
           headRefOid,
           reviews: { nodes: reviews },
+          comments: { nodes: comments },
           reviewThreads: { nodes: threads },
         },
       },
@@ -38,6 +41,12 @@ const payload = ({ isDraft = false, reviews = [], threads = [], headRefOid = HEA
   })
 
 const botReview = (state = "COMMENTED", submittedAt = "2026-08-04T23:16:35Z", oid = HEAD, body = "") => ({ author: { login: BOT }, state, submittedAt, body, commit: { oid } })
+const botComment = (oid = HEAD.slice(0, 10), createdAt = "2026-08-05T11:00:00Z") => ({
+  author: { login: `${BOT}[bot]` },
+  body: `Codex Review: Didn't find any major issues.\n\n**Reviewed commit:** \`${oid}\``,
+  createdAt,
+  url: "https://github.com/thomasluizon/orbit-ui-mobile/pull/681#issuecomment-123",
+})
 const ghPlan = (stdout, exit = 0) => orcaEnv([
   { match: "auth token --user thomasluizon", stdout: "test-github-token" },
   { match: "api graphql", stdout, exit },
@@ -59,6 +68,7 @@ export const cases = () => {
   check(TOOL, "refuses an unknown repository", ["--pr", "681", "--repo", "ghost"], { status: 2, stderr: /--repo must name a configured repository/ })
   check(TOOL, "refuses a negative wait budget", ["--pr", "681", "--repo", "ui", "--wait-seconds", "-5"], { status: 2, stderr: /--wait-seconds must be an integer/ })
   check(TOOL, "refuses a zero poll interval", ["--pr", "681", "--repo", "ui", "--poll-seconds", "0"], { status: 2, stderr: /--poll-seconds must be an integer >= 1/ })
+  check(TOOL, "refuses a zero command timeout", ["--pr", "681", "--repo", "ui", "--command-timeout-seconds", "0"], { status: 2, stderr: /--command-timeout-seconds must be an integer >= 1/ })
 
   /**
    * THE ambiguity this tool exists to remove. Zero threads plus a real review is CLEAN; zero
@@ -72,6 +82,7 @@ export const cases = () => {
     clean.status === 0 && cleanPlan?.verdict === "REVIEWED" && cleanPlan.counts.total === 0 && cleanPlan.reviewedAt === "2026-08-04T23:16:35Z",
     clean.stdout || clean.stderr,
   )
+  T(`${TOOL}: every read emits structured progress on stderr`, /"event":"CODEX_REVIEW_STATE_READ"/.test(clean.stderr), clean.stderr)
 
   const apiNumber = run(TOOL, ["--pr", "681", "--repo", "api", "--wait-seconds", "0"], { env: orcaEnv([
     { match: "auth token --user thomasluizon", stdout: "test-github-token" },
@@ -86,6 +97,25 @@ export const cases = () => {
     absent.status === 1 && absentPlan?.verdict === "NO_REVIEW" && absentPlan.reviewedAt === null,
     absent.stdout || absent.stderr,
   )
+
+  const cleanComment = readPr(payload({ comments: [botComment()] }))
+  const cleanCommentPlan = parsed(cleanComment)
+  T(
+    `${TOOL}: a clean connector issue comment for the current head is REVIEWED`,
+    cleanComment.status === 0 && cleanCommentPlan?.verdict === "REVIEWED" && cleanCommentPlan.reviewSource === "ISSUE_COMMENT" && cleanCommentPlan.reviewedCommit === HEAD && cleanCommentPlan.reportedCommit === HEAD.slice(0, 10),
+    cleanComment.stdout || cleanComment.stderr,
+  )
+
+  const staleComment = readPr(payload({ comments: [botComment(OLD_HEAD.slice(0, 10))] }))
+  const staleCommentPlan = parsed(staleComment)
+  T(
+    `${TOOL}: a clean connector issue comment for an old head is NO_REVIEW`,
+    staleComment.status === 1 && staleCommentPlan?.verdict === "NO_REVIEW" && staleCommentPlan.staleReviewCommit === OLD_HEAD.slice(0, 10),
+    staleComment.stdout || staleComment.stderr,
+  )
+
+  const humanComment = readPr(payload({ comments: [{ ...botComment(), author: { login: "thomasluizon" } }] }))
+  T(`${TOOL}: a human copy of the connector comment cannot satisfy review`, humanComment.status === 1 && parsed(humanComment)?.verdict === "NO_REVIEW", humanComment.stdout || humanComment.stderr)
 
   /** A body-level CHANGES_REQUESTED opens no thread at all, so a thread count of 0 is not clean. */
   const changes = readPr(payload({ reviews: [botReview("CHANGES_REQUESTED", "2026-08-04T23:16:35Z", HEAD, "The migration drops a column old clients still read.")] }))
@@ -193,6 +223,22 @@ export const cases = () => {
 
   const missing = readPr(JSON.stringify({ data: { repository: { pullRequest: null } } }))
   T(`${TOOL}: a null pull request is an environment error`, missing.status === 2 && /returned no pull request/.test(missing.stderr), `exit ${missing.status}: ${missing.stderr || missing.stdout}`)
+
+  const descendantPidFile = stage("list-bot-threads/descendant.pid", "")
+  const hanging = run(TOOL, ["--pr", "681", "--repo", "ui", "--wait-seconds", "0", "--command-timeout-seconds", "1"], { env: orcaEnv([
+    { match: "auth token --user thomasluizon", stdout: "test-github-token" },
+    { match: "api graphql", stdout: "", hangTreePidFile: descendantPidFile },
+  ]) })
+  const descendantPid = Number(readFileSync(descendantPidFile, "utf8"))
+  let descendantAlive = false
+  try {
+    process.kill(descendantPid, 0)
+    descendantAlive = true
+  } catch {
+    descendantAlive = false
+  }
+  T(`${TOOL}: a hanging GitHub read is bounded and reports its timeout`, hanging.status === 2 && /timed out after 1s/.test(hanging.stderr), hanging.stderr || hanging.stdout)
+  T(`${TOOL}: a GitHub timeout removes the complete child process tree`, Number.isInteger(descendantPid) && !descendantAlive, `descendant ${descendantPid} still alive`)
 
   T(
     `${TOOL}: stdout carries ONE JSON object and nothing else`,

@@ -728,9 +728,12 @@ shapes are measured, which is exactly why the run must not depend on either:
   head, so it **did** re-review.
 
 Treat a re-review as luck, never as the mechanism. The reliable path is the explicit request, and
-`list-bot-threads.mjs` is what makes the difference visible: it accepts a review only when
-`review.commit.oid` equals the current head, so a verdict pinned to a dead head reads as
-`NO_REVIEW` with the stale commit named. That is the trap
+`list-bot-threads.mjs` is what makes the difference visible: it accepts either a GitHub Review
+whose `review.commit.oid` equals the current head, or the connector's clean issue comment whose
+`Reviewed commit` SHA prefix matches that full head. The issue-comment shape is measured live, not
+inferred. Either surface pinned to a dead head reads as `NO_REVIEW` with the stale commit named.
+Every GitHub child has a hard timeout with complete process-tree cleanup, and the bounded wait emits
+progress rather than going silent. That is the trap
 `An approval is only valid pinned to the head it was given on` records, closed by construction
 rather than by remembering to check.
 

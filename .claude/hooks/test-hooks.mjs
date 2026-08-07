@@ -62,6 +62,13 @@ T("wiring: every hook settings.json names exists on disk", [...wired].filter((na
 T("wiring: every hook on disk is wired in settings.json", onDisk.filter((name) => !wired.has(name)), [])
 T("wiring: the scan is not vacuous", wired.size > 0 && onDisk.length > 0, true)
 
+const guardsWorkflow = readFileSync(join(repoRoot, ".github", "workflows", "guards.yml"), "utf8")
+const parityGuidance = "a platform adapter or an enumerated layout-shell divergence only: navigation chrome (sidebar vs tab bar), desktop stats rail, command palette and keyboard shortcuts, or hover affordances on shell chrome. Screens, components, data flows, error paths, and behavior remain parity-bound."
+T("parity guidance: both one-sided failures name the complete narrow exception", guardsWorkflow.split(parityGuidance).length - 1, 2)
+T("parity guidance: obsolete platform-adapters-only help is gone", guardsWorkflow.includes("(platform adapters only)"), false)
+T("parity gate: parity:exempt remains the only label bypass", guardsWorkflow.includes("if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'parity:exempt') && github.actor != 'dependabot[bot]'"), true)
+T("parity gate: both one-sided file-count failures remain enforced", (guardsWorkflow.match(/if \[ \"\$(?:web|mobile)\" -gt 0 \] && \[ \"\$(?:mobile|web)\" -eq 0 \]; then/g) ?? []).length, 2)
+
 // ---------------------------------------------------------------------------
 // 2. Rule units
 // ---------------------------------------------------------------------------

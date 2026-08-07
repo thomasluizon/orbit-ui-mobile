@@ -22,11 +22,11 @@ export const repositorySlug = (repoPath, gitBin = process.env.GIT_BIN || "git", 
 
 export const repositoryOwner = (repoPath, gitBin = process.env.GIT_BIN || "git", environment = process.env) => repositorySlug(repoPath, gitBin, environment).split("/")[0]
 
-export const githubEnvironment = (repoPath, { ghBin = process.env.GH_BIN || "gh", gitBin = process.env.GIT_BIN || "git", environment = process.env } = {}) => {
+export const githubEnvironment = (repoPath, { ghBin = process.env.GH_BIN || "gh", gitBin = process.env.GIT_BIN || "git", environment = process.env, timeoutMs = 30000 } = {}) => {
   const owner = repositoryOwner(repoPath, gitBin, environment)
   let token
   try {
-    token = execFileSync(ghBin, ["auth", "token", "--user", owner], { encoding: "utf8", env: environment, stdio: ["ignore", "pipe", "pipe"] }).trim()
+    token = execFileSync(ghBin, ["auth", "token", "--user", owner], { encoding: "utf8", env: environment, stdio: ["ignore", "pipe", "pipe"], timeout: timeoutMs }).trim()
   } catch (error) {
     throw new Error(`could not resolve a GitHub token for target owner ${owner}: ${(error.stderr?.toString() || error.message).trim()}`)
   }

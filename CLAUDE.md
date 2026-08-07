@@ -12,7 +12,7 @@ Linear is the source of truth for product work here and in orbit-api; GitHub Iss
 
 ## Cross-platform parity (MANDATORY)
 
-Every change lands in BOTH `apps/web` AND `apps/mobile` in the same task: logic, features, behavior, and error handling identical, reverts included. Allowed differences: platform adapters only (BFF vs direct API, cookie vs SecureStore, shadcn vs NativeWind). i18n keys land in `en.json` AND `pt-BR.json` in the same edit. The Cross-Platform Parity job in `guards.yml` fails a one-sided UI change; the escape hatch is `parity:exempt`.
+Every change lands in BOTH `apps/web` AND `apps/mobile` in the same task: logic, features, behavior, and error handling identical, reverts included. Allowed differences: platform adapters (BFF vs direct API, cookie vs SecureStore, shadcn vs NativeWind) and the enumerated layout-shell divergences, limited to navigation chrome (sidebar vs tab bar), desktop stats rail, command palette and keyboard shortcuts, and hover affordances on that shell chrome. Everything below the shell, including screens, components, data flows, error paths, and behavior, remains parity-bound. i18n keys land in `en.json` AND `pt-BR.json` in the same edit. The Cross-Platform Parity job in `guards.yml` fails a one-sided UI change; the escape hatch is `parity:exempt` with a one-line PR-body justification naming the applicable platform adapter or enumerated layout-shell divergence.
 
 ## Code standards
 

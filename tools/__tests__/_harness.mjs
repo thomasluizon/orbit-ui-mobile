@@ -208,7 +208,8 @@ const assertOrcaLinearStub = (entry, stdout) => {
  */
 export const ORCA_SHIM = stage(
   "orca-shim.cjs",
-  `const { existsSync, rmSync } = require("node:fs")
+  `const { existsSync, rmSync, writeFileSync } = require("node:fs")
+const { spawn } = require("node:child_process")
 const argv = process.argv.slice(1)
 if (argv[0] && existsSync(argv[0])) return
 const line = argv.join(" ")
@@ -219,6 +220,11 @@ if (!match) {
   process.exit(9)
 }
 if (match.removePath) rmSync(match.removePath, { recursive: true, force: true })
+if (match.hangTreePidFile) {
+  const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" })
+  writeFileSync(match.hangTreePidFile, String(child.pid))
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0)
+}
 process.stdout.write(match.stdout)
 process.exit(match.exit ?? 0)
 `,
