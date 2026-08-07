@@ -13,6 +13,7 @@
 import { execFileSync } from "node:child_process"
 import { writeFileSync } from "node:fs"
 import { isAbsolute, resolve } from "node:path"
+import { effectiveCaps, parseCapsOverride } from "./lib/caps-override.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
 const USAGE = `usage: compose-prompt.mjs --issue ORB-N --repo <ui|api|landing> --out <absolute path>
@@ -95,6 +96,46 @@ const ticket = renderedComments.length
 const worktreeLine = worktree ? `\nWorking tree \`${worktree}\`.` : ""
 const branchLine = branch ? `\nBranch \`${branch}\` is ALREADY checked out for you.` : ""
 
+/**
+ * The caps the worker is told are the caps it will be MEASURED against, override included. Without
+ * this the brief would tell a ticket carrying a lifted file cap that 8 files are hard, and the
+ * worker would correctly STOP on the codemod the override exists to let through.
+ */
+const standingCaps = { files: config.caps.affectedFiles, lines: config.caps.diffLines }
+const parsedOverride = parseCapsOverride(result.issue.description, standingCaps)
+const override = parsedOverride.found && !parsedOverride.error ? parsedOverride : null
+const caps = effectiveCaps(standingCaps, override)
+const overrideLine = override
+  ? `\nThis ticket carries a caps override authored by the repository owner: ${override.source}\nThe lifted cap above is the real one. The review still reads every line.`
+  : ""
+
+/**
+ * WHY this block is in EVERY prompt and not just a visible-effect one, measured 2026-08-06. The
+ * ticket is quoted verbatim (D2) and a ticket's Evidence section says screenshots are REQUIRED, so a
+ * worker that reads only the ticket obeys the ticket and ignores the orchestrator's step 13. ORB-39
+ * committed 221 correct lines, then started a dev server on :3920, wrote a Playwright visual test,
+ * sat on /login because a worktree has no seeded session, and was killed at the 45 minute ceiling
+ * with a dirty tree. ORB-98 committed 145 lines including the exact Vitest spec its ticket asked
+ * for, then opened /login?returnUrl=%2Fpreferences and burned the rest of its budget.
+ *
+ * The first fix scoped this to visible-effect tickets, and the scoping was the defect: ORB-86
+ * received it and made 4 browser-related log entries, ORB-98 did not and made 51. A worker cannot
+ * know in advance which tickets tempt it, so the prohibition takes no subset. The hook at
+ * .claude/hooks/forbid-worker-browser.mjs enforces the same rule at act time, because a prompt is
+ * advisory and decays as context fills.
+ */
+const browserBan = `
+
+**NEVER open a browser and never start a server. This is unconditional and it OVERRIDES the ticket's
+own Evidence section.** No \`npm run dev\`, no \`next dev\`, no \`expo start\`, no emulator, no
+Playwright, Maestro or Cypress, nothing under \`e2e/\`, no navigating to localhost on any port, no
+logging in to the app. If the ticket says screenshots are required, they are required OF A HUMAN,
+after your pull request exists.
+
+Only a human grants visual completion (D7), nothing merges unattended, and a fresh worktree has no
+seeded session, so the attempt can only ever fail. Two workers finished their tickets correctly and
+then lost the delivery to exactly this. Your pull request is complete without visual evidence.`
+
 const brief = `## Orchestrator's brief
 
 **Objective.** Implement ${issue.toUpperCase()} in the ${repoKey} repository, and nothing else. The
@@ -104,9 +145,9 @@ would and say which you chose in the PR body.
 **Where you are.** Repository \`${repoKey}\` at \`${repoPath}\`.${worktreeLine}${branchLine}
 Base branch \`${baseBranch}\`: open your pull request against it, and do not create another branch.
 
-**Scope.** Only files this ticket names or provably requires. The caps are hard: ${config.caps.affectedFiles}
-affected files and ${config.caps.diffLines} diff lines. If the real change exceeds either, STOP and
-report why. Do not deliver a partial change silently, and do not split it into a second PR yourself.
+**Scope.** Only files this ticket names or provably requires. The caps are hard: ${caps.files}
+affected files and ${caps.lines} diff lines. If the real change exceeds either, STOP and
+report why. Do not deliver a partial change silently, and do not split it into a second PR yourself.${overrideLine}${browserBan}
 
 **Output.** One commit series on your branch, pushed, with exactly one open pull request that links
 ${issue.toUpperCase()}. Nothing else counts as delivery, and your own exit code counts for nothing:
@@ -116,6 +157,12 @@ delivery is verified from git and GitHub artifacts by tools/verify-delivery.mjs.
 no GraphQL mergePullRequest, no --admin. Never push to main. Never force-push. Never --no-verify or
 --no-gpg-sign. Do not edit the Linear ticket. Do not touch a second repository: cross-repo work is
 two tickets. Do not modify the harness under tools/ or .claude/ unless this ticket says to.
+
+**Never create an end-to-end, visual-regression or Playwright file.** The testing rule in CLAUDE.md
+is Vitest unit and behaviour tests, and no new end-to-end suite. A worker on ORB-39 wrote
+apps/web/e2e/visual/orb-39-evidence.visual.ts on its own initiative to gather evidence nobody asked
+it for. If a behaviour genuinely cannot be covered by a Vitest test, say so in the PR body and leave
+it uncovered rather than starting a browser.
 
 **Never assume an external interface.** Confirm any field, flag, exit code, or response shape from a
 CLI, API, or library you did not write by reading the real response or the installed source. Not

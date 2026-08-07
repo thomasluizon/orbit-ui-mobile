@@ -6,7 +6,8 @@
         "hooks": [
           { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/git-guardrails.mjs\"" },
           { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/forbid-raw-linear-mutation.mjs\"" },
-          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/orchestrator-guardrails.mjs\"" }
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/orchestrator-guardrails.mjs\"" },
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/forbid-worker-browser.mjs\"" }
         ]
       },
       {
@@ -14,7 +15,15 @@
         "hooks": [
           { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/git-guardrails.mjs\"" },
           { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/forbid-raw-linear-mutation.mjs\"" },
-          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/orchestrator-guardrails.mjs\"" }
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/orchestrator-guardrails.mjs\"" },
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/forbid-worker-browser.mjs\"" }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/require-wake-source.mjs\"" }
         ]
       }
     ],

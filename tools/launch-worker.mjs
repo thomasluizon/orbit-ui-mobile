@@ -19,6 +19,7 @@ import { delimiter, dirname, extname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
+import { clearWakeSource, registerWakeSource } from "./lib/run-state.mjs"
 
 const USAGE = `usage: launch-worker.mjs --issue ORB-N --worktree <path> --prompt <file> [options]
        launch-worker.mjs --issue ORB-N --review --prompt <file> [options]
@@ -228,7 +229,16 @@ const child = spawn(executable, workerArgs, {
   },
 })
 
+/**
+ * THIS process, not the child, is what the orchestrator backgrounds and what its exit re-invokes the
+ * session with, so this pid is the run's real wake source. Registering it here is what lets the Stop
+ * hook prove an unattended run has something live to wake it rather than take its word: a run that
+ * ended a turn claiming "CI will wake me" with nothing scheduled ended the whole night on 2026-08-06.
+ */
+registerWakeSource({ pid: process.pid, what: `${review ? "reviewer" : "worker"} ${issue}`, workerPid: child.pid ?? null, logFile, startedAt })
+
 const finish = (outcome, exitCode) => {
+  clearWakeSource(process.pid)
   closeSync(logFd)
   const result = { issue, engine: engineName, tier: invocation.tier, model: invocation.model, codexOnly, pid: child.pid ?? null, logFile, startedAt, endedAt: new Date().toISOString(), exitCode, outcome }
   console.log(JSON.stringify(result, null, 2))
