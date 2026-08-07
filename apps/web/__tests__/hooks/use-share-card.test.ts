@@ -47,6 +47,20 @@ describe('useShareCard', () => {
     expect(result.current.hasError).toBe(false)
   })
 
+  it('reports an error when the card cannot be captured as an image', async () => {
+    toBlobMock.mockResolvedValue(null)
+    const { result } = renderHook(() => useShareCard())
+    result.current.captureRef.current = document.createElement('div')
+
+    await act(async () => {
+      await result.current.download()
+    })
+
+    expect(result.current.hasError).toBe(true)
+    expect(clickSpy).not.toHaveBeenCalled()
+    expect(reportEventMock).not.toHaveBeenCalled()
+  })
+
   it('falls back to a download when Web Share is unavailable and fires the share seam once', async () => {
     const { result } = renderHook(() => useShareCard())
     result.current.captureRef.current = document.createElement('div')

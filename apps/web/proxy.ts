@@ -9,7 +9,6 @@ import {
 } from '@/lib/auth-api'
 
 const CONTENT_SECURITY_POLICY = 'Content-Security-Policy'
-const DEFAULT_SUPABASE_URL = 'https://wdscxamegetmhqldqsdg.supabase.co'
 
 const PUBLIC_PATHS = [
   '/login',
@@ -78,12 +77,7 @@ async function applyRefreshedSession(
 }
 
 function createContentSecurityPolicy(nonce: string): string {
-  const supabaseUrl = new URL(
-    process.env.NEXT_PUBLIC_SUPABASE_URL ?? DEFAULT_SUPABASE_URL,
-  )
-  if (supabaseUrl.protocol !== 'http:' && supabaseUrl.protocol !== 'https:') {
-    throw new Error('NEXT_PUBLIC_SUPABASE_URL must use HTTP or HTTPS')
-  }
+  const supabaseUrl = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!)
 
   const websocketUrl = new URL(supabaseUrl.origin)
   websocketUrl.protocol = supabaseUrl.protocol === 'https:' ? 'wss:' : 'ws:'

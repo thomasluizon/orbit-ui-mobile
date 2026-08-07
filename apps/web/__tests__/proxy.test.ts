@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest, NextResponse } from 'next/server'
 import { unstable_doesMiddlewareMatch } from 'next/experimental/testing/server'
 import { config, proxy } from '@/proxy'
@@ -45,10 +45,15 @@ function createRequest(path: string, options: { cookies?: Record<string, string>
 
 describe('proxy', () => {
   beforeEach(() => {
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://test.supabase.co')
     vi.mocked(NextResponse.next).mockClear()
     vi.mocked(NextResponse.redirect).mockClear()
     vi.mocked(resolveSessionTokens).mockReset()
     vi.mocked(setSessionCookies).mockReset()
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
   })
 
   it('allows public legal pages without resolving a session', async () => {
@@ -86,6 +91,20 @@ describe('proxy', () => {
     expect(contentSecurityPolicy).not.toContain("script-src 'self' 'unsafe-inline'")
     expect(forwardedHeaders.get('Content-Security-Policy')).toBe(contentSecurityPolicy)
     expect(forwardedHeaders.get('x-nonce')).toMatch(/^[A-Za-z0-9+/]+=*$/)
+  })
+
+  it('allows local Supabase connections and development scripts in development', async () => {
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'http://localhost:54321')
+    vi.stubEnv('NODE_ENV', 'development')
+
+    const response = await proxy(createRequest('/api/profile'))
+    const contentSecurityPolicy = response.headers.get('Content-Security-Policy')
+
+    expect(contentSecurityPolicy).toContain("script-src 'self'")
+    expect(contentSecurityPolicy).toContain("'unsafe-eval'")
+    expect(contentSecurityPolicy).toContain(
+      "connect-src 'self' http://localhost:54321 ws://localhost:54321",
+    )
   })
 
   it('runs for every early-return path so each response receives the policy', () => {
