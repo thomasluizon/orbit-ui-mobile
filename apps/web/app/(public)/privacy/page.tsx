@@ -6,29 +6,6 @@ import { SectionLabel } from '@/components/ui/section-label'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useAuthStore } from '@/stores/auth-store'
 
-const thirdPartyKeys = [
-  'google',
-  'stripe',
-  'firebase',
-  'openai',
-  'resend',
-  'googlePlay',
-  'admob',
-  'sentry',
-  'posthog',
-  'vercel',
-] as const
-const retentionKeys = [
-  'account',
-  'sessions',
-  'ai',
-  'reminderHistory',
-  'syncRecords',
-  'calendarSuggestions',
-  'billingRecords',
-  'afterDeletion',
-] as const
-
 export default function PrivacyPage() {
   const t = useTranslations()
   const goBackOrFallback = useGoBackOrFallback()
@@ -51,11 +28,27 @@ export default function PrivacyPage() {
     ] },
     { label: t('privacy.thirdParty.title'), body: [
       t('privacy.thirdParty.intro'),
-      ...thirdPartyKeys.map((key) => t(`privacy.thirdParty.${key}`)),
+      t('privacy.thirdParty.google'),
+      t('privacy.thirdParty.stripe'),
+      t('privacy.thirdParty.firebase'),
+      t('privacy.thirdParty.openai'),
+      t('privacy.thirdParty.resend'),
+      t('privacy.thirdParty.googlePlay'),
+      t('privacy.thirdParty.admob'),
+      t('privacy.thirdParty.sentry'),
+      t('privacy.thirdParty.posthog'),
+      t('privacy.thirdParty.vercel'),
     ] },
     { label: t('privacy.retention.title'), body: [
       t('privacy.retention.intro'),
-      ...retentionKeys.map((key) => t(`privacy.retention.${key}`)),
+      t('privacy.retention.account'),
+      t('privacy.retention.sessions'),
+      t('privacy.retention.ai'),
+      t('privacy.retention.reminderHistory'),
+      t('privacy.retention.syncRecords'),
+      t('privacy.retention.calendarSuggestions'),
+      t('privacy.retention.billingRecords'),
+      t('privacy.retention.afterDeletion'),
     ] },
     { label: t('privacy.googleScopes.title'), body: [
       t('privacy.googleScopes.intro'),

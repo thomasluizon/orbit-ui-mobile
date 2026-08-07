@@ -1,6 +1,7 @@
 import React from 'react'
 import { render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
+import architecture from '../../../architecture.json'
 import en from '../../../packages/shared/src/i18n/en.json'
 import ptBR from '../../../packages/shared/src/i18n/pt-BR.json'
 import PrivacyPage from '@/app/(public)/privacy/page'
@@ -58,6 +59,26 @@ describe('privacy policy disclosures', () => {
 
   it('keeps the complete privacy key set identical across locales', () => {
     expect(flattenKeys(ptBR.privacy).sort()).toEqual(flattenKeys(en.privacy).sort())
+  })
+
+  it('keeps every processor and retention disclosure owned by both privacy routes', () => {
+    const disclosureKeys = [
+      ...flattenKeys(en.privacy.thirdParty, 'privacy.thirdParty'),
+      ...flattenKeys(en.privacy.retention, 'privacy.retention'),
+    ].filter((key) => !key.endsWith('.title') && !key.endsWith('.intro'))
+
+    for (const sourceFile of [
+      'apps/web/app/(public)/privacy/page.tsx',
+      'apps/mobile/app/privacy.tsx',
+    ]) {
+      const route = architecture.i18nOwnership.byRoute.find(
+        (candidate) => candidate.sourceFile === sourceFile,
+      )
+      expect(route?.keys).toEqual(expect.arrayContaining(disclosureKeys))
+    }
+    expect(architecture.i18nOwnership.unowned).toEqual(
+      expect.not.arrayContaining(disclosureKeys),
+    )
   })
 
   it('names PostHog and Vercel in both locales', () => {

@@ -9,48 +9,17 @@ import { useAuthStore } from '@/stores/auth-store'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 
-const dataCollectedKeys = ['account', 'habits', 'chat', 'preferences', 'device'] as const
-const howWeUseKeys = ['provide', 'personalize', 'notifications'] as const
-const thirdPartyKeys = [
-  'google',
-  'stripe',
-  'firebase',
-  'openai',
-  'resend',
-  'googlePlay',
-  'admob',
-  'sentry',
-  'posthog',
-  'vercel',
-] as const
-const retentionKeys = [
-  'account',
-  'sessions',
-  'ai',
-  'reminderHistory',
-  'syncRecords',
-  'calendarSuggestions',
-  'billingRecords',
-  'afterDeletion',
-] as const
-const googleScopesKeys = ['auth', 'calendar', 'control'] as const
-
 function PrivacyBulletList({
-  keys,
-  prefix,
+  lines,
   color,
-}: Readonly<{ keys: readonly string[]; prefix: string; color: string }>) {
-  const { t } = useTranslation()
+}: Readonly<{ lines: readonly string[]; color: string }>) {
   return (
     <>
-      {keys.map((key) => {
-        const translationKey = `${prefix}.${key}`
-        return (
-          <Text key={key} style={[styles.bodyText, { color }]}>
-            {`• ${t(translationKey)}`}
-          </Text>
-        )
-      })}
+      {lines.map((line) => (
+        <Text key={line} style={[styles.bodyText, { color }]}>
+          {`• ${line}`}
+        </Text>
+      ))}
     </>
   )
 }
@@ -99,8 +68,13 @@ export default function PrivacyScreen() {
         <SectionLabel>{t('privacy.dataCollected.title')}</SectionLabel>
         <View style={styles.bodyBlock}>
           <PrivacyBulletList
-            keys={dataCollectedKeys}
-            prefix="privacy.dataCollected"
+            lines={[
+              t('privacy.dataCollected.account'),
+              t('privacy.dataCollected.habits'),
+              t('privacy.dataCollected.chat'),
+              t('privacy.dataCollected.preferences'),
+              t('privacy.dataCollected.device'),
+            ]}
             color={tokens.fg2}
           />
         </View>
@@ -108,8 +82,11 @@ export default function PrivacyScreen() {
         <SectionLabel>{t('privacy.howWeUse.title')}</SectionLabel>
         <View style={styles.bodyBlock}>
           <PrivacyBulletList
-            keys={howWeUseKeys}
-            prefix="privacy.howWeUse"
+            lines={[
+              t('privacy.howWeUse.provide'),
+              t('privacy.howWeUse.personalize'),
+              t('privacy.howWeUse.notifications'),
+            ]}
             color={tokens.fg2}
           />
         </View>
@@ -120,8 +97,18 @@ export default function PrivacyScreen() {
             {t('privacy.thirdParty.intro')}
           </Text>
           <PrivacyBulletList
-            keys={thirdPartyKeys}
-            prefix="privacy.thirdParty"
+            lines={[
+              t('privacy.thirdParty.google'),
+              t('privacy.thirdParty.stripe'),
+              t('privacy.thirdParty.firebase'),
+              t('privacy.thirdParty.openai'),
+              t('privacy.thirdParty.resend'),
+              t('privacy.thirdParty.googlePlay'),
+              t('privacy.thirdParty.admob'),
+              t('privacy.thirdParty.sentry'),
+              t('privacy.thirdParty.posthog'),
+              t('privacy.thirdParty.vercel'),
+            ]}
             color={tokens.fg2}
           />
         </View>
@@ -132,8 +119,16 @@ export default function PrivacyScreen() {
             {t('privacy.retention.intro')}
           </Text>
           <PrivacyBulletList
-            keys={retentionKeys}
-            prefix="privacy.retention"
+            lines={[
+              t('privacy.retention.account'),
+              t('privacy.retention.sessions'),
+              t('privacy.retention.ai'),
+              t('privacy.retention.reminderHistory'),
+              t('privacy.retention.syncRecords'),
+              t('privacy.retention.calendarSuggestions'),
+              t('privacy.retention.billingRecords'),
+              t('privacy.retention.afterDeletion'),
+            ]}
             color={tokens.fg2}
           />
         </View>
@@ -144,8 +139,11 @@ export default function PrivacyScreen() {
             {t('privacy.googleScopes.intro')}
           </Text>
           <PrivacyBulletList
-            keys={googleScopesKeys}
-            prefix="privacy.googleScopes"
+            lines={[
+              t('privacy.googleScopes.auth'),
+              t('privacy.googleScopes.calendar'),
+              t('privacy.googleScopes.control'),
+            ]}
             color={tokens.fg2}
           />
         </View>
