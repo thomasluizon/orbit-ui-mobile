@@ -177,7 +177,7 @@ Every changed `apps/web/**` file has its `apps/mobile/**` mirror changed in the 
 `hooks/use-<x>.ts`, `stores/<x>-store.ts`, and `components/<feature>/<X>.tsx` map one to one,
 `app/(app)/<page>/page.tsx` maps to `app/<page>.tsx`, and `app/actions/<x>.ts` maps to a mobile hook calling
 `apiClient` directly. The mirror is **behaviourally identical**: same logic, data flow, and error handling,
-reverts included. Allowed differences: platform adapters only (BFF vs direct API, cookie vs SecureStore,
+reverts included. Allowed differences are platform adapters (BFF vs direct API, cookie vs SecureStore,
 shadcn vs NativeWind, next-intl vs i18next) and a layout shell divergence enumerated in `DESIGN.md`, limited
 to navigation chrome (sidebar vs tab bar), the desktop stats rail, the command palette and keyboard
 shortcuts, and hover affordances on that shell chrome. Everything below the shell, including a screen,
