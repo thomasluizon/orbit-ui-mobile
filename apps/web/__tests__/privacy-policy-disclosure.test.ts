@@ -3,12 +3,6 @@ import { render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import en from '../../../packages/shared/src/i18n/en.json'
 import ptBR from '../../../packages/shared/src/i18n/pt-BR.json'
-import {
-  mobilePrivacyRetentionKeys as mobileRetentionKeys,
-  mobilePrivacyThirdPartyKeys as mobileThirdPartyKeys,
-  webPrivacyRetentionKeys as webRetentionKeys,
-  webPrivacyThirdPartyKeys as webThirdPartyKeys,
-} from '../../../packages/shared/src/i18n'
 import PrivacyPage from '@/app/(public)/privacy/page'
 
 const TestIntlProvider = NextIntlClientProvider as React.ComponentType<{
@@ -23,8 +17,10 @@ vi.mock('@/hooks/use-go-back-or-fallback', () => ({
 
 const SECTION_METADATA_KEYS = new Set(['title', 'intro'])
 
-function renderedKeys(section: Record<string, string>) {
-  return Object.keys(section).filter((key) => !SECTION_METADATA_KEYS.has(key)).sort()
+function disclosureValues(section: Record<string, string>) {
+  return Object.entries(section)
+    .filter(([key]) => !SECTION_METADATA_KEYS.has(key))
+    .map(([, value]) => value)
 }
 
 function flattenKeys(value: unknown, prefix = ''): string[] {
@@ -48,19 +44,16 @@ describe('privacy policy disclosures', () => {
       ),
     )
 
+    const disclosures = [
+      ...disclosureValues(en.privacy.thirdParty),
+      ...disclosureValues(en.privacy.retention),
+    ]
+    for (const disclosure of disclosures) {
+      expect(screen.getByText(disclosure)).toBeInTheDocument()
+    }
     expect(screen.getByText(en.privacy.thirdParty.posthog)).toBeInTheDocument()
     expect(screen.getByText(en.privacy.retention.syncRecords)).toBeInTheDocument()
     expect(screen.getByText(en.privacy.retention.afterDeletion)).toBeInTheDocument()
-  })
-
-  it('wires every third party and retention disclosure on web and mobile', () => {
-    const thirdPartyKeys = renderedKeys(en.privacy.thirdParty)
-    const retentionKeys = renderedKeys(en.privacy.retention)
-
-    expect([...webThirdPartyKeys].sort()).toEqual(thirdPartyKeys)
-    expect([...mobileThirdPartyKeys].sort()).toEqual(thirdPartyKeys)
-    expect([...webRetentionKeys].sort()).toEqual(retentionKeys)
-    expect([...mobileRetentionKeys].sort()).toEqual(retentionKeys)
   })
 
   it('keeps the complete privacy key set identical across locales', () => {

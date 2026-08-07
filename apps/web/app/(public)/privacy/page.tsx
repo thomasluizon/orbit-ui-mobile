@@ -1,17 +1,33 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import {
-  webPrivacyRetentionKeys,
-  webPrivacyThirdPartyKeys,
-} from '@orbit/shared/i18n'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useAuthStore } from '@/stores/auth-store'
 
-export const thirdPartyKeys = webPrivacyThirdPartyKeys
-export const retentionKeys = webPrivacyRetentionKeys
+const thirdPartyKeys = [
+  'google',
+  'stripe',
+  'firebase',
+  'openai',
+  'resend',
+  'googlePlay',
+  'admob',
+  'sentry',
+  'posthog',
+  'vercel',
+] as const
+const retentionKeys = [
+  'account',
+  'sessions',
+  'ai',
+  'reminderHistory',
+  'syncRecords',
+  'calendarSuggestions',
+  'billingRecords',
+  'afterDeletion',
+] as const
 
 export default function PrivacyPage() {
   const t = useTranslations()

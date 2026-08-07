@@ -43,6 +43,14 @@ vi.mock('@/stores/auth-store', () => ({
 
 translations.messages = en
 
+const SECTION_METADATA_KEYS = new Set(['title', 'intro'])
+
+function disclosureValues(section: Record<string, string>) {
+  return Object.entries(section)
+    .filter(([key]) => !SECTION_METADATA_KEYS.has(key))
+    .map(([, value]) => value)
+}
+
 function rendersText(root: TestNode, text: string) {
   return root.findAll(
     (node) => typeof node.props.children === 'string' && node.props.children.includes(text),
@@ -56,6 +64,13 @@ describe('PrivacyScreen disclosures', () => {
       tree = TestRenderer.create(<PrivacyScreen />)
     })
 
+    const disclosures = [
+      ...disclosureValues(en.privacy.thirdParty),
+      ...disclosureValues(en.privacy.retention),
+    ]
+    for (const disclosure of disclosures) {
+      expect(rendersText(tree!.root, disclosure)).toBe(true)
+    }
     expect(rendersText(tree!.root, en.privacy.thirdParty.posthog)).toBe(true)
     expect(rendersText(tree!.root, en.privacy.retention.syncRecords)).toBe(true)
     expect(rendersText(tree!.root, en.privacy.retention.afterDeletion)).toBe(true)
