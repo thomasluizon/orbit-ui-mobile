@@ -36,12 +36,18 @@ export default function PrivacyPage() {
       t('privacy.thirdParty.googlePlay'),
       t('privacy.thirdParty.admob'),
       t('privacy.thirdParty.sentry'),
+      t('privacy.thirdParty.posthog'),
+      t('privacy.thirdParty.vercel'),
     ] },
     { label: t('privacy.retention.title'), body: [
       t('privacy.retention.intro'),
       t('privacy.retention.account'),
       t('privacy.retention.sessions'),
       t('privacy.retention.ai'),
+      t('privacy.retention.reminderHistory'),
+      t('privacy.retention.syncRecords'),
+      t('privacy.retention.calendarSuggestions'),
+      t('privacy.retention.billingRecords'),
       t('privacy.retention.afterDeletion'),
     ] },
     { label: t('privacy.googleScopes.title'), body: [

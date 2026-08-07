@@ -84,6 +84,182 @@ function makeGetChildren(
 const scheduledToday = (habit: NormalizedHabit) => habit.scheduledDates.includes(TODAY)
 
 describe('computeParentPromptProgress', () => {
+  it('counts a sub-habit skipped before this mount as resolved', () => {
+    const logged = createMockHabit({
+      id: 'logged',
+      parentId: 'parent',
+      isFlexible: true,
+      isLoggedInRange: true,
+      flexibleTarget: 1,
+      flexibleCompleted: 1,
+    })
+    const skippedEarlier = createMockHabit({
+      id: 'skipped-earlier',
+      parentId: 'parent',
+      isFlexible: true,
+      isLoggedInRange: false,
+      flexibleTarget: 0,
+      flexibleCompleted: 0,
+    })
+
+    const progress = computeParentPromptProgress({
+      parentId: 'parent',
+      getChildren: makeGetChildren({ parent: [logged, skippedEarlier] }),
+      isRelevantToday: scheduledToday,
+      isDueOnSelectedDate: scheduledToday,
+      isListView: false,
+      skippedIds: new Set(),
+    })
+
+    expect(progress.done).toBe(2)
+    expect(progress.total).toBe(2)
+  })
+
+  it('treats an optimistically completed server-known skip as logged', () => {
+    const loggedAfterSkip = createMockHabit({
+      id: 'logged-after-skip',
+      parentId: 'parent',
+      isCompleted: true,
+      isFlexible: true,
+      isLoggedInRange: false,
+      flexibleTarget: 0,
+      flexibleCompleted: 0,
+      scheduledDates: [],
+    })
+
+    const progress = computeParentPromptProgress({
+      parentId: 'parent',
+      getChildren: makeGetChildren({ parent: [loggedAfterSkip] }),
+      isRelevantToday: scheduledToday,
+      isDueOnSelectedDate: scheduledToday,
+      isListView: false,
+      skippedIds: new Set(),
+      assumeCompletedId: loggedAfterSkip.id,
+    })
+
+    expect(progress).toEqual({ done: 1, total: 1, loggedDone: 1 })
+  })
+
+  it('reports no logged children when every sub-habit was skipped before this mount', () => {
+    const first = createMockHabit({
+      id: 'a',
+      parentId: 'p',
+      isFlexible: true,
+      flexibleTarget: 0,
+      flexibleCompleted: 0,
+    })
+    const second = createMockHabit({
+      id: 'b',
+      parentId: 'p',
+      isFlexible: true,
+      flexibleTarget: 0,
+      flexibleCompleted: 0,
+    })
+
+    const progress = computeParentPromptProgress({
+      parentId: 'p',
+      getChildren: makeGetChildren({ p: [first, second] }),
+      isRelevantToday: scheduledToday,
+      isDueOnSelectedDate: scheduledToday,
+      isListView: false,
+      skippedIds: new Set(),
+    })
+
+    expect(progress).toEqual({ done: 2, total: 2, loggedDone: 0 })
+  })
+
+  it('counts in-session and server-known skips once each', () => {
+    const skippedInSession = createMockHabit({ id: 'a', parentId: 'p' })
+    const skippedByServer = createMockHabit({
+      id: 'b',
+      parentId: 'p',
+      isFlexible: true,
+      flexibleTarget: 0,
+      flexibleCompleted: 0,
+    })
+
+    const progress = computeParentPromptProgress({
+      parentId: 'p',
+      getChildren: makeGetChildren({ p: [skippedInSession, skippedByServer] }),
+      isRelevantToday: scheduledToday,
+      isDueOnSelectedDate: scheduledToday,
+      isListView: false,
+      skippedIds: new Set(['a', 'b']),
+    })
+
+    expect(progress).toEqual({ done: 2, total: 2, loggedDone: 0 })
+  })
+
+  it('counts a nested server-known skip below a child with no work today', () => {
+    const intermediate = createMockHabit({
+      id: 'child',
+      parentId: 'parent',
+      scheduledDates: ['2026-06-25'],
+    })
+    const nestedSkip = createMockHabit({
+      id: 'nested-skip',
+      parentId: 'child',
+      isFlexible: true,
+      flexibleTarget: 0,
+      flexibleCompleted: 0,
+    })
+
+    const progress = computeParentPromptProgress({
+      parentId: 'parent',
+      getChildren: makeGetChildren({ parent: [intermediate], child: [nestedSkip] }),
+      isRelevantToday: scheduledToday,
+      isDueOnSelectedDate: scheduledToday,
+      isListView: false,
+      skippedIds: new Set(),
+    })
+
+    expect(progress).toEqual({ done: 1, total: 1, loggedDone: 0 })
+  })
+
+  it('does not resolve a flexible child with partial window progress', () => {
+    const partial = createMockHabit({
+      id: 'partial',
+      parentId: 'parent',
+      isFlexible: true,
+      flexibleTarget: 2,
+      flexibleCompleted: 1,
+      scheduledDates: [TODAY],
+    })
+
+    const progress = computeParentPromptProgress({
+      parentId: 'parent',
+      getChildren: makeGetChildren({ parent: [partial] }),
+      isRelevantToday: scheduledToday,
+      isDueOnSelectedDate: scheduledToday,
+      isListView: false,
+      skippedIds: new Set(),
+    })
+
+    expect(progress).toEqual({ done: 0, total: 1, loggedDone: 0 })
+  })
+
+  it('keeps a pending non-flexible child unresolved', () => {
+    const pending = createMockHabit({
+      id: 'pending',
+      parentId: 'parent',
+      isFlexible: false,
+      flexibleTarget: null,
+      flexibleCompleted: null,
+      scheduledDates: [TODAY],
+    })
+
+    const progress = computeParentPromptProgress({
+      parentId: 'parent',
+      getChildren: makeGetChildren({ parent: [pending] }),
+      isRelevantToday: scheduledToday,
+      isDueOnSelectedDate: scheduledToday,
+      isListView: false,
+      skippedIds: new Set(),
+    })
+
+    expect(progress).toEqual({ done: 0, total: 1, loggedDone: 0 })
+  })
+
   it('does not report all-done while an overdue sibling is still unlogged (today view)', () => {
     const loggedOverdue = createMockHabit({
       id: 'a',

@@ -215,6 +215,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
 
   const selectedDateStr = selectedDate ? formatAPIDate(selectedDate) : formatAPIDate(new Date())
   const todayStr = formatAPIDate(new Date())
+  useEffect(() => {
+    promptedParentIdsRef.current.clear()
+    skippedChildIdsRef.current.clear()
+  }, [promptedParentIdsRef, selectedDateStr, skippedChildIdsRef])
   const visibility = useHabitVisibility({
     habitsById,
     childrenByParent,
@@ -388,6 +392,13 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     },
     [promptDataRef, skippedChildIdsRef],
   )
+
+  useEffect(() => {
+    for (const parentId of promptedParentIdsRef.current) {
+      const { done, total } = getChildrenProgressForPrompt(parentId)
+      if (total === 0 || done < total) promptedParentIdsRef.current.delete(parentId)
+    }
+  }, [getChildrenProgressForPrompt, habitsQuery.dataUpdatedAt, promptedParentIdsRef])
 
   const dateGroups = useMemo<HabitListDateGroup[]>(() => {
     if (view !== 'all') return []
@@ -746,10 +757,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   }
   async function confirmForceLog() {
     if (!forceLogHabitId) return
-    skippedChildIdsRef.current.delete(forceLogHabitId)
     markRecentlyCompleted(forceLogHabitId)
     try {
       await logHabit.mutateAsync({ habitId: forceLogHabitId })
+      handleLogged(forceLogHabitId, false)
     } catch {
       clearRecentlyCompleted(forceLogHabitId)
     } finally {
