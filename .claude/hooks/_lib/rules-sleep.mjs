@@ -15,7 +15,7 @@
 // still the run's own responsibility, and the invariant in the skill says to name it.
 
 /**
- * @param options `{ state, wakeSources, sessionId, stopHookActive, isAlive }`
+ * @param options `{ state, wakeSources, sessionId, stopHookActive, isAlive, receiptVerdict }`
  * @returns `{ block, message }` when an unattended run is about to go quiet, else null
  */
 export function checkSleepStop({ state, wakeSources = [], sessionId = "", stopHookActive = false, isAlive = () => false, receiptVerdict = () => null } = {}) {
@@ -43,7 +43,7 @@ export function checkSleepStop({ state, wakeSources = [], sessionId = "", stopHo
     (entry) => typeof entry?.repositoryKey === "string" && entry.repositoryKey !== "" && Number.isInteger(entry?.prNumber) && typeof entry?.receiptPath === "string" && entry.receiptPath !== "",
   )
   const uniquePullRequests = [...new Map(pullRequests.map((entry) => [`${entry.repositoryKey}#${entry.prNumber}`, entry])).values()]
-  const pendingPullRequests = uniquePullRequests.filter((entry) => receiptVerdict(entry.receiptPath) !== "READY")
+  const pendingPullRequests = uniquePullRequests.filter((entry) => receiptVerdict(entry) !== "READY")
   const invalidPullRequestIdentities = rawPullRequests.length - pullRequests.length +
     (Array.isArray(state.unreviewedPullRequests) ? state.unreviewedPullRequests.length : 0)
   if (remaining.length === 0 && pendingPullRequests.length === 0 && invalidPullRequestIdentities === 0) return null

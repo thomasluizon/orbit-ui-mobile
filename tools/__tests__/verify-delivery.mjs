@@ -255,9 +255,9 @@ export const cases = () => {
   codexBody.body = `Implements ${ISSUE}.`
   const codexOnly = check(
     TOOL,
-    "codex-only delivery mechanically restores the degraded first line after a later body touch",
+    "codex-only delivery restores the degraded first line and invalidates pre-edit CI",
     ["--issue", ISSUE, "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui", "--codex-only"],
-    { status: 0, stdout: /"verdict": "DELIVERED"/ },
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"invalidatedByBodyEdit": true/ },
     { path: testedToolPath, env: orcaEnv([
       { match: "auth token --user thomasluizon", stdout: "test-github-token" },
       { match: `pr list --head ${BRANCH}`, stdout: JSON.stringify([codexBody]) },
@@ -268,6 +268,14 @@ export const cases = () => {
     ]) },
   )
   T(`${TOOL}: degraded body enforcement invoked the PR edit before delivery`, !existsSync(marker), codexOnly.stdout || codexOnly.stderr)
+  const markedBody = { ...codexBody, body: `DEGRADED: same-vendor review\n\nImplements ${ISSUE}.\n` }
+  check(
+    TOOL,
+    "the next codex-only delivery invocation can settle the post-edit checks",
+    ["--issue", ISSUE, "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui", "--codex-only"],
+    { status: 0, stdout: /"verdict": "DELIVERED"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([markedBody]), 0, rollup(), { behind_by: 0 }) },
+  )
 
   /**
    * A pull request that cannot merge was never delivered. Every case below passes every OTHER check,

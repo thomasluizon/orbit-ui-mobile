@@ -39,7 +39,7 @@ export const readinessVerdicts = (receipt) => {
 
   const review = receipt.independentReview
   const blockersClosed = Array.isArray(review?.findings) && review.findings.every(
-    (finding) => finding?.blocking !== true || finding?.status === "CLOSED",
+    (finding) => typeof finding?.blocking === "boolean" && (finding.blocking === false || finding?.status === "CLOSED"),
   )
   if (
     !currentEvidence(review, receipt) ||
@@ -78,6 +78,20 @@ export const readinessVerdicts = (receipt) => {
   }
   return [...new Set(verdicts)]
 }
+
+/** Compare a persisted receipt with live state that the stop hook has just read. This is separate
+ * from readinessReport because a cached receipt cannot prove that GitHub or Linear stayed still. */
+export const readinessReceiptMatchesLive = (receipt, entry, live) =>
+  receipt?.repositoryKey === entry?.repositoryKey &&
+  receipt?.prNumber === entry?.prNumber &&
+  live?.repositoryKey === entry?.repositoryKey &&
+  live?.prNumber === entry?.prNumber &&
+  live?.baseSha === receipt?.currentBaseSha &&
+  live?.headSha === receipt?.currentHeadSha &&
+  live?.draft === receipt?.draft &&
+  live?.linearIssue === receipt?.issue &&
+  live?.linearStatus === receipt?.linear?.status &&
+  live?.linearVisibleEffect === receipt?.linear?.visibleEffect
 
 export const readinessReport = (receipt) => {
   const verdicts = readinessVerdicts(receipt)

@@ -931,8 +931,10 @@ from:
 `pullRequests` holds repository-qualified identities and receipt paths for every pull request this
 run opened. `writeRunState` mechanically unions those identities into the append-only
 `readinessLedger`; later writes cannot erase them by setting `pullRequests: []`. A bare number is
-invalid because UI and API can have the same PR number. The stop hook opens every ledger receipt and
-allows completion only when `readinessReport` says READY for its current head/base pair. This is the
+invalid because UI and API can have the same PR number. The stop hook opens every ledger receipt,
+matches its repository and PR identity, then boundedly rereads the live GitHub head/base/draft and
+Linear status/visible-effect state. It allows completion only when the cached report is READY and
+all live values still match that exact receipt. This is the
 mechanical half of salvage: a pull request opened by hand and never re-verified cannot be reported
 as a finished queue even if a fallible session clears the active list.
 

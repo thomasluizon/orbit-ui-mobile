@@ -227,12 +227,14 @@ checks.prCount = {
 }
 if (!checks.prCount.pass) emit("NO_PR")
 
+let bodyMutated = false
 if (codexOnly) {
   const degradedBody = withDegradedReviewFirst(pullRequest.body)
   if (degradedBody !== pullRequest.body) {
     const edited = await run(GH, ["pr", "edit", String(pullRequest.number), "--body-file", "-"], githubCwd, degradedBody)
     if (!edited.ok) fail(2, `could not enforce degraded PR body marker on #${pullRequest.number}: ${edited.error}`)
     pullRequest.body = degradedBody
+    bodyMutated = true
   }
 }
 
@@ -409,6 +411,19 @@ const sleep = (seconds) => {
 }
 
 let rollup = readRollup()
+if (bodyMutated) {
+  const bodyEditPending = checkMetadata("PR body edited; rerun delivery after edited-event checks register", { status: "NOT_REGISTERED", conclusion: null })
+  checks.ci = {
+    pass: false,
+    observed: `${rollup.total} checks observed before the required post-edit delivery rerun`,
+    failing: rollup.failing,
+    pending: [...rollup.pending, bodyEditPending],
+    requiredContexts,
+    waitedSeconds: 0,
+    invalidatedByBodyEdit: true,
+  }
+  emit("CI_PENDING")
+}
 const deadline = Date.now() + waitCiSeconds * 1000
 while (rollup.failing.length === 0 && rollup.pending.length > 0 && Date.now() < deadline) {
   sleep(Math.min(30, Math.max(1, Math.ceil((deadline - Date.now()) / 1000))))

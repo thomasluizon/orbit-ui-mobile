@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs"
 
 import { T, stageRepo } from "./_harness.mjs"
-import { readReadinessReceipt, readinessReceiptPath, readinessReport, writeReadinessReceipt } from "../lib/readiness-receipt.mjs"
+import { readReadinessReceipt, readinessReceiptMatchesLive, readinessReceiptPath, readinessReport, writeReadinessReceipt } from "../lib/readiness-receipt.mjs"
 
 const TOOL = "lib/readiness-receipt.mjs"
 const HEAD_A = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -10,6 +10,7 @@ const BASE_A = "1111111111111111111111111111111111111111"
 const BASE_B = "2222222222222222222222222222222222222222"
 
 const ready = () => ({
+  issue: "ORB-701",
   repositoryKey: "ui",
   prNumber: 701,
   baseBranch: "main",
@@ -38,6 +39,8 @@ export const cases = () => {
   T(`${TOOL}: a self-review or more than two rounds is REVIEW_STALE`, readinessReport(selfReviewed).verdicts.includes("REVIEW_STALE"))
   const openBlocker = { ...receipt, independentReview: { ...receipt.independentReview, findings: [{ id: "F1", blocking: true, status: "OPEN" }] } }
   T(`${TOOL}: a CLEAN string cannot hide an OPEN frozen blocker`, readinessReport(openBlocker).verdicts.includes("REVIEW_STALE"))
+  const malformedBlocker = { ...receipt, independentReview: { ...receipt.independentReview, findings: [{ id: "F1", blocking: "false", status: "CLOSED" }] } }
+  T(`${TOOL}: a non-boolean blocker flag is REVIEW_STALE`, readinessReport(malformedBlocker).verdicts.includes("REVIEW_STALE"))
   const staleRubric = { ...receipt, independentReview: { ...receipt.independentReview, rubricBaseOid: BASE_B } }
   T(`${TOOL}: a rubric snapshot from another base is REVIEW_STALE`, readinessReport(staleRubric).verdicts.includes("REVIEW_STALE"))
 
@@ -61,4 +64,11 @@ export const cases = () => {
   T(`${TOOL}: a synchronized visible ticket reaches technical READY while remaining In Progress`, visualReport.verdict === "READY" && visualReport.visualCheckOwed === true, JSON.stringify(visualReport))
   const visualWrongStatus = { ...visual, linear: { ...visual.linear, status: "In Review" } }
   T(`${TOOL}: a visible ticket moved to In Review before acceptance is LINEAR_STALE`, readinessReport(visualWrongStatus).verdicts.includes("LINEAR_STALE"))
+
+  const entry = { repositoryKey: "ui", prNumber: 701, receiptPath: path }
+  const live = { repositoryKey: "ui", prNumber: 701, baseSha: BASE_A, headSha: HEAD_A, draft: false, linearIssue: "ORB-701", linearStatus: "In Review", linearVisibleEffect: false }
+  T(`${TOOL}: a READY receipt matches the exact live PR and Linear identity`, readinessReceiptMatchesLive(receipt, entry, live) === true)
+  T(`${TOOL}: a later live push invalidates an offline READY receipt`, readinessReceiptMatchesLive(receipt, entry, { ...live, headSha: HEAD_B }) === false)
+  T(`${TOOL}: a receipt for another numbered PR cannot satisfy a ledger entry`, readinessReceiptMatchesLive(receipt, { ...entry, prNumber: 700 }, live) === false)
+  T(`${TOOL}: live Linear drift invalidates an offline READY receipt`, readinessReceiptMatchesLive(receipt, entry, { ...live, linearStatus: "In Progress" }) === false)
 }

@@ -160,6 +160,7 @@ if (typeof liveLinear?.state?.name !== "string" || typeof liveLinear?.state?.typ
 const baseSha = live.baseRefOid
 const headSha = live.headRefOid
 const receipt = {
+  issue: delivery.issue,
   repositoryKey: repoKey,
   prNumber,
   baseBranch: live.baseRefName,
