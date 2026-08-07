@@ -73,7 +73,7 @@ let live
 let liveComparison
 try {
   const repository = repositorySlug(repoRoot)
-  const githubAuth = githubEnvironment(repoRoot, { timeoutMs: 45000 })
+  const githubAuth = await githubEnvironment(repoRoot, { timeoutMs: 45000 })
   const result = await runBounded(
     process.env.GH_BIN || "gh",
     ["pr", "view", String(prNumber), "--repo", repository, "--json", "number,baseRefName,baseRefOid,headRefOid,isDraft"],
@@ -127,7 +127,7 @@ const receipt = {
     headSha: review.reviewedHeadOid,
     baseSha: review.baseSha,
   },
-  ci: { settled: ci.pending.length === 0, green: ci.pass === true, checks: ci, headSha, baseSha },
+  ci: { settled: ci.pending.length === 0, green: ci.pass === true, checks: ci, headSha: state.headSha, baseSha: state.baseSha },
   codexConnector: { passed: bot.verdict === "REVIEWED", reviewedCommit: bot.reviewedCommit ?? null, headSha: bot.headRefOid, baseSha: bot.baseRefOid },
   threads: { unresolvedCount: bot.counts?.unresolved ?? bot.threads?.filter((thread) => !thread.isResolved).length ?? null, headSha: bot.headRefOid, baseSha: bot.baseRefOid },
   behindBy: liveComparison.behind_by,

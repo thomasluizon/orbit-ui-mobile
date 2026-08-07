@@ -2,6 +2,8 @@
 
 import { execFileSync } from "node:child_process"
 
+import { runBounded } from "./bounded-process.mjs"
+
 const slugFromRemote = (remote) => {
   const normalized = String(remote).trim().replaceAll("\\", "/")
   const match = /github\.com(?::|\/)([^/]+\/[^/]+?)(?:\.git)?$/i.exec(normalized)
@@ -22,14 +24,12 @@ export const repositorySlug = (repoPath, gitBin = process.env.GIT_BIN || "git", 
 
 export const repositoryOwner = (repoPath, gitBin = process.env.GIT_BIN || "git", environment = process.env) => repositorySlug(repoPath, gitBin, environment).split("/")[0]
 
-export const githubEnvironment = (repoPath, { ghBin = process.env.GH_BIN || "gh", gitBin = process.env.GIT_BIN || "git", environment = process.env, timeoutMs = 30000 } = {}) => {
+export const githubEnvironment = async (repoPath, { ghBin = process.env.GH_BIN || "gh", gitBin = process.env.GIT_BIN || "git", environment = process.env, timeoutMs = 30000 } = {}) => {
   const owner = repositoryOwner(repoPath, gitBin, environment)
-  let token
-  try {
-    token = execFileSync(ghBin, ["auth", "token", "--user", owner], { encoding: "utf8", env: environment, stdio: ["ignore", "pipe", "pipe"], timeout: timeoutMs }).trim()
-  } catch (error) {
-    throw new Error(`could not resolve a GitHub token for target owner ${owner}: ${(error.stderr?.toString() || error.message).trim()}`)
-  }
+  const result = await runBounded(ghBin, ["auth", "token", "--user", owner], { env: environment, timeoutMs, maxBuffer: 1024 * 1024 })
+  if (result.timedOut) throw new Error(`could not resolve a GitHub token for target owner ${owner}: timed out after ${timeoutMs}ms and terminated the complete child process tree`)
+  if (result.error || result.status !== 0) throw new Error(`could not resolve a GitHub token for target owner ${owner}: ${(result.stderr || result.stdout || result.error?.message || `exit ${result.status}`).trim()}`)
+  const token = result.stdout.trim()
   if (!token) throw new Error(`gh auth token returned no token for target owner ${owner}`)
   const scoped = { ...environment }
   delete scoped.GITHUB_TOKEN

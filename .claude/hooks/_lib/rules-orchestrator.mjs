@@ -38,7 +38,7 @@ const API_CLIENTS = new Set(["gh", "curl", "wget", "http", "https", "httpie"])
 // bypass is not a prohibition, and this is the one everything else rests on.
 const HTTPIE_BINARIES = new Set(["http", "https", "httpie"])
 const BARE_PUT = /(?<![\w-])PUT(?![\w-])/
-const BROAD_GIT_ADD = /(?:^|\s)git(?:\.exe)?(?:\s+-C\s+(?:"[^"]+"|'[^']+'|\S+))?\s+add\s+(?:-A|--all|\.)(?:\s|$)/i
+const BROAD_GIT_ADD = /(?:^|\s)git(?:\.exe)?(?:\s+-C\s+(?:"[^"]+"|'[^']+'|\S+))?\s+add(?=\s|$)(?=[\s\S]*\s(?:-A|--all|["']?\.\/?["']?)(?=\s|$))/i
 
 /**
  * Everything before the first real word: leading grouping punctuation and any number of

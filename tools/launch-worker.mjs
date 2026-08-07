@@ -237,7 +237,7 @@ const logFd = openSync(logFile, "a")
  */
 let githubAuth
 try {
-  githubAuth = githubEnvironment(runDirectory)
+  githubAuth = await githubEnvironment(runDirectory)
 } catch (error) {
   fail(3, redactSecrets(error.message))
 }

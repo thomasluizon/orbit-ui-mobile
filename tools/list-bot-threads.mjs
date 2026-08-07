@@ -142,7 +142,7 @@ if (!repository) {
 const [owner, repo] = repository.split("/")
 let githubAuth
 try {
-  githubAuth = githubEnvironment(githubCwd, { timeoutMs: commandTimeoutSeconds * 1000 })
+  githubAuth = await githubEnvironment(githubCwd, { timeoutMs: commandTimeoutSeconds * 1000 })
 } catch (error) {
   fail(2, redactSecrets(error.message))
 }
@@ -255,7 +255,10 @@ const botReviewOf = (payload) =>
 
 const CLEAN_COMMENT = "Codex Review: Didn't find any major issues."
 const connectorCommentLogins = new Set(botLogin.endsWith("[bot]") ? [botLogin, botLogin.slice(0, -5)] : [botLogin, `${botLogin}[bot]`])
-const commitFromComment = (comment) => /\*\*Reviewed commit:\*\*\s*`([0-9a-f]{7,40})`/i.exec(comment?.body ?? "")?.[1] ?? null
+// The live connector issue-comment shape reports exactly 10 hex characters. Accepting a shorter
+// unmeasured prefix could match more than one commit; accepting a guessed longer shape would violate
+// the repository's external-interface rule.
+const commitFromComment = (comment) => /\*\*Reviewed commit:\*\*\s*`([0-9a-f]{10})`(?![0-9a-f])/i.exec(comment?.body ?? "")?.[1] ?? null
 const cleanCommentOf = (payload) =>
   (payload.comments?.nodes ?? [])
     .filter((comment) => connectorCommentLogins.has(comment.author?.login))

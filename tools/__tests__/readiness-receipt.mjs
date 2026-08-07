@@ -15,7 +15,7 @@ const ready = () => ({
   baseBranch: "main",
   currentBaseSha: BASE_A,
   currentHeadSha: HEAD_A,
-  independentReview: { reviewerKind: "claude", verdict: "CLEAN", rounds: 1, reviewedHeadOid: HEAD_A, artifactPath: "C:/scratch/review.json", headSha: HEAD_A, baseSha: BASE_A },
+  independentReview: { reviewerKind: "independent", verdict: "CLEAN", rounds: 1, reviewedHeadOid: HEAD_A, artifactPath: "C:/scratch/review.json", headSha: HEAD_A, baseSha: BASE_A },
   ci: { settled: true, green: true, headSha: HEAD_A, baseSha: BASE_A, checks: [] },
   codexConnector: { passed: true, reviewedCommit: HEAD_A, headSha: HEAD_A, baseSha: BASE_A },
   threads: { unresolvedCount: 0, headSha: HEAD_A, baseSha: BASE_A },
@@ -34,6 +34,8 @@ export const cases = () => {
   const path = writeReadinessReceipt(fixture.path, receipt)
   T(`${TOOL}: one receipt is persisted per repository and PR under git state`, existsSync(path) && path === readinessReceiptPath(fixture.path, "ui", 701), path)
   T(`${TOOL}: a simultaneous final-head receipt is READY`, readinessReport(readReadinessReceipt(fixture.path, "ui", 701)).verdict === "READY")
+  const selfReviewed = { ...receipt, independentReview: { ...receipt.independentReview, reviewerKind: "self", rounds: 9 } }
+  T(`${TOOL}: a self-review or more than two rounds is REVIEW_STALE`, readinessReport(selfReviewed).verdicts.includes("REVIEW_STALE"))
 
   const pushed = { ...receipt, currentHeadSha: HEAD_B }
   const pushedVerdicts = readinessReport(pushed).verdicts

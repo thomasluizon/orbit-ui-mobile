@@ -61,11 +61,13 @@ export const cases = () => {
 
   const second = stageRepo("salvage-worker-broad")
   const broadStaged = stageWithConfig("salvage-worker-broad", TOOL, config)
-  check(
-    TOOL,
-    "broad staging paths are rejected before the test runs",
-    ["--issue", "ORB-250", "--repo", "ui", "--pr", "78", "--worktree", second.path, "--branch", "feature/salvage", "--run-root", second.path, "--test-command", passedOrder, "--test-receipt", receipt, "--message", "x", "--path", "."],
-    { status: 2, stderr: /never broad staging/ },
-    { path: broadStaged.path },
-  )
+  for (const broad of [".", "sub/..", "*", "src/**", ":(glob)**"]) {
+    check(
+      TOOL,
+      `broad staging path ${broad} is rejected before the test runs`,
+      ["--issue", "ORB-250", "--repo", "ui", "--pr", "78", "--worktree", second.path, "--branch", "feature/salvage", "--run-root", second.path, "--test-command", passedOrder, "--test-receipt", receipt, "--message", "x", "--path", broad],
+      { status: 2, stderr: /never broad staging/ },
+      { path: broadStaged.path },
+    )
+  }
 }

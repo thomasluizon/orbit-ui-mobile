@@ -43,6 +43,7 @@ const testCommandPath = argOf("--test-command")
 const testReceiptPath = argOf("--test-receipt")
 const message = argOf("--message")
 const paths = valuesOf("--path")
+const normalizedPaths = []
 if (!/^[A-Z][A-Z0-9]*-\d+$/.test(issue ?? "") || !repoKey || !Number.isInteger(prNumber) || prNumber < 1 || !branch || !testCommandPath || !testReceiptPath || !message || paths.length === 0) fail(2, USAGE)
 if (!isAbsolute(testCommandPath) || !isAbsolute(testReceiptPath)) fail(2, "--test-command and --test-receipt must be absolute scratchpad paths")
 const receiptRelative = relative(worktree, resolve(testReceiptPath))
@@ -57,9 +58,11 @@ for (const directory of [worktree, runRoot]) {
 for (const path of paths) {
   const normalized = path.replaceAll("\\", "/").replace(/^\.\//, "")
   const target = resolve(worktree, normalized)
-  if (!normalized || normalized === "." || normalized === "-A" || normalized === "--all" || normalized.startsWith("../") || isAbsolute(path) || relative(worktree, target).startsWith("..") || normalized === ".git" || normalized.startsWith(".git/")) {
+  const canonical = relative(worktree, target).replaceAll("\\", "/")
+  if (!normalized || normalized === "." || normalized === "-A" || normalized === "--all" || normalized.startsWith("../") || isAbsolute(path) || canonical.startsWith("..") || canonical !== normalized || /[*?[\]]/.test(normalized) || normalized.startsWith(":") || normalized === ".git" || normalized.startsWith(".git/")) {
     fail(2, `--path must be an explicit relative worktree path, never broad staging: ${path}`)
   }
+  normalizedPaths.push(normalized)
 }
 
 let config
@@ -102,6 +105,19 @@ try {
 } catch (error) {
   fail(2, `could not inventory dirty files: ${(error.stderr?.toString() || error.message).trim()}`)
 }
+let dirtyPaths
+try {
+  dirtyPaths = new Set([
+    ...git(["diff", "--name-only", "-z"]).split("\0"),
+    ...git(["diff", "--cached", "--name-only", "-z"]).split("\0"),
+    ...git(["ls-files", "--others", "--exclude-standard", "-z"]).split("\0"),
+  ].filter(Boolean).map((path) => path.replaceAll("\\", "/")))
+} catch (error) {
+  fail(2, `could not enumerate exact dirty paths: ${(error.stderr?.toString() || error.message).trim()}`)
+}
+for (const path of normalizedPaths) {
+  if (!dirtyPaths.has(path)) fail(2, `--path must name one exact dirty file from the inventory: ${path}`)
+}
 
 const readinessPath = readinessReceiptPath(config.repos[repoKey], repoKey, prNumber)
 const state = readRunState(runRoot) ?? { sessionId: "salvage", sleep: false, remaining: [] }
@@ -110,7 +126,7 @@ pullRequests.push({ repositoryKey: repoKey, prNumber, receiptPath: readinessPath
 writeRunState({ ...state, pullRequests }, runRoot)
 
 try {
-  git(["add", "--", ...paths])
+  git(["add", "--", ...normalizedPaths])
   const staged = git(["diff", "--cached", "--name-only"]).trim()
   if (!staged) fail(1, "named paths produced no staged change")
   git(["commit", "-m", message])

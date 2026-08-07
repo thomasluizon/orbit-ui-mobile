@@ -112,7 +112,7 @@ const GIT = process.env.GIT_BIN || "git"
 const GH = process.env.GH_BIN || "gh"
 let githubAuth
 try {
-  githubAuth = githubEnvironment(githubCwd)
+  githubAuth = await githubEnvironment(githubCwd)
 } catch (error) {
   fail(2, redactSecrets(error.message))
 }
@@ -341,6 +341,9 @@ const readRollup = () => {
   }
   const failing = []
   const pending = []
+  if (newestByName.size === 0) {
+    pending.push(checkMetadata("CI registration", { status: "NOT_REGISTERED", conclusion: null }))
+  }
   for (const [name, node] of newestByName) {
     if (node.__typename === "StatusContext" || typeof node.state === "string") {
       if (FAILING_STATES.has(node.state)) failing.push(checkMetadata(name, node))

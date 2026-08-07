@@ -120,6 +120,10 @@ export const cases = () => {
 
   const humanComment = readPr(payload({ comments: [{ ...botComment(), author: { login: "thomasluizon" } }] }))
   T(`${TOOL}: a human copy of the connector comment cannot satisfy review`, humanComment.status === 1 && parsed(humanComment)?.verdict === "NO_REVIEW", humanComment.stdout || humanComment.stderr)
+  const shortPrefix = readPr(payload({ comments: [botComment(HEAD.slice(0, 7))] }))
+  T(`${TOOL}: an unmeasured short reviewed-commit prefix is rejected`, shortPrefix.status === 1 && parsed(shortPrefix)?.verdict === "NO_REVIEW", shortPrefix.stdout || shortPrefix.stderr)
+  const longPrefix = readPr(payload({ comments: [botComment(HEAD.slice(0, 11))] }))
+  T(`${TOOL}: an unmeasured long reviewed-commit prefix is rejected`, longPrefix.status === 1 && parsed(longPrefix)?.verdict === "NO_REVIEW", longPrefix.stdout || longPrefix.stderr)
 
   /** A body-level CHANGES_REQUESTED opens no thread at all, so a thread count of 0 is not clean. */
   const changes = readPr(payload({ reviews: [botReview("CHANGES_REQUESTED", "2026-08-04T23:16:35Z", HEAD, "The migration drops a column old clients still read.")] }))

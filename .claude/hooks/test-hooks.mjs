@@ -149,7 +149,7 @@ writeFileSync(join(linkedWorktree, ".git"), `gitdir: ${join(mainCheckout, ".git"
 T("engine: a cwd inside a linked worktree allows", checkEngineInvocation("codex exec", { cwd: linkedWorktree, repoRoots: [mainCheckout] }), null)
 T("engine: the main checkout is not a linked worktree", blocks(checkEngineInvocation("codex exec", { cwd: mainCheckout, repoRoots: [mainCheckout] })), true)
 const workerStaging = (command) => checkBroadStaging(command, { cwd: linkedWorktree, repoRoots: [mainCheckout] })
-for (const command of ["git add -A", "git add --all", "git add .", `git -C "${linkedWorktree}" add .`]) {
+for (const command of ["git add -A", "git add --all", "git add .", "git add -- .", "git add \".\"", "git add named.ts .", "git add \"./\"", `git -C "${linkedWorktree}" add .`]) {
   T(`staging: ${command} blocks in a worker worktree`, blocks(workerStaging(command)), true)
 }
 T("staging: explicitly named paths are allowed", workerStaging("git add tools/verify-delivery.mjs .claude/skills/orchestrate/SKILL.md"), null)

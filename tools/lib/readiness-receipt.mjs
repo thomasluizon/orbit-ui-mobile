@@ -44,7 +44,8 @@ export const readinessVerdicts = (receipt) => {
     review?.verdict !== "CLEAN" ||
     !Number.isInteger(review?.rounds) ||
     review.rounds < 1 ||
-    typeof review?.reviewerKind !== "string" ||
+    review.rounds > 2 ||
+    review?.reviewerKind !== "independent" ||
     typeof review?.artifactPath !== "string"
   ) {
     verdicts.push("REVIEW_STALE")
