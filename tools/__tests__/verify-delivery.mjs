@@ -245,6 +245,12 @@ export const cases = () => {
     { __typename: "CheckRun", name: "auto-merge", status: "COMPLETED", conclusion: "SKIPPED", startedAt: "2026-08-06T10:00:00Z" },
     { __typename: "CheckRun", name: "Advisory", status: "COMPLETED", conclusion: "NEUTRAL", startedAt: "2026-08-06T10:00:00Z" },
   ]))
+  check(TOOL, "GitHub's completed STALE conclusion fails closed", ciArgv, { status: 1, stdout: /"verdict": "CI_FAILING"/ }, withChecks([
+    { __typename: "CheckRun", name: "Required gate", status: "COMPLETED", conclusion: "STALE", startedAt: "2026-08-06T10:00:00Z" },
+  ]))
+  check(TOOL, "an unknown completed conclusion fails closed", ciArgv, { status: 1, stdout: /"verdict": "CI_FAILING"/ }, withChecks([
+    { __typename: "CheckRun", name: "Future gate", status: "COMPLETED", conclusion: "A_FUTURE_VALUE", startedAt: "2026-08-06T10:00:00Z" },
+  ]))
 
   /**
    * The trap this exists for: a re-run does NOT replace the old entry, so the rollup carries the old

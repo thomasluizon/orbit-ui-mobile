@@ -305,7 +305,9 @@ if (!checks.upToDate.pass) emit("OUT_OF_DATE")
  * STRING (not null) until it completes, and a `StatusContext` carries `state` alone and no status.
  * Reading only one shape silently ignores every check of the other kind.
  */
-const FAILING_CONCLUSIONS = new Set(["FAILURE", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED", "STARTUP_FAILURE"])
+// Confirmed with live GraphQL enum introspection on 2026-08-07. Passing is an allowlist so a new
+// GitHub conclusion cannot silently become green; STALE and every unknown value fail closed.
+const PASSING_CONCLUSIONS = new Set(["SUCCESS", "NEUTRAL", "SKIPPED"])
 const FAILING_STATES = new Set(["FAILURE", "ERROR"])
 const PENDING_STATES = new Set(["PENDING", "EXPECTED"])
 
@@ -343,13 +345,14 @@ const readRollup = () => {
     if (node.__typename === "StatusContext" || typeof node.state === "string") {
       if (FAILING_STATES.has(node.state)) failing.push(checkMetadata(name, node))
       else if (PENDING_STATES.has(node.state)) pending.push(checkMetadata(name, node))
+      else if (node.state !== "SUCCESS") failing.push(checkMetadata(name, node))
       continue
     }
     if (node.status !== "COMPLETED") {
       pending.push(checkMetadata(name, node))
       continue
     }
-    if (FAILING_CONCLUSIONS.has(node.conclusion)) failing.push(checkMetadata(name, node))
+    if (!PASSING_CONCLUSIONS.has(node.conclusion)) failing.push(checkMetadata(name, node))
   }
   return { total: newestByName.size, failing, pending }
 }

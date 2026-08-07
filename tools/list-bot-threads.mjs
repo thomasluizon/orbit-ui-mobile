@@ -150,7 +150,7 @@ try {
 const QUERY = `query($owner:String!,$repo:String!,$pr:Int!){
   repository(owner:$owner,name:$repo){
     pullRequest(number:$pr){
-      number isDraft headRefOid
+      number isDraft baseRefOid headRefOid
       reviews(last:50){nodes{author{login} state submittedAt body commit{oid}}}
       comments(last:100){nodes{author{login} body createdAt url}}
       reviewThreads(first:100){nodes{
@@ -343,7 +343,7 @@ if (!evidence) {
     : `no ${botLogin} review arrived; ${asked}; do not report this pull request as clean`
   console.log(
     JSON.stringify(
-      { pr: Number(pullRequest), isDraft: false, verdict: "NO_REVIEW", reviewedAt: null, reviewState: null, headRefOid: node.headRefOid, staleReviewCommit: stale?.commit?.oid ?? staleComment?.reportedCommit ?? null, threads, waitedSeconds: waitSeconds, reviewRequested: requested, note },
+      { pr: Number(pullRequest), isDraft: false, verdict: "NO_REVIEW", reviewedAt: null, reviewState: null, baseRefOid: node.baseRefOid, headRefOid: node.headRefOid, staleReviewCommit: stale?.commit?.oid ?? staleComment?.reportedCommit ?? null, threads, waitedSeconds: waitSeconds, reviewRequested: requested, note },
       null,
       2,
     ),
@@ -365,6 +365,7 @@ console.log(
       reviewUrl: evidence.kind === "ISSUE_COMMENT" ? (review.url ?? null) : null,
       reportedCommit: evidence.kind === "ISSUE_COMMENT" ? review.reportedCommit : review.commit.oid,
       reviewedCommit: node.headRefOid,
+      baseRefOid: node.baseRefOid,
       headRefOid: node.headRefOid,
       /**
        * A body-level CHANGES_REQUESTED carries its whole complaint here and opens no thread, so

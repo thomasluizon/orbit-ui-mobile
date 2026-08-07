@@ -3,6 +3,8 @@
 
 import { readFileSync } from "node:fs"
 
+import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-auth.mjs"
+import { runBounded } from "./lib/bounded-process.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { readinessReport, writeReadinessReceipt } from "./lib/readiness-receipt.mjs"
 
@@ -67,12 +69,53 @@ if (bot?.pr !== prNumber) fail("bot artifact does not name this pull request")
 const linear = artifact.linear
 if (typeof linear?.status !== "string" || typeof linear?.lastSynchronizationResult !== "string") fail("Linear artifact carries no status or synchronization result")
 
-const baseSha = state.baseSha
-const headSha = state.headSha
+let live
+let liveComparison
+try {
+  const repository = repositorySlug(repoRoot)
+  const githubAuth = githubEnvironment(repoRoot, { timeoutMs: 45000 })
+  const result = await runBounded(
+    process.env.GH_BIN || "gh",
+    ["pr", "view", String(prNumber), "--repo", repository, "--json", "number,baseRefName,baseRefOid,headRefOid,isDraft"],
+    { cwd: repoRoot, env: githubAuth.environment, timeoutMs: 45000 },
+  )
+  if (result.timedOut) fail(`gh pr view ${prNumber} timed out after 45s; the complete child process tree was terminated`)
+  if (result.error || result.status !== 0) {
+    const detail = result.stderr || result.stdout || result.error?.message || `exit ${result.status}`
+    fail(`gh pr view ${prNumber} failed: ${redactSecrets(detail.trim(), githubAuth.secrets)}`)
+  }
+  live = JSON.parse(result.stdout)
+  if (
+    live?.number !== prNumber ||
+    typeof live?.baseRefName !== "string" ||
+    typeof live?.baseRefOid !== "string" ||
+    typeof live?.headRefOid !== "string" ||
+    typeof live?.isDraft !== "boolean"
+  ) {
+    fail(`gh pr view ${prNumber} did not return the confirmed number/base/head/draft shape`)
+  }
+  const comparison = await runBounded(
+    process.env.GH_BIN || "gh",
+    ["api", `repos/${repository}/compare/${live.baseRefOid}...${live.headRefOid}`],
+    { cwd: repoRoot, env: githubAuth.environment, timeoutMs: 45000 },
+  )
+  if (comparison.timedOut) fail(`gh compare for PR ${prNumber} timed out after 45s; the complete child process tree was terminated`)
+  if (comparison.error || comparison.status !== 0) {
+    const detail = comparison.stderr || comparison.stdout || comparison.error?.message || `exit ${comparison.status}`
+    fail(`gh compare for PR ${prNumber} failed: ${redactSecrets(detail.trim(), githubAuth.secrets)}`)
+  }
+  liveComparison = JSON.parse(comparison.stdout)
+} catch (error) {
+  fail(`could not revalidate live pull request ${prNumber}: ${redactSecrets(error.message)}`)
+}
+if (!Number.isInteger(liveComparison?.behind_by) || liveComparison.behind_by < 0) fail(`gh compare for PR ${prNumber} did not return numeric behind_by`)
+
+const baseSha = live.baseRefOid
+const headSha = live.headRefOid
 const receipt = {
   repositoryKey: repoKey,
   prNumber,
-  baseBranch: state.baseBranch,
+  baseBranch: live.baseRefName,
   currentBaseSha: baseSha,
   currentHeadSha: headSha,
   independentReview: {
@@ -85,10 +128,10 @@ const receipt = {
     baseSha: review.baseSha,
   },
   ci: { settled: ci.pending.length === 0, green: ci.pass === true, checks: ci, headSha, baseSha },
-  codexConnector: { passed: bot.verdict === "REVIEWED", reviewedCommit: bot.reviewedCommit ?? null, headSha: bot.headRefOid, baseSha },
-  threads: { unresolvedCount: bot.counts?.unresolved ?? bot.threads?.filter((thread) => !thread.isResolved).length ?? null, headSha: bot.headRefOid, baseSha },
-  behindBy: upToDate.behindBy,
-  draft: state.draft,
+  codexConnector: { passed: bot.verdict === "REVIEWED", reviewedCommit: bot.reviewedCommit ?? null, headSha: bot.headRefOid, baseSha: bot.baseRefOid },
+  threads: { unresolvedCount: bot.counts?.unresolved ?? bot.threads?.filter((thread) => !thread.isResolved).length ?? null, headSha: bot.headRefOid, baseSha: bot.baseRefOid },
+  behindBy: liveComparison.behind_by,
+  draft: live.isDraft,
   linear: {
     status: linear.status,
     lastSynchronizationResult: linear.lastSynchronizationResult,

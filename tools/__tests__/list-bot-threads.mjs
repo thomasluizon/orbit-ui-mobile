@@ -23,6 +23,7 @@ const thread = ({ id = "PRRT_kwDOR5Siws6Wfy_V", isResolved = false, isOutdated =
 
 const HEAD = "0f4abca78a0f4c487a98ab642508c06c6634f36f"
 const OLD_HEAD = "b5cd7394a8a687126eaaec32c02978ad6575c01c"
+const BASE = "c5cd7394a8a687126eaaec32c02978ad6575c01d"
 
 const payload = ({ isDraft = false, reviews = [], comments = [], threads = [], headRefOid = HEAD } = {}) =>
   JSON.stringify({
@@ -31,6 +32,7 @@ const payload = ({ isDraft = false, reviews = [], comments = [], threads = [], h
         pullRequest: {
           number: 681,
           isDraft,
+          baseRefOid: BASE,
           headRefOid,
           reviews: { nodes: reviews },
           comments: { nodes: comments },
@@ -102,7 +104,7 @@ export const cases = () => {
   const cleanCommentPlan = parsed(cleanComment)
   T(
     `${TOOL}: a clean connector issue comment for the current head is REVIEWED`,
-    cleanComment.status === 0 && cleanCommentPlan?.verdict === "REVIEWED" && cleanCommentPlan.reviewSource === "ISSUE_COMMENT" && cleanCommentPlan.reviewedCommit === HEAD && cleanCommentPlan.reportedCommit === HEAD.slice(0, 10),
+    cleanComment.status === 0 && cleanCommentPlan?.verdict === "REVIEWED" && cleanCommentPlan.reviewSource === "ISSUE_COMMENT" && cleanCommentPlan.baseRefOid === BASE && cleanCommentPlan.reviewedCommit === HEAD && cleanCommentPlan.reportedCommit === HEAD.slice(0, 10),
     cleanComment.stdout || cleanComment.stderr,
   )
   const restAlias = readPr(payload({ comments: [botComment(HEAD.slice(0, 10), "2026-08-05T11:00:00Z", `${BOT}[bot]`)] }))
