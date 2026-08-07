@@ -243,6 +243,7 @@ export function TodayUtilityRow({
 }: Readonly<TodayUtilityRowProps>) {
   const t = useTranslations()
   const showFreq = activeView !== 'general'
+  const searchActive = searchValue.trim().length > 0
 
   return (
     <div
@@ -294,6 +295,7 @@ export function TodayUtilityRow({
           tags={tags}
           selectedTagIds={selectedTagIds}
           selectedFrequency={selectedFrequency}
+          searchActive={searchActive}
           frequencyOptions={frequencyOptions}
           onSearchToggle={onSearchToggle}
           onTagToggle={onTagToggle}
@@ -319,6 +321,7 @@ interface TodayUtilityFiltersProps {
   tags: Tag[]
   selectedTagIds: string[]
   selectedFrequency: FreqKey | null
+  searchActive: boolean
   frequencyOptions: Array<{ key: FreqKey; label: string }>
   onSearchToggle: () => void
   onTagToggle: (tagId: string) => void
@@ -331,6 +334,7 @@ function TodayUtilityFilters({
   tags,
   selectedTagIds,
   selectedFrequency,
+  searchActive,
   frequencyOptions,
   onSearchToggle,
   onTagToggle,
@@ -345,11 +349,24 @@ function TodayUtilityFilters({
       <button
         type="button"
         aria-label={t('habits.searchPlaceholder')}
+        aria-pressed={searchActive}
         onClick={onSearchToggle}
         className="icon-btn touch-target-y shrink-0"
-        style={{ width: 36, height: 36 }}
+        style={{
+          width: 36,
+          height: 36,
+          background: searchActive ? 'var(--selection-bg)' : undefined,
+          boxShadow: searchActive
+            ? 'inset 0 0 0 1px rgba(var(--primary-rgb), 0.45)'
+            : 'none',
+        }}
       >
-        <Search size={18} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
+        <Search
+          size={18}
+          strokeWidth={1.8}
+          color={searchActive ? 'var(--primary)' : 'var(--fg-2)'}
+          aria-hidden="true"
+        />
       </button>
       <div
         className="flex items-center flex-1 min-w-0 overflow-x-auto thin-scrollbar"

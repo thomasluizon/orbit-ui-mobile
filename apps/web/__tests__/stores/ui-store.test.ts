@@ -1,6 +1,17 @@
+import React from 'react'
+import { render, screen } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useUIStore } from '@/stores/ui-store'
 import { formatAPIDate } from '@orbit/shared/utils'
+import { TodayUtilityRow } from '@/app/(app)/today-shell'
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}))
+
+vi.mock('@/components/habits/controls-menu', () => ({
+  ControlsMenu: () => null,
+}))
 
 describe('ui store', () => {
   beforeEach(() => {
@@ -462,6 +473,41 @@ describe('ui store', () => {
       setSearchQuery('')
       expect(useUIStore.getState().searchQuery).toBe('')
     })
+
+    it.each([
+      { query: 'focus', pressed: 'true' },
+      { query: '   ', pressed: 'false' },
+    ])('marks the search control pressed only for a trimmed query', ({ query, pressed }) => {
+      render(
+        React.createElement(TodayUtilityRow, {
+          activeView: 'general',
+          searchOpen: false,
+          searchValue: query,
+          selectedFrequency: null,
+          selectedTagIds: [],
+          tags: [],
+          frequencyOptions: [],
+          isSelectMode: false,
+          showCompleted: false,
+          isFetching: false,
+          allCollapsed: false,
+          onSearchToggle: vi.fn(),
+          onSearchChange: vi.fn(),
+          onSearchClear: vi.fn(),
+          onFrequencyChange: vi.fn(),
+          onTagToggle: vi.fn(),
+          onToggleSelect: vi.fn(),
+          onToggleCollapse: vi.fn(),
+          onRefresh: vi.fn(),
+          onToggleCompleted: vi.fn(),
+        }),
+      )
+
+      expect(screen.getByRole('button', { name: 'habits.searchPlaceholder' })).toHaveAttribute(
+        'aria-pressed',
+        pressed,
+      )
+    })
   })
 
   describe('durable today context', () => {
@@ -483,7 +529,7 @@ describe('ui store', () => {
       })
     })
 
-    it('rehydrates the durable today context from local storage', async () => {
+    it('rehydrates durable today context without restoring search', async () => {
       globalThis.localStorage.setItem(
         'orbit-ui-store',
         JSON.stringify({
@@ -495,7 +541,7 @@ describe('ui store', () => {
             selectedTagIds: ['deep-work'],
             showCompleted: true,
           },
-          version: 0,
+          version: 2,
         }),
       )
 
@@ -504,12 +550,13 @@ describe('ui store', () => {
       expect(useUIStore.getState()).toMatchObject({
         activeFilters: { search: 'focus' },
         activeView: 'goals',
-        searchQuery: 'focus',
+        searchQuery: '',
         selectedFrequency: 'Month',
         selectedTagIds: ['deep-work'],
         showCompleted: true,
       })
       expect(useUIStore.getState().selectedHabitIds.size).toBe(0)
+      expect(globalThis.localStorage.getItem('orbit-ui-store')).not.toContain('searchQuery')
     })
 
     it('drops legacy day-selection keys when rehydrating an old snapshot', async () => {
@@ -526,7 +573,7 @@ describe('ui store', () => {
             selectedTagIds: [],
             showCompleted: false,
           },
-          version: 1,
+          version: 2,
         }),
       )
 

@@ -504,6 +504,7 @@ export function TodayHabitsHeader({
   const prefersReducedMotion = usePrefersReducedMotion();
   const refreshSpinAnim = useMemo(() => new Animated.Value(0), []);
   const selectedTagIdSet = useMemo(() => new Set(selectedTagIds), [selectedTagIds]);
+  const searchActive = searchQuery.trim().length > 0;
 
   useEffect(() => {
     if (!isFetching || prefersReducedMotion) {
@@ -573,17 +574,29 @@ export function TodayHabitsHeader({
               onPress={onSearchToggle}
               accessibilityRole="button"
               accessibilityLabel={t("habits.searchPlaceholder")}
+              accessibilityState={{ selected: searchActive }}
               hitSlop={6}
               style={({ pressed }) => [
                 styles.iconBtn,
-                pressed
-                  ? [styles.iconBtnPressed, { backgroundColor: tokens.bgElev }]
-                  : null,
+                searchActive
+                  ? {
+                      backgroundColor: tokens.selectionBg,
+                      borderWidth: 1,
+                      borderColor: tintFromPrimary(tokens, 0.45),
+                    }
+                  : pressed && { backgroundColor: tokens.bgElev },
+                pressed ? styles.iconBtnPressed : null,
               ]}
             >
               <Search
                 size={18}
-                color={isSearchOpen ? tokens.fg1 : tokens.fg2}
+                color={
+                  searchActive
+                    ? tokens.primary
+                    : isSearchOpen
+                      ? tokens.fg1
+                      : tokens.fg2
+                }
                 strokeWidth={1.8}
               />
             </Pressable>

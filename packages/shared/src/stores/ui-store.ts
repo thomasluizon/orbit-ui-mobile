@@ -58,7 +58,6 @@ function isActiveView(value: unknown): value is ActiveView {
 export interface PersistedUIState {
   activeFilters: HabitsFilter;
   activeView: ActiveView;
-  searchQuery: string;
   selectedFrequency: HabitFrequencyFilter | null;
   selectedTagIds: string[];
   showCompleted: boolean;
@@ -73,7 +72,6 @@ export function migratePersistedUIState(
   return {
     activeFilters: isRecord(state.activeFilters) ? state.activeFilters : {},
     activeView: isActiveView(state.activeView) ? state.activeView : "today",
-    searchQuery: typeof state.searchQuery === "string" ? state.searchQuery : "",
     selectedFrequency: isHabitFrequencyFilter(state.selectedFrequency)
       ? state.selectedFrequency
       : null,
@@ -158,7 +156,6 @@ export function getPersistedUIState(state: UIStoreState): PersistedUIState {
   return {
     activeFilters: { ...state.activeFilters },
     activeView: state.activeView,
-    searchQuery: state.searchQuery,
     selectedFrequency: state.selectedFrequency,
     selectedTagIds: [...state.selectedTagIds],
     showCompleted: state.showCompleted,
@@ -166,7 +163,8 @@ export function getPersistedUIState(state: UIStoreState): PersistedUIState {
   };
 }
 
-export function createTourUIState(): PersistedUIState {
+export function createTourUIState(): PersistedUIState &
+  Pick<UIStoreState, "searchQuery"> {
   return {
     activeFilters: {},
     activeView: "today",
