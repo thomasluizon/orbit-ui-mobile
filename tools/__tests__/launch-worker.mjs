@@ -139,6 +139,22 @@ export const cases = () => {
     exited.stdout || exited.stderr,
   )
 
+  const githubTimeout = launch("github-timeout", launchConfig(stubEngine(IMMEDIATE)))
+  const githubDescendantPidFile = stage("launch-worker/github-descendant.pid", "")
+  const githubTimedOut = check(
+    TOOL,
+    "a hanging post-worker GitHub call is bounded",
+    ["--issue", "ORB-201", "--worktree", githubTimeout.worktree, "--prompt", githubTimeout.prompt, "--codex-only", "--command-timeout-seconds", "1"],
+    { status: 1, stdout: /"outcome": "PR_BODY_ENFORCEMENT_FAILED"/, stderr: /GitHub command timed out after 1s/ },
+    { path: githubTimeout.path, env: orcaEnv([
+      { match: "auth token --user test-owner", stdout: "test-github-token" },
+      { match: "pr list --head main --json number,body", stdout: "", hangTreePidFile: githubDescendantPidFile },
+    ]) },
+  )
+  discardLog(githubTimedOut.stdout)
+  const githubDescendantPid = Number(readFileSync(githubDescendantPidFile, "utf8"))
+  T(`${TOOL}: post-worker GitHub timeout removes the complete child process tree`, Number.isInteger(githubDescendantPid) && !processIsRunning(githubDescendantPid), `descendant ${githubDescendantPid} still alive`)
+
   /**
    * Both clocks are read from config.timeouts, and the only way to prove that is to move them:
    * a hardcoded 45 and 10 minutes would leave a sleeping worker running until the suite's own

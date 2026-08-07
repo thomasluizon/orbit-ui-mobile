@@ -108,11 +108,13 @@ try {
   fail(2, `could not inventory dirty files: ${(error.stderr?.toString() || error.message).trim()}`)
 }
 let dirtyPaths
+let untrackedPaths
 try {
+  untrackedPaths = new Set(git(["ls-files", "--others", "--exclude-standard", "-z"]).split("\0").filter(Boolean).map((path) => path.replaceAll("\\", "/")))
   dirtyPaths = new Set([
     ...git(["diff", "--name-only", "-z"]).split("\0"),
     ...git(["diff", "--cached", "--name-only", "-z"]).split("\0"),
-    ...git(["ls-files", "--others", "--exclude-standard", "-z"]).split("\0"),
+    ...untrackedPaths,
   ].filter(Boolean).map((path) => path.replaceAll("\\", "/")))
 } catch (error) {
   fail(2, `could not enumerate exact dirty paths: ${(error.stderr?.toString() || error.message).trim()}`)
@@ -121,13 +123,16 @@ for (const path of normalizedPaths) {
   if (!dirtyPaths.has(path)) fail(2, `--path must name one exact dirty file from the inventory: ${path}`)
 }
 
+const namedPathSet = new Set(normalizedPaths)
 // Never inherit an unrelated index from the dead worker. `git add -- <named paths>` adds to the
 // existing index; it does not replace it, so a later `git commit` would otherwise publish every
 // already-staged path even when the caller deliberately omitted it from --path.
-const namedPathSet = new Set(normalizedPaths)
 const alreadyStaged = git(["diff", "--cached", "--name-only", "-z"]).split("\0").filter(Boolean).map((path) => path.replaceAll("\\", "/"))
 const unnamedStaged = alreadyStaged.filter((path) => !namedPathSet.has(path))
 if (unnamedStaged.length > 0) fail(2, `index contains staged paths not named by --path: ${unnamedStaged.join(", ")}`)
+
+const unselectedSource = [...dirtyPaths].filter((path) => !namedPathSet.has(path) && !(untrackedPaths.has(path) && path.startsWith(".orca/")))
+if (unselectedSource.length > 0) fail(2, `dirty source paths not named by --path would make the workspace test cover a different tree than the commit: ${unselectedSource.join(", ")}`)
 
 const readinessPath = prNumber === null ? null : readinessReceiptPath(config.repos[repoKey], repoKey, prNumber)
 if (prNumber !== null) {

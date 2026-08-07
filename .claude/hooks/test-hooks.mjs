@@ -168,6 +168,10 @@ for (const command of [
   "git add src/*.ts",
   "git add ':(glob)src/*.ts'",
   "git add apps/web/app/api/[...path]/route.ts",
+  "git stage .",
+  "git add --pathspec-from-file paths.txt",
+  "git add --pathspec-from-file=paths.txt",
+  "git add --pathspec-from-file paths.txt --pathspec-file-nul",
   `git -C "${linkedWorktree}" add .`,
 ]) {
   T(`staging: ${command} blocks in a worker worktree`, blocks(workerStaging(command)), true)

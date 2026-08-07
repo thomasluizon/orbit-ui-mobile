@@ -12,13 +12,14 @@
  * verified out of band by tools/verify-delivery.mjs.
  */
 
-import { execFileSync, spawn, spawnSync } from "node:child_process"
+import { spawn, spawnSync } from "node:child_process"
 import { createHash } from "node:crypto"
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, statSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { delimiter, dirname, extname, join, resolve } from "node:path"
 
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
+import { runBounded } from "./lib/bounded-process.mjs"
 import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
 import { withDegradedReviewFirst } from "./lib/pr-body.mjs"
 import { clearWakeSource, registerWakeSource } from "./lib/run-state.mjs"
@@ -41,6 +42,8 @@ const USAGE = `usage: launch-worker.mjs --issue ORB-N --worktree <path> --prompt
                      --review it DOES move the reviewer onto the worker engine's review tier,
                      because Claude is the engine that is unavailable. That review is same-vendor
                      and DEGRADED; the orchestrator says so, this launcher only resolves it
+  --command-timeout-seconds <s>
+                     hard bound for post-worker GitHub calls (default: 45)
   --dry-run          print the resolved plan as JSON and exit 0, spawning nothing
   --help, -h         print this usage and exit 0
 
@@ -73,6 +76,7 @@ const repoKey = argOf("--repo")
 const review = process.argv.includes("--review")
 const codexOnly = process.argv.includes("--codex-only")
 const dryRun = process.argv.includes("--dry-run")
+const commandTimeoutSeconds = Number(argOf("--command-timeout-seconds") ?? "45")
 
 if (!issue || !/^[A-Z]+-\d+$/.test(issue)) fail(2, `${USAGE}\n\n--issue must be a Linear identifier such as ORB-75`)
 if (review && worktreeArg) {
@@ -81,6 +85,7 @@ if (review && worktreeArg) {
 if (review && (!repoKey || repoKey.startsWith("--"))) fail(2, `${USAGE}\n\n--review requires --repo`)
 if (!review && (!worktreeArg || worktreeArg.startsWith("--"))) fail(2, `${USAGE}\n\n--worktree is required`)
 if (!promptArg || promptArg.startsWith("--")) fail(2, `${USAGE}\n\n--prompt is required`)
+if (!Number.isFinite(commandTimeoutSeconds) || commandTimeoutSeconds <= 0) fail(2, `${USAGE}\n\n--command-timeout-seconds requires a positive number`)
 
 let config
 try {
@@ -264,22 +269,34 @@ const child = spawn(executable, workerArgs, {
  */
 registerWakeSource({ pid: process.pid, what: `${review ? "reviewer" : "worker"} ${issue}`, workerPid: child.pid ?? null, logFile, startedAt })
 
-const finish = (outcome, exitCode) => {
-  clearWakeSource(process.pid)
-  closeSync(logFd)
+let finishing = false
+const finish = async (outcome, exitCode) => {
+  if (finishing) return
+  finishing = true
   if (codexOnly && !review) {
     try {
       const GH = process.env.GH_BIN || "gh"
-      const listed = JSON.parse(execFileSync(GH, ["pr", "list", "--head", branch, "--json", "number,body"], { cwd: runDirectory, encoding: "utf8", env: githubAuth.environment, stdio: ["ignore", "pipe", "pipe"] }))
+      const gh = async (args, input) => {
+        const result = await runBounded(GH, args, { cwd: runDirectory, env: githubAuth.environment, timeoutMs: commandTimeoutSeconds * 1000, maxBuffer: 16 * 1024 * 1024, input })
+        if (result.timedOut) throw new Error(`GitHub command timed out after ${commandTimeoutSeconds}s; the complete child process tree was terminated`)
+        if (result.overflowed) throw new Error("GitHub command exceeded the 16 MiB output bound; the complete child process tree was terminated")
+        if (result.error || result.status !== 0) throw new Error((result.stderr || result.stdout || result.error?.message || `exit ${result.status}`).trim())
+        return result.stdout
+      }
+      const listed = JSON.parse(await gh(["pr", "list", "--head", branch, "--json", "number,body"]))
       if (Array.isArray(listed) && listed.length === 1) {
         const body = withDegradedReviewFirst(listed[0].body)
-        if (body !== listed[0].body) execFileSync(GH, ["pr", "edit", String(listed[0].number), "--body-file", "-"], { cwd: runDirectory, encoding: "utf8", input: body, env: githubAuth.environment, stdio: ["pipe", "pipe", "pipe"] })
+        if (body !== listed[0].body) await gh(["pr", "edit", String(listed[0].number), "--body-file", "-"], body)
       }
     } catch (error) {
-      console.error(`could not enforce the degraded PR body marker: ${redactSecrets(error.stderr?.toString() || error.message, githubAuth.secrets)}`)
+      console.error(`could not enforce the degraded PR body marker: ${redactSecrets(error.message, githubAuth.secrets)}`)
       outcome = "PR_BODY_ENFORCEMENT_FAILED"
     }
   }
+  // Body enforcement is part of the supervised launch. Keep the wake source registered until its
+  // bounded GitHub children have finished, otherwise an unattended queue can lose its only wakeup.
+  clearWakeSource(process.pid)
+  closeSync(logFd)
   const result = { issue, engine: engineName, tier: invocation.tier, model: invocation.model, codexOnly, pid: child.pid ?? null, logFile, startedAt, endedAt: new Date().toISOString(), exitCode, outcome }
   console.log(JSON.stringify(result, null, 2))
   process.exit(outcome === "EXITED" ? 0 : 1)
@@ -368,11 +385,11 @@ child.on("error", (error) => {
   clearTimeout(ceiling)
   clearInterval(sampler)
   console.error(`could not start the ${engineName} worker: ${error.message}`)
-  finish("SPAWN_FAILED", null)
+  void finish("SPAWN_FAILED", null)
 })
 
 child.on("exit", (code) => {
   clearTimeout(ceiling)
   clearInterval(sampler)
-  finish(outcome, code)
+  void finish(outcome, code)
 })

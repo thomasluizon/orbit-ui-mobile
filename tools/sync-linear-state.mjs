@@ -82,7 +82,9 @@ try {
 if (typeof current?.state?.name !== "string" || typeof current?.state?.type !== "string" || !Array.isArray(current?.labels) || current.labels.some((label) => typeof label?.name !== "string")) fail(2, "Linear issue read carried no state name/type or labels array")
 if (["completed", "canceled", "duplicate"].includes(current.state.type)) fail(1, `${issue} is ${current.state.name}; readiness synchronization never regresses a closed issue`)
 const visibleEffect = current.labels.some((label) => label.name === "visible-effect")
-const effectiveStateKey = stateKey === "ready" && visibleEffect ? "visual" : stateKey
+// The live label is authoritative in both directions. A stale caller cannot strand an ordinary
+// ticket In Progress with --state visual or advance visible work with --state ready.
+const effectiveStateKey = ["ready", "visual"].includes(stateKey) ? (visibleEffect ? "visual" : "ready") : stateKey
 const targetStatus = effectiveStateKey === "ready" ? config.linear.states.review : config.linear.states.working
 if (targetStatus === config.linear.states.done) fail(2, "the readiness loop never targets Done before merge")
 

@@ -93,6 +93,23 @@ export const cases = () => {
     T(`${TOOL}: pre-staged salvage fixture is available`, false, "could not create branch")
   }
 
+  const omitted = stageRepo("salvage-worker-omitted")
+  if (omitted?.git(["switch", "-q", "-c", "feature/omitted"]).status === 0) {
+    writeFileSync(join(omitted.path, "named.txt"), "named\n")
+    writeFileSync(join(omitted.path, "omitted.txt"), "must not influence the test\n")
+    const omittedStaged = stageWithConfig("salvage-worker-omitted", TOOL, { ...config, repos: { ...config.repos, ui: omitted.path } })
+    check(
+      TOOL,
+      "an unselected dirty source path blocks a subset-only salvage",
+      ["--issue", "ORB-250", "--repo", "ui", "--worktree", omitted.path, "--branch", "feature/omitted", "--run-root", omitted.path, "--test-command", passedOrder, "--test-receipt", receipt, "--message", "named only", "--path", "named.txt"],
+      { status: 2, stderr: /dirty source paths not named by --path.*omitted\.txt/ },
+      { path: omittedStaged.path },
+    )
+    T(`${TOOL}: blocked subset salvage commits nothing`, omitted.git(["rev-list", "--count", "main..HEAD"]).stdout.trim() === "0", "unselected source reached a commit")
+  } else {
+    T(`${TOOL}: omitted-source salvage fixture is available`, false, "could not create branch")
+  }
+
   const second = stageRepo("salvage-worker-broad")
   const broadStaged = stageWithConfig("salvage-worker-broad", TOOL, config)
   for (const broad of [".", "sub/..", ":(glob)**"]) {
