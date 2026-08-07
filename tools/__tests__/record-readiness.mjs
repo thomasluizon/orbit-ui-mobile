@@ -1,6 +1,7 @@
+import { copyFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { T, check, orcaEnv, realOrchestratorConfig, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
+import { T, check, orcaEnv, realOrchestratorConfig, stage, stageRepo, stageWithConfig, toolPath } from "./_harness.mjs"
 
 const TOOL = "record-readiness.mjs"
 const HEAD = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -14,6 +15,7 @@ export const cases = () => {
   }
   const real = realOrchestratorConfig()
   const staged = stageWithConfig("record-readiness", TOOL, { ...real, repos: { ui: repo.path } })
+  copyFileSync(toolPath("list-bot-threads.mjs"), join(staged.base, "tools", "list-bot-threads.mjs"))
   repo.git(["remote", "set-url", "origin", "https://github.com/thomasluizon/orbit-ui-mobile.git"])
   const delivery = stage("record-readiness/delivery.json", JSON.stringify({ issue: "ORB-700", verdict: "DELIVERED", checks: {
     prCount: { number: 700 }, pullRequestState: { baseBranch: "main", baseSha: BASE, headSha: HEAD, draft: false },
@@ -23,16 +25,35 @@ export const cases = () => {
   const bot = stage("record-readiness/bot.json", JSON.stringify({ pr: 700, verdict: "REVIEWED", reviewedCommit: HEAD, baseRefOid: BASE, headRefOid: HEAD, threadsComplete: true, counts: { unresolved: 0 }, threads: [] }))
   const linear = stage("record-readiness/linear.json", JSON.stringify({ issue: "ORB-700", repositoryKey: "ui", prNumber: 700, status: "In Review", lastSynchronizationResult: "SUCCESS", lastPostedState: "ready", headSha: HEAD, baseSha: BASE }))
   const argv = ["--repo", "ui", "--pr", "700", "--delivery", delivery, "--review", review, "--bot", bot, "--linear", linear]
-  const live = (headRefOid = HEAD, baseRefOid = BASE, behindBy = 0, body = "Implements ORB-700", linearState = { name: "In Review", type: "started" }, labels = []) => orcaEnv([
+  const greenCheck = { __typename: "CheckRun", name: "Lint", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-07T10:00:00Z", workflowName: "Guards" }
+  const live = (headRefOid = HEAD, baseRefOid = BASE, behindBy = 0, body = "Implements ORB-700", linearState = { name: "In Review", type: "started" }, labels = [], options = {}) => {
+    const reviewState = options.reviewState ?? "COMMENTED"
+    const reviewThreads = options.openThread
+      ? [{ id: "PRRT_open", isResolved: false, isOutdated: false, path: "tools/x.mjs", line: 1, comments: { nodes: [{ author: { login: "chatgpt-codex-connector" }, body: "P1 open" }] } }]
+      : []
+    return orcaEnv([
     { match: "auth token --user thomasluizon", stdout: "test-github-token" },
-    { match: "pr view 700", stdout: JSON.stringify({ number: 700, baseRefName: "main", baseRefOid, headRefOid, isDraft: false, body }) },
+    { match: "pr view 700", stdout: JSON.stringify({ number: 700, baseRefName: "main", baseRefOid, headRefOid, isDraft: false, body, statusCheckRollup: options.statusCheckRollup ?? [greenCheck] }) },
     { match: "pr edit 700", stdout: "" },
+    { match: "branches/main/protection/required_status_checks", stdout: JSON.stringify({ contexts: ["Lint"] }) },
+    { match: "api graphql", stdout: JSON.stringify({ data: { repository: { pullRequest: {
+      number: 700, isDraft: false, baseRefOid, headRefOid,
+      reviews: { nodes: [{ author: { login: "chatgpt-codex-connector" }, state: reviewState, submittedAt: "2026-08-07T10:00:00Z", body: "", commit: { oid: headRefOid } }] },
+      comments: { nodes: [] },
+      reviewThreads: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: reviewThreads },
+    } } } }) },
     { match: "api repos/", stdout: JSON.stringify({ behind_by: behindBy }) },
     { match: "linear issue ORB-700 --full --json", stdout: JSON.stringify({ id: "linear-read", ok: true, result: { issue: { identifier: "ORB-700", state: linearState, labels } } }) },
-  ])
+    ])
+  }
   check(TOOL, "matching final-head artifacts persist READY", argv, { status: 0, stdout: /"verdict": "READY"/ }, { path: staged.path, env: live() })
   check(TOOL, "a codex-only body edit invalidates the earlier CI artifact", [...argv, "--codex-only"], { status: 1, stdout: /CI_STALE/ }, { path: staged.path, env: live() })
   check(TOOL, "codex-only aggregation is READY after delivery rechecks the already-marked body", [...argv, "--codex-only"], { status: 0, stdout: /"verdict": "READY"/ }, { path: staged.path, env: live(HEAD, BASE, 0, "DEGRADED: same-vendor review\n\nImplements ORB-700\n") })
+
+  const failedRerun = { ...greenCheck, conclusion: "FAILURE", startedAt: "2026-08-07T11:00:00Z" }
+  check(TOOL, "a same-SHA failed CI rerun prevents READY during aggregation", argv, { status: 1, stdout: /CI_STALE/ }, { path: staged.path, env: live(HEAD, BASE, 0, "Implements ORB-700", { name: "In Review", type: "started" }, [], { statusCheckRollup: [greenCheck, failedRerun] }) })
+  check(TOOL, "a dismissed current-head connector review prevents READY during aggregation", argv, { status: 1, stdout: /BOT_REVIEW_STALE/ }, { path: staged.path, env: live(HEAD, BASE, 0, "Implements ORB-700", { name: "In Review", type: "started" }, [], { reviewState: "DISMISSED" }) })
+  check(TOOL, "a reopened same-SHA thread prevents READY during aggregation", argv, { status: 1, stdout: /THREADS_OPEN/ }, { path: staged.path, env: live(HEAD, BASE, 0, "Implements ORB-700", { name: "In Review", type: "started" }, [], { openThread: true }) })
 
   const advancedHead = "cccccccccccccccccccccccccccccccccccccccc"
   const advanced = check(TOOL, "a live head advance after delivery cannot persist READY", argv, { status: 1, stdout: /CI_STALE/ }, { path: staged.path, env: live(advancedHead) })

@@ -2,12 +2,15 @@
 /** Persist and evaluate one final-head readiness receipt from artifacts produced by the harness. */
 
 import { readFileSync } from "node:fs"
+import { fileURLToPath } from "node:url"
 
 import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-auth.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { withDegradedReviewFirst } from "./lib/pr-body.mjs"
-import { readinessReport, writeReadinessReceipt } from "./lib/readiness-receipt.mjs"
+import { readinessCiIsGreen, readinessReport, writeReadinessReceipt } from "./lib/readiness-receipt.mjs"
+
+const LIST_BOT_THREADS = fileURLToPath(new URL("./list-bot-threads.mjs", import.meta.url))
 
 const USAGE = `usage: record-readiness.mjs --repo <ui|api|landing> --pr <number> --delivery <file> --review <file> --bot <file> --linear <file> [--codex-only]
 
@@ -83,13 +86,15 @@ if (linear.issue !== delivery.issue || linear.repositoryKey !== repoKey || linea
 let live
 let liveComparison
 let liveLinear
+let liveBot
+let liveCiGreen = false
 let bodyMutated = false
 try {
   const repository = repositorySlug(repoRoot)
   const githubAuth = await githubEnvironment(repoRoot, { timeoutMs: 45000 })
   const result = await runBounded(
     process.env.GH_BIN || "gh",
-    ["pr", "view", String(prNumber), "--repo", repository, "--json", "number,baseRefName,baseRefOid,headRefOid,isDraft,body"],
+    ["pr", "view", String(prNumber), "--repo", repository, "--json", "number,baseRefName,baseRefOid,headRefOid,isDraft,body,statusCheckRollup"],
     { cwd: repoRoot, env: githubAuth.environment, timeoutMs: 45000 },
   )
   if (result.timedOut) fail(`gh pr view ${prNumber} timed out after 45s; the complete child process tree was terminated`)
@@ -104,10 +109,35 @@ try {
     typeof live?.baseRefOid !== "string" ||
     typeof live?.headRefOid !== "string" ||
     typeof live?.isDraft !== "boolean" ||
-    typeof live?.body !== "string"
+    typeof live?.body !== "string" ||
+    !Array.isArray(live?.statusCheckRollup)
   ) {
     fail(`gh pr view ${prNumber} did not return the confirmed number/base/head/draft shape`)
   }
+  const requiredRead = await runBounded(
+    process.env.GH_BIN || "gh",
+    ["api", `repos/${repository}/branches/${encodeURIComponent(live.baseRefName)}/protection/required_status_checks`],
+    { cwd: repoRoot, env: githubAuth.environment, timeoutMs: 45000 },
+  )
+  if (requiredRead.timedOut) fail(`required checks for PR ${prNumber} timed out after 45s; the complete child process tree was terminated`)
+  if (requiredRead.error || requiredRead.status !== 0) {
+    const detail = requiredRead.stderr || requiredRead.stdout || requiredRead.error?.message || `exit ${requiredRead.status}`
+    fail(`required checks for PR ${prNumber} failed: ${redactSecrets(detail.trim(), githubAuth.secrets)}`)
+  }
+  const requiredContexts = JSON.parse(requiredRead.stdout)?.contexts
+  liveCiGreen = readinessCiIsGreen(live.statusCheckRollup, requiredContexts)
+
+  const botRead = await runBounded(
+    process.execPath,
+    [LIST_BOT_THREADS, "--pr", String(prNumber), "--repo", repoKey, "--wait-seconds", "0", "--poll-seconds", "1", "--command-timeout-seconds", "45", "--no-request"],
+    { cwd: repoRoot, env: githubAuth.environment, timeoutMs: 60000 },
+  )
+  if (botRead.timedOut) fail(`live connector read for PR ${prNumber} timed out after 60s; the complete child process tree was terminated`)
+  if (botRead.error || ![0, 1].includes(botRead.status)) {
+    const detail = botRead.stderr || botRead.stdout || botRead.error?.message || `exit ${botRead.status}`
+    fail(`live connector read for PR ${prNumber} failed: ${redactSecrets(detail.trim(), githubAuth.secrets)}`)
+  }
+  liveBot = JSON.parse(botRead.stdout)
   if (codexOnly) {
     const degradedBody = withDegradedReviewFirst(live.body)
     if (degradedBody !== live.body) {
@@ -159,6 +189,13 @@ if (typeof liveLinear?.state?.name !== "string" || typeof liveLinear?.state?.typ
 
 const baseSha = live.baseRefOid
 const headSha = live.headRefOid
+const liveConnectorPassed =
+  liveBot?.verdict === "REVIEWED" &&
+  liveBot?.reviewedCommit === headSha &&
+  liveBot?.headRefOid === headSha &&
+  liveBot?.baseRefOid === baseSha
+const botArtifactCurrent = bot.headRefOid === headSha && bot.baseRefOid === baseSha && bot.reviewedCommit === liveBot?.reviewedCommit
+const liveUnresolvedThreads = liveBot?.counts?.unresolved ?? null
 const receipt = {
   issue: delivery.issue,
   repositoryKey: repoKey,
@@ -178,9 +215,9 @@ const receipt = {
     headSha: review.reviewedHeadOid,
     baseSha: review.baseSha,
   },
-  ci: { settled: !bodyMutated && ci.pending.length === 0, green: !bodyMutated && ci.pass === true, invalidatedByBodyEdit: bodyMutated, checks: ci, headSha: state.headSha, baseSha: state.baseSha },
-  codexConnector: { passed: bot.verdict === "REVIEWED", reviewedCommit: bot.reviewedCommit ?? null, headSha: bot.headRefOid, baseSha: bot.baseRefOid },
-  threads: { complete: bot.threadsComplete === true, unresolvedCount: bot.counts?.unresolved ?? bot.threads?.filter((thread) => !thread.isResolved).length ?? null, headSha: bot.headRefOid, baseSha: bot.baseRefOid },
+  ci: { settled: !bodyMutated && ci.pending.length === 0 && liveCiGreen, green: !bodyMutated && ci.pass === true && liveCiGreen, invalidatedByBodyEdit: bodyMutated, checks: ci, headSha: state.headSha, baseSha: state.baseSha },
+  codexConnector: { passed: bot.verdict === "REVIEWED" && botArtifactCurrent && liveConnectorPassed, reviewedCommit: liveBot?.reviewedCommit ?? null, headSha: liveBot?.headRefOid ?? null, baseSha: liveBot?.baseRefOid ?? null },
+  threads: { complete: bot.threadsComplete === true && liveBot?.threadsComplete === true && botArtifactCurrent, unresolvedCount: liveUnresolvedThreads, headSha: liveBot?.headRefOid ?? null, baseSha: liveBot?.baseRefOid ?? null },
   behindBy: liveComparison.behind_by,
   draft: live.isDraft,
   linear: {

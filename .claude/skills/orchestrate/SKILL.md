@@ -756,8 +756,9 @@ connector reviewed commit; unresolved Codex thread count and the head on which t
 
 The only READY state is simultaneous truth for one current head/base pair. Run
 `record-readiness.mjs` after every artifact update. The recorder re-reads the live PR base/head,
-draft state, and compare `behind_by` at aggregation time; it never labels the delivery artifact's
-old SHAs as current. Its explicit stale/blocking verdicts include
+draft state, newest required CI, current connector result, complete thread inventory, Linear state,
+and compare `behind_by` at aggregation time; it never labels cached artifacts or the delivery
+artifact's old SHAs as current. Its explicit stale/blocking verdicts include
 `REVIEW_STALE`, `CI_STALE`, `BOT_REVIEW_STALE`, `OUT_OF_DATE`, `THREADS_OPEN`, and `LINEAR_STALE`.
 Any commit, ordinary push, merge from main, or base advancement invalidates receipts tied to the old
 head or base. Bare PR numbers are never sufficient run state.
