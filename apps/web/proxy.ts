@@ -8,6 +8,9 @@ import {
   type SessionTokens,
 } from '@/lib/auth-api'
 
+const CONTENT_SECURITY_POLICY = 'Content-Security-Policy'
+const DEFAULT_SUPABASE_URL = 'https://wdscxamegetmhqldqsdg.supabase.co'
+
 const PUBLIC_PATHS = [
   '/login',
   '/onboarding',
@@ -74,15 +77,56 @@ async function applyRefreshedSession(
   return response
 }
 
+function createContentSecurityPolicy(nonce: string): string {
+  const supabaseUrl = new URL(
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? DEFAULT_SUPABASE_URL,
+  )
+  if (supabaseUrl.protocol !== 'http:' && supabaseUrl.protocol !== 'https:') {
+    throw new Error('NEXT_PUBLIC_SUPABASE_URL must use HTTP or HTTPS')
+  }
+
+  const websocketUrl = new URL(supabaseUrl.origin)
+  websocketUrl.protocol = supabaseUrl.protocol === 'https:' ? 'wss:' : 'ws:'
+  const developmentScriptSource =
+    process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''
+
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${developmentScriptSource}`,
+    "style-src 'self' 'unsafe-inline'",
+    `img-src 'self' blob: data: ${supabaseUrl.origin}`,
+    "font-src 'self' data:",
+    `connect-src 'self' ${supabaseUrl.origin} ${websocketUrl.origin}`,
+    "worker-src 'self' blob:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+  ].join('; ')
+}
+
+function secureResponse(response: NextResponse, contentSecurityPolicy: string) {
+  response.headers.set(CONTENT_SECURITY_POLICY, contentSecurityPolicy)
+  return response
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
+  const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
+  const contentSecurityPolicy = createContentSecurityPolicy(nonce)
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-nonce', nonce)
+  requestHeaders.set(CONTENT_SECURITY_POLICY, contentSecurityPolicy)
 
   if (
     pathname.startsWith('/api/') ||
     pathname.startsWith('/_next/') ||
     pathname === '/app-ads.txt'
   ) {
-    return NextResponse.next()
+    return secureResponse(
+      NextResponse.next({ request: { headers: requestHeaders } }),
+      contentSecurityPolicy,
+    )
   }
 
   const isPublic = isPublicPath(pathname)
@@ -97,24 +141,30 @@ export async function proxy(request: NextRequest) {
     if (pathname.startsWith('/') && !pathname.startsWith('//')) {
       url.searchParams.set('returnUrl', pathname)
     }
-    return NextResponse.redirect(url)
+    return secureResponse(NextResponse.redirect(url), contentSecurityPolicy)
   }
 
   if (session.token && pathname === '/login') {
     const url = request.nextUrl.clone()
     url.pathname = '/'
     url.search = ''
-    return applyRefreshedSession(
-      NextResponse.redirect(url),
-      session.refreshedTokens,
-      session.refreshCookieCleared,
+    return secureResponse(
+      await applyRefreshedSession(
+        NextResponse.redirect(url),
+        session.refreshedTokens,
+        session.refreshCookieCleared,
+      ),
+      contentSecurityPolicy,
     )
   }
 
-  return applyRefreshedSession(
-    NextResponse.next(),
-    session.refreshedTokens,
-    session.refreshCookieCleared,
+  return secureResponse(
+    await applyRefreshedSession(
+      NextResponse.next({ request: { headers: requestHeaders } }),
+      session.refreshedTokens,
+      session.refreshCookieCleared,
+    ),
+    contentSecurityPolicy,
   )
 }
 

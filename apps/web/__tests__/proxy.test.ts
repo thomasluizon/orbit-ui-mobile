@@ -16,6 +16,7 @@ vi.mock('next/server', async () => {
     type,
     url,
     cookies: { set: vi.fn() },
+    headers: new Headers(),
   })
 
   return {
@@ -55,6 +56,24 @@ describe('proxy', () => {
       expect(response).toMatchObject({ type: 'next' })
     }
     expect(resolveSessionTokens).not.toHaveBeenCalled()
+  })
+
+  it('adds an enforcing nonce-based content security policy to rendered pages', async () => {
+    const response = await proxy(createRequest('/terms'))
+    const nextOptions = vi.mocked(NextResponse.next).mock.calls[0]![0]
+    const forwardedHeaders = nextOptions?.request?.headers as Headers
+    const contentSecurityPolicy = response.headers.get('Content-Security-Policy')
+
+    expect(contentSecurityPolicy).toMatch(
+      /^default-src 'self'; script-src 'self' 'nonce-[^']+' 'strict-dynamic'/,
+    )
+    expect(contentSecurityPolicy).toContain("connect-src 'self'")
+    expect(contentSecurityPolicy).toContain("base-uri 'self'")
+    expect(contentSecurityPolicy).toContain("form-action 'self'")
+    expect(contentSecurityPolicy).toContain("frame-ancestors 'none'")
+    expect(contentSecurityPolicy).not.toContain("script-src 'self' 'unsafe-inline'")
+    expect(forwardedHeaders.get('Content-Security-Policy')).toBe(contentSecurityPolicy)
+    expect(forwardedHeaders.get('x-nonce')).toMatch(/^[A-Za-z0-9+/]+=*$/)
   })
 
   it('redirects protected routes to login when no session can be resolved', async () => {
