@@ -1,7 +1,8 @@
-import { T, check, orcaEnv, run } from "./_harness.mjs"
+import { T, check, orcaEnv, realOrchestratorConfig, run, stageRepo, stageWithConfig } from "./_harness.mjs"
 
 const TOOL = "resolve-bot-thread.mjs"
 const THREAD = "PRRT_kwDOR5Siws6Wfy_V"
+let testedToolPath = null
 
 const REPLY_OK = JSON.stringify({ data: { addPullRequestReviewThreadReply: { comment: { id: "IC_1", url: "https://github.com/thomasluizon/orbit-ui-mobile/pull/681#discussion_r1" } } } })
 const RESOLVE_OK = JSON.stringify({ data: { resolveReviewThread: { thread: { id: THREAD, isResolved: true } } } })
@@ -13,6 +14,7 @@ const RESOLVE_OK = JSON.stringify({ data: { resolveReviewThread: { thread: { id:
  */
 const plan = ({ reply = REPLY_OK, replyExit = 0, resolve = RESOLVE_OK, resolveExit = 0 } = {}) =>
   orcaEnv([
+    { match: "auth token --user thomasluizon", stdout: "test-github-token" },
     { match: "addPullRequestReviewThreadReply", stdout: reply, exit: replyExit },
     { match: "resolveReviewThread", stdout: resolve, exit: resolveExit },
   ])
@@ -25,21 +27,31 @@ const parsed = (result) => {
   }
 }
 
-const post = (body, options = {}, argv = []) => run(TOOL, ["--thread", THREAD, ...argv], { env: plan(options), input: body })
+const post = (body, options = {}, argv = []) => run(TOOL, ["--thread", THREAD, "--repo", "ui", ...argv], { path: testedToolPath, env: plan(options), input: body })
 
 export const cases = () => {
   check(TOOL, "refuses a missing thread id", [], { status: 2, stderr: /--thread must be a review thread node id/, input: "fixed in abc123" })
   check(TOOL, "refuses a pull request number in place of a thread id", ["--thread", "681"], { status: 2, stderr: /--thread must be a review thread node id/ }, { input: "fixed in abc123" })
   check(TOOL, "refuses a malformed thread id before any mutation", ["--thread", "IC_notathread"], { status: 2, stderr: /--thread must be a review thread node id/ }, { input: "fixed in abc123" })
+  check(TOOL, "refuses a missing repository before any mutation", ["--thread", THREAD], { status: 2, stderr: /--repo must name a configured repository/ }, { input: "fixed in abc123" })
+
+  const githubContext = stageRepo("resolve-bot-thread-github-context")
+  if (!githubContext || githubContext.git(["remote", "set-url", "origin", "https://github.com/thomasluizon/orbit-ui-mobile.git"]).status !== 0) {
+    T(`${TOOL}: a repository-qualified GitHub context fixture is available`, false, "could not stage GitHub context")
+    return
+  }
+  const hermeticConfig = realOrchestratorConfig()
+  hermeticConfig.repos = { ...hermeticConfig.repos, ui: githubContext.path }
+  testedToolPath = stageWithConfig("resolve-bot-thread-hermetic", TOOL, hermeticConfig).path
 
   /**
    * THE gate. A resolve with no reason is worse than an open thread, so an empty body is refused
    * before anything is posted rather than being allowed to close a finding silently.
    */
-  const empty = run(TOOL, ["--thread", THREAD], { env: plan(), input: "" })
+  const empty = run(TOOL, ["--thread", THREAD, "--repo", "ui"], { path: testedToolPath, env: plan(), input: "" })
   T(`${TOOL}: an empty reply body is refused before any mutation`, empty.status === 2 && /reply body on stdin is empty/.test(empty.stderr), `exit ${empty.status}: ${empty.stderr || empty.stdout}`)
 
-  const blank = run(TOOL, ["--thread", THREAD], { env: plan(), input: "   \n\t  \n" })
+  const blank = run(TOOL, ["--thread", THREAD, "--repo", "ui"], { path: testedToolPath, env: plan(), input: "   \n\t  \n" })
   T(`${TOOL}: a whitespace-only reply body is refused too`, blank.status === 2 && /reply body on stdin is empty/.test(blank.stderr), `exit ${blank.status}: ${blank.stderr || blank.stdout}`)
 
   const happy = post("fixed in 4e6e4871")
@@ -90,28 +102,29 @@ export const cases = () => {
   const threadDone = JSON.stringify({ data: { node: { isResolved: true, comments: { totalCount: 2 } } } })
   const retryPlan = (threadStdout, resolve = RESOLVE_OK, resolveExit = 0) =>
     orcaEnv([
+      { match: "auth token --user thomasluizon", stdout: "test-github-token" },
       { match: "PullRequestReviewThread", stdout: threadStdout },
       { match: "resolveReviewThread", stdout: resolve, exit: resolveExit },
     ])
 
-  const retried = run(TOOL, ["--thread", THREAD, "--resolve-only"], { env: retryPlan(threadWithReply) })
+  const retried = run(TOOL, ["--thread", THREAD, "--repo", "ui", "--resolve-only"], { path: testedToolPath, env: retryPlan(threadWithReply) })
   T(`${TOOL}: --resolve-only resolves a thread that already carries a reply`, retried.status === 0 && parsed(retried)?.resolved === true && parsed(retried)?.resolveOnly === true, retried.stdout || retried.stderr)
 
-  const bare = run(TOOL, ["--thread", THREAD, "--resolve-only"], { env: retryPlan(threadNoReply) })
+  const bare = run(TOOL, ["--thread", THREAD, "--repo", "ui", "--resolve-only"], { path: testedToolPath, env: retryPlan(threadNoReply) })
   T(
     `${TOOL}: --resolve-only REFUSES a thread with no reply, so it cannot become a bare resolve`,
     bare.status === 2 && /carries no reply/.test(bare.stderr),
     `exit ${bare.status}: ${bare.stderr || bare.stdout}`,
   )
 
-  const already = run(TOOL, ["--thread", THREAD, "--resolve-only"], { env: retryPlan(threadDone) })
+  const already = run(TOOL, ["--thread", THREAD, "--repo", "ui", "--resolve-only"], { path: testedToolPath, env: retryPlan(threadDone) })
   T(`${TOOL}: --resolve-only on an already-resolved thread is a no-op exit 0`, already.status === 0 && /already resolved/.test(already.stdout), already.stdout || already.stderr)
 
-  const retryFailed = run(TOOL, ["--thread", THREAD, "--resolve-only"], { env: retryPlan(threadWithReply, JSON.stringify({ errors: [{ message: "still failing" }] })) })
+  const retryFailed = run(TOOL, ["--thread", THREAD, "--repo", "ui", "--resolve-only"], { path: testedToolPath, env: retryPlan(threadWithReply, JSON.stringify({ errors: [{ message: "still failing" }] })) })
   T(`${TOOL}: a failing --resolve-only retry exits non-zero naming the error`, retryFailed.status === 1 && /still failing/.test(parsed(retryFailed)?.error ?? ""), retryFailed.stdout || retryFailed.stderr)
 
   /** --dry-run is the seam that keeps this module hermetic: it must mutate nothing at all. */
-  const dry = run(TOOL, ["--thread", THREAD, "--dry-run"], { env: orcaEnv([]), input: "not applicable because the code moved" })
+  const dry = run(TOOL, ["--thread", THREAD, "--repo", "ui", "--dry-run"], { path: testedToolPath, env: orcaEnv([]), input: "not applicable because the code moved" })
   const dryPlan = parsed(dry)
   T(
     `${TOOL}: --dry-run exits 0 having called neither mutation`,

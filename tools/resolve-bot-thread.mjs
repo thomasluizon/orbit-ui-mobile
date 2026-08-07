@@ -21,10 +21,14 @@
 import { execFileSync } from "node:child_process"
 import { readFileSync } from "node:fs"
 
-const USAGE = `usage: resolve-bot-thread.mjs --thread <PRRT_...> [--dry-run]
-       resolve-bot-thread.mjs --thread <PRRT_...> --resolve-only
+import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
+import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
+
+const USAGE = `usage: resolve-bot-thread.mjs --thread <PRRT_...> --repo <ui|api|landing> [--dry-run]
+       resolve-bot-thread.mjs --thread <PRRT_...> --repo <ui|api|landing> --resolve-only
 
   --thread <id>    the review thread node id, opaque (required)
+  --repo <key>      repository whose owner selects the process-local GitHub token (required)
   --resolve-only   retry ONLY the resolve, for a run whose reply already landed. Reads no stdin,
                    and first VERIFIES a reply exists on the thread, so the no-bare-resolve rule
                    still holds by construction rather than by trusting the caller
@@ -57,12 +61,13 @@ const argOf = (flag) => {
   return index === -1 ? null : process.argv[index + 1]
 }
 
-const VALUE_FLAGS = new Set(["--thread"])
+const VALUE_FLAGS = new Set(["--thread", "--repo"])
 const KNOWN_FLAGS = new Set([...VALUE_FLAGS, "--dry-run", "--resolve-only", "--help", "-h"])
 const unknown = process.argv.slice(2).filter((value, index, argv) => value.startsWith("-") && !KNOWN_FLAGS.has(value) && !VALUE_FLAGS.has(argv[index - 1]))
 if (unknown.length) fail(2, `${USAGE}\n\nunknown option(s): ${unknown.join(" ")}`)
 
 const threadId = argOf("--thread")
+const repoKey = argOf("--repo")
 const dryRun = process.argv.includes("--dry-run")
 const resolveOnly = process.argv.includes("--resolve-only")
 
@@ -73,6 +78,18 @@ const resolveOnly = process.argv.includes("--resolve-only")
  */
 if (!threadId || !/^PRRT_[A-Za-z0-9_-]+$/.test(threadId)) {
   fail(2, `${USAGE}\n\n--thread must be a review thread node id such as PRRT_kwDOABCD1234`)
+}
+if (!repoKey || repoKey.startsWith("-")) fail(2, `${USAGE}\n\n--repo must name a configured repository`)
+
+let config
+try {
+  config = readOrchestratorConfig()
+} catch (error) {
+  fail(2, error.message)
+}
+const githubCwd = config.repos?.[repoKey]
+if (typeof githubCwd !== "string" || githubCwd.trim().length === 0) {
+  fail(2, `--repo must name a configured repository (known: ${Object.keys(config.repos ?? {}).join(", ") || "none"})`)
 }
 
 let reply = ""
@@ -114,9 +131,9 @@ const graphql = (query, fields) => {
   const args = ["api", "graphql", ...fields.flatMap(([flag, value]) => [flag, value]), "-f", `query=${query}`]
   let stdout = ""
   try {
-    stdout = execFileSync(GH, args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 8 * 1024 * 1024 })
+    stdout = execFileSync(GH, args, { cwd: githubCwd, env: githubAuth.environment, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 8 * 1024 * 1024 })
   } catch (error) {
-    return { ok: false, detail: (error.stderr?.toString() || error.stdout?.toString() || error.message).trim().slice(0, 400) }
+    return { ok: false, detail: redactSecrets((error.stderr?.toString() || error.stdout?.toString() || error.message).trim().slice(0, 400), githubAuth.secrets) }
   }
   let payload
   try {
@@ -129,8 +146,15 @@ const graphql = (query, fields) => {
 }
 
 if (dryRun) {
-  console.log(JSON.stringify({ threadId, resolveOnly, replyBytes: reply.length, replyPreview: reply.slice(0, 120), replied: false, resolved: false, dryRun: true }, null, 2))
+  console.log(JSON.stringify({ threadId, repositoryKey: repoKey, resolveOnly, replyBytes: reply.length, replyPreview: reply.slice(0, 120), replied: false, resolved: false, dryRun: true }, null, 2))
   process.exit(0)
+}
+
+let githubAuth
+try {
+  githubAuth = await githubEnvironment(githubCwd)
+} catch (error) {
+  fail(2, redactSecrets(error.message))
 }
 
 /**

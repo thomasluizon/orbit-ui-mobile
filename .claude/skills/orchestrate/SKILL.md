@@ -116,7 +116,7 @@ node tools/launch-worker.mjs     --issue ORB-N --worktree <p> --prompt <f> [--co
 node tools/launch-worker.mjs     --issue ORB-N --review --repo <key> --prompt <f> [--codex-only]
 node tools/verify-delivery.mjs   --issue ORB-N --worktree <p> --branch <b> --repo <key> [--base <ref>] [--wait-ci <s>]
 node tools/list-bot-threads.mjs  --pr <n-or-url> --repo <key> [--wait-seconds <s>] [--no-request]
-node tools/resolve-bot-thread.mjs --thread <PRRT_...>   # reply body on stdin
+node tools/resolve-bot-thread.mjs --thread <PRRT_...> --repo <key>   # reply body on stdin
 node tools/salvage-worker.mjs    --issue ORB-N --repo <key> --pr <n> --worktree <p> --branch <b> --run-root <p> --test-command <json> --test-receipt <json> --message <m> --path <path>...
 node tools/sync-linear-state.mjs --issue ORB-N --repo <key> --pr <n> --state <working|blocked|visual|ready> --head-sha <sha> --base-sha <sha> --message-file <path|->
 node tools/record-readiness.mjs  --repo <key> --pr <n> --delivery <json> --review <json> --bot <json> --linear <json>
@@ -703,9 +703,9 @@ derives the verdict from the review itself for exactly this reason; do not re-de
 **Every resolve posts a reply FIRST.** One of exactly three:
 
 ```bash
-printf 'fixed in %s' "$sha"                 | node tools/resolve-bot-thread.mjs --thread PRRT_...
-printf 'not applicable because %s' "$why"   | node tools/resolve-bot-thread.mjs --thread PRRT_...
-printf 'filed as %s' "$ticket"              | node tools/resolve-bot-thread.mjs --thread PRRT_...
+printf 'fixed in %s' "$sha"                 | node tools/resolve-bot-thread.mjs --thread PRRT_... --repo <key>
+printf 'not applicable because %s' "$why"   | node tools/resolve-bot-thread.mjs --thread PRRT_... --repo <key>
+printf 'filed as %s' "$ticket"              | node tools/resolve-bot-thread.mjs --thread PRRT_... --repo <key>
 ```
 
 The tool refuses an empty body and never attempts the resolve if the reply failed, so a bare resolve
