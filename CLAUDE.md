@@ -36,7 +36,7 @@ Web cookie is httpOnly + sameSite strict + secure; mobile tokens live in SecureS
 
 ## Brand & design
 
-"Orbit" and "Astra" are never translated. `DESIGN.md` (repo root) is authoritative for all UI: read it before any frontend work. **No decorative glow and no gradient wash anywhere**; identity comes from the orbital logo, the Astra glyph, and ring indicators. `--primary` is fill/graphic only, `--primary-soft` accent text.
+"Orbit" and "Astra" are never translated. `BRAND.md` is authoritative for audience and positioning: read it before any brand, copy, positioning or design-direction work, and before ORB-30. `DESIGN.md` (repo root) is authoritative for all UI: read it before any frontend work. **No decorative glow and no gradient wash anywhere**; identity comes from the orbital logo, the Astra glyph, and ring indicators. `--primary` is fill/graphic only, `--primary-soft` accent text.
 
 ## Conventions & tooling
 
@@ -51,6 +51,7 @@ Grep a doc's `At a glance` header before loading it; update this table when a do
 
 | Doc | Purpose |
 |---|---|
+| `BRAND.md` | Audience, positioning and principles; read before brand, copy, positioning or design-direction work, and before ORB-30. |
 | `DESIGN.md` | UI spec; read before frontend work. |
 | `RENDER-CORRECTNESS.md` | The `visible-effect` screenshot critique and its cap. |
 | `AGENTS.md` | Codex's worker entry doc; defers to this file. |
