@@ -861,39 +861,42 @@ describe('HabitList', () => {
     ).toHaveLength(1)
   })
 
-  it('prompts again after dismissal when the selected date changes', () => {
+  it('preserves dismissed prompts through refetches until progress becomes incomplete', () => {
     const parent = createMockHabit({
-      id: 'parent',
-      title: 'Parent',
+      id: 'parent', title: 'Parent',
       hasSubHabits: true,
       scheduledDates: [TODAY, TOMORROW],
-      instances: [
-        { date: TODAY, status: 'Pending', logId: null },
-        { date: TOMORROW, status: 'Pending', logId: null },
-      ],
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
     })
-    const child = createMockHabit({
-      id: 'child',
-      title: 'Child',
-      parentId: 'parent',
-      isCompleted: true,
-    })
+    const child = createMockHabit({ id: 'child', title: 'Child', parentId: 'parent', isCompleted: true })
     mockHabitsData.habitsById.set(parent.id, parent)
     mockHabitsData.habitsById.set(child.id, child)
     mockHabitsData.childrenByParent.set(parent.id, [child.id])
     mockHabitsData.topLevelHabits = [parent]
     const ref = React.createRef<HabitListHandle>()
-    const { rerenderWithProviders } = renderWithProviders(
-      <HabitList ref={ref} filters={defaultFilters} selectedDate={new Date(`${TODAY}T12:00:00Z`)} />,
-    )
+    const renderList = (date = TODAY) => <HabitList ref={ref} filters={defaultFilters} selectedDate={new Date(`${date}T12:00:00Z`)} />
+    const { rerenderWithProviders } = renderWithProviders(renderList())
+    const refetch = () => {
+      mockHabitsDataUpdatedAt += 1
+      rerenderWithProviders(renderList())
+    }
 
     act(() => ref.current?.checkAndPromptParentLog('child'))
     fireEvent.click(screen.getByTestId('cancel-action-habits.autoLogParentTitle'))
-    rerenderWithProviders(
-      <HabitList ref={ref} filters={defaultFilters} selectedDate={new Date(`${TOMORROW}T12:00:00Z`)} />,
-    )
+    refetch()
     act(() => ref.current?.checkAndPromptParentLog('child'))
+    expect(screen.queryByText('habits.autoLogParentMessage({"name":"Parent"})')).toBeNull()
 
+    mockHabitsData.habitsById.set(child.id, { ...child, isCompleted: false })
+    refetch()
+    mockHabitsData.habitsById.set(child.id, child)
+    refetch()
+    act(() => ref.current?.checkAndPromptParentLog('child'))
+    expect(screen.getByText('habits.autoLogParentMessage({"name":"Parent"})')).toBeDefined()
+
+    fireEvent.click(screen.getByTestId('cancel-action-habits.autoLogParentTitle'))
+    rerenderWithProviders(renderList(TOMORROW))
+    act(() => ref.current?.checkAndPromptParentLog('child'))
     expect(screen.getByText('habits.autoLogParentMessage({"name":"Parent"})')).toBeDefined()
   })
 

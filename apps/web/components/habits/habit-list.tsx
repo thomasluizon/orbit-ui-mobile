@@ -217,7 +217,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const todayStr = formatAPIDate(new Date())
   useEffect(() => {
     promptedParentIdsRef.current.clear()
-  }, [promptedParentIdsRef, selectedDateStr, habitsQuery.dataUpdatedAt])
+  }, [promptedParentIdsRef, selectedDateStr])
   const visibility = useHabitVisibility({
     habitsById,
     childrenByParent,
@@ -391,6 +391,13 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     },
     [promptDataRef, skippedChildIdsRef],
   )
+
+  useEffect(() => {
+    for (const parentId of promptedParentIdsRef.current) {
+      const { done, total } = getChildrenProgressForPrompt(parentId)
+      if (total === 0 || done < total) promptedParentIdsRef.current.delete(parentId)
+    }
+  }, [getChildrenProgressForPrompt, habitsQuery.dataUpdatedAt, promptedParentIdsRef])
 
   const dateGroups = useMemo<HabitListDateGroup[]>(() => {
     if (view !== 'all') return []

@@ -322,7 +322,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const selectedDateStr = formatAPIDate(selectedDate ?? new Date())
     useEffect(() => {
       promptedParentIdsRef.current.clear()
-    }, [promptedParentIdsRef, selectedDateStr, habitsQuery.dataUpdatedAt])
+    }, [promptedParentIdsRef, selectedDateStr])
     const autoLogParentHabit = autoLogParentId
       ? (habitsById.get(autoLogParentId) ?? null)
       : null
@@ -657,6 +657,15 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         assumeCompletedId,
       })
     }, [])
+
+    useEffect(() => {
+      for (const parentId of promptedParentIdsRef.current) {
+        const progress = getChildrenProgressForPrompt(parentId)
+        if (progress.total === 0 || progress.done < progress.total) {
+          promptedParentIdsRef.current.delete(parentId)
+        }
+      }
+    }, [getChildrenProgressForPrompt, habitsQuery.dataUpdatedAt])
 
     const checkAndPromptParentLog = useCallback(
       (childHabitId: string) => {

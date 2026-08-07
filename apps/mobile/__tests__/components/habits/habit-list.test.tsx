@@ -1634,62 +1634,46 @@ describe('HabitList', () => {
     expect(reopenedDialogs).toHaveLength(0)
   })
 
-  it('prompts again after dismissal when the selected date changes', () => {
+  it('preserves dismissed prompts through refetches until progress becomes incomplete', () => {
     const parent = createMockHabit({
-      id: 'parent',
-      title: 'Parent',
+      id: 'parent', title: 'Parent',
       hasSubHabits: true,
       scheduledDates: [TODAY, TOMORROW],
-      instances: [
-        { date: TODAY, status: 'Pending', logId: null },
-        { date: TOMORROW, status: 'Pending', logId: null },
-      ],
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
     })
-    const child = createMockHabit({
-      id: 'child',
-      title: 'Child',
-      parentId: 'parent',
-      isCompleted: true,
-    })
+    const child = createMockHabit({ id: 'child', title: 'Child', parentId: 'parent', isCompleted: true })
     seedHabits([parent, child])
     const ref = React.createRef<HabitListHandle>()
+    const renderList = (date = TODAY) => (
+      <HabitList ref={ref} view="today" filters={{}}
+        selectedDate={new Date(`${date}T12:00:00Z`)} showCompleted onCreatePress={vi.fn()} />
+    )
     let tree: any
 
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        <HabitList
-          ref={ref}
-          view="today"
-          filters={{}}
-          selectedDate={new Date(`${TODAY}T12:00:00Z`)}
-          showCompleted
-          onCreatePress={vi.fn()}
-        />,
-      )
+    TestRenderer.act(() => { tree = TestRenderer.create(renderList()) })
+    const refetch = (habits: NormalizedHabit[]) => TestRenderer.act(() => {
+      seedHabits(habits)
+      mockHabitsDataUpdatedAt += 1
+      tree.update(renderList())
     })
-    TestRenderer.act(() => ref.current?.checkAndPromptParentLog('child'))
-    let dialog = tree.root
+    const findDialog = () => tree.root
       .findAllByType('ConfirmDialog')
       .find((node: any) => node.props.title === 'habits.autoLogParentTitle')
-    TestRenderer.act(() => dialog?.props.onCancel())
-    TestRenderer.act(() => {
-      tree.update(
-        <HabitList
-          ref={ref}
-          view="today"
-          filters={{}}
-          selectedDate={new Date(`${TOMORROW}T12:00:00Z`)}
-          showCompleted
-          onCreatePress={vi.fn()}
-        />,
-      )
-    })
     TestRenderer.act(() => ref.current?.checkAndPromptParentLog('child'))
-    dialog = tree.root
-      .findAllByType('ConfirmDialog')
-      .find((node: any) => node.props.title === 'habits.autoLogParentTitle')
+    TestRenderer.act(() => findDialog()?.props.onCancel())
+    refetch([parent, child])
+    TestRenderer.act(() => ref.current?.checkAndPromptParentLog('child'))
+    expect(findDialog()).toBeUndefined()
 
-    expect(dialog).toBeTruthy()
+    refetch([parent, { ...child, isCompleted: false }])
+    refetch([parent, child])
+    TestRenderer.act(() => ref.current?.checkAndPromptParentLog('child'))
+    expect(findDialog()).toBeTruthy()
+
+    TestRenderer.act(() => findDialog()?.props.onCancel())
+    TestRenderer.act(() => tree.update(renderList(TOMORROW)))
+    TestRenderer.act(() => ref.current?.checkAndPromptParentLog('child'))
+    expect(findDialog()).toBeTruthy()
   })
 
   describe('today view scroll offset wiring', () => {
