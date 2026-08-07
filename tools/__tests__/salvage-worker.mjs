@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from "node:fs"
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { T, check, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
@@ -61,7 +61,7 @@ export const cases = () => {
 
   const second = stageRepo("salvage-worker-broad")
   const broadStaged = stageWithConfig("salvage-worker-broad", TOOL, config)
-  for (const broad of [".", "sub/..", "*", "src/**", ":(glob)**"]) {
+  for (const broad of [".", "sub/..", ":(glob)**"]) {
     check(
       TOOL,
       `broad staging path ${broad} is rejected before the test runs`,
@@ -70,4 +70,26 @@ export const cases = () => {
       { path: broadStaged.path },
     )
   }
+  for (const broad of ["*", "src/**"]) {
+    check(
+      TOOL,
+      `broad staging path ${broad} cannot match an exact dirty file`,
+      ["--issue", "ORB-250", "--repo", "ui", "--pr", "78", "--worktree", second.path, "--branch", "feature/salvage", "--run-root", second.path, "--test-command", passedOrder, "--test-receipt", receipt, "--message", "x", "--path", broad],
+      { status: 2, stderr: /must name one exact dirty file/ },
+      { path: broadStaged.path },
+    )
+  }
+
+  const literal = stageRepo("salvage-worker-literal")
+  const route = "apps/web/app/api/[...path]/route.ts"
+  mkdirSync(join(literal.path, "apps", "web", "app", "api", "[...path]"), { recursive: true })
+  writeFileSync(join(literal.path, route), "export const route = true\n")
+  const literalStaged = stageWithConfig("salvage-worker-literal", TOOL, config)
+  check(
+    TOOL,
+    "a bracketed explicit filename is staged with literal pathspec semantics",
+    ["--issue", "ORB-250", "--repo", "ui", "--pr", "79", "--worktree", literal.path, "--branch", "feature/salvage", "--run-root", literal.path, "--test-command", passedOrder, "--test-receipt", receipt, "--message", "literal route", "--path", route],
+    { status: 0, stdout: /apps\/web\/app\/api\/\[\.\.\.path\]\/route\.ts/ },
+    { path: literalStaged.path },
+  )
 }

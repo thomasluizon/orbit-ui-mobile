@@ -267,32 +267,36 @@ const readPullRequestState = () => {
   return parsed
 }
 
-let pullRequestState = readPullRequestState()
-checks.pullRequestState = {
-  baseBranch: pullRequestState.baseRefName,
-  baseSha: pullRequestState.baseRefOid,
-  headSha: pullRequestState.headRefOid,
-  draft: pullRequestState.isDraft,
-}
-if (pullRequestState.headRefOid !== localHead) emit("STALE_PR")
-if (pullRequestState.isDraft) emit("DRAFT")
+const validatePullRequestState = (state) => {
+  checks.pullRequestState = {
+    baseBranch: state.baseRefName,
+    baseSha: state.baseRefOid,
+    headSha: state.headRefOid,
+    draft: state.isDraft,
+  }
+  if (state.headRefOid !== localHead) emit("STALE_PR")
+  if (state.isDraft) emit("DRAFT")
 
-const compared = run(GH, ["api", `repos/${repositoryFromUrl}/compare/${encodeURIComponent(pullRequestState.baseRefName)}...${pullRequestState.headRefOid}`], githubCwd)
-if (!compared.ok) fail(2, `gh api compare failed for pull request #${pullRequest.number}: ${compared.error}`)
-let comparison
-try {
-  comparison = JSON.parse(compared.stdout)
-} catch {
-  fail(2, `gh api compare returned unparseable JSON: ${compared.stdout.trim().slice(0, 240) || "empty output"}`)
+  const compared = run(GH, ["api", `repos/${repositoryFromUrl}/compare/${encodeURIComponent(state.baseRefName)}...${state.headRefOid}`], githubCwd)
+  if (!compared.ok) fail(2, `gh api compare failed for pull request #${pullRequest.number}: ${compared.error}`)
+  let comparison
+  try {
+    comparison = JSON.parse(compared.stdout)
+  } catch {
+    fail(2, `gh api compare returned unparseable JSON: ${compared.stdout.trim().slice(0, 240) || "empty output"}`)
+  }
+  if (!Number.isInteger(comparison?.behind_by)) fail(2, `gh api compare reported no numeric behind_by for pull request #${pullRequest.number}`)
+  checks.upToDate = {
+    pass: comparison.behind_by === 0,
+    baseSha: state.baseRefOid,
+    headSha: state.headRefOid,
+    behindBy: comparison.behind_by,
+  }
+  if (!checks.upToDate.pass) emit("OUT_OF_DATE")
 }
-if (!Number.isInteger(comparison?.behind_by)) fail(2, `gh api compare reported no numeric behind_by for pull request #${pullRequest.number}`)
-checks.upToDate = {
-  pass: comparison.behind_by === 0,
-  baseSha: pullRequestState.baseRefOid,
-  headSha: pullRequestState.headRefOid,
-  behindBy: comparison.behind_by,
-}
-if (!checks.upToDate.pass) emit("OUT_OF_DATE")
+
+let pullRequestState = readPullRequestState()
+validatePullRequestState(pullRequestState)
 
 /**
  * A pull request that cannot merge was never delivered, and until this check existed nothing here
@@ -371,6 +375,7 @@ const deadline = Date.now() + waitCiSeconds * 1000
 while (rollup.failing.length === 0 && rollup.pending.length > 0 && Date.now() < deadline) {
   sleep(Math.min(30, Math.max(1, Math.ceil((deadline - Date.now()) / 1000))))
   pullRequestState = readPullRequestState()
+  validatePullRequestState(pullRequestState)
   rollup = readRollup()
 }
 

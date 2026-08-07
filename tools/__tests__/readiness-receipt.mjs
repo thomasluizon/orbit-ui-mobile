@@ -51,4 +51,10 @@ export const cases = () => {
 
   const linearStale = { ...receipt, linear: { ...receipt.linear, lastSynchronizationResult: "FAILED" } }
   T(`${TOOL}: final readiness cannot clear while Linear is stale`, readinessReport(linearStale).verdicts.includes("LINEAR_STALE"))
+
+  const visual = { ...receipt, linear: { ...receipt.linear, status: "In Progress", lastPostedState: "visual" } }
+  const visualReport = readinessReport(visual)
+  T(`${TOOL}: a synchronized visible ticket reaches technical READY while remaining In Progress`, visualReport.verdict === "READY" && visualReport.visualCheckOwed === true, JSON.stringify(visualReport))
+  const visualWrongStatus = { ...visual, linear: { ...visual.linear, status: "In Review" } }
+  T(`${TOOL}: a visible ticket moved to In Review before acceptance is LINEAR_STALE`, readinessReport(visualWrongStatus).verdicts.includes("LINEAR_STALE"))
 }

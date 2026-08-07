@@ -6,6 +6,7 @@ import { T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stage
 const TOOL = "verify-delivery.mjs"
 const BRANCH = "feature/orb-200-delivery"
 const ISSUE = "ORB-200"
+let testedToolPath = null
 
 /**
  * A real git repository is the whole point: this tool exists because a worker's own report is not
@@ -76,7 +77,7 @@ const ghPlan = (stdout, exit = 0, checks = rollup(), comparison = { behind_by: 0
 }
 
 const verdictOf = (fixture, stdout, expected, status, name) =>
-  check(TOOL, name, ["--issue", "ORB-200", "--worktree", fixture.path, "--branch", BRANCH, "--repo", "ui"], { status, stdout: new RegExp(`"verdict": "${expected}"`) }, { env: ghPlan(stdout) })
+  check(TOOL, name, ["--issue", "ORB-200", "--worktree", fixture.path, "--branch", BRANCH, "--repo", "ui"], { status, stdout: new RegExp(`"verdict": "${expected}"`) }, { path: testedToolPath, env: ghPlan(stdout) })
 
 export const cases = () => {
   check(TOOL, "refuses a missing issue", ["--worktree", ".", "--branch", BRANCH], { status: 2, stderr: /--issue must be a Linear identifier/ })
@@ -91,6 +92,14 @@ export const cases = () => {
     T(`${TOOL}: real git fixtures are available`, false, "could not stage a git repository with a bare origin")
     return
   }
+  const githubContext = stageRepo("verify-delivery-github-context")
+  if (!githubContext || githubContext.git(["remote", "set-url", "origin", "https://github.com/thomasluizon/orbit-ui-mobile.git"]).status !== 0) {
+    T(`${TOOL}: a repository-qualified GitHub context fixture is available`, false, "could not stage GitHub context")
+    return
+  }
+  const hermeticConfig = realOrchestratorConfig()
+  hermeticConfig.repos = { ...hermeticConfig.repos, ui: githubContext.path }
+  testedToolPath = stageWithConfig("verify-delivery-hermetic", TOOL, hermeticConfig).path
 
   /**
    * THE case. A worker that exits 0 having committed nothing must be caught here and nowhere else:
@@ -210,7 +219,7 @@ export const cases = () => {
     "base advancement with behind_by 1 is OUT_OF_DATE",
     ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
     { status: 1, stdout: /"verdict": "OUT_OF_DATE"/ },
-    { env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, rollup(), { behind_by: 1 }) },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, rollup(), { behind_by: 1 }) },
   )
   T(`${TOOL}: OUT_OF_DATE reports base SHA, head SHA, and behind count`, /"baseSha": "base-sha"[\s\S]*"headSha": "[^"\s]+"[\s\S]*"behindBy": 1/.test(outOfDate.stdout), outOfDate.stdout)
 
@@ -219,7 +228,7 @@ export const cases = () => {
     "a clean, pushed, single, current, in-cap pull request is DELIVERED and exits 0",
     ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
     { status: 0, stdout: /"verdict": "DELIVERED"/ },
-    { env: ghPlan(JSON.stringify([pullRequest(pushed.head)])) },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)])) },
   )
   T(
     `${TOOL}: DELIVERED carries the pull request number and url every later step needs`,
@@ -231,7 +240,7 @@ export const cases = () => {
    * A pull request that cannot merge was never delivered. Every case below passes every OTHER check,
    * so only the CI verdict can be what moves it, which is what makes these assertions able to fail.
    */
-  const withChecks = (nodes) => ({ env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, rollup(nodes)) })
+  const withChecks = (nodes) => ({ path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, rollup(nodes)) })
   const ciArgv = ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"]
 
   const failedCi = check(TOOL, "a red required check is CI_FAILING, never DELIVERED", ciArgv, { status: 1, stdout: /"verdict": "CI_FAILING"/ }, withChecks([{ __typename: "CheckRun", name: "React Doctor", status: "COMPLETED", conclusion: "FAILURE", startedAt: "2026-08-06T10:00:00Z", detailsUrl: "https://github.com/useorbitai/orbit-ui-mobile/actions/runs/12345/job/67890", workflowName: "React Doctor" }]))
@@ -239,6 +248,23 @@ export const cases = () => {
 
   check(TOOL, "a still-running check is CI_PENDING, so nothing is called delivered mid-flight", ciArgv, { status: 1, stdout: /"verdict": "CI_PENDING"/ }, withChecks([{ __typename: "CheckRun", name: "Build", status: "IN_PROGRESS", conclusion: "", startedAt: "2026-08-06T10:00:00Z" }]))
   check(TOOL, "an empty rollup is CI_PENDING until checks register", ciArgv, { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"name": "CI registration"/ }, withChecks([]))
+
+  const stateSequenceFile = stage("verify-delivery/pr-view-sequence.txt", "0")
+  const pendingState = { baseRefName: "main", baseRefOid: "base-sha", headRefOid: pushed.head, isDraft: false, statusCheckRollup: [{ __typename: "CheckRun", name: "Build", status: "IN_PROGRESS", conclusion: "", startedAt: "2026-08-06T10:00:00Z" }] }
+  const advancedState = { ...pendingState, headRefOid: "0000000000000000000000000000000000000000", statusCheckRollup: [{ __typename: "CheckRun", name: "Build", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-06T10:00:00Z" }] }
+  const advancedDuringPoll = check(
+    TOOL,
+    "a branch advance during CI polling is revalidated before delivery",
+    [...ciArgv, "--wait-ci", "1"],
+    { status: 1, stdout: /"verdict": "STALE_PR"[\s\S]*"headSha": "0000000000000000000000000000000000000000"/ },
+    { path: testedToolPath, env: orcaEnv([
+      { match: "auth token --user thomasluizon", stdout: "test-github-token" },
+      { match: `pr list --head ${BRANCH}`, stdout: JSON.stringify([pullRequest(pushed.head)]) },
+      { match: "pr view", stdout: JSON.stringify(pendingState), stdoutSequence: [JSON.stringify(pendingState), JSON.stringify(advancedState)], sequenceFile: stateSequenceFile },
+      { match: "api repos/", stdout: JSON.stringify({ behind_by: 0 }) },
+    ]) },
+  )
+  T(`${TOOL}: the poll persisted the refreshed PR identity`, /"pullRequestState": \{[\s\S]*"headSha": "0000000000000000000000000000000000000000"/.test(advancedDuringPoll.stdout), advancedDuringPoll.stdout)
 
   check(TOOL, "a StatusContext failure counts too, despite carrying state instead of conclusion", ciArgv, { status: 1, stdout: /"verdict": "CI_FAILING"/ }, withChecks([{ __typename: "StatusContext", context: "Vercel", state: "FAILURE" }]))
 
@@ -277,9 +303,9 @@ export const cases = () => {
   )
 
   const argv = ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"]
-  check(TOOL, "a failing gh is an environment error, never a verdict", ciArgv, { status: 2, stderr: /gh pr list --head .* failed/ }, { env: ghPlan("", 1) })
-  check(TOOL, "unparseable gh output is an environment error", ciArgv, { status: 2, stderr: /returned unparseable JSON/ }, { env: ghPlan("not json at all") })
-  check(TOOL, "a non-array gh payload is an environment error", ciArgv, { status: 2, stderr: /did not return an array/ }, { env: ghPlan(JSON.stringify({ number: 200 })) })
+  check(TOOL, "a failing gh is an environment error, never a verdict", ciArgv, { status: 2, stderr: /gh pr list --head .* failed/ }, { path: testedToolPath, env: ghPlan("", 1) })
+  check(TOOL, "unparseable gh output is an environment error", ciArgv, { status: 2, stderr: /returned unparseable JSON/ }, { path: testedToolPath, env: ghPlan("not json at all") })
+  check(TOOL, "a non-array gh payload is an environment error", ciArgv, { status: 2, stderr: /did not return an array/ }, { path: testedToolPath, env: ghPlan(JSON.stringify({ number: 200 })) })
   check(
     TOOL,
     "a pull request with no numeric diff size is an environment error, not fabricated advisory data",
@@ -287,14 +313,14 @@ export const cases = () => {
     { status: 2, stderr: /reported no numeric additions and deletions/ },
     // title is present so the run reaches the size check: linksTicket is asserted earlier in the
     // ladder, and a payload missing it would short-circuit to UNLINKED_PR and never test this.
-    { env: ghPlan(JSON.stringify([{ number: 200, url: "https://example.test/pull/200", headRefOid: pushed.head, title: `${ISSUE} x` }])) },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([{ number: 200, url: "https://example.test/pull/200", headRefOid: pushed.head, title: `${ISSUE} x` }])) },
   )
   check(
     TOOL,
     "a pull request with no numeric changedFiles is an environment error, not fabricated advisory data",
     argv,
     { status: 2, stderr: /reported no numeric changedFiles/ },
-    { env: ghPlan(JSON.stringify([{ number: 200, url: "https://example.test/pull/200", headRefOid: pushed.head, title: `${ISSUE} x`, additions: 1, deletions: 1 }])) },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([{ number: 200, url: "https://example.test/pull/200", headRefOid: pushed.head, title: `${ISSUE} x`, additions: 1, deletions: 1 }])) },
   )
 
   verdictOf(pushed, JSON.stringify([{ ...pullRequest(pushed.head), title: "no ticket here", body: "none either" }]), "UNLINKED_PR", 1, "a pull request that never names the ticket is UNLINKED_PR")

@@ -59,7 +59,7 @@ for (const path of paths) {
   const normalized = path.replaceAll("\\", "/").replace(/^\.\//, "")
   const target = resolve(worktree, normalized)
   const canonical = relative(worktree, target).replaceAll("\\", "/")
-  if (!normalized || normalized === "." || normalized === "-A" || normalized === "--all" || normalized.startsWith("../") || isAbsolute(path) || canonical.startsWith("..") || canonical !== normalized || /[*?[\]]/.test(normalized) || normalized.startsWith(":") || normalized === ".git" || normalized.startsWith(".git/")) {
+  if (!normalized || normalized === "." || normalized === "-A" || normalized === "--all" || normalized.startsWith("../") || isAbsolute(path) || canonical.startsWith("..") || canonical !== normalized || normalized.startsWith(":") || normalized === ".git" || normalized.startsWith(".git/")) {
     fail(2, `--path must be an explicit relative worktree path, never broad staging: ${path}`)
   }
   normalizedPaths.push(normalized)
@@ -126,7 +126,7 @@ pullRequests.push({ repositoryKey: repoKey, prNumber, receiptPath: readinessPath
 writeRunState({ ...state, pullRequests }, runRoot)
 
 try {
-  git(["add", "--", ...normalizedPaths])
+  git(["--literal-pathspecs", "add", "--", ...normalizedPaths])
   const staged = git(["diff", "--cached", "--name-only"]).trim()
   if (!staged) fail(1, "named paths produced no staged change")
   git(["commit", "-m", message])

@@ -65,7 +65,9 @@ export const readinessVerdicts = (receipt) => {
   else if (!Number.isInteger(threads.unresolvedCount) || threads.unresolvedCount > 0) verdicts.push("THREADS_OPEN")
 
   const linear = receipt.linear
-  if (!currentEvidence(linear, receipt) || linear?.lastSynchronizationResult !== "SUCCESS" || linear?.status !== "In Review") {
+  const expectedLinearStatus = linear?.lastPostedState === "visual" ? "In Progress" : "In Review"
+  const synchronizedLifecycle = linear?.lastPostedState === "visual" || linear?.lastPostedState === "ready"
+  if (!currentEvidence(linear, receipt) || linear?.lastSynchronizationResult !== "SUCCESS" || !synchronizedLifecycle || linear?.status !== expectedLinearStatus) {
     verdicts.push("LINEAR_STALE")
   }
   return [...new Set(verdicts)]
@@ -83,5 +85,6 @@ export const readinessReport = (receipt) => {
     headSha: receipt?.currentHeadSha ?? null,
     behindBy: receipt?.behindBy ?? null,
     draft: receipt?.draft ?? null,
+    visualCheckOwed: receipt?.linear?.lastPostedState === "visual",
   }
 }

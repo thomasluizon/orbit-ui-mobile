@@ -74,6 +74,9 @@ const reviewRubric = readFileSync(join(repoRoot, ".claude", "skills", "pr-review
 T("pr-review: contract changes permit only targeted sibling-primary consumer evidence", reviewSkill.includes("targeted read/search in the sibling repository's primary `main` checkout"), true)
 T("pr-review: every admitted round-two blocker remains OPEN in the verdict", reviewSkill.includes("no admitted round-2\n   blocker is OPEN") && reviewSkill.includes("Every newly admitted round-2 blocker is appended with `status: \"OPEN\"`"), true)
 T("pr-review: external fields require complete live shape evidence", reviewRubric.includes("### 13. External-interface evidence") && reviewRubric.includes("complete selected key/type shape") && reviewRubric.includes("High and Blocking"), true)
+T("pr-review: live OIDs pin a base-rubric snapshot across both rounds", reviewSkill.includes("baseRefName,baseRefOid,headRefName,headRefOid") && reviewSkill.includes("git show {baseRefOid}:.claude/skills/pr-review/rubric.md") && reviewSkill.includes("never reload the\nmutable main-checkout copy in round 2"), true)
+T("pr-review: API repository-relative sources are classified as backend", reviewSkill.includes("**backend** is `src/` or `tests/` in\norbit-api"), true)
+T("pr-review: API review floor drops sub-P1 candidates before receipt or tickets", reviewSkill.includes("Medium/Low/Info candidates are discarded before the receipt and create no ticket"), true)
 
 // ---------------------------------------------------------------------------
 // 2. Rule units

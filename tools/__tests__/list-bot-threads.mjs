@@ -1,9 +1,10 @@
 import { readFileSync } from "node:fs"
 
-import { T, check, orcaEnv, run, stage } from "./_harness.mjs"
+import { T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
 
 const TOOL = "list-bot-threads.mjs"
 const BOT = "chatgpt-codex-connector"
+let testedToolPath = null
 
 /**
  * Every field below was read off a REAL `gh api graphql` response against PR #681 on 2026-08-05
@@ -61,7 +62,7 @@ const parsed = (result) => {
   }
 }
 
-const readPr = (stdout, exit = 0) => run(TOOL, ["--pr", "https://github.com/thomasluizon/orbit-ui-mobile/pull/681", "--wait-seconds", "0"], { env: ghPlan(stdout, exit) })
+const readPr = (stdout, exit = 0) => run(TOOL, ["--pr", "https://github.com/thomasluizon/orbit-ui-mobile/pull/681", "--wait-seconds", "0"], { path: testedToolPath, env: ghPlan(stdout, exit) })
 
 export const cases = () => {
   check(TOOL, "refuses a missing pull request", ["--wait-seconds", "0"], { status: 2, stderr: /--pr must be a pull request number or full GitHub/ })
@@ -71,6 +72,16 @@ export const cases = () => {
   check(TOOL, "refuses a negative wait budget", ["--pr", "681", "--repo", "ui", "--wait-seconds", "-5"], { status: 2, stderr: /--wait-seconds must be an integer/ })
   check(TOOL, "refuses a zero poll interval", ["--pr", "681", "--repo", "ui", "--poll-seconds", "0"], { status: 2, stderr: /--poll-seconds must be an integer >= 1/ })
   check(TOOL, "refuses a zero command timeout", ["--pr", "681", "--repo", "ui", "--command-timeout-seconds", "0"], { status: 2, stderr: /--command-timeout-seconds must be an integer >= 1/ })
+
+  const uiContext = stageRepo("list-bot-threads-ui-context")
+  const apiContext = stageRepo("list-bot-threads-api-context")
+  if (!uiContext || !apiContext || uiContext.git(["remote", "set-url", "origin", "https://github.com/thomasluizon/orbit-ui-mobile.git"]).status !== 0 || apiContext.git(["remote", "set-url", "origin", "https://github.com/thomasluizon/orbit-api.git"]).status !== 0) {
+    T(`${TOOL}: repository-qualified GitHub context fixtures are available`, false, "could not stage GitHub contexts")
+    return
+  }
+  const hermeticConfig = realOrchestratorConfig()
+  hermeticConfig.repos = { ...hermeticConfig.repos, ui: uiContext.path, api: apiContext.path }
+  testedToolPath = stageWithConfig("list-bot-threads-hermetic", TOOL, hermeticConfig).path
 
   /**
    * THE ambiguity this tool exists to remove. Zero threads plus a real review is CLEAN; zero
@@ -86,7 +97,7 @@ export const cases = () => {
   )
   T(`${TOOL}: every read emits structured progress on stderr`, /"event":"CODEX_REVIEW_STATE_READ"/.test(clean.stderr), clean.stderr)
 
-  const apiNumber = run(TOOL, ["--pr", "681", "--repo", "api", "--wait-seconds", "0"], { env: orcaEnv([
+  const apiNumber = run(TOOL, ["--pr", "681", "--repo", "api", "--wait-seconds", "0"], { path: testedToolPath, env: orcaEnv([
     { match: "auth token --user thomasluizon", stdout: "test-github-token" },
     { match: "repo=orbit-api", stdout: payload({ reviews: [botReview()] }) },
   ]) })
@@ -150,7 +161,7 @@ export const cases = () => {
   )
 
   /** A draft attracts no review ever, so the wait budget must not be spent discovering that. */
-  const draft = run(TOOL, ["--pr", "https://github.com/thomasluizon/orbit-ui-mobile/pull/681", "--wait-seconds", "600", "--poll-seconds", "1"], { env: ghPlan(payload({ isDraft: true })) })
+  const draft = run(TOOL, ["--pr", "https://github.com/thomasluizon/orbit-ui-mobile/pull/681", "--wait-seconds", "600", "--poll-seconds", "1"], { path: testedToolPath, env: ghPlan(payload({ isDraft: true })) })
   const draftPlan = parsed(draft)
   T(
     `${TOOL}: a draft is reported immediately as DRAFT without consuming the wait budget`,
@@ -233,7 +244,7 @@ export const cases = () => {
   T(`${TOOL}: a null pull request is an environment error`, missing.status === 2 && /returned no pull request/.test(missing.stderr), `exit ${missing.status}: ${missing.stderr || missing.stdout}`)
 
   const descendantPidFile = stage("list-bot-threads/descendant.pid", "")
-  const hanging = run(TOOL, ["--pr", "681", "--repo", "ui", "--wait-seconds", "0", "--command-timeout-seconds", "1"], { env: orcaEnv([
+  const hanging = run(TOOL, ["--pr", "681", "--repo", "ui", "--wait-seconds", "0", "--command-timeout-seconds", "1"], { path: testedToolPath, env: orcaEnv([
     { match: "auth token --user thomasluizon", stdout: "test-github-token" },
     { match: "api graphql", stdout: "", hangTreePidFile: descendantPidFile },
   ]) })
