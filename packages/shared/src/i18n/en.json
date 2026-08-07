@@ -1440,7 +1440,7 @@
       "step1": "1. Go to Profile and tap \"Delete account\"",
       "step2": "2. A confirmation code will be sent to your email",
       "step3": "3. Enter the code to confirm deletion",
-      "step4": "After a 7-day grace period (or the end of your current paid period, whichever is later), all data is permanently deleted, including habits, completion history, AI conversations, user facts, and settings. This action is irreversible."
+      "step4": "7 days after confirmation, or 7 days after the end of your current paid period, whichever is later, all data is permanently deleted, including habits, completion history, AI conversations, user facts, and settings. This action is irreversible."
     },
     "contact": {
       "title": "Contact",

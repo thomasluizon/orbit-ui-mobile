@@ -1,3 +1,6 @@
+import React from 'react'
+import { render, screen } from '@testing-library/react'
+import { NextIntlClientProvider } from 'next-intl'
 import en from '../../../packages/shared/src/i18n/en.json'
 import ptBR from '../../../packages/shared/src/i18n/pt-BR.json'
 import {
@@ -6,6 +9,17 @@ import {
   webPrivacyRetentionKeys as webRetentionKeys,
   webPrivacyThirdPartyKeys as webThirdPartyKeys,
 } from '../../../packages/shared/src/i18n'
+import PrivacyPage from '@/app/(public)/privacy/page'
+
+const TestIntlProvider = NextIntlClientProvider as React.ComponentType<{
+  locale: string
+  messages: typeof en
+  children?: React.ReactNode
+}>
+
+vi.mock('@/hooks/use-go-back-or-fallback', () => ({
+  useGoBackOrFallback: () => vi.fn(),
+}))
 
 const SECTION_METADATA_KEYS = new Set(['title', 'intro'])
 
@@ -22,7 +36,24 @@ function flattenKeys(value: unknown, prefix = ''): string[] {
 }
 
 describe('privacy policy disclosures', () => {
-  it('renders every third party and retention disclosure on web and mobile', () => {
+  it('renders the new processor and retention disclosures on web', () => {
+    render(
+      React.createElement(
+        TestIntlProvider,
+        {
+          locale: 'en',
+          messages: en,
+        },
+        React.createElement(PrivacyPage),
+      ),
+    )
+
+    expect(screen.getByText(en.privacy.thirdParty.posthog)).toBeInTheDocument()
+    expect(screen.getByText(en.privacy.retention.syncRecords)).toBeInTheDocument()
+    expect(screen.getByText(en.privacy.retention.afterDeletion)).toBeInTheDocument()
+  })
+
+  it('wires every third party and retention disclosure on web and mobile', () => {
     const thirdPartyKeys = renderedKeys(en.privacy.thirdParty)
     const retentionKeys = renderedKeys(en.privacy.retention)
 
@@ -54,6 +85,19 @@ describe('privacy policy disclosures', () => {
     expect(retention.billingRecords).toContain('90')
     expect(retention.afterDeletion).toContain('7')
   })
+
+  it.each([
+    ['English', en.privacy, '7 days after confirmation', '7 days after the end'],
+    ['Portuguese', ptBR.privacy, '7 dias após a confirmação', '7 dias após o fim'],
+  ])(
+    'aligns the %s deletion disclosure with both backend deadlines',
+    (_locale, privacy, confirmationDeadline, paidDeadline) => {
+      expect(privacy.retention.afterDeletion).toContain(confirmationDeadline)
+      expect(privacy.retention.afterDeletion).toContain(paidDeadline)
+      expect(privacy.deletion.step4).toContain(confirmationDeadline)
+      expect(privacy.deletion.step4).toContain(paidDeadline)
+    },
+  )
 
   it('discloses United States analytics processing and the current update month', () => {
     expect(en.privacy.dataResidency.body).toContain('United States')

@@ -1440,7 +1440,7 @@
       "step1": "1. Vá ao Perfil e toque em \"Excluir conta\"",
       "step2": "2. Enviamos um código de confirmação para o seu e-mail",
       "step3": "3. Digite o código para confirmar a exclusão",
-      "step4": "Após um período de carência de 7 dias (ou o fim do seu período pago atual, o que ocorrer por último), todos os dados são apagados de forma permanente: hábitos, histórico de conclusão, conversas com a IA, o que a IA sabe sobre você e as configurações. Esta ação não tem volta."
+      "step4": "7 dias após a confirmação, ou 7 dias após o fim do seu período pago atual, o que ocorrer por último, todos os dados são apagados de forma permanente: hábitos, histórico de conclusão, conversas com a IA, o que a IA sabe sobre você e as configurações. Esta ação não tem volta."
     },
     "contact": {
       "title": "Contato",
