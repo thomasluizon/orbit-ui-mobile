@@ -178,6 +178,13 @@ for (const command of [
   "git add --pathspec-from-file paths.txt --pathspec-file-nul",
   "git commit -am 'sweep everything'",
   "git commit --all -m 'sweep everything'",
+  "git commit . -m 'sweep everything'",
+  "git commit ':(glob)**' -m 'sweep everything'",
+  "git commit --pathspec-from-file paths.txt -m 'sweep everything'",
+  "git commit -p",
+  "git commit --patch",
+  "git commit -i",
+  "git commit --interactive",
   `git -C "${linkedWorktree}" add .`,
 ]) {
   T(`staging: ${command} blocks in a worker worktree`, blocks(workerStaging(command)), true)
@@ -189,6 +196,8 @@ T(
   null,
 )
 T("staging: literal pathspec magic is allowed", workerStaging("git add ':(literal)apps/web/app/api/[...path]/route.ts'"), null)
+T("staging: an explicitly named commit path is allowed", workerStaging("git commit tools/verify-delivery.mjs -m 'named only'"), null)
+T("staging: a literal bracketed commit path is allowed", workerStaging("git commit ':(literal)apps/web/app/api/[...path]/route.ts' -m 'named only'"), null)
 T("staging: broad add outside a worker is untouched", checkBroadStaging("git add -A", { cwd: mainCheckout, repoRoots: [mainCheckout] }), null)
 // REGRESSION (fixed 2026-08-04). The previous revision split the command on a
 // bare /[&|;\n]/, so the `|` inside the quoted search pattern produced a phantom

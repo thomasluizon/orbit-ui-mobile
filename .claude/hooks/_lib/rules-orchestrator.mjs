@@ -40,6 +40,14 @@ const HTTPIE_BINARIES = new Set(["http", "https", "httpie"])
 const BARE_PUT = /(?<![\w-])PUT(?![\w-])/
 const SHELL_WORD = /"[^"]*"|'[^']*'|\S+/g
 const BROAD_ADD_FLAGS = new Set(["-A", "--all", "-u", "--update", "--renormalize"])
+const COMMIT_VALUE_FLAGS = new Set(["-m", "--message", "-F", "--file", "-C", "--reuse-message", "-c", "--reedit-message", "--author", "--date", "--cleanup", "--trailer", "--fixup", "--squash"])
+
+const isBroadPathspec = (argument, literalGlobally) => {
+  const literalPrefix = argument.startsWith(":(literal)")
+  const path = literalPrefix ? argument.slice(10) : argument
+  if (!path || /^\.\/?$/.test(path)) return true
+  return !literalGlobally && !literalPrefix && (/[*?[\]]/.test(path) || argument.startsWith(":"))
+}
 
 /**
  * Everything before the first real word: leading grouping punctuation and any number of
@@ -148,7 +156,26 @@ export function checkBroadStaging(command, { env = {}, cwd = "", repoRoots = [] 
     const words = (source.match(SHELL_WORD) ?? []).map((word) => word.replace(/^["']|["']$/g, ""))
     const commitIndex = words.findIndex((word, index) => index > 0 && word.toLowerCase() === "commit")
     if (commitIndex >= 0) {
-      const broadCommit = words.slice(commitIndex + 1).some((argument) => argument === "--all" || /^-[^-]*a/.test(argument))
+      const literalGlobally = words.slice(1, commitIndex).includes("--literal-pathspecs")
+      let afterSeparator = false
+      let skipValue = false
+      let broadCommit = false
+      for (const argument of words.slice(commitIndex + 1)) {
+        if (skipValue) {
+          skipValue = false
+          continue
+        }
+        if (!afterSeparator && argument === "--") {
+          afterSeparator = true
+          continue
+        }
+        if (!afterSeparator && argument.startsWith("-")) {
+          if (["--all", "--interactive", "--patch"].includes(argument) || /^-[^-]*[aip]/.test(argument) || argument.startsWith("--pathspec")) broadCommit = true
+          if (COMMIT_VALUE_FLAGS.has(argument)) skipValue = true
+          continue
+        }
+        if (isBroadPathspec(argument, literalGlobally)) broadCommit = true
+      }
       if (broadCommit) {
         return blocked(
           command,
@@ -179,12 +206,7 @@ export function checkBroadStaging(command, { env = {}, cwd = "", repoRoots = [] 
         continue
       }
       namedPaths += 1
-      const literalPrefix = argument.startsWith(":(literal)")
-      const path = literalPrefix ? argument.slice(10) : argument
-      // An empty literal pathspec is not an empty match. Installed Git 2.52 resolves `:(literal)`
-      // to the whole worktree, so it is just as broad as dot.
-      if (!path || /^\.\/?$/.test(path)) broad = true
-      if (!literalGlobally && !literalPrefix && (/[*?[\]]/.test(path) || argument.startsWith(":"))) broad = true
+      if (isBroadPathspec(argument, literalGlobally)) broad = true
     }
     if (!broad && !(words.length > addIndex + 1 && namedPaths === 0)) continue
     return blocked(

@@ -164,9 +164,9 @@ const QUERY = `query($owner:String!,$repo:String!,$pr:Int!,$threadsAfter:String)
   }
 }`
 
-const gh = async (args, operation) => {
-  const result = await runBounded(GH, args, { cwd: githubCwd, env: githubAuth.environment, timeoutMs: commandTimeoutSeconds * 1000 })
-  if (result.timedOut) fail(2, `${operation} timed out after ${commandTimeoutSeconds}s; the complete child process tree was terminated`)
+const gh = async (args, operation, timeoutMs = commandTimeoutSeconds * 1000) => {
+  const result = await runBounded(GH, args, { cwd: githubCwd, env: githubAuth.environment, timeoutMs })
+  if (result.timedOut) fail(2, `${operation} timed out after ${Math.max(1, Math.ceil(timeoutMs / 1000))}s; the complete child process tree was terminated`)
   if (result.overflowed) fail(2, `${operation} exceeded the 32 MiB output bound; the complete child process tree was terminated`)
   if (result.error || result.status !== 0) {
     const detail = result.stderr || result.stdout || result.error?.message || `exit ${result.status}`
@@ -176,11 +176,15 @@ const gh = async (args, operation) => {
 }
 
 const readPullRequest = async () => {
-  const fetchPage = async (threadsAfter = null) => {
+  const paginationDeadline = Date.now() + commandTimeoutSeconds * 1000
+  const fetchPage = async (threadsAfter = null, page = 1) => {
+    const remainingMs = paginationDeadline - Date.now()
+    if (remainingMs <= 0) fail(2, `review-thread pagination exceeded its ${commandTimeoutSeconds}s total bound`)
     const cursorArgs = threadsAfter === null ? [] : ["-f", `threadsAfter=${threadsAfter}`]
     const stdout = await gh(
       ["api", "graphql", "-F", `owner=${owner}`, "-F", `repo=${repo}`, "-F", `pr=${pullRequest}`, ...cursorArgs, "-f", `query=${QUERY}`],
-      `gh api graphql`,
+      `gh api graphql review-thread page ${page}`,
+      remainingMs,
     )
     let payload
     try {
@@ -194,6 +198,7 @@ const readPullRequest = async () => {
     const pageInfo = node.reviewThreads?.pageInfo
     if (typeof pageInfo?.hasNextPage !== "boolean" || !(typeof pageInfo.endCursor === "string" || pageInfo.endCursor === null)) fail(2, "gh api graphql returned no complete reviewThreads pageInfo")
     if (!Array.isArray(node.reviewThreads?.nodes)) fail(2, "gh api graphql returned no reviewThreads nodes array")
+    console.error(JSON.stringify({ event: "CODEX_THREAD_PAGE_READ", pr: Number(pullRequest), page, headRefOid: node.headRefOid, hasNextPage: pageInfo.hasNextPage }))
     return node
   }
 
@@ -201,9 +206,13 @@ const readPullRequest = async () => {
   const nodes = [...first.reviewThreads.nodes]
   let pageInfo = first.reviewThreads.pageInfo
   let pages = 1
+  const seenCursors = new Set()
   while (pageInfo.hasNextPage) {
     if (!pageInfo.endCursor) fail(2, "gh api graphql reviewThreads page says another page exists but carries no endCursor")
-    const next = await fetchPage(pageInfo.endCursor)
+    if (seenCursors.has(pageInfo.endCursor)) fail(2, "gh api graphql reviewThreads pagination repeated an endCursor")
+    if (pages >= 100) fail(2, "gh api graphql reviewThreads pagination exceeded the 100-page safety bound")
+    seenCursors.add(pageInfo.endCursor)
+    const next = await fetchPage(pageInfo.endCursor, pages + 1)
     if (next.headRefOid !== first.headRefOid || next.baseRefOid !== first.baseRefOid) fail(2, "pull request head/base changed while review threads were paginated; retry on the new pair")
     nodes.push(...next.reviewThreads.nodes)
     pageInfo = next.reviewThreads.pageInfo

@@ -196,6 +196,17 @@ export const cases = () => {
   ]) })
   const pagedPlan = parsed(paged)
   T(`${TOOL}: review threads are fully paginated before counts are reported`, paged.status === 0 && pagedPlan?.threadsComplete === true && pagedPlan?.counts.pages === 2 && pagedPlan.counts.total === 2 && pagedPlan.counts.unresolved === 2, paged.stdout || paged.stderr)
+  T(`${TOOL}: every review-thread page emits structured progress`, /"event":"CODEX_THREAD_PAGE_READ"[\s\S]*"page":2/.test(paged.stderr), paged.stderr)
+
+  const cycleSequence = stage("list-bot-threads/cycle-sequence", "0")
+  const cycle = run(TOOL, ["--pr", "681", "--repo", "ui", "--wait-seconds", "0"], { path: testedToolPath, env: orcaEnv([
+    { match: "auth token --user thomasluizon", stdout: "test-github-token" },
+    { match: "api graphql", stdoutSequence: [
+      payload({ reviews: [botReview()], pageInfo: { hasNextPage: true, endCursor: "repeated" } }),
+      payload({ reviews: [botReview()], pageInfo: { hasNextPage: true, endCursor: "repeated" } }),
+    ], sequenceFile: cycleSequence },
+  ]) })
+  T(`${TOOL}: a repeated review-thread cursor fails closed instead of looping`, cycle.status === 2 && /repeated an endCursor/.test(cycle.stderr), cycle.stderr || cycle.stdout)
 
   /** #681's real shape: outdated means the code moved, NOT that anyone handled the finding. */
   const outdated = readPr(payload({ reviews: [botReview()], threads: [thread({ isOutdated: true })] }))
@@ -251,7 +262,7 @@ export const cases = () => {
   T(`${TOOL}: a review with no commit at all cannot be proven current, so it is not accepted`, noCommit.status === 1 && parsed(noCommit)?.verdict === "NO_REVIEW", noCommit.stdout || noCommit.stderr)
 
   const failing = readPr("", 1)
-  T(`${TOOL}: a failing gh is an environment error, never a verdict`, failing.status === 2 && /gh api graphql failed/.test(failing.stderr), `exit ${failing.status}: ${failing.stderr || failing.stdout}`)
+  T(`${TOOL}: a failing gh is an environment error, never a verdict`, failing.status === 2 && /gh api graphql.*failed/.test(failing.stderr), `exit ${failing.status}: ${failing.stderr || failing.stdout}`)
 
   const garbage = readPr("not json at all")
   T(`${TOOL}: unparseable gh output is an environment error`, garbage.status === 2 && /unparseable JSON/.test(garbage.stderr), `exit ${garbage.status}: ${garbage.stderr || garbage.stdout}`)
