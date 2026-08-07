@@ -18,7 +18,7 @@ const ready = () => ({
   independentReview: { reviewerKind: "independent", verdict: "CLEAN", rounds: 1, reviewedHeadOid: HEAD_A, artifactPath: "C:/scratch/review.json", headSha: HEAD_A, baseSha: BASE_A },
   ci: { settled: true, green: true, headSha: HEAD_A, baseSha: BASE_A, checks: [] },
   codexConnector: { passed: true, reviewedCommit: HEAD_A, headSha: HEAD_A, baseSha: BASE_A },
-  threads: { unresolvedCount: 0, headSha: HEAD_A, baseSha: BASE_A },
+  threads: { complete: true, unresolvedCount: 0, headSha: HEAD_A, baseSha: BASE_A },
   behindBy: 0,
   draft: false,
   linear: { status: "In Review", lastSynchronizationResult: "SUCCESS", lastPostedState: "ready", headSha: HEAD_A, baseSha: BASE_A },

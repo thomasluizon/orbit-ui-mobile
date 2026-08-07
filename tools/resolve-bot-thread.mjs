@@ -18,9 +18,9 @@
  *   filed as ORB-N            the finding is real and deferred to its own ticket
  */
 
-import { execFileSync } from "node:child_process"
 import { readFileSync } from "node:fs"
 
+import { runBounded } from "./lib/bounded-process.mjs"
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
@@ -29,6 +29,7 @@ const USAGE = `usage: resolve-bot-thread.mjs --thread <PRRT_...> --repo <ui|api|
 
   --thread <id>    the review thread node id, opaque (required)
   --repo <key>      repository whose owner selects the process-local GitHub token (required)
+  --command-timeout-seconds <s>  hard bound for each GitHub child (default: 45)
   --resolve-only   retry ONLY the resolve, for a run whose reply already landed. Reads no stdin,
                    and first VERIFIES a reply exists on the thread, so the no-bare-resolve rule
                    still holds by construction rather than by trusting the caller
@@ -61,7 +62,7 @@ const argOf = (flag) => {
   return index === -1 ? null : process.argv[index + 1]
 }
 
-const VALUE_FLAGS = new Set(["--thread", "--repo"])
+const VALUE_FLAGS = new Set(["--thread", "--repo", "--command-timeout-seconds"])
 const KNOWN_FLAGS = new Set([...VALUE_FLAGS, "--dry-run", "--resolve-only", "--help", "-h"])
 const unknown = process.argv.slice(2).filter((value, index, argv) => value.startsWith("-") && !KNOWN_FLAGS.has(value) && !VALUE_FLAGS.has(argv[index - 1]))
 if (unknown.length) fail(2, `${USAGE}\n\nunknown option(s): ${unknown.join(" ")}`)
@@ -70,6 +71,7 @@ const threadId = argOf("--thread")
 const repoKey = argOf("--repo")
 const dryRun = process.argv.includes("--dry-run")
 const resolveOnly = process.argv.includes("--resolve-only")
+const commandTimeoutSeconds = Number(argOf("--command-timeout-seconds") ?? "45")
 
 /**
  * Opaque, but not unvalidated. GitHub's review-thread node ids carry the PRRT_ prefix, and refusing
@@ -80,6 +82,7 @@ if (!threadId || !/^PRRT_[A-Za-z0-9_-]+$/.test(threadId)) {
   fail(2, `${USAGE}\n\n--thread must be a review thread node id such as PRRT_kwDOABCD1234`)
 }
 if (!repoKey || repoKey.startsWith("-")) fail(2, `${USAGE}\n\n--repo must name a configured repository`)
+if (!Number.isFinite(commandTimeoutSeconds) || commandTimeoutSeconds <= 0) fail(2, `${USAGE}\n\n--command-timeout-seconds requires a positive number`)
 
 let config
 try {
@@ -127,14 +130,13 @@ const RESOLVE_MUTATION = `mutation($thread:ID!){
   }
 }`
 
-const graphql = (query, fields) => {
+const graphql = async (query, fields) => {
   const args = ["api", "graphql", ...fields.flatMap(([flag, value]) => [flag, value]), "-f", `query=${query}`]
-  let stdout = ""
-  try {
-    stdout = execFileSync(GH, args, { cwd: githubCwd, env: githubAuth.environment, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 8 * 1024 * 1024 })
-  } catch (error) {
-    return { ok: false, detail: redactSecrets((error.stderr?.toString() || error.stdout?.toString() || error.message).trim().slice(0, 400), githubAuth.secrets) }
-  }
+  const result = await runBounded(GH, args, { cwd: githubCwd, env: githubAuth.environment, timeoutMs: commandTimeoutSeconds * 1000, maxBuffer: 8 * 1024 * 1024 })
+  if (result.timedOut) return { ok: false, detail: `GitHub command timed out after ${commandTimeoutSeconds}s; the complete child process tree was terminated` }
+  if (result.overflowed) return { ok: false, detail: "GitHub command exceeded the 8 MiB output bound; the complete child process tree was terminated" }
+  if (result.error || result.status !== 0) return { ok: false, detail: redactSecrets((result.stderr || result.stdout || result.error?.message || `exit ${result.status}`).trim().slice(0, 400), githubAuth.secrets) }
+  const stdout = result.stdout
   let payload
   try {
     payload = JSON.parse(stdout)
@@ -152,7 +154,7 @@ if (dryRun) {
 
 let githubAuth
 try {
-  githubAuth = await githubEnvironment(githubCwd)
+  githubAuth = await githubEnvironment(githubCwd, { timeoutMs: commandTimeoutSeconds * 1000 })
 } catch (error) {
   fail(2, redactSecrets(error.message))
 }
@@ -171,7 +173,7 @@ const THREAD_QUERY = `query($thread:ID!){
 }`
 
 if (resolveOnly) {
-  const existing = graphql(THREAD_QUERY, [["-f", `thread=${threadId}`]])
+  const existing = await graphql(THREAD_QUERY, [["-f", `thread=${threadId}`]])
   if (!existing.ok) fail(2, `could not read thread ${threadId} to confirm a reply exists: ${existing.detail}`)
   const thread = existing.data?.node
   if (!thread) fail(2, `no review thread ${threadId}`)
@@ -183,7 +185,7 @@ if (resolveOnly) {
   if ((thread.comments?.totalCount ?? 0) < 2) {
     fail(2, `${threadId} carries no reply, so --resolve-only would close it with no stated reason. Send a reply body on stdin instead`)
   }
-  const retried = graphql(RESOLVE_MUTATION, [["-f", `thread=${threadId}`]])
+  const retried = await graphql(RESOLVE_MUTATION, [["-f", `thread=${threadId}`]])
   if (!retried.ok) {
     console.log(JSON.stringify({ threadId, resolveOnly: true, replied: true, resolved: false, error: retried.detail }, null, 2))
     process.exit(1)
@@ -192,7 +194,7 @@ if (resolveOnly) {
   process.exit(0)
 }
 
-const replied = graphql(REPLY_MUTATION, [
+const replied = await graphql(REPLY_MUTATION, [
   ["-f", `thread=${threadId}`],
   ["-f", `body=${reply}`],
 ])
@@ -202,7 +204,7 @@ if (!replied.ok) {
   process.exit(1)
 }
 
-const resolved = graphql(RESOLVE_MUTATION, [["-f", `thread=${threadId}`]])
+const resolved = await graphql(RESOLVE_MUTATION, [["-f", `thread=${threadId}`]])
 
 if (!resolved.ok) {
   /**

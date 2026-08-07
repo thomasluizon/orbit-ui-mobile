@@ -1,4 +1,6 @@
-import { T, check, orcaEnv, realOrchestratorConfig, run, stageRepo, stageWithConfig } from "./_harness.mjs"
+import { readFileSync } from "node:fs"
+
+import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
 
 const TOOL = "resolve-bot-thread.mjs"
 const THREAD = "PRRT_kwDOR5Siws6Wfy_V"
@@ -34,6 +36,7 @@ export const cases = () => {
   check(TOOL, "refuses a pull request number in place of a thread id", ["--thread", "681"], { status: 2, stderr: /--thread must be a review thread node id/ }, { input: "fixed in abc123" })
   check(TOOL, "refuses a malformed thread id before any mutation", ["--thread", "IC_notathread"], { status: 2, stderr: /--thread must be a review thread node id/ }, { input: "fixed in abc123" })
   check(TOOL, "refuses a missing repository before any mutation", ["--thread", THREAD], { status: 2, stderr: /--repo must name a configured repository/ }, { input: "fixed in abc123" })
+  check(TOOL, "refuses a zero command timeout", ["--thread", THREAD, "--repo", "ui", "--command-timeout-seconds", "0"], { status: 2, stderr: /--command-timeout-seconds requires a positive number/ }, { input: "fixed in abc123" })
 
   const githubContext = stageRepo("resolve-bot-thread-github-context")
   if (!githubContext || githubContext.git(["remote", "set-url", "origin", "https://github.com/thomasluizon/orbit-ui-mobile.git"]).status !== 0) {
@@ -122,6 +125,15 @@ export const cases = () => {
 
   const retryFailed = run(TOOL, ["--thread", THREAD, "--repo", "ui", "--resolve-only"], { path: testedToolPath, env: retryPlan(threadWithReply, JSON.stringify({ errors: [{ message: "still failing" }] })) })
   T(`${TOOL}: a failing --resolve-only retry exits non-zero naming the error`, retryFailed.status === 1 && /still failing/.test(parsed(retryFailed)?.error ?? ""), retryFailed.stdout || retryFailed.stderr)
+
+  const descendantPidFile = stage("resolve-bot-thread/descendant.pid", "")
+  const hanging = run(TOOL, ["--thread", THREAD, "--repo", "ui", "--resolve-only", "--command-timeout-seconds", "1"], { path: testedToolPath, env: orcaEnv([
+    { match: "auth token --user thomasluizon", stdout: "test-github-token" },
+    { match: "PullRequestReviewThread", stdout: "", hangTreePidFile: descendantPidFile },
+  ]) })
+  const descendantPid = Number(readFileSync(descendantPidFile, "utf8"))
+  T(`${TOOL}: a hanging thread GraphQL read is bounded`, hanging.status === 2 && /timed out after 1s/.test(hanging.stderr), hanging.stderr || hanging.stdout)
+  T(`${TOOL}: thread timeout removes the complete child process tree`, Number.isInteger(descendantPid) && !processIsRunning(descendantPid), `descendant ${descendantPid} still alive`)
 
   /** --dry-run is the seam that keeps this module hermetic: it must mutate nothing at all. */
   const dry = run(TOOL, ["--thread", THREAD, "--repo", "ui", "--dry-run"], { path: testedToolPath, env: orcaEnv([]), input: "not applicable because the code moved" })

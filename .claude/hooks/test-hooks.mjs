@@ -167,12 +167,17 @@ for (const command of [
   "git add \"./\"",
   "git add src/*.ts",
   "git add ':(glob)src/*.ts'",
+  "git add :",
+  "git add :/",
+  "git add ':(literal)'",
   "git add apps/web/app/api/[...path]/route.ts",
   "git stage .",
   "git add --pathspec-from-file paths.txt",
   "git add --pathspec-from-file=paths.txt",
   "git add --pathspec-from-f paths.txt",
   "git add --pathspec-from-file paths.txt --pathspec-file-nul",
+  "git commit -am 'sweep everything'",
+  "git commit --all -m 'sweep everything'",
   `git -C "${linkedWorktree}" add .`,
 ]) {
   T(`staging: ${command} blocks in a worker worktree`, blocks(workerStaging(command)), true)

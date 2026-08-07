@@ -62,7 +62,7 @@ export const readinessVerdicts = (receipt) => {
 
   const threads = receipt.threads
   if (!currentEvidence(threads, receipt)) verdicts.push("THREADS_STALE")
-  else if (!Number.isInteger(threads.unresolvedCount) || threads.unresolvedCount > 0) verdicts.push("THREADS_OPEN")
+  else if (threads.complete !== true || !Number.isInteger(threads.unresolvedCount) || threads.unresolvedCount > 0) verdicts.push("THREADS_OPEN")
 
   const linear = receipt.linear
   const expectedLinearStatus = linear?.lastPostedState === "visual" ? "In Progress" : "In Review"

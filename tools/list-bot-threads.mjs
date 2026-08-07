@@ -147,16 +147,19 @@ try {
   fail(2, redactSecrets(error.message))
 }
 
-const QUERY = `query($owner:String!,$repo:String!,$pr:Int!){
+const QUERY = `query($owner:String!,$repo:String!,$pr:Int!,$threadsAfter:String){
   repository(owner:$owner,name:$repo){
     pullRequest(number:$pr){
       number isDraft baseRefOid headRefOid
       reviews(last:50){nodes{author{login} state submittedAt body commit{oid}}}
       comments(last:100){nodes{author{login} body createdAt url}}
-      reviewThreads(first:100){nodes{
-        id isResolved isOutdated path line
-        comments(first:1){nodes{author{login} body}}
-      }}
+      reviewThreads(first:100,after:$threadsAfter){
+        pageInfo{hasNextPage endCursor}
+        nodes{
+          id isResolved isOutdated path line
+          comments(first:1){nodes{author{login} body}}
+        }
+      }
     }
   }
 }`
@@ -173,20 +176,41 @@ const gh = async (args, operation) => {
 }
 
 const readPullRequest = async () => {
-  const stdout = await gh(
-    ["api", "graphql", "-F", `owner=${owner}`, "-F", `repo=${repo}`, "-F", `pr=${pullRequest}`, "-f", `query=${QUERY}`],
-    `gh api graphql`,
-  )
-  let payload
-  try {
-    payload = JSON.parse(stdout)
-  } catch {
-    fail(2, `gh api graphql returned unparseable JSON: ${stdout.trim().slice(0, 240) || "empty output"}`)
+  const fetchPage = async (threadsAfter = null) => {
+    const cursorArgs = threadsAfter === null ? [] : ["-f", `threadsAfter=${threadsAfter}`]
+    const stdout = await gh(
+      ["api", "graphql", "-F", `owner=${owner}`, "-F", `repo=${repo}`, "-F", `pr=${pullRequest}`, ...cursorArgs, "-f", `query=${QUERY}`],
+      `gh api graphql`,
+    )
+    let payload
+    try {
+      payload = JSON.parse(stdout)
+    } catch {
+      fail(2, `gh api graphql returned unparseable JSON: ${stdout.trim().slice(0, 240) || "empty output"}`)
+    }
+    if (payload.errors?.length) fail(2, `gh api graphql reported: ${payload.errors.map((entry) => entry.message).join("; ")}`)
+    const node = payload.data?.repository?.pullRequest
+    if (!node) fail(2, `gh api graphql returned no pull request ${pullRequest}`)
+    const pageInfo = node.reviewThreads?.pageInfo
+    if (typeof pageInfo?.hasNextPage !== "boolean" || !(typeof pageInfo.endCursor === "string" || pageInfo.endCursor === null)) fail(2, "gh api graphql returned no complete reviewThreads pageInfo")
+    if (!Array.isArray(node.reviewThreads?.nodes)) fail(2, "gh api graphql returned no reviewThreads nodes array")
+    return node
   }
-  if (payload.errors?.length) fail(2, `gh api graphql reported: ${payload.errors.map((entry) => entry.message).join("; ")}`)
-  const node = payload.data?.repository?.pullRequest
-  if (!node) fail(2, `gh api graphql returned no pull request ${pullRequest}`)
-  return node
+
+  const first = await fetchPage()
+  const nodes = [...first.reviewThreads.nodes]
+  let pageInfo = first.reviewThreads.pageInfo
+  let pages = 1
+  while (pageInfo.hasNextPage) {
+    if (!pageInfo.endCursor) fail(2, "gh api graphql reviewThreads page says another page exists but carries no endCursor")
+    const next = await fetchPage(pageInfo.endCursor)
+    if (next.headRefOid !== first.headRefOid || next.baseRefOid !== first.baseRefOid) fail(2, "pull request head/base changed while review threads were paginated; retry on the new pair")
+    nodes.push(...next.reviewThreads.nodes)
+    pageInfo = next.reviewThreads.pageInfo
+    pages += 1
+  }
+  first.reviewThreads = { nodes, pageInfo, pages, complete: true }
+  return first
 }
 
 /**
@@ -350,7 +374,7 @@ if (!evidence) {
     : `no ${botLogin} review arrived; ${asked}; do not report this pull request as clean`
   console.log(
     JSON.stringify(
-      { pr: Number(pullRequest), isDraft: false, verdict: "NO_REVIEW", reviewedAt: null, reviewState: null, baseRefOid: node.baseRefOid, headRefOid: node.headRefOid, staleReviewCommit: stale?.commit?.oid ?? staleComment?.reportedCommit ?? null, threads, waitedSeconds: waitSeconds, reviewRequested: requested, note },
+      { pr: Number(pullRequest), isDraft: false, verdict: "NO_REVIEW", reviewedAt: null, reviewState: null, baseRefOid: node.baseRefOid, headRefOid: node.headRefOid, staleReviewCommit: stale?.commit?.oid ?? staleComment?.reportedCommit ?? null, threadsComplete: node.reviewThreads.complete === true, threads, waitedSeconds: waitSeconds, reviewRequested: requested, note },
       null,
       2,
     ),
@@ -381,7 +405,8 @@ console.log(
        * threads hold the findings.
        */
       reviewBody: verdict === "CHANGES_REQUESTED" ? (review.body ?? "").trim().slice(0, 4000) : null,
-      counts: { total: threads.length, unresolved: threads.filter((thread) => !thread.isResolved).length },
+      threadsComplete: node.reviewThreads.complete === true,
+      counts: { total: threads.length, unresolved: threads.filter((thread) => !thread.isResolved).length, pages: node.reviewThreads.pages },
       threads,
     },
     null,

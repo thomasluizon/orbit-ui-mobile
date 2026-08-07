@@ -146,6 +146,18 @@ export function checkBroadStaging(command, { env = {}, cwd = "", repoRoots = [] 
     const source = withoutLeadingAssignments(segment)
     if (invokedBinary(source) !== "git") continue
     const words = (source.match(SHELL_WORD) ?? []).map((word) => word.replace(/^["']|["']$/g, ""))
+    const commitIndex = words.findIndex((word, index) => index > 0 && word.toLowerCase() === "commit")
+    if (commitIndex >= 0) {
+      const broadCommit = words.slice(commitIndex + 1).some((argument) => argument === "--all" || /^-[^-]*a/.test(argument))
+      if (broadCommit) {
+        return blocked(
+          command,
+          "Worker worktrees may not let `git commit -a/--all` stage every tracked change. Inspect\n" +
+            "`git status --short`, stage each intended literal path by name, then commit without an\n" +
+            "automatic staging flag. Tracked `.orca/` changes are source.",
+        )
+      }
+    }
     // `git stage` is an exact synonym for `git add`; guarding only the canonical spelling leaves
     // every broad pathspec form available through the alias.
     const addIndex = words.findIndex((word, index) => index > 0 && ["add", "stage"].includes(word.toLowerCase()))
@@ -169,8 +181,10 @@ export function checkBroadStaging(command, { env = {}, cwd = "", repoRoots = [] 
       namedPaths += 1
       const literalPrefix = argument.startsWith(":(literal)")
       const path = literalPrefix ? argument.slice(10) : argument
-      if (/^\.\/?$/.test(path)) broad = true
-      if (!literalGlobally && !literalPrefix && (/[*?[\]]/.test(path) || /^:(?:\(|!|\^|\/)/.test(path))) broad = true
+      // An empty literal pathspec is not an empty match. Installed Git 2.52 resolves `:(literal)`
+      // to the whole worktree, so it is just as broad as dot.
+      if (!path || /^\.\/?$/.test(path)) broad = true
+      if (!literalGlobally && !literalPrefix && (/[*?[\]]/.test(path) || argument.startsWith(":"))) broad = true
     }
     if (!broad && !(words.length > addIndex + 1 && namedPaths === 0)) continue
     return blocked(

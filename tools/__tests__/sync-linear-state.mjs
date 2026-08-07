@@ -36,6 +36,14 @@ export const cases = () => {
   check(TOOL, "an identical current-head state skips duplicate comment spam", argv, { status: 0, stdout: /"commentPosted": false/ }, { path: staged.path, env: duplicateEnv })
   T(`${TOOL}: duplicate state did not call comment add`, existsSync(duplicateMarker))
 
+  const stdinArgv = [...argv]
+  stdinArgv[stdinArgv.indexOf(message)] = "-"
+  check(TOOL, "the documented message-file stdin sentinel is accepted", stdinArgv, { status: 0, stdout: /"lastSynchronizationResult": "SUCCESS"/ }, { path: staged.path, input: "state from stdin\n", env: orcaEnv([
+    { match: "linear issue ORB-700 --full --json", stdout: issueEnvelope() },
+    { match: "linear status set ORB-700", stdout: "", ignoreLinearShape: true },
+    { match: "linear comment add ORB-700", stdout: "", ignoreLinearShape: true },
+  ]) })
+
   const visual = [...argv]
   visual[visual.indexOf("ready")] = "visual"
   check(TOOL, "visible-effect work remains In Progress", visual, { status: 0, stdout: /"status": "In Progress"/ }, { path: staged.path, env: orcaEnv([

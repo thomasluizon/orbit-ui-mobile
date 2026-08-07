@@ -26,7 +26,7 @@ const HEAD = "0f4abca78a0f4c487a98ab642508c06c6634f36f"
 const OLD_HEAD = "b5cd7394a8a687126eaaec32c02978ad6575c01c"
 const BASE = "c5cd7394a8a687126eaaec32c02978ad6575c01d"
 
-const payload = ({ isDraft = false, reviews = [], comments = [], threads = [], headRefOid = HEAD } = {}) =>
+const payload = ({ isDraft = false, reviews = [], comments = [], threads = [], headRefOid = HEAD, pageInfo = { hasNextPage: false, endCursor: null } } = {}) =>
   JSON.stringify({
     data: {
       repository: {
@@ -37,7 +37,7 @@ const payload = ({ isDraft = false, reviews = [], comments = [], threads = [], h
           headRefOid,
           reviews: { nodes: reviews },
           comments: { nodes: comments },
-          reviewThreads: { nodes: threads },
+          reviewThreads: { pageInfo, nodes: threads },
         },
       },
     },
@@ -185,6 +185,17 @@ export const cases = () => {
     one.stdout || one.stderr,
   )
   T(`${TOOL}: the unresolved count is reported separately from the total`, onePlan?.counts.total === 1 && onePlan.counts.unresolved === 1, one.stdout)
+
+  const pagedSequence = stage("list-bot-threads/page-sequence", "0")
+  const paged = run(TOOL, ["--pr", "681", "--repo", "ui", "--wait-seconds", "0"], { path: testedToolPath, env: orcaEnv([
+    { match: "auth token --user thomasluizon", stdout: "test-github-token" },
+    { match: "api graphql", stdoutSequence: [
+      payload({ reviews: [botReview()], threads: [thread({ id: "PRRT_page_one" })], pageInfo: { hasNextPage: true, endCursor: "cursor-1" } }),
+      payload({ reviews: [botReview()], threads: [thread({ id: "PRRT_page_two" })], pageInfo: { hasNextPage: false, endCursor: null } }),
+    ], sequenceFile: pagedSequence },
+  ]) })
+  const pagedPlan = parsed(paged)
+  T(`${TOOL}: review threads are fully paginated before counts are reported`, paged.status === 0 && pagedPlan?.threadsComplete === true && pagedPlan?.counts.pages === 2 && pagedPlan.counts.total === 2 && pagedPlan.counts.unresolved === 2, paged.stdout || paged.stderr)
 
   /** #681's real shape: outdated means the code moved, NOT that anyone handled the finding. */
   const outdated = readPr(payload({ reviews: [botReview()], threads: [thread({ isOutdated: true })] }))

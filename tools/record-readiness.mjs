@@ -151,7 +151,7 @@ const receipt = {
   },
   ci: { settled: ci.pending.length === 0, green: ci.pass === true, checks: ci, headSha: state.headSha, baseSha: state.baseSha },
   codexConnector: { passed: bot.verdict === "REVIEWED", reviewedCommit: bot.reviewedCommit ?? null, headSha: bot.headRefOid, baseSha: bot.baseRefOid },
-  threads: { unresolvedCount: bot.counts?.unresolved ?? bot.threads?.filter((thread) => !thread.isResolved).length ?? null, headSha: bot.headRefOid, baseSha: bot.baseRefOid },
+  threads: { complete: bot.threadsComplete === true, unresolvedCount: bot.counts?.unresolved ?? bot.threads?.filter((thread) => !thread.isResolved).length ?? null, headSha: bot.headRefOid, baseSha: bot.baseRefOid },
   behindBy: liveComparison.behind_by,
   draft: live.isDraft,
   linear: {

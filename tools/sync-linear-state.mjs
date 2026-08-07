@@ -28,8 +28,9 @@ const argOf = (flag) => {
   const index = process.argv.indexOf(flag)
   return index === -1 ? null : process.argv[index + 1]
 }
-const known = new Set(["--issue", "--repo", "--pr", "--state", "--head-sha", "--base-sha", "--message-file", "--command-timeout-seconds", "--help", "-h"])
-const unknown = process.argv.slice(2).filter((value) => value.startsWith("-") && !known.has(value))
+const valueFlags = new Set(["--issue", "--repo", "--pr", "--state", "--head-sha", "--base-sha", "--message-file", "--command-timeout-seconds"])
+const known = new Set([...valueFlags, "--help", "-h"])
+const unknown = process.argv.slice(2).filter((value, index, argv) => value.startsWith("-") && !known.has(value) && !valueFlags.has(argv[index - 1]))
 if (unknown.length > 0) fail(2, `${USAGE}\n\nunknown option(s): ${unknown.join(" ")}`)
 
 const issue = argOf("--issue")
