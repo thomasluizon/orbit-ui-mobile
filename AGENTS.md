@@ -78,10 +78,11 @@ you rely on them; that is the whole point of this section.
 - Never push or force-push to `main`, never reuse a squash-merged branch, and never bypass the
   git hooks: no `--no-verify` (or its `-n` commit alias), no `--no-gpg-sign`, no
   `commit.gpgsign=false`. Fix what a hook flags, then commit.
-- Never perform an admin merge, in any shape: no `gh pr merge --admin`, no direct
-  `PUT /repos/{owner}/{repo}/pulls/{number}/merge`, and no GraphQL `mergePullRequest`
-  mutation. Naming the two raw API calls is deliberate; forbidding only the CLI flag leaves
-  both API paths open. The admin override exists for Thomas alone. If a merge genuinely needs
-  it, STOP and ask Thomas to merge it himself.
+- Never perform an admin merge except while executing the canonical `/merge-prs` skill after Thomas
+  explicitly invokes it for an already-approved frozen PR set. That skill may use only
+  `gh pr merge --admin --squash --match-head-commit <sha>` and must follow its preflight and exact-head
+  rules. In every other context, STOP and ask Thomas to merge it himself. Direct merge APIs remain
+  forbidden without exception: no `PUT /repos/{owner}/{repo}/pulls/{number}/merge` and no GraphQL
+  `mergePullRequest` mutation.
 - Never `git worktree remove --force`: on Windows it follows a junction and deletes the link
   target. Remove the junctions first, then remove the worktree without `--force`.
