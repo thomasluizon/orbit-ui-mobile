@@ -1420,7 +1420,7 @@
     },
     "dataResidency": {
       "title": "Where Your Data Is Stored",
-      "body": "Orbit's database and application servers are hosted with Supabase and Render. Product analytics through PostHog is processed in the United States. Other subprocessors, including OpenAI, Stripe, and Google, may process data outside Brazil. International transfers rely on adequacy decisions or standard contractual clauses, consistent with LGPD Chapter V."
+      "body": "Orbit's database is hosted with Supabase, and its backend application servers are hosted with Render. Vercel hosts the web application on its global network and may process web-hosting, traffic-analytics, and performance data in the United States and other countries outside Brazil. Product analytics through PostHog is processed in the United States. Other subprocessors, including OpenAI, Stripe, and Google, may process data outside Brazil. International transfers to Vercel and other subprocessors rely on adequacy decisions or standard contractual clauses, consistent with LGPD Chapter V."
     },
     "automatedProcessing": {
       "title": "AI & Automated Processing",

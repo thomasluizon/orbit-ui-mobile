@@ -1420,7 +1420,7 @@
     },
     "dataResidency": {
       "title": "Onde seus dados ficam guardados",
-      "body": "O banco de dados e os servidores do Orbit ficam na Supabase e na Render. As análises de uso do produto feitas pelo PostHog são processadas nos Estados Unidos. Outros suboperadores, incluindo OpenAI, Stripe e Google, podem processar dados fora do Brasil. As transferências internacionais se baseiam em decisões de adequação ou cláusulas contratuais padrão, conforme o Capítulo V da LGPD."
+      "body": "O banco de dados do Orbit fica na Supabase, e os servidores de aplicação do backend ficam na Render. A Vercel hospeda o aplicativo web em sua rede global e pode processar dados de hospedagem web, análise de tráfego e desempenho nos Estados Unidos e em outros países fora do Brasil. As análises de uso do produto feitas pelo PostHog são processadas nos Estados Unidos. Outros suboperadores, incluindo OpenAI, Stripe e Google, podem processar dados fora do Brasil. As transferências internacionais para a Vercel e outros suboperadores se baseiam em decisões de adequação ou cláusulas contratuais padrão, conforme o Capítulo V da LGPD."
     },
     "automatedProcessing": {
       "title": "IA e processamento automatizado",

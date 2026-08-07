@@ -113,9 +113,19 @@ describe('privacy policy disclosures', () => {
     },
   )
 
-  it('discloses United States analytics processing and the current update month', () => {
+  it('discloses international processor locations and the current update month', () => {
     expect(en.privacy.dataResidency.body).toContain('United States')
     expect(ptBR.privacy.dataResidency.body).toContain('Estados Unidos')
+    expect(en.privacy.dataResidency.body).toContain(
+      'Vercel hosts the web application on its global network',
+    )
+    expect(ptBR.privacy.dataResidency.body).toContain(
+      'A Vercel hospeda o aplicativo web em sua rede global',
+    )
+    expect(en.privacy.dataResidency.body).toContain('International transfers to Vercel')
+    expect(ptBR.privacy.dataResidency.body).toContain(
+      'As transferências internacionais para a Vercel',
+    )
     expect(en.privacy.lastUpdated).toBe('Last updated: August 2026')
     expect(ptBR.privacy.lastUpdated).toBe('Última atualização: agosto de 2026')
   })
