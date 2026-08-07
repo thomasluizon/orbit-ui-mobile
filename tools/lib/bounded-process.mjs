@@ -21,13 +21,13 @@ const killTree = (pid) => {
  * Run one child with a hard wall-clock bound. POSIX children lead a process group and Windows
  * children are terminated with taskkill /T, so a timeout cannot leave grandchildren running.
  */
-export const runBounded = (file, args, { cwd, env, timeoutMs, maxBuffer = 32 * 1024 * 1024 } = {}) =>
+export const runBounded = (file, args, { cwd, env, timeoutMs, maxBuffer = 32 * 1024 * 1024, input } = {}) =>
   new Promise((resolve) => {
     const child = spawn(file, args, {
       cwd,
       env,
       detached: process.platform !== "win32",
-      stdio: ["ignore", "pipe", "pipe"],
+      stdio: [input === undefined ? "ignore" : "pipe", "pipe", "pipe"],
       windowsHide: true,
     })
     let stdout = ""
@@ -43,6 +43,10 @@ export const runBounded = (file, args, { cwd, env, timeoutMs, maxBuffer = 32 * 1
     }
     child.stdout?.on("data", (chunk) => { stdout = append(stdout, chunk) })
     child.stderr?.on("data", (chunk) => { stderr = append(stderr, chunk) })
+    if (input !== undefined) {
+      child.stdin?.on("error", () => { /* a child that exits before reading input still reports its own status */ })
+      child.stdin?.end(input)
+    }
     const timer = setTimeout(() => {
       timedOut = true
       killTree(child.pid)

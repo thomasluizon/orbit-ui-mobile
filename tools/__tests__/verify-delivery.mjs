@@ -1,7 +1,7 @@
-import { mkdirSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
-import { T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
+import { T, check, orcaEnv, processIsRunning, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
 
 const TOOL = "verify-delivery.mjs"
 const BRANCH = "feature/orb-200-delivery"
@@ -210,6 +210,18 @@ export const cases = () => {
   verdictOf(unpushed, JSON.stringify([pullRequest(unpushed.head)]), "UNPUSHED", 1, "a commit that never reached origin is UNPUSHED")
 
   const pushed = stageDelivery("pushed")
+  const ghDescendantPidFile = stage("verify-delivery/gh-descendant.pid", "")
+  const hangingGh = run(
+    TOOL,
+    ["--issue", ISSUE, "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui", "--command-timeout-seconds", "1"],
+    { path: testedToolPath, env: orcaEnv([
+      { match: "auth token --user thomasluizon", stdout: "test-github-token" },
+      { match: `pr list --head ${BRANCH}`, stdout: "", hangTreePidFile: ghDescendantPidFile },
+    ]) },
+  )
+  const ghDescendantPid = Number(readFileSync(ghDescendantPidFile, "utf8"))
+  T(`${TOOL}: a hanging GitHub child is bounded with an explicit timeout`, hangingGh.status === 2 && /timed out after 1s/.test(hangingGh.stderr), hangingGh.stderr || hangingGh.stdout)
+  T(`${TOOL}: a timed-out GitHub child leaves no descendant process`, Number.isInteger(ghDescendantPid) && !processIsRunning(ghDescendantPid), `descendant ${ghDescendantPid} still alive`)
   verdictOf(pushed, "[]", "NO_PR", 1, "a pushed branch with no pull request is NO_PR")
   verdictOf(pushed, JSON.stringify([pullRequest(pushed.head), pullRequest(pushed.head, 1, 1, 201)]), "NO_PR", 1, "two pull requests on one branch is NO_PR rather than a silent pick")
   verdictOf(pushed, JSON.stringify([pullRequest("0000000000000000000000000000000000000000")]), "STALE_PR", 1, "a pull request head behind the local head is STALE_PR")
@@ -237,6 +249,25 @@ export const cases = () => {
     /"number": 200/.test(delivered.stdout) && /"url": "https:\/\/github\.com\/[^"]+\/pull\/200"/.test(delivered.stdout),
     delivered.stdout || delivered.stderr,
   )
+
+  const marker = stage("verify-delivery/degraded-edit-not-called", "pending")
+  const codexBody = pullRequest(pushed.head)
+  codexBody.body = `Implements ${ISSUE}.`
+  const codexOnly = check(
+    TOOL,
+    "codex-only delivery mechanically restores the degraded first line after a later body touch",
+    ["--issue", ISSUE, "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui", "--codex-only"],
+    { status: 0, stdout: /"verdict": "DELIVERED"/ },
+    { path: testedToolPath, env: orcaEnv([
+      { match: "auth token --user thomasluizon", stdout: "test-github-token" },
+      { match: `pr list --head ${BRANCH}`, stdout: JSON.stringify([codexBody]) },
+      { match: "pr edit 200 --body-file -", stdout: "", removePath: marker },
+      { match: "pr view", stdout: JSON.stringify({ baseRefName: "main", baseRefOid: "base-sha", headRefOid: pushed.head, isDraft: false, statusCheckRollup: [{ __typename: "CheckRun", name: "Lint", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-06T10:00:00Z" }] }) },
+      { match: "branches/main/protection/required_status_checks", stdout: JSON.stringify({ contexts: ["Lint"] }) },
+      { match: "api repos/", stdout: JSON.stringify({ behind_by: 0 }) },
+    ]) },
+  )
+  T(`${TOOL}: degraded body enforcement invoked the PR edit before delivery`, !existsSync(marker), codexOnly.stdout || codexOnly.stderr)
 
   /**
    * A pull request that cannot merge was never delivered. Every case below passes every OTHER check,

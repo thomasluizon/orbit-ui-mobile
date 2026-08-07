@@ -88,7 +88,7 @@ export const cases = () => {
   const resolveFailedPlan = parsed(resolveFailed)
   T(
     `${TOOL}: a failed resolve still reports that the reply landed, so a retry cannot double-post`,
-    resolveFailed.status === 1 && resolveFailedPlan?.replied === true && resolveFailedPlan.resolved === false && /do not repost the reply/.test(resolveFailedPlan.note ?? ""),
+    resolveFailed.status === 1 && resolveFailedPlan?.replied === true && resolveFailedPlan.resolved === false && /do not repost the reply/.test(resolveFailedPlan.note ?? "") && /--repo ui --resolve-only$/.test(resolveFailedPlan.retry ?? ""),
     resolveFailed.stdout || resolveFailed.stderr,
   )
 

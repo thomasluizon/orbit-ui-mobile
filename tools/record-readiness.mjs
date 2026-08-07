@@ -6,9 +6,10 @@ import { readFileSync } from "node:fs"
 import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-auth.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
+import { withDegradedReviewFirst } from "./lib/pr-body.mjs"
 import { readinessReport, writeReadinessReceipt } from "./lib/readiness-receipt.mjs"
 
-const USAGE = `usage: record-readiness.mjs --repo <ui|api|landing> --pr <number> --delivery <file> --review <file> --bot <file> --linear <file>
+const USAGE = `usage: record-readiness.mjs --repo <ui|api|landing> --pr <number> --delivery <file> --review <file> --bot <file> --linear <file> [--codex-only]
 
 Reads harness-produced artifacts, persists one SHA-bound receipt under the repository git state,
 and prints READY or every stale/blocking verdict. It never trusts a caller-authored status flag.
@@ -28,13 +29,14 @@ const argOf = (flag) => {
   const index = process.argv.indexOf(flag)
   return index === -1 ? null : process.argv[index + 1]
 }
-const known = new Set(["--repo", "--pr", "--delivery", "--review", "--bot", "--linear", "--help", "-h"])
+const known = new Set(["--repo", "--pr", "--delivery", "--review", "--bot", "--linear", "--codex-only", "--help", "-h"])
 const unknown = process.argv.slice(2).filter((value) => value.startsWith("-") && !known.has(value))
 if (unknown.length > 0) fail(`${USAGE}\n\nunknown option(s): ${unknown.join(" ")}`)
 
 const repoKey = argOf("--repo")
 const prRaw = argOf("--pr")
 const prNumber = Number(prRaw)
+const codexOnly = process.argv.includes("--codex-only")
 const artifactPath = Object.fromEntries(["delivery", "review", "bot", "linear"].map((name) => [name, argOf(`--${name}`)]))
 if (!repoKey || !Number.isInteger(prNumber) || prNumber < 1 || Object.values(artifactPath).some((value) => !value || value.startsWith("-"))) fail(USAGE)
 
@@ -79,7 +81,7 @@ try {
   const githubAuth = await githubEnvironment(repoRoot, { timeoutMs: 45000 })
   const result = await runBounded(
     process.env.GH_BIN || "gh",
-    ["pr", "view", String(prNumber), "--repo", repository, "--json", "number,baseRefName,baseRefOid,headRefOid,isDraft"],
+    ["pr", "view", String(prNumber), "--repo", repository, "--json", "number,baseRefName,baseRefOid,headRefOid,isDraft,body"],
     { cwd: repoRoot, env: githubAuth.environment, timeoutMs: 45000 },
   )
   if (result.timedOut) fail(`gh pr view ${prNumber} timed out after 45s; the complete child process tree was terminated`)
@@ -93,9 +95,26 @@ try {
     typeof live?.baseRefName !== "string" ||
     typeof live?.baseRefOid !== "string" ||
     typeof live?.headRefOid !== "string" ||
-    typeof live?.isDraft !== "boolean"
+    typeof live?.isDraft !== "boolean" ||
+    typeof live?.body !== "string"
   ) {
     fail(`gh pr view ${prNumber} did not return the confirmed number/base/head/draft shape`)
+  }
+  if (codexOnly) {
+    const degradedBody = withDegradedReviewFirst(live.body)
+    if (degradedBody !== live.body) {
+      const edited = await runBounded(
+        process.env.GH_BIN || "gh",
+        ["pr", "edit", String(prNumber), "--repo", repository, "--body-file", "-"],
+        { cwd: repoRoot, env: githubAuth.environment, timeoutMs: 45000, input: degradedBody },
+      )
+      if (edited.timedOut) fail(`gh pr edit ${prNumber} timed out after 45s; the complete child process tree was terminated`)
+      if (edited.error || edited.status !== 0) {
+        const detail = edited.stderr || edited.stdout || edited.error?.message || `exit ${edited.status}`
+        fail(`could not enforce degraded PR body marker on ${prNumber}: ${redactSecrets(detail.trim(), githubAuth.secrets)}`)
+      }
+      live.body = degradedBody
+    }
   }
   const comparison = await runBounded(
     process.env.GH_BIN || "gh",

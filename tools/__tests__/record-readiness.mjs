@@ -23,12 +23,14 @@ export const cases = () => {
   const bot = stage("record-readiness/bot.json", JSON.stringify({ pr: 700, verdict: "REVIEWED", reviewedCommit: HEAD, baseRefOid: BASE, headRefOid: HEAD, counts: { unresolved: 0 }, threads: [] }))
   const linear = stage("record-readiness/linear.json", JSON.stringify({ issue: "ORB-700", repositoryKey: "ui", prNumber: 700, status: "In Review", lastSynchronizationResult: "SUCCESS", lastPostedState: "ready", headSha: HEAD, baseSha: BASE }))
   const argv = ["--repo", "ui", "--pr", "700", "--delivery", delivery, "--review", review, "--bot", bot, "--linear", linear]
-  const live = (headRefOid = HEAD, baseRefOid = BASE, behindBy = 0) => orcaEnv([
+  const live = (headRefOid = HEAD, baseRefOid = BASE, behindBy = 0, body = "Implements ORB-700") => orcaEnv([
     { match: "auth token --user thomasluizon", stdout: "test-github-token" },
-    { match: "pr view 700", stdout: JSON.stringify({ number: 700, baseRefName: "main", baseRefOid, headRefOid, isDraft: false }) },
+    { match: "pr view 700", stdout: JSON.stringify({ number: 700, baseRefName: "main", baseRefOid, headRefOid, isDraft: false, body }) },
+    { match: "pr edit 700", stdout: "" },
     { match: "api repos/", stdout: JSON.stringify({ behind_by: behindBy }) },
   ])
   check(TOOL, "matching final-head artifacts persist READY", argv, { status: 0, stdout: /"verdict": "READY"/ }, { path: staged.path, env: live() })
+  check(TOOL, "codex-only final aggregation reasserts the degraded first line", [...argv, "--codex-only"], { status: 0, stdout: /"verdict": "READY"/ }, { path: staged.path, env: live() })
 
   const advancedHead = "cccccccccccccccccccccccccccccccccccccccc"
   const advanced = check(TOOL, "a live head advance after delivery cannot persist READY", argv, { status: 1, stdout: /CI_STALE/ }, { path: staged.path, env: live(advancedHead) })

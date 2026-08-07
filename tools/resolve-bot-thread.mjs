@@ -209,7 +209,7 @@ if (!resolved.ok) {
    * The reply LANDED. Saying so is what stops a retry from double-posting it: a caller that reads
    * only "failed" would repost the same reply and leave the thread with two identical comments.
    */
-  console.log(JSON.stringify({ threadId, replied: true, resolved: false, error: resolved.detail, note: `the reply landed; retry with --resolve-only, do not repost the reply`, retry: `node tools/resolve-bot-thread.mjs --thread ${threadId} --resolve-only` }, null, 2))
+  console.log(JSON.stringify({ threadId, replied: true, resolved: false, error: resolved.detail, note: `the reply landed; retry with --resolve-only, do not repost the reply`, retry: `node tools/resolve-bot-thread.mjs --thread ${threadId} --repo ${repoKey} --resolve-only` }, null, 2))
   process.exit(1)
 }
 

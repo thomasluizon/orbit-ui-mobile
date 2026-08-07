@@ -59,6 +59,40 @@ export const cases = () => {
   )
   T(`${TOOL}: successful salvage reached the named remote branch`, repo.git(["ls-remote", "--heads", "origin", "feature/salvage"]).stdout.includes("refs/heads/feature/salvage"), passed.stdout || passed.stderr)
 
+  const beforePr = stageRepo("salvage-worker-before-pr")
+  if (beforePr?.git(["switch", "-q", "-c", "feature/before-pr"]).status === 0) {
+    writeFileSync(join(beforePr.path, "before-pr.txt"), "salvage before PR creation\n")
+    const beforePrStaged = stageWithConfig("salvage-worker-before-pr", TOOL, { ...config, repos: { ...config.repos, ui: beforePr.path } })
+    const beforePrResult = check(
+      TOOL,
+      "salvage can commit and push before a PR number exists",
+      ["--issue", "ORB-250", "--repo", "ui", "--worktree", beforePr.path, "--branch", "feature/before-pr", "--run-root", beforePr.path, "--test-command", passedOrder, "--test-receipt", receipt, "--message", "salvage before PR", "--path", "before-pr.txt"],
+      { status: 0, stdout: /"prNumber": null[\s\S]*"readinessRegistrationPending": true/ },
+      { path: beforePrStaged.path },
+    )
+    T(`${TOOL}: pre-PR salvage pushes the named branch`, beforePr.git(["ls-remote", "--heads", "origin", "feature/before-pr"]).stdout.includes("refs/heads/feature/before-pr"), beforePrResult.stdout || beforePrResult.stderr)
+  } else {
+    T(`${TOOL}: pre-PR salvage fixture is available`, false, "could not create branch")
+  }
+
+  const indexed = stageRepo("salvage-worker-indexed")
+  if (indexed?.git(["switch", "-q", "-c", "feature/indexed"]).status === 0) {
+    writeFileSync(join(indexed.path, "named.txt"), "named\n")
+    writeFileSync(join(indexed.path, "unrelated.txt"), "must not publish\n")
+    indexed.git(["add", "unrelated.txt"])
+    const indexedStaged = stageWithConfig("salvage-worker-indexed", TOOL, { ...config, repos: { ...config.repos, ui: indexed.path } })
+    check(
+      TOOL,
+      "an unrelated pre-staged path blocks salvage instead of entering the commit",
+      ["--issue", "ORB-250", "--repo", "ui", "--worktree", indexed.path, "--branch", "feature/indexed", "--run-root", indexed.path, "--test-command", passedOrder, "--test-receipt", receipt, "--message", "named only", "--path", "named.txt"],
+      { status: 2, stderr: /index contains staged paths not named by --path: unrelated\.txt/ },
+      { path: indexedStaged.path },
+    )
+    T(`${TOOL}: blocked salvage leaves the unrelated index entry intact and uncommitted`, indexed.git(["diff", "--cached", "--name-only"]).stdout.trim() === "unrelated.txt" && indexed.git(["rev-list", "--count", "main..HEAD"]).stdout.trim() === "0", "unrelated staged state changed or was committed")
+  } else {
+    T(`${TOOL}: pre-staged salvage fixture is available`, false, "could not create branch")
+  }
+
   const second = stageRepo("salvage-worker-broad")
   const broadStaged = stageWithConfig("salvage-worker-broad", TOOL, config)
   for (const broad of [".", "sub/..", ":(glob)**"]) {

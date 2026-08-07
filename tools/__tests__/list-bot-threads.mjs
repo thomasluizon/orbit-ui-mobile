@@ -159,6 +159,14 @@ export const cases = () => {
     parsed(clean)?.reviewBody === null,
     clean.stdout,
   )
+  for (const incompleteState of ["PENDING", "DISMISSED"]) {
+    const incomplete = readPr(payload({ reviews: [botReview(incompleteState)] }))
+    T(
+      `${TOOL}: a ${incompleteState} connector review cannot satisfy current-head readiness`,
+      incomplete.status === 1 && parsed(incomplete)?.verdict === "NO_REVIEW",
+      incomplete.stdout || incomplete.stderr,
+    )
+  }
 
   /** A draft attracts no review ever, so the wait budget must not be spent discovering that. */
   const draft = run(TOOL, ["--pr", "https://github.com/thomasluizon/orbit-ui-mobile/pull/681", "--wait-seconds", "600", "--poll-seconds", "1"], { path: testedToolPath, env: ghPlan(payload({ isDraft: true })) })

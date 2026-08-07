@@ -28,11 +28,12 @@
  *    source change that requires them.
  */
 
-import { execFileSync } from "node:child_process"
 import { statSync } from "node:fs"
 
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
+import { runBounded } from "./lib/bounded-process.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
+import { withDegradedReviewFirst } from "./lib/pr-body.mjs"
 
 const USAGE = `usage: verify-delivery.mjs --issue ORB-N --worktree <path> --branch <name> [options]
 
@@ -44,6 +45,9 @@ const USAGE = `usage: verify-delivery.mjs --issue ORB-N --worktree <path> --bran
   --base <ref>        base the commit count is taken against (default: main)
   --wait-ci <s>       seconds to wait for still-running checks to settle before
                       reporting CI_PENDING (default: 0, report immediately)
+  --command-timeout-seconds <s>
+                      hard bound for each Git/GitHub child (default: 45)
+  --codex-only        reassert the exact degraded-review first line before verification
   --help, -h          print this usage and exit 0
 
 Derives delivery from git and GitHub artifacts only, never from a worker's own
@@ -69,7 +73,7 @@ const argOf = (flag) => {
   const index = process.argv.indexOf(flag)
   return index === -1 ? null : process.argv[index + 1]
 }
-const knownFlags = new Set(["--issue", "--worktree", "--branch", "--repo", "--base", "--wait-ci", "--help", "-h"])
+const knownFlags = new Set(["--issue", "--worktree", "--branch", "--repo", "--base", "--wait-ci", "--command-timeout-seconds", "--codex-only", "--help", "-h"])
 const unknown = process.argv.slice(2).filter((value) => value.startsWith("-") && !knownFlags.has(value))
 if (unknown.length) fail(2, `${USAGE}\n\nunknown option(s): ${unknown.join(" ")}`)
 
@@ -81,6 +85,9 @@ const base = argOf("--base") ?? "main"
 const waitCiRaw = argOf("--wait-ci") ?? "0"
 const waitCiSeconds = Number(waitCiRaw)
 if (!Number.isFinite(waitCiSeconds) || waitCiSeconds < 0) fail(2, `${USAGE}\n\n--wait-ci requires a non-negative number of seconds`)
+const commandTimeoutSeconds = Number(argOf("--command-timeout-seconds") ?? "45")
+if (!Number.isFinite(commandTimeoutSeconds) || commandTimeoutSeconds <= 0) fail(2, `${USAGE}\n\n--command-timeout-seconds requires a positive number`)
+const codexOnly = process.argv.includes("--codex-only")
 const safeValue = (value) => typeof value === "string" && value.length > 0 && !value.startsWith("-")
 if (!issue || !/^[A-Z][A-Z0-9]*-\d+$/i.test(issue)) fail(2, `${USAGE}\n\n--issue must be a Linear identifier such as ORB-163`)
 if (!safeValue(worktree)) fail(2, `${USAGE}\n\n--worktree requires a path`)
@@ -112,17 +119,19 @@ const GIT = process.env.GIT_BIN || "git"
 const GH = process.env.GH_BIN || "gh"
 let githubAuth
 try {
-  githubAuth = await githubEnvironment(githubCwd)
+  githubAuth = await githubEnvironment(githubCwd, { timeoutMs: commandTimeoutSeconds * 1000 })
 } catch (error) {
   fail(2, redactSecrets(error.message))
 }
-const run = (file, args, cwd) => {
-  try {
-    const stdout = execFileSync(file, args, { cwd, encoding: "utf8", env: file === GH ? githubAuth.environment : process.env, stdio: ["ignore", "pipe", "pipe"], maxBuffer: 32 * 1024 * 1024 })
-    return { ok: true, stdout }
-  } catch (error) {
-    return { ok: false, stdout: error.stdout?.toString() ?? "", error: redactSecrets((error.stderr?.toString() || error.stdout?.toString() || error.message).trim(), githubAuth.secrets) }
+const run = async (file, args, cwd, input) => {
+  const result = await runBounded(file, args, { cwd, env: file === GH ? githubAuth.environment : process.env, timeoutMs: commandTimeoutSeconds * 1000, maxBuffer: 32 * 1024 * 1024, input })
+  if (result.timedOut) return { ok: false, stdout: result.stdout, error: `${file} timed out after ${commandTimeoutSeconds}s; the complete child process tree was terminated` }
+  if (result.overflowed) return { ok: false, stdout: result.stdout, error: `${file} exceeded the 32 MiB output bound; the complete child process tree was terminated` }
+  if (result.error || result.status !== 0) {
+    const detail = result.stderr || result.stdout || result.error?.message || `exit ${result.status}`
+    return { ok: false, stdout: result.stdout, error: redactSecrets(detail.trim(), githubAuth.secrets) }
   }
+  return { ok: true, stdout: result.stdout }
 }
 const git = (args) => run(GIT, ["-C", worktree, ...args])
 
@@ -151,7 +160,7 @@ const isDiscardable = ({ status, path }) =>
 
 /** `--untracked-files=all` because the default collapses a wholly untracked directory into one
  * entry, and a single `?? apps/` cannot be classified as residue or as somebody's unfinished work. */
-const tree = git(["status", "--porcelain", "--untracked-files=all"])
+const tree = await git(["status", "--porcelain", "--untracked-files=all"])
 if (!tree.ok) fail(2, `git status --porcelain failed in ${worktree}: ${tree.error}`)
 /**
  * TRAILING whitespace only. Trimming the whole blob ate the leading space of the FIRST line, so a
@@ -181,13 +190,13 @@ checks.cleanTree = {
  * the same one-key report until this stopped short-circuiting, and on an unattended night that is the
  * same line in the morning summary for two states whose recoveries have nothing in common.
  */
-const counted = git(["rev-list", "--count", `${base}..HEAD`])
+const counted = await git(["rev-list", "--count", `${base}..HEAD`])
 if (!counted.ok) fail(2, `git rev-list --count ${base}..HEAD failed in ${worktree}: ${counted.error}`)
 const commits = Number(counted.stdout.trim())
 checks.hasCommits = { pass: Number.isInteger(commits) && commits >= 1, observed: commits }
 if (checks.hasCommits.pass) {
-  const described = git(["log", "-1", "--format=%h %s"])
-  const stat = git(["show", "--stat", "--format=", "HEAD"])
+  const described = await git(["log", "-1", "--format=%h %s"])
+  const stat = await git(["show", "--stat", "--format=", "HEAD"])
   checks.hasCommits.head = described.ok ? described.stdout.trim() : null
   checks.hasCommits.headStat = stat.ok ? stat.stdout.trim() : null
 }
@@ -195,12 +204,12 @@ if (!checks.hasCommits.pass) emit("NO_COMMIT")
 if (!checks.cleanTree.pass) emit("DIRTY_TREE")
 
 // A missing origin/<branch> is not an environment error: never having been pushed is what UNPUSHED means.
-const ahead = git(["rev-list", `origin/${branch}..HEAD`, "--count"])
+const ahead = await git(["rev-list", `origin/${branch}..HEAD`, "--count"])
 const localOnly = ahead.ok ? Number(ahead.stdout.trim()) : `origin/${branch} does not exist`
 checks.pushed = { pass: localOnly === 0, observed: localOnly }
 if (!checks.pushed.pass) emit("UNPUSHED")
 
-const listed = run(GH, ["pr", "list", "--head", branch, "--json", "number,url,headRefOid,additions,deletions,title,body,changedFiles"], githubCwd)
+const listed = await run(GH, ["pr", "list", "--head", branch, "--json", "number,url,headRefOid,additions,deletions,title,body,changedFiles"], githubCwd)
 if (!listed.ok) fail(2, `gh pr list --head ${branch} failed: ${listed.error}`)
 let pullRequests
 try {
@@ -218,6 +227,15 @@ checks.prCount = {
 }
 if (!checks.prCount.pass) emit("NO_PR")
 
+if (codexOnly) {
+  const degradedBody = withDegradedReviewFirst(pullRequest.body)
+  if (degradedBody !== pullRequest.body) {
+    const edited = await run(GH, ["pr", "edit", String(pullRequest.number), "--body-file", "-"], githubCwd, degradedBody)
+    if (!edited.ok) fail(2, `could not enforce degraded PR body marker on #${pullRequest.number}: ${edited.error}`)
+    pullRequest.body = degradedBody
+  }
+}
+
 /**
  * `--head` filters on the BRANCH and nothing else, so a pull request that never names the ticket
  * still lands here and would read as delivered. The composed work order requires a pull request
@@ -230,7 +248,7 @@ checks.linksTicket = {
 }
 if (!checks.linksTicket.pass) emit("UNLINKED_PR")
 
-const head = git(["rev-parse", "HEAD"])
+const head = await git(["rev-parse", "HEAD"])
 if (!head.ok) fail(2, `git rev-parse HEAD failed in ${worktree}: ${head.error}`)
 const localHead = head.stdout.trim()
 checks.prHeadMatches = { pass: pullRequest.headRefOid === localHead, observed: pullRequest.headRefOid ?? null, local: localHead }
@@ -251,8 +269,8 @@ checks.sizeAdvisory = { changedFiles: fileCount, additions: pullRequest.addition
 const repositoryFromUrl = /^https:\/\/github\.com\/([^/]+\/[^/]+)\/pull\/\d+\/?$/i.exec(pullRequest.url)?.[1]
 if (!repositoryFromUrl) fail(2, `pull request #${pullRequest.number} carried no parseable GitHub URL`)
 
-const readPullRequestState = () => {
-  const viewed = run(GH, ["pr", "view", String(pullRequest.number), "--json", "baseRefName,baseRefOid,headRefOid,isDraft,statusCheckRollup"], githubCwd)
+const readPullRequestState = async () => {
+  const viewed = await run(GH, ["pr", "view", String(pullRequest.number), "--json", "baseRefName,baseRefOid,headRefOid,isDraft,statusCheckRollup"], githubCwd)
   if (!viewed.ok) fail(2, `gh pr view ${pullRequest.number} failed: ${viewed.error}`)
   let parsed
   try {
@@ -267,7 +285,7 @@ const readPullRequestState = () => {
   return parsed
 }
 
-const validatePullRequestState = (state) => {
+const validatePullRequestState = async (state) => {
   checks.pullRequestState = {
     baseBranch: state.baseRefName,
     baseSha: state.baseRefOid,
@@ -277,7 +295,7 @@ const validatePullRequestState = (state) => {
   if (state.headRefOid !== localHead) emit("STALE_PR")
   if (state.isDraft) emit("DRAFT")
 
-  const compared = run(GH, ["api", `repos/${repositoryFromUrl}/compare/${encodeURIComponent(state.baseRefName)}...${state.headRefOid}`], githubCwd)
+  const compared = await run(GH, ["api", `repos/${repositoryFromUrl}/compare/${encodeURIComponent(state.baseRefName)}...${state.headRefOid}`], githubCwd)
   if (!compared.ok) fail(2, `gh api compare failed for pull request #${pullRequest.number}: ${compared.error}`)
   let comparison
   try {
@@ -295,11 +313,11 @@ const validatePullRequestState = (state) => {
   if (!checks.upToDate.pass) emit("OUT_OF_DATE")
 }
 
-let pullRequestState = readPullRequestState()
-validatePullRequestState(pullRequestState)
+let pullRequestState = await readPullRequestState()
+await validatePullRequestState(pullRequestState)
 
-const readRequiredContexts = (state) => {
-  const required = run(
+const readRequiredContexts = async (state) => {
+  const required = await run(
     GH,
     ["api", `repos/${repositoryFromUrl}/branches/${encodeURIComponent(state.baseRefName)}/protection/required_status_checks`],
     githubCwd,
@@ -316,7 +334,7 @@ const readRequiredContexts = (state) => {
   }
   return parsed.contexts
 }
-let requiredContexts = readRequiredContexts(pullRequestState)
+let requiredContexts = await readRequiredContexts(pullRequestState)
 
 /**
  * A pull request that cannot merge was never delivered, and until this check existed nothing here
@@ -394,9 +412,9 @@ let rollup = readRollup()
 const deadline = Date.now() + waitCiSeconds * 1000
 while (rollup.failing.length === 0 && rollup.pending.length > 0 && Date.now() < deadline) {
   sleep(Math.min(30, Math.max(1, Math.ceil((deadline - Date.now()) / 1000))))
-  pullRequestState = readPullRequestState()
-  validatePullRequestState(pullRequestState)
-  requiredContexts = readRequiredContexts(pullRequestState)
+  pullRequestState = await readPullRequestState()
+  await validatePullRequestState(pullRequestState)
+  requiredContexts = await readRequiredContexts(pullRequestState)
   rollup = readRollup()
 }
 

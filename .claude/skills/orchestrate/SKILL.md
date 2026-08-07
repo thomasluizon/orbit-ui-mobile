@@ -114,12 +114,12 @@ node tools/plan-queue.mjs        (--tickets ORB-1,ORB-2 | --project <name> | --b
 node tools/compose-prompt.mjs    --issue ORB-N --repo <key> --out <file> [--worktree <p>] [--branch <b>] [--base <ref>]
 node tools/launch-worker.mjs     --issue ORB-N --worktree <p> --prompt <f> [--codex-only]
 node tools/launch-worker.mjs     --issue ORB-N --review --repo <key> --prompt <f> [--codex-only]
-node tools/verify-delivery.mjs   --issue ORB-N --worktree <p> --branch <b> --repo <key> [--base <ref>] [--wait-ci <s>]
+node tools/verify-delivery.mjs   --issue ORB-N --worktree <p> --branch <b> --repo <key> [--base <ref>] [--wait-ci <s>] [--codex-only]
 node tools/list-bot-threads.mjs  --pr <n-or-url> --repo <key> [--wait-seconds <s>] [--no-request]
 node tools/resolve-bot-thread.mjs --thread <PRRT_...> --repo <key>   # reply body on stdin
-node tools/salvage-worker.mjs    --issue ORB-N --repo <key> --pr <n> --worktree <p> --branch <b> --run-root <p> --test-command <json> --test-receipt <json> --message <m> --path <path>...
+node tools/salvage-worker.mjs    --issue ORB-N --repo <key> [--pr <n>] --worktree <p> --branch <b> --run-root <p> --test-command <json> --test-receipt <json> --message <m> --path <path>...
 node tools/sync-linear-state.mjs --issue ORB-N --repo <key> --pr <n> --state <working|blocked|visual|ready> --head-sha <sha> --base-sha <sha> --message-file <path|->
-node tools/record-readiness.mjs  --repo <key> --pr <n> --delivery <json> --review <json> --bot <json> --linear <json>
+node tools/record-readiness.mjs  --repo <key> --pr <n> --delivery <json> --review <json> --bot <json> --linear <json> [--codex-only]
 node tools/teardown-worktree.mjs --issue ORB-N
 ```
 
@@ -464,7 +464,7 @@ running. There is nothing to poll, nothing to babysit, and no monitor to arm.
 ## Step 7. Verify delivery, out of band
 
 ```bash
-node tools/verify-delivery.mjs --issue ORB-N --worktree <p> --branch <b> --repo <key> --wait-ci <seconds>
+node tools/verify-delivery.mjs --issue ORB-N --worktree <p> --branch <b> --repo <key> --wait-ci <seconds> [--codex-only]
 ```
 
 It is the SOLE authority for the word "delivered". Exit 0 means `DELIVERED`.
@@ -781,7 +781,10 @@ For each existing PR, repeat within the configured readiness bound:
    the PR in the run record. Never merge.
 
 In `--codex-only`, every PR body the harness creates or touches is mechanically rewritten so its
-exact first line is `DEGRADED: same-vendor review`. This is enforced by the launcher, not memory.
+exact first line is `DEGRADED: same-vendor review`. The launcher enforces it after implementation;
+every delivery verification reasserts it after later body edits; and final receipt aggregation
+reasserts it once more. Pass `--codex-only` to both tools. A body touch cannot clear readiness while
+silently dropping the banner.
 
 ## Step 14. Hand over
 

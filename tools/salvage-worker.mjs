@@ -9,12 +9,13 @@ import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { readinessReceiptPath } from "./lib/readiness-receipt.mjs"
 import { readRunState, writeRunState } from "./lib/run-state.mjs"
 
-const USAGE = `usage: salvage-worker.mjs --issue ORB-N --repo <key> --pr <number> --worktree <path> --branch <name> --run-root <path> --test-command <json> --test-receipt <path> --message <text> --path <relative-path> [--path <relative-path> ...]
+const USAGE = `usage: salvage-worker.mjs --issue ORB-N --repo <key> [--pr <number>] --worktree <path> --branch <name> --run-root <path> --test-command <json> --test-receipt <path> --message <text> --path <relative-path> [--path <relative-path> ...]
 
 The test-command file is {"command":"<executable>","args":["..."]}. The tool runs it in the
 worktree and persists its real exit receipt before staging. Only repeated, explicitly named --path
-values are staged. A failed test stages and pushes nothing. The salvaged PR is registered with a
-repository-qualified readiness receipt before commit/push.
+values are staged. A failed test stages and pushes nothing. When a PR already exists, it is
+registered with a repository-qualified readiness receipt before commit/push. When salvage happens
+before PR creation, --pr is omitted and the output records that readiness registration is pending.
 
 exit codes: 0 committed and pushed, 1 test/commit/push failure, 2 usage or environment error`
 
@@ -35,7 +36,8 @@ if (unknown.length) fail(2, `${USAGE}\n\nunknown option(s): ${unknown.join(" ")}
 
 const issue = argOf("--issue")
 const repoKey = argOf("--repo")
-const prNumber = Number(argOf("--pr"))
+const prRaw = argOf("--pr")
+const prNumber = prRaw === null ? null : Number(prRaw)
 const worktree = resolve(argOf("--worktree") ?? "")
 const branch = argOf("--branch")
 const runRoot = resolve(argOf("--run-root") ?? "")
@@ -44,7 +46,7 @@ const testReceiptPath = argOf("--test-receipt")
 const message = argOf("--message")
 const paths = valuesOf("--path")
 const normalizedPaths = []
-if (!/^[A-Z][A-Z0-9]*-\d+$/.test(issue ?? "") || !repoKey || !Number.isInteger(prNumber) || prNumber < 1 || !branch || !testCommandPath || !testReceiptPath || !message || paths.length === 0) fail(2, USAGE)
+if (!/^[A-Z][A-Z0-9]*-\d+$/.test(issue ?? "") || !repoKey || (prNumber !== null && (!Number.isInteger(prNumber) || prNumber < 1)) || !branch || !testCommandPath || !testReceiptPath || !message || paths.length === 0) fail(2, USAGE)
 if (!isAbsolute(testCommandPath) || !isAbsolute(testReceiptPath)) fail(2, "--test-command and --test-receipt must be absolute scratchpad paths")
 const receiptRelative = relative(worktree, resolve(testReceiptPath))
 if (receiptRelative === "" || (!receiptRelative.startsWith("..") && !isAbsolute(receiptRelative))) fail(2, "--test-receipt must live outside the worker worktree")
@@ -119,11 +121,21 @@ for (const path of normalizedPaths) {
   if (!dirtyPaths.has(path)) fail(2, `--path must name one exact dirty file from the inventory: ${path}`)
 }
 
-const readinessPath = readinessReceiptPath(config.repos[repoKey], repoKey, prNumber)
-const state = readRunState(runRoot) ?? { sessionId: "salvage", sleep: false, remaining: [] }
-const pullRequests = Array.isArray(state.pullRequests) ? state.pullRequests.filter((entry) => !(entry?.repositoryKey === repoKey && entry?.prNumber === prNumber)) : []
-pullRequests.push({ repositoryKey: repoKey, prNumber, receiptPath: readinessPath })
-writeRunState({ ...state, pullRequests }, runRoot)
+// Never inherit an unrelated index from the dead worker. `git add -- <named paths>` adds to the
+// existing index; it does not replace it, so a later `git commit` would otherwise publish every
+// already-staged path even when the caller deliberately omitted it from --path.
+const namedPathSet = new Set(normalizedPaths)
+const alreadyStaged = git(["diff", "--cached", "--name-only", "-z"]).split("\0").filter(Boolean).map((path) => path.replaceAll("\\", "/"))
+const unnamedStaged = alreadyStaged.filter((path) => !namedPathSet.has(path))
+if (unnamedStaged.length > 0) fail(2, `index contains staged paths not named by --path: ${unnamedStaged.join(", ")}`)
+
+const readinessPath = prNumber === null ? null : readinessReceiptPath(config.repos[repoKey], repoKey, prNumber)
+if (prNumber !== null) {
+  const state = readRunState(runRoot) ?? { sessionId: "salvage", sleep: false, remaining: [] }
+  const pullRequests = Array.isArray(state.pullRequests) ? state.pullRequests.filter((entry) => !(entry?.repositoryKey === repoKey && entry?.prNumber === prNumber)) : []
+  pullRequests.push({ repositoryKey: repoKey, prNumber, receiptPath: readinessPath })
+  writeRunState({ ...state, pullRequests }, runRoot)
+}
 
 try {
   git(["--literal-pathspecs", "add", "--", ...normalizedPaths])
@@ -132,7 +144,7 @@ try {
   git(["commit", "-m", message])
   git(["push", "origin", `HEAD:${branch}`])
   const headSha = git(["rev-parse", "HEAD"]).trim()
-  console.log(JSON.stringify({ issue, repositoryKey: repoKey, prNumber, branch, inventory, stagedPaths: staged.split(/\r?\n/), testReceiptPath, readinessPath, headSha }, null, 2))
+  console.log(JSON.stringify({ issue, repositoryKey: repoKey, prNumber, branch, inventory, stagedPaths: staged.split(/\r?\n/), testReceiptPath, readinessPath, readinessRegistrationPending: prNumber === null, headSha }, null, 2))
 } catch (error) {
   fail(1, `salvage commit/push failed: ${(error.stderr?.toString() || error.message).trim()}`)
 }

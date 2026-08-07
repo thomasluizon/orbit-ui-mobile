@@ -6,6 +6,8 @@ import { processIsRunning, T, stage } from "./_harness.mjs"
 export const cases = async () => {
   const success = await runBounded(process.execPath, ["-e", "process.stdout.write('bounded-ok')"], { timeoutMs: 5000 })
   T("bounded-process.mjs: a completing child returns its exact output and exit", success.status === 0 && success.stdout === "bounded-ok" && success.timedOut === false, JSON.stringify(success))
+  const piped = await runBounded(process.execPath, ["-e", "process.stdin.pipe(process.stdout)"], { timeoutMs: 5000, input: "bounded-input" })
+  T("bounded-process.mjs: caller-supplied stdin stays bounded and is never inherited", piped.status === 0 && piped.stdout === "bounded-input", JSON.stringify(piped))
 
   const pidFile = stage("bounded-process/descendant.pid", "")
   const script = stage(

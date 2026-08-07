@@ -247,10 +247,14 @@ if (node.isDraft) {
  * Comparing the commit is what makes the answer correct under either behaviour. A review whose
  * commit is not the head does not count, and the wait continues.
  */
+const CONNECTOR_EVIDENCE_STATES = new Set(["APPROVED", "CHANGES_REQUESTED", "COMMENTED"])
 const botReviewOf = (payload) =>
   (payload.reviews?.nodes ?? [])
     .filter((review) => review.author?.login === botLogin)
     .filter((review) => review.commit?.oid && review.commit.oid === payload.headRefOid)
+    // Confirmed live ReviewState enum: APPROVED, CHANGES_REQUESTED, COMMENTED, DISMISSED, PENDING.
+    // A pending or dismissed review is not a completed connector pass and must never become evidence.
+    .filter((review) => CONNECTOR_EVIDENCE_STATES.has(review.state))
     .at(-1)
 
 const CLEAN_COMMENT = "Codex Review: Didn't find any major issues."
@@ -284,7 +288,7 @@ const evidenceOf = (payload) => {
 }
 
 /** Kept separately so NO_REVIEW can say WHICH shape it is: never reviewed, or reviewed a dead head. */
-const staleReviewOf = (payload) => (payload.reviews?.nodes ?? []).filter((review) => review.author?.login === botLogin).at(-1)
+const staleReviewOf = (payload) => (payload.reviews?.nodes ?? []).filter((review) => review.author?.login === botLogin && CONNECTOR_EVIDENCE_STATES.has(review.state)).at(-1)
 
 let evidence = evidenceOf(node)
 
