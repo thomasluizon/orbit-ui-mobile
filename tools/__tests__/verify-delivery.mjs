@@ -1,5 +1,5 @@
-import { writeFileSync } from "node:fs"
-import { join } from "node:path"
+import { mkdirSync, writeFileSync } from "node:fs"
+import { dirname, join } from "node:path"
 
 import { T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
 
@@ -11,34 +11,39 @@ const ISSUE = "ORB-200"
  * A real git repository is the whole point: this tool exists because a worker's own report is not
  * evidence, so every fixture below is an artifact on disk that git can be asked about. `commit`
  * false is openai/codex#19945's real shape and the reason the tool exists: the process exits 0, the
- * branch is pushed by setup, and nothing was ever committed.
+ * branch is pushed by setup, and nothing was ever committed. `dirty` takes the paths to leave
+ * behind, because WHICH paths are dirty is now part of the verdict.
  */
-const stageDelivery = (label, { commit = true, push = true, dirty = false } = {}) => {
+const stageDelivery = (label, { commit = true, push = true, dirty = [] } = {}) => {
   const repo = stageRepo(`verify-delivery-${label}`)
   if (!repo || repo.git(["switch", "-q", "-c", BRANCH]).status !== 0) return null
   if (commit) {
     writeFileSync(join(repo.path, "worked.txt"), `${label}\n`)
-    if (repo.git(["add", "worked.txt"]).status !== 0 || repo.git(["commit", "-q", "-m", label]).status !== 0) return null
+    if (repo.git(["add", "worked.txt"]).status !== 0 || repo.git(["commit", "-q", "-m", `${label} the ticket's real work`]).status !== 0) return null
   }
   if (push && repo.git(["push", "-q", "-u", "origin", BRANCH]).status !== 0) return null
-  if (dirty) writeFileSync(join(repo.path, "uncommitted.txt"), "left behind\n")
+  for (const path of dirty) {
+    mkdirSync(dirname(join(repo.path, path)), { recursive: true })
+    writeFileSync(join(repo.path, path), "left behind\n")
+  }
   return { ...repo, head: repo.git(["rev-parse", "HEAD"]).stdout.trim() }
 }
 
 /**
  * Every key here was read off a REAL `gh pr list --json` response before being written down, per
- * CLAUDE.md standard 8. `files` is an array of `{path, additions, deletions}` and the GitHub API
- * truncates it at 100 entries, which is why the tool treats a length of 100 as "at least 100".
+ * CLAUDE.md standard 8. `changedFiles` is an integer and was confirmed against
+ * `gh pr view 690 --json changedFiles`, which reported 8 for a commit touching 8 files. It replaces
+ * counting the `files` array, which the API truncates at 100 entries.
  */
-const pullRequest = (headRefOid, additions = 10, deletions = 5, number = 200, fileCount = 3) => ({
+const pullRequest = (headRefOid, additions = 10, deletions = 5, number = 200, changedFiles = 3) => ({
   number,
   url: `https://github.com/useorbitai/orbit-ui-mobile/pull/${number}`,
   headRefOid,
   additions,
   deletions,
+  changedFiles,
   title: `${ISSUE} do the thing`,
   body: `Implements ${ISSUE}.`,
-  files: Array.from({ length: fileCount }, (unused, index) => ({ path: `src/file-${index}.ts`, additions: 1, deletions: 0 })),
 })
 
 /**
@@ -49,10 +54,13 @@ const pullRequest = (headRefOid, additions = 10, deletions = 5, number = 200, fi
 const rollup = (nodes = [{ __typename: "CheckRun", name: "Lint", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-06T10:00:00Z" }]) =>
   JSON.stringify({ statusCheckRollup: nodes })
 
-const ghPlan = (stdout, exit = 0, checks = rollup()) =>
+const ticketEnvelope = (description) => JSON.stringify({ id: "envelope-orb-200", ok: true, result: { issue: { identifier: ISSUE, description } } })
+
+const ghPlan = (stdout, exit = 0, checks = rollup(), description = null) =>
   orcaEnv([
     { match: `pr list --head ${BRANCH}`, stdout, exit },
     { match: "pr view", stdout: checks },
+    ...(description === null ? [] : [{ match: `linear issue ${ISSUE}`, stdout: ticketEnvelope(description) }]),
   ])
 
 const verdictOf = (fixture, stdout, expected, status, name) =>
@@ -82,9 +90,74 @@ export const cases = () => {
     noCommit.stdout || noCommit.stderr,
   )
 
-  const dirty = stageDelivery("dirty", { dirty: true })
-  const dirtyResult = verdictOf(dirty, JSON.stringify([pullRequest(dirty.head)]), "NO_COMMIT", 1, "an uncommitted working tree is NO_COMMIT")
-  T(`${TOOL}: the dirty verdict names the uncommitted path`, /uncommitted\.txt/.test(dirtyResult.stdout), dirtyResult.stdout || dirtyResult.stderr)
+  /**
+   * The ORB-39 pair, and the reason DIRTY_TREE exists. Both worktrees are dirty; one carries the
+   * finished ticket as a commit and one carries nothing. They had the SAME verdict and the same
+   * one-key report, so a morning summary could not tell 221 lines of correct work from a worker that
+   * did nothing, and the recoveries have nothing in common: discard the residue and push, against
+   * re-run the whole ticket.
+   */
+  const dirtyNoCommit = stageDelivery("dirty-no-commit", { commit: false, dirty: ["src/half-done.ts"] })
+  verdictOf(dirtyNoCommit, JSON.stringify([pullRequest(dirtyNoCommit.head)]), "NO_COMMIT", 1, "no commits and a dirty tree is NO_COMMIT, which now means exactly that")
+
+  const residue = stageDelivery("dirty-residue", { dirty: ["apps/web/next-env.d.ts", "apps/web/e2e/visual/orb-39-evidence.visual.ts"] })
+  const residueResult = verdictOf(residue, JSON.stringify([pullRequest(residue.head)]), "DIRTY_TREE", 1, "commits plus a dirty tree is DIRTY_TREE, never NO_COMMIT")
+  T(
+    `${TOOL}: DIRTY_TREE still evaluates hasCommits, so the report says the work exists`,
+    /"hasCommits": \{\s*"pass": true,\s*"observed": 1/.test(residueResult.stdout) && /the ticket's real work/.test(residueResult.stdout),
+    residueResult.stdout || residueResult.stderr,
+  )
+  T(
+    `${TOOL}: DIRTY_TREE carries the head commit's stat, so nobody has to open the worktree`,
+    /"headStat": "[^"]*worked\.txt[^"]*1 \+/.test(residueResult.stdout),
+    residueResult.stdout,
+  )
+  T(
+    `${TOOL}: generated and evidence residue is classified as discardable`,
+    /"allDiscardable": true/.test(residueResult.stdout) && /next-env\.d\.ts/.test(residueResult.stdout) && /"source": \[\]/.test(residueResult.stdout),
+    residueResult.stdout,
+  )
+
+  /**
+   * The repository has a TRACKED e2e suite, so `e2e/` cannot be discardable by path alone: a modified
+   * or deleted file there is somebody's real edit, and step 7 permits the run to throw residue away.
+   * Only an UNTRACKED file under e2e/ is a worker's invented evidence. The fixture commits the suite
+   * first, so the dirty entry is a tracked modification rather than a new file.
+   */
+  const trackedSuite = stageRepo("verify-delivery-tracked-e2e")
+  if (trackedSuite && trackedSuite.git(["switch", "-q", "-c", BRANCH]).status === 0) {
+    mkdirSync(join(trackedSuite.path, "apps", "web", "e2e"), { recursive: true })
+    writeFileSync(join(trackedSuite.path, "apps", "web", "e2e", "login.spec.ts"), "the real suite\n")
+    trackedSuite.git(["add", "-A"])
+    trackedSuite.git(["commit", "-q", "-m", "the ticket's real work"])
+    trackedSuite.git(["push", "-q", "-u", "origin", BRANCH])
+    writeFileSync(join(trackedSuite.path, "apps", "web", "e2e", "login.spec.ts"), "half an edit\n")
+    const head = trackedSuite.git(["rev-parse", "HEAD"]).stdout.trim()
+    const trackedResult = verdictOf({ ...trackedSuite, head }, JSON.stringify([pullRequest(head)]), "DIRTY_TREE", 1, "a MODIFIED tracked e2e file is DIRTY_TREE like any other source edit")
+    T(
+      `${TOOL}: a tracked e2e edit is source, never discardable evidence`,
+      /"allDiscardable": false/.test(trackedResult.stdout) && /"source": \[\s*"apps\/web\/e2e\/login\.spec\.ts"/.test(trackedResult.stdout) && /"discardable": \[\]/.test(trackedResult.stdout),
+      trackedResult.stdout || trackedResult.stderr,
+    )
+    /** The path is reported WHOLE. A trim over the blob ate the first line's leading status space,
+     * so ` M apps/...` lost its "a" and every tracked-modification path was reported one character
+     * short. Nothing caught it while every fixture happened to start with an untracked `??` line. */
+    T(
+      `${TOOL}: a tracked modification's path survives parsing intact`,
+      !/"[a-z]?pps\/web/.test(trackedResult.stdout) || /"apps\/web\/e2e\/login\.spec\.ts"/.test(trackedResult.stdout),
+      trackedResult.stdout,
+    )
+  } else {
+    T(`${TOOL}: the tracked e2e fixture staged`, false, "could not stage a repository carrying a committed e2e suite")
+  }
+
+  const midEdit = stageDelivery("dirty-source", { dirty: ["apps/web/src/store.ts"] })
+  const midEditResult = verdictOf(midEdit, JSON.stringify([pullRequest(midEdit.head)]), "DIRTY_TREE", 1, "a tracked source file left mid-edit is DIRTY_TREE too, but not discardable")
+  T(
+    `${TOOL}: source residue is never reported as safe to discard`,
+    /"allDiscardable": false/.test(midEditResult.stdout) && /"source": \[\s*"apps\/web\/src\/store\.ts"/.test(midEditResult.stdout),
+    midEditResult.stdout,
+  )
 
   const unpushed = stageDelivery("unpushed", { push: false })
   verdictOf(unpushed, JSON.stringify([pullRequest(unpushed.head)]), "UNPUSHED", 1, "a commit that never reached origin is UNPUSHED")
@@ -108,6 +181,64 @@ export const cases = () => {
     /"number": 200/.test(delivered.stdout) && /"url": "https:\/\/github\.com\/[^"]+\/pull\/200"/.test(delivered.stdout),
     delivered.stdout || delivered.stderr,
   )
+
+  /**
+   * The caps override. Every case below is the SAME oversized pull request, so only the ticket's own
+   * CAPS-OVERRIDE line can be what moves the verdict, and a run that delivers 700 lines says so in
+   * the verdict rather than printing a bare DELIVERED.
+   */
+  const oversized = JSON.stringify([pullRequest(pushed.head, 400, 300)])
+  const withTicket = (description) => ({ env: ghPlan(oversized, 0, rollup(), description) })
+  const overArgv = ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH]
+
+  const exempt = check(
+    TOOL,
+    "an oversized diff a CAPS-OVERRIDE line covers is DELIVERED_OVERSIZE_EXEMPT and exits 0",
+    overArgv,
+    { status: 0, stdout: /"verdict": "DELIVERED_OVERSIZE_EXEMPT"/ },
+    withTicket("## Problem\n\nCAPS-OVERRIDE: lines=6000 reason=regenerated package-lock.json\n"),
+  )
+  T(
+    `${TOOL}: the exempt verdict still prints the real numbers and the standing cap it passed`,
+    /"observed": 700/.test(exempt.stdout) && /"cap": 400/.test(exempt.stdout) && /"allowed": 6000/.test(exempt.stdout) && /"exempt": true/.test(exempt.stdout),
+    exempt.stdout,
+  )
+  T(
+    `${TOOL}: the exempt verdict names the reason the human typed, so the override is auditable`,
+    /"reason": "regenerated package-lock\.json"/.test(exempt.stdout),
+    exempt.stdout,
+  )
+
+  check(
+    TOOL,
+    "an override that lifts the WRONG cap does not exempt the breach",
+    overArgv,
+    { status: 1, stdout: /"verdict": "OVERSIZE"/ },
+    withTicket("CAPS-OVERRIDE: files=400 reason=one mechanical icon codemod\n"),
+  )
+  check(
+    TOOL,
+    "a malformed override lifts nothing and says why",
+    overArgv,
+    { status: 1, stdout: /does not lift the standing caps\.diffLines of 400/ },
+    withTicket("CAPS-OVERRIDE: lines=12 reason=typo\n"),
+  )
+  check(
+    TOOL,
+    "a ticket that cannot be read leaves the caps standing rather than assuming an exemption",
+    overArgv,
+    { status: 1, stdout: /the ticket could not be read, so the caps stand/ },
+    { env: ghPlan(oversized) },
+  )
+
+  const fileExempt = check(
+    TOOL,
+    "a 355-file codemod its ticket exempts is delivered, which an 8-file cap made impossible",
+    overArgv.slice(),
+    { status: 0, stdout: /"verdict": "DELIVERED_OVERSIZE_EXEMPT"/ },
+    { env: ghPlan(JSON.stringify([pullRequest(pushed.head, 10, 5, 200, 355)]), 0, rollup(), "CAPS-OVERRIDE: files=400 reason=one mechanical icon codemod, reviewed as a transform\n") },
+  )
+  T(`${TOOL}: the exempt file count is the real one, never a truncated 100`, /"observed": 355/.test(fileExempt.stdout), fileExempt.stdout)
 
   /**
    * A pull request that cannot merge was never delivered. Every case below passes every OTHER check,
@@ -162,6 +293,13 @@ export const cases = () => {
     // title is present so the run reaches the size check: linksTicket is asserted earlier in the
     // ladder, and a payload missing it would short-circuit to UNLINKED_PR and never test this.
     { env: ghPlan(JSON.stringify([{ number: 200, url: "https://example.test/pull/200", headRefOid: pushed.head, title: `${ISSUE} x` }])) },
+  )
+  check(
+    TOOL,
+    "a pull request with no numeric changedFiles is an environment error, not an in-cap pass",
+    argv,
+    { status: 2, stderr: /reported no numeric changedFiles/ },
+    { env: ghPlan(JSON.stringify([{ number: 200, url: "https://example.test/pull/200", headRefOid: pushed.head, title: `${ISSUE} x`, additions: 1, deletions: 1 }])) },
   )
 
   verdictOf(pushed, JSON.stringify([{ ...pullRequest(pushed.head), title: "no ticket here", body: "none either" }]), "UNLINKED_PR", 1, "a pull request that never names the ticket is UNLINKED_PR")

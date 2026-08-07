@@ -14,11 +14,24 @@
  *
  * So every check below reads a git or GitHub artifact. None reads a
  * self-report, and child stdin is never inherited.
+ *
+ * Two things this file is careful NOT to do, both measured on ORB-39 (2026-08-06):
+ *
+ * 1. It never short-circuits before counting commits. It used to emit NO_COMMIT the
+ *    moment the tree was dirty, so a worktree holding commit 7c726189 (8 files, 221
+ *    insertions, the whole ticket) reported one check and the word NO_COMMIT. That
+ *    reads as "produced nothing", and the correct recovery was the opposite: discard
+ *    the residue, push, open the pull request. DIRTY_TREE is now its own verdict and
+ *    hasCommits is always evaluated and always reported.
+ * 2. It never hides an oversize diff behind a pass. A ticket may carry a human-authored
+ *    CAPS-OVERRIDE line (tools/lib/caps-override.mjs), and when one covers the breach the
+ *    real numbers are still measured, still printed, and the verdict says so by name.
  */
 
 import { execFileSync } from "node:child_process"
 import { statSync } from "node:fs"
 
+import { effectiveCaps, parseCapsOverride } from "./lib/caps-override.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
 const USAGE = `usage: verify-delivery.mjs --issue ORB-N --worktree <path> --branch <name> [options]
@@ -35,12 +48,13 @@ const USAGE = `usage: verify-delivery.mjs --issue ORB-N --worktree <path> --bran
 
 Derives delivery from git and GitHub artifacts only, never from a worker's own
 report. Checks run in order and the first failure decides the verdict:
-NO_COMMIT, UNPUSHED, NO_PR, STALE_PR, OVERSIZE, CI_FAILING, CI_PENDING, or
-DELIVERED.
+NO_COMMIT, DIRTY_TREE, UNPUSHED, NO_PR, STALE_PR, OVERSIZE, CI_FAILING,
+CI_PENDING, DELIVERED_OVERSIZE_EXEMPT, or DELIVERED.
 
 stdout carries ONE JSON object and nothing else. Errors go to stderr.
 
-exit codes: 0 DELIVERED, 1 every other verdict, 2 usage or environment error`
+exit codes: 0 DELIVERED or DELIVERED_OVERSIZE_EXEMPT, 1 every other verdict,
+            2 usage or environment error`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
@@ -81,15 +95,16 @@ try {
 }
 if (!worktreePresent) fail(2, `--worktree does not name a directory: ${worktree}`)
 
+let config
+try {
+  config = readOrchestratorConfig()
+} catch (error) {
+  fail(2, error.message)
+}
+
 let githubCwd = worktree
 if (repoKey !== null) {
   if (!safeValue(repoKey)) fail(2, `${USAGE}\n\n--repo requires a repository key`)
-  let config
-  try {
-    config = readOrchestratorConfig()
-  } catch (error) {
-    fail(2, error.message)
-  }
   const repoPath = config.repos?.[repoKey]
   if (typeof repoPath !== "string" || repoPath.trim().length === 0) {
     fail(2, `--repo must name a configured repository (known: ${Object.keys(config.repos ?? {}).join(", ") || "none"})`)
@@ -99,14 +114,15 @@ if (repoKey !== null) {
 
 const GIT = process.env.GIT_BIN || "git"
 const GH = process.env.GH_BIN || "gh"
-const DIFF_CAP = 400
-const FILE_CAP = 8
+const ORCA = process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs\\orca\\resources\\bin\\orca"
+/** The standing caps come from the config the whole harness reads, never from a second copy here. */
+const STANDING_CAPS = { lines: config.caps.diffLines, files: config.caps.affectedFiles }
 const run = (file, args, cwd) => {
   try {
     const stdout = execFileSync(file, args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 32 * 1024 * 1024 })
     return { ok: true, stdout }
   } catch (error) {
-    return { ok: false, stdout: "", error: (error.stderr?.toString() || error.stdout?.toString() || error.message).trim() }
+    return { ok: false, stdout: error.stdout?.toString() ?? "", error: (error.stderr?.toString() || error.stdout?.toString() || error.message).trim() }
   }
 }
 const git = (args) => run(GIT, ["-C", worktree, ...args])
@@ -114,20 +130,70 @@ const git = (args) => run(GIT, ["-C", worktree, ...args])
 const checks = {}
 const emit = (verdict) => {
   console.log(JSON.stringify({ issue, verdict, checks }, null, 2))
-  process.exit(verdict === "DELIVERED" ? 0 : 1)
+  process.exit(verdict.startsWith("DELIVERED") ? 0 : 1)
 }
 
-const tree = git(["status", "--porcelain"])
-if (!tree.ok) fail(2, `git status --porcelain failed in ${worktree}: ${tree.error}`)
-const dirty = tree.stdout.trim()
-checks.cleanTree = { pass: dirty.length === 0, observed: dirty }
-if (!checks.cleanTree.pass) emit("NO_COMMIT")
+/**
+ * Residue a run may safely discard, against work it may not. Generated files and evidence a worker
+ * should never have produced are one situation; a tracked source file left mid-edit is another, and
+ * only the second is somebody's unfinished thinking. Measured on ORB-39: `M apps/web/next-env.d.ts`
+ * plus `?? apps/web/e2e/visual/orb-39-evidence.visual.ts`, both discardable, so the finished commit
+ * underneath was recoverable without a human opening the worktree.
+ */
+const GENERATED_RESIDUE = [/(^|\/)next-env\.d\.ts$/, /(^|\/)\.next\//, /(^|\/)dist\//, /(^|\/)build\//, /(^|\/)coverage\//, /(^|\/)node_modules\//, /\.tsbuildinfo$/, /(^|\/)test-results\//, /(^|\/)playwright-report\//]
+/**
+ * Discardable only while UNTRACKED. The repository has a tracked E2E suite, and a path-only rule
+ * called a modified or deleted file under `e2e/` residue, which step 7 then permits the run to throw
+ * away. A worker's invented evidence file is untracked (`??`); an edit to the real suite is not.
+ */
+const UNTRACKED_ONLY_RESIDUE = [/(^|\/)e2e\//]
+const isDiscardable = ({ status, path }) =>
+  GENERATED_RESIDUE.some((pattern) => pattern.test(path)) || (status === "??" && UNTRACKED_ONLY_RESIDUE.some((pattern) => pattern.test(path)))
 
+/** `--untracked-files=all` because the default collapses a wholly untracked directory into one
+ * entry, and a single `?? apps/` cannot be classified as residue or as somebody's unfinished work. */
+const tree = git(["status", "--porcelain", "--untracked-files=all"])
+if (!tree.ok) fail(2, `git status --porcelain failed in ${worktree}: ${tree.error}`)
+/**
+ * TRAILING whitespace only. Trimming the whole blob ate the leading space of the FIRST line, so a
+ * tracked modification (` M path`) lost a character off its path and its two-character status code
+ * read as `M `. Every earlier fixture happened to start with `??`, which has no leading space, so
+ * the defect was invisible until a tracked e2e edit had to be told from an untracked one.
+ */
+const dirty = tree.stdout.replace(/\s+$/, "")
+const dirtyEntries = dirty
+  .split(/\r?\n/)
+  .filter(Boolean)
+  .map((line) => {
+    const parts = line.slice(3).trim().split(" -> ")
+    return { status: line.slice(0, 2), path: parts[parts.length - 1].replaceAll('"', "") }
+  })
+const sourcePaths = dirtyEntries.filter((entry) => !isDiscardable(entry)).map((entry) => entry.path)
+checks.cleanTree = {
+  pass: dirty.length === 0,
+  observed: dirty,
+  discardable: dirtyEntries.filter((entry) => isDiscardable(entry)).map((entry) => entry.path),
+  source: sourcePaths,
+  allDiscardable: dirtyEntries.length > 0 && sourcePaths.length === 0,
+}
+
+/**
+ * ALWAYS evaluated, dirty tree or not. A finished deliverable and a worker that did nothing produced
+ * the same one-key report until this stopped short-circuiting, and on an unattended night that is the
+ * same line in the morning summary for two states whose recoveries have nothing in common.
+ */
 const counted = git(["rev-list", "--count", `${base}..HEAD`])
 if (!counted.ok) fail(2, `git rev-list --count ${base}..HEAD failed in ${worktree}: ${counted.error}`)
 const commits = Number(counted.stdout.trim())
 checks.hasCommits = { pass: Number.isInteger(commits) && commits >= 1, observed: commits }
+if (checks.hasCommits.pass) {
+  const described = git(["log", "-1", "--format=%h %s"])
+  const stat = git(["show", "--stat", "--format=", "HEAD"])
+  checks.hasCommits.head = described.ok ? described.stdout.trim() : null
+  checks.hasCommits.headStat = stat.ok ? stat.stdout.trim() : null
+}
 if (!checks.hasCommits.pass) emit("NO_COMMIT")
+if (!checks.cleanTree.pass) emit("DIRTY_TREE")
 
 // A missing origin/<branch> is not an environment error: never having been pushed is what UNPUSHED means.
 const ahead = git(["rev-list", `origin/${branch}..HEAD`, "--count"])
@@ -135,7 +201,7 @@ const localOnly = ahead.ok ? Number(ahead.stdout.trim()) : `origin/${branch} doe
 checks.pushed = { pass: localOnly === 0, observed: localOnly }
 if (!checks.pushed.pass) emit("UNPUSHED")
 
-const listed = run(GH, ["pr", "list", "--head", branch, "--json", "number,url,headRefOid,additions,deletions,title,body,files"], githubCwd)
+const listed = run(GH, ["pr", "list", "--head", branch, "--json", "number,url,headRefOid,additions,deletions,title,body,changedFiles"], githubCwd)
 if (!listed.ok) fail(2, `gh pr list --head ${branch} failed: ${listed.error}`)
 let pullRequests
 try {
@@ -174,27 +240,61 @@ if (!checks.prHeadMatches.pass) emit("STALE_PR")
 if (!Number.isInteger(pullRequest.additions) || !Number.isInteger(pullRequest.deletions)) {
   fail(2, `gh pr list reported no numeric additions and deletions for pull request #${pullRequest.number}`)
 }
+/**
+ * The scope gate promises TWO caps and this file enforced only one: a worker can touch 20 files while
+ * staying under 400 lines. It replaces counting the `files` array, which the API truncates at 100
+ * entries and which therefore could never measure the 355-file codemod the override exists for.
+ *
+ * `changedFiles` was confirmed on THIS subcommand, not a neighbouring one. `gh pr view` and
+ * `gh pr list` are different response interfaces and an earlier comment cited the wrong one, which
+ * is the kind of near-miss standard 8 exists to catch. The real `gh pr list` response, gh 2.97.0:
+ *
+ *   $ gh pr list --head <branch> --json number,additions,deletions,changedFiles
+ *   [{"additions":1453,"changedFiles":22,"deletions":74,"number":693}]
+ *
+ * An integer, matching `gh pr view 693 --json changedFiles`, and the CLI lists the field as valid
+ * for `pr list` when given no field names at all.
+ */
+if (!Number.isInteger(pullRequest.changedFiles)) {
+  fail(2, `gh pr list reported no numeric changedFiles for pull request #${pullRequest.number}`)
+}
 const size = pullRequest.additions + pullRequest.deletions
-checks.diffSize = { pass: size <= DIFF_CAP, observed: size, cap: DIFF_CAP }
-if (!checks.diffSize.pass) emit("OVERSIZE")
+const fileCount = pullRequest.changedFiles
 
 /**
- * The scope gate promises TWO caps and this file enforced only one: a worker can touch 20 files
- * while staying under 400 lines. `files` is what the GitHub API returns, and it truncates at 100
- * entries, so a length of exactly 100 means "at least 100" and is reported that way rather than as
- * a precise count that would be a lie.
+ * The ticket is read ONLY when a cap is already breached, so the normal path costs no Linear call. A
+ * lookup that fails leaves the caps standing: an unreadable ticket is not evidence of an exemption,
+ * and failing closed here can only ever cost one hand-over.
  */
-if (!Array.isArray(pullRequest.files)) {
-  fail(2, `gh pr list reported no files array for pull request #${pullRequest.number}`)
+let override = null
+if (size > STANDING_CAPS.lines || fileCount > STANDING_CAPS.files) {
+  const read = run(ORCA, ["linear", "issue", issue.toUpperCase(), "--json"])
+  let description = null
+  let lookupError = read.ok ? null : read.error
+  try {
+    const envelope = JSON.parse(read.stdout)
+    if (envelope?.ok === false) lookupError = envelope.error?.message ?? "orca refused the read"
+    else if (typeof envelope?.result?.issue?.description === "string") description = envelope.result.issue.description
+    else lookupError = "the issue carried no description"
+  } catch {
+    lookupError = lookupError ?? `orca returned unparseable JSON: ${read.stdout.trim().slice(0, 120) || "empty output"}`
+  }
+  const parsed = description === null ? { found: false } : parseCapsOverride(description, STANDING_CAPS)
+  if (parsed.found && !parsed.error) override = parsed
+  checks.capsOverride = {
+    present: Boolean(override),
+    files: override?.files ?? null,
+    lines: override?.lines ?? null,
+    reason: override?.reason ?? null,
+    observed: lookupError ? `the ticket could not be read, so the caps stand: ${lookupError}` : parsed.error ? parsed.error : override ? parsed.source : `no ${"CAPS-OVERRIDE:"} line in the ticket description`,
+  }
 }
-const truncated = pullRequest.files.length >= 100
-const fileCount = pullRequest.files.length
-checks.affectedFiles = {
-  pass: !truncated && fileCount <= FILE_CAP,
-  observed: truncated ? `at least ${fileCount} (the API truncates this list)` : fileCount,
-  cap: FILE_CAP,
-}
-if (!checks.affectedFiles.pass) emit("OVERSIZE")
+
+const caps = effectiveCaps(STANDING_CAPS, override)
+checks.diffSize = { pass: size <= caps.lines, exempt: size > STANDING_CAPS.lines && size <= caps.lines, observed: size, cap: STANDING_CAPS.lines, allowed: caps.lines }
+checks.affectedFiles = { pass: fileCount <= caps.files, exempt: fileCount > STANDING_CAPS.files && fileCount <= caps.files, observed: fileCount, cap: STANDING_CAPS.files, allowed: caps.files }
+if (!checks.diffSize.pass || !checks.affectedFiles.pass) emit("OVERSIZE")
+const oversizeExempt = checks.diffSize.exempt || checks.affectedFiles.exempt
 
 /**
  * A pull request that cannot merge was never delivered, and until this check existed nothing here
@@ -275,4 +375,4 @@ checks.ci = {
 if (rollup.failing.length > 0) emit("CI_FAILING")
 if (rollup.pending.length > 0) emit("CI_PENDING")
 
-emit("DELIVERED")
+emit(oversizeExempt ? "DELIVERED_OVERSIZE_EXEMPT" : "DELIVERED")
