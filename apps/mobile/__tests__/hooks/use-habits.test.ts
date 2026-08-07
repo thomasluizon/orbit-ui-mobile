@@ -783,17 +783,35 @@ describe('mobile habit hooks', () => {
     expect(mocks.checkAllDoneCelebration).toHaveBeenCalled()
   })
 
-  it.each([
-    {
-      name: 'does not celebrate a bad sub-habit completion',
-      habits: [makeHabit({
-        id: 'parent-1',
-        children: [makeChild({ id: 'bad-child', isBadHabit: true })],
-      })],
-      habitId: 'bad-child',
+  it('does not celebrate or award XP for a bad sub-habit completion', () => {
+    seedHabitState([makeHabit({
+      id: 'parent-1',
+      children: [makeChild({ id: 'bad-child', isBadHabit: true })],
+    })])
+    mocks.queryClient.setQueryData(profileKeys.detail(), { currentStreak: 1 })
+    mocks.queryClient.setQueryData(gamificationKeys.profile(), { totalXp: 100 })
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      { habitId: string; date?: string },
+      unknown
+    >
+    const response: LogHabitResponse = {
+      logId: 'log-streak',
       isFirstCompletionToday: true,
-      celebrates: false,
-    },
+      currentStreak: 3,
+      xpEarned: 25,
+    }
+
+    mutation.onSuccess?.(response, { habitId: 'bad-child' }, undefined)
+
+    expect(mocks.setStreakCelebration).not.toHaveBeenCalled()
+    const profile = mocks.queryClient.getQueryData(profileKeys.detail()) as { currentStreak: number }
+    expect(profile.currentStreak).toBe(1)
+    const gamification = mocks.queryClient.getQueryData(gamificationKeys.profile()) as { totalXp: number }
+    expect(gamification.totalXp).toBe(100)
+  })
+
+  it.each([
     {
       name: 'does not celebrate a bad top-level habit completion',
       habits: [makeHabit({ id: 'bad-habit', isBadHabit: true })],
