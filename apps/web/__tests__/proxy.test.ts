@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest, NextResponse } from 'next/server'
-import { proxy } from '@/proxy'
+import { unstable_doesMiddlewareMatch } from 'next/experimental/testing/server'
+import { config, proxy } from '@/proxy'
 import { resolveSessionTokens, setSessionCookies } from '@/lib/auth-api'
+import nextConfig from '../next.config'
 
 vi.mock('@/lib/auth-api', () => ({
   AUTH_COOKIE: 'auth_token',
@@ -63,7 +65,17 @@ describe('proxy', () => {
     const nextOptions = vi.mocked(NextResponse.next).mock.calls[0]![0]
     const forwardedHeaders = nextOptions?.request?.headers as Headers
     const contentSecurityPolicy = response.headers.get('Content-Security-Policy')
+    const configuredHeaders = await nextConfig.headers?.()
+    const contentSecurityPolicyDefinitions = [
+      contentSecurityPolicy,
+      ...(configuredHeaders ?? []).flatMap(({ headers }) =>
+        headers
+          .filter(({ key }) => key.toLowerCase() === 'content-security-policy')
+          .map(({ value }) => value),
+      ),
+    ].filter((value): value is string => value !== null)
 
+    expect(contentSecurityPolicyDefinitions).toHaveLength(1)
     expect(contentSecurityPolicy).toMatch(
       /^default-src 'self'; script-src 'self' 'nonce-[^']+' 'strict-dynamic'/,
     )
@@ -74,6 +86,16 @@ describe('proxy', () => {
     expect(contentSecurityPolicy).not.toContain("script-src 'self' 'unsafe-inline'")
     expect(forwardedHeaders.get('Content-Security-Policy')).toBe(contentSecurityPolicy)
     expect(forwardedHeaders.get('x-nonce')).toMatch(/^[A-Za-z0-9+/]+=*$/)
+  })
+
+  it('runs for every early-return path so each response receives the policy', () => {
+    for (const url of [
+      'http://localhost:3000/api/profile',
+      'http://localhost:3000/_next/static/chunks/app.js',
+      'http://localhost:3000/app-ads.txt',
+    ]) {
+      expect(unstable_doesMiddlewareMatch({ config, url })).toBe(true)
+    }
   })
 
   it('redirects protected routes to login when no session can be resolved', async () => {
