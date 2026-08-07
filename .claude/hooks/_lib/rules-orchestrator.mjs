@@ -40,7 +40,6 @@ const HTTPIE_BINARIES = new Set(["http", "https", "httpie"])
 const BARE_PUT = /(?<![\w-])PUT(?![\w-])/
 const SHELL_WORD = /"[^"]*"|'[^']*'|\S+/g
 const BROAD_ADD_FLAGS = new Set(["-A", "--all", "-u", "--update", "--renormalize"])
-const INDIRECT_PATHSPEC_FLAGS = new Set(["--pathspec-from-file", "--pathspec-file-nul"])
 
 /**
  * Everything before the first real word: leading grouping punctuation and any number of
@@ -162,7 +161,9 @@ export function checkBroadStaging(command, { env = {}, cwd = "", repoRoots = [] 
       }
       if (!afterSeparator && argument.startsWith("-")) {
         if (BROAD_ADD_FLAGS.has(argument) || /^-[^-]*[Au][^-]*$/.test(argument)) broad = true
-        if (INDIRECT_PATHSPEC_FLAGS.has(argument) || argument.startsWith("--pathspec-from-file=")) broad = true
+        // Git accepts unambiguous long-option abbreviations (measured: --pathspec-from-f), so
+        // matching only the documented full spelling leaves the same indirect staging bypass.
+        if (argument.startsWith("--pathspec")) broad = true
         continue
       }
       namedPaths += 1

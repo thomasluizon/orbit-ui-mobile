@@ -171,6 +171,7 @@ for (const command of [
   "git stage .",
   "git add --pathspec-from-file paths.txt",
   "git add --pathspec-from-file=paths.txt",
+  "git add --pathspec-from-f paths.txt",
   "git add --pathspec-from-file paths.txt --pathspec-file-nul",
   `git -C "${linkedWorktree}" add .`,
 ]) {
