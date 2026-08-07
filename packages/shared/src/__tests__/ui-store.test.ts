@@ -3,6 +3,7 @@ import {
   createTourUIState,
   createUIStoreState,
   getPersistedUIState,
+  getTourSessionUIState,
   migratePersistedUIState,
   type UIStoreState,
 } from "../stores/ui-store";
@@ -166,12 +167,20 @@ describe("shared ui store", () => {
     });
   });
 
+  it("keeps the active search in the tour session snapshot", () => {
+    const store = createStoreHarness();
+    store.getState().setSearchQuery("focus");
+
+    expect(getTourSessionUIState(store.getState()).searchQuery).toBe("focus");
+  });
+
   it("returns cloned persisted ui state snapshots", () => {
     const store = createStoreHarness();
 
     store.getState().setFilters({ dateFrom: "2026-04-06" });
     store.setState({
       activeFilters: { dateFrom: "2026-04-06", includeOverdue: true },
+      searchQuery: "focus",
       selectedTagIds: ["focus"],
     });
 
@@ -187,6 +196,7 @@ describe("shared ui store", () => {
       includeOverdue: true,
     });
     expect(snapshot.selectedTagIds).toEqual(["focus"]);
+    expect(snapshot).not.toHaveProperty("searchQuery");
   });
 
   it("excludes the day selection from the persisted snapshot", () => {
@@ -198,7 +208,18 @@ describe("shared ui store", () => {
     expect(snapshot).not.toHaveProperty("followToday");
   });
 
-  it("drops legacy day-selection keys when migrating persisted state", () => {
+  it("excludes active search filters from the persisted snapshot", () => {
+    const store = createStoreHarness();
+    store.setState({
+      activeFilters: { dateFrom: "2026-04-06", search: "focus" },
+    });
+
+    expect(getPersistedUIState(store.getState()).activeFilters).toEqual({
+      dateFrom: "2026-04-06",
+    });
+  });
+
+  it("drops legacy day-selection and search keys when migrating persisted state", () => {
     const migrated = migratePersistedUIState({
       activeFilters: { search: "focus" },
       selectedDate: "2000-01-01",
@@ -212,10 +233,10 @@ describe("shared ui store", () => {
 
     expect(migrated).not.toHaveProperty("selectedDate");
     expect(migrated).not.toHaveProperty("followToday");
+    expect(migrated).not.toHaveProperty("searchQuery");
     expect(migrated).toEqual({
-      activeFilters: { search: "focus" },
+      activeFilters: {},
       activeView: "all",
-      searchQuery: "focus",
       selectedFrequency: "Month",
       selectedTagIds: ["deep-work"],
       showCompleted: true,
