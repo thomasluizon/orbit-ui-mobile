@@ -217,7 +217,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const todayStr = formatAPIDate(new Date())
   useEffect(() => {
     promptedParentIdsRef.current.clear()
-  }, [promptedParentIdsRef, selectedDateStr])
+    skippedChildIdsRef.current.clear()
+  }, [promptedParentIdsRef, selectedDateStr, skippedChildIdsRef])
   const visibility = useHabitVisibility({
     habitsById,
     childrenByParent,

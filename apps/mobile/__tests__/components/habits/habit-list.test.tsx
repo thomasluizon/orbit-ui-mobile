@@ -1276,6 +1276,7 @@ describe('HabitList', () => {
       id: 'parent',
       title: 'Parent',
       hasSubHabits: true,
+      scheduledDates: [TODAY, TOMORROW],
       instances: [{ date: TODAY, status: 'Pending', logId: null }],
     })
     const childA = createMockHabit({ id: 'child-a', title: 'A', parentId: 'parent' })
@@ -1322,6 +1323,26 @@ describe('HabitList', () => {
     expect(skipParentDialog?.props.description).toContain('"Parent"')
     expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'child-a' })
     expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'child-b' })
+
+    TestRenderer.act(() => skipParentDialog?.props.onCancel())
+    TestRenderer.act(() => {
+      tree.update(
+        <HabitList view="today" filters={{}} selectedDate={new Date(`${TOMORROW}T12:00:00Z`)}
+          showCompleted onCreatePress={vi.fn()} />,
+      )
+    })
+    await skipChild('child-b')
+    expect(
+      tree.root
+        .findAllByType('ConfirmDialog')
+        .find((node: any) => node.props.title === 'habits.autoSkipParentTitle'),
+    ).toBeUndefined()
+    await skipChild('child-a')
+    expect(
+      tree.root
+        .findAllByType('ConfirmDialog')
+        .find((node: any) => node.props.title === 'habits.autoSkipParentTitle'),
+    ).toBeTruthy()
   })
 
   it('clears the recently-completed timer on unmount so it never fires after teardown', () => {
@@ -1635,45 +1656,29 @@ describe('HabitList', () => {
   })
 
   it('preserves dismissed prompts through refetches until progress becomes incomplete', () => {
-    const parent = createMockHabit({
-      id: 'parent', title: 'Parent',
-      hasSubHabits: true,
-      scheduledDates: [TODAY, TOMORROW],
-      instances: [{ date: TODAY, status: 'Pending', logId: null }],
-    })
+    const parent = createMockHabit({ id: 'parent', title: 'Parent', hasSubHabits: true, instances: [{ date: TODAY, status: 'Pending', logId: null }] })
     const child = createMockHabit({ id: 'child', title: 'Child', parentId: 'parent', isCompleted: true })
     seedHabits([parent, child])
     const ref = React.createRef<HabitListHandle>()
-    const renderList = (date = TODAY) => (
-      <HabitList ref={ref} view="today" filters={{}}
-        selectedDate={new Date(`${date}T12:00:00Z`)} showCompleted onCreatePress={vi.fn()} />
-    )
+    const renderList = () => <HabitList ref={ref} view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />
     let tree: any
-
     TestRenderer.act(() => { tree = TestRenderer.create(renderList()) })
-    const refetch = (habits: NormalizedHabit[]) => TestRenderer.act(() => {
-      seedHabits(habits)
+    const refetch = (isCompleted = true) => TestRenderer.act(() => {
+      seedHabits([parent, { ...child, isCompleted }])
       mockHabitsDataUpdatedAt += 1
       tree.update(renderList())
     })
-    const findDialog = () => tree.root
-      .findAllByType('ConfirmDialog')
-      .find((node: any) => node.props.title === 'habits.autoLogParentTitle')
+    const findDialog = () => tree.root.findAllByType('ConfirmDialog').find((node: any) => node.props.title === 'habits.autoLogParentTitle')
     TestRenderer.act(() => ref.current?.checkAndPromptParentLog('child'))
     TestRenderer.act(() => findDialog()?.props.onCancel())
-    refetch([parent, child])
+    refetch()
     TestRenderer.act(() => ref.current?.checkAndPromptParentLog('child'))
     expect(findDialog()).toBeUndefined()
-
-    refetch([parent, { ...child, isCompleted: false }])
-    refetch([parent, child])
+    refetch(false)
+    refetch()
     TestRenderer.act(() => ref.current?.checkAndPromptParentLog('child'))
     expect(findDialog()).toBeTruthy()
 
-    TestRenderer.act(() => findDialog()?.props.onCancel())
-    TestRenderer.act(() => tree.update(renderList(TOMORROW)))
-    TestRenderer.act(() => ref.current?.checkAndPromptParentLog('child'))
-    expect(findDialog()).toBeTruthy()
   })
 
   describe('today view scroll offset wiring', () => {
