@@ -1,10 +1,17 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
+import {
+  webPrivacyRetentionKeys,
+  webPrivacyThirdPartyKeys,
+} from '@orbit/shared/i18n'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useAuthStore } from '@/stores/auth-store'
+
+export const thirdPartyKeys = webPrivacyThirdPartyKeys
+export const retentionKeys = webPrivacyRetentionKeys
 
 export default function PrivacyPage() {
   const t = useTranslations()
@@ -28,21 +35,11 @@ export default function PrivacyPage() {
     ] },
     { label: t('privacy.thirdParty.title'), body: [
       t('privacy.thirdParty.intro'),
-      t('privacy.thirdParty.google'),
-      t('privacy.thirdParty.stripe'),
-      t('privacy.thirdParty.firebase'),
-      t('privacy.thirdParty.openai'),
-      t('privacy.thirdParty.resend'),
-      t('privacy.thirdParty.googlePlay'),
-      t('privacy.thirdParty.admob'),
-      t('privacy.thirdParty.sentry'),
+      ...thirdPartyKeys.map((key) => t(`privacy.thirdParty.${key}`)),
     ] },
     { label: t('privacy.retention.title'), body: [
       t('privacy.retention.intro'),
-      t('privacy.retention.account'),
-      t('privacy.retention.sessions'),
-      t('privacy.retention.ai'),
-      t('privacy.retention.afterDeletion'),
+      ...retentionKeys.map((key) => t(`privacy.retention.${key}`)),
     ] },
     { label: t('privacy.googleScopes.title'), body: [
       t('privacy.googleScopes.intro'),

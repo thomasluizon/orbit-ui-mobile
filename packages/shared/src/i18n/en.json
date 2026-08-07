@@ -1354,7 +1354,7 @@
   },
   "privacy": {
     "title": "Privacy Policy",
-    "lastUpdated": "Last updated: June 2026",
+    "lastUpdated": "Last updated: August 2026",
     "intro": {
       "title": "Introduction",
       "body": "Orbit is a personal habit tracking app. We take your privacy seriously and are committed to protecting your personal data. This policy explains what data we store, how we use it, and your rights under the LGPD (Lei Geral de Proteção de Dados) and equivalent data-protection laws."
@@ -1387,7 +1387,9 @@
       "resend": "Resend - for transactional emails",
       "googlePlay": "Google Play Billing - for subscription purchases on Android",
       "admob": "Google AdMob - shows ads to free (non-Pro) users and uses your device advertising identifier",
-      "sentry": "Sentry - for crash and error diagnostics, with personal identifiers removed"
+      "sentry": "Sentry - for crash and error diagnostics, with personal identifiers removed",
+      "posthog": "PostHog (US Cloud): for product analytics linked to an account identifier and plan details; we do not send habit or chat content",
+      "vercel": "Vercel: for web hosting, traffic analytics, and performance measurement"
     },
     "noSell": {
       "title": "We Do Not Sell Your Data",
@@ -1403,7 +1405,11 @@
       "account": "Account data: kept for as long as your account is active.",
       "sessions": "Authentication sessions and push tokens: kept while active and removed on logout, token expiry, or device unsubscribe.",
       "ai": "AI chat history and memory facts: kept while AI features are enabled; deleting your account or clearing AI memory removes them.",
-      "afterDeletion": "After account deletion or the 7-day grace period, your personal data is permanently erased except where the law requires us to retain limited records."
+      "reminderHistory": "Sent reminder, slip alert, and streak freeze records: kept for 90 days from the record date.",
+      "syncRecords": "Records deleted for offline sync: kept for 31 days before permanent removal.",
+      "calendarSuggestions": "Google Calendar import suggestions that you do not import: kept for 14 days.",
+      "billingRecords": "Operational request and billing records: processed requests and Google Play billing notifications are kept for 30 days; processed Stripe webhook events are kept for 90 days.",
+      "afterDeletion": "Account deletion: personal data is permanently erased 7 days after confirmation, or 7 days after the end of the current paid period, whichever is later, except where the law requires limited records."
     },
     "googleScopes": {
       "title": "Google Account & Calendar Access",
@@ -1414,7 +1420,7 @@
     },
     "dataResidency": {
       "title": "Where Your Data Is Stored",
-      "body": "Orbit's database and application servers are hosted with Supabase and Render. Some subprocessors (such as OpenAI, Stripe, and Google) may process data outside Brazil. International transfers rely on adequacy decisions or standard contractual clauses, consistent with LGPD Chapter V."
+      "body": "Orbit's database and application servers are hosted with Supabase and Render. Product analytics through PostHog is processed in the United States. Other subprocessors, including OpenAI, Stripe, and Google, may process data outside Brazil. International transfers rely on adequacy decisions or standard contractual clauses, consistent with LGPD Chapter V."
     },
     "automatedProcessing": {
       "title": "AI & Automated Processing",

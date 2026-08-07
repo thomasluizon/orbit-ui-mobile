@@ -2,6 +2,10 @@ import { useMemo } from 'react'
 import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
+import {
+  mobilePrivacyRetentionKeys,
+  mobilePrivacyThirdPartyKeys,
+} from '@orbit/shared/i18n'
 import { createTokensV2 } from '@/lib/theme'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -11,17 +15,8 @@ import { SectionLabel } from '@/components/ui/section-label'
 
 const dataCollectedKeys = ['account', 'habits', 'chat', 'preferences', 'device'] as const
 const howWeUseKeys = ['provide', 'personalize', 'notifications'] as const
-const thirdPartyKeys = [
-  'google',
-  'stripe',
-  'firebase',
-  'openai',
-  'resend',
-  'googlePlay',
-  'admob',
-  'sentry',
-] as const
-const retentionKeys = ['account', 'sessions', 'ai', 'afterDeletion'] as const
+export const thirdPartyKeys = mobilePrivacyThirdPartyKeys
+export const retentionKeys = mobilePrivacyRetentionKeys
 const googleScopesKeys = ['auth', 'calendar', 'control'] as const
 
 function PrivacyBulletList({
