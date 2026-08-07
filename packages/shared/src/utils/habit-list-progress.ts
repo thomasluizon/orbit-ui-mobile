@@ -110,11 +110,18 @@ export function computeParentPromptProgress(
     let total = 0
     let loggedDone = 0
 
-    const isSkipped = skippedIds.has(child.id)
+    // WHY: API dateFrom/user-today populates flexible progress; general habits cannot be skipped. https://linear.app/useorbitai/issue/ORB-86
+    const isServerKnownSkip =
+      child.flexibleTarget != null &&
+      child.flexibleCompleted != null &&
+      child.flexibleCompleted >= child.flexibleTarget &&
+      !child.isLoggedInRange
+    const isAssumedCompleted = child.id === assumeCompletedId && !skippedIds.has(child.id)
+    const isSkipped = !isAssumedCompleted && (skippedIds.has(child.id) || isServerKnownSkip)
     const isResolved =
       child.isCompleted ||
       child.isLoggedInRange ||
-      child.id === assumeCompletedId ||
+      isAssumedCompleted ||
       isSkipped
     const countsForDay =
       isListView ||
@@ -122,6 +129,7 @@ export function computeParentPromptProgress(
       isDueOnSelectedDate(child) ||
       child.isOverdue ||
       child.isLoggedInRange ||
+      isAssumedCompleted ||
       isSkipped
 
     if (
@@ -130,6 +138,7 @@ export function computeParentPromptProgress(
       !isRelevantToday(child) &&
       !child.isOverdue &&
       !child.isLoggedInRange &&
+      !isAssumedCompleted &&
       !isSkipped
     ) {
       return computeNested(child.id)
