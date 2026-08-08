@@ -21,14 +21,17 @@
 import { readFileSync } from "node:fs"
 
 import { runBounded } from "./lib/bounded-process.mjs"
-import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
+import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-auth.mjs"
+import { misdirectedWriteNote, nodeTargetVerdict } from "./lib/github-target.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
 const USAGE = `usage: resolve-bot-thread.mjs --thread <PRRT_...> --repo <ui|api|landing> [--dry-run]
        resolve-bot-thread.mjs --thread <PRRT_...> --repo <ui|api|landing> --resolve-only
 
-  --thread <id>    the review thread node id, opaque (required)
-  --repo <key>      repository whose owner selects the process-local GitHub token (required)
+  --thread <id>    the review thread node id, opaque (required). It MUST be copied from output
+                   produced in this run, never typed and never reconstructed
+  --repo <key>      repository whose owner selects the process-local GitHub token, AND whose
+                   origin slug the thread is ASSERTED to belong to before any write (required)
   --command-timeout-seconds <s>  hard bound for each GitHub child (default: 45)
   --resolve-only   retry ONLY the resolve, for a run whose reply already landed. Reads no stdin,
                    and first VERIFIES a reply exists on the thread, so the no-bare-resolve rule
@@ -39,13 +42,19 @@ const USAGE = `usage: resolve-bot-thread.mjs --thread <PRRT_...> --repo <ui|api|
 The reply body is read from STDIN and must not be empty. Send one of:
   fixed in <sha>  ·  not applicable because <reason>  ·  filed as ORB-N
 
-Posts addPullRequestReviewThreadReply, then resolveReviewThread ONLY if the reply succeeded. A
+Resolves the node FIRST and refuses unless its repository.nameWithOwner equals the slug --repo
+resolves to. A node id is globally unique, so a wrong id is a live target in somebody else's
+repository, not a failed lookup. A node that does not resolve at all is also refused.
+
+Then posts addPullRequestReviewThreadReply, then resolveReviewThread ONLY if the reply succeeded. A
 resolve is never attempted on its own: a thread closed without a reason is indistinguishable from
 one nobody read.
 
-Prints ONE JSON object on stdout: threadId, replied, resolved, isResolved. Errors go to stderr.
+Prints ONE JSON object on stdout: threadId, targetRepository, targetPullRequest, replied, resolved,
+isResolved. Errors go to stderr.
 
-exit codes: 0 replied and resolved, 1 a mutation failed (the JSON says which), 2 usage error`
+exit codes: 0 replied and resolved, 1 a mutation failed (the JSON says which),
+            2 usage error, an unresolvable node, or a thread that belongs to another repository`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
@@ -77,6 +86,11 @@ const commandTimeoutSeconds = Number(argOf("--command-timeout-seconds") ?? "45")
  * Opaque, but not unvalidated. GitHub's review-thread node ids carry the PRRT_ prefix, and refusing
  * anything else here turns a caller that passed a pull request number into an exit 2 before a
  * mutation rather than a confusing API error after one.
+ *
+ * The shape is ALL this proves, and that is the trap. On 2026-08-08 a correctly shaped, invented id
+ * passed this check and resolved to a live thread on a stranger's repository, because a node id is
+ * globally unique and --repo selected only the token. The target assertion below, not this regex,
+ * is what makes the write safe.
  */
 if (!threadId || !/^PRRT_[A-Za-z0-9_-]+$/.test(threadId)) {
   fail(2, `${USAGE}\n\n--thread must be a review thread node id such as PRRT_kwDOABCD1234`)
@@ -160,23 +174,43 @@ try {
 }
 
 /**
- * --resolve-only exists because a failed resolve after a landed reply told the caller to "retry the
- * resolve alone" and gave them no way to do it. It does NOT weaken the no-bare-resolve rule: it
- * asks GitHub whether a reply is actually on the thread and refuses when there is none, so the
- * invariant is enforced against the live thread rather than trusted from a flag.
+ * THE target assertion. It runs on BOTH paths, before the reply and before a bare resolve, because
+ * both are writes and both are chosen by the node id alone.
+ *
+ * `repository { nameWithOwner }` is the field that closes the 2026-08-08 incident: it is what the
+ * node itself says about where it lives, compared against what `--repo` resolves to through the
+ * checkout's own `origin`. Everything else in this document was already read here for
+ * --resolve-only; carrying the repository in the same round trip costs nothing and means no write
+ * path can skip the check by taking a different query.
+ *
+ * --resolve-only also exists because a failed resolve after a landed reply told the caller to
+ * "retry the resolve alone" and gave them no way to do it. It does NOT weaken the no-bare-resolve
+ * rule: it asks GitHub whether a reply is actually on the thread and refuses when there is none.
  */
 const THREAD_QUERY = `query($thread:ID!){
   node(id:$thread){ ... on PullRequestReviewThread {
     isResolved
     comments(first:100){ totalCount }
+    repository{ nameWithOwner }
+    pullRequest{ number }
   }}
 }`
 
+let expectedSlug
+try {
+  expectedSlug = repositorySlug(githubCwd)
+} catch (error) {
+  fail(2, `--repo ${repoKey} could not be resolved to a GitHub repository: ${redactSecrets(error.message)}`)
+}
+
+const existing = await graphql(THREAD_QUERY, [["-f", `thread=${threadId}`]])
+if (!existing.ok) fail(2, `could not read thread ${threadId} to prove which repository it belongs to: ${existing.detail}`)
+const thread = existing.data?.node
+const target = nodeTargetVerdict({ nodeId: threadId, expectedSlug, resolvedSlug: thread?.repository?.nameWithOwner ?? null })
+if (!target.ok) fail(2, target.message)
+const targetPullRequest = thread?.pullRequest?.number ?? null
+
 if (resolveOnly) {
-  const existing = await graphql(THREAD_QUERY, [["-f", `thread=${threadId}`]])
-  if (!existing.ok) fail(2, `could not read thread ${threadId} to confirm a reply exists: ${existing.detail}`)
-  const thread = existing.data?.node
-  if (!thread) fail(2, `no review thread ${threadId}`)
   if (thread.isResolved) {
     console.log(JSON.stringify({ threadId, resolveOnly: true, replied: true, resolved: true, isResolved: true, note: "already resolved; nothing to do" }, null, 2))
     process.exit(0)
@@ -187,10 +221,10 @@ if (resolveOnly) {
   }
   const retried = await graphql(RESOLVE_MUTATION, [["-f", `thread=${threadId}`]])
   if (!retried.ok) {
-    console.log(JSON.stringify({ threadId, resolveOnly: true, replied: true, resolved: false, error: retried.detail }, null, 2))
+    console.log(JSON.stringify({ threadId, targetRepository: target.slug, targetPullRequest, resolveOnly: true, replied: true, resolved: false, error: retried.detail, note: misdirectedWriteNote(retried.detail, target.slug) }, null, 2))
     process.exit(1)
   }
-  console.log(JSON.stringify({ threadId, resolveOnly: true, replied: true, resolved: true, isResolved: Boolean(retried.data?.resolveReviewThread?.thread?.isResolved) }, null, 2))
+  console.log(JSON.stringify({ threadId, targetRepository: target.slug, targetPullRequest, resolveOnly: true, replied: true, resolved: true, isResolved: Boolean(retried.data?.resolveReviewThread?.thread?.isResolved) }, null, 2))
   process.exit(0)
 }
 
@@ -200,7 +234,22 @@ const replied = await graphql(REPLY_MUTATION, [
 ])
 
 if (!replied.ok) {
-  console.log(JSON.stringify({ threadId, replied: false, resolved: false, error: replied.detail, note: "the resolve was NOT attempted; a thread is never closed without its reason" }, null, 2))
+  const misdirected = misdirectedWriteNote(replied.detail, target.slug)
+  console.log(
+    JSON.stringify(
+      {
+        threadId,
+        targetRepository: target.slug,
+        targetPullRequest,
+        replied: false,
+        resolved: false,
+        error: replied.detail,
+        note: `the resolve was NOT attempted; a thread is never closed without its reason${misdirected ? `\n${misdirected}` : ""}`,
+      },
+      null,
+      2,
+    ),
+  )
   process.exit(1)
 }
 
@@ -211,7 +260,23 @@ if (!resolved.ok) {
    * The reply LANDED. Saying so is what stops a retry from double-posting it: a caller that reads
    * only "failed" would repost the same reply and leave the thread with two identical comments.
    */
-  console.log(JSON.stringify({ threadId, replied: true, resolved: false, error: resolved.detail, note: `the reply landed; retry with --resolve-only, do not repost the reply`, retry: `node tools/resolve-bot-thread.mjs --thread ${threadId} --repo ${repoKey} --resolve-only` }, null, 2))
+  const misdirected = misdirectedWriteNote(resolved.detail, target.slug)
+  console.log(
+    JSON.stringify(
+      {
+        threadId,
+        targetRepository: target.slug,
+        targetPullRequest,
+        replied: true,
+        resolved: false,
+        error: resolved.detail,
+        note: `the reply landed; retry with --resolve-only, do not repost the reply${misdirected ? `\n${misdirected}` : ""}`,
+        retry: `node tools/resolve-bot-thread.mjs --thread ${threadId} --repo ${repoKey} --resolve-only`,
+      },
+      null,
+      2,
+    ),
+  )
   process.exit(1)
 }
 
@@ -219,6 +284,8 @@ console.log(
   JSON.stringify(
     {
       threadId,
+      targetRepository: target.slug,
+      targetPullRequest,
       replied: true,
       resolved: true,
       isResolved: Boolean(resolved.data?.resolveReviewThread?.thread?.isResolved),

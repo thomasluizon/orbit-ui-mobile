@@ -80,6 +80,8 @@ const CASE_MODULES = [
   ["lib/orchestrator-config.mjs", "orchestrator-config"],
   ["lib/bounded-process.mjs", "bounded-process"],
   ["lib/github-auth.mjs", "github-auth"],
+  ["lib/github-target.mjs", "github-target"],
+  ["lib/identifier-ledger.mjs", "identifier-ledger"],
   ["lib/pr-body.mjs", "pr-body"],
   ["lib/readiness-receipt.mjs", "readiness-receipt"],
   ["lib/run-state.mjs", "run-state"],

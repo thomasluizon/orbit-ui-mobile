@@ -14,7 +14,12 @@ working, visual, blocked -> In Progress. ready -> In Review unless the live tick
 visible-effect, which mechanically remains In Progress. Done is never a target.
 The status write is idempotent; a state comment is posted only when its stored signature changes.
 
-exit codes: 0 synchronized, 1 Linear write failed, 2 usage or environment error`
+--issue MUST be copied from output produced in this run. Before either write, the live ticket is
+asserted to carry exactly the repo:<key> label matching --repo, so a mistyped or invented ticket
+key cannot move a stranger's ticket or comment on it.
+
+exit codes: 0 synchronized, 1 Linear write failed,
+            2 usage or environment error, or a ticket that is not provably this repository's`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
@@ -82,6 +87,28 @@ try {
 }
 if (typeof current?.state?.name !== "string" || typeof current?.state?.type !== "string" || !Array.isArray(current?.labels) || current.labels.some((label) => typeof label?.name !== "string")) fail(2, "Linear issue read carried no state name/type or labels array")
 if (["completed", "canceled", "duplicate"].includes(current.state.type)) fail(1, `${issue} is ${current.state.name}; readiness synchronization never regresses a closed issue`)
+
+/**
+ * THE target assertion, the Linear half of the 2026-08-08 misdirected-write incident. `--issue` is
+ * a caller-supplied identifier and this tool writes twice with it: a status change and a comment.
+ * An invented or mistyped ORB-N is a live ticket belonging to other work, so the write lands
+ * somewhere real and reads as deliberate.
+ *
+ * `repo:*` is the mechanical link between a ticket and a repository: tools/plan-queue.mjs admits a
+ * ticket only when it carries EXACTLY ONE repo:* label, and derives the target repository from it
+ * (plan-queue.mjs:194-212). Asserting the same label here means the ticket and --repo cannot
+ * disagree.
+ *
+ * Fail closed on a MISSING label as well as a wrong one. A ticket with no repo:* label is one
+ * plan-queue would have deferred as NO_REPO_LABEL, so writing to it proves nothing about whether it
+ * is the right ticket.
+ */
+const repoLabels = current.labels.map((label) => label.name).filter((name) => name.startsWith("repo:"))
+if (repoLabels.length !== 1 || repoLabels[0].slice("repo:".length) !== repoKey) {
+  const found = repoLabels.length === 0 ? "no repo:* label" : repoLabels.join(" and ")
+  fail(2, `${issue} carries ${found}, so it is not provably the ${repoKey} ticket this synchronization names. Nothing was written. Expected exactly repo:${repoKey}`)
+}
+
 const visibleEffect = current.labels.some((label) => label.name === "visible-effect")
 // The live label is authoritative in both directions. A stale caller cannot strand an ordinary
 // ticket In Progress with --state visual or advance visible work with --state ready.
