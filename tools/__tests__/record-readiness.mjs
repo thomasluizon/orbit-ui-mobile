@@ -1,4 +1,4 @@
-import { copyFileSync } from "node:fs"
+import { copyFileSync, existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { T, check, orcaEnv, realOrchestratorConfig, stage, stageRepo, stageWithConfig, toolPath } from "./_harness.mjs"
@@ -48,7 +48,18 @@ export const cases = () => {
   }
   check(TOOL, "matching final-head artifacts persist READY", argv, { status: 0, stdout: /"verdict": "READY"/ }, { path: staged.path, env: live() })
   check(TOOL, "a codex-only body edit invalidates the earlier CI artifact", [...argv, "--codex-only"], { status: 1, stdout: /CI_STALE/ }, { path: staged.path, env: live() })
-  check(TOOL, "codex-only aggregation is READY after delivery rechecks the already-marked body", [...argv, "--codex-only"], { status: 0, stdout: /"verdict": "READY"/ }, { path: staged.path, env: live(HEAD, BASE, 0, "DEGRADED: same-vendor review\n\nImplements ORB-700\n") })
+  const bodyEditMarkerPath = join(repo.path, ".git", "orbit-body-edit-invalidations", "700.json")
+  let bodyEditMarker = null
+  try {
+    bodyEditMarker = JSON.parse(readFileSync(bodyEditMarkerPath, "utf8"))
+  } catch {
+    bodyEditMarker = null
+  }
+  T(`${TOOL}: recorder persists exact pre-edit head/base and Guards baseline before editing`, bodyEditMarker?.headSha === HEAD && bodyEditMarker?.baseSha === BASE && bodyEditMarker?.guardsRuns?.[0]?.name === "Lint", JSON.stringify(bodyEditMarker))
+  check(TOOL, "codex-only aggregation cannot reuse unchanged pre-edit Guards runs", [...argv, "--codex-only"], { status: 1, stdout: /CI_STALE/ }, { path: staged.path, env: live(HEAD, BASE, 0, "DEGRADED: same-vendor review\n\nImplements ORB-700\n") })
+  const replacementCheck = { ...greenCheck, startedAt: "2026-08-07T11:00:00Z" }
+  check(TOOL, "codex-only aggregation is READY after newer Guards runs replace the invalidated baseline", [...argv, "--codex-only"], { status: 0, stdout: /"verdict": "READY"/ }, { path: staged.path, env: live(HEAD, BASE, 0, "DEGRADED: same-vendor review\n\nImplements ORB-700\n", { name: "In Review", type: "started" }, [], { statusCheckRollup: [replacementCheck] }) })
+  T(`${TOOL}: recorder removes a settled body-edit invalidation`, !existsSync(bodyEditMarkerPath), bodyEditMarkerPath)
 
   const failedRerun = { ...greenCheck, conclusion: "FAILURE", startedAt: "2026-08-07T11:00:00Z" }
   check(TOOL, "a same-SHA failed CI rerun prevents READY during aggregation", argv, { status: 1, stdout: /CI_STALE/ }, { path: staged.path, env: live(HEAD, BASE, 0, "Implements ORB-700", { name: "In Review", type: "started" }, [], { statusCheckRollup: [greenCheck, failedRerun] }) })

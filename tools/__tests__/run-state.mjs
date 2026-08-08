@@ -26,6 +26,8 @@ export const cases = () => {
   writeRunState({ ...state, pullRequests: [identity] }, repoRoot)
   writeRunState({ ...state, pullRequests: [] }, repoRoot)
   T(`${TOOL}: clearing pullRequests cannot erase the append-only readiness ledger`, readRunState(repoRoot)?.readinessLedger?.[0]?.prNumber === 694, JSON.stringify(readRunState(repoRoot)))
+  writeRunState({ sessionId: "s2", sleep: true, remaining: ["ORB-9"], pullRequests: [] }, repoRoot)
+  T(`${TOOL}: a new session starts with a fresh readiness ledger`, readRunState(repoRoot)?.readinessLedger?.length === 0, JSON.stringify(readRunState(repoRoot)))
 
   registerWakeSource({ pid: 4242, what: "worker ORB-1" }, repoRoot)
   registerWakeSource({ pid: 4343, what: "reviewer ORB-1" }, repoRoot)

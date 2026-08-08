@@ -4,6 +4,7 @@
 import { readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 
+import { bodyEditInvalidationPath, clearBodyEditInvalidation, pendingBodyEditGuards, persistBodyEditInvalidation, readBodyEditInvalidation } from "./lib/body-edit-invalidation.mjs"
 import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-auth.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
@@ -88,7 +89,7 @@ let liveComparison
 let liveLinear
 let liveBot
 let liveCiGreen = false
-let bodyMutated = false
+let bodyEditCiInvalidated = false
 try {
   const repository = repositorySlug(repoRoot)
   const githubAuth = await githubEnvironment(repoRoot, { timeoutMs: 45000 })
@@ -113,6 +114,34 @@ try {
     !Array.isArray(live?.statusCheckRollup)
   ) {
     fail(`gh pr view ${prNumber} did not return the confirmed number/base/head/draft shape`)
+  }
+  const gitCommon = await runBounded(
+    "git",
+    ["-C", repoRoot, "rev-parse", "--git-common-dir"],
+    { cwd: repoRoot, timeoutMs: 45000 },
+  )
+  if (gitCommon.timedOut) fail(`git common-directory read for PR ${prNumber} timed out after 45s; the complete child process tree was terminated`)
+  if (gitCommon.error || gitCommon.status !== 0 || !gitCommon.stdout.trim()) {
+    const detail = gitCommon.stderr || gitCommon.stdout || gitCommon.error?.message || `exit ${gitCommon.status}`
+    fail(`git common-directory read for PR ${prNumber} failed: ${redactSecrets(detail.trim())}`)
+  }
+  const bodyEditMarkerPath = bodyEditInvalidationPath({ worktree: repoRoot, gitCommonDirectory: gitCommon.stdout.trim(), prNumber })
+  let bodyEditMarker
+  try {
+    bodyEditMarker = readBodyEditInvalidation(bodyEditMarkerPath)
+  } catch (error) {
+    fail(error.message)
+  }
+  if (bodyEditMarker && bodyEditMarker.repositoryKey !== null && bodyEditMarker.repositoryKey !== repoKey) {
+    fail(`persisted PR-body CI invalidation has an invalid shape: ${bodyEditMarkerPath}`)
+  }
+  if (bodyEditMarker && (bodyEditMarker.headSha !== live.headRefOid || bodyEditMarker.baseSha !== live.baseRefOid)) {
+    clearBodyEditInvalidation(bodyEditMarkerPath)
+    bodyEditMarker = null
+  }
+  if (bodyEditMarker) {
+    bodyEditCiInvalidated = pendingBodyEditGuards(bodyEditMarker, live.statusCheckRollup).length > 0
+    if (!bodyEditCiInvalidated) clearBodyEditInvalidation(bodyEditMarkerPath)
   }
   const requiredRead = await runBounded(
     process.env.GH_BIN || "gh",
@@ -141,6 +170,14 @@ try {
   if (codexOnly) {
     const degradedBody = withDegradedReviewFirst(live.body)
     if (degradedBody !== live.body) {
+      persistBodyEditInvalidation({
+        path: bodyEditMarkerPath,
+        repositoryKey: repoKey,
+        prNumber,
+        headSha: live.headRefOid,
+        baseSha: live.baseRefOid,
+        statusCheckRollup: live.statusCheckRollup,
+      })
       const edited = await runBounded(
         process.env.GH_BIN || "gh",
         ["pr", "edit", String(prNumber), "--repo", repository, "--body-file", "-"],
@@ -148,11 +185,12 @@ try {
       )
       if (edited.timedOut) fail(`gh pr edit ${prNumber} timed out after 45s; the complete child process tree was terminated`)
       if (edited.error || edited.status !== 0) {
+        clearBodyEditInvalidation(bodyEditMarkerPath)
         const detail = edited.stderr || edited.stdout || edited.error?.message || `exit ${edited.status}`
         fail(`could not enforce degraded PR body marker on ${prNumber}: ${redactSecrets(detail.trim(), githubAuth.secrets)}`)
       }
       live.body = degradedBody
-      bodyMutated = true
+      bodyEditCiInvalidated = true
     }
   }
   const comparison = await runBounded(
@@ -215,7 +253,7 @@ const receipt = {
     headSha: review.reviewedHeadOid,
     baseSha: review.baseSha,
   },
-  ci: { settled: !bodyMutated && ci.pending.length === 0 && liveCiGreen, green: !bodyMutated && ci.pass === true && liveCiGreen, invalidatedByBodyEdit: bodyMutated, checks: ci, headSha: state.headSha, baseSha: state.baseSha },
+  ci: { settled: !bodyEditCiInvalidated && ci.pending.length === 0 && liveCiGreen, green: !bodyEditCiInvalidated && ci.pass === true && liveCiGreen, invalidatedByBodyEdit: bodyEditCiInvalidated, checks: ci, headSha: state.headSha, baseSha: state.baseSha },
   codexConnector: { passed: bot.verdict === "REVIEWED" && botArtifactCurrent && liveConnectorPassed, reviewedCommit: liveBot?.reviewedCommit ?? null, headSha: liveBot?.headRefOid ?? null, baseSha: liveBot?.baseRefOid ?? null },
   threads: { complete: bot.threadsComplete === true && liveBot?.threadsComplete === true && botArtifactCurrent, unresolvedCount: liveUnresolvedThreads, headSha: liveBot?.headRefOid ?? null, baseSha: liveBot?.baseRefOid ?? null },
   behindBy: liveComparison.behind_by,

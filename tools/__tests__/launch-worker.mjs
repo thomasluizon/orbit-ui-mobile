@@ -175,8 +175,8 @@ export const cases = () => {
     ]) },
   )
   discardLog(bodyEdited.stdout)
-  const bodyEditGitPath = spawnSync("git", ["-C", bodyEdit.worktree, "rev-parse", "--git-path", "orbit-body-edit-invalidations"], { encoding: "utf8", windowsHide: true }).stdout.trim()
-  const bodyEditReceiptPath = resolve(bodyEdit.worktree, bodyEditGitPath, "200.json")
+  const bodyEditGitPath = spawnSync("git", ["-C", bodyEdit.worktree, "rev-parse", "--git-common-dir"], { encoding: "utf8", windowsHide: true }).stdout.trim()
+  const bodyEditReceiptPath = resolve(bodyEdit.worktree, bodyEditGitPath, "orbit-body-edit-invalidations", "200.json")
   let bodyEditReceipt = null
   try {
     bodyEditReceipt = JSON.parse(readFileSync(bodyEditReceiptPath, "utf8"))

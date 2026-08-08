@@ -288,11 +288,11 @@ const finish = async (outcome, exitCode) => {
       if (Array.isArray(listed) && listed.length === 1) {
         const body = withDegradedReviewFirst(listed[0].body)
         if (body !== listed[0].body) {
-          const gitPath = await runBounded("git", ["-C", runDirectory, "rev-parse", "--git-path", "orbit-body-edit-invalidations"], { cwd: runDirectory, timeoutMs: commandTimeoutSeconds * 1000, maxBuffer: 1024 * 1024 })
-          if (gitPath.timedOut || gitPath.overflowed || gitPath.error || gitPath.status !== 0 || !gitPath.stdout.trim()) {
-            throw new Error(`could not resolve the repository-local PR-body invalidation path: ${(gitPath.stderr || gitPath.stdout || gitPath.error?.message || `exit ${gitPath.status}`).trim()}`)
+          const gitCommon = await runBounded("git", ["-C", runDirectory, "rev-parse", "--git-common-dir"], { cwd: runDirectory, timeoutMs: commandTimeoutSeconds * 1000, maxBuffer: 1024 * 1024 })
+          if (gitCommon.timedOut || gitCommon.overflowed || gitCommon.error || gitCommon.status !== 0 || !gitCommon.stdout.trim()) {
+            throw new Error(`could not resolve the shared Git directory for PR-body invalidation: ${(gitCommon.stderr || gitCommon.stdout || gitCommon.error?.message || `exit ${gitCommon.status}`).trim()}`)
           }
-          const markerPath = bodyEditInvalidationPath({ worktree: runDirectory, gitPath: gitPath.stdout.trim(), prNumber: listed[0].number })
+          const markerPath = bodyEditInvalidationPath({ worktree: runDirectory, gitCommonDirectory: gitCommon.stdout.trim(), prNumber: listed[0].number })
           persistBodyEditInvalidation({
             path: markerPath,
             prNumber: listed[0].number,

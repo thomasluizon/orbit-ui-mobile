@@ -30,7 +30,7 @@
 
 import { statSync } from "node:fs"
 
-import { bodyEditInvalidationPath, clearBodyEditInvalidation, newestGuardsRuns, persistBodyEditInvalidation, readBodyEditInvalidation } from "./lib/body-edit-invalidation.mjs"
+import { bodyEditInvalidationPath, clearBodyEditInvalidation, pendingBodyEditGuards, persistBodyEditInvalidation, readBodyEditInvalidation } from "./lib/body-edit-invalidation.mjs"
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
@@ -328,9 +328,9 @@ const readRequiredContexts = async (state) => {
 }
 let requiredContexts = await readRequiredContexts(pullRequestState)
 
-const markerLocation = await git(["rev-parse", "--git-path", "orbit-body-edit-invalidations"])
-if (!markerLocation.ok || !markerLocation.stdout.trim()) fail(2, `git rev-parse --git-path orbit-body-edit-invalidations failed in ${worktree}: ${markerLocation.error ?? "empty output"}`)
-const bodyEditMarkerPath = bodyEditInvalidationPath({ worktree, gitPath: markerLocation.stdout.trim(), prNumber: pullRequest.number })
+const markerLocation = await git(["rev-parse", "--git-common-dir"])
+if (!markerLocation.ok || !markerLocation.stdout.trim()) fail(2, `git rev-parse --git-common-dir failed in ${worktree}: ${markerLocation.error ?? "empty output"}`)
+const bodyEditMarkerPath = bodyEditInvalidationPath({ worktree, gitCommonDirectory: markerLocation.stdout.trim(), prNumber: pullRequest.number })
 const readBodyEditMarker = () => {
   let marker
   try {
@@ -440,19 +440,8 @@ const applyBodyEditInvalidation = (rollup) => {
     return rollup
   }
 
-  const currentGuardsRuns = newestGuardsRuns(pullRequestState.statusCheckRollup)
-  const pending = marker.guardsRuns
-    .filter((baseline) => {
-      const current = currentGuardsRuns.get(baseline.name)
-      return !current || Date.parse(current.startedAt) <= Date.parse(baseline.startedAt)
-    })
-    .map((baseline) => checkMetadata(`post-edit ${baseline.name}`, { status: "NOT_REGISTERED", conclusion: null }))
-
-  if (marker.guardsRuns.length === 0) {
-    const editTime = Date.parse(marker.editedAt)
-    const replacementRegistered = [...currentGuardsRuns.values()].some((node) => Date.parse(node.startedAt) >= Math.floor(editTime / 1000) * 1000)
-    if (!replacementRegistered) pending.push(checkMetadata("post-edit Guards workflow", { status: "NOT_REGISTERED", conclusion: null }))
-  }
+  const pending = pendingBodyEditGuards(marker, pullRequestState.statusCheckRollup)
+    .map((name) => checkMetadata(`post-edit ${name}`, { status: "NOT_REGISTERED", conclusion: null }))
 
   if (pending.length === 0) {
     clearBodyEditInvalidation(bodyEditMarkerPath)

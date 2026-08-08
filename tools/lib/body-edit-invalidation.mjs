@@ -11,9 +11,9 @@ export const newestGuardsRuns = (rollup) => {
   return newest
 }
 
-/** The Git common directory is already repository-qualified, so a PR number is unambiguous here. */
-export const bodyEditInvalidationPath = ({ worktree, gitPath, prNumber }) =>
-  resolve(worktree, gitPath, `${prNumber}.json`)
+/** The Git common directory is shared by the primary checkout and every linked worktree. */
+export const bodyEditInvalidationPath = ({ worktree, gitCommonDirectory, prNumber }) =>
+  resolve(worktree, gitCommonDirectory, "orbit-body-edit-invalidations", `${prNumber}.json`)
 
 export const persistBodyEditInvalidation = ({ path, repositoryKey = null, prNumber, headSha, baseSha, statusCheckRollup, editedAt = new Date().toISOString() }) => {
   const marker = {
@@ -52,3 +52,18 @@ export const readBodyEditInvalidation = (path) => {
 }
 
 export const clearBodyEditInvalidation = (path) => rmSync(path, { force: true })
+
+export const pendingBodyEditGuards = (marker, statusCheckRollup) => {
+  const current = newestGuardsRuns(statusCheckRollup)
+  if (marker.guardsRuns.length === 0) {
+    const editTime = Date.parse(marker.editedAt)
+    const replacementRegistered = [...current.values()].some((node) => Date.parse(node.startedAt) >= Math.floor(editTime / 1000) * 1000)
+    return replacementRegistered ? [] : ["Guards workflow"]
+  }
+  return marker.guardsRuns
+    .filter((baseline) => {
+      const run = current.get(baseline.name)
+      return !run || Date.parse(run.startedAt) <= Date.parse(baseline.startedAt)
+    })
+    .map((baseline) => baseline.name)
+}

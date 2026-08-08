@@ -788,10 +788,10 @@ For each existing PR, repeat within the configured `caps.connectorFixAttempts` f
 In `--codex-only`, every PR body the harness creates or touches is mechanically rewritten so its
 exact first line is `DEGRADED: same-vendor review`. The launcher enforces it after implementation;
 every delivery verification reasserts it after later body edits; and final receipt aggregation
-reasserts it once more. Pass `--codex-only` to both tools. The launcher and delivery verifier both
-persist a body-edit CI invalidation in Git metadata until newer `Guards` check instances register, so another process
-cannot reuse the pre-edit green rollup. A body touch cannot clear readiness while silently dropping
-the banner.
+reasserts it once more. Pass `--codex-only` to both tools. The launcher, delivery verifier, and
+receipt recorder all persist the same body-edit CI invalidation in shared repository Git metadata
+until newer `Guards` check instances register, so another process or linked worktree cannot reuse
+the pre-edit green rollup. A body touch cannot clear readiness while silently dropping the banner.
 
 ## Step 14. Hand over
 
@@ -933,8 +933,9 @@ from:
 ```
 
 `pullRequests` holds repository-qualified identities and receipt paths for every pull request this
-run opened. `writeRunState` mechanically unions those identities into the append-only
-`readinessLedger`; later writes cannot erase them by setting `pullRequests: []`. A bare number is
+run opened. Within one exact `sessionId`, `writeRunState` mechanically unions those identities into
+the append-only `readinessLedger`; later writes cannot erase them by setting `pullRequests: []`.
+A new session starts with a fresh ledger and cannot inherit yesterday's completed PRs. A bare number is
 invalid because UI and API can have the same PR number. The stop hook opens every ledger receipt,
 matches its repository and PR identity, then boundedly rereads the live GitHub head/base/draft,
 newest CI reruns and required-context inventory, current connector verdict and fully paginated

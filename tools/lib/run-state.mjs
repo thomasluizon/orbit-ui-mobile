@@ -63,9 +63,10 @@ export const readRunState = (repoRoot = REPO_ROOT) => {
 export const writeRunState = (state, repoRoot = REPO_ROOT) => {
   mkdirSync(gitDirectoryOf(repoRoot), { recursive: true })
   const previous = readRunState(repoRoot)
+  const sameSession = typeof state?.sessionId === "string" && state.sessionId !== "" && previous?.sessionId === state.sessionId
   const identities = [
-    ...(Array.isArray(previous?.readinessLedger) ? previous.readinessLedger : []),
-    ...(Array.isArray(previous?.pullRequests) ? previous.pullRequests : []),
+    ...(sameSession && Array.isArray(previous?.readinessLedger) ? previous.readinessLedger : []),
+    ...(sameSession && Array.isArray(previous?.pullRequests) ? previous.pullRequests : []),
     ...(Array.isArray(state?.readinessLedger) ? state.readinessLedger : []),
     ...(Array.isArray(state?.pullRequests) ? state.pullRequests : []),
   ]
