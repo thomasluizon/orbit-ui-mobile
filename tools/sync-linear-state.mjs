@@ -14,7 +14,12 @@ working, visual, blocked -> In Progress. ready -> In Review unless the live tick
 visible-effect, which mechanically remains In Progress. Done is never a target.
 The status write is idempotent; a state comment is posted only when its stored signature changes.
 
-exit codes: 0 synchronized, 1 Linear write failed, 2 usage or environment error`
+--issue MUST be copied from output produced in this run. Before either write, the live ticket is
+asserted to carry exactly the repo:<key> label matching --repo, so a mistyped or invented ticket
+key cannot move a stranger's ticket or comment on it.
+
+exit codes: 0 synchronized, 1 Linear write failed,
+            2 usage or environment error, or a ticket that is not provably this repository's`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
@@ -82,8 +87,62 @@ try {
 }
 if (typeof current?.state?.name !== "string" || typeof current?.state?.type !== "string" || !Array.isArray(current?.labels) || current.labels.some((label) => typeof label?.name !== "string")) fail(2, "Linear issue read carried no state name/type or labels array")
 if (["completed", "canceled", "duplicate"].includes(current.state.type)) fail(1, `${issue} is ${current.state.name}; readiness synchronization never regresses a closed issue`)
-const visibleEffect = current.labels.some((label) => label.name === "visible-effect")
-// The live label is authoritative in both directions. A stale caller cannot strand an ordinary
+
+/**
+ * THE target assertion, the Linear half of the 2026-08-08 misdirected-write incident. `--issue` is
+ * a caller-supplied identifier and this tool writes twice with it: a status change and a comment.
+ * An invented or mistyped ORB-N is a live ticket belonging to other work, so the write lands
+ * somewhere real and reads as deliberate.
+ *
+ * `repo:*` is the mechanical link between a ticket and a repository: tools/plan-queue.mjs admits a
+ * ticket only when it carries EXACTLY ONE repo:* label, and derives the target repository from it
+ * (plan-queue.mjs:194-212). Asserting the same label here means the ticket and --repo cannot
+ * disagree.
+ *
+ * Fail closed on a MISSING label as well as a wrong one. A ticket with no repo:* label is one
+ * plan-queue would have deferred as NO_REPO_LABEL, so writing to it proves nothing about whether it
+ * is the right ticket.
+ */
+const repoLabels = current.labels.map((label) => label.name).filter((name) => name.startsWith("repo:"))
+if (repoLabels.length !== 1 || repoLabels[0].slice("repo:".length) !== repoKey) {
+  const found = repoLabels.length === 0 ? "no repo:* label" : repoLabels.join(" and ")
+  fail(2, `${issue} carries ${found}, so it is not provably the ${repoKey} ticket this synchronization names. Nothing was written. Expected exactly repo:${repoKey}`)
+}
+
+/**
+ * THE D13 visual gate, and it used to read only the LABEL.
+ *
+ * Measured 2026-08-08 on ORB-103. Its labels were `repo:landing, Feature`, and its acceptance
+ * criterion 6 read verbatim "This is a `visible-effect` ticket. It cannot reach In Review without
+ * screenshots attached." The label was absent, so `--state visual` silently collapsed to `ready`
+ * and a machine asserted a visual grant only a human may give. It was caught by a person reading
+ * the body afterwards and adding the label by hand.
+ *
+ * The two halves cannot disagree any more: the ticket BODY is read as well as the label, and either
+ * one is enough. That is deliberately asymmetric. A false positive costs one ticket a human glance;
+ * a false negative is a machine granting D13, which is the thing that must never happen.
+ *
+ * The body pattern is the literal ticket vocabulary, not a guess: the template writes the term
+ * inside backticks or plain, and the parity block writes `visible-effect:` as a field.
+ */
+const VISIBLE_EFFECT_IN_BODY = /(?<![\w-])`?visible-effect`?(?![\w-])/i
+const labelledVisibleEffect = current.labels.some((label) => label.name === "visible-effect")
+const bodyClaimsVisibleEffect = typeof current.description === "string" && VISIBLE_EFFECT_IN_BODY.test(current.description)
+const visibleEffect = labelledVisibleEffect || bodyClaimsVisibleEffect
+
+/**
+ * A body that claims it with no label is an INCONSISTENT ticket, and the honest answer is to refuse
+ * rather than to pick a side quietly. Withholding In Review is the fail-closed direction: the work
+ * stays In Progress, a human adds the label or removes the claim, and the run says which.
+ */
+if (bodyClaimsVisibleEffect && !labelledVisibleEffect) {
+  console.error(
+    `${issue} claims visible-effect in its body but carries no visible-effect LABEL. Treating it as visible work and holding it In Progress. ` +
+      `Add the label, or remove the claim from the body, so the two cannot disagree. Only a human grants visual completion (D13).`,
+  )
+}
+
+// The live ticket is authoritative in both directions. A stale caller cannot strand an ordinary
 // ticket In Progress with --state visual or advance visible work with --state ready.
 const effectiveStateKey = ["ready", "visual"].includes(stateKey) ? (visibleEffect ? "visual" : "ready") : stateKey
 const targetStatus = effectiveStateKey === "ready" ? config.linear.states.review : config.linear.states.working

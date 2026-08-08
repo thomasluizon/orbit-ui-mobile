@@ -6,19 +6,30 @@ const TOOL = "resolve-bot-thread.mjs"
 const THREAD = "PRRT_kwDOR5Siws6Wfy_V"
 let testedToolPath = null
 
+const OURS = "thomasluizon/orbit-ui-mobile"
+const THEIRS = "benhook1013/FireMUD"
+
 const REPLY_OK = JSON.stringify({ data: { addPullRequestReviewThreadReply: { comment: { id: "IC_1", url: "https://github.com/thomasluizon/orbit-ui-mobile/pull/681#discussion_r1" } } } })
 const RESOLVE_OK = JSON.stringify({ data: { resolveReviewThread: { thread: { id: THREAD, isResolved: true } } } })
 
+/** The pre-write target read, which now runs on BOTH paths before anything is mutated. */
+const threadNode = ({ nameWithOwner = OURS, isResolved = false, totalCount = 2, pullRequest = 681 } = {}) =>
+  JSON.stringify({ data: { node: { isResolved, comments: { totalCount }, repository: nameWithOwner === null ? null : { nameWithOwner }, pullRequest: { number: pullRequest } } } })
+
+const UNRESOLVABLE_NODE = JSON.stringify({ data: { node: null } })
+
 /**
- * The two mutations are told apart by a token unique to each document, because the shim keys on the
- * whole command line and both are `gh api graphql`. Ordering the reply entry first is not what makes
- * this work: `addPullRequestReviewThreadReply` appears only in the reply document.
+ * The three documents are told apart by a token unique to each, because the shim keys on the whole
+ * command line and all three are `gh api graphql`. Order matters here: the target read's document
+ * contains `PullRequestReviewThread`, and so would any entry keyed on that substring, so the read
+ * entry is matched by `repository{ nameWithOwner }`, which appears in no mutation.
  */
-const plan = ({ reply = REPLY_OK, replyExit = 0, resolve = RESOLVE_OK, resolveExit = 0 } = {}) =>
+const plan = ({ reply = REPLY_OK, replyExit = 0, resolve = RESOLVE_OK, resolveExit = 0, target = threadNode(), targetExit = 0 } = {}) =>
   orcaEnv([
     { match: "auth token --user thomasluizon", stdout: "test-github-token" },
     { match: "addPullRequestReviewThreadReply", stdout: reply, exit: replyExit },
     { match: "resolveReviewThread", stdout: resolve, exit: resolveExit },
+    { match: "nameWithOwner", stdout: target, exit: targetExit },
   ])
 
 const parsed = (result) => {
@@ -57,6 +68,43 @@ export const cases = () => {
   const blank = run(TOOL, ["--thread", THREAD, "--repo", "ui"], { path: testedToolPath, env: plan(), input: "   \n\t  \n" })
   T(`${TOOL}: a whitespace-only reply body is refused too`, blank.status === 2 && /reply body on stdin is empty/.test(blank.stderr), `exit ${blank.status}: ${blank.stderr || blank.stdout}`)
 
+  /**
+   * THE incident, reproduced. On 2026-08-08 a typed `PRRT_` id resolved to a live CodeRabbit thread
+   * on benhook1013/FireMUD pull request #2594 and a reply landed there under Thomas's account.
+   * `--repo` chose only the token, so nothing compared the node's repository with the caller's.
+   *
+   * The reply and resolve stubs are BOTH present in this plan and both must go unused. That is what
+   * proves nothing was written, rather than proving only that the exit code was non-zero.
+   */
+  const foreign = post("fixed in 4e6e4871", { target: threadNode({ nameWithOwner: THEIRS }) })
+  T(
+    `${TOOL}: a thread in ANOTHER repository is refused before the reply, naming both repositories`,
+    foreign.status === 2 && foreign.stderr.includes(THEIRS) && foreign.stderr.includes(OURS) && foreign.stdout === "",
+    `exit ${foreign.status}: ${foreign.stderr || foreign.stdout}`,
+  )
+
+  /** An id that resolves to nothing is the other half of the same defect, and it is what a typed id
+   * usually looks like. It must refuse, never fall through to the write. */
+  const unresolvable = post("fixed in 4e6e4871", { target: UNRESOLVABLE_NODE })
+  T(
+    `${TOOL}: a node that does not resolve at all is refused, and writes nothing`,
+    unresolvable.status === 2 && /did not resolve/.test(unresolvable.stderr) && unresolvable.stdout === "",
+    `exit ${unresolvable.status}: ${unresolvable.stderr || unresolvable.stdout}`,
+  )
+
+  /** --resolve-only writes too, so the same assertion must guard it. A gate on one path only is
+   * the shape that reads as covered and is not. */
+  const foreignResolveOnly = run(TOOL, ["--thread", THREAD, "--repo", "ui", "--resolve-only"], { path: testedToolPath, env: orcaEnv([
+    { match: "auth token --user thomasluizon", stdout: "test-github-token" },
+    { match: "nameWithOwner", stdout: threadNode({ nameWithOwner: THEIRS }) },
+    { match: "resolveReviewThread", stdout: RESOLVE_OK },
+  ]) })
+  T(
+    `${TOOL}: --resolve-only refuses a thread in another repository too`,
+    foreignResolveOnly.status === 2 && foreignResolveOnly.stderr.includes(THEIRS),
+    `exit ${foreignResolveOnly.status}: ${foreignResolveOnly.stderr || foreignResolveOnly.stdout}`,
+  )
+
   const happy = post("fixed in 4e6e4871")
   const happyPlan = parsed(happy)
   T(
@@ -65,6 +113,23 @@ export const cases = () => {
     happy.stdout || happy.stderr,
   )
   T(`${TOOL}: the reply comment url is returned so the record is followable`, /#discussion_r1$/.test(happyPlan?.commentUrl ?? ""), happy.stdout)
+  T(
+    `${TOOL}: the resolved target is reported, so a reader can see WHERE the write landed`,
+    happyPlan?.targetRepository === OURS && happyPlan?.targetPullRequest === 681,
+    happy.stdout,
+  )
+
+  /**
+   * The wrong DIAGNOSIS cost as much as the wrong id. GitHub answers a write it will not accept
+   * with a permissions error, and that exact message was filed as a transient glitch on 2026-08-08.
+   */
+  const denied = post("fixed in 4e6e4871", { reply: JSON.stringify({ errors: [{ message: "thomasluizon does not have the correct permissions to execute AddPullRequestReviewThreadReply" }] }) })
+  const deniedPlan = parsed(denied)
+  T(
+    `${TOOL}: a permissions error names the resolved target and says it usually means another owner`,
+    denied.status === 1 && /another owner/.test(deniedPlan?.note ?? "") && (deniedPlan?.note ?? "").includes(OURS),
+    denied.stdout || denied.stderr,
+  )
 
   /**
    * THE machine check that a bare resolve is impossible. If the reply fails the resolve must never
@@ -100,13 +165,13 @@ export const cases = () => {
    * caller to "retry the resolve alone" and the tool had no way to do it. --resolve-only closes that
    * gap WITHOUT weakening the rule, by asking GitHub whether a reply is really on the thread.
    */
-  const threadWithReply = JSON.stringify({ data: { node: { isResolved: false, comments: { totalCount: 2 } } } })
-  const threadNoReply = JSON.stringify({ data: { node: { isResolved: false, comments: { totalCount: 1 } } } })
-  const threadDone = JSON.stringify({ data: { node: { isResolved: true, comments: { totalCount: 2 } } } })
+  const threadWithReply = threadNode({ totalCount: 2 })
+  const threadNoReply = threadNode({ totalCount: 1 })
+  const threadDone = threadNode({ isResolved: true, totalCount: 2 })
   const retryPlan = (threadStdout, resolve = RESOLVE_OK, resolveExit = 0) =>
     orcaEnv([
       { match: "auth token --user thomasluizon", stdout: "test-github-token" },
-      { match: "PullRequestReviewThread", stdout: threadStdout },
+      { match: "nameWithOwner", stdout: threadStdout },
       { match: "resolveReviewThread", stdout: resolve, exit: resolveExit },
     ])
 
@@ -129,7 +194,7 @@ export const cases = () => {
   const descendantPidFile = stage("resolve-bot-thread/descendant.pid", "")
   const hanging = run(TOOL, ["--thread", THREAD, "--repo", "ui", "--resolve-only", "--command-timeout-seconds", "1"], { path: testedToolPath, env: orcaEnv([
     { match: "auth token --user thomasluizon", stdout: "test-github-token" },
-    { match: "PullRequestReviewThread", stdout: "", hangTreePidFile: descendantPidFile },
+    { match: "nameWithOwner", stdout: "", hangTreePidFile: descendantPidFile },
   ]) })
   const descendantPid = Number(readFileSync(descendantPidFile, "utf8"))
   T(`${TOOL}: a hanging thread GraphQL read is bounded`, hanging.status === 2 && /timed out after 1s/.test(hanging.stderr), hanging.stderr || hanging.stdout)
