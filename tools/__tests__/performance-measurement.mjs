@@ -4,7 +4,9 @@ import { runInNewContext } from "node:vm"
 
 import { REPO_ROOT, T } from "./_harness.mjs"
 import {
+  applyMeasuredQueryContexts,
   attachPerformanceMetrics,
+  measuredHotpathMappingFailure,
   performanceMeasurementPrompt,
   resolvePerformanceMeasurement,
 } from "../lib/performance-measurement.mjs"
@@ -54,6 +56,13 @@ const availableInput = () => ({
   ],
 })
 
+const measuredMappings = () => [
+  { queryId: "habit-logs", location: "src/HabitLogsQuery.cs:20", executionContext: "request" },
+  { queryId: "habit-list", location: "src/HabitsQuery.cs:20", executionContext: "request" },
+  { queryId: "reminder-sweep", location: "src/ReminderJob.cs:20", executionContext: "background" },
+  { queryId: "bounded-projection", location: "src/BoundedHabitsQuery.cs:20", executionContext: "request" },
+]
+
 export const cases = () => {
   const auditWorkflow = readFileSync(join(REPO_ROOT, ".claude", "workflows", "audit.mjs"), "utf8")
   const readinessWorkflow = readFileSync(join(REPO_ROOT, ".claude", "workflows", "prod-readiness.mjs"), "utf8")
@@ -86,6 +95,10 @@ export const cases = () => {
     "performance-measurement: a failed measured hot-path mapping fails the audit with a named reason",
     auditWorkflow.includes("measured production hot paths could not be mapped to API source"),
   )
+  T(
+    "performance-measurement: an empty measured hot-path mapping fails with a distinct reason",
+    auditWorkflow.includes("measured production hot-path mapping was empty"),
+  )
 
   const measurementFunctions = auditWorkflow.slice(
     auditWorkflow.indexOf("const PERFORMANCE_MONTH_DAYS"),
@@ -107,7 +120,74 @@ export const cases = () => {
   )
   T("performance-measurement: OFFSET without a row limit is not bounded", !offsetOnlyIsBounded)
 
-  const measurement = resolvePerformanceMeasurement(availableInput())
+  const mappingMeasurement = {
+    rowsRanking: [{ queryId: "first" }, { queryId: "second" }],
+  }
+  const mappingFailureCases = [
+    ["null", measuredHotpathMappingFailure(null, mappingMeasurement)],
+    ["undefined", measuredHotpathMappingFailure(undefined, mappingMeasurement)],
+    ["empty", measuredHotpathMappingFailure({ mappings: [] }, mappingMeasurement)],
+    ["all-empty", measuredHotpathMappingFailure({ mappings: [{}] }, mappingMeasurement)],
+    ["partial", measuredHotpathMappingFailure({
+      mappings: [{ queryId: "first", location: "src/First.cs:1", executionContext: "request" }],
+    }, mappingMeasurement)],
+  ]
+  const workflowMappingFailures = runInNewContext(
+    `${measurementFunctions}\nconst mappingMeasurement = ${JSON.stringify(mappingMeasurement)};
+    [
+      measuredHotpathMappingFailure(null, mappingMeasurement),
+      measuredHotpathMappingFailure(undefined, mappingMeasurement),
+      measuredHotpathMappingFailure({ mappings: [] }, mappingMeasurement),
+      measuredHotpathMappingFailure({ mappings: [{}] }, mappingMeasurement),
+      measuredHotpathMappingFailure({ mappings: [{ queryId: 'first', location: 'src/First.cs:1', executionContext: 'request' }] }, mappingMeasurement),
+      measuredHotpathMappingFailure({ mappings: [
+        { queryId: 'first', location: 'src/First.cs:1', executionContext: 'request' },
+        { queryId: 'second', location: 'src/SecondJob.cs:1', executionContext: 'background' },
+      ], findings: [] }, mappingMeasurement),
+    ]`,
+  )
+  T(
+    "performance-measurement: null and undefined mapper results are errors",
+    mappingFailureCases.slice(0, 2).every(([, failure]) => failure === "measured production hot paths could not be mapped to API source"),
+    JSON.stringify(mappingFailureCases),
+  )
+  T(
+    "performance-measurement: empty and all-empty mappings have the empty-mapping reason",
+    mappingFailureCases.slice(2, 4).every(([, failure]) => failure === "measured production hot-path mapping was empty"),
+    JSON.stringify(mappingFailureCases),
+  )
+  T(
+    "performance-measurement: a partial mapping names the missing measured query",
+    mappingFailureCases[4][1]?.includes("mapping was incomplete") && mappingFailureCases[4][1]?.includes("second"),
+    mappingFailureCases[4][1],
+  )
+  T(
+    "performance-measurement: a complete mapping can report no findings without failing readiness",
+    measuredHotpathMappingFailure({
+      mappings: [
+        { queryId: "first", location: "src/First.cs:1", executionContext: "request" },
+        { queryId: "second", location: "src/SecondJob.cs:1", executionContext: "background" },
+      ],
+      findings: [],
+    }, mappingMeasurement) === null,
+  )
+  T(
+    "performance-measurement: the workflow enforces every mapping readiness state",
+    JSON.stringify(workflowMappingFailures) === JSON.stringify([
+      ...mappingFailureCases.map(([, failure]) => failure),
+      null,
+    ]),
+    JSON.stringify(workflowMappingFailures),
+  )
+
+  const unresolvedMeasurement = resolvePerformanceMeasurement(availableInput())
+  const measurement = applyMeasuredQueryContexts(unresolvedMeasurement, measuredMappings())
+  const workflowMeasurement = runInNewContext(
+    `${measurementFunctions}\napplyMeasuredQueryContexts(
+      resolvePerformanceMeasurement(${JSON.stringify(availableInput())}),
+      ${JSON.stringify(measuredMappings())},
+    )`,
+  )
   T("performance-measurement: an available sample produces a measured verdict", measurement.verdict === "MEASURED")
   T("performance-measurement: rows ranking keeps the statement with the most rows first", measurement.rowsRanking[0]?.queryId === "habit-logs", measurement.rowsRanking.map((entry) => entry.queryId).join(","))
   T("performance-measurement: byte-weighted ranking makes the full habit list the top cost", measurement.egressRanking[0]?.queryId === "habit-list", measurement.egressRanking.map((entry) => entry.queryId).join(","))
@@ -115,6 +195,9 @@ export const cases = () => {
   T("performance-measurement: a full-entity projection is signaled from the real column count", measurement.signals.some((signal) => signal.kind === "full-entity-projection" && signal.queryId === "habit-list"))
   T("performance-measurement: a query returning a large table fraction is signaled", measurement.signals.some((signal) => signal.kind === "large-table-fraction" && signal.queryId === "habit-logs"))
   T("performance-measurement: a recurring sweep over budget is signaled", measurement.signals.some((signal) => signal.kind === "background-sweep-budget" && signal.queryId === "reminder-sweep"))
+  T("performance-measurement: an indirectly scoped request is not mislabeled as a background sweep", !workflowMeasurement.signals.some((signal) => signal.kind === "background-sweep-budget" && signal.queryId === "habit-logs"))
+  T("performance-measurement: an indirectly scoped request without a row limit is unbounded", workflowMeasurement.signals.some((signal) => signal.kind === "unbounded-user-list" && signal.queryId === "habit-logs"))
+  T("performance-measurement: a background sweep does not require a row limit", !workflowMeasurement.signals.some((signal) => signal.kind === "unbounded-user-list" && signal.queryId === "reminder-sweep"))
   T("performance-measurement: a bounded projected query is not signaled", !measurement.signals.some((signal) => signal.queryId === "bounded-projection"), JSON.stringify(measurement.signals))
 
   const codeOnly = resolvePerformanceMeasurement({ status: "unavailable", reason: "permission denied for pg_stat_statements" })

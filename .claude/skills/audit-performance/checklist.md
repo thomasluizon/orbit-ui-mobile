@@ -40,9 +40,10 @@ render-thrash patterns react-doctor's perf rules already fail on.
   `monthly_egress = rows / window_days * 30.4375 * bytes_per_row`.
 - [ ] Record account skew, including the maximum live habit count for one account and the
   average for accounts with habits. The maximum is the scale input for user-scoped paths.
-- [ ] For recurring sweeps, derive the observed interval from calls and the statistics
-  window. A sweep whose interval multiplied by rows and bytes exceeds **50 MiB per month**
-  is a finding and names the interval.
+- [ ] For a query mapped to a scheduler or background worker, derive the observed interval
+  from calls and the statistics window. A confirmed sweep whose interval multiplied by
+  rows and bytes exceeds **50 MiB per month** is a finding and names the interval. Never
+  infer a sweep from the absence of a literal `UserId` predicate.
 - [ ] If any required production view is unavailable, continue the code sweep but return
   `CODE_ONLY` with the exact reason. Never call that result a pass or a full performance
   verdict.
@@ -63,18 +64,21 @@ render-thrash patterns react-doctor's perf rules already fail on.
   where the schema needs it (the `HabitLogs` Value>0 partial constraint). Fix: add the
   `HasIndex`. **Never claim an index is missing without reading the migrations and citing
   the one that lacks it.**
-- [ ] **Unbounded user-scoped list**, a query with no `.Take`, page size, cursor, or SQL
-  bound. User scoping is isolation, not a size bound. Name the measured maximum account and
-  rows per call. Fix with database-side pagination before materialization.
+- [ ] **Unbounded request-path list**, a request query with no `.Take`, page size, cursor,
+  or SQL bound, including requests scoped indirectly through an owned foreign key. User
+  scoping is isolation, not a size bound. Name the measured maximum account and rows per
+  call. Fix with database-side pagination before materialization. Background sweeps are
+  governed by their measured budget, not this request-only row-limit rule.
 - [ ] **Full-entity projection**, a full row load where the consumer reads only a handful of
   fields. Name every field the consumer reads and the projected columns it does not need.
   Fix with a database-side `.Select` projection.
 - [ ] **Large table fraction**, a query returning at least 25% of its live root table per
   call. Name the numerator, denominator, and fraction. Fix with the missing date, tenant,
   state, or ID bound.
-- [ ] **Background sweep budget**, a recurring query whose measured interval times payload
-  exceeds 50 MiB per month. Name the interval and budget. Fix with a bounded predicate,
-  projection, batching, or a less frequent schedule as the behavior permits.
+- [ ] **Background sweep budget**, a query mapped to a scheduler or background worker whose
+  measured interval times payload exceeds 50 MiB per month. Name the interval and budget.
+  Fix with a bounded predicate, projection, batching, or a less frequent schedule as the
+  behavior permits.
 - [ ] **Synchronous slow work in the request path**, CPU loops, an HTTP/AI call, email, or
   push done inline instead of offloaded to the background queue.
 - [ ] **Blocking async**, `.Result`/`.Wait()`/`.GetAwaiter().GetResult()` in a request path.

@@ -97,6 +97,17 @@ connector response field around them:
   accountSkew: { maxHabitsPerAccount, averageHabitsPerAccount } }
 ```
 
+The statistics views do not identify whether a statement came from a request or a
+background worker. The API's existing distinction is in the mapped call graph: background
+paths are rooted in `BackgroundService`, `ScheduledServiceBase`, or `IScheduledJob`, while
+controllers and MCP tools are request paths. A query reachable from both is treated as a
+request so the request-side bound stays strict and aggregate traffic is not mislabeled as a
+background-only sweep. Do not infer the distinction from a `UserId` predicate or call
+frequency. The measured-hotpaths source mapper must return one complete
+`{ queryId, location, executionContext: 'request' | 'background' }` entry for every
+measured query before the workflow applies request-only row-limit checks or
+background-only sweep budgets. An empty or partial mapping fails the measured audit.
+
 If project discovery, permissions, view availability, or query execution fails, use
 `{ status: 'unavailable', reason: '<exact named reason>' }`. Continue with code reading, but
 the result is `CODE_ONLY`. It is never a pass or a full performance verdict.
@@ -143,8 +154,9 @@ Workflow({ scriptPath: '.claude/workflows/audit.mjs', args: {
 (`scriptPath` is canonical, named workflow resolution is not available in this Claude Code build.)
 
 It first runs one measured-hotpaths finder over the byte-weighted and row rankings. That
-finder maps query IDs to exact source locations and must inspect the highest monthly egress
-first. It then fans out **one Haiku finder per slice**, `api-queries` (N+1, index coverage vs the
+finder maps every query ID to an exact source location and to the confirmed `request` or
+`background` execution context, and must inspect the highest monthly egress first. It then
+fans out **one Haiku finder per slice**, `api-queries` (N+1, index coverage vs the
 migrations) · `api-requestpath` (sync slow work, blocking async, over-fetch, AsNoTracking) ·
 `fe-web` (TanStack cache hygiene, render thrash, bundle) · `fe-mobile` (long lists, Metro
 bundle, asset weight), each reading `checklist.md`; runs a **Haiku skeptic** per
@@ -165,7 +177,8 @@ critic ran and returned empty. Anything else (e.g. `criticErrors ≥ 2` from a r
 reports as "coverage UNKNOWN, ${convergenceReason}": a dead verifier is not a clean pass.
 
 **Fallback (no `Workflow` tool):** normalize the same production measurement with
-`tools/lib/performance-measurement.mjs`, run the measured-hotpaths finder first, then run the
+`tools/lib/performance-measurement.mjs`, run the measured-hotpaths finder first, require its
+complete source/context mapping and apply it with `applyMeasuredQueryContexts`, then run the
 fan-out inline with `audit-readonly` finders (Haiku, 3 concurrent) over the four code slices
 against `checklist.md`, Haiku skeptics per High finding, and a completeness pass. Keep the
 same findings and verdict shape. The fallback keeps the primary path's agent type on

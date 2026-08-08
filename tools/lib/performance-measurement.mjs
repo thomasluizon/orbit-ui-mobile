@@ -1,6 +1,8 @@
 const DAYS_PER_MONTH = 365.25 / 12
 const DEFAULT_BACKGROUND_BUDGET_BYTES = 50 * 1024 * 1024
 const DEFAULT_LARGE_TABLE_FRACTION = 0.25
+const EXECUTION_CONTEXTS = new Set(["request", "background"])
+const CONTEXT_SIGNAL_KINDS = new Set(["unbounded-user-list", "background-sweep-budget"])
 
 const positiveNumber = (value, field) => {
   if (!Number.isFinite(value) || value <= 0) throw new Error(`${field} must be a positive number`)
@@ -18,7 +20,7 @@ const selectedColumnCount = (queryShape) => {
   return select.split(",").length
 }
 
-const isBoundedQuery = (queryShape) => /\b(?:limit|offset|fetch\s+(?:first|next))\b/i.test(queryShape)
+const isBoundedQuery = (queryShape) => /\b(?:limit|fetch\s+(?:first|next))\b/i.test(queryShape)
 
 const isUserScopedQuery = (queryShape) => /[".]UserId\b/i.test(queryShape)
 
@@ -51,15 +53,11 @@ const analyzeQuery = (entry, index, windowDays, tableByName, thresholds) => {
   const bounded = isBoundedQuery(queryShape)
   const signals = []
 
-  if (userScoped && !bounded) signals.push("unbounded-user-list")
   if (table?.columnCount && projectionColumns != null && projectionColumns >= table.columnCount) {
     signals.push("full-entity-projection")
   }
   if (tableFraction != null && tableFraction >= thresholds.largeTableFraction) {
     signals.push("large-table-fraction")
-  }
-  if (!userScoped && monthlyEgressBytes != null && monthlyEgressBytes >= thresholds.backgroundBudgetBytes) {
-    signals.push("background-sweep-budget")
   }
 
   return {
@@ -146,6 +144,68 @@ export function resolvePerformanceMeasurement(input, options = {}) {
   } catch (error) {
     return unavailable(`production measurement was invalid: ${error instanceof Error ? error.message : String(error)}`)
   }
+}
+
+const completeMeasuredMapping = (mapping) => (
+  typeof mapping?.queryId === "string"
+  && mapping.queryId.trim().length > 0
+  && typeof mapping.location === "string"
+  && mapping.location.trim().length > 0
+  && EXECUTION_CONTEXTS.has(mapping.executionContext)
+)
+
+export function measuredHotpathMappingFailure(result, measurement) {
+  if (!result) return "measured production hot paths could not be mapped to API source"
+
+  const mappings = Array.isArray(result.mappings) ? result.mappings : []
+  const completeMappings = mappings.filter(completeMeasuredMapping)
+  if (completeMappings.length === 0) return "measured production hot-path mapping was empty"
+
+  const mappedQueryIds = new Set(completeMappings.map((mapping) => mapping.queryId))
+  const missingQueryIds = measurement.rowsRanking
+    .map((query) => query.queryId)
+    .filter((queryId) => !mappedQueryIds.has(queryId))
+  if (missingQueryIds.length > 0) {
+    return `measured production hot-path mapping was incomplete; missing query IDs: ${missingQueryIds.join(", ")}`
+  }
+
+  return null
+}
+
+export function applyMeasuredQueryContexts(measurement, mappings) {
+  if (measurement.status !== "available") return measurement
+
+  const mappingByQueryId = new Map(mappings.map((mapping) => [mapping.queryId, mapping]))
+  const rowsRanking = measurement.rowsRanking.map((query) => {
+    const mapping = mappingByQueryId.get(query.queryId)
+    const signals = query.signals.filter((kind) => !CONTEXT_SIGNAL_KINDS.has(kind))
+    if (mapping.executionContext === "request" && !query.bounded) signals.push("unbounded-user-list")
+    if (
+      mapping.executionContext === "background"
+      && query.monthlyEgressBytes != null
+      && query.monthlyEgressBytes >= measurement.thresholds.backgroundBudgetBytes
+    ) {
+      signals.push("background-sweep-budget")
+    }
+    return {
+      ...query,
+      sourceLocation: mapping.location,
+      executionContext: mapping.executionContext,
+      signals,
+    }
+  })
+  const queryById = new Map(rowsRanking.map((query) => [query.queryId, query]))
+  const egressRanking = measurement.egressRanking.map((query) => queryById.get(query.queryId))
+  const signals = rowsRanking.flatMap((query) => query.signals.map((kind) => ({
+    kind,
+    queryId: query.queryId,
+    rowsPerCall: query.rowsPerCall,
+    monthlyEgressBytes: query.monthlyEgressBytes,
+    tableFraction: query.tableFraction,
+    intervalSeconds: query.intervalSeconds,
+  })))
+
+  return { ...measurement, rowsRanking, egressRanking, signals }
 }
 
 export function performanceMeasurementPrompt(measurement, limit = 20) {

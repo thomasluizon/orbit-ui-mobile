@@ -12,6 +12,8 @@ export const meta = {
 const PERFORMANCE_MONTH_DAYS = 365.25 / 12
 const PERFORMANCE_BACKGROUND_BUDGET_BYTES = 50 * 1024 * 1024
 const PERFORMANCE_LARGE_TABLE_FRACTION = 0.25
+const PERFORMANCE_EXECUTION_CONTEXTS = new Set(['request', 'background'])
+const PERFORMANCE_CONTEXT_SIGNAL_KINDS = new Set(['unbounded-user-list', 'background-sweep-budget'])
 
 const unavailablePerformanceMeasurement = (reason) => ({
   status: 'unavailable',
@@ -52,10 +54,8 @@ function resolvePerformanceMeasurement(input) {
       const userScoped = /[".]UserId\b/i.test(entry.queryShape)
       const bounded = /\b(?:limit|fetch\s+(?:first|next))\b/i.test(entry.queryShape)
       const signals = []
-      if (userScoped && !bounded) signals.push('unbounded-user-list')
       if (table?.columnCount && projectionColumns >= table.columnCount) signals.push('full-entity-projection')
       if (tableFraction >= PERFORMANCE_LARGE_TABLE_FRACTION) signals.push('large-table-fraction')
-      if (!userScoped && monthlyEgressBytes >= PERFORMANCE_BACKGROUND_BUDGET_BYTES) signals.push('background-sweep-budget')
       return {
         ...entry,
         rowsPerCall,
@@ -99,6 +99,65 @@ function resolvePerformanceMeasurement(input) {
   } catch (error) {
     return unavailablePerformanceMeasurement(`production measurement was invalid: ${error instanceof Error ? error.message : String(error)}`)
   }
+}
+
+const completeMeasuredMapping = (mapping) => (
+  typeof mapping?.queryId === 'string'
+  && mapping.queryId.trim().length > 0
+  && typeof mapping.location === 'string'
+  && mapping.location.trim().length > 0
+  && PERFORMANCE_EXECUTION_CONTEXTS.has(mapping.executionContext)
+)
+
+function measuredHotpathMappingFailure(result, measurement) {
+  if (!result) return 'measured production hot paths could not be mapped to API source'
+
+  const mappings = Array.isArray(result.mappings) ? result.mappings : []
+  const completeMappings = mappings.filter(completeMeasuredMapping)
+  if (completeMappings.length === 0) return 'measured production hot-path mapping was empty'
+
+  const mappedQueryIds = new Set(completeMappings.map((mapping) => mapping.queryId))
+  const missingQueryIds = measurement.rowsRanking
+    .map((query) => query.queryId)
+    .filter((queryId) => !mappedQueryIds.has(queryId))
+  if (missingQueryIds.length > 0) {
+    return `measured production hot-path mapping was incomplete; missing query IDs: ${missingQueryIds.join(', ')}`
+  }
+
+  return null
+}
+
+function applyMeasuredQueryContexts(measurement, mappings) {
+  const mappingByQueryId = new Map(mappings.map((mapping) => [mapping.queryId, mapping]))
+  const rowsRanking = measurement.rowsRanking.map((query) => {
+    const mapping = mappingByQueryId.get(query.queryId)
+    const signals = query.signals.filter((kind) => !PERFORMANCE_CONTEXT_SIGNAL_KINDS.has(kind))
+    if (mapping.executionContext === 'request' && !query.bounded) signals.push('unbounded-user-list')
+    if (
+      mapping.executionContext === 'background'
+      && query.monthlyEgressBytes != null
+      && query.monthlyEgressBytes >= measurement.thresholds.backgroundBudgetBytes
+    ) {
+      signals.push('background-sweep-budget')
+    }
+    return {
+      ...query,
+      sourceLocation: mapping.location,
+      executionContext: mapping.executionContext,
+      signals,
+    }
+  })
+  const queryById = new Map(rowsRanking.map((query) => [query.queryId, query]))
+  const egressRanking = measurement.egressRanking.map((query) => queryById.get(query.queryId))
+  const signals = rowsRanking.flatMap((query) => query.signals.map((kind) => ({
+    kind,
+    queryId: query.queryId,
+    rowsPerCall: query.rowsPerCall,
+    monthlyEgressBytes: query.monthlyEgressBytes,
+    tableFraction: query.tableFraction,
+    intervalSeconds: query.intervalSeconds,
+  })))
+  return { ...measurement, rowsRanking, egressRanking, signals }
 }
 
 function performanceMeasurementPrompt(measurement, limit = 20) {
@@ -180,6 +239,19 @@ const FINDINGS_SCHEMA = {
 const MEASURED_FINDINGS_SCHEMA = {
   ...FINDINGS_SCHEMA,
   properties: {
+    mappings: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          queryId: { type: 'string' },
+          location: { type: 'string' },
+          executionContext: { type: 'string' },
+        },
+        required: ['queryId', 'location', 'executionContext'],
+      },
+    },
     findings: {
       ...FINDINGS_SCHEMA.properties.findings,
       items: {
@@ -188,6 +260,7 @@ const MEASURED_FINDINGS_SCHEMA = {
       },
     },
   },
+  required: ['mappings', 'findings'],
 }
 
 const VERDICT_SCHEMA = {
@@ -334,9 +407,9 @@ function measurementFinderPrompt(measurement) {
   return [
     'Objective: map the production query ranking to the exact Orbit API source locations before the code-wide performance sweep begins.',
     `Measurement: ${performanceMeasurementPrompt(measurement)}.`,
-    'Inspect the highest monthly-egress statement first, then continue down the measured rows and cost rankings. Match each query shape to its LINQ or EF source. The top finding must be the highest measured monthly egress, not the statement whose code merely looks most alarming.',
+    'Inspect the highest monthly-egress statement first, then continue down the measured rows and cost rankings. Match every measured query shape to its exact LINQ or EF source and return one mappings entry per queryId. Trace callers: executionContext is background only when every path is rooted in Orbit\'s BackgroundService, ScheduledServiceBase, or IScheduledJob infrastructure; it is request when a controller or MCP request path reaches the query, including a query also used by a background service. Never infer the context from whether SQL contains UserId or from call frequency. The top finding must be the highest measured monthly egress, not the statement whose code merely looks most alarming.',
     'Emit findings only for confirmed code shapes. Each finding must include the exact queryId from the measurement, a repo-relative file:line, the code evidence, and the concrete fix. Name the consumer fields for a full-entity projection. The workflow attaches calls, rows per call, bytes per row, calls per month, table fraction, interval, and monthly egress from the trusted measurement by queryId, so do not calculate or invent those values.',
-    'Apply the performance checklist thresholds exactly: no Take/pagination on a user-scoped list; full entity where the consumer reads only a subset; at least 25% of a live table per call; or a background interval multiplied by payload above 50 MiB per month.',
+    'Apply the performance checklist thresholds exactly: every request-path list needs Take/pagination even when ownership is scoped indirectly through a foreign key; a background sweep does not need a row limit merely because it walks the whole table; full entity where the consumer reads only a subset; at least 25% of a live table per call; or a confirmed background interval multiplied by payload above 50 MiB per month.',
   ].join('\n')
 }
 
@@ -387,7 +460,7 @@ if (!KIND[kind]) throw new Error(`audit workflow: unknown kind "${kind}" (expect
 const cfg = KIND[kind]
 const surfaces = resolveSurfaces(kind, scope)
 const isSerious = (f) => rank(f.severity) <= 1
-const performanceMeasurement = kind === 'performance'
+let performanceMeasurement = kind === 'performance'
   ? resolvePerformanceMeasurement(parsedArgs.measurement)
   : null
 
@@ -413,10 +486,10 @@ if (kind === 'performance' && surfaces.some(isApiSurface)) {
       measurementFinderPrompt(performanceMeasurement),
       { label: 'find:measured-hotpaths', phase: 'Measure', model: 'haiku', agentType: 'audit-readonly', schema: MEASURED_FINDINGS_SCHEMA },
     )
-    measurementFinderFailed = !measuredResult
-    if (measurementFinderFailed) {
-      throw new Error('audit workflow: measured production hot paths could not be mapped to API source')
-    }
+    const mappingFailure = measuredHotpathMappingFailure(measuredResult, performanceMeasurement)
+    measurementFinderFailed = Boolean(mappingFailure)
+    if (mappingFailure) throw new Error(`audit workflow: ${mappingFailure}`)
+    performanceMeasurement = applyMeasuredQueryContexts(performanceMeasurement, measuredResult.mappings)
     measuredFindings = attachPerformanceMetrics(measuredResult?.findings || [], performanceMeasurement)
   } else {
     log(`measurement unavailable: CODE_ONLY (${performanceMeasurement.reason})`)
