@@ -12,9 +12,8 @@ const BASE = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
  * below keeps testing what it was written to test, and the target assertion gets its own cases.
  */
 const REPO_UI = { id: "label-repo-ui", name: "repo:ui", color: "#5e6ad2" }
-const rawIssueEnvelope = (state, labels, description = "An ordinary ticket with no visual claim.") =>
-  JSON.stringify({ id: "issue-read", ok: true, result: { issue: { identifier: "ORB-700", state, labels, description } } })
-const issueEnvelope = (state = { name: "In Progress", type: "started" }, labels = [], description) => rawIssueEnvelope(state, [REPO_UI, ...labels], description)
+const rawIssueEnvelope = (state, labels) => JSON.stringify({ id: "issue-read", ok: true, result: { issue: { identifier: "ORB-700", state, labels } } })
+const issueEnvelope = (state = { name: "In Progress", type: "started" }, labels = []) => rawIssueEnvelope(state, [REPO_UI, ...labels])
 
 export const cases = () => {
   const repo = stageRepo("sync-linear-state")
@@ -71,45 +70,6 @@ export const cases = () => {
     { match: "linear status set ORB-700", stdout: "", ignoreLinearShape: true },
     { match: "linear comment add ORB-700", stdout: "", ignoreLinearShape: true },
   ]) })
-
-  /**
-   * THE D13 visual gate, which used to read only the LABEL. ORB-103's labels were
-   * `repo:landing, Feature` while its acceptance criterion 6 read verbatim "This is a
-   * `visible-effect` ticket. It cannot reach In Review without screenshots attached." The label was
-   * absent, `--state visual` silently collapsed to `ready`, and a machine asserted a visual grant
-   * only a human may give. Reading the BODY as well means the two cannot disagree.
-   */
-  const ORB_103_BODY = "## Acceptance criteria\n\n6. This is a `visible-effect` ticket. It cannot reach In Review without screenshots attached."
-  const bodyOnly = check(
-    TOOL,
-    "a ticket claiming visible-effect in its BODY is held In Progress even with no label",
-    argv,
-    { status: 0, stdout: /"status": "In Progress"[\s\S]*"lastPostedState": "visual"/ },
-    { path: staged.path, env: orcaEnv([
-      { match: "linear issue ORB-700 --full --json", stdout: issueEnvelope({ name: "In Progress", type: "started" }, [], ORB_103_BODY) },
-      { match: "linear status set ORB-700", stdout: "", ignoreLinearShape: true },
-      { match: "linear comment add ORB-700", stdout: "", ignoreLinearShape: true },
-    ]) },
-  )
-  T(
-    `${TOOL}: the body-only claim says WHY it was held, so a human can add the label`,
-    /claims visible-effect in its body but carries no visible-effect LABEL/.test(bodyOnly.stderr),
-    bodyOnly.stderr || bodyOnly.stdout,
-  )
-
-  /** The word must not fire on prose that merely mentions it, or every ticket becomes visual and
-   * the gate stops meaning anything. */
-  check(
-    TOOL,
-    "an ordinary body does not accidentally become visible-effect",
-    argv,
-    { status: 0, stdout: /"status": "In Review"[\s\S]*"lastPostedState": "ready"/ },
-    { path: staged.path, env: orcaEnv([
-      { match: "linear issue ORB-700 --full --json", stdout: issueEnvelope({ name: "In Progress", type: "started" }, [], "This ticket has no visible effects on any screen and needs no screenshots.") },
-      { match: "linear status set ORB-700", stdout: "", ignoreLinearShape: true },
-      { match: "linear comment add ORB-700", stdout: "", ignoreLinearShape: true },
-    ]) },
-  )
 
   /**
    * THE Linear half of the 2026-08-08 misdirected-write incident. `--issue` is caller-supplied and

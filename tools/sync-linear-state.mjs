@@ -109,40 +109,8 @@ if (repoLabels.length !== 1 || repoLabels[0].slice("repo:".length) !== repoKey) 
   fail(2, `${issue} carries ${found}, so it is not provably the ${repoKey} ticket this synchronization names. Nothing was written. Expected exactly repo:${repoKey}`)
 }
 
-/**
- * THE D13 visual gate, and it used to read only the LABEL.
- *
- * Measured 2026-08-08 on ORB-103. Its labels were `repo:landing, Feature`, and its acceptance
- * criterion 6 read verbatim "This is a `visible-effect` ticket. It cannot reach In Review without
- * screenshots attached." The label was absent, so `--state visual` silently collapsed to `ready`
- * and a machine asserted a visual grant only a human may give. It was caught by a person reading
- * the body afterwards and adding the label by hand.
- *
- * The two halves cannot disagree any more: the ticket BODY is read as well as the label, and either
- * one is enough. That is deliberately asymmetric. A false positive costs one ticket a human glance;
- * a false negative is a machine granting D13, which is the thing that must never happen.
- *
- * The body pattern is the literal ticket vocabulary, not a guess: the template writes the term
- * inside backticks or plain, and the parity block writes `visible-effect:` as a field.
- */
-const VISIBLE_EFFECT_IN_BODY = /(?<![\w-])`?visible-effect`?(?![\w-])/i
-const labelledVisibleEffect = current.labels.some((label) => label.name === "visible-effect")
-const bodyClaimsVisibleEffect = typeof current.description === "string" && VISIBLE_EFFECT_IN_BODY.test(current.description)
-const visibleEffect = labelledVisibleEffect || bodyClaimsVisibleEffect
-
-/**
- * A body that claims it with no label is an INCONSISTENT ticket, and the honest answer is to refuse
- * rather than to pick a side quietly. Withholding In Review is the fail-closed direction: the work
- * stays In Progress, a human adds the label or removes the claim, and the run says which.
- */
-if (bodyClaimsVisibleEffect && !labelledVisibleEffect) {
-  console.error(
-    `${issue} claims visible-effect in its body but carries no visible-effect LABEL. Treating it as visible work and holding it In Progress. ` +
-      `Add the label, or remove the claim from the body, so the two cannot disagree. Only a human grants visual completion (D13).`,
-  )
-}
-
-// The live ticket is authoritative in both directions. A stale caller cannot strand an ordinary
+const visibleEffect = current.labels.some((label) => label.name === "visible-effect")
+// The live label is authoritative in both directions. A stale caller cannot strand an ordinary
 // ticket In Progress with --state visual or advance visible work with --state ready.
 const effectiveStateKey = ["ready", "visual"].includes(stateKey) ? (visibleEffect ? "visual" : "ready") : stateKey
 const targetStatus = effectiveStateKey === "ready" ? config.linear.states.review : config.linear.states.working
