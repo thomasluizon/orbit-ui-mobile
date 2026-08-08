@@ -487,7 +487,7 @@ while (rollup.failing.length === 0 && rollup.pending.length > 0 && Date.now() < 
   pullRequestState = await readPullRequestState()
   await validatePullRequestState(pullRequestState)
   requiredContexts = await readRequiredContexts(pullRequestState)
-  rollup = applyBodyEditInvalidation(readRollup())
+  rollup = await applyBodyEditInvalidation(readRollup())
 }
 
 checks.ci = {
