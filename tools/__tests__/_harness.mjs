@@ -177,10 +177,18 @@ const ghEnvelopeName = (command, entry) => {
   if (/\bissue\s+list\b/.test(command)) return "issueList"
   if (/\bproject\s+item-list\b/.test(command)) return "projectItemList"
   if (/\blabel\s+list\b/.test(command)) return "labelList"
-  if (/\bproject\s+item-edit\b/.test(command)) return "statusWrite"
-  if (/\bissue\s+comment\b/.test(command)) return "commentAdd"
+  // Writes deliberately have NO envelope. Recording one would mean mutating real tickets, and the
+  // recorder is read-only, so a write stub proves itself with the explicit exit-code-only escape
+  // instead of against an invented success object.
   return null
 }
+
+/**
+ * What counts as a ticket command at all. Anything matching this must either resolve to a recorded
+ * envelope or declare the explicit exit-code-only escape. `gh pr ...` and everything else is not a
+ * ticket command and is left alone, which is what keeps the PR stubs working.
+ */
+const TICKET_COMMAND = /\b(?:issue|project|label)\s+[a-z-]+/
 
 /**
  * Every stubbed GitHub ticket reply is checked against tools/__fixtures__/gh-issue-envelopes.json,
@@ -191,10 +199,26 @@ const ghEnvelopeName = (command, entry) => {
 const assertGhTicketStub = (entry) => {
   const command = String(entry.match)
   const envelopeName = ghEnvelopeName(command, entry)
-  if (!envelopeName) return
   const output = envelopeName === "issueViewError" ? String(entry.stderr ?? "") : String(entry.stdout ?? "")
-  // These writes depend only on the exit code. Empty output is stronger than an invented object.
-  if ((envelopeName === "statusWrite" || envelopeName === "commentAdd") && output === "") return
+  /**
+   * A ticket command with no recorded envelope is a hole, not a pass. The Linear guard this
+   * replaced refused any `orca linear` command it had no envelope for, and only skipped commands
+   * that were not Linear at all. Skipping every unrecognised `gh issue` and `gh project` command
+   * would have let `issue close`, `issue edit`, `issue create` and `project item-add`, which are
+   * exactly the ticket mutations, carry any invented output shape a stub liked.
+   *
+   * The escape is deliberate and explicit, as it was before: a write whose caller branches only on
+   * the exit code declares `ignoreTicketShape: true` AND keeps its output empty. Empty output is
+   * stronger than an invented success object the real CLI may never emit, and requiring the flag
+   * means a test author states that intent rather than getting it by omission.
+   */
+  if (entry.ignoreTicketShape === true && output === "") return
+  if (!envelopeName) {
+    if (TICKET_COMMAND.test(command)) {
+      throw new Error(`gh fixture ${command} has no recorded invocation envelope; record one, or declare ignoreTicketShape: true with empty output`)
+    }
+    return
+  }
   const envelope = ghEnvelopes()[envelopeName]
   if (!envelope) throw new Error(`gh fixture ${command} has no recorded invocation envelope (${envelopeName})`)
   if (envelopeName === "issueViewError") {

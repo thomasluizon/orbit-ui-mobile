@@ -124,6 +124,9 @@ export const cases = async () => {
         {
           match: "project item-edit 2 --owner thomasluizon --url https://github.com/thomasluizon/orbit-tickets/issues/221 --field Status --value In Review",
           stdout: "",
+          // A write whose caller branches only on the exit code. Declared, not assumed: the fixture
+          // recorder is read-only, so no real success object for this command was ever recorded.
+          ignoreTicketShape: true,
           removePath: statusMarker,
         },
       ]),
@@ -146,6 +149,8 @@ export const cases = async () => {
         {
           match: "issue comment 221 --repo thomasluizon/orbit-tickets --body-file -",
           stdout: "",
+          // Exit-code-only write, declared explicitly. See the note on the setStatus stub above.
+          ignoreTicketShape: true,
           removePath: commentMarker,
           stdinFile: commentBody,
         },
@@ -183,4 +188,47 @@ export const cases = async () => {
       pattern.test(await messageOf(() => githubIssues.assertRepositoryLabel(ticket, "ui")) ?? ""),
     )
   }
+
+  /**
+   * THE fixture guard, tested on itself.
+   *
+   * The guard exists so nobody can invent a field and then write the mock that agrees with the
+   * invention. When it was first ported from the Linear version it only validated the five READ
+   * commands it had recorded envelopes for, and returned quietly for everything else. That let
+   * `issue close`, `issue edit`, `issue create` and `project item-add`, which are exactly the
+   * ticket mutations, carry any output shape a stub felt like claiming.
+   *
+   * These cases fail if that hole is ever reopened. A guard nobody tests is a guard that silently
+   * stops guarding.
+   */
+  const rejects = (plan) => {
+    try {
+      orcaEnv(plan)
+      return null
+    } catch (error) {
+      return error.message
+    }
+  }
+  T(
+    `${TOOL}: the fixture guard refuses a recorded read that asserts an unrecorded key`,
+    /asserts unrecorded key/.test(rejects([{ match: "issue view 700 --repo r --json number", stdout: JSON.stringify({ inventedField: 1 }) }]) ?? ""),
+  )
+  for (const write of ["issue close 700 --repo r", "issue edit 700 --add-blocked-by 3", "issue create --title x", "project item-add 2 --owner o"]) {
+    T(
+      `${TOOL}: the fixture guard refuses an undeclared ticket write (${write.split(" ").slice(0, 2).join(" ")})`,
+      /has no recorded invocation envelope/.test(rejects([{ match: write, stdout: JSON.stringify({ inventedField: 1 }) }]) ?? ""),
+    )
+  }
+  T(
+    `${TOOL}: the exit-code-only escape is accepted when it is declared and its output is empty`,
+    rejects([{ match: "issue close 700 --repo r", stdout: "", ignoreTicketShape: true }]) === null,
+  )
+  T(
+    `${TOOL}: the escape cannot smuggle an invented success object through a non-empty output`,
+    /has no recorded invocation envelope/.test(rejects([{ match: "issue close 700 --repo r", stdout: '{"inventedField":1}', ignoreTicketShape: true }]) ?? ""),
+  )
+  T(
+    `${TOOL}: a command that is not a ticket command is left alone, so the pull request stubs keep working`,
+    rejects([{ match: "pr list --head some-branch", stdout: "[]" }]) === null,
+  )
 }
