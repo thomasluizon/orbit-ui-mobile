@@ -2,10 +2,287 @@ export const meta = {
   name: 'audit',
   description: 'Repo-wide audit engine — Haiku fan-out per surface + Haiku adversarial verify + loop-until-dry; returns verified findings for Opus synthesis. Kind: security | tests | performance | code-quality.',
   phases: [
+    { title: 'Measure', detail: 'production rows, calls, table scans, skew, and byte-weighted egress' },
     { title: 'Find', detail: 'one Haiku finder per surface, scoped by kind' },
     { title: 'Verify', detail: 'one Haiku skeptic per serious finding — default refuted' },
     { title: 'Complete', detail: 'completeness critic + gap finders, loop until dry' },
   ],
+}
+
+const PERFORMANCE_MONTH_DAYS = 365.25 / 12
+const PERFORMANCE_BACKGROUND_BUDGET_BYTES = 50 * 1024 * 1024
+const PERFORMANCE_LARGE_TABLE_FRACTION = 0.25
+const PERFORMANCE_EXECUTION_CONTEXTS = new Set(['request', 'background'])
+const PERFORMANCE_CONTEXT_SIGNAL_KINDS = new Set(['unbounded-user-list', 'background-sweep-budget'])
+
+/**
+ * How many columns a SELECT list actually projects.
+ *
+ * `select.split(',').length` was wrong in both directions and each error pushed the same way, so a
+ * badly written query scored better than a careful one:
+ *   `select *`                     counted 1 column, then never matched full-entity-projection
+ *   `select coalesce(a, b), c`     counted 3 columns for 2, then matched it spuriously
+ *
+ * A star projects the whole row, so it resolves to the table's column count when that is known and
+ * to null when it is not. Null means "unknown", never "one", and every caller treats it that way.
+ */
+function projectionWidth(select, columnCount) {
+  if (typeof select !== 'string' || select.trim() === '') return null
+  const list = select.replace(/^\s*(?:distinct\s+on\s*\([\s\S]*?\)|distinct|all)\s+/i, '').trim()
+  if (list === '') return null
+  let depth = 0
+  let current = ''
+  const parts = []
+  for (const character of list) {
+    if (character === '(') depth++
+    else if (character === ')') depth--
+    if (character === ',' && depth === 0) {
+      parts.push(current)
+      current = ''
+      continue
+    }
+    current += character
+  }
+  parts.push(current)
+  const columns = parts.map((part) => part.trim()).filter(Boolean)
+  if (columns.length === 0) return null
+  /** A bare or qualified star expands to every column, so the width is the table's, not one. */
+  if (columns.some((column) => column === '*' || /(?:^|\.)\*$/.test(column))) {
+    return Number.isFinite(columnCount) && columnCount > 0 ? columnCount : null
+  }
+  return columns.length
+}
+
+const unavailablePerformanceMeasurement = (reason) => ({
+  status: 'unavailable',
+  verdict: 'CODE_ONLY',
+  reason,
+  statsReset: null,
+  windowDays: null,
+  rowsRanking: [],
+  egressRanking: [],
+  tableStats: [],
+  accountSkew: null,
+  signals: [],
+})
+
+function resolvePerformanceMeasurement(input) {
+  if (!input || input.status !== 'available') {
+    return unavailablePerformanceMeasurement(String(input?.reason || 'production measurement was not supplied'))
+  }
+
+  try {
+    if (!Number.isFinite(input.windowDays) || input.windowDays <= 0) throw new Error('windowDays must be positive')
+    const tableStats = (input.tableStats || []).map((entry) => ({ ...entry }))
+    const tableByName = new Map(tableStats.map((entry) => [entry.table, entry]))
+    const queries = (input.queryStats || []).map((entry) => {
+      if (!entry.queryId || !entry.queryShape) throw new Error('every query must name queryId and queryShape')
+      if (!Number.isFinite(entry.calls) || entry.calls <= 0) throw new Error(`query ${entry.queryId} calls must be positive`)
+      if (!Number.isFinite(entry.rows) || entry.rows < 0) throw new Error(`query ${entry.queryId} rows must be non-negative`)
+      const rowsPerCall = entry.rows / entry.calls
+      const callsPerMonth = entry.calls / input.windowDays * PERFORMANCE_MONTH_DAYS
+      const intervalSeconds = input.windowDays * 86400 / entry.calls
+      const table = tableByName.get(entry.rootTable)
+      const tableFraction = table?.liveRows > 0 ? rowsPerCall / table.liveRows : null
+      const select = /^\s*select\s+([\s\S]+?)\s+from\s+/i.exec(entry.queryShape)?.[1]
+      const projectionColumns = projectionWidth(select, table?.columnCount)
+      const userScoped = /[".]UserId\b/i.test(entry.queryShape)
+      const bounded = /\b(?:limit|fetch\s+(?:first|next))\b/i.test(entry.queryShape)
+      /**
+       * Egress is what the query SENDS, which is its projection, not the width of the table row.
+       * `bytesPerRow` comes from pg_stats and describes the whole row, so charging every query the
+       * full width overstates a narrow projection in direct proportion to how well it is written:
+       * `select "Id", "UserId" from "Habits"` on a 20-column table was billed 10x its real egress,
+       * which is exactly backwards for a signal meant to find unbounded reads.
+       *
+       * Scaling by columns is an approximation and it is named as one: column widths differ, so a
+       * projection of two `text` columns is not one tenth of a 20-column row. It is right in the
+       * direction that matters and never charges MORE than the measured row width.
+       */
+      const projectedBytesPerRow = Number.isFinite(entry.bytesPerRow) && entry.bytesPerRow > 0
+        ? projectionColumns && table?.columnCount > 0
+          ? entry.bytesPerRow * Math.min(1, projectionColumns / table.columnCount)
+          : entry.bytesPerRow
+        : null
+      const monthlyEgressBytes = projectedBytesPerRow === null
+        ? null
+        : entry.rows / input.windowDays * PERFORMANCE_MONTH_DAYS * projectedBytesPerRow
+      const signals = []
+      if (table?.columnCount && projectionColumns >= table.columnCount) signals.push('full-entity-projection')
+      if (tableFraction >= PERFORMANCE_LARGE_TABLE_FRACTION) signals.push('large-table-fraction')
+      return {
+        ...entry,
+        rowsPerCall,
+        callsPerMonth,
+        monthlyEgressBytes,
+        projectedBytesPerRow,
+        intervalSeconds,
+        tableFraction,
+        projectionColumns,
+        bounded,
+        userScoped,
+        signals,
+      }
+    })
+    if (!queries.length) throw new Error('queryStats must contain at least one statement')
+    const rowsRanking = [...queries].sort((left, right) => right.rows - left.rows)
+    const egressRanking = [...queries].sort((left, right) =>
+      (right.monthlyEgressBytes ?? -1) - (left.monthlyEgressBytes ?? -1))
+    return {
+      status: 'available',
+      verdict: 'MEASURED',
+      reason: null,
+      statsReset: String(input.statsReset || ''),
+      windowDays: input.windowDays,
+      rowsRanking,
+      egressRanking,
+      tableStats,
+      accountSkew: input.accountSkew || null,
+      thresholds: {
+        backgroundBudgetBytes: PERFORMANCE_BACKGROUND_BUDGET_BYTES,
+        largeTableFraction: PERFORMANCE_LARGE_TABLE_FRACTION,
+      },
+      signals: queries.flatMap((query) => query.signals.map((kind) => ({
+        kind,
+        queryId: query.queryId,
+        rowsPerCall: query.rowsPerCall,
+        monthlyEgressBytes: query.monthlyEgressBytes,
+        tableFraction: query.tableFraction,
+        intervalSeconds: query.intervalSeconds,
+      }))),
+    }
+  } catch (error) {
+    return unavailablePerformanceMeasurement(`production measurement was invalid: ${error instanceof Error ? error.message : String(error)}`)
+  }
+}
+
+const completeMeasuredMapping = (mapping) => (
+  typeof mapping?.queryId === 'string'
+  && mapping.queryId.trim().length > 0
+  && typeof mapping.location === 'string'
+  && mapping.location.trim().length > 0
+  && PERFORMANCE_EXECUTION_CONTEXTS.has(mapping.executionContext)
+)
+
+function measuredHotpathMappingFailure(result, measurement) {
+  if (!result) return 'measured production hot paths could not be mapped to API source'
+
+  const mappings = Array.isArray(result.mappings) ? result.mappings : []
+  const completeMappings = mappings.filter(completeMeasuredMapping)
+  if (completeMappings.length === 0) return 'measured production hot-path mapping was empty'
+
+  const mappedQueryIds = new Set(completeMappings.map((mapping) => mapping.queryId))
+  const missingQueryIds = measurement.rowsRanking
+    .map((query) => query.queryId)
+    .filter((queryId) => !mappedQueryIds.has(queryId))
+  if (missingQueryIds.length > 0) {
+    return `measured production hot-path mapping was incomplete; missing query IDs: ${missingQueryIds.join(', ')}`
+  }
+
+  return null
+}
+
+/**
+ * One mapping per measured query, or a refusal that names the disagreement.
+ *
+ * `new Map(mappings.map(...))` silently kept the LAST entry for a repeated queryId. Two mappings
+ * that disagree about executionContext produce opposite signals, `request` raising
+ * unbounded-user-list and `background` raising background-sweep-budget, so whichever the agent
+ * happened to emit second decided the finding and nothing recorded that there had been a choice.
+ *
+ * Identical duplicates are merged, because emitting the same mapping twice is noise and not a
+ * conflict. Anything that actually disagrees throws, because guessing which one is right is the
+ * failure this whole measured path exists to remove.
+ */
+function indexMeasuredMappings(mappings) {
+  const byQueryId = new Map()
+  for (const mapping of mappings) {
+    const existing = byQueryId.get(mapping.queryId)
+    if (!existing) {
+      byQueryId.set(mapping.queryId, mapping)
+      continue
+    }
+    if (existing.executionContext !== mapping.executionContext || existing.location !== mapping.location) {
+      throw new Error(
+        `measured query ${mapping.queryId} was mapped twice and the mappings disagree: `
+        + `${existing.executionContext} at ${existing.location} against ${mapping.executionContext} at ${mapping.location}`,
+      )
+    }
+  }
+  return byQueryId
+}
+
+function applyMeasuredQueryContexts(measurement, mappings) {
+  const mappingByQueryId = indexMeasuredMappings(mappings)
+  const rowsRanking = measurement.rowsRanking.map((query) => {
+    const mapping = mappingByQueryId.get(query.queryId)
+    /** An unmapped query used to reach `mapping.executionContext` and die on a bare TypeError that
+     * named neither the query nor the missing mapping. */
+    if (!mapping) throw new Error(`measured query ${query.queryId} has no source mapping, so its execution context is unknown`)
+    const signals = query.signals.filter((kind) => !PERFORMANCE_CONTEXT_SIGNAL_KINDS.has(kind))
+    if (mapping.executionContext === 'request' && !query.bounded) signals.push('unbounded-user-list')
+    if (
+      mapping.executionContext === 'background'
+      && query.monthlyEgressBytes != null
+      && query.monthlyEgressBytes >= measurement.thresholds.backgroundBudgetBytes
+    ) {
+      signals.push('background-sweep-budget')
+    }
+    return {
+      ...query,
+      sourceLocation: mapping.location,
+      executionContext: mapping.executionContext,
+      signals,
+    }
+  })
+  const queryById = new Map(rowsRanking.map((query) => [query.queryId, query]))
+  const egressRanking = measurement.egressRanking.map((query) => queryById.get(query.queryId))
+  const signals = rowsRanking.flatMap((query) => query.signals.map((kind) => ({
+    kind,
+    queryId: query.queryId,
+    rowsPerCall: query.rowsPerCall,
+    monthlyEgressBytes: query.monthlyEgressBytes,
+    tableFraction: query.tableFraction,
+    intervalSeconds: query.intervalSeconds,
+  })))
+  return { ...measurement, rowsRanking, egressRanking, signals }
+}
+
+function performanceMeasurementPrompt(measurement, limit = 20) {
+  if (measurement.status !== 'available') {
+    return `Production measurement unavailable. Performance verdict is CODE_ONLY. Reason: ${measurement.reason}`
+  }
+  return JSON.stringify({
+    verdict: measurement.verdict,
+    statsReset: measurement.statsReset,
+    windowDays: measurement.windowDays,
+    backgroundBudgetBytes: measurement.thresholds.backgroundBudgetBytes,
+    largeTableFraction: measurement.thresholds.largeTableFraction,
+    accountSkew: measurement.accountSkew,
+    tableStats: measurement.tableStats,
+    rankedByMonthlyEgress: measurement.egressRanking.slice(0, limit),
+    rankedByRows: measurement.rowsRanking.slice(0, limit),
+    signals: measurement.signals,
+  })
+}
+
+function attachPerformanceMetrics(findings, measurement) {
+  if (measurement.status !== 'available') return findings
+  const queryById = new Map(measurement.rowsRanking.map((entry) => [entry.queryId, entry]))
+  return findings.map((finding) => {
+    const measured = queryById.get(String(finding.queryId || ''))
+    if (!measured) return finding
+    return {
+      ...finding,
+      calls: measured.calls,
+      rowsPerCall: measured.rowsPerCall,
+      bytesPerRow: measured.bytesPerRow,
+      callsPerMonth: measured.callsPerMonth,
+      monthlyEgressBytes: measured.monthlyEgressBytes,
+      tableFraction: measured.tableFraction,
+      intervalSeconds: measured.intervalSeconds,
+    }
+  })
 }
 
 const UI = 'C:\\Users\\thoma\\Documents\\Programming\\Projects\\orbit-ui-mobile'
@@ -31,12 +308,47 @@ const FINDINGS_SCHEMA = {
           rationale: { type: 'string' },
           fix: { type: 'string' },
           reference: { type: 'string' },
+          queryId: { type: 'string' },
+          calls: { type: 'number' },
+          rowsPerCall: { type: 'number' },
+          bytesPerRow: { type: 'number' },
+          callsPerMonth: { type: 'number' },
+          monthlyEgressBytes: { type: 'number' },
+          tableFraction: { type: 'number' },
+          intervalSeconds: { type: 'number' },
         },
         required: ['severity', 'title', 'location', 'evidence', 'fix'],
       },
     },
   },
   required: ['findings'],
+}
+
+const MEASURED_FINDINGS_SCHEMA = {
+  ...FINDINGS_SCHEMA,
+  properties: {
+    mappings: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          queryId: { type: 'string' },
+          location: { type: 'string' },
+          executionContext: { type: 'string' },
+        },
+        required: ['queryId', 'location', 'executionContext'],
+      },
+    },
+    findings: {
+      ...FINDINGS_SCHEMA.properties.findings,
+      items: {
+        ...FINDINGS_SCHEMA.properties.findings.items,
+        required: [...FINDINGS_SCHEMA.properties.findings.items.required, 'queryId'],
+      },
+    },
+  },
+  required: ['mappings', 'findings'],
 }
 
 const VERDICT_SCHEMA = {
@@ -103,7 +415,7 @@ const KIND = {
     ladder: 'High (degrades with scale — fix before it bites) / Medium (measurable but bounded) / Low or Info (micro, or only-at-enterprise-scale — noted, not prioritized)',
     rationale: 'impact — how it scales, concrete (e.g. "50-habit user → 50 round-trips")',
     checklist: `${UI}\\.claude\\skills\\audit-performance\\checklist.md`,
-    extra: 'Flag ONLY patterns that degrade quadratically/linearly with data or traffic: N+1 queries (missing .Include / projecting after materializing), missing index on a hot Where/OrderBy/FK, unbounded list rendered in full, sync slow work (HTTP/AI/email/push) inline in a request path, blocking async (.Result/.Wait), IQueryable materialized too early, missing AsNoTracking on hot reads; frontend render thrash, bundle bloat (mobile Metro or a non-Today web route, since the Today web budget is gated), over-eager or stale caching, waterfalls. CONFIRM every index claim against the EF migrations (read them, cite the migration). Gate-owned, do NOT flag: the web LCP/TBT/script-bundle-size budgets on the authed-Today surface (perf.yml owns those), an N+1 regression on the three query shapes already under tests/Orbit.Infrastructure.Tests/Persistence/QueryRoundTripCountTests.cs, and render-thrash patterns react-doctor perf rules already fail on. Do NOT micro-optimize, do NOT over-prescribe memoization/virtualization, do NOT list enterprise-only tuning (note once).',
+    extra: 'Start from the measured ranking when it is available. Flag ONLY patterns that degrade quadratically/linearly with data or traffic: N+1 queries (missing .Include / projecting after materializing), missing index on a hot Where/OrderBy/FK, a user-scoped list with no Take/pagination, a full-entity load whose consumer reads a few fields, a query returning at least 25% of its table per call, a background sweep above the stated 50 MiB monthly payload budget, sync slow work (HTTP/AI/email/push) inline in a request path, blocking async (.Result/.Wait), IQueryable materialized too early, missing AsNoTracking on hot reads; frontend render thrash, bundle bloat (mobile Metro or a non-Today web route, since the Today web budget is gated), over-eager or stale caching, waterfalls. Every measured finding names calls, rows per call, bytes per row, calls per month, and monthly egress. CONFIRM every index claim against the EF migrations (read them, cite the migration). Gate-owned, do NOT flag: the web LCP/TBT/script-bundle-size budgets on the authed-Today surface (perf.yml owns those), an N+1 regression on the three query shapes already under tests/Orbit.Infrastructure.Tests/Persistence/QueryRoundTripCountTests.cs, and render-thrash patterns react-doctor perf rules already fail on. Do NOT micro-optimize, do NOT over-prescribe memoization/virtualization, do NOT list enterprise-only tuning (note once).',
     surfaces: [
       { label: 'api-queries', where: 'orbit-api CQRS query handlers in src/Orbit.Application/**/Queries, the generic repository, EF DbContext usage — N+1 and index coverage (read src/Orbit.Infrastructure/Migrations to confirm indexes)', sections: '' },
       { label: 'api-requestpath', where: 'orbit-api controllers + command handlers — sync slow work in the request path, blocking async, over-fetching, missing AsNoTracking', sections: '' },
@@ -146,12 +458,26 @@ function resolveSurfaces(kind, scope) {
   if (!scope || scope === 'both') return all
   if (['api', 'backend'].includes(scope)) return all.filter((s) => ['api', 'both'].includes(surfaceRepos(s)))
   if (['ui', 'web', 'mobile', 'frontend'].includes(scope)) return all.filter((s) => ['ui', 'both'].includes(surfaceRepos(s)))
+  const normalizedScope = String(scope).replaceAll('\\', '/').toLowerCase()
+  const pathRepo = normalizedScope.includes('/orbit-api/') || /^(?:\.\/)?(?:src|tests)\//.test(normalizedScope)
+    ? 'api'
+    : normalizedScope.includes('/orbit-ui-mobile/') || /^(?:\.\/)?(?:apps|packages|tools|\.claude|\.github)\//.test(normalizedScope)
+      ? 'ui'
+      : null
+  if (pathRepo) {
+    return all
+      .filter((s) => [pathRepo, 'both'].includes(surfaceRepos(s)))
+      .map((s) => ({ ...s, where: `${s.where} — but ONLY within the path "${scope}"` }))
+  }
   return all.map((s) => ({ ...s, where: `${s.where} — but ONLY within the path "${scope}"` }))
 }
 
-function finderPrompt(kind, surface, scope) {
+function finderPrompt(kind, surface, scope, measurement) {
   const cfg = KIND[kind]
   const sectionNote = surface.sections ? ` (sections ${surface.sections})` : ''
+  const measuredContext = kind === 'performance' && isApiSurface(surface)
+    ? `Production measurement context: ${performanceMeasurementPrompt(measurement)} Use queryId to tie a code finding to the measured statement. The actual maximum account skew replaces any imagined typical-user size.`
+    : ''
   return [
     `Objective: ${kind} audit of the "${surface.label}" surface in ${scopeLabelFor(scope)}.`,
     `Read the rubric/checklist FIRST: ${cfg.checklist}${sectionNote}. It is the contract for what counts and how findings are shaped.`,
@@ -159,16 +485,31 @@ function finderPrompt(kind, surface, scope) {
     `Repo roots — orbit-ui-mobile: ${UI} · orbit-api: ${API}.`,
     GATE_OWNED,
     cfg.extra,
+    measuredContext,
     `For every REAL issue emit a finding with: severity from [${cfg.ladder}]; a one-line title; category (the rubric/checklist dimension); location (repo-relative path:line); evidence (the exact line/command that proves it); rationale (${cfg.rationale}); fix (the concrete change); reference (the CLAUDE.md rule / rubric dimension / checklist section / OWASP item).`,
     `Calibrate to Orbit's solo-dev, pre-scale reality — never inflate severity to look thorough; when uncertain, pick the lower tier with a "verify" note. ${EXCLUDE} Findings only, no padding. If the surface is clean, return an empty findings array.`,
   ].join('\n')
 }
 
+function measurementFinderPrompt(measurement) {
+  return [
+    'Objective: map the production query ranking to the exact Orbit API source locations before the code-wide performance sweep begins.',
+    `Measurement: ${performanceMeasurementPrompt(measurement)}.`,
+    'Inspect the highest monthly-egress statement first, then continue down the measured rows and cost rankings. Match every measured query shape to its exact LINQ or EF source and return one mappings entry per queryId. Trace callers: executionContext is background only when every path is rooted in Orbit\'s BackgroundService, ScheduledServiceBase, or IScheduledJob infrastructure; it is request when a controller or MCP request path reaches the query, including a query also used by a background service. Never infer the context from whether SQL contains UserId or from call frequency. The top finding must be the highest measured monthly egress, not the statement whose code merely looks most alarming.',
+    'Emit findings only for confirmed code shapes. Each finding must include the exact queryId from the measurement, a repo-relative file:line, the code evidence, and the concrete fix. Name the consumer fields for a full-entity projection. The workflow attaches calls, rows per call, bytes per row, calls per month, table fraction, interval, and monthly egress from the trusted measurement by queryId, so do not calculate or invent those values.',
+    'Apply the performance checklist thresholds exactly: every request-path list needs Take/pagination even when ownership is scoped indirectly through a foreign key; a background sweep does not need a row limit merely because it walks the whole table; full entity where the consumer reads only a subset; at least 25% of a live table per call; or a confirmed background interval multiplied by payload above 50 MiB per month.',
+  ].join('\n')
+}
+
 function skepticPrompt(kind, f) {
+  const measurement = f.queryId
+    ? `Measured queryId=${f.queryId}; calls=${f.calls}; rowsPerCall=${f.rowsPerCall}; bytesPerRow=${f.bytesPerRow}; callsPerMonth=${f.callsPerMonth}; monthlyEgressBytes=${f.monthlyEgressBytes}; tableFraction=${f.tableFraction}; intervalSeconds=${f.intervalSeconds}. These values came from the normalized production measurement and may be refuted only by proving the source mapping is wrong.`
+    : ''
   return [
     `Adversarially REFUTE this ${kind} finding. Read the cited location in full context and argue it is a FALSE POSITIVE — the path is unreachable, the query IS userId-scoped, the input is already validated, the index exists (cite the migration), the test WOULD fail on a real break, it is a duplicate, or the severity is inflated.`,
     `Default to refuted=true when uncertain — the burden is on the finding to prove it is real, not on you to prove it isn't.`,
     `Finding: severity=${f.severity} · title=${f.title} · location=${f.location} · evidence=${f.evidence} · rationale=${f.rationale || ''}.`,
+    measurement,
     `Return refuted (bool) + note (one line why). If it is real but over-rated, set adjustedSeverity to the correct lower label.`,
   ].join('\n')
 }
@@ -205,7 +546,11 @@ const kind = parsedArgs.kind
 const scope = parsedArgs.scope || 'both'
 if (!KIND[kind]) throw new Error(`audit workflow: unknown kind "${kind}" (expected security | tests | performance | code-quality)`)
 const cfg = KIND[kind]
+const surfaces = resolveSurfaces(kind, scope)
 const isSerious = (f) => rank(f.severity) <= 1
+let performanceMeasurement = kind === 'performance'
+  ? resolvePerformanceMeasurement(parsedArgs.measurement)
+  : null
 
 const seen = new Set()
 const dedupeFresh = (findings) => {
@@ -219,18 +564,37 @@ const dedupeFresh = (findings) => {
   return fresh
 }
 
+let measuredFindings = []
+let measurementFinderFailed = false
+if (kind === 'performance' && surfaces.some(isApiSurface)) {
+  phase('Measure')
+  if (performanceMeasurement.status === 'available') {
+    log(`measurement: ${performanceMeasurement.rowsRanking.length} query shapes, ${performanceMeasurement.tableStats.length} tables, stats reset ${performanceMeasurement.statsReset}`)
+    const measuredResult = await agent(
+      measurementFinderPrompt(performanceMeasurement),
+      { label: 'find:measured-hotpaths', phase: 'Measure', model: 'haiku', agentType: 'audit-readonly', schema: MEASURED_FINDINGS_SCHEMA },
+    )
+    const mappingFailure = measuredHotpathMappingFailure(measuredResult, performanceMeasurement)
+    measurementFinderFailed = Boolean(mappingFailure)
+    if (mappingFailure) throw new Error(`audit workflow: ${mappingFailure}`)
+    performanceMeasurement = applyMeasuredQueryContexts(performanceMeasurement, measuredResult.mappings)
+    measuredFindings = attachPerformanceMetrics(measuredResult?.findings || [], performanceMeasurement)
+  } else {
+    log(`measurement unavailable: CODE_ONLY (${performanceMeasurement.reason})`)
+  }
+}
+
 phase('Find')
-const surfaces = resolveSurfaces(kind, scope)
 log(`audit:${kind} · scope ${scopeLabelFor(scope)} · ${surfaces.length} surfaces`)
 const firstPass = (
   await parallel(
     surfaces.map((s) => () =>
-      agent(finderPrompt(kind, s, scope), { label: `find:${s.label}`, phase: 'Find', model: 'haiku', agentType: 'audit-readonly', schema: FINDINGS_SCHEMA })
+      agent(finderPrompt(kind, s, scope, performanceMeasurement), { label: `find:${s.label}`, phase: 'Find', model: 'haiku', agentType: 'audit-readonly', schema: FINDINGS_SCHEMA })
     )
   )
 ).filter(Boolean)
 const sweptLabels = surfaces.map((s) => s.label)
-let findings = dedupeFresh(firstPass.flatMap((r) => r.findings || []))
+let findings = dedupeFresh([...measuredFindings, ...firstPass.flatMap((r) => r.findings || [])])
 
 async function verifySerious(candidates, phaseName) {
   const serious = candidates.filter(isSerious).sort((a, b) => rank(a.severity) - rank(b.severity))
@@ -318,7 +682,11 @@ const budgetSnapshot =
     ? { spent: budget.spent(), remaining: budget.remaining(), total: budget.total }
     : null
 
-kept.sort((a, b) => rank(a.severity) - rank(b.severity))
+kept.sort((a, b) => {
+  const severityDifference = rank(a.severity) - rank(b.severity)
+  if (severityDifference !== 0) return severityDifference
+  return (b.monthlyEgressBytes ?? -1) - (a.monthlyEgressBytes ?? -1)
+})
 return {
   kind,
   scope,
@@ -333,4 +701,16 @@ return {
   criticErrors,
   tokenBudget: budgetSnapshot,
   loopBound: round >= HARD_ROUNDS ? `stopped at the ${HARD_ROUNDS}-round hard cap` : `${dry} consecutive dry round(s)`,
+  performanceVerdict: performanceMeasurement?.verdict ?? null,
+  performanceMeasurement: performanceMeasurement ? {
+    status: performanceMeasurement.status,
+    reason: performanceMeasurement.reason,
+    statsReset: performanceMeasurement.statsReset,
+    windowDays: performanceMeasurement.windowDays,
+    rowsRanking: performanceMeasurement.rowsRanking.slice(0, 10),
+    egressRanking: performanceMeasurement.egressRanking.slice(0, 10),
+    tableStats: performanceMeasurement.tableStats,
+    accountSkew: performanceMeasurement.accountSkew,
+  } : null,
+  measurementFinderFailed,
 }

@@ -126,6 +126,13 @@ export function useLogHabit() {
           .flatMap(([, items]) => items ?? []),
         variables.habitId,
       )
+      /**
+       * The CELEBRATION still needs a known good habit, and deliberately so: a bad habit's
+       * "streak" is consecutive abstinence, the opposite semantics, and an unresolvable habit
+       * cannot be shown to be either. Celebrating on a guess is user-visible harm.
+       *
+       * The RECONCILIATION below does not, which is the defect. See the comment there.
+       */
       const countsTowardStreak = loggedHabit !== null && !loggedHabit.isBadHabit
 
       if (countsTowardStreak && response.isFirstCompletionToday && response.currentStreak > 0) {
@@ -144,13 +151,31 @@ export function useLogHabit() {
           { queryKey: goalKeys.lists() },
           (old) => old ? applyLinkedGoalUpdates(old, response.linkedGoalUpdates!) : old,
         )
+        void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
       }
 
-      if (countsTowardStreak && (response.xpEarned || response.newAchievementIds?.length)) {
+      /**
+       * Rewards the server already granted are reconciled from the RESPONSE, with no list-cache
+       * requirement. Gating these on `countsTowardStreak` dropped them entirely whenever the habit
+       * was not in cache, which is the ordinary state on a deep link or a cold navigation: XP
+       * silently unbanked and the achievement list never refreshed.
+       *
+       * The habit kind cannot change the answer here, so it is not consulted. A bad habit earns
+       * ZERO XP server-side (GamificationService.cs:170, `habit.IsBadHabit ? 0 : ...`), so adding
+       * `response.xpEarned` is a no-op for one; and a bad habit CAN still grant an achievement,
+       * because GamificationService.cs:175 grants BadHabitBreaker at a 30 day abstinence streak.
+       * The old gate therefore dropped a real achievement as well.
+       */
+      if (response.xpEarned || response.newAchievementIds?.length) {
         queryClient.setQueryData<GamificationProfile>(gamificationKeys.profile(), (old) => {
           if (!old) return old
           return { ...old, totalXp: old.totalXp + (response.xpEarned ?? 0) }
         })
+        void queryClient.invalidateQueries({ queryKey: profileKeys.all })
+      }
+
+      if (response.isFirstCompletionToday || response.xpEarned || response.newAchievementIds?.length) {
+        void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
       }
 
       const habitsData = queryClient.getQueryData<HabitScheduleItem[]>(
@@ -165,10 +190,10 @@ export function useLogHabit() {
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
-      void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
-      void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
-      void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
-      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
+      void queryClient.invalidateQueries({
+        queryKey: habitKeys.summaryPrefix(),
+        refetchType: 'none',
+      })
     },
   })
 }

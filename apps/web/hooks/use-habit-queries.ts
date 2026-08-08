@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { habitKeys, QUERY_STALE_TIMES, HABITS_REFETCH_INTERVAL } from '@orbit/shared/query'
+import { habitKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import {
   buildHabitQueryString,
@@ -68,14 +68,6 @@ export function useHabits(filters: HabitsFilter) {
     },
     staleTime: QUERY_STALE_TIMES.habits,
     select: selectNormalizedHabits,
-    refetchInterval: () => {
-      const isSingleDay = !!filters.dateFrom && filters.dateFrom === filters.dateTo
-      if (!isSingleDay) return false
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return false
-      if (typeof navigator !== 'undefined' && navigator.onLine === false) return false
-      return HABITS_REFETCH_INTERVAL
-    },
-    refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
     refetchOnReconnect: 'always',
   })

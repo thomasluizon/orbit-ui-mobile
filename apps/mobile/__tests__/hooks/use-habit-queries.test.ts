@@ -1,6 +1,6 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { habitKeys, HABITS_REFETCH_INTERVAL } from '@orbit/shared/query'
+import { habitKeys } from '@orbit/shared/query'
 
 import {
   useHabits,
@@ -19,6 +19,8 @@ interface CapturedQuery {
   queryFn: () => unknown
   enabled?: boolean
   refetchInterval?: () => number | false
+  refetchOnWindowFocus?: boolean
+  refetchOnReconnect?: boolean | 'always'
   select?: (data: unknown) => unknown
 }
 
@@ -26,8 +28,6 @@ const mocks = vi.hoisted(() => {
   return {
     captured: [] as CapturedQuery[],
     apiClient: vi.fn(),
-    isAppActive: vi.fn(() => true),
-    isOnline: vi.fn(() => true),
     isAuthenticated: true,
     useQuery: vi.fn((options: CapturedQuery) => {
       mocks.captured.push(options)
@@ -42,11 +42,6 @@ vi.mock('@tanstack/react-query', () => ({
 
 vi.mock('@/lib/api-client', () => ({
   apiClient: (...args: unknown[]) => mocks.apiClient(...args),
-}))
-
-vi.mock('@/lib/query-client', () => ({
-  isAppActive: () => mocks.isAppActive(),
-  isOnline: () => mocks.isOnline(),
 }))
 
 vi.mock('@/stores/auth-store', () => ({
@@ -74,8 +69,6 @@ beforeEach(() => {
   mocks.captured = []
   mocks.apiClient.mockReset()
   mocks.useQuery.mockClear()
-  mocks.isAppActive.mockReturnValue(true)
-  mocks.isOnline.mockReturnValue(true)
   mocks.isAuthenticated = true
 })
 
@@ -102,32 +95,12 @@ describe('useHabits (mobile query hook)', () => {
   })
 })
 
-describe('useHabits refetch gating (single-day / midnight rollover)', () => {
-  it('polls single-day queries while active and online', () => {
+describe('useHabits refetch behavior', () => {
+  it('does not install a periodic refetch for single-day habit lists', () => {
     renderHookCapture(() => useHabits({ dateFrom: '2025-01-01', dateTo: '2025-01-01' }))
-    expect(lastQuery().refetchInterval?.()).toBe(HABITS_REFETCH_INTERVAL)
-  })
-
-  it('does not poll multi-day (calendar-range) queries', () => {
-    renderHookCapture(() => useHabits({ dateFrom: '2025-01-01', dateTo: '2025-01-31' }))
-    expect(lastQuery().refetchInterval?.()).toBe(false)
-  })
-
-  it('does not poll list queries with no date range', () => {
-    renderHookCapture(() => useHabits({}))
-    expect(lastQuery().refetchInterval?.()).toBe(false)
-  })
-
-  it('pauses polling when the app is offline', () => {
-    mocks.isOnline.mockReturnValue(false)
-    renderHookCapture(() => useHabits({ dateFrom: '2025-01-01', dateTo: '2025-01-01' }))
-    expect(lastQuery().refetchInterval?.()).toBe(false)
-  })
-
-  it('pauses polling when the app is backgrounded', () => {
-    mocks.isAppActive.mockReturnValue(false)
-    renderHookCapture(() => useHabits({ dateFrom: '2025-01-01', dateTo: '2025-01-01' }))
-    expect(lastQuery().refetchInterval?.()).toBe(false)
+    expect(lastQuery().refetchInterval).toBeUndefined()
+    expect(lastQuery().refetchOnWindowFocus).toBe(true)
+    expect(lastQuery().refetchOnReconnect).toBe('always')
   })
 })
 
@@ -234,7 +207,7 @@ describe('useHabits pagination + accessors', () => {
       .mockResolvedValueOnce({ items: [{ id: 'b' }], page: 2, pageSize: 200, totalCount: 2, totalPages: 2 })
 
     renderHookCapture(() => useHabits({}))
-    const items = (await lastQuery().queryFn()) as Array<{ id: string }>
+    const items = (await lastQuery().queryFn()) as { id: string }[]
 
     expect(items.map((item) => item.id)).toEqual(['a', 'b'])
     expect(mocks.apiClient).toHaveBeenCalledTimes(2)
