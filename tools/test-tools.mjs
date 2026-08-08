@@ -14,7 +14,7 @@
  *      invalid input exits non-zero instead of doing the work.
  *   3. Decision paths: one case module per covered unit under tools/__tests__/, hermetic.
  *      External calls (orca, gh, git) are stubbed or dry-run - this gate creates no worktree,
- *      opens no network connection and touches no Linear issue.
+ *      opens no network connection and touches no ticket.
  *
  * This file is the RUNNER and stays the single entry point. It owns exactly four things: the
  * CLI contract, TOOLS_DIR, the case-module registry, and the three layers above. Every case
@@ -37,7 +37,7 @@ import { fileURLToPath } from "node:url"
 const USAGE = `usage: test-tools.mjs
 
   Executes every script in tools/ and asserts its CLI contract and decision paths.
-  Takes no arguments; hermetic (no network, no worktree, no Linear).
+  Takes no arguments; hermetic (no network, no worktree, no ticket system).
 
   --help, -h  print this usage and exit 0
 
@@ -95,7 +95,7 @@ const CASE_MODULES = [
   ["record-gh-fixtures.mjs", "record-gh-fixtures"],
   ["resolve-bot-thread.mjs", "resolve-bot-thread"],
   ["salvage-worker.mjs", "salvage-worker"],
-  ["sync-linear-state.mjs", "sync-linear-state"],
+  ["sync-issue-state.mjs", "sync-issue-state"],
   ["teardown-worktree.mjs", "teardown-worktree"],
   ["verify-delivery.mjs", "verify-delivery"],
 ]
@@ -128,7 +128,7 @@ const INVALID_INPUT = {
   "record-gh-fixtures.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "resolve-bot-thread.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "salvage-worker.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "sync-linear-state.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "sync-issue-state.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "surface-manifest.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "teardown-worktree.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "verify-delivery.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },

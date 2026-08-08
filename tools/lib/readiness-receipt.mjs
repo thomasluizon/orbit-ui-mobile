@@ -149,15 +149,15 @@ export const readinessVerdicts = (receipt) => {
   if (!currentEvidence(threads, receipt)) verdicts.push("THREADS_STALE")
   else if (threads.complete !== true || !Number.isInteger(threads.unresolvedCount) || threads.unresolvedCount > 0) verdicts.push("THREADS_OPEN")
 
-  const linear = receipt.linear
-  if (!currentEvidence(linear, receipt) || linear?.lastSynchronizationResult !== "SUCCESS" || linear?.lastPostedState !== "ready" || linear?.status !== "In Review") {
-    verdicts.push("LINEAR_STALE")
+  const ticket = receipt.ticket
+  if (!currentEvidence(ticket, receipt) || ticket?.lastSynchronizationResult !== "SUCCESS" || ticket?.lastPostedState !== "ready" || typeof ticket?.targetStatus !== "string" || ticket.targetStatus === "" || ticket?.status !== ticket.targetStatus) {
+    verdicts.push("TICKET_STALE")
   }
   return [...new Set(verdicts)]
 }
 
 /** Compare a persisted receipt with live state that the stop hook has just read. This is separate
- * from readinessReport because a cached receipt cannot prove that GitHub or Linear stayed still. */
+ * from readinessReport because a cached receipt cannot prove that GitHub or the ticket stayed still. */
 export const readinessReceiptMatchesLive = (receipt, entry, live) =>
   receipt?.repositoryKey === entry?.repositoryKey &&
   receipt?.prNumber === entry?.prNumber &&
@@ -166,8 +166,8 @@ export const readinessReceiptMatchesLive = (receipt, entry, live) =>
   live?.baseSha === receipt?.currentBaseSha &&
   live?.headSha === receipt?.currentHeadSha &&
   live?.draft === receipt?.draft &&
-  live?.linearIssue === receipt?.issue &&
-  live?.linearStatus === receipt?.linear?.status &&
+  live?.ticket === receipt?.issue &&
+  live?.ticketStatus === receipt?.ticket?.status &&
   live?.ciGreen === true &&
   live?.connectorPassed === true &&
   live?.threadsComplete === true &&

@@ -1,0 +1,127 @@
+import { existsSync, readFileSync } from "node:fs"
+
+import { check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, T } from "./_harness.mjs"
+
+const TOOL = "sync-issue-state.mjs"
+const HEAD = "a".repeat(40)
+const BASE = "b".repeat(40)
+const issue = (overrides = {}) => ({
+  blockedBy: { nodes: [], totalCount: 0 },
+  blocking: { nodes: [], totalCount: 0 },
+  body: "Ticket body",
+  labels: [{ name: "repo:ui" }],
+  number: 221,
+  state: "OPEN",
+  stateReason: null,
+  title: "Ticket title",
+  url: "https://github.com/thomasluizon/orbit-tickets/issues/221",
+  ...overrides,
+})
+const projectItems = JSON.stringify({ items: [], totalCount: 0 })
+
+export const cases = () => {
+  const repo = stageRepo("sync-issue-state")
+  if (!repo) {
+    T(`${TOOL}: fixture repository initialized`, false)
+    return
+  }
+  const config = realOrchestratorConfig()
+  const staged = stageWithConfig("sync-issue-state", TOOL, { ...config, repos: { ...config.repos, ui: repo.path } })
+  stage("staged/sync-issue-state/.claude/linear-to-github-map.json", JSON.stringify({ issues: { "ORB-215": { number: 221 } } }))
+  const message = stage("sync-issue-state/message.md", "PR #700 is ready on the final head.")
+  const argv = ["--issue", "ORB-215", "--repo", "ui", "--pr", "700", "--state", "ready", "--head-sha", HEAD, "--base-sha", BASE, "--message-file", message]
+  const readPlan = (ticket = issue()) => [
+    { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: JSON.stringify(ticket) },
+    { match: "project item-list 2 --owner thomasluizon", stdout: projectItems },
+  ]
+  const writePlan = (statusMarker, commentMarker, stdinFile) => [
+    { match: "project item-edit 2 --owner thomasluizon", stdout: "", ignoreTicketShape: true, removePath: statusMarker },
+    { match: "issue comment 221 --repo thomasluizon/orbit-tickets", stdout: "", ignoreTicketShape: true, removePath: commentMarker, stdinFile },
+  ]
+
+  const statusMarker = stage("sync-issue-state/status-marker", "status")
+  const commentMarker = stage("sync-issue-state/comment-marker", "comment")
+  const commentBody = stage("sync-issue-state/comment-body", "")
+  const first = run(TOOL, argv, { path: staged.path, env: orcaEnv([...readPlan(), ...writePlan(statusMarker, commentMarker, commentBody)]) })
+  const artifact = JSON.parse(first.stdout || "null")
+  T(
+    `${TOOL}: moves ready to the configured review status and posts the exact comment`,
+    first.status === 0 && !existsSync(statusMarker) && !existsSync(commentMarker) && readFileSync(commentBody, "utf8") === "PR #700 is ready on the final head." && artifact?.status === "In Review",
+    first.stderr || first.stdout,
+  )
+
+  const duplicateCommentMarker = stage("sync-issue-state/duplicate-comment-marker", "must remain")
+  const duplicateStatusMarker = stage("sync-issue-state/duplicate-status-marker", "status")
+  const second = run(TOOL, argv, {
+    path: staged.path,
+    env: orcaEnv([
+      ...readPlan(),
+      { match: "project item-edit 2 --owner thomasluizon", stdout: "", ignoreTicketShape: true, removePath: duplicateStatusMarker },
+      { match: "issue comment 221 --repo thomasluizon/orbit-tickets", stdout: "", ignoreTicketShape: true, removePath: duplicateCommentMarker },
+    ]),
+  })
+  T(
+    `${TOOL}: the stored signature suppresses a repeat state comment`,
+    second.status === 0 && !existsSync(duplicateStatusMarker) && existsSync(duplicateCommentMarker) && JSON.parse(second.stdout).commentPosted === false,
+    second.stderr || second.stdout,
+  )
+
+  for (const [name, labels, pattern] of [
+    ["missing", [{ name: "harness" }], /no repo:\* label/],
+    ["wrong", [{ name: "repo:api" }], /expected exactly repo:ui/],
+    ["ambiguous", [{ name: "repo:ui" }, { name: "repo:api" }], /repo:ui and repo:api/],
+  ]) {
+    const statusUnused = stage(`sync-issue-state/${name}-status`, "must remain")
+    const commentUnused = stage(`sync-issue-state/${name}-comment`, "must remain")
+    const refused = run(TOOL, argv, {
+      path: staged.path,
+      env: orcaEnv([...readPlan(issue({ labels })), ...writePlan(statusUnused, commentUnused)]),
+    })
+    T(
+      `${TOOL}: ${name} repository label is refused before either write`,
+      refused.status === 2 && pattern.test(refused.stderr) && existsSync(statusUnused) && existsSync(commentUnused),
+      refused.stderr || refused.stdout,
+    )
+  }
+
+  const closedStatus = stage("sync-issue-state/closed-status", "must remain")
+  const closedComment = stage("sync-issue-state/closed-comment", "must remain")
+  const closed = run(TOOL, argv, {
+    path: staged.path,
+    env: orcaEnv([...readPlan(issue({ state: "CLOSED" })), ...writePlan(closedStatus, closedComment)]),
+  })
+  T(
+    `${TOOL}: a closed ticket is terminal and no write can regress it`,
+    closed.status === 1 && /never regresses a closed ticket/.test(closed.stderr) && existsSync(closedStatus) && existsSync(closedComment),
+    closed.stderr || closed.stdout,
+  )
+
+  check(
+    TOOL,
+    "an ORB identifier absent from the migration map is refused without a raw-number retry",
+    [...argv.slice(0, 1), "ORB-999999", ...argv.slice(2)],
+    { status: 2, stderr: /Unknown migrated ticket ORB-999999/ },
+    { path: staged.path, env: orcaEnv([]) },
+  )
+  check(
+    TOOL,
+    "Done is never accepted as a pre-merge synchronization target",
+    [...argv.slice(0, argv.indexOf("--state") + 1), "done", ...argv.slice(argv.indexOf("--state") + 2)],
+    { status: 2, stderr: /usage: sync-issue-state\.mjs/ },
+    { path: staged.path, env: orcaEnv([]) },
+  )
+
+  check(
+    TOOL,
+    "a ticket status write failure is reported",
+    argv,
+    { status: 1, stderr: /ticket status synchronization failed/ },
+    {
+      path: staged.path,
+      env: orcaEnv([
+        ...readPlan(),
+        { match: "project item-edit 2 --owner thomasluizon", stdout: "", stderr: "permission denied", exit: 1, ignoreTicketShape: true },
+      ]),
+    },
+  )
+}

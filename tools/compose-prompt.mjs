@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 /**
- * One worker prompt = the Linear ticket verbatim + its comments + an orchestrator's brief + the
- * finishing contract.
+ * One worker prompt = the ticket body verbatim + an orchestrator's brief + the finishing contract.
  *
  * WHY the brief exists: a raw ticket is input to planning, not a task description. Anthropic's
  * multi-agent research writeup measured vague subagent instructions causing duplicated work, one
@@ -10,14 +9,14 @@
  * so the orchestrator expands the ticket into a bounded brief rather than handing over the ticket.
  */
 
-import { execFileSync } from "node:child_process"
 import { writeFileSync } from "node:fs"
 import { isAbsolute, resolve } from "node:path"
+import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
 const USAGE = `usage: compose-prompt.mjs --issue ORB-N --repo <ui|api|landing> --out <absolute path>
 
-  --issue ORB-N     Linear issue whose body and comments to compose (required)
+  --issue ORB-N     ticket whose body to compose (required)
   --repo <key>      target repository key from .claude/orchestrator.json (required)
   --out <path>      absolute prompt path, OUTSIDE every Orbit repository (required)
   --worktree <path> worktree the worker will run in, named in the brief
@@ -26,7 +25,7 @@ const USAGE = `usage: compose-prompt.mjs --issue ORB-N --repo <ui|api|landing> -
   --help, -h        print this usage and exit 0
 
 Prints the output path on stdout.
-exit codes: 0 prompt written, 2 usage or Linear read error`
+exit codes: 0 prompt written, 2 usage or ticket read error`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
@@ -49,7 +48,7 @@ const out = argOf("--out")
 const worktree = argOf("--worktree")
 const branch = argOf("--branch")
 const baseBranch = argOf("--base") ?? "main"
-if (!issue || !/^ORB-\d+$/i.test(issue) || !repoKey || !out || !isAbsolute(out)) fail(2, USAGE)
+if (!issue || !repoKey || !out || !isAbsolute(out)) fail(2, USAGE)
 
 const config = readOrchestratorConfig()
 const repoPath = config.repos?.[repoKey]
@@ -63,28 +62,18 @@ for (const declared of Object.values(config.repos)) {
   }
 }
 
-const ORCA = process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs\\orca\\resources\\bin\\orca"
-let result
+let resolvedTicket
+let liveTicket
 try {
-  const raw = execFileSync(ORCA, ["linear", "issue", issue.toUpperCase(), "--comments", "--json"], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
-  const parsed = JSON.parse(raw)
-  if (parsed.ok === false) throw new Error(parsed.error?.message ?? "unknown orca error")
-  result = parsed.result
+  resolvedTicket = resolveTicket(issue)
+  liveTicket = await readTicket(resolvedTicket.number)
+  assertRepositoryLabel(liveTicket, repoKey)
 } catch (error) {
-  fail(2, `failed to compose ${issue.toUpperCase()}: ${error.stderr?.toString().trim() || error.message}`)
+  fail(2, `failed to compose ${issue}: ${error.message}`)
 }
 
-const comments = result.comments
-if (!Array.isArray(comments)) fail(2, `failed to compose ${issue.toUpperCase()}: comments were not an array`)
-
-const renderedComments = comments
-  .slice()
-  .sort((left, right) => left.createdAt.localeCompare(right.createdAt))
-  .map((comment) => `### ${comment.user.displayName} - ${comment.createdAt}\n\n${comment.body}`)
-
-const ticket = renderedComments.length
-  ? `${result.issue.description}\n\n---\n\n## Comments on this issue (part of the work order)\n\n${renderedComments.join("\n\n")}`
-  : result.issue.description
+const ticketReference = resolvedTicket.identifier ?? `#${resolvedTicket.number}`
+const ticket = liveTicket.body
 
 /**
  * The brief promised the worktree path, the checked-out branch and the base branch, and shipped
@@ -117,7 +106,7 @@ their tickets correctly and then lost the delivery to exactly this.`
 
 const brief = `## Orchestrator's brief
 
-**Objective.** Implement ${issue.toUpperCase()} in the ${repoKey} repository, and nothing else. The
+**Objective.** Implement ${ticketReference} in the ${repoKey} repository, and nothing else. The
 ticket above is the specification. Where it is ambiguous, choose the reading a careful colleague
 would and say which you chose in the PR body.
 
@@ -132,12 +121,12 @@ in this pull request. Do not split required generated output away to make the di
 do not deliver partial behaviour silently.${browserBan}
 
 **Output.** One commit series on your branch, pushed, with exactly one open pull request that links
-${issue.toUpperCase()}. Nothing else counts as delivery, and your own exit code counts for nothing:
+${ticketReference}. Nothing else counts as delivery, and your own exit code counts for nothing:
 delivery is verified from git and GitHub artifacts by tools/verify-delivery.mjs.
 
 **Boundaries.** Never merge, in any shape: no gh pr merge, no PUT /repos/{owner}/{repo}/pulls/N/merge,
 no GraphQL mergePullRequest, no --admin. Never push to main. Never force-push. Never --no-verify or
---no-gpg-sign. Do not edit the Linear ticket. Do not touch a second repository: cross-repo work is
+--no-gpg-sign. Do not edit the ticket. Do not touch a second repository: cross-repo work is
 two tickets. Do not modify the harness under tools/ or .claude/ unless this ticket says to.
 
 **Stage only named paths.** Never run \`git add -A\`, \`git add --all\`, \`git add -u\`, \`git add

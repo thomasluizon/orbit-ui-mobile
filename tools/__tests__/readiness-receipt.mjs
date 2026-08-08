@@ -39,7 +39,7 @@ const ready = () => ({
   threads: { complete: true, unresolvedCount: 0, headSha: HEAD_A, baseSha: BASE_A },
   behindBy: 0,
   draft: false,
-  linear: { status: "In Review", lastSynchronizationResult: "SUCCESS", lastPostedState: "ready", headSha: HEAD_A, baseSha: BASE_A },
+  ticket: { status: "In Review", targetStatus: "In Review", lastSynchronizationResult: "SUCCESS", lastPostedState: "ready", headSha: HEAD_A, baseSha: BASE_A },
 })
 
 export const cases = () => {
@@ -106,23 +106,32 @@ export const cases = () => {
 
   const baseAdvanced = { ...receipt, currentBaseSha: BASE_B, behindBy: 1 }
   const baseVerdicts = readinessReport(baseAdvanced).verdicts
-  T(`${TOOL}: base advancement invalidates all SHA-bound receipts and is OUT_OF_DATE`, ["OUT_OF_DATE", "REVIEW_STALE", "CI_STALE", "BOT_REVIEW_STALE", "THREADS_STALE", "LINEAR_STALE"].every((entry) => baseVerdicts.includes(entry)), baseVerdicts.join(", "))
+  T(`${TOOL}: base advancement invalidates all SHA-bound receipts and is OUT_OF_DATE`, ["OUT_OF_DATE", "REVIEW_STALE", "CI_STALE", "BOT_REVIEW_STALE", "THREADS_STALE", "TICKET_STALE"].every((entry) => baseVerdicts.includes(entry)), baseVerdicts.join(", "))
 
   const threadsOpen = { ...receipt, threads: { ...receipt.threads, unresolvedCount: 2 } }
   T(`${TOOL}: unresolved threads block readiness explicitly`, readinessReport(threadsOpen).verdicts.includes("THREADS_OPEN"))
 
-  const linearStale = { ...receipt, linear: { ...receipt.linear, lastSynchronizationResult: "FAILED" } }
-  T(`${TOOL}: final readiness cannot clear while Linear is stale`, readinessReport(linearStale).verdicts.includes("LINEAR_STALE"))
+  const ticketStale = { ...receipt, ticket: { ...receipt.ticket, lastSynchronizationResult: "FAILED" } }
+  T(`${TOOL}: final readiness cannot clear while the ticket is stale`, readinessReport(ticketStale).verdicts.includes("TICKET_STALE"))
 
   const entry = { repositoryKey: "ui", prNumber: 701, receiptPath: path }
-  const live = { repositoryKey: "ui", prNumber: 701, baseSha: BASE_A, headSha: HEAD_A, draft: false, linearIssue: "ORB-701", linearStatus: "In Review", ciGreen: true, connectorPassed: true, threadsComplete: true, unresolvedThreads: 0 }
-  T(`${TOOL}: a READY receipt matches the exact live PR and Linear identity`, readinessReceiptMatchesLive(receipt, entry, live) === true)
+  const live = { repositoryKey: "ui", prNumber: 701, baseSha: BASE_A, headSha: HEAD_A, draft: false, ticket: "ORB-701", ticketStatus: "In Review", ciGreen: true, connectorPassed: true, threadsComplete: true, unresolvedThreads: 0 }
+  T(`${TOOL}: a READY receipt matches the exact live PR and ticket identity`, readinessReceiptMatchesLive(receipt, entry, live) === true)
   T(`${TOOL}: a later live push invalidates an offline READY receipt`, readinessReceiptMatchesLive(receipt, entry, { ...live, headSha: HEAD_B }) === false)
   T(`${TOOL}: a receipt for another numbered PR cannot satisfy a ledger entry`, readinessReceiptMatchesLive(receipt, { ...entry, prNumber: 700 }, live) === false)
-  T(`${TOOL}: live Linear drift invalidates an offline READY receipt`, readinessReceiptMatchesLive(receipt, entry, { ...live, linearStatus: "In Progress" }) === false)
+  T(`${TOOL}: live ticket drift invalidates an offline READY receipt`, readinessReceiptMatchesLive(receipt, entry, { ...live, ticketStatus: "In Progress" }) === false)
   T(`${TOOL}: a same-SHA failed CI rerun invalidates an offline READY receipt`, readinessReceiptMatchesLive(receipt, entry, { ...live, ciGreen: false }) === false)
   T(`${TOOL}: a dismissed connector review invalidates an offline READY receipt`, readinessReceiptMatchesLive(receipt, entry, { ...live, connectorPassed: false }) === false)
   T(`${TOOL}: a reopened thread invalidates an offline READY receipt`, readinessReceiptMatchesLive(receipt, entry, { ...live, unresolvedThreads: 1 }) === false)
+  for (const [name, override] of [
+    ["repository", { repositoryKey: "api" }],
+    ["base", { baseSha: BASE_B }],
+    ["draft", { draft: true }],
+    ["ticket identity", { ticket: "ORB-702" }],
+    ["thread pagination", { threadsComplete: false }],
+  ]) {
+    T(`${TOOL}: live ${name} drift invalidates an offline READY receipt`, readinessReceiptMatchesLive(receipt, entry, { ...live, ...override }) === false)
+  }
 
   const greenRun = { __typename: "CheckRun", name: "Unit Tests", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-07T10:00:00Z" }
   T(`${TOOL}: stop-time CI accepts a complete current green rollup`, readinessCiIsGreen([greenRun], ["Unit Tests"]) === true)

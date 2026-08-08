@@ -83,8 +83,8 @@ const verdictOf = (fixture, stdout, expected, status, name) =>
   check(TOOL, name, ["--issue", "ORB-200", "--worktree", fixture.path, "--branch", BRANCH, "--repo", "ui"], { status, stdout: new RegExp(`"verdict": "${expected}"`) }, { path: testedToolPath, env: ghPlan(stdout) })
 
 export const cases = () => {
-  check(TOOL, "refuses a missing issue", ["--worktree", ".", "--branch", BRANCH], { status: 2, stderr: /--issue must be a Linear identifier/ })
-  check(TOOL, "refuses a malformed issue", ["--issue", "orbit200", "--worktree", ".", "--branch", BRANCH], { status: 2, stderr: /--issue must be a Linear identifier/ })
+  check(TOOL, "refuses a missing issue", ["--worktree", ".", "--branch", BRANCH], { status: 2, stderr: /--issue requires a ticket reference/ })
+  check(TOOL, "refuses a malformed issue", ["--issue", "orbit200", "--worktree", ".", "--branch", BRANCH, "--repo", "ui"], { status: 2, stderr: /ticket assertion failed: Ticket reference must be/ })
   check(TOOL, "refuses a missing branch", ["--issue", "ORB-200", "--worktree", "."], { status: 2, stderr: /--branch requires a branch name/ })
   check(TOOL, "refuses a missing repository", ["--issue", "ORB-200", "--worktree", ".", "--branch", BRANCH], { status: 2, stderr: /--repo requires a repository key/ })
   check(TOOL, "refuses an unknown option before doing any work", ["--issue", "ORB-200", "--worktree", ".", "--branch", BRANCH, "--force"], { status: 2, stderr: /unknown option\(s\): --force/ })
@@ -102,7 +102,22 @@ export const cases = () => {
   }
   const hermeticConfig = realOrchestratorConfig()
   hermeticConfig.repos = { ...hermeticConfig.repos, ui: githubContext.path }
-  testedToolPath = stageWithConfig("verify-delivery-hermetic", TOOL, hermeticConfig).path
+  const hermeticStaged = stageWithConfig("verify-delivery-hermetic", TOOL, hermeticConfig)
+  testedToolPath = hermeticStaged.path
+  stage(
+    "staged/verify-delivery-hermetic/tools/lib/github-issues.mjs",
+    `export const resolveTicket = (reference) => {
+  const identifier = String(reference).toUpperCase()
+  if (identifier !== "ORB-200") throw new Error("Unknown migrated ticket " + reference)
+  return { identifier, number: 200 }
+}
+export const readTicket = async () => ({ identifier: "ORB-200", number: 200, labels: [{ name: "repo:ui" }] })
+export const assertRepositoryLabel = (ticket, repoKey) => {
+  if (ticket.labels.length !== 1 || ticket.labels[0].name !== "repo:" + repoKey) throw new Error("ticket repository label mismatch")
+  return ticket
+}
+`,
+  )
 
   /**
    * THE case. A worker that exits 0 having committed nothing must be caught here and nowhere else:
@@ -395,6 +410,7 @@ export const cases = () => {
 
   const real = realOrchestratorConfig()
   const staged = stageWithConfig("verify-delivery-repo", TOOL, { ...real, repos: { ui: pushed.path } })
+  stage("staged/verify-delivery-repo/.claude/linear-to-github-map.json", JSON.stringify({ issues: { "ORB-200": { number: 200 } } }))
   const unknownRepoArgv = argv.slice()
   unknownRepoArgv[unknownRepoArgv.indexOf("ui")] = "ghost"
   const unknownRepo = run(TOOL, unknownRepoArgv, { path: staged.path, env: ghPlan("[]") })
