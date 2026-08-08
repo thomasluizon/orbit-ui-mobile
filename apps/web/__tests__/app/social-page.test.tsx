@@ -135,6 +135,19 @@ describe('SocialPage', () => {
     expect(screen.getByText('social.feed.emptyTitle')).toBeInTheDocument()
   })
 
+  it('opens the friends tab from a friends deep link', () => {
+    mocks.searchParams = 'tab=friends'
+
+    render(<SocialPage />)
+
+    expect(screen.getByRole('tab', { name: 'social.tabs.friends' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    expect(screen.getByText('social.addFriend.title')).toBeInTheDocument()
+    expect(screen.queryByText('social.feed.emptyTitle')).not.toBeInTheDocument()
+  })
+
   it('accepts with the friendship id and declines with the user id', () => {
     mocks.friendsReturn.data = {
       friends: [],

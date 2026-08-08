@@ -35,6 +35,12 @@ const BACKEND_ACHIEVEMENT_KEYS = [
   'first_cheer',
 ] as const
 
+const RETIRED_EARNED_ACHIEVEMENT_KEYS = [
+  'team_player',
+  'mission_accomplished',
+  'battle_buddy',
+] as const
+
 interface AchievementCopy {
   name: string
   description: string
@@ -74,6 +80,17 @@ describe('achievement i18n coverage', () => {
     'resolves a distinct emoji (not the fallback) for "%s"',
     (key) => {
       expect(achievementEmoji(key)).not.toBe('✨')
+    },
+  )
+
+  it.each(RETIRED_EARNED_ACHIEVEMENT_KEYS)(
+    'retains en and pt-BR copy for earned retired achievement "%s"',
+    (key) => {
+      for (const locale of [en, ptBR]) {
+        const copy = achievementCopy(locale, key)
+        expect(copy?.name.trim()).toBeTruthy()
+        expect(copy?.description.trim()).toBeTruthy()
+      }
     },
   )
 })

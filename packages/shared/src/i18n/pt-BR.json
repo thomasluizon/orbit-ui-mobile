@@ -2453,6 +2453,18 @@
         "name": "Retrospectiva",
         "description": "Veja sua primeira Retrospectiva"
       },
+      "team_player": {
+        "name": "Espírito de Equipe",
+        "description": "Entre no seu primeiro desafio cooperativo"
+      },
+      "mission_accomplished": {
+        "name": "Missão Cumprida",
+        "description": "Complete um desafio cooperativo"
+      },
+      "battle_buddy": {
+        "name": "Parceiro de Batalha",
+        "description": "Inicie uma dupla de responsabilidade"
+      },
       "streak_immortal": {
         "name": "Sequência Imortal",
         "description": "Alcance uma sequência de 1000 dias"

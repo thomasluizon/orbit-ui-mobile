@@ -2453,6 +2453,18 @@
         "name": "Year in Review",
         "description": "View your first Wrapped"
       },
+      "team_player": {
+        "name": "Team Player",
+        "description": "Join your first cooperative challenge"
+      },
+      "mission_accomplished": {
+        "name": "Mission Accomplished",
+        "description": "Complete a cooperative challenge"
+      },
+      "battle_buddy": {
+        "name": "Battle Buddy",
+        "description": "Start a 1:1 accountability pair"
+      },
       "streak_immortal": {
         "name": "Streak Immortal",
         "description": "Achieve a 1000-day streak"

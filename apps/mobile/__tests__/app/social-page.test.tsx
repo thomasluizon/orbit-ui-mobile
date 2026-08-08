@@ -108,4 +108,14 @@ describe('SocialScreen', () => {
     expect(tabList(tree).props.active).toBe('feed')
     expect(textContents(tree)).toEqual(expect.arrayContaining(['feed-content']))
   })
+
+  it('opens the friends tab from a friends deep link', async () => {
+    mocks.tabParam = 'friends'
+
+    const tree = await renderScreen()
+
+    expect(tabList(tree).props.active).toBe('friends')
+    expect(textContents(tree)).toEqual(expect.arrayContaining(['friends-content']))
+    expect(textContents(tree)).not.toEqual(expect.arrayContaining(['feed-content']))
+  })
 })
