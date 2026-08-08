@@ -2,7 +2,7 @@
 /** Persist and evaluate one final-head readiness receipt from artifacts produced by the harness. */
 
 import { createHash } from "node:crypto"
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -114,6 +114,19 @@ if (registerRoundOne) {
     artifactPath: resolve(artifactPath.review),
     artifactSha256: createHash("sha256").update(reviewBytes).digest("hex"),
     frozenFindingIds: blockingIds,
+  }
+  if (existsSync(path)) {
+    let existing
+    try {
+      existing = JSON.parse(readFileSync(path, "utf8"))
+    } catch (error) {
+      fail(`existing round-one registration is unreadable and will not be replaced: ${error.message}`)
+    }
+    if (JSON.stringify(existing) !== JSON.stringify(ledger)) {
+      fail(`round-one registration already exists for ${repoKey}#${prNumber} at ${registered.reviewedHeadOid}; refusing to replace its immutable identity`)
+    }
+    console.log(JSON.stringify({ verdict: "ROUND_ONE_REGISTERED", idempotent: true, ledgerPath: path, ...ledger }, null, 2))
+    process.exit(0)
   }
   mkdirSync(dirname(path), { recursive: true })
   writeFileSync(path, `${JSON.stringify(ledger, null, 2)}\n`, "utf8")

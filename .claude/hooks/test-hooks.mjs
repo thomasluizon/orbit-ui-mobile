@@ -75,11 +75,13 @@ T("pr-review: contract changes permit only targeted sibling-primary consumer evi
 T("pr-review: every admitted round-two blocker remains OPEN in the verdict", reviewSkill.includes("no admitted round-2\n   blocker is OPEN") && reviewSkill.includes("Every newly admitted round-2 blocker is appended with `status: \"OPEN\"`"), true)
 T("pr-review: external fields require complete live shape evidence", reviewRubric.includes("### 13. External-interface evidence") && reviewRubric.includes("complete selected key/type shape") && reviewRubric.includes("High and Blocking"), true)
 T("pr-review: live OIDs pin a base-rubric snapshot across both rounds", reviewSkill.includes("baseRefName,baseRefOid,headRefName,headRefOid") && reviewSkill.includes("git show {baseRefOid}:.claude/skills/pr-review/rubric.md") && reviewSkill.includes("never reload the\nmutable main-checkout copy in round 2"), true)
+T("pr-review: the downloaded diff is bracketed by exact OID reads", reviewSkill.includes("--json baseRefOid,headRefOid") && reviewSkill.includes("occurs after the diff download") && reviewSkill.includes("any change discards the diff"), true)
 T("pr-review: API repository-relative sources are classified as backend", reviewSkill.includes("**backend** is `src/` or `tests/` in\norbit-api"), true)
 T("pr-review: API review floor drops sub-P1 candidates before receipt or tickets", reviewSkill.includes("Medium/Low/Info candidates are discarded before the receipt and create no ticket"), true)
 T("pr-review: public selector never advertises ambiguous blank or bare-number scope", reviewSkill.includes("argument-hint: <ui#N | api#N | pr-url>") && reviewSkill.includes("blank scope is ambiguous"), true)
 T("pr-review: the prescribed fixer transition preserves round one and materializes both heads", reviewSkill.includes("single prescribed round-1-to-round-2 fixer head change keeps") && reviewSkill.includes("Fetch both exact reviewed head OIDs from `origin`"), true)
 T("pr-review: round one is independently registered before the fixer transition", reviewSkill.includes("--register-round-one") && reviewSkill.includes("values supplied only\nby the round-two artifact are not authority"), true)
+T("pr-review: cross-repo registration names the UI harness executable", reviewSkill.includes("node <UI_PRIMARY_MAIN>/tools/record-readiness.mjs"), true)
 T("pr-review: old-client removals require shipped-fleet evidence", reviewRubric.includes("every\n  still-supported shipped client build") && reviewRubric.includes("current UI checkout alone is never fleet-safe evidence"), true)
 T("pr-review: backend timezone review includes background boundary-hour behavior", reviewRubric.includes("background schedule window, notification cutoff, or streak") && reviewRubric.includes("boundary-hour unit test"), true)
 
@@ -157,7 +159,22 @@ writeFileSync(join(linkedWorktree, ".git"), `gitdir: ${join(mainCheckout, ".git"
 mkdirSync(join(linkedWorktree, "named-dir"), { recursive: true })
 T("engine: a cwd inside a linked worktree allows", checkEngineInvocation("codex exec", { cwd: linkedWorktree, repoRoots: [mainCheckout] }), null)
 T("engine: the main checkout is not a linked worktree", blocks(checkEngineInvocation("codex exec", { cwd: mainCheckout, repoRoots: [mainCheckout] })), true)
-const workerStaging = (command) => checkBroadStaging(command, { cwd: linkedWorktree, repoRoots: [mainCheckout] })
+const stagingMain = join(root, "staging-main")
+const stagingWorktree = join(root, "staging-worktree")
+mkdirSync(stagingMain, { recursive: true })
+const stagingGit = (args, cwd = stagingMain) => spawnSync("git", args, { cwd, encoding: "utf8", windowsHide: true })
+T("staging: temporary repository initializes", stagingGit(["init", "--initial-branch=main"]).status, 0)
+T("staging: temporary repository configures identity", stagingGit(["config", "user.email", "hooks@example.invalid"]).status, 0)
+T("staging: temporary repository configures name", stagingGit(["config", "user.name", "Hook Test"]).status, 0)
+mkdirSync(join(stagingMain, ".claude"), { recursive: true })
+writeFileSync(join(stagingMain, ".claude", "tracked.md"), "tracked\n")
+writeFileSync(join(stagingMain, "named.ts"), "export {}\n")
+T("staging: temporary repository stages fixture", stagingGit(["add", ".claude/tracked.md", "named.ts"]).status, 0)
+T("staging: temporary repository commits fixture", stagingGit(["commit", "-m", "fixture"]).status, 0)
+T("staging: real linked worktree initializes", stagingGit(["worktree", "add", "-b", "feat", stagingWorktree]).status, 0)
+mkdirSync(join(stagingWorktree, "named-dir"), { recursive: true })
+rmSync(join(stagingWorktree, ".claude"), { recursive: true })
+const workerStaging = (command) => checkBroadStaging(command, { cwd: stagingWorktree, repoRoots: [stagingMain] })
 for (const command of [
   "git add -A",
   "git add --all",
@@ -177,6 +194,7 @@ for (const command of [
   "git add ':(literal)'",
   "git add apps/web/app/api/[...path]/route.ts",
   "git add named-dir",
+  "git add .claude",
   "git stage .",
   "git add --pathspec-from-file paths.txt",
   "git add --pathspec-from-file=paths.txt",
@@ -360,7 +378,7 @@ const runHook = (file, payload, env) =>
     encoding: "utf8",
     env: { ...process.env, ORBIT_LAUNCH_WORKER: "", ...env },
   }).status
-const bash = (command) => ({ tool_name: "Bash", tool_input: { command }, cwd: root })
+const bash = (command, cwd = root) => ({ tool_name: "Bash", tool_input: { command }, cwd })
 
 T("adapter git-guardrails: push main -> 2", runHook("git-guardrails.mjs", bash("git push origin main")), 2)
 T("adapter git-guardrails: push feature -> 0", runHook("git-guardrails.mjs", bash("git push origin feature/x")), 0)
@@ -375,10 +393,10 @@ T("adapter orchestrator: grep over a codex pattern -> 0", runHook(ORCH, bash("gr
 T("adapter orchestrator: the launcher marker -> 0", runHook(ORCH, bash("codex exec"), { ORBIT_LAUNCH_WORKER: "1" }), 0)
 T("adapter orchestrator: worker git add -A -> 2", runHook(ORCH, bash("git add -A"), { ORBIT_LAUNCH_WORKER: "1" }), 2)
 T("adapter orchestrator: worker git add -u -> 2", runHook(ORCH, bash("git add -u"), { ORBIT_LAUNCH_WORKER: "1" }), 2)
-T("adapter orchestrator: worker named git add -> 0", runHook(ORCH, bash("git add tools/verify-delivery.mjs"), { ORBIT_LAUNCH_WORKER: "1" }), 0)
+T("adapter orchestrator: worker named git add -> 0", runHook(ORCH, bash("git add tools/verify-delivery.mjs", repoRoot), { ORBIT_LAUNCH_WORKER: "1" }), 0)
 T(
   "adapter orchestrator: worker literal bracketed git add -> 0",
-  runHook(ORCH, bash("git --literal-pathspecs add apps/web/app/api/[...path]/route.ts"), { ORBIT_LAUNCH_WORKER: "1" }),
+  runHook(ORCH, bash("git --literal-pathspecs add apps/web/app/api/[...path]/route.ts", repoRoot), { ORBIT_LAUNCH_WORKER: "1" }),
   0,
 )
 

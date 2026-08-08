@@ -13,6 +13,7 @@
 // worktree gets the engine exemption. The admin-merge rule takes NO exemption.
 
 import { lstatSync } from "node:fs"
+import { spawnSync } from "node:child_process"
 import { resolve } from "node:path"
 
 import { stripHeredocBodies } from "./rules-git.mjs"
@@ -65,7 +66,17 @@ const isBroadPathspec = (argument, literalGlobally, cwd) => {
   try {
     if (cwd && lstatSync(resolve(cwd, path)).isDirectory()) return true
   } catch {
-    // Git cannot stage a nonexistent literal path, so only syntax-based broad forms remain relevant.
+    if (cwd) {
+      const tracked = spawnSync("git", ["-C", cwd, "ls-files", "--", path], {
+        encoding: "utf8",
+        timeout: 5000,
+        windowsHide: true,
+      })
+      if (tracked.error || tracked.status !== 0) return true
+      const matches = tracked.stdout.split(/\r?\n/).filter(Boolean).map((entry) => entry.replaceAll("\\", "/"))
+      const normalized = path.replaceAll("\\", "/").replace(/^\.\//, "")
+      if (matches.length > 0 && (matches.length !== 1 || matches[0] !== normalized)) return true
+    }
   }
   return !literalGlobally && !literalPrefix && (/[*?[\]]/.test(path) || argument.startsWith(":"))
 }
