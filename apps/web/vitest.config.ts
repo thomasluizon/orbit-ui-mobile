@@ -30,7 +30,6 @@ export default defineConfig({
         'app/(public)/terms/page.tsx',
         'app/(public)/delete-account/page.tsx',
         'app/r/[code]/page.tsx',
-        'app/(app)/social/challenges/[id]/page.tsx',
         'app/(onboarding)/onboarding/page.tsx',
         'app/not-found.tsx',
         'app/(chat)/error.tsx',

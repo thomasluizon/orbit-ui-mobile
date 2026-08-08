@@ -12,8 +12,11 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 
-const mocks = vi.hoisted(() => ({
-  profileReturn: {} as Record<string, unknown>,
+const mocks = vi.hoisted((): {
+  profileReturn: Record<string, unknown>
+  refetch: ReturnType<typeof vi.fn>
+} => ({
+  profileReturn: {},
   refetch: vi.fn(),
 }))
 
@@ -53,8 +56,6 @@ const profileView: FriendProfileView = {
   weeklyActivity: [0, 1, 0, 2, 0, 3, 1],
   achievements: [],
   topHabits: [],
-  isAccountabilityPartner: false,
-  sharedChallenges: [],
 }
 
 function setProfileReturn(overrides: Record<string, unknown>) {
@@ -70,7 +71,7 @@ function setProfileReturn(overrides: Record<string, unknown>) {
 
 async function renderSheet() {
   let tree!: TestTree
-  await TestRenderer.act(async () => {
+  await TestRenderer.act(() => {
     tree = TestRenderer.create(
       <FriendProfileSheet userId="user-1" displayName="Ada Lovelace" open onClose={() => {}} />,
     )
@@ -146,28 +147,6 @@ describe('FriendProfileSheet', () => {
     })
     const tree = await renderSheet()
     expect(textContents(tree)).toEqual(expect.arrayContaining(['Reading', '🔥 40']))
-  })
-
-  it('renders shared context when the friend is a partner and shares challenges', async () => {
-    setProfileReturn({
-      data: {
-        ...profileView,
-        isAccountabilityPartner: true,
-        sharedChallenges: [{ id: 'c-1', title: 'Sunrise Sprint' }],
-      },
-    })
-    const tree = await renderSheet()
-    expect(textContents(tree)).toEqual(
-      expect.arrayContaining(['social.friendProfile.accountabilityPartner', 'Sunrise Sprint']),
-    )
-  })
-
-  it('omits the shared context section when there is nothing to show', async () => {
-    setProfileReturn({ data: profileView })
-    const tree = await renderSheet()
-    expect(textContents(tree)).not.toEqual(
-      expect.arrayContaining(['social.friendProfile.accountabilityPartner']),
-    )
   })
 
   it('prefixes achievement chips with the shared achievement glyph', async () => {

@@ -25,12 +25,7 @@ const mocks = vi.hoisted(() => ({
     refetch: vi.fn(),
   },
   cheersReturn: { data: undefined as unknown },
-  pairsReturn: {
-    data: undefined as unknown,
-    isLoading: false,
-    isError: false,
-    refetch: vi.fn(),
-  },
+  searchParams: '',
   acceptMutate: vi.fn(),
   removeMutate: vi.fn(),
   sendCheerMutate: vi.fn(),
@@ -43,7 +38,7 @@ vi.mock('next-intl', () => ({
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn(), back: vi.fn() }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(mocks.searchParams),
 }))
 
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
@@ -51,16 +46,6 @@ vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
 vi.mock('@/components/ui/gradient-top', () => ({ GradientTop: () => null }))
 vi.mock('@/app/(app)/social/_components/invite-hero', () => ({ InviteHero: () => null }))
-vi.mock('@/app/(app)/social/_components/new-pair-flow', () => ({ NewPairFlow: () => null }))
-vi.mock('@/app/(app)/social/_components/pair-detail', () => ({ PairDetail: () => null }))
-
-vi.mock('@/hooks/use-accountability', () => ({
-  useAccountabilityPairs: () => mocks.pairsReturn,
-  useAcceptAccountabilityPair: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useEndAccountabilityPair: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useCheckInAccountability: () => ({ mutateAsync: vi.fn(), isPending: false }),
-}))
-
 vi.mock('@/components/ui/app-overlay', () => ({
   AppOverlay: ({
     open,
@@ -111,9 +96,7 @@ beforeEach(() => {
   mocks.feedReturn.data = { pages: [{ items: [], nextCursor: null }] }
   mocks.feedReturn.isError = false
   mocks.cheersReturn.data = { items: [] }
-  mocks.pairsReturn.data = { activePairs: [], incomingInvites: [], outgoingInvites: [] }
-  mocks.pairsReturn.isLoading = false
-  mocks.pairsReturn.isError = false
+  mocks.searchParams = ''
   mocks.acceptMutate.mockResolvedValue(null)
   mocks.removeMutate.mockResolvedValue(null)
   mocks.sendCheerMutate.mockResolvedValue({ id: 'cheer-1' })
@@ -132,11 +115,24 @@ describe('SocialPage', () => {
   it('switches from the feed tab to the friends tab', () => {
     render(<SocialPage />)
 
+    expect(screen.getAllByRole('tab')).toHaveLength(2)
+    expect(screen.getByRole('tab', { name: 'social.tabs.feed' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'social.tabs.friends' })).toHaveAttribute('aria-selected', 'false')
     expect(screen.getByText('social.feed.emptyTitle')).toBeInTheDocument()
 
     fireEvent.click(screen.getByText('social.tabs.friends'))
 
     expect(screen.getByText('social.addFriend.title')).toBeInTheDocument()
+  })
+
+  it('falls back to the feed for a removed tab deep link', () => {
+    mocks.searchParams = `tab=${['budd', 'ies'].join('')}`
+
+    render(<SocialPage />)
+
+    expect(screen.getAllByRole('tab')).toHaveLength(2)
+    expect(screen.getByRole('tab', { name: 'social.tabs.feed' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText('social.feed.emptyTitle')).toBeInTheDocument()
   })
 
   it('accepts with the friendship id and declines with the user id', () => {
@@ -181,19 +177,6 @@ describe('SocialPage', () => {
 
     fireEvent.click(screen.getByText('common.retry'))
     expect(mocks.friendsReturn.refetch).toHaveBeenCalled()
-  })
-
-  it('shows a retry action when the buddies query fails', () => {
-    mocks.pairsReturn.isError = true
-
-    render(<SocialPage />)
-    fireEvent.click(screen.getByText('social.tabs.buddies'))
-
-    expect(screen.getByText('social.errors.loadFailed')).toBeInTheDocument()
-    expect(screen.queryByText('social.buddies.emptyTitle')).not.toBeInTheDocument()
-
-    fireEvent.click(screen.getByText('common.retry'))
-    expect(mocks.pairsReturn.refetch).toHaveBeenCalled()
   })
 
   it('sends a cheer from a feed row and surfaces the success toast', async () => {

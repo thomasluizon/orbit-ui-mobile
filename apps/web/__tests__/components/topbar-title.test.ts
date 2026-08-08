@@ -16,9 +16,6 @@ describe('resolveTopbarTitleKey', () => {
   it('prefers the more specific prefix when routes overlap', () => {
     expect(resolveTopbarTitleKey('/calendar-sync', false)).toBe('calendar.title')
     expect(resolveTopbarTitleKey('/calendar', false)).toBe('nav.calendar')
-    expect(resolveTopbarTitleKey('/social/challenges/abc', false)).toBe(
-      'challenges.title',
-    )
     expect(resolveTopbarTitleKey('/social', false)).toBe('social.title')
   })
 

@@ -1,7 +1,7 @@
 import type { NormalizedHabit } from '../types/habit'
 import { isCompletedOneTimeHabit } from './habit-visibility'
 
-/** One selectable habit in the accountability habit picker, tagged with its parent for context. */
+/** One selectable habit in a habit picker, tagged with its parent for context. */
 export interface HabitPickerOption {
   id: string
   title: string
