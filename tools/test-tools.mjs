@@ -78,6 +78,7 @@ const CASE_MODULES = [
   ["launch-worker.mjs", "launch-worker"],
   ["lib/body-edit-invalidation.mjs", "body-edit-invalidation"],
   ["lib/orchestrator-config.mjs", "orchestrator-config"],
+  ["lib/performance-measurement.mjs", "performance-measurement"],
   ["lib/bounded-process.mjs", "bounded-process"],
   ["lib/github-auth.mjs", "github-auth"],
   ["lib/pr-body.mjs", "pr-body"],

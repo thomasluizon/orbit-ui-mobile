@@ -97,12 +97,19 @@ const isSeriousOps = (f) => /blocker|high/i.test(f.severity || '')
 
 const parsedArgs = typeof args === 'string' ? JSON.parse(args) : args || {}
 const scope = parsedArgs.scope || 'both'
+const performanceMeasurement = parsedArgs.performanceMeasurement || {
+  status: 'unavailable',
+  reason: 'prod-readiness did not receive a production performance measurement',
+}
 const AUDIT_KINDS = ['security', 'tests', 'performance', 'code-quality']
 
 phase('Audits')
 log(`prod-readiness · scope ${scope} · running ${AUDIT_KINDS.length} audits + ops`)
 const auditResults = (
-  await parallel(AUDIT_KINDS.map((k) => () => workflow({ scriptPath: '.claude/workflows/audit.mjs' }, { kind: k, scope })))
+  await parallel(AUDIT_KINDS.map((k) => () => workflow(
+    { scriptPath: '.claude/workflows/audit.mjs' },
+    { kind: k, scope, measurement: k === 'performance' ? performanceMeasurement : undefined },
+  )))
 ).map((r, i) => r || { kind: AUDIT_KINDS[i], failed: true, findings: [], counts: {}, coverage: [], deferred: [] })
 
 phase('Ops')
@@ -154,4 +161,8 @@ return {
   unconvergedAudits: auditResults
     .filter((r) => !r.failed && r.converged !== true)
     .map((r) => ({ kind: r.kind, reason: r.convergenceReason || 'completeness unproven', criticErrors: r.criticErrors ?? null })),
+  performanceMeasurement: auditResults.find((result) => result.kind === 'performance')?.performanceMeasurement || {
+    status: 'unavailable',
+    reason: 'performance audit did not return a measurement verdict',
+  },
 }

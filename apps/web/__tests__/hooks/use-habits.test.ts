@@ -306,7 +306,7 @@ describe('useLogHabit', () => {
     expect(mockedLogHabit).toHaveBeenCalledWith('h-1', undefined)
   })
 
-  it('invalidates lists, summary, goals, gamification, and profile on settle (parity with mobile)', async () => {
+  it('reconciles habit data without refetching response-backed or AI summary families', async () => {
     const { logHabit } = await import('@/app/actions/habits')
     vi.mocked(logHabit).mockResolvedValue({
       logId: 'log-x',
@@ -326,10 +326,13 @@ describe('useLogHabit', () => {
 
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.calendarPrefix() })
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.summaryPrefix() })
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: profileKeys.all })
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: habitKeys.summaryPrefix(),
+      refetchType: 'none',
+    })
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: profileKeys.all })
   })
 
   it('passes date to logHabit action', async () => {

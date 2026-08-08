@@ -212,12 +212,7 @@ export function useLogHabit() {
 
     },
 
-    onSettled: (data, error) =>
-      finalizeHabitMutation(queryClient, data, error, {
-        includeGoals: true,
-        includeProfile: true,
-        includeGamification: true,
-      }),
+    onSettled: (data, error) => finalizeHabitMutation(queryClient, data, error),
   })
 }
 

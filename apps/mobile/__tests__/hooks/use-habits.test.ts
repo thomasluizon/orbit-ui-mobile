@@ -783,6 +783,31 @@ describe('mobile habit hooks', () => {
     expect(mocks.checkAllDoneCelebration).toHaveBeenCalled()
   })
 
+  it('reconciles a completion without refetching response-backed or AI summary families', () => {
+    seedHabitState([makeHabit({ id: 'habit-1' })])
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      LogHabitResponse,
+      { habitId: string; date?: string },
+      unknown
+    >
+    const response: LogHabitResponse = {
+      logId: 'log-1',
+      isFirstCompletionToday: false,
+      currentStreak: 1,
+    }
+
+    mutation.onSettled?.(response, null, { habitId: 'habit-1' }, undefined)
+
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: habitKeys.summaryPrefix(),
+      refetchType: 'none',
+    })
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: profileKeys.all })
+  })
+
   it('does not celebrate or award XP for a bad sub-habit completion', () => {
     seedHabitState([makeHabit({
       id: 'parent-1',

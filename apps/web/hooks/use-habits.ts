@@ -165,10 +165,10 @@ export function useLogHabit() {
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
-      void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
-      void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
-      void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
-      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
+      void queryClient.invalidateQueries({
+        queryKey: habitKeys.summaryPrefix(),
+        refetchType: 'none',
+      })
     },
   })
 }
