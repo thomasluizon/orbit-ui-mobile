@@ -18,6 +18,7 @@ import { fileURLToPath } from "node:url"
 import { checkGitCommand, checkGitWorktreeRemove } from "./_lib/rules-git.mjs"
 import { checkEfMigrationRawIndex } from "./_lib/rules-source.mjs"
 import { checkLinearMutation } from "./_lib/rules-linear.mjs"
+import { checkInventedIdentifier, extractNodeIds } from "./_lib/rules-identifier.mjs"
 import { checkAdminMerge, checkBroadStaging, checkEngineInvocation } from "./_lib/rules-orchestrator.mjs"
 import { checkSleepStop } from "./_lib/rules-sleep.mjs"
 import { checkWorkerBrowser } from "./_lib/rules-worker.mjs"
@@ -368,6 +369,48 @@ T("ef-index: a file off the migrations path is skipped", checkEfMigrationRawInde
 T("ef-index: a batched Sql with one non-idempotent statement blocks", blocks(checkEfMigrationRawIndex(migration, 'migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS ix_b ON foo (b); CREATE INDEX ix_a ON foo (a);");')), true)
 T("ef-index: a batched Sql with all idempotent statements allows", checkEfMigrationRawIndex(migration, 'migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS ix_b ON foo (b); CREATE INDEX IF NOT EXISTS ix_a ON foo (a);");'), null)
 
+// An identifier a run WRITES with must have been READ by that run. On 2026-08-08 a typed
+// PRRT_ id resolved to a live thread on a stranger's public repository and replied there,
+// because node ids are globally unique and a wrong one does not fail.
+const OBSERVED = "PRRT_kwDOR5Siws6Wfy_V"
+const INVENTED = "PRRT_kwDOR5Siws6XdcAt"
+const seen = new Set([OBSERVED])
+const invented = (command, options = {}) => checkInventedIdentifier(command, { observedIdentifiers: seen, ...options })
+// THE incident, verbatim in shape: a typed id, and a `||` fallback that makes the write the probe.
+T(
+  "identifier: the incident command blocks",
+  blocks(invented(`printf 'fixed in %s' "$sha" | node tools/resolve-bot-thread.mjs --thread ${INVENTED} --repo ui || node tools/list-bot-threads.mjs --pr 699 --repo ui`)),
+  true,
+)
+T("identifier: the blocked message names the unknown id", invented(`gh api graphql -f thread=${INVENTED}`)?.message?.includes(INVENTED) === true, true)
+T("identifier: an observed id allows", invented(`node tools/resolve-bot-thread.mjs --thread ${OBSERVED} --repo ui`), null)
+// One known id must not launder an unknown one in the same command.
+T("identifier: a known id beside an unknown one still blocks", blocks(invented(`gh api graphql -f a=${OBSERVED} -f b=${INVENTED}`)), true)
+T("identifier: only the unknown id is named", invented(`gh api graphql -f a=${OBSERVED} -f b=${INVENTED}`)?.message?.includes(OBSERVED) === true, false)
+// An id in text is not a target. A guard that fired on grep or an editor would be bypassed by habit.
+T("identifier: an id in a command that cannot reach GitHub allows", invented(`grep -n ${INVENTED} notes.md`), null)
+T("identifier: a gh command with no id at all allows", invented("gh pr view 699 --repo thomasluizon/orbit-ui-mobile"), null)
+// Ordinary upper-case shell words share the prefixes and are not node ids.
+T("identifier: PR_NUMBER is not a node id", extractNodeIds("gh pr view $PR_NUMBER"), [])
+T("identifier: IC_CONFIG is not a node id", extractNodeIds("gh api $IC_CONFIG"), [])
+T("identifier: a short body is not a node id", extractNodeIds("gh api PRRT_abc"), [])
+T("identifier: a real node id is extracted once, deduped", extractNodeIds(`gh api ${INVENTED} ${INVENTED}`), [INVENTED])
+T("identifier: PR_ and IC_ shapes are guarded too", extractNodeIds("gh api PR_kwDOR5Siws6abc IC_kwDOR5Siws6def").length, 2)
+T("identifier: an empty command allows", invented(""), null)
+// A heredoc BODY is data the command carries, not the command. This gate refused a
+// /second-opinion call whose body QUOTED the incident, and a guard that fires on writing ABOUT
+// the incident is one everybody learns to work around. The bypass it leaves is disclosed.
+T(
+  "identifier: an id quoted inside a heredoc body allows",
+  invented(`node .claude/skills/second-opinion/second-opinion.mjs <<'F'\nthe incident passed --thread ${INVENTED} to tools/resolve-bot-thread.mjs\nF`),
+  null,
+)
+T(
+  "identifier: the same id on the COMMAND LINE beside a heredoc still blocks",
+  blocks(invented(`node tools/resolve-bot-thread.mjs --thread ${INVENTED} --repo ui <<'F'\nfixed in abc\nF`)),
+  true,
+)
+
 // ---------------------------------------------------------------------------
 // 3. The real hook files: stdin payload in, exit code out
 // ---------------------------------------------------------------------------
@@ -407,6 +450,47 @@ T("adapter worker-browser: a worker starting a dev server -> 2", runHook(BROWSER
 T("adapter worker-browser: a worker running playwright -> 2", runHook(BROWSER, bash("npx playwright test"), { ORBIT_LAUNCH_WORKER: "1" }), 2)
 T("adapter worker-browser: a worker running the tests -> 0", runHook(BROWSER, bash("npm test"), { ORBIT_LAUNCH_WORKER: "1" }), 0)
 T("adapter worker-browser: the same dev server outside a worker -> 0", runHook(BROWSER, bash("npm run dev")), 0)
+
+/**
+ * The invented-identifier adapter, on both of its evidence sources. The ledger case writes THIS
+ * checkout's real ledger, because that is the only path list-bot-threads.mjs writes, and restores
+ * whatever was there. The scratchpad case stages a session directory under the real scratchpad
+ * layout, so the id-in-an-artifact path is exercised without touching any repository.
+ */
+const IDENT_HOOK = "forbid-invented-identifier.mjs"
+const IDENT_SESSION = "orbit-hooks-gate-identifier-session"
+const resolveCommand = (id) => `node tools/resolve-bot-thread.mjs --thread ${id} --repo ui`
+const identPayload = (command, sessionId = IDENT_SESSION) => ({ tool_name: "Bash", tool_input: { command }, cwd: repoRoot, session_id: sessionId })
+
+T("adapter identifier: an id this run never read -> 2", runHook(IDENT_HOOK, identPayload(resolveCommand(INVENTED))), 2)
+T("adapter identifier: a command with no id at all -> 0", runHook(IDENT_HOOK, identPayload("node tools/list-bot-threads.mjs --pr 699 --repo ui")), 0)
+T(
+  "adapter identifier: the PowerShell tool is guarded too, not only Bash -> 2",
+  runHook(IDENT_HOOK, { tool_name: "PowerShell", tool_input: { command: resolveCommand(INVENTED) }, cwd: repoRoot, session_id: IDENT_SESSION }),
+  2,
+)
+
+const scratchpadArtifact = join(tmpdir(), "claude", "orbit-hooks-gate-project", IDENT_SESSION, "scratchpad", "threads.json")
+mkdirSync(dirname(scratchpadArtifact), { recursive: true })
+writeFileSync(scratchpadArtifact, JSON.stringify({ threads: [{ id: INVENTED }] }))
+try {
+  T("adapter identifier: the same id read from a session artifact -> 0", runHook(IDENT_HOOK, identPayload(resolveCommand(INVENTED))), 0)
+  T("adapter identifier: another session cannot borrow that artifact -> 2", runHook(IDENT_HOOK, identPayload(resolveCommand(INVENTED), "a-different-session")), 2)
+} finally {
+  rmSync(join(tmpdir(), "claude", "orbit-hooks-gate-project"), { recursive: true, force: true })
+}
+
+const { identifierLedgerPath, recordObservedIdentifiers } = await import("../../tools/lib/identifier-ledger.mjs")
+const ledgerPath = identifierLedgerPath(repoRoot)
+const priorLedger = existsSync(ledgerPath) ? readFileSync(ledgerPath, "utf8") : null
+try {
+  recordObservedIdentifiers([INVENTED], { repoRoot, tool: "test-hooks.mjs" })
+  T("adapter identifier: an id recorded by the listing tool -> 0", runHook(IDENT_HOOK, identPayload(resolveCommand(INVENTED))), 0)
+} finally {
+  if (priorLedger === null) rmSync(ledgerPath, { force: true })
+  else writeFileSync(ledgerPath, priorLedger)
+}
+T("adapter identifier: the ledger is restored, so the id blocks again -> 2", runHook(IDENT_HOOK, identPayload(resolveCommand(INVENTED))), 2)
 
 /**
  * The Stop adapter reads THIS checkout's real run record, because that is the only path a live run
