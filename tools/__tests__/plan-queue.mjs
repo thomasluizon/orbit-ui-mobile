@@ -3,10 +3,9 @@ import { T, check, orcaEnv, run } from "./_harness.mjs"
 const TOOL = "plan-queue.mjs"
 
 /**
- * Envelope shapes below are the RECORDED ones from tools/__fixtures__/orca-linear-envelopes.json:
- * _harness.mjs asserts every stubbed Linear reply against that manifest, so a field invented here
- * throws rather than passing. state.type carries Linear's own type, never a display name, because
- * that is what the tool branches on.
+ * These legacy Linear consumer shapes remain until the consumer migration lands. They no longer
+ * define the GitHub ticket contract. state.type carries Linear's own type, never a display name,
+ * because that is what this still-unmigrated tool branches on.
  */
 const issueBody = (identifier, { title = `${identifier} work`, stateName = "Todo", stateType = "unstarted", labels = ["repo:ui"], description = "## Scope\n\n- Do the work" } = {}) => ({
   id: `id-${identifier}`,
@@ -199,7 +198,7 @@ export const cases = () => {
   const empty = run(TOOL, ["--board"], { env: orcaEnv([{ match: "linear list-issues", stdout: listEnvelope([]) }]) })
   T(`${TOOL}: a scope resolving to zero tickets exits 1 rather than printing an empty plan`, empty.status === 1 && /zero tickets/.test(empty.stderr), `exit ${empty.status}: ${empty.stderr || empty.stdout}`)
 
-  const refused = run(TOOL, ["--tickets", "ORB-1"], { env: orcaEnv([{ match: "linear issue ORB-1 --relations", stdout: JSON.stringify({ id: "e", ok: false, error: { code: "not_found", message: "no such issue" } }), exit: 1, allowNonJsonLinear: false }]) })
+  const refused = run(TOOL, ["--tickets", "ORB-1"], { env: orcaEnv([{ match: "linear issue ORB-1 --relations", stdout: JSON.stringify({ id: "e", ok: false, error: { code: "not_found", message: "no such issue" } }), exit: 1 }]) })
   T(`${TOOL}: an orca refusal is an environment error, never an empty plan`, refused.status === 2 && /refused: no such issue/.test(refused.stderr), `exit ${refused.status}: ${refused.stderr || refused.stdout}`)
 
   /**

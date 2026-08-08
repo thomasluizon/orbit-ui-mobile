@@ -29,6 +29,7 @@ name or git status. Read `CONVENTIONS.md` before adding one.
 | `salvage-worker.mjs` | Inventories a dead worker's dirty tree, runs a caller-specified workspace test into a real receipt, refuses unrelated pre-staged paths, and stages only repeated named paths. It may run before PR creation; once a PR exists it registers the repository-qualified PR as unready before commit/push. | `node tools/salvage-worker.mjs --issue ORB-N --repo <key> [--pr <n>] --worktree <p> --branch <b> --run-root <p> --test-command <json> --test-receipt <json> --message <m> --path <path>...` |
 | `teardown-worktree.mjs` | Removes one completed Orca worktree only after four independent work-loss checks pass: clean tree, PR merged with its merge commit in the target branch, local tip contained in the PR head, and the Linear issue Done. Verifies removal from the filesystem and git, never from Orca's reply. | `node tools/teardown-worktree.mjs (--issue ORB-N \| --worktree <path>)` |
 | `lib/orchestrator-config.mjs` | The one reader of `.claude/orchestrator.json`. Resolves the engine invocation and refuses a working copy that disagrees with `origin/main` when the checkout does not contain it, which is how a launch once started a worker on an already-superseded model. | imported, not invoked |
+| `lib/github-issues.mjs` | The one adapter for GitHub tickets. Resolves migrated ORB identifiers, normalizes issue and Projects v2 state, asserts the repository label before caller-owned writes, sets board status, posts comments, and lists tickets. | imported, not invoked |
 | `lib/github-target.mjs` | Judges whether a caller-supplied GitHub node id belongs to the repository the caller named, before any write. A node that resolves elsewhere, or does not resolve at all, is refused. Also recognises the permissions error GitHub returns for a write aimed at another owner, so that error stops reading as a transient glitch. | imported, not invoked |
 | `lib/identifier-ledger.mjs` | Records every node id the harness genuinely read back from GitHub, in `.git/orbit-observed-identifiers.json`. `list-bot-threads.mjs` writes it; `.claude/hooks/forbid-invented-identifier.mjs` reads it to tell a copied id from a typed one. | imported, not invoked |
 
@@ -58,13 +59,15 @@ These back required CI checks. They fail a merge.
 | Tool | What it does | Usage |
 |---|---|---|
 | `test-tools.mjs` | Executes every tool in this directory against its contract and fails on any tool with no coverage entry. Review-only evidence is not sufficient: a harness that is read but never run is how a gate reports green over work that never happened. | `node tools/test-tools.mjs` |
+| `record-gh-fixtures.mjs` | Re-records the GitHub issue, label, and Projects v2 response path/type manifest from read-only live `gh` commands. It never creates, edits, comments on, or closes a ticket. | `node tools/record-gh-fixtures.mjs` |
 
 Its sibling is `node .claude/hooks/test-hooks.mjs`, which proves the four session hooks block and allow
 as specified, and that every hook wired in `.claude/settings.json` exists on disk and vice versa.
 
 ## Fixtures
 
-`__fixtures__/orca-linear-envelopes.json` is RECORDED REAL CLI OUTPUT, 3,358 lines of it. Tests assert
-against what the tools actually emitted, never against a hand-written shape. Do not regenerate it from
-a guess: two measured incidents in this repository involved a worker inventing a field while the same
-commit added a mock that agreed with the guess, so the harness stayed green over a real defect.
+`__fixtures__/gh-issue-envelopes.json` is recorded real `gh` output. Tests assert against what the CLI
+actually emitted, never against a hand-written shape. Re-record it only with
+`node tools/record-gh-fixtures.mjs`. The recorder is read-only and emits no write envelope. Two measured
+incidents in this repository involved a worker inventing a field while the same commit added a mock that
+agreed with the guess, so the harness stayed green over a real defect.

@@ -1,0 +1,186 @@
+import { existsSync, readFileSync } from "node:fs"
+
+import { T, orcaEnv, stage } from "./_harness.mjs"
+import * as githubIssues from "../lib/github-issues.mjs"
+
+const TOOL = "lib/github-issues.mjs"
+const issue = (overrides = {}) => ({
+  blockedBy: { nodes: [], totalCount: 0 },
+  blocking: { nodes: [], totalCount: 0 },
+  body: "Ticket body",
+  labels: [{ name: "repo:ui" }, { name: "harness" }],
+  number: 221,
+  state: "OPEN",
+  stateReason: null,
+  title: "Ticket title",
+  url: "https://github.com/thomasluizon/orbit-tickets/issues/221",
+  ...overrides,
+})
+const projectItems = JSON.stringify({ items: [], totalCount: 0 })
+const environmentFor = (ticketOutput = JSON.stringify(issue())) =>
+  orcaEnv([
+    { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: ticketOutput },
+    { match: "project item-list 2 --owner thomasluizon", stdout: projectItems },
+  ])
+
+const messageOf = async (call) => {
+  try {
+    await call()
+    return null
+  } catch (error) {
+    return error.message
+  }
+}
+
+export const cases = async () => {
+  T(
+    `${TOOL}: exports only the ticket adapter surface`,
+    Object.keys(githubIssues).sort().join(",") ===
+      "addComment,assertRepositoryLabel,listTickets,readTicket,resolveTicket,setStatus",
+    Object.keys(githubIssues).sort().join(","),
+  )
+
+  const migrated = githubIssues.resolveTicket("orb-215")
+  T(`${TOOL}: resolves a migrated ORB identifier only through the recorded map`, migrated.number === 221 && migrated.identifier === "ORB-215", JSON.stringify(migrated))
+  T(`${TOOL}: resolves a raw migrated issue number back to its identifier`, githubIssues.resolveTicket("#221").identifier === "ORB-215")
+  T(`${TOOL}: leaves a post-migration raw issue without an invented identifier`, githubIssues.resolveTicket(9999).identifier === null)
+  T(
+    `${TOOL}: refuses an ORB identifier absent from the migration map`,
+    /Unknown migrated ticket ORB-999999/.test(await messageOf(() => githubIssues.resolveTicket("ORB-999999")) ?? ""),
+  )
+  T(
+    `${TOOL}: the fixture guard refuses a response key absent from the recording`,
+    /asserts unrecorded key \$\.madeUpField/.test(
+      (await messageOf(() => orcaEnv([{ match: "issue view 221", stdout: JSON.stringify(issue({ madeUpField: true })) }]))) ?? "",
+    ),
+  )
+  T(
+    `${TOOL}: the fixture guard refuses a type the recording did not observe`,
+    /asserts type string at \$\.number; recorded types: number/.test(
+      (await messageOf(() => orcaEnv([{ match: "issue view 221", stdout: JSON.stringify(issue({ number: "221" })) }]))) ?? "",
+    ),
+  )
+  T(
+    `${TOOL}: the fixture guard refuses an issue state outside the GitHub enum`,
+    /asserts unsupported enum at \$\.state: "MERGED"/.test(
+      (await messageOf(() => orcaEnv([{ match: "issue view 221", stdout: JSON.stringify(issue({ state: "MERGED" })) }]))) ?? "",
+    ),
+  )
+
+  const previousGh = process.env.GH_BIN
+  const previousNodeOptions = process.env.NODE_OPTIONS
+  const previousStub = process.env.ORBIT_ORCA_STUB
+  const applyEnvironment = (environment) => {
+    process.env.GH_BIN = environment.GH_BIN
+    process.env.NODE_OPTIONS = environment.NODE_OPTIONS
+    process.env.ORBIT_ORCA_STUB = environment.ORBIT_ORCA_STUB
+  }
+  const restoreEnvironment = () => {
+    for (const [name, value] of [
+      ["GH_BIN", previousGh],
+      ["NODE_OPTIONS", previousNodeOptions],
+      ["ORBIT_ORCA_STUB", previousStub],
+    ]) {
+      if (value === undefined) delete process.env[name]
+      else process.env[name] = value
+    }
+  }
+
+  try {
+    applyEnvironment(environmentFor())
+    const read = await githubIssues.readTicket(221)
+    T(
+      `${TOOL}: readTicket returns the exact normalized shape`,
+      Object.keys(read).join(",") ===
+        "number,url,title,body,state,stateReason,labels,blockedBy,blocking,status,projectItemId,identifier",
+      JSON.stringify(read),
+    )
+    T(
+      `${TOOL}: readTicket strips label metadata and normalizes relation connections`,
+      JSON.stringify(read.labels) === JSON.stringify([{ name: "repo:ui" }, { name: "harness" }]) &&
+        Array.isArray(read.blockedBy) &&
+        read.blockedBy.length === 0 &&
+        Array.isArray(read.blocking),
+      JSON.stringify(read),
+    )
+    T(
+      `${TOOL}: a ticket absent from the configured board has null project fields`,
+      read.status === null && read.projectItemId === null,
+      JSON.stringify(read),
+    )
+
+    applyEnvironment(
+      orcaEnv([
+        { match: "issue list --repo thomasluizon/orbit-tickets --state all", stdout: JSON.stringify([issue()]) },
+        { match: "project item-list 2 --owner thomasluizon", stdout: projectItems },
+      ]),
+    )
+    const listed = await githubIssues.listTickets({ labels: ["repo:ui", "harness"], state: "all" })
+    T(`${TOOL}: listTickets normalizes each issue and preserves the mapped identifier`, listed.length === 1 && listed[0].identifier === "ORB-215", JSON.stringify(listed))
+
+    const statusMarker = stage("github-issues/status-write", "must be removed")
+    applyEnvironment(
+      orcaEnv([
+        {
+          match: "project item-edit 2 --owner thomasluizon --url https://github.com/thomasluizon/orbit-tickets/issues/221 --field Status --value In Review",
+          stdout: "",
+          removePath: statusMarker,
+        },
+      ]),
+    )
+    await githubIssues.setStatus(221, "In Review")
+    T(`${TOOL}: setStatus writes the configured board field`, !existsSync(statusMarker))
+    T(
+      `${TOOL}: setStatus refuses Done before starting a child`,
+      /never targets Done before merge/.test(await messageOf(() => githubIssues.setStatus(221, "Done")) ?? ""),
+    )
+    T(
+      `${TOOL}: setStatus refuses a status absent from the recorded options`,
+      /Unknown ticket status/.test(await messageOf(() => githubIssues.setStatus(221, "Shipped")) ?? ""),
+    )
+
+    const commentMarker = stage("github-issues/comment-write", "must be removed")
+    const commentBody = stage("github-issues/comment-body", "")
+    applyEnvironment(
+      orcaEnv([
+        {
+          match: "issue comment 221 --repo thomasluizon/orbit-tickets --body-file -",
+          stdout: "",
+          removePath: commentMarker,
+          stdinFile: commentBody,
+        },
+      ]),
+    )
+    await githubIssues.addComment(221, "Ready for review")
+    T(
+      `${TOOL}: addComment posts the exact body through stdin and depends only on the exit code`,
+      !existsSync(commentMarker) && readFileSync(commentBody, "utf8") === "Ready for review",
+    )
+
+    applyEnvironment(
+      orcaEnv([
+        { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: "", stderr: "GraphQL: issue not found", exit: 1 },
+        { match: "project item-list 2 --owner thomasluizon", stdout: projectItems },
+      ]),
+    )
+    T(
+      `${TOOL}: a failed GitHub issue read is reported rather than normalized`,
+      /failed: GraphQL: issue not found/.test(await messageOf(() => githubIssues.readTicket(221)) ?? ""),
+    )
+  } finally {
+    restoreEnvironment()
+  }
+
+  const valid = { labels: [{ name: "repo:ui" }, { name: "harness" }] }
+  T(`${TOOL}: the repository assertion accepts exactly one matching repo label`, githubIssues.assertRepositoryLabel(valid, "ui") === valid)
+  for (const [label, ticket, pattern] of [
+    ["missing", { labels: [{ name: "harness" }] }, /no repo:\* label/],
+    ["wrong", { labels: [{ name: "repo:api" }] }, /expected exactly repo:ui/],
+    ["ambiguous", { labels: [{ name: "repo:ui" }, { name: "repo:api" }] }, /repo:ui and repo:api/],
+  ]) {
+    T(
+      `${TOOL}: the repository assertion refuses the ${label} repository label case`,
+      pattern.test(await messageOf(() => githubIssues.assertRepositoryLabel(ticket, "ui")) ?? ""),
+    )
+  }
+}

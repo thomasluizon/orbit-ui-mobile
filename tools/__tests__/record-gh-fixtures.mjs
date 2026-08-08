@@ -1,0 +1,39 @@
+import { readFileSync } from "node:fs"
+
+import { check, orcaEnv, root, T } from "./_harness.mjs"
+import { join } from "node:path"
+
+const TOOL = "record-gh-fixtures.mjs"
+
+export const cases = () => {
+  const output = join(root, "recorded-gh-fixtures.json")
+  const issue = JSON.stringify({
+    blockedBy: { nodes: [], totalCount: 0 },
+    blocking: { nodes: [], totalCount: 0 },
+    body: "body",
+    labels: [{ name: "repo:ui" }],
+    number: 221,
+    state: "OPEN",
+    stateReason: null,
+    title: "title",
+    url: "https://github.com/thomasluizon/orbit-tickets/issues/221",
+  })
+  const result = check(TOOL, "records only read-only live command shapes", ["--output", output], { status: 0, stdout: /record-gh-fixtures: wrote/ }, {
+    env: orcaEnv([
+      { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: issue },
+      { match: "issue view 2147483647 --repo thomasluizon/orbit-tickets", stdout: "", stderr: "GraphQL: issue not found", exit: 1 },
+      { match: "issue list --repo thomasluizon/orbit-tickets", stdout: `[${issue}]` },
+      { match: "project item-list 2 --owner thomasluizon", stdout: JSON.stringify({ items: [], totalCount: 0 }) },
+      { match: "label list --repo thomasluizon/orbit-tickets", stdout: JSON.stringify([{ name: "repo:ui" }]) },
+    ]),
+  })
+  if (result.status !== 0) return
+  const manifest = JSON.parse(readFileSync(output, "utf8"))
+  check(TOOL, "invalid output is refused before any live command", ["--output"], { status: 2 })
+  T(`${TOOL}: a read-only recording emits no write envelope`, !manifest.commands.statusWrite && !manifest.commands.commentAdd)
+  T(
+    `${TOOL}: derives observed paths without admitting an unobserved key`,
+    Boolean(manifest.commands.issueView.paths["$.blockedBy.nodes"]) && !manifest.commands.issueView.paths["$.madeUpField"],
+    JSON.stringify(manifest.commands.issueView.paths),
+  )
+}
