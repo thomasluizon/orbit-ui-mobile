@@ -12,6 +12,9 @@
 // cwd exemption, where an orchestrating session that changes directory into a launcher-created
 // worktree gets the engine exemption. The admin-merge rule takes NO exemption.
 
+import { lstatSync } from "node:fs"
+import { resolve } from "node:path"
+
 import { stripHeredocBodies } from "./rules-git.mjs"
 import { insideLinkedWorktree } from "./repo-roots.mjs"
 
@@ -55,10 +58,15 @@ const hasBroadCommitShortFlag = (argument) => {
   return false
 }
 
-const isBroadPathspec = (argument, literalGlobally) => {
+const isBroadPathspec = (argument, literalGlobally, cwd) => {
   const literalPrefix = argument.startsWith(":(literal)")
   const path = literalPrefix ? argument.slice(10) : argument
   if (!path || /^\.\/?$/.test(path)) return true
+  try {
+    if (cwd && lstatSync(resolve(cwd, path)).isDirectory()) return true
+  } catch {
+    // Git cannot stage a nonexistent literal path, so only syntax-based broad forms remain relevant.
+  }
   return !literalGlobally && !literalPrefix && (/[*?[\]]/.test(path) || argument.startsWith(":"))
 }
 
@@ -189,7 +197,7 @@ export function checkBroadStaging(command, { env = {}, cwd = "", repoRoots = [] 
           if (COMMIT_VALUE_FLAGS.has(argument)) skipValue = true
           continue
         }
-        if (isBroadPathspec(argument, literalGlobally)) broadCommit = true
+        if (isBroadPathspec(argument, literalGlobally, cwd)) broadCommit = true
       }
       if (broadCommit) {
         return blocked(
@@ -225,7 +233,7 @@ export function checkBroadStaging(command, { env = {}, cwd = "", repoRoots = [] 
         continue
       }
       namedPaths += 1
-      if (isBroadPathspec(argument, literalGlobally)) broad = true
+      if (isBroadPathspec(argument, literalGlobally, cwd)) broad = true
     }
     if (!broad && !(words.length > addIndex + 1 && namedPaths === 0)) continue
     return blocked(

@@ -120,6 +120,7 @@ node tools/resolve-bot-thread.mjs --thread <PRRT_...> --repo <key>   # reply bod
 node tools/salvage-worker.mjs    --issue ORB-N --repo <key> [--pr <n>] --worktree <p> --branch <b> --run-root <p> --test-command <json> --test-receipt <json> --message <m> --path <path>...
 node tools/sync-linear-state.mjs --issue ORB-N --repo <key> --pr <n> --state <working|blocked|visual|ready> --head-sha <sha> --base-sha <sha> --message-file <path|->
 node tools/record-readiness.mjs  --repo <key> --pr <n> --delivery <json> --review <json> --bot <json> --linear <json> [--codex-only]
+node tools/record-readiness.mjs  --repo <key> --pr <n> --review <round-one-json> --register-round-one
 node tools/teardown-worktree.mjs --issue ORB-N
 ```
 
@@ -772,7 +773,10 @@ For each existing PR, repeat within the configured `caps.connectorFixAttempts` f
    its run/job steps to be infrastructure or a flake; send genuine failures through the existing
    fixer. A resulting commit invalidates both reviews and every head-bound receipt.
 3. Obtain a CLEAN independent `pr-review` artifact on the current head from the target repo's primary
-   main checkout. The UI copy is canonical; launch refuses if API's skill or rubric drifts.
+   main checkout. The UI copy is canonical; launch refuses if API's skill or rubric drifts. When
+   round one is BLOCKING, immediately run the mechanical `--register-round-one` form above and store
+   its returned ledger path in run-state before launching the one fixer transition; round two must
+   match that independently persisted path/hash/base/head/frozen-ID identity.
 4. Request the Codex connector on that head. Fix every actionable finding, reply with commit or
    Linear-ticket evidence, then resolve. Re-request after any push. Zero unresolved threads without
    a current-head connector review is `BOT_REVIEW_STALE`, never clean.

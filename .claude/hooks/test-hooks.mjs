@@ -79,6 +79,8 @@ T("pr-review: API repository-relative sources are classified as backend", review
 T("pr-review: API review floor drops sub-P1 candidates before receipt or tickets", reviewSkill.includes("Medium/Low/Info candidates are discarded before the receipt and create no ticket"), true)
 T("pr-review: public selector never advertises ambiguous blank or bare-number scope", reviewSkill.includes("argument-hint: <ui#N | api#N | pr-url>") && reviewSkill.includes("blank scope is ambiguous"), true)
 T("pr-review: the prescribed fixer transition preserves round one and materializes both heads", reviewSkill.includes("single prescribed round-1-to-round-2 fixer head change keeps") && reviewSkill.includes("Fetch both exact reviewed head OIDs from `origin`"), true)
+T("pr-review: round one is independently registered before the fixer transition", reviewSkill.includes("--register-round-one") && reviewSkill.includes("values supplied only\nby the round-two artifact are not authority"), true)
+T("pr-review: old-client removals require shipped-fleet evidence", reviewRubric.includes("every\n  still-supported shipped client build") && reviewRubric.includes("current UI checkout alone is never fleet-safe evidence"), true)
 T("pr-review: backend timezone review includes background boundary-hour behavior", reviewRubric.includes("background schedule window, notification cutoff, or streak") && reviewRubric.includes("boundary-hour unit test"), true)
 
 // ---------------------------------------------------------------------------
@@ -152,6 +154,7 @@ const linkedWorktree = join(root, "worktrees", "feat")
 mkdirSync(join(mainCheckout, ".git", "worktrees", "feat"), { recursive: true })
 mkdirSync(linkedWorktree, { recursive: true })
 writeFileSync(join(linkedWorktree, ".git"), `gitdir: ${join(mainCheckout, ".git", "worktrees", "feat")}\n`)
+mkdirSync(join(linkedWorktree, "named-dir"), { recursive: true })
 T("engine: a cwd inside a linked worktree allows", checkEngineInvocation("codex exec", { cwd: linkedWorktree, repoRoots: [mainCheckout] }), null)
 T("engine: the main checkout is not a linked worktree", blocks(checkEngineInvocation("codex exec", { cwd: mainCheckout, repoRoots: [mainCheckout] })), true)
 const workerStaging = (command) => checkBroadStaging(command, { cwd: linkedWorktree, repoRoots: [mainCheckout] })
@@ -173,6 +176,7 @@ for (const command of [
   "git add :/",
   "git add ':(literal)'",
   "git add apps/web/app/api/[...path]/route.ts",
+  "git add named-dir",
   "git stage .",
   "git add --pathspec-from-file paths.txt",
   "git add --pathspec-from-file=paths.txt",
@@ -189,6 +193,7 @@ for (const command of [
   "git commit --interactive",
   "git commit --intera",
   "git commit --patc",
+  "git commit named-dir -m 'sweep subtree'",
   `git -C "${linkedWorktree}" add .`,
 ]) {
   T(`staging: ${command} blocks in a worker worktree`, blocks(workerStaging(command)), true)

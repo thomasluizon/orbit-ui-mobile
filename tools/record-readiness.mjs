@@ -2,7 +2,8 @@
 /** Persist and evaluate one final-head readiness receipt from artifacts produced by the harness. */
 
 import { createHash } from "node:crypto"
-import { readFileSync } from "node:fs"
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { bodyEditInvalidationPath, clearBodyEditInvalidation, pendingBodyEditGuards, persistBodyEditInvalidation, readBodyEditInvalidation } from "./lib/body-edit-invalidation.mjs"
@@ -15,9 +16,13 @@ import { readinessCiIsGreen, readinessReport, writeReadinessReceipt } from "./li
 const LIST_BOT_THREADS = fileURLToPath(new URL("./list-bot-threads.mjs", import.meta.url))
 
 const USAGE = `usage: record-readiness.mjs --repo <ui|api|landing> --pr <number> --delivery <file> --review <file> --bot <file> --linear <file> [--codex-only]
+       record-readiness.mjs --repo <ui|api|landing> --pr <number> --review <round-one-file> --register-round-one
 
 Reads harness-produced artifacts, persists one SHA-bound receipt under the repository git state,
 and prints READY or every stale/blocking verdict. It never trusts a caller-authored status flag.
+
+--register-round-one stores the immutable round-one path, SHA-256, base/head, and exact frozen
+Blocking IDs before any fixer transition. Round two must match that independent ledger.
 
 exit codes: 0 READY, 1 not ready, 2 usage or artifact error`
 
@@ -34,7 +39,7 @@ const argOf = (flag) => {
   const index = process.argv.indexOf(flag)
   return index === -1 ? null : process.argv[index + 1]
 }
-const known = new Set(["--repo", "--pr", "--delivery", "--review", "--bot", "--linear", "--codex-only", "--help", "-h"])
+const known = new Set(["--repo", "--pr", "--delivery", "--review", "--bot", "--linear", "--codex-only", "--register-round-one", "--help", "-h"])
 const unknown = process.argv.slice(2).filter((value) => value.startsWith("-") && !known.has(value))
 if (unknown.length > 0) fail(`${USAGE}\n\nunknown option(s): ${unknown.join(" ")}`)
 
@@ -42,8 +47,17 @@ const repoKey = argOf("--repo")
 const prRaw = argOf("--pr")
 const prNumber = Number(prRaw)
 const codexOnly = process.argv.includes("--codex-only")
+const registerRoundOne = process.argv.includes("--register-round-one")
 const artifactPath = Object.fromEntries(["delivery", "review", "bot", "linear"].map((name) => [name, argOf(`--${name}`)]))
-if (!repoKey || !Number.isInteger(prNumber) || prNumber < 1 || Object.values(artifactPath).some((value) => !value || value.startsWith("-"))) fail(USAGE)
+if (
+  !repoKey ||
+  !Number.isInteger(prNumber) ||
+  prNumber < 1 ||
+  !artifactPath.review ||
+  artifactPath.review.startsWith("-") ||
+  (!registerRoundOne && Object.values(artifactPath).some((value) => !value || value.startsWith("-"))) ||
+  (registerRoundOne && (codexOnly || [artifactPath.delivery, artifactPath.bot, artifactPath.linear].some(Boolean)))
+) fail(USAGE)
 
 let config
 try {
@@ -53,6 +67,59 @@ try {
 }
 const repoRoot = config.repos?.[repoKey]
 if (typeof repoRoot !== "string") fail(`unknown repository key "${repoKey}"; known: ${Object.keys(config.repos ?? {}).join(", ")}`)
+
+const gitCommonRead = await runBounded(
+  "git",
+  ["-C", repoRoot, "rev-parse", "--git-common-dir"],
+  { cwd: repoRoot, timeoutMs: 45000 },
+)
+if (gitCommonRead.timedOut) fail(`git common-directory read timed out after 45s; the complete child process tree was terminated`)
+if (gitCommonRead.error || gitCommonRead.status !== 0 || !gitCommonRead.stdout.trim()) {
+  const detail = gitCommonRead.stderr || gitCommonRead.stdout || gitCommonRead.error?.message || `exit ${gitCommonRead.status}`
+  fail(`git common-directory read failed: ${redactSecrets(detail.trim())}`)
+}
+const gitCommonDirectory = resolve(repoRoot, gitCommonRead.stdout.trim())
+const roundOneLedgerPath = (headSha) => join(gitCommonDirectory, "orbit-review-round-one", `${repoKey}-${prNumber}-${headSha}.json`)
+
+if (registerRoundOne) {
+  let reviewBytes
+  let registered
+  try {
+    reviewBytes = readFileSync(artifactPath.review)
+    registered = JSON.parse(reviewBytes.toString("utf8"))
+    registered = registered?.review ?? registered
+  } catch (error) {
+    fail(`review artifact ${artifactPath.review} could not be read as JSON: ${error.message}`)
+  }
+  const blockingIds = Array.isArray(registered?.findings)
+    ? registered.findings.filter((finding) => finding?.blocking === true).map((finding) => finding?.id)
+    : null
+  if (
+    registered?.rounds !== 1 ||
+    registered?.verdict !== "BLOCKING" ||
+    typeof registered?.reviewedHeadOid !== "string" ||
+    typeof registered?.baseSha !== "string" ||
+    !Array.isArray(blockingIds) ||
+    blockingIds.length === 0 ||
+    blockingIds.some((id) => typeof id !== "string" || id === "") ||
+    new Set(blockingIds).size !== blockingIds.length ||
+    JSON.stringify(blockingIds) !== JSON.stringify(registered.frozenFindingIds)
+  ) fail("round-one registration requires one valid BLOCKING receipt with its exact ordered frozen IDs")
+  const path = roundOneLedgerPath(registered.reviewedHeadOid)
+  const ledger = {
+    repositoryKey: repoKey,
+    prNumber,
+    baseSha: registered.baseSha,
+    reviewedHeadOid: registered.reviewedHeadOid,
+    artifactPath: resolve(artifactPath.review),
+    artifactSha256: createHash("sha256").update(reviewBytes).digest("hex"),
+    frozenFindingIds: blockingIds,
+  }
+  mkdirSync(dirname(path), { recursive: true })
+  writeFileSync(path, `${JSON.stringify(ledger, null, 2)}\n`, "utf8")
+  console.log(JSON.stringify({ verdict: "ROUND_ONE_REGISTERED", ledgerPath: path, ...ledger }, null, 2))
+  process.exit(0)
+}
 
 const artifact = {}
 for (const [name, path] of Object.entries(artifactPath)) {
@@ -78,6 +145,7 @@ if (
   !Array.isArray(review?.findings)
 ) fail("review artifact carries no reviewedHeadOid, findings, or frozen-rubric evidence")
 let frozenFindingIdsVerified = review.rounds === 1
+let roundOneRegistration = null
 if (review.rounds === 2) {
   if (typeof review.roundOneArtifactPath !== "string" || typeof review.roundOneArtifactSha256 !== "string") {
     fail("round-two review artifact carries no immutable round-one artifact path and SHA-256")
@@ -91,11 +159,27 @@ if (review.rounds === 2) {
     fail(`round-one review artifact could not be read: ${error.message}`)
   }
   const actualHash = createHash("sha256").update(roundOneBytes).digest("hex")
+  let registeredRoundOne
+  const registeredRoundOnePath = roundOneLedgerPath(roundOneReview?.reviewedHeadOid)
+  try {
+    registeredRoundOne = JSON.parse(readFileSync(registeredRoundOnePath, "utf8"))
+  } catch (error) {
+    fail(`round-one review was not independently registered before the fixer transition: ${error.message}`)
+  }
+  roundOneRegistration = { ledgerPath: registeredRoundOnePath, ...registeredRoundOne }
   const originalIds = Array.isArray(roundOneReview?.findings)
     ? roundOneReview.findings.filter((finding) => finding?.blocking === true).map((finding) => finding?.id)
     : null
   frozenFindingIdsVerified =
     roundOneReview?.rounds === 1 &&
+    registeredRoundOne?.repositoryKey === repoKey &&
+    registeredRoundOne?.prNumber === prNumber &&
+    registeredRoundOne?.baseSha === review.baseSha &&
+    registeredRoundOne?.reviewedHeadOid === roundOneReview?.reviewedHeadOid &&
+    resolve(registeredRoundOne?.artifactPath ?? "") === resolve(review.roundOneArtifactPath) &&
+    registeredRoundOne?.artifactSha256 === actualHash &&
+    registeredRoundOne?.artifactSha256 === review.roundOneArtifactSha256.toLowerCase() &&
+    JSON.stringify(registeredRoundOne?.frozenFindingIds) === JSON.stringify(review.frozenFindingIds) &&
     actualHash.toLowerCase() === review.roundOneArtifactSha256.toLowerCase() &&
     Array.isArray(originalIds) &&
     JSON.stringify(originalIds) === JSON.stringify(review.frozenFindingIds)
@@ -139,17 +223,7 @@ try {
   ) {
     fail(`gh pr view ${prNumber} did not return the confirmed number/base/head/draft shape`)
   }
-  const gitCommon = await runBounded(
-    "git",
-    ["-C", repoRoot, "rev-parse", "--git-common-dir"],
-    { cwd: repoRoot, timeoutMs: 45000 },
-  )
-  if (gitCommon.timedOut) fail(`git common-directory read for PR ${prNumber} timed out after 45s; the complete child process tree was terminated`)
-  if (gitCommon.error || gitCommon.status !== 0 || !gitCommon.stdout.trim()) {
-    const detail = gitCommon.stderr || gitCommon.stdout || gitCommon.error?.message || `exit ${gitCommon.status}`
-    fail(`git common-directory read for PR ${prNumber} failed: ${redactSecrets(detail.trim())}`)
-  }
-  const bodyEditMarkerPath = bodyEditInvalidationPath({ worktree: repoRoot, gitCommonDirectory: gitCommon.stdout.trim(), prNumber })
+  const bodyEditMarkerPath = bodyEditInvalidationPath({ worktree: repoRoot, gitCommonDirectory, prNumber })
   const guardsWorkflowRead = await runBounded(
     process.env.GH_BIN || "gh",
     ["run", "list", "--repo", repository, "--workflow", "guards.yml", "--commit", live.headRefOid, "--limit", "100", "--json", "databaseId,createdAt,headSha,status,conclusion"],
@@ -328,6 +402,7 @@ const receipt = {
     findings: review.findings,
     frozenFindingIds: review.frozenFindingIds,
     frozenFindingIdsVerified,
+    roundOneRegistration,
     headSha: review.reviewedHeadOid,
     baseSha: review.baseSha,
   },

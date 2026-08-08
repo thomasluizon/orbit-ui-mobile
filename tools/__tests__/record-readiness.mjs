@@ -7,6 +7,7 @@ import { T, check, orcaEnv, realOrchestratorConfig, stage, stageRepo, stageWithC
 const TOOL = "record-readiness.mjs"
 const HEAD = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 const BASE = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+const ROUND_ONE_HEAD = "cccccccccccccccccccccccccccccccccccccccc"
 
 export const cases = () => {
   const repo = stageRepo("record-readiness")
@@ -96,20 +97,27 @@ export const cases = () => {
   check(TOOL, "a connector review pinned to another commit is BOT_REVIEW_STALE", [...argv.slice(0, -4), "--bot", staleBot, "--linear", linear], { status: 1, stdout: /BOT_REVIEW_STALE/ }, { path: staged.path, env: live() })
   const partialBot = stage("record-readiness/partial-bot.json", JSON.stringify({ pr: 700, verdict: "REVIEWED", reviewedCommit: HEAD, baseRefOid: BASE, headRefOid: HEAD, threadsComplete: false, counts: { unresolved: 0 }, threads: [] }))
   check(TOOL, "an incomplete review-thread page cannot persist READY", [...argv.slice(0, -4), "--bot", partialBot, "--linear", linear], { status: 1, stdout: /THREADS_OPEN/ }, { path: staged.path, env: live() })
-  const openRoundOneBody = JSON.stringify({ reviewerKind: "independent", verdict: "BLOCKING", rounds: 1, findings: [{ id: "F1", blocking: true }] })
+  const openRoundOneBody = JSON.stringify({ reviewerKind: "independent", verdict: "BLOCKING", rounds: 1, reviewedHeadOid: HEAD, baseSha: BASE, frozenFindingIds: ["F1"], findings: [{ id: "F1", blocking: true }] })
   const openRoundOneReview = stage("record-readiness/open-round-one-review.json", openRoundOneBody)
   const openRoundOneHash = createHash("sha256").update(Buffer.from(openRoundOneBody)).digest("hex")
+  check(TOOL, "round one is independently registered before its fixer transition", ["--repo", "ui", "--pr", "700", "--review", openRoundOneReview, "--register-round-one"], { status: 0, stdout: /ROUND_ONE_REGISTERED/ }, { path: staged.path, env: live() })
   const openReview = stage("record-readiness/open-review.json", JSON.stringify({ reviewerKind: "independent", verdict: "CLEAN", rounds: 2, reviewedHeadOid: HEAD, baseSha: BASE, artifactPath: "C:/scratch/review.json", rubricBaseOid: BASE, rubricArtifactPath: "C:/scratch/rubric.md", roundOneArtifactPath: openRoundOneReview, roundOneArtifactSha256: openRoundOneHash, frozenFindingIds: ["F1"], findings: [{ id: "F1", blocking: true, status: "OPEN" }] }))
   check(TOOL, "an OPEN blocker cannot hide behind a CLEAN review verdict", [...argv.slice(0, -6), "--review", openReview, "--bot", bot, "--linear", linear], { status: 1, stdout: /REVIEW_STALE/ }, { path: staged.path, env: live() })
   const staleRubricReview = stage("record-readiness/stale-rubric-review.json", JSON.stringify({ reviewerKind: "independent", verdict: "CLEAN", rounds: 1, reviewedHeadOid: HEAD, baseSha: BASE, artifactPath: "C:/scratch/review.json", rubricBaseOid: HEAD, rubricArtifactPath: "C:/scratch/rubric.md", findings: [] }))
   check(TOOL, "a review frozen from another base rubric cannot persist READY", [...argv.slice(0, -6), "--review", staleRubricReview, "--bot", bot, "--linear", linear], { status: 1, stdout: /REVIEW_STALE/ }, { path: staged.path, env: live() })
-  const roundOneReviewBody = JSON.stringify({ reviewerKind: "independent", verdict: "BLOCKING", rounds: 1, findings: [{ id: "F1", blocking: true }, { id: "F2", blocking: true }] })
+  const roundOneReviewBody = JSON.stringify({ reviewerKind: "independent", verdict: "BLOCKING", rounds: 1, reviewedHeadOid: ROUND_ONE_HEAD, baseSha: BASE, frozenFindingIds: ["F1", "F2"], findings: [{ id: "F1", blocking: true }, { id: "F2", blocking: true }] })
   const roundOneReview = stage("record-readiness/round-one-review.json", roundOneReviewBody)
   const roundOneHash = createHash("sha256").update(Buffer.from(roundOneReviewBody)).digest("hex")
+  check(TOOL, "the frozen round-one path and hash are persisted before round two", ["--repo", "ui", "--pr", "700", "--review", roundOneReview, "--register-round-one"], { status: 0, stdout: /ROUND_ONE_REGISTERED/ }, { path: staged.path, env: live() })
   const roundTwoReview = stage("record-readiness/round-two-review.json", JSON.stringify({ reviewerKind: "independent", verdict: "CLEAN", rounds: 2, reviewedHeadOid: HEAD, baseSha: BASE, artifactPath: "C:/scratch/round-two.json", rubricBaseOid: BASE, rubricArtifactPath: "C:/scratch/rubric.md", roundOneArtifactPath: roundOneReview, roundOneArtifactSha256: roundOneHash, frozenFindingIds: ["F1", "F2"], findings: [{ id: "F1", blocking: true, status: "CLOSED" }, { id: "F2", blocking: true, status: "CLOSED" }] }))
   check(TOOL, "round two preserves the exact hash-verified round-one blocker list", [...argv.slice(0, -6), "--review", roundTwoReview, "--bot", bot, "--linear", linear], { status: 0, stdout: /"verdict": "READY"/ }, { path: staged.path, env: live() })
   const droppedRoundTwo = stage("record-readiness/dropped-round-two-review.json", JSON.stringify({ reviewerKind: "independent", verdict: "CLEAN", rounds: 2, reviewedHeadOid: HEAD, baseSha: BASE, artifactPath: "C:/scratch/round-two.json", rubricBaseOid: BASE, rubricArtifactPath: "C:/scratch/rubric.md", roundOneArtifactPath: roundOneReview, roundOneArtifactSha256: roundOneHash, frozenFindingIds: ["F1"], findings: [{ id: "F1", blocking: true, status: "CLOSED" }] }))
   check(TOOL, "round two cannot drop a blocker from both the frozen IDs and final findings", [...argv.slice(0, -6), "--review", droppedRoundTwo, "--bot", bot, "--linear", linear], { status: 1, stdout: /REVIEW_STALE/ }, { path: staged.path, env: live() })
+  const rewrittenRoundOneBody = JSON.stringify({ reviewerKind: "independent", verdict: "BLOCKING", rounds: 1, reviewedHeadOid: ROUND_ONE_HEAD, baseSha: BASE, frozenFindingIds: ["F1"], findings: [{ id: "F1", blocking: true }] })
+  const rewrittenRoundOne = stage("record-readiness/rewritten-round-one-review.json", rewrittenRoundOneBody)
+  const rewrittenRoundOneHash = createHash("sha256").update(Buffer.from(rewrittenRoundOneBody)).digest("hex")
+  const forgedRoundTwo = stage("record-readiness/forged-round-two-review.json", JSON.stringify({ reviewerKind: "independent", verdict: "CLEAN", rounds: 2, reviewedHeadOid: HEAD, baseSha: BASE, artifactPath: "C:/scratch/round-two.json", rubricBaseOid: BASE, rubricArtifactPath: "C:/scratch/rubric.md", roundOneArtifactPath: rewrittenRoundOne, roundOneArtifactSha256: rewrittenRoundOneHash, frozenFindingIds: ["F1"], findings: [{ id: "F1", blocking: true, status: "CLOSED" }] }))
+  check(TOOL, "round two cannot substitute a rewritten round-one file and matching caller hash", [...argv.slice(0, -6), "--review", forgedRoundTwo, "--bot", bot, "--linear", linear], { status: 1, stdout: /REVIEW_STALE/ }, { path: staged.path, env: live() })
   check(TOOL, "a live Linear status change invalidates the synchronization artifact", argv, { status: 1, stdout: /LINEAR_STALE/ }, { path: staged.path, env: live(HEAD, BASE, 0, "Implements ORB-700", { name: "In Progress", type: "started" }) })
   check(TOOL, "a live visible-effect label invalidates an ordinary ready artifact", argv, { status: 1, stdout: /LINEAR_STALE/ }, { path: staged.path, env: live(HEAD, BASE, 0, "Implements ORB-700", { name: "In Progress", type: "started" }, [{ id: "visible", name: "visible-effect" }]) })
   const wrongLinear = stage("record-readiness/wrong-linear.json", JSON.stringify({ issue: "ORB-701", repositoryKey: "api", prNumber: 701, status: "In Review", lastSynchronizationResult: "SUCCESS", lastPostedState: "ready", headSha: HEAD, baseSha: BASE }))

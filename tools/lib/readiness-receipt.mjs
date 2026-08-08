@@ -78,7 +78,8 @@ export const readinessVerdicts = (receipt) => {
     review.frozenFindingIds.length > 0 &&
     review.frozenFindingIds.every((id) => typeof id === "string" && id !== "") &&
     new Set(review.frozenFindingIds).size === review.frozenFindingIds.length &&
-    review.frozenFindingIds.every((id) => review.findings.some((finding) => finding.id === id && finding.blocking === true))
+    review.frozenFindingIds.every((id) => review.findings.some((finding) => finding.id === id && finding.blocking === true)) &&
+    review.findings.every((finding) => finding.blocking !== true || review.frozenFindingIds.includes(finding.id) || finding.status === "OPEN")
   )
   if (
     !currentEvidence(review, receipt) ||
