@@ -13,12 +13,10 @@ import { SocialOptInGate } from './_components/social-opt-in-gate'
 import { SocialIdentityBar } from './_components/social-identity-bar'
 import { SocialFeed } from './_components/social-feed'
 import { SocialFriends } from './_components/social-friends'
-import { AccountabilitySection } from './_components/accountability-section'
-import { ChallengesEntryCard } from './_components/challenges-entry-card'
 import { CheerComposer, type CheerTarget } from './_components/cheer-composer'
 import { InviteConfirmSheet } from './_components/invite-confirm-sheet'
 
-type SocialTab = 'feed' | 'friends' | 'buddies'
+type SocialTab = 'feed' | 'friends'
 
 export default function SocialPage() {
   return (
@@ -36,9 +34,8 @@ function SocialPageContent() {
   const { profile, isLoading } = useProfile()
   const [tab, setTab] = useState<SocialTab>(() => {
     const tabParam = searchParams.get('tab')
-    return tabParam === 'buddies' || tabParam === 'friends' ? tabParam : 'feed'
+    return tabParam === 'friends' ? tabParam : 'feed'
   })
-  const newPairHabitId = searchParams.get('newPairHabitId')
   const [cheerTarget, setCheerTarget] = useState<CheerTarget | null>(null)
   const [inviteCode, setInviteCode] = useState<string | null>(() => {
     // react-doctor-disable-next-line url-prefilled-privileged-action -- code is format-validated then only pre-fills InviteConfirmSheet, which server-validates (useInvitePreview) and needs explicit send (useSendFriendRequest); no action auto-fires https://github.com/thomasluizon/orbit-ui-mobile/issues/243
@@ -59,17 +56,13 @@ function SocialPageContent() {
   const tabs: SectionHeadTabItem<SocialTab>[] = [
     { id: 'feed', label: t('social.tabs.feed') },
     { id: 'friends', label: t('social.tabs.friends') },
-    { id: 'buddies', label: t('social.tabs.buddies') },
   ]
 
   const renderTabContent = () => {
     if (tab === 'feed') {
       return <SocialFeed onCheer={setCheerTarget} onAddFriends={() => setTab('friends')} />
     }
-    if (tab === 'friends') {
-      return <SocialFriends onCheer={setCheerTarget} />
-    }
-    return <AccountabilitySection initialHabitId={newPairHabitId} />
+    return <SocialFriends onCheer={setCheerTarget} />
   }
 
   const renderBody = () => {
@@ -78,7 +71,6 @@ function SocialPageContent() {
     return (
       <div>
         <SocialIdentityBar />
-        <ChallengesEntryCard />
         <SectionHeadTabs<SocialTab>
           tabs={tabs}
           active={tab}

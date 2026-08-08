@@ -147,13 +147,6 @@ export const friendTopHabitSchema = z.object({
 
 export type FriendTopHabit = z.infer<typeof friendTopHabitSchema>
 
-export const friendSharedChallengeSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-})
-
-export type FriendSharedChallenge = z.infer<typeof friendSharedChallengeSchema>
-
 export const friendProfileViewSchema = z.object({
   userId: z.string(),
   handle: z.string(),
@@ -167,8 +160,6 @@ export const friendProfileViewSchema = z.object({
   weeklyActivity: z.array(z.number().int()).length(7),
   achievements: z.array(publicAchievementSchema),
   topHabits: z.array(friendTopHabitSchema),
-  isAccountabilityPartner: z.boolean(),
-  sharedChallenges: z.array(friendSharedChallengeSchema),
 })
 
 export type FriendProfileView = z.infer<typeof friendProfileViewSchema>

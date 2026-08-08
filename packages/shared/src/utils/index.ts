@@ -34,7 +34,6 @@ export {
 } from './error-utils'
 export { isFeatureEnabled } from './config'
 export { getSocialErrorKey } from './social-errors'
-export { getAccountabilityErrorKey } from './accountability-errors'
 export { stripInlineMarkdown } from './markdown'
 export { plural } from './plural'
 export { buildRecentChatHistory } from './chat-history'

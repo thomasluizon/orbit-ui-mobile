@@ -187,23 +187,6 @@ export const API = {
       `/api/friends/invite-preview?code=${encodeURIComponent(code)}` as const,
   },
 
-  challenges: {
-    list: '/api/challenges',
-    create: '/api/challenges',
-    join: '/api/challenges/join',
-    leave: (id: string) => `/api/challenges/${id}/leave` as const,
-    detail: (id: string) => `/api/challenges/${id}` as const,
-    setHabits: (id: string) => `/api/challenges/${id}/habits` as const,
-  },
-
-  accountability: {
-    pairs: '/api/accountability/pairs',
-    accept: (id: string) => `/api/accountability/pairs/${id}/accept` as const,
-    end: (id: string) => `/api/accountability/pairs/${id}` as const,
-    habits: (id: string) => `/api/accountability/pairs/${id}/habits` as const,
-    checkIns: (id: string) => `/api/accountability/pairs/${id}/check-ins` as const,
-  },
-
   apiKeys: {
     list: '/api/api-keys',
     create: '/api/api-keys',

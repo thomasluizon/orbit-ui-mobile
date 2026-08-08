@@ -377,8 +377,6 @@ describe('friendProfileViewSchema', () => {
     weeklyActivity: [0, 1, 2, 0, 3, 1, 2],
     achievements: [{ name: 'First Habit', iconKey: 'first-habit', rarity: 'Common' }],
     topHabits: [{ title: 'Reading', emoji: '📖', completionCount: 40 }],
-    isAccountabilityPartner: true,
-    sharedChallenges: [{ id: 'challenge-1', title: 'Sunrise Sprint' }],
   }
 
   it('parses a valid friend profile view', () => {

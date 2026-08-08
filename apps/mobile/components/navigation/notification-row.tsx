@@ -1,6 +1,6 @@
 import { View, Text, Pressable } from 'react-native'
 import Animated, { FadeInDown, FadeOut, ReduceMotion } from 'react-native-reanimated'
-import { Bell, Flame, Heart, Sparkles, Trophy, UserPlus, Users, X } from 'lucide-react-native'
+import { Bell, Flame, Heart, Sparkles, Trophy, UserPlus, X } from 'lucide-react-native'
 import {
   formatNotificationRelativeTime,
   getNotificationGlyph,
@@ -18,7 +18,6 @@ const glyphIconMap = {
   astra: Sparkles,
   friend: UserPlus,
   cheer: Heart,
-  buddy: Users,
   reminder: Bell,
 } as const
 

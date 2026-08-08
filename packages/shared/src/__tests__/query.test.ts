@@ -287,8 +287,7 @@ describe('QUERY_STALE_TIMES', () => {
     expect(keys).toContain('tags')
     expect(keys).toContain('notifications')
     expect(keys).toContain('checklistTemplates')
-    expect(keys).toContain('accountability')
-    expect(keys).toHaveLength(10)
+    expect(keys).toHaveLength(9)
   })
 
   it('all values are positive numbers', () => {

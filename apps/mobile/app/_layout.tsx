@@ -74,9 +74,6 @@ const SLIDE_FROM_RIGHT_SCREENS = [
   'wrapped',
   'calendar-sync',
   'social',
-  'accountability-pair',
-  'social/challenges',
-  'social/challenges/[id]',
 ] as const
 
 function RootStackScreens({

@@ -60,8 +60,6 @@ const profileView: FriendProfileView = {
   weeklyActivity: [0, 1, 0, 2, 0, 3, 1],
   achievements: [],
   topHabits: [],
-  isAccountabilityPartner: false,
-  sharedChallenges: [],
 }
 
 function createWrapper() {

@@ -84,6 +84,18 @@ describe('i18n locale parity', () => {
     expect(mismatches).toEqual([])
   })
 
+  it('does not expose retired social translation groups', () => {
+    const retiredRootKey = ['chall', 'enges'].join('')
+    const retiredSocialKey = ['budd', 'ies'].join('')
+
+    for (const locale of [en, ptBR]) {
+      const localeRecord = locale as Record<string, unknown>
+      const socialRecord = localeRecord.social as Record<string, unknown>
+      expect(localeRecord).not.toHaveProperty(retiredRootKey)
+      expect(socialRecord).not.toHaveProperty(retiredSocialKey)
+    }
+  })
+
   it('labels every coach-mark tour section in both locales', () => {
     for (const flat of [enFlat, ptFlat]) {
       expect(flat.get('tour.sections.coach-today')).toBeTruthy()

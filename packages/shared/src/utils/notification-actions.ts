@@ -21,14 +21,13 @@ export type NotificationGlyph =
   | 'astra'
   | 'friend'
   | 'cheer'
-  | 'buddy'
   | 'reminder'
 
 /** Resolves the inbox glyph for a notification from the destination the API
  *  attaches: streak alerts get the flame, gamification and referral
  *  celebrations the trophy, Astra-produced surfaces the sparkles, social
- *  friend requests/acceptances the person-plus, cheers the heart, buddy
- *  invites the group, and habit reminders fall back to the bell. */
+ *  friend requests/acceptances the person-plus, cheers the heart, and habit
+ *  reminders fall back to the bell. */
 export function getNotificationGlyph(
   notification: Pick<NotificationItem, 'url' | 'habitId'>,
 ): NotificationGlyph {
@@ -39,7 +38,6 @@ export function getNotificationGlyph(
   }
   if (url?.includes('tab=friends')) return 'friend'
   if (url?.includes('tab=feed')) return 'cheer'
-  if (url?.includes('tab=buddies')) return 'buddy'
   if (url?.startsWith('/profile') || (!url && !habitId)) return 'celebration'
   return 'reminder'
 }
