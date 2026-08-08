@@ -15,6 +15,44 @@ const PERFORMANCE_LARGE_TABLE_FRACTION = 0.25
 const PERFORMANCE_EXECUTION_CONTEXTS = new Set(['request', 'background'])
 const PERFORMANCE_CONTEXT_SIGNAL_KINDS = new Set(['unbounded-user-list', 'background-sweep-budget'])
 
+/**
+ * How many columns a SELECT list actually projects.
+ *
+ * `select.split(',').length` was wrong in both directions and each error pushed the same way, so a
+ * badly written query scored better than a careful one:
+ *   `select *`                     counted 1 column, then never matched full-entity-projection
+ *   `select coalesce(a, b), c`     counted 3 columns for 2, then matched it spuriously
+ *
+ * A star projects the whole row, so it resolves to the table's column count when that is known and
+ * to null when it is not. Null means "unknown", never "one", and every caller treats it that way.
+ */
+function projectionWidth(select, columnCount) {
+  if (typeof select !== 'string' || select.trim() === '') return null
+  const list = select.replace(/^\s*(?:distinct\s+on\s*\([\s\S]*?\)|distinct|all)\s+/i, '').trim()
+  if (list === '') return null
+  let depth = 0
+  let current = ''
+  const parts = []
+  for (const character of list) {
+    if (character === '(') depth++
+    else if (character === ')') depth--
+    if (character === ',' && depth === 0) {
+      parts.push(current)
+      current = ''
+      continue
+    }
+    current += character
+  }
+  parts.push(current)
+  const columns = parts.map((part) => part.trim()).filter(Boolean)
+  if (columns.length === 0) return null
+  /** A bare or qualified star expands to every column, so the width is the table's, not one. */
+  if (columns.some((column) => column === '*' || /(?:^|\.)\*$/.test(column))) {
+    return Number.isFinite(columnCount) && columnCount > 0 ? columnCount : null
+  }
+  return columns.length
+}
+
 const unavailablePerformanceMeasurement = (reason) => ({
   status: 'unavailable',
   verdict: 'CODE_ONLY',
@@ -43,16 +81,32 @@ function resolvePerformanceMeasurement(input) {
       if (!Number.isFinite(entry.rows) || entry.rows < 0) throw new Error(`query ${entry.queryId} rows must be non-negative`)
       const rowsPerCall = entry.rows / entry.calls
       const callsPerMonth = entry.calls / input.windowDays * PERFORMANCE_MONTH_DAYS
-      const monthlyEgressBytes = Number.isFinite(entry.bytesPerRow) && entry.bytesPerRow > 0
-        ? entry.rows / input.windowDays * PERFORMANCE_MONTH_DAYS * entry.bytesPerRow
-        : null
       const intervalSeconds = input.windowDays * 86400 / entry.calls
       const table = tableByName.get(entry.rootTable)
       const tableFraction = table?.liveRows > 0 ? rowsPerCall / table.liveRows : null
       const select = /^\s*select\s+([\s\S]+?)\s+from\s+/i.exec(entry.queryShape)?.[1]
-      const projectionColumns = select ? select.split(',').length : null
+      const projectionColumns = projectionWidth(select, table?.columnCount)
       const userScoped = /[".]UserId\b/i.test(entry.queryShape)
       const bounded = /\b(?:limit|fetch\s+(?:first|next))\b/i.test(entry.queryShape)
+      /**
+       * Egress is what the query SENDS, which is its projection, not the width of the table row.
+       * `bytesPerRow` comes from pg_stats and describes the whole row, so charging every query the
+       * full width overstates a narrow projection in direct proportion to how well it is written:
+       * `select "Id", "UserId" from "Habits"` on a 20-column table was billed 10x its real egress,
+       * which is exactly backwards for a signal meant to find unbounded reads.
+       *
+       * Scaling by columns is an approximation and it is named as one: column widths differ, so a
+       * projection of two `text` columns is not one tenth of a 20-column row. It is right in the
+       * direction that matters and never charges MORE than the measured row width.
+       */
+      const projectedBytesPerRow = Number.isFinite(entry.bytesPerRow) && entry.bytesPerRow > 0
+        ? projectionColumns && table?.columnCount > 0
+          ? entry.bytesPerRow * Math.min(1, projectionColumns / table.columnCount)
+          : entry.bytesPerRow
+        : null
+      const monthlyEgressBytes = projectedBytesPerRow === null
+        ? null
+        : entry.rows / input.windowDays * PERFORMANCE_MONTH_DAYS * projectedBytesPerRow
       const signals = []
       if (table?.columnCount && projectionColumns >= table.columnCount) signals.push('full-entity-projection')
       if (tableFraction >= PERFORMANCE_LARGE_TABLE_FRACTION) signals.push('large-table-fraction')
@@ -61,6 +115,7 @@ function resolvePerformanceMeasurement(input) {
         rowsPerCall,
         callsPerMonth,
         monthlyEgressBytes,
+        projectedBytesPerRow,
         intervalSeconds,
         tableFraction,
         projectionColumns,
@@ -127,10 +182,43 @@ function measuredHotpathMappingFailure(result, measurement) {
   return null
 }
 
+/**
+ * One mapping per measured query, or a refusal that names the disagreement.
+ *
+ * `new Map(mappings.map(...))` silently kept the LAST entry for a repeated queryId. Two mappings
+ * that disagree about executionContext produce opposite signals, `request` raising
+ * unbounded-user-list and `background` raising background-sweep-budget, so whichever the agent
+ * happened to emit second decided the finding and nothing recorded that there had been a choice.
+ *
+ * Identical duplicates are merged, because emitting the same mapping twice is noise and not a
+ * conflict. Anything that actually disagrees throws, because guessing which one is right is the
+ * failure this whole measured path exists to remove.
+ */
+function indexMeasuredMappings(mappings) {
+  const byQueryId = new Map()
+  for (const mapping of mappings) {
+    const existing = byQueryId.get(mapping.queryId)
+    if (!existing) {
+      byQueryId.set(mapping.queryId, mapping)
+      continue
+    }
+    if (existing.executionContext !== mapping.executionContext || existing.location !== mapping.location) {
+      throw new Error(
+        `measured query ${mapping.queryId} was mapped twice and the mappings disagree: `
+        + `${existing.executionContext} at ${existing.location} against ${mapping.executionContext} at ${mapping.location}`,
+      )
+    }
+  }
+  return byQueryId
+}
+
 function applyMeasuredQueryContexts(measurement, mappings) {
-  const mappingByQueryId = new Map(mappings.map((mapping) => [mapping.queryId, mapping]))
+  const mappingByQueryId = indexMeasuredMappings(mappings)
   const rowsRanking = measurement.rowsRanking.map((query) => {
     const mapping = mappingByQueryId.get(query.queryId)
+    /** An unmapped query used to reach `mapping.executionContext` and die on a bare TypeError that
+     * named neither the query nor the missing mapping. */
+    if (!mapping) throw new Error(`measured query ${query.queryId} has no source mapping, so its execution context is unknown`)
     const signals = query.signals.filter((kind) => !PERFORMANCE_CONTEXT_SIGNAL_KINDS.has(kind))
     if (mapping.executionContext === 'request' && !query.bounded) signals.push('unbounded-user-list')
     if (

@@ -53,6 +53,21 @@ const availableInput = () => ({
       bytesPerRow: 40,
       queryShape: 'SELECT h."Id", h."Title", h."DueDate" FROM "Habits" h WHERE h."UserId" = $1 ORDER BY h."Id" LIMIT $2 OFFSET $3',
     },
+    /**
+     * A background sweep that reads the WHOLE row, which is what the background budget is actually
+     * for. It exists because `reminder-sweep` stopped signalling once egress was charged to the
+     * projection instead of the table row, and it stopped for the right reason: it selects 2 of 29
+     * columns, so it moves about 13 MB a month, not the 190 MB the full-row arithmetic claimed.
+     * Losing the only over-budget fixture would have quietly removed the signal from coverage.
+     */
+    {
+      queryId: "wide-sweep",
+      rootTable: "Habits",
+      calls: 145349,
+      rows: 2558264,
+      bytesPerRow: 348.67,
+      queryShape: 'SELECT * FROM "Habits" h WHERE h."ReminderEnabled"',
+    },
   ],
 })
 
@@ -61,6 +76,7 @@ const measuredMappings = () => [
   { queryId: "habit-list", location: "src/HabitsQuery.cs:20", executionContext: "request" },
   { queryId: "reminder-sweep", location: "src/ReminderJob.cs:20", executionContext: "background" },
   { queryId: "bounded-projection", location: "src/BoundedHabitsQuery.cs:20", executionContext: "request" },
+  { queryId: "wide-sweep", location: "src/WideReminderJob.cs:20", executionContext: "background" },
 ]
 
 export const cases = () => {
@@ -194,7 +210,19 @@ export const cases = () => {
   T("performance-measurement: an unbounded user list is signaled", measurement.signals.some((signal) => signal.kind === "unbounded-user-list" && signal.queryId === "habit-list"))
   T("performance-measurement: a full-entity projection is signaled from the real column count", measurement.signals.some((signal) => signal.kind === "full-entity-projection" && signal.queryId === "habit-list"))
   T("performance-measurement: a query returning a large table fraction is signaled", measurement.signals.some((signal) => signal.kind === "large-table-fraction" && signal.queryId === "habit-logs"))
-  T("performance-measurement: a recurring sweep over budget is signaled", measurement.signals.some((signal) => signal.kind === "background-sweep-budget" && signal.queryId === "reminder-sweep"))
+  T("performance-measurement: a recurring sweep over budget is signaled", measurement.signals.some((signal) => signal.kind === "background-sweep-budget" && signal.queryId === "wide-sweep"))
+  /**
+   * The same assertion used to name `reminder-sweep`, and it passed for the WRONG reason. That
+   * query selects 2 of the 29 Habits columns, so charging it the full 348.67 byte row claimed
+   * 190 MB a month against a real 13 MB, and the background budget fired on a query that was
+   * nowhere near it. Now that egress follows the projection, it correctly does not fire, and
+   * `wide-sweep` (`select *`, identical row and call counts) carries the signal instead.
+   */
+  T(
+    "performance-measurement: a NARROW background sweep is no longer a false positive",
+    !measurement.signals.some((signal) => signal.kind === "background-sweep-budget" && signal.queryId === "reminder-sweep"),
+    JSON.stringify(measurement.rowsRanking.find((query) => query.queryId === "reminder-sweep")?.monthlyEgressBytes),
+  )
   T("performance-measurement: an indirectly scoped request is not mislabeled as a background sweep", !workflowMeasurement.signals.some((signal) => signal.kind === "background-sweep-budget" && signal.queryId === "habit-logs"))
   T("performance-measurement: an indirectly scoped request without a row limit is unbounded", workflowMeasurement.signals.some((signal) => signal.kind === "unbounded-user-list" && signal.queryId === "habit-logs"))
   T("performance-measurement: a background sweep does not require a row limit", !workflowMeasurement.signals.some((signal) => signal.kind === "unbounded-user-list" && signal.queryId === "reminder-sweep"))
@@ -214,4 +242,104 @@ export const cases = () => {
     { queryId: "habit-list", monthlyEgressBytes: 1, title: "Unbounded habits" },
   ], measurement)
   T("performance-measurement: findings take metrics from the measured query rather than agent prose", enriched[0].monthlyEgressBytes === measurement.egressRanking[0].monthlyEgressBytes, JSON.stringify(enriched[0]))
+
+  /**
+   * P1, connector pass 3 on #699: measure the PROJECTED result width, not the full table row.
+   * `bytesPerRow` describes the whole row, so charging it to a narrow projection overstated a
+   * careful query in direct proportion to how well it was written, which is backwards for a signal
+   * meant to find unbounded reads. Every case below is run through BOTH copies of the logic, the
+   * tools/lib module and the workflow slice, because two copies that must agree are how this
+   * defect class keeps coming back.
+   */
+  const projectionInput = (queryShape) => ({
+    ...availableInput(),
+    tableStats: [{ table: "Habits", liveRows: 1106, columnCount: 20, seqScan: 1, seqTupRead: 1 }],
+    queryStats: [{ queryId: "probe", rootTable: "Habits", calls: 100, rows: 1000, bytesPerRow: 400, queryShape }],
+  })
+  const probe = (queryShape) => {
+    const fromLib = resolvePerformanceMeasurement(projectionInput(queryShape)).rowsRanking[0]
+    const fromWorkflow = runInNewContext(`${measurementFunctions}\nresolvePerformanceMeasurement(${JSON.stringify(projectionInput(queryShape))})`).rowsRanking[0]
+    return { fromLib, fromWorkflow }
+  }
+
+  const narrow = probe('SELECT h."Id", h."UserId" FROM "Habits" h')
+  T(
+    "performance-measurement: a two-column projection is charged two columns, not the whole row",
+    narrow.fromLib.projectionColumns === 2 && Math.round(narrow.fromLib.projectedBytesPerRow) === 40,
+    JSON.stringify({ columns: narrow.fromLib.projectionColumns, bytes: narrow.fromLib.projectedBytesPerRow }),
+  )
+  T(
+    "performance-measurement: the workflow copy charges the same projected width as the module",
+    narrow.fromWorkflow.projectionColumns === narrow.fromLib.projectionColumns
+      && Math.round(narrow.fromWorkflow.monthlyEgressBytes) === Math.round(narrow.fromLib.monthlyEgressBytes),
+    JSON.stringify({ workflow: narrow.fromWorkflow.monthlyEgressBytes, lib: narrow.fromLib.monthlyEgressBytes }),
+  )
+
+  /** `select *` counted ONE column and so never matched full-entity-projection, which is the signal
+   * a star should trigger most reliably of all. */
+  const star = probe('SELECT * FROM "Habits" h')
+  T(
+    "performance-measurement: a star projection is the whole row and IS a full-entity projection",
+    star.fromLib.projectionColumns === 20 && star.fromLib.signals.includes("full-entity-projection"),
+    JSON.stringify({ columns: star.fromLib.projectionColumns, signals: star.fromLib.signals }),
+  )
+  const qualifiedStar = probe('SELECT h.* FROM "Habits" h')
+  T("performance-measurement: a qualified star is also the whole row", qualifiedStar.fromLib.projectionColumns === 20, String(qualifiedStar.fromLib.projectionColumns))
+
+  /** A comma inside a function call is not a column boundary. This over-counted 2 columns as 3 and
+   * could raise full-entity-projection on a query that projects almost nothing. */
+  const nested = probe('SELECT COALESCE(h."Note", h."Title"), h."Id" FROM "Habits" h')
+  T("performance-measurement: a comma inside a function call is not a column boundary", nested.fromLib.projectionColumns === 2, String(nested.fromLib.projectionColumns))
+  const distinct = probe('SELECT DISTINCT h."Id", h."UserId" FROM "Habits" h')
+  T("performance-measurement: DISTINCT is not counted as a column", distinct.fromLib.projectionColumns === 2, String(distinct.fromLib.projectionColumns))
+
+  /** The projected width may never EXCEED the measured row width, whatever the projection says. */
+  const overCounted = probe('SELECT a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v FROM "Habits" h')
+  T(
+    "performance-measurement: a projection wider than the table never charges more than the row",
+    overCounted.fromLib.projectedBytesPerRow === 400,
+    String(overCounted.fromLib.projectedBytesPerRow),
+  )
+
+  /**
+   * P1, same pass: reject or merge duplicate measured-query mappings. `new Map(mappings.map(...))`
+   * silently kept the LAST entry, so two mappings that disagree about executionContext produced
+   * opposite signals and whichever the agent emitted second decided the finding.
+   */
+  const baseMeasurement = resolvePerformanceMeasurement(availableInput())
+  const duplicateOf = (overrides) => [...measuredMappings(), { ...measuredMappings()[0], ...overrides }]
+  let conflictError = null
+  try {
+    applyMeasuredQueryContexts(baseMeasurement, duplicateOf({ executionContext: "background" }))
+  } catch (error) {
+    conflictError = error
+  }
+  T(
+    "performance-measurement: two mappings that disagree about execution context are REFUSED, not silently resolved",
+    conflictError !== null && /mapped twice and the mappings disagree/.test(conflictError.message) && conflictError.message.includes(measuredMappings()[0].queryId),
+    conflictError ? conflictError.message : "no error was thrown, so the later mapping silently won",
+  )
+  let identicalError = null
+  let mergedResult = null
+  try {
+    mergedResult = applyMeasuredQueryContexts(baseMeasurement, duplicateOf({}))
+  } catch (error) {
+    identicalError = error
+  }
+  T(
+    "performance-measurement: an identical duplicate mapping is merged rather than refused",
+    identicalError === null && mergedResult?.verdict === "MEASURED",
+    identicalError ? identicalError.message : JSON.stringify(mergedResult?.verdict),
+  )
+  let missingError = null
+  try {
+    applyMeasuredQueryContexts(baseMeasurement, measuredMappings().slice(1))
+  } catch (error) {
+    missingError = error
+  }
+  T(
+    "performance-measurement: an unmapped query names itself instead of dying on a bare TypeError",
+    missingError !== null && /has no source mapping/.test(missingError.message),
+    missingError ? missingError.message : "no error was thrown",
+  )
 }

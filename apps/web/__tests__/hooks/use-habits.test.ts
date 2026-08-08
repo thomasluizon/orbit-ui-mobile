@@ -619,13 +619,19 @@ describe('useLogHabit onSuccess', () => {
     mockSetStreakCelebration.mockClear()
   })
 
-  it('does not celebrate or award XP for a bad sub-habit completion', async () => {
+  /**
+   * `xpEarned` is 0 here because that is what the server actually sends for a bad habit:
+   * GamificationService.cs:170 is `habit.IsBadHabit ? 0 : ...`. The fixture used to send 25, a
+   * response the API cannot produce, and the client then needed its own bad-habit gate to discard
+   * it. That gate is what dropped every reward for a habit missing from the list cache.
+   */
+  it('does not celebrate a bad sub-habit completion, and the server sends it no XP', async () => {
     const { logHabit } = await import('@/app/actions/habits')
     vi.mocked(logHabit).mockResolvedValue({
       logId: 'log-streak',
       isFirstCompletionToday: true,
       currentStreak: 3,
-      xpEarned: 25,
+      xpEarned: 0,
     })
 
     const queryClient = createQueryClient()
@@ -650,6 +656,45 @@ describe('useLogHabit onSuccess', () => {
     expect(
       queryClient.getQueryData<{ totalXp: number }>(gamificationKeys.profile())?.totalXp,
     ).toBe(100)
+  })
+
+  /**
+   * THE defect the connector found on #699. Rewards the server already granted were discarded
+   * whenever the habit was absent from the list cache, which is the ordinary state on a deep link
+   * or a cold navigation. The XP was banked server-side and never shown, and the achievement list
+   * was never refreshed, both silently.
+   */
+  it('banks XP and refreshes achievements for a habit that is not in the list cache', async () => {
+    const { logHabit } = await import('@/app/actions/habits')
+    vi.mocked(logHabit).mockResolvedValue({
+      logId: 'log-uncached',
+      isFirstCompletionToday: true,
+      currentStreak: 3,
+      xpEarned: 25,
+      newAchievementIds: ['first-week'],
+    })
+
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(profileKeys.detail(), { currentStreak: 1 })
+    queryClient.setQueryData(gamificationKeys.profile(), { totalXp: 100 })
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => useLogHabit(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await act(async () => {
+      await result.current.mutateAsync({ habitId: 'never-listed' })
+    })
+
+    expect(
+      queryClient.getQueryData<{ totalXp: number }>(gamificationKeys.profile())?.totalXp,
+    ).toBe(125)
+    expect(invalidateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: gamificationKeys.all }),
+    )
+    /** The celebration still needs a KNOWN good habit, because an unresolvable one could be a bad
+     * habit whose "streak" is abstinence. Reconciling is safe; celebrating on a guess is not. */
+    expect(mockSetStreakCelebration).not.toHaveBeenCalled()
   })
 
   it.each([
