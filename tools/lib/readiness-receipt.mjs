@@ -150,9 +150,7 @@ export const readinessVerdicts = (receipt) => {
   else if (threads.complete !== true || !Number.isInteger(threads.unresolvedCount) || threads.unresolvedCount > 0) verdicts.push("THREADS_OPEN")
 
   const linear = receipt.linear
-  const expectedPostedState = linear?.visibleEffect === true ? "visual" : "ready"
-  const expectedLinearStatus = linear?.visibleEffect === true ? "In Progress" : "In Review"
-  if (!currentEvidence(linear, receipt) || linear?.lastSynchronizationResult !== "SUCCESS" || linear?.lastPostedState !== expectedPostedState || linear?.status !== expectedLinearStatus) {
+  if (!currentEvidence(linear, receipt) || linear?.lastSynchronizationResult !== "SUCCESS" || linear?.lastPostedState !== "ready" || linear?.status !== "In Review") {
     verdicts.push("LINEAR_STALE")
   }
   return [...new Set(verdicts)]
@@ -170,7 +168,6 @@ export const readinessReceiptMatchesLive = (receipt, entry, live) =>
   live?.draft === receipt?.draft &&
   live?.linearIssue === receipt?.issue &&
   live?.linearStatus === receipt?.linear?.status &&
-  live?.linearVisibleEffect === receipt?.linear?.visibleEffect &&
   live?.ciGreen === true &&
   live?.connectorPassed === true &&
   live?.threadsComplete === true &&
@@ -188,6 +185,5 @@ export const readinessReport = (receipt) => {
     headSha: receipt?.currentHeadSha ?? null,
     behindBy: receipt?.behindBy ?? null,
     draft: receipt?.draft ?? null,
-    visualCheckOwed: receipt?.linear?.lastPostedState === "visual",
   }
 }

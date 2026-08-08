@@ -8,10 +8,9 @@ import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { gitDirectoryOf } from "./lib/run-state.mjs"
 
-const USAGE = `usage: sync-linear-state.mjs --issue ORB-N --repo <ui|api|landing> --pr <number> --state <working|ready|visual|blocked> --head-sha <sha> --base-sha <sha> --message-file <path|-> [--command-timeout-seconds <s>]
+const USAGE = `usage: sync-linear-state.mjs --issue ORB-N --repo <ui|api|landing> --pr <number> --state <working|ready|blocked> --head-sha <sha> --base-sha <sha> --message-file <path|-> [--command-timeout-seconds <s>]
 
-working, visual, blocked -> In Progress. ready -> In Review unless the live ticket carries
-visible-effect, which mechanically remains In Progress. Done is never a target.
+working, blocked -> In Progress. ready -> In Review. Done is never a target.
 The status write is idempotent; a state comment is posted only when its stored signature changes.
 
 --issue MUST be copied from output produced in this run. Before either write, the live ticket is
@@ -46,7 +45,7 @@ const headSha = argOf("--head-sha")
 const baseSha = argOf("--base-sha")
 const messageFile = argOf("--message-file")
 const commandTimeoutSeconds = Number(argOf("--command-timeout-seconds") ?? "45")
-if (!/^[A-Z][A-Z0-9]*-\d+$/.test(issue ?? "") || !repoKey || !Number.isInteger(prNumber) || !["working", "ready", "visual", "blocked"].includes(stateKey) || !/^[0-9a-f]{40}$/i.test(headSha ?? "") || !/^[0-9a-f]{40}$/i.test(baseSha ?? "") || !messageFile) fail(2, USAGE)
+if (!/^[A-Z][A-Z0-9]*-\d+$/.test(issue ?? "") || !repoKey || !Number.isInteger(prNumber) || !["working", "ready", "blocked"].includes(stateKey) || !/^[0-9a-f]{40}$/i.test(headSha ?? "") || !/^[0-9a-f]{40}$/i.test(baseSha ?? "") || !messageFile) fail(2, USAGE)
 if (!Number.isFinite(commandTimeoutSeconds) || commandTimeoutSeconds <= 0) fail(2, "--command-timeout-seconds requires a positive number")
 
 let message
@@ -109,11 +108,7 @@ if (repoLabels.length !== 1 || repoLabels[0].slice("repo:".length) !== repoKey) 
   fail(2, `${issue} carries ${found}, so it is not provably the ${repoKey} ticket this synchronization names. Nothing was written. Expected exactly repo:${repoKey}`)
 }
 
-const visibleEffect = current.labels.some((label) => label.name === "visible-effect")
-// The live label is authoritative in both directions. A stale caller cannot strand an ordinary
-// ticket In Progress with --state visual or advance visible work with --state ready.
-const effectiveStateKey = ["ready", "visual"].includes(stateKey) ? (visibleEffect ? "visual" : "ready") : stateKey
-const targetStatus = effectiveStateKey === "ready" ? config.linear.states.review : config.linear.states.working
+const targetStatus = stateKey === "ready" ? config.linear.states.review : config.linear.states.working
 if (targetStatus === config.linear.states.done) fail(2, "the readiness loop never targets Done before merge")
 
 if (current.state.name !== targetStatus) {
@@ -128,7 +123,7 @@ try {
 } catch {
   previous = null
 }
-const signature = JSON.stringify({ stateKey: effectiveStateKey, targetStatus, headSha, baseSha, message })
+const signature = JSON.stringify({ stateKey, targetStatus, headSha, baseSha, message })
 let commentPosted = false
 if (previous?.signature !== signature) {
   const posted = await invoke(["linear", "comment", "add", issue, "--body-file", "-", "--json"], message)
@@ -142,7 +137,7 @@ const artifact = {
   prNumber,
   status: targetStatus,
   lastSynchronizationResult: "SUCCESS",
-  lastPostedState: effectiveStateKey,
+  lastPostedState: stateKey,
   headSha,
   baseSha,
   commentPosted,

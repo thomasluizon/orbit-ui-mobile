@@ -95,7 +95,7 @@ run it always was.
                      into branch when behind · rerun invalidated receipts · synchronize Linear
                      READY only when every receipt names the same current head and base SHA
 14  Hand over        PR URL, advisory diff size, receipt and READY verdict.
-                     READY -> In Review, EXCEPT visible-effect: In Progress, visual check owed.
+                     READY -> In Review.
                      UPDATE remaining[] in .git/orbit-orchestrate-run.json
                      no --sleep -> STOP and wait for `continue`  ·  --sleep -> next ticket
                      --sleep: a turn ends ONLY with a live background task, NAMED  [Stop hook]
@@ -118,7 +118,7 @@ node tools/verify-delivery.mjs   --issue ORB-N --worktree <p> --branch <b> --rep
 node tools/list-bot-threads.mjs  --pr <n-or-url> --repo <key> [--wait-seconds <s>] [--no-request]
 node tools/resolve-bot-thread.mjs --thread <PRRT_...> --repo <key>   # reply body on stdin
 node tools/salvage-worker.mjs    --issue ORB-N --repo <key> [--pr <n>] --worktree <p> --branch <b> --run-root <p> --test-command <json> --test-receipt <json> --message <m> --path <path>...
-node tools/sync-linear-state.mjs --issue ORB-N --repo <key> --pr <n> --state <working|blocked|visual|ready> --head-sha <sha> --base-sha <sha> --message-file <path|->
+node tools/sync-linear-state.mjs --issue ORB-N --repo <key> --pr <n> --state <working|blocked|ready> --head-sha <sha> --base-sha <sha> --message-file <path|->
 node tools/record-readiness.mjs  --repo <key> --pr <n> --delivery <json> --review <json> --bot <json> --linear <json> [--codex-only]
 node tools/record-readiness.mjs  --repo <key> --pr <n> --review <round-one-json> --register-round-one
 node tools/teardown-worktree.mjs --issue ORB-N
@@ -338,8 +338,6 @@ evidence, not a verdict** (the same sentence under Out of scope means the opposi
 under Scope), and **counting bullets under Affected modules over-counts**, because that list carries
 test files and read-only references. ORB-86 named two orbit-api files it never touched. A marginal
 count is therefore a `warnings` entry on an ADMITTED ticket, not a deferral. Print those warnings.
-
-`visible-effect` is **not** a deferral. Those tickets run; step 13 withholds In Review instead.
 
 ## Step 2b. The question gate, BOTH modes
 
@@ -610,7 +608,7 @@ independent review, current connector review, zero threads, `behind_by=0`, and L
 are all recorded for the same head/base pair.
 
 Measured, and the reason this sentence is here: PR #690 (ORB-39) was salvaged by hand, cleaned,
-pushed and opened, and then reported as finished except the visual check. It was carrying two failing
+pushed and opened, and then reported as finished. It was carrying two failing
 required checks (`Architecture map drift`, and SonarCloud coverage at 61.5% against a floor of 80%)
 and one unresolved P2 bot thread. Nobody would have found out until the merge. A pull request that
 skipped steps 7, 8 and 12 is not delivered, however it came to exist.
@@ -856,10 +854,9 @@ For each existing PR, repeat within the configured `caps.connectorFixAttempts` f
    Linear-ticket evidence, then resolve. Re-request after any push. Zero unresolved threads without
    a current-head connector review is `BOT_REVIEW_STALE`, never clean.
 5. Synchronize Linear automatically, deduplicating the last posted state: work/PR opened or blocked
-   -> In Progress with concise state comment; all technical readiness facts true -> In Review;
-   visible-effect -> In Progress until human visual acceptance; exact permission/external/human-only
-   blocker -> In Progress with the decision required. Never mark Done before merge. Size never
-   affects Linear status.
+   -> In Progress with concise state comment; all technical readiness facts true -> In Review; exact
+   permission/external/human-only blocker -> In Progress with the decision required. Never mark Done
+   before merge. Size never affects Linear status.
 6. Re-record and evaluate. READY ends the loop. A genuine permission, external, or human-only
    blocker, or exhaustion of the bounded fixer/review budget, produces a precise handoff and keeps
    the PR in the run record. Never merge.
@@ -874,26 +871,19 @@ the pre-edit green rollup. A body touch cannot clear readiness while silently dr
 
 ## Step 14. Hand over
 
-Set `ORB-N` to In Review only from a READY receipt, **except for a `visible-effect` ticket**.
+Set `ORB-N` to In Review only from a READY receipt.
 
-**A `visible-effect` ticket is never moved to In Review by this run.** It stops at the pull request
-and prints `visual check owed`. Thomas runs `/dev-server` and looks at it himself, then moves it.
-Only a human grants visual completion (D7), and with nothing merging unattended there is no reason
-for a machine to assemble screenshots on his behalf. A ticket with no visible surface is unaffected.
-
-**A worker producing visual evidence is never the mechanism, on any ticket.** It cannot be: only a
-human grants visual completion (D7), the run merges nothing unattended, and a fresh worktree has no
-seeded session, so the attempt can only ever end at a login page. Measured 2026-08-06 on two tickets
+**A worker never produces visual evidence.** A fresh worktree has no seeded session, so the attempt
+can only ever end at a login page. Measured 2026-08-06 on two tickets
 whose code was already committed and correct: ORB-39 started a dev server on :3920, wrote a
 Playwright visual test, and was killed at the 45 minute ceiling with a dirty tree; ORB-98 opened
 `/login?returnUrl=%2Fpreferences` and burned the rest of its budget. Two worker budgets, two dev
 servers left listening, two deliveries a human had to rescue.
 
-Both enforcement points are unconditional and neither is scoped to `visible-effect`, because the
-first attempt WAS scoped and the scoping was the defect: `compose-prompt.mjs` puts the prohibition in
-every worker prompt, and `.claude/hooks/forbid-worker-browser.mjs` refuses the command at act time
-for any caller carrying the launcher marker or running inside a linked worktree. `/dev-server` is
-untouched: it runs from the main checkout, which is Thomas.
+Both enforcement points are unconditional. `compose-prompt.mjs` puts the prohibition in every
+worker prompt, and `.claude/hooks/forbid-worker-browser.mjs` refuses the command at act time for any
+caller carrying the launcher marker or running inside a linked worktree. `/dev-server` is untouched:
+it runs from the main checkout, which is Thomas.
 
 Print:
 
@@ -902,7 +892,6 @@ Print:
 - Codex threads: `N found, F fixed, R filed, X not applicable, U left open`, or
   `BOT REVIEW ABSENT`.
 - Every follow-up ticket filed, by identifier.
-- `visual check owed` when the ticket is `visible-effect`.
 - `DEGRADED: same-vendor review` when `--codex-only` was passed.
 
 **Then, without `--sleep`: STOP and wait for Thomas to type `continue`.** Nothing polls and nothing
@@ -916,7 +905,6 @@ Once the queue is exhausted, print one summary and stop:
   behind count and receipt verdict.
 - **The stack layout**, so the merge order is stated rather than worked out at 08:00.
 - Every ticket skipped, with its reason: a deferral from step 1 or a genuine delivery blocker.
-- Every `visual check owed`.
 - **The single command that merges the lot**, ready for Thomas to approve.
 
 Append one JSON line per ticket outcome to `<scratchpad>/queue-run.jsonl` as the queue runs, not at
@@ -1018,7 +1006,7 @@ A new session starts with a fresh ledger and cannot inherit yesterday's complete
 invalid because UI and API can have the same PR number. The stop hook opens every ledger receipt,
 matches its repository and PR identity, then boundedly rereads the live GitHub head/base/draft,
 newest CI reruns and required-context inventory, current connector verdict and fully paginated
-thread count, plus Linear status/visible-effect state. It allows completion only when the cached report is READY and
+thread count, plus Linear status. It allows completion only when the cached report is READY and
 all live values still match that exact receipt. This is the
 mechanical half of salvage: a pull request opened by hand and never re-verified cannot be reported
 as a finished queue even if a fallible session clears the active list.

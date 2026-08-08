@@ -77,22 +77,11 @@ export const cases = () => {
     /your own exit code counts for nothing[\s\S]*tools\/verify-delivery\.mjs/.test(prompt) && prompt.includes("Never write the fixture that agrees with a"),
     prompt,
   )
-  /**
-   * The browser ban is in EVERY prompt, and the scoping is the whole point: the first version fired
-   * only on visible-effect tickets, ORB-86 received it and made 4 browser-related log entries while
-   * ORB-98 did not and made 51. This ticket carries no visible-effect label at all.
-   */
   T(
-    `${TOOL}: every prompt forbids a dev server, a browser and an e2e file, whatever the labels say`,
+    `${TOOL}: every prompt forbids a dev server, a browser and an e2e file`,
     /NEVER open a browser and never start a server/.test(prompt) && /OVERRIDES the ticket's\nown Evidence section/.test(prompt) && /Playwright, Maestro or Cypress/.test(prompt),
     prompt.slice(prompt.indexOf("**NEVER open"), prompt.indexOf("**NEVER open") + 400),
   )
-  T(
-    `${TOOL}: the ban says who owes the visual check instead of merely refusing`,
-    /required OF A HUMAN,\nafter your pull request exists/.test(prompt) && /Only a human grants visual completion \(D7\)/.test(prompt),
-    prompt,
-  )
-
   const bare = join(root, "compose-prompt", "orb-126.md")
   check(
     TOOL,

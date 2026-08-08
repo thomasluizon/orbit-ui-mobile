@@ -8,7 +8,7 @@ Something broken, stale, or wrong while you build or fix? Fix it in the same PR;
 
 ## The workflow (D1-D9)
 
-Linear is the source of truth for product work here and in orbit-api; GitHub Issues holds orbit-landing-page and infra chores (D1). The ticket is the prompt (D2); one ticket = one repo = one coherent, independently mergeable PR (D4), with file and line estimates used only as planning signals, and cross-repo work uses an API ticket blocking a UI ticket. `/orchestrate ORB-N` takes exactly one ticket (D5), and the reviewer is never the session that wrote the code. `visible-effect` tickets need screenshots, a critique artifact, and test output before In Review (D7, `RENDER-CORRECTNESS.md`).
+Linear is the source of truth for product work here and in orbit-api; GitHub Issues holds orbit-landing-page and infra chores (D1). The ticket is the prompt (D2); one ticket = one repo = one coherent, independently mergeable PR (D4), with file and line estimates used only as planning signals, and cross-repo work uses an API ticket blocking a UI ticket. `/orchestrate ORB-N` takes exactly one ticket (D5), and the reviewer is never the session that wrote the code.
 
 ## Cross-platform parity (MANDATORY)
 
@@ -53,7 +53,6 @@ Grep a doc's `At a glance` header before loading it; update this table when a do
 |---|---|
 | `BRAND.md` | Audience, positioning and principles; read before brand, copy, positioning or design-direction work, and before ORB-30. |
 | `DESIGN.md` | UI spec; read before frontend work. |
-| `RENDER-CORRECTNESS.md` | The `visible-effect` screenshot critique and its cap. |
 | `AGENTS.md` | Codex's worker entry doc; defers to this file. |
 | `.claude/skills/pr-review/rubric.md` | Every review dimension; the only review authority. |
 | `FEATURES.md` | The Free/Trial/Pro/Yearly gating the arch map lacks. |

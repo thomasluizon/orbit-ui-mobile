@@ -71,8 +71,8 @@ validation; no ticket-linting script runs here. In ONE message show him:
 - **The reason for every split and every merge decision**, one line each: "these three are symptoms
   of one root cause, so one ticket", "these two are unrelated, so no edge", "the api change must
   deploy first, so it blocks the ui ticket".
-- Per ticket: repo label, type label with its reason, parity label, `visible-effect`, and the full
-  drafted body (scratchpad file).
+- Per ticket: repo label, type label with its reason, parity label, and the full drafted body
+  (scratchpad file).
 - The project decision from phase E step 1: named, new or existing, with its reason.
 
 Then ask for approval with ONE AskUserQuestion whose FIRST question is the split (the alternative
@@ -99,8 +99,7 @@ defect if violated:
   intended behaviour, `Feature` for a new user or system capability, `Improvement` for a chore,
   refactor, tooling task, or docs task. Never infer the type silently.
 - ui tickets carry `parity:yes` (web + mobile in one PR) or `parity:no` with its platform-adapter
-  justification; `visible-effect` whenever pixels change, with the D7 contract in the body (final
-  screenshots and the critique artifact on the Linear issue before In Review).
+  justification.
 - Never a tests-only ticket, a "foundation" ticket of unused functions, or a migration split from
   the feature it serves. Dependencies are explicit relations; "after X lands" in prose is not one.
 - Shared/DTO changes are append-only and deploy-API-first; say so in the api ticket.

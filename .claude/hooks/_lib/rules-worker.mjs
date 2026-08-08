@@ -7,10 +7,8 @@
 // opened /login?returnUrl=%2Fpreferences and burned the rest of its budget. Two worker budgets, two
 // dev servers left listening, two deliveries a human had to rescue.
 //
-// The prompt says so too (tools/compose-prompt.mjs), and the prompt alone already failed once: it
-// was scoped to visible-effect tickets, ORB-86 received it and made 4 browser-related log entries
-// while ORB-98 did not and made 51. A prompt is advisory and decays as context fills, so this is the
-// gate. It takes no subset and no ticket can lift it.
+// A prompt is advisory and decays as context fills, so this rule is the gate. It applies to every
+// launched worker and no ticket can lift it.
 //
 // Pure: takes the command string plus injected environment and cwd, returns { block, message } or
 // null. Scoped to the CALLER, which is what keeps /dev-server working: a session in the main

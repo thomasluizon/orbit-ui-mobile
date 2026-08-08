@@ -473,7 +473,6 @@ const receipt = {
   linear: {
     status: liveLinear.state.name,
     stateType: liveLinear.state.type,
-    visibleEffect: liveLinear.labels.some((label) => label.name === "visible-effect"),
     lastSynchronizationResult: linear.status === liveLinear.state.name ? linear.lastSynchronizationResult : "STALE",
     lastPostedState: linear.lastPostedState ?? null,
     headSha: linear.headSha,

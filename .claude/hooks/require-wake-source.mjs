@@ -78,7 +78,6 @@ const liveReceiptVerdict = async (entry, config) => {
       draft: pr.isDraft,
       linearIssue: receipt.issue,
       linearStatus: linear.state.name,
-      linearVisibleEffect: linear.labels.some((label) => label.name === "visible-effect"),
       ciGreen: readinessCiIsGreen(pr.statusCheckRollup, requiredContexts),
       connectorPassed: bot?.verdict === "REVIEWED" && bot?.reviewedCommit === pr.headRefOid && bot?.baseRefOid === pr.baseRefOid,
       threadsComplete: bot?.threadsComplete === true,

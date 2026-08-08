@@ -132,8 +132,7 @@ Performance-specific mapping into the 6.2 body:
 - **Acceptance criteria** name the observable change (the round-trip count drops, the index
   exists, the request no longer blocks).
 - A frontend fix that depends on a new API index or endpoint is a ui ticket blockedBy the api
-  ticket (deploy-API-first). `repo:*` from `location`; ui tickets carry `parity:yes|no`; add
-  `visible-effect` only if the fix changes what the user sees.
+  ticket (deploy-API-first). `repo:*` comes from `location`; ui tickets carry `parity:yes|no`.
 
 At the approval gate, present the Hotspots (the highest-impact risks, side + pattern + how it
 grows) as provenance, plus the **Deferred ledger** (the workflow's `deferred`, enterprise-only

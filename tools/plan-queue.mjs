@@ -35,7 +35,7 @@ Exactly one of --tickets, --project or --board is required.
 
 Prints ONE JSON object on stdout: scope, admitted, deferred, stacks, waves. Errors go to stderr.
 
-  admitted[]  identifier, repo, title, labels, visibleEffect, blockedBy, stackParent, branchMode,
+  admitted[]  identifier, repo, title, labels, blockedBy, stackParent, branchMode,
               wave, unlocks, warnings
   deferred[]  identifier, reason  (BLOCKED_OUTSIDE_QUEUE, UNSTACKABLE_BLOCKERS_IN_QUEUE,
               NO_REPO_LABEL, AMBIGUOUS_REPO, CLOSED, NOT_REPRODUCED, NOT_CODE_WORK, MULTI_PR)
@@ -44,8 +44,6 @@ Prints ONE JSON object on stdout: scope, admitted, deferred, stacks, waves. Erro
 
 A ticket is admitted when it is open, carries exactly one repo:* label, every ticket blocking it is
 either closed or also admitted here, and its body does not say a headless agent cannot execute it.
-visible-effect is NOT a bar to admission: the run opens the pull request and stops, and the human
-grants visual completion.
 
 exit codes: 0 a plan was produced (it may admit zero tickets), 1 the scope resolved to no tickets
             at all, 2 usage or environment error`
@@ -363,7 +361,6 @@ const admitted = runnable.map((id, index) => {
     title: entry.issue.title,
     state: entry.issue.state?.name ?? null,
     labels: labelNames(entry.issue),
-    visibleEffect: labelNames(entry.issue).includes("visible-effect"),
     blockedBy: entry.blockedBy,
     stackParent: stackParentById.get(id),
     branchMode: branchModeById.get(id),
@@ -409,8 +406,7 @@ if (format === "markdown") {
           : ticket.branchMode === "main-after-blockers-merge"
             ? " (opens against main after blockers merge; blockers do not form a stack)"
             : " (opens against main)"
-      const visual = ticket.visibleEffect ? " [visual check owed]" : ""
-      lines.push(`- ${id} \`${ticket.repo}\`${branch}${visual} ${ticket.title}`)
+      lines.push(`- ${id} \`${ticket.repo}\`${branch} ${ticket.title}`)
       for (const warning of ticket.warnings) lines.push(`  - WARNING ${warning}`)
     }
     lines.push("")

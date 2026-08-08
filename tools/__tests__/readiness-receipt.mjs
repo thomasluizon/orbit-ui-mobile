@@ -39,7 +39,7 @@ const ready = () => ({
   threads: { complete: true, unresolvedCount: 0, headSha: HEAD_A, baseSha: BASE_A },
   behindBy: 0,
   draft: false,
-  linear: { status: "In Review", lastSynchronizationResult: "SUCCESS", lastPostedState: "ready", visibleEffect: false, headSha: HEAD_A, baseSha: BASE_A },
+  linear: { status: "In Review", lastSynchronizationResult: "SUCCESS", lastPostedState: "ready", headSha: HEAD_A, baseSha: BASE_A },
 })
 
 export const cases = () => {
@@ -114,14 +114,8 @@ export const cases = () => {
   const linearStale = { ...receipt, linear: { ...receipt.linear, lastSynchronizationResult: "FAILED" } }
   T(`${TOOL}: final readiness cannot clear while Linear is stale`, readinessReport(linearStale).verdicts.includes("LINEAR_STALE"))
 
-  const visual = { ...receipt, linear: { ...receipt.linear, status: "In Progress", lastPostedState: "visual", visibleEffect: true } }
-  const visualReport = readinessReport(visual)
-  T(`${TOOL}: a synchronized visible ticket reaches technical READY while remaining In Progress`, visualReport.verdict === "READY" && visualReport.visualCheckOwed === true, JSON.stringify(visualReport))
-  const visualWrongStatus = { ...visual, linear: { ...visual.linear, status: "In Review" } }
-  T(`${TOOL}: a visible ticket moved to In Review before acceptance is LINEAR_STALE`, readinessReport(visualWrongStatus).verdicts.includes("LINEAR_STALE"))
-
   const entry = { repositoryKey: "ui", prNumber: 701, receiptPath: path }
-  const live = { repositoryKey: "ui", prNumber: 701, baseSha: BASE_A, headSha: HEAD_A, draft: false, linearIssue: "ORB-701", linearStatus: "In Review", linearVisibleEffect: false, ciGreen: true, connectorPassed: true, threadsComplete: true, unresolvedThreads: 0 }
+  const live = { repositoryKey: "ui", prNumber: 701, baseSha: BASE_A, headSha: HEAD_A, draft: false, linearIssue: "ORB-701", linearStatus: "In Review", ciGreen: true, connectorPassed: true, threadsComplete: true, unresolvedThreads: 0 }
   T(`${TOOL}: a READY receipt matches the exact live PR and Linear identity`, readinessReceiptMatchesLive(receipt, entry, live) === true)
   T(`${TOOL}: a later live push invalidates an offline READY receipt`, readinessReceiptMatchesLive(receipt, entry, { ...live, headSha: HEAD_B }) === false)
   T(`${TOOL}: a receipt for another numbered PR cannot satisfy a ledger entry`, readinessReceiptMatchesLive(receipt, { ...entry, prNumber: 700 }, live) === false)

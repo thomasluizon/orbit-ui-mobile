@@ -51,26 +51,6 @@ export const cases = () => {
     { match: "linear comment add ORB-700", stdout: "", ignoreLinearShape: true },
   ]) })
 
-  const visual = [...argv]
-  visual[visual.indexOf("ready")] = "visual"
-  check(TOOL, "visible-effect work remains In Progress", visual, { status: 0, stdout: /"status": "In Progress"/ }, { path: staged.path, env: orcaEnv([
-    { match: "linear issue ORB-700 --full --json", stdout: issueEnvelope({ name: "In Review", type: "started" }, [{ id: "label-visible", name: "visible-effect", color: "#abc" }]) },
-    { match: "linear status set ORB-700", stdout: "", ignoreLinearShape: true },
-    { match: "linear comment add ORB-700", stdout: "", ignoreLinearShape: true },
-  ]) })
-
-  check(TOOL, "an ordinary live ticket overrides a mistaken visual request", visual, { status: 0, stdout: /"status": "In Review"[\s\S]*"lastPostedState": "ready"/ }, { path: staged.path, env: orcaEnv([
-    { match: "linear issue ORB-700 --full --json", stdout: issueEnvelope({ name: "In Progress", type: "started" }) },
-    { match: "linear status set ORB-700", stdout: "", ignoreLinearShape: true },
-    { match: "linear comment add ORB-700", stdout: "", ignoreLinearShape: true },
-  ]) })
-
-  check(TOOL, "a live visible-effect label overrides a mistaken ready request", argv, { status: 0, stdout: /"status": "In Progress"[\s\S]*"lastPostedState": "visual"/ }, { path: staged.path, env: orcaEnv([
-    { match: "linear issue ORB-700 --full --json", stdout: issueEnvelope({ name: "In Review", type: "started" }, [{ id: "label-visible", name: "visible-effect", color: "#abc" }]) },
-    { match: "linear status set ORB-700", stdout: "", ignoreLinearShape: true },
-    { match: "linear comment add ORB-700", stdout: "", ignoreLinearShape: true },
-  ]) })
-
   /**
    * THE Linear half of the 2026-08-08 misdirected-write incident. `--issue` is caller-supplied and
    * this tool writes twice with it, so a mistyped or invented ORB-N moves a stranger's ticket and

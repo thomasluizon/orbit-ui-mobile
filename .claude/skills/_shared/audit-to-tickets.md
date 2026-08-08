@@ -45,8 +45,6 @@ mandatory generated artifacts across tickets merely to satisfy a number.
   infer it silently.
 - `repo:ui` tickets declare `parity:yes` (web + mobile in one PR) or `parity:no` with the
   adapter-only justification in the body.
-- Add `visible-effect` and the D7 screenshots plus critique line when the fix changes pixels;
-  A body that names a user-visible surface without both artifacts is not executable.
 - blockedBy is an explicit relation, never prose: a ui perf fix that needs an api index first
   is a ui ticket blockedBy the api ticket.
 

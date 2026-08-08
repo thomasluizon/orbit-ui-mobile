@@ -170,15 +170,6 @@ export const cases = () => {
   const twoRepos = run(TOOL, ["--tickets", "ORB-1"], { env: orcaEnv([{ match: "linear issue ORB-1 --relations", stdout: relationsEnvelope("ORB-1", { labels: ["repo:ui", "repo:api"] }) }]) })
   T(`${TOOL}: a ticket carrying two repo:* labels is deferred as ambiguous`, planOf(twoRepos)?.deferred[0]?.reason === "AMBIGUOUS_REPO", twoRepos.stdout || twoRepos.stderr)
 
-  /** visible-effect is reported so the run can withhold In Review, and is NEVER a bar to admission. */
-  const visual = run(TOOL, ["--tickets", "ORB-1"], { env: orcaEnv([{ match: "linear issue ORB-1 --relations", stdout: relationsEnvelope("ORB-1", { labels: ["repo:ui", "visible-effect"] }) }]) })
-  const visualPlan = planOf(visual)
-  T(
-    `${TOOL}: a visible-effect ticket is admitted and flagged, not skipped`,
-    visualPlan?.counts.admitted === 1 && visualPlan.admitted[0].visibleEffect === true,
-    visual.stdout || visual.stderr,
-  )
-
   const closed = run(TOOL, ["--tickets", "ORB-1"], { env: orcaEnv([{ match: "linear issue ORB-1 --relations", stdout: relationsEnvelope("ORB-1", { stateName: "Done", stateType: "completed" }) }]) })
   T(`${TOOL}: an already-closed ticket in the scope is deferred as CLOSED`, planOf(closed)?.deferred[0]?.reason === "CLOSED", closed.stdout || closed.stderr)
 
@@ -344,7 +335,7 @@ export const cases = () => {
   const markdown = run(TOOL, ["--tickets", "ORB-1,ORB-2,ORB-3", "--format", "markdown"], {
     env: orcaEnv([
       { match: "linear issue ORB-1 --relations", stdout: relationsEnvelope("ORB-1") },
-      { match: "linear issue ORB-2 --relations", stdout: relationsEnvelope("ORB-2", { labels: ["repo:ui", "visible-effect"] }, ["ORB-1"]) },
+      { match: "linear issue ORB-2 --relations", stdout: relationsEnvelope("ORB-2", { labels: ["repo:ui"] }, ["ORB-1"]) },
       { match: "linear issue ORB-3 --relations", stdout: relationsEnvelope("ORB-3") },
     ]),
   })
@@ -352,11 +343,6 @@ export const cases = () => {
   T(
     `${TOOL}: markdown binds "opens against main" to a blocker-free ticket's own line`,
     markdown.status === 0 && /\(opens against main\)/.test(lineFor("ORB-1")) && /\(opens against main\)/.test(lineFor("ORB-3")),
-    markdown.stdout || markdown.stderr,
-  )
-  T(
-    `${TOOL}: markdown binds the stack suffix and the visual debt to the stacked ticket's own line`,
-    /\(stacks on ORB-1\)/.test(lineFor("ORB-2")) && /visual check owed/.test(lineFor("ORB-2")) && !/visual check owed/.test(lineFor("ORB-1")),
     markdown.stdout || markdown.stderr,
   )
 }

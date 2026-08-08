@@ -96,31 +96,24 @@ const worktreeLine = worktree ? `\nWorking tree \`${worktree}\`.` : ""
 const branchLine = branch ? `\nBranch \`${branch}\` is ALREADY checked out for you.` : ""
 
 /**
- * WHY this block is in EVERY prompt and not just a visible-effect one, measured 2026-08-06. The
- * ticket is quoted verbatim (D2) and a ticket's Evidence section says screenshots are REQUIRED, so a
- * worker that reads only the ticket obeys the ticket and ignores the orchestrator's step 13. ORB-39
- * committed 221 correct lines, then started a dev server on :3920, wrote a Playwright visual test,
- * sat on /login because a worktree has no seeded session, and was killed at the 45 minute ceiling
- * with a dirty tree. ORB-98 committed 145 lines including the exact Vitest spec its ticket asked
- * for, then opened /login?returnUrl=%2Fpreferences and burned the rest of its budget.
- *
- * The first fix scoped this to visible-effect tickets, and the scoping was the defect: ORB-86
- * received it and made 4 browser-related log entries, ORB-98 did not and made 51. A worker cannot
- * know in advance which tickets tempt it, so the prohibition takes no subset. The hook at
- * .claude/hooks/forbid-worker-browser.mjs enforces the same rule at act time, because a prompt is
- * advisory and decays as context fills.
+ * WHY this block is in EVERY prompt, measured 2026-08-06. The ticket is quoted verbatim (D2), and a
+ * ticket's Evidence section can require screenshots. A worker that reads only the ticket may start
+ * a dev server even though its fresh worktree has no seeded session. ORB-39 committed 221 correct
+ * lines, then started a dev server on :3920, wrote a Playwright visual test, sat on /login, and was
+ * killed at the 45 minute ceiling with a dirty tree. ORB-98 committed 145 lines including the exact
+ * Vitest spec its ticket asked for, then opened /login?returnUrl=%2Fpreferences and burned the rest
+ * of its budget. A worker cannot know in advance which tickets tempt it, so the prohibition takes
+ * no subset. The hook at .claude/hooks/forbid-worker-browser.mjs enforces the same rule at act time,
+ * because a prompt is advisory and decays as context fills.
  */
 const browserBan = `
 
 **NEVER open a browser and never start a server. This is unconditional and it OVERRIDES the ticket's
 own Evidence section.** No \`npm run dev\`, no \`next dev\`, no \`expo start\`, no emulator, no
 Playwright, Maestro or Cypress, nothing under \`e2e/\`, no navigating to localhost on any port, no
-logging in to the app. If the ticket says screenshots are required, they are required OF A HUMAN,
-after your pull request exists.
-
-Only a human grants visual completion (D7), nothing merges unattended, and a fresh worktree has no
-seeded session, so the attempt can only ever fail. Two workers finished their tickets correctly and
-then lost the delivery to exactly this. Your pull request is complete without visual evidence.`
+logging in to the app. If the ticket says screenshots are required, do not gather them in this
+worker. A fresh worktree has no seeded session, so the attempt can only fail. Two workers finished
+their tickets correctly and then lost the delivery to exactly this.`
 
 const brief = `## Orchestrator's brief
 

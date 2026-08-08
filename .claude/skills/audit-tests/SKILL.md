@@ -142,9 +142,7 @@ Tests-specific mapping into the 6.2 body, where the deliverable of each ticket I
   rewrite the named file:line; Acceptance criteria = the observable assertion that makes it
   real, or its removal. Unit-only: never draft an integration/E2E ticket.
 - `repo:*` from `location` (`orbit-api` -> `repo:api`, `apps/*` / `packages/*` -> `repo:ui`).
-  A ui test ticket carries `parity:yes|no`. A test ticket rarely changes pixels, so it rarely
-  needs `visible-effect`; a body naming a user-visible surface must carry
-  the D7 line and you add it.
+  A ui test ticket carries `parity:yes|no`.
 
 At the approval gate, present **suite health** (files scored, % happy-path-only, % smell-
 carrying, % pinning all three axes) and the **critical-path coverage** table (auth, billing,
