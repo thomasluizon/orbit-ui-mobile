@@ -62,14 +62,24 @@ export const readinessVerdicts = (receipt) => {
   if (!Number.isInteger(receipt.behindBy) || receipt.behindBy > 0) verdicts.push("OUT_OF_DATE")
 
   const review = receipt.independentReview
-  const blockersClosed = Array.isArray(review?.findings) && review.findings.every(
+  const findingIds = Array.isArray(review?.findings) ? review.findings.map((finding) => finding?.id) : []
+  const findingsValid = Array.isArray(review?.findings) && findingIds.every((id) => typeof id === "string" && id !== "") && new Set(findingIds).size === findingIds.length
+  const blockersClosed = findingsValid && review.findings.every(
     (finding) => typeof finding?.blocking === "boolean" && (finding.blocking === false || finding?.status === "CLOSED"),
+  )
+  const frozenFindingIdsValid = review?.rounds !== 2 || (
+    Array.isArray(review?.frozenFindingIds) &&
+    review.frozenFindingIds.length > 0 &&
+    review.frozenFindingIds.every((id) => typeof id === "string" && id !== "") &&
+    new Set(review.frozenFindingIds).size === review.frozenFindingIds.length &&
+    review.frozenFindingIds.every((id) => review.findings.some((finding) => finding.id === id && finding.blocking === true))
   )
   if (
     !currentEvidence(review, receipt) ||
     review?.reviewedHeadOid !== receipt.currentHeadSha ||
     review?.verdict !== "CLEAN" ||
     blockersClosed !== true ||
+    frozenFindingIdsValid !== true ||
     !Number.isInteger(review?.rounds) ||
     review.rounds < 1 ||
     review.rounds > 2 ||

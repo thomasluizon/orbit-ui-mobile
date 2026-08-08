@@ -331,6 +331,15 @@ let requiredContexts = await readRequiredContexts(pullRequestState)
 const markerLocation = await git(["rev-parse", "--git-common-dir"])
 if (!markerLocation.ok || !markerLocation.stdout.trim()) fail(2, `git rev-parse --git-common-dir failed in ${worktree}: ${markerLocation.error ?? "empty output"}`)
 const bodyEditMarkerPath = bodyEditInvalidationPath({ worktree, gitCommonDirectory: markerLocation.stdout.trim(), prNumber: pullRequest.number })
+const readGuardsWorkflowRuns = async () => {
+  const result = await run(GH, ["run", "list", "--workflow", "guards.yml", "--commit", pullRequestState.headRefOid, "--limit", "100", "--json", "databaseId,createdAt,headSha,status,conclusion"], githubCwd)
+  if (!result.ok) fail(2, `gh run list for Guards failed: ${result.error}`)
+  try {
+    return JSON.parse(result.stdout)
+  } catch {
+    fail(2, `gh run list for Guards returned unparseable JSON: ${result.stdout.trim().slice(0, 240) || "empty output"}`)
+  }
+}
 const readBodyEditMarker = () => {
   let marker
   try {
@@ -348,6 +357,7 @@ let bodyMutated = false
 if (codexOnly) {
   const degradedBody = withDegradedReviewFirst(pullRequest.body)
   if (degradedBody !== pullRequest.body) {
+    const guardsWorkflowRuns = await readGuardsWorkflowRuns()
     persistBodyEditInvalidation({
       path: bodyEditMarkerPath,
       repositoryKey: repoKey,
@@ -355,6 +365,7 @@ if (codexOnly) {
       headSha: pullRequestState.headRefOid,
       baseSha: pullRequestState.baseRefOid,
       statusCheckRollup: pullRequestState.statusCheckRollup,
+      guardsWorkflowRuns,
     })
     const edited = await run(GH, ["pr", "edit", String(pullRequest.number), "--body-file", "-"], githubCwd, degradedBody)
     if (!edited.ok) {
@@ -432,7 +443,7 @@ const readRollup = () => {
   return { total: newestByName.size, failing, pending }
 }
 
-const applyBodyEditInvalidation = (rollup) => {
+const applyBodyEditInvalidation = async (rollup) => {
   const marker = readBodyEditMarker()
   if (!marker) return rollup
   if (marker.headSha !== pullRequestState.headRefOid || marker.baseSha !== pullRequestState.baseRefOid) {
@@ -440,7 +451,7 @@ const applyBodyEditInvalidation = (rollup) => {
     return rollup
   }
 
-  const pending = pendingBodyEditGuards(marker, pullRequestState.statusCheckRollup)
+  const pending = pendingBodyEditGuards(marker, await readGuardsWorkflowRuns())
     .map((name) => checkMetadata(`post-edit ${name}`, { status: "NOT_REGISTERED", conclusion: null }))
 
   if (pending.length === 0) {
@@ -456,7 +467,7 @@ const sleep = (seconds) => {
   Atomics.wait(buffer, 0, 0, seconds * 1000)
 }
 
-let rollup = applyBodyEditInvalidation(readRollup())
+let rollup = await applyBodyEditInvalidation(readRollup())
 if (bodyMutated) {
   const bodyEditPending = checkMetadata("PR body edited; rerun delivery after edited-event checks register", { status: "NOT_REGISTERED", conclusion: null })
   checks.ci = {

@@ -171,6 +171,7 @@ export const cases = () => {
         headRefOid: bodyEditHead,
         statusCheckRollup: [{ workflowName: "Guards", name: "Harness tools", startedAt: "2026-08-07T10:00:00Z" }],
       }]) },
+      { match: `run list --workflow guards.yml --commit ${bodyEditHead}`, stdout: JSON.stringify([{ databaseId: 10, createdAt: "2026-08-07T09:00:00Z", headSha: bodyEditHead, status: "completed", conclusion: "success" }]) },
       { match: "pr edit 200 --body-file -", stdout: "" },
     ]) },
   )
@@ -185,7 +186,7 @@ export const cases = () => {
   }
   T(
     `${TOOL}: launcher body edit receipt is pinned to the exact head/base and pre-edit Guards run`,
-    bodyEditReceipt?.headSha === bodyEditHead && bodyEditReceipt?.baseSha === "base-sha" && bodyEditReceipt?.guardsRuns?.[0]?.name === "Harness tools" && bodyEditReceipt?.guardsRuns?.[0]?.startedAt === "2026-08-07T10:00:00Z",
+    bodyEditReceipt?.headSha === bodyEditHead && bodyEditReceipt?.baseSha === "base-sha" && bodyEditReceipt?.guardsRuns?.[0]?.name === "Harness tools" && bodyEditReceipt?.preEditWorkflowRuns?.[0]?.databaseId === 10,
     JSON.stringify(bodyEditReceipt),
   )
 

@@ -26,6 +26,7 @@ export const cases = () => {
   const linear = stage("record-readiness/linear.json", JSON.stringify({ issue: "ORB-700", repositoryKey: "ui", prNumber: 700, status: "In Review", lastSynchronizationResult: "SUCCESS", lastPostedState: "ready", headSha: HEAD, baseSha: BASE }))
   const argv = ["--repo", "ui", "--pr", "700", "--delivery", delivery, "--review", review, "--bot", bot, "--linear", linear]
   const greenCheck = { __typename: "CheckRun", name: "Lint", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-07T10:00:00Z", workflowName: "Guards" }
+  const openedWorkflowRun = { databaseId: 10, createdAt: "2026-08-07T09:00:00Z", headSha: HEAD, status: "completed", conclusion: "success" }
   const live = (headRefOid = HEAD, baseRefOid = BASE, behindBy = 0, body = "Implements ORB-700", linearState = { name: "In Review", type: "started" }, labels = [], options = {}) => {
     const reviewState = options.reviewState ?? "COMMENTED"
     const reviewThreads = options.openThread
@@ -35,6 +36,7 @@ export const cases = () => {
     { match: "auth token --user thomasluizon", stdout: "test-github-token" },
     { match: "pr view 700", stdout: JSON.stringify({ number: 700, baseRefName: "main", baseRefOid, headRefOid, isDraft: false, body, statusCheckRollup: options.statusCheckRollup ?? [greenCheck] }) },
     { match: "pr edit 700", stdout: "" },
+    { match: "run list --repo", stdout: JSON.stringify(options.guardsWorkflowRuns ?? [openedWorkflowRun]) },
     { match: "branches/main/protection/required_status_checks", stdout: JSON.stringify({ contexts: ["Lint"] }) },
     { match: "api graphql", stdout: JSON.stringify({ data: { repository: { pullRequest: {
       number: 700, isDraft: false, baseRefOid, headRefOid,
@@ -57,8 +59,9 @@ export const cases = () => {
   }
   T(`${TOOL}: recorder persists exact pre-edit head/base and Guards baseline before editing`, bodyEditMarker?.headSha === HEAD && bodyEditMarker?.baseSha === BASE && bodyEditMarker?.guardsRuns?.[0]?.name === "Lint", JSON.stringify(bodyEditMarker))
   check(TOOL, "codex-only aggregation cannot reuse unchanged pre-edit Guards runs", [...argv, "--codex-only"], { status: 1, stdout: /CI_STALE/ }, { path: staged.path, env: live(HEAD, BASE, 0, "DEGRADED: same-vendor review\n\nImplements ORB-700\n") })
-  const replacementCheck = { ...greenCheck, startedAt: "2026-08-07T11:00:00Z" }
-  check(TOOL, "codex-only aggregation is READY after newer Guards runs replace the invalidated baseline", [...argv, "--codex-only"], { status: 0, stdout: /"verdict": "READY"/ }, { path: staged.path, env: live(HEAD, BASE, 0, "DEGRADED: same-vendor review\n\nImplements ORB-700\n", { name: "In Review", type: "started" }, [], { statusCheckRollup: [replacementCheck] }) })
+  const replacementCheck = { ...greenCheck, startedAt: "2099-08-07T11:00:00Z" }
+  const editedWorkflowRun = { databaseId: 11, createdAt: "2099-08-07T10:00:00Z", headSha: HEAD, status: "completed", conclusion: "success" }
+  check(TOOL, "codex-only aggregation is READY after the completed edited-event Guards run replaces the invalidated baseline", [...argv, "--codex-only"], { status: 0, stdout: /"verdict": "READY"/ }, { path: staged.path, env: live(HEAD, BASE, 0, "DEGRADED: same-vendor review\n\nImplements ORB-700\n", { name: "In Review", type: "started" }, [], { statusCheckRollup: [replacementCheck], guardsWorkflowRuns: [openedWorkflowRun, editedWorkflowRun] }) })
   T(`${TOOL}: recorder removes a settled body-edit invalidation`, !existsSync(bodyEditMarkerPath), bodyEditMarkerPath)
 
   const failedRerun = { ...greenCheck, conclusion: "FAILURE", startedAt: "2026-08-07T11:00:00Z" }

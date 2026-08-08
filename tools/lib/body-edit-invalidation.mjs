@@ -15,7 +15,11 @@ export const newestGuardsRuns = (rollup) => {
 export const bodyEditInvalidationPath = ({ worktree, gitCommonDirectory, prNumber }) =>
   resolve(worktree, gitCommonDirectory, "orbit-body-edit-invalidations", `${prNumber}.json`)
 
-export const persistBodyEditInvalidation = ({ path, repositoryKey = null, prNumber, headSha, baseSha, statusCheckRollup, editedAt = new Date().toISOString() }) => {
+export const guardsWorkflowRunsAreValid = (runs) => Array.isArray(runs) && runs.every((run) =>
+  Number.isInteger(run?.databaseId) && typeof run?.createdAt === "string" && typeof run?.headSha === "string" && typeof run?.status === "string" && typeof run?.conclusion === "string")
+
+export const persistBodyEditInvalidation = ({ path, repositoryKey = null, prNumber, headSha, baseSha, statusCheckRollup, guardsWorkflowRuns, editedAt = new Date().toISOString() }) => {
+  if (!guardsWorkflowRunsAreValid(guardsWorkflowRuns)) throw new Error("Guards workflow inventory has an invalid shape")
   const marker = {
     repositoryKey,
     prNumber,
@@ -23,6 +27,7 @@ export const persistBodyEditInvalidation = ({ path, repositoryKey = null, prNumb
     baseSha,
     editedAt,
     guardsRuns: [...newestGuardsRuns(statusCheckRollup)].map(([name, node]) => ({ name, startedAt: node.startedAt })),
+    preEditWorkflowRuns: guardsWorkflowRuns,
   }
   mkdirSync(dirname(path), { recursive: true })
   writeFileSync(path, `${JSON.stringify(marker, null, 2)}\n`)
@@ -44,7 +49,8 @@ export const readBodyEditInvalidation = (path) => {
     typeof marker.baseSha !== "string" ||
     typeof marker.editedAt !== "string" ||
     !Array.isArray(marker.guardsRuns) ||
-    marker.guardsRuns.some((entry) => typeof entry?.name !== "string" || typeof entry?.startedAt !== "string")
+    marker.guardsRuns.some((entry) => typeof entry?.name !== "string" || typeof entry?.startedAt !== "string") ||
+    !guardsWorkflowRunsAreValid(marker.preEditWorkflowRuns)
   ) {
     throw new Error(`persisted PR-body CI invalidation has an invalid shape: ${path}`)
   }
@@ -53,17 +59,15 @@ export const readBodyEditInvalidation = (path) => {
 
 export const clearBodyEditInvalidation = (path) => rmSync(path, { force: true })
 
-export const pendingBodyEditGuards = (marker, statusCheckRollup) => {
-  const current = newestGuardsRuns(statusCheckRollup)
-  if (marker.guardsRuns.length === 0) {
-    const editTime = Date.parse(marker.editedAt)
-    const replacementRegistered = [...current.values()].some((node) => Date.parse(node.startedAt) >= Math.floor(editTime / 1000) * 1000)
-    return replacementRegistered ? [] : ["Guards workflow"]
-  }
-  return marker.guardsRuns
-    .filter((baseline) => {
-      const run = current.get(baseline.name)
-      return !run || Date.parse(run.startedAt) <= Date.parse(baseline.startedAt)
-    })
-    .map((baseline) => baseline.name)
+export const pendingBodyEditGuards = (marker, currentWorkflowRuns) => {
+  if (!guardsWorkflowRunsAreValid(currentWorkflowRuns)) throw new Error("Guards workflow inventory has an invalid shape")
+  const previousIds = new Set(marker.preEditWorkflowRuns.map((run) => run.databaseId))
+  const editSecond = Math.floor(Date.parse(marker.editedAt) / 1000) * 1000
+  const replacementComplete = currentWorkflowRuns.some((run) =>
+    run.headSha === marker.headSha &&
+    !previousIds.has(run.databaseId) &&
+    Date.parse(run.createdAt) >= editSecond &&
+    run.status === "completed" &&
+    run.conclusion === "success")
+  return replacementComplete ? [] : ["Guards workflow"]
 }

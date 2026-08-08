@@ -293,12 +293,14 @@ const finish = async (outcome, exitCode) => {
             throw new Error(`could not resolve the shared Git directory for PR-body invalidation: ${(gitCommon.stderr || gitCommon.stdout || gitCommon.error?.message || `exit ${gitCommon.status}`).trim()}`)
           }
           const markerPath = bodyEditInvalidationPath({ worktree: runDirectory, gitCommonDirectory: gitCommon.stdout.trim(), prNumber: listed[0].number })
+          const guardsWorkflowRuns = JSON.parse(await gh(["run", "list", "--workflow", "guards.yml", "--commit", listed[0].headRefOid, "--limit", "100", "--json", "databaseId,createdAt,headSha,status,conclusion"]))
           persistBodyEditInvalidation({
             path: markerPath,
             prNumber: listed[0].number,
             headSha: listed[0].headRefOid,
             baseSha: listed[0].baseRefOid,
             statusCheckRollup: listed[0].statusCheckRollup,
+            guardsWorkflowRuns,
           })
           try {
             await gh(["pr", "edit", String(listed[0].number), "--body-file", "-"], body)

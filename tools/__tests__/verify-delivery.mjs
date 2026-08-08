@@ -55,7 +55,7 @@ const pullRequest = (headRefOid, additions = 10, deletions = 5, number = 200, ch
 const rollup = (nodes = [{ __typename: "CheckRun", name: "Lint", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-06T10:00:00Z" }]) =>
   JSON.stringify({ statusCheckRollup: nodes })
 
-const ghPlan = (stdout, exit = 0, checks = rollup(), comparison = { behind_by: 0 }, requiredContexts = null) => {
+const ghPlan = (stdout, exit = 0, checks = rollup(), comparison = { behind_by: 0 }, requiredContexts = null, workflowRuns = []) => {
   let headRefOid = "fixture-head"
   try {
     headRefOid = JSON.parse(stdout)?.[0]?.headRefOid ?? headRefOid
@@ -74,6 +74,7 @@ const ghPlan = (stdout, exit = 0, checks = rollup(), comparison = { behind_by: 0
     { match: `pr list --head ${BRANCH}`, stdout, exit },
     { match: "pr view", stdout: JSON.stringify({ baseRefName: "main", baseRefOid: "base-sha", headRefOid, isDraft: false, ...state }) },
     { match: "branches/main/protection/required_status_checks", stdout: JSON.stringify({ contexts: required }) },
+    { match: "run list --workflow guards.yml", stdout: JSON.stringify(workflowRuns) },
     { match: "api repos/", stdout: JSON.stringify(comparison) },
   ])
 }
@@ -264,6 +265,7 @@ export const cases = () => {
       { match: "pr edit 200 --body-file -", stdout: "", removePath: marker },
       { match: "pr view", stdout: JSON.stringify({ baseRefName: "main", baseRefOid: "base-sha", headRefOid: pushed.head, isDraft: false, statusCheckRollup: [{ __typename: "CheckRun", name: "Lint", workflowName: "Guards", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-06T10:00:00Z" }] }) },
       { match: "branches/main/protection/required_status_checks", stdout: JSON.stringify({ contexts: ["Lint"] }) },
+      { match: "run list --workflow guards.yml", stdout: JSON.stringify([{ databaseId: 10, createdAt: "2026-08-06T09:00:00Z", headSha: pushed.head, status: "completed", conclusion: "success" }]) },
       { match: "api repos/", stdout: JSON.stringify({ behind_by: 0 }) },
     ]) },
   )
@@ -273,15 +275,18 @@ export const cases = () => {
     TOOL,
     "the next codex-only invocation cannot reuse pre-edit checks before replacements register",
     ["--issue", ISSUE, "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui", "--codex-only"],
-    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"post-edit Lint"/ },
-    { path: testedToolPath, env: ghPlan(JSON.stringify([markedBody]), 0, rollup([{ __typename: "CheckRun", name: "Lint", workflowName: "Guards", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-06T10:00:00Z" }]), { behind_by: 0 }) },
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"post-edit Guards workflow"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([markedBody]), 0, rollup([{ __typename: "CheckRun", name: "Lint", workflowName: "Guards", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-06T10:00:00Z" }]), { behind_by: 0 }, null, [{ databaseId: 10, createdAt: "2026-08-06T09:00:00Z", headSha: pushed.head, status: "completed", conclusion: "success" }]) },
   )
   check(
     TOOL,
     "a later codex-only invocation settles after the replacement Guards checks register",
     ["--issue", ISSUE, "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui", "--codex-only"],
     { status: 0, stdout: /"verdict": "DELIVERED"/ },
-    { path: testedToolPath, env: ghPlan(JSON.stringify([markedBody]), 0, rollup([{ __typename: "CheckRun", name: "Lint", workflowName: "Guards", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-08T10:00:00Z" }]), { behind_by: 0 }) },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([markedBody]), 0, rollup([{ __typename: "CheckRun", name: "Lint", workflowName: "Guards", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2099-08-08T10:00:00Z" }]), { behind_by: 0 }, null, [
+      { databaseId: 10, createdAt: "2026-08-06T09:00:00Z", headSha: pushed.head, status: "completed", conclusion: "success" },
+      { databaseId: 11, createdAt: "2099-08-08T09:00:00Z", headSha: pushed.head, status: "completed", conclusion: "success" },
+    ]) },
   )
 
   /**

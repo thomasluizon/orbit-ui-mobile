@@ -126,6 +126,22 @@ try {
     fail(`git common-directory read for PR ${prNumber} failed: ${redactSecrets(detail.trim())}`)
   }
   const bodyEditMarkerPath = bodyEditInvalidationPath({ worktree: repoRoot, gitCommonDirectory: gitCommon.stdout.trim(), prNumber })
+  const guardsWorkflowRead = await runBounded(
+    process.env.GH_BIN || "gh",
+    ["run", "list", "--repo", repository, "--workflow", "guards.yml", "--commit", live.headRefOid, "--limit", "100", "--json", "databaseId,createdAt,headSha,status,conclusion"],
+    { cwd: repoRoot, env: githubAuth.environment, timeoutMs: 45000 },
+  )
+  if (guardsWorkflowRead.timedOut) fail(`Guards workflow inventory for PR ${prNumber} timed out after 45s; the complete child process tree was terminated`)
+  if (guardsWorkflowRead.error || guardsWorkflowRead.status !== 0) {
+    const detail = guardsWorkflowRead.stderr || guardsWorkflowRead.stdout || guardsWorkflowRead.error?.message || `exit ${guardsWorkflowRead.status}`
+    fail(`Guards workflow inventory for PR ${prNumber} failed: ${redactSecrets(detail.trim(), githubAuth.secrets)}`)
+  }
+  let guardsWorkflowRuns
+  try {
+    guardsWorkflowRuns = JSON.parse(guardsWorkflowRead.stdout)
+  } catch {
+    fail(`Guards workflow inventory for PR ${prNumber} returned unparseable JSON`)
+  }
   let bodyEditMarker
   try {
     bodyEditMarker = readBodyEditInvalidation(bodyEditMarkerPath)
@@ -140,7 +156,7 @@ try {
     bodyEditMarker = null
   }
   if (bodyEditMarker) {
-    bodyEditCiInvalidated = pendingBodyEditGuards(bodyEditMarker, live.statusCheckRollup).length > 0
+    bodyEditCiInvalidated = pendingBodyEditGuards(bodyEditMarker, guardsWorkflowRuns).length > 0
     if (!bodyEditCiInvalidated) clearBodyEditInvalidation(bodyEditMarkerPath)
   }
   const requiredRead = await runBounded(
@@ -177,6 +193,7 @@ try {
         headSha: live.headRefOid,
         baseSha: live.baseRefOid,
         statusCheckRollup: live.statusCheckRollup,
+        guardsWorkflowRuns,
       })
       const edited = await runBounded(
         process.env.GH_BIN || "gh",
@@ -250,6 +267,7 @@ const receipt = {
     rubricBaseOid: review.rubricBaseOid,
     rubricArtifactPath: review.rubricArtifactPath,
     findings: review.findings,
+    frozenFindingIds: review.frozenFindingIds,
     headSha: review.reviewedHeadOid,
     baseSha: review.baseSha,
   },

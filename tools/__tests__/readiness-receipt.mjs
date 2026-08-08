@@ -41,6 +41,10 @@ export const cases = () => {
   T(`${TOOL}: a CLEAN string cannot hide an OPEN frozen blocker`, readinessReport(openBlocker).verdicts.includes("REVIEW_STALE"))
   const malformedBlocker = { ...receipt, independentReview: { ...receipt.independentReview, findings: [{ id: "F1", blocking: "false", status: "CLOSED" }] } }
   T(`${TOOL}: a non-boolean blocker flag is REVIEW_STALE`, readinessReport(malformedBlocker).verdicts.includes("REVIEW_STALE"))
+  const droppedRoundTwoBlockers = { ...receipt, independentReview: { ...receipt.independentReview, rounds: 2, findings: [], frozenFindingIds: [] } }
+  T(`${TOOL}: round two cannot erase the frozen round-one blocker list`, readinessReport(droppedRoundTwoBlockers).verdicts.includes("REVIEW_STALE"))
+  const closedRoundTwo = { ...receipt, independentReview: { ...receipt.independentReview, rounds: 2, frozenFindingIds: ["F1"], findings: [{ id: "F1", blocking: true, status: "CLOSED" }] } }
+  T(`${TOOL}: round two is clean when every preserved frozen blocker is closed`, readinessReport(closedRoundTwo).verdict === "READY")
   const staleRubric = { ...receipt, independentReview: { ...receipt.independentReview, rubricBaseOid: BASE_B } }
   T(`${TOOL}: a rubric snapshot from another base is REVIEW_STALE`, readinessReport(staleRubric).verdicts.includes("REVIEW_STALE"))
 
