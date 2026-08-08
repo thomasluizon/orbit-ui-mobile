@@ -542,7 +542,8 @@ the run asked Thomas. **A harness converting its own gap into an interruption is
   files, including `.orca/`, remain source.
 - **Run the caller-specified touched-workspace test in the worktree and persist its successful
   command, exit code, head and timestamp receipt. Only then stage every intended path by name,
-  commit, push, and open or update the pull request.** Broad staging (`git add -A`, `git add --all`,
+  commit, push, and open or update the pull request.** Before testing, salvage proves the checked-out
+  symbolic branch exactly matches `--branch` and refuses protected `main`. Broad staging (`git add -A`, `git add --all`,
   `git add -u`, `git add --update`, dot, wildcard, or non-literal magic pathspecs) is forbidden by
   both the prompt and command hook. Use Git's literal pathspec mode for explicit names containing
   pathspec metacharacters.

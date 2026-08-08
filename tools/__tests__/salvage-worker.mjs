@@ -43,6 +43,18 @@ export const cases = () => {
     "failed test reached the remote",
   )
 
+  const wrongBranch = stageRepo("salvage-worker-wrong-branch")
+  if (wrongBranch?.git(["switch", "-q", "-c", "feature/actual"]).status === 0) {
+    writeFileSync(join(wrongBranch.path, "wrong.txt"), "must remain local\n")
+    const wrongBranchStaged = stageWithConfig("salvage-worker-wrong-branch", TOOL, { ...config, repos: { ...config.repos, ui: wrongBranch.path } })
+    const wrongCommon = ["--issue", "ORB-250", "--repo", "ui", "--worktree", wrongBranch.path, "--run-root", wrongBranch.path, "--test-command", failedOrder, "--test-receipt", receipt, "--message", "never", "--path", "wrong.txt"]
+    check(TOOL, "a stale salvage branch is rejected before testing or pushing", [...wrongCommon, "--branch", "feature/other"], { status: 2, stderr: /must exactly match.*feature\/actual.*feature\/other/ }, { path: wrongBranchStaged.path })
+    check(TOOL, "the protected main branch is rejected before testing or pushing", [...wrongCommon, "--branch", "main"], { status: 2, stderr: /may not name the protected main branch/ }, { path: wrongBranchStaged.path })
+    T(`${TOOL}: branch refusal leaves the salvage change uncommitted`, wrongBranch.git(["rev-list", "--count", "main..HEAD"]).stdout.trim() === "0", "wrong branch reached a commit")
+  } else {
+    T(`${TOOL}: wrong-branch salvage fixture is available`, false, "could not create branch")
+  }
+
   const passedOrder = stage("salvage-worker/pass-command.json", JSON.stringify({ command: process.execPath, args: ["-e", "process.exit(0)"] }))
   const passed = check(
     TOOL,
@@ -156,6 +168,7 @@ export const cases = () => {
   }
 
   const second = stageRepo("salvage-worker-broad")
+  second?.git(["switch", "-q", "-c", "feature/salvage"])
   const broadStaged = stageWithConfig("salvage-worker-broad", TOOL, config)
   for (const broad of [".", "sub/..", ":(glob)**"]) {
     check(
@@ -177,6 +190,7 @@ export const cases = () => {
   }
 
   const literal = stageRepo("salvage-worker-literal")
+  literal?.git(["switch", "-q", "-c", "feature/salvage"])
   const route = "apps/web/app/api/[...path]/route.ts"
   mkdirSync(join(literal.path, "apps", "web", "app", "api", "[...path]"), { recursive: true })
   writeFileSync(join(literal.path, route), "export const route = true\n")

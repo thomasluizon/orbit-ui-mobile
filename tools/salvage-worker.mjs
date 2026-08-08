@@ -95,6 +95,9 @@ const git = async (args) => {
 let testedHead = null
 try {
   testedHead = (await git(["rev-parse", "HEAD"])).trim()
+  const currentBranch = (await git(["symbolic-ref", "--quiet", "--short", "HEAD"])).trim()
+  if (["main", "refs/heads/main"].includes(branch)) fail(2, `--branch may not name the protected main branch: ${branch}`)
+  if (currentBranch !== branch) fail(2, `--branch must exactly match the worktree's checked-out branch (expected ${currentBranch}, received ${branch})`)
 } catch (error) {
   fail(2, `worktree is not a readable git checkout: ${error.message}`)
 }
