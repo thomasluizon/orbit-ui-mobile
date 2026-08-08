@@ -258,20 +258,41 @@ try {
     fail(`Linear issue ${delivery.issue} failed: ${redactSecrets(detail.trim())}`)
   }
   liveLinear = JSON.parse(linearRead.stdout)?.result?.issue
-  const finalIdentityRead = await runBounded(
+  const closingPrRead = await runBounded(
     process.env.GH_BIN || "gh",
-    ["pr", "view", String(prNumber), "--repo", repository, "--json", "number,baseRefOid,headRefOid,isDraft"],
+    ["pr", "view", String(prNumber), "--repo", repository, "--json", "number,baseRefName,baseRefOid,headRefOid,isDraft,body,statusCheckRollup"],
     { cwd: repoRoot, env: githubAuth.environment, timeoutMs: 45000 },
   )
-  if (finalIdentityRead.timedOut) fail(`final PR identity read for ${prNumber} timed out after 45s; the complete child process tree was terminated`)
-  if (finalIdentityRead.error || finalIdentityRead.status !== 0) {
-    const detail = finalIdentityRead.stderr || finalIdentityRead.stdout || finalIdentityRead.error?.message || `exit ${finalIdentityRead.status}`
-    fail(`final PR identity read for ${prNumber} failed: ${redactSecrets(detail.trim(), githubAuth.secrets)}`)
+  if (closingPrRead.timedOut) fail(`closing PR state read for ${prNumber} timed out after 45s; the complete child process tree was terminated`)
+  if (closingPrRead.error || closingPrRead.status !== 0) {
+    const detail = closingPrRead.stderr || closingPrRead.stdout || closingPrRead.error?.message || `exit ${closingPrRead.status}`
+    fail(`closing PR state read for ${prNumber} failed: ${redactSecrets(detail.trim(), githubAuth.secrets)}`)
   }
-  const finalIdentity = JSON.parse(finalIdentityRead.stdout)
-  if (finalIdentity?.number !== prNumber || finalIdentity.baseRefOid !== live.baseRefOid || finalIdentity.headRefOid !== live.headRefOid || finalIdentity.isDraft !== live.isDraft) {
+  const closingLive = JSON.parse(closingPrRead.stdout)
+  if (
+    closingLive?.number !== prNumber ||
+    closingLive.baseRefOid !== live.baseRefOid ||
+    closingLive.headRefOid !== live.headRefOid ||
+    closingLive.isDraft !== live.isDraft ||
+    closingLive.baseRefName !== live.baseRefName ||
+    typeof closingLive.body !== "string" ||
+    !Array.isArray(closingLive.statusCheckRollup)
+  ) {
     fail(`pull request ${prNumber} changed while readiness was being aggregated; rerun every final-head receipt`)
   }
+  const closingBotRead = await runBounded(
+    process.execPath,
+    [LIST_BOT_THREADS, "--pr", String(prNumber), "--repo", repoKey, "--wait-seconds", "0", "--poll-seconds", "1", "--command-timeout-seconds", "45", "--no-request"],
+    { cwd: repoRoot, env: githubAuth.environment, timeoutMs: 60000 },
+  )
+  if (closingBotRead.timedOut) fail(`closing connector read for PR ${prNumber} timed out after 60s; the complete child process tree was terminated`)
+  if (closingBotRead.error || ![0, 1].includes(closingBotRead.status)) {
+    const detail = closingBotRead.stderr || closingBotRead.stdout || closingBotRead.error?.message || `exit ${closingBotRead.status}`
+    fail(`closing connector read for PR ${prNumber} failed: ${redactSecrets(detail.trim(), githubAuth.secrets)}`)
+  }
+  live = closingLive
+  liveCiGreen = readinessCiIsGreen(closingLive.statusCheckRollup, requiredContexts)
+  liveBot = JSON.parse(closingBotRead.stdout)
 } catch (error) {
   fail(`could not revalidate live pull request ${prNumber}: ${redactSecrets(error.message)}`)
 }

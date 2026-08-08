@@ -158,8 +158,10 @@ const workerStaging = (command) => checkBroadStaging(command, { cwd: linkedWorkt
 for (const command of [
   "git add -A",
   "git add --all",
+  "git add --a",
   "git add -u",
   "git add --update",
+  "git add --up",
   "git add .",
   "git add -- .",
   "git add \".\"",

@@ -35,18 +35,23 @@ export const cases = () => {
       : []
     const initialIdentity = { number: 700, baseRefName: "main", baseRefOid, headRefOid, isDraft: false, body, statusCheckRollup: options.statusCheckRollup ?? [greenCheck] }
     const finalIdentity = options.finalIdentity ?? initialIdentity
+    const graphqlResponse = (state, threads) => JSON.stringify({ data: { repository: { pullRequest: {
+      number: 700, isDraft: false, baseRefOid, headRefOid,
+      reviews: { nodes: [{ author: { login: "chatgpt-codex-connector" }, state, submittedAt: "2026-08-07T10:00:00Z", body: "", commit: { oid: headRefOid } }] },
+      comments: { nodes: [] },
+      reviewThreads: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: threads },
+    } } } })
+    const finalReviewState = options.finalReviewState ?? reviewState
+    const finalReviewThreads = options.finalOpenThread
+      ? [{ id: "PRRT_final_open", isResolved: false, isOutdated: false, path: "tools/y.mjs", line: 2, comments: { nodes: [{ author: { login: "chatgpt-codex-connector" }, body: "P1 reopened" }] } }]
+      : reviewThreads
     return orcaEnv([
     { match: "auth token --user thomasluizon", stdout: "test-github-token" },
     { match: "pr view 700", stdout: JSON.stringify(initialIdentity), ...(options.identitySequenceFile ? { stdoutSequence: [JSON.stringify(initialIdentity), JSON.stringify(finalIdentity)], sequenceFile: options.identitySequenceFile } : {}) },
     { match: "pr edit 700", stdout: "" },
     { match: "run list --repo", stdout: JSON.stringify(options.guardsWorkflowRuns ?? [openedWorkflowRun]) },
     { match: "branches/main/protection/required_status_checks", stdout: JSON.stringify({ contexts: ["Lint"] }) },
-    { match: "api graphql", stdout: JSON.stringify({ data: { repository: { pullRequest: {
-      number: 700, isDraft: false, baseRefOid, headRefOid,
-      reviews: { nodes: [{ author: { login: "chatgpt-codex-connector" }, state: reviewState, submittedAt: "2026-08-07T10:00:00Z", body: "", commit: { oid: headRefOid } }] },
-      comments: { nodes: [] },
-      reviewThreads: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: reviewThreads },
-    } } } }) },
+    { match: "api graphql", stdout: graphqlResponse(reviewState, reviewThreads), ...(options.botSequenceFile ? { stdoutSequence: [graphqlResponse(reviewState, reviewThreads), graphqlResponse(finalReviewState, finalReviewThreads)], sequenceFile: options.botSequenceFile } : {}) },
     { match: "api repos/", stdout: JSON.stringify({ behind_by: behindBy }) },
     { match: "linear issue ORB-700 --full --json", stdout: JSON.stringify({ id: "linear-read", ok: true, result: { issue: { identifier: "ORB-700", state: linearState, labels } } }) },
     ])
@@ -80,6 +85,12 @@ export const cases = () => {
   T(`${TOOL}: live compare reports the current behind count`, /"behindBy": 1/.test(behind.stdout), behind.stdout)
   const finalIdentitySequence = stage("record-readiness/final-identity-sequence.txt", "0")
   check(TOOL, "a head change during aggregation is refused before the readiness receipt is written", argv, { status: 2, stderr: /changed while readiness was being aggregated/ }, { path: staged.path, env: live(HEAD, BASE, 0, "Implements ORB-700", { name: "In Review", type: "started" }, [], { identitySequenceFile: finalIdentitySequence, finalIdentity: { number: 700, baseRefOid: advancedBase, headRefOid: HEAD, isDraft: false } }) })
+  const closingCiSequence = stage("record-readiness/closing-ci-sequence.txt", "0")
+  check(TOOL, "a failed CI rerun during aggregation is caught by the closing read", argv, { status: 1, stdout: /CI_STALE/ }, { path: staged.path, env: live(HEAD, BASE, 0, "Implements ORB-700", { name: "In Review", type: "started" }, [], { identitySequenceFile: closingCiSequence, finalIdentity: { number: 700, baseRefName: "main", baseRefOid: BASE, headRefOid: HEAD, isDraft: false, body: "Implements ORB-700", statusCheckRollup: [failedRerun] } }) })
+  const closingBotSequence = stage("record-readiness/closing-bot-sequence.txt", "0")
+  check(TOOL, "a connector dismissal during aggregation is caught by the closing read", argv, { status: 1, stdout: /BOT_REVIEW_STALE/ }, { path: staged.path, env: live(HEAD, BASE, 0, "Implements ORB-700", { name: "In Review", type: "started" }, [], { botSequenceFile: closingBotSequence, finalReviewState: "DISMISSED" }) })
+  const closingThreadSequence = stage("record-readiness/closing-thread-sequence.txt", "0")
+  check(TOOL, "a thread reopened during aggregation is caught by the closing read", argv, { status: 1, stdout: /THREADS_OPEN/ }, { path: staged.path, env: live(HEAD, BASE, 0, "Implements ORB-700", { name: "In Review", type: "started" }, [], { botSequenceFile: closingThreadSequence, finalOpenThread: true }) })
 
   const staleBot = stage("record-readiness/stale-bot.json", JSON.stringify({ pr: 700, verdict: "REVIEWED", reviewedCommit: BASE, baseRefOid: BASE, headRefOid: HEAD, threadsComplete: true, counts: { unresolved: 0 }, threads: [] }))
   check(TOOL, "a connector review pinned to another commit is BOT_REVIEW_STALE", [...argv.slice(0, -4), "--bot", staleBot, "--linear", linear], { status: 1, stdout: /BOT_REVIEW_STALE/ }, { path: staged.path, env: live() })

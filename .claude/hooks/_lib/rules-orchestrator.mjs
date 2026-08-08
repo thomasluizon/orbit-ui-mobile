@@ -40,6 +40,7 @@ const HTTPIE_BINARIES = new Set(["http", "https", "httpie"])
 const BARE_PUT = /(?<![\w-])PUT(?![\w-])/
 const SHELL_WORD = /"[^"]*"|'[^']*'|\S+/g
 const BROAD_ADD_FLAGS = new Set(["-A", "--all", "-u", "--update", "--renormalize"])
+const BROAD_ADD_LONG_FLAGS = ["--all", "--update", "--renormalize"]
 const COMMIT_VALUE_FLAGS = new Set(["-m", "--message", "-F", "--file", "-C", "--reuse-message", "-c", "--reedit-message", "--author", "--date", "--cleanup", "--trailer", "--fixup", "--squash"])
 const BROAD_COMMIT_LONG_FLAGS = ["--all", "--interactive", "--patch", "--pathspec-from-file", "--pathspec-file-nul"]
 
@@ -213,7 +214,11 @@ export function checkBroadStaging(command, { env = {}, cwd = "", repoRoots = [] 
         continue
       }
       if (!afterSeparator && argument.startsWith("-")) {
-        if (BROAD_ADD_FLAGS.has(argument) || /^-[^-]*[Au][^-]*$/.test(argument)) broad = true
+        if (
+          BROAD_ADD_FLAGS.has(argument) ||
+          /^-[^-]*[Au][^-]*$/.test(argument) ||
+          (argument.startsWith("--") && BROAD_ADD_LONG_FLAGS.some((flag) => flag.startsWith(argument)))
+        ) broad = true
         // Git accepts unambiguous long-option abbreviations (measured: --pathspec-from-f), so
         // matching only the documented full spelling leaves the same indirect staging bypass.
         if (argument.startsWith("--pathspec")) broad = true
