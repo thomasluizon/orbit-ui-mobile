@@ -50,7 +50,7 @@ function resolvePerformanceMeasurement(input) {
       const select = /^\s*select\s+([\s\S]+?)\s+from\s+/i.exec(entry.queryShape)?.[1]
       const projectionColumns = select ? select.split(',').length : null
       const userScoped = /[".]UserId\b/i.test(entry.queryShape)
-      const bounded = /\b(?:limit|offset|fetch\s+(?:first|next))\b/i.test(entry.queryShape)
+      const bounded = /\b(?:limit|fetch\s+(?:first|next))\b/i.test(entry.queryShape)
       const signals = []
       if (userScoped && !bounded) signals.push('unbounded-user-list')
       if (table?.columnCount && projectionColumns >= table.columnCount) signals.push('full-entity-projection')
@@ -297,6 +297,17 @@ function resolveSurfaces(kind, scope) {
   if (!scope || scope === 'both') return all
   if (['api', 'backend'].includes(scope)) return all.filter((s) => ['api', 'both'].includes(surfaceRepos(s)))
   if (['ui', 'web', 'mobile', 'frontend'].includes(scope)) return all.filter((s) => ['ui', 'both'].includes(surfaceRepos(s)))
+  const normalizedScope = String(scope).replaceAll('\\', '/').toLowerCase()
+  const pathRepo = normalizedScope.includes('/orbit-api/') || /^(?:\.\/)?(?:src|tests)\//.test(normalizedScope)
+    ? 'api'
+    : normalizedScope.includes('/orbit-ui-mobile/') || /^(?:\.\/)?(?:apps|packages|tools|\.claude|\.github)\//.test(normalizedScope)
+      ? 'ui'
+      : null
+  if (pathRepo) {
+    return all
+      .filter((s) => [pathRepo, 'both'].includes(surfaceRepos(s)))
+      .map((s) => ({ ...s, where: `${s.where} — but ONLY within the path "${scope}"` }))
+  }
   return all.map((s) => ({ ...s, where: `${s.where} — but ONLY within the path "${scope}"` }))
 }
 
@@ -403,6 +414,9 @@ if (kind === 'performance' && surfaces.some(isApiSurface)) {
       { label: 'find:measured-hotpaths', phase: 'Measure', model: 'haiku', agentType: 'audit-readonly', schema: MEASURED_FINDINGS_SCHEMA },
     )
     measurementFinderFailed = !measuredResult
+    if (measurementFinderFailed) {
+      throw new Error('audit workflow: measured production hot paths could not be mapped to API source')
+    }
     measuredFindings = attachPerformanceMetrics(measuredResult?.findings || [], performanceMeasurement)
   } else {
     log(`measurement unavailable: CODE_ONLY (${performanceMeasurement.reason})`)

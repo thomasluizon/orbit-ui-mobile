@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
+import { runInNewContext } from "node:vm"
 
 import { REPO_ROOT, T } from "./_harness.mjs"
 import {
@@ -63,6 +64,48 @@ export const cases = () => {
   const scopeResolutionIndex = auditWorkflow.indexOf("const surfaces = resolveSurfaces(kind, scope)")
   const scopedMeasurementIndex = auditWorkflow.indexOf("if (kind === 'performance' && surfaces.some(isApiSurface))")
   T("performance-measurement: requested scope is applied before API hot paths are measured", scopeResolutionIndex >= 0 && scopedMeasurementIndex > scopeResolutionIndex)
+  const scopeFunctions = auditWorkflow.slice(
+    auditWorkflow.indexOf("const isApiSurface"),
+    auditWorkflow.indexOf("function finderPrompt"),
+  )
+  const uiPathReachesApiSurface = runInNewContext(
+    `${scopeFunctions}\nresolveSurfaces('performance', 'apps/web/hooks/use-habits.ts').some(isApiSurface)`,
+    {
+      KIND: {
+        performance: {
+          surfaces: [
+            { label: "api-queries", where: "orbit-api queries" },
+            { label: "fe-web", where: "apps/web" },
+          ],
+        },
+      },
+    },
+  )
+  T("performance-measurement: a UI path scope excludes API hot-path measurement", !uiPathReachesApiSurface)
+  T(
+    "performance-measurement: a failed measured hot-path mapping fails the audit with a named reason",
+    auditWorkflow.includes("measured production hot paths could not be mapped to API source"),
+  )
+
+  const measurementFunctions = auditWorkflow.slice(
+    auditWorkflow.indexOf("const PERFORMANCE_MONTH_DAYS"),
+    auditWorkflow.indexOf("function performanceMeasurementPrompt"),
+  )
+  const offsetOnlyIsBounded = runInNewContext(
+    `${measurementFunctions}\nresolvePerformanceMeasurement({
+      status: 'available',
+      windowDays: 1,
+      queryStats: [{
+        queryId: 'offset-only',
+        rootTable: 'Habits',
+        calls: 1,
+        rows: 10,
+        bytesPerRow: 10,
+        queryShape: 'SELECT h."Id" FROM "Habits" h WHERE h."UserId" = $1 OFFSET $2',
+      }],
+    }).rowsRanking[0].bounded`,
+  )
+  T("performance-measurement: OFFSET without a row limit is not bounded", !offsetOnlyIsBounded)
 
   const measurement = resolvePerformanceMeasurement(availableInput())
   T("performance-measurement: an available sample produces a measured verdict", measurement.verdict === "MEASURED")

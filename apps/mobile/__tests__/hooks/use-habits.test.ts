@@ -782,6 +782,7 @@ describe('mobile habit hooks', () => {
     expect(gamification.totalXp).toBe(125)
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
     expect(mocks.checkAllDoneCelebration).toHaveBeenCalled()
   })
 

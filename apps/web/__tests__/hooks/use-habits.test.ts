@@ -774,7 +774,7 @@ describe('useLogHabit onSuccess', () => {
     expect(mockedLogHabit).toHaveBeenCalled()
   })
 
-  it('refreshes linked-goal and gamification caches after a completion changes them', async () => {
+  it('refreshes linked-goal, gamification, and profile caches after a completion awards XP', async () => {
     const { logHabit } = await import('@/app/actions/habits')
     const mockedLogHabit = vi.mocked(logHabit)
     mockedLogHabit.mockResolvedValue({
@@ -809,6 +809,7 @@ describe('useLogHabit onSuccess', () => {
 
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: profileKeys.all })
   })
 
   it('handles gamification XP in response', async () => {

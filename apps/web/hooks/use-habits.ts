@@ -152,6 +152,7 @@ export function useLogHabit() {
           if (!old) return old
           return { ...old, totalXp: old.totalXp + (response.xpEarned ?? 0) }
         })
+        void queryClient.invalidateQueries({ queryKey: profileKeys.all })
       }
 
       if (countsTowardStreak && (
