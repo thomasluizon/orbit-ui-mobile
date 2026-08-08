@@ -85,11 +85,16 @@ Technical details, Affected modules / files, Acceptance criteria, Test scenarios
 Rollout/kill-switch and Events/metrics where risk or measurement exists. Standing rules, each one a
 defect if violated:
 
-- One ticket = one repo = one reviewable PR, under 400 lines (D4), 5 points or less; bigger splits.
-- **NEVER write a `CAPS-OVERRIDE:` line into a body.** That marker lifts /orchestrate's file or line
-  cap and only Thomas may author one, in the description, after the fact. A ticket you believe cannot
-  fit the caps is a ticket you SPLIT, or one you hand him at phase D saying it cannot be split and
-  why. A skill that could emit the marker would let the thing being capped lift its own cap.
+- One ticket = one repo = one coherent, independently mergeable PR. Normally design small tickets
+  that a reviewer can understand in one sitting, and split separable behavior or deployment
+  boundaries. File and line estimates are planning signals, never correctness or delivery rules.
+- Estimate mandatory generated artifacts as part of the ticket: architecture artifacts with their
+  route/module source, EF migrations and generated Designer output with the model change, generated
+  contracts with their schema, and required lockfiles or codemod output. Never split those artifacts
+  away from the change that requires them.
+- Do not split one atomic behavior merely to satisfy a numeric threshold. Arbitrary splits must not
+  produce incomplete behavior, temporary bypasses, broken drift gates, unused foundations, or a
+  migration detached from its model change.
 - Exactly one `repo:*` label and exactly one type: `Bug` where current behaviour contradicts
   intended behaviour, `Feature` for a new user or system capability, `Improvement` for a chore,
   refactor, tooling task, or docs task. Never infer the type silently.

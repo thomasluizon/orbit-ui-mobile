@@ -77,6 +77,25 @@ export const stage = (relativePath, body) => {
   return path
 }
 
+/** `kill(pid, 0)` also succeeds for a defunct child on Linux. A zombie has terminated and cannot
+ * retain work or ports, so process-tree assertions must not call it alive while PID 1 delays reaping. */
+export const processIsRunning = (pid) => {
+  if (!Number.isInteger(pid) || pid <= 0) return false
+  try {
+    process.kill(pid, 0)
+  } catch {
+    return false
+  }
+  if (process.platform !== "linux") return true
+  try {
+    const stat = readFileSync(`/proc/${pid}/stat`, "utf8")
+    const stateOffset = stat.lastIndexOf(") ") + 2
+    return stat.slice(stateOffset, stateOffset + 1) !== "Z"
+  } catch {
+    return false
+  }
+}
+
 /**
  * The PATH `bash` on Windows is the WSL stub, which fails with no such file. Resolve
  * a real one and fail loudly rather than skipping every .sh tool.
@@ -84,12 +103,15 @@ export const stage = (relativePath, body) => {
 export const resolveBash = () => {
   const candidates = [
     process.env.ORBIT_BASH,
-    "bash",
+    // On Windows the PATH `bash` may be the WSL app-execution alias. Its `--version` probe can
+    // wait forever and spawn a child that outlives a killed test runner. Known Git Bash paths are
+    // deterministic and do not cross that alias. POSIX keeps the ordinary PATH lookup.
+    process.platform === "win32" ? null : "bash",
     "C:\\Program Files\\Git\\bin\\bash.exe",
     "C:\\Program Files\\Git\\usr\\bin\\bash.exe",
   ].filter(Boolean)
   for (const candidate of candidates) {
-    const probe = spawnSync(candidate, ["--version"], { encoding: "utf8" })
+    const probe = spawnSync(candidate, ["--version"], { encoding: "utf8", timeout: 5000, windowsHide: true })
     if (!probe.error && probe.status === 0) return candidate
   }
   return null
@@ -174,6 +196,9 @@ const linearEnvelopeName = (command, response) => {
 const assertOrcaLinearStub = (entry, stdout) => {
   const command = String(entry.match)
   if (!/\blinear\s+/.test(command)) return
+  // A write whose caller branches only on the exit code has no response field to prove. Keeping
+  // stdout empty is stronger than inventing a success object that the real CLI may never emit.
+  if (entry.ignoreLinearShape === true && stdout === "") return
   let response
   let parsedJson = false
   try {
@@ -202,7 +227,8 @@ const assertOrcaLinearStub = (entry, stdout) => {
  */
 export const ORCA_SHIM = stage(
   "orca-shim.cjs",
-  `const { existsSync, rmSync } = require("node:fs")
+  `const { existsSync, readFileSync, rmSync, writeFileSync } = require("node:fs")
+const { spawn } = require("node:child_process")
 const argv = process.argv.slice(1)
 if (argv[0] && existsSync(argv[0])) return
 const line = argv.join(" ")
@@ -213,7 +239,19 @@ if (!match) {
   process.exit(9)
 }
 if (match.removePath) rmSync(match.removePath, { recursive: true, force: true })
-process.stdout.write(match.stdout)
+if (match.hangTreePidFile) {
+  const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" })
+  writeFileSync(match.hangTreePidFile, String(child.pid))
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0)
+}
+if (Array.isArray(match.stdoutSequence) && match.sequenceFile) {
+  const index = existsSync(match.sequenceFile) ? Number(readFileSync(match.sequenceFile, "utf8")) : 0
+  const selected = match.stdoutSequence[Math.min(index, match.stdoutSequence.length - 1)]
+  writeFileSync(match.sequenceFile, String(index + 1))
+  process.stdout.write(selected)
+} else {
+  process.stdout.write(match.stdout)
+}
 process.exit(match.exit ?? 0)
 `,
 )

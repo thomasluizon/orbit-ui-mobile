@@ -1,11 +1,12 @@
-import { mkdirSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
-import { T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
+import { T, check, orcaEnv, processIsRunning, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
 
 const TOOL = "verify-delivery.mjs"
 const BRANCH = "feature/orb-200-delivery"
 const ISSUE = "ORB-200"
+let testedToolPath = null
 
 /**
  * A real git repository is the whole point: this tool exists because a worker's own report is not
@@ -54,30 +55,54 @@ const pullRequest = (headRefOid, additions = 10, deletions = 5, number = 200, ch
 const rollup = (nodes = [{ __typename: "CheckRun", name: "Lint", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-06T10:00:00Z" }]) =>
   JSON.stringify({ statusCheckRollup: nodes })
 
-const ticketEnvelope = (description) => JSON.stringify({ id: "envelope-orb-200", ok: true, result: { issue: { identifier: ISSUE, description } } })
-
-const ghPlan = (stdout, exit = 0, checks = rollup(), description = null) =>
-  orcaEnv([
+const ghPlan = (stdout, exit = 0, checks = rollup(), comparison = { behind_by: 0 }, requiredContexts = null, workflowRuns = []) => {
+  let headRefOid = "fixture-head"
+  try {
+    headRefOid = JSON.parse(stdout)?.[0]?.headRefOid ?? headRefOid
+  } catch {
+    /* the malformed-output tests fail before this state is read */
+  }
+  let state = {}
+  try {
+    state = JSON.parse(checks)
+  } catch {
+    state = {}
+  }
+  const required = requiredContexts ?? (state.statusCheckRollup ?? []).map((node) => node.name ?? node.context).filter(Boolean)
+  return orcaEnv([
+    { match: "auth token --user thomasluizon", stdout: "test-github-token" },
     { match: `pr list --head ${BRANCH}`, stdout, exit },
-    { match: "pr view", stdout: checks },
-    ...(description === null ? [] : [{ match: `linear issue ${ISSUE}`, stdout: ticketEnvelope(description) }]),
+    { match: "pr view", stdout: JSON.stringify({ baseRefName: "main", baseRefOid: "base-sha", headRefOid, isDraft: false, ...state }) },
+    { match: "branches/main/protection/required_status_checks", stdout: JSON.stringify({ contexts: required }) },
+    { match: "run list --workflow guards.yml", stdout: JSON.stringify(workflowRuns) },
+    { match: "api repos/", stdout: JSON.stringify(comparison) },
   ])
+}
 
 const verdictOf = (fixture, stdout, expected, status, name) =>
-  check(TOOL, name, ["--issue", "ORB-200", "--worktree", fixture.path, "--branch", BRANCH], { status, stdout: new RegExp(`"verdict": "${expected}"`) }, { env: ghPlan(stdout) })
+  check(TOOL, name, ["--issue", "ORB-200", "--worktree", fixture.path, "--branch", BRANCH, "--repo", "ui"], { status, stdout: new RegExp(`"verdict": "${expected}"`) }, { path: testedToolPath, env: ghPlan(stdout) })
 
 export const cases = () => {
   check(TOOL, "refuses a missing issue", ["--worktree", ".", "--branch", BRANCH], { status: 2, stderr: /--issue must be a Linear identifier/ })
   check(TOOL, "refuses a malformed issue", ["--issue", "orbit200", "--worktree", ".", "--branch", BRANCH], { status: 2, stderr: /--issue must be a Linear identifier/ })
   check(TOOL, "refuses a missing branch", ["--issue", "ORB-200", "--worktree", "."], { status: 2, stderr: /--branch requires a branch name/ })
+  check(TOOL, "refuses a missing repository", ["--issue", "ORB-200", "--worktree", ".", "--branch", BRANCH], { status: 2, stderr: /--repo requires a repository key/ })
   check(TOOL, "refuses an unknown option before doing any work", ["--issue", "ORB-200", "--worktree", ".", "--branch", BRANCH, "--force"], { status: 2, stderr: /unknown option\(s\): --force/ })
-  check(TOOL, "refuses a worktree that is a file rather than a directory", ["--issue", "ORB-200", "--worktree", stage("verify-delivery/not-a-directory", "x"), "--branch", BRANCH], { status: 2, stderr: /--worktree does not name a directory/ })
+  check(TOOL, "refuses a worktree that is a file rather than a directory", ["--issue", "ORB-200", "--worktree", stage("verify-delivery/not-a-directory", "x"), "--branch", BRANCH, "--repo", "ui"], { status: 2, stderr: /--worktree does not name a directory/ })
 
   const nothing = stageDelivery("no-commit", { commit: false })
   if (!nothing) {
     T(`${TOOL}: real git fixtures are available`, false, "could not stage a git repository with a bare origin")
     return
   }
+  const githubContext = stageRepo("verify-delivery-github-context")
+  if (!githubContext || githubContext.git(["remote", "set-url", "origin", "https://github.com/thomasluizon/orbit-ui-mobile.git"]).status !== 0) {
+    T(`${TOOL}: a repository-qualified GitHub context fixture is available`, false, "could not stage GitHub context")
+    return
+  }
+  const hermeticConfig = realOrchestratorConfig()
+  hermeticConfig.repos = { ...hermeticConfig.repos, ui: githubContext.path }
+  testedToolPath = stageWithConfig("verify-delivery-hermetic", TOOL, hermeticConfig).path
 
   /**
    * THE case. A worker that exits 0 having committed nothing must be caught here and nowhere else:
@@ -117,6 +142,29 @@ export const cases = () => {
     /"allDiscardable": true/.test(residueResult.stdout) && /next-env\.d\.ts/.test(residueResult.stdout) && /"source": \[\]/.test(residueResult.stdout),
     residueResult.stdout,
   )
+
+  const orcaResidue = stageDelivery("dirty-orca-residue", { dirty: [".orca/web-port"] })
+  const orcaResidueResult = verdictOf(orcaResidue, JSON.stringify([pullRequest(orcaResidue.head)]), "DIRTY_TREE", 1, "untracked .orca runtime residue is DIRTY_TREE but discardable")
+  T(`${TOOL}: untracked .orca residue is discardable`, /"allDiscardable": true/.test(orcaResidueResult.stdout) && /\.orca\/web-port/.test(orcaResidueResult.stdout), orcaResidueResult.stdout)
+
+  const trackedOrca = stageRepo("verify-delivery-tracked-orca")
+  if (trackedOrca && trackedOrca.git(["switch", "-q", "-c", BRANCH]).status === 0) {
+    mkdirSync(join(trackedOrca.path, ".orca"), { recursive: true })
+    writeFileSync(join(trackedOrca.path, ".orca", "source.json"), "committed source\n")
+    trackedOrca.git(["add", ".orca/source.json"])
+    trackedOrca.git(["commit", "-q", "-m", "the ticket's real work"])
+    trackedOrca.git(["push", "-q", "-u", "origin", BRANCH])
+    writeFileSync(join(trackedOrca.path, ".orca", "source.json"), "unfinished source edit\n")
+    const head = trackedOrca.git(["rev-parse", "HEAD"]).stdout.trim()
+    const trackedOrcaResult = verdictOf({ ...trackedOrca, head }, JSON.stringify([pullRequest(head)]), "DIRTY_TREE", 1, "tracked .orca source is protected")
+    T(
+      `${TOOL}: tracked .orca is source and never discardable runtime residue`,
+      /"allDiscardable": false/.test(trackedOrcaResult.stdout) && /"source": \[\s*"\.orca\/source\.json"/.test(trackedOrcaResult.stdout),
+      trackedOrcaResult.stdout,
+    )
+  } else {
+    T(`${TOOL}: the tracked .orca fixture staged`, false, "could not stage a repository carrying tracked .orca source")
+  }
 
   /**
    * The repository has a TRACKED e2e suite, so `e2e/` cannot be discardable by path alone: a modified
@@ -163,18 +211,39 @@ export const cases = () => {
   verdictOf(unpushed, JSON.stringify([pullRequest(unpushed.head)]), "UNPUSHED", 1, "a commit that never reached origin is UNPUSHED")
 
   const pushed = stageDelivery("pushed")
+  const ghDescendantPidFile = stage("verify-delivery/gh-descendant.pid", "")
+  const hangingGh = run(
+    TOOL,
+    ["--issue", ISSUE, "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui", "--command-timeout-seconds", "1"],
+    { path: testedToolPath, env: orcaEnv([
+      { match: "auth token --user thomasluizon", stdout: "test-github-token" },
+      { match: `pr list --head ${BRANCH}`, stdout: "", hangTreePidFile: ghDescendantPidFile },
+    ]) },
+  )
+  const ghDescendantPid = Number(readFileSync(ghDescendantPidFile, "utf8"))
+  T(`${TOOL}: a hanging GitHub child is bounded with an explicit timeout`, hangingGh.status === 2 && /timed out after 1s/.test(hangingGh.stderr), hangingGh.stderr || hangingGh.stdout)
+  T(`${TOOL}: a timed-out GitHub child leaves no descendant process`, Number.isInteger(ghDescendantPid) && !processIsRunning(ghDescendantPid), `descendant ${ghDescendantPid} still alive`)
   verdictOf(pushed, "[]", "NO_PR", 1, "a pushed branch with no pull request is NO_PR")
   verdictOf(pushed, JSON.stringify([pullRequest(pushed.head), pullRequest(pushed.head, 1, 1, 201)]), "NO_PR", 1, "two pull requests on one branch is NO_PR rather than a silent pick")
   verdictOf(pushed, JSON.stringify([pullRequest("0000000000000000000000000000000000000000")]), "STALE_PR", 1, "a pull request head behind the local head is STALE_PR")
-  verdictOf(pushed, JSON.stringify([pullRequest(pushed.head, 300, 200)]), "OVERSIZE", 1, "a diff over the 400-line cap is OVERSIZE")
-  verdictOf(pushed, JSON.stringify([pullRequest(pushed.head, 200, 200)]), "DELIVERED", 0, "a diff exactly at the 400-line cap is DELIVERED")
+  const large = verdictOf(pushed, JSON.stringify([pullRequest(pushed.head, 500, 200, 200, 14)]), "DELIVERED", 0, "a 14-file 700-line valid pull request is DELIVERED without an override")
+  T(`${TOOL}: size is retained as advisory output without altering the verdict`, /"sizeAdvisory": \{[\s\S]*"changedFiles": 14[\s\S]*"diffLines": 700[\s\S]*"blocking": false/.test(large.stdout), large.stdout)
+
+  const outOfDate = check(
+    TOOL,
+    "base advancement with behind_by 1 is OUT_OF_DATE",
+    ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
+    { status: 1, stdout: /"verdict": "OUT_OF_DATE"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, rollup(), { behind_by: 1 }) },
+  )
+  T(`${TOOL}: OUT_OF_DATE reports base SHA, head SHA, and behind count`, /"baseSha": "base-sha"[\s\S]*"headSha": "[^"\s]+"[\s\S]*"behindBy": 1/.test(outOfDate.stdout), outOfDate.stdout)
 
   const delivered = check(
     TOOL,
     "a clean, pushed, single, current, in-cap pull request is DELIVERED and exits 0",
-    ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH],
+    ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
     { status: 0, stdout: /"verdict": "DELIVERED"/ },
-    { env: ghPlan(JSON.stringify([pullRequest(pushed.head)])) },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)])) },
   )
   T(
     `${TOOL}: DELIVERED carries the pull request number and url every later step needs`,
@@ -182,80 +251,99 @@ export const cases = () => {
     delivered.stdout || delivered.stderr,
   )
 
-  /**
-   * The caps override. Every case below is the SAME oversized pull request, so only the ticket's own
-   * CAPS-OVERRIDE line can be what moves the verdict, and a run that delivers 700 lines says so in
-   * the verdict rather than printing a bare DELIVERED.
-   */
-  const oversized = JSON.stringify([pullRequest(pushed.head, 400, 300)])
-  const withTicket = (description) => ({ env: ghPlan(oversized, 0, rollup(), description) })
-  const overArgv = ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH]
-
-  const exempt = check(
+  const marker = stage("verify-delivery/degraded-edit-not-called", "pending")
+  const codexBody = pullRequest(pushed.head)
+  codexBody.body = `Implements ${ISSUE}.`
+  const codexOnly = check(
     TOOL,
-    "an oversized diff a CAPS-OVERRIDE line covers is DELIVERED_OVERSIZE_EXEMPT and exits 0",
-    overArgv,
-    { status: 0, stdout: /"verdict": "DELIVERED_OVERSIZE_EXEMPT"/ },
-    withTicket("## Problem\n\nCAPS-OVERRIDE: lines=6000 reason=regenerated package-lock.json\n"),
+    "codex-only delivery restores the degraded first line and invalidates pre-edit CI",
+    ["--issue", ISSUE, "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui", "--codex-only"],
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"invalidatedByBodyEdit": true/ },
+    { path: testedToolPath, env: orcaEnv([
+      { match: "auth token --user thomasluizon", stdout: "test-github-token" },
+      { match: `pr list --head ${BRANCH}`, stdout: JSON.stringify([codexBody]) },
+      { match: "pr edit 200 --body-file -", stdout: "", removePath: marker },
+      { match: "pr view", stdout: JSON.stringify({ baseRefName: "main", baseRefOid: "base-sha", headRefOid: pushed.head, isDraft: false, statusCheckRollup: [{ __typename: "CheckRun", name: "Lint", workflowName: "Guards", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-06T10:00:00Z" }] }) },
+      { match: "branches/main/protection/required_status_checks", stdout: JSON.stringify({ contexts: ["Lint"] }) },
+      { match: "run list --workflow guards.yml", stdout: JSON.stringify([{ databaseId: 10, createdAt: "2026-08-06T09:00:00Z", headSha: pushed.head, status: "completed", conclusion: "success" }]) },
+      { match: "api repos/", stdout: JSON.stringify({ behind_by: 0 }) },
+    ]) },
   )
-  T(
-    `${TOOL}: the exempt verdict still prints the real numbers and the standing cap it passed`,
-    /"observed": 700/.test(exempt.stdout) && /"cap": 400/.test(exempt.stdout) && /"allowed": 6000/.test(exempt.stdout) && /"exempt": true/.test(exempt.stdout),
-    exempt.stdout,
-  )
-  T(
-    `${TOOL}: the exempt verdict names the reason the human typed, so the override is auditable`,
-    /"reason": "regenerated package-lock\.json"/.test(exempt.stdout),
-    exempt.stdout,
-  )
-
+  T(`${TOOL}: degraded body enforcement invoked the PR edit before delivery`, !existsSync(marker), codexOnly.stdout || codexOnly.stderr)
+  const markedBody = { ...codexBody, body: `DEGRADED: same-vendor review\n\nImplements ${ISSUE}.\n` }
   check(
     TOOL,
-    "an override that lifts the WRONG cap does not exempt the breach",
-    overArgv,
-    { status: 1, stdout: /"verdict": "OVERSIZE"/ },
-    withTicket("CAPS-OVERRIDE: files=400 reason=one mechanical icon codemod\n"),
+    "the next codex-only invocation cannot reuse pre-edit checks before replacements register",
+    ["--issue", ISSUE, "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui", "--codex-only", "--wait-ci", "1"],
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"post-edit Guards workflow"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([markedBody]), 0, rollup([{ __typename: "CheckRun", name: "Lint", workflowName: "Guards", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-06T10:00:00Z" }]), { behind_by: 0 }, null, [{ databaseId: 10, createdAt: "2026-08-06T09:00:00Z", headSha: pushed.head, status: "completed", conclusion: "success" }]) },
   )
   check(
     TOOL,
-    "a malformed override lifts nothing and says why",
-    overArgv,
-    { status: 1, stdout: /does not lift the standing caps\.diffLines of 400/ },
-    withTicket("CAPS-OVERRIDE: lines=12 reason=typo\n"),
+    "a later codex-only invocation settles after the replacement Guards checks register",
+    ["--issue", ISSUE, "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui", "--codex-only"],
+    { status: 0, stdout: /"verdict": "DELIVERED"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([markedBody]), 0, rollup([{ __typename: "CheckRun", name: "Lint", workflowName: "Guards", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2099-08-08T10:00:00Z" }]), { behind_by: 0 }, null, [
+      { databaseId: 10, createdAt: "2026-08-06T09:00:00Z", headSha: pushed.head, status: "completed", conclusion: "success" },
+      { databaseId: 11, createdAt: "2099-08-08T09:00:00Z", headSha: pushed.head, status: "completed", conclusion: "success" },
+    ]) },
   )
-  check(
-    TOOL,
-    "a ticket that cannot be read leaves the caps standing rather than assuming an exemption",
-    overArgv,
-    { status: 1, stdout: /the ticket could not be read, so the caps stand/ },
-    { env: ghPlan(oversized) },
-  )
-
-  const fileExempt = check(
-    TOOL,
-    "a 355-file codemod its ticket exempts is delivered, which an 8-file cap made impossible",
-    overArgv.slice(),
-    { status: 0, stdout: /"verdict": "DELIVERED_OVERSIZE_EXEMPT"/ },
-    { env: ghPlan(JSON.stringify([pullRequest(pushed.head, 10, 5, 200, 355)]), 0, rollup(), "CAPS-OVERRIDE: files=400 reason=one mechanical icon codemod, reviewed as a transform\n") },
-  )
-  T(`${TOOL}: the exempt file count is the real one, never a truncated 100`, /"observed": 355/.test(fileExempt.stdout), fileExempt.stdout)
 
   /**
    * A pull request that cannot merge was never delivered. Every case below passes every OTHER check,
    * so only the CI verdict can be what moves it, which is what makes these assertions able to fail.
    */
-  const withChecks = (nodes) => ({ env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, rollup(nodes)) })
-  const ciArgv = ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH]
+  const withChecks = (nodes) => ({ path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, rollup(nodes)) })
+  const ciArgv = ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"]
 
-  check(TOOL, "a red required check is CI_FAILING, never DELIVERED", ciArgv, { status: 1, stdout: /"verdict": "CI_FAILING"/ }, withChecks([{ __typename: "CheckRun", name: "React Doctor", status: "COMPLETED", conclusion: "FAILURE", startedAt: "2026-08-06T10:00:00Z" }]))
+  const failedCi = check(TOOL, "a red required check is CI_FAILING, never DELIVERED", ciArgv, { status: 1, stdout: /"verdict": "CI_FAILING"/ }, withChecks([{ __typename: "CheckRun", name: "React Doctor", status: "COMPLETED", conclusion: "FAILURE", startedAt: "2026-08-06T10:00:00Z", detailsUrl: "https://github.com/useorbitai/orbit-ui-mobile/actions/runs/12345/job/67890", workflowName: "React Doctor" }]))
+  T(`${TOOL}: failed CI retains exact inspectable run metadata`, /"runId": "12345"[\s\S]*"jobId": "67890"[\s\S]*"detailsUrl": "https:\/\/github\.com\/[^"\s]+"[\s\S]*"workflow": "React Doctor"[\s\S]*"name": "React Doctor"[\s\S]*"status": "COMPLETED"[\s\S]*"conclusion": "FAILURE"/.test(failedCi.stdout), failedCi.stdout)
 
   check(TOOL, "a still-running check is CI_PENDING, so nothing is called delivered mid-flight", ciArgv, { status: 1, stdout: /"verdict": "CI_PENDING"/ }, withChecks([{ __typename: "CheckRun", name: "Build", status: "IN_PROGRESS", conclusion: "", startedAt: "2026-08-06T10:00:00Z" }]))
+  check(
+    TOOL,
+    "an empty rollup is CI_PENDING until required checks register",
+    ciArgv,
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"name": "Lint"[\s\S]*"status": "NOT_REGISTERED"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, rollup([]), { behind_by: 0 }, ["Lint"]) },
+  )
+  check(
+    TOOL,
+    "a partial rollup is CI_PENDING until every required check registers",
+    ciArgv,
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"name": "Unit Tests"[\s\S]*"status": "NOT_REGISTERED"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, rollup([{ __typename: "CheckRun", name: "Lint", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-06T10:00:00Z" }]), { behind_by: 0 }, ["Lint", "Unit Tests"]) },
+  )
+
+  const stateSequenceFile = stage("verify-delivery/pr-view-sequence.txt", "0")
+  const pendingState = { baseRefName: "main", baseRefOid: "base-sha", headRefOid: pushed.head, isDraft: false, statusCheckRollup: [{ __typename: "CheckRun", name: "Build", status: "IN_PROGRESS", conclusion: "", startedAt: "2026-08-06T10:00:00Z" }] }
+  const advancedState = { ...pendingState, headRefOid: "0000000000000000000000000000000000000000", statusCheckRollup: [{ __typename: "CheckRun", name: "Build", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-06T10:00:00Z" }] }
+  const advancedDuringPoll = check(
+    TOOL,
+    "a branch advance during CI polling is revalidated before delivery",
+    [...ciArgv, "--wait-ci", "1"],
+    { status: 1, stdout: /"verdict": "STALE_PR"[\s\S]*"headSha": "0000000000000000000000000000000000000000"/ },
+    { path: testedToolPath, env: orcaEnv([
+      { match: "auth token --user thomasluizon", stdout: "test-github-token" },
+      { match: `pr list --head ${BRANCH}`, stdout: JSON.stringify([pullRequest(pushed.head)]) },
+      { match: "pr view", stdout: JSON.stringify(pendingState), stdoutSequence: [JSON.stringify(pendingState), JSON.stringify(advancedState)], sequenceFile: stateSequenceFile },
+      { match: "branches/main/protection/required_status_checks", stdout: JSON.stringify({ contexts: ["Build"] }) },
+      { match: "api repos/", stdout: JSON.stringify({ behind_by: 0 }) },
+    ]) },
+  )
+  T(`${TOOL}: the poll persisted the refreshed PR identity`, /"pullRequestState": \{[\s\S]*"headSha": "0000000000000000000000000000000000000000"/.test(advancedDuringPoll.stdout), advancedDuringPoll.stdout)
 
   check(TOOL, "a StatusContext failure counts too, despite carrying state instead of conclusion", ciArgv, { status: 1, stdout: /"verdict": "CI_FAILING"/ }, withChecks([{ __typename: "StatusContext", context: "Vercel", state: "FAILURE" }]))
 
   check(TOOL, "SKIPPED and NEUTRAL are not failures", ciArgv, { status: 0, stdout: /"verdict": "DELIVERED"/ }, withChecks([
     { __typename: "CheckRun", name: "auto-merge", status: "COMPLETED", conclusion: "SKIPPED", startedAt: "2026-08-06T10:00:00Z" },
     { __typename: "CheckRun", name: "Advisory", status: "COMPLETED", conclusion: "NEUTRAL", startedAt: "2026-08-06T10:00:00Z" },
+  ]))
+  check(TOOL, "GitHub's completed STALE conclusion fails closed", ciArgv, { status: 1, stdout: /"verdict": "CI_FAILING"/ }, withChecks([
+    { __typename: "CheckRun", name: "Required gate", status: "COMPLETED", conclusion: "STALE", startedAt: "2026-08-06T10:00:00Z" },
+  ]))
+  check(TOOL, "an unknown completed conclusion fails closed", ciArgv, { status: 1, stdout: /"verdict": "CI_FAILING"/ }, withChecks([
+    { __typename: "CheckRun", name: "Future gate", status: "COMPLETED", conclusion: "A_FUTURE_VALUE", startedAt: "2026-08-06T10:00:00Z" },
   ]))
 
   /**
@@ -268,7 +356,7 @@ export const cases = () => {
     { __typename: "CheckRun", name: "Dash Ban", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-08-06T11:00:00Z" },
   ]))
 
-  check(TOOL, "CI_FAILING names the checks, so the report never says merely that something is red", ciArgv, { status: 1, stdout: /"failing": \[\s*"CodeQL"/ }, withChecks([{ __typename: "CheckRun", name: "CodeQL", status: "COMPLETED", conclusion: "TIMED_OUT", startedAt: "2026-08-06T10:00:00Z" }]))
+  check(TOOL, "CI_FAILING names the checks, so the report never says merely that something is red", ciArgv, { status: 1, stdout: /"failing": \[[\s\S]*"name": "CodeQL"/ }, withChecks([{ __typename: "CheckRun", name: "CodeQL", status: "COMPLETED", conclusion: "TIMED_OUT", startedAt: "2026-08-06T10:00:00Z" }]))
   T(
     `${TOOL}: stdout carries ONE JSON object and nothing else`,
     (() => {
@@ -281,34 +369,35 @@ export const cases = () => {
     delivered.stdout,
   )
 
-  const argv = ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH]
-  check(TOOL, "a failing gh is an environment error, never a verdict", ciArgv, { status: 2, stderr: /gh pr list --head .* failed/ }, { env: ghPlan("", 1) })
-  check(TOOL, "unparseable gh output is an environment error", ciArgv, { status: 2, stderr: /returned unparseable JSON/ }, { env: ghPlan("not json at all") })
-  check(TOOL, "a non-array gh payload is an environment error", ciArgv, { status: 2, stderr: /did not return an array/ }, { env: ghPlan(JSON.stringify({ number: 200 })) })
+  const argv = ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"]
+  check(TOOL, "a failing gh is an environment error, never a verdict", ciArgv, { status: 2, stderr: /gh pr list --head .* failed/ }, { path: testedToolPath, env: ghPlan("", 1) })
+  check(TOOL, "unparseable gh output is an environment error", ciArgv, { status: 2, stderr: /returned unparseable JSON/ }, { path: testedToolPath, env: ghPlan("not json at all") })
+  check(TOOL, "a non-array gh payload is an environment error", ciArgv, { status: 2, stderr: /did not return an array/ }, { path: testedToolPath, env: ghPlan(JSON.stringify({ number: 200 })) })
   check(
     TOOL,
-    "a pull request with no numeric diff size is an environment error, not an in-cap pass",
+    "a pull request with no numeric diff size is an environment error, not fabricated advisory data",
     argv,
     { status: 2, stderr: /reported no numeric additions and deletions/ },
     // title is present so the run reaches the size check: linksTicket is asserted earlier in the
     // ladder, and a payload missing it would short-circuit to UNLINKED_PR and never test this.
-    { env: ghPlan(JSON.stringify([{ number: 200, url: "https://example.test/pull/200", headRefOid: pushed.head, title: `${ISSUE} x` }])) },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([{ number: 200, url: "https://example.test/pull/200", headRefOid: pushed.head, title: `${ISSUE} x` }])) },
   )
   check(
     TOOL,
-    "a pull request with no numeric changedFiles is an environment error, not an in-cap pass",
+    "a pull request with no numeric changedFiles is an environment error, not fabricated advisory data",
     argv,
     { status: 2, stderr: /reported no numeric changedFiles/ },
-    { env: ghPlan(JSON.stringify([{ number: 200, url: "https://example.test/pull/200", headRefOid: pushed.head, title: `${ISSUE} x`, additions: 1, deletions: 1 }])) },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([{ number: 200, url: "https://example.test/pull/200", headRefOid: pushed.head, title: `${ISSUE} x`, additions: 1, deletions: 1 }])) },
   )
 
   verdictOf(pushed, JSON.stringify([{ ...pullRequest(pushed.head), title: "no ticket here", body: "none either" }]), "UNLINKED_PR", 1, "a pull request that never names the ticket is UNLINKED_PR")
-  verdictOf(pushed, JSON.stringify([pullRequest(pushed.head, 10, 5, 200, 8)]), "DELIVERED", 0, "exactly 8 affected files is at the cap and DELIVERED")
-  verdictOf(pushed, JSON.stringify([pullRequest(pushed.head, 10, 5, 200, 9)]), "OVERSIZE", 1, "9 affected files exceeds the file cap even well under 400 lines")
+  verdictOf(pushed, JSON.stringify([pullRequest(pushed.head, 10, 5, 200, 355)]), "DELIVERED", 0, "a generated 355-file change remains deliverable")
 
   const real = realOrchestratorConfig()
   const staged = stageWithConfig("verify-delivery-repo", TOOL, { ...real, repos: { ui: pushed.path } })
-  const unknownRepo = run(TOOL, [...argv, "--repo", "ghost"], { path: staged.path, env: ghPlan("[]") })
+  const unknownRepoArgv = argv.slice()
+  unknownRepoArgv[unknownRepoArgv.indexOf("ui")] = "ghost"
+  const unknownRepo = run(TOOL, unknownRepoArgv, { path: staged.path, env: ghPlan("[]") })
   T(
     `${TOOL}: an unknown --repo key is refused naming the keys that are configured`,
     unknownRepo.status === 2 && /--repo must name a configured repository \(known: ui\)/.test(unknownRepo.stderr),

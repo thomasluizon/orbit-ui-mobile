@@ -156,7 +156,9 @@ detection does not: shared and DTO changes **add optional fields** and never ren
 field an old mobile client still reads, because mobile lags via the Play store.
 
 - Removed or renamed in a **response** DTO or schema: old clients read `undefined`. **Critical,
-  `BREAKS-OLD-CLIENTS`**, unless it was already optional AND unused (cite the grep).
+  `BREAKS-OLD-CLIENTS`**, unless it was already optional AND proven unused across every
+  still-supported shipped client build. Cite version-indexed source/artifacts or keep the field
+  append-only; a grep of the current UI checkout alone is never fleet-safe evidence.
 - Removed or renamed in a **request** DTO or schema, or made newly required: old clients still send the old
   shape and validation rejects it. **Critical, `BREAKS-OLD-CLIENTS`**.
 - Added as optional: forward-compatible, **Info**. Enum value removed: old clients may still send it.
@@ -177,7 +179,7 @@ Every changed `apps/web/**` file has its `apps/mobile/**` mirror changed in the 
 `hooks/use-<x>.ts`, `stores/<x>-store.ts`, and `components/<feature>/<X>.tsx` map one to one,
 `app/(app)/<page>/page.tsx` maps to `app/<page>.tsx`, and `app/actions/<x>.ts` maps to a mobile hook calling
 `apiClient` directly. The mirror is **behaviourally identical**: same logic, data flow, and error handling,
-reverts included. Allowed differences: platform adapters only (BFF vs direct API, cookie vs SecureStore,
+reverts included. Allowed differences are platform adapters (BFF vs direct API, cookie vs SecureStore,
 shadcn vs NativeWind, next-intl vs i18next) and a layout shell divergence enumerated in `DESIGN.md`, limited
 to navigation chrome (sidebar vs tab bar), the desktop stats rail, the command palette and keyboard
 shortcuts, and hover affordances on that shell chrome. Everything below the shell, including a screen,
@@ -244,7 +246,9 @@ is the same violation as the loud version.
 
 What dimensions 5 and 6 do not already carry. **Timezone**: user-facing dates use
 `IUserDateService.GetUserTodayAsync(userId)`, never `DateOnly.FromDateTime(DateTime.UtcNow)`, which is for
-`CreatedAtUtc` and cache keys only. **Validator placement**: `Orbit.Application/<Feature>/Validators/`.
+`CreatedAtUtc` and cache keys only. A background schedule window, notification cutoff, or streak
+calculation must derive `today` per user timezone and carry a boundary-hour unit test; server-local or
+one-global-timezone behavior is a P1 finding. **Validator placement**: `Orbit.Application/<Feature>/Validators/`.
 **Result flow**: `Result<T>` propagated correctly (`PropagateError<T>()`, `ToPayGateAwareResult()`), with no
 catch block that swallows an error silently. **Test scope**: every new command or query handler, validator,
 and service has a unit test, and unit is all there is, so never ask for an integration or E2E suite.
@@ -262,3 +266,24 @@ Gating, Platform, and Locale columns accurate and the stated tool counts correct
 (`onboarding.featureGuide.*`) wrong is **Medium**. In the orbit-api repo the file is not checked out, so do
 not guess: emit "FEATURES.md update required in thomasluizon/orbit-ui-mobile" (**High**) so it lands in the
 paired frontend PR.
+
+### 13. External-interface evidence
+
+> Reference: root AGENTS.md "Never assume an external interface. Check it, then use it." Gated whenever
+> the diff adds or changes a read of a CLI, GitHub/Linear/provider API, Git response, SDK, or library field,
+> flag, subcommand, exit code, enum, event argument, or response shape.
+
+Inspect the PR body's evidence for every such read. For fields and response shapes it must show the
+**complete selected key/type shape**; for enums or compared values, the complete accepted set; and for a
+flag, subcommand, exit code, or event argument, a real redacted invocation and its complete consumed
+result or the installed source/usage `file:line` that constructs it. Preserve literal formats the code
+parses and include an exact reproduction command. An existing callsite, documentation, memory, and a
+fixture authored with the implementation are not evidence. Compare the code and its fixture to that
+evidence; a fixture that invents the same interface contract proves nothing.
+
+Missing or guessed evidence for any field, flag, subcommand, exit code, enum, event argument, or response
+shape on the correctness path is **High and Blocking** because the implementation is unproven against the
+interface it will execute. If the diff redesigns so the unknown is not read and success depends only on a
+confirmed exit code, cite the real invocation or installed source that confirms that exit signal and record
+why this dimension passes. Do not manufacture a failure from an absent unconfirmed field, and do not expose
+a credential while proving it.

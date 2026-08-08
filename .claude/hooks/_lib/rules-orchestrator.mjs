@@ -12,6 +12,10 @@
 // cwd exemption, where an orchestrating session that changes directory into a launcher-created
 // worktree gets the engine exemption. The admin-merge rule takes NO exemption.
 
+import { lstatSync } from "node:fs"
+import { spawnSync } from "node:child_process"
+import { resolve } from "node:path"
+
 import { stripHeredocBodies } from "./rules-git.mjs"
 import { insideLinkedWorktree } from "./repo-roots.mjs"
 
@@ -38,6 +42,44 @@ const API_CLIENTS = new Set(["gh", "curl", "wget", "http", "https", "httpie"])
 // bypass is not a prohibition, and this is the one everything else rests on.
 const HTTPIE_BINARIES = new Set(["http", "https", "httpie"])
 const BARE_PUT = /(?<![\w-])PUT(?![\w-])/
+const SHELL_WORD = /"[^"]*"|'[^']*'|\S+/g
+const BROAD_ADD_FLAGS = new Set(["-A", "--all", "-u", "--update", "--renormalize"])
+const BROAD_ADD_LONG_FLAGS = ["--all", "--update", "--renormalize"]
+const COMMIT_VALUE_FLAGS = new Set(["-m", "--message", "-F", "--file", "-C", "--reuse-message", "-c", "--reedit-message", "--author", "--date", "--cleanup", "--trailer", "--fixup", "--squash"])
+const BROAD_COMMIT_LONG_FLAGS = ["--all", "--interactive", "--patch", "--pathspec-from-file", "--pathspec-file-nul"]
+
+const hasBroadCommitShortFlag = (argument) => {
+  if (!/^-[^-]/.test(argument)) return false
+  for (const flag of argument.slice(1)) {
+    if (["a", "i", "p"].includes(flag)) return true
+    // The remainder is the attached value, not more option letters. In particular, -mapi is a
+    // message containing a/i/p and stages nothing.
+    if (["m", "F", "C", "c", "S"].includes(flag)) return false
+  }
+  return false
+}
+
+const isBroadPathspec = (argument, literalGlobally, cwd) => {
+  const literalPrefix = argument.startsWith(":(literal)")
+  const path = literalPrefix ? argument.slice(10) : argument
+  if (!path || /^\.\/?$/.test(path)) return true
+  try {
+    if (cwd && lstatSync(resolve(cwd, path)).isDirectory()) return true
+  } catch {
+    if (cwd) {
+      const tracked = spawnSync("git", ["-C", cwd, "ls-files", "--", path], {
+        encoding: "utf8",
+        timeout: 5000,
+        windowsHide: true,
+      })
+      if (tracked.error || tracked.status !== 0) return true
+      const matches = tracked.stdout.split(/\r?\n/).filter(Boolean).map((entry) => entry.replaceAll("\\", "/"))
+      const normalized = path.replaceAll("\\", "/").replace(/^\.\//, "")
+      if (matches.length > 0 && (matches.length !== 1 || matches[0] !== normalized)) return true
+    }
+  }
+  return !literalGlobally && !literalPrefix && (/[*?[\]]/.test(path) || argument.startsWith(":"))
+}
 
 /**
  * Everything before the first real word: leading grouping punctuation and any number of
@@ -129,6 +171,88 @@ export function checkEngineInvocation(command, { env = {}, cwd = "", repoRoots =
         "for a raw `codex` or `claude` invocation, so its worker is unsupervised.\n" +
         "The refusal is scoped to the CALLER, not the flag: the launcher itself, any command run\n" +
         "from inside a launcher-created worktree, and version or help queries are permitted.",
+    )
+  }
+  return null
+}
+
+/** Workers stage only named paths. Broad staging can sweep prompt residue, generated output, or a
+ * colleague's tracked `.orca/` edit into the commit. The rule applies only to launcher children and
+ * linked worktrees; ordinary user Git outside a worker remains untouched. */
+export function checkBroadStaging(command, { env = {}, cwd = "", repoRoots = [] } = {}) {
+  if (typeof command !== "string") return null
+  if (!env[LAUNCHER_MARKER] && !(cwd && insideLinkedWorktree(cwd, repoRoots))) return null
+  for (const segment of segmentsOf(command)) {
+    const source = withoutLeadingAssignments(segment)
+    if (invokedBinary(source) !== "git") continue
+    const words = (source.match(SHELL_WORD) ?? []).map((word) => word.replace(/^["']|["']$/g, ""))
+    const commitIndex = words.findIndex((word, index) => index > 0 && word.toLowerCase() === "commit")
+    if (commitIndex >= 0) {
+      const literalGlobally = words.slice(1, commitIndex).includes("--literal-pathspecs")
+      let afterSeparator = false
+      let skipValue = false
+      let broadCommit = false
+      for (const argument of words.slice(commitIndex + 1)) {
+        if (skipValue) {
+          skipValue = false
+          continue
+        }
+        if (!afterSeparator && argument === "--") {
+          afterSeparator = true
+          continue
+        }
+        if (!afterSeparator && argument.startsWith("-")) {
+          // Git accepts unambiguous long-option abbreviations. Prefix matching the dangerous set
+          // closes --intera/--patc and the equivalent pathspec/all spellings mechanically.
+          if (BROAD_COMMIT_LONG_FLAGS.some((flag) => flag.startsWith(argument) || argument.startsWith(`${flag}=`)) || hasBroadCommitShortFlag(argument)) broadCommit = true
+          if (COMMIT_VALUE_FLAGS.has(argument)) skipValue = true
+          continue
+        }
+        if (isBroadPathspec(argument, literalGlobally, cwd)) broadCommit = true
+      }
+      if (broadCommit) {
+        return blocked(
+          command,
+          "Worker worktrees may not let `git commit -a/--all` stage every tracked change. Inspect\n" +
+            "`git status --short`, stage each intended literal path by name, then commit without an\n" +
+            "automatic staging flag. Tracked `.orca/` changes are source.",
+        )
+      }
+    }
+    // `git stage` is an exact synonym for `git add`; guarding only the canonical spelling leaves
+    // every broad pathspec form available through the alias.
+    const addIndex = words.findIndex((word, index) => index > 0 && ["add", "stage"].includes(word.toLowerCase()))
+    if (addIndex < 0) continue
+    const literalGlobally = words.slice(1, addIndex).includes("--literal-pathspecs")
+    let afterSeparator = false
+    let namedPaths = 0
+    let broad = false
+    for (const argument of words.slice(addIndex + 1)) {
+      if (!afterSeparator && argument === "--") {
+        afterSeparator = true
+        continue
+      }
+      if (!afterSeparator && argument.startsWith("-")) {
+        if (
+          BROAD_ADD_FLAGS.has(argument) ||
+          /^-[^-]*[Au][^-]*$/.test(argument) ||
+          (argument.startsWith("--") && BROAD_ADD_LONG_FLAGS.some((flag) => flag.startsWith(argument)))
+        ) broad = true
+        // Git accepts unambiguous long-option abbreviations (measured: --pathspec-from-f), so
+        // matching only the documented full spelling leaves the same indirect staging bypass.
+        if (argument.startsWith("--pathspec")) broad = true
+        continue
+      }
+      namedPaths += 1
+      if (isBroadPathspec(argument, literalGlobally, cwd)) broad = true
+    }
+    if (!broad && !(words.length > addIndex + 1 && namedPaths === 0)) continue
+    return blocked(
+      command,
+      "Worker worktrees may stage only explicitly named literal paths. Bulk update flags, dot,\n" +
+        "wildcards, and non-literal magic pathspecs can capture unrelated or runtime residue.\n" +
+        "Inspect `git status --short`, then use `git --literal-pathspecs add` with each intended\n" +
+        "path by name. Tracked `.orca/` changes are source.",
     )
   }
   return null

@@ -18,8 +18,10 @@ Return, as structured text:
 2. **Affected surface inventory**: routes (web + mobile pair), endpoints, DTOs, i18n
    namespaces. Name the parity consequence explicitly: web + mobile in one ticket
    (parity:yes), or the adapter-only exemption with its justification.
-3. **The ticket split**: each ticket one repo, one reviewable PR under ~400 lines,
-   sized 5 points or less. Cross-repo work is an api ticket BLOCKING a ui ticket
+3. **The ticket split**: each ticket one repo and one coherent, independently mergeable PR.
+   Prefer small tickets when behavior or deployment boundaries are genuinely separable; file and
+   line estimates are advisory and never justify splitting an atomic behavior or its required
+   generated artifacts. Cross-repo work is an api ticket BLOCKING a ui ticket
    (deploy-API-first as a DAG edge). Shared/DTO changes are append-only: add optional
    fields, never rename/remove/retype what shipped mobile clients still read.
    Never propose: a tests-only ticket, a foundation ticket of unused code, or a

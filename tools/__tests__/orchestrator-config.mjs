@@ -117,7 +117,7 @@ export const cases = async () => {
     /reviewer "ghost" is not one of its workers/.test(readAndFail("bad-reviewer", { ...real, reviewer: "ghost" }) ?? ""),
     "a reviewer key naming no engine was accepted",
   )
-  for (const [label, key] of [["hardCeilingMinutes", "timeouts"], ["diffLines", "caps"]]) {
+  for (const [label, key] of [["hardCeilingMinutes", "timeouts"]]) {
     const stripped = { ...real }
     delete stripped[key]
     T(
@@ -130,6 +130,11 @@ export const cases = async () => {
     `${NAME}: a zero timeout is refused rather than read as "no clock"`,
     /timeouts\.noProgressMinutes must be a positive number/.test(readAndFail("zero-timeout", { ...real, timeouts: { ...real.timeouts, noProgressMinutes: 0 } }) ?? ""),
     "a zero no-progress clock was accepted",
+  )
+  T(
+    `${NAME}: a zero connector fixer bound is refused rather than becoming unbounded`,
+    /caps\.connectorFixAttempts must be a positive number/.test(readAndFail("zero-connector-fixes", { ...real, caps: { ...real.caps, connectorFixAttempts: 0 } }) ?? ""),
+    "a zero connector fixer bound was accepted",
   )
   T(
     `${NAME}: an unreadable file is refused as unreadable, not as invalid JSON`,

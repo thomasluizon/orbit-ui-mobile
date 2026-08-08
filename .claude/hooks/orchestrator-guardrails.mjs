@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url"
 
 import { readStdinJson } from "./_lib/io.mjs"
 import { declaredRepoRoots } from "./_lib/repo-roots.mjs"
-import { checkAdminMerge, checkEngineInvocation } from "./_lib/rules-orchestrator.mjs"
+import { checkAdminMerge, checkBroadStaging, checkEngineInvocation } from "./_lib/rules-orchestrator.mjs"
 
 try {
   const input = readStdinJson()
@@ -23,6 +23,7 @@ try {
   const repoRoots = declaredRepoRoots(resolve(dirname(fileURLToPath(import.meta.url)), "..", ".."))
   const verdict =
     checkAdminMerge(command) ??
+    checkBroadStaging(command, { env: process.env, cwd: input?.cwd || process.cwd(), repoRoots }) ??
     checkEngineInvocation(command, { env: process.env, cwd: input?.cwd || process.cwd(), repoRoots })
   if (verdict?.block) {
     process.stderr.write(verdict.message)

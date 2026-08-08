@@ -10,8 +10,8 @@
  * Two shapes make a naive reading wrong, and both are handled here rather than documented:
  *
  *   1. An empty thread list is ambiguous between "reviewed, found nothing" and "has not reviewed
- *      yet". The verdict is therefore derived from the presence of a bot-authored REVIEW, never
- *      from the thread count.
+ *      yet". The verdict is therefore derived from a current-head bot Review or measured clean
+ *      issue comment, never from the thread count.
  *   2. A body-level CHANGES_REQUESTED opens no review thread at all, so zero unresolved threads is
  *      not proof of a clean pull request. Both surfaces are read in one query.
  *
@@ -21,15 +21,19 @@
  * It reads. It never replies, resolves, or fixes: tools/resolve-bot-thread.mjs owns the mutations.
  */
 
-import { execFileSync } from "node:child_process"
+import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-auth.mjs"
+import { runBounded } from "./lib/bounded-process.mjs"
+import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
 const BOT_LOGIN = "chatgpt-codex-connector"
 
-const USAGE = `usage: list-bot-threads.mjs --pr <number> [options]
+const USAGE = `usage: list-bot-threads.mjs --pr <number|url> (--repo <ui|api|landing> | URL) [options]
 
-  --pr <number>       the pull request to read (required)
+  --pr <number|url>   the pull request to read (required)
+  --repo <key>        required for a bare number; a full PR URL selects its repository
   --wait-seconds <n>  how long to wait for the bot review to land (default 900, 0 polls once)
   --poll-seconds <n>  gap between polls (default 30)
+  --command-timeout-seconds <n>  hard bound for each gh child (default 45)
   --bot <login>       reviewer login to filter on (default ${BOT_LOGIN})
   --no-request        do NOT post "@codex review" first; wait for a review that
                       may never have been triggered (default: request it)
@@ -43,7 +47,8 @@ only when its commit is the current head. 900 covers the longest lag observed on
 Prints ONE JSON object on stdout: pr, isDraft, verdict, reviewedAt, reviewState, threads[].
 Errors go to stderr.
 
-  verdict  REVIEWED      a bot review OF THE CURRENT HEAD exists; threads[] may be empty (clean)
+  verdict  REVIEWED      a bot Review or clean issue comment OF THE CURRENT HEAD exists;
+                         threads[] may be empty (clean)
            CHANGES_REQUESTED  a bot review of the current head exists and requests changes
            DRAFT         the pull request is a draft, so no review will ever arrive
            NO_REVIEW     no bot review of this head inside the budget. staleReviewCommit names
@@ -75,7 +80,7 @@ const argOf = (flag) => {
   return index === -1 ? null : process.argv[index + 1]
 }
 
-const VALUE_FLAGS = new Set(["--pr", "--wait-seconds", "--poll-seconds", "--bot"])
+const VALUE_FLAGS = new Set(["--pr", "--repo", "--wait-seconds", "--poll-seconds", "--command-timeout-seconds", "--bot"])
 const KNOWN_FLAGS = new Set([...VALUE_FLAGS, "--no-request", "--help", "-h"])
 /**
  * A flag's VALUE is skipped before the unknown-option check, because `--wait-seconds -5` is a
@@ -93,50 +98,128 @@ const numberFlag = (flag, fallback, { min = 0 } = {}) => {
   return value
 }
 
-const pullRequest = argOf("--pr")
-if (!pullRequest || !/^\d+$/.test(pullRequest)) fail(2, `${USAGE}\n\n--pr must be a pull request number`)
+const pullRequestArg = argOf("--pr")
+const repoKey = argOf("--repo")
+const urlMatch = /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)\/?$/i.exec(pullRequestArg ?? "")
+if (!pullRequestArg || (!/^\d+$/.test(pullRequestArg) && !urlMatch)) fail(2, `${USAGE}\n\n--pr must be a pull request number or full GitHub pull request URL`)
+if (!urlMatch && !repoKey) fail(2, `${USAGE}\n\na bare pull request number requires --repo`)
+const pullRequest = urlMatch?.[3] ?? pullRequestArg
 const waitSeconds = numberFlag("--wait-seconds", 900)
 const pollSeconds = numberFlag("--poll-seconds", 30, { min: 1 })
+const commandTimeoutSeconds = numberFlag("--command-timeout-seconds", 45, { min: 1 })
 const botLogin = argOf("--bot") ?? BOT_LOGIN
 if (!botLogin || botLogin.startsWith("-")) fail(2, `${USAGE}\n\n--bot requires a login`)
 const requestReview = !process.argv.includes("--no-request")
 
 const GH = process.env.GH_BIN || "gh"
+let config
+try {
+  config = readOrchestratorConfig()
+} catch (error) {
+  fail(2, error.message)
+}
+if (repoKey && typeof config.repos?.[repoKey] !== "string") fail(2, `--repo must name a configured repository (known: ${Object.keys(config.repos ?? {}).join(", ") || "none"})`)
+let githubCwd = repoKey ? config.repos[repoKey] : null
+let repository = urlMatch ? `${urlMatch[1]}/${urlMatch[2]}` : null
+if (!githubCwd) {
+  const matches = Object.values(config.repos).filter((path) => {
+    try {
+      return repositorySlug(path).toLowerCase() === repository.toLowerCase()
+    } catch {
+      return false
+    }
+  })
+  if (matches.length !== 1) fail(2, `pull request URL does not identify exactly one configured repository`)
+  ;[githubCwd] = matches
+}
+if (!repository) {
+  try {
+    repository = repositorySlug(githubCwd)
+  } catch (error) {
+    fail(2, error.message)
+  }
+}
+const [owner, repo] = repository.split("/")
+let githubAuth
+try {
+  githubAuth = await githubEnvironment(githubCwd, { timeoutMs: commandTimeoutSeconds * 1000 })
+} catch (error) {
+  fail(2, redactSecrets(error.message))
+}
 
-const QUERY = `query($owner:String!,$repo:String!,$pr:Int!){
+const QUERY = `query($owner:String!,$repo:String!,$pr:Int!,$threadsAfter:String){
   repository(owner:$owner,name:$repo){
     pullRequest(number:$pr){
-      number isDraft headRefOid
+      number isDraft baseRefOid headRefOid
       reviews(last:50){nodes{author{login} state submittedAt body commit{oid}}}
-      reviewThreads(first:100){nodes{
-        id isResolved isOutdated path line
-        comments(first:1){nodes{author{login} body}}
-      }}
+      comments(last:100){nodes{author{login} body createdAt url}}
+      reviewThreads(first:100,after:$threadsAfter){
+        pageInfo{hasNextPage endCursor}
+        nodes{
+          id isResolved isOutdated path line
+          comments(first:1){nodes{author{login} body}}
+        }
+      }
     }
   }
 }`
 
-const readPullRequest = () => {
-  let stdout = ""
-  try {
-    stdout = execFileSync(
-      GH,
-      ["api", "graphql", "-F", "owner={owner}", "-F", "repo={repo}", "-F", `pr=${pullRequest}`, "-f", `query=${QUERY}`],
-      { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 32 * 1024 * 1024 },
+const gh = async (args, operation, timeoutMs = commandTimeoutSeconds * 1000) => {
+  const result = await runBounded(GH, args, { cwd: githubCwd, env: githubAuth.environment, timeoutMs })
+  if (result.timedOut) fail(2, `${operation} timed out after ${Math.max(1, Math.ceil(timeoutMs / 1000))}s; the complete child process tree was terminated`)
+  if (result.overflowed) fail(2, `${operation} exceeded the 32 MiB output bound; the complete child process tree was terminated`)
+  if (result.error || result.status !== 0) {
+    const detail = result.stderr || result.stdout || result.error?.message || `exit ${result.status}`
+    fail(2, `${operation} failed: ${redactSecrets(detail.trim(), githubAuth.secrets)}`)
+  }
+  return result.stdout
+}
+
+const readPullRequest = async () => {
+  const paginationDeadline = Date.now() + commandTimeoutSeconds * 1000
+  const fetchPage = async (threadsAfter = null, page = 1) => {
+    const remainingMs = paginationDeadline - Date.now()
+    if (remainingMs <= 0) fail(2, `review-thread pagination exceeded its ${commandTimeoutSeconds}s total bound`)
+    const cursorArgs = threadsAfter === null ? [] : ["-f", `threadsAfter=${threadsAfter}`]
+    const stdout = await gh(
+      ["api", "graphql", "-F", `owner=${owner}`, "-F", `repo=${repo}`, "-F", `pr=${pullRequest}`, ...cursorArgs, "-f", `query=${QUERY}`],
+      `gh api graphql review-thread page ${page}`,
+      remainingMs,
     )
-  } catch (error) {
-    fail(2, `gh api graphql failed for pull request ${pullRequest}: ${(error.stderr?.toString() || error.stdout?.toString() || error.message).trim()}`)
+    let payload
+    try {
+      payload = JSON.parse(stdout)
+    } catch {
+      fail(2, `gh api graphql returned unparseable JSON: ${stdout.trim().slice(0, 240) || "empty output"}`)
+    }
+    if (payload.errors?.length) fail(2, `gh api graphql reported: ${payload.errors.map((entry) => entry.message).join("; ")}`)
+    const node = payload.data?.repository?.pullRequest
+    if (!node) fail(2, `gh api graphql returned no pull request ${pullRequest}`)
+    const pageInfo = node.reviewThreads?.pageInfo
+    if (typeof pageInfo?.hasNextPage !== "boolean" || !(typeof pageInfo.endCursor === "string" || pageInfo.endCursor === null)) fail(2, "gh api graphql returned no complete reviewThreads pageInfo")
+    if (!Array.isArray(node.reviewThreads?.nodes)) fail(2, "gh api graphql returned no reviewThreads nodes array")
+    console.error(JSON.stringify({ event: "CODEX_THREAD_PAGE_READ", pr: Number(pullRequest), page, headRefOid: node.headRefOid, hasNextPage: pageInfo.hasNextPage }))
+    return node
   }
-  let payload
-  try {
-    payload = JSON.parse(stdout)
-  } catch {
-    fail(2, `gh api graphql returned unparseable JSON: ${stdout.trim().slice(0, 240) || "empty output"}`)
+
+  const first = await fetchPage()
+  const nodes = [...first.reviewThreads.nodes]
+  let pageInfo = first.reviewThreads.pageInfo
+  let pages = 1
+  const seenCursors = new Set()
+  while (pageInfo.hasNextPage) {
+    if (!pageInfo.endCursor) fail(2, "gh api graphql reviewThreads page says another page exists but carries no endCursor")
+    if (seenCursors.has(pageInfo.endCursor)) fail(2, "gh api graphql reviewThreads pagination repeated an endCursor")
+    if (pages >= 100) fail(2, "gh api graphql reviewThreads pagination exceeded the 100-page safety bound")
+    seenCursors.add(pageInfo.endCursor)
+    const next = await fetchPage(pageInfo.endCursor, pages + 1)
+    if (next.headRefOid !== first.headRefOid || next.baseRefOid !== first.baseRefOid) fail(2, "pull request head/base changed while review threads were paginated; retry on the new pair")
+    nodes.push(...next.reviewThreads.nodes)
+    pageInfo = next.reviewThreads.pageInfo
+    pages += 1
   }
-  if (payload.errors?.length) fail(2, `gh api graphql reported: ${payload.errors.map((entry) => entry.message).join("; ")}`)
-  const node = payload.data?.repository?.pullRequest
-  if (!node) fail(2, `gh api graphql returned no pull request ${pullRequest}`)
-  return node
+  first.reviewThreads = { nodes, pageInfo, pages, complete: true }
+  return first
 }
 
 /**
@@ -163,14 +246,22 @@ const claimOf = (body) => {
   return (line ?? "").slice(0, 200)
 }
 
-/** Synchronous by design: this tool is one blocking step in a shell pipeline, not an event loop. */
-const sleep = (seconds) => {
-  const buffer = new Int32Array(new SharedArrayBuffer(4))
-  Atomics.wait(buffer, 0, 0, seconds * 1000)
+const sleep = (seconds) => new Promise((resolve) => setTimeout(resolve, seconds * 1000))
+
+const progress = (event, node, startedAt, deadline) => {
+  console.error(JSON.stringify({
+    event,
+    pr: Number(pullRequest),
+    headRefOid: node?.headRefOid ?? null,
+    elapsedSeconds: Math.floor((Date.now() - startedAt) / 1000),
+    remainingSeconds: Math.max(0, Math.ceil((deadline - Date.now()) / 1000)),
+  }))
 }
 
+const startedAt = Date.now()
 const deadline = Date.now() + waitSeconds * 1000
-let node = readPullRequest()
+let node = await readPullRequest()
+progress("CODEX_REVIEW_STATE_READ", node, startedAt, deadline)
 
 if (node.isDraft) {
   console.log(JSON.stringify({ pr: Number(pullRequest), isDraft: true, verdict: "DRAFT", reviewedAt: null, reviewState: null, threads: [], note: "a draft pull request attracts no Codex review; mark it ready for review" }, null, 2))
@@ -189,16 +280,50 @@ if (node.isDraft) {
  * Comparing the commit is what makes the answer correct under either behaviour. A review whose
  * commit is not the head does not count, and the wait continues.
  */
+const CONNECTOR_EVIDENCE_STATES = new Set(["APPROVED", "CHANGES_REQUESTED", "COMMENTED"])
 const botReviewOf = (payload) =>
   (payload.reviews?.nodes ?? [])
     .filter((review) => review.author?.login === botLogin)
     .filter((review) => review.commit?.oid && review.commit.oid === payload.headRefOid)
+    // Confirmed live ReviewState enum: APPROVED, CHANGES_REQUESTED, COMMENTED, DISMISSED, PENDING.
+    // A pending or dismissed review is not a completed connector pass and must never become evidence.
+    .filter((review) => CONNECTOR_EVIDENCE_STATES.has(review.state))
     .at(-1)
 
-/** Kept separately so NO_REVIEW can say WHICH shape it is: never reviewed, or reviewed a dead head. */
-const staleReviewOf = (payload) => (payload.reviews?.nodes ?? []).filter((review) => review.author?.login === botLogin).at(-1)
+const CLEAN_COMMENT = "Codex Review: Didn't find any major issues."
+const connectorCommentLogins = new Set(botLogin.endsWith("[bot]") ? [botLogin, botLogin.slice(0, -5)] : [botLogin, `${botLogin}[bot]`])
+// The live connector issue-comment shape reports exactly 10 hex characters. Accepting a shorter
+// unmeasured prefix could match more than one commit; accepting a guessed longer shape would violate
+// the repository's external-interface rule.
+const commitFromComment = (comment) => /\*\*Reviewed commit:\*\*\s*`([0-9a-f]{10})`(?![0-9a-f])/i.exec(comment?.body ?? "")?.[1] ?? null
+const cleanCommentOf = (payload) =>
+  (payload.comments?.nodes ?? [])
+    .filter((comment) => connectorCommentLogins.has(comment.author?.login))
+    .map((comment) => ({ ...comment, reportedCommit: commitFromComment(comment) }))
+    .filter((comment) => comment.body?.includes(CLEAN_COMMENT))
+    .filter((comment) => comment.reportedCommit && payload.headRefOid?.toLowerCase().startsWith(comment.reportedCommit.toLowerCase()))
+    .at(-1)
 
-let review = botReviewOf(node)
+const staleCommentOf = (payload) =>
+  (payload.comments?.nodes ?? [])
+    .filter((comment) => connectorCommentLogins.has(comment.author?.login))
+    .map((comment) => ({ ...comment, reportedCommit: commitFromComment(comment) }))
+    .filter((comment) => comment.body?.includes(CLEAN_COMMENT) && comment.reportedCommit)
+    .at(-1)
+
+const evidenceOf = (payload) => {
+  const review = botReviewOf(payload)
+  if (review?.state === "CHANGES_REQUESTED") return { kind: "REVIEW", value: review }
+  const comment = cleanCommentOf(payload)
+  if (!review) return comment ? { kind: "ISSUE_COMMENT", value: comment } : null
+  if (!comment) return { kind: "REVIEW", value: review }
+  return Date.parse(comment.createdAt) > Date.parse(review.submittedAt) ? { kind: "ISSUE_COMMENT", value: comment } : { kind: "REVIEW", value: review }
+}
+
+/** Kept separately so NO_REVIEW can say WHICH shape it is: never reviewed, or reviewed a dead head. */
+const staleReviewOf = (payload) => (payload.reviews?.nodes ?? []).filter((review) => review.author?.login === botLogin && CONNECTOR_EVIDENCE_STATES.has(review.state)).at(-1)
+
+let evidence = evidenceOf(node)
 
 /**
  * Ask BEFORE waiting, not after.
@@ -213,19 +338,17 @@ let review = botReviewOf(node)
  * CURRENT head", so a pull request the bot has genuinely reviewed is never nagged.
  */
 let requested = false
-if (requestReview && !review && waitSeconds > 0) {
-  try {
-    execFileSync(GH, ["pr", "comment", pullRequest, "--body", "@codex review"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] })
-    requested = true
-  } catch (error) {
-    fail(2, `gh pr comment ${pullRequest} failed: ${(error.stderr?.toString() || error.message).trim()}`)
-  }
+if (requestReview && !evidence && waitSeconds > 0) {
+  await gh(["pr", "comment", pullRequest, "--repo", repository, "--body", "@codex review"], `gh pr comment ${pullRequest}`)
+  requested = true
+  progress("CODEX_REVIEW_REQUESTED", node, startedAt, deadline)
 }
 
-while (!review && Date.now() < deadline) {
-  sleep(Math.min(pollSeconds, Math.max(1, Math.ceil((deadline - Date.now()) / 1000))))
-  node = readPullRequest()
-  review = botReviewOf(node)
+while (!evidence && Date.now() < deadline) {
+  await sleep(Math.min(pollSeconds, Math.max(1, Math.ceil((deadline - Date.now()) / 1000))))
+  node = await readPullRequest()
+  evidence = evidenceOf(node)
+  progress(evidence ? "CODEX_REVIEW_ARRIVED" : "CODEX_REVIEW_WAITING", node, startedAt, deadline)
 }
 
 const threads = (node.reviewThreads?.nodes ?? [])
@@ -243,8 +366,9 @@ const threads = (node.reviewThreads?.nodes ?? [])
     }
   })
 
-if (!review) {
+if (!evidence) {
   const stale = staleReviewOf(node)
+  const staleComment = staleCommentOf(node)
   /**
    * The note distinguishes "asked and still absent" from "never asked", because the two justify
    * different actions and only the first is evidence about the reviewer rather than about us.
@@ -254,10 +378,12 @@ if (!review) {
     : 'no "@codex review" was posted on this run, so the reviewer may simply never have been triggered'
   const note = stale
     ? `the newest ${botLogin} review is pinned to ${stale.commit?.oid ?? "an unknown commit"}, not to head ${node.headRefOid}; it never saw this code. ${asked}`
+    : staleComment
+      ? `the newest ${botLogin} clean issue comment reports commit ${staleComment.reportedCommit}, not head ${node.headRefOid}; it never saw this code. ${asked}`
     : `no ${botLogin} review arrived; ${asked}; do not report this pull request as clean`
   console.log(
     JSON.stringify(
-      { pr: Number(pullRequest), isDraft: false, verdict: "NO_REVIEW", reviewedAt: null, reviewState: null, headRefOid: node.headRefOid, staleReviewCommit: stale?.commit?.oid ?? null, threads, waitedSeconds: waitSeconds, reviewRequested: requested, note },
+      { pr: Number(pullRequest), isDraft: false, verdict: "NO_REVIEW", reviewedAt: null, reviewState: null, baseRefOid: node.baseRefOid, headRefOid: node.headRefOid, staleReviewCommit: stale?.commit?.oid ?? staleComment?.reportedCommit ?? null, threadsComplete: node.reviewThreads.complete === true, threads, waitedSeconds: waitSeconds, reviewRequested: requested, note },
       null,
       2,
     ),
@@ -265,16 +391,21 @@ if (!review) {
   process.exit(1)
 }
 
-const verdict = review.state === "CHANGES_REQUESTED" ? "CHANGES_REQUESTED" : "REVIEWED"
+const review = evidence.value
+const verdict = evidence.kind === "REVIEW" && review.state === "CHANGES_REQUESTED" ? "CHANGES_REQUESTED" : "REVIEWED"
 console.log(
   JSON.stringify(
     {
       pr: Number(pullRequest),
       isDraft: false,
       verdict,
-      reviewedAt: review.submittedAt ?? null,
-      reviewState: review.state ?? null,
-      reviewedCommit: review.commit.oid,
+      reviewedAt: evidence.kind === "REVIEW" ? (review.submittedAt ?? null) : (review.createdAt ?? null),
+      reviewState: evidence.kind === "REVIEW" ? (review.state ?? null) : "CLEAN_COMMENT",
+      reviewSource: evidence.kind,
+      reviewUrl: evidence.kind === "ISSUE_COMMENT" ? (review.url ?? null) : null,
+      reportedCommit: evidence.kind === "ISSUE_COMMENT" ? review.reportedCommit : review.commit.oid,
+      reviewedCommit: node.headRefOid,
+      baseRefOid: node.baseRefOid,
       headRefOid: node.headRefOid,
       /**
        * A body-level CHANGES_REQUESTED carries its whole complaint here and opens no thread, so
@@ -283,7 +414,8 @@ console.log(
        * threads hold the findings.
        */
       reviewBody: verdict === "CHANGES_REQUESTED" ? (review.body ?? "").trim().slice(0, 4000) : null,
-      counts: { total: threads.length, unresolved: threads.filter((thread) => !thread.isResolved).length },
+      threadsComplete: node.reviewThreads.complete === true,
+      counts: { total: threads.length, unresolved: threads.filter((thread) => !thread.isResolved).length, pages: node.reviewThreads.pages },
       threads,
     },
     null,

@@ -1,7 +1,10 @@
-import { T, check, orcaEnv, run } from "./_harness.mjs"
+import { readFileSync } from "node:fs"
+
+import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
 
 const TOOL = "list-bot-threads.mjs"
 const BOT = "chatgpt-codex-connector"
+let testedToolPath = null
 
 /**
  * Every field below was read off a REAL `gh api graphql` response against PR #681 on 2026-08-05
@@ -21,24 +24,36 @@ const thread = ({ id = "PRRT_kwDOR5Siws6Wfy_V", isResolved = false, isOutdated =
 
 const HEAD = "0f4abca78a0f4c487a98ab642508c06c6634f36f"
 const OLD_HEAD = "b5cd7394a8a687126eaaec32c02978ad6575c01c"
+const BASE = "c5cd7394a8a687126eaaec32c02978ad6575c01d"
 
-const payload = ({ isDraft = false, reviews = [], threads = [], headRefOid = HEAD } = {}) =>
+const payload = ({ isDraft = false, reviews = [], comments = [], threads = [], headRefOid = HEAD, pageInfo = { hasNextPage: false, endCursor: null } } = {}) =>
   JSON.stringify({
     data: {
       repository: {
         pullRequest: {
           number: 681,
           isDraft,
+          baseRefOid: BASE,
           headRefOid,
           reviews: { nodes: reviews },
-          reviewThreads: { nodes: threads },
+          comments: { nodes: comments },
+          reviewThreads: { pageInfo, nodes: threads },
         },
       },
     },
   })
 
 const botReview = (state = "COMMENTED", submittedAt = "2026-08-04T23:16:35Z", oid = HEAD, body = "") => ({ author: { login: BOT }, state, submittedAt, body, commit: { oid } })
-const ghPlan = (stdout, exit = 0) => orcaEnv([{ match: "api graphql", stdout, exit }])
+const botComment = (oid = HEAD.slice(0, 10), createdAt = "2026-08-05T11:00:00Z", login = BOT) => ({
+  author: { login },
+  body: `Codex Review: Didn't find any major issues.\n\n**Reviewed commit:** \`${oid}\``,
+  createdAt,
+  url: "https://github.com/thomasluizon/orbit-ui-mobile/pull/681#issuecomment-123",
+})
+const ghPlan = (stdout, exit = 0) => orcaEnv([
+  { match: "auth token --user thomasluizon", stdout: "test-github-token" },
+  { match: "api graphql", stdout, exit },
+])
 const parsed = (result) => {
   try {
     return JSON.parse(result.stdout)
@@ -47,13 +62,26 @@ const parsed = (result) => {
   }
 }
 
-const readPr = (stdout, exit = 0) => run(TOOL, ["--pr", "681", "--wait-seconds", "0"], { env: ghPlan(stdout, exit) })
+const readPr = (stdout, exit = 0) => run(TOOL, ["--pr", "https://github.com/thomasluizon/orbit-ui-mobile/pull/681", "--wait-seconds", "0"], { path: testedToolPath, env: ghPlan(stdout, exit) })
 
 export const cases = () => {
-  check(TOOL, "refuses a missing pull request number", ["--wait-seconds", "0"], { status: 2, stderr: /--pr must be a pull request number/ })
-  check(TOOL, "refuses a non-numeric pull request number", ["--pr", "abc"], { status: 2, stderr: /--pr must be a pull request number/ })
-  check(TOOL, "refuses a negative wait budget", ["--pr", "681", "--wait-seconds", "-5"], { status: 2, stderr: /--wait-seconds must be an integer/ })
-  check(TOOL, "refuses a zero poll interval", ["--pr", "681", "--poll-seconds", "0"], { status: 2, stderr: /--poll-seconds must be an integer >= 1/ })
+  check(TOOL, "refuses a missing pull request", ["--wait-seconds", "0"], { status: 2, stderr: /--pr must be a pull request number or full GitHub/ })
+  check(TOOL, "refuses a non-numeric pull request number", ["--pr", "abc"], { status: 2, stderr: /--pr must be a pull request number or full GitHub/ })
+  check(TOOL, "a bare pull request number requires an explicit repository", ["--pr", "681"], { status: 2, stderr: /bare pull request number requires --repo/ })
+  check(TOOL, "refuses an unknown repository", ["--pr", "681", "--repo", "ghost"], { status: 2, stderr: /--repo must name a configured repository/ })
+  check(TOOL, "refuses a negative wait budget", ["--pr", "681", "--repo", "ui", "--wait-seconds", "-5"], { status: 2, stderr: /--wait-seconds must be an integer/ })
+  check(TOOL, "refuses a zero poll interval", ["--pr", "681", "--repo", "ui", "--poll-seconds", "0"], { status: 2, stderr: /--poll-seconds must be an integer >= 1/ })
+  check(TOOL, "refuses a zero command timeout", ["--pr", "681", "--repo", "ui", "--command-timeout-seconds", "0"], { status: 2, stderr: /--command-timeout-seconds must be an integer >= 1/ })
+
+  const uiContext = stageRepo("list-bot-threads-ui-context")
+  const apiContext = stageRepo("list-bot-threads-api-context")
+  if (!uiContext || !apiContext || uiContext.git(["remote", "set-url", "origin", "https://github.com/thomasluizon/orbit-ui-mobile.git"]).status !== 0 || apiContext.git(["remote", "set-url", "origin", "https://github.com/thomasluizon/orbit-api.git"]).status !== 0) {
+    T(`${TOOL}: repository-qualified GitHub context fixtures are available`, false, "could not stage GitHub contexts")
+    return
+  }
+  const hermeticConfig = realOrchestratorConfig()
+  hermeticConfig.repos = { ...hermeticConfig.repos, ui: uiContext.path, api: apiContext.path }
+  testedToolPath = stageWithConfig("list-bot-threads-hermetic", TOOL, hermeticConfig).path
 
   /**
    * THE ambiguity this tool exists to remove. Zero threads plus a real review is CLEAN; zero
@@ -67,6 +95,13 @@ export const cases = () => {
     clean.status === 0 && cleanPlan?.verdict === "REVIEWED" && cleanPlan.counts.total === 0 && cleanPlan.reviewedAt === "2026-08-04T23:16:35Z",
     clean.stdout || clean.stderr,
   )
+  T(`${TOOL}: every read emits structured progress on stderr`, /"event":"CODEX_REVIEW_STATE_READ"/.test(clean.stderr), clean.stderr)
+
+  const apiNumber = run(TOOL, ["--pr", "681", "--repo", "api", "--wait-seconds", "0"], { path: testedToolPath, env: orcaEnv([
+    { match: "auth token --user thomasluizon", stdout: "test-github-token" },
+    { match: "repo=orbit-api", stdout: payload({ reviews: [botReview()] }) },
+  ]) })
+  T(`${TOOL}: the same numbered API PR is queried through API, never UI cwd inference`, apiNumber.status === 0 && parsed(apiNumber)?.verdict === "REVIEWED", apiNumber.stdout || apiNumber.stderr)
 
   const absent = readPr(payload({ reviews: [] }))
   const absentPlan = parsed(absent)
@@ -75,6 +110,31 @@ export const cases = () => {
     absent.status === 1 && absentPlan?.verdict === "NO_REVIEW" && absentPlan.reviewedAt === null,
     absent.stdout || absent.stderr,
   )
+
+  const cleanComment = readPr(payload({ comments: [botComment()] }))
+  const cleanCommentPlan = parsed(cleanComment)
+  T(
+    `${TOOL}: a clean connector issue comment for the current head is REVIEWED`,
+    cleanComment.status === 0 && cleanCommentPlan?.verdict === "REVIEWED" && cleanCommentPlan.reviewSource === "ISSUE_COMMENT" && cleanCommentPlan.baseRefOid === BASE && cleanCommentPlan.reviewedCommit === HEAD && cleanCommentPlan.reportedCommit === HEAD.slice(0, 10),
+    cleanComment.stdout || cleanComment.stderr,
+  )
+  const restAlias = readPr(payload({ comments: [botComment(HEAD.slice(0, 10), "2026-08-05T11:00:00Z", `${BOT}[bot]`)] }))
+  T(`${TOOL}: the measured REST bot-login alias is accepted too`, restAlias.status === 0 && parsed(restAlias)?.reviewSource === "ISSUE_COMMENT", restAlias.stdout || restAlias.stderr)
+
+  const staleComment = readPr(payload({ comments: [botComment(OLD_HEAD.slice(0, 10))] }))
+  const staleCommentPlan = parsed(staleComment)
+  T(
+    `${TOOL}: a clean connector issue comment for an old head is NO_REVIEW`,
+    staleComment.status === 1 && staleCommentPlan?.verdict === "NO_REVIEW" && staleCommentPlan.staleReviewCommit === OLD_HEAD.slice(0, 10),
+    staleComment.stdout || staleComment.stderr,
+  )
+
+  const humanComment = readPr(payload({ comments: [{ ...botComment(), author: { login: "thomasluizon" } }] }))
+  T(`${TOOL}: a human copy of the connector comment cannot satisfy review`, humanComment.status === 1 && parsed(humanComment)?.verdict === "NO_REVIEW", humanComment.stdout || humanComment.stderr)
+  const shortPrefix = readPr(payload({ comments: [botComment(HEAD.slice(0, 7))] }))
+  T(`${TOOL}: an unmeasured short reviewed-commit prefix is rejected`, shortPrefix.status === 1 && parsed(shortPrefix)?.verdict === "NO_REVIEW", shortPrefix.stdout || shortPrefix.stderr)
+  const longPrefix = readPr(payload({ comments: [botComment(HEAD.slice(0, 11))] }))
+  T(`${TOOL}: an unmeasured long reviewed-commit prefix is rejected`, longPrefix.status === 1 && parsed(longPrefix)?.verdict === "NO_REVIEW", longPrefix.stdout || longPrefix.stderr)
 
   /** A body-level CHANGES_REQUESTED opens no thread at all, so a thread count of 0 is not clean. */
   const changes = readPr(payload({ reviews: [botReview("CHANGES_REQUESTED", "2026-08-04T23:16:35Z", HEAD, "The migration drops a column old clients still read.")] }))
@@ -99,9 +159,17 @@ export const cases = () => {
     parsed(clean)?.reviewBody === null,
     clean.stdout,
   )
+  for (const incompleteState of ["PENDING", "DISMISSED"]) {
+    const incomplete = readPr(payload({ reviews: [botReview(incompleteState)] }))
+    T(
+      `${TOOL}: a ${incompleteState} connector review cannot satisfy current-head readiness`,
+      incomplete.status === 1 && parsed(incomplete)?.verdict === "NO_REVIEW",
+      incomplete.stdout || incomplete.stderr,
+    )
+  }
 
   /** A draft attracts no review ever, so the wait budget must not be spent discovering that. */
-  const draft = run(TOOL, ["--pr", "681", "--wait-seconds", "600", "--poll-seconds", "1"], { env: ghPlan(payload({ isDraft: true })) })
+  const draft = run(TOOL, ["--pr", "https://github.com/thomasluizon/orbit-ui-mobile/pull/681", "--wait-seconds", "600", "--poll-seconds", "1"], { path: testedToolPath, env: ghPlan(payload({ isDraft: true })) })
   const draftPlan = parsed(draft)
   T(
     `${TOOL}: a draft is reported immediately as DRAFT without consuming the wait budget`,
@@ -117,6 +185,28 @@ export const cases = () => {
     one.stdout || one.stderr,
   )
   T(`${TOOL}: the unresolved count is reported separately from the total`, onePlan?.counts.total === 1 && onePlan.counts.unresolved === 1, one.stdout)
+
+  const pagedSequence = stage("list-bot-threads/page-sequence", "0")
+  const paged = run(TOOL, ["--pr", "681", "--repo", "ui", "--wait-seconds", "0"], { path: testedToolPath, env: orcaEnv([
+    { match: "auth token --user thomasluizon", stdout: "test-github-token" },
+    { match: "api graphql", stdoutSequence: [
+      payload({ reviews: [botReview()], threads: [thread({ id: "PRRT_page_one" })], pageInfo: { hasNextPage: true, endCursor: "cursor-1" } }),
+      payload({ reviews: [botReview()], threads: [thread({ id: "PRRT_page_two" })], pageInfo: { hasNextPage: false, endCursor: null } }),
+    ], sequenceFile: pagedSequence },
+  ]) })
+  const pagedPlan = parsed(paged)
+  T(`${TOOL}: review threads are fully paginated before counts are reported`, paged.status === 0 && pagedPlan?.threadsComplete === true && pagedPlan?.counts.pages === 2 && pagedPlan.counts.total === 2 && pagedPlan.counts.unresolved === 2, paged.stdout || paged.stderr)
+  T(`${TOOL}: every review-thread page emits structured progress`, /"event":"CODEX_THREAD_PAGE_READ"[\s\S]*"page":2/.test(paged.stderr), paged.stderr)
+
+  const cycleSequence = stage("list-bot-threads/cycle-sequence", "0")
+  const cycle = run(TOOL, ["--pr", "681", "--repo", "ui", "--wait-seconds", "0"], { path: testedToolPath, env: orcaEnv([
+    { match: "auth token --user thomasluizon", stdout: "test-github-token" },
+    { match: "api graphql", stdoutSequence: [
+      payload({ reviews: [botReview()], pageInfo: { hasNextPage: true, endCursor: "repeated" } }),
+      payload({ reviews: [botReview()], pageInfo: { hasNextPage: true, endCursor: "repeated" } }),
+    ], sequenceFile: cycleSequence },
+  ]) })
+  T(`${TOOL}: a repeated review-thread cursor fails closed instead of looping`, cycle.status === 2 && /repeated an endCursor/.test(cycle.stderr), cycle.stderr || cycle.stdout)
 
   /** #681's real shape: outdated means the code moved, NOT that anyone handled the finding. */
   const outdated = readPr(payload({ reviews: [botReview()], threads: [thread({ isOutdated: true })] }))
@@ -172,7 +262,7 @@ export const cases = () => {
   T(`${TOOL}: a review with no commit at all cannot be proven current, so it is not accepted`, noCommit.status === 1 && parsed(noCommit)?.verdict === "NO_REVIEW", noCommit.stdout || noCommit.stderr)
 
   const failing = readPr("", 1)
-  T(`${TOOL}: a failing gh is an environment error, never a verdict`, failing.status === 2 && /gh api graphql failed/.test(failing.stderr), `exit ${failing.status}: ${failing.stderr || failing.stdout}`)
+  T(`${TOOL}: a failing gh is an environment error, never a verdict`, failing.status === 2 && /gh api graphql.*failed/.test(failing.stderr), `exit ${failing.status}: ${failing.stderr || failing.stdout}`)
 
   const garbage = readPr("not json at all")
   T(`${TOOL}: unparseable gh output is an environment error`, garbage.status === 2 && /unparseable JSON/.test(garbage.stderr), `exit ${garbage.status}: ${garbage.stderr || garbage.stdout}`)
@@ -182,6 +272,16 @@ export const cases = () => {
 
   const missing = readPr(JSON.stringify({ data: { repository: { pullRequest: null } } }))
   T(`${TOOL}: a null pull request is an environment error`, missing.status === 2 && /returned no pull request/.test(missing.stderr), `exit ${missing.status}: ${missing.stderr || missing.stdout}`)
+
+  const descendantPidFile = stage("list-bot-threads/descendant.pid", "")
+  const hanging = run(TOOL, ["--pr", "681", "--repo", "ui", "--wait-seconds", "0", "--command-timeout-seconds", "1"], { path: testedToolPath, env: orcaEnv([
+    { match: "auth token --user thomasluizon", stdout: "test-github-token" },
+    { match: "api graphql", stdout: "", hangTreePidFile: descendantPidFile },
+  ]) })
+  const descendantPid = Number(readFileSync(descendantPidFile, "utf8"))
+  const descendantAlive = processIsRunning(descendantPid)
+  T(`${TOOL}: a hanging GitHub read is bounded and reports its timeout`, hanging.status === 2 && /timed out after 1s/.test(hanging.stderr), hanging.stderr || hanging.stdout)
+  T(`${TOOL}: a GitHub timeout removes the complete child process tree`, Number.isInteger(descendantPid) && !descendantAlive, `descendant ${descendantPid} still alive`)
 
   T(
     `${TOOL}: stdout carries ONE JSON object and nothing else`,

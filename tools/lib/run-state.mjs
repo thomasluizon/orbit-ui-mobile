@@ -60,6 +60,28 @@ export const readRunState = (repoRoot = REPO_ROOT) => {
   }
 }
 
+export const writeRunState = (state, repoRoot = REPO_ROOT) => {
+  mkdirSync(gitDirectoryOf(repoRoot), { recursive: true })
+  const previous = readRunState(repoRoot)
+  const sameSession = typeof state?.sessionId === "string" && state.sessionId !== "" && previous?.sessionId === state.sessionId
+  const identities = [
+    ...(sameSession && Array.isArray(previous?.readinessLedger) ? previous.readinessLedger : []),
+    ...(sameSession && Array.isArray(previous?.pullRequests) ? previous.pullRequests : []),
+    ...(Array.isArray(state?.readinessLedger) ? state.readinessLedger : []),
+    ...(Array.isArray(state?.pullRequests) ? state.pullRequests : []),
+  ]
+  const readinessLedger = []
+  const seen = new Set()
+  for (const entry of identities) {
+    if (typeof entry?.repositoryKey !== "string" || !Number.isInteger(entry?.prNumber) || typeof entry?.receiptPath !== "string") continue
+    const key = `${entry.repositoryKey}#${entry.prNumber}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    readinessLedger.push({ repositoryKey: entry.repositoryKey, prNumber: entry.prNumber, receiptPath: entry.receiptPath })
+  }
+  writeFileSync(runStatePath(repoRoot), `${JSON.stringify({ ...state, readinessLedger }, null, 2)}\n`)
+}
+
 /** Every wake source ever registered and not yet removed. Liveness is the CALLER's question. */
 export const readWakeSources = (repoRoot = REPO_ROOT) => {
   const directory = wakeSourceDirectory(repoRoot)

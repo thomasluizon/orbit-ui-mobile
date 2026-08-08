@@ -13,7 +13,6 @@
 import { execFileSync } from "node:child_process"
 import { writeFileSync } from "node:fs"
 import { isAbsolute, resolve } from "node:path"
-import { effectiveCaps, parseCapsOverride } from "./lib/caps-override.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
 const USAGE = `usage: compose-prompt.mjs --issue ORB-N --repo <ui|api|landing> --out <absolute path>
@@ -97,19 +96,6 @@ const worktreeLine = worktree ? `\nWorking tree \`${worktree}\`.` : ""
 const branchLine = branch ? `\nBranch \`${branch}\` is ALREADY checked out for you.` : ""
 
 /**
- * The caps the worker is told are the caps it will be MEASURED against, override included. Without
- * this the brief would tell a ticket carrying a lifted file cap that 8 files are hard, and the
- * worker would correctly STOP on the codemod the override exists to let through.
- */
-const standingCaps = { files: config.caps.affectedFiles, lines: config.caps.diffLines }
-const parsedOverride = parseCapsOverride(result.issue.description, standingCaps)
-const override = parsedOverride.found && !parsedOverride.error ? parsedOverride : null
-const caps = effectiveCaps(standingCaps, override)
-const overrideLine = override
-  ? `\nThis ticket carries a caps override authored by the repository owner: ${override.source}\nThe lifted cap above is the real one. The review still reads every line.`
-  : ""
-
-/**
  * WHY this block is in EVERY prompt and not just a visible-effect one, measured 2026-08-06. The
  * ticket is quoted verbatim (D2) and a ticket's Evidence section says screenshots are REQUIRED, so a
  * worker that reads only the ticket obeys the ticket and ignores the orchestrator's step 13. ORB-39
@@ -145,9 +131,12 @@ would and say which you chose in the PR body.
 **Where you are.** Repository \`${repoKey}\` at \`${repoPath}\`.${worktreeLine}${branchLine}
 Base branch \`${baseBranch}\`: open your pull request against it, and do not create another branch.
 
-**Scope.** Only files this ticket names or provably requires. The caps are hard: ${caps.files}
-affected files and ${caps.lines} diff lines. If the real change exceeds either, STOP and
-report why. Do not deliver a partial change silently, and do not split it into a second PR yourself.${overrideLine}${browserBan}
+**Scope.** Only files this ticket names or provably requires. File and line counts are advisory
+review information, never delivery gates. Keep one atomic behaviour complete: migrations with their
+model change, generated Designer or contract output with its source/schema, architecture artifacts
+with the module or route change that requires regeneration, and required lockfiles or codemod output
+in this pull request. Do not split required generated output away to make the diff look smaller, and
+do not deliver partial behaviour silently.${browserBan}
 
 **Output.** One commit series on your branch, pushed, with exactly one open pull request that links
 ${issue.toUpperCase()}. Nothing else counts as delivery, and your own exit code counts for nothing:
@@ -157,6 +146,11 @@ delivery is verified from git and GitHub artifacts by tools/verify-delivery.mjs.
 no GraphQL mergePullRequest, no --admin. Never push to main. Never force-push. Never --no-verify or
 --no-gpg-sign. Do not edit the Linear ticket. Do not touch a second repository: cross-repo work is
 two tickets. Do not modify the harness under tools/ or .claude/ unless this ticket says to.
+
+**Stage only named paths.** Never run \`git add -A\`, \`git add --all\`, \`git add -u\`, \`git add
+--update\`, a dot path, a wildcard, or a non-literal magic pathspec. Inspect \`git status --short\`,
+then pass every intended path explicitly to \`git --literal-pathspecs add\`. Tracked \`.orca/\` changes
+are source and must never be discarded; only untracked \`.orca/\` runtime residue is disposable.
 
 **Never create an end-to-end, visual-regression or Playwright file.** The testing rule in CLAUDE.md
 is Vitest unit and behaviour tests, and no new end-to-end suite. A worker on ORB-39 wrote

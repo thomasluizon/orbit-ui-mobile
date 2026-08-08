@@ -325,31 +325,20 @@ export const cases = () => {
   T(
     `${TOOL}: a ticket no headless agent can execute is deferred by name, not admitted and failed at 03:00`,
     unexecutable.status === 0 &&
-      unexecutablePlan?.counts.admitted === 0 &&
-      unexecutablePlan.deferred.map((entry) => entry.reason).join(",") === "NOT_REPRODUCED,NOT_CODE_WORK,MULTI_PR,OVER_CAPS",
+      unexecutablePlan?.counts.admitted === 1 &&
+      unexecutablePlan.deferred.map((entry) => entry.reason).join(",") === "NOT_REPRODUCED,NOT_CODE_WORK,MULTI_PR" &&
+      unexecutablePlan.admitted[0].identifier === "ORB-4",
     unexecutable.stdout || unexecutable.stderr,
   )
 
-  /** The override is the answer to OVER_CAPS, so the same codemod ticket runs once Thomas signs it. */
-  const exempted = run(TOOL, ["--tickets", "ORB-4"], {
-    env: orcaEnv([{ match: "linear issue ORB-4 --relations", stdout: relationsEnvelope("ORB-4", { description: "CAPS-OVERRIDE: files=400 reason=one mechanical icon codemod\n\n## Technical details\n\nA codemod rewrites every icon import." }) }]),
+  const large = run(TOOL, ["--tickets", "ORB-5"], {
+    env: orcaEnv([{ match: "linear issue ORB-5 --relations", stdout: relationsEnvelope("ORB-5", { description: `## Affected modules / files\n\n${Array.from({ length: 30 }, (unused, index) => `- apps/web/file-${index}.ts`).join("\n")}\n\n## Scope\n\n- Apply one coherent codemod.` }) }]),
   })
-  const exemptedPlan = planOf(exempted)
+  const largePlan = planOf(large)
   T(
-    `${TOOL}: a human-authored caps override admits the codemod and reports which cap moved`,
-    exemptedPlan?.counts.admitted === 1 && exemptedPlan.admitted[0].capsOverride?.files === 400 && exemptedPlan.admitted[0].capsOverride.lines === null,
-    exempted.stdout || exempted.stderr,
-  )
-
-  /** A marginal affected-modules count is a WARNING: that list over-counts, and ORB-86 proved it. */
-  const marginal = run(TOOL, ["--tickets", "ORB-5"], {
-    env: orcaEnv([{ match: "linear issue ORB-5 --relations", stdout: relationsEnvelope("ORB-5", { description: `## Affected modules / files\n\n${Array.from({ length: 12 }, (unused, index) => `- apps/web/file-${index}.ts`).join("\n")}` }) }]),
-  })
-  const marginalPlan = planOf(marginal)
-  T(
-    `${TOOL}: a marginal affected-modules count warns on an admitted ticket rather than deferring it`,
-    marginalPlan?.counts.admitted === 1 && /12 entries against a cap of 8/.test(marginalPlan.admitted[0].warnings[0] ?? ""),
-    marginal.stdout || marginal.stderr,
+    `${TOOL}: a large coherent ticket is admitted without an override or size warning`,
+    largePlan?.counts.admitted === 1 && largePlan.admitted[0].warnings.length === 0,
+    large.stdout || large.stderr,
   )
 
   const markdown = run(TOOL, ["--tickets", "ORB-1,ORB-2,ORB-3", "--format", "markdown"], {

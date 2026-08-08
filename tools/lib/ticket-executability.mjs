@@ -12,10 +12,9 @@
  *    scope section means the opposite of the same words in Scope, and a naive regex tripped on
  *    ORB-223, which is probably fine. So the scan is section-aware and skips the sections that
  *    describe what the ticket is NOT.
- * 2. **Counting bullets under Affected modules OVER-counts.** That list carries test files and
- *    read-only references; ORB-86 listed two orbit-api files it never touched. A marginal count is
- *    therefore a WARNING on an admitted ticket, never a deferral. Only a count far past the cap,
- *    which no miscounting explains, defers.
+ * 2. **Size is planning information, never executability.** Affected modules lists carry tests,
+ *    generated output and read-only references. They are not a correctness boundary, so neither
+ *    their count nor a codemod, migration, lockfile or generated artifact can defer a ticket.
  */
 
 const OUT_OF_SCOPE_HEADING = /out of scope|non.?goals?|not in scope/i
@@ -59,34 +58,22 @@ const inScopeSections = (sections) => {
 
 const BULLET = /^\s*(?:[-*+]|\d+[.)])\s+(.*)$/
 
-/**
- * `liftedBy` names WHICH cap answers the finding, never "an override exists". A codemod is a
- * file-count problem and a regenerated lockfile is a line-count problem, so a lines-only override
- * must not admit the codemod and a files-only override must not admit the lockfile. Suppressing both
- * on any override contradicts the contract that an unnamed cap stays standing.
- */
 const PHRASES = [
   { reason: "NOT_REPRODUCED", pattern: /NOT REPRODUCED|reproduce on a (?:device|emulator)|unreproduced, evidence below/i },
   { reason: "NOT_CODE_WORK", pattern: /no code in any repo|\bops.only\b|human.only|no agent can execute this/i },
   { reason: "MULTI_PR", pattern: /one PR per|several (?:pull requests|PRs)|multiple (?:pull requests|PRs)|split into \d+ (?:pull requests|PRs)/i },
-  { reason: "OVER_CAPS", pattern: /\bcodemod\b/i, liftedBy: "files" },
-  /** Both orders, because "regenerate the lockfile" and "the lockfile is regenerated" are one fact. */
-  { reason: "OVER_CAPS", pattern: /regenerat\w*[^\n]{0,40}(?:package-)?lock(?:file|\.json)|(?:package-)?lock(?:file|\.json)[^\n]{0,40}regenerat/i, liftedBy: "lines" },
 ]
 
 /**
  * @param description the Linear issue description, verbatim
- * @param options `{ affectedFilesCap, capsOverride }` where capsOverride is `{files, lines}` or null
  * @returns `{ deferrals: [{reason, detail}], warnings: [string] }`, deferrals in PHRASES order
  */
-export const classifyExecutability = (description, { affectedFilesCap, capsOverride = null } = {}) => {
+export const classifyExecutability = (description) => {
   const scanned = inScopeSections(sectionsOf(description))
   const deferrals = []
   const warnings = []
-  const lifted = { files: Number.isInteger(capsOverride?.files), lines: Number.isInteger(capsOverride?.lines) }
 
-  for (const { reason, pattern, liftedBy } of PHRASES) {
-    if (liftedBy && lifted[liftedBy]) continue
+  for (const { reason, pattern } of PHRASES) {
     for (const section of scanned) {
       const hit = section.lines.find((line) => pattern.test(line))
       if (!hit) continue
@@ -100,19 +87,6 @@ export const classifyExecutability = (description, { affectedFilesCap, capsOverr
   const firstScopeItem = scope?.lines.map((line) => BULLET.exec(line)?.[1]).find(Boolean)
   if (firstScopeItem && /\brepro(?:duce|duction|)\b/i.test(firstScopeItem) && !deferrals.some((entry) => entry.reason === "NOT_REPRODUCED")) {
     deferrals.push({ reason: "NOT_REPRODUCED", detail: `the first Scope item is "${firstScopeItem.trim().slice(0, 120)}", so the ticket starts with work only a device can do` })
-  }
-
-  const affected = scanned.find((section) => /affected modules|affected files/i.test(section.heading))
-  const listed = affected ? affected.lines.filter((line) => BULLET.test(line)).length : 0
-  // A file-count breach is answered by the FILE cap only; a lines override leaves it standing.
-  if (Number.isInteger(affectedFilesCap) && listed > affectedFilesCap && !lifted.files) {
-    /** Twice the cap is the line no miscounting explains. Between the cap and that, the ticket runs
-     * and the count is printed, because ORB-86's list was wrong in exactly that band. */
-    if (listed > affectedFilesCap * 2) {
-      deferrals.push({ reason: "OVER_CAPS", detail: `Affected modules lists ${listed} entries against a cap of ${affectedFilesCap}, which no over-counting explains` })
-    } else {
-      warnings.push(`Affected modules lists ${listed} entries against a cap of ${affectedFilesCap}; that list over-counts (it carries tests and read-only references), so this runs and the scope gate decides`)
-    }
   }
 
   return { deferrals, warnings }

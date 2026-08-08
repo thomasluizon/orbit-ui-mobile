@@ -1,8 +1,8 @@
 import { spawnSync } from "node:child_process"
-import { existsSync, rmSync, writeFileSync } from "node:fs"
-import { dirname, join } from "node:path"
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { dirname, join, resolve } from "node:path"
 
-import { T, check, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
+import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR } from "./_harness.mjs"
 
 const TOOL = "launch-worker.mjs"
 
@@ -34,9 +34,12 @@ const IMMEDIATE = stage("launch-worker/immediate-worker.js", "process.exit(0)\n"
 const launch = (label, config) => {
   const repo = stageRepo(`launch-worker-${label}`)
   if (!repo) return null
+  repo.git(["remote", "set-url", "origin", `https://github.com/test-owner/${label}.git`])
   const staged = stageWithConfig(`launch-worker-${label}`, TOOL, config)
   return { ...staged, worktree: repo.path, prompt: stage(`launch-worker/${label}-prompt.md`, "the work order, verbatim\n") }
 }
+
+const githubAuthEnv = () => orcaEnv([{ match: "auth token --user test-owner", stdout: "test-github-token" }])
 
 /** The launcher writes its worker log outside every repository, so the fixture root cannot hold it. */
 const discardLog = (stdout) => {
@@ -127,13 +130,64 @@ export const cases = () => {
     "a worker that exits on its own is reported EXITED with its code",
     ["--issue", "ORB-201", "--worktree", exits.worktree, "--prompt", exits.prompt],
     { status: 0, stdout: /"exitCode": 0,\s*"outcome": "EXITED"/ },
-    { path: exits.path },
+    { path: exits.path, env: githubAuthEnv() },
   )
   const exitedLog = discardLog(exited.stdout)
   T(
     `${TOOL}: a real launch writes its log outside the worktree it is about to hand back`,
     typeof exitedLog === "string" && exitedLog.includes("orbit-workers") && !exitedLog.startsWith(exits.worktree),
     exited.stdout || exited.stderr,
+  )
+
+  const githubTimeout = launch("github-timeout", launchConfig(stubEngine(IMMEDIATE)))
+  const githubDescendantPidFile = stage("launch-worker/github-descendant.pid", "")
+  const githubTimedOut = check(
+    TOOL,
+    "a hanging post-worker GitHub call is bounded",
+    ["--issue", "ORB-201", "--worktree", githubTimeout.worktree, "--prompt", githubTimeout.prompt, "--codex-only", "--command-timeout-seconds", "1"],
+    { status: 1, stdout: /"outcome": "PR_BODY_ENFORCEMENT_FAILED"/, stderr: /GitHub command timed out after 1s/ },
+    { path: githubTimeout.path, env: orcaEnv([
+      { match: "auth token --user test-owner", stdout: "test-github-token" },
+      { match: "pr list --head main --json number,body,baseRefOid,headRefOid,statusCheckRollup", stdout: "", hangTreePidFile: githubDescendantPidFile },
+    ]) },
+  )
+  discardLog(githubTimedOut.stdout)
+  const githubDescendantPid = Number(readFileSync(githubDescendantPidFile, "utf8"))
+  T(`${TOOL}: post-worker GitHub timeout removes the complete child process tree`, Number.isInteger(githubDescendantPid) && !processIsRunning(githubDescendantPid), `descendant ${githubDescendantPid} still alive`)
+
+  const bodyEdit = launch("body-edit-invalidation", launchConfig(stubEngine(IMMEDIATE)))
+  const bodyEditHead = bodyEdit.worktree && spawnSync("git", ["-C", bodyEdit.worktree, "rev-parse", "HEAD"], { encoding: "utf8", windowsHide: true }).stdout.trim()
+  const bodyEdited = check(
+    TOOL,
+    "a codex-only launcher persists the old Guards baseline before editing the PR body",
+    ["--issue", "ORB-201", "--worktree", bodyEdit.worktree, "--prompt", bodyEdit.prompt, "--codex-only"],
+    { status: 0, stdout: /"outcome": "EXITED"/ },
+    { path: bodyEdit.path, env: orcaEnv([
+      { match: "auth token --user test-owner", stdout: "test-github-token" },
+      { match: "pr list --head main --json number,body,baseRefOid,headRefOid,statusCheckRollup", stdout: JSON.stringify([{
+        number: 200,
+        body: "Implements ORB-201.",
+        baseRefOid: "base-sha",
+        headRefOid: bodyEditHead,
+        statusCheckRollup: [{ workflowName: "Guards", name: "Harness tools", startedAt: "2026-08-07T10:00:00Z" }],
+      }]) },
+      { match: `run list --workflow guards.yml --commit ${bodyEditHead}`, stdout: JSON.stringify([{ databaseId: 10, createdAt: "2026-08-07T09:00:00Z", headSha: bodyEditHead, status: "completed", conclusion: "success" }]) },
+      { match: "pr edit 200 --body-file -", stdout: "" },
+    ]) },
+  )
+  discardLog(bodyEdited.stdout)
+  const bodyEditGitPath = spawnSync("git", ["-C", bodyEdit.worktree, "rev-parse", "--git-common-dir"], { encoding: "utf8", windowsHide: true }).stdout.trim()
+  const bodyEditReceiptPath = resolve(bodyEdit.worktree, bodyEditGitPath, "orbit-body-edit-invalidations", "200.json")
+  let bodyEditReceipt = null
+  try {
+    bodyEditReceipt = JSON.parse(readFileSync(bodyEditReceiptPath, "utf8"))
+  } catch {
+    bodyEditReceipt = null
+  }
+  T(
+    `${TOOL}: launcher body edit receipt is pinned to the exact head/base and pre-edit Guards run`,
+    bodyEditReceipt?.headSha === bodyEditHead && bodyEditReceipt?.baseSha === "base-sha" && bodyEditReceipt?.guardsRuns?.[0]?.name === "Harness tools" && bodyEditReceipt?.preEditWorkflowRuns?.[0]?.databaseId === 10,
+    JSON.stringify(bodyEditReceipt),
   )
 
   /**
@@ -147,7 +201,7 @@ export const cases = () => {
     "a worker that writes nothing is killed on the configured no-progress clock",
     ["--issue", "ORB-201", "--worktree", noProgress.worktree, "--prompt", noProgress.prompt],
     { status: 1, stdout: /"outcome": "KILLED_NO_PROGRESS"/, stderr: /has not moved HEAD or written a file for 0\.02 minutes/ },
-    { path: noProgress.path },
+    { path: noProgress.path, env: githubAuthEnv() },
   )
   discardLog(stalled.stdout)
 
@@ -157,9 +211,21 @@ export const cases = () => {
     "a worker still running at the configured ceiling is killed with its process tree",
     ["--issue", "ORB-201", "--worktree", ceiling.worktree, "--prompt", ceiling.prompt],
     { status: 1, stdout: /"outcome": "KILLED_HARD_CEILING"/, stderr: /passed the 0\.02 minute ceiling; killing the worker process tree/ },
-    { path: ceiling.path },
+    { path: ceiling.path, env: githubAuthEnv() },
   )
   discardLog(killed.stdout)
+
+  const descendantPidFile = stage("launch-worker/descendant.pid", "")
+  const treeWorker = stage(
+    "launch-worker/tree-worker.js",
+    `const { spawn } = require("node:child_process")\nconst { writeFileSync } = require("node:fs")\nconst child = spawn(process.execPath, ["-e", "setInterval(() => {}, 60000)"], { stdio: "ignore" })\nwriteFileSync(${JSON.stringify(descendantPidFile)}, String(child.pid))\nsetInterval(() => {}, 60000)\n`,
+  )
+  const tree = launch("process-tree", launchConfig({ ...stubEngine(treeWorker), timeouts: { hardCeilingMinutes: 0.02, noProgressMinutes: 5, pollSeconds: 0.2 } }))
+  const treeKilled = check(TOOL, "a hanging worker tree is timed out", ["--issue", "ORB-201", "--worktree", tree.worktree, "--prompt", tree.prompt], { status: 1, stdout: /KILLED_HARD_CEILING/ }, { path: tree.path, env: githubAuthEnv() })
+  discardLog(treeKilled.stdout)
+  const descendantPid = Number(readFileSync(descendantPidFile, "utf8"))
+  const descendantAlive = processIsRunning(descendantPid)
+  T(`${TOOL}: timeout removes the complete process tree, not only the parent`, Number.isInteger(descendantPid) && !descendantAlive, `descendant ${descendantPid} still alive`)
 
   const brokenClock = launch("broken-clock", launchConfig({ timeouts: { pollSeconds: 0 } }))
   const refused = run(TOOL, ["--issue", "ORB-201", "--worktree", brokenClock.worktree, "--prompt", brokenClock.prompt, "--dry-run"], { path: brokenClock.path })
@@ -208,7 +274,22 @@ const stageReviewFixture = (label) => {
   for (const args of [["init", "-q", "--initial-branch=main"], ["config", "user.email", "gate@orbit.test"], ["config", "user.name", "Orbit Gate"], ["commit", "-q", "--allow-empty", "-m", "base"]]) {
     if (spawnSync("git", ["-C", staged.base, ...args], { encoding: "utf8" }).status !== 0) return null
   }
-  return staged
+  const apiPath = join(dirname(staged.base), `${label}-api-primary`)
+  mkdirSync(apiPath, { recursive: true })
+  for (const args of [["init", "-q", "--initial-branch=main"], ["config", "user.email", "gate@orbit.test"], ["config", "user.name", "Orbit Gate"], ["commit", "-q", "--allow-empty", "-m", "base"]]) {
+    if (spawnSync("git", ["-C", apiPath, ...args], { encoding: "utf8" }).status !== 0) return null
+  }
+  const sourceRoot = join(TOOLS_DIR, "..")
+  for (const repoPath of [staged.base, apiPath]) {
+    const destination = join(repoPath, ".claude", "skills", "pr-review")
+    mkdirSync(destination, { recursive: true })
+    cpSync(join(sourceRoot, ".claude", "skills", "pr-review", "SKILL.md"), join(destination, "SKILL.md"))
+    cpSync(join(sourceRoot, ".claude", "skills", "pr-review", "rubric.md"), join(destination, "rubric.md"))
+  }
+  const config = reviewConfig()
+  config.repos = { ...config.repos, ui: staged.base, api: apiPath }
+  writeFileSync(staged.configPath, `${JSON.stringify(config, null, 2)}\n`)
+  return { ...staged, apiPath }
 }
 
 const reviewCases = () => {
@@ -220,10 +301,13 @@ const reviewCases = () => {
   const prompt = stage("launch-worker/review-order.md", "the review order, verbatim\n")
   const options = { path: staged.path }
 
+  check(TOOL, "--review refuses a missing repository", ["--issue", "ORB-201", "--review", "--prompt", prompt, "--dry-run"], { status: 2, stderr: /--review requires --repo/ }, options)
+  check(TOOL, "--review refuses an unknown repository", ["--issue", "ORB-201", "--review", "--repo", "ghost", "--prompt", prompt, "--dry-run"], { status: 2, stderr: /--repo must name a configured repository/ }, options)
+
   check(
     TOOL,
     "--review refuses --worktree, so a reviewer cannot read the PR's own AGENTS.md",
-    ["--issue", "ORB-201", "--review", "--worktree", staged.base, "--prompt", prompt],
+    ["--issue", "ORB-201", "--review", "--repo", "ui", "--worktree", staged.base, "--prompt", prompt],
     { status: 2, stderr: /--review refuses --worktree/ },
     options,
   )
@@ -231,7 +315,7 @@ const reviewCases = () => {
   check(
     TOOL,
     "--review needs no --worktree",
-    ["--issue", "ORB-201", "--review", "--prompt", prompt, "--dry-run"],
+    ["--issue", "ORB-201", "--review", "--repo", "ui", "--prompt", prompt, "--dry-run"],
     { status: 0, stdout: /"review": true/ },
     options,
   )
@@ -239,7 +323,7 @@ const reviewCases = () => {
   const plan = check(
     TOOL,
     "--review resolves the reviewer engine and the review model tier",
-    ["--issue", "ORB-201", "--review", "--prompt", prompt, "--dry-run"],
+    ["--issue", "ORB-201", "--review", "--repo", "ui", "--prompt", prompt, "--dry-run"],
     { status: 0, stdout: /"tier": "review"/ },
     options,
   )
@@ -269,7 +353,7 @@ const reviewCases = () => {
   check(
     TOOL,
     "--review refuses a review order written inside the main checkout",
-    ["--issue", "ORB-201", "--review", "--prompt", stage(`staged/launch-worker-review/review-order.md`, "committed by accident\n"), "--dry-run"],
+    ["--issue", "ORB-201", "--review", "--repo", "ui", "--prompt", stage(`staged/launch-worker-review/review-order.md`, "committed by accident\n"), "--dry-run"],
     { status: 2, stderr: /review order written into a repository gets committed/ },
     options,
   )
@@ -282,7 +366,7 @@ const reviewCases = () => {
   const fallback = check(
     TOOL,
     "--review with --codex-only reviews on the worker engine, never the unavailable Claude reviewer",
-    ["--issue", "ORB-201", "--review", "--codex-only", "--prompt", prompt, "--dry-run"],
+    ["--issue", "ORB-201", "--review", "--repo", "ui", "--codex-only", "--prompt", prompt, "--dry-run"],
     { status: 0, stdout: /"tier": "review"/ },
     options,
   )
@@ -302,4 +386,10 @@ const reviewCases = () => {
     degraded.runDirectory === staged.base,
     `runDirectory ${degraded.runDirectory}`,
   )
+
+  const api = check(TOOL, "--review --repo api runs from the API primary main checkout", ["--issue", "ORB-201", "--review", "--repo", "api", "--prompt", prompt, "--dry-run"], { status: 0, stdout: /"repositoryKey": "api"/ }, options)
+  T(`${TOOL}: API review cwd is the configured API primary checkout`, JSON.parse(api.stdout).runDirectory === staged.apiPath, api.stdout)
+
+  writeFileSync(join(staged.apiPath, ".claude", "skills", "pr-review", "SKILL.md"), "drift\n")
+  check(TOOL, "UI/API pr-review drift fails parity before launch", ["--issue", "ORB-201", "--review", "--repo", "api", "--prompt", prompt, "--dry-run"], { status: 2, stderr: /pr-review parity failed/ }, options)
 }

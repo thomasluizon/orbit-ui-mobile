@@ -106,11 +106,11 @@ jobs:
           mobile=$(echo "$changed" | grep -Ec '^apps/mobile/(app|components|hooks|stores|lib)/' || true)
           echo "web-scope files: $web   mobile-scope files: $mobile"
           if [ "$web" -gt 0 ] && [ "$mobile" -eq 0 ]; then
-            echo "::error::apps/web UI code changed with zero apps/mobile change. Parity is mandatory (root CLAUDE.md). Apply the mirror change, or add the parity:exempt label with a one-line justification in the PR body (platform adapters only)."
+            echo "::error::apps/web UI code changed with zero apps/mobile change. Parity is mandatory (root CLAUDE.md). Apply the mirror change, or add parity:exempt with a one-line PR-body justification for a platform adapter or an enumerated layout-shell divergence only: navigation chrome (sidebar vs tab bar), desktop stats rail, command palette and keyboard shortcuts, or hover affordances on shell chrome. Screens, components, data flows, error paths, and behavior remain parity-bound."
             exit 1
           fi
           if [ "$mobile" -gt 0 ] && [ "$web" -eq 0 ]; then
-            echo "::error::apps/mobile UI code changed with zero apps/web change. Parity is mandatory (root CLAUDE.md). Apply the mirror change, or add the parity:exempt label with a one-line justification in the PR body (platform adapters only)."
+            echo "::error::apps/mobile UI code changed with zero apps/web change. Parity is mandatory (root CLAUDE.md). Apply the mirror change, or add parity:exempt with a one-line PR-body justification for a platform adapter or an enumerated layout-shell divergence only: navigation chrome (sidebar vs tab bar), desktop stats rail, command palette and keyboard shortcuts, or hover affordances on shell chrome. Screens, components, data flows, error paths, and behavior remain parity-bound."
             exit 1
           fi
 
