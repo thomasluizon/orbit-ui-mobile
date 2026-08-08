@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /** Persist and evaluate one final-head readiness receipt from artifacts produced by the harness. */
 
+import { createHash } from "node:crypto"
 import { readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 
@@ -76,6 +77,29 @@ if (
   typeof review?.rubricArtifactPath !== "string" ||
   !Array.isArray(review?.findings)
 ) fail("review artifact carries no reviewedHeadOid, findings, or frozen-rubric evidence")
+let frozenFindingIdsVerified = review.rounds === 1
+if (review.rounds === 2) {
+  if (typeof review.roundOneArtifactPath !== "string" || typeof review.roundOneArtifactSha256 !== "string") {
+    fail("round-two review artifact carries no immutable round-one artifact path and SHA-256")
+  }
+  let roundOneBytes
+  let roundOneReview
+  try {
+    roundOneBytes = readFileSync(review.roundOneArtifactPath)
+    roundOneReview = JSON.parse(roundOneBytes.toString("utf8"))
+  } catch (error) {
+    fail(`round-one review artifact could not be read: ${error.message}`)
+  }
+  const actualHash = createHash("sha256").update(roundOneBytes).digest("hex")
+  const originalIds = Array.isArray(roundOneReview?.findings)
+    ? roundOneReview.findings.filter((finding) => finding?.blocking === true).map((finding) => finding?.id)
+    : null
+  frozenFindingIdsVerified =
+    roundOneReview?.rounds === 1 &&
+    actualHash.toLowerCase() === review.roundOneArtifactSha256.toLowerCase() &&
+    Array.isArray(originalIds) &&
+    JSON.stringify(originalIds) === JSON.stringify(review.frozenFindingIds)
+}
 const bot = artifact.bot
 if (bot?.pr !== prNumber) fail("bot artifact does not name this pull request")
 const linear = artifact.linear
@@ -234,6 +258,20 @@ try {
     fail(`Linear issue ${delivery.issue} failed: ${redactSecrets(detail.trim())}`)
   }
   liveLinear = JSON.parse(linearRead.stdout)?.result?.issue
+  const finalIdentityRead = await runBounded(
+    process.env.GH_BIN || "gh",
+    ["pr", "view", String(prNumber), "--repo", repository, "--json", "number,baseRefOid,headRefOid,isDraft"],
+    { cwd: repoRoot, env: githubAuth.environment, timeoutMs: 45000 },
+  )
+  if (finalIdentityRead.timedOut) fail(`final PR identity read for ${prNumber} timed out after 45s; the complete child process tree was terminated`)
+  if (finalIdentityRead.error || finalIdentityRead.status !== 0) {
+    const detail = finalIdentityRead.stderr || finalIdentityRead.stdout || finalIdentityRead.error?.message || `exit ${finalIdentityRead.status}`
+    fail(`final PR identity read for ${prNumber} failed: ${redactSecrets(detail.trim(), githubAuth.secrets)}`)
+  }
+  const finalIdentity = JSON.parse(finalIdentityRead.stdout)
+  if (finalIdentity?.number !== prNumber || finalIdentity.baseRefOid !== live.baseRefOid || finalIdentity.headRefOid !== live.headRefOid || finalIdentity.isDraft !== live.isDraft) {
+    fail(`pull request ${prNumber} changed while readiness was being aggregated; rerun every final-head receipt`)
+  }
 } catch (error) {
   fail(`could not revalidate live pull request ${prNumber}: ${redactSecrets(error.message)}`)
 }
@@ -268,6 +306,7 @@ const receipt = {
     rubricArtifactPath: review.rubricArtifactPath,
     findings: review.findings,
     frozenFindingIds: review.frozenFindingIds,
+    frozenFindingIdsVerified,
     headSha: review.reviewedHeadOid,
     baseSha: review.baseSha,
   },

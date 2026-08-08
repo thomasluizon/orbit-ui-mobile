@@ -67,7 +67,13 @@ export const readinessVerdicts = (receipt) => {
   const blockersClosed = findingsValid && review.findings.every(
     (finding) => typeof finding?.blocking === "boolean" && (finding.blocking === false || finding?.status === "CLOSED"),
   )
+  const roundOneShapeValid = review?.rounds !== 1 || (
+    Array.isArray(review?.frozenFindingIds) &&
+    review.frozenFindingIds.length === 0 &&
+    review.findings.every((finding) => finding.blocking === false)
+  )
   const frozenFindingIdsValid = review?.rounds !== 2 || (
+    review?.frozenFindingIdsVerified === true &&
     Array.isArray(review?.frozenFindingIds) &&
     review.frozenFindingIds.length > 0 &&
     review.frozenFindingIds.every((id) => typeof id === "string" && id !== "") &&
@@ -79,6 +85,7 @@ export const readinessVerdicts = (receipt) => {
     review?.reviewedHeadOid !== receipt.currentHeadSha ||
     review?.verdict !== "CLEAN" ||
     blockersClosed !== true ||
+    roundOneShapeValid !== true ||
     frozenFindingIdsValid !== true ||
     !Number.isInteger(review?.rounds) ||
     review.rounds < 1 ||

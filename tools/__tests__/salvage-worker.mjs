@@ -56,6 +56,23 @@ export const cases = () => {
   }
 
   const passedOrder = stage("salvage-worker/pass-command.json", JSON.stringify({ command: process.execPath, args: ["-e", "process.exit(0)"] }))
+  const mutating = stageRepo("salvage-worker-mutating-test")
+  if (mutating?.git(["switch", "-q", "-c", "feature/mutating-test"]).status === 0) {
+    const mutatingPath = join(mutating.path, "mutated.txt")
+    writeFileSync(mutatingPath, "before test\n")
+    const mutatingOrder = stage("salvage-worker/mutating-command.json", JSON.stringify({ command: process.execPath, args: ["-e", "require('node:fs').writeFileSync(process.argv[1], 'after test\\n')", mutatingPath] }))
+    const mutatingStaged = stageWithConfig("salvage-worker-mutating-test", TOOL, { ...config, repos: { ...config.repos, ui: mutating.path } })
+    check(
+      TOOL,
+      "a green test that mutates a named path cannot publish untested bytes",
+      ["--issue", "ORB-250", "--repo", "ui", "--worktree", mutating.path, "--branch", "feature/mutating-test", "--run-root", mutating.path, "--test-command", mutatingOrder, "--test-receipt", receipt, "--message", "never", "--path", "mutated.txt"],
+      { status: 1, stderr: /workspace test mutated named paths.*mutated\.txt/ },
+      { path: mutatingStaged.path },
+    )
+    T(`${TOOL}: a mutating test leaves the changed bytes uncommitted and unstaged`, mutating.git(["rev-list", "--count", "main..HEAD"]).stdout.trim() === "0" && mutating.git(["diff", "--cached", "--name-only"]).stdout.trim() === "", "mutated test output was published")
+  } else {
+    T(`${TOOL}: mutating-test salvage fixture is available`, false, "could not create branch")
+  }
   const passed = check(
     TOOL,
     "a green real test receipt permits named-path commit and push",

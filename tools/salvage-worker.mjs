@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /** Finish a dead worker's already-written changes without broad staging or an invented test receipt. */
 
-import { readFileSync, statSync, writeFileSync } from "node:fs"
+import { createHash } from "node:crypto"
+import { lstatSync, readFileSync, readlinkSync, statSync, writeFileSync } from "node:fs"
 import { isAbsolute, relative, resolve } from "node:path"
 
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
@@ -101,6 +102,19 @@ try {
 } catch (error) {
   fail(2, `worktree is not a readable git checkout: ${error.message}`)
 }
+const fingerprintPath = (path) => {
+  const target = resolve(worktree, path)
+  try {
+    const stat = lstatSync(target)
+    if (stat.isSymbolicLink()) return `symlink:${stat.mode}:${readlinkSync(target)}`
+    if (stat.isFile()) return `file:${stat.mode}:${stat.size}:${createHash("sha256").update(readFileSync(target)).digest("hex")}`
+    return `other:${stat.mode}:${stat.size}`
+  } catch (error) {
+    if (error?.code === "ENOENT") return "missing"
+    throw error
+  }
+}
+const testedPathFingerprints = Object.fromEntries(normalizedPaths.map((path) => [path, fingerprintPath(path)]))
 const completedAt = new Date().toISOString()
 let testExitCode = 0
 try {
@@ -109,8 +123,11 @@ try {
 } catch (error) {
   testExitCode = 1
 }
-const testReceipt = { command: testOrder.command, args: testOrder.args, exitCode: testExitCode, testedHead, completedAt, worktree }
+const mutatedPaths = normalizedPaths.filter((path) => fingerprintPath(path) !== testedPathFingerprints[path])
+if (mutatedPaths.length > 0) testExitCode = 1
+const testReceipt = { command: testOrder.command, args: testOrder.args, exitCode: testExitCode, testedHead, testedPathFingerprints, mutatedPaths, completedAt, worktree }
 writeFileSync(testReceiptPath, `${JSON.stringify(testReceipt, null, 2)}\n`)
+if (mutatedPaths.length > 0) fail(1, `workspace test mutated named paths; nothing was staged or pushed: ${mutatedPaths.join(", ")}`)
 if (testExitCode !== 0) fail(1, "workspace test failed; nothing was staged or pushed")
 
 let inventory

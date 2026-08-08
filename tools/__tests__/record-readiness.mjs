@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto"
 import { copyFileSync, existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 
@@ -21,7 +22,7 @@ export const cases = () => {
     prCount: { number: 700 }, pullRequestState: { baseBranch: "main", baseSha: BASE, headSha: HEAD, draft: false },
     upToDate: { behindBy: 0 }, ci: { pass: true, failing: [], pending: [] },
   }}))
-  const review = stage("record-readiness/review.json", JSON.stringify({ reviewerKind: "independent", verdict: "CLEAN", rounds: 1, reviewedHeadOid: HEAD, baseSha: BASE, artifactPath: "C:/scratch/review.json", rubricBaseOid: BASE, rubricArtifactPath: "C:/scratch/rubric.md", findings: [] }))
+  const review = stage("record-readiness/review.json", JSON.stringify({ reviewerKind: "independent", verdict: "CLEAN", rounds: 1, reviewedHeadOid: HEAD, baseSha: BASE, artifactPath: "C:/scratch/review.json", rubricBaseOid: BASE, rubricArtifactPath: "C:/scratch/rubric.md", frozenFindingIds: [], findings: [] }))
   const bot = stage("record-readiness/bot.json", JSON.stringify({ pr: 700, verdict: "REVIEWED", reviewedCommit: HEAD, baseRefOid: BASE, headRefOid: HEAD, threadsComplete: true, counts: { unresolved: 0 }, threads: [] }))
   const linear = stage("record-readiness/linear.json", JSON.stringify({ issue: "ORB-700", repositoryKey: "ui", prNumber: 700, status: "In Review", lastSynchronizationResult: "SUCCESS", lastPostedState: "ready", headSha: HEAD, baseSha: BASE }))
   const argv = ["--repo", "ui", "--pr", "700", "--delivery", delivery, "--review", review, "--bot", bot, "--linear", linear]
@@ -32,9 +33,11 @@ export const cases = () => {
     const reviewThreads = options.openThread
       ? [{ id: "PRRT_open", isResolved: false, isOutdated: false, path: "tools/x.mjs", line: 1, comments: { nodes: [{ author: { login: "chatgpt-codex-connector" }, body: "P1 open" }] } }]
       : []
+    const initialIdentity = { number: 700, baseRefName: "main", baseRefOid, headRefOid, isDraft: false, body, statusCheckRollup: options.statusCheckRollup ?? [greenCheck] }
+    const finalIdentity = options.finalIdentity ?? initialIdentity
     return orcaEnv([
     { match: "auth token --user thomasluizon", stdout: "test-github-token" },
-    { match: "pr view 700", stdout: JSON.stringify({ number: 700, baseRefName: "main", baseRefOid, headRefOid, isDraft: false, body, statusCheckRollup: options.statusCheckRollup ?? [greenCheck] }) },
+    { match: "pr view 700", stdout: JSON.stringify(initialIdentity), ...(options.identitySequenceFile ? { stdoutSequence: [JSON.stringify(initialIdentity), JSON.stringify(finalIdentity)], sequenceFile: options.identitySequenceFile } : {}) },
     { match: "pr edit 700", stdout: "" },
     { match: "run list --repo", stdout: JSON.stringify(options.guardsWorkflowRuns ?? [openedWorkflowRun]) },
     { match: "branches/main/protection/required_status_checks", stdout: JSON.stringify({ contexts: ["Lint"] }) },
@@ -75,15 +78,27 @@ export const cases = () => {
   const advancedBase = "dddddddddddddddddddddddddddddddddddddddd"
   const behind = check(TOOL, "live base advancement and behind_by cannot persist READY", argv, { status: 1, stdout: /OUT_OF_DATE/ }, { path: staged.path, env: live(HEAD, advancedBase, 1) })
   T(`${TOOL}: live compare reports the current behind count`, /"behindBy": 1/.test(behind.stdout), behind.stdout)
+  const finalIdentitySequence = stage("record-readiness/final-identity-sequence.txt", "0")
+  check(TOOL, "a head change during aggregation is refused before the readiness receipt is written", argv, { status: 2, stderr: /changed while readiness was being aggregated/ }, { path: staged.path, env: live(HEAD, BASE, 0, "Implements ORB-700", { name: "In Review", type: "started" }, [], { identitySequenceFile: finalIdentitySequence, finalIdentity: { number: 700, baseRefOid: advancedBase, headRefOid: HEAD, isDraft: false } }) })
 
   const staleBot = stage("record-readiness/stale-bot.json", JSON.stringify({ pr: 700, verdict: "REVIEWED", reviewedCommit: BASE, baseRefOid: BASE, headRefOid: HEAD, threadsComplete: true, counts: { unresolved: 0 }, threads: [] }))
   check(TOOL, "a connector review pinned to another commit is BOT_REVIEW_STALE", [...argv.slice(0, -4), "--bot", staleBot, "--linear", linear], { status: 1, stdout: /BOT_REVIEW_STALE/ }, { path: staged.path, env: live() })
   const partialBot = stage("record-readiness/partial-bot.json", JSON.stringify({ pr: 700, verdict: "REVIEWED", reviewedCommit: HEAD, baseRefOid: BASE, headRefOid: HEAD, threadsComplete: false, counts: { unresolved: 0 }, threads: [] }))
   check(TOOL, "an incomplete review-thread page cannot persist READY", [...argv.slice(0, -4), "--bot", partialBot, "--linear", linear], { status: 1, stdout: /THREADS_OPEN/ }, { path: staged.path, env: live() })
-  const openReview = stage("record-readiness/open-review.json", JSON.stringify({ reviewerKind: "independent", verdict: "CLEAN", rounds: 2, reviewedHeadOid: HEAD, baseSha: BASE, artifactPath: "C:/scratch/review.json", rubricBaseOid: BASE, rubricArtifactPath: "C:/scratch/rubric.md", findings: [{ id: "F1", blocking: true, status: "OPEN" }] }))
+  const openRoundOneBody = JSON.stringify({ reviewerKind: "independent", verdict: "BLOCKING", rounds: 1, findings: [{ id: "F1", blocking: true }] })
+  const openRoundOneReview = stage("record-readiness/open-round-one-review.json", openRoundOneBody)
+  const openRoundOneHash = createHash("sha256").update(Buffer.from(openRoundOneBody)).digest("hex")
+  const openReview = stage("record-readiness/open-review.json", JSON.stringify({ reviewerKind: "independent", verdict: "CLEAN", rounds: 2, reviewedHeadOid: HEAD, baseSha: BASE, artifactPath: "C:/scratch/review.json", rubricBaseOid: BASE, rubricArtifactPath: "C:/scratch/rubric.md", roundOneArtifactPath: openRoundOneReview, roundOneArtifactSha256: openRoundOneHash, frozenFindingIds: ["F1"], findings: [{ id: "F1", blocking: true, status: "OPEN" }] }))
   check(TOOL, "an OPEN blocker cannot hide behind a CLEAN review verdict", [...argv.slice(0, -6), "--review", openReview, "--bot", bot, "--linear", linear], { status: 1, stdout: /REVIEW_STALE/ }, { path: staged.path, env: live() })
   const staleRubricReview = stage("record-readiness/stale-rubric-review.json", JSON.stringify({ reviewerKind: "independent", verdict: "CLEAN", rounds: 1, reviewedHeadOid: HEAD, baseSha: BASE, artifactPath: "C:/scratch/review.json", rubricBaseOid: HEAD, rubricArtifactPath: "C:/scratch/rubric.md", findings: [] }))
   check(TOOL, "a review frozen from another base rubric cannot persist READY", [...argv.slice(0, -6), "--review", staleRubricReview, "--bot", bot, "--linear", linear], { status: 1, stdout: /REVIEW_STALE/ }, { path: staged.path, env: live() })
+  const roundOneReviewBody = JSON.stringify({ reviewerKind: "independent", verdict: "BLOCKING", rounds: 1, findings: [{ id: "F1", blocking: true }, { id: "F2", blocking: true }] })
+  const roundOneReview = stage("record-readiness/round-one-review.json", roundOneReviewBody)
+  const roundOneHash = createHash("sha256").update(Buffer.from(roundOneReviewBody)).digest("hex")
+  const roundTwoReview = stage("record-readiness/round-two-review.json", JSON.stringify({ reviewerKind: "independent", verdict: "CLEAN", rounds: 2, reviewedHeadOid: HEAD, baseSha: BASE, artifactPath: "C:/scratch/round-two.json", rubricBaseOid: BASE, rubricArtifactPath: "C:/scratch/rubric.md", roundOneArtifactPath: roundOneReview, roundOneArtifactSha256: roundOneHash, frozenFindingIds: ["F1", "F2"], findings: [{ id: "F1", blocking: true, status: "CLOSED" }, { id: "F2", blocking: true, status: "CLOSED" }] }))
+  check(TOOL, "round two preserves the exact hash-verified round-one blocker list", [...argv.slice(0, -6), "--review", roundTwoReview, "--bot", bot, "--linear", linear], { status: 0, stdout: /"verdict": "READY"/ }, { path: staged.path, env: live() })
+  const droppedRoundTwo = stage("record-readiness/dropped-round-two-review.json", JSON.stringify({ reviewerKind: "independent", verdict: "CLEAN", rounds: 2, reviewedHeadOid: HEAD, baseSha: BASE, artifactPath: "C:/scratch/round-two.json", rubricBaseOid: BASE, rubricArtifactPath: "C:/scratch/rubric.md", roundOneArtifactPath: roundOneReview, roundOneArtifactSha256: roundOneHash, frozenFindingIds: ["F1"], findings: [{ id: "F1", blocking: true, status: "CLOSED" }] }))
+  check(TOOL, "round two cannot drop a blocker from both the frozen IDs and final findings", [...argv.slice(0, -6), "--review", droppedRoundTwo, "--bot", bot, "--linear", linear], { status: 1, stdout: /REVIEW_STALE/ }, { path: staged.path, env: live() })
   check(TOOL, "a live Linear status change invalidates the synchronization artifact", argv, { status: 1, stdout: /LINEAR_STALE/ }, { path: staged.path, env: live(HEAD, BASE, 0, "Implements ORB-700", { name: "In Progress", type: "started" }) })
   check(TOOL, "a live visible-effect label invalidates an ordinary ready artifact", argv, { status: 1, stdout: /LINEAR_STALE/ }, { path: staged.path, env: live(HEAD, BASE, 0, "Implements ORB-700", { name: "In Progress", type: "started" }, [{ id: "visible", name: "visible-effect" }]) })
   const wrongLinear = stage("record-readiness/wrong-linear.json", JSON.stringify({ issue: "ORB-701", repositoryKey: "api", prNumber: 701, status: "In Review", lastSynchronizationResult: "SUCCESS", lastPostedState: "ready", headSha: HEAD, baseSha: BASE }))

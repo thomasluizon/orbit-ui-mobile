@@ -16,7 +16,7 @@ const ready = () => ({
   baseBranch: "main",
   currentBaseSha: BASE_A,
   currentHeadSha: HEAD_A,
-  independentReview: { reviewerKind: "independent", verdict: "CLEAN", rounds: 1, reviewedHeadOid: HEAD_A, artifactPath: "C:/scratch/review.json", rubricBaseOid: BASE_A, rubricArtifactPath: "C:/scratch/rubric.md", findings: [], headSha: HEAD_A, baseSha: BASE_A },
+  independentReview: { reviewerKind: "independent", verdict: "CLEAN", rounds: 1, reviewedHeadOid: HEAD_A, artifactPath: "C:/scratch/review.json", rubricBaseOid: BASE_A, rubricArtifactPath: "C:/scratch/rubric.md", frozenFindingIds: [], findings: [], headSha: HEAD_A, baseSha: BASE_A },
   ci: { settled: true, green: true, headSha: HEAD_A, baseSha: BASE_A, checks: [] },
   codexConnector: { passed: true, reviewedCommit: HEAD_A, headSha: HEAD_A, baseSha: BASE_A },
   threads: { complete: true, unresolvedCount: 0, headSha: HEAD_A, baseSha: BASE_A },
@@ -41,9 +41,11 @@ export const cases = () => {
   T(`${TOOL}: a CLEAN string cannot hide an OPEN frozen blocker`, readinessReport(openBlocker).verdicts.includes("REVIEW_STALE"))
   const malformedBlocker = { ...receipt, independentReview: { ...receipt.independentReview, findings: [{ id: "F1", blocking: "false", status: "CLOSED" }] } }
   T(`${TOOL}: a non-boolean blocker flag is REVIEW_STALE`, readinessReport(malformedBlocker).verdicts.includes("REVIEW_STALE"))
+  const impossibleRoundOne = { ...receipt, independentReview: { ...receipt.independentReview, findings: [{ id: "F1", blocking: true, status: "CLOSED" }], frozenFindingIds: ["F1"] } }
+  T(`${TOOL}: round one cannot claim CLEAN by marking its own blocker closed`, readinessReport(impossibleRoundOne).verdicts.includes("REVIEW_STALE"))
   const droppedRoundTwoBlockers = { ...receipt, independentReview: { ...receipt.independentReview, rounds: 2, findings: [], frozenFindingIds: [] } }
   T(`${TOOL}: round two cannot erase the frozen round-one blocker list`, readinessReport(droppedRoundTwoBlockers).verdicts.includes("REVIEW_STALE"))
-  const closedRoundTwo = { ...receipt, independentReview: { ...receipt.independentReview, rounds: 2, frozenFindingIds: ["F1"], findings: [{ id: "F1", blocking: true, status: "CLOSED" }] } }
+  const closedRoundTwo = { ...receipt, independentReview: { ...receipt.independentReview, rounds: 2, frozenFindingIds: ["F1"], frozenFindingIdsVerified: true, findings: [{ id: "F1", blocking: true, status: "CLOSED" }] } }
   T(`${TOOL}: round two is clean when every preserved frozen blocker is closed`, readinessReport(closedRoundTwo).verdict === "READY")
   const staleRubric = { ...receipt, independentReview: { ...receipt.independentReview, rubricBaseOid: BASE_B } }
   T(`${TOOL}: a rubric snapshot from another base is REVIEW_STALE`, readinessReport(staleRubric).verdicts.includes("REVIEW_STALE"))
