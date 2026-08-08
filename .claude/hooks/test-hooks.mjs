@@ -17,7 +17,7 @@ import { fileURLToPath } from "node:url"
 
 import { checkGitCommand, checkGitWorktreeRemove } from "./_lib/rules-git.mjs"
 import { checkEfMigrationRawIndex } from "./_lib/rules-source.mjs"
-import { checkLinearMutation } from "./_lib/rules-linear.mjs"
+import { checkTicketMutation } from "./_lib/rules-tickets.mjs"
 import { checkInventedIdentifier, extractNodeIds } from "./_lib/rules-identifier.mjs"
 import { checkAdminMerge, checkBroadStaging, checkEngineInvocation } from "./_lib/rules-orchestrator.mjs"
 import { checkSleepStop } from "./_lib/rules-sleep.mjs"
@@ -342,40 +342,38 @@ const unwritten = { ...sleeping, remaining: [], pullRequests: [], readinessLedge
 T("sleep-stop: a ledger row whose receipt was never written blocks", blocks(stop({ state: unwritten })), true)
 T("sleep-stop: the refusal names the receipt path that was never written", stop({ state: unwritten })?.message.includes("C:/never-written.json"), true)
 
-console.log("\n# forbid-raw-linear-mutation (_lib/rules-linear.mjs)")
-// Every Linear WRITE goes through orca. Only the project overview document,
-// which orca cannot reach, may be mutated raw. READS stay open: /orchestrate
-// depends on `project(id) { content }`, which orca does not return.
-const LINEAR = "https://api.linear.app/graphql"
-const post = (body) => `curl -s ${LINEAR} -H "Authorization: $KEY" -d '{"query":"${body}"}'`
-T("linear: curl issueCreate blocks", blocks(checkLinearMutation(post('mutation { issueCreate(input: {title: \\"x\\"}) { success } }'))), true)
-T("linear: curl commentCreate blocks", blocks(checkLinearMutation(post('mutation { commentCreate(input: {body: \\"x\\"}) { success } }'))), true)
-T("linear: a named mutation with variables blocks", blocks(checkLinearMutation(post("mutation Add($i: IssueCreateInput!) { issueCreate(input: $i) { success } }"))), true)
-T("linear: an aliased field is judged on the real field", blocks(checkLinearMutation(post("mutation { made: issueCreate(input: {}) { success } }"))), true)
-T("linear: an inline fetch POST that mutates blocks", blocks(checkLinearMutation(`await fetch("${LINEAR}", { method: "POST", body: JSON.stringify({ query: "mutation { issueUpdate(id: $i, input: {}) { success } }" }) })`)), true)
-T("linear: an allowed mutation batched with a banned one blocks", blocks(checkLinearMutation(post("mutation { projectUpdate(id: $p, input: {}) { success } issueCreate(input: {}) { success } }"))), true)
-// Fails safe on a body it cannot read: the operation lives in the file, so the
-// command string carries no keyword to scan.
-T("linear: an @file payload blocks (fails safe)", blocks(checkLinearMutation(`curl -s ${LINEAR} --data-binary @payload.json`)), true)
-T("linear: an attached -d@file payload blocks", blocks(checkLinearMutation(`curl -s ${LINEAR} -d@payload.json`)), true)
-// The permitted writes and the read /orchestrate runs every launch.
-T("linear: projectUpdate allows", checkLinearMutation(post('mutation { projectUpdate(id: \\"x\\", input: {content: \\"y\\"}) { success } }')), null)
-T("linear: the project content read allows", checkLinearMutation(post('query { project(id: \\"x\\") { name content } }')), null)
-T("linear: an orca invocation allows", checkLinearMutation("orca linear save-issue ORB-1 --state Done"), null)
-// `--json` means "send this body" to curl but "print JSON" to orca, and pairing
-// it with the opaque-body arm blocked a plain orca read line in a skill doc.
-T("linear: an orca --json read line near the endpoint allows", checkLinearMutation(`see ${LINEAR} for reads; run \`orca linear list-issues --project "x" --json\` for the tickets`), null)
-T("linear: a non-Linear endpoint is none of this gate's business", checkLinearMutation('curl https://api.github.com/graphql -d \'{"query":"mutation { issueCreate }"}\''), null)
-T("linear: the bare word mutation is prose, allows", checkLinearMutation(`curl ${LINEAR} -d "mutation"`), null)
-// A document is judged per chunk: a mutation against another service does not
-// inherit a Linear endpoint documented elsewhere in the same file.
-const githubMutationInDoc = [`Read the overview by POSTing to ${LINEAR}.`, "", "```bash", "gh api graphql -f query='mutation{resolveReviewThread(input:{threadId:\"X\"}){thread{isResolved}}}'", "```"].join("\n")
-T("linear: a GitHub mutation does not inherit a Linear endpoint elsewhere in the doc", checkLinearMutation(githubMutationInDoc), null)
-// ...but a Linear mutation split from its endpoint by a blank line still blocks:
-// a Bash command CAN contain one, and dropping the far chunk let a real write through.
-T("linear: a mutation split from its endpoint by a blank line still blocks", blocks(checkLinearMutation([`curl -s ${LINEAR} -d '{"query":"mutation {`, "", 'issueCreate(input:{title:"x"}) { success }', '}"}\''].join("\n"))), true)
-// A gate that fires on prose gets switched off, so its false-positive rate is
-// part of its contract. Every widening of this rule so far hit a real doc.
+console.log("\n# forbid-raw-ticket-mutation (_lib/rules-tickets.mjs)")
+const TICKET_REPO = "thomasluizon/orbit-tickets"
+const CODE_REPO = "thomasluizon/orbit-ui-mobile"
+T("tickets: issue edit in the ticket repository blocks", blocks(checkTicketMutation(`gh issue edit 215 --repo ${TICKET_REPO} --add-label Bug`)), true)
+T("tickets: attached short repo flag still blocks", blocks(checkTicketMutation(`gh issue close 215 -R${TICKET_REPO}`)), true)
+T("tickets: host-qualified ticket repository still blocks", blocks(checkTicketMutation(`gh issue delete 215 --repo github.com/${TICKET_REPO} --confirm`)), true)
+T("tickets: issue create in the ticket repository blocks", blocks(checkTicketMutation(`gh issue create --repo ${TICKET_REPO} --title x --body y`)), true)
+T("tickets: issue comment by ticket URL blocks", blocks(checkTicketMutation(`gh issue comment https://github.com/${TICKET_REPO}/issues/215 --body fixed`)), true)
+T("tickets: issue mutation with no target fails closed", blocks(checkTicketMutation("gh issue close 215")), true)
+T("tickets: issue edit in a code repository allows", checkTicketMutation(`gh issue edit 12 --repo ${CODE_REPO} --add-label Bug`), null)
+T("tickets: issue reads need no target", checkTicketMutation("gh issue list --state open"), null)
+T("tickets: every pull request command allows", checkTicketMutation(`gh pr view 12 --repo ${TICKET_REPO}`), null)
+T("tickets: ticket board item edit blocks", blocks(checkTicketMutation("gh project item-edit 2 --owner thomasluizon --id PVTI_x --field-id PVTSSF_x --single-select-option-id x")), true)
+T("tickets: project item mutation with no owner fails closed", blocks(checkTicketMutation("gh project item-delete 2 --id PVTI_x")), true)
+T("tickets: project node-id mutation fails closed", blocks(checkTicketMutation("gh project item-edit --owner thomasluizon --id PVTI_x --field-id x --project-id PVT_x --text value")), true)
+T("tickets: @me project owner fails closed", blocks(checkTicketMutation("gh project item-delete 2 --owner @me --id PVTI_x")), true)
+T("tickets: another project item mutation allows", checkTicketMutation("gh project item-edit 9 --owner octocat --id PVTI_x --field-id x --text value"), null)
+T("tickets: label create in the ticket repository blocks", blocks(checkTicketMutation(`gh label create urgent --repo ${TICKET_REPO}`)), true)
+T("tickets: label edit in a code repository allows", checkTicketMutation(`gh label edit bug --repo ${CODE_REPO} --color ff0000`), null)
+T("tickets: REST issue mutation in the ticket repository blocks", blocks(checkTicketMutation(`gh api repos/${TICKET_REPO}/issues/215 -X PATCH -f title=x`)), true)
+T("tickets: attached REST method and field flags still block", blocks(checkTicketMutation(`gh api repos/${TICKET_REPO}/issues/215 -XPATCH -ftitle=x`)), true)
+T("tickets: REST milestone mutation in the ticket repository blocks", blocks(checkTicketMutation(`gh api repos/${TICKET_REPO}/milestones -f title=Launch`)), true)
+T("tickets: REST issue read in the ticket repository allows", checkTicketMutation(`gh api repos/${TICKET_REPO}/issues/215`), null)
+T("tickets: REST issue mutation in a code repository allows", checkTicketMutation(`gh api repos/${CODE_REPO}/issues/12 -X PATCH -f title=x`), null)
+T("tickets: REST mutation with a placeholder target fails closed", blocks(checkTicketMutation("gh api repos/{owner}/{repo}/issues/12 -X PATCH -f title=x")), true)
+T("tickets: GraphQL project item mutation fails closed on an opaque node id", blocks(checkTicketMutation("gh api graphql -f query='mutation { deleteProjectV2Item(input: {projectId: $p, itemId: $i}) { deletedItemId } }'")), true)
+T("tickets: GraphQL closeIssue fails closed on an opaque node id", blocks(checkTicketMutation("gh api graphql -f query='mutation { closeIssue(input: {issueId: $i}) { issue { id } } }'")), true)
+T("tickets: GraphQL addComment fails closed on an opaque subject id", blocks(checkTicketMutation("gh api graphql -f query='mutation { addComment(input: {subjectId: $i, body: $b}) { commentEdge { node { id } } } }'")), true)
+T("tickets: opaque GraphQL input fails closed", blocks(checkTicketMutation("gh api graphql --input payload.json")), true)
+T("tickets: GraphQL pull request mutation allows", checkTicketMutation("gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: $i}) { thread { isResolved } } }'"), null)
+T("tickets: a repository tool invocation allows", checkTicketMutation("node tools/sync-issue-state.mjs --issue ORB-215 --repo ui --state ready"), null)
+// A gate that fires on prose gets switched off, so its false-positive rate remains part of its contract.
 const tracked = spawnSync("git", ["-C", repoRoot, "ls-files", "*.md", ".claude/*", "tools/*"], { encoding: "utf8" })
 const docPaths = (tracked.status === 0 ? tracked.stdout.trim().split(/\r?\n/) : [])
   .filter(Boolean)
@@ -384,8 +382,8 @@ const docPaths = (tracked.status === 0 ? tracked.stdout.trim().split(/\r?\n/) : 
   .filter((relative) => !relative.startsWith(".claude/hooks/"))
   .map((relative) => join(repoRoot, relative))
   .filter((absolute) => existsSync(absolute) && statSync(absolute).isFile())
-T("linear: blocks none of this repo's tracked docs", docPaths.filter((path) => checkLinearMutation(readFileSync(path, "utf8"))?.block).map((path) => path.slice(repoRoot.length + 1)), [])
-T("linear: the doc scan actually read files", docPaths.length > 0, true)
+T("tickets: blocks none of this repo's tracked docs", docPaths.filter((path) => checkTicketMutation(readFileSync(path, "utf8"))?.block).map((path) => path.slice(repoRoot.length + 1)), [])
+T("tickets: the doc scan actually read files", docPaths.length > 0, true)
 
 console.log("\n# forbid-ef-migration-raw-index (_lib/rules-source.mjs)")
 // EF applies migrations at startup on Render, so raw index SQL must be
@@ -551,14 +549,14 @@ try {
   if (priorState === null) rmSync(runStatePath(), { force: true })
   else writeFileSync(runStatePath(), priorState)
 }
-// The Linear guard is wired to BOTH events: the shell call, and the script that
-// will make it. Only the second can be pre-empted before anything reaches Linear.
-const LINEAR_HOOK = "forbid-raw-linear-mutation.mjs"
-T("adapter linear: bash issueCreate -> 2", runHook(LINEAR_HOOK, bash(post("mutation { issueCreate(input: {}) { success } }"))), 2)
-T("adapter linear: bash content read -> 0", runHook(LINEAR_HOOK, bash(post("query { project(id: $p) { content } }"))), 0)
-const mutatingScript = { tool_name: "Write", tool_input: { file_path: join(root, "post.mjs"), content: `fetch("${LINEAR}", { body: '{"query":"mutation { issueCreate(input: {}) { id } }"}' })` } }
-T("adapter linear: a written script that mutates -> 2", runHook(LINEAR_HOOK, mutatingScript), 2)
-T("adapter linear: an unrelated command -> 0", runHook(LINEAR_HOOK, bash("npm test")), 0)
+// The ticket guard is wired to BOTH events: the shell call and source that would issue it later.
+const TICKET_HOOK = "forbid-raw-ticket-mutation.mjs"
+T("adapter tickets: raw issue edit -> 2", runHook(TICKET_HOOK, bash(`gh issue edit 215 --repo ${TICKET_REPO} --add-label Bug`)), 2)
+T("adapter tickets: pull request read -> 0", runHook(TICKET_HOOK, bash(`gh pr view 12 --repo ${CODE_REPO}`)), 0)
+const mutatingScript = { tool_name: "Write", tool_input: { file_path: join(root, "post.mjs"), content: `gh issue comment 215 --repo ${TICKET_REPO} --body fixed` } }
+T("adapter tickets: a written script that mutates -> 2", runHook(TICKET_HOOK, mutatingScript), 2)
+T("adapter tickets: a repository tool source edit -> 0", runHook(TICKET_HOOK, { ...mutatingScript, tool_input: { ...mutatingScript.tool_input, file_path: join(repoRoot, "tools", "ticket-write.mjs") } }), 0)
+T("adapter tickets: an unrelated command -> 0", runHook(TICKET_HOOK, bash("npm test")), 0)
 
 // The EF adapter re-reads the file from disk after the edit lands, so these need real files.
 const EF_HOOK = "forbid-ef-migration-raw-index.mjs"

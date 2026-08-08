@@ -1,6 +1,6 @@
 ---
 name: audit-tests
-description: Test-suite QUALITY audit across both Orbit repos, opening one Linear ticket per verified gap after a human approval gate (D10), not a coverage percentage. Finds critical-path coverage holes (auth, billing, AI tools), happy-path-only / rubber-stamp tests, and missing edge/failure cases against an "intelligent test" rubric (behavior + edge + failure), each ticket carrying the concrete test to add. Test QUALITY is judgement no gate checks (D11). Use when the user asks to audit tests, check test quality, or find untested critical paths. Not for running tests (use /validate).
+description: Test-suite QUALITY audit across both Orbit repos, opening one GitHub ticket per verified gap after a human approval gate (D10), not a coverage percentage. Finds critical-path coverage holes (auth, billing, AI tools), happy-path-only / rubber-stamp tests, and missing edge/failure cases against an "intelligent test" rubric (behavior + edge + failure), each ticket carrying the concrete test to add. Test QUALITY is judgement no gate checks (D11). Use when the user asks to audit tests, check test quality, or find untested critical paths. Not for running tests (use /validate).
 argument-hint: <path | repo | blank=both repos>
 ---
 
@@ -10,7 +10,7 @@ argument-hint: <path | repo | blank=both repos>
 
 Audit the **quality** of the test suites across both repos, whether the tests that exist
 actually pin behavior on the paths that matter, not how green the coverage bar is. A repo
-can be 90% covered and still untested where it counts. Output: one Linear ticket per verified
+can be 90% covered and still untested where it counts. Output: one GitHub ticket per verified
 gap (D10), each carrying the concrete test to add, behind one approval gate, never a report
 that rots. Test QUALITY (would this test fail on a real break?) is judgement no gate can
 check (D11): CI runs the suite green or red, but nothing gates whether green means anything.
@@ -123,10 +123,10 @@ purpose: an audit reads, so its workers carry no write, edit, or shell tools eit
 
 ## Phase 4: Emit tickets (D10), not a report
 
-Run the shared pipeline in **`.claude/skills/_shared/audit-to-tickets.md`**: one Linear
+Run the shared pipeline in **`.claude/skills/_shared/audit-to-tickets.md`**: one GitHub
 ticket per verified gap, drafted to the 6.2 template, validated by
 re-read against the 6.2 template, presented behind ONE approval gate, then created via
-`orca linear create` and re-validated with `--issue`.
+`gh issue create` and re-validated from the created issue.
 
 Tests-specific mapping into the 6.2 body, where the deliverable of each ticket IS a test:
 
@@ -162,7 +162,7 @@ disk.
   liability (it blocks refactors); flag it even if it "passes."
 - **Re-run the workflow's analysis.** It owns the scoring, the skeptic pass, and the loop;
   you turn its return into tickets. Only re-invoke for a coverage gap.
-- **Write a report file, or create tickets unattended.** The output is Linear tickets behind
+- **Write a report file, or create tickets unattended.** The output is GitHub tickets behind
   the one approval gate; nothing is persisted to `.claude/audits/`.
 - **Write the tests during the audit.** Tickets + concrete specs first; implement only if the
   user asks after.

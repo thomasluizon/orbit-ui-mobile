@@ -1,11 +1,11 @@
 ---
 name: ticket
-description: Anything needing work in, 1..N executable Linear tickets out, whether a bug, defect, chore, improvement, task, docs change, idea, a whole feature, or several problems listed at once. How many tickets is decided by the analysis, never asked of you up front. One approval gate before anything is created. Writes no code and fixes nothing; /orchestrate picks the tickets up.
+description: Anything needing work in, 1..N executable GitHub tickets out, whether a bug, defect, chore, improvement, task, docs change, idea, a whole feature, or several problems listed at once. How many tickets is decided by the analysis, never asked of you up front. One approval gate before anything is created. Writes no code and fixes nothing; /orchestrate picks the tickets up.
 argument-hint: <a bug, an idea, a chore, a task, a docs change, a whole feature, or a list of several problems>
 effort: high
 ---
 
-# /ticket: anything in, 1..N Linear tickets out
+# /ticket: anything in, 1..N GitHub tickets out
 
 The ticket is the prompt (D2): a ticket a fresh agent with no session history cannot execute is a
 defective ticket. This skill makes defective tickets impossible to create.
@@ -14,9 +14,9 @@ defective ticket. This skill makes defective tickets impossible to create.
 can be one ticket or eight. Never tell him to quit and retype a different command; decide the count
 yourself and show him the split at phase D.
 
-D1 scope: Linear covers orbit-ui-mobile (`repo:ui`) and orbit-api (`repo:api`) only; for
-orbit-landing-page, infra, or Dependabot work, stop before drafting and say GitHub Issues owns it.
-Constants: orca at `C:\Users\thoma\AppData\Local\Programs\orca\resources\bin\orca`, team `ORB`.
+D1 scope: every ticket lives in the private `thomasluizon/orbit-tickets` repository. Exactly one
+`repo:ui`, `repo:api`, or `repo:landing` label routes the work. Infra and Dependabot work use the
+same tracker with the repo label that owns the change.
 
 ## A. Grill
 
@@ -64,7 +64,7 @@ each ticket's entries into its Scope and Affected modules / files. Cover both re
 
 ## D. ONE approval gate
 
-Nothing exists in Linear yet, and nothing is created until Thomas approves. This gate is the
+Nothing exists in the ticket tracker yet, and nothing is created until Thomas approves. This gate is the
 validation; no ticket-linting script runs here. In ONE message show him:
 
 - **The split**: the ticket count, each ticket's one-line title, and the `blockedBy` edges.
@@ -73,10 +73,11 @@ validation; no ticket-linting script runs here. In ONE message show him:
   deploy first, so it blocks the ui ticket".
 - Per ticket: repo label, type label with its reason, parity label, and the full drafted body
   (scratchpad file).
-- The project decision from phase E step 1: named, new or existing, with its reason.
+- The milestone decision from phase E step 1: named, new or existing, or no milestone for the
+  holding pen, with its reason.
 
 Then ask for approval with ONE AskUserQuestion whose FIRST question is the split (the alternative
-split as the second option) and whose second is the project decision, so neither is something this
+split as the second option) and whose second is the milestone decision, so neither is something this
 skill decided quietly. **He can correct the split here**; an edit loops back through B or C and
 returns to this gate.
 
@@ -108,26 +109,30 @@ defect if violated:
 
 ## E. Create
 
-1. **Resolve the project, never by default.** `orca linear project list` is the current set. Route
-   into an existing project whose scope the work extends (a redesign ticket into `539 Redesign`, an
-   Astra ticket into `562 Astra`, a launch blocker into `Launch`), and into `Backlog` when none
-   fits, including tech debt. **Mint a new project ONLY when the work is 3+ tickets AND carries
-   either an internal DAG or locked decisions every ticket must honour**; that content document is
-   what a project buys, and without one a project is a label with extra steps. Never one for a
-   single ticket. Every ticket needs a project, or it is created and then never picked up.
-2. Only for a NEW project, the one Linear write orca has no command for: read
-   `$env:USERPROFILE\.linear-api-key` (never echo it) and POST https://api.linear.app/graphql with
-   header `Authorization: <key>`, calling `projectCreate(input: { name, teamIds: ["<ORB team id>"],
-   description })` then `projectUpdate(id, input: { content: "<locked decisions, verbatim>" })`.
-   Linear hard-caps `description` at 255 chars, so the substance lives in content.
-3. Create each issue with the Linear MCP (`save_issue`) or `orca linear create --title "<t>"
-   --body-file - --team ORB --project "<name>" --state Todo --label "<repo:*>" --label "<type>"
-   [--label "<parity:*>"]`. Every issue write goes through one of those two: the
-   `forbid-raw-linear-mutation` hook blocks a raw GraphQL `issueCreate` at act time.
-4. `orca linear relation add ORB-A --related ORB-B --type blocked-by` for each edge approved at
-   phase D, and only those.
-5. Print the final table: identifier, title, repo, type, `blockedBy`. When tickets landed in an
-   existing project, say which rows are the new ones.
+1. **Resolve the milestone, never by default.** List all existing milestones before any create with
+   `gh api 'repos/thomasluizon/orbit-tickets/milestones?state=all&per_page=100' --paginate --jq '.[].title'`.
+   The current titles are `539 Redesign`, `562 Astra`, `Brand Assets`, `Dual-engine routing and
+   session cost`, `Harness Context and Calibration`, `Launch`, `Packaging: caps, quotas and tiers`,
+   and `PostHog`. Match the exact title when the work extends one of those bodies. A holding-pen
+   ticket gets no milestone. Board Status carries its unscheduled state. Never create a milestone
+   named `Backlog`.
+2. Create a milestone only when the work is genuinely a new body of work with its own completion
+   boundary and progress. List again immediately before the write and match by title. Do not create
+   first and interpret an HTTP 422. Use the GitHub milestone API only after the list proves no title
+   match. Create it with `gh api repos/thomasluizon/orbit-tickets/milestones -f title="<title>"
+   -f description="<locked decisions>"`, and preserve the locked decisions in that description.
+3. Create each issue with `gh issue create --repo thomasluizon/orbit-tickets --title "<t>"
+   --body-file <draft> --label "<repo:*>" --label "<type>" [--label "<parity:*>"] --project Orbit
+   [--milestone "<existing title>"]`. Omit `--milestone` for holding-pen work. If approval changes
+   the assignment after creation, use `gh issue edit <number> --repo thomasluizon/orbit-tickets
+   --milestone "<existing title>"` only after listing and matching that title.
+4. Set the created board item to Status Todo with `gh project item-edit 2 --owner thomasluizon
+   --url <created-issue-url> --field Status --value Todo`.
+5. Add only the `blockedBy` edges approved at phase D with `gh issue edit <ticket-number>
+   --repo thomasluizon/orbit-tickets --add-blocked-by <blocker-number>`. Never encode a dependency
+   only in prose.
+6. Print the final table: issue reference, title, repo, type, milestone or `none`, and `blockedBy`.
+   When tickets land in an existing milestone, say which rows are new.
 
 Stop there. No code, no branches, no worktrees, no fixing even for a one-liner: the output is
 tickets, and the ticket is the record that makes the work reviewable. `/orchestrate ORB-N` builds

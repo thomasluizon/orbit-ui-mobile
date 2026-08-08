@@ -1,7 +1,7 @@
 ---
 name: orchestrate
-description: Tickets in, reviewed pull requests out. Plans a queue from one ticket, several, or a project, then per ticket opens a worktree, launches a headless worker, verifies delivery from artifacts, runs a capped cross-vendor review and clears the Codex bot's threads. --sleep works the whole queue unattended. A machine never merges unasked.
-argument-hint: <ORB-N | ORB-A ORB-B | project> [--sleep] [--parallel] [--auto] [--codex-only]
+description: Tickets in, reviewed pull requests out. Plans a queue from one ticket, several, or a milestone, then per ticket opens a worktree, launches a headless worker, verifies delivery from artifacts, runs a capped cross-vendor review and clears the Codex bot's threads. --sleep works the whole queue unattended. A machine never merges unasked.
+argument-hint: <ORB-N | ORB-A ORB-B | milestone> [--sleep] [--parallel] [--auto] [--codex-only]
 effort: high
 ---
 
@@ -9,7 +9,7 @@ effort: high
 
 Constants:
 
-- orca binary `C:\Users\thoma\AppData\Local\Programs\orca\resources\bin\orca`, Linear team `ORB`.
+- Ticket repository `thomasluizon/orbit-tickets`; the configured Projects v2 board carries Status.
 - The session always runs from orbit-ui-mobile (D17). Each worktree opens in whichever repo its
   ticket's `repo:*` label names.
 - **Scratchpad** = this session's scratchpad directory. Every prompt, diff, log and findings file
@@ -20,7 +20,7 @@ Constants:
 ```
 /orchestrate ORB-N                      one ticket, exactly as before
 /orchestrate ORB-A ORB-B ORB-C          those tickets, in dependency order
-/orchestrate "<project name>"           every open ticket in that project
+/orchestrate "<milestone title>"        every open ticket in that milestone
 /orchestrate --auto                     the whole board, highest leverage first
 ```
 
@@ -92,7 +92,7 @@ run it always was.
                      alone. Re-verify and request current-head review after every push, within bound.
 13  READINESS LOOP   wait CI · fix genuine failures · clean independent final-head review · request
                      current-head connector · fix/reply/resolve every actionable thread · merge main
-                     into branch when behind · rerun invalidated receipts · synchronize Linear
+                     into branch when behind · rerun invalidated receipts · synchronize the ticket
                      READY only when every receipt names the same current head and base SHA
 14  Hand over        PR URL, advisory diff size, receipt and READY verdict.
                      READY -> In Review.
@@ -110,7 +110,7 @@ run it always was.
 These interfaces are fixed. Do not invent flags or variants.
 
 ```
-node tools/plan-queue.mjs        (--tickets ORB-1,ORB-2 | --project <name> | --board) [--format markdown]
+node tools/plan-queue.mjs        (--tickets ORB-1,ORB-2 | --board) [--format markdown]
 node tools/compose-prompt.mjs    --issue ORB-N --repo <key> --out <file> [--worktree <p>] [--branch <b>] [--base <ref>]
 node tools/launch-worker.mjs     --issue ORB-N --worktree <p> --prompt <f> [--codex-only]
 node tools/launch-worker.mjs     --issue ORB-N --review --repo <key> --prompt <f> [--codex-only]
@@ -118,8 +118,8 @@ node tools/verify-delivery.mjs   --issue ORB-N --worktree <p> --branch <b> --rep
 node tools/list-bot-threads.mjs  --pr <n-or-url> --repo <key> [--wait-seconds <s>] [--no-request]
 node tools/resolve-bot-thread.mjs --thread <PRRT_...> --repo <key>   # reply body on stdin
 node tools/salvage-worker.mjs    --issue ORB-N --repo <key> [--pr <n>] --worktree <p> --branch <b> --run-root <p> --test-command <json> --test-receipt <json> --message <m> --path <path>...
-node tools/sync-linear-state.mjs --issue ORB-N --repo <key> --pr <n> --state <working|blocked|ready> --head-sha <sha> --base-sha <sha> --message-file <path|->
-node tools/record-readiness.mjs  --repo <key> --pr <n> --delivery <json> --review <json> --bot <json> --linear <json> [--codex-only]
+node tools/sync-issue-state.mjs  --issue ORB-N --repo <key> --pr <n> --state <working|blocked|ready> --head-sha <sha> --base-sha <sha> --message-file <path|->
+node tools/record-readiness.mjs  --repo <key> --pr <n> --delivery <json> --review <json> --bot <json> --ticket <json> [--codex-only]
 node tools/record-readiness.mjs  --repo <key> --pr <n> --review <round-one-json> --register-round-one
 node tools/teardown-worktree.mjs --issue ORB-N
 ```
@@ -293,9 +293,13 @@ Expected state: `~/.claude/skills/` holds exactly 12 dirs (`brain`, `brain-agend
 
 ```bash
 node tools/plan-queue.mjs --tickets ORB-A,ORB-B          # explicit list
-node tools/plan-queue.mjs --project "<name>"             # a Linear project
 node tools/plan-queue.mjs --board                        # --auto
 ```
+
+For a milestone scope, first read its live membership with `gh issue list --repo
+thomasluizon/orbit-tickets --milestone "<exact title>" --state open --limit 1000 --json number`.
+Pass only the returned issue numbers to `plan-queue.mjs --tickets`. Do not substitute the whole
+Projects v2 board. A milestone is a completion body; the board also contains the holding pen.
 
 It returns `admitted`, `deferred`, `waves` and `stacks`. **Print the plan and every deferral before
 any work starts.** A ticket dropped at 03:00 that Thomas only discovers at 08:00 is a wasted night;
@@ -305,7 +309,7 @@ Then read each admitted ticket in full **with its comments**, because the plan c
 labels, not bodies:
 
 ```bash
-orca linear issue ORB-N --comments --json
+gh issue view <ticket-number> --repo thomasluizon/orbit-tickets --comments
 ```
 
 **A comment is part of the work order, not commentary on it.** A comment saying the ticket has to be
@@ -402,7 +406,7 @@ broken drift gate, partial behavior, or detached migration merely to reduce a nu
 
 ```bash
 orca worktree create --repo path:<repo> --name <slug> --base-branch main \
-  --linear-issue ORB-N --no-parent --comment "<one line>" --json
+  --issue <ticket-number> --no-parent --comment "<one line>" --json
 ```
 
 Orca creates `refs/heads/<gituser>/<name>`. That is not the contract branch. In the worktree run
@@ -434,7 +438,7 @@ dependency. `plan-queue.mjs` defers it as `UNSTACKABLE_BLOCKERS_IN_QUEUE` and th
 still plans, which is the whole difference from the exit-2 refusal this replaced.
 
 There is no live "have the blockers merged yet" check to write, because the answer is fixed by
-construction: a blocker whose work already merged is Done in Linear and was deferred as `CLOSED`
+construction: a blocker whose work already merged is closed with board Status Done and was deferred as `CLOSED`
 before it could count. Every blocker still counted is open, in this queue, and cannot merge before
 the ticket waiting on it.
 
@@ -468,8 +472,9 @@ The file carries, in order:
 2. **The orchestrator's brief:** target repo and its absolute path, the branch already checked out,
    the base branch, the affected-file list from step 2, and the scope boundary as a hard limit.
 3. **The finishing contract:** run lint, type-check and tests for the touched workspace; commit;
-   push; open a PR to `main` whose body links `ORB-N`; attach the PR URL to the Linear issue with
-   `orca linear attach`. Cross-platform parity and i18n key parity land in the same commit.
+   push; open a PR to `main` whose body links the ticket URL and names `ORB-N`. The ticket-state
+   synchronizer posts the PR URL back to the issue. Cross-platform parity and i18n key parity land
+   in the same commit.
    **The worker never merges and never opens a second PR.**
 
 Write it to the scratchpad. A prompt file inside the worktree gets committed by the worker.
@@ -604,7 +609,7 @@ push, and both pull requests were correct.
 a worker-delivered one does.** Opening the pull request is the MIDDLE of salvage, never the end. Add
 its `{repositoryKey, prNumber, receiptPath}` identity to `pullRequests` in the run record the moment
 it opens, initialized as unreviewed. It remains outstanding until current-head delivery, clean
-independent review, current connector review, zero threads, `behind_by=0`, and Linear synchronization
+independent review, current connector review, zero threads, `behind_by=0`, and ticket synchronization
 are all recorded for the same head/base pair.
 
 Measured, and the reason this sentence is here: PR #690 (ORB-39) was salvaged by hand, cleaned,
@@ -636,7 +641,7 @@ Six rules. All six hold in both modes.
    is not.
 3. **Every finding is classified at report time, Blocking or Non-blocking.** Blocking means it
    breaks behaviour, security, or data integrity. Everything else is auto-filed as a follow-up
-   Linear ticket and never fixed in this PR.
+   ticket and never fixed in this PR.
 4. **Diff-only scope.** The reviewer reads the diff, not the repository.
 5. **Monotonic round 2.** Re-check ONLY the frozen Blocking list, answering `CLOSED` or `OPEN` per
    finding. New findings are forbidden, with one mechanical carve-out: a defect on a line the
@@ -693,7 +698,7 @@ change under review. Feed it the diff file and the frozen ruleset. It returns:
 ```
 
 Write it to `<scratchpad>/orb-N-findings.json`. **The list is now frozen.** File every non-blocking
-finding as its own follow-up Linear ticket immediately, then drop it from this run.
+finding as its own follow-up ticket immediately, then drop it from this run.
 
 **Size never exempts the review.** A 355-file codemod still gets reviewed; it gets reviewed AS a
 codemod. Change the order, never the depth: read the transform or the generator first,
@@ -760,7 +765,7 @@ derives the verdict from the review itself for exactly this reason; do not re-de
 **Triage each unresolved thread by its badge**, which mirrors the Blocking split in §5.3:
 
 - **P1 -> fix it in this pull request.** A P1 is never closed by filing a ticket.
-- **P2 or P3 -> fix it if cheap, otherwise file a follow-up Linear ticket** and close the thread
+- **P2 or P3 -> fix it if cheap, otherwise file a follow-up ticket** and close the thread
   naming it.
 - **`isOutdated` is not evidence.** It means the code moved under the comment, not that anyone
   addressed it. #681's survivor is outdated and still unresolved. Treat it like any other thread.
@@ -827,14 +832,14 @@ Every open pull request gets one mechanical receipt keyed by repository and PR n
 least: repository key, PR number, base branch, current base SHA, current head SHA; independent
 reviewer kind, verdict, rounds, `reviewedHeadOid`, artifact path; CI settled/green head; newest Codex
 connector reviewed commit; unresolved Codex thread count and the head on which threads were listed;
-`behind_by`; draft state; Linear status and last synchronization result.
+`behind_by`; draft state; ticket status and last synchronization result.
 
 The only READY state is simultaneous truth for one current head/base pair. Run
 `record-readiness.mjs` after every artifact update. The recorder re-reads the live PR base/head,
-draft state, newest required CI, current connector result, complete thread inventory, Linear state,
+draft state, newest required CI, current connector result, complete thread inventory, ticket state,
 and compare `behind_by` at aggregation time; it never labels cached artifacts or the delivery
 artifact's old SHAs as current. Its explicit stale/blocking verdicts include
-`REVIEW_STALE`, `CI_STALE`, `BOT_REVIEW_STALE`, `OUT_OF_DATE`, `THREADS_OPEN`, and `LINEAR_STALE`.
+`REVIEW_STALE`, `CI_STALE`, `BOT_REVIEW_STALE`, `OUT_OF_DATE`, `THREADS_OPEN`, and `TICKET_STALE`.
 Any commit, ordinary push, merge from main, or base advancement invalidates receipts tied to the old
 head or base. Bare PR numbers are never sufficient run state.
 
@@ -851,12 +856,12 @@ For each existing PR, repeat within the configured `caps.connectorFixAttempts` f
    its returned ledger path in run-state before launching the one fixer transition; round two must
    match that independently persisted path/hash/base/head/frozen-ID identity.
 4. Request the Codex connector on that head. Fix every actionable finding, reply with commit or
-   Linear-ticket evidence, then resolve. Re-request after any push. Zero unresolved threads without
+   ticket evidence, then resolve. Re-request after any push. Zero unresolved threads without
    a current-head connector review is `BOT_REVIEW_STALE`, never clean.
-5. Synchronize Linear automatically, deduplicating the last posted state: work/PR opened or blocked
+5. Synchronize the ticket automatically, deduplicating the last posted state: work/PR opened or blocked
    -> In Progress with concise state comment; all technical readiness facts true -> In Review; exact
    permission/external/human-only blocker -> In Progress with the decision required. Never mark Done
-   before merge. Size never affects Linear status.
+   before merge. Size never affects ticket status.
 6. Re-record and evaluate. READY ends the loop. A genuine permission, external, or human-only
    blocker, or exhaustion of the bounded fixer/review budget, produces a precise handoff and keeps
    the PR in the run record. Never merge.
@@ -961,7 +966,7 @@ It cannot ask what only a running worker discovers, and it does not pretend to.
 
 **A failed worker attempt is recorded, but its ticket is not silently skipped.** Preserve its work,
 use the step 7 salvage path when the caller-specified workspace test is green, and keep the PR in
-the bounded readiness loop until CI, both reviews, threads, base freshness, and Linear agree on one
+the bounded readiness loop until CI, both reviews, threads, base freshness, and the ticket agree on one
 head/base pair. The queue may continue independent tickets while a wake source owns that debt. Only
 a genuine permission, external, human-only, or exhausted bounded-fixer blocker permits handoff, and
 the ticket remains In Progress with the exact decision required.
@@ -1006,7 +1011,7 @@ A new session starts with a fresh ledger and cannot inherit yesterday's complete
 invalid because UI and API can have the same PR number. The stop hook opens every ledger receipt,
 matches its repository and PR identity, then boundedly rereads the live GitHub head/base/draft,
 newest CI reruns and required-context inventory, current connector verdict and fully paginated
-thread count, plus Linear status. It allows completion only when the cached report is READY and
+thread count, plus ticket status. It allows completion only when the cached report is READY and
 all live values still match that exact receipt. This is the
 mechanical half of salvage: a pull request opened by hand and never re-verified cannot be reported
 as a finished queue even if a fallible session clears the active list.

@@ -1,7 +1,7 @@
 ---
 name: audit-code-quality
 description: >-
-  Repo-wide code-quality audit across both Orbit repos, opening one Linear ticket per verified debt after a human approval gate (D10). Finds the judgement-level debt no gate can see (D11): dead/stale code; SOLID/clean-arch debt including branch-heavy state models, thin abstractions, giant files, cast/optionality churn, and wrong-layer logic; DRY-at-the-wrong-level; naming; and non-gated DESIGN.md drift, each evidence-backed with file:line. EXCLUDES the mechanical layer (comment policy, spacing scale, react-doctor, dashes, and every ESLint local/Roslyn rule). Use when the user asks to audit code quality, find tech debt, or check the codebase against the standards. Not for a single diff (use /pr-review).
+  Repo-wide code-quality audit across both Orbit repos, opening one GitHub ticket per verified debt after a human approval gate (D10). Finds the judgement-level debt no gate can see (D11): dead/stale code; SOLID/clean-arch debt including branch-heavy state models, thin abstractions, giant files, cast/optionality churn, and wrong-layer logic; DRY-at-the-wrong-level; naming; and non-gated DESIGN.md drift, each evidence-backed with file:line. EXCLUDES the mechanical layer (comment policy, spacing scale, react-doctor, dashes, and every ESLint local/Roslyn rule). Use when the user asks to audit code quality, find tech debt, or check the codebase against the standards. Not for a single diff (use /pr-review).
 argument-hint: <path | workspace | repo | blank=both repos>
 ---
 
@@ -10,7 +10,7 @@ argument-hint: <path | workspace | repo | blank=both repos>
 **Input**: $ARGUMENTS
 
 Walk the **whole repo** (or a scoped path) against `rubric.md` — the *same* rubric
-`/pr-review` walks over a diff, and opens one Linear ticket per verified debt (D10).
+`/pr-review` walks over a diff, and opens one GitHub ticket per verified debt (D10).
 `/pr-review` reviews what changed; this audits what *exists*. The output is executable
 tickets behind one approval gate, never a report that rots the day after it is written.
 
@@ -139,10 +139,10 @@ require the zero-reference proof.
 
 ## Phase 4: Emit tickets (D10), not a report
 
-Run the shared pipeline in **`.claude/skills/_shared/audit-to-tickets.md`**: one Linear
+Run the shared pipeline in **`.claude/skills/_shared/audit-to-tickets.md`**: one GitHub
 ticket per verified debt, drafted to the 6.2 template, validated by
 re-read against the 6.2 template, presented behind ONE approval gate, then created via
-`orca linear create` and re-validated with `--issue`.
+`gh issue create` and re-validated from the created issue.
 
 Code-quality-specific mapping into the 6.2 body:
 
@@ -180,7 +180,7 @@ At the approval gate, present the Hotspots (the 3-5 highest-debt files) and per-
   coverage gap.
 - **Trust an un-proven dead-code claim.** Every dead-code ticket carries the zero-reference
   grep that proves it (the skeptic re-runs it) — drop any that lack one.
-- **Write a report file, or create tickets unattended.** The output is Linear tickets behind
+- **Write a report file, or create tickets unattended.** The output is GitHub tickets behind
   the one approval gate; nothing is persisted to `.claude/audits/`.
 - **Refactor during the audit.** Tickets first; write code only if the user asks after.
 - **Pad the backlog.** A clean area produces no ticket, not an invented Low nit.
