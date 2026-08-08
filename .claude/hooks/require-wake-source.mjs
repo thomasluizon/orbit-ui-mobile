@@ -124,6 +124,17 @@ try {
     process.stderr.write(verdict.message)
     process.exit(2)
   }
+  /**
+   * A run that ends BLOCKED is allowed to end, and it must not look like one that finished. The
+   * banner goes to stderr and the hook still exits 0, because exit 2 is this hook's only confirmed
+   * channel back into the session and using it here would BLOCK the very ending it is describing.
+   * So this marks the transcript, and the orchestrate skill's report step carries the same
+   * distinction where the model certainly reads it. Stated rather than implied: this line is a
+   * record, not a guaranteed prompt.
+   */
+  if (verdict?.terminal === "BLOCKED") {
+    process.stderr.write(verdict.message)
+  }
   process.exit(0)
 } catch {
   process.exit(0)

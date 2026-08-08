@@ -77,7 +77,20 @@ export const writeRunState = (state, repoRoot = REPO_ROOT) => {
     const key = `${entry.repositoryKey}#${entry.prNumber}`
     if (seen.has(key)) continue
     seen.add(key)
-    readinessLedger.push({ repositoryKey: entry.repositoryKey, prNumber: entry.prNumber, receiptPath: entry.receiptPath })
+    /**
+     * A ledger row whose receipt file does not exist is a promise nobody kept. Measured 2026-08-08:
+     * four rows were accepted for receipts that were never written, and the Stop hook then read
+     * them as unreadable rather than as absent, which is a different and much quieter failure.
+     * The path is recorded either way, so the row is never silently dropped: `receiptWritten` says
+     * which it is, and the hook can name it.
+     */
+    readinessLedger.push({
+      repositoryKey: entry.repositoryKey,
+      prNumber: entry.prNumber,
+      receiptPath: entry.receiptPath,
+      receiptWritten: existsSync(entry.receiptPath),
+      blocker: typeof entry.blocker === "string" && entry.blocker !== "" ? entry.blocker : null,
+    })
   }
   writeFileSync(runStatePath(repoRoot), `${JSON.stringify({ ...state, readinessLedger }, null, 2)}\n`)
 }

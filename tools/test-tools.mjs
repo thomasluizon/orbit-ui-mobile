@@ -84,6 +84,7 @@ const CASE_MODULES = [
   ["lib/identifier-ledger.mjs", "identifier-ledger"],
   ["lib/pr-body.mjs", "pr-body"],
   ["lib/readiness-receipt.mjs", "readiness-receipt"],
+  ["lib/rubric-provenance.mjs", "rubric-provenance"],
   ["lib/run-state.mjs", "run-state"],
   ["lib/ticket-executability.mjs", "ticket-executability"],
   ["list-bot-threads.mjs", "list-bot-threads"],

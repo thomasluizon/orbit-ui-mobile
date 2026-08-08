@@ -13,7 +13,6 @@
  */
 
 import { spawn, spawnSync } from "node:child_process"
-import { createHash } from "node:crypto"
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, statSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { delimiter, dirname, extname, join, resolve } from "node:path"
@@ -38,6 +37,10 @@ const USAGE = `usage: launch-worker.mjs --issue ORB-N --worktree <path> --prompt
                      PR's own AGENTS.md, which is instructions written by the change under review
   --repo <key>       required with --review. Selects the configured primary main checkout; a bare
                      PR number is never resolved from the caller's cwd
+  --measurement      this ticket's work IS measurement (Lighthouse, a benchmark, a profile), so it
+                     legitimately writes no file for long stretches. Uses
+                     timeouts.measurementNoProgressMinutes instead of noProgressMinutes. The hard
+                     ceiling is unchanged, so a measurement worker that really is hung still dies
   --codex-only       record that this is the Claude-quota-exhausted fallback run. It changes
                      nothing about the implementer, which is the same model in both modes. With
                      --review it DOES move the reviewer onto the worker engine's review tier,
@@ -50,7 +53,7 @@ const USAGE = `usage: launch-worker.mjs --issue ORB-N --worktree <path> --prompt
 
 Prints one JSON object on stdout when the worker is gone: issue, engine, tier, pid, logFile,
 startedAt, endedAt, exitCode, outcome. Progress goes to stderr, so stdout stays pipeable.
-outcome is EXITED, KILLED_HARD_CEILING, KILLED_NO_PROGRESS or SPAWN_FAILED.
+outcome is EXITED, KILLED_HARD_CEILING, KILLED_NO_PROGRESS, KILLED_LOG_RUNAWAY or SPAWN_FAILED.
 
 exit codes: 0 the worker exited on its own, 1 this launcher killed it or it never started,
             2 usage or config error, 3 the worker executable could not be resolved`
@@ -76,6 +79,7 @@ const promptArg = argOf("--prompt")
 const repoKey = argOf("--repo")
 const review = process.argv.includes("--review")
 const codexOnly = process.argv.includes("--codex-only")
+const measurement = process.argv.includes("--measurement")
 const dryRun = process.argv.includes("--dry-run")
 const commandTimeoutSeconds = Number(argOf("--command-timeout-seconds") ?? "45")
 
@@ -96,19 +100,38 @@ try {
 }
 if (review && typeof config.repos?.[repoKey] !== "string") fail(2, `--repo must name a configured repository (known: ${Object.keys(config.repos ?? {}).join(", ") || "none"})`)
 
+/**
+ * The pr-review contract is single-sourced in the UI repository and mirrored into the API one, and
+ * this gate refuses a review when the two disagree.
+ *
+ * It compares COMMITTED BLOBS, not working-tree bytes, and that is the whole point. The contract
+ * lives in git, so two identical commits can never be drift. The previous revision sha256'd the
+ * files on disk, and on 2026-08-08 that stood 76 tickets down over nothing: both repositories set
+ * core.autocrlf=true, orbit-ui-mobile pinned `.claude/skills/**\/*.md text eol=lf` and orbit-api did
+ * not, so the SAME blob materialized LF in one checkout and CRLF in the other, +230 bytes on
+ * SKILL.md and +289 on rubric.md. `git status` was clean in both, which is why nothing looked wrong.
+ *
+ * Pinning the missing .gitattributes line fixes that machine. Comparing blobs fixes every machine,
+ * including a fresh clone, which is where a checkout setting bites next.
+ */
 if (review && ["ui", "api"].includes(repoKey)) {
-  const relativePaths = [join(".claude", "skills", "pr-review", "SKILL.md"), join(".claude", "skills", "pr-review", "rubric.md")]
-  const digest = (path) => createHash("sha256").update(readFileSync(path)).digest("hex")
+  const relativePaths = [".claude/skills/pr-review/SKILL.md", ".claude/skills/pr-review/rubric.md"]
+  const committedBlob = (repoRoot, relativePath) => {
+    const result = spawnSync("git", ["-C", repoRoot, "rev-parse", `HEAD:${relativePath}`], { encoding: "utf8", windowsHide: true })
+    if (result.error || result.status !== 0) return null
+    const oid = result.stdout.trim()
+    return /^[0-9a-f]{40}$/.test(oid) ? oid : null
+  }
   for (const relativePath of relativePaths) {
-    const uiPath = join(config.repos.ui, relativePath)
-    const apiPath = join(config.repos.api, relativePath)
-    let matches = false
-    try {
-      matches = digest(uiPath) === digest(apiPath)
-    } catch (error) {
-      fail(2, `pr-review parity could not read ${relativePath}: ${error.message}`)
+    const uiBlob = committedBlob(config.repos.ui, relativePath)
+    const apiBlob = committedBlob(config.repos.api, relativePath)
+    /** A path that is not committed in either repository is a missing contract, never a match. Two
+     * nulls comparing equal is exactly how a gate reports OK over an absent file. */
+    if (!uiBlob) fail(2, `pr-review parity could not read the committed blob for ${relativePath} in ${config.repos.ui}; the contract must be committed before a review can launch`)
+    if (!apiBlob) fail(2, `pr-review parity could not read the committed blob for ${relativePath} in ${config.repos.api}; the contract must be committed before a review can launch`)
+    if (uiBlob !== apiBlob) {
+      fail(2, `pr-review parity failed for ${relativePath}: UI is canonical and API must match before an API review can launch (ui ${uiBlob}, api ${apiBlob})`)
     }
-    if (!matches) fail(2, `pr-review parity failed for ${relativePath}: UI is canonical and API must match before an API review can launch`)
   }
 }
 
@@ -155,7 +178,30 @@ try {
   fail(2, error.message)
 }
 const hardCeilingMs = config.timeouts.hardCeilingMinutes * 60 * 1000
-const noProgressMs = config.timeouts.noProgressMinutes * 60 * 1000
+
+/**
+ * THE no-progress cap punished work whose whole job is measurement.
+ *
+ * The clock samples HEAD and file mtimes, so a ticket that RUNS a benchmark looks byte for byte like
+ * a hung worker: no commit, no file written, for minutes at a time. ORB-225 was killed mid-Lighthouse
+ * on 2026-08-08 with real measurements sitting in its log and zero commits. It only succeeded on a
+ * second attempt, after those measurements were recovered by hand and injected into the work order.
+ * Lighthouse, benchmarks, profiling and bundle-size tickets all share that shape.
+ *
+ * The fix is a longer cap for those tickets, NOT a new progress signal. Counting log growth was the
+ * obvious alternative and it is the wrong one: a genuinely hung worker writes log too. ORB-201's log
+ * reached 61.73 MB in 37 minutes while delivering nothing, so a log-growth signal would have made
+ * the no-progress clock unable to fire for exactly the runaway it exists to catch.
+ *
+ * Raising the cap cannot be gamed, because the signal is unchanged and the hard ceiling still bounds
+ * everything: a measurement worker that really is hung dies at hardCeilingMinutes, same as any other.
+ */
+const measurementNoProgressMinutes = config.timeouts.measurementNoProgressMinutes
+if (measurement && !(Number.isFinite(measurementNoProgressMinutes) && measurementNoProgressMinutes > config.timeouts.noProgressMinutes)) {
+  fail(2, `--measurement requires timeouts.measurementNoProgressMinutes in .claude/orchestrator.json, greater than noProgressMinutes (${config.timeouts.noProgressMinutes})`)
+}
+const noProgressMinutes = measurement ? measurementNoProgressMinutes : config.timeouts.noProgressMinutes
+const noProgressMs = noProgressMinutes * 60 * 1000
 
 const workerPointer = (worktreePath, branch) => review
   ? `Read ${promptFile} and execute it in full. That file is your complete review order for ${issue}. You are reviewing a diff, not the repository, and you do not fix what you find. Do not summarise the file back to me, start the review now.`
@@ -224,7 +270,7 @@ mkdirSync(logDirectory, { recursive: true })
 const logFile = join(logDirectory, `${issue}-${Date.now()}.log`)
 
 if (dryRun) {
-  console.log(JSON.stringify({ issue, engine: engineName, tier: invocation.tier, model: invocation.model, codexOnly, review, repositoryKey: repoKey, runDirectory, branch, promptFile, executable, args: workerArgs, logFile, dryRun: true }, null, 2))
+  console.log(JSON.stringify({ issue, engine: engineName, tier: invocation.tier, model: invocation.model, codexOnly, measurement, noProgressMinutes, review, repositoryKey: repoKey, runDirectory, branch, promptFile, executable, args: workerArgs, logFile, dryRun: true }, null, 2))
   process.exit(0)
 }
 
@@ -319,7 +365,7 @@ const finish = async (outcome, exitCode) => {
   // bounded GitHub children have finished, otherwise an unattended queue can lose its only wakeup.
   clearWakeSource(process.pid)
   closeSync(logFd)
-  const result = { issue, engine: engineName, tier: invocation.tier, model: invocation.model, codexOnly, pid: child.pid ?? null, logFile, startedAt, endedAt: new Date().toISOString(), exitCode, outcome }
+  const result = { issue, engine: engineName, tier: invocation.tier, model: invocation.model, codexOnly, measurement, noProgressMinutes, pid: child.pid ?? null, logFile, startedAt, endedAt: new Date().toISOString(), exitCode, outcome }
   console.log(JSON.stringify(result, null, 2))
   process.exit(outcome === "EXITED" ? 0 : 1)
 }
@@ -388,9 +434,41 @@ const ceiling = setTimeout(() => {
   killTree(child.pid)
 }, hardCeilingMs)
 
+/**
+ * A worker that floods its own log is a runaway, and until now it died unexplained.
+ *
+ * Measured on the 2026-08-08 night, from the 30 logs it left behind. ORB-201 wrote 61.73 MB in 36.9
+ * minutes, 28.6 KB/s, EIGHT times the next-fastest writer (ORB-162 at 3.6 KB/s), and its log is one
+ * enormous `git diff`: 5,928 hunk headers and 41,215 deleted lines. It is the only log in the batch
+ * carrying `ERROR codex_core::tools::router: error=code-mode host closed its stdout`, and ORB-162
+ * died 3 seconds later mid-write with no error line at all.
+ *
+ * That proximate failure is the vendor's code-mode host, not this harness, and it is named as such
+ * rather than papered over. What IS the harness's is that nothing bounded the flood that preceded
+ * it. This turns an unexplained death into a named outcome with the byte count attached.
+ *
+ * The child writes to the log fd directly, so this samples rather than rotates: re-plumbing a
+ * running child's stdio is not possible, and the sampler already runs on the same clock.
+ */
+const logMegabyteCap = config.caps?.workerLogMegabytes
+const logByteCap = Number.isFinite(logMegabyteCap) && logMegabyteCap > 0 ? logMegabyteCap * 1024 * 1024 : null
+
 let progress = progressFingerprint()
 let lastProgressAt = Date.now()
 const sampler = setInterval(() => {
+  if (logByteCap !== null) {
+    try {
+      const written = statSync(logFile).size
+      if (written > logByteCap) {
+        outcome = "KILLED_LOG_RUNAWAY"
+        console.error(`${issue} wrote ${(written / 1048576).toFixed(2)} MB of worker log, past the ${logMegabyteCap} MB cap; killing the worker process tree`)
+        killTree(child.pid)
+        return
+      }
+    } catch {
+      /* a log that cannot be stat'd is not evidence of a runaway */
+    }
+  }
   const sampled = progressFingerprint()
   if (sampled !== progress) {
     progress = sampled
@@ -399,7 +477,7 @@ const sampler = setInterval(() => {
   }
   if (Date.now() - lastProgressAt < noProgressMs) return
   outcome = "KILLED_NO_PROGRESS"
-  console.error(`${issue} has not moved HEAD or written a file for ${config.timeouts.noProgressMinutes} minutes; killing the worker process tree`)
+  console.error(`${issue} has not moved HEAD or written a file for ${noProgressMinutes} minutes${measurement ? " (measurement cap)" : ""}; killing the worker process tree`)
   killTree(child.pid)
 }, config.timeouts.pollSeconds * 1000)
 

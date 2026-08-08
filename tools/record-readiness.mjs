@@ -12,6 +12,7 @@ import { runBounded } from "./lib/bounded-process.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { withDegradedReviewFirst } from "./lib/pr-body.mjs"
 import { readinessCiIsGreen, readinessReport, writeReadinessReceipt } from "./lib/readiness-receipt.mjs"
+import { CANONICAL_RUBRIC_REPO, RUBRIC_PATH, rubricProvenanceVerdict } from "./lib/rubric-provenance.mjs"
 
 const LIST_BOT_THREADS = fileURLToPath(new URL("./list-bot-threads.mjs", import.meta.url))
 
@@ -153,10 +154,12 @@ const review = artifact.review?.review ?? artifact.review
 if (
   typeof review?.reviewedHeadOid !== "string" ||
   typeof review?.artifactPath !== "string" ||
-  typeof review?.rubricBaseOid !== "string" ||
+  typeof review?.rubricRepositoryKey !== "string" ||
+  typeof review?.rubricCommitOid !== "string" ||
+  typeof review?.rubricBlobOid !== "string" ||
   typeof review?.rubricArtifactPath !== "string" ||
   !Array.isArray(review?.findings)
-) fail("review artifact carries no reviewedHeadOid, findings, or frozen-rubric evidence")
+) fail("review artifact carries no reviewedHeadOid, findings, or complete rubric provenance (rubricRepositoryKey, rubricCommitOid, rubricBlobOid, rubricArtifactPath)")
 let frozenFindingIdsVerified = review.rounds === 1
 let roundOneRegistration = null
 if (review.rounds === 2) {
@@ -397,6 +400,44 @@ const liveConnectorPassed =
   liveBot?.baseRefOid === baseSha
 const botArtifactCurrent = bot.headRefOid === headSha && bot.baseRefOid === baseSha && bot.reviewedCommit === liveBot?.reviewedCommit
 const liveUnresolvedThreads = liveBot?.counts?.unresolved ?? null
+
+/**
+ * Rubric provenance, proven with git rather than asserted by the reviewer.
+ *
+ * This is the only place in the harness with both filesystem and git access at receipt time, so it
+ * is where the proof belongs. lib/readiness-receipt.mjs is pure and runs inside the Stop hook; it
+ * re-derives the own-base case itself and otherwise reads the verdict recorded here.
+ */
+/** runBounded accumulates stdout as a UTF-8 STRING, so blob content is read as text and never
+ * trimmed: trimming would drop the rubric's trailing newline on one side of the comparison only. */
+const gitRaw = async (cwd, args) => {
+  const result = await runBounded("git", ["-C", cwd, ...args], { cwd, timeoutMs: 45000, maxBuffer: 16 * 1024 * 1024 })
+  return result.timedOut || result.error || result.status !== 0 ? null : result.stdout
+}
+const gitText = async (cwd, args) => {
+  const out = await gitRaw(cwd, args)
+  return out === null ? null : out.trim()
+}
+
+const rubricRepoRoot = config.repos?.[review.rubricRepositoryKey] ?? null
+const prRepoBlobAtBase = await gitText(repoRoot, ["rev-parse", `${baseSha}:${RUBRIC_PATH}`])
+const canonicalRoot = config.repos?.[CANONICAL_RUBRIC_REPO] ?? null
+const rubricFacts = {
+  prRepoKey: repoKey,
+  prBaseSha: baseSha,
+  prRepoHasRubricAtBase: typeof prRepoBlobAtBase === "string" && /^[0-9a-f]{40}$/.test(prRepoBlobAtBase),
+  blobAtClaimedCommit: rubricRepoRoot ? await gitText(rubricRepoRoot, ["rev-parse", `${review.rubricCommitOid}:${RUBRIC_PATH}`]) : null,
+  canonicalMainBlob: canonicalRoot ? await gitText(canonicalRoot, ["rev-parse", `origin/main:${RUBRIC_PATH}`]) : null,
+  blobBytes: rubricRepoRoot ? await gitRaw(rubricRepoRoot, ["cat-file", "blob", review.rubricBlobOid]) : null,
+  snapshotBytes: (() => {
+    try {
+      return readFileSync(review.rubricArtifactPath, "utf8")
+    } catch {
+      return null
+    }
+  })(),
+}
+const rubricVerdict = rubricProvenanceVerdict(review, rubricFacts)
 const receipt = {
   issue: delivery.issue,
   repositoryKey: repoKey,
@@ -410,8 +451,13 @@ const receipt = {
     rounds: review.rounds,
     reviewedHeadOid: review.reviewedHeadOid,
     artifactPath: review.artifactPath,
-    rubricBaseOid: review.rubricBaseOid,
+    rubricRepositoryKey: review.rubricRepositoryKey,
+    rubricCommitOid: review.rubricCommitOid,
+    rubricBlobOid: review.rubricBlobOid,
     rubricArtifactPath: review.rubricArtifactPath,
+    rubricBinding: rubricVerdict.ok ? rubricVerdict.binding : null,
+    rubricVerified: rubricVerdict.ok,
+    rubricRefusal: rubricVerdict.ok ? null : rubricVerdict.reason,
     findings: review.findings,
     frozenFindingIds: review.frozenFindingIds,
     frozenFindingIdsVerified,
