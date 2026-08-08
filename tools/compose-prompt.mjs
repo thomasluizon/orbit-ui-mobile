@@ -176,6 +176,15 @@ never the work itself.
 Then, in order: run the broader suite, push, and open exactly one pull request. Stop there and
 report. You do not merge and you do not wait for review.
 
+**The pull request must NOT be a draft.** Never pass \`--draft\` to \`gh pr create\`, and if your
+tooling opened one anyway, run \`gh pr ready <number>\` before you report. Confirm it with
+\`gh pr view <number> --json isDraft\`, which must print \`false\`.
+
+A draft attracts no Codex connector review, ever. Not a late one, not a slow one: none. Measured
+2026-08-08, three of five pull requests opened as drafts (ORB-7 #464, ORB-214 #57, ORB-188 #465) and
+each needed a human to mark it ready. An unattended run would instead have waited the full 900
+second connector budget and reported NO_REVIEW on a pull request nobody could review.
+
 **The prose you write is gated too, and nothing used to tell you that.** The pull request TITLE and
 BODY pass through the Dash Ban and Copy Register jobs exactly as source files do. So: no em dash and
 no en dash anywhere in either, no shouted strings, and none of the cliche register those jobs reject.

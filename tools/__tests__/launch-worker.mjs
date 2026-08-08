@@ -12,12 +12,13 @@ const TOOL = "launch-worker.mjs"
  * is swapped by default: the configured worker is `codex`, which is not installed in CI, and a
  * gate that needs a model CLI on PATH is not hermetic.
  */
-const launchConfig = ({ engine = {}, timeouts = {} } = {}) => {
+const launchConfig = ({ engine = {}, timeouts = {}, caps = {} } = {}) => {
   const real = realOrchestratorConfig()
   return {
     ...real,
     workers: { ...real.workers, [real.worker]: { ...real.workers[real.worker], command: process.execPath, ...engine } },
     timeouts: { ...real.timeouts, ...timeouts },
+    caps: { ...real.caps, ...caps },
   }
 }
 
@@ -30,6 +31,9 @@ const stubEngine = (script) => ({ engine: { args: [script], models: { default: {
 
 const SLEEPER = stage("launch-worker/sleeping-worker.js", "setTimeout(() => {}, 60000)\n")
 const IMMEDIATE = stage("launch-worker/immediate-worker.js", "process.exit(0)\n")
+/** Floods stdout the way ORB-201 did, which is how a 61.73 MB log happened. It never exits on its
+ * own, so the only thing that can end it is the launcher noticing the flood. */
+const FLOODER = stage("launch-worker/flooding-worker.js", "const line = 'x'.repeat(4096)\nsetInterval(() => { for (let i = 0; i < 64; i++) process.stdout.write(line + '\\n') }, 5)\n")
 
 const launch = (label, config) => {
   const repo = stageRepo(`launch-worker-${label}`)
@@ -60,6 +64,47 @@ export const cases = () => {
   }
   const argv = ["--issue", "ORB-201", "--worktree", fixture.worktree, "--prompt", fixture.prompt]
   const options = { path: fixture.path }
+
+  /**
+   * The no-progress clock samples HEAD and file mtimes, so a ticket whose work IS measurement looks
+   * byte for byte like a hung worker. ORB-225 was killed mid-Lighthouse on 2026-08-08 with real
+   * measurements in its log and zero commits, and only succeeded once they were recovered by hand.
+   *
+   * The cap is raised for those tickets; the SIGNAL is deliberately unchanged. Counting log growth
+   * was the obvious alternative and it is the wrong one: ORB-201's log reached 61.73 MB in 37
+   * minutes while delivering nothing, so a log-growth signal could not fire for the exact runaway
+   * the clock exists to catch.
+   */
+  const measured = check(TOOL, "--measurement resolves the longer no-progress cap", [...argv, "--measurement", "--dry-run"], { status: 0 }, options)
+  const measuredPlan = JSON.parse(measured.stdout)
+  discardLog(measured.stdout)
+  const ordinary = check(TOOL, "without --measurement the ordinary cap applies", [...argv, "--dry-run"], { status: 0 }, options)
+  const ordinaryPlan = JSON.parse(ordinary.stdout)
+  discardLog(ordinary.stdout)
+  T(
+    `${TOOL}: the measurement cap is longer than the ordinary one, and both are reported`,
+    measuredPlan.measurement === true && ordinaryPlan.measurement === false && measuredPlan.noProgressMinutes > ordinaryPlan.noProgressMinutes,
+    `measurement ${measuredPlan.noProgressMinutes}, ordinary ${ordinaryPlan.noProgressMinutes}`,
+  )
+  T(
+    `${TOOL}: the HARD CEILING is unchanged by --measurement, so a hung measurement worker still dies`,
+    realOrchestratorConfig().timeouts.hardCeilingMinutes > measuredPlan.noProgressMinutes,
+    "a measurement cap at or above the hard ceiling would disable the no-progress clock entirely",
+  )
+  const noMeasurementCap = launch("no-measurement-cap", (() => {
+    const config = launchConfig()
+    delete config.timeouts.measurementNoProgressMinutes
+    return config
+  })())
+  if (noMeasurementCap) {
+    check(
+      TOOL,
+      "--measurement refuses when the config declares no measurement cap, rather than falling back",
+      ["--issue", "ORB-201", "--worktree", noMeasurementCap.worktree, "--prompt", noMeasurementCap.prompt, "--measurement", "--dry-run"],
+      { status: 2, stderr: /requires timeouts.measurementNoProgressMinutes/ },
+      { path: noMeasurementCap.path },
+    )
+  }
 
   check(TOOL, "refuses a malformed issue", ["--issue", "orb-201", "--worktree", fixture.worktree, "--prompt", fixture.prompt], { status: 2, stderr: /--issue must be a Linear identifier/ }, options)
   check(TOOL, "refuses a missing worktree flag", ["--issue", "ORB-201", "--prompt", fixture.prompt], { status: 2, stderr: /--worktree is required/ }, options)
@@ -205,6 +250,37 @@ export const cases = () => {
   )
   discardLog(stalled.stdout)
 
+  /**
+   * A worker that floods its own log is a runaway, and it used to die unexplained. Measured on the
+   * 2026-08-08 night: ORB-201 wrote 61.73 MB in 36.9 minutes, 28.6 KB/s, eight times the next
+   * fastest writer, and its log is one enormous git diff (5,928 hunk headers, 41,215 deleted
+   * lines). It is the only log in that batch carrying "code-mode host closed its stdout", and
+   * ORB-162 died 3 seconds later mid-write with no error line at all.
+   *
+   * The proximate failure is the vendor's code-mode host, not this harness. What IS the harness's is
+   * that nothing bounded the flood, so the outcome now names it with the byte count attached.
+   */
+  const flood = launch("log-runaway", launchConfig({ ...stubEngine(FLOODER), timeouts: { hardCeilingMinutes: 5, noProgressMinutes: 5, pollSeconds: 0.2 }, caps: { workerLogMegabytes: 1 } }))
+  const flooded = check(
+    TOOL,
+    "a worker flooding its own log is killed and the outcome NAMES the runaway",
+    ["--issue", "ORB-201", "--worktree", flood.worktree, "--prompt", flood.prompt],
+    { status: 1, stdout: /"outcome": "KILLED_LOG_RUNAWAY"/, stderr: /MB of worker log, past the 1 MB cap/ },
+    { path: flood.path, env: githubAuthEnv() },
+  )
+  discardLog(flooded.stdout)
+
+  /** An ordinary worker must not trip the cap, or the bound is just a shorter ceiling. */
+  const belowCap = launch("log-below-cap", launchConfig({ ...stubEngine(IMMEDIATE), caps: { workerLogMegabytes: 32 } }))
+  const quiet = check(
+    TOOL,
+    "an ordinary worker well under the log cap exits normally",
+    ["--issue", "ORB-201", "--worktree", belowCap.worktree, "--prompt", belowCap.prompt],
+    { status: 0, stdout: /"outcome": "EXITED"/ },
+    { path: belowCap.path, env: githubAuthEnv() },
+  )
+  discardLog(quiet.stdout)
+
   const ceiling = launch("ceiling", launchConfig({ ...stubEngine(SLEEPER), timeouts: { hardCeilingMinutes: 0.02, noProgressMinutes: 5, pollSeconds: 0.2 } }))
   const killed = check(
     TOOL,
@@ -279,12 +355,23 @@ const stageReviewFixture = (label) => {
   for (const args of [["init", "-q", "--initial-branch=main"], ["config", "user.email", "gate@orbit.test"], ["config", "user.name", "Orbit Gate"], ["commit", "-q", "--allow-empty", "-m", "base"]]) {
     if (spawnSync("git", ["-C", apiPath, ...args], { encoding: "utf8" }).status !== 0) return null
   }
+  /**
+   * The contract must be COMMITTED in both fixtures, because the gate compares committed blobs
+   * rather than working-tree bytes. A fixture that only copied the files on disk would leave both
+   * blobs unreadable, and the gate would then be exercised only through its missing-contract arm.
+   */
   const sourceRoot = join(TOOLS_DIR, "..")
   for (const repoPath of [staged.base, apiPath]) {
     const destination = join(repoPath, ".claude", "skills", "pr-review")
     mkdirSync(destination, { recursive: true })
     cpSync(join(sourceRoot, ".claude", "skills", "pr-review", "SKILL.md"), join(destination, "SKILL.md"))
     cpSync(join(sourceRoot, ".claude", "skills", "pr-review", "rubric.md"), join(destination, "rubric.md"))
+    for (const args of [
+      ["add", "--", ".claude/skills/pr-review/SKILL.md", ".claude/skills/pr-review/rubric.md"],
+      ["commit", "-q", "-m", "pr-review contract"],
+    ]) {
+      if (spawnSync("git", ["-C", repoPath, ...args], { encoding: "utf8" }).status !== 0) return null
+    }
   }
   const config = reviewConfig()
   config.repos = { ...config.repos, ui: staged.base, api: apiPath }
@@ -390,6 +477,52 @@ const reviewCases = () => {
   const api = check(TOOL, "--review --repo api runs from the API primary main checkout", ["--issue", "ORB-201", "--review", "--repo", "api", "--prompt", prompt, "--dry-run"], { status: 0, stdout: /"repositoryKey": "api"/ }, options)
   T(`${TOOL}: API review cwd is the configured API primary checkout`, JSON.parse(api.stdout).runDirectory === staged.apiPath, api.stdout)
 
-  writeFileSync(join(staged.apiPath, ".claude", "skills", "pr-review", "SKILL.md"), "drift\n")
-  check(TOOL, "UI/API pr-review drift fails parity before launch", ["--issue", "ORB-201", "--review", "--repo", "api", "--prompt", prompt, "--dry-run"], { status: 2, stderr: /pr-review parity failed/ }, options)
+  /**
+   * THE 2026-08-08 regression, and the reason this gate reads git rather than the disk. Both repos
+   * set core.autocrlf=true, orbit-ui-mobile pinned `.claude/skills/**\/*.md text eol=lf` and
+   * orbit-api did not, so the SAME committed blob materialized LF in one checkout and CRLF in the
+   * other: +230 bytes on SKILL.md, +289 on rubric.md. `git status` was clean in both. The old
+   * working-tree sha256 refused every ui and api review and stood 76 tickets down over nothing.
+   *
+   * Rewriting the API working tree with CRLF and leaving the commit alone reproduces that exactly.
+   */
+  const apiSkillPath = join(staged.apiPath, ".claude", "skills", "pr-review", "SKILL.md")
+  const committedText = readFileSync(apiSkillPath, "utf8")
+  writeFileSync(apiSkillPath, committedText.replaceAll("\n", "\r\n"))
+  T(
+    `${TOOL}: the CRLF working tree really does differ from the committed bytes`,
+    readFileSync(apiSkillPath).length > Buffer.byteLength(committedText),
+    "the fixture did not actually change the working-tree bytes, so the next assertion would prove nothing",
+  )
+  check(
+    TOOL,
+    "identical committed blobs PASS parity even when the checkouts differ byte for byte",
+    ["--issue", "ORB-201", "--review", "--repo", "api", "--prompt", prompt, "--dry-run"],
+    { status: 0, stdout: /"repositoryKey": "api"/ },
+    options,
+  )
+  writeFileSync(apiSkillPath, committedText)
+
+  /** Real drift is a different COMMIT, and it must still fail. A gate that stopped refusing real
+   * drift would be worse than the one it replaced. */
+  writeFileSync(apiSkillPath, "drift\n")
+  for (const args of [["add", "--", ".claude/skills/pr-review/SKILL.md"], ["commit", "-q", "-m", "drift"]]) {
+    spawnSync("git", ["-C", staged.apiPath, ...args], { encoding: "utf8" })
+  }
+  check(TOOL, "a DIFFERENT committed blob still fails parity before launch", ["--issue", "ORB-201", "--review", "--repo", "api", "--prompt", prompt, "--dry-run"], { status: 2, stderr: /pr-review parity failed/ }, options)
+
+  /** An uncommitted contract is a missing contract, never a match. Two unreadable blobs comparing
+   * equal is exactly how a gate reports OK over an absent file. */
+  const bare = stageReviewFixture("launch-worker-review-uncommitted")
+  if (bare) {
+    spawnSync("git", ["-C", bare.apiPath, "rm", "-q", "--cached", ".claude/skills/pr-review/SKILL.md"], { encoding: "utf8" })
+    spawnSync("git", ["-C", bare.apiPath, "commit", "-q", "-m", "remove the contract"], { encoding: "utf8" })
+    check(
+      TOOL,
+      "a pr-review contract that is not committed is refused, never treated as a match",
+      ["--issue", "ORB-201", "--review", "--repo", "api", "--prompt", stage("launch-worker/uncommitted-prompt.md", "review order\n"), "--dry-run"],
+      { status: 2, stderr: /could not read the committed blob/ },
+      { path: bare.path },
+    )
+  }
 }

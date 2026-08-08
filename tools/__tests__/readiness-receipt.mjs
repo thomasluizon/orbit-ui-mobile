@@ -8,6 +8,7 @@ const HEAD_A = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 const HEAD_B = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 const BASE_A = "1111111111111111111111111111111111111111"
 const BASE_B = "2222222222222222222222222222222222222222"
+const BLOB_A = "3333333333333333333333333333333333333333"
 
 const ready = () => ({
   issue: "ORB-701",
@@ -16,7 +17,23 @@ const ready = () => ({
   baseBranch: "main",
   currentBaseSha: BASE_A,
   currentHeadSha: HEAD_A,
-  independentReview: { reviewerKind: "independent", verdict: "CLEAN", rounds: 1, reviewedHeadOid: HEAD_A, artifactPath: "C:/scratch/review.json", rubricBaseOid: BASE_A, rubricArtifactPath: "C:/scratch/rubric.md", frozenFindingIds: [], findings: [], headSha: HEAD_A, baseSha: BASE_A },
+  independentReview: {
+    reviewerKind: "independent",
+    verdict: "CLEAN",
+    rounds: 1,
+    reviewedHeadOid: HEAD_A,
+    artifactPath: "C:/scratch/review.json",
+    rubricRepositoryKey: "ui",
+    rubricCommitOid: BASE_A,
+    rubricBlobOid: BLOB_A,
+    rubricArtifactPath: "C:/scratch/rubric.md",
+    rubricBinding: "own-base",
+    rubricVerified: true,
+    frozenFindingIds: [],
+    findings: [],
+    headSha: HEAD_A,
+    baseSha: BASE_A,
+  },
   ci: { settled: true, green: true, headSha: HEAD_A, baseSha: BASE_A, checks: [] },
   codexConnector: { passed: true, reviewedCommit: HEAD_A, headSha: HEAD_A, baseSha: BASE_A },
   threads: { complete: true, unresolvedCount: 0, headSha: HEAD_A, baseSha: BASE_A },
@@ -49,8 +66,38 @@ export const cases = () => {
   T(`${TOOL}: round two is clean when every preserved frozen blocker is closed`, readinessReport(closedRoundTwo).verdict === "READY")
   const falselyClosedNewBlocker = { ...receipt, independentReview: { ...closedRoundTwo.independentReview, findings: [...closedRoundTwo.independentReview.findings, { id: "F2", blocking: true, status: "CLOSED" }] } }
   T(`${TOOL}: a newly admitted round-two blocker cannot be marked CLOSED when no fixer round remains`, readinessReport(falselyClosedNewBlocker).verdicts.includes("REVIEW_STALE"))
-  const staleRubric = { ...receipt, independentReview: { ...receipt.independentReview, rubricBaseOid: BASE_B } }
-  T(`${TOOL}: a rubric snapshot from another base is REVIEW_STALE`, readinessReport(staleRubric).verdicts.includes("REVIEW_STALE"))
+  /**
+   * Rubric provenance. The receipt must stay falsifiable in BOTH bindings: making a landing pull
+   * request mintable may not become a way for any review to skip the rubric check.
+   */
+  const staleRubric = { ...receipt, independentReview: { ...receipt.independentReview, rubricCommitOid: BASE_B } }
+  T(`${TOOL}: an own-base review citing another commit is REVIEW_STALE`, readinessReport(staleRubric).verdicts.includes("REVIEW_STALE"))
+  const unverified = { ...receipt, independentReview: { ...receipt.independentReview, rubricVerified: false } }
+  T(`${TOOL}: a review whose rubric was not verified with git is REVIEW_STALE`, readinessReport(unverified).verdicts.includes("REVIEW_STALE"))
+  const noBinding = { ...receipt, independentReview: { ...receipt.independentReview, rubricBinding: null } }
+  T(`${TOOL}: a review naming no rubric binding at all is REVIEW_STALE`, readinessReport(noBinding).verdicts.includes("REVIEW_STALE"))
+  const inventedBinding = { ...receipt, independentReview: { ...receipt.independentReview, rubricBinding: "trust-me" } }
+  T(`${TOOL}: an unknown rubric binding is REVIEW_STALE, never accepted`, readinessReport(inventedBinding).verdicts.includes("REVIEW_STALE"))
+  for (const field of ["rubricRepositoryKey", "rubricCommitOid", "rubricBlobOid", "rubricArtifactPath"]) {
+    const missing = { ...receipt, independentReview: { ...receipt.independentReview, [field]: undefined } }
+    T(`${TOOL}: a review missing ${field} is REVIEW_STALE`, readinessReport(missing).verdicts.includes("REVIEW_STALE"))
+  }
+  const shortOid = { ...receipt, independentReview: { ...receipt.independentReview, rubricBlobOid: "abc1234" } }
+  T(`${TOOL}: an abbreviated rubric blob oid is REVIEW_STALE`, readinessReport(shortOid).verdicts.includes("REVIEW_STALE"))
+
+  /**
+   * THE landing case: orbit-landing-page has no .claude tree at any commit, so a canonical-main
+   * binding is the only honest one it can carry, and it must reach READY. Four complete landing
+   * pull requests reported REVIEW_STALE on 2026-08-08 because this was impossible.
+   */
+  const landing = {
+    ...receipt,
+    repositoryKey: "landing",
+    independentReview: { ...receipt.independentReview, rubricBinding: "canonical-main", rubricRepositoryKey: "ui", rubricCommitOid: BASE_B },
+  }
+  T(`${TOOL}: a canonical-main binding reaches READY even though its commit is not the PR base`, readinessReport(landing).verdict === "READY", readinessReport(landing).verdicts.join(", "))
+  const landingUnverified = { ...landing, independentReview: { ...landing.independentReview, rubricVerified: false } }
+  T(`${TOOL}: a canonical-main binding still needs its git proof`, readinessReport(landingUnverified).verdicts.includes("REVIEW_STALE"))
 
   const pushed = { ...receipt, currentHeadSha: HEAD_B }
   const pushedVerdicts = readinessReport(pushed).verdicts
