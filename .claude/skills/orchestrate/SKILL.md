@@ -788,8 +788,8 @@ For each existing PR, repeat within the configured `caps.connectorFixAttempts` f
 In `--codex-only`, every PR body the harness creates or touches is mechanically rewritten so its
 exact first line is `DEGRADED: same-vendor review`. The launcher enforces it after implementation;
 every delivery verification reasserts it after later body edits; and final receipt aggregation
-reasserts it once more. Pass `--codex-only` to both tools. Delivery persists a body-edit CI
-invalidation in Git metadata until newer `Guards` check instances register, so another process
+reasserts it once more. Pass `--codex-only` to both tools. The launcher and delivery verifier both
+persist a body-edit CI invalidation in Git metadata until newer `Guards` check instances register, so another process
 cannot reuse the pre-edit green rollup. A body touch cannot clear readiness while silently dropping
 the banner.
 

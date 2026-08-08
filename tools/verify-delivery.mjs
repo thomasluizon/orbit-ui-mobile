@@ -28,9 +28,9 @@
  *    source change that requires them.
  */
 
-import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs"
-import { dirname, resolve } from "node:path"
+import { statSync } from "node:fs"
 
+import { bodyEditInvalidationPath, clearBodyEditInvalidation, newestGuardsRuns, persistBodyEditInvalidation, readBodyEditInvalidation } from "./lib/body-edit-invalidation.mjs"
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
@@ -330,33 +330,15 @@ let requiredContexts = await readRequiredContexts(pullRequestState)
 
 const markerLocation = await git(["rev-parse", "--git-path", "orbit-body-edit-invalidations"])
 if (!markerLocation.ok || !markerLocation.stdout.trim()) fail(2, `git rev-parse --git-path orbit-body-edit-invalidations failed in ${worktree}: ${markerLocation.error ?? "empty output"}`)
-const bodyEditMarkerPath = resolve(worktree, markerLocation.stdout.trim(), `${repoKey}-${pullRequest.number}.json`)
-const newestGuardsRuns = (rollup) => {
-  const newest = new Map()
-  for (const node of rollup) {
-    if (node.workflowName !== "Guards" || typeof node.name !== "string" || typeof node.startedAt !== "string") continue
-    const previous = newest.get(node.name)
-    if (!previous || Date.parse(node.startedAt) >= Date.parse(previous.startedAt)) newest.set(node.name, node)
-  }
-  return newest
-}
+const bodyEditMarkerPath = bodyEditInvalidationPath({ worktree, gitPath: markerLocation.stdout.trim(), prNumber: pullRequest.number })
 const readBodyEditMarker = () => {
-  if (!existsSync(bodyEditMarkerPath)) return null
   let marker
   try {
-    marker = JSON.parse(readFileSync(bodyEditMarkerPath, "utf8"))
+    marker = readBodyEditInvalidation(bodyEditMarkerPath)
   } catch (error) {
-    fail(2, `could not parse persisted PR-body CI invalidation ${bodyEditMarkerPath}: ${error.message}`)
+    fail(2, error.message)
   }
-  if (
-    marker?.repositoryKey !== repoKey ||
-    marker?.prNumber !== pullRequest.number ||
-    typeof marker?.headSha !== "string" ||
-    typeof marker?.baseSha !== "string" ||
-    typeof marker?.editedAt !== "string" ||
-    !Array.isArray(marker?.guardsRuns) ||
-    marker.guardsRuns.some((entry) => typeof entry?.name !== "string" || typeof entry?.startedAt !== "string")
-  ) {
+  if (marker && marker.repositoryKey !== null && marker.repositoryKey !== repoKey) {
     fail(2, `persisted PR-body CI invalidation has an invalid shape: ${bodyEditMarkerPath}`)
   }
   return marker
@@ -366,19 +348,17 @@ let bodyMutated = false
 if (codexOnly) {
   const degradedBody = withDegradedReviewFirst(pullRequest.body)
   if (degradedBody !== pullRequest.body) {
-    const marker = {
+    persistBodyEditInvalidation({
+      path: bodyEditMarkerPath,
       repositoryKey: repoKey,
       prNumber: pullRequest.number,
       headSha: pullRequestState.headRefOid,
       baseSha: pullRequestState.baseRefOid,
-      editedAt: new Date().toISOString(),
-      guardsRuns: [...newestGuardsRuns(pullRequestState.statusCheckRollup)].map(([name, node]) => ({ name, startedAt: node.startedAt })),
-    }
-    mkdirSync(dirname(bodyEditMarkerPath), { recursive: true })
-    writeFileSync(bodyEditMarkerPath, `${JSON.stringify(marker, null, 2)}\n`)
+      statusCheckRollup: pullRequestState.statusCheckRollup,
+    })
     const edited = await run(GH, ["pr", "edit", String(pullRequest.number), "--body-file", "-"], githubCwd, degradedBody)
     if (!edited.ok) {
-      rmSync(bodyEditMarkerPath, { force: true })
+      clearBodyEditInvalidation(bodyEditMarkerPath)
       fail(2, `could not enforce degraded PR body marker on #${pullRequest.number}: ${edited.error}`)
     }
     pullRequest.body = degradedBody
@@ -456,7 +436,7 @@ const applyBodyEditInvalidation = (rollup) => {
   const marker = readBodyEditMarker()
   if (!marker) return rollup
   if (marker.headSha !== pullRequestState.headRefOid || marker.baseSha !== pullRequestState.baseRefOid) {
-    rmSync(bodyEditMarkerPath, { force: true })
+    clearBodyEditInvalidation(bodyEditMarkerPath)
     return rollup
   }
 
@@ -475,7 +455,7 @@ const applyBodyEditInvalidation = (rollup) => {
   }
 
   if (pending.length === 0) {
-    rmSync(bodyEditMarkerPath, { force: true })
+    clearBodyEditInvalidation(bodyEditMarkerPath)
     return rollup
   }
   return { ...rollup, pending: [...rollup.pending, ...pending] }

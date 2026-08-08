@@ -20,6 +20,7 @@ import { delimiter, dirname, extname, join, resolve } from "node:path"
 
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
+import { bodyEditInvalidationPath, clearBodyEditInvalidation, persistBodyEditInvalidation } from "./lib/body-edit-invalidation.mjs"
 import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
 import { withDegradedReviewFirst } from "./lib/pr-body.mjs"
 import { clearWakeSource, registerWakeSource } from "./lib/run-state.mjs"
@@ -283,10 +284,29 @@ const finish = async (outcome, exitCode) => {
         if (result.error || result.status !== 0) throw new Error((result.stderr || result.stdout || result.error?.message || `exit ${result.status}`).trim())
         return result.stdout
       }
-      const listed = JSON.parse(await gh(["pr", "list", "--head", branch, "--json", "number,body"]))
+      const listed = JSON.parse(await gh(["pr", "list", "--head", branch, "--json", "number,body,baseRefOid,headRefOid,statusCheckRollup"]))
       if (Array.isArray(listed) && listed.length === 1) {
         const body = withDegradedReviewFirst(listed[0].body)
-        if (body !== listed[0].body) await gh(["pr", "edit", String(listed[0].number), "--body-file", "-"], body)
+        if (body !== listed[0].body) {
+          const gitPath = await runBounded("git", ["-C", runDirectory, "rev-parse", "--git-path", "orbit-body-edit-invalidations"], { cwd: runDirectory, timeoutMs: commandTimeoutSeconds * 1000, maxBuffer: 1024 * 1024 })
+          if (gitPath.timedOut || gitPath.overflowed || gitPath.error || gitPath.status !== 0 || !gitPath.stdout.trim()) {
+            throw new Error(`could not resolve the repository-local PR-body invalidation path: ${(gitPath.stderr || gitPath.stdout || gitPath.error?.message || `exit ${gitPath.status}`).trim()}`)
+          }
+          const markerPath = bodyEditInvalidationPath({ worktree: runDirectory, gitPath: gitPath.stdout.trim(), prNumber: listed[0].number })
+          persistBodyEditInvalidation({
+            path: markerPath,
+            prNumber: listed[0].number,
+            headSha: listed[0].headRefOid,
+            baseSha: listed[0].baseRefOid,
+            statusCheckRollup: listed[0].statusCheckRollup,
+          })
+          try {
+            await gh(["pr", "edit", String(listed[0].number), "--body-file", "-"], body)
+          } catch (error) {
+            clearBodyEditInvalidation(markerPath)
+            throw error
+          }
+        }
       }
     } catch (error) {
       console.error(`could not enforce the degraded PR body marker: ${redactSecrets(error.message, githubAuth.secrets)}`)

@@ -76,6 +76,7 @@ const CASE_MODULES = [
   ["check-root-allowlist.mjs", "check-root-allowlist"],
   ["compose-prompt.mjs", "compose-prompt"],
   ["launch-worker.mjs", "launch-worker"],
+  ["lib/body-edit-invalidation.mjs", "body-edit-invalidation"],
   ["lib/orchestrator-config.mjs", "orchestrator-config"],
   ["lib/bounded-process.mjs", "bounded-process"],
   ["lib/github-auth.mjs", "github-auth"],

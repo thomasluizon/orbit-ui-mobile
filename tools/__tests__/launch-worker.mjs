@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process"
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
-import { dirname, join } from "node:path"
+import { dirname, join, resolve } from "node:path"
 
 import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR } from "./_harness.mjs"
 
@@ -148,12 +148,46 @@ export const cases = () => {
     { status: 1, stdout: /"outcome": "PR_BODY_ENFORCEMENT_FAILED"/, stderr: /GitHub command timed out after 1s/ },
     { path: githubTimeout.path, env: orcaEnv([
       { match: "auth token --user test-owner", stdout: "test-github-token" },
-      { match: "pr list --head main --json number,body", stdout: "", hangTreePidFile: githubDescendantPidFile },
+      { match: "pr list --head main --json number,body,baseRefOid,headRefOid,statusCheckRollup", stdout: "", hangTreePidFile: githubDescendantPidFile },
     ]) },
   )
   discardLog(githubTimedOut.stdout)
   const githubDescendantPid = Number(readFileSync(githubDescendantPidFile, "utf8"))
   T(`${TOOL}: post-worker GitHub timeout removes the complete child process tree`, Number.isInteger(githubDescendantPid) && !processIsRunning(githubDescendantPid), `descendant ${githubDescendantPid} still alive`)
+
+  const bodyEdit = launch("body-edit-invalidation", launchConfig(stubEngine(IMMEDIATE)))
+  const bodyEditHead = bodyEdit.worktree && spawnSync("git", ["-C", bodyEdit.worktree, "rev-parse", "HEAD"], { encoding: "utf8", windowsHide: true }).stdout.trim()
+  const bodyEdited = check(
+    TOOL,
+    "a codex-only launcher persists the old Guards baseline before editing the PR body",
+    ["--issue", "ORB-201", "--worktree", bodyEdit.worktree, "--prompt", bodyEdit.prompt, "--codex-only"],
+    { status: 0, stdout: /"outcome": "EXITED"/ },
+    { path: bodyEdit.path, env: orcaEnv([
+      { match: "auth token --user test-owner", stdout: "test-github-token" },
+      { match: "pr list --head main --json number,body,baseRefOid,headRefOid,statusCheckRollup", stdout: JSON.stringify([{
+        number: 200,
+        body: "Implements ORB-201.",
+        baseRefOid: "base-sha",
+        headRefOid: bodyEditHead,
+        statusCheckRollup: [{ workflowName: "Guards", name: "Harness tools", startedAt: "2026-08-07T10:00:00Z" }],
+      }]) },
+      { match: "pr edit 200 --body-file -", stdout: "" },
+    ]) },
+  )
+  discardLog(bodyEdited.stdout)
+  const bodyEditGitPath = spawnSync("git", ["-C", bodyEdit.worktree, "rev-parse", "--git-path", "orbit-body-edit-invalidations"], { encoding: "utf8", windowsHide: true }).stdout.trim()
+  const bodyEditReceiptPath = resolve(bodyEdit.worktree, bodyEditGitPath, "200.json")
+  let bodyEditReceipt = null
+  try {
+    bodyEditReceipt = JSON.parse(readFileSync(bodyEditReceiptPath, "utf8"))
+  } catch {
+    bodyEditReceipt = null
+  }
+  T(
+    `${TOOL}: launcher body edit receipt is pinned to the exact head/base and pre-edit Guards run`,
+    bodyEditReceipt?.headSha === bodyEditHead && bodyEditReceipt?.baseSha === "base-sha" && bodyEditReceipt?.guardsRuns?.[0]?.name === "Harness tools" && bodyEditReceipt?.guardsRuns?.[0]?.startedAt === "2026-08-07T10:00:00Z",
+    JSON.stringify(bodyEditReceipt),
+  )
 
   /**
    * Both clocks are read from config.timeouts, and the only way to prove that is to move them:
