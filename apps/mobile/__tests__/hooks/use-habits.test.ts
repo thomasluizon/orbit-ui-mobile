@@ -780,6 +780,8 @@ describe('mobile habit hooks', () => {
     expect(goal?.progressPercentage).toBe(40)
     const gamification = mocks.queryClient.getQueryData(gamificationKeys.profile()) as { totalXp: number }
     expect(gamification.totalXp).toBe(125)
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
     expect(mocks.checkAllDoneCelebration).toHaveBeenCalled()
   })
 

@@ -193,6 +193,7 @@ export function useLogHabit() {
           { queryKey: goalKeys.lists() },
           (old) => old ? applyLinkedGoalUpdates(old, response.linkedGoalUpdates!) : old,
         )
+        void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
       }
 
       if (countsTowardStreak && (response.xpEarned || response.newAchievementIds?.length)) {
@@ -200,6 +201,12 @@ export function useLogHabit() {
           if (!old) return old
           return { ...old, totalXp: old.totalXp + (response.xpEarned ?? 0) }
         })
+      }
+
+      if (countsTowardStreak && (
+        response.isFirstCompletionToday || response.xpEarned || response.newAchievementIds?.length
+      )) {
+        void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
       }
 
       const habitsData = queryClient.getQueryData<HabitScheduleItem[]>(

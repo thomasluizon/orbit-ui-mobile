@@ -374,6 +374,7 @@ const kind = parsedArgs.kind
 const scope = parsedArgs.scope || 'both'
 if (!KIND[kind]) throw new Error(`audit workflow: unknown kind "${kind}" (expected security | tests | performance | code-quality)`)
 const cfg = KIND[kind]
+const surfaces = resolveSurfaces(kind, scope)
 const isSerious = (f) => rank(f.severity) <= 1
 const performanceMeasurement = kind === 'performance'
   ? resolvePerformanceMeasurement(parsedArgs.measurement)
@@ -393,7 +394,7 @@ const dedupeFresh = (findings) => {
 
 let measuredFindings = []
 let measurementFinderFailed = false
-if (kind === 'performance') {
+if (kind === 'performance' && surfaces.some(isApiSurface)) {
   phase('Measure')
   if (performanceMeasurement.status === 'available') {
     log(`measurement: ${performanceMeasurement.rowsRanking.length} query shapes, ${performanceMeasurement.tableStats.length} tables, stats reset ${performanceMeasurement.statsReset}`)
@@ -409,7 +410,6 @@ if (kind === 'performance') {
 }
 
 phase('Find')
-const surfaces = resolveSurfaces(kind, scope)
 log(`audit:${kind} · scope ${scopeLabelFor(scope)} · ${surfaces.length} surfaces`)
 const firstPass = (
   await parallel(

@@ -774,7 +774,7 @@ describe('useLogHabit onSuccess', () => {
     expect(mockedLogHabit).toHaveBeenCalled()
   })
 
-  it('handles linked goal updates in response', async () => {
+  it('refreshes linked-goal and gamification caches after a completion changes them', async () => {
     const { logHabit } = await import('@/app/actions/habits')
     const mockedLogHabit = vi.mocked(logHabit)
     mockedLogHabit.mockResolvedValue({
@@ -784,6 +784,8 @@ describe('useLogHabit onSuccess', () => {
       linkedGoalUpdates: [
         { goalId: 'g-1', title: 'Goal 1', newProgress: 55, targetValue: 100 },
       ],
+      xpEarned: 25,
+      newAchievementIds: ['ach-1'],
     })
 
     mockFetch.mockResolvedValue({
@@ -794,14 +796,19 @@ describe('useLogHabit onSuccess', () => {
         ),
     })
 
-    const wrapper = createWrapper()
-    const { result } = renderHook(() => useLogHabit(), { wrapper })
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.list({}), [makeScheduleItem({ id: 'h-1' })])
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => useLogHabit(), {
+      wrapper: createWrapper(queryClient),
+    })
 
     await act(async () => {
       await result.current.mutateAsync({ habitId: 'h-1' })
     })
 
-    expect(mockedLogHabit).toHaveBeenCalled()
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
   })
 
   it('handles gamification XP in response', async () => {

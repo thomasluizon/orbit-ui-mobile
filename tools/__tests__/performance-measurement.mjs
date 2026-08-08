@@ -60,6 +60,9 @@ export const cases = () => {
   T("performance-measurement: audit workflow executes the four measured signals", ["unbounded-user-list", "full-entity-projection", "large-table-fraction", "background-sweep-budget"].every((signal) => auditWorkflow.includes(signal)))
   T("performance-measurement: audit workflow returns an explicit performance verdict", auditWorkflow.includes("performanceVerdict: performanceMeasurement?.verdict"))
   T("performance-measurement: prod-readiness forwards only the performance measurement to the performance child", readinessWorkflow.includes("k === 'performance' ? performanceMeasurement : undefined"))
+  const scopeResolutionIndex = auditWorkflow.indexOf("const surfaces = resolveSurfaces(kind, scope)")
+  const scopedMeasurementIndex = auditWorkflow.indexOf("if (kind === 'performance' && surfaces.some(isApiSurface))")
+  T("performance-measurement: requested scope is applied before API hot paths are measured", scopeResolutionIndex >= 0 && scopedMeasurementIndex > scopeResolutionIndex)
 
   const measurement = resolvePerformanceMeasurement(availableInput())
   T("performance-measurement: an available sample produces a measured verdict", measurement.verdict === "MEASURED")
