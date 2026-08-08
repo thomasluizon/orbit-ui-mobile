@@ -63,6 +63,26 @@ export const listTickets = async () => tickets.filter((ticket) => ticket.state =
   )
   const execute = (references, tickets, extra = []) => run(TOOL, ["--tickets", references.join(","), ...extra], { path: staged.path, env: { ORBIT_TICKET_STUB: JSON.stringify(tickets) } })
 
+  /**
+   * Two fail-closed exits that the move off Linear kept in the tool but lost from the suite. The
+   * behaviour never broke; the guard against breaking it did, which is the same defect class as a
+   * gate whose test cannot fail. An unattended run at 03:00 distinguishes "nothing to do" from
+   * "the ticket system did not answer" by these exit codes alone.
+   */
+  const emptyScope = run(TOOL, ["--board"], { path: staged.path, env: { ORBIT_TICKET_STUB: "[]" } })
+  T(
+    `${TOOL}: a scope resolving to zero tickets exits 1 rather than printing an empty plan`,
+    emptyScope.status === 1 && /resolved to zero tickets/.test(emptyScope.stderr) && emptyScope.stdout.trim() === "",
+    `status ${emptyScope.status}: ${emptyScope.stderr || emptyScope.stdout}`,
+  )
+
+  const readFailure = execute(["#999999"], [ticket("ORB-1")])
+  T(
+    `${TOOL}: a ticket read failure is an environment error, never an empty plan`,
+    readFailure.status === 2 && /ticket read failed/.test(readFailure.stderr) && readFailure.stdout.trim() === "",
+    `status ${readFailure.status}: ${readFailure.stderr || readFailure.stdout}`,
+  )
+
   const independent = execute(["ORB-1", "ORB-2"], [ticket("ORB-1"), ticket("ORB-2", { labels: ["repo:api"] })])
   const independentPlan = planOf(independent)
   T(
