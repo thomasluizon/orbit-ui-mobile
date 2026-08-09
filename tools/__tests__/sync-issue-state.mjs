@@ -20,8 +20,10 @@ const issue = (overrides = {}) => ({
 const projectItems = JSON.stringify({ items: [], totalCount: 0 })
 
 export const cases = () => {
+  // The pull request binding resolves the repository slug from origin, so the fixture needs a real
+  // GitHub URL rather than stageRepo's local bare path.
   const repo = stageRepo("sync-issue-state")
-  if (!repo) {
+  if (!repo || repo.git(["remote", "set-url", "origin", "https://github.com/thomasluizon/orbit-ui-mobile.git"]).status !== 0) {
     T(`${TOOL}: fixture repository initialized`, false)
     return
   }
@@ -30,7 +32,22 @@ export const cases = () => {
   stage("staged/sync-issue-state/.claude/linear-to-github-map.json", JSON.stringify({ issues: { "ORB-215": { number: 221 } } }))
   const message = stage("sync-issue-state/message.md", "PR #700 is ready on the final head.")
   const argv = ["--issue", "ORB-215", "--repo", "ui", "--pr", "700", "--state", "ready", "--head-sha", HEAD, "--base-sha", BASE, "--message-file", message]
-  const readPlan = (ticket = issue()) => [
+  /**
+   * The pull request read that binds the write to the intended ticket. The repo:* label proves only
+   * the REPOSITORY, and hundreds of tickets share it, so a mistyped --issue naming another ticket
+   * with the same label used to pass. The tool now requires the live pull request to reference the
+   * ticket in its branch, title or body.
+   */
+  const pullRequest = (overrides = {}) => ({
+    number: 700,
+    headRefName: "fix/orb-215-harness",
+    title: "fix: harness work",
+    body: "Refs ORB-215",
+    ...overrides,
+  })
+  const readPlan = (ticket = issue(), pr = pullRequest()) => [
+    { match: "auth token --user thomasluizon", stdout: "test-github-token" },
+    { match: "pr view 700 --repo", stdout: JSON.stringify(pr) },
     { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: JSON.stringify(ticket) },
     { match: "project item-list 2 --owner thomasluizon", stdout: projectItems },
   ]
@@ -124,4 +141,45 @@ export const cases = () => {
       ]),
     },
   )
+
+  /**
+   * THE binding between the write and the intended ticket.
+   *
+   * The repo:* label proves only the REPOSITORY, and hundreds of tickets carry the same one, so a
+   * mistyped --issue that happened to name another ticket with that label used to pass every guard
+   * and move a stranger's ticket. The live pull request must reference the ticket.
+   */
+  const unrelatedStatus = stage("sync-issue-state/unrelated-status", "status")
+  const unrelatedComment = stage("sync-issue-state/unrelated-comment", "comment")
+  check(
+    TOOL,
+    "a pull request that does not reference the ticket is refused before either write",
+    argv,
+    { status: 2, stderr: /does not reference ORB-215 in its branch, title, or body/ },
+    {
+      path: staged.path,
+      env: orcaEnv([
+        ...readPlan(issue(), pullRequest({ headRefName: "fix/something-else", title: "fix: unrelated", body: "No ticket here" })),
+        ...writePlan(unrelatedStatus, unrelatedComment),
+      ]),
+    },
+  )
+  T(
+    `${TOOL}: the unreferenced refusal wrote neither the status nor the comment`,
+    existsSync(unrelatedStatus) && existsSync(unrelatedComment),
+    "a refusal must write nothing",
+  )
+
+  /** The reference may live in any of the three fields, so each one is proven to satisfy it. */
+  for (const [field, pr] of [
+    ["branch", pullRequest({ headRefName: "fix/orb-215-work", title: "fix: x", body: "no reference" })],
+    ["title", pullRequest({ headRefName: "fix/x", title: "fix: ORB-215 work", body: "no reference" })],
+    ["body", pullRequest({ headRefName: "fix/x", title: "fix: x", body: "Refs ORB-215" })],
+  ]) {
+    const okStatus = stage(`sync-issue-state/ok-status-${field}`, "status")
+    const okComment = stage(`sync-issue-state/ok-comment-${field}`, "comment")
+    const okBody = stage(`sync-issue-state/ok-body-${field}`, "")
+    const result = run(TOOL, argv, { path: staged.path, env: orcaEnv([...readPlan(issue(), pr), ...writePlan(okStatus, okComment, okBody)]) })
+    T(`${TOOL}: a reference in the pull request ${field} satisfies the binding`, result.status === 0, result.stderr || result.stdout)
+  }
 }

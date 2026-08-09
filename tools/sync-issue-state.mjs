@@ -4,6 +4,8 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
+import { runBounded } from "./lib/bounded-process.mjs"
+import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-auth.mjs"
 import { addComment, assertRepositoryLabel, readTicket, resolveTicket, setStatus } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { gitDirectoryOf } from "./lib/run-state.mjs"
@@ -14,8 +16,8 @@ working, blocked -> In Progress. ready -> In Review. Done is never a target.
 The status write is idempotent; a state comment is posted only when its stored signature changes.
 
 --issue MUST be copied from output produced in this run. Before either write, the live ticket is
-asserted to carry exactly the repo:<key> label matching --repo, so a mistyped or invented ticket
-key cannot move a stranger's ticket or comment on it.
+asserted to carry exactly the repo:<key> label matching --repo, and the live pull request must
+reference that ticket in its branch, title, or body.
 
 exit codes: 0 synchronized, 1 ticket write failed,
             2 usage or environment error, or a ticket that is not provably this repository's`
@@ -32,7 +34,7 @@ const argOf = (flag) => {
   const index = process.argv.indexOf(flag)
   return index === -1 ? null : process.argv[index + 1]
 }
-const valueFlags = new Set(["--issue", "--repo", "--pr", "--state", "--head-sha", "--base-sha", "--message-file"])
+const valueFlags = new Set(["--issue", "--repo", "--pr", "--state", "--head-sha", "--base-sha", "--message-file", "--command-timeout-seconds"])
 const known = new Set([...valueFlags, "--help", "-h"])
 const unknown = process.argv.slice(2).filter((value, index, argv) => value.startsWith("-") && !known.has(value) && !valueFlags.has(argv[index - 1]))
 if (unknown.length > 0) fail(2, `${USAGE}\n\nunknown option(s): ${unknown.join(" ")}`)
@@ -44,6 +46,8 @@ const stateKey = argOf("--state")
 const headSha = argOf("--head-sha")
 const baseSha = argOf("--base-sha")
 const messageFile = argOf("--message-file")
+// Bounds the direct pull request read that binds this write to the intended ticket.
+const commandTimeoutSeconds = Number(argOf("--command-timeout-seconds") ?? "45")
 if (!issue || !repoKey || !Number.isInteger(prNumber) || !["working", "ready", "blocked"].includes(stateKey) || !/^[0-9a-f]{40}$/i.test(headSha ?? "") || !/^[0-9a-f]{40}$/i.test(baseSha ?? "") || !messageFile) fail(2, USAGE)
 
 let message
@@ -92,6 +96,49 @@ try {
   assertRepositoryLabel(current, repoKey)
 } catch (error) {
   fail(2, `${issue} ${error.message}. Nothing was written.`)
+}
+
+let githubAuth
+let expectedSlug
+try {
+  expectedSlug = repositorySlug(repoRoot)
+  githubAuth = await githubEnvironment(repoRoot, { timeoutMs: commandTimeoutSeconds * 1000 })
+} catch (error) {
+  fail(2, `pull request target could not be resolved: ${redactSecrets(error.message)}`)
+}
+
+const GH = process.env.GH_BIN || "gh"
+const pullRequestRead = await runBounded(
+  GH,
+  ["pr", "view", String(prNumber), "--repo", expectedSlug, "--json", "number,headRefName,title,body"],
+  { cwd: repoRoot, env: githubAuth.environment, timeoutMs: commandTimeoutSeconds * 1000, maxBuffer: 8 * 1024 * 1024 },
+)
+if (pullRequestRead.timedOut) fail(2, `GitHub pull request read timed out after ${commandTimeoutSeconds}s; the complete child process tree was terminated`)
+if (pullRequestRead.overflowed) fail(2, "GitHub pull request read exceeded the 8 MiB output bound; the complete child process tree was terminated")
+if (pullRequestRead.error || pullRequestRead.status !== 0) {
+  const detail = pullRequestRead.stderr || pullRequestRead.stdout || pullRequestRead.error?.message || `exit ${pullRequestRead.status}`
+  fail(2, `GitHub pull request read failed: ${redactSecrets(detail.trim(), githubAuth.secrets)}`)
+}
+
+let pullRequest
+try {
+  pullRequest = JSON.parse(pullRequestRead.stdout)
+} catch {
+  fail(2, "GitHub pull request read returned unparseable JSON")
+}
+if (
+  !Number.isInteger(pullRequest?.number) ||
+  typeof pullRequest?.headRefName !== "string" ||
+  typeof pullRequest?.title !== "string" ||
+  typeof pullRequest?.body !== "string"
+) {
+  fail(2, `GitHub pull request ${prNumber} returned no number, headRefName, title, or body. Nothing was written`)
+}
+if (pullRequest.number !== prNumber) fail(2, `GitHub returned pull request ${pullRequest.number}, not ${prNumber}. Nothing was written`)
+
+const issueReference = new RegExp(`(?:^|[^A-Z0-9])${issue}(?:$|[^A-Z0-9])`, "i")
+if (![pullRequest.headRefName, pullRequest.title, pullRequest.body].some((value) => issueReference.test(value))) {
+  fail(2, `Pull request ${expectedSlug}#${prNumber} does not reference ${issue} in its branch, title, or body. Nothing was written`)
 }
 
 const targetStatus = stateKey === "ready" ? config.tickets.states.review : config.tickets.states.working

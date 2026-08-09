@@ -117,10 +117,17 @@ node tools/launch-worker.mjs     --issue "<ticket-ref>" --worktree <p> --prompt 
 node tools/launch-worker.mjs     --issue "<ticket-ref>" --review --repo <key> --prompt <f> [--codex-only]
 node tools/verify-delivery.mjs   --issue "<ticket-ref>" --worktree <p> --branch <b> --repo <key> [--base <ref>] [--wait-ci <s>] [--codex-only]
 node tools/list-bot-threads.mjs  --pr <n-or-url> --repo <key> [--wait-seconds <s>] [--no-request]
+<<<<<<< HEAD
 node tools/resolve-bot-thread.mjs --thread <PRRT_...> --repo <key>   # reply body on stdin
 node tools/salvage-worker.mjs    --issue "<ticket-ref>" --repo <key> [--pr <n>] --worktree <p> --branch <b> --run-root <p> --test-command <json> --test-receipt <json> --message <m> --path <path>...
 node tools/sync-issue-state.mjs  --issue "<ticket-ref>" --repo <key> --pr <n> --state <working|blocked|ready> --head-sha <sha> --base-sha <sha> --message-file <path|->
 node tools/record-readiness.mjs  --repo <key> --pr <n> --delivery <json> --review <json> --bot <json> --ticket <json> [--codex-only]
+=======
+node tools/resolve-bot-thread.mjs --thread <PRRT_...> --repo <key> --pr <number>   # reply body on stdin
+node tools/salvage-worker.mjs    --issue ORB-N --repo <key> [--pr <n>] --worktree <p> --branch <b> --run-root <p> --test-command <json> --test-receipt <json> --message <m> --path <path>...
+node tools/sync-linear-state.mjs --issue ORB-N --repo <key> --pr <n> --state <working|blocked|ready> --head-sha <sha> --base-sha <sha> --message-file <path|->
+node tools/record-readiness.mjs  --repo <key> --pr <n> --delivery <json> --review <json> --bot <json> --linear <json> [--codex-only]
+>>>>>>> chore/github-ticket-consumers
 node tools/record-readiness.mjs  --repo <key> --pr <n> --review <round-one-json> --register-round-one
 node tools/teardown-worktree.mjs --issue "<ticket-ref>"
 ```
@@ -786,9 +793,9 @@ write unless the node's own `repository.nameWithOwner` equals what `--repo` reso
 **Every resolve posts a reply FIRST.** One of exactly three:
 
 ```bash
-printf 'fixed in %s' "$sha"                 | node tools/resolve-bot-thread.mjs --thread PRRT_... --repo <key>
-printf 'not applicable because %s' "$why"   | node tools/resolve-bot-thread.mjs --thread PRRT_... --repo <key>
-printf 'filed as %s' "$ticket"              | node tools/resolve-bot-thread.mjs --thread PRRT_... --repo <key>
+printf 'fixed in %s' "$sha"                 | node tools/resolve-bot-thread.mjs --thread PRRT_... --repo <key> --pr <number>
+printf 'not applicable because %s' "$why"   | node tools/resolve-bot-thread.mjs --thread PRRT_... --repo <key> --pr <number>
+printf 'filed as %s' "$ticket"              | node tools/resolve-bot-thread.mjs --thread PRRT_... --repo <key> --pr <number>
 ```
 
 The tool refuses an empty body and never attempts the resolve if the reply failed, so a bare resolve
