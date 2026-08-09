@@ -125,12 +125,26 @@ describe('SocialPage', () => {
     expect(screen.getByText('social.addFriend.title')).toBeInTheDocument()
   })
 
-  it('falls back to the feed for a removed tab deep link', () => {
+  /**
+   * Codex connector P2 on #698. This used to assert the fallback, which was the defect: a link
+   * queued before the deletion still carries `/social?tab=buddies`, so landing silently on the
+   * unrelated Feed tab reads as a bug rather than as a retired feature. Parity with
+   * `apps/mobile/__tests__/app/social-page.test.tsx`.
+   */
+  it('redirects a retired buddies deep link to the friends tab', () => {
     mocks.searchParams = `tab=${['budd', 'ies'].join('')}`
 
     render(<SocialPage />)
 
     expect(screen.getAllByRole('tab')).toHaveLength(2)
+    expect(screen.getByRole('tab', { name: 'social.tabs.friends' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('still falls back to the feed for a tab deep link that never existed', () => {
+    mocks.searchParams = 'tab=not-a-tab'
+
+    render(<SocialPage />)
+
     expect(screen.getByRole('tab', { name: 'social.tabs.feed' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByText('social.feed.emptyTitle')).toBeInTheDocument()
   })

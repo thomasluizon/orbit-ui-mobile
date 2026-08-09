@@ -99,12 +99,28 @@ describe('SocialScreen', () => {
     expect(tabList(tree).props.active).toBe('feed')
   })
 
-  it('falls back to the feed for a removed tab deep link', async () => {
+  /**
+   * Codex connector P2 on #698. This used to assert the fallback, which was the defect: a push
+   * notification or inbox row queued before the deletion still carries `/social?tab=buddies`, and
+   * the notification detail modals still offer View on it, so landing silently on the unrelated
+   * Feed tab reads as a bug rather than as a retired feature. The retired destination now redirects
+   * to the surviving relationship surface on purpose.
+   */
+  it('redirects a retired buddies deep link to the friends tab', async () => {
     mocks.tabParam = ['budd', 'ies'].join('')
 
     const tree = await renderScreen()
 
     expect(tabList(tree).props.tabs).toHaveLength(2)
+    expect(tabList(tree).props.active).toBe('friends')
+    expect(textContents(tree)).toEqual(expect.arrayContaining(['friends-content']))
+  })
+
+  it('still falls back to the feed for a tab deep link that never existed', async () => {
+    mocks.tabParam = 'not-a-tab'
+
+    const tree = await renderScreen()
+
     expect(tabList(tree).props.active).toBe('feed')
     expect(textContents(tree)).toEqual(expect.arrayContaining(['feed-content']))
   })

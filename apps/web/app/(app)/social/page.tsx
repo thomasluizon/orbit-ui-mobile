@@ -3,7 +3,8 @@
 import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { isValidReferralCode } from '@orbit/shared/utils'
+import { isValidReferralCode, resolveSocialTab } from '@orbit/shared/utils'
+import type { SocialTab } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { SectionHeadTabs, type SectionHeadTabItem } from '@/components/ui/section-head-tabs'
@@ -16,7 +17,6 @@ import { SocialFriends } from './_components/social-friends'
 import { CheerComposer, type CheerTarget } from './_components/cheer-composer'
 import { InviteConfirmSheet } from './_components/invite-confirm-sheet'
 
-type SocialTab = 'feed' | 'friends'
 
 export default function SocialPage() {
   return (
@@ -33,8 +33,7 @@ function SocialPageContent() {
   const searchParams = useSearchParams()
   const { profile, isLoading } = useProfile()
   const [tab, setTab] = useState<SocialTab>(() => {
-    const tabParam = searchParams.get('tab')
-    return tabParam === 'friends' ? tabParam : 'feed'
+    return resolveSocialTab(searchParams.get('tab'))
   })
   const [cheerTarget, setCheerTarget] = useState<CheerTarget | null>(null)
   const [inviteCode, setInviteCode] = useState<string | null>(() => {

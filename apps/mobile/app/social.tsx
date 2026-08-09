@@ -8,7 +8,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { isValidReferralCode } from '@orbit/shared/utils'
+import { isValidReferralCode, resolveSocialTab } from '@orbit/shared/utils'
+import type { SocialTab } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { ScrollToTopButton } from '@/components/ui/scroll-to-top-button'
@@ -24,7 +25,6 @@ import { SocialFriends } from './social/_components/social-friends'
 import { CheerComposer, type CheerTarget } from './social/_components/cheer-composer'
 import { InviteConfirmSheet } from './social/_components/invite-confirm-sheet'
 
-type SocialTab = 'feed' | 'friends'
 
 export default function SocialScreen() {
   const { t } = useTranslation()
@@ -39,9 +39,7 @@ export default function SocialScreen() {
     invite?: string
   }>()
   const inviteCode = isValidReferralCode(inviteParam) ? inviteParam : null
-  const [tab, setTabState] = useState<SocialTab>(
-    tabParam === 'friends' ? tabParam : 'feed',
-  )
+  const [tab, setTabState] = useState<SocialTab>(resolveSocialTab(tabParam))
   const [cheerTarget, setCheerTarget] = useState<CheerTarget | null>(null)
   const scrollRef = useRef<ScrollView>(null)
   const [showScrollTop, setShowScrollTop] = useState(false)
