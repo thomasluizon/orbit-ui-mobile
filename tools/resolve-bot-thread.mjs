@@ -25,13 +25,14 @@ import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-a
 import { misdirectedWriteNote, nodeTargetVerdict } from "./lib/github-target.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
-const USAGE = `usage: resolve-bot-thread.mjs --thread <PRRT_...> --repo <ui|api|landing> [--dry-run]
-       resolve-bot-thread.mjs --thread <PRRT_...> --repo <ui|api|landing> --resolve-only
+const USAGE = `usage: resolve-bot-thread.mjs --thread <PRRT_...> --repo <ui|api|landing> --pr <number> [--dry-run]
+       resolve-bot-thread.mjs --thread <PRRT_...> --repo <ui|api|landing> --pr <number> --resolve-only
 
   --thread <id>    the review thread node id, opaque (required). It MUST be copied from output
                    produced in this run, never typed and never reconstructed
   --repo <key>      repository whose owner selects the process-local GitHub token, AND whose
                    origin slug the thread is ASSERTED to belong to before any write (required)
+  --pr <number>     pull request the thread is ASSERTED to belong to before any write (required)
   --command-timeout-seconds <s>  hard bound for each GitHub child (default: 45)
   --resolve-only   retry ONLY the resolve, for a run whose reply already landed. Reads no stdin,
                    and first VERIFIES a reply exists on the thread, so the no-bare-resolve rule
@@ -43,8 +44,9 @@ The reply body is read from STDIN and must not be empty. Send one of:
   fixed in <sha>  ·  not applicable because <reason>  ·  filed as ORB-N
 
 Resolves the node FIRST and refuses unless its repository.nameWithOwner equals the slug --repo
-resolves to. A node id is globally unique, so a wrong id is a live target in somebody else's
-repository, not a failed lookup. A node that does not resolve at all is also refused.
+resolves to and its pullRequest.number equals --pr. A node id is globally unique, so a wrong id is
+a live target on another pull request or in somebody else's repository, not a failed lookup. A
+node that does not resolve at all is also refused.
 
 Then posts addPullRequestReviewThreadReply, then resolveReviewThread ONLY if the reply succeeded. A
 resolve is never attempted on its own: a thread closed without a reason is indistinguishable from
@@ -71,13 +73,14 @@ const argOf = (flag) => {
   return index === -1 ? null : process.argv[index + 1]
 }
 
-const VALUE_FLAGS = new Set(["--thread", "--repo", "--command-timeout-seconds"])
+const VALUE_FLAGS = new Set(["--thread", "--repo", "--pr", "--command-timeout-seconds"])
 const KNOWN_FLAGS = new Set([...VALUE_FLAGS, "--dry-run", "--resolve-only", "--help", "-h"])
 const unknown = process.argv.slice(2).filter((value, index, argv) => value.startsWith("-") && !KNOWN_FLAGS.has(value) && !VALUE_FLAGS.has(argv[index - 1]))
 if (unknown.length) fail(2, `${USAGE}\n\nunknown option(s): ${unknown.join(" ")}`)
 
 const threadId = argOf("--thread")
 const repoKey = argOf("--repo")
+const prNumber = Number(argOf("--pr"))
 const dryRun = process.argv.includes("--dry-run")
 const resolveOnly = process.argv.includes("--resolve-only")
 const commandTimeoutSeconds = Number(argOf("--command-timeout-seconds") ?? "45")
@@ -96,6 +99,7 @@ if (!threadId || !/^PRRT_[A-Za-z0-9_-]+$/.test(threadId)) {
   fail(2, `${USAGE}\n\n--thread must be a review thread node id such as PRRT_kwDOABCD1234`)
 }
 if (!repoKey || repoKey.startsWith("-")) fail(2, `${USAGE}\n\n--repo must name a configured repository`)
+if (!Number.isInteger(prNumber) || prNumber <= 0) fail(2, `${USAGE}\n\n--pr must be a positive pull request number`)
 if (!Number.isFinite(commandTimeoutSeconds) || commandTimeoutSeconds <= 0) fail(2, `${USAGE}\n\n--command-timeout-seconds requires a positive number`)
 
 let config
@@ -177,11 +181,10 @@ try {
  * THE target assertion. It runs on BOTH paths, before the reply and before a bare resolve, because
  * both are writes and both are chosen by the node id alone.
  *
- * `repository { nameWithOwner }` is the field that closes the 2026-08-08 incident: it is what the
- * node itself says about where it lives, compared against what `--repo` resolves to through the
- * checkout's own `origin`. Everything else in this document was already read here for
- * --resolve-only; carrying the repository in the same round trip costs nothing and means no write
- * path can skip the check by taking a different query.
+ * `repository { nameWithOwner }` and `pullRequest { number }` say where the node itself lives. They
+ * are compared against what `--repo` resolves to through the checkout's own `origin` and the pull
+ * request the caller named. Everything else in this document was already read here for
+ * --resolve-only, so no write path can skip either check by taking a different query.
  *
  * --resolve-only also exists because a failed resolve after a landed reply told the caller to
  * "retry the resolve alone" and gave them no way to do it. It does NOT weaken the no-bare-resolve
@@ -208,7 +211,9 @@ if (!existing.ok) fail(2, `could not read thread ${threadId} to prove which repo
 const thread = existing.data?.node
 const target = nodeTargetVerdict({ nodeId: threadId, expectedSlug, resolvedSlug: thread?.repository?.nameWithOwner ?? null })
 if (!target.ok) fail(2, target.message)
-const targetPullRequest = thread?.pullRequest?.number ?? null
+const targetPullRequest = thread?.pullRequest?.number
+if (!Number.isInteger(targetPullRequest)) fail(2, `${threadId} returned no pullRequest.number, so pull request ${prNumber} is not proven. Nothing was written`)
+if (targetPullRequest !== prNumber) fail(2, `${threadId} belongs to pull request ${targetPullRequest}, not pull request ${prNumber}. Nothing was written`)
 
 if (resolveOnly) {
   if (thread.isResolved) {
@@ -271,7 +276,7 @@ if (!resolved.ok) {
         resolved: false,
         error: resolved.detail,
         note: `the reply landed; retry with --resolve-only, do not repost the reply${misdirected ? `\n${misdirected}` : ""}`,
-        retry: `node tools/resolve-bot-thread.mjs --thread ${threadId} --repo ${repoKey} --resolve-only`,
+        retry: `node tools/resolve-bot-thread.mjs --thread ${threadId} --repo ${repoKey} --pr ${prNumber} --resolve-only`,
       },
       null,
       2,

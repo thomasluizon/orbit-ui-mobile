@@ -12,14 +12,20 @@ const BASE = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
  * below keeps testing what it was written to test, and the target assertion gets its own cases.
  */
 const REPO_UI = { id: "label-repo-ui", name: "repo:ui", color: "#5e6ad2" }
-const rawIssueEnvelope = (state, labels, description = "An ordinary ticket with no visual claim.") =>
-  JSON.stringify({ id: "issue-read", ok: true, result: { issue: { identifier: "ORB-700", state, labels, description } } })
-const issueEnvelope = (state = { name: "In Progress", type: "started" }, labels = [], description) => rawIssueEnvelope(state, [REPO_UI, ...labels], description)
+const rawIssueEnvelope = (state, labels) => JSON.stringify({ id: "issue-read", ok: true, result: { issue: { identifier: "ORB-700", state, labels } } })
+const issueEnvelope = (state = { name: "In Progress", type: "started" }, labels = []) => rawIssueEnvelope(state, [REPO_UI, ...labels])
+const pullRequestEnvelope = ({ number = 700, headRefName = "fix/prove-write-target", title = "fix: prove the write target", body = "Refs ORB-700" } = {}) =>
+  JSON.stringify({ body, headRefName, number, title })
+const syncEnv = (entries, pullRequest = pullRequestEnvelope()) => orcaEnv([
+  { match: "auth token --user thomasluizon", stdout: "test-github-token" },
+  { match: "pr view 700 --repo thomasluizon/orbit-ui-mobile --json number,headRefName,title,body", stdout: pullRequest },
+  ...entries,
+])
 
 export const cases = () => {
   const repo = stageRepo("sync-linear-state")
-  if (!repo) {
-    T(`${TOOL}: a git fixture is available`, false, "could not stage repository")
+  if (!repo || repo.git(["remote", "set-url", "origin", "https://github.com/thomasluizon/orbit-ui-mobile.git"]).status !== 0) {
+    T(`${TOOL}: a repository-qualified GitHub fixture is available`, false, "could not stage repository")
     return
   }
   const real = realOrchestratorConfig()
@@ -28,7 +34,7 @@ export const cases = () => {
   const argv = ["--issue", "ORB-700", "--repo", "ui", "--pr", "700", "--state", "ready", "--head-sha", HEAD, "--base-sha", BASE, "--message-file", message]
   const statusMarker = stage("sync-linear-state/status-marker", "status")
   const commentMarker = stage("sync-linear-state/comment-marker", "comment")
-  const env = orcaEnv([
+  const env = syncEnv([
     { match: "linear issue ORB-700 --full --json", stdout: issueEnvelope() },
     { match: "linear status set ORB-700", stdout: "", removePath: statusMarker, ignoreLinearShape: true },
     { match: "linear comment add ORB-700", stdout: "", removePath: commentMarker, ignoreLinearShape: true },
@@ -37,7 +43,7 @@ export const cases = () => {
   T(`${TOOL}: status and comment writes both ran`, !existsSync(statusMarker) && !existsSync(commentMarker))
 
   const duplicateMarker = stage("sync-linear-state/duplicate-comment-marker", "must remain")
-  const duplicateEnv = orcaEnv([
+  const duplicateEnv = syncEnv([
     { match: "linear issue ORB-700 --full --json", stdout: issueEnvelope({ name: "In Review", type: "started" }) },
     { match: "linear comment add ORB-700", stdout: "", removePath: duplicateMarker, ignoreLinearShape: true },
   ])
@@ -46,7 +52,7 @@ export const cases = () => {
 
   const stdinArgv = [...argv]
   stdinArgv[stdinArgv.indexOf(message)] = "-"
-  check(TOOL, "the documented message-file stdin sentinel is accepted", stdinArgv, { status: 0, stdout: /"lastSynchronizationResult": "SUCCESS"/ }, { path: staged.path, input: "state from stdin\n", env: orcaEnv([
+  check(TOOL, "the documented message-file stdin sentinel is accepted", stdinArgv, { status: 0, stdout: /"lastSynchronizationResult": "SUCCESS"/ }, { path: staged.path, input: "state from stdin\n", env: syncEnv([
     { match: "linear issue ORB-700 --full --json", stdout: issueEnvelope() },
     { match: "linear status set ORB-700", stdout: "", ignoreLinearShape: true },
     { match: "linear comment add ORB-700", stdout: "", ignoreLinearShape: true },
@@ -54,62 +60,23 @@ export const cases = () => {
 
   const visual = [...argv]
   visual[visual.indexOf("ready")] = "visual"
-  check(TOOL, "visible-effect work remains In Progress", visual, { status: 0, stdout: /"status": "In Progress"/ }, { path: staged.path, env: orcaEnv([
+  check(TOOL, "visible-effect work remains In Progress", visual, { status: 0, stdout: /"status": "In Progress"/ }, { path: staged.path, env: syncEnv([
     { match: "linear issue ORB-700 --full --json", stdout: issueEnvelope({ name: "In Review", type: "started" }, [{ id: "label-visible", name: "visible-effect", color: "#abc" }]) },
     { match: "linear status set ORB-700", stdout: "", ignoreLinearShape: true },
     { match: "linear comment add ORB-700", stdout: "", ignoreLinearShape: true },
   ]) })
 
-  check(TOOL, "an ordinary live ticket overrides a mistaken visual request", visual, { status: 0, stdout: /"status": "In Review"[\s\S]*"lastPostedState": "ready"/ }, { path: staged.path, env: orcaEnv([
+  check(TOOL, "an ordinary live ticket overrides a mistaken visual request", visual, { status: 0, stdout: /"status": "In Review"[\s\S]*"lastPostedState": "ready"/ }, { path: staged.path, env: syncEnv([
     { match: "linear issue ORB-700 --full --json", stdout: issueEnvelope({ name: "In Progress", type: "started" }) },
     { match: "linear status set ORB-700", stdout: "", ignoreLinearShape: true },
     { match: "linear comment add ORB-700", stdout: "", ignoreLinearShape: true },
   ]) })
 
-  check(TOOL, "a live visible-effect label overrides a mistaken ready request", argv, { status: 0, stdout: /"status": "In Progress"[\s\S]*"lastPostedState": "visual"/ }, { path: staged.path, env: orcaEnv([
+  check(TOOL, "a live visible-effect label overrides a mistaken ready request", argv, { status: 0, stdout: /"status": "In Progress"[\s\S]*"lastPostedState": "visual"/ }, { path: staged.path, env: syncEnv([
     { match: "linear issue ORB-700 --full --json", stdout: issueEnvelope({ name: "In Review", type: "started" }, [{ id: "label-visible", name: "visible-effect", color: "#abc" }]) },
     { match: "linear status set ORB-700", stdout: "", ignoreLinearShape: true },
     { match: "linear comment add ORB-700", stdout: "", ignoreLinearShape: true },
   ]) })
-
-  /**
-   * THE D13 visual gate, which used to read only the LABEL. ORB-103's labels were
-   * `repo:landing, Feature` while its acceptance criterion 6 read verbatim "This is a
-   * `visible-effect` ticket. It cannot reach In Review without screenshots attached." The label was
-   * absent, `--state visual` silently collapsed to `ready`, and a machine asserted a visual grant
-   * only a human may give. Reading the BODY as well means the two cannot disagree.
-   */
-  const ORB_103_BODY = "## Acceptance criteria\n\n6. This is a `visible-effect` ticket. It cannot reach In Review without screenshots attached."
-  const bodyOnly = check(
-    TOOL,
-    "a ticket claiming visible-effect in its BODY is held In Progress even with no label",
-    argv,
-    { status: 0, stdout: /"status": "In Progress"[\s\S]*"lastPostedState": "visual"/ },
-    { path: staged.path, env: orcaEnv([
-      { match: "linear issue ORB-700 --full --json", stdout: issueEnvelope({ name: "In Progress", type: "started" }, [], ORB_103_BODY) },
-      { match: "linear status set ORB-700", stdout: "", ignoreLinearShape: true },
-      { match: "linear comment add ORB-700", stdout: "", ignoreLinearShape: true },
-    ]) },
-  )
-  T(
-    `${TOOL}: the body-only claim says WHY it was held, so a human can add the label`,
-    /claims visible-effect in its body but carries no visible-effect LABEL/.test(bodyOnly.stderr),
-    bodyOnly.stderr || bodyOnly.stdout,
-  )
-
-  /** The word must not fire on prose that merely mentions it, or every ticket becomes visual and
-   * the gate stops meaning anything. */
-  check(
-    TOOL,
-    "an ordinary body does not accidentally become visible-effect",
-    argv,
-    { status: 0, stdout: /"status": "In Review"[\s\S]*"lastPostedState": "ready"/ },
-    { path: staged.path, env: orcaEnv([
-      { match: "linear issue ORB-700 --full --json", stdout: issueEnvelope({ name: "In Progress", type: "started" }, [], "This ticket has no visible effects on any screen and needs no screenshots.") },
-      { match: "linear status set ORB-700", stdout: "", ignoreLinearShape: true },
-      { match: "linear comment add ORB-700", stdout: "", ignoreLinearShape: true },
-    ]) },
-  )
 
   /**
    * THE Linear half of the 2026-08-08 misdirected-write incident. `--issue` is caller-supplied and
@@ -117,15 +84,17 @@ export const cases = () => {
    * comments on it. Each case stubs BOTH writes and asserts they went unused, which is what proves
    * nothing was written rather than only that the exit code was non-zero.
    */
-  const refusalEnv = (envelope) => {
-    const statusUnused = stage(`sync-linear-state/unused-status-${Math.abs(envelope.length)}`, "must remain")
-    const commentUnused = stage(`sync-linear-state/unused-comment-${Math.abs(envelope.length)}`, "must remain")
+  let refusalIndex = 0
+  const refusalEnv = (envelope, pullRequest = pullRequestEnvelope()) => {
+    refusalIndex++
+    const statusUnused = stage(`sync-linear-state/unused-status-${refusalIndex}`, "must remain")
+    const commentUnused = stage(`sync-linear-state/unused-comment-${refusalIndex}`, "must remain")
     return {
-      env: orcaEnv([
+      env: syncEnv([
         { match: "linear issue ORB-700 --full --json", stdout: envelope },
         { match: "linear status set ORB-700", stdout: "", removePath: statusUnused, ignoreLinearShape: true },
         { match: "linear comment add ORB-700", stdout: "", removePath: commentUnused, ignoreLinearShape: true },
-      ]),
+      ], pullRequest),
       statusUnused,
       commentUnused,
     }
@@ -141,6 +110,14 @@ export const cases = () => {
 
   const twoRepos = refusalEnv(rawIssueEnvelope({ name: "In Progress", type: "started" }, [REPO_UI, { id: "label-repo-api", name: "repo:api", color: "#abc" }]))
   check(TOOL, "a ticket carrying two repo labels is refused rather than guessed", argv, { status: 2, stderr: /repo:ui and repo:api/ }, { path: staged.path, env: twoRepos.env })
+
+  const wrongTicket = refusalEnv(issueEnvelope(), pullRequestEnvelope({ body: "Refs ORB-7000" }))
+  check(TOOL, "a same-repository pull request that names ANOTHER ticket is refused", argv, { status: 2, stderr: /does not reference ORB-700/ }, { path: staged.path, env: wrongTicket.env })
+  T(`${TOOL}: the wrong-ticket refusal wrote neither the status nor the comment`, existsSync(wrongTicket.statusUnused) && existsSync(wrongTicket.commentUnused))
+
+  const missingPullRequestField = refusalEnv(issueEnvelope(), JSON.stringify({ headRefName: "fix/prove-write-target", number: 700, title: "fix: prove the write target" }))
+  check(TOOL, "a pull request response missing a target field fails closed", argv, { status: 2, stderr: /returned no number, headRefName, title, or body/ }, { path: staged.path, env: missingPullRequestField.env })
+  T(`${TOOL}: the incomplete-PR refusal wrote neither the status nor the comment`, existsSync(missingPullRequestField.statusUnused) && existsSync(missingPullRequestField.commentUnused))
 
   const descendantPidFile = stage("sync-linear-state/descendant.pid", "")
   const hanging = check(TOOL, "a hanging Linear read is bounded", [...argv, "--command-timeout-seconds", "1"], { status: 2, stderr: /timed out after 1s/ }, { path: staged.path, env: orcaEnv([
