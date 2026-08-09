@@ -310,6 +310,38 @@ T("sleep-stop: a record from another session allows", checkSleepStop({ state: sl
 // A blocked stop that blocks again is an infinite loop.
 T("sleep-stop: the second pass never blocks again", checkSleepStop({ state: sleeping, sessionId: "s1", stopHookActive: true, isAlive: dead }), null)
 
+/**
+ * A run that CANNOT reach READY needs a legitimate terminal state. On 2026-08-08 a named blocker
+ * made READY unreachable and the only exits left were fabricating a receipt or clearing the ledger,
+ * both forbidden. That deadlock burned five turns.
+ *
+ * The bar is a RECORDED blocker string. A blocker is a fact the run writes down, never a verdict it
+ * asserts about its own work, which is what stops "ended blocked" becoming a cheaper "finished".
+ */
+const blockedEntry = { repositoryKey: "ui", prNumber: 698, receiptPath: "C:/receipt.json", receiptWritten: true, blocker: "SonarCloud new-code coverage 66.7% on a deletion-only diff" }
+const blockedRun = { ...sleeping, remaining: [], pullRequests: [], readinessLedger: [blockedEntry] }
+T("sleep-stop: a pull request with a RECORDED blocker may end the run", blocks(stop({ state: blockedRun })), false)
+T("sleep-stop: the blocked ending is reported as BLOCKED, never as finished", stop({ state: blockedRun })?.terminal, "BLOCKED")
+T("sleep-stop: the BLOCKED banner names the pull request and its blocker", stop({ state: blockedRun })?.message.includes("ui#698") && stop({ state: blockedRun })?.message.includes("SonarCloud"), true)
+// Without the recorded blocker the very same entry still blocks, which is what keeps the state honest.
+T("sleep-stop: the same entry with NO recorded blocker still blocks the stop", blocks(stop({ state: { ...blockedRun, readinessLedger: [{ ...blockedEntry, blocker: null }] } })), true)
+T("sleep-stop: an empty blocker string is not a blocker", blocks(stop({ state: { ...blockedRun, readinessLedger: [{ ...blockedEntry, blocker: "" }] } })), true)
+// A finished run must stay silent, or a BLOCKED banner on every ending means nothing.
+T("sleep-stop: a genuinely READY queue reports no terminal banner", checkSleepStop({ state: blockedRun, sessionId: "s1", isAlive: dead, receiptVerdict: () => "READY" }), null)
+// A live wake source means the TURN is ending, not the RUN. Announcing a final state there would be
+// the mirror of the defect: reporting an ending while work is still in flight.
+T(
+  "sleep-stop: a blocked pull request with a LIVE wake source reports nothing, because the run has not ended",
+  checkSleepStop({ state: blockedRun, wakeSources: [{ pid: 1 }], sessionId: "s1", isAlive: alive }),
+  null,
+)
+
+/** The ledger accepted four rows on 2026-08-08 whose receipt files were never written, and the hook
+ * read them as unreadable rather than as absent, which is quieter and easier to mistake for a fault. */
+const unwritten = { ...sleeping, remaining: [], pullRequests: [], readinessLedger: [{ repositoryKey: "ui", prNumber: 699, receiptPath: "C:/never-written.json", receiptWritten: false }] }
+T("sleep-stop: a ledger row whose receipt was never written blocks", blocks(stop({ state: unwritten })), true)
+T("sleep-stop: the refusal names the receipt path that was never written", stop({ state: unwritten })?.message.includes("C:/never-written.json"), true)
+
 console.log("\n# forbid-raw-linear-mutation (_lib/rules-linear.mjs)")
 // Every Linear WRITE goes through orca. Only the project overview document,
 // which orca cannot reach, may be mutated raw. READS stay open: /orchestrate

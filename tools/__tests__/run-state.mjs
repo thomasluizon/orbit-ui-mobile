@@ -26,6 +26,36 @@ export const cases = () => {
   writeRunState({ ...state, pullRequests: [identity] }, repoRoot)
   writeRunState({ ...state, pullRequests: [] }, repoRoot)
   T(`${TOOL}: clearing pullRequests cannot erase the append-only readiness ledger`, readRunState(repoRoot)?.readinessLedger?.[0]?.prNumber === 694, JSON.stringify(readRunState(repoRoot)))
+  /**
+   * A blocker discovered AFTER a pull request is already in the ledger must reach the ledger.
+   *
+   * The identity list puts the previous ledger before the current state, so first-seen-wins on the
+   * whole row kept the older entry and threw the blocker away. The run then believed nothing was
+   * blocking it, which is the quiet direction of that failure: an unattended run reports READY.
+   */
+  const late = stageCheckout("late-blocker")
+  writeFileSync(runStatePath(late), JSON.stringify({ sessionId: "s1", sleep: true, remaining: [] }))
+  const base = readRunState(late)
+  writeRunState({ ...base, pullRequests: [{ repositoryKey: "ui", prNumber: 701, receiptPath: "C:/r.json" }] }, late)
+  writeRunState({ ...base, pullRequests: [{ repositoryKey: "ui", prNumber: 701, receiptPath: "C:/r.json", blocker: "ORB-700" }] }, late)
+  const ledger = readRunState(late)?.readinessLedger ?? []
+  T(
+    `${TOOL}: a blocker recorded after the pull request is already in the ledger is preserved`,
+    ledger.length === 1 && ledger[0].blocker === "ORB-700",
+    JSON.stringify(ledger),
+  )
+
+  /** The same row must not be duplicated by the merge, or the ledger stops being one row per PR. */
+  T(`${TOOL}: merging a later sighting does not duplicate the row`, ledger.filter((row) => row.prNumber === 701).length === 1, JSON.stringify(ledger))
+
+  /** A blocker that has since been resolved must be able to clear, or a stale one strands the run. */
+  writeRunState({ ...base, pullRequests: [{ repositoryKey: "ui", prNumber: 701, receiptPath: "C:/r.json" }] }, late)
+  T(
+    `${TOOL}: a blocker that is no longer reported clears rather than sticking forever`,
+    (readRunState(late)?.readinessLedger ?? [])[0]?.blocker === null,
+    JSON.stringify(readRunState(late)?.readinessLedger),
+  )
+
   writeRunState({ sessionId: "s2", sleep: true, remaining: ["ORB-9"], pullRequests: [] }, repoRoot)
   T(`${TOOL}: a new session starts with a fresh readiness ledger`, readRunState(repoRoot)?.readinessLedger?.length === 0, JSON.stringify(readRunState(repoRoot)))
 

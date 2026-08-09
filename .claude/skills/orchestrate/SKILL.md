@@ -238,6 +238,37 @@ and its own source is why: `const MEASURABLE_BASELINE_KEY = /^(?:CLAUDE\.md|\.cl
 It could not see the two global files, `hot.md`, or the skill descriptions, which alone are the
 single largest source.
 
+### Assert the run can actually review and can actually mint a receipt
+
+Both structural blockers of 2026-08-08 were discoverable HERE, before the first worktree, while the
+question gate was still open. Both instead surfaced mid-run, when every remaining option was bad: 76
+tickets stood down for an unlaunchable reviewer, and four complete landing pull requests stuck on
+`REVIEW_STALE`. A failure here is a **step 2b QUESTION printed before any worker spawns**, never a
+mid-run discovery.
+
+```bash
+# 1. The pr-review contract pair must agree, by COMMITTED BLOB, for ui and api.
+for p in .claude/skills/pr-review/SKILL.md .claude/skills/pr-review/rubric.md; do
+  u=$(git -C <ui>  rev-parse "HEAD:$p")
+  a=$(git -C <api> rev-parse "HEAD:$p")
+  [ "$u" = "$a" ] || echo "PARITY BLOCKED $p: ui $u, api $a"
+done
+
+# 2. Every repo in the plan must be able to mint a receipt, which means its rubric binding resolves.
+#    A repo that carries the rubric at main binds to its own base; one that does not binds to ui's
+#    origin/main, and that copy must exist.
+git -C <ui> rev-parse "origin/main:.claude/skills/pr-review/rubric.md" >/dev/null \
+  || echo "RECEIPT BLOCKED: the canonical rubric is missing on ui origin/main"
+for r in <every repo key in the plan>; do
+  git -C <repo> rev-parse "HEAD:.claude/skills/pr-review/rubric.md" >/dev/null 2>&1 \
+    && echo "$r binds own-base" || echo "$r binds canonical-main (ui)"
+done
+```
+
+Print the binding each repo resolved to. A run that cannot say which rubric its reviews will be
+bound to is a run whose receipts will be refused, and it should ask before it spends a worker budget
+rather than after.
+
 ### D33. Assert no skill name exists in both scopes
 
 ```bash
@@ -482,6 +513,19 @@ It is the SOLE authority for the word "delivered". Exit 0 means `DELIVERED`.
 | `CI_FAILING` | a required or gating check concluded red on the current head |
 | `CI_PENDING` | nothing is red but checks are still running |
 
+### `DRAFT` is mandatory to clear here, before step 8
+
+`gh pr ready <n>`, then re-run `verify-delivery.mjs`. There is no reading of `DRAFT` that lets the
+run continue, because a draft attracts **no** Codex connector review, ever. Not a late one, not a
+slow one: none. Measured 2026-08-08, three of five pull requests opened as drafts (ORB-7 #464,
+ORB-214 #57, ORB-188 #465) and each needed a human. An unattended run that carried a draft past this
+point would burn the full 900 second connector budget at step 12 and report `NO_REVIEW` on a pull
+request nobody could review, then stop with a blocker it created itself.
+
+`compose-prompt.mjs` now forbids the worker from opening a draft at all, so reaching this verdict
+means the worker's tooling did it anyway. Clear it here rather than waiting to discover it at
+step 12.
+
 `checks.sizeAdvisory` always records `changedFiles`, additions, deletions and total diff lines with
 `blocking: false`. Those values never alter the verdict. A 14-file/700-line PR, migrations with
 generated Designer output, mandatory architecture artifacts, generated contracts, lockfiles and
@@ -618,9 +662,25 @@ because convergence was never the terminating condition.
 ```bash
 gh pr diff <n> > <scratchpad>/orb-N-r1.diff
 
+# MATERIALIZE THE RUBRIC, and record where it came from. The reviewer reads THIS file, never the
+# working tree, so a rubric edited by the change under review cannot become the rubric it is
+# reviewed against.
+#
+#   repo carries the rubric at the PR's base (ui, api):   RUBRIC_REPO=<key>  RUBRIC_COMMIT=<base sha>
+#   repo carries no rubric at all (landing):              RUBRIC_REPO=ui     RUBRIC_COMMIT=$(git -C <ui> rev-parse origin/main)
+RUBRIC_BLOB=$(git -C <rubric repo> rev-parse "$RUBRIC_COMMIT:.claude/skills/pr-review/rubric.md")
+git -C <rubric repo> cat-file blob "$RUBRIC_BLOB" > <scratchpad>/orb-N-rubric.md
+
 # compose the review order into the scratchpad, then launch the reviewer through the launcher
 node tools/launch-worker.mjs --issue ORB-N --review --repo <key> --prompt <scratchpad>/orb-N-review.md
 ```
+
+**The review order MUST demand the four rubric provenance fields, and it must hand the reviewer the
+materialized snapshot path.** `record-readiness.mjs` requires them and proves them with git, so a
+review order that omits them produces a receipt that is refused and a whole review that must be
+re-run. That happened to every review on 2026-08-08. Name in the order: `rubricRepositoryKey`
+(`$RUBRIC_REPO`), `rubricCommitOid` (`$RUBRIC_COMMIT`), `rubricBlobOid` (`$RUBRIC_BLOB`) and
+`rubricArtifactPath` (`<scratchpad>/orb-N-rubric.md`).
 
 `--review` resolves the `reviewer` engine and the `review` model tier from
 `.claude/orchestrator.json`, and runs in that repository's PRIMARY MAIN checkout. It refuses a
@@ -629,7 +689,9 @@ running inside the worktree reads the PR's own `AGENTS.md`, which is instruction
 change under review. Feed it the diff file and the frozen ruleset. It returns:
 
 ```json
-{"reviewerKind":"independent","verdict":"CLEAN","rounds":1,"reviewedHeadOid":"<sha>","baseSha":"<sha>","artifactPath":"<absolute path>","findings":[]}
+{"reviewerKind":"independent","verdict":"CLEAN","rounds":1,"reviewedHeadOid":"<sha>","baseSha":"<sha>",
+ "artifactPath":"<absolute path>","rubricRepositoryKey":"<key>","rubricCommitOid":"<sha>",
+ "rubricBlobOid":"<sha>","rubricArtifactPath":"<absolute snapshot path>","findings":[]}
 ```
 
 Write it to `<scratchpad>/orb-N-findings.json`. **The list is now frozen.** File every non-blocking
@@ -681,7 +743,7 @@ node tools/list-bot-threads.mjs --pr <n> --repo <key> # posts "@codex review", T
 |---|---|
 | `REVIEWED` | a review exists. Zero threads here genuinely means clean |
 | `CHANGES_REQUESTED` | a review exists and blocks. This can carry **zero threads** |
-| `DRAFT` | a draft attracts no review ever. Mark it ready, or say so and move on |
+| `DRAFT` | a draft attracts no review ever. Run `gh pr ready <n>` and re-read. Never "move on" |
 | `NO_REVIEW` | none arrived inside the budget. **Never report this pull request as clean** |
 
 **The request comes FIRST, not after the fix round.** The tool posts `@codex review` before it starts

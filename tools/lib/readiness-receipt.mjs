@@ -29,6 +29,44 @@ export const writeReadinessReceipt = (repoRoot, receipt) => {
 const currentEvidence = (evidence, receipt) =>
   evidence?.headSha === receipt.currentHeadSha && evidence?.baseSha === receipt.currentBaseSha
 
+const OID = /^[0-9a-f]{40}$/
+
+/**
+ * Where the rubric the reviewer actually read came from, and whether that binding is honest.
+ *
+ * The previous rule was `review.rubricBaseOid === receipt.currentBaseSha`: the rubric must come from
+ * the pull request's OWN base commit. That is right for orbit-ui-mobile and orbit-api, which both
+ * carry `.claude/skills/pr-review/rubric.md`. It is unsatisfiable for orbit-landing-page, which has
+ * no `.claude` tree at HEAD or at any base. A landing pull request could satisfy it only by
+ * asserting a base whose commit does not contain the rubric, so the field was refused four times
+ * instead of fabricated and landing #56, #57, #58 and #59 all reported REVIEW_STALE while being
+ * complete on every other dimension.
+ *
+ * So the binding is now explicit rather than assumed, and it is falsifiable either way:
+ *
+ *   own-base        the pull request's repository carries the rubric. Unchanged strength: this
+ *                   evaluator re-derives it, so rubricCommitOid must equal the pull request's
+ *                   current base. A moved base still goes stale.
+ *   canonical-main  the repository carries no rubric, so the review is bound to the CANONICAL
+ *                   copy in another repository. record-readiness.mjs proves, with git, that the
+ *                   materialized snapshot is byte-identical to the blob at rubricCommitOid and that
+ *                   the blob is the one on the canonical repository's current origin/main.
+ *
+ * This evaluator is pure and runs inside the Stop hook, so it cannot shell out to re-derive the
+ * canonical-main case. It checks the shape, re-derives the own-base case itself, and otherwise
+ * relies on rubricVerified, which only record-readiness.mjs writes. Stated plainly because a reader
+ * must be able to see exactly how far this check reaches.
+ */
+const rubricBindingValid = (review, receipt) => {
+  if (review?.rubricVerified !== true) return false
+  if (typeof review?.rubricRepositoryKey !== "string" || review.rubricRepositoryKey === "") return false
+  if (typeof review?.rubricArtifactPath !== "string" || review.rubricArtifactPath === "") return false
+  if (typeof review?.rubricCommitOid !== "string" || !OID.test(review.rubricCommitOid)) return false
+  if (typeof review?.rubricBlobOid !== "string" || !OID.test(review.rubricBlobOid)) return false
+  if (review.rubricBinding === "own-base") return review.rubricCommitOid === receipt.currentBaseSha
+  return review.rubricBinding === "canonical-main"
+}
+
 const PASSING_CONCLUSIONS = new Set(["SUCCESS", "NEUTRAL", "SKIPPED"])
 
 /** Same newest-rerun-wins CI reading as delivery, for stop-time live revalidation. */
@@ -93,8 +131,7 @@ export const readinessVerdicts = (receipt) => {
     review.rounds > 2 ||
     review?.reviewerKind !== "independent" ||
     typeof review?.artifactPath !== "string" ||
-    review?.rubricBaseOid !== receipt.currentBaseSha ||
-    typeof review?.rubricArtifactPath !== "string"
+    !rubricBindingValid(review, receipt)
   ) {
     verdicts.push("REVIEW_STALE")
   }
