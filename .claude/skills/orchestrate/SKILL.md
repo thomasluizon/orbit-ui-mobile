@@ -686,6 +686,15 @@ git -C <rubric repo> cat-file blob "$RUBRIC_BLOB" > <scratchpad>/<ticket-slug>-r
 RUBRIC_BLOB=$(git -C <rubric repo> rev-parse "$RUBRIC_COMMIT:.claude/skills/pr-review/rubric.md")
 git -C <rubric repo> cat-file blob "$RUBRIC_BLOB" > <scratchpad>/orb-N-rubric.md
 
+# MATERIALIZE THE RUBRIC, and record where it came from. The reviewer reads THIS file, never the
+# working tree, so a rubric edited by the change under review cannot become the rubric it is
+# reviewed against.
+#
+#   repo carries the rubric at the PR's base (ui, api):   RUBRIC_REPO=<key>  RUBRIC_COMMIT=<base sha>
+#   repo carries no rubric at all (landing):              RUBRIC_REPO=ui     RUBRIC_COMMIT=$(git -C <ui> rev-parse origin/main)
+RUBRIC_BLOB=$(git -C <rubric repo> rev-parse "$RUBRIC_COMMIT:.claude/skills/pr-review/rubric.md")
+git -C <rubric repo> cat-file blob "$RUBRIC_BLOB" > <scratchpad>/orb-N-rubric.md
+
 # compose the review order into the scratchpad, then launch the reviewer through the launcher
 node tools/launch-worker.mjs --issue "<ticket-ref>" --review --repo <key> --prompt <scratchpad>/<ticket-slug>-review.md
 ```
