@@ -101,7 +101,7 @@ export const cases = () => {
       TOOL,
       "--measurement refuses when the config declares no measurement cap, rather than falling back",
       ["--issue", "ORB-201", "--worktree", noMeasurementCap.worktree, "--prompt", noMeasurementCap.prompt, "--measurement", "--dry-run"],
-      { status: 2, stderr: /requires timeouts.measurementNoProgressMinutes/ },
+      { status: 2, stderr: /require timeouts\.measurementNoProgressMinutes/ },
       { path: noMeasurementCap.path },
     )
   }
