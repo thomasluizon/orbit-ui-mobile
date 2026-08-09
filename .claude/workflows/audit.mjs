@@ -233,6 +233,15 @@ const completeMeasuredMapping = (mapping) => (
   && PERFORMANCE_EXECUTION_CONTEXTS.has(mapping.executionContext)
 )
 
+function performanceMeasurementPromptRankings(measurement, limit = 20) {
+  const rankedByMonthlyEgress = (measurement.egressRanking || []).slice(0, limit)
+  const rankedByRows = (measurement.rowsRanking || []).slice(0, limit)
+  const queryIds = new Set(
+    [...rankedByMonthlyEgress, ...rankedByRows].map((query) => query.queryId),
+  )
+  return { rankedByMonthlyEgress, rankedByRows, queryIds }
+}
+
 function measuredHotpathMappingFailure(result, measurement) {
   if (!result) return 'measured production hot paths could not be mapped to API source'
 
@@ -241,8 +250,7 @@ function measuredHotpathMappingFailure(result, measurement) {
   if (completeMappings.length === 0) return 'measured production hot-path mapping was empty'
 
   const mappedQueryIds = new Set(completeMappings.map((mapping) => mapping.queryId))
-  const missingQueryIds = measurement.rowsRanking
-    .map((query) => query.queryId)
+  const missingQueryIds = [...performanceMeasurementPromptRankings(measurement).queryIds]
     .filter((queryId) => !mappedQueryIds.has(queryId))
   if (missingQueryIds.length > 0) {
     return `measured production hot-path mapping was incomplete; missing query IDs: ${missingQueryIds.join(', ')}`
@@ -283,11 +291,17 @@ function indexMeasuredMappings(mappings) {
 
 function applyMeasuredQueryContexts(measurement, mappings) {
   const mappingByQueryId = indexMeasuredMappings(mappings)
+  const promptedQueryIds = performanceMeasurementPromptRankings(measurement).queryIds
   const rowsRanking = measurement.rowsRanking.map((query) => {
     const mapping = mappingByQueryId.get(query.queryId)
     /** An unmapped query used to reach `mapping.executionContext` and die on a bare TypeError that
      * named neither the query nor the missing mapping. */
-    if (!mapping) throw new Error(`measured query ${query.queryId} has no source mapping, so its execution context is unknown`)
+    if (!mapping) {
+      if (promptedQueryIds.has(query.queryId)) {
+        throw new Error(`measured query ${query.queryId} has no source mapping, so its execution context is unknown`)
+      }
+      return query
+    }
     const signals = query.signals.filter((kind) => !PERFORMANCE_CONTEXT_SIGNAL_KINDS.has(kind))
     if (mapping.executionContext === 'request' && !query.bounded) signals.push('unbounded-user-list')
     if (
@@ -321,6 +335,7 @@ function performanceMeasurementPrompt(measurement, limit = 20) {
   if (measurement.status !== 'available') {
     return `Production measurement unavailable. Performance verdict is CODE_ONLY. Reason: ${measurement.reason}`
   }
+  const { rankedByMonthlyEgress, rankedByRows, queryIds } = performanceMeasurementPromptRankings(measurement, limit)
   return JSON.stringify({
     verdict: measurement.verdict,
     statsReset: measurement.statsReset,
@@ -329,9 +344,9 @@ function performanceMeasurementPrompt(measurement, limit = 20) {
     largeTableFraction: measurement.thresholds.largeTableFraction,
     accountSkew: measurement.accountSkew,
     tableStats: measurement.tableStats,
-    rankedByMonthlyEgress: measurement.egressRanking.slice(0, limit),
-    rankedByRows: measurement.rowsRanking.slice(0, limit),
-    signals: measurement.signals,
+    rankedByMonthlyEgress,
+    rankedByRows,
+    signals: measurement.signals.filter((signal) => queryIds.has(signal.queryId)),
   })
 }
 

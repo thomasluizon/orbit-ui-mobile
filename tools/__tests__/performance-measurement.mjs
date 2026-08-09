@@ -118,7 +118,7 @@ export const cases = async () => {
 
   const measurementFunctions = auditWorkflow.slice(
     auditWorkflow.indexOf("const PERFORMANCE_MONTH_DAYS"),
-    auditWorkflow.indexOf("function performanceMeasurementPrompt"),
+    auditWorkflow.indexOf("const MEASURED_METRIC_KEYS"),
   )
   const offsetOnlyIsBounded = runInNewContext(
     `${measurementFunctions}\nresolvePerformanceMeasurement({
@@ -306,6 +306,82 @@ export const cases = async () => {
   const prompt = performanceMeasurementPrompt(measurement)
   T("performance-measurement: finder context carries production account skew", prompt.includes('"maxHabitsPerAccount":848'))
   T("performance-measurement: finder context carries both cost and row rankings", prompt.includes('"rankedByMonthlyEgress"') && prompt.includes('"rankedByRows"'))
+
+  /**
+   * P1, connector pass 6 on #699: collection can return more query shapes than the bounded mapper
+   * prompt displays. A call-heavy shape outside both top-20 slices was never shown to the mapper,
+   * but mapping validation still required it and downgraded a valid production measurement to
+   * CODE_ONLY. The prompt and coverage check must use the same derived query-ID set.
+   */
+  const promptOverflowInput = {
+    status: "available",
+    windowDays: 1,
+    tableStats: [{ table: "Habits", liveRows: 10000, columnCount: 2 }],
+    queryStats: [
+      ...Array.from({ length: 20 }, (_, index) => ({
+        queryId: `displayed-${index + 1}`,
+        rootTable: "Habits",
+        calls: 20 - index,
+        rows: (20 - index) * 100,
+        bytesPerRow: 20,
+        queryShape: 'SELECT * FROM "Habits" h',
+      })),
+      {
+        queryId: "call-heavy-outside-prompt",
+        rootTable: "Habits",
+        calls: 1000000,
+        rows: 1,
+        bytesPerRow: 20,
+        queryShape: 'SELECT h."Id" FROM "Habits" h',
+      },
+    ],
+  }
+  const promptOverflowMeasurement = resolvePerformanceMeasurement(promptOverflowInput)
+  const promptedRankings = JSON.parse(performanceMeasurementPrompt(promptOverflowMeasurement))
+  const promptedQueryIds = new Set([
+    ...promptedRankings.rankedByMonthlyEgress,
+    ...promptedRankings.rankedByRows,
+  ].map((query) => query.queryId))
+  const promptMappings = [...promptedQueryIds].map((queryId) => ({
+    queryId,
+    location: `src/${queryId}.cs:1`,
+    executionContext: "request",
+  }))
+  const promptOverflowFailure = measuredHotpathMappingFailure(
+    { mappings: promptMappings, findings: [] },
+    promptOverflowMeasurement,
+  )
+  let promptOverflowResult = null
+  let promptOverflowError = null
+  try {
+    promptOverflowResult = applyMeasuredQueryContexts(promptOverflowMeasurement, promptMappings)
+  } catch (error) {
+    promptOverflowError = error
+  }
+  const workflowPromptOverflow = runInNewContext(
+    `${measurementFunctions}
+    const measurement = resolvePerformanceMeasurement(${JSON.stringify(promptOverflowInput)});
+    const prompt = JSON.parse(performanceMeasurementPrompt(measurement));
+    const promptedIds = new Set([...prompt.rankedByMonthlyEgress, ...prompt.rankedByRows].map((query) => query.queryId));
+    const mappings = [...promptedIds].map((queryId) => ({ queryId, location: 'src/' + queryId + '.cs:1', executionContext: 'request' }));
+    const failure = measuredHotpathMappingFailure({ mappings, findings: [] }, measurement);
+    let result = null;
+    let error = null;
+    try { result = applyMeasuredQueryContexts(measurement, mappings); } catch (caught) { error = caught.message; }
+    ({ failure, verdict: result?.verdict ?? 'CODE_ONLY', error, promptedIds: [...promptedIds] })`,
+  )
+  T(
+    "performance-measurement: a call-heavy shape outside both mapper slices does not downgrade to CODE_ONLY",
+    !promptedQueryIds.has("call-heavy-outside-prompt")
+      && promptOverflowFailure === null
+      && promptOverflowError === null
+      && promptOverflowResult?.verdict === "MEASURED"
+      && workflowPromptOverflow.failure === null
+      && workflowPromptOverflow.error === null
+      && workflowPromptOverflow.verdict === "MEASURED"
+      && !workflowPromptOverflow.promptedIds.includes("call-heavy-outside-prompt"),
+    JSON.stringify({ promptOverflowFailure, error: promptOverflowError?.message, workflowPromptOverflow }),
+  )
 
   const enriched = attachPerformanceMetrics([
     { queryId: "habit-list", monthlyEgressBytes: 1, title: "Unbounded habits" },
