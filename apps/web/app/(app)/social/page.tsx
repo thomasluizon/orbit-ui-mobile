@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useEffect, useRef, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { isValidReferralCode, resolveSocialTab } from '@orbit/shared/utils'
@@ -32,9 +32,24 @@ function SocialPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { profile, isLoading } = useProfile()
-  const [tab, setTab] = useState<SocialTab>(() => {
-    return resolveSocialTab(searchParams.get('tab'))
-  })
+  const urlTab = resolveSocialTab(searchParams.get('tab'))
+  const [tab, setTab] = useState<SocialTab>(urlTab)
+  /**
+   * A `useState` initializer runs once, but a notification can navigate here by QUERY ALONE. The
+   * desktop topbar keeps NotificationBell mounted, so opening a stored `/social?tab=buddies` while
+   * already on `/social` changes `searchParams` without remounting: the initializer never reruns and
+   * the retired-tab redirect silently does not happen.
+   *
+   * The ref is what keeps this a synchronization rather than a clobber. Clicking a tab changes local
+   * state and not the URL, so comparing against the LAST URL value means an unchanged URL never
+   * overwrites the user's own choice; only a real query navigation does.
+   */
+  const lastUrlTab = useRef(urlTab)
+  useEffect(() => {
+    if (lastUrlTab.current === urlTab) return
+    lastUrlTab.current = urlTab
+    setTab(urlTab)
+  }, [urlTab])
   const [cheerTarget, setCheerTarget] = useState<CheerTarget | null>(null)
   const [inviteCode, setInviteCode] = useState<string | null>(() => {
     // react-doctor-disable-next-line url-prefilled-privileged-action -- code is format-validated then only pre-fills InviteConfirmSheet, which server-validates (useInvitePreview) and needs explicit send (useSendFriendRequest); no action auto-fires https://github.com/thomasluizon/orbit-ui-mobile/issues/243

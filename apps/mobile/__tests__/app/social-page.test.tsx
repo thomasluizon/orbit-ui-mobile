@@ -57,6 +57,7 @@ interface TestNode {
 
 interface TestTree {
   root: TestNode
+  update(element: React.ReactNode): void
 }
 
 interface TestRendererApi {
@@ -123,6 +124,42 @@ describe('SocialScreen', () => {
 
     expect(tabList(tree).props.active).toBe('feed')
     expect(textContents(tree)).toEqual(expect.arrayContaining(['feed-content']))
+  })
+
+  /**
+   * Codex connector P2 on #698, web half. A notification can navigate here by query alone without
+   * remounting, so a `useState` initializer on its own left the user on the previous tab and the
+   * retired-tab redirect silently did not happen. Parity with
+   * `apps/web/__tests__/app/social-page.test.tsx`.
+   */
+  it('re-resolves the tab on a query-only navigation, without remounting', async () => {
+    mocks.tabParam = undefined
+    const tree = await renderScreen()
+    expect(tabList(tree).props.active).toBe('feed')
+
+    mocks.tabParam = ['budd', 'ies'].join('')
+    await TestRenderer.act(() => {
+      tree.update(<SocialScreen />)
+    })
+
+    expect(tabList(tree).props.active).toBe('friends')
+  })
+
+  it('does not clobber a tab the user chose when the query has not changed', async () => {
+    mocks.tabParam = undefined
+    const tree = await renderScreen()
+
+    const chooseTab = tabList(tree).props.onChange as (nextTab: string) => void
+    await TestRenderer.act(() => {
+      chooseTab('friends')
+    })
+    expect(tabList(tree).props.active).toBe('friends')
+
+    await TestRenderer.act(() => {
+      tree.update(<SocialScreen />)
+    })
+
+    expect(tabList(tree).props.active).toBe('friends')
   })
 
   it('opens the friends tab from a friends deep link', async () => {

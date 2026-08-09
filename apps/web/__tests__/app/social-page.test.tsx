@@ -149,6 +149,34 @@ describe('SocialPage', () => {
     expect(screen.getByText('social.feed.emptyTitle')).toBeInTheDocument()
   })
 
+  /**
+   * Codex connector P2 on #698. The desktop topbar keeps NotificationBell mounted, so opening a
+   * stored `/social?tab=buddies` while already on `/social` is a QUERY-ONLY navigation: the page
+   * never remounts, so a `useState` initializer alone left the user on Feed.
+   */
+  it('re-resolves the tab on a query-only navigation, without remounting', () => {
+    mocks.searchParams = ''
+    const { rerender } = render(<SocialPage />)
+    expect(screen.getByRole('tab', { name: 'social.tabs.feed' })).toHaveAttribute('aria-selected', 'true')
+
+    mocks.searchParams = `tab=${['budd', 'ies'].join('')}`
+    rerender(<SocialPage />)
+
+    expect(screen.getByRole('tab', { name: 'social.tabs.friends' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('does not clobber a tab the user chose when the query has not changed', () => {
+    mocks.searchParams = ''
+    const { rerender } = render(<SocialPage />)
+
+    fireEvent.click(screen.getByRole('tab', { name: 'social.tabs.friends' }))
+    expect(screen.getByRole('tab', { name: 'social.tabs.friends' })).toHaveAttribute('aria-selected', 'true')
+
+    rerender(<SocialPage />)
+
+    expect(screen.getByRole('tab', { name: 'social.tabs.friends' })).toHaveAttribute('aria-selected', 'true')
+  })
+
   it('opens the friends tab from a friends deep link', () => {
     mocks.searchParams = 'tab=friends'
 
