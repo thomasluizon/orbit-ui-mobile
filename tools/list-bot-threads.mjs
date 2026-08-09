@@ -24,6 +24,7 @@
 import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-auth.mjs"
 import { currentRunIdentifier, recordObservedIdentifiers } from "./lib/identifier-ledger.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
+import { acquirePollSlot, graphqlBudgetDecision, isRateLimitError, releasePollSlot, DEFAULT_SLOT_ROOT } from "./lib/github-rate-limit.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
 const BOT_LOGIN = "chatgpt-codex-connector"
@@ -148,6 +149,30 @@ try {
   fail(2, redactSecrets(error.message))
 }
 
+/**
+ * Take one of the shared GitHub polling slots before spending anything.
+ *
+ * `caps.parallelTickets` bounds WORKER sessions, which are the expensive thing to run locally, and
+ * nothing bounded pollers, which are cheap to start and expensive to GitHub. On 2026-08-09 eight ran
+ * at once and emptied the 5,000 point GraphQL budget three times in one night. The slots are global
+ * rather than per repository because the budget is per USER: ui, api and landing all draw on it.
+ *
+ * A slot is waited for, never refused. A poller that gave up would leave its pull request unread,
+ * which is the exact silence this tool exists to remove.
+ */
+const pollConcurrency = Number.isInteger(config.caps?.githubPollConcurrency) && config.caps.githubPollConcurrency > 0
+  ? config.caps.githubPollConcurrency
+  : 3
+const slotDeadline = Date.now() + Math.max(waitSeconds, 60) * 1000
+let slot = acquirePollSlot(DEFAULT_SLOT_ROOT, pollConcurrency)
+while (!slot.acquired) {
+  if (Date.now() >= slotDeadline) fail(2, `waited for a GitHub polling slot past this run's budget; ${slot.held} of ${slot.maxSlots} are held by live processes`)
+  console.error(JSON.stringify({ event: "GITHUB_POLL_SLOT_WAIT", pr: Number(pullRequest), held: slot.held, maxSlots: slot.maxSlots }))
+  await new Promise((resolve) => setTimeout(resolve, 5000))
+  slot = acquirePollSlot(DEFAULT_SLOT_ROOT, pollConcurrency)
+}
+process.on("exit", () => releasePollSlot(DEFAULT_SLOT_ROOT))
+
 const QUERY = `query($owner:String!,$repo:String!,$pr:Int!,$threadsAfter:String){
   repository(owner:$owner,name:$repo){
     pullRequest(number:$pr){
@@ -165,12 +190,50 @@ const QUERY = `query($owner:String!,$repo:String!,$pr:Int!,$threadsAfter:String)
   }
 }`
 
-const gh = async (args, operation, timeoutMs = commandTimeoutSeconds * 1000) => {
+/**
+ * `gh api rate_limit` is itself free: it is a REST read and never spends a GraphQL point, so asking
+ * before spending costs nothing that the answer does not save.
+ */
+const readGraphqlBudget = async () => {
+  const result = await runBounded(GH, ["api", "rate_limit"], { cwd: githubCwd, env: githubAuth.environment, timeoutMs: 30000 })
+  if (result.timedOut || result.error || result.status !== 0) return null
+  try {
+    const graphql = JSON.parse(result.stdout)?.resources?.graphql
+    return graphql && Number.isFinite(graphql.remaining) && Number.isFinite(graphql.reset) ? graphql : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Spend a GraphQL call only when the budget can carry it, and treat exhaustion as a WAIT.
+ *
+ * Measured 2026-08-09: this tool died three times on "API rate limit already exceeded", each death
+ * stopping the pull request it was clearing until a human read the reset and slept by hand. The
+ * budget refills on a published schedule, so the tool waits for it. One retry only: a second
+ * exhaustion straight after a refill is a real problem, not a transient one.
+ */
+const awaitGraphqlBudget = async (operation) => {
+  const decision = graphqlBudgetDecision(await readGraphqlBudget(), { nowSeconds: Math.floor(Date.now() / 1000) })
+  if (decision.action === "refuse") fail(2, `${operation} refused: ${decision.reason}`)
+  if (decision.action !== "wait") return
+  console.error(JSON.stringify({ event: "GITHUB_RATE_LIMIT_WAIT", pr: Number(pullRequest), operation, waitSeconds: decision.waitSeconds, reason: decision.reason }))
+  await sleep(decision.waitSeconds)
+}
+
+const gh = async (args, operation, timeoutMs = commandTimeoutSeconds * 1000, isRetry = false) => {
+  const spendsGraphql = args[0] === "api" && args[1] === "graphql"
+  if (spendsGraphql && !isRetry) await awaitGraphqlBudget(operation)
+
   const result = await runBounded(GH, args, { cwd: githubCwd, env: githubAuth.environment, timeoutMs })
   if (result.timedOut) fail(2, `${operation} timed out after ${Math.max(1, Math.ceil(timeoutMs / 1000))}s; the complete child process tree was terminated`)
   if (result.overflowed) fail(2, `${operation} exceeded the 32 MiB output bound; the complete child process tree was terminated`)
   if (result.error || result.status !== 0) {
     const detail = result.stderr || result.stdout || result.error?.message || `exit ${result.status}`
+    if (!isRetry && isRateLimitError(detail)) {
+      await awaitGraphqlBudget(operation)
+      return gh(args, operation, timeoutMs, true)
+    }
     fail(2, `${operation} failed: ${redactSecrets(detail.trim(), githubAuth.secrets)}`)
   }
   return result.stdout

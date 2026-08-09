@@ -47,7 +47,8 @@
     "parallelTickets": 3,
     "botReviewWaitSeconds": 900,
     "connectorFixAttempts": 3,
-    "workerLogMegabytes": 32
+    "workerLogMegabytes": 32,
+    "githubPollConcurrency": 3
   },
   "tickets": {
     "repository": "thomasluizon/orbit-tickets",

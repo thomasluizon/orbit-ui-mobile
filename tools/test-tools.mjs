@@ -85,6 +85,7 @@ const CASE_MODULES = [
   ["lib/github-auth.mjs", "github-auth"],
   ["lib/github-issues.mjs", "github-issues"],
   ["lib/github-target.mjs", "github-target"],
+  ["lib/github-rate-limit.mjs", "github-rate-limit"],
   ["lib/identifier-ledger.mjs", "identifier-ledger"],
   ["lib/pr-body.mjs", "pr-body"],
   ["lib/readiness-receipt.mjs", "readiness-receipt"],
