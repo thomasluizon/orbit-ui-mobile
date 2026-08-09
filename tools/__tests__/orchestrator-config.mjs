@@ -118,6 +118,21 @@ export const cases = async () => {
     "a reviewer key naming no engine was accepted",
   )
   T(
+    `${NAME}: a config with no linear object is refused`,
+    /must declare a linear object/.test(readAndFail("no-linear", { ...real, linear: undefined }) ?? ""),
+    "a config with no linear object was accepted",
+  )
+  T(
+    `${NAME}: an incorrect Linear workflow state is refused`,
+    /linear\.states\.review must be "In Review"/.test(
+      readAndFail("unknown-linear-workflow-status", {
+        ...real,
+        linear: { ...real.linear, states: { ...real.linear.states, review: "Shipped" } },
+      }) ?? "",
+    ),
+    "an incorrect Linear workflow state was accepted",
+  )
+  T(
     `${NAME}: a config with no tickets object is refused`,
     /must declare a tickets object/.test(readAndFail("no-tickets", { ...real, tickets: undefined }) ?? ""),
     "a config with no tickets object was accepted",
@@ -173,7 +188,11 @@ export const cases = async () => {
   )
   T(
     `${NAME}: the shipped ticket configuration carries the measured GitHub ids`,
-    !Object.hasOwn(real, "linear") &&
+    real.linear.team === "ORB" &&
+      real.linear.workspace === "useorbitai" &&
+      real.linear.states.working === "In Progress" &&
+      real.linear.states.review === "In Review" &&
+      real.linear.states.done === "Done" &&
       real.tickets.repository === "thomasluizon/orbit-tickets" &&
       real.tickets.projectId === "PVT_kwHOBE6dNc4Bfy2y" &&
       real.tickets.statusFieldId === "PVTSSF_lAHOBE6dNc4Bfy2yzhaDLqQ" &&
