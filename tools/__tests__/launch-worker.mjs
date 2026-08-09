@@ -480,51 +480,23 @@ const reviewCases = () => {
   T(`${TOOL}: API review cwd is the configured API primary checkout`, JSON.parse(api.stdout).runDirectory === staged.apiPath, api.stdout)
 
   /**
-   * THE 2026-08-08 regression, and the reason this gate reads git rather than the disk. Both repos
-   * set core.autocrlf=true, orbit-ui-mobile pinned `.claude/skills/**\/*.md text eol=lf` and
-   * orbit-api did not, so the SAME committed blob materialized LF in one checkout and CRLF in the
-   * other: +230 bytes on SKILL.md, +289 on rubric.md. `git status` was clean in both. The old
-   * working-tree sha256 refused every ui and api review and stood 76 tickets down over nothing.
-   *
-   * Rewriting the API working tree with CRLF and leaving the commit alone reproduces that exactly.
+   * The parity gate is GONE, and staying gone is load-bearing: the contract is single-sourced in
+   * orbit-ui-mobile and materialized into every review order from its origin/main, so there is no
+   * second committed copy whose drift could be asserted. Both prior revisions of the gate halted
+   * every review in both repositories over byte differences in duplicated markdown (2026-08-08
+   * CRLF materialization; 2026-08-09 a mirror taken six minutes before the canonical side moved).
+   * An api review therefore launches with NO api-side contract committed at all.
    */
   const apiSkillPath = join(staged.apiPath, ".claude", "skills", "pr-review", "SKILL.md")
-  const committedText = readFileSync(apiSkillPath, "utf8")
-  writeFileSync(apiSkillPath, committedText.replaceAll("\n", "\r\n"))
-  T(
-    `${TOOL}: the CRLF working tree really does differ from the committed bytes`,
-    readFileSync(apiSkillPath).length > Buffer.byteLength(committedText),
-    "the fixture did not actually change the working-tree bytes, so the next assertion would prove nothing",
-  )
+  writeFileSync(apiSkillPath, "drift that must not matter\n")
+  for (const args of [["add", "--", ".claude/skills/pr-review/SKILL.md"], ["commit", "-q", "-m", "drift"]]) {
+    spawnSync("git", ["-C", staged.apiPath, ...args], { encoding: "utf8" })
+  }
   check(
     TOOL,
-    "identical committed blobs PASS parity even when the checkouts differ byte for byte",
+    "an api review launches regardless of any api-side pr-review file state",
     ["--issue", "ORB-201", "--review", "--repo", "api", "--prompt", prompt, "--dry-run"],
     { status: 0, stdout: /"repositoryKey": "api"/ },
     options,
   )
-  writeFileSync(apiSkillPath, committedText)
-
-  /** Real drift is a different COMMIT, and it must still fail. A gate that stopped refusing real
-   * drift would be worse than the one it replaced. */
-  writeFileSync(apiSkillPath, "drift\n")
-  for (const args of [["add", "--", ".claude/skills/pr-review/SKILL.md"], ["commit", "-q", "-m", "drift"]]) {
-    spawnSync("git", ["-C", staged.apiPath, ...args], { encoding: "utf8" })
-  }
-  check(TOOL, "a DIFFERENT committed blob still fails parity before launch", ["--issue", "ORB-201", "--review", "--repo", "api", "--prompt", prompt, "--dry-run"], { status: 2, stderr: /pr-review parity failed/ }, options)
-
-  /** An uncommitted contract is a missing contract, never a match. Two unreadable blobs comparing
-   * equal is exactly how a gate reports OK over an absent file. */
-  const bare = stageReviewFixture("launch-worker-review-uncommitted")
-  if (bare) {
-    spawnSync("git", ["-C", bare.apiPath, "rm", "-q", "--cached", ".claude/skills/pr-review/SKILL.md"], { encoding: "utf8" })
-    spawnSync("git", ["-C", bare.apiPath, "commit", "-q", "-m", "remove the contract"], { encoding: "utf8" })
-    check(
-      TOOL,
-      "a pr-review contract that is not committed is refused, never treated as a match",
-      ["--issue", "ORB-201", "--review", "--repo", "api", "--prompt", stage("launch-worker/uncommitted-prompt.md", "review order\n"), "--dry-run"],
-      { status: 2, stderr: /could not read the committed blob/ },
-      { path: bare.path },
-    )
-  }
 }

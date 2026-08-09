@@ -2,10 +2,12 @@
 
 **At a glance:** the frozen list of what a review checks here. `/pr-review` walks it over a diff and
 `/audit-code-quality` walks the same file over the whole repo, so it stays orchestration-free: dimensions,
-severities, and the finding template only. A twin lives at `orbit-api/.claude/skills/pr-review/rubric.md`
-because `/pr-review` runs from either repo root and two git repos cannot share a file; mirror any
-substantive edit there in the same task. Every finding quotes the diff line it is about and cites the rule
-it came from by section, never by line number: line numbers rot silently and then point at the wrong rule.
+severities, and the finding template only. This file is the SINGLE source for every repository: a review
+of an orbit-api or orbit-landing-page pull request reads a snapshot of this file materialized from this
+repository's `origin/main`, and no other repository carries a copy (a mirrored twin was tried and its
+drift gate twice stood down every review over byte differences). Every finding quotes the diff line it is
+about and cites the rule it came from by section, never by line number: line numbers rot silently and then
+point at the wrong rule.
 
 ## Severity and the blocking decision
 

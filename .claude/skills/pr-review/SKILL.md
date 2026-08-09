@@ -34,14 +34,16 @@ a one-line fix from reaching round seven on style alone."
 
 Six rules. All six bind. None is advisory, and none is negotiable mid-review.
 
-**1. Freeze the ruleset before round 1.** Capture the PR's live `baseRefOid`, materialize
-`rubric.md` from that exact Git blob, and store both the OID and artifact path in the receipt.
-That snapshot supplies the dimensions and severity definitions for both rounds; never reload the
-mutable main-checkout copy in round 2. A base change or an unexpected head change invalidates the
-review and starts a fresh round 1. The single prescribed round-1-to-round-2 fixer head change keeps
-the frozen receipt only when the reviewer is handed that receipt plus both exact head OIDs; any
-other head transition restarts round 1. A bar raised after the captured base is a follow-up ticket
-against the rubric, never a new bar this review may apply.
+**1. Freeze the ruleset before round 1.** The rubric is **single-sourced in orbit-ui-mobile**;
+no other repository carries a copy. Materialize the snapshot once, at review-launch time, from
+orbit-ui-mobile `origin/main`, into the session scratchpad, and read THAT file for both rounds;
+never reload the mutable working-tree copy in round 2. The snapshot taken at launch stays the
+ruleset for the whole review even if the canonical rubric advances mid-review: a bar raised after
+the review launched is a follow-up ticket against the rubric, never a new bar this review may
+apply. A base change or an unexpected head change of the PULL REQUEST invalidates the review and
+starts a fresh round 1. The single prescribed round-1-to-round-2 fixer head change keeps the
+frozen ruleset only when the reviewer is handed the round-one receipt plus both exact head OIDs;
+any other head transition restarts round 1.
 
 **2. Cross-vendor reviewer, fresh session.** Normal: Claude Opus 5 at `high`. `--codex-only`:
 Sol at `xhigh` in a **separate** session, and the run prints `DEGRADED: same-vendor review` in its
@@ -91,7 +93,7 @@ Concretely, before round 1:
 - Confirm this session did not write any of the code in the diff. If it did, **stop**: the review
   is invalid under rule 2. Fork-inherited context counts as the same session.
 - `cwd` is the main checkout of the repo the PR targets. Never a worktree, never the fixer's tree.
-- The inputs are the diff, the captured rubric artifact, and the PR title/body/linked ticket for intent, plus the
+- The inputs are the diff, the frozen rubric snapshot, and the PR title/body/linked ticket for intent, plus the
   targeted sibling-primary/paired-PR contract evidence permitted by rule 4 and nothing broader.
 
 ---
@@ -113,25 +115,28 @@ provides a repository-qualified selector or full PR URL; caller cwd never choose
 gh pr view {N} --repo {OWNER/REPO} --json number,title,body,baseRefName,baseRefOid,headRefName,headRefOid,files,labels
 gh pr diff {N} --repo {OWNER/REPO} > <scratchpad>/pr-{N}.diff
 gh pr view {N} --repo {OWNER/REPO} --json baseRefOid,headRefOid
-git show {baseRefOid}:.claude/skills/pr-review/rubric.md > <scratchpad>/pr-{N}-rubric.md
+
+# THE ONE RUBRIC SOURCE, whatever repository the pull request belongs to:
+git -C <orbit-ui-mobile> fetch --quiet origin main
+git -C <orbit-ui-mobile> show origin/main:.claude/skills/pr-review/rubric.md > <scratchpad>/pr-{N}-rubric.md
 ```
 
 The second OID read is mandatory and occurs after the diff download. Compare both values byte-for-byte
 with the first read; any change discards the diff and restarts round 1. A diff is never paired with OIDs
 captured only before that separate GitHub call.
 
-If the base object is not present locally, fetch that exact OID from `origin` before `git show`;
-never substitute the current working-tree rubric. Record `baseRefOid`, `headRefOid`, the rubric
-artifact path, and the complete live selected key/type evidence required by the target AGENTS.md.
+Record `baseRefOid`, `headRefOid`, and the rubric snapshot path. The snapshot is the only rubric
+this review reads; the repository under review carries no copy and needs none.
 
-Read the captured rubric once, then classify repository-relative paths using the target repository:
+Read the frozen snapshot once, then classify repository-relative paths using the target repository:
 **frontend** is `apps/` or `packages/` in orbit-ui-mobile; **backend** is `src/` or `tests/` in
 orbit-api. A paired diff can be **both**. That classification gates which rubric dimensions apply.
 
 ### Round 1
 
-1. Walk `rubric.md` dimension by dimension over the diff. Skip a dimension whose surface the diff
-   never touches and record it as N/A with the reason. Do not invent findings to fill a dimension.
+1. Walk the rubric snapshot dimension by dimension over the diff. Skip a dimension whose surface
+   the diff never touches and record it as N/A with the reason. Do not invent findings to fill a
+   dimension.
 2. Verify each candidate finding against the diff text before writing it down: quote the line you
    are claiming about. A finding you cannot anchor to a diff line does not get reported.
 3. Drop candidates below the target repository floor, then classify each survivor Blocking or
@@ -163,40 +168,18 @@ orbit-api. A paired diff can be **both**. That classification gates which rubric
 ```json
 {"reviewerKind":"independent","verdict":"BLOCKING","rounds":1,
  "reviewedHeadOid":"<full head SHA>","baseSha":"<full base SHA>",
- "rubricRepositoryKey":"<ui|api|landing>","rubricCommitOid":"<full commit SHA>",
- "rubricBlobOid":"<full blob SHA of rubric.md at that commit>",
- "rubricArtifactPath":"<absolute snapshot path>",
+ "rubricSnapshotPath":"<absolute path of the frozen snapshot you read>",
  "artifactPath":"<absolute path to this file>",
  "frozenFindingIds":["F1"],
  "findings":[{"id":"F1","severity":"High","file":"apps/web/hooks/use-streak.ts","line":42,
    "claim":"one sentence: what is wrong and what goes wrong if it ships","blocking":true}]}
 ```
 
-### Rubric provenance: which rubric you read, and where it came from
-
-The four rubric fields are not bookkeeping. `record-readiness.mjs` proves them with git and refuses
-the receipt when they do not hold, so a review bound to the wrong or a stale rubric cannot reach
-READY. Fill them from the snapshot you were given:
-
-| Field | What it must be |
-|---|---|
-| `rubricRepositoryKey` | the repository the snapshot was materialized FROM |
-| `rubricCommitOid` | the commit it was materialized from, full 40 characters |
-| `rubricBlobOid` | `git rev-parse <rubricCommitOid>:.claude/skills/pr-review/rubric.md` |
-| `rubricArtifactPath` | the absolute path of the materialized snapshot you actually read |
-
-Two bindings, decided by the repository under review, not by you:
-
-- **The repository carries the rubric at the pull request's base** (orbit-ui-mobile, orbit-api).
-  `rubricRepositoryKey` is that repository and `rubricCommitOid` is the pull request's own base SHA.
-- **The repository carries no rubric** (orbit-landing-page has no `.claude` tree at any commit).
-  `rubricRepositoryKey` is `ui` and `rubricCommitOid` is orbit-ui-mobile's current `origin/main`.
-  Binding a landing review to its own base was impossible, and it is why four landing pull requests
-  reported `REVIEW_STALE` on 2026-08-08 while being complete on every other dimension.
-
-The snapshot is compared against the committed blob byte for byte, with line endings normalized. A
-hand-edited snapshot fails, a wrong blob fails, and a stale rubric fails. Do not invent these
-values: if you were not given a snapshot and its provenance, say so and stop.
+`rubricSnapshotPath` records which snapshot you read. It is information for the receipt, not a
+proof obligation: the snapshot is materialized by one code path from one source, so there is no
+second copy to have substituted. What readiness verifies mechanically is the part external reality
+can contradict: `reviewedHeadOid` and `baseSha` must equal the pull request's live head and base,
+the verdict must be `CLEAN`, and every Blocking finding must be `CLOSED`.
 
 `severity` is descriptive and comes from the rubric's ladder. A candidate below the target
 repository floor never enters this array. `blocking` is the decision for a surviving candidate:
@@ -205,22 +188,8 @@ becomes a ticket where the repository floor permits it.
 
 Round 2 writes a separate receipt, sets `rounds` to 2, and adds
 `"status": "CLOSED" | "OPEN"` to every round-1 Blocking finding. Round-1 entries are never removed
-from the round-2 copy, while the round-one receipt itself remains byte-for-byte immutable.
-`frozenFindingIds` is the exact ordered list of round-1 Blocking IDs, is written in round 1 (an
-empty array for a clean round 1), and is never changed in round 2. Readiness rejects a round-2
-receipt when that list is absent, empty, duplicated, or no longer represented by Blocking entries.
-Round 1's receipt file is immutable. Round 2 writes a new receipt instead of rewriting it and adds
-`roundOneArtifactPath` plus `roundOneArtifactSha256`; readiness rereads that original file, verifies
-its SHA-256, derives the complete ordered Blocking ID list, and requires exact equality with
-`frozenFindingIds`. A round-one CLEAN receipt must contain no Blocking finding, regardless of any
-caller-supplied status.
-After posting a BLOCKING round-one receipt, hand its exact path to the orchestrator and do not begin
-round two until it returns the independent `ROUND_ONE_REGISTERED` ledger path. The orchestrator runs
-`node <UI_PRIMARY_MAIN>/tools/record-readiness.mjs --repo <key> --pr <n> --review <round-one-file>
---register-round-one` before the
-fixer transition and stores that returned ledger path in run-state. Final readiness requires the
-round-two path, SHA-256, base/head, and frozen IDs to match this pre-fixer ledger; values supplied only
-by the round-two artifact are not authority.
+from the round-2 copy. `frozenFindingIds` is the exact ordered list of round-1 Blocking IDs, is
+written in round 1 (an empty array for a clean round 1), and is never changed in round 2.
 Every newly admitted round-2 blocker is appended with `status: "OPEN"`. Set `verdict` to `CLEAN`
 only when no frozen or admitted Blocking finding remains OPEN. Capture `reviewedHeadOid` and
 `baseSha` from the PR state reviewed; a review of any other head/base is stale by construction.
@@ -250,7 +219,7 @@ A frozen finding list can bury a defect the fixer introduced in round 2. Three n
 **none of them is the reviewer**:
 
 1. The mechanical carve-out on the round-2 diff line set (rule 5).
-2. The 18 required CI checks, which run on the fixer's commit independently of any reviewer verdict.
+2. The required CI checks, which run on the fixer's commit independently of any reviewer verdict.
 3. Thomas reads the PR with exact advisory file/line counts and all required generated artifacts
    attached to their source change.
 

@@ -121,7 +121,6 @@ node tools/resolve-bot-thread.mjs --thread <PRRT_...> --repo <key> --pr <number>
 node tools/salvage-worker.mjs    --issue "<ticket-ref>" --repo <key> [--pr <n>] --worktree <p> --branch <b> --run-root <p> --test-command <json> --test-receipt <json> --message <m> --path <path>...
 node tools/sync-issue-state.mjs  --issue "<ticket-ref>" --repo <key> --pr <n> --state <working|blocked|ready> --head-sha <sha> --base-sha <sha> --message-file <path|->
 node tools/record-readiness.mjs  --repo <key> --pr <n> --delivery <json> --review <json> --bot <json> --ticket <json> [--codex-only]
-node tools/record-readiness.mjs  --repo <key> --pr <n> --review <round-one-json> --register-round-one
 node tools/teardown-worktree.mjs --issue "<ticket-ref>" --repo <key>
 ```
 
@@ -239,36 +238,22 @@ and its own source is why: `const MEASURABLE_BASELINE_KEY = /^(?:CLAUDE\.md|\.cl
 It could not see the two global files, `hot.md`, or the skill descriptions, which alone are the
 single largest source.
 
-### Assert the run can actually review and can actually mint a receipt
+### Assert the run can actually review
 
-Both structural blockers of 2026-08-08 were discoverable HERE, before the first worktree, while the
-question gate was still open. Both instead surfaced mid-run, when every remaining option was bad: 76
-tickets stood down for an unlaunchable reviewer, and four complete landing pull requests stuck on
-`REVIEW_STALE`. A failure here is a **step 2b QUESTION printed before any worker spawns**, never a
-mid-run discovery.
+The review contract is **single-sourced in orbit-ui-mobile**; no other repository carries a copy,
+so there is no parity to assert and no binding to resolve. (A mirrored api copy plus a drift gate
+was tried twice; each time the gate stood down every review in both repositories over byte
+differences in duplicated markdown, 2026-08-08 and 2026-08-09.) The one thing worth proving here,
+before any worker budget is spent, is that the canonical rubric is readable:
 
 ```bash
-# 1. The pr-review contract pair must agree, by COMMITTED BLOB, for ui and api.
-for p in .claude/skills/pr-review/SKILL.md .claude/skills/pr-review/rubric.md; do
-  u=$(git -C <ui>  rev-parse "HEAD:$p")
-  a=$(git -C <api> rev-parse "HEAD:$p")
-  [ "$u" = "$a" ] || echo "PARITY BLOCKED $p: ui $u, api $a"
-done
-
-# 2. Every repo in the plan must be able to mint a receipt, which means its rubric binding resolves.
-#    A repo that carries the rubric at main binds to its own base; one that does not binds to ui's
-#    origin/main, and that copy must exist.
+git -C <ui> fetch --quiet origin main
 git -C <ui> rev-parse "origin/main:.claude/skills/pr-review/rubric.md" >/dev/null \
   || echo "RECEIPT BLOCKED: the canonical rubric is missing on ui origin/main"
-for r in <every repo key in the plan>; do
-  git -C <repo> rev-parse "HEAD:.claude/skills/pr-review/rubric.md" >/dev/null 2>&1 \
-    && echo "$r binds own-base" || echo "$r binds canonical-main (ui)"
-done
 ```
 
-Print the binding each repo resolved to. A run that cannot say which rubric its reviews will be
-bound to is a run whose receipts will be refused, and it should ask before it spends a worker budget
-rather than after.
+A failure here is a **step 2b QUESTION printed before any worker spawns**, never a mid-run
+discovery.
 
 ### D33. Assert no skill name exists in both scopes
 
@@ -668,43 +653,22 @@ because convergence was never the terminating condition.
 ```bash
 gh pr diff <n> > <scratchpad>/<ticket-slug>-r1.diff
 
-# MATERIALIZE THE RUBRIC, and record where it came from. The reviewer reads THIS file, never the
-# working tree, so a rubric edited by the change under review cannot become the rubric it is
-# reviewed against.
-#
-#   repo carries the rubric at the PR's base (ui, api):   RUBRIC_REPO=<key>  RUBRIC_COMMIT=<base sha>
-#   repo carries no rubric at all (landing):              RUBRIC_REPO=ui     RUBRIC_COMMIT=$(git -C <ui> rev-parse origin/main)
-RUBRIC_BLOB=$(git -C <rubric repo> rev-parse "$RUBRIC_COMMIT:.claude/skills/pr-review/rubric.md")
-git -C <rubric repo> cat-file blob "$RUBRIC_BLOB" > <scratchpad>/<ticket-slug>-rubric.md
-
-# MATERIALIZE THE RUBRIC, and record where it came from. The reviewer reads THIS file, never the
-# working tree, so a rubric edited by the change under review cannot become the rubric it is
-# reviewed against.
-#
-#   repo carries the rubric at the PR's base (ui, api):   RUBRIC_REPO=<key>  RUBRIC_COMMIT=<base sha>
-#   repo carries no rubric at all (landing):              RUBRIC_REPO=ui     RUBRIC_COMMIT=$(git -C <ui> rev-parse origin/main)
-RUBRIC_BLOB=$(git -C <rubric repo> rev-parse "$RUBRIC_COMMIT:.claude/skills/pr-review/rubric.md")
-git -C <rubric repo> cat-file blob "$RUBRIC_BLOB" > <scratchpad>/orb-N-rubric.md
-
-# MATERIALIZE THE RUBRIC, and record where it came from. The reviewer reads THIS file, never the
-# working tree, so a rubric edited by the change under review cannot become the rubric it is
-# reviewed against.
-#
-#   repo carries the rubric at the PR's base (ui, api):   RUBRIC_REPO=<key>  RUBRIC_COMMIT=<base sha>
-#   repo carries no rubric at all (landing):              RUBRIC_REPO=ui     RUBRIC_COMMIT=$(git -C <ui> rev-parse origin/main)
-RUBRIC_BLOB=$(git -C <rubric repo> rev-parse "$RUBRIC_COMMIT:.claude/skills/pr-review/rubric.md")
-git -C <rubric repo> cat-file blob "$RUBRIC_BLOB" > <scratchpad>/orb-N-rubric.md
+# MATERIALIZE THE RUBRIC, once, from the ONE source every repository binds to. The reviewer reads
+# THIS snapshot, never a working tree, so a rubric edited by the change under review cannot become
+# the rubric it is reviewed against, and the snapshot taken here stays the ruleset for the whole
+# review even if the canonical rubric advances mid-run.
+git -C <ui> fetch --quiet origin main
+git -C <ui> show origin/main:.claude/skills/pr-review/rubric.md > <scratchpad>/<ticket-slug>-rubric.md
 
 # compose the review order into the scratchpad, then launch the reviewer through the launcher
 node tools/launch-worker.mjs --issue "<ticket-ref>" --review --repo <key> --prompt <scratchpad>/<ticket-slug>-review.md
 ```
 
-**The review order MUST demand the four rubric provenance fields, and it must hand the reviewer the
-materialized snapshot path.** `record-readiness.mjs` requires them and proves them with git, so a
-review order that omits them produces a receipt that is refused and a whole review that must be
-re-run. That happened to every review on 2026-08-08. Name in the order: `rubricRepositoryKey`
-(`$RUBRIC_REPO`), `rubricCommitOid` (`$RUBRIC_COMMIT`), `rubricBlobOid` (`$RUBRIC_BLOB`) and
-`rubricArtifactPath` (`<scratchpad>/<ticket-slug>-rubric.md`).
+**The review order hands the reviewer the snapshot path and demands the receipt fields readiness
+verifies:** `reviewedHeadOid`, `baseSha`, `verdict`, `rounds`, `frozenFindingIds`, `findings`, and
+`rubricSnapshotPath` (the scratchpad file above, recorded as information). Staleness is judged
+against the pull request's own head and base, which are the external facts a receipt can be wrong
+about; there is no second rubric copy anywhere for a receipt to have substituted.
 
 `--review` resolves the `reviewer` engine and the `review` model tier from
 `.claude/orchestrator.json`, and runs in that repository's PRIMARY MAIN checkout. It refuses a
@@ -714,8 +678,7 @@ change under review. Feed it the diff file and the frozen ruleset. It returns:
 
 ```json
 {"reviewerKind":"independent","verdict":"CLEAN","rounds":1,"reviewedHeadOid":"<sha>","baseSha":"<sha>",
- "artifactPath":"<absolute path>","rubricRepositoryKey":"<key>","rubricCommitOid":"<sha>",
- "rubricBlobOid":"<sha>","rubricArtifactPath":"<absolute snapshot path>","findings":[]}
+ "artifactPath":"<absolute path>","rubricSnapshotPath":"<absolute snapshot path>","frozenFindingIds":[],"findings":[]}
 ```
 
 Write it to `<scratchpad>/<ticket-slug>-findings.json`. **The list is now frozen.** File every non-blocking
@@ -872,10 +835,10 @@ For each existing PR, repeat within the configured `caps.connectorFixAttempts` f
    its run/job steps to be infrastructure or a flake; send genuine failures through the existing
    fixer. A resulting commit invalidates both reviews and every head-bound receipt.
 3. Obtain a CLEAN independent `pr-review` artifact on the current head from the target repo's primary
-   main checkout. The UI copy is canonical; launch refuses if API's skill or rubric drifts. When
-   round one is BLOCKING, immediately run the mechanical `--register-round-one` form above and store
-   its returned ledger path in run-state before launching the one fixer transition; round two must
-   match that independently persisted path/hash/base/head/frozen-ID identity.
+   main checkout. The contract is single-sourced in orbit-ui-mobile; every review reads a snapshot
+   of its `origin/main` rubric. When round one is BLOCKING, the round-one receipt freezes the
+   Blocking list, and the fixer prompt carries ONLY those frozen findings; round two answers
+   CLOSED or OPEN per frozen finding under §5.3.
 4. Request the Codex connector on that head. Fix every actionable finding, reply with commit or
    ticket evidence, then resolve. Re-request after any push. Zero unresolved threads without
    a current-head connector review is `BOT_REVIEW_STALE`, never clean.
@@ -1050,11 +1013,17 @@ THIS session. That part is still yours, which is why the invariant says to name 
 each. Not eight: each worktree is a full install, build and test run plus its own model session, and
 eight concurrent will thrash one laptop and hit rate limits. Raise it after measuring, not before.
 
-Two rules bound it:
+Three rules bound it:
 
 - **Never two layers of one stack.** A stack is sequential by construction.
 - **Preflight 0b runs once per repo, before any fan-out.** Concurrent `fetch` and `merge --ff-only`
   against one checkout race on `.git/index`.
+- **Never more than 3 GitHub-calling children alive at once, across every repo.** The GraphQL
+  budget is 5,000 points per USER per hour, shared by ui, api and landing alike. Eight concurrent
+  `list-bot-threads.mjs` pollers exhausted it three times in one night (2026-08-09, roughly 90
+  minutes lost). Run bot waits and readiness passes at most three at a time; the poller itself
+  reads the free REST `rate_limit` before each GraphQL spend and waits out an empty window, but
+  that is self-defence, not a licence to fan out.
 
 **`--auto` takes the scope from the board**, ordered by leverage: a ticket that unblocks three others
 outranks three easy ones. `plan-queue.mjs --board` computes that ordering from the real `blockedBy`

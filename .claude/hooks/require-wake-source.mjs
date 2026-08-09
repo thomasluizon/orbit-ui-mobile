@@ -7,20 +7,23 @@
 // The run record and the wake sources are read through tools/lib/run-state.mjs rather than
 // re-derived here: launch-worker.mjs writes them with that same module, and two definitions of
 // where the files live is how one of them silently stops finding the other.
+//
+// This hook reads DISK ONLY: the run record, the receipt files it names, and pid liveness. It
+// never calls GitHub. The previous revision re-verified every ledger row against live GitHub
+// (pull request view, branch protection, review threads, board item-list) on EVERY Stop of EVERY
+// session in this project, including for a dead session's ledger it then discarded on the
+// session-id check. Measured 2026-08-09: that alone spent the entire 5,000-point per-user GraphQL
+// budget (5,002 points used) and stalled all work. Whether a receipt is stale against live GitHub
+// is record-readiness.mjs's question, answered once at readiness time; the receipt this hook
+// reads is at most minutes old because the readiness loop ends by recording it, and the final
+// verifier of live state is Thomas, who tests and merges every pull request by hand.
 
 import { readFileSync } from "node:fs"
-import { fileURLToPath } from "node:url"
 
-import { githubEnvironment, repositorySlug } from "../../tools/lib/github-auth.mjs"
-import { readTicket, resolveTicket } from "../../tools/lib/github-issues.mjs"
-import { runBounded } from "../../tools/lib/bounded-process.mjs"
-import { readOrchestratorConfig } from "../../tools/lib/orchestrator-config.mjs"
-import { readinessCiIsGreen, readinessReceiptMatchesLive, readinessReport } from "../../tools/lib/readiness-receipt.mjs"
+import { readinessReport } from "../../tools/lib/readiness-receipt.mjs"
 import { readRunState, readWakeSources } from "../../tools/lib/run-state.mjs"
 import { readStdinJson } from "./_lib/io.mjs"
 import { checkSleepStop } from "./_lib/rules-sleep.mjs"
-
-const LIST_BOT_THREADS = fileURLToPath(new URL("../../tools/list-bot-threads.mjs", import.meta.url))
 
 /** Signal 0 tests for existence without delivering anything. EPERM means it exists and is not ours. */
 const isAlive = (pid) => {
@@ -32,56 +35,11 @@ const isAlive = (pid) => {
   }
 }
 
-const liveReceiptVerdict = async (entry, config) => {
+/** READY comes from the persisted receipt alone. An unreadable or not-READY receipt is null. */
+const receiptVerdict = (entry) => {
   try {
     const receipt = JSON.parse(readFileSync(entry.receiptPath, "utf8"))
-    if (readinessReport(receipt).verdict !== "READY") return null
-    const repoRoot = config.repos?.[entry.repositoryKey]
-    if (typeof repoRoot !== "string" || typeof receipt?.issue !== "string") return null
-    const repository = repositorySlug(repoRoot)
-    const githubAuth = await githubEnvironment(repoRoot, { timeoutMs: 45000 })
-    const viewed = await runBounded(
-      process.env.GH_BIN || "gh",
-      ["pr", "view", String(entry.prNumber), "--repo", repository, "--json", "number,baseRefName,baseRefOid,headRefOid,isDraft,statusCheckRollup"],
-      { cwd: repoRoot, env: githubAuth.environment, timeoutMs: 45000 },
-    )
-    if (viewed.timedOut || viewed.error || viewed.status !== 0) return null
-    const pr = JSON.parse(viewed.stdout)
-    if (pr?.number !== entry.prNumber || typeof pr?.baseRefName !== "string" || typeof pr?.baseRefOid !== "string" || typeof pr?.headRefOid !== "string" || typeof pr?.isDraft !== "boolean" || !Array.isArray(pr?.statusCheckRollup)) return null
-
-    const requiredRead = await runBounded(
-      process.env.GH_BIN || "gh",
-      ["api", `repos/${repository}/branches/${encodeURIComponent(pr.baseRefName)}/protection/required_status_checks`],
-      { cwd: repoRoot, env: githubAuth.environment, timeoutMs: 45000 },
-    )
-    if (requiredRead.timedOut || requiredRead.error || requiredRead.status !== 0) return null
-    const requiredContexts = JSON.parse(requiredRead.stdout)?.contexts
-
-    const botRead = await runBounded(
-      process.execPath,
-      [LIST_BOT_THREADS, "--pr", String(entry.prNumber), "--repo", entry.repositoryKey, "--wait-seconds", "0", "--poll-seconds", "1", "--command-timeout-seconds", "45", "--no-request"],
-      { cwd: repoRoot, env: githubAuth.environment, timeoutMs: 60000 },
-    )
-    if (botRead.timedOut || botRead.error || botRead.status !== 0) return null
-    const bot = JSON.parse(botRead.stdout)
-
-    const ticket = await readTicket(resolveTicket(receipt.issue).number)
-    if (typeof ticket?.status !== "string" || !Array.isArray(ticket?.labels) || ticket.labels.some((label) => typeof label?.name !== "string")) return null
-
-    const live = {
-      repositoryKey: entry.repositoryKey,
-      prNumber: pr.number,
-      baseSha: pr.baseRefOid,
-      headSha: pr.headRefOid,
-      draft: pr.isDraft,
-      ticket: receipt.issue,
-      ticketStatus: ticket.status,
-      ciGreen: readinessCiIsGreen(pr.statusCheckRollup, requiredContexts),
-      connectorPassed: bot?.verdict === "REVIEWED" && bot?.reviewedCommit === pr.headRefOid && bot?.baseRefOid === pr.baseRefOid,
-      threadsComplete: bot?.threadsComplete === true,
-      unresolvedThreads: bot?.counts?.unresolved,
-    }
-    return readinessReceiptMatchesLive(receipt, entry, live) ? "READY" : null
+    return readinessReport(receipt).verdict === "READY" ? "READY" : null
   } catch {
     return null
   }
@@ -89,33 +47,13 @@ const liveReceiptVerdict = async (entry, config) => {
 
 try {
   const input = readStdinJson()
-  const state = readRunState()
-  const identities = [
-    ...(Array.isArray(state?.pullRequests) ? state.pullRequests : []),
-    ...(Array.isArray(state?.readinessLedger) ? state.readinessLedger : []),
-  ]
-  const unique = [...new Map(identities.filter((entry) => typeof entry?.repositoryKey === "string" && Number.isInteger(entry?.prNumber) && typeof entry?.receiptPath === "string").map((entry) => [`${entry.repositoryKey}#${entry.prNumber}`, entry])).values()]
-  const liveVerdicts = new Map()
-  if (unique.length > 0) {
-    let config = null
-    try {
-      config = readOrchestratorConfig()
-    } catch {
-      config = null
-    }
-    if (config) {
-      await Promise.all(unique.map(async (entry) => {
-        liveVerdicts.set(`${entry.repositoryKey}#${entry.prNumber}`, await liveReceiptVerdict(entry, config))
-      }))
-    }
-  }
   const verdict = checkSleepStop({
-    state,
+    state: readRunState(),
     wakeSources: readWakeSources(),
     sessionId: input?.session_id ?? "",
     stopHookActive: input?.stop_hook_active === true,
     isAlive,
-    receiptVerdict: (entry) => liveVerdicts.get(`${entry.repositoryKey}#${entry.prNumber}`) ?? null,
+    receiptVerdict,
   })
   if (verdict?.block) {
     process.stderr.write(verdict.message)

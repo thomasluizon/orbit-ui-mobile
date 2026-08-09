@@ -1,9 +1,26 @@
 #!/usr/bin/env node
-/** Persist and evaluate one final-head readiness receipt from artifacts produced by the harness. */
+/**
+ * Persist and evaluate one final-head readiness receipt from artifacts produced by the harness.
+ *
+ * One live read, not two. This tool reads the pull request, its required contexts, the connector
+ * state, the compare, and the ticket ONCE, evaluates everything against that snapshot, and writes
+ * the receipt. The previous revision read the pull request and the connector twice per invocation
+ * (an opening read and a closing revalidation) to catch a seconds-wide race; measured 2026-08-09,
+ * that doubling was one of the consumers that exhausted the per-user GraphQL budget and stalled
+ * the entire run. The race it guarded self-corrects: the readiness loop re-records after every
+ * artifact update and always ends by recording, so a receipt is at most minutes old, and the
+ * final verifier of live state is Thomas, who tests and merges every pull request by hand.
+ *
+ * No rubric provenance is proven here. The rubric is single-sourced in orbit-ui-mobile,
+ * materialized from its origin/main once at review-launch time; the receipt records the snapshot
+ * path the reviewer read as information. Verifying the snapshot against the rubric repository's
+ * CURRENT origin/main was tried and it races by construction: a rubric edit merging mid-run
+ * staled every in-flight review of every repository (landing #56-59, 2026-08-08). Staleness is
+ * judged only against the pull request's own head and base.
+ */
 
-import { createHash } from "node:crypto"
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
-import { dirname, join, resolve } from "node:path"
+import { readFileSync } from "node:fs"
+import { resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { bodyEditInvalidationPath, clearBodyEditInvalidation, pendingBodyEditGuards, persistBodyEditInvalidation, readBodyEditInvalidation } from "./lib/body-edit-invalidation.mjs"
@@ -13,18 +30,13 @@ import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-i
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { withDegradedReviewFirst } from "./lib/pr-body.mjs"
 import { readinessCiIsGreen, readinessReport, writeReadinessReceipt } from "./lib/readiness-receipt.mjs"
-import { CANONICAL_RUBRIC_REPO, RUBRIC_PATH, rubricProvenanceVerdict } from "./lib/rubric-provenance.mjs"
 
 const LIST_BOT_THREADS = fileURLToPath(new URL("./list-bot-threads.mjs", import.meta.url))
 
 const USAGE = `usage: record-readiness.mjs --repo <ui|api|landing> --pr <number> --delivery <file> --review <file> --bot <file> --ticket <file> [--codex-only]
-       record-readiness.mjs --repo <ui|api|landing> --pr <number> --review <round-one-file> --register-round-one
 
 Reads harness-produced artifacts, persists one SHA-bound receipt under the repository git state,
 and prints READY or every stale/blocking verdict. It never trusts a caller-authored status flag.
-
---register-round-one stores the immutable round-one path, SHA-256, base/head, and exact frozen
-Blocking IDs before any fixer transition. Round two must match that independent ledger.
 
 exit codes: 0 READY, 1 not ready, 2 usage or artifact error`
 
@@ -41,7 +53,7 @@ const argOf = (flag) => {
   const index = process.argv.indexOf(flag)
   return index === -1 ? null : process.argv[index + 1]
 }
-const known = new Set(["--repo", "--pr", "--delivery", "--review", "--bot", "--ticket", "--codex-only", "--register-round-one", "--help", "-h"])
+const known = new Set(["--repo", "--pr", "--delivery", "--review", "--bot", "--ticket", "--codex-only", "--help", "-h"])
 const unknown = process.argv.slice(2).filter((value) => value.startsWith("-") && !known.has(value))
 if (unknown.length > 0) fail(`${USAGE}\n\nunknown option(s): ${unknown.join(" ")}`)
 
@@ -49,16 +61,12 @@ const repoKey = argOf("--repo")
 const prRaw = argOf("--pr")
 const prNumber = Number(prRaw)
 const codexOnly = process.argv.includes("--codex-only")
-const registerRoundOne = process.argv.includes("--register-round-one")
 const artifactPath = Object.fromEntries(["delivery", "review", "bot", "ticket"].map((name) => [name, argOf(`--${name}`)]))
 if (
   !repoKey ||
   !Number.isInteger(prNumber) ||
   prNumber < 1 ||
-  !artifactPath.review ||
-  artifactPath.review.startsWith("-") ||
-  (!registerRoundOne && Object.values(artifactPath).some((value) => !value || value.startsWith("-"))) ||
-  (registerRoundOne && (codexOnly || [artifactPath.delivery, artifactPath.bot, artifactPath.ticket].some(Boolean)))
+  Object.values(artifactPath).some((value) => !value || value.startsWith("-"))
 ) fail(USAGE)
 
 let config
@@ -81,60 +89,6 @@ if (gitCommonRead.error || gitCommonRead.status !== 0 || !gitCommonRead.stdout.t
   fail(`git common-directory read failed: ${redactSecrets(detail.trim())}`)
 }
 const gitCommonDirectory = resolve(repoRoot, gitCommonRead.stdout.trim())
-const roundOneLedgerPath = (headSha) => join(gitCommonDirectory, "orbit-review-round-one", `${repoKey}-${prNumber}-${headSha}.json`)
-
-if (registerRoundOne) {
-  let reviewBytes
-  let registered
-  try {
-    reviewBytes = readFileSync(artifactPath.review)
-    registered = JSON.parse(reviewBytes.toString("utf8"))
-    registered = registered?.review ?? registered
-  } catch (error) {
-    fail(`review artifact ${artifactPath.review} could not be read as JSON: ${error.message}`)
-  }
-  const blockingIds = Array.isArray(registered?.findings)
-    ? registered.findings.filter((finding) => finding?.blocking === true).map((finding) => finding?.id)
-    : null
-  if (
-    registered?.rounds !== 1 ||
-    registered?.verdict !== "BLOCKING" ||
-    typeof registered?.reviewedHeadOid !== "string" ||
-    typeof registered?.baseSha !== "string" ||
-    !Array.isArray(blockingIds) ||
-    blockingIds.length === 0 ||
-    blockingIds.some((id) => typeof id !== "string" || id === "") ||
-    new Set(blockingIds).size !== blockingIds.length ||
-    JSON.stringify(blockingIds) !== JSON.stringify(registered.frozenFindingIds)
-  ) fail("round-one registration requires one valid BLOCKING receipt with its exact ordered frozen IDs")
-  const path = roundOneLedgerPath(registered.reviewedHeadOid)
-  const ledger = {
-    repositoryKey: repoKey,
-    prNumber,
-    baseSha: registered.baseSha,
-    reviewedHeadOid: registered.reviewedHeadOid,
-    artifactPath: resolve(artifactPath.review),
-    artifactSha256: createHash("sha256").update(reviewBytes).digest("hex"),
-    frozenFindingIds: blockingIds,
-  }
-  if (existsSync(path)) {
-    let existing
-    try {
-      existing = JSON.parse(readFileSync(path, "utf8"))
-    } catch (error) {
-      fail(`existing round-one registration is unreadable and will not be replaced: ${error.message}`)
-    }
-    if (JSON.stringify(existing) !== JSON.stringify(ledger)) {
-      fail(`round-one registration already exists for ${repoKey}#${prNumber} at ${registered.reviewedHeadOid}; refusing to replace its immutable identity`)
-    }
-    console.log(JSON.stringify({ verdict: "ROUND_ONE_REGISTERED", idempotent: true, ledgerPath: path, ...ledger }, null, 2))
-    process.exit(0)
-  }
-  mkdirSync(dirname(path), { recursive: true })
-  writeFileSync(path, `${JSON.stringify(ledger, null, 2)}\n`, "utf8")
-  console.log(JSON.stringify({ verdict: "ROUND_ONE_REGISTERED", ledgerPath: path, ...ledger }, null, 2))
-  process.exit(0)
-}
 
 const artifact = {}
 for (const [name, path] of Object.entries(artifactPath)) {
@@ -155,65 +109,14 @@ const review = artifact.review?.review ?? artifact.review
 if (
   typeof review?.reviewedHeadOid !== "string" ||
   typeof review?.artifactPath !== "string" ||
-  typeof review?.rubricRepositoryKey !== "string" ||
-  typeof review?.rubricCommitOid !== "string" ||
-  typeof review?.rubricBlobOid !== "string" ||
-  typeof review?.rubricArtifactPath !== "string" ||
   !Array.isArray(review?.findings)
-) fail("review artifact carries no reviewedHeadOid, findings, or complete rubric provenance (rubricRepositoryKey, rubricCommitOid, rubricBlobOid, rubricArtifactPath)")
-let frozenFindingIdsVerified = review.rounds === 1
-let roundOneRegistration = null
-if (review.rounds === 2) {
-  if (typeof review.roundOneArtifactPath !== "string" || typeof review.roundOneArtifactSha256 !== "string") {
-    fail("round-two review artifact carries no immutable round-one artifact path and SHA-256")
-  }
-  let roundOneBytes
-  let roundOneReview
-  try {
-    roundOneBytes = readFileSync(review.roundOneArtifactPath)
-    roundOneReview = JSON.parse(roundOneBytes.toString("utf8"))
-  } catch (error) {
-    fail(`round-one review artifact could not be read: ${error.message}`)
-  }
-  const actualHash = createHash("sha256").update(roundOneBytes).digest("hex")
-  let registeredRoundOne
-  const registeredRoundOnePath = roundOneLedgerPath(roundOneReview?.reviewedHeadOid)
-  try {
-    registeredRoundOne = JSON.parse(readFileSync(registeredRoundOnePath, "utf8"))
-  } catch (error) {
-    fail(`round-one review was not independently registered before the fixer transition: ${error.message}`)
-  }
-  roundOneRegistration = { ledgerPath: registeredRoundOnePath, ...registeredRoundOne }
-  const originalIds = Array.isArray(roundOneReview?.findings)
-    ? roundOneReview.findings.filter((finding) => finding?.blocking === true).map((finding) => finding?.id)
-    : null
-  frozenFindingIdsVerified =
-    roundOneReview?.rounds === 1 &&
-    registeredRoundOne?.repositoryKey === repoKey &&
-    registeredRoundOne?.prNumber === prNumber &&
-    registeredRoundOne?.baseSha === review.baseSha &&
-    registeredRoundOne?.reviewedHeadOid === roundOneReview?.reviewedHeadOid &&
-    resolve(registeredRoundOne?.artifactPath ?? "") === resolve(review.roundOneArtifactPath) &&
-    registeredRoundOne?.artifactSha256 === actualHash &&
-    registeredRoundOne?.artifactSha256 === review.roundOneArtifactSha256.toLowerCase() &&
-    JSON.stringify(registeredRoundOne?.frozenFindingIds) === JSON.stringify(review.frozenFindingIds) &&
-    actualHash.toLowerCase() === review.roundOneArtifactSha256.toLowerCase() &&
-    Array.isArray(originalIds) &&
-    JSON.stringify(originalIds) === JSON.stringify(review.frozenFindingIds)
-}
+) fail("review artifact carries no reviewedHeadOid, artifactPath, or findings")
 const bot = artifact.bot
 if (bot?.pr !== prNumber) fail("bot artifact does not name this pull request")
 const ticketSync = artifact.ticket
 if (typeof ticketSync?.status !== "string" || typeof ticketSync?.lastSynchronizationResult !== "string") fail("ticket artifact carries no status or synchronization result")
 if (ticketSync.issue !== delivery.issue || ticketSync.repositoryKey !== repoKey || ticketSync.prNumber !== prNumber) {
   fail("ticket artifact does not name this delivery issue, repository, and pull request")
-}
-
-try {
-  const resolvedTicket = resolveTicket(delivery.issue)
-  assertRepositoryLabel(await readTicket(resolvedTicket.number), repoKey)
-} catch (error) {
-  fail(`ticket assertion failed: ${error.message}`)
 }
 
 let live
@@ -346,41 +249,6 @@ try {
 
   liveTicket = await readTicket(resolveTicket(delivery.issue).number)
   assertRepositoryLabel(liveTicket, repoKey)
-  const closingPrRead = await runBounded(
-    process.env.GH_BIN || "gh",
-    ["pr", "view", String(prNumber), "--repo", repository, "--json", "number,baseRefName,baseRefOid,headRefOid,isDraft,body,statusCheckRollup"],
-    { cwd: repoRoot, env: githubAuth.environment, timeoutMs: 45000 },
-  )
-  if (closingPrRead.timedOut) fail(`closing PR state read for ${prNumber} timed out after 45s; the complete child process tree was terminated`)
-  if (closingPrRead.error || closingPrRead.status !== 0) {
-    const detail = closingPrRead.stderr || closingPrRead.stdout || closingPrRead.error?.message || `exit ${closingPrRead.status}`
-    fail(`closing PR state read for ${prNumber} failed: ${redactSecrets(detail.trim(), githubAuth.secrets)}`)
-  }
-  const closingLive = JSON.parse(closingPrRead.stdout)
-  if (
-    closingLive?.number !== prNumber ||
-    closingLive.baseRefOid !== live.baseRefOid ||
-    closingLive.headRefOid !== live.headRefOid ||
-    closingLive.isDraft !== live.isDraft ||
-    closingLive.baseRefName !== live.baseRefName ||
-    typeof closingLive.body !== "string" ||
-    !Array.isArray(closingLive.statusCheckRollup)
-  ) {
-    fail(`pull request ${prNumber} changed while readiness was being aggregated; rerun every final-head receipt`)
-  }
-  const closingBotRead = await runBounded(
-    process.execPath,
-    [LIST_BOT_THREADS, "--pr", String(prNumber), "--repo", repoKey, "--wait-seconds", "0", "--poll-seconds", "1", "--command-timeout-seconds", "45", "--no-request"],
-    { cwd: repoRoot, env: githubAuth.environment, timeoutMs: 60000 },
-  )
-  if (closingBotRead.timedOut) fail(`closing connector read for PR ${prNumber} timed out after 60s; the complete child process tree was terminated`)
-  if (closingBotRead.error || ![0, 1].includes(closingBotRead.status)) {
-    const detail = closingBotRead.stderr || closingBotRead.stdout || closingBotRead.error?.message || `exit ${closingBotRead.status}`
-    fail(`closing connector read for PR ${prNumber} failed: ${redactSecrets(detail.trim(), githubAuth.secrets)}`)
-  }
-  live = closingLive
-  liveCiGreen = readinessCiIsGreen(closingLive.statusCheckRollup, requiredContexts)
-  liveBot = JSON.parse(closingBotRead.stdout)
 } catch (error) {
   fail(`could not revalidate live pull request ${prNumber}: ${redactSecrets(error.message)}`)
 }
@@ -399,43 +267,6 @@ const liveConnectorPassed =
 const botArtifactCurrent = bot.headRefOid === headSha && bot.baseRefOid === baseSha && bot.reviewedCommit === liveBot?.reviewedCommit
 const liveUnresolvedThreads = liveBot?.counts?.unresolved ?? null
 
-/**
- * Rubric provenance, proven with git rather than asserted by the reviewer.
- *
- * This is the only place in the harness with both filesystem and git access at receipt time, so it
- * is where the proof belongs. lib/readiness-receipt.mjs is pure and runs inside the Stop hook; it
- * re-derives the own-base case itself and otherwise reads the verdict recorded here.
- */
-/** runBounded accumulates stdout as a UTF-8 STRING, so blob content is read as text and never
- * trimmed: trimming would drop the rubric's trailing newline on one side of the comparison only. */
-const gitRaw = async (cwd, args) => {
-  const result = await runBounded("git", ["-C", cwd, ...args], { cwd, timeoutMs: 45000, maxBuffer: 16 * 1024 * 1024 })
-  return result.timedOut || result.error || result.status !== 0 ? null : result.stdout
-}
-const gitText = async (cwd, args) => {
-  const out = await gitRaw(cwd, args)
-  return out === null ? null : out.trim()
-}
-
-const rubricRepoRoot = config.repos?.[review.rubricRepositoryKey] ?? null
-const prRepoBlobAtBase = await gitText(repoRoot, ["rev-parse", `${baseSha}:${RUBRIC_PATH}`])
-const canonicalRoot = config.repos?.[CANONICAL_RUBRIC_REPO] ?? null
-const rubricFacts = {
-  prRepoKey: repoKey,
-  prBaseSha: baseSha,
-  prRepoHasRubricAtBase: typeof prRepoBlobAtBase === "string" && /^[0-9a-f]{40}$/.test(prRepoBlobAtBase),
-  blobAtClaimedCommit: rubricRepoRoot ? await gitText(rubricRepoRoot, ["rev-parse", `${review.rubricCommitOid}:${RUBRIC_PATH}`]) : null,
-  canonicalMainBlob: canonicalRoot ? await gitText(canonicalRoot, ["rev-parse", `origin/main:${RUBRIC_PATH}`]) : null,
-  blobBytes: rubricRepoRoot ? await gitRaw(rubricRepoRoot, ["cat-file", "blob", review.rubricBlobOid]) : null,
-  snapshotBytes: (() => {
-    try {
-      return readFileSync(review.rubricArtifactPath, "utf8")
-    } catch {
-      return null
-    }
-  })(),
-}
-const rubricVerdict = rubricProvenanceVerdict(review, rubricFacts)
 const receipt = {
   issue: delivery.issue,
   repositoryKey: repoKey,
@@ -449,17 +280,9 @@ const receipt = {
     rounds: review.rounds,
     reviewedHeadOid: review.reviewedHeadOid,
     artifactPath: review.artifactPath,
-    rubricRepositoryKey: review.rubricRepositoryKey,
-    rubricCommitOid: review.rubricCommitOid,
-    rubricBlobOid: review.rubricBlobOid,
-    rubricArtifactPath: review.rubricArtifactPath,
-    rubricBinding: rubricVerdict.ok ? rubricVerdict.binding : null,
-    rubricVerified: rubricVerdict.ok,
-    rubricRefusal: rubricVerdict.ok ? null : rubricVerdict.reason,
+    rubricSnapshotPath: review.rubricSnapshotPath ?? null,
     findings: review.findings,
     frozenFindingIds: review.frozenFindingIds,
-    frozenFindingIdsVerified,
-    roundOneRegistration,
     headSha: review.reviewedHeadOid,
     baseSha: review.baseSha,
   },
