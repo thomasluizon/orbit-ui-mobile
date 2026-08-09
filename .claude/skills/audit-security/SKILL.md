@@ -1,6 +1,6 @@
 ---
 name: audit-security
-description: Repo-wide security audit across both Orbit repos (orbit-ui-mobile + orbit-api), opening one Linear ticket per verified risk after a human approval gate (D10). Checks judgement-level authz / data-isolation (incl. AI & MCP tool scoping), injection, secrets handling, CORS, rate-limit and bot-protection coverage, AI-abuse, error leakage, the auth failure paths (account enumeration, per-account throttling, single-use tokens), and the legal/data-handling posture (privacy-policy vs real processors, GDPR delete and export, PII in analytics, copyleft dependencies), EXCLUDING everything the gates already enforce (D11). Each finding carries severity, file:line evidence, threat model, and remediation, calibrated to Tier 1+2 (Tier 3 out-of-scope). Use when the user asks for a security audit, threat review, or pre-launch hardening pass.
+description: Repo-wide security audit across both Orbit repos (orbit-ui-mobile + orbit-api), opening one GitHub ticket per verified risk after a human approval gate (D10). Checks judgement-level authz / data-isolation (incl. AI & MCP tool scoping), injection, secrets handling, CORS, rate-limit and bot-protection coverage, AI-abuse, error leakage, the auth failure paths (account enumeration, per-account throttling, single-use tokens), and the legal/data-handling posture (privacy-policy vs real processors, GDPR delete and export, PII in analytics, copyleft dependencies), EXCLUDING everything the gates already enforce (D11). Each finding carries severity, file:line evidence, threat model, and remediation, calibrated to Tier 1+2 (Tier 3 out-of-scope). Use when the user asks for a security audit, threat review, or pre-launch hardening pass.
 argument-hint: <path | repo | blank=both repos>
 ---
 
@@ -8,7 +8,7 @@ argument-hint: <path | repo | blank=both repos>
 
 **Input**: $ARGUMENTS
 
-Run a repo-wide security audit across **both** Orbit repos and open one Linear ticket
+Run a repo-wide security audit across **both** Orbit repos and open one GitHub ticket
 per verified risk (D10), each pinned to a file:line, with the threat it enables and the
 fix that closes it. The output is executable tickets behind one approval gate, never a
 report that rots the day after it is written.
@@ -168,10 +168,10 @@ re-invoke for any gap:
 
 ## Phase 4: Emit tickets (D10), not a report
 
-Run the shared pipeline in **`.claude/skills/_shared/audit-to-tickets.md`**: one Linear
+Run the shared pipeline in **`.claude/skills/_shared/audit-to-tickets.md`**: one GitHub
 ticket per verified finding, drafted to the 6.2 template, validated by
 re-read against the 6.2 template, presented to Thomas behind ONE approval gate, then
-created via `orca linear create` and re-validated with `--issue`.
+created via `gh issue create` and re-validated from the created issue.
 
 Security-specific mapping into the 6.2 body:
 
@@ -199,7 +199,7 @@ with the full provenance in view. None of it is written to disk.
 
 - **Re-run the workflow's analysis.** It owns the fan-out, the skeptic pass, and the loop;
   you turn its return into tickets. Only re-invoke for a coverage gap.
-- **Write a report file, or create tickets unattended.** The output is Linear tickets behind
+- **Write a report file, or create tickets unattended.** The output is GitHub tickets behind
   the one approval gate; nothing is persisted to `.claude/audits/` and nothing is created
   before Thomas approves.
 - **Remediate during the audit.** Tickets first; fix only if the user asks after.

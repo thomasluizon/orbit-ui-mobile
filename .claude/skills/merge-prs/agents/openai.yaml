@@ -1,4 +1,4 @@
 interface:
   display_name: "Merge PRs"
   short_description: "Merge an approved PR set in dependency order"
-  default_prompt: "Use $merge-prs to merge the approved PRs from this conversation, update Linear, and clean their branches and worktrees."
+  default_prompt: "Use $merge-prs to merge the approved PRs from this conversation, update their GitHub tickets, and clean their branches and worktrees."

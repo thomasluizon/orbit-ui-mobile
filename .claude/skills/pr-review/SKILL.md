@@ -55,7 +55,7 @@ loop is **unmeasured**. State it that honestly, and never claim the degraded mod
 Non-blocking.** `orbit-api/AGENTS.md` permits P0/P1 only: Critical maps to P0, High maps to P1,
 and Medium/Low/Info candidates are discarded before the receipt and create no ticket. For a
 surviving candidate, Blocking means it **breaks behaviour, security, or data integrity**.
-Everything else is **auto-filed as a follow-up Linear ticket** and never fixed in this PR. Apply
+Everything else is **auto-filed as a follow-up GitHub ticket** and never fixed in this PR. Apply
 the floor and classification once at report time; neither is renegotiated per round.
 
 **4. Diff-only scope.** Read `gh pr diff`. You are reviewing a diff, not a repository. Open a
@@ -137,7 +137,7 @@ orbit-api. A paired diff can be **both**. That classification gates which rubric
 3. Drop candidates below the target repository floor, then classify each survivor Blocking or
    Non-blocking by rule 3.
 4. Write `findings.json`. **The list is now frozen.**
-5. File every Non-blocking finding as a follow-up Linear ticket (one per finding, title = the
+5. File every Non-blocking finding as a follow-up GitHub ticket (one per finding, title = the
    claim, body = file, line, and the rubric dimension). They are not fixed in this PR.
 6. Zero Blocking findings means the review is over. Hand to Thomas.
 
@@ -163,12 +163,40 @@ orbit-api. A paired diff can be **both**. That classification gates which rubric
 ```json
 {"reviewerKind":"independent","verdict":"BLOCKING","rounds":1,
  "reviewedHeadOid":"<full head SHA>","baseSha":"<full base SHA>",
- "rubricBaseOid":"<full base SHA>","rubricArtifactPath":"<absolute snapshot path>",
+ "rubricRepositoryKey":"<ui|api|landing>","rubricCommitOid":"<full commit SHA>",
+ "rubricBlobOid":"<full blob SHA of rubric.md at that commit>",
+ "rubricArtifactPath":"<absolute snapshot path>",
  "artifactPath":"<absolute path to this file>",
  "frozenFindingIds":["F1"],
  "findings":[{"id":"F1","severity":"High","file":"apps/web/hooks/use-streak.ts","line":42,
    "claim":"one sentence: what is wrong and what goes wrong if it ships","blocking":true}]}
 ```
+
+### Rubric provenance: which rubric you read, and where it came from
+
+The four rubric fields are not bookkeeping. `record-readiness.mjs` proves them with git and refuses
+the receipt when they do not hold, so a review bound to the wrong or a stale rubric cannot reach
+READY. Fill them from the snapshot you were given:
+
+| Field | What it must be |
+|---|---|
+| `rubricRepositoryKey` | the repository the snapshot was materialized FROM |
+| `rubricCommitOid` | the commit it was materialized from, full 40 characters |
+| `rubricBlobOid` | `git rev-parse <rubricCommitOid>:.claude/skills/pr-review/rubric.md` |
+| `rubricArtifactPath` | the absolute path of the materialized snapshot you actually read |
+
+Two bindings, decided by the repository under review, not by you:
+
+- **The repository carries the rubric at the pull request's base** (orbit-ui-mobile, orbit-api).
+  `rubricRepositoryKey` is that repository and `rubricCommitOid` is the pull request's own base SHA.
+- **The repository carries no rubric** (orbit-landing-page has no `.claude` tree at any commit).
+  `rubricRepositoryKey` is `ui` and `rubricCommitOid` is orbit-ui-mobile's current `origin/main`.
+  Binding a landing review to its own base was impossible, and it is why four landing pull requests
+  reported `REVIEW_STALE` on 2026-08-08 while being complete on every other dimension.
+
+The snapshot is compared against the committed blob byte for byte, with line endings normalized. A
+hand-edited snapshot fails, a wrong blob fails, and a stale rubric fails. Do not invent these
+values: if you were not given a snapshot and its provenance, say so and stop.
 
 `severity` is descriptive and comes from the rubric's ladder. A candidate below the target
 repository floor never enters this array. `blocking` is the decision for a surviving candidate:

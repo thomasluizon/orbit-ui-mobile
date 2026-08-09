@@ -22,6 +22,7 @@
  */
 
 import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-auth.mjs"
+import { currentRunIdentifier, recordObservedIdentifiers } from "./lib/identifier-ledger.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
@@ -365,6 +366,21 @@ const threads = (node.reviewThreads?.nodes ?? [])
       claim: claimOf(body),
     }
   })
+
+/**
+ * This tool is the ONLY producer of review-thread node ids in the harness, so it is the only place
+ * that can attest one was really read back from GitHub. resolve-bot-thread.mjs writes with those
+ * ids, and on 2026-08-08 one of them was typed instead of copied and landed a reply on a stranger's
+ * repository. The ledger is what lets .claude/hooks/forbid-invented-identifier.mjs tell an id this
+ * harness observed from one it never saw. Recorded before either output branch, so a NO_REVIEW run
+ * that still returned threads records them too.
+ */
+recordObservedIdentifiers(threads.map((thread) => thread.id), {
+  repoRoot: githubCwd,
+  tool: "list-bot-threads.mjs",
+  repository,
+  runIdentifier: currentRunIdentifier(),
+})
 
 if (!evidence) {
   const stale = staleReviewOf(node)
