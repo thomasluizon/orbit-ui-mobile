@@ -70,28 +70,45 @@ export const writeRunState = (state, repoRoot = REPO_ROOT) => {
     ...(Array.isArray(state?.readinessLedger) ? state.readinessLedger : []),
     ...(Array.isArray(state?.pullRequests) ? state.pullRequests : []),
   ]
-  const readinessLedger = []
-  const seen = new Set()
+  /**
+   * One row per repository and pull request, in the order each was FIRST seen, but carrying the
+   * LATEST value of every field.
+   *
+   * First-seen-wins on the whole row was wrong. `identities` lists the previous ledger before the
+   * current state, so a pull request registered before its blocker was discovered kept the old row,
+   * and the blocker recorded by the later call was discarded. The run then believed nothing was
+   * blocking it. Ordering still comes from the first sighting, because the ledger is append only
+   * and a row must not move.
+   */
+  const rows = new Map()
   for (const entry of identities) {
     if (typeof entry?.repositoryKey !== "string" || !Number.isInteger(entry?.prNumber) || typeof entry?.receiptPath !== "string") continue
     const key = `${entry.repositoryKey}#${entry.prNumber}`
-    if (seen.has(key)) continue
-    seen.add(key)
-    /**
-     * A ledger row whose receipt file does not exist is a promise nobody kept. Measured 2026-08-08:
-     * four rows were accepted for receipts that were never written, and the Stop hook then read
-     * them as unreadable rather than as absent, which is a different and much quieter failure.
-     * The path is recorded either way, so the row is never silently dropped: `receiptWritten` says
-     * which it is, and the hook can name it.
-     */
-    readinessLedger.push({
-      repositoryKey: entry.repositoryKey,
-      prNumber: entry.prNumber,
-      receiptPath: entry.receiptPath,
-      receiptWritten: existsSync(entry.receiptPath),
-      blocker: typeof entry.blocker === "string" && entry.blocker !== "" ? entry.blocker : null,
-    })
+    const blocker = typeof entry.blocker === "string" && entry.blocker !== "" ? entry.blocker : null
+    const existing = rows.get(key)
+    if (!existing) {
+      rows.set(key, { repositoryKey: entry.repositoryKey, prNumber: entry.prNumber, receiptPath: entry.receiptPath, blocker })
+      continue
+    }
+    // A later sighting is the current one. It supersedes the receipt path, and it may add a blocker
+    // the earlier sighting did not know about. It may also clear one that has since been resolved.
+    existing.receiptPath = entry.receiptPath
+    existing.blocker = blocker
   }
+  /**
+   * A ledger row whose receipt file does not exist is a promise nobody kept. Measured 2026-08-08:
+   * four rows were accepted for receipts that were never written, and the Stop hook then read
+   * them as unreadable rather than as absent, which is a different and much quieter failure.
+   * The path is recorded either way, so the row is never silently dropped: `receiptWritten` says
+   * which it is, and the hook can name it.
+   */
+  const readinessLedger = [...rows.values()].map((row) => ({
+    repositoryKey: row.repositoryKey,
+    prNumber: row.prNumber,
+    receiptPath: row.receiptPath,
+    receiptWritten: existsSync(row.receiptPath),
+    blocker: row.blocker,
+  }))
   writeFileSync(runStatePath(repoRoot), `${JSON.stringify({ ...state, readinessLedger }, null, 2)}\n`)
 }
 
