@@ -12,6 +12,7 @@ import { readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 
 import { githubEnvironment, repositorySlug } from "../../tools/lib/github-auth.mjs"
+import { readTicket, resolveTicket } from "../../tools/lib/github-issues.mjs"
 import { runBounded } from "../../tools/lib/bounded-process.mjs"
 import { readOrchestratorConfig } from "../../tools/lib/orchestrator-config.mjs"
 import { readinessCiIsGreen, readinessReceiptMatchesLive, readinessReport } from "../../tools/lib/readiness-receipt.mjs"
@@ -64,11 +65,8 @@ const liveReceiptVerdict = async (entry, config) => {
     if (botRead.timedOut || botRead.error || botRead.status !== 0) return null
     const bot = JSON.parse(botRead.stdout)
 
-    const ORCA = process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs\\orca\\resources\\bin\\orca"
-    const linearRead = await runBounded(ORCA, ["linear", "issue", receipt.issue, "--full", "--json"], { timeoutMs: 45000, maxBuffer: 16 * 1024 * 1024 })
-    if (linearRead.timedOut || linearRead.error || linearRead.status !== 0) return null
-    const linear = JSON.parse(linearRead.stdout)?.result?.issue
-    if (typeof linear?.state?.name !== "string" || !Array.isArray(linear?.labels) || linear.labels.some((label) => typeof label?.name !== "string")) return null
+    const ticket = await readTicket(resolveTicket(receipt.issue).number)
+    if (typeof ticket?.status !== "string" || !Array.isArray(ticket?.labels) || ticket.labels.some((label) => typeof label?.name !== "string")) return null
 
     const live = {
       repositoryKey: entry.repositoryKey,
@@ -76,9 +74,8 @@ const liveReceiptVerdict = async (entry, config) => {
       baseSha: pr.baseRefOid,
       headSha: pr.headRefOid,
       draft: pr.isDraft,
-      linearIssue: receipt.issue,
-      linearStatus: linear.state.name,
-      linearVisibleEffect: linear.labels.some((label) => label.name === "visible-effect"),
+      ticket: receipt.issue,
+      ticketStatus: ticket.status,
       ciGreen: readinessCiIsGreen(pr.statusCheckRollup, requiredContexts),
       connectorPassed: bot?.verdict === "REVIEWED" && bot?.reviewedCommit === pr.headRefOid && bot?.baseRefOid === pr.baseRefOid,
       threadsComplete: bot?.threadsComplete === true,
@@ -123,6 +120,17 @@ try {
   if (verdict?.block) {
     process.stderr.write(verdict.message)
     process.exit(2)
+  }
+  /**
+   * A run that ends BLOCKED is allowed to end, and it must not look like one that finished. The
+   * banner goes to stderr and the hook still exits 0, because exit 2 is this hook's only confirmed
+   * channel back into the session and using it here would BLOCK the very ending it is describing.
+   * So this marks the transcript, and the orchestrate skill's report step carries the same
+   * distinction where the model certainly reads it. Stated rather than implied: this line is a
+   * record, not a guaranteed prompt.
+   */
+  if (verdict?.terminal === "BLOCKED") {
+    process.stderr.write(verdict.message)
   }
   process.exit(0)
 } catch {

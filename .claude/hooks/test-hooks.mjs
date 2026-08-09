@@ -17,7 +17,8 @@ import { fileURLToPath } from "node:url"
 
 import { checkGitCommand, checkGitWorktreeRemove } from "./_lib/rules-git.mjs"
 import { checkEfMigrationRawIndex } from "./_lib/rules-source.mjs"
-import { checkLinearMutation } from "./_lib/rules-linear.mjs"
+import { checkTicketMutation } from "./_lib/rules-tickets.mjs"
+import { checkInventedIdentifier, extractNodeIds } from "./_lib/rules-identifier.mjs"
 import { checkAdminMerge, checkBroadStaging, checkEngineInvocation } from "./_lib/rules-orchestrator.mjs"
 import { checkSleepStop } from "./_lib/rules-sleep.mjs"
 import { checkWorkerBrowser } from "./_lib/rules-worker.mjs"
@@ -309,40 +310,75 @@ T("sleep-stop: a record from another session allows", checkSleepStop({ state: sl
 // A blocked stop that blocks again is an infinite loop.
 T("sleep-stop: the second pass never blocks again", checkSleepStop({ state: sleeping, sessionId: "s1", stopHookActive: true, isAlive: dead }), null)
 
-console.log("\n# forbid-raw-linear-mutation (_lib/rules-linear.mjs)")
-// Every Linear WRITE goes through orca. Only the project overview document,
-// which orca cannot reach, may be mutated raw. READS stay open: /orchestrate
-// depends on `project(id) { content }`, which orca does not return.
-const LINEAR = "https://api.linear.app/graphql"
-const post = (body) => `curl -s ${LINEAR} -H "Authorization: $KEY" -d '{"query":"${body}"}'`
-T("linear: curl issueCreate blocks", blocks(checkLinearMutation(post('mutation { issueCreate(input: {title: \\"x\\"}) { success } }'))), true)
-T("linear: curl commentCreate blocks", blocks(checkLinearMutation(post('mutation { commentCreate(input: {body: \\"x\\"}) { success } }'))), true)
-T("linear: a named mutation with variables blocks", blocks(checkLinearMutation(post("mutation Add($i: IssueCreateInput!) { issueCreate(input: $i) { success } }"))), true)
-T("linear: an aliased field is judged on the real field", blocks(checkLinearMutation(post("mutation { made: issueCreate(input: {}) { success } }"))), true)
-T("linear: an inline fetch POST that mutates blocks", blocks(checkLinearMutation(`await fetch("${LINEAR}", { method: "POST", body: JSON.stringify({ query: "mutation { issueUpdate(id: $i, input: {}) { success } }" }) })`)), true)
-T("linear: an allowed mutation batched with a banned one blocks", blocks(checkLinearMutation(post("mutation { projectUpdate(id: $p, input: {}) { success } issueCreate(input: {}) { success } }"))), true)
-// Fails safe on a body it cannot read: the operation lives in the file, so the
-// command string carries no keyword to scan.
-T("linear: an @file payload blocks (fails safe)", blocks(checkLinearMutation(`curl -s ${LINEAR} --data-binary @payload.json`)), true)
-T("linear: an attached -d@file payload blocks", blocks(checkLinearMutation(`curl -s ${LINEAR} -d@payload.json`)), true)
-// The permitted writes and the read /orchestrate runs every launch.
-T("linear: projectUpdate allows", checkLinearMutation(post('mutation { projectUpdate(id: \\"x\\", input: {content: \\"y\\"}) { success } }')), null)
-T("linear: the project content read allows", checkLinearMutation(post('query { project(id: \\"x\\") { name content } }')), null)
-T("linear: an orca invocation allows", checkLinearMutation("orca linear save-issue ORB-1 --state Done"), null)
-// `--json` means "send this body" to curl but "print JSON" to orca, and pairing
-// it with the opaque-body arm blocked a plain orca read line in a skill doc.
-T("linear: an orca --json read line near the endpoint allows", checkLinearMutation(`see ${LINEAR} for reads; run \`orca linear list-issues --project "x" --json\` for the tickets`), null)
-T("linear: a non-Linear endpoint is none of this gate's business", checkLinearMutation('curl https://api.github.com/graphql -d \'{"query":"mutation { issueCreate }"}\''), null)
-T("linear: the bare word mutation is prose, allows", checkLinearMutation(`curl ${LINEAR} -d "mutation"`), null)
-// A document is judged per chunk: a mutation against another service does not
-// inherit a Linear endpoint documented elsewhere in the same file.
-const githubMutationInDoc = [`Read the overview by POSTing to ${LINEAR}.`, "", "```bash", "gh api graphql -f query='mutation{resolveReviewThread(input:{threadId:\"X\"}){thread{isResolved}}}'", "```"].join("\n")
-T("linear: a GitHub mutation does not inherit a Linear endpoint elsewhere in the doc", checkLinearMutation(githubMutationInDoc), null)
-// ...but a Linear mutation split from its endpoint by a blank line still blocks:
-// a Bash command CAN contain one, and dropping the far chunk let a real write through.
-T("linear: a mutation split from its endpoint by a blank line still blocks", blocks(checkLinearMutation([`curl -s ${LINEAR} -d '{"query":"mutation {`, "", 'issueCreate(input:{title:"x"}) { success }', '}"}\''].join("\n"))), true)
-// A gate that fires on prose gets switched off, so its false-positive rate is
-// part of its contract. Every widening of this rule so far hit a real doc.
+/**
+ * A run that CANNOT reach READY needs a legitimate terminal state. On 2026-08-08 a named blocker
+ * made READY unreachable and the only exits left were fabricating a receipt or clearing the ledger,
+ * both forbidden. That deadlock burned five turns.
+ *
+ * The bar is a RECORDED blocker string. A blocker is a fact the run writes down, never a verdict it
+ * asserts about its own work, which is what stops "ended blocked" becoming a cheaper "finished".
+ */
+const blockedEntry = { repositoryKey: "ui", prNumber: 698, receiptPath: "C:/receipt.json", receiptWritten: true, blocker: "SonarCloud new-code coverage 66.7% on a deletion-only diff" }
+const blockedRun = { ...sleeping, remaining: [], pullRequests: [], readinessLedger: [blockedEntry] }
+T("sleep-stop: a pull request with a RECORDED blocker may end the run", blocks(stop({ state: blockedRun })), false)
+T("sleep-stop: the blocked ending is reported as BLOCKED, never as finished", stop({ state: blockedRun })?.terminal, "BLOCKED")
+T("sleep-stop: the BLOCKED banner names the pull request and its blocker", stop({ state: blockedRun })?.message.includes("ui#698") && stop({ state: blockedRun })?.message.includes("SonarCloud"), true)
+// Without the recorded blocker the very same entry still blocks, which is what keeps the state honest.
+T("sleep-stop: the same entry with NO recorded blocker still blocks the stop", blocks(stop({ state: { ...blockedRun, readinessLedger: [{ ...blockedEntry, blocker: null }] } })), true)
+T("sleep-stop: an empty blocker string is not a blocker", blocks(stop({ state: { ...blockedRun, readinessLedger: [{ ...blockedEntry, blocker: "" }] } })), true)
+// A finished run must stay silent, or a BLOCKED banner on every ending means nothing.
+T("sleep-stop: a genuinely READY queue reports no terminal banner", checkSleepStop({ state: blockedRun, sessionId: "s1", isAlive: dead, receiptVerdict: () => "READY" }), null)
+// A live wake source means the TURN is ending, not the RUN. Announcing a final state there would be
+// the mirror of the defect: reporting an ending while work is still in flight.
+T(
+  "sleep-stop: a blocked pull request with a LIVE wake source reports nothing, because the run has not ended",
+  checkSleepStop({ state: blockedRun, wakeSources: [{ pid: 1 }], sessionId: "s1", isAlive: alive }),
+  null,
+)
+
+/** The ledger accepted four rows on 2026-08-08 whose receipt files were never written, and the hook
+ * read them as unreadable rather than as absent, which is quieter and easier to mistake for a fault. */
+const unwritten = { ...sleeping, remaining: [], pullRequests: [], readinessLedger: [{ repositoryKey: "ui", prNumber: 699, receiptPath: "C:/never-written.json", receiptWritten: false }] }
+T("sleep-stop: a ledger row whose receipt was never written blocks", blocks(stop({ state: unwritten })), true)
+T("sleep-stop: the refusal names the receipt path that was never written", stop({ state: unwritten })?.message.includes("C:/never-written.json"), true)
+
+console.log("\n# forbid-raw-ticket-mutation (_lib/rules-tickets.mjs)")
+const TICKET_REPO = "thomasluizon/orbit-tickets"
+const CODE_REPO = "thomasluizon/orbit-ui-mobile"
+T("tickets: issue edit in the ticket repository blocks", blocks(checkTicketMutation(`gh issue edit 215 --repo ${TICKET_REPO} --add-label Bug`)), true)
+T("tickets: attached short repo flag still blocks", blocks(checkTicketMutation(`gh issue close 215 -R${TICKET_REPO}`)), true)
+T("tickets: host-qualified ticket repository still blocks", blocks(checkTicketMutation(`gh issue delete 215 --repo github.com/${TICKET_REPO} --confirm`)), true)
+T("tickets: issue create in the ticket repository blocks", blocks(checkTicketMutation(`gh issue create --repo ${TICKET_REPO} --title x --body y`)), true)
+T("tickets: issue comment by ticket URL blocks", blocks(checkTicketMutation(`gh issue comment https://github.com/${TICKET_REPO}/issues/215 --body fixed`)), true)
+T("tickets: issue mutation with no target fails closed", blocks(checkTicketMutation("gh issue close 215")), true)
+T("tickets: issue edit in a code repository allows", checkTicketMutation(`gh issue edit 12 --repo ${CODE_REPO} --add-label Bug`), null)
+T("tickets: issue reads need no target", checkTicketMutation("gh issue list --state open"), null)
+T("tickets: every pull request command allows", checkTicketMutation(`gh pr view 12 --repo ${TICKET_REPO}`), null)
+T("tickets: ticket board item edit blocks", blocks(checkTicketMutation("gh project item-edit 2 --owner thomasluizon --id PVTI_x --field-id PVTSSF_x --single-select-option-id x")), true)
+T("tickets: project item mutation with no owner fails closed", blocks(checkTicketMutation("gh project item-delete 2 --id PVTI_x")), true)
+T("tickets: project node-id mutation fails closed", blocks(checkTicketMutation("gh project item-edit --owner thomasluizon --id PVTI_x --field-id x --project-id PVT_x --text value")), true)
+T("tickets: @me project owner fails closed", blocks(checkTicketMutation("gh project item-delete 2 --owner @me --id PVTI_x")), true)
+T("tickets: another project item mutation allows", checkTicketMutation("gh project item-edit 9 --owner octocat --id PVTI_x --field-id x --text value"), null)
+T("tickets: label create in the ticket repository blocks", blocks(checkTicketMutation(`gh label create urgent --repo ${TICKET_REPO}`)), true)
+T("tickets: label edit in a code repository allows", checkTicketMutation(`gh label edit bug --repo ${CODE_REPO} --color ff0000`), null)
+T("tickets: REST issue mutation in the ticket repository blocks", blocks(checkTicketMutation(`gh api repos/${TICKET_REPO}/issues/215 -X PATCH -f title=x`)), true)
+T("tickets: attached REST method and field flags still block", blocks(checkTicketMutation(`gh api repos/${TICKET_REPO}/issues/215 -XPATCH -ftitle=x`)), true)
+T("tickets: REST milestone mutation in the ticket repository blocks", blocks(checkTicketMutation(`gh api repos/${TICKET_REPO}/milestones -f title=Launch`)), true)
+T("tickets: REST issue read in the ticket repository allows", checkTicketMutation(`gh api repos/${TICKET_REPO}/issues/215`), null)
+T("tickets: REST issue mutation in a code repository allows", checkTicketMutation(`gh api repos/${CODE_REPO}/issues/12 -X PATCH -f title=x`), null)
+T("tickets: REST mutation with a placeholder target fails closed", blocks(checkTicketMutation("gh api repos/{owner}/{repo}/issues/12 -X PATCH -f title=x")), true)
+T("tickets: GraphQL project item mutation fails closed on an opaque node id", blocks(checkTicketMutation("gh api graphql -f query='mutation { deleteProjectV2Item(input: {projectId: $p, itemId: $i}) { deletedItemId } }'")), true)
+T("tickets: GraphQL closeIssue fails closed on an opaque node id", blocks(checkTicketMutation("gh api graphql -f query='mutation { closeIssue(input: {issueId: $i}) { issue { id } } }'")), true)
+T("tickets: GraphQL addComment fails closed on an opaque subject id", blocks(checkTicketMutation("gh api graphql -f query='mutation { addComment(input: {subjectId: $i, body: $b}) { commentEdge { node { id } } } }'")), true)
+T("tickets: opaque GraphQL input fails closed", blocks(checkTicketMutation("gh api graphql --input payload.json")), true)
+T("tickets: GraphQL pull request mutation allows", checkTicketMutation("gh api graphql -f query='mutation { resolveReviewThread(input: {threadId: $i}) { thread { isResolved } } }'"), null)
+T("tickets: a repository tool invocation allows", checkTicketMutation("node tools/sync-issue-state.mjs --issue ORB-215 --repo ui --state ready"), null)
+T("tickets: the ticket skill milestone read allows", checkTicketMutation(`gh api repos/${TICKET_REPO}/milestones?state=all&per_page=100 --paginate --jq .[].title`), null)
+T("tickets: the sanctioned milestone creator allows", checkTicketMutation("node tools/create-milestone.mjs --title Launch --description-file draft.md"), null)
+T("tickets: the sanctioned ticket creator allows", checkTicketMutation("node tools/create-ticket.mjs --title x --body-file draft.md --label repo:ui --label Improvement"), null)
+T("tickets: the post-merge completion preflight allows", checkTicketMutation('node tools/complete-ticket.mjs --issue "#221" --preflight'), null)
+T("tickets: the post-merge completion write allows", checkTicketMutation('node tools/complete-ticket.mjs --issue "#221"'), null)
+// A gate that fires on prose gets switched off, so its false-positive rate remains part of its contract.
 const tracked = spawnSync("git", ["-C", repoRoot, "ls-files", "*.md", ".claude/*", "tools/*"], { encoding: "utf8" })
 const docPaths = (tracked.status === 0 ? tracked.stdout.trim().split(/\r?\n/) : [])
   .filter(Boolean)
@@ -351,8 +387,8 @@ const docPaths = (tracked.status === 0 ? tracked.stdout.trim().split(/\r?\n/) : 
   .filter((relative) => !relative.startsWith(".claude/hooks/"))
   .map((relative) => join(repoRoot, relative))
   .filter((absolute) => existsSync(absolute) && statSync(absolute).isFile())
-T("linear: blocks none of this repo's tracked docs", docPaths.filter((path) => checkLinearMutation(readFileSync(path, "utf8"))?.block).map((path) => path.slice(repoRoot.length + 1)), [])
-T("linear: the doc scan actually read files", docPaths.length > 0, true)
+T("tickets: blocks none of this repo's tracked docs", docPaths.filter((path) => checkTicketMutation(readFileSync(path, "utf8"))?.block).map((path) => path.slice(repoRoot.length + 1)), [])
+T("tickets: the doc scan actually read files", docPaths.length > 0, true)
 
 console.log("\n# forbid-ef-migration-raw-index (_lib/rules-source.mjs)")
 // EF applies migrations at startup on Render, so raw index SQL must be
@@ -367,6 +403,48 @@ T("ef-index: a file off the migrations path is skipped", checkEfMigrationRawInde
 // One statement's IF NOT EXISTS must not mask a sibling in the same batched call.
 T("ef-index: a batched Sql with one non-idempotent statement blocks", blocks(checkEfMigrationRawIndex(migration, 'migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS ix_b ON foo (b); CREATE INDEX ix_a ON foo (a);");')), true)
 T("ef-index: a batched Sql with all idempotent statements allows", checkEfMigrationRawIndex(migration, 'migrationBuilder.Sql("CREATE INDEX IF NOT EXISTS ix_b ON foo (b); CREATE INDEX IF NOT EXISTS ix_a ON foo (a);");'), null)
+
+// An identifier a run WRITES with must have been READ by that run. On 2026-08-08 a typed
+// PRRT_ id resolved to a live thread on a stranger's public repository and replied there,
+// because node ids are globally unique and a wrong one does not fail.
+const OBSERVED = "PRRT_kwDOR5Siws6Wfy_V"
+const INVENTED = "PRRT_kwDOR5Siws6XdcAt"
+const seen = new Set([OBSERVED])
+const invented = (command, options = {}) => checkInventedIdentifier(command, { observedIdentifiers: seen, ...options })
+// THE incident, verbatim in shape: a typed id, and a `||` fallback that makes the write the probe.
+T(
+  "identifier: the incident command blocks",
+  blocks(invented(`printf 'fixed in %s' "$sha" | node tools/resolve-bot-thread.mjs --thread ${INVENTED} --repo ui --pr 699 || node tools/list-bot-threads.mjs --pr 699 --repo ui`)),
+  true,
+)
+T("identifier: the blocked message names the unknown id", invented(`gh api graphql -f thread=${INVENTED}`)?.message?.includes(INVENTED) === true, true)
+T("identifier: an observed id allows", invented(`node tools/resolve-bot-thread.mjs --thread ${OBSERVED} --repo ui --pr 699`), null)
+// One known id must not launder an unknown one in the same command.
+T("identifier: a known id beside an unknown one still blocks", blocks(invented(`gh api graphql -f a=${OBSERVED} -f b=${INVENTED}`)), true)
+T("identifier: only the unknown id is named", invented(`gh api graphql -f a=${OBSERVED} -f b=${INVENTED}`)?.message?.includes(OBSERVED) === true, false)
+// An id in text is not a target. A guard that fired on grep or an editor would be bypassed by habit.
+T("identifier: an id in a command that cannot reach GitHub allows", invented(`grep -n ${INVENTED} notes.md`), null)
+T("identifier: a gh command with no id at all allows", invented("gh pr view 699 --repo thomasluizon/orbit-ui-mobile"), null)
+// Ordinary upper-case shell words share the prefixes and are not node ids.
+T("identifier: PR_NUMBER is not a node id", extractNodeIds("gh pr view $PR_NUMBER"), [])
+T("identifier: IC_CONFIG is not a node id", extractNodeIds("gh api $IC_CONFIG"), [])
+T("identifier: a short body is not a node id", extractNodeIds("gh api PRRT_abc"), [])
+T("identifier: a real node id is extracted once, deduped", extractNodeIds(`gh api ${INVENTED} ${INVENTED}`), [INVENTED])
+T("identifier: PR_ and IC_ shapes are guarded too", extractNodeIds("gh api PR_kwDOR5Siws6abc IC_kwDOR5Siws6def").length, 2)
+T("identifier: an empty command allows", invented(""), null)
+// A heredoc BODY is data the command carries, not the command. This gate refused a
+// /second-opinion call whose body QUOTED the incident, and a guard that fires on writing ABOUT
+// the incident is one everybody learns to work around. The bypass it leaves is disclosed.
+T(
+  "identifier: an id quoted inside a heredoc body allows",
+  invented(`node .claude/skills/second-opinion/second-opinion.mjs <<'F'\nthe incident passed --thread ${INVENTED} to tools/resolve-bot-thread.mjs\nF`),
+  null,
+)
+T(
+  "identifier: the same id on the COMMAND LINE beside a heredoc still blocks",
+  blocks(invented(`node tools/resolve-bot-thread.mjs --thread ${INVENTED} --repo ui --pr 699 <<'F'\nfixed in abc\nF`)),
+  true,
+)
 
 // ---------------------------------------------------------------------------
 // 3. The real hook files: stdin payload in, exit code out
@@ -409,6 +487,49 @@ T("adapter worker-browser: a worker running the tests -> 0", runHook(BROWSER, ba
 T("adapter worker-browser: the same dev server outside a worker -> 0", runHook(BROWSER, bash("npm run dev")), 0)
 
 /**
+ * The invented-identifier adapter, on both of its evidence sources. The ledger case writes THIS
+ * checkout's real ledger, because that is the only path list-bot-threads.mjs writes, and restores
+ * whatever was there. The scratchpad case stages a session directory under the real scratchpad
+ * layout, so the id-in-an-artifact path is exercised without touching any repository.
+ */
+const IDENT_HOOK = "forbid-invented-identifier.mjs"
+const IDENT_SESSION = "orbit-hooks-gate-identifier-session"
+const resolveCommand = (id) => `node tools/resolve-bot-thread.mjs --thread ${id} --repo ui --pr 699`
+const identPayload = (command, sessionId = IDENT_SESSION) => ({ tool_name: "Bash", tool_input: { command }, cwd: repoRoot, session_id: sessionId })
+
+T("adapter identifier: an id this run never read -> 2", runHook(IDENT_HOOK, identPayload(resolveCommand(INVENTED))), 2)
+T("adapter identifier: a command with no id at all -> 0", runHook(IDENT_HOOK, identPayload("node tools/list-bot-threads.mjs --pr 699 --repo ui")), 0)
+T(
+  "adapter identifier: the PowerShell tool is guarded too, not only Bash -> 2",
+  runHook(IDENT_HOOK, { tool_name: "PowerShell", tool_input: { command: resolveCommand(INVENTED) }, cwd: repoRoot, session_id: IDENT_SESSION }),
+  2,
+)
+
+const scratchpadArtifact = join(tmpdir(), "claude", "orbit-hooks-gate-project", IDENT_SESSION, "scratchpad", "threads.json")
+mkdirSync(dirname(scratchpadArtifact), { recursive: true })
+writeFileSync(scratchpadArtifact, JSON.stringify({ threads: [{ id: INVENTED }] }))
+try {
+  T("adapter identifier: the same id read from a session artifact -> 0", runHook(IDENT_HOOK, identPayload(resolveCommand(INVENTED))), 0)
+  T("adapter identifier: another session cannot borrow that artifact -> 2", runHook(IDENT_HOOK, identPayload(resolveCommand(INVENTED), "a-different-session")), 2)
+} finally {
+  rmSync(join(tmpdir(), "claude", "orbit-hooks-gate-project"), { recursive: true, force: true })
+}
+
+const { identifierLedgerPath, recordObservedIdentifiers } = await import("../../tools/lib/identifier-ledger.mjs")
+const ledgerPath = identifierLedgerPath(repoRoot)
+const priorLedger = existsSync(ledgerPath) ? readFileSync(ledgerPath, "utf8") : null
+try {
+  recordObservedIdentifiers([INVENTED], { repoRoot, tool: "test-hooks.mjs", runIdentifier: "an-earlier-session" })
+  T("adapter identifier: an id recorded by an earlier run -> 2", runHook(IDENT_HOOK, identPayload(resolveCommand(INVENTED))), 2)
+  recordObservedIdentifiers([INVENTED], { repoRoot, tool: "test-hooks.mjs", runIdentifier: IDENT_SESSION })
+  T("adapter identifier: an id recorded by this run -> 0", runHook(IDENT_HOOK, identPayload(resolveCommand(INVENTED))), 0)
+} finally {
+  if (priorLedger === null) rmSync(ledgerPath, { force: true })
+  else writeFileSync(ledgerPath, priorLedger)
+}
+T("adapter identifier: the ledger is restored, so the id blocks again -> 2", runHook(IDENT_HOOK, identPayload(resolveCommand(INVENTED))), 2)
+
+/**
  * The Stop adapter reads THIS checkout's real run record, because that is the only path a live run
  * writes. The fixture carries its own session id, so even a leaked file cannot block a real session:
  * a session id that does not match is treated as a previous run's and ignored.
@@ -435,14 +556,14 @@ try {
   if (priorState === null) rmSync(runStatePath(), { force: true })
   else writeFileSync(runStatePath(), priorState)
 }
-// The Linear guard is wired to BOTH events: the shell call, and the script that
-// will make it. Only the second can be pre-empted before anything reaches Linear.
-const LINEAR_HOOK = "forbid-raw-linear-mutation.mjs"
-T("adapter linear: bash issueCreate -> 2", runHook(LINEAR_HOOK, bash(post("mutation { issueCreate(input: {}) { success } }"))), 2)
-T("adapter linear: bash content read -> 0", runHook(LINEAR_HOOK, bash(post("query { project(id: $p) { content } }"))), 0)
-const mutatingScript = { tool_name: "Write", tool_input: { file_path: join(root, "post.mjs"), content: `fetch("${LINEAR}", { body: '{"query":"mutation { issueCreate(input: {}) { id } }"}' })` } }
-T("adapter linear: a written script that mutates -> 2", runHook(LINEAR_HOOK, mutatingScript), 2)
-T("adapter linear: an unrelated command -> 0", runHook(LINEAR_HOOK, bash("npm test")), 0)
+// The ticket guard is wired to BOTH events: the shell call and source that would issue it later.
+const TICKET_HOOK = "forbid-raw-ticket-mutation.mjs"
+T("adapter tickets: raw issue edit -> 2", runHook(TICKET_HOOK, bash(`gh issue edit 215 --repo ${TICKET_REPO} --add-label Bug`)), 2)
+T("adapter tickets: pull request read -> 0", runHook(TICKET_HOOK, bash(`gh pr view 12 --repo ${CODE_REPO}`)), 0)
+const mutatingScript = { tool_name: "Write", tool_input: { file_path: join(root, "post.mjs"), content: `gh issue comment 215 --repo ${TICKET_REPO} --body fixed` } }
+T("adapter tickets: a written script that mutates -> 2", runHook(TICKET_HOOK, mutatingScript), 2)
+T("adapter tickets: a repository tool source edit -> 0", runHook(TICKET_HOOK, { ...mutatingScript, tool_input: { ...mutatingScript.tool_input, file_path: join(repoRoot, "tools", "ticket-write.mjs") } }), 0)
+T("adapter tickets: an unrelated command -> 0", runHook(TICKET_HOOK, bash("npm test")), 0)
 
 // The EF adapter re-reads the file from disk after the edit lands, so these need real files.
 const EF_HOOK = "forbid-ef-migration-raw-index.mjs"
@@ -499,6 +620,78 @@ for (const relative of definitionFiles) {
 }
 // A guard that scanned nothing passes vacuously; make that a failure instead.
 T("frontmatter: the scan actually read definitions", definitionFiles.length > 0, true)
+
+/**
+ * Every `node tools/<tool>.mjs --flag` a skill prescribes must name flags that tool accepts.
+ *
+ * The GitHub migration renamed tools and changed their flags, and the skills kept prescribing the
+ * old ones. `record-readiness.mjs --linear <json>` and a `teardown-worktree.mjs` call with no
+ * `--repo` both survived every gate and both would have failed at 03:00, after a worker had already
+ * done the work. Prose that names a command is an interface claim, and an unchecked interface claim
+ * is the defect class this repository exists to prevent.
+ */
+const toolFlagSets = new Map()
+const flagsAcceptedBy = (tool) => {
+  if (toolFlagSets.has(tool)) return toolFlagSets.get(tool)
+  const path = join(repoRoot, "tools", tool)
+  if (!existsSync(path)) {
+    toolFlagSets.set(tool, null)
+    return null
+  }
+  const source = readFileSync(path, "utf8")
+  const flags = new Set(source.match(/--[a-z][a-z0-9-]*/g) ?? [])
+  toolFlagSets.set(tool, flags)
+  return flags
+}
+
+const prescribed = []
+for (const relative of skillFiles) {
+  const text = readFileSync(join(repoRoot, relative), "utf8")
+  for (const line of text.split(/\r?\n/)) {
+    const invocation = line.match(/^\s*node\s+tools\/([a-z0-9-]+\.mjs)\s+(.*)$/)
+    if (!invocation) continue
+    // A trailing shell comment is prose, not an argument. `--board  # --auto` names one flag.
+    const [, tool, restWithComment] = invocation
+    const rest = restWithComment.split("#")[0]
+    const accepted = flagsAcceptedBy(tool)
+    if (accepted === null) {
+      prescribed.push([relative, tool, "the tool does not exist"])
+      continue
+    }
+    for (const flag of rest.match(/--[a-z][a-z0-9-]*/g) ?? []) {
+      if (!accepted.has(flag)) prescribed.push([relative, tool, `does not accept ${flag}`])
+    }
+  }
+}
+for (const [relative, tool, problem] of prescribed) {
+  T(`skill commands: ${relative} prescribes ${tool} which ${problem}`, false)
+}
+T("skill commands: every prescribed tool invocation names flags the tool accepts", prescribed.length === 0, true)
+T("skill commands: the scan actually found invocations", toolFlagSets.size > 0, true)
+
+/**
+ * Unresolved conflict markers, committed twice during the GitHub migration and caught both times by
+ * looking rather than by any gate. A pre-commit hook does not check for them and neither did
+ * anything else, so a merge resolved by a substitution that silently matched nothing shipped.
+ */
+const markerHits = []
+const scanForMarkers = (directory) => {
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    if (entry.name === "node_modules" || entry.name === ".git") continue
+    const full = join(directory, entry.name)
+    if (entry.isDirectory()) {
+      scanForMarkers(full)
+      continue
+    }
+    if (!/\.(mjs|js|ts|tsx|json|md|ya?ml)$/.test(entry.name)) continue
+    for (const line of readFileSync(full, "utf8").split(/\r?\n/)) {
+      if (/^(<{7}|>{7}) /.test(line)) markerHits.push(`${full.slice(repoRoot.length + 1)}: ${line.slice(0, 40)}`)
+    }
+  }
+}
+for (const top of ["tools", ".claude"]) scanForMarkers(join(repoRoot, top))
+for (const hit of markerHits) T(`conflict markers: ${hit}`, false)
+T("conflict markers: no unresolved merge markers are committed", markerHits.length === 0, true)
 
 console.log(`\n${fails === 0 ? "ORBIT HOOKS OK" : `ORBIT HOOKS FAILED (${fails})`}`)
 process.exit(fails === 0 ? 0 : 1)

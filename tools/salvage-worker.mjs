@@ -7,10 +7,11 @@ import { isAbsolute, relative, resolve } from "node:path"
 
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
+import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readinessReceiptPath } from "./lib/readiness-receipt.mjs"
 import { readRunState, writeRunState } from "./lib/run-state.mjs"
 
-const USAGE = `usage: salvage-worker.mjs --issue ORB-N --repo <key> [--pr <number>] --worktree <path> --branch <name> --run-root <path> --test-command <json> --test-receipt <path> --message <text> --path <relative-path> [--path <relative-path> ...] [--command-timeout-seconds <s>]
+const USAGE = `usage: salvage-worker.mjs --issue <ORB-N|#N|N> --repo <key> [--pr <number>] --worktree <path> --branch <name> --run-root <path> --test-command <json> --test-receipt <path> --message <text> --path <relative-path> [--path <relative-path> ...] [--command-timeout-seconds <s>]
 
 The test-command file is {"command":"<executable>","args":["..."]}. The tool runs it in the
 worktree and persists its real exit receipt before staging. Only repeated, explicitly named --path
@@ -35,7 +36,7 @@ const known = new Set([...valueFlags, "--help", "-h"])
 const unknown = process.argv.slice(2).filter((value, index, args) => value.startsWith("-") && !known.has(value) && !valueFlags.has(args[index - 1]))
 if (unknown.length) fail(2, `${USAGE}\n\nunknown option(s): ${unknown.join(" ")}`)
 
-const issue = argOf("--issue")
+const issueArgument = argOf("--issue")
 const repoKey = argOf("--repo")
 const prRaw = argOf("--pr")
 const prNumber = prRaw === null ? null : Number(prRaw)
@@ -48,7 +49,7 @@ const message = argOf("--message")
 const commandTimeoutSeconds = Number(argOf("--command-timeout-seconds") ?? "45")
 const paths = valuesOf("--path")
 const normalizedPaths = []
-if (!/^[A-Z][A-Z0-9]*-\d+$/.test(issue ?? "") || !repoKey || (prNumber !== null && (!Number.isInteger(prNumber) || prNumber < 1)) || !branch || !testCommandPath || !testReceiptPath || !message || paths.length === 0) fail(2, USAGE)
+if (!issueArgument || !repoKey || (prNumber !== null && (!Number.isInteger(prNumber) || prNumber < 1)) || !branch || !testCommandPath || !testReceiptPath || !message || paths.length === 0) fail(2, USAGE)
 if (!Number.isFinite(commandTimeoutSeconds) || commandTimeoutSeconds <= 0) fail(2, "--command-timeout-seconds requires a positive number")
 if (!isAbsolute(testCommandPath) || !isAbsolute(testReceiptPath)) fail(2, "--test-command and --test-receipt must be absolute scratchpad paths")
 const receiptRelative = relative(worktree, resolve(testReceiptPath))
@@ -77,6 +78,15 @@ try {
   fail(2, error.message)
 }
 if (typeof config.repos?.[repoKey] !== "string") fail(2, `unknown repository key "${repoKey}"`)
+
+let issue
+try {
+  const resolvedTicket = resolveTicket(issueArgument)
+  assertRepositoryLabel(await readTicket(resolvedTicket.number), repoKey)
+  issue = resolvedTicket.identifier ?? `#${resolvedTicket.number}`
+} catch (error) {
+  fail(2, `ticket assertion failed: ${error.message}`)
+}
 
 let testOrder
 try {

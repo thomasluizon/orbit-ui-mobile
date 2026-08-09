@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "generation": {
+    "method": "Captured from one real read-only gh GraphQL invocation. The command and complete JSON response are retained exactly.",
+    "repository": "thomasluizon/orbit-ui-mobile",
+    "pullRequest": 700
+  },
+  "command": [
+    "gh",
+    "api",
+    "graphql",
+    "-f",
+    "query=query($thread:ID!){node(id:$thread){__typename ... on PullRequestReviewThread {repository{nameWithOwner} pullRequest{number}}}}",
+    "-f",
+    "thread=PRRT_kwDOR5Siws6XfXZF"
+  ],
+  "observedExitCode": 0,
+  "response": {
+    "data": {
+      "node": {
+        "__typename": "PullRequestReviewThread",
+        "repository": {
+          "nameWithOwner": "thomasluizon/orbit-ui-mobile"
+        },
+        "pullRequest": {
+          "number": 700
+        }
+      }
+    }
+  },
+  "paths": {
+    "$": {
+      "types": [
+        "object"
+      ]
+    },
+    "$.data": {
+      "types": [
+        "object"
+      ]
+    },
+    "$.data.node": {
+      "types": [
+        "object"
+      ]
+    },
+    "$.data.node.__typename": {
+      "types": [
+        "string"
+      ]
+    },
+    "$.data.node.repository": {
+      "types": [
+        "object"
+      ]
+    },
+    "$.data.node.repository.nameWithOwner": {
+      "types": [
+        "string"
+      ]
+    },
+    "$.data.node.pullRequest": {
+      "types": [
+        "object"
+      ]
+    },
+    "$.data.node.pullRequest.number": {
+      "types": [
+        "number"
+      ]
+    }
+  }
+}

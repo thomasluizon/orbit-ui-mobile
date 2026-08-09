@@ -1,7 +1,7 @@
 ---
 name: orchestrate
-description: Tickets in, reviewed pull requests out. Plans a queue from one ticket, several, or a project, then per ticket opens a worktree, launches a headless worker, verifies delivery from artifacts, runs a capped cross-vendor review and clears the Codex bot's threads. --sleep works the whole queue unattended. A machine never merges unasked.
-argument-hint: <ORB-N | ORB-A ORB-B | project> [--sleep] [--parallel] [--auto] [--codex-only]
+description: Tickets in, reviewed pull requests out. Plans a queue from one ticket, several, or a milestone, then per ticket opens a worktree, launches a headless worker, verifies delivery from artifacts, runs a capped cross-vendor review and clears the Codex bot's threads. --sleep works the whole queue unattended. A machine never merges unasked.
+argument-hint: <ORB-N | #N | ticket references | milestone> [--sleep] [--parallel] [--auto] [--codex-only]
 effort: high
 ---
 
@@ -9,7 +9,7 @@ effort: high
 
 Constants:
 
-- orca binary `C:\Users\thoma\AppData\Local\Programs\orca\resources\bin\orca`, Linear team `ORB`.
+- Ticket repository `thomasluizon/orbit-tickets`; the configured Projects v2 board carries Status.
 - The session always runs from orbit-ui-mobile (D17). Each worktree opens in whichever repo its
   ticket's `repo:*` label names.
 - **Scratchpad** = this session's scratchpad directory. Every prompt, diff, log and findings file
@@ -19,8 +19,9 @@ Constants:
 
 ```
 /orchestrate ORB-N                      one ticket, exactly as before
-/orchestrate ORB-A ORB-B ORB-C          those tickets, in dependency order
-/orchestrate "<project name>"           every open ticket in that project
+/orchestrate #N                         one post-migration GitHub ticket
+/orchestrate ORB-A #123 #456            those tickets, in dependency order
+/orchestrate "<milestone title>"        every open ticket in that milestone
 /orchestrate --auto                     the whole board, highest leverage first
 ```
 
@@ -56,7 +57,7 @@ run it always was.
                      the first worktree. Answers that remove a ticket remove it now.
                      THEN write .git/orbit-orchestrate-run.json: session, sleep, remaining[]
                                         ---- per ticket, in wave order ----
- 3  Worktree         orca worktree create; git switch -c feature/orb-N-<slug>
+ 3  Worktree         orca worktree create; git switch -c feature/<ticket-slug>-<slug>
                      stackParent set -> branch from ITS branch, not from main
  4  Compose prompt   ticket verbatim + comments + ORCHESTRATOR'S BRIEF + finishing contract
                      written to the scratchpad, never inside a repo
@@ -67,7 +68,7 @@ run it always was.
                      git rev-list --count <base>..HEAD -> >= 1
                      git rev-list origin/<br>..HEAD    -> 0  (pushed)
                      gh pr list --head <br>            -> exactly 1, headRefOid matches
-                     PR title or body names ORB-N      -> the branch alone is not the link
+                     PR title or body names the actual ticket reference -> the branch alone is not the link
                      additions+deletions and changedFiles -> advisory review information only
                      compare base...head               -> behind_by = 0
                      statusCheckRollup, both node shapes -> no check red, none pending
@@ -92,10 +93,10 @@ run it always was.
                      alone. Re-verify and request current-head review after every push, within bound.
 13  READINESS LOOP   wait CI · fix genuine failures · clean independent final-head review · request
                      current-head connector · fix/reply/resolve every actionable thread · merge main
-                     into branch when behind · rerun invalidated receipts · synchronize Linear
+                     into branch when behind · rerun invalidated receipts · synchronize the ticket
                      READY only when every receipt names the same current head and base SHA
 14  Hand over        PR URL, advisory diff size, receipt and READY verdict.
-                     READY -> In Review, EXCEPT visible-effect: In Progress, visual check owed.
+                     READY -> In Review.
                      UPDATE remaining[] in .git/orbit-orchestrate-run.json
                      no --sleep -> STOP and wait for `continue`  ·  --sleep -> next ticket
                      --sleep: a turn ends ONLY with a live background task, NAMED  [Stop hook]
@@ -110,18 +111,18 @@ run it always was.
 These interfaces are fixed. Do not invent flags or variants.
 
 ```
-node tools/plan-queue.mjs        (--tickets ORB-1,ORB-2 | --project <name> | --board) [--format markdown]
-node tools/compose-prompt.mjs    --issue ORB-N --repo <key> --out <file> [--worktree <p>] [--branch <b>] [--base <ref>]
-node tools/launch-worker.mjs     --issue ORB-N --worktree <p> --prompt <f> [--codex-only]
-node tools/launch-worker.mjs     --issue ORB-N --review --repo <key> --prompt <f> [--codex-only]
-node tools/verify-delivery.mjs   --issue ORB-N --worktree <p> --branch <b> --repo <key> [--base <ref>] [--wait-ci <s>] [--codex-only]
+node tools/plan-queue.mjs        (--tickets ORB-1,ORB-2 | --board) [--format markdown]
+node tools/compose-prompt.mjs    --issue "<ticket-ref>" --repo <key> --out <file> [--worktree <p>] [--branch <b>] [--base <ref>]
+node tools/launch-worker.mjs     --issue "<ticket-ref>" --worktree <p> --prompt <f> [--codex-only]
+node tools/launch-worker.mjs     --issue "<ticket-ref>" --review --repo <key> --prompt <f> [--codex-only]
+node tools/verify-delivery.mjs   --issue "<ticket-ref>" --worktree <p> --branch <b> --repo <key> [--base <ref>] [--wait-ci <s>] [--codex-only]
 node tools/list-bot-threads.mjs  --pr <n-or-url> --repo <key> [--wait-seconds <s>] [--no-request]
-node tools/resolve-bot-thread.mjs --thread <PRRT_...> --repo <key>   # reply body on stdin
-node tools/salvage-worker.mjs    --issue ORB-N --repo <key> [--pr <n>] --worktree <p> --branch <b> --run-root <p> --test-command <json> --test-receipt <json> --message <m> --path <path>...
-node tools/sync-linear-state.mjs --issue ORB-N --repo <key> --pr <n> --state <working|blocked|visual|ready> --head-sha <sha> --base-sha <sha> --message-file <path|->
-node tools/record-readiness.mjs  --repo <key> --pr <n> --delivery <json> --review <json> --bot <json> --linear <json> [--codex-only]
+node tools/resolve-bot-thread.mjs --thread <PRRT_...> --repo <key> --pr <number>   # reply body on stdin
+node tools/salvage-worker.mjs    --issue "<ticket-ref>" --repo <key> [--pr <n>] --worktree <p> --branch <b> --run-root <p> --test-command <json> --test-receipt <json> --message <m> --path <path>...
+node tools/sync-issue-state.mjs  --issue "<ticket-ref>" --repo <key> --pr <n> --state <working|blocked|ready> --head-sha <sha> --base-sha <sha> --message-file <path|->
+node tools/record-readiness.mjs  --repo <key> --pr <n> --delivery <json> --review <json> --bot <json> --ticket <json> [--codex-only]
 node tools/record-readiness.mjs  --repo <key> --pr <n> --review <round-one-json> --register-round-one
-node tools/teardown-worktree.mjs --issue ORB-N
+node tools/teardown-worktree.mjs --issue "<ticket-ref>" --repo <key>
 ```
 
 The launcher is the ONLY sanctioned way to start a model session, reviewer included. A raw `claude`
@@ -238,6 +239,37 @@ and its own source is why: `const MEASURABLE_BASELINE_KEY = /^(?:CLAUDE\.md|\.cl
 It could not see the two global files, `hot.md`, or the skill descriptions, which alone are the
 single largest source.
 
+### Assert the run can actually review and can actually mint a receipt
+
+Both structural blockers of 2026-08-08 were discoverable HERE, before the first worktree, while the
+question gate was still open. Both instead surfaced mid-run, when every remaining option was bad: 76
+tickets stood down for an unlaunchable reviewer, and four complete landing pull requests stuck on
+`REVIEW_STALE`. A failure here is a **step 2b QUESTION printed before any worker spawns**, never a
+mid-run discovery.
+
+```bash
+# 1. The pr-review contract pair must agree, by COMMITTED BLOB, for ui and api.
+for p in .claude/skills/pr-review/SKILL.md .claude/skills/pr-review/rubric.md; do
+  u=$(git -C <ui>  rev-parse "HEAD:$p")
+  a=$(git -C <api> rev-parse "HEAD:$p")
+  [ "$u" = "$a" ] || echo "PARITY BLOCKED $p: ui $u, api $a"
+done
+
+# 2. Every repo in the plan must be able to mint a receipt, which means its rubric binding resolves.
+#    A repo that carries the rubric at main binds to its own base; one that does not binds to ui's
+#    origin/main, and that copy must exist.
+git -C <ui> rev-parse "origin/main:.claude/skills/pr-review/rubric.md" >/dev/null \
+  || echo "RECEIPT BLOCKED: the canonical rubric is missing on ui origin/main"
+for r in <every repo key in the plan>; do
+  git -C <repo> rev-parse "HEAD:.claude/skills/pr-review/rubric.md" >/dev/null 2>&1 \
+    && echo "$r binds own-base" || echo "$r binds canonical-main (ui)"
+done
+```
+
+Print the binding each repo resolved to. A run that cannot say which rubric its reviews will be
+bound to is a run whose receipts will be refused, and it should ask before it spends a worker budget
+rather than after.
+
 ### D33. Assert no skill name exists in both scopes
 
 ```bash
@@ -261,10 +293,14 @@ Expected state: `~/.claude/skills/` holds exactly 12 dirs (`brain`, `brain-agend
 ## Step 1. Plan the queue
 
 ```bash
-node tools/plan-queue.mjs --tickets ORB-A,ORB-B          # explicit list
-node tools/plan-queue.mjs --project "<name>"             # a Linear project
+node tools/plan-queue.mjs --tickets ORB-A,#123           # explicit list
 node tools/plan-queue.mjs --board                        # --auto
 ```
+
+For a milestone scope, first read its live membership with `gh issue list --repo
+thomasluizon/orbit-tickets --milestone "<exact title>" --state open --limit 1000 --json number`.
+Pass only the returned issue numbers to `plan-queue.mjs --tickets`. Do not substitute the whole
+Projects v2 board. A milestone is a completion body; the board also contains the holding pen.
 
 It returns `admitted`, `deferred`, `waves` and `stacks`. **Print the plan and every deferral before
 any work starts.** A ticket dropped at 03:00 that Thomas only discovers at 08:00 is a wasted night;
@@ -274,7 +310,7 @@ Then read each admitted ticket in full **with its comments**, because the plan c
 labels, not bodies:
 
 ```bash
-orca linear issue ORB-N --comments --json
+gh issue view <ticket-number> --repo thomasluizon/orbit-tickets --comments
 ```
 
 **A comment is part of the work order, not commentary on it.** A comment saying the ticket has to be
@@ -307,8 +343,6 @@ evidence, not a verdict** (the same sentence under Out of scope means the opposi
 under Scope), and **counting bullets under Affected modules over-counts**, because that list carries
 test files and read-only references. ORB-86 named two orbit-api files it never touched. A marginal
 count is therefore a `warnings` entry on an ADMITTED ticket, not a deferral. Print those warnings.
-
-`visible-effect` is **not** a deferral. Those tickets run; step 13 withholds In Review instead.
 
 ## Step 2b. The question gate, BOTH modes
 
@@ -373,12 +407,14 @@ broken drift gate, partial behavior, or detached migration merely to reduce a nu
 
 ```bash
 orca worktree create --repo path:<repo> --name <slug> --base-branch main \
-  --linear-issue ORB-N --no-parent --comment "<one line>" --json
+  --issue <ticket-number> --no-parent --comment "<one line>" --json
 ```
 
-Orca creates `refs/heads/<gituser>/<name>`. That is not the contract branch. In the worktree run
-`git switch -c feature/orb-N-<slug>` (`fix/` for a bug ticket) and confirm HEAD landed on it. The
-branch is never left to the worker to remember.
+Orca creates `refs/heads/<gituser>/<name>`. That is not the contract branch. Derive the ticket slug
+from its actual reference: `orb-N` for a migrated ORB identifier, or `ticket-N` for a GitHub-only
+`#N`. In the worktree run `git switch -c feature/<ticket-slug>-<slug>` (`fix/` for a bug ticket) and
+confirm HEAD landed on it. Never invent an ORB identifier. The branch is never left to the worker
+to remember.
 
 ### Stacking, when the plan says so
 
@@ -386,8 +422,8 @@ A ticket whose plan entry carries a `stackParent` **branches from that parent's 
 main**, and its pull request targets that branch:
 
 ```bash
-git switch -c feature/orb-N-<slug> feature/orb-<parent>-<slug>
-# and the worker's finishing contract opens the PR with:  --base feature/orb-<parent>-<slug>
+git switch -c feature/<ticket-slug>-<slug> feature/<parent-ticket-slug>-<slug>
+# and the worker's finishing contract opens the PR with:  --base feature/<parent-ticket-slug>-<slug>
 ```
 
 Pass the parent branch to `verify-delivery.mjs` as `--base` too, or `git rev-list --count
@@ -405,7 +441,7 @@ dependency. `plan-queue.mjs` defers it as `UNSTACKABLE_BLOCKERS_IN_QUEUE` and th
 still plans, which is the whole difference from the exit-2 refusal this replaced.
 
 There is no live "have the blockers merged yet" check to write, because the answer is fixed by
-construction: a blocker whose work already merged is Done in Linear and was deferred as `CLOSED`
+construction: a blocker whose work already merged is closed with board Status Done and was deferred as `CLOSED`
 before it could count. Every blocker still counted is open, in this queue, and cannot merge before
 the ticket waiting on it.
 
@@ -430,7 +466,7 @@ construction: the child's branch cannot exist until the parent's does.
 ## Step 4. Compose the prompt
 
 ```bash
-node tools/compose-prompt.mjs --issue ORB-N --repo <key> --out <scratchpad>/orb-N-prompt.md \n  --worktree <worktree path> --branch <contract branch> --base <base branch>
+node tools/compose-prompt.mjs --issue "<ticket-ref>" --repo <key> --out <scratchpad>/<ticket-slug>-prompt.md \n  --worktree <worktree path> --branch <contract branch> --base <base branch>
 ```
 
 The file carries, in order:
@@ -439,8 +475,9 @@ The file carries, in order:
 2. **The orchestrator's brief:** target repo and its absolute path, the branch already checked out,
    the base branch, the affected-file list from step 2, and the scope boundary as a hard limit.
 3. **The finishing contract:** run lint, type-check and tests for the touched workspace; commit;
-   push; open a PR to `main` whose body links `ORB-N`; attach the PR URL to the Linear issue with
-   `orca linear attach`. Cross-platform parity and i18n key parity land in the same commit.
+   push; open a PR to `main` whose body links the ticket URL and names its actual reference. The ticket-state
+   synchronizer posts the PR URL back to the issue. Cross-platform parity and i18n key parity land
+   in the same commit.
    **The worker never merges and never opens a second PR.**
 
 Write it to the scratchpad. A prompt file inside the worktree gets committed by the worker.
@@ -448,7 +485,7 @@ Write it to the scratchpad. A prompt file inside the worktree gets committed by 
 ## Steps 5 and 6. Spawn the worker
 
 ```bash
-node tools/launch-worker.mjs --issue ORB-N --worktree <p> --prompt <f> [--codex-only]
+node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--codex-only]
 ```
 
 Headless, `stdin=NUL`, `cwd` = the worktree, log to the scratchpad.
@@ -465,7 +502,7 @@ running. There is nothing to poll, nothing to babysit, and no monitor to arm.
 ## Step 7. Verify delivery, out of band
 
 ```bash
-node tools/verify-delivery.mjs --issue ORB-N --worktree <p> --branch <b> --repo <key> --wait-ci <seconds> [--codex-only]
+node tools/verify-delivery.mjs --issue "<ticket-ref>" --worktree <p> --branch <b> --repo <key> --wait-ci <seconds> [--codex-only]
 ```
 
 It is the SOLE authority for the word "delivered". Exit 0 means `DELIVERED`.
@@ -481,6 +518,19 @@ It is the SOLE authority for the word "delivered". Exit 0 means `DELIVERED`.
 | `OUT_OF_DATE` | GitHub compare says `behind_by > 0`; reports the base SHA, head SHA and count |
 | `CI_FAILING` | a required or gating check concluded red on the current head |
 | `CI_PENDING` | nothing is red but checks are still running |
+
+### `DRAFT` is mandatory to clear here, before step 8
+
+`gh pr ready <n>`, then re-run `verify-delivery.mjs`. There is no reading of `DRAFT` that lets the
+run continue, because a draft attracts **no** Codex connector review, ever. Not a late one, not a
+slow one: none. Measured 2026-08-08, three of five pull requests opened as drafts (ORB-7 #464,
+ORB-214 #57, ORB-188 #465) and each needed a human. An unattended run that carried a draft past this
+point would burn the full 900 second connector budget at step 12 and report `NO_REVIEW` on a pull
+request nobody could review, then stop with a blocker it created itself.
+
+`compose-prompt.mjs` now forbids the worker from opening a draft at all, so reaching this verdict
+means the worker's tooling did it anyway. Clear it here rather than waiting to discover it at
+step 12.
 
 `checks.sizeAdvisory` always records `changedFiles`, additions, deletions and total diff lines with
 `blocking: false`. Those values never alter the verdict. A 14-file/700-line PR, migrations with
@@ -562,11 +612,11 @@ push, and both pull requests were correct.
 a worker-delivered one does.** Opening the pull request is the MIDDLE of salvage, never the end. Add
 its `{repositoryKey, prNumber, receiptPath}` identity to `pullRequests` in the run record the moment
 it opens, initialized as unreviewed. It remains outstanding until current-head delivery, clean
-independent review, current connector review, zero threads, `behind_by=0`, and Linear synchronization
+independent review, current connector review, zero threads, `behind_by=0`, and ticket synchronization
 are all recorded for the same head/base pair.
 
 Measured, and the reason this sentence is here: PR #690 (ORB-39) was salvaged by hand, cleaned,
-pushed and opened, and then reported as finished except the visual check. It was carrying two failing
+pushed and opened, and then reported as finished. It was carrying two failing
 required checks (`Architecture map drift`, and SonarCloud coverage at 61.5% against a floor of 80%)
 and one unresolved P2 bot thread. Nobody would have found out until the merge. A pull request that
 skipped steps 7, 8 and 12 is not delivered, however it came to exist.
@@ -594,7 +644,7 @@ Six rules. All six hold in both modes.
    is not.
 3. **Every finding is classified at report time, Blocking or Non-blocking.** Blocking means it
    breaks behaviour, security, or data integrity. Everything else is auto-filed as a follow-up
-   Linear ticket and never fixed in this PR.
+   ticket and never fixed in this PR.
 4. **Diff-only scope.** The reviewer reads the diff, not the repository.
 5. **Monotonic round 2.** Re-check ONLY the frozen Blocking list, answering `CLOSED` or `OPEN` per
    finding. New findings are forbidden, with one mechanical carve-out: a defect on a line the
@@ -616,11 +666,45 @@ because convergence was never the terminating condition.
 ## Step 8. Review round 1
 
 ```bash
-gh pr diff <n> > <scratchpad>/orb-N-r1.diff
+gh pr diff <n> > <scratchpad>/<ticket-slug>-r1.diff
+
+# MATERIALIZE THE RUBRIC, and record where it came from. The reviewer reads THIS file, never the
+# working tree, so a rubric edited by the change under review cannot become the rubric it is
+# reviewed against.
+#
+#   repo carries the rubric at the PR's base (ui, api):   RUBRIC_REPO=<key>  RUBRIC_COMMIT=<base sha>
+#   repo carries no rubric at all (landing):              RUBRIC_REPO=ui     RUBRIC_COMMIT=$(git -C <ui> rev-parse origin/main)
+RUBRIC_BLOB=$(git -C <rubric repo> rev-parse "$RUBRIC_COMMIT:.claude/skills/pr-review/rubric.md")
+git -C <rubric repo> cat-file blob "$RUBRIC_BLOB" > <scratchpad>/<ticket-slug>-rubric.md
+
+# MATERIALIZE THE RUBRIC, and record where it came from. The reviewer reads THIS file, never the
+# working tree, so a rubric edited by the change under review cannot become the rubric it is
+# reviewed against.
+#
+#   repo carries the rubric at the PR's base (ui, api):   RUBRIC_REPO=<key>  RUBRIC_COMMIT=<base sha>
+#   repo carries no rubric at all (landing):              RUBRIC_REPO=ui     RUBRIC_COMMIT=$(git -C <ui> rev-parse origin/main)
+RUBRIC_BLOB=$(git -C <rubric repo> rev-parse "$RUBRIC_COMMIT:.claude/skills/pr-review/rubric.md")
+git -C <rubric repo> cat-file blob "$RUBRIC_BLOB" > <scratchpad>/orb-N-rubric.md
+
+# MATERIALIZE THE RUBRIC, and record where it came from. The reviewer reads THIS file, never the
+# working tree, so a rubric edited by the change under review cannot become the rubric it is
+# reviewed against.
+#
+#   repo carries the rubric at the PR's base (ui, api):   RUBRIC_REPO=<key>  RUBRIC_COMMIT=<base sha>
+#   repo carries no rubric at all (landing):              RUBRIC_REPO=ui     RUBRIC_COMMIT=$(git -C <ui> rev-parse origin/main)
+RUBRIC_BLOB=$(git -C <rubric repo> rev-parse "$RUBRIC_COMMIT:.claude/skills/pr-review/rubric.md")
+git -C <rubric repo> cat-file blob "$RUBRIC_BLOB" > <scratchpad>/orb-N-rubric.md
 
 # compose the review order into the scratchpad, then launch the reviewer through the launcher
-node tools/launch-worker.mjs --issue ORB-N --review --repo <key> --prompt <scratchpad>/orb-N-review.md
+node tools/launch-worker.mjs --issue "<ticket-ref>" --review --repo <key> --prompt <scratchpad>/<ticket-slug>-review.md
 ```
+
+**The review order MUST demand the four rubric provenance fields, and it must hand the reviewer the
+materialized snapshot path.** `record-readiness.mjs` requires them and proves them with git, so a
+review order that omits them produces a receipt that is refused and a whole review that must be
+re-run. That happened to every review on 2026-08-08. Name in the order: `rubricRepositoryKey`
+(`$RUBRIC_REPO`), `rubricCommitOid` (`$RUBRIC_COMMIT`), `rubricBlobOid` (`$RUBRIC_BLOB`) and
+`rubricArtifactPath` (`<scratchpad>/<ticket-slug>-rubric.md`).
 
 `--review` resolves the `reviewer` engine and the `review` model tier from
 `.claude/orchestrator.json`, and runs in that repository's PRIMARY MAIN checkout. It refuses a
@@ -629,11 +713,13 @@ running inside the worktree reads the PR's own `AGENTS.md`, which is instruction
 change under review. Feed it the diff file and the frozen ruleset. It returns:
 
 ```json
-{"reviewerKind":"independent","verdict":"CLEAN","rounds":1,"reviewedHeadOid":"<sha>","baseSha":"<sha>","artifactPath":"<absolute path>","findings":[]}
+{"reviewerKind":"independent","verdict":"CLEAN","rounds":1,"reviewedHeadOid":"<sha>","baseSha":"<sha>",
+ "artifactPath":"<absolute path>","rubricRepositoryKey":"<key>","rubricCommitOid":"<sha>",
+ "rubricBlobOid":"<sha>","rubricArtifactPath":"<absolute snapshot path>","findings":[]}
 ```
 
-Write it to `<scratchpad>/orb-N-findings.json`. **The list is now frozen.** File every non-blocking
-finding as its own follow-up Linear ticket immediately, then drop it from this run.
+Write it to `<scratchpad>/<ticket-slug>-findings.json`. **The list is now frozen.** File every non-blocking
+finding as its own follow-up ticket immediately, then drop it from this run.
 
 **Size never exempts the review.** A 355-file codemod still gets reviewed; it gets reviewed AS a
 codemod. Change the order, never the depth: read the transform or the generator first,
@@ -681,7 +767,7 @@ node tools/list-bot-threads.mjs --pr <n> --repo <key> # posts "@codex review", T
 |---|---|
 | `REVIEWED` | a review exists. Zero threads here genuinely means clean |
 | `CHANGES_REQUESTED` | a review exists and blocks. This can carry **zero threads** |
-| `DRAFT` | a draft attracts no review ever. Mark it ready, or say so and move on |
+| `DRAFT` | a draft attracts no review ever. Run `gh pr ready <n>` and re-read. Never "move on" |
 | `NO_REVIEW` | none arrived inside the budget. **Never report this pull request as clean** |
 
 **The request comes FIRST, not after the fix round.** The tool posts `@codex review` before it starts
@@ -700,22 +786,35 @@ derives the verdict from the review itself for exactly this reason; do not re-de
 **Triage each unresolved thread by its badge**, which mirrors the Blocking split in §5.3:
 
 - **P1 -> fix it in this pull request.** A P1 is never closed by filing a ticket.
-- **P2 or P3 -> fix it if cheap, otherwise file a follow-up Linear ticket** and close the thread
+- **P2 or P3 -> fix it if cheap, otherwise file a follow-up ticket** and close the thread
   naming it.
 - **`isOutdated` is not evidence.** It means the code moved under the comment, not that anyone
   addressed it. #681's survivor is outdated and still unresolved. Treat it like any other thread.
 
+**Every `--thread` value is COPIED from the `threads[].id` field of the `list-bot-threads.mjs` run
+above, in this run.** Never typed, never remembered from an earlier ticket, and never passed with a
+`||` fallback that lists fresh when it fails. Measured 2026-08-08: a typed
+`PRRT_kwDOR5Siws6XdcAt` did not fail, because node ids are globally unique. It resolved to a live
+CodeRabbit thread on a stranger's public repository and posted a reply there under Thomas's account,
+then announced itself as `thomasluizon does not have the correct permissions to execute
+ResolveReviewThread` and was filed as a transient glitch. Two gates now hold this:
+`.claude/hooks/forbid-invented-identifier.mjs` refuses the command, and the tool itself refuses to
+write unless the node's own `repository.nameWithOwner` equals what `--repo` resolves to.
+
 **Every resolve posts a reply FIRST.** One of exactly three:
 
 ```bash
-printf 'fixed in %s' "$sha"                 | node tools/resolve-bot-thread.mjs --thread PRRT_... --repo <key>
-printf 'not applicable because %s' "$why"   | node tools/resolve-bot-thread.mjs --thread PRRT_... --repo <key>
-printf 'filed as %s' "$ticket"              | node tools/resolve-bot-thread.mjs --thread PRRT_... --repo <key>
+printf 'fixed in %s' "$sha"                 | node tools/resolve-bot-thread.mjs --thread PRRT_... --repo <key> --pr <number>
+printf 'not applicable because %s' "$why"   | node tools/resolve-bot-thread.mjs --thread PRRT_... --repo <key> --pr <number>
+printf 'filed as %s' "$ticket"              | node tools/resolve-bot-thread.mjs --thread PRRT_... --repo <key> --pr <number>
 ```
 
 The tool refuses an empty body and never attempts the resolve if the reply failed, so a bare resolve
 is impossible rather than merely discouraged. A thread closed with no reason is indistinguishable
 from one nobody read, which is the whole defect this step exists to remove.
+
+**A permissions error on any of these is a WRONG TARGET until proven otherwise.** The tool now names
+the repository the node actually resolved to. Read that name before retrying anything.
 
 If anything was fixed:
 
@@ -754,14 +853,14 @@ Every open pull request gets one mechanical receipt keyed by repository and PR n
 least: repository key, PR number, base branch, current base SHA, current head SHA; independent
 reviewer kind, verdict, rounds, `reviewedHeadOid`, artifact path; CI settled/green head; newest Codex
 connector reviewed commit; unresolved Codex thread count and the head on which threads were listed;
-`behind_by`; draft state; Linear status and last synchronization result.
+`behind_by`; draft state; ticket status and last synchronization result.
 
 The only READY state is simultaneous truth for one current head/base pair. Run
 `record-readiness.mjs` after every artifact update. The recorder re-reads the live PR base/head,
-draft state, newest required CI, current connector result, complete thread inventory, Linear state,
+draft state, newest required CI, current connector result, complete thread inventory, ticket state,
 and compare `behind_by` at aggregation time; it never labels cached artifacts or the delivery
 artifact's old SHAs as current. Its explicit stale/blocking verdicts include
-`REVIEW_STALE`, `CI_STALE`, `BOT_REVIEW_STALE`, `OUT_OF_DATE`, `THREADS_OPEN`, and `LINEAR_STALE`.
+`REVIEW_STALE`, `CI_STALE`, `BOT_REVIEW_STALE`, `OUT_OF_DATE`, `THREADS_OPEN`, and `TICKET_STALE`.
 Any commit, ordinary push, merge from main, or base advancement invalidates receipts tied to the old
 head or base. Bare PR numbers are never sufficient run state.
 
@@ -778,13 +877,12 @@ For each existing PR, repeat within the configured `caps.connectorFixAttempts` f
    its returned ledger path in run-state before launching the one fixer transition; round two must
    match that independently persisted path/hash/base/head/frozen-ID identity.
 4. Request the Codex connector on that head. Fix every actionable finding, reply with commit or
-   Linear-ticket evidence, then resolve. Re-request after any push. Zero unresolved threads without
+   ticket evidence, then resolve. Re-request after any push. Zero unresolved threads without
    a current-head connector review is `BOT_REVIEW_STALE`, never clean.
-5. Synchronize Linear automatically, deduplicating the last posted state: work/PR opened or blocked
-   -> In Progress with concise state comment; all technical readiness facts true -> In Review;
-   visible-effect -> In Progress until human visual acceptance; exact permission/external/human-only
-   blocker -> In Progress with the decision required. Never mark Done before merge. Size never
-   affects Linear status.
+5. Synchronize the ticket automatically, deduplicating the last posted state: work/PR opened or blocked
+   -> In Progress with concise state comment; all technical readiness facts true -> In Review; exact
+   permission/external/human-only blocker -> In Progress with the decision required. Never mark Done
+   before merge. Size never affects ticket status.
 6. Re-record and evaluate. READY ends the loop. A genuine permission, external, or human-only
    blocker, or exhaustion of the bounded fixer/review budget, produces a precise handoff and keeps
    the PR in the run record. Never merge.
@@ -799,26 +897,19 @@ the pre-edit green rollup. A body touch cannot clear readiness while silently dr
 
 ## Step 14. Hand over
 
-Set `ORB-N` to In Review only from a READY receipt, **except for a `visible-effect` ticket**.
+Set the actual ticket reference to In Review only from a READY receipt.
 
-**A `visible-effect` ticket is never moved to In Review by this run.** It stops at the pull request
-and prints `visual check owed`. Thomas runs `/dev-server` and looks at it himself, then moves it.
-Only a human grants visual completion (D7), and with nothing merging unattended there is no reason
-for a machine to assemble screenshots on his behalf. A ticket with no visible surface is unaffected.
-
-**A worker producing visual evidence is never the mechanism, on any ticket.** It cannot be: only a
-human grants visual completion (D7), the run merges nothing unattended, and a fresh worktree has no
-seeded session, so the attempt can only ever end at a login page. Measured 2026-08-06 on two tickets
+**A worker never produces visual evidence.** A fresh worktree has no seeded session, so the attempt
+can only ever end at a login page. Measured 2026-08-06 on two tickets
 whose code was already committed and correct: ORB-39 started a dev server on :3920, wrote a
 Playwright visual test, and was killed at the 45 minute ceiling with a dirty tree; ORB-98 opened
 `/login?returnUrl=%2Fpreferences` and burned the rest of its budget. Two worker budgets, two dev
 servers left listening, two deliveries a human had to rescue.
 
-Both enforcement points are unconditional and neither is scoped to `visible-effect`, because the
-first attempt WAS scoped and the scoping was the defect: `compose-prompt.mjs` puts the prohibition in
-every worker prompt, and `.claude/hooks/forbid-worker-browser.mjs` refuses the command at act time
-for any caller carrying the launcher marker or running inside a linked worktree. `/dev-server` is
-untouched: it runs from the main checkout, which is Thomas.
+Both enforcement points are unconditional. `compose-prompt.mjs` puts the prohibition in every
+worker prompt, and `.claude/hooks/forbid-worker-browser.mjs` refuses the command at act time for any
+caller carrying the launcher marker or running inside a linked worktree. `/dev-server` is untouched:
+it runs from the main checkout, which is Thomas.
 
 Print:
 
@@ -827,7 +918,6 @@ Print:
 - Codex threads: `N found, F fixed, R filed, X not applicable, U left open`, or
   `BOT REVIEW ABSENT`.
 - Every follow-up ticket filed, by identifier.
-- `visual check owed` when the ticket is `visible-effect`.
 - `DEGRADED: same-vendor review` when `--codex-only` was passed.
 
 **Then, without `--sleep`: STOP and wait for Thomas to type `continue`.** Nothing polls and nothing
@@ -841,7 +931,6 @@ Once the queue is exhausted, print one summary and stop:
   behind count and receipt verdict.
 - **The stack layout**, so the merge order is stated rather than worked out at 08:00.
 - Every ticket skipped, with its reason: a deferral from step 1 or a genuine delivery blocker.
-- Every `visual check owed`.
 - **The single command that merges the lot**, ready for Thomas to approve.
 
 Append one JSON line per ticket outcome to `<scratchpad>/queue-run.jsonl` as the queue runs, not at
@@ -853,7 +942,7 @@ night.
 Per worktree, only after `gh pr view <n> --json state` reads `MERGED`:
 
 ```bash
-node tools/teardown-worktree.mjs --issue ORB-N
+node tools/teardown-worktree.mjs --issue "<ticket-ref>" --repo <key>
 ```
 
 Never tear down an unmerged worktree. The branch and its work are the only copy. In a queue this
@@ -898,7 +987,7 @@ It cannot ask what only a running worker discovers, and it does not pretend to.
 
 **A failed worker attempt is recorded, but its ticket is not silently skipped.** Preserve its work,
 use the step 7 salvage path when the caller-specified workspace test is green, and keep the PR in
-the bounded readiness loop until CI, both reviews, threads, base freshness, and Linear agree on one
+the bounded readiness loop until CI, both reviews, threads, base freshness, and the ticket agree on one
 head/base pair. The queue may continue independent tickets while a wake source owns that debt. Only
 a genuine permission, external, human-only, or exhausted bounded-fixer blocker permits handoff, and
 the ticket remains In Progress with the exact decision required.
@@ -943,7 +1032,7 @@ A new session starts with a fresh ledger and cannot inherit yesterday's complete
 invalid because UI and API can have the same PR number. The stop hook opens every ledger receipt,
 matches its repository and PR identity, then boundedly rereads the live GitHub head/base/draft,
 newest CI reruns and required-context inventory, current connector verdict and fully paginated
-thread count, plus Linear status/visible-effect state. It allows completion only when the cached report is READY and
+thread count, plus ticket status. It allows completion only when the cached report is READY and
 all live values still match that exact receipt. This is the
 mechanical half of salvage: a pull request opened by hand and never re-verified cannot be reported
 as a finished queue even if a fallible session clears the active list.

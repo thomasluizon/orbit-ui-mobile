@@ -33,12 +33,13 @@ import { statSync } from "node:fs"
 import { bodyEditInvalidationPath, clearBodyEditInvalidation, pendingBodyEditGuards, persistBodyEditInvalidation, readBodyEditInvalidation } from "./lib/body-edit-invalidation.mjs"
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
+import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { withDegradedReviewFirst } from "./lib/pr-body.mjs"
 
-const USAGE = `usage: verify-delivery.mjs --issue ORB-N --worktree <path> --branch <name> [options]
+const USAGE = `usage: verify-delivery.mjs --issue <ORB-N|#N|N> --worktree <path> --branch <name> [options]
 
-  --issue <ORB-N>     Linear issue the worker was launched on (required)
+  --issue <reference> ticket the worker was launched on (required)
   --worktree <path>   worktree the worker committed in (required)
   --branch <name>     branch the worker pushed (required)
   --repo <key>        repository key from .claude/orchestrator.json (required); GitHub is
@@ -78,7 +79,7 @@ const knownFlags = new Set(["--issue", "--worktree", "--branch", "--repo", "--ba
 const unknown = process.argv.slice(2).filter((value) => value.startsWith("-") && !knownFlags.has(value))
 if (unknown.length) fail(2, `${USAGE}\n\nunknown option(s): ${unknown.join(" ")}`)
 
-const issue = argOf("--issue")
+const issueArgument = argOf("--issue")
 const worktree = argOf("--worktree")
 const branch = argOf("--branch")
 const repoKey = argOf("--repo")
@@ -90,7 +91,7 @@ const commandTimeoutSeconds = Number(argOf("--command-timeout-seconds") ?? "45")
 if (!Number.isFinite(commandTimeoutSeconds) || commandTimeoutSeconds <= 0) fail(2, `${USAGE}\n\n--command-timeout-seconds requires a positive number`)
 const codexOnly = process.argv.includes("--codex-only")
 const safeValue = (value) => typeof value === "string" && value.length > 0 && !value.startsWith("-")
-if (!issue || !/^[A-Z][A-Z0-9]*-\d+$/i.test(issue)) fail(2, `${USAGE}\n\n--issue must be a Linear identifier such as ORB-163`)
+if (!safeValue(issueArgument)) fail(2, `${USAGE}\n\n--issue requires ORB-N, #N, or N`)
 if (!safeValue(worktree)) fail(2, `${USAGE}\n\n--worktree requires a path`)
 if (!safeValue(branch)) fail(2, `${USAGE}\n\n--branch requires a branch name`)
 if (!safeValue(base)) fail(2, `${USAGE}\n\n--base requires a ref`)
@@ -114,6 +115,16 @@ try {
 const githubCwd = config.repos?.[repoKey]
 if (typeof githubCwd !== "string" || githubCwd.trim().length === 0) {
   fail(2, `--repo must name a configured repository (known: ${Object.keys(config.repos ?? {}).join(", ") || "none"})`)
+}
+
+let issue
+try {
+  const resolvedTicket = resolveTicket(issueArgument)
+  const liveTicket = await readTicket(resolvedTicket.number)
+  assertRepositoryLabel(liveTicket, repoKey)
+  issue = resolvedTicket.identifier ?? `#${resolvedTicket.number}`
+} catch (error) {
+  fail(2, `ticket assertion failed: ${error.message}`)
 }
 
 const GIT = process.env.GIT_BIN || "git"
@@ -233,7 +244,8 @@ if (!checks.prCount.pass) emit("NO_PR")
  * still lands here and would read as delivered. The composed work order requires a pull request
  * that links the issue, and this file is the only thing that checks the work order was honoured.
  */
-const mentionsIssue = (text) => typeof text === "string" && new RegExp(`\\b${issue}\\b`, "i").test(text)
+const escapedIssue = issue.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+const mentionsIssue = (text) => typeof text === "string" && new RegExp(`(^|[^A-Za-z0-9])${escapedIssue}(?![A-Za-z0-9])`, "i").test(text)
 checks.linksTicket = {
   pass: mentionsIssue(pullRequest.title) || mentionsIssue(pullRequest.body),
   observed: mentionsIssue(pullRequest.title) ? "title" : mentionsIssue(pullRequest.body) ? "body" : "neither title nor body names the issue",

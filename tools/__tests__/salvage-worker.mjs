@@ -4,6 +4,22 @@ import { join } from "node:path"
 import { T, check, processIsRunning, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
 
 const TOOL = "salvage-worker.mjs"
+const ADAPTER_STUB = `export const resolveTicket = (reference) => {
+  const identifier = String(reference).toUpperCase()
+  if (identifier !== "ORB-250") throw new Error("Unknown migrated ticket " + reference)
+  return { identifier, number: 250 }
+}
+export const readTicket = async () => ({ identifier: "ORB-250", number: 250, labels: [{ name: "repo:ui" }] })
+export const assertRepositoryLabel = (ticket, repoKey) => {
+  if (ticket.labels.length !== 1 || ticket.labels[0].name !== "repo:" + repoKey) throw new Error("ticket repository label mismatch")
+  return ticket
+}
+`
+const stageSalvage = (label, config) => {
+  const staged = stageWithConfig(label, TOOL, config)
+  stage(`staged/${label}/tools/lib/github-issues.mjs`, ADAPTER_STUB)
+  return staged
+}
 
 export const cases = () => {
   const repo = stageRepo("salvage-worker-repo")
@@ -11,7 +27,7 @@ export const cases = () => {
     T(`${TOOL}: a salvage repository fixture is available`, false, "could not stage repository")
     return
   }
-  const staged = stageWithConfig("salvage-worker", TOOL, realOrchestratorConfig())
+  const staged = stageSalvage("salvage-worker", realOrchestratorConfig())
   const config = realOrchestratorConfig()
   config.repos = { ...config.repos, ui: repo.path }
   writeFileSync(staged.configPath, `${JSON.stringify(config, null, 2)}\n`)
@@ -46,7 +62,7 @@ export const cases = () => {
   const wrongBranch = stageRepo("salvage-worker-wrong-branch")
   if (wrongBranch?.git(["switch", "-q", "-c", "feature/actual"]).status === 0) {
     writeFileSync(join(wrongBranch.path, "wrong.txt"), "must remain local\n")
-    const wrongBranchStaged = stageWithConfig("salvage-worker-wrong-branch", TOOL, { ...config, repos: { ...config.repos, ui: wrongBranch.path } })
+    const wrongBranchStaged = stageSalvage("salvage-worker-wrong-branch", { ...config, repos: { ...config.repos, ui: wrongBranch.path } })
     const wrongCommon = ["--issue", "ORB-250", "--repo", "ui", "--worktree", wrongBranch.path, "--run-root", wrongBranch.path, "--test-command", failedOrder, "--test-receipt", receipt, "--message", "never", "--path", "wrong.txt"]
     check(TOOL, "a stale salvage branch is rejected before testing or pushing", [...wrongCommon, "--branch", "feature/other"], { status: 2, stderr: /must exactly match.*feature\/actual.*feature\/other/ }, { path: wrongBranchStaged.path })
     check(TOOL, "the protected main branch is rejected before testing or pushing", [...wrongCommon, "--branch", "main"], { status: 2, stderr: /may not name the protected main branch/ }, { path: wrongBranchStaged.path })
@@ -61,7 +77,7 @@ export const cases = () => {
     const mutatingPath = join(mutating.path, "mutated.txt")
     writeFileSync(mutatingPath, "before test\n")
     const mutatingOrder = stage("salvage-worker/mutating-command.json", JSON.stringify({ command: process.execPath, args: ["-e", "require('node:fs').writeFileSync(process.argv[1], 'after test\\n')", mutatingPath] }))
-    const mutatingStaged = stageWithConfig("salvage-worker-mutating-test", TOOL, { ...config, repos: { ...config.repos, ui: mutating.path } })
+    const mutatingStaged = stageSalvage("salvage-worker-mutating-test", { ...config, repos: { ...config.repos, ui: mutating.path } })
     check(
       TOOL,
       "a green test that mutates a named path cannot publish untested bytes",
@@ -91,7 +107,7 @@ export const cases = () => {
   const beforePr = stageRepo("salvage-worker-before-pr")
   if (beforePr?.git(["switch", "-q", "-c", "feature/before-pr"]).status === 0) {
     writeFileSync(join(beforePr.path, "before-pr.txt"), "salvage before PR creation\n")
-    const beforePrStaged = stageWithConfig("salvage-worker-before-pr", TOOL, { ...config, repos: { ...config.repos, ui: beforePr.path } })
+    const beforePrStaged = stageSalvage("salvage-worker-before-pr", { ...config, repos: { ...config.repos, ui: beforePr.path } })
     const beforePrResult = check(
       TOOL,
       "salvage can commit and push before a PR number exists",
@@ -109,7 +125,7 @@ export const cases = () => {
     writeFileSync(join(indexed.path, "named.txt"), "named\n")
     writeFileSync(join(indexed.path, "unrelated.txt"), "must not publish\n")
     indexed.git(["add", "unrelated.txt"])
-    const indexedStaged = stageWithConfig("salvage-worker-indexed", TOOL, { ...config, repos: { ...config.repos, ui: indexed.path } })
+    const indexedStaged = stageSalvage("salvage-worker-indexed", { ...config, repos: { ...config.repos, ui: indexed.path } })
     check(
       TOOL,
       "an unrelated pre-staged path blocks salvage instead of entering the commit",
@@ -126,7 +142,7 @@ export const cases = () => {
   if (omitted?.git(["switch", "-q", "-c", "feature/omitted"]).status === 0) {
     writeFileSync(join(omitted.path, "named.txt"), "named\n")
     writeFileSync(join(omitted.path, "omitted.txt"), "must not influence the test\n")
-    const omittedStaged = stageWithConfig("salvage-worker-omitted", TOOL, { ...config, repos: { ...config.repos, ui: omitted.path } })
+    const omittedStaged = stageSalvage("salvage-worker-omitted", { ...config, repos: { ...config.repos, ui: omitted.path } })
     check(
       TOOL,
       "an unselected dirty source path blocks a subset-only salvage",
@@ -146,7 +162,7 @@ export const cases = () => {
     const hangingScript = stage("salvage-worker/hanging-test.cjs", `const { spawn } = require("node:child_process")\nconst { writeFileSync } = require("node:fs")\nconst child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" })\nwriteFileSync(process.argv[2], String(child.pid))\nsetInterval(() => {}, 1000)\n`)
     const hangingOrder = stage("salvage-worker/hanging-test.json", JSON.stringify({ command: process.execPath, args: [hangingScript, descendantPid] }))
     const shortConfig = { ...config, repos: { ...config.repos, ui: hanging.path }, timeouts: { ...config.timeouts, hardCeilingMinutes: 0.02 } }
-    const hangingStaged = stageWithConfig("salvage-worker-hanging-test", TOOL, shortConfig)
+    const hangingStaged = stageSalvage("salvage-worker-hanging-test", shortConfig)
     const timed = check(
       TOOL,
       "a hanging workspace test is bounded before staging",
@@ -170,7 +186,7 @@ export const cases = () => {
     writeFileSync(preCommit, `#!/bin/sh\nexec "${process.execPath.replaceAll("\\", "/")}" "${hookRunner.replaceAll("\\", "/")}" "${gitChildPid.replaceAll("\\", "/")}"\n`)
     chmodSync(preCommit, 0o755)
     hangingGit.git(["config", "core.hooksPath", hooksDir])
-    const gitStaged = stageWithConfig("salvage-worker-hanging-git", TOOL, { ...config, repos: { ...config.repos, ui: hangingGit.path } })
+    const gitStaged = stageSalvage("salvage-worker-hanging-git", { ...config, repos: { ...config.repos, ui: hangingGit.path } })
     const timedGit = check(
       TOOL,
       "a hanging Git commit is bounded",
@@ -186,7 +202,7 @@ export const cases = () => {
 
   const second = stageRepo("salvage-worker-broad")
   second?.git(["switch", "-q", "-c", "feature/salvage"])
-  const broadStaged = stageWithConfig("salvage-worker-broad", TOOL, config)
+  const broadStaged = stageSalvage("salvage-worker-broad", config)
   for (const broad of [".", "sub/..", ":(glob)**"]) {
     check(
       TOOL,
@@ -211,7 +227,7 @@ export const cases = () => {
   const route = "apps/web/app/api/[...path]/route.ts"
   mkdirSync(join(literal.path, "apps", "web", "app", "api", "[...path]"), { recursive: true })
   writeFileSync(join(literal.path, route), "export const route = true\n")
-  const literalStaged = stageWithConfig("salvage-worker-literal", TOOL, config)
+  const literalStaged = stageSalvage("salvage-worker-literal", config)
   check(
     TOOL,
     "a bracketed explicit filename is staged with literal pathspec semantics",

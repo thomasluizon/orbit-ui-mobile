@@ -2,12 +2,12 @@
 /**
  * Resolve a scope into ONE ordered execution plan for /orchestrate, and print it as JSON.
  *
- * A scope is an explicit ticket list, a Linear project, or the whole open board. The plan names
+ * A scope is an explicit ticket list, a GitHub milestone, or the whole open board. The plan names
  * which tickets are admissible, which are deferred and why, what order they run in, which of them
  * stack on each other, and which may run concurrently.
  *
  * It PLANS. It creates no worktree, launches no worker, opens no pull request and writes nothing to
- * Linear. Every decision below is derived from what `orca linear` actually returned, so an
+ * the ticket system. Every decision below is derived from the ticket adapter, so an
  * unreachable ticket is a refusal rather than a guess.
  *
  * The ordering rule that matters: a ticket whose blocker is not itself in this queue cannot run,
@@ -16,17 +16,15 @@
  * Other DAG shapes run against main in a later wave, after every blocker has landed.
  */
 
-import { execFileSync } from "node:child_process"
-
+import { listMilestones, listTickets, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { classifyExecutability } from "./lib/ticket-executability.mjs"
 
 const USAGE = `usage: plan-queue.mjs (--tickets ORB-1,ORB-2 | --project <name> | --board) [options]
 
-  --tickets <list>   comma or space separated Linear identifiers, in no particular order
-  --project <name>   every open ticket in this Linear project
-  --board            every open ticket on the team board
-  --team <key>       Linear team key (default ORB)
+  --tickets <list>   comma or space separated ticket references, in no particular order
+  --project <name>   every open ticket in the matching GitHub milestone
+  --board            every open ticket on the configured GitHub project
   --limit <n>        cap the tickets read for --project/--board (default 250)
   --format <fmt>     json (default) or markdown
   --help, -h         print this usage and exit 0
@@ -35,7 +33,7 @@ Exactly one of --tickets, --project or --board is required.
 
 Prints ONE JSON object on stdout: scope, admitted, deferred, stacks, waves. Errors go to stderr.
 
-  admitted[]  identifier, repo, title, labels, visibleEffect, blockedBy, stackParent, branchMode,
+  admitted[]  identifier, repo, title, labels, blockedBy, stackParent, branchMode,
               wave, unlocks, warnings
   deferred[]  identifier, reason  (BLOCKED_OUTSIDE_QUEUE, UNSTACKABLE_BLOCKERS_IN_QUEUE,
               NO_REPO_LABEL, AMBIGUOUS_REPO, CLOSED, NOT_REPRODUCED, NOT_CODE_WORK, MULTI_PR)
@@ -44,8 +42,6 @@ Prints ONE JSON object on stdout: scope, admitted, deferred, stacks, waves. Erro
 
 A ticket is admitted when it is open, carries exactly one repo:* label, every ticket blocking it is
 either closed or also admitted here, and its body does not say a headless agent cannot execute it.
-visible-effect is NOT a bar to admission: the run opens the pull request and stops, and the human
-grants visual completion.
 
 exit codes: 0 a plan was produced (it may admit zero tickets), 1 the scope resolved to no tickets
             at all, 2 usage or environment error`
@@ -65,7 +61,7 @@ const argOf = (flag) => {
   return index === -1 ? null : process.argv[index + 1]
 }
 
-const VALUE_FLAGS = new Set(["--tickets", "--project", "--team", "--limit", "--format"])
+const VALUE_FLAGS = new Set(["--tickets", "--project", "--limit", "--format"])
 const KNOWN_FLAGS = new Set([...VALUE_FLAGS, "--board", "--help", "-h"])
 /**
  * A flag's VALUE is skipped before the unknown-option check, so `--limit -1` complains about the
@@ -77,7 +73,6 @@ if (unknown.length) fail(2, `${USAGE}\n\nunknown option(s): ${unknown.join(" ")}
 const ticketsArg = argOf("--tickets")
 const projectArg = argOf("--project")
 const board = process.argv.includes("--board")
-const team = argOf("--team") ?? "ORB"
 const format = argOf("--format") ?? "json"
 const limitArg = argOf("--limit") ?? "250"
 
@@ -89,56 +84,42 @@ if (!["json", "markdown"].includes(format)) fail(2, `${USAGE}\n\n--format must b
 const limit = Number(limitArg)
 if (!Number.isInteger(limit) || limit < 1) fail(2, `${USAGE}\n\n--limit must be a positive integer`)
 
-const ORCA = process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs\\orca\\resources\\bin\\orca"
-
-/**
- * Every orca reply is an envelope: `{ok, result}` on success and `{ok: false, error}` on failure.
- * A non-zero exit with a parseable envelope is still an answer, so the envelope is read first and
- * the exit code second. Reading it the other way around is how a "not yet" once became fatal.
- */
-const orca = (args) => {
-  let stdout = ""
-  try {
-    stdout = execFileSync(ORCA, args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 })
-  } catch (error) {
-    stdout = error.stdout?.toString() ?? ""
-    if (!stdout.trim()) fail(2, `orca ${args.join(" ")} failed: ${(error.stderr?.toString() || error.message).trim()}`)
-  }
-  let envelope
-  try {
-    envelope = JSON.parse(stdout)
-  } catch {
-    fail(2, `orca ${args.join(" ")} returned unparseable JSON: ${stdout.trim().slice(0, 240) || "empty output"}`)
-  }
-  if (envelope?.ok === false) {
-    fail(2, `orca ${args.join(" ")} refused: ${envelope.error?.message ?? "no message"}`)
-  }
-  return envelope.result ?? {}
-}
-
-/** Linear's own state types, not display names, so a renamed column cannot silently reopen a ticket. */
-const CLOSED_STATE_TYPES = new Set(["completed", "canceled", "duplicate"])
-const isClosed = (issue) => CLOSED_STATE_TYPES.has(issue?.state?.type)
+const isClosed = (ticket) => ticket?.state === "CLOSED"
 
 const labelNames = (issue) => (issue?.labels ?? []).map((label) => label.name)
 const repoLabels = (issue) => labelNames(issue).filter((name) => name.startsWith("repo:"))
 
-const identifiers = () => {
+const ticketReferences = async () => {
   if (safeValue(ticketsArg)) {
     return ticketsArg
       .split(/[\s,]+/)
-      .map((value) => value.trim().toUpperCase())
+      .map((value) => value.trim())
       .filter(Boolean)
   }
-  const args = ["linear", "list-issues", "--team", team, "--limit", String(limit), "--json"]
-  if (safeValue(projectArg)) args.push("--project", projectArg)
-  const issues = orca(args).issues ?? []
-  return issues.filter((issue) => !isClosed(issue)).map((issue) => issue.identifier)
+  try {
+    if (safeValue(projectArg)) {
+      const milestones = (await listMilestones()).sort((left, right) => left.localeCompare(right))
+      if (!milestones.includes(projectArg)) {
+        throw new Error(`unknown project ${JSON.stringify(projectArg)}; available milestones: ${milestones.join(", ") || "none"}`)
+      }
+      return (await listTickets({ state: "open", milestone: projectArg })).slice(0, limit).map((ticket) => ticket.identifier ?? `#${ticket.number}`)
+    }
+    return (await listTickets({ state: "open" }))
+      .filter((ticket) => typeof ticket.projectItemId === "string")
+      .slice(0, limit)
+      .map((ticket) => ticket.identifier ?? `#${ticket.number}`)
+  } catch (error) {
+    fail(2, `ticket list failed: ${error.message}`)
+  }
 }
 
-const scopeIds = identifiers()
-for (const id of scopeIds) {
-  if (!/^[A-Z][A-Z0-9]*-\d+$/.test(id)) fail(2, `not a Linear identifier: ${id}`)
+const scopeIds = await ticketReferences()
+for (const reference of scopeIds) {
+  try {
+    resolveTicket(reference)
+  } catch (error) {
+    fail(2, error.message)
+  }
 }
 if (scopeIds.length === 0) {
   console.error(`the scope resolved to zero tickets; nothing to plan`)
@@ -146,20 +127,22 @@ if (scopeIds.length === 0) {
 }
 
 /**
- * One read per ticket, with relations. `list-issues` cannot return them, so a per-ticket call is the
- * only way to see a blocking edge at all, and a plan that cannot see them would order work by title.
+ * One normalized read per ticket. The adapter returns the blocked-by connection in the same read,
+ * so the graph cannot silently disappear behind a smaller list shape.
  */
 const fetched = new Map()
-for (const id of scopeIds) {
+for (const reference of scopeIds) {
+  const resolved = resolveTicket(reference)
+  const id = resolved.identifier ?? `#${resolved.number}`
   if (fetched.has(id)) continue
-  const result = orca(["linear", "issue", id, "--relations", "--json"])
-  const issue = result.issue
-  if (!issue?.identifier) fail(2, `orca returned no issue for ${id}`)
-  const blockedBy = (result.relations ?? [])
-    .filter((relation) => relation.relationship === "blockedBy")
-    .map((relation) => relation.relatedIssue?.identifier)
-    .filter(Boolean)
-  fetched.set(issue.identifier, { issue, blockedBy })
+  let ticket
+  try {
+    ticket = await readTicket(resolved.number)
+  } catch (error) {
+    fail(2, `ticket read failed for ${id}: ${error.message}`)
+  }
+  const blockedBy = ticket.blockedBy.map(({ number }) => resolveTicket(number).identifier ?? `#${number}`)
+  fetched.set(id, { issue: ticket, blockedBy })
 }
 
 /**
@@ -170,8 +153,12 @@ const blockerState = new Map()
 for (const { blockedBy } of fetched.values()) {
   for (const blocker of blockedBy) {
     if (fetched.has(blocker) || blockerState.has(blocker)) continue
-    const issue = orca(["linear", "issue", blocker, "--json"]).issue
-    blockerState.set(blocker, Boolean(issue) && isClosed(issue))
+    const resolved = resolveTicket(blocker)
+    try {
+      blockerState.set(blocker, isClosed(await readTicket(resolved.number)))
+    } catch (error) {
+      fail(2, `blocker read failed for ${blocker}: ${error.message}`)
+    }
   }
 }
 
@@ -186,7 +173,7 @@ const candidates = new Map()
 for (const [id, entry] of fetched) {
   const { issue } = entry
   if (isClosed(issue)) {
-    deferred.push({ identifier: id, reason: "CLOSED", detail: issue.state?.name ?? "closed" })
+    deferred.push({ identifier: id, reason: "CLOSED", detail: issue.status ?? issue.stateReason ?? "closed" })
     continue
   }
   const repos = repoLabels(issue)
@@ -203,7 +190,7 @@ for (const [id, entry] of fetched) {
    * dropped before the fixed point below cascades correctly onto whatever depended on it, and a
    * ticket named at 23:00 is a decision Thomas can make before bed rather than a slot burned at 03:00.
    */
-  const { deferrals, warnings } = classifyExecutability(issue.description)
+  const { deferrals, warnings } = classifyExecutability(issue.body)
   if (deferrals.length > 0) {
     const [first, ...also] = deferrals
     deferred.push({ identifier: id, reason: first.reason, detail: also.length > 0 ? `${first.detail}. It also reads as ${also.map((entry) => entry.reason).join(" and ")}` : first.detail })
@@ -243,7 +230,7 @@ while (remaining.size > 0) {
     .filter((id) => candidates.get(id).blockedBy.every((blocker) => !remaining.has(blocker)))
     .sort()
   if (ready.length === 0) {
-    fail(2, `a blocking cycle exists among ${[...remaining].sort().join(", ")}; Linear allows it and no order can satisfy it`)
+    fail(2, `a blocking cycle exists among ${[...remaining].sort().join(", ")}; no order can satisfy it`)
   }
   waves.push(ready)
   for (const id of ready) {
@@ -310,7 +297,7 @@ for (const id of order) {
  *
  * There is no live "have the blockers merged yet" check worth writing, because the answer is fixed
  * by construction. `sameRepoBlockersOf` counts only blockers that are CANDIDATES, and a blocker
- * whose work already merged is Done in Linear, so it was deferred as CLOSED and never became one.
+ * whose work already merged is Done, so it was deferred as CLOSED and never became one.
  * Every blocker still counted here is therefore open and in THIS queue, and cannot merge before the
  * ticket that waits on it. So the ticket defers.
  *
@@ -361,9 +348,8 @@ const admitted = runnable.map((id, index) => {
     identifier: id,
     repo: entry.repo,
     title: entry.issue.title,
-    state: entry.issue.state?.name ?? null,
+    state: entry.issue.status ?? entry.issue.state,
     labels: labelNames(entry.issue),
-    visibleEffect: labelNames(entry.issue).includes("visible-effect"),
     blockedBy: entry.blockedBy,
     stackParent: stackParentById.get(id),
     branchMode: branchModeById.get(id),
@@ -389,7 +375,7 @@ for (const ticket of admitted) {
 }
 
 const plan = {
-  scope: safeValue(ticketsArg) ? { kind: "tickets", value: scopeIds } : safeValue(projectArg) ? { kind: "project", value: projectArg } : { kind: "board", value: team },
+  scope: safeValue(ticketsArg) ? { kind: "tickets", value: scopeIds } : safeValue(projectArg) ? { kind: "project", value: projectArg } : { kind: "board", value: "configured" },
   counts: { requested: scopeIds.length, admitted: admitted.length, deferred: deferred.length, waves: runnableWaves.length, stacks: stacks.length },
   admitted,
   deferred: deferred.sort((left, right) => left.identifier.localeCompare(right.identifier)),
@@ -409,8 +395,7 @@ if (format === "markdown") {
           : ticket.branchMode === "main-after-blockers-merge"
             ? " (opens against main after blockers merge; blockers do not form a stack)"
             : " (opens against main)"
-      const visual = ticket.visibleEffect ? " [visual check owed]" : ""
-      lines.push(`- ${id} \`${ticket.repo}\`${branch}${visual} ${ticket.title}`)
+      lines.push(`- ${id} \`${ticket.repo}\`${branch} ${ticket.title}`)
       for (const warning of ticket.warnings) lines.push(`  - WARNING ${warning}`)
     }
     lines.push("")

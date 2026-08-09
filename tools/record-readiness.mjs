@@ -9,13 +9,15 @@ import { fileURLToPath } from "node:url"
 import { bodyEditInvalidationPath, clearBodyEditInvalidation, pendingBodyEditGuards, persistBodyEditInvalidation, readBodyEditInvalidation } from "./lib/body-edit-invalidation.mjs"
 import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-auth.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
+import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { withDegradedReviewFirst } from "./lib/pr-body.mjs"
 import { readinessCiIsGreen, readinessReport, writeReadinessReceipt } from "./lib/readiness-receipt.mjs"
+import { CANONICAL_RUBRIC_REPO, RUBRIC_PATH, rubricProvenanceVerdict } from "./lib/rubric-provenance.mjs"
 
 const LIST_BOT_THREADS = fileURLToPath(new URL("./list-bot-threads.mjs", import.meta.url))
 
-const USAGE = `usage: record-readiness.mjs --repo <ui|api|landing> --pr <number> --delivery <file> --review <file> --bot <file> --linear <file> [--codex-only]
+const USAGE = `usage: record-readiness.mjs --repo <ui|api|landing> --pr <number> --delivery <file> --review <file> --bot <file> --ticket <file> [--codex-only]
        record-readiness.mjs --repo <ui|api|landing> --pr <number> --review <round-one-file> --register-round-one
 
 Reads harness-produced artifacts, persists one SHA-bound receipt under the repository git state,
@@ -39,7 +41,7 @@ const argOf = (flag) => {
   const index = process.argv.indexOf(flag)
   return index === -1 ? null : process.argv[index + 1]
 }
-const known = new Set(["--repo", "--pr", "--delivery", "--review", "--bot", "--linear", "--codex-only", "--register-round-one", "--help", "-h"])
+const known = new Set(["--repo", "--pr", "--delivery", "--review", "--bot", "--ticket", "--codex-only", "--register-round-one", "--help", "-h"])
 const unknown = process.argv.slice(2).filter((value) => value.startsWith("-") && !known.has(value))
 if (unknown.length > 0) fail(`${USAGE}\n\nunknown option(s): ${unknown.join(" ")}`)
 
@@ -48,7 +50,7 @@ const prRaw = argOf("--pr")
 const prNumber = Number(prRaw)
 const codexOnly = process.argv.includes("--codex-only")
 const registerRoundOne = process.argv.includes("--register-round-one")
-const artifactPath = Object.fromEntries(["delivery", "review", "bot", "linear"].map((name) => [name, argOf(`--${name}`)]))
+const artifactPath = Object.fromEntries(["delivery", "review", "bot", "ticket"].map((name) => [name, argOf(`--${name}`)]))
 if (
   !repoKey ||
   !Number.isInteger(prNumber) ||
@@ -56,7 +58,7 @@ if (
   !artifactPath.review ||
   artifactPath.review.startsWith("-") ||
   (!registerRoundOne && Object.values(artifactPath).some((value) => !value || value.startsWith("-"))) ||
-  (registerRoundOne && (codexOnly || [artifactPath.delivery, artifactPath.bot, artifactPath.linear].some(Boolean)))
+  (registerRoundOne && (codexOnly || [artifactPath.delivery, artifactPath.bot, artifactPath.ticket].some(Boolean)))
 ) fail(USAGE)
 
 let config
@@ -153,10 +155,12 @@ const review = artifact.review?.review ?? artifact.review
 if (
   typeof review?.reviewedHeadOid !== "string" ||
   typeof review?.artifactPath !== "string" ||
-  typeof review?.rubricBaseOid !== "string" ||
+  typeof review?.rubricRepositoryKey !== "string" ||
+  typeof review?.rubricCommitOid !== "string" ||
+  typeof review?.rubricBlobOid !== "string" ||
   typeof review?.rubricArtifactPath !== "string" ||
   !Array.isArray(review?.findings)
-) fail("review artifact carries no reviewedHeadOid, findings, or frozen-rubric evidence")
+) fail("review artifact carries no reviewedHeadOid, findings, or complete rubric provenance (rubricRepositoryKey, rubricCommitOid, rubricBlobOid, rubricArtifactPath)")
 let frozenFindingIdsVerified = review.rounds === 1
 let roundOneRegistration = null
 if (review.rounds === 2) {
@@ -199,15 +203,22 @@ if (review.rounds === 2) {
 }
 const bot = artifact.bot
 if (bot?.pr !== prNumber) fail("bot artifact does not name this pull request")
-const linear = artifact.linear
-if (typeof linear?.status !== "string" || typeof linear?.lastSynchronizationResult !== "string") fail("Linear artifact carries no status or synchronization result")
-if (linear.issue !== delivery.issue || linear.repositoryKey !== repoKey || linear.prNumber !== prNumber) {
-  fail("Linear artifact does not name this delivery issue, repository, and pull request")
+const ticketSync = artifact.ticket
+if (typeof ticketSync?.status !== "string" || typeof ticketSync?.lastSynchronizationResult !== "string") fail("ticket artifact carries no status or synchronization result")
+if (ticketSync.issue !== delivery.issue || ticketSync.repositoryKey !== repoKey || ticketSync.prNumber !== prNumber) {
+  fail("ticket artifact does not name this delivery issue, repository, and pull request")
+}
+
+try {
+  const resolvedTicket = resolveTicket(delivery.issue)
+  assertRepositoryLabel(await readTicket(resolvedTicket.number), repoKey)
+} catch (error) {
+  fail(`ticket assertion failed: ${error.message}`)
 }
 
 let live
 let liveComparison
-let liveLinear
+let liveTicket
 let liveBot
 let liveCiGreen = false
 let bodyEditCiInvalidated = false
@@ -333,18 +344,8 @@ try {
   }
   liveComparison = JSON.parse(comparison.stdout)
 
-  const ORCA = process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs\\orca\\resources\\bin\\orca"
-  const linearRead = await runBounded(
-    ORCA,
-    ["linear", "issue", delivery.issue, "--full", "--json"],
-    { timeoutMs: 45000, maxBuffer: 16 * 1024 * 1024 },
-  )
-  if (linearRead.timedOut) fail(`Linear issue ${delivery.issue} timed out after 45s; the complete child process tree was terminated`)
-  if (linearRead.error || linearRead.status !== 0) {
-    const detail = linearRead.stderr || linearRead.stdout || linearRead.error?.message || `exit ${linearRead.status}`
-    fail(`Linear issue ${delivery.issue} failed: ${redactSecrets(detail.trim())}`)
-  }
-  liveLinear = JSON.parse(linearRead.stdout)?.result?.issue
+  liveTicket = await readTicket(resolveTicket(delivery.issue).number)
+  assertRepositoryLabel(liveTicket, repoKey)
   const closingPrRead = await runBounded(
     process.env.GH_BIN || "gh",
     ["pr", "view", String(prNumber), "--repo", repository, "--json", "number,baseRefName,baseRefOid,headRefOid,isDraft,body,statusCheckRollup"],
@@ -384,8 +385,8 @@ try {
   fail(`could not revalidate live pull request ${prNumber}: ${redactSecrets(error.message)}`)
 }
 if (!Number.isInteger(liveComparison?.behind_by) || liveComparison.behind_by < 0) fail(`gh compare for PR ${prNumber} did not return numeric behind_by`)
-if (typeof liveLinear?.state?.name !== "string" || typeof liveLinear?.state?.type !== "string" || !Array.isArray(liveLinear?.labels) || liveLinear.labels.some((label) => typeof label?.name !== "string")) {
-  fail(`Linear issue ${delivery.issue} did not return the confirmed state name/type and labels shape`)
+if (typeof liveTicket?.status !== "string" || !Array.isArray(liveTicket?.labels) || liveTicket.labels.some((label) => typeof label?.name !== "string")) {
+  fail(`ticket ${delivery.issue} did not return the confirmed board status and labels shape`)
 }
 
 const baseSha = live.baseRefOid
@@ -397,6 +398,44 @@ const liveConnectorPassed =
   liveBot?.baseRefOid === baseSha
 const botArtifactCurrent = bot.headRefOid === headSha && bot.baseRefOid === baseSha && bot.reviewedCommit === liveBot?.reviewedCommit
 const liveUnresolvedThreads = liveBot?.counts?.unresolved ?? null
+
+/**
+ * Rubric provenance, proven with git rather than asserted by the reviewer.
+ *
+ * This is the only place in the harness with both filesystem and git access at receipt time, so it
+ * is where the proof belongs. lib/readiness-receipt.mjs is pure and runs inside the Stop hook; it
+ * re-derives the own-base case itself and otherwise reads the verdict recorded here.
+ */
+/** runBounded accumulates stdout as a UTF-8 STRING, so blob content is read as text and never
+ * trimmed: trimming would drop the rubric's trailing newline on one side of the comparison only. */
+const gitRaw = async (cwd, args) => {
+  const result = await runBounded("git", ["-C", cwd, ...args], { cwd, timeoutMs: 45000, maxBuffer: 16 * 1024 * 1024 })
+  return result.timedOut || result.error || result.status !== 0 ? null : result.stdout
+}
+const gitText = async (cwd, args) => {
+  const out = await gitRaw(cwd, args)
+  return out === null ? null : out.trim()
+}
+
+const rubricRepoRoot = config.repos?.[review.rubricRepositoryKey] ?? null
+const prRepoBlobAtBase = await gitText(repoRoot, ["rev-parse", `${baseSha}:${RUBRIC_PATH}`])
+const canonicalRoot = config.repos?.[CANONICAL_RUBRIC_REPO] ?? null
+const rubricFacts = {
+  prRepoKey: repoKey,
+  prBaseSha: baseSha,
+  prRepoHasRubricAtBase: typeof prRepoBlobAtBase === "string" && /^[0-9a-f]{40}$/.test(prRepoBlobAtBase),
+  blobAtClaimedCommit: rubricRepoRoot ? await gitText(rubricRepoRoot, ["rev-parse", `${review.rubricCommitOid}:${RUBRIC_PATH}`]) : null,
+  canonicalMainBlob: canonicalRoot ? await gitText(canonicalRoot, ["rev-parse", `origin/main:${RUBRIC_PATH}`]) : null,
+  blobBytes: rubricRepoRoot ? await gitRaw(rubricRepoRoot, ["cat-file", "blob", review.rubricBlobOid]) : null,
+  snapshotBytes: (() => {
+    try {
+      return readFileSync(review.rubricArtifactPath, "utf8")
+    } catch {
+      return null
+    }
+  })(),
+}
+const rubricVerdict = rubricProvenanceVerdict(review, rubricFacts)
 const receipt = {
   issue: delivery.issue,
   repositoryKey: repoKey,
@@ -410,8 +449,13 @@ const receipt = {
     rounds: review.rounds,
     reviewedHeadOid: review.reviewedHeadOid,
     artifactPath: review.artifactPath,
-    rubricBaseOid: review.rubricBaseOid,
+    rubricRepositoryKey: review.rubricRepositoryKey,
+    rubricCommitOid: review.rubricCommitOid,
+    rubricBlobOid: review.rubricBlobOid,
     rubricArtifactPath: review.rubricArtifactPath,
+    rubricBinding: rubricVerdict.ok ? rubricVerdict.binding : null,
+    rubricVerified: rubricVerdict.ok,
+    rubricRefusal: rubricVerdict.ok ? null : rubricVerdict.reason,
     findings: review.findings,
     frozenFindingIds: review.frozenFindingIds,
     frozenFindingIdsVerified,
@@ -424,14 +468,15 @@ const receipt = {
   threads: { complete: bot.threadsComplete === true && liveBot?.threadsComplete === true && botArtifactCurrent, unresolvedCount: liveUnresolvedThreads, headSha: liveBot?.headRefOid ?? null, baseSha: liveBot?.baseRefOid ?? null },
   behindBy: liveComparison.behind_by,
   draft: live.isDraft,
-  linear: {
-    status: liveLinear.state.name,
-    stateType: liveLinear.state.type,
-    visibleEffect: liveLinear.labels.some((label) => label.name === "visible-effect"),
-    lastSynchronizationResult: linear.status === liveLinear.state.name ? linear.lastSynchronizationResult : "STALE",
-    lastPostedState: linear.lastPostedState ?? null,
-    headSha: linear.headSha,
-    baseSha: linear.baseSha,
+  ticket: {
+    status: liveTicket.status,
+    targetStatus: config.tickets.states.review,
+    state: liveTicket.state,
+    stateReason: liveTicket.stateReason,
+    lastSynchronizationResult: ticketSync.status === config.tickets.states.review && ticketSync.status === liveTicket.status ? ticketSync.lastSynchronizationResult : "STALE",
+    lastPostedState: ticketSync.lastPostedState ?? null,
+    headSha: ticketSync.headSha,
+    baseSha: ticketSync.baseSha,
   },
 }
 

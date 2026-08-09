@@ -31,7 +31,7 @@ const LEADING_TOKEN = /^\s*("[^"]*"|'[^']*'|\S+)/
 const PR_MERGE = /(?:^|\s)pr\s+merge(?:\s|$)/
 const ADMIN_FLAG = /(?<![\w-])--admin(?![\w-])/
 // `[=\s]*` and not `[= ]+`: curl's concatenated short form `-XPUT` carries no separator at all,
-// and the quoted forms carry one on each side. rules-linear.mjs uses `[=\s]*` for the same reason.
+// and the quoted forms carry one on each side.
 const PUT_METHOD = /(?<![\w-])(?:-X|--method|--request)[=\s]*["']?PUT["']?(?![\w-])/i
 const PULLS_MERGE_PATH = /repos\/[^/\s"']+\/[^/\s"']+\/pulls\/[^/\s"']+\/merge(?![\w-])/
 const MERGE_MUTATION = /(?<![\w])mergePullRequest(?![\w])/
@@ -259,16 +259,34 @@ export function checkBroadStaging(command, { env = {}, cwd = "", repoRoots = [] 
 }
 
 /**
- * Refuse the admin merge in every shape, with NO launcher or worktree exemption: the prohibition
- * is absolute for every agent, and forbidding only the CLI flag would leave both raw API paths
- * open, which is the exact bypass shape it exists to close.
+ * The ONE shape CLAUDE.md sanctions inside the canonical `/merge-prs` skill:
+ *
+ *   gh pr merge <n> --admin --squash --match-head-commit <40 hex>
+ *
+ * Every part is load bearing. `--squash` is the only merge style this repository uses, and
+ * `--match-head-commit` pins the exact approved head, so the override cannot land a raced head or
+ * a head that changed after preflight. An admin merge missing either one is still refused.
+ */
+const SANCTIONED_ADMIN_MERGE = /(?<![\w-])--squash(?![\w-])/
+const MATCH_HEAD_COMMIT = /(?<![\w-])--match-head-commit[= ]+[0-9a-f]{40}(?![0-9a-f])/i
+
+/**
+ * Refuse the admin merge in every shape EXCEPT the one CLAUDE.md sanctions, and with no launcher or
+ * worktree exemption. Forbidding only the CLI flag would leave both raw API paths open, which is the
+ * exact bypass shape this exists to close, so those stay absolutely forbidden.
+ *
+ * The exception is written here because the rule previously called the prohibition absolute while
+ * CLAUDE.md already carved out `/merge-prs`. A gate that contradicts the policy it cites is a gate
+ * somebody eventually works around; implementing the carve out narrowly is safer than leaving the
+ * two disagreeing.
  */
 export function checkAdminMerge(command) {
   if (typeof command !== "string") return null
   for (const segment of segmentsOf(command)) {
     const binary = invokedBinary(segment)
     if (binary === "gh" && PR_MERGE.test(segment) && ADMIN_FLAG.test(segment)) {
-      return blocked(command, adminMergeReason("`gh pr merge --admin`"))
+      if (SANCTIONED_ADMIN_MERGE.test(segment) && MATCH_HEAD_COMMIT.test(segment)) continue
+      return blocked(command, adminMergeReason("`gh pr merge --admin` without `--squash --match-head-commit <sha>`"))
     }
     if (!API_CLIENTS.has(binary)) continue
     const putMethod = PUT_METHOD.test(segment) || (HTTPIE_BINARIES.has(binary) && BARE_PUT.test(segment))

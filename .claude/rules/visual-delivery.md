@@ -24,7 +24,7 @@ A visual task's first deliverable is a **complete, checked-in list of every surf
 ## While you work
 
 ### 3. Never verify against a trivial database — seed the fixture first
-A visual verification against an empty or one-row DB is **structurally invalid** and must not be run or reported. Seed the standard fixture FIRST. It is defined in `RENDER-CORRECTNESS.md` under `## The seed fixture`, and the session seeds it ITSELF, never handing it to the human. A surface you cannot populate cannot be verified — say so, don't glance at an empty screen and call it PASS.
+A visual verification against an empty or one-row DB is **structurally invalid** and must not be run or reported. Seed representative data FIRST. The session seeds it itself. A surface you cannot populate cannot be verified. Say so, and do not glance at an empty screen and call it PASS.
 
 ### 4. Done = an artifact per surface PLUS a human grant, not a sentence
 For each surface on the inventory, "done" means a **screenshot of the rendered surface, seeded, in light AND dark** (`npm run surfaces:capture`, or a browser-tool capture), attached to the ticket or PR (the D7 evidence gate), and a HUMAN saying so. No screenshot means not done; a machine judge cannot grant completion (D13: deterministic signals may withhold, never grant; the deleted vision judge scored 0/12 recall against the known human-found defects). On a PR, attach or link the artifacts so 40 thumbnails can be scanned in a minute instead of a paragraph being trusted.
