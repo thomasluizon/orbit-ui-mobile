@@ -46,6 +46,75 @@ const positive = (value, name) => {
   return value
 }
 
+const nonEmptyString = (value, name) => {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error(`.claude/orchestrator.json ${name} must be a non-empty string`)
+  }
+  return value
+}
+
+const TICKET_STATUSES = ["Backlog", "Todo", "In Progress", "In Review", "Done", "Canceled", "Duplicate"]
+const TICKET_STATE_KEYS = ["working", "review", "done"]
+const TICKET_STATES = { working: "In Progress", review: "In Review", done: "Done" }
+
+const validateLinear = (linear) => {
+  if (!isRecord(linear)) throw new Error(".claude/orchestrator.json must declare a linear object")
+  nonEmptyString(linear.team, "linear.team")
+  nonEmptyString(linear.workspace, "linear.workspace")
+  if (!isRecord(linear.states)) throw new Error(".claude/orchestrator.json linear.states must be an object")
+  const stateKeys = Object.keys(linear.states)
+  if (stateKeys.length !== TICKET_STATE_KEYS.length || TICKET_STATE_KEYS.some((key) => !stateKeys.includes(key))) {
+    throw new Error(`.claude/orchestrator.json linear.states must declare exactly ${TICKET_STATE_KEYS.join(", ")}`)
+  }
+  for (const key of TICKET_STATE_KEYS) {
+    const status = nonEmptyString(linear.states[key], `linear.states.${key}`)
+    if (status !== TICKET_STATES[key]) {
+      throw new Error(`.claude/orchestrator.json linear.states.${key} must be ${JSON.stringify(TICKET_STATES[key])}`)
+    }
+  }
+}
+
+const validateTickets = (tickets) => {
+  if (!isRecord(tickets)) throw new Error(".claude/orchestrator.json must declare a tickets object")
+  nonEmptyString(tickets.repository, "tickets.repository")
+  if (!/^[^/\s]+\/[^/\s]+$/.test(tickets.repository)) {
+    throw new Error(".claude/orchestrator.json tickets.repository must be an owner/repository slug")
+  }
+  nonEmptyString(tickets.projectOwner, "tickets.projectOwner")
+  if (!Number.isInteger(tickets.projectNumber) || tickets.projectNumber <= 0) {
+    throw new Error(".claude/orchestrator.json tickets.projectNumber must be a positive integer")
+  }
+  nonEmptyString(tickets.projectId, "tickets.projectId")
+  nonEmptyString(tickets.statusFieldId, "tickets.statusFieldId")
+  if (!isRecord(tickets.statusOptions)) {
+    throw new Error(".claude/orchestrator.json tickets.statusOptions must be an object")
+  }
+  const optionNames = Object.keys(tickets.statusOptions)
+  const missingOptions = TICKET_STATUSES.filter((status) => !optionNames.includes(status))
+  const extraOptions = optionNames.filter((status) => !TICKET_STATUSES.includes(status))
+  if (missingOptions.length > 0 || extraOptions.length > 0) {
+    throw new Error(
+      `.claude/orchestrator.json tickets.statusOptions must declare exactly ${TICKET_STATUSES.join(", ")}; ` +
+        `missing: ${missingOptions.join(", ") || "none"}; extra: ${extraOptions.join(", ") || "none"}`,
+    )
+  }
+  const optionIds = TICKET_STATUSES.map((status) => nonEmptyString(tickets.statusOptions[status], `tickets.statusOptions.${status}`))
+  if (new Set(optionIds).size !== optionIds.length) {
+    throw new Error(".claude/orchestrator.json tickets.statusOptions values must be unique")
+  }
+  if (!isRecord(tickets.states)) throw new Error(".claude/orchestrator.json tickets.states must be an object")
+  const stateKeys = Object.keys(tickets.states)
+  if (stateKeys.length !== TICKET_STATE_KEYS.length || TICKET_STATE_KEYS.some((key) => !stateKeys.includes(key))) {
+    throw new Error(`.claude/orchestrator.json tickets.states must declare exactly ${TICKET_STATE_KEYS.join(", ")}`)
+  }
+  for (const key of TICKET_STATE_KEYS) {
+    const status = nonEmptyString(tickets.states[key], `tickets.states.${key}`)
+    if (status !== TICKET_STATES[key]) {
+      throw new Error(`.claude/orchestrator.json tickets.states.${key} must be ${JSON.stringify(TICKET_STATES[key])}`)
+    }
+  }
+}
+
 export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranch = "main") => {
   const configPath = fileURLToPath(configUrl)
   let text
@@ -74,6 +143,8 @@ export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranc
   positive(config.timeouts?.pollSeconds, "timeouts.pollSeconds")
   positive(config.caps?.reviewRounds, "caps.reviewRounds")
   positive(config.caps?.connectorFixAttempts, "caps.connectorFixAttempts")
+  validateLinear(config.linear)
+  validateTickets(config.tickets)
   return config
 }
 

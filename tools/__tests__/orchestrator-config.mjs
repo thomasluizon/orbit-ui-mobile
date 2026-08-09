@@ -117,6 +117,88 @@ export const cases = async () => {
     /reviewer "ghost" is not one of its workers/.test(readAndFail("bad-reviewer", { ...real, reviewer: "ghost" }) ?? ""),
     "a reviewer key naming no engine was accepted",
   )
+  T(
+    `${NAME}: a config with no linear object is refused`,
+    /must declare a linear object/.test(readAndFail("no-linear", { ...real, linear: undefined }) ?? ""),
+    "a config with no linear object was accepted",
+  )
+  T(
+    `${NAME}: an incorrect Linear workflow state is refused`,
+    /linear\.states\.review must be "In Review"/.test(
+      readAndFail("unknown-linear-workflow-status", {
+        ...real,
+        linear: { ...real.linear, states: { ...real.linear.states, review: "Shipped" } },
+      }) ?? "",
+    ),
+    "an incorrect Linear workflow state was accepted",
+  )
+  T(
+    `${NAME}: a config with no tickets object is refused`,
+    /must declare a tickets object/.test(readAndFail("no-tickets", { ...real, tickets: undefined }) ?? ""),
+    "a config with no tickets object was accepted",
+  )
+  T(
+    `${NAME}: a non-integer project number is refused`,
+    /tickets\.projectNumber must be a positive integer/.test(
+      readAndFail("fractional-project-number", { ...real, tickets: { ...real.tickets, projectNumber: 2.5 } }) ?? "",
+    ),
+    "a fractional project number was accepted",
+  )
+  const missingDone = { ...real.tickets.statusOptions }
+  delete missingDone.Done
+  T(
+    `${NAME}: a missing board status option is refused by name`,
+    /tickets\.statusOptions must declare exactly[\s\S]*missing: Done/.test(
+      readAndFail("missing-status-option", { ...real, tickets: { ...real.tickets, statusOptions: missingDone } }) ?? "",
+    ),
+    "a status option set missing Done was accepted",
+  )
+  T(
+    `${NAME}: an extra board status option is refused by name`,
+    /extra: Shipped/.test(
+      readAndFail("extra-status-option", {
+        ...real,
+        tickets: { ...real.tickets, statusOptions: { ...real.tickets.statusOptions, Shipped: "new-option" } },
+      }) ?? "",
+    ),
+    "an unknown status option was accepted",
+  )
+  T(
+    `${NAME}: duplicate board option ids are refused`,
+    /statusOptions values must be unique/.test(
+      readAndFail("duplicate-status-option", {
+        ...real,
+        tickets: {
+          ...real.tickets,
+          statusOptions: { ...real.tickets.statusOptions, Todo: real.tickets.statusOptions.Backlog },
+        },
+      }) ?? "",
+    ),
+    "two status names sharing one option id were accepted",
+  )
+  T(
+    `${NAME}: a workflow state must name a declared board status`,
+    /tickets\.states\.review must be "In Review"/.test(
+      readAndFail("unknown-workflow-status", {
+        ...real,
+        tickets: { ...real.tickets, states: { ...real.tickets.states, review: "Shipped" } },
+      }) ?? "",
+    ),
+    "an incorrect workflow state was accepted",
+  )
+  T(
+    `${NAME}: the shipped ticket configuration carries the measured GitHub ids`,
+    real.linear.team === "ORB" &&
+      real.linear.workspace === "useorbitai" &&
+      real.linear.states.working === "In Progress" &&
+      real.linear.states.review === "In Review" &&
+      real.linear.states.done === "Done" &&
+      real.tickets.repository === "thomasluizon/orbit-tickets" &&
+      real.tickets.projectId === "PVT_kwHOBE6dNc4Bfy2y" &&
+      real.tickets.statusFieldId === "PVTSSF_lAHOBE6dNc4Bfy2yzhaDLqQ" &&
+      real.tickets.statusOptions.Done === "9e4bdc69",
+    JSON.stringify(real.tickets),
+  )
   for (const [label, key] of [["hardCeilingMinutes", "timeouts"]]) {
     const stripped = { ...real }
     delete stripped[key]

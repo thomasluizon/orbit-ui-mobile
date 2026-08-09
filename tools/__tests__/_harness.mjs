@@ -126,13 +126,13 @@ export const BASH = resolveBash()
  */
 export const realOrchestratorConfig = () => JSON.parse(readFileSync(join(REPO_ROOT, ".claude", "orchestrator.json"), "utf8"))
 
-let linearEnvelopeManifest
+let ghEnvelopeManifest
 
-const linearEnvelopes = () => {
-  if (!linearEnvelopeManifest) {
-    linearEnvelopeManifest = JSON.parse(readFileSync(join(TOOLS_DIR, "__fixtures__", "orca-linear-envelopes.json"), "utf8"))
+const ghEnvelopes = () => {
+  if (!ghEnvelopeManifest) {
+    ghEnvelopeManifest = JSON.parse(readFileSync(join(TOOLS_DIR, "__fixtures__", "gh-issue-envelopes.json"), "utf8"))
   }
-  return linearEnvelopeManifest.commands
+  return ghEnvelopeManifest.commands
 }
 
 const jsonType = (value) => {
@@ -141,81 +141,97 @@ const jsonType = (value) => {
   return typeof value === "object" ? "object" : typeof value
 }
 
-const STATE_TYPES = new Set(["triage", "backlog", "unstarted", "started", "completed", "canceled", "duplicate"])
-const RELATIONSHIPS = new Set(["blocks", "blockedBy", "relatedTo", "duplicateOf"])
+const ISSUE_STATES = new Set(["OPEN", "CLOSED"])
+const STATE_REASONS = new Set(["COMPLETED", "NOT_PLANNED", "DUPLICATE", "REOPENED"])
+const BOARD_STATUSES = new Set(["Backlog", "Todo", "In Progress", "In Review", "Done", "Canceled", "Duplicate"])
 
-const assertRecordedLinearValue = (command, value, recordedPaths, path = "$") => {
+const assertRecordedGhValue = (command, value, recordedPaths, path = "$") => {
   const actualType = jsonType(value)
   const recorded = recordedPaths[path]
-  if (!recorded) throw new Error(`orca fixture ${command} asserts unrecorded key ${path}`)
+  if (!recorded) throw new Error(`gh fixture ${command} asserts unrecorded key ${path}`)
   if (!recorded.types.includes(actualType)) {
     const expected = recorded.types.join(" | ")
-    throw new Error(`orca fixture ${command} asserts type ${actualType} at ${path}; recorded types: ${expected}`)
+    throw new Error(`gh fixture ${command} asserts type ${actualType} at ${path}; recorded types: ${expected}`)
   }
-  if (/\.state\.type$/.test(path) && typeof value === "string" && !STATE_TYPES.has(value)) {
-    throw new Error(`orca fixture ${command} asserts unsupported enum at ${path}: ${JSON.stringify(value)}`)
+  if (/(?:^|\.)state$/.test(path) && typeof value === "string" && !ISSUE_STATES.has(value)) {
+    throw new Error(`gh fixture ${command} asserts unsupported enum at ${path}: ${JSON.stringify(value)}`)
   }
-  if (/\.relations\[\]\.relationship$/.test(path) && typeof value === "string" && !RELATIONSHIPS.has(value)) {
-    throw new Error(`orca fixture ${command} asserts unsupported enum at ${path}: ${JSON.stringify(value)}`)
+  if (/\.stateReason$/.test(path) && value !== null && (typeof value !== "string" || !STATE_REASONS.has(value))) {
+    throw new Error(`gh fixture ${command} asserts unsupported enum at ${path}: ${JSON.stringify(value)}`)
+  }
+  if (/\.status$/.test(path) && typeof value === "string" && !BOARD_STATUSES.has(value)) {
+    throw new Error(`gh fixture ${command} asserts unsupported enum at ${path}: ${JSON.stringify(value)}`)
   }
   if (actualType === "array") {
-    for (const item of value) assertRecordedLinearValue(command, item, recordedPaths, `${path}[]`)
+    for (const item of value) assertRecordedGhValue(command, item, recordedPaths, `${path}[]`)
     return
   }
   if (actualType !== "object") return
   for (const [key, child] of Object.entries(value)) {
-    assertRecordedLinearValue(command, child, recordedPaths, `${path}.${key}`)
+    assertRecordedGhValue(command, child, recordedPaths, `${path}.${key}`)
   }
 }
 
-const linearEnvelopeName = (command, response) => {
-  if (response?.ok === false || response?.error) {
-    if (/\blinear\s+create\b/.test(command)) return "createError"
-    if (/\blinear\s+team\s+labels\b/.test(command)) return "teamLabelsError"
-    if (/\blinear\s+issue\b/.test(command)) return "issueError"
-    return null
-  }
-  if (/\blinear\s+status\s+set\b/.test(command)) return "statusSet"
-  if (/\blinear\s+create\b/.test(command)) return "create"
-  if (/\blinear\s+list-issues\b/.test(command)) return "listIssues"
-  if (/\blinear\s+team\s+labels\b/.test(command)) return "teamLabels"
-  if (!/\blinear\s+issue\b/.test(command)) return null
-  if (/\s--full(?:\s|$)/.test(command)) return "issueFull"
-  if (/\s--attachments(?:\s|$)/.test(command) || Object.hasOwn(response?.result ?? {}, "attachments")) return "issueAttachments"
-  if (/\s--comments(?:\s|$)/.test(command) || Object.hasOwn(response?.result ?? {}, "comments")) return "issueComments"
-  if (/\s--relations(?:\s|$)/.test(command) || Object.hasOwn(response?.result ?? {}, "relations")) return "issueRelations"
-  return "issueDefault"
+const ghEnvelopeName = (command, entry) => {
+  if (/\bissue\s+view\b/.test(command)) return (entry.exit ?? 0) === 0 ? "issueView" : "issueViewError"
+  if (/\bissue\s+list\b/.test(command)) return "issueList"
+  if (/\bproject\s+item-list\b/.test(command)) return "projectItemList"
+  if (/\blabel\s+list\b/.test(command)) return "labelList"
+  // Writes deliberately have NO envelope. Recording one would mean mutating real tickets, and the
+  // recorder is read-only, so a write stub proves itself with the explicit exit-code-only escape
+  // instead of against an invented success object.
+  return null
 }
 
 /**
- * Every stubbed Linear reply is checked against tools/__fixtures__/orca-linear-envelopes.json,
- * which is RECORDED output from the real orca CLI. This is the guard against the most expensive
+ * What counts as a ticket command at all. Anything matching this must either resolve to a recorded
+ * envelope or declare the explicit exit-code-only escape. `gh pr ...` and everything else is not a
+ * ticket command and is left alone, which is what keeps the PR stubs working.
+ */
+const TICKET_COMMAND = /\b(?:issue|project|label)\s+[a-z-]+/
+
+/**
+ * Every stubbed GitHub ticket reply is checked against tools/__fixtures__/gh-issue-envelopes.json,
+ * which is RECORDED output from the real gh CLI. This is the guard against the most expensive
  * mistake available here: inventing a field and adding the mock that agrees with the invention,
  * so the harness stays green over a defect. The fixture is never regenerated to make a case pass.
  */
-const assertOrcaLinearStub = (entry, stdout) => {
+const assertGhTicketStub = (entry) => {
   const command = String(entry.match)
-  if (!/\blinear\s+/.test(command)) return
-  // A write whose caller branches only on the exit code has no response field to prove. Keeping
-  // stdout empty is stronger than inventing a success object that the real CLI may never emit.
-  if (entry.ignoreLinearShape === true && stdout === "") return
+  const envelopeName = ghEnvelopeName(command, entry)
+  const output = envelopeName === "issueViewError" ? String(entry.stderr ?? "") : String(entry.stdout ?? "")
+  /**
+   * A ticket command with no recorded envelope is a hole, not a pass. The Linear guard this
+   * replaced refused any `orca linear` command it had no envelope for, and only skipped commands
+   * that were not Linear at all. Skipping every unrecognised `gh issue` and `gh project` command
+   * would have let `issue close`, `issue edit`, `issue create` and `project item-add`, which are
+   * exactly the ticket mutations, carry any invented output shape a stub liked.
+   *
+   * The escape is deliberate and explicit, as it was before: a write whose caller branches only on
+   * the exit code declares `ignoreTicketShape: true` AND keeps its output empty. Empty output is
+   * stronger than an invented success object the real CLI may never emit, and requiring the flag
+   * means a test author states that intent rather than getting it by omission.
+   */
+  if (entry.ignoreTicketShape === true && output === "") return
+  if (!envelopeName) {
+    if (TICKET_COMMAND.test(command)) {
+      throw new Error(`gh fixture ${command} has no recorded invocation envelope; record one, or declare ignoreTicketShape: true with empty output`)
+    }
+    return
+  }
+  const envelope = ghEnvelopes()[envelopeName]
+  if (!envelope) throw new Error(`gh fixture ${command} has no recorded invocation envelope (${envelopeName})`)
+  if (envelopeName === "issueViewError") {
+    assertRecordedGhValue(command, output, envelope.paths)
+    return
+  }
   let response
-  let parsedJson = false
   try {
-    response = JSON.parse(stdout)
-    parsedJson = true
+    response = JSON.parse(output)
   } catch {
-    response = null
+    throw new Error(`gh fixture ${command} has non-JSON stdout`)
   }
-  const envelopeName = linearEnvelopeName(command, response)
-  if (!envelopeName) throw new Error(`orca fixture ${command} has no recorded invocation envelope`)
-  if (!parsedJson) {
-    if (entry.allowNonJsonLinear === true) return
-    throw new Error(`orca fixture ${command} has non-JSON stdout without allowNonJsonLinear: true`)
-  }
-  const envelope = linearEnvelopes()[envelopeName]
-  if (!envelope) throw new Error(`orca fixture ${command} has no recorded invocation envelope (${envelopeName})`)
-  assertRecordedLinearValue(command, response, envelope.paths)
+  assertRecordedGhValue(command, response, envelope.paths)
 }
 
 /**
@@ -244,14 +260,16 @@ if (match.hangTreePidFile) {
   writeFileSync(match.hangTreePidFile, String(child.pid))
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0)
 }
+if (match.stdinFile) writeFileSync(match.stdinFile, readFileSync(0, "utf8"))
 if (Array.isArray(match.stdoutSequence) && match.sequenceFile) {
   const index = existsSync(match.sequenceFile) ? Number(readFileSync(match.sequenceFile, "utf8")) : 0
   const selected = match.stdoutSequence[Math.min(index, match.stdoutSequence.length - 1)]
   writeFileSync(match.sequenceFile, String(index + 1))
   process.stdout.write(selected)
 } else {
-  process.stdout.write(match.stdout)
+  process.stdout.write(match.stdout || "")
 }
+process.stderr.write(match.stderr || "")
 process.exit(match.exit ?? 0)
 `,
 )
@@ -262,7 +280,7 @@ process.exit(match.exit ?? 0)
  * shells out to `gh pr list`, and a stub plan entry matching `pr list --head` answers it.
  */
 export const orcaEnv = (plan) => {
-  for (const entry of plan) assertOrcaLinearStub(entry, entry.stdout)
+  for (const entry of plan) assertGhTicketStub(entry)
   return {
     ORCA_BIN: process.execPath,
     GH_BIN: process.execPath,

@@ -29,15 +29,18 @@ export const cases = () => {
     return
   }
   const real = realOrchestratorConfig()
-  const staged = stageWithConfig("sync-linear-state", TOOL, { ...real, repos: { ui: repo.path } })
+  const staged = stageWithConfig("sync-linear-state", TOOL, {
+    ...real,
+    repos: { ui: repo.path },
+  })
   const message = stage("sync-linear-state/message.md", "PR #700 is ready on the final head.")
   const argv = ["--issue", "ORB-700", "--repo", "ui", "--pr", "700", "--state", "ready", "--head-sha", HEAD, "--base-sha", BASE, "--message-file", message]
   const statusMarker = stage("sync-linear-state/status-marker", "status")
   const commentMarker = stage("sync-linear-state/comment-marker", "comment")
   const env = syncEnv([
     { match: "linear issue ORB-700 --full --json", stdout: issueEnvelope() },
-    { match: "linear status set ORB-700", stdout: "", removePath: statusMarker, ignoreLinearShape: true },
-    { match: "linear comment add ORB-700", stdout: "", removePath: commentMarker, ignoreLinearShape: true },
+    { match: "linear status set ORB-700", stdout: "", removePath: statusMarker },
+    { match: "linear comment add ORB-700", stdout: "", removePath: commentMarker },
   ])
   check(TOOL, "ready synchronizes In Review and posts one state comment", argv, { status: 0, stdout: /"status": "In Review"[\s\S]*"commentPosted": true/ }, { path: staged.path, env })
   T(`${TOOL}: status and comment writes both ran`, !existsSync(statusMarker) && !existsSync(commentMarker))
@@ -45,7 +48,7 @@ export const cases = () => {
   const duplicateMarker = stage("sync-linear-state/duplicate-comment-marker", "must remain")
   const duplicateEnv = syncEnv([
     { match: "linear issue ORB-700 --full --json", stdout: issueEnvelope({ name: "In Review", type: "started" }) },
-    { match: "linear comment add ORB-700", stdout: "", removePath: duplicateMarker, ignoreLinearShape: true },
+    { match: "linear comment add ORB-700", stdout: "", removePath: duplicateMarker },
   ])
   check(TOOL, "an identical current-head state skips duplicate comment spam", argv, { status: 0, stdout: /"commentPosted": false/ }, { path: staged.path, env: duplicateEnv })
   T(`${TOOL}: duplicate state did not call comment add`, existsSync(duplicateMarker))
@@ -54,8 +57,8 @@ export const cases = () => {
   stdinArgv[stdinArgv.indexOf(message)] = "-"
   check(TOOL, "the documented message-file stdin sentinel is accepted", stdinArgv, { status: 0, stdout: /"lastSynchronizationResult": "SUCCESS"/ }, { path: staged.path, input: "state from stdin\n", env: syncEnv([
     { match: "linear issue ORB-700 --full --json", stdout: issueEnvelope() },
-    { match: "linear status set ORB-700", stdout: "", ignoreLinearShape: true },
-    { match: "linear comment add ORB-700", stdout: "", ignoreLinearShape: true },
+    { match: "linear status set ORB-700", stdout: "" },
+    { match: "linear comment add ORB-700", stdout: "" },
   ]) })
 
   /**
@@ -72,8 +75,8 @@ export const cases = () => {
     return {
       env: syncEnv([
         { match: "linear issue ORB-700 --full --json", stdout: envelope },
-        { match: "linear status set ORB-700", stdout: "", removePath: statusUnused, ignoreLinearShape: true },
-        { match: "linear comment add ORB-700", stdout: "", removePath: commentUnused, ignoreLinearShape: true },
+        { match: "linear status set ORB-700", stdout: "", removePath: statusUnused },
+        { match: "linear comment add ORB-700", stdout: "", removePath: commentUnused },
       ], pullRequest),
       statusUnused,
       commentUnused,
@@ -101,7 +104,7 @@ export const cases = () => {
 
   const descendantPidFile = stage("sync-linear-state/descendant.pid", "")
   const hanging = check(TOOL, "a hanging Linear read is bounded", [...argv, "--command-timeout-seconds", "1"], { status: 2, stderr: /timed out after 1s/ }, { path: staged.path, env: orcaEnv([
-    { match: "linear issue ORB-700 --full --json", stdout: "", hangTreePidFile: descendantPidFile, allowNonJsonLinear: true },
+    { match: "linear issue ORB-700 --full --json", stdout: "", hangTreePidFile: descendantPidFile },
   ]) })
   const descendantPid = Number(readFileSync(descendantPidFile, "utf8"))
   T(`${TOOL}: a Linear timeout removes the complete child process tree`, Number.isInteger(descendantPid) && !processIsRunning(descendantPid), hanging.stderr || `descendant ${descendantPid} still alive`)
