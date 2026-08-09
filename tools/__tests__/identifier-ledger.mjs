@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 
 import { currentRunIdentifier, identifierLedgerPath, readObservedIdentifiers, recordObservedIdentifiers } from "../lib/identifier-ledger.mjs"
 
@@ -46,6 +46,33 @@ export const cases = () => {
   T(`${UNIT}: recording nothing writes nothing`, recordObservedIdentifiers([], { repoRoot, tool: "x", runIdentifier: RUN }) === null, "an empty record must not touch the file")
   T(`${UNIT}: blank and non-string entries are ignored`, recordObservedIdentifiers(["", null, 7], { repoRoot, tool: "x", runIdentifier: RUN }) === null, "a junk record must not touch the file")
   T(`${UNIT}: recording without a run identifier writes nothing`, recordObservedIdentifiers([A], { repoRoot, tool: "x" }) === null, "an unscoped record must not touch the file")
+
+  /**
+   * THE legacy ledger, which is the case the run scoping exists for and the one nothing covered.
+   *
+   * A ledger written before ids carried a runIdentifier has entries with that field absent. Reading
+   * such a file with no run identifier compares undefined against undefined, so EVERY stale id from
+   * every previous session matches and is admitted. That is the 2026-08-08 failure exactly: a node
+   * id is globally unique, so a stale one does not fail, it reaches a stranger's repository.
+   *
+   * Measured with the guard removed, this returned the stale id rather than nothing.
+   */
+  const legacy = stageCheckout("legacy")
+  mkdirSync(dirname(identifierLedgerPath(legacy)), { recursive: true })
+  writeFileSync(
+    identifierLedgerPath(legacy),
+    JSON.stringify({ identifiers: [{ id: "PRRT_stale_from_a_previous_session", tool: "list-bot-threads.mjs", repository: "someone-else/repo" }] }),
+  )
+  T(
+    `${UNIT}: an unscoped read of a legacy ledger admits nothing, so a stale id cannot be borrowed`,
+    readObservedIdentifiers(legacy, {}).length === 0,
+    JSON.stringify(readObservedIdentifiers(legacy, {}).map((entry) => entry.id)),
+  )
+  T(
+    `${UNIT}: a legacy entry is not admitted for a named run either`,
+    readObservedIdentifiers(legacy, { runIdentifier: RUN }).length === 0,
+    JSON.stringify(readObservedIdentifiers(legacy, { runIdentifier: RUN }).map((entry) => entry.id)),
+  )
 
   /** Every write fails soft: recording what a read saw must never fail the read itself. */
   const unwritable = join(root, "identifier-ledger", "missing-parent", "nested")
