@@ -621,5 +621,77 @@ for (const relative of definitionFiles) {
 // A guard that scanned nothing passes vacuously; make that a failure instead.
 T("frontmatter: the scan actually read definitions", definitionFiles.length > 0, true)
 
+/**
+ * Every `node tools/<tool>.mjs --flag` a skill prescribes must name flags that tool accepts.
+ *
+ * The GitHub migration renamed tools and changed their flags, and the skills kept prescribing the
+ * old ones. `record-readiness.mjs --linear <json>` and a `teardown-worktree.mjs` call with no
+ * `--repo` both survived every gate and both would have failed at 03:00, after a worker had already
+ * done the work. Prose that names a command is an interface claim, and an unchecked interface claim
+ * is the defect class this repository exists to prevent.
+ */
+const toolFlagSets = new Map()
+const flagsAcceptedBy = (tool) => {
+  if (toolFlagSets.has(tool)) return toolFlagSets.get(tool)
+  const path = join(repoRoot, "tools", tool)
+  if (!existsSync(path)) {
+    toolFlagSets.set(tool, null)
+    return null
+  }
+  const source = readFileSync(path, "utf8")
+  const flags = new Set(source.match(/--[a-z][a-z0-9-]*/g) ?? [])
+  toolFlagSets.set(tool, flags)
+  return flags
+}
+
+const prescribed = []
+for (const relative of skillFiles) {
+  const text = readFileSync(join(repoRoot, relative), "utf8")
+  for (const line of text.split(/\r?\n/)) {
+    const invocation = line.match(/^\s*node\s+tools\/([a-z0-9-]+\.mjs)\s+(.*)$/)
+    if (!invocation) continue
+    // A trailing shell comment is prose, not an argument. `--board  # --auto` names one flag.
+    const [, tool, restWithComment] = invocation
+    const rest = restWithComment.split("#")[0]
+    const accepted = flagsAcceptedBy(tool)
+    if (accepted === null) {
+      prescribed.push([relative, tool, "the tool does not exist"])
+      continue
+    }
+    for (const flag of rest.match(/--[a-z][a-z0-9-]*/g) ?? []) {
+      if (!accepted.has(flag)) prescribed.push([relative, tool, `does not accept ${flag}`])
+    }
+  }
+}
+for (const [relative, tool, problem] of prescribed) {
+  T(`skill commands: ${relative} prescribes ${tool} which ${problem}`, false)
+}
+T("skill commands: every prescribed tool invocation names flags the tool accepts", prescribed.length === 0, true)
+T("skill commands: the scan actually found invocations", toolFlagSets.size > 0, true)
+
+/**
+ * Unresolved conflict markers, committed twice during the GitHub migration and caught both times by
+ * looking rather than by any gate. A pre-commit hook does not check for them and neither did
+ * anything else, so a merge resolved by a substitution that silently matched nothing shipped.
+ */
+const markerHits = []
+const scanForMarkers = (directory) => {
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    if (entry.name === "node_modules" || entry.name === ".git") continue
+    const full = join(directory, entry.name)
+    if (entry.isDirectory()) {
+      scanForMarkers(full)
+      continue
+    }
+    if (!/\.(mjs|js|ts|tsx|json|md|ya?ml)$/.test(entry.name)) continue
+    for (const line of readFileSync(full, "utf8").split(/\r?\n/)) {
+      if (/^(<{7}|>{7}) /.test(line)) markerHits.push(`${full.slice(repoRoot.length + 1)}: ${line.slice(0, 40)}`)
+    }
+  }
+}
+for (const top of ["tools", ".claude"]) scanForMarkers(join(repoRoot, top))
+for (const hit of markerHits) T(`conflict markers: ${hit}`, false)
+T("conflict markers: no unresolved merge markers are committed", markerHits.length === 0, true)
+
 console.log(`\n${fails === 0 ? "ORBIT HOOKS OK" : `ORBIT HOOKS FAILED (${fails})`}`)
 process.exit(fails === 0 ? 0 : 1)
