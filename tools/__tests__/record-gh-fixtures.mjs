@@ -23,7 +23,19 @@ export const cases = () => {
       { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: issue },
       { match: "issue view 2147483647 --repo thomasluizon/orbit-tickets", stdout: "", stderr: "GraphQL: issue not found", exit: 1 },
       { match: "issue list --repo thomasluizon/orbit-tickets", stdout: `[${issue}]` },
-      { match: "project item-list 2 --owner thomasluizon", stdout: JSON.stringify({ items: [], totalCount: 0 }) },
+      {
+        match: "project item-list 2 --owner thomasluizon",
+        stdout: JSON.stringify({
+          items: [
+            {
+              content: { number: 221, repository: "thomasluizon/orbit-tickets", type: "Issue" },
+              id: "PVTI_harness_item",
+              status: "In Review",
+            },
+          ],
+          totalCount: 1,
+        }),
+      },
       { match: "label list --repo thomasluizon/orbit-tickets", stdout: JSON.stringify([{ name: "repo:ui" }]) },
     ]),
   })
@@ -35,5 +47,12 @@ export const cases = () => {
     `${TOOL}: derives observed paths without admitting an unobserved key`,
     Boolean(manifest.commands.issueView.paths["$.blockedBy.nodes"]) && !manifest.commands.issueView.paths["$.madeUpField"],
     JSON.stringify(manifest.commands.issueView.paths),
+  )
+  T(
+    `${TOOL}: derives the populated project item paths read by the adapter`,
+    ["content.type", "content.number", "content.repository", "id", "status"].every(
+      (path) => manifest.commands.projectItemList.paths[`$.items[].${path}`],
+    ),
+    JSON.stringify(manifest.commands.projectItemList.paths),
   )
 }

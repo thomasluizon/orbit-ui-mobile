@@ -57,6 +57,23 @@ const TICKET_STATUSES = ["Backlog", "Todo", "In Progress", "In Review", "Done", 
 const TICKET_STATE_KEYS = ["working", "review", "done"]
 const TICKET_STATES = { working: "In Progress", review: "In Review", done: "Done" }
 
+const validateLinear = (linear) => {
+  if (!isRecord(linear)) throw new Error(".claude/orchestrator.json must declare a linear object")
+  nonEmptyString(linear.team, "linear.team")
+  nonEmptyString(linear.workspace, "linear.workspace")
+  if (!isRecord(linear.states)) throw new Error(".claude/orchestrator.json linear.states must be an object")
+  const stateKeys = Object.keys(linear.states)
+  if (stateKeys.length !== TICKET_STATE_KEYS.length || TICKET_STATE_KEYS.some((key) => !stateKeys.includes(key))) {
+    throw new Error(`.claude/orchestrator.json linear.states must declare exactly ${TICKET_STATE_KEYS.join(", ")}`)
+  }
+  for (const key of TICKET_STATE_KEYS) {
+    const status = nonEmptyString(linear.states[key], `linear.states.${key}`)
+    if (status !== TICKET_STATES[key]) {
+      throw new Error(`.claude/orchestrator.json linear.states.${key} must be ${JSON.stringify(TICKET_STATES[key])}`)
+    }
+  }
+}
+
 const validateTickets = (tickets) => {
   if (!isRecord(tickets)) throw new Error(".claude/orchestrator.json must declare a tickets object")
   nonEmptyString(tickets.repository, "tickets.repository")
@@ -126,6 +143,7 @@ export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranc
   positive(config.timeouts?.pollSeconds, "timeouts.pollSeconds")
   positive(config.caps?.reviewRounds, "caps.reviewRounds")
   positive(config.caps?.connectorFixAttempts, "caps.connectorFixAttempts")
+  validateLinear(config.linear)
   validateTickets(config.tickets)
   return config
 }

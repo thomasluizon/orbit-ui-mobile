@@ -24,7 +24,6 @@ export const cases = () => {
   const real = realOrchestratorConfig()
   const staged = stageWithConfig("sync-linear-state", TOOL, {
     ...real,
-    linear: { states: real.tickets.states },
     repos: { ui: repo.path },
   })
   const message = stage("sync-linear-state/message.md", "PR #700 is ready on the final head.")

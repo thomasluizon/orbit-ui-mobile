@@ -70,6 +70,16 @@
       "done": "Done"
     }
   },
+  "_linearCompatibilityComment": "Remove the linear block in the pull request that migrates the synchronizer.",
+  "linear": {
+    "team": "ORB",
+    "workspace": "useorbitai",
+    "states": {
+      "working": "In Progress",
+      "review": "In Review",
+      "done": "Done"
+    }
+  },
   "repos": {
     "ui": "C:\\Users\\thoma\\Documents\\Programming\\Projects\\orbit-ui-mobile",
     "api": "C:\\Users\\thoma\\Documents\\Programming\\Projects\\orbit-api",
