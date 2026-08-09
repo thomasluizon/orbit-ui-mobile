@@ -368,6 +368,69 @@ export const cases = () => {
    * was missed. So the copies are compared directly, over a corpus that covers each branch of the
    * projection and egress logic. A future edit to either copy alone fails here.
    */
+  /**
+   * P1, connector pass 5 on #699: only a TOP-LEVEL row limit bounds the statement. A correlated
+   * subquery's `LIMIT 1` marked the whole query bounded, which suppressed `unbounded-user-list`, the
+   * principal signal, on exactly the unbounded user list this audit exists to catch.
+   */
+  const subqueryLimit = probe('SELECT h."Id", (SELECT g."Name" FROM "Goals" g WHERE g."HabitId" = h."Id" LIMIT 1) FROM "Habits" h WHERE h."UserId" = $1')
+  T(
+    "performance-measurement: a LIMIT inside a subquery does not bound the outer statement",
+    subqueryLimit.fromLib.bounded === false && subqueryLimit.fromWorkflow.bounded === false,
+    JSON.stringify({ lib: subqueryLimit.fromLib.bounded, workflow: subqueryLimit.fromWorkflow.bounded }),
+  )
+  const outerLimit = probe('SELECT h."Id" FROM "Habits" h WHERE h."UserId" = $1 LIMIT 50')
+  T(
+    "performance-measurement: a top-level LIMIT still bounds the statement",
+    outerLimit.fromLib.bounded === true && outerLimit.fromWorkflow.bounded === true,
+    JSON.stringify({ lib: outerLimit.fromLib.bounded, workflow: outerLimit.fromWorkflow.bounded }),
+  )
+
+  /**
+   * P1, connector pass 5 on #699: counting expressions was an inference, not a proof. `SELECT h.*,
+   * g.*` has more expressions than the root table has columns while `bytesPerRow` measures only `h`,
+   * so an exact figure there understates egress and can suppress the background-budget signal.
+   */
+  const joinedStars = probe('SELECT h.*, g.* FROM "Habits" h JOIN "Goals" g ON g."HabitId" = h."Id"')
+  T(
+    "performance-measurement: a projection spanning a join is NOT an exact root-row width",
+    joinedStars.fromLib.projectedBytesPerRow === null && joinedStars.fromWorkflow.projectedBytesPerRow === null,
+    JSON.stringify({ lib: joinedStars.fromLib.projectedBytesPerRow, workflow: joinedStars.fromWorkflow.projectedBytesPerRow }),
+  )
+  const bareStarOverJoin = probe('SELECT * FROM "Habits" h JOIN "Goals" g ON g."HabitId" = h."Id"')
+  T(
+    "performance-measurement: a bare star over a join is not the root row either",
+    bareStarOverJoin.fromLib.projectedBytesPerRow === null && bareStarOverJoin.fromWorkflow.projectedBytesPerRow === null,
+    JSON.stringify({ lib: bareStarOverJoin.fromLib.projectedBytesPerRow }),
+  )
+  const rootStarOverJoin = probe('SELECT h.* FROM "Habits" h JOIN "Goals" g ON g."HabitId" = h."Id"')
+  T(
+    "performance-measurement: the ROOT alias star over a join IS the measured root row",
+    rootStarOverJoin.fromLib.projectedBytesPerRow === 400 && rootStarOverJoin.fromWorkflow.projectedBytesPerRow === 400,
+    JSON.stringify({ lib: rootStarOverJoin.fromLib.projectedBytesPerRow }),
+  )
+  const joinedAliasStar = probe('SELECT g.* FROM "Habits" h JOIN "Goals" g ON g."HabitId" = h."Id"')
+  T(
+    "performance-measurement: a NON-root alias star is not the measured row width",
+    joinedAliasStar.fromLib.projectedBytesPerRow === null && joinedAliasStar.fromWorkflow.projectedBytesPerRow === null,
+    JSON.stringify({ lib: joinedAliasStar.fromLib.projectedBytesPerRow }),
+  )
+
+  /**
+   * P1, connector pass 5 on #699: CODE_ONLY is the most dangerous path to trust, not the safest.
+   * With no measurement there is nothing to overwrite an agent's numbers with, and the skeptic reads
+   * a `queryId` as normalized production evidence.
+   */
+  const unmeasured = attachPerformanceMetrics(
+    [{ queryId: 'habit-list', monthlyEgressBytes: 123456789, title: 'invented on a CODE_ONLY run' }],
+    { status: 'unavailable', verdict: 'CODE_ONLY', reason: 'no production access' },
+  )
+  T(
+    "performance-measurement: an unavailable measurement strips ids and metrics rather than trusting them",
+    unmeasured[0].queryId === undefined && unmeasured[0].monthlyEgressBytes === undefined && unmeasured[0].title === 'invented on a CODE_ONLY run',
+    JSON.stringify(unmeasured[0]),
+  )
+
   const equivalenceCorpus = [
     'SELECT * FROM "Habits" h',
     'SELECT h.* FROM "Habits" h',
@@ -378,6 +441,11 @@ export const cases = () => {
     'SELECT h."Id" FROM "Habits" h WHERE h."UserId" = $1 LIMIT 50',
     'SELECT h."Id" FROM "Habits" h WHERE h."UserId" = $1 OFFSET $2',
     'SELECT h."Id" FROM "Habits" h WHERE h."HabitId" = ANY ($1)',
+    'SELECT h.*, g.* FROM "Habits" h JOIN "Goals" g ON g."HabitId" = h."Id"',
+    'SELECT * FROM "Habits" h JOIN "Goals" g ON g."HabitId" = h."Id"',
+    'SELECT g.* FROM "Habits" h JOIN "Goals" g ON g."HabitId" = h."Id"',
+    'SELECT h."Id", (SELECT g."Name" FROM "Goals" g WHERE g."HabitId" = h."Id" LIMIT 1) FROM "Habits" h WHERE h."UserId" = $1',
+    'SELECT h.* FROM "Habits" AS h',
   ]
   const COMPARED_KEYS = ["projectionColumns", "projectedBytesPerRow", "monthlyEgressBytes", "tableFraction", "bounded", "userScoped", "rowsPerCall", "callsPerMonth", "intervalSeconds"]
   const divergent = equivalenceCorpus.filter((queryShape) => {
@@ -393,12 +461,14 @@ export const cases = () => {
   const distinct = probe('SELECT DISTINCT h."Id", h."UserId" FROM "Habits" h')
   T("performance-measurement: DISTINCT is not counted as a column", distinct.fromLib.projectionColumns === 2, String(distinct.fromLib.projectionColumns))
 
-  /** The projected width may never EXCEED the measured row width, whatever the projection says. */
+  /** A root-scoped enumeration covering every column IS the whole row, and is charged exactly the
+   * measured width, never more. This is the real shape of the unpaginated habit list in
+   * `pg_stat_statements`: named columns, not `h.*`. */
   const overCounted = probe('SELECT a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v FROM "Habits" h')
   T(
-    "performance-measurement: a projection wider than the table never charges more than the row",
-    overCounted.fromLib.projectedBytesPerRow === 400,
-    String(overCounted.fromLib.projectedBytesPerRow),
+    "performance-measurement: a root enumeration covering the row is charged the row width, never more",
+    overCounted.fromLib.projectedBytesPerRow === 400 && overCounted.fromWorkflow.projectedBytesPerRow === 400,
+    JSON.stringify({ lib: overCounted.fromLib.projectedBytesPerRow, workflow: overCounted.fromWorkflow.projectedBytesPerRow }),
   )
 
   /**

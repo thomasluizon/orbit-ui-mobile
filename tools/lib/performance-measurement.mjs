@@ -25,7 +25,19 @@ const nonNegativeNumber = (value, field) => {
  * A star projects the whole row, so it resolves to the table's column count when that is known and
  * to null when it is not. Null means "unknown", never "one", and every caller treats it that way.
  */
-const selectedColumnCount = (queryShape, columnCount) => {
+/** Everything outside a parenthesis is the OUTER query. A subquery cannot speak for it. */
+const outerQueryOnly = (queryShape) => {
+  let depth = 0
+  let outer = ""
+  for (const character of queryShape) {
+    if (character === "(") { depth += 1; continue }
+    if (character === ")") { if (depth > 0) depth -= 1; continue }
+    if (depth === 0) outer += character
+  }
+  return outer
+}
+
+const selectedExpressions = (queryShape) => {
   const select = /^\s*select\s+([\s\S]+?)\s+from\s+/i.exec(queryShape)?.[1]
   if (!select) return null
   const list = select.replace(/^\s*(?:distinct\s+on\s*\([\s\S]*?\)|distinct|all)\s+/i, "").trim()
@@ -45,7 +57,45 @@ const selectedColumnCount = (queryShape, columnCount) => {
   }
   parts.push(current)
   const columns = parts.map((part) => part.trim()).filter(Boolean)
-  if (columns.length === 0) return null
+  return columns.length === 0 ? null : columns
+}
+
+const rootAliasOf = (queryShape) =>
+  /\bfrom\s+"?[\w.]+"?\s+(?:as\s+)?"?([A-Za-z_]\w*)"?/i.exec(outerQueryOnly(queryShape))?.[1]?.toLowerCase() ?? null
+
+/**
+ * Provably the ROOT table's whole row, which is the only projection `bytesPerRow` actually measures.
+ *
+ * `projectionColumns >= columnCount` was an inference, not a proof: `SELECT h.*, g.*` counts more
+ * expressions than `Habits` has columns while `bytesPerRow` still measures only `h`, so the egress
+ * came out substantially understated and could suppress the background-budget signal. So the test is
+ * now structural: exactly ONE selected expression, and it is that root table's star.
+ */
+const projectsRootWholeRow = (queryShape, columnCount) => {
+  const columns = selectedExpressions(queryShape)
+  if (!columns) return false
+  const alias = rootAliasOf(queryShape)
+  const joined = /\bjoin\b/i.test(outerQueryOnly(queryShape))
+  const qualifierOf = (expression) => /^"?([A-Za-z_]\w*)"?\s*\.\s*(?:"[^"]+"|\*|\w+)$/.exec(expression)?.[1]?.toLowerCase() ?? null
+  /** Every expression must come from the ROOT table, because that is all `bytesPerRow` measures. */
+  const isRootScoped = (expression) => {
+    const qualifier = qualifierOf(expression)
+    if (qualifier != null) return alias != null && qualifier === alias
+    /** Unqualified only resolves to the root when there is nothing else it could come from. */
+    return !joined
+  }
+  if (!columns.every(isRootScoped)) return false
+  const isStar = (expression) => expression === "*" || /(?:^|\.)\*$/.test(expression)
+  if (columns.length === 1 && isStar(columns[0])) return true
+  if (columns.some(isStar)) return false
+  /** An explicit enumeration is the whole row when it covers every column, which is how the real
+   * unpaginated habit list appears in `pg_stat_statements`: 29 named columns, not `h.*`. */
+  return Number.isFinite(columnCount) && columnCount > 0 && columns.length >= columnCount
+}
+
+const selectedColumnCount = (queryShape, columnCount) => {
+  const columns = selectedExpressions(queryShape)
+  if (!columns) return null
   /** A bare or qualified star expands to every column, so the width is the table's, not one. */
   if (columns.some((column) => column === "*" || /(?:^|\.)\*$/.test(column))) {
     return Number.isFinite(columnCount) && columnCount > 0 ? columnCount : null
@@ -53,7 +103,12 @@ const selectedColumnCount = (queryShape, columnCount) => {
   return columns.length
 }
 
-const isBoundedQuery = (queryShape) => /\b(?:limit|fetch\s+(?:first|next))\b/i.test(queryShape)
+/**
+ * Only a TOP-LEVEL row limit bounds the statement. A scalar or correlated subquery carrying
+ * `LIMIT 1` used to mark the whole query bounded, which suppressed `unbounded-user-list`, the
+ * principal signal this audit exists to raise, on exactly the shape it is meant to catch.
+ */
+const isBoundedQuery = (queryShape) => /\b(?:limit|fetch\s+(?:first|next))\b/i.test(outerQueryOnly(queryShape))
 
 const isUserScopedQuery = (queryShape) => /[".]UserId\b/i.test(queryShape)
 
@@ -107,11 +162,7 @@ const analyzeQuery = (entry, index, windowDays, tableByName, thresholds) => {
    * number nobody can defend. `unbounded-user-list`, the principal signal, reads `bounded` and is
    * unaffected either way.
    */
-  const projectionIsWholeRow = projectionColumns != null
-    && Number.isFinite(table?.columnCount)
-    && table.columnCount > 0
-    && projectionColumns >= table.columnCount
-  const projectedBytesPerRow = bytesPerRow == null || !projectionIsWholeRow ? null : bytesPerRow
+  const projectedBytesPerRow = bytesPerRow == null || !projectsRootWholeRow(queryShape, table?.columnCount) ? null : bytesPerRow
   const monthlyEgressBytes = projectedBytesPerRow == null ? null : rows / windowDays * DAYS_PER_MONTH * projectedBytesPerRow
   const userScoped = isUserScopedQuery(queryShape)
   const bounded = isBoundedQuery(queryShape)
@@ -340,7 +391,20 @@ const MEASURED_METRIC_KEYS = ["calls", "rowsPerCall", "bytesPerRow", "callsPerMo
  *   no queryId       nothing ties it to a measured statement, so strip any metric it supplied
  */
 export function attachPerformanceMetrics(findings, measurement) {
-  if (measurement.status !== "available") return findings
+  /**
+   * CODE_ONLY is the MOST dangerous path to trust, not the safest. With no measurement there is
+   * nothing to overwrite an agent's numbers with, and the skeptic prompt reads any finding carrying
+   * a `queryId` as normalized production evidence, so an unmeasured run could rank and ticket
+   * invented egress as measured fact. Strip it all.
+   */
+  if (measurement.status !== "available") {
+    return findings.map((finding) => {
+      const stripped = { ...finding }
+      for (const key of MEASURED_METRIC_KEYS) delete stripped[key]
+      delete stripped.queryId
+      return stripped
+    })
+  }
   const queryById = new Map(measurement.rowsRanking.map((entry) => [entry.queryId, entry]))
   return findings.map((finding) => {
     const claimedQueryId = String(finding.queryId || "")

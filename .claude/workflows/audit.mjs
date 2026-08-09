@@ -53,6 +53,63 @@ function projectionWidth(select, columnCount) {
   return columns.length
 }
 
+/** Everything outside a parenthesis is the OUTER query. A subquery cannot speak for it. */
+function outerQueryOnly(queryShape) {
+  let depth = 0
+  let outer = ''
+  for (const character of queryShape) {
+    if (character === '(') { depth += 1; continue }
+    if (character === ')') { if (depth > 0) depth -= 1; continue }
+    if (depth === 0) outer += character
+  }
+  return outer
+}
+
+function selectListOf(queryShape) {
+  const select = /^\s*select\s+([\s\S]+?)\s+from\s+/i.exec(queryShape)?.[1]
+  if (typeof select !== 'string') return null
+  const list = select.replace(/^\s*(?:distinct\s+on\s*\([\s\S]*?\)|distinct|all)\s+/i, '').trim()
+  if (list === '') return null
+  let depth = 0
+  let current = ''
+  const parts = []
+  for (const character of list) {
+    if (character === '(') depth++
+    else if (character === ')') depth--
+    if (character === ',' && depth === 0) { parts.push(current); current = ''; continue }
+    current += character
+  }
+  parts.push(current)
+  const columns = parts.map((part) => part.trim()).filter(Boolean)
+  return columns.length === 0 ? null : columns
+}
+
+/**
+ * Provably the ROOT table's whole row, which is the only projection `bytesPerRow` measures.
+ *
+ * `projectionColumns >= columnCount` was an inference, not a proof: `SELECT h.*, g.*` counts more
+ * expressions than the root table has columns while `bytesPerRow` measures only `h`, understating
+ * egress and suppressing the background-budget signal. Mirrors
+ * `tools/lib/performance-measurement.mjs`; the equivalence case holds the two copies together.
+ */
+function projectsRootWholeRow(queryShape, columnCount) {
+  const columns = selectListOf(queryShape)
+  if (!columns) return false
+  const alias = /\bfrom\s+"?[\w.]+"?\s+(?:as\s+)?"?([A-Za-z_]\w*)"?/i.exec(outerQueryOnly(queryShape))?.[1]?.toLowerCase() ?? null
+  const joined = /\bjoin\b/i.test(outerQueryOnly(queryShape))
+  const qualifierOf = (expression) => /^"?([A-Za-z_]\w*)"?\s*\.\s*(?:"[^"]+"|\*|\w+)$/.exec(expression)?.[1]?.toLowerCase() ?? null
+  const isRootScoped = (expression) => {
+    const qualifier = qualifierOf(expression)
+    if (qualifier != null) return alias != null && qualifier === alias
+    return !joined
+  }
+  if (!columns.every(isRootScoped)) return false
+  const isStar = (expression) => expression === '*' || /(?:^|\.)\*$/.test(expression)
+  if (columns.length === 1 && isStar(columns[0])) return true
+  if (columns.some(isStar)) return false
+  return Number.isFinite(columnCount) && columnCount > 0 && columns.length >= columnCount
+}
+
 const unavailablePerformanceMeasurement = (reason) => ({
   status: 'unavailable',
   verdict: 'CODE_ONLY',
@@ -87,7 +144,12 @@ function resolvePerformanceMeasurement(input) {
       const select = /^\s*select\s+([\s\S]+?)\s+from\s+/i.exec(entry.queryShape)?.[1]
       const projectionColumns = projectionWidth(select, table?.columnCount)
       const userScoped = /[".]UserId\b/i.test(entry.queryShape)
-      const bounded = /\b(?:limit|fetch\s+(?:first|next))\b/i.test(entry.queryShape)
+      /**
+       * Only a TOP-LEVEL row limit bounds the statement. A scalar or correlated subquery carrying
+       * `LIMIT 1` used to mark the whole query bounded, suppressing `unbounded-user-list` on exactly
+       * the shape this audit exists to catch.
+       */
+      const bounded = /\b(?:limit|fetch\s+(?:first|next))\b/i.test(outerQueryOnly(entry.queryShape))
       /**
        * Egress is what the query SENDS, which is its projection, not the width of the table row.
        * `bytesPerRow` comes from pg_stats and describes the whole row, so charging every query the
@@ -108,11 +170,7 @@ function resolvePerformanceMeasurement(input) {
        * script is sandboxed and cannot import from disk, so they are held identical by the
        * equivalence case in `tools/__tests__/performance-measurement.mjs`. Change one, change both.
        */
-      const projectionIsWholeRow = projectionColumns != null
-        && Number.isFinite(table?.columnCount)
-        && table.columnCount > 0
-        && projectionColumns >= table.columnCount
-      const projectedBytesPerRow = Number.isFinite(entry.bytesPerRow) && entry.bytesPerRow > 0 && projectionIsWholeRow
+      const projectedBytesPerRow = Number.isFinite(entry.bytesPerRow) && entry.bytesPerRow > 0 && projectsRootWholeRow(entry.queryShape, table?.columnCount)
         ? entry.bytesPerRow
         : null
       const monthlyEgressBytes = projectedBytesPerRow === null
@@ -295,7 +353,20 @@ const MEASURED_METRIC_KEYS = ['calls', 'rowsPerCall', 'bytesPerRow', 'callsPerMo
  *   no queryId       nothing ties it to a measured statement, so strip any metric it supplied
  */
 function attachPerformanceMetrics(findings, measurement) {
-  if (measurement.status !== 'available') return findings
+  /**
+   * CODE_ONLY is the MOST dangerous path to trust, not the safest. With no measurement there is
+   * nothing to overwrite an agent's numbers with, and `skepticPrompt` reads any finding carrying a
+   * `queryId` as normalized production evidence, so an unmeasured run could rank and ticket invented
+   * egress as measured fact. Strip it all.
+   */
+  if (measurement.status !== 'available') {
+    return findings.map((finding) => {
+      const stripped = { ...finding }
+      for (const key of MEASURED_METRIC_KEYS) delete stripped[key]
+      delete stripped.queryId
+      return stripped
+    })
+  }
   const queryById = new Map(measurement.rowsRanking.map((entry) => [entry.queryId, entry]))
   return findings.map((finding) => {
     const claimedQueryId = String(finding.queryId || '')
