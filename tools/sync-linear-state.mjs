@@ -148,7 +148,11 @@ if (
 }
 if (pullRequest.number !== prNumber) fail(2, `GitHub returned pull request ${pullRequest.number}, not ${prNumber}. Nothing was written`)
 
-const issueReference = new RegExp(`(?:^|[^A-Z0-9])${issue}(?:$|[^A-Z0-9])`, "i")
+// `issue` is caller supplied, so it is escaped before it becomes a pattern. The identifier is also
+// validated above and cannot currently carry a metacharacter, but building a regular expression out
+// of an argument is the injection shape whatever today's validation happens to allow.
+const escapeForPattern = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+const issueReference = new RegExp(`(?:^|[^A-Z0-9])${escapeForPattern(issue)}(?:$|[^A-Z0-9])`, "i")
 if (![pullRequest.headRefName, pullRequest.title, pullRequest.body].some((value) => issueReference.test(value))) {
   fail(2, `Pull request ${expectedSlug}#${prNumber} does not reference ${issue} in its branch, title, or body. Nothing was written`)
 }
