@@ -11,7 +11,7 @@
 // really observed, and where to look for them.
 //
 //   1. tools/lib/identifier-ledger.mjs, in each declared repository's `.git/`. list-bot-threads.mjs
-//      appends every thread id it returns, so a copied id is present by construction.
+//      appends every thread id with the run that observed it. Only this session's entries count.
 //   2. the session scratchpad, so an id read from a saved artifact also clears the gate.
 //
 // The scratchpad scan is BOUNDED and fails open. A PreToolUse hook runs on every command, so it may
@@ -96,11 +96,12 @@ try {
   const hookRepoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..")
   const repoRoots = declaredRepoRoots(hookRepoRoot)
   const observed = new Set()
+  const runIdentifier = input?.session_id
   for (const repoRoot of repoRoots) {
-    for (const entry of readObservedIdentifiers(repoRoot)) observed.add(entry.id)
+    for (const entry of readObservedIdentifiers(repoRoot, { runIdentifier })) observed.add(entry.id)
   }
 
-  const scratchpads = sessionScratchpads(input?.session_id)
+  const scratchpads = sessionScratchpads(runIdentifier)
   if (!wanted.every((id) => observed.has(id))) scanForIdentifiers(scratchpads, wanted, observed)
 
   const verdict = checkInventedIdentifier(command, {

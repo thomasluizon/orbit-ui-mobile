@@ -3,7 +3,7 @@
 // Measured 2026-08-08. The orchestrator ran:
 //
 //   printf 'fixed in %s' "$sha" | node tools/resolve-bot-thread.mjs \
-//     --thread PRRT_kwDOR5Siws6XdcAt --repo ui || <list the threads fresh and retry>
+//     --thread PRRT_kwDOR5Siws6XdcAt --repo ui --pr 699 || <list the threads fresh and retry>
 //
 // The id was typed. It was never read from any output. GraphQL node ids are GLOBALLY unique, so it
 // did not fail: it resolved to a live CodeRabbit thread on benhook1013/FireMUD pull request #2594
@@ -58,7 +58,7 @@ export const extractNodeIds = (command) => {
  * _lib/rules-orchestrator.mjs, which strips heredoc bodies through this same helper.
  *
  * This does NOT weaken the guard against the incident, whose id sat on the command line:
- *   printf 'fixed in %s' "$sha" | node tools/resolve-bot-thread.mjs --thread PRRT_... --repo ui
+ *   printf 'fixed in %s' "$sha" | node tools/resolve-bot-thread.mjs --thread PRRT_... --repo ui --pr 699
  * It does leave an id passed inside a heredoc unjudged, which is why that is named in the bypass
  * list above rather than left for a reader to discover.
  */
