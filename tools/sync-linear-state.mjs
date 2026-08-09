@@ -4,6 +4,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
+import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-auth.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { gitDirectoryOf } from "./lib/run-state.mjs"
@@ -14,7 +15,12 @@ working, visual, blocked -> In Progress. ready -> In Review unless the live tick
 visible-effect, which mechanically remains In Progress. Done is never a target.
 The status write is idempotent; a state comment is posted only when its stored signature changes.
 
-exit codes: 0 synchronized, 1 Linear write failed, 2 usage or environment error`
+--issue MUST be copied from output produced in this run. Before either write, the live ticket is
+asserted to carry exactly the repo:<key> label matching --repo, and the live pull request must
+reference that ticket in its branch, title, or body.
+
+exit codes: 0 synchronized, 1 Linear write failed,
+            2 usage or environment error, or a ticket that is not provably this repository's`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
@@ -82,6 +88,75 @@ try {
 }
 if (typeof current?.state?.name !== "string" || typeof current?.state?.type !== "string" || !Array.isArray(current?.labels) || current.labels.some((label) => typeof label?.name !== "string")) fail(2, "Linear issue read carried no state name/type or labels array")
 if (["completed", "canceled", "duplicate"].includes(current.state.type)) fail(1, `${issue} is ${current.state.name}; readiness synchronization never regresses a closed issue`)
+
+/**
+ * THE target assertion, the Linear half of the 2026-08-08 misdirected-write incident. `--issue` is
+ * a caller-supplied identifier and this tool writes twice with it: a status change and a comment.
+ * An invented or mistyped ORB-N is a live ticket belonging to other work, so the write lands
+ * somewhere real and reads as deliberate.
+ *
+ * `repo:*` is the mechanical link between a ticket and a repository: tools/plan-queue.mjs admits a
+ * ticket only when it carries EXACTLY ONE repo:* label, and derives the target repository from it
+ * (plan-queue.mjs:194-212). Asserting the same label here means the ticket and --repo cannot
+ * disagree.
+ *
+ * Fail closed on a MISSING label as well as a wrong one. A ticket with no repo:* label is one
+ * plan-queue would have deferred as NO_REPO_LABEL, so writing to it proves nothing about whether it
+ * is the right ticket.
+ */
+const repoLabels = current.labels.map((label) => label.name).filter((name) => name.startsWith("repo:"))
+if (repoLabels.length !== 1 || repoLabels[0].slice("repo:".length) !== repoKey) {
+  const found = repoLabels.length === 0 ? "no repo:* label" : repoLabels.join(" and ")
+  fail(2, `${issue} carries ${found}, so it is not provably the ${repoKey} ticket this synchronization names. Nothing was written. Expected exactly repo:${repoKey}`)
+}
+
+let githubAuth
+let expectedSlug
+try {
+  expectedSlug = repositorySlug(repoRoot)
+  githubAuth = await githubEnvironment(repoRoot, { timeoutMs: commandTimeoutSeconds * 1000 })
+} catch (error) {
+  fail(2, `pull request target could not be resolved: ${redactSecrets(error.message)}`)
+}
+
+const GH = process.env.GH_BIN || "gh"
+const pullRequestRead = await runBounded(
+  GH,
+  ["pr", "view", String(prNumber), "--repo", expectedSlug, "--json", "number,headRefName,title,body"],
+  { cwd: repoRoot, env: githubAuth.environment, timeoutMs: commandTimeoutSeconds * 1000, maxBuffer: 8 * 1024 * 1024 },
+)
+if (pullRequestRead.timedOut) fail(2, `GitHub pull request read timed out after ${commandTimeoutSeconds}s; the complete child process tree was terminated`)
+if (pullRequestRead.overflowed) fail(2, "GitHub pull request read exceeded the 8 MiB output bound; the complete child process tree was terminated")
+if (pullRequestRead.error || pullRequestRead.status !== 0) {
+  const detail = pullRequestRead.stderr || pullRequestRead.stdout || pullRequestRead.error?.message || `exit ${pullRequestRead.status}`
+  fail(2, `GitHub pull request read failed: ${redactSecrets(detail.trim(), githubAuth.secrets)}`)
+}
+
+let pullRequest
+try {
+  pullRequest = JSON.parse(pullRequestRead.stdout)
+} catch {
+  fail(2, "GitHub pull request read returned unparseable JSON")
+}
+if (
+  !Number.isInteger(pullRequest?.number) ||
+  typeof pullRequest?.headRefName !== "string" ||
+  typeof pullRequest?.title !== "string" ||
+  typeof pullRequest?.body !== "string"
+) {
+  fail(2, `GitHub pull request ${prNumber} returned no number, headRefName, title, or body. Nothing was written`)
+}
+if (pullRequest.number !== prNumber) fail(2, `GitHub returned pull request ${pullRequest.number}, not ${prNumber}. Nothing was written`)
+
+// `issue` is caller supplied, so it is escaped before it becomes a pattern. The identifier is also
+// validated above and cannot currently carry a metacharacter, but building a regular expression out
+// of an argument is the injection shape whatever today's validation happens to allow.
+const escapeForPattern = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+const issueReference = new RegExp(`(?:^|[^A-Z0-9])${escapeForPattern(issue)}(?:$|[^A-Z0-9])`, "i")
+if (![pullRequest.headRefName, pullRequest.title, pullRequest.body].some((value) => issueReference.test(value))) {
+  fail(2, `Pull request ${expectedSlug}#${prNumber} does not reference ${issue} in its branch, title, or body. Nothing was written`)
+}
+
 const visibleEffect = current.labels.some((label) => label.name === "visible-effect")
 // The live label is authoritative in both directions. A stale caller cannot strand an ordinary
 // ticket In Progress with --state visual or advance visible work with --state ready.

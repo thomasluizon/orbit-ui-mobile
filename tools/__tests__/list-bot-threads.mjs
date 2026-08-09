@@ -1,9 +1,11 @@
 import { readFileSync } from "node:fs"
 
+import { readObservedIdentifiers } from "../lib/identifier-ledger.mjs"
 import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
 
 const TOOL = "list-bot-threads.mjs"
 const BOT = "chatgpt-codex-connector"
+const RUN_IDENTIFIER = "list-bot-threads-current-run"
 let testedToolPath = null
 
 /**
@@ -50,10 +52,14 @@ const botComment = (oid = HEAD.slice(0, 10), createdAt = "2026-08-05T11:00:00Z",
   createdAt,
   url: "https://github.com/thomasluizon/orbit-ui-mobile/pull/681#issuecomment-123",
 })
-const ghPlan = (stdout, exit = 0) => orcaEnv([
-  { match: "auth token --user thomasluizon", stdout: "test-github-token" },
-  { match: "api graphql", stdout, exit },
-])
+const ghPlan = (stdout, exit = 0) => ({
+  ...orcaEnv([
+    { match: "auth token --user thomasluizon", stdout: "test-github-token" },
+    { match: "api graphql", stdout, exit },
+  ]),
+  CLAUDE_CODE_SESSION_ID: RUN_IDENTIFIER,
+  CODEX_THREAD_ID: "",
+})
 const parsed = (result) => {
   try {
     return JSON.parse(result.stdout)
@@ -185,6 +191,16 @@ export const cases = () => {
     one.stdout || one.stderr,
   )
   T(`${TOOL}: the unresolved count is reported separately from the total`, onePlan?.counts.total === 1 && onePlan.counts.unresolved === 1, one.stdout)
+  T(
+    `${TOOL}: the thread id is recorded for the run that read it`,
+    readObservedIdentifiers(uiContext.path, { runIdentifier: RUN_IDENTIFIER }).some((entry) => entry.id === thread().id),
+    JSON.stringify(readObservedIdentifiers(uiContext.path, { runIdentifier: RUN_IDENTIFIER })),
+  )
+  T(
+    `${TOOL}: another run cannot borrow the recorded thread id`,
+    readObservedIdentifiers(uiContext.path, { runIdentifier: "another-run" }).length === 0,
+    JSON.stringify(readObservedIdentifiers(uiContext.path, { runIdentifier: "another-run" })),
+  )
 
   const pagedSequence = stage("list-bot-threads/page-sequence", "0")
   const paged = run(TOOL, ["--pr", "681", "--repo", "ui", "--wait-seconds", "0"], { path: testedToolPath, env: orcaEnv([

@@ -116,7 +116,7 @@ node tools/launch-worker.mjs     --issue ORB-N --worktree <p> --prompt <f> [--co
 node tools/launch-worker.mjs     --issue ORB-N --review --repo <key> --prompt <f> [--codex-only]
 node tools/verify-delivery.mjs   --issue ORB-N --worktree <p> --branch <b> --repo <key> [--base <ref>] [--wait-ci <s>] [--codex-only]
 node tools/list-bot-threads.mjs  --pr <n-or-url> --repo <key> [--wait-seconds <s>] [--no-request]
-node tools/resolve-bot-thread.mjs --thread <PRRT_...> --repo <key>   # reply body on stdin
+node tools/resolve-bot-thread.mjs --thread <PRRT_...> --repo <key> --pr <number>   # reply body on stdin
 node tools/salvage-worker.mjs    --issue ORB-N --repo <key> [--pr <n>] --worktree <p> --branch <b> --run-root <p> --test-command <json> --test-receipt <json> --message <m> --path <path>...
 node tools/sync-linear-state.mjs --issue ORB-N --repo <key> --pr <n> --state <working|blocked|visual|ready> --head-sha <sha> --base-sha <sha> --message-file <path|->
 node tools/record-readiness.mjs  --repo <key> --pr <n> --delivery <json> --review <json> --bot <json> --linear <json> [--codex-only]
@@ -705,17 +705,30 @@ derives the verdict from the review itself for exactly this reason; do not re-de
 - **`isOutdated` is not evidence.** It means the code moved under the comment, not that anyone
   addressed it. #681's survivor is outdated and still unresolved. Treat it like any other thread.
 
+**Every `--thread` value is COPIED from the `threads[].id` field of the `list-bot-threads.mjs` run
+above, in this run.** Never typed, never remembered from an earlier ticket, and never passed with a
+`||` fallback that lists fresh when it fails. Measured 2026-08-08: a typed
+`PRRT_kwDOR5Siws6XdcAt` did not fail, because node ids are globally unique. It resolved to a live
+CodeRabbit thread on a stranger's public repository and posted a reply there under Thomas's account,
+then announced itself as `thomasluizon does not have the correct permissions to execute
+ResolveReviewThread` and was filed as a transient glitch. Two gates now hold this:
+`.claude/hooks/forbid-invented-identifier.mjs` refuses the command, and the tool itself refuses to
+write unless the node's own `repository.nameWithOwner` equals what `--repo` resolves to.
+
 **Every resolve posts a reply FIRST.** One of exactly three:
 
 ```bash
-printf 'fixed in %s' "$sha"                 | node tools/resolve-bot-thread.mjs --thread PRRT_... --repo <key>
-printf 'not applicable because %s' "$why"   | node tools/resolve-bot-thread.mjs --thread PRRT_... --repo <key>
-printf 'filed as %s' "$ticket"              | node tools/resolve-bot-thread.mjs --thread PRRT_... --repo <key>
+printf 'fixed in %s' "$sha"                 | node tools/resolve-bot-thread.mjs --thread PRRT_... --repo <key> --pr <number>
+printf 'not applicable because %s' "$why"   | node tools/resolve-bot-thread.mjs --thread PRRT_... --repo <key> --pr <number>
+printf 'filed as %s' "$ticket"              | node tools/resolve-bot-thread.mjs --thread PRRT_... --repo <key> --pr <number>
 ```
 
 The tool refuses an empty body and never attempts the resolve if the reply failed, so a bare resolve
 is impossible rather than merely discouraged. A thread closed with no reason is indistinguishable
 from one nobody read, which is the whole defect this step exists to remove.
+
+**A permissions error on any of these is a WRONG TARGET until proven otherwise.** The tool now names
+the repository the node actually resolved to. Read that name before retrying anything.
 
 If anything was fixed:
 
