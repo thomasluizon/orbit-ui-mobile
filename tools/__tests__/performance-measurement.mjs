@@ -120,6 +120,10 @@ export const cases = async () => {
     auditWorkflow.indexOf("const PERFORMANCE_MONTH_DAYS"),
     auditWorkflow.indexOf("const MEASURED_METRIC_KEYS"),
   )
+  const performanceAttachmentFunctions = auditWorkflow.slice(
+    auditWorkflow.indexOf("const MEASURED_METRIC_KEYS"),
+    auditWorkflow.indexOf("const UI"),
+  )
   const offsetOnlyIsBounded = runInNewContext(
     `${measurementFunctions}\nresolvePerformanceMeasurement({
       status: 'available',
@@ -198,7 +202,7 @@ export const cases = async () => {
 
   const measurementAndFindPhases = auditWorkflow.slice(
     auditWorkflow.indexOf("let measuredFindings = []"),
-    auditWorkflow.indexOf("const sweptLabels = surfaces.map"),
+    auditWorkflow.indexOf("async function verifySerious"),
   )
   let mappingFallback = null
   let mappingFallbackError = null
@@ -206,6 +210,7 @@ export const cases = async () => {
     mappingFallback = await runInNewContext(
       `(async () => {
         ${measurementFunctions}
+        ${performanceAttachmentFunctions}
         const phases = []
         const agentLabels = []
         const finderMeasurements = []
@@ -224,6 +229,7 @@ export const cases = async () => {
         const MEASURED_FINDINGS_SCHEMA = {}
         const FINDINGS_SCHEMA = {}
         const parallel = (tasks) => Promise.all(tasks.map((task) => task()))
+        const dedupeFresh = (findings) => findings
         const agent = async (_prompt, options) => {
           agentLabels.push(options.label)
           if (options.label === 'find:measured-hotpaths') return { mappings: [], findings: [] }
@@ -244,7 +250,7 @@ export const cases = async () => {
           }],
         })
         ${measurementAndFindPhases}
-        return { performanceMeasurement, measurementFinderFailed, phases, agentLabels, finderMeasurements, firstPass }
+        return { performanceMeasurement, measurementFinderFailed, phases, agentLabels, finderMeasurements, firstPass, findings }
       })()`,
     )
   } catch (error) {
@@ -263,6 +269,42 @@ export const cases = async () => {
       && mappingFallback.finderMeasurements[0]?.reason === expectedMappingReason
       && mappingFallback.firstPass[0]?.findings[0]?.title === "unpaginated habit list",
     mappingFallbackError?.message || JSON.stringify(mappingFallback),
+  )
+
+  let nonPerformanceAudit = null
+  let nonPerformanceAuditError = null
+  try {
+    nonPerformanceAudit = await runInNewContext(
+      `(async () => {
+        ${measurementFunctions}
+        ${performanceAttachmentFunctions}
+        const phases = []
+        const kind = 'security'
+        const scope = 'both'
+        const surfaces = [{ label: 'authz-isolation', where: 'authorization handlers' }]
+        const performanceMeasurement = null
+        const isApiSurface = () => true
+        const phase = (name) => phases.push(name)
+        const log = () => {}
+        const scopeLabelFor = () => 'both repos'
+        const finderPrompt = () => 'find security issues'
+        const FINDINGS_SCHEMA = {}
+        const parallel = (tasks) => Promise.all(tasks.map((task) => task()))
+        const agent = async () => ({ findings: [{ title: 'cross-account read', location: 'src/HabitsQuery.cs:20' }] })
+        const dedupeFresh = (findings) => findings
+        ${measurementAndFindPhases}
+        return { phases, findings }
+      })()`,
+    )
+  } catch (error) {
+    nonPerformanceAuditError = error
+  }
+  T(
+    "performance-measurement: a non-performance audit passes findings through without measurement",
+    nonPerformanceAuditError === null
+      && JSON.stringify(nonPerformanceAudit?.phases) === JSON.stringify(["Find"])
+      && nonPerformanceAudit.findings[0]?.title === "cross-account read",
+    nonPerformanceAuditError?.message || JSON.stringify(nonPerformanceAudit),
   )
 
   const unresolvedMeasurement = resolvePerformanceMeasurement(availableInput())

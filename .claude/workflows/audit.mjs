@@ -368,6 +368,7 @@ const MEASURED_METRIC_KEYS = ['calls', 'rowsPerCall', 'bytesPerRow', 'callsPerMo
  *   no queryId       nothing ties it to a measured statement, so strip any metric it supplied
  */
 function attachPerformanceMetrics(findings, measurement) {
+  if (!measurement) return findings
   /**
    * CODE_ONLY is the MOST dangerous path to trust, not the safest. With no measurement there is
    * nothing to overwrite an agent's numbers with, and `skepticPrompt` reads any finding carrying a
