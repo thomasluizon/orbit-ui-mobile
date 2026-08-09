@@ -118,24 +118,14 @@ export const cases = async () => {
     "a reviewer key naming no engine was accepted",
   )
   T(
-    `${NAME}: a config with no linear object is refused`,
-    /must declare a linear object/.test(readAndFail("no-linear", { ...real, linear: undefined }) ?? ""),
-    "a config with no linear object was accepted",
-  )
-  T(
-    `${NAME}: an incorrect Linear workflow state is refused`,
-    /linear\.states\.review must be "In Review"/.test(
-      readAndFail("unknown-linear-workflow-status", {
-        ...real,
-        linear: { ...real.linear, states: { ...real.linear.states, review: "Shipped" } },
-      }) ?? "",
-    ),
-    "an incorrect Linear workflow state was accepted",
-  )
-  T(
     `${NAME}: a config with no tickets object is refused`,
     /must declare a tickets object/.test(readAndFail("no-tickets", { ...real, tickets: undefined }) ?? ""),
     "a config with no tickets object was accepted",
+  )
+  T(
+    `${NAME}: a tickets block with no states object is refused`,
+    /tickets\.states must be an object/.test(readAndFail("no-ticket-states", { ...real, tickets: { ...real.tickets, states: undefined } }) ?? ""),
+    "a tickets block with no states object was accepted",
   )
   T(
     `${NAME}: a non-integer project number is refused`,
@@ -188,15 +178,14 @@ export const cases = async () => {
   )
   T(
     `${NAME}: the shipped ticket configuration carries the measured GitHub ids`,
-    real.linear.team === "ORB" &&
-      real.linear.workspace === "useorbitai" &&
-      real.linear.states.working === "In Progress" &&
-      real.linear.states.review === "In Review" &&
-      real.linear.states.done === "Done" &&
+    !Object.hasOwn(real, "linear") &&
       real.tickets.repository === "thomasluizon/orbit-tickets" &&
       real.tickets.projectId === "PVT_kwHOBE6dNc4Bfy2y" &&
       real.tickets.statusFieldId === "PVTSSF_lAHOBE6dNc4Bfy2yzhaDLqQ" &&
-      real.tickets.statusOptions.Done === "9e4bdc69",
+      real.tickets.statusOptions.Done === "9e4bdc69" &&
+      real.tickets.states.working === "In Progress" &&
+      real.tickets.states.review === "In Review" &&
+      real.tickets.states.done === "Done",
     JSON.stringify(real.tickets),
   )
   for (const [label, key] of [["hardCeilingMinutes", "timeouts"]]) {

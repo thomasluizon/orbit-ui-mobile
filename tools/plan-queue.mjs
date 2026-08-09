@@ -2,7 +2,7 @@
 /**
  * Resolve a scope into ONE ordered execution plan for /orchestrate, and print it as JSON.
  *
- * A scope is an explicit ticket list, the configured GitHub project, or the whole open board. The plan names
+ * A scope is an explicit ticket list, a GitHub milestone, or the whole open board. The plan names
  * which tickets are admissible, which are deferred and why, what order they run in, which of them
  * stack on each other, and which may run concurrently.
  *
@@ -16,14 +16,14 @@
  * Other DAG shapes run against main in a later wave, after every blocker has landed.
  */
 
-import { listTickets, readTicket, resolveTicket } from "./lib/github-issues.mjs"
+import { listMilestones, listTickets, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { classifyExecutability } from "./lib/ticket-executability.mjs"
 
 const USAGE = `usage: plan-queue.mjs (--tickets ORB-1,ORB-2 | --project <name> | --board) [options]
 
   --tickets <list>   comma or space separated ticket references, in no particular order
-  --project <name>   every open ticket on the configured GitHub project
+  --project <name>   every open ticket in the matching GitHub milestone
   --board            every open ticket on the configured GitHub project
   --limit <n>        cap the tickets read for --project/--board (default 250)
   --format <fmt>     json (default) or markdown
@@ -97,7 +97,17 @@ const ticketReferences = async () => {
       .filter(Boolean)
   }
   try {
-    return (await listTickets({ state: "open" })).slice(0, limit).map((ticket) => ticket.identifier ?? `#${ticket.number}`)
+    if (safeValue(projectArg)) {
+      const milestones = (await listMilestones()).sort((left, right) => left.localeCompare(right))
+      if (!milestones.includes(projectArg)) {
+        throw new Error(`unknown project ${JSON.stringify(projectArg)}; available milestones: ${milestones.join(", ") || "none"}`)
+      }
+      return (await listTickets({ state: "open", milestone: projectArg })).slice(0, limit).map((ticket) => ticket.identifier ?? `#${ticket.number}`)
+    }
+    return (await listTickets({ state: "open" }))
+      .filter((ticket) => typeof ticket.projectItemId === "string")
+      .slice(0, limit)
+      .map((ticket) => ticket.identifier ?? `#${ticket.number}`)
   } catch (error) {
     fail(2, `ticket list failed: ${error.message}`)
   }

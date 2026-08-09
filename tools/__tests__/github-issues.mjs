@@ -46,7 +46,7 @@ export const cases = async () => {
   T(
     `${TOOL}: exports only the ticket adapter surface`,
     Object.keys(githubIssues).sort().join(",") ===
-      "addComment,assertRepositoryLabel,listTickets,readTicket,resolveTicket,setStatus",
+      "addComment,assertRepositoryLabel,listMilestones,listTickets,readTicket,resolveTicket,setStatus",
     Object.keys(githubIssues).sort().join(","),
   )
 
@@ -129,12 +129,34 @@ export const cases = async () => {
 
     applyEnvironment(
       orcaEnv([
-        { match: "issue list --repo thomasluizon/orbit-tickets --state all", stdout: JSON.stringify([issue()]) },
+        {
+          match: "api repos/thomasluizon/orbit-tickets/milestones?state=all&per_page=100 --paginate --jq .[].title",
+          stdout: "Future\nHarness Context and Calibration\n",
+        },
+      ]),
+    )
+    const milestones = await githubIssues.listMilestones()
+    T(
+      `${TOOL}: listMilestones returns every title from the verified paginated read`,
+      milestones.join(",") === "Future,Harness Context and Calibration",
+      JSON.stringify(milestones),
+    )
+
+    applyEnvironment(
+      orcaEnv([
+        {
+          match: "issue list --repo thomasluizon/orbit-tickets --state all --limit 1000 --json number,url,title,body,state,stateReason,labels,blockedBy,blocking --label repo:ui --label harness --milestone Harness Context and Calibration",
+          stdout: JSON.stringify([issue()]),
+        },
         { match: "project item-list 2 --owner thomasluizon", stdout: populatedProjectItems },
       ]),
     )
-    const listed = await githubIssues.listTickets({ labels: ["repo:ui", "harness"], state: "all" })
+    const listed = await githubIssues.listTickets({ labels: ["repo:ui", "harness"], state: "all", milestone: "Harness Context and Calibration" })
     T(`${TOOL}: listTickets normalizes each issue and preserves the mapped identifier`, listed.length === 1 && listed[0].identifier === "ORB-215", JSON.stringify(listed))
+    T(
+      `${TOOL}: listTickets refuses an empty milestone before invoking GitHub`,
+      /must be null or a non-empty string/.test(await messageOf(() => githubIssues.listTickets({ milestone: "" })) ?? ""),
+    )
 
     const statusMarker = stage("github-issues/status-write", "must be removed")
     applyEnvironment(
