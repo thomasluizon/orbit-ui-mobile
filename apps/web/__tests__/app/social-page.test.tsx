@@ -165,6 +165,25 @@ describe('SocialPage', () => {
     expect(screen.getByRole('tab', { name: 'social.tabs.friends' })).toHaveAttribute('aria-selected', 'true')
   })
 
+  /**
+   * Codex connector P2 on #698, second round. Comparing the RESOLVED tab collapsed this case: a user
+   * on `/social` who switches locally to Friends and then opens a cheer notification for
+   * `/social?tab=feed` resolves to `feed` on both sides, so a resolved comparison reads "nothing
+   * changed" and strands them on Friends against an explicit destination.
+   */
+  it('applies an explicit feed destination even when the resolved tab did not change', () => {
+    mocks.searchParams = ''
+    const { rerender } = render(<SocialPage />)
+
+    fireEvent.click(screen.getByRole('tab', { name: 'social.tabs.friends' }))
+    expect(screen.getByRole('tab', { name: 'social.tabs.friends' })).toHaveAttribute('aria-selected', 'true')
+
+    mocks.searchParams = 'tab=feed'
+    rerender(<SocialPage />)
+
+    expect(screen.getByRole('tab', { name: 'social.tabs.feed' })).toHaveAttribute('aria-selected', 'true')
+  })
+
   it('does not clobber a tab the user chose when the query has not changed', () => {
     mocks.searchParams = ''
     const { rerender } = render(<SocialPage />)

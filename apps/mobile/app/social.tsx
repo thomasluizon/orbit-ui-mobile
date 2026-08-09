@@ -39,24 +39,25 @@ export default function SocialScreen() {
     invite?: string
   }>()
   const inviteCode = isValidReferralCode(inviteParam) ? inviteParam : null
-  const urlTab = resolveSocialTab(tabParam)
-  const [tab, setTabState] = useState<SocialTab>(urlTab)
+  const [tab, setTabState] = useState<SocialTab>(() => resolveSocialTab(tabParam))
   /**
    * A `useState` initializer runs once, but a notification can navigate here by QUERY ALONE, which
    * does not remount the screen, so the retired-tab redirect would silently not happen. The ref
    * keeps this a synchronization rather than a clobber: tapping a tab changes local state without
-   * touching the URL, so only a real query navigation overwrites the user's own choice. Parity with
-   * `apps/web/app/(app)/social/page.tsx`.
+   * touching the URL, so only a real query navigation overwrites the user's own choice. It tracks
+   * the RAW query, never the resolved tab: resolved values collapse, so an explicit `?tab=feed`
+   * opened while the user sits on Friends would otherwise read as "nothing changed" and strand them.
+   * Parity with `apps/web/app/(app)/social/page.tsx`.
    */
-  const lastUrlTab = useRef(urlTab)
+  const lastRawTabParam = useRef(tabParam)
   const [cheerTarget, setCheerTarget] = useState<CheerTarget | null>(null)
   const scrollRef = useRef<ScrollView>(null)
   const [showScrollTop, setShowScrollTop] = useState(false)
   useEffect(() => {
-    if (lastUrlTab.current === urlTab) return
-    lastUrlTab.current = urlTab
-    setTabState(urlTab)
-  }, [urlTab])
+    if (lastRawTabParam.current === tabParam) return
+    lastRawTabParam.current = tabParam
+    setTabState(resolveSocialTab(tabParam))
+  }, [tabParam])
   const setTab = useCallback((nextTab: SocialTab) => {
     setTabState(nextTab)
     setShowScrollTop(false)

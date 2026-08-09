@@ -32,8 +32,8 @@ function SocialPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { profile, isLoading } = useProfile()
-  const urlTab = resolveSocialTab(searchParams.get('tab'))
-  const [tab, setTab] = useState<SocialTab>(urlTab)
+  const rawTabParam = searchParams.get('tab')
+  const [tab, setTab] = useState<SocialTab>(() => resolveSocialTab(rawTabParam))
   /**
    * A `useState` initializer runs once, but a notification can navigate here by QUERY ALONE. The
    * desktop topbar keeps NotificationBell mounted, so opening a stored `/social?tab=buddies` while
@@ -43,13 +43,18 @@ function SocialPageContent() {
    * The ref is what keeps this a synchronization rather than a clobber. Clicking a tab changes local
    * state and not the URL, so comparing against the LAST URL value means an unchanged URL never
    * overwrites the user's own choice; only a real query navigation does.
+   *
+   * It tracks the RAW query, not the resolved tab, and that distinction is the whole correctness of
+   * it. Resolved values collapse: a user on `/social` who switches locally to Friends and then opens
+   * a cheer notification for `/social?tab=feed` sees `feed` resolved on both sides, so a resolved
+   * comparison reads "nothing changed" and strands them on Friends against an explicit destination.
    */
-  const lastUrlTab = useRef(urlTab)
+  const lastRawTabParam = useRef(rawTabParam)
   useEffect(() => {
-    if (lastUrlTab.current === urlTab) return
-    lastUrlTab.current = urlTab
-    setTab(urlTab)
-  }, [urlTab])
+    if (lastRawTabParam.current === rawTabParam) return
+    lastRawTabParam.current = rawTabParam
+    setTab(resolveSocialTab(rawTabParam))
+  }, [rawTabParam])
   const [cheerTarget, setCheerTarget] = useState<CheerTarget | null>(null)
   const [inviteCode, setInviteCode] = useState<string | null>(() => {
     // react-doctor-disable-next-line url-prefilled-privileged-action -- code is format-validated then only pre-fills InviteConfirmSheet, which server-validates (useInvitePreview) and needs explicit send (useSendFriendRequest); no action auto-fires https://github.com/thomasluizon/orbit-ui-mobile/issues/243

@@ -145,6 +145,30 @@ describe('SocialScreen', () => {
     expect(tabList(tree).props.active).toBe('friends')
   })
 
+  /**
+   * Codex connector P2 on #698, second round. Comparing the RESOLVED tab collapsed this case: a user
+   * who switches locally to Friends and then opens a notification for `?tab=feed` resolves to `feed`
+   * on both sides, so a resolved comparison reads "nothing changed". Parity with
+   * `apps/web/__tests__/app/social-page.test.tsx`.
+   */
+  it('applies an explicit feed destination even when the resolved tab did not change', async () => {
+    mocks.tabParam = undefined
+    const tree = await renderScreen()
+
+    const pickTab = tabList(tree).props.onChange as (nextTab: string) => void
+    await TestRenderer.act(() => {
+      pickTab('friends')
+    })
+    expect(tabList(tree).props.active).toBe('friends')
+
+    mocks.tabParam = 'feed'
+    await TestRenderer.act(() => {
+      tree.update(<SocialScreen />)
+    })
+
+    expect(tabList(tree).props.active).toBe('feed')
+  })
+
   it('does not clobber a tab the user chose when the query has not changed', async () => {
     mocks.tabParam = undefined
     const tree = await renderScreen()
