@@ -1,6 +1,6 @@
 ---
 name: prod-readiness
-description: Pre-launch orchestrator that runs the four repo-wide audits (security, tests, performance, code-quality) in parallel via the audit workflow and adds an ops-layer audit (observability, multi-instance readiness, background durability, backups, staging), then consolidates everything into ONE combined Linear ticket set behind a single approval gate (D10), headlined by an honest launch verdict. It looks only at what no gate can check (D11); React correctness is owned by the react-doctor.yml gate, not this skill. Use before a release to know what's safe to ship. Orchestrates and consolidates; it does not re-derive the child audits' findings.
+description: Pre-launch orchestrator that runs the four repo-wide audits (security, tests, performance, code-quality) in parallel via the audit workflow and adds an ops-layer audit (observability, multi-instance readiness, background durability, backups, staging), then consolidates everything into ONE combined GitHub ticket set behind a single approval gate (D10), headlined by an honest launch verdict. It looks only at what no gate can check (D11); React correctness is owned by the react-doctor.yml gate, not this skill. Use before a release to know what's safe to ship. Orchestrates and consolidates; it does not re-derive the child audits' findings.
 argument-hint: <both (default) | ui | api | path>
 ---
 
@@ -9,7 +9,7 @@ argument-hint: <both (default) | ui | api | path>
 **Input**: $ARGUMENTS
 
 Run a pre-launch readiness sweep across **both** Orbit repos and open ONE consolidated,
-severity-ranked Linear ticket set (D10) behind a single approval gate, headlined by an honest
+severity-ranked GitHub ticket set (D10) behind a single approval gate, headlined by an honest
 launch verdict. This skill is an **orchestrator**: the **`prod-readiness` dynamic workflow**
 (`.claude/workflows/prod-readiness.mjs`) runs the four audit workflows in parallel (**Haiku
 fan-out**), adds the ops-layer audit none of them cover, verifies its own ops findings, and
@@ -173,8 +173,8 @@ Present ONE message and get ONE approval (mirror /ticket phase D). The headline 
 - **What's solid**: the genuine production strengths, so the gate is decision-ready, not a
   fear list.
 
-Nothing is created in Linear until Thomas approves, and none of the above is written to a
-report file (D10). On approval, create via `orca linear create`, wire blockedBy, and
+Nothing is created in the ticket tracker until Thomas approves, and none of the above is written to a
+report file (D10). On approval, create via `gh issue create`, wire blockedBy, and
 re-validate each with `--issue`.
 
 ### Launch verdict (§5 honesty), computed, never hardcoded
@@ -216,7 +216,7 @@ re-validate each with `--issue`.
 
 ## Guardrails — do NOT
 
-- **Write a report file, or create tickets unattended.** The output is a consolidated Linear
+- **Write a report file, or create tickets unattended.** The output is a consolidated GitHub
   ticket set plus a verdict headline, behind the one approval gate; nothing is persisted to
   `.claude/audits/` and nothing is created before Thomas approves (D10).
 - **Invent ops findings to look thorough.** A clean ops check earns a plain "ready," not a

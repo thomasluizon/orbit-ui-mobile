@@ -65,7 +65,7 @@ const PHRASES = [
 ]
 
 /**
- * @param description the Linear issue description, verbatim
+ * @param description the ticket body, verbatim
  * @returns `{ deferrals: [{reason, detail}], warnings: [string] }`, deferrals in PHRASES order
  */
 export const classifyExecutability = (description) => {

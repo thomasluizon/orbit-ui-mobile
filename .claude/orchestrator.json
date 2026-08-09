@@ -49,9 +49,21 @@
     "connectorFixAttempts": 3,
     "workerLogMegabytes": 32
   },
-  "linear": {
-    "team": "ORB",
-    "workspace": "useorbitai",
+  "tickets": {
+    "repository": "thomasluizon/orbit-tickets",
+    "projectOwner": "thomasluizon",
+    "projectNumber": 2,
+    "projectId": "PVT_kwHOBE6dNc4Bfy2y",
+    "statusFieldId": "PVTSSF_lAHOBE6dNc4Bfy2yzhaDLqQ",
+    "statusOptions": {
+      "Backlog": "0489f072",
+      "Todo": "3e394655",
+      "In Progress": "d4daa297",
+      "In Review": "f548e367",
+      "Done": "9e4bdc69",
+      "Canceled": "43831f60",
+      "Duplicate": "0b6895d9"
+    },
     "states": {
       "working": "In Progress",
       "review": "In Review",

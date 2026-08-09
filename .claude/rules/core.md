@@ -22,7 +22,7 @@ and asserts the exact symptom. Until it is red you have a story, not a bug. Cut 
 
 ### 3. Copy every identifier from this run's output, never from memory
 
-Every GitHub or Linear identifier you pass to a tool (node id, PR number, SHA, run id, comment id,
+Every GitHub or ticket-tracker identifier you pass to a tool (node id, PR number, SHA, run id, comment id,
 issue key) is COPIED from output produced in the same run. Never from memory, never reconstructed.
 **A `||` fallback that retries a failed write is forbidden**: it makes the write the probe. Node ids
 are globally unique, so a wrong one does not fail, it hits a stranger's repository (2026-08-08).

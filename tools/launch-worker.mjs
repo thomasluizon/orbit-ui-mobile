@@ -4,7 +4,7 @@
  * the orchestrator runs it as a background shell task, so this process's death is the orchestrator's
  * wake signal. It spawns the worker as its own child, holds two clocks over it, kills the whole
  * process tree when either expires, and prints one JSON result. It launches a worker; it never
- * merges, reviews, or moves a Linear issue.
+ * merges, reviews, or moves a ticket.
  *
  * THE CHILD'S EXIT CODE IS NEVER PROOF OF DELIVERY. openai/codex#19945 exits 0 with zero output
  * when detached from a TTY, and anthropics/claude-code#25629 hangs after emitting its own success
@@ -20,14 +20,15 @@ import { delimiter, dirname, extname, join, resolve } from "node:path"
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { bodyEditInvalidationPath, clearBodyEditInvalidation, persistBodyEditInvalidation } from "./lib/body-edit-invalidation.mjs"
+import { resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
 import { withDegradedReviewFirst } from "./lib/pr-body.mjs"
 import { clearWakeSource, registerWakeSource } from "./lib/run-state.mjs"
 
-const USAGE = `usage: launch-worker.mjs --issue ORB-N --worktree <path> --prompt <file> [options]
-       launch-worker.mjs --issue ORB-N --review --repo <ui|api|landing> --prompt <file> [options]
+const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> --prompt <file> [options]
+       launch-worker.mjs --issue <ORB-N|#N|N> --review --repo <ui|api|landing> --prompt <file> [options]
 
-  --issue ORB-N      Linear issue this worker is for (required)
+  --issue <reference> migrated ORB identifier or GitHub issue reference (required)
   --worktree <path>  the existing worktree the worker runs in (required, implementer only)
   --prompt <file>    the composed work order. MUST live outside the worktree, or the worker commits
                      it. Only its path is handed to the worker, never its text (required)
@@ -73,7 +74,7 @@ const argOf = (flag) => {
   return index === -1 ? null : process.argv[index + 1]
 }
 
-const issue = argOf("--issue")
+const issueArgument = argOf("--issue")
 const worktreeArg = argOf("--worktree")
 const promptArg = argOf("--prompt")
 const repoKey = argOf("--repo")
@@ -83,7 +84,13 @@ const measurement = process.argv.includes("--measurement")
 const dryRun = process.argv.includes("--dry-run")
 const commandTimeoutSeconds = Number(argOf("--command-timeout-seconds") ?? "45")
 
-if (!issue || !/^[A-Z]+-\d+$/.test(issue)) fail(2, `${USAGE}\n\n--issue must be a Linear identifier such as ORB-75`)
+let issue
+try {
+  const resolvedTicket = resolveTicket(issueArgument)
+  issue = resolvedTicket.identifier ?? `#${resolvedTicket.number}`
+} catch (error) {
+  fail(2, `${USAGE}\n\n--issue must be ORB-N, #N, or N: ${error.message}`)
+}
 if (review && worktreeArg) {
   fail(2, `${USAGE}\n\n--review refuses --worktree: the reviewer runs in the main checkout, never in the worktree, so it cannot read the PR's own AGENTS.md as instructions`)
 }

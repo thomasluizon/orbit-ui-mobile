@@ -1,11 +1,11 @@
 ---
 name: merge-prs
-description: Merge a frozen set of already-approved pull requests after an /orchestrate run. Accept optional PR URLs, repo#number references, or unambiguous PR numbers; with no arguments, recover the PR set from the current conversation and orchestration scratchpad. Order dependencies, update branches with main, admin-squash merge without rerunning approval/CI on the mechanical update commit, synchronize Linear, and clean only the merged PRs' branches and worktrees. Use only when Thomas explicitly invokes /merge-prs after every target PR has a clean pr-review, green CI, and zero unresolved Codex threads.
+description: Merge a frozen set of already-approved pull requests after an /orchestrate run. Accept optional PR URLs, repo#number references, or unambiguous PR numbers; with no arguments, recover the PR set from the current conversation and orchestration scratchpad. Order dependencies, update branches with main, admin-squash merge without rerunning approval/CI on the mechanical update commit, synchronize GitHub tickets, and clean only the merged PRs' branches and worktrees. Use only when Thomas explicitly invokes /merge-prs after every target PR has a clean pr-review, green CI, and zero unresolved Codex threads.
 ---
 
 # /merge-prs
 
-Turn one frozen, already-approved PR set into merged `main` branches, Done Linear tickets, and clean
+Turn one frozen, already-approved PR set into merged `main` branches, closed tickets with Status Done, and clean
 local/remote state. Optimize for elapsed time. This is a delivery command, not another review run.
 
 ## Authorization boundary
@@ -33,7 +33,7 @@ With no arguments, recover the set in this order:
 
 1. PRs explicitly named in the current conversation's immediately preceding `/orchestrate` run.
 2. That run's scratchpad `queue-run.jsonl`, per-ticket artifacts, and final status summary.
-3. PR URLs recorded on the corresponding Linear tickets.
+3. PR URLs recorded on the corresponding GitHub tickets.
 
 Do not substitute every open PR in an account or repository. Exclude PRs and worktrees identified as
 another session's work. If the recovered set is not unique, ask Thomas for the missing PR links before
@@ -53,10 +53,13 @@ fields. Then prove for every frozen PR:
 - the Codex connector reviewed that head and every Codex review thread is resolved;
 - all CI checks on that approved head are settled and green;
 - the PR is mergeable against its then-current base;
-- its Linear ticket is In Review, or is In Progress only for a handoff Thomas has now accepted;
+- its ticket board Status is In Review, or is In Progress only for a handoff Thomas has now accepted;
+- `node tools/complete-ticket.mjs --issue "<actual-ticket-reference>" --preflight` succeeds for its
+  open ticket and configured project item;
 - its worktree and branch belong to this PR, not another session.
 
-Abort before merging anything if a target fails preflight. Do not turn `/merge-prs` into a fixer.
+Run the completion preflight for EVERY frozen pull request before merging ANY of them. Abort before
+merging anything if a target fails preflight. Do not turn `/merge-prs` into a fixer.
 
 ## Compute the merge order
 
@@ -103,12 +106,15 @@ For each PR in order:
 
 `--admin` bypasses branch-policy waiting; it does not make a conflicted or raced head acceptable.
 
-## Linear and cleanup
+## Tickets and cleanup
 
 Immediately after each confirmed merge:
 
-1. Set its Linear ticket to Done and add one concise idempotent comment with repository, PR, and
-   squash SHA. Never mark Done before GitHub confirms MERGED.
+1. Set the ticket board Status to Done, close the GitHub issue as completed, and add one concise
+   idempotent comment with repository, PR, and squash SHA. Never mark Done or close the ticket before
+   GitHub confirms MERGED. Run
+   `node tools/complete-ticket.mjs --issue "<actual-ticket-reference>"` for the Done and close
+   transition. Use only repository ticket tools and never issue a raw ticket mutation.
 2. Run the repository's canonical teardown tool for that ticket.
 3. If a server-side update left the local worktree at the approved head, fetch
    `refs/pull/<pr>/head`, fast-forward that exact local branch, and rerun teardown.

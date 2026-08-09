@@ -1,6 +1,6 @@
 export const meta = {
   name: 'prod-readiness',
-  description: 'Pre-launch orchestrator that runs the four audit workflows in parallel (Haiku fan-out), adds the ops-layer audit no child covers (D11 judgement no gate checks), verifies its own ops findings, and returns consolidated data for Opus to tier-tag, verdict, and turn into Linear tickets (D10).',
+  description: 'Pre-launch orchestrator that runs the four audit workflows in parallel (Haiku fan-out), adds the ops-layer audit no child covers (D11 judgement no gate checks), verifies its own ops findings, and returns consolidated data for Opus to tier-tag, verdict, and turn into GitHub tickets (D10).',
   phases: [
     { title: 'Audits', detail: 'the four /audit workflows in parallel' },
     { title: 'Ops', detail: 'observability · multi-instance · background durability · staging' },

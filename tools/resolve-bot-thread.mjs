@@ -15,7 +15,7 @@
  * The reply body arrives on stdin, per tools/CONVENTIONS.md. Callers send one of three shapes:
  *   fixed in <sha>            the finding was addressed in this pull request
  *   not applicable because X  the finding does not hold, with the reason
- *   filed as ORB-N            the finding is real and deferred to its own ticket
+ *   filed as <ticket-ref>     the finding is real and deferred to its own ticket
  */
 
 import { readFileSync } from "node:fs"
@@ -41,7 +41,7 @@ const USAGE = `usage: resolve-bot-thread.mjs --thread <PRRT_...> --repo <ui|api|
   --help, -h       print this usage and exit 0
 
 The reply body is read from STDIN and must not be empty. Send one of:
-  fixed in <sha>  ·  not applicable because <reason>  ·  filed as ORB-N
+  fixed in <sha>  ·  not applicable because <reason>  ·  filed as <ticket-ref>
 
 Resolves the node FIRST and refuses unless its repository.nameWithOwner equals the slug --repo
 resolves to and its pullRequest.number equals --pr. A node id is globally unique, so a wrong id is
