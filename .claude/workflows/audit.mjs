@@ -684,9 +684,13 @@ if (kind === 'performance' && surfaces.some(isApiSurface)) {
     )
     const mappingFailure = measuredHotpathMappingFailure(measuredResult, performanceMeasurement)
     measurementFinderFailed = Boolean(mappingFailure)
-    if (mappingFailure) throw new Error(`audit workflow: ${mappingFailure}`)
-    performanceMeasurement = applyMeasuredQueryContexts(performanceMeasurement, measuredResult.mappings)
-    measuredFindings = attachPerformanceMetrics(measuredResult?.findings || [], performanceMeasurement)
+    if (mappingFailure) {
+      performanceMeasurement = unavailablePerformanceMeasurement(mappingFailure)
+      log(`measurement mapping unavailable: CODE_ONLY (${mappingFailure})`)
+    } else {
+      performanceMeasurement = applyMeasuredQueryContexts(performanceMeasurement, measuredResult.mappings)
+      measuredFindings = attachPerformanceMetrics(measuredResult?.findings || [], performanceMeasurement)
+    }
   } else {
     log(`measurement unavailable: CODE_ONLY (${performanceMeasurement.reason})`)
   }

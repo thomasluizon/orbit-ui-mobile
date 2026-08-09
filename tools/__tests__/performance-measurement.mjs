@@ -79,7 +79,7 @@ const measuredMappings = () => [
   { queryId: "wide-sweep", location: "src/WideReminderJob.cs:20", executionContext: "background" },
 ]
 
-export const cases = () => {
+export const cases = async () => {
   const auditWorkflow = readFileSync(join(REPO_ROOT, ".claude", "workflows", "audit.mjs"), "utf8")
   const readinessWorkflow = readFileSync(join(REPO_ROOT, ".claude", "workflows", "prod-readiness.mjs"), "utf8")
   T("performance-measurement: workflow metadata remains the required first statement", auditWorkflow.startsWith("export const meta = {"))
@@ -194,6 +194,75 @@ export const cases = () => {
       null,
     ]),
     JSON.stringify(workflowMappingFailures),
+  )
+
+  const measurementAndFindPhases = auditWorkflow.slice(
+    auditWorkflow.indexOf("let measuredFindings = []"),
+    auditWorkflow.indexOf("const sweptLabels = surfaces.map"),
+  )
+  let mappingFallback = null
+  let mappingFallbackError = null
+  try {
+    mappingFallback = await runInNewContext(
+      `(async () => {
+        ${measurementFunctions}
+        const phases = []
+        const agentLabels = []
+        const finderMeasurements = []
+        const kind = 'performance'
+        const scope = 'api'
+        const surfaces = [{ label: 'api-queries', where: 'orbit-api queries' }]
+        const isApiSurface = () => true
+        const phase = (name) => phases.push(name)
+        const log = () => {}
+        const scopeLabelFor = () => 'API'
+        const measurementFinderPrompt = () => 'map measured statements'
+        const finderPrompt = (_kind, _surface, _scope, measurement) => {
+          finderMeasurements.push({ verdict: measurement.verdict, reason: measurement.reason })
+          return 'find code issues'
+        }
+        const MEASURED_FINDINGS_SCHEMA = {}
+        const FINDINGS_SCHEMA = {}
+        const parallel = (tasks) => Promise.all(tasks.map((task) => task()))
+        const agent = async (_prompt, options) => {
+          agentLabels.push(options.label)
+          if (options.label === 'find:measured-hotpaths') return { mappings: [], findings: [] }
+          return { findings: [{ title: 'unpaginated habit list', location: 'src/HabitsQuery.cs:20' }] }
+        }
+        let performanceMeasurement = resolvePerformanceMeasurement({
+          status: 'available',
+          statsReset: '2026-03-18T13:12:11.039503Z',
+          windowDays: 1,
+          tableStats: [{ table: 'Habits', liveRows: 10, columnCount: 2 }],
+          queryStats: [{
+            queryId: 'catalog-query',
+            rootTable: 'Habits',
+            calls: 1,
+            rows: 1,
+            bytesPerRow: 10,
+            queryShape: 'SELECT h."Id" FROM "Habits" h',
+          }],
+        })
+        ${measurementAndFindPhases}
+        return { performanceMeasurement, measurementFinderFailed, phases, agentLabels, finderMeasurements, firstPass }
+      })()`,
+    )
+  } catch (error) {
+    mappingFallbackError = error
+  }
+  const expectedMappingReason = "measured production hot-path mapping was empty"
+  T(
+    "performance-measurement: an unmapped measured statement falls back to CODE_ONLY and runs the code finder",
+    mappingFallbackError === null
+      && mappingFallback?.performanceMeasurement.verdict === "CODE_ONLY"
+      && mappingFallback.performanceMeasurement.reason === expectedMappingReason
+      && mappingFallback.measurementFinderFailed === true
+      && JSON.stringify(mappingFallback.phases) === JSON.stringify(["Measure", "Find"])
+      && JSON.stringify(mappingFallback.agentLabels) === JSON.stringify(["find:measured-hotpaths", "find:api-queries"])
+      && mappingFallback.finderMeasurements[0]?.verdict === "CODE_ONLY"
+      && mappingFallback.finderMeasurements[0]?.reason === expectedMappingReason
+      && mappingFallback.firstPass[0]?.findings[0]?.title === "unpaginated habit list",
+    mappingFallbackError?.message || JSON.stringify(mappingFallback),
   )
 
   const unresolvedMeasurement = resolvePerformanceMeasurement(availableInput())
