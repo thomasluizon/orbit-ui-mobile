@@ -154,7 +154,6 @@ describe('finalizeHabitMutation', () => {
     })
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: habitKeys.summaryPrefix(),
-      refetchType: 'none',
     })
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: habitKeys.detail('habit-1'),
@@ -190,7 +189,6 @@ describe('finalizeHabitMutation', () => {
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: habitKeys.summaryPrefix(),
-      refetchType: 'none',
     })
     expect(mocks.syncWidgetData).toHaveBeenCalledTimes(1)
   })

@@ -190,10 +190,15 @@ export function useLogHabit() {
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
-      void queryClient.invalidateQueries({
-        queryKey: habitKeys.summaryPrefix(),
-        refetchType: 'none',
-      })
+      /**
+       * The mounted summary MUST refetch, so this cannot narrow to `refetchType: 'none'`.
+       * `useSummary` sets `refetchOnWindowFocus: false` and a 5 minute `staleTime`, so marking the
+       * query stale without refetching leaves the Today Astra card describing the pre-completion
+       * state until its next time bucket. The summary is AI-generated text, so it cannot be
+       * reconciled locally from the mutation response. One small request per habit log is the
+       * correct trade against showing a user their own completion has not happened.
+       */
+      void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
     },
   })
 }

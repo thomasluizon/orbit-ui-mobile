@@ -95,14 +95,25 @@ function resolvePerformanceMeasurement(input) {
        * `select "Id", "UserId" from "Habits"` on a 20-column table was billed 10x its real egress,
        * which is exactly backwards for a signal meant to find unbounded reads.
        *
-       * Scaling by columns is an approximation and it is named as one: column widths differ, so a
-       * projection of two `text` columns is not one tenth of a 20-column row. It is right in the
-       * direction that matters and never charges MORE than the measured row width.
+       * So this metric is EXACT or it is UNKNOWN, and it is never estimated. Scaling by the fraction
+       * of columns selected understates a narrow projection, because Postgres column widths differ by
+       * orders of magnitude and one `text` column can outweigh twenty `int` ones. Only per-column
+       * `pg_stats.avg_width`, which this input does not carry, could give a real projected width.
+       *
+       * A projection that provably covers the whole row IS the measured row width and keeps an exact
+       * figure; that is the shape that causes an egress incident. Anything narrower reports `null`,
+       * which sorts last and fires no budget signal, rather than a number nobody can defend.
+       *
+       * This mirrors `tools/lib/performance-measurement.mjs`. The two copies exist because a workflow
+       * script is sandboxed and cannot import from disk, so they are held identical by the
+       * equivalence case in `tools/__tests__/performance-measurement.mjs`. Change one, change both.
        */
-      const projectedBytesPerRow = Number.isFinite(entry.bytesPerRow) && entry.bytesPerRow > 0
-        ? projectionColumns && table?.columnCount > 0
-          ? entry.bytesPerRow * Math.min(1, projectionColumns / table.columnCount)
-          : entry.bytesPerRow
+      const projectionIsWholeRow = projectionColumns != null
+        && Number.isFinite(table?.columnCount)
+        && table.columnCount > 0
+        && projectionColumns >= table.columnCount
+      const projectedBytesPerRow = Number.isFinite(entry.bytesPerRow) && entry.bytesPerRow > 0 && projectionIsWholeRow
+        ? entry.bytesPerRow
         : null
       const monthlyEgressBytes = projectedBytesPerRow === null
         ? null
@@ -266,22 +277,48 @@ function performanceMeasurementPrompt(measurement, limit = 20) {
   })
 }
 
+const MEASURED_METRIC_KEYS = ['calls', 'rowsPerCall', 'bytesPerRow', 'callsPerMonth', 'monthlyEgressBytes', 'tableFraction', 'intervalSeconds']
+
+/**
+ * The ONE place a performance finding may acquire a measured metric, applied at EVERY merge.
+ *
+ * `FINDINGS_SCHEMA` lets any finder supply `monthlyEgressBytes`, and the final sorter trusts it. Only
+ * the dedicated mapper's findings used to pass through here, so a first-pass or completeness-gap
+ * agent could omit the metric and demote the real highest-egress issue, or invent one and become the
+ * top finding that drives ticket priority. Measurement is authoritative; an agent's copy of it is
+ * not evidence.
+ *
+ * Three cases, and none of them trusts the agent:
+ *   known queryId    overwrite every metric from the measurement, whatever the agent said
+ *   unknown queryId  the id is invented or miscopied. Strip it AND the metrics, keep the prose, and
+ *                    say so, so a fabricated number can never reach the ranking
+ *   no queryId       nothing ties it to a measured statement, so strip any metric it supplied
+ */
 function attachPerformanceMetrics(findings, measurement) {
   if (measurement.status !== 'available') return findings
   const queryById = new Map(measurement.rowsRanking.map((entry) => [entry.queryId, entry]))
   return findings.map((finding) => {
-    const measured = queryById.get(String(finding.queryId || ''))
-    if (!measured) return finding
-    return {
-      ...finding,
-      calls: measured.calls,
-      rowsPerCall: measured.rowsPerCall,
-      bytesPerRow: measured.bytesPerRow,
-      callsPerMonth: measured.callsPerMonth,
-      monthlyEgressBytes: measured.monthlyEgressBytes,
-      tableFraction: measured.tableFraction,
-      intervalSeconds: measured.intervalSeconds,
+    const claimedQueryId = String(finding.queryId || '')
+    const measured = claimedQueryId ? queryById.get(claimedQueryId) : null
+    if (measured) {
+      return {
+        ...finding,
+        calls: measured.calls,
+        rowsPerCall: measured.rowsPerCall,
+        bytesPerRow: measured.bytesPerRow,
+        callsPerMonth: measured.callsPerMonth,
+        monthlyEgressBytes: measured.monthlyEgressBytes,
+        tableFraction: measured.tableFraction,
+        intervalSeconds: measured.intervalSeconds,
+      }
     }
+    const stripped = { ...finding }
+    for (const key of MEASURED_METRIC_KEYS) delete stripped[key]
+    if (claimedQueryId) {
+      delete stripped.queryId
+      log(`audit: dropped unmeasured queryId ${claimedQueryId} and its metrics from "${String(finding.title || finding.location || '').slice(0, 80)}"`)
+    }
+    return stripped
   })
 }
 
@@ -594,7 +631,7 @@ const firstPass = (
   )
 ).filter(Boolean)
 const sweptLabels = surfaces.map((s) => s.label)
-let findings = dedupeFresh([...measuredFindings, ...firstPass.flatMap((r) => r.findings || [])])
+let findings = dedupeFresh([...measuredFindings, ...attachPerformanceMetrics(firstPass.flatMap((r) => r.findings || []), performanceMeasurement)])
 
 async function verifySerious(candidates, phaseName) {
   const serious = candidates.filter(isSerious).sort((a, b) => rank(a.severity) - rank(b.severity))
@@ -654,7 +691,7 @@ while (dry < maxDry && round < HARD_ROUNDS) {
   const finderDied = roundResults.some((r) => !r)
   const roundRaw = roundResults.filter(Boolean).flatMap((r) => r.findings || [])
   gaps.forEach((g) => sweptLabels.push(g.label))
-  const fresh = dedupeFresh(roundRaw)
+  const fresh = dedupeFresh(attachPerformanceMetrics(roundRaw, performanceMeasurement))
   if (!fresh.length) {
     if (finderDied) {
       log(`round ${round}: a gap-finder died and no fresh findings surfaced — absence is UNPROVEN, not counting as dry`)

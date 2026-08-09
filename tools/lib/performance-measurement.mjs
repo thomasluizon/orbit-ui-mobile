@@ -59,7 +59,10 @@ const isUserScopedQuery = (queryShape) => /[".]UserId\b/i.test(queryShape)
 
 const normalizeTableStats = (tableStats) => (tableStats ?? []).map((entry, index) => ({
   table: String(entry.table || ""),
-  liveRows: positiveNumber(entry.liveRows, `tableStats[${index}].liveRows`),
+  /** An empty public table reports a legitimate `n_live_tup` of 0. Requiring a positive count turned
+   * one empty table into `CODE_ONLY` for the WHOLE measurement, which is a readiness verdict lost to
+   * a table nobody has written to yet. */
+  liveRows: nonNegativeNumber(entry.liveRows, `tableStats[${index}].liveRows`),
   columnCount: entry.columnCount == null ? null : positiveNumber(entry.columnCount, `tableStats[${index}].columnCount`),
   seqScan: entry.seqScan == null ? null : nonNegativeNumber(entry.seqScan, `tableStats[${index}].seqScan`),
   seqTupRead: entry.seqTupRead == null ? null : nonNegativeNumber(entry.seqTupRead, `tableStats[${index}].seqTupRead`),
@@ -79,7 +82,9 @@ const analyzeQuery = (entry, index, windowDays, tableByName, thresholds) => {
   const intervalSeconds = windowDays * 86400 / calls
   const rootTable = String(entry.rootTable || "")
   const table = tableByName.get(rootTable)
-  const tableFraction = table ? rowsPerCall / table.liveRows : null
+  /** Dividing by an empty table's 0 rows is Infinity, which would fire large-table-fraction on every
+   * query against it. An empty table has no meaningful fraction, so the metric is unknown. */
+  const tableFraction = table && table.liveRows > 0 ? rowsPerCall / table.liveRows : null
   const projectionColumns = selectedColumnCount(queryShape, table?.columnCount)
   /**
    * Egress is what the query SENDS, which is its projection, not the width of the table row.
@@ -88,15 +93,25 @@ const analyzeQuery = (entry, index, windowDays, tableByName, thresholds) => {
    * `select "Id", "UserId" from "Habits"` on a 29-column table was billed about 15x its real
    * egress, which is exactly backwards for a signal meant to find unbounded reads.
    *
-   * Scaling by columns is an approximation and it is named as one: column widths differ, so a
-   * projection of two `text` columns is not one fifteenth of a 29-column row. It is right in the
-   * direction that matters and never charges MORE than the measured row width.
+   * So this metric is EXACT or it is UNKNOWN, and it is never estimated. Charging the full row width
+   * overstated narrow projections; scaling by the fraction of columns selected then understated them,
+   * because Postgres column widths differ by orders of magnitude and one `text` column can outweigh
+   * twenty `int` ones. Both readings were wrong in a way that moved the top finding and therefore the
+   * readiness verdict, and each replaced the other. Only per-column `pg_stats.avg_width`, which this
+   * input does not carry, could give a real projected width.
+   *
+   * A projection that provably covers the whole row IS the measured row width, so those queries keep
+   * an exact figure. That is the shape that actually causes an egress incident, and the unpaginated
+   * `Habits` read behind the 112% Supabase overage is one of them. A narrower projection reports
+   * `null`, which sorts last in the egress ranking and fires no budget signal, rather than carrying a
+   * number nobody can defend. `unbounded-user-list`, the principal signal, reads `bounded` and is
+   * unaffected either way.
    */
-  const projectedBytesPerRow = bytesPerRow == null
-    ? null
-    : projectionColumns && table?.columnCount > 0
-      ? bytesPerRow * Math.min(1, projectionColumns / table.columnCount)
-      : bytesPerRow
+  const projectionIsWholeRow = projectionColumns != null
+    && Number.isFinite(table?.columnCount)
+    && table.columnCount > 0
+    && projectionColumns >= table.columnCount
+  const projectedBytesPerRow = bytesPerRow == null || !projectionIsWholeRow ? null : bytesPerRow
   const monthlyEgressBytes = projectedBytesPerRow == null ? null : rows / windowDays * DAYS_PER_MONTH * projectedBytesPerRow
   const userScoped = isUserScopedQuery(queryShape)
   const bounded = isBoundedQuery(queryShape)
@@ -310,21 +325,41 @@ export function performanceMeasurementPrompt(measurement, limit = 20) {
   })
 }
 
+const MEASURED_METRIC_KEYS = ["calls", "rowsPerCall", "bytesPerRow", "callsPerMonth", "monthlyEgressBytes", "tableFraction", "intervalSeconds"]
+
+/**
+ * The ONE place a performance finding may acquire a measured metric, applied at EVERY merge.
+ *
+ * The findings schema lets any finder supply `monthlyEgressBytes`, and the final sorter trusts it.
+ * Only the dedicated mapper's findings used to pass through here, so another agent could omit the
+ * metric and demote the real highest-egress issue, or invent one and become the top finding that
+ * drives ticket priority. Measurement is authoritative; an agent's copy of it is not evidence.
+ *
+ *   known queryId    overwrite every metric from the measurement, whatever the agent said
+ *   unknown queryId  invented or miscopied. Strip the id AND the metrics, keep the prose
+ *   no queryId       nothing ties it to a measured statement, so strip any metric it supplied
+ */
 export function attachPerformanceMetrics(findings, measurement) {
   if (measurement.status !== "available") return findings
   const queryById = new Map(measurement.rowsRanking.map((entry) => [entry.queryId, entry]))
   return findings.map((finding) => {
-    const measured = queryById.get(String(finding.queryId || ""))
-    if (!measured) return finding
-    return {
-      ...finding,
-      calls: measured.calls,
-      rowsPerCall: measured.rowsPerCall,
-      bytesPerRow: measured.bytesPerRow,
-      callsPerMonth: measured.callsPerMonth,
-      monthlyEgressBytes: measured.monthlyEgressBytes,
-      tableFraction: measured.tableFraction,
-      intervalSeconds: measured.intervalSeconds,
+    const claimedQueryId = String(finding.queryId || "")
+    const measured = claimedQueryId ? queryById.get(claimedQueryId) : null
+    if (measured) {
+      return {
+        ...finding,
+        calls: measured.calls,
+        rowsPerCall: measured.rowsPerCall,
+        bytesPerRow: measured.bytesPerRow,
+        callsPerMonth: measured.callsPerMonth,
+        monthlyEgressBytes: measured.monthlyEgressBytes,
+        tableFraction: measured.tableFraction,
+        intervalSeconds: measured.intervalSeconds,
+      }
     }
+    const stripped = { ...finding }
+    for (const key of MEASURED_METRIC_KEYS) delete stripped[key]
+    if (claimedQueryId) delete stripped.queryId
+    return stripped
   })
 }

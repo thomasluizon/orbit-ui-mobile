@@ -328,7 +328,6 @@ describe('useLogHabit', () => {
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.calendarPrefix() })
     expect(invalidateSpy).toHaveBeenCalledWith({
       queryKey: habitKeys.summaryPrefix(),
-      refetchType: 'none',
     })
     expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
     expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: gamificationKeys.all })

@@ -262,17 +262,36 @@ export const cases = () => {
     return { fromLib, fromWorkflow }
   }
 
+  /**
+   * The metric is EXACT or UNKNOWN, never estimated. Charging the full row width overstated a narrow
+   * projection; prorating by the fraction of columns selected then understated it, because column
+   * widths differ by orders of magnitude. Each of those fixes became the next connector P1, four
+   * passes running, so the estimate itself is the defect and it is gone rather than refined.
+   */
   const narrow = probe('SELECT h."Id", h."UserId" FROM "Habits" h')
   T(
-    "performance-measurement: a two-column projection is charged two columns, not the whole row",
-    narrow.fromLib.projectionColumns === 2 && Math.round(narrow.fromLib.projectedBytesPerRow) === 40,
-    JSON.stringify({ columns: narrow.fromLib.projectionColumns, bytes: narrow.fromLib.projectedBytesPerRow }),
+    "performance-measurement: a narrow projection reports UNKNOWN egress rather than an estimate",
+    narrow.fromLib.projectionColumns === 2
+      && narrow.fromLib.projectedBytesPerRow === null
+      && narrow.fromLib.monthlyEgressBytes === null,
+    JSON.stringify({ columns: narrow.fromLib.projectionColumns, bytes: narrow.fromLib.projectedBytesPerRow, egress: narrow.fromLib.monthlyEgressBytes }),
   )
   T(
-    "performance-measurement: the workflow copy charges the same projected width as the module",
+    "performance-measurement: the workflow copy also reports UNKNOWN for a narrow projection",
     narrow.fromWorkflow.projectionColumns === narrow.fromLib.projectionColumns
-      && Math.round(narrow.fromWorkflow.monthlyEgressBytes) === Math.round(narrow.fromLib.monthlyEgressBytes),
+      && narrow.fromWorkflow.projectedBytesPerRow === null
+      && narrow.fromWorkflow.monthlyEgressBytes === null,
     JSON.stringify({ workflow: narrow.fromWorkflow.monthlyEgressBytes, lib: narrow.fromLib.monthlyEgressBytes }),
+  )
+  /** A whole-row read IS the measured row width, so it keeps an exact figure. That is the shape
+   * behind the 112% Supabase overage, and it must never become unknown. */
+  const wholeRowEgress = probe('SELECT * FROM "Habits" h')
+  T(
+    "performance-measurement: a whole-row projection keeps the exact measured row width",
+    wholeRowEgress.fromLib.projectedBytesPerRow === 400
+      && wholeRowEgress.fromWorkflow.projectedBytesPerRow === 400
+      && Math.round(wholeRowEgress.fromLib.monthlyEgressBytes) === Math.round(wholeRowEgress.fromWorkflow.monthlyEgressBytes),
+    JSON.stringify({ lib: wholeRowEgress.fromLib.projectedBytesPerRow, workflow: wholeRowEgress.fromWorkflow.projectedBytesPerRow }),
   )
 
   /** `select *` counted ONE column and so never matched full-entity-projection, which is the signal
@@ -290,6 +309,87 @@ export const cases = () => {
    * could raise full-entity-projection on a query that projects almost nothing. */
   const nested = probe('SELECT COALESCE(h."Note", h."Title"), h."Id" FROM "Habits" h')
   T("performance-measurement: a comma inside a function call is not a column boundary", nested.fromLib.projectionColumns === 2, String(nested.fromLib.projectionColumns))
+
+  /**
+   * P1, connector pass 4 on #699: an EMPTY public table reports a legitimate `n_live_tup` of 0.
+   * Requiring a positive count threw, which downgraded the WHOLE measurement to CODE_ONLY and cost a
+   * full readiness verdict over a table nobody had written to yet.
+   */
+  const emptyTableInput = {
+    ...availableInput(),
+    tableStats: [{ table: "Habits", liveRows: 0, columnCount: 20, seqScan: 1, seqTupRead: 1 }],
+    queryStats: [{ queryId: "probe", rootTable: "Habits", calls: 10, rows: 0, bytesPerRow: 400, queryShape: 'SELECT * FROM "Habits" h' }],
+  }
+  const emptyTable = resolvePerformanceMeasurement(emptyTableInput)
+  T(
+    "performance-measurement: an empty table stays MEASURED instead of collapsing to CODE_ONLY",
+    emptyTable.status === "available" && emptyTable.verdict === "MEASURED",
+    JSON.stringify({ status: emptyTable.status, reason: emptyTable.reason }),
+  )
+  T(
+    "performance-measurement: an empty table has an unknown fraction rather than Infinity",
+    emptyTable.rowsRanking[0].tableFraction === null
+      && !emptyTable.rowsRanking[0].signals.includes("large-table-fraction"),
+    JSON.stringify({ fraction: emptyTable.rowsRanking[0].tableFraction, signals: emptyTable.rowsRanking[0].signals }),
+  )
+
+  /**
+   * P1, connector pass 4 on #699: every finder may supply `monthlyEgressBytes` and the final sorter
+   * trusts it, but only the mapper's findings were normalized. An invented value could become the
+   * top finding and drive ticket priority, so measurement is authoritative at EVERY merge.
+   */
+  const laundered = attachPerformanceMetrics([
+    { queryId: "habit-list", monthlyEgressBytes: 999999999, title: "real, but with an agent's number" },
+    { queryId: "not-a-measured-id", monthlyEgressBytes: 888888888, title: "invented id" },
+    { monthlyEgressBytes: 777777777, title: "no id at all" },
+  ], measurement)
+  T(
+    "performance-measurement: a known queryId is overwritten from the measurement, not the agent",
+    laundered[0].monthlyEgressBytes === measurement.rowsRanking.find((q) => q.queryId === "habit-list").monthlyEgressBytes,
+    JSON.stringify(laundered[0]),
+  )
+  T(
+    "performance-measurement: an unknown queryId loses both the id and every metric it claimed",
+    laundered[1].queryId === undefined && laundered[1].monthlyEgressBytes === undefined && laundered[1].title === "invented id",
+    JSON.stringify(laundered[1]),
+  )
+  T(
+    "performance-measurement: a finding with no queryId cannot carry an egress number into ranking",
+    laundered[2].monthlyEgressBytes === undefined && laundered[2].title === "no id at all",
+    JSON.stringify(laundered[2]),
+  )
+
+  /**
+   * THE guard against this defect class, rather than against one more instance of it.
+   *
+   * `tools/lib/performance-measurement.mjs` and the copy inlined in `.claude/workflows/audit.mjs`
+   * must agree, and they cannot be merged into one module because a workflow script is sandboxed and
+   * cannot import from disk. Every past fix had to be applied twice and the second copy is where it
+   * was missed. So the copies are compared directly, over a corpus that covers each branch of the
+   * projection and egress logic. A future edit to either copy alone fails here.
+   */
+  const equivalenceCorpus = [
+    'SELECT * FROM "Habits" h',
+    'SELECT h.* FROM "Habits" h',
+    'SELECT h."Id" FROM "Habits" h',
+    'SELECT h."Id", h."UserId" FROM "Habits" h',
+    'SELECT COALESCE(h."Note", h."Title"), h."Id" FROM "Habits" h',
+    'SELECT DISTINCT h."Id" FROM "Habits" h',
+    'SELECT h."Id" FROM "Habits" h WHERE h."UserId" = $1 LIMIT 50',
+    'SELECT h."Id" FROM "Habits" h WHERE h."UserId" = $1 OFFSET $2',
+    'SELECT h."Id" FROM "Habits" h WHERE h."HabitId" = ANY ($1)',
+  ]
+  const COMPARED_KEYS = ["projectionColumns", "projectedBytesPerRow", "monthlyEgressBytes", "tableFraction", "bounded", "userScoped", "rowsPerCall", "callsPerMonth", "intervalSeconds"]
+  const divergent = equivalenceCorpus.filter((queryShape) => {
+    const { fromLib, fromWorkflow } = probe(queryShape)
+    return COMPARED_KEYS.some((key) => JSON.stringify(fromLib[key]) !== JSON.stringify(fromWorkflow[key]))
+      || JSON.stringify([...fromLib.signals].sort()) !== JSON.stringify([...fromWorkflow.signals].sort())
+  })
+  T(
+    "performance-measurement: the module and the inlined workflow copy agree on every corpus query",
+    divergent.length === 0,
+    `diverged on: ${JSON.stringify(divergent)}`,
+  )
   const distinct = probe('SELECT DISTINCT h."Id", h."UserId" FROM "Habits" h')
   T("performance-measurement: DISTINCT is not counted as a column", distinct.fromLib.projectionColumns === 2, String(distinct.fromLib.projectionColumns))
 
