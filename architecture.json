@@ -8799,6 +8799,7 @@
         "packages/shared/src/__tests__/retrospective.test.ts",
         "packages/shared/src/__tests__/share-card.test.ts",
         "packages/shared/src/__tests__/social-errors.test.ts",
+        "packages/shared/src/__tests__/social-tabs.test.ts",
         "packages/shared/src/__tests__/streak-week.property.test.ts",
         "packages/shared/src/__tests__/streak-week.test.ts",
         "packages/shared/src/__tests__/subscription-pricing.test.ts",
