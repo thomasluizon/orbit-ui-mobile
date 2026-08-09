@@ -247,7 +247,8 @@
         },
         "$[].stateReason": {
           "types": [
-            "null"
+            "null",
+            "string"
           ]
         },
         "$[].title": {
@@ -256,6 +257,66 @@
           ]
         },
         "$[].url": {
+          "types": [
+            "string"
+          ]
+        },
+        "$[].blockedBy.nodes[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$[].blockedBy.nodes[].id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$[].blockedBy.nodes[].number": {
+          "types": [
+            "number"
+          ]
+        },
+        "$[].blockedBy.nodes[].state": {
+          "types": [
+            "string"
+          ]
+        },
+        "$[].blockedBy.nodes[].title": {
+          "types": [
+            "string"
+          ]
+        },
+        "$[].blockedBy.nodes[].url": {
+          "types": [
+            "string"
+          ]
+        },
+        "$[].blocking.nodes[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$[].blocking.nodes[].id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$[].blocking.nodes[].number": {
+          "types": [
+            "number"
+          ]
+        },
+        "$[].blocking.nodes[].state": {
+          "types": [
+            "string"
+          ]
+        },
+        "$[].blocking.nodes[].title": {
+          "types": [
+            "string"
+          ]
+        },
+        "$[].blocking.nodes[].url": {
           "types": [
             "string"
           ]
@@ -285,6 +346,111 @@
         "$.items": {
           "types": [
             "array"
+          ]
+        },
+        "$.items[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.items[].content": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.items[].content.body": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.items[].content.number": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.items[].content.repository": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.items[].content.title": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.items[].content.type": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.items[].content.url": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.items[].id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.items[].labels": {
+          "types": [
+            "array"
+          ]
+        },
+        "$.items[].labels[]": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.items[].linear ID": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.items[].priority": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.items[].repository": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.items[].status": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.items[].title": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.items[].milestone": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.items[].milestone.description": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.items[].milestone.dueOn": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.items[].milestone.title": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.items[].estimate": {
+          "types": [
+            "number"
           ]
         },
         "$.totalCount": {

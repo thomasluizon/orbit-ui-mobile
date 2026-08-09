@@ -123,6 +123,11 @@ export const cases = async () => {
     "a config with no tickets object was accepted",
   )
   T(
+    `${NAME}: a tickets block with no states object is refused`,
+    /tickets\.states must be an object/.test(readAndFail("no-ticket-states", { ...real, tickets: { ...real.tickets, states: undefined } }) ?? ""),
+    "a tickets block with no states object was accepted",
+  )
+  T(
     `${NAME}: a non-integer project number is refused`,
     /tickets\.projectNumber must be a positive integer/.test(
       readAndFail("fractional-project-number", { ...real, tickets: { ...real.tickets, projectNumber: 2.5 } }) ?? "",
@@ -177,7 +182,10 @@ export const cases = async () => {
       real.tickets.repository === "thomasluizon/orbit-tickets" &&
       real.tickets.projectId === "PVT_kwHOBE6dNc4Bfy2y" &&
       real.tickets.statusFieldId === "PVTSSF_lAHOBE6dNc4Bfy2yzhaDLqQ" &&
-      real.tickets.statusOptions.Done === "9e4bdc69",
+      real.tickets.statusOptions.Done === "9e4bdc69" &&
+      real.tickets.states.working === "In Progress" &&
+      real.tickets.states.review === "In Review" &&
+      real.tickets.states.done === "Done",
     JSON.stringify(real.tickets),
   )
   for (const [label, key] of [["hardCeilingMinutes", "timeouts"]]) {

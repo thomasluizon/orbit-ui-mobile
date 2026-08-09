@@ -16,11 +16,21 @@ const issue = (overrides = {}) => ({
   url: "https://github.com/thomasluizon/orbit-tickets/issues/221",
   ...overrides,
 })
-const projectItems = JSON.stringify({ items: [], totalCount: 0 })
-const environmentFor = (ticketOutput = JSON.stringify(issue())) =>
+const projectItem = {
+  content: {
+    number: 221,
+    repository: "thomasluizon/orbit-tickets",
+    type: "Issue",
+  },
+  id: "PVTI_harness_item",
+  status: "In Review",
+}
+const populatedProjectItems = JSON.stringify({ items: [projectItem], totalCount: 1 })
+const emptyProjectItems = JSON.stringify({ items: [], totalCount: 0 })
+const environmentFor = (ticketOutput = JSON.stringify(issue()), projectOutput = populatedProjectItems) =>
   orcaEnv([
     { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: ticketOutput },
-    { match: "project item-list 2 --owner thomasluizon", stdout: projectItems },
+    { match: "project item-list 2 --owner thomasluizon", stdout: projectOutput },
   ])
 
 const messageOf = async (call) => {
@@ -36,7 +46,7 @@ export const cases = async () => {
   T(
     `${TOOL}: exports only the ticket adapter surface`,
     Object.keys(githubIssues).sort().join(",") ===
-      "addComment,assertRepositoryLabel,listTickets,readTicket,resolveTicket,setStatus",
+      "addComment,assertRepositoryLabel,listMilestones,listTickets,readTicket,resolveTicket,setStatus",
     Object.keys(githubIssues).sort().join(","),
   )
 
@@ -104,19 +114,49 @@ export const cases = async () => {
       JSON.stringify(read),
     )
     T(
-      `${TOOL}: a ticket absent from the configured board has null project fields`,
-      read.status === null && read.projectItemId === null,
+      `${TOOL}: a populated board item supplies the recorded status and project item id`,
+      read.status === "In Review" && read.projectItemId === "PVTI_harness_item",
       JSON.stringify(read),
+    )
+
+    applyEnvironment(environmentFor(JSON.stringify(issue()), emptyProjectItems))
+    const absent = await githubIssues.readTicket(221)
+    T(
+      `${TOOL}: a ticket absent from the configured board has null project fields`,
+      absent.status === null && absent.projectItemId === null,
+      JSON.stringify(absent),
     )
 
     applyEnvironment(
       orcaEnv([
-        { match: "issue list --repo thomasluizon/orbit-tickets --state all", stdout: JSON.stringify([issue()]) },
-        { match: "project item-list 2 --owner thomasluizon", stdout: projectItems },
+        {
+          match: "api repos/thomasluizon/orbit-tickets/milestones?state=all&per_page=100 --paginate --jq .[].title",
+          stdout: "Future\nHarness Context and Calibration\n",
+        },
       ]),
     )
-    const listed = await githubIssues.listTickets({ labels: ["repo:ui", "harness"], state: "all" })
+    const milestones = await githubIssues.listMilestones()
+    T(
+      `${TOOL}: listMilestones returns every title from the verified paginated read`,
+      milestones.join(",") === "Future,Harness Context and Calibration",
+      JSON.stringify(milestones),
+    )
+
+    applyEnvironment(
+      orcaEnv([
+        {
+          match: "issue list --repo thomasluizon/orbit-tickets --state all --limit 1000 --json number,url,title,body,state,stateReason,labels,blockedBy,blocking --label repo:ui --label harness --milestone Harness Context and Calibration",
+          stdout: JSON.stringify([issue()]),
+        },
+        { match: "project item-list 2 --owner thomasluizon", stdout: populatedProjectItems },
+      ]),
+    )
+    const listed = await githubIssues.listTickets({ labels: ["repo:ui", "harness"], state: "all", milestone: "Harness Context and Calibration" })
     T(`${TOOL}: listTickets normalizes each issue and preserves the mapped identifier`, listed.length === 1 && listed[0].identifier === "ORB-215", JSON.stringify(listed))
+    T(
+      `${TOOL}: listTickets refuses an empty milestone before invoking GitHub`,
+      /must be null or a non-empty string/.test(await messageOf(() => githubIssues.listTickets({ milestone: "" })) ?? ""),
+    )
 
     const statusMarker = stage("github-issues/status-write", "must be removed")
     applyEnvironment(
@@ -165,7 +205,7 @@ export const cases = async () => {
     applyEnvironment(
       orcaEnv([
         { match: "issue view 221 --repo thomasluizon/orbit-tickets", stdout: "", stderr: "GraphQL: issue not found", exit: 1 },
-        { match: "project item-list 2 --owner thomasluizon", stdout: projectItems },
+        { match: "project item-list 2 --owner thomasluizon", stdout: populatedProjectItems },
       ]),
     )
     T(

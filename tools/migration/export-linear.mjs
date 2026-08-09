@@ -38,6 +38,31 @@ for (;;) {
   const args = ["linear", "list-issues", "--team", "ORB", "--limit", "100", "--include-archived", "--workspace", WORKSPACE, "--json"]
   if (cursor) args.push("--cursor", cursor)
   const result = orca(args)
+  /**
+   * Linear is decommissioned. This export remains for migration provenance only and is not expected
+   * to run again. The reads below were reverified live on 2026-08-08 with this exact command:
+   *
+   * C:\Users\thoma\AppData\Local\Programs\orca\resources\bin\orca linear list-issues
+   *   --team ORB --limit 100 --include-archived
+   *   --workspace 940a4273-8e9f-4f75-ba2f-33b8d2a45759 --json
+   *
+   * Complete response key set and JSON types, with values replaced:
+   * { id: string, ok: boolean, result: {
+   *   issues: array<{
+   *     assignee: null | { avatarUrl: string, displayName: string, id: string },
+   *     branchName: string, createdAt: "<ISO-8601 timestamp>", cycle: null,
+   *     description: string, dueDate: null, estimate: null | number, id: string,
+   *     identifier: string, labels: array<{ color: string, id: string, name: string }>,
+   *     priority: number, project: null | { color: string, id: string, name: string },
+   *     state: { color: string, id: string, name: string, type: string },
+   *     team: { color: string, id: string, key: string, name: string }, title: string,
+   *     updatedAt: "<ISO-8601 timestamp>", url: string,
+   *     workspace: { id: string, name: string }
+   *   }>,
+   *   meta: { hasMore: boolean, limit: number, nextCursor: string, orderBy: string,
+   *     partial: boolean, returned: number, workspaceErrors: array, workspaceId: string }
+   * }, _meta: { runtimeId: string } }
+   */
   if (result.meta?.workspaceId !== WORKSPACE) throw new Error(`workspace drifted to ${result.meta?.workspaceId}`)
   for (const issue of result.issues) identifiers.push(issue.identifier)
   process.stderr.write(`listed ${identifiers.length}\r`)

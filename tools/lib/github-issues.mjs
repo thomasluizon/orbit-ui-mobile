@@ -196,14 +196,30 @@ export const addComment = async (number, body) => {
   await runGh(["issue", "comment", String(number), "--repo", tickets.repository, "--body-file", "-"], { input: body })
 }
 
-export const listTickets = async ({ labels = [], state = "open" } = {}) => {
+/**
+ * Verified live on 2026-08-08. This exact read returned one title per line for every milestone:
+ * gh api repos/thomasluizon/orbit-tickets/milestones?state=all&per_page=100 --paginate --jq .[].title
+ */
+export const listMilestones = async () => {
+  const tickets = ticketConfiguration()
+  const output = await runGh(["api", `repos/${tickets.repository}/milestones?state=all&per_page=100`, "--paginate", "--jq", ".[].title"])
+  return output
+    .split(/\r?\n/)
+    .filter((title) => title.length > 0)
+}
+
+export const listTickets = async ({ labels = [], state = "open", milestone = null } = {}) => {
   if (!Array.isArray(labels) || labels.some((label) => typeof label !== "string" || label.trim().length === 0)) {
     throw new Error("Ticket labels must be an array of non-empty strings")
   }
   if (!new Set(["open", "closed", "all"]).has(state)) throw new Error(`Ticket state must be open, closed, or all, got ${JSON.stringify(state)}`)
+  if (milestone !== null && (typeof milestone !== "string" || milestone.trim().length === 0)) {
+    throw new Error("Ticket milestone must be null or a non-empty string")
+  }
   const tickets = ticketConfiguration()
   const args = ["issue", "list", "--repo", tickets.repository, "--state", state, "--limit", "1000", "--json", ISSUE_FIELDS]
   for (const label of labels) args.push("--label", label)
+  if (milestone !== null) args.push("--milestone", milestone)
   args.push("--jq", LIST_STATE_REASON_FILTER)
   const [issueOutput, projectItems] = await Promise.all([runGh(args), readProjectItems(tickets)])
   const issues = parseGhJson(`gh ${args.join(" ")}`, issueOutput)

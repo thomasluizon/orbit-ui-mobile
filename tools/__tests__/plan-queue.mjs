@@ -2,7 +2,19 @@ import { check, realOrchestratorConfig, run, stage, stageWithConfig, T } from ".
 
 const TOOL = "plan-queue.mjs"
 
-const ticket = (identifier, { title = `${identifier} work`, state = "OPEN", status = "Todo", labels = ["repo:ui"], body = "## Scope\n\n- Do the work", blockedBy = [] } = {}) => ({
+const ticket = (
+  identifier,
+  {
+    title = `${identifier} work`,
+    state = "OPEN",
+    status = "Todo",
+    labels = ["repo:ui"],
+    body = "## Scope\n\n- Do the work",
+    blockedBy = [],
+    milestone = null,
+    projectItemId = `item-${identifier}`,
+  } = {},
+) => ({
   identifier,
   number: Number(identifier.split("-")[1]),
   url: `https://github.com/thomasluizon/orbit-tickets/issues/${Number(identifier.split("-")[1])}`,
@@ -14,7 +26,8 @@ const ticket = (identifier, { title = `${identifier} work`, state = "OPEN", stat
   blockedBy: blockedBy.map((reference) => ({ number: Number(reference.split("-")[1]) })),
   blocking: [],
   status,
-  projectItemId: `item-${identifier}`,
+  milestone,
+  projectItemId,
 })
 
 const planOf = (result) => {
@@ -58,7 +71,10 @@ export const readTicket = async (number) => {
   if (!found) throw new Error("ticket not found")
   return structuredClone(found)
 }
-export const listTickets = async () => tickets.filter((ticket) => ticket.state === "OPEN").map((ticket) => structuredClone(ticket))
+export const listMilestones = async () => JSON.parse(process.env.ORBIT_MILESTONE_STUB || "[]")
+export const listTickets = async ({ milestone = null } = {}) => tickets
+  .filter((ticket) => ticket.state === "OPEN" && (milestone === null || ticket.milestone === milestone))
+  .map((ticket) => structuredClone(ticket))
 `,
   )
   const execute = (references, tickets, extra = []) => run(TOOL, ["--tickets", references.join(","), ...extra], { path: staged.path, env: { ORBIT_TICKET_STUB: JSON.stringify(tickets) } })
@@ -147,14 +163,35 @@ export const listTickets = async () => tickets.filter((ticket) => ticket.state =
   )
   T(`${TOOL}: a blocking cycle is refused by name`, cycle.status === 2 && /blocking cycle exists among ORB-1, ORB-2/.test(cycle.stderr), cycle.stderr || cycle.stdout)
 
+  const scopedTickets = [
+    ticket("ORB-1", { milestone: "Orbit" }),
+    ticket("ORB-2", { milestone: "Future" }),
+    ticket("ORB-3", { projectItemId: null }),
+  ]
+  const scopeEnvironment = {
+    ORBIT_MILESTONE_STUB: JSON.stringify(["Future", "Orbit"]),
+    ORBIT_TICKET_STUB: JSON.stringify(scopedTickets),
+  }
   const project = run(TOOL, ["--project", "Orbit"], {
     path: staged.path,
-    env: { ORBIT_TICKET_STUB: JSON.stringify([ticket("ORB-1"), ticket("ORB-2", { state: "CLOSED", status: "Done" })]) },
+    env: scopeEnvironment,
   })
   T(
-    `${TOOL}: project scope reads the configured GitHub project and admits open tickets`,
-    project.status === 0 && planOf(project)?.counts.requested === 1 && planOf(project).scope.kind === "project",
+    `${TOOL}: project scope admits only open tickets in the matching milestone`,
+    project.status === 0 && planOf(project)?.counts.requested === 1 && planOf(project).admitted[0]?.identifier === "ORB-1" && planOf(project).scope.kind === "project",
     project.stdout || project.stderr,
+  )
+  const unknownProject = run(TOOL, ["--project", "Typo"], { path: staged.path, env: scopeEnvironment })
+  T(
+    `${TOOL}: an unknown project is refused and names every available milestone`,
+    unknownProject.status === 2 && /unknown project "Typo"/.test(unknownProject.stderr) && /Future, Orbit/.test(unknownProject.stderr) && unknownProject.stdout.trim() === "",
+    `status ${unknownProject.status}: ${unknownProject.stderr || unknownProject.stdout}`,
+  )
+  const board = run(TOOL, ["--board"], { path: staged.path, env: scopeEnvironment })
+  T(
+    `${TOOL}: board scope excludes repository issues absent from the configured board`,
+    board.status === 0 && planOf(board)?.counts.requested === 2 && planOf(board).admitted.every((entry) => entry.identifier !== "ORB-3"),
+    board.stdout || board.stderr,
   )
 
   const forked = execute(
