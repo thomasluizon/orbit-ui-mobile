@@ -4,22 +4,22 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
-import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-auth.mjs"
-import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
+import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-auth.mjs"
+import { addComment, assertRepositoryLabel, readTicket, resolveTicket, setStatus } from "./lib/github-issues.mjs"
+import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 import { gitDirectoryOf } from "./lib/run-state.mjs"
 
-const USAGE = `usage: sync-linear-state.mjs --issue ORB-N --repo <ui|api|landing> --pr <number> --state <working|ready|visual|blocked> --head-sha <sha> --base-sha <sha> --message-file <path|-> [--command-timeout-seconds <s>]
+const USAGE = `usage: sync-issue-state.mjs --issue <ORB-N|#N|N> --repo <ui|api|landing> --pr <number> --state <working|ready|blocked> --head-sha <sha> --base-sha <sha> --message-file <path|->
 
-working, visual, blocked -> In Progress. ready -> In Review unless the live ticket carries
-visible-effect, which mechanically remains In Progress. Done is never a target.
+working, blocked -> In Progress. ready -> In Review. Done is never a target.
 The status write is idempotent; a state comment is posted only when its stored signature changes.
 
 --issue MUST be copied from output produced in this run. Before either write, the live ticket is
 asserted to carry exactly the repo:<key> label matching --repo, and the live pull request must
 reference that ticket in its branch, title, or body.
 
-exit codes: 0 synchronized, 1 Linear write failed,
+exit codes: 0 synchronized, 1 ticket write failed,
             2 usage or environment error, or a ticket that is not provably this repository's`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
@@ -46,9 +46,9 @@ const stateKey = argOf("--state")
 const headSha = argOf("--head-sha")
 const baseSha = argOf("--base-sha")
 const messageFile = argOf("--message-file")
+// Bounds the direct pull request read that binds this write to the intended ticket.
 const commandTimeoutSeconds = Number(argOf("--command-timeout-seconds") ?? "45")
-if (!/^[A-Z][A-Z0-9]*-\d+$/.test(issue ?? "") || !repoKey || !Number.isInteger(prNumber) || !["working", "ready", "visual", "blocked"].includes(stateKey) || !/^[0-9a-f]{40}$/i.test(headSha ?? "") || !/^[0-9a-f]{40}$/i.test(baseSha ?? "") || !messageFile) fail(2, USAGE)
-if (!Number.isFinite(commandTimeoutSeconds) || commandTimeoutSeconds <= 0) fail(2, "--command-timeout-seconds requires a positive number")
+if (!issue || !repoKey || !Number.isInteger(prNumber) || !["working", "ready", "blocked"].includes(stateKey) || !/^[0-9a-f]{40}$/i.test(headSha ?? "") || !/^[0-9a-f]{40}$/i.test(baseSha ?? "") || !messageFile) fail(2, USAGE)
 
 let message
 try {
@@ -67,32 +67,20 @@ try {
 }
 const repoRoot = config.repos?.[repoKey]
 if (typeof repoRoot !== "string") fail(2, `unknown repository key "${repoKey}"; known: ${Object.keys(config.repos ?? {}).join(", ")}`)
-const ORCA = process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs\\orca\\resources\\bin\\orca"
-const invoke = async (args, input) => {
-  const result = await runBounded(ORCA, args, { timeoutMs: commandTimeoutSeconds * 1000, maxBuffer: 16 * 1024 * 1024, input })
-  if (result.timedOut) return { ok: false, error: `Orca command timed out after ${commandTimeoutSeconds}s; the complete child process tree was terminated` }
-  if (result.overflowed) return { ok: false, error: "Orca command exceeded the 16 MiB output bound; the complete child process tree was terminated" }
-  if (result.error || result.status !== 0) return { ok: false, error: (result.stderr || result.stdout || result.error?.message || `exit ${result.status}`).trim() }
-  return { ok: true, stdout: result.stdout }
-}
-
-// --full is the exact live response shape evidenced in the PR body. Do not silently switch this to
-// the smaller default envelope without first recording that complete shape.
-const read = await invoke(["linear", "issue", issue, "--full", "--json"])
-if (!read.ok) fail(2, `Linear issue read failed: ${read.error}`)
+let resolved
 let current
 try {
-  current = JSON.parse(read.stdout)?.result?.issue
-} catch {
-  fail(2, "Linear issue read returned unparseable JSON")
+  resolved = resolveTicket(issue)
+  current = await readTicket(resolved.number)
+} catch (error) {
+  fail(2, `ticket read failed: ${error.message}`)
 }
-if (typeof current?.state?.name !== "string" || typeof current?.state?.type !== "string" || !Array.isArray(current?.labels) || current.labels.some((label) => typeof label?.name !== "string")) fail(2, "Linear issue read carried no state name/type or labels array")
-if (["completed", "canceled", "duplicate"].includes(current.state.type)) fail(1, `${issue} is ${current.state.name}; readiness synchronization never regresses a closed issue`)
+if (current.state === "CLOSED") fail(1, `${issue} is closed; readiness synchronization never regresses a closed ticket`)
 
 /**
- * THE target assertion, the Linear half of the 2026-08-08 misdirected-write incident. `--issue` is
+ * THE target assertion, the ticket half of the 2026-08-08 misdirected-write incident. `--issue` is
  * a caller-supplied identifier and this tool writes twice with it: a status change and a comment.
- * An invented or mistyped ORB-N is a live ticket belonging to other work, so the write lands
+ * An invented or mistyped ticket reference can name live work, so the write lands
  * somewhere real and reads as deliberate.
  *
  * `repo:*` is the mechanical link between a ticket and a repository: tools/plan-queue.mjs admits a
@@ -104,10 +92,10 @@ if (["completed", "canceled", "duplicate"].includes(current.state.type)) fail(1,
  * plan-queue would have deferred as NO_REPO_LABEL, so writing to it proves nothing about whether it
  * is the right ticket.
  */
-const repoLabels = current.labels.map((label) => label.name).filter((name) => name.startsWith("repo:"))
-if (repoLabels.length !== 1 || repoLabels[0].slice("repo:".length) !== repoKey) {
-  const found = repoLabels.length === 0 ? "no repo:* label" : repoLabels.join(" and ")
-  fail(2, `${issue} carries ${found}, so it is not provably the ${repoKey} ticket this synchronization names. Nothing was written. Expected exactly repo:${repoKey}`)
+try {
+  assertRepositoryLabel(current, repoKey)
+} catch (error) {
+  fail(2, `${issue} ${error.message}. Nothing was written.`)
 }
 
 let githubAuth
@@ -157,30 +145,32 @@ if (![pullRequest.headRefName, pullRequest.title, pullRequest.body].some((value)
   fail(2, `Pull request ${expectedSlug}#${prNumber} does not reference ${issue} in its branch, title, or body. Nothing was written`)
 }
 
-const visibleEffect = current.labels.some((label) => label.name === "visible-effect")
-// The live label is authoritative in both directions. A stale caller cannot strand an ordinary
-// ticket In Progress with --state visual or advance visible work with --state ready.
-const effectiveStateKey = ["ready", "visual"].includes(stateKey) ? (visibleEffect ? "visual" : "ready") : stateKey
-const targetStatus = effectiveStateKey === "ready" ? config.linear.states.review : config.linear.states.working
-if (targetStatus === config.linear.states.done) fail(2, "the readiness loop never targets Done before merge")
+const targetStatus = stateKey === "ready" ? config.tickets.states.review : config.tickets.states.working
+if (targetStatus === config.tickets.states.done) fail(2, "the readiness loop never targets Done before merge")
 
-if (current.state.name !== targetStatus) {
-  const moved = await invoke(["linear", "status", "set", issue, "--to", targetStatus, "--json"])
-  if (!moved.ok) fail(1, `Linear status synchronization failed: ${moved.error}`)
+if (current.status !== targetStatus) {
+  try {
+    await setStatus(resolved.number, targetStatus)
+  } catch (error) {
+    fail(1, `ticket status synchronization failed: ${error.message}`)
+  }
 }
 
-const statePath = join(gitDirectoryOf(repoRoot), "orbit-linear-sync", `${issue}.json`)
+const statePath = join(gitDirectoryOf(repoRoot), "orbit-ticket-sync", `${resolved.identifier ?? resolved.number}.json`)
 let previous = null
 try {
   previous = JSON.parse(readFileSync(statePath, "utf8"))
 } catch {
   previous = null
 }
-const signature = JSON.stringify({ stateKey: effectiveStateKey, targetStatus, headSha, baseSha, message })
+const signature = JSON.stringify({ stateKey, targetStatus, headSha, baseSha, message })
 let commentPosted = false
 if (previous?.signature !== signature) {
-  const posted = await invoke(["linear", "comment", "add", issue, "--body-file", "-", "--json"], message)
-  if (!posted.ok) fail(1, `Linear state comment failed: ${posted.error}`)
+  try {
+    await addComment(resolved.number, message)
+  } catch (error) {
+    fail(1, `ticket state comment failed: ${error.message}`)
+  }
   commentPosted = true
 }
 
@@ -190,7 +180,7 @@ const artifact = {
   prNumber,
   status: targetStatus,
   lastSynchronizationResult: "SUCCESS",
-  lastPostedState: effectiveStateKey,
+  lastPostedState: stateKey,
   headSha,
   baseSha,
   commentPosted,

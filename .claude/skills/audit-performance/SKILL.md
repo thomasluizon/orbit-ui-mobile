@@ -1,7 +1,7 @@
 ---
 name: audit-performance
 description: >-
-  Performance-risk audit across both Orbit repos, opening one Linear ticket per verified risk after a human approval gate (D10). API side: N+1 queries, missing indexes, synchronous slow work in request paths. Frontend side: render thrash, over-eager or stale caching, waterfalls. EXCLUDES what the gates own (D11): the perf.yml web LCP/TBT/bundle budgets, the N+1 guard test's three query shapes, and react-doctor's perf rules. Each finding carries file:line evidence and a remediation, calibrated to Orbit's solo-dev scale. Use when the user asks to audit performance, find slowdowns, or check for scaling risks. Not for running benchmarks.
+  Performance-risk audit across both Orbit repos, opening one GitHub ticket per verified risk after a human approval gate (D10). API side: N+1 queries, missing indexes, synchronous slow work in request paths. Frontend side: render thrash, over-eager or stale caching, waterfalls. EXCLUDES what the gates own (D11): the perf.yml web LCP/TBT/bundle budgets, the N+1 guard test's three query shapes, and react-doctor's perf rules. Each finding carries file:line evidence and a remediation, calibrated to Orbit's solo-dev scale. Use when the user asks to audit performance, find slowdowns, or check for scaling risks. Not for running benchmarks.
 argument-hint: <path | repo | blank=both repos>
 ---
 
@@ -11,7 +11,7 @@ argument-hint: <path | repo | blank=both repos>
 
 Find the performance risks that bite at scale, before they do, across both repos. The
 API side is where Orbit's real risk lives (database round-trips per request); the frontend
-side is render and cache hygiene. Output: one Linear ticket per verified risk (D10), each
+side is render and cache hygiene. Output: one GitHub ticket per verified risk (D10), each
 pinned to a file:line with the fix, behind one approval gate, never a report that rots.
 
 The fan-out, the adversarial verify, and the loop-until-dry run as the **`audit` dynamic
@@ -117,10 +117,10 @@ sections, and re-invoke with a narrowed scope for any slice it missed.
 
 ## Phase 4: Emit tickets (D10), not a report
 
-Run the shared pipeline in **`.claude/skills/_shared/audit-to-tickets.md`**: one Linear
+Run the shared pipeline in **`.claude/skills/_shared/audit-to-tickets.md`**: one GitHub
 ticket per verified risk, drafted to the 6.2 template, validated by
 re-read against the 6.2 template, presented behind ONE approval gate, then created via
-`orca linear create` and re-validated with `--issue`.
+`gh issue create` and re-validated from the created issue.
 
 Performance-specific mapping into the 6.2 body:
 
@@ -132,8 +132,7 @@ Performance-specific mapping into the 6.2 body:
 - **Acceptance criteria** name the observable change (the round-trip count drops, the index
   exists, the request no longer blocks).
 - A frontend fix that depends on a new API index or endpoint is a ui ticket blockedBy the api
-  ticket (deploy-API-first). `repo:*` from `location`; ui tickets carry `parity:yes|no`; add
-  `visible-effect` only if the fix changes what the user sees.
+  ticket (deploy-API-first). `repo:*` comes from `location`; ui tickets carry `parity:yes|no`.
 
 At the approval gate, present the Hotspots (the highest-impact risks, side + pattern + how it
 grows) as provenance, plus the **Deferred ledger** (the workflow's `deferred`, enterprise-only
@@ -155,7 +154,7 @@ scaling picture in view.
 - **Run a benchmark or load test.** This reads code; load testing is #230.
 - **Re-run the workflow's analysis.** You turn its return into tickets; only re-invoke for a
   coverage gap.
-- **Write a report file, or create tickets unattended.** The output is Linear tickets behind
+- **Write a report file, or create tickets unattended.** The output is GitHub tickets behind
   the one approval gate; nothing is persisted to `.claude/audits/`.
 - **Optimize during the audit.** Tickets first; change code only if the user asks after.
 

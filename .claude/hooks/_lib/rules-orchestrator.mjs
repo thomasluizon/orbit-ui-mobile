@@ -31,7 +31,7 @@ const LEADING_TOKEN = /^\s*("[^"]*"|'[^']*'|\S+)/
 const PR_MERGE = /(?:^|\s)pr\s+merge(?:\s|$)/
 const ADMIN_FLAG = /(?<![\w-])--admin(?![\w-])/
 // `[=\s]*` and not `[= ]+`: curl's concatenated short form `-XPUT` carries no separator at all,
-// and the quoted forms carry one on each side. rules-linear.mjs uses `[=\s]*` for the same reason.
+// and the quoted forms carry one on each side.
 const PUT_METHOD = /(?<![\w-])(?:-X|--method|--request)[=\s]*["']?PUT["']?(?![\w-])/i
 const PULLS_MERGE_PATH = /repos\/[^/\s"']+\/[^/\s"']+\/pulls\/[^/\s"']+\/merge(?![\w-])/
 const MERGE_MUTATION = /(?<![\w])mergePullRequest(?![\w])/

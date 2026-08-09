@@ -1,0 +1,495 @@
+{
+  "schemaVersion": 1,
+  "generation": {
+    "method": "Generated mechanically from read-only live gh commands. No response path or type was entered by hand.",
+    "generator": "tools/record-gh-fixtures.mjs",
+    "repository": "thomasluizon/orbit-tickets",
+    "projectOwner": "thomasluizon",
+    "projectNumber": 2
+  },
+  "commands": {
+    "issueView": {
+      "command": [
+        "gh",
+        "issue",
+        "view",
+        "<issue-number>",
+        "--repo",
+        "thomasluizon/orbit-tickets",
+        "--json",
+        "number,url,title,body,state,stateReason,labels,blockedBy,blocking",
+        "--jq",
+        "if .stateReason == \"\" then .stateReason = null else . end"
+      ],
+      "observedExitCode": 0,
+      "paths": {
+        "$": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.blockedBy": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.blockedBy.nodes": {
+          "types": [
+            "array"
+          ]
+        },
+        "$.blockedBy.totalCount": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.blocking": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.blocking.nodes": {
+          "types": [
+            "array"
+          ]
+        },
+        "$.blocking.totalCount": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.body": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.labels": {
+          "types": [
+            "array"
+          ]
+        },
+        "$.labels[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.labels[].color": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.labels[].description": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.labels[].id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.labels[].name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.number": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.state": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.stateReason": {
+          "types": [
+            "null"
+          ]
+        },
+        "$.title": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.url": {
+          "types": [
+            "string"
+          ]
+        }
+      }
+    },
+    "issueViewError": {
+      "command": [
+        "gh",
+        "issue",
+        "view",
+        "2147483647",
+        "--repo",
+        "thomasluizon/orbit-tickets",
+        "--json",
+        "number,url,title,body,state,stateReason,labels,blockedBy,blocking",
+        "--jq",
+        "if .stateReason == \"\" then .stateReason = null else . end"
+      ],
+      "observedExitCode": 1,
+      "paths": {
+        "$": {
+          "types": [
+            "string"
+          ]
+        }
+      }
+    },
+    "issueList": {
+      "command": [
+        "gh",
+        "issue",
+        "list",
+        "--repo",
+        "thomasluizon/orbit-tickets",
+        "--state",
+        "all",
+        "--limit",
+        "1000",
+        "--json",
+        "number,url,title,body,state,stateReason,labels,blockedBy,blocking",
+        "--jq",
+        "map(if .stateReason == \"\" then .stateReason = null else . end)"
+      ],
+      "observedExitCode": 0,
+      "paths": {
+        "$": {
+          "types": [
+            "array"
+          ]
+        },
+        "$[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$[].blockedBy": {
+          "types": [
+            "object"
+          ]
+        },
+        "$[].blockedBy.nodes": {
+          "types": [
+            "array"
+          ]
+        },
+        "$[].blockedBy.totalCount": {
+          "types": [
+            "number"
+          ]
+        },
+        "$[].blocking": {
+          "types": [
+            "object"
+          ]
+        },
+        "$[].blocking.nodes": {
+          "types": [
+            "array"
+          ]
+        },
+        "$[].blocking.totalCount": {
+          "types": [
+            "number"
+          ]
+        },
+        "$[].body": {
+          "types": [
+            "string"
+          ]
+        },
+        "$[].labels": {
+          "types": [
+            "array"
+          ]
+        },
+        "$[].labels[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$[].labels[].color": {
+          "types": [
+            "string"
+          ]
+        },
+        "$[].labels[].description": {
+          "types": [
+            "string"
+          ]
+        },
+        "$[].labels[].id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$[].labels[].name": {
+          "types": [
+            "string"
+          ]
+        },
+        "$[].number": {
+          "types": [
+            "number"
+          ]
+        },
+        "$[].state": {
+          "types": [
+            "string"
+          ]
+        },
+        "$[].stateReason": {
+          "types": [
+            "null",
+            "string"
+          ]
+        },
+        "$[].title": {
+          "types": [
+            "string"
+          ]
+        },
+        "$[].url": {
+          "types": [
+            "string"
+          ]
+        },
+        "$[].blockedBy.nodes[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$[].blockedBy.nodes[].id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$[].blockedBy.nodes[].number": {
+          "types": [
+            "number"
+          ]
+        },
+        "$[].blockedBy.nodes[].state": {
+          "types": [
+            "string"
+          ]
+        },
+        "$[].blockedBy.nodes[].title": {
+          "types": [
+            "string"
+          ]
+        },
+        "$[].blockedBy.nodes[].url": {
+          "types": [
+            "string"
+          ]
+        },
+        "$[].blocking.nodes[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$[].blocking.nodes[].id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$[].blocking.nodes[].number": {
+          "types": [
+            "number"
+          ]
+        },
+        "$[].blocking.nodes[].state": {
+          "types": [
+            "string"
+          ]
+        },
+        "$[].blocking.nodes[].title": {
+          "types": [
+            "string"
+          ]
+        },
+        "$[].blocking.nodes[].url": {
+          "types": [
+            "string"
+          ]
+        }
+      }
+    },
+    "projectItemList": {
+      "command": [
+        "gh",
+        "project",
+        "item-list",
+        "2",
+        "--owner",
+        "thomasluizon",
+        "--format",
+        "json",
+        "--limit",
+        "1000"
+      ],
+      "observedExitCode": 0,
+      "paths": {
+        "$": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.items": {
+          "types": [
+            "array"
+          ]
+        },
+        "$.items[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.items[].content": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.items[].content.body": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.items[].content.number": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.items[].content.repository": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.items[].content.title": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.items[].content.type": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.items[].content.url": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.items[].id": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.items[].labels": {
+          "types": [
+            "array"
+          ]
+        },
+        "$.items[].labels[]": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.items[].linear ID": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.items[].priority": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.items[].repository": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.items[].status": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.items[].title": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.items[].milestone": {
+          "types": [
+            "object"
+          ]
+        },
+        "$.items[].milestone.description": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.items[].milestone.dueOn": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.items[].milestone.title": {
+          "types": [
+            "string"
+          ]
+        },
+        "$.items[].estimate": {
+          "types": [
+            "number"
+          ]
+        },
+        "$.totalCount": {
+          "types": [
+            "number"
+          ]
+        }
+      }
+    },
+    "labelList": {
+      "command": [
+        "gh",
+        "label",
+        "list",
+        "--repo",
+        "thomasluizon/orbit-tickets",
+        "--limit",
+        "1000",
+        "--json",
+        "name"
+      ],
+      "observedExitCode": 0,
+      "paths": {
+        "$": {
+          "types": [
+            "array"
+          ]
+        },
+        "$[]": {
+          "types": [
+            "object"
+          ]
+        },
+        "$[].name": {
+          "types": [
+            "string"
+          ]
+        }
+      }
+    }
+  }
+}
