@@ -379,11 +379,11 @@ const invented = (command, options = {}) => checkInventedIdentifier(command, { o
 // THE incident, verbatim in shape: a typed id, and a `||` fallback that makes the write the probe.
 T(
   "identifier: the incident command blocks",
-  blocks(invented(`printf 'fixed in %s' "$sha" | node tools/resolve-bot-thread.mjs --thread ${INVENTED} --repo ui || node tools/list-bot-threads.mjs --pr 699 --repo ui`)),
+  blocks(invented(`printf 'fixed in %s' "$sha" | node tools/resolve-bot-thread.mjs --thread ${INVENTED} --repo ui --pr 699 || node tools/list-bot-threads.mjs --pr 699 --repo ui`)),
   true,
 )
 T("identifier: the blocked message names the unknown id", invented(`gh api graphql -f thread=${INVENTED}`)?.message?.includes(INVENTED) === true, true)
-T("identifier: an observed id allows", invented(`node tools/resolve-bot-thread.mjs --thread ${OBSERVED} --repo ui`), null)
+T("identifier: an observed id allows", invented(`node tools/resolve-bot-thread.mjs --thread ${OBSERVED} --repo ui --pr 699`), null)
 // One known id must not launder an unknown one in the same command.
 T("identifier: a known id beside an unknown one still blocks", blocks(invented(`gh api graphql -f a=${OBSERVED} -f b=${INVENTED}`)), true)
 T("identifier: only the unknown id is named", invented(`gh api graphql -f a=${OBSERVED} -f b=${INVENTED}`)?.message?.includes(OBSERVED) === true, false)
@@ -407,7 +407,7 @@ T(
 )
 T(
   "identifier: the same id on the COMMAND LINE beside a heredoc still blocks",
-  blocks(invented(`node tools/resolve-bot-thread.mjs --thread ${INVENTED} --repo ui <<'F'\nfixed in abc\nF`)),
+  blocks(invented(`node tools/resolve-bot-thread.mjs --thread ${INVENTED} --repo ui --pr 699 <<'F'\nfixed in abc\nF`)),
   true,
 )
 
@@ -459,7 +459,7 @@ T("adapter worker-browser: the same dev server outside a worker -> 0", runHook(B
  */
 const IDENT_HOOK = "forbid-invented-identifier.mjs"
 const IDENT_SESSION = "orbit-hooks-gate-identifier-session"
-const resolveCommand = (id) => `node tools/resolve-bot-thread.mjs --thread ${id} --repo ui`
+const resolveCommand = (id) => `node tools/resolve-bot-thread.mjs --thread ${id} --repo ui --pr 699`
 const identPayload = (command, sessionId = IDENT_SESSION) => ({ tool_name: "Bash", tool_input: { command }, cwd: repoRoot, session_id: sessionId })
 
 T("adapter identifier: an id this run never read -> 2", runHook(IDENT_HOOK, identPayload(resolveCommand(INVENTED))), 2)
@@ -484,8 +484,10 @@ const { identifierLedgerPath, recordObservedIdentifiers } = await import("../../
 const ledgerPath = identifierLedgerPath(repoRoot)
 const priorLedger = existsSync(ledgerPath) ? readFileSync(ledgerPath, "utf8") : null
 try {
-  recordObservedIdentifiers([INVENTED], { repoRoot, tool: "test-hooks.mjs" })
-  T("adapter identifier: an id recorded by the listing tool -> 0", runHook(IDENT_HOOK, identPayload(resolveCommand(INVENTED))), 0)
+  recordObservedIdentifiers([INVENTED], { repoRoot, tool: "test-hooks.mjs", runIdentifier: "an-earlier-session" })
+  T("adapter identifier: an id recorded by an earlier run -> 2", runHook(IDENT_HOOK, identPayload(resolveCommand(INVENTED))), 2)
+  recordObservedIdentifiers([INVENTED], { repoRoot, tool: "test-hooks.mjs", runIdentifier: IDENT_SESSION })
+  T("adapter identifier: an id recorded by this run -> 0", runHook(IDENT_HOOK, identPayload(resolveCommand(INVENTED))), 0)
 } finally {
   if (priorLedger === null) rmSync(ledgerPath, { force: true })
   else writeFileSync(ledgerPath, priorLedger)
