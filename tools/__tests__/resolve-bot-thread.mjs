@@ -1,20 +1,23 @@
 import { readFileSync } from "node:fs"
+import { join } from "node:path"
 
-import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
+import { TOOLS_DIR, processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
 
 const TOOL = "resolve-bot-thread.mjs"
-const THREAD = "PRRT_kwDOR5Siws6Wfy_V"
+const targetEvidence = JSON.parse(readFileSync(join(TOOLS_DIR, "__fixtures__", "gh-review-thread-target.json"), "utf8"))
+const THREAD = targetEvidence.command.find((value) => value.startsWith("thread=")).slice("thread=".length)
+const PR = targetEvidence.response.data.node.pullRequest.number
 let testedToolPath = null
 
-const OURS = "thomasluizon/orbit-ui-mobile"
+const OURS = targetEvidence.response.data.node.repository.nameWithOwner
 const THEIRS = "benhook1013/FireMUD"
 
-const REPLY_OK = JSON.stringify({ data: { addPullRequestReviewThreadReply: { comment: { id: "IC_1", url: "https://github.com/thomasluizon/orbit-ui-mobile/pull/681#discussion_r1" } } } })
+const REPLY_OK = JSON.stringify({ data: { addPullRequestReviewThreadReply: { comment: { id: "IC_1", url: "https://github.com/thomasluizon/orbit-ui-mobile/pull/700#discussion_r1" } } } })
 const RESOLVE_OK = JSON.stringify({ data: { resolveReviewThread: { thread: { id: THREAD, isResolved: true } } } })
 
 /** The pre-write target read, which now runs on BOTH paths before anything is mutated. */
-const threadNode = ({ nameWithOwner = OURS, isResolved = false, totalCount = 2, pullRequest = 681 } = {}) =>
-  JSON.stringify({ data: { node: { isResolved, comments: { totalCount }, repository: nameWithOwner === null ? null : { nameWithOwner }, pullRequest: { number: pullRequest } } } })
+const threadNode = ({ nameWithOwner = OURS, isResolved = false, totalCount = 2, pullRequest = PR } = {}) =>
+  JSON.stringify({ data: { node: { isResolved, comments: { totalCount }, repository: nameWithOwner === null ? null : { nameWithOwner }, pullRequest: pullRequest === null ? null : { number: pullRequest } } } })
 
 const UNRESOLVABLE_NODE = JSON.stringify({ data: { node: null } })
 
@@ -40,14 +43,22 @@ const parsed = (result) => {
   }
 }
 
-const post = (body, options = {}, argv = []) => run(TOOL, ["--thread", THREAD, "--repo", "ui", ...argv], { path: testedToolPath, env: plan(options), input: body })
+const post = (body, options = {}, argv = []) => run(TOOL, ["--thread", THREAD, "--repo", "ui", "--pr", String(PR), ...argv], { path: testedToolPath, env: plan(options), input: body })
 
 export const cases = () => {
+  T(
+    `${TOOL}: repository and pull request target fields have a recorded real GraphQL response`,
+    targetEvidence.response.data.node.__typename === "PullRequestReviewThread" &&
+      targetEvidence.paths["$.data.node.repository.nameWithOwner"]?.types?.includes("string") &&
+      targetEvidence.paths["$.data.node.pullRequest.number"]?.types?.includes("number"),
+    JSON.stringify(targetEvidence.response),
+  )
   check(TOOL, "refuses a missing thread id", [], { status: 2, stderr: /--thread must be a review thread node id/, input: "fixed in abc123" })
   check(TOOL, "refuses a pull request number in place of a thread id", ["--thread", "681"], { status: 2, stderr: /--thread must be a review thread node id/ }, { input: "fixed in abc123" })
   check(TOOL, "refuses a malformed thread id before any mutation", ["--thread", "IC_notathread"], { status: 2, stderr: /--thread must be a review thread node id/ }, { input: "fixed in abc123" })
-  check(TOOL, "refuses a missing repository before any mutation", ["--thread", THREAD], { status: 2, stderr: /--repo must name a configured repository/ }, { input: "fixed in abc123" })
-  check(TOOL, "refuses a zero command timeout", ["--thread", THREAD, "--repo", "ui", "--command-timeout-seconds", "0"], { status: 2, stderr: /--command-timeout-seconds requires a positive number/ }, { input: "fixed in abc123" })
+  check(TOOL, "refuses a missing repository before any mutation", ["--thread", THREAD, "--pr", String(PR)], { status: 2, stderr: /--repo must name a configured repository/ }, { input: "fixed in abc123" })
+  check(TOOL, "refuses a missing pull request before any mutation", ["--thread", THREAD, "--repo", "ui"], { status: 2, stderr: /--pr must be a positive pull request number/ }, { input: "fixed in abc123" })
+  check(TOOL, "refuses a zero command timeout", ["--thread", THREAD, "--repo", "ui", "--pr", String(PR), "--command-timeout-seconds", "0"], { status: 2, stderr: /--command-timeout-seconds requires a positive number/ }, { input: "fixed in abc123" })
 
   const githubContext = stageRepo("resolve-bot-thread-github-context")
   if (!githubContext || githubContext.git(["remote", "set-url", "origin", "https://github.com/thomasluizon/orbit-ui-mobile.git"]).status !== 0) {
@@ -62,10 +73,10 @@ export const cases = () => {
    * THE gate. A resolve with no reason is worse than an open thread, so an empty body is refused
    * before anything is posted rather than being allowed to close a finding silently.
    */
-  const empty = run(TOOL, ["--thread", THREAD, "--repo", "ui"], { path: testedToolPath, env: plan(), input: "" })
+  const empty = run(TOOL, ["--thread", THREAD, "--repo", "ui", "--pr", String(PR)], { path: testedToolPath, env: plan(), input: "" })
   T(`${TOOL}: an empty reply body is refused before any mutation`, empty.status === 2 && /reply body on stdin is empty/.test(empty.stderr), `exit ${empty.status}: ${empty.stderr || empty.stdout}`)
 
-  const blank = run(TOOL, ["--thread", THREAD, "--repo", "ui"], { path: testedToolPath, env: plan(), input: "   \n\t  \n" })
+  const blank = run(TOOL, ["--thread", THREAD, "--repo", "ui", "--pr", String(PR)], { path: testedToolPath, env: plan(), input: "   \n\t  \n" })
   T(`${TOOL}: a whitespace-only reply body is refused too`, blank.status === 2 && /reply body on stdin is empty/.test(blank.stderr), `exit ${blank.status}: ${blank.stderr || blank.stdout}`)
 
   /**
@@ -92,9 +103,23 @@ export const cases = () => {
     `exit ${unresolvable.status}: ${unresolvable.stderr || unresolvable.stdout}`,
   )
 
+  const wrongPullRequest = post("fixed in 4e6e4871", { target: threadNode({ pullRequest: 701 }) })
+  T(
+    `${TOOL}: a thread on ANOTHER pull request is refused before either write`,
+    wrongPullRequest.status === 2 && /belongs to pull request 701, not pull request 700/.test(wrongPullRequest.stderr) && wrongPullRequest.stdout === "",
+    `exit ${wrongPullRequest.status}: ${wrongPullRequest.stderr || wrongPullRequest.stdout}`,
+  )
+
+  const missingPullRequest = post("fixed in 4e6e4871", { target: threadNode({ pullRequest: null }) })
+  T(
+    `${TOOL}: a thread response with no pullRequest.number fails closed`,
+    missingPullRequest.status === 2 && /returned no pullRequest\.number/.test(missingPullRequest.stderr) && missingPullRequest.stdout === "",
+    `exit ${missingPullRequest.status}: ${missingPullRequest.stderr || missingPullRequest.stdout}`,
+  )
+
   /** --resolve-only writes too, so the same assertion must guard it. A gate on one path only is
    * the shape that reads as covered and is not. */
-  const foreignResolveOnly = run(TOOL, ["--thread", THREAD, "--repo", "ui", "--resolve-only"], { path: testedToolPath, env: orcaEnv([
+  const foreignResolveOnly = run(TOOL, ["--thread", THREAD, "--repo", "ui", "--pr", String(PR), "--resolve-only"], { path: testedToolPath, env: orcaEnv([
     { match: "auth token --user thomasluizon", stdout: "test-github-token" },
     { match: "nameWithOwner", stdout: threadNode({ nameWithOwner: THEIRS }) },
     { match: "resolveReviewThread", stdout: RESOLVE_OK },
@@ -115,7 +140,7 @@ export const cases = () => {
   T(`${TOOL}: the reply comment url is returned so the record is followable`, /#discussion_r1$/.test(happyPlan?.commentUrl ?? ""), happy.stdout)
   T(
     `${TOOL}: the resolved target is reported, so a reader can see WHERE the write landed`,
-    happyPlan?.targetRepository === OURS && happyPlan?.targetPullRequest === 681,
+    happyPlan?.targetRepository === OURS && happyPlan?.targetPullRequest === PR,
     happy.stdout,
   )
 
@@ -156,7 +181,7 @@ export const cases = () => {
   const resolveFailedPlan = parsed(resolveFailed)
   T(
     `${TOOL}: a failed resolve still reports that the reply landed, so a retry cannot double-post`,
-    resolveFailed.status === 1 && resolveFailedPlan?.replied === true && resolveFailedPlan.resolved === false && /do not repost the reply/.test(resolveFailedPlan.note ?? "") && /--repo ui --resolve-only$/.test(resolveFailedPlan.retry ?? ""),
+    resolveFailed.status === 1 && resolveFailedPlan?.replied === true && resolveFailedPlan.resolved === false && /do not repost the reply/.test(resolveFailedPlan.note ?? "") && /--repo ui --pr 700 --resolve-only$/.test(resolveFailedPlan.retry ?? ""),
     resolveFailed.stdout || resolveFailed.stderr,
   )
 
@@ -175,24 +200,24 @@ export const cases = () => {
       { match: "resolveReviewThread", stdout: resolve, exit: resolveExit },
     ])
 
-  const retried = run(TOOL, ["--thread", THREAD, "--repo", "ui", "--resolve-only"], { path: testedToolPath, env: retryPlan(threadWithReply) })
+  const retried = run(TOOL, ["--thread", THREAD, "--repo", "ui", "--pr", String(PR), "--resolve-only"], { path: testedToolPath, env: retryPlan(threadWithReply) })
   T(`${TOOL}: --resolve-only resolves a thread that already carries a reply`, retried.status === 0 && parsed(retried)?.resolved === true && parsed(retried)?.resolveOnly === true, retried.stdout || retried.stderr)
 
-  const bare = run(TOOL, ["--thread", THREAD, "--repo", "ui", "--resolve-only"], { path: testedToolPath, env: retryPlan(threadNoReply) })
+  const bare = run(TOOL, ["--thread", THREAD, "--repo", "ui", "--pr", String(PR), "--resolve-only"], { path: testedToolPath, env: retryPlan(threadNoReply) })
   T(
     `${TOOL}: --resolve-only REFUSES a thread with no reply, so it cannot become a bare resolve`,
     bare.status === 2 && /carries no reply/.test(bare.stderr),
     `exit ${bare.status}: ${bare.stderr || bare.stdout}`,
   )
 
-  const already = run(TOOL, ["--thread", THREAD, "--repo", "ui", "--resolve-only"], { path: testedToolPath, env: retryPlan(threadDone) })
+  const already = run(TOOL, ["--thread", THREAD, "--repo", "ui", "--pr", String(PR), "--resolve-only"], { path: testedToolPath, env: retryPlan(threadDone) })
   T(`${TOOL}: --resolve-only on an already-resolved thread is a no-op exit 0`, already.status === 0 && /already resolved/.test(already.stdout), already.stdout || already.stderr)
 
-  const retryFailed = run(TOOL, ["--thread", THREAD, "--repo", "ui", "--resolve-only"], { path: testedToolPath, env: retryPlan(threadWithReply, JSON.stringify({ errors: [{ message: "still failing" }] })) })
+  const retryFailed = run(TOOL, ["--thread", THREAD, "--repo", "ui", "--pr", String(PR), "--resolve-only"], { path: testedToolPath, env: retryPlan(threadWithReply, JSON.stringify({ errors: [{ message: "still failing" }] })) })
   T(`${TOOL}: a failing --resolve-only retry exits non-zero naming the error`, retryFailed.status === 1 && /still failing/.test(parsed(retryFailed)?.error ?? ""), retryFailed.stdout || retryFailed.stderr)
 
   const descendantPidFile = stage("resolve-bot-thread/descendant.pid", "")
-  const hanging = run(TOOL, ["--thread", THREAD, "--repo", "ui", "--resolve-only", "--command-timeout-seconds", "1"], { path: testedToolPath, env: orcaEnv([
+  const hanging = run(TOOL, ["--thread", THREAD, "--repo", "ui", "--pr", String(PR), "--resolve-only", "--command-timeout-seconds", "1"], { path: testedToolPath, env: orcaEnv([
     { match: "auth token --user thomasluizon", stdout: "test-github-token" },
     { match: "nameWithOwner", stdout: "", hangTreePidFile: descendantPidFile },
   ]) })
@@ -201,7 +226,7 @@ export const cases = () => {
   T(`${TOOL}: thread timeout removes the complete child process tree`, Number.isInteger(descendantPid) && !processIsRunning(descendantPid), `descendant ${descendantPid} still alive`)
 
   /** --dry-run is the seam that keeps this module hermetic: it must mutate nothing at all. */
-  const dry = run(TOOL, ["--thread", THREAD, "--repo", "ui", "--dry-run"], { path: testedToolPath, env: orcaEnv([]), input: "not applicable because the code moved" })
+  const dry = run(TOOL, ["--thread", THREAD, "--repo", "ui", "--pr", String(PR), "--dry-run"], { path: testedToolPath, env: orcaEnv([]), input: "not applicable because the code moved" })
   const dryPlan = parsed(dry)
   T(
     `${TOOL}: --dry-run exits 0 having called neither mutation`,
